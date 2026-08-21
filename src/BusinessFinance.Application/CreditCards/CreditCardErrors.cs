@@ -1,0 +1,43 @@
+using BusinessFinance.Application.Abstractions.Results;
+
+namespace BusinessFinance.Application.CreditCards;
+
+public static class CreditCardErrors
+{
+    public static readonly ApplicationError AuthenticationRequired = new(
+        "authentication.required",
+        "An authenticated user is required.",
+        ApplicationErrorType.Unauthorized);
+    public static ApplicationError Validation(string message) => new(
+        "credit_cards.validation",
+        message,
+        ApplicationErrorType.Validation);
+    public static ApplicationError NotFound(Guid id) => new(
+        "credit_cards.not_found",
+        $"Credit card '{id}' was not found.",
+        ApplicationErrorType.NotFound);
+    public static readonly ApplicationError DuplicateName = new(
+        "credit_cards.duplicate_name",
+        "A credit card with the same name already exists.",
+        ApplicationErrorType.Conflict);
+    public static readonly ApplicationError LimitExceeded = new(
+        "credit_cards.limit_exceeded",
+        "The charge would exceed the credit card limit.",
+        ApplicationErrorType.Conflict);
+    public static readonly ApplicationError PaymentExceedsDebt = new(
+        "credit_cards.payment_exceeds_debt",
+        "The payment cannot exceed the current card debt.",
+        ApplicationErrorType.Conflict);
+    public static ApplicationError ChargeNotFound(Guid id) => new(
+        "credit_cards.charge_not_found",
+        $"Credit card charge '{id}' was not found.",
+        ApplicationErrorType.NotFound);
+    public static ApplicationError PaymentNotFound(Guid id) => new(
+        "credit_cards.payment_not_found",
+        $"Credit card payment '{id}' was not found.",
+        ApplicationErrorType.NotFound);
+    public static readonly ApplicationError CancelOriginLocked = new(
+        "credit_card_charges.cancel_origin_locked",
+        "A charge produced by a recurring plan or an installment cannot be cancelled.",
+        ApplicationErrorType.Conflict);
+}

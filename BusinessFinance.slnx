@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BusinessFinance.Api/BusinessFinance.Api.csproj" Id="a16d7423-bc59-444f-a78e-91f82b81fe95" />
+    <Project Path="src/BusinessFinance.Api.Tests/BusinessFinance.Api.Tests.csproj" />
+    <Project Path="src/BusinessFinance.Application.Tests/BusinessFinance.Application.Tests.csproj" />
+    <Project Path="src/BusinessFinance.Application/BusinessFinance.Application.csproj" />
+    <Project Path="src/BusinessFinance.CSharpSandbox/BusinessFinance.CSharpSandbox.csproj" />
+    <Project Path="src/BusinessFinance.Domain.Tests/BusinessFinance.Domain.Tests.csproj" Id="2f5c34ba-5f98-463e-8394-f5bef5448134" />
+    <Project Path="src/BusinessFinance.Domain/BusinessFinance.Domain.csproj" Id="579e14fa-890d-458d-a0a4-da8a2511ca5a" />
+    <Project Path="src/BusinessFinance.Infrastructure.Tests/BusinessFinance.Infrastructure.Tests.csproj" />
+    <Project Path="src/BusinessFinance.Infrastructure/BusinessFinance.Infrastructure.csproj" />
+    <Project Path="src/BusinessFinance.ReceiptMeasurement/BusinessFinance.ReceiptMeasurement.csproj" />
+  </Folder>
+</Solution>

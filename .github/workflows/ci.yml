@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    # windows-latest bilerek seçildi: geliştirme ortamı Windows ve satır sonları
+    # CRLF. `dotnet format --verify-no-changes` satır sonuna duyarlı olduğu için
+    # Linux runner'da aynı kaynak sebepsiz düşüyordu.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore BusinessFinance.slnx
+
+      - name: Build
+        run: dotnet build BusinessFinance.slnx --configuration Release --no-restore
+
+      - name: Format
+        run: dotnet format BusinessFinance.slnx --verify-no-changes --no-restore
+
+      # SQL Server'a bağlanan testler BUSINESS_FINANCE_SQL_TEST_CONNECTION
+      # yokken açık skip olur; Gemini canlı sözleşme testi de öyle. CI'da
+      # ikisi de koşmaz, bu beklenen davranıştır.
+      - name: Test
+        run: dotnet test BusinessFinance.slnx --configuration Release --no-restore --no-build
+
+  flutter:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: mobile/business_finance_mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.8"
+          channel: stable
+          cache: true
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      # `dart format .` kullanılmaz: build/ altındaki APK artefaktlarını da
+      # tarar, uzun Gradle yollarında düşer ve yine de exit 0 döner.
+      - name: Format
+        run: dart format --set-exit-if-changed lib test
+
+      - name: Test
+        run: flutter test

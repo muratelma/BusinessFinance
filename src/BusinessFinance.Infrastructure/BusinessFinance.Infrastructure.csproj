@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Varsayılan kategori listesini testlerin kopyalamaması için: kopya,
+         listeyle birlikte güncellenmeyip sessizce eskiyen bir kaynak olur. -->
+    <InternalsVisibleTo Include="BusinessFinance.Infrastructure.Tests" />
+    <!-- Manuel, sentetik fiş koşumu üretimdeki adapter'ları ölçer; ayrı bir
+         kopya ölçmek gerçek davranış hakkında yanlış güven üretirdi. -->
+    <InternalsVisibleTo Include="BusinessFinance.ReceiptMeasurement" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.10" />
+    <PackageReference Include="SkiaSharp" Version="4.151.1" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.21.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BusinessFinance.Application\BusinessFinance.Application.csproj" />
+  </ItemGroup>
+
+</Project>

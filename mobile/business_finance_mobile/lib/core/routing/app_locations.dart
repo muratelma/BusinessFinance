@@ -1,0 +1,27 @@
+/// Rota tanımıyla oraya gönderen çağrının paylaştığı yol sabitleri.
+///
+/// Kendi dosyasında duruyorlar çünkü `app_router.dart` özellik ekranlarını
+/// içeri alıyor; sabitler orada kalsaydı bir özelliğin oraya sabit için
+/// başvurması iki dosyayı birbirine bağlardı. Burası hiçbir şey import etmez.
+///
+/// Sabit olmalarının sebebi yaşanmış bir hata: rota taşındığında çağrı eski
+/// dizgide kaldı ve uygulama cihazda "no routes for location" ile patladı.
+/// Aşağıdaki yolların hepsi fiş ekranıyla **kardeş** olmak zorunda; üst
+/// seviyeye alınan sayfa, shell zinciri yeniden kurulduğu için Navigator'a
+/// aynı sayfa anahtarını ikinci kez kaydettiriyor ve çöküyor.
+library;
+
+/// Banka belgesi karar sayfası: "bu tutar ne?".
+const bankDocumentDecisionLocation = '/transactions/new/bank-document';
+
+/// Dekont okuma sayfası.
+///
+/// Fiş sayfasının kardeşi ve ondan ayrı: ikisi tek ekranda toplandığında
+/// kullanıcıya `İşlem ekle` menüsünde verdiği cevap ekranda tekrar soruluyordu.
+const bankSlipScanLocation = '/transactions/new/bank-slip';
+
+/// İade karar sayfası.
+const refundDecisionLocation = '/transactions/new/refund';
+
+/// Fatura "ödendi mi?" sayfası.
+const invoiceDecisionLocation = '/transactions/new/invoice';

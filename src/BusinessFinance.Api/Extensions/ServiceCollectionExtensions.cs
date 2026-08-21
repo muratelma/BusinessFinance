@@ -1,0 +1,114 @@
+using BusinessFinance.Api.Security;
+using BusinessFinance.Application.Abstractions.Authentication;
+using BusinessFinance.Application.Accounts.CreateAccount;
+using BusinessFinance.Application.Accounts.DeleteAccount;
+using BusinessFinance.Application.Accounts.DeactivateAccount;
+using BusinessFinance.Application.Accounts.GetAccount;
+using BusinessFinance.Application.Accounts.ListAccounts;
+using BusinessFinance.Application.Accounts.UpdateAccount;
+using BusinessFinance.Application.Categories;
+using BusinessFinance.Application.Transactions;
+using BusinessFinance.Application.Budgets;
+using BusinessFinance.Application.Reports;
+using BusinessFinance.Application.Authentication.LoginUser;
+using BusinessFinance.Application.Authentication.Logout;
+using BusinessFinance.Application.Authentication.RefreshTokens;
+using BusinessFinance.Application.Authentication.RegisterUser;
+using BusinessFinance.Application.Transfers;
+using BusinessFinance.Application.CreditCards;
+using BusinessFinance.Application.RecurringTransactions;
+using BusinessFinance.Application.UpcomingPayments;
+using BusinessFinance.Application.DataPortability;
+using BusinessFinance.Application.Debts;
+using BusinessFinance.Application.SavingsGoals;
+using BusinessFinance.Application.Attachments;
+using BusinessFinance.Application.FinancialActivities;
+using BusinessFinance.Application.Imports;
+using BusinessFinance.Application.Receipts;
+
+namespace BusinessFinance.Api.Extensions;
+
+public static class ServiceCollectionExtensions
+{
+    public static IServiceCollection AddApplicationUseCases(
+        this IServiceCollection services)
+    {
+        services.AddHttpContextAccessor();
+        services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
+        services.AddTransient<RegisterUserUseCase>();
+        services.AddTransient<LoginUserUseCase>();
+        services.AddTransient<RefreshTokensUseCase>();
+        services.AddTransient<LogoutUseCase>();
+        services.AddTransient<CreateAccountUseCase>();
+        services.AddTransient<DeleteAccountUseCase>();
+        services.AddTransient<ListAccountsUseCase>();
+        services.AddTransient<GetAccountUseCase>();
+        services.AddTransient<DeactivateAccountUseCase>();
+        services.AddTransient<UpdateAccountUseCase>();
+        services.AddTransient<CreateCategoryUseCase>();
+        services.AddTransient<ListCategoriesUseCase>();
+        services.AddTransient<UpdateCategoryUseCase>();
+        services.AddTransient<CreateTransactionUseCase>();
+        services.AddTransient<CancelTransactionUseCase>();
+        services.AddTransient<ListTransactionsUseCase>();
+        services.AddTransient<GetTransactionUseCase>();
+        services.AddTransient<CreateBudgetUseCase>();
+        services.AddTransient<UpdateBudgetUseCase>();
+        services.AddTransient<ListBudgetsUseCase>();
+        services.AddTransient<GetMonthlyReportUseCase>();
+        services.AddTransient<GetAdvancedFinancialReportUseCase>();
+        services.AddTransient<CreateTransferUseCase>();
+        services.AddTransient<GetTransferUseCase>();
+        services.AddTransient<ListTransfersUseCase>();
+        services.AddTransient<CancelTransferUseCase>();
+        services.AddTransient<CreateCreditCardUseCase>();
+        services.AddTransient<GetCreditCardUseCase>();
+        services.AddTransient<ListCreditCardsUseCase>();
+        services.AddTransient<UpdateCreditCardUseCase>();
+        services.AddTransient<CreateCardChargeUseCase>();
+        services.AddTransient<CreateCardPaymentUseCase>();
+        services.AddTransient<ListCardActivityUseCase>();
+        services.AddTransient<CancelCardChargeUseCase>();
+        services.AddTransient<CancelCardPaymentUseCase>();
+        services.AddTransient<GetCreditCardStatementUseCase>();
+        services.AddTransient<GetCurrentCreditCardStatementUseCase>();
+        services.AddTransient<CreateInstallmentPlanUseCase>();
+        services.AddTransient<ListInstallmentPlansUseCase>();
+        services.AddTransient<RealizeInstallmentUseCase>();
+        services.AddTransient<CreateRecurringTransactionUseCase>();
+        services.AddTransient<ListRecurringTransactionsUseCase>();
+        services.AddTransient<SetRecurringActiveUseCase>();
+        services.AddTransient<GenerateRecurringOccurrencesUseCase>();
+        services.AddTransient<ListRecurringOccurrencesUseCase>();
+        services.AddTransient<DeleteRecurringTransactionUseCase>();
+        services.AddTransient<RealizeRecurringOccurrenceUseCase>();
+        services.AddTransient<RealizeDueRecurringUseCase>();
+        services.AddTransient<ListPlannedActivitiesUseCase>();
+        services.AddTransient<ListFinancialActivitiesUseCase>();
+        services.AddTransient<GetUpcomingPaymentsUseCase>();
+        services.AddTransient<ExportTransactionsCsvUseCase>();
+        services.AddTransient<ExportFinancialJsonUseCase>();
+        services.AddTransient<CreateBackupUseCase>();
+        services.AddTransient<ValidateBackupUseCase>();
+        services.AddTransient<RestoreBackupUseCase>();
+        services.AddTransient<CreateDebtUseCase>();
+        services.AddTransient<ListDebtsUseCase>();
+        services.AddTransient<PayDebtInstallmentUseCase>();
+        services.AddTransient<RecordDebtOpeningUseCase>();
+        services.AddTransient<CreateSavingsGoalUseCase>();
+        services.AddTransient<ListSavingsGoalsUseCase>();
+        services.AddTransient<AddSavingsGoalContributionUseCase>();
+        services.AddTransient<DeleteSavingsGoalUseCase>();
+        services.AddTransient<UploadAttachmentUseCase>();
+        services.AddTransient<ListAttachmentsUseCase>();
+        services.AddTransient<DownloadAttachmentUseCase>();
+        services.AddTransient<StageCsvImportUseCase>();
+        services.AddTransient<GetImportBatchUseCase>();
+        services.AddTransient<UpdateImportCandidateUseCase>();
+        services.AddTransient<ConfirmImportBatchUseCase>();
+        services.AddTransient<ResolveImportDuplicateUseCase>();
+        services.AddTransient<AnalyzeReceiptUseCase>();
+
+        return services;
+    }
+}

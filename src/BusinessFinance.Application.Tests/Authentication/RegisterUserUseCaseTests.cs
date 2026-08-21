@@ -1,0 +1,116 @@
+using BusinessFinance.Application.Abstractions.Results;
+using BusinessFinance.Application.Authentication;
+using BusinessFinance.Application.Authentication.RegisterUser;
+
+namespace BusinessFinance.Application.Tests.Authentication;
+
+public sealed class RegisterUserUseCaseTests
+{
+    [Fact]
+    public async Task ExecuteAsync_WhenIdentityRegistrationSucceeds_ReturnsUser()
+    {
+        var userId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        var service = new FakeIdentityAccountService
+        {
+            RegistrationResult = new IdentityRegistrationResult(
+                IdentityRegistrationStatus.Succeeded,
+                userId,
+                "user@example.com")
+        };
+        var useCase = new RegisterUserUseCase(service);
+
+        var result = await useCase.ExecuteAsync(
+            new RegisterUserCommand("user@example.com", "Valid-Password-123!"));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(userId, result.Value.UserId);
+        Assert.Equal("user@example.com", result.Value.Email);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenEmailExists_ReturnsGenericConflict()
+    {
+        var service = new FakeIdentityAccountService
+        {
+            RegistrationResult = new IdentityRegistrationResult(
+                IdentityRegistrationStatus.DuplicateEmail,
+                null,
+                null)
+        };
+        var useCase = new RegisterUserUseCase(service);
+
+        var result = await useCase.ExecuteAsync(
+            new RegisterUserCommand("user@example.com", "Valid-Password-123!"));
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ApplicationErrorType.Conflict, result.Error.Type);
+        Assert.Equal("authentication.registration_conflict", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenPasswordIsWeak_ReturnsPasswordPolicyValidation()
+    {
+        var service = new FakeIdentityAccountService
+        {
+            RegistrationResult = new IdentityRegistrationResult(
+                IdentityRegistrationStatus.InvalidPassword,
+                null,
+                null)
+        };
+        var useCase = new RegisterUserUseCase(service);
+
+        var result = await useCase.ExecuteAsync(
+            new RegisterUserCommand("user@example.com", "weak"));
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ApplicationErrorType.Validation, result.Error.Type);
+        Assert.Equal("authentication.password_policy", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ForwardsCancellationToken()
+    {
+        var service = new FakeIdentityAccountService();
+        var useCase = new RegisterUserUseCase(service);
+        using var cancellationTokenSource = new CancellationTokenSource();
+
+        await useCase.ExecuteAsync(
+            new RegisterUserCommand("user@example.com", "Valid-Password-123!"),
+            cancellationTokenSource.Token);
+
+        Assert.Equal(cancellationTokenSource.Token, service.ReceivedCancellationToken);
+    }
+
+    private sealed class FakeIdentityAccountService : IIdentityAccountService
+    {
+        public IdentityRegistrationResult RegistrationResult { get; init; } = new(
+            IdentityRegistrationStatus.InvalidRegistration,
+            null,
+            null);
+        public CancellationToken ReceivedCancellationToken { get; private set; }
+
+        public Task<IdentityRegistrationResult> RegisterAsync(
+            string email,
+            string password,
+            CancellationToken cancellationToken)
+        {
+            ReceivedCancellationToken = cancellationToken;
+            return Task.FromResult(RegistrationResult);
+        }
+
+        public Task<AuthenticatedIdentity?> AuthenticateAsync(
+            string email,
+            string password,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<AuthenticatedIdentity?> FindActiveByIdAsync(
+            Guid userId,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+    }
+}

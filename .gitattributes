@@ -1,0 +1,18 @@
+# Metin dosyaları depoda LF saklanır, Windows çalışma ağacında CRLF olur.
+# Bu satır olmadan `git archive`/farklı makine kombinasyonları satır sonlarını
+# kaydırıyor ve `dotnet format --verify-no-changes` sebepsiz düşüyor.
+* text=auto
+
+# İkili dosyalar hiçbir dönüşümden geçmez.
+*.pdf   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.ico   binary
+*.ttf   binary
+*.otf   binary
+*.woff  binary
+*.woff2 binary
+*.jar   binary
+*.keystore binary
+*.bak   binary

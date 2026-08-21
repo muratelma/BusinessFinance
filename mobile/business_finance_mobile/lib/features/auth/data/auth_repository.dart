@@ -1,0 +1,144 @@
+import '../../../core/network/api_exception.dart';
+import '../../../core/storage/secure_session_store.dart';
+import 'auth_models.dart';
+import 'auth_service.dart';
+
+abstract interface class AuthSessionRepository {
+  AuthSession? get currentSession;
+
+  Future<RegisterResult> register(String email, String password);
+
+  Future<AuthSession> login(String email, String password);
+
+  Future<AuthSession?> restoreSession();
+
+  Future<String?> getValidAccessToken();
+
+  Future<AuthSession?> refreshSession();
+
+  Future<void> logout();
+}
+
+class AuthRepository implements AuthSessionRepository {
+  factory AuthRepository({
+    required AuthRemoteService remoteService,
+    required SessionStore sessionStore,
+    DateTime Function()? utcNow,
+  }) => AuthRepository._(
+    remoteService,
+    sessionStore,
+    utcNow ?? (() => DateTime.now().toUtc()),
+  );
+
+  AuthRepository._(this._remoteService, this._sessionStore, this._utcNow);
+
+  static const _refreshMargin = Duration(seconds: 60);
+
+  final AuthRemoteService _remoteService;
+  final SessionStore _sessionStore;
+  final DateTime Function() _utcNow;
+
+  AuthSession? _session;
+  Future<AuthSession?>? _refreshInFlight;
+
+  @override
+  AuthSession? get currentSession => _session;
+
+  @override
+  Future<RegisterResult> register(String email, String password) =>
+      _remoteService.register(email.trim(), password);
+
+  @override
+  Future<AuthSession> login(String email, String password) async {
+    final session = await _remoteService.login(email.trim(), password);
+    await _sessionStore.write(session);
+    _session = session;
+    return session;
+  }
+
+  @override
+  Future<AuthSession?> restoreSession() async {
+    try {
+      final stored = await _sessionStore.read();
+      if (stored == null) {
+        _session = null;
+        return null;
+      }
+      _session = stored;
+      if (!stored.refreshTokenExpiresAtUtc.isAfter(_utcNow())) {
+        await _clearSession();
+        return null;
+      }
+      if (_needsRefresh(stored)) {
+        return refreshSession();
+      }
+      return stored;
+    } on FormatException {
+      await _clearSession();
+      return null;
+    }
+  }
+
+  @override
+  Future<String?> getValidAccessToken() async {
+    final session = _session ?? await restoreSession();
+    if (session == null) {
+      return null;
+    }
+    final validSession = _needsRefresh(session)
+        ? await refreshSession()
+        : session;
+    return validSession?.accessToken;
+  }
+
+  @override
+  Future<AuthSession?> refreshSession() {
+    return _refreshInFlight ??= _refreshOnce().whenComplete(
+      () => _refreshInFlight = null,
+    );
+  }
+
+  Future<AuthSession?> _refreshOnce() async {
+    final session = _session;
+    if (session == null ||
+        !session.refreshTokenExpiresAtUtc.isAfter(_utcNow())) {
+      await _clearSession();
+      return null;
+    }
+
+    try {
+      final rotated = await _remoteService.refresh(session);
+      await _sessionStore.write(rotated);
+      _session = rotated;
+      return rotated;
+    } on ApiException catch (error) {
+      if (error.isUnauthorized) {
+        await _clearSession();
+      }
+      rethrow;
+    } on FormatException {
+      await _clearSession();
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> logout() async {
+    final refreshToken = _session?.refreshToken;
+    try {
+      if (refreshToken != null) {
+        await _remoteService.logout(refreshToken);
+      }
+    } finally {
+      await _clearSession();
+    }
+  }
+
+  bool _needsRefresh(AuthSession session) =>
+      !session.accessTokenExpiresAtUtc.isAfter(_utcNow().add(_refreshMargin));
+
+  Future<void> _clearSession() async {
+    _session = null;
+    await _sessionStore.clear();
+  }
+}
