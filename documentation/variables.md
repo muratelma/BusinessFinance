@@ -53,6 +53,21 @@ Yerel SQL adresi `127.0.0.1,14334` biçimindedir. `TrustServerCertificate=True`
 yalnız yerel container geliştirmesi içindir. SQL test connection değeri yoksa
 `[SqlServerFact]` testleri açıkça skip olur; değer test çıktısına yazılmaz.
 
+`BUSINESS_FINANCE_SQL_TEST_CONNECTION`'ın **iki tüketicisi vardır ve
+beklentileri aynı değildir**; tek bir değer ikisini birden karşılamak zorunda
+olduğu için hedef veritabanının doğru seçilmesi gerekir:
+
+| Tüketici | Bağlantıyı nasıl kullanır | Hedef veritabanından beklentisi |
+|---|---|---|
+| `SqlServerPersistenceIntegrationTests` (Infrastructure) | Yalnız sunucu/kimlik bilgisini alır; `InitialCatalog`'u `BusinessFinanceIntegration_<guid>` ile değiştirip kendi geçici veritabanını kurar, migrate eder ve test sonunda düşürür | Yok — adı görmezden gelir |
+| `SqlServerApiIntegrationTests` ve `ReceiptEndpointTests` (API) | Bağlantıyı **olduğu gibi** uygulamanın connection string'i yapar; API başlangıçta migration uygulamaz | Şeması **önceden uygulanmış** bir veritabanı |
+
+Bu yüzden değer `master` gibi şemasız bir veritabanına yöneltilirse
+Infrastructure testleri geçer ama API SQL testleri `500` ile düşer. Yerelde
+kullanılan hedef `BusinessFinanceApiSqlTests`'tir ve **her yeni migration'dan
+sonra ayrıca `dotnet ef database update` ile yükseltilir** — üretim verisinin
+değil, test hedefinin bakımıdır.
+
 ## Fiş okuma ve dış sağlayıcı sınırı
 
 `Gemini:ApiKey` bu projedeki **ilk dış servis secret'ıdır** ve yalnız local

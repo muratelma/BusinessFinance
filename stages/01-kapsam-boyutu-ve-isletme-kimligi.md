@@ -2,7 +2,7 @@
 
 ## Belge durumu
 
-- Durum: Planlandı
+- Durum: **Aktif** (22 Ağustos 2026'da kullanıcı onayıyla açıldı)
 - Ön koşul: Yok — zincirin ilk aşaması
 - Sonraki aşama: Aşama 02 — Cari hesap: karşı taraf ve açık bakiye
 - Dokunulacak kalıcı belgeler: `documentation/architecture.md`,
@@ -79,7 +79,7 @@ Bu aşama aşağıdakilerin hiçbirini bozmaz; bozması gerekirse önce ADR yaz�
 
 ## Çalışma grupları
 
-### Grup 1 — Veri sıfırlama ve temiz zemin
+### Grup 1 — Veri sıfırlama ve temiz zemin — **Tamamlandı**
 
 - Yerel veritabanı düşürülür ve `InitialCreate` ile sıfırdan kurulur.
   **Geri alınamaz; uygulanmadan önce kullanıcıdan ayrıca onay alınır.**
@@ -88,6 +88,10 @@ Bu aşama aşağıdakilerin hiçbirini bozmaz; bozması gerekirse önce ADR yaz�
   `NOT NULL` kolonlarını backfill'siz eklemesini mümkün kılıyor.
 - `manual-test-data/` içeriği yeni ürün yönüne göre gözden geçirilir.
 - Ölçüt: temiz veritabanı ayakta, bütün backend testleri geçiyor.
+- Sonuç: veritabanı 22 Ağustos 2026'da kullanıcı onayıyla düşürüldü ve
+  `InitialCreate` ile yeniden kuruldu; 28 tablo, 0 iş verisi satırı, 733 backend
+  testi geçti. `manual-test-data/` gözden geçirildi, değişiklik gerekmedi.
+  Ayrıntı `docs/project-status.md` içinde.
 
 ### Grup 2 — Domain: kapsam boyutu
 

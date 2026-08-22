@@ -11,9 +11,10 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   duruyor ve geçmiş kaydı orada
 - **22 Ağustos 2026: ürün yönü ve aşama zinciri kararlaştırıldı.** Belgeler
   yeniden yazıldı; kod değişmedi
-- Aktif aşama: **Yok.** Altı aşamanın belgesi de yazıldı ve kapsamları
-  onaylandı; hepsinin durumu `Planlandı`. Kullanıcı açıkça onaylayana kadar
-  hiçbiri **Aktif** olmaz ve kod değişmez
+- Aktif aşama: **01 — Kapsam boyutu ve işletme kimliği.** 22 Ağustos 2026'da
+  kullanıcı onayıyla açıldı. Belgesi `stages/01-kapsam-boyutu-ve-isletme-kimligi.md`;
+  dokuz çalışma grubu, **Grup 1 tamamlandı**
+- Kalan beş aşamanın belgesi de yazılı, durumları `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
 
@@ -126,6 +127,37 @@ Kod değişmedi; ürün yönü ve zincir kararlaştırıldı ve belgelere yazıl
   açma yasağı aynı anda uygulanamıyordu; planlama belgeleri için tek başına
   commit istisnası tanımlandı
 
+## 22 Ağustos 2026 — Aşama 01, Grup 1: veri sıfırlama ve temiz zemin
+
+Kullanıcı onayıyla uygulandı; geri alınamaz adımdı.
+
+- **Yerel `BusinessFinance` veritabanı düşürüldü ve `InitialCreate` ile sıfırdan
+  kuruldu.** Sonuç doğrulandı: 28 tablo ayakta, iş verisi taşıyan satır yok
+  (tek satır `__EFMigrationsHistory` kaydı). Silinen her kayıt kişisel bütçe
+  uygulamasından kopyalanmış sentetik veriydi
+- Bu, Grup 4'ün ön koşuludur: tablolar boş olduğu için `AddTransactionScope`
+  migration'ı kapsam kolonlarını backfill'siz `NOT NULL` ekleyebilir. Aynı sıra
+  dolu bir tabloda kullanılamaz (`AGENTS.md`, "Migration kuralları")
+- **`manual-test-data/` gözden geçirildi; değişiklik gerekmedi.** İçerik ürün
+  yönünden bağımsız: iki CSV yalnız `date,amount` kolonlarıyla içe aktarma
+  ayrıştırıcısını ve yinelenen satır tespitini zorluyor, üç PDF ek dosya imza
+  doğrulamasının fixture'ı, `New-CorruptedBackup.ps1` geri yükleme reddini
+  test ediyor. Hiçbiri ev bütçesi kategorisi veya kişisel bütçe kimliği
+  taşımıyor
+- **`BUSINESS_FINANCE_SQL_TEST_CONNECTION`'ın iki tüketicisinin farklı beklentisi
+  olduğu bu turda ortaya çıktı** ve `documentation/variables.md` içine yazıldı:
+  Infrastructure testleri bağlantıdan yalnız sunucuyu alıp kendi geçici
+  veritabanını kurup migrate ediyor, API SQL testi ise bağlantıyı olduğu gibi
+  kullanıyor ve şeması önceden uygulanmış bir veritabanı istiyor
+  (`BusinessFinanceApiSqlTests`)
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (SQL dahil) | **733 geçti**, 1 atlandı (`GeminiLiveContractTests`, canlı anahtar yok) |
+| Temiz veritabanı | 28 tablo, 0 iş verisi satırı |
+
 ## Açık kararlar ve riskler
 
 - **Yerel veritabanının silinmesi onay bekliyor.** Aşama 01 Grup 1'in ilk işi;
@@ -141,13 +173,14 @@ Kod değişmedi; ürün yönü ve zincir kararlaştırıldı ve belgelere yazıl
 
 ## Sıradaki tek küçük görev
 
-- Aşama 01'i **Aktif** yapmak ve Grup 1 için veritabanı sıfırlama onayını almak.
+- **Aşama 01, Grup 2:** `TransactionScope` enum'unu ve kapsamı zorunlu taşıyan
+  altı domain modelini eklemek. Ölçüt: domain unit testleri kapsam
+  invariant'larını kanıtlıyor.
 
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: yalnız belge. ADR 0013, yeni roadmap, altı aşama belgesi,
-  PRD yeniden yazımı, `AGENTS.md`/`CLAUDE.md` kural düzeltmeleri, eski aşama
-  numaralarının temizlenmesi, bayat frontend test kontrol listesinin
-  kaldırılması, kurulum rehberinin yeniden adlandırılması
-- Çalıştırılan kontrol yok: kod değişmedi
-- Sıradaki görev: Aşama 01'in aktifleştirilmesi ve veri sıfırlama onayı
+- Yapılan değişiklik: Aşama 01 aktifleştirildi; Grup 1 uygulandı (yerel
+  veritabanı sıfırlandı, `manual-test-data/` gözden geçirildi, SQL test
+  bağlantısının hedefi belgelendi)
+- Geçen kontroller: backend build, format ve 733 test
+- Sıradaki görev: Aşama 01 Grup 2 — `TransactionScope` domain boyutu

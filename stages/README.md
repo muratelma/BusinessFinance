@@ -9,7 +9,7 @@ sonra aşağıdaki tablodan **aktif** işaretli belge okunur.
 
 | Aşama | Belge | Durum | Not |
 |---|---|---|---|
-| 01 | `01-kapsam-boyutu-ve-isletme-kimligi.md` | Planlandı | Kapsam onaylandı; kullanıcı onayıyla Aktif olur |
+| 01 | `01-kapsam-boyutu-ve-isletme-kimligi.md` | **Aktif** | Grup 1 veritabanı sıfırlamayla başlar; ayrı onay ister |
 | 02 | `02-cari-hesap-ve-karsi-taraf.md` | Planlandı | ADR ile açılır: ekonomik olay tanır, ödeme taşır |
 | 03 | `03-yukumluluk-ve-vade.md` | Planlandı | 02'nin devrettiği tutarsızlığı kapatır |
 | 04 | `04-kasa-pos-ve-gezinme.md` | Planlandı | ADR ile açılır: kart borcu ile kart tahsilatı ayrımı |
