@@ -78,6 +78,7 @@ public sealed class CreateRecurringTransactionUseCase(
                     category,
                     amount,
                     command.Kind,
+                    command.Scope,
                     command.Frequency,
                     command.StartDate,
                     command.EndDate,
@@ -90,6 +91,7 @@ public sealed class CreateRecurringTransactionUseCase(
                     category,
                     amount,
                     command.Kind,
+                    command.Scope,
                     command.Frequency,
                     command.StartDate,
                     command.EndDate,
@@ -119,6 +121,7 @@ public sealed class CreateRecurringTransactionUseCase(
         recurring.Amount.Amount,
         recurring.Amount.Currency,
         recurring.Kind,
+        recurring.Scope,
         recurring.Frequency,
         recurring.StartDate,
         recurring.EndDate,
@@ -268,6 +271,7 @@ public sealed class GenerateRecurringOccurrencesUseCase(
         occurrence.Amount.Amount,
         occurrence.Amount.Currency,
         occurrence.Kind,
+        occurrence.Scope,
         occurrence.ScheduledDate,
         occurrence.Description,
         occurrence.Status,
@@ -385,6 +389,7 @@ public sealed class RealizeRecurringOccurrenceUseCase(
                 category,
                 occurrence.Amount,
                 occurrence.GetTransactionType(),
+                occurrence.Scope,
                 occurrence.ScheduledDate,
                 occurrence.Description);
             occurrence.RealizeWithTransaction(transaction.Id, timeProvider.GetUtcNow());
@@ -454,6 +459,7 @@ public sealed class RealizeRecurringOccurrenceUseCase(
                 card,
                 category,
                 occurrence.Amount,
+                occurrence.Scope,
                 occurrence.ScheduledDate,
                 occurrence.Description);
             occurrence.RealizeWithCharge(charge.Id, timeProvider.GetUtcNow());

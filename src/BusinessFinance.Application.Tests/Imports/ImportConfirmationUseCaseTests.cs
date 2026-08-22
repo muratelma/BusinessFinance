@@ -13,7 +13,8 @@ public sealed class ImportConfirmationUseCaseTests
     public async Task Confirm_RejectsMixedSelectionBeforeRepositoryThenImportsReadySubset()
     {
         var userId = Guid.NewGuid();
-        var account = new Account(Guid.NewGuid(), userId, "Import", AccountType.Bank, CurrencyCode.TRY);
+        var account = new Account(Guid.NewGuid(), userId, "Import", AccountType.Bank, CurrencyCode.TRY,
+            defaultScope: TransactionScope.Business);
         var category = new Category(Guid.NewGuid(), userId, "Expense", CategoryType.Expense);
         var batch = new ImportBatch(
             Guid.NewGuid(), userId, "test.csv", new string('a', 64), 100, "utf-8", ',',
@@ -46,6 +47,7 @@ public sealed class ImportConfirmationUseCaseTests
         Assert.Equal(1, repository.ConfirmCalls);
         var transaction = Assert.Single(repository.Transactions);
         Assert.Equal(TransactionType.Expense, transaction.Type);
+        Assert.Equal(TransactionScope.Business, transaction.Scope);
         Assert.Equal(10m, transaction.Amount.Amount);
         Assert.Equal(ImportBatchStatus.PartiallyImported, batch.Status);
     }
@@ -54,7 +56,8 @@ public sealed class ImportConfirmationUseCaseTests
     public async Task Confirm_ConcurrencyLoss_ReturnsConflict()
     {
         var userId = Guid.NewGuid();
-        var account = new Account(Guid.NewGuid(), userId, "Race", AccountType.Bank, CurrencyCode.TRY);
+        var account = new Account(Guid.NewGuid(), userId, "Race", AccountType.Bank, CurrencyCode.TRY,
+            defaultScope: TransactionScope.Business);
         var category = new Category(Guid.NewGuid(), userId, "Race expense", CategoryType.Expense);
         var batch = new ImportBatch(
             Guid.NewGuid(), userId, "race.csv", new string('b', 64), 50, "utf-8", ',',

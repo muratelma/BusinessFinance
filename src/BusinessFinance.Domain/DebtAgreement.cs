@@ -11,6 +11,13 @@ public sealed class DebtAgreement
     public Guid UserId { get; }
     public string CounterpartyName { get; }
     public DebtDirection Direction { get; }
+
+    /// <summary>
+    /// Sözleşmenin kapsamı. Açılış bir gider/gelir yazdığı için borç da
+    /// gelir/gider raporunu etkiler ve kapsam taşımak zorundadır.
+    /// </summary>
+    public TransactionScope Scope { get; }
+
     public Money Principal { get; }
     public Money TotalRepayment { get; }
 
@@ -77,6 +84,7 @@ public sealed class DebtAgreement
         Guid userId,
         string counterpartyName,
         DebtDirection direction,
+        TransactionScope scope,
         Money principal,
         Money totalRepayment,
         DebtSourceType sourceType,
@@ -86,7 +94,7 @@ public sealed class DebtAgreement
         DateOnly firstDueDate,
         int installmentCount,
         string? description = null)
-        : this(id, userId, counterpartyName, direction, principal, totalRepayment,
+        : this(id, userId, counterpartyName, direction, scope, principal, totalRepayment,
             sourceType, openingAccount, category, startDate, firstDueDate,
             installmentCount, description, allowUnrecordedOpening: false)
     {
@@ -101,13 +109,14 @@ public sealed class DebtAgreement
         Guid userId,
         string counterpartyName,
         DebtDirection direction,
+        TransactionScope scope,
         Money principal,
         Money totalRepayment,
         DateOnly startDate,
         DateOnly firstDueDate,
         int installmentCount,
         string? description = null) => new(
-            id, userId, counterpartyName, direction, principal, totalRepayment,
+            id, userId, counterpartyName, direction, scope, principal, totalRepayment,
             DebtSourceType.Unrecorded, null, null, startDate, firstDueDate,
             installmentCount, description, allowUnrecordedOpening: true);
 
@@ -116,6 +125,7 @@ public sealed class DebtAgreement
         Guid userId,
         string counterpartyName,
         DebtDirection direction,
+        TransactionScope scope,
         Money principal,
         Money totalRepayment,
         DebtSourceType sourceType,
@@ -133,6 +143,7 @@ public sealed class DebtAgreement
         if (string.IsNullOrWhiteSpace(normalizedName) || normalizedName.Length > MaximumNameLength)
             throw new ArgumentException($"Counterparty name is required and cannot exceed {MaximumNameLength} characters.", nameof(counterpartyName));
         if (!Enum.IsDefined(direction)) throw new ArgumentOutOfRangeException(nameof(direction));
+        TransactionScopeGuard.Validate(scope, nameof(scope));
         ArgumentNullException.ThrowIfNull(principal);
         ArgumentNullException.ThrowIfNull(totalRepayment);
         if (principal.Currency != totalRepayment.Currency || totalRepayment.Amount < principal.Amount)
@@ -171,6 +182,7 @@ public sealed class DebtAgreement
         UserId = userId;
         CounterpartyName = normalizedName;
         Direction = direction;
+        Scope = scope;
         Principal = principal;
         TotalRepayment = totalRepayment;
         StartDate = startDate;

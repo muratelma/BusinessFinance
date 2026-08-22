@@ -271,6 +271,7 @@ public sealed class FinancialWriteEndpointTests
             amount,
             "TRY",
             type,
+            "business",
             "2026-08-09",
             "Synthetic transaction"));
 }

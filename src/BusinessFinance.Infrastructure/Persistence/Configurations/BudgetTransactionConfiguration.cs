@@ -14,11 +14,13 @@ internal sealed class BudgetTransactionConfiguration : IEntityTypeConfiguration<
             table.HasCheckConstraint("CK_BudgetTransactions_Type", "[Type] IN (1, 2)");
             table.HasCheckConstraint("CK_BudgetTransactions_Amount", "[Amount] > 0");
             table.HasCheckConstraint("CK_BudgetTransactions_Currency", "[Currency] = 1");
+            table.HasCheckConstraint("CK_BudgetTransactions_Scope", "[Scope] IN (1, 2)");
         });
 
         builder.HasKey(transaction => transaction.Id);
         builder.HasAlternateKey(transaction => new { transaction.UserId, transaction.Id });
         builder.Property(transaction => transaction.Type).HasConversion<byte>().HasColumnType("tinyint");
+        builder.Property(transaction => transaction.Scope).HasConversion<byte>().HasColumnType("tinyint");
         builder.Property(transaction => transaction.TransactionDate).HasColumnType("date");
         builder.Property(transaction => transaction.Description)
             .HasMaxLength(BudgetTransaction.MaximumDescriptionLength);

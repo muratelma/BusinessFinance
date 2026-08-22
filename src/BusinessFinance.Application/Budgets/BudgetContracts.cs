@@ -11,6 +11,7 @@ public sealed record BudgetDto(
     decimal Remaining,
     decimal Exceeded,
     CurrencyCode Currency,
+    TransactionScope Scope,
     int Year,
     int Month);
 
@@ -18,6 +19,7 @@ public sealed record CreateBudgetCommand(
     Guid CategoryId,
     decimal Limit,
     CurrencyCode Currency,
+    TransactionScope Scope,
     int Year,
     int Month);
 

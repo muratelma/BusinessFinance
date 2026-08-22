@@ -9,6 +9,7 @@ public sealed record TransactionDto(
     decimal Amount,
     CurrencyCode Currency,
     TransactionType Type,
+    TransactionScope Scope,
     DateOnly TransactionDate,
     string? Description,
     bool IsCancelled,

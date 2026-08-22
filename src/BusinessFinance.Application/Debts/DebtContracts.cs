@@ -14,6 +14,7 @@ namespace BusinessFinance.Application.Debts;
 public sealed record CreateDebtCommand(
     string CounterpartyName,
     DebtDirection Direction,
+    TransactionScope Scope,
     decimal Principal,
     decimal? TotalRepayment,
     decimal? AnnualInterestRate,
@@ -58,6 +59,7 @@ public sealed record DebtDto(
     Guid Id,
     string CounterpartyName,
     DebtDirection Direction,
+    TransactionScope Scope,
     decimal Principal,
     decimal TotalRepayment,
     decimal RemainingAmount,

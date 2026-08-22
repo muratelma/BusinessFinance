@@ -25,7 +25,7 @@ public sealed class DebtEndpointTests
         using var create = await owner.PostAsJsonAsync(
             "/api/v1/debts",
             new CreateDebtRequest(
-                "Synthetic Lender", "payable", "1000.0000", "1200.0000", null, "TRY",
+                "Synthetic Lender", "payable", "business", "1000.0000", "1200.0000", null, "TRY",
                 "cash", account.Id, null,
                 "2026-07-01", "2026-08-10", 3, "Test debt", "2026-08-11"));
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);
@@ -115,7 +115,7 @@ public sealed class DebtEndpointTests
         using var invalid = await owner.PostAsJsonAsync(
             "/api/v1/debts",
             new CreateDebtRequest(
-                "Lender", "expense", "100.0000", "120.0000", null, "TRY",
+                "Lender", "expense", "business", "100.0000", "120.0000", null, "TRY",
                 "cash", account.Id, null,
                 "2026-08-01", "2026-09-01", 1, null, "2026-08-11"));
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
@@ -124,7 +124,7 @@ public sealed class DebtEndpointTests
         using var neither = await owner.PostAsJsonAsync(
             "/api/v1/debts",
             new CreateDebtRequest(
-                "Lender", "payable", "100.0000", null, null, "TRY",
+                "Lender", "payable", "business", "100.0000", null, null, "TRY",
                 "cash", account.Id, null,
                 "2026-08-01", "2026-09-01", 1, null, "2026-08-11"));
         Assert.Equal(HttpStatusCode.BadRequest, neither.StatusCode);
@@ -134,7 +134,7 @@ public sealed class DebtEndpointTests
         using var unrecorded = await owner.PostAsJsonAsync(
             "/api/v1/debts",
             new CreateDebtRequest(
-                "Lender", "payable", "100.0000", "120.0000", null, "TRY",
+                "Lender", "payable", "business", "100.0000", "120.0000", null, "TRY",
                 "unrecorded", null, null,
                 "2026-08-01", "2026-09-01", 1, null, "2026-08-11"));
         Assert.Equal(HttpStatusCode.BadRequest, unrecorded.StatusCode);
@@ -177,7 +177,7 @@ public sealed class DebtEndpointTests
         Assert.Null(debt.OpeningAccountId);
 
         static CreateDebtRequest Debt(string direction, string source, Guid? accountId, Guid? categoryId) =>
-            new("Lender", direction, "300.0000", "330.0000", null, "TRY",
+            new("Lender", direction, "business", "300.0000", "330.0000", null, "TRY",
                 source, accountId, categoryId,
                 "2026-08-01", "2026-09-01", 3, null, "2026-08-11");
     }
@@ -198,7 +198,7 @@ public sealed class DebtEndpointTests
         using var create = await owner.PostAsJsonAsync(
             "/api/v1/debts",
             new CreateDebtRequest(
-                "Alıcı", "receivable", "5000.0000", "5000.0000", null, "TRY",
+                "Alıcı", "receivable", "business", "5000.0000", "5000.0000", null, "TRY",
                 "income", null, incomeCategory.Id,
                 "2026-08-01", "2026-08-15", 2, "Telefon satışı", "2026-08-11"));
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);
@@ -252,7 +252,7 @@ public sealed class DebtEndpointTests
             Debt("receivable", "income", expense.Id))).StatusCode);
 
         static CreateDebtRequest Debt(string direction, string source, Guid categoryId) =>
-            new("Karşı taraf", direction, "300.0000", "330.0000", null, "TRY",
+            new("Karşı taraf", direction, "business", "300.0000", "330.0000", null, "TRY",
                 source, null, categoryId,
                 "2026-08-01", "2026-09-01", 3, null, "2026-08-11");
     }
@@ -268,7 +268,7 @@ public sealed class DebtEndpointTests
         using var fromTotal = await owner.PostAsJsonAsync(
             "/api/v1/debts",
             new CreateDebtRequest(
-                "Lender", "payable", "300.0000", "400.0000", null, "TRY",
+                "Lender", "payable", "business", "300.0000", "400.0000", null, "TRY",
                 "cash", account.Id, null,
                 "2026-08-01", "2026-09-01", 4, null, "2026-08-11"));
         Assert.Equal(HttpStatusCode.Created, fromTotal.StatusCode);
@@ -281,7 +281,7 @@ public sealed class DebtEndpointTests
         using var fromRate = await owner.PostAsJsonAsync(
             "/api/v1/debts",
             new CreateDebtRequest(
-                "Lender", "payable", "300.0000", null, "10.0000", "TRY",
+                "Lender", "payable", "business", "300.0000", null, "10.0000", "TRY",
                 "cash", account.Id, null,
                 "2026-08-01", "2026-09-01", 3, null, "2026-08-11"));
         Assert.Equal(HttpStatusCode.Created, fromRate.StatusCode);
@@ -292,7 +292,7 @@ public sealed class DebtEndpointTests
         using var conflict = await owner.PostAsJsonAsync(
             "/api/v1/debts",
             new CreateDebtRequest(
-                "Lender", "payable", "300.0000", "400.0000", "10.0000", "TRY",
+                "Lender", "payable", "business", "300.0000", "400.0000", "10.0000", "TRY",
                 "cash", account.Id, null,
                 "2026-08-01", "2026-09-01", 3, null, "2026-08-11"));
         Assert.Equal(HttpStatusCode.BadRequest, conflict.StatusCode);
@@ -309,7 +309,7 @@ public sealed class DebtEndpointTests
         using var create = await owner.PostAsJsonAsync(
             "/api/v1/debts",
             new CreateDebtRequest(
-                "Synthetic Borrower", "receivable", "60.0000", "60.0000", null, "TRY",
+                "Synthetic Borrower", "receivable", "business", "60.0000", "60.0000", null, "TRY",
                 "cash", account.Id, null,
                 "2026-08-13", "2026-08-13", 2, null, "2026-08-13"));
 

@@ -77,6 +77,13 @@ public static class TransactionContractEndpoints
                 "Transaction type must be income or expense.",
                 "transactions.invalid_type");
         }
+        if (!FinanceContract.TryParseScope(request.Scope, out var scope))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Transaction scope must be business or personal.",
+                "transactions.invalid_scope");
+        }
         if (!FinanceContract.TryParseDate(request.TransactionDate, out var date))
         {
             return ApiProblemResults.Validation(
@@ -92,6 +99,7 @@ public static class TransactionContractEndpoints
                 amount,
                 CurrencyCode.TRY,
                 type,
+                scope,
                 date,
                 request.Description),
             cancellationToken);
@@ -125,6 +133,7 @@ public static class TransactionContractEndpoints
         FinanceContract.Money(transaction.Amount),
         transaction.Currency.ToString(),
         FinanceContract.TransactionTypeValue(transaction.Type),
+        FinanceContract.ScopeValue(transaction.Scope),
         FinanceContract.Date(transaction.TransactionDate),
         transaction.Description,
         transaction.IsCancelled,

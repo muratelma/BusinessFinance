@@ -91,7 +91,7 @@ public sealed class FinancialActivityEndpointTests
         using var planResponse = await client.PostAsJsonAsync(
             "/api/v1/recurring-transactions",
             new CreateRecurringTransactionRequest(
-                account.Id, category.Id, "100.0000", "TRY", "bill-payment", "monthly",
+                account.Id, category.Id, "100.0000", "TRY", "bill-payment", "business", "monthly",
                 "2026-08-01", null, "clamp-to-last-day", "Rent"));
         planResponse.EnsureSuccessStatusCode();
 
@@ -140,7 +140,7 @@ public sealed class FinancialActivityEndpointTests
         using var planResponse = await client.PostAsJsonAsync(
             "/api/v1/installment-plans",
             new CreateInstallmentPlanRequest(
-                card!.Id, category.Id, Guid.NewGuid(), "600.0000", "TRY", 2, "2026-08-01", "Phone"));
+                card!.Id, category.Id, Guid.NewGuid(), "600.0000", "TRY", "business", 2, "2026-08-01", "Phone"));
         planResponse.EnsureSuccessStatusCode();
         var plan = await planResponse.Content.ReadFromJsonAsync<InstallmentPlanResponse>();
 
@@ -210,7 +210,7 @@ public sealed class FinancialActivityEndpointTests
         using var plan = await owner.PostAsJsonAsync(
             "/api/v1/recurring-transactions",
             new CreateRecurringTransactionRequest(
-                account.Id, category.Id, "125.5000", "TRY", "bill-payment", "monthly",
+                account.Id, category.Id, "125.5000", "TRY", "bill-payment", "business", "monthly",
                 "2026-08-20", null, "clamp-to-last-day", "Rent"));
         plan.EnsureSuccessStatusCode();
 
@@ -257,13 +257,13 @@ public sealed class FinancialActivityEndpointTests
         using var bill = await owner.PostAsJsonAsync(
             "/api/v1/recurring-transactions",
             new CreateRecurringTransactionRequest(
-                account.Id, expense.Id, "125.5000", "TRY", "bill-payment", "monthly",
+                account.Id, expense.Id, "125.5000", "TRY", "bill-payment", "business", "monthly",
                 "2026-08-20", null, "clamp-to-last-day", "Rent"));
         bill.EnsureSuccessStatusCode();
         using var salary = await owner.PostAsJsonAsync(
             "/api/v1/recurring-transactions",
             new CreateRecurringTransactionRequest(
-                account.Id, income.Id, "5000.0000", "TRY", "income", "monthly",
+                account.Id, income.Id, "5000.0000", "TRY", "income", "business", "monthly",
                 "2026-08-21", null, "clamp-to-last-day", "Salary"));
         salary.EnsureSuccessStatusCode();
 
@@ -334,7 +334,7 @@ public sealed class FinancialActivityEndpointTests
         using var response = await client.PostAsJsonAsync(
             "/api/v1/transactions",
             new CreateTransactionRequest(
-                accountId, categoryId, amount, "TRY", type, "2026-08-14", "Synthetic"));
+                accountId, categoryId, amount, "TRY", type, "business", "2026-08-14", "Synthetic"));
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<TransactionResponse>())!;
     }

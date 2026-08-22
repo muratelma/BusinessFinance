@@ -139,6 +139,7 @@ public sealed class RecurringTransactionOccurrenceTests
             category,
             new Money(500m, CurrencyCode.TRY),
             kind,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly,
             new DateOnly(2026, 8, 31),
             description: "Snapshot");
@@ -157,6 +158,7 @@ public sealed class RecurringTransactionOccurrenceTests
             category,
             new Money(500m, CurrencyCode.TRY),
             kind,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly,
             new DateOnly(2026, 8, 31),
             description: "Snapshot");

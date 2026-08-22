@@ -29,6 +29,7 @@ public sealed class UpcomingPaymentEndpointTests
                 "75.2500",
                 "TRY",
                 "bill-payment",
+                "business",
                 "monthly",
                 "2026-08-10",
                 null,

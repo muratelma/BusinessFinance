@@ -14,6 +14,7 @@ internal sealed class RecurringTransactionConfiguration : IEntityTypeConfigurati
             table.HasCheckConstraint("CK_RecurringTransactions_Amount", "[Amount] > 0");
             table.HasCheckConstraint("CK_RecurringTransactions_Currency", "[Currency] = 1");
             table.HasCheckConstraint("CK_RecurringTransactions_Kind", "[Kind] IN (1, 2, 3)");
+            table.HasCheckConstraint("CK_RecurringTransactions_Scope", "[Scope] IN (1, 2)");
             table.HasCheckConstraint("CK_RecurringTransactions_Frequency", "[Frequency] IN (1, 2, 3, 4)");
             table.HasCheckConstraint("CK_RecurringTransactions_MonthEndBehavior", "[MonthEndBehavior] IN (1, 2)");
             table.HasCheckConstraint(
@@ -36,6 +37,7 @@ internal sealed class RecurringTransactionConfiguration : IEntityTypeConfigurati
         builder.HasKey(recurring => recurring.Id);
         builder.HasAlternateKey(recurring => new { recurring.UserId, recurring.Id });
         builder.Property(recurring => recurring.Kind).HasConversion<byte>().HasColumnType("tinyint");
+        builder.Property(recurring => recurring.Scope).HasConversion<byte>().HasColumnType("tinyint");
         builder.Property(recurring => recurring.SourceType).HasConversion<byte>().HasColumnType("tinyint");
         builder.Property(recurring => recurring.Frequency).HasConversion<byte>().HasColumnType("tinyint");
         builder.Property(recurring => recurring.MonthEndBehavior).HasConversion<byte>().HasColumnType("tinyint");

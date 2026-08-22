@@ -14,6 +14,9 @@ internal sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
             table.HasCheckConstraint("CK_Accounts_Type", "[Type] IN (1, 2)");
             table.HasCheckConstraint("CK_Accounts_Currency", "[Currency] = 1");
             table.HasCheckConstraint("CK_Accounts_OpeningBalance", "[OpeningBalance] >= 0");
+            table.HasCheckConstraint(
+                "CK_Accounts_DefaultScope",
+                "[DefaultScope] IS NULL OR [DefaultScope] IN (1, 2)");
         });
 
         builder.HasKey(account => account.Id);
@@ -23,6 +26,7 @@ internal sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
             .HasMaxLength(Account.MaximumNameLength)
             .IsRequired();
         builder.Property(account => account.Type).HasConversion<byte>().HasColumnType("tinyint");
+        builder.Property(account => account.DefaultScope).HasConversion<byte?>().HasColumnType("tinyint");
         builder.Property(account => account.Currency).HasConversion<byte>().HasColumnType("tinyint");
         builder.Property(account => account.OpeningBalance).HasPrecision(19, 4);
         builder.Property(account => account.IsActive).IsRequired();

@@ -282,6 +282,7 @@ public sealed class FinancialEntityMappingTests
             category,
             new Money(125.50m, CurrencyCode.TRY),
             TransactionType.Expense,
+            TransactionScope.Business,
             new DateOnly(2026, 8, 8),
             "Synthetic expense");
         var budget = new MonthlyBudget(
@@ -289,6 +290,7 @@ public sealed class FinancialEntityMappingTests
             userId,
             category,
             new Money(5000m, CurrencyCode.TRY),
+            TransactionScope.Business,
             2026,
             8);
         var recurring = new RecurringTransaction(
@@ -298,6 +300,7 @@ public sealed class FinancialEntityMappingTests
             category,
             new Money(250m, CurrencyCode.TRY),
             RecurringTransactionKind.BillPayment,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly,
             new DateOnly(2026, 8, 31),
             monthEndBehavior: MonthEndBehavior.ClampToLastDay,

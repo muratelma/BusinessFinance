@@ -157,7 +157,7 @@ public sealed class CreditCardStatementEndpointTests
     {
         using var response = await client.PostAsJsonAsync(
             $"/api/v1/credit-cards/{cardId}/charges",
-            new CreateCardChargeRequest(categoryId, amount, "TRY", date, null));
+            new CreateCardChargeRequest(categoryId, amount, "TRY", "business", date, null));
         response.EnsureSuccessStatusCode();
     }
 

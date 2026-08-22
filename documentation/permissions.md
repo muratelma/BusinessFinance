@@ -97,6 +97,33 @@ budget ve transaction kaynaklarının her biri current user filtresiyle başlar.
 Gerçek SQL fixture'ları yabancı kullanıcının upcoming/rapor sonucunu
 değiştirmediğini doğrular.
 
+## Kapsam sahiplik sınırını değiştirmez
+
+Kapsam (`scope`) bir **raporlama boyutudur**, izin değildir. Sahiplik kontrolünün
+yerine geçmez, üstüne biner: her sorgu önce `ICurrentUser` üzerinden gelen
+`UserId` ile kapsanır, kapsam ondan sonra eler. Başka kullanıcının kaydına
+`scope=business` göndererek erişilemez — kapsam filtresi owner predicate'ini
+gevşetmez.
+
+Kapsam alanını taşıyan istek/cevap sözleşmeleri:
+
+| Endpoint | Alan | Zorunlu mu |
+|---|---|---|
+| `POST /api/v1/transactions` | `scope` | Evet — `transactions.invalid_scope` |
+| `POST /api/v1/budgets` | `scope` | Evet — `budgets.invalid_scope` |
+| `POST /api/v1/credit-cards/{id}/charges` | `scope` | Evet — `credit_cards.invalid_scope` |
+| `POST /api/v1/installment-plans` | `scope` | Evet — `installments.invalid_scope` |
+| `POST /api/v1/recurring-transactions` | `scope` | Evet — `recurring.invalid_scope` |
+| `POST /api/v1/debts` | `scope` | Evet — `debt.invalid_contract` |
+| `POST`/`PUT` hesap, kategori, kart | `defaultScope` | Hayır — boş bırakılabilir; tanınmayan değer `*.invalid_default_scope` |
+| `POST /api/v1/imports/{id}/confirm` | — | CSV kapsam kolonu taşımaz; hesabın, yoksa kategorinin varsayılanından çözülür, ikisi de boşsa `imports.scope_unresolved` |
+
+Kart ödemesi ve transfer endpoint'leri kapsam **almaz**: gelir/gider raporuna
+sıfır etki ederler.
+
+Kapsam değeri kararlı makine metnidir (`business` / `personal`); kullanıcıya
+gösterilecek cümleyi istemci üretir.
+
 ## Defense in depth
 
 SQL Server'da row-level security (RLS) politikası yoktur. Birincil authorization

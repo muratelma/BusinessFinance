@@ -63,7 +63,7 @@ public sealed class ImportStagingTests
         row.FlagDuplicate(existingId, ImportDuplicateReason.BankReference);
 
         Assert.Throws<InvalidOperationException>(() =>
-            row.CreateTransaction(account, category, Guid.NewGuid()));
+            row.CreateTransaction(account, category, TransactionScope.Business, Guid.NewGuid()));
         row.ResolveDuplicate(importAnyway: false);
         batch.RecordConfirmation();
 
@@ -91,7 +91,7 @@ public sealed class ImportStagingTests
         var category = new Category(Guid.NewGuid(), userId, "Mapped", categoryType);
 
         row.ApplyCorrection(new DateOnly(2026, 8, 11), signedAmount, "Corrected", "ref", account, category);
-        var transaction = row.CreateTransaction(account, category, Guid.NewGuid());
+        var transaction = row.CreateTransaction(account, category, TransactionScope.Business, Guid.NewGuid());
         row.MarkImported(transaction.Id);
         batch.RecordConfirmation();
 

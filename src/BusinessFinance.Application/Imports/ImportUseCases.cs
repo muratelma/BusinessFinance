@@ -186,9 +186,15 @@ public sealed class ConfirmImportBatchUseCase(
             if (account is null || category is null || !account.IsActive || !category.IsActive)
                 return ApplicationResult<ImportBatchDto>.Failure(ImportErrors.MappingUnavailable);
 
+            // CSV dosyasında kapsam kolonu yok; hesabın, yoksa kategorinin
+            // etiketinden çözülür. İkisi de boşsa satır reddedilir — sunucu
+            // kapsam uydurmaz.
+            if ((account.DefaultScope ?? category.DefaultScope) is not TransactionScope scope)
+                return ApplicationResult<ImportBatchDto>.Failure(ImportErrors.ScopeUnresolved);
+
             try
             {
-                var transaction = row.CreateTransaction(account, category, Guid.NewGuid());
+                var transaction = row.CreateTransaction(account, category, scope, Guid.NewGuid());
                 row.MarkImported(transaction.Id);
                 transactions.Add(transaction);
             }

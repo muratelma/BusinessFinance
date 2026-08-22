@@ -12,7 +12,7 @@ public class MonthlyBudgetTests
         var category = CreateCategory(userId);
         var limit = new Money(1_000m, CurrencyCode.TRY);
 
-        var budget = new MonthlyBudget(id, userId, category, limit, 2026, 2);
+        var budget = new MonthlyBudget(id, userId, category, limit, TransactionScope.Business, 2026, 2);
 
         Assert.Equal(id, budget.Id);
         Assert.Equal(userId, budget.UserId);
@@ -42,6 +42,7 @@ public class MonthlyBudgetTests
             Guid.Empty,
             CreateCategory(ownerId),
             new Money(1_000m, CurrencyCode.TRY),
+            TransactionScope.Business,
             2026,
             8);
 
@@ -56,6 +57,7 @@ public class MonthlyBudgetTests
             Guid.NewGuid(),
             null!,
             new Money(1_000m, CurrencyCode.TRY),
+            TransactionScope.Business,
             2026,
             8);
 
@@ -72,6 +74,7 @@ public class MonthlyBudgetTests
             userId,
             CreateCategory(userId),
             null!,
+            TransactionScope.Business,
             2026,
             8);
 
@@ -267,6 +270,7 @@ public class MonthlyBudgetTests
             resolvedUserId,
             category ?? CreateCategory(resolvedUserId),
             limit ?? new Money(1_000m, CurrencyCode.TRY),
+            TransactionScope.Business,
             year,
             month);
     }
@@ -302,6 +306,7 @@ public class MonthlyBudgetTests
             category,
             new Money(amount, CurrencyCode.TRY),
             TransactionType.Expense,
+            TransactionScope.Business,
             date);
     }
 }

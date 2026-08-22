@@ -14,6 +14,7 @@ public sealed class InstallmentPlan
     public Guid CategoryId { get; }
     public Guid ClientRequestId { get; }
     public Money TotalAmount { get; }
+    public TransactionScope Scope { get; }
     public int InstallmentCount { get; }
     public DateOnly FirstInstallmentDate { get; }
     public string? Description { get; }
@@ -31,6 +32,7 @@ public sealed class InstallmentPlan
         Category category,
         Guid clientRequestId,
         Money totalAmount,
+        TransactionScope scope,
         int installmentCount,
         DateOnly firstInstallmentDate,
         string? description = null)
@@ -64,6 +66,8 @@ public sealed class InstallmentPlan
         {
             throw new ArgumentException("Plan and card must use the same currency.", nameof(totalAmount));
         }
+
+        TransactionScopeGuard.Validate(scope, nameof(scope));
 
         if (installmentCount is < MinimumInstallmentCount or > MaximumInstallmentCount)
         {
@@ -103,6 +107,7 @@ public sealed class InstallmentPlan
         CategoryId = category.Id;
         ClientRequestId = clientRequestId;
         TotalAmount = totalAmount;
+        Scope = scope;
         InstallmentCount = installmentCount;
         FirstInstallmentDate = firstInstallmentDate;
         Description = normalizedDescription;

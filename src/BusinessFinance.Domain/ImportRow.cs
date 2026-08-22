@@ -146,7 +146,16 @@ public sealed class ImportRow
         Status = importAnyway ? ImportRowStatus.Ready : ImportRowStatus.SkippedDuplicate;
     }
 
-    public BudgetTransaction CreateTransaction(Account account, Category category, Guid transactionId)
+    /// <summary>
+    /// Onaylanmış satırdan gerçek hareketi üretir. Kapsam satırda taşınmaz,
+    /// çağıran türetip verir: CSV dosyasında kapsam kolonu olmayabilir ve
+    /// satırın kendisi hesabı/kategoriyi okuyup karar verecek yerde değildir.
+    /// </summary>
+    public BudgetTransaction CreateTransaction(
+        Account account,
+        Category category,
+        TransactionScope scope,
+        Guid transactionId)
     {
         if (Status != ImportRowStatus.Ready || TransactionDate is null || SignedAmount is null)
             throw new InvalidOperationException("Only a ready import row can create a transaction.");
@@ -160,6 +169,7 @@ public sealed class ImportRow
             category,
             new Money(decimal.Abs(SignedAmount.Value), Currency),
             SignedAmount.Value > 0m ? TransactionType.Income : TransactionType.Expense,
+            scope,
             TransactionDate.Value,
             Description);
     }

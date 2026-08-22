@@ -57,12 +57,21 @@ public static class InstallmentEndpoints
                 "installments.invalid_first_date");
         }
 
+        if (!FinanceContract.TryParseScope(request.Scope, out var scope))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Plan scope must be business or personal.",
+                "installments.invalid_scope");
+        }
+
         var result = await useCase.ExecuteAsync(new CreateInstallmentPlanCommand(
             request.CreditCardId,
             request.CategoryId,
             request.ClientRequestId,
             totalAmount,
             CurrencyCode.TRY,
+            scope,
             request.InstallmentCount,
             firstDate,
             request.Description), cancellationToken);
@@ -103,6 +112,7 @@ public static class InstallmentEndpoints
         plan.ClientRequestId,
         FinanceContract.Money(plan.TotalAmount),
         plan.Currency.ToString(),
+        FinanceContract.ScopeValue(plan.Scope),
         plan.InstallmentCount,
         FinanceContract.Date(plan.FirstInstallmentDate),
         plan.Description,

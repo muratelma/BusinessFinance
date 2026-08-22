@@ -4,6 +4,7 @@ public sealed record CreateBudgetRequest(
     Guid CategoryId,
     string Limit,
     string Currency,
+    string Scope,
     int Year,
     int Month);
 public sealed record UpdateBudgetRequest(string Limit, string Currency);
@@ -16,6 +17,7 @@ public sealed record BudgetResponse(
     string Remaining,
     string Exceeded,
     string Currency,
+    string Scope,
     int Year,
     int Month);
 public sealed record BudgetListResponse(IReadOnlyList<BudgetResponse> Items);

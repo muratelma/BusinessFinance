@@ -24,6 +24,15 @@ internal static class ImportErrors
         "The selected account or category is unavailable.",
         ApplicationErrorType.Validation);
 
+    /// <summary>
+    /// Satırın kapsamı ne hesaptan ne kategoriden çözülebildi. CSV dosyası
+    /// kapsam kolonu taşımıyor; sunucu bir değer uydurmaz, isteği reddeder.
+    /// </summary>
+    public static readonly ApplicationError ScopeUnresolved = new(
+        "imports.scope_unresolved",
+        "The scope could not be resolved from the account or the category.",
+        ApplicationErrorType.Validation);
+
     public static ApplicationError Conflict(string message) => new(
         "imports.confirmation_conflict",
         message,

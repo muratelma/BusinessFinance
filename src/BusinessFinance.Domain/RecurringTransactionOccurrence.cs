@@ -16,6 +16,18 @@ public sealed class RecurringTransactionOccurrence
     public Guid CategoryId { get; }
     public Money Amount { get; }
     public RecurringTransactionKind Kind { get; }
+
+    /// <summary>
+    /// Planın kapsamının üretim anındaki kopyası; gerçekleşme anında yeniden
+    /// türetilmez.
+    /// </summary>
+    /// <remarks>
+    /// Tutar, tür ve açıklama gibi kapsam da anlık görüntüdür. Plandan
+    /// okumak yerine burada tutmak, planlanan görünümün kapsamı bir join
+    /// olmadan SQL'de filtreleyebilmesini de sağlar.
+    /// </remarks>
+    public TransactionScope Scope { get; }
+
     public DateOnly ScheduledDate { get; }
     public string? Description { get; }
     public RecurringOccurrenceStatus Status { get; private set; }
@@ -57,6 +69,7 @@ public sealed class RecurringTransactionOccurrence
             recurringTransaction.CategoryId,
             recurringTransaction.Amount,
             recurringTransaction.Kind,
+            recurringTransaction.Scope,
             scheduledDate,
             recurringTransaction.Description);
     }
@@ -166,6 +179,7 @@ public sealed class RecurringTransactionOccurrence
         Guid categoryId,
         Money amount,
         RecurringTransactionKind kind,
+        TransactionScope scope,
         DateOnly scheduledDate,
         string? description)
     {
@@ -192,6 +206,7 @@ public sealed class RecurringTransactionOccurrence
         // instance under several owners and drops all but one amount.
         Amount = new Money(amount.Amount, amount.Currency);
         Kind = kind;
+        Scope = TransactionScopeGuard.Validate(scope, nameof(scope));
         ScheduledDate = scheduledDate;
         Description = description;
         Status = RecurringOccurrenceStatus.Planned;

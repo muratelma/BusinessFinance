@@ -8,6 +8,7 @@ public sealed record CreateTransactionRequest(
     string Amount,
     string Currency,
     string Type,
+    string Scope,
     string TransactionDate,
     string? Description);
 
@@ -18,6 +19,7 @@ public sealed record TransactionResponse(
     string Amount,
     string Currency,
     string Type,
+    string Scope,
     string TransactionDate,
     string? Description,
     bool IsCancelled,

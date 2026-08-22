@@ -24,6 +24,7 @@ public sealed class CardActivityUseCaseTests
 
         var result = await useCase.ExecuteAsync(new CreateCardChargeCommand(
             card.Id, CreateExpense().Id, 101m, CurrencyCode.TRY,
+            TransactionScope.Business,
             new DateOnly(2026, 8, 10), null));
 
         Assert.False(result.IsSuccess);

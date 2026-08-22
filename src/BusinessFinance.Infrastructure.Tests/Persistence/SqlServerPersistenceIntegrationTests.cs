@@ -138,6 +138,7 @@ public sealed class SqlServerPersistenceIntegrationTests
             seed.Transactions.Add(new BudgetTransaction(
                 Guid.NewGuid(), user.Id, usedAccount, category,
                 new Money(10m, CurrencyCode.TRY), TransactionType.Expense,
+                TransactionScope.Business,
                 new DateOnly(2026, 8, 13)));
             await seed.SaveChangesAsync();
         }
@@ -173,6 +174,7 @@ public sealed class SqlServerPersistenceIntegrationTests
             seed.Accounts.Add(debtAccount);
             seed.DebtAgreements.Add(new DebtAgreement(
                 debtId, user.Id, "Synthetic Lender", DebtDirection.Payable,
+                TransactionScope.Business,
                 new Money(300m, CurrencyCode.TRY), new Money(400m, CurrencyCode.TRY),
                 DebtSourceType.Cash, debtAccount, null,
                 new DateOnly(2026, 7, 1), new DateOnly(2026, 8, 10), 1));
@@ -251,6 +253,7 @@ public sealed class SqlServerPersistenceIntegrationTests
             seed.Accounts.Add(account);
             var debt = new DebtAgreement(
                 Guid.NewGuid(), user.Id, "Lender", DebtDirection.Payable,
+                TransactionScope.Business,
                 new Money(300m, CurrencyCode.TRY), new Money(400m, CurrencyCode.TRY),
                 DebtSourceType.Cash, account, null,
                 new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 10), 1);
@@ -294,6 +297,7 @@ public sealed class SqlServerPersistenceIntegrationTests
             seed.Accounts.Add(account);
             var debt = new DebtAgreement(
                 debtId, user.Id, "Lender", DebtDirection.Payable,
+                TransactionScope.Business,
                 new Money(300m, CurrencyCode.TRY), new Money(400m, CurrencyCode.TRY),
                 DebtSourceType.Cash, account, null,
                 new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 10), 1);
@@ -388,6 +392,7 @@ public sealed class SqlServerPersistenceIntegrationTests
             seed.Transactions.Add(new BudgetTransaction(
                 transactionId, owner.Id, account, category,
                 new Money(10m, CurrencyCode.TRY), TransactionType.Expense,
+                TransactionScope.Business,
                 new DateOnly(2026, 8, 11)));
             await seed.SaveChangesAsync();
         }
@@ -427,6 +432,7 @@ public sealed class SqlServerPersistenceIntegrationTests
             var now = new DateTimeOffset(2026, 8, 8, 10, 0, 0, TimeSpan.Zero);
             var debt = new DebtAgreement(
                 Guid.NewGuid(), source.Id, "Backup lender", DebtDirection.Payable,
+                TransactionScope.Business,
                 new Money(300m, CurrencyCode.TRY), new Money(400m, CurrencyCode.TRY),
                 DebtSourceType.Cash, account, null,
                 new DateOnly(2026, 7, 1), new DateOnly(2026, 8, 10), 1);
@@ -586,7 +592,7 @@ public sealed class SqlServerPersistenceIntegrationTests
         {
             var candidateRow = candidateBatch.Rows.Single();
             var transaction = candidateRow.CreateTransaction(
-                candidateAccount, candidateCategory, Guid.NewGuid());
+                candidateAccount, candidateCategory, TransactionScope.Business, Guid.NewGuid());
             candidateRow.MarkImported(transaction.Id);
             candidateBatch.RecordConfirmation();
             return transaction;
@@ -637,7 +643,7 @@ public sealed class SqlServerPersistenceIntegrationTests
         var category = new Category(Guid.NewGuid(), owner.Id, "Idempotency expense", CategoryType.Expense);
         var existing = new BudgetTransaction(
             Guid.NewGuid(), owner.Id, account, category, new Money(25m, CurrencyCode.TRY),
-            TransactionType.Expense, new DateOnly(2026, 8, 11), "Market   payment");
+            TransactionType.Expense, TransactionScope.Business, new DateOnly(2026, 8, 11), "Market   payment");
         var importedBatch = CreateBatch(owner.Id, new string('b', 64), "imported.csv");
         var importedRow = new ImportRow(
             Guid.NewGuid(), owner.Id, importedBatch.Id, 2, "row",
@@ -808,6 +814,7 @@ public sealed class SqlServerPersistenceIntegrationTests
             user.Id,
             category,
             new Money(5000m, CurrencyCode.TRY),
+            TransactionScope.Business,
             2026,
             8));
         await context.SaveChangesAsync(CancellationToken.None);
@@ -817,6 +824,7 @@ public sealed class SqlServerPersistenceIntegrationTests
             user.Id,
             category,
             new Money(6000m, CurrencyCode.TRY),
+            TransactionScope.Business,
             2026,
             8));
 
@@ -934,6 +942,7 @@ public sealed class SqlServerPersistenceIntegrationTests
                 Guid.NewGuid(), user.Id, source, card, amount, date, name));
             seed.Add(new DebtAgreement(
                 Guid.NewGuid(), user.Id, name, DebtDirection.Receivable,
+                TransactionScope.Business,
                 // Owned value objects cannot share one instance: EF tracks each
                 // as a separate slot on the row.
                 new Money(1250m, CurrencyCode.TRY),
@@ -1011,6 +1020,7 @@ public sealed class SqlServerPersistenceIntegrationTests
                 paymentId, user.Id, account, card, amount, date, name));
             seed.Add(new DebtAgreement(
                 Guid.NewGuid(), user.Id, name, DebtDirection.Receivable,
+                TransactionScope.Business,
                 // Owned value objects cannot share one instance: EF tracks each
                 // as a separate slot on the row.
                 new Money(1250m, CurrencyCode.TRY),
@@ -1061,6 +1071,7 @@ public sealed class SqlServerPersistenceIntegrationTests
             Guid.NewGuid(), user.Id, "Card", new Money(500m, CurrencyCode.TRY), 10, 20);
         var charge = new CreditCardCharge(
             Guid.NewGuid(), user.Id, card, category, new Money(300m, CurrencyCode.TRY),
+            TransactionScope.Business,
             new DateOnly(2026, 8, 10));
         var payment = new CreditCardPayment(
             Guid.NewGuid(), user.Id, account, card, new Money(100m, CurrencyCode.TRY),
@@ -1134,6 +1145,7 @@ public sealed class SqlServerPersistenceIntegrationTests
         // 1.000 anapara, 1.100 toplam: 100 faiz, iki taksitte.
         var debt = new DebtAgreement(
             Guid.NewGuid(), user.Id, "Banka", DebtDirection.Payable,
+            TransactionScope.Business,
             new Money(1000m, CurrencyCode.TRY), new Money(1100m, CurrencyCode.TRY),
             DebtSourceType.Cash, account, null,
             new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 10), 2, "Kredi");
@@ -1197,10 +1209,10 @@ public sealed class SqlServerPersistenceIntegrationTests
             context.AddRange(card, category);
             context.Add(new CreditCardCharge(
                 Guid.NewGuid(), user.Id, card, category,
-                new Money(5m, CurrencyCode.TRY), new DateOnly(2025, 1, 1), "Eski"));
+                new Money(5m, CurrencyCode.TRY), TransactionScope.Business, new DateOnly(2025, 1, 1), "Eski"));
             context.Add(new CreditCardCharge(
                 Guid.NewGuid(), user.Id, card, category,
-                new Money(1m, CurrencyCode.TRY), new DateOnly(2026, 8, 1), "Yeni"));
+                new Money(1m, CurrencyCode.TRY), TransactionScope.Business, new DateOnly(2026, 8, 1), "Yeni"));
             await context.SaveChangesAsync(CancellationToken.None);
         }
 
@@ -1242,7 +1254,7 @@ public sealed class SqlServerPersistenceIntegrationTests
             {
                 context.Add(new CreditCardCharge(
                     Guid.NewGuid(), user.Id, card, category,
-                    new Money(1m, CurrencyCode.TRY), new DateOnly(2026, 8, 1), $"Yeni {index}"));
+                    new Money(1m, CurrencyCode.TRY), TransactionScope.Business, new DateOnly(2026, 8, 1), $"Yeni {index}"));
             }
             await context.SaveChangesAsync(CancellationToken.None);
         }
@@ -1309,7 +1321,7 @@ public sealed class SqlServerPersistenceIntegrationTests
         var requestId = Guid.NewGuid();
         var plan = new InstallmentPlan(
             Guid.NewGuid(), user.Id, card, category, requestId,
-            new Money(100m, CurrencyCode.TRY), 3, new DateOnly(2026, 8, 10), "Laptop");
+            new Money(100m, CurrencyCode.TRY), TransactionScope.Business, 3, new DateOnly(2026, 8, 10), "Laptop");
 
         await using (var context = database.CreateContext())
         {
@@ -1334,7 +1346,7 @@ public sealed class SqlServerPersistenceIntegrationTests
                 persisted.Items.OrderBy(item => item.Sequence).Select(item => item.Amount.Amount));
             var item = persisted.GetItem(1);
             var charge = new CreditCardCharge(
-                Guid.NewGuid(), user.Id, card, category, item.Amount, item.ScheduledDate, "Taksit 1/3");
+                Guid.NewGuid(), user.Id, card, category, item.Amount, TransactionScope.Business, item.ScheduledDate, "Taksit 1/3");
             item.Realize(
                 charge.Id,
                 new DateTimeOffset(2026, 8, 10, 12, 0, 0, TimeSpan.Zero));
@@ -1376,6 +1388,7 @@ public sealed class SqlServerPersistenceIntegrationTests
             category,
             new Money(249.90m, CurrencyCode.TRY),
             RecurringTransactionKind.BillPayment,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly,
             new DateOnly(2026, 8, 31),
             monthEndBehavior: MonthEndBehavior.ClampToLastDay,
@@ -1404,6 +1417,7 @@ public sealed class SqlServerPersistenceIntegrationTests
             category,
             new Money(100m, CurrencyCode.TRY),
             RecurringTransactionKind.Expense,
+            TransactionScope.Business,
             RecurrenceFrequency.Weekly,
             new DateOnly(2026, 8, 11));
         await using var invalidContext = database.CreateContext();
@@ -1435,6 +1449,7 @@ public sealed class SqlServerPersistenceIntegrationTests
             category,
             new Money(1250m, CurrencyCode.TRY),
             RecurringTransactionKind.BillPayment,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly,
             new DateOnly(2026, 8, 31),
             description: "Synthetic rent");
@@ -1479,6 +1494,7 @@ public sealed class SqlServerPersistenceIntegrationTests
                 category,
                 occurrence.Amount,
                 occurrence.GetTransactionType(),
+                TransactionScope.Business,
                 occurrence.ScheduledDate,
                 occurrence.Description);
             occurrence.RealizeWithTransaction(
@@ -1521,6 +1537,7 @@ public sealed class SqlServerPersistenceIntegrationTests
             category,
             new Money(500m, CurrencyCode.TRY),
             RecurringTransactionKind.Expense,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly,
             new DateOnly(2026, 8, 31));
         var occurrence = RecurringTransactionOccurrence.Create(
@@ -1546,10 +1563,10 @@ public sealed class SqlServerPersistenceIntegrationTests
         Assert.NotNull(secondOccurrence);
         var firstTransaction = new BudgetTransaction(
             Guid.NewGuid(), user.Id, account, category, occurrence.Amount,
-            TransactionType.Expense, occurrence.ScheduledDate);
+            TransactionType.Expense, TransactionScope.Business, occurrence.ScheduledDate);
         var secondTransaction = new BudgetTransaction(
             Guid.NewGuid(), user.Id, account, category, occurrence.Amount,
-            TransactionType.Expense, occurrence.ScheduledDate);
+            TransactionType.Expense, TransactionScope.Business, occurrence.ScheduledDate);
         var now = new DateTimeOffset(2026, 8, 31, 12, 0, 0, TimeSpan.Zero);
         firstOccurrence.RealizeWithTransaction(firstTransaction.Id, now);
         secondOccurrence.RealizeWithTransaction(secondTransaction.Id, now);
@@ -1583,6 +1600,7 @@ public sealed class SqlServerPersistenceIntegrationTests
             Guid.NewGuid(), owner.Id, account, category,
             new Money(125m, CurrencyCode.TRY),
             RecurringTransactionKind.BillPayment,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly,
             new DateOnly(2026, 8, 10),
             description: "Internet");
@@ -1592,10 +1610,10 @@ public sealed class SqlServerPersistenceIntegrationTests
             Guid.NewGuid(), owner.Id, "Main Card", new Money(2000m, CurrencyCode.TRY), 10, 20);
         var charge = new CreditCardCharge(
             Guid.NewGuid(), owner.Id, card, category,
-            new Money(300m, CurrencyCode.TRY), new DateOnly(2026, 8, 5), "Groceries");
+            new Money(300m, CurrencyCode.TRY), TransactionScope.Business, new DateOnly(2026, 8, 5), "Groceries");
         var installment = new InstallmentPlan(
             Guid.NewGuid(), owner.Id, card, category, Guid.NewGuid(),
-            new Money(200m, CurrencyCode.TRY), 2, new DateOnly(2026, 8, 11), "Desk");
+            new Money(200m, CurrencyCode.TRY), TransactionScope.Business, 2, new DateOnly(2026, 8, 11), "Desk");
 
         await using (var context = database.CreateContext())
         {
@@ -1655,45 +1673,50 @@ public sealed class SqlServerPersistenceIntegrationTests
         var julyIncome = new BudgetTransaction(
             Guid.NewGuid(), owner.Id, primary, incomeCategory,
             new Money(2000m, CurrencyCode.TRY), TransactionType.Income,
+            TransactionScope.Business,
             new DateOnly(2026, 7, 1));
         var julyExpense = new BudgetTransaction(
             Guid.NewGuid(), owner.Id, primary, expenseCategory,
             new Money(500m, CurrencyCode.TRY), TransactionType.Expense,
+            TransactionScope.Business,
             new DateOnly(2026, 7, 2));
         var augustIncome = new BudgetTransaction(
             Guid.NewGuid(), owner.Id, primary, incomeCategory,
             new Money(3000m, CurrencyCode.TRY), TransactionType.Income,
+            TransactionScope.Business,
             new DateOnly(2026, 8, 1));
         var augustExpense = new BudgetTransaction(
             Guid.NewGuid(), owner.Id, primary, expenseCategory,
             new Money(800m, CurrencyCode.TRY), TransactionType.Expense,
+            TransactionScope.Business,
             new DateOnly(2026, 8, 2));
         var transfer = new Transfer(
             Guid.NewGuid(), owner.Id, primary, reserve,
             new Money(200m, CurrencyCode.TRY), new DateOnly(2026, 8, 3));
         var julyCharge = new CreditCardCharge(
             Guid.NewGuid(), owner.Id, card, expenseCategory,
-            new Money(100m, CurrencyCode.TRY), new DateOnly(2026, 7, 5));
+            new Money(100m, CurrencyCode.TRY), TransactionScope.Business, new DateOnly(2026, 7, 5));
         var augustCharge = new CreditCardCharge(
             Guid.NewGuid(), owner.Id, card, expenseCategory,
-            new Money(300m, CurrencyCode.TRY), new DateOnly(2026, 8, 5));
+            new Money(300m, CurrencyCode.TRY), TransactionScope.Business, new DateOnly(2026, 8, 5));
         var payment = new CreditCardPayment(
             Guid.NewGuid(), owner.Id, primary, card,
             new Money(50m, CurrencyCode.TRY), new DateOnly(2026, 8, 8));
         var budget = new MonthlyBudget(
             Guid.NewGuid(), owner.Id, expenseCategory,
-            new Money(1000m, CurrencyCode.TRY), 2026, 8);
+            new Money(1000m, CurrencyCode.TRY), TransactionScope.Business, 2026, 8);
         var recurring = new RecurringTransaction(
             Guid.NewGuid(), owner.Id, primary, expenseCategory,
             new Money(125m, CurrencyCode.TRY),
             RecurringTransactionKind.BillPayment,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly,
             new DateOnly(2026, 8, 15));
         var occurrence = RecurringTransactionOccurrence.Create(
             Guid.NewGuid(), recurring, recurring.NextOccurrenceDate!.Value);
         var installment = new InstallmentPlan(
             Guid.NewGuid(), owner.Id, card, expenseCategory, Guid.NewGuid(),
-            new Money(200m, CurrencyCode.TRY), 2, new DateOnly(2026, 8, 11));
+            new Money(200m, CurrencyCode.TRY), TransactionScope.Business, 2, new DateOnly(2026, 8, 11));
 
         await using (var context = database.CreateContext())
         {
@@ -1772,6 +1795,7 @@ public sealed class SqlServerPersistenceIntegrationTests
                     isIncome ? incomeCategory : expenseCategory,
                     new Money(1m, CurrencyCode.TRY),
                     isIncome ? TransactionType.Income : TransactionType.Expense,
+                    TransactionScope.Business,
                     new DateOnly(2026, month, (index % 28) + 1));
             })
             .ToArray();
@@ -1791,6 +1815,7 @@ public sealed class SqlServerPersistenceIntegrationTests
                 card,
                 expenseCategory,
                 new Money(10m, CurrencyCode.TRY),
+                TransactionScope.Business,
                 new DateOnly(2026, 8, 5)))
             .ToArray();
 
@@ -1990,6 +2015,7 @@ public sealed class SqlServerPersistenceIntegrationTests
         var recurring = new RecurringTransaction(
             Guid.NewGuid(), owner.Id, account, category,
             new Money(125.5m, CurrencyCode.TRY), RecurringTransactionKind.BillPayment,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly, new DateOnly(2026, 6, 1));
 
         await using (var context = database.CreateContext())
@@ -2238,6 +2264,7 @@ public sealed class SqlServerPersistenceIntegrationTests
             category,
             new Money(500m, CurrencyCode.TRY),
             RecurringTransactionKind.BillPayment,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly,
             new DateOnly(2026, 8, 31));
         var occurrence = RecurringTransactionOccurrence.Create(
@@ -2262,9 +2289,9 @@ public sealed class SqlServerPersistenceIntegrationTests
         Assert.NotNull(firstOccurrence);
         Assert.NotNull(secondOccurrence);
         var firstCharge = new CreditCardCharge(
-            Guid.NewGuid(), user.Id, card, category, occurrence.Amount, occurrence.ScheduledDate);
+            Guid.NewGuid(), user.Id, card, category, occurrence.Amount, TransactionScope.Business, occurrence.ScheduledDate);
         var secondCharge = new CreditCardCharge(
-            Guid.NewGuid(), user.Id, card, category, occurrence.Amount, occurrence.ScheduledDate);
+            Guid.NewGuid(), user.Id, card, category, occurrence.Amount, TransactionScope.Business, occurrence.ScheduledDate);
         var now = new DateTimeOffset(2026, 8, 31, 12, 0, 0, TimeSpan.Zero);
         firstOccurrence.RealizeWithCharge(firstCharge.Id, now);
         secondOccurrence.RealizeWithCharge(secondCharge.Id, now);
@@ -2317,12 +2344,13 @@ public sealed class SqlServerPersistenceIntegrationTests
             Guid.NewGuid(), userId, "FullCard", new Money(1000m, CurrencyCode.TRY), 10, 20);
         // Uses the whole limit and produces the statement due on 2026-08-20.
         var fullCardCharge = new CreditCardCharge(Guid.NewGuid(), userId, fullCard, bills,
-            new Money(1000m, CurrencyCode.TRY), new DateOnly(2026, 8, 5));
+            new Money(1000m, CurrencyCode.TRY), TransactionScope.Business, new DateOnly(2026, 8, 5));
 
         // Income: the schedule still points at the occurrence's date, so the projection
         // must suppress that date instead of reporting it twice.
         var incomePlan = new RecurringTransaction(Guid.NewGuid(), userId, bank, salary,
             new Money(18_000m, CurrencyCode.TRY), RecurringTransactionKind.Income,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly, new DateOnly(2026, 8, 20));
         var incomeOccurrence = RecurringTransactionOccurrence.Create(
             Guid.NewGuid(), incomePlan, new DateOnly(2026, 8, 20));
@@ -2330,6 +2358,7 @@ public sealed class SqlServerPersistenceIntegrationTests
         // Card expense that no longer fits in the remaining limit.
         var cardPlan = new RecurringTransaction(Guid.NewGuid(), userId, fullCard, bills,
             new Money(500m, CurrencyCode.TRY), RecurringTransactionKind.BillPayment,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly, new DateOnly(2026, 8, 25),
             description: "Streaming");
         var cardOccurrence = RecurringTransactionOccurrence.Create(
@@ -2340,6 +2369,7 @@ public sealed class SqlServerPersistenceIntegrationTests
         // reach this state: the constructor rejects an inactive account.
         var closedPlan = new RecurringTransaction(Guid.NewGuid(), userId, closing, bills,
             new Money(200m, CurrencyCode.TRY), RecurringTransactionKind.BillPayment,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly, new DateOnly(2026, 8, 28));
         var closedOccurrence = RecurringTransactionOccurrence.Create(
             Guid.NewGuid(), closedPlan, new DateOnly(2026, 8, 28));
@@ -2349,16 +2379,19 @@ public sealed class SqlServerPersistenceIntegrationTests
         // No occurrence at all: reported as a projected date against the schedule.
         var projectedPlan = new RecurringTransaction(Guid.NewGuid(), userId, bank, bills,
             new Money(90m, CurrencyCode.TRY), RecurringTransactionKind.Expense,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly, new DateOnly(2026, 9, 1));
 
         var installmentPlan = new InstallmentPlan(Guid.NewGuid(), userId, openCard, bills,
-            Guid.NewGuid(), new Money(600m, CurrencyCode.TRY), 2, new DateOnly(2026, 8, 12));
+            Guid.NewGuid(), new Money(600m, CurrencyCode.TRY), TransactionScope.Business, 2, new DateOnly(2026, 8, 12));
 
         var payable = new DebtAgreement(Guid.NewGuid(), userId, "Lender", DebtDirection.Payable,
+            TransactionScope.Business,
             new Money(600m, CurrencyCode.TRY), new Money(600m, CurrencyCode.TRY),
             DebtSourceType.Cash, bank, null,
             new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 22), 2);
         var receivable = new DebtAgreement(Guid.NewGuid(), userId, "Friend", DebtDirection.Receivable,
+            TransactionScope.Business,
             new Money(400m, CurrencyCode.TRY), new Money(400m, CurrencyCode.TRY),
             DebtSourceType.Cash, bank, null,
             new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 23), 2);
@@ -2447,23 +2480,25 @@ public sealed class SqlServerPersistenceIntegrationTests
             Guid.NewGuid(), userId, "Card", new Money(10_000m, CurrencyCode.TRY), 15, 25);
 
         var income = new BudgetTransaction(Guid.NewGuid(), userId, bank, salary,
-            new Money(1000m, CurrencyCode.TRY), TransactionType.Income, new DateOnly(2026, 8, 1));
+            new Money(1000m, CurrencyCode.TRY), TransactionType.Income, TransactionScope.Business, new DateOnly(2026, 8, 1));
         var cancelledExpense = new BudgetTransaction(Guid.NewGuid(), userId, cash, groceries,
-            new Money(50m, CurrencyCode.TRY), TransactionType.Expense, new DateOnly(2026, 8, 2));
+            new Money(50m, CurrencyCode.TRY), TransactionType.Expense, TransactionScope.Business, new DateOnly(2026, 8, 2));
         cancelledExpense.Cancel(utc);
         var transfer = new Transfer(Guid.NewGuid(), userId, bank, cash,
             new Money(250m, CurrencyCode.TRY), new DateOnly(2026, 8, 3));
         var manualCharge = new CreditCardCharge(Guid.NewGuid(), userId, card, groceries,
-            new Money(300m, CurrencyCode.TRY), new DateOnly(2026, 8, 3));
+            new Money(300m, CurrencyCode.TRY), TransactionScope.Business, new DateOnly(2026, 8, 3));
         var payment = new CreditCardPayment(Guid.NewGuid(), userId, bank, card,
             new Money(100m, CurrencyCode.TRY), new DateOnly(2026, 8, 4));
 
         var payable = new DebtAgreement(Guid.NewGuid(), userId, "Lender", DebtDirection.Payable,
+            TransactionScope.Business,
             new Money(600m, CurrencyCode.TRY), new Money(600m, CurrencyCode.TRY),
             DebtSourceType.Cash, bank, null,
             new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 5), 2);
         payable.GetInstallment(1).MarkPaid(bank, new DateOnly(2026, 8, 5), utc);
         var receivable = new DebtAgreement(Guid.NewGuid(), userId, "Friend", DebtDirection.Receivable,
+            TransactionScope.Business,
             new Money(400m, CurrencyCode.TRY), new Money(400m, CurrencyCode.TRY),
             DebtSourceType.Cash, bank, null,
             new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 6), 2);
@@ -2472,9 +2507,10 @@ public sealed class SqlServerPersistenceIntegrationTests
         // Recurring: one realized occurrence and one still planned.
         var recurring = new RecurringTransaction(Guid.NewGuid(), userId, bank, groceries,
             new Money(75m, CurrencyCode.TRY), RecurringTransactionKind.BillPayment,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly, new DateOnly(2026, 8, 7));
         var recurringResult = new BudgetTransaction(Guid.NewGuid(), userId, bank, groceries,
-            new Money(75m, CurrencyCode.TRY), TransactionType.Expense, new DateOnly(2026, 8, 7),
+            new Money(75m, CurrencyCode.TRY), TransactionType.Expense, TransactionScope.Business, new DateOnly(2026, 8, 7),
             "Streaming");
         var realizedOccurrence = RecurringTransactionOccurrence.Create(
             Guid.NewGuid(), recurring, new DateOnly(2026, 8, 7));
@@ -2486,14 +2522,14 @@ public sealed class SqlServerPersistenceIntegrationTests
 
         // Installment: item 1 realized into a charge, item 2 still pending.
         var plan = new InstallmentPlan(Guid.NewGuid(), userId, card, groceries, Guid.NewGuid(),
-            new Money(600m, CurrencyCode.TRY), 2, new DateOnly(2026, 8, 8));
+            new Money(600m, CurrencyCode.TRY), TransactionScope.Business, 2, new DateOnly(2026, 8, 8));
         var installmentCharge = new CreditCardCharge(Guid.NewGuid(), userId, card, groceries,
-            new Money(300m, CurrencyCode.TRY), new DateOnly(2026, 8, 8));
+            new Money(300m, CurrencyCode.TRY), TransactionScope.Business, new DateOnly(2026, 8, 8));
         plan.GetItem(1).Realize(installmentCharge.Id, utc);
 
         // CSV import: a confirmed row pointing at its transaction.
         var importedTransaction = new BudgetTransaction(Guid.NewGuid(), userId, cash, groceries,
-            new Money(40m, CurrencyCode.TRY), TransactionType.Expense, new DateOnly(2026, 8, 9));
+            new Money(40m, CurrencyCode.TRY), TransactionType.Expense, TransactionScope.Business, new DateOnly(2026, 8, 9));
         var batch = new ImportBatch(Guid.NewGuid(), userId, "statement.csv", new string('b', 64), 100,
             "utf-8", ';', "Date", "Amount", "Description", "Reference", "yyyy-MM-dd", '.', utc);
         var row = new ImportRow(Guid.NewGuid(), userId, batch.Id, 2,
@@ -2550,6 +2586,7 @@ public sealed class SqlServerPersistenceIntegrationTests
                 category,
                 new Money(10m + index, CurrencyCode.TRY),
                 TransactionType.Expense,
+                TransactionScope.Business,
                 new DateOnly(2026, 7, 1).AddDays(index % 28)));
         }
 

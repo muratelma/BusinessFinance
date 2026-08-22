@@ -12,6 +12,7 @@ internal sealed class DebtAgreementConfiguration : IEntityTypeConfiguration<Debt
         builder.ToTable("DebtAgreements", table =>
         {
             table.HasCheckConstraint("CK_DebtAgreements_Direction", "[Direction] IN (1, 2)");
+            table.HasCheckConstraint("CK_DebtAgreements_Scope", "[Scope] IN (1, 2)");
             table.HasCheckConstraint("CK_DebtAgreements_Principal", "[Principal] > 0");
             table.HasCheckConstraint("CK_DebtAgreements_TotalRepayment", "[TotalRepayment] >= [Principal]");
             table.HasCheckConstraint("CK_DebtAgreements_Currency", "[Currency] = 'TRY' AND [TotalCurrency] = [Currency]");
@@ -41,6 +42,7 @@ internal sealed class DebtAgreementConfiguration : IEntityTypeConfiguration<Debt
         builder.HasAlternateKey(x => new { x.UserId, x.Id });
         builder.Property(x => x.CounterpartyName).HasMaxLength(DebtAgreement.MaximumNameLength);
         builder.Property(x => x.Direction).HasConversion<byte>().HasColumnType("tinyint");
+        builder.Property(x => x.Scope).HasConversion<byte>().HasColumnType("tinyint");
         builder.OwnsOne(x => x.Principal, money =>
         {
             money.Property(x => x.Amount).HasColumnName("Principal").HasPrecision(19, 4);

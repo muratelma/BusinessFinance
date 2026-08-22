@@ -558,6 +558,7 @@ public sealed class RecurringUseCaseTests
             100m,
             CurrencyCode.TRY,
             RecurringTransactionKind.Expense,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly,
             new DateOnly(2026, 8, 1),
             null,
@@ -572,13 +573,13 @@ public sealed class RecurringUseCaseTests
     private static CreateRecurringTransactionCommand AccountCommand(
         Guid accountId, Guid categoryId, RecurringTransactionKind kind) =>
         new(RecurringSourceType.Account, accountId, null, categoryId, 100m, CurrencyCode.TRY,
-            kind, RecurrenceFrequency.Monthly, new DateOnly(2026, 8, 1), null,
+            kind, TransactionScope.Business, RecurrenceFrequency.Monthly, new DateOnly(2026, 8, 1), null,
             MonthEndBehavior.ClampToLastDay, null);
 
     private static CreateRecurringTransactionCommand CardCommand(
         Guid cardId, Guid categoryId, RecurringTransactionKind kind) =>
         new(RecurringSourceType.CreditCard, null, cardId, categoryId, 100m, CurrencyCode.TRY,
-            kind, RecurrenceFrequency.Monthly, new DateOnly(2026, 8, 1), null,
+            kind, TransactionScope.Business, RecurrenceFrequency.Monthly, new DateOnly(2026, 8, 1), null,
             MonthEndBehavior.ClampToLastDay, null);
 
     private static CreditCard CreateCard(Guid userId) => new(
@@ -597,6 +598,7 @@ public sealed class RecurringUseCaseTests
             category,
             new Money(1000m, CurrencyCode.TRY),
             RecurringTransactionKind.BillPayment,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly,
             startDate,
             description: "Streaming");
@@ -618,6 +620,7 @@ public sealed class RecurringUseCaseTests
             category,
             new Money(1000m, CurrencyCode.TRY),
             RecurringTransactionKind.BillPayment,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly,
             startDate,
             description: "Rent");

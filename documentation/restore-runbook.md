@@ -1,7 +1,7 @@
 # Backup Restore Runbook
 
-Bu runbook yalnız sentetik yerel veridir. Yazılan şema **v5**; okunabilen
-şemalar v2–v5. Restore merge,
+Bu runbook yalnız sentetik yerel veridir. Yazılan şema **v6**; okunabilen
+şema **yalnız v6**. Restore merge,
 overwrite veya kullanıcı seçerek silme yapmaz; hedef kullanıcının finans alanı
 boş olmalıdır. Yeni hesapta uygulamanın otomatik oluşturduğu, hiç değiştirilmemiş
 başlangıç kategorileri boş alan sayılır ve yedekteki kategorilerle atomik olarak
@@ -10,9 +10,15 @@ değiştirilir.
 ## Ön koşullar
 
 - SQL Server `healthy`, API `/health/ready` cevabı 200 olmalıdır.
-- Backup dosyası `business-finance-backup` formatında ve şeması v2–v5 aralığında
-  olmalıdır. v5, kredi kartının asgari ödeme oranını taşır; daha eski
-  yedeklerde bu alan yoktur ve kart varsayılan oranla (%20) geri yüklenir.
+- Backup dosyası `business-finance-backup` formatında ve şeması **v6**
+  olmalıdır. v6, her finansal kaydın kapsamını (`scope`) ve hesap/kategori/kart
+  varsayılan kapsamını (`defaultScope`) taşır.
+- **v2–v5 yedekleri `restore.unsupported_version` ile reddedilir ve
+  yükseltilmez.** O dosyalarda kapsam alanı yok; eksik alanı doldurmak için bir
+  değer seçmek, kullanıcının işletme ile cebi arasındaki ayrımını uydurmak
+  olurdu ve bu ayrımı yalnız kullanıcı bilir (ADR 0013). Reddetme, sessizce
+  yanlış etiketlenmiş bir geçmiş üretmekten iyidir. Eski bir yedeği taşımanın
+  yolu yoktur; o veri sentetiktir ve yeniden girilir.
 - Dosya en fazla 14 MiB envelope, decoded payload en fazla 10 MiB olmalıdır.
 - Hedef kullanıcıda herhangi bir finans veya attachment metadata kaydı olmamalıdır.
   Yalnızca eksiksiz, aktif ve değiştirilmemiş başlangıç kategori setine izin verilir;

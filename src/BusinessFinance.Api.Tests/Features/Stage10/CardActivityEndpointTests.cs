@@ -25,7 +25,7 @@ public sealed class CardActivityEndpointTests
         using var chargeResponse = await client.PostAsJsonAsync(
             $"/api/v1/credit-cards/{card.Id}/charges",
             new CreateCardChargeRequest(
-                category.Id, "300.0000", "TRY", "2026-08-10", "Synthetic purchase"));
+                category.Id, "300.0000", "TRY", "business", "2026-08-10", "Synthetic purchase"));
         Assert.Equal(HttpStatusCode.Created, chargeResponse.StatusCode);
         var charge = await chargeResponse.Content.ReadFromJsonAsync<CardChargeResponse>();
         card = (await client.GetFromJsonAsync<CreditCardResponse>(
@@ -87,7 +87,7 @@ public sealed class CardActivityEndpointTests
 
         using var overLimit = await client.PostAsJsonAsync(
             $"/api/v1/credit-cards/{card.Id}/charges",
-            new CreateCardChargeRequest(category.Id, "500.0001", "TRY", "2026-08-10", null));
+            new CreateCardChargeRequest(category.Id, "500.0001", "TRY", "business", "2026-08-10", null));
         using var overPayment = await client.PostAsJsonAsync(
             $"/api/v1/credit-cards/{card.Id}/payments",
             new CreateCardPaymentRequest(account.Id, "1", "TRY", "2026-08-10", null));

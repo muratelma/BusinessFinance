@@ -4,6 +4,7 @@ public sealed record CreateCardChargeRequest(
     Guid CategoryId,
     string Amount,
     string Currency,
+    string Scope,
     string ChargeDate,
     string? Description);
 
@@ -20,6 +21,7 @@ public sealed record CardChargeResponse(
     Guid CategoryId,
     string Amount,
     string Currency,
+    string Scope,
     string ChargeDate,
     string? Description,
     bool IsCancelled,

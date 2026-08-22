@@ -12,6 +12,7 @@ public sealed record CreateTransactionCommand(
     decimal Amount,
     CurrencyCode Currency,
     TransactionType Type,
+    TransactionScope Scope,
     DateOnly TransactionDate,
     string? Description);
 
@@ -59,6 +60,7 @@ public sealed class CreateTransactionUseCase(
                 category,
                 new Money(command.Amount, command.Currency),
                 command.Type,
+                command.Scope,
                 command.TransactionDate,
                 command.Description);
         }
@@ -84,6 +86,7 @@ public sealed class CreateTransactionUseCase(
         transaction.Amount.Amount,
         transaction.Amount.Currency,
         transaction.Type,
+        transaction.Scope,
         transaction.TransactionDate,
         transaction.Description,
         transaction.IsCancelled,

@@ -14,6 +14,9 @@ internal sealed class CreditCardConfiguration : IEntityTypeConfiguration<CreditC
             table.HasCheckConstraint("CK_CreditCards_Limit", "[Limit] > 0");
             table.HasCheckConstraint("CK_CreditCards_Currency", "[Currency] = 1");
             table.HasCheckConstraint(
+                "CK_CreditCards_DefaultScope",
+                "[DefaultScope] IS NULL OR [DefaultScope] IN (1, 2)");
+            table.HasCheckConstraint(
                 "CK_CreditCards_StatementClosingDay",
                 "[StatementClosingDay] BETWEEN 1 AND 28");
             table.HasCheckConstraint(
@@ -25,6 +28,7 @@ internal sealed class CreditCardConfiguration : IEntityTypeConfiguration<CreditC
         });
 
         builder.HasKey(card => card.Id);
+        builder.Property(card => card.DefaultScope).HasConversion<byte?>().HasColumnType("tinyint");
         builder.HasAlternateKey(card => new { card.UserId, card.Id });
         builder.Property(card => card.Name)
             .HasMaxLength(CreditCard.MaximumNameLength)

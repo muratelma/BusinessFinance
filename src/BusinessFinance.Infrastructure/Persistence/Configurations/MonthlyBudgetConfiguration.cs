@@ -17,9 +17,11 @@ internal sealed class MonthlyBudgetConfiguration : IEntityTypeConfiguration<Mont
             table.HasCheckConstraint("CK_MonthlyBudgets_Month", "[Month] BETWEEN 1 AND 12");
             table.HasCheckConstraint("CK_MonthlyBudgets_Limit", "[Limit] > 0");
             table.HasCheckConstraint("CK_MonthlyBudgets_Currency", "[Currency] = 1");
+            table.HasCheckConstraint("CK_MonthlyBudgets_Scope", "[Scope] IN (1, 2)");
         });
 
         builder.HasKey(budget => budget.Id);
+        builder.Property(budget => budget.Scope).HasConversion<byte>().HasColumnType("tinyint");
         builder.Ignore(budget => budget.PeriodStart);
         builder.Ignore(budget => budget.PeriodEnd);
 

@@ -65,6 +65,7 @@ public sealed class InstallmentPlanTests
             category,
             Guid.NewGuid(),
             new Money(total, CurrencyCode.TRY),
+            TransactionScope.Business,
             count,
             new DateOnly(2026, 8, 10),
             "Laptop");

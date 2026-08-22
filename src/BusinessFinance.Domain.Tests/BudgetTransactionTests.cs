@@ -47,6 +47,7 @@ public class BudgetTransactionTests
             category,
             amount,
             transactionType,
+            TransactionScope.Business,
             date,
             "  Synthetic transaction  ");
 
@@ -96,6 +97,7 @@ public class BudgetTransactionTests
             CreateCategory(ownerId, CategoryType.Expense),
             new Money(100m, CurrencyCode.TRY),
             TransactionType.Expense,
+            TransactionScope.Business,
             new DateOnly(2026, 8, 7));
 
         Assert.Throws<ArgumentException>(act);
@@ -113,6 +115,7 @@ public class BudgetTransactionTests
             CreateCategory(userId, CategoryType.Expense),
             new Money(100m, CurrencyCode.TRY),
             TransactionType.Expense,
+            TransactionScope.Business,
             new DateOnly(2026, 8, 7));
 
         Assert.Throws<ArgumentNullException>(act);
@@ -130,6 +133,7 @@ public class BudgetTransactionTests
             null!,
             new Money(100m, CurrencyCode.TRY),
             TransactionType.Expense,
+            TransactionScope.Business,
             new DateOnly(2026, 8, 7));
 
         Assert.Throws<ArgumentNullException>(act);
@@ -147,6 +151,7 @@ public class BudgetTransactionTests
             CreateCategory(userId, CategoryType.Expense),
             null!,
             TransactionType.Expense,
+            TransactionScope.Business,
             new DateOnly(2026, 8, 7));
 
         Assert.Throws<ArgumentNullException>(act);
@@ -237,6 +242,7 @@ public class BudgetTransactionTests
         Category? category = null,
         Money? amount = null,
         TransactionType type = TransactionType.Expense,
+        TransactionScope scope = TransactionScope.Business,
         DateOnly? transactionDate = null,
         string? description = "Synthetic transaction")
     {
@@ -249,6 +255,7 @@ public class BudgetTransactionTests
             category ?? CreateCategory(resolvedUserId, CategoryType.Expense),
             amount ?? new Money(100m, CurrencyCode.TRY),
             type,
+            scope,
             transactionDate ?? new DateOnly(2026, 8, 7),
             description);
     }

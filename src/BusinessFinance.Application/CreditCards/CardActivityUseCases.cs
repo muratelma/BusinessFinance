@@ -55,6 +55,7 @@ public sealed class CreateCardChargeUseCase(
                 card,
                 category,
                 new Money(command.Amount, command.Currency),
+                command.Scope,
                 command.ChargeDate,
                 command.Description);
             await chargeRepository.AddAsync(charge, cancellationToken);
@@ -78,6 +79,7 @@ public sealed class CreateCardChargeUseCase(
         charge.CategoryId,
         charge.Amount.Amount,
         charge.Amount.Currency,
+        charge.Scope,
         charge.ChargeDate,
         charge.Description,
         charge.IsCancelled,

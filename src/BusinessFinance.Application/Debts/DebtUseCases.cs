@@ -88,6 +88,7 @@ public sealed class CreateDebtUseCase(
         {
             var debt = new DebtAgreement(
                 Guid.NewGuid(), userId, command.CounterpartyName, command.Direction,
+                command.Scope,
                 new Money(command.Principal, command.Currency),
                 new Money(totalRepayment.Value, command.Currency),
                 command.SourceType, openingAccount, category,
@@ -152,7 +153,7 @@ public sealed class CreateDebtUseCase(
         var splits = debt.InstallmentSplits;
         var installments = debt.Installments.OrderBy(x => x.Sequence).ToArray();
         return new DebtDto(
-            debt.Id, debt.CounterpartyName, debt.Direction, debt.Principal.Amount,
+            debt.Id, debt.CounterpartyName, debt.Direction, debt.Scope, debt.Principal.Amount,
             debt.TotalRepayment.Amount, debt.RemainingAmount, debt.Principal.Currency,
             debt.AnnualInterestRate, debt.TotalInterest,
             debt.SourceType, debt.OpeningAccountId, debt.CategoryId,

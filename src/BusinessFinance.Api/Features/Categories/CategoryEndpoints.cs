@@ -48,8 +48,16 @@ public static class CategoryEndpoints
                 "categories.invalid_type");
         }
 
+        if (!FinanceContract.TryParseOptionalScope(request.DefaultScope, out var createScope))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Default scope must be business, personal or empty.",
+                "categories.invalid_default_scope");
+        }
+
         var result = await useCase.ExecuteAsync(
-            new CreateCategoryCommand(request.Name, type),
+            new CreateCategoryCommand(request.Name, type, createScope),
             cancellationToken);
         if (!result.IsSuccess)
         {
@@ -98,8 +106,16 @@ public static class CategoryEndpoints
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
+        if (!FinanceContract.TryParseOptionalScope(request.DefaultScope, out var updateScope))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Default scope must be business, personal or empty.",
+                "categories.invalid_default_scope");
+        }
+
         var result = await useCase.ExecuteAsync(
-            new UpdateCategoryCommand(categoryId, request.Name, request.IsActive),
+            new UpdateCategoryCommand(categoryId, request.Name, request.IsActive, updateScope),
             cancellationToken);
         return result.IsSuccess
             ? Results.Ok(ToResponse(result.Value))
@@ -113,5 +129,6 @@ public static class CategoryEndpoints
         item.Id,
         item.Name,
         FinanceContract.CategoryTypeValue(item.Type),
-        item.IsActive);
+        item.IsActive,
+        FinanceContract.OptionalScopeValue(item.DefaultScope));
 }

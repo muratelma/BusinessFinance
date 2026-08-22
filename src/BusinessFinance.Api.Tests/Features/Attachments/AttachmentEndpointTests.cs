@@ -102,7 +102,7 @@ public sealed class AttachmentEndpointTests
             "/api/v1/transactions",
             new CreateTransactionRequest(
                 account.Id, categories!.Items[0].Id, "10.0000", "TRY",
-                "expense", "2026-08-11", "Synthetic receipt"));
+                "expense", "business", "2026-08-11", "Synthetic receipt"));
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<TransactionResponse>())!;
     }

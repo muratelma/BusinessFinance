@@ -39,6 +39,27 @@ Taşımada iki test değişti:
 veritabanı ile tek `InitialCreate`'ten kurulan veritabanının 543 satırlık tam
 şema dökümü (kolon, indeks, CHECK, FK, PK/UQ) birebir eşleşti.
 
+## Aşama 01 Grup 2 — kapsam boyutu testleri
+
+22 Ağustos 2026 itibarıyla eklenen ve değişen testler:
+
+| Test | Ne kanıtlıyor |
+|---|---|
+| `TransactionScopeTests` (Domain, yeni) | Kapsam zorunlu olan altı modelde tanımsız kapsamın reddi ve değerin korunması |
+| `TransactionScopeTests.MoneyMovingModels_DoNotCarryScope` | `Transfer` ve `CreditCardPayment` kapsam alanı **taşımıyor**; eklenirse test kırılır |
+| `TransactionScopeTests.MonthlyBudget_Progress_CountsOnlyItsOwnScope` | Aynı kategoriye giren şahsi harcama işletme bütçesini tüketmiyor |
+| `TransactionScopeTests` varsayılan kapsam testleri | `Account`/`Category`/`CreditCard` varsayılanı boş başlıyor, kurulabiliyor ve kaldırılabiliyor |
+| `MigrationHistoryTests` (**yeniden yazıldı**) | Artık tekliği değil zinciri koruyor: beklenen sıra, id'lerin artan olması, `HasPendingModelChanges` yok |
+| `MigrationHistoryTests.AddTransactionScope_AddsColumnsBeforeConstraintsAndLeavesNoDefault` | Kolonlar CHECK'lerden önce ekleniyor, zorunlu kolonlar kalıcı veritabanı varsayılanı bırakmıyor, isteğe bağlı olanlar nullable |
+| `DataPortabilityTests.BackupBeforeScope_IsRejectedAndWritesNothing` (v2 yükseltme testinin **yerine**) | v5 yedeği `restore.unsupported_version` ile reddediliyor ve hedefe hiçbir şey yazılmıyor |
+| `DataPortabilityTests.Backup_ValidatesAndRestoresCompleteSyntheticGraphToEmptyOwner` (genişletildi) | v6 yedeğinde hem kaydın kapsamı hem hesap/kategori varsayılanı geri yüklemede korunuyor |
+| `ImportConfirmationUseCaseTests` (genişletildi) | İçe aktarılan satırın kapsamı hesabın varsayılanından çözülüyor |
+
+Kapsam boyutunun **kalan** test yüzeyi henüz yok ve olduğu gibi yazılmıyor:
+türetme zincirinin sırası (Grup 3), aynı ayın üç kapsamda okunduğunda bakiyenin
+değişmediği gerçek SQL testi (Grup 6) ve Flutter kapsam anahtarı testleri
+(Grup 7) kendi gruplarında gelecek.
+
 ## Mevcut kabul kanıtı
 
 | Use case | Kural / deny durumu | Beklenen sonuç | Kanıt | Durum |

@@ -152,6 +152,7 @@ public sealed class ImportStagingEndpointTests
             "/api/v1/transactions",
             new CreateTransactionRequest(
                 account.Id, category.Id, "42.5000", "TRY", "expense",
+                "business",
                 "2026-08-11", "Grocery   SHOP"));
         existingResponse.EnsureSuccessStatusCode();
         var existing = await existingResponse.Content.ReadFromJsonAsync<TransactionResponse>();
@@ -267,7 +268,7 @@ public sealed class ImportStagingEndpointTests
     {
         using var response = await client.PostAsJsonAsync(
             "/api/v1/accounts",
-            new CreateAccountRequest("Import account", "bank", "TRY", "0"));
+            new CreateAccountRequest("Import account", "bank", "TRY", "0", "business"));
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<AccountResponse>())!;
     }

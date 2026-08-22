@@ -9,4 +9,5 @@ public sealed record GetAccountResponse(
     CurrencyCode Currency,
     bool IsActive,
     decimal OpeningBalance,
-    decimal Balance);
+    decimal Balance,
+    TransactionScope? DefaultScope);

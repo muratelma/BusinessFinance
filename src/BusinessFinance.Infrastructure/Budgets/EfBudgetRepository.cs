@@ -62,6 +62,12 @@ internal sealed class EfBudgetRepository(BusinessFinanceDbContext dbContext)
         var names = await dbContext.Categories.AsNoTracking()
             .Where(category => category.UserId == userId && categoryIds.Contains(category.Id))
             .ToDictionaryAsync(category => category.Id, category => category.Name, cancellationToken);
+
+        // Harcama kategoriyle değil, kategori + kapsam çiftiyle toplanır. Aynı
+        // kategori hem işletme hem şahsi harcama tutabildiği için bütçenin
+        // hangi tarafı sınırladığı kendi kapsamından okunur; ikisini birden
+        // saymak, kullanıcının koymadığı bir sınırı aşılmış gösterirdi. Aynı
+        // kural MonthlyBudget.CalculateProgress içinde de yazılı.
         var transactionSpent = await dbContext.Transactions.AsNoTracking()
             .Where(transaction => transaction.UserId == userId &&
                                   categoryIds.Contains(transaction.CategoryId) &&
@@ -69,18 +75,34 @@ internal sealed class EfBudgetRepository(BusinessFinanceDbContext dbContext)
                                   !transaction.IsCancelled &&
                                   transaction.TransactionDate >= periodStart &&
                                   transaction.TransactionDate < periodEndExclusive)
-            .GroupBy(transaction => transaction.CategoryId)
-            .Select(group => new { CategoryId = group.Key, Amount = group.Sum(x => x.Amount.Amount) })
-            .ToDictionaryAsync(value => value.CategoryId, value => value.Amount, cancellationToken);
+            .GroupBy(transaction => new { transaction.CategoryId, transaction.Scope })
+            .Select(group => new
+            {
+                group.Key.CategoryId,
+                group.Key.Scope,
+                Amount = group.Sum(x => x.Amount.Amount)
+            })
+            .ToDictionaryAsync(
+                value => (value.CategoryId, value.Scope),
+                value => value.Amount,
+                cancellationToken);
         var cardSpent = await dbContext.CreditCardCharges.AsNoTracking()
             .Where(charge => charge.UserId == userId &&
                              categoryIds.Contains(charge.CategoryId) &&
                              !charge.IsCancelled &&
                              charge.ChargeDate >= periodStart &&
                              charge.ChargeDate < periodEndExclusive)
-            .GroupBy(charge => charge.CategoryId)
-            .Select(group => new { CategoryId = group.Key, Amount = group.Sum(x => x.Amount.Amount) })
-            .ToDictionaryAsync(value => value.CategoryId, value => value.Amount, cancellationToken);
+            .GroupBy(charge => new { charge.CategoryId, charge.Scope })
+            .Select(group => new
+            {
+                group.Key.CategoryId,
+                group.Key.Scope,
+                Amount = group.Sum(x => x.Amount.Amount)
+            })
+            .ToDictionaryAsync(
+                value => (value.CategoryId, value.Scope),
+                value => value.Amount,
+                cancellationToken);
 
         // Gider kaynaklı borcun açılışı bütçeyi de tüketir: tüketim gerçek ve
         // kategorilidir. Taksit ödemesi bütçeye dokunmaz — dokunsaydı aynı
@@ -92,15 +114,24 @@ internal sealed class EfBudgetRepository(BusinessFinanceDbContext dbContext)
                            categoryIds.Contains(debt.CategoryId.Value) &&
                            debt.StartDate >= periodStart &&
                            debt.StartDate < periodEndExclusive)
-            .GroupBy(debt => debt.CategoryId!.Value)
-            .Select(group => new { CategoryId = group.Key, Amount = group.Sum(x => x.Principal.Amount) })
-            .ToDictionaryAsync(value => value.CategoryId, value => value.Amount, cancellationToken);
+            .GroupBy(debt => new { CategoryId = debt.CategoryId!.Value, debt.Scope })
+            .Select(group => new
+            {
+                group.Key.CategoryId,
+                group.Key.Scope,
+                Amount = group.Sum(x => x.Principal.Amount)
+            })
+            .ToDictionaryAsync(
+                value => (value.CategoryId, value.Scope),
+                value => value.Amount,
+                cancellationToken);
 
         return budgets.Select(budget =>
         {
-            var spentAmount = transactionSpent.GetValueOrDefault(budget.CategoryId) +
-                              cardSpent.GetValueOrDefault(budget.CategoryId) +
-                              debtSpent.GetValueOrDefault(budget.CategoryId);
+            var key = (budget.CategoryId, budget.Scope);
+            var spentAmount = transactionSpent.GetValueOrDefault(key) +
+                              cardSpent.GetValueOrDefault(key) +
+                              debtSpent.GetValueOrDefault(key);
             return new BudgetDto(
                 budget.Id,
                 budget.CategoryId,
@@ -110,6 +141,7 @@ internal sealed class EfBudgetRepository(BusinessFinanceDbContext dbContext)
                 Math.Max(budget.Limit.Amount - spentAmount, 0m),
                 Math.Max(spentAmount - budget.Limit.Amount, 0m),
                 budget.Limit.Currency,
+                budget.Scope,
                 budget.Year,
                 budget.Month);
         }).OrderBy(item => item.CategoryName).ThenBy(item => item.Id).ToArray();

@@ -10,7 +10,12 @@ internal sealed class CategoryConfiguration : IEntityTypeConfiguration<Category>
     public void Configure(EntityTypeBuilder<Category> builder)
     {
         builder.ToTable("Categories", table =>
-            table.HasCheckConstraint("CK_Categories_Type", "[Type] IN (1, 2)"));
+        {
+            table.HasCheckConstraint("CK_Categories_Type", "[Type] IN (1, 2)");
+            table.HasCheckConstraint(
+                "CK_Categories_DefaultScope",
+                "[DefaultScope] IS NULL OR [DefaultScope] IN (1, 2)");
+        });
 
         builder.HasKey(category => category.Id);
         builder.HasAlternateKey(category => new { category.UserId, category.Id });
@@ -19,6 +24,7 @@ internal sealed class CategoryConfiguration : IEntityTypeConfiguration<Category>
             .HasMaxLength(Category.MaximumNameLength)
             .IsRequired();
         builder.Property(category => category.Type).HasConversion<byte>().HasColumnType("tinyint");
+        builder.Property(category => category.DefaultScope).HasConversion<byte?>().HasColumnType("tinyint");
         builder.Property(category => category.IsActive).IsRequired();
 
         builder.HasIndex(category => new { category.UserId, category.Type, category.Name })

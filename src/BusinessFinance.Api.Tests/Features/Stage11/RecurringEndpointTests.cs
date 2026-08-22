@@ -28,6 +28,7 @@ public sealed class RecurringEndpointTests
             "100.5000",
             "TRY",
             "bill-payment",
+            "business",
             "monthly",
             "2026-08-31",
             null,
@@ -98,6 +99,7 @@ public sealed class RecurringEndpointTests
                 "10",
                 "TRY",
                 "3",
+                "business",
                 "3",
                 "2026-08-31",
                 null,
@@ -199,7 +201,7 @@ public sealed class RecurringEndpointTests
         using var response = await owner.PostAsJsonAsync(
             "/api/v1/recurring-transactions",
             new CreateRecurringTransactionRequest(
-                account.Id, category.Id, "100.5000", "TRY", "bill-payment", "monthly",
+                account.Id, category.Id, "100.5000", "TRY", "bill-payment", "business", "monthly",
                 "2026-08-31", null, "clamp-to-last-day", "Legacy client"));
 
         response.EnsureSuccessStatusCode();
@@ -248,6 +250,7 @@ public sealed class RecurringEndpointTests
                 "250.0000",
                 "TRY",
                 "bill-payment",
+                "business",
                 "monthly",
                 dueDate.ToString("yyyy-MM-dd"),
                 null,
@@ -299,7 +302,7 @@ public sealed class RecurringEndpointTests
 
     private static CreateRecurringTransactionRequest CardPlanRequest(
         Guid cardId, Guid categoryId, string kind) =>
-        new(null, categoryId, "149.9000", "TRY", kind, "monthly", "2026-08-31", null,
+        new(null, categoryId, "149.9000", "TRY", kind, "business", "monthly", "2026-08-31", null,
             "clamp-to-last-day", "Streaming", "credit-card", cardId);
 
     private static async Task<CreditCardResponse> CreateCardAsync(HttpClient client)

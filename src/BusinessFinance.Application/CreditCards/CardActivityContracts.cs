@@ -9,6 +9,7 @@ public sealed record CardChargeDto(
     Guid CategoryId,
     decimal Amount,
     CurrencyCode Currency,
+    TransactionScope Scope,
     DateOnly ChargeDate,
     string? Description,
     bool IsCancelled,
@@ -30,6 +31,7 @@ public sealed record CreateCardChargeCommand(
     Guid CategoryId,
     decimal Amount,
     CurrencyCode Currency,
+    TransactionScope Scope,
     DateOnly ChargeDate,
     string? Description);
 

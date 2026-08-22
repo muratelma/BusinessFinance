@@ -36,10 +36,11 @@ public static class DebtEndpoints
             !FinanceContract.TryParseDate(request.AsOfDate, out var asOf) ||
             !TryDirection(request.Direction, out var direction) ||
             !TrySourceType(request.SourceType, out var sourceType) ||
+            !FinanceContract.TryParseScope(request.Scope, out var scope) ||
             !string.Equals(request.Currency, "TRY", StringComparison.OrdinalIgnoreCase))
             return ApiProblemResults.Validation(context, "Debt fields are invalid.", "debt.invalid_contract");
         var result = await useCase.ExecuteAsync(new CreateDebtCommand(
-            request.CounterpartyName, direction, principal, total, rate, CurrencyCode.TRY,
+            request.CounterpartyName, direction, scope, principal, total, rate, CurrencyCode.TRY,
             sourceType, request.OpeningAccountId, request.CategoryId,
             start, firstDue, request.InstallmentCount, request.Description), asOf, cancellationToken);
         return result.IsSuccess
@@ -86,6 +87,7 @@ public static class DebtEndpoints
 
     internal static DebtResponse ToResponse(DebtDto debt) => new(
         debt.Id, debt.CounterpartyName, debt.Direction == DebtDirection.Payable ? "payable" : "receivable",
+        FinanceContract.ScopeValue(debt.Scope),
         FinanceContract.Money(debt.Principal), FinanceContract.Money(debt.TotalRepayment),
         FinanceContract.Money(debt.RemainingAmount), debt.Currency.ToString(),
         debt.AnnualInterestRate.ToString("0.0000", CultureInfo.InvariantCulture),

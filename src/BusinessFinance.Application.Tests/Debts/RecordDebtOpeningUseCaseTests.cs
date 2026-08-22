@@ -41,6 +41,7 @@ public sealed class RecordDebtOpeningUseCaseTests
         var account = ActiveAccount();
         var debt = new DebtAgreement(
             Guid.NewGuid(), UserId, "Lender", DebtDirection.Payable,
+            TransactionScope.Business,
             new Money(300m, CurrencyCode.TRY), new Money(330m, CurrencyCode.TRY),
             DebtSourceType.Cash, account, null,
             new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 15), 3);
@@ -90,6 +91,7 @@ public sealed class RecordDebtOpeningUseCaseTests
 
     private static DebtAgreement UnrecordedDebt() => DebtAgreement.WithUnrecordedOpening(
         Guid.NewGuid(), UserId, "Legacy lender", DebtDirection.Payable,
+        TransactionScope.Business,
         new Money(300m, CurrencyCode.TRY), new Money(330m, CurrencyCode.TRY),
         new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 15), 3);
 

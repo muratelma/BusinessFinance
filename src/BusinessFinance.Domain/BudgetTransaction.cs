@@ -10,6 +10,7 @@ public sealed class BudgetTransaction
     public Guid CategoryId { get; }
     public Money Amount { get; }
     public TransactionType Type { get; }
+    public TransactionScope Scope { get; }
     public DateOnly TransactionDate { get; }
     public string? Description { get; }
     public bool IsCancelled { get; private set; }
@@ -27,6 +28,7 @@ public sealed class BudgetTransaction
         Category category,
         Money amount,
         TransactionType type,
+        TransactionScope scope,
         DateOnly transactionDate,
         string? description = null)
     {
@@ -76,6 +78,8 @@ public sealed class BudgetTransaction
                 "Transaction type is not supported.");
         }
 
+        TransactionScopeGuard.Validate(scope, nameof(scope));
+
         if (!IsCategoryCompatible(category.Type, type))
         {
             throw new ArgumentException(
@@ -107,6 +111,7 @@ public sealed class BudgetTransaction
         CategoryId = category.Id;
         Amount = amount;
         Type = type;
+        Scope = scope;
         TransactionDate = transactionDate;
         Description = normalizedDescription;
         IsCancelled = false;

@@ -83,12 +83,21 @@ public static class AccountEndpoints
                 "accounts.invalid_opening_balance");
         }
 
+        if (!FinanceContract.TryParseOptionalScope(request.DefaultScope, out var defaultScope))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Default scope must be business, personal or empty.",
+                "accounts.invalid_default_scope");
+        }
+
         var result = await useCase.ExecuteAsync(
             new CreateAccountCommand(
                 request.Name,
                 accountType,
                 CurrencyCode.TRY,
-                openingBalance),
+                openingBalance,
+                defaultScope),
             cancellationToken);
 
         if (!result.IsSuccess)
@@ -103,7 +112,8 @@ public static class AccountEndpoints
             result.Value.Currency.ToString(),
             true,
             FinanceContract.Money(result.Value.OpeningBalance),
-            FinanceContract.Money(result.Value.OpeningBalance));
+            FinanceContract.Money(result.Value.OpeningBalance),
+            FinanceContract.OptionalScopeValue(result.Value.DefaultScope));
 
         return Results.Created($"/api/v1/accounts/{response.Id}", response);
     }
@@ -158,7 +168,8 @@ public static class AccountEndpoints
                 item.Currency.ToString(),
                 item.IsActive,
                 FinanceContract.Money(item.OpeningBalance),
-                FinanceContract.Money(item.Balance)))
+                FinanceContract.Money(item.Balance),
+                FinanceContract.OptionalScopeValue(item.DefaultScope)))
             .ToArray();
         var totalPages = result.Value.TotalCount == 0
             ? 0
@@ -193,7 +204,8 @@ public static class AccountEndpoints
             result.Value.Currency.ToString(),
             result.Value.IsActive,
             FinanceContract.Money(result.Value.OpeningBalance),
-            FinanceContract.Money(result.Value.Balance)));
+            FinanceContract.Money(result.Value.Balance),
+            FinanceContract.OptionalScopeValue(result.Value.DefaultScope)));
     }
 
     private static async Task<IResult> UpdateAsync(
@@ -204,8 +216,16 @@ public static class AccountEndpoints
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
+        if (!FinanceContract.TryParseOptionalScope(request.DefaultScope, out var defaultScope))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Default scope must be business, personal or empty.",
+                "accounts.invalid_default_scope");
+        }
+
         var update = await useCase.ExecuteAsync(
-            new UpdateAccountCommand(accountId, request.Name, request.IsActive),
+            new UpdateAccountCommand(accountId, request.Name, request.IsActive, defaultScope),
             cancellationToken);
         if (!update.IsSuccess)
         {

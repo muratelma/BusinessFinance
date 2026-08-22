@@ -37,6 +37,7 @@ public sealed class RecurringTransactionTests
             category,
             new Money(100m, CurrencyCode.TRY),
             kind,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly,
             new DateOnly(2026, 1, 1)));
     }
@@ -54,6 +55,7 @@ public sealed class RecurringTransactionTests
             category,
             new Money(100m, CurrencyCode.TRY),
             RecurringTransactionKind.Expense,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly,
             new DateOnly(2026, 1, 1)));
     }
@@ -229,6 +231,7 @@ public sealed class RecurringTransactionTests
             new Category(Guid.NewGuid(), userId, "Category", CategoryType.Income),
             new Money(100m, CurrencyCode.TRY),
             RecurringTransactionKind.Expense,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly,
             new DateOnly(2026, 8, 1)));
     }
@@ -248,6 +251,7 @@ public sealed class RecurringTransactionTests
             new Category(Guid.NewGuid(), userId, "Category", categoryType),
             new Money(100m, CurrencyCode.TRY),
             kind,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly,
             new DateOnly(2026, 8, 1));
     }
@@ -276,6 +280,7 @@ public sealed class RecurringTransactionTests
             new Category(Guid.NewGuid(), userId, "Category", categoryType),
             new Money(100m, CurrencyCode.TRY),
             kind,
+            TransactionScope.Business,
             frequency,
             startDate,
             endDate,

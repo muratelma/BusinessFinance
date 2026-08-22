@@ -13,9 +13,11 @@ internal sealed class CreditCardChargeConfiguration : IEntityTypeConfiguration<C
         {
             table.HasCheckConstraint("CK_CreditCardCharges_Amount", "[Amount] > 0");
             table.HasCheckConstraint("CK_CreditCardCharges_Currency", "[Currency] = 1");
+            table.HasCheckConstraint("CK_CreditCardCharges_Scope", "[Scope] IN (1, 2)");
         });
 
         builder.HasKey(charge => charge.Id);
+        builder.Property(charge => charge.Scope).HasConversion<byte>().HasColumnType("tinyint");
         builder.HasAlternateKey(charge => new { charge.UserId, charge.Id });
         builder.Property(charge => charge.ChargeDate).HasColumnType("date");
         builder.Property(charge => charge.Description)

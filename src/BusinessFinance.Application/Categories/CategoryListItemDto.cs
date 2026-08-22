@@ -6,4 +6,5 @@ public sealed record CategoryListItemDto(
     Guid Id,
     string Name,
     CategoryType Type,
-    bool IsActive);
+    bool IsActive,
+    TransactionScope? DefaultScope);

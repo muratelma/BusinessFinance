@@ -116,6 +116,13 @@ public static class RecurringEndpoints
                 "Source type must be account or credit-card.",
                 "recurring.invalid_source_type");
         }
+        if (!FinanceContract.TryParseScope(request.Scope, out var scope))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Plan scope must be business or personal.",
+                "recurring.invalid_scope");
+        }
 
         var result = await useCase.ExecuteAsync(new CreateRecurringTransactionCommand(
             sourceType,
@@ -125,6 +132,7 @@ public static class RecurringEndpoints
             amount,
             CurrencyCode.TRY,
             kind,
+            scope,
             frequency,
             startDate,
             endDate,
@@ -270,6 +278,7 @@ public static class RecurringEndpoints
         FinanceContract.Money(recurring.Amount),
         recurring.Currency.ToString(),
         KindValue(recurring.Kind),
+        FinanceContract.ScopeValue(recurring.Scope),
         recurring.Frequency.ToString().ToLowerInvariant(),
         FinanceContract.Date(recurring.StartDate),
         recurring.EndDate is DateOnly endDate ? FinanceContract.Date(endDate) : null,
@@ -289,6 +298,7 @@ public static class RecurringEndpoints
         FinanceContract.Money(occurrence.Amount),
         occurrence.Currency.ToString(),
         KindValue(occurrence.Kind),
+        FinanceContract.ScopeValue(occurrence.Scope),
         FinanceContract.Date(occurrence.ScheduledDate),
         occurrence.Description,
         occurrence.Status.ToString().ToLowerInvariant(),

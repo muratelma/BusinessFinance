@@ -20,16 +20,19 @@ public sealed class EfDataPortabilityRepository(
     IAttachmentFileInspector? attachmentInspector = null)
     : IDataPortabilityRepository
 {
-    internal const int SchemaVersion = 5;
+    internal const int SchemaVersion = 6;
 
     /// <summary>
     /// Versions this build can restore. Only <see cref="SchemaVersion"/> is written.
-    /// v2 predates credit-card recurring sources and is upgraded on read, so a backup
-    /// taken before Stage 12.5 stays restorable.
     /// </summary>
-    // Şema 4 borcun açılış kaynağını taşır. 2 ve 3 okunmaya devam eder;
-    // onlarda kaynak yoktur ve borç "açılışı kayıtsız" olarak yüklenir.
-    private static readonly int[] SupportedSchemaVersions = [2, 3, 4, 5];
+    /// <remarks>
+    /// v6 kapsam boyutunu taşır ve <b>yalnız v6 okunur</b>. v2-v5 yedeklerinde
+    /// kapsam alanı yok; eksik alanı doldurmak için bir değer seçmek, olmamış
+    /// bir geçmiş uydurmak olurdu - kaydın işletmeye mi sahibinin cebine mi ait
+    /// olduğunu yalnız kullanıcı bilir (ADR 0013). Bu yüzden eski yedekler
+    /// yükseltilmez, <c>restore.invalid_backup</c> ile reddedilir.
+    /// </remarks>
+    private static readonly int[] SupportedSchemaVersions = [6];
 
     internal const int MaximumPayloadBytes = 10 * 1024 * 1024;
     internal const int MaximumEntities = 50_000;
@@ -254,26 +257,28 @@ public sealed class EfDataPortabilityRepository(
         }
 
         var snapshot = new FinancialSnapshot(
-            accounts.Select(x => new AccountBackup(x.Id, x.Name, x.Type, x.Currency, x.OpeningBalance, x.IsActive)).ToArray(),
-            categories.Select(x => new CategoryBackup(x.Id, x.Name, x.Type, x.IsActive)).ToArray(),
+            accounts.Select(x => new AccountBackup(x.Id, x.Name, x.Type, x.Currency, x.OpeningBalance,
+                x.IsActive, x.DefaultScope)).ToArray(),
+            categories.Select(x => new CategoryBackup(x.Id, x.Name, x.Type, x.IsActive, x.DefaultScope)).ToArray(),
             transactions.Select(x => new TransactionBackup(x.Id, x.AccountId, x.CategoryId, x.Amount.Amount,
-                x.Amount.Currency, x.Type, x.TransactionDate, x.Description, x.IsCancelled, x.CancelledAtUtc)).ToArray(),
-            budgets.Select(x => new BudgetBackup(x.Id, x.CategoryId, x.Limit.Amount, x.Limit.Currency, x.Year, x.Month)).ToArray(),
+                x.Amount.Currency, x.Type, x.Scope, x.TransactionDate, x.Description, x.IsCancelled, x.CancelledAtUtc)).ToArray(),
+            budgets.Select(x => new BudgetBackup(x.Id, x.CategoryId, x.Limit.Amount, x.Limit.Currency,
+                x.Scope, x.Year, x.Month)).ToArray(),
             transfers.Select(x => new TransferBackup(x.Id, x.SourceAccountId, x.DestinationAccountId,
                 x.Amount.Amount, x.Amount.Currency, x.TransferDate, x.Description, x.IsCancelled, x.CancelledAtUtc)).ToArray(),
             cards.Select(x => new CardBackup(x.Id, x.Name, x.Limit.Amount, x.Limit.Currency,
-                x.StatementClosingDay, x.PaymentDueDay, x.IsActive, x.MinimumPaymentRate)).ToArray(),
+                x.StatementClosingDay, x.PaymentDueDay, x.IsActive, x.MinimumPaymentRate, x.DefaultScope)).ToArray(),
             charges.Select(x => new ChargeBackup(x.Id, x.CreditCardId, x.CategoryId, x.Amount.Amount,
-                x.Amount.Currency, x.ChargeDate, x.Description, x.IsCancelled, x.CancelledAtUtc)).ToArray(),
+                x.Amount.Currency, x.Scope, x.ChargeDate, x.Description, x.IsCancelled, x.CancelledAtUtc)).ToArray(),
             payments.Select(x => new PaymentBackup(x.Id, x.AccountId, x.CreditCardId, x.Amount.Amount,
                 x.Amount.Currency, x.PaymentDate, x.Description, x.IsCancelled, x.CancelledAtUtc)).ToArray(),
             plans.Select(x => new InstallmentPlanBackup(x.Id, x.CreditCardId, x.CategoryId, x.ClientRequestId,
-                x.TotalAmount.Amount, x.TotalAmount.Currency, x.InstallmentCount, x.FirstInstallmentDate,
+                x.TotalAmount.Amount, x.TotalAmount.Currency, x.Scope, x.InstallmentCount, x.FirstInstallmentDate,
                 x.Description, x.Items.OrderBy(i => i.Sequence).Select(i => new InstallmentItemBackup(
                     i.Id, i.Sequence, i.Amount.Amount, i.Amount.Currency, i.ScheduledDate,
                     i.CreditCardChargeId, i.RealizedAtUtc)).ToArray())).ToArray(),
             recurring.Select(x => new RecurringBackup(x.Id, x.AccountId, x.CategoryId, x.Amount.Amount,
-                x.Amount.Currency, x.Kind, x.Frequency, x.StartDate, x.EndDate, x.NextOccurrenceDate,
+                x.Amount.Currency, x.Kind, x.Scope, x.Frequency, x.StartDate, x.EndDate, x.NextOccurrenceDate,
                 x.MonthEndBehavior, x.Description, x.IsActive,
                 occurrences.Where(o => o.RecurringTransactionId == x.Id).OrderBy(o => o.ScheduledDate)
                     .Select(o => new OccurrenceBackup(o.Id, o.ScheduledDate, o.BudgetTransactionId,
@@ -287,7 +292,7 @@ public sealed class EfDataPortabilityRepository(
                     r.Description, r.ExternalReference, r.AccountId, r.CategoryId, r.Status,
                     r.ErrorMessage, r.BudgetTransactionId, r.DuplicateTransactionId, r.DuplicateReason)).ToArray())).ToArray(),
             debts.Select(x => new DebtBackup(
-                x.Id, x.CounterpartyName, x.Direction, x.Principal.Amount, x.TotalRepayment.Amount,
+                x.Id, x.CounterpartyName, x.Direction, x.Scope, x.Principal.Amount, x.TotalRepayment.Amount,
                 x.Principal.Currency, x.AnnualInterestRate, x.StartDate, x.FirstDueDate,
                 x.InstallmentCount, x.Description,
                 x.Installments.OrderBy(i => i.Sequence).Select(i => new DebtInstallmentBackup(
@@ -328,15 +333,15 @@ public sealed class EfDataPortabilityRepository(
         {
             var accountMap = snapshot.Accounts.ToDictionary(
                 x => x.Id,
-                x => new Account(Guid.NewGuid(), userId, x.Name, x.Type, x.Currency, x.OpeningBalance));
+                x => new Account(Guid.NewGuid(), userId, x.Name, x.Type, x.Currency, x.OpeningBalance,
+                    x.DefaultScope));
             var categoryMap = snapshot.Categories.ToDictionary(
                 x => x.Id,
-                x => new Category(Guid.NewGuid(), userId, x.Name, x.Type));
+                x => new Category(Guid.NewGuid(), userId, x.Name, x.Type, x.DefaultScope));
             var cardMap = snapshot.Cards.ToDictionary(
                 x => x.Id,
                 x => new CreditCard(Guid.NewGuid(), userId, x.Name, MoneyOf(x.Limit, x.Currency),
-                    x.StatementClosingDay, x.PaymentDueDay,
-                    x.MinimumPaymentRate ?? CreditCard.DefaultMinimumPaymentRate));
+                    x.StatementClosingDay, x.PaymentDueDay, x.MinimumPaymentRate, x.DefaultScope));
 
             var transactionMap = new Dictionary<Guid, BudgetTransaction>();
             foreach (var item in snapshot.Transactions)
@@ -345,7 +350,8 @@ public sealed class EfDataPortabilityRepository(
                     Guid.NewGuid(), userId,
                     Required(accountMap, item.AccountId, "transaction account"),
                     Required(categoryMap, item.CategoryId, "transaction category"),
-                    MoneyOf(item.Amount, item.Currency), item.Type, item.TransactionDate, item.Description);
+                    MoneyOf(item.Amount, item.Currency), item.Type, item.Scope, item.TransactionDate,
+                    item.Description);
                 ApplyCancellation(item.IsCancelled, item.CancelledAtUtc, entity.Cancel);
                 transactionMap.Add(item.Id, entity);
             }
@@ -353,7 +359,7 @@ public sealed class EfDataPortabilityRepository(
             var budgets = snapshot.Budgets.Select(item => new MonthlyBudget(
                 Guid.NewGuid(), userId,
                 Required(categoryMap, item.CategoryId, "budget category"),
-                MoneyOf(item.Limit, item.Currency), item.Year, item.Month)).ToArray();
+                MoneyOf(item.Limit, item.Currency), item.Scope, item.Year, item.Month)).ToArray();
             var transfers = snapshot.Transfers.Select(item =>
             {
                 var entity = new Transfer(
@@ -372,7 +378,7 @@ public sealed class EfDataPortabilityRepository(
                     Guid.NewGuid(), userId,
                     Required(cardMap, item.CreditCardId, "charge card"),
                     Required(categoryMap, item.CategoryId, "charge category"),
-                    MoneyOf(item.Amount, item.Currency), item.ChargeDate, item.Description);
+                    MoneyOf(item.Amount, item.Currency), item.Scope, item.ChargeDate, item.Description);
                 ApplyCancellation(item.IsCancelled, item.CancelledAtUtc, entity.Cancel);
                 chargeMap.Add(item.Id, entity);
             }
@@ -395,7 +401,7 @@ public sealed class EfDataPortabilityRepository(
                     Guid.NewGuid(), userId,
                     Required(cardMap, item.CreditCardId, "installment card"),
                     Required(categoryMap, item.CategoryId, "installment category"),
-                    item.ClientRequestId, MoneyOf(item.TotalAmount, item.Currency),
+                    item.ClientRequestId, MoneyOf(item.TotalAmount, item.Currency), item.Scope,
                     item.InstallmentCount, item.FirstInstallmentDate, item.Description);
                 if (item.Items.Length != entity.Items.Count)
                     throw Invalid("Installment item count does not match its plan.");
@@ -419,11 +425,7 @@ public sealed class EfDataPortabilityRepository(
             var occurrences = new List<RecurringTransactionOccurrence>();
             foreach (var item in snapshot.RecurringTransactions)
             {
-                // Schema v2 has no SourceType and always carries an account id, so it
-                // deserializes as 0 and is upgraded to an account source here.
-                var sourceType = item.SourceType == default
-                    ? RecurringSourceType.Account
-                    : item.SourceType;
+                var sourceType = item.SourceType;
                 if (sourceType == RecurringSourceType.Account
                     ? item.AccountId is null || item.CreditCardId is not null
                     : item.CreditCardId is null || item.AccountId is not null)
@@ -437,12 +439,12 @@ public sealed class EfDataPortabilityRepository(
                     ? new RecurringTransaction(
                         Guid.NewGuid(), userId,
                         Required(cardMap, item.CreditCardId!.Value, "recurring credit card"),
-                        category, amount, item.Kind, item.Frequency,
+                        category, amount, item.Kind, item.Scope, item.Frequency,
                         item.StartDate, item.EndDate, item.MonthEndBehavior, item.Description)
                     : new RecurringTransaction(
                         Guid.NewGuid(), userId,
                         Required(accountMap, item.AccountId!.Value, "recurring account"),
-                        category, amount, item.Kind, item.Frequency,
+                        category, amount, item.Kind, item.Scope, item.Frequency,
                         item.StartDate, item.EndDate, item.MonthEndBehavior, item.Description);
                 foreach (var occurrence in item.Occurrences.OrderBy(x => x.ScheduledDate))
                 {
@@ -553,16 +555,15 @@ public sealed class EfDataPortabilityRepository(
             var debts = new List<DebtAgreement>();
             foreach (var item in snapshot.Debts)
             {
-                // Eski sürüm yedekler borcun açılışını taşımaz: o ayrım yoktu.
-                // Uydurmak yerine "açılışı kayıtsız" olarak yükleniyor ve
-                // kullanıcı uygulamada tamamlıyor. Yedekteki `AnnualInterestRate`
-                // de okunmuyor — oran artık paradan çözülüyor ve yedekteki
-                // değer hiçbir hesaba girmemiş, serbestçe yazılmış bir sayıydı.
-                var debt = item.SourceType is DebtSourceType source && source != DebtSourceType.Unrecorded
+                // Açılışı kayıtsız borç yedekte de kayıtsız kalır; kullanıcı
+                // uygulamada tamamlar. Yedekteki `AnnualInterestRate` okunmuyor:
+                // oran artık paradan çözülüyor ve yedekteki değer hiçbir hesaba
+                // girmemiş, serbestçe yazılmış bir sayıydı.
+                var debt = item.SourceType != DebtSourceType.Unrecorded
                     ? new DebtAgreement(
-                        Guid.NewGuid(), userId, item.CounterpartyName, item.Direction,
+                        Guid.NewGuid(), userId, item.CounterpartyName, item.Direction, item.Scope,
                         MoneyOf(item.Principal, item.Currency), MoneyOf(item.TotalRepayment, item.Currency),
-                        source,
+                        item.SourceType,
                         item.OpeningAccountId is Guid openingAccountId
                             ? Required(accountMap, openingAccountId, "debt opening account")
                             : null,
@@ -571,7 +572,7 @@ public sealed class EfDataPortabilityRepository(
                             : null,
                         item.StartDate, item.FirstDueDate, item.InstallmentCount, item.Description)
                     : DebtAgreement.WithUnrecordedOpening(
-                        Guid.NewGuid(), userId, item.CounterpartyName, item.Direction,
+                        Guid.NewGuid(), userId, item.CounterpartyName, item.Direction, item.Scope,
                         MoneyOf(item.Principal, item.Currency), MoneyOf(item.TotalRepayment, item.Currency),
                         item.StartDate, item.FirstDueDate, item.InstallmentCount, item.Description);
                 if (debt.Installments.Count != item.Installments.Length)
@@ -924,38 +925,33 @@ internal sealed record FinancialSnapshot(
         Attachments.Length;
 }
 
-internal sealed record AccountBackup(Guid Id, string Name, AccountType Type, CurrencyCode Currency, decimal OpeningBalance, bool IsActive);
-internal sealed record CategoryBackup(Guid Id, string Name, CategoryType Type, bool IsActive);
+internal sealed record AccountBackup(Guid Id, string Name, AccountType Type, CurrencyCode Currency, decimal OpeningBalance,
+    bool IsActive, TransactionScope? DefaultScope);
+internal sealed record CategoryBackup(Guid Id, string Name, CategoryType Type, bool IsActive, TransactionScope? DefaultScope);
 internal sealed record TransactionBackup(Guid Id, Guid AccountId, Guid CategoryId, decimal Amount, CurrencyCode Currency,
-    TransactionType Type, DateOnly TransactionDate, string? Description, bool IsCancelled, DateTimeOffset? CancelledAtUtc);
-internal sealed record BudgetBackup(Guid Id, Guid CategoryId, decimal Limit, CurrencyCode Currency, int Year, int Month);
+    TransactionType Type, TransactionScope Scope, DateOnly TransactionDate, string? Description, bool IsCancelled,
+    DateTimeOffset? CancelledAtUtc);
+internal sealed record BudgetBackup(Guid Id, Guid CategoryId, decimal Limit, CurrencyCode Currency,
+    TransactionScope Scope, int Year, int Month);
 internal sealed record TransferBackup(Guid Id, Guid SourceAccountId, Guid DestinationAccountId, decimal Amount,
     CurrencyCode Currency, DateOnly TransferDate, string? Description, bool IsCancelled, DateTimeOffset? CancelledAtUtc);
-/// <summary>
-/// <paramref name="MinimumPaymentRate"/> v5'te eklendi; daha eski yedeklerde
-/// alan yoktur ve <c>null</c> okunur, geri yükleme varsayılan oranı kullanır.
-/// </summary>
 internal sealed record CardBackup(Guid Id, string Name, decimal Limit, CurrencyCode Currency,
-    int StatementClosingDay, int PaymentDueDay, bool IsActive, decimal? MinimumPaymentRate = null);
+    int StatementClosingDay, int PaymentDueDay, bool IsActive, decimal MinimumPaymentRate,
+    TransactionScope? DefaultScope);
 internal sealed record ChargeBackup(Guid Id, Guid CreditCardId, Guid CategoryId, decimal Amount, CurrencyCode Currency,
-    DateOnly ChargeDate, string? Description, bool IsCancelled, DateTimeOffset? CancelledAtUtc);
+    TransactionScope Scope, DateOnly ChargeDate, string? Description, bool IsCancelled, DateTimeOffset? CancelledAtUtc);
 internal sealed record PaymentBackup(Guid Id, Guid AccountId, Guid CreditCardId, decimal Amount, CurrencyCode Currency,
     DateOnly PaymentDate, string? Description, bool IsCancelled, DateTimeOffset? CancelledAtUtc);
 internal sealed record InstallmentPlanBackup(Guid Id, Guid CreditCardId, Guid CategoryId, Guid ClientRequestId,
-    decimal TotalAmount, CurrencyCode Currency, int InstallmentCount, DateOnly FirstInstallmentDate,
-    string? Description, InstallmentItemBackup[] Items);
+    decimal TotalAmount, CurrencyCode Currency, TransactionScope Scope, int InstallmentCount,
+    DateOnly FirstInstallmentDate, string? Description, InstallmentItemBackup[] Items);
 internal sealed record InstallmentItemBackup(Guid Id, int Sequence, decimal Amount, CurrencyCode Currency,
     DateOnly ScheduledDate, Guid? CreditCardChargeId, DateTimeOffset? RealizedAtUtc);
-/// <summary>
-/// Schema v3 adds <c>SourceType</c> and <c>CreditCardId</c>. A v2 file has neither and
-/// carries a non-null <c>AccountId</c>, so it deserializes with SourceType defaulting to
-/// 0 and is upgraded to <see cref="RecurringSourceType.Account"/> on read.
-/// </summary>
 internal sealed record RecurringBackup(Guid Id, Guid? AccountId, Guid CategoryId, decimal Amount,
-    CurrencyCode Currency, RecurringTransactionKind Kind, RecurrenceFrequency Frequency,
+    CurrencyCode Currency, RecurringTransactionKind Kind, TransactionScope Scope, RecurrenceFrequency Frequency,
     DateOnly StartDate, DateOnly? EndDate, DateOnly? NextOccurrenceDate, MonthEndBehavior MonthEndBehavior,
     string? Description, bool IsActive, OccurrenceBackup[] Occurrences,
-    RecurringSourceType SourceType = default, Guid? CreditCardId = null);
+    RecurringSourceType SourceType, Guid? CreditCardId = null);
 internal sealed record OccurrenceBackup(Guid Id, DateOnly ScheduledDate,
     Guid? BudgetTransactionId, DateTimeOffset? RealizedAtUtc,
     Guid? CreditCardChargeId = null);
@@ -968,18 +964,16 @@ internal sealed record ImportRowBackup(Guid Id, int RowNumber, string RawData, D
     Guid? AccountId, Guid? CategoryId, ImportRowStatus Status, string? ErrorMessage,
     Guid? BudgetTransactionId, Guid? DuplicateTransactionId, ImportDuplicateReason? DuplicateReason);
 /// <remarks>
-/// <see cref="SourceType"/>, <see cref="OpeningAccountId"/> ve
-/// <see cref="CategoryId"/> şema 4 ile geldi; eski yedeklerde yoktur ve null
-/// okunur. <see cref="AnnualInterestRate"/> hâlâ yazılıyor ama geri yüklerken
+/// <see cref="AnnualInterestRate"/> hâlâ yazılıyor ama geri yüklerken
 /// okunmuyor: oran artık paradan çözülüyor, yedekteki değer ise hiçbir hesaba
 /// girmemiş serbest bir sayıydı.
 /// </remarks>
 internal sealed record DebtBackup(
-    Guid Id, string CounterpartyName, DebtDirection Direction, decimal Principal,
+    Guid Id, string CounterpartyName, DebtDirection Direction, TransactionScope Scope, decimal Principal,
     decimal TotalRepayment, CurrencyCode Currency, decimal AnnualInterestRate,
     DateOnly StartDate, DateOnly FirstDueDate, int InstallmentCount, string? Description,
     DebtInstallmentBackup[] Installments,
-    DebtSourceType? SourceType = null,
+    DebtSourceType SourceType,
     Guid? OpeningAccountId = null,
     Guid? CategoryId = null);
 internal sealed record DebtInstallmentBackup(

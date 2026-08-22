@@ -12,6 +12,14 @@ public sealed class RecurringTransaction
     public Guid CategoryId { get; }
     public Money Amount { get; }
     public RecurringTransactionKind Kind { get; }
+
+    /// <summary>
+    /// Planın kapsamı. Gerçekleşme anında yeniden türetilmez; ürettiği her
+    /// kayıt bu değeri alır, yoksa aynı plan farklı aylarda farklı kapsam
+    /// üretebilirdi.
+    /// </summary>
+    public TransactionScope Scope { get; }
+
     public RecurrenceFrequency Frequency { get; }
     public DateOnly StartDate { get; }
     public DateOnly? EndDate { get; }
@@ -36,6 +44,7 @@ public sealed class RecurringTransaction
         Category category,
         Money amount,
         RecurringTransactionKind kind,
+        TransactionScope scope,
         RecurrenceFrequency frequency,
         DateOnly startDate,
         DateOnly? endDate = null,
@@ -50,6 +59,7 @@ public sealed class RecurringTransaction
             category,
             amount,
             kind,
+            scope,
             frequency,
             startDate,
             endDate,
@@ -70,6 +80,7 @@ public sealed class RecurringTransaction
         Category category,
         Money amount,
         RecurringTransactionKind kind,
+        TransactionScope scope,
         RecurrenceFrequency frequency,
         DateOnly startDate,
         DateOnly? endDate = null,
@@ -84,6 +95,7 @@ public sealed class RecurringTransaction
             category,
             amount,
             kind,
+            scope,
             frequency,
             startDate,
             endDate,
@@ -167,6 +179,7 @@ public sealed class RecurringTransaction
         Category category,
         Money amount,
         RecurringTransactionKind kind,
+        TransactionScope scope,
         RecurrenceFrequency frequency,
         DateOnly startDate,
         DateOnly? endDate,
@@ -185,6 +198,8 @@ public sealed class RecurringTransaction
         {
             throw new ArgumentOutOfRangeException(nameof(kind), kind, "Recurring transaction kind is not supported.");
         }
+
+        TransactionScopeGuard.Validate(scope, nameof(scope));
 
         if (!Enum.IsDefined(frequency))
         {
@@ -239,6 +254,7 @@ public sealed class RecurringTransaction
         CategoryId = category.Id;
         Amount = amount;
         Kind = kind;
+        Scope = scope;
         Frequency = frequency;
         StartDate = startDate;
         EndDate = endDate;

@@ -6,9 +6,17 @@ public sealed record CreateAccountRequest(
     string Name,
     string Type,
     string Currency,
-    string OpeningBalance = "0");
+    string OpeningBalance = "0",
+    string? DefaultScope = null);
 
-public sealed record UpdateAccountRequest(string Name, bool IsActive);
+/// <summary>
+/// Hesabın tam güncel hâli. <see cref="DefaultScope"/> boş gönderilirse
+/// varsayılan kapsam kaldırılır; alan yetkilidir, "dokunma" anlamına gelmez.
+/// </summary>
+public sealed record UpdateAccountRequest(
+    string Name,
+    bool IsActive,
+    string? DefaultScope = null);
 
 public sealed record AccountResponse(
     Guid Id,
@@ -17,7 +25,8 @@ public sealed record AccountResponse(
     string Currency,
     bool IsActive,
     string OpeningBalance,
-    string Balance);
+    string Balance,
+    string? DefaultScope);
 
 public sealed record AccountListResponse(
     IReadOnlyList<AccountResponse> Items,

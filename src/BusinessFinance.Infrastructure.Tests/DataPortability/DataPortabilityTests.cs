@@ -33,7 +33,7 @@ public sealed class DataPortabilityTests
         var conflict = await Assert.ThrowsAsync<DataPortabilityException>(() =>
             service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default));
 
-        Assert.Equal(5, validation.SchemaVersion);
+        Assert.Equal(6, validation.SchemaVersion);
         Assert.Equal(validation.EntityCount, restored.RestoredEntityCount);
         Assert.Equal("restore.destination_not_empty", conflict.Code);
         Assert.Equal("Geri yükleme için hesapta finansal veri bulunmamalıdır.", conflict.Message);
@@ -45,6 +45,26 @@ public sealed class DataPortabilityTests
         Assert.Single(await context.RecurringTransactionOccurrences.Where(x => x.UserId == targetUserId).ToArrayAsync());
         Assert.Single(await context.ImportBatches.Where(x => x.UserId == targetUserId).ToArrayAsync());
         Assert.Equal(2, await context.Accounts.CountAsync(x => x.UserId == sourceUserId));
+
+        // Kapsam yedeğin taşıdığı bir alandır: hem kaydın kendi kapsamı hem
+        // hesabın/kategorinin isteğe bağlı varsayılanı geri yüklemede korunur.
+        // Tek bir değere sabitlenseydi geri yükleme, kullanıcının işletme ile
+        // cebi arasındaki ayrımını sessizce silerdi.
+        var restoredTransactions = await context.Transactions
+            .AsNoTracking().Where(x => x.UserId == targetUserId).ToArrayAsync();
+        Assert.Contains(restoredTransactions, x => x.Scope == TransactionScope.Business);
+        Assert.Contains(restoredTransactions, x => x.Scope == TransactionScope.Personal);
+        Assert.Equal(
+            TransactionScope.Business,
+            (await context.Accounts.AsNoTracking()
+                .SingleAsync(x => x.UserId == targetUserId && x.Name == "Nakit")).DefaultScope);
+        Assert.Equal(
+            TransactionScope.Personal,
+            (await context.Categories.AsNoTracking()
+                .SingleAsync(x => x.UserId == targetUserId && x.Name == "Fatura")).DefaultScope);
+        Assert.Null(
+            (await context.Accounts.AsNoTracking()
+                .SingleAsync(x => x.UserId == targetUserId && x.Name == "Banka")).DefaultScope);
     }
 
     [Fact]
@@ -156,7 +176,7 @@ public sealed class DataPortabilityTests
         var validation = await service.ValidateBackupAsync(backup.Content, default);
         await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
 
-        Assert.Equal(5, validation.SchemaVersion);
+        Assert.Equal(6, validation.SchemaVersion);
         var restoredPlans = await context.RecurringTransactions
             .AsNoTracking().Where(item => item.UserId == targetUserId).ToArrayAsync();
         var cardPlan = Assert.Single(
@@ -187,11 +207,17 @@ public sealed class DataPortabilityTests
     }
 
     /// <summary>
-    /// A backup taken before Stage 12.5 has no source fields at all. It must still
-    /// restore, with every recurring row upgraded to an account source.
+    /// Kapsam boyutundan önce alınmış bir yedek reddedilir ve hedef hesaba
+    /// hiçbir şey yazılmaz.
     /// </summary>
+    /// <remarks>
+    /// v5 dosyasında kapsam alanı yok. Eksik alanı doldurmak için bir değer
+    /// seçmek, kullanıcının işletme ile cebi arasındaki ayrımını uydurmak
+    /// olurdu; o ayrımı yalnız kullanıcı bilir (ADR 0013). Bu yüzden
+    /// yükseltilmez, açık bir hatayla reddedilir.
+    /// </remarks>
     [Fact]
-    public async Task BackupV2_IsStillAcceptedAndUpgradedToAccountSource()
+    public async Task BackupBeforeScope_IsRejectedAndWritesNothing()
     {
         await using var context = CreateContext();
         var sourceUserId = Guid.NewGuid();
@@ -200,48 +226,47 @@ public sealed class DataPortabilityTests
         await SeedDefaultCategoriesAsync(context, targetUserId);
         var service = new EfDataPortabilityRepository(context);
         var current = await service.CreateBackupAsync(sourceUserId, default);
-        var legacy = DowngradeToSchemaV2(current.Content);
+        var legacy = DowngradeToSchemaV5(current.Content);
 
-        var validation = await service.ValidateBackupAsync(legacy, default);
-        await service.RestoreBackupAsync(targetUserId, legacy, DateTimeOffset.UtcNow, default);
+        var validationError = await Assert.ThrowsAsync<DataPortabilityException>(() =>
+            service.ValidateBackupAsync(legacy, default));
+        var restoreError = await Assert.ThrowsAsync<DataPortabilityException>(() =>
+            service.RestoreBackupAsync(targetUserId, legacy, DateTimeOffset.UtcNow, default));
 
-        Assert.Equal(2, validation.SchemaVersion);
-        var restored = await context.RecurringTransactions
-            .AsNoTracking().Where(item => item.UserId == targetUserId).ToArrayAsync();
-        Assert.NotEmpty(restored);
-        Assert.All(restored, item =>
-        {
-            Assert.Equal(RecurringSourceType.Account, item.SourceType);
-            Assert.NotNull(item.AccountId);
-            Assert.Null(item.CreditCardId);
-        });
+        Assert.Equal("restore.unsupported_version", validationError.Code);
+        Assert.Equal("restore.unsupported_version", restoreError.Code);
+        Assert.False(await context.Accounts.AnyAsync(x => x.UserId == targetUserId));
+        Assert.False(await context.Transactions.AnyAsync(x => x.UserId == targetUserId));
     }
 
     /// <summary>
-    /// Rewrites a current backup into the shape a pre-Stage-12.5 build produced: schema
-    /// version 2 and no source or charge-link properties anywhere. The payload hash and
-    /// length are recomputed so the file passes integrity checks and the restore path is
-    /// genuinely exercised.
+    /// Rewrites a current backup into the shape the build before the scope dimension
+    /// produced: schema version 5 with no scope properties anywhere. The payload hash
+    /// and length are recomputed so the file passes integrity checks and the version
+    /// gate is genuinely what rejects it.
     /// </summary>
-    private static byte[] DowngradeToSchemaV2(byte[] content)
+    private static byte[] DowngradeToSchemaV5(byte[] content)
     {
         var envelope = JsonNode.Parse(Encoding.UTF8.GetString(content))!.AsObject();
         var payloadJson = Encoding.UTF8.GetString(
             Convert.FromBase64String(envelope["payload"]!.GetValue<string>()));
         var snapshot = JsonNode.Parse(payloadJson)!.AsObject();
-        foreach (var plan in snapshot["recurringTransactions"]!.AsArray())
+        foreach (var collection in snapshot)
         {
-            var planObject = plan!.AsObject();
-            planObject.Remove("sourceType");
-            planObject.Remove("creditCardId");
-            foreach (var occurrence in planObject["occurrences"]!.AsArray())
+            if (collection.Value is not JsonArray items)
             {
-                occurrence!.AsObject().Remove("creditCardChargeId");
+                continue;
+            }
+
+            foreach (var item in items)
+            {
+                item?.AsObject().Remove("scope");
+                item?.AsObject().Remove("defaultScope");
             }
         }
 
         var downgraded = Encoding.UTF8.GetBytes(snapshot.ToJsonString());
-        envelope["schemaVersion"] = 2;
+        envelope["schemaVersion"] = 5;
         envelope["payload"] = Convert.ToBase64String(downgraded);
         envelope["payloadLength"] = downgraded.Length;
         envelope["payloadSha256"] = Convert.ToHexString(SHA256.HashData(downgraded));
@@ -259,10 +284,11 @@ public sealed class DataPortabilityTests
             Guid.NewGuid(), userId, "Kart", new Money(5000m, CurrencyCode.TRY), 10, 20);
         var recurring = new RecurringTransaction(Guid.NewGuid(), userId, card, billCategory,
             new Money(149.9m, CurrencyCode.TRY), RecurringTransactionKind.BillPayment,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly, new DateOnly(2026, 8, 10), null,
             MonthEndBehavior.ClampToLastDay, "Streaming");
         var charge = new CreditCardCharge(Guid.NewGuid(), userId, card, billCategory,
-            new Money(149.9m, CurrencyCode.TRY), new DateOnly(2026, 8, 10), "Streaming");
+            new Money(149.9m, CurrencyCode.TRY), TransactionScope.Business, new DateOnly(2026, 8, 10), "Streaming");
 
         var realized = RecurringTransactionOccurrence.Create(
             Guid.NewGuid(), recurring, new DateOnly(2026, 8, 10));
@@ -290,31 +316,34 @@ public sealed class DataPortabilityTests
     internal static async Task SeedCompleteGraphAsync(BusinessFinanceDbContext context, Guid userId)
     {
         var utc = new DateTimeOffset(2026, 8, 11, 10, 0, 0, TimeSpan.Zero);
-        var cash = new Account(Guid.NewGuid(), userId, "Nakit", AccountType.Cash, CurrencyCode.TRY, 1000m);
+        var cash = new Account(Guid.NewGuid(), userId, "Nakit", AccountType.Cash, CurrencyCode.TRY, 1000m,
+            TransactionScope.Business);
         var bank = new Account(Guid.NewGuid(), userId, "Banka", AccountType.Bank, CurrencyCode.TRY, 2000m);
         var incomeCategory = new Category(Guid.NewGuid(), userId, "Maaş", CategoryType.Income);
         var expenseCategory = new Category(Guid.NewGuid(), userId, "Market", CategoryType.Expense);
-        var billCategory = new Category(Guid.NewGuid(), userId, "Fatura", CategoryType.Expense);
+        var billCategory = new Category(Guid.NewGuid(), userId, "Fatura", CategoryType.Expense,
+            TransactionScope.Personal);
         var income = new BudgetTransaction(Guid.NewGuid(), userId, bank, incomeCategory,
-            new Money(1000m, CurrencyCode.TRY), TransactionType.Income, new DateOnly(2026, 8, 1), "=SUM(A1:A2)");
+            new Money(1000m, CurrencyCode.TRY), TransactionType.Income, TransactionScope.Business, new DateOnly(2026, 8, 1), "=SUM(A1:A2)");
         var expense = new BudgetTransaction(Guid.NewGuid(), userId, cash, expenseCategory,
-            new Money(100.25m, CurrencyCode.TRY), TransactionType.Expense, new DateOnly(2026, 8, 2), "Market, haftalık");
+            new Money(100.25m, CurrencyCode.TRY), TransactionType.Expense, TransactionScope.Personal, new DateOnly(2026, 8, 2), "Market, haftalık");
         var budget = new MonthlyBudget(Guid.NewGuid(), userId, expenseCategory,
-            new Money(500m, CurrencyCode.TRY), 2026, 8);
+            new Money(500m, CurrencyCode.TRY), TransactionScope.Business, 2026, 8);
         var transfer = new Transfer(Guid.NewGuid(), userId, bank, cash,
             new Money(250m, CurrencyCode.TRY), new DateOnly(2026, 8, 3), "ATM");
         transfer.Cancel(utc);
         var card = new CreditCard(Guid.NewGuid(), userId, "Kart", new Money(5000m, CurrencyCode.TRY), 10, 20);
         var charge = new CreditCardCharge(Guid.NewGuid(), userId, card, expenseCategory,
-            new Money(300m, CurrencyCode.TRY), new DateOnly(2026, 8, 4), "Taksit");
+            new Money(300m, CurrencyCode.TRY), TransactionScope.Business, new DateOnly(2026, 8, 4), "Taksit");
         var payment = new CreditCardPayment(Guid.NewGuid(), userId, bank, card,
             new Money(100m, CurrencyCode.TRY), new DateOnly(2026, 8, 5), "Ödeme");
         payment.Cancel(utc);
         var plan = new InstallmentPlan(Guid.NewGuid(), userId, card, expenseCategory, Guid.NewGuid(),
-            new Money(600m, CurrencyCode.TRY), 2, new DateOnly(2026, 8, 4), "Telefon");
+            new Money(600m, CurrencyCode.TRY), TransactionScope.Business, 2, new DateOnly(2026, 8, 4), "Telefon");
         plan.GetItem(1).Realize(charge.Id, utc);
         var recurring = new RecurringTransaction(Guid.NewGuid(), userId, cash, billCategory,
             new Money(100.25m, CurrencyCode.TRY), RecurringTransactionKind.BillPayment,
+            TransactionScope.Business,
             RecurrenceFrequency.Monthly, new DateOnly(2026, 8, 2), null,
             MonthEndBehavior.ClampToLastDay, "Elektrik");
         var occurrence = RecurringTransactionOccurrence.Create(Guid.NewGuid(), recurring, new DateOnly(2026, 8, 2));

@@ -4,7 +4,10 @@ using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Categories;
 
-public sealed record CreateCategoryCommand(string Name, CategoryType Type);
+public sealed record CreateCategoryCommand(
+    string Name,
+    CategoryType Type,
+    TransactionScope? DefaultScope = null);
 
 public sealed class CreateCategoryUseCase(
     ICurrentUser currentUser,
@@ -25,7 +28,8 @@ public sealed class CreateCategoryUseCase(
         Category category;
         try
         {
-            category = new Category(Guid.NewGuid(), userId, command.Name, command.Type);
+            category = new Category(
+                Guid.NewGuid(), userId, command.Name, command.Type, command.DefaultScope);
         }
         catch (ArgumentException exception)
         {
@@ -51,5 +55,6 @@ public sealed class CreateCategoryUseCase(
         category.Id,
         category.Name,
         category.Type,
-        category.IsActive);
+        category.IsActive,
+        category.DefaultScope);
 }

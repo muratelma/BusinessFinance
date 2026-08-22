@@ -64,12 +64,13 @@ public sealed class SqlServerApiIntegrationTests
                 "125.5000",
                 "TRY",
                 "expense",
+                "business",
                 "2026-08-09",
                 "SQL synthetic expense"),
             CancellationToken.None);
         using var createBudget = await client.PostAsJsonAsync(
             "/api/v1/budgets",
-            new CreateBudgetRequest(category.Id, "100", "TRY", 2026, 8),
+            new CreateBudgetRequest(category.Id, "100", "TRY", "business", 2026, 8),
             CancellationToken.None);
         var report = await client.GetFromJsonAsync<MonthlyReportResponse>(
             "/api/v1/reports/monthly?year=2026&month=8",

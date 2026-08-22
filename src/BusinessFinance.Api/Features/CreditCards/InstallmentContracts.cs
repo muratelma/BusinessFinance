@@ -6,6 +6,7 @@ public sealed record CreateInstallmentPlanRequest(
     Guid ClientRequestId,
     string TotalAmount,
     string Currency,
+    string Scope,
     int InstallmentCount,
     string FirstInstallmentDate,
     string? Description);
@@ -27,6 +28,7 @@ public sealed record InstallmentPlanResponse(
     Guid ClientRequestId,
     string TotalAmount,
     string Currency,
+    string Scope,
     int InstallmentCount,
     string FirstInstallmentDate,
     string? Description,

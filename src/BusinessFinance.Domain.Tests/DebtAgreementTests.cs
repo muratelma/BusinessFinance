@@ -269,6 +269,7 @@ public sealed class DebtAgreementTests
     private static DebtAgreement UnrecordedDebt(Guid? userId = null) =>
         DebtAgreement.WithUnrecordedOpening(
             Guid.NewGuid(), userId ?? Guid.NewGuid(), "Legacy lender", DebtDirection.Payable,
+            TransactionScope.Business,
             new Money(300m, CurrencyCode.TRY), new Money(330m, CurrencyCode.TRY),
             new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 15), 3, "Legacy debt");
 
@@ -288,6 +289,7 @@ public sealed class DebtAgreementTests
         Account? openingAccount,
         Category? category) => new(
         Guid.NewGuid(), userId, "Synthetic lender", direction,
+        TransactionScope.Business,
         new Money(300m, CurrencyCode.TRY), new Money(330m, CurrencyCode.TRY),
         sourceType, openingAccount, category,
         new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 15), 3, "Test debt");
@@ -297,6 +299,7 @@ public sealed class DebtAgreementTests
         var owner = userId ?? Guid.NewGuid();
         return new DebtAgreement(
             Guid.NewGuid(), owner, "Synthetic lender", DebtDirection.Payable,
+            TransactionScope.Business,
             new Money(principal, CurrencyCode.TRY), new Money(total, CurrencyCode.TRY),
             DebtSourceType.Cash, ActiveAccount(owner), null,
             new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 15), count, "Test debt");

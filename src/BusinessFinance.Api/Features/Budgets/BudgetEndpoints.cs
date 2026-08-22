@@ -42,11 +42,19 @@ public static class BudgetEndpoints
         {
             return error!;
         }
+        if (!FinanceContract.TryParseScope(request.Scope, out var scope))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Budget scope must be business or personal.",
+                "budgets.invalid_scope");
+        }
         var result = await useCase.ExecuteAsync(
             new CreateBudgetCommand(
                 request.CategoryId,
                 limit,
                 CurrencyCode.TRY,
+                scope,
                 request.Year,
                 request.Month),
             cancellationToken);
@@ -126,6 +134,7 @@ public static class BudgetEndpoints
         FinanceContract.Money(budget.Remaining),
         FinanceContract.Money(budget.Exceeded),
         budget.Currency.ToString(),
+        FinanceContract.ScopeValue(budget.Scope),
         budget.Year,
         budget.Month);
 }

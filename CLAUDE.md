@@ -204,12 +204,28 @@ gerekçesiyle bozulmaz.
 - **Kayıt adı kategoriden değil kullanıcının yazdığından gelir**: `title =
   açıklama ?? kategori adı`. Kategori paylaşılan bir raporlama kovasıdır;
   kimlik taşımaz (aynı kategorideki üç abonelik aksi halde ayırt edilemez).
+- **Kapsam (`TransactionScope`) ayrı bir boyuttur**, kategoriyle temsil
+  edilmez. `Business = 1`, `Personal = 2`; üçüncü bir "bilinmiyor" değeri
+  yoktur. Gelir/gider raporunu etkileyen kayıt kapsamı **zorunlu** taşır
+  (`BudgetTransaction`, `CreditCardCharge`, `MonthlyBudget`, `InstallmentPlan`,
+  `RecurringTransaction` + occurrence'ı, `DebtAgreement`). `Transfer` ve
+  `CreditCardPayment` **taşımaz** — gelir/gider raporuna sıfır etki ederler,
+  kapsam sormak cevabı hiçbir yerde kullanılmayan bir soru olurdu.
+  `Account`, `Category` ve `CreditCard` **nullable** bir varsayılan kapsam
+  (`DefaultScope`) taşır; boş olması meşrudur, eksik veri değildir.
+- **Kapsam raporu böler, parayı bölmez** (ADR 0013): bakiye, kart borcu ve net
+  varlık kapsam filtresinden etkilenmez. Bölünen tek şey gelir/gider
+  toplamlarıdır. Bütçe ilerlemesi kapsama duyarlıdır: harcama kategoriyle
+  değil, **kategori + kapsam çiftiyle** toplanır.
+- **Plan kapsamı gerçekleşmede yeniden türetilmez.** Tekrarlayan plan ve taksit
+  planının ürettiği kayıt kapsamı plandan alır; aksi hâlde aynı plan farklı
+  aylarda farklı kapsam üretebilirdi.
 
-> **Henüz uygulanmadı — Aşama 01'in konusu.** Kayıtlar bir **kapsam** boyutu
-> (işletme/şahsi) taşımıyor ve varsayılan kategori seti tamamen ev bütçesi.
-> Kapsam geldiğinde bakiye, kart borcu ve net varlık **bölünmeyecek**; yalnız
-> gelir/gider raporları bölünecek (ADR 0013). Bu satır, kapsam uygulanana kadar
-> burada durur ve o gün gerçek davranışla değiştirilir.
+> **Henüz uygulanmadı — Aşama 01'in kalanı.** Varsayılan kategori seti hâlâ
+> tamamen ev bütçesi (Grup 5) ve kapsam sunucuda **türetilmiyor**: istek
+> kapsamı açıkça göndermek zorunda (Grup 3). Flutter tarafında kapsam anahtarı
+> ve formdaki kapsam çipi de yok (Grup 7). Bu satır o gruplar bitene kadar
+> burada durur.
 
 ### Birleşik okuma modelleri
 

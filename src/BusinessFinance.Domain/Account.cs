@@ -12,13 +12,24 @@ public sealed class Account
     public decimal OpeningBalance { get; }
     public bool IsActive { get; private set; }
 
+    /// <summary>
+    /// Bu hesap üzerinden girilen kayıtların varsayılan kapsamı.
+    /// </summary>
+    /// <remarks>
+    /// Boş olması meşrudur ve eksik veri değildir: tek hesabıyla her şeyi
+    /// yöneten esnaf için kapsam kategoriden türer. Boş bırakmak "kapsamı
+    /// bilmiyorum" değil, "bu hesap kapsamı belirlemiyor" demektir.
+    /// </remarks>
+    public TransactionScope? DefaultScope { get; private set; }
+
     public Account(
         Guid id,
         Guid userId,
         string name,
         AccountType type,
         CurrencyCode currency,
-        decimal openingBalance = 0m)
+        decimal openingBalance = 0m,
+        TransactionScope? defaultScope = null)
     {
         if (id == Guid.Empty)
         {
@@ -73,7 +84,21 @@ public sealed class Account
         Currency = currency;
         OpeningBalance = openingBalance;
         IsActive = true;
+        DefaultScope = TransactionScopeGuard.ValidateOptional(
+            defaultScope,
+            nameof(defaultScope));
     }
+
+    /// <summary>
+    /// Varsayılan kapsamı belirler; <c>null</c> vermek etiketi kaldırır.
+    /// </summary>
+    public void SetDefaultScope(TransactionScope? defaultScope)
+    {
+        DefaultScope = TransactionScopeGuard.ValidateOptional(
+            defaultScope,
+            nameof(defaultScope));
+    }
+
 
     public void Rename(string name)
     {

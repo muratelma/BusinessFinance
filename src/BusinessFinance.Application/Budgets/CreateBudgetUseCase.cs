@@ -46,6 +46,7 @@ public sealed class CreateBudgetUseCase(
                 userId,
                 category,
                 new Money(command.Limit, command.Currency),
+                command.Scope,
                 command.Year,
                 command.Month);
         }
@@ -68,6 +69,7 @@ public sealed class CreateBudgetUseCase(
             budget.Limit.Amount,
             0m,
             budget.Limit.Currency,
+            budget.Scope,
             budget.Year,
             budget.Month));
     }

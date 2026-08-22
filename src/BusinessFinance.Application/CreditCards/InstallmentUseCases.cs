@@ -52,6 +52,7 @@ public sealed class CreateInstallmentPlanUseCase(
                 category,
                 command.ClientRequestId,
                 new Money(command.TotalAmount, command.Currency),
+                command.Scope,
                 command.InstallmentCount,
                 command.FirstInstallmentDate,
                 command.Description);
@@ -77,6 +78,7 @@ public sealed class CreateInstallmentPlanUseCase(
         plan.ClientRequestId,
         plan.TotalAmount.Amount,
         plan.TotalAmount.Currency,
+        plan.Scope,
         plan.InstallmentCount,
         plan.FirstInstallmentDate,
         plan.Description,
@@ -184,6 +186,9 @@ public sealed class RealizeInstallmentUseCase(
                 card,
                 category,
                 item.Amount,
+                // Kapsam plandan gelir, gerçekleşme anında yeniden türetilmez:
+                // aynı plan farklı aylarda farklı kapsam üretemez.
+                plan.Scope,
                 item.ScheduledDate,
                 BuildDescription(plan, item));
             item.Realize(charge.Id, timeProvider.GetUtcNow());

@@ -15,6 +15,7 @@ internal sealed class RecurringTransactionOccurrenceConfiguration
             table.HasCheckConstraint("CK_RecurringOccurrences_Amount", "[Amount] > 0");
             table.HasCheckConstraint("CK_RecurringOccurrences_Currency", "[Currency] = 1");
             table.HasCheckConstraint("CK_RecurringOccurrences_Kind", "[Kind] IN (1, 2, 3)");
+            table.HasCheckConstraint("CK_RecurringOccurrences_Scope", "[Scope] IN (1, 2)");
             table.HasCheckConstraint("CK_RecurringOccurrences_Status", "[Status] IN (1, 2)");
             table.HasCheckConstraint("CK_RecurringOccurrences_SourceType", "[SourceType] IN (1, 2)");
 
@@ -42,6 +43,7 @@ internal sealed class RecurringTransactionOccurrenceConfiguration
             .HasMaxLength(RecurringTransactionOccurrence.OccurrenceKeyLength)
             .IsFixedLength();
         builder.Property(occurrence => occurrence.Kind).HasConversion<byte>().HasColumnType("tinyint");
+        builder.Property(occurrence => occurrence.Scope).HasConversion<byte>().HasColumnType("tinyint");
         builder.Property(occurrence => occurrence.Status).HasConversion<byte>().HasColumnType("tinyint");
         builder.Property(occurrence => occurrence.SourceType).HasConversion<byte>().HasColumnType("tinyint");
         builder.Property(occurrence => occurrence.ScheduledDate).HasColumnType("date");

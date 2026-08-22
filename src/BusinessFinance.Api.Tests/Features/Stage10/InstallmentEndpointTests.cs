@@ -24,6 +24,7 @@ public sealed class InstallmentEndpointTests
             Guid.NewGuid(),
             "100.0000",
             "TRY",
+            "business",
             3,
             "2026-08-10",
             "Laptop");

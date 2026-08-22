@@ -279,6 +279,69 @@ Para JSON number'a çevrilmeden string tutulur. Form kontrolleri erken kullanıc
 geri bildirimi sağlar; sahiplik, limit, borç, sınıflandırma ve taksit matematiğinde
 son otorite backend'dir.
 
+## Kapsam boyutu
+
+Şahıs şirketinde kasa ile cep hukuken ayrılmadığı için para tek havuzda yaşar;
+kapsam o havuzu bölmez, yalnız gelir/gider raporlarını böler (ADR 0013).
+`TransactionScope` iki değerlidir: `Business = 1`, `Personal = 2`. Üçüncü bir
+"bilinmiyor" değeri **yoktur** — boyut boş bir veritabanına eklendi, yorumlanacak
+bir geçmiş olmadığı için belirsizliği temsil edecek bir değere de ihtiyaç yok.
+
+Kapsamı **zorunlu** taşıyanlar ve ortak ölçütü — gelir/gider raporunu etkileyen
+ya da etkileyecek kayıt üreten her model:
+
+| Model | Neden taşır |
+|---|---|
+| `BudgetTransaction` | Gelir/gider satırının kendisi |
+| `CreditCardCharge` | Kart harcaması gideri anında tanır |
+| `MonthlyBudget` | Sınırın hangi tarafa konduğunu söyler |
+| `InstallmentPlan` | Gerçekleşen her item bir kart harcaması üretir |
+| `RecurringTransaction` | Gerçekleşen her occurrence hareket ya da harcama üretir |
+| `RecurringTransactionOccurrence` | Planın kapsamının üretim anındaki kopyası |
+| `DebtAgreement` | Açılışı gider ya da gelir yazar |
+
+Kapsam **taşımayanlar**: `Transfer` ve `CreditCardPayment`. İkisi de gelir/gider
+raporuna sıfır etki eder (ADR 0002, ADR 0003); kapsam sormak, cevabı hiçbir yerde
+kullanılmayan bir soru sormak olurdu.
+
+`Account`, `Category` ve `CreditCard` **nullable** bir `DefaultScope` taşır. Boş
+olması meşrudur ve eksik veri değildir: tek hesabıyla her şeyi yöneten esnaf için
+kapsam kategoriden türer. Boş bırakmak "kapsamı bilmiyorum" değil, "bu kaynak
+kapsamı belirlemiyor" demektir.
+
+### Bölünen ve bölünmeyen
+
+Kapsam **raporu böler, parayı bölmez**. Hesap bakiyesi, kart borcu ve net varlık
+kapsam filtresinden etkilenmez; bunlar tek havuzun tutarıdır ve kullanıcının
+cebindeki para kapsam anahtarının konumuna göre değişmez.
+
+Bütçe ilerlemesi kapsama duyarlıdır ve bu kural **iki yerde birden** yazılıdır:
+`MonthlyBudget.CalculateProgress` (bellek içi) ve `EfBudgetRepository`
+(SQL). İkisi de harcamayı kategoriyle değil **kategori + kapsam çiftiyle**
+toplar; aynı kategori hem işletme hem şahsi harcama tutabildiği için, ikisini
+birden saymak kullanıcının koymadığı bir sınırı aşılmış gösterirdi.
+
+### Plan kapsamı gerçekleşmede yeniden türetilmez
+
+Tekrarlayan plan ve taksit planının ürettiği kayıt kapsamını **plandan** alır.
+`RecurringTransactionOccurrence` kapsamı üretim anında plandan kopyalar — tutar,
+tür ve açıklama gibi. Kopya olmasının ikinci bir faydası var: planlanan
+projection kapsamı bir join olmadan SQL'de filtreleyebilir. Kapsamı gerçekleşme
+anında yeniden türetmek, aynı planın farklı aylarda farklı kapsam üretmesi
+demekti.
+
+### Kalıcılık
+
+Kapsam `tinyint` kolondur ve `[Scope] IN (1, 2)` CHECK kısıtıyla korunur;
+`DefaultScope` nullable'dır ve `[DefaultScope] IS NULL OR [DefaultScope] IN (1, 2)`
+ile. Kolonları ekleyen `AddTransactionScope`, `InitialCreate`'ten sonra zincirin
+**ilk gerçek yükseltme adımıdır** (ADR 0012'nin bir daha kullanılmayacağını
+yazdığı serbestlik burada bitti). Zorunlu kolonlar varsayılansız `NOT NULL`
+eklenir; bu, migration kurallarının istisnası değil ön koşulunun sağlanmış
+hâlidir — tablolar Aşama 01 Grup 1'de boşaltıldı. Varsayılansız ekleme aynı
+zamanda o ön koşulu denetler: tablo boş değilse SQL Server komutu reddeder ve
+yükseltme sessizce yanlış veri üretmek yerine durur.
+
 ## Planlama ve read-model mimarisi
 
 ```text

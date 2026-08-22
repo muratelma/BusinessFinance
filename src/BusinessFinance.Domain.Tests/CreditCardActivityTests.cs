@@ -13,6 +13,7 @@ public sealed class CreditCardActivityTests
 
         var charge = new CreditCardCharge(
             Guid.NewGuid(), userId, card, expense, new Money(100m, CurrencyCode.TRY),
+            TransactionScope.Business,
             new DateOnly(2026, 8, 10), "  Dinner  ");
 
         Assert.Equal(card.Id, charge.CreditCardId);
@@ -22,6 +23,7 @@ public sealed class CreditCardActivityTests
         card.Update(card.Name, card.Limit, 10, 20, card.MinimumPaymentRate, false);
         Assert.Throws<InvalidOperationException>(() => new CreditCardCharge(
             Guid.NewGuid(), userId, card, expense, new Money(10m, CurrencyCode.TRY),
+            TransactionScope.Business,
             new DateOnly(2026, 8, 10)));
     }
 
@@ -35,9 +37,11 @@ public sealed class CreditCardActivityTests
 
         Assert.Throws<InvalidOperationException>(() => new CreditCardCharge(
             Guid.NewGuid(), userId, card, income, new Money(10m, CurrencyCode.TRY),
+            TransactionScope.Business,
             new DateOnly(2026, 8, 10)));
         Assert.Throws<ArgumentException>(() => new CreditCardCharge(
             Guid.NewGuid(), userId, card, foreignExpense, new Money(10m, CurrencyCode.TRY),
+            TransactionScope.Business,
             new DateOnly(2026, 8, 10)));
     }
 
@@ -71,6 +75,7 @@ public sealed class CreditCardActivityTests
         var category = new Category(Guid.NewGuid(), userId, "Food", CategoryType.Expense);
         var charge = new CreditCardCharge(
             Guid.NewGuid(), userId, card, category, new Money(10m, CurrencyCode.TRY),
+            TransactionScope.Business,
             new DateOnly(2026, 8, 10));
         var payment = new CreditCardPayment(
             Guid.NewGuid(), userId, account, card, new Money(10m, CurrencyCode.TRY),

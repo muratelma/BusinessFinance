@@ -582,7 +582,7 @@ public sealed class ReceiptEndpointTests
             "/api/v1/transactions",
             new CreateTransactionRequest(
                 account.Id, categories!.Items[0].Id, amount, "TRY",
-                "expense", date, description));
+                "expense", "business", date, description));
         response.EnsureSuccessStatusCode();
     }
 

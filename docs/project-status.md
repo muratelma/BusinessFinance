@@ -13,7 +13,7 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   yeniden yazıldı; kod değişmedi
 - Aktif aşama: **01 — Kapsam boyutu ve işletme kimliği.** 22 Ağustos 2026'da
   kullanıcı onayıyla açıldı. Belgesi `stages/01-kapsam-boyutu-ve-isletme-kimligi.md`;
-  dokuz çalışma grubu, **Grup 1 tamamlandı**
+  dokuz çalışma grubu; **Grup 1, 2 ve 4 tamamlandı**
 - Kalan beş aşamanın belgesi de yazılı, durumları `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
@@ -86,8 +86,9 @@ istiyor, yokken kendiliğinden skip oluyor.
 
 - .NET SDK: net10.0, çalışıyor
 - Docker/Compose: `business-finance-sqlserver-1` healthy, `127.0.0.1:14334`
-- SQL Server: `BusinessFinance` (veri), `BusinessFinanceSqlTests` ve
-  `BusinessFinanceApiSqlTests` (test hedefleri, şema uygulandı)
+- SQL Server: `BusinessFinance` (veri) ve `BusinessFinanceApiSqlTests`
+  (API SQL testlerinin hedefi; şema uygulandı). Infrastructure SQL testleri
+  bağlantıdan yalnız sunucuyu alıp kendi geçici veritabanını kurar
 - Flutter/Dart: çalışıyor, 637 test geçiyor
 - Android emulator: bu oturumda çalıştırılmadı
 
@@ -158,6 +159,56 @@ Kullanıcı onayıyla uygulandı; geri alınamaz adımdı.
 | Backend test (SQL dahil) | **733 geçti**, 1 atlandı (`GeminiLiveContractTests`, canlı anahtar yok) |
 | Temiz veritabanı | 28 tablo, 0 iş verisi satırı |
 
+## 22 Ağustos 2026 — Aşama 01, Grup 2 ve 4: kapsam boyutu
+
+`TransactionScope` (`Business = 1`, `Personal = 2`) domainden veritabanına
+kadar eklendi. Üçüncü bir "bilinmiyor" değeri yok: boyut boş bir veritabanına
+girdiği için yorumlanacak geçmiş de yok.
+
+- **Kapsamı zorunlu taşıyanlar:** `BudgetTransaction`, `CreditCardCharge`,
+  `MonthlyBudget`, `InstallmentPlan`, `RecurringTransaction` ve occurrence'ı,
+  `DebtAgreement`. **Taşımayanlar:** `Transfer` ve `CreditCardPayment` — bir
+  test alanın sonradan eklenmediğini koruyor
+- **`Account`, `Category`, `CreditCard` nullable `DefaultScope` taşır** ve bu
+  alan API yüzeyine de çıktı. Boş olması meşrudur; "kapsamı bilmiyorum" değil,
+  "bu kaynak kapsamı belirlemiyor" demektir
+- **Bütçe ilerlemesi kapsama duyarlı hâle geldi** ve kural iki yerde birden
+  yazılı: `MonthlyBudget.CalculateProgress` ve `EfBudgetRepository`. İkisi de
+  harcamayı kategori + kapsam çiftiyle topluyor
+- **Occurrence kapsamı plandan kopyalanır**, gerçekleşmede yeniden türetilmez.
+  Kopya olması planlanan projection'ın kapsamı join'siz filtrelemesini de
+  sağlayacak
+- **Grup 4 bu checkpoint'e alındı.** `MigrationHistoryTests` modelle şemanın
+  örtüşmesini doğruluyor; kapsam modele girip migration üretilmezse grup
+  kırmızı kalırdı. Aynı zorunlulukla Grup 9'un **yalnız sürüm kapısı** da
+  buraya girdi — geri yükleme kodu kapsam alanı olmadan derlenmiyordu
+- **`20260822120440_AddTransactionScope`**, `InitialCreate`'ten sonra zincirin
+  ilk gerçek yükseltme adımı. EF'in ürettiği `defaultValue: 0` kaldırıldı:
+  kalıcı bir veritabanı varsayılanı bırakıyordu ve bıraktığı değer tablonun
+  kendi `[Scope] IN (1, 2)` kısıtını ihlal ediyordu. Zorunlu kolonlar ham SQL
+  ile varsayılansız ekleniyor ve bu, boş tablo ön koşulunu **denetliyor**
+- **Yedek şeması v6**; v2–v5 `restore.unsupported_version` ile reddediliyor ve
+  yükseltilmiyor. Eksik kapsam alanını doldurmak, kullanıcının işletme ile cebi
+  arasındaki ayrımını uydurmak olurdu (ADR 0013)
+- **Bilinen ve kabul edilen boşluk:** kapsam sunucuda **türetilmiyor**; istek
+  onu açıkça göndermek zorunda. Bu yüzden Flutter istemcisi bu commit'te API'ye
+  karşı çalışmıyor — create istekleri `*.invalid_scope` ile 400 alır. Boşluğu
+  Grup 3 (türetme zinciri) kapatıyor; Flutter'ın kendi kontrolleri
+  (`analyze`, 637 test, `format`) bu commit'te de temiz
+- **Yerel SQL test hedefleri yeniden kuruldu.** `BusinessFinanceApiSqlTests`
+  önceki koşumlardan kalan satırlar taşıyordu ve boş tablo ön koşulunu
+  karşılamıyordu; düşürülüp migration zinciriyle yeniden kuruldu. Kullanılmayan
+  `BusinessFinanceSqlTests` silindi
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (SQL dahil) | **753 geçti**, 1 atlandı |
+| Flutter analyze / format / test | Temiz, temiz, **637 geçti** |
+| Migration | `AddTransactionScope` iki veritabanına uygulandı; `HasPendingModelChanges` yok |
+| Şema | 7 tabloda `Scope NOT NULL`, 3 tabloda `DefaultScope` nullable, hiçbirinde DEFAULT kısıtı yok |
+
 ## Açık kararlar ve riskler
 
 - **Yerel veritabanının silinmesi onay bekliyor.** Aşama 01 Grup 1'in ilk işi;
@@ -173,14 +224,15 @@ Kullanıcı onayıyla uygulandı; geri alınamaz adımdı.
 
 ## Sıradaki tek küçük görev
 
-- **Aşama 01, Grup 2:** `TransactionScope` enum'unu ve kapsamı zorunlu taşıyan
-  altı domain modelini eklemek. Ölçüt: domain unit testleri kapsam
-  invariant'larını kanıtlıyor.
+- **Aşama 01, Grup 3:** kapsam türetme zinciri — kullanıcının açık seçimi →
+  hesabın/kartın etiketi → kategorinin varsayılanı; üçü de boşsa istek
+  reddedilir. Bu, istemcinin kapsamı göndermek zorunda olmasını da bitirir.
+  Ölçüt: application testleri türetme sırasını ve reddi kanıtlıyor.
 
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: Aşama 01 aktifleştirildi; Grup 1 uygulandı (yerel
-  veritabanı sıfırlandı, `manual-test-data/` gözden geçirildi, SQL test
-  bağlantısının hedefi belgelendi)
-- Geçen kontroller: backend build, format ve 733 test
-- Sıradaki görev: Aşama 01 Grup 2 — `TransactionScope` domain boyutu
+- Yapılan değişiklik: Aşama 01 açıldı; Grup 1 (veri sıfırlama), Grup 2 (kapsam
+  boyutu) ve Grup 4 (migration) uygulandı
+- Geçen kontroller: backend build + format + 753 test; Flutter analyze +
+  format + 637 test
+- Sıradaki görev: Aşama 01 Grup 3 — kapsam türetme zinciri

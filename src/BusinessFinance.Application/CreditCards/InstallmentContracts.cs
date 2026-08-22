@@ -19,6 +19,7 @@ public sealed record InstallmentPlanDto(
     Guid ClientRequestId,
     decimal TotalAmount,
     CurrencyCode Currency,
+    TransactionScope Scope,
     int InstallmentCount,
     DateOnly FirstInstallmentDate,
     string? Description,
@@ -30,6 +31,7 @@ public sealed record CreateInstallmentPlanCommand(
     Guid ClientRequestId,
     decimal TotalAmount,
     CurrencyCode Currency,
+    TransactionScope Scope,
     int InstallmentCount,
     DateOnly FirstInstallmentDate,
     string? Description);

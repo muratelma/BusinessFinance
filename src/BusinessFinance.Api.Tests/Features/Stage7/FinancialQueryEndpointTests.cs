@@ -64,17 +64,17 @@ public sealed class FinancialQueryEndpointTests
         using var chargeResponse = await client.PostAsJsonAsync(
             $"/api/v1/credit-cards/{card!.Id}/charges",
             new CreateCardChargeRequest(
-                expense.Id, "30", "TRY", "2026-08-10", "Budget card expense"));
+                expense.Id, "30", "TRY", "business", "2026-08-10", "Budget card expense"));
         chargeResponse.EnsureSuccessStatusCode();
 
         using var createdResponse = await client.PostAsJsonAsync(
             "/api/v1/budgets",
-            new CreateBudgetRequest(expense.Id, "100", "TRY", 2026, 8));
+            new CreateBudgetRequest(expense.Id, "100", "TRY", "business", 2026, 8));
         Assert.Equal(HttpStatusCode.Created, createdResponse.StatusCode);
         var created = await createdResponse.Content.ReadFromJsonAsync<BudgetResponse>();
         using var duplicate = await client.PostAsJsonAsync(
             "/api/v1/budgets",
-            new CreateBudgetRequest(expense.Id, "200", "TRY", 2026, 8));
+            new CreateBudgetRequest(expense.Id, "200", "TRY", "business", 2026, 8));
         Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
 
         var list = await client.GetFromJsonAsync<BudgetListResponse>(
@@ -196,7 +196,7 @@ public sealed class FinancialQueryEndpointTests
         using var response = await client.PostAsJsonAsync(
             "/api/v1/transactions",
             new CreateTransactionRequest(
-                accountId, categoryId, amount, "TRY", type, date, "Synthetic"));
+                accountId, categoryId, amount, "TRY", type, "business", date, "Synthetic"));
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<TransactionResponse>())!;
     }

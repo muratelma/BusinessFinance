@@ -9,6 +9,7 @@ public sealed class MonthlyBudget
     public Guid UserId { get; }
     public Guid CategoryId { get; }
     public Money Limit { get; private set; }
+    public TransactionScope Scope { get; }
     public int Year { get; }
     public int Month { get; }
     public DateOnly PeriodStart => new(Year, Month, 1);
@@ -24,6 +25,7 @@ public sealed class MonthlyBudget
         Guid userId,
         Category category,
         Money limit,
+        TransactionScope scope,
         int year,
         int month)
     {
@@ -59,6 +61,8 @@ public sealed class MonthlyBudget
                 nameof(category));
         }
 
+        TransactionScopeGuard.Validate(scope, nameof(scope));
+
         if (year is < MinimumYear or > MaximumYear)
         {
             throw new ArgumentOutOfRangeException(
@@ -79,6 +83,7 @@ public sealed class MonthlyBudget
         UserId = userId;
         CategoryId = category.Id;
         Limit = limit;
+        Scope = scope;
         Year = year;
         Month = month;
     }
@@ -92,9 +97,14 @@ public sealed class MonthlyBudget
 
         foreach (var transaction in transactions)
         {
+            // Kapsam da eleyen bir boyuttur: aynı kategori hem işletme hem
+            // şahsi harcama tutabildiği için, hangi tarafın sınırlandığı
+            // bütçenin kendi kapsamından okunur. İkisini birden saymak,
+            // kullanıcının koymadığı bir sınırı aşılmış göstermek olurdu.
             if (transaction.IsCancelled ||
                 transaction.UserId != UserId ||
                 transaction.CategoryId != CategoryId ||
+                transaction.Scope != Scope ||
                 transaction.Type != TransactionType.Expense ||
                 transaction.TransactionDate < PeriodStart ||
                 transaction.TransactionDate > PeriodEnd)

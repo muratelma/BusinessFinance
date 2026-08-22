@@ -93,7 +93,16 @@ Bu aşama aşağıdakilerin hiçbirini bozmaz; bozması gerekirse önce ADR yaz�
   testi geçti. `manual-test-data/` gözden geçirildi, değişiklik gerekmedi.
   Ayrıntı `docs/project-status.md` içinde.
 
-### Grup 2 — Domain: kapsam boyutu
+### Grup 2 — Domain: kapsam boyutu — **Tamamlandı (Grup 4 ile birlikte)**
+
+> **Kapsam düzeltmesi.** Grup 4'ün migration'ı bu grupla **aynı checkpoint'e**
+> alındı. Gerekçe: `MigrationHistoryTests` modelle şemanın örtüşmesini
+> (`HasPendingModelChanges`) doğruluyor; kapsam kolonları modele girip
+> migration üretilmezse Grup 2 ve Grup 3 kırmızı kalırdı ve "her grup kendi
+> derlenebilir, testi geçen checkpoint'idir" kuralı bozulurdu. Aynı zorunlulukla
+> Grup 9'un **yalnız sürüm kapısı** (yedek v6 yazar, v2–v5 reddeder) da buraya
+> girdi: geri yükleme kodu kapsam alanı olmadan derlenmiyor. Grup 9'un kalanı
+> (CSV kapsam kolonu, runbook tatbikatı) kendi grubunda.
 
 - `TransactionScope` enum: `Business = 1`, `Personal = 2`. Üçüncü belirsiz
   durum **yok** — veri sıfırlandığı için yorumlanacak geçmiş yok.
@@ -108,6 +117,11 @@ Bu aşama aşağıdakilerin hiçbirini bozmaz; bozması gerekirse önce ADR yaz�
   olması meşru — tek hesabıyla her şeyi yöneten esnaf için kapsam kategoriden
   türer.
 - Ölçüt: domain unit testleri kapsam invariant'larını kanıtlıyor.
+- Sonuç: `TransactionScope` eklendi; altı model kapsamı zorunlu, occurrence
+  planın kapsamını üretim anında kopyalıyor, `Transfer`/`CreditCardPayment`
+  taşımıyor (bir test alanın eklenmediğini koruyor). `MonthlyBudget` ilerlemesi
+  hem bellekte hem SQL'de kategori + kapsam çiftiyle topluyor. Sözleşmeler
+  kapsamı **açıkça** taşıyor; sunucu henüz türetmiyor (Grup 3).
 
 ### Grup 3 — Application: kapsam türetme zinciri
 
@@ -121,7 +135,7 @@ Bu aşama aşağıdakilerin hiçbirini bozmaz; bozması gerekirse önce ADR yaz�
   plan farklı aylarda farklı kapsam üretebilirdi.
 - Ölçüt: application testleri türetme sırasını ve reddi kanıtlıyor.
 
-### Grup 4 — Migration
+### Grup 4 — Migration — **Tamamlandı (Grup 2 ile birlikte)**
 
 - İkinci gerçek migration: `AddTransactionScope`. ADR 0012 tek `InitialCreate`
   serbestliğinin **bir daha kullanılmayacağını** yazıyor; o karar burada
@@ -133,6 +147,12 @@ Bu aşama aşağıdakilerin hiçbirini bozmaz; bozması gerekirse önce ADR yaz�
   yazmıştı: ikinci migration eklendiğinde tekliği doğrulayan test kırılır.
 - Ölçüt: `dotnet ef database update` temiz veritabanında sorunsuz;
   `HasPendingModelChanges` yok.
+- Sonuç: `20260822120440_AddTransactionScope` uygulandı. EF'in ürettiği
+  `defaultValue: 0` kaldırıldı — kalıcı bir veritabanı varsayılanı bırakıyordu
+  ve bıraktığı değer tablonun kendi `[Scope] IN (1, 2)` kısıtını ihlal
+  ediyordu. Zorunlu kolonlar ham SQL ile varsayılansız ekleniyor; bu, ön koşulu
+  aynı zamanda **denetliyor**: tablo boş değilse SQL Server komutu reddeder.
+  `MigrationHistoryTests` zincir testine dönüştü.
 
 ### Grup 5 — Kategori setleri ve onboarding
 
@@ -199,9 +219,10 @@ Bu aşama aşağıdakilerin hiçbirini bozmaz; bozması gerekirse önce ADR yaz�
 
 ### Grup 9 — Yedek v6, dışa aktarma ve runbook
 
-- Yedek şeması **v6** yazar ve **yalnız v6 okur**. v2–v5 `restore.invalid` ile
-  reddedilir: o yedeklerde kapsam alanı yok ve bir değer uydurmak, olmamış bir
-  geçmiş uydurmak olurdu (ADR 0013).
+- ~~Yedek şeması **v6** yazar ve **yalnız v6 okur**.~~ **Grup 2 ile birlikte
+  yapıldı** — geri yükleme kodu kapsam alanı olmadan derlenmiyordu. v2–v5
+  `restore.unsupported_version` ile reddediliyor: o yedeklerde kapsam alanı yok
+  ve bir değer uydurmak, olmamış bir geçmiş uydurmak olurdu (ADR 0013).
 - CSV dışa aktarma kapsam kolonu taşır; içe aktarma kapsamı türetme
   zincirinden alır.
 - `documentation/restore-runbook.md` v6'ya göre yeniden yazılır.

@@ -37,7 +37,8 @@ public sealed class CreateCreditCardUseCase(
                 new Money(command.Limit, command.Currency),
                 command.StatementClosingDay,
                 command.PaymentDueDay,
-                command.MinimumPaymentRate ?? CreditCard.DefaultMinimumPaymentRate);
+                command.MinimumPaymentRate ?? CreditCard.DefaultMinimumPaymentRate,
+                command.DefaultScope);
             await repository.AddAsync(card, cancellationToken);
             return ApplicationResult<CreditCardDto>.Success(ToDto(card, 0m));
         }
@@ -58,7 +59,8 @@ public sealed class CreateCreditCardUseCase(
         card.StatementClosingDay,
         card.PaymentDueDay,
         card.MinimumPaymentRate,
-        card.IsActive);
+        card.IsActive,
+        card.DefaultScope);
 }
 
 public sealed class GetCreditCardUseCase(
@@ -168,6 +170,7 @@ public sealed class UpdateCreditCardUseCase(
                 // sessizce %20'ye çevirirdi.
                 command.MinimumPaymentRate ?? card.MinimumPaymentRate,
                 command.IsActive);
+            card.SetDefaultScope(command.DefaultScope);
             await repository.UpdateOwnedAsync(card, userId, cancellationToken);
             var debt = await repository.CalculateCurrentDebtAsync(
                 card.Id,

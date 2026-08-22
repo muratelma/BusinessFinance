@@ -13,12 +13,14 @@ internal sealed class InstallmentPlanConfiguration : IEntityTypeConfiguration<In
         {
             table.HasCheckConstraint("CK_InstallmentPlans_TotalAmount", "[TotalAmount] > 0");
             table.HasCheckConstraint("CK_InstallmentPlans_Currency", "[Currency] = 1");
+            table.HasCheckConstraint("CK_InstallmentPlans_Scope", "[Scope] IN (1, 2)");
             table.HasCheckConstraint(
                 "CK_InstallmentPlans_Count",
                 $"[InstallmentCount] BETWEEN {InstallmentPlan.MinimumInstallmentCount} AND {InstallmentPlan.MaximumInstallmentCount}");
         });
 
         builder.HasKey(plan => plan.Id);
+        builder.Property(plan => plan.Scope).HasConversion<byte>().HasColumnType("tinyint");
         builder.HasAlternateKey(plan => new { plan.UserId, plan.Id });
         builder.Property(plan => plan.InstallmentCount).HasColumnType("tinyint");
         builder.Property(plan => plan.FirstInstallmentDate).HasColumnType("date");

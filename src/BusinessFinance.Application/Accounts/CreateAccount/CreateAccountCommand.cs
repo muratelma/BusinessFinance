@@ -6,4 +6,5 @@ public sealed record CreateAccountCommand(
     string Name,
     AccountType Type,
     CurrencyCode Currency,
-    decimal OpeningBalance = 0m);
+    decimal OpeningBalance = 0m,
+    TransactionScope? DefaultScope = null);

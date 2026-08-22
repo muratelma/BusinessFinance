@@ -162,9 +162,15 @@ public static class CreditCardEndpoints
             return ApiProblemResults.Validation(
                 httpContext, "Charge date must use the yyyy-MM-dd format.", "credit_cards.invalid_charge_date");
         }
+        if (!FinanceContract.TryParseScope(request.Scope, out var scope))
+        {
+            return ApiProblemResults.Validation(
+                httpContext, "Charge scope must be business or personal.", "credit_cards.invalid_scope");
+        }
 
         var result = await useCase.ExecuteAsync(new CreateCardChargeCommand(
-            creditCardId, request.CategoryId, amount, CurrencyCode.TRY, date, request.Description), cancellationToken);
+            creditCardId, request.CategoryId, amount, CurrencyCode.TRY, scope, date, request.Description),
+            cancellationToken);
         if (!result.IsSuccess) return result.Error.ToProblemResult(httpContext);
         var response = ToChargeResponse(result.Value);
         return Results.Created($"/api/v1/credit-card-charges/{response.Id}", response);
@@ -259,6 +265,14 @@ public static class CreditCardEndpoints
             return InvalidMinimumPaymentRate(httpContext);
         }
 
+        if (!FinanceContract.TryParseOptionalScope(request.DefaultScope, out var defaultScope))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Default scope must be business, personal or empty.",
+                "credit_cards.invalid_default_scope");
+        }
+
         var result = await useCase.ExecuteAsync(
             new CreateCreditCardCommand(
                 request.Name,
@@ -266,7 +280,8 @@ public static class CreditCardEndpoints
                 CurrencyCode.TRY,
                 request.StatementClosingDay,
                 request.PaymentDueDay,
-                rate),
+                rate,
+                defaultScope),
             cancellationToken);
         if (!result.IsSuccess)
         {
@@ -317,6 +332,14 @@ public static class CreditCardEndpoints
             return InvalidMinimumPaymentRate(httpContext);
         }
 
+        if (!FinanceContract.TryParseOptionalScope(request.DefaultScope, out var defaultScope))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Default scope must be business, personal or empty.",
+                "credit_cards.invalid_default_scope");
+        }
+
         var result = await useCase.ExecuteAsync(
             new UpdateCreditCardCommand(
                 creditCardId,
@@ -326,7 +349,8 @@ public static class CreditCardEndpoints
                 request.StatementClosingDay,
                 request.PaymentDueDay,
                 rate,
-                request.IsActive),
+                request.IsActive,
+                defaultScope),
             cancellationToken);
         return result.IsSuccess
             ? Results.Ok(ToResponse(result.Value))
@@ -434,7 +458,8 @@ public static class CreditCardEndpoints
         card.StatementClosingDay,
         card.PaymentDueDay,
         FinanceContract.Money(card.MinimumPaymentRate),
-        card.IsActive);
+        card.IsActive,
+        FinanceContract.OptionalScopeValue(card.DefaultScope));
 
     internal static CardChargeResponse ToChargeResponse(CardChargeDto charge) => new(
         charge.Id,
@@ -442,6 +467,7 @@ public static class CreditCardEndpoints
         charge.CategoryId,
         FinanceContract.Money(charge.Amount),
         charge.Currency.ToString(),
+        FinanceContract.ScopeValue(charge.Scope),
         FinanceContract.Date(charge.ChargeDate),
         charge.Description,
         charge.IsCancelled,

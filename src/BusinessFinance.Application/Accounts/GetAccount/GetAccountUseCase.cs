@@ -52,6 +52,7 @@ public sealed class GetAccountUseCase
                 account.Currency,
                 account.IsActive,
                 account.OpeningBalance,
-                balance));
+                balance,
+                account.DefaultScope));
     }
 }

@@ -1,9 +1,18 @@
 using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
+using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Categories;
 
-public sealed record UpdateCategoryCommand(Guid CategoryId, string Name, bool IsActive);
+/// <summary>
+/// Kategorinin tam güncel hâli; <see cref="DefaultScope"/> yetkilidir ve boş
+/// gönderilmesi varsayılanı kaldırır.
+/// </summary>
+public sealed record UpdateCategoryCommand(
+    Guid CategoryId,
+    string Name,
+    bool IsActive,
+    TransactionScope? DefaultScope);
 
 public sealed class UpdateCategoryUseCase(
     ICurrentUser currentUser,
@@ -39,6 +48,8 @@ public sealed class UpdateCategoryUseCase(
                 return ApplicationResult<CategoryListItemDto>.Failure(
                     CategoryErrors.DuplicateName(category.Name));
             }
+
+            category.SetDefaultScope(command.DefaultScope);
 
             if (command.IsActive)
             {

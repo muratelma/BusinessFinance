@@ -12,7 +12,8 @@ public sealed record CreditCardDto(
     int StatementClosingDay,
     int PaymentDueDay,
     decimal MinimumPaymentRate,
-    bool IsActive);
+    bool IsActive,
+    TransactionScope? DefaultScope);
 
 public sealed record CreateCreditCardCommand(
     string Name,
@@ -20,8 +21,13 @@ public sealed record CreateCreditCardCommand(
     CurrencyCode Currency,
     int StatementClosingDay,
     int PaymentDueDay,
-    decimal? MinimumPaymentRate);
+    decimal? MinimumPaymentRate,
+    TransactionScope? DefaultScope = null);
 
+/// <summary>
+/// Kartın tam güncel hâli; <see cref="DefaultScope"/> yetkilidir ve boş
+/// gönderilmesi varsayılanı kaldırır.
+/// </summary>
 public sealed record UpdateCreditCardCommand(
     Guid CreditCardId,
     string Name,
@@ -30,7 +36,8 @@ public sealed record UpdateCreditCardCommand(
     int StatementClosingDay,
     int PaymentDueDay,
     decimal? MinimumPaymentRate,
-    bool IsActive);
+    bool IsActive,
+    TransactionScope? DefaultScope);
 
 public interface ICreditCardRepository
 {

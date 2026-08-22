@@ -62,7 +62,7 @@ public sealed class CreditCardUseCaseTests
         var result = await new UpdateCreditCardUseCase(
             new FakeCurrentUser(UserId), repository).ExecuteAsync(
             new UpdateCreditCardCommand(
-                card.Id, "Updated", 12000m, CurrencyCode.TRY, 12, 24, null, false));
+                card.Id, "Updated", 12000m, CurrencyCode.TRY, 12, 24, null, false, null));
 
         Assert.True(result.IsSuccess);
         Assert.Equal(UserId, card.UserId);
@@ -101,7 +101,7 @@ public sealed class CreditCardUseCaseTests
         var result = await new UpdateCreditCardUseCase(
             new FakeCurrentUser(UserId), repository).ExecuteAsync(
             new UpdateCreditCardCommand(
-                card.Id, "Renamed", 10000m, CurrencyCode.TRY, 10, 20, null, true));
+                card.Id, "Renamed", 10000m, CurrencyCode.TRY, 10, 20, null, true, null));
 
         Assert.True(result.IsSuccess);
         Assert.Equal(40m, result.Value.MinimumPaymentRate);
@@ -116,7 +116,7 @@ public sealed class CreditCardUseCaseTests
         var result = await new UpdateCreditCardUseCase(
             new FakeCurrentUser(UserId), repository).ExecuteAsync(
             new UpdateCreditCardCommand(
-                card.Id, "Main Card", 10000m, CurrencyCode.TRY, 10, 20, 40m, true));
+                card.Id, "Main Card", 10000m, CurrencyCode.TRY, 10, 20, 40m, true, null));
 
         Assert.True(result.IsSuccess);
         Assert.Equal(40m, result.Value.MinimumPaymentRate);

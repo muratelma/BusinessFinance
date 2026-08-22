@@ -40,6 +40,8 @@ public sealed class UpdateAccountUseCase(
                     AccountErrors.DuplicateName(account.Name));
             }
 
+            account.SetDefaultScope(command.DefaultScope);
+
             if (command.IsActive)
             {
                 account.Activate();
@@ -58,6 +60,7 @@ public sealed class UpdateAccountUseCase(
         await accountRepository.UpdateOwnedAsync(account, userId, cancellationToken);
 
         return ApplicationResult<UpdateAccountResponse>.Success(
-            new UpdateAccountResponse(account.Id, account.Name, account.IsActive));
+            new UpdateAccountResponse(
+                account.Id, account.Name, account.IsActive, account.DefaultScope));
     }
 }

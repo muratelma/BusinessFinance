@@ -33,4 +33,39 @@ internal static class FinanceContract
     public static string AccountTypeValue(AccountType value) => value.ToString().ToLowerInvariant();
     public static string CategoryTypeValue(CategoryType value) => value.ToString().ToLowerInvariant();
     public static string TransactionTypeValue(TransactionType value) => value.ToString().ToLowerInvariant();
+
+    /// <summary>
+    /// Kapsamin kararli makine degeri: <c>business</c> veya <c>personal</c>.
+    /// Kullaniciya gosterilecek cumleyi istemci uretir.
+    /// </summary>
+    public static string ScopeValue(TransactionScope value) => value.ToString().ToLowerInvariant();
+
+    /// <summary>
+    /// İsteğe bağlı varsayılan kapsam. Boş değer meşrudur ve "bu kaynak kapsam
+    /// belirlemiyor" demektir; tanınmayan bir metin ise reddedilir.
+    /// </summary>
+    public static bool TryParseOptionalScope(string? value, out TransactionScope? scope)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            scope = null;
+            return true;
+        }
+
+        if (TryParseScope(value, out var parsed))
+        {
+            scope = parsed;
+            return true;
+        }
+
+        scope = null;
+        return false;
+    }
+
+    public static string? OptionalScopeValue(TransactionScope? value) =>
+        value is TransactionScope scope ? ScopeValue(scope) : null;
+
+    public static bool TryParseScope(string? value, out TransactionScope scope) =>
+        Enum.TryParse(value, true, out scope) &&
+        scope is TransactionScope.Business or TransactionScope.Personal;
 }

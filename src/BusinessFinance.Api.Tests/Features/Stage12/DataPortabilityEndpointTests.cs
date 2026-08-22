@@ -31,6 +31,7 @@ public sealed class DataPortabilityEndpointTests
             "/api/v1/transactions",
             new CreateTransactionRequest(
                 account.Id, category.Id, "25.5000", "TRY", "expense",
+                "business",
                 "2026-08-11", "=FORMULA"));
         createTransaction.EnsureSuccessStatusCode();
 
@@ -57,7 +58,7 @@ public sealed class DataPortabilityEndpointTests
         using var validate = await target.PostAsync("/api/v1/backups/validate", validateForm);
         validate.EnsureSuccessStatusCode();
         var validation = await validate.Content.ReadFromJsonAsync<BackupValidationResponse>();
-        Assert.Equal(5, validation!.SchemaVersion);
+        Assert.Equal(6, validation!.SchemaVersion);
         Assert.True(validation.EntityCount >= 10);
 
         using var restoreForm = BackupForm(backup);
@@ -112,7 +113,7 @@ public sealed class DataPortabilityEndpointTests
     {
         using var response = await client.PostAsJsonAsync(
             "/api/v1/accounts",
-            new CreateAccountRequest("Backup account", "bank", "TRY", "1000.0000"));
+            new CreateAccountRequest("Backup account", "bank", "TRY", "1000.0000", "business"));
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<AccountResponse>())!;
     }

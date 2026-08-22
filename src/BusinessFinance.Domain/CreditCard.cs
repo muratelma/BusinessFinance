@@ -32,6 +32,16 @@ public sealed class CreditCard
 
     public bool IsActive { get; private set; }
 
+    /// <summary>
+    /// Bu kart üzerinden girilen kayıtların varsayılan kapsamı.
+    /// </summary>
+    /// <remarks>
+    /// Boş olması meşrudur ve eksik veri değildir: tek kartıyla her şeyi
+    /// yöneten esnaf için kapsam kategoriden türer. Boş bırakmak "kapsamı
+    /// bilmiyorum" değil, "bu kart kapsamı belirlemiyor" demektir.
+    /// </remarks>
+    public TransactionScope? DefaultScope { get; private set; }
+
     private CreditCard()
     {
         Name = null!;
@@ -45,7 +55,8 @@ public sealed class CreditCard
         Money limit,
         int statementClosingDay,
         int paymentDueDay,
-        decimal minimumPaymentRate = DefaultMinimumPaymentRate)
+        decimal minimumPaymentRate = DefaultMinimumPaymentRate,
+        TransactionScope? defaultScope = null)
     {
         if (id == Guid.Empty)
         {
@@ -67,7 +78,21 @@ public sealed class CreditCard
         PaymentDueDay = paymentDueDay;
         MinimumPaymentRate = ValidateMinimumPaymentRate(minimumPaymentRate);
         IsActive = true;
+        DefaultScope = TransactionScopeGuard.ValidateOptional(
+            defaultScope,
+            nameof(defaultScope));
     }
+
+    /// <summary>
+    /// Varsayılan kapsamı belirler; <c>null</c> vermek etiketi kaldırır.
+    /// </summary>
+    public void SetDefaultScope(TransactionScope? defaultScope)
+    {
+        DefaultScope = TransactionScopeGuard.ValidateOptional(
+            defaultScope,
+            nameof(defaultScope));
+    }
+
 
     public void Update(
         string name,

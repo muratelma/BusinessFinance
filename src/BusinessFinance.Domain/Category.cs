@@ -10,11 +10,22 @@ public sealed class Category
     public CategoryType Type { get; }
     public bool IsActive { get; private set; }
 
+    /// <summary>
+    /// Bu kategori üzerinden girilen kayıtların varsayılan kapsamı.
+    /// </summary>
+    /// <remarks>
+    /// Boş olması meşrudur ve eksik veri değildir: tek kategori setiyle her şeyi
+    /// yöneten esnaf için kapsam kategoriden türer. Boş bırakmak "kapsamı
+    /// bilmiyorum" değil, "bu kategori kapsamı belirlemiyor" demektir.
+    /// </remarks>
+    public TransactionScope? DefaultScope { get; private set; }
+
     public Category(
         Guid id,
         Guid userId,
         string name,
-        CategoryType type)
+        CategoryType type,
+        TransactionScope? defaultScope = null)
     {
         if (id == Guid.Empty)
         {
@@ -52,7 +63,21 @@ public sealed class Category
         Name = normalizedName;
         Type = type;
         IsActive = true;
+        DefaultScope = TransactionScopeGuard.ValidateOptional(
+            defaultScope,
+            nameof(defaultScope));
     }
+
+    /// <summary>
+    /// Varsayılan kapsamı belirler; <c>null</c> vermek etiketi kaldırır.
+    /// </summary>
+    public void SetDefaultScope(TransactionScope? defaultScope)
+    {
+        DefaultScope = TransactionScopeGuard.ValidateOptional(
+            defaultScope,
+            nameof(defaultScope));
+    }
+
 
     public void Deactivate()
     {

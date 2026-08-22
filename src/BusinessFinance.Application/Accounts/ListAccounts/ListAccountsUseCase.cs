@@ -54,7 +54,8 @@ public sealed class ListAccountsUseCase
                 account.Currency,
                 account.IsActive,
                 account.OpeningBalance,
-                balance));
+                balance,
+                account.DefaultScope));
         }
 
         return ApplicationResult<ListAccountsResponse>.Success(

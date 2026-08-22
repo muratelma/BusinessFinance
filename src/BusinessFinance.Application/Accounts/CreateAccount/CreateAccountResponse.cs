@@ -7,4 +7,5 @@ public sealed record CreateAccountResponse(
     string Name,
     AccountType Type,
     CurrencyCode Currency,
-    decimal OpeningBalance);
+    decimal OpeningBalance,
+    TransactionScope? DefaultScope);

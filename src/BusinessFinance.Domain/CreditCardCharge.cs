@@ -9,6 +9,7 @@ public sealed class CreditCardCharge
     public Guid CreditCardId { get; }
     public Guid CategoryId { get; }
     public Money Amount { get; }
+    public TransactionScope Scope { get; }
     public DateOnly ChargeDate { get; }
     public string? Description { get; }
     public bool IsCancelled { get; private set; }
@@ -25,6 +26,7 @@ public sealed class CreditCardCharge
         CreditCard creditCard,
         Category category,
         Money amount,
+        TransactionScope scope,
         DateOnly chargeDate,
         string? description = null)
     {
@@ -61,6 +63,8 @@ public sealed class CreditCardCharge
             throw new ArgumentException("Charge and card must use the same currency.", nameof(amount));
         }
 
+        TransactionScopeGuard.Validate(scope, nameof(scope));
+
         if (chargeDate == default)
         {
             throw new ArgumentOutOfRangeException(nameof(chargeDate), "Charge date is required.");
@@ -71,6 +75,7 @@ public sealed class CreditCardCharge
         CreditCardId = creditCard.Id;
         CategoryId = category.Id;
         Amount = amount;
+        Scope = scope;
         ChargeDate = chargeDate;
         Description = NormalizeDescription(description);
     }

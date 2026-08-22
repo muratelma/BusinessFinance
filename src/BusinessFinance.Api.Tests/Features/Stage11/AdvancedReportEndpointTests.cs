@@ -28,6 +28,7 @@ public sealed class AdvancedReportEndpointTests
                 "100.2500",
                 "TRY",
                 "expense",
+                "business",
                 "2026-08-02",
                 "Fixture"));
         transaction.EnsureSuccessStatusCode();

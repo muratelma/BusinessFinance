@@ -39,7 +39,8 @@ public sealed class CreateAccountUseCase
                 command.Name,
                 command.Type,
                 command.Currency,
-                command.OpeningBalance);
+                command.OpeningBalance,
+                command.DefaultScope);
         }
         catch (ArgumentException exception)
         {
@@ -66,6 +67,7 @@ public sealed class CreateAccountUseCase
                 account.Name,
                 account.Type,
                 account.Currency,
-                account.OpeningBalance));
+                account.OpeningBalance,
+                account.DefaultScope));
     }
 }
