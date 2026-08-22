@@ -58,7 +58,12 @@ public sealed class TransactionScopeEndpointTests
         await using var factory = new BusinessFinanceApiFactory();
         using var client = await AuthenticateAsync(factory, "scope-missing@example.test");
         var account = await CreateAccountAsync(client, "Etiketsiz kasa", defaultScope: null);
-        var category = await FirstExpenseCategoryAsync(client);
+
+        // Varsayılan kategori setinin tamamı kapsam taşıyor, yani zincir normalde
+        // her zaman çözülür. Reddi görebilmek için üç halkanın da boş olduğu tek
+        // durumu kurmak gerekiyor: etiketsiz hesap ve kullanıcının kendi açtığı,
+        // kapsam vermediği bir kategori.
+        var category = await CreateCategoryAsync(client, "Etiketsiz kalem");
 
         using var response = await PostTransactionAsync(client, account.Id, category.Id, scope: null);
         await AssertProblemCodeAsync(response, "transactions.scope_unresolved");
@@ -144,6 +149,15 @@ public sealed class TransactionScopeEndpointTests
             new CreateAccountRequest(name, "cash", "TRY", "0", defaultScope));
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<AccountResponse>())!;
+    }
+
+    private static async Task<CategoryResponse> CreateCategoryAsync(HttpClient client, string name)
+    {
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/categories",
+            new CreateCategoryRequest(name, "expense"));
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<CategoryResponse>())!;
     }
 
     private static async Task<CategoryResponse> FirstExpenseCategoryAsync(HttpClient client)

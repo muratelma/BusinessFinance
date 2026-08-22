@@ -66,6 +66,19 @@ veritabanı ile tek `InitialCreate`'ten kurulan veritabanının 543 satırlık t
 | `TransactionScopeEndpointTests` (API, yeni) | Aynı davranışın HTTP sözleşmesindeki hâli: türetme, açık seçimin üstünlüğü, `scope_unresolved` ve `invalid_scope` ayrımı, listede kayıt oluşmaması |
 | `...UpdateAccount_WithoutDefaultScope_ClearsTheLabel` | Güncellemede `defaultScope` yetkilidir; boş göndermek etiketi kaldırır |
 
+## Aşama 01 Grup 5 — kategori setleri ve onboarding testleri
+
+| Test | Ne kanıtlıyor |
+|---|---|
+| `DefaultCategorySetTests` (Infrastructure, yeni) | İki setin de her kalemi kapsam taşıyor, aynı `(ad, tip)` ikilisi bir sette iki kez geçmiyor, raporların kanonik adla aradığı faiz kategorileri iki sette de var |
+| `...PersonalSet_IsEntirelyPersonal` | Kapsam arayüzde hiç görünmese bile her kayıt sessizce şahsi oluyor |
+| `...BusinessSet_CarriesBothSidesOfTheOwnersLife` ve `...CoversTheTradeItems` | İşletme seti hem işletme kalemlerini hem patronun gündelik şahsi kalemlerini taşıyor |
+| `...KeepsPaymentMethodOutOfCategoryNames` | "Satış geliri (kart)" gibi bir kalem açılmadığını koruyor |
+| `OnboardingEndpointTests` (API, yeni) | Kaydolurken verilen cevap hangi setin kurulduğunu belirliyor; profil okunabiliyor ve değiştirilebiliyor |
+| `...ATransactionWithoutAScope_ResolvesFromTheInstalledCategorySet` | Türetme zincirinin son halkası dolu: istemci kapsam göndermeden kayıt oluşturabiliyor |
+| `...ChangingTheAnswerLater_MovesTheProfileAndLeavesTheCategoriesAlone` | Cevap değişince kategoriler değişmiyor |
+| `TransactionScopeEndpointTests.CreateTransaction_WithNothingToGoOn_...` (güncellendi) | Reddi görebilmek için artık kullanıcının kendi açtığı, kapsamsız bir kategori gerekiyor — varsayılan setin tamamı kapsam taşıyor |
+
 Kapsam boyutunun **kalan** test yüzeyi henüz yok ve olduğu gibi yazılmıyor:
 aynı ayın üç kapsamda okunduğunda bakiyenin değişmediği gerçek SQL testi
 (Grup 6) ve Flutter kapsam anahtarı testleri (Grup 7) kendi gruplarında

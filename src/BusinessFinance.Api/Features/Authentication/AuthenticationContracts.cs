@@ -1,6 +1,12 @@
 namespace BusinessFinance.Api.Features.Authentication;
 
-public sealed record RegisterRequest(string Email, string Password);
+// hasBusiness onboarding'in tek sorusudur ve hiçbir özelliği kapatmaz:
+// yalnız hangi kategori setiyle başlanacağını ve kapsam boyutunun arayüzde
+// görünüp görünmeyeceğini belirler. Gönderilmezse "işletmesi yok" sayılır.
+public sealed record RegisterRequest(
+    string Email,
+    string Password,
+    bool HasBusiness = false);
 
 public sealed record RegisterResponse(Guid UserId, string Email);
 

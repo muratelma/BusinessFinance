@@ -1,6 +1,8 @@
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Authentication;
 using BusinessFinance.Application.Authentication.RegisterUser;
+using BusinessFinance.Application.Profiles;
+using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Tests.Authentication;
 
@@ -17,7 +19,8 @@ public sealed class RegisterUserUseCaseTests
                 userId,
                 "user@example.com")
         };
-        var useCase = new RegisterUserUseCase(service);
+        var profiles = new RecordingUserProfileRepository();
+        var useCase = new RegisterUserUseCase(service, profiles);
 
         var result = await useCase.ExecuteAsync(
             new RegisterUserCommand("user@example.com", "Valid-Password-123!"));
@@ -37,7 +40,8 @@ public sealed class RegisterUserUseCaseTests
                 null,
                 null)
         };
-        var useCase = new RegisterUserUseCase(service);
+        var profiles = new RecordingUserProfileRepository();
+        var useCase = new RegisterUserUseCase(service, profiles);
 
         var result = await useCase.ExecuteAsync(
             new RegisterUserCommand("user@example.com", "Valid-Password-123!"));
@@ -57,7 +61,8 @@ public sealed class RegisterUserUseCaseTests
                 null,
                 null)
         };
-        var useCase = new RegisterUserUseCase(service);
+        var profiles = new RecordingUserProfileRepository();
+        var useCase = new RegisterUserUseCase(service, profiles);
 
         var result = await useCase.ExecuteAsync(
             new RegisterUserCommand("user@example.com", "weak"));
@@ -71,7 +76,8 @@ public sealed class RegisterUserUseCaseTests
     public async Task ExecuteAsync_ForwardsCancellationToken()
     {
         var service = new FakeIdentityAccountService();
-        var useCase = new RegisterUserUseCase(service);
+        var profiles = new RecordingUserProfileRepository();
+        var useCase = new RegisterUserUseCase(service, profiles);
         using var cancellationTokenSource = new CancellationTokenSource();
 
         await useCase.ExecuteAsync(
@@ -79,6 +85,25 @@ public sealed class RegisterUserUseCaseTests
             cancellationTokenSource.Token);
 
         Assert.Equal(cancellationTokenSource.Token, service.ReceivedCancellationToken);
+    }
+
+    private sealed class RecordingUserProfileRepository : IUserProfileRepository
+    {
+        private readonly List<UserProfile> _saved = [];
+
+        public IReadOnlyList<UserProfile> Saved => _saved;
+
+        public Task<UserProfile?> FindAsync(Guid userId, bool track, CancellationToken cancellationToken) =>
+            Task.FromResult(_saved.SingleOrDefault(profile => profile.UserId == userId));
+
+        public Task AddAsync(UserProfile profile, CancellationToken cancellationToken)
+        {
+            _saved.Add(profile);
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(UserProfile profile, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
     }
 
     private sealed class FakeIdentityAccountService : IIdentityAccountService

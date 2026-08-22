@@ -22,7 +22,8 @@ public sealed class MigrationHistoryTests
     private static readonly string[] ExpectedChain =
     [
         "InitialCreate",
-        "AddTransactionScope"
+        "AddTransactionScope",
+        "AddUserProfile"
     ];
 
     [Fact]

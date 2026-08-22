@@ -162,7 +162,7 @@ Bu aşama aşağıdakilerin hiçbirini bozmaz; bozması gerekirse önce ADR yaz�
   aynı zamanda **denetliyor**: tablo boş değilse SQL Server komutu reddeder.
   `MigrationHistoryTests` zincir testine dönüştü.
 
-### Grup 5 — Kategori setleri ve onboarding
+### Grup 5 — Kategori setleri ve onboarding — **Tamamlandı**
 
 - İki varsayılan set: **işletme** ve **kişisel**. Mevcut liste kişisel set
   olarak kalır (`Maaş` dâhil — kişisel kullanıcı için doğru).
@@ -185,6 +185,12 @@ Bu aşama aşağıdakilerin hiçbirini bozmaz; bozması gerekirse önce ADR yaz�
 - Mevcut davranış korunur: varsayılan set yalnız **hiç kategorisi olmayan**
   kullanıcıya uygulanır, sonradan geri getirilmez.
 - Ölçüt: iki set de kurulabiliyor, kategori varsayılan kapsamları doğru.
+- Sonuç: cevap `UserProfile` tablosunda kullanıcı başına tek satırda duruyor ve
+  kayıt akışında yazılıyor — sonraya bırakmak, kişisel setle başlayan bir esnafa
+  işletme kalemlerini bir daha veremezdi. İki set de her kalemine kapsam koyuyor;
+  türetme zincirinin son halkası böylece doldu ve istemci kapsam göndermeden
+  kayıt oluşturabiliyor. `GET`/`PUT /api/v1/profile` cevabı okuyup değiştiriyor,
+  kategorilere dokunmuyor. Üçüncü migration: `AddUserProfile`.
 
 ### Grup 6 — Okuma modelleri, raporlar ve bütçeler
 

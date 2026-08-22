@@ -9,6 +9,7 @@ using BusinessFinance.Application.Accounts.UpdateAccount;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.Transactions;
 using BusinessFinance.Application.Budgets;
+using BusinessFinance.Application.Profiles;
 using BusinessFinance.Application.Reports;
 using BusinessFinance.Application.Authentication.LoginUser;
 using BusinessFinance.Application.Authentication.Logout;
@@ -53,6 +54,8 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ListTransactionsUseCase>();
         services.AddTransient<GetTransactionUseCase>();
         services.AddTransient<CreateBudgetUseCase>();
+        services.AddTransient<GetUserProfileUseCase>();
+        services.AddTransient<SetUserProfileUseCase>();
         services.AddTransient<UpdateBudgetUseCase>();
         services.AddTransient<ListBudgetsUseCase>();
         services.AddTransient<GetMonthlyReportUseCase>();

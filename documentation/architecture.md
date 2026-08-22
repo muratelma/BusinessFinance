@@ -334,6 +334,37 @@ Bütçenin bir hesabı yoktur; zinciri açık seçim ve kategori ile sınırlıd
 içe aktarmada ilk halka hiç dolmaz — dosyada kapsam kolonu yok — kalan iki halka
 aynen işler.
 
+### İşletme kimliği ve iki kategori seti
+
+Kaydolurken tek bir soru sorulur: işletmeniz var mı. Cevap `UserProfile`
+tablosunda, kullanıcı başına tek satırda durur — cihazda değil, çünkü uygulamayı
+silip yeniden kuran ya da ikinci cihazdan giren kullanıcı işletme sahibi olmayı
+kaybetmemeli. Profili olmayan kullanıcı "işletmesi yok" sayılır; bu bir varsayım
+değil, sorunun sorulmadığı hâlin doğru cevabıdır.
+
+Cevap **hiçbir özelliği kapatmaz.** Yalnız iki şeyi belirler: hangi varsayılan
+kategori setiyle başlanacağı ve kapsam boyutunun arayüzde görünüp
+görünmeyeceği. İşletmesi olmayan kullanıcı için kapsam gerçek bir soru
+değildir — her kaydı şahsidir — ve ona bir anahtar göstermek, cevabı belli olan
+bir soruyu her ekranda tekrar sormak olurdu.
+
+İki set de her kalemine bir varsayılan kapsam koyar; **türetme zincirinin son
+halkasını dolduran budur**. Kişisel setin tamamı `Şahsi`. İşletme seti iki
+parçalıdır ve olmak zorundadır: işletme kalemleri (`İşletme`) ve patronun
+gündelik hayatı için derli toplu bir şahsi alt küme (`Şahsi`). Esnafın market
+alışverişi de aynı uygulamaya giriyor (ADR 0013); yalnız işletme kalemleri
+koymak, kullanıcıyı ilk şahsi harcamasında kategori uydurmaya zorlardı.
+
+Set **yalnız hiç kategorisi olmayan kullanıcıya bir kez** uygulanır. Cevabını
+sonradan değiştiren kullanıcının kategorileri değişmez: o noktada liste artık
+kullanıcınındır ve sildiği bir kategoriyi geri getirmek silme eylemini anlamsız
+kılardı. Bu yüzden cevap kayıt anında yazılır — ilk kategori okuması setin hangi
+olacağını o satırdan öğrenir.
+
+**Ödeme yöntemi kategori değildir**: "Satış geliri (kart)" gibi bir kalem
+açılmaz, tahsilatın kartla mı nakit mi olduğu hesaptan bellidir. Bir test set
+adlarında ödeme yöntemi kelimelerini arıyor.
+
 ### Bölünen ve bölünmeyen
 
 Kapsam **raporu böler, parayı bölmez**. Hesap bakiyesi, kart borcu ve net varlık

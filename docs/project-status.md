@@ -13,7 +13,7 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   yeniden yazıldı; kod değişmedi
 - Aktif aşama: **01 — Kapsam boyutu ve işletme kimliği.** 22 Ağustos 2026'da
   kullanıcı onayıyla açıldı. Belgesi `stages/01-kapsam-boyutu-ve-isletme-kimligi.md`;
-  dokuz çalışma grubu; **Grup 1, 2, 3 ve 4 tamamlandı**
+  dokuz çalışma grubu; **Grup 1, 2, 3, 4 ve 5 tamamlandı**
 - Kalan beş aşamanın belgesi de yazılı, durumları `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
@@ -237,6 +237,40 @@ Kapsam artık sunucuda çözülüyor; istemcinin göndermesi zorunlu değil.
 | Backend format (`--verify-no-changes`) | Temiz |
 | Backend test (SQL dahil) | **767 geçti**, 1 atlandı |
 
+## 22 Ağustos 2026 — Aşama 01, Grup 5: kategori setleri ve işletme kimliği
+
+Onboarding'in tek sorusu eklendi ve türetme zincirinin son halkası doldu.
+
+- **`UserProfile` tablosu**, kullanıcı başına tek satır, tek alan:
+  `HasBusiness`. Cihazda değil sunucuda duruyor — uygulamayı silip yeniden kuran
+  ya da ikinci cihazdan giren kullanıcı işletme sahibi olmayı kaybetmemeli.
+  Profili olmayan kullanıcı "işletmesi yok" sayılıyor; bu bir varsayım değil,
+  sorunun sorulmadığı hâlin doğru cevabı
+- **Cevap kayıt akışında yazılıyor** (`POST /api/v1/auth/register` gövdesinde
+  `hasBusiness`). Sonraya bırakılamazdı: varsayılan set ilk kategori okumasında
+  kuruluyor ve yalnız hiç kategorisi olmayan kullanıcıya bir kez uygulanıyor
+- **İki set:** kişisel setin tamamı `Şahsi` (devralınan liste olduğu gibi kaldı);
+  işletme seti 22 işletme kalemi (`İşletme`) **ve** patronun gündelik hayatı için
+  12 şahsi kalem taşıyor. İkisi birden gerekiyor, çünkü esnafın market alışverişi
+  de aynı uygulamaya giriyor
+- **Türetme zinciri artık pratikte çözülüyor:** her kategori kapsam taşıdığı için
+  istemci kapsam göndermeden kayıt oluşturabiliyor. Bir API testi bunu iki set
+  için de kanıtlıyor. Reddi görebilmek için artık kullanıcının kendi açtığı,
+  kapsamsız bir kategori kurmak gerekiyor
+- **`GET`/`PUT /api/v1/profile`** cevabı okuyup değiştiriyor. Değiştirmek yalnız
+  arayüzü etkiliyor; kategoriler olduğu gibi kalıyor — o noktada liste artık
+  kullanıcınındır ve sildiği bir kategoriyi geri getirmek silme eylemini
+  anlamsız kılardı
+- **Üçüncü migration: `AddUserProfile`.** Yeni tablo olduğu için backfill sorusu
+  yok
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (SQL dahil) | **800 geçti**, 1 atlandı |
+| Flutter analyze / test | No issues found, **637 geçti** |
+
 ## Açık kararlar ve riskler
 
 - **Yerel veritabanının silinmesi onay bekliyor.** Aşama 01 Grup 1'in ilk işi;
@@ -252,15 +286,15 @@ Kapsam artık sunucuda çözülüyor; istemcinin göndermesi zorunlu değil.
 
 ## Sıradaki tek küçük görev
 
-- **Aşama 01, Grup 5:** iki varsayılan kategori seti (işletme ve kişisel) ve
-  onboarding'in tek sorusu. Bu, türetme zincirinin son halkasını dolduruyor ve
-  Flutter istemcisini API'ye karşı yeniden çalışır hâle getiriyor. Ölçüt: iki
-  set de kurulabiliyor, kategori varsayılan kapsamları doğru.
+- **Aşama 01, Grup 6:** okuma modelleri, raporlar ve bütçeler kapsam filtresi
+  alır; filtre SQL'e iner. Ölçüt: aynı ay üç kapsamda okunduğunda gelir/gider
+  değişir, **bakiye ve net varlık değişmez**.
 
 ## Son oturum kapanışı
 
 - Yapılan değişiklik: Aşama 01 açıldı; Grup 1 (veri sıfırlama), Grup 2 (kapsam
-  boyutu), Grup 4 (migration) ve Grup 3 (türetme zinciri) uygulandı
-- Geçen kontroller: backend build + format + 767 test; Flutter analyze +
+  boyutu), Grup 4 (migration), Grup 3 (türetme zinciri) ve Grup 5 (kategori
+  setleri, işletme kimliği) uygulandı
+- Geçen kontroller: backend build + format + 800 test; Flutter analyze +
   format + 637 test
-- Sıradaki görev: Aşama 01 Grup 5 — işletme ve kişisel kategori setleri
+- Sıradaki görev: Aşama 01 Grup 6 — kapsama duyarlı okuma modelleri ve raporlar

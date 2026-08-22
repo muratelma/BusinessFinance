@@ -9,74 +9,6 @@ internal sealed class EfCategoryRepository(BusinessFinanceDbContext dbContext)
     : ICategoryRepository
 {
     /// <summary>
-    /// Yeni kullanıcıya açılışta eklenen kategoriler.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Sekiz kategoriyle başlanmıştı ve fazla darmış: kullanıcı kendi
-    /// kategorisini ekleyebiliyor ama eklemek istemeyen biri her harcamayı üç
-    /// kovaya sıkıştırıyordu. Liste, gündelik kullanımda gerçekten ayrı ayrı
-    /// izlenen kalemleri kapsayacak kadar genişledi.
-    /// </para>
-    /// <para>
-    /// <b>Varlık sınıfı kategori değildir.</b> "Borsa" ya da "Kripto" gibi bir
-    /// kategori alımı da satımı da aynı kovaya atar ve rapor anlamsızlaşır;
-    /// kazanç <c>Yatırım getirisi</c> ve <c>Temettü</c> olarak izlenir. Gerçek
-    /// portföy takibi (maliyet, güncel değer, realize olmayan kâr) ayrı bir
-    /// kavramdır ve kategoriyle temsil edilemez.
-    /// </para>
-    /// <para>
-    /// Aynı ad iki tipte birden bulunabilir — <c>Hediye</c> hem alınır hem
-    /// verilir — çünkü teklik <c>(kullanıcı, ad, tip)</c> üçlüsündedir.
-    /// </para>
-    /// <para>
-    /// <c>LegacyName</c> yalnız ilk sekizde anlamlı: o kayıtlar bir zamanlar
-    /// İngilizce adlarla oluşturulmuştu ve okunurken Türkçeye taşınıyorlar.
-    /// Sonradan eklenenler baştan Türkçe, o yüzden iki ad aynı.
-    /// </para>
-    /// <para>
-    /// Liste yalnız <b>hiç kategorisi olmayan</b> kullanıcıya uygulanır. Mevcut
-    /// hesaba sonradan eklenmez: kullanıcının sildiği bir kategoriyi her
-    /// açılışta geri getirmek, silme eylemini anlamsız kılardı.
-    /// </para>
-    /// </remarks>
-    private static readonly (string LegacyName, string Name, CategoryType Type)[] Defaults =
-    [
-        ("Salary", "Maaş", CategoryType.Income),
-        ("Ek iş", "Ek iş", CategoryType.Income),
-        ("Kira geliri", "Kira geliri", CategoryType.Income),
-        ("Yatırım getirisi", "Yatırım getirisi", CategoryType.Income),
-        ("Temettü", "Temettü", CategoryType.Income),
-        ("Faiz geliri", "Faiz geliri", CategoryType.Income),
-        ("Hediye", "Hediye", CategoryType.Income),
-        ("İade ve geri ödeme", "İade ve geri ödeme", CategoryType.Income),
-        ("Other Income", "Diğer Gelir", CategoryType.Income),
-
-        ("Groceries", "Market Alışverişi", CategoryType.Expense),
-        ("Housing", "Konut", CategoryType.Expense),
-        ("Bills", "Faturalar", CategoryType.Expense),
-        ("Transport", "Ulaşım", CategoryType.Expense),
-        ("Yakıt", "Yakıt", CategoryType.Expense),
-        ("Health", "Sağlık", CategoryType.Expense),
-        ("Eğitim", "Eğitim", CategoryType.Expense),
-        ("Yeme-içme", "Yeme-içme", CategoryType.Expense),
-        ("Giyim", "Giyim", CategoryType.Expense),
-        ("Entertainment", "Eğlence", CategoryType.Expense),
-        ("Abonelikler", "Abonelikler", CategoryType.Expense),
-        ("Kişisel bakım", "Kişisel bakım", CategoryType.Expense),
-        ("Ev eşyası", "Ev eşyası", CategoryType.Expense),
-        ("Evcil hayvan", "Evcil hayvan", CategoryType.Expense),
-        ("Hediye", "Hediye", CategoryType.Expense),
-        ("Vergi ve harç", "Vergi ve harç", CategoryType.Expense),
-        ("Sigorta", "Sigorta", CategoryType.Expense),
-
-        // Borcun faizi gerçek bir giderdir ve şimdiye kadar kategorisizdi.
-        ("Faiz ve finansman gideri", "Faiz ve finansman gideri", CategoryType.Expense),
-        ("Bağış", "Bağış", CategoryType.Expense),
-        ("Diğer gider", "Diğer gider", CategoryType.Expense)
-    ];
-
-    /// <summary>
     /// Borç faizinin raporlandığı kategori adı.
     /// </summary>
     /// <remarks>
@@ -96,15 +28,40 @@ internal sealed class EfCategoryRepository(BusinessFinanceDbContext dbContext)
 
     /// <summary>Test ve seed kodunun aynı listeyi okuyabilmesi için.</summary>
     internal static IReadOnlyList<(string Name, CategoryType Type)> DefaultCategories =>
-        [.. Defaults.Select(item => (item.Name, item.Type))];
+        [.. DefaultCategorySets.PersonalSet.Select(item => (item.Name, item.Type))];
 
+    /// <summary>
+    /// Hedef kullanıcının kategori alanı "boş" sayılır mı — geri yükleme, hiç
+    /// dokunulmamış bir başlangıç setini yedektekiyle değiştirebilir.
+    /// </summary>
+    /// <remarks>
+    /// İki set de kabul edilir: kullanıcının hangi cevabı verdiğini geri yükleme
+    /// anında bilmek gerekmez, dokunulmamış olması yeter.
+    /// </remarks>
     internal static bool IsPristineDefaultSet(IReadOnlyCollection<Category> categories) =>
-        categories.Count == Defaults.Length &&
-        Defaults.All(item => categories.Count(category =>
+        IsPristine(categories, DefaultCategorySets.PersonalSet) ||
+        IsPristine(categories, DefaultCategorySets.BusinessSet);
+
+    private static bool IsPristine(
+        IReadOnlyCollection<Category> categories,
+        DefaultCategorySets.DefaultCategory[] set) =>
+        categories.Count == set.Length &&
+        set.All(item => categories.Count(category =>
             category.IsActive &&
             category.Type == item.Type &&
             string.Equals(category.Name, item.Name, StringComparison.Ordinal)) == 1);
 
+    /// <summary>
+    /// Kullanıcının ilk kategori setini kurar.
+    /// </summary>
+    /// <remarks>
+    /// Set, kullanıcının kaydolurken verdiği cevaba göre seçilir; profili yoksa
+    /// "işletmesi yok" sayılır. Liste yalnız <b>hiç kategorisi olmayan</b>
+    /// kullanıcıya uygulanır ve mevcut hesaba sonradan eklenmez: kullanıcının
+    /// sildiği bir kategoriyi her açılışta geri getirmek, silme eylemini
+    /// anlamsız kılardı. Aynı sebeple cevabını sonradan değiştiren kullanıcının
+    /// kategorileri de değişmez — o noktada liste artık kullanıcınındır.
+    /// </remarks>
     public async Task EnsureDefaultsAsync(Guid userId, CancellationToken cancellationToken)
     {
         var existing = await dbContext.Categories
@@ -112,15 +69,20 @@ internal sealed class EfCategoryRepository(BusinessFinanceDbContext dbContext)
             .ToArrayAsync(cancellationToken);
         if (existing.Length == 0)
         {
-            var categories = Defaults.Select(item =>
-                new Category(Guid.NewGuid(), userId, item.Name, item.Type));
+            var hasBusiness = await dbContext.UserProfiles
+                .AsNoTracking()
+                .Where(profile => profile.UserId == userId)
+                .Select(profile => profile.HasBusiness)
+                .FirstOrDefaultAsync(cancellationToken);
+            var categories = DefaultCategorySets.For(hasBusiness).Select(item =>
+                new Category(Guid.NewGuid(), userId, item.Name, item.Type, item.Scope));
             await dbContext.Categories.AddRangeAsync(categories, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
             return;
         }
 
         var changed = false;
-        foreach (var item in Defaults)
+        foreach (var item in DefaultCategorySets.PersonalSet)
         {
             var legacy = existing.SingleOrDefault(category =>
                 category.Type == item.Type &&

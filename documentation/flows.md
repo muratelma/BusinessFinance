@@ -30,18 +30,30 @@ framework'ü veya ASP.NET Core bağımlılığı almaz.
 ## Kayıt
 
 ```text
-POST /api/v1/auth/register (email + parola JSON)
+POST /api/v1/auth/register (email + parola + hasBusiness JSON)
   -> RegisterRequest -> RegisterUserCommand
   -> RegisterUserUseCase
   -> IIdentityAccountService
   -> Identity UserManager
   -> parola politikası + hash + normalize e-posta
+  -> UserProfile (hasBusiness) yazılır
   -> 201 RegisterResponse (UserId + e-posta)
 ```
 
 Parola yalnız doğrulama/hash girdisidir; response veya Domain finans nesnesine
 girmez. Identity kullanıcı ve parola hash'i EF Core store üzerinden SQL
 Server'da kalıcıdır.
+
+`hasBusiness` onboarding'in tek sorusudur ve **hiçbir özelliği kapatmaz**:
+yalnız hangi varsayılan kategori setiyle başlanacağını ve kapsam boyutunun
+arayüzde görünüp görünmeyeceğini belirler. Gönderilmezse "işletmesi yok"
+sayılır. Profil kayıtla aynı akışta yazılır; sonraya bırakmak, kişisel setle
+başlayan bir esnafa işletme kalemlerini bir daha hiç veremezdi çünkü set yalnız
+hiç kategorisi olmayan kullanıcıya bir kez uygulanır.
+
+İlk `GET /api/v1/categories` çağrısı seti kurar. `GET /api/v1/profile` istemciye
+kapsam boyutunu gösterip göstermeyeceğini söyler; `PUT /api/v1/profile` cevabı
+değiştirir ve yalnız arayüzü etkiler — kategoriler olduğu gibi kalır.
 
 ## Giriş ve session oluşturma
 

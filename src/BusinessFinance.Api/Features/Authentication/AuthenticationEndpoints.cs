@@ -48,7 +48,7 @@ public static class AuthenticationEndpoints
         CancellationToken cancellationToken)
     {
         var result = await useCase.ExecuteAsync(
-            new RegisterUserCommand(request.Email, request.Password),
+            new RegisterUserCommand(request.Email, request.Password, request.HasBusiness),
             cancellationToken);
 
         return result.IsSuccess

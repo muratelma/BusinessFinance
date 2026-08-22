@@ -37,6 +37,7 @@ kullanıcının kaydına erişen ayrıcalıklı rol yoktur.
 | Upcoming payments | 401 | Üç kaynağın tamamı current `UserId` ile başlar | Feed'e girmez |
 | Advanced report | 401 | Bütün aggregate/join sorguları current `UserId` kapsamlıdır | Toplamlara girmez |
 | Fiş analizi | 401 | Yalnız kendi aktif gider kategorileri modele verilir | Kategorisi modele/taslağa girmez; hiçbir kayıt yazılmaz |
+| Profil okuma/güncelleme | 401 | Yalnız kendi profili; `ICurrentUser`'dan türetilir | Başkasının profiline erişemez |
 | Health endpointleri | İzinli | İzinli | Finans verisi içermez |
 
 | İşlem | Kimlik gerekli | Sahiplik kuralı | Başkasının kaydı |

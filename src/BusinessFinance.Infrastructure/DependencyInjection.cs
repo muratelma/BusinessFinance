@@ -15,6 +15,8 @@ using BusinessFinance.Application.Accounts.DeleteAccount;
 using BusinessFinance.Infrastructure.Accounts;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.Transactions;
+using BusinessFinance.Application.Profiles;
+using BusinessFinance.Infrastructure.Profiles;
 using BusinessFinance.Infrastructure.Categories;
 using BusinessFinance.Infrastructure.Transactions;
 using BusinessFinance.Application.Budgets;
@@ -89,6 +91,7 @@ public static class DependencyInjection
         services.AddScoped<IAccountRepository, EfAccountRepository>();
         services.AddScoped<IUnusedAccountDeletion, EfUnusedAccountDeletion>();
         services.AddScoped<ICategoryRepository, EfCategoryRepository>();
+        services.AddScoped<IUserProfileRepository, EfUserProfileRepository>();
         services.AddScoped<IReceiptDuplicateLookup, EfReceiptDuplicateLookup>();
         services.AddScoped<IReceiptRefundLookup, EfReceiptRefundLookup>();
         services.AddScoped<ITransactionRepository, EfTransactionRepository>();

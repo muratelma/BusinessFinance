@@ -225,13 +225,18 @@ gerekçesiyle bozulmaz.
   istek `*.scope_unresolved` ile reddedilir; sunucu kapsam **uydurmaz**.
   İstemcinin kapsam göndermesi zorunlu değildir.
 
-> **Henüz uygulanmadı — Aşama 01'in kalanı.** Varsayılan kategori seti hâlâ
-> tamamen ev bütçesi ve hiçbir kategori varsayılan kapsam taşımıyor (Grup 5);
-> bu yüzden türetme zinciri pratikte yalnız hesabına/kartına elle etiket koyan
-> kullanıcı için çözülüyor. Kapsama duyarlı raporlar/feed (Grup 6), Flutter
-> kapsam anahtarı ve formdaki kapsam çipi (Grup 7), özet ekranının hero metriği
-> (Grup 8) ve CSV kapsam kolonu (Grup 9) de yok. Bu satır o gruplar bitene
-> kadar burada durur.
+- **İki varsayılan kategori seti var**, kaydolurken sorulan tek soruya göre
+  seçilir (`UserProfile.HasBusiness`). Kişisel setin tamamı `Şahsi`; işletme
+  seti işletme kalemleri (`İşletme`) **ve** patronun gündelik hayatı için şahsi
+  bir alt küme taşır. Set yalnız hiç kategorisi olmayan kullanıcıya bir kez
+  uygulanır; cevabı sonradan değiştirmek kategorileri değiştirmez.
+- Cevap **hiçbir özelliği kapatmaz**: yalnız hangi setin kurulacağını ve kapsam
+  boyutunun arayüzde görünüp görünmeyeceğini belirler.
+
+> **Henüz uygulanmadı — Aşama 01'in kalanı.** Kapsama duyarlı okuma modelleri,
+> raporlar ve feed (Grup 6), Flutter kapsam anahtarı ile formdaki kapsam çipi
+> (Grup 7), özet ekranının hero metriği (Grup 8) ve CSV kapsam kolonu (Grup 9)
+> yok. Bu satır o gruplar bitene kadar burada durur.
 
 ### Birleşik okuma modelleri
 

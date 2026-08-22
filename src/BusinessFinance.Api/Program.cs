@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using BusinessFinance.Api.Errors;
 using BusinessFinance.Api.Extensions;
+using BusinessFinance.Api.Features.Profiles;
 using BusinessFinance.Api.Features.Authentication;
 using BusinessFinance.Api.Features.Accounts;
 using BusinessFinance.Api.Features.Categories;
@@ -55,6 +56,7 @@ app.UseAuthorization();
 app.MapAuthenticationEndpoints();
 app.MapAccountEndpoints();
 app.MapCategoryEndpoints();
+app.MapUserProfileEndpoints();
 app.MapBudgetEndpoints();
 app.MapReportEndpoints();
 app.MapTransactionContractEndpoints();

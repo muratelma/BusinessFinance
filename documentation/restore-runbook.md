@@ -13,6 +13,10 @@ değiştirilir.
 - Backup dosyası `business-finance-backup` formatında ve şeması **v6**
   olmalıdır. v6, her finansal kaydın kapsamını (`scope`) ve hesap/kategori/kart
   varsayılan kapsamını (`defaultScope`) taşır.
+- **Yedek kullanıcı profilini (işletmeniz var mı) taşımaz.** Profil finansal
+  bir kayıt değil, bir arayüz tercihidir; geri yüklenen hesabın kendi cevabı
+  geçerli kalır. Kategoriler yedekten geldiği için kapsam varsayılanları da
+  yedekten gelir ve raporlar doğru bölünür.
 - **v2–v5 yedekleri `restore.unsupported_version` ile reddedilir ve
   yükseltilmez.** O dosyalarda kapsam alanı yok; eksik alanı doldurmak için bir
   değer seçmek, kullanıcının işletme ile cebi arasındaki ayrımını uydurmak
