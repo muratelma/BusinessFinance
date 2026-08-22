@@ -31,16 +31,17 @@ cd mobile/business_finance_mobile && flutter test
 
 ## Kaynakların öncelik sırası
 
-Birbiriyle çelişen bilgi görülürse aşağıdaki sıra uygulanır:
+Çelişen bilgi görülürse önce sorunun hangi eksende olduğu belirlenir; ikisi tek
+listede sıralanmaz.
 
-1. `docs/project-status.md`: Gerçekte nerede kalındığı
-2. Aktif `stages/` belgesi: O aşamanın ayrıntılı uygulama planı
-3. `AGENTS.md`: Kalıcı çalışma kuralları
-4. Kapsam tartışmalıysa `PRD-BusinessFinance.md` ve `PROJECT-ROADMAP.md`
-5. Git gerçeği: Branch, commit ve çalışma alanının gerçek durumu
+**"Kod ne durumda?"** — Git gerçeği ve çalışan kodun kendisi en üsttedir,
+ardından `docs/project-status.md` gelir. Hiçbir belge çalışan kodu ezemez.
 
-Git ile durum belgesi çelişirse Git gerçeği esas alınır. Ürün kapsamı yalnız
-PRD güncellenerek değiştirilir.
+**"Ne yapılmalı?"** — `PRD-BusinessFinance.md`, sonra `documentation/adr/`,
+sonra `AGENTS.md`, sonra `PROJECT-ROADMAP.md`, sonra aktif `stages/` belgesi.
+
+Ayrıntısı `AGENTS.md` içindeki "Çelişen bilgi: iki ayrı eksen" bölümündedir.
+Ürün kapsamı yalnız PRD güncellenerek değiştirilir.
 
 ## Ana belgeler
 

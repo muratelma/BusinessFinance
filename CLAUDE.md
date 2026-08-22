@@ -15,14 +15,19 @@ Kod veya dosya değişikliğinden önce **sırasıyla** oku:
 5. `git status --short --branch` ve `git log -3 --oneline` ile Git gerçeğini doğrula
 
 Ürün kapsamı veya aşama sırası tartışma konusuysa `PRD-BusinessFinance.md`
-ve `PROJECT-ROADMAP.md` de okunur. Durum belgesiyle Git çelişirse **Git gerçeği**
-esas alınır. Kullanıcının mevcut değişikliklerini silme, taşıma veya üzerine
-yazma.
+ve `PROJECT-ROADMAP.md` de okunur. Kullanıcının mevcut değişikliklerini silme,
+taşıma veya üzerine yazma.
 
-Çelişen bilgi öncelik sırası: PRD > `AGENTS.md` > roadmap > aktif stage belgesi >
-`docs/project-status.md` > Git gerçeği.
+**Aktif aşama yoksa kod değişmez.** Zincirdeki altı belge de yazılı; belgenin
+var olması onu başlatma izni değildir.
 
-`AGENTS.md` kuralları burada tekrarlanmaz, uygulanır; ikisi çeliştiğinde
+Çelişen bilgi görülürse `AGENTS.md` içindeki **"Çelişen bilgi: iki ayrı eksen"**
+bölümü uygulanır. Kısaca: "kod ne durumda?" sorusunda Git gerçeği en üsttedir
+ve hiçbir belge onu ezemez; "ne yapılmalı?" sorusunda PRD ve ADR'ler en
+üsttedir. İkisi tek listede sıralanmaz.
+
+Bu dosya `AGENTS.md` kurallarının bir **özetini** taşır, çünkü her oturumda
+yüklenir; ayrıntı ve gerekçe `AGENTS.md` içindedir ve ikisi çeliştiğinde
 `AGENTS.md` geçerlidir.
 
 ## Proje modeli
@@ -32,6 +37,10 @@ işletme finansı uygulaması. Hedef kitle şahıs şirketleri ve esnaf: şirket
 kasası ile sahibinin cebi hukuken ayrılmadığı için gündelik gider takibi ile
 işletme takibi aynı üründe yaşar. Backend ve Flutter tarafı aynı şekilde
 geliştirilir; katmanlar arasında farklı bir çalışma biçimi yoktur.
+
+Kurucu karar: **işletme ve şahsi para tek havuzda yaşar**, ayrım bir raporlama
+boyutudur (ADR 0013). Geliştirme zinciri altı aşamadır; sırası ve gerekçesi
+`PROJECT-ROADMAP.md` içinde.
 
 ## Build, test ve çalıştırma komutları
 
@@ -64,11 +73,11 @@ dotnet ef migrations add <Name> --project src/BusinessFinance.Infrastructure --s
 dotnet ef database update --project src/BusinessFinance.Infrastructure --startup-project src/BusinessFinance.Api
 ```
 
-Şema **tek bir `InitialCreate`** ile kurulur; ürünün yayımlanmış bir sürümü
-olmadığı için önceki yükseltme zinciri taşınmadı. Bundan sonra eklenen her
-migration gerçek bir yükseltme yolu sayılır ve `AGENTS.md` içindeki migration
-kurallarına uyar (backfill CHECK'ten önce, kolonlar kısıttan önce, geçmişi
-bilinmeyen bilgi nullable).
+Şema `InitialCreate` ile kuruldu; devralınan yükseltme zinciri taşınmadı
+(ADR 0012). **Zincirin güncel hâli migration klasörüdür**, bu dosya sayı tutmaz.
+Bundan sonra eklenen her migration gerçek bir yükseltme yoludur ve `AGENTS.md`
+içindeki migration kurallarına uyar (backfill CHECK'ten önce, kolonlar kısıttan
+önce, geçmişi bilinmeyen bilgi nullable; tek istisna gerçekten boş tablodur).
 
 ### Flutter (`mobile/business_finance_mobile/` içinden)
 
@@ -103,7 +112,8 @@ AVD ana geliştirme/kabul cihazıdır).
   `scripts/New-LocalSqlEnvironment.ps1` değeri ekrana basmadan üretir.
 - Geliştirme/test verisi daima sentetik veridir; gerçek finansal veri
   güvenlik ve geri yükleme kapısı tamamlanmadan kullanılmaz.
-- İlk yerel MVP internete açılmaz; API ve SQL yalnız loopback'e bind'lıdır.
+- Ürün Aşama 06 tamamlanmadan internete açılmaz; API ve SQL yalnız
+  loopback'e bind'lıdır.
 
 ## Mimari — katmanlı monolit (mikroservis yok)
 
@@ -195,6 +205,12 @@ gerekçesiyle bozulmaz.
   açıklama ?? kategori adı`. Kategori paylaşılan bir raporlama kovasıdır;
   kimlik taşımaz (aynı kategorideki üç abonelik aksi halde ayırt edilemez).
 
+> **Henüz uygulanmadı — Aşama 01'in konusu.** Kayıtlar bir **kapsam** boyutu
+> (işletme/şahsi) taşımıyor ve varsayılan kategori seti tamamen ev bütçesi.
+> Kapsam geldiğinde bakiye, kart borcu ve net varlık **bölünmeyecek**; yalnız
+> gelir/gider raporları bölünecek (ADR 0013). Bu satır, kapsam uygulanana kadar
+> burada durur ve o gün gerçek davranışla değiştirilir.
+
 ### Birleşik okuma modelleri
 
 Gerçekleşmiş bütün ekonomik olaylar tek bir okuma projection'ında birleşir;
@@ -217,9 +233,10 @@ GET /api/v1/financial-activities/planned  henüz gerçekleşmemişler (7/30/90 g
 - Planlanan projection kanonik kaynaktır; `IUpcomingPaymentRepository` ikinci
   bir sorgu tutmaz, aynı projection'ın **daraltılmış görünümünü** okur.
   `readiness`/`attentionCode` kalıcı değil, kaynağın güncel durumundan türetilir.
-- Backup şeması **v5** yazar, **v2–v5** okumaya devam eder (v2 recurring
-  kayıtları `SourceType=Account` olarak, v4 ve öncesi kartlar varsayılan asgari
-  ödeme oranıyla yükseltilir).
+- Backup şemasının **güncel sürümü ve hangi sürümleri okuduğu tek yerde**
+  tutulur: `documentation/restore-runbook.md`. Buraya kopyalanmaz — aşama
+  zinciri boyunca her aşama sürümü ilerletiyor ve iki yerde tutulan sürüm
+  numarası kaçınılmaz olarak ayrışır.
 
 ### Auth
 
@@ -268,14 +285,21 @@ secret'ı uygulamaya konmaz.
   metin ve dolgu tonu ayrımı, nötr rolün maviye dönmesi
 - `documentation/adr/0011-receipt-reading-is-a-suggestion-layer.md` — fiş
   okumada modelin sınırları: öneri katmanıdır, yönü ve ödeme kaynağını seçmez
+- `documentation/adr/0012-single-initial-migration.md` — zincirin neden
+  taşınmadığı ve bu serbestliğin bir daha kullanılmayacağı
 - `documentation/adr/0013-business-and-personal-are-one-pool.md` — **zincirin
   kurucu kararı**: işletme ve şahsi tek havuzda bir boyuttur; mod seçimi ve
   iki veri alanı reddedildi
 - `documentation/receipt-analysis-api-contract.md`,
   `documentation/receipt-measurement.md` — fiş analizi sözleşmesi ve ölçüm yöntemi
+- `PROJECT-ROADMAP.md` — altı aşamalık zincir, bağımlılık kuralları, kapsam
+  dışı bırakılanlar ve gerekçeleri, yedek şeması sürüm politikası
 - `stages/README.md` — aşama zinciri, hangi belge aktif, yeni aşama açma ve
   biten aşamayı kapatma adımları; **aktif aşama kullanıcı onayı olmadan
   değişmez**
+- `stages/01-*.md` … `stages/06-*.md` — altı aşamanın çalışma grupları,
+  testleri ve çıkış koşulları
+- `docs/backlog.md` — aşamaya bağlanmamış açık işler
 - `templates/STAGE-TEMPLATE.md` — yeni aşama belgesi iskeleti
 
 Hangi değişiklikte hangi belgenin güncelleneceği `AGENTS.md` içindeki **belge
@@ -283,6 +307,15 @@ güncelleme haritası** tablosundadır; kod ve belge aynı commit'te güncelleni
 
 ## Kritik kısıtlar (ihlal etmeyin)
 
+- **Aşama belgesinin var olması onu başlatma izni değildir.** Kod yalnız durumu
+  `Aktif` olan aşamada değişir; aktif aşama kullanıcı onayı olmadan değişmez.
+- **Bazı aşamalar bir ADR ile açılır** (`PROJECT-ROADMAP.md` tablosu). O ADR
+  yazılıp kabul edilmeden ilgili aşamanın koduna başlanmaz.
+- **Uygulama vergi hesaplamaz, beyanname üretmez ve "kâr" demez.** Vergi
+  alanları taşır ve raporlar; hesaplanan şey nakit esaslı **işletme netidir**.
+- **İşletme/şahsi havuzu bölünmez** (ADR 0013): mod seçimi, ayrı veri alanı ve
+  kapsamın kategoriyle temsili reddedildi. Bakiye, kart borcu ve net varlık
+  kapsam filtresinden etkilenmez.
 - Yeni aşamanın paket/servis/altyapısını erkenden ekleme (bulut ve offline
   cache bağımlılıkları kendi aşamaları gelmeden kurulmaz).
 - **Banka bağlantısı / açık bankacılık kapsam dışıdır**; sağlayıcı SDK'sı,
@@ -296,10 +329,11 @@ güncelleme haritası** tablosundadır; kod ve belge aynı commit'te güncelleni
   düzenleme `refactor`, düzeltme `fix`.
 - **Tek başına belge commit'i atmayın.** Commit yalnız uygulamada gerçek bir
   geliştirme veya düzeltme olduğunda atılır; belge güncellemesi o kod
-  değişikliğiyle aynı commit'e girer. **İstisna:** ürün yönü ve planlama
-  belgeleri (`PRD-BusinessFinance.md`, `PROJECT-ROADMAP.md`, `stages/`,
-  `documentation/adr/`) kendi başlarına commit edilebilir — kodun kaydı değil,
-  kodun kararıdırlar. Ayrıntı `AGENTS.md` "Git sorumluluğu".
+  değişikliğiyle aynı commit'e girer. **İstisna: karar belgeleri**
+  (`PRD-BusinessFinance.md`, `PROJECT-ROADMAP.md`, `stages/`,
+  `documentation/adr/`, `AGENTS.md`, `CLAUDE.md`) kendi başlarına commit
+  edilebilir — kodun kaydı değil, kodun kararıdırlar. `documentation/`
+  altındaki diğer belgeler girmez. Ayrıntı `AGENTS.md` "Git sorumluluğu".
 - **Yapay zekâ imzası bırakmayın.** Commit mesajı, commit gövdesi, branch adı,
   tag, PR başlığı/gövdesi, issue veya kod yorumu — hiçbirinde `Claude`,
   `Claude Code`, `Anthropic`, `AI`/`agent` imzası, `Co-Authored-By:` satırı ya

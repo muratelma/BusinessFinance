@@ -9,9 +9,14 @@ işletme finansı uygulaması. Hedef kitle **şahıs şirketleri ve esnaf**: şi
 kasası ile sahibinin cebi hukuken ayrılmadığı için gündelik gider takibi ile
 işletme takibi aynı üründe yaşar.
 
+Ürünün kurucu kararı: **işletme ve şahsi para tek havuzda yaşar**, ayrım bir
+raporlama boyutudur (`documentation/adr/0013-business-and-personal-are-one-pool.md`).
+Finansal kod yazmadan önce bu ADR okunur.
+
 Ürün kapsamı `PRD-BusinessFinance.md`, geliştirme sırası `PROJECT-ROADMAP.md`
-belgesindedir. Backend ve Flutter tarafı aynı şekilde geliştirilir; ikisi
-arasında farklı bir çalışma biçimi yoktur.
+belgesindedir; zincir altı aşamadır ve hepsinin belgesi `stages/` altındadır.
+Backend ve Flutter tarafı aynı şekilde geliştirilir; ikisi arasında farklı bir
+çalışma biçimi yoktur.
 
 ## Oturum başlangıcı
 
@@ -23,9 +28,35 @@ Kod veya dosya değişikliğinden önce sırasıyla:
 4. `git status --short --branch` ve `git log -3 --oneline`
 
 Ürün kapsamı veya aşama sırası tartışma konusuysa `PRD-BusinessFinance.md`
-ve `PROJECT-ROADMAP.md` da okunur. Durum belgesiyle Git çelişirse Git gerçeği
-esas alınır. Kullanıcının mevcut değişikliklerini silme, taşıma veya üzerine
-yazma.
+ve `PROJECT-ROADMAP.md` da okunur. Kullanıcının mevcut değişikliklerini silme,
+taşıma veya üzerine yazma.
+
+**Aktif aşama yoksa kod değişmez.** Zincirdeki bütün belgeler yazılı olabilir;
+belgenin var olması onu başlatma izni değildir. Aktif aşama yokken yapılacak
+iş, kullanıcıyla hangi aşamanın açılacağını konuşmaktır.
+
+## Çelişen bilgi: iki ayrı eksen
+
+Çelişki görülürse önce sorunun hangi eksende olduğu belirlenir. Bunlar tek bir
+listede sıralanamaz; sıralamaya çalışmak kategori hatasıdır.
+
+**"Kod ne durumda, ne oldu?"** — gözlem sorusu:
+
+1. **Git gerçeği** ve çalışan kodun kendisi — hiçbir belge bunu ezemez
+2. `docs/project-status.md`
+3. Diğer belgeler
+
+**"Ne yapılmalı, kural ne?"** — karar sorusu:
+
+1. `PRD-BusinessFinance.md` (ürünün ne olacağı)
+2. `documentation/adr/` (geri alınması pahalı kalıcı kararlar)
+3. `AGENTS.md` (çalışma kuralları)
+4. `PROJECT-ROADMAP.md` (sıra ve bağımlılık)
+5. Aktif `stages/<numara>-*.md` (o aşamanın ayrıntısı)
+
+Bir belge çalışan koda aykırı bir şey **anlatıyorsa** belge yanlıştır ve
+düzeltilir. Bir belge çalışan koddan farklı bir şey **istiyorsa** kod eksiktir
+ve aşama belgesine iş olarak girer. İkisini ayırt etmek çağıranın işidir.
 
 ## Kullanıcıyla iletişim
 
@@ -40,9 +71,7 @@ yazma.
 
 - **Çalışma, kullanıcının o an bulunduğu branch üzerinde yapılır.** Branch veya
   worktree oluşturma, branch değiştirme ve silme yalnız kullanıcı açıkça
-  istediğinde yapılır. (Önceki "feature çalışması `main`'de yapılmaz" kuralı
-  kaldırıldı: `CLAUDE.md`'deki branch açma yasağıyla aynı anda uygulanamıyordu
-  ve ikisi birbirini kilitliyordu.)
+  istediğinde yapılır. `main` üzerinde çalışmak yasak değildir.
 - Commit mesajı, branch adı, tag, PR ve issue metinlerinde yapay zekâ imzası,
   `Co-Authored-By:` satırı veya "Generated with …" ibaresi yer almaz; commit
   yazarı daima kullanıcıdır.
@@ -54,13 +83,14 @@ yazma.
   atılır.** Tek başına belge commit'i açılmaz: bir belge neden güncelleniyorsa,
   onu gerektiren kod değişikliğiyle **aynı** commit'e girer. Belgeyi
   güncelleyecek bir kod değişikliği yoksa commit de yoktur.
-- **İstisna: ürün yönü ve planlama belgeleri.** `PRD-BusinessFinance.md`,
-  `PROJECT-ROADMAP.md`, `stages/` belgeleri ve `documentation/adr/` kayıtları
-  kendi başlarına commit edilebilir. Bunlar kodun kaydı değil, kodun
-  **kararıdır**; kararın koddan önce yazılması kuralın ihlali değil, gereğidir.
-  `documentation/` altındaki diğer belgeler (mimari, akış, izin, test, değişken)
-  bu istisnaya girmez — onlar davranışı anlatır ve davranışla aynı commit'e
-  girer.
+- **İstisna: karar belgeleri.** Şunlar kendi başlarına commit edilebilir:
+  `PRD-BusinessFinance.md`, `PROJECT-ROADMAP.md`, `stages/` belgeleri,
+  `documentation/adr/` kayıtları, `AGENTS.md` ve `CLAUDE.md`. Bunlar kodun
+  kaydı değil, kodun **kararıdır** — ne yapılacağını ve nasıl çalışılacağını
+  söylerler; kararın koddan önce yazılması kuralın ihlali değil, gereğidir.
+  `documentation/` altındaki diğer belgeler (mimari, akış, izin, test,
+  değişken, tasarım sistemi, runbook) bu istisnaya **girmez**: onlar mevcut
+  davranışı anlatır ve davranışla aynı commit'e girer.
 - **Commit tipi yapılan işi dürüstçe anlatır.** Özellik eklenmediyse `feat`
   yazılmaz: taşıma, yeniden adlandırma, altyapı ve araç işleri `chore`,
   davranış değiştirmeyen yeniden düzenleme `refactor`, hata düzeltmesi `fix`.
@@ -89,6 +119,16 @@ yazma.
 - **Kapsam ile indirilebilirlik ayrı alanlardır**; tek alanda birleştirme.
 - Migration ve API sözleşme değişikliklerini incelemeden uygulama.
 
+### Ürün sınırı — arayüz metnini de bağlar
+
+- **Uygulama vergi hesaplamaz ve beyanname üretmez.** Vergiye dair alanlar
+  taşıyan ve raporlayan alanlardır; bir tutarı türeten kod yazma.
+- **"Kâr" kelimesi kullanılmaz.** Hesaplanan şey nakit esaslı **işletme
+  netidir**; muhasebe kârı satılan malın maliyetini ister ve kapsam dışıdır.
+  Yanlış kelime kullanıcıyı vergi beyanında yanıltır.
+- Kullanıcıya gösterilecek cümleyi API değil istemci üretir; API kararlı
+  makine değerleri gönderir.
+
 ## Flutter kuralları
 
 - Flutter stable ve Dart kullan, Material 3 tasarım sistemiyle.
@@ -105,10 +145,13 @@ yazma.
 
 ## Migration kuralları
 
-Şema tek bir `InitialCreate` ile kurulur; ürünün yayımlanmış bir sürümü
-olmadığı için önceki yükseltme zinciri taşınmadı. Bundan sonra eklenen her
-migration **gerçek bir yükseltme yolu** sayılır ve aşağıdaki kurallara uyar.
-Bunlar geçmişte pahalıya öğrenilmiş kurallardır, tercih değildir:
+Şema `InitialCreate` ile kuruldu ve devralınan yükseltme zinciri taşınmadı
+(ADR 0012). Zincirin güncel hâli tek yerde, `src/BusinessFinance.Infrastructure`
+migration klasöründedir; bu dosya sayı tutmaz.
+
+**Bundan sonra eklenen her migration gerçek bir yükseltme yoludur** ve aşağıdaki
+kurallara uyar. Bunlar geçmişte pahalıya öğrenilmiş kurallardır, tercih
+değildir:
 
 - **Backfill her zaman CHECK kısıtından önce çalışır.** SQL Server yeni bir
   CHECK'i mevcut satırlara karşı doğrular; sırayı ters kurmak dolu bir
@@ -122,6 +165,10 @@ Bunlar geçmişte pahalıya öğrenilmiş kurallardır, tercih değildir:
   düşürülür; yoksa şema ile model sessizce ayrışır.
 - İkinci bir migration eklendiğinde `MigrationHistoryTests` bilerek kırılır;
   o an tekliği doğrulayan test yerini zincir testine bırakır.
+- **Tek istisna — gerçekten boş tablo.** Tablo boşsa `NOT NULL` kolon
+  backfill'siz eklenebilir; yorumlanacak geçmiş yoktur. İstisnanın ön koşulu,
+  tablonun boş olduğunun **aşama belgesinde yazılı** ve o aşamada kasıtlı
+  olmasıdır. Dolu tabloda bu yol kullanılmaz.
 
 ## Veri ve güvenlik
 
@@ -140,7 +187,7 @@ Bunlar geçmişte pahalıya öğrenilmiş kurallardır, tercih değildir:
   kullanılmaz.
 - `.env`, parola, token, signing key ve connection string Git'e eklenmez.
 - Secret ve finansal veriyi terminal çıktısında veya loglarda gösterme.
-- İlk yerel MVP'yi internete açma.
+- Ürünü Aşama 06 tamamlanmadan internete açma; API ve SQL loopback'e bağlı kalır.
 - Azure ve offline cache'i kendi roadmap aşaması gelmeden ekleme.
 - **Banka bağlantısı / açık bankacılık kapsam dışıdır.** Sağlayıcı SDK'sı,
   adapter veya sandbox bağlantısı eklenmez; bankadan ödeme veya transfer
@@ -167,7 +214,8 @@ Ne değiştiyse hangi belgeye dokunulacağı:
 | Geri alınması pahalı kalıcı teknik karar | Yeni `documentation/adr/NNNN-*.md` |
 | Yeni test sınıfı/kapsamı veya kabul senaryosu | `documentation/tests.md` |
 | Yeni environment değişkeni, secret veya build flag | `documentation/variables.md` |
-| Migration, backup şeması veya restore adımı | `documentation/restore-runbook.md` ve ilgili şema bölümü |
+| Yeni ekran, bileşen, token veya gezinme değişikliği | `documentation/design-system.md` |
+| Migration, backup şeması veya restore adımı | `documentation/restore-runbook.md` (yedek sürümünün **tek** kaynağı) |
 | Doğrulanmış checkpoint (build+test geçti, commit atıldı) | `docs/project-status.md` |
 | Aşama kapsamının kendisi değiştiyse | Aktif `stages/<numara>-*.md` |
 | Aşama başladı/bitti, yeni aşama açıldı | `stages/README.md` + `PROJECT-ROADMAP.md` |
@@ -183,6 +231,10 @@ yazdığı gibi uygulanır.
 - Backend değişikliğinde build, test ve format kontrollerini çalıştır.
 - Flutter değişikliğinde analyze, ilgili test ve build kontrollerini çalıştır.
 - Migration, secret ve API sözleşmesi değişikliklerini ayrıca incele.
+- **Aşama belgesinin var olması onu başlatma izni değildir.** Zincirdeki altı
+  belge de yazılı; kod yalnız durumu `Aktif` olan aşamada değişir.
+- **Bazı aşamalar bir ADR ile açılır** (`PROJECT-ROADMAP.md` içindeki tablo).
+  O ADR yazılıp kabul edilmeden ilgili aşamanın koduna başlanmaz.
 - Aşama çıkış koşullarının tümü tamamlanmadan aşamayı bitmiş sayma.
 - Kullanıcı açıkça onay vermeden sonraki aşamaya geçme; yeni aşamanın paket,
   servis veya altyapısını erkenden ekleme.
