@@ -31,7 +31,11 @@ public sealed record CreateInstallmentPlanCommand(
     Guid ClientRequestId,
     decimal TotalAmount,
     CurrencyCode Currency,
-    TransactionScope Scope,
+
+    // Kullanıcının açık seçimi. Boşsa kartın, yoksa kategorinin varsayılanı
+    // kullanılır; üçü de boşsa istek reddedilir. Plan gerçekleştiğinde ürettiği
+    // harcama bu kapsamı alır.
+    TransactionScope? Scope,
     int InstallmentCount,
     DateOnly FirstInstallmentDate,
     string? Description);

@@ -10,7 +10,9 @@ public sealed record CreateRecurringTransactionRequest(
     string Amount,
     string Currency,
     string Kind,
-    string Scope,
+    // İsteğe bağlı: boş bırakılırsa sunucu kapsamı türetir, türetemezse
+    // isteği reddeder ve bir değer uydurmaz.
+    string? Scope,
     string Frequency,
     string StartDate,
     string? EndDate,

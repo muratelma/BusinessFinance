@@ -14,7 +14,10 @@ namespace BusinessFinance.Application.Debts;
 public sealed record CreateDebtCommand(
     string CounterpartyName,
     DebtDirection Direction,
-    TransactionScope Scope,
+
+    // Kullanıcının açık seçimi. Boşsa açılış hesabının, yoksa kategorinin
+    // varsayılanı kullanılır; üçü de boşsa istek reddedilir.
+    TransactionScope? Scope,
     decimal Principal,
     decimal? TotalRepayment,
     decimal? AnnualInterestRate,

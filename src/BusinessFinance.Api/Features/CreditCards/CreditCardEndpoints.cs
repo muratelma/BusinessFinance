@@ -162,10 +162,12 @@ public static class CreditCardEndpoints
             return ApiProblemResults.Validation(
                 httpContext, "Charge date must use the yyyy-MM-dd format.", "credit_cards.invalid_charge_date");
         }
-        if (!FinanceContract.TryParseScope(request.Scope, out var scope))
+        if (!FinanceContract.TryParseOptionalScope(request.Scope, out var scope))
         {
             return ApiProblemResults.Validation(
-                httpContext, "Charge scope must be business or personal.", "credit_cards.invalid_scope");
+                httpContext,
+                "Charge scope must be business, personal or empty.",
+                "credit_cards.invalid_scope");
         }
 
         var result = await useCase.ExecuteAsync(new CreateCardChargeCommand(

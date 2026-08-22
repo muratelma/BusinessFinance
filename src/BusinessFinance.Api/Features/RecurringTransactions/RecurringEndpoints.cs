@@ -116,11 +116,11 @@ public static class RecurringEndpoints
                 "Source type must be account or credit-card.",
                 "recurring.invalid_source_type");
         }
-        if (!FinanceContract.TryParseScope(request.Scope, out var scope))
+        if (!FinanceContract.TryParseOptionalScope(request.Scope, out var scope))
         {
             return ApiProblemResults.Validation(
                 httpContext,
-                "Plan scope must be business or personal.",
+                "Plan scope must be business, personal or empty.",
                 "recurring.invalid_scope");
         }
 

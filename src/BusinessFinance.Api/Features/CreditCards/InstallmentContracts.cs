@@ -6,7 +6,9 @@ public sealed record CreateInstallmentPlanRequest(
     Guid ClientRequestId,
     string TotalAmount,
     string Currency,
-    string Scope,
+    // İsteğe bağlı: boş bırakılırsa sunucu kapsamı türetir, türetemezse
+    // isteği reddeder ve bir değer uydurmaz.
+    string? Scope,
     int InstallmentCount,
     string FirstInstallmentDate,
     string? Description);

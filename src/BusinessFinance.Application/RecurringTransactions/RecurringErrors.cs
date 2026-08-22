@@ -4,6 +4,15 @@ namespace BusinessFinance.Application.RecurringTransactions;
 
 public static class RecurringErrors
 {
+    /// <summary>
+    /// Kapsam ne istekten, ne kaynaktan (hesap/kart), ne kategoriden
+    /// çözülebildi.
+    /// </summary>
+    public static readonly ApplicationError ScopeUnresolved = new(
+        "recurring.scope_unresolved",
+        "The scope could not be resolved from the request, the source or the category.",
+        ApplicationErrorType.Validation);
+
     public static readonly ApplicationError AuthenticationRequired = new(
         "authentication.required",
         "An authenticated user is required.",

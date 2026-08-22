@@ -109,14 +109,14 @@ Kapsam alanını taşıyan istek/cevap sözleşmeleri:
 
 | Endpoint | Alan | Zorunlu mu |
 |---|---|---|
-| `POST /api/v1/transactions` | `scope` | Evet — `transactions.invalid_scope` |
-| `POST /api/v1/budgets` | `scope` | Evet — `budgets.invalid_scope` |
-| `POST /api/v1/credit-cards/{id}/charges` | `scope` | Evet — `credit_cards.invalid_scope` |
-| `POST /api/v1/installment-plans` | `scope` | Evet — `installments.invalid_scope` |
-| `POST /api/v1/recurring-transactions` | `scope` | Evet — `recurring.invalid_scope` |
-| `POST /api/v1/debts` | `scope` | Evet — `debt.invalid_contract` |
-| `POST`/`PUT` hesap, kategori, kart | `defaultScope` | Hayır — boş bırakılabilir; tanınmayan değer `*.invalid_default_scope` |
-| `POST /api/v1/imports/{id}/confirm` | — | CSV kapsam kolonu taşımaz; hesabın, yoksa kategorinin varsayılanından çözülür, ikisi de boşsa `imports.scope_unresolved` |
+| `POST /api/v1/transactions` | `scope` | Hayır — boşsa hesap → kategori zincirinden çözülür; çözülemezse `transactions.scope_unresolved`, tanınmayan değer `transactions.invalid_scope` |
+| `POST /api/v1/budgets` | `scope` | Hayır — boşsa kategoriden çözülür; `budgets.scope_unresolved` / `budgets.invalid_scope` |
+| `POST /api/v1/credit-cards/{id}/charges` | `scope` | Hayır — boşsa kart → kategori; `credit_cards.scope_unresolved` / `credit_cards.invalid_scope` |
+| `POST /api/v1/installment-plans` | `scope` | Hayır — boşsa kart → kategori; `credit_cards.scope_unresolved` / `installments.invalid_scope` |
+| `POST /api/v1/recurring-transactions` | `scope` | Hayır — boşsa kaynak → kategori; `recurring.scope_unresolved` / `recurring.invalid_scope` |
+| `POST /api/v1/debts` | `scope` | Hayır — boşsa açılış hesabı → kategori; `debt.scope_unresolved` / `debt.invalid_contract` |
+| `POST`/`PUT` hesap, kategori, kart | `defaultScope` | Hayır — boş bırakılabilir; **güncellemede yetkilidir**, boş göndermek etiketi kaldırır. Tanınmayan değer `*.invalid_default_scope` |
+| `POST /api/v1/imports/{id}/confirm` | — | CSV kapsam kolonu taşımaz; zincirin ilk halkası hiç dolmaz, hesabın yoksa kategorinin varsayılanı kullanılır, ikisi de boşsa `imports.scope_unresolved` |
 
 Kart ödemesi ve transfer endpoint'leri kapsam **almaz**: gelir/gider raporuna
 sıfır etki ederler.

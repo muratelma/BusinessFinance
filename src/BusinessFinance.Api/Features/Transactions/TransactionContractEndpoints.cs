@@ -77,11 +77,11 @@ public static class TransactionContractEndpoints
                 "Transaction type must be income or expense.",
                 "transactions.invalid_type");
         }
-        if (!FinanceContract.TryParseScope(request.Scope, out var scope))
+        if (!FinanceContract.TryParseOptionalScope(request.Scope, out var scope))
         {
             return ApiProblemResults.Validation(
                 httpContext,
-                "Transaction scope must be business or personal.",
+                "Transaction scope must be business, personal or empty.",
                 "transactions.invalid_scope");
         }
         if (!FinanceContract.TryParseDate(request.TransactionDate, out var date))

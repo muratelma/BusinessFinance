@@ -2,6 +2,7 @@ using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.Categories;
+using BusinessFinance.Application.Scopes;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Debts;
@@ -12,6 +13,13 @@ public static class DebtErrors
         "auth.authentication_required", "Authentication is required.", ApplicationErrorType.Unauthorized);
     public static ApplicationError NotFound(Guid id) => new(
         "debt.not_found", $"Debt '{id}' was not found.", ApplicationErrorType.NotFound);
+    /// <summary>
+    /// Kapsam ne istekten, ne açılış hesabından, ne kategoriden çözülebildi.
+    /// </summary>
+    public static readonly ApplicationError ScopeUnresolved = new(
+        "debt.scope_unresolved",
+        "The scope could not be resolved from the request, the account or the category.",
+        ApplicationErrorType.Validation);
     public static readonly ApplicationError AccountUnavailable = new(
         "debt.account_unavailable", "An active owned account is required.", ApplicationErrorType.Validation);
     public static readonly ApplicationError CategoryUnavailable = new(
@@ -84,11 +92,19 @@ public sealed class CreateDebtUseCase(
                 return ApplicationResult<DebtDto>.Failure(DebtErrors.CategoryUnavailable);
         }
 
+        if (TransactionScopeResolution.Resolve(
+                command.Scope,
+                openingAccount?.DefaultScope,
+                category?.DefaultScope) is not TransactionScope scope)
+        {
+            return ApplicationResult<DebtDto>.Failure(DebtErrors.ScopeUnresolved);
+        }
+
         try
         {
             var debt = new DebtAgreement(
                 Guid.NewGuid(), userId, command.CounterpartyName, command.Direction,
-                command.Scope,
+                scope,
                 new Money(command.Principal, command.Currency),
                 new Money(totalRepayment.Value, command.Currency),
                 command.SourceType, openingAccount, category,

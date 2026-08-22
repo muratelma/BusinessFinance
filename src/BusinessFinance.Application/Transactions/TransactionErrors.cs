@@ -24,6 +24,14 @@ public static class TransactionErrors
         "transactions.category_unavailable",
         "The category was not found or is inactive.",
         ApplicationErrorType.Validation);
+    /// <summary>
+    /// Kapsam ne istekten, ne hesaptan, ne kategoriden çözülebildi. Sunucu bir
+    /// değer uydurmaz: yanlış etiketlenmiş kayıt işletme netini sessizce bozar.
+    /// </summary>
+    public static readonly ApplicationError ScopeUnresolved = new(
+        "transactions.scope_unresolved",
+        "The scope could not be resolved from the request, the account or the category.",
+        ApplicationErrorType.Validation);
     public static readonly ApplicationError CancelOriginLocked = new(
         "transactions.cancel_origin_locked",
         "A transaction produced by a recurring plan cannot be cancelled.",

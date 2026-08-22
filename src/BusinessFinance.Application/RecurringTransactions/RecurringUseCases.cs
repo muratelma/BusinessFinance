@@ -3,6 +3,7 @@ using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.CreditCards;
 using BusinessFinance.Application.Categories;
+using BusinessFinance.Application.Scopes;
 using BusinessFinance.Application.Transactions;
 using BusinessFinance.Domain;
 
@@ -67,6 +68,15 @@ public sealed class CreateRecurringTransactionUseCase(
             return ApplicationResult<RecurringTransactionDto>.Failure(RecurringErrors.CategoryUnavailable);
         }
 
+        if (TransactionScopeResolution.Resolve(
+                command.Scope,
+                isCardSource ? card!.DefaultScope : account!.DefaultScope,
+                category.DefaultScope) is not TransactionScope scope)
+        {
+            return ApplicationResult<RecurringTransactionDto>.Failure(
+                RecurringErrors.ScopeUnresolved);
+        }
+
         try
         {
             var amount = new Money(command.Amount, command.Currency);
@@ -78,7 +88,7 @@ public sealed class CreateRecurringTransactionUseCase(
                     category,
                     amount,
                     command.Kind,
-                    command.Scope,
+                    scope,
                     command.Frequency,
                     command.StartDate,
                     command.EndDate,
@@ -91,7 +101,7 @@ public sealed class CreateRecurringTransactionUseCase(
                     category,
                     amount,
                     command.Kind,
-                    command.Scope,
+                    scope,
                     command.Frequency,
                     command.StartDate,
                     command.EndDate,

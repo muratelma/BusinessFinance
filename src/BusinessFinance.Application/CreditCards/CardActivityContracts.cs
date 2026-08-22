@@ -31,7 +31,10 @@ public sealed record CreateCardChargeCommand(
     Guid CategoryId,
     decimal Amount,
     CurrencyCode Currency,
-    TransactionScope Scope,
+
+    // Kullanıcının açık seçimi. Boşsa kartın, yoksa kategorinin varsayılanı
+    // kullanılır; üçü de boşsa istek reddedilir.
+    TransactionScope? Scope,
     DateOnly ChargeDate,
     string? Description);
 

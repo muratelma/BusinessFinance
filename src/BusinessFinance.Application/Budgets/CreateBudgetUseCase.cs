@@ -1,6 +1,7 @@
 using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Categories;
+using BusinessFinance.Application.Scopes;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Budgets;
@@ -38,6 +39,13 @@ public sealed class CreateBudgetUseCase(
             return ApplicationResult<BudgetDto>.Failure(BudgetErrors.DuplicatePeriod);
         }
 
+        if (TransactionScopeResolution.Resolve(
+                command.Scope,
+                category.DefaultScope) is not TransactionScope scope)
+        {
+            return ApplicationResult<BudgetDto>.Failure(BudgetErrors.ScopeUnresolved);
+        }
+
         MonthlyBudget budget;
         try
         {
@@ -46,7 +54,7 @@ public sealed class CreateBudgetUseCase(
                 userId,
                 category,
                 new Money(command.Limit, command.Currency),
-                command.Scope,
+                scope,
                 command.Year,
                 command.Month);
         }

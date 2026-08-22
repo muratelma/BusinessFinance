@@ -123,7 +123,7 @@ Bu aşama aşağıdakilerin hiçbirini bozmaz; bozması gerekirse önce ADR yaz�
   hem bellekte hem SQL'de kategori + kapsam çiftiyle topluyor. Sözleşmeler
   kapsamı **açıkça** taşıyor; sunucu henüz türetmiyor (Grup 3).
 
-### Grup 3 — Application: kapsam türetme zinciri
+### Grup 3 — Application: kapsam türetme zinciri — **Tamamlandı**
 
 - Türetme sırası: kullanıcının açık seçimi → hesabın/kartın etiketi →
   kategorinin varsayılanı. Üçü de boşsa istek reddedilir; sunucu kapsam
@@ -134,6 +134,14 @@ Bu aşama aşağıdakilerin hiçbirini bozmaz; bozması gerekirse önce ADR yaz�
   **plandan** gelir; gerçekleşme anında yeniden türetilmez. Aksi hâlde aynı
   plan farklı aylarda farklı kapsam üretebilirdi.
 - Ölçüt: application testleri türetme sırasını ve reddi kanıtlıyor.
+- Sonuç: sıra tek bir yerde (`TransactionScopeResolution`) yazılı ve altı
+  oluşturma yolu ile CSV içe aktarma onu kullanıyor. Kapsam artık API
+  sözleşmesinde **isteğe bağlı**; çözülemediğinde istek `*.scope_unresolved`
+  ile reddediliyor ve hiçbir kayıt yazılmıyor. Application ve API testleri
+  hem sırayı hem reddi kanıtlıyor.
+- Not: zincir pratikte hâlâ yalnız hesabına/kartına elle etiket koyan kullanıcı
+  için çözülüyor — hiçbir varsayılan kategori kapsam taşımıyor. Onu Grup 5
+  kapatıyor.
 
 ### Grup 4 — Migration — **Tamamlandı (Grup 2 ile birlikte)**
 

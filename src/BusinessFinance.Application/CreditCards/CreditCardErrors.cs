@@ -4,6 +4,14 @@ namespace BusinessFinance.Application.CreditCards;
 
 public static class CreditCardErrors
 {
+    /// <summary>
+    /// Kapsam ne istekten, ne karttan, ne kategoriden çözülebildi.
+    /// </summary>
+    public static readonly ApplicationError ScopeUnresolved = new(
+        "credit_cards.scope_unresolved",
+        "The scope could not be resolved from the request, the card or the category.",
+        ApplicationErrorType.Validation);
+
     public static readonly ApplicationError AuthenticationRequired = new(
         "authentication.required",
         "An authenticated user is required.",

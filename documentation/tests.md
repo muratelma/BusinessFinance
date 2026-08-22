@@ -55,10 +55,21 @@ veritabanı ile tek `InitialCreate`'ten kurulan veritabanının 543 satırlık t
 | `DataPortabilityTests.Backup_ValidatesAndRestoresCompleteSyntheticGraphToEmptyOwner` (genişletildi) | v6 yedeğinde hem kaydın kapsamı hem hesap/kategori varsayılanı geri yüklemede korunuyor |
 | `ImportConfirmationUseCaseTests` (genişletildi) | İçe aktarılan satırın kapsamı hesabın varsayılanından çözülüyor |
 
+## Aşama 01 Grup 3 — kapsam türetme zinciri testleri
+
+| Test | Ne kanıtlıyor |
+|---|---|
+| `TransactionScopeResolutionTests` (Application, yeni) | Zincirin sırası: açık seçim hesabı, hesap kategoriyi yener; üçü de boşsa `null` |
+| `...CreateTransaction_WithoutScope_TakesTheAccountLabel` | Kapsam gönderilmeden oluşturulan hareket hesabın etiketini alıyor |
+| `...CreateTransaction_WithNothingToGoOn_IsRejectedAndWritesNothing` | Çözülemeyen kapsam isteği reddediyor ve repository'ye **hiçbir şey yazmıyor** |
+| `...CreateBudget_WithoutScope_TakesTheCategoryDefaultOrIsRejected` | Bütçenin hesabı olmadığı için zincir kategori ile bitiyor |
+| `TransactionScopeEndpointTests` (API, yeni) | Aynı davranışın HTTP sözleşmesindeki hâli: türetme, açık seçimin üstünlüğü, `scope_unresolved` ve `invalid_scope` ayrımı, listede kayıt oluşmaması |
+| `...UpdateAccount_WithoutDefaultScope_ClearsTheLabel` | Güncellemede `defaultScope` yetkilidir; boş göndermek etiketi kaldırır |
+
 Kapsam boyutunun **kalan** test yüzeyi henüz yok ve olduğu gibi yazılmıyor:
-türetme zincirinin sırası (Grup 3), aynı ayın üç kapsamda okunduğunda bakiyenin
-değişmediği gerçek SQL testi (Grup 6) ve Flutter kapsam anahtarı testleri
-(Grup 7) kendi gruplarında gelecek.
+aynı ayın üç kapsamda okunduğunda bakiyenin değişmediği gerçek SQL testi
+(Grup 6) ve Flutter kapsam anahtarı testleri (Grup 7) kendi gruplarında
+gelecek.
 
 ## Mevcut kabul kanıtı
 

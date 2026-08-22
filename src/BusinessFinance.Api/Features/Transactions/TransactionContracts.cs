@@ -8,7 +8,9 @@ public sealed record CreateTransactionRequest(
     string Amount,
     string Currency,
     string Type,
-    string Scope,
+    // İsteğe bağlı: boş bırakılırsa sunucu kapsamı türetir, türetemezse
+    // isteği reddeder ve bir değer uydurmaz.
+    string? Scope,
     string TransactionDate,
     string? Description);
 

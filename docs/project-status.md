@@ -13,7 +13,7 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   yeniden yazıldı; kod değişmedi
 - Aktif aşama: **01 — Kapsam boyutu ve işletme kimliği.** 22 Ağustos 2026'da
   kullanıcı onayıyla açıldı. Belgesi `stages/01-kapsam-boyutu-ve-isletme-kimligi.md`;
-  dokuz çalışma grubu; **Grup 1, 2 ve 4 tamamlandı**
+  dokuz çalışma grubu; **Grup 1, 2, 3 ve 4 tamamlandı**
 - Kalan beş aşamanın belgesi de yazılı, durumları `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
@@ -209,6 +209,34 @@ girdiği için yorumlanacak geçmiş de yok.
 | Migration | `AddTransactionScope` iki veritabanına uygulandı; `HasPendingModelChanges` yok |
 | Şema | 7 tabloda `Scope NOT NULL`, 3 tabloda `DefaultScope` nullable, hiçbirinde DEFAULT kısıtı yok |
 
+## 22 Ağustos 2026 — Aşama 01, Grup 3: kapsam türetme zinciri
+
+Kapsam artık sunucuda çözülüyor; istemcinin göndermesi zorunlu değil.
+
+- **Sıra tek bir yerde yazılı** (`TransactionScopeResolution`): kullanıcının
+  açık seçimi → hesabın/kartın etiketi → kategorinin varsayılanı. Altı oluşturma
+  yolu (hareket, kart harcaması, bütçe, taksit planı, tekrarlayan plan, borç) ve
+  CSV içe aktarma aynı fonksiyonu çağırıyor; farklı cevap vermeleri, aynı
+  harcamanın hangi ekrandan girildiğine göre farklı etiketlenmesi demekti
+- **Üçü de boşsa istek reddediliyor** ve hiçbir kayıt yazılmıyor:
+  `transactions.scope_unresolved` ve özellik başına karşılıkları. Sunucu kapsam
+  uydurmuyor — yanlış etiketlenmiş bir kayıt işletme netini sessizce bozar
+- **API sözleşmesinde `scope` isteğe bağlı oldu.** Tanınmayan bir metin hâlâ
+  `*.invalid_scope` ile reddediliyor; boş olmakla yanlış olmak ayrı şeyler
+- **`defaultScope` güncellemede yetkilidir**: boş göndermek etiketi kaldırır,
+  "dokunma" demek değildir. Kaynağın tam güncel hâlini gönderen mevcut
+  güncelleme sözleşmesiyle tutarlı
+- **Bilinen ve kabul edilen boşluk:** hiçbir varsayılan kategori kapsam
+  taşımadığı için zincir pratikte yalnız hesabına ya da kartına elle etiket
+  koyan kullanıcı için çözülüyor. Bunu Grup 5'in kategori setleri kapatıyor;
+  Flutter istemcisi de o noktada API'ye karşı yeniden çalışır hâle gelecek
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (SQL dahil) | **767 geçti**, 1 atlandı |
+
 ## Açık kararlar ve riskler
 
 - **Yerel veritabanının silinmesi onay bekliyor.** Aşama 01 Grup 1'in ilk işi;
@@ -224,15 +252,15 @@ girdiği için yorumlanacak geçmiş de yok.
 
 ## Sıradaki tek küçük görev
 
-- **Aşama 01, Grup 3:** kapsam türetme zinciri — kullanıcının açık seçimi →
-  hesabın/kartın etiketi → kategorinin varsayılanı; üçü de boşsa istek
-  reddedilir. Bu, istemcinin kapsamı göndermek zorunda olmasını da bitirir.
-  Ölçüt: application testleri türetme sırasını ve reddi kanıtlıyor.
+- **Aşama 01, Grup 5:** iki varsayılan kategori seti (işletme ve kişisel) ve
+  onboarding'in tek sorusu. Bu, türetme zincirinin son halkasını dolduruyor ve
+  Flutter istemcisini API'ye karşı yeniden çalışır hâle getiriyor. Ölçüt: iki
+  set de kurulabiliyor, kategori varsayılan kapsamları doğru.
 
 ## Son oturum kapanışı
 
 - Yapılan değişiklik: Aşama 01 açıldı; Grup 1 (veri sıfırlama), Grup 2 (kapsam
-  boyutu) ve Grup 4 (migration) uygulandı
-- Geçen kontroller: backend build + format + 753 test; Flutter analyze +
+  boyutu), Grup 4 (migration) ve Grup 3 (türetme zinciri) uygulandı
+- Geçen kontroller: backend build + format + 767 test; Flutter analyze +
   format + 637 test
-- Sıradaki görev: Aşama 01 Grup 3 — kapsam türetme zinciri
+- Sıradaki görev: Aşama 01 Grup 5 — işletme ve kişisel kategori setleri

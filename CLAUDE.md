@@ -220,12 +220,18 @@ gerekçesiyle bozulmaz.
 - **Plan kapsamı gerçekleşmede yeniden türetilmez.** Tekrarlayan plan ve taksit
   planının ürettiği kayıt kapsamı plandan alır; aksi hâlde aynı plan farklı
   aylarda farklı kapsam üretebilirdi.
+- **Kapsam tek yerde türetilir** (`TransactionScopeResolution`): kullanıcının
+  açık seçimi → hesabın/kartın etiketi → kategorinin varsayılanı. Üçü de boşsa
+  istek `*.scope_unresolved` ile reddedilir; sunucu kapsam **uydurmaz**.
+  İstemcinin kapsam göndermesi zorunlu değildir.
 
 > **Henüz uygulanmadı — Aşama 01'in kalanı.** Varsayılan kategori seti hâlâ
-> tamamen ev bütçesi (Grup 5) ve kapsam sunucuda **türetilmiyor**: istek
-> kapsamı açıkça göndermek zorunda (Grup 3). Flutter tarafında kapsam anahtarı
-> ve formdaki kapsam çipi de yok (Grup 7). Bu satır o gruplar bitene kadar
-> burada durur.
+> tamamen ev bütçesi ve hiçbir kategori varsayılan kapsam taşımıyor (Grup 5);
+> bu yüzden türetme zinciri pratikte yalnız hesabına/kartına elle etiket koyan
+> kullanıcı için çözülüyor. Kapsama duyarlı raporlar/feed (Grup 6), Flutter
+> kapsam anahtarı ve formdaki kapsam çipi (Grup 7), özet ekranının hero metriği
+> (Grup 8) ve CSV kapsam kolonu (Grup 9) de yok. Bu satır o gruplar bitene
+> kadar burada durur.
 
 ### Birleşik okuma modelleri
 

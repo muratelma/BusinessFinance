@@ -2,6 +2,7 @@ using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.Categories;
+using BusinessFinance.Application.Scopes;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Transactions;
@@ -12,7 +13,10 @@ public sealed record CreateTransactionCommand(
     decimal Amount,
     CurrencyCode Currency,
     TransactionType Type,
-    TransactionScope Scope,
+
+    // Kullanıcının açık seçimi. Boşsa hesabın, yoksa kategorinin varsayılanı
+    // kullanılır; üçü de boşsa istek reddedilir.
+    TransactionScope? Scope,
     DateOnly TransactionDate,
     string? Description);
 
@@ -50,6 +54,14 @@ public sealed class CreateTransactionUseCase(
             return ApplicationResult<TransactionDto>.Failure(TransactionErrors.CategoryUnavailable);
         }
 
+        if (TransactionScopeResolution.Resolve(
+                command.Scope,
+                account.DefaultScope,
+                category.DefaultScope) is not TransactionScope scope)
+        {
+            return ApplicationResult<TransactionDto>.Failure(TransactionErrors.ScopeUnresolved);
+        }
+
         BudgetTransaction transaction;
         try
         {
@@ -60,7 +72,7 @@ public sealed class CreateTransactionUseCase(
                 category,
                 new Money(command.Amount, command.Currency),
                 command.Type,
-                command.Scope,
+                scope,
                 command.TransactionDate,
                 command.Description);
         }

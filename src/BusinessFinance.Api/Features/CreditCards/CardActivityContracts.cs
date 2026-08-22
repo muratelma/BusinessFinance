@@ -4,7 +4,9 @@ public sealed record CreateCardChargeRequest(
     Guid CategoryId,
     string Amount,
     string Currency,
-    string Scope,
+    // İsteğe bağlı: boş bırakılırsa sunucu kapsamı türetir, türetemezse
+    // isteği reddeder ve bir değer uydurmaz.
+    string? Scope,
     string ChargeDate,
     string? Description);
 

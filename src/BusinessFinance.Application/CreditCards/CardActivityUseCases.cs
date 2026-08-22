@@ -4,6 +4,7 @@ using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.FinancialActivities;
+using BusinessFinance.Application.Scopes;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.CreditCards;
@@ -47,6 +48,14 @@ public sealed class CreateCardChargeUseCase(
             return ApplicationResult<CardChargeDto>.Failure(CreditCardErrors.LimitExceeded);
         }
 
+        if (TransactionScopeResolution.Resolve(
+                command.Scope,
+                card.DefaultScope,
+                category.DefaultScope) is not TransactionScope scope)
+        {
+            return ApplicationResult<CardChargeDto>.Failure(CreditCardErrors.ScopeUnresolved);
+        }
+
         try
         {
             var charge = new CreditCardCharge(
@@ -55,7 +64,7 @@ public sealed class CreateCardChargeUseCase(
                 card,
                 category,
                 new Money(command.Amount, command.Currency),
-                command.Scope,
+                scope,
                 command.ChargeDate,
                 command.Description);
             await chargeRepository.AddAsync(charge, cancellationToken);

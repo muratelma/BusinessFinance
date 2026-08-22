@@ -42,11 +42,11 @@ public static class BudgetEndpoints
         {
             return error!;
         }
-        if (!FinanceContract.TryParseScope(request.Scope, out var scope))
+        if (!FinanceContract.TryParseOptionalScope(request.Scope, out var scope))
         {
             return ApiProblemResults.Validation(
                 httpContext,
-                "Budget scope must be business or personal.",
+                "Budget scope must be business, personal or empty.",
                 "budgets.invalid_scope");
         }
         var result = await useCase.ExecuteAsync(

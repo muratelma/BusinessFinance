@@ -36,7 +36,7 @@ public static class DebtEndpoints
             !FinanceContract.TryParseDate(request.AsOfDate, out var asOf) ||
             !TryDirection(request.Direction, out var direction) ||
             !TrySourceType(request.SourceType, out var sourceType) ||
-            !FinanceContract.TryParseScope(request.Scope, out var scope) ||
+            !FinanceContract.TryParseOptionalScope(request.Scope, out var scope) ||
             !string.Equals(request.Currency, "TRY", StringComparison.OrdinalIgnoreCase))
             return ApiProblemResults.Validation(context, "Debt fields are invalid.", "debt.invalid_contract");
         var result = await useCase.ExecuteAsync(new CreateDebtCommand(

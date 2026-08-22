@@ -4,7 +4,9 @@ public sealed record CreateBudgetRequest(
     Guid CategoryId,
     string Limit,
     string Currency,
-    string Scope,
+    // İsteğe bağlı: boş bırakılırsa sunucu kapsamı türetir, türetemezse
+    // isteği reddeder ve bir değer uydurmaz.
+    string? Scope,
     int Year,
     int Month);
 public sealed record UpdateBudgetRequest(string Limit, string Currency);

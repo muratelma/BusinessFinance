@@ -19,7 +19,9 @@ public sealed record CreateBudgetCommand(
     Guid CategoryId,
     decimal Limit,
     CurrencyCode Currency,
-    TransactionScope Scope,
+
+    // Kullanıcının açık seçimi; boşsa kategorinin varsayılanı kullanılır.
+    TransactionScope? Scope,
     int Year,
     int Month);
 

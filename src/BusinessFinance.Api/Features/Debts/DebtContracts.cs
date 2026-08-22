@@ -15,7 +15,9 @@ namespace BusinessFinance.Api.Features.Debts;
 public sealed record CreateDebtRequest(
     string CounterpartyName,
     string Direction,
-    string Scope,
+    // İsteğe bağlı: boş bırakılırsa sunucu kapsamı türetir, türetemezse
+    // isteği reddeder ve bir değer uydurmaz.
+    string? Scope,
     string Principal,
     string? TotalRepayment,
     string? AnnualInterestRate,

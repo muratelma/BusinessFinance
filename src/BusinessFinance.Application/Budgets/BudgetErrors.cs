@@ -4,6 +4,15 @@ namespace BusinessFinance.Application.Budgets;
 
 public static class BudgetErrors
 {
+    /// <summary>
+    /// Kapsam ne istekten ne kategoriden çözülebildi. Bütçenin bir hesabı
+    /// yoktur; zincir açık seçim ve kategori ile sınırlıdır.
+    /// </summary>
+    public static readonly ApplicationError ScopeUnresolved = new(
+        "budgets.scope_unresolved",
+        "The scope could not be resolved from the request or the category.",
+        ApplicationErrorType.Validation);
+
     public static readonly ApplicationError AuthenticationRequired = new(
         "authentication.required",
         "An authenticated user is required.",

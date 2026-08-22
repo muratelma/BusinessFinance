@@ -309,6 +309,31 @@ olması meşrudur ve eksik veri değildir: tek hesabıyla her şeyi yöneten esn
 kapsam kategoriden türer. Boş bırakmak "kapsamı bilmiyorum" değil, "bu kaynak
 kapsamı belirlemiyor" demektir.
 
+### Türetme zinciri
+
+Kapsam sunucuda **tek bir yerde** çözülür (`TransactionScopeResolution`) ve sıra
+her oluşturma yolunda aynıdır:
+
+```text
+kullanıcının açık seçimi → hesabın/kartın etiketi → kategorinin varsayılanı
+```
+
+Sıra keyfi değil, en özelden en genele gider. Kullanıcının o kayıt için yazdığı
+şey her şeyi yener. Hesap ya da kart kategoriden daha çok bilgi taşır: dükkânın
+kasası hangi kategoriye girerse girsin işletmenin parasıdır. Kategori paylaşılan
+bir kovadır ve en zayıf ipucudur.
+
+**Üçü de boşsa istek reddedilir.** Sunucu kapsam uydurmaz; yanlış etiketlenmiş
+bir kayıt kullanıcının işletme netini sessizce bozar ve düzeltilene kadar fark
+edilmez. Hata kodları özelliğe göredir: `transactions.scope_unresolved`,
+`budgets.scope_unresolved`, `credit_cards.scope_unresolved`,
+`recurring.scope_unresolved`, `debt.scope_unresolved`,
+`imports.scope_unresolved`.
+
+Bütçenin bir hesabı yoktur; zinciri açık seçim ve kategori ile sınırlıdır. CSV
+içe aktarmada ilk halka hiç dolmaz — dosyada kapsam kolonu yok — kalan iki halka
+aynen işler.
+
 ### Bölünen ve bölünmeyen
 
 Kapsam **raporu böler, parayı bölmez**. Hesap bakiyesi, kart borcu ve net varlık

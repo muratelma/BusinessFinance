@@ -1,6 +1,7 @@
 using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Categories;
+using BusinessFinance.Application.Scopes;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.CreditCards;
@@ -43,6 +44,15 @@ public sealed class CreateInstallmentPlanUseCase(
                 CreditCardErrors.Validation("An active expense category is required."));
         }
 
+        if (TransactionScopeResolution.Resolve(
+                command.Scope,
+                card.DefaultScope,
+                category.DefaultScope) is not TransactionScope scope)
+        {
+            return ApplicationResult<InstallmentPlanDto>.Failure(
+                CreditCardErrors.ScopeUnresolved);
+        }
+
         try
         {
             var plan = new InstallmentPlan(
@@ -52,7 +62,7 @@ public sealed class CreateInstallmentPlanUseCase(
                 category,
                 command.ClientRequestId,
                 new Money(command.TotalAmount, command.Currency),
-                command.Scope,
+                scope,
                 command.InstallmentCount,
                 command.FirstInstallmentDate,
                 command.Description);

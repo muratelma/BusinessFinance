@@ -53,7 +53,11 @@ public sealed record CreateRecurringTransactionCommand(
     decimal Amount,
     CurrencyCode Currency,
     RecurringTransactionKind Kind,
-    TransactionScope Scope,
+
+    // Kullanıcının açık seçimi. Boşsa kaynağın (hesap ya da kart), yoksa
+    // kategorinin varsayılanı kullanılır; üçü de boşsa istek reddedilir.
+    // Planın ürettiği her kayıt bu kapsamı alır.
+    TransactionScope? Scope,
     RecurrenceFrequency Frequency,
     DateOnly StartDate,
     DateOnly? EndDate,
