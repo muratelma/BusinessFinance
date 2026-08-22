@@ -23,8 +23,11 @@ internal sealed class EfUpcomingPaymentRepository(IPlannedActivityRepository pla
         DateOnly horizonDate,
         CancellationToken cancellationToken)
     {
+        // Yaklaşan ödemeler aynı projection'ın daraltılmış görünümüdür ve kapsam
+        // filtresi almaz: ödenmesi gereken para tek havuzdan çıkar, kapsam
+        // anahtarının konumu neyi ödeyeceğini değiştirmez.
         var planned = await plannedActivities.ListAsync(
-            userId, asOfDate, horizonDate, cancellationToken);
+            userId, asOfDate, horizonDate, scope: null, cancellationToken);
 
         return planned
             .Where(PlannedActivityRules.IsPaymentObligation)

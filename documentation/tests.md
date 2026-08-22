@@ -79,10 +79,16 @@ veritabanı ile tek `InitialCreate`'ten kurulan veritabanının 543 satırlık t
 | `...ChangingTheAnswerLater_MovesTheProfileAndLeavesTheCategoriesAlone` | Cevap değişince kategoriler değişmiyor |
 | `TransactionScopeEndpointTests.CreateTransaction_WithNothingToGoOn_...` (güncellendi) | Reddi görebilmek için artık kullanıcının kendi açtığı, kapsamsız bir kategori gerekiyor — varsayılan setin tamamı kapsam taşıyor |
 
+## Aşama 01 Grup 6 — kapsama duyarlı okuma testleri
+
+| Test | Ne kanıtlıyor |
+|---|---|
+| `ScopeFilter_SplitsIncomeAndExpenseButLeavesBalanceAndNetWorthWhole` (gerçek SQL, yeni) | Aynı ay üç kapsamda okunduğunda gelir/gider bölünüyor ve iki taraf toplamı veriyor; **hesap bakiyesi, kart borcu ve net varlık üç okumada da aynı** |
+| `FinancialActivityFeed_AppliesFiltersWithoutLeakingOtherSources` (genişletildi) | Feed kapsam filtresi alıyor, kapsamsız satırlar (transfer, kart ödemesi) filtreli okumada düşüyor ve iki tarafın toplamı + kapsamsızlar = toplam |
+
 Kapsam boyutunun **kalan** test yüzeyi henüz yok ve olduğu gibi yazılmıyor:
-aynı ayın üç kapsamda okunduğunda bakiyenin değişmediği gerçek SQL testi
-(Grup 6) ve Flutter kapsam anahtarı testleri (Grup 7) kendi gruplarında
-gelecek.
+Flutter kapsam anahtarı testleri (Grup 7), özet ekranının hero metriği (Grup 8)
+ve CSV kapsam kolonu (Grup 9) kendi gruplarında gelecek.
 
 ## Mevcut kabul kanıtı
 

@@ -23,6 +23,10 @@ public sealed record AccountBalanceResponse(
 public sealed record MonthlyReportResponse(
     int Year,
     int Month,
+
+    // Hangi kapsamla okunduğu; boşsa toplam. Hesap bakiyeleri bu filtreden
+    // etkilenmez ve her zaman toplamı gösterir (ADR 0013).
+    string? Scope,
     string TotalIncome,
     string TotalExpense,
     string Net,
@@ -85,6 +89,10 @@ public sealed record NetWorthResponse(
 public sealed record AdvancedFinancialReportResponse(
     string AsOfDate,
     string Currency,
+
+    // Hangi kapsamla okunduğu; boşsa toplam. Net varlık ile hesap/kart dağılımı
+    // bu filtreden etkilenmez ve her zaman toplamı gösterir (ADR 0013).
+    string? Scope,
     NetWorthResponse NetWorth,
     PeriodComparisonResponse PeriodComparison,
     IReadOnlyList<CashFlowPointResponse> CashFlowTrend,

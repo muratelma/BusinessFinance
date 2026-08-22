@@ -56,6 +56,7 @@ public sealed record NetWorthDto(
 public sealed record AdvancedFinancialReportDto(
     DateOnly AsOfDate,
     CurrencyCode Currency,
+    TransactionScope? Scope,
     NetWorthDto NetWorth,
     PeriodComparisonDto PeriodComparison,
     IReadOnlyList<CashFlowPointDto> CashFlowTrend,
@@ -69,7 +70,12 @@ public sealed record GetAdvancedFinancialReportQuery(
     int Month,
     DateOnly AsOfDate,
     int TrendMonths,
-    int DaysAhead);
+    int DaysAhead,
+
+    // Boşsa toplam. Kapsam yalnız dönem karşılaştırmasını, nakit akışı
+    // eğilimini ve bütçe sapmasını daraltır; net varlık ile hesap/kart
+    // dağılımı toplamı göstermeye devam eder (ADR 0013).
+    TransactionScope? Scope = null);
 
 public partial interface IFinancialReportRepository
 {
@@ -80,5 +86,6 @@ public partial interface IFinancialReportRepository
         DateOnly asOfDate,
         int trendMonths,
         int daysAhead,
+        TransactionScope? scope,
         CancellationToken cancellationToken);
 }

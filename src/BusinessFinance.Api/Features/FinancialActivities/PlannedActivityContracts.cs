@@ -50,6 +50,10 @@ public sealed record PlannedActivityResponse(
 public sealed record PlannedActivityListResponse(
     string AsOfDate,
     int DaysAhead,
+
+    // Hangi kapsamla okunduğu; boşsa toplam. Doluysa kapsamsız satırlar
+    // (kart ekstresi) listeye girmez.
+    string? Scope,
     int TotalCount,
     string? NearestDueDate,
     IReadOnlyList<PlannedActivityResponse> Items);

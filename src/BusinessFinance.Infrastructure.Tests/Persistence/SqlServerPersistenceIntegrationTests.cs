@@ -216,7 +216,7 @@ public sealed class SqlServerPersistenceIntegrationTests
         var accountRepository = scope.ServiceProvider.GetRequiredService<IAccountRepository>();
         Assert.Equal(900m, await accountRepository.CalculateBalanceAsync(accountId, user.Id, default));
         var reportRepository = scope.ServiceProvider.GetRequiredService<IFinancialReportRepository>();
-        var monthly = await reportRepository.GetMonthlyAsync(user.Id, 2026, 8, default);
+        var monthly = await reportRepository.GetMonthlyAsync(user.Id, 2026, 8, null, default);
 
         // Anapara gider değildir — borç azaldı, para azaldı, servet değişmedi.
         // Faiz ise karşılığında hiçbir şey alınmayan gerçek bir maliyettir:
@@ -225,7 +225,7 @@ public sealed class SqlServerPersistenceIntegrationTests
         Assert.Equal(100m, monthly.TotalExpense);
         Assert.Equal(900m, Assert.Single(monthly.AccountBalances).Balance);
         var advanced = await reportRepository.GetAdvancedAsync(
-            user.Id, 2026, 8, new DateOnly(2026, 8, 11), 2, 30, default);
+            user.Id, 2026, 8, new DateOnly(2026, 8, 11), 2, 30, null, default);
         Assert.Equal(900m, advanced.NetWorth.LiquidAssets);
         Assert.Equal(0m, advanced.NetWorth.PayableDebt);
         Assert.Equal(900m, advanced.NetWorth.NetWorth);
@@ -265,7 +265,7 @@ public sealed class SqlServerPersistenceIntegrationTests
         await using var scope = services.CreateAsyncScope();
         var reportRepository = scope.ServiceProvider.GetRequiredService<IFinancialReportRepository>();
         var advanced = await reportRepository.GetAdvancedAsync(
-            user.Id, 2026, 8, new DateOnly(2026, 8, 5), 2, 30, default);
+            user.Id, 2026, 8, new DateOnly(2026, 8, 5), 2, 30, null, default);
 
         // 1000 açılış + 300 borç açılışı; taksit henüz ödenmedi.
         Assert.Equal(1300m, advanced.NetWorth.LiquidAssets);
@@ -276,7 +276,7 @@ public sealed class SqlServerPersistenceIntegrationTests
         // fakirleştirmez de.
         Assert.Equal(1000m, advanced.NetWorth.NetWorth);
         // Gelir tablosu da aynı şeyi söylüyor: henüz gider yok.
-        Assert.Equal(0m, (await reportRepository.GetMonthlyAsync(user.Id, 2026, 8, default)).TotalExpense);
+        Assert.Equal(0m, (await reportRepository.GetMonthlyAsync(user.Id, 2026, 8, null, default)).TotalExpense);
     }
 
     [SqlServerFact]
@@ -313,7 +313,7 @@ public sealed class SqlServerPersistenceIntegrationTests
         var reportRepository = scope.ServiceProvider.GetRequiredService<IFinancialReportRepository>();
 
         // Ayrım doluyken faiz gidere giriyor.
-        Assert.Equal(100m, (await reportRepository.GetMonthlyAsync(user.Id, 2026, 8, default)).TotalExpense);
+        Assert.Equal(100m, (await reportRepository.GetMonthlyAsync(user.Id, 2026, 8, null, default)).TotalExpense);
 
         // Aynı satırın ayrımı eski kayıtlardaki gibi boşaltılınca faiz düşüyor,
         // bakiye ve kalan borç etkilenmiyor.
@@ -325,7 +325,7 @@ public sealed class SqlServerPersistenceIntegrationTests
 
         await using var afterScope = services.CreateAsyncScope();
         var afterRepository = afterScope.ServiceProvider.GetRequiredService<IFinancialReportRepository>();
-        var monthly = await afterRepository.GetMonthlyAsync(user.Id, 2026, 8, default);
+        var monthly = await afterRepository.GetMonthlyAsync(user.Id, 2026, 8, null, default);
         Assert.Equal(0m, monthly.TotalExpense);
         Assert.Equal(900m, Assert.Single(monthly.AccountBalances).Balance);
     }
@@ -867,7 +867,7 @@ public sealed class SqlServerPersistenceIntegrationTests
             source.Id, user.Id, CancellationToken.None);
         var destinationBalance = await accounts.CalculateBalanceAsync(
             destination.Id, user.Id, CancellationToken.None);
-        var report = await reports.GetMonthlyAsync(user.Id, 2026, 8, CancellationToken.None);
+        var report = await reports.GetMonthlyAsync(user.Id, 2026, 8, null, CancellationToken.None);
 
         Assert.Equal(750m, sourceBalance);
         Assert.Equal(350m, destinationBalance);
@@ -1091,7 +1091,7 @@ public sealed class SqlServerPersistenceIntegrationTests
         var statements = scope.ServiceProvider.GetRequiredService<ICreditCardStatementRepository>();
         var debt = await cards.CalculateCurrentDebtAsync(card.Id, user.Id, CancellationToken.None);
         var balance = await accounts.CalculateBalanceAsync(account.Id, user.Id, CancellationToken.None);
-        var report = await reports.GetMonthlyAsync(user.Id, 2026, 8, CancellationToken.None);
+        var report = await reports.GetMonthlyAsync(user.Id, 2026, 8, null, CancellationToken.None);
         var statementPeriod = CreditCardStatementPeriod.ForClosingMonth(card, 2026, 8);
         var statementActivity = await statements.GetActivityAsync(
             card.Id,
@@ -1173,7 +1173,7 @@ public sealed class SqlServerPersistenceIntegrationTests
         await using var readProvider = CreateServiceProvider(database.ConnectionString);
         await using var readScope = readProvider.CreateAsyncScope();
         var reports = readScope.ServiceProvider.GetRequiredService<IFinancialReportRepository>();
-        var report = await reports.GetMonthlyAsync(user.Id, 2026, 8, CancellationToken.None);
+        var report = await reports.GetMonthlyAsync(user.Id, 2026, 8, null, CancellationToken.None);
 
         var paidInterest = debt.GetInstallment(1).InterestPortion!.Value;
         Assert.True(paidInterest > 0m, "Test kurgusu faiz üretmeli.");
@@ -1362,7 +1362,7 @@ public sealed class SqlServerPersistenceIntegrationTests
             plan.Id, user.Id, false, CancellationToken.None);
         var activity = await charges.ListAsync(
             card.Id, user.Id, HistoryWindow.Unbounded, CancellationToken.None);
-        var report = await reports.GetMonthlyAsync(user.Id, 2026, 8, CancellationToken.None);
+        var report = await reports.GetMonthlyAsync(user.Id, 2026, 8, null, CancellationToken.None);
 
         Assert.True(persistedPlan!.GetItem(1).IsRealized);
         Assert.False(persistedPlan.GetItem(2).IsRealized);
@@ -1737,6 +1737,7 @@ public sealed class SqlServerPersistenceIntegrationTests
             new DateOnly(2026, 8, 11),
             3,
             30,
+            null,
             CancellationToken.None);
 
         Assert.Equal(5150m, report.NetWorth.LiquidAssets);
@@ -1840,6 +1841,7 @@ public sealed class SqlServerPersistenceIntegrationTests
             new DateOnly(2026, 8, 11),
             6,
             30,
+            null,
             CancellationToken.None);
         stopwatch.Stop();
 
@@ -1894,7 +1896,7 @@ public sealed class SqlServerPersistenceIntegrationTests
         var repository = scope.ServiceProvider.GetRequiredService<IPlannedActivityRepository>();
 
         var items = await repository.ListAsync(
-            owner.Id, PlannedAsOfDate, PlannedAsOfDate.AddDays(30), CancellationToken.None);
+            owner.Id, PlannedAsOfDate, PlannedAsOfDate.AddDays(30), null, CancellationToken.None);
         var byId = items.ToLookup(item => item.PlannedActivityId);
 
         // Owner isolation: the stranger's identical graph must not appear. Nine because
@@ -1972,7 +1974,7 @@ public sealed class SqlServerPersistenceIntegrationTests
         await using var scope = provider.CreateAsyncScope();
         var planned = await scope.ServiceProvider
             .GetRequiredService<IPlannedActivityRepository>()
-            .ListAsync(owner.Id, PlannedAsOfDate, PlannedAsOfDate.AddDays(30), CancellationToken.None);
+            .ListAsync(owner.Id, PlannedAsOfDate, PlannedAsOfDate.AddDays(30), null, CancellationToken.None);
         var upcoming = await scope.ServiceProvider
             .GetRequiredService<IUpcomingPaymentRepository>()
             .ListCandidatesAsync(
@@ -2240,6 +2242,36 @@ public sealed class SqlServerPersistenceIntegrationTests
         Assert.All(singleDay.Items, item =>
             Assert.Equal(new DateOnly(2026, 8, 3), item.ActivityDate));
         Assert.NotEmpty(singleDay.Items);
+
+        // Kapsam filtresi kapsamsız satırları da eler: transfer ve kart ödemesi
+        // gelir/gider raporuna sıfır etki eder ve kapsam taşımaz (ADR 0002,
+        // ADR 0003). İkisini birden iki listede birden göstermek, kullanıcı
+        // tarafları karşılaştırdığında aynı para hareketini iki kez saydırırdı.
+        var business = await repository.ListAsync(
+            owner.Id,
+            AllActivities() with { Scope = TransactionScope.Business },
+            CancellationToken.None);
+        Assert.NotEmpty(business.Items);
+        Assert.All(business.Items, item =>
+            Assert.Equal(TransactionScope.Business, item.Scope));
+        Assert.DoesNotContain(
+            business.Items,
+            item => item.ActivityKind is FinancialActivityKind.Transfer
+                or FinancialActivityKind.CardPayment);
+
+        var personal = await repository.ListAsync(
+            owner.Id,
+            AllActivities() with { Scope = TransactionScope.Personal },
+            CancellationToken.None);
+        Assert.All(personal.Items, item =>
+            Assert.Equal(TransactionScope.Personal, item.Scope));
+
+        // Kapsamsız satırlar yalnız filtresiz okumada görünür; iki tarafın
+        // toplamı bu yüzden toplamdan küçüktür ve olması gereken budur.
+        var all = await repository.ListAsync(owner.Id, AllActivities(), CancellationToken.None);
+        var scopeless = all.Items.Count(item => item.Scope is null);
+        Assert.True(scopeless > 0);
+        Assert.Equal(all.TotalCount, business.TotalCount + personal.TotalCount + scopeless);
     }
 
     /// <summary>
@@ -2428,6 +2460,7 @@ public sealed class SqlServerPersistenceIntegrationTests
         AccountId: null,
         CreditCardId: null,
         CategoryId: null,
+        Scope: null,
         IncludeCancelled: true);
 
     private sealed record ActivityFeedSeed(
@@ -2591,6 +2624,100 @@ public sealed class SqlServerPersistenceIntegrationTests
         }
 
         await context.SaveChangesAsync(CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Aynı ay üç kapsamda okunduğunda gelir/gider değişir, <b>bakiye ve net
+    /// varlık değişmez</b>.
+    /// </summary>
+    /// <remarks>
+    /// Bu, aşamanın en kolay sessizce bozulacak kuralı. Kapsam bir raporlama
+    /// boyutudur; kullanıcının kasasındaki para ile kartına olan borcu tek
+    /// havuzdur ve anahtarın konumuna göre değişseydi "ne kadar param var"
+    /// sorusunun aynı anda iki farklı doğru cevabı olurdu (ADR 0013).
+    /// </remarks>
+    [SqlServerFact]
+    public async Task ScopeFilter_SplitsIncomeAndExpenseButLeavesBalanceAndNetWorthWhole()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var user = CreateUser("scope-report@example.test");
+        await database.SeedUsersAsync(user);
+
+        var account = new Account(
+            Guid.NewGuid(), user.Id, "Dükkân kasası", AccountType.Cash, CurrencyCode.TRY, 1_000m);
+        var incomeCategory = new Category(
+            Guid.NewGuid(), user.Id, "Satış geliri", CategoryType.Income);
+        var expenseCategory = new Category(
+            Guid.NewGuid(), user.Id, "Ticari mal alımı", CategoryType.Expense);
+        var card = new CreditCard(
+            Guid.NewGuid(), user.Id, "Kart", new Money(10_000m, CurrencyCode.TRY), 10, 20);
+
+        var businessIncome = new BudgetTransaction(
+            Guid.NewGuid(), user.Id, account, incomeCategory, new Money(600m, CurrencyCode.TRY),
+            TransactionType.Income, TransactionScope.Business, new DateOnly(2026, 8, 3));
+        var businessExpense = new BudgetTransaction(
+            Guid.NewGuid(), user.Id, account, expenseCategory, new Money(200m, CurrencyCode.TRY),
+            TransactionType.Expense, TransactionScope.Business, new DateOnly(2026, 8, 4));
+        var personalExpense = new BudgetTransaction(
+            Guid.NewGuid(), user.Id, account, expenseCategory, new Money(50m, CurrencyCode.TRY),
+            TransactionType.Expense, TransactionScope.Personal, new DateOnly(2026, 8, 5));
+        var personalCharge = new CreditCardCharge(
+            Guid.NewGuid(), user.Id, card, expenseCategory, new Money(30m, CurrencyCode.TRY),
+            TransactionScope.Personal, new DateOnly(2026, 8, 6));
+
+        await using (var seed = database.CreateContext())
+        {
+            seed.AddRange(account, incomeCategory, expenseCategory, card);
+            seed.AddRange(businessIncome, businessExpense, personalExpense, personalCharge);
+            await seed.SaveChangesAsync();
+        }
+
+        await using var provider = CreateServiceProvider(database.ConnectionString);
+        await using var scope = provider.CreateAsyncScope();
+        var reports = scope.ServiceProvider.GetRequiredService<IFinancialReportRepository>();
+        var asOfDate = new DateOnly(2026, 8, 31);
+
+        var all = await reports.GetMonthlyAsync(user.Id, 2026, 8, null, CancellationToken.None);
+        var business = await reports.GetMonthlyAsync(
+            user.Id, 2026, 8, TransactionScope.Business, CancellationToken.None);
+        var personal = await reports.GetMonthlyAsync(
+            user.Id, 2026, 8, TransactionScope.Personal, CancellationToken.None);
+
+        // Gelir/gider bölünür ve iki taraf toplamı verir.
+        Assert.Equal(600m, all.TotalIncome);
+        Assert.Equal(280m, all.TotalExpense);
+        Assert.Equal(600m, business.TotalIncome);
+        Assert.Equal(200m, business.TotalExpense);
+        Assert.Equal(0m, personal.TotalIncome);
+        Assert.Equal(80m, personal.TotalExpense);
+        Assert.Equal(all.TotalIncome, business.TotalIncome + personal.TotalIncome);
+        Assert.Equal(all.TotalExpense, business.TotalExpense + personal.TotalExpense);
+
+        // Bakiye bölünmez: 1.000 açılış + 600 gelir - 250 gider.
+        var expectedBalance = 1_350m;
+        foreach (var report in new[] { all, business, personal })
+        {
+            Assert.Equal(
+                expectedBalance,
+                Assert.Single(report.AccountBalances, item => item.AccountId == account.Id).Balance);
+        }
+
+        var netWorths = new List<decimal>();
+        foreach (var filter in new TransactionScope?[] { null, TransactionScope.Business, TransactionScope.Personal })
+        {
+            var advanced = await reports.GetAdvancedAsync(
+                user.Id, 2026, 8, asOfDate, 3, 30, filter, CancellationToken.None);
+            netWorths.Add(advanced.NetWorth.NetWorth);
+
+            // Kart borcu ve hesap dağılımı da bölünmez.
+            Assert.Equal(30m, advanced.NetWorth.CreditCardDebt);
+            Assert.Equal(
+                expectedBalance,
+                Assert.Single(advanced.AccountDistribution, item => item.AccountId == account.Id).Balance);
+        }
+
+        Assert.Single(netWorths.Distinct());
+        Assert.Equal(expectedBalance - 30m, netWorths[0]);
     }
 
     private static ApplicationUser CreateUser(string email)

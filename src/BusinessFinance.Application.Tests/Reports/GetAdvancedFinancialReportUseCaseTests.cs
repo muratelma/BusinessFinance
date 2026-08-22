@@ -77,6 +77,7 @@ public sealed class GetAdvancedFinancialReportUseCaseTests
     private static AdvancedFinancialReportDto EmptyReport(DateOnly asOfDate) => new(
         asOfDate,
         CurrencyCode.TRY,
+        null,
         new NetWorthDto(0m, 0m, 0m, 0m, 0m),
         new PeriodComparisonDto(
             new PeriodTotalsDto(2026, 8, 0m, 0m, 0m),
@@ -101,7 +102,11 @@ public sealed class GetAdvancedFinancialReportUseCaseTests
         public int AdvancedCalls { get; private set; }
 
         public Task<MonthlyReportDto> GetMonthlyAsync(
-            Guid userId, int year, int month, CancellationToken cancellationToken) =>
+            Guid userId,
+            int year,
+            int month,
+            TransactionScope? scope,
+            CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
         public Task<AdvancedFinancialReportDto> GetAdvancedAsync(
@@ -111,6 +116,7 @@ public sealed class GetAdvancedFinancialReportUseCaseTests
             DateOnly asOfDate,
             int trendMonths,
             int daysAhead,
+            TransactionScope? scope,
             CancellationToken cancellationToken)
         {
             AdvancedCalls++;

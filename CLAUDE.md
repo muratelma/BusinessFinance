@@ -233,10 +233,14 @@ gerekçesiyle bozulmaz.
 - Cevap **hiçbir özelliği kapatmaz**: yalnız hangi setin kurulacağını ve kapsam
   boyutunun arayüzde görünüp görünmeyeceğini belirler.
 
-> **Henüz uygulanmadı — Aşama 01'in kalanı.** Kapsama duyarlı okuma modelleri,
-> raporlar ve feed (Grup 6), Flutter kapsam anahtarı ile formdaki kapsam çipi
-> (Grup 7), özet ekranının hero metriği (Grup 8) ve CSV kapsam kolonu (Grup 9)
-> yok. Bu satır o gruplar bitene kadar burada durur.
+- **Kapsam filtresi kapsamsız satırları da eler.** Feed ve planlanan görünümde
+  transfer, kart ödemesi ve kart ekstresi kapsam taşımaz; filtreli okumada
+  düşerler. İkisini birden iki tarafta göstermek aynı para hareketini iki kez
+  saydırırdı. `GET /api/v1/upcoming-payments` kapsam parametresi almaz.
+
+> **Henüz uygulanmadı — Aşama 01'in kalanı.** Flutter kapsam anahtarı ile
+> formdaki kapsam çipi (Grup 7), özet ekranının hero metriği (Grup 8) ve CSV
+> kapsam kolonu (Grup 9) yok. Bu satır o gruplar bitene kadar burada durur.
 
 ### Birleşik okuma modelleri
 

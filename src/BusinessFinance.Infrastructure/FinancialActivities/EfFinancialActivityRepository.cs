@@ -132,6 +132,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 DestinationId = null,
                 DestinationName = null,
                 CancelledAtUtc = transaction.CancelledAtUtc,
+                Scope = (int?)transaction.Scope,
                 PrincipalPortion = (decimal?)null,
                 InterestPortion = (decimal?)null,
                 MatchAccountId = account.Id,
@@ -171,6 +172,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 DestinationId = destination.Id,
                 DestinationName = destination.Name,
                 CancelledAtUtc = transfer.CancelledAtUtc,
+                Scope = (int?)null,
                 PrincipalPortion = (decimal?)null,
                 InterestPortion = (decimal?)null,
                 MatchAccountId = source.Id,
@@ -217,6 +219,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 DestinationId = null,
                 DestinationName = null,
                 CancelledAtUtc = charge.CancelledAtUtc,
+                Scope = (int?)charge.Scope,
                 PrincipalPortion = (decimal?)null,
                 InterestPortion = (decimal?)null,
                 MatchAccountId = null,
@@ -258,6 +261,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 DestinationId = card.Id,
                 DestinationName = card.Name,
                 CancelledAtUtc = payment.CancelledAtUtc,
+                Scope = (int?)null,
                 PrincipalPortion = (decimal?)null,
                 InterestPortion = (decimal?)null,
                 MatchAccountId = account.Id,
@@ -308,6 +312,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 DestinationName = null,
                 CancelledAtUtc = null,
                 PrincipalPortion = installment.PrincipalPortion,
+                Scope = (int?)debt.Scope,
                 InterestPortion = installment.InterestPortion,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
@@ -350,6 +355,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 DestinationId = null,
                 DestinationName = null,
                 CancelledAtUtc = null,
+                Scope = (int?)debt.Scope,
                 PrincipalPortion = (decimal?)null,
                 InterestPortion = (decimal?)null,
                 MatchAccountId = account.Id,
@@ -394,6 +400,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 DestinationId = null,
                 DestinationName = null,
                 CancelledAtUtc = null,
+                Scope = (int?)debt.Scope,
                 PrincipalPortion = (decimal?)null,
                 InterestPortion = (decimal?)null,
                 MatchAccountId = null,
@@ -450,6 +457,15 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
             query = query.Where(row => row.Origin == (int)origin);
         }
 
+        // Kapsam filtresi kapsamsız satırları da eler ve elemesi gerekir.
+        // Transfer ile kart ödemesinin kapsamı yoktur (ADR 0002, ADR 0003);
+        // ikisini birden iki listede birden göstermek, kullanıcı iki tarafı
+        // karşılaştırdığında aynı para hareketini iki kez saydırırdı.
+        if (criteria.Scope is TransactionScope scope)
+        {
+            query = query.Where(row => row.Scope == (int)scope);
+        }
+
         // Matched against the dedicated columns rather than SourceId, so an account
         // filter can never match a card that happens to share the position.
         if (criteria.AccountId is Guid accountId)
@@ -501,6 +517,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
         row.DestinationId,
         row.DestinationName,
         row.CancelledAtUtc,
+        row.Scope is int scope ? (TransactionScope)scope : null,
         row.PrincipalPortion,
         row.InterestPortion);
 
@@ -528,6 +545,12 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
         public Guid? DestinationId { get; init; }
         public string? DestinationName { get; init; }
         public DateTimeOffset? CancelledAtUtc { get; init; }
+
+        /// <summary>
+        /// Kaydın kapsamı; transfer ve kart ödemesinde <c>null</c>, çünkü ikisi
+        /// de gelir/gider raporuna sıfır etki eder ve kapsam taşımaz.
+        /// </summary>
+        public int? Scope { get; init; }
 
         /// <summary>Borç taksidinin payları; diğer türlerde <c>null</c>.</summary>
         public decimal? PrincipalPortion { get; init; }

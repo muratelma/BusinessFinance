@@ -21,6 +21,10 @@ public sealed record FinancialActivityResponse(
     Guid? DestinationId,
     string? DestinationName,
     DateTimeOffset? CancelledAtUtc,
+
+    // Kaydın kapsamı; transfer ve kart ödemesinde boş, çünkü ikisi de
+    // gelir/gider raporuna sıfır etki eder ve kapsam taşımaz.
+    string? Scope,
     bool CanCancel,
     bool SupportsAttachments,
 

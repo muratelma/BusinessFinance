@@ -122,6 +122,19 @@ Kapsam alanını taşıyan istek/cevap sözleşmeleri:
 Kart ödemesi ve transfer endpoint'leri kapsam **almaz**: gelir/gider raporuna
 sıfır etki ederler.
 
+Kapsam **okuma** filtresi alan endpoint'ler — hepsinde isteğe bağlı `scope`
+query parametresi, tanınmayan değer `*.invalid_scope`:
+
+| Endpoint | Bölünen | Bölünmeyen |
+|---|---|---|
+| `GET /api/v1/reports/monthly` | Gelir, gider, kategori dağılımı | `accountBalances` |
+| `GET /api/v1/reports/advanced` | Dönem karşılaştırması, nakit akışı, bütçe sapması | `netWorth`, `accountDistribution`, `cardDistribution` |
+| `GET /api/v1/financial-activities` | Feed'in tamamı | — |
+| `GET /api/v1/financial-activities/planned` | Listenin tamamı | — |
+
+`GET /api/v1/upcoming-payments` kapsam parametresi **almaz**: ödenecek para tek
+havuzdan çıkar.
+
 Kapsam değeri kararlı makine metnidir (`business` / `personal`); kullanıcıya
 gösterilecek cümleyi istemci üretir.
 

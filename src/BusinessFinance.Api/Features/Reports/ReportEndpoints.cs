@@ -40,7 +40,8 @@ public static class ReportEndpoints
         HttpContext httpContext,
         CancellationToken cancellationToken,
         int trendMonths = 6,
-        int daysAhead = 30)
+        int daysAhead = 30,
+        string? scope = null)
     {
         if (!FinanceContract.TryParseDate(asOfDate, out var parsedAsOfDate))
         {
@@ -49,13 +50,21 @@ public static class ReportEndpoints
                 "As-of date must use the yyyy-MM-dd format.",
                 "reports.invalid_as_of_date");
         }
+        if (!FinanceContract.TryParseOptionalScope(scope, out var parsedScope))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Scope must be business, personal or empty.",
+                "reports.invalid_scope");
+        }
 
         var result = await useCase.ExecuteAsync(new GetAdvancedFinancialReportQuery(
             year,
             month,
             parsedAsOfDate,
             trendMonths,
-            daysAhead), cancellationToken);
+            daysAhead,
+            parsedScope), cancellationToken);
         return result.IsSuccess
             ? Results.Ok(ToAdvancedResponse(result.Value))
             : result.Error.ToProblemResult(httpContext);
@@ -66,9 +75,18 @@ public static class ReportEndpoints
         int month,
         GetMonthlyReportUseCase useCase,
         HttpContext httpContext,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? scope = null)
     {
-        var result = await useCase.ExecuteAsync(year, month, cancellationToken);
+        if (!FinanceContract.TryParseOptionalScope(scope, out var parsedScope))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Scope must be business, personal or empty.",
+                "reports.invalid_scope");
+        }
+
+        var result = await useCase.ExecuteAsync(year, month, parsedScope, cancellationToken);
         if (!result.IsSuccess)
         {
             return result.Error.ToProblemResult(httpContext);
@@ -77,6 +95,7 @@ public static class ReportEndpoints
         return Results.Ok(new MonthlyReportResponse(
             report.Year,
             report.Month,
+            FinanceContract.OptionalScopeValue(report.Scope),
             FinanceContract.Money(report.TotalIncome),
             FinanceContract.Money(report.TotalExpense),
             FinanceContract.Money(report.Net),
@@ -100,6 +119,7 @@ public static class ReportEndpoints
         AdvancedFinancialReportDto report) => new(
         FinanceContract.Date(report.AsOfDate),
         report.Currency.ToString(),
+        FinanceContract.OptionalScopeValue(report.Scope),
         new NetWorthResponse(
             FinanceContract.Money(report.NetWorth.LiquidAssets),
             FinanceContract.Money(report.NetWorth.CreditCardDebt),

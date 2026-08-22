@@ -185,6 +185,7 @@ public sealed class PlannedActivityUseCaseTests
             Guid userId,
             DateOnly asOfDate,
             DateOnly horizonDate,
+            TransactionScope? scope,
             CancellationToken cancellationToken)
         {
             WasQueried = true;

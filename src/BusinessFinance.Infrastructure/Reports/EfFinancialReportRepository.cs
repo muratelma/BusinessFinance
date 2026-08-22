@@ -12,10 +12,22 @@ internal sealed class EfFinancialReportRepository(
     IUpcomingPaymentRepository upcomingPaymentRepository)
     : IFinancialReportRepository
 {
+    /// <summary>
+    /// Bir ayın gelir/gider tablosu; <paramref name="scope"/> verilirse yalnız o
+    /// kapsam.
+    /// </summary>
+    /// <remarks>
+    /// Kapsam filtresi <b>yalnız gelir/gider tarafına</b> uygulanır. Hesap
+    /// bakiyeleri filtreden etkilenmez: kasadaki para tek havuzdur ve kapsam
+    /// anahtarının konumuna göre değişmez (ADR 0013). Bölünen ile bölünmeyeni
+    /// aynı sorguda tutmak bu ayrımı kolayca bozardı, o yüzden bakiye
+    /// sorgularına kapsam hiç girmiyor ve bunu bir test koruyor.
+    /// </remarks>
     public async Task<MonthlyReportDto> GetMonthlyAsync(
         Guid userId,
         int year,
         int month,
+        TransactionScope? scope,
         CancellationToken cancellationToken)
     {
         var start = new DateOnly(year, month, 1);
@@ -23,6 +35,7 @@ internal sealed class EfFinancialReportRepository(
         var periodTransactions = dbContext.Transactions.AsNoTracking().Where(
             transaction => transaction.UserId == userId &&
                            !transaction.IsCancelled &&
+                           (scope == null || transaction.Scope == scope) &&
                            transaction.TransactionDate >= start &&
                            transaction.TransactionDate < endExclusive);
 
@@ -35,6 +48,7 @@ internal sealed class EfFinancialReportRepository(
         var periodCardCharges = dbContext.CreditCardCharges.AsNoTracking().Where(
             charge => charge.UserId == userId &&
                       !charge.IsCancelled &&
+                      (scope == null || charge.Scope == scope) &&
                       charge.ChargeDate >= start &&
                       charge.ChargeDate < endExclusive);
         var cardExpense = await periodCardCharges
@@ -46,13 +60,15 @@ internal sealed class EfFinancialReportRepository(
         var periodDebtOpenings = dbContext.DebtAgreements.AsNoTracking().Where(
             debt => debt.UserId == userId &&
                     debt.SourceType == DebtSourceType.Expense &&
+                    (scope == null || debt.Scope == scope) &&
                     debt.StartDate >= start &&
                     debt.StartDate < endExclusive);
         var debtOpeningExpense = await periodDebtOpenings
             .SumAsync(debt => debt.Principal.Amount, cancellationToken);
         var debtOpeningIncome = await DebtOpeningIncomeAsync(
-            userId, start, endExclusive, cancellationToken);
-        var debtInterest = await DebtInterestAsync(userId, start, endExclusive, cancellationToken);
+            userId, start, endExclusive, scope, cancellationToken);
+        var debtInterest = await DebtInterestAsync(
+            userId, start, endExclusive, scope, cancellationToken);
         var totalExpense = transactionExpense + cardExpense + debtOpeningExpense + debtInterest.Paid;
         totalIncome += debtOpeningIncome + debtInterest.Earned;
         var transactionCategoryExpenses = await (
@@ -191,6 +207,7 @@ internal sealed class EfFinancialReportRepository(
         return new MonthlyReportDto(
             year,
             month,
+            scope,
             totalIncome,
             totalExpense,
             totalIncome - totalExpense,
@@ -237,6 +254,17 @@ internal sealed class EfFinancialReportRepository(
 
     internal const string OtherSliceName = "Diğer";
 
+    /// <summary>
+    /// Gelişmiş rapor; <paramref name="scope"/> verilirse gelir/gider tarafı o
+    /// kapsamla daralır.
+    /// </summary>
+    /// <remarks>
+    /// <b>Net varlık, hesap dağılımı ve kart dağılımı kapsam filtresinden
+    /// etkilenmez</b> (ADR 0013). Kullanıcının kasasındaki para ve kartına
+    /// olan borcu tek havuzdur; kapsam anahtarının konumuna göre değişseydi,
+    /// aynı anda iki farklı "ne kadar param var" cevabı doğru olurdu.
+    /// Bölünen dönem karşılaştırması, nakit akışı eğilimi ve bütçe sapmasıdır.
+    /// </remarks>
     public async Task<AdvancedFinancialReportDto> GetAdvancedAsync(
         Guid userId,
         int year,
@@ -244,12 +272,13 @@ internal sealed class EfFinancialReportRepository(
         DateOnly asOfDate,
         int trendMonths,
         int daysAhead,
+        TransactionScope? scope,
         CancellationToken cancellationToken)
     {
-        var current = await GetPeriodTotalsAsync(userId, year, month, cancellationToken);
+        var current = await GetPeriodTotalsAsync(userId, year, month, scope, cancellationToken);
         var previousPeriod = new DateOnly(year, month, 1).AddMonths(-1);
         var previous = await GetPeriodTotalsAsync(
-            userId, previousPeriod.Year, previousPeriod.Month, cancellationToken);
+            userId, previousPeriod.Year, previousPeriod.Month, scope, cancellationToken);
         var comparison = new PeriodComparisonDto(
             current,
             previous,
@@ -257,9 +286,9 @@ internal sealed class EfFinancialReportRepository(
             current.Expense - previous.Expense,
             current.Net - previous.Net);
         var trend = await GetCashFlowTrendAsync(
-            userId, year, month, trendMonths, cancellationToken);
+            userId, year, month, trendMonths, scope, cancellationToken);
         var budgetVariances = await GetBudgetVariancesAsync(
-            userId, year, month, cancellationToken);
+            userId, year, month, scope, cancellationToken);
         var accountDistribution = await GetAccountBalancesAsOfAsync(
             userId, asOfDate, cancellationToken);
         var cardDistribution = await GetCardDebtsAsOfAsync(
@@ -308,6 +337,7 @@ internal sealed class EfFinancialReportRepository(
         return new AdvancedFinancialReportDto(
             asOfDate,
             CurrencyCode.TRY,
+            scope,
             new NetWorthDto(
                 liquidAssets,
                 cardDebt,
@@ -326,6 +356,7 @@ internal sealed class EfFinancialReportRepository(
         Guid userId,
         int year,
         int month,
+        TransactionScope? scope,
         CancellationToken cancellationToken)
     {
         var start = new DateOnly(year, month, 1);
@@ -333,6 +364,7 @@ internal sealed class EfFinancialReportRepository(
         var transactions = dbContext.Transactions.AsNoTracking().Where(
             transaction => transaction.UserId == userId &&
                            !transaction.IsCancelled &&
+                           (scope == null || transaction.Scope == scope) &&
                            transaction.TransactionDate >= start &&
                            transaction.TransactionDate < endExclusive);
         var income = await transactions
@@ -344,18 +376,21 @@ internal sealed class EfFinancialReportRepository(
         var cardExpense = await dbContext.CreditCardCharges.AsNoTracking()
             .Where(charge => charge.UserId == userId &&
                              !charge.IsCancelled &&
+                             (scope == null || charge.Scope == scope) &&
                              charge.ChargeDate >= start &&
                              charge.ChargeDate < endExclusive)
             .SumAsync(charge => charge.Amount.Amount, cancellationToken);
         var debtOpeningExpense = await dbContext.DebtAgreements.AsNoTracking()
             .Where(debt => debt.UserId == userId &&
                            debt.SourceType == DebtSourceType.Expense &&
+                           (scope == null || debt.Scope == scope) &&
                            debt.StartDate >= start &&
                            debt.StartDate < endExclusive)
             .SumAsync(debt => debt.Principal.Amount, cancellationToken);
         var debtOpeningIncome = await DebtOpeningIncomeAsync(
-            userId, start, endExclusive, cancellationToken);
-        var debtInterest = await DebtInterestAsync(userId, start, endExclusive, cancellationToken);
+            userId, start, endExclusive, scope, cancellationToken);
+        var debtInterest = await DebtInterestAsync(
+            userId, start, endExclusive, scope, cancellationToken);
         var expense = transactionExpense + cardExpense + debtOpeningExpense + debtInterest.Paid;
         var totalIncome = income + debtOpeningIncome + debtInterest.Earned;
         return new PeriodTotalsDto(year, month, totalIncome, expense, totalIncome - expense);
@@ -366,6 +401,7 @@ internal sealed class EfFinancialReportRepository(
         int year,
         int month,
         int trendMonths,
+        TransactionScope? scope,
         CancellationToken cancellationToken)
     {
         var endExclusive = new DateOnly(year, month, 1).AddMonths(1);
@@ -373,6 +409,7 @@ internal sealed class EfFinancialReportRepository(
         var transactions = await dbContext.Transactions.AsNoTracking()
             .Where(transaction => transaction.UserId == userId &&
                                   !transaction.IsCancelled &&
+                                  (scope == null || transaction.Scope == scope) &&
                                   transaction.TransactionDate >= start &&
                                   transaction.TransactionDate < endExclusive)
             .Select(transaction => new
@@ -385,6 +422,7 @@ internal sealed class EfFinancialReportRepository(
         var cardCharges = await dbContext.CreditCardCharges.AsNoTracking()
             .Where(charge => charge.UserId == userId &&
                              !charge.IsCancelled &&
+                             (scope == null || charge.Scope == scope) &&
                              charge.ChargeDate >= start &&
                              charge.ChargeDate < endExclusive)
             .Select(charge => new { charge.ChargeDate, Amount = charge.Amount.Amount })
@@ -466,10 +504,23 @@ internal sealed class EfFinancialReportRepository(
         return points;
     }
 
+    /// <summary>
+    /// Bütçe sapması. Harcama kategoriyle değil <b>kategori + kapsam
+    /// çiftiyle</b> toplanır ve her bütçe kendi kapsamıyla eşleşir.
+    /// </summary>
+    /// <remarks>
+    /// Aynı kategori hem işletme hem şahsi harcama tutabildiği için, ikisini
+    /// birden saymak kullanıcının koymadığı bir sınırı aşılmış gösterirdi.
+    /// Aynı kural <c>MonthlyBudget.CalculateProgress</c> ve
+    /// <c>EfBudgetRepository</c> içinde de yazılı.
+    /// <paramref name="scope"/> ayrıca listeyi daraltır: kapsam anahtarı
+    /// işletmedeyken şahsi bütçeler görünmez.
+    /// </remarks>
     private async Task<IReadOnlyList<BudgetVarianceDto>> GetBudgetVariancesAsync(
         Guid userId,
         int year,
         int month,
+        TransactionScope? scope,
         CancellationToken cancellationToken)
     {
         var start = new DateOnly(year, month, 1);
@@ -479,12 +530,14 @@ internal sealed class EfFinancialReportRepository(
                 join category in dbContext.Categories.AsNoTracking()
                     on new { budget.UserId, Id = budget.CategoryId }
                     equals new { category.UserId, category.Id }
-                where budget.UserId == userId && budget.Year == year && budget.Month == month
+                where budget.UserId == userId && budget.Year == year && budget.Month == month &&
+                      (scope == null || budget.Scope == scope)
                 orderby category.Name, category.Id
                 select new
                 {
                     budget.CategoryId,
                     CategoryName = category.Name,
+                    budget.Scope,
                     Limit = budget.Limit.Amount
                 })
             .ToArrayAsync(cancellationToken);
@@ -494,31 +547,47 @@ internal sealed class EfFinancialReportRepository(
                                   transaction.Type == TransactionType.Expense &&
                                   transaction.TransactionDate >= start &&
                                   transaction.TransactionDate < endExclusive)
-            .GroupBy(transaction => transaction.CategoryId)
-            .Select(group => new { CategoryId = group.Key, Spent = group.Sum(item => item.Amount.Amount) })
-            .ToDictionaryAsync(item => item.CategoryId, item => item.Spent, cancellationToken);
+            .GroupBy(transaction => new { transaction.CategoryId, transaction.Scope })
+            .Select(group => new
+            {
+                group.Key.CategoryId,
+                group.Key.Scope,
+                Spent = group.Sum(item => item.Amount.Amount)
+            })
+            .ToDictionaryAsync(item => (item.CategoryId, item.Scope), item => item.Spent, cancellationToken);
         var cardSpent = await dbContext.CreditCardCharges.AsNoTracking()
             .Where(charge => charge.UserId == userId &&
                              !charge.IsCancelled &&
                              charge.ChargeDate >= start &&
                              charge.ChargeDate < endExclusive)
-            .GroupBy(charge => charge.CategoryId)
-            .Select(group => new { CategoryId = group.Key, Spent = group.Sum(item => item.Amount.Amount) })
-            .ToDictionaryAsync(item => item.CategoryId, item => item.Spent, cancellationToken);
+            .GroupBy(charge => new { charge.CategoryId, charge.Scope })
+            .Select(group => new
+            {
+                group.Key.CategoryId,
+                group.Key.Scope,
+                Spent = group.Sum(item => item.Amount.Amount)
+            })
+            .ToDictionaryAsync(item => (item.CategoryId, item.Scope), item => item.Spent, cancellationToken);
         var debtSpent = await dbContext.DebtAgreements.AsNoTracking()
             .Where(debt => debt.UserId == userId &&
                            debt.SourceType == DebtSourceType.Expense &&
                            debt.StartDate >= start &&
                            debt.StartDate < endExclusive)
-            .GroupBy(debt => debt.CategoryId!.Value)
-            .Select(group => new { CategoryId = group.Key, Spent = group.Sum(item => item.Principal.Amount) })
-            .ToDictionaryAsync(item => item.CategoryId, item => item.Spent, cancellationToken);
+            .GroupBy(debt => new { CategoryId = debt.CategoryId!.Value, debt.Scope })
+            .Select(group => new
+            {
+                group.Key.CategoryId,
+                group.Key.Scope,
+                Spent = group.Sum(item => item.Principal.Amount)
+            })
+            .ToDictionaryAsync(item => (item.CategoryId, item.Scope), item => item.Spent, cancellationToken);
 
         return budgets.Select(budget =>
         {
-            var spent = transactionSpent.GetValueOrDefault(budget.CategoryId) +
-                        cardSpent.GetValueOrDefault(budget.CategoryId) +
-                        debtSpent.GetValueOrDefault(budget.CategoryId);
+            var key = (budget.CategoryId, budget.Scope);
+            var spent = transactionSpent.GetValueOrDefault(key) +
+                        cardSpent.GetValueOrDefault(key) +
+                        debtSpent.GetValueOrDefault(key);
             return new BudgetVarianceDto(
                 budget.CategoryId,
                 budget.CategoryName,
@@ -619,10 +688,12 @@ internal sealed class EfFinancialReportRepository(
         Guid userId,
         DateOnly start,
         DateOnly endExclusive,
+        TransactionScope? scope,
         CancellationToken cancellationToken) =>
         dbContext.DebtAgreements.AsNoTracking()
             .Where(debt => debt.UserId == userId &&
                            debt.SourceType == DebtSourceType.Income &&
+                           (scope == null || debt.Scope == scope) &&
                            debt.StartDate >= start &&
                            debt.StartDate < endExclusive)
             .SumAsync(debt => debt.Principal.Amount, cancellationToken);
@@ -672,6 +743,7 @@ internal sealed class EfFinancialReportRepository(
         Guid userId,
         DateOnly start,
         DateOnly endExclusive,
+        TransactionScope? scope,
         CancellationToken cancellationToken)
     {
         var totals = await (
@@ -681,6 +753,7 @@ internal sealed class EfFinancialReportRepository(
                     equals new { debt.UserId, DebtId = debt.Id }
                 where installment.UserId == userId &&
                       installment.InterestPortion != null &&
+                      (scope == null || debt.Scope == scope) &&
                       installment.PaymentDate >= start &&
                       installment.PaymentDate < endExclusive
                 group installment by debt.Direction into directionGroup

@@ -83,6 +83,17 @@ public sealed record FinancialActivityRow(
     DateTimeOffset? CancelledAtUtc,
 
     /// <summary>
+    /// Kaydın kapsamı; transfer ve kart ödemesinde <c>null</c>.
+    /// </summary>
+    /// <remarks>
+    /// İkisi de gelir/gider raporuna sıfır etki eder (ADR 0002, ADR 0003) ve
+    /// kapsam taşımaz. Kapsam filtresi verildiğinde bu satırlar feed'den düşer:
+    /// ikisini birden iki listede birden göstermek, kullanıcı tarafları
+    /// karşılaştırdığında aynı para hareketini iki kez saydırırdı.
+    /// </remarks>
+    TransactionScope? Scope,
+
+    /// <summary>
     /// Borç taksidinin faiz payı; diğer türlerde <c>null</c>.
     /// </summary>
     /// <remarks>
@@ -125,6 +136,9 @@ public sealed record FinancialActivityListCriteria(
     Guid? AccountId,
     Guid? CreditCardId,
     Guid? CategoryId,
+
+    // Boşsa toplam. Doluysa kapsamsız satırlar (transfer, kart ödemesi) da düşer.
+    TransactionScope? Scope,
     bool IncludeCancelled);
 
 public sealed record FinancialActivityPage(

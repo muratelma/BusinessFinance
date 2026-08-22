@@ -192,7 +192,7 @@ Bu aşama aşağıdakilerin hiçbirini bozmaz; bozması gerekirse önce ADR yaz�
   kayıt oluşturabiliyor. `GET`/`PUT /api/v1/profile` cevabı okuyup değiştiriyor,
   kategorilere dokunmuyor. Üçüncü migration: `AddUserProfile`.
 
-### Grup 6 — Okuma modelleri, raporlar ve bütçeler
+### Grup 6 — Okuma modelleri, raporlar ve bütçeler — **Tamamlandı**
 
 - Birleşik feed ve planlanan görünüm kapsam filtresi alır. Filtre **SQL'e
   iner**; bellekte birleştirme/filtreleme yasağı aynen geçerli.
@@ -203,6 +203,12 @@ Bu aşama aşağıdakilerin hiçbirini bozmaz; bozması gerekirse önce ADR yaz�
   kapsam filtresinden etkilenmez. Bu, aşamanın en kolay sessizce bozulacak
   kuralı.
 - Ölçüt: aynı ay üç kapsamda okunduğunda gelir/gider değişir, bakiye değişmez.
+- Sonuç: aylık rapor, gelişmiş rapor, birleşik feed ve planlanan görünüm isteğe
+  bağlı `scope` alıyor ve filtre her yerde SQL'e iniyor. Net varlık, hesap
+  bakiyeleri ve kart dağılımı filtreden etkilenmiyor; bunu gerçek SQL üzerinde
+  çalışan bir test koruyor. Kapsam filtresi kapsamsız satırları (transfer, kart
+  ödemesi, kart ekstresi) da eliyor — ikisini birden iki tarafta göstermek aynı
+  para hareketini iki kez saydırırdı. Yaklaşan ödemeler kapsam almıyor.
 
 ### Grup 7 — Flutter: kapsam anahtarı ve formlar
 

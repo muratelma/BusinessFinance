@@ -17,10 +17,22 @@ namespace BusinessFinance.Infrastructure.FinancialActivities;
 internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbContext)
     : IPlannedActivityRepository
 {
+    /// <summary>
+    /// Henüz gerçekleşmemiş hareketler; <paramref name="scope"/> verilirse yalnız
+    /// o kapsam.
+    /// </summary>
+    /// <remarks>
+    /// Kapsam filtresi kapsamsız satırları da eler ve elemesi gerekir: kart
+    /// ekstresi bir ödeme yükümlülüğüdür ama kapsam taşımaz, çünkü kart ödemesi
+    /// gelir/gider raporuna sıfır etki eder (ADR 0003). Onu her iki kapsamda da
+    /// göstermek, kullanıcı iki tarafı toplayınca aynı borcu iki kez saydırırdı.
+    /// Filtre her kaynağın kendi sorgusuna iniyor; bellekte eleme yok.
+    /// </remarks>
     public async Task<IReadOnlyList<PlannedActivityDto>> ListAsync(
         Guid userId,
         DateOnly asOfDate,
         DateOnly horizonDate,
+        TransactionScope? scope,
         CancellationToken cancellationToken)
     {
         var accounts = await dbContext.Accounts.AsNoTracking()
@@ -37,13 +49,19 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
 
         var items = new List<PlannedActivityDto>();
         items.AddRange(await ListRecurringAsync(
-            userId, asOfDate, horizonDate, accounts, categories, cards, availableLimits, cancellationToken));
+            userId, asOfDate, horizonDate, accounts, categories, cards, availableLimits,
+            scope, cancellationToken));
         items.AddRange(await ListInstallmentsAsync(
-            userId, asOfDate, horizonDate, cards, availableLimits, cancellationToken));
-        items.AddRange(await ListStatementsAsync(
-            userId, asOfDate, horizonDate, cards, cancellationToken));
-        items.AddRange(await ListDebtAsync(
-            userId, asOfDate, horizonDate, cancellationToken));
+            userId, asOfDate, horizonDate, cards, availableLimits, scope, cancellationToken));
+
+        // Ekstre kapsam taşımaz; kapsam anahtarı bir tarafa çevriliyse listeden düşer.
+        if (scope is null)
+        {
+            items.AddRange(await ListStatementsAsync(
+                userId, asOfDate, horizonDate, cards, cancellationToken));
+        }
+
+        items.AddRange(await ListDebtAsync(userId, asOfDate, horizonDate, scope, cancellationToken));
         return items;
     }
 
@@ -107,6 +125,7 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
         IReadOnlyDictionary<Guid, Category> categories,
         IReadOnlyDictionary<Guid, CreditCard> cards,
         IReadOnlyDictionary<Guid, decimal> availableLimits,
+        TransactionScope? scope,
         CancellationToken cancellationToken)
     {
         // A pending occurrence whose schedule was deactivated is not an
@@ -115,6 +134,7 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
         var occurrences = await dbContext.RecurringTransactionOccurrences.AsNoTracking()
             .Where(occurrence => occurrence.UserId == userId &&
                                  occurrence.Status == RecurringOccurrenceStatus.Planned &&
+                                 (scope == null || occurrence.Scope == scope) &&
                                  occurrence.ScheduledDate <= horizonDate &&
                                  dbContext.RecurringTransactions.Any(schedule =>
                                      schedule.UserId == userId &&
@@ -124,6 +144,7 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
         var schedules = await dbContext.RecurringTransactions.AsNoTracking()
             .Where(recurring => recurring.UserId == userId &&
                                 recurring.IsActive &&
+                                (scope == null || recurring.Scope == scope) &&
                                 recurring.NextOccurrenceDate != null &&
                                 recurring.NextOccurrenceDate <= horizonDate)
             .ToArrayAsync(cancellationToken);
@@ -285,6 +306,7 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
         DateOnly horizonDate,
         IReadOnlyDictionary<Guid, CreditCard> cards,
         IReadOnlyDictionary<Guid, decimal> availableLimits,
+        TransactionScope? scope,
         CancellationToken cancellationToken)
     {
         var rows = await (
@@ -294,6 +316,7 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
                     equals new { plan.UserId, PlanId = plan.Id }
                 where item.UserId == userId &&
                       item.CreditCardChargeId == null &&
+                      (scope == null || plan.Scope == scope) &&
                       item.ScheduledDate <= horizonDate
                 select new
                 {
@@ -467,6 +490,7 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
         Guid userId,
         DateOnly asOfDate,
         DateOnly horizonDate,
+        TransactionScope? scope,
         CancellationToken cancellationToken)
     {
         var rows = await (
@@ -476,6 +500,7 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
                     equals new { debt.UserId, DebtId = debt.Id }
                 where installment.UserId == userId &&
                       installment.PaymentAccountId == null &&
+                      (scope == null || debt.Scope == scope) &&
                       installment.DueDate <= horizonDate
                 select new
                 {

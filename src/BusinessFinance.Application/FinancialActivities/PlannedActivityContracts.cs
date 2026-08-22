@@ -101,11 +101,15 @@ public sealed record PlannedActivityDto(
     /// </summary>
     int? ActionSequence);
 
-public sealed record PlannedActivityQuery(DateOnly AsOfDate, int DaysAhead);
+public sealed record PlannedActivityQuery(
+    DateOnly AsOfDate,
+    int DaysAhead,
+    TransactionScope? Scope = null);
 
 public sealed record PlannedActivityListResult(
     DateOnly AsOfDate,
     int DaysAhead,
+    TransactionScope? Scope,
     int TotalCount,
     DateOnly? NearestDueDate,
     IReadOnlyList<PlannedActivityDto> Items);
@@ -116,10 +120,15 @@ public sealed record PlannedActivityListResult(
 /// </summary>
 public interface IPlannedActivityRepository
 {
+    /// <summary>
+    /// <paramref name="scope"/> boşsa toplam; doluysa kapsamsız satırlar
+    /// (kart ekstresi) da düşer.
+    /// </summary>
     Task<IReadOnlyList<PlannedActivityDto>> ListAsync(
         Guid userId,
         DateOnly asOfDate,
         DateOnly horizonDate,
+        TransactionScope? scope,
         CancellationToken cancellationToken);
 }
 

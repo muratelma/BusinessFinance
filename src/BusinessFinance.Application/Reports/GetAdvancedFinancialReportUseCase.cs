@@ -58,6 +58,7 @@ public sealed class GetAdvancedFinancialReportUseCase(
                 query.AsOfDate,
                 query.TrendMonths,
                 query.DaysAhead,
+                query.Scope,
                 cancellationToken));
     }
 

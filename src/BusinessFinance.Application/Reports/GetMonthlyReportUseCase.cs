@@ -11,6 +11,7 @@ public sealed class GetMonthlyReportUseCase(
     public async Task<ApplicationResult<MonthlyReportDto>> ExecuteAsync(
         int year,
         int month,
+        TransactionScope? scope = null,
         CancellationToken cancellationToken = default)
     {
         if (currentUser.UserId is not Guid userId || userId == Guid.Empty)
@@ -30,6 +31,6 @@ public sealed class GetMonthlyReportUseCase(
         }
 
         return ApplicationResult<MonthlyReportDto>.Success(
-            await repository.GetMonthlyAsync(userId, year, month, cancellationToken));
+            await repository.GetMonthlyAsync(userId, year, month, scope, cancellationToken));
     }
 }

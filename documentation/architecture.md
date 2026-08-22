@@ -371,11 +371,30 @@ Kapsam **raporu böler, parayı bölmez**. Hesap bakiyesi, kart borcu ve net var
 kapsam filtresinden etkilenmez; bunlar tek havuzun tutarıdır ve kullanıcının
 cebindeki para kapsam anahtarının konumuna göre değişmez.
 
-Bütçe ilerlemesi kapsama duyarlıdır ve bu kural **iki yerde birden** yazılıdır:
-`MonthlyBudget.CalculateProgress` (bellek içi) ve `EfBudgetRepository`
-(SQL). İkisi de harcamayı kategoriyle değil **kategori + kapsam çiftiyle**
-toplar; aynı kategori hem işletme hem şahsi harcama tutabildiği için, ikisini
-birden saymak kullanıcının koymadığı bir sınırı aşılmış gösterirdi.
+Kapsam filtresi alan okuma modelleri ve **almayanlar**:
+
+| Okuma | Kapsam filtresi | Neden |
+|---|---|---|
+| Aylık rapor gelir/gider ve kategori dağılımı | **Alır** | Bölünen şey budur |
+| Aylık rapordaki hesap bakiyeleri | Almaz | Kasadaki para tek havuz |
+| Gelişmiş rapor dönem karşılaştırması, nakit akışı, bütçe sapması | **Alır** | Gelir/gider tarafı |
+| Gelişmiş rapor net varlık, hesap ve kart dağılımı | Almaz | Tek havuz; filtreye takılsaydı "ne kadar param var" sorusunun aynı anda iki doğru cevabı olurdu |
+| Birleşik feed | **Alır**, tek SQL sorgusunda | Geçmişin bir tarafını okumak |
+| Planlanan görünüm | **Alır**, her kaynağın kendi sorgusunda | Aynı gerekçe |
+| Yaklaşan ödemeler | Almaz | Ödenecek para tek havuzdan çıkar; anahtarın konumu neyi ödeyeceğini değiştirmez |
+
+**Kapsam filtresi kapsamsız satırları da eler.** Transfer, kart ödemesi ve kart
+ekstresi kapsam taşımaz; ikisini birden her iki kapsamda göstermek, kullanıcı
+tarafları karşılaştırdığında aynı para hareketini iki kez saydırırdı. Bu yüzden
+iki tarafın toplamı, filtresiz okumanın toplamından küçüktür ve olması gereken
+budur.
+
+Bütçe ilerlemesi kapsama duyarlıdır ve bu kural **üç yerde birden** yazılıdır:
+`MonthlyBudget.CalculateProgress` (bellek içi), `EfBudgetRepository` (bütçe
+listesi) ve `GetBudgetVariancesAsync` (gelişmiş rapor). Üçü de harcamayı
+kategoriyle değil **kategori + kapsam çiftiyle** toplar; aynı kategori hem
+işletme hem şahsi harcama tutabildiği için, ikisini birden saymak kullanıcının
+koymadığı bir sınırı aşılmış gösterirdi.
 
 ### Plan kapsamı gerçekleşmede yeniden türetilmez
 

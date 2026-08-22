@@ -13,7 +13,8 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   yeniden yazıldı; kod değişmedi
 - Aktif aşama: **01 — Kapsam boyutu ve işletme kimliği.** 22 Ağustos 2026'da
   kullanıcı onayıyla açıldı. Belgesi `stages/01-kapsam-boyutu-ve-isletme-kimligi.md`;
-  dokuz çalışma grubu; **Grup 1, 2, 3, 4 ve 5 tamamlandı**
+  dokuz çalışma grubu; **Grup 1–6 tamamlandı**, kalan üçü Flutter ve yedek
+  tarafında
 - Kalan beş aşamanın belgesi de yazılı, durumları `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
@@ -271,6 +272,37 @@ Onboarding'in tek sorusu eklendi ve türetme zincirinin son halkası doldu.
 | Backend test (SQL dahil) | **800 geçti**, 1 atlandı |
 | Flutter analyze / test | No issues found, **637 geçti** |
 
+## 22 Ağustos 2026 — Aşama 01, Grup 6: kapsama duyarlı okuma modelleri
+
+Kapsam artık raporları ve listeleri bölüyor; parayı bölmüyor.
+
+- **Filtre alan okumalar:** aylık rapor (gelir, gider, kategori dağılımı),
+  gelişmiş rapor (dönem karşılaştırması, nakit akışı eğilimi, bütçe sapması),
+  birleşik feed ve planlanan görünüm. Hepsinde isteğe bağlı `scope` query
+  parametresi; tanınmayan değer `*.invalid_scope` ile reddediliyor
+- **Filtre almayan okumalar ve gerekçesi:** hesap bakiyeleri, net varlık, kart
+  dağılımı ve yaklaşan ödemeler. Kasadaki para ve karta olan borç tek havuzdur;
+  anahtarın konumuna göre değişseydi "ne kadar param var" sorusunun aynı anda
+  iki farklı doğru cevabı olurdu
+- **Filtre her yerde SQL'e iniyor.** Feed'de tek `UNION ALL` sorgusunun içinde,
+  planlanan görünümde her kaynağın kendi sorgusunda; bellekte eleme yok
+- **Kapsam filtresi kapsamsız satırları da eliyor.** Transfer, kart ödemesi ve
+  kart ekstresi kapsam taşımaz (ADR 0002, ADR 0003); ikisini birden iki tarafta
+  göstermek, kullanıcı tarafları karşılaştırdığında aynı para hareketini iki kez
+  saydırırdı. Bu yüzden iki tarafın toplamı filtresiz toplamdan küçük ve olması
+  gereken bu
+- **Bütçe sapması da kategori + kapsam çiftiyle toplanıyor.** Kural artık üç
+  yerde birden yazılı: domain hesabı, bütçe listesi ve gelişmiş rapor
+- **Bölünmezlik testle korunuyor.** Gerçek SQL üzerinde çalışan yeni test aynı
+  ayı üç kapsamda okuyor: gelir/gider bölünüyor ve iki taraf toplamı veriyor,
+  hesap bakiyesi ile net varlık üç okumada da aynı kalıyor
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (SQL dahil) | **801 geçti**, 1 atlandı |
+
 ## Açık kararlar ve riskler
 
 - **Yerel veritabanının silinmesi onay bekliyor.** Aşama 01 Grup 1'in ilk işi;
@@ -286,15 +318,17 @@ Onboarding'in tek sorusu eklendi ve türetme zincirinin son halkası doldu.
 
 ## Sıradaki tek küçük görev
 
-- **Aşama 01, Grup 6:** okuma modelleri, raporlar ve bütçeler kapsam filtresi
-  alır; filtre SQL'e iner. Ölçüt: aynı ay üç kapsamda okunduğunda gelir/gider
-  değişir, **bakiye ve net varlık değişmez**.
+- **Aşama 01, Grup 7:** Flutter tarafı — Özet ekranının başındaki
+  `Hepsi · İşletme · Şahsi` anahtarı, formda düzeltilebilir kapsam çipi ve
+  "işletmem yok" kullanıcısında boyutun tamamen gizlenmesi. Backend hazır;
+  istemci henüz kapsamı ne gönderiyor ne gösteriyor.
 
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: Aşama 01 açıldı; Grup 1 (veri sıfırlama), Grup 2 (kapsam
-  boyutu), Grup 4 (migration), Grup 3 (türetme zinciri) ve Grup 5 (kategori
-  setleri, işletme kimliği) uygulandı
-- Geçen kontroller: backend build + format + 800 test; Flutter analyze +
-  format + 637 test
-- Sıradaki görev: Aşama 01 Grup 6 — kapsama duyarlı okuma modelleri ve raporlar
+- Yapılan değişiklik: Aşama 01 açıldı ve **Grup 1–6 uygulandı**: veri
+  sıfırlama, kapsam boyutu, migration, türetme zinciri, kategori setleri ile
+  işletme kimliği, kapsama duyarlı okuma modelleri. Kapsam boyutunun backend
+  tarafı tamam
+- Geçen kontroller: backend build + format + 801 test; Flutter analyze +
+  format + 637 test (Flutter kodu değişmedi)
+- Sıradaki görev: Aşama 01 Grup 7 — Flutter kapsam anahtarı ve kapsam çipi

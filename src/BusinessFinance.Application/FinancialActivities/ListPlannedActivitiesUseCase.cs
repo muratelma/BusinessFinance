@@ -41,7 +41,7 @@ public sealed class ListPlannedActivitiesUseCase(
 
         var horizonDate = query.AsOfDate.AddDays(query.DaysAhead);
         var items = await repository.ListAsync(
-            userId, query.AsOfDate, horizonDate, cancellationToken);
+            userId, query.AsOfDate, horizonDate, query.Scope, cancellationToken);
 
         // Overdue first, then by due date. Nothing is summed: adding planned income,
         // expenses, statements and neutral obligations into one number would be
@@ -57,6 +57,7 @@ public sealed class ListPlannedActivitiesUseCase(
             new PlannedActivityListResult(
                 query.AsOfDate,
                 query.DaysAhead,
+                query.Scope,
                 ordered.Length,
                 ordered.Length == 0 ? null : ordered.Min(item => item.DueDate),
                 ordered));

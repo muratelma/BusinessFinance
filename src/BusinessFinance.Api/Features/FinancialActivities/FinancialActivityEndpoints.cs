@@ -33,7 +33,8 @@ public static class FinancialActivityEndpoints
         HttpContext httpContext,
         CancellationToken cancellationToken,
         string? asOfDate = null,
-        int daysAhead = 30)
+        int daysAhead = 30,
+        string? scope = null)
     {
         if (!FinanceContract.TryParseDate(asOfDate, out var parsedAsOfDate))
         {
@@ -42,9 +43,16 @@ public static class FinancialActivityEndpoints
                 "As-of date must use the yyyy-MM-dd format.",
                 "planned_activities.invalid_as_of_date");
         }
+        if (!FinanceContract.TryParseOptionalScope(scope, out var parsedScope))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Scope must be business, personal or empty.",
+                "planned_activities.invalid_scope");
+        }
 
         var result = await useCase.ExecuteAsync(
-            new PlannedActivityQuery(parsedAsOfDate, daysAhead), cancellationToken);
+            new PlannedActivityQuery(parsedAsOfDate, daysAhead, parsedScope), cancellationToken);
         if (!result.IsSuccess)
         {
             return result.Error.ToProblemResult(httpContext);
@@ -54,6 +62,7 @@ public static class FinancialActivityEndpoints
         return Results.Ok(new PlannedActivityListResponse(
             FinanceContract.Date(value.AsOfDate),
             value.DaysAhead,
+            FinanceContract.OptionalScopeValue(value.Scope),
             value.TotalCount,
             value.NearestDueDate is DateOnly nearest ? FinanceContract.Date(nearest) : null,
             value.Items.Select(ToResponse).ToArray()));
@@ -136,6 +145,7 @@ public static class FinancialActivityEndpoints
         Guid? accountId = null,
         Guid? creditCardId = null,
         Guid? categoryId = null,
+        string? scope = null,
         bool includeCancelled = true)
     {
         if (!TryParseOptionalDate(dateFrom, out var parsedFrom) ||
@@ -158,6 +168,14 @@ public static class FinancialActivityEndpoints
                 "financial_activities.invalid_filter_value");
         }
 
+        if (!FinanceContract.TryParseOptionalScope(scope, out var parsedScope))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Scope must be business, personal or empty.",
+                "financial_activities.invalid_scope");
+        }
+
         var result = await useCase.ExecuteAsync(
             new FinancialActivityListCriteria(
                 pageNumber,
@@ -171,6 +189,7 @@ public static class FinancialActivityEndpoints
                 accountId,
                 creditCardId,
                 categoryId,
+                parsedScope,
                 includeCancelled),
             cancellationToken);
         if (!result.IsSuccess)
@@ -215,6 +234,7 @@ public static class FinancialActivityEndpoints
             activity.DestinationId,
             activity.DestinationName,
             activity.CancelledAtUtc,
+            FinanceContract.OptionalScopeValue(activity.Scope),
             item.CanCancel,
             item.SupportsAttachments,
             activity.PrincipalPortion is decimal principal

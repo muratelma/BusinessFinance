@@ -26,6 +26,7 @@ public sealed record AccountBalanceDto(Guid AccountId, string AccountName, decim
 public sealed record MonthlyReportDto(
     int Year,
     int Month,
+    TransactionScope? Scope,
     decimal TotalIncome,
     decimal TotalExpense,
     decimal Net,
@@ -36,9 +37,17 @@ public sealed record MonthlyReportDto(
 
 public partial interface IFinancialReportRepository
 {
+    /// <summary>
+    /// Bir ayın gelir/gider tablosu. <paramref name="scope"/> boşsa toplam.
+    /// </summary>
+    /// <remarks>
+    /// Kapsam yalnız gelir/gider tarafını böler; hesap bakiyeleri filtreden
+    /// etkilenmez (ADR 0013).
+    /// </remarks>
     Task<MonthlyReportDto> GetMonthlyAsync(
         Guid userId,
         int year,
         int month,
+        TransactionScope? scope,
         CancellationToken cancellationToken);
 }
