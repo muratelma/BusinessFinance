@@ -257,7 +257,7 @@ secret'ı uygulamaya konmaz.
 - `documentation/architecture.md` — doğrulanmış mimari, güven sınırları, ADR'ler
 - `documentation/flows.md`, `permissions.md`, `variables.md`, `tests.md` —
   akışlar, izin/izolasyon kanıtı, secret envanteri, test kapsam haritası
-- `documentation/mvp1-local-setup-and-acceptance.md` — Windows/SQL/API/emulator
+- `documentation/local-setup-and-acceptance.md` — Windows/SQL/API/emulator
   kurulumu ve manuel kabul adımları
 - `documentation/restore-runbook.md` — backup/restore prosedürü
 - `documentation/financial-activity-api-contract.md` — birleşik feed, planlanan
@@ -268,6 +268,9 @@ secret'ı uygulamaya konmaz.
   metin ve dolgu tonu ayrımı, nötr rolün maviye dönmesi
 - `documentation/adr/0011-receipt-reading-is-a-suggestion-layer.md` — fiş
   okumada modelin sınırları: öneri katmanıdır, yönü ve ödeme kaynağını seçmez
+- `documentation/adr/0013-business-and-personal-are-one-pool.md` — **zincirin
+  kurucu kararı**: işletme ve şahsi tek havuzda bir boyuttur; mod seçimi ve
+  iki veri alanı reddedildi
 - `documentation/receipt-analysis-api-contract.md`,
   `documentation/receipt-measurement.md` — fiş analizi sözleşmesi ve ölçüm yöntemi
 - `stages/README.md` — aşama zinciri, hangi belge aktif, yeni aşama açma ve
@@ -280,8 +283,10 @@ güncelleme haritası** tablosundadır; kod ve belge aynı commit'te güncelleni
 
 ## Kritik kısıtlar (ihlal etmeyin)
 
-- Yeni aşamanın paket/servis/altyapısını erkenden ekleme (bulut, offline-sync
-  ve açık bankacılık bağımlılıkları kendi aşamaları gelmeden kurulmaz).
+- Yeni aşamanın paket/servis/altyapısını erkenden ekleme (bulut ve offline
+  cache bağımlılıkları kendi aşamaları gelmeden kurulmaz).
+- **Banka bağlantısı / açık bankacılık kapsam dışıdır**; sağlayıcı SDK'sı,
+  adapter veya sandbox eklenmez, ödeme başlatma hiçbir koşulda eklenmez.
 - Migration ve API sözleşme değişikliklerini incelemeden uygulamayın.
 - **Kullanıcı istemedikçe yeni branch açmayın.** Çalışma, kullanıcının o an
   bulunduğu branch üzerinde yapılır; branch/worktree oluşturma, branch değiştirme
@@ -291,7 +296,10 @@ güncelleme haritası** tablosundadır; kod ve belge aynı commit'te güncelleni
   düzenleme `refactor`, düzeltme `fix`.
 - **Tek başına belge commit'i atmayın.** Commit yalnız uygulamada gerçek bir
   geliştirme veya düzeltme olduğunda atılır; belge güncellemesi o kod
-  değişikliğiyle aynı commit'e girer. Ayrıntı `AGENTS.md` "Git sorumluluğu".
+  değişikliğiyle aynı commit'e girer. **İstisna:** ürün yönü ve planlama
+  belgeleri (`PRD-BusinessFinance.md`, `PROJECT-ROADMAP.md`, `stages/`,
+  `documentation/adr/`) kendi başlarına commit edilebilir — kodun kaydı değil,
+  kodun kararıdırlar. Ayrıntı `AGENTS.md` "Git sorumluluğu".
 - **Yapay zekâ imzası bırakmayın.** Commit mesajı, commit gövdesi, branch adı,
   tag, PR başlığı/gövdesi, issue veya kod yorumu — hiçbirinde `Claude`,
   `Claude Code`, `Anthropic`, `AI`/`agent` imzası, `Co-Authored-By:` satırı ya

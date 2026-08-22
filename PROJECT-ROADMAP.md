@@ -2,9 +2,9 @@
 
 ## Amaç
 
-Bu roadmap, PRD'deki kapsamı uygulanabilir geliştirme aşamalarına böler.
-Her aşama ayrı `stages/` belgesinde ayrıntılandırılır. Aşamalar sırayla
-ilerler; sonraki aşama teknolojisi erkenden eklenmez.
+Bu roadmap, ürün kapsamını uygulanabilir geliştirme aşamalarına böler. Her
+aşama ayrı `stages/` belgesinde ayrıntılandırılır. Aşamalar sırayla ilerler;
+sonraki aşama teknolojisi erkenden eklenmez.
 
 ## Devralınan taban
 
@@ -22,72 +22,140 @@ Bu repo, çalışan ve testlerle korunan bir kod tabanıyla başladı. Aşağıd
 | Borç ve alacak | Anüite faiz modeli, açılış kaynağı, anapara/faiz ayrımı |
 | Hedefler | Manuel ve bakiye izleyen tasarruf hedefleri |
 | Birleşik okuma modelleri | Tek SQL sorgusunda gerçekleşmiş feed + planlanan görünüm |
-| Veri taşınabilirliği | CSV içe/dışa aktarma, idempotency, yedek şeması v5 (v2–v5 okur) |
+| Veri taşınabilirliği | CSV içe/dışa aktarma, idempotency, yedekleme ve geri yükleme |
 | Belge ve fiş | Ek saklama, fiş/dekont fotoğrafından öneri üretme (öneri katmanı, ADR 0011) |
 | Tasarım sistemi | Token'lar, pencere sınıfları, ortak bileşenler, erişilebilirlik kapısı |
 
-Bu tabanın **ürün yönü değişti**: kişisel bütçeden şahıs şirketi/esnaf
-finansına. Kod tabanı çift taraflı kayıt mantığı üzerine kurulu olduğu için bu
-değişiklik altyapıyı değil, kapsamı ve kelimeleri etkiler.
+Bu taban **kişisel bütçe** ürünü olarak kuruldu. Çift taraflı kayıt mantığı,
+sahiplik izolasyonu ve para hassasiyeti yeni ürün yönünde de aynen geçerli;
+değişen kapsam ve kelimeler.
+
+## Zincirin kurucu kararı
+
+Bütün zincir tek bir ürün kararının üstünde duruyor: **işletme ve şahsi, tek
+havuzda bir boyuttur** (`documentation/adr/0013-business-and-personal-are-one-pool.md`).
+Şahıs şirketinin tüzel kişiliği olmadığı için işletmenin kasası ile sahibinin
+cebi aynı cep; ayrım bir raporlama boyutudur, ayrı bir veri alanı veya ayrı bir
+mod değildir.
+
+Bu karar sıralamayı da belirliyor: kapsam boyutu en altta, her şey onun üstüne
+oturuyor.
 
 ## Aşama zinciri
 
-Yeni ürün yönüyle birlikte aşama zinciri sıfırdan başlar. Devralınan tabanın
-geçmiş aşama numaraları bu repoya taşınmadı.
-
 | No | Aşama | Ana çıktı | Durum |
 |---:|---|---|---|
-| 01 | Henüz açılmadı | Kapsamı kullanıcı belirler | Kapsam onayı bekliyor |
+| 01 | Kapsam boyutu ve işletme kimliği | Her kayıt işletmeye mi şahsa mı ait olduğunu bilir; işletme kategori seti | Planlandı |
+| 02 | Cari hesap: karşı taraf ve açık bakiye | Müşteri/tedarikçi başına yürüyen bakiye | Planlandı |
+| 03 | Yükümlülük ve vade | Ödenmemiş fatura kendi kabına kavuşur; plan bitiş sınırı | Planlandı |
+| 04 | Kasa, POS ve gezinme | Gün sonu kasa, POS tahsilatı ve bloke; ana sekmeler | Planlandı |
+| 05 | Vergi ve muhasebeci | KDV taşıyan alanlar, vergi takvimi, ay sonu paketi | Planlandı |
+| 06 | Bulut güvenli beta | Ürün kendi makinenden bağımsız çalışır | Planlandı |
 
-İlk aşamanın kapsamı için tartışılan seçenekler (karar verilmedi):
+Altı aşamanın belgesi de `stages/` altında yazılı. `Planlandı` durumundaki bir
+belge yalnız kapsamı kayda geçirir; kullanıcı açıkça onaylayana kadar **Aktif**
+olmaz ve kodu değiştirilmez. Belgeler, sıraları geldiğinde o günkü gerçek
+duruma göre gözden geçirilir.
 
-- **Vergi farkındalıklı kategori** — kategori/hareket başına oran bilgisi ve
-  ay sonu özeti. Hesaplamaz, taşır ve raporlar.
-- **Müşteri/tedarikçi etiketi** — mevcut borç/alacak modelinin hafif
-  genişlemesi; tam cari hesap modülü değil.
-- **Kapsam değişikliği yok** — yalnız konumlandırma değişir, ürün aynı kalır.
+**Üç aşama bir ADR ile açılır**; kararı yazılmadan işe başlanmaz:
+
+| Aşama | Yazılacak karar |
+|---|---|
+| 02 | Ekonomik olay tanır, ödeme taşır — kart, borç ve cari modellerinin ortak kuralı |
+| 04 | Kart borcu ile kart tahsilatının ayrılması; bloke paranın projection olması; sekme kararı |
+| 05 | Vergi alanları taşır, hesaplamaz; oran ve tarihler koda gömülmez |
+
+### 01 — Kapsam boyutu ve işletme kimliği
+
+Uygulama ev bütçesi uygulaması olmaktan çıkar. Kapsam alanı, hesap/kart/kategori
+varsayılanları, işletme kategori seti, onboarding ön ayarı, kapsama duyarlı
+raporlar. Veri sıfırlanır, yedek şeması v6 olur. Bakiye ve net varlık
+bölünmez.
+
+### 02 — Cari hesap: karşı taraf ve açık bakiye
+
+`Counterparty` kendi boyutu olur — kategori değil. Açık hesap: n belge, m kısmi
+tahsilat, yürüyen bakiye; taksit planı zorunluluğu yok. Mevcut sözleşmeli borç
+modeli yerinde kalır ve aynı karşı tarafa bağlanır. Fiş okumanın düz metin
+karşı taraf adı gerçek kayda bağlanır.
+
+### 03 — Yükümlülük ve vade
+
+Tek seferlik yükümlülük kaydı: ödenmemiş fatura artık tekrarlayan plan olmaya
+zorlanmaz. Tekrarlayan plana bitiş sınırı eklenir. Vade, gecikme ve yaklaşanlar
+görünümü; fiş okumanın "henüz ödemedim" yolu buraya bağlanır.
+
+### 04 — Kasa, POS ve gezinme
+
+Gün sonu nakit sayım ve fark. POS tahsilatı: tahsilat → bloke → hesaba geçiş,
+komisyon ayrı gider. Ana sekme yapısı ve `İşlem ekle` menüsü bu aşamada
+yeniden kurgulanır — kasanın oturacağı yer burasıdır ve menü burada taşar.
+
+### 05 — Vergi ve muhasebeci
+
+Hareket başına KDV oranı ve tutarı (taşınır, hesaplanmaz). İndirilebilirlik
+**ayrı** bayrak olarak eklenir; kapsamla birleştirilmez. Vergi/SGK takvimi.
+Ay sonu muhasebeci paketi. Tasarruf hedefi "vergi karşılığı" olarak
+konumlanır; yeni modül yazılmaz.
+
+### 06 — Bulut güvenli beta
+
+Container yayını, yönetilen veritabanı, HTTPS, secret yönetimi, e-posta
+doğrulama, parola sıfırlama, izleme, otomatik yedek, Google Play kapalı test.
+
+## Yedek şeması sürümleri
+
+Aşama 01'den 05'e her aşama yedek şemasını bir sürüm ilerletir (v6 → v10) ve
+**yalnız kendi sürümünü okur.** Bu bilinçli: her aşama yedeğin taşıması gereken
+yeni bir alan ekliyor ve eski yedekte o alan **yok**; bir değer uydurmak,
+olmamış bir geçmiş uydurmak olurdu (aynı gerekçe ADR 0013 ve ADR 0012'de).
+
+Bunun bedeli, geliştirme sırasında bir aşamada alınan yedeğin bir sonrakinde
+geri yüklenememesidir. Gerçek kullanıcı verisi olmadığı sürece kabul edilebilir.
+**Aşama 06'dan sonra bu serbestlik kapanır**: gerçek veri geldiğinde yedek
+uyumluluğu bir yükseltme yolu olmak zorundadır.
 
 ## Sonraki kilometre taşları
 
-Aşağıdakiler yön göstergesidir; belgeleri sırası geldiğinde o günkü gerçek
-duruma göre yazılır. Şu an hiçbiri bağlayıcı değildir.
+Yön göstergesidir; şu an hiçbiri bağlayıcı değildir.
 
 | Kilometre taşı | İçerik |
 |---|---|
-| Bulut güvenli beta | Bulut yayını, e-posta doğrulama, izleme, Play kapalı test |
-| Offline okunabilir cache | Bağlantısız görüntüleme |
-| Tam offline senkronizasyon | Kuyruk, idempotency ve conflict çözümü |
-| Read-only açık bankacılık | Sandbox/provider adapter ve mutabakat |
+| Offline okunabilir cache | Bağlantısız görüntüleme, cache yaşı ve bağlantı durumu |
 | Yatırım ve çoklu para birimi | Portföy, kur ve fiyat veri modeli |
-| Production, iOS ve kalite | Google Play, iOS, güvenlik ve operasyon |
+| Production, iOS ve kalite | Google Play production, iOS, güvenlik ve operasyon |
 
-## Aşama mekanizması
+## Kapsam dışı bırakılanlar
 
-- Kapsamı kullanıcı belirler; onay olmadan belge açılmaz.
-- Kapsam **açık** da olabilir: aşama tek bir tezle değil, kullanıldıkça çıkan
-  işlerin biriktiği bir listeyle yürür ve kullanıcı kapatmak istediğinde
-  kapanır. Kalite kapıları aynen geçerlidir.
-- Belge `templates/STAGE-TEMPLATE.md` kopyalanarak oluşturulur.
-- Açma, aktif etme ve kapatma adımları `stages/README.md` içindedir.
-- Aynı anda yalnız bir aşama **Aktif** olur.
+Devralınan plandan **çıkarılan** işler ve gerekçeleri:
+
+| Çıkarılan | Gerekçe |
+|---|---|
+| Read-only açık bankacılık | Sağlayıcı, yetkilendirme ve sözleşme süreçleri ürünün kontrolü dışında; CSV içe aktarma aynı ihtiyacın çalışan karşılığı |
+| Tam offline senkronizasyon | Kuyruk, idempotency ve conflict çözümü, online ürün oturmadan ödenecek bir maliyet. **04 buluta çıktığında yeniden değerlendirilir**: dükkânda internet kesikken satış kaydedilemiyorsa uygulama o an işe yaramaz |
+| Personel ve bordro | Tek başına aşama büyüklüğünde; SGK tarafı vergi sınırına değiyor |
+| Stok ve satılan malın maliyeti | Muhasebe kârı hesaplamak demek; ürün sınırının dışında |
+| Muhasebe ve beyanname | Ürün vergi hesaplamaz, taşır ve raporlar |
 
 ## Bağımlılık kuralları
 
-- Online ürün kararlı olmadan offline yazma veya banka senkronizasyonu eklenmez.
+- Kapsam boyutu (01) oturmadan cari, fatura veya vergi alanı eklenmez; hepsi
+  kapsamın üstüne oturur.
+- Karşı taraf (02) gerçek bir kayıt olmadan fatura karşı tarafa bağlanmaz.
 - Bulut güvenlik kapısı tamamlanmadan gerçek finansal veri veya dış test
   kullanıcısı eklenmez.
-- CSV idempotency kanıtlanmadan canlı banka hareketi eşleştirmesi yapılmaz.
+- Vergiye dair hiçbir alan hesaplayan bir alana dönüştürülmez; taşır ve
+  raporlar.
+- İndirilebilirlik bayrağı kapsam alanıyla birleştirilmez (ADR 0013).
 - Manuel yatırım modeli doğrulanmadan fiyat API'si eklenmez.
-- Vergiye dair hiçbir alan, PRD'deki ürün sınırı gözden geçirilmeden
-  hesaplayan bir alana dönüştürülmez.
 
 ## Her aşamanın ortak yapısı
 
 Her aşama belgesi şunları içerir:
 
 - Amaç ve kullanıcıya katkı
-- Seçimin nedeni ve trade-off'u
-- Uygulanacak çalışma grupları
+- Değiştirilmeyecek mimari kararlar
+- Çalışma grupları
 - Zorunlu test ve doğrulamalar
 - Belge ve güvenlik güncellemeleri
 - Açıkça kapsam dışında kalan işler
@@ -106,6 +174,7 @@ Her aşama belgesi şunları içerir:
 ## Kaynak belgeler
 
 - Ürün ve kapsam: `PRD-BusinessFinance.md`
+- Kurucu kapsam kararı: `documentation/adr/0013-business-and-personal-are-one-pool.md`
 - Çalışma kuralları ve belge güncelleme haritası: `AGENTS.md`
 - Güncel durum: `docs/project-status.md`
 - Aşama zinciri ve yaşam döngüsü: `stages/README.md`

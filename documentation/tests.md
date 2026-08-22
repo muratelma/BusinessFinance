@@ -45,7 +45,7 @@ veritabanı ile tek `InitialCreate`'ten kurulan veritabanının 543 satırlık t
 |---|---|---|---|---|
 | Health | SQL olmadan process yaşamaya devam eder | live 200; ready 503, toparlanınca 200 | `HealthEndpointTests`; kontrollü Compose stop/start | Geçti |
 | Auth yaşam döngüsü | Eski refresh ve logout sonrası restore reddedilir | Rotation, protected çağrı, local temizlik | `stage9_auth_acceptance_test.dart` | Pixel 8 geçti |
-| Kullanıcı izolasyonu | B, A kaynağını okuyamaz | Boş liste/aggregate; A kendi verisini görür | Stage 9 auth ve finance integration | Pixel 8 geçti |
+| Kullanıcı izolasyonu | B, A kaynağını okuyamaz | Boş liste/aggregate; A kendi verisini görür | auth ve finance integration | Pixel 8 geçti |
 | Finans matematiği | İptal kayıt toplamından çıkar | 1000+250-125,5=1124,5; iptal sonrası 1250 | `stage9_finance_acceptance_test.dart` | Pixel 8 geçti |
 | Filtreler | Filtre owner kapsamından sonra uygulanır | Tarih/tür/hesap/kategori doğru satırı döndürür | Finance integration + transaction widget | Geçti |
 | Bütçe | Gider ve iptal server-side hesaplanır | spent/remaining/exceeded doğru | Finance integration + API tests | Geçti |
@@ -79,7 +79,7 @@ veritabanı ile tek `InitialCreate`'ten kurulan veritabanının 543 satırlık t
 
 - Fiziksel Android cihazda gerçek Wi-Fi/USB ve hardware-backed secure storage.
 - Production signing/HTTPS tamamlandığında release APK üzerinde kurulum kapısı.
-- Stage 15 idempotency key eklendiğinde aynı transaction POST'un ağ seviyesinde
+- İdempotency key eklendiğinde aynı transaction POST'un ağ seviyesinde
   tekrarına negatif integration testi.
 - Daha geniş ekran, font scaling ve TalkBack ile manuel erişilebilirlik turu.
 
@@ -130,7 +130,7 @@ Test projesi: `src/BusinessFinance.Domain.Tests`
 | Token yenileme ve çıkış | 8 | Rotation, expiry, revoke/reuse, pasif kullanıcı, bilinmeyen token ve idempotent logout |
 | Transfer use case'leri | 5 | Current-user sahipliği, iki hesap doğrulaması, create/list/get/cancel |
 | Kart/ekstre/taksit use case'leri | 10 | Limit/borç, activity, projection, idempotent plan, atomik realize; oran gönderilmediğinde oluşturmada varsayılan, güncellemede mevcut oranın korunması |
-| Stage 11 recurring/upcoming/advanced report | 16 | Current-user plan üretimi/onayı, bounded tarih girdileri, üç kaynaklı feed ve rapor orkestrasyonu |
+| Recurring/upcoming/advanced report | 16 | Current-user plan üretimi/onayı, bounded tarih girdileri, üç kaynaklı feed ve rapor orkestrasyonu |
 | Toplam | 191 | Release test çalıştırmasında 191/191 başarılı |
 
 Test projesi: `src/BusinessFinance.Application.Tests`
@@ -144,7 +144,7 @@ Test projesi: `src/BusinessFinance.Application.Tests`
 | Aktif kullanıcı ID sorgusu | 2 | Aktif kullanıcının dönmesi ve pasif kullanıcının reddedilmesi |
 | JWT ve refresh üretimi | 4 | İmza/issuer/audience/claim'ler, süre, rastgelelik, hash ve signing key alt sınırı |
 | EF Core/Identity persistence modeli | 3 | SQL Server provider ve EF store DI, Identity tabloları/unique email index'i, eksik connection string reddi |
-| Finans/session mapping'leri | 9 | Stage 10/11 tabloları, recurring/occurrence rowversion, composite sahiplik FK'leri ve owner-scoped index'ler |
+| Finans/session mapping'leri | 9 | Finans ve planlama tabloları, recurring/occurrence rowversion, composite sahiplik FK'leri ve owner-scoped index'ler |
 | Migration tekliği ve model eşitliği | 1 | Tek `InitialCreate`, `HasPendingModelChanges` yok, 27 tablo / 65 indeks / 81 check / 58 FK / 11 unique sayımı ve finansal kuralı taşıyan adlandırılmış kısıt-indeksler |
 | Gerçek SQL persistence | 35 | Önceki senaryolar + recurring/upcoming/advanced report, attachment/import/debt/savings kapsamları, owner izolasyonu ve 5.000 hareket/20 kart performans sınırı |
 | Fiş görüntüsü ön işleme | 10 | EXIF rotasyonun piksele işlenmesi, uzun kenar ölçekleme, koşullu kontrast (karanlık kalkıyor, aydınlık dokunulmuyor), PNG→JPEG, bozuk içeriğin istisna değil `Reject` dönmesi, pass-through varyantının byte'ları değiştirmemesi |
@@ -165,17 +165,17 @@ projesindedir; yöntem ve tarihli sonuçlar
 |---|---:|---|
 | Pipeline ve DI | 2 | Güvenli 500 ProblemDetails, `AnalyzeReceiptUseCase` dahil use case kayıtları |
 | Auth HTTP akışları | 7 | Register/login, duplicate, parola, rotation/reuse, logout, 429 |
-| Development OpenAPI | 1 | Auth, Stage 7/10/11 ve fiş analizi path-metot/response sözleşmelerinin doğrulanması |
+| Development OpenAPI | 1 | Auth, finans, planlama ve fiş analizi path-metot/response sözleşmelerinin doğrulanması |
 | Current-user claim sınırı | 5 | Geçerli sub GUID ve eksik/bozuk/boş claim reddi |
 | Secret yapılandırması | 2 | appsettings içinde JWT signing key ve connection string bulunmaması |
 | Hesap HTTP ve izolasyon | 9 | 201/400/401/409, pagination/filter/sort, iki kullanıcı ayrımı |
 | Transaction contract/query | 11 | 401/200, sekiz filtre hatası, binding formatı ve boş owner-scoped sayfa |
-| Stage 7 finansal yazma HTTP | 3 | Açılış+hareket-iptal bakiyesi, owner-scoped varsayılan kategoriler, çapraz kullanıcı/pasif/tür uyumu reddi |
-| Stage 7 sorgu/bütçe/rapor HTTP | 3 | Ay sınırı ve deterministik sıra; bütçe kullanım/aşım/güncelleme; iptal ve başka kullanıcı verisini dışlayan rapor |
+| Finansal yazma HTTP | 3 | Açılış+hareket-iptal bakiyesi, owner-scoped varsayılan kategoriler, çapraz kullanıcı/pasif/tür uyumu reddi |
+| Sorgu/bütçe/rapor HTTP | 3 | Ay sınırı ve deterministik sıra; bütçe kullanım/aşım/güncelleme; iptal ve başka kullanıcı verisini dışlayan rapor |
 | Bozuk JSON sözleşmesi | 1 | Boş 400 yerine request.invalid_format ProblemDetails |
 | Gerçek SQL API akışı | 1 | Register/login, account, hazır category, expense transaction, monthly budget ve report zinciri |
-| Stage 10 finans HTTP | 13 | Transfer/izolasyon, kart CRUD, charge/payment, ekstre, güncel ekstre ucu (sahiplik dâhil), asgari ödeme alanları, 100 üstü oran reddi ve idempotent taksit realize |
-| Stage 11 HTTP | 4 | Recurring create/generate/realize, upcoming sınıflandırma ve advanced report money-string sözleşmesi |
+| Finans HTTP | 13 | Transfer/izolasyon, kart CRUD, charge/payment, ekstre, güncel ekstre ucu (sahiplik dâhil), asgari ödeme alanları, 100 üstü oran reddi ve idempotent taksit realize |
+| Planlama HTTP | 4 | Recurring create/generate/realize, upcoming sınıflandırma ve advanced report money-string sözleşmesi |
 | Fiş analizi HTTP | 9 | Auth 401; JPEG/PNG, magic byte ve 5 MiB kapıları; owner kategori pozitif/negatif; provider hata statüleri; kullanıcı-partition'lı 429; InMemory ve gerçek SQL'de analiz sonrası owner finans satırlarının değişmemesi; sağlayıcı sahte, ağ yok |
 | Toplam | 117 | Gerçek SQL bağlantılı Release API testinde 117/117 başarılı |
 
@@ -204,8 +204,8 @@ Test klasörü: `mobile/business_finance_mobile/test`
 | Android emulator smoke | 1 | Gerçek SQL/API ile register, login, hesap oluşturma, gider kaydı ve dashboard bakiye zinciri |
 | Auth kabul | 1 | Restore, refresh rotation, eski token reddi, logout temizliği ve A/B izolasyonu |
 | Finans kabul | 1 | Gelir/gider matematiği, dört filtre, bütçe, iptal, pasifleştirme ve A/B izolasyonu |
-| Stage 10 finans kabul | 1 | Transfer, kart harcama/ödeme, ekstre, plan create ve item realize retry idempotency |
-| Stage 11 planlama kabul | 1 | Recurring create, çift generate/tek occurrence, upcoming, realize ve advanced report |
+| Finans kabul | 1 | Transfer, kart harcama/ödeme, ekstre, plan create ve item realize retry idempotency |
+| Planlama kabul | 1 | Recurring create, çift generate/tek occurrence, upcoming, realize ve advanced report |
 | Toplam | 5 | Pixel 8 emulatoründe her senaryo bağımsız gerçek API penceresinde 5/5 başarılı |
 
 Test klasörü: `mobile/business_finance_mobile/integration_test`
@@ -226,8 +226,8 @@ Test klasörü: `mobile/business_finance_mobile/integration_test`
 - Flutter format: kaynak/test kapsamındaki 83 dosyada değişiklik gerektirmedi
 - Flutter analyze: Sorun bulunmadı
 - Flutter unit/widget testleri: 71/71 başarılı
-- Flutter gerçek API emulator integration testleri: Stage 8 smoke 1/1; Stage 9
-  auth 1/1; Stage 9 finance 1/1; Stage 10 finance 1/1; Stage 11 planning 1/1 başarılı
+- Flutter gerçek API emulator integration testleri: smoke 1/1; auth 1/1;
+  finance 1/1; kart/transfer 1/1; planning 1/1 başarılı
 - Android debug APK build: Başarılı
 
 ## Bilinen ortam engeli
@@ -235,7 +235,7 @@ Test klasörü: `mobile/business_finance_mobile/integration_test`
 Windows Uygulama Denetimi bazı çalıştırmalarda üretilen assembly'leri
 `0x800711C7` ile engelliyor. Güvenlik politikası değiştirilmedi. Aynı
 kaynak, repository salt bind mount edilerek resmi `.NET SDK 10.0` Linux
-container'ında çalıştırıldı. Stage 12 finalinde Compose SQL bağlantısıyla Domain
+container'ında çalıştırıldı. Devralınan tabanın finalinde Compose SQL bağlantısıyla Domain
 128/128, Application 77/77, Infrastructure 68/68 ve API 73/73 olmak üzere
 346/346 geçti. Migration, constraint, yarış, backup round-trip ve SQL-backed
 finans HTTP akışları doğrulandı. API executable wrapper'ı
@@ -248,7 +248,7 @@ entegrasyon kabulünde yine policy tarafından engellendi; aynı derlenmiş API 
   yerel MVP kapısında Pixel 8 emulatorü kullanıcı onayıyla kabul edildi
 - Geniş gerçek ekran ve erişilebilirlik servisleriyle manuel kontrol
 
-## Stage 12 kapsam eki
+## Import, attachment ve restore test kapsamı
 
 | Katman | Yeni kanıt |
 |---|---|
@@ -285,7 +285,7 @@ entegrasyon kabulünde yine policy tarafından engellendi; aynı derlenmiş API 
   `flutter analyze` temizdir. Profil seçimi ile engel dialogunun Pixel 8 manuel
   kabulü checklist'te `[~]` olarak açık kalır.
 
-Stage 12 final kalite kapısı 11 Ağustos 2026 tarihinde tamamlandı:
+Devralınan taban için final kalite kapısı 11 Ağustos 2026 tarihinde tamamlandı:
 
 - Domain 128/128, Application 77/77, Infrastructure 68/68 ve API 73/73;
   toplam 346/346, skip yok
@@ -297,7 +297,7 @@ Stage 12 final kalite kapısı 11 Ağustos 2026 tarihinde tamamlandı:
 - Fiziksel Android cihazda picker/share manuel kabulü çalıştırılmadı; yayın
   öncesi kapıda açık kalır
 
-## Stage 12.6 tasarım sistemi test kapsamı
+## Tasarım sistemi test kapsamı
 
 ### Token ve kontrast kapısı
 
@@ -419,7 +419,7 @@ doğrulamak aynı şey değildir.
 Yeni bir ekran eklendiğinde bu kapı da eklenir; aksi hâlde ekran ölçek ve
 kontrast kurallarının dışında kalır.
 
-## Stage 12.7 form paneli ve seçici test kapsamı
+## Form paneli ve seçici test kapsamı
 
 ### Panel kapanışı — gerçek bir çökmeyi kapatan regresyon
 
@@ -490,7 +490,7 @@ gizliyordu — sahte verinin kısa olması, testin geçmesinin sebebiydi.
 
 Kapı `isExpanded` geri alınarak doğrulandı: 1717 px taşmayla düştü.
 
-## Stage 12.8 borç kapsamı
+## Borç test kapsamı
 
 | Kapı | Nerede | Neyi tutuyor |
 |---|---|---|
@@ -512,7 +512,7 @@ açılır listeyi hiç açmadan "geçiyordu". Kaynak alanına ayrıca bir `Key`
 verildi; alanı sırasına göre bulmak, araya yeni bir alan eklendiğinde sessizce
 başka bir alanı ölçmeye başlar.
 
-## Stage 12.11 — yön, belge türleri ve belge başına dallanma
+## Yön, belge türleri ve belge başına dallanma
 
 | Ne kanıtlanıyor | Nerede | Nasıl |
 |---|---|---|
@@ -543,7 +543,7 @@ başka bir alanı ölçmeye başlar.
 | Tahsilat hesabı önceden seçili değil | aynı | `Seç` hesap seçilene kadar pasif |
 | Taksit planı satırları aynı boyda | `finance_feature_test` | `Gerçekleşti` rozeti / `Gerçekleştir` metin butonu; dolgulu buton yok |
 
-## Stage 12.10 Grup 5 — Flutter fiş yakalama
+## Flutter fiş yakalama
 
 | Kapı | Nerede | Neyi tutuyor |
 |---|---|---|
@@ -576,7 +576,7 @@ düşüyordu ve "2400'e iniyor" kapısı yanlış sebeple kırmızıydı. Girdi 
 fotoğraf entropisine (yumuşak geçiş + hafif doku) çevrildi, patolojik durum
 ayrı bir kapı oldu.
 
-## Stage 12.10 Grup 6 — onay formu
+## Fiş onay formu
 
 | Kapı | Nerede | Neyi tutuyor |
 |---|---|---|
@@ -599,7 +599,7 @@ ayrı bir kapı oldu.
 kategori önerisinin forma yazılması ayrı ayrı kırıldı; ikisi de kırmızıya
 düştü, geri alınınca yeşile döndü.
 
-## Stage 12.10 Grup 7 — kayıt, belge ve rıza kapısı
+## Fiş kaydı, belge ve rıza kapısı
 
 | Kapı | Nerede | Neyi tutuyor |
 |---|---|---|
@@ -624,7 +624,7 @@ yeniden yazıldı; artık uyarının form kapandıktan sonra görüldüğünü s
 ve belge hatasının kullanıcıya söylenmesi ayrı ayrı kırıldığında kırmızıya
 düştüler.
 
-## Stage 12.10 belge türü kapısı (19 Ağustos 2026 cihaz bulgusundan)
+## Belge türü kapısı (19 Ağustos 2026 cihaz bulgusundan)
 
 | Kapı | Nerede | Neyi tutuyor |
 |---|---|---|
@@ -643,7 +643,7 @@ düştüler.
 **Kapı kod bozularak sınandı:** `canRetry` eski hâline (her hatada açık)
 çevrildiğinde dekont testi kırmızıya düştü.
 
-## Stage 12.10 saha koşumu düzeltmeleri (19 Ağustos 2026)
+## Fiş saha koşumu düzeltmeleri (19 Ağustos 2026)
 
 | Kapı | Nerede | Neyi tutuyor |
 |---|---|---|

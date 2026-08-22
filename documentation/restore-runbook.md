@@ -55,4 +55,4 @@ Restore “undo” endpoint'i içermez. Başarısız restore atomik rollback yap
 manuel tablo silme uygulanmaz. Beklenmeyen kısmi durum görülürse servisi durdur,
 sentetik hedefi izole et, trace id ve DB/object metadata sayımlarını kaydet. Kaynak
 backup dosyasını değiştirme. Gerçek veri için olay müdahalesi, şifreleme anahtarı,
-retention ve yönetilen object store prosedürü Stage 13 öncesinde ayrıca yazılmalıdır.
+retention ve yönetilen object store prosedürü bulut aşamasından (Aşama 06) önce ayrıca yazılmalıdır.

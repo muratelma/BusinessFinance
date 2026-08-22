@@ -1,4 +1,4 @@
-# MVP-1 Yerel Kurulum ve Kabul Rehberi
+# Yerel Kurulum ve Kabul Rehberi
 
 Bu rehber Windows üzerinde SQL Server, ASP.NET Core API ve Pixel 8 Android
 emulatorünü birlikte çalıştırır. Yalnız sentetik veri kullanılır. Fiziksel cihaz
@@ -112,14 +112,14 @@ Gerçek ad, e-posta, parola, hesap veya finansal açıklama kullanmayın.
 | Register/login | Otomatik+manuel | Geçerli kullanıcı korumalı shell'e girer | `stage8_smoke_test.dart` |
 | Session restore/refresh | Otomatik | Yeniden oluşturulan uygulama oturumu açar; token döner | `stage9_auth_acceptance_test.dart` |
 | Logout/local temizlik | Otomatik | Secure storage boş; eski refresh reddedilir | `stage9_auth_acceptance_test.dart` |
-| İki kullanıcı izolasyonu | Otomatik | B, A'nın verisini görmez; A kendi verisini görür | Stage 9 auth+finance testleri |
+| İki kullanıcı izolasyonu | Otomatik | B, A'nın verisini görmez; A kendi verisini görür | auth+finance integration testleri |
 | Hesap/gelir/gider matematiği | Otomatik | 1.000 + 250 - 125,50 = 1.124,50 | `stage9_finance_acceptance_test.dart` |
-| Tarih/tür/hesap/kategori filtreleri | Otomatik | Yalnız seçilen ve current-user kapsamlı satırlar | Stage 9 finance + widget testleri |
-| Bütçe spent/remaining/exceeded | Otomatik | 125,50 / 0 / 25,50; iptal sonrası 0 / 100 / 0 | Stage 9 finance testi |
-| Dashboard/rapor | Otomatik | Gelir 250; gider 125,50; net 124,50 | Stage 9 finance testi |
-| Hesap pasifleştirme | Otomatik | Seçenek listesinden düşer, yeni hareket 400 | Stage 9 finance testi |
+| Tarih/tür/hesap/kategori filtreleri | Otomatik | Yalnız seçilen ve current-user kapsamlı satırlar | finance + widget testleri |
+| Bütçe spent/remaining/exceeded | Otomatik | 125,50 / 0 / 25,50; iptal sonrası 0 / 100 / 0 | finance integration testi |
+| Dashboard/rapor | Otomatik | Gelir 250; gider 125,50; net 124,50 | finance integration testi |
+| Hesap pasifleştirme | Otomatik | Seçenek listesinden düşer, yeni hareket 400 | finance integration testi |
 | API kapalı ve tekrar deneme | Manuel+unit | Güvenli ağ hatası; API dönünce toparlanır | Kullanıcı gözlemi + `api_client_test.dart` |
-| SQL kapalı | Manuel | Live 200, ready 503; SQL dönünce ready 200 | Stage 9 kontrollü stop/start |
+| SQL kapalı | Manuel | Live 200, ready 503; SQL dönünce ready 200 | kontrollü stop/start |
 | Validation/boş veri | Widget+unit | Alan hatası veya açıklayıcı boş durum | transaction/budget widget testleri |
 | Timeout/çift gönderim | Unit | Açık timeout; istemci aynı submit'i kilitler | ApiClient/controller testleri |
 
@@ -145,5 +145,5 @@ docker compose stop sqlserver
 
 Gerçek Wi-Fi yönlendirmesi, Windows firewall izni, USB/ADB, üretici Android
 katmanı ve donanım destekli secure storage fiziksel cihaz olmadan kanıtlanamaz.
-Bunlar haricî test veya mağaza yayını öncesinde ayrı kapıdır; yerel MVP-1'in
+Bunlar haricî test veya mağaza yayını öncesinde ayrı kapıdır; yerel kabulün
 Pixel 8 emulator kabulünü geçersiz kılmaz.

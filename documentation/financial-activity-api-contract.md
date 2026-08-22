@@ -1,16 +1,13 @@
-# Finansal Hareket API Sözleşmesi (Aşama 12.5)
+# Finansal Hareket API Sözleşmesi
 
-- Durum: Bu belge Aşama 12.5 Grup 1 çıktısıdır ve Grup 2–10'un hedefini
-  tanımlar. **Uygulanan bölümler ayrıca işaretlidir:** birleşik feed (bölüm 1),
-  recurring source (bölüm 3), origin-aware iptal (bölüm 4), migration planı ve
-  backup v2→v3 ve planlanan görünüm (bölüm 2) çalışır durumdadır. Backend
-  bölümlerinin tamamı uygulanmıştır; kalan gruplar Flutter tarafıdır.
+- Durum: **Uygulandı.** Bu belge çalışan davranışı tarif eder; birleşik feed
+  (bölüm 1), planlanan görünüm (bölüm 2), recurring source (bölüm 3) ve
+  origin-aware iptal (bölüm 4) backend ve Flutter tarafında yerindedir.
 - İlgili kararlar: `documentation/adr/0004-unified-financial-activity-read-model.md`,
   `documentation/adr/0005-recurring-transaction-source.md`
-- Aşama planı: Aşama 12.5 belgesi — önceki repoda (`Kisisel-Butce-Mobil`)
 
-Uygulandıkça `documentation/tests.md`, `flows.md` ve `permissions.md` gerçek
-durumla güncellenir.
+Sözleşme değişirse `documentation/tests.md`, `flows.md` ve `permissions.md`
+aynı commit'te güncellenir.
 
 ## Ortak sözleşme kuralları
 
@@ -44,7 +41,7 @@ Bu beş boyut bağımsızdır; tek eksene indirgenmez (bkz. ADR 0004).
 | `card-payment` | `CreditCardPayment` |
 | `debt-payment` | Ödenmiş `DebtInstallment`, `direction=payable` |
 | `debt-collection` | Tahsil edilmiş `DebtInstallment`, `direction=receivable` |
-| `debt-opening` | Borcun doğduğu an (Aşama 12.8). Nakit kaynakta `neutral`, gider kaynakta `expense` |
+| `debt-opening` | Borcun doğduğu an. Nakit kaynakta `neutral`, gider kaynakta `expense` |
 
 ### `effect`
 
@@ -593,63 +590,17 @@ zaten geri alma yolu yoktur; `canCancel=false` sabittir.
 
 ---
 
-## Migration planı — inceleme kapısı
+## Migration ve backup notu
 
-> **Uygulandı (Grup 2)** — `Stage125RecurringSource`. İnceleme iki hata yakaladı:
-> EF `SourceType`'ı `defaultValue: 0` ile üretmişti (check constraint yalnız 1–2
-> kabul ediyor, SQL Server yeni CHECK'i mevcut satırlara doğruluyor), ve `Down()`
-> kart kaynaklı satırların `AccountId`'sini sessizce boş GUID'e çeviriyordu.
+Bu sözleşmeyi kuran migration'lar artık ayrı dosyalar olarak **yok**: şema tek
+bir `InitialCreate` ile kuruluyor ve devralınan zincir taşınmadı (ADR 0012).
+Sözleşmenin şema karşılığı bugünkü modelde birebir duruyor; buradaki adım adım
+yükseltme planı tarihsel değerini yitirdiği için kaldırıldı.
 
-| Adım | İşlem | Risk |
-|---|---|---|
-| 1 | `SourceType` kolonu **nullable** eklenir | yok |
-| 2 | Mevcut tüm satırlar `Account` olarak backfill edilir | veri kaybı riski — gerçek SQL testi zorunlu |
-| 3 | `SourceType` `NOT NULL` yapılır | backfill eksikse fail; adım 2'den sonra |
-| 4 | `CreditCardId` nullable kolonu + owner-scoped composite FK | yok |
-| 5 | `AccountId` `NOT NULL` → nullable gevşetilir | yok (gevşetme) |
-| 6 | Occurrence'a `CreditCardChargeId` nullable + composite FK | yok |
-| 7 | Exact-one check constraint'leri (source ve realization) | mevcut veri ihlal ederse fail; adım 2–6'dan sonra |
-| 8 | Sonuç bağlantılarında filtered unique index | duplicate varsa fail |
+Yedek şemasının güncel sürümü ve hangi sürümlerin okunduğu tek yerde,
+`documentation/restore-runbook.md` içinde tutulur.
 
-Kurallar:
-
-- Commit edilmiş migration geçmişi **yeniden yazılmaz**; bu yeni bir migration'dır.
-- Backfill ile constraint aynı migration içinde ve doğru sırada olmalıdır.
-- Migration `docs/project-status.md`'ye yalnız yerel SQL Server'a **uygulandıktan
-  sonra** yazılır.
-- Gerçek SQL testi: migration öncesi oluşturulan recurring kaydın migration
-  sonrası `SourceType=Account` ve `AccountId` dolu kaldığını kanıtlar.
-
-## Backup v2 → v3 uyumluluk planı
-
-> **Uygulandı (Grup 3).** `SchemaVersion = 3`, kabul edilen sürümler `{2, 3}`.
-> Validate ve restore cevabı artık zarfın gerçek sürümünü döndürüyor (önceden
-> build sabitini döndürüyordu; tek sürüm varken fark edilmiyordu).
-
-Grup 3 öncesi durum: `EfDataPortabilityRepository.SchemaVersion = 2` ve
-`envelope.SchemaVersion != SchemaVersion` **kesin eşitlik** kontrolü vardı —
-yani v2 dışındaki her backup reddediliyordu.
-
-Hedef:
-
-| Yön | Davranış |
-|---|---|
-| Yazma | Yalnız **v3** üretilir |
-| Okuma v3 | Recurring source ve `CreditCardChargeId` kayıpsız restore edilir |
-| Okuma v2 | **Kabul edilir**; recurring kayıtları `SourceType=Account` olarak yükseltilir |
-| Okuma diğer | `backup.unsupported_schema_version` ile reddedilir |
-
-Uygulama notu: kesin eşitlik kontrolü `{2, 3}` allowlist'ine çevrilir ve v2
-girdisi parse aşamasında v3 iç modeline yükseltilir. Bozuk source kombinasyonu
-(iki kaynak dolu veya ikisi de boş) **veri yazılmadan önce**, mevcut strict
-graph validation aşamasında reddedilir.
-
-Restore'un mevcut güvenlik sınırları değişmez: yalnız boş current-user alanına,
-GUID remap ile ve Serializable transaction içinde.
-
----
-
-## Test matrisi (Grup 1 çıktısı — henüz uygulanmadı)
+## Test matrisi
 
 ### Domain
 

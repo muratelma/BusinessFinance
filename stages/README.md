@@ -9,10 +9,19 @@ sonra aşağıdaki tablodan **aktif** işaretli belge okunur.
 
 | Aşama | Belge | Durum | Not |
 |---|---|---|---|
-| 01 | Henüz açılmadı | Kapsam onayı bekliyor | Kapsamı kullanıcı belirler; seçenekler `PROJECT-ROADMAP.md` içinde |
+| 01 | `01-kapsam-boyutu-ve-isletme-kimligi.md` | Planlandı | Kapsam onaylandı; kullanıcı onayıyla Aktif olur |
+| 02 | `02-cari-hesap-ve-karsi-taraf.md` | Planlandı | ADR ile açılır: ekonomik olay tanır, ödeme taşır |
+| 03 | `03-yukumluluk-ve-vade.md` | Planlandı | 02'nin devrettiği tutarsızlığı kapatır |
+| 04 | `04-kasa-pos-ve-gezinme.md` | Planlandı | ADR ile açılır: kart borcu ile kart tahsilatı ayrımı |
+| 05 | `05-vergi-ve-muhasebeci.md` | Planlandı | ADR ile açılır: vergi alanları taşır, hesaplamaz |
+| 06 | `06-bulut-guvenli-beta.md` | Planlandı | Gerçek finansal veriye geçiş kapısı |
 
-Devralınan kod tabanının geçmiş aşama numaraları (00–12.11) bu repoya
-taşınmadı; o kayıt önceki repoda durur. Buradaki zincir 01'den başlar.
+Zincirin tamamı ve her aşamanın gerekçesi `PROJECT-ROADMAP.md` içindedir.
+Kurucu ürün kararı `documentation/adr/0013-business-and-personal-are-one-pool.md`
+belgesindedir: işletme ve şahsi tek havuzda bir boyuttur.
+
+Devralınan kod tabanının geçmiş aşama numaraları bu repoya taşınmadı; o kayıt
+önceki repoda durur. Buradaki zincir 01'den başlar.
 
 `Planlandı` durumundaki bir belge yalnız kapsamı kayda geçirir; kullanıcı
 açıkça onaylayana kadar **Aktif** olmaz ve kodu değiştirilmez.

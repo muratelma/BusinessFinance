@@ -1,6 +1,6 @@
 # Fiş analizi ölçüm koşumu
 
-Bu araç Aşama 12.10'un Grup 4 ile Grup 5 arasındaki **manuel veri toplama**
+Bu araç fiş analizi geliştirmesindeki **manuel veri toplama**
 kapısıdır. Üretim uygulamasına bağlanmaz, gerçek finansal veri kabul etmez ve
 yalnız kodla çizilen 30 sentetik fişi kullanır.
 

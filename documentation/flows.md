@@ -13,7 +13,7 @@ geçişini, `ALLOW/DENY` yetkilendirme kararını gösterir.
 HTTP request
   -> Global exception boundary
   -> HTTPS redirection
-  -> route/endpoint (Aşama 05 gruplarında eklenir)
+  -> route/endpoint
   -> Application use case
   -> HTTP response
 
@@ -100,7 +100,7 @@ forwarded IP header'larına güvenilmez.
 
 ```text
 AccountId request'i
-  -> doğrulanmış JWT sub claim'i (Aşama 05)
+  -> doğrulanmış JWT sub claim'i
   -> ICurrentUser.UserId
   -> Get/Deactivate use case
   -> repository: AccountId AND UserId
@@ -189,7 +189,7 @@ GET /api/v1/reports/monthly veya /api/v1/dashboard
   -> tek MonthlyReportResponse
 ```
 
-## Stage 10 finansal akış ve yan etki haritası
+## Finansal akış ve yan etki haritası
 
 ```text
 Authenticated request
@@ -276,7 +276,7 @@ yazar ve ayrıntı panelinde `Anapara` / `Faiz (gider)` kırılımı durur. Söz
 iki payı da taşır (`principalPortion`, `interestPortion`); anapara istemcide
 çıkarılmaz çünkü istemci para aritmetiği yapmaz.
 
-Ayrımı olmayan (Aşama 12.8 öncesi) taksitler tamamı anapara sayılır. Yerel
+Anapara/faiz ayrımı olmayan taksitler tamamı anapara sayılır. Yerel
 veritabanındaki böyle kayıtlar, oranları paradan yeniden çözülerek
 doldurulmuştur; bu bir şema migration'ı değil, sentetik veri üzerinde tek
 seferlik onarımdır (anüite hesabı SQL'de ifade edilemez).
@@ -434,7 +434,7 @@ state'e gider. Form submit sırasında controller ikinci dokunuşu reddeder, ba�
 sonra snapshot'ı API'den yeniden yükler. Flutter validation yalnız erken geri
 bildirimdir; finans kararları backend'de tekrar uygulanır.
 
-## Stage 11 tekrarlayan plan, upcoming ve rapor akışı
+## Tekrarlayan plan, upcoming ve rapor akışı
 
 ```text
 POST /recurring-transactions
@@ -491,7 +491,7 @@ Register cevabı token taşımaz; başarılı kayıttan sonra e-posta login form
 aktarılır. Logout sunucu çağrısı başarısız olsa bile local token `finally`
 sınırında temizlenir. Parola hiçbir zaman secure storage'a yazılmaz.
 
-## Flutter MVP-1 ekran akışı
+## Flutter ekran akışı
 
 ```text
 Dashboard -> backend aylık toplamları ve hesap bakiyeleri
@@ -538,7 +538,7 @@ validation -> istek gönderilmez veya 400 ProblemDetails
 APK uninstall/install cihaz session'ını temizler, SQL verisini temizlemez; kabul
 koşuları benzersiz sentetik kullanıcılarla izole edilir.
 
-## Stage 12 import, attachment ve restore akışları
+## Import, attachment ve restore akışları
 
 ```text
 CSV seç -> 2 MiB/type/encoding/delimiter/header doğrula
@@ -581,7 +581,7 @@ izler; iki kaynak hiçbir zaman toplanmaz.
 
 ### Borç / alacak planı oluşturma
 
-*(Aşama 12.8'de yeniden yazıldı; karar gerekçeleri ADR 0009'da.)*
+*(Karar gerekçeleri ADR 0009'da.)*
 
 ```text
 Borç / alacak ekle
@@ -610,7 +610,7 @@ Borç / alacak ekle
 Anapara geri ödemesi gider değildir: borç azalır, para azalır, servet değişmez.
 Kredi kartı ödemesinin gider üretmemesiyle aynı kural. Gerçek maliyet faizdir.
 
-Aşama 12.8'den önce açılış hiçbir kayıt üretmiyordu; taksitler hesabı
+Bu ayrımdan önce açılış hiçbir kayıt üretmiyordu; taksitler hesabı
 boşaltıyor ama karşılığında hiçbir şey girmemiş görünüyordu.
 
 #### Faiz üçlüsü
@@ -681,7 +681,7 @@ Hızlı ekleme menüsündeki `Transfer`, `/more/accounts?tab=transfers` ile
 doğrudan Transferler sekmesini açar; kullanıcıyı Hesaplar'a bırakıp sekmeyi
 kendisinin bulmasını beklemek istediği işi bir adım uzatırdı.
 
-## Stage 12.6 responsive gezinme ve panel akışı
+## Responsive gezinme ve panel akışı
 
 Uygulama tek bir kırılım noktası tanımına dayanır (`AppBreakpoints`, Material 3
 pencere sınıfları). Daha önce shell 720 dp, planlama ekranı 700 dp kullanıyordu;
@@ -723,7 +723,7 @@ Kart ızgaraları (`AppResponsiveGrid`) sütun sayısını sabit bir eşikten de
 kartın okunabilir en küçük genişliğinden türetir; böylece üç kartın sığdığı bir
 ekranda iki sütunda takılı kalınmaz.
 
-## Stage 12.10 fiş ile gider ekleme akışı
+## Fiş ile gider ekleme akışı
 
 ```text
 İşlem ekle -> Fiş veya fatura okut -> ReceiptScanPage
@@ -820,7 +820,7 @@ getirir. Yerine `Dekont olarak okut` durur — aynı fotoğraf, yalnız yakalama
 seçeneği değişir (20 Ağustos 2026; eskiden burada kullanıcıyı boş transfer
 ekranına gönderen bir düğme vardı).
 
-## Stage 12.11 — yakalama seçeneği ve belge başına dallanma
+## Yakalama seçeneği ve belge başına dallanma
 
 ```text
 İşlem ekle -> Fiş veya fatura okut -> seçici: Harcama | Gelir

@@ -77,10 +77,10 @@ kanıtlar. Böylece JWT doğrulama yanında repository owner predicate'i iki tes
 katmanında doğrulanmıştır.
 
 Transaction liste route'u bearer token gerektirir ve request'ten `UserId` kabul
-etmez. Owner-scoped sorgu Stage 7 Grup 4'te uygulanmıştır; geçerli filtre sayfalı
+etmez. Owner-scoped sorgu uygulanmıştır; geçerli filtre sayfalı
 `200` döner ve başka kullanıcı satırları sonuca girmez.
 
-Stage 10 request modelleri de `UserId` kabul etmez. Transferin iki account FK'si,
+Transfer ve kart request modelleri de `UserId` kabul etmez. Transferin iki account FK'si,
 kart hareketlerinin kart/hesap/kategori FK'leri ve taksit planı/item ilişkileri
 `UserId` içeren composite key'lerle aynı sahibin kaynaklarına bağlanır. Repository
 predicate'i birinci, SQL composite FK/owner unique index'leri ikinci savunma
@@ -88,7 +88,7 @@ katmanıdır. API negatif testleri başka kullanıcının transfer/kart kaydın�
 boş liste olarak; gerçek SQL mapping testleri çapraz owner ilişkisinin model
 tarafından sınırlandığını kanıtlar.
 
-Stage 11 request/query modelleri de kullanıcı kimliği kabul etmez. Recurring
+Recurring ve rapor request/query modelleri de kullanıcı kimliği kabul etmez. Recurring
 tanımı, occurrence ve gerçekleşen transaction ilişkileri `UserId` taşıyan
 composite key/FK'lerle aynı sahibin kaynaklarına bağlanır. Occurrence unique key'i
 başka kullanıcıyı küresel olarak kilitlemez; tekillik owner kapsamındadır.
@@ -113,13 +113,13 @@ composite foreign key'leriyle sınırlar. Gerçek repository sorgu/update
 predicate'leri SQL Server integration testlerinde; composite FK ve owner-scoped
 unique index'ler model/migration testlerinde doğrulanmıştır.
 
-Aşama 12.8'de borç sözleşmesi iki yeni ilişki kazandı: açılışın hesabı ve
+Borç sözleşmesi iki ilişki taşır: açılışın hesabı ve
 kategorisi. İkisi de aynı desenle bağlıdır — `(UserId, OpeningAccountId)` ve
 `(UserId, CategoryId)` composite foreign key'leri. Başka kullanıcının hesabına
 ya da kategorisine bağlanan bir borç, Application katmanı hiç devreye girmese
 bile veritabanı seviyesinde yazılamaz.
 
-Aşama 12.10 fiş analizi sahiplik sınırını yazmadan uygular. Use case current
+Fiş analizi sahiplik sınırını yazmadan uygular. Use case current
 user kimliğini `ICurrentUser`dan alır ve modele yalnız o kullanıcının aktif
 gider kategorilerinin adlarını kapalı küme olarak verir. Sağlayıcıdan dönen ad
 aynı owner-scoped liste içinde kimliğe çözülür; benzer ada veya küresel kategori

@@ -34,7 +34,7 @@ Bu belge yalnız uygulanmış yapılandırmayı kaydeder; gerçek secret değer 
 
 ## Yerel secret sınırı
 
-Stage 10 transfer/kart/taksit ve Stage 11 recurring/upcoming/report kapsamları yeni
+Transfer/kart/taksit ve recurring/upcoming/report kapsamları yeni
 environment variable veya secret eklemedi. Yeni API endpoint'leri mevcut JWT,
 SQL connection string ve Flutter `API_BASE_URL` sınırlarını yeniden kullanır.
 Taksit `ClientRequestId` ile recurring `OccurrenceKey` değerleri secret değildir;
@@ -72,7 +72,7 @@ konmaz.
 
 Ücretsiz katmanda gönderilen içerik Google'ın ürün geliştirmesinde
 kullanılır; bu yüzden bu aşamada yalnız **sentetik fiş** gönderilir. Gerçek
-fiş gönderimi hem ücretli katman hem Stage 13 güvenlik kapısı ister.
+fiş gönderimi hem ücretli katman hem bulut güvenlik kapısı (Aşama 06) ister.
 
 ## Mobil istemci sınırı
 
@@ -91,7 +91,7 @@ Attachment root varsayılan olarak API executable base dizinine göre
 root dışında çözülen path reddedilir. Bu klasör Git'e eklenmez; container/host
 kalıcılığı ayrıca volume ile sağlanmalıdır. Yerel disk şifreleme veya yönetilen
 malware scanning sağlamaz. Backup v2 de şifreli değildir; gerçek finans verisiyle
-kullanım Stage 13 güvenlik kapısına kadar yasaktır.
+kullanım bulut güvenlik kapısına (Aşama 06) kadar yasaktır.
 
 ## Yayın öncesi kontrol listesi
 

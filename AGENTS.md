@@ -38,8 +38,11 @@ yazma.
 
 ## Git sorumluluğu
 
-- Feature çalışması doğrudan `main` üzerinde yapılmaz.
-- Kullanıcı istemedikçe yeni branch veya worktree açılmaz.
+- **Çalışma, kullanıcının o an bulunduğu branch üzerinde yapılır.** Branch veya
+  worktree oluşturma, branch değiştirme ve silme yalnız kullanıcı açıkça
+  istediğinde yapılır. (Önceki "feature çalışması `main`'de yapılmaz" kuralı
+  kaldırıldı: `CLAUDE.md`'deki branch açma yasağıyla aynı anda uygulanamıyordu
+  ve ikisi birbirini kilitliyordu.)
 - Commit mesajı, branch adı, tag, PR ve issue metinlerinde yapay zekâ imzası,
   `Co-Authored-By:` satırı veya "Generated with …" ibaresi yer almaz; commit
   yazarı daima kullanıcıdır.
@@ -51,6 +54,13 @@ yazma.
   atılır.** Tek başına belge commit'i açılmaz: bir belge neden güncelleniyorsa,
   onu gerektiren kod değişikliğiyle **aynı** commit'e girer. Belgeyi
   güncelleyecek bir kod değişikliği yoksa commit de yoktur.
+- **İstisna: ürün yönü ve planlama belgeleri.** `PRD-BusinessFinance.md`,
+  `PROJECT-ROADMAP.md`, `stages/` belgeleri ve `documentation/adr/` kayıtları
+  kendi başlarına commit edilebilir. Bunlar kodun kaydı değil, kodun
+  **kararıdır**; kararın koddan önce yazılması kuralın ihlali değil, gereğidir.
+  `documentation/` altındaki diğer belgeler (mimari, akış, izin, test, değişken)
+  bu istisnaya girmez — onlar davranışı anlatır ve davranışla aynı commit'e
+  girer.
 - **Commit tipi yapılan işi dürüstçe anlatır.** Özellik eklenmediyse `feat`
   yazılmaz: taşıma, yeniden adlandırma, altyapı ve araç işleri `chore`,
   davranış değiştirmeyen yeniden düzenleme `refactor`, hata düzeltmesi `fix`.
@@ -73,6 +83,10 @@ yazma.
 - Bakiyeyi ikinci gerçek kaynak olarak elle saklama.
 - Transfer, kart ödemesi ve taksitleri normal gider gibi modelleyerek raporları
   bozma.
+- **İşletme/şahsi ayrımı tek havuz üzerinde bir boyuttur** (ADR 0013). Havuzu
+  ikiye bölme, mod seçimi ekleme, kapsamı kategoriyle temsil etme. Bakiye,
+  kart borcu ve net varlık kapsam filtresinden etkilenmez.
+- **Kapsam ile indirilebilirlik ayrı alanlardır**; tek alanda birleştirme.
 - Migration ve API sözleşme değişikliklerini incelemeden uygulama.
 
 ## Flutter kuralları
@@ -127,8 +141,11 @@ Bunlar geçmişte pahalıya öğrenilmiş kurallardır, tercih değildir:
 - `.env`, parola, token, signing key ve connection string Git'e eklenmez.
 - Secret ve finansal veriyi terminal çıktısında veya loglarda gösterme.
 - İlk yerel MVP'yi internete açma.
-- Azure, offline sync ve banka entegrasyonunu roadmap aşamasından önce ekleme.
-- Open Banking yalnız read-only kapsamındadır; ödeme başlatma ekleme.
+- Azure ve offline cache'i kendi roadmap aşaması gelmeden ekleme.
+- **Banka bağlantısı / açık bankacılık kapsam dışıdır.** Sağlayıcı SDK'sı,
+  adapter veya sandbox bağlantısı eklenmez; bankadan ödeme veya transfer
+  başlatma hiçbir koşulda eklenmez. Gerekçesi `PROJECT-ROADMAP.md`
+  "Kapsam dışı bırakılanlar" tablosunda.
 - Kullanıcı verisi izolasyonunu pozitif ve negatif integration testlerle kanıtla.
 
 ## Belge sorumluluğu

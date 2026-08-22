@@ -2,10 +2,13 @@
 
 ## Ürün özeti ve temel varsayımlar
 
-Kişisel Bütçe Mobil; hesap, kategori, gelir, gider, aylık bütçe ve dashboard
-işlemlerini sunan yerel MVP-1'dir. Katmanlı monolit ASP.NET Core API finansal
-gerçeğin kaynağıdır; Flutter istemci sonuçları gösterir; SQL Server kalıcı
-depodur. Bu aşamada yalnız sentetik veri, tek host ve Pixel 8 emulatorü varsayılır.
+BusinessFinance; şahıs şirketi ve esnaf için işletme finansı uygulamasıdır.
+Hesap, kategori, gelir/gider, kredi kartı ve taksit, tekrarlayan plan,
+borç/alacak, hedef, birleşik finansal hareket akışı, CSV içe/dışa aktarma,
+yedekleme ve fiş okuma akışlarını sunar. Katmanlı monolit ASP.NET Core API
+finansal gerçeğin kaynağıdır; Flutter istemci sonuçları gösterir; SQL Server
+kalıcı depodur. Bugün yalnız sentetik veri, tek host ve Pixel 8 emulatorü
+varsayılır; ürün internete açık değildir.
 
 ```text
 Pixel 8 app --HTTP debug / 10.0.2.2:5284--> Windows loopback API
@@ -70,8 +73,8 @@ BusinessFinance/
 - Flutter istemcisi Material 3 açık/koyu tema, `go_router` tabanlı dört dallı
   navigation shell ve ortak loading/empty/error/unauthorized bileşenlerini taşır.
   Telefon genişliğinde `NavigationBar`, 720 ve üzerindeki genişlikte
-  `NavigationRail` kullanır. Network, secure authentication ve MVP-1 finans
-  feature'ları ile Stage 11 planlama/rapor ekranları gerçek API sözleşmesine bağlıdır.
+  `NavigationRail` kullanır. Network, secure authentication ve finans
+  feature'ları ile planlama/rapor ekranları gerçek API sözleşmesine bağlıdır.
 - Yerel SQL Server sabit CU7 image,
   loopback port, health check ve named volume ile Compose üzerinde çalışır.
   Identity, hesap, kategori, hareket, bütçe ve refresh session verileri EF Core
@@ -221,7 +224,7 @@ kalıcı kart hareketlerinden hesaplanan projection'dır.
   bakiye, kalan ve aşım istemcide ikinci kez hesaplanmaz; backend cevabı gösterilir.
 - Gerçek finansal veri ve secret repository içinde tutulmaz.
 
-## Stage 10 finans hareketi mimarisi
+## Finansal hareket mimarisi
 
 ```text
 Transfer ───────────────┬─ kaynak Account bakiyesi: -tutar
@@ -276,7 +279,7 @@ Para JSON number'a çevrilmeden string tutulur. Form kontrolleri erken kullanıc
 geri bildirimi sağlar; sahiplik, limit, borç, sınıflandırma ve taksit matematiğinde
 son otorite backend'dir.
 
-## Stage 11 planlama ve read-model mimarisi
+## Planlama ve read-model mimarisi
 
 ```text
 RecurringTransaction (tanım)
@@ -370,10 +373,11 @@ yayın kapısıdır. `/health/live` process'i, `/health/ready` SQL erişimini ö
 - Release yapılandırması geliştirme application ID'si ve debug signing kullanır;
   mevcut debug APK production artefact değildir.
 - İstemci hızlı çift submit'i kilitler, fakat transaction POST için sunucu
-  idempotency key'i yoktur. Ağ seviyesindeki tekrar riski Stage 15'e ertelidir.
+  idempotency key'i yoktur. Ağ seviyesindeki tekrar riski, offline yazma kararıyla birlikte değerlendirilir
+  (`PROJECT-ROADMAP.md`).
 - Database row-level security yoktur; izolasyon owner predicate ve composite
   foreign key'lerle sağlanır.
-- Offline cache/sync yoktur; Stage 11 planlama ekranı yalnız process belleğindeki
+- Offline cache/sync yoktur; planlama ekranı yalnız process belleğindeki
   son snapshot'ı ağ hatasında açık “son güncel veri” uyarısıyla gösterebilir.
 
 E-posta gönderimi, scheduled/background job, public/indexable web/SEO ve gömülü
@@ -385,7 +389,7 @@ agent/LLM/webhook otomasyonu yoktur; bunlar için ayrı shipping belgesi oluştu
 - [İzin ve izolasyon](permissions.md)
 - [Değişkenler ve secret sınırı](variables.md)
 - [Test kapsam haritası](tests.md)
-- [MVP-1 yerel kurulum ve kabul](mvp1-local-setup-and-acceptance.md)
+- [Yerel kurulum ve kabul](local-setup-and-acceptance.md)
 - [HTTP API sözleşme kararı](adr/0001-http-api-contracts.md)
 - [Transfer ve raporlama kararı](adr/0002-transfer-reporting.md)
 - [Kredi kartı, ekstre ve taksit kararı](adr/0003-credit-card-statements-installments.md)
@@ -393,7 +397,7 @@ agent/LLM/webhook otomasyonu yoktur; bunlar için ayrı shipping belgesi oluştu
 - [Fiş analizi API sözleşmesi](receipt-analysis-api-contract.md)
 - [Fiş okuma öneri katmanıdır kararı](adr/0011-receipt-reading-is-a-suggestion-layer.md)
 
-## Stage 12.10 fiş analizi backend mimarisi
+## Fiş analizi backend mimarisi
 
 ```text
 multipart JPEG/PNG + JWT
@@ -414,7 +418,7 @@ fiş veya AI tipi eklenmemiştir. Use case'in transaction repository,
 negatif bağımlılık analiz endpoint'inin öneri üretirken finansal kayıt
 yazamamasını mimari olarak da sınırlar.
 
-Aşama 12.11'de eklenen çift kayıt uyarısı bu sınırı **bozmadan** geçer:
+Çift kayıt uyarısı bu sınırı **bozmadan** geçer:
 `IReceiptDuplicateLookup` tek soruya ("bunu zaten kaydettim mi?") cevap veren
 salt-okunur bir porttur. Tam repository'yi vermek, yapısal bir güvenceyi bir
 yorum satırıyla değiştirmek olurdu. Fotoğraf parmak izi bilerek kullanılmıyor:
@@ -474,7 +478,7 @@ Bu tek çağrının istemci zaman aşımı 75 saniyedir: sunucunun sağlayıcıy
 tanıdığı 60 saniyenin üstüne yükleme payı ekler. Varsayılan 15 saniyelik
 istemci bütçesi, sunucu fişi okumuşken isteği keserdi.
 
-## Stage 12 import, planlama ve dosya mimarisi
+## Import ve dosya mimarisi
 
 ```text
 CSV bytes -> strict parser -> ImportBatch/Rows -> mapping/duplicate review
@@ -509,7 +513,7 @@ DataToolsPage -> DataToolsController -> DataToolsRepository -> ApiClient
  share_plus         submit lock          endpoint map        bearer + one 401 retry
 ```
 
-## Stage 12.6 presentation katmanı tasarım sistemi
+## Presentation katmanı tasarım sistemi
 
 Bu aşama Domain, Application, Infrastructure ve API katmanlarına dokunmaz;
 yalnız Flutter presentation katmanının içini düzenler. Katman ayrımı
@@ -547,7 +551,7 @@ yeni bir dosyada ortaya çıkar.
 
 Ayrıntı ve yeni ekran kontrol listesi: `documentation/design-system.md`.
 
-## Stage 12.8 borç açılışı ve faiz mimarisi
+## Borç açılışı ve faiz mimarisi
 
 Borç, para hareketi olan kavramlar arasında **hiçbir yazma modeli
 üretmeyen** tek kavramdı. Taksit ödemesi yalnız `PaymentAccountId` yazıyordu ve

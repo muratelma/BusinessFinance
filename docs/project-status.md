@@ -9,9 +9,13 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   (`Kisisel-Butce-Mobil`) tek temiz commit olarak taşındı; ürün yönü şahıs
   şirketi ve esnaf finansına çevrildi. Eski repo dokunulmadan arşiv olarak
   duruyor ve geçmiş kaydı orada
-- Aktif aşama: **Yok.** Aşama 01'in kapsamı kullanıcı onayı bekliyor;
-  seçenekler `PROJECT-ROADMAP.md` içinde
-- Aktif MVP kilometre taşı: devralınan taban (bkz. `PROJECT-ROADMAP.md`)
+- **22 Ağustos 2026: ürün yönü ve aşama zinciri kararlaştırıldı.** Belgeler
+  yeniden yazıldı; kod değişmedi
+- Aktif aşama: **Yok.** Altı aşamanın belgesi de yazıldı ve kapsamları
+  onaylandı; hepsinin durumu `Planlandı`. Kullanıcı açıkça onaylayana kadar
+  hiçbiri **Aktif** olmaz ve kod değişmez
+- Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
+  05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
 
 ## Taşımada yapılan ve doğrulanan işler
 
@@ -94,10 +98,39 @@ istiyor, yokken kendiliğinden skip oluyor.
   anahtarı sızıntısı **yok**
 - İnternete açık servis yok; SQL yalnız loopback'e bind'lı
 
+## 22 Ağustos 2026 — planlama turu
+
+Kod değişmedi; ürün yönü ve zincir kararlaştırıldı ve belgelere yazıldı:
+
+- **ADR 0013 yazıldı** — işletme ve şahsi tek havuzda bir boyuttur. Giriş modu
+  seçimi ve iki ayrı veri alanı gerekçeleriyle reddedildi. Karar, uygulamanın
+  bugünkü yüzeyi (endpoint'ler, Flutter ekranları, domain modeli) okunarak ve
+  şahıs şirketinin tüzel kişiliği olmaması gerçeğinden türetildi
+- **Altı aşamalık zincir kuruldu**, sırası bağımlılığa göre belirlendi (kapsam
+  boyutu en altta, cari onun üstünde, fatura cari'nin üstünde) ve **altısının
+  da ayrıntılı belgesi yazıldı**. Üçü bir ADR ile açılıyor: 02, 04 ve 05
+- **Yeni bir çakışma bulundu ve 02–03'e bağlandı:** kod tabanı ekonomik olayı
+  iki farklı zamanda tanıyor. Kart harcaması ve borç açılışı gideri **anında**
+  tanırken, fiş okumanın "faturayı ödemedim" yolu hiçbir şey tanımıyor. Aynı
+  fatura, hangi ekrandan girildiğine göre farklı davranıyor. Kural (ekonomik
+  olay tanır, ödeme taşır) 02'de ADR olarak yazılacak, tutarsızlık 03'te
+  kapatılacak
+- **`PRD-BusinessFinance.md` yeniden yazıldı.** Açık bankacılık kapsam dışına
+  alındı; MVP-1/1.5/2 bölümleri kaldırıldı (devralınan tabanda zaten
+  uygulanmışlardı ve PRD onları "yapılacak" diye gösteriyordu)
+- **Kod okumasından çıkan dört çakışma kayda geçti:** ödenmemiş faturanın
+  tekrarlayan plan olmaya zorlanması, "kredi kartı"nın POS ile ters anlam
+  taşıması, cari ile taksitli borç modelinin çakışma riski, varsayılan
+  kategori setinin tamamen ev bütçesi olması
+- **İki kural çelişkisi düzeltildi:** `main` üzerinde çalışma yasağı ile branch
+  açma yasağı aynı anda uygulanamıyordu; planlama belgeleri için tek başına
+  commit istisnası tanımlandı
+
 ## Açık kararlar ve riskler
 
-- **Aşama 01'in kapsamı belirlenmedi.** Vergi farkındalıklı kategori,
-  müşteri/tedarikçi etiketi veya kapsam değişikliği yok — üçü de masada
+- **Yerel veritabanının silinmesi onay bekliyor.** Aşama 01 Grup 1'in ilk işi;
+  geri alınamaz. Mevcut 28 tablodaki her kayıt kişisel bütçe uygulamasından
+  kopyalanmış sentetik veri
 - ~~Eski repoda 16 commit push edilmemiş~~ — kapandı: commit'ler
   `origin/feat/mobile-data-tools-ux`'e gönderildi ve `main`'e merge edildi
   (`1af11f9`). Eski repo artık eksiksiz ve arşiv olarak tam
@@ -108,13 +141,13 @@ istiyor, yokken kendiliğinden skip oluyor.
 
 ## Sıradaki tek küçük görev
 
-- Aşama 01'in kapsamını kullanıcıyla belirleyip belgesini açmak.
+- Aşama 01'i **Aktif** yapmak ve Grup 1 için veritabanı sıfırlama onayını almak.
 
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: repo kuruldu, kod tabanı taşındı ve yeniden adlandırıldı,
-  migration'lar çökertildi, veritabanı kopyalandı, belgeler yeni ürün yönüne
-  göre yazıldı, CI kuruldu
-- Başarılı kontroller: backend build/format/test, Flutter analyze/format/test,
-  şema ve veri denkliği
-- Sıradaki görev: Aşama 01 kapsamı
+- Yapılan değişiklik: yalnız belge. ADR 0013, yeni roadmap, altı aşama belgesi,
+  PRD yeniden yazımı, `AGENTS.md`/`CLAUDE.md` kural düzeltmeleri, eski aşama
+  numaralarının temizlenmesi, bayat frontend test kontrol listesinin
+  kaldırılması, kurulum rehberinin yeniden adlandırılması
+- Çalıştırılan kontrol yok: kod değişmedi
+- Sıradaki görev: Aşama 01'in aktifleştirilmesi ve veri sıfırlama onayı

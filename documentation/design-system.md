@@ -456,7 +456,7 @@ gösterilirse kullanıcı bir şeyin bozulduğunu sanır ve düzeltmek yerine ko
   "bir yerlerde bir ayar vardır" aramasına bırakmak, eksiği hiç söylememekten
   iyi değildir.
 
-İlk kullanımı: açılışı kayıtsız borçlar (Aşama 12.8). O borç hesaba ve
+İlk kullanımı: açılışı kayıtsız borçlar. O borç hesaba ve
 raporlara hiç girmiyor ve bunu yalnız kullanıcı düzeltebilir.
 
 ### Ekran iskeleti

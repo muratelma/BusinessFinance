@@ -7,13 +7,18 @@ plan, borç/alacak, hedef, birleşik finansal hareket akışı, CSV içe/dışa 
 yedekleme ve fiş okuma akışlarını Pixel 8 Android emulatoründe uçtan uca
 çalıştırır.
 
-Ürün vergi hesaplamaz ve beyanname üretmez; muhasebeciye giden veriyi hazırlar.
-Gerekçesi `PRD-BusinessFinance.md` içindeki "Ürün sınırı" bölümündedir.
+İşletme ve şahsi harcama tek havuzda yaşar; ayrım bir raporlama boyutudur.
+Şahıs şirketinin tüzel kişiliği olmadığı için işletmenin kasası ile sahibinin
+cebi aynı ceptir.
+
+Ürün vergi hesaplamaz, beyanname üretmez ve muhasebe kârı hesaplamaz;
+muhasebeciye giden veriyi hazırlar. Gerekçesi `PRD-BusinessFinance.md`
+içindeki "Ürün sınırı" bölümündedir.
 
 ## Hızlı başlangıç
 
 Windows üzerinde SQL, API, emulator ve temiz debug APK kurulumu için
-[`documentation/mvp1-local-setup-and-acceptance.md`](documentation/mvp1-local-setup-and-acceptance.md)
+[`documentation/local-setup-and-acceptance.md`](documentation/local-setup-and-acceptance.md)
 rehberini izleyin. Yalnız sentetik veri kullanın; mevcut APK production release
 artefact'i değildir.
 
@@ -39,7 +44,9 @@ PRD güncellenerek değiştirilir.
 
 ## Ana belgeler
 
-- `PRD-BusinessFinance.md`: Ürün, mimari, araçlar ve sürüm vizyonu
+- `PRD-BusinessFinance.md`: Ürün kapsamı, mimari ve araçlar
+- `documentation/adr/0013-business-and-personal-are-one-pool.md`: Zincirin
+  kurucu kararı — işletme ve şahsi tek havuzda bir boyuttur
 - `AGENTS.md`: Repo genelinde geçerli kalıcı agent talimatları
 - `PROJECT-ROADMAP.md`: Aşamaların sırası, bağımlılıkları ve kilometre taşları
 - `stages/README.md`: Aşama zinciri, aktif aşama ve aşama açma/kapatma adımları
