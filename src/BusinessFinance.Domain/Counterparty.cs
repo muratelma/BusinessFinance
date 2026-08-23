@@ -1,0 +1,103 @@
+namespace BusinessFinance.Domain;
+
+/// <summary>
+/// Karşı taraf: müşteri, tedarikçi ya da ikisi birden.
+/// </summary>
+/// <remarks>
+/// <b>Müşteri ve tedarikçi ayrı tip değildir.</b> Mahalle esnafında aynı kişi
+/// hem alıcı hem satıcıdır — fırıncıdan ekmek alıp ona un satan bakkal gibi.
+/// İkiye bölmek onu iki kayıt hâline getirir ve "Ahmet'le hesabım ne?"
+/// sorusunu cevapsız bırakırdı. Yön kaydın kendisinde durur (ADR 0014).
+///
+/// Kimlik alanı taşımaz: adres, vergi numarası ve telefon Aşama 02'nin kapsamı
+/// dışında. Tutulan tek şey ad ve kullanıcının kendi notu.
+/// </remarks>
+public sealed class Counterparty
+{
+    public const int MaximumNameLength = 100;
+    public const int MaximumNoteLength = 500;
+
+    public Guid Id { get; }
+    public Guid UserId { get; }
+    public string Name { get; private set; }
+
+    /// <summary>Kullanıcının kendi notu; "Çarşı girişindeki manav" gibi.</summary>
+    public string? Note { get; private set; }
+
+    public bool IsActive { get; private set; }
+
+    private Counterparty()
+    {
+        Name = null!;
+    }
+
+    public Counterparty(Guid id, Guid userId, string name, string? note = null)
+    {
+        if (id == Guid.Empty)
+        {
+            throw new ArgumentException("Counterparty id cannot be empty.", nameof(id));
+        }
+
+        if (userId == Guid.Empty)
+        {
+            throw new ArgumentException("User id cannot be empty.", nameof(userId));
+        }
+
+        Id = id;
+        UserId = userId;
+        Name = NormalizeName(name);
+        Note = NormalizeNote(note);
+        IsActive = true;
+    }
+
+    public void Rename(string name) => Name = NormalizeName(name);
+
+    /// <summary><c>null</c> vermek notu siler.</summary>
+    public void SetNote(string? note) => Note = NormalizeNote(note);
+
+    /// <summary>
+    /// Pasifleştirme yeni iş yapmayı durdurur, geçmişi silmez.
+    /// </summary>
+    /// <remarks>
+    /// Açık bakiyesi olan karşı taraf da pasifleştirilebilir: kullanıcı artık
+    /// ondan mal almıyor olabilir ama alacağı durur ve tahsil edilebilir.
+    /// Pasif karşı tarafa yeni borçlandırma yazılamaz
+    /// (<see cref="CounterpartyCharge"/>), tahsilat ise yazılabilir
+    /// (<see cref="CounterpartyPayment"/>) — aksi hâlde bakiye kapatılamaz
+    /// hâle gelirdi.
+    /// </remarks>
+    public void Deactivate() => IsActive = false;
+
+    public void Activate() => IsActive = true;
+
+    private static string NormalizeName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("Counterparty name is required.", nameof(name));
+        }
+
+        var normalized = name.Trim();
+        if (normalized.Length > MaximumNameLength)
+        {
+            throw new ArgumentException(
+                $"Counterparty name cannot exceed {MaximumNameLength} characters.",
+                nameof(name));
+        }
+
+        return normalized;
+    }
+
+    private static string? NormalizeNote(string? note)
+    {
+        var normalized = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+        if (normalized?.Length > MaximumNoteLength)
+        {
+            throw new ArgumentException(
+                $"Counterparty note cannot exceed {MaximumNoteLength} characters.",
+                nameof(note));
+        }
+
+        return normalized;
+    }
+}

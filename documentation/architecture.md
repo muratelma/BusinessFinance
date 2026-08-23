@@ -478,6 +478,47 @@ muhasebe kârı satılan malın maliyetini ister ve ürün sınırının dışı
 Kapsam boyutu görünmeyen kullanıcıda ekran bugünkü davranışını korur: tek `Bu
 ayın neti`. Bir taraf seçiliyken hero o tarafın netini adıyla gösterir.
 
+## Cari hesap: karşı taraf ve açık bakiye
+
+> Aşama 02, Grup 2 — **domain katmanı**. Kalıcılık, projection sorgusu, feed ve
+> arayüz kendi gruplarında gelir; bu bölüm yalnız bugün var olanı anlatır.
+
+Karşı taraf (`Counterparty`) müşteri, tedarikçi ya da ikisi birden. **Ayrı tip
+yok:** mahalle esnafında aynı kişi hem alıcı hem satıcıdır ve ikiye bölmek
+"Ahmet'le hesabım ne?" sorusunu cevapsız bırakırdı. Yön kaydın kendisinde durur.
+Tutulan alanlar ad ve kullanıcının kendi notu; adres, vergi numarası ve telefon
+Aşama 02'nin kapsamı dışında.
+
+İki hareket türü ADR 0014'ü birebir uygular:
+
+| Kayıt | Tanır | Taşır | Kategori | Kapsam |
+|---|---|---|---|---|
+| `CounterpartyCharge` | **Gelir/gider** | Hayır | **Zorunlu** | **Zorunlu** |
+| `CounterpartyPayment` | Hayır | **Hesap bakiyesi** | Yok | Yok |
+
+`DebtDirection` yeniden kullanılıyor çünkü sorduğu soru aynı: yükümlülük kimin
+üzerinde. Borçlandırmada yön kategorinin türünü **belirler** — alacak doğuran
+kayıt gelir kategorisi, borç doğuran kayıt gider kategorisi ister. Yön ile
+kategori birbirini tutmazsa kayıt raporun yanlış tarafına düşerdi, o yüzden
+tutmaması bir hata değil, reddedilen bir istek.
+
+Tahsilatın kategori ve kapsam taşımaması ikisi de bilinçli ve bir test alanların
+sonradan eklenmediğini koruyor: kategori "ne satıldı" sorusunu cevaplar ve o
+soru borçlandırmada sorulmuştur; kapsam gelir/gider raporunu böler ve tahsilat
+o rapora hiç girmez (ADR 0013). Kart ödemesinin ikisini de taşımamasıyla aynı
+yapı.
+
+**Cari bakiye kalıcı kolon değildir.** `CounterpartyBalance` hareketlerden
+hesaplar: iki taraf ayrı ayrı durur (`Receivable`, `Payable`) ve `Net` ikisini
+tek cümleye indirir. İptal edilmiş hareket hiç sayılmaz. **Fazla tahsilat
+kırpılmaz**: eksiye düşen taraf, karşı tarafın bizde alacağı olduğu anlamına
+gelir ve gerçektir — sıfıra çekmek kullanıcının parasını ekranda yok ederdi
+(aynı hatanın kart tarafındaki hâli `docs/backlog.md` 1. maddede duruyor).
+
+Pasifleştirme yeni iş yapmayı durdurur, geçmişi silmez: **pasif karşı tarafa
+yeni borçlandırma yazılamaz, tahsilat yazılabilir.** Aksi hâlde artık iş
+yapılmayan bir müşterinin kalan borcu kapatılamaz hâle gelirdi.
+
 ### Taşınabilirlik: dışa aktarma ile yedek ayrı şeylerdir
 
 İşlem CSV'si kaydın kapsamını `type`'ın yanında bir kolonda taşır. Kapsamsız

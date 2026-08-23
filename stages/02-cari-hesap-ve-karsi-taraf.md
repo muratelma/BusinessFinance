@@ -96,15 +96,22 @@ geçirir** ve 03'e devreder.
 
 ## Çalışma grupları
 
-### Grup 1 — ADR: ekonomik olay tanır, ödeme taşır
+### Grup 1 — ADR: ekonomik olay tanır, ödeme taşır — **Tamamlandı**
 
 - Yukarıdaki kural, mevcut kart ve borç davranışından kanıtıyla birlikte
   yazılır.
 - Fiş okumanın "ödemedim" yolundaki tutarsızlık açıkça kaydedilir ve 03'e
   devredilir.
 - Ölçüt: ADR kabul edildi ve `CLAUDE.md` belge haritasına eklendi.
+- Sonuç: `documentation/adr/0014-economic-event-recognizes-payment-carries.md`
+  yazıldı ve 23 Ağustos 2026'da kullanıcı onayıyla kabul edildi. Kanıt tablosu
+  koddan çıkarıldı; en güçlü kanıt `DebtAgreement`'ın **kaynağına göre** yön
+  değiştirmesi — gider kaynaklı açılış tanır ve taşımaz, nakit kaynaklı açılış
+  taşır ve tanımaz. Dört alternatif gerekçesiyle reddedildi. Fiş okumanın
+  "faturayı ödemedim" yolundaki tutarsızlık kayda geçti ve Aşama 03'e
+  devredildi.
 
-### Grup 2 — Domain: karşı taraf ve cari hareketler
+### Grup 2 — Domain: karşı taraf ve cari hareketler — **Tamamlandı**
 
 - `Counterparty`: `Id`, `UserId`, `Name`, `Note`, `IsActive`. Teklik
   `(UserId, Name)` üzerinde.
@@ -119,6 +126,23 @@ geçirir** ve 03'e devreder.
   hareketi yoksa silinebilir (boş hesap kuralının aynısı, `409` + pasife alma
   yönlendirmesi).
 - Ölçüt: domain testleri iki kayıt türünün yan etkilerini kanıtlıyor.
+- Sonuç: `Counterparty`, `CounterpartyCharge`, `CounterpartyPayment` ve
+  `CounterpartyBalance` eklendi; 17 domain testi geçiyor. Grup **yalnız domain
+  katmanına** dokundu: EF modeline girmediği için migration üretmedi ve
+  `HasPendingModelChanges` temiz kaldı — kalıcılık Grup 3'ün işi.
+- **Yönü `DebtDirection` taşıyor**, ikinci bir enum açılmadı: sorduğu soru aynı
+  (yükümlülük kimin üzerinde) ve aynı iki değeri taşıyan ikinci bir tip, aynı
+  kavramı iki adla anlatmak olurdu.
+- **Yön kategorinin türünü belirliyor**: alacak doğuran borçlandırma gelir
+  kategorisi, borç doğuran gider kategorisi ister. Tutmayan istek reddediliyor —
+  yoksa kayıt raporun yanlış tarafına düşerdi.
+- **Karar:** pasif karşı tarafa yeni borçlandırma yazılamaz ama **tahsilat
+  yazılabilir**. Belgede yalnız "hareketi varsa pasifleştirilir" yazıyordu;
+  ikisini de engellemek, artık iş yapılmayan bir müşterinin kalan borcunu
+  kapatılamaz hâle getirirdi.
+- **Karar:** fazla tahsilat kırpılmıyor, taraf eksiye düşüyor. Kırpmak
+  kullanıcının parasını ekranda yok ederdi; aynı hatanın kart tarafındaki hâli
+  `docs/backlog.md` 1. maddede duruyor.
 
 ### Grup 3 — Cari bakiye projection'ı
 

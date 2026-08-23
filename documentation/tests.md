@@ -115,7 +115,24 @@ veritabanı ile tek `InitialCreate`'ten kurulan veritabanının 543 satırlık t
 | `csv_import_settings_test.dart` (genişletildi) | Kendi dışa aktarımını tanıma kolon **eklenince de** çalışıyor: eşleşme tam başlık dizesine değil, yalnız bu dosyada bulunan kolonlara bakıyor. Koruma kalkarsa kullanıcı kendi dosyasını içe aktarıp her hareketi ikinci kez yazdırır |
 | `DataPortabilityTests.Backup_ValidatesAndRestoresCompleteSyntheticGraphToEmptyOwner` (Grup 2'de genişletilmişti) | v6 yedeği boş kullanıcıya geri yüklendiğinde hem kaydın kapsamı hem hesap/kategori varsayılanı korunuyor — Grup 9'un çıkış ölçütü budur |
 
-Kapsam boyutunun test yüzeyi bu grupla tamamlandı. `ScopePreferences`'ın kendisinin doğrudan testi yok;
+Kapsam boyutunun test yüzeyi bu grupla tamamlandı.
+
+## Aşama 02 Grup 2 — cari hesabın domain kuralları
+
+| Test | Neyi kanıtlıyor |
+|---|---|
+| `CounterpartyTests` (Domain, yeni — 17 test) | Ad/not normalizasyonu ve sınırları; borçlandırmanın yöne göre gelir ya da gider tanıması; **yönle çelişen kategorinin reddi**; sahiplik ve aktiflik kuralları; kapsamın borçlandırmada zorunlu olması |
+| `...Payment_CarriesNeitherCategoryNorScope` | Tahsilatta kategori ve kapsam alanı **yok**; alan sonradan eklenirse test kırılır (ADR 0013, ADR 0014) |
+| `...Payment_MovesTheAccountAccordingToDirection` | Tahsilat kasaya para koyar, ödeme kasadan alır; işaret tek yerde |
+| `...AnInactiveCounterparty_TakesNoNewChargeButCanStillSettle` | Pasif karşı tarafa yeni borçlandırma yazılamaz, tahsilat yazılabilir |
+| `...ThreeSalesAndTwoPartialCollections_LeaveTheRemainderOpen` | Aşamanın çıkış senaryosunun domain hâli: 1.000 satış, 600 tahsilat, 400 açık; tahsilat geliri ikinci kez artırmıyor |
+| `...BothSidesOfTheSamePersonAreKeptApart` | Aynı kişinin alacak ve borç tarafı ayrı yürüyor, `Net` ikisini birleştiriyor |
+| `...CancelledMovementsLeaveTheBalanceUntouched` | İptal edilmiş hareket bakiyeye girmiyor |
+| `...OverCollectingTurnsTheSideNegativeInsteadOfClampingToZero` | Fazla tahsilat kırpılmıyor; para ekranda yok edilmiyor |
+
+Kalan test yüzeyi (projection sorgusu, API sözleşmesi, feed, yedek v7) kendi
+gruplarında gelir; bu grup yalnız domain katmanına dokundu ve EF modeline
+girmediği için migration üretmedi. `ScopePreferences`'ın kendisinin doğrudan testi yok;
 `ReceiptPreferences` ile aynı gerekçe — `flutter_secure_storage` sarmalayıcısı
 platform kanalı ister, sözleşme (`ScopeStore`) sahte uygulamayla testli.
 

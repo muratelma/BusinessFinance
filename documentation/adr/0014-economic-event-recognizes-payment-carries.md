@@ -1,6 +1,6 @@
 # ADR 0014 — Ekonomik olay tanır, ödeme taşır
 
-- Durum: **Öneri** (23 Ağustos 2026, Aşama 02 Grup 1) — kullanıcı onayı bekliyor
+- Durum: **Kabul edildi** (23 Ağustos 2026, Aşama 02 Grup 1)
 - Bağlam: Cari hesabın (karşı taraf ve açık bakiye) eklenmesi
 - İlgili: ADR 0002 (transferin gelir/gider olmaması), ADR 0003 (kart ödemesinin
   ikinci kez gider sayılmaması), ADR 0009 (borç kaynağı ve anüite faizi),
@@ -144,7 +144,8 @@ ADR tutarsızlığı kayda geçirir ve Aşama 03'e devreder.
 
 ## Uygulanma kanıtı
 
-Karar kabul edildiğinde şu testler onu koruyacak (Aşama 02 zorunlu testleri):
+Şu testler kararı koruyor (Aşama 02 zorunlu testleri; Grup 2'de domain
+seviyesi yazıldı, kalanı kendi gruplarında gelir):
 
 - Borçlandırma gelir/gider tanır, hesap bakiyesini değiştirmez.
 - Tahsilat hesap bakiyesini değiştirir, gelir/gider üretmez.

@@ -18,9 +18,9 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   ve tamamlanma kaydı orada
 - Aktif aşama: **02 — Cari hesap: karşı taraf ve açık bakiye.** 23 Ağustos
   2026'da kullanıcı onayıyla açıldı. Belgesi
-  `stages/02-cari-hesap-ve-karsi-taraf.md`; sekiz çalışma grubu. **Grup 1 bir
-  ADR'dir ve kod ondan önce değişmez**: ADR 0014 yazıldı, kullanıcı onayı
-  bekliyor
+  `stages/02-cari-hesap-ve-karsi-taraf.md`; sekiz çalışma grubu. **Grup 1–2
+  tamamlandı**: karar kapısı (ADR 0014) kabul edildi ve cari hesabın domain
+  katmanı yazıldı
 - Kalan beş aşamanın belgesi de yazılı, durumları `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
@@ -512,6 +512,40 @@ bırakıldı.
   başlanmıyor (`AGENTS.md`, "Kalite ve aşama geçişi"). Kod tarafında bu turda
   hiçbir değişiklik yapılmadı
 
+## 23 Ağustos 2026 — Aşama 02, Grup 1 ve 2: karar kapısı ve cari domaini
+
+- **ADR 0014 kullanıcı onayıyla kabul edildi.** Bir kayıt ya ekonomik olayı
+  tanır ya ödemeyi taşır; ikisini birden yapması ancak olay ile ödemenin aynı
+  ana düşmesidir. Kural yeni değil — kart, transfer ve borç modelleri bugün
+  zaten böyle davranıyor — ama ilk kez yazıya geçti ve cari hesaba nasıl
+  uygulanacağını sabitledi
+- **Domain katmanı yazıldı:** `Counterparty`, `CounterpartyCharge`,
+  `CounterpartyPayment`, `CounterpartyBalance`. 17 yeni domain testi
+- **Grup yalnız domaine dokundu.** Tipler EF modeline girmediği için migration
+  üretilmedi ve `HasPendingModelChanges` temiz kaldı; kalıcılık Grup 3'ün işi.
+  Aşama 01'de migration'ın domain checkpoint'ine girme sebebi (model/şema
+  örtüşme testi) burada oluşmadı
+- **Yön için ikinci bir enum açılmadı:** `DebtDirection` yeniden kullanılıyor,
+  çünkü sorduğu soru aynı — yükümlülük kimin üzerinde
+- **Yön kategorinin türünü belirliyor**: alacak doğuran borçlandırma gelir
+  kategorisi, borç doğuran gider kategorisi ister; tutmayan istek reddediliyor
+- **Tahsilat ne kategori ne kapsam taşıyor** ve bunu bir test koruyor: kategori
+  "ne satıldı" sorusunu cevaplar ve o soru borçlandırmada sorulmuştur; kapsam
+  gelir/gider raporunu böler, tahsilat o rapora hiç girmez
+- **Aşama belgesinin yazmadığı iki karar verildi ve gerekçesiyle yazıldı:**
+  pasif karşı tarafa yeni borçlandırma yazılamaz ama **tahsilat yazılabilir**
+  (aksi hâlde açık bakiye kapatılamaz hâle gelirdi); **fazla tahsilat
+  kırpılmaz**, taraf eksiye düşer (kırpmak kullanıcının parasını ekranda yok
+  ederdi — aynı hatanın kart tarafındaki hâli backlog 1. maddede)
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (SQL dâhil) | **821 geçti**, 1 atlandı (`GeminiLiveContractTests`) |
+| Migration | Üretilmedi ve gerekmedi; `HasPendingModelChanges` temiz |
+| Flutter | Bu turda değişmedi |
+
 ## Açık kararlar ve riskler
 
 - **Yerel veritabanının silinmesi onay bekliyor.** Aşama 01 Grup 1'in ilk işi;
@@ -527,10 +561,9 @@ bırakıldı.
 
 ## Sıradaki tek küçük görev
 
-- **ADR 0014'ün kabulü.** Karar yazıldı ve kullanıcı onayı bekliyor. Onay
-  gelince durumu `Kabul edildi` olur ve Aşama 02 Grup 2 (Domain: `Counterparty`,
-  `CounterpartyCharge`, `CounterpartyPayment`) başlar. Onaydan önce kod
-  değişmez.
+- **Aşama 02, Grup 3: cari bakiye projection'ı.** Kalıcılık (EF eşlemesi ve
+  migration) ve karşı taraf başına bakiyenin **tek sorguda** okunması. Ölçüt
+  bounded query-count: 50 karşı taraflı sentetik veride N+1 yok.
 
 ## Son oturum kapanışı
 
@@ -543,6 +576,6 @@ bırakıldı.
   analyze + format + **701 test** + debug APK derlemesi
 - Kabul turu: Pixel 8 emulator + çalışan API + gerçek SQL. Üç otomatik senaryo
   geçti, ekran elle gezildi, iki bulgu kayda geçti
-- Aşama 01 kullanıcı onayıyla kapandı ve arşivlendi; **Aşama 02 açıldı**,
-  karar kapısı ADR 0014 yazıldı ve onay bekliyor
-- Sıradaki görev: ADR 0014'ün kabulü; sonra Aşama 02 Grup 2 (domain)
+- Aşama 01 kullanıcı onayıyla kapandı ve arşivlendi; **Aşama 02 açıldı**.
+  ADR 0014 kabul edildi ve cari hesabın domain katmanı yazıldı (Grup 1–2)
+- Sıradaki görev: Aşama 02 Grup 3 — kalıcılık ve tek sorguluk cari bakiye

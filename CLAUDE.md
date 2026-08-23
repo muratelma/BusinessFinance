@@ -129,7 +129,8 @@ ASP.NET Core API (composition root, ProblemDetails, JWT bearer, rate limit)
       │                 BudgetTransaction, MonthlyBudget, Transfer,
       │                 CreditCard/Charge/Payment, InstallmentPlan,
       │                 RecurringTransaction/Occurrence (+RecurringSourceType),
-      │                 DebtAgreement/Installment, RefreshSession)
+      │                 DebtAgreement/Installment, Counterparty +
+      │                 CounterpartyCharge/Payment, RefreshSession)
       └── Infrastructure (EF Core SQL Server, ASP.NET Core Identity,
                           `BusinessFinanceDbContext`, Ef*Repository adapter'ları)
               │
@@ -220,6 +221,16 @@ gerekçesiyle bozulmaz.
 - **Plan kapsamı gerçekleşmede yeniden türetilmez.** Tekrarlayan plan ve taksit
   planının ürettiği kayıt kapsamı plandan alır; aksi hâlde aynı plan farklı
   aylarda farklı kapsam üretebilirdi.
+- **Cari hesap ADR 0014'ü uygular.** `CounterpartyCharge` **tanır**: veresiye
+  satış geliri, vadeli alım gideri o gün yazılır, hesap bakiyesi kıpırdamaz.
+  `CounterpartyPayment` **taşır**: hesap bakiyesini değiştirir, gelir/gider
+  üretmez ve bu yüzden **ne kategori ne kapsam** alanı taşır. Yön
+  (`DebtDirection`) borçlandırmada kategorinin türünü belirler: alacak → gelir,
+  borç → gider. Cari bakiye kalıcı kolon değil, `CounterpartyBalance` ile
+  hareketlerden hesaplanan projection'dır; fazla tahsilat **kırpılmaz**.
+  Pasif karşı tarafa yeni borçlandırma yazılamaz, tahsilat yazılabilir — aksi
+  hâlde açık bakiye kapatılamazdı.
+
 - **Kapsam tek yerde türetilir** (`TransactionScopeResolution`): kullanıcının
   açık seçimi → hesabın/kartın etiketi → kategorinin varsayılanı. Üçü de boşsa
   istek `*.scope_unresolved` ile reddedilir; sunucu kapsam **uydurmaz**.
