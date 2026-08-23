@@ -683,6 +683,37 @@ Borç / alacak ekle
 Anapara geri ödemesi gider değildir: borç azalır, para azalır, servet değişmez.
 Kredi kartı ödemesinin gider üretmemesiyle aynı kural. Gerçek maliyet faizdir.
 
+### Veresiye satış, tahsilat ve iptal
+
+```text
+Karşı taraf ekle (ad, isteğe bağlı not)
+  -> Borçlandır:  yön (alacak | borç)
+                  tutar, tarih, kategori, açıklama
+                  kapsam: açık seçim -> kategorinin varsayılanı
+     sonuç: gelir/gider **bugün** yazılır, kasa kıpırdamaz
+  -> Tahsilat / ödeme:  hesap, tutar, tarih, açıklama
+     sonuç: kasa değişir, gelir/gider **üretilmez**
+```
+
+Yön kategorinin türünü belirler: alacak doğuran borçlandırma gelir
+kategorisi, borç doğuran gider kategorisi ister; tutmayan istek reddedilir.
+Tahsilat ne kategori ne kapsam sorar — gelir/gider raporuna hiç girmez.
+
+Pasif karşı tarafa **yeni borçlandırma yazılamaz** (`409`), **tahsilat
+yazılabilir**: aksi hâlde artık iş yapılmayan bir müşterinin kalan borcu
+kapatılamaz hâle gelirdi. Hiç hareketi olmayan karşı taraf silinebilir;
+hareketi varsa `409` gelir ve kullanıcı pasifleştirmeye yönlendirilir (boş
+hesap kuralının aynısı).
+
+İptal iki yönlü çalışır: borçlandırmanın iptali tanınan gelir/gideri ve açık
+bakiyeyi birlikte geri alır, tahsilatın iptali parayı kasaya geri koyar ve
+açık bakiyeyi yeniden doğurur. İkisi de birleşik feed'de `canCancel: true`
+olarak raporlanır.
+
+Fazla tahsilat **kırpılmaz**: taraf eksiye düşer ve bu gerçektir. Sıfır
+bakiyeli karşı taraf listeden düşmez, yalnız ayrı okunur
+(`?balance=open|settled|all`).
+
 #### Karşı taraf tek kayıttır
 
 Yazılan ad mevcut bir karşı tarafla eşleşirse sözleşme **ona** bağlanır;

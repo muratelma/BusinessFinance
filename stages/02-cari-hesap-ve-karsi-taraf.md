@@ -193,7 +193,7 @@ geçirir** ve 03'e devreder.
 - Karşı taraf ayrıntı ekranı Grup 7'nin işi; bu grup onun okuduğu iki kaynağı
   tek kişide buluşturdu ve tutarların birbirini toplamadığını kanıtladı.
 
-### Grup 5 — Birleşik feed ve raporlar
+### Grup 5 — Yazma yolu, birleşik feed ve raporlar — **Tamamlandı**
 
 - İki yeni ekonomik olay feed'e katılır; `activityKind`, `effect`,
   `sourceGroup`, `origin`, `status` beş boyutu doldurulur.
@@ -203,11 +203,30 @@ geçirir** ve 03'e devreder.
   (ADR 0010).
 - **Hesap bakiyesi tahsilatı görür.** `CounterpartyPayment` parayı taşıyan
   bir kayıttır; hesap bakiyesi hesabına katılmazsa tahsil edilen para
-  kasada hiç görünmez. Grup 3 yalnız cari tarafını hesapladı, hesap
-  bakiyesi bu grupta genişler.
+  kasada hiç görünmez.
 - `documentation/financial-activity-api-contract.md` yeni kaynaklarla
   genişletilir.
 - Ölçüt: feed tek SQL sorgusunda kalıyor; sayfalama ve sıralama veritabanında.
+- Sonuç: **yazma yolu bu grupta açıldı** — okunacak bir kayıt olmadan feed
+  ve raporlar kanıtlanamazdı. `/api/v1/counterparties` (create/list/get/
+  update/delete), `/{id}/charges`, `/{id}/payments` ve iki iptal ucu
+  (`/api/v1/counterparty-charges|payments/{id}`) yazıldı; dokuz use case
+  DI'ya bağlandı.
+- Feed sekiz yazma modelini **hâlâ tek `UNION ALL` sorgusunda** birleştiriyor;
+  sayfa maliyeti geçmişle büyümüyor (2 komut: sayım + sayfa).
+- Raporlarda borçlandırma; aylık toplam, kapsam kırılımı, kategori dağılımı,
+  dönem karşılaştırması, nakit akışı eğilimi ve **bütçe ilerlemesi** için
+  sayılıyor. Tahsilat hiçbirine girmiyor, yalnız kasayı değiştiriyor.
+- **Karar:** açık cari, net varlıkta taksitli sözleşmeyle aynı iki kovaya
+  giriyor (`receivableDebt`/`payableDebt`). Üçüncü bir alan açmak, aynı
+  soruyu iki adla sormak olurdu; iki kaynak birbirini toplamıyor.
+- **Karar:** cari hareketin ikisi de iptal edilebilir. Sözleşmeden farkı,
+  her birinin tek başına duran bir kayıt olması — geri dönüşü olmayan bir
+  planın sonucu değiller.
+- **Karar:** cari hareket planlanan görünüme **girmiyor**; vadesi yok. Vade,
+  gecikme ve hatırlatma Aşama 03'ün konusu.
+- Gelişmiş raporun sorgu bütçesi 44 → 52'ye çıktı: sekiz sabit sorgu, hiçbiri
+  karşı taraf sayısıyla büyümüyor.
 
 ### Grup 6 — Fiş okumanın bağlanması
 

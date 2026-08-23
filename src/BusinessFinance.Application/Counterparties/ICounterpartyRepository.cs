@@ -50,4 +50,44 @@ public interface ICounterpartyRepository
         Guid userId,
         IReadOnlyCollection<Guid> counterpartyIds,
         CancellationToken cancellationToken);
+
+    Task<bool> ExistsByNameAsync(
+        Guid userId,
+        string normalizedName,
+        Guid? exceptCounterpartyId,
+        CancellationToken cancellationToken);
+
+    Task AddAsync(Counterparty counterparty, CancellationToken cancellationToken);
+
+    Task UpdateOwnedAsync(
+        Counterparty counterparty,
+        Guid userId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Hiç hareketi olmayan karşı tarafı siler; hareketi varsa <c>false</c>
+    /// döner ve kayıt yerinde kalır (boş hesap kuralının aynısı).
+    /// </summary>
+    Task<bool> DeleteIfWithoutHistoryAsync(
+        Guid counterpartyId,
+        Guid userId,
+        CancellationToken cancellationToken);
+
+    Task AddChargeAsync(CounterpartyCharge charge, CancellationToken cancellationToken);
+
+    Task AddPaymentAsync(CounterpartyPayment payment, CancellationToken cancellationToken);
+
+    Task<CounterpartyCharge?> FindOwnedChargeAsync(
+        Guid chargeId,
+        Guid userId,
+        CancellationToken cancellationToken);
+
+    Task<CounterpartyPayment?> FindOwnedPaymentAsync(
+        Guid paymentId,
+        Guid userId,
+        CancellationToken cancellationToken);
+
+    Task SaveChargeAsync(CounterpartyCharge charge, CancellationToken cancellationToken);
+
+    Task SavePaymentAsync(CounterpartyPayment payment, CancellationToken cancellationToken);
 }

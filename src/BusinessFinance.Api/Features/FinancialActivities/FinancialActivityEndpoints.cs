@@ -293,7 +293,9 @@ public static class FinancialActivityEndpoints
         [FinancialActivityKind.CardPayment] = "card-payment",
         [FinancialActivityKind.DebtPayment] = "debt-payment",
         [FinancialActivityKind.DebtCollection] = "debt-collection",
-        [FinancialActivityKind.DebtOpening] = "debt-opening"
+        [FinancialActivityKind.DebtOpening] = "debt-opening",
+        [FinancialActivityKind.CounterpartyCharge] = "counterparty-charge",
+        [FinancialActivityKind.CounterpartySettlement] = "counterparty-settlement"
     };
 
     internal static readonly Dictionary<FinancialActivityEffect, string> EffectValues = new()
@@ -308,7 +310,8 @@ public static class FinancialActivityEndpoints
         [FinancialActivitySourceGroup.Account] = "account",
         [FinancialActivitySourceGroup.CreditCard] = "credit-card",
         [FinancialActivitySourceGroup.Transfer] = "transfer",
-        [FinancialActivitySourceGroup.Debt] = "debt"
+        [FinancialActivitySourceGroup.Debt] = "debt",
+        [FinancialActivitySourceGroup.Counterparty] = "counterparty"
     };
 
     internal static readonly Dictionary<FinancialActivityOrigin, string> OriginValues = new()

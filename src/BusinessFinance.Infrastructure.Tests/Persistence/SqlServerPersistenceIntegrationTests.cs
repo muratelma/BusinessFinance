@@ -1870,7 +1870,13 @@ public sealed class SqlServerPersistenceIntegrationTests
         // opening and the interest total are each one grouped query per period,
         // and a period is fixed by the request rather than by the data. A
         // per-debt query would put this in the hundreds instead of at 42.
-        Assert.InRange(counter.ReaderCommandCount, 1, 44);
+        // 44 → 52 when the open account ledger joined the report: two period
+        // totals (income and expense) for each of the two compared periods, one
+        // for the trend, one for budget variance, one for the balances as of the
+        // day and one for the net worth side. Eight fixed queries — none of them
+        // grows with the number of counterparties, which is what a per-person
+        // balance query would have done.
+        Assert.InRange(counter.ReaderCommandCount, 1, 52);
         Assert.True(
             stopwatch.Elapsed < TimeSpan.FromSeconds(5),
             $"Advanced report took {stopwatch.Elapsed.TotalMilliseconds:N0} ms.");
@@ -2175,11 +2181,11 @@ public sealed class SqlServerPersistenceIntegrationTests
     /// tutar iki kez sayılmaz.
     /// </summary>
     /// <remarks>
-    /// İki kaynak artık tek kişide buluştuğu için karışma riski bu adımda
-    /// doğdu: sözleşme adını karşı taraftan okuyor, cari hareket de aynı
-    /// karşı tarafa yazılıyor. Cari bakiyenin net varlığa katılması Grup 5'in
-    /// işi; bugün oraya girmediği için test onu net varlıkta <b>aramıyor</b>,
-    /// borcun tutarını şişirmediğini arıyor.
+    /// İki kaynak tek kişide buluşuyor: sözleşme adını karşı taraftan okuyor,
+    /// cari hareket de aynı karşı tarafa yazılıyor. Net varlık ikisini de
+    /// sayıyor ama <b>her birini bir kez</b>: sözleşmeden kalan anapara, cari
+    /// hesaptan açık bakiye. Toplamları birbirine karışsaydı aynı para iki kez
+    /// görünürdü.
     /// </remarks>
     [SqlServerFact]
     public async Task CounterpartyWithBothLedgers_CountsEachAmountOnce()
@@ -2231,15 +2237,20 @@ public sealed class SqlServerPersistenceIntegrationTests
         Assert.Equal(300m, balance.Payable);
         Assert.Equal(0m, balance.Receivable);
 
-        // Net varlık yalnız sözleşmenin kalan anaparasından: 600. Cari borç
-        // buraya iki kez eklenmiyor.
-        Assert.Equal(600m, report.NetWorth.PayableDebt);
+        // Net varlık iki kaynağı topluyor ve her birini bir kez sayıyor:
+        // sözleşmenin kalan anaparası (600) + açık cari borç (300).
+        Assert.Equal(900m, report.NetWorth.PayableDebt);
         Assert.Equal(0m, report.NetWorth.ReceivableDebt);
 
-        // Cari borçlandırma gelir/gider raporuna **henüz** girmiyor: birleşik
-        // feed ve raporlara katılması Grup 5'in işi. Satır bugünün gerçeğini
-        // yazıyor ve o grup geldiğinde 500'e dönerek kendini hatırlatacak.
-        Assert.Equal(0m, report.PeriodComparison.Current.Expense);
+        // Gider tarafı tek: vadeli alım gideri bir kez yazıldı. Tahsilat ve
+        // taksit ödemesi gider üretmedi — üretselerdi aynı alım iki kez
+        // sayılırdı.
+        Assert.Equal(500m, report.PeriodComparison.Current.Expense);
+
+        // Tahsilat parayı taşıdı: kasa 1.000 açılıştan 200 ödemeyle 800'e
+        // düştü. Sözleşmenin nakit açılışı da 600 ekliyor (borç alındı).
+        var cash = Assert.Single(report.AccountDistribution);
+        Assert.Equal(1400m, cash.Balance);
     }
 
     private static string GetConnectionString()
@@ -2460,11 +2471,11 @@ public sealed class SqlServerPersistenceIntegrationTests
         var byId = page.Items.ToDictionary(item => item.ActivityId);
 
         // Owner isolation: the stranger's identical graph must not leak in.
-        // 12 = 10 önceki hareket + iki borç açılışı (biri borç, biri alacak).
-        // Açılış artık kendi başına bir hareket: para hesaba girdiği ya da
-        // çıktığı an feed'de görünür, yalnız taksitlerde değil.
-        Assert.Equal(12, page.TotalCount);
-        Assert.Equal(12, page.Items.Count);
+        // 14 = 10 önceki hareket + iki borç açılışı (biri borç, biri alacak) +
+        // iki cari hareket. Açılış kendi başına bir hareket: para hesaba
+        // girdiği ya da çıktığı an feed'de görünür, yalnız taksitlerde değil.
+        Assert.Equal(14, page.TotalCount);
+        Assert.Equal(14, page.Items.Count);
 
         // A category is a bucket many movements share, so it cannot identify one.
         // Whatever the user wrote wins; the category names the row only when they
@@ -2514,6 +2525,34 @@ public sealed class SqlServerPersistenceIntegrationTests
         Assert.Equal(FinancialActivityOrigin.Installment, byId[seeded.InstallmentChargeId].Origin);
         Assert.Equal(FinancialActivityOrigin.CsvImport, byId[seeded.ImportedTransactionId].Origin);
 
+        // Açık carinin iki yüzü: borçlandırma tanır, tahsilat taşır.
+        var credit = byId[seeded.CounterpartyChargeId];
+        Assert.Equal(FinancialActivityKind.CounterpartyCharge, credit.ActivityKind);
+        Assert.Equal(FinancialActivityEffect.Income, credit.Effect);
+        Assert.Equal(FinancialActivitySourceGroup.Counterparty, credit.SourceGroup);
+        Assert.Equal(FinancialActivityOrigin.Manual, credit.Origin);
+        Assert.Equal("Ahmet Bakkal", credit.Title);
+        Assert.Equal("Salary", credit.CategoryName);
+        Assert.Equal(TransactionScope.Business, credit.Scope);
+
+        var settlement = byId[seeded.CounterpartySettlementId];
+        Assert.Equal(FinancialActivityKind.CounterpartySettlement, settlement.ActivityKind);
+
+        // Tahsilat ikinci bir gelir değildir ve kapsam taşımaz: gelir/gider
+        // raporuna hiç girmiyor.
+        Assert.Equal(FinancialActivityEffect.Neutral, settlement.Effect);
+        Assert.Null(settlement.Scope);
+        Assert.Null(settlement.CategoryId);
+        Assert.Equal("Bank", settlement.SourceName);
+        Assert.Equal("Ahmet Bakkal", settlement.DestinationName);
+
+        // İkisi de iptal edilebilir: tek başına duran kayıtlar, geri dönüşü
+        // olmayan bir planın sonucu değiller.
+        Assert.All(
+            new[] { credit, settlement },
+            item => Assert.True(FinancialActivityCapabilities.CanCancel(
+                item.ActivityKind, item.Origin, item.Status)));
+
         // Planned occurrences and unpaid installments belong to the planned view.
         Assert.DoesNotContain(page.Items, item => item.ActivityId == seeded.PlannedOccurrenceId);
     }
@@ -2538,8 +2577,8 @@ public sealed class SqlServerPersistenceIntegrationTests
 
         Assert.Equal(5, small.Page.Items.Count);
 
-        // 52 = 10 + 40 ek hareket + iki borç açılışı.
-        Assert.Equal(52, small.Page.TotalCount);
+        // 54 = 10 + 40 ek hareket + iki borç açılışı + iki cari hareket.
+        Assert.Equal(54, small.Page.TotalCount);
         // One command for the count, one for the page. Merging in memory would need one
         // per source table instead.
         Assert.Equal(2, small.ReaderCommandCount);
@@ -2551,8 +2590,8 @@ public sealed class SqlServerPersistenceIntegrationTests
         await SeedExtraTransactionsAsync(database, owner.Id, 200);
         var large = await ReadWithCommandCountAsync(database, owner.Id, criteria);
 
-        // 252 = 10 + 40 + 200 hareket + iki borç açılışı.
-        Assert.Equal(252, large.Page.TotalCount);
+        // 254 = 10 + 40 + 200 hareket + iki borç açılışı + iki cari hareket.
+        Assert.Equal(254, large.Page.TotalCount);
         Assert.Equal(5, large.Page.Items.Count);
         // The cost of a fixed page does not grow with the history.
         Assert.Equal(small.ReaderCommandCount, large.ReaderCommandCount);
@@ -2600,8 +2639,8 @@ public sealed class SqlServerPersistenceIntegrationTests
         Assert.DoesNotContain(
             withoutCancelled.Items, item => item.Status == FinancialActivityStatus.Cancelled);
 
-        // 11 = 12 hareketin iptal edilmiş olanı düşülmüş hâli.
-        Assert.Equal(11, withoutCancelled.TotalCount);
+        // 13 = 14 hareketin iptal edilmiş olanı düşülmüş hâli.
+        Assert.Equal(13, withoutCancelled.TotalCount);
 
         // An account filter must not match a credit card that sits in the same position.
         var byCard = await repository.ListAsync(
@@ -2858,7 +2897,9 @@ public sealed class SqlServerPersistenceIntegrationTests
         Guid RecurringTransactionId,
         Guid InstallmentChargeId,
         Guid ImportedTransactionId,
-        Guid PlannedOccurrenceId);
+        Guid PlannedOccurrenceId,
+        Guid CounterpartyChargeId,
+        Guid CounterpartySettlementId);
 
     private sealed record ActivityFeedRead(
         FinancialActivityPage Page,
@@ -2921,6 +2962,17 @@ public sealed class SqlServerPersistenceIntegrationTests
             new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 6), 2);
         receivable.GetInstallment(1).MarkPaid(bank, new DateOnly(2026, 8, 6), utc);
 
+        // Açık cari: veresiye satış (gelir tanır, kasaya dokunmaz) ve
+        // tahsilat (kasayı değiştirir, gelir üretmez).
+        var shopkeeper = new Counterparty(Guid.NewGuid(), userId, "Ahmet Bakkal");
+        var counterpartyCharge = new CounterpartyCharge(
+            Guid.NewGuid(), userId, shopkeeper, salary, DebtDirection.Receivable,
+            new Money(250m, CurrencyCode.TRY), TransactionScope.Business,
+            new DateOnly(2026, 8, 6));
+        var counterpartySettlement = new CounterpartyPayment(
+            Guid.NewGuid(), userId, shopkeeper, bank, DebtDirection.Receivable,
+            new Money(100m, CurrencyCode.TRY), new DateOnly(2026, 8, 7));
+
         // Recurring: one realized occurrence and one still planned.
         var recurring = new RecurringTransaction(Guid.NewGuid(), userId, bank, groceries,
             new Money(75m, CurrencyCode.TRY), RecurringTransactionKind.BillPayment,
@@ -2962,6 +3014,7 @@ public sealed class SqlServerPersistenceIntegrationTests
             context.AddRange(bank, cash, salary, groceries, card);
             context.AddRange(income, cancelledExpense, transfer, manualCharge, payment);
             context.AddRange(lender, friend, payable, receivable);
+            context.AddRange(shopkeeper, counterpartyCharge, counterpartySettlement);
             context.AddRange(recurring, recurringResult, realizedOccurrence, plannedOccurrence);
             context.AddRange(plan, installmentCharge);
             context.AddRange(importedTransaction, batch);
@@ -2981,7 +3034,9 @@ public sealed class SqlServerPersistenceIntegrationTests
             recurringResult.Id,
             installmentCharge.Id,
             importedTransaction.Id,
-            plannedOccurrence.Id);
+            plannedOccurrence.Id,
+            counterpartyCharge.Id,
+            counterpartySettlement.Id);
     }
 
     private static async Task SeedExtraTransactionsAsync(

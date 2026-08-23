@@ -480,9 +480,9 @@ ayın neti`. Bir taraf seçiliyken hero o tarafın netini adıyla gösterir.
 
 ## Cari hesap: karşı taraf ve açık bakiye
 
-> Aşama 02, Grup 2–4 — **domain katmanı, kalıcılık, bakiye projection'ı ve
-> borç modelinin bağlanması**. Feed, arayüz ve yedek kendi gruplarında
-> gelir; bu bölüm yalnız bugün var olanı anlatır.
+> Aşama 02, Grup 2–5 — domain, kalıcılık, bakiye projection'ı, borç
+> modelinin bağlanması ve **yazma yolu + feed + raporlar**. Arayüz ve yedek
+> kendi gruplarında gelir; bu bölüm yalnız bugün var olanı anlatır.
 
 Karşı taraf (`Counterparty`) müşteri, tedarikçi ya da ikisi birden. **Ayrı tip
 yok:** mahalle esnafında aynı kişi hem alıcı hem satıcıdır ve ikiye bölmek
@@ -569,6 +569,31 @@ durur. Cari borçlandırmanın gelir/gider raporuna ve feed'e katılması Grup
 Yedek dosyası **adı taşımaya devam ediyor**, kimliği değil: karşı taraf
 tabloları şemaya kendi sürümüyle (v7) girecek. Geri yükleme addan karşı
 tarafı yeniden kurar ve aynı ad tek kayıt olur.
+
+#### Cari hareket nereye girer
+
+| Kayıt | Gelir/gider | Kasa | Bütçe | Net varlık | Feed |
+|---|---|---|---|---|---|
+| `CounterpartyCharge` (alacak) | **+gelir** | — | — | **+alacak** | `counterparty-charge` |
+| `CounterpartyCharge` (borç) | **+gider** | — | **+harcama** | **+borç** | `counterparty-charge` |
+| `CounterpartyPayment` | — | **±tutar** | — | bakiyeyi kapatır | `counterparty-settlement` |
+
+Aylık rapor, dönem karşılaştırması, nakit akışı eğilimi, kategori dağılımı ve
+bütçe ilerlemesi borçlandırmayı sayar; tahsilat hiçbirine girmez. Kasa
+bakiyesi bunun tersi: yalnız tahsilatı görür. **Aynı satış iki kez
+sayılmasın diye bölünme bu.**
+
+Net varlıkta açık cari, taksitli sözleşmeyle aynı iki kovaya girer
+(`receivableDebt` / `payableDebt`): sordukları soru aynı — ne alacağım var,
+ne borcum. İki kaynak birbirini toplamaz; sözleşme kendi kalan anaparasını
+(ADR 0010), cari kendi hareketlerini sayar.
+
+Feed sekiz yazma modelini tek `UNION ALL` sorgusunda birleştirmeye devam
+ediyor. Cari hareketin iki türü de **iptal edilebilir**: her biri tek başına
+duran bir kayıttır, geri dönüşü olmayan bir planın sonucu değil.
+
+Cari hareketin **vadesi yoktur**, bu yüzden planlanan görünüme girmez —
+vade, gecikme ve hatırlatma Aşama 03'ün konusu.
 
 ### Taşınabilirlik: dışa aktarma ile yedek ayrı şeylerdir
 

@@ -42,6 +42,8 @@ Bu beş boyut bağımsızdır; tek eksene indirgenmez (bkz. ADR 0004).
 | `debt-payment` | Ödenmiş `DebtInstallment`, `direction=payable` |
 | `debt-collection` | Tahsil edilmiş `DebtInstallment`, `direction=receivable` |
 | `debt-opening` | Borcun doğduğu an. Nakit kaynakta `neutral`, gider kaynakta `expense` |
+| `counterparty-charge` | `CounterpartyCharge` — veresiye satış (`income`) ya da vadeli alım (`expense`) |
+| `counterparty-settlement` | `CounterpartyPayment` — cari tahsilat/ödeme; her zaman `neutral` |
 
 ### `effect`
 
@@ -53,7 +55,11 @@ Bu beş boyut bağımsızdır; tek eksene indirgenmez (bkz. ADR 0004).
 
 ### `sourceGroup`
 
-`account`, `credit-card`, `transfer`, `debt`
+`account`, `credit-card`, `transfer`, `debt`, `counterparty`
+
+Açık cari (`counterparty`) ile taksitli sözleşme (`debt`) ayrı gruplardır:
+aynı kişiye ait olsalar bile biri yürüyen bir hesap, diğeri vadesi belli bir
+plandır ve kullanıcı ikisini ayrı sorar.
 
 ### `origin`
 
@@ -88,6 +94,9 @@ index'ler ve Domain invariant'ları engeller.
 | Alacak taksidi tahsilatı | `debt-collection` | `neutral` | `debt` | **hayır** |
 | Borç açılışı, nakit kaynak | `debt-opening` | `neutral` | `debt` | **hayır** |
 | Borç açılışı, gider kaynak | `debt-opening` | `expense` | `debt` | **hayır** |
+| Veresiye satış | `counterparty-charge` | `income` | `counterparty` | evet |
+| Vadeli alım | `counterparty-charge` | `expense` | `counterparty` | evet |
+| Cari tahsilat/ödeme | `counterparty-settlement` | `neutral` | `counterparty` | evet |
 
 `canCancel` formülü:
 
@@ -103,7 +112,18 @@ satır değil, sözleşme akışıdır.
 
 Aynı `debt-opening` iki farklı `effect` taşır ve bu kasıtlıdır: nakit kaynakta
 para el değiştirir, gider kaynakta tüketim olur. Etki tek başına türden
-okunamaz — beş boyutun bağımsız olmasının sebebi tam olarak budur.
+okunamaz — beş boyutun bağımsız olmasının sebebi tam olarak budur. Aynı şey
+`counterparty-charge` için de geçerli: yön alacaksa gelir, borçsa giderdir.
+
+Cari hareketin iki türü de **iptal edilebilir** ve sözleşmeden farkı burada:
+her biri tek başına duran bir kayıttır, geri dönüşü olmayan bir planın sonucu
+değil. Borçlandırmayı iptal etmek tanınan gelir/gideri ve açık bakiyeyi
+birlikte geri alır; tahsilatı iptal etmek parayı kasaya geri koyar ve açık
+bakiyeyi yeniden doğurur.
+
+`counterparty-settlement` **kapsam taşımaz** (`scope: null`): kart ödemesiyle
+birebir aynı gerekçe — gelir/gider raporuna hiç girmediği için bölünecek bir
+tarafı yok. Kapsam filtreli okumada bu satırlar da düşer.
 
 `csv-import` iptal edilebilir; `ImportRow.Status=Imported` değişmeden kalır, yani
 yeniden import engeli bozulmaz.

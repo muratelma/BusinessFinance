@@ -184,7 +184,21 @@ internal sealed class EfAccountRepository(BusinessFinanceDbContext dbContext)
                     : -debt.Principal.Amount,
                 cancellationToken);
 
+        // Cari tahsilat/ödeme parayı taşır: tahsilat kasayı artırır, ödeme
+        // azaltır. Gelir/gider üretmediği için rapora değil yalnız buraya
+        // girer (ADR 0014).
+        var counterpartySettlements = await dbContext.CounterpartyPayments
+            .AsNoTracking()
+            .Where(payment => payment.AccountId == accountId &&
+                              payment.UserId == userId &&
+                              !payment.IsCancelled)
+            .SumAsync(
+                payment => payment.Direction == DebtDirection.Receivable
+                    ? payment.Amount.Amount
+                    : -payment.Amount.Amount,
+                cancellationToken);
+
         return openingBalance.Value + movementBalance + incomingTransfers - outgoingTransfers -
-               cardPayments + debtMovements + debtOpenings;
+               cardPayments + debtMovements + debtOpenings + counterpartySettlements;
     }
 }

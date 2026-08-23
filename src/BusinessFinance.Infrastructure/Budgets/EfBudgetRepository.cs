@@ -126,12 +126,34 @@ internal sealed class EfBudgetRepository(BusinessFinanceDbContext dbContext)
                 value => value.Amount,
                 cancellationToken);
 
+        // Vadeli alım da bütçeyi tüketir; tahsilat tüketmez. Rapor
+        // tarafındaki `GetBudgetVariancesAsync` ile aynı kural.
+        var counterpartySpent = await dbContext.CounterpartyCharges.AsNoTracking()
+            .Where(charge => charge.UserId == userId &&
+                             categoryIds.Contains(charge.CategoryId) &&
+                             !charge.IsCancelled &&
+                             charge.Direction == DebtDirection.Payable &&
+                             charge.ChargeDate >= periodStart &&
+                             charge.ChargeDate < periodEndExclusive)
+            .GroupBy(charge => new { charge.CategoryId, charge.Scope })
+            .Select(group => new
+            {
+                group.Key.CategoryId,
+                group.Key.Scope,
+                Amount = group.Sum(x => x.Amount.Amount)
+            })
+            .ToDictionaryAsync(
+                value => (value.CategoryId, value.Scope),
+                value => value.Amount,
+                cancellationToken);
+
         return budgets.Select(budget =>
         {
             var key = (budget.CategoryId, budget.Scope);
             var spentAmount = transactionSpent.GetValueOrDefault(key) +
                               cardSpent.GetValueOrDefault(key) +
-                              debtSpent.GetValueOrDefault(key);
+                              debtSpent.GetValueOrDefault(key) +
+                              counterpartySpent.GetValueOrDefault(key);
             return new BudgetDto(
                 budget.Id,
                 budget.CategoryId,

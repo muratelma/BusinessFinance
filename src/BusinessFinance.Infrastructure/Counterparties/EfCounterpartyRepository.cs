@@ -147,6 +147,120 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
             cancellationToken);
     }
 
+    public async Task<bool> ExistsByNameAsync(
+        Guid userId,
+        string normalizedName,
+        Guid? exceptCounterpartyId,
+        CancellationToken cancellationToken)
+    {
+        var existing = await FindByNameAsync(
+            userId, normalizedName?.Trim() ?? string.Empty, cancellationToken);
+        return existing is not null && existing.Id != exceptCounterpartyId;
+    }
+
+    public async Task AddAsync(Counterparty counterparty, CancellationToken cancellationToken)
+    {
+        await dbContext.Counterparties.AddAsync(counterparty, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateOwnedAsync(
+        Counterparty counterparty,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        if (counterparty.UserId != userId)
+        {
+            throw new InvalidOperationException("Owned counterparty was not found.");
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <remarks>
+    /// Hareket araması sözleşmeleri de kapsıyor: taksitli bir borcu olan karşı
+    /// tarafın silinmesi, sözleşmeyi adsız bırakırdı.
+    /// </remarks>
+    public async Task<bool> DeleteIfWithoutHistoryAsync(
+        Guid counterpartyId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var hasHistory =
+            await dbContext.CounterpartyCharges.AnyAsync(
+                charge => charge.UserId == userId && charge.CounterpartyId == counterpartyId,
+                cancellationToken) ||
+            await dbContext.CounterpartyPayments.AnyAsync(
+                payment => payment.UserId == userId && payment.CounterpartyId == counterpartyId,
+                cancellationToken) ||
+            await dbContext.DebtAgreements.AnyAsync(
+                debt => debt.UserId == userId && debt.CounterpartyId == counterpartyId,
+                cancellationToken);
+
+        if (hasHistory)
+        {
+            return false;
+        }
+
+        var counterparty = await dbContext.Counterparties.SingleOrDefaultAsync(
+            item => item.Id == counterpartyId && item.UserId == userId,
+            cancellationToken);
+        if (counterparty is null)
+        {
+            return false;
+        }
+
+        dbContext.Counterparties.Remove(counterparty);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task AddChargeAsync(
+        CounterpartyCharge charge,
+        CancellationToken cancellationToken)
+    {
+        await dbContext.CounterpartyCharges.AddAsync(charge, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task AddPaymentAsync(
+        CounterpartyPayment payment,
+        CancellationToken cancellationToken)
+    {
+        await dbContext.CounterpartyPayments.AddAsync(payment, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public Task<CounterpartyCharge?> FindOwnedChargeAsync(
+        Guid chargeId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        return dbContext.CounterpartyCharges.SingleOrDefaultAsync(
+            charge => charge.Id == chargeId && charge.UserId == userId,
+            cancellationToken);
+    }
+
+    public Task<CounterpartyPayment?> FindOwnedPaymentAsync(
+        Guid paymentId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        return dbContext.CounterpartyPayments.SingleOrDefaultAsync(
+            payment => payment.Id == paymentId && payment.UserId == userId,
+            cancellationToken);
+    }
+
+    public Task SaveChargeAsync(CounterpartyCharge charge, CancellationToken cancellationToken)
+    {
+        return dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public Task SavePaymentAsync(CounterpartyPayment payment, CancellationToken cancellationToken)
+    {
+        return dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     /// <summary>
     /// Bakiye = borçlandırmalar − tahsilatlar, iki yön ayrı ayrı.
     /// </summary>

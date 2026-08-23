@@ -33,6 +33,9 @@ kullanıcının kaydına erişen ayrıcalıklı rol yoktur.
 | Recurring create/list/active | 401 | Owner hesap/kategori ve current user planı | 404/400 veya dışlanır |
 | Occurrence generate/list/realize | 401 | Yalnız current user plan/occurrence'ı | 404/400 veya dışlanır |
 | Borç create/list/pay | 401 | Owner hesap ve owner gider kategorisiyle izinli | 404/400 veya listeden dışlanır |
+| Karşı taraf create/list/get/update/delete | 401 | Yalnız current user'ın karşı tarafı | 404; hareketi varsa 409 |
+| Cari borçlandırma / tahsilat | 401 | Owner karşı taraf + owner kategori/hesap | 404/400; pasif tarafa borçlandırma 409 |
+| Cari hareket iptali | 401 | Yalnız current user'ın hareketi | 404 |
 | Borç açılışını tamamlama | 401 | Yalnız current user'ın açılışı kayıtsız borcu | 404; kaydedilmişse 409 |
 | Upcoming payments | 401 | Üç kaynağın tamamı current `UserId` ile başlar | Feed'e girmez |
 | Advanced report | 401 | Bütün aggregate/join sorguları current `UserId` kapsamlıdır | Toplamlara girmez |

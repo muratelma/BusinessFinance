@@ -17,7 +17,19 @@ public enum FinancialActivityKind
     /// çıkmıştır (alacak) ve etkisi nötrdür; gider kaynaklıysa tüketim tam o
     /// gün gider olarak yazılır. Taksit ödemeleri buna ek bir gider üretmez.
     /// </summary>
-    DebtOpening = 7
+    DebtOpening = 7,
+
+    /// <summary>
+    /// Veresiye satış ya da tedarikçiden vadeli alım: gelir/gider tam o gün
+    /// tanınır, kasa kıpırdamaz (ADR 0014).
+    /// </summary>
+    CounterpartyCharge = 8,
+
+    /// <summary>
+    /// Cari tahsilat ya da ödeme: kasa değişir, gelir/gider üretilmez.
+    /// Ekonomik olay borçlandırmada zaten tanınmıştır.
+    /// </summary>
+    CounterpartySettlement = 9
 }
 
 /// <summary>Effect on the income/expense report.</summary>
@@ -34,7 +46,14 @@ public enum FinancialActivitySourceGroup
     Account = 1,
     CreditCard = 2,
     Transfer = 3,
-    Debt = 4
+    Debt = 4,
+
+    /// <summary>
+    /// Açık cari. Taksitli sözleşme <see cref="Debt"/> olarak kalır: ikisi
+    /// aynı kişiye ait olsa da farklı sorular sorar — biri yürüyen bir
+    /// hesap, diğeri vadesi belli bir plan.
+    /// </summary>
+    Counterparty = 5
 }
 
 /// <summary>How the activity was produced.</summary>
@@ -210,6 +229,11 @@ public static class FinancialActivityCapabilities
         {
             return false;
         }
+
+        // Cari hareketin iki türü de iptal edilebilir ve iptalleri kendi
+        // türevlerini birlikte geri alır: borçlandırma tanıdığı gelir/gideri,
+        // tahsilat taşıdığı parayı. Sözleşmeden farkları burada: ikisi de tek
+        // başına duran bir kayıt, geri dönüşü olmayan bir planın sonucu değil.
 
         return origin is not (FinancialActivityOrigin.Recurring or FinancialActivityOrigin.Installment);
     }

@@ -193,6 +193,44 @@ public sealed class RecordDebtOpeningUseCaseTests
         public Task<CounterpartyBalanceSummary?> FindBalanceAsync(
             Guid counterpartyId, Guid userId, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+
+        public Task<bool> ExistsByNameAsync(
+            Guid userId,
+            string normalizedName,
+            Guid? exceptCounterpartyId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task AddAsync(Counterparty item, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task UpdateOwnedAsync(
+            Counterparty item, Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<bool> DeleteIfWithoutHistoryAsync(
+            Guid counterpartyId, Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task AddChargeAsync(CounterpartyCharge charge, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task AddPaymentAsync(CounterpartyPayment payment, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<CounterpartyCharge?> FindOwnedChargeAsync(
+            Guid chargeId, Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<CounterpartyPayment?> FindOwnedPaymentAsync(
+            Guid paymentId, Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task SaveChargeAsync(CounterpartyCharge charge, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task SavePaymentAsync(CounterpartyPayment payment, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     private sealed class FakeDebtRepository(DebtAgreement? debt) : IDebtRepository

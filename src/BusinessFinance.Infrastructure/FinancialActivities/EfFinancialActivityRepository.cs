@@ -82,7 +82,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
     }
 
     /// <summary>
-    /// The six write models, each projected to the identical anonymous shape that
+    /// The eight write models, each projected to the identical anonymous shape that
     /// <see cref="Queryable.Concat"/> needs to become a single UNION ALL.
     /// </summary>
     private IQueryable<ActivityRow> BuildMergedQuery(Guid userId)
@@ -418,13 +418,108 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 MatchCategoryId = category.Id
             };
 
+        // Açık cari, ADR 0014'ün iki yüzü. Borçlandırma tanır: yön kategorinin
+        // türünü belirlediği için etki doğrudan yönden okunur — alacak doğuran
+        // satış gelirdir, borç doğuran alım giderdir.
+        var counterpartyCharges =
+            from charge in dbContext.CounterpartyCharges.AsNoTracking()
+            join counterparty in dbContext.Counterparties.AsNoTracking()
+                on new { charge.UserId, Id = charge.CounterpartyId }
+                equals new { counterparty.UserId, counterparty.Id }
+            join category in dbContext.Categories.AsNoTracking()
+                on new { charge.UserId, Id = charge.CategoryId }
+                equals new { category.UserId, category.Id }
+            where charge.UserId == userId
+            select new ActivityRow
+            {
+                ActivityId = charge.Id,
+                ActivityKind = (int)FinancialActivityKind.CounterpartyCharge,
+                Effect = charge.Direction == DebtDirection.Receivable
+                    ? (int)FinancialActivityEffect.Income
+                    : (int)FinancialActivityEffect.Expense,
+                SourceGroup = (int)FinancialActivitySourceGroup.Counterparty,
+                Origin = (int)FinancialActivityOrigin.Manual,
+                Status = charge.IsCancelled
+                    ? (int)FinancialActivityStatus.Cancelled
+                    : (int)FinancialActivityStatus.Realized,
+                ActivityDate = charge.ChargeDate,
+                Amount = charge.Amount.Amount,
+                Currency = (int)charge.Amount.Currency,
+
+                // Kaydın adı kullanıcının yazdığından gelir; yoksa karşı tarafın
+                // adı kategoriden daha çok şey söyler: "Ahmet Bakkal" bir satırı
+                // "Mal alımı"ndan iyi ayırır.
+                Title = charge.Description ?? counterparty.Name,
+                Description = charge.Description,
+                CategoryId = category.Id,
+                CategoryName = category.Name,
+                SourceId = counterparty.Id,
+                SourceName = counterparty.Name,
+                DestinationId = null,
+                DestinationName = null,
+                CancelledAtUtc = charge.CancelledAtUtc,
+                Scope = (int?)charge.Scope,
+                PrincipalPortion = (decimal?)null,
+                InterestPortion = (decimal?)null,
+
+                // Hesap eşleşmesi yok: borçlandırma hiçbir kasadan geçmez.
+                MatchAccountId = null,
+                MatchSecondAccountId = null,
+                MatchCreditCardId = null,
+                MatchCategoryId = category.Id
+            };
+
+        // Tahsilat/ödeme taşır: kasayı değiştirir, gelir/gider üretmez ve bu
+        // yüzden kart ödemesi gibi kapsamsızdır.
+        var counterpartySettlements =
+            from payment in dbContext.CounterpartyPayments.AsNoTracking()
+            join counterparty in dbContext.Counterparties.AsNoTracking()
+                on new { payment.UserId, Id = payment.CounterpartyId }
+                equals new { counterparty.UserId, counterparty.Id }
+            join account in dbContext.Accounts.AsNoTracking()
+                on new { payment.UserId, Id = payment.AccountId }
+                equals new { account.UserId, account.Id }
+            where payment.UserId == userId
+            select new ActivityRow
+            {
+                ActivityId = payment.Id,
+                ActivityKind = (int)FinancialActivityKind.CounterpartySettlement,
+                Effect = (int)FinancialActivityEffect.Neutral,
+                SourceGroup = (int)FinancialActivitySourceGroup.Counterparty,
+                Origin = (int)FinancialActivityOrigin.Manual,
+                Status = payment.IsCancelled
+                    ? (int)FinancialActivityStatus.Cancelled
+                    : (int)FinancialActivityStatus.Realized,
+                ActivityDate = payment.PaymentDate,
+                Amount = payment.Amount.Amount,
+                Currency = (int)payment.Amount.Currency,
+                Title = payment.Description ?? counterparty.Name,
+                Description = payment.Description,
+                CategoryId = null,
+                CategoryName = null,
+                SourceId = account.Id,
+                SourceName = account.Name,
+                DestinationId = counterparty.Id,
+                DestinationName = counterparty.Name,
+                CancelledAtUtc = payment.CancelledAtUtc,
+                Scope = (int?)null,
+                PrincipalPortion = (decimal?)null,
+                InterestPortion = (decimal?)null,
+                MatchAccountId = account.Id,
+                MatchSecondAccountId = null,
+                MatchCreditCardId = null,
+                MatchCategoryId = null
+            };
+
         return accountTransactions
             .Concat(transfers)
             .Concat(cardCharges)
             .Concat(cardPayments)
             .Concat(debtActivities)
             .Concat(debtCashOpenings)
-            .Concat(debtCategoricalOpenings);
+            .Concat(debtCategoricalOpenings)
+            .Concat(counterpartyCharges)
+            .Concat(counterpartySettlements);
     }
 
     private static IQueryable<ActivityRow> ApplyFilters(

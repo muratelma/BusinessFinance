@@ -89,13 +89,39 @@ internal sealed class EfFinancialReportRepository(
             userId, start, endExclusive, scope, cancellationToken);
         var debtInterest = await DebtInterestAsync(
             userId, start, endExclusive, scope, cancellationToken);
+
+        // Cari borçlandırma ekonomik olayı tanır: veresiye satış o gün
+        // gelir, vadeli alım o gün giderdir (ADR 0014). Tahsilat buraya
+        // hiç girmez — girseydi aynı satış iki kez sayılırdı.
+        var periodCounterpartyCharges = dbContext.CounterpartyCharges.AsNoTracking().Where(
+            charge => charge.UserId == userId &&
+                      !charge.IsCancelled &&
+                      (scope == null || charge.Scope == scope) &&
+                      charge.ChargeDate >= start &&
+                      charge.ChargeDate < endExclusive);
+        var counterpartyIncomeByScope = ScopeAmounts.From(await periodCounterpartyCharges
+            .Where(charge => charge.Direction == DebtDirection.Receivable)
+            .GroupBy(charge => charge.Scope)
+            .Select(group => new ScopeAmountRow(
+                group.Key,
+                group.Sum(charge => charge.Amount.Amount)))
+            .ToArrayAsync(cancellationToken));
+        var counterpartyExpenseByScope = ScopeAmounts.From(await periodCounterpartyCharges
+            .Where(charge => charge.Direction == DebtDirection.Payable)
+            .GroupBy(charge => charge.Scope)
+            .Select(group => new ScopeAmountRow(
+                group.Key,
+                group.Sum(charge => charge.Amount.Amount)))
+            .ToArrayAsync(cancellationToken));
         var expenseByScope = transactionExpenseByScope
             .Add(cardExpenseByScope)
             .Add(debtOpeningExpenseByScope)
-            .Add(debtInterest.Paid);
+            .Add(debtInterest.Paid)
+            .Add(counterpartyExpenseByScope);
         incomeByScope = incomeByScope
             .Add(debtOpeningIncomeByScope)
-            .Add(debtInterest.Earned);
+            .Add(debtInterest.Earned)
+            .Add(counterpartyIncomeByScope);
         var totalIncome = incomeByScope.Total;
         var totalExpense = expenseByScope.Total;
         var transactionCategoryExpenses = await (
@@ -145,10 +171,27 @@ internal sealed class EfFinancialReportRepository(
         // düşerdi — yalnız dağılımda kendi kovasına yazılıyor.
         var interestCategoryExpenses = await InterestCategoryExpensesAsync(
             userId, debtInterest.Paid.Total, cancellationToken);
+
+        // Vadeli alım dağılımda da kendi kategorisinde durur; toplam ile
+        // dağılımın birbirini tutması bunun koşulu.
+        var counterpartyCategoryExpenses = await (
+                from charge in periodCounterpartyCharges
+                join category in dbContext.Categories.AsNoTracking()
+                    on new { charge.UserId, Id = charge.CategoryId }
+                    equals new { category.UserId, category.Id }
+                where charge.Direction == DebtDirection.Payable
+                group charge by new { category.Id, category.Name }
+                into expenseGroup
+                select new CategoryExpenseDto(
+                    expenseGroup.Key.Id,
+                    expenseGroup.Key.Name,
+                    expenseGroup.Sum(item => item.Amount.Amount)))
+            .ToArrayAsync(cancellationToken);
         var categoryExpenses = transactionCategoryExpenses
             .Concat(cardCategoryExpenses)
             .Concat(debtCategoryExpenses)
             .Concat(interestCategoryExpenses)
+            .Concat(counterpartyCategoryExpenses)
             .GroupBy(item => new { item.CategoryId, item.CategoryName })
             .Select(group => new CategoryExpenseDto(
                 group.Key.CategoryId,
@@ -219,6 +262,8 @@ internal sealed class EfFinancialReportRepository(
                 })
             .ToDictionaryAsync(value => value.AccountId, value => value.Amount, cancellationToken);
         var debtOpenings = await DebtOpeningsByAccountAsync(userId, null, cancellationToken);
+        var counterpartySettlements = await CounterpartySettlementsByAccountAsync(
+            userId, null, cancellationToken);
         var accountBalances = accounts.Select(account => new AccountBalanceDto(
             account.Id,
             account.Name,
@@ -228,7 +273,8 @@ internal sealed class EfFinancialReportRepository(
             outgoingTransfers.GetValueOrDefault(account.Id) -
             cardPayments.GetValueOrDefault(account.Id) +
             debtMovements.GetValueOrDefault(account.Id) +
-            debtOpenings.GetValueOrDefault(account.Id),
+            debtOpenings.GetValueOrDefault(account.Id) +
+            counterpartySettlements.GetValueOrDefault(account.Id),
             account.Type)).ToArray();
 
         return new MonthlyReportDto(
@@ -370,8 +416,51 @@ internal sealed class EfFinancialReportRepository(
                     item.installment.PrincipalPortion ?? item.installment.Amount.Amount)
             })
             .ToDictionaryAsync(item => item.Direction, item => item.Amount, cancellationToken);
-        var receivableDebt = outstandingDebts.GetValueOrDefault(DebtDirection.Receivable);
-        var payableDebt = outstandingDebts.GetValueOrDefault(DebtDirection.Payable);
+        // Açık cari de net varlığın parçasıdır: veresiye satılan mal artık
+        // stokta değil, alacak olarak duruyor. Taksitli sözleşmeyle aynı
+        // kovalara giriyor çünkü soruları aynı — ne alacağım var, ne
+        // borcum. İki kaynak birbirini toplamaz: sözleşme kendi kalan
+        // anaparasını, cari kendi hareketlerini sayar.
+        var counterpartyBalances = await dbContext.Counterparties.AsNoTracking()
+            .Where(counterparty => counterparty.UserId == userId)
+            .Select(counterparty => new
+            {
+                Receivable =
+                    (dbContext.CounterpartyCharges
+                        .Where(charge => charge.UserId == userId &&
+                                         charge.CounterpartyId == counterparty.Id &&
+                                         !charge.IsCancelled &&
+                                         charge.Direction == DebtDirection.Receivable &&
+                                         charge.ChargeDate <= asOfDate)
+                        .Sum(charge => (decimal?)charge.Amount.Amount) ?? 0m) -
+                    (dbContext.CounterpartyPayments
+                        .Where(payment => payment.UserId == userId &&
+                                          payment.CounterpartyId == counterparty.Id &&
+                                          !payment.IsCancelled &&
+                                          payment.Direction == DebtDirection.Receivable &&
+                                          payment.PaymentDate <= asOfDate)
+                        .Sum(payment => (decimal?)payment.Amount.Amount) ?? 0m),
+                Payable =
+                    (dbContext.CounterpartyCharges
+                        .Where(charge => charge.UserId == userId &&
+                                         charge.CounterpartyId == counterparty.Id &&
+                                         !charge.IsCancelled &&
+                                         charge.Direction == DebtDirection.Payable &&
+                                         charge.ChargeDate <= asOfDate)
+                        .Sum(charge => (decimal?)charge.Amount.Amount) ?? 0m) -
+                    (dbContext.CounterpartyPayments
+                        .Where(payment => payment.UserId == userId &&
+                                          payment.CounterpartyId == counterparty.Id &&
+                                          !payment.IsCancelled &&
+                                          payment.Direction == DebtDirection.Payable &&
+                                          payment.PaymentDate <= asOfDate)
+                        .Sum(payment => (decimal?)payment.Amount.Amount) ?? 0m)
+            })
+            .ToArrayAsync(cancellationToken);
+        var receivableDebt = outstandingDebts.GetValueOrDefault(DebtDirection.Receivable) +
+                             counterpartyBalances.Sum(item => item.Receivable);
+        var payableDebt = outstandingDebts.GetValueOrDefault(DebtDirection.Payable) +
+                          counterpartyBalances.Sum(item => item.Payable);
         var futureLoad = await GetFutureLoadAsync(
             userId, asOfDate, daysAhead, cancellationToken);
 
@@ -432,8 +521,22 @@ internal sealed class EfFinancialReportRepository(
             userId, start, endExclusive, scope, cancellationToken);
         var debtInterest = await DebtInterestAsync(
             userId, start, endExclusive, scope, cancellationToken);
-        var expense = transactionExpense + cardExpense + debtOpeningExpense + debtInterest.Paid.Total;
-        var totalIncome = income + debtOpeningIncome.Total + debtInterest.Earned.Total;
+        var counterpartyCharges = dbContext.CounterpartyCharges.AsNoTracking()
+            .Where(charge => charge.UserId == userId &&
+                             !charge.IsCancelled &&
+                             (scope == null || charge.Scope == scope) &&
+                             charge.ChargeDate >= start &&
+                             charge.ChargeDate < endExclusive);
+        var counterpartyExpense = await counterpartyCharges
+            .Where(charge => charge.Direction == DebtDirection.Payable)
+            .SumAsync(charge => charge.Amount.Amount, cancellationToken);
+        var counterpartyIncome = await counterpartyCharges
+            .Where(charge => charge.Direction == DebtDirection.Receivable)
+            .SumAsync(charge => charge.Amount.Amount, cancellationToken);
+        var expense = transactionExpense + cardExpense + debtOpeningExpense +
+                      debtInterest.Paid.Total + counterpartyExpense;
+        var totalIncome = income + debtOpeningIncome.Total + debtInterest.Earned.Total +
+                          counterpartyIncome;
         return new PeriodTotalsDto(year, month, totalIncome, expense, totalIncome - expense);
     }
 
@@ -499,6 +602,19 @@ internal sealed class EfFinancialReportRepository(
                     Amount = installment.InterestPortion!.Value
                 })
             .ToArrayAsync(cancellationToken);
+        var counterpartyCharges = await dbContext.CounterpartyCharges.AsNoTracking()
+            .Where(charge => charge.UserId == userId &&
+                             !charge.IsCancelled &&
+                             (scope == null || charge.Scope == scope) &&
+                             charge.ChargeDate >= start &&
+                             charge.ChargeDate < endExclusive)
+            .Select(charge => new
+            {
+                charge.ChargeDate,
+                charge.Direction,
+                Amount = charge.Amount.Amount
+            })
+            .ToArrayAsync(cancellationToken);
         var points = new List<CashFlowPointDto>(trendMonths);
 
         for (var offset = 0; offset < trendMonths; offset++)
@@ -518,6 +634,11 @@ internal sealed class EfFinancialReportRepository(
                     .Where(item => item.PaymentDate.Year == period.Year &&
                                    item.PaymentDate.Month == period.Month &&
                                    item.Direction == DebtDirection.Receivable)
+                    .Sum(item => item.Amount) +
+                counterpartyCharges
+                    .Where(item => item.ChargeDate.Year == period.Year &&
+                                   item.ChargeDate.Month == period.Month &&
+                                   item.Direction == DebtDirection.Receivable)
                     .Sum(item => item.Amount);
             var expense = transactions
                 .Where(item => item.TransactionDate.Year == period.Year &&
@@ -536,6 +657,11 @@ internal sealed class EfFinancialReportRepository(
                 debtInterest
                     .Where(item => item.PaymentDate.Year == period.Year &&
                                    item.PaymentDate.Month == period.Month &&
+                                   item.Direction == DebtDirection.Payable)
+                    .Sum(item => item.Amount) +
+                counterpartyCharges
+                    .Where(item => item.ChargeDate.Year == period.Year &&
+                                   item.ChargeDate.Month == period.Month &&
                                    item.Direction == DebtDirection.Payable)
                     .Sum(item => item.Amount);
             points.Add(new CashFlowPointDto(
@@ -623,12 +749,31 @@ internal sealed class EfFinancialReportRepository(
             })
             .ToDictionaryAsync(item => (item.CategoryId, item.Scope), item => item.Spent, cancellationToken);
 
+        // Vadeli alım da bütçeyi tüketir: tüketim gerçek, kategorili ve o
+        // gün tanınmış. Tahsilat tüketmez — tüketseydi aynı alım bütçeden
+        // iki kez düşerdi.
+        var counterpartySpent = await dbContext.CounterpartyCharges.AsNoTracking()
+            .Where(charge => charge.UserId == userId &&
+                             !charge.IsCancelled &&
+                             charge.Direction == DebtDirection.Payable &&
+                             charge.ChargeDate >= start &&
+                             charge.ChargeDate < endExclusive)
+            .GroupBy(charge => new { charge.CategoryId, charge.Scope })
+            .Select(group => new
+            {
+                group.Key.CategoryId,
+                group.Key.Scope,
+                Spent = group.Sum(item => item.Amount.Amount)
+            })
+            .ToDictionaryAsync(item => (item.CategoryId, item.Scope), item => item.Spent, cancellationToken);
+
         return budgets.Select(budget =>
         {
             var key = (budget.CategoryId, budget.Scope);
             var spent = transactionSpent.GetValueOrDefault(key) +
                         cardSpent.GetValueOrDefault(key) +
-                        debtSpent.GetValueOrDefault(key);
+                        debtSpent.GetValueOrDefault(key) +
+                        counterpartySpent.GetValueOrDefault(key);
             return new BudgetVarianceDto(
                 budget.CategoryId,
                 budget.CategoryName,
@@ -702,6 +847,8 @@ internal sealed class EfFinancialReportRepository(
                 })
             .ToDictionaryAsync(item => item.AccountId, item => item.Amount, cancellationToken);
         var debtOpenings = await DebtOpeningsByAccountAsync(userId, asOfDate, cancellationToken);
+        var counterpartySettlements = await CounterpartySettlementsByAccountAsync(
+            userId, asOfDate, cancellationToken);
 
         return accounts.Select(account => new AccountBalanceDto(
             account.Id,
@@ -712,9 +859,38 @@ internal sealed class EfFinancialReportRepository(
             outgoing.GetValueOrDefault(account.Id) -
             cardPayments.GetValueOrDefault(account.Id) +
             debtMovements.GetValueOrDefault(account.Id) +
-            debtOpenings.GetValueOrDefault(account.Id),
+            debtOpenings.GetValueOrDefault(account.Id) +
+            counterpartySettlements.GetValueOrDefault(account.Id),
             account.Type)).ToArray();
     }
+
+    /// <summary>
+    /// Cari tahsilat/ödemenin hesap başına net etkisi: tahsilat artırır,
+    /// ödeme azaltır.
+    /// </summary>
+    /// <remarks>
+    /// Tahsilat parayı <b>taşır</b> (ADR 0014). Bakiyeye katılmasaydı
+    /// tahsil edilen para kasada hiç görünmez, cari bakiye düşerken karşılığı
+    /// hiçbir yere girmemiş olurdu. Gelir/gider tarafına ise hiç dokunmaz.
+    /// </remarks>
+    private Task<Dictionary<Guid, decimal>> CounterpartySettlementsByAccountAsync(
+        Guid userId,
+        DateOnly? asOfDate,
+        CancellationToken cancellationToken) =>
+        dbContext.CounterpartyPayments.AsNoTracking()
+            .Where(payment => payment.UserId == userId &&
+                              !payment.IsCancelled &&
+                              (asOfDate == null || payment.PaymentDate <= asOfDate))
+            .GroupBy(payment => payment.AccountId)
+            .Select(group => new
+            {
+                AccountId = group.Key,
+                Amount = group.Sum(payment =>
+                    payment.Direction == DebtDirection.Receivable
+                        ? payment.Amount.Amount
+                        : -payment.Amount.Amount)
+            })
+            .ToDictionaryAsync(item => item.AccountId, item => item.Amount, cancellationToken);
 
     /// <summary>
     /// Gelir kaynaklı alacakların açılış geliri.
