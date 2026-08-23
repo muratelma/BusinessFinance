@@ -251,7 +251,7 @@ geçirir** ve 03'e devreder.
   koymak olurdu. Sözleşme (API + Dart DTO) hazır, ölçütün arayüz yarısı
   Grup 7'nin kabulünde doğrulanacak.
 
-### Grup 7 — Flutter
+### Grup 7 — Flutter — **Tamamlandı**
 
 - `features/counterparties/`: liste (bakiyeye göre sıralı), ayrıntı, hareket
   geçmişi.
@@ -262,6 +262,29 @@ geçirir** ve 03'e devreder.
   yeniden kurgusu Aşama 04'te. Cari hareketleri karşı taraf ekranından girilir.
 - `FinancialDataChanges` yeni hedef alır.
 - Ölçüt: loading, empty, error, unauthorized, stale-cache görünür ele alınmış.
+- Sonuç: liste + ayrıntı + dört form (karşı taraf, veresiye satış, vadeli
+  alım, tahsilat/ödeme) yazıldı; `Diğer` menüsüne `Cari hesap` kapısı,
+  `Borç ve alacaklar`ın hemen üstüne eklendi. 13 widget testi, erişilebilirlik
+  kapısı dahil.
+- **Ayrıntının geçmişi birleşik feed'den geliyor**: API'ye `counterpartyId`
+  filtresi eklendi ve filtre o kişinin **sözleşme** hareketlerini de
+  getiriyor. İkinci bir geçmiş modeli açmak, aynı hareket için iki sıralama
+  ve iki iptal kuralı demek olurdu.
+- **Karar:** iki ekran tek controller paylaşıyor. Ayrıntıda alınan tahsilat
+  listedeki bakiyeyi de değiştiriyor; ayrı controller'lar her yazımdan sonra
+  birbirini tazelemek zorunda kalırdı.
+- **Karar:** `FinancialDataChanges` iki sinyal aldı. `counterpartiesChanged`
+  yalnız kişi listesini (ad değişti, pasifleşti) yükseltiyor;
+  `counterpartyLedgerChanged` gider/kasa hedeflerini de. Kişi adını
+  düzeltmenin bütçe ekranını yeniden yükletmesi için sebep yok.
+- Formlar kayıt türünün kuralını yüzeyde tekrarlıyor: borçlandırma hesap
+  sormuyor, tahsilat kategori ve kapsam sormuyor.
+- **Grup 6'dan devreden arayüz payı hâlâ açık**: fiş önerisini gösteren ve
+  tek dokunuşla reddettiren rozet yazılmadı. Fişten gelen ad bugün borç
+  formuna düşüyor ve kayıt onaylanırken zaten aynı karşı tarafa bağlanıyor;
+  rozetin gerçek bir işi olması için fişin doğrudan cari harekete
+  yazılabilmesi gerekiyor ve o yol bu aşamada yok. Kullanıcı onayıyla
+  kapatılacak ya da kendi maddesiyle sonraki aşamaya taşınacak.
 
 ### Grup 8 — Yedek v7 ve dışa aktarma
 

@@ -138,7 +138,8 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
-                MatchCategoryId = category.Id
+                MatchCategoryId = category.Id,
+                MatchCounterpartyId = null
             };
 
         var transfers =
@@ -178,7 +179,8 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 MatchAccountId = source.Id,
                 MatchSecondAccountId = destination.Id,
                 MatchCreditCardId = null,
-                MatchCategoryId = null
+                MatchCategoryId = null,
+                MatchCounterpartyId = null
             };
 
         var cardCharges =
@@ -225,7 +227,8 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 MatchAccountId = null,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = card.Id,
-                MatchCategoryId = category.Id
+                MatchCategoryId = category.Id,
+                MatchCounterpartyId = null
             };
 
         var cardPayments =
@@ -267,7 +270,8 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = card.Id,
-                MatchCategoryId = null
+                MatchCategoryId = null,
+                MatchCounterpartyId = null
             };
 
         // Only paid installments are realized events. Unpaid ones belong to the planned
@@ -320,7 +324,8 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
-                MatchCategoryId = null
+                MatchCategoryId = null,
+                MatchCounterpartyId = debt.CounterpartyId
             };
 
         // Borcun doğduğu an. Bu satır olmadan feed yalnız parayı çıkarken
@@ -367,7 +372,8 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
-                MatchCategoryId = null
+                MatchCategoryId = null,
+                MatchCounterpartyId = debt.CounterpartyId
             };
 
         var debtCategoricalOpenings =
@@ -415,7 +421,8 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 MatchAccountId = null,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
-                MatchCategoryId = category.Id
+                MatchCategoryId = category.Id,
+                MatchCounterpartyId = debt.CounterpartyId
             };
 
         // Açık cari, ADR 0014'ün iki yüzü. Borçlandırma tanır: yön kategorinin
@@ -466,7 +473,8 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 MatchAccountId = null,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
-                MatchCategoryId = category.Id
+                MatchCategoryId = category.Id,
+                MatchCounterpartyId = counterparty.Id
             };
 
         // Tahsilat/ödeme taşır: kasayı değiştirir, gelir/gider üretmez ve bu
@@ -508,7 +516,8 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
-                MatchCategoryId = null
+                MatchCategoryId = null,
+                MatchCounterpartyId = counterparty.Id
             };
 
         return accountTransactions
@@ -581,6 +590,11 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
         if (criteria.CreditCardId is Guid creditCardId)
         {
             query = query.Where(row => row.MatchCreditCardId == creditCardId);
+        }
+
+        if (criteria.CounterpartyId is Guid counterpartyId)
+        {
+            query = query.Where(row => row.MatchCounterpartyId == counterpartyId);
         }
 
         if (criteria.CategoryId is Guid categoryId)
@@ -660,6 +674,13 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
         public decimal? PrincipalPortion { get; init; }
         public decimal? InterestPortion { get; init; }
         public Guid? MatchAccountId { get; init; }
+
+        /// <summary>
+        /// Satırın hangi kişiyle ilgili olduğu: cari hareketlerde karşı
+        /// tarafın kendisi, borç satırlarında sözleşmenin karşı tarafı.
+        /// Diğer türlerde <c>null</c>.
+        /// </summary>
+        public Guid? MatchCounterpartyId { get; init; }
         public Guid? MatchSecondAccountId { get; init; }
         public Guid? MatchCreditCardId { get; init; }
         public Guid? MatchCategoryId { get; init; }

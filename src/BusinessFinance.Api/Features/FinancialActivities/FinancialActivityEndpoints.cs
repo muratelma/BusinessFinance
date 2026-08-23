@@ -145,6 +145,7 @@ public static class FinancialActivityEndpoints
         Guid? accountId = null,
         Guid? creditCardId = null,
         Guid? categoryId = null,
+        Guid? counterpartyId = null,
         string? scope = null,
         bool includeCancelled = true)
     {
@@ -189,6 +190,7 @@ public static class FinancialActivityEndpoints
                 accountId,
                 creditCardId,
                 categoryId,
+                counterpartyId,
                 parsedScope,
                 includeCancelled),
             cancellationToken);

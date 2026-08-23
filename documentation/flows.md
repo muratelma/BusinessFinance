@@ -773,7 +773,8 @@ Menü yedi kutu ve sıra frekansa değil **ne yaptığınıza** göre:
 | 1 | Hesaplar ve transferler | `/more/accounts` — iki sekme |
 | 2 | Kredi kartları | `/more/cards` — harcama, taksitli harcama, ödeme, ekstre |
 | 3 | Kategoriler | `/more/categories` |
-| 4 | Borç ve alacaklar | `/more/debts` |
+| 4 | Cari hesap | `/more/counterparties` |
+| 5 | Borç ve alacaklar | `/more/debts` |
 | 5 | Tasarruf hedefleri | `/more/goals` |
 | 6 | Planlama ve raporlar | `/more/planning` — tekrarlayanlar, yaklaşanlar, raporlar |
 | 7 | Veri ve yedek | `/more/data-tools` — CSV, belgeler, yedek |

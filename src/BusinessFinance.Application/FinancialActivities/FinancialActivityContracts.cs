@@ -156,6 +156,14 @@ public sealed record FinancialActivityListCriteria(
     Guid? CreditCardId,
     Guid? CategoryId,
 
+    /// <summary>
+    /// Bir kişiyle olan bütün geçmiş: cari hareketler <b>ve</b> o kişiyle
+    /// yapılmış taksitli sözleşmenin hareketleri. Karşı taraf ayrıntı
+    /// ekranı tek bir soru sorar ("Ahmet'le ne oldu?") ve cevabı iki ayrı
+    /// listeye bölmek onu kullanıcıya birleştirtirdi.
+    /// </summary>
+    Guid? CounterpartyId,
+
     // Boşsa toplam. Doluysa kapsamsız satırlar (transfer, kart ödemesi) da düşer.
     TransactionScope? Scope,
     bool IncludeCancelled);

@@ -11,7 +11,14 @@ enum ActivityKind {
 
   /// Borcun doğduğu an. Nakit kaynakta para el değiştirir, gider kaynakta
   /// tüketim olur; tek tür iki farklı etki taşır.
-  debtOpening('debt-opening');
+  debtOpening('debt-opening'),
+
+  /// Veresiye satış ya da vadeli alım: gelir/gider o gün tanınır, kasa
+  /// kıpırdamaz.
+  counterpartyCharge('counterparty-charge'),
+
+  /// Cari tahsilat ya da ödeme: kasa değişir, gelir/gider üretilmez.
+  counterpartySettlement('counterparty-settlement');
 
   const ActivityKind(this.apiValue);
   final String apiValue;
@@ -24,6 +31,8 @@ enum ActivityKind {
     'debt-payment' => debtPayment,
     'debt-collection' => debtCollection,
     'debt-opening' => debtOpening,
+    'counterparty-charge' => counterpartyCharge,
+    'counterparty-settlement' => counterpartySettlement,
     _ => throw FormatException('Bilinmeyen hareket türü: $value'),
   };
 
@@ -37,6 +46,10 @@ enum ActivityKind {
     // Tek tür hem borcu hem alacağı kapsıyor; satırın kendisi kiminle
     // olduğunu zaten yazıyor.
     debtOpening => 'Borç / alacak açılışı',
+    // Yön satırın kendisinde: alacak doğuran kayıt gelir, borç doğuran
+    // gider olarak görünür ve etiket ikisini birden karşılar.
+    counterpartyCharge => 'Cari hareket',
+    counterpartySettlement => 'Cari tahsilat / ödeme',
   };
 }
 
@@ -60,7 +73,11 @@ enum ActivitySourceGroup {
   account('account'),
   creditCard('credit-card'),
   transfer('transfer'),
-  debt('debt');
+  debt('debt'),
+
+  /// Açık cari. Taksitli sözleşme `debt` olarak kalır: aynı kişiye ait
+  /// olsalar bile biri yürüyen bir hesap, diğeri vadesi belli bir plandır.
+  counterparty('counterparty');
 
   const ActivitySourceGroup(this.apiValue);
   final String apiValue;
@@ -70,6 +87,7 @@ enum ActivitySourceGroup {
     'credit-card' => creditCard,
     'transfer' => transfer,
     'debt' => debt,
+    'counterparty' => counterparty,
     _ => throw FormatException('Bilinmeyen kaynak grubu: $value'),
   };
 }

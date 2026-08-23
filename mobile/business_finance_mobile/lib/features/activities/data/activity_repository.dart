@@ -93,6 +93,12 @@ class ActivityRepository implements ActivityRepositoryContract {
       ActivityKind.debtOpening => throw StateError(
         'Borç hareketi iptal edilemez: ${activity.activityId}',
       ),
+      // Cari hareketin ikisi de iptal edilebilir: tek başına duran kayıtlar,
+      // geri dönüşü olmayan bir planın sonucu değiller.
+      ActivityKind.counterpartyCharge =>
+        '/api/v1/counterparty-charges/${activity.activityId}',
+      ActivityKind.counterpartySettlement =>
+        '/api/v1/counterparty-payments/${activity.activityId}',
     };
     await _apiClient.delete(path);
   }

@@ -19,6 +19,7 @@ import '../features/planning/data/planning_repository.dart';
 import '../features/profile/data/profile_repository.dart';
 import '../features/profile/data/scope_preferences.dart';
 import '../features/data_tools/data/data_tools_repository.dart';
+import '../features/counterparties/data/counterparty_repository.dart';
 import '../features/debts/data/debt_repository.dart';
 import '../features/goals/data/goal_repository.dart';
 import '../features/receipts/data/receipt_image_source.dart';
@@ -44,6 +45,7 @@ class AppDependencies {
     this.planningRepository,
     this.dataToolsRepository,
     this.debtRepository,
+    this.counterpartyRepository,
     this.goalRepository,
     this.receiptRepository,
     this.receiptImageSource,
@@ -78,6 +80,7 @@ class AppDependencies {
     final planningRepository = PlanningRepository(apiClient);
     final dataToolsRepository = DataToolsRepository(apiClient);
     final debtRepository = DebtRepository(apiClient);
+    final counterpartyRepository = CounterpartyRepository(apiClient);
     final goalRepository = GoalRepository(apiClient);
     final receiptRepository = ReceiptRepository(apiClient);
     final profileRepository = ProfileRepository(apiClient);
@@ -105,6 +108,7 @@ class AppDependencies {
       planningRepository,
       dataToolsRepository,
       debtRepository,
+      counterpartyRepository,
       goalRepository,
       receiptRepository,
       ImagePickerReceiptImageSource(),
@@ -133,6 +137,7 @@ class AppDependencies {
   final PlanningRepositoryContract planningRepository;
   final DataToolsRepositoryContract dataToolsRepository;
   final DebtRepositoryContract debtRepository;
+  final CounterpartyRepositoryContract counterpartyRepository;
   final GoalRepositoryContract goalRepository;
   final ReceiptRepositoryContract receiptRepository;
 

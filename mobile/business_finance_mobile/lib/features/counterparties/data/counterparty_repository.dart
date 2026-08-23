@@ -1,0 +1,136 @@
+import '../../../core/models/data_choice.dart';
+import '../../../core/models/json_readers.dart';
+import '../../../core/network/api_client.dart';
+import '../../activities/data/activity_models.dart';
+import 'counterparty_models.dart';
+
+abstract interface class CounterpartyRepositoryContract {
+  Future<CounterpartiesSnapshot> load(CounterpartyBalanceFilter filter);
+
+  /// Bir kişinin bakiyesi, hareket geçmişi ve sözleşmeleri.
+  Future<CounterpartyDetail> loadDetail(String counterpartyId);
+
+  Future<void> create(String name, String? note);
+
+  Future<void> update(
+    String counterpartyId, {
+    required String name,
+    required bool isActive,
+    String? note,
+  });
+
+  /// Hiç hareketi olmayan karşı tarafı siler; hareketi varsa sunucu `409`
+  /// döner ve kullanıcı pasifleştirmeye yönlendirilir.
+  Future<void> delete(String counterpartyId);
+
+  /// Veresiye satış ya da vadeli alım.
+  Future<void> addCharge(String counterpartyId, Map<String, Object?> input);
+
+  /// Tahsilat ya da ödeme.
+  Future<void> addPayment(String counterpartyId, Map<String, Object?> input);
+}
+
+class CounterpartyRepository implements CounterpartyRepositoryContract {
+  const CounterpartyRepository(this._client);
+  final ApiClient _client;
+
+  @override
+  Future<CounterpartiesSnapshot> load(CounterpartyBalanceFilter filter) async {
+    final responses = await Future.wait([
+      _client.get('/api/v1/counterparties?balance=${filter.apiValue}'),
+      _client.get('/api/v1/accounts?pageNumber=1&pageSize=100&isActive=true'),
+      _client.get('/api/v1/categories?isActive=true'),
+    ]);
+    return CounterpartiesSnapshot(
+      counterparties: _items(
+        responses[0].requireObject(),
+      ).map(CounterpartySummary.fromJson).toList(growable: false),
+      accounts: _items(
+        responses[1].requireObject(),
+      ).map(DataChoice.fromJson).toList(growable: false),
+      categories: _items(
+        responses[2].requireObject(),
+      ).map(DataChoice.categoryFromJson).toList(growable: false),
+    );
+  }
+
+  /// Üç okuma tek ekran için: kişi, hareketleri ve sözleşmeleri.
+  ///
+  /// Hareketler birleşik feed'den geliyor, ikinci bir geçmiş modelinden değil:
+  /// aynı hareketi iki ayrı yerden okumak, iki farklı sıralama ve iki farklı
+  /// iptal kuralı demek olurdu. Sözleşmeler borç listesinden okunup bu kişiye
+  /// göre daraltılıyor — cari hesabın dışında dururlar ve toplamları
+  /// birbirine karışmaz.
+  @override
+  Future<CounterpartyDetail> loadDetail(String counterpartyId) async {
+    final responses = await Future.wait([
+      _client.get('/api/v1/counterparties/$counterpartyId'),
+      _client.get(
+        '/api/v1/financial-activities'
+        '?pageNumber=1&pageSize=50&counterpartyId=$counterpartyId',
+      ),
+      _client.get('/api/v1/debts'),
+    ]);
+    final agreements = _items(responses[2].requireObject())
+        .where(
+          (item) =>
+              JsonReaders.string(item, 'counterpartyId') == counterpartyId,
+        )
+        .map(CounterpartyAgreement.fromJson)
+        .toList(growable: false);
+    return CounterpartyDetail(
+      counterparty: CounterpartySummary.fromJson(responses[0].requireObject()),
+      activities: ActivityPage.fromJson(responses[1].requireObject()).items,
+      agreements: agreements,
+    );
+  }
+
+  @override
+  Future<void> create(String name, String? note) async => _client.post(
+    '/api/v1/counterparties',
+    body: {'name': name, if (note != null && note.isNotEmpty) 'note': note},
+  );
+
+  @override
+  Future<void> update(
+    String counterpartyId, {
+    required String name,
+    required bool isActive,
+    String? note,
+  }) async => _client.put(
+    '/api/v1/counterparties/$counterpartyId',
+    body: {
+      'name': name,
+      'isActive': isActive,
+      if (note != null && note.isNotEmpty) 'note': note,
+    },
+  );
+
+  @override
+  Future<void> delete(String counterpartyId) async =>
+      _client.delete('/api/v1/counterparties/$counterpartyId');
+
+  @override
+  Future<void> addCharge(
+    String counterpartyId,
+    Map<String, Object?> input,
+  ) async => _client.post(
+    '/api/v1/counterparties/$counterpartyId/charges',
+    body: input,
+  );
+
+  @override
+  Future<void> addPayment(
+    String counterpartyId,
+    Map<String, Object?> input,
+  ) async => _client.post(
+    '/api/v1/counterparties/$counterpartyId/payments',
+    body: input,
+  );
+
+  List<Map<String, dynamic>> _items(Map<String, dynamic> json) =>
+      JsonReaders.list(
+        json,
+        'items',
+      ).map((item) => JsonReaders.object(item, 'item')).toList(growable: false);
+}

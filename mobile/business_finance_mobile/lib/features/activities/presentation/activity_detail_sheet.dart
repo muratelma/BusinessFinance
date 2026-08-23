@@ -105,6 +105,18 @@ class ActivityDetailSheet extends StatelessWidget {
           if (activity.sourceName != null)
             _DetailRow('Hesap', activity.sourceName!),
         ],
+        // Borçlandırmanın hesabı yoktur: para el değiştirmedi, yalnız
+        // kimin kime borçlandığı yazıldı.
+        ActivityKind.counterpartyCharge => [
+          if (activity.sourceName != null)
+            _DetailRow('Karşı taraf', activity.sourceName!),
+        ],
+        ActivityKind.counterpartySettlement => [
+          if (activity.sourceName != null)
+            _DetailRow('Hesap', activity.sourceName!),
+          if (activity.destinationName != null)
+            _DetailRow('Karşı taraf', activity.destinationName!),
+        ],
       },
       _DetailRow('Köken', activity.origin.label),
       // The title already carries the description when the user wrote one, so

@@ -46,6 +46,7 @@ void main() {
       final repository = _FakeProfileRepository();
       final scope = await _scopeController(hasBusiness: false);
       await _pumpMore(tester, repository: repository, scope: scope);
+      await _revealBusinessAnswer(tester);
 
       await tester.tap(find.text('İşletmem var'));
       await tester.pumpAndSettle();
@@ -66,6 +67,7 @@ void main() {
       );
       final scope = await _scopeController(hasBusiness: false);
       await _pumpMore(tester, repository: repository, scope: scope);
+      await _revealBusinessAnswer(tester);
 
       await tester.tap(find.text('İşletmem var'));
       await tester.pumpAndSettle();
@@ -109,6 +111,18 @@ Future<void> _pumpRegister(
         onBackToLogin: () {},
       ),
     ),
+  );
+  await tester.pumpAndSettle();
+}
+
+/// Menü test ekranına sığmıyor: kapı sayısı arttıkça onboarding cevabı
+/// katlanmanın altına iniyor. Kaydırmadan dokunmak, cevabın kaybolduğunu
+/// değil ekranın küçük olduğunu ölçerdi.
+Future<void> _revealBusinessAnswer(WidgetTester tester) async {
+  await tester.dragUntilVisible(
+    find.text('İşletmem var'),
+    find.byType(ListView),
+    const Offset(0, -120),
   );
   await tester.pumpAndSettle();
 }

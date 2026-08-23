@@ -595,6 +595,29 @@ duran bir kayıttır, geri dönüşü olmayan bir planın sonucu değil.
 Cari hareketin **vadesi yoktur**, bu yüzden planlanan görünüme girmez —
 vade, gecikme ve hatırlatma Aşama 03'ün konusu.
 
+#### İstemci: `features/counterparties/`
+
+Liste (bakiyeye göre sıralı, `Tümü / Açık hesap / Kapanmış` filtresi) ve
+ayrıntı ekranı **tek controller** paylaşır: ayrıntıdan alınan bir tahsilat
+listedeki bakiyeyi de değiştirir ve iki ayrı controller aynı yazımdan sonra
+birbirini tazelemek zorunda kalırdı.
+
+Ayrıntı üç bloğu birlikte gösterir — açık cari bakiyesi, hareket geçmişi ve
+varsa taksitli sözleşmeler — ama **hiçbiri diğerinin toplamına karışmaz**.
+Geçmiş, ikinci bir okuma modelinden değil **birleşik feed'den** gelir
+(`GET /api/v1/financial-activities?counterpartyId=…`): aynı hareketi iki
+yerden okumak iki farklı sıralama ve iki farklı iptal kuralı demek olurdu.
+Filtre, o kişiyle yapılmış **taksitli sözleşmenin** hareketlerini de
+getirir; kullanıcı tek soru sorar, cevabı iki listeye bölünmez.
+
+Formlar kayıt türünün kuralını yüzeyde tekrar eder: borçlandırma formu
+**hesap sormaz** (para el değiştirmiyor), tahsilat formu **kategori ve
+kapsam sormaz** (gelir/gider üretmiyor). Tahsilat alanı açık bakiyeyle dolu
+açılır ama kilitli değildir — kısmi tahsilat kuraldır, istisna değil.
+`FinancialDataChanges` yeni bir hedef aldı (`counterparties`): kişi
+listesini değiştiren yazım yalnız onu, para yazan hareket ise gider/kasa
+hedeflerini de yükseltir.
+
 ### Taşınabilirlik: dışa aktarma ile yedek ayrı şeylerdir
 
 İşlem CSV'si kaydın kapsamını `type`'ın yanında bir kolonda taşır. Kapsamsız

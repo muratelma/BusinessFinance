@@ -2555,6 +2555,26 @@ public sealed class SqlServerPersistenceIntegrationTests
 
         // Planned occurrences and unpaid installments belong to the planned view.
         Assert.DoesNotContain(page.Items, item => item.ActivityId == seeded.PlannedOccurrenceId);
+
+        // Bir kişiyle olan bütün geçmiş tek soruyla okunuyor: cari hareketleri.
+        // Aynı filtre, o kişiyle yapılmış taksitli sözleşmenin hareketlerini de
+        // getirir — ayrıntı ekranı iki listeyi kullanıcıya birleştirtmez.
+        var withShopkeeper = await repository.ListAsync(
+            owner.Id,
+            AllActivities() with { CounterpartyId = credit.SourceId },
+            CancellationToken.None);
+        Assert.Equal(2, withShopkeeper.TotalCount);
+        Assert.All(withShopkeeper.Items, item => Assert.Contains(
+            item.ActivityId,
+            new[] { seeded.CounterpartyChargeId, seeded.CounterpartySettlementId }));
+
+        var withLender = await repository.ListAsync(
+            owner.Id,
+            AllActivities() with { CounterpartyId = seeded.LenderId },
+            CancellationToken.None);
+        Assert.Contains(withLender.Items, item => item.ActivityId == seeded.DebtPaymentId);
+        Assert.All(withLender.Items, item =>
+            Assert.Equal(FinancialActivitySourceGroup.Debt, item.SourceGroup));
     }
 
     /// <summary>
@@ -2881,6 +2901,7 @@ public sealed class SqlServerPersistenceIntegrationTests
         AccountId: null,
         CreditCardId: null,
         CategoryId: null,
+        CounterpartyId: null,
         Scope: null,
         IncludeCancelled: true);
 
@@ -2899,7 +2920,8 @@ public sealed class SqlServerPersistenceIntegrationTests
         Guid ImportedTransactionId,
         Guid PlannedOccurrenceId,
         Guid CounterpartyChargeId,
-        Guid CounterpartySettlementId);
+        Guid CounterpartySettlementId,
+        Guid LenderId);
 
     private sealed record ActivityFeedRead(
         FinancialActivityPage Page,
@@ -3036,7 +3058,8 @@ public sealed class SqlServerPersistenceIntegrationTests
             importedTransaction.Id,
             plannedOccurrence.Id,
             counterpartyCharge.Id,
-            counterpartySettlement.Id);
+            counterpartySettlement.Id,
+            lender.Id);
     }
 
     private static async Task SeedExtraTransactionsAsync(

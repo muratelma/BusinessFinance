@@ -36,6 +36,7 @@ kullanıcının kaydına erişen ayrıcalıklı rol yoktur.
 | Karşı taraf create/list/get/update/delete | 401 | Yalnız current user'ın karşı tarafı | 404; hareketi varsa 409 |
 | Cari borçlandırma / tahsilat | 401 | Owner karşı taraf + owner kategori/hesap | 404/400; pasif tarafa borçlandırma 409 |
 | Cari hareket iptali | 401 | Yalnız current user'ın hareketi | 404 |
+| Birleşik feed `counterpartyId` filtresi | 401 | Her satır zaten owner kapsamlı; filtre yalnız daraltır | Başkasının kimliği boş liste döner |
 | Borç açılışını tamamlama | 401 | Yalnız current user'ın açılışı kayıtsız borcu | 404; kaydedilmişse 409 |
 | Upcoming payments | 401 | Üç kaynağın tamamı current `UserId` ile başlar | Feed'e girmez |
 | Advanced report | 401 | Bütün aggregate/join sorguları current `UserId` kapsamlıdır | Toplamlara girmez |

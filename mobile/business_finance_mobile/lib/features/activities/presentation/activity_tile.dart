@@ -103,6 +103,11 @@ class ActivityTile extends StatelessWidget {
     ActivityKind.debtPayment => Icons.trending_down,
     ActivityKind.debtCollection => Icons.trending_up,
     ActivityKind.debtOpening => Icons.handshake_outlined,
+    ActivityKind.counterpartyCharge =>
+      activity.effect == ActivityEffect.income
+          ? Icons.south_west
+          : Icons.north_east,
+    ActivityKind.counterpartySettlement => Icons.price_check,
   };
 
   String get _subtitle {

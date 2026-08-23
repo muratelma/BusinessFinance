@@ -161,6 +161,7 @@ Owner-scoped, `RequireAuthorization`.
 | `pageSize` | int | `20` | 1–100 |
 | `dateFrom` | `yyyy-MM-dd` | yok | dahil |
 | `dateTo` | `yyyy-MM-dd` | yok | dahil |
+| `counterpartyId` | guid | yok | tek değer; cari hareketleri **ve** o kişinin sözleşme hareketlerini getirir |
 | `sourceGroup` | enum | yok | tek değer |
 | `activityKind` | enum | yok | tek değer |
 | `effect` | enum | yok | tek değer |

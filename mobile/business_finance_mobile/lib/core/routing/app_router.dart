@@ -38,6 +38,8 @@ import '../../features/planning/presentation/bill_prefill.dart';
 import '../../features/planning/presentation/planning_page.dart';
 import '../../features/data_tools/data/data_tools_repository.dart';
 import '../../features/data_tools/presentation/data_tools_page.dart';
+import '../../features/counterparties/data/counterparty_repository.dart';
+import '../../features/counterparties/presentation/counterparties_page.dart';
 import '../../features/debts/data/debt_repository.dart';
 import '../../features/debts/presentation/debts_page.dart';
 import '../../features/debts/presentation/lending_prefill.dart';
@@ -77,6 +79,7 @@ GoRouter createAppRouter({
   PlanningRepositoryContract? planningRepository,
   DataToolsRepositoryContract? dataToolsRepository,
   DebtRepositoryContract? debtRepository,
+  CounterpartyRepositoryContract? counterpartyRepository,
   GoalRepositoryContract? goalRepository,
   ReceiptRepositoryContract? receiptRepository,
   ReceiptImageSourceContract? receiptImageSource,
@@ -434,6 +437,25 @@ GoRouter createAppRouter({
                     financeRepository,
                     financialDataChanges,
                   ),
+                ),
+          authController,
+        ),
+      ),
+      GoRoute(
+        path: '/more/counterparties',
+        pageBuilder: (context, state) => _sessionPage(
+          state,
+          counterpartyRepository == null
+              ? const Scaffold(
+                  body: AppErrorView(message: 'Cari servisi yapılandırılmadı.'),
+                )
+              : CounterpartiesPage(
+                  repository: counterpartyRepository,
+                  changes: financialDataChanges,
+                  // Kapsam çipi yalnız "işletmem var" diyene görünür;
+                  // cevabı görünmeyen kullanıcıda hiçbir istekte kapsam
+                  // gitmez.
+                  showScope: scopeController?.isVisible ?? false,
                 ),
           authController,
         ),

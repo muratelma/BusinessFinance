@@ -138,6 +138,11 @@ class ActivityController extends ChangeNotifier {
         case ActivityKind.debtCollection:
         case ActivityKind.debtOpening:
           financialDataChanges?.debtChanged();
+        // Borçlandırmanın iptali tanınan gelir/gideri, tahsilatınki
+        // kasadaki parayı geri alır; ikisi de cari bakiyeyi değiştirir.
+        case ActivityKind.counterpartyCharge:
+        case ActivityKind.counterpartySettlement:
+          financialDataChanges?.counterpartyLedgerChanged();
       }
       successMessage = 'Hareket iptal edildi.';
       await load();

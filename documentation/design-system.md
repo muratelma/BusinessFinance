@@ -488,6 +488,22 @@ raporlara hiç girmiyor ve bunu yalnız kullanıcı düzeltebilir.
 - Durum ekranları (yüklenen / boş / hata / yetkisiz) tek iskeleti paylaşır:
   ikon kapsülü, başlık, açıklama, isteğe bağlı eylem.
 
+### Cari hesap ekranları
+
+Listede her satır tek bakışta üç soruyu cevaplar: kim, hangi tarafta, ne
+kadar. Net tek sayıya iner ama **işaret kaybolmaz** — eksi, bizim ona
+borçlu olduğumuz demektir ve gider tonunda okunur; kapanmış hesap nötr
+tondadır ve "Hesap kapandı" yazar (renk tek başına bilgi taşımaz).
+
+Ayrıntıda iki taraf **ayrı satırlarda** durur, net üçüncü satırdır: aynı
+kişi hem müşteri hem tedarikçi olabilir ve tek sayıya indirmek hangi
+tarafın açık olduğunu gizlerdi. Taksitli sözleşmeler ayrı kartta ve
+"bakiyeye eklenmez" notuyla durur.
+
+Pasif karşı tarafta borçlandırma butonları kapalı, tahsilat açıktır ve
+sebebi `AppInlineNotice` ile satırın yanında yazar — kapalı bir butonun
+neden kapalı olduğu ekranda görünmezse kullanıcı hatayı kendinde arar.
+
 ## Erişilebilirlik kuralları
 
 1. **Hiçbir bilgi yalnız renkle taşınmaz.** Her durum ikon veya metinle de

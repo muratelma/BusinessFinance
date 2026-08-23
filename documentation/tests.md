@@ -139,6 +139,8 @@ Kapsam boyutunun test yüzeyi bu grupla tamamlandı.
 | `Execute_WhenOnlyASimilarNameExists_SuggestsNothing` (Application) | Benzeyen ad eşleşme değil: "Sentetik Manav" ile "Sentetik Market" aynı kişi sayılmıyor |
 | `Execute_WhenTheMatchingNameBelongsToSomeoneElse_SuggestsNothing` (Application) | Başka kullanıcının aynı adlı karşı tarafı önerilmiyor |
 | `Execute_WhenTheNameIsUnreadable_DoesNotAskForAMatch` (Application) | Ad okunamadıysa arama hiç yapılmıyor |
+| `counterparties_page_test` (Flutter, 13 test) | Liste: net işaretiyle okunuyor, kapanmış cari ayrı filtreyle geliyor, boş/hata/yetkisiz durumları görünür. Ayrıntı: iki taraf ayrı satırda, sözleşme ayrı kartta, geçmiş feed satırlarından; pasif tarafta borçlandırma kapalı/tahsilat açık; tahsilat formu açık bakiyeyle dolu; tahsilat isteğinde kategori ve kapsam **yok**; kapsam görünmeyen kullanıcıda istekte `scope` gitmiyor; erişilebilirlik kapısı |
+| `FinancialActivityFeed_ClassifiesEveryRealizedKindOnce` (`counterpartyId` filtresi) | Bir kişinin bütün geçmişi tek soruyla: cari hareketleri **ve** o kişiyle yapılmış sözleşmenin hareketleri |
 | `...ThreeSalesAndTwoPartialCollections_LeaveTheRemainderOpen` | Aşamanın çıkış senaryosunun domain hâli: 1.000 satış, 600 tahsilat, 400 açık; tahsilat geliri ikinci kez artırmıyor |
 | `...BothSidesOfTheSamePersonAreKeptApart` | Aynı kişinin alacak ve borç tarafı ayrı yürüyor, `Net` ikisini birleştiriyor |
 | `...CancelledMovementsLeaveTheBalanceUntouched` | İptal edilmiş hareket bakiyeye girmiyor |

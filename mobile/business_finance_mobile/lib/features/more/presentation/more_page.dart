@@ -56,6 +56,14 @@ class MorePage extends StatelessWidget {
               title: 'Kategoriler',
               onTap: () => context.push('/more/categories'),
             ),
+            // Cari hesap ile taksitli sözleşme kardeş kapılar: biri
+            // yürüyen bir hesap, diğeri vadesi belli bir plan. Aynı kapıya
+            // koymak, kullanıcıya iki farklı soruyu tek yerde sordurur.
+            _MenuItem(
+              icon: Icons.people_outline,
+              title: 'Cari hesap',
+              onTap: () => context.push('/more/counterparties'),
+            ),
             _MenuItem(
               icon: Icons.handshake_outlined,
               title: 'Borç ve alacaklar',

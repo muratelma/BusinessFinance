@@ -20,6 +20,7 @@ class FinancialDataChanges extends ChangeNotifier {
   int _accountsRevision = 0;
   int _cardsRevision = 0;
   int _planningRevision = 0;
+  int _counterpartiesRevision = 0;
 
   int get activityFeedRevision => _activityFeedRevision;
   int get dashboardRevision => _dashboardRevision;
@@ -27,6 +28,7 @@ class FinancialDataChanges extends ChangeNotifier {
   int get accountsRevision => _accountsRevision;
   int get cardsRevision => _cardsRevision;
   int get planningRevision => _planningRevision;
+  int get counterpartiesRevision => _counterpartiesRevision;
 
   /// Kept for the transaction list, which predates the unified feed and follows
   /// the same signal.
@@ -93,7 +95,31 @@ class FinancialDataChanges extends ChangeNotifier {
     budgets: true,
     accounts: true,
     planning: true,
+    // Sözleşme açarken yazılan ad karşı tarafı bulur ya da **kurar**: cari
+    // listesi bunu görmeden eski hâlinde kalırdı.
+    counterparties: true,
   );
+
+  /// Veresiye satış, vadeli alım, tahsilat ya da bunların iptali.
+  ///
+  /// `budgets` yükselir çünkü vadeli alım kategorili bir giderdir ve bütçeyi
+  /// tüketir; `accounts` yükselir çünkü tahsilat kasayı değiştirir. İkisi aynı
+  /// kaydın işi değil ama tek bir sinyalde toplanıyorlar: ekran hangisinin
+  /// yazıldığını bilse bile, iptal yolu ikisini birden geri alabiliyor.
+  ///
+  /// `planning` yükselmez: cari hareketin vadesi yoktur ve planlanan görünüme
+  /// hiç girmez.
+  void counterpartyLedgerChanged() => _raise(
+    feed: true,
+    dashboard: true,
+    budgets: true,
+    accounts: true,
+    counterparties: true,
+  );
+
+  /// Karşı tarafın kendisi eklendi, adı değişti, pasifleşti ya da silindi.
+  /// Para hareket etmedi; yalnız kişi listesi değişti.
+  void counterpartiesChanged() => _raise(counterparties: true);
 
   /// A restore replaces everything the user has, so every screen is stale.
   void restoreCompleted() => _raise(
@@ -103,6 +129,7 @@ class FinancialDataChanges extends ChangeNotifier {
     accounts: true,
     cards: true,
     planning: true,
+    counterparties: true,
   );
 
   void _raise({
@@ -112,6 +139,7 @@ class FinancialDataChanges extends ChangeNotifier {
     bool accounts = false,
     bool cards = false,
     bool planning = false,
+    bool counterparties = false,
   }) {
     if (feed) _activityFeedRevision++;
     if (dashboard) _dashboardRevision++;
@@ -119,6 +147,7 @@ class FinancialDataChanges extends ChangeNotifier {
     if (accounts) _accountsRevision++;
     if (cards) _cardsRevision++;
     if (planning) _planningRevision++;
+    if (counterparties) _counterpartiesRevision++;
     notifyListeners();
   }
 }
