@@ -5,7 +5,12 @@ import '../../../core/theme/app_spacing.dart';
 import 'auth_validation.dart';
 import 'widgets/password_field.dart';
 
-typedef RegisterSubmit = Future<void> Function(String email, String password);
+typedef RegisterSubmit =
+    Future<void> Function(
+      String email,
+      String password, {
+      required bool hasBusiness,
+    });
 typedef RegistrationCompleted = void Function(String email);
 
 class RegisterPage extends StatefulWidget {
@@ -31,6 +36,11 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _isSubmitting = false;
   String? _errorMessage;
 
+  /// Onboarding'in tek sorusu. Varsayılan **hayır**: soru sorulmadan
+  /// işletme sahibi varsaymak, esnaf olmayan kullanıcıyı hiç kullanmayacağı
+  /// otuz işletme kategorisiyle karşılardı.
+  bool _hasBusiness = false;
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -48,7 +58,11 @@ class _RegisterPageState extends State<RegisterPage> {
       _errorMessage = null;
     });
     try {
-      await widget.onSubmit(email, _passwordController.text);
+      await widget.onSubmit(
+        email,
+        _passwordController.text,
+        hasBusiness: _hasBusiness,
+      );
       if (mounted) {
         widget.onCompleted(email);
       }
@@ -99,6 +113,24 @@ class _RegisterPageState extends State<RegisterPage> {
                     const SizedBox(height: AppSpacing.small),
                     const Text(
                       'En az 12 karakter; büyük ve küçük harf, rakam ve özel karakter kullanın.',
+                    ),
+                    const SizedBox(height: AppSpacing.medium),
+                    // Cevap hiçbir özelliği kapatmaz: yalnız hangi kategori
+                    // setiyle başlanacağını ve işletme/şahsi ayrımının
+                    // arayüzde görünüp görünmeyeceğini belirler.
+                    SwitchListTile(
+                      value: _hasBusiness,
+                      onChanged: _isSubmitting
+                          ? null
+                          : (value) => setState(() => _hasBusiness = value),
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('İşletmem var'),
+                      subtitle: const Text(
+                        'Esnaf ya da şahıs şirketiyseniz işletme '
+                        'kategorileriyle başlarsınız ve kayıtlarınızı işletme '
+                        'ile şahsi olarak ayrı okuyabilirsiniz. Gündelik '
+                        'harcamalarınız yine aynı uygulamada durur.',
+                      ),
                     ),
                     if (_errorMessage case final message?) ...[
                       const SizedBox(height: AppSpacing.medium),

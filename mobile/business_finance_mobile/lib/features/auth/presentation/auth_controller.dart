@@ -56,13 +56,17 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  Future<void> register(String email, String password) async {
+  Future<void> register(
+    String email,
+    String password, {
+    required bool hasBusiness,
+  }) async {
     if (_isSubmitting) {
       return;
     }
     _setSubmitting(true);
     try {
-      await _repository.register(email, password);
+      await _repository.register(email, password, hasBusiness: hasBusiness);
       _errorMessage = null;
     } on ApiException catch (error) {
       _errorMessage = error.message;

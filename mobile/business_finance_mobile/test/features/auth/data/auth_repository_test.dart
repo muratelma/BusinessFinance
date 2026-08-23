@@ -216,6 +216,9 @@ class FakeAuthService implements AuthRemoteService {
   }
 
   @override
-  Future<RegisterResult> register(String email, String password) async =>
-      RegisterResult(userId: session.userId, email: email);
+  Future<RegisterResult> register(
+    String email,
+    String password, {
+    required bool hasBusiness,
+  }) async => RegisterResult(userId: session.userId, email: email);
 }

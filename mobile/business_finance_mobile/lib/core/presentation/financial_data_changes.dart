@@ -7,6 +7,12 @@ import 'package:flutter/foundation.dart';
 /// server's answer; nothing here recomputes them. Each mutation raises exactly
 /// the targets it can affect, so a transfer does not make the budget screen
 /// refetch work that cannot have changed.
+///
+/// **Kapsam anahtarının burada bir hedefi yok** ve olmamalı: anahtar veriyi
+/// değiştirmez, aynı veriye başka bir soru sorar. Ekranlar onu kendi
+/// kanalından (`ScopeController`) dinler. Buraya bağlansaydı her kapsam
+/// dokunuşu, kapsamdan etkilenmeyen ekranları (hesaplar, kartlar) da boşuna
+/// yeniden yükletirdi.
 class FinancialDataChanges extends ChangeNotifier {
   int _activityFeedRevision = 0;
   int _dashboardRevision = 0;

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../network/api_client.dart';
 import '../network/api_exception.dart';
 import '../presentation/financial_data_changes.dart';
+import '../presentation/scope_controller.dart';
 import '../../features/accounts/data/account_repository.dart';
 import '../../features/accounts/presentation/accounts_and_transfers_page.dart';
 import '../../features/accounts/presentation/accounts_view_model.dart';
@@ -71,6 +72,7 @@ GoRouter createAppRouter({
   TransactionRepositoryContract? transactionRepository,
   ActivityRepositoryContract? activityRepository,
   FinancialDataChanges? financialDataChanges,
+  ScopeController? scopeController,
   FinanceRepositoryContract? financeRepository,
   PlanningRepositoryContract? planningRepository,
   DataToolsRepositoryContract? dataToolsRepository,
@@ -115,7 +117,7 @@ GoRouter createAppRouter({
           key: state.pageKey,
           child: RegisterPage(
             onSubmit: authController == null
-                ? (_, _) async {}
+                ? (_, _, {required hasBusiness}) async {}
                 : authController.register,
             onCompleted: (email) => context.go(
               Uri(path: '/login', queryParameters: {'email': email}).toString(),
@@ -167,6 +169,7 @@ GoRouter createAppRouter({
                           builder: (context) => ActivityFeedPage(
                             repository: activityRepository,
                             changes: financialDataChanges,
+                            scopeController: scopeController,
                             onCreateTransaction: () => openQuickAdd(context),
                             onShowPlanned: () =>
                                 context.push('/transactions/planned'),
@@ -195,6 +198,7 @@ GoRouter createAppRouter({
                           financialDataChanges: financialDataChanges,
                           dataToolsRepository: dataToolsRepository,
                           authController: authController,
+                          scopeController: scopeController,
                         ),
                       ),
                       // Karar sayfası fiş ekranıyla **kardeş**: dekont
@@ -307,6 +311,7 @@ GoRouter createAppRouter({
                           financialDataChanges: financialDataChanges,
                           dataToolsRepository: dataToolsRepository,
                           authController: authController,
+                          scopeController: scopeController,
                         ),
                       ),
                     ],
@@ -319,6 +324,7 @@ GoRouter createAppRouter({
                           : PlannedActivityPageView(
                               repository: activityRepository,
                               changes: financialDataChanges,
+                              scopeController: scopeController,
                             ),
                       authController,
                     ),
@@ -618,6 +624,7 @@ Page<dynamic> Function(BuildContext, GoRouterState) _quickAddPageBuilder({
   required FinancialDataChanges? financialDataChanges,
   required DataToolsRepositoryContract? dataToolsRepository,
   required AuthController? authController,
+  ScopeController? scopeController,
 }) {
   return (context, state) => _sessionPage(
     state,
@@ -625,6 +632,7 @@ Page<dynamic> Function(BuildContext, GoRouterState) _quickAddPageBuilder({
         ? const SizedBox.shrink()
         : QuickAddFormPage(
             isExpense: isExpense,
+            scopeController: scopeController,
             prefill: state.extra is QuickAddPrefill
                 ? state.extra! as QuickAddPrefill
                 : null,

@@ -1,19 +1,30 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/presentation/financial_data_changes.dart';
+import '../../../core/presentation/scope_controller.dart';
 import '../data/activity_models.dart';
 import '../data/activity_repository.dart';
 
 class ActivityController extends ChangeNotifier {
-  ActivityController(this._repository, {this.financialDataChanges})
-    : _seenRevision = financialDataChanges?.activityFeedRevision ?? 0 {
+  ActivityController(
+    this._repository, {
+    this.financialDataChanges,
+    this.scopeController,
+  }) : _seenRevision = financialDataChanges?.activityFeedRevision ?? 0,
+       _seenScope = scopeController?.scope {
     financialDataChanges?.addListener(_handleFinancialDataChanged);
+    scopeController?.addListener(_handleScopeChanged);
   }
 
   final ActivityRepositoryContract _repository;
   final FinancialDataChanges? financialDataChanges;
+
+  /// Uygulama genelindeki kapsam anahtarı; feed'in kendi filtresi değildir.
+  final ScopeController? scopeController;
   int _seenRevision;
+  TransactionScope? _seenScope;
 
   bool isLoading = false;
   bool isLoadingMore = false;
@@ -30,6 +41,11 @@ class ActivityController extends ChangeNotifier {
   final List<FinancialActivity> _items = [];
   List<FinancialActivity> get items => List.unmodifiable(_items);
 
+  /// Listenin o an okuduğu kapsam; başlıkta da bu yazılı durur.
+  TransactionScope? get scope => scopeController?.scope;
+
+  bool get isScopeVisible => scopeController?.isVisible ?? false;
+
   bool get hasMore => pagination?.hasNextPage ?? false;
   bool get isEmpty => !isLoading && errorMessage == null && _items.isEmpty;
 
@@ -39,7 +55,11 @@ class ActivityController extends ChangeNotifier {
     errorMessage = null;
     notifyListeners();
     try {
-      final page = await _repository.list(pageNumber: 1, filter: filter);
+      final page = await _repository.list(
+        pageNumber: 1,
+        filter: filter,
+        scope: scope,
+      );
       _items
         ..clear()
         ..addAll(page.items);
@@ -71,6 +91,7 @@ class ActivityController extends ChangeNotifier {
       final page = await _repository.list(
         pageNumber: current.pageNumber + 1,
         filter: filter,
+        scope: scope,
       );
       final seen = _items.map((item) => item.listKey).toSet();
       _items.addAll(page.items.where((item) => !seen.contains(item.listKey)));
@@ -151,6 +172,15 @@ class ActivityController extends ChangeNotifier {
   Future<void> clearAdvancedFilters() =>
       applyFilter(ActivityFilter(quickFilter: filter.quickFilter));
 
+  void _handleScopeChanged() {
+    final current = scopeController?.scope;
+    if (current == _seenScope) return;
+    _seenScope = current;
+    // Sayfalama baştan kurulur: kapsam değişince satır kümesi değişiyor ve
+    // eski sayfa numarası artık başka bir listeye işaret ediyor.
+    if (!isLoading) load();
+  }
+
   void _handleFinancialDataChanged() {
     final changes = financialDataChanges;
     if (changes == null) return;
@@ -170,6 +200,7 @@ class ActivityController extends ChangeNotifier {
   @override
   void dispose() {
     financialDataChanges?.removeListener(_handleFinancialDataChanged);
+    scopeController?.removeListener(_handleScopeChanged);
     super.dispose();
   }
 }

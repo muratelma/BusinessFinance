@@ -13,8 +13,8 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   yeniden yazıldı; kod değişmedi
 - Aktif aşama: **01 — Kapsam boyutu ve işletme kimliği.** 22 Ağustos 2026'da
   kullanıcı onayıyla açıldı. Belgesi `stages/01-kapsam-boyutu-ve-isletme-kimligi.md`;
-  dokuz çalışma grubu; **Grup 1–6 tamamlandı**, kalan üçü Flutter ve yedek
-  tarafında
+  dokuz çalışma grubu; **Grup 1–7 tamamlandı**, kalan ikisi özet ekranının
+  hero metriği ve CSV/runbook tarafında
 - Kalan beş aşamanın belgesi de yazılı, durumları `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
@@ -303,6 +303,56 @@ Kapsam artık raporları ve listeleri bölüyor; parayı bölmüyor.
 | Backend format (`--verify-no-changes`) | Temiz |
 | Backend test (SQL dahil) | **801 geçti**, 1 atlandı |
 
+## 23 Ağustos 2026 — Aşama 01, Grup 7: Flutter kapsam anahtarı ve formlar
+
+Kapsam boyutu artık kullanıcının gördüğü yerde. Backend Grup 6'da hazırdı;
+istemci bu turda hem gönderiyor hem gösteriyor.
+
+- **Tek denetim, tek anahtar** (`ScopeController`): anahtarın konumu ve
+  onboarding cevabı. Sekme başına ayrı filtre yok (ADR 0013). Anahtar Özet
+  ekranında, kaydırılan gövdenin **dışında** duruyor — yükleme, hata ve boş
+  durumda da yerinde; bölünen diğer ekranlar (feed, planlanan) onu uygulayıp
+  başlıklarında yazıyor, denetimi kopyalamıyor
+- **Seçim oturumlar arası hatırlanıyor**, cihaz deposunda (`ScopePreferences`,
+  `flutter_secure_storage` — `ReceiptPreferences` ile aynı gerekçe: iki değer
+  için ikinci bir depolama paketi eklemek bakımı olan yeni bir bağımlılıktı).
+  Onboarding cevabının **kaynağı sunucu**; cihazdaki kopya yalnız profil
+  okunamadığında boyutun sessizce kaybolmasını engelliyor. "Hayır" varsaymak,
+  işletme sahibinin boyutunu bir ağ hatasına kurban ederdi
+- **Çıkışta seçim ve cevap unutuluyor**; aynı cihazdan giren ikinci kullanıcı
+  birincisinin anahtar konumunu devralmıyor. Bağlama işi kompozisyon kökünde,
+  çünkü kimliği ve kapsamı birlikte tanıması gereken tek yer orası
+- **Bölünmeyen bölümler bölünmediklerini yazıyor.** Net varlık ve hesap
+  bakiyelerinin altında toplam gösterdiklerini söyleyen bir satır duruyor;
+  sessizce aynı kalan bir sayı filtrelenmiş sanılır ve kullanıcı iki tarafı
+  toplamaya çalışırdı
+- **Formdaki çip zincirin önizlemesi.** Kararın sahibi sunucu
+  (`TransactionScopeResolution`); form aynı sırayı yalnız **gösterebilmek** için
+  uyguluyor ve gösterdiği değeri açıkça gönderiyor — ekranda okunan ile yazılan
+  aynı olmalı. Alanın altında değerin nereden geldiği yazılı. Zincir
+  çözülemezse istek sunucuya gitmeden duruyor; sunucu da reddederdi
+  (`*.scope_unresolved`), ama hata kullanıcının düzeltebileceği yerde görünmeli
+- **`FinancialDataChanges`'e bağlanmadı** ve gerekçesi belgeye yazıldı: o sinyal
+  "veri değişti" der, anahtar veriyi değiştirmez. Oraya bağlansaydı her kapsam
+  dokunuşu kapsamdan etkilenmeyen ekranları (hesaplar, kartlar) da boşuna
+  yükletirdi
+- **Grup 5'in Flutter yüzü de bu checkpoint'e girdi:** kayıt formundaki tek soru
+  (`hasBusiness` artık istekle gidiyor, varsayılan kapalı) ve `Diğer`
+  menüsündeki `İşletmem var` anahtarı (`PUT /api/v1/profile`). İkisi olmadan
+  hiçbir Flutter kullanıcısı işletme sahibi olamıyor ve kapsam boyutunu hiç
+  göremiyordu
+- **Bilinen boşluk:** `ScopePreferences`'ın kendisinin doğrudan testi yok
+  (`ReceiptPreferences` ile aynı gerekçe — platform kanalı ister); sözleşmesi
+  (`ScopeStore`) sahte uygulamayla testli
+
+| Kontrol | Sonuç |
+|---|---|
+| Flutter analyze | No issues found |
+| Flutter format (`--set-exit-if-changed lib test`) | Temiz |
+| Flutter test | **692 geçti** (637 → +55) |
+| Flutter debug APK | Derlendi (`app-debug.apk`) |
+| Backend | Bu turda değişmedi |
+
 ## Açık kararlar ve riskler
 
 - **Yerel veritabanının silinmesi onay bekliyor.** Aşama 01 Grup 1'in ilk işi;
@@ -318,17 +368,17 @@ Kapsam artık raporları ve listeleri bölüyor; parayı bölmüyor.
 
 ## Sıradaki tek küçük görev
 
-- **Aşama 01, Grup 7:** Flutter tarafı — Özet ekranının başındaki
-  `Hepsi · İşletme · Şahsi` anahtarı, formda düzeltilebilir kapsam çipi ve
-  "işletmem yok" kullanıcısında boyutun tamamen gizlenmesi. Backend hazır;
-  istemci henüz kapsamı ne gönderiyor ne gösteriyor.
+- **Aşama 01, Grup 8:** Özet ekranının hero metriği. Bugünkü `Bu ayın neti`
+  kapsam varken hangi neti sorduğunu söylemiyor; yerine işletme neti ve şahsi
+  çekim ayrı ayrı, altlarında kasa değişimi gelecek. "Kâr" kelimesi
+  kullanılmaz — hesaplanan nakit esaslı işletme netidir.
 
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: Aşama 01 açıldı ve **Grup 1–6 uygulandı**: veri
-  sıfırlama, kapsam boyutu, migration, türetme zinciri, kategori setleri ile
-  işletme kimliği, kapsama duyarlı okuma modelleri. Kapsam boyutunun backend
-  tarafı tamam
-- Geçen kontroller: backend build + format + 801 test; Flutter analyze +
-  format + 637 test (Flutter kodu değişmedi)
-- Sıradaki görev: Aşama 01 Grup 7 — Flutter kapsam anahtarı ve kapsam çipi
+- Yapılan değişiklik: Aşama 01 **Grup 7 uygulandı** — Flutter kapsam anahtarı,
+  bölünen ekranların başlığında aktif kapsam, bölünmeyen bölümlerde toplam
+  notu, formda düzeltilebilir kapsam çipi, kayıt formundaki onboarding sorusu
+  ve `Diğer` menüsünde cevabı değiştiren anahtar
+- Geçen kontroller: Flutter analyze + format + **692 test** + debug APK
+  derlemesi. Backend bu turda değişmedi (son doğrulanmış hâli 801 test)
+- Sıradaki görev: Aşama 01 Grup 8 — özet ekranının hero metriği

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_text.dart';
 import '../../../core/presentation/financial_data_changes.dart';
+import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
@@ -24,10 +25,15 @@ class PlannedActivityPageView extends StatefulWidget {
     required this.repository,
     super.key,
     this.changes,
+    this.scopeController,
   });
 
   final ActivityRepositoryContract repository;
   final FinancialDataChanges? changes;
+
+  /// Uygulama genelindeki kapsam anahtarı; bu ekran onu uygular ve yazar,
+  /// değiştirmez.
+  final ScopeController? scopeController;
 
   @override
   State<PlannedActivityPageView> createState() =>
@@ -43,6 +49,7 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
     _controller = PlannedActivityController(
       widget.repository,
       financialDataChanges: widget.changes,
+      scopeController: widget.scopeController,
     );
     _controller.load();
   }
@@ -56,7 +63,16 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Planlananlar')),
+      appBar: AppBar(
+        title: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) => Text(
+            _controller.scope == null
+                ? 'Planlananlar'
+                : 'Planlananlar · ${_controller.scope!.label}',
+          ),
+        ),
+      ),
       body: AnimatedBuilder(
         animation: _controller,
         builder: (context, _) => _buildBody(context),

@@ -3,10 +3,12 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../core/localization/app_locale.dart';
+import '../core/presentation/scope_controller.dart';
 import '../core/routing/app_router.dart';
 import '../core/theme/app_theme.dart';
 import '../features/auth/presentation/auth_controller.dart';
 import '../features/dashboard/presentation/dashboard_view_model.dart';
+import '../features/profile/data/profile_repository.dart';
 import 'app_dependencies.dart';
 
 class BusinessFinanceApp extends StatelessWidget {
@@ -27,6 +29,7 @@ class BusinessFinanceApp extends StatelessWidget {
                      dependencies.dashboardRepository,
                      activityRepository: dependencies.activityRepository,
                      changes: dependencies.financialDataChanges,
+                     scopeController: dependencies.scopeController,
                    ),
              accountRepository: dependencies?.accountRepository,
              budgetRepository: dependencies?.budgetRepository,
@@ -34,6 +37,7 @@ class BusinessFinanceApp extends StatelessWidget {
              transactionRepository: dependencies?.transactionRepository,
              activityRepository: dependencies?.activityRepository,
              financialDataChanges: dependencies?.financialDataChanges,
+             scopeController: dependencies?.scopeController,
              financeRepository: dependencies?.financeRepository,
              planningRepository: dependencies?.planningRepository,
              dataToolsRepository: dependencies?.dataToolsRepository,
@@ -68,13 +72,77 @@ class BusinessFinanceApp extends StatelessWidget {
       return app;
     }
 
+    final dependencies = _dependencies;
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: authController),
-        if (_dependencies case final dependencies?)
+        if (dependencies != null) ...[
           Provider.value(value: dependencies.apiClient),
+          ChangeNotifierProvider.value(value: dependencies.scopeController),
+          Provider<ProfileRepositoryContract>.value(
+            value: dependencies.profileRepository,
+          ),
+        ],
       ],
-      child: app,
+      child: dependencies == null
+          ? app
+          : _ScopeSessionBinder(
+              authController: authController,
+              scopeController: dependencies.scopeController,
+              child: app,
+            ),
     );
   }
+}
+
+/// Kapsam anahtarını oturuma bağlar.
+///
+/// Kompozisyon kökündedir çünkü hem kimlik hem kapsam denetimini tanıması
+/// gereken tek yer burasıdır; `ScopeController` auth özelliğini, `AuthController`
+/// da kapsamı tanımaz.
+///
+/// Oturum kapanınca seçim **unutulur**: aynı cihazdan giren ikinci kullanıcı
+/// birincisinin anahtar konumunu ve işletme cevabını devralmamalı.
+class _ScopeSessionBinder extends StatefulWidget {
+  const _ScopeSessionBinder({
+    required this.authController,
+    required this.scopeController,
+    required this.child,
+  });
+
+  final AuthController authController;
+  final ScopeController scopeController;
+  final Widget child;
+
+  @override
+  State<_ScopeSessionBinder> createState() => _ScopeSessionBinderState();
+}
+
+class _ScopeSessionBinderState extends State<_ScopeSessionBinder> {
+  @override
+  void initState() {
+    super.initState();
+    widget.authController.addListener(_handleAuthChanged);
+    _handleAuthChanged();
+  }
+
+  void _handleAuthChanged() {
+    switch (widget.authController.status) {
+      case AuthStatus.authenticated:
+        widget.scopeController.ensureLoaded();
+      case AuthStatus.unauthenticated:
+        widget.scopeController.forget();
+      case AuthStatus.restoring:
+        break;
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.authController.removeListener(_handleAuthChanged);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

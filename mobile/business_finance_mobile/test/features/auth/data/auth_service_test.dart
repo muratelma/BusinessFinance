@@ -66,6 +66,7 @@ void main() {
     final result = await service.register(
       'new@example.test',
       'Valid-Password-123!',
+      hasBusiness: false,
     );
 
     expect(result.email, 'new@example.test');

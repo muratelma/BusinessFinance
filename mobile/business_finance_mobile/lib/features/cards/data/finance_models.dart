@@ -1,9 +1,17 @@
 import '../../../core/models/json_readers.dart';
+import '../../../core/models/transaction_scope.dart';
 
 class FinanceChoice {
-  const FinanceChoice({required this.id, required this.name});
+  const FinanceChoice({
+    required this.id,
+    required this.name,
+    this.defaultScope,
+  });
   final String id;
   final String name;
+
+  /// Hesabın ya da kategorinin varsayılan kapsamı; boş olması meşrudur.
+  final TransactionScope? defaultScope;
 }
 
 class TransferItem {
@@ -50,6 +58,7 @@ class CreditCardItem {
     required this.paymentDueDay,
     required this.minimumPaymentRate,
     required this.isActive,
+    this.defaultScope,
   });
   final String id;
   final String name;
@@ -64,6 +73,9 @@ class CreditCardItem {
   final String minimumPaymentRate;
   final bool isActive;
 
+  /// Kartın varsayılan kapsamı; boş olması meşrudur.
+  final TransactionScope? defaultScope;
+
   factory CreditCardItem.fromJson(Map<String, dynamic> json) => CreditCardItem(
     id: JsonReaders.string(json, 'id'),
     name: JsonReaders.string(json, 'name'),
@@ -75,6 +87,7 @@ class CreditCardItem {
     paymentDueDay: JsonReaders.integer(json, 'paymentDueDay'),
     minimumPaymentRate: JsonReaders.money(json, 'minimumPaymentRate'),
     isActive: JsonReaders.boolean(json, 'isActive'),
+    defaultScope: TransactionScope.fromApiOrNull(json['defaultScope']),
   );
 }
 

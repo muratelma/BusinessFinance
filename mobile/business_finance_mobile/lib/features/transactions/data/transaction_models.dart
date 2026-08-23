@@ -1,3 +1,5 @@
+import '../../../core/models/transaction_scope.dart';
+
 enum TransactionKind {
   income('income'),
   expense('expense');
@@ -111,6 +113,7 @@ class CreateTransactionInput {
     required this.kind,
     required this.transactionDate,
     this.description,
+    this.scope,
   });
 
   final String accountId;
@@ -120,6 +123,10 @@ class CreateTransactionInput {
   final String transactionDate;
   final String? description;
 
+  /// Boş bırakılırsa sunucu kapsamı kendi türetir; türetemezse isteği
+  /// reddeder ve bir değer **uydurmaz**.
+  final TransactionScope? scope;
+
   Map<String, Object?> toJson() => {
     'accountId': accountId,
     'categoryId': categoryId,
@@ -128,6 +135,7 @@ class CreateTransactionInput {
     'type': kind.apiValue,
     'transactionDate': transactionDate,
     'description': description,
+    'scope': scope?.apiValue,
   };
 }
 
@@ -137,10 +145,15 @@ class TransactionChoice {
     required this.name,
     required this.isActive,
     this.kind,
+    this.defaultScope,
   });
 
   final String id;
   final String name;
   final bool isActive;
   final TransactionKind? kind;
+
+  /// Kaynağın ya da kategorinin varsayılan kapsamı. Boş olması meşrudur:
+  /// "kapsamı bilmiyorum" değil, "bu kaynak kapsamı belirlemiyor" demektir.
+  final TransactionScope? defaultScope;
 }

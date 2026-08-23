@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/presentation/financial_data_changes.dart';
+import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_adaptive_sheet.dart';
@@ -23,10 +24,15 @@ class ActivityFeedPage extends StatefulWidget {
     this.changes,
     this.onCreateTransaction,
     this.onShowPlanned,
+    this.scopeController,
   });
 
   final ActivityRepositoryContract repository;
   final FinancialDataChanges? changes;
+
+  /// Uygulama genelindeki kapsam anahtarı. Bu ekran anahtarı **değiştirmez**,
+  /// yalnız uygular ve başlığında yazar; tek anahtar Özet ekranındadır.
+  final ScopeController? scopeController;
   final VoidCallback? onCreateTransaction;
   final VoidCallback? onShowPlanned;
 
@@ -44,6 +50,7 @@ class _ActivityFeedPageState extends State<ActivityFeedPage> {
     _controller = ActivityController(
       widget.repository,
       financialDataChanges: widget.changes,
+      scopeController: widget.scopeController,
     );
     _scrollController.addListener(_handleScroll);
     _controller.load();
@@ -59,6 +66,7 @@ class _ActivityFeedPageState extends State<ActivityFeedPage> {
     try {
       final page = await widget.repository.listPlanned(
         horizon: PlannedHorizon.month,
+        scope: widget.scopeController?.scope,
       );
       if (mounted) setState(() => _planned = page);
     } on Exception {
@@ -87,7 +95,17 @@ class _ActivityFeedPageState extends State<ActivityFeedPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('İşlemler'),
+        title: AnimatedBuilder(
+          animation: _controller,
+          // Aktif kapsam başlıkta yazılı durur: bu liste bölünen bir okuma ve
+          // filtrenin açık olduğu ekranda görünmezse eksik liste, kayıp kayıt
+          // gibi okunur.
+          builder: (context, _) => Text(
+            _controller.scope == null
+                ? 'İşlemler'
+                : 'İşlemler · ${_controller.scope!.label}',
+          ),
+        ),
         actions: [
           AnimatedBuilder(
             animation: _controller,

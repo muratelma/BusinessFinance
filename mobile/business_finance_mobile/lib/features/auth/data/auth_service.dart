@@ -2,7 +2,11 @@ import '../../../core/network/api_client.dart';
 import 'auth_models.dart';
 
 abstract interface class AuthRemoteService {
-  Future<RegisterResult> register(String email, String password);
+  Future<RegisterResult> register(
+    String email,
+    String password, {
+    required bool hasBusiness,
+  });
 
   Future<AuthSession> login(String email, String password);
 
@@ -17,10 +21,20 @@ class ApiAuthService implements AuthRemoteService {
   final ApiClient _apiClient;
 
   @override
-  Future<RegisterResult> register(String email, String password) async {
+  Future<RegisterResult> register(
+    String email,
+    String password, {
+    required bool hasBusiness,
+  }) async {
     final response = await _apiClient.post(
       '/api/v1/auth/register',
-      body: {'email': email, 'password': password},
+      body: {
+        'email': email,
+        'password': password,
+        // Onboarding'in tek sorusu. Sonraya bırakılamaz: varsayılan kategori
+        // seti ilk kategori okumasında kuruluyor ve yalnız bir kez kuruluyor.
+        'hasBusiness': hasBusiness,
+      },
     );
     return RegisterResult.fromJson(response.requireObject());
   }

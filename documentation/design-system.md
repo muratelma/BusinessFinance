@@ -199,6 +199,8 @@ yapılır.
 | `AppContentWidth` | Geniş ekranda içeriği okunabilir genişlikle sınırlar |
 | `AppAdaptiveSheet` | Telefonda bottom sheet, geniş ekranda ortalanmış dialog |
 | `AppResponsiveGrid` | Sütun sayısını kartın en küçük okunabilir genişliğinden türetir |
+| `AppScopeSwitch` | Uygulamanın tek kapsam anahtarı: `Hepsi · İşletme · Şahsi` |
+| `AppScopeField` | Formdaki düzeltilebilir kapsam çipi; altında değerin nereden geldiği yazılı |
 | `AppLoadingView` / `AppErrorView` / `AppEmptyView` / `AppUnauthorizedView` | Ortak durum ekranları |
 
 Birkaç bileşenin sözleşmesinde neden şu kararların olduğu:
@@ -225,6 +227,17 @@ Birkaç bileşenin sözleşmesinde neden şu kararların olduğu:
   `onSecondary`). Filtre panelindeki `Temizle` bunun tek örneğidir:
   temizlemek vazgeçmekten farklıdır — vazgeçmek hiçbir şey değiştirmez,
   temizlemek boş filtreyi uygular.
+- **Kapsam denetimleri segmentli buton değil sarmalanan çiptir.** Üç etiket
+  2.0× yazı ölçeğinde tek satıra sığmıyor ve `SegmentedButton` kaydırılamıyor;
+  anahtarın bir ucu ekran dışında kalırdı. Seçili olmak yalnız dolguyla değil
+  onay işaretiyle de bildirilir.
+- **Anahtar Özet ekranında, kaydırılan gövdenin dışındadır.** Uygulamanın tek
+  kapsam denetimi odur ve yükleme, hata ya da boş durumda da yerinde durmalı;
+  kullanıcı boş bir liste görüp anahtarı aramamalı. Bölünen diğer ekranlar
+  aktif kapsamı **başlıklarında yazar**, denetimi kopyalamaz.
+- **Bölünmeyen bölüm, bölünmediğini yazar.** Filtre açıkken sessizce aynı kalan
+  bir sayı filtrelenmiş sanılır; net varlık ve hesap bakiyelerinin altında
+  toplam gösterdiklerini söyleyen bir satır durur.
 - **`AppDateField` kendi görünümünü tanımlamaz.** `InputDecorator` ile tema
   dekorasyonunu okur; tarih alanı yanındaki metin alanlarından ayrı bir tür
   gibi görünmemelidir.
@@ -529,6 +542,7 @@ raporlara hiç girmiyor ve bunu yalnız kullanıcı düzeltebilir.
 | Yerleşim bileşenleri | `test/core/widgets/` |
 | Form paneli sözleşmeleri (kapanış, doğrulama, üçüncü eylem) | `test/core/widgets/app_form_sheet_test.dart` |
 | Tarih alanı dekorasyonu ve API biçimi | `test/core/widgets/app_date_field_test.dart` |
+| Kapsam anahtarı ve kapsam çipi (üç konum, onay işareti, 2.0×, erişilebilirlik) | `test/core/widgets/app_scope_selector_test.dart` |
 | Türkçe Material metinleri | `test/widget_test.dart` |
 | Ham renk / ölçek dışı boşluk / doğrudan genişlik karşılaştırması | `test/architecture/design_tokens_test.dart` |
 | Dokunma hedefi, adlandırılmış hedef, metin kontrastı, 2.0× taşma | `test/helpers/accessibility.dart` + ekran testleri |

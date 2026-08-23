@@ -6,7 +6,11 @@ import 'auth_service.dart';
 abstract interface class AuthSessionRepository {
   AuthSession? get currentSession;
 
-  Future<RegisterResult> register(String email, String password);
+  Future<RegisterResult> register(
+    String email,
+    String password, {
+    required bool hasBusiness,
+  });
 
   Future<AuthSession> login(String email, String password);
 
@@ -45,8 +49,12 @@ class AuthRepository implements AuthSessionRepository {
   AuthSession? get currentSession => _session;
 
   @override
-  Future<RegisterResult> register(String email, String password) =>
-      _remoteService.register(email.trim(), password);
+  Future<RegisterResult> register(
+    String email,
+    String password, {
+    required bool hasBusiness,
+  }) =>
+      _remoteService.register(email.trim(), password, hasBusiness: hasBusiness);
 
   @override
   Future<AuthSession> login(String email, String password) async {

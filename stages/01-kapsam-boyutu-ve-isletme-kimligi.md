@@ -210,7 +210,7 @@ Bu aşama aşağıdakilerin hiçbirini bozmaz; bozması gerekirse önce ADR yaz�
   ödemesi, kart ekstresi) da eliyor — ikisini birden iki tarafta göstermek aynı
   para hareketini iki kez saydırırdı. Yaklaşan ödemeler kapsam almıyor.
 
-### Grup 7 — Flutter: kapsam anahtarı ve formlar
+### Grup 7 — Flutter: kapsam anahtarı ve formlar — **Tamamlandı**
 
 - Global kapsam anahtarı: Özet ekranının başlığında, `Hepsi · İşletme · Şahsi`.
   Seçim uygulama genelinde geçerli ve oturumlar arası hatırlanır. **Sekme başına
@@ -224,6 +224,20 @@ Bu aşama aşağıdakilerin hiçbirini bozmaz; bozması gerekirse önce ADR yaz�
   ekranları tazelemeli.
 - Ölçüt: loading, empty, error, unauthorized ve stale-cache durumları kapsamla
   birlikte görünür ele alınmış.
+- Sonuç: denetim tek yerde (`ScopeController`) ve iki dar bağımlılık alıyor —
+  cihaz deposu ve profili okuyan fonksiyon. Anahtar Özet ekranında, kaydırılan
+  gövdenin **dışında**; feed ve planlanan görünüm onu uygular ve başlıklarında
+  yazar. Net varlık ile hesap bakiyelerinin altında bölünmediklerini söyleyen
+  satır duruyor. Formdaki çip zincirin **önizlemesi**: sunucudaki sırayı
+  gösterip gönderiyor, çözülemezse istek gitmeden alanın yanında söylüyor.
+  `FinancialDataChanges`'e **bağlanmadı** — anahtar veriyi değiştirmez, aynı
+  veriye başka bir soru sorar; oraya bağlamak kapsamdan etkilenmeyen ekranları
+  da boşuna yükletirdi.
+- Aynı checkpoint'e giren iki ek: onboarding sorusunun **kayıt formundaki**
+  yüzü (`hasBusiness` artık istekle gidiyor) ve `Diğer` menüsündeki
+  `İşletmem var` anahtarı. İkisi de Grup 5'in sunucu tarafını kullanılabilir
+  kılıyor; olmadan hiçbir Flutter kullanıcısı işletme sahibi olamıyor ve
+  boyutu hiç göremiyordu.
 
 ### Grup 8 — Özet ekranının hero metriği
 

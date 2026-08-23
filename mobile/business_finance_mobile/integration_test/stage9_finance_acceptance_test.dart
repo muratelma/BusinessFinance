@@ -46,7 +46,7 @@ void main() {
         httpClient.close();
       });
 
-      await authRepository.register(firstEmail, password);
+      await authRepository.register(firstEmail, password, hasBusiness: false);
       await authRepository.login(firstEmail, password);
       final firstUser = _FinanceRepositories(authRepository, httpClient);
       final account = await firstUser.accounts.create(
@@ -186,7 +186,7 @@ void main() {
       );
 
       await authRepository.logout();
-      await authRepository.register(secondEmail, password);
+      await authRepository.register(secondEmail, password, hasBusiness: false);
       await authRepository.login(secondEmail, password);
       final secondUser = _FinanceRepositories(authRepository, httpClient);
 

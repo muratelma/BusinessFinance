@@ -86,9 +86,23 @@ veritabanı ile tek `InitialCreate`'ten kurulan veritabanının 543 satırlık t
 | `ScopeFilter_SplitsIncomeAndExpenseButLeavesBalanceAndNetWorthWhole` (gerçek SQL, yeni) | Aynı ay üç kapsamda okunduğunda gelir/gider bölünüyor ve iki taraf toplamı veriyor; **hesap bakiyesi, kart borcu ve net varlık üç okumada da aynı** |
 | `FinancialActivityFeed_AppliesFiltersWithoutLeakingOtherSources` (genişletildi) | Feed kapsam filtresi alıyor, kapsamsız satırlar (transfer, kart ödemesi) filtreli okumada düşüyor ve iki tarafın toplamı + kapsamsızlar = toplam |
 
+## Aşama 01 Grup 7 — Flutter kapsam anahtarı ve formlar
+
+| Test | Neyi kanıtlıyor |
+|---|---|
+| `scope_controller_test.dart` (yeni) | Seçim cihazda hatırlanıyor ve `Hepsi` boş değer olarak yazılmıyor; sunucudaki cevap cihazdaki kopyayı tazeliyor; **profil okunamazsa kopya geçerli kalıyor** ve boyut kaybolmuyor; işletmesi olmayan kullanıcıda depoda seçim dursa bile filtre uygulanmıyor; `ensureLoaded` tek okuma yapıyor; çıkışta seçim ve cevap unutuluyor |
+| `app_scope_selector_test.dart` (yeni) | Anahtar üç konumu gösteriyor ve dokunulanı bildiriyor; seçili olmak **yalnız renkle değil** onay işaretiyle de taşınıyor; erişilebilirlik kapısı ve 2.0× yazı ölçeği; form alanı iki kapsamı sunuyor, değerin nereden geldiğini yazıyor, hata metni yardımcı metnin yerine geçiyor |
+| `dashboard_scope_test.dart` (yeni) | Aktif kapsam aylık **ve** gelişmiş rapora iniyor; `Hepsi` konumunda filtre gönderilmiyor; işletmesi olmayan kullanıcıda hiç gönderilmiyor; konum değişince ekran yeniden okunuyor, aynı konuma dokunmak ikinci istek üretmiyor; anahtar yükleme durumunda da yerinde duruyor; **bölünmeyen bölüm toplam gösterdiğini yazıyor** ve filtre yokken bu not çıkmıyor |
+| `activity_scope_test.dart` (yeni) | Kapsam feed ve planlanan sorgusuna query parametresi olarak iniyor; her sayfada uygulanıyor; konum değişince liste **birinci sayfadan** okunuyor; işletmesi olmayan kullanıcıda gönderilmiyor; yetkisiz cevap kapsamla birlikte de görünür ele alınıyor; bölünen ekranların başlığı aktif kapsamı yazıyor |
+| `quick_add_scope_test.dart` (yeni) | Çip kaynağın etiketiyle doluyor, kaynak kapsamsızsa kategoriye düşüyor, kullanıcının seçimi ikisini de yeniyor; **yazılan kapsam ekranda görünenle aynı**; zincir çözülemezse kayıt yazılmıyor ve alanın yanında söyleniyor; kart harcaması da kapsam taşıyor; kapsam boyutu görünmeyen kullanıcıda alan hiç çizilmiyor |
+| `profile_repository_test.dart` (yeni) | `GET`/`PUT /api/v1/profile` sözleşmesi; eksik alan sessizce "işletmesi yok" diye okunmuyor |
+| `business_answer_test.dart` (yeni) | Onboarding sorusu kayıt formunda varsayılan kapalı ve cevap istekle birlikte gidiyor; `Diğer`den değiştirilince kapsam boyutu ona uyuyor; sunucu reddederse boyut değişmiyor ve sebebi söyleniyor |
+
 Kapsam boyutunun **kalan** test yüzeyi henüz yok ve olduğu gibi yazılmıyor:
-Flutter kapsam anahtarı testleri (Grup 7), özet ekranının hero metriği (Grup 8)
-ve CSV kapsam kolonu (Grup 9) kendi gruplarında gelecek.
+özet ekranının hero metriği (Grup 8) ve CSV kapsam kolonu (Grup 9) kendi
+gruplarında gelecek. `ScopePreferences`'ın kendisinin doğrudan testi yok;
+`ReceiptPreferences` ile aynı gerekçe — `flutter_secure_storage` sarmalayıcısı
+platform kanalı ister, sözleşme (`ScopeStore`) sahte uygulamayla testli.
 
 ## Mevcut kabul kanıtı
 

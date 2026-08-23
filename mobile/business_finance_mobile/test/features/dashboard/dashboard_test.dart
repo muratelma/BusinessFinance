@@ -11,6 +11,7 @@ import 'package:business_finance_mobile/features/dashboard/presentation/dashboar
 import '../../helpers/accessibility.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
 import 'package:provider/provider.dart';
+import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 
 void main() {
   testWidgets('özet ekranı erişilebilirlik kapısını geçer', (tester) async {
@@ -171,14 +172,21 @@ class FakeDashboardDataSource implements DashboardDataSource {
   int calls = 0;
 
   @override
-  Future<DashboardReport> getMonthly(int year, int month) async {
+  Future<DashboardReport> getMonthly(
+    int year,
+    int month, {
+    TransactionScope? scope,
+  }) async {
     calls++;
     return report;
   }
 
   @override
-  Future<AdvancedReport> getAdvanced(int year, int month) =>
-      Future.error(Exception('gelişmiş rapor bu testte yapılandırılmadı'));
+  Future<AdvancedReport> getAdvanced(
+    int year,
+    int month, {
+    TransactionScope? scope,
+  }) => Future.error(Exception('gelişmiş rapor bu testte yapılandırılmadı'));
 }
 
 class _PendingDashboardDataSource implements DashboardDataSource {
@@ -187,8 +195,15 @@ class _PendingDashboardDataSource implements DashboardDataSource {
   void complete(DashboardReport report) => _completer.complete(report);
 
   @override
-  Future<DashboardReport> getMonthly(int year, int month) => _completer.future;
+  Future<DashboardReport> getMonthly(
+    int year,
+    int month, {
+    TransactionScope? scope,
+  }) => _completer.future;
   @override
-  Future<AdvancedReport> getAdvanced(int year, int month) =>
-      Future.error(Exception('gelişmiş rapor bu testte yapılandırılmadı'));
+  Future<AdvancedReport> getAdvanced(
+    int year,
+    int month, {
+    TransactionScope? scope,
+  }) => Future.error(Exception('gelişmiş rapor bu testte yapılandırılmadı'));
 }

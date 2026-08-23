@@ -1,5 +1,6 @@
 import '../../../core/localization/default_category_labels.dart';
 import '../../../core/models/json_readers.dart';
+import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_client.dart';
 import 'finance_models.dart';
 
@@ -79,6 +80,7 @@ class FinanceRepository implements FinanceRepositoryContract {
           (json) => FinanceChoice(
             id: JsonReaders.string(json, 'id'),
             name: JsonReaders.string(json, 'name'),
+            defaultScope: TransactionScope.fromApiOrNull(json['defaultScope']),
           ),
         )
         .toList(growable: false);
@@ -89,6 +91,7 @@ class FinanceRepository implements FinanceRepositoryContract {
             name: DefaultCategoryLabels.localized(
               JsonReaders.string(json, 'name'),
             ),
+            defaultScope: TransactionScope.fromApiOrNull(json['defaultScope']),
           ),
         )
         .toList(growable: false);

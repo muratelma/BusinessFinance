@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import '../../../core/models/transaction_scope.dart';
+
 /// The ways a user starts a movement. Account and card creation, CSV import
 /// and debt or installment plans stay on their own management screens: those set
 /// something up, they do not record money moving today.
@@ -57,11 +59,16 @@ class PaymentSource {
     required this.name,
     required this.kind,
     this.availableLimit,
+    this.defaultScope,
   });
 
   final String id;
   final String name;
   final PaymentSourceKind kind;
+
+  /// Kaynağın kapsam etiketi. Türetme zincirinin ikinci halkası: kategoriyi
+  /// yener, kullanıcının açık seçimine yenilir.
+  final TransactionScope? defaultScope;
 
   /// Only meaningful for a card; shown so the user sees the room left before
   /// the server refuses the charge.
@@ -195,9 +202,16 @@ class QuickAddPrefill {
 }
 
 class QuickAddChoice {
-  const QuickAddChoice({required this.id, required this.name});
+  const QuickAddChoice({
+    required this.id,
+    required this.name,
+    this.defaultScope,
+  });
   final String id;
   final String name;
+
+  /// Kategorinin ya da hesabın varsayılan kapsamı; zincirin son halkası.
+  final TransactionScope? defaultScope;
 }
 
 class ExpenseFormOptions {

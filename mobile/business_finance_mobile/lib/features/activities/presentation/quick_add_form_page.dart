@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/formatters/money_text.dart';
+import '../../../core/models/transaction_scope.dart';
+import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_date_field.dart';
 import '../../../core/widgets/app_inline_notice.dart';
 import '../../../core/widgets/app_menu_group_label.dart';
+import '../../../core/widgets/app_scope_selector.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../data/receipt_fee_writer.dart';
 import 'quick_add_controller.dart';
@@ -20,11 +23,19 @@ class QuickAddFormPage extends StatefulWidget {
     super.key,
     this.today,
     this.prefill,
+    this.scopeController,
   });
 
   final QuickAddController controller;
   final bool isExpense;
   final DateTime? today;
+
+  /// Kapsam boyutunun görünüp görünmeyeceğini söyleyen kaynak.
+  ///
+  /// "İşletmem yok" diyen kullanıcıda alan hiç çizilmez ve istek kapsam
+  /// göndermez; sunucu kategoriden türetir. Boş bırakılırsa (test ya da
+  /// bağlanmamış kabuk) alan görünmez.
+  final ScopeController? scopeController;
 
   /// Alanların önü dolu açılmasını sağlayan öneriler.
   ///
@@ -44,6 +55,13 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
   PaymentSource? _source;
   String? _accountId;
   String? _categoryId;
+
+  /// Kullanıcının çipe dokunarak yaptığı **açık** seçim. Zincirin ilk
+  /// halkasıdır ve kaynağın da kategorinin de etiketini yener.
+  TransactionScope? _explicitScope;
+
+  /// Zincir çözülemedi ve kullanıcı yine de kaydetmeye çalıştı.
+  bool _scopeMissing = false;
   late bool _keepAttachment = widget.prefill?.keepAttachmentByDefault ?? true;
   late DateTime _date = widget.today ?? DateTime.now();
 
@@ -110,7 +128,9 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
         title: Text(widget.isExpense ? 'Gider ekle' : 'Gelir ekle'),
       ),
       body: AnimatedBuilder(
-        animation: widget.controller,
+        animation: widget.scopeController == null
+            ? widget.controller
+            : Listenable.merge([widget.controller, widget.scopeController]),
         builder: (context, _) => _buildBody(context),
       ),
     );
@@ -143,6 +163,18 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
           const SizedBox(height: AppSpacing.medium),
           _buildCategoryPicker(),
           const SizedBox(height: AppSpacing.medium),
+          if (_showScope) ...[
+            AppScopeField(
+              value: _resolvedScope,
+              helperText: _scopeHelperText,
+              errorText: _scopeMissing ? 'Bu kayıt için kapsam seçin.' : null,
+              onChanged: (value) => setState(() {
+                _explicitScope = value;
+                _scopeMissing = false;
+              }),
+            ),
+            const SizedBox(height: AppSpacing.medium),
+          ],
           TextFormField(
             controller: _amountController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -415,6 +447,67 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
     );
   }
 
+  /// Kapsam boyutu bu kullanıcıda görünür mü.
+  bool get _showScope => widget.scopeController?.isVisible ?? false;
+
+  /// Çipte duran değer: kullanıcının seçimi → kaynağın etiketi →
+  /// kategorinin varsayılanı. Sunucudaki sıranın aynısı, çünkü kullanıcının
+  /// gördüğü ile yazılan aynı olmalı.
+  TransactionScope? get _resolvedScope => previewResolvedScope(
+    explicit: _explicitScope,
+    source: _sourceScope,
+    category: _categoryScope,
+  );
+
+  TransactionScope? get _sourceScope {
+    if (widget.isExpense) return _source?.defaultScope;
+    final accounts = widget.controller.incomeOptions?.accounts;
+    if (accounts == null || _accountId == null) return null;
+    for (final account in accounts) {
+      if (account.id == _accountId) return account.defaultScope;
+    }
+    return null;
+  }
+
+  TransactionScope? get _categoryScope {
+    if (_categoryId == null) return null;
+    for (final category in _categoryChoices) {
+      if (category.id == _categoryId) return category.defaultScope;
+    }
+    return null;
+  }
+
+  List<QuickAddChoice> get _categoryChoices => widget.isExpense
+      ? widget.controller.expenseOptions?.categories ?? const []
+      : widget.controller.incomeOptions?.categories ?? const [];
+
+  /// Değerin **nereden** geldiğini söyler.
+  ///
+  /// Öneri olduğunu söylemesi şart: alan dolu açıldığında kullanıcı onu kendi
+  /// seçmiş gibi hızla geçiyor ve yanlış etiketlenmiş bir kayıt işletme netini
+  /// sessizce bozuyor.
+  String? get _scopeHelperText {
+    if (_explicitScope != null) return 'Bu kayıt için siz seçtiniz.';
+    if (_sourceScope != null) {
+      final name = widget.isExpense ? _source?.name : _accountName;
+      return name == null
+          ? 'Ödeme kaynağının etiketinden geldi — değiştirebilirsiniz.'
+          : '$name etiketinden geldi — değiştirebilirsiniz.';
+    }
+    if (_categoryScope != null) {
+      return 'Kategorinin varsayılanından geldi — değiştirebilirsiniz.';
+    }
+    return 'Ne kaynak ne kategori kapsam taşıyor; bu kayıt için seçin.';
+  }
+
+  String? get _accountName {
+    for (final account
+        in widget.controller.incomeOptions?.accounts ?? const []) {
+      if (account.id == _accountId) return account.name;
+    }
+    return null;
+  }
+
   String? _validateAmount(String? value) {
     final normalized = MoneyText.normalizeInput(value ?? '');
     if (normalized == null) return 'Geçerli bir tutar girin.';
@@ -431,6 +524,13 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    // Zincir çözülemediyse istek sunucuya gitmeden burada duruyor: sunucu da
+    // reddederdi (`*.scope_unresolved`) ama kullanıcı hatayı alanın yanında,
+    // düzeltebileceği yerde görmeli.
+    if (_showScope && _resolvedScope == null) {
+      setState(() => _scopeMissing = true);
+      return;
+    }
     final amount = MoneyText.normalizeInput(_amountController.text)!;
     final description = _descriptionController.text.trim();
 
@@ -448,6 +548,7 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
             date: _formattedDate,
             description: description.isEmpty ? null : description,
             attachment: attachment,
+            scope: _resolvedScope,
           )
         : await widget.controller.submitIncome(
             accountId: _accountId!,
@@ -455,6 +556,7 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
             amount: amount,
             date: _formattedDate,
             description: description.isEmpty ? null : description,
+            scope: _resolvedScope,
           );
     if (!saved || !mounted) return;
 

@@ -405,6 +405,46 @@ projection kapsamı bir join olmadan SQL'de filtreleyebilir. Kapsamı gerçekle�
 anında yeniden türetmek, aynı planın farklı aylarda farklı kapsam üretmesi
 demekti.
 
+### İstemcide kapsam: tek anahtar, düzeltilebilir çip
+
+Kapsam denetimi Flutter tarafında **tek** yerdedir: `ScopeController`
+(`lib/core/presentation/scope_controller.dart`). İki şeyi tutar — anahtarın
+konumu (`Hepsi · İşletme · Şahsi`) ve onboarding cevabı. Sekme başına ayrı
+filtre yoktur (ADR 0013); bölünen ekranlar aynı denetimi dinler ve konum
+değişince kendilerini yeniden okur.
+
+Denetim iki dar bağımlılık alır: cihaz deposu (`ScopeStore`, uygulamada
+`ScopePreferences` — `flutter_secure_storage`, `ReceiptPreferences` ile aynı
+gerekçe) ve profili okuyan tek fonksiyon. Onboarding cevabının **kaynağı
+sunucudur**; cihazdaki kopya yalnız sunucu okunamadığında boyutun sessizce
+kaybolmasını engeller. Profil isteği düşerse en son bilinen cevap geçerli kalır:
+"hayır" varsaymak, işletme sahibinin boyutunu bir ağ hatasına kurban ederdi.
+
+Oturum kapanınca seçim ve cevap **unutulur** (`forget`); aynı cihazdan giren
+ikinci kullanıcı birincisinin anahtar konumunu devralmaz. Bağlama işi
+kompozisyon kökündedir (`BusinessFinanceApp`): kimliği ve kapsamı birlikte
+tanıması gereken tek yer orasıdır.
+
+Kapsam **`FinancialDataChanges`'e bağlanmaz**. O sinyal "veri değişti" der;
+anahtar veriyi değiştirmez, aynı veriye başka bir soru sorar. Oraya bağlansaydı
+her kapsam dokunuşu, kapsamdan etkilenmeyen ekranları (hesaplar, kartlar) da
+boşuna yeniden yükletirdi.
+
+Bölünen ekranların başlığında aktif kapsam yazılıdır (`İşlemler · İşletme`);
+bölünmeyen bölümler (net varlık, hesap bakiyeleri) filtre açıkken **toplam
+gösterdiklerini yazar**. Sessizce aynı kalan bir sayı, filtrelenmiş sanılır ve
+kullanıcı iki tarafı toplamaya çalışır.
+
+**Formdaki çip zincirin önizlemesidir.** Kararın sahibi sunucudur
+(`TransactionScopeResolution`); form aynı sırayı (açık seçim → kaynağın etiketi
+→ kategorinin varsayılanı) yalnız **gösterebilmek** için uygular ve gösterdiği
+değeri açıkça gönderir. Çip boş dursaydı kullanıcı kaydın hangi tarafa
+yazıldığını ancak listeye düştükten sonra görürdü. Zincir çözülemezse form
+sunucuya gitmeden durur ve alanın yanında söyler — sunucu da reddederdi
+(`*.scope_unresolved`), ama hata kullanıcının düzeltebileceği yerde görünmeli.
+Kapsam boyutu görünmeyen kullanıcıda alan hiç çizilmez ve istek kapsam
+göndermez; sunucu kategoriden türetir.
+
 ### Kalıcılık
 
 Kapsam `tinyint` kolondur ve `[Scope] IN (1, 2)` CHECK kısıtıyla korunur;

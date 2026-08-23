@@ -5,6 +5,7 @@ import 'package:business_finance_mobile/features/activities/data/activity_models
 import 'package:business_finance_mobile/features/activities/data/activity_repository.dart';
 import 'package:business_finance_mobile/features/activities/data/planned_activity_models.dart';
 import 'package:business_finance_mobile/features/activities/presentation/activity_controller.dart';
+import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 
 void main() {
   test('load fills the list and clears the stale marker', () async {
@@ -312,6 +313,7 @@ class _FakeRepository implements ActivityRepositoryContract {
     int pageSize = 20,
     ActivityFilter filter = const ActivityFilter(),
     DateTime? today,
+    TransactionScope? scope,
   }) async {
     requestedPages.add(pageNumber);
     requestedFilters.add(filter);
@@ -336,6 +338,7 @@ class _FakeRepository implements ActivityRepositoryContract {
   Future<PlannedActivityPage> listPlanned({
     required PlannedHorizon horizon,
     DateTime? today,
+    TransactionScope? scope,
   }) async =>
       plannedPage ??
       const PlannedActivityPage(

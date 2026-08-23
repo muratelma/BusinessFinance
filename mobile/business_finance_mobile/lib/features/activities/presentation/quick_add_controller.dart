@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/presentation/financial_data_changes.dart';
 import '../../cards/data/finance_repository.dart';
@@ -65,6 +66,7 @@ class QuickAddController extends ChangeNotifier {
               id: account.id,
               name: account.name,
               kind: PaymentSourceKind.account,
+              defaultScope: account.defaultScope,
             ),
           for (final card in snapshot.cards.where((card) => card.isActive))
             PaymentSource(
@@ -72,11 +74,16 @@ class QuickAddController extends ChangeNotifier {
               name: card.name,
               kind: PaymentSourceKind.creditCard,
               availableLimit: card.availableLimit,
+              defaultScope: card.defaultScope,
             ),
         ],
         categories: [
           for (final category in snapshot.expenseCategories)
-            QuickAddChoice(id: category.id, name: category.name),
+            QuickAddChoice(
+              id: category.id,
+              name: category.name,
+              defaultScope: category.defaultScope,
+            ),
         ],
       );
       unauthorized = false;
@@ -106,11 +113,19 @@ class QuickAddController extends ChangeNotifier {
         // income, and card refunds are not modelled.
         accounts: [
           for (final account in accounts.where((item) => item.isActive))
-            QuickAddChoice(id: account.id, name: account.name),
+            QuickAddChoice(
+              id: account.id,
+              name: account.name,
+              defaultScope: account.defaultScope,
+            ),
         ],
         categories: [
           for (final category in categories.where((item) => item.isActive))
-            QuickAddChoice(id: category.id, name: category.name),
+            QuickAddChoice(
+              id: category.id,
+              name: category.name,
+              defaultScope: category.defaultScope,
+            ),
         ],
       );
       unauthorized = false;
@@ -127,6 +142,10 @@ class QuickAddController extends ChangeNotifier {
 
   /// Sends the expense to the endpoint that owns the chosen source: a card
   /// purchase is a card charge, not a bank transaction.
+  ///
+  /// [scope] boş gönderilebilir: sunucu kapsamı kendi türetir. Form onu
+  /// dolduruyor çünkü kullanıcı kaydın hangi tarafa yazıldığını **kaydetmeden
+  /// önce** görmeli.
   Future<bool> submitExpense({
     required PaymentSource source,
     required String categoryId,
@@ -134,6 +153,7 @@ class QuickAddController extends ChangeNotifier {
     required String date,
     String? description,
     QuickAddAttachment? attachment,
+    TransactionScope? scope,
   }) => _submit(isCardSpending: source.isCard, () async {
     if (source.isCard) {
       await _finance.createCharge(source.id, {
@@ -142,6 +162,7 @@ class QuickAddController extends ChangeNotifier {
         'currency': 'TRY',
         'chargeDate': date,
         'description': description,
+        'scope': scope?.apiValue,
       });
       return;
     }
@@ -153,6 +174,7 @@ class QuickAddController extends ChangeNotifier {
         kind: TransactionKind.expense,
         transactionDate: date,
         description: description,
+        scope: scope,
       ),
     );
     if (attachment != null) await _attach(created.id, attachment);
@@ -219,6 +241,7 @@ class QuickAddController extends ChangeNotifier {
     required String amount,
     required String date,
     String? description,
+    TransactionScope? scope,
   }) => _submit(
     () => _transactions.create(
       CreateTransactionInput(
@@ -228,6 +251,7 @@ class QuickAddController extends ChangeNotifier {
         kind: TransactionKind.income,
         transactionDate: date,
         description: description,
+        scope: scope,
       ),
     ),
   );

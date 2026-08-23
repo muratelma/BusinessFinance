@@ -10,6 +10,7 @@ import 'package:business_finance_mobile/features/activities/data/planned_activit
 import 'package:business_finance_mobile/features/activities/presentation/planned_activity_controller.dart';
 import 'package:business_finance_mobile/features/activities/presentation/planned_activity_page.dart';
 import 'package:business_finance_mobile/features/activities/presentation/planned_summary_card.dart';
+import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 
 void main() {
   group('parsing', () {
@@ -506,6 +507,7 @@ class _FakeRepository implements ActivityRepositoryContract {
   Future<PlannedActivityPage> listPlanned({
     required PlannedHorizon horizon,
     DateTime? today,
+    TransactionScope? scope,
   }) async {
     requestedHorizons.add(horizon);
     if (error != null) throw error!;
@@ -518,6 +520,7 @@ class _FakeRepository implements ActivityRepositoryContract {
     int pageSize = 20,
     ActivityFilter filter = const ActivityFilter(),
     DateTime? today,
+    TransactionScope? scope,
   }) => throw UnimplementedError();
 
   @override

@@ -1,4 +1,5 @@
 import '../../../core/localization/default_category_labels.dart';
+import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_client.dart';
 import 'transaction_models.dart';
 
@@ -67,6 +68,7 @@ class TransactionRepository implements TransactionRepositoryContract {
             id: (item as Map<String, dynamic>)['id'] as String,
             name: item['name'] as String,
             isActive: item['isActive'] as bool,
+            defaultScope: TransactionScope.fromApiOrNull(item['defaultScope']),
           ),
         )
         .toList(growable: false);
@@ -86,6 +88,7 @@ class TransactionRepository implements TransactionRepositoryContract {
             name: DefaultCategoryLabels.localized(json['name'] as String),
             isActive: json['isActive'] as bool,
             kind: TransactionKind.fromApi(json['type'] as String),
+            defaultScope: TransactionScope.fromApiOrNull(json['defaultScope']),
           );
         })
         .toList(growable: false);

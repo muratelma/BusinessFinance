@@ -1,19 +1,28 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/presentation/financial_data_changes.dart';
+import '../../../core/presentation/scope_controller.dart';
 import '../data/activity_repository.dart';
 import '../data/planned_activity_models.dart';
 
 class PlannedActivityController extends ChangeNotifier {
-  PlannedActivityController(this._repository, {this.financialDataChanges})
-    : _seenRevision = financialDataChanges?.planningRevision ?? 0 {
+  PlannedActivityController(
+    this._repository, {
+    this.financialDataChanges,
+    this.scopeController,
+  }) : _seenRevision = financialDataChanges?.planningRevision ?? 0,
+       _seenScope = scopeController?.scope {
     financialDataChanges?.addListener(_handleFinancialDataChanged);
+    scopeController?.addListener(_handleScopeChanged);
   }
 
   final ActivityRepositoryContract _repository;
   final FinancialDataChanges? financialDataChanges;
+  final ScopeController? scopeController;
   int _seenRevision;
+  TransactionScope? _seenScope;
 
   bool isLoading = false;
   bool isSubmitting = false;
@@ -32,13 +41,21 @@ class PlannedActivityController extends ChangeNotifier {
   bool get isEmpty =>
       !isLoading && errorMessage == null && visibleItems.isEmpty;
 
+  /// Görünümün o an okuduğu kapsam; başlıkta da bu yazılı durur.
+  ///
+  /// Kapsam doluyken kart ekstresi gibi kapsamsız satırlar listeden düşer:
+  /// ikisini birden iki tarafta göstermek aynı ödemeyi iki kez saydırırdı.
+  TransactionScope? get scope => scopeController?.scope;
+
+  bool get isScopeVisible => scopeController?.isVisible ?? false;
+
   Future<void> load() async {
     if (isLoading) return;
     isLoading = true;
     errorMessage = null;
     notifyListeners();
     try {
-      page = await _repository.listPlanned(horizon: horizon);
+      page = await _repository.listPlanned(horizon: horizon, scope: scope);
       unauthorized = false;
     } on ApiException catch (error) {
       unauthorized = error.isUnauthorized;
@@ -99,6 +116,13 @@ class PlannedActivityController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _handleScopeChanged() {
+    final current = scopeController?.scope;
+    if (current == _seenScope) return;
+    _seenScope = current;
+    if (!isLoading) load();
+  }
+
   void _handleFinancialDataChanged() {
     final changes = financialDataChanges;
     if (changes == null) return;
@@ -113,6 +137,7 @@ class PlannedActivityController extends ChangeNotifier {
   @override
   void dispose() {
     financialDataChanges?.removeListener(_handleFinancialDataChanged);
+    scopeController?.removeListener(_handleScopeChanged);
     super.dispose();
   }
 }

@@ -2,6 +2,7 @@ import 'package:business_finance_mobile/features/planning/data/planning_models.d
 import 'package:business_finance_mobile/features/dashboard/data/dashboard_models.dart';
 import 'package:business_finance_mobile/features/dashboard/data/dashboard_repository.dart';
 import 'package:business_finance_mobile/features/dashboard/presentation/dashboard_view_model.dart';
+import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 
 DashboardViewModel testDashboardViewModel() {
   final viewModel = DashboardViewModel(
@@ -14,19 +15,25 @@ DashboardViewModel testDashboardViewModel() {
 
 class _FakeDashboardDataSource implements DashboardDataSource {
   @override
-  Future<DashboardReport> getMonthly(int year, int month) async =>
-      DashboardReport(
-        year: year,
-        month: month,
-        totalIncome: '0.0000',
-        totalExpense: '0.0000',
-        net: '0.0000',
-        currency: 'TRY',
-        categoryExpenses: const [],
-        categoryExpenseSlices: const [],
-        accountBalances: const [],
-      );
+  Future<DashboardReport> getMonthly(
+    int year,
+    int month, {
+    TransactionScope? scope,
+  }) async => DashboardReport(
+    year: year,
+    month: month,
+    totalIncome: '0.0000',
+    totalExpense: '0.0000',
+    net: '0.0000',
+    currency: 'TRY',
+    categoryExpenses: const [],
+    categoryExpenseSlices: const [],
+    accountBalances: const [],
+  );
   @override
-  Future<AdvancedReport> getAdvanced(int year, int month) =>
-      Future.error(Exception('gelişmiş rapor bu testte yapılandırılmadı'));
+  Future<AdvancedReport> getAdvanced(
+    int year,
+    int month, {
+    TransactionScope? scope,
+  }) => Future.error(Exception('gelişmiş rapor bu testte yapılandırılmadı'));
 }

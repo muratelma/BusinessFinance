@@ -1,5 +1,7 @@
+import '../../../core/models/transaction_scope.dart';
 import '../../../core/presentation/loadable_view_model.dart';
 import '../../../core/presentation/financial_data_changes.dart';
+import '../../../core/presentation/scope_controller.dart';
 import '../../activities/data/activity_repository.dart';
 import '../../activities/data/planned_activity_models.dart';
 import '../../planning/data/planning_models.dart';
@@ -11,14 +13,18 @@ class DashboardViewModel extends LoadableViewModel {
     this._repository, {
     this._activityRepository,
     FinancialDataChanges? changes,
+    ScopeController? scopeController,
     DateTime Function()? now,
   }) : _changes = changes,
+       _scopeController = scopeController,
        _seenDashboardRevision = changes?.dashboardRevision ?? 0,
+       _seenScope = scopeController?.scope,
        _now = now ?? DateTime.now {
     final current = _now();
     year = current.year;
     month = current.month;
     _changes?.addListener(_handleFinancialDataChanged);
+    _scopeController?.addListener(_handleScopeChanged);
   }
 
   final DashboardDataSource _repository;
@@ -27,8 +33,13 @@ class DashboardViewModel extends LoadableViewModel {
   /// ekranı için ikinci bir sorgu tutmuyoruz.
   final ActivityRepositoryContract? _activityRepository;
   final FinancialDataChanges? _changes;
+
+  /// Uygulama genelindeki kapsam anahtarı. Gelir/gider tarafını böler;
+  /// net varlık ve hesap bakiyeleri ondan etkilenmez (ADR 0013).
+  final ScopeController? _scopeController;
   final DateTime Function() _now;
   int _seenDashboardRevision;
+  TransactionScope? _seenScope;
 
   late int year;
   late int month;
@@ -64,8 +75,19 @@ class DashboardViewModel extends LoadableViewModel {
   /// Ekranda gösterilen en fazla satır sayısı.
   static const upcomingVisibleCount = 3;
 
+  /// Ekranın o an okuduğu kapsam; başlıkta da bu yazılı durur.
+  TransactionScope? get scope => _scopeController?.scope;
+
+  /// Kapsam boyutu bu kullanıcıda görünür mü.
+  bool get isScopeVisible => _scopeController?.isVisible ?? false;
+
+  /// Anahtarın konumunu değiştirir. Yeniden okuma kendi dinleyicisinden
+  /// gelir; burada ikinci bir `load()` çağrısı iki isteğe dönüşürdü.
+  Future<void> selectScope(TransactionScope? value) async =>
+      _scopeController?.select(value);
+
   Future<void> load() => loadSafely(() async {
-    report = await _repository.getMonthly(year, month);
+    report = await _repository.getMonthly(year, month, scope: scope);
     await _loadAdvanced();
     await _loadOverdue();
   });
@@ -74,7 +96,7 @@ class DashboardViewModel extends LoadableViewModel {
   /// kullanıcıyı bütün ekrandan etmemeli.
   Future<void> _loadAdvanced() async {
     try {
-      advanced = await _repository.getAdvanced(year, month);
+      advanced = await _repository.getAdvanced(year, month, scope: scope);
     } on Exception {
       advanced = null;
     }
@@ -96,6 +118,7 @@ class DashboardViewModel extends LoadableViewModel {
       final page = await _activityRepository.listPlanned(
         horizon: upcomingHorizon,
         today: _now(),
+        scope: scope,
       );
       final obligations = page.items
           .where((item) => item.isPaymentObligation)
@@ -135,6 +158,15 @@ class DashboardViewModel extends LoadableViewModel {
     await load();
   }
 
+  /// Anahtar konum değiştirdiğinde ekran yeniden okunur. Aynı konuma
+  /// dokunmak (ya da yalnız profilin yüklenmesi) yeniden okuma başlatmaz.
+  void _handleScopeChanged() {
+    final current = _scopeController?.scope;
+    if (current == _seenScope) return;
+    _seenScope = current;
+    load();
+  }
+
   void _handleFinancialDataChanged() {
     final revision = _changes?.dashboardRevision ?? 0;
     if (revision == _seenDashboardRevision) return;
@@ -145,6 +177,7 @@ class DashboardViewModel extends LoadableViewModel {
   @override
   void dispose() {
     _changes?.removeListener(_handleFinancialDataChanged);
+    _scopeController?.removeListener(_handleScopeChanged);
     super.dispose();
   }
 }

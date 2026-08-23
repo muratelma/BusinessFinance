@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 
 import '../../helpers/fake_auth.dart';
 import '../../helpers/fake_dashboard.dart';
+import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 
 void main() {
   testWidgets('restoring session does not flash login or protected shell', (
@@ -193,25 +194,31 @@ class _SessionDashboardDataSource implements DashboardDataSource {
   final String email;
 
   @override
-  Future<DashboardReport> getMonthly(int year, int month) async =>
-      DashboardReport(
-        year: year,
-        month: month,
-        totalIncome: '0.0000',
-        totalExpense: '0.0000',
-        net: '0.0000',
-        currency: 'TRY',
-        categoryExpenses: const [],
-        categoryExpenseSlices: const [],
-        accountBalances: [
-          AccountBalance(
-            accountId: email,
-            accountName: '$email hesabı',
-            balance: '0.0000',
-          ),
-        ],
-      );
+  Future<DashboardReport> getMonthly(
+    int year,
+    int month, {
+    TransactionScope? scope,
+  }) async => DashboardReport(
+    year: year,
+    month: month,
+    totalIncome: '0.0000',
+    totalExpense: '0.0000',
+    net: '0.0000',
+    currency: 'TRY',
+    categoryExpenses: const [],
+    categoryExpenseSlices: const [],
+    accountBalances: [
+      AccountBalance(
+        accountId: email,
+        accountName: '$email hesabı',
+        balance: '0.0000',
+      ),
+    ],
+  );
   @override
-  Future<AdvancedReport> getAdvanced(int year, int month) =>
-      Future.error(Exception('gelişmiş rapor bu testte yapılandırılmadı'));
+  Future<AdvancedReport> getAdvanced(
+    int year,
+    int month, {
+    TransactionScope? scope,
+  }) => Future.error(Exception('gelişmiş rapor bu testte yapılandırılmadı'));
 }

@@ -238,9 +238,18 @@ gerekçesiyle bozulmaz.
   düşerler. İkisini birden iki tarafta göstermek aynı para hareketini iki kez
   saydırırdı. `GET /api/v1/upcoming-payments` kapsam parametresi almaz.
 
-> **Henüz uygulanmadı — Aşama 01'in kalanı.** Flutter kapsam anahtarı ile
-> formdaki kapsam çipi (Grup 7), özet ekranının hero metriği (Grup 8) ve CSV
-> kapsam kolonu (Grup 9) yok. Bu satır o gruplar bitene kadar burada durur.
+- **İstemcide kapsam denetimi tektir** (`ScopeController`): anahtarın konumu ve
+  onboarding cevabı. Anahtar Özet ekranındadır ve kaydırılan gövdenin dışında
+  durur; bölünen diğer ekranlar aktif kapsamı **başlıklarında yazar**,
+  denetimi kopyalamaz. Bölünmeyen bölümler toplam gösterdiklerini yazar.
+  Kapsam `FinancialDataChanges`'e bağlanmaz — veriyi değiştirmez, aynı veriye
+  başka bir soru sorar. Formdaki çip zincirin **önizlemesidir**: sunucudaki
+  sırayı gösterip gönderir; çözülemezse istek gitmeden alanın yanında söylenir.
+  Cevabı görünmeyen kullanıcıda hiçbir istekte `scope` gitmez.
+
+> **Henüz uygulanmadı — Aşama 01'in kalanı.** Özet ekranının hero metriği
+> (Grup 8) ve CSV kapsam kolonu (Grup 9) yok. Bu satır o gruplar bitene kadar
+> burada durur.
 
 ### Birleşik okuma modelleri
 

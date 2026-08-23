@@ -136,7 +136,13 @@ query parametresi, tanınmayan değer `*.invalid_scope`:
 havuzdan çıkar.
 
 Kapsam değeri kararlı makine metnidir (`business` / `personal`); kullanıcıya
-gösterilecek cümleyi istemci üretir.
+gösterilecek cümleyi istemci üretir (`İşletme` / `Şahsi` / filtrede `Hepsi`).
+
+Flutter istemcisi bu sözleşmeyi şöyle kullanır: kapsam boyutu görünmeyen
+kullanıcıda **hiçbir istekte** `scope` gitmez (ne filtre ne yazma alanı);
+görünen kullanıcıda okuma isteklerine aktif anahtar konumu, yazma isteklerine
+formda gösterilen değer eklenir. İstemcinin kapsam göndermesi hiçbir yerde
+zorunlu değildir — göndermediğinde sunucu zinciri kendi işletir.
 
 ## Defense in depth
 

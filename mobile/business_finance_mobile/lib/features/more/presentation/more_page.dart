@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/network/api_exception.dart';
+import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_list_row.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../../profile/data/profile_repository.dart';
 
 class MorePage extends StatelessWidget {
   const MorePage({super.key});
@@ -76,6 +79,8 @@ class MorePage extends StatelessWidget {
           ],
         ),
         const Divider(height: AppSpacing.xLarge),
+        const _BusinessAnswerCard(),
+        const SizedBox(height: AppSpacing.medium),
         AppCard(
           padding: EdgeInsets.zero,
           child: AppListRow(
@@ -99,6 +104,74 @@ class MorePage extends StatelessWidget {
     );
     if (shouldLogout && context.mounted) {
       await context.read<AuthController>().logout();
+    }
+  }
+}
+
+/// Kaydolurken sorulan sorunun sonradan değiştirilebildiği yer.
+///
+/// Cevap **hiçbir özelliği kapatmaz**: yalnız işletme/şahsi ayrımının
+/// arayüzde görünüp görünmeyeceğini belirler. Kategorilere dokunmaz — o
+/// noktada liste artık kullanıcınındır ve sildiği bir kategoriyi geri
+/// getirmek silme eylemini anlamsız kılardı.
+class _BusinessAnswerCard extends StatefulWidget {
+  const _BusinessAnswerCard();
+
+  @override
+  State<_BusinessAnswerCard> createState() => _BusinessAnswerCardState();
+}
+
+class _BusinessAnswerCardState extends State<_BusinessAnswerCard> {
+  bool _isSaving = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final scopeController = context.watch<ScopeController?>();
+    final repository = context.read<ProfileRepositoryContract?>();
+    // Bağlanmamış kabukta (test ya da bağımlılıksız kurulum) kart hiç
+    // çizilmez: değiştirilemeyen bir anahtar göstermek, kullanıcıya
+    // çalışmayan bir düğme vermek olurdu.
+    if (scopeController == null || repository == null) {
+      return const SizedBox.shrink();
+    }
+    return AppCard(
+      child: SwitchListTile(
+        value: scopeController.isVisible,
+        onChanged: _isSaving
+            ? null
+            : (value) => _save(repository, scopeController, value),
+        contentPadding: EdgeInsets.zero,
+        title: const Text('İşletmem var'),
+        subtitle: const Text(
+          'Açıkken kayıtlarınızı işletme ve şahsi olarak ayrı '
+          'okuyabilirsiniz. Kapalıyken bu ayrım hiç görünmez. '
+          'Kategorileriniz iki durumda da olduğu gibi kalır.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _save(
+    ProfileRepositoryContract repository,
+    ScopeController scopeController,
+    bool value,
+  ) async {
+    setState(() => _isSaving = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final profile = await repository.update(hasBusiness: value);
+      // Sunucunun döndürdüğü hâl uygulanır; istemcinin gönderdiği değil.
+      await scopeController.applyHasBusiness(profile.hasBusiness);
+    } on ApiException catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+    } on FormatException {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Sunucudan beklenmeyen bir yanıt alındı.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 }

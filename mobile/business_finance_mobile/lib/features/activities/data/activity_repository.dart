@@ -1,13 +1,18 @@
+import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_client.dart';
 import 'activity_models.dart';
 import 'planned_activity_models.dart';
 
 abstract interface class ActivityRepositoryContract {
+  /// [scope] boşsa filtre gönderilmez. Doluyken feed **kapsamsız satırları da
+  /// eler**: transfer, kart ödemesi ve kart ekstresi kapsam taşımaz ve ikisini
+  /// birden iki tarafta göstermek aynı para hareketini iki kez saydırırdı.
   Future<ActivityPage> list({
     int pageNumber,
     int pageSize,
     ActivityFilter filter,
     DateTime? today,
+    TransactionScope? scope,
   });
 
   /// Cancels the movement through the endpoint that owns its write model.
@@ -17,6 +22,7 @@ abstract interface class ActivityRepositoryContract {
   Future<PlannedActivityPage> listPlanned({
     required PlannedHorizon horizon,
     DateTime? today,
+    TransactionScope? scope,
   });
 
   /// Planlanan bir satırı gerçek harekete çevirir.
@@ -37,6 +43,7 @@ class ActivityRepository implements ActivityRepositoryContract {
     int pageSize = 20,
     ActivityFilter filter = const ActivityFilter(),
     DateTime? today,
+    TransactionScope? scope,
   }) async {
     final dateFrom = filter.dateRange.dateFrom(today ?? DateTime.now());
     final query = <String, String>{
@@ -55,6 +62,7 @@ class ActivityRepository implements ActivityRepositoryContract {
       if (filter.creditCardId != null) 'creditCardId': filter.creditCardId!,
       if (filter.categoryId != null) 'categoryId': filter.categoryId!,
       if (!filter.includeCancelled) 'includeCancelled': 'false',
+      'scope': ?scope?.apiValue,
     };
     final response = await _apiClient.get(
       Uri(
@@ -128,6 +136,7 @@ class ActivityRepository implements ActivityRepositoryContract {
   Future<PlannedActivityPage> listPlanned({
     required PlannedHorizon horizon,
     DateTime? today,
+    TransactionScope? scope,
   }) async {
     final asOf = today ?? DateTime.now();
     final month = asOf.month.toString().padLeft(2, '0');
@@ -138,6 +147,7 @@ class ActivityRepository implements ActivityRepositoryContract {
         queryParameters: {
           'asOfDate': '${asOf.year}-$month-$day',
           'daysAhead': '${horizon.days}',
+          'scope': ?scope?.apiValue,
         },
       ).toString(),
     );

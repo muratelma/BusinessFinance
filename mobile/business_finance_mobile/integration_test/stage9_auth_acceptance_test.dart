@@ -35,7 +35,7 @@ void main() {
       await sessionStore.clear();
 
       final firstRepository = _authRepository(authService, sessionStore);
-      await firstRepository.register(firstEmail, password);
+      await firstRepository.register(firstEmail, password, hasBusiness: false);
       final firstLogin = await firstRepository.login(firstEmail, password);
       final firstAccounts = ApiAccountRepository(
         _protectedApiClient(firstRepository, httpClient),
@@ -84,7 +84,11 @@ void main() {
       final loggedOutRepository = _authRepository(authService, sessionStore);
       expect(await loggedOutRepository.restoreSession(), isNull);
 
-      await loggedOutRepository.register(secondEmail, password);
+      await loggedOutRepository.register(
+        secondEmail,
+        password,
+        hasBusiness: false,
+      );
       await loggedOutRepository.login(secondEmail, password);
       final secondAccounts = ApiAccountRepository(
         _protectedApiClient(loggedOutRepository, httpClient),

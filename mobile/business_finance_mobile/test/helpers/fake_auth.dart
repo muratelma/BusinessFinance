@@ -46,8 +46,11 @@ class FakeAuthSessionRepository implements AuthSessionRepository {
   Future<AuthSession?> refreshSession() async => session;
 
   @override
-  Future<RegisterResult> register(String email, String password) async =>
-      RegisterResult(userId: testSession().userId, email: email);
+  Future<RegisterResult> register(
+    String email,
+    String password, {
+    required bool hasBusiness,
+  }) async => RegisterResult(userId: testSession().userId, email: email);
 
   @override
   Future<AuthSession?> restoreSession() async => session;

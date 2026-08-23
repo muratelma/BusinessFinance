@@ -113,7 +113,7 @@ void main() {
       MaterialApp(
         theme: AppTheme.light(),
         home: RegisterPage(
-          onSubmit: (_, _) async {},
+          onSubmit: (_, _, {required hasBusiness}) async {},
           onCompleted: (email) => completedEmail = email,
           onBackToLogin: () {},
         ),

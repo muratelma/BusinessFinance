@@ -506,12 +506,55 @@ sınırında temizlenir. Parola hiçbir zaman secure storage'a yazılmaz.
 ## Flutter ekran akışı
 
 ```text
-Dashboard -> backend aylık toplamları ve hesap bakiyeleri
+Dashboard -> kapsam anahtarı + backend aylık toplamları ve hesap bakiyeleri
 İşlemler -> filtre/sayfalama -> ekle veya onayla iptal et
 Bütçeler -> ay seç -> gider kategorisi bütçesi ekle/limiti güncelle
-Diğer -> Hesaplar / Kategoriler / Çıkış
+Diğer -> Hesaplar / Kategoriler / İşletmem var / Çıkış
 Ana işlem düğmesi -> /transactions/new -> aktif hesap + uygun aktif kategori
 ```
+
+## Kapsam anahtarının akışı
+
+```text
+Kayıt -> hasBusiness -> UserProfile (sunucu)
+Oturum açıldı -> ScopeController.ensureLoaded()
+  -> cihazdaki kopya (anahtar konumu + son bilinen cevap) okunur, ekran çizilir
+  -> GET /api/v1/profile -> cevap tazelenir ve cihaza yazılır
+  -> profil düşerse: cihazdaki kopya geçerli kalır, boyut kaybolmaz
+
+Anahtar dokunuşu -> ScopeController.select
+  -> cihaza yazılır
+  -> dinleyen ekranlar (özet, feed, planlanan) yeniden okur
+  -> okuma isteklerine `scope` query parametresi eklenir
+
+Cevap "hayır" -> anahtar hiç çizilmez, hiçbir istekte `scope` gitmez
+Çıkış -> ScopeController.forget -> seçim ve cevap cihazdan silinir
+```
+
+Anahtar **Özet ekranının başlığının altındadır** ve uygulamanın tek kapsam
+denetimidir; feed ve planlanan görünüm onu uygular ve başlıklarında yazar ama
+değiştirmez. Bölünmeyen bölümler (net varlık, hesap bakiyeleri) filtre açıkken
+toplam gösterdiklerini ekranda yazar.
+
+`Diğer -> İşletmem var` anahtarı `PUT /api/v1/profile` çağırır ve dönen cevabı
+uygular; kategorilere dokunmaz.
+
+## Kapsamlı işlem ekleme
+
+```text
+Gider/gelir formu açılır
+  -> seçenekler yüklenir (hesap/kart/kategori + defaultScope alanları)
+  -> kaynak seçilir -> çip kaynağın etiketiyle dolar
+  -> kaynak kapsamsızsa kategori seçimi çipi doldurur
+  -> kullanıcı çipe dokunursa onun seçimi ikisini de yener
+  -> Kaydet -> istek gösterilen kapsamı taşır
+  -> zincir çözülemediyse: istek gönderilmez, alanın yanında "kapsam seçin"
+```
+
+Çip alanın altında **nereden geldiğini** yazar (kaynağın adı, kategorinin
+varsayılanı ya da kullanıcının kendi seçimi). Kapsam boyutu görünmeyen
+kullanıcıda alan hiç çizilmez; istek kapsam göndermez ve sunucu kategoriden
+türetir.
 
 İptal, fiziksel silme değildir; kayıt tarihçede etiketli kalır. Hesap/kategori
 pasifleştirme de silme değildir. Offline cache bulunmadığı için ağ hatasında

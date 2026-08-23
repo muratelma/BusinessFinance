@@ -16,6 +16,7 @@ import 'package:business_finance_mobile/features/planning/data/planning_models.d
 import 'package:provider/provider.dart';
 
 import '../../helpers/accessibility.dart';
+import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 
 void main() {
   group('hesap ve kategori ikonları', () {
@@ -712,10 +713,18 @@ class _Source implements DashboardDataSource {
   final AdvancedReport? advanced;
 
   @override
-  Future<DashboardReport> getMonthly(int year, int month) async => report;
+  Future<DashboardReport> getMonthly(
+    int year,
+    int month, {
+    TransactionScope? scope,
+  }) async => report;
 
   @override
-  Future<AdvancedReport> getAdvanced(int year, int month) async {
+  Future<AdvancedReport> getAdvanced(
+    int year,
+    int month, {
+    TransactionScope? scope,
+  }) async {
     final value = advanced;
     if (value == null) {
       throw Exception('gelişmiş rapor kullanılamıyor');
@@ -735,6 +744,7 @@ class _PlannedSource implements ActivityRepositoryContract {
   Future<PlannedActivityPage> listPlanned({
     required PlannedHorizon horizon,
     DateTime? today,
+    TransactionScope? scope,
   }) async {
     final loaded = items;
     if (loaded == null) throw Exception('planlanan okunamadı');
@@ -752,6 +762,7 @@ class _PlannedSource implements ActivityRepositoryContract {
     int pageSize = 20,
     ActivityFilter filter = const ActivityFilter(),
     DateTime? today,
+    TransactionScope? scope,
   }) => throw UnimplementedError();
 
   @override

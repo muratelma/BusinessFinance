@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_text.dart';
+import '../../../core/models/transaction_scope.dart';
 import '../../../core/theme/app_breakpoints.dart';
 import '../../../core/theme/app_finance_colors.dart';
 import '../../../core/theme/app_finance_icons.dart';
@@ -16,6 +17,7 @@ import '../../../core/widgets/app_list_row.dart';
 import '../../../core/widgets/app_metric_tile.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_responsive_grid.dart';
+import '../../../core/widgets/app_scope_selector.dart';
 import '../../../core/widgets/app_section_header.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
@@ -32,150 +34,166 @@ class DashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final viewModel = context.watch<DashboardViewModel>();
     final state = _stateView(viewModel);
-    if (state != null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Özet')),
-        body: state,
-      );
-    }
+    return Scaffold(
+      appBar: AppBar(title: const Text('Özet')),
+      // Anahtar kaydırılan gövdenin **dışında**: uygulamanın tek kapsam
+      // denetimi bu ve yükleme, hata ya da boş durumda da yerinde durmalı —
+      // kullanıcı listeyi boş görüp anahtarın nerede olduğunu aramamalı.
+      body: Column(
+        children: [
+          if (viewModel.isScopeVisible)
+            _ScopeBar(
+              value: viewModel.scope,
+              onChanged: (value) =>
+                  context.read<DashboardViewModel>().selectScope(value),
+            ),
+          Expanded(child: state ?? _buildReport(context, viewModel)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReport(BuildContext context, DashboardViewModel viewModel) {
     final report = viewModel.report!;
     final advanced = viewModel.advanced;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Özet')),
-      body: RefreshIndicator(
-        onRefresh: viewModel.load,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.medium,
-            AppSpacing.small,
-            AppSpacing.medium,
-            AppSpacing.fabClearance,
-          ),
-          children: [
-            _MonthSelector(
-              // Ekranın en üstündeki bağlam makine biçimindeydi (`08.2026`).
-              // Ay adları zaten tek bir yerde duruyor.
-              label: DateText.monthYear(report.year, report.month),
-              onPrevious: viewModel.previousMonth,
-              onNext: viewModel.nextMonth,
-            ),
-            const SizedBox(height: AppSpacing.medium),
-
-            // Uyarı hero metriğin **üstünde**: "ekran başına tek mesaj"
-            // kuralının istisnası değil, sırası. Bir şey gecikmişse ekranın
-            // söylemesi gereken ilk şey odur; gecikme yokken bant hiç
-            // çizilmez ve sıra normale döner.
-            if (viewModel.overdue.isNotEmpty) ...[
-              _OverdueBand(items: viewModel.overdue),
-              const SizedBox(height: AppSpacing.medium),
-            ],
-            // Ekranın söylediği tek şey en üstte ve en büyük: bu ay ne kaldı.
-            AppMetricTile(
-              key: const ValueKey('dashboard-summary-Net'),
-              size: AppMetricSize.hero,
-              label: 'Bu ayın neti',
-              amount: report.net,
-              currency: report.currency,
-              caption: _netCaption(advanced),
-            ),
-            const SizedBox(height: AppSpacing.small),
-            AppResponsiveGrid(
-              minItemWidth: 150,
-              spacing: AppSpacing.small,
-              children: [
-                AppMetricTile(
-                  key: const ValueKey('dashboard-summary-Gelir'),
-                  label: 'Gelir',
-                  amount: report.totalIncome,
-                  currency: report.currency,
-                  icon: Icons.south_west,
-                  effect: AppMoneyEffect.income,
-                  tinted: true,
-                ),
-                AppMetricTile(
-                  key: const ValueKey('dashboard-summary-Gider'),
-                  label: 'Gider',
-                  amount: report.totalExpense,
-                  currency: report.currency,
-                  icon: Icons.north_east,
-                  effect: AppMoneyEffect.expense,
-                  tinted: true,
-                ),
-              ],
-            ),
-            // Ekran iki soruya ayrı ayrı yanıt verir ve sıra bunu izler:
-            // önce **bu ay nasıl geçti** (akış), sonra **şu an nerede
-            // duruyorum** (durum). Önceden ikisi iç içeydi — varlık durumu
-            // kategori ve bütçenin üstündeydi — ve okuyucu akıştan duruma,
-            // oradan tekrar akışa geçiyordu. İki blok arasındaki dikiş aynı
-            // zamanda yeni bölümlerin gireceği yerdir.
-
-            // — Bu ay —
-            const SizedBox(height: AppSpacing.large),
-            AppSectionHeader(
-              title: 'Kategori giderleri',
-              trailing: report.categoryExpenses.isEmpty
-                  ? null
-                  : Text(
-                      '${report.categoryExpenses.length} kategori',
-                      style: Theme.of(context).textTheme.labelMedium,
-                    ),
-            ),
-            _CategoryBreakdown(report: report),
-            // Gelişmiş rapor ikincil okumadır; düşerse yalnız bu bölümler
-            // gizlenir, ay özeti tek başına geçerli bir ekrandır.
-            if (advanced != null && advanced.budgetVariances.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.large),
-              const AppSectionHeader(title: 'Bütçe durumu'),
-              _BudgetStatus(
-                items: advanced.budgetVariances,
-                currency: advanced.currency,
-              ),
-            ],
-
-            // — Önümde ne var —
-            //
-            // Üçüncü bir zaman dilimi: geçmiş ("bu ay") ile şimdi ("şu an")
-            // arasında değil, ikisinin arasındaki dikişte duruyor. Ekran
-            // bugüne kadar yalnız olan biteni anlatıyordu; gecikmiş bandı da
-            // yalnız **kaçırılmış** olanı söylüyor, henüz gelmemişi değil.
-            const SizedBox(height: AppSpacing.large),
-            AppSectionHeader(
-              title: 'Yaklaşanlar',
-              // Pencere düz yazı değil rozet: `11 kategori` bir **sayım**,
-              // bu ise listenin **sınırı**. Bölüm 7 günü gösteriyor ve bunun
-              // görünmesi zorunlu — ekranda 30 günlük başka toplamlar da
-              // olabiliyor, iki pencere etiketsiz yan yana durursa kullanıcı
-              // ikisini karşılaştırıp tutturamaz. Rozetin kendi iç boşluğu
-              // yazıyı sağ kenardan içeri alıyor ve zemini onu düz sayaçtan
-              // ayırıyor.
-              trailing: _HorizonBadge(
-                label: DashboardViewModel.upcomingHorizon.label,
-              ),
-            ),
-            _Upcoming(
-              items: viewModel.upcoming,
-              hiddenCount: viewModel.upcomingHiddenCount,
-            ),
-
-            // — Şu an —
-            if (advanced != null) ...[
-              const SizedBox(height: AppSpacing.large),
-              const AppSectionHeader(title: 'Varlık durumu'),
-              _NetWorthCard(report: advanced),
-              // `Bu ay nasıl bölündü` (halka) ve `Son 6 ay` (eğilim) geçici
-              // olarak kapalı: iki grafik de biçim olarak henüz yerine
-              // oturmadı ve ekranı taşıyacakları bilgiden fazla yer
-              // kaplıyorlardı. Bileşenler (`AppDonutChart`, `AppTrendChart`)
-              // ve testleri duruyor; biçim kararı verildiğinde bu iki satır
-              // geri açılır.
-            ],
-            const SizedBox(height: AppSpacing.large),
-            const AppSectionHeader(title: 'Hesap bakiyeleri'),
-            _AccountBalances(report: report),
-          ],
+    return RefreshIndicator(
+      onRefresh: viewModel.load,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.medium,
+          AppSpacing.small,
+          AppSpacing.medium,
+          AppSpacing.fabClearance,
         ),
+        children: [
+          _MonthSelector(
+            // Ekranın en üstündeki bağlam makine biçimindeydi (`08.2026`).
+            // Ay adları zaten tek bir yerde duruyor.
+            label: DateText.monthYear(report.year, report.month),
+            onPrevious: viewModel.previousMonth,
+            onNext: viewModel.nextMonth,
+          ),
+          const SizedBox(height: AppSpacing.medium),
+
+          // Uyarı hero metriğin **üstünde**: "ekran başına tek mesaj"
+          // kuralının istisnası değil, sırası. Bir şey gecikmişse ekranın
+          // söylemesi gereken ilk şey odur; gecikme yokken bant hiç
+          // çizilmez ve sıra normale döner.
+          if (viewModel.overdue.isNotEmpty) ...[
+            _OverdueBand(items: viewModel.overdue),
+            const SizedBox(height: AppSpacing.medium),
+          ],
+          // Ekranın söylediği tek şey en üstte ve en büyük: bu ay ne kaldı.
+          AppMetricTile(
+            key: const ValueKey('dashboard-summary-Net'),
+            size: AppMetricSize.hero,
+            label: 'Bu ayın neti',
+            amount: report.net,
+            currency: report.currency,
+            caption: _netCaption(advanced),
+          ),
+          const SizedBox(height: AppSpacing.small),
+          AppResponsiveGrid(
+            minItemWidth: 150,
+            spacing: AppSpacing.small,
+            children: [
+              AppMetricTile(
+                key: const ValueKey('dashboard-summary-Gelir'),
+                label: 'Gelir',
+                amount: report.totalIncome,
+                currency: report.currency,
+                icon: Icons.south_west,
+                effect: AppMoneyEffect.income,
+                tinted: true,
+              ),
+              AppMetricTile(
+                key: const ValueKey('dashboard-summary-Gider'),
+                label: 'Gider',
+                amount: report.totalExpense,
+                currency: report.currency,
+                icon: Icons.north_east,
+                effect: AppMoneyEffect.expense,
+                tinted: true,
+              ),
+            ],
+          ),
+          // Ekran iki soruya ayrı ayrı yanıt verir ve sıra bunu izler:
+          // önce **bu ay nasıl geçti** (akış), sonra **şu an nerede
+          // duruyorum** (durum). Önceden ikisi iç içeydi — varlık durumu
+          // kategori ve bütçenin üstündeydi — ve okuyucu akıştan duruma,
+          // oradan tekrar akışa geçiyordu. İki blok arasındaki dikiş aynı
+          // zamanda yeni bölümlerin gireceği yerdir.
+
+          // — Bu ay —
+          const SizedBox(height: AppSpacing.large),
+          AppSectionHeader(
+            title: 'Kategori giderleri',
+            trailing: report.categoryExpenses.isEmpty
+                ? null
+                : Text(
+                    '${report.categoryExpenses.length} kategori',
+                    style: Theme.of(context).textTheme.labelMedium,
+                  ),
+          ),
+          _CategoryBreakdown(report: report),
+          // Gelişmiş rapor ikincil okumadır; düşerse yalnız bu bölümler
+          // gizlenir, ay özeti tek başına geçerli bir ekrandır.
+          if (advanced != null && advanced.budgetVariances.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.large),
+            const AppSectionHeader(title: 'Bütçe durumu'),
+            _BudgetStatus(
+              items: advanced.budgetVariances,
+              currency: advanced.currency,
+            ),
+          ],
+
+          // — Önümde ne var —
+          //
+          // Üçüncü bir zaman dilimi: geçmiş ("bu ay") ile şimdi ("şu an")
+          // arasında değil, ikisinin arasındaki dikişte duruyor. Ekran
+          // bugüne kadar yalnız olan biteni anlatıyordu; gecikmiş bandı da
+          // yalnız **kaçırılmış** olanı söylüyor, henüz gelmemişi değil.
+          const SizedBox(height: AppSpacing.large),
+          AppSectionHeader(
+            title: 'Yaklaşanlar',
+            // Pencere düz yazı değil rozet: `11 kategori` bir **sayım**,
+            // bu ise listenin **sınırı**. Bölüm 7 günü gösteriyor ve bunun
+            // görünmesi zorunlu — ekranda 30 günlük başka toplamlar da
+            // olabiliyor, iki pencere etiketsiz yan yana durursa kullanıcı
+            // ikisini karşılaştırıp tutturamaz. Rozetin kendi iç boşluğu
+            // yazıyı sağ kenardan içeri alıyor ve zemini onu düz sayaçtan
+            // ayırıyor.
+            trailing: _HorizonBadge(
+              label: DashboardViewModel.upcomingHorizon.label,
+            ),
+          ),
+          _Upcoming(
+            items: viewModel.upcoming,
+            hiddenCount: viewModel.upcomingHiddenCount,
+          ),
+
+          // — Şu an —
+          if (advanced != null) ...[
+            const SizedBox(height: AppSpacing.large),
+            const AppSectionHeader(title: 'Varlık durumu'),
+            // Kapsam anahtarı açıkken bu bölümün **değişmediğini** ekran
+            // söyler. Sessizce aynı kalsaydı kullanıcı filtrelenmiş sanır ve
+            // iki tarafın net varlığını toplamaya çalışırdı.
+            if (viewModel.scope != null) const _UnsplitNote(),
+            _NetWorthCard(report: advanced),
+            // `Bu ay nasıl bölündü` (halka) ve `Son 6 ay` (eğilim) geçici
+            // olarak kapalı: iki grafik de biçim olarak henüz yerine
+            // oturmadı ve ekranı taşıyacakları bilgiden fazla yer
+            // kaplıyorlardı. Bileşenler (`AppDonutChart`, `AppTrendChart`)
+            // ve testleri duruyor; biçim kararı verildiğinde bu iki satır
+            // geri açılır.
+          ],
+          const SizedBox(height: AppSpacing.large),
+          const AppSectionHeader(title: 'Hesap bakiyeleri'),
+          if (viewModel.scope != null) const _UnsplitNote(),
+          _AccountBalances(report: report),
+        ],
       ),
     );
   }
@@ -215,6 +233,66 @@ extension on DashboardPage {
       );
     }
     return null;
+  }
+}
+
+/// Kapsam anahtarının ekrandaki yeri: başlığın hemen altında, kaydırılan
+/// gövdenin dışında.
+class _ScopeBar extends StatelessWidget {
+  const _ScopeBar({required this.value, required this.onChanged});
+
+  final TransactionScope? value;
+  final ValueChanged<TransactionScope?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.medium,
+        vertical: AppSpacing.small,
+      ),
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: AppScopeSwitch(value: value, onChanged: onChanged),
+      ),
+    );
+  }
+}
+
+/// Kapsam filtresinden **etkilenmeyen** bölümün altındaki not.
+///
+/// Bakiye, kart borcu ve net varlık tek havuzdur (ADR 0013); anahtarın
+/// konumuna göre değişselerdi "ne kadar param var" sorusunun aynı anda iki
+/// farklı doğru cevabı olurdu. Bunu yazmak zorunlu: filtre açıkken sessizce
+/// aynı kalan bir sayı, filtrelenmiş sanılır.
+class _UnsplitNote extends StatelessWidget {
+  const _UnsplitNote();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.small),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline,
+            size: AppSpacing.medium,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: AppSpacing.xSmall),
+          Expanded(
+            child: Text(
+              'Kapsam filtresinden etkilenmez: işletme ve şahsi toplamıdır.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

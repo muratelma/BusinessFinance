@@ -34,7 +34,7 @@ void main() {
       );
       addTearDown(httpClient.close);
 
-      await auth.register(email, password);
+      await auth.register(email, password, hasBusiness: false);
       await auth.login(email, password);
       final client = ApiClient(
         config: ApiConfig.fromEnvironment(),
