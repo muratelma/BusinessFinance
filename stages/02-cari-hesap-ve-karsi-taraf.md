@@ -144,12 +144,24 @@ geçirir** ve 03'e devreder.
   kullanıcının parasını ekranda yok ederdi; aynı hatanın kart tarafındaki hâli
   `docs/backlog.md` 1. maddede duruyor.
 
-### Grup 3 — Cari bakiye projection'ı
+### Grup 3 — Cari bakiye projection'ı — **Tamamlandı**
 
 - Bakiye = borçlandırmalar − tahsilatlar, karşı taraf ve owner kapsamlı.
 - Liste ekranı için **tek sorguda** karşı taraf başına bakiye; N+1 yok.
 - Sıfır bakiyeli karşı taraf listede kalır ama ayrı okunur (kapanmış cari).
 - Ölçüt: bounded query-count testi; 50 karşı taraflı sentetik veride tek sorgu.
+- Sonuç: üç tablo kalıcılığa girdi (`AddCounterparties` migration'ı),
+  `ICounterpartyRepository` portu ve tek sorgulu EF uygulaması yazıldı.
+  Ölçü gerçek SQL üzerinde alındı: **53 karşı taraf, tek okuma komutu.**
+- **Migration yalnız yeni ve boş tablo kuruyor**, mevcut hiçbir tabloya kolon
+  veya kısıt eklemiyor; backfill kuralının "gerçekten boş tablo" istisnası
+  burada geçerli ve testle sabitlendi.
+- **Toplamlar ilişkili alt sorgu olarak karşı tarafın satırının içinde**;
+  filtre ve sıralama da veritabanında. Kişi başına toplam sorgusu elli
+  kayıtta yüzün üzerinde sorgu demek olurdu.
+- **Karar:** eksi bakiye (fazla tahsilat) *kapanmış* sayılmıyor. Kapanmış
+  cari iki tarafı da sıfır olandır; eksi bakiyede hâlâ konuşulacak para var.
+- Yazma yolu (endpoint, use case) bu grupta açılmadı: Grup 3 okuma modelidir.
 
 ### Grup 4 — Mevcut borç modelinin bağlanması
 
@@ -169,6 +181,10 @@ geçirir** ve 03'e devreder.
   bakiyeyi geri alır, borçlandırmayı iptal etmek geliri geri alır.
 - Net varlık: alacak artırır, borç azaltır. **Anapara ölçüsü korunur**
   (ADR 0010).
+- **Hesap bakiyesi tahsilatı görür.** `CounterpartyPayment` parayı taşıyan
+  bir kayıttır; hesap bakiyesi hesabına katılmazsa tahsil edilen para
+  kasada hiç görünmez. Grup 3 yalnız cari tarafını hesapladı, hesap
+  bakiyesi bu grupta genişler.
 - `documentation/financial-activity-api-contract.md` yeni kaynaklarla
   genişletilir.
 - Ölçüt: feed tek SQL sorgusunda kalıyor; sayfalama ve sıralama veritabanında.

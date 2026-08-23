@@ -42,6 +42,8 @@ using BusinessFinance.Application.DataPortability;
 using BusinessFinance.Infrastructure.DataPortability;
 using BusinessFinance.Application.Debts;
 using BusinessFinance.Infrastructure.Debts;
+using BusinessFinance.Application.Counterparties;
+using BusinessFinance.Infrastructure.Counterparties;
 using BusinessFinance.Application.SavingsGoals;
 using BusinessFinance.Infrastructure.SavingsGoals;
 using BusinessFinance.Application.Attachments;
@@ -115,6 +117,7 @@ public static class DependencyInjection
         services.AddScoped<IUpcomingPaymentRepository, EfUpcomingPaymentRepository>();
         services.AddScoped<IDataPortabilityRepository, EfDataPortabilityRepository>();
         services.AddScoped<IDebtRepository, EfDebtRepository>();
+        services.AddScoped<ICounterpartyRepository, EfCounterpartyRepository>();
         services.AddScoped<ISavingsGoalRepository, EfSavingsGoalRepository>();
         services.AddScoped<IAttachmentRepository, EfAttachmentRepository>();
         services.AddSingleton<IAttachmentFileInspector, AttachmentFileInspector>();

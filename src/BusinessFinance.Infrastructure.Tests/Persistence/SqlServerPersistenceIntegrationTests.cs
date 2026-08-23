@@ -16,6 +16,7 @@ using BusinessFinance.Application.Transfers;
 using BusinessFinance.Application.CreditCards;
 using BusinessFinance.Application.Abstractions.Queries;
 using BusinessFinance.Application.Debts;
+using BusinessFinance.Application.Counterparties;
 using BusinessFinance.Infrastructure.Categories;
 using BusinessFinance.Domain;
 using BusinessFinance.Infrastructure.Identity;
@@ -1861,6 +1862,212 @@ public sealed class SqlServerPersistenceIntegrationTests
             stopwatch.Elapsed < TimeSpan.FromSeconds(5),
             $"Advanced report took {stopwatch.Elapsed.TotalMilliseconds:N0} ms.");
     }
+
+    /// <summary>
+    /// Cari bakiye hareketlerden hesaplanır ve <b>tek sorguda</b> gelir: elli üç
+    /// karşı taraf da bir ifadeyle okunur. Kişi başına toplam sorgusu açan bir
+    /// uygulama burayı yüzün üzerine çıkarırdı.
+    /// </summary>
+    [SqlServerFact]
+    public async Task CounterpartyBalances_ComeFromOneQueryAndStayInsideTheOwner()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var owner = CreateUser("counterparty-owner@example.test");
+        var stranger = CreateUser("counterparty-stranger@example.test");
+        await database.SeedUsersAsync(owner, stranger);
+        var seeded = await SeedCounterpartyGraphAsync(database, owner.Id);
+        var strangerGraph = await SeedCounterpartyGraphAsync(database, stranger.Id);
+
+        var counter = new CountingCommandInterceptor();
+        await using var provider = CreateServiceProvider(database.ConnectionString, counter);
+        await using var scope = provider.CreateAsyncScope();
+        var repository = scope.ServiceProvider.GetRequiredService<ICounterpartyRepository>();
+
+        var balances = await repository.ListBalancesAsync(
+            owner.Id, CounterpartyBalanceFilter.All, null, CancellationToken.None);
+
+        Assert.Equal(1, counter.ReaderCommandCount);
+
+        // Yabancının birebir aynı grafiği görünmüyor: sayı ikiye katlanmıyor.
+        Assert.Equal(53, balances.Count);
+        var byId = balances.ToDictionary(item => item.CounterpartyId);
+
+        // Elli düz kayıt: 100(i+1) veresiye satış, 40(i+1) tahsilat.
+        var tenth = byId[seeded.RunningIds[9]];
+        Assert.Equal(600m, tenth.Receivable);
+        Assert.Equal(0m, tenth.Payable);
+        Assert.Equal(600m, tenth.Net);
+        Assert.False(tenth.IsSettled);
+
+        // İptal edilmiş borçlandırma hiç sayılmaz.
+        Assert.Equal(0m, byId[seeded.CancelledId].Receivable);
+        Assert.True(byId[seeded.CancelledId].IsSettled);
+
+        // Kapanmış cari listede kalır; iki tarafı da sıfırdır.
+        Assert.True(byId[seeded.SettledId].IsSettled);
+
+        // Fazla tahsilat kırpılmaz: taraf eksiye düşer ve gerçek kalır.
+        Assert.Equal(-250m, byId[seeded.OverpaidId].Receivable);
+        Assert.False(byId[seeded.OverpaidId].IsSettled);
+
+        // Aynı kişi hem alıcı hem satıcı: iki taraf ayrı ayrı durur, net ikisini
+        // tek cümleye indirir.
+        var both = byId[seeded.BothSidesId];
+        Assert.Equal(800m, both.Receivable);
+        Assert.Equal(300m, both.Payable);
+        Assert.Equal(500m, both.Net);
+
+        // Sıralama veritabanında: açık hesabı en büyük olan başta.
+        Assert.Equal(3000m, balances[0].Net);
+
+        var open = await repository.ListBalancesAsync(
+            owner.Id, CounterpartyBalanceFilter.Open, null, CancellationToken.None);
+        var settled = await repository.ListBalancesAsync(
+            owner.Id, CounterpartyBalanceFilter.Settled, null, CancellationToken.None);
+        Assert.DoesNotContain(open, item => item.CounterpartyId == seeded.SettledId);
+        Assert.Contains(settled, item => item.CounterpartyId == seeded.SettledId);
+        Assert.Contains(open, item => item.CounterpartyId == seeded.OverpaidId);
+        Assert.Equal(balances.Count, open.Count + settled.Count);
+
+        var inactive = await repository.ListBalancesAsync(
+            owner.Id, CounterpartyBalanceFilter.All, false, CancellationToken.None);
+        Assert.Equal(seeded.InactiveId, Assert.Single(inactive).CounterpartyId);
+
+        // Sahiplik: yabancının karşı tarafı ne bakiye ne kayıt olarak okunabilir.
+        Assert.Null(await repository.FindBalanceAsync(
+            strangerGraph.SettledId, owner.Id, CancellationToken.None));
+        Assert.Null(await repository.FindOwnedByIdAsync(
+            strangerGraph.SettledId, owner.Id, CancellationToken.None));
+        var mine = await repository.FindBalanceAsync(
+            seeded.BothSidesId, owner.Id, CancellationToken.None);
+        Assert.NotNull(mine);
+        Assert.Equal(500m, mine.Net);
+    }
+
+    private static async Task<CounterpartyGraph> SeedCounterpartyGraphAsync(
+        SqlTestDatabase database,
+        Guid userId)
+    {
+        var account = new Account(
+            Guid.NewGuid(), userId, "Kasa", AccountType.Cash, CurrencyCode.TRY, 10_000m);
+        var income = new Category(Guid.NewGuid(), userId, "Veresiye satış", CategoryType.Income);
+        var expense = new Category(Guid.NewGuid(), userId, "Tedarik", CategoryType.Expense);
+        var charges = new List<CounterpartyCharge>();
+        var payments = new List<CounterpartyPayment>();
+        var counterparties = new List<Counterparty>();
+        var runningIds = new List<Guid>();
+
+        Counterparty Add(string name)
+        {
+            var counterparty = new Counterparty(Guid.NewGuid(), userId, name);
+            counterparties.Add(counterparty);
+            return counterparty;
+        }
+
+        void Charge(
+            Counterparty counterparty,
+            DebtDirection direction,
+            decimal amount,
+            bool cancelled = false)
+        {
+            var charge = new CounterpartyCharge(
+                Guid.NewGuid(),
+                userId,
+                counterparty,
+                direction == DebtDirection.Receivable ? income : expense,
+                direction,
+                new Money(amount, CurrencyCode.TRY),
+                TransactionScope.Business,
+                new DateOnly(2026, 8, 10));
+            if (cancelled)
+            {
+                charge.Cancel(new DateTimeOffset(2026, 8, 11, 9, 0, 0, TimeSpan.Zero));
+            }
+
+            charges.Add(charge);
+        }
+
+        void Pay(Counterparty counterparty, DebtDirection direction, decimal amount)
+        {
+            payments.Add(new CounterpartyPayment(
+                Guid.NewGuid(),
+                userId,
+                counterparty,
+                account,
+                direction,
+                new Money(amount, CurrencyCode.TRY),
+                new DateOnly(2026, 8, 12)));
+        }
+
+        for (var index = 1; index <= 50; index++)
+        {
+            var counterparty = Add($"Cari {index:D2}");
+            runningIds.Add(counterparty.Id);
+            Charge(counterparty, DebtDirection.Receivable, 100m * index);
+            Pay(counterparty, DebtDirection.Receivable, 40m * index);
+        }
+
+        // Kapanmış cari: satış tamamen tahsil edildi, kayıt listede kalır.
+        var settledParty = Add("Kapanmış cari");
+        Charge(settledParty, DebtDirection.Receivable, 750m);
+        Pay(settledParty, DebtDirection.Receivable, 750m);
+
+        // İptal edilmiş borçlandırma: hiç olmamış gibi sayılır.
+        var cancelledParty = Add("İptalli cari");
+        Charge(cancelledParty, DebtDirection.Receivable, 900m, cancelled: true);
+
+        // Aynı kişi hem alıcı hem satıcı; iki taraf ayrı ayrı durur.
+        var bothSides = Add("İki yönlü cari");
+        Charge(bothSides, DebtDirection.Receivable, 800m);
+        Charge(bothSides, DebtDirection.Payable, 300m);
+
+        // Pasif karşı taraf: geçmişi durur, yeni borçlandırma alamaz.
+        counterparties[0].Deactivate();
+
+        await using (var context = database.CreateContext())
+        {
+            context.AddRange(account, income, expense);
+            context.AddRange(counterparties);
+            context.AddRange(charges);
+            context.AddRange(payments);
+            await context.SaveChangesAsync(CancellationToken.None);
+        }
+
+        // Fazla tahsilat pasifleştirmeden sonra yazılıyor: kalan borcu kapatmak
+        // pasif tarafta da mümkün olmalı (Grup 2 kararı) ve fazlası kırpılmıyor.
+        await using (var context = database.CreateContext())
+        {
+            var reloaded = await context.Counterparties.SingleAsync(
+                item => item.Id == counterparties[0].Id, CancellationToken.None);
+            var reloadedAccount = await context.Accounts.SingleAsync(
+                item => item.Id == account.Id, CancellationToken.None);
+            context.CounterpartyPayments.Add(new CounterpartyPayment(
+                Guid.NewGuid(),
+                userId,
+                reloaded,
+                reloadedAccount,
+                DebtDirection.Receivable,
+                new Money(310m, CurrencyCode.TRY),
+                new DateOnly(2026, 8, 13)));
+            await context.SaveChangesAsync(CancellationToken.None);
+        }
+
+        return new CounterpartyGraph(
+            runningIds,
+            settledParty.Id,
+            cancelledParty.Id,
+            counterparties[0].Id,
+            counterparties[0].Id,
+            bothSides.Id);
+    }
+
+    private sealed record CounterpartyGraph(
+        IReadOnlyList<Guid> RunningIds,
+        Guid SettledId,
+        Guid CancelledId,
+        Guid OverpaidId,
+        Guid InactiveId,
+        Guid BothSidesId);
 
     private static string GetConnectionString()
     {

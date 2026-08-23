@@ -480,8 +480,9 @@ ayın neti`. Bir taraf seçiliyken hero o tarafın netini adıyla gösterir.
 
 ## Cari hesap: karşı taraf ve açık bakiye
 
-> Aşama 02, Grup 2 — **domain katmanı**. Kalıcılık, projection sorgusu, feed ve
-> arayüz kendi gruplarında gelir; bu bölüm yalnız bugün var olanı anlatır.
+> Aşama 02, Grup 2–3 — **domain katmanı, kalıcılık ve bakiye projection'ı**.
+> Feed, arayüz ve yedek kendi gruplarında gelir; bu bölüm yalnız bugün var
+> olanı anlatır.
 
 Karşı taraf (`Counterparty`) müşteri, tedarikçi ya da ikisi birden. **Ayrı tip
 yok:** mahalle esnafında aynı kişi hem alıcı hem satıcıdır ve ikiye bölmek
@@ -518,6 +519,33 @@ gelir ve gerçektir — sıfıra çekmek kullanıcının parasını ekranda yok 
 Pasifleştirme yeni iş yapmayı durdurur, geçmişi silmez: **pasif karşı tarafa
 yeni borçlandırma yazılamaz, tahsilat yazılabilir.** Aksi hâlde artık iş
 yapılmayan bir müşterinin kalan borcu kapatılamaz hâle gelirdi.
+
+#### Cari bakiye okuma modeli
+
+Bakiye üç tabloda duran hareketlerden okunur; `ICounterpartyRepository`
+(Application portu) iki soru sorar ve ikisi de aynı projeksiyondan çıkar:
+karşı taraf başına liste (`ListBalancesAsync`) ve tek karşı taraf
+(`FindBalanceAsync`). Dönen `CounterpartyBalanceSummary` kimliği ve iki tarafı
+birlikte taşır; `Net` ikisini tek cümleye, `IsSettled` "kapanmış cari mi"
+sorusuna indirir.
+
+**Liste tek SQL ifadesidir.** Toplamlar karşı tarafın satırının içinde
+ilişkili alt sorgular olarak durur; filtre (`All`/`Open`/`Settled`, aktiflik)
+ve sıralama da veritabanında çalışır. Kişi başına ayrı bir toplam sorgusu,
+elli kayıtlık bir listede yüzün üzerinde sorgu demek olurdu — ölçü
+`CounterpartyBalances_ComeFromOneQueryAndStayInsideTheOwner` testiyle
+sabitlendi (53 karşı taraf, tek okuma komutu).
+
+**Sıfır bakiyeli karşı taraf listeden düşmez**, yalnız ayrı okunur: hesabın
+kapanmış olması o kişiyle iş yapılmadığı anlamına gelmez. Eksi bakiye
+(fazla tahsilat) **kapanmış sayılmaz** — hâlâ konuşulacak bir para vardır.
+
+Kalıcılıkta sahiplik izolasyonu foreign key'in kendisindedir: hareketler
+karşı tarafa `(UserId, CounterpartyId) → (UserId, Id)` ile bağlanır, yani
+başka kullanıcının karşı tarafına yazılan bir hareket veritabanı seviyesinde
+reddedilir. `(UserId, Name)` tekil indeksi aynı kişinin iki kez oluşmasını
+engeller. Tahsilat tablosunda **kategori ve kapsam kolonu hiç yoktur**;
+yokluğu migration testiyle korunuyor.
 
 ### Taşınabilirlik: dışa aktarma ile yedek ayrı şeylerdir
 

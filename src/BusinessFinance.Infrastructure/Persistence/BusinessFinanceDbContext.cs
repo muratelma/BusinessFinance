@@ -29,6 +29,9 @@ public sealed class BusinessFinanceDbContext(
     public DbSet<ImportRow> ImportRows => Set<ImportRow>();
     public DbSet<DebtAgreement> DebtAgreements => Set<DebtAgreement>();
     public DbSet<DebtInstallment> DebtInstallments => Set<DebtInstallment>();
+    public DbSet<Counterparty> Counterparties => Set<Counterparty>();
+    public DbSet<CounterpartyCharge> CounterpartyCharges => Set<CounterpartyCharge>();
+    public DbSet<CounterpartyPayment> CounterpartyPayments => Set<CounterpartyPayment>();
     public DbSet<SavingsGoal> SavingsGoals => Set<SavingsGoal>();
     public DbSet<SavingsGoalContribution> SavingsGoalContributions => Set<SavingsGoalContribution>();
     public DbSet<FinancialAttachment> FinancialAttachments => Set<FinancialAttachment>();

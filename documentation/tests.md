@@ -125,6 +125,8 @@ Kapsam boyutunun test yüzeyi bu grupla tamamlandı.
 | `...Payment_CarriesNeitherCategoryNorScope` | Tahsilatta kategori ve kapsam alanı **yok**; alan sonradan eklenirse test kırılır (ADR 0013, ADR 0014) |
 | `...Payment_MovesTheAccountAccordingToDirection` | Tahsilat kasaya para koyar, ödeme kasadan alır; işaret tek yerde |
 | `...AnInactiveCounterparty_TakesNoNewChargeButCanStillSettle` | Pasif karşı tarafa yeni borçlandırma yazılamaz, tahsilat yazılabilir |
+| `CounterpartyBalances_ComeFromOneQueryAndStayInsideTheOwner` (Infrastructure, gerçek SQL) | 53 karşı taraflı sentetik veride cari bakiye **tek okuma komutuyla** geliyor; iptal edilmiş borçlandırma sayılmıyor, fazla tahsilat kırpılmıyor, kapanmış cari listede kalıyor; yabancının birebir aynı grafiği ne listede ne tekil okumada görünüyor |
+| `AddCounterparties_OnlyCreatesEmptyTablesWithOwnerScopedKeys` (Infrastructure) | Migration yalnız üç boş tablo kuruyor (mevcut tabloya kolon/kısıt eklemiyor); hareketler karşı tarafa `(UserId, Id)` ile bağlı; tahsilat tablosunda kategori ve kapsam kolonu yok |
 | `...ThreeSalesAndTwoPartialCollections_LeaveTheRemainderOpen` | Aşamanın çıkış senaryosunun domain hâli: 1.000 satış, 600 tahsilat, 400 açık; tahsilat geliri ikinci kez artırmıyor |
 | `...BothSidesOfTheSamePersonAreKeptApart` | Aynı kişinin alacak ve borç tarafı ayrı yürüyor, `Net` ikisini birleştiriyor |
 | `...CancelledMovementsLeaveTheBalanceUntouched` | İptal edilmiş hareket bakiyeye girmiyor |

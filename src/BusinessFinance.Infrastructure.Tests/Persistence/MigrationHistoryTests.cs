@@ -23,7 +23,8 @@ public sealed class MigrationHistoryTests
     [
         "InitialCreate",
         "AddTransactionScope",
-        "AddUserProfile"
+        "AddUserProfile",
+        "AddCounterparties"
     ];
 
     [Fact]
@@ -190,6 +191,56 @@ public sealed class MigrationHistoryTests
             });
 
             Assert.Equal(10, up.OfType<AddCheckConstraintOperation>().Count());
+        }
+    }
+
+    /// <summary>
+    /// Cari hesabın üç tablosu boş doğuyor: adım yalnız tablo kuruyor, mevcut
+    /// bir tabloya dokunmuyor. Backfill kuralı bu yüzden devreye girmiyor —
+    /// yorumlanacak bir geçmiş yok (AGENTS.md, "gerçekten boş tablo" istisnası).
+    /// </summary>
+    [Fact]
+    public void AddCounterparties_OnlyCreatesEmptyTablesWithOwnerScopedKeys()
+    {
+        var migration = LoadMigrations(out var context)
+            .Single(entry => entry.Id.EndsWith("_AddCounterparties", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations.ToList();
+            var tables = up.OfType<CreateTableOperation>().ToArray();
+
+            Assert.Equal(
+                ["Counterparties", "CounterpartyCharges", "CounterpartyPayments"],
+                tables.Select(table => table.Name).OrderBy(name => name, StringComparer.Ordinal).ToArray());
+
+            // Mevcut hiçbir tabloya kolon veya kısıt eklenmiyor.
+            Assert.Empty(up.OfType<AddColumnOperation>());
+            Assert.Empty(up.OfType<AddCheckConstraintOperation>());
+            Assert.Equal(
+                tables.Length + up.OfType<CreateIndexOperation>().Count(),
+                up.Count);
+
+            // Sahiplik izolasyonu foreign key'in kendisinde: hareketler karşı
+            // tarafa (UserId, Id) ile bağlanır, başka kullanıcının karşı tarafı
+            // veritabanı seviyesinde yazılamaz.
+            foreach (var name in new[] { "CounterpartyCharges", "CounterpartyPayments" })
+            {
+                var ownerScoped = tables.Single(table => table.Name == name).ForeignKeys
+                    .Single(key => key.PrincipalTable == "Counterparties");
+                Assert.Equal(["UserId", "CounterpartyId"], ownerScoped.Columns);
+                Assert.NotNull(ownerScoped.PrincipalColumns);
+                Assert.Equal(["UserId", "Id"], ownerScoped.PrincipalColumns);
+            }
+
+            // Tahsilat parayı taşır, gelir/gider tanımaz: kategori ve kapsam
+            // kolonu hiç yok (ADR 0014).
+            var payments = tables.Single(table => table.Name == "CounterpartyPayments");
+            Assert.DoesNotContain(payments.Columns, column => column.Name is "CategoryId" or "Scope");
+
+            // Aynı kişi iki kez oluşamaz.
+            Assert.Contains(
+                up.OfType<CreateIndexOperation>(),
+                index => index.Name == "UX_Counterparties_UserId_Name" && index.IsUnique);
         }
     }
 
