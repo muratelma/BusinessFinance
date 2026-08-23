@@ -714,6 +714,16 @@ Fazla tahsilat **kırpılmaz**: taraf eksiye düşer ve bu gerçektir. Sıfır
 bakiyeli karşı taraf listeden düşmez, yalnız ayrı okunur
 (`?balance=open|settled|all`).
 
+#### Fiş okuma karşı tarafı önerir
+
+Fişten okunan ad kullanıcının kendi karşı taraflarında **tam ad** ile
+aranır; bulunan kayıt taslakta `counterpartyId` olarak döner. Bu bir öneri
+katmanıdır (ADR 0011): hiçbir şey yazılmaz, karşı taraf kurulmaz ve
+kullanıcı öneriyi reddedebilir. Ad her hâlükârda yerinde kalır — reddeden
+kullanıcı adsız bir taslakla baş başa kalmamalı. Eşleşme yoksa taslak yalnız
+adı taşır; kayıt onaylanırken karşı taraf bulunur ya da kurulur (borç
+akışındaki bul-ya-da-oluştur ile aynı yol).
+
 #### Karşı taraf tek kayıttır
 
 Yazılan ad mevcut bir karşı tarafla eşleşirse sözleşme **ona** bağlanır;

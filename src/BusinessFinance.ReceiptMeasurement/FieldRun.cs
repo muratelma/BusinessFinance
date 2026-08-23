@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Attachments;
 using BusinessFinance.Application.Categories;
+using BusinessFinance.Application.Counterparties;
 using BusinessFinance.Application.Receipts;
 using BusinessFinance.Domain;
 using BusinessFinance.Infrastructure.Categories;
@@ -83,6 +84,7 @@ internal static class FieldRun
             new PermissiveInspector(),
             new ReceiptImagePreprocessor(Options.Create(new ReceiptImageOptions())),
             new FixedCategories(userId, DefaultCategories),
+            new NoCounterparties(),
             analyzer,
             new NoDuplicates(),
             new NoRefunds(),
@@ -266,6 +268,80 @@ internal static class FieldRun
     }
 
     /// <inheritdoc cref="NoDuplicates" />
+    /// <remarks>
+    /// Ölçüm koşusu okumanın kendisini ölçer; kullanıcının kayıtlı karşı
+    /// tarafı yoktur ve öneri katmanı sonuca karışmaz.
+    /// </remarks>
+    private sealed class NoCounterparties : ICounterpartyRepository
+    {
+        public Task<Counterparty?> FindOwnedByNameAsync(
+            Guid userId, string name, CancellationToken cancellationToken) =>
+            Task.FromResult<Counterparty?>(null);
+
+        public Task<Counterparty?> FindOwnedByIdAsync(
+            Guid counterpartyId, Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<CounterpartyBalanceSummary>> ListBalancesAsync(
+            Guid userId,
+            CounterpartyBalanceFilter filter,
+            bool? isActive,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<CounterpartyBalanceSummary?> FindBalanceAsync(
+            Guid counterpartyId, Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<Counterparty> FindOrCreateByNameAsync(
+            Guid userId, string name, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyDictionary<Guid, string>> ListNamesAsync(
+            Guid userId,
+            IReadOnlyCollection<Guid> counterpartyIds,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<bool> ExistsByNameAsync(
+            Guid userId,
+            string normalizedName,
+            Guid? exceptCounterpartyId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task AddAsync(Counterparty counterparty, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task UpdateOwnedAsync(
+            Counterparty counterparty, Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<bool> DeleteIfWithoutHistoryAsync(
+            Guid counterpartyId, Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task AddChargeAsync(CounterpartyCharge charge, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task AddPaymentAsync(CounterpartyPayment payment, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<CounterpartyCharge?> FindOwnedChargeAsync(
+            Guid chargeId, Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<CounterpartyPayment?> FindOwnedPaymentAsync(
+            Guid paymentId, Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task SaveChargeAsync(CounterpartyCharge charge, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task SavePaymentAsync(CounterpartyPayment payment, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
     private sealed class NoRefunds : IReceiptRefundLookup
     {
         public Task<ReceiptRefundMatch?> FindAsync(

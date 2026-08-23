@@ -135,6 +135,10 @@ Kapsam boyutunun test yüzeyi bu grupla tamamlandı.
 | `DeactivatedCounterparty_TakesNoNewChargeButStillSettlesAndIsNotDeleted` (API) | Pasif tarafa borçlandırma 409, tahsilat geçerli; hareketi olan kayıt silinemiyor, hiç hareketi olmayan silinebiliyor; kapanmış cari ayrı okunuyor |
 | `AnotherUsersLedger_IsNeitherReadableNorWritable` (API) | Yabancının karşı tarafı okunamıyor, hareketi iptal edilemiyor, adına tahsilat yazılamıyor; aynı ad iki kullanıcıda iki ayrı kayıt |
 | `FinancialActivityFeed_ClassifiesEveryRealizedKindOnce` (Infrastructure, gerçek SQL — genişletildi) | İki cari hareket türü feed'de: borçlandırma `income`/`counterparty`/kapsamlı, tahsilat `neutral`/kapsamsız/kategorisiz; ikisi de `canCancel` |
+| `Execute_WhenTheNameMatchesAKnownCounterparty_SuggestsIt` (Application) | Fişten okunan ad kullanıcının kayıtlı karşı tarafıyla eşleşiyor ve **öneri** olarak taslağa giriyor; ad yerinde kalıyor |
+| `Execute_WhenOnlyASimilarNameExists_SuggestsNothing` (Application) | Benzeyen ad eşleşme değil: "Sentetik Manav" ile "Sentetik Market" aynı kişi sayılmıyor |
+| `Execute_WhenTheMatchingNameBelongsToSomeoneElse_SuggestsNothing` (Application) | Başka kullanıcının aynı adlı karşı tarafı önerilmiyor |
+| `Execute_WhenTheNameIsUnreadable_DoesNotAskForAMatch` (Application) | Ad okunamadıysa arama hiç yapılmıyor |
 | `...ThreeSalesAndTwoPartialCollections_LeaveTheRemainderOpen` | Aşamanın çıkış senaryosunun domain hâli: 1.000 satış, 600 tahsilat, 400 açık; tahsilat geliri ikinci kez artırmıyor |
 | `...BothSidesOfTheSamePersonAreKeptApart` | Aynı kişinin alacak ve borç tarafı ayrı yürüyor, `Net` ikisini birleştiriyor |
 | `...CancelledMovementsLeaveTheBalanceUntouched` | İptal edilmiş hareket bakiyeye girmiyor |

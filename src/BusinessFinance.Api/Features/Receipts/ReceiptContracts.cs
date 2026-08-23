@@ -10,6 +10,14 @@ public sealed record ReceiptAnalysisResponse(
     string DocumentKind,
     string? CounterpartyName,
     string CounterpartyState,
+
+    /// <summary>
+    /// Okunan adın eşleştiği mevcut karşı taraf; <b>yalnız bir öneri</b>.
+    /// Dolu olması hiçbir şeyin yazıldığı anlamına gelmez (ADR 0011) ve
+    /// kullanıcı reddedebilir. Boş olması da hata değildir: o adla ilk kez
+    /// iş yapılıyor olabilir.
+    /// </summary>
+    Guid? CounterpartyId,
     string? PurchasedAt,
     string PurchasedAtState,
 

@@ -147,6 +147,17 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
             cancellationToken);
     }
 
+    public async Task<Counterparty?> FindOwnedByNameAsync(
+        Guid userId,
+        string name,
+        CancellationToken cancellationToken)
+    {
+        var normalized = name?.Trim() ?? string.Empty;
+        return normalized.Length == 0
+            ? null
+            : await FindByNameAsync(userId, normalized, cancellationToken);
+    }
+
     public async Task<bool> ExistsByNameAsync(
         Guid userId,
         string normalizedName,

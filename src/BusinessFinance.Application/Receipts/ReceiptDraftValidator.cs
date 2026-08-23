@@ -138,6 +138,11 @@ public static class ReceiptDraftValidator
             reading.DocumentKind,
             counterparty,
             counterparty is null ? ReceiptFieldState.Missing : ReceiptFieldState.Read,
+
+            // Eşleşme burada aranmaz: doğrulayıcının dış bağımlılığı yoktur ve
+            // karşı taraf araması veritabanına gider. Use case okuduğu adı
+            // kullanıcının kayıtlarında arayıp taslağa iliştirir.
+            null,
             purchasedAt,
             purchasedAtState,
             installments,

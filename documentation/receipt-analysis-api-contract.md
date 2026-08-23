@@ -177,6 +177,7 @@ olurdu.
   "documentKind": "purchase_receipt",
   "counterpartyName": "Sentetik Market",
   "counterpartyState": "read",
+  "counterpartyId": "22222222-2222-2222-2222-222222222222",
   "purchasedAt": "2026-08-18",
   "purchasedAtState": "read",
   "totalAmount": "847.5000",
@@ -209,6 +210,17 @@ aynı kira makbuzu kiracı için gider, ev sahibi için gelirdir. "Satıcı" ad�
 belgesinde kullanıcının kendisini gösterir ve kayıt listesinde işe yaramazdı.
 Bugün üretilen taslak daima gider olduğu için bu alan pratikte işletme adını
 taşır; alan adı ileriki yönleri de karşılayacak biçimde seçilmiştir.
+
+`counterpartyId` okunan adın **kayıtlı bir karşı tarafla eşleştiğini**
+söyler ve yalnız bir öneridir (ADR 0011): model karşı tarafı seçmez, sunucu
+okunan adı kullanıcının kendi kayıtlarında arar. Eşleşme **tam ad**
+üzerinedir (harf duyarsız) — "Sentetik Manav" ile "Sentetik Market" aynı
+kişi sayılsaydı uygulama yanlış bir bakiyeyi doğru gibi gösterirdi. Alanın
+boş olması hata değildir: o adla ilk kez iş yapılıyor olabilir ve karşı
+taraf kayıt onaylanırken bulunur ya da kurulur. Ad, eşleşme bulunsa bile
+yerinde kalır; öneriyi reddeden kullanıcı adsız bir taslakla baş başa
+kalmamalı. Başka kullanıcının aynı adlı karşı tarafı hiçbir koşulda
+önerilmez.
 
 ### Uyarılar
 

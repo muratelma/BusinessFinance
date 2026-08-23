@@ -228,13 +228,28 @@ geçirir** ve 03'e devreder.
 - Gelişmiş raporun sorgu bütçesi 44 → 52'ye çıktı: sekiz sabit sorgu, hiçbiri
   karşı taraf sayısıyla büyümüyor.
 
-### Grup 6 — Fiş okumanın bağlanması
+### Grup 6 — Fiş okumanın bağlanması — **Tamamlandı (arayüz payı Grup 7'de)**
 
 - Fişten okunan `counterpartyName` artık düz metin olarak kaydedilmez: mevcut
   karşı taraflarla eşleştirilir ve **öneri olarak** gösterilir.
 - Eşleşme bulunamazsa yeni karşı taraf oluşturma tek dokunuş olur.
 - **ADR 0011 bozulmaz:** model karşı tarafı seçmez, önerir; kullanıcı onaylar.
 - Ölçüt: yanlış eşleşme kullanıcıya görünür ve tek dokunuşla reddedilir.
+- Sonuç: taslak `counterpartyId` taşıyor. Arama use case'te, okuma bittikten
+  sonra ve **owner kapsamlı** yapılıyor; doğrulayıcıya girmedi çünkü onun dış
+  bağımlılığı yok ve olmaması her kuralı girdilerinin fonksiyonu olarak test
+  edilebilir tutuyor.
+- **Karar:** eşleşme **tam ad** üzerinedir (harf duyarsız). Benzeyen adı
+  eşleştirmek "Sentetik Manav" ile "Sentetik Market"i aynı kişi saymak olurdu
+  ve yanlış bir bakiyeyi doğru gibi gösterirdi. Öneri katmanı uydurmaz.
+- **Karar:** eşleşme bulunsa da ad taslakta kalır; öneriyi reddeden kullanıcı
+  adsız bir taslakla baş başa kalmamalı. Eşleşme yokluğu bir uyarı da
+  üretmez — o adla ilk kez iş yapılıyor olması olağandır.
+- **Eksik bırakılan:** öneriyi ekranda gösteren ve tek dokunuşla reddettiren
+  arayüz. Karşı taraf ekranları ve seçicisi Grup 7'de geliyor; öneriyi
+  onlarsız göstermek, kullanıcıya tıklayacak bir yer olmayan bir rozet
+  koymak olurdu. Sözleşme (API + Dart DTO) hazır, ölçütün arayüz yarısı
+  Grup 7'nin kabulünde doğrulanacak.
 
 ### Grup 7 — Flutter
 

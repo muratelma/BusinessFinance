@@ -105,6 +105,7 @@ public static class ReceiptEndpoints
         DocumentKind(draft.DocumentKind),
         draft.CounterpartyName,
         FieldState(draft.CounterpartyState),
+        draft.CounterpartyId,
         draft.PurchasedAt is DateOnly purchasedAt ? FinanceContract.Date(purchasedAt) : null,
         FieldState(draft.PurchasedAtState),
         draft.DueDate is DateOnly dueDate ? FinanceContract.Date(dueDate) : null,

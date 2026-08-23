@@ -24,7 +24,8 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   okuma modeli olarak gerçek SQL üzerinde ölçüldü, taksitli borç modeli
   karşı tarafa bağlandı (yükseltme yolu dolu bir veritabanında test edildi)
   ve cari hesabın yazma yolu, birleşik feed'e ve raporlara katılması
-  tamamlandı. Kalan: fiş okuma bağlantısı, Flutter ve yedek v7
+  tamamlandı. **Grup 6** fiş okumanın karşı taraf önerisini bağladı;
+  önerinin arayüz yarısı Grup 7'ye bırakıldı. Kalan: Flutter ve yedek v7
 - Kalan beş aşamanın belgesi de yazılı, durumları `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)

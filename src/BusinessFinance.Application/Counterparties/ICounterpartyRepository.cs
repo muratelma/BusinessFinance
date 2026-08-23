@@ -51,6 +51,16 @@ public interface ICounterpartyRepository
         IReadOnlyCollection<Guid> counterpartyIds,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Adı verilen karşı tarafı arar ve <b>kurmaz</b>. Fiş okuma bu yolu
+    /// kullanır: model bir ad okur, uygulama onu kullanıcının kendi
+    /// kayıtlarında arar ve bulduğunu <b>önerir</b> (ADR 0011).
+    /// </summary>
+    Task<Counterparty?> FindOwnedByNameAsync(
+        Guid userId,
+        string name,
+        CancellationToken cancellationToken);
+
     Task<bool> ExistsByNameAsync(
         Guid userId,
         string normalizedName,

@@ -2,6 +2,7 @@ using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Attachments;
 using BusinessFinance.Application.Categories;
+using BusinessFinance.Application.Counterparties;
 using BusinessFinance.Application.Receipts;
 using BusinessFinance.Domain;
 
@@ -172,11 +173,13 @@ public sealed class AnalyzeReceiptUseCaseTests
         IReceiptImagePreprocessor? preprocessor = null,
         StubCategoryRepository? categoryRepository = null,
         StubDuplicateLookup? duplicateLookup = null,
-        StubRefundLookup? refundLookup = null) => new(
+        StubRefundLookup? refundLookup = null,
+        StubCounterpartyRepository? counterpartyRepository = null) => new(
             new StubCurrentUser(unauthenticated ? null : UserId),
             inspector ?? new StubInspector(),
             preprocessor ?? new StubPreprocessor(),
             categoryRepository ?? new StubCategoryRepository([]),
+            counterpartyRepository ?? new StubCounterpartyRepository([]),
             analyzer,
             duplicateLookup ?? new StubDuplicateLookup(null),
             refundLookup ?? new StubRefundLookup(null),
@@ -207,6 +210,85 @@ public sealed class AnalyzeReceiptUseCaseTests
         Assert.False(result.IsSuccess);
         Assert.Equal("receipt.bank_document", result.Error.Code);
         Assert.Contains("transfer", result.Error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Fişte okunan ad kullanıcının kendi karşı taraflarında aranır ve bulunan
+    /// kayıt <b>öneri olarak</b> iliştirilir.
+    /// </summary>
+    /// <remarks>
+    /// Model karşı tarafı seçmez (ADR 0011): burada olan tek şey, okunan adın
+    /// kullanıcının kayıtlarında tam olarak bulunması. Ad da yerinde kalıyor —
+    /// öneriyi reddeden kullanıcı adsız bir taslakla baş başa kalmamalı.
+    /// </remarks>
+    [Fact]
+    public async Task Execute_WhenTheNameMatchesAKnownCounterparty_SuggestsIt()
+    {
+        var known = new Counterparty(Guid.NewGuid(), UserId, "Sentetik Market");
+        var counterparties = new StubCounterpartyRepository([known]);
+        var useCase = Build(new StubAnalyzer(SuccessfulReading()), counterpartyRepository: counterparties);
+
+        var result = await useCase.ExecuteAsync(Command());
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(known.Id, result.Value.Draft.CounterpartyId);
+        Assert.Equal("Sentetik Market", result.Value.Draft.CounterpartyName);
+    }
+
+    /// <summary>
+    /// Benzeyen ad eşleşme değildir: "Sentetik Manav" ile "Sentetik Market"
+    /// aynı kişi sayılsaydı, uygulama yanlış bir bakiyeyi doğru gibi gösterirdi.
+    /// Eşleşme yoksa taslak yalnız adı taşır ve karşı taraf kayıt onaylanırken
+    /// kurulur.
+    /// </summary>
+    [Fact]
+    public async Task Execute_WhenOnlyASimilarNameExists_SuggestsNothing()
+    {
+        var other = new Counterparty(Guid.NewGuid(), UserId, "Sentetik Manav");
+        var counterparties = new StubCounterpartyRepository([other]);
+        var useCase = Build(new StubAnalyzer(SuccessfulReading()), counterpartyRepository: counterparties);
+
+        var result = await useCase.ExecuteAsync(Command());
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value.Draft.CounterpartyId);
+        Assert.Equal("Sentetik Market", result.Value.Draft.CounterpartyName);
+    }
+
+    /// <summary>
+    /// Başka kullanıcının aynı adlı karşı tarafı hiçbir koşulda önerilmez.
+    /// </summary>
+    [Fact]
+    public async Task Execute_WhenTheMatchingNameBelongsToSomeoneElse_SuggestsNothing()
+    {
+        var strangers = new StubCounterpartyRepository(
+            [new Counterparty(Guid.NewGuid(), Guid.NewGuid(), "Sentetik Market")]);
+        var useCase = Build(new StubAnalyzer(SuccessfulReading()), counterpartyRepository: strangers);
+
+        var result = await useCase.ExecuteAsync(Command());
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value.Draft.CounterpartyId);
+    }
+
+    /// <summary>
+    /// Ad okunamadıysa arama hiç yapılmaz: boş adla arama, ilk karşı tarafı
+    /// rastgele önermeye açık kapı bırakırdı.
+    /// </summary>
+    [Fact]
+    public async Task Execute_WhenTheNameIsUnreadable_DoesNotAskForAMatch()
+    {
+        var counterparties = new StubCounterpartyRepository(
+            [new Counterparty(Guid.NewGuid(), UserId, "Sentetik Market")]);
+        var reading = SuccessfulReading() with { UnreadableFields = ["counterpartyName"] };
+        var useCase = Build(new StubAnalyzer(reading), counterpartyRepository: counterparties);
+
+        var result = await useCase.ExecuteAsync(Command());
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value.Draft.CounterpartyName);
+        Assert.Null(result.Value.Draft.CounterpartyId);
+        Assert.False(counterparties.WasAsked);
     }
 
     /// <summary>
@@ -826,6 +908,90 @@ public sealed class AnalyzeReceiptUseCaseTests
             category,
             [],
             Usage);
+
+    /// <summary>
+    /// Yalnız ada göre arama gerçek: fiş okuma karşı tarafı <b>önerir</b>,
+    /// kurmaz. Kalan port yüzeyi bu use case'in yolunda değil ve çağrılırsa
+    /// test sessizce yanlış şeyi doğrulamak yerine düşer.
+    /// </summary>
+    private sealed class StubCounterpartyRepository(IReadOnlyList<Counterparty> known)
+        : ICounterpartyRepository
+    {
+        public bool WasAsked { get; private set; }
+
+        public Task<Counterparty?> FindOwnedByNameAsync(
+            Guid userId, string name, CancellationToken cancellationToken)
+        {
+            WasAsked = true;
+            return Task.FromResult(
+                known.FirstOrDefault(item =>
+                    item.UserId == userId &&
+                    string.Equals(item.Name, name.Trim(), StringComparison.OrdinalIgnoreCase)));
+        }
+
+        public Task<Counterparty?> FindOwnedByIdAsync(
+            Guid counterpartyId, Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<CounterpartyBalanceSummary>> ListBalancesAsync(
+            Guid userId,
+            CounterpartyBalanceFilter filter,
+            bool? isActive,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<CounterpartyBalanceSummary?> FindBalanceAsync(
+            Guid counterpartyId, Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<Counterparty> FindOrCreateByNameAsync(
+            Guid userId, string name, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyDictionary<Guid, string>> ListNamesAsync(
+            Guid userId,
+            IReadOnlyCollection<Guid> counterpartyIds,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<bool> ExistsByNameAsync(
+            Guid userId,
+            string normalizedName,
+            Guid? exceptCounterpartyId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task AddAsync(Counterparty counterparty, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task UpdateOwnedAsync(
+            Counterparty counterparty, Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<bool> DeleteIfWithoutHistoryAsync(
+            Guid counterpartyId, Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task AddChargeAsync(CounterpartyCharge charge, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task AddPaymentAsync(CounterpartyPayment payment, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<CounterpartyCharge?> FindOwnedChargeAsync(
+            Guid chargeId, Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<CounterpartyPayment?> FindOwnedPaymentAsync(
+            Guid paymentId, Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task SaveChargeAsync(CounterpartyCharge charge, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task SavePaymentAsync(CounterpartyPayment payment, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
 
     private sealed class StubRefundLookup(ReceiptRefundMatch? match)
         : IReceiptRefundLookup

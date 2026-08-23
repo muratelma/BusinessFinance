@@ -197,6 +197,7 @@ class ReceiptDraft {
     required this.categoryName,
     required this.categoryState,
     required this.warnings,
+    this.counterpartyId,
     this.refundMatch,
   });
 
@@ -204,6 +205,7 @@ class ReceiptDraft {
     documentKind: ReceiptDocumentKind.parse(json, 'documentKind'),
     counterpartyName: JsonReaders.nullableString(json, 'counterpartyName'),
     counterpartyState: ReceiptFieldState.parse(json, 'counterpartyState'),
+    counterpartyId: JsonReaders.nullableString(json, 'counterpartyId'),
     purchasedAt: _nullableDate(json, 'purchasedAt'),
     purchasedAtState: ReceiptFieldState.parse(json, 'purchasedAtState'),
     dueDate: _nullableDate(json, 'dueDate'),
@@ -232,6 +234,14 @@ class ReceiptDraft {
   final ReceiptDocumentKind documentKind;
   final String? counterpartyName;
   final ReceiptFieldState counterpartyState;
+
+  /// Okunan adın eşleştiği kayıtlı karşı taraf; **yalnız bir öneri**.
+  ///
+  /// Dolu olması hiçbir şeyin yazıldığı anlamına gelmez: sunucu okunan adı
+  /// kullanıcının kendi kayıtlarında aradı ve tam eşleşme buldu. Boş olması
+  /// da hata değil — o adla ilk kez iş yapılıyor olabilir ve karşı taraf
+  /// kayıt onaylanırken kurulur.
+  final String? counterpartyId;
 
   /// `yyyy-MM-dd`; diğer sözleşmelerdeki gibi string kalır.
   final String? purchasedAt;

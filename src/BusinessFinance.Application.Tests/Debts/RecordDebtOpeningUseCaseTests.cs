@@ -194,6 +194,10 @@ public sealed class RecordDebtOpeningUseCaseTests
             Guid counterpartyId, Guid userId, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
+        public Task<Counterparty?> FindOwnedByNameAsync(
+            Guid userId, string name, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public Task<bool> ExistsByNameAsync(
             Guid userId,
             string normalizedName,

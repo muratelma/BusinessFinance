@@ -78,6 +78,25 @@ public sealed record ReceiptDraft(
     ReceiptDocumentKind DocumentKind,
     string? CounterpartyName,
     ReceiptFieldState CounterpartyState,
+
+    /// <summary>
+    /// Okunan adın eşleştiği <b>mevcut</b> karşı taraf; yalnız bir öneri.
+    /// </summary>
+    /// <remarks>
+    /// Dolu olması hiçbir şeyin yazıldığı anlamına gelmez (ADR 0011): model
+    /// karşı tarafı <b>seçmez</b>, uygulama okunan adı kullanıcının kendi
+    /// kayıtlarında arar ve bulduğunu gösterir. Kullanıcı reddederse alan
+    /// boşalır ve ad düz metin olarak kalır; onaylarsa kayıt o karşı tarafa
+    /// bağlanır.
+    ///
+    /// Boş olması bir hata değildir: o adla ilk kez iş yapılıyor olabilir ve
+    /// karşı taraf ilk kayıtla birlikte kurulur.
+    ///
+    /// Eşleşme <b>tam ad</b> üzerinedir (harf duyarsız). Benzeyen adı
+    /// eşleştirmek, "Ahmet Market" ile "Ahmet Manav"ı aynı kişi saymak
+    /// olurdu — model önerir, uygulama uydurmaz.
+    /// </remarks>
+    Guid? CounterpartyId,
     DateOnly? PurchasedAt,
     ReceiptFieldState PurchasedAtState,
 

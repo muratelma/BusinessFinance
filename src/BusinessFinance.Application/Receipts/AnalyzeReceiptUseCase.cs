@@ -2,6 +2,7 @@ using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Attachments;
 using BusinessFinance.Application.Categories;
+using BusinessFinance.Application.Counterparties;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Receipts;
@@ -17,6 +18,7 @@ public sealed class AnalyzeReceiptUseCase(
     IAttachmentFileInspector fileInspector,
     IReceiptImagePreprocessor preprocessor,
     ICategoryRepository categoryRepository,
+    ICounterpartyRepository counterpartyRepository,
     IReceiptAnalyzer analyzer,
     IReceiptDuplicateLookup duplicateLookup,
     IReceiptRefundLookup refundLookup,
@@ -115,9 +117,42 @@ public sealed class AnalyzeReceiptUseCase(
 
         draft = await WarnIfAlreadyRecordedAsync(draft, userId, command.Intent, cancellationToken);
         draft = await AttachRefundMatchAsync(draft, userId, cancellationToken);
+        draft = await AttachCounterpartyMatchAsync(draft, userId, cancellationToken);
 
         return ApplicationResult<AnalyzedReceipt>.Success(
             new AnalyzedReceipt(draft, normalization, analysis.Value.Usage));
+    }
+
+    /// <summary>
+    /// Okunan adı kullanıcının kendi karşı taraflarında arar ve bulduğunu
+    /// taslağa <b>öneri olarak</b> iliştirir.
+    /// </summary>
+    /// <remarks>
+    /// Hiçbir şey yazılmaz ve hiçbir karşı taraf kurulmaz (ADR 0011): model
+    /// karşı tarafı seçmez, uygulama yalnız "bu adı zaten tanıyorum" der.
+    /// Kullanıcı öneriyi reddederse alan boşalır; ad düz metin olarak kalır
+    /// ve kayıt onaylanırken karşı taraf bulunur ya da kurulur.
+    ///
+    /// Arama <b>tam ad</b> üzerinedir (harf duyarsız): benzeyen adı
+    /// eşleştirmek "Ahmet Market" ile "Ahmet Manav"ı aynı kişi saymak
+    /// olurdu ve yanlış bakiyeyi doğru gibi gösterirdi. Arama kullanıcının
+    /// kendi kayıtlarıyla sınırlı; başka kullanıcının karşı tarafı hiçbir
+    /// koşulda önerilmez.
+    /// </remarks>
+    private async Task<ReceiptDraft> AttachCounterpartyMatchAsync(
+        ReceiptDraft draft,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(draft.CounterpartyName))
+            return draft;
+
+        var match = await counterpartyRepository.FindOwnedByNameAsync(
+            userId, draft.CounterpartyName, cancellationToken);
+
+        // Eşleşme yoksa taslak olduğu gibi kalır: o adla ilk kez iş
+        // yapılıyor olabilir ve bu bir hata değil.
+        return match is null ? draft : draft with { CounterpartyId = match.Id };
     }
 
     /// <summary>
