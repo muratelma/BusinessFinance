@@ -2,8 +2,9 @@
 
 ## Belge durumu
 
-- Durum: Planlandı
-- Ön koşul: Aşama 01 — Kapsam boyutu ve işletme kimliği
+- Durum: **Aktif** (23 Ağustos 2026'da kullanıcı onayıyla açıldı)
+- Ön koşul: Aşama 01 — Kapsam boyutu ve işletme kimliği (**tamamlandı**,
+  `docs/archive/stages/01-kapsam-boyutu-ve-isletme-kimligi.md`)
 - Sonraki aşama: Aşama 03 — Yükümlülük ve vade
 - Dokunulacak kalıcı belgeler: `documentation/architecture.md`,
   `documentation/flows.md`, `documentation/permissions.md`,

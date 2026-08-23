@@ -340,6 +340,12 @@ secret'ı uygulamaya konmaz.
 - `documentation/adr/0013-business-and-personal-are-one-pool.md` — **zincirin
   kurucu kararı**: işletme ve şahsi tek havuzda bir boyuttur; mod seçimi ve
   iki veri alanı reddedildi
+- `documentation/adr/0014-economic-event-recognizes-payment-carries.md` —
+  **Aşama 02'nin karar kapısı**: bir kayıt ya ekonomik olayı tanır (gelir/gider
+  yazar, bakiyeye dokunmaz) ya ödemeyi taşır (bakiyeyi değiştirir, gelir/gider
+  üretmez). Kart, borç ve cari modellerinin ortak kuralı; aynı paranın iki kez
+  sayılmasını önleyen yapı. Fiş okumanın "ödemedim" yolundaki tutarsızlık
+  burada kayda geçti ve Aşama 03'e devredildi
 - `documentation/receipt-analysis-api-contract.md`,
   `documentation/receipt-measurement.md` — fiş analizi sözleşmesi ve ölçüm yöntemi
 - `PROJECT-ROADMAP.md` — altı aşamalık zincir, bağımlılık kuralları, kapsam
@@ -347,8 +353,9 @@ secret'ı uygulamaya konmaz.
 - `stages/README.md` — aşama zinciri, hangi belge aktif, yeni aşama açma ve
   biten aşamayı kapatma adımları; **aktif aşama kullanıcı onayı olmadan
   değişmez**
-- `stages/01-*.md` … `stages/06-*.md` — altı aşamanın çalışma grupları,
-  testleri ve çıkış koşulları
+- `stages/02-*.md` … `stages/06-*.md` — kalan aşamaların çalışma grupları,
+  testleri ve çıkış koşulları. Tamamlanan aşamalar `docs/archive/stages/`
+  altındadır (Aşama 01 orada)
 - `docs/backlog.md` — aşamaya bağlanmamış açık işler
 - `templates/STAGE-TEMPLATE.md` — yeni aşama belgesi iskeleti
 

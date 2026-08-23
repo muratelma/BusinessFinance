@@ -11,11 +11,16 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   duruyor ve geçmiş kaydı orada
 - **22 Ağustos 2026: ürün yönü ve aşama zinciri kararlaştırıldı.** Belgeler
   yeniden yazıldı; kod değişmedi
-- Aktif aşama: **01 — Kapsam boyutu ve işletme kimliği.** 22 Ağustos 2026'da
-  kullanıcı onayıyla açıldı. Belgesi `stages/01-kapsam-boyutu-ve-isletme-kimligi.md`;
-  dokuz çalışma grubu; **dokuzu da tamamlandı** ve kabul turu 23 Ağustos
-  2026'da yürütüldü. Aşama hâlâ **Aktif**: kapanması için tek kalan koşul
-  kullanıcının Aşama 02'yi açması
+- **Aşama 01 — Kapsam boyutu ve işletme kimliği: tamamlandı** (22 Ağustos'ta
+  açıldı, 23 Ağustos 2026'da kullanıcı onayıyla kapandı). Dokuz çalışma
+  grubunun hepsi bitti, cihaz kabul turu yürütüldü. Belge
+  `docs/archive/stages/01-kapsam-boyutu-ve-isletme-kimligi.md` altına taşındı
+  ve tamamlanma kaydı orada
+- Aktif aşama: **02 — Cari hesap: karşı taraf ve açık bakiye.** 23 Ağustos
+  2026'da kullanıcı onayıyla açıldı. Belgesi
+  `stages/02-cari-hesap-ve-karsi-taraf.md`; sekiz çalışma grubu. **Grup 1 bir
+  ADR'dir ve kod ondan önce değişmez**: ADR 0014 yazıldı, kullanıcı onayı
+  bekliyor
 - Kalan beş aşamanın belgesi de yazılı, durumları `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
@@ -489,6 +494,24 @@ Turda 08:35'ten beri çalışan **eski derlemeli** bir API örneği bulundu ve
 durduruldu; kabul güncel derlemeye karşı yürütüldü ve API o hâliyle çalışır
 bırakıldı.
 
+## 23 Ağustos 2026 — Aşama 01 kapandı, Aşama 02 açıldı
+
+- **Aşama 01 kullanıcı onayıyla kapandı.** Sekiz çıkış koşulunun sekizi
+  karşılandı; belge `docs/archive/stages/` altına taşındı ve tamamlanma kaydı
+  (commit zinciri, son kontroller, sapmalar, çıkan açık işler) oraya yazıldı.
+  `stages/README.md` ve `PROJECT-ROADMAP.md` durumu `Tamamlandı`
+- **Aşama 02 açıldı** ve zincir belgelerinde **Aktif** olarak işaretlendi
+- **ADR 0014 yazıldı: "ekonomik olay tanır, ödeme taşır."** Aşamanın karar
+  kapısı ve Grup 1'i. Kural yeni değil — kart harcaması, kart ödemesi, transfer
+  ve borç açılışı bugün zaten böyle davranıyor; ADR bunu ilk kez yazıya geçirdi
+  ve cari hesaba nasıl uygulanacağını sabitledi (borçlandırma tanır, tahsilat
+  taşır; cari bakiye projection'dır; tahsilat kategori ve kapsam taşımaz).
+  Dört alternatif gerekçesiyle reddedildi. Fiş okumanın "faturayı ödemedim"
+  yolundaki tutarsızlık kayda geçti ve Aşama 03'e devredildi
+- **ADR'nin durumu `Öneri`**: kabul edilmeden Aşama 02'nin koduna
+  başlanmıyor (`AGENTS.md`, "Kalite ve aşama geçişi"). Kod tarafında bu turda
+  hiçbir değişiklik yapılmadı
+
 ## Açık kararlar ve riskler
 
 - **Yerel veritabanının silinmesi onay bekliyor.** Aşama 01 Grup 1'in ilk işi;
@@ -504,11 +527,10 @@ bırakıldı.
 
 ## Sıradaki tek küçük görev
 
-- **Aşama 01'i kapatmak.** Dokuz grubun hepsi bitti, kabul turu yürütüldü ve
-  yedi çıkış koşulunun yedisi karşılandı. Kalan tek koşul kullanıcının Aşama
-  02'yi açıkça onaylaması; onaydan sonra `stages/README.md` adımları izlenir
-  (belge `docs/archive/stages/` altına taşınır, roadmap durumu `Tamamlandı`
-  olur).
+- **ADR 0014'ün kabulü.** Karar yazıldı ve kullanıcı onayı bekliyor. Onay
+  gelince durumu `Kabul edildi` olur ve Aşama 02 Grup 2 (Domain: `Counterparty`,
+  `CounterpartyCharge`, `CounterpartyPayment`) başlar. Onaydan önce kod
+  değişmez.
 
 ## Son oturum kapanışı
 
@@ -521,4 +543,6 @@ bırakıldı.
   analyze + format + **701 test** + debug APK derlemesi
 - Kabul turu: Pixel 8 emulator + çalışan API + gerçek SQL. Üç otomatik senaryo
   geçti, ekran elle gezildi, iki bulgu kayda geçti
-- Sıradaki görev: aşamayı kapatmak ve Aşama 02'yi açmak — kullanıcı onayı ister
+- Aşama 01 kullanıcı onayıyla kapandı ve arşivlendi; **Aşama 02 açıldı**,
+  karar kapısı ADR 0014 yazıldı ve onay bekliyor
+- Sıradaki görev: ADR 0014'ün kabulü; sonra Aşama 02 Grup 2 (domain)

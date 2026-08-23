@@ -9,8 +9,8 @@ sonra aşağıdaki tablodan **aktif** işaretli belge okunur.
 
 | Aşama | Belge | Durum | Not |
 |---|---|---|---|
-| 01 | `01-kapsam-boyutu-ve-isletme-kimligi.md` | **Aktif** | Grup 1 veritabanı sıfırlamayla başlar; ayrı onay ister |
-| 02 | `02-cari-hesap-ve-karsi-taraf.md` | Planlandı | ADR ile açılır: ekonomik olay tanır, ödeme taşır |
+| 01 | `docs/archive/stages/01-kapsam-boyutu-ve-isletme-kimligi.md` | Tamamlandı | 23 Ağustos 2026'da kapandı; dokuz grup, cihaz kabul turu |
+| 02 | `02-cari-hesap-ve-karsi-taraf.md` | **Aktif** | ADR ile açılır: ekonomik olay tanır, ödeme taşır — Grup 1 budur ve kod ondan önce değişmez |
 | 03 | `03-yukumluluk-ve-vade.md` | Planlandı | 02'nin devrettiği tutarsızlığı kapatır |
 | 04 | `04-kasa-pos-ve-gezinme.md` | Planlandı | ADR ile açılır: kart borcu ile kart tahsilatı ayrımı |
 | 05 | `05-vergi-ve-muhasebeci.md` | Planlandı | ADR ile açılır: vergi alanları taşır, hesaplamaz |

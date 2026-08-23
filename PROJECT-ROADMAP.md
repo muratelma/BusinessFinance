@@ -45,8 +45,8 @@ oturuyor.
 
 | No | Aşama | Ana çıktı | Durum |
 |---:|---|---|---|
-| 01 | Kapsam boyutu ve işletme kimliği | Her kayıt işletmeye mi şahsa mı ait olduğunu bilir; işletme kategori seti | **Aktif** |
-| 02 | Cari hesap: karşı taraf ve açık bakiye | Müşteri/tedarikçi başına yürüyen bakiye | Planlandı |
+| 01 | Kapsam boyutu ve işletme kimliği | Her kayıt işletmeye mi şahsa mı ait olduğunu bilir; işletme kategori seti | Tamamlandı (23 Ağu 2026) |
+| 02 | Cari hesap: karşı taraf ve açık bakiye | Müşteri/tedarikçi başına yürüyen bakiye | **Aktif** |
 | 03 | Yükümlülük ve vade | Ödenmemiş fatura kendi kabına kavuşur; plan bitiş sınırı | Planlandı |
 | 04 | Kasa, POS ve gezinme | Gün sonu kasa, POS tahsilatı ve bloke; ana sekmeler | Planlandı |
 | 05 | Vergi ve muhasebeci | KDV taşıyan alanlar, vergi takvimi, ay sonu paketi | Planlandı |

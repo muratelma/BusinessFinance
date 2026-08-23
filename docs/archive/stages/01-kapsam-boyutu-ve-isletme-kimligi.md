@@ -2,7 +2,8 @@
 
 ## Belge durumu
 
-- Durum: **Aktif** (22 Ağustos 2026'da kullanıcı onayıyla açıldı)
+- Durum: **Tamamlandı** (22 Ağustos 2026'da açıldı, 23 Ağustos 2026'da
+  kullanıcı onayıyla kapandı)
 - Ön koşul: Yok — zincirin ilk aşaması
 - Sonraki aşama: Aşama 02 — Cari hesap: karşı taraf ve açık bakiye
 - Dokunulacak kalıcı belgeler: `documentation/architecture.md`,
@@ -386,9 +387,49 @@ Henüz uygulanmamış davranış, uygulanmış gibi yazılmaz.
       çalışan API + gerçek SQL: `stage01_scope_acceptance_test.dart` üç senaryo
       (kasap, manav + terzi, ev hâli) ve ekranın elle gezilmesi.
 - [x] `documentation/` ve `docs/project-status.md` güncel.
-- [ ] Kullanıcı Aşama 02'yi açıkça onayladı.
+- [x] Kullanıcı Aşama 02'yi açıkça onayladı (23 Ağustos 2026).
 
 ## Tamamlanma kaydı
 
-Aşama kapandığında burada: hangi commit'lerle bitti, hangi kontroller geçti,
-belge `docs/archive/stages/` altına taşındı mı.
+Aşama 23 Ağustos 2026'da kullanıcı onayıyla kapandı ve bu belge
+`docs/archive/stages/` altına taşındı.
+
+**Ne oldu.** Devralınan ev bütçesi uygulaması, her finansal kaydın işletmeye mi
+sahibinin cebine mi ait olduğunu bilen bir esnaf uygulamasına döndü. Kapsam
+boyutu domainden veritabanına, oradan API'ye ve ekrana kadar geçti; para
+bölünmedi, rapor bölündü.
+
+**Commit zinciri** (dokuz grup, altı checkpoint):
+
+| Commit | Ne getirdi |
+|---|---|
+| `71e9432` | Yerel veritabanı sıfırlandı; kapsam boyutunun boş zemini kuruldu |
+| `357208f` | `TransactionScope`, altı yazma modeli, `AddTransactionScope` migration'ı, yedek v6 sürüm kapısı |
+| `fe86e8b` | Türetme zinciri: seçim → kaynak → kategori; çözülemezse ret |
+| `4b66dfe` | İki varsayılan kategori seti, `UserProfile`, onboarding sorusu, `AddUserProfile` |
+| `53e6151` | Kapsama duyarlı okumalar: aylık/gelişmiş rapor, feed, planlanan görünüm |
+| `71e9542` | Flutter kapsam anahtarı, form çipi, kayıt sorusu, `Diğer` anahtarı |
+| `25013a6` | Aylık raporun kapsam kırılımı ve özet ekranının üç sayılı hero'su |
+| `b9d86e9` | CSV kapsam kolonu, kendi dışa aktarımını tanımanın sağlamlaştırılması, runbook |
+| `b30e93c` | Cihaz üzerinde kabul turu ve iki bulgunun kayda geçmesi |
+
+**Son doğrulanmış kontroller** (23 Ağustos 2026):
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format | Temiz |
+| Backend test (gerçek SQL dâhil) | **804 geçti**, 1 atlandı (`GeminiLiveContractTests`) |
+| Flutter analyze / format | Temiz |
+| Flutter test | **701 geçti** (aşama başında 637) |
+| Flutter debug APK | Derlendi |
+| Cihaz kabul turu | Pixel 8 + çalışan API + gerçek SQL; üç senaryo geçti, ekran elle gezildi |
+
+**Aşamadan çıkan iki açık iş** (kapsam dışı bırakıldı, `docs/backlog.md`):
+hesap/kart/kategori varsayılan kapsamının uygulamadan ayarlanamaması ve
+emulator'ün Impeller ile ilk kareyi çizmemesi (ikincisi kurulum rehberine
+yazıldı, ürün işi değil).
+
+**Aşamanın planından bilerek sapılan tek yer:** özet ekranındaki üçüncü sayı
+`kasa değişimi` diye planlanmıştı, `Bu ayın neti` oldu. Gerekçesi Grup 8'in
+sonuç maddesinde.
