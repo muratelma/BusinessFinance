@@ -2718,6 +2718,24 @@ public sealed class SqlServerPersistenceIntegrationTests
 
         Assert.Single(netWorths.Distinct());
         Assert.Equal(expectedBalance - 30m, netWorths[0]);
+
+        // Kırılım, iki tarafı ayrı ayrı okumakla **aynı** cevabı verir: özet
+        // ekranı bu yüzden tek istekle üç sayıyı kurabiliyor ve istemcinin
+        // hiçbir çıkarma yapması gerekmiyor.
+        Assert.NotNull(all.ScopeBreakdown);
+        var breakdown = all.ScopeBreakdown;
+        Assert.Equal(business.TotalIncome, breakdown.Business.Income);
+        Assert.Equal(business.TotalExpense, breakdown.Business.Expense);
+        Assert.Equal(business.Net, breakdown.Business.Net);
+        Assert.Equal(personal.TotalIncome, breakdown.Personal.Income);
+        Assert.Equal(personal.TotalExpense, breakdown.Personal.Expense);
+        Assert.Equal(personal.Net, breakdown.Personal.Net);
+        Assert.Equal(all.Net, breakdown.Business.Net + breakdown.Personal.Net);
+
+        // Filtreli okuma kırılım taşımaz: dışlanan taraf sıfır görünürdü ve
+        // "o tarafta hiç hareket yok" demek olurdu.
+        Assert.Null(business.ScopeBreakdown);
+        Assert.Null(personal.ScopeBreakdown);
     }
 
     private static ApplicationUser CreateUser(string email)

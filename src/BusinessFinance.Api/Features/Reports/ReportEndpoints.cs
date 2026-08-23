@@ -112,8 +112,18 @@ public static class ReportEndpoints
                 item.AccountId,
                 item.AccountName,
                 FinanceContract.Money(item.Balance),
-                FinanceContract.AccountTypeValue(item.Type))).ToArray()));
+                FinanceContract.AccountTypeValue(item.Type))).ToArray(),
+            report.ScopeBreakdown is { } breakdown
+                ? new MonthlyScopeBreakdownResponse(
+                    ToScopeTotals(breakdown.Business),
+                    ToScopeTotals(breakdown.Personal))
+                : null));
     }
+
+    private static ScopeTotalsResponse ToScopeTotals(ScopeTotalsDto totals) => new(
+        FinanceContract.Money(totals.Income),
+        FinanceContract.Money(totals.Expense),
+        FinanceContract.Money(totals.Net));
 
     internal static AdvancedFinancialReportResponse ToAdvancedResponse(
         AdvancedFinancialReportDto report) => new(

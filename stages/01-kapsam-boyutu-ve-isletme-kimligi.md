@@ -239,7 +239,7 @@ Bu aşama aşağıdakilerin hiçbirini bozmaz; bozması gerekirse önce ADR yaz�
   kılıyor; olmadan hiçbir Flutter kullanıcısı işletme sahibi olamıyor ve
   boyutu hiç göremiyordu.
 
-### Grup 8 — Özet ekranının hero metriği
+### Grup 8 — Özet ekranının hero metriği — **Tamamlandı**
 
 - Bugünkü `Bu ayın neti` kapsam varken hangi neti sorduğunu söylemiyor.
 - Yeni okuma: **işletme neti** (işletme geliri − işletme gideri) ve **şahsi
@@ -250,6 +250,22 @@ Bu aşama aşağıdakilerin hiçbirini bozmaz; bozması gerekirse önce ADR yaz�
 - Kişisel-only kullanıcıda ekran bugünkü davranışını korur.
 - Ölçüt: üç sayı birbiriyle tutarlı ve tasarım sistemi kontrast kapısını
   geçiyor.
+- Sonuç: aylık rapor **filtresiz** okunduğunda ayın iki tarafını ayrı ayrı
+  toplayan bir kırılım da döndürüyor (`scopeBreakdown`); toplamlar `SUM` yerine
+  kapsama göre `GROUP BY` ile okunuyor, sorgu sayısı değişmedi. Kırılım
+  sunucudan hazır geliyor çünkü istemci finansal toplamı ikinci kez hesaplamaz —
+  "işletme neti" ile "şahsi çekim" bir çıkarma değil, ayrı ayrı toplanmış iki
+  tablo. Filtreli okumada alan boş: dışlanan taraf sıfır görünürdü.
+- **Üçüncü sayının adı "kasa değişimi" değil `Bu ayın neti` oldu.** Bu maddenin
+  yazıldığı hâlde öyle geçiyordu, ama rapor giderı harcandığı gün tanıyor: kart
+  harcaması aynı ay gider yazılır, borcu bir sonraki ay ödenir. İlk iki sayının
+  toplamı bu yüzden kasadaki değişim değil, ayın neti. "Kasa değişimi" demek,
+  ekrandaki üç sayının toplanmasıyla kasada olmayan bir para söylemek olurdu.
+  Kasanın gerçek hâli aynı ekranda `Hesap bakiyeleri` ve `Varlık durumu`
+  bölümlerinde zaten duruyor.
+- Şahsi tarafın adı sayının yönüne göre değişiyor (`Şahsi çekim` / `Şahsi net`):
+  çoğu ayda şahsi taraf yalnız harcamadır, ama şahsi bir gelir girilen ayda
+  "çekim" demek artı bir sayıyı eksi gibi okuturdu.
 
 ### Grup 9 — Yedek v6, dışa aktarma ve runbook
 

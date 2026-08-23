@@ -5,6 +5,7 @@ using System.Text.Json;
 using BusinessFinance.Api.Features.Accounts;
 using BusinessFinance.Api.Features.Authentication;
 using BusinessFinance.Api.Features.Categories;
+using BusinessFinance.Api.Features.Reports;
 using BusinessFinance.Api.Features.Transactions;
 
 namespace BusinessFinance.Api.Tests.Features.Scopes;
@@ -106,6 +107,89 @@ public sealed class TransactionScopeEndpointTests
 
         Assert.Equal("business", account.DefaultScope);
         Assert.Null(cleared?.DefaultScope);
+    }
+
+    /// <summary>
+    /// Özet ekranının hero metriği tek istekte kurulabilmeli: işletme neti,
+    /// şahsi taraf ve ayın toplamı aynı cevapta gelir. İstemci finansal
+    /// toplamı ikinci kez hesaplamaz — çıkarmayı o yapsaydı ekrandaki sayı
+    /// sunucununkiyle tutmayabilirdi.
+    /// </summary>
+    [Fact]
+    public async Task MonthlyReport_ReportsBothSidesAndTheirSum()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var client = await AuthenticateAsync(factory, "scope-hero@example.test");
+        var shop = await CreateAccountAsync(client, "Dükkân kasası", "business");
+        var wallet = await CreateAccountAsync(client, "Cüzdan", "personal");
+        var expenseCategory = await FirstExpenseCategoryAsync(client);
+        var incomeCategory = await FirstIncomeCategoryAsync(client);
+
+        await PostAmountAsync(client, shop.Id, incomeCategory.Id, "600.0000", "income");
+        await PostAmountAsync(client, shop.Id, expenseCategory.Id, "200.0000", "expense");
+        await PostAmountAsync(client, wallet.Id, expenseCategory.Id, "50.0000", "expense");
+
+        var all = await client.GetFromJsonAsync<MonthlyReportResponse>(
+            "/api/v1/dashboard?year=2026&month=8");
+        var breakdown = all!.ScopeBreakdown;
+
+        Assert.NotNull(breakdown);
+        Assert.Equal("600.0000", breakdown.Business.Income);
+        Assert.Equal("200.0000", breakdown.Business.Expense);
+        Assert.Equal("400.0000", breakdown.Business.Net);
+        Assert.Equal("0.0000", breakdown.Personal.Income);
+        Assert.Equal("50.0000", breakdown.Personal.Expense);
+        Assert.Equal("-50.0000", breakdown.Personal.Net);
+        Assert.Equal("350.0000", all.Net);
+    }
+
+    /// <summary>
+    /// Filtreli okuma kırılım taşımaz: dışlanan taraf sıfır görünürdü ve
+    /// ekranda "o tarafta hiç hareket yok" diye okunurdu.
+    /// </summary>
+    [Fact]
+    public async Task MonthlyReport_WithAScopeFilter_CarriesNoBreakdown()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var client = await AuthenticateAsync(factory, "scope-hero-filtered@example.test");
+        var shop = await CreateAccountAsync(client, "Dükkân kasası", "business");
+        var expenseCategory = await FirstExpenseCategoryAsync(client);
+        await PostAmountAsync(client, shop.Id, expenseCategory.Id, "200.0000", "expense");
+
+        var business = await client.GetFromJsonAsync<MonthlyReportResponse>(
+            "/api/v1/dashboard?year=2026&month=8&scope=business");
+
+        Assert.Equal("business", business!.Scope);
+        Assert.Equal("200.0000", business.TotalExpense);
+        Assert.Null(business.ScopeBreakdown);
+    }
+
+    private static async Task PostAmountAsync(
+        HttpClient client,
+        Guid accountId,
+        Guid categoryId,
+        string amount,
+        string type)
+    {
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/transactions",
+            new CreateTransactionRequest(
+                accountId,
+                categoryId,
+                amount,
+                "TRY",
+                type,
+                null,
+                "2026-08-09",
+                null));
+        response.EnsureSuccessStatusCode();
+    }
+
+    private static async Task<CategoryResponse> FirstIncomeCategoryAsync(HttpClient client)
+    {
+        var categories = await client.GetFromJsonAsync<CategoryListResponse>(
+            "/api/v1/categories?type=income");
+        return categories!.Items[0];
     }
 
     private static async Task AssertProblemCodeAsync(

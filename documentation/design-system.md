@@ -219,6 +219,12 @@ Birkaç bileşenin sözleşmesinde neden şu kararların olduğu:
   başlıklar arasında sol kenar hizası böyle korunur.
 - **`AppMetricTile` kendini tek cümlede duyurur.** Parçalar ayrı okunsaydı
   hangi sayının neye ait olduğu kaybolurdu.
+- **Özet ekranının hero kutusu kapsam varken üç sayıya bölünür**: `İşletme
+  neti` (hero boyu), altında `Şahsi çekim` ve `Bu ayın neti`. Tek bir "net",
+  kapsam boyutu açıkken hangi neti sorduğunu söylemiyordu. Üç sayı da
+  sunucudan gelir; ekran aralarında çıkarma yapmaz. Şahsi tarafın etiketi
+  sayının yönüne göre `Şahsi çekim`/`Şahsi net` olur — artı bir sayıya "çekim"
+  demek onu eksi gibi okuturdu. **"Kâr" kelimesi hiçbir ekranda kullanılmaz.**
 - **`AppFormSheet` panelin kapanışını kendi üstlenir.** Panel içeriği
   `Navigator.pop` çağırmaz; sonucu döndürür, kabuk kapatır. `null` dönmek
   "doğrulama düştü, açık kal" demektir. Bu, kapanışın **tek** bir yerde
@@ -543,6 +549,7 @@ raporlara hiç girmiyor ve bunu yalnız kullanıcı düzeltebilir.
 | Form paneli sözleşmeleri (kapanış, doğrulama, üçüncü eylem) | `test/core/widgets/app_form_sheet_test.dart` |
 | Tarih alanı dekorasyonu ve API biçimi | `test/core/widgets/app_date_field_test.dart` |
 | Kapsam anahtarı ve kapsam çipi (üç konum, onay işareti, 2.0×, erişilebilirlik) | `test/core/widgets/app_scope_selector_test.dart` |
+| Üç sayılı hero: tutarlılık, etiketin yönü, 2.0× taşma, `kâr` yasağı | `test/features/dashboard/dashboard_hero_test.dart` |
 | Türkçe Material metinleri | `test/widget_test.dart` |
 | Ham renk / ölçek dışı boşluk / doğrudan genişlik karşılaştırması | `test/architecture/design_tokens_test.dart` |
 | Dokunma hedefi, adlandırılmış hedef, metin kontrastı, 2.0× taşma | `test/helpers/accessibility.dart` + ekran testleri |

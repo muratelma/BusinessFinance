@@ -39,20 +39,36 @@ internal sealed class EfFinancialReportRepository(
                            transaction.TransactionDate >= start &&
                            transaction.TransactionDate < endExclusive);
 
-        var totalIncome = await periodTransactions
+        // Toplamlar kapsam kırılımıyla birlikte okunuyor: `SUM` yerine kapsama
+        // göre `GROUP BY`. Sorgu sayısı değişmiyor — en fazla iki satır dönüyor
+        // ve toplam onların toplamı. Kırılımı ikinci bir tur sorguyla almak,
+        // özet ekranının ilk isteğini iki katına çıkarırdı.
+        var incomeByScope = ScopeAmounts.From(await periodTransactions
             .Where(transaction => transaction.Type == TransactionType.Income)
-            .SumAsync(transaction => transaction.Amount.Amount, cancellationToken);
-        var transactionExpense = await periodTransactions
+            .GroupBy(transaction => transaction.Scope)
+            .Select(group => new ScopeAmountRow(
+                group.Key,
+                group.Sum(transaction => transaction.Amount.Amount)))
+            .ToArrayAsync(cancellationToken));
+        var transactionExpenseByScope = ScopeAmounts.From(await periodTransactions
             .Where(transaction => transaction.Type == TransactionType.Expense)
-            .SumAsync(transaction => transaction.Amount.Amount, cancellationToken);
+            .GroupBy(transaction => transaction.Scope)
+            .Select(group => new ScopeAmountRow(
+                group.Key,
+                group.Sum(transaction => transaction.Amount.Amount)))
+            .ToArrayAsync(cancellationToken));
         var periodCardCharges = dbContext.CreditCardCharges.AsNoTracking().Where(
             charge => charge.UserId == userId &&
                       !charge.IsCancelled &&
                       (scope == null || charge.Scope == scope) &&
                       charge.ChargeDate >= start &&
                       charge.ChargeDate < endExclusive);
-        var cardExpense = await periodCardCharges
-            .SumAsync(charge => charge.Amount.Amount, cancellationToken);
+        var cardExpenseByScope = ScopeAmounts.From(await periodCardCharges
+            .GroupBy(charge => charge.Scope)
+            .Select(group => new ScopeAmountRow(
+                group.Key,
+                group.Sum(charge => charge.Amount.Amount)))
+            .ToArrayAsync(cancellationToken));
 
         // Gider kaynaklı borcun açılışı bir giderdir ve tam o gün yazılır —
         // kredi kartı harcamasıyla birebir aynı kural. Taksit ödemeleri gider
@@ -63,14 +79,25 @@ internal sealed class EfFinancialReportRepository(
                     (scope == null || debt.Scope == scope) &&
                     debt.StartDate >= start &&
                     debt.StartDate < endExclusive);
-        var debtOpeningExpense = await periodDebtOpenings
-            .SumAsync(debt => debt.Principal.Amount, cancellationToken);
-        var debtOpeningIncome = await DebtOpeningIncomeAsync(
+        var debtOpeningExpenseByScope = ScopeAmounts.From(await periodDebtOpenings
+            .GroupBy(debt => debt.Scope)
+            .Select(group => new ScopeAmountRow(
+                group.Key,
+                group.Sum(debt => debt.Principal.Amount)))
+            .ToArrayAsync(cancellationToken));
+        var debtOpeningIncomeByScope = await DebtOpeningIncomeAsync(
             userId, start, endExclusive, scope, cancellationToken);
         var debtInterest = await DebtInterestAsync(
             userId, start, endExclusive, scope, cancellationToken);
-        var totalExpense = transactionExpense + cardExpense + debtOpeningExpense + debtInterest.Paid;
-        totalIncome += debtOpeningIncome + debtInterest.Earned;
+        var expenseByScope = transactionExpenseByScope
+            .Add(cardExpenseByScope)
+            .Add(debtOpeningExpenseByScope)
+            .Add(debtInterest.Paid);
+        incomeByScope = incomeByScope
+            .Add(debtOpeningIncomeByScope)
+            .Add(debtInterest.Earned);
+        var totalIncome = incomeByScope.Total;
+        var totalExpense = expenseByScope.Total;
         var transactionCategoryExpenses = await (
                 from transaction in periodTransactions
                 join category in dbContext.Categories.AsNoTracking()
@@ -117,7 +144,7 @@ internal sealed class EfFinancialReportRepository(
         // tamamı kadar düşürdüğü için ikinci bir kayıt aynı parayı iki kez
         // düşerdi — yalnız dağılımda kendi kovasına yazılıyor.
         var interestCategoryExpenses = await InterestCategoryExpensesAsync(
-            userId, debtInterest.Paid, cancellationToken);
+            userId, debtInterest.Paid.Total, cancellationToken);
         var categoryExpenses = transactionCategoryExpenses
             .Concat(cardCategoryExpenses)
             .Concat(debtCategoryExpenses)
@@ -214,7 +241,21 @@ internal sealed class EfFinancialReportRepository(
             CurrencyCode.TRY,
             categoryExpenses,
             ToSlices(categoryExpenses),
-            accountBalances);
+            accountBalances,
+            // Kırılım yalnız filtresiz okumada anlamlı: filtre verilmişse
+            // rapor zaten tek tarafı anlatıyor ve dışlanan taraf sıfır
+            // görünürdü — "o tarafta hiç hareket yok" demek olurdu.
+            scope is null
+                ? new MonthlyScopeBreakdownDto(
+                    new ScopeTotalsDto(
+                        incomeByScope.Business,
+                        expenseByScope.Business,
+                        incomeByScope.Business - expenseByScope.Business),
+                    new ScopeTotalsDto(
+                        incomeByScope.Personal,
+                        expenseByScope.Personal,
+                        incomeByScope.Personal - expenseByScope.Personal))
+                : null);
     }
 
     /// <summary>
@@ -391,8 +432,8 @@ internal sealed class EfFinancialReportRepository(
             userId, start, endExclusive, scope, cancellationToken);
         var debtInterest = await DebtInterestAsync(
             userId, start, endExclusive, scope, cancellationToken);
-        var expense = transactionExpense + cardExpense + debtOpeningExpense + debtInterest.Paid;
-        var totalIncome = income + debtOpeningIncome + debtInterest.Earned;
+        var expense = transactionExpense + cardExpense + debtOpeningExpense + debtInterest.Paid.Total;
+        var totalIncome = income + debtOpeningIncome.Total + debtInterest.Earned.Total;
         return new PeriodTotalsDto(year, month, totalIncome, expense, totalIncome - expense);
     }
 
@@ -684,19 +725,23 @@ internal sealed class EfFinancialReportRepository(
     /// hareket ettirir. Tahsilat da gelir yazsaydı aynı satış iki kez
     /// sayılırdı.
     /// </remarks>
-    private Task<decimal> DebtOpeningIncomeAsync(
+    private async Task<ScopeAmounts> DebtOpeningIncomeAsync(
         Guid userId,
         DateOnly start,
         DateOnly endExclusive,
         TransactionScope? scope,
         CancellationToken cancellationToken) =>
-        dbContext.DebtAgreements.AsNoTracking()
+        ScopeAmounts.From(await dbContext.DebtAgreements.AsNoTracking()
             .Where(debt => debt.UserId == userId &&
                            debt.SourceType == DebtSourceType.Income &&
                            (scope == null || debt.Scope == scope) &&
                            debt.StartDate >= start &&
                            debt.StartDate < endExclusive)
-            .SumAsync(debt => debt.Principal.Amount, cancellationToken);
+            .GroupBy(debt => debt.Scope)
+            .Select(group => new ScopeAmountRow(
+                group.Key,
+                group.Sum(debt => debt.Principal.Amount)))
+            .ToArrayAsync(cancellationToken));
 
     /// <summary>
     /// Bir dönemde ödenen taksitlerin faiz payı: borçta gider, alacakta gelir.
@@ -739,7 +784,7 @@ internal sealed class EfFinancialReportRepository(
             : [new CategoryExpenseDto(category.Id, category.Name, interestPaid)];
     }
 
-    private async Task<(decimal Paid, decimal Earned)> DebtInterestAsync(
+    private async Task<(ScopeAmounts Paid, ScopeAmounts Earned)> DebtInterestAsync(
         Guid userId,
         DateOnly start,
         DateOnly endExclusive,
@@ -756,17 +801,61 @@ internal sealed class EfFinancialReportRepository(
                       (scope == null || debt.Scope == scope) &&
                       installment.PaymentDate >= start &&
                       installment.PaymentDate < endExclusive
-                group installment by debt.Direction into directionGroup
+                group installment by new { debt.Direction, debt.Scope } into directionGroup
                 select new
                 {
-                    Direction = directionGroup.Key,
+                    directionGroup.Key.Direction,
+                    directionGroup.Key.Scope,
                     Amount = directionGroup.Sum(item => item.InterestPortion!.Value)
                 })
             .ToArrayAsync(cancellationToken);
 
         return (
-            totals.Where(item => item.Direction == DebtDirection.Payable).Sum(item => item.Amount),
-            totals.Where(item => item.Direction == DebtDirection.Receivable).Sum(item => item.Amount));
+            ScopeAmounts.From(totals
+                .Where(item => item.Direction == DebtDirection.Payable)
+                .Select(item => new ScopeAmountRow(item.Scope, item.Amount))),
+            ScopeAmounts.From(totals
+                .Where(item => item.Direction == DebtDirection.Receivable)
+                .Select(item => new ScopeAmountRow(item.Scope, item.Amount))));
+    }
+
+    /// <summary>
+    /// Tek bir kapsam satırı: gruplanmış sorguların projeksiyon tipi.
+    /// </summary>
+    private sealed record ScopeAmountRow(TransactionScope Scope, decimal Amount);
+
+    /// <summary>
+    /// Bir tutarın iki kapsama dağılmış hâli.
+    /// </summary>
+    /// <remarks>
+    /// Üçüncü bir kova yok: gelir/gider üreten her kayıt tam olarak bir kapsam
+    /// taşır, bu yüzden <see cref="Total"/> ikisinin toplamıdır ve filtresiz
+    /// okumanın toplamıyla birebir aynıdır.
+    /// </remarks>
+    private readonly record struct ScopeAmounts(decimal Business, decimal Personal)
+    {
+        internal decimal Total => Business + Personal;
+
+        internal ScopeAmounts Add(ScopeAmounts other) =>
+            new(Business + other.Business, Personal + other.Personal);
+
+        internal static ScopeAmounts From(IEnumerable<ScopeAmountRow> rows)
+        {
+            var business = 0m;
+            var personal = 0m;
+            foreach (var row in rows)
+            {
+                if (row.Scope == TransactionScope.Business)
+                {
+                    business += row.Amount;
+                }
+                else
+                {
+                    personal += row.Amount;
+                }
+            }
+            return new ScopeAmounts(business, personal);
+        }
     }
 
     /// <summary>

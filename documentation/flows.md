@@ -539,6 +539,23 @@ toplam gösterdiklerini ekranda yazar.
 `Diğer -> İşletmem var` anahtarı `PUT /api/v1/profile` çağırır ve dönen cevabı
 uygular; kategorilere dokunmaz.
 
+## Özet ekranının ayı okuma biçimi
+
+```text
+GET /api/v1/dashboard?year&month[&scope]
+  -> filtresizse: toplamlar + scopeBreakdown (business, personal)
+  -> filtreliyse: yalnız o tarafın toplamları, scopeBreakdown yok
+
+Kapsam boyutu görünmüyor      -> tek sayı: `Bu ayın neti`
+Anahtar `Hepsi`               -> `İşletme neti` (hero)
+                                 `Şahsi çekim` + `Bu ayın neti`
+Anahtar `İşletme` / `Şahsi`   -> o tarafın neti, adı yazılı
+```
+
+Üç sayının üçü de sunucudan gelir; istemci aralarında çıkarma yapmaz. Şahsi
+tarafın adı sayının yönüne göre `Şahsi çekim` ya da `Şahsi net` olur. Hesaplanan
+şey nakit esaslı **işletme netidir**; "kâr" kelimesi kullanılmaz.
+
 ## Kapsamlı işlem ekleme
 
 ```text

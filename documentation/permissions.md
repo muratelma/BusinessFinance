@@ -128,12 +128,19 @@ query parametresi, tanınmayan değer `*.invalid_scope`:
 | Endpoint | Bölünen | Bölünmeyen |
 |---|---|---|
 | `GET /api/v1/reports/monthly` | Gelir, gider, kategori dağılımı | `accountBalances` |
+| `GET /api/v1/dashboard` (aynı uç nokta) | Aynı | Aynı |
 | `GET /api/v1/reports/advanced` | Dönem karşılaştırması, nakit akışı, bütçe sapması | `netWorth`, `accountDistribution`, `cardDistribution` |
 | `GET /api/v1/financial-activities` | Feed'in tamamı | — |
 | `GET /api/v1/financial-activities/planned` | Listenin tamamı | — |
 
 `GET /api/v1/upcoming-payments` kapsam parametresi **almaz**: ödenecek para tek
 havuzdan çıkar.
+
+Aylık rapor **filtresiz** okunduğunda ayın iki tarafını ayrı ayrı toplayan bir
+`scopeBreakdown` alanı da döner (`business` / `personal`, her biri
+`income`/`expense`/`net`). Filtreli okumada alan `null`'dır: rapor zaten tek
+tarafı anlatıyordur. Kırılım sahiplik sınırını değiştirmez — aynı owner
+predicate'inin içinde, yalnız kapsama göre gruplanmış toplamlardır.
 
 Kapsam değeri kararlı makine metnidir (`business` / `personal`); kullanıcıya
 gösterilecek cümleyi istemci üretir (`İşletme` / `Şahsi` / filtrede `Hepsi`).

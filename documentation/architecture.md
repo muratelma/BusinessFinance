@@ -445,6 +445,39 @@ sunucuya gitmeden durur ve alanın yanında söyler — sunucu da reddederdi
 Kapsam boyutu görünmeyen kullanıcıda alan hiç çizilmez ve istek kapsam
 göndermez; sunucu kategoriden türetir.
 
+### Ayın iki tarafı: özet ekranının hero metriği
+
+Kapsam varken tek bir "net" hangi neti sorduğunu söylemiyordu. Aylık rapor bu
+yüzden filtresiz okunduğunda **kırılım** da döndürür: işletme ve şahsi tarafın
+gelir/gider/net tabloları ayrı ayrı (`scopeBreakdown`). İki tarafın toplamı
+raporun kendi toplamına eşittir — gelir/gider üreten her kayıt tam olarak bir
+kapsam taşır ve üçüncü bir kova yoktur.
+
+Kırılım **sunucudan hazır gelir** çünkü istemci finansal toplamı ikinci kez
+hesaplamaz. "İşletme neti" ile "şahsi çekim" bir çıkarma değil, ayrı ayrı
+toplanmış iki tablodur; istemci çıkarsaydı ekrandaki sayı sunucununkiyle
+tutmayabilirdi.
+
+Kırılım **yalnız filtresiz okumada** döner. Kapsam verilmişse rapor zaten tek
+tarafı anlatıyordur; kırılım göndermek dışlanan tarafı sıfır gösterip "o
+tarafta hiç hareket yok" dedirtirdi.
+
+Toplamlar `SUM` yerine kapsama göre `GROUP BY` ile okunur; sorgu sayısı
+değişmez (en fazla iki satır döner ve toplam onların toplamıdır). Kırılımı
+ikinci bir tur sorguyla almak, özet ekranının ilk isteğini iki katına
+çıkarırdı.
+
+Ekranda üç sayı durur: **işletme neti** (hero), **şahsi çekim** ve **bu ayın
+neti**. Üçüncüsü ilk ikisinin toplamıdır ve nakit hareketi değildir — kart
+harcaması harcandığı gün gider yazılır, ödendiği gün değil. Şahsi tarafın adı
+sayının yönüne göre değişir (`Şahsi çekim` / `Şahsi net`): çoğu ayda şahsi
+taraf yalnız harcamadır, ama şahsi bir gelir girilen ayda "çekim" demek artı
+bir sayıyı eksi gibi okuturdu. **"Kâr" kelimesi hiçbir yerde kullanılmaz** —
+muhasebe kârı satılan malın maliyetini ister ve ürün sınırının dışındadır.
+
+Kapsam boyutu görünmeyen kullanıcıda ekran bugünkü davranışını korur: tek `Bu
+ayın neti`. Bir taraf seçiliyken hero o tarafın netini adıyla gösterir.
+
 ### Kalıcılık
 
 Kapsam `tinyint` kolondur ve `[Scope] IN (1, 2)` CHECK kısıtıyla korunur;

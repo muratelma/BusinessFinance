@@ -247,9 +247,15 @@ gerekçesiyle bozulmaz.
   sırayı gösterip gönderir; çözülemezse istek gitmeden alanın yanında söylenir.
   Cevabı görünmeyen kullanıcıda hiçbir istekte `scope` gitmez.
 
-> **Henüz uygulanmadı — Aşama 01'in kalanı.** Özet ekranının hero metriği
-> (Grup 8) ve CSV kapsam kolonu (Grup 9) yok. Bu satır o gruplar bitene kadar
-> burada durur.
+- **Aylık rapor filtresiz okunduğunda ayın iki tarafını ayrı ayrı toplayan bir
+  kırılım da döner** (`scopeBreakdown`). Özet ekranının hero'su üç sayıyı ondan
+  kurar: `İşletme neti`, `Şahsi çekim` ve `Bu ayın neti`. Üçü de sunucudan
+  gelir; istemci aralarında çıkarma yapmaz. Filtreli okumada kırılım yoktur.
+  Üçüncü sayı **kasa değişimi değildir** — kart harcaması harcandığı gün gider
+  yazılır, ödendiği gün değil.
+
+> **Henüz uygulanmadı — Aşama 01'in kalanı.** CSV kapsam kolonu ve runbook
+> tatbikatı (Grup 9) yok. Bu satır o grup bitene kadar burada durur.
 
 ### Birleşik okuma modelleri
 

@@ -20,6 +20,23 @@ public sealed record AccountBalanceResponse(
     string AccountName,
     string Balance,
     string Type);
+public sealed record ScopeTotalsResponse(string Income, string Expense, string Net);
+
+/// <summary>
+/// Ayın iki tarafı ayrı ayrı toplanmış hâli.
+/// </summary>
+/// <remarks>
+/// Yalnız <b>filtresiz</b> okumada döner. Kapsam verilmişse rapor zaten tek
+/// tarafı anlatıyor demektir ve dışlanan taraf sıfır görünürdü.
+///
+/// İki tarafın toplamı raporun kendi toplamına eşittir; istemci bu çıkarmayı
+/// kendi yapmaz — finansal toplamı ikinci kez hesaplamak, ekranda sunucununkiyle
+/// tutmayan bir sayı üretmenin en kolay yolu.
+/// </remarks>
+public sealed record MonthlyScopeBreakdownResponse(
+    ScopeTotalsResponse Business,
+    ScopeTotalsResponse Personal);
+
 public sealed record MonthlyReportResponse(
     int Year,
     int Month,
@@ -33,7 +50,8 @@ public sealed record MonthlyReportResponse(
     string Currency,
     IReadOnlyList<CategoryExpenseResponse> CategoryExpenses,
     IReadOnlyList<CategoryExpenseSliceResponse> CategoryExpenseSlices,
-    IReadOnlyList<AccountBalanceResponse> AccountBalances);
+    IReadOnlyList<AccountBalanceResponse> AccountBalances,
+    MonthlyScopeBreakdownResponse? ScopeBreakdown);
 
 public sealed record PeriodTotalsResponse(
     int Year,

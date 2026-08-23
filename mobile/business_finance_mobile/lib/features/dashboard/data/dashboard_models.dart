@@ -1,6 +1,47 @@
 import '../../../core/localization/default_category_labels.dart';
 import '../../../core/models/json_readers.dart';
 
+/// Ayın **tek bir** kapsamdaki gelir/gider tablosu.
+class ScopeTotals {
+  const ScopeTotals({
+    required this.income,
+    required this.expense,
+    required this.net,
+  });
+
+  final String income;
+  final String expense;
+  final String net;
+
+  factory ScopeTotals.fromJson(Map<String, dynamic> json) => ScopeTotals(
+    income: JsonReaders.money(json, 'income'),
+    expense: JsonReaders.money(json, 'expense'),
+    net: JsonReaders.money(json, 'net'),
+  );
+}
+
+/// Ayın iki tarafı ayrı ayrı: işletme ve şahsi.
+///
+/// Sunucudan **hazır** gelir. İki tarafı bir çıkarmayla türetmek istemcinin
+/// finansal toplamı ikinci kez hesaplaması olurdu; ekrandaki sayı o zaman
+/// sunucununkiyle tutmayabilirdi.
+class MonthlyScopeBreakdown {
+  const MonthlyScopeBreakdown({required this.business, required this.personal});
+
+  final ScopeTotals business;
+  final ScopeTotals personal;
+
+  factory MonthlyScopeBreakdown.fromJson(Map<String, dynamic> json) =>
+      MonthlyScopeBreakdown(
+        business: ScopeTotals.fromJson(
+          JsonReaders.object(json['business'], 'business'),
+        ),
+        personal: ScopeTotals.fromJson(
+          JsonReaders.object(json['personal'], 'personal'),
+        ),
+      );
+}
+
 class DashboardReport {
   const DashboardReport({
     required this.year,
@@ -12,6 +53,7 @@ class DashboardReport {
     required this.categoryExpenses,
     required this.categoryExpenseSlices,
     required this.accountBalances,
+    this.scopeBreakdown,
   });
 
   final int year;
@@ -25,6 +67,11 @@ class DashboardReport {
   /// Halka grafiğe sığan hâli: en büyük birkaç kategori ve "Diğer".
   final List<CategoryExpenseSlice> categoryExpenseSlices;
   final List<AccountBalance> accountBalances;
+
+  /// Yalnız **filtresiz** okumada dolu. Kapsam filtresi verilmişse rapor zaten
+  /// tek tarafı anlatıyor ve kırılım göndermek dışlanan tarafı sıfır
+  /// gösterirdi.
+  final MonthlyScopeBreakdown? scopeBreakdown;
 
   factory DashboardReport.fromJson(Map<String, dynamic> json) =>
       DashboardReport(
@@ -55,6 +102,11 @@ class DashboardReport {
               ),
             )
             .toList(growable: false),
+        scopeBreakdown: json['scopeBreakdown'] == null
+            ? null
+            : MonthlyScopeBreakdown.fromJson(
+                JsonReaders.object(json['scopeBreakdown'], 'scopeBreakdown'),
+              ),
       );
 }
 

@@ -84,16 +84,13 @@ class DashboardPage extends StatelessWidget {
             _OverdueBand(items: viewModel.overdue),
             const SizedBox(height: AppSpacing.medium),
           ],
-          // Ekranın söylediği tek şey en üstte ve en büyük: bu ay ne kaldı.
-          AppMetricTile(
-            key: const ValueKey('dashboard-summary-Net'),
-            size: AppMetricSize.hero,
-            label: 'Bu ayın neti',
-            amount: report.net,
-            currency: report.currency,
-            caption: _netCaption(advanced),
-          ),
-          const SizedBox(height: AppSpacing.small),
+          // Ekranın söylediği tek şey en üstte ve en büyük.
+          //
+          // İşletmesi olan kullanıcıda bu tek şey **işletme netidir**: "bu ay
+          // ne kaldı" sorusunun dükkân tarafı. Şahsi taraf ve ikisinin toplamı
+          // hemen altında durur, çünkü kapsam varken tek bir "net" hangi neti
+          // sorduğunu söylemiyordu.
+          ..._buildHero(viewModel, report, advanced),
           AppResponsiveGrid(
             minItemWidth: 150,
             spacing: AppSpacing.small,
@@ -197,6 +194,90 @@ class DashboardPage extends StatelessWidget {
       ),
     );
   }
+
+  /// Ayın netini soran blok.
+  ///
+  /// Üç biçimi var ve hepsi aynı soruyu farklı bilinenlerle yanıtlıyor:
+  ///
+  /// - Kapsam boyutu görünmüyorsa ekran bugünkü davranışını korur: tek `Bu
+  ///   ayın neti`. Kapsamı olmayan kullanıcı için ikinci bir sayı yok.
+  /// - Anahtar `Hepsi` konumundaysa üç sayı: işletme neti (hero), şahsi taraf
+  ///   ve ikisinin toplamı. Üçü de sunucudan gelir; istemci çıkarma yapmaz.
+  /// - Anahtar bir tarafı seçtiyse rapor zaten o taraftır; hero o tarafın
+  ///   netini, adını yazarak gösterir.
+  List<Widget> _buildHero(
+    DashboardViewModel viewModel,
+    DashboardReport report,
+    AdvancedReport? advanced,
+  ) {
+    final breakdown = report.scopeBreakdown;
+    if (!viewModel.isScopeVisible || breakdown == null) {
+      return [
+        AppMetricTile(
+          key: const ValueKey('dashboard-summary-Net'),
+          size: AppMetricSize.hero,
+          label: _singleNetLabel(viewModel.scope),
+          amount: report.net,
+          currency: report.currency,
+          caption: viewModel.scope == null
+              ? _netCaption(advanced)
+              : 'Yalnız ${viewModel.scope!.label.toLowerCase()} tarafı',
+        ),
+        const SizedBox(height: AppSpacing.small),
+      ];
+    }
+
+    return [
+      AppMetricTile(
+        key: const ValueKey('dashboard-summary-Net'),
+        size: AppMetricSize.hero,
+        label: 'İşletme neti',
+        amount: breakdown.business.net,
+        currency: report.currency,
+        // "Kâr" değil: muhasebe kârı satılan malın maliyetini ister ve ürün
+        // sınırının dışındadır. Yanlış kelime kullanıcıyı vergi beyanında
+        // yanıltır.
+        caption: 'İşletme geliri eksi işletme gideri',
+      ),
+      const SizedBox(height: AppSpacing.small),
+      AppResponsiveGrid(
+        minItemWidth: 150,
+        spacing: AppSpacing.small,
+        children: [
+          AppMetricTile(
+            key: const ValueKey('dashboard-summary-Personal'),
+            label: _personalLabel(breakdown.personal.net),
+            amount: breakdown.personal.net,
+            currency: report.currency,
+            caption: 'Şahsi gelir eksi şahsi gider',
+          ),
+          AppMetricTile(
+            key: const ValueKey('dashboard-summary-Total'),
+            label: 'Bu ayın neti',
+            amount: report.net,
+            currency: report.currency,
+            caption: _netCaption(advanced),
+          ),
+        ],
+      ),
+      const SizedBox(height: AppSpacing.small),
+    ];
+  }
+
+  /// Kapsam boyutu görünmeyen ya da tek tarafı okuyan ekranın hero etiketi.
+  static String _singleNetLabel(TransactionScope? scope) => switch (scope) {
+    null => 'Bu ayın neti',
+    TransactionScope.business => 'İşletme neti',
+    TransactionScope.personal => 'Şahsi net',
+  };
+
+  /// Şahsi tarafın adı sayının yönüne göre değişir.
+  ///
+  /// Çoğu esnafta şahsi taraf yalnız harcamadır ve doğru kelime **çekim**:
+  /// havuzdan cebe geçen para. Ama şahsi bir gelir de girilebiliyor; o ayda
+  /// "çekim" demek artı bir sayıyı eksi gibi okuturdu.
+  static String _personalLabel(String personalNet) =>
+      personalNet.startsWith('-') ? 'Şahsi çekim' : 'Şahsi net';
 
   /// Hero kartın altındaki bağlam satırı: mümkünse önceki dönemle
   /// karşılaştırır, gelişmiş rapor yoksa ne olduğunu açıklar.

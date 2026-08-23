@@ -98,9 +98,17 @@ veritabanı ile tek `InitialCreate`'ten kurulan veritabanının 543 satırlık t
 | `profile_repository_test.dart` (yeni) | `GET`/`PUT /api/v1/profile` sözleşmesi; eksik alan sessizce "işletmesi yok" diye okunmuyor |
 | `business_answer_test.dart` (yeni) | Onboarding sorusu kayıt formunda varsayılan kapalı ve cevap istekle birlikte gidiyor; `Diğer`den değiştirilince kapsam boyutu ona uyuyor; sunucu reddederse boyut değişmiyor ve sebebi söyleniyor |
 
-Kapsam boyutunun **kalan** test yüzeyi henüz yok ve olduğu gibi yazılmıyor:
-özet ekranının hero metriği (Grup 8) ve CSV kapsam kolonu (Grup 9) kendi
-gruplarında gelecek. `ScopePreferences`'ın kendisinin doğrudan testi yok;
+## Aşama 01 Grup 8 — özet ekranının hero metriği
+
+| Test | Neyi kanıtlıyor |
+|---|---|
+| `ScopeFilter_SplitsIncomeAndExpense...` (gerçek SQL, genişletildi) | Filtresiz okumanın kırılımı, iki tarafı ayrı ayrı okumakla **birebir aynı** cevabı veriyor; iki net toplamı raporun netini veriyor; filtreli okuma kırılım taşımıyor |
+| `TransactionScopeEndpointTests.MonthlyReport_ReportsBothSidesAndTheirSum` (yeni) | Hero'nun üç sayısı **tek istekte** geliyor; şahsi taraf eksi net olarak dönüyor ve istemcinin çıkarma yapmasına gerek kalmıyor |
+| `...MonthlyReport_WithAScopeFilter_CarriesNoBreakdown` (yeni) | Filtreli okumada alan `null`; dışlanan taraf sıfır olarak gösterilmiyor |
+| `dashboard_hero_test.dart` (yeni) | Kırılım sözleşmeden okunuyor ve yoksa sıfır uydurulmuyor; işletme kullanıcısında üç sayı birlikte ve **birbirini tutuyor**; şahsi taraf artıdayken "çekim" denmiyor; işletmesi olmayan kullanıcıda ekran bugünkü hâlini koruyor; bir taraf seçiliyken hero hangi tarafı okuduğunu yazıyor; **"kâr" kelimesi ekranda geçmiyor**; üç sayılı hero 2.0× ölçekte taşmıyor ve erişilebilirlik kapısını geçiyor |
+
+Kapsam boyutunun **kalan** test yüzeyi henüz yok ve olduğu gibi yazılmıyor: CSV
+kapsam kolonu ve runbook tatbikatı (Grup 9) kendi grubunda gelecek. `ScopePreferences`'ın kendisinin doğrudan testi yok;
 `ReceiptPreferences` ile aynı gerekçe — `flutter_secure_storage` sarmalayıcısı
 platform kanalı ister, sözleşme (`ScopeStore`) sahte uygulamayla testli.
 

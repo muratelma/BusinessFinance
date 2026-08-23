@@ -23,6 +23,28 @@ public sealed record CategoryExpenseSliceDto(
     string CategoryName,
     decimal Amount);
 public sealed record AccountBalanceDto(Guid AccountId, string AccountName, decimal Balance, AccountType Type);
+
+/// <summary>
+/// Bir ayın tek bir kapsamdaki gelir/gider tablosu.
+/// </summary>
+public sealed record ScopeTotalsDto(decimal Income, decimal Expense, decimal Net);
+
+/// <summary>
+/// Ayın iki tarafı: işletme ve şahsi. İkisinin toplamı raporun kendi
+/// toplamıdır — her gelir/gider kaydı tam olarak bir kapsam taşır ve üçüncü
+/// bir "bilinmiyor" değeri yoktur.
+/// </summary>
+/// <remarks>
+/// Yalnız **filtresiz** okumada dolar. Kapsam filtresi verilmişse rapor zaten
+/// tek tarafı anlatıyor demektir; kırılım döndürmek, dışlanmış tarafı sıfır
+/// olarak gösterip "o tarafta hiç hareket yok" dedirtirdi.
+///
+/// Kırılım sunucudan gelir çünkü istemci finansal toplamı ikinci kez
+/// hesaplamaz: "şahsi çekim" ile "işletme neti" bir çıkarma değil, ayrı ayrı
+/// toplanmış iki tablodur.
+/// </remarks>
+public sealed record MonthlyScopeBreakdownDto(ScopeTotalsDto Business, ScopeTotalsDto Personal);
+
 public sealed record MonthlyReportDto(
     int Year,
     int Month,
@@ -33,7 +55,8 @@ public sealed record MonthlyReportDto(
     CurrencyCode Currency,
     IReadOnlyList<CategoryExpenseDto> CategoryExpenses,
     IReadOnlyList<CategoryExpenseSliceDto> CategoryExpenseSlices,
-    IReadOnlyList<AccountBalanceDto> AccountBalances);
+    IReadOnlyList<AccountBalanceDto> AccountBalances,
+    MonthlyScopeBreakdownDto? ScopeBreakdown = null);
 
 public partial interface IFinancialReportRepository
 {

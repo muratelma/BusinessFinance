@@ -13,8 +13,8 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   yeniden yazıldı; kod değişmedi
 - Aktif aşama: **01 — Kapsam boyutu ve işletme kimliği.** 22 Ağustos 2026'da
   kullanıcı onayıyla açıldı. Belgesi `stages/01-kapsam-boyutu-ve-isletme-kimligi.md`;
-  dokuz çalışma grubu; **Grup 1–7 tamamlandı**, kalan ikisi özet ekranının
-  hero metriği ve CSV/runbook tarafında
+  dokuz çalışma grubu; **Grup 1–8 tamamlandı**, kalan tek grup CSV kapsam
+  kolonu ve runbook tatbikatı
 - Kalan beş aşamanın belgesi de yazılı, durumları `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
@@ -353,6 +353,50 @@ istemci bu turda hem gönderiyor hem gösteriyor.
 | Flutter debug APK | Derlendi (`app-debug.apk`) |
 | Backend | Bu turda değişmedi |
 
+## 23 Ağustos 2026 — Aşama 01, Grup 8: özet ekranının hero metriği
+
+Kapsam varken tek bir "net" hangi neti sorduğunu söylemiyordu; artık ay iki
+tarafıyla birlikte okunuyor.
+
+- **Aylık rapor filtresiz okunduğunda kırılım da döndürüyor**
+  (`scopeBreakdown`): işletme ve şahsi tarafın gelir/gider/net tabloları ayrı
+  ayrı. İki tarafın toplamı raporun kendi toplamına eşit — gelir/gider üreten
+  her kayıt tam olarak bir kapsam taşıyor ve üçüncü bir kova yok
+- **Kırılım sunucudan hazır geliyor** çünkü istemci finansal toplamı ikinci kez
+  hesaplamaz. "İşletme neti" ile "şahsi çekim" bir çıkarma değil, ayrı ayrı
+  toplanmış iki tablo; istemci çıkarsaydı ekrandaki sayı sunucununkiyle
+  tutmayabilirdi
+- **Sorgu sayısı değişmedi.** Toplamlar `SUM` yerine kapsama göre `GROUP BY`
+  ile okunuyor; en fazla iki satır dönüyor ve toplam onların toplamı. Kırılımı
+  ikinci bir tur sorguyla almak özet ekranının ilk isteğini iki katına
+  çıkarırdı. Bounded query-count ölçüsü olduğu gibi geçiyor
+- **Filtreli okuma kırılım taşımıyor:** rapor zaten tek tarafı anlatıyor,
+  kırılım göndermek dışlanan tarafı sıfır gösterip "o tarafta hiç hareket yok"
+  dedirtirdi
+- **Ekranda üç sayı:** `İşletme neti` (hero), `Şahsi çekim` ve `Bu ayın neti`.
+  Kapsam boyutu görünmeyen kullanıcıda ekran bugünkü hâlini koruyor; bir taraf
+  seçiliyken hero o tarafın netini adıyla gösteriyor
+- **Aşama belgesinden bilerek sapıldı:** üçüncü sayı `kasa değişimi` diye
+  planlanmıştı, `Bu ayın neti` oldu. Rapor gideri harcandığı gün tanıyor — kart
+  harcaması aynı ay gider yazılır, borcu bir sonraki ay ödenir — dolayısıyla ilk
+  iki sayının toplamı kasadaki değişim değil. "Kasa değişimi" demek, ekrandaki
+  üç sayıyı toplayan kullanıcıya kasada olmayan bir para söylemek olurdu.
+  Kasanın gerçek hâli aynı ekranda `Hesap bakiyeleri` ve `Varlık durumu`
+  bölümlerinde zaten duruyor
+- **Şahsi tarafın adı sayının yönüne göre değişiyor** (`Şahsi çekim` /
+  `Şahsi net`): çoğu ayda şahsi taraf yalnız harcamadır, ama şahsi bir gelir
+  girilen ayda "çekim" demek artı bir sayıyı eksi gibi okuturdu
+- **"Kâr" kelimesi ekranda hiç geçmiyor** ve bunu bir test koruyor
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (SQL dahil) | **803 geçti**, 1 atlandı (`GeminiLiveContractTests`) |
+| Flutter analyze / format | No issues found, temiz |
+| Flutter test | **700 geçti** (692 → +8) |
+| Flutter debug APK | Derlendi |
+
 ## Açık kararlar ve riskler
 
 - **Yerel veritabanının silinmesi onay bekliyor.** Aşama 01 Grup 1'in ilk işi;
@@ -368,17 +412,18 @@ istemci bu turda hem gönderiyor hem gösteriyor.
 
 ## Sıradaki tek küçük görev
 
-- **Aşama 01, Grup 8:** Özet ekranının hero metriği. Bugünkü `Bu ayın neti`
-  kapsam varken hangi neti sorduğunu söylemiyor; yerine işletme neti ve şahsi
-  çekim ayrı ayrı, altlarında kasa değişimi gelecek. "Kâr" kelimesi
-  kullanılmaz — hesaplanan nakit esaslı işletme netidir.
+- **Aşama 01, Grup 9:** CSV dışa aktarmada kapsam kolonu (içe aktarma kapsamı
+  zincirden alıyor, o taraf hazır) ve `documentation/restore-runbook.md`'nin v6
+  yedeğiyle tatbikatı. Yedek şemasının sürüm kapısı Grup 2'de yapılmıştı;
+  kalan bu iki madde aşamanın son işi.
 
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: Aşama 01 **Grup 7 uygulandı** — Flutter kapsam anahtarı,
-  bölünen ekranların başlığında aktif kapsam, bölünmeyen bölümlerde toplam
-  notu, formda düzeltilebilir kapsam çipi, kayıt formundaki onboarding sorusu
-  ve `Diğer` menüsünde cevabı değiştiren anahtar
-- Geçen kontroller: Flutter analyze + format + **692 test** + debug APK
-  derlemesi. Backend bu turda değişmedi (son doğrulanmış hâli 801 test)
-- Sıradaki görev: Aşama 01 Grup 8 — özet ekranının hero metriği
+- Yapılan değişiklik: Aşama 01 **Grup 7 ve Grup 8 uygulandı** — Flutter kapsam
+  anahtarı, bölünen ekranların başlığında aktif kapsam, bölünmeyen bölümlerde
+  toplam notu, formda düzeltilebilir kapsam çipi, kayıt formundaki onboarding
+  sorusu, `Diğer` menüsünde cevabı değiştiren anahtar; ardından aylık raporun
+  kapsam kırılımı ve özet ekranının üç sayılı hero'su
+- Geçen kontroller: backend build + format + **803 test** (SQL dahil); Flutter
+  analyze + format + **700 test** + debug APK derlemesi
+- Sıradaki görev: Aşama 01 Grup 9 — CSV kapsam kolonu ve restore runbook
