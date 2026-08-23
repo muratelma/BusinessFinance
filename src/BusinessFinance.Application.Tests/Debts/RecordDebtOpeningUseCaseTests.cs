@@ -2,6 +2,7 @@ using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.Categories;
+using BusinessFinance.Application.Counterparties;
 using BusinessFinance.Application.Debts;
 using BusinessFinance.Domain;
 
@@ -11,6 +12,11 @@ public sealed class RecordDebtOpeningUseCaseTests
 {
     private static readonly Guid UserId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     private static readonly DateOnly AsOf = new(2026, 8, 17);
+
+    // Sözleşme adını artık karşı taraftan okuyor; testler de aynı kaydı
+    // paylaşıyor ki cevaptaki ad gerçekten oradan gelsin.
+    private static readonly Counterparty Lender =
+        new(Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"), UserId, "Synthetic lender");
 
     [Fact]
     public async Task ExecuteAsync_CompletesAnUnrecordedOpeningAndItsSplit()
@@ -40,7 +46,7 @@ public sealed class RecordDebtOpeningUseCaseTests
         // bakiye hareketini geriye dönük silmek olurdu.
         var account = ActiveAccount();
         var debt = new DebtAgreement(
-            Guid.NewGuid(), UserId, "Lender", DebtDirection.Payable,
+            Guid.NewGuid(), UserId, Lender, DebtDirection.Payable,
             TransactionScope.Business,
             new Money(300m, CurrencyCode.TRY), new Money(330m, CurrencyCode.TRY),
             DebtSourceType.Cash, account, null,
@@ -87,10 +93,11 @@ public sealed class RecordDebtOpeningUseCaseTests
             new FakeCurrentUser(UserId),
             repository,
             new FakeAccountRepository(account),
-            new FakeCategoryRepository(category));
+            new FakeCategoryRepository(category),
+            new FakeCounterpartyRepository(Lender));
 
     private static DebtAgreement UnrecordedDebt() => DebtAgreement.WithUnrecordedOpening(
-        Guid.NewGuid(), UserId, "Legacy lender", DebtDirection.Payable,
+        Guid.NewGuid(), UserId, Lender, DebtDirection.Payable,
         TransactionScope.Business,
         new Money(300m, CurrencyCode.TRY), new Money(330m, CurrencyCode.TRY),
         new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 15), 3);
@@ -155,6 +162,36 @@ public sealed class RecordDebtOpeningUseCaseTests
             throw new NotSupportedException();
 
         public Task UpdateOwnedAsync(Category item, Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
+    // Yalnız sahiplik kapsamlı arama gerçek: use case adı buradan okuyor.
+    private sealed class FakeCounterpartyRepository(Counterparty counterparty)
+        : ICounterpartyRepository
+    {
+        public Task<Counterparty?> FindOwnedByIdAsync(
+            Guid counterpartyId, Guid userId, CancellationToken cancellationToken) =>
+            Task.FromResult(counterparty.Id == counterpartyId ? counterparty : null);
+
+        public Task<Counterparty> FindOrCreateByNameAsync(
+            Guid userId, string name, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyDictionary<Guid, string>> ListNamesAsync(
+            Guid userId,
+            IReadOnlyCollection<Guid> counterpartyIds,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<CounterpartyBalanceSummary>> ListBalancesAsync(
+            Guid userId,
+            CounterpartyBalanceFilter filter,
+            bool? isActive,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<CounterpartyBalanceSummary?> FindBalanceAsync(
+            Guid counterpartyId, Guid userId, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
     }
 

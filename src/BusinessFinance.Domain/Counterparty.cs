@@ -14,7 +14,10 @@ namespace BusinessFinance.Domain;
 /// </remarks>
 public sealed class Counterparty
 {
-    public const int MaximumNameLength = 100;
+    // Borç sözleşmeleri de adlarını buraya taşıdı; sınır ikisinin en
+    // genişidir. Daha dar bir sınır, taşınan bir adı kırpmak ya da
+    // sözleşmeyi taşıyamamak demek olurdu.
+    public const int MaximumNameLength = 150;
     public const int MaximumNoteLength = 500;
 
     public Guid Id { get; }

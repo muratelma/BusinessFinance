@@ -27,4 +27,27 @@ public interface ICounterpartyRepository
         Guid counterpartyId,
         Guid userId,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Adı yazılan karşı tarafı bulur, yoksa kurar. Kullanıcı borç açarken
+    /// önce karşı taraf oluşturmak zorunda kalmasın diye.
+    /// </summary>
+    /// <remarks>
+    /// <b>Kaydetmez.</b> Yeni karşı taraf, onu isteyen yazma işlemiyle aynı
+    /// kaydetme sınırında yazılır; ayrı kaydetmek, borç doğrulamada
+    /// düştüğünde ortada sahipsiz bir karşı taraf bırakırdı.
+    /// </remarks>
+    Task<Counterparty> FindOrCreateByNameAsync(
+        Guid userId,
+        string name,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Verilen karşı tarafların adları, tek sorguda. Ad artık yalnız burada
+    /// yaşadığı için okuma yolları onu buradan alır.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, string>> ListNamesAsync(
+        Guid userId,
+        IReadOnlyCollection<Guid> counterpartyIds,
+        CancellationToken cancellationToken);
 }

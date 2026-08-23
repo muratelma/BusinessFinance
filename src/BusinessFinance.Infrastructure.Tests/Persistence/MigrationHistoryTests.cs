@@ -24,7 +24,8 @@ public sealed class MigrationHistoryTests
         "InitialCreate",
         "AddTransactionScope",
         "AddUserProfile",
-        "AddCounterparties"
+        "AddCounterparties",
+        "LinkDebtsToCounterparties"
     ];
 
     [Fact]

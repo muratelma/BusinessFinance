@@ -168,11 +168,14 @@ composite foreign key'leriyle sınırlar. Gerçek repository sorgu/update
 predicate'leri SQL Server integration testlerinde; composite FK ve owner-scoped
 unique index'ler model/migration testlerinde doğrulanmıştır.
 
-Borç sözleşmesi iki ilişki taşır: açılışın hesabı ve
-kategorisi. İkisi de aynı desenle bağlıdır — `(UserId, OpeningAccountId)` ve
-`(UserId, CategoryId)` composite foreign key'leri. Başka kullanıcının hesabına
-ya da kategorisine bağlanan bir borç, Application katmanı hiç devreye girmese
-bile veritabanı seviyesinde yazılamaz.
+Borç sözleşmesi üç ilişki taşır: açılışın hesabı, kategorisi ve **karşı
+tarafı**. Üçü de aynı desenle bağlıdır — `(UserId, OpeningAccountId)`,
+`(UserId, CategoryId)` ve `(UserId, CounterpartyId)` composite foreign
+key'leri. Başka kullanıcının hesabına, kategorisine ya da karşı tarafına
+bağlanan bir borç, Application katmanı hiç devreye girmese bile veritabanı
+seviyesinde yazılamaz. `POST /api/v1/debts` karşı tarafı **addan** çözer ve
+yalnız current user'ın kayıtları arasında arar; bulamazsa o kullanıcıya ait
+yeni bir karşı taraf kurar. Cevap `counterpartyId` taşır.
 
 Fiş analizi sahiplik sınırını yazmadan uygular. Use case current
 user kimliğini `ICurrentUser`dan alır ve modele yalnız o kullanıcının aktif

@@ -657,7 +657,8 @@ izler; iki kaynak hiçbir zaman toplanmaz.
 
 ```text
 Borç / alacak ekle
-  -> kişi/kurum, yön (ödenecek | alınacak)
+  -> kişi/kurum adı  -> sunucu karşı tarafı bulur, yoksa kurar
+  -> yön (ödenecek | alınacak)
   -> borcu ne doğurdu:  nakit  -> paranın girdiği/çıktığı hesap
                         gider  -> kategori   (yalnız "ödenecek" yönünde)
   -> anapara
@@ -681,6 +682,14 @@ Borç / alacak ekle
 
 Anapara geri ödemesi gider değildir: borç azalır, para azalır, servet değişmez.
 Kredi kartı ödemesinin gider üretmemesiyle aynı kural. Gerçek maliyet faizdir.
+
+#### Karşı taraf tek kayıttır
+
+Yazılan ad mevcut bir karşı tarafla eşleşirse sözleşme **ona** bağlanır;
+eşleşmezse karşı taraf o anda kurulur. Kullanıcı önce "karşı taraf ekle"
+adımına gitmez. Cevap hem `counterpartyId` hem `counterpartyName` taşır: ad
+artık sözleşmede değil, karşı tarafta durur ve oradan okunur. Aynı ad başka
+kullanıcıda ayrı bir karşı taraftır.
 
 Bu ayrımdan önce açılış hiçbir kayıt üretmiyordu; taksitler hesabı
 boşaltıyor ama karşılığında hiçbir şey girmemiş görünüyordu.

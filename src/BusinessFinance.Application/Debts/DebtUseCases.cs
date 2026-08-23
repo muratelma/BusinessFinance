@@ -2,6 +2,7 @@ using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.Categories;
+using BusinessFinance.Application.Counterparties;
 using BusinessFinance.Application.Scopes;
 using BusinessFinance.Domain;
 
@@ -40,6 +41,15 @@ public static class DebtErrors
         "debt.conflict", message, ApplicationErrorType.Conflict);
 
     /// <summary>
+    /// Borcun karşı tarafı okunamadı. Sözleşme adını karşı taraftan aldığı
+    /// için ad olmadan cevap üretilemez.
+    /// </summary>
+    public static readonly ApplicationError CounterpartyUnavailable = new(
+        "debt.counterparty_unavailable",
+        "An owned counterparty is required.",
+        ApplicationErrorType.Validation);
+
+    /// <summary>
     /// Kaynağın hangi tip kategoriyi istediği.
     /// </summary>
     /// <remarks>
@@ -55,7 +65,8 @@ public sealed class CreateDebtUseCase(
     ICurrentUser currentUser,
     IDebtRepository repository,
     IAccountRepository accountRepository,
-    ICategoryRepository categoryRepository)
+    ICategoryRepository categoryRepository,
+    ICounterpartyRepository counterpartyRepository)
 {
     // Toplam ile oran birlikte gelirse ne kadar sapma hoş görülür. İstemci
     // oranı toplamdan çözüp geri gönderdiğinde oran dört ondalığa yuvarlanır
@@ -100,10 +111,23 @@ public sealed class CreateDebtUseCase(
             return ApplicationResult<DebtDto>.Failure(DebtErrors.ScopeUnresolved);
         }
 
+        // Karşı taraf en sonda kuruluyor: bu noktadan sonra yalnız aggregate
+        // doğrulaması kalıyor ve kaydetme borcunkiyle aynı sınırda oluyor.
+        Counterparty counterparty;
+        try
+        {
+            counterparty = await counterpartyRepository.FindOrCreateByNameAsync(
+                userId, command.CounterpartyName, cancellationToken);
+        }
+        catch (ArgumentException exception)
+        {
+            return ApplicationResult<DebtDto>.Failure(DebtErrors.Validation(exception.Message));
+        }
+
         try
         {
             var debt = new DebtAgreement(
-                Guid.NewGuid(), userId, command.CounterpartyName, command.Direction,
+                Guid.NewGuid(), userId, counterparty, command.Direction,
                 scope,
                 new Money(command.Principal, command.Currency),
                 new Money(totalRepayment.Value, command.Currency),
@@ -111,7 +135,8 @@ public sealed class CreateDebtUseCase(
                 command.StartDate, command.FirstDueDate,
                 command.InstallmentCount, command.Description);
             await repository.AddAsync(debt, cancellationToken);
-            return ApplicationResult<DebtDto>.Success(ToDto(debt, asOfDate));
+            return ApplicationResult<DebtDto>.Success(
+                ToDto(debt, counterparty.Name, asOfDate));
         }
         catch (ArgumentException exception)
         {
@@ -164,12 +189,13 @@ public sealed class CreateDebtUseCase(
         }
     }
 
-    internal static DebtDto ToDto(DebtAgreement debt, DateOnly asOfDate)
+    internal static DebtDto ToDto(DebtAgreement debt, string counterpartyName, DateOnly asOfDate)
     {
         var splits = debt.InstallmentSplits;
         var installments = debt.Installments.OrderBy(x => x.Sequence).ToArray();
         return new DebtDto(
-            debt.Id, debt.CounterpartyName, debt.Direction, debt.Scope, debt.Principal.Amount,
+            debt.Id, debt.CounterpartyId, counterpartyName, debt.Direction, debt.Scope,
+            debt.Principal.Amount,
             debt.TotalRepayment.Amount, debt.RemainingAmount, debt.Principal.Currency,
             debt.AnnualInterestRate, debt.TotalInterest,
             debt.SourceType, debt.OpeningAccountId, debt.CategoryId,
@@ -197,7 +223,8 @@ public sealed class RecordDebtOpeningUseCase(
     ICurrentUser currentUser,
     IDebtRepository repository,
     IAccountRepository accountRepository,
-    ICategoryRepository categoryRepository)
+    ICategoryRepository categoryRepository,
+    ICounterpartyRepository counterpartyRepository)
 {
     public async Task<ApplicationResult<DebtDto>> ExecuteAsync(
         RecordDebtOpeningCommand command,
@@ -231,7 +258,12 @@ public sealed class RecordDebtOpeningUseCase(
         {
             debt.RecordOpening(command.SourceType, openingAccount, category);
             await repository.SaveOpeningAsync(debt, cancellationToken);
-            return ApplicationResult<DebtDto>.Success(CreateDebtUseCase.ToDto(debt, asOfDate));
+            var name = await counterpartyRepository.FindOwnedByIdAsync(
+                debt.CounterpartyId, userId, cancellationToken);
+            return name is null
+                ? ApplicationResult<DebtDto>.Failure(DebtErrors.CounterpartyUnavailable)
+                : ApplicationResult<DebtDto>.Success(
+                    CreateDebtUseCase.ToDto(debt, name.Name, asOfDate));
         }
         catch (ArgumentException exception)
         {
@@ -246,7 +278,10 @@ public sealed class RecordDebtOpeningUseCase(
     }
 }
 
-public sealed class ListDebtsUseCase(ICurrentUser currentUser, IDebtRepository repository)
+public sealed class ListDebtsUseCase(
+    ICurrentUser currentUser,
+    IDebtRepository repository,
+    ICounterpartyRepository counterpartyRepository)
 {
     public async Task<ApplicationResult<IReadOnlyList<DebtDto>>> ExecuteAsync(
         DateOnly asOfDate,
@@ -255,8 +290,21 @@ public sealed class ListDebtsUseCase(ICurrentUser currentUser, IDebtRepository r
         if (currentUser.UserId is not Guid userId || userId == Guid.Empty)
             return ApplicationResult<IReadOnlyList<DebtDto>>.Failure(DebtErrors.AuthenticationRequired);
         var debts = await repository.ListAsync(userId, cancellationToken);
+
+        // Adlar tek sorguda: sözleşme başına bir okuma, uzun bir borç
+        // listesinde liste kadar sorgu demek olurdu.
+        var names = await counterpartyRepository.ListNamesAsync(
+            userId,
+            [.. debts.Select(item => item.CounterpartyId).Distinct()],
+            cancellationToken);
+
         return ApplicationResult<IReadOnlyList<DebtDto>>.Success(
-            debts.Select(x => CreateDebtUseCase.ToDto(x, asOfDate)).ToArray());
+            debts
+                .Select(item => CreateDebtUseCase.ToDto(
+                    item,
+                    names.TryGetValue(item.CounterpartyId, out var name) ? name : string.Empty,
+                    asOfDate))
+                .ToArray());
     }
 }
 
@@ -264,6 +312,7 @@ public sealed class PayDebtInstallmentUseCase(
     ICurrentUser currentUser,
     IDebtRepository repository,
     IAccountRepository accountRepository,
+    ICounterpartyRepository counterpartyRepository,
     TimeProvider timeProvider)
 {
     public async Task<ApplicationResult<DebtDto>> ExecuteAsync(
@@ -282,7 +331,12 @@ public sealed class PayDebtInstallmentUseCase(
         {
             debt.GetInstallment(command.Sequence).MarkPaid(account, command.PaymentDate, timeProvider.GetUtcNow());
             await repository.SavePaymentAsync(debt.GetInstallment(command.Sequence), cancellationToken);
-            return ApplicationResult<DebtDto>.Success(CreateDebtUseCase.ToDto(debt, asOfDate));
+            var counterparty = await counterpartyRepository.FindOwnedByIdAsync(
+                debt.CounterpartyId, userId, cancellationToken);
+            return counterparty is null
+                ? ApplicationResult<DebtDto>.Failure(DebtErrors.CounterpartyUnavailable)
+                : ApplicationResult<DebtDto>.Success(
+                    CreateDebtUseCase.ToDto(debt, counterparty.Name, asOfDate));
         }
         catch (DebtConcurrencyException exception)
         {

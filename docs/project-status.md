@@ -18,10 +18,11 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   ve tamamlanma kaydı orada
 - Aktif aşama: **02 — Cari hesap: karşı taraf ve açık bakiye.** 23 Ağustos
   2026'da kullanıcı onayıyla açıldı. Belgesi
-  `stages/02-cari-hesap-ve-karsi-taraf.md`; sekiz çalışma grubu. **Grup 1–3
+  `stages/02-cari-hesap-ve-karsi-taraf.md`; sekiz çalışma grubu. **Grup 1–4
   tamamlandı**: karar kapısı (ADR 0014) kabul edildi, cari hesabın domain
-  katmanı yazıldı, üç tablo kalıcılığa girdi ve cari bakiye tek sorgulu bir
-  okuma modeli olarak gerçek SQL üzerinde ölçüldü
+  katmanı yazıldı, üç tablo kalıcılığa girdi, cari bakiye tek sorgulu bir
+  okuma modeli olarak gerçek SQL üzerinde ölçüldü ve taksitli borç modeli
+  karşı tarafa bağlandı (yükseltme yolu dolu bir veritabanında test edildi)
 - Kalan beş aşamanın belgesi de yazılı, durumları `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)

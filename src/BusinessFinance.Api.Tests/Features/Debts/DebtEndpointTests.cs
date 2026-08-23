@@ -14,6 +14,58 @@ public sealed class DebtEndpointTests
 {
     private const string Password = "Valid-Password-123!";
 
+    /// <summary>
+    /// Aynı adla açılan iki sözleşme aynı karşı tarafa bağlanır; kullanıcı önce
+    /// karşı taraf oluşturmak zorunda kalmaz.
+    /// </summary>
+    [Fact]
+    public async Task CreateDebt_FindsTheCounterpartyByNameOrCreatesItOnce()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(factory, "debt-party@example.test");
+        using var stranger = await CreateAuthenticatedClientAsync(
+            factory, "debt-party-stranger@example.test");
+        var account = await CreateAccountAsync(owner);
+        var strangerAccount = await CreateAccountAsync(stranger);
+
+        var first = await CreateDebtAsync(owner, "Ahmet Bakkal", account.Id);
+        var second = await CreateDebtAsync(owner, "Ahmet Bakkal", account.Id);
+        var third = await CreateDebtAsync(owner, "Zeynep Manav", account.Id);
+
+        // Aynı ad tek kayıt: ikinci sözleşme aynı karşı tarafa bağlandı.
+        Assert.Equal(first.CounterpartyId, second.CounterpartyId);
+        Assert.NotEqual(first.CounterpartyId, third.CounterpartyId);
+        Assert.Equal("Ahmet Bakkal", second.CounterpartyName);
+
+        // Ad artık karşı taraftan okunuyor; liste de aynı kimliği veriyor.
+        var list = await owner.GetFromJsonAsync<DebtListResponse>(
+            "/api/v1/debts?asOfDate=2026-08-11");
+        Assert.Equal(3, list!.Items.Count);
+        Assert.Equal(
+            2,
+            list.Items.Count(item => item.CounterpartyId == first.CounterpartyId));
+        Assert.All(list.Items, item => Assert.False(string.IsNullOrWhiteSpace(item.CounterpartyName)));
+
+        // Başka kullanıcının aynı adı ayrı bir karşı taraftır.
+        var foreign = await CreateDebtAsync(stranger, "Ahmet Bakkal", strangerAccount.Id);
+        Assert.NotEqual(first.CounterpartyId, foreign.CounterpartyId);
+    }
+
+    private static async Task<DebtResponse> CreateDebtAsync(
+        HttpClient client,
+        string counterpartyName,
+        Guid accountId)
+    {
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/debts",
+            new CreateDebtRequest(
+                counterpartyName, "payable", "business", "300.0000", "330.0000", null, "TRY",
+                "cash", accountId, null,
+                "2026-08-01", "2026-08-15", 3, null, "2026-08-11"));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<DebtResponse>())!;
+    }
+
     [Fact]
     public async Task PayableDebt_PaymentChangesLiquidityButNotMonthlyExpense()
     {

@@ -125,20 +125,22 @@ internal sealed class EfReceiptDuplicateLookup(BusinessFinanceDbContext dbContex
             // A receivable is matched on the counterparty's own name rather
             // than on a description: lending is the one path where the name is
             // a first-class field, and it is what the user typed.
-            var receivable = await dbContext.DebtAgreements
-                .AsNoTracking()
-                .Where(item =>
-                    item.UserId == userId &&
-                    item.Direction == DebtDirection.Receivable &&
-                    item.StartDate == date &&
-                    item.Principal.Amount == total &&
-                    item.CounterpartyName == name)
-                .Select(item => new ReceiptDuplicateMatch(
-                    item.Id,
-                    item.StartDate,
-                    item.Principal.Amount,
-                    item.CounterpartyName,
-                    ReceiptDuplicateKind.Receivable))
+            var receivable = await (
+                    from item in dbContext.DebtAgreements.AsNoTracking()
+                    join counterparty in dbContext.Counterparties.AsNoTracking()
+                        on new { item.UserId, Id = item.CounterpartyId }
+                        equals new { counterparty.UserId, counterparty.Id }
+                    where item.UserId == userId &&
+                          item.Direction == DebtDirection.Receivable &&
+                          item.StartDate == date &&
+                          item.Principal.Amount == total &&
+                          counterparty.Name == name
+                    select new ReceiptDuplicateMatch(
+                        item.Id,
+                        item.StartDate,
+                        item.Principal.Amount,
+                        counterparty.Name,
+                        ReceiptDuplicateKind.Receivable))
                 .FirstOrDefaultAsync(cancellationToken);
             if (receivable is not null)
                 return receivable;

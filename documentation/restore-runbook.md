@@ -1,7 +1,11 @@
 # Backup Restore Runbook
 
 Bu runbook yalnız sentetik yerel veridir. Yazılan şema **v6**; okunabilen
-şema **yalnız v6**. Restore merge,
+şema **yalnız v6**. Borç sözleşmesi karşı tarafın kimliğine bağlandıktan
+sonra da yedek **adı** taşımaya devam ediyor: geri yükleme addan karşı
+tarafı yeniden kurar ve aynı ad tek kayıt olur. Karşı taraf kayıtlarının ve
+cari hareketlerin kendilerinin yedeğe girmesi v7 ile olacak; bugün yedeği
+alınan tek cari bilgi, sözleşmelerin taşıdığı addır. Restore merge,
 overwrite veya kullanıcı seçerek silme yapmaz; hedef kullanıcının finans alanı
 boş olmalıdır. Yeni hesapta uygulamanın otomatik oluşturduğu, hiç değiştirilmemiş
 başlangıç kategorileri boş alan sayılır ve yedekteki kategorilerle atomik olarak

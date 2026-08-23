@@ -86,7 +86,8 @@ public static class DebtEndpoints
     }
 
     internal static DebtResponse ToResponse(DebtDto debt) => new(
-        debt.Id, debt.CounterpartyName, debt.Direction == DebtDirection.Payable ? "payable" : "receivable",
+        debt.Id, debt.CounterpartyId, debt.CounterpartyName,
+        debt.Direction == DebtDirection.Payable ? "payable" : "receivable",
         FinanceContract.ScopeValue(debt.Scope),
         FinanceContract.Money(debt.Principal), FinanceContract.Money(debt.TotalRepayment),
         FinanceContract.Money(debt.RemainingAmount), debt.Currency.ToString(),

@@ -2,14 +2,19 @@ namespace BusinessFinance.Domain;
 
 public sealed class DebtAgreement
 {
-    public const int MaximumNameLength = 150;
     public const int MaximumDescriptionLength = 500;
     public const int MaximumInstallments = 360;
     private readonly List<DebtInstallment> _installments = [];
 
     public Guid Id { get; }
     public Guid UserId { get; }
-    public string CounterpartyName { get; }
+    /// <summary>Sözleşmenin karşı tarafı.</summary>
+    /// <remarks>
+    /// Ad burada durmaz, <see cref="Counterparty"/> kaydından okunur.
+    /// İkinci bir kopya tutmak aynı kişiyi iki adla yaşatırdı: karşı taraf
+    /// yeniden adlandırıldığında sözleşme eski adı göstermeye devam ederdi.
+    /// </remarks>
+    public Guid CounterpartyId { get; }
     public DebtDirection Direction { get; }
 
     /// <summary>
@@ -74,7 +79,6 @@ public sealed class DebtAgreement
 
     private DebtAgreement()
     {
-        CounterpartyName = null!;
         Principal = null!;
         TotalRepayment = null!;
     }
@@ -82,7 +86,7 @@ public sealed class DebtAgreement
     public DebtAgreement(
         Guid id,
         Guid userId,
-        string counterpartyName,
+        Counterparty counterparty,
         DebtDirection direction,
         TransactionScope scope,
         Money principal,
@@ -94,9 +98,10 @@ public sealed class DebtAgreement
         DateOnly firstDueDate,
         int installmentCount,
         string? description = null)
-        : this(id, userId, counterpartyName, direction, scope, principal, totalRepayment,
+        : this(id, userId, counterparty, direction, scope, principal, totalRepayment,
             sourceType, openingAccount, category, startDate, firstDueDate,
-            installmentCount, description, allowUnrecordedOpening: false)
+            installmentCount, description, allowUnrecordedOpening: false,
+            allowInactiveCounterparty: false)
     {
     }
 
@@ -104,10 +109,16 @@ public sealed class DebtAgreement
     /// Açılışı kaydedilmemiş bir borcu kurar. Yalnız bu ayrımdan önce açılmış
     /// kayıtların migration'ı ve eski sürüm yedeklerin geri yüklenmesi içindir.
     /// </summary>
+    /// <remarks>
+    /// Geçmiş kaydı kurduğu için <b>pasif karşı tarafı da kabul eder</b>:
+    /// geri yüklenen bir sözleşmenin karşı tarafı bugün pasif olabilir ve
+    /// geçmişi reddetmek yedeği eksik geri yüklerdi. Yeni sözleşme açmak
+    /// bundan farklıdır ve pasif tarafa izin verilmez.
+    /// </remarks>
     public static DebtAgreement WithUnrecordedOpening(
         Guid id,
         Guid userId,
-        string counterpartyName,
+        Counterparty counterparty,
         DebtDirection direction,
         TransactionScope scope,
         Money principal,
@@ -116,14 +127,15 @@ public sealed class DebtAgreement
         DateOnly firstDueDate,
         int installmentCount,
         string? description = null) => new(
-            id, userId, counterpartyName, direction, scope, principal, totalRepayment,
+            id, userId, counterparty, direction, scope, principal, totalRepayment,
             DebtSourceType.Unrecorded, null, null, startDate, firstDueDate,
-            installmentCount, description, allowUnrecordedOpening: true);
+            installmentCount, description, allowUnrecordedOpening: true,
+            allowInactiveCounterparty: true);
 
     private DebtAgreement(
         Guid id,
         Guid userId,
-        string counterpartyName,
+        Counterparty counterparty,
         DebtDirection direction,
         TransactionScope scope,
         Money principal,
@@ -135,13 +147,16 @@ public sealed class DebtAgreement
         DateOnly firstDueDate,
         int installmentCount,
         string? description,
-        bool allowUnrecordedOpening)
+        bool allowUnrecordedOpening,
+        bool allowInactiveCounterparty)
     {
         if (id == Guid.Empty) throw new ArgumentException("Debt id cannot be empty.", nameof(id));
         if (userId == Guid.Empty) throw new ArgumentException("User id cannot be empty.", nameof(userId));
-        var normalizedName = counterpartyName?.Trim();
-        if (string.IsNullOrWhiteSpace(normalizedName) || normalizedName.Length > MaximumNameLength)
-            throw new ArgumentException($"Counterparty name is required and cannot exceed {MaximumNameLength} characters.", nameof(counterpartyName));
+        ArgumentNullException.ThrowIfNull(counterparty);
+        if (counterparty.UserId != userId)
+            throw new ArgumentException("Counterparty must belong to the debt user.", nameof(counterparty));
+        if (!counterparty.IsActive && !allowInactiveCounterparty)
+            throw new InvalidOperationException("An inactive counterparty cannot take on a new agreement.");
         if (!Enum.IsDefined(direction)) throw new ArgumentOutOfRangeException(nameof(direction));
         TransactionScopeGuard.Validate(scope, nameof(scope));
         ArgumentNullException.ThrowIfNull(principal);
@@ -180,7 +195,7 @@ public sealed class DebtAgreement
         OpeningAccountId = openingAccount?.Id;
         CategoryId = category?.Id;
         UserId = userId;
-        CounterpartyName = normalizedName;
+        CounterpartyId = counterparty.Id;
         Direction = direction;
         Scope = scope;
         Principal = principal;

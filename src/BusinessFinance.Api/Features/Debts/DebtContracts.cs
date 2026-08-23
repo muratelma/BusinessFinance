@@ -44,7 +44,7 @@ public sealed record DebtInstallmentResponse(Guid Id, int Sequence, string Amoun
     string DueDate, string Status, Guid? PaymentAccountId, string? PaymentDate, DateTimeOffset? PaidAtUtc,
     string PrincipalPortion, string InterestPortion);
 
-public sealed record DebtResponse(Guid Id, string CounterpartyName, string Direction, string Scope, string Principal,
+public sealed record DebtResponse(Guid Id, Guid CounterpartyId, string CounterpartyName, string Direction, string Scope, string Principal,
     string TotalRepayment, string RemainingAmount, string Currency, string AnnualInterestRate,
     string TotalInterest, string SourceType, Guid? OpeningAccountId, Guid? CategoryId,
     string StartDate, string FirstDueDate, int InstallmentCount, string? Description,

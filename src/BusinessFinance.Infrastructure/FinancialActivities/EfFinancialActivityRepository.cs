@@ -280,6 +280,9 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
             join account in dbContext.Accounts.AsNoTracking()
                 on new { installment.UserId, Id = installment.PaymentAccountId!.Value }
                 equals new { account.UserId, account.Id }
+            join counterparty in dbContext.Counterparties.AsNoTracking()
+                on new { debt.UserId, Id = debt.CounterpartyId }
+                equals new { counterparty.UserId, counterparty.Id }
             where installment.UserId == userId && installment.PaymentAccountId != null
             select new ActivityRow
             {
@@ -302,7 +305,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Currency = installment.Amount.Currency == CurrencyCode.TRY
                     ? (int)CurrencyCode.TRY
                     : 0,
-                Title = debt.Description ?? debt.CounterpartyName,
+                Title = debt.Description ?? counterparty.Name,
                 Description = debt.Description,
                 CategoryId = null,
                 CategoryName = null,
@@ -330,6 +333,9 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
             join account in dbContext.Accounts.AsNoTracking()
                 on new { debt.UserId, Id = debt.OpeningAccountId!.Value }
                 equals new { account.UserId, account.Id }
+            join counterparty in dbContext.Counterparties.AsNoTracking()
+                on new { debt.UserId, Id = debt.CounterpartyId }
+                equals new { counterparty.UserId, counterparty.Id }
             where debt.UserId == userId && debt.SourceType == DebtSourceType.Cash
             select new ActivityRow
             {
@@ -346,7 +352,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Currency = debt.Principal.Currency == CurrencyCode.TRY
                     ? (int)CurrencyCode.TRY
                     : 0,
-                Title = debt.CounterpartyName,
+                Title = counterparty.Name,
                 Description = debt.Description,
                 CategoryId = null,
                 CategoryName = null,
@@ -369,6 +375,9 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
             join category in dbContext.Categories.AsNoTracking()
                 on new { debt.UserId, Id = debt.CategoryId!.Value }
                 equals new { category.UserId, category.Id }
+            join counterparty in dbContext.Counterparties.AsNoTracking()
+                on new { debt.UserId, Id = debt.CounterpartyId }
+                equals new { counterparty.UserId, counterparty.Id }
             where debt.UserId == userId &&
                   (debt.SourceType == DebtSourceType.Expense ||
                    debt.SourceType == DebtSourceType.Income)
@@ -391,7 +400,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Currency = debt.Principal.Currency == CurrencyCode.TRY
                     ? (int)CurrencyCode.TRY
                     : 0,
-                Title = debt.CounterpartyName,
+                Title = counterparty.Name,
                 Description = debt.Description,
                 CategoryId = category.Id,
                 CategoryName = category.Name,

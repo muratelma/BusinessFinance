@@ -266,12 +266,18 @@ public sealed class DebtAgreementTests
             userId, DebtDirection.Payable, DebtSourceType.Unrecorded, null, null));
     }
 
-    private static DebtAgreement UnrecordedDebt(Guid? userId = null) =>
-        DebtAgreement.WithUnrecordedOpening(
-            Guid.NewGuid(), userId ?? Guid.NewGuid(), "Legacy lender", DebtDirection.Payable,
+    private static Counterparty Lender(Guid userId) =>
+        new(Guid.NewGuid(), userId, "Synthetic lender");
+
+    private static DebtAgreement UnrecordedDebt(Guid? userId = null)
+    {
+        var owner = userId ?? Guid.NewGuid();
+        return DebtAgreement.WithUnrecordedOpening(
+            Guid.NewGuid(), owner, Lender(owner), DebtDirection.Payable,
             TransactionScope.Business,
             new Money(300m, CurrencyCode.TRY), new Money(330m, CurrencyCode.TRY),
             new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 15), 3, "Legacy debt");
+    }
 
     private static Account ActiveAccount(Guid userId) =>
         new(Guid.NewGuid(), userId, "Nakit", AccountType.Cash, CurrencyCode.TRY);
@@ -288,7 +294,7 @@ public sealed class DebtAgreementTests
         DebtSourceType sourceType,
         Account? openingAccount,
         Category? category) => new(
-        Guid.NewGuid(), userId, "Synthetic lender", direction,
+        Guid.NewGuid(), userId, Lender(userId), direction,
         TransactionScope.Business,
         new Money(300m, CurrencyCode.TRY), new Money(330m, CurrencyCode.TRY),
         sourceType, openingAccount, category,
@@ -298,7 +304,7 @@ public sealed class DebtAgreementTests
     {
         var owner = userId ?? Guid.NewGuid();
         return new DebtAgreement(
-            Guid.NewGuid(), owner, "Synthetic lender", DebtDirection.Payable,
+            Guid.NewGuid(), owner, Lender(owner), DebtDirection.Payable,
             TransactionScope.Business,
             new Money(principal, CurrencyCode.TRY), new Money(total, CurrencyCode.TRY),
             DebtSourceType.Cash, ActiveAccount(owner), null,

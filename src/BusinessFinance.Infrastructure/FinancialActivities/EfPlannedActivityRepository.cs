@@ -498,6 +498,9 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
                 join debt in dbContext.DebtAgreements.AsNoTracking()
                     on new { installment.UserId, DebtId = installment.DebtAgreementId }
                     equals new { debt.UserId, DebtId = debt.Id }
+                join counterparty in dbContext.Counterparties.AsNoTracking()
+                    on new { debt.UserId, Id = debt.CounterpartyId }
+                    equals new { counterparty.UserId, counterparty.Id }
                 where installment.UserId == userId &&
                       installment.PaymentAccountId == null &&
                       (scope == null || debt.Scope == scope) &&
@@ -508,7 +511,7 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
                     DebtId = debt.Id,
                     installment.Sequence,
                     debt.Direction,
-                    debt.CounterpartyName,
+                    CounterpartyName = counterparty.Name,
                     debt.Description,
                     Amount = installment.Amount.Amount,
                     Currency = installment.Amount.Currency,

@@ -69,6 +69,85 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
     }
 
     /// <summary>
+    /// Adı yazılan karşı tarafı bulur, yoksa kurar ve <b>kaydetmeden</b> döner.
+    /// </summary>
+    /// <remarks>
+    /// Kaydetmeyi çağıran yazma işlemi üstlenir; böylece yeni karşı taraf ile
+    /// onu isteyen sözleşme aynı SaveChanges sınırında yazılır. Ayrı kaydetmek,
+    /// sözleşme doğrulamada düştüğünde ortada sahipsiz bir karşı taraf
+    /// bırakırdı.
+    ///
+    /// Pasif bir karşı taraf da bulunur ve olduğu gibi döner: yeni iş yapmayı
+    /// engellemek karşı tarafın değil, kaydın kuralıdır ve orada uygulanır.
+    /// </remarks>
+    public async Task<Counterparty> FindOrCreateByNameAsync(
+        Guid userId,
+        string name,
+        CancellationToken cancellationToken)
+    {
+        var normalized = name?.Trim() ?? string.Empty;
+        var existing = await FindByNameAsync(userId, normalized, cancellationToken);
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        // Ad boşsa ya da sınırı aşıyorsa burada patlar; doğrulama tek yerde,
+        // Counterparty'nin kendisinde durur.
+        var created = new Counterparty(Guid.NewGuid(), userId, normalized);
+        await dbContext.Counterparties.AddAsync(created, cancellationToken);
+        return created;
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, string>> ListNamesAsync(
+        Guid userId,
+        IReadOnlyCollection<Guid> counterpartyIds,
+        CancellationToken cancellationToken)
+    {
+        if (counterpartyIds.Count == 0)
+        {
+            return new Dictionary<Guid, string>();
+        }
+
+        return await dbContext.Counterparties
+            .AsNoTracking()
+            .Where(counterparty => counterparty.UserId == userId &&
+                                   counterpartyIds.Contains(counterparty.Id))
+            .ToDictionaryAsync(
+                counterparty => counterparty.Id,
+                counterparty => counterparty.Name,
+                cancellationToken);
+    }
+
+    /// <remarks>
+    /// SQL Server’da karşılaştırma kolonun harf duyarsız collation’ıyla yapılır;
+    /// InMemory sağlayıcısı aynı şeyi yapmadığı için orada açıkça duyarsız
+    /// karşılaştırılır. İki yolun ayrılması, testte bulunan bir adın gerçekte
+    /// ikinci kez oluşmasını engelliyor.
+    /// </remarks>
+    private async Task<Counterparty?> FindByNameAsync(
+        Guid userId,
+        string normalizedName,
+        CancellationToken cancellationToken)
+    {
+        var query = dbContext.Counterparties.Where(counterparty => counterparty.UserId == userId);
+
+        if (string.Equals(
+                dbContext.Database.ProviderName,
+                "Microsoft.EntityFrameworkCore.InMemory",
+                StringComparison.Ordinal))
+        {
+            var candidates = await query.ToArrayAsync(cancellationToken);
+            return candidates.SingleOrDefault(counterparty =>
+                string.Equals(counterparty.Name, normalizedName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return await query.SingleOrDefaultAsync(
+            counterparty => counterparty.Name == normalizedName,
+            cancellationToken);
+    }
+
+    /// <summary>
     /// Bakiye = borçlandırmalar − tahsilatlar, iki yön ayrı ayrı.
     /// </summary>
     /// <remarks>

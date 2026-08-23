@@ -40,7 +40,6 @@ internal sealed class DebtAgreementConfiguration : IEntityTypeConfiguration<Debt
         });
         builder.HasKey(x => x.Id);
         builder.HasAlternateKey(x => new { x.UserId, x.Id });
-        builder.Property(x => x.CounterpartyName).HasMaxLength(DebtAgreement.MaximumNameLength);
         builder.Property(x => x.Direction).HasConversion<byte>().HasColumnType("tinyint");
         builder.Property(x => x.Scope).HasConversion<byte>().HasColumnType("tinyint");
         builder.OwnsOne(x => x.Principal, money =>
@@ -76,6 +75,15 @@ internal sealed class DebtAgreementConfiguration : IEntityTypeConfiguration<Debt
             .HasPrincipalKey(x => new { x.UserId, x.Id })
             .OnDelete(DeleteBehavior.Cascade);
         builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+
+        // Ad artık karşı tarafta yaşıyor; sözleşme yalnız kimliği taşır ve
+        // sahiplik kapsamı yine foreign key'in kendisindedir.
+        builder.HasOne<Counterparty>().WithMany()
+            .HasForeignKey(x => new { x.UserId, x.CounterpartyId })
+            .HasPrincipalKey(counterparty => new { counterparty.UserId, counterparty.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(x => new { x.UserId, x.CounterpartyId })
+            .HasDatabaseName("IX_DebtAgreements_UserId_CounterpartyId");
         builder.HasIndex(x => new { x.UserId, x.Direction });
     }
 }

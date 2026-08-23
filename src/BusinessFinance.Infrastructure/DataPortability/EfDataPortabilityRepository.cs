@@ -180,6 +180,7 @@ public sealed class EfDataPortabilityRepository(
             dbContext.RecurringTransactions.AddRange(graph.RecurringTransactions);
             dbContext.RecurringTransactionOccurrences.AddRange(graph.Occurrences);
             dbContext.ImportBatches.AddRange(graph.ImportBatches);
+            dbContext.Counterparties.AddRange(graph.Counterparties);
             dbContext.DebtAgreements.AddRange(graph.Debts);
             dbContext.SavingsGoals.AddRange(graph.Goals);
             if (graph.Attachments.Length > 0 && attachmentStore is null)
@@ -239,6 +240,13 @@ public sealed class EfDataPortabilityRepository(
             .Where(x => x.UserId == userId).OrderBy(x => x.Id).ToArrayAsync(cancellationToken);
         var debts = await dbContext.DebtAgreements.AsNoTracking().Include(x => x.Installments)
             .Where(x => x.UserId == userId).OrderBy(x => x.Id).ToArrayAsync(cancellationToken);
+
+        // Yedek adı taşımaya devam ediyor, kimliği değil: karşı taraf
+        // tabloları şemaya kendi sürümüyle girecek ve o zamana kadar ad,
+        // sözleşmeyi geri yüklerken karşı tarafı yeniden kurmaya yetiyor.
+        var counterpartyNames = await dbContext.Counterparties.AsNoTracking()
+            .Where(x => x.UserId == userId)
+            .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
         var goals = await dbContext.SavingsGoals.AsNoTracking().Include(x => x.Contributions)
             .Where(x => x.UserId == userId).OrderBy(x => x.Id).ToArrayAsync(cancellationToken);
         var attachments = await dbContext.FinancialAttachments.AsNoTracking()
@@ -299,7 +307,7 @@ public sealed class EfDataPortabilityRepository(
                     r.Description, r.ExternalReference, r.AccountId, r.CategoryId, r.Status,
                     r.ErrorMessage, r.BudgetTransactionId, r.DuplicateTransactionId, r.DuplicateReason)).ToArray())).ToArray(),
             debts.Select(x => new DebtBackup(
-                x.Id, x.CounterpartyName, x.Direction, x.Scope, x.Principal.Amount, x.TotalRepayment.Amount,
+                x.Id, counterpartyNames[x.CounterpartyId], x.Direction, x.Scope, x.Principal.Amount, x.TotalRepayment.Amount,
                 x.Principal.Currency, x.AnnualInterestRate, x.StartDate, x.FirstDueDate,
                 x.InstallmentCount, x.Description,
                 x.Installments.OrderBy(i => i.Sequence).Select(i => new DebtInstallmentBackup(
@@ -559,16 +567,28 @@ public sealed class EfDataPortabilityRepository(
                 importBatches.Add(batch);
             }
 
+            // Sözleşmeler adlarını paylaşabilir; aynı ad tek karşı taraf
+            // olur, yoksa yedek aynı kişiyi birden çok kez kurar ve
+            // (UserId, Name) tekliği zaten buna izin vermez.
+            var counterparties = new Dictionary<string, Counterparty>(
+                StringComparer.OrdinalIgnoreCase);
             var debts = new List<DebtAgreement>();
             foreach (var item in snapshot.Debts)
             {
+                var counterpartyName = item.CounterpartyName?.Trim() ?? string.Empty;
+                if (!counterparties.TryGetValue(counterpartyName, out var counterparty))
+                {
+                    counterparty = new Counterparty(Guid.NewGuid(), userId, counterpartyName);
+                    counterparties.Add(counterpartyName, counterparty);
+                }
+
                 // Açılışı kayıtsız borç yedekte de kayıtsız kalır; kullanıcı
                 // uygulamada tamamlar. Yedekteki `AnnualInterestRate` okunmuyor:
                 // oran artık paradan çözülüyor ve yedekteki değer hiçbir hesaba
                 // girmemiş, serbestçe yazılmış bir sayıydı.
                 var debt = item.SourceType != DebtSourceType.Unrecorded
                     ? new DebtAgreement(
-                        Guid.NewGuid(), userId, item.CounterpartyName, item.Direction, item.Scope,
+                        Guid.NewGuid(), userId, counterparty, item.Direction, item.Scope,
                         MoneyOf(item.Principal, item.Currency), MoneyOf(item.TotalRepayment, item.Currency),
                         item.SourceType,
                         item.OpeningAccountId is Guid openingAccountId
@@ -579,7 +599,7 @@ public sealed class EfDataPortabilityRepository(
                             : null,
                         item.StartDate, item.FirstDueDate, item.InstallmentCount, item.Description)
                     : DebtAgreement.WithUnrecordedOpening(
-                        Guid.NewGuid(), userId, item.CounterpartyName, item.Direction, item.Scope,
+                        Guid.NewGuid(), userId, counterparty, item.Direction, item.Scope,
                         MoneyOf(item.Principal, item.Currency), MoneyOf(item.TotalRepayment, item.Currency),
                         item.StartDate, item.FirstDueDate, item.InstallmentCount, item.Description);
                 if (debt.Installments.Count != item.Installments.Length)
@@ -666,8 +686,8 @@ public sealed class EfDataPortabilityRepository(
                 accountMap.Values.ToArray(), categoryMap.Values.ToArray(), transactionMap.Values.ToArray(),
                 budgets, transfers, cardMap.Values.ToArray(), chargeMap.Values.ToArray(), payments,
                 installmentPlans.ToArray(), recurringTransactions.ToArray(), occurrences.ToArray(),
-                importBatches.ToArray(), debts.ToArray(), goals.ToArray(),
-                restoredAttachments.ToArray());
+                importBatches.ToArray(), counterparties.Values.ToArray(), debts.ToArray(),
+                goals.ToArray(), restoredAttachments.ToArray());
         }
         catch (DataPortabilityException)
         {
@@ -694,6 +714,7 @@ public sealed class EfDataPortabilityRepository(
             await dbContext.InstallmentPlans.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.RecurringTransactions.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.ImportBatches.AnyAsync(x => x.UserId == userId, cancellationToken) ||
+            await dbContext.Counterparties.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.DebtAgreements.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.SavingsGoals.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.FinancialAttachments.AnyAsync(x => x.UserId == userId, cancellationToken);
@@ -1011,6 +1032,7 @@ internal sealed record RestoredGraph(
     RecurringTransaction[] RecurringTransactions,
     RecurringTransactionOccurrence[] Occurrences,
     ImportBatch[] ImportBatches,
+    Counterparty[] Counterparties,
     DebtAgreement[] Debts,
     SavingsGoal[] Goals,
     RestoredAttachment[] Attachments);

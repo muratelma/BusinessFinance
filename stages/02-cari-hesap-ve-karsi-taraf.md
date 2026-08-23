@@ -163,7 +163,7 @@ geçirir** ve 03'e devreder.
   cari iki tarafı da sıfır olandır; eksi bakiyede hâlâ konuşulacak para var.
 - Yazma yolu (endpoint, use case) bu grupta açılmadı: Grup 3 okuma modelidir.
 
-### Grup 4 — Mevcut borç modelinin bağlanması
+### Grup 4 — Mevcut borç modelinin bağlanması — **Tamamlandı**
 
 - `DebtAgreement.CounterpartyName` → `CounterpartyId`. Ad artık karşı taraftan
   okunur.
@@ -172,6 +172,26 @@ geçirir** ve 03'e devreder.
 - Karşı taraf ayrıntı ekranı iki bloğu birlikte gösterir: açık cari bakiyesi ve
   varsa taksitli sözleşmeleri. **Toplam tek kez** hesaplanır.
 - Ölçüt: aynı karşı tarafın iki kaynaktaki tutarı net varlıkta bir kez sayılıyor.
+- Sonuç: sözleşme adı taşımayı bıraktı; okuma yolları (feed, planlanan
+  görünüm, fiş yinelenme araması, dışa aktarma) adı karşı taraftan join ile
+  alıyor ve feed tek SQL sorgusunda kaldı. `counterpartyId` cevaba eklendi.
+- **Migration elle yazıldı.** Üretilen hâli ad kolonunu düşürüp yerine
+  `Guid.Empty` varsayılanlı zorunlu bir kolon koyuyordu — dolu bir
+  veritabanında her sözleşmenin karşı tarafını kaybetmek demekti. Sıra:
+  kolon (nullable) → backfill → zorunluluk → kısıt → ad kolonunun düşmesi.
+  Yükseltme yolu gerçek SQL üzerinde, satır yazılmış bir veritabanında
+  test ediliyor.
+- **Karar:** karşı taraf adı sınırı 150'ye çıktı (100 idi). Sözleşme adı 150'ye
+  kadar çıkabiliyordu; dar sınır taşınan adı kırpardı. Tek kavramın tek
+  sınırı var.
+- **Karar:** bul-ya-da-oluştur karşı tarafı **kaydetmez**; sözleşmeyle aynı
+  `SaveChanges` sınırında yazılır. Ayrı kaydetmek, sözleşme doğrulamada
+  düştüğünde ortada sahipsiz bir karşı taraf bırakırdı.
+- **Karar:** yedek şeması **v6 kaldı**. Yedek adı taşımaya devam ediyor ve
+  geri yükleme addan karşı tarafı yeniden kuruyor; karşı taraf tablolarının
+  kendisi Grup 8'de v7 ile giriyor.
+- Karşı taraf ayrıntı ekranı Grup 7'nin işi; bu grup onun okuduğu iki kaynağı
+  tek kişide buluşturdu ve tutarların birbirini toplamadığını kanıtladı.
 
 ### Grup 5 — Birleşik feed ve raporlar
 

@@ -60,6 +60,7 @@ public sealed record DebtInstallmentDto(
 
 public sealed record DebtDto(
     Guid Id,
+    Guid CounterpartyId,
     string CounterpartyName,
     DebtDirection Direction,
     TransactionScope Scope,

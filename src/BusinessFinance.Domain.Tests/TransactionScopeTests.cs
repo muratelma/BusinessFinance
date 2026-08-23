@@ -123,10 +123,12 @@ public class TransactionScopeTests
         var userId = Guid.NewGuid();
         var account = CreateAccount(userId);
 
+        var lender = new Counterparty(Guid.NewGuid(), userId, "Synthetic lender");
+
         var debt = new DebtAgreement(
             Guid.NewGuid(),
             userId,
-            "Synthetic lender",
+            lender,
             DebtDirection.Payable,
             TransactionScope.Business,
             new Money(300m, CurrencyCode.TRY),
@@ -141,7 +143,7 @@ public class TransactionScopeTests
         Action act = () => DebtAgreement.WithUnrecordedOpening(
             Guid.NewGuid(),
             userId,
-            "Synthetic lender",
+            lender,
             DebtDirection.Payable,
             Undefined,
             new Money(300m, CurrencyCode.TRY),

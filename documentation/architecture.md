@@ -480,9 +480,9 @@ ayın neti`. Bir taraf seçiliyken hero o tarafın netini adıyla gösterir.
 
 ## Cari hesap: karşı taraf ve açık bakiye
 
-> Aşama 02, Grup 2–3 — **domain katmanı, kalıcılık ve bakiye projection'ı**.
-> Feed, arayüz ve yedek kendi gruplarında gelir; bu bölüm yalnız bugün var
-> olanı anlatır.
+> Aşama 02, Grup 2–4 — **domain katmanı, kalıcılık, bakiye projection'ı ve
+> borç modelinin bağlanması**. Feed, arayüz ve yedek kendi gruplarında
+> gelir; bu bölüm yalnız bugün var olanı anlatır.
 
 Karşı taraf (`Counterparty`) müşteri, tedarikçi ya da ikisi birden. **Ayrı tip
 yok:** mahalle esnafında aynı kişi hem alıcı hem satıcıdır ve ikiye bölmek
@@ -546,6 +546,29 @@ başka kullanıcının karşı tarafına yazılan bir hareket veritabanı seviye
 reddedilir. `(UserId, Name)` tekil indeksi aynı kişinin iki kez oluşmasını
 engeller. Tahsilat tablosunda **kategori ve kapsam kolonu hiç yoktur**;
 yokluğu migration testiyle korunuyor.
+
+#### Taksitli sözleşme de aynı karşı tarafa bağlı
+
+`DebtAgreement` karşı tarafın **adını taşımayı bıraktı**, kimliğine bağlandı
+(`CounterpartyId`, aynı composite foreign key deseni). Ad tek yerde,
+`Counterparty` kaydında yaşıyor; ikinci bir kopya, karşı taraf yeniden
+adlandırıldığında sözleşmeyi eski adla bırakırdı. Okuma yolları (birleşik
+feed, planlanan görünüm, fiş yinelenme araması, dışa aktarma) adı karşı
+taraftan **join ile** alır; feed yine tek SQL sorgusudur.
+
+Sözleşme açarken kullanıcı ad yazar: sunucu karşı tarafı **bulur ya da
+kurar** ve iki adımlı bir akışa zorlamaz. Yeni karşı taraf, sözleşmeyle
+**aynı kaydetme sınırında** yazılır; ayrı kaydetmek, sözleşme doğrulamada
+düştüğünde ortada sahipsiz bir karşı taraf bırakırdı.
+
+Aynı kişinin iki kaynağı birbirini toplamaz: net varlık taksitli sözleşmenin
+**kalan anaparasını** sayar (ADR 0010), açık cari kendi projection'ında
+durur. Cari borçlandırmanın gelir/gider raporuna ve feed'e katılması Grup
+5'in işi; bugün oraya girmiyor.
+
+Yedek dosyası **adı taşımaya devam ediyor**, kimliği değil: karşı taraf
+tabloları şemaya kendi sürümüyle (v7) girecek. Geri yükleme addan karşı
+tarafı yeniden kurar ve aynı ad tek kayıt olur.
 
 ### Taşınabilirlik: dışa aktarma ile yedek ayrı şeylerdir
 
