@@ -18,6 +18,7 @@ geçmişti; buraya taşındılar çünkü hâlâ geçerliler.
 | 2 | **Bütçe ekranı iyileştirmeleri** — kapsamı belirsiz; alınmadan önce kısa bir öneri listesine dönmesi gerekiyor. Bütçenin hangi kapsamı sınırladığı sorusu Aşama 01'e girdi; geri kalan iyileştirmeler burada duruyor | kullanıcı listesi | Öneri |
 | 3 | **Fiş/dekont akışının cihaz kabul turu** — belge yönü (harcama/gelir/iade/fatura-ödeme/taksit/borç verme) için Pixel 8'de manuel kabul turu yapılmadı. Kod ve testler yerinde; eksik olan cihaz doğrulaması | devralınan | Açık |
 | 4 | **Fiş okumada veri sınırı kararı** — hangi belgenin hangi katmana gönderileceği kararı bilinçli olarak ertelenmişti. Gerçek ve değerli belgeye geçmeden önce alınmalı ve ADR 0011'e işlenmeli | devralınan | Açık |
+| 5 | **Hesap, kart ve kategorinin varsayılan kapsamı uygulamadan ayarlanamıyor** — alan API'de var (`defaultScope`, oluşturma ve güncellemede), Flutter istemcisi ne gönderiyor ne gösteriyor. Türetme zincirinin orta halkası (kaynağın etiketi) bu yüzden yalnız API'den kurulabiliyor; uygulamada zincir kategoriden çözülüyor ve istisna çiple düzeltiliyor. Aşama 01'in vaadi bu hâliyle karşılanıyor, ama tek hesabına "dükkân kasası" deyip her kaydı oradan işletme saymak isteyen esnaf bunu yapamıyor. 23 Ağustos 2026 kabul turunda görüldü | kabul turu | Öneri |
 
 ## Notlar (iş değil, kayıt)
 

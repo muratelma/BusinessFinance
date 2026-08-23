@@ -381,9 +381,10 @@ Henüz uygulanmamış davranış, uygulanmış gibi yazılmaz.
       gerçek SQL testleri; kapsam filtresi owner predicate'inin üstüne biniyor).
 - [x] Aynı ay üç kapsamda okunduğunda bakiye ve net varlığın değişmediği testle
       kanıtlandı (`ScopeFilter_SplitsIncomeAndExpense...`, gerçek SQL).
-- [ ] İki farklı esnaf senaryosu sentetik veriyle uçtan uca girildi; işletme
-      neti şahsi harcamadan etkilenmedi. **Kalan tek iş bu:** emulator'de,
-      çalışan API'ye karşı elle yürütülür (`documentation/local-setup-and-acceptance.md`).
+- [x] İki farklı esnaf senaryosu sentetik veriyle uçtan uca girildi; işletme
+      neti şahsi harcamadan etkilenmedi. 23 Ağustos 2026, Pixel 8 emulator +
+      çalışan API + gerçek SQL: `stage01_scope_acceptance_test.dart` üç senaryo
+      (kasap, manav + terzi, ev hâli) ve ekranın elle gezilmesi.
 - [x] `documentation/` ve `docs/project-status.md` güncel.
 - [ ] Kullanıcı Aşama 02'yi açıkça onayladı.
 

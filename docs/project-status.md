@@ -13,9 +13,9 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   yeniden yazıldı; kod değişmedi
 - Aktif aşama: **01 — Kapsam boyutu ve işletme kimliği.** 22 Ağustos 2026'da
   kullanıcı onayıyla açıldı. Belgesi `stages/01-kapsam-boyutu-ve-isletme-kimligi.md`;
-  dokuz çalışma grubu; **dokuzu da tamamlandı**. Aşama hâlâ **Aktif**: kapanması
-  için elle yürütülecek iki esnaf senaryosu kabul turu ve kullanıcının Aşama
-  02'yi açması gerekiyor
+  dokuz çalışma grubu; **dokuzu da tamamlandı** ve kabul turu 23 Ağustos
+  2026'da yürütüldü. Aşama hâlâ **Aktif**: kapanması için tek kalan koşul
+  kullanıcının Aşama 02'yi açması
 - Kalan beş aşamanın belgesi de yazılı, durumları `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
@@ -435,6 +435,60 @@ Aşamanın son grubu. Kapsam artık kullanıcının dosyalarında da yazılı.
 | Flutter test | **701 geçti** |
 | Flutter debug APK | Derlendi |
 
+## 23 Ağustos 2026 — Aşama 01 kabul turu (Pixel 8 + gerçek API + gerçek SQL)
+
+Aşamanın son çıkış koşulu karşılandı. Kurulum: SQL container healthy, API
+güncel derlemeyle `http://localhost:5284` (live/ready 200), Pixel 8 emulator,
+debug APK `API_BASE_URL=http://10.0.2.2:5284`.
+
+**Otomatik senaryolar** — `integration_test/stage01_scope_acceptance_test.dart`,
+cihazda çalıştı, üçü de geçti. Her kayıt kapsam **göndermeden** oluşturuldu;
+kapsamı sunucu türetti:
+
+- **Kasap:** dükkân kasası, 600 satış + 200 mal alımı → işletme neti 400.
+  Ardından aynı kasadan 300 market alışverişi → **işletme neti kıpırdamadı**,
+  şahsi taraf −300, ayın neti 100. Bakiye üç kapsam okumasında da 1.100.
+  Filtreli okuma kırılım taşımadı; feed işletme tarafında iki, şahsi tarafta
+  bir satır gösterdi
+- **Manav + terzi:** işletme kategorisine yazılan bir gider çipten şahsi
+  seçilerek istisna edildi (işletme neti 1.000, şahsi −150). İkinci esnaf
+  kaydolduğunda kendi tablosu boş geldi ve birincinin kaydını **hiçbir
+  kapsamda** görmedi
+- **Ev hâli:** "işletmem yok" diyen kullanıcıda kayıt sessizce şahsi tarafa
+  yazıldı; işletme tarafı 0 kaldı
+
+**Elle gezilen ekran** — aynı verinin uygulamadaki hâli:
+
+- Özet başlığının altında `Hepsi · İşletme · Şahsi` anahtarı; hero
+  `İşletme neti ₺4.250,00`, altında `Şahsi çekim −₺1.275,50` ve
+  `Bu ayın neti ₺2.974,50`. Üç sayı birbirini tutuyor
+- Anahtar `İşletme`ye alınınca gider 3.425,50 → 2.150,00 düştü, kategori
+  listesi 2 kategoriden 1'e indi, hero `Yalnız işletme tarafı` yazdı
+- `Varlık durumu` ve `Hesap bakiyeleri` filtre açıkken **toplam gösterdiklerini
+  yazdı** ve değişmedi (₺3.974,50)
+- `İşlemler` başlığı `İşlemler · İşletme` oldu ve market satırı listeden düştü
+- Gider formunda kategori seçilince kapsam çipi `İşletme` olarak doldu ve
+  altında "Kategorinin varsayılanından geldi" yazdı; `Şahsi`ye dokununca
+  "Bu kayıt için siz seçtiniz." oldu
+
+**Kabul turunun iki bulgusu:**
+
+- **Hesap, kart ve kategorinin varsayılan kapsamı uygulamadan ayarlanamıyor.**
+  Alan API'de var, Flutter istemcisi ne gönderiyor ne gösteriyor. Zincirin orta
+  halkası bu yüzden yalnız API'den kurulabiliyor; uygulamada kapsam kategoriden
+  çözülüyor ve istisna çiple düzeltiliyor. Aşamanın vaadi bu hâliyle
+  karşılanıyor — ama tek hesabına "dükkân kasası" deyip her kaydı oradan
+  işletme saymak isteyen esnaf bunu yapamıyor. `docs/backlog.md` 5. madde
+- **Pixel 8 AVD'de uygulama Impeller ile ilk kareyi çizmiyor**; süreç yaşıyor,
+  Dart VM açılıyor, ekran Flutter logosunda kalıyor.
+  `--ez enable-impeller false` ile açılıyor. Uygulama hatası değil, emulator
+  grafik yığını; `documentation/local-setup-and-acceptance.md` sorun giderme
+  bölümüne yazıldı
+
+Turda 08:35'ten beri çalışan **eski derlemeli** bir API örneği bulundu ve
+durduruldu; kabul güncel derlemeye karşı yürütüldü ve API o hâliyle çalışır
+bırakıldı.
+
 ## Açık kararlar ve riskler
 
 - **Yerel veritabanının silinmesi onay bekliyor.** Aşama 01 Grup 1'in ilk işi;
@@ -450,12 +504,11 @@ Aşamanın son grubu. Kapsam artık kullanıcının dosyalarında da yazılı.
 
 ## Sıradaki tek küçük görev
 
-- **Aşama 01'in kapanış turu:** iki farklı esnaf senaryosunu sentetik veriyle
-  emulator'de uçtan uca girmek ve işletme netinin şahsi harcamadan
-  etkilenmediğini elle görmek (`documentation/local-setup-and-acceptance.md`).
-  Kod tarafında dokuz grubun hepsi bitti; bu tek çıkış koşulu otomatik testle
-  değil, gerçek cihazda karşılanır. Ardından aşamanın kapanması ve Aşama 02'nin
-  açılması **kullanıcı onayına** bağlıdır.
+- **Aşama 01'i kapatmak.** Dokuz grubun hepsi bitti, kabul turu yürütüldü ve
+  yedi çıkış koşulunun yedisi karşılandı. Kalan tek koşul kullanıcının Aşama
+  02'yi açıkça onaylaması; onaydan sonra `stages/README.md` adımları izlenir
+  (belge `docs/archive/stages/` altına taşınır, roadmap durumu `Tamamlandı`
+  olur).
 
 ## Son oturum kapanışı
 
@@ -466,5 +519,6 @@ Aşamanın son grubu. Kapsam artık kullanıcının dosyalarında da yazılı.
   **Dokuz çalışma grubunun hepsi bitti**
 - Geçen kontroller: backend build + format + **804 test** (SQL dahil); Flutter
   analyze + format + **701 test** + debug APK derlemesi
-- Sıradaki görev: aşamanın kapanış turu — emulator'de iki esnaf senaryosunun
-  elle girilmesi; aşamayı kapatmak ve Aşama 02'yi açmak kullanıcı onayı ister
+- Kabul turu: Pixel 8 emulator + çalışan API + gerçek SQL. Üç otomatik senaryo
+  geçti, ekran elle gezildi, iki bulgu kayda geçti
+- Sıradaki görev: aşamayı kapatmak ve Aşama 02'yi açmak — kullanıcı onayı ister

@@ -122,6 +122,8 @@ Gerçek ad, e-posta, parola, hesap veya finansal açıklama kullanmayın.
 | SQL kapalı | Manuel | Live 200, ready 503; SQL dönünce ready 200 | kontrollü stop/start |
 | Validation/boş veri | Widget+unit | Alan hatası veya açıklayıcı boş durum | transaction/budget widget testleri |
 | Timeout/çift gönderim | Unit | Açık timeout; istemci aynı submit'i kilitler | ApiClient/controller testleri |
+| Kapsam: iki esnaf senaryosu | Otomatik | Kapsam gönderilmeden kayıt doğru tarafa yazılır; **işletme neti şahsi harcamadan etkilenmez**; bakiye üç kapsamda da aynı; ikinci esnaf birincinin kaydını hiçbir kapsamda görmez | `stage01_scope_acceptance_test.dart` (Pixel 8 + gerçek API/SQL, 23 Ağustos 2026) |
+| Kapsam: özet ekranı ve form | Manuel | Anahtar üç konumda; hero `İşletme neti` / `Şahsi çekim` / `Bu ayın neti`; `İşletme` seçilince gider yalnız işletme tarafını gösterir; `Varlık durumu` ve `Hesap bakiyeleri` toplam gösterdiğini yazar; formdaki çip kategoriden dolar ve tek dokunuşla değişir | Pixel 8 gözlemi, 23 Ağustos 2026 |
 
 ## 8. Durdurma ve sorun giderme
 
@@ -138,6 +140,12 @@ docker compose stop sqlserver
 - Emulator görünmüyor: Device Manager'dan AVD'yi yeniden başlatıp `adb devices`
   çalıştırın.
 - `ready` 503: SQL health ve user-secret connection string anahtarını kontrol edin.
+- **Uygulama açılıyor ama ekran boş kalıyor (Flutter logosunda takılıyor):**
+  Pixel 8 AVD'de Impeller/OpenGLES ilk kareyi çizemeyebiliyor; süreç yaşıyor,
+  Dart VM açılıyor, ama yüzey boyanmıyor. Uygulamayı Impeller kapalı başlatın:
+  `adb shell am start -n com.nef.business_finance_mobile/.MainActivity --ez enable-impeller false`.
+  Bu bir uygulama hatası değil, emulator grafik yığınının durumudur; 23 Ağustos
+  2026 kabul turunda görüldü ve bu yolla aşıldı.
 - Login ekranında eski oturum: APK'yı uninstall/install edin; SQL verisinin
   kalacağını unutmayın ve benzersiz sentetik kullanıcı kullanın.
 
