@@ -129,6 +129,42 @@ public sealed class DataPortabilityTests
         Assert.Contains("\"Market, haftalık\"", text, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Dışa aktarılan dosya kaydın hangi tarafa yazıldığını da taşır.
+    /// </summary>
+    /// <remarks>
+    /// Kapsamsız bir dosya, kullanıcının kendi arşivinde işletme ile cebini
+    /// bir daha ayıramaz hâle getirirdi: aynı kategoride, aynı hesaptan iki
+    /// kayıt arasındaki tek fark kapsamdır ve dosyada yazmazsa geri
+    /// getirilemez.
+    /// </remarks>
+    [Fact]
+    public async Task TransactionsCsv_CarriesTheScopeOfEachRow()
+    {
+        await using var context = CreateContext();
+        var userId = Guid.NewGuid();
+        await SeedCompleteGraphAsync(context, userId);
+        var service = new EfDataPortabilityRepository(context);
+
+        var file = await service.ExportTransactionsCsvAsync(userId, default);
+        var lines = Encoding.UTF8.GetString(file.Content)
+            .Split('\n')
+            .Select(line => line.TrimEnd('\r'))
+            .Where(line => line.Length > 0)
+            .ToArray();
+        var header = lines[0].TrimStart('\uFEFF').Split(',');
+        var scopeColumn = Array.IndexOf(header, "scope");
+        var scopes = lines.Skip(1)
+            .Select(line => line.Split(',')[scopeColumn])
+            .ToArray();
+
+        Assert.Equal(Array.IndexOf(header, "type") + 1, scopeColumn);
+        Assert.Contains("business", scopes);
+        Assert.Contains("personal", scopes);
+        // Kararlı makine değeri; ekrandaki Türkçe etiket değil.
+        Assert.All(scopes, value => Assert.Contains(value, new[] { "business", "personal" }));
+    }
+
     [Fact]
     public async Task Backup_UnknownVersionPropertyAndDuplicatePropertyAreRejected()
     {

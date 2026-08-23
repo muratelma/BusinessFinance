@@ -13,8 +13,9 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   yeniden yazıldı; kod değişmedi
 - Aktif aşama: **01 — Kapsam boyutu ve işletme kimliği.** 22 Ağustos 2026'da
   kullanıcı onayıyla açıldı. Belgesi `stages/01-kapsam-boyutu-ve-isletme-kimligi.md`;
-  dokuz çalışma grubu; **Grup 1–8 tamamlandı**, kalan tek grup CSV kapsam
-  kolonu ve runbook tatbikatı
+  dokuz çalışma grubu; **dokuzu da tamamlandı**. Aşama hâlâ **Aktif**: kapanması
+  için elle yürütülecek iki esnaf senaryosu kabul turu ve kullanıcının Aşama
+  02'yi açması gerekiyor
 - Kalan beş aşamanın belgesi de yazılı, durumları `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
@@ -397,6 +398,43 @@ tarafıyla birlikte okunuyor.
 | Flutter test | **700 geçti** (692 → +8) |
 | Flutter debug APK | Derlendi |
 
+## 23 Ağustos 2026 — Aşama 01, Grup 9: CSV kapsam kolonu ve yedek tatbikatı
+
+Aşamanın son grubu. Kapsam artık kullanıcının dosyalarında da yazılı.
+
+- **İşlem CSV'si `scope` kolonu taşıyor**, `type`'ın hemen yanında: ikisi de
+  kaydın ne olduğunu söyleyen boyutlar ve satırı okuyan kişi "expense,
+  personal" diye yan yana okuyor. Kapsamsız bir dosya, kullanıcının kendi
+  arşivinde aynı hesaptan aynı kategoriye yazılmış iki kaydı bir daha ayıramaz
+  hâle getirirdi
+- **İçe aktarma kolonu okumuyor** ve okumayacak: o ayrıştırıcı banka ekstresi
+  içindir, kapsamı zincirden çözer. Dışa aktarma okumak ve arşivlemek için;
+  veri taşımanın tek yolu yedek/geri yükleme
+- **Yolda sessiz bir kırılma bulundu ve kapatıldı.** İstemci, kendi dışa
+  aktarımını içe aktarma ekranında **tam başlık dizesiyle** tanıyordu. Kapsam
+  kolonu o dizeyi değiştirdiği anda koruma sessizce kalkacak, kullanıcı kendi
+  dosyasını banka importer'ına verip her hareketi ikinci kez yazdırabilecekti.
+  Tanıma artık yalnız bu dosyada bulunan kolonlara bakıyor
+  (`transactionDate` + `isCancelled`; hiçbir banka ekstresinde `isCancelled`
+  yoktur) ve bir test hem eski hem de gelecekte bir kolon daha eklenmiş
+  başlığın tanındığını koruyor
+- **Runbook** v6'ya göre zaten yazılmıştı (Grup 2); bu turda tatbikata kapsam
+  doğrulama adımı eklendi, hata tablosundaki eskimiş `v1` satırı v2–v5
+  reddine güncellendi, CSV ile yedeğin aynı şey olmadığı açıkça yazıldı.
+  Geri yüklemede kapsamın korunduğunu gerçek SQL üzerinde çalışan
+  `Backup_ValidatesAndRestoresCompleteSyntheticGraphToEmptyOwner` kanıtlıyor
+- Eskimiş bir kod yorumu da düzeltildi: doğrulama özeti "v2 hâlâ kabul
+  ediliyor" diyordu; yalnız v6 okunuyor
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (SQL dahil) | **804 geçti**, 1 atlandı (`GeminiLiveContractTests`) |
+| Flutter analyze / format | No issues found, temiz |
+| Flutter test | **701 geçti** |
+| Flutter debug APK | Derlendi |
+
 ## Açık kararlar ve riskler
 
 - **Yerel veritabanının silinmesi onay bekliyor.** Aşama 01 Grup 1'in ilk işi;
@@ -412,18 +450,21 @@ tarafıyla birlikte okunuyor.
 
 ## Sıradaki tek küçük görev
 
-- **Aşama 01, Grup 9:** CSV dışa aktarmada kapsam kolonu (içe aktarma kapsamı
-  zincirden alıyor, o taraf hazır) ve `documentation/restore-runbook.md`'nin v6
-  yedeğiyle tatbikatı. Yedek şemasının sürüm kapısı Grup 2'de yapılmıştı;
-  kalan bu iki madde aşamanın son işi.
+- **Aşama 01'in kapanış turu:** iki farklı esnaf senaryosunu sentetik veriyle
+  emulator'de uçtan uca girmek ve işletme netinin şahsi harcamadan
+  etkilenmediğini elle görmek (`documentation/local-setup-and-acceptance.md`).
+  Kod tarafında dokuz grubun hepsi bitti; bu tek çıkış koşulu otomatik testle
+  değil, gerçek cihazda karşılanır. Ardından aşamanın kapanması ve Aşama 02'nin
+  açılması **kullanıcı onayına** bağlıdır.
 
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: Aşama 01 **Grup 7 ve Grup 8 uygulandı** — Flutter kapsam
-  anahtarı, bölünen ekranların başlığında aktif kapsam, bölünmeyen bölümlerde
-  toplam notu, formda düzeltilebilir kapsam çipi, kayıt formundaki onboarding
-  sorusu, `Diğer` menüsünde cevabı değiştiren anahtar; ardından aylık raporun
-  kapsam kırılımı ve özet ekranının üç sayılı hero'su
-- Geçen kontroller: backend build + format + **803 test** (SQL dahil); Flutter
-  analyze + format + **700 test** + debug APK derlemesi
-- Sıradaki görev: Aşama 01 Grup 9 — CSV kapsam kolonu ve restore runbook
+- Yapılan değişiklik: Aşama 01 **Grup 7, 8 ve 9 uygulandı** — Flutter kapsam
+  anahtarı ve formdaki kapsam çipi, onboarding sorusunun istemci yüzü, aylık
+  raporun kapsam kırılımı ile özet ekranının üç sayılı hero'su, işlem CSV'sinde
+  kapsam kolonu ve kendi dışa aktarımını tanımanın sağlamlaştırılması.
+  **Dokuz çalışma grubunun hepsi bitti**
+- Geçen kontroller: backend build + format + **804 test** (SQL dahil); Flutter
+  analyze + format + **701 test** + debug APK derlemesi
+- Sıradaki görev: aşamanın kapanış turu — emulator'de iki esnaf senaryosunun
+  elle girilmesi; aşamayı kapatmak ve Aşama 02'yi açmak kullanıcı onayı ister

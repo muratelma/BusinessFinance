@@ -60,8 +60,13 @@ public sealed class EfDataPortabilityRepository(
         await stream.WriteAsync(new byte[] { 0xEF, 0xBB, 0xBF }, cancellationToken);
         await using (var writer = new StreamWriter(stream, new UTF8Encoding(false), leaveOpen: true))
         {
+            // `scope` türün hemen yanında: ikisi de kaydın **ne olduğunu**
+            // söyleyen boyutlar ve satırı okuyan kişi "expense, personal" diye
+            // yan yana okuyor. Kararlı makine değeri yazılır (`business` /
+            // `personal`); dosya bir tabloya değil, kullanıcının kendi
+            // arşivine gidiyor ve Türkçe etiket onu bir daha okunamaz yapardı.
             await writer.WriteLineAsync(
-                "id,transactionDate,type,amount,currency,accountId,accountName,categoryId,categoryName,description,isCancelled,cancelledAtUtc");
+                "id,transactionDate,type,scope,amount,currency,accountId,accountName,categoryId,categoryName,description,isCancelled,cancelledAtUtc");
             foreach (var item in transactions)
             {
                 var cells = new[]
@@ -69,6 +74,7 @@ public sealed class EfDataPortabilityRepository(
                     item.Id.ToString("D"),
                     item.TransactionDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     item.Type.ToString().ToLowerInvariant(),
+                    item.Scope.ToString().ToLowerInvariant(),
                     item.Amount.Amount.ToString("0.0000", CultureInfo.InvariantCulture),
                     item.Amount.Currency.ToString(),
                     item.AccountId.ToString("D"),
@@ -129,8 +135,9 @@ public sealed class EfDataPortabilityRepository(
         _ = BuildRestoredGraph(Guid.NewGuid(), parsed.Snapshot);
         return Task.FromResult(new BackupValidationDto(
             // The version of the file being validated, not the version this build
-            // writes. Now that v2 is still accepted, reporting the constant would tell
-            // the user an old backup is v3.
+            // writes. The two are the same today — only v6 is accepted — but
+            // reporting the constant would start lying the moment a second version
+            // becomes readable, and the summary is what the user confirms against.
             parsed.Envelope.SchemaVersion,
             parsed.Envelope.CreatedAtUtc,
             parsed.Snapshot.EntityCount,

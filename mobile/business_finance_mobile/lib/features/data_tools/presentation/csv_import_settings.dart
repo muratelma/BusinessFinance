@@ -52,12 +52,24 @@ class CsvImportSettings {
   final String dateFormat;
   final String decimalSeparator;
 
+  /// Bu dosya uygulamanın **kendi** işlem dışa aktarımı mı.
+  ///
+  /// Tam başlık dizesiyle karşılaştırılmıyor: dosyaya bir kolon eklendiğinde
+  /// (kapsam kolonu böyle eklendi) karşılaştırma sessizce yanlışa döner ve
+  /// koruma kalkardı — kullanıcı kendi dışa aktarımını banka ekstresi
+  /// importer'ına verip her hareketi ikinci kez yazdırırdı. Onun yerine yalnız
+  /// bu dosyada bulunan kolonlar aranıyor; hiçbir banka ekstresinde
+  /// `isCancelled` diye bir kolon yoktur.
   static bool isApplicationTransactionExport(List<int> bytes) {
     try {
       final firstLine = const LineSplitter().convert(utf8.decode(bytes)).first;
-      return firstLine.trimLeft().replaceFirst('\ufeff', '') ==
-          'id,transactionDate,type,amount,currency,accountId,accountName,'
-              'categoryId,categoryName,description,isCancelled,cancelledAtUtc';
+      final columns = firstLine
+          .trimLeft()
+          .replaceFirst('\ufeff', '')
+          .split(',')
+          .map((column) => column.trim())
+          .toSet();
+      return columns.containsAll(const {'transactionDate', 'isCancelled'});
     } on Object {
       return false;
     }

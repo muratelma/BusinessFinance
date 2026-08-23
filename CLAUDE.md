@@ -254,8 +254,12 @@ gerekçesiyle bozulmaz.
   Üçüncü sayı **kasa değişimi değildir** — kart harcaması harcandığı gün gider
   yazılır, ödendiği gün değil.
 
-> **Henüz uygulanmadı — Aşama 01'in kalanı.** CSV kapsam kolonu ve runbook
-> tatbikatı (Grup 9) yok. Bu satır o grup bitene kadar burada durur.
+- **Dışa aktarma ile yedek ayrı şeylerdir.** İşlem CSV'si kaydın kapsamını
+  `type`'ın yanındaki bir kolonda taşır ama **geri yüklenemez**; okumak ve
+  arşivlemek içindir. İçe aktarma banka ekstresi ayrıştırıcısıdır, kapsam
+  kolonunu okumaz ve zinciri kullanır. İstemci kendi dışa aktarımını tanıyıp
+  reddeder; tanıma tam başlık dizesine değil, yalnız bu dosyada bulunan
+  kolonlara bakar. Veri taşımanın tek yolu yedek/geri yüklemedir.
 
 ### Birleşik okuma modelleri
 

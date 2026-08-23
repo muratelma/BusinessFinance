@@ -478,6 +478,22 @@ muhasebe kârı satılan malın maliyetini ister ve ürün sınırının dışı
 Kapsam boyutu görünmeyen kullanıcıda ekran bugünkü davranışını korur: tek `Bu
 ayın neti`. Bir taraf seçiliyken hero o tarafın netini adıyla gösterir.
 
+### Taşınabilirlik: dışa aktarma ile yedek ayrı şeylerdir
+
+İşlem CSV'si kaydın kapsamını `type`'ın yanında bir kolonda taşır. Kapsamsız
+bir dosya, kullanıcının kendi arşivinde işletme ile cebini bir daha ayıramaz
+hâle getirirdi: aynı hesaptan, aynı kategoriye yazılmış iki kayıt arasındaki
+tek fark kapsamdır.
+
+CSV yine de **geri yüklenemez**; okumak ve arşivlemek içindir. İçe aktarma
+banka ekstresi ayrıştırıcısıdır ve kapsam kolonunu okumaz — zincir hesabın ya
+da kategorinin varsayılanından çözülür. İstemci kendi dışa aktarımını içe
+aktarma ekranında tanıyıp reddeder; tanıma **tam başlık dizesine değil, yalnız
+bu dosyada bulunan kolonlara** bakar, çünkü tam eşleşme bir kolon eklendiğinde
+sessizce yanlışa döner ve koruma kalkardı (kapsam kolonu eklenirken tam olarak
+bu oldu). Veriyi bir hesaptan diğerine taşımanın tek yolu yedek/geri yükleme
+akışıdır (`documentation/restore-runbook.md`).
+
 ### Kalıcılık
 
 Kapsam `tinyint` kolondur ve `[Scope] IN (1, 2)` CHECK kısıtıyla korunur;

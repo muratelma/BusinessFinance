@@ -267,7 +267,7 @@ Bu aşama aşağıdakilerin hiçbirini bozmaz; bozması gerekirse önce ADR yaz�
   çoğu ayda şahsi taraf yalnız harcamadır, ama şahsi bir gelir girilen ayda
   "çekim" demek artı bir sayıyı eksi gibi okuturdu.
 
-### Grup 9 — Yedek v6, dışa aktarma ve runbook
+### Grup 9 — Yedek v6, dışa aktarma ve runbook — **Tamamlandı**
 
 - ~~Yedek şeması **v6** yazar ve **yalnız v6 okur**.~~ **Grup 2 ile birlikte
   yapıldı** — geri yükleme kodu kapsam alanı olmadan derlenmiyordu. v2–v5
@@ -277,6 +277,23 @@ Bu aşama aşağıdakilerin hiçbirini bozmaz; bozması gerekirse önce ADR yaz�
   zincirinden alır.
 - `documentation/restore-runbook.md` v6'ya göre yeniden yazılır.
 - Ölçüt: v6 yedek alınıp boş kullanıcıya geri yükleniyor, kapsamlar korunuyor.
+- Sonuç: `scope` kolonu `type`'ın hemen yanına eklendi — ikisi de kaydın ne
+  olduğunu söyleyen boyutlar. Kapsamsız bir dosya, kullanıcının kendi arşivinde
+  aynı hesaptan aynı kategoriye yazılmış iki kaydı bir daha ayıramaz hâle
+  getirirdi. İçe aktarma kolonu okumuyor ve okumayacak: o ayrıştırıcı banka
+  ekstresi içindir, zincir hesabın/kategorinin varsayılanından çözülür.
+- **Yolda bulunan sessiz kırılma:** istemci, kendi dışa aktarımını içe aktarma
+  ekranında **tam başlık dizesiyle** tanıyordu. Kapsam kolonu o dizeyi
+  değiştirdiği anda koruma sessizce kalkacaktı ve kullanıcı kendi dosyasını
+  banka importer'ına verip her hareketi ikinci kez yazdırabilecekti. Tanıma
+  artık yalnız bu dosyada bulunan kolonlara (`transactionDate` + `isCancelled`)
+  bakıyor; bir test hem eski hem gelecekteki bir kolon eklenmiş başlığın
+  tanındığını koruyor.
+- Runbook v6'ya göre zaten yazılmıştı (Grup 2); bu turda tatbikata **kapsam
+  doğrulama adımı** eklendi, hata tablosundaki eskimiş `v1` satırı v2–v5
+  reddine güncellendi ve CSV ile yedeğin aynı şey olmadığı açıkça yazıldı.
+  Geri yüklemede kapsamın korunduğunu `Backup_ValidatesAndRestoresComplete...`
+  testi gerçek SQL üzerinde kanıtlıyor.
 
 ## Zorunlu testler
 
@@ -357,15 +374,17 @@ Henüz uygulanmamış davranış, uygulanmış gibi yazılmaz.
 
 ## Çıkış koşulları
 
-- [ ] Bütün çalışma grupları tamamlandı.
-- [ ] Backend build, test ve format kontrolleri geçti.
-- [ ] Flutter analyze, test, format ve debug build kontrolleri geçti.
-- [ ] Kullanıcı izolasyonu negatif senaryolarla kanıtlandı.
-- [ ] Aynı ay üç kapsamda okunduğunda bakiye ve net varlığın değişmediği testle
-      kanıtlandı.
+- [x] Bütün çalışma grupları tamamlandı (Grup 1–9).
+- [x] Backend build, test ve format kontrolleri geçti.
+- [x] Flutter analyze, test, format ve debug build kontrolleri geçti.
+- [x] Kullanıcı izolasyonu negatif senaryolarla kanıtlandı (devralınan API ve
+      gerçek SQL testleri; kapsam filtresi owner predicate'inin üstüne biniyor).
+- [x] Aynı ay üç kapsamda okunduğunda bakiye ve net varlığın değişmediği testle
+      kanıtlandı (`ScopeFilter_SplitsIncomeAndExpense...`, gerçek SQL).
 - [ ] İki farklı esnaf senaryosu sentetik veriyle uçtan uca girildi; işletme
-      neti şahsi harcamadan etkilenmedi.
-- [ ] `documentation/` ve `docs/project-status.md` güncel.
+      neti şahsi harcamadan etkilenmedi. **Kalan tek iş bu:** emulator'de,
+      çalışan API'ye karşı elle yürütülür (`documentation/local-setup-and-acceptance.md`).
+- [x] `documentation/` ve `docs/project-status.md` güncel.
 - [ ] Kullanıcı Aşama 02'yi açıkça onayladı.
 
 ## Tamamlanma kaydı

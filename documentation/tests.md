@@ -107,8 +107,15 @@ veritabanı ile tek `InitialCreate`'ten kurulan veritabanının 543 satırlık t
 | `...MonthlyReport_WithAScopeFilter_CarriesNoBreakdown` (yeni) | Filtreli okumada alan `null`; dışlanan taraf sıfır olarak gösterilmiyor |
 | `dashboard_hero_test.dart` (yeni) | Kırılım sözleşmeden okunuyor ve yoksa sıfır uydurulmuyor; işletme kullanıcısında üç sayı birlikte ve **birbirini tutuyor**; şahsi taraf artıdayken "çekim" denmiyor; işletmesi olmayan kullanıcıda ekran bugünkü hâlini koruyor; bir taraf seçiliyken hero hangi tarafı okuduğunu yazıyor; **"kâr" kelimesi ekranda geçmiyor**; üç sayılı hero 2.0× ölçekte taşmıyor ve erişilebilirlik kapısını geçiyor |
 
-Kapsam boyutunun **kalan** test yüzeyi henüz yok ve olduğu gibi yazılmıyor: CSV
-kapsam kolonu ve runbook tatbikatı (Grup 9) kendi grubunda gelecek. `ScopePreferences`'ın kendisinin doğrudan testi yok;
+## Aşama 01 Grup 9 — CSV kapsam kolonu ve yedek tatbikatı
+
+| Test | Neyi kanıtlıyor |
+|---|---|
+| `DataPortabilityTests.TransactionsCsv_CarriesTheScopeOfEachRow` (yeni) | Dışa aktarılan her satır kapsamını taşıyor, kolon `type`'ın hemen yanında ve değer kararlı makine metni (`business`/`personal`) |
+| `csv_import_settings_test.dart` (genişletildi) | Kendi dışa aktarımını tanıma kolon **eklenince de** çalışıyor: eşleşme tam başlık dizesine değil, yalnız bu dosyada bulunan kolonlara bakıyor. Koruma kalkarsa kullanıcı kendi dosyasını içe aktarıp her hareketi ikinci kez yazdırır |
+| `DataPortabilityTests.Backup_ValidatesAndRestoresCompleteSyntheticGraphToEmptyOwner` (Grup 2'de genişletilmişti) | v6 yedeği boş kullanıcıya geri yüklendiğinde hem kaydın kapsamı hem hesap/kategori varsayılanı korunuyor — Grup 9'un çıkış ölçütü budur |
+
+Kapsam boyutunun test yüzeyi bu grupla tamamlandı. `ScopePreferences`'ın kendisinin doğrudan testi yok;
 `ReceiptPreferences` ile aynı gerekçe — `flutter_secure_storage` sarmalayıcısı
 platform kanalı ister, sözleşme (`ScopeStore`) sahte uygulamayla testli.
 

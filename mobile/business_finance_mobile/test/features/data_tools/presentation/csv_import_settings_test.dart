@@ -18,9 +18,10 @@ void main() {
 
   test('recognizes the application transaction export contract', () {
     final csv = utf8.encode(
-      '\ufeffid,transactionDate,type,amount,currency,accountId,accountName,'
-      'categoryId,categoryName,description,isCancelled,cancelledAtUtc\n'
-      '1,2026-08-14,expense,25.0000,TRY,2,Cash,3,Food,Test,false,',
+      '\ufeffid,transactionDate,type,scope,amount,currency,accountId,'
+      'accountName,categoryId,categoryName,description,isCancelled,'
+      'cancelledAtUtc\n'
+      '1,2026-08-14,expense,business,25.0000,TRY,2,Cash,3,Food,Test,false,',
     );
 
     expect(CsvImportSettings.isApplicationTransactionExport(csv), isTrue);
@@ -29,6 +30,32 @@ void main() {
         utf8.encode('Tarih;Tutar\n14.08.2026;-25,00'),
       ),
       isFalse,
+    );
+  });
+
+  test('kolon eklenince koruma sessizce kalkmaz', () {
+    // Kapsam kolonundan **önceki** dosya da tanınmaya devam ediyor ve bir
+    // sonraki kolon eklendiğinde de tanınacak: eşleşme tam başlık dizesine
+    // değil, yalnız bu dosyada bulunan kolonlara bakıyor. Koruma kalkarsa
+    // kullanıcı kendi dışa aktarımını içe aktarıp her hareketi ikinci kez
+    // yazdırır.
+    final withoutScope = utf8.encode(
+      '\ufeffid,transactionDate,type,amount,currency,accountId,accountName,'
+      'categoryId,categoryName,description,isCancelled,cancelledAtUtc\n',
+    );
+    final withFutureColumn = utf8.encode(
+      '\ufeffid,transactionDate,type,scope,amount,currency,accountId,'
+      'accountName,categoryId,categoryName,description,isCancelled,'
+      'cancelledAtUtc,counterparty\n',
+    );
+
+    expect(
+      CsvImportSettings.isApplicationTransactionExport(withoutScope),
+      isTrue,
+    );
+    expect(
+      CsvImportSettings.isApplicationTransactionExport(withFutureColumn),
+      isTrue,
     );
   });
 
