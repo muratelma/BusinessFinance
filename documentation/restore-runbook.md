@@ -53,6 +53,24 @@ uydurulmaz ve `null` kalır.
 Sınır ve sayaç Grup 7'de **v8** kapsamına alındı; sınırı dolmuş bir plan geri
 yüklendiğinde pasif ve `nextOccurrenceDate` alanı boş döner.
 
+## Veritabanı yükseltme notu — Aşama 04 Grup 4
+
+`AddCashCountsAndPosSettlements` migration'ı `CashCounts` ve `PosSettlements`
+tablolarını kurar. İkisi de bu adımda **boş doğar**, bu yüzden zorunlu kolonlar
+backfill istemez ve kalıcı bir DEFAULT bırakılmaz; migration kuralının "gerçekten
+boş tablo" istisnası burada bilinçli olarak kullanılıyor. Mevcut hiçbir tabloya
+kolon eklenmez, dolayısıyla dolu bir veritabanında yorumlanacak bir geçmiş
+yoktur.
+
+Türetilen hiçbir şey kolon değildir: net tutar, komisyon oranı, "yolda mı" ve
+kasa sayımının beklenen tutarı ile farkı şemada **bulunmaz**. Migration testi bu
+yokluğu açıkça sınar. `CashCounts` üzerindeki filtreli tekil indeks
+(`IsCancelled = 0`) bir gün ve bir kasa için tek açık sayım bırakır.
+
+Backup biçimi bu checkpoint'te hâlâ **v8**'dir ve kasa sayımlarını, POS
+tahsilatlarını taşımaz; bunların kayıpsız v9 kapsamına alınması Aşama 04
+Grup 8'in işidir.
+
 ## Ön koşullar
 
 - SQL Server `healthy`, API `/health/ready` cevabı 200 olmalıdır.

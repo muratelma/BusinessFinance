@@ -652,6 +652,7 @@ const _reportJson = {
     'receivableDebt': '0.0000',
     'payableDebt': '0.0000',
     'netWorth': '4800.0000',
+    'moneyInTransit': '0.0000',
   },
   'periodComparison': {
     'current': {

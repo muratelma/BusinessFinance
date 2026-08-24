@@ -4,6 +4,7 @@ using BusinessFinance.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BusinessFinance.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(BusinessFinanceDbContext))]
-    partial class BusinessFinanceDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260824120227_AddCashCountsAndPosSettlements")]
+    partial class AddCashCountsAndPosSettlements
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

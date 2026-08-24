@@ -1913,7 +1913,12 @@ public sealed class SqlServerPersistenceIntegrationTests
         // trend and budget variance. The count still does not grow per obligation.
         // 60 → 61 when settlement cash effects joined account balances. This is
         // one grouped account query and still does not grow per settlement.
-        Assert.InRange(counter.ReaderCommandCount, 1, 61);
+        // 61 → 63 when pos settlements arrived: one grouped query puts the
+        // transferred net onto account balances, and one sums what is still in
+        // transit for net worth. Neither grows with the number of settlements -
+        // reading the transit total per settlement is exactly the shape this
+        // gate exists to refuse.
+        Assert.InRange(counter.ReaderCommandCount, 1, 63);
         Assert.True(
             stopwatch.Elapsed < TimeSpan.FromSeconds(5),
             $"Advanced report took {stopwatch.Elapsed.TotalMilliseconds:N0} ms.");
@@ -3540,6 +3545,153 @@ public sealed class SqlServerPersistenceIntegrationTests
         // "o tarafta hiç hareket yok" demek olurdu.
         Assert.Null(business.ScopeBreakdown);
         Assert.Null(personal.ScopeBreakdown);
+    }
+
+    /// <summary>
+    /// POS tahsilatı ve gün sonu sayımı gerçek SQL üzerinde: kullanılabilir
+    /// bakiye ile net varlığın farkı tam olarak yoldaki tutar kadardır.
+    /// </summary>
+    [SqlServerFact]
+    public async Task PosSettlementAndCashCount_SeparateUsableBalanceFromNetWorth()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var owner = CreateUser("pos-owner@example.test");
+        var stranger = CreateUser("pos-stranger@example.test");
+        await database.SeedUsersAsync(owner, stranger);
+        var now = new DateTimeOffset(2026, 8, 24, 18, 0, 0, TimeSpan.Zero);
+        var settlementDate = new DateOnly(2026, 8, 20);
+        var asOfDate = new DateOnly(2026, 8, 24);
+        Guid bankId;
+        Guid tillId;
+
+        await using (var seed = database.CreateContext())
+        {
+            var bank = new Account(
+                Guid.NewGuid(), owner.Id, "Banka", AccountType.Bank, CurrencyCode.TRY, 1000m);
+            var till = new Account(
+                Guid.NewGuid(), owner.Id, "Kasa", AccountType.Cash, CurrencyCode.TRY, 500m);
+            var sales = new Category(Guid.NewGuid(), owner.Id, "Satış", CategoryType.Income);
+            var commission = new Category(
+                Guid.NewGuid(), owner.Id, "POS komisyonu", CategoryType.Expense);
+            bankId = bank.Id;
+            tillId = till.Id;
+
+            // Geçmiş tahsilat: hesaba **net** 980 girdi.
+            var transferred = new PosSettlement(
+                Guid.NewGuid(), owner.Id, bank, sales, new Money(1000m, CurrencyCode.TRY), 20m,
+                TransactionScope.Business, settlementDate, new DateOnly(2026, 8, 22), now,
+                commission);
+            transferred.MarkTransferred(new DateOnly(2026, 8, 22), now);
+            // Yolda: tahsil edildi, hesaba geçmedi. Net 490.
+            var waiting = new PosSettlement(
+                Guid.NewGuid(), owner.Id, bank, sales, new Money(500m, CurrencyCode.TRY), 10m,
+                TransactionScope.Business, settlementDate, new DateOnly(2026, 8, 26), now,
+                commission);
+            // İptal edilen hiç sayılmaz.
+            var cancelled = new PosSettlement(
+                Guid.NewGuid(), owner.Id, bank, sales, new Money(300m, CurrencyCode.TRY), 0m,
+                TransactionScope.Business, settlementDate, new DateOnly(2026, 8, 26), now);
+            cancelled.Cancel(now);
+            var count = new CashCount(
+                Guid.NewGuid(), owner.Id, till, 480m, TransactionScope.Business, asOfDate, now,
+                "Gün sonu");
+
+            seed.AddRange(bank, till, sales, commission, transferred, waiting, cancelled, count);
+            await seed.SaveChangesAsync();
+        }
+
+        await using var services = CreateServiceProvider(database.ConnectionString);
+        await using var scope = services.CreateAsyncScope();
+        var accountRepository = scope.ServiceProvider.GetRequiredService<IAccountRepository>();
+        var reportRepository = scope.ServiceProvider.GetRequiredService<IFinancialReportRepository>();
+
+        // Kullanılabilir bakiye yalnız geçmiş tahsilatın netini görür.
+        var bankBalance = await accountRepository.CalculateBalanceAsync(bankId, owner.Id, default);
+        Assert.Equal(1980m, bankBalance);
+
+        var advanced = await reportRepository.GetAdvancedAsync(
+            owner.Id, 2026, 8, asOfDate, 2, 30, null, default);
+
+        // 1980 banka + 500 kasa = 2480 kullanılabilir; yolda 490.
+        Assert.Equal(2480m, advanced.NetWorth.LiquidAssets);
+        Assert.Equal(490m, advanced.NetWorth.MoneyInTransit);
+        // Ölçütün kendisi: iki sayının farkı tam olarak yoldaki tutar.
+        Assert.Equal(
+            advanced.NetWorth.MoneyInTransit,
+            advanced.NetWorth.NetWorth - advanced.NetWorth.LiquidAssets);
+        Assert.Equal(2970m, advanced.NetWorth.NetWorth);
+
+        // Sayım bir gözlemdir: hiçbir bakiyeye dokunmaz.
+        Assert.Equal(500m, await accountRepository.CalculateBalanceAsync(tillId, owner.Id, default));
+
+        // Yabancı kullanıcı hiçbir şey görmez.
+        var strangerReport = await reportRepository.GetAdvancedAsync(
+            stranger.Id, 2026, 8, asOfDate, 2, 30, null, default);
+        Assert.Equal(0m, strangerReport.NetWorth.MoneyInTransit);
+        Assert.Equal(0m, strangerReport.NetWorth.LiquidAssets);
+
+        await using var read = database.CreateContext();
+        var storedCount = await read.CashCounts.AsNoTracking().SingleAsync();
+        Assert.Equal(480m, storedCount.CountedAmount);
+        Assert.Equal("Gün sonu", storedCount.Note);
+        // Beklenen tutar dosyada değil; fark okunduğu anda türetilir.
+        Assert.Equal(-20m, storedCount.DifferenceFrom(500m).Amount);
+        Assert.False(storedCount.IsAdjusted);
+    }
+
+    /// <summary>
+    /// Bir gün ve bir kasa için ikinci <b>açık</b> sayım veritabanı seviyesinde
+    /// de engellenir: iki eşzamanlı yazar aynı gün için iki açık sayım
+    /// bıraksaydı hangisinin geçerli olduğu belirsizleşirdi.
+    /// </summary>
+    [SqlServerFact]
+    public async Task SecondOpenCashCountOfTheSameDay_IsRefusedBySql()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var owner = CreateUser("cash-count-owner@example.test");
+        await database.SeedUsersAsync(owner);
+        var now = new DateTimeOffset(2026, 8, 24, 18, 0, 0, TimeSpan.Zero);
+        var countDate = new DateOnly(2026, 8, 24);
+        Account till;
+
+        await using (var seed = database.CreateContext())
+        {
+            till = new Account(
+                Guid.NewGuid(), owner.Id, "Kasa", AccountType.Cash, CurrencyCode.TRY, 500m);
+            seed.Add(till);
+            seed.Add(new CashCount(
+                Guid.NewGuid(), owner.Id, till, 480m, TransactionScope.Business, countDate, now));
+            await seed.SaveChangesAsync();
+        }
+
+        await using (var second = database.CreateContext())
+        {
+            second.Add(new CashCount(
+                Guid.NewGuid(), owner.Id, till, 495m, TransactionScope.Business, countDate, now));
+            await Assert.ThrowsAsync<DbUpdateException>(() => second.SaveChangesAsync());
+        }
+
+        // Domain yolu: önceki sayım iptal edilir, üzerine yazılmaz. İptal
+        // edilmiş satır filtreli tekil indeksin dışında kaldığı için ikinci
+        // sayım artık yazılabilir.
+        await using (var superseding = database.CreateContext())
+        {
+            var previous = await superseding.CashCounts.SingleAsync();
+            var replacement = new CashCount(
+                Guid.NewGuid(), owner.Id, till, 495m, TransactionScope.Business, countDate, now);
+            previous.SupersedeWith(replacement, now);
+            superseding.Add(replacement);
+            await superseding.SaveChangesAsync();
+        }
+
+        await using var read = database.CreateContext();
+        var counts = await read.CashCounts.AsNoTracking()
+            .OrderBy(item => item.CountedAmount).ToArrayAsync();
+        Assert.Equal(2, counts.Length);
+        Assert.True(counts[0].IsCancelled);
+        Assert.Equal(480m, counts[0].CountedAmount);
+        Assert.False(counts[1].IsCancelled);
+        Assert.Equal(495m, counts[1].CountedAmount);
     }
 
     private static ApplicationUser CreateUser(string email)

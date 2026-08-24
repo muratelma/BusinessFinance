@@ -277,6 +277,7 @@ class AdvancedReport {
     required this.receivableDebt,
     required this.payableDebt,
     required this.netWorth,
+    required this.moneyInTransit,
     required this.currentPeriod,
     required this.previousPeriod,
     required this.cashFlowTrend,
@@ -302,11 +303,18 @@ class AdvancedReport {
   /// kural geçerli.
   final String payableDebt;
 
-  /// `liquidAssets − creditCardDebt + receivableDebt − payableDebt`.
+  /// `liquidAssets + moneyInTransit − creditCardDebt + receivableDebt −
+  /// payableDebt`.
   ///
-  /// Dört terimin dördü de sözleşmede var; ekranda üçü gösterilip biri
-  /// atlanırsa döküm toplamı açıklamaz.
+  /// Terimlerin hepsi sözleşmede var; ekranda biri atlanırsa döküm toplamı
+  /// açıklamaz.
   final String netWorth;
+
+  /// POS'tan geçmiş ama henüz hesaba ulaşmamış paranın net toplamı.
+  ///
+  /// Net varlığa girer, **likit varlığa girmez** (ADR 0015): kullanıcının
+  /// parasıdır ama bugün harcanamaz. İki sayının farkı tam olarak budur.
+  final String moneyInTransit;
   final PeriodTotals currentPeriod;
   final PeriodTotals previousPeriod;
   final List<CashFlowPoint> cashFlowTrend;
@@ -330,6 +338,7 @@ class AdvancedReport {
       receivableDebt: JsonReaders.money(netWorth, 'receivableDebt'),
       payableDebt: JsonReaders.money(netWorth, 'payableDebt'),
       netWorth: JsonReaders.money(netWorth, 'netWorth'),
+      moneyInTransit: JsonReaders.money(netWorth, 'moneyInTransit'),
       currentPeriod: PeriodTotals.fromJson(
         JsonReaders.object(comparison['current'], 'current'),
       ),

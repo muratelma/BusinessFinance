@@ -47,9 +47,10 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   borç tarafı `Kredi kartlarım`, tahsilat tarafı `POS tahsilatları`, yoldaki
   para `AccountType` değil projection, kullanılabilir bakiye ile net varlığın
   farkı tam olarak yoldaki tutar, üçüncü ana sekme ön ayara göre değişiyor.
-  **Grup 2 ve 3 tamamlandı**: gün sonu kasa sayımının ve POS tahsilatının
-  domain'i yazıldı. Sırada **Grup 4 — kalıcılık, bakiye, net varlık ve Özet
-  ekranı** var
+  **Grup 2 ve 3 tamamlandı**, **Grup 4 sürüyor**: iki domain tipi kalıcılığa
+  girdi, hesap bakiyesi ve net varlık ayrıldı, Özet ekranına `Yolda` satırı
+  eklendi. Grup 4'ün kalanı POS'un gelir/gider raporunda tanınması ve yazma
+  uçları
 - Kalan üç aşamanın belgesi de yazılı, durumları `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
@@ -771,6 +772,42 @@ Flutter tarafına dokunulmadı; bu grup yalnız Domain katmanıdır.
 
 Flutter tarafına dokunulmadı; bu grup da yalnız Domain katmanıdır.
 
+## 24 Ağustos 2026 — Aşama 04, Grup 4 (1/2): kalıcılık, bakiye ve net varlık
+
+- `AddCashCountsAndPosSettlements` iki tabloyu kurdu. İkisi de **boş doğuyor**;
+  zorunlu kolonlar backfill istemiyor, kalıcı DEFAULT bırakılmıyor ve mevcut
+  hiçbir tabloya kolon eklenmiyor. Yükseltme `BusinessFinance` ve
+  `BusinessFinanceApiSqlTests` veritabanlarına uygulandı
+- **Türetilen hiçbir şey kolon değil**: net tutar, komisyon oranı, "yolda mı",
+  beklenen bakiye ve fark şemada yok. Migration testi bu yokluğu açıkça sınıyor
+- `CashCounts` üzerindeki filtreli tekil indeks (`IsCancelled = 0`) bir gün ve
+  bir kasa için tek açık sayım bırakıyor; gerçek SQL testinde ikinci açık sayım
+  reddediliyor, iptal edip yenisini yazma yolu çalışıyor
+- Geçmiş POS tahsilatı hesap bakiyesine **net** giriyor, yoldaki hiç girmiyor.
+  Net varlık `moneyInTransit` taşıyor ve **iki sayının farkı tam olarak yoldaki
+  tutar** — grubun ölçütü gerçek SQL testinde kapıya bağlandı
+- Özet ekranına `Yolda` satırı eklendi (alt başlık `POS tahsilatı`), yolda para
+  yokken çizilmiyor. Arayüz ADR 0015'in kelimesini kullanıyor, `bloke` demiyor
+- Gelişmiş raporun sabit SQL komut kapısı 61'den **63**'e çıktı: biri geçmiş
+  tahsilatı hesap bakiyesine koyan, biri yoldakini toplayan iki gruplanmış
+  sorgu. İkisi de tahsilat adediyle büyümüyor
+- **Kalan:** POS'un gelir/gider raporunda tanınması (brüt gelir + komisyon
+  gideri) ve yazma uçları. Bugün tablo boş olduğu için gözlenebilir bir
+  tutarsızlık yok, ama yazma açılmadan önce kapatılacak
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (gerçek SQL dâhil) | **907 geçti**, 1 atlandı (`GeminiLiveContractTests`) |
+| Flutter analyze | No issues found |
+| Flutter format | 227 dosya, değişiklik gerektirmedi |
+| Flutter test | **735 geçti** |
+| Android debug build | `app-debug.apk` üretildi |
+
+Not: migration'ı üretebilmek için yerelde çalışan `BusinessFinance.Api` süreci
+kullanıcı onayıyla durduruldu; yeniden başlatılmadı.
+
 ## Son oturum kapanışı
 
 - Yapılan değişiklik: Aşama 03 **Grup 1 tamamlandı**; yükümlülüğün tanıyan
@@ -1056,7 +1093,7 @@ eksiksiz çıktı; iki arayüz boşluğu bulundu ve kapatıldı.
   Grup 3** (kasa sayımının ve POS tahsilatının domain'i) tamamlandı
 - Geçen kontroller: backend build + format + **904 test** (gerçek SQL dâhil),
   1 canlı Gemini testi atlandı
-- Sıradaki görev: Aşama 04 Grup 4 — iki domain tipinin kalıcılığı (EF
-  yapılandırması, owner-scoped bileşik anahtarlar, tek migration), ardından
-  kullanılabilir bakiye ile net varlığın ayrılması ve Özet ekranındaki
-  "yolda" satırı
+- Sıradaki görev: Aşama 04 Grup 4'ün kalanı — POS tahsilatının gelir/gider
+  raporunda tanınması (brüt gelir ve komisyon gideri; dönem toplamları,
+  kategori dağılımı, trend ve bütçe sapması), ardından kasa sayımı ile POS
+  tahsilatının yazma uçları

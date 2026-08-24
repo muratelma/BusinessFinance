@@ -209,8 +209,22 @@ internal sealed class EfAccountRepository(BusinessFinanceDbContext dbContext)
                     : -settlement.Amount.Amount,
                 cancellationToken);
 
+        // POS tahsilatı hesaba **ancak geçtiği gün** girer ve girdiği tutar
+        // nettir (ADR 0015). Tahsilat günü eklenseydi, kullanılabilir bakiye
+        // daha bankaya ulaşmamış parayı harcanabilir gösterirdi; brüt
+        // eklenseydi bankanın kestiği komisyon kullanıcının cebinde sayılırdı.
+        var posTransfers = await dbContext.PosSettlements
+            .AsNoTracking()
+            .Where(settlement => settlement.AccountId == accountId &&
+                                 settlement.UserId == userId &&
+                                 !settlement.IsCancelled &&
+                                 settlement.TransferredOn != null)
+            .SumAsync(
+                settlement => settlement.GrossAmount.Amount - settlement.CommissionAmount,
+                cancellationToken);
+
         return openingBalance.Value + movementBalance + incomingTransfers - outgoingTransfers -
                cardPayments + debtMovements + debtOpenings + counterpartySettlements +
-               obligationSettlements;
+               obligationSettlements + posTransfers;
     }
 }

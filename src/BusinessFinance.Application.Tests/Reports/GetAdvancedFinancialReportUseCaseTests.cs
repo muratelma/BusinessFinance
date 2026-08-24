@@ -78,7 +78,7 @@ public sealed class GetAdvancedFinancialReportUseCaseTests
         asOfDate,
         CurrencyCode.TRY,
         null,
-        new NetWorthDto(0m, 0m, 0m, 0m, 0m),
+        new NetWorthDto(0m, 0m, 0m, 0m, 0m, 0m),
         new PeriodComparisonDto(
             new PeriodTotalsDto(2026, 8, 0m, 0m, 0m),
             new PeriodTotalsDto(2026, 7, 0m, 0m, 0m),

@@ -737,8 +737,9 @@ aynısı).
 
 ## POS tahsilatı ve yoldaki para
 
-> Aşama 04, Grup 3 — yalnız **Domain** katmanı uygulanmıştır. Kalıcılık ve
-> yazma yolu, kasa sayımıyla birlikte Grup 4'tedir.
+> Aşama 04, Grup 3–4 — Domain, kalıcılık, hesap bakiyesi ve net varlık
+> uygulanmıştır. POS'un gelir/gider **raporunda** tanınması ve yazma uçları
+> Grup 4'ün kalan adımlarıdır.
 
 `PosSettlement` ADR 0015'in kaydıdır ve **kredi kartı değildir**: `CreditCard`
 borçlandığın karttır, bu ise tahsilat aracıdır. İkisi aynı kelimeyle anıldığı
@@ -777,6 +778,44 @@ kategorisi ister; POS tahsilatı bir satışı tanır.
 artık hesabın kendi bakiyesinde duruyor; ikisini de saymak aynı parayı iki
 yerde göstermek olurdu. Brüt toplamak da bankanın kestiği komisyonu
 kullanıcının cebinde sayardı.
+
+### Kalıcılık: iki yeni tablo, türetilen hiçbir şey kolon değil
+
+`AddCashCountsAndPosSettlements` `CashCounts` ve `PosSettlements` tablolarını
+kurar. İkisi de bu adımda **boş doğar**: yorumlanacak bir geçmiş yoktur, bu
+yüzden zorunlu kolonlar backfill istemez ve kalıcı bir DEFAULT bırakılmaz.
+Dolu bir tabloda bu yol kullanılmaz (migration kuralı, `AGENTS.md`).
+
+Türetilen hiçbir şey kolon değildir: `PosSettlements` brüt tutarı, komisyonu ve
+geçiş gününü saklar; net tutar, komisyon oranı ve "yolda mı" bundan çıkar.
+`CashCounts` yalnız sayılan tutarı saklar; beklenen bakiye ve fark kolon
+değildir. Migration testi bu yokluğu açıkça sınar — saklansalardı sessizce
+eskiyen ikinci bir gerçek olurlardı.
+
+Sahiplik kapısı SQL seviyesinde de duruyor: her iki tablo da hesabına ve
+kategorilerine `(UserId, Id)` bileşik anahtarıyla bağlanır. `CashCounts`
+üzerinde **filtreli tekil indeks** (`IsCancelled = 0`) bir gün ve bir kasa için
+tek açık sayım bırakır; iki eşzamanlı yazar aynı gün için iki açık sayım
+bıraksaydı hangisinin geçerli olduğu belirsizleşirdi.
+
+### Kullanılabilir bakiye ile net varlık ayrı sorulardır
+
+Geçmiş POS tahsilatı hesap bakiyesine **net** tutarıyla girer; geçmemiş olan
+hiç girmez. Bakiye iki yerde hesaplanıyor (`EfAccountRepository` tek hesap
+için, `EfFinancialReportRepository` rapor dağılımları için) ve ikisi de aynı
+kuralı uygular.
+
+Net varlık ayrıca **yoldaki parayı** taşır (`NetWorthDto.MoneyInTransit`):
+
+```text
+kullanılabilir bakiye = hesapların bakiyesi (yoldaki para hariç)
+net varlık            = kullanılabilir + yolda − kart borcu + alacak − borç
+```
+
+İki sayının farkı **tam olarak** yoldaki tutardır ve bu bir test kapısıdır,
+yorum değil. Yoldaki toplam tek bir gruplanmış sorguyla okunur; tahsilat başına
+sorgu, gelişmiş raporun sabit komut kapısının tam da reddettiği şekildir
+(61 → 63).
 
 ### Taşınabilirlik: dışa aktarma ile yedek ayrı şeylerdir
 

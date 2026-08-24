@@ -356,6 +356,17 @@ söylenir: doğrulama grafiği kuru olarak kurar, kullanıcı restore'a basmadan
 | `PosSettlementTests.ExpectedTransferDateMayBeInTheFutureButNotBeforeTheSale` | Beklenen geçiş günü gelecekte olabilir, satıştan önce olamaz; ileri tarihli tahsilat reddediliyor |
 | `PosSettlementTests.Scope_IsRequiredAndDescriptionIsOptionalTrimmedAndBounded` | Kapsam zorunlu; açıklama isteğe bağlı, kırpılıyor ve sınırlı |
 
+## Aşama 04 Grup 4 — kalıcılık, bakiye ve net varlık
+
+| Test | Neyi kanıtlıyor |
+|---|---|
+| `SqlServerPersistenceIntegrationTests.PosSettlementAndCashCount_SeparateUsableBalanceFromNetWorth` (yeni, **gerçek SQL**) | **Grubun ölçütü**: net varlık ile kullanılabilir bakiyenin farkı tam olarak yoldaki tutar. Geçmiş tahsilat hesaba net giriyor, yoldaki girmiyor, iptal edilen hiç sayılmıyor; sayım hiçbir bakiyeye dokunmuyor; yabancı kullanıcı sıfır görüyor |
+| `SqlServerPersistenceIntegrationTests.SecondOpenCashCountOfTheSameDay_IsRefusedBySql` (yeni, **gerçek SQL**) | Aynı gün ikinci **açık** sayımı filtreli tekil indeks reddediyor; domain yolu (öncekini iptal et) çalışıyor ve iki satır da kalıyor |
+| `MigrationHistoryTests.AddCashCountsAndPosSettlements_CreatesEmptyTablesWithOwnerScopedGuards` (yeni) | Tablolar boş doğuyor (kolon ekleme yok, DEFAULT yok), sahiplik bileşik anahtarla bağlı, filtreli tekil indeks yerinde ve türetilenler (net tutar, oran, beklenen bakiye, fark) **kolon değil** |
+| `MigrationHistoryTests.Migrations_FormTheExpectedChainAndMatchTheModel` (genişletildi) | Zincir yeni migration'la büyüdü ve model ile şema arasında fark kalmadı |
+| `AdvancedReport_LargeFixtureStaysWithinQueryCountAndTimeBudget` (güncellendi) | POS iki **sabit** sorgu ekledi (61 → 63); ikisi de tahsilat adediyle büyümüyor |
+| `dashboard_sections_test` (yeni durumlar) | Özet kartında `Yolda` satırı likit varlıktan ayrı duruyor, alt başlığı `POS tahsilatı`, `Bloke` kelimesi hiç geçmiyor; yolda para yokken satır çizilmiyor; net varlık = likit + yolda − kart borcu + alacak − borç |
+
 ## Bilinen test boşlukları
 
 - Fiziksel cihaz kanıtı yoktur; emulator kabulü bunun yerine sunulmaz.

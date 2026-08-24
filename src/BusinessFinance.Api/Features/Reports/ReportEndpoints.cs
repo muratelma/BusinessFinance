@@ -135,7 +135,8 @@ public static class ReportEndpoints
             FinanceContract.Money(report.NetWorth.CreditCardDebt),
             FinanceContract.Money(report.NetWorth.ReceivableDebt),
             FinanceContract.Money(report.NetWorth.PayableDebt),
-            FinanceContract.Money(report.NetWorth.NetWorth)),
+            FinanceContract.Money(report.NetWorth.NetWorth),
+            FinanceContract.Money(report.NetWorth.MoneyInTransit)),
         new PeriodComparisonResponse(
             ToPeriodResponse(report.PeriodComparison.Current),
             ToPeriodResponse(report.PeriodComparison.Previous),

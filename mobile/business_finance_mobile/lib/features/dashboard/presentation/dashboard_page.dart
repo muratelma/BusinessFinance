@@ -491,6 +491,22 @@ class _NetWorthCard extends StatelessWidget {
           // Sıfırken çizilmiyorlar: borcu olmayan kullanıcı için kart eskisi
           // gibi kalıyor ve iki satır boş yer kaplamıyor. Bu bir para hesabı
           // değil, "gösterilecek bir şey var mı" kontrolü.
+          // Yoldaki para likit varlığın **dışındadır** ve net varlığın
+          // içindedir (ADR 0015). Likit varlığın hemen altında duruyor çünkü
+          // açıkladığı şey o iki sayının farkı: "neden harcayabildiğimden
+          // fazla param var?" sorusunun cevabı burada.
+          if (_hasAmount(report.moneyInTransit)) ...[
+            const SizedBox(height: AppSpacing.small),
+            _NetWorthLine(
+              icon: Icons.schedule_outlined,
+              label: 'Yolda',
+              amount: report.moneyInTransit,
+              currency: report.currency,
+              effect: AppMoneyEffect.neutral,
+              meaning: 'net varlığa eklenir, henüz harcanamaz',
+              subtitle: 'POS tahsilatı',
+            ),
+          ],
           if (_hasAmount(report.receivableDebt)) ...[
             const SizedBox(height: AppSpacing.small),
             // Alacak **nötr** tonda: gelir yeşili değil. Alacak gelir değil,

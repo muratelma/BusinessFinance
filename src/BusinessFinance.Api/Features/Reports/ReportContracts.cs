@@ -102,7 +102,13 @@ public sealed record NetWorthResponse(
     string CreditCardDebt,
     string ReceivableDebt,
     string PayableDebt,
-    string NetWorth);
+    string NetWorth,
+    /// <summary>
+    /// POS'tan geçmiş ama henüz hesaba ulaşmamış paranın net toplamı.
+    /// Kullanılabilir bakiye ile net varlığın farkı tam olarak budur
+    /// (ADR 0015).
+    /// </summary>
+    string MoneyInTransit);
 
 public sealed record AdvancedFinancialReportResponse(
     string AsOfDate,

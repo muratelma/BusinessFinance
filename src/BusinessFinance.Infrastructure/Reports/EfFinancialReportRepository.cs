@@ -302,6 +302,7 @@ internal sealed class EfFinancialReportRepository(
             userId, null, cancellationToken);
         var obligationSettlements = await ObligationSettlementsByAccountAsync(
             userId, null, cancellationToken);
+        var posTransfers = await PosTransfersByAccountAsync(userId, null, cancellationToken);
         var accountBalances = accounts.Select(account => new AccountBalanceDto(
             account.Id,
             account.Name,
@@ -313,7 +314,8 @@ internal sealed class EfFinancialReportRepository(
             debtMovements.GetValueOrDefault(account.Id) +
             debtOpenings.GetValueOrDefault(account.Id) +
             counterpartySettlements.GetValueOrDefault(account.Id) +
-            obligationSettlements.GetValueOrDefault(account.Id),
+            obligationSettlements.GetValueOrDefault(account.Id) +
+            posTransfers.GetValueOrDefault(account.Id),
             account.Type)).ToArray();
 
         return new MonthlyReportDto(
@@ -520,17 +522,34 @@ internal sealed class EfFinancialReportRepository(
                           obligationBalances.GetValueOrDefault(DebtDirection.Payable);
         var futureLoad = await GetFutureLoadAsync(
             userId, asOfDate, daysAhead, cancellationToken);
+        // Yoldaki para: tahsil edilmiş ama hesaba geçmemiş POS tutarlarının
+        // **net** toplamı. Kalıcı kolon değil, bir hesap türü de değil
+        // (ADR 0015); geçen ve iptal edilen satırlar düşer.
+        var moneyInTransit = await dbContext.PosSettlements.AsNoTracking()
+            .Where(settlement => settlement.UserId == userId &&
+                                 !settlement.IsCancelled &&
+                                 settlement.SettlementDate <= asOfDate &&
+                                 (settlement.TransferredOn == null ||
+                                  settlement.TransferredOn > asOfDate))
+            .SumAsync(
+                settlement => (decimal?)(settlement.GrossAmount.Amount -
+                                         settlement.CommissionAmount),
+                cancellationToken) ?? 0m;
 
         return new AdvancedFinancialReportDto(
             asOfDate,
             CurrencyCode.TRY,
             scope,
+            // Yoldaki para net varlığa girer ama kullanılabilir bakiyeye
+            // girmez (ADR 0015): kullanıcının parasıdır, bugün harcanamaz.
+            // İki sayının farkı tam olarak bu tutardır.
             new NetWorthDto(
                 liquidAssets,
                 cardDebt,
                 receivableDebt,
                 payableDebt,
-                liquidAssets - cardDebt + receivableDebt - payableDebt),
+                liquidAssets + moneyInTransit - cardDebt + receivableDebt - payableDebt,
+                moneyInTransit),
             comparison,
             trend,
             budgetVariances,
@@ -961,6 +980,8 @@ internal sealed class EfFinancialReportRepository(
             userId, asOfDate, cancellationToken);
         var obligationSettlements = await ObligationSettlementsByAccountAsync(
             userId, asOfDate, cancellationToken);
+        var posTransfers = await PosTransfersByAccountAsync(
+            userId, asOfDate, cancellationToken);
 
         return accounts.Select(account => new AccountBalanceDto(
             account.Id,
@@ -973,9 +994,38 @@ internal sealed class EfFinancialReportRepository(
             debtMovements.GetValueOrDefault(account.Id) +
             debtOpenings.GetValueOrDefault(account.Id) +
             counterpartySettlements.GetValueOrDefault(account.Id) +
-            obligationSettlements.GetValueOrDefault(account.Id),
+            obligationSettlements.GetValueOrDefault(account.Id) +
+            posTransfers.GetValueOrDefault(account.Id),
             account.Type)).ToArray();
     }
+
+    /// <summary>
+    /// POS tahsilatının hesap başına etkisi: yalnız <b>geçmiş</b> olanlar ve
+    /// yalnız <b>net</b> tutar.
+    /// </summary>
+    /// <remarks>
+    /// Tahsilat günü hesaba hiçbir şey girmez (ADR 0015): para henüz bankada
+    /// değildir ve o gün eklemek, ulaşmamış parayı harcanabilir gösterirdi.
+    /// Brüt eklemek de bankanın kestiği komisyonu kullanıcının cebinde
+    /// sayardı; hesaba geçen tutar nettir.
+    /// </remarks>
+    private Task<Dictionary<Guid, decimal>> PosTransfersByAccountAsync(
+        Guid userId,
+        DateOnly? asOfDate,
+        CancellationToken cancellationToken) =>
+        dbContext.PosSettlements.AsNoTracking()
+            .Where(settlement => settlement.UserId == userId &&
+                                 !settlement.IsCancelled &&
+                                 settlement.TransferredOn != null &&
+                                 (asOfDate == null || settlement.TransferredOn <= asOfDate))
+            .GroupBy(settlement => settlement.AccountId)
+            .Select(group => new
+            {
+                AccountId = group.Key,
+                Amount = group.Sum(settlement =>
+                    settlement.GrossAmount.Amount - settlement.CommissionAmount)
+            })
+            .ToDictionaryAsync(item => item.AccountId, item => item.Amount, cancellationToken);
 
     /// <summary>
     /// Cari tahsilat/ödemenin hesap başına net etkisi: tahsilat artırır,

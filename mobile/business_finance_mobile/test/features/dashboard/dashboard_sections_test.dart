@@ -211,6 +211,74 @@ void main() {
       expect(find.text('Borç'), findsNothing);
     });
 
+    testWidgets('yoldaki para likit varlıktan ayrı bir satırda duruyor', (
+      tester,
+    ) async {
+      // POS'tan geçen para kullanıcının parasıdır ama bugün harcanamaz
+      // (ADR 0015). Likit varlığa katılsaydı kullanıcı bankaya ulaşmamış
+      // parayı harcanabilir sanırdı; hiç gösterilmeseydi net varlık likit
+      // varlıktan büyük çıkar ve aradaki fark açıklamasız kalırdı.
+      final viewModel = DashboardViewModel(
+        _Source(
+          _report(),
+          advanced: _advanced(
+            receivableDebt: '0.0000',
+            payableDebt: '0.0000',
+            moneyInTransit: '490.0000',
+            netWorth: '2640.0000',
+          ),
+        ),
+        now: () => DateTime(2026, 8, 9),
+      );
+      await viewModel.load();
+
+      await _pump(tester, viewModel, height: 3000);
+
+      expect(find.text('Yolda'), findsOneWidget);
+      expect(find.text('POS tahsilatı'), findsOneWidget);
+      // Kartın kelimesi ADR 0015'in kelimesidir: `bloke` bankacılık jargonu.
+      expect(find.textContaining('Bloke'), findsNothing);
+    });
+
+    testWidgets('yolda para yokken satır hiç çizilmiyor', (tester) async {
+      final viewModel = DashboardViewModel(
+        _Source(_report(), advanced: _advanced()),
+        now: () => DateTime(2026, 8, 9),
+      );
+      await viewModel.load();
+
+      await _pump(tester, viewModel, height: 3000);
+
+      expect(find.text('Likit varlık'), findsOneWidget);
+      expect(find.text('Yolda'), findsNothing);
+    });
+
+    test('net varlık yoldaki parayı içerir, likit varlık içermez', () {
+      // İki sayı aynı soruya cevap vermiyor: likit varlık "bugün ne
+      // harcayabilirim", net varlık "neyim var". Farkları tam olarak yoldaki
+      // tutar kadar olmalı — bu kapı sözleşmenin o vaadini tutuyor.
+      final report = _advanced(
+        receivableDebt: '0.0000',
+        payableDebt: '0.0000',
+        moneyInTransit: '490.0000',
+        netWorth: '2640.0000',
+      );
+      double value(String amount) => double.parse(amount);
+
+      expect(
+        value(report.netWorth) - value(report.liquidAssets),
+        value(report.moneyInTransit) - value(report.creditCardDebt),
+      );
+      expect(
+        value(report.liquidAssets) +
+            value(report.moneyInTransit) -
+            value(report.creditCardDebt) +
+            value(report.receivableDebt) -
+            value(report.payableDebt),
+        value(report.netWorth),
+      );
+    });
+
     test('net varlık, kartta gösterilen dört kalemin toplamıdır', () {
       // Toplam sunucuda hesaplanıyor, istemcide değil. Ama ikisi birbirini
       // tutmak **zorunda**: kart dört kalemi gösterip beşinci bir şey
@@ -638,6 +706,7 @@ AdvancedReport _advanced({
   String receivableDebt = '340.0000',
   String payableDebt = '120.0000',
   String netWorth = '2370.0000',
+  String moneyInTransit = '0.0000',
 }) => AdvancedReport.fromJson({
   'asOfDate': '2026-08-31',
   'currency': 'TRY',
@@ -654,6 +723,7 @@ AdvancedReport _advanced({
     'receivableDebt': receivableDebt,
     'payableDebt': payableDebt,
     'netWorth': netWorth,
+    'moneyInTransit': moneyInTransit,
   },
   'periodComparison': {
     'current': {

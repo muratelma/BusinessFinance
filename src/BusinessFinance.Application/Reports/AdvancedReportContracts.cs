@@ -46,12 +46,23 @@ public sealed record CardDebtDto(
     decimal Debt,
     decimal AvailableLimit);
 
+/// <summary>
+/// Net varlığın kırılımı.
+/// </summary>
+/// <remarks>
+/// <see cref="LiquidAssets"/> ile <see cref="NetWorth"/> aynı soruya cevap
+/// vermez (ADR 0015): ilki "bugün ne harcayabilirim", ikincisi "neyim var".
+/// Aradaki fark tam olarak <see cref="MoneyInTransit"/> kadardır — POS'tan
+/// geçmiş ama henüz hesaba ulaşmamış para kullanıcının parasıdır, ama bugün
+/// harcanamaz.
+/// </remarks>
 public sealed record NetWorthDto(
     decimal LiquidAssets,
     decimal CreditCardDebt,
     decimal ReceivableDebt,
     decimal PayableDebt,
-    decimal NetWorth);
+    decimal NetWorth,
+    decimal MoneyInTransit);
 
 public sealed record AdvancedFinancialReportDto(
     DateOnly AsOfDate,

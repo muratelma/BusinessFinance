@@ -27,7 +27,8 @@ public sealed class MigrationHistoryTests
         "AddCounterparties",
         "LinkDebtsToCounterparties",
         "AddObligationsAndCounterpartyDueDates",
-        "AddRecurringOccurrenceLimit"
+        "AddRecurringOccurrenceLimit",
+        "AddCashCountsAndPosSettlements"
     ];
 
     [Fact]
@@ -338,6 +339,69 @@ public sealed class MigrationHistoryTests
             var backfill = Assert.IsType<SqlOperation>(up[backfillIndex]);
             Assert.Contains("COUNT(*)", backfill.Sql, StringComparison.Ordinal);
             Assert.Contains("RecurringTransactionOccurrences", backfill.Sql, StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>
+    /// İki tablo da bu adımda <b>boş doğar</b>: yorumlanacak bir geçmiş yoktur,
+    /// bu yüzden zorunlu kolonlar backfill istemez ve kalıcı bir DEFAULT
+    /// bırakılmaz. Dolu bir tabloda bu yol kullanılmaz.
+    /// </summary>
+    [Fact]
+    public void AddCashCountsAndPosSettlements_CreatesEmptyTablesWithOwnerScopedGuards()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_AddCashCountsAndPosSettlements", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations.ToList();
+
+            // Yeni tablo yaratılıyor; mevcut bir tabloya zorunlu kolon
+            // eklenmiyor, yani backfill sorusu hiç doğmuyor.
+            Assert.Empty(up.OfType<AddColumnOperation>());
+            var cashCounts = Assert.Single(
+                up.OfType<CreateTableOperation>(), table => table.Name == "CashCounts");
+            var posSettlements = Assert.Single(
+                up.OfType<CreateTableOperation>(), table => table.Name == "PosSettlements");
+            Assert.All(
+                cashCounts.Columns.Concat(posSettlements.Columns),
+                column =>
+                {
+                    Assert.Null(column.DefaultValue);
+                    Assert.Null(column.DefaultValueSql);
+                });
+
+            // Sahiplik kapısı SQL seviyesinde de duruyor: her iki tablo da
+            // bileşik `(UserId, Id)` anahtarıyla bağlanıyor.
+            Assert.All(
+                new[] { cashCounts, posSettlements },
+                table => Assert.Contains(
+                    table.ForeignKeys,
+                    key => key.Columns.SequenceEqual(new[] { "UserId", "AccountId" }) &&
+                           key.PrincipalColumns!.SequenceEqual(new[] { "UserId", "Id" })));
+
+            // Bir gün ve bir kasa için tek **açık** sayım: filtreli tekil indeks.
+            var openCount = Assert.Single(
+                up.OfType<CreateIndexOperation>(),
+                index => index.Name == "UX_CashCounts_UserId_AccountId_CountDate_Open");
+            Assert.True(openCount.IsUnique);
+            Assert.Equal("[IsCancelled] = 0", openCount.Filter);
+
+            // Yoldaki paranın türetilebilmesi için gereken alanlar kolon;
+            // türetilenler (net tutar, oran) kolon değil.
+            var posColumns = posSettlements.Columns.Select(column => column.Name).ToArray();
+            Assert.Contains("GrossAmount", posColumns);
+            Assert.Contains("CommissionAmount", posColumns);
+            Assert.Contains("TransferredOn", posColumns);
+            Assert.DoesNotContain("NetAmount", posColumns);
+            Assert.DoesNotContain("CommissionRate", posColumns);
+            Assert.DoesNotContain("IsInTransit", posColumns);
+
+            // Sayımda beklenen tutar ve fark kolon değildir.
+            var countColumns = cashCounts.Columns.Select(column => column.Name).ToArray();
+            Assert.Contains("CountedAmount", countColumns);
+            Assert.DoesNotContain("ExpectedBalance", countColumns);
+            Assert.DoesNotContain("Difference", countColumns);
         }
     }
 

@@ -171,7 +171,7 @@ Uygulananlar:
   toplamı, kalıcı kolon değil. İptal edilmiş ve geçmiş tahsilatlar sayılmaz.
 - Bu grup da yalnız Domain'e dokundu; kalıcılık Grup 4'tedir.
 
-### Grup 4 — Kalıcılık, bakiye, net varlık ve Özet ekranı
+### Grup 4 — Kalıcılık, bakiye, net varlık ve Özet ekranı — **Sürüyor**
 
 - Grup 2 ve 3'ün domain tipleri (`CashCount`, `PosSettlement`) bu grupta
   kalıcılığa girer: EF yapılandırması, owner-scoped bileşik anahtarlar ve tek
@@ -182,6 +182,33 @@ Uygulananlar:
 - Özet ekranına "yolda olan" satırı eklenir; gün sonu farkı varsa uyarı bandına
   düşer.
 - Ölçüt: iki sayı arasındaki fark tam olarak yoldaki tutara eşit.
+
+Uygulananlar:
+
+- `AddCashCountsAndPosSettlements` iki tabloyu kurdu. İkisi de **boş doğuyor**,
+  bu yüzden zorunlu kolonlar backfill istemiyor ve kalıcı DEFAULT bırakılmıyor;
+  migration kuralının "gerçekten boş tablo" istisnası burada bilinçli olarak
+  kullanıldı. Yükseltme iki sentetik veritabanına da uygulandı.
+- Türetilen hiçbir şey kolon değil: net tutar, komisyon oranı, "yolda mı",
+  beklenen bakiye ve fark şemada **yok**. Migration testi bu yokluğu sınıyor.
+- `CashCounts` üzerinde filtreli tekil indeks (`IsCancelled = 0`) bir gün ve bir
+  kasa için tek açık sayım bırakıyor; domain kuralı SQL seviyesinde de duruyor.
+- Geçmiş POS tahsilatı hesap bakiyesine **net** giriyor, geçmemiş hiç girmiyor.
+  Bakiyeyi hesaplayan iki yer de (tek hesap ve rapor dağılımı) aynı kuralı
+  uyguluyor.
+- Net varlık `moneyInTransit` taşıyor; kullanılabilir bakiye taşımıyor. İki
+  sayının farkı tam olarak yoldaki tutar ve bu gerçek SQL testiyle kapıya
+  bağlandı. Sabit SQL komut kapısı 61'den 63'e çıktı, kayıt adediyle büyümüyor.
+- Özet ekranına `Yolda` satırı eklendi (alt başlık `POS tahsilatı`); yolda para
+  yokken çizilmiyor. Arayüz ADR 0015'in kelimesini kullanıyor, `bloke` demiyor.
+
+Kalan adımlar (bu grubun içinde):
+
+- POS'un **gelir/gider raporunda tanınması**: brüt gelir ve komisyon gideri
+  dönem toplamlarına, kategori dağılımına, trende ve bütçe sapmasına katılacak.
+  Bugün katılmıyor; yazma ucu henüz olmadığı için tablo boş ve gözlenebilir bir
+  tutarsızlık doğmuyor, ama yazma açılmadan önce kapatılmalı.
+- Kasa sayımı ve POS tahsilatı için yazma uçları.
 
 ### Grup 5 — Ana sekme yapısı
 
