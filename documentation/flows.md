@@ -706,7 +706,7 @@ Kredi kartı ödemesinin gider üretmemesiyle aynı kural. Gerçek maliyet faizd
 ```text
 Karşı taraf ekle (ad, isteğe bağlı not)
   -> Borçlandır:  yön (alacak | borç)
-                  tutar, tarih, kategori, açıklama
+                  tutar, tarih, **isteğe bağlı vade**, kategori, açıklama
                   kapsam: açık seçim -> kategorinin varsayılanı
      sonuç: gelir/gider **bugün** yazılır, kasa kıpırdamaz
   -> Tahsilat / ödeme:  hesap, tutar, tarih, açıklama
@@ -716,6 +716,12 @@ Karşı taraf ekle (ad, isteğe bağlı not)
 Yön kategorinin türünü belirler: alacak doğuran borçlandırma gelir
 kategorisi, borç doğuran gider kategorisi ister; tutmayan istek reddedilir.
 Tahsilat ne kategori ne kapsam sorar — gelir/gider raporuna hiç girmez.
+
+Vade boş bırakılabilir; geçmiş cari satırlara sonradan tarih uydurulmaz. Vade
+seçilirse işlem tarihinden önce olamaz. Cari liste ve ayrıntı `asOfDate`
+gönderir; toplam bakiye yanında vadesi geçmiş tutar, ayrıntıda ise
+vadesi geçmiş ve vadesi geçmemiş/vadesiz kalan ayrı okunur. Ödemeler belirli
+bir satıra tahsis edilmediği için önce gecikmiş borçlandırmayı kapatır.
 
 Pasif karşı tarafa **yeni borçlandırma yazılamaz** (`409`), **tahsilat
 yazılabilir**: aksi hâlde artık iş yapılmayan bir müşterinin kalan borcu

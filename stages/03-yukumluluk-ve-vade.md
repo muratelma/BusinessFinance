@@ -104,16 +104,27 @@ kaybolur; ikisi de doğru olur ve sırayla gerçekleşir.
 - `ObligationStatus` yalnız `Open`, `Settled`, `Cancelled` değerlerini taşır;
   gecikme `IsOverdueOn(asOfDate)` ile tarihten türetilir.
 - Kapanış aynı aggregate üzerinde idempotenttir: ikinci çağrı ilk settlement'ı
-  döndürür. Kalıcılık ve eşzamanlı istek kapısı Grup 2'de veritabanı tekilliğiyle
-  tamamlanacak.
-- Bu grup yalnız Domain'e dokundu; EF modeline tip eklenmedi, migration ve API
-  sözleşmesi üretilmedi.
+  döndürür. Grup 2, `(UserId, ObligationId)` tekilliği ve iki stale SQL yazarı
+  testiyle kalıcılık/eşzamanlılık kapısını da tamamladı.
+- Grup 1 yalnız Domain'e dokundu; EF modeli ve migration Grup 2'de eklendi.
 
-### Grup 2 — Cari borçlandırmaya vade
+### Grup 2 — Cari borçlandırmaya vade — **Tamamlandı**
 
 - Aşama 02'de tarihsiz açılan cari borçlandırma isteğe bağlı vade alır.
 - Vadesi geçmiş cari bakiye ayrı okunur; karşı taraf listesinde görünür.
 - Ölçüt: aynı karşı tarafın vadesi gelmiş ve gelmemiş bakiyesi ayrı raporlanıyor.
+- `CounterpartyCharge.DueDate` nullable: eski satırların bilinmeyen vadesine
+  tarih uydurulmadı ve migration kalıcı DEFAULT bırakmadı.
+- Gecikme `asOfDate` ile owner-scoped tek SQL sorgusunda türetiliyor. Tahsilat
+  belirli bir satıra bağlı olmadığı için önce gecikmiş borçlandırmayı kapatıyor;
+  kalan `Overdue*` ve `NotOverdue*` olarak ayrı dönüyor.
+- API liste ve ayrıntıda toplam + iki vade kırılımını kararlı para dizeleriyle
+  döndürüyor; borçlandırma isteği opsiyonel `dueDate` alıyor.
+- Flutter formu opsiyonel vadeyi taşıyor; liste gecikmeyi saat ikonu ve metinle,
+  ayrıntı iki kırılımı ayrı satırlarla gösteriyor. 2.0× metin/a11y kapısı geçti.
+- Grup 1'in `Obligation` ve `ObligationSettlement` tipleri owner-scoped bileşik
+  foreign key'lerle kalıcılaştı; bir yükümlülüğe tek settlement veritabanında
+  tekil. Endpoint/use case davranışı henüz açılmadı.
 
 ### Grup 3 — Tekrarlayan planda bitiş sınırı
 

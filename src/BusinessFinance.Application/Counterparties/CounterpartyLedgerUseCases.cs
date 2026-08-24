@@ -74,7 +74,8 @@ public sealed class CreateCounterpartyChargeUseCase(
                 new Money(command.Amount, command.Currency),
                 scope,
                 command.ChargeDate,
-                command.Description);
+                command.Description,
+                command.DueDate);
             await repository.AddChargeAsync(charge, cancellationToken);
             return ApplicationResult<CounterpartyChargeDto>.Success(ToDto(charge));
         }
@@ -100,7 +101,8 @@ public sealed class CreateCounterpartyChargeUseCase(
         charge.Scope,
         charge.ChargeDate,
         charge.Description,
-        charge.IsCancelled);
+        charge.IsCancelled,
+        charge.DueDate);
 }
 
 /// <summary>

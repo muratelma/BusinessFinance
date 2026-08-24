@@ -133,6 +133,7 @@ class _CounterpartyChargeFormState extends State<CounterpartyChargeForm> {
   final _amount = TextEditingController();
   final _description = TextEditingController();
   late String _date;
+  String? _dueDate;
   String? _categoryId;
   TransactionScope? _explicitScope;
   bool _scopeMissing = false;
@@ -201,6 +202,7 @@ class _CounterpartyChargeFormState extends State<CounterpartyChargeForm> {
           'amount': MoneyInput.wire(_amount.text),
           'categoryId': _categoryId,
           'chargeDate': _date,
+          'dueDate': _dueDate,
           // Kapsam yalnız görünürse ve çözülebiliyorsa gider: cevabı
           // görünmeyen kullanıcıda hiçbir istekte `scope` yollanmaz.
           'scope': widget.showScope ? _resolvedScope?.apiValue : null,
@@ -256,7 +258,37 @@ class _CounterpartyChargeFormState extends State<CounterpartyChargeForm> {
           child: AppDateField(
             label: 'Tarih',
             value: _date,
-            onChanged: (value) => setState(() => _date = value),
+            onChanged: (value) => setState(() {
+              _date = value;
+              final due = AppDateField.parse(_dueDate);
+              final charge = AppDateField.parse(value);
+              if (due != null && charge != null && due.isBefore(charge)) {
+                _dueDate = null;
+              }
+            }),
+          ),
+        ),
+        AppFormField(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AppDateField(
+                label: 'Vade (isteğe bağlı)',
+                value: _dueDate,
+                firstDate: AppDateField.parse(_date),
+                helperText: 'Boş bırakırsanız hareket vadesiz izlenir.',
+                onChanged: (value) => setState(() => _dueDate = value),
+              ),
+              if (_dueDate != null)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () => setState(() => _dueDate = null),
+                    icon: const Icon(Icons.clear),
+                    label: const Text('Vadeyi kaldır'),
+                  ),
+                ),
+            ],
           ),
         ),
         AppFormField(

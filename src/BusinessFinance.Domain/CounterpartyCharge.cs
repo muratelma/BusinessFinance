@@ -36,6 +36,7 @@ public sealed class CounterpartyCharge
     public TransactionScope Scope { get; }
 
     public DateOnly ChargeDate { get; }
+    public DateOnly? DueDate { get; }
     public string? Description { get; }
     public bool IsCancelled { get; private set; }
     public DateTimeOffset? CancelledAtUtc { get; private set; }
@@ -54,7 +55,8 @@ public sealed class CounterpartyCharge
         Money amount,
         TransactionScope scope,
         DateOnly chargeDate,
-        string? description = null)
+        string? description = null,
+        DateOnly? dueDate = null)
     {
         if (id == Guid.Empty)
         {
@@ -96,6 +98,13 @@ public sealed class CounterpartyCharge
             throw new ArgumentOutOfRangeException(nameof(chargeDate), "Charge date is required.");
         }
 
+        if (dueDate is DateOnly date && date < chargeDate)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(dueDate),
+                "Due date cannot be before the charge date.");
+        }
+
         Id = id;
         UserId = userId;
         CounterpartyId = counterparty.Id;
@@ -104,6 +113,7 @@ public sealed class CounterpartyCharge
         Amount = amount;
         Scope = scope;
         ChargeDate = chargeDate;
+        DueDate = dueDate;
         Description = NormalizeDescription(description);
     }
 

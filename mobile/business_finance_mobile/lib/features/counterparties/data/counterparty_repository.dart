@@ -5,7 +5,10 @@ import '../../activities/data/activity_models.dart';
 import 'counterparty_models.dart';
 
 abstract interface class CounterpartyRepositoryContract {
-  Future<CounterpartiesSnapshot> load(CounterpartyBalanceFilter filter);
+  Future<CounterpartiesSnapshot> load(
+    CounterpartyBalanceFilter filter,
+    String asOfDate,
+  );
 
   /// Bir kişinin bakiyesi, hareket geçmişi ve sözleşmeleri.
   ///
@@ -39,9 +42,15 @@ class CounterpartyRepository implements CounterpartyRepositoryContract {
   final ApiClient _client;
 
   @override
-  Future<CounterpartiesSnapshot> load(CounterpartyBalanceFilter filter) async {
+  Future<CounterpartiesSnapshot> load(
+    CounterpartyBalanceFilter filter,
+    String asOfDate,
+  ) async {
     final responses = await Future.wait([
-      _client.get('/api/v1/counterparties?balance=${filter.apiValue}'),
+      _client.get(
+        '/api/v1/counterparties?balance=${filter.apiValue}'
+        '&asOfDate=$asOfDate',
+      ),
       _client.get('/api/v1/accounts?pageNumber=1&pageSize=100&isActive=true'),
       _client.get('/api/v1/categories?isActive=true'),
     ]);
@@ -71,7 +80,7 @@ class CounterpartyRepository implements CounterpartyRepositoryContract {
     String asOfDate,
   ) async {
     final responses = await Future.wait([
-      _client.get('/api/v1/counterparties/$counterpartyId'),
+      _client.get('/api/v1/counterparties/$counterpartyId?asOfDate=$asOfDate'),
       _client.get(
         '/api/v1/financial-activities'
         '?pageNumber=1&pageSize=50&counterpartyId=$counterpartyId',

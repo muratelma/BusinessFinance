@@ -286,11 +286,15 @@ internal static class FieldRun
             Guid userId,
             CounterpartyBalanceFilter filter,
             bool? isActive,
+            DateOnly asOfDate,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
         public Task<CounterpartyBalanceSummary?> FindBalanceAsync(
-            Guid counterpartyId, Guid userId, CancellationToken cancellationToken) =>
+            Guid counterpartyId,
+            Guid userId,
+            DateOnly asOfDate,
+            CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
         public Task<Counterparty> FindOrCreateByNameAsync(

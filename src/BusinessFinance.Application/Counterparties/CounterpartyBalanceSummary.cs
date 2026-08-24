@@ -14,7 +14,9 @@ public sealed record CounterpartyBalanceSummary(
     string Name,
     bool IsActive,
     decimal Receivable,
-    decimal Payable)
+    decimal Payable,
+    decimal OverdueReceivable,
+    decimal OverduePayable)
 {
     /// <summary>Artı: karşı taraf bize borçlu. Eksi: biz ona borçluyuz.</summary>
     public decimal Net => Receivable - Payable;
@@ -25,4 +27,13 @@ public sealed record CounterpartyBalanceSummary(
     /// bir para vardır.
     /// </summary>
     public bool IsSettled => Receivable == 0m && Payable == 0m;
+
+    /// <summary>
+    /// Vadesi gelmemiş veya vadesi hiç girilmemiş açık alacak. Fazla tahsilat
+    /// burada eksi kalabilir; parayı sıfıra kırpmak gerçek bakiyeyi gizlerdi.
+    /// </summary>
+    public decimal NotOverdueReceivable => Receivable - OverdueReceivable;
+
+    /// <summary>Vadesi gelmemiş veya vadesiz açık borç.</summary>
+    public decimal NotOverduePayable => Payable - OverduePayable;
 }

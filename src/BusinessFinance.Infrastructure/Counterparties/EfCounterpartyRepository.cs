@@ -12,9 +12,10 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
         Guid userId,
         CounterpartyBalanceFilter filter,
         bool? isActive,
+        DateOnly asOfDate,
         CancellationToken cancellationToken)
     {
-        var query = ProjectBalances(userId);
+        var query = ProjectBalances(userId, asOfDate);
 
         if (isActive is bool active)
         {
@@ -40,22 +41,35 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
 
         return rows
             .Select(row => new CounterpartyBalanceSummary(
-                row.Id, row.Name, row.IsActive, row.Receivable, row.Payable))
+                row.Id,
+                row.Name,
+                row.IsActive,
+                row.Receivable,
+                row.Payable,
+                Math.Max(0m, row.OverdueReceivableCharges - row.ReceivablePayments),
+                Math.Max(0m, row.OverduePayableCharges - row.PayablePayments)))
             .ToArray();
     }
 
     public async Task<CounterpartyBalanceSummary?> FindBalanceAsync(
         Guid counterpartyId,
         Guid userId,
+        DateOnly asOfDate,
         CancellationToken cancellationToken)
     {
-        var row = await ProjectBalances(userId)
+        var row = await ProjectBalances(userId, asOfDate)
             .SingleOrDefaultAsync(candidate => candidate.Id == counterpartyId, cancellationToken);
 
         return row is null
             ? null
             : new CounterpartyBalanceSummary(
-                row.Id, row.Name, row.IsActive, row.Receivable, row.Payable);
+                row.Id,
+                row.Name,
+                row.IsActive,
+                row.Receivable,
+                row.Payable,
+                Math.Max(0m, row.OverdueReceivableCharges - row.ReceivablePayments),
+                Math.Max(0m, row.OverduePayableCharges - row.PayablePayments));
     }
 
     public Task<Counterparty?> FindOwnedByIdAsync(
@@ -206,6 +220,10 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
                 cancellationToken) ||
             await dbContext.DebtAgreements.AnyAsync(
                 debt => debt.UserId == userId && debt.CounterpartyId == counterpartyId,
+                cancellationToken) ||
+            await dbContext.Obligations.AnyAsync(
+                obligation => obligation.UserId == userId &&
+                              obligation.CounterpartyId == counterpartyId,
                 cancellationToken);
 
         if (hasHistory)
@@ -283,8 +301,13 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
     ///
     /// İptal edilmiş hareket hiç sayılmaz; silme yerine iptal kuralının
     /// buradaki karşılığı bu filtredir.
+    ///
+    /// Ödemeler tek bir borçlandırmaya bağlanmadığı için gecikme dağıtımında
+    /// önce vadesi geçmiş hareketleri kapatır. Bu nedenle gecikmiş tutar,
+    /// gecikmiş borçlandırmaların toplamından o yöndeki bütün ödemelerin
+    /// düşülmesiyle ve sıfırın altına kırpılarak hesaplanır.
     /// </remarks>
-    private IQueryable<BalanceRow> ProjectBalances(Guid userId)
+    private IQueryable<BalanceRow> ProjectBalances(Guid userId, DateOnly asOfDate)
     {
         return dbContext.Counterparties
             .AsNoTracking()
@@ -319,7 +342,39 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
                                           payment.CounterpartyId == counterparty.Id &&
                                           !payment.IsCancelled &&
                                           payment.Direction == DebtDirection.Payable)
-                        .Sum(payment => (decimal?)payment.Amount.Amount) ?? 0m)
+                        .Sum(payment => (decimal?)payment.Amount.Amount) ?? 0m),
+                OverdueReceivableCharges =
+                    dbContext.CounterpartyCharges
+                        .Where(charge => charge.UserId == userId &&
+                                         charge.CounterpartyId == counterparty.Id &&
+                                         !charge.IsCancelled &&
+                                         charge.Direction == DebtDirection.Receivable &&
+                                         charge.DueDate != null &&
+                                         charge.DueDate < asOfDate)
+                        .Sum(charge => (decimal?)charge.Amount.Amount) ?? 0m,
+                OverduePayableCharges =
+                    dbContext.CounterpartyCharges
+                        .Where(charge => charge.UserId == userId &&
+                                         charge.CounterpartyId == counterparty.Id &&
+                                         !charge.IsCancelled &&
+                                         charge.Direction == DebtDirection.Payable &&
+                                         charge.DueDate != null &&
+                                         charge.DueDate < asOfDate)
+                        .Sum(charge => (decimal?)charge.Amount.Amount) ?? 0m,
+                ReceivablePayments =
+                    dbContext.CounterpartyPayments
+                        .Where(payment => payment.UserId == userId &&
+                                          payment.CounterpartyId == counterparty.Id &&
+                                          !payment.IsCancelled &&
+                                          payment.Direction == DebtDirection.Receivable)
+                        .Sum(payment => (decimal?)payment.Amount.Amount) ?? 0m,
+                PayablePayments =
+                    dbContext.CounterpartyPayments
+                        .Where(payment => payment.UserId == userId &&
+                                          payment.CounterpartyId == counterparty.Id &&
+                                          !payment.IsCancelled &&
+                                          payment.Direction == DebtDirection.Payable)
+                        .Sum(payment => (decimal?)payment.Amount.Amount) ?? 0m
             });
     }
 
@@ -330,5 +385,9 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
         public bool IsActive { get; init; }
         public decimal Receivable { get; init; }
         public decimal Payable { get; init; }
+        public decimal OverdueReceivableCharges { get; init; }
+        public decimal OverduePayableCharges { get; init; }
+        public decimal ReceivablePayments { get; init; }
+        public decimal PayablePayments { get; init; }
     }
 }

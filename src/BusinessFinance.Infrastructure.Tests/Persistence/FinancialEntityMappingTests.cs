@@ -9,6 +9,111 @@ namespace BusinessFinance.Infrastructure.Tests.Persistence;
 public sealed class FinancialEntityMappingTests
 {
     [Fact]
+    public void ObligationMapping_UsesOwnerScopedRelationshipsAndOneSettlement()
+    {
+        using var context = CreateSqlServerModelContext();
+        var charge = context.Model.FindEntityType(typeof(CounterpartyCharge));
+        var obligation = context.Model.FindEntityType(typeof(Obligation));
+        var settlement = context.Model.FindEntityType(typeof(ObligationSettlement));
+
+        Assert.NotNull(charge);
+        Assert.True(charge.FindProperty(nameof(CounterpartyCharge.DueDate))!.IsNullable);
+        Assert.Equal("date", charge.FindProperty(nameof(CounterpartyCharge.DueDate))!.GetColumnType());
+
+        Assert.NotNull(obligation);
+        Assert.NotNull(settlement);
+        Assert.Equal("Obligations", obligation.GetTableName());
+        Assert.Equal("ObligationSettlements", settlement.GetTableName());
+        Assert.Null(obligation.FindProperty(nameof(Obligation.Status)));
+        Assert.Null(settlement.FindProperty(nameof(ObligationSettlement.SignedAccountEffect)));
+
+        var categoryForeignKey = obligation.GetForeignKeys().Single(
+            foreignKey => foreignKey.PrincipalEntityType.ClrType == typeof(Category));
+        var counterpartyForeignKey = obligation.GetForeignKeys().Single(
+            foreignKey => foreignKey.PrincipalEntityType.ClrType == typeof(Counterparty));
+        var obligationForeignKey = settlement.GetForeignKeys().Single(
+            foreignKey => foreignKey.PrincipalEntityType.ClrType == typeof(Obligation));
+        var accountForeignKey = settlement.GetForeignKeys().Single(
+            foreignKey => foreignKey.PrincipalEntityType.ClrType == typeof(Account));
+
+        Assert.Equal(
+            [nameof(Obligation.UserId), nameof(Obligation.CategoryId)],
+            categoryForeignKey.Properties.Select(property => property.Name));
+        Assert.Equal(
+            [nameof(Obligation.UserId), nameof(Obligation.CounterpartyId)],
+            counterpartyForeignKey.Properties.Select(property => property.Name));
+        Assert.False(counterpartyForeignKey.IsRequired);
+        Assert.Equal(
+            [nameof(ObligationSettlement.UserId), nameof(ObligationSettlement.ObligationId)],
+            obligationForeignKey.Properties.Select(property => property.Name));
+        Assert.True(obligationForeignKey.IsUnique);
+        Assert.Equal(
+            [nameof(ObligationSettlement.UserId), nameof(ObligationSettlement.AccountId)],
+            accountForeignKey.Properties.Select(property => property.Name));
+        Assert.All(obligation.GetForeignKeys(), foreignKey =>
+            Assert.Equal(DeleteBehavior.Restrict, foreignKey.DeleteBehavior));
+        Assert.All(settlement.GetForeignKeys(), foreignKey =>
+            Assert.Equal(DeleteBehavior.Restrict, foreignKey.DeleteBehavior));
+
+        var relationalModel = context.Model.GetRelationalModel();
+        Assert.Equal(
+            "decimal(19,4)",
+            relationalModel.Tables.Single(table => table.Name == "Obligations")
+                .Columns.Single(column => column.Name == "Amount").StoreType);
+        Assert.Equal(
+            "decimal(19,4)",
+            relationalModel.Tables.Single(table => table.Name == "ObligationSettlements")
+                .Columns.Single(column => column.Name == "Amount").StoreType);
+    }
+
+    [Fact]
+    public async Task ObligationRoundTrip_MaterializesItsSettlementFromTheBackingField()
+    {
+        var options = new DbContextOptionsBuilder<BusinessFinanceDbContext>()
+            .UseInMemoryDatabase($"obligation-round-trip-{Guid.NewGuid():N}")
+            .Options;
+        var userId = Guid.NewGuid();
+        var account = new Account(
+            Guid.NewGuid(), userId, "Kasa", AccountType.Cash, CurrencyCode.TRY);
+        var category = new Category(
+            Guid.NewGuid(), userId, "Tedarik", CategoryType.Expense);
+        var counterparty = new Counterparty(Guid.NewGuid(), userId, "Sentetik Tedarikçi");
+        var obligation = new Obligation(
+            Guid.NewGuid(),
+            userId,
+            category,
+            DebtDirection.Payable,
+            new Money(125.50m, CurrencyCode.TRY),
+            TransactionScope.Business,
+            new DateOnly(2026, 8, 10),
+            new DateOnly(2026, 8, 20),
+            new DateTimeOffset(2026, 8, 10, 9, 0, 0, TimeSpan.Zero),
+            counterparty);
+        obligation.Settle(
+            Guid.NewGuid(),
+            account,
+            new DateOnly(2026, 8, 15),
+            new DateTimeOffset(2026, 8, 15, 9, 0, 0, TimeSpan.Zero));
+
+        await using (var writeContext = new BusinessFinanceDbContext(options))
+        {
+            writeContext.AddRange(account, category, counterparty, obligation);
+            await writeContext.SaveChangesAsync();
+        }
+
+        await using var readContext = new BusinessFinanceDbContext(options);
+        var persisted = await readContext.Obligations
+            .Include(item => item.Settlement)
+            .AsNoTracking()
+            .SingleAsync();
+
+        Assert.Equal(ObligationStatus.Settled, persisted.Status);
+        Assert.NotNull(persisted.Settlement);
+        Assert.Equal(new Money(125.50m, CurrencyCode.TRY), persisted.Amount);
+        Assert.Equal(-125.50m, persisted.Settlement.SignedAccountEffect);
+    }
+
+    [Fact]
     public void ImportMapping_UsesOwnerScopedBatchRelationshipAndExactSignedAmount()
     {
         using var context = CreateSqlServerModelContext();

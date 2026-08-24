@@ -25,7 +25,8 @@ public sealed class MigrationHistoryTests
         "AddTransactionScope",
         "AddUserProfile",
         "AddCounterparties",
-        "LinkDebtsToCounterparties"
+        "LinkDebtsToCounterparties",
+        "AddObligationsAndCounterpartyDueDates"
     ];
 
     [Fact]
@@ -242,6 +243,65 @@ public sealed class MigrationHistoryTests
             Assert.Contains(
                 up.OfType<CreateIndexOperation>(),
                 index => index.Name == "UX_Counterparties_UserId_Name" && index.IsUnique);
+        }
+    }
+
+    /// <summary>
+    /// Eski cari hareketlerin vadesi bilinemez; kolon bu yüzden nullable ve
+    /// varsayılansızdır. Yükümlülük tabloları ise bu adımda boş doğar, dolayısıyla
+    /// kendi zorunlu alanları backfill gerektirmez.
+    /// </summary>
+    [Fact]
+    public void AddObligationsAndCounterpartyDueDates_PreservesUnknownHistoryAndOwnerScope()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith(
+                "_AddObligationsAndCounterpartyDueDates",
+                StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations.ToList();
+            var dueDate = Assert.Single(up.OfType<AddColumnOperation>(), operation =>
+                operation.Table == "CounterpartyCharges" && operation.Name == "DueDate");
+            Assert.True(dueDate.IsNullable);
+            Assert.Null(dueDate.DefaultValue);
+            Assert.Null(dueDate.DefaultValueSql);
+
+            var tables = up.OfType<CreateTableOperation>().ToArray();
+            Assert.Equal(
+                ["ObligationSettlements", "Obligations"],
+                tables.Select(table => table.Name)
+                    .OrderBy(name => name, StringComparer.Ordinal)
+                    .ToArray());
+
+            var obligations = tables.Single(table => table.Name == "Obligations");
+            var settlements = tables.Single(table => table.Name == "ObligationSettlements");
+            Assert.DoesNotContain(obligations.Columns, column => column.Name == "AccountId");
+            Assert.DoesNotContain(
+                settlements.Columns,
+                column => column.Name is "CategoryId" or "Scope");
+
+            var categoryKey = obligations.ForeignKeys.Single(key =>
+                key.PrincipalTable == "Categories");
+            var counterpartyKey = obligations.ForeignKeys.Single(key =>
+                key.PrincipalTable == "Counterparties");
+            var accountKey = settlements.ForeignKeys.Single(key =>
+                key.PrincipalTable == "Accounts");
+            var obligationKey = settlements.ForeignKeys.Single(key =>
+                key.PrincipalTable == "Obligations");
+
+            Assert.Equal(["UserId", "CategoryId"], categoryKey.Columns);
+            Assert.Equal(["UserId", "CounterpartyId"], counterpartyKey.Columns);
+            Assert.Equal(["UserId", "AccountId"], accountKey.Columns);
+            Assert.Equal(["UserId", "ObligationId"], obligationKey.Columns);
+            Assert.All(
+                new[] { categoryKey, counterpartyKey, accountKey, obligationKey },
+                key => Assert.Equal(ReferentialAction.Restrict, key.OnDelete));
+
+            Assert.Contains(
+                up.OfType<CreateIndexOperation>(),
+                index => index.Name == "UX_ObligationSettlements_UserId_ObligationId" &&
+                         index.IsUnique);
         }
     }
 

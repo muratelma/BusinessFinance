@@ -15,6 +15,10 @@ public sealed record CounterpartyResponse(
     bool IsActive,
     string Receivable,
     string Payable,
+    string OverdueReceivable,
+    string OverduePayable,
+    string NotOverdueReceivable,
+    string NotOverduePayable,
     string Net,
     bool IsSettled);
 
@@ -34,7 +38,8 @@ public sealed record CreateCounterpartyChargeRequest(
     // İsteğe bağlı: boşsa kategorinin varsayılanı kullanılır, o da boşsa istek
     // `counterparties.scope_unresolved` ile reddedilir.
     string? Scope = null,
-    string? Description = null);
+    string? Description = null,
+    string? DueDate = null);
 
 /// <summary>
 /// Tahsilat / ödeme. Kategori ve kapsam **taşımaz**: gelir/gider raporuna
@@ -58,7 +63,8 @@ public sealed record CounterpartyChargeResponse(
     string Scope,
     string ChargeDate,
     string? Description,
-    bool IsCancelled);
+    bool IsCancelled,
+    string? DueDate);
 
 public sealed record CounterpartyPaymentResponse(
     Guid Id,

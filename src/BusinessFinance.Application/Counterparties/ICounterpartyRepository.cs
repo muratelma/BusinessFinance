@@ -12,6 +12,7 @@ public interface ICounterpartyRepository
         Guid userId,
         CounterpartyBalanceFilter filter,
         bool? isActive,
+        DateOnly asOfDate,
         CancellationToken cancellationToken);
 
     /// <summary>
@@ -21,6 +22,7 @@ public interface ICounterpartyRepository
     Task<CounterpartyBalanceSummary?> FindBalanceAsync(
         Guid counterpartyId,
         Guid userId,
+        DateOnly asOfDate,
         CancellationToken cancellationToken);
 
     Task<Counterparty?> FindOwnedByIdAsync(

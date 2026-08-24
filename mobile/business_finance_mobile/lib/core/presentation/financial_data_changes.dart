@@ -107,8 +107,8 @@ class FinancialDataChanges extends ChangeNotifier {
   /// kaydın işi değil ama tek bir sinyalde toplanıyorlar: ekran hangisinin
   /// yazıldığını bilse bile, iptal yolu ikisini birden geri alabiliyor.
   ///
-  /// `planning` yükselmez: cari hareketin vadesi yoktur ve planlanan görünüme
-  /// hiç girmez.
+  /// `planning` henüz yükselmez: cari hareket opsiyonel vade taşısa da ortak
+  /// planlanan akışa Aşama 03 Grup 4'te bağlanacaktır.
   void counterpartyLedgerChanged() => _raise(
     feed: true,
     dashboard: true,

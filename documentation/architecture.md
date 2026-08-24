@@ -480,9 +480,8 @@ ayın neti`. Bir taraf seçiliyken hero o tarafın netini adıyla gösterir.
 
 ## Cari hesap: karşı taraf ve açık bakiye
 
-> Aşama 02, Grup 2–5 — domain, kalıcılık, bakiye projection'ı, borç
-> modelinin bağlanması ve **yazma yolu + feed + raporlar**. Arayüz ve yedek
-> kendi gruplarında gelir; bu bölüm yalnız bugün var olanı anlatır.
+> Aşama 02 ve Aşama 03 Grup 2 — domain, kalıcılık, vade bazlı bakiye
+> projection'ı, borç modelinin bağlanması ve **yazma yolu + feed + raporlar**.
 
 Karşı taraf (`Counterparty`) müşteri, tedarikçi ya da ikisi birden. **Ayrı tip
 yok:** mahalle esnafında aynı kişi hem alıcı hem satıcıdır ve ikiye bölmek
@@ -492,10 +491,10 @@ Aşama 02'nin kapsamı dışında.
 
 İki hareket türü ADR 0014'ü birebir uygular:
 
-| Kayıt | Tanır | Taşır | Kategori | Kapsam |
-|---|---|---|---|---|
-| `CounterpartyCharge` | **Gelir/gider** | Hayır | **Zorunlu** | **Zorunlu** |
-| `CounterpartyPayment` | Hayır | **Hesap bakiyesi** | Yok | Yok |
+| Kayıt | Tanır | Taşır | Kategori | Kapsam | Vade |
+|---|---|---|---|---|---|
+| `CounterpartyCharge` | **Gelir/gider** | Hayır | **Zorunlu** | **Zorunlu** | İsteğe bağlı |
+| `CounterpartyPayment` | Hayır | **Hesap bakiyesi** | Yok | Yok | Yok |
 
 `DebtDirection` yeniden kullanılıyor çünkü sorduğu soru aynı: yükümlülük kimin
 üzerinde. Borçlandırmada yön kategorinin türünü **belirler** — alacak doğuran
@@ -529,6 +528,14 @@ karşı taraf başına liste (`ListBalancesAsync`) ve tek karşı taraf
 birlikte taşır; `Net` ikisini tek cümleye, `IsSettled` "kapanmış cari mi"
 sorusuna indirir.
 
+Projection sorgulanan `asOfDate` değerini de alır ve her iki yönü
+`Overdue*` / `NotOverdue*` olarak ayırır. Gecikme kalıcı kolon değildir:
+yalnız iptal edilmemiş, vadesi sorgu tarihinden eski borçlandırmalar gecikmiş
+sayılır. Tahsilat ve ödemeler tek bir borçlandırmaya bağlanmadığı için
+deterministik mahsup kuralı **önce vadesi geçmiş hareketi kapatır**; gecikmiş
+tutar `max(0, gecikmiş borçlandırmalar − o yöndeki bütün ödemeler)` olur.
+Vadesi girilmemiş ve ileri vadeli kalan, `NotOverdue*` tarafındadır.
+
 **Liste tek SQL ifadesidir.** Toplamlar karşı tarafın satırının içinde
 ilişkili alt sorgular olarak durur; filtre (`All`/`Open`/`Settled`, aktiflik)
 ve sıralama da veritabanında çalışır. Kişi başına ayrı bir toplam sorgusu,
@@ -546,6 +553,15 @@ başka kullanıcının karşı tarafına yazılan bir hareket veritabanı seviye
 reddedilir. `(UserId, Name)` tekil indeksi aynı kişinin iki kez oluşmasını
 engeller. Tahsilat tablosunda **kategori ve kapsam kolonu hiç yoktur**;
 yokluğu migration testiyle korunuyor.
+
+`AddObligationsAndCounterpartyDueDates` migration'ı mevcut cari geçmiş için
+`DueDate` kolonunu **nullable ve varsayılansız** ekler; geçmiş satırların vadesi
+bilinmediği için bir tarih uydurulmaz. Aynı adımda boş doğan `Obligations` ve
+`ObligationSettlements` tabloları Grup 1 modelini kalıcılaştırır. Yükümlülük
+kategoriye ve isteğe bağlı karşı tarafa, settlement hesaba ve yükümlülüğe
+`(UserId, Id)` bileşik anahtarlarıyla bağlanır. `(UserId, ObligationId)` tekil
+indeksi bir yükümlülüğün en fazla bir nakit kapanışı olmasını veritabanında da
+korur. Bu checkpoint yalnız kalıcılığı kurar; yükümlülük endpoint'i henüz yoktur.
 
 #### Taksitli sözleşme de aynı karşı tarafa bağlı
 
@@ -592,8 +608,9 @@ Feed sekiz yazma modelini tek `UNION ALL` sorgusunda birleştirmeye devam
 ediyor. Cari hareketin iki türü de **iptal edilebilir**: her biri tek başına
 duran bir kayıttır, geri dönüşü olmayan bir planın sonucu değil.
 
-Cari hareketin **vadesi yoktur**, bu yüzden planlanan görünüme girmez —
-vade, gecikme ve hatırlatma Aşama 03'ün konusu.
+Cari borçlandırma artık isteğe bağlı vade taşır. Bu vade cari listedeki gecikme
+ayrımını besler; ortak planlanan projection'a katılması Aşama 03 Grup 4'ün
+işidir ve bu checkpoint'te erkenden eklenmemiştir.
 
 #### İstemci: `features/counterparties/`
 
@@ -601,6 +618,11 @@ Liste (bakiyeye göre sıralı, `Tümü / Açık hesap / Kapanmış` filtresi) v
 ayrıntı ekranı **tek controller** paylaşır: ayrıntıdan alınan bir tahsilat
 listedeki bakiyeyi de değiştirir ve iki ayrı controller aynı yazımdan sonra
 birbirini tazelemek zorunda kalırdı.
+
+Liste sorgu tarihini API'ye gönderir; gecikmiş alacak/borç saat ikonlu ve açık
+metinli rozetle görünür, renk tek başına anlam taşımaz. Ayrıntı kartı toplamın
+altında vadesi geçmiş ve vadesi geçmemiş/vadesiz tutarı ayrı satırlarda gösterir.
+Borçlandırma formundaki vade isteğe bağlıdır ve işlem tarihinden önce seçilemez.
 
 Ayrıntı üç bloğu birlikte gösterir — açık cari bakiyesi, hareket geçmişi ve
 varsa taksitli sözleşmeler — ama **hiçbiri diğerinin toplamına karışmaz**.

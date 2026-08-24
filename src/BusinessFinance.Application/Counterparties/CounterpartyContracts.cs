@@ -9,6 +9,10 @@ public sealed record CounterpartyDto(
     bool IsActive,
     decimal Receivable,
     decimal Payable,
+    decimal OverdueReceivable,
+    decimal OverduePayable,
+    decimal NotOverdueReceivable,
+    decimal NotOverduePayable,
     decimal Net,
     bool IsSettled);
 
@@ -39,7 +43,8 @@ public sealed record CreateCounterpartyChargeCommand(
     /// </summary>
     TransactionScope? Scope,
     DateOnly ChargeDate,
-    string? Description);
+    string? Description,
+    DateOnly? DueDate);
 
 /// <summary>
 /// Tahsilat ya da ödeme: kasayı değiştirir, gelir/gider üretmez. Bu yüzden ne
@@ -64,7 +69,8 @@ public sealed record CounterpartyChargeDto(
     TransactionScope Scope,
     DateOnly ChargeDate,
     string? Description,
-    bool IsCancelled);
+    bool IsCancelled,
+    DateOnly? DueDate);
 
 public sealed record CounterpartyPaymentDto(
     Guid Id,

@@ -495,6 +495,12 @@ kadar. Net tek sayıya iner ama **işaret kaybolmaz** — eksi, bizim ona
 borçlu olduğumuz demektir ve gider tonunda okunur; kapanmış hesap nötr
 tondadır ve "Hesap kapandı" yazar (renk tek başına bilgi taşımaz).
 
+Vadesi geçmiş bakiye satırda saat ikonlu `AppStatusChip` ve “Vadesi geçmiş
+alacak/borç” metniyle gösterilir; renk tek başına gecikme anlatmaz. Aynı kişi
+iki yönde de gecikmiş olabilir, bu yüzden rozetler `Wrap` içinde yeniden akar.
+2.0× metin ölçeğinde etiket kırpılmaz. Ayrıntı kartında toplamın altında
+vadesi geçmiş ve vadesi geçmemiş/vadesiz tutarlar ayrı satırlardır.
+
 Ayrıntıda iki taraf **ayrı satırlarda** durur, net üçüncü satırdır: aynı
 kişi hem müşteri hem tedarikçi olabilir ve tek sayıya indirmek hangi
 tarafın açık olduğunu gizlerdi. Taksitli sözleşmeler ayrı kartta ve

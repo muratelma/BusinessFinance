@@ -46,7 +46,8 @@ public sealed class CreateCounterpartyUseCase(
 
 public sealed class UpdateCounterpartyUseCase(
     ICurrentUser currentUser,
-    ICounterpartyRepository repository)
+    ICounterpartyRepository repository,
+    TimeProvider timeProvider)
 {
     public async Task<ApplicationResult<CounterpartyDto>> ExecuteAsync(
         UpdateCounterpartyCommand command,
@@ -98,20 +99,22 @@ public sealed class UpdateCounterpartyUseCase(
         }
 
         await repository.UpdateOwnedAsync(counterparty, userId, cancellationToken);
-        var balance = await repository.FindBalanceAsync(counterparty.Id, userId, cancellationToken);
+        var balance = await repository.FindBalanceAsync(
+            counterparty.Id, userId, CounterpartyMapper.Today(timeProvider), cancellationToken);
         return ApplicationResult<CounterpartyDto>.Success(
-            CounterpartyMapper.ToDto(
-                counterparty, balance?.Receivable ?? 0m, balance?.Payable ?? 0m));
+            CounterpartyMapper.ToDto(counterparty, balance));
     }
 }
 
 public sealed class ListCounterpartiesUseCase(
     ICurrentUser currentUser,
-    ICounterpartyRepository repository)
+    ICounterpartyRepository repository,
+    TimeProvider timeProvider)
 {
     public async Task<ApplicationResult<IReadOnlyList<CounterpartyDto>>> ExecuteAsync(
         CounterpartyBalanceFilter filter,
         bool? isActive,
+        DateOnly? asOfDate = null,
         CancellationToken cancellationToken = default)
     {
         if (currentUser.UserId is not Guid userId || userId == Guid.Empty)
@@ -123,7 +126,11 @@ public sealed class ListCounterpartiesUseCase(
         // Liste tek sorgudan geliyor: ad ve bakiye aynı satırda. Not alanı
         // listede yok — ayrıntı ekranının sorusu ve listeyi genişletirdi.
         var balances = await repository.ListBalancesAsync(
-            userId, filter, isActive, cancellationToken);
+            userId,
+            filter,
+            isActive,
+            asOfDate ?? CounterpartyMapper.Today(timeProvider),
+            cancellationToken);
 
         return ApplicationResult<IReadOnlyList<CounterpartyDto>>.Success(
             [.. balances.Select(item => new CounterpartyDto(
@@ -133,6 +140,10 @@ public sealed class ListCounterpartiesUseCase(
                 item.IsActive,
                 item.Receivable,
                 item.Payable,
+                item.OverdueReceivable,
+                item.OverduePayable,
+                item.NotOverdueReceivable,
+                item.NotOverduePayable,
                 item.Net,
                 item.IsSettled))]);
     }
@@ -140,10 +151,12 @@ public sealed class ListCounterpartiesUseCase(
 
 public sealed class GetCounterpartyUseCase(
     ICurrentUser currentUser,
-    ICounterpartyRepository repository)
+    ICounterpartyRepository repository,
+    TimeProvider timeProvider)
 {
     public async Task<ApplicationResult<CounterpartyDto>> ExecuteAsync(
         Guid counterpartyId,
+        DateOnly? asOfDate = null,
         CancellationToken cancellationToken = default)
     {
         if (currentUser.UserId is not Guid userId || userId == Guid.Empty)
@@ -160,10 +173,13 @@ public sealed class GetCounterpartyUseCase(
                 CounterpartyErrors.NotFound(counterpartyId));
         }
 
-        var balance = await repository.FindBalanceAsync(counterpartyId, userId, cancellationToken);
+        var balance = await repository.FindBalanceAsync(
+            counterpartyId,
+            userId,
+            asOfDate ?? CounterpartyMapper.Today(timeProvider),
+            cancellationToken);
         return ApplicationResult<CounterpartyDto>.Success(
-            CounterpartyMapper.ToDto(
-                counterparty, balance?.Receivable ?? 0m, balance?.Payable ?? 0m));
+            CounterpartyMapper.ToDto(counterparty, balance));
     }
 }
 
@@ -206,16 +222,35 @@ public sealed class DeleteCounterpartyUseCase(
 
 internal static class CounterpartyMapper
 {
+    public static DateOnly Today(TimeProvider timeProvider) =>
+        DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
+
     public static CounterpartyDto ToDto(
         Counterparty counterparty,
         decimal receivable,
-        decimal payable) => new(
+        decimal payable,
+        decimal overdueReceivable = 0m,
+        decimal overduePayable = 0m) => new(
         counterparty.Id,
         counterparty.Name,
         counterparty.Note,
         counterparty.IsActive,
         receivable,
         payable,
+        overdueReceivable,
+        overduePayable,
+        receivable - overdueReceivable,
+        payable - overduePayable,
         receivable - payable,
         receivable == 0m && payable == 0m);
+
+    public static CounterpartyDto ToDto(
+        Counterparty counterparty,
+        CounterpartyBalanceSummary? balance) => ToDto(
+        counterparty,
+        balance?.Receivable ?? 0m,
+        balance?.Payable ?? 0m,
+        balance?.OverdueReceivable ?? 0m,
+        balance?.OverduePayable ?? 0m);
+
 }

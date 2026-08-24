@@ -140,6 +140,32 @@ public sealed class CounterpartyTests
             new DateOnly(2026, 8, 10)));
     }
 
+    [Fact]
+    public void Charge_CarriesAnOptionalDueDateThatCannotPrecedeTheCharge()
+    {
+        var userId = Guid.NewGuid();
+        var counterparty = NewCounterparty(userId);
+        var income = new Category(Guid.NewGuid(), userId, "Satış geliri", CategoryType.Income);
+        var chargeDate = new DateOnly(2026, 8, 10);
+        var dueDate = new DateOnly(2026, 8, 25);
+
+        var dated = new CounterpartyCharge(
+            Guid.NewGuid(), userId, counterparty, income, DebtDirection.Receivable,
+            new Money(10m, CurrencyCode.TRY), TransactionScope.Business,
+            chargeDate, dueDate: dueDate);
+        var undated = new CounterpartyCharge(
+            Guid.NewGuid(), userId, counterparty, income, DebtDirection.Receivable,
+            new Money(10m, CurrencyCode.TRY), TransactionScope.Business,
+            chargeDate);
+
+        Assert.Equal(dueDate, dated.DueDate);
+        Assert.Null(undated.DueDate);
+        Assert.Throws<ArgumentOutOfRangeException>(() => new CounterpartyCharge(
+            Guid.NewGuid(), userId, counterparty, income, DebtDirection.Receivable,
+            new Money(10m, CurrencyCode.TRY), TransactionScope.Business,
+            chargeDate, dueDate: chargeDate.AddDays(-1)));
+    }
+
     /// <summary>
     /// Tahsilat gelir/gider raporuna girmediği için bölünecek bir tarafı yok;
     /// kategori ve kapsam alanı taşımaması bilinçli (ADR 0013, ADR 0014).

@@ -121,7 +121,7 @@ Kapsam boyutunun test yüzeyi bu grupla tamamlandı.
 
 | Test | Neyi kanıtlıyor |
 |---|---|
-| `CounterpartyTests` (Domain, yeni — 17 test) | Ad/not normalizasyonu ve sınırları; borçlandırmanın yöne göre gelir ya da gider tanıması; **yönle çelişen kategorinin reddi**; sahiplik ve aktiflik kuralları; kapsamın borçlandırmada zorunlu olması |
+| `CounterpartyTests` (Domain — 18 test) | Ad/not normalizasyonu ve sınırları; borçlandırmanın yöne göre gelir ya da gider tanıması; **yönle çelişen kategorinin reddi**; sahiplik ve aktiflik kuralları; kapsamın borçlandırmada zorunlu olması; opsiyonel vadenin işlem tarihinden önce olamaması |
 | `...Payment_CarriesNeitherCategoryNorScope` | Tahsilatta kategori ve kapsam alanı **yok**; alan sonradan eklenirse test kırılır (ADR 0013, ADR 0014) |
 | `...Payment_MovesTheAccountAccordingToDirection` | Tahsilat kasaya para koyar, ödeme kasadan alır; işaret tek yerde |
 | `...AnInactiveCounterparty_TakesNoNewChargeButCanStillSettle` | Pasif karşı tarafa yeni borçlandırma yazılamaz, tahsilat yazılabilir |
@@ -139,7 +139,7 @@ Kapsam boyutunun test yüzeyi bu grupla tamamlandı.
 | `Execute_WhenOnlyASimilarNameExists_SuggestsNothing` (Application) | Benzeyen ad eşleşme değil: "Sentetik Manav" ile "Sentetik Market" aynı kişi sayılmıyor |
 | `Execute_WhenTheMatchingNameBelongsToSomeoneElse_SuggestsNothing` (Application) | Başka kullanıcının aynı adlı karşı tarafı önerilmiyor |
 | `Execute_WhenTheNameIsUnreadable_DoesNotAskForAMatch` (Application) | Ad okunamadıysa arama hiç yapılmıyor |
-| `counterparties_page_test` (Flutter, 13 test) | Liste: net işaretiyle okunuyor, kapanmış cari ayrı filtreyle geliyor, boş/hata/yetkisiz durumları görünür. Ayrıntı: iki taraf ayrı satırda, sözleşme ayrı kartta, geçmiş feed satırlarından; pasif tarafta borçlandırma kapalı/tahsilat açık; tahsilat formu açık bakiyeyle dolu; tahsilat isteğinde kategori ve kapsam **yok**; kapsam görünmeyen kullanıcıda istekte `scope` gitmiyor; erişilebilirlik kapısı |
+| `counterparties_page_test` (Flutter, 16 test) | Liste: net işareti ve gecikmiş bakiye metinli rozetle okunuyor, sorgu tarihi API'ye taşınıyor, kapanmış cari ayrı filtreyle geliyor, boş/hata/yetkisiz durumları görünür. Ayrıntı iki tarafı ve vade kırılımını ayrı gösteriyor; borçlandırma formu opsiyonel vadeyi isteğe ekliyor; tahsilat kategori/kapsam taşımıyor; erişilebilirlik kapısı |
 | `FinancialActivityFeed_ClassifiesEveryRealizedKindOnce` (`counterpartyId` filtresi) | Bir kişinin bütün geçmişi tek soruyla: cari hareketleri **ve** o kişiyle yapılmış sözleşmenin hareketleri |
 | `...ThreeSalesAndTwoPartialCollections_LeaveTheRemainderOpen` | Aşamanın çıkış senaryosunun domain hâli: 1.000 satış, 600 tahsilat, 400 açık; tahsilat geliri ikinci kez artırmıyor |
 | `...BothSidesOfTheSamePersonAreKeptApart` | Aynı kişinin alacak ve borç tarafı ayrı yürüyor, `Net` ikisini birleştiriyor |
@@ -163,9 +163,22 @@ platform kanalı ister, sözleşme (`ScopeStore`) sahte uygulamayla testli.
 | `...SettlingTwiceReturnsTheOriginalCashMovement` | İkinci kapanış çağrısı yeni hareket üretmiyor, ilk settlement kimliğini döndürüyor |
 | `...CancellationIsIdempotentAndReversesAnExistingSettlement` | Silme yerine UTC damgalı idempotent iptal var; kapanmış kaydın tanıma ve taşıma tarafı birlikte iptal ediliyor |
 
-Bu grup yalnız Domain katmanına dokundu; EF modeli, migration, endpoint ve
-Flutter yüzeyi değişmedi. Sahiplik foreign key'i, eşzamanlı kapanış ve gerçek
-SQL kanıtları kalıcılık grubunda eklenecek.
+Grup 1 yalnız Domain katmanına dokunmuştu. EF modeli, migration ve gerçek SQL
+kanıtları aşağıdaki Grup 2 checkpoint'inde eklendi; endpoint ve eşzamanlı
+kapanış use case'i yükümlülük davranışı açıldığında tamamlanacak.
+
+## Aşama 03 Grup 2 — cari vadesi ve yükümlülük kalıcılığı
+
+| Test | Neyi kanıtlıyor |
+|---|---|
+| `Charge_CarriesAnOptionalDueDateThatCannotPrecedeTheCharge` | Cari borçlandırma vadesiz kalabiliyor; vade verilirse işlem tarihinden önce olamıyor |
+| `DueDatedCharges_ReportOverdueAndNotOverdueBalancesSeparately` (API) | İki gecikmiş, bir ileri vadeli ve bir vadesiz alacakla kısmi tahsilat sonrası toplam `650`, gecikmiş `150`, diğer `500`; liste ve ayrıntı aynı sonucu veriyor, geçersiz vade reddediliyor |
+| `CounterpartyBalances_ComeFromOneQueryAndStayInsideTheOwner` (gerçek SQL, genişletildi) | Vade kırılımı 53 karşı taraf için hâlâ tek SQL okumasında; alacak ve borç yönleri ayrı, yabancı kullanıcı görünmüyor |
+| `ObligationMapping_UsesOwnerScopedRelationshipsAndOneSettlement` | Yükümlülüğün kategori/karşı tarafı ile settlement'ın hesap/yükümlülük FK'leri owner-scoped; bir yükümlülüğe tek settlement; para `decimal(19,4)` |
+| `ObligationRoundTrip_MaterializesItsSettlementFromTheBackingField` | EF, get-only aggregate'i ve `_settlement` backing field'ını kaydedip geri okuyabiliyor |
+| `AddObligationsAndCounterpartyDueDates_PreservesUnknownHistoryAndOwnerScope` | Migration'da eski `DueDate` nullable ve varsayılansız; yeni iki tablo boş doğuyor, tanıma ile ödeme alanları karışmıyor ve bileşik FK'ler `Restrict` |
+| `AddObligationsAndCounterpartyDueDates_PreservesLegacyDueAndRoundTripsSettlement` (gerçek SQL) | Şema önceki migration'da durdurulup eski cari satırı yazılıyor; yükseltmede vade `null` kalıyor, yeni yükümlülük ve settlement birlikte okunuyor; iki stale kapanış yazarı tekil indeks nedeniyle yalnız bir settlement bırakıyor |
+| `counterparties_page_test` (Flutter, genişletildi) | Gecikme ikon+metinle görünür, sorgu tarihi taşınır, opsiyonel vade formdan API gövdesine gider ve 2.0× metin/a11y kapısı korunur |
 
 ## Aşama 02 Grup 8 — yedek v7 ve cari defterin dışa aktarımı
 

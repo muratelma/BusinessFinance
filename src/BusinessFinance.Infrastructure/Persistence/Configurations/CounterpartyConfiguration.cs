@@ -58,6 +58,7 @@ internal sealed class CounterpartyChargeConfiguration : IEntityTypeConfiguration
         builder.Property(charge => charge.Direction).HasConversion<byte>().HasColumnType("tinyint");
         builder.Property(charge => charge.Scope).HasConversion<byte>().HasColumnType("tinyint");
         builder.Property(charge => charge.ChargeDate).HasColumnType("date");
+        builder.Property(charge => charge.DueDate).HasColumnType("date");
         builder.Property(charge => charge.Description)
             .HasMaxLength(CounterpartyCharge.MaximumDescriptionLength);
         builder.Property(charge => charge.IsCancelled).IsRequired();
@@ -72,7 +73,8 @@ internal sealed class CounterpartyChargeConfiguration : IEntityTypeConfiguration
         // Cari bakiye sorgusunun okuduğu indeks: karşı taraf başına, iptal
         // edilmemiş satırlar. Yön sütunu indekste olduğu için alacak/borç
         // toplamları aynı taramadan çıkar.
-        builder.HasIndex(charge => new { charge.UserId, charge.CounterpartyId, charge.IsCancelled, charge.Direction })
+        builder.HasIndex(charge => new
+        { charge.UserId, charge.CounterpartyId, charge.IsCancelled, charge.Direction, charge.DueDate })
             .HasDatabaseName("IX_CounterpartyCharges_UserId_CounterpartyId_Cancelled_Direction");
         builder.HasIndex(charge => new { charge.UserId, charge.CategoryId, charge.ChargeDate })
             .HasDatabaseName("IX_CounterpartyCharges_UserId_CategoryId_Date");

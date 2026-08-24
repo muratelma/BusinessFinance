@@ -178,7 +178,31 @@ class _CounterpartyDetailPageState extends State<CounterpartyDetailPage> {
           // olabilir ve tek sayıya indirmek hangi tarafın açık olduğunu
           // gizlerdi. Net ikisini tek cümleye indiren üçüncü satırdır.
           _amountRow('Size borcu', person.receivable, AppMoneyEffect.income),
+          if (person.hasOverdueReceivable) ...[
+            _amountRow(
+              'Vadesi geçmiş alacak',
+              person.overdueReceivable,
+              AppMoneyEffect.income,
+            ),
+            _amountRow(
+              'Vadesi geçmemiş veya vadesiz alacak',
+              person.notOverdueReceivable,
+              AppMoneyEffect.income,
+            ),
+          ],
           _amountRow('Sizin borcunuz', person.payable, AppMoneyEffect.expense),
+          if (person.hasOverduePayable) ...[
+            _amountRow(
+              'Vadesi geçmiş borç',
+              person.overduePayable,
+              AppMoneyEffect.expense,
+            ),
+            _amountRow(
+              'Vadesi geçmemiş veya vadesiz borç',
+              person.notOverduePayable,
+              AppMoneyEffect.expense,
+            ),
+          ],
           const Divider(height: AppSpacing.large),
           _amountRow(
             'Net',
@@ -212,12 +236,15 @@ class _CounterpartyDetailPageState extends State<CounterpartyDetailPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: emphasise
-                ? theme.textTheme.titleSmall
-                : theme.textTheme.bodyMedium,
+          Expanded(
+            child: Text(
+              label,
+              style: emphasise
+                  ? theme.textTheme.titleSmall
+                  : theme.textTheme.bodyMedium,
+            ),
           ),
+          const SizedBox(width: AppSpacing.small),
           AppMoneyText(
             amount: amount,
             currency: 'TRY',
@@ -384,6 +411,7 @@ class _CounterpartyDetailPageState extends State<CounterpartyDetailPage> {
       amount: payload['amount']! as String,
       categoryId: payload['categoryId']! as String,
       chargeDate: payload['chargeDate']! as String,
+      dueDate: payload['dueDate'] as String?,
       scope: payload['scope'] as String?,
       description: payload['description'] as String?,
     );

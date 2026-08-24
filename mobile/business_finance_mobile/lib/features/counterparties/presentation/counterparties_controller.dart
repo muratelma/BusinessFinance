@@ -48,7 +48,7 @@ class CounterpartiesController extends ChangeNotifier {
     errorMessage = null;
     notifyListeners();
     try {
-      snapshot = await _repository.load(filter);
+      snapshot = await _repository.load(filter, today);
       unauthorized = false;
     } on ApiException catch (error) {
       unauthorized = error.isUnauthorized;
@@ -128,6 +128,7 @@ class CounterpartiesController extends ChangeNotifier {
     required String chargeDate,
     String? scope,
     String? description,
+    String? dueDate,
   }) => _submit(
     () => _repository.addCharge(counterpartyId, {
       'direction': isReceivable ? 'receivable' : 'payable',
@@ -135,6 +136,7 @@ class CounterpartiesController extends ChangeNotifier {
       'currency': 'TRY',
       'categoryId': categoryId,
       'chargeDate': chargeDate,
+      if (dueDate != null && dueDate.isNotEmpty) 'dueDate': dueDate,
       'scope': ?scope,
       if (description != null && description.isNotEmpty)
         'description': description,

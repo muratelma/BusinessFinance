@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:business_finance_mobile/core/models/data_choice.dart';
 import 'package:business_finance_mobile/core/network/api_exception.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
+import 'package:business_finance_mobile/core/widgets/app_date_field.dart';
 import 'package:business_finance_mobile/core/widgets/app_state_views.dart';
 import 'package:business_finance_mobile/features/activities/data/activity_models.dart';
 import 'package:business_finance_mobile/features/counterparties/data/counterparty_models.dart';
@@ -21,6 +22,20 @@ void main() {
       // Net işaretiyle duruyor: eksi, bizim ona borçlu olduğumuz demek.
       expect(find.text('₺400,00'), findsOneWidget);
       expect(find.text('-₺250,00'), findsOneWidget);
+      expect(find.text('Vadesi geçmiş alacak ₺150,00'), findsOneWidget);
+    });
+
+    testWidgets('liste gecikmeyi belirleyen sorgu tarihini sunucuya taşır', (
+      tester,
+    ) async {
+      final repository = _FakeRepository();
+      await _pump(tester, repository);
+
+      expect(repository.lastListAsOfDate, isNotNull);
+      expect(
+        RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(repository.lastListAsOfDate!),
+        isTrue,
+      );
     });
 
     // Kapanmış cari listeden düşmez, ayrı okunur: hesabın kapanmış olması o
@@ -185,6 +200,31 @@ void main() {
       expect(charge['amount'], '120.0000');
       expect(charge['categoryId'], 'category-income');
       expect(charge.containsKey('scope'), isFalse);
+      expect(charge.containsKey('dueDate'), isFalse);
+    });
+
+    testWidgets('opsiyonel vade seçilirse cari hareket isteğine ekleniyor', (
+      tester,
+    ) async {
+      final repository = _FakeRepository();
+      await _pump(tester, repository);
+      await tester.tap(find.text('Ahmet Bakkal'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Veresiye satış'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).first, '120');
+      final dueFinder = find.byWidgetPredicate(
+        (widget) =>
+            widget is AppDateField && widget.label == 'Vade (isteğe bağlı)',
+      );
+      final dueField = tester.widget<AppDateField>(dueFinder);
+      dueField.onChanged('2026-08-20');
+      await tester.pump();
+      await tester.tap(find.text('Kaydet'));
+      await tester.pumpAndSettle();
+
+      expect(repository.lastCharge!['dueDate'], '2026-08-20');
     });
   });
 
@@ -228,6 +268,7 @@ class _FakeRepository implements CounterpartyRepositoryContract {
   final bool unauthorized;
 
   CounterpartyBalanceFilter? lastFilter;
+  String? lastListAsOfDate;
   String? lastDetailAsOfDate;
   Map<String, Object?>? lastCharge;
   Map<String, Object?>? lastPayment;
@@ -239,6 +280,8 @@ class _FakeRepository implements CounterpartyRepositoryContract {
       isActive: true,
       receivable: '400.0000',
       payable: '0.0000',
+      overdueReceivable: '150.0000',
+      notOverdueReceivable: '250.0000',
       net: '400.0000',
       isSettled: false,
     ),
@@ -254,8 +297,12 @@ class _FakeRepository implements CounterpartyRepositoryContract {
   ];
 
   @override
-  Future<CounterpartiesSnapshot> load(CounterpartyBalanceFilter filter) async {
+  Future<CounterpartiesSnapshot> load(
+    CounterpartyBalanceFilter filter,
+    String asOfDate,
+  ) async {
     lastFilter = filter;
+    lastListAsOfDate = asOfDate;
     if (unauthorized) {
       throw const ApiException(
         code: 'auth.required',

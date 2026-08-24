@@ -98,7 +98,8 @@ public static class CounterpartyEndpoints
         HttpContext httpContext,
         CancellationToken cancellationToken,
         string? balance = null,
-        bool? isActive = null)
+        bool? isActive = null,
+        string? asOfDate = null)
     {
         if (!TryParseFilter(balance, out var filter))
         {
@@ -108,7 +109,13 @@ public static class CounterpartyEndpoints
                 "counterparties.invalid_balance_filter");
         }
 
-        var result = await useCase.ExecuteAsync(filter, isActive, cancellationToken);
+        if (!TryParseOptionalAsOfDate(asOfDate, httpContext, out var parsedAsOfDate, out var dateError))
+        {
+            return dateError!;
+        }
+
+        var result = await useCase.ExecuteAsync(
+            filter, isActive, parsedAsOfDate, cancellationToken);
         return result.IsSuccess
             ? Results.Ok(new CounterpartyListResponse([.. result.Value.Select(ToResponse)]))
             : result.Error.ToProblemResult(httpContext);
@@ -118,9 +125,17 @@ public static class CounterpartyEndpoints
         Guid counterpartyId,
         GetCounterpartyUseCase useCase,
         HttpContext httpContext,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? asOfDate = null)
     {
-        var result = await useCase.ExecuteAsync(counterpartyId, cancellationToken);
+        if (!TryParseOptionalAsOfDate(
+                asOfDate, httpContext, out var parsedAsOfDate, out var dateError))
+        {
+            return dateError!;
+        }
+
+        var result = await useCase.ExecuteAsync(
+            counterpartyId, parsedAsOfDate, cancellationToken);
         return result.IsSuccess
             ? Results.Ok(ToResponse(result.Value))
             : result.Error.ToProblemResult(httpContext);
@@ -187,6 +202,20 @@ public static class CounterpartyEndpoints
                 "counterparties.invalid_scope");
         }
 
+        DateOnly? dueDate = null;
+        if (!string.IsNullOrWhiteSpace(request.DueDate))
+        {
+            if (!FinanceContract.TryParseDate(request.DueDate, out var parsedDueDate))
+            {
+                return ApiProblemResults.Validation(
+                    httpContext,
+                    "Due date must use the yyyy-MM-dd format or be empty.",
+                    "counterparties.invalid_due_date");
+            }
+
+            dueDate = parsedDueDate;
+        }
+
         var result = await useCase.ExecuteAsync(
             new CreateCounterpartyChargeCommand(
                 counterpartyId,
@@ -196,7 +225,8 @@ public static class CounterpartyEndpoints
                 request.CategoryId,
                 scope,
                 chargeDate,
-                request.Description),
+                request.Description,
+                dueDate),
             cancellationToken);
         if (!result.IsSuccess)
         {
@@ -299,6 +329,32 @@ public static class CounterpartyEndpoints
         }
     }
 
+    private static bool TryParseOptionalAsOfDate(
+        string? value,
+        HttpContext httpContext,
+        out DateOnly? asOfDate,
+        out IResult? error)
+    {
+        asOfDate = null;
+        error = null;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return true;
+        }
+
+        if (FinanceContract.TryParseDate(value, out var parsed))
+        {
+            asOfDate = parsed;
+            return true;
+        }
+
+        error = ApiProblemResults.Validation(
+            httpContext,
+            "As-of date must use the yyyy-MM-dd format.",
+            "counterparties.invalid_as_of_date");
+        return false;
+    }
+
     private static bool TryParseDirection(string? value, out DebtDirection direction)
     {
         switch (value?.Trim().ToLowerInvariant())
@@ -358,6 +414,10 @@ public static class CounterpartyEndpoints
         counterparty.IsActive,
         FinanceContract.Money(counterparty.Receivable),
         FinanceContract.Money(counterparty.Payable),
+        FinanceContract.Money(counterparty.OverdueReceivable),
+        FinanceContract.Money(counterparty.OverduePayable),
+        FinanceContract.Money(counterparty.NotOverdueReceivable),
+        FinanceContract.Money(counterparty.NotOverduePayable),
         FinanceContract.Money(counterparty.Net),
         counterparty.IsSettled);
 
@@ -371,7 +431,8 @@ public static class CounterpartyEndpoints
         FinanceContract.ScopeValue(charge.Scope),
         FinanceContract.Date(charge.ChargeDate),
         charge.Description,
-        charge.IsCancelled);
+        charge.IsCancelled,
+        charge.DueDate is DateOnly dueDate ? FinanceContract.Date(dueDate) : null);
 
     private static CounterpartyPaymentResponse ToPaymentResponse(CounterpartyPaymentDto payment) => new(
         payment.Id,

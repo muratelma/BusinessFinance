@@ -659,10 +659,9 @@ açar.
 
 ## Sıradaki tek küçük görev
 
-- **Aşama 03, Grup 2: cari borçlandırmaya vade.** Mevcut
-  `CounterpartyCharge` isteğe bağlı vade alacak; vadesi gelmiş ve gelmemiş
-  bakiye owner-scoped projection'da ayrı okunacak. Grup 1'in yükümlülük
-  tipleri de aynı checkpoint'te kalıcılığa girecek.
+- **Aşama 03, Grup 3: tekrarlayan planda bitiş sınırı.** Plan isteğe bağlı
+  bitiş tarihi ve/veya tekrar sayısı alacak; önce dolan sınırdan sonra yeni
+  occurrence üretmeyecek ve geçmişi silmeden pasifleşecek.
 
 ## 24 Ağustos 2026 — Aşama 02 kapandı, Aşama 03 açıldı
 
@@ -712,3 +711,43 @@ açar.
   1 canlı Gemini testi atlandı; Flutter değişmedi
 - Sıradaki görev: Aşama 03 Grup 2 — cari borçlandırmaya vade ve yükümlülük
   kalıcılığı
+
+## 24 Ağustos 2026 — Aşama 03, Grup 2: cari vadesi ve kalıcılık
+
+- **Cari borçlandırma isteğe bağlı vade taşıyor.** Eski hareketlerin bilinmeyen
+  vadesi `null` bırakıldı; migration uydurma tarih veya kalıcı DEFAULT eklemedi
+- **Bakiye vade kırılımı tek owner-scoped SQL projection'ında hesaplanıyor.**
+  API liste ve ayrıntıda toplamın yanında vadesi geçmiş ile vadesi
+  geçmemiş/vadesiz alacak-borç tutarlarını kararlı para dizeleriyle döndürüyor.
+  Satıra bağlı olmayan tahsilat/ödemeler önce gecikmiş tutarı kapatıyor
+- **Flutter cari akışı vadeyi uçtan uca taşıyor.** Formda isteğe bağlı tarih
+  seçilebiliyor; listede gecikme yalnız renge bırakılmadan ikon+tutar metniyle,
+  ayrıntıda ise iki ayrı bakiye satırıyla okunuyor
+- Grup 1'in `Obligation` ve `ObligationSettlement` tipleri owner-scoped bileşik
+  foreign key'lerle EF modeline ve SQL şemasına alındı. Bir yükümlülüğe tek
+  settlement kuralı tekil indeksle korunuyor; iki stale SQL yazarından yalnız
+  biri kapanışı kaydedebiliyor
+- `AddObligationsAndCounterpartyDueDates` migration'ı önceki migration'da
+  durdurulmuş sentetik veritabanından yükseltilerek doğrulandı; eski cari
+  satırının vadesi `null` kaldı, yükümlülük ve settlement geri okunabildi
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (gerçek SQL dâhil) | **857 geçti**, 1 atlandı (`GeminiLiveContractTests`) |
+| Domain testleri | **236 geçti** |
+| Flutter analyze | No issues found |
+| Flutter format | 227 dosya, değişiklik gerektirmedi |
+| Flutter test | **722 geçti** |
+| Android debug build | `app-debug.apk` üretildi |
+
+## Son oturum kapanışı
+
+- Yapılan değişiklik: Aşama 03 **Grup 2 tamamlandı**; cari vadesi ve vade
+  kırılımlı bakiye backend/API/Flutter boyunca eklendi, Grup 1 yükümlülükleri
+  kalıcılaştırıldı
+- Geçen kontroller: backend build + format + **857 test** (gerçek SQL dâhil),
+  1 canlı Gemini testi atlandı; Flutter analyze + format + **722 test** +
+  Android debug build geçti
+- Sıradaki görev: Aşama 03 Grup 3 — tekrarlayan planda bitiş sınırı

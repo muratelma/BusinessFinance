@@ -1910,7 +1910,8 @@ public sealed class SqlServerPersistenceIntegrationTests
         var repository = scope.ServiceProvider.GetRequiredService<ICounterpartyRepository>();
 
         var balances = await repository.ListBalancesAsync(
-            owner.Id, CounterpartyBalanceFilter.All, null, CancellationToken.None);
+            owner.Id, CounterpartyBalanceFilter.All, null,
+            new DateOnly(2026, 8, 11), CancellationToken.None);
 
         Assert.Equal(1, counter.ReaderCommandCount);
 
@@ -1941,31 +1942,40 @@ public sealed class SqlServerPersistenceIntegrationTests
         var both = byId[seeded.BothSidesId];
         Assert.Equal(800m, both.Receivable);
         Assert.Equal(300m, both.Payable);
+        Assert.Equal(800m, both.OverdueReceivable);
+        Assert.Equal(0m, both.NotOverdueReceivable);
+        Assert.Equal(0m, both.OverduePayable);
+        Assert.Equal(300m, both.NotOverduePayable);
         Assert.Equal(500m, both.Net);
 
         // Sıralama veritabanında: açık hesabı en büyük olan başta.
         Assert.Equal(3000m, balances[0].Net);
 
         var open = await repository.ListBalancesAsync(
-            owner.Id, CounterpartyBalanceFilter.Open, null, CancellationToken.None);
+            owner.Id, CounterpartyBalanceFilter.Open, null,
+            new DateOnly(2026, 8, 11), CancellationToken.None);
         var settled = await repository.ListBalancesAsync(
-            owner.Id, CounterpartyBalanceFilter.Settled, null, CancellationToken.None);
+            owner.Id, CounterpartyBalanceFilter.Settled, null,
+            new DateOnly(2026, 8, 11), CancellationToken.None);
         Assert.DoesNotContain(open, item => item.CounterpartyId == seeded.SettledId);
         Assert.Contains(settled, item => item.CounterpartyId == seeded.SettledId);
         Assert.Contains(open, item => item.CounterpartyId == seeded.OverpaidId);
         Assert.Equal(balances.Count, open.Count + settled.Count);
 
         var inactive = await repository.ListBalancesAsync(
-            owner.Id, CounterpartyBalanceFilter.All, false, CancellationToken.None);
+            owner.Id, CounterpartyBalanceFilter.All, false,
+            new DateOnly(2026, 8, 11), CancellationToken.None);
         Assert.Equal(seeded.InactiveId, Assert.Single(inactive).CounterpartyId);
 
         // Sahiplik: yabancının karşı tarafı ne bakiye ne kayıt olarak okunabilir.
         Assert.Null(await repository.FindBalanceAsync(
-            strangerGraph.SettledId, owner.Id, CancellationToken.None));
+            strangerGraph.SettledId, owner.Id,
+            new DateOnly(2026, 8, 11), CancellationToken.None));
         Assert.Null(await repository.FindOwnedByIdAsync(
             strangerGraph.SettledId, owner.Id, CancellationToken.None));
         var mine = await repository.FindBalanceAsync(
-            seeded.BothSidesId, owner.Id, CancellationToken.None);
+            seeded.BothSidesId, owner.Id,
+            new DateOnly(2026, 8, 11), CancellationToken.None);
         Assert.NotNull(mine);
         Assert.Equal(500m, mine.Net);
     }
@@ -1994,7 +2004,8 @@ public sealed class SqlServerPersistenceIntegrationTests
             Counterparty counterparty,
             DebtDirection direction,
             decimal amount,
-            bool cancelled = false)
+            bool cancelled = false,
+            DateOnly? dueDate = null)
         {
             var charge = new CounterpartyCharge(
                 Guid.NewGuid(),
@@ -2004,7 +2015,8 @@ public sealed class SqlServerPersistenceIntegrationTests
                 direction,
                 new Money(amount, CurrencyCode.TRY),
                 TransactionScope.Business,
-                new DateOnly(2026, 8, 10));
+                new DateOnly(2026, 8, 10),
+                dueDate: dueDate);
             if (cancelled)
             {
                 charge.Cancel(new DateTimeOffset(2026, 8, 11, 9, 0, 0, TimeSpan.Zero));
@@ -2044,8 +2056,16 @@ public sealed class SqlServerPersistenceIntegrationTests
 
         // Aynı kişi hem alıcı hem satıcı; iki taraf ayrı ayrı durur.
         var bothSides = Add("İki yönlü cari");
-        Charge(bothSides, DebtDirection.Receivable, 800m);
-        Charge(bothSides, DebtDirection.Payable, 300m);
+        Charge(
+            bothSides,
+            DebtDirection.Receivable,
+            800m,
+            dueDate: new DateOnly(2026, 8, 10));
+        Charge(
+            bothSides,
+            DebtDirection.Payable,
+            300m,
+            dueDate: new DateOnly(2026, 8, 30));
 
         // Pasif karşı taraf: geçmişi durur, yeni borçlandırma alamaz.
         counterparties[0].Deactivate();
@@ -2094,6 +2114,127 @@ public sealed class SqlServerPersistenceIntegrationTests
         Guid OverpaidId,
         Guid InactiveId,
         Guid BothSidesId);
+
+    /// <summary>
+    /// Dolu cari hareket tablosu yükseltilirken bilinmeyen vadeye değer
+    /// uydurulmaz. Aynı migration'ın boş doğan yükümlülük tabloları ise gerçek
+    /// tanıma ve kasa hareketini ayrı satırlarda saklayabilir.
+    /// </summary>
+    [SqlServerFact]
+    public async Task AddObligationsAndCounterpartyDueDates_PreservesLegacyDueAndRoundTripsSettlement()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(
+            GetConnectionString(), "LinkDebtsToCounterparties");
+        var user = CreateUser("obligation-upgrade@example.test");
+        await database.SeedUsersAsync(user);
+        var category = new Category(
+            Guid.NewGuid(), user.Id, "Tedarik", CategoryType.Expense);
+        var counterparty = new Counterparty(
+            Guid.NewGuid(), user.Id, "Sentetik Tedarikçi");
+
+        await using (var context = database.CreateContext())
+        {
+            context.AddRange(category, counterparty);
+            await context.SaveChangesAsync(CancellationToken.None);
+        }
+
+        var legacyChargeId = Guid.NewGuid();
+        await database.ExecuteAsync(
+            "INSERT INTO [CounterpartyCharges] " +
+            "([Id], [UserId], [CounterpartyId], [CategoryId], [Direction], " +
+            "[Amount], [Currency], [Scope], [ChargeDate], [Description], " +
+            "[IsCancelled], [CancelledAtUtc]) " +
+            "VALUES ({0}, {1}, {2}, {3}, 1, 125.5000, 1, 1, " +
+            "'2026-08-10', NULL, 0, NULL)",
+            legacyChargeId,
+            user.Id,
+            counterparty.Id,
+            category.Id);
+
+        await database.MigrateToLatestAsync();
+
+        var account = new Account(
+            Guid.NewGuid(), user.Id, "Kasa", AccountType.Cash, CurrencyCode.TRY);
+        var obligation = new Obligation(
+            Guid.NewGuid(),
+            user.Id,
+            category,
+            DebtDirection.Payable,
+            new Money(125.50m, CurrencyCode.TRY),
+            TransactionScope.Business,
+            new DateOnly(2026, 8, 10),
+            new DateOnly(2026, 8, 20),
+            new DateTimeOffset(2026, 8, 10, 9, 0, 0, TimeSpan.Zero),
+            counterparty);
+        obligation.Settle(
+            Guid.NewGuid(),
+            account,
+            new DateOnly(2026, 8, 15),
+            new DateTimeOffset(2026, 8, 15, 9, 0, 0, TimeSpan.Zero));
+        var concurrentObligation = new Obligation(
+            Guid.NewGuid(),
+            user.Id,
+            category,
+            DebtDirection.Payable,
+            new Money(50m, CurrencyCode.TRY),
+            TransactionScope.Business,
+            new DateOnly(2026, 8, 10),
+            new DateOnly(2026, 8, 20),
+            new DateTimeOffset(2026, 8, 10, 9, 0, 0, TimeSpan.Zero),
+            counterparty);
+
+        await using (var context = database.CreateContext())
+        {
+            var legacy = await context.CounterpartyCharges.AsNoTracking()
+                .SingleAsync(item => item.Id == legacyChargeId, CancellationToken.None);
+            Assert.Null(legacy.DueDate);
+
+            context.AddRange(account, obligation, concurrentObligation);
+            await context.SaveChangesAsync(CancellationToken.None);
+        }
+
+        await using (var context = database.CreateContext())
+        {
+            var persisted = await context.Obligations
+                .Include(item => item.Settlement)
+                .AsNoTracking()
+                .SingleAsync(item => item.Id == obligation.Id, CancellationToken.None);
+            Assert.Equal(ObligationStatus.Settled, persisted.Status);
+            Assert.Equal(-125.50m, persisted.Settlement!.SignedAccountEffect);
+        }
+
+        // İki stale yazar aynı açık yükümlülüğü kapatmayı dener. Domain her
+        // aggregate örneğinde tek settlement üretir; veritabanı tekilliği iki
+        // ayrı örneğin yarışında da yalnız ilk yazarı kabul eder.
+        await using var firstContext = database.CreateContext();
+        await using var secondContext = database.CreateContext();
+        var firstObligation = await firstContext.Obligations.SingleAsync(
+            item => item.Id == concurrentObligation.Id, CancellationToken.None);
+        var secondObligation = await secondContext.Obligations.SingleAsync(
+            item => item.Id == concurrentObligation.Id, CancellationToken.None);
+        var firstAccount = await firstContext.Accounts.SingleAsync(
+            item => item.Id == account.Id, CancellationToken.None);
+        var secondAccount = await secondContext.Accounts.SingleAsync(
+            item => item.Id == account.Id, CancellationToken.None);
+        var settledAt = new DateTimeOffset(2026, 8, 16, 9, 0, 0, TimeSpan.Zero);
+        var firstSettlement = firstObligation.Settle(
+            Guid.NewGuid(), firstAccount, new DateOnly(2026, 8, 16), settledAt);
+        var secondSettlement = secondObligation.Settle(
+            Guid.NewGuid(), secondAccount, new DateOnly(2026, 8, 16), settledAt);
+        firstContext.ObligationSettlements.Add(firstSettlement);
+        secondContext.ObligationSettlements.Add(secondSettlement);
+
+        await firstContext.SaveChangesAsync(CancellationToken.None);
+        await Assert.ThrowsAsync<DbUpdateException>(() =>
+            secondContext.SaveChangesAsync(CancellationToken.None));
+
+        await using var finalContext = database.CreateContext();
+        Assert.Equal(
+            1,
+            await finalContext.ObligationSettlements.CountAsync(
+                item => item.ObligationId == concurrentObligation.Id,
+                CancellationToken.None));
+    }
 
     /// <summary>
     /// Dolu bir veritabanında yükseltme: sözleşmelerdeki her ad bir karşı taraf
@@ -2234,7 +2375,10 @@ public sealed class SqlServerPersistenceIntegrationTests
         var reports = scope.ServiceProvider.GetRequiredService<IFinancialReportRepository>();
 
         var balance = await counterparties.FindBalanceAsync(
-            supplier.Id, user.Id, CancellationToken.None);
+            supplier.Id,
+            user.Id,
+            new DateOnly(2026, 8, 11),
+            CancellationToken.None);
         var report = await reports.GetAdvancedAsync(
             user.Id, 2026, 8, new DateOnly(2026, 8, 10), 1, 30, null, CancellationToken.None);
 

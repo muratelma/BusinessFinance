@@ -10,6 +10,21 @@ boş olmalıdır. Yeni hesapta uygulamanın otomatik oluşturduğu, hiç değiş
 başlangıç kategorileri boş alan sayılır ve yedekteki kategorilerle atomik olarak
 değiştirilir.
 
+## Veritabanı yükseltme notu — Aşama 03 Grup 2
+
+`AddObligationsAndCounterpartyDueDates` migration'ı yedek şeması sürümünden
+ayrı bir SQL yükseltmesidir. Dolu olabilen `CounterpartyCharges` tablosuna
+`DueDate date NULL` **varsayılansız** eklenir; geçmiş hareketlerin bilinmeyen
+vadesi doldurulmaz. `Obligations` ve `ObligationSettlements` bu adımda boş
+doğduğu için zorunlu kolonları backfill istemez. Yükseltme testi önceki
+`LinkDebtsToCounterparties` şemasına gerçek bir cari satırı yazar, migration'ı
+uygular ve vadenin `null` kaldığını doğrular.
+
+Bu değişiklik backup biçimini v8 yapmaz. Yazılan/okunan dosya hâlâ v7'dir ve
+yükümlülükleri veya cari vadesini taşımaz; bunların kayıpsız backup kapsamına
+alınması Aşama 03 Grup 7'nin işidir. Bu checkpoint'te v7 restore edilen cari
+hareketler bilinçli olarak vadesiz (`null`) doğar.
+
 ## Ön koşullar
 
 - SQL Server `healthy`, API `/health/ready` cevabı 200 olmalıdır.

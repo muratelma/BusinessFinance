@@ -323,7 +323,10 @@ class _Repositories {
 
   /// Oluşturma ucu kimlik döndürmüyor; kişi listeden adıyla bulunuyor.
   Future<CounterpartySummary> counterpartyNamed(String name) async {
-    final snapshot = await counterparties.load(CounterpartyBalanceFilter.all);
+    final snapshot = await counterparties.load(
+      CounterpartyBalanceFilter.all,
+      _dateText(DateTime.now()),
+    );
     return snapshot.counterparties.firstWhere(
       (item) => item.name == name,
       orElse: () => throw StateError('Karşı taraf bulunamadı: $name'),

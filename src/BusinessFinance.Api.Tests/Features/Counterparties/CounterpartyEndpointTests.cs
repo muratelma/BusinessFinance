@@ -155,6 +155,71 @@ public sealed class CounterpartyEndpointTests
     }
 
     /// <summary>
+    /// Vadesi geçmiş bakiye saklanmaz: sorgu tarihi, vadeli hareketler ve o
+    /// yöndeki tahsilatlar üzerinden türetilir. Tahsilatlar en eski/gecikmiş
+    /// hareketleri önce kapatır; vadesiz ve ileri vadeli bakiye ayrı kalır.
+    /// </summary>
+    [Fact]
+    public async Task DueDatedCharges_ReportOverdueAndNotOverdueBalancesSeparately()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(factory, "cari-due-owner@example.test");
+        var account = await CreateAccountAsync(owner, "Kasa", "0");
+        var incomeCategory = await FirstCategoryAsync(owner, "income");
+        var customer = await CreateCounterpartyAsync(owner, "Vadeli Müşteri");
+
+        async Task<CounterpartyChargeResponse> ChargeAsync(string amount, string? dueDate)
+        {
+            using var response = await owner.PostAsJsonAsync(
+                $"/api/v1/counterparties/{customer.Id}/charges",
+                new CreateCounterpartyChargeRequest(
+                    "receivable",
+                    amount,
+                    "TRY",
+                    incomeCategory.Id,
+                    "2026-08-05",
+                    "business",
+                    DueDate: dueDate));
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+            return (await response.Content.ReadFromJsonAsync<CounterpartyChargeResponse>())!;
+        }
+
+        var dated = await ChargeAsync("300.0000", "2026-08-10");
+        await ChargeAsync("200.0000", "2026-08-11");
+        await ChargeAsync("400.0000", "2026-08-30");
+        await ChargeAsync("100.0000", null);
+        Assert.Equal("2026-08-10", dated.DueDate);
+
+        await CollectAsync(owner, customer.Id, account.Id, "350.0000");
+
+        var balance = await owner.GetFromJsonAsync<CounterpartyResponse>(
+            $"/api/v1/counterparties/{customer.Id}?asOfDate=2026-08-20");
+        Assert.NotNull(balance);
+        Assert.Equal("650.0000", balance.Receivable);
+        Assert.Equal("150.0000", balance.OverdueReceivable);
+        Assert.Equal("500.0000", balance.NotOverdueReceivable);
+        Assert.Equal("0.0000", balance.OverduePayable);
+
+        var list = await owner.GetFromJsonAsync<CounterpartyListResponse>(
+            "/api/v1/counterparties?asOfDate=2026-08-20");
+        var listed = Assert.Single(list!.Items);
+        Assert.Equal(balance.OverdueReceivable, listed.OverdueReceivable);
+        Assert.Equal(balance.NotOverdueReceivable, listed.NotOverdueReceivable);
+
+        using var invalidDue = await owner.PostAsJsonAsync(
+            $"/api/v1/counterparties/{customer.Id}/charges",
+            new CreateCounterpartyChargeRequest(
+                "receivable",
+                "10.0000",
+                "TRY",
+                incomeCategory.Id,
+                "2026-08-05",
+                "business",
+                DueDate: "2026-08-04"));
+        Assert.Equal(HttpStatusCode.BadRequest, invalidDue.StatusCode);
+    }
+
+    /// <summary>
     /// Pasif karşı taraf yeni borçlandırma almaz ama kalan borcunu ödeyebilir;
     /// hareketi olan kayıt silinmez.
     /// </summary>

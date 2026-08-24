@@ -33,8 +33,8 @@ kullanıcının kaydına erişen ayrıcalıklı rol yoktur.
 | Recurring create/list/active | 401 | Owner hesap/kategori ve current user planı | 404/400 veya dışlanır |
 | Occurrence generate/list/realize | 401 | Yalnız current user plan/occurrence'ı | 404/400 veya dışlanır |
 | Borç create/list/pay | 401 | Owner hesap ve owner gider kategorisiyle izinli | 404/400 veya listeden dışlanır |
-| Karşı taraf create/list/get/update/delete | 401 | Yalnız current user'ın karşı tarafı | 404; hareketi varsa 409 |
-| Cari borçlandırma / tahsilat | 401 | Owner karşı taraf + owner kategori/hesap | 404/400; pasif tarafa borçlandırma 409 |
+| Karşı taraf create/list/get/update/delete | 401 | Yalnız current user'ın karşı tarafı; `asOfDate` yalnız gecikme projection'ını belirler | 404; hareketi varsa 409 |
+| Cari borçlandırma / tahsilat | 401 | Owner karşı taraf + owner kategori/hesap; opsiyonel vade sahiplik girdisi değildir | 404/400; pasif tarafa borçlandırma 409 |
 | Cari hareket iptali | 401 | Yalnız current user'ın hareketi | 404 |
 | Birleşik feed `counterpartyId` filtresi | 401 | Her satır zaten owner kapsamlı; filtre yalnız daraltır | Başkasının kimliği boş liste döner |
 | Borç açılışını tamamlama | 401 | Yalnız current user'ın açılışı kayıtsız borcu | 404; kaydedilmişse 409 |
@@ -181,6 +181,21 @@ bağlanan bir borç, Application katmanı hiç devreye girmese bile veritabanı
 seviyesinde yazılamaz. `POST /api/v1/debts` karşı tarafı **addan** çözer ve
 yalnız current user'ın kayıtları arasında arar; bulamazsa o kullanıcıya ait
 yeni bir karşı taraf kurar. Cevap `counterpartyId` taşır.
+
+Cari liste ve tekil okuma `asOfDate` alabilir; bu değer kullanıcı kimliği veya
+sahiplik seçimi değildir, yalnız vadesi geçmiş tutarın hangi güne göre
+türetileceğini belirler. Her alt sorgu önce current `UserId` ile daralır.
+`CounterpartyCharge.dueDate` isteğe bağlıdır; mevcut geçmişin bilinmeyen vadesi
+`null` kalır. API toplam, gecikmiş ve vadesi geçmemiş/vadesiz alacak-borç
+tutarlarını kararlı para dizeleri olarak döndürür.
+
+Henüz endpoint'i bulunmayan `Obligation` kalıcılığı da aynı savunmayı taşır:
+kategori ve isteğe bağlı karşı taraf, settlement'ın hesabı ve bağlı olduğu
+yükümlülük `(UserId, kayıt ID)` composite foreign key'leriyle sınırlıdır.
+`(UserId, ObligationId)` tekilliği farklı bir kullanıcıya bağlanmayı ve aynı
+yükümlülüğe ikinci kapanış yazmayı veritabanı seviyesinde reddeder. Endpoint
+ve use case sahiplik kapısı sonraki çalışma grubunda, davranış açıldığında
+ayrıca belgelenecektir.
 
 Fiş analizi sahiplik sınırını yazmadan uygular. Use case current
 user kimliğini `ICurrentUser`dan alır ve modele yalnız o kullanıcının aktif

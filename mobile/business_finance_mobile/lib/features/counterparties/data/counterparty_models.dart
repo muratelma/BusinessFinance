@@ -14,6 +14,10 @@ class CounterpartySummary {
     required this.isActive,
     required this.receivable,
     required this.payable,
+    this.overdueReceivable = '0.0000',
+    this.overduePayable = '0.0000',
+    this.notOverdueReceivable = '0.0000',
+    this.notOverduePayable = '0.0000',
     required this.net,
     required this.isSettled,
     this.note,
@@ -26,6 +30,10 @@ class CounterpartySummary {
         isActive: JsonReaders.boolean(json, 'isActive'),
         receivable: JsonReaders.string(json, 'receivable'),
         payable: JsonReaders.string(json, 'payable'),
+        overdueReceivable: JsonReaders.string(json, 'overdueReceivable'),
+        overduePayable: JsonReaders.string(json, 'overduePayable'),
+        notOverdueReceivable: JsonReaders.string(json, 'notOverdueReceivable'),
+        notOverduePayable: JsonReaders.string(json, 'notOverduePayable'),
         net: JsonReaders.string(json, 'net'),
         isSettled: JsonReaders.boolean(json, 'isSettled'),
         note: JsonReaders.nullableString(json, 'note'),
@@ -41,6 +49,18 @@ class CounterpartySummary {
   /// Bizim ona kalan borcumuz.
   final String payable;
 
+  /// Vadesi geçmiş ve ödemelerden sonra açık kalan alacak.
+  final String overdueReceivable;
+
+  /// Vadesi geçmiş ve ödemelerden sonra açık kalan borç.
+  final String overduePayable;
+
+  /// İleri vadeli veya vadesi girilmemiş açık alacak.
+  final String notOverdueReceivable;
+
+  /// İleri vadeli veya vadesi girilmemiş açık borç.
+  final String notOverduePayable;
+
   /// `receivable - payable`; sunucudan gelir, istemci çıkarma yapmaz.
   final String net;
 
@@ -54,6 +74,9 @@ class CounterpartySummary {
   /// Kullanıcının bize borçlu olduğu yön mü. Sıfırda `false`; ekran o durumda
   /// zaten "kapandı" diyor.
   bool get isReceivableSide => !net.startsWith('-') && !isSettled;
+
+  bool get hasOverdueReceivable => overdueReceivable != '0.0000';
+  bool get hasOverduePayable => overduePayable != '0.0000';
 }
 
 /// Liste ekranının hangi tarafı okuduğu.

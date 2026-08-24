@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/formatters/money_text.dart';
 import '../../../core/presentation/financial_data_changes.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_list_row.dart';
@@ -173,17 +174,12 @@ class _CounterpartiesPageState extends State<CounterpartiesPage> {
   );
 
   Widget _row(CounterpartySummary person) => AppListRow(
+    key: ValueKey(person.id),
     onTap: () => _openDetail(person),
     icon: person.isActive ? Icons.person_outline : Icons.person_off_outlined,
     title: person.name,
     subtitle: _subtitle(person),
-    badge: person.isActive
-        ? null
-        : const AppStatusChip(
-            label: 'Pasif',
-            icon: Icons.pause_circle_outline,
-            tone: AppStatusTone.cancelled,
-          ),
+    badge: _badges(person),
     // Net tek sayıya iner ama işaret kaybolmaz: eksi, bizim ona borçlu
     // olduğumuz anlamına gelir ve gider tonunda okunur.
     trailing: AppMoneyText(
@@ -196,6 +192,43 @@ class _CounterpartiesPageState extends State<CounterpartiesPage> {
           : AppMoneyEffect.expense,
     ),
   );
+
+  Widget? _badges(CounterpartySummary person) {
+    if (person.isActive &&
+        !person.hasOverdueReceivable &&
+        !person.hasOverduePayable) {
+      return null;
+    }
+
+    return Wrap(
+      spacing: AppSpacing.small,
+      runSpacing: AppSpacing.xSmall,
+      children: [
+        if (!person.isActive)
+          const AppStatusChip(
+            label: 'Pasif',
+            icon: Icons.pause_circle_outline,
+            tone: AppStatusTone.cancelled,
+          ),
+        if (person.hasOverdueReceivable)
+          AppStatusChip(
+            label:
+                'Vadesi geçmiş alacak '
+                '${MoneyText.format(person.overdueReceivable, 'TRY')}',
+            icon: Icons.schedule,
+            tone: AppStatusTone.planned,
+          ),
+        if (person.hasOverduePayable)
+          AppStatusChip(
+            label:
+                'Vadesi geçmiş borç '
+                '${MoneyText.format(person.overduePayable, 'TRY')}',
+            icon: Icons.schedule,
+            tone: AppStatusTone.planned,
+          ),
+      ],
+    );
+  }
 
   String _subtitle(CounterpartySummary person) {
     if (person.isSettled) return 'Hesap kapandı';
