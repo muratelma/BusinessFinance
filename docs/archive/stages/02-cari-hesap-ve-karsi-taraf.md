@@ -2,7 +2,8 @@
 
 ## Belge durumu
 
-- Durum: **Aktif** (23 Ağustos 2026'da kullanıcı onayıyla açıldı)
+- Durum: **Tamamlandı** (23 Ağustos 2026'da açıldı, 24 Ağustos 2026'da
+  kullanıcı onayıyla kapandı)
 - Ön koşul: Aşama 01 — Kapsam boyutu ve işletme kimliği (**tamamlandı**,
   `docs/archive/stages/01-kapsam-boyutu-ve-isletme-kimligi.md`)
 - Sonraki aşama: Aşama 03 — Yükümlülük ve vade
@@ -410,9 +411,60 @@ flutter build apk --debug --dart-define=API_BASE_URL=http://10.0.2.2:5284
 - [x] Cihaz kabul turu (Pixel 8 + gerçek API + gerçek SQL) yürütüldü
       (24 Ağustos 2026, Aşama 01'in kabul hesabıyla). İki otomatik senaryo
       geçti, ekranlar elle gezildi, **bir bulgu düzeltildi**.
-- [ ] Kullanıcı Aşama 03'ü açıkça onayladı.
+- [x] Kullanıcı Aşama 03'ü açıkça onayladı (24 Ağustos 2026).
 
 ## Tamamlanma kaydı
 
-Aşama kapandığında burada: hangi commit'lerle bitti, hangi kontroller geçti,
-belge `docs/archive/stages/` altına taşındı mı.
+Aşama 23 Ağustos 2026'da açıldı, **24 Ağustos 2026'da kullanıcı onayıyla
+kapandı**. Sekiz çalışma grubunun sekizi bitti; dokuzuncu bir grup açılmadı.
+
+### Commit zinciri
+
+| Commit | Ne getirdi |
+|---|---|
+| `fd3c27e` | Aşama 01'i kapatıp 02'yi açtı; ADR 0014 yazıldı (Grup 1) |
+| `313ddc6` | Karşı taraf domaini: `Counterparty`, iki hareket türü, `CounterpartyBalance` (Grup 2) |
+| `892db27` | Cari bakiye tek sorgulu okuma modeli; üç tablo kalıcılığa girdi (Grup 3) |
+| `76a79d4` | Sözleşme karşı tarafın kimliğine bağlandı; yükseltme yolu dolu veritabanında test edildi (Grup 4) |
+| `20c8863` | Yazma yolu, birleşik feed ve raporlar (Grup 5) |
+| `4efecfc` | Fiş okumanın karşı taraf önerisi (Grup 6) |
+| `81c5c67` | Flutter: liste, ayrıntı, dört form, `Diğer` menüsünde kapı (Grup 7) |
+| `06f5562` | Yedek v7 ve cari defterin kendi CSV dışa aktarımı (Grup 8) |
+| `87acbd5` | Fiş öneri rozeti + kabul turunun bulgusunun düzeltilmesi |
+
+### Son kontroller
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (SQL dâhil) | **838 geçti**, 1 atlandı (`GeminiLiveContractTests`) |
+| Flutter analyze / format | Temiz |
+| Flutter test | **720 geçti** |
+| Flutter debug APK | Derlendi |
+| Cihaz kabul turu | Pixel 8 + gerçek API + gerçek SQL; iki senaryo geçti |
+
+### Belgede yazmayan ama alınan kararlar
+
+Aşama boyunca belgenin baştan yazmadığı kararlar grupların altına gerekçesiyle
+işlendi. En çok etki edenler: pasif karşı tarafa **tahsilat yazılabilir**,
+fazla tahsilat **kırpılmaz**, açık cari net varlıkta sözleşmeyle **aynı iki
+kovaya** girer, cari hareket planlanan görünüme **girmez** (vade Aşama 03'ün),
+eşleşme **tam ad** üzerinedir, v6 yedeği **yükseltilmez**, işlem CSV'sine
+karşı taraf kolonu **eklenmedi** — cari defter kendi dosyasını aldı.
+
+### Kapsam dışına taşınanlar
+
+- **Vade, gecikme ve hatırlatma** baştan kapsam dışıydı ve Aşama 03'ün konusu.
+- ADR 0014'ün kayda geçirdiği tutarsızlık — fiş okumanın "faturayı ödemedim"
+  yolunun hiçbir ekonomik olayı tanımaması — **Aşama 03'e devredildi** ve
+  orada ilk iş olarak duruyor.
+
+### Kabul turunun bulgusu
+
+Karşı taraf ayrıntı ekranı gerçek API'de hiç açılmıyordu: sözleşmeleri zorunlu
+`asOfDate` parametresi olmadan okuyor ve `request.invalid_format` alıyordu.
+Sahte repository kullanan widget testleri bunu göremezdi; **cihaz turu gördü**.
+Düzeltildi ve tarihin gittiğini sabitleyen bir test eklendi.
+
+Belge 24 Ağustos 2026'da `docs/archive/stages/` altına taşındı.

@@ -364,9 +364,9 @@ secret'ı uygulamaya konmaz.
 - `stages/README.md` — aşama zinciri, hangi belge aktif, yeni aşama açma ve
   biten aşamayı kapatma adımları; **aktif aşama kullanıcı onayı olmadan
   değişmez**
-- `stages/02-*.md` … `stages/06-*.md` — kalan aşamaların çalışma grupları,
+- `stages/03-*.md` … `stages/06-*.md` — kalan aşamaların çalışma grupları,
   testleri ve çıkış koşulları. Tamamlanan aşamalar `docs/archive/stages/`
-  altındadır (Aşama 01 orada)
+  altındadır (Aşama 01 ve 02 orada)
 - `docs/backlog.md` — aşamaya bağlanmamış açık işler
 - `templates/STAGE-TEMPLATE.md` — yeni aşama belgesi iskeleti
 

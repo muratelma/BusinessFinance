@@ -10,8 +10,8 @@ sonra aşağıdaki tablodan **aktif** işaretli belge okunur.
 | Aşama | Belge | Durum | Not |
 |---|---|---|---|
 | 01 | `docs/archive/stages/01-kapsam-boyutu-ve-isletme-kimligi.md` | Tamamlandı | 23 Ağustos 2026'da kapandı; dokuz grup, cihaz kabul turu |
-| 02 | `02-cari-hesap-ve-karsi-taraf.md` | **Aktif** | ADR ile açılır: ekonomik olay tanır, ödeme taşır — Grup 1 budur ve kod ondan önce değişmez |
-| 03 | `03-yukumluluk-ve-vade.md` | Planlandı | 02'nin devrettiği tutarsızlığı kapatır |
+| 02 | `docs/archive/stages/02-cari-hesap-ve-karsi-taraf.md` | Tamamlandı | 24 Ağustos 2026'da kapandı; sekiz grup, cihaz kabul turu |
+| 03 | `03-yukumluluk-ve-vade.md` | **Aktif** | 02'nin devrettiği tutarsızlığı kapatır: ödenmemiş fatura gideri tanır |
 | 04 | `04-kasa-pos-ve-gezinme.md` | Planlandı | ADR ile açılır: kart borcu ile kart tahsilatı ayrımı |
 | 05 | `05-vergi-ve-muhasebeci.md` | Planlandı | ADR ile açılır: vergi alanları taşır, hesaplamaz |
 | 06 | `06-bulut-guvenli-beta.md` | Planlandı | Gerçek finansal veriye geçiş kapısı |

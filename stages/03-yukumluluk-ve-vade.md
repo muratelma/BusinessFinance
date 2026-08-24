@@ -2,8 +2,9 @@
 
 ## Belge durumu
 
-- Durum: Planlandı
+- Durum: **Aktif** (24 Ağustos 2026'da kullanıcı onayıyla açıldı)
 - Ön koşul: Aşama 02 — Cari hesap: karşı taraf ve açık bakiye
+  (**tamamlandı**, `docs/archive/stages/02-cari-hesap-ve-karsi-taraf.md`)
 - Sonraki aşama: Aşama 04 — Kasa, POS ve gezinme
 - Dokunulacak kalıcı belgeler: `documentation/architecture.md`,
   `documentation/flows.md`, `documentation/permissions.md`,

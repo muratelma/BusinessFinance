@@ -16,9 +16,10 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   grubunun hepsi bitti, cihaz kabul turu yürütüldü. Belge
   `docs/archive/stages/01-kapsam-boyutu-ve-isletme-kimligi.md` altına taşındı
   ve tamamlanma kaydı orada
-- Aktif aşama: **02 — Cari hesap: karşı taraf ve açık bakiye.** 23 Ağustos
-  2026'da kullanıcı onayıyla açıldı. Belgesi
-  `stages/02-cari-hesap-ve-karsi-taraf.md`; sekiz çalışma grubu. **Grup 1–5
+- **Aşama 02 — Cari hesap: karşı taraf ve açık bakiye: tamamlandı**
+  (23 Ağustos'ta açıldı, 24 Ağustos 2026'da kullanıcı onayıyla kapandı).
+  Belgesi `docs/archive/stages/02-cari-hesap-ve-karsi-taraf.md` altına taşındı
+  ve tamamlanma kaydı orada. Sekiz çalışma grubu: **Grup 1–5
   tamamlandı**: karar kapısı (ADR 0014) kabul edildi, cari hesabın domain
   katmanı yazıldı, üç tablo kalıcılığa girdi, cari bakiye tek sorgulu bir
   okuma modeli olarak gerçek SQL üzerinde ölçüldü, taksitli borç modeli
@@ -30,7 +31,13 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   taşıdı ve cari deftere kendi CSV dışa aktarımını verdi. **Sekiz çalışma
   grubunun hepsi bitti.** Açık kalan iki madde: fiş önerisinin görünür
   kabul/red rozeti (kullanıcı kararı bekliyor) ve cihaz kabul turu
-- Kalan beş aşamanın belgesi de yazılı, durumları `Planlandı`
+- Aktif aşama: **03 — Yükümlülük ve vade.** 24 Ağustos 2026'da kullanıcı
+  onayıyla açıldı. Belgesi `stages/03-yukumluluk-ve-vade.md`; yedi çalışma
+  grubu. ADR kapısı **yok** (yalnız 02, 04 ve 05 bir ADR ile açılır). İlk işi,
+  Aşama 02'nin ADR 0014 ile devrettiği tutarsızlığı kapatmak: ödenmemiş
+  fatura bugün hiçbir ekonomik olayı tanımıyor, yalnız tekrarlayan plan
+  öneriyor — oysa cari taraftaki vadeli alım gideri anında tanıyor
+- Kalan dört aşamanın belgesi de yazılı, durumları `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
 
@@ -655,19 +662,30 @@ açar.
 
 ## Sıradaki tek küçük görev
 
-- **Aşama 02'nin kapanış onayı.** Sekiz çalışma grubunun sekizi bitti, fiş
-  öneri rozeti eklendi, kabul turu yürütüldü ve tek bulgusu düzeltildi. Kalan
-  tek çıkış koşulu kullanıcının Aşama 03'ü açıkça onaylaması; onaydan sonra
-  aşama belgesi `docs/archive/stages/` altına taşınır.
+- **Aşama 03, Grup 1: yükümlülüğün domain katmanı.** Ödenmemiş fatura kendi
+  kabını alır ve gideri **tanır** (hesap bakiyesine dokunmadan); ödeme
+  yükümlülüğü kapatır, hesaptan para çıkarır ve **ikinci bir gider yazmaz**.
+  Gecikme durumu kalıcı kolon değildir, tarihten türetilir.
+
+## 24 Ağustos 2026 — Aşama 02 kapandı, Aşama 03 açıldı
+
+- **Aşama 02 kullanıcı onayıyla kapandı.** Dokuz çıkış koşulunun dokuzu
+  karşılandı; belge `docs/archive/stages/` altına taşındı ve tamamlanma kaydı
+  (commit zinciri, son kontroller, belgede yazmayan kararlar, kabul turunun
+  bulgusu) oraya yazıldı. `stages/README.md` ve `PROJECT-ROADMAP.md` durumu
+  `Tamamlandı`
+- **Aşama 03 — Yükümlülük ve vade açıldı** ve zincir belgelerinde **Aktif**
+  olarak işaretlendi. ADR kapısı yok; kod Grup 1'den başlayabilir
+- Bu turda kod değişmedi; yalnız karar belgeleri güncellendi
 
 ## Son oturum kapanışı
 
 - Yapılan değişiklik: Aşama 02 **Grup 8 uygulandı** (yedek v7, sözleşmenin
   karşı tarafı kimlikle, v6'nın reddi, cari defterin kendi CSV dışa aktarımı),
   **fiş öneri rozeti eklendi** ve **kabul turu yürütüldü**. Turun tek bulgusu
-  — karşı taraf ayrıntısının `asOfDate` göndermemesi — düzeltildi
+  — karşı taraf ayrıntısının `asOfDate` göndermemesi — düzeltildi. Ardından
+  aşama kullanıcı onayıyla kapandı ve **Aşama 03 açıldı**
 - Geçen kontroller: backend build + format + **838 test** (SQL dâhil); Flutter
   analyze + format + **720 test** + debug APK derlemesi; cihazda iki kabul
   senaryosu
-- Sıradaki görev: kullanıcının Aşama 03 onayı; onayla birlikte Aşama 02
-  kapanır ve belgesi arşive taşınır
+- Sıradaki görev: Aşama 03 Grup 1 — yükümlülüğün domain katmanı
