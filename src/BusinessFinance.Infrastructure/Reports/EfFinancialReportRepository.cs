@@ -300,6 +300,8 @@ internal sealed class EfFinancialReportRepository(
         var debtOpenings = await DebtOpeningsByAccountAsync(userId, null, cancellationToken);
         var counterpartySettlements = await CounterpartySettlementsByAccountAsync(
             userId, null, cancellationToken);
+        var obligationSettlements = await ObligationSettlementsByAccountAsync(
+            userId, null, cancellationToken);
         var accountBalances = accounts.Select(account => new AccountBalanceDto(
             account.Id,
             account.Name,
@@ -310,7 +312,8 @@ internal sealed class EfFinancialReportRepository(
             cardPayments.GetValueOrDefault(account.Id) +
             debtMovements.GetValueOrDefault(account.Id) +
             debtOpenings.GetValueOrDefault(account.Id) +
-            counterpartySettlements.GetValueOrDefault(account.Id),
+            counterpartySettlements.GetValueOrDefault(account.Id) +
+            obligationSettlements.GetValueOrDefault(account.Id),
             account.Type)).ToArray();
 
         return new MonthlyReportDto(
@@ -956,6 +959,8 @@ internal sealed class EfFinancialReportRepository(
         var debtOpenings = await DebtOpeningsByAccountAsync(userId, asOfDate, cancellationToken);
         var counterpartySettlements = await CounterpartySettlementsByAccountAsync(
             userId, asOfDate, cancellationToken);
+        var obligationSettlements = await ObligationSettlementsByAccountAsync(
+            userId, asOfDate, cancellationToken);
 
         return accounts.Select(account => new AccountBalanceDto(
             account.Id,
@@ -967,7 +972,8 @@ internal sealed class EfFinancialReportRepository(
             cardPayments.GetValueOrDefault(account.Id) +
             debtMovements.GetValueOrDefault(account.Id) +
             debtOpenings.GetValueOrDefault(account.Id) +
-            counterpartySettlements.GetValueOrDefault(account.Id),
+            counterpartySettlements.GetValueOrDefault(account.Id) +
+            obligationSettlements.GetValueOrDefault(account.Id),
             account.Type)).ToArray();
     }
 
@@ -996,6 +1002,25 @@ internal sealed class EfFinancialReportRepository(
                     payment.Direction == DebtDirection.Receivable
                         ? payment.Amount.Amount
                         : -payment.Amount.Amount)
+            })
+            .ToDictionaryAsync(item => item.AccountId, item => item.Amount, cancellationToken);
+
+    private Task<Dictionary<Guid, decimal>> ObligationSettlementsByAccountAsync(
+        Guid userId,
+        DateOnly? asOfDate,
+        CancellationToken cancellationToken) =>
+        dbContext.ObligationSettlements.AsNoTracking()
+            .Where(settlement => settlement.UserId == userId &&
+                                 !settlement.IsCancelled &&
+                                 (asOfDate == null || settlement.SettlementDate <= asOfDate))
+            .GroupBy(settlement => settlement.AccountId)
+            .Select(group => new
+            {
+                AccountId = group.Key,
+                Amount = group.Sum(settlement =>
+                    settlement.Direction == DebtDirection.Receivable
+                        ? settlement.Amount.Amount
+                        : -settlement.Amount.Amount)
             })
             .ToDictionaryAsync(item => item.AccountId, item => item.Amount, cancellationToken);
 

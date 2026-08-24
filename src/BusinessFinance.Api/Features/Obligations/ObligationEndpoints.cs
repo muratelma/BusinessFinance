@@ -9,6 +9,13 @@ public static class ObligationEndpoints
 {
     public static IEndpointRouteBuilder MapObligationEndpoints(this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapGet("/api/v1/obligations", ListAsync)
+            .WithTags("Obligations")
+            .WithName("ListObligations")
+            .RequireAuthorization()
+            .Produces<ObligationListResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
         endpoints.MapPost("/api/v1/obligations", CreateAsync)
             .WithTags("Obligations")
             .WithName("CreateObligation")
@@ -17,7 +24,39 @@ public static class ObligationEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound);
+        endpoints.MapPost("/api/v1/obligations/{id:guid}/settlement", SettleAsync)
+            .WithTags("Obligations")
+            .WithName("SettleObligation")
+            .RequireAuthorization()
+            .Produces<ObligationResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
         return endpoints;
+    }
+
+    private static async Task<IResult> ListAsync(
+        string? asOfDate,
+        ListObligationsUseCase useCase,
+        TimeProvider timeProvider,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var today = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
+        if (asOfDate is not null && !FinanceContract.TryParseDate(asOfDate, out today))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "As-of date must use the yyyy-MM-dd format.",
+                "obligations.invalid_as_of_date");
+        }
+
+        var result = await useCase.ExecuteAsync(today, cancellationToken);
+        return result.IsSuccess
+            ? Results.Ok(new ObligationListResponse(
+                result.Value.Select(ToResponse).ToArray()))
+            : result.Error.ToProblemResult(httpContext);
     }
 
     private static async Task<IResult> CreateAsync(
@@ -111,6 +150,29 @@ public static class ObligationEndpoints
         }
     }
 
+    private static async Task<IResult> SettleAsync(
+        Guid id,
+        SettleObligationRequest request,
+        SettleObligationUseCase useCase,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        if (!FinanceContract.TryParseDate(request.SettlementDate, out var settlementDate))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Settlement date must use the yyyy-MM-dd format.",
+                "obligations.invalid_settlement_date");
+        }
+
+        var result = await useCase.ExecuteAsync(
+            new SettleObligationCommand(id, request.AccountId, settlementDate),
+            cancellationToken);
+        return result.IsSuccess
+            ? Results.Ok(ToResponse(result.Value))
+            : result.Error.ToProblemResult(httpContext);
+    }
+
     private static ObligationResponse ToResponse(ObligationDto obligation) => new(
         obligation.Id,
         obligation.CounterpartyId,
@@ -122,5 +184,13 @@ public static class ObligationEndpoints
         FinanceContract.Date(obligation.IssueDate),
         FinanceContract.Date(obligation.DueDate),
         obligation.Description,
-        obligation.Status.ToString().ToLowerInvariant());
+        obligation.Status.ToString().ToLowerInvariant(),
+        obligation.CounterpartyName,
+        obligation.CategoryName,
+        obligation.IsOverdue,
+        obligation.SettlementId,
+        obligation.SettlementAccountId,
+        obligation.SettlementDate is DateOnly settlementDate
+            ? FinanceContract.Date(settlementDate)
+            : null);
 }

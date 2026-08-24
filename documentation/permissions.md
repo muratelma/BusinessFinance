@@ -197,10 +197,14 @@ yükümlülük `(UserId, kayıt ID)` composite foreign key'leriyle sınırlıdı
 `(UserId, ObligationId)` tekilliği farklı bir kullanıcıya bağlanmayı ve aynı
 yükümlülüğe ikinci kapanış yazmayı veritabanı seviyesinde reddeder. Use case
 kategoriyi ve verilmişse karşı tarafı yalnız current user'ın aktif kayıtları
-arasından çözer; kimlik request body'den alınmaz. Okuma tarafı gerçekleşen
-`financial-activities` ve `financial-activities/planned` üzerinden
-owner-scoped açılmıştır; API entegrasyon testi sahibin iki yönünü görüp yabancı
-kullanıcının boş sonuç aldığını kanıtlar.
+arasından çözer; kimlik request body'den alınmaz. `GET /api/v1/obligations`
+yalnız current user satırlarını döndürür. `POST
+/api/v1/obligations/{id}/settlement` hem yükümlülüğü hem hesabı current user
+kapsamında çözer; yabancı yükümlülük `404`, yabancı/pasif/para birimi uyumsuz
+hesap doğrulama hatasıdır. Aynı yükümlülüğe ikinci çağrı mevcut settlement'ı
+döndürür. Gerçekleşen ve planlanan feed okumaları da owner-scoped kalır; API
+entegrasyon testi yabancı listenin boş ve yabancı settlement'ın reddedildiğini
+kanıtlar.
 
 Fiş analizi sahiplik sınırını yazmadan uygular. Use case current
 user kimliğini `ICurrentUser`dan alır ve modele yalnız o kullanıcının aktif

@@ -198,7 +198,19 @@ internal sealed class EfAccountRepository(BusinessFinanceDbContext dbContext)
                     : -payment.Amount.Amount,
                 cancellationToken);
 
+        var obligationSettlements = await dbContext.ObligationSettlements
+            .AsNoTracking()
+            .Where(settlement => settlement.AccountId == accountId &&
+                                 settlement.UserId == userId &&
+                                 !settlement.IsCancelled)
+            .SumAsync(
+                settlement => settlement.Direction == DebtDirection.Receivable
+                    ? settlement.Amount.Amount
+                    : -settlement.Amount.Amount,
+                cancellationToken);
+
         return openingBalance.Value + movementBalance + incomingTransfers - outgoingTransfers -
-               cardPayments + debtMovements + debtOpenings + counterpartySettlements;
+               cardPayments + debtMovements + debtOpenings + counterpartySettlements +
+               obligationSettlements;
     }
 }

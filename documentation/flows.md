@@ -404,9 +404,12 @@ kopyalamak yerine kullanıcı o kaydın kendi ekranına gider. Engelli
 (`readiness = needs-attention`) satırda buton kapalıdır; nedeni
 `attentionCode`'dan üretilen cümleyle satırda zaten yazılıdır.
 
-Tek seferlik yükümlülüğün hesap seçen ödeme/tahsilat ekranı Aşama 03 Grup 6'nın
-işidir. Grup 4'te satır ve Özet uyarısı görünürdür; istemci yanlışlıkla
-tekrarlayan plan veya borç formuna yönlendirme yapmaz ve bu eylemi henüz çizmez.
+Tek seferlik yükümlülük `Diğer > Yükümlülükler` altında yaklaşan, geciken ve
+kapanan sekmelerinde okunur. Açık satıra dokununca hesap seçilen tek panel açılır;
+`Öde/Tahsil et ve kapat` çağrısı settlement'ı yazar, ekranı yeniler ve kayıt
+kapananlara geçer. Panel, işlemin gelir/gideri yeniden yazmadığını açıkça söyler.
+Yükleme, boş, hata, unauthorized ve son bilinen veriyi gösteren stale durumları
+ayrı görünür.
 
 **Para hareket etmeden önce açık onay istenir ve kaynak adıyla yazılır.**
 Gerçekleştirme kaynağı **sormaz** — tekrarlayan planın kaynağı kuruluşta

@@ -101,7 +101,9 @@ public sealed class ObligationSettlement
         ObligationId = obligationId;
         AccountId = account.Id;
         Direction = direction;
-        Amount = amount;
+        // EF Core owned values cannot be shared by two owners. The settlement
+        // carries the same monetary value, but owns its own immutable snapshot.
+        Amount = new Money(amount.Amount, amount.Currency);
         SettlementDate = settlementDate;
         SettledAtUtc = settledAtUtc;
     }

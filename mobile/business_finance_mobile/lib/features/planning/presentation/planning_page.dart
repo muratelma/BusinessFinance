@@ -839,6 +839,7 @@ class _RecurringForm extends StatefulWidget {
 class _RecurringFormState extends State<_RecurringForm> {
   final formKey = GlobalKey<FormState>();
   final amount = TextEditingController();
+  final occurrenceLimit = TextEditingController();
   final description = TextEditingController();
   String? accountId;
   String? creditCardId;
@@ -851,6 +852,7 @@ class _RecurringFormState extends State<_RecurringForm> {
   @override
   void dispose() {
     amount.dispose();
+    occurrenceLimit.dispose();
     description.dispose();
     super.dispose();
   }
@@ -998,6 +1000,23 @@ class _RecurringFormState extends State<_RecurringForm> {
         ),
         const SizedBox(height: AppSpacing.medium),
         TextFormField(
+          controller: occurrenceLimit,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Toplam tekrar sınırı (isteğe bağlı)',
+            helperText: 'Plan bu sayıda kayıt ürettikten sonra tamamlanır.',
+          ),
+          validator: (value) {
+            final text = value?.trim() ?? '';
+            if (text.isEmpty) return null;
+            final parsed = int.tryParse(text);
+            return parsed == null || parsed <= 0
+                ? 'Sıfırdan büyük tam sayı girin.'
+                : null;
+          },
+        ),
+        const SizedBox(height: AppSpacing.medium),
+        TextFormField(
           controller: description,
           hintLocales: const [Locale('tr', 'TR')],
           maxLength: 200,
@@ -1039,6 +1058,9 @@ class _RecurringFormState extends State<_RecurringForm> {
       'frequency': frequency,
       'startDate': _formatDate(startDate),
       'endDate': null,
+      'occurrenceLimit': occurrenceLimit.text.trim().isEmpty
+          ? null
+          : int.parse(occurrenceLimit.text.trim()),
       'monthEndBehavior': monthEndBehavior,
       'description': description.text.trim().isEmpty
           ? null
@@ -1151,9 +1173,14 @@ class _RecurringPlanCard extends StatelessWidget {
           title: _title,
           // Türü soldaki ikon zaten söylüyor; alt satır sıklığı ve sıradaki
           // tarihi taşıyor. Ham `2026-09-30` sunucunun iç gösterimi.
-          subtitle:
-              '${_frequencyLabel(item.frequency)} · '
-              '${next == null ? 'plan tamamlandı' : 'Sonraki ${DateText.dayMonth(next)}'}',
+          subtitle: [
+            _frequencyLabel(item.frequency),
+            if (item.occurrenceLimit != null)
+              '${item.generatedOccurrenceCount} / ${item.occurrenceLimit} tekrar',
+            next == null
+                ? 'plan tamamlandı'
+                : 'Sonraki ${DateText.dayMonth(next)}',
+          ].join(' · '),
           // Duraklatılmış plan yalnız bulunduğu bölümden anlaşılmıyor: bölüm
           // kapalıyken açıp tek satıra bakan kullanıcı durumu görmeli.
           badge: item.isActive

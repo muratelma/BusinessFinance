@@ -65,6 +65,11 @@ class MorePage extends StatelessWidget {
               onTap: () => context.push('/more/counterparties'),
             ),
             _MenuItem(
+              icon: Icons.event_note_outlined,
+              title: 'Yükümlülükler',
+              onTap: () => context.push('/more/obligations'),
+            ),
+            _MenuItem(
               icon: Icons.handshake_outlined,
               title: 'Borç ve alacaklar',
               onTap: () => context.push('/more/debts'),

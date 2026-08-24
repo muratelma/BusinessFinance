@@ -128,6 +128,16 @@ class FinancialDataChanges extends ChangeNotifier {
     counterparties: true,
   );
 
+  /// Ödeme/tahsilat ekonomik olayı yeniden tanımaz; yalnız kasa, plan ve cari
+  /// görünümü değişir.
+  void obligationSettled() => _raise(
+    feed: true,
+    dashboard: true,
+    accounts: true,
+    planning: true,
+    counterparties: true,
+  );
+
   /// Karşı tarafın kendisi eklendi, adı değişti, pasifleşti ya da silindi.
   /// Para hareket etmedi; yalnız kişi listesi değişti.
   void counterpartiesChanged() => _raise(counterparties: true);

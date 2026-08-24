@@ -642,8 +642,8 @@ hedeflerini de yükseltir.
 
 ## Tek seferlik yükümlülük
 
-> Aşama 03, Grup 1–5 — Domain modeli, kalıcılık, kanonik planlanan projection ve
-> ödenmemiş fatura yazma akışı uygulanmıştır. Settlement yazma akışı Grup 6'dadır.
+> Aşama 03, Grup 1–6 — Domain modeli, kalıcılık, kanonik planlanan projection,
+> ödenmemiş fatura ve settlement akışları uygulanmıştır.
 
 Ödenmemiş tek seferlik fatura artık tekrarlayan plan kavramına sokulmadan
 temsil edilebilir. Model ADR 0014'ün ayrımını iki ayrı kayıtla korur:
@@ -684,6 +684,13 @@ aktif karşı taraf ve kapsam zincirini doğruladıktan sonra aggregate'i yazar.
 `POST /api/v1/obligations` açılan kaydı gerçekleşen hareket feed'ine
 `obligation` türüyle, raporlara ve net varlığa düzenleme tarihinde katar. Hesap
 tablosuna yazmadığı için kasa bakiyesi değişmez.
+
+`GET /api/v1/obligations?asOfDate=...` durum ve gecikmeyi sorgu tarihinde
+türetir. `POST /api/v1/obligations/{id}/settlement` current user'ın aktif ve
+aynı para birimindeki hesabını çözer; tek settlement'ı yazar. Nakit etkisi hesap
+bakiyesi, rapor bakiyeleri ve `obligation-settlement` feed satırında görünür;
+kategori/kapsam taşımadığı için aylık gelir-gider ikinci kez değişmez. Karşı
+taraflı açık yükümlülük cari bakiyeye katılır, settlement sonrasında düşer.
 
 ### Taşınabilirlik: dışa aktarma ile yedek ayrı şeylerdir
 

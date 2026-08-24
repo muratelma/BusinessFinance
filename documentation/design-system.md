@@ -566,6 +566,15 @@ hesap ve sıklık alanı çizmez. Loading, error ve unauthorized durumları mevc
 durum bileşenlerini; gönderim kilidi `AppSubmitButton`'ı kullanır. Yeni renk,
 boşluk veya tipografi token'ı eklenmemiştir.
 
+### Yükümlülük listesi ve kapanış paneli
+
+`/more/obligations` üç metin etiketli sekme kullanır: yaklaşan, geciken,
+kapanan. Durum `AppStatusChip` içinde ikon + metinle verilir; gecikme yalnız
+renkle anlatılmaz. Satırlar mevcut `AppCard`, `AppListRow` ve `AppMoneyText`
+bileşenlerini kullanır. Kapanış `AppFormSheet` içinde hesap seçimi ve gönderim
+kilidiyle yapılır. Loading, empty, error, unauthorized ve stale-cache durumları
+görünürdür; yeni tasarım token'ı eklenmemiştir.
+
 ## Kuralları uygulayan testler
 
 | Kapı | Yer |

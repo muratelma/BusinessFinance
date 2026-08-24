@@ -35,6 +35,8 @@ class RecurringTransactionItem {
     required this.frequency,
     required this.startDate,
     required this.endDate,
+    required this.occurrenceLimit,
+    required this.generatedOccurrenceCount,
     required this.nextOccurrenceDate,
     required this.monthEndBehavior,
     required this.description,
@@ -55,6 +57,8 @@ class RecurringTransactionItem {
   final String frequency;
   final String startDate;
   final String? endDate;
+  final int? occurrenceLimit;
+  final int generatedOccurrenceCount;
   final String? nextOccurrenceDate;
   final String monthEndBehavior;
   final String? description;
@@ -75,6 +79,11 @@ class RecurringTransactionItem {
         frequency: JsonReaders.string(json, 'frequency'),
         startDate: JsonReaders.date(json, 'startDate'),
         endDate: _nullableDate(json, 'endDate'),
+        occurrenceLimit: JsonReaders.nullableInt(json, 'occurrenceLimit'),
+        generatedOccurrenceCount: JsonReaders.integer(
+          json,
+          'generatedOccurrenceCount',
+        ),
         nextOccurrenceDate: _nullableDate(json, 'nextOccurrenceDate'),
         monthEndBehavior: JsonReaders.string(json, 'monthEndBehavior'),
         description: JsonReaders.nullableString(json, 'description'),

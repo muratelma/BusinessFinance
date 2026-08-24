@@ -22,13 +22,14 @@ void main() {
     // Cari hesap ile taksitli sözleşme kardeş kapılar ve yan yana duruyorlar:
     // biri yürüyen bir hesap, diğeri vadesi belli bir plan.
     'Cari hesap',
+    'Yükümlülükler',
     'Borç ve alacaklar',
     'Tasarruf hedefleri',
     'Planlama ve raporlar',
     'Veri ve yedek',
   ];
 
-  testWidgets('menü sekiz kutuyu kararlaştırılan sırayla gösterir', (
+  testWidgets('menü dokuz kutuyu kararlaştırılan sırayla gösterir', (
     tester,
   ) async {
     await tester.pumpWidget(_host());
@@ -88,6 +89,7 @@ Widget _host() => MaterialApp.router(
         '/more/cards',
         '/more/categories',
         '/more/counterparties',
+        '/more/obligations',
         '/more/debts',
         '/more/goals',
         '/more/planning',

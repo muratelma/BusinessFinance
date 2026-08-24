@@ -76,3 +76,68 @@ class ObligationController extends ChangeNotifier {
     }
   }
 }
+
+class ObligationListController extends ChangeNotifier {
+  ObligationListController(this._repository, {this.changes});
+
+  final ObligationRepositoryContract _repository;
+  final FinancialDataChanges? changes;
+
+  List<ObligationItem> items = const [];
+  bool isLoading = false;
+  bool isStale = false;
+  bool unauthorized = false;
+  String? errorMessage;
+
+  Future<void> load() async {
+    if (isLoading) return;
+    isLoading = true;
+    errorMessage = null;
+    notifyListeners();
+    try {
+      items = await _repository.list(asOfDate: _today());
+      unauthorized = false;
+      isStale = false;
+    } on ApiException catch (error) {
+      unauthorized = error.isUnauthorized;
+      errorMessage = error.message;
+      isStale = items.isNotEmpty;
+    } on FormatException {
+      errorMessage = 'Sunucudan beklenmeyen bir yanıt alındı.';
+      isStale = items.isNotEmpty;
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<List<ObligationAccount>> loadAccounts() =>
+      _repository.loadActiveAccounts();
+
+  Future<bool> settle(ObligationItem item, String accountId) async {
+    try {
+      await _repository.settle(
+        obligationId: item.id,
+        accountId: accountId,
+        settlementDate: _today(),
+      );
+      changes?.obligationSettled();
+      await load();
+      return true;
+    } on ApiException catch (error) {
+      unauthorized = error.isUnauthorized;
+      errorMessage = error.message;
+    } on FormatException {
+      errorMessage = 'Sunucudan beklenmeyen bir yanıt alındı.';
+    }
+    notifyListeners();
+    return false;
+  }
+
+  static String _today() {
+    final value = DateTime.now();
+    return '${value.year.toString().padLeft(4, '0')}-'
+        '${value.month.toString().padLeft(2, '0')}-'
+        '${value.day.toString().padLeft(2, '0')}';
+  }
+}

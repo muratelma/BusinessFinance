@@ -302,7 +302,8 @@ public static class FinancialActivityEndpoints
         [FinancialActivityKind.DebtOpening] = "debt-opening",
         [FinancialActivityKind.CounterpartyCharge] = "counterparty-charge",
         [FinancialActivityKind.CounterpartySettlement] = "counterparty-settlement",
-        [FinancialActivityKind.Obligation] = "obligation"
+        [FinancialActivityKind.Obligation] = "obligation",
+        [FinancialActivityKind.ObligationSettlement] = "obligation-settlement"
     };
 
     internal static readonly Dictionary<FinancialActivityEffect, string> EffectValues = new()

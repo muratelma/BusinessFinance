@@ -230,6 +230,20 @@ class _FakeObligationRepository implements ObligationRepositoryContract {
 
   @override
   Future<void> create(Map<String, Object?> input) async {}
+
+  @override
+  Future<List<ObligationItem>> list({required String asOfDate}) async =>
+      const [];
+
+  @override
+  Future<List<ObligationAccount>> loadActiveAccounts() async => const [];
+
+  @override
+  Future<void> settle({
+    required String obligationId,
+    required String accountId,
+    required String settlementDate,
+  }) async {}
 }
 
 Widget _app(AuthController controller, GoRouter router) =>

@@ -277,6 +277,15 @@ kapanış use case'i yükümlülük davranışı açıldığında tamamlanacak.
 | `obligation_form_page_test` (Flutter, yeni) | Form hesap ve sıklık istemez; payable payload'ında ayrı `issueDate`/`dueDate`, kategori ve isteğe bağlı karşı taraf taşır; erişilebilirlik kapısını geçer |
 | `bank_document_router_test` (Flutter, genişletildi) | “Henüz ödemedim” kardeş rotadaki yükümlülük formuna Navigator çakışması olmadan geçer |
 
+## Aşama 03 Grup 6 — yükümlülük kapanışı ve Flutter
+
+| Test | Neyi kanıtlıyor |
+|---|---|
+| `ObligationEndpointTests.UnpaidInvoice_RecognizesExpenseWithoutMovingCash_AndIsOwnerScoped` | Liste gecikmeyi türetir; cari bakiye yükümlülüğü bir kez taşır; tekrarlanan settlement idempotenttir; hesap/net varlık/feed değişir, aylık gider değişmez; planlanan satır düşer; yabancı okuma/yazma reddedilir |
+| `obligations_page_test` | Gecikmiş satır yalnız renkle değil etiketle görünür; hesap seçimiyle ödenir ve panel kapanır |
+| `planning_feature_test` | `occurrenceLimit` ve üretilen sayaç açık DTO'da okunur; plan satırı sınır ilerlemesini gösterir |
+| `AdvancedReport_LargeFixtureStaysWithinQueryCountAndTimeBudget` (gerçek SQL) | Settlement hesap etkisi eklendikten sonra gelişmiş rapor en çok 61 sabit okuma komutunda kalır; sayı kayıt adediyle büyümez |
+
 ## Bilinen test boşlukları
 
 - Fiziksel cihaz kanıtı yoktur; emulator kabulü bunun yerine sunulmaz.

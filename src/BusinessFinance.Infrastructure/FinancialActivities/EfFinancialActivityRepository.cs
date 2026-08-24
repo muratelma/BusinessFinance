@@ -566,6 +566,64 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 MatchCounterpartyId = obligation.CounterpartyId
             };
 
+        var obligationSettlements =
+            from settlement in dbContext.ObligationSettlements.AsNoTracking()
+            join obligation in dbContext.Obligations.AsNoTracking()
+                on new { settlement.UserId, Id = settlement.ObligationId }
+                equals new { obligation.UserId, obligation.Id }
+            join account in dbContext.Accounts.AsNoTracking()
+                on new { settlement.UserId, Id = settlement.AccountId }
+                equals new { account.UserId, account.Id }
+            join category in dbContext.Categories.AsNoTracking()
+                on new { obligation.UserId, Id = obligation.CategoryId }
+                equals new { category.UserId, category.Id }
+            join counterparty in dbContext.Counterparties.AsNoTracking()
+                on new { obligation.UserId, Id = obligation.CounterpartyId }
+                equals new { counterparty.UserId, Id = (Guid?)counterparty.Id }
+                into counterparties
+            from counterparty in counterparties.DefaultIfEmpty()
+            where settlement.UserId == userId
+            select new ActivityRow
+            {
+                ActivityId = settlement.Id,
+                ActivityKind = (int)FinancialActivityKind.ObligationSettlement,
+                Effect = (int)FinancialActivityEffect.Neutral,
+                SourceGroup = (int)FinancialActivitySourceGroup.Obligation,
+                Origin = (int)FinancialActivityOrigin.Manual,
+                Status = settlement.IsCancelled
+                    ? (int)FinancialActivityStatus.Cancelled
+                    : (int)FinancialActivityStatus.Realized,
+                ActivityDate = settlement.SettlementDate,
+                Amount = settlement.Amount.Amount,
+                Currency = (int)settlement.Amount.Currency,
+                Title = obligation.Description ??
+                        (counterparty == null ? category.Name : counterparty.Name),
+                Description = obligation.Description,
+                CategoryId = null,
+                CategoryName = null,
+                SourceId = settlement.Direction == DebtDirection.Payable
+                    ? account.Id
+                    : counterparty == null ? null : counterparty.Id,
+                SourceName = settlement.Direction == DebtDirection.Payable
+                    ? account.Name
+                    : counterparty == null ? null : counterparty.Name,
+                DestinationId = settlement.Direction == DebtDirection.Receivable
+                    ? account.Id
+                    : counterparty == null ? null : counterparty.Id,
+                DestinationName = settlement.Direction == DebtDirection.Receivable
+                    ? account.Name
+                    : counterparty == null ? null : counterparty.Name,
+                CancelledAtUtc = settlement.CancelledAtUtc,
+                Scope = null,
+                PrincipalPortion = null,
+                InterestPortion = null,
+                MatchAccountId = account.Id,
+                MatchSecondAccountId = null,
+                MatchCreditCardId = null,
+                MatchCategoryId = null,
+                MatchCounterpartyId = obligation.CounterpartyId
+            };
+
         return accountTransactions
             .Concat(transfers)
             .Concat(cardCharges)
@@ -575,7 +633,8 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
             .Concat(debtCategoricalOpenings)
             .Concat(counterpartyCharges)
             .Concat(counterpartySettlements)
-            .Concat(obligations);
+            .Concat(obligations)
+            .Concat(obligationSettlements);
     }
 
     private static IQueryable<ActivityRow> ApplyFilters(

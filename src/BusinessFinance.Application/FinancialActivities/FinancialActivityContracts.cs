@@ -35,7 +35,8 @@ public enum FinancialActivityKind
     /// Tek seferlik vadeli ekonomik olay. Yöne göre gelir/gideri düzenleme
     /// tarihinde tanır; ödeme daha sonra ayrı, nötr bir hareket olacaktır.
     /// </summary>
-    Obligation = 10
+    Obligation = 10,
+    ObligationSettlement = 11
 }
 
 /// <summary>Effect on the income/expense report.</summary>
@@ -241,9 +242,10 @@ public static class FinancialActivityCapabilities
         if (kind is FinancialActivityKind.DebtPayment
             or FinancialActivityKind.DebtCollection
             or FinancialActivityKind.DebtOpening
-            // Yükümlülüğün iptal akışı Grup 6'da açılana kadar akış, kullanıcıya
-            // çalışmayan bir iptal eylemi göstermemelidir.
-            or FinancialActivityKind.Obligation)
+            // Yükümlülük aggregate'i geçmişi iptal edebilse de birleşik feed
+            // henüz bu iki kayıt için bir iptal endpoint'i sunmuyor.
+            or FinancialActivityKind.Obligation
+            or FinancialActivityKind.ObligationSettlement)
         {
             return false;
         }

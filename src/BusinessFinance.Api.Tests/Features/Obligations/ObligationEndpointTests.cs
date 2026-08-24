@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using BusinessFinance.Api.Features.Authentication;
+using BusinessFinance.Api.Features.Accounts;
 using BusinessFinance.Api.Features.Categories;
 using BusinessFinance.Api.Features.Counterparties;
 using BusinessFinance.Api.Features.FinancialActivities;
@@ -57,11 +58,69 @@ public sealed class ObligationEndpointTests
         Assert.Equal("business", activity.Scope);
         Assert.Equal(counterparty.Id, activity.SourceId);
 
+        var list = await owner.GetFromJsonAsync<ObligationListResponse>(
+            "/api/v1/obligations?asOfDate=2026-08-21");
+        var listed = Assert.Single(list!.Items);
+        Assert.True(listed.IsOverdue);
+        Assert.Equal("Enerji Tedarik", listed.CounterpartyName);
+
+        var counterpartyBefore = await owner.GetFromJsonAsync<CounterpartyResponse>(
+            $"/api/v1/counterparties/{counterparty.Id}?asOfDate=2026-08-21");
+        Assert.Equal("412.6000", counterpartyBefore!.Payable);
+        Assert.Equal("412.6000", counterpartyBefore.OverduePayable);
+
         var advanced = await owner.GetFromJsonAsync<AdvancedFinancialReportResponse>(
             "/api/v1/reports/advanced?year=2026&month=8&asOfDate=2026-08-10"
             + "&trendMonths=2&daysAhead=30");
         Assert.Equal("412.6000", advanced!.NetWorth.PayableDebt);
         Assert.Equal("-412.6000", advanced.NetWorth.NetWorth);
+
+        var account = await CreateAccountAsync(owner);
+        using var settle = await owner.PostAsJsonAsync(
+            $"/api/v1/obligations/{obligation.Id}/settlement",
+            new SettleObligationRequest(account.Id, "2026-08-21"));
+        Assert.True(
+            settle.StatusCode == HttpStatusCode.OK,
+            await settle.Content.ReadAsStringAsync());
+        var settled = (await settle.Content.ReadFromJsonAsync<ObligationResponse>())!;
+        Assert.Equal("settled", settled.Status);
+        Assert.NotNull(settled.SettlementId);
+
+        using var settleAgain = await owner.PostAsJsonAsync(
+            $"/api/v1/obligations/{obligation.Id}/settlement",
+            new SettleObligationRequest(account.Id, "2026-08-21"));
+        var settledAgain = (await settleAgain.Content.ReadFromJsonAsync<ObligationResponse>())!;
+        Assert.Equal(settled.SettlementId, settledAgain.SettlementId);
+
+        var accountAfter = await owner.GetFromJsonAsync<AccountResponse>(
+            $"/api/v1/accounts/{account.Id}");
+        Assert.Equal("587.4000", accountAfter!.Balance);
+        var monthlyAfter = await owner.GetFromJsonAsync<MonthlyReportResponse>(
+            "/api/v1/reports/monthly?year=2026&month=8");
+        Assert.Equal("412.6000", monthlyAfter!.TotalExpense);
+        var advancedAfter = await owner.GetFromJsonAsync<AdvancedFinancialReportResponse>(
+            "/api/v1/reports/advanced?year=2026&month=8&asOfDate=2026-08-21"
+            + "&trendMonths=2&daysAhead=30");
+        Assert.Equal("0.0000", advancedAfter!.NetWorth.PayableDebt);
+        Assert.Equal("587.4000", advancedAfter.NetWorth.NetWorth);
+
+        var counterpartyAfter = await owner.GetFromJsonAsync<CounterpartyResponse>(
+            $"/api/v1/counterparties/{counterparty.Id}?asOfDate=2026-08-21");
+        Assert.Equal("0.0000", counterpartyAfter!.Payable);
+        Assert.Equal("0.0000", counterpartyAfter.OverduePayable);
+
+        var plannedAfter = await owner.GetFromJsonAsync<PlannedActivityListResponse>(
+            "/api/v1/financial-activities/planned?asOfDate=2026-08-21&daysAhead=30");
+        Assert.DoesNotContain(
+            plannedAfter!.Items,
+            item => item.PlannedActivityId == obligation.Id);
+
+        var settledFeed = await owner.GetFromJsonAsync<FinancialActivityListResponse>(
+            "/api/v1/financial-activities?pageNumber=1&pageSize=20");
+        Assert.Contains(settledFeed!.Items, item =>
+            item.ActivityKind == "obligation-settlement" &&
+            item.Effect == "neutral" &&
+            item.SourceId == account.Id);
 
         using var foreignWrite = await stranger.PostAsJsonAsync(
             "/api/v1/obligations",
@@ -75,6 +134,13 @@ public sealed class ObligationEndpointTests
                 "business",
                 counterparty.Id));
         Assert.Equal(HttpStatusCode.BadRequest, foreignWrite.StatusCode);
+        var strangerList = await stranger.GetFromJsonAsync<ObligationListResponse>(
+            "/api/v1/obligations?asOfDate=2026-08-21");
+        Assert.Empty(strangerList!.Items);
+        using var foreignSettlement = await stranger.PostAsJsonAsync(
+            $"/api/v1/obligations/{obligation.Id}/settlement",
+            new SettleObligationRequest(account.Id, "2026-08-21"));
+        Assert.Equal(HttpStatusCode.NotFound, foreignSettlement.StatusCode);
         var strangerFeed = await stranger.GetFromJsonAsync<FinancialActivityListResponse>(
             "/api/v1/financial-activities?pageNumber=1&pageSize=20");
         Assert.Empty(strangerFeed!.Items);
@@ -117,6 +183,15 @@ public sealed class ObligationEndpointTests
             "/api/v1/counterparties", new CreateCounterpartyRequest(name));
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<CounterpartyResponse>())!;
+    }
+
+    private static async Task<AccountResponse> CreateAccountAsync(HttpClient client)
+    {
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/accounts",
+            new CreateAccountRequest("Sentetik kasa", "cash", "TRY", "1000.0000"));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<AccountResponse>())!;
     }
 
     private static async Task<HttpClient> CreateAuthenticatedClientAsync(

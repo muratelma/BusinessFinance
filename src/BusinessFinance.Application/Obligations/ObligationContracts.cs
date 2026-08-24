@@ -24,9 +24,36 @@ public sealed record ObligationDto(
     DateOnly IssueDate,
     DateOnly DueDate,
     string? Description,
-    ObligationStatus Status);
+    ObligationStatus Status,
+    string? CounterpartyName = null,
+    string? CategoryName = null,
+    bool IsOverdue = false,
+    Guid? SettlementId = null,
+    Guid? SettlementAccountId = null,
+    DateOnly? SettlementDate = null);
+
+public sealed record SettleObligationCommand(
+    Guid ObligationId,
+    Guid AccountId,
+    DateOnly SettlementDate);
 
 public interface IObligationRepository
 {
     Task AddAsync(Obligation obligation, CancellationToken cancellationToken);
+    Task<IReadOnlyList<ObligationDto>> ListAsync(
+        Guid userId,
+        DateOnly asOfDate,
+        CancellationToken cancellationToken);
+    Task<Obligation?> FindOwnedByIdAsync(
+        Guid obligationId,
+        Guid userId,
+        bool track,
+        CancellationToken cancellationToken);
+    Task SaveSettlementAsync(CancellationToken cancellationToken);
+}
+
+public sealed class ObligationConcurrencyException : Exception
+{
+    public ObligationConcurrencyException()
+        : base("Obligation settlement was changed by another request.") { }
 }

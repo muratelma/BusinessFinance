@@ -187,7 +187,7 @@ kaybolur; ikisi de doğru olur ve sırayla gerçekleşir.
 - Ödenmemiş fatura formu belge tarihi ile vadeyi ayrı gösteriyor; hesap ve sıklık
   istemiyor. Gider belge tarihinde tanınıyor, hesap bakiyesi değişmiyor.
 
-### Grup 6 — Flutter
+### Grup 6 — Flutter — **Tamamlandı**
 
 - Yükümlülük listesi: yaklaşanlar, gecikenler, kapananlar.
 - Ödeme akışı: hesap seç, öde, kapat — tek ekran.
@@ -195,6 +195,15 @@ kaybolur; ikisi de doğru olur ve sırayla gerçekleşir.
 - Tekrarlayan plan formunda bitiş sınırı alanı.
 - Ölçüt: zorunlu ekran durumları; gecikme rengi tasarım sistemi kontrast
   kapısını geçiyor.
+
+Uygulananlar:
+
+- Owner-scoped liste ve idempotent settlement uçları açıldı; settlement hesap
+  bakiyesi/feed/net varlığı değiştiriyor, gelir-gideri yeniden tanımıyor.
+- Flutter ekranı yaklaşan/geciken/kapanan sekmeleri, stale-cache ve zorunlu
+  durumlarıyla eklendi; açık kayıtta hesap seçilerek tek panelde kapanış yapılıyor.
+- Karşı taraf bakiyesi açık yükümlülüğü bir kez içeriyor ve settlement ile
+  düşürüyor. Tekrarlayan plan formu toplam tekrar sınırını açıkça taşıyor.
 
 ### Grup 7 — Yedek v8 ve sözleşme belgeleri
 

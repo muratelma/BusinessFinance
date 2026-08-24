@@ -33,10 +33,10 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   cihaz kabul turu tamamlandı
 - Aktif aşama: **03 — Yükümlülük ve vade.** 24 Ağustos 2026'da kullanıcı
   onayıyla açıldı. Belgesi `stages/03-yukumluluk-ve-vade.md`; yedi çalışma
-  grubu. ADR kapısı **yok** (yalnız 02, 04 ve 05 bir ADR ile açılır). İlk işi,
-  Aşama 02'nin ADR 0014 ile devrettiği tutarsızlığı kapatmak: ödenmemiş
-  fatura bugün hiçbir ekonomik olayı tanımıyor, yalnız tekrarlayan plan
-  öneriyor — oysa cari taraftaki vadeli alım gideri anında tanıyor
+  grubu. ADR kapısı **yok** (yalnız 02, 04 ve 05 bir ADR ile açılır).
+  **Grup 1–6 tamamlandı**: yükümlülük/domain-kalıcılık, tekrar sınırı,
+  planlanan projection, fişten yazma ve Flutter liste/kapanış akışları hazır.
+  Sırada yalnız **Grup 7 — yedek v8 ve sözleşme belgeleri** var
 - Kalan dört aşamanın belgesi de yazılı, durumları `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
@@ -869,3 +869,40 @@ açar.
   debug build geçti
 - Sıradaki görev: Aşama 03 Grup 6 — yükümlülük listesi, ödeme/kapatma akışı,
   cari ayrıntıda vadeli bakiye ve tekrarlayan plan bitiş sınırı alanı
+
+## 24 Ağustos 2026 — Aşama 03, Grup 6: yükümlülük kapanışı ve Flutter
+
+- `GET /api/v1/obligations` yaklaşan/geciken/kapanan kayıtları current user
+  kapsamında döndürüyor; gecikme `asOfDate` ile türetiliyor. `POST
+  /api/v1/obligations/{id}/settlement` aktif hesabı çözüp tek ve idempotent
+  ödeme/tahsilat yazıyor
+- Settlement hesap bakiyesi, feed, planlanan görünüm ve net varlığı güncelliyor;
+  kategori/kapsam taşımadığı için gelir-gideri ikinci kez tanımıyor. Karşı taraflı
+  açık yükümlülük cari bakiyeye bir kez katılıyor ve kapanınca düşüyor
+- `Diğer > Yükümlülükler` ekranı yaklaşan, geciken ve kapanan sekmeleriyle;
+  loading, empty, error, unauthorized ve stale-cache durumlarıyla eklendi. Açık
+  satır hesap seçilen tek panelden kapatılıyor; gecikme ikon + metinle gösteriliyor
+- Tekrarlayan plan formu isteğe bağlı toplam tekrar sınırını gönderiyor; liste
+  üretilen/toplam sayaç ilerlemesini gösteriyor
+- Gelişmiş raporun bounded SQL kapısı settlement hesap etkisinin tek grouped
+  sorgusuyla 60'tan 61'e çıktı; kayıt sayısıyla büyümüyor
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release, tek iş parçacığı) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (gerçek SQL dâhil) | **867 geçti**, 1 atlandı (`GeminiLiveContractTests`) |
+| Flutter analyze | No issues found |
+| Flutter format | 226 dosya biçimlendirildi |
+| Flutter test | **728 geçti** |
+| Android debug build | `app-debug.apk` üretildi |
+
+## Son oturum kapanışı
+
+- Yapılan değişiklik: Aşama 03 **Grup 6 tamamlandı**; yükümlülük listeleme,
+  idempotent ödeme/kapatma, cari vade bakiyesi ve tekrar sınırı Flutter'a bağlandı
+- Geçen kontroller: backend build + format + **867 test** (gerçek SQL dâhil),
+  1 canlı Gemini testi atlandı; Flutter analyze + format + **728 test** + Android
+  debug build geçti
+- Sıradaki görev: Aşama 03 Grup 7 — yedek şemasını v8'e yükseltmek ve yükümlülük
+  ile tekrar sınırlarını kayıpsız geri yüklemek

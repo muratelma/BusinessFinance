@@ -120,6 +120,19 @@ void main() {
     expect(changes.cardsRevision, 0);
   });
 
+  test('settling an obligation moves cash without consuming budget again', () {
+    final changes = FinancialDataChanges();
+
+    changes.obligationSettled();
+
+    expect(changes.activityFeedRevision, 1);
+    expect(changes.dashboardRevision, 1);
+    expect(changes.accountsRevision, 1);
+    expect(changes.planningRevision, 1);
+    expect(changes.counterpartiesRevision, 1);
+    expect(changes.budgetsRevision, 0);
+  });
+
   test('a restore replaces everything, so every screen is stale', () {
     final changes = FinancialDataChanges();
 

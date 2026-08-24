@@ -24,6 +24,21 @@ public static class ObligationErrors
         "The scope could not be resolved from the request or the category.",
         ApplicationErrorType.Validation);
 
+    public static readonly ApplicationError AccountUnavailable = new(
+        "obligations.account_unavailable",
+        "An active owned account with the matching currency is required.",
+        ApplicationErrorType.Validation);
+
+    public static ApplicationError NotFound(Guid id) => new(
+        "obligations.not_found",
+        $"Obligation '{id}' was not found.",
+        ApplicationErrorType.NotFound);
+
+    public static ApplicationError Conflict(string message) => new(
+        "obligations.conflict",
+        message,
+        ApplicationErrorType.Conflict);
+
     public static ApplicationError Validation(string message) => new(
         "obligations.validation",
         message,

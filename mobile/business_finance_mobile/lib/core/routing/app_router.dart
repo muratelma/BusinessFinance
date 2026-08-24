@@ -48,6 +48,7 @@ import '../../features/obligations/data/obligation_repository.dart';
 import '../../features/obligations/presentation/obligation_controller.dart';
 import '../../features/obligations/presentation/obligation_form_page.dart';
 import '../../features/obligations/presentation/obligation_prefill.dart';
+import '../../features/obligations/presentation/obligations_page.dart';
 import '../../features/receipts/data/receipt_image_source.dart';
 import '../../features/cards/presentation/transfer_prefill.dart';
 import '../../features/receipts/data/receipt_models.dart';
@@ -505,6 +506,25 @@ GoRouter createAppRouter({
                     transactionRepository,
                     financeRepository,
                     financialDataChanges,
+                  ),
+                ),
+          authController,
+        ),
+      ),
+      GoRoute(
+        path: '/more/obligations',
+        pageBuilder: (context, state) => _sessionPage(
+          state,
+          obligationRepository == null
+              ? const Scaffold(
+                  body: AppErrorView(
+                    message: 'Yükümlülük servisi yapılandırılmadı.',
+                  ),
+                )
+              : ObligationsPage(
+                  controller: ObligationListController(
+                    obligationRepository,
+                    changes: financialDataChanges,
                   ),
                 ),
           authController,

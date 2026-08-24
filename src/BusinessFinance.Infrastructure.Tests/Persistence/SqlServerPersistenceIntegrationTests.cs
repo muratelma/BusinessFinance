@@ -1889,7 +1889,9 @@ public sealed class SqlServerPersistenceIntegrationTests
         // 53 → 60 when obligation recognition joined the realized report: fixed
         // grouped reads cover period totals, category distribution, net worth,
         // trend and budget variance. The count still does not grow per obligation.
-        Assert.InRange(counter.ReaderCommandCount, 1, 60);
+        // 60 → 61 when settlement cash effects joined account balances. This is
+        // one grouped account query and still does not grow per settlement.
+        Assert.InRange(counter.ReaderCommandCount, 1, 61);
         Assert.True(
             stopwatch.Elapsed < TimeSpan.FromSeconds(5),
             $"Advanced report took {stopwatch.Elapsed.TotalMilliseconds:N0} ms.");

@@ -124,6 +124,8 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ResolveImportDuplicateUseCase>();
         services.AddTransient<AnalyzeReceiptUseCase>();
         services.AddTransient<CreateObligationUseCase>();
+        services.AddTransient<ListObligationsUseCase>();
+        services.AddTransient<SettleObligationUseCase>();
 
         return services;
     }
