@@ -141,7 +141,8 @@ query parametresi, tanınmayan değer `*.invalid_scope`:
 | `GET /api/v1/financial-activities/planned` | Listenin tamamı | — |
 
 `GET /api/v1/upcoming-payments` kapsam parametresi **almaz**: ödenecek para tek
-havuzdan çıkar.
+havuzdan çıkar. Her iki uçta da tek seferlik yükümlülük sorgusu current
+`UserId` ile başlar; başka owner'ın aynı tarih ve tutardaki kaydı görünmez.
 
 Aylık rapor **filtresiz** okunduğunda ayın iki tarafını ayrı ayrı toplayan bir
 `scopeBreakdown` alanı da döner (`business` / `personal`, her biri
@@ -190,13 +191,15 @@ türetileceğini belirler. Her alt sorgu önce current `UserId` ile daralır.
 `null` kalır. API toplam, gecikmiş ve vadesi geçmemiş/vadesiz alacak-borç
 tutarlarını kararlı para dizeleri olarak döndürür.
 
-Henüz endpoint'i bulunmayan `Obligation` kalıcılığı da aynı savunmayı taşır:
+Henüz yazma endpoint'i bulunmayan `Obligation` kalıcılığı da aynı savunmayı taşır:
 kategori ve isteğe bağlı karşı taraf, settlement'ın hesabı ve bağlı olduğu
 yükümlülük `(UserId, kayıt ID)` composite foreign key'leriyle sınırlıdır.
 `(UserId, ObligationId)` tekilliği farklı bir kullanıcıya bağlanmayı ve aynı
 yükümlülüğe ikinci kapanış yazmayı veritabanı seviyesinde reddeder. Endpoint
 ve use case sahiplik kapısı sonraki çalışma grubunda, davranış açıldığında
-ayrıca belgelenecektir.
+ayrıca belgelenecektir. Okuma tarafı `financial-activities/planned` üzerinden
+owner-scoped açılmıştır; API entegrasyon testi sahibin iki yönünü görüp yabancı
+kullanıcının boş sonuç aldığını kanıtlar.
 
 Fiş analizi sahiplik sınırını yazmadan uygular. Use case current
 user kimliğini `ICurrentUser`dan alır ve modele yalnız o kullanıcının aktif

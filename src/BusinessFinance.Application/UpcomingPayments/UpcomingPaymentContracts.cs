@@ -7,7 +7,8 @@ public enum UpcomingPaymentSourceType
     RecurringOccurrence = 1,
     CreditCardStatement = 2,
     Installment = 3,
-    DebtInstallment = 4
+    DebtInstallment = 4,
+    Obligation = 5
 }
 
 public enum UpcomingPaymentTiming

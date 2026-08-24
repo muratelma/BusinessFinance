@@ -10,6 +10,10 @@ using BusinessFinance.Api.Features.FinancialActivities;
 using BusinessFinance.Api.Features.RecurringTransactions;
 using BusinessFinance.Api.Features.Transfers;
 using BusinessFinance.Api.Features.Transactions;
+using BusinessFinance.Domain;
+using BusinessFinance.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace BusinessFinance.Api.Tests.Features.Stage125;
 
@@ -274,6 +278,72 @@ public sealed class FinancialActivityEndpointTests
         var salaryRow = Assert.Single(planned.Items, item => item.Effect == "income");
         Assert.True(billRow.IsPaymentObligation);
         Assert.False(salaryRow.IsPaymentObligation);
+    }
+
+    [Fact]
+    public async Task PlannedFeed_ProjectsOpenOneTimeObligationsWithoutOwnerLeakage()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateClientAsync(factory, "planned-obligation-owner@example.test");
+        using var stranger = await CreateClientAsync(factory, "planned-obligation-stranger@example.test");
+        var expense = await GetCategoryAsync(owner, "expense");
+        var income = await GetCategoryAsync(owner, "income");
+
+        Guid payableId;
+        Guid receivableId;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<BusinessFinanceDbContext>();
+            var userId = await db.Users
+                .Where(user => user.Email == "planned-obligation-owner@example.test")
+                .Select(user => user.Id)
+                .SingleAsync();
+            var expenseCategory = await db.Categories.SingleAsync(item => item.Id == expense.Id);
+            var incomeCategory = await db.Categories.SingleAsync(item => item.Id == income.Id);
+            var createdAt = new DateTimeOffset(2026, 8, 15, 9, 0, 0, TimeSpan.Zero);
+            var payable = new Obligation(
+                Guid.NewGuid(), userId, expenseCategory, DebtDirection.Payable,
+                new Money(450m, CurrencyCode.TRY), TransactionScope.Business,
+                new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 10), createdAt,
+                description: "Electricity");
+            var receivable = new Obligation(
+                Guid.NewGuid(), userId, incomeCategory, DebtDirection.Receivable,
+                new Money(300m, CurrencyCode.TRY), TransactionScope.Personal,
+                new DateOnly(2026, 8, 2), new DateOnly(2026, 8, 20), createdAt,
+                description: "Refund");
+            payableId = payable.Id;
+            receivableId = receivable.Id;
+            db.Obligations.AddRange(payable, receivable);
+            await db.SaveChangesAsync();
+        }
+
+        var planned = await owner.GetFromJsonAsync<PlannedActivityListResponse>(
+            "/api/v1/financial-activities/planned?asOfDate=2026-08-15&daysAhead=30");
+
+        Assert.Equal(2, planned!.TotalCount);
+        var payableRow = Assert.Single(planned.Items, item => item.PlannedActivityId == payableId);
+        Assert.Equal("payable-obligation", payableRow.PlannedKind);
+        Assert.Equal("neutral", payableRow.Effect);
+        Assert.Equal("overdue", payableRow.Timing);
+        Assert.Equal("ready", payableRow.Readiness);
+        Assert.Null(payableRow.AttentionCode);
+        Assert.Equal("pay-obligation", payableRow.ActionKind);
+        Assert.True(payableRow.IsPaymentObligation);
+        Assert.Equal(payableId, payableRow.ActionTargetId);
+
+        var receivableRow = Assert.Single(
+            planned.Items, item => item.PlannedActivityId == receivableId);
+        Assert.Equal("receivable-obligation", receivableRow.PlannedKind);
+        Assert.Equal("collect-obligation", receivableRow.ActionKind);
+        Assert.False(receivableRow.IsPaymentObligation);
+
+        var businessOnly = await owner.GetFromJsonAsync<PlannedActivityListResponse>(
+            "/api/v1/financial-activities/planned?asOfDate=2026-08-15&daysAhead=30&scope=business");
+        Assert.Equal(payableId, Assert.Single(businessOnly!.Items).PlannedActivityId);
+
+        var strangerPlanned = await stranger.GetFromJsonAsync<PlannedActivityListResponse>(
+            "/api/v1/financial-activities/planned?asOfDate=2026-08-15&daysAhead=30");
+        Assert.Empty(strangerPlanned!.Items);
     }
 
     [Fact]

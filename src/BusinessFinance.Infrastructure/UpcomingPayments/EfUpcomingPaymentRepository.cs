@@ -48,6 +48,7 @@ internal sealed class EfUpcomingPaymentRepository(IPlannedActivityRepository pla
         PlannedActivityKind.CardInstallment => UpcomingPaymentSourceType.Installment,
         PlannedActivityKind.CardStatement => UpcomingPaymentSourceType.CreditCardStatement,
         PlannedActivityKind.DebtInstallment => UpcomingPaymentSourceType.DebtInstallment,
+        PlannedActivityKind.PayableObligation => UpcomingPaymentSourceType.Obligation,
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
     };
 }

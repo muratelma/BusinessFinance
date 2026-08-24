@@ -154,7 +154,7 @@ kaybolur; ikisi de doğru olur ve sırayla gerçekleşir.
   `generatedOccurrenceCount` alanlarını taşır. Flutter form alanı Grup 6'da
   açılacak; yedek v8 kapsamı Grup 7'de tamamlanacak.
 
-### Grup 4 — Planlanan görünüm ve gecikenler
+### Grup 4 — Planlanan görünüm ve gecikenler — **Tamamlandı**
 
 - Yükümlülükler planlanan projection'a katılır; `readiness` ve `attentionCode`
   kaynağın güncel durumundan türetilir, kalıcı değildir.
@@ -163,6 +163,15 @@ kaybolur; ikisi de doğru olur ve sırayla gerçekleşir.
   daraltılmış görünümünü okur.
 - Ölçüt: planlanan görünüm tek sorguda; yükümlülük ödendiği anda listeden
   düşüyor.
+- Uygulanan projection iki yönü ayrı kararlı tür ve eylem kodlarıyla taşır.
+  Beklenen settlement nötrdür; ekonomik olay düzenleme tarihinde zaten
+  tanınmıştır. Ödenecek yön `isPaymentObligation=true`, tahsil edilecek yön
+  `false` döner.
+- Açık, owner-scoped yükümlülükler kategori ve isteğe bağlı karşı tarafla tek
+  SQL komutunda okunur. İptal veya settlement varlığı kalıcı readiness/gecikme
+  alanı yazmadan satırı düşürür.
+- Flutter iki türü parse eder ve gecikmiş ödenecek satırı mevcut Özet bandında
+  gösterir. Hesap seçen ödeme eylemi Grup 6 gelmeden yanlış forma bağlanmadı.
 
 ### Grup 5 — Fiş okumanın bağlanması
 

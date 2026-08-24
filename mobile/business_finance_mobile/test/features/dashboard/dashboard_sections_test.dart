@@ -460,7 +460,12 @@ void main() {
       final viewModel = DashboardViewModel(
         _Source(_report()),
         activityRepository: _PlannedSource([
-          _planned(id: 'gecikmis-taksit', timing: 'overdue'),
+          _planned(
+            id: 'gecikmis-fatura',
+            timing: 'overdue',
+            kind: 'payable-obligation',
+            action: 'pay-obligation',
+          ),
           _planned(id: 'bugun', timing: 'today'),
           _planned(id: 'yaklasan', timing: 'upcoming'),
           _planned(
@@ -474,7 +479,7 @@ void main() {
 
       return viewModel.load().then((_) {
         expect(viewModel.overdue.map((item) => item.plannedActivityId), [
-          'gecikmis-taksit',
+          'gecikmis-fatura',
         ]);
       });
     });
@@ -779,14 +784,16 @@ PlannedActivity _planned({
   String dueDate = '2026-08-01',
   String amount = '500.0000',
   bool isPaymentObligation = true,
+  String kind = 'card-installment',
+  String action = 'realize',
 }) => PlannedActivity.fromJson({
   'plannedActivityId': id,
-  'plannedKind': 'card-installment',
+  'plannedKind': kind,
   'effect': 'expense',
   'timing': timing,
   'readiness': 'ready',
   'attentionCode': null,
-  'actionKind': 'realize',
+  'actionKind': action,
   'dueDate': dueDate,
   'amount': amount,
   'currency': 'TRY',

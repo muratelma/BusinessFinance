@@ -1883,7 +1883,10 @@ public sealed class SqlServerPersistenceIntegrationTests
         // day and one for the net worth side. Eight fixed queries — none of them
         // grows with the number of counterparties, which is what a per-person
         // balance query would have done.
-        Assert.InRange(counter.ReaderCommandCount, 1, 52);
+        // 52 → 53 when one-time obligations joined that same canonical planned
+        // projection: every obligation is read by one owner-scoped query, not one
+        // query per row.
+        Assert.InRange(counter.ReaderCommandCount, 1, 53);
         Assert.True(
             stopwatch.Elapsed < TimeSpan.FromSeconds(5),
             $"Advanced report took {stopwatch.Elapsed.TotalMilliseconds:N0} ms.");
@@ -2498,7 +2501,8 @@ public sealed class SqlServerPersistenceIntegrationTests
         var seeded = await SeedPlannedGraphAsync(database, owner.Id);
         await SeedPlannedGraphAsync(database, stranger.Id);
 
-        await using var provider = CreateServiceProvider(database.ConnectionString);
+        var counter = new CountingCommandInterceptor();
+        await using var provider = CreateServiceProvider(database.ConnectionString, counter);
         await using var scope = provider.CreateAsyncScope();
         var repository = scope.ServiceProvider.GetRequiredService<IPlannedActivityRepository>();
 
@@ -2506,9 +2510,9 @@ public sealed class SqlServerPersistenceIntegrationTests
             owner.Id, PlannedAsOfDate, PlannedAsOfDate.AddDays(30), null, CancellationToken.None);
         var byId = items.ToLookup(item => item.PlannedActivityId);
 
-        // Owner isolation: the stranger's identical graph must not appear. Nine because
-        // both installments of the two-part plan fall inside the 30 day horizon.
-        Assert.Equal(9, items.Count);
+        // Owner isolation: the stranger's identical graph must not appear. Eleven because
+        // both installments and both directions of one-time obligation are in range.
+        Assert.Equal(11, items.Count);
         Assert.Equal(2, items.Count(item =>
             item.PlannedKind == PlannedActivityKind.CardInstallment));
 
@@ -2558,9 +2562,26 @@ public sealed class SqlServerPersistenceIntegrationTests
         Assert.Equal(PlannedActivityKind.ReceivableInstallment, receivable.PlannedKind);
         Assert.Equal(PlannedActivityAction.CollectDebt, receivable.ActionKind);
 
+        var payableObligation = Assert.Single(byId[seeded.PayableObligationId]);
+        Assert.Equal(PlannedActivityKind.PayableObligation, payableObligation.PlannedKind);
+        Assert.Equal(PlannedActivityAction.PayObligation, payableObligation.ActionKind);
+        Assert.Equal(FinancialActivityEffect.Neutral, payableObligation.Effect);
+        Assert.Equal(PlannedActivityTiming.Overdue, payableObligation.Timing);
+        Assert.Equal(PlannedActivityReadiness.Ready, payableObligation.Readiness);
+        Assert.Null(payableObligation.AttentionCode);
+        Assert.Equal("Electricity", payableObligation.Title);
+        Assert.Equal(seeded.PayableObligationId, payableObligation.ActionTargetId);
+
+        var receivableObligation = Assert.Single(byId[seeded.ReceivableObligationId]);
+        Assert.Equal(PlannedActivityKind.ReceivableObligation, receivableObligation.PlannedKind);
+        Assert.Equal(PlannedActivityAction.CollectObligation, receivableObligation.ActionKind);
+
         // Timing is relative to the as-of date, not to today.
         Assert.Equal(PlannedActivityTiming.Overdue, installment.Timing);
         Assert.Equal(PlannedActivityTiming.Upcoming, projected.Timing);
+        Assert.InRange(counter.ReaderCommandCount, 1, 20);
+        Assert.Single(counter.CommandTexts, text =>
+            text.Contains("FROM [Obligations] AS", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
@@ -2590,7 +2611,8 @@ public sealed class SqlServerPersistenceIntegrationTests
         // Scope differs by design.
         Assert.DoesNotContain(upcoming, item => item.SourceId == seeded.IncomeOccurrenceId);
         Assert.DoesNotContain(upcoming, item => item.SourceId == seeded.ReceivableInstallmentId);
-        Assert.Equal(planned.Count - 2, upcoming.Count);
+        Assert.DoesNotContain(upcoming, item => item.SourceId == seeded.ReceivableObligationId);
+        Assert.Equal(planned.Count - 3, upcoming.Count);
 
         // Shared items must not drift in amount or date.
         var plannedById = planned.ToDictionary(item => item.PlannedActivityId);
@@ -2604,6 +2626,65 @@ public sealed class SqlServerPersistenceIntegrationTests
         });
         Assert.Contains(upcoming, item => item.SourceId == seeded.DebtInstallmentId);
         Assert.Contains(upcoming, item => item.SourceId == seeded.FullCardId);
+        Assert.Contains(upcoming, item =>
+            item.SourceId == seeded.PayableObligationId &&
+            item.SourceType == UpcomingPaymentSourceType.Obligation);
+    }
+
+    /// <summary>
+    /// Settlement is the source of truth for readiness: once cash is carried, the
+    /// one-time obligation disappears from both canonical planned and narrowed upcoming
+    /// views without a stored status update or a second upcoming-payment query.
+    /// </summary>
+    [SqlServerFact]
+    public async Task PlannedObligation_DropsFromCanonicalAndUpcomingViewsWhenSettled()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var owner = CreateUser("planned-obligation-settlement@example.test");
+        await database.SeedUsersAsync(owner);
+        var account = new Account(
+            Guid.NewGuid(), owner.Id, "Bank", AccountType.Bank, CurrencyCode.TRY, 1000m);
+        var category = new Category(Guid.NewGuid(), owner.Id, "Bills", CategoryType.Expense);
+        var obligation = new Obligation(
+            Guid.NewGuid(), owner.Id, category, DebtDirection.Payable,
+            new Money(250m, CurrencyCode.TRY), TransactionScope.Business,
+            new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 10),
+            new DateTimeOffset(2026, 8, 15, 9, 0, 0, TimeSpan.Zero),
+            description: "Electricity");
+
+        await using (var seed = database.CreateContext())
+        {
+            seed.AddRange(account, category, obligation);
+            await seed.SaveChangesAsync(CancellationToken.None);
+        }
+
+        await using var provider = CreateServiceProvider(database.ConnectionString);
+        await using var scope = provider.CreateAsyncScope();
+        var plannedRepository = scope.ServiceProvider.GetRequiredService<IPlannedActivityRepository>();
+        var upcomingRepository = scope.ServiceProvider.GetRequiredService<IUpcomingPaymentRepository>();
+
+        var before = await plannedRepository.ListAsync(
+            owner.Id, PlannedAsOfDate, PlannedAsOfDate.AddDays(7), null, CancellationToken.None);
+        Assert.Contains(before, item => item.PlannedActivityId == obligation.Id);
+
+        await using (var settle = database.CreateContext())
+        {
+            var persisted = await settle.Obligations.Include(item => item.Settlement)
+                .SingleAsync(item => item.Id == obligation.Id, CancellationToken.None);
+            var settlement = persisted.Settle(
+                Guid.NewGuid(), account, PlannedAsOfDate,
+                new DateTimeOffset(2026, 8, 15, 10, 0, 0, TimeSpan.Zero));
+            settle.ObligationSettlements.Add(settlement);
+            await settle.SaveChangesAsync(CancellationToken.None);
+        }
+
+        var after = await plannedRepository.ListAsync(
+            owner.Id, PlannedAsOfDate, PlannedAsOfDate.AddDays(7), null, CancellationToken.None);
+        var upcoming = await upcomingRepository.ListCandidatesAsync(
+            owner.Id, PlannedAsOfDate, PlannedAsOfDate.AddDays(7), CancellationToken.None);
+
+        Assert.DoesNotContain(after, item => item.PlannedActivityId == obligation.Id);
+        Assert.DoesNotContain(upcoming, item => item.SourceId == obligation.Id);
     }
 
     /// <summary>
@@ -3010,7 +3091,9 @@ public sealed class SqlServerPersistenceIntegrationTests
         Guid ProjectedScheduleId,
         Guid InstallmentItemId,
         Guid DebtInstallmentId,
-        Guid ReceivableInstallmentId);
+        Guid ReceivableInstallmentId,
+        Guid PayableObligationId,
+        Guid ReceivableObligationId);
 
     /// <summary>
     /// One of every planned source, arranged so each readiness branch is exercised: a
@@ -3084,13 +3167,27 @@ public sealed class SqlServerPersistenceIntegrationTests
             new Money(400m, CurrencyCode.TRY), new Money(400m, CurrencyCode.TRY),
             DebtSourceType.Cash, bank, null,
             new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 23), 2);
+        var payableObligation = new Obligation(
+            Guid.NewGuid(), userId, bills, DebtDirection.Payable,
+            new Money(350m, CurrencyCode.TRY), TransactionScope.Business,
+            new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 14),
+            new DateTimeOffset(2026, 8, 15, 9, 0, 0, TimeSpan.Zero),
+            lender, "Electricity");
+        var receivableObligation = new Obligation(
+            Guid.NewGuid(), userId, salary, DebtDirection.Receivable,
+            new Money(275m, CurrencyCode.TRY), TransactionScope.Business,
+            new DateOnly(2026, 8, 2), new DateOnly(2026, 8, 18),
+            new DateTimeOffset(2026, 8, 15, 9, 0, 0, TimeSpan.Zero),
+            friend);
 
         await using (var context = database.CreateContext())
         {
             context.AddRange(bank, closing, salary, bills, openCard, fullCard, fullCardCharge);
             context.AddRange(incomePlan, incomeOccurrence, cardPlan, cardOccurrence);
             context.AddRange(closedPlan, closedOccurrence, projectedPlan);
-            context.AddRange(lender, friend, installmentPlan, payable, receivable);
+            context.AddRange(
+                lender, friend, installmentPlan, payable, receivable,
+                payableObligation, receivableObligation);
             await context.SaveChangesAsync(CancellationToken.None);
         }
 
@@ -3102,7 +3199,9 @@ public sealed class SqlServerPersistenceIntegrationTests
             projectedPlan.Id,
             installmentPlan.GetItem(1).Id,
             payable.GetInstallment(1).Id,
-            receivable.GetInstallment(1).Id);
+            receivable.GetInstallment(1).Id,
+            payableObligation.Id,
+            receivableObligation.Id);
     }
 
     private static FinancialActivityListCriteria AllActivities() => new(

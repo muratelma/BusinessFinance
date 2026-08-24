@@ -89,6 +89,8 @@ class PlannedActivityController extends ChangeNotifier {
         case PlannedKind.cardStatement:
         case PlannedKind.debtInstallment:
         case PlannedKind.receivableInstallment:
+        case PlannedKind.payableObligation:
+        case PlannedKind.receivableObligation:
           break;
       }
       // Sinyal dinlenmiyorsa (test ya da bağlanmamış kabuk) liste elle

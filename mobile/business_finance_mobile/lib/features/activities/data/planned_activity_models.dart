@@ -5,7 +5,9 @@ enum PlannedKind {
   cardInstallment('card-installment'),
   cardStatement('card-statement'),
   debtInstallment('debt-installment'),
-  receivableInstallment('receivable-installment');
+  receivableInstallment('receivable-installment'),
+  payableObligation('payable-obligation'),
+  receivableObligation('receivable-obligation');
 
   const PlannedKind(this.apiValue);
   final String apiValue;
@@ -16,6 +18,8 @@ enum PlannedKind {
     'card-statement' => cardStatement,
     'debt-installment' => debtInstallment,
     'receivable-installment' => receivableInstallment,
+    'payable-obligation' => payableObligation,
+    'receivable-obligation' => receivableObligation,
     _ => throw FormatException('Bilinmeyen planlanan tür: $value'),
   };
 
@@ -25,6 +29,8 @@ enum PlannedKind {
     cardStatement => 'Kart ekstresi',
     debtInstallment => 'Borç taksidi',
     receivableInstallment => 'Alacak taksidi',
+    payableObligation => 'Ödenecek',
+    receivableObligation => 'Tahsil edilecek',
   };
 }
 
@@ -99,7 +105,9 @@ enum PlannedAction {
   realize('realize'),
   payCard('pay-card'),
   payDebt('pay-debt'),
-  collectDebt('collect-debt');
+  collectDebt('collect-debt'),
+  payObligation('pay-obligation'),
+  collectObligation('collect-obligation');
 
   const PlannedAction(this.apiValue);
   final String apiValue;
@@ -109,6 +117,8 @@ enum PlannedAction {
     'pay-card' => payCard,
     'pay-debt' => payDebt,
     'collect-debt' => collectDebt,
+    'pay-obligation' => payObligation,
+    'collect-obligation' => collectObligation,
     _ => throw FormatException('Bilinmeyen eylem: $value'),
   };
 
@@ -117,6 +127,8 @@ enum PlannedAction {
     payCard => 'Kart ödemesi yap',
     payDebt => 'Öde',
     collectDebt => 'Tahsil et',
+    payObligation => 'Öde',
+    collectObligation => 'Tahsil et',
   };
 }
 
@@ -279,7 +291,8 @@ enum PlannedTypeFilter {
   recurring('Tekrarlanan'),
   installment('Taksit'),
   statement('Ekstre'),
-  debt('Borç/Alacak');
+  debt('Borç/Alacak'),
+  obligation('Yükümlülük');
 
   const PlannedTypeFilter(this.label);
   final String label;
@@ -292,5 +305,8 @@ enum PlannedTypeFilter {
     debt =>
       item.plannedKind == PlannedKind.debtInstallment ||
           item.plannedKind == PlannedKind.receivableInstallment,
+    obligation =>
+      item.plannedKind == PlannedKind.payableObligation ||
+          item.plannedKind == PlannedKind.receivableObligation,
   };
 }

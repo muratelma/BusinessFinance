@@ -1229,6 +1229,8 @@ class _UpcomingRow extends StatelessWidget {
     PlannedKind.cardInstallment => Icons.credit_card,
     PlannedKind.debtInstallment => Icons.account_balance_outlined,
     PlannedKind.receivableInstallment => Icons.handshake_outlined,
+    PlannedKind.payableObligation ||
+    PlannedKind.receivableObligation => Icons.receipt_long_outlined,
   };
 }
 

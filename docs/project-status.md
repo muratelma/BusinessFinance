@@ -791,3 +791,42 @@ açar.
   1 canlı Gemini testi atlandı; Flutter analyze + format + **722 test** +
   Android debug build geçti
 - Sıradaki görev: Aşama 03 Grup 4 — planlanan görünüm ve gecikenler
+
+## 24 Ağustos 2026 — Aşama 03, Grup 4: planlanan yükümlülük ve gecikme
+
+- Açık tek seferlik yükümlülükler kanonik planlanan projection'a iki ayrı yönle
+  katıldı: `payable-obligation` / `pay-obligation` ve
+  `receivable-obligation` / `collect-obligation`. Beklenen settlement nötrdür;
+  ekonomik olay düzenleme tarihinde zaten tanınmıştır
+- Yükümlülükler kategori ve isteğe bağlı karşı tarafla owner-scoped tek SQL
+  komutunda okunuyor. Gecikme, readiness ve attention kalıcı alan değil; güncel
+  iptal/settlement durumu ile sorgu tarihinden türetiliyor
+- Settlement oluştuğu anda satır hem planlanan görünümden hem onun daraltılmış
+  yaklaşan ödemeler görünümünden düşüyor. `IUpcomingPaymentRepository` ikinci
+  yükümlülük sorgusu taşımıyor; tahsil edilecek yön ödeme yükü sayılmıyor
+- Flutter yeni tür ve eylem kodlarını açık modellerle okuyor; gecikmiş ödenecek
+  yükümlülük mevcut Özet uyarı bandını besliyor. Hesap seçen ödeme/tahsilat
+  ekranı Grup 6'nın işi olarak kaldı ve satır yanlış bir forma yönlendirilmedi
+- Pozitif/negatif owner izolasyonu API ve gerçek SQL testlerinde kanıtlandı;
+  kapsam filtresi yükümlülüğün ekonomik olay kapsamına uygulanıyor
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (gerçek SQL dâhil) | **865 geçti**, 1 atlandı (`GeminiLiveContractTests`) |
+| Domain testleri | **238 geçti** |
+| Flutter analyze | No issues found |
+| Flutter format | 220 dosya, değişiklik gerektirmedi |
+| Flutter test | **724 geçti** |
+| Android debug build | `app-debug.apk` üretildi |
+
+## Son oturum kapanışı
+
+- Yapılan değişiklik: Aşama 03 **Grup 4 tamamlandı**; tek seferlik
+  yükümlülükler planlanan/yaklaşan görünüm ve Özet gecikme bandına bağlandı
+- Geçen kontroller: backend build + format + **865 test** (gerçek SQL dâhil),
+  1 canlı Gemini testi atlandı; Flutter analyze + format + **724 test** +
+  Android debug build geçti
+- Sıradaki görev: Aşama 03 Grup 5 — fiş okumanın “ödemedim” yolunu
+  yükümlülüğe bağlamak

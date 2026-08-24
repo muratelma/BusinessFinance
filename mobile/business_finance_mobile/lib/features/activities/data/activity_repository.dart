@@ -131,7 +131,9 @@ class ActivityRepository implements ActivityRepositoryContract {
       // Bunlar `realize` değil ödeme/tahsilat; buraya hiç gelmemeleri gerekir.
       PlannedKind.cardStatement ||
       PlannedKind.debtInstallment ||
-      PlannedKind.receivableInstallment => throw StateError(
+      PlannedKind.receivableInstallment ||
+      PlannedKind.payableObligation ||
+      PlannedKind.receivableObligation => throw StateError(
         'Bu tür ödeme ekranından yürütülür: ${activity.plannedKind.apiValue}',
       ),
     };

@@ -7,7 +7,7 @@ namespace BusinessFinance.Infrastructure.FinancialActivities;
 
 /// <summary>
 /// The single projection of everything that has not happened yet: recurring dates,
-/// card installments, card statements and both directions of debt.
+/// card installments, card statements, both directions of debt and one-time obligations.
 /// </summary>
 /// <remarks>
 /// Unlike the realized feed this is assembled in memory on purpose. A statement is a
@@ -62,6 +62,8 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
         }
 
         items.AddRange(await ListDebtAsync(userId, asOfDate, horizonDate, scope, cancellationToken));
+        items.AddRange(await ListObligationsAsync(
+            userId, asOfDate, horizonDate, scope, cancellationToken));
         return items;
     }
 
@@ -552,5 +554,76 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
             IsProjected: false,
             ActionTargetId: row.DebtId,
             ActionSequence: row.Sequence)).ToArray();
+    }
+
+    /// <summary>
+    /// Open one-time obligations are read in one owner-scoped SQL projection. Whether
+    /// an item is still actionable comes from the current obligation/settlement state;
+    /// no overdue or readiness flag is stored.
+    /// </summary>
+    private async Task<IReadOnlyList<PlannedActivityDto>> ListObligationsAsync(
+        Guid userId,
+        DateOnly asOfDate,
+        DateOnly horizonDate,
+        TransactionScope? scope,
+        CancellationToken cancellationToken)
+    {
+        var rows = await (
+                from obligation in dbContext.Obligations.AsNoTracking()
+                join category in dbContext.Categories.AsNoTracking()
+                    on new { obligation.UserId, Id = obligation.CategoryId }
+                    equals new { category.UserId, category.Id }
+                join counterparty in dbContext.Counterparties.AsNoTracking()
+                    on new { obligation.UserId, Id = obligation.CounterpartyId }
+                    equals new { counterparty.UserId, Id = (Guid?)counterparty.Id }
+                    into counterparties
+                from counterparty in counterparties.DefaultIfEmpty()
+                where obligation.UserId == userId &&
+                      !obligation.IsCancelled &&
+                      !dbContext.ObligationSettlements.Any(settlement =>
+                          settlement.UserId == userId &&
+                          settlement.ObligationId == obligation.Id) &&
+                      (scope == null || obligation.Scope == scope) &&
+                      obligation.DueDate <= horizonDate
+                select new
+                {
+                    obligation.Id,
+                    obligation.Direction,
+                    Amount = obligation.Amount.Amount,
+                    Currency = obligation.Amount.Currency,
+                    obligation.DueDate,
+                    obligation.Description,
+                    CategoryId = category.Id,
+                    CategoryName = category.Name,
+                    CounterpartyName = counterparty == null ? null : counterparty.Name
+                })
+            .ToArrayAsync(cancellationToken);
+
+        return rows.Select(row => new PlannedActivityDto(
+            row.Id,
+            row.Direction == DebtDirection.Payable
+                ? PlannedActivityKind.PayableObligation
+                : PlannedActivityKind.ReceivableObligation,
+            // The economic event was recognized on IssueDate. Settlement only carries
+            // cash, so the remaining planned movement is neutral (ADR 0014).
+            FinancialActivityEffect.Neutral,
+            PlannedActivityRules.Classify(row.DueDate, asOfDate),
+            PlannedActivityReadiness.Ready,
+            AttentionCode: null,
+            row.Direction == DebtDirection.Payable
+                ? PlannedActivityAction.PayObligation
+                : PlannedActivityAction.CollectObligation,
+            row.DueDate,
+            row.Amount,
+            row.Currency,
+            row.Description ?? row.CounterpartyName ?? row.CategoryName,
+            row.Description,
+            SourceId: null,
+            SourceName: null,
+            row.CategoryId,
+            row.CategoryName,
+            IsProjected: false,
+            ActionTargetId: row.Id,
+            ActionSequence: null)).ToArray();
     }
 }

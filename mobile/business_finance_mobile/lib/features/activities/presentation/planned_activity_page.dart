@@ -106,6 +106,12 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
   /// hesaptan yapılacağını soruyor; formu bu listeye kopyalamak yerine
   /// kullanıcı o kaydın kendi ekranına gidiyor.
   Future<void> _act(PlannedActivity activity) async {
+    // Hesap seçen yükümlülük ödeme/tahsilat akışı Grup 6'da açılacak. Satır ve
+    // uyarı bu grupta görünür, fakat yanlış bir forma yönlendirilmez.
+    if (activity.plannedKind == PlannedKind.payableObligation ||
+        activity.plannedKind == PlannedKind.receivableObligation) {
+      return;
+    }
     if (!activity.isDirectlyRealizable) {
       final destination = switch (activity.plannedKind) {
         PlannedKind.cardStatement ||
@@ -113,6 +119,8 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
         PlannedKind.debtInstallment ||
         PlannedKind.receivableInstallment => '/more/debts',
         PlannedKind.recurringOccurrence => '/more/planning',
+        PlannedKind.payableObligation ||
+        PlannedKind.receivableObligation => '/more/activities/planned',
       };
       await context.push(destination);
       return;
@@ -300,27 +308,35 @@ class PlannedActivityTile extends StatelessWidget {
     PlannedKind.cardStatement => Icons.credit_card,
     PlannedKind.debtInstallment ||
     PlannedKind.receivableInstallment => Icons.handshake_outlined,
+    PlannedKind.payableObligation ||
+    PlannedKind.receivableObligation => Icons.receipt_long_outlined,
   };
 
   /// Satırın eylemi; rozetle aynı yükseklikte.
   ///
   /// Eskiden tam boy bir `FilledButton.tonal`'dı: kartın en ağır ögesi oydu ve
   /// yanındaki rozetin neredeyse iki katı yükseklikteydi.
-  Widget _action(BuildContext context) => AppRowAction(
-    // Ok yalnız başka bir ekrana giden eylemde: `Öde →` kullanıcıyı ödeme
-    // formuna götürür, `Gerçekleştir` burada tamamlanır. Engelli bir
-    // gerçekleştirme de burada tamamlanacak iştir, yalnız şu an yapılamıyor.
-    label:
-        activity.isDirectlyRealizable ||
-            activity.actionKind == PlannedAction.realize
-        ? activity.actionKind.label
-        : '${activity.actionKind.label} →',
-    // Engelli satırın nedeni zaten kartta yazılı; buton sessizce çalışmıyor
-    // görünmesin diye kapatılıyor.
-    onPressed: activity.needsAttention || activity.actionTargetId == null
-        ? null
-        : onAction,
-  );
+  Widget _action(BuildContext context) {
+    if (activity.plannedKind == PlannedKind.payableObligation ||
+        activity.plannedKind == PlannedKind.receivableObligation) {
+      return const SizedBox.shrink();
+    }
+    return AppRowAction(
+      // Ok yalnız başka bir ekrana giden eylemde: `Öde →` kullanıcıyı ödeme
+      // formuna götürür, `Gerçekleştir` burada tamamlanır. Engelli bir
+      // gerçekleştirme de burada tamamlanacak iştir, yalnız şu an yapılamıyor.
+      label:
+          activity.isDirectlyRealizable ||
+              activity.actionKind == PlannedAction.realize
+          ? activity.actionKind.label
+          : '${activity.actionKind.label} →',
+      // Engelli satırın nedeni zaten kartta yazılı; buton sessizce çalışmıyor
+      // görünmesin diye kapatılıyor.
+      onPressed: activity.needsAttention || activity.actionTargetId == null
+          ? null
+          : onAction,
+    );
+  }
 
   /// Vakti gelmemiş satırda eylem **hiç çıkmaz**, gri de çıkmaz.
   ///

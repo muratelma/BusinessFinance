@@ -8,7 +8,9 @@ public enum PlannedActivityKind
     CardInstallment = 2,
     CardStatement = 3,
     DebtInstallment = 4,
-    ReceivableInstallment = 5
+    ReceivableInstallment = 5,
+    PayableObligation = 6,
+    ReceivableObligation = 7
 }
 
 public enum PlannedActivityTiming
@@ -46,7 +48,9 @@ public enum PlannedActivityAction
     Realize = 1,
     PayCard = 2,
     PayDebt = 3,
-    CollectDebt = 4
+    CollectDebt = 4,
+    PayObligation = 5,
+    CollectObligation = 6
 }
 
 /// <summary>
@@ -143,6 +147,7 @@ public static class PlannedActivityRules
     {
         ArgumentNullException.ThrowIfNull(item);
         return item.ActionKind != PlannedActivityAction.CollectDebt &&
+               item.ActionKind != PlannedActivityAction.CollectObligation &&
                item.Effect != FinancialActivityEffect.Income;
     }
 

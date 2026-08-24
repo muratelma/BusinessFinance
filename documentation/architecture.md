@@ -640,11 +640,11 @@ açılır ama kilitli değildir — kısmi tahsilat kuraldır, istisna değil.
 listesini değiştiren yazım yalnız onu, para yazan hareket ise gider/kasa
 hedeflerini de yükseltir.
 
-## Tek seferlik yükümlülük domaini
+## Tek seferlik yükümlülük
 
-> Aşama 03, Grup 1 — yalnız Domain modeli. Kalıcılık, kullanım senaryoları,
-> endpoint'ler ve okuma projection'ları sonraki gruplarda gelir; bugün EF
-> modelinde yükümlülük tablosu yoktur.
+> Aşama 03, Grup 1–4 — Domain modeli ve kalıcılığın yanında kanonik planlanan
+> okuma projection'ı da uygulanmıştır. Yazma kullanım senaryoları ve endpoint'ler
+> sonraki gruplardadır.
 
 Ödenmemiş tek seferlik fatura artık tekrarlayan plan kavramına sokulmadan
 temsil edilebilir. Model ADR 0014'ün ayrımını iki ayrı kayıtla korur:
@@ -672,9 +672,13 @@ nakit etkisi oluşturmaz. Settlement yükümlülüğün tutarını ve yönünü 
 tahsilat hesabı artırır, ödeme azaltır. İptal, yükümlülükle varsa settlement'ı
 birlikte UTC zaman damgasıyla iptal eder; finansal geçmiş fiziksel silinmez.
 
-Bu checkpoint EF modeline tip eklemedi. Veritabanı tekilliği, owner-scoped
-ilişkiler ve eşzamanlı kapanış kanıtı kalıcılığın ekleneceği sonraki grubun
-sorumluluğudur; bu nedenle migration üretilmedi.
+`Obligations` ve `ObligationSettlements` owner-scoped bileşik ilişkilerle
+kalıcıdır; `(UserId, ObligationId)` tekilliği iki stale yazarın ikinci settlement
+oluşturmasını engeller. Açık yükümlülükler planlanan görünümde kategori ve
+isteğe bağlı karşı tarafla tek SQL projection'ında okunur. `Open`, gecikme,
+`readiness` ve `attentionCode` saklanmaz: iptal/settlement varlığı ile sorgu
+tarihinden türetilir. Settlement oluştuğu anda satır hem kanonik görünümden hem
+onun daraltılmış yaklaşan ödemeler görünümünden düşer.
 
 ### Taşınabilirlik: dışa aktarma ile yedek ayrı şeylerdir
 
@@ -718,7 +722,9 @@ BudgetTransaction (gerçek finans olayı)
 UpcomingPayments read model
   ├─ planned recurring occurrence
   ├─ son kapanmış kredi kartı ekstresi
-  └─ gerçekleşmemiş installment item
+  ├─ gerçekleşmemiş installment item
+  ├─ ödenecek borç taksidi
+  └─ açık tek seferlik ödenecek yükümlülük
 
 AdvancedReport read model
   ├─ hesap hareketleri + transfer + kart ödemesi → likit varlık

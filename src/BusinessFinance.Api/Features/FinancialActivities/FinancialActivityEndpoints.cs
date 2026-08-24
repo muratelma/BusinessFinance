@@ -98,7 +98,9 @@ public static class FinancialActivityEndpoints
         [PlannedActivityKind.CardInstallment] = "card-installment",
         [PlannedActivityKind.CardStatement] = "card-statement",
         [PlannedActivityKind.DebtInstallment] = "debt-installment",
-        [PlannedActivityKind.ReceivableInstallment] = "receivable-installment"
+        [PlannedActivityKind.ReceivableInstallment] = "receivable-installment",
+        [PlannedActivityKind.PayableObligation] = "payable-obligation",
+        [PlannedActivityKind.ReceivableObligation] = "receivable-obligation"
     };
 
     internal static readonly Dictionary<PlannedActivityTiming, string> TimingValues = new()
@@ -127,7 +129,9 @@ public static class FinancialActivityEndpoints
         [PlannedActivityAction.Realize] = "realize",
         [PlannedActivityAction.PayCard] = "pay-card",
         [PlannedActivityAction.PayDebt] = "pay-debt",
-        [PlannedActivityAction.CollectDebt] = "collect-debt"
+        [PlannedActivityAction.CollectDebt] = "collect-debt",
+        [PlannedActivityAction.PayObligation] = "pay-obligation",
+        [PlannedActivityAction.CollectObligation] = "collect-obligation"
     };
 
     private static async Task<IResult> ListAsync(

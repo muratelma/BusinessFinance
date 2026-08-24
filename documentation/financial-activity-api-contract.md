@@ -309,10 +309,12 @@ GET /api/v1/financial-activities/planned?asOfDate=2026-08-14&daysAhead=30
 ### Enum'lar
 
 - `plannedKind`: `recurring-occurrence`, `card-installment`, `card-statement`,
-  `debt-installment`, `receivable-installment`
+  `debt-installment`, `receivable-installment`, `payable-obligation`,
+  `receivable-obligation`
 - `timing`: `overdue`, `today`, `upcoming`
 - `readiness`: `ready`, `needs-attention`
-- `actionKind`: `realize`, `pay-card`, `pay-debt`, `collect-debt`
+- `actionKind`: `realize`, `pay-card`, `pay-debt`, `collect-debt`,
+  `pay-obligation`, `collect-obligation`
 - `attentionCode`: `card-inactive`, `card-limit-insufficient`,
   `account-inactive`, `category-inactive`
 
@@ -325,7 +327,7 @@ Planlanan item iki farklı kimlik taşır ve bunlar karıştırılmamalıdır:
 
 | Alan | Anlamı |
 |---|---|
-| `plannedActivityId` | Planlanan **kaydın** kimliği: occurrence id, installment item id, ekstre için kart id, borç/alacak taksidi id |
+| `plannedActivityId` | Planlanan **kaydın** kimliği: occurrence id, installment item id, ekstre için kart id, borç/alacak taksidi id veya yükümlülük id |
 | `sourceId` / `sourceName` | Paranın çıkacağı/gireceği **hesap veya kart** |
 
 `sourceId`/`sourceName` böylece gerçekleşmiş feed'deki alanlarla aynı anlamı
@@ -431,6 +433,12 @@ eder; eylem dispatch'i önce occurrence generation yapar, sonra açık onayla
 gerçekleştirir. Üretilmiş occurrence ile projected tarih **duplicate
 gösterilmez**.
 
+Tek seferlik yükümlülükte beklenen hareket settlement'tır ve `effect=neutral`
+olur: gelir/gider `issueDate` tarihinde yükümlülük tarafından zaten tanınmıştır.
+`sourceId`/`sourceName` boştur; ödeme/tahsilat hesabı henüz seçilmemiştir.
+`actionTargetId` yükümlülük kimliğidir. Açık ve iptal edilmemiş satır `ready`,
+settlement oluşmuş veya iptal edilmiş satır ise projection dışında olur.
+
 ### Kanonik kaynak
 
 Bu projection planlanan hareketlerin tek gerçeğidir. Mevcut
@@ -439,9 +447,9 @@ projection'ın **daraltılmış görünümünü** okuyacak biçimde yeniden bağ
 
 Kapsam eşitliği beklenmez: yaklaşan ödemeler yalnız ödeme yükümlülüğü türlerini
 (`recurring-occurrence` gider/fatura, `card-installment`, `card-statement`,
-`debt-installment`) içerir; recurring gelir ve `receivable-installment` bu
-görünümün dışındadır. Doğrulanan şey **ortak kalemlerin** tutar, tarih ve sıra
-bakımından sapmamasıdır.
+`debt-installment`, `payable-obligation`) içerir; recurring gelir,
+`receivable-installment` ve `receivable-obligation` bu görünümün dışındadır.
+Doğrulanan şey **ortak kalemlerin** tutar, tarih ve sıra bakımından sapmamasıdır.
 
 `GET /api/v1/upcoming-payments` sözleşmesi geriye uyumlu kalır.
 

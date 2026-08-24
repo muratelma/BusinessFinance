@@ -257,6 +257,16 @@ kapanış use case'i yükümlülük davranışı açıldığında tamamlanacak.
 | `MigrationHistoryTests.AddRecurringOccurrenceLimit_BackfillsBeforeChecksAndLeavesNoDefault` | Kolonlar → occurrence sayımı backfill'i → `NOT NULL` → CHECK sırası; kalıcı DEFAULT yok |
 | `SqlServerPersistenceIntegrationTests.AddRecurringOccurrenceLimit_BackfillsExistingGeneratedCount` | Önceki şemadaki iki occurrence yeni sayaca gerçek SQL yükseltmesinde `2` olarak taşınır |
 
+## Aşama 03 Grup 4 — planlanan yükümlülük ve gecikme
+
+| Test | Neyi kanıtlıyor |
+|---|---|
+| `PlannedActivities_ProjectEveryKindWithReadinessAndNoDuplicates` (gerçek SQL, genişletildi) | İki yükümlülük yönü owner'ın kanonik projection'ına birer kez girer; yabancı owner dışarıda, gecikme/readiness güncel durumdan türetilir ve bütün yükümlülük satırları tek SQL komutunda okunur |
+| `UpcomingPayments_ReadNarrowedSliceOfPlannedProjectionWithoutDrift` (gerçek SQL, genişletildi) | Ödenecek tek seferlik yükümlülük aynı kimlik/tutar/vadeyle yaklaşan ödemeye girer; tahsil edilecek yön ikinci sorgu kuralı üretmeden dışarıda kalır |
+| `PlannedObligation_DropsFromCanonicalAndUpcomingViewsWhenSettled` (gerçek SQL, yeni) | Settlement yazıldığı anda kalıcı durum güncellemesi olmadan hem planlanan hem yaklaşan görünümden düşer |
+| `PlannedFeed_ProjectsOpenOneTimeObligationsWithoutOwnerLeakage` (API, yeni) | Kablo türleri/eylemleri, nötr ödeme etkisi, kapsam filtresi ve pozitif-negatif owner izolasyonu |
+| `planned_activity_test` + `dashboard_sections_test` (Flutter, genişletildi) | İki yükümlülük türü/eylemi parse edilir; tür filtresi iki yönü kapsar ve gecikmiş ödenecek yükümlülük mevcut Özet bandını besler |
+
 ## Bilinen test boşlukları
 
 - Fiziksel cihaz kanıtı yoktur; emulator kabulü bunun yerine sunulmaz.

@@ -374,10 +374,16 @@ tahsil edilecek alacak planlanan hareketlerdir ama yükümlülük değildir; ayr
 istemcinin `effect` ve `actionKind`'dan yeniden türetmesi aynı kuralın ikinci
 bir kopyasını doğururdu.
 
+Açık tek seferlik yükümlülük de aynı hatta yer alır. Vade geçtiyse ödenecek yön
+Özet bandını besler; tahsil edilecek yön planlanan listede kalır fakat borç
+sayılmaz. Settlement oluştuğunda kalıcı bir durum bayrağı güncellenmez, güncel
+projection satırı artık üretmez.
+
 ### Planlanan satırın eylemi
 
 Her planlanan satır `actionKind` taşır (`realize`, `pay-card`, `pay-debt`,
-`collect-debt`) — hangi işin yapılacağını sunucu söyler, istemci tahmin etmez.
+`collect-debt`, `pay-obligation`, `collect-obligation`) — hangi işin yapılacağını
+sunucu söyler, istemci tahmin etmez.
 Yanında `actionTargetId` ve `actionSequence` gider: `plannedActivityId`
 planlanan **satırı** tanımlar, yazma uç noktaları ise sahibi olan aggregate'i
 adresler ve ikisi çoğu türde farklıdır.
@@ -388,6 +394,7 @@ adresler ve ikisi çoğu türde farklıdır.
 | Kart taksidi | taksit planı kimliği | taksit sırası |
 | Kart ekstresi | kart kimliği | — |
 | Borç/alacak taksidi | borç kimliği | taksit sırası |
+| Tek seferlik yükümlülük | yükümlülük kimliği | — |
 
 Uygulamada eylem ikiye ayrılır ve ayrımı kaydın kendisi belirler.
 `realize` gövde istemez — onay dışında sorulacak bir şey yoktur, tutar ve tarih
@@ -396,6 +403,10 @@ zaten kayıtta — bu yüzden listede tek dokunuşla, açık onayla tamamlanır.
 kopyalamak yerine kullanıcı o kaydın kendi ekranına gider. Engelli
 (`readiness = needs-attention`) satırda buton kapalıdır; nedeni
 `attentionCode`'dan üretilen cümleyle satırda zaten yazılıdır.
+
+Tek seferlik yükümlülüğün hesap seçen ödeme/tahsilat ekranı Aşama 03 Grup 6'nın
+işidir. Grup 4'te satır ve Özet uyarısı görünürdür; istemci yanlışlıkla
+tekrarlayan plan veya borç formuna yönlendirme yapmaz ve bu eylemi henüz çizmez.
 
 **Para hareket etmeden önce açık onay istenir ve kaynak adıyla yazılır.**
 Gerçekleştirme kaynağı **sormaz** — tekrarlayan planın kaynağı kuruluşta

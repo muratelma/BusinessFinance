@@ -60,6 +60,7 @@ public static class UpcomingPaymentEndpoints
         UpcomingPaymentSourceType.CreditCardStatement => "credit-card-statement",
         UpcomingPaymentSourceType.Installment => "installment",
         UpcomingPaymentSourceType.DebtInstallment => "debt-installment",
+        UpcomingPaymentSourceType.Obligation => "obligation",
         _ => throw new ArgumentOutOfRangeException(nameof(sourceType), sourceType, null)
     };
 }

@@ -26,6 +26,29 @@ void main() {
       expect(item.isProjected, isFalse);
     });
 
+    test('reads both one-time obligation directions and actions', () {
+      final payable = PlannedActivity.fromJson(
+        _json(
+          kind: 'payable-obligation',
+          action: 'pay-obligation',
+          attention: null,
+        ),
+      );
+      final receivable = PlannedActivity.fromJson(
+        _json(
+          kind: 'receivable-obligation',
+          action: 'collect-obligation',
+          attention: null,
+        ),
+      );
+
+      expect(payable.plannedKind, PlannedKind.payableObligation);
+      expect(payable.actionKind, PlannedAction.payObligation);
+      expect(payable.readiness, PlannedReadiness.ready);
+      expect(receivable.plannedKind, PlannedKind.receivableObligation);
+      expect(receivable.actionKind, PlannedAction.collectObligation);
+    });
+
     test('rejects an unknown code instead of showing a blank warning', () {
       expect(
         () => PlannedActivity.fromJson(_json(attention: 'meteor-strike')),
@@ -89,6 +112,25 @@ void main() {
 
       expect(controller.visibleItems, hasLength(2));
     });
+
+    test(
+      'obligation filter covers payable and receivable directions',
+      () async {
+        final repository = _FakeRepository(
+          page: _page([
+            _activity(kind: PlannedKind.payableObligation),
+            _activity(kind: PlannedKind.receivableObligation),
+            _activity(kind: PlannedKind.cardStatement),
+          ]),
+        );
+        final controller = PlannedActivityController(repository);
+        await controller.load();
+
+        controller.selectTypeFilter(PlannedTypeFilter.obligation);
+
+        expect(controller.visibleItems, hasLength(2));
+      },
+    );
 
     test('changing the horizon does reach the server', () async {
       final repository = _FakeRepository(page: _page([]));
