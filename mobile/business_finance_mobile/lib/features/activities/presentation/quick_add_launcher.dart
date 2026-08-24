@@ -53,6 +53,7 @@ class QuickAddLauncher extends StatelessWidget {
   IconData _icon(QuickAddOption option) => switch (option) {
     QuickAddOption.expense => Icons.north_east,
     QuickAddOption.receipt => Icons.receipt_long_outlined,
+    QuickAddOption.obligation => Icons.schedule_outlined,
     QuickAddOption.income => Icons.south_west,
     QuickAddOption.bankSlip => Icons.account_balance_outlined,
     QuickAddOption.transfer => Icons.swap_horiz,

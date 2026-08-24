@@ -8,6 +8,7 @@ import '../../../core/models/transaction_scope.dart';
 enum QuickAddOption {
   expense('Gider'),
   receipt('Fiş veya fatura okut'),
+  obligation('Ödenmemiş fatura'),
   income('Gelir'),
   bankSlip('Dekont okut'),
   transfer('Hesaplar arası transfer'),
@@ -22,6 +23,12 @@ enum QuickAddOption {
     // Ayrı bir kayıt türü değil: aynı gider ya da gelir, alanları fotoğraftan
     // önerilmiş hâlde açılıyor. Bu yüzden `Gider`in hemen altında duruyor.
     receipt => 'Market fişi, fatura veya makbuzun fotoğrafından',
+    // Fişin "henüz ödemedim" dalıyla aynı kaydı üretir; fotoğrafı olmayan
+    // kullanıcı için elle giriş yolu. Para bugün hareket etmediği için
+    // `Gider`in yanında değil, kendi adıyla duruyor.
+    obligation =>
+      'Vadesi olan fatura veya tek seferlik alacak; para henüz '
+          'hareket etmez',
     income => 'Nakit veya banka hesabına gelen para',
     // Dekont ayrı bir giriş, çünkü ayrı bir soru soruyor. Alışveriş belgesinde
     // yön fotoğraftan önce bilinir; dekontta belgedeki tutarın ne olduğu

@@ -9,6 +9,7 @@ import '../../../core/widgets/app_inline_notice.dart';
 import '../../../core/widgets/app_scope_selector.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_submit_button.dart';
+import '../data/obligation_direction.dart';
 import 'obligation_controller.dart';
 import 'obligation_prefill.dart';
 
@@ -34,6 +35,8 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
   final _formKey = GlobalKey<FormState>();
   final _amount = TextEditingController();
   final _description = TextEditingController();
+  late ObligationDirection _direction =
+      widget.prefill.direction ?? ObligationDirection.payable;
   late DateTime _issueDate = widget.today ?? DateTime.now();
   late DateTime _dueDate = _issueDate;
   String? _categoryId;
@@ -46,7 +49,7 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
     super.initState();
     _applyPrefill();
     widget.controller.addListener(_changed);
-    widget.controller.load();
+    widget.controller.load(direction: _direction);
   }
 
   void _applyPrefill() {
@@ -78,7 +81,7 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Ödenmemiş faturayı kaydet')),
+    appBar: AppBar(title: Text(_title)),
     body: AnimatedBuilder(
       animation: widget.scopeController ?? const _NeverListenable(),
       builder: (context, _) => _body(context),
@@ -108,12 +111,32 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
       child: ListView(
         padding: const EdgeInsets.all(AppSpacing.medium),
         children: [
-          const AppInlineNotice(
+          AppInlineNotice(
             icon: Icons.receipt_long_outlined,
-            message:
-                'Alanlar faturadan okunan önerilerdir. Bu kayıt gideri belge '
-                'tarihinde tanır; hesabınızdan henüz para çıkarmaz.',
+            message: _noticeMessage,
           ),
+          if (_canChooseDirection) ...[
+            const SizedBox(height: AppSpacing.medium),
+            Semantics(
+              label: 'Yükümlülüğün yönü',
+              child: SegmentedButton<ObligationDirection>(
+                segments: [
+                  for (final option in ObligationDirection.values)
+                    ButtonSegment(
+                      value: option,
+                      icon: Icon(
+                        option == ObligationDirection.payable
+                            ? Icons.north_east
+                            : Icons.south_west,
+                      ),
+                      label: Text(option.label),
+                    ),
+                ],
+                selected: {_direction},
+                onSelectionChanged: _changeDirection,
+              ),
+            ),
+          ],
           for (final warning in widget.prefill.warnings) ...[
             const SizedBox(height: AppSpacing.small),
             AppInlineNotice(icon: Icons.error_outline, message: warning),
@@ -235,6 +258,37 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
     );
   }
 
+  /// Yönü bilerek açılan form onu sormaz; elle açılan sorar.
+  bool get _canChooseDirection => widget.prefill.direction == null;
+
+  String get _title =>
+      _canChooseDirection ? 'Yükümlülük ekle' : 'Ödenmemiş faturayı kaydet';
+
+  String get _noticeMessage {
+    final recognized = _direction == ObligationDirection.payable
+        ? 'Bu kayıt gideri belge tarihinde tanır; hesabınızdan henüz para '
+              'çıkarmaz.'
+        : 'Bu kayıt geliri belge tarihinde tanır; hesabınıza henüz para '
+              'girmez.';
+    return _canChooseDirection
+        ? '$recognized Para, kaydı kapattığınız gün hareket eder.'
+        : 'Alanlar faturadan okunan önerilerdir. $recognized';
+  }
+
+  /// Yön değişince kategori listesi yeniden okunur ve seçim düşer: gelir
+  /// kategorisi ödenecek bir faturaya, gider kategorisi bir alacağa
+  /// yazılamaz — sunucu da aynı sebeple reddeder.
+  void _changeDirection(Set<ObligationDirection> selection) {
+    final chosen = selection.single;
+    if (chosen == _direction) return;
+    setState(() {
+      _direction = chosen;
+      _categoryId = null;
+      _scopeMissing = false;
+    });
+    widget.controller.load(direction: chosen);
+  }
+
   bool get _showScope => widget.scopeController?.isVisible ?? false;
 
   TransactionScope? get _categoryScope {
@@ -268,6 +322,7 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
       return;
     }
     final saved = await widget.controller.create(
+      direction: _direction,
       amount: MoneyText.normalizeInput(_amount.text)!,
       categoryId: _categoryId!,
       issueDate: AppDateField.format(_issueDate),

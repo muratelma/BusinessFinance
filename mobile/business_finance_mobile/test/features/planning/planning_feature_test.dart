@@ -487,6 +487,73 @@ void main() {
     // bakiye listesi renkli bir role sahipmiş gibi okunuyordu.
     expect(balance.effect, isNull);
   });
+
+  /// Bitiş tarihi ile tekrar sınırı **iki ayrı sınırdır** ve birlikte
+  /// verilebilir. Form yalnız sayacı gönderip tarihi sabit `null` bırakırken
+  /// "31 Aralık'ta bitsin" diyen kullanıcı planı elle kapatmak zorunda kalıyordu.
+  testWidgets(
+    'plan formu bitiş tarihini ve tekrar sınırını birlikte gönderiyor',
+    (tester) async {
+      tester.view.physicalSize = const Size(900, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final repository = _FakePlanningRepository(
+        accounts: const [PlanningChoice(id: 'account', name: 'Banka')],
+        categories: const [
+          PlanningChoice(id: 'category', name: 'Kira', type: 'expense'),
+        ],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: PlanningPage(repository: repository),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Tekrarlayan plan ekle'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Tutar'),
+        '4500',
+      );
+      await tester.tap(find.text('Kaynak'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Banka').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Kategori'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Kira').last);
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Bitiş tarihi (isteğe bağlı)'));
+      await tester.tap(find.text('Bitiş tarihi (isteğe bağlı)'));
+      await tester.pumpAndSettle();
+      // Onay düğmesi yerelleştirmeden gelir; test onu metinle değil türle
+      // buluyor ki dil ayarı değiştiğinde sessizce kırılmasın.
+      await tester.tap(find.byType(TextButton).last);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(
+          TextFormField,
+          'Toplam tekrar sınırı (isteğe bağlı)',
+        ),
+        '12',
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Kaydet'));
+      await tester.tap(find.text('Kaydet'));
+      await tester.pumpAndSettle();
+
+      final created = repository.createdRecurring;
+      expect(created, isNotNull);
+      expect(created!['occurrenceLimit'], 12);
+      expect(created['endDate'], isNotNull);
+      expect(created['endDate'], isA<String>());
+    },
+  );
 }
 
 Object _responseFor(String path) => switch (path) {
@@ -712,12 +779,16 @@ class _FakePlanningRepository implements PlanningRepositoryContract {
     this.plans = const [],
     this.occurrences = const [],
     this.upcomingPayments = const [],
+    this.accounts = const [],
+    this.categories = const [],
   });
 
   ApiException? error;
   final List<RecurringTransactionItem> plans;
   final List<RecurringOccurrenceItem> occurrences;
   final List<UpcomingPaymentItem> upcomingPayments;
+  final List<PlanningChoice> accounts;
+  final List<PlanningChoice> categories;
 
   @override
   Future<PlanningSnapshot> load({
@@ -732,14 +803,18 @@ class _FakePlanningRepository implements PlanningRepositoryContract {
       occurrences: occurrences,
       upcomingPayments: upcomingPayments,
       report: AdvancedReport.fromJson(_reportJson),
-      accounts: const [],
-      categories: const [],
+      accounts: accounts,
+      categories: categories,
       creditCards: const [],
     );
   }
 
+  Map<String, Object?>? createdRecurring;
+
   @override
-  Future<void> createRecurring(Map<String, Object?> input) async {}
+  Future<void> createRecurring(Map<String, Object?> input) async {
+    createdRecurring = input;
+  }
 
   final List<String> realizedOccurrences = [];
   final List<String> realizedDue = [];

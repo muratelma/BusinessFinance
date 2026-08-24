@@ -205,6 +205,21 @@ Uygulananlar:
 - Karşı taraf bakiyesi açık yükümlülüğü bir kez içeriyor ve settlement ile
   düşürüyor. Tekrarlayan plan formu toplam tekrar sınırını açıkça taşıyor.
 
+Aşama kapatılmadan önceki kod denetiminde kapatılan iki arayüz boşluğu:
+
+- **Yükümlülük yalnız fiş okuma dalından açılabiliyordu.** Form önerisiz de
+  çalıştığı hâlde rota `extra` zorunlu tutuyordu; fotoğrafı olmayan kullanıcı
+  elindeki faturayı yazamıyordu — aşamanın açılma gerekçesinin kendisi. Kayıt
+  artık `İşlem ekle > Ödenmemiş fatura` satırından ve `Yükümlülükler`
+  ekranındaki ekleme eyleminden de açılıyor.
+- **Yön elle girişte sorulur oldu.** İstemci `payable` değerini sabit
+  gönderiyordu; API, planlanan görünüm ve yedek iki yönü de taşıdığı hâlde
+  `Tahsil edilecek` üretilemiyordu. Fiş dalında yön hâlâ **sorulmaz**: cevap
+  bir adım önce verildi (ADR 0011).
+- **Plan formu bitiş tarihini sabit boş gönderiyordu.** Grup 3 iki sınırı da
+  kurmuştu; arayüze yalnız tekrar sayısı çıkmıştı. Form artık ikisini birlikte
+  taşıyor ve önce dolanın geçerli olduğunu yazıyor.
+
 ### Grup 7 — Yedek v8 ve sözleşme belgeleri — **Tamamlandı**
 
 - Şema **v8** yazar, yalnız v8 okur.

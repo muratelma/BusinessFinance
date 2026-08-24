@@ -54,6 +54,26 @@ void main() {
       expect(find.text('Fiş ile ekle'), findsNothing);
     });
 
+    // Ödenmemiş fatura kamerayla sınırlı kalmıştı: formu yalnız fiş okuma
+    // dalı açıyordu. Elindeki kâğıt faturayı okutmak istemeyen kullanıcının
+    // da aynı kaydı açabilmesi gerekir.
+    testWidgets('offers the unpaid invoice as a typed entry too', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(body: QuickAddLauncher()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ödenmemiş fatura'), findsOneWidget);
+      // Satır parayı bugün hareket ettirmediğini söylüyor; söylemeseydi
+      // kullanıcı bunu gider sanıp hesabının azalmasını beklerdi.
+      expect(find.textContaining('para henüz hareket etmez'), findsOneWidget);
+    });
+
     // Launcher artık pencere sınıfına göre bottom sheet veya dialog açıyor.
     // Genişlik verilmezse test ekranı 800 dp'dir, yani yalnız dialog yolu
     // denenir ve telefonun asıl yolu hiç geçilmez; iki kademe de sürülür.

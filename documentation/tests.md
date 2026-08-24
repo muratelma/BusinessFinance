@@ -286,6 +286,20 @@ kapanış use case'i yükümlülük davranışı açıldığında tamamlanacak.
 | `planning_feature_test` | `occurrenceLimit` ve üretilen sayaç açık DTO'da okunur; plan satırı sınır ilerlemesini gösterir |
 | `AdvancedReport_LargeFixtureStaysWithinQueryCountAndTimeBudget` (gerçek SQL) | Settlement hesap etkisi eklendikten sonra gelişmiş rapor en çok 61 sabit okuma komutunda kalır; sayı kayıt adediyle büyümez |
 
+## Aşama 03 Grup 6 eki — yükümlülüğün elle girişi ve planın bitiş tarihi
+
+Aşama kapatılmadan önceki kod denetimi iki arayüz boşluğu buldu: yükümlülük
+yalnız fiş okuma dalından açılabiliyordu ve plan formu bitiş tarihini sabit
+boş gönderiyordu. İkisi de kapatıldı.
+
+| Test | Neyi kanıtlıyor |
+|---|---|
+| `quick_add_test` (yeni durum) | `İşlem ekle` listesi `Ödenmemiş fatura` satırını taşıyor ve satır paranın bugün hareket etmediğini yazıyor |
+| `bank_document_router_test` (yeni durum) | Yükümlülük rotası **önerisiz** açılıyor: başlık `Yükümlülük ekle`, hata ekranı yok, yön sorusu görünüyor |
+| `obligation_form_page_test` (yeni durum) | Elle açılan form yönü soruyor; `Tahsil edilecek` seçilince kategori listesi gelir türüyle yeniden okunuyor ve istek `direction: receivable` gönderiyor |
+| `obligation_form_page_test` (genişletildi) | Fiş dalında yön **sorulmuyor**: prefill yönü taşıyor, başlık `Ödenmemiş faturayı kaydet` kalıyor |
+| `planning_feature_test` (yeni durum) | Plan formu bitiş tarihi ile tekrar sınırını **birlikte** gönderiyor; onay düğmesi metinle değil türle bulunuyor ki dil ayarı testi sessizce kırmasın |
+
 ## Aşama 03 Grup 7 — yedek v8
 
 | Test | Neyi kanıtlıyor |

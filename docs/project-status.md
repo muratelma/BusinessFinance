@@ -942,6 +942,34 @@ açar.
 | Flutter test | **728 geçti** |
 | Android debug build | `app-debug.apk` üretildi |
 
+## 24 Ağustos 2026 — Aşama 03, kapanış öncesi kod denetimi
+
+Aşama kapatılmadan önce kapsam maddeleri koda karşı denetlendi. Backend tarafı
+eksiksiz çıktı; iki arayüz boşluğu bulundu ve kapatıldı.
+
+- **Yükümlülük artık kamerayla sınırlı değil.** Form önerisiz de çalıştığı hâlde
+  rota `extra` zorunlu tutuyor, kayıt yalnız fiş okumanın "ödemedim" dalından
+  açılabiliyordu. `İşlem ekle > Ödenmemiş fatura` satırı ve `Yükümlülükler`
+  ekranındaki ekleme eylemi eklendi; menü satırı paranın bugün hareket
+  etmediğini yazıyor
+- **Yön elle girişte soruluyor.** İstemci `payable` değerini sabit gönderiyordu;
+  API, planlanan görünüm ve yedek iki yönü de taşıdığı hâlde `Tahsil edilecek`
+  üretilemiyordu. Yön değişince kategori listesi türüne göre yeniden okunuyor.
+  Fiş dalında yön **sorulmuyor**: cevap bir adım önce verildi (ADR 0011)
+- **Plan formu bitiş tarihini gönderiyor.** Grup 3 iki sınırı da kurmuştu ama
+  form `endDate` alanını sabit `null` bırakıyordu; "31 Aralık'ta bitsin" diyen
+  kullanıcı planı elle kapatmak zorundaydı. İki sınır birlikte verilebiliyor ve
+  form önce dolanın geçerli olduğunu yazıyor
+- Backend'e dokunulmadı; 870 test regresyon kontrolü olarak yeniden koştu
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend test (gerçek SQL dâhil) | **870 geçti**, 1 atlandı (`GeminiLiveContractTests`) |
+| Flutter analyze | No issues found |
+| Flutter format | 227 dosya, değişiklik gerektirmedi |
+| Flutter test | **732 geçti** |
+| Android debug build | `app-debug.apk` üretildi |
+
 ## Son oturum kapanışı
 
 - Yapılan değişiklik: Aşama 03 **Grup 7 tamamlandı**; yedek şeması v8'e
@@ -950,6 +978,10 @@ açar.
 - Geçen kontroller: backend build + format + **870 test** (gerçek SQL dâhil),
   1 canlı Gemini testi atlandı; Flutter analyze + format + **728 test** + Android
   debug build geçti
-- Sıradaki görev: Aşama 03'ün yedi grubu da bitti. Kalan tek adım kullanıcının
-  aşamayı kapatıp Aşama 04'ü (kasa, POS ve gezinme — ADR ile açılır) onaylaması;
-  onay gelmeden aktif aşama değişmez
+- Ayrıca kapanış denetiminin bulduğu iki arayüz boşluğu kapatıldı: yükümlülüğün
+  elle girişi (yön seçimiyle) ve plan formunun bitiş tarihi alanı
+- Geçen kontroller: backend **870 test** (gerçek SQL dâhil); Flutter analyze +
+  format + **732 test** + Android debug build geçti
+- Sıradaki görev: Aşama 03'ün bütün grupları ve çıkış koşulları karşılandı.
+  Kalan tek adım kullanıcının aşamayı kapatıp Aşama 04'ü (kasa, POS ve gezinme)
+  açması; o aşama bir ADR ile açılır ve ADR kabul edilmeden koduna başlanmaz

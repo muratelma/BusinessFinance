@@ -411,6 +411,19 @@ kapananlara geçer. Panel, işlemin gelir/gideri yeniden yazmadığını açık�
 Yükleme, boş, hata, unauthorized ve son bilinen veriyi gösteren stale durumları
 ayrı görünür.
 
+**Yükümlülük kamerayla sınırlı değildir.** Aynı kayıt `İşlem ekle >
+Ödenmemiş fatura` satırından ve `Yükümlülükler` ekranındaki ekleme
+eyleminden de açılır; form önerisiz de çalışır. Fotoğrafı olmayan kullanıcının
+elindeki kâğıt faturayı yazamaması, aşamanın kapatmak için açıldığı boşluğun
+kendisiydi. Menü satırı parayı bugün hareket ettirmediğini yazar; yazmasaydı
+kullanıcı satırı gider sanıp bakiyesinin azalmasını beklerdi.
+
+**Yönü elle girişte kullanıcı seçer** (`Ödenecek` / `Tahsil edilecek`), fiş
+dalında **sorulmaz**: "henüz ödemedim" cevabı borçlu olunduğunu bir adım önce
+söyledi ve aynı soruyu tekrar sormak olurdu. Yön değişince kategori listesi
+yeniden okunur — alacak gelir, borç gider kategorisi ister ve sunucu yönle
+çelişen kategoriyi zaten reddeder.
+
 **Para hareket etmeden önce açık onay istenir ve kaynak adıyla yazılır.**
 Gerçekleştirme kaynağı **sormaz** — tekrarlayan planın kaynağı kuruluşta
 seçilir ve kayıt onu zaten taşır — ama onay penceresi paranın hangi hesaptan
@@ -493,6 +506,12 @@ GET /reports/advanced?year&month&asOfDate&trendMonths&daysAhead
   -> net varlık + dönem karşılaştırması + trend
   -> bütçe sapması + gelecek yük + hesap/kart dağılımı
 ```
+
+Plan formu **iki sınırı da** taşır: isteğe bağlı bitiş tarihi ve isteğe bağlı
+toplam tekrar sınırı. İkisi birden verilebilir; sunucu önce dolanı uygular ve
+form bunu alanın yardımcı metninde yazar. Form yalnız sayacı gönderip tarihi
+sabit boş bıraktığı sürece "31 Aralık'ta bitsin" diyen kullanıcı planı elle
+kapatmak zorunda kalıyordu.
 
 Flutter “Daha fazla > Planlama ve raporlar” rotasında bu endpointleri tek
 repository snapshot'ında birleştirir. İlk çağrıda loading; boş koleksiyonlarda

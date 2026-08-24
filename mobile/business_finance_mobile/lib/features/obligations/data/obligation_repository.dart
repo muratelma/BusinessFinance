@@ -62,7 +62,7 @@ class ObligationAccount {
 }
 
 abstract interface class ObligationRepositoryContract {
-  Future<ObligationOptions> loadPayableOptions();
+  Future<ObligationOptions> loadOptions({required String categoryType});
 
   Future<void> create(Map<String, Object?> input);
 
@@ -83,9 +83,9 @@ class ObligationRepository implements ObligationRepositoryContract {
   final ApiClient _client;
 
   @override
-  Future<ObligationOptions> loadPayableOptions() async {
+  Future<ObligationOptions> loadOptions({required String categoryType}) async {
     final responses = await Future.wait([
-      _client.get('/api/v1/categories?type=expense&isActive=true'),
+      _client.get('/api/v1/categories?type=$categoryType&isActive=true'),
       _client.get('/api/v1/counterparties?isActive=true'),
     ]);
     return ObligationOptions(

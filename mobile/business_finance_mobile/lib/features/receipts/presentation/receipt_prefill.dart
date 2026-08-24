@@ -1,6 +1,7 @@
 import '../../activities/presentation/quick_add_models.dart';
 import '../../cards/presentation/transfer_prefill.dart';
 import '../../debts/presentation/lending_prefill.dart';
+import '../../obligations/data/obligation_direction.dart';
 import '../../obligations/presentation/obligation_prefill.dart';
 import '../data/receipt_models.dart';
 import '../data/receipt_photo.dart';
@@ -127,8 +128,13 @@ LendingPrefill receiptLendingPrefillFrom(
 /// **Ödeme kaynağı taşınmıyor**: fatura hangi hesaptan ödeneceğini söylemez.
 /// Belge tarihi ekonomik olayın tanındığı gün, son ödeme tarihi ise vadedir;
 /// iki alan ayrı taşınır. Ödeme kaynağı taşınmaz, çünkü para henüz çıkmamıştır.
+///
+/// Yön **sabittir**: "henüz ödemedim" cevabı borçlu olduğunu söyler. Formda
+/// yeniden sormak, kullanıcının bir adım önce verdiği cevabı tekrar istemek
+/// olurdu (ADR 0011: model yönü seçmez, kullanıcı seçer — burada seçti).
 ObligationPrefill receiptObligationPrefillFrom(ReceiptDraft draft) =>
     ObligationPrefill(
+      direction: ObligationDirection.payable,
       amount: _suggestion(draft.totalAmount, draft.totalAmountState),
       issueDate: _suggestion(draft.purchasedAt, draft.purchasedAtState),
       dueDate: _suggestion(draft.dueDate, draft.dueDateState),

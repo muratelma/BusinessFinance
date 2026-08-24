@@ -265,10 +265,13 @@ GoRouter createAppRouter({
                       GoRoute(
                         // Yol `obligationCreateLocation` ile aynı olmalı.
                         path: 'obligation',
+                        // Öneri **zorunlu değil**: form fişten de, elle de
+                        // açılır. Boş `extra`, okunmuş belgesi olmayan
+                        // kullanıcının yolu; eksik olan bir öneri, eksik olan
+                        // bir ekran değildir.
                         pageBuilder: (context, state) => _sessionPage(
                           state,
-                          obligationRepository == null ||
-                                  state.extra is! ObligationPrefill
+                          obligationRepository == null
                               ? const Scaffold(
                                   body: AppErrorView(
                                     message: 'Yükümlülük formu açılamadı.',
@@ -279,7 +282,9 @@ GoRouter createAppRouter({
                                     obligationRepository,
                                     changes: financialDataChanges,
                                   ),
-                                  prefill: state.extra! as ObligationPrefill,
+                                  prefill: state.extra is ObligationPrefill
+                                      ? state.extra! as ObligationPrefill
+                                      : const ObligationPrefill(),
                                   scopeController: scopeController,
                                 ),
                           authController,

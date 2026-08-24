@@ -88,7 +88,7 @@ class _FakeRepository implements ObligationRepositoryContract {
   }
 
   @override
-  Future<ObligationOptions> loadPayableOptions() async =>
+  Future<ObligationOptions> loadOptions({required String categoryType}) async =>
       const ObligationOptions(categories: [], counterparties: []);
 
   @override

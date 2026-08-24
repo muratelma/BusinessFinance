@@ -849,6 +849,10 @@ class _RecurringFormState extends State<_RecurringForm> {
   String monthEndBehavior = 'clamp-to-last-day';
   DateTime startDate = DateTime.now();
 
+  /// `yyyy-MM-dd` veya null. Bitiş tarihi ile tekrar sınırı **birlikte**
+  /// verilebilir; sunucu önce dolanı uygular.
+  String? endDate;
+
   @override
   void dispose() {
     amount.dispose();
@@ -995,16 +999,38 @@ class _RecurringFormState extends State<_RecurringForm> {
         AppDateField(
           label: 'Başlangıç',
           value: _formatDate(startDate),
-          onChanged: (value) =>
-              setState(() => startDate = AppDateField.parse(value)!),
+          onChanged: (value) => setState(() {
+            startDate = AppDateField.parse(value)!;
+            final end = AppDateField.parse(endDate);
+            if (end != null && end.isBefore(startDate)) endDate = null;
+          }),
         ),
+        const SizedBox(height: AppSpacing.medium),
+        AppDateField(
+          label: 'Bitiş tarihi (isteğe bağlı)',
+          value: endDate,
+          firstDate: startDate,
+          helperText: 'Boş bırakırsanız plan süresiz tekrar eder.',
+          onChanged: (value) => setState(() => endDate = value),
+        ),
+        if (endDate != null)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => setState(() => endDate = null),
+              icon: const Icon(Icons.clear),
+              label: const Text('Bitiş tarihini kaldır'),
+            ),
+          ),
         const SizedBox(height: AppSpacing.medium),
         TextFormField(
           controller: occurrenceLimit,
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(
             labelText: 'Toplam tekrar sınırı (isteğe bağlı)',
-            helperText: 'Plan bu sayıda kayıt ürettikten sonra tamamlanır.',
+            helperText:
+                'Plan bu sayıda kayıt ürettikten sonra tamamlanır. '
+                'Bitiş tarihiyle birlikte verilirse önce dolan geçerlidir.',
           ),
           validator: (value) {
             final text = value?.trim() ?? '';
@@ -1057,7 +1083,7 @@ class _RecurringFormState extends State<_RecurringForm> {
       'kind': kind,
       'frequency': frequency,
       'startDate': _formatDate(startDate),
-      'endDate': null,
+      'endDate': endDate,
       'occurrenceLimit': occurrenceLimit.text.trim().isEmpty
           ? null
           : int.parse(occurrenceLimit.text.trim()),

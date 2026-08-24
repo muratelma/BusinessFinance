@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/routing/app_locations.dart';
+import '../../obligations/presentation/obligation_prefill.dart';
 import 'quick_add_launcher.dart';
 import 'quick_add_models.dart';
 
@@ -18,6 +19,11 @@ Future<void> openQuickAdd(BuildContext context) async {
     // önce gelir. Ayrı bir kayıt yolu değil, aynı yolun girişi.
     case QuickAddOption.receipt:
       context.push('/transactions/new/receipt');
+    // Yükümlülük formu boş önerilerle açılır: elle giren kullanıcının
+    // fotoğrafı yok, ama form aynı formdur. Yön `null` gider ve kullanıcıya
+    // sorulur — fiş dalında ise cevap zaten verilmiştir.
+    case QuickAddOption.obligation:
+      context.push(obligationCreateLocation, extra: const ObligationPrefill());
     case QuickAddOption.income:
       context.push('/transactions/new/income');
     // Dekontun kendi sayfası var: yön sormaz, üç banka belgesini de okur ve

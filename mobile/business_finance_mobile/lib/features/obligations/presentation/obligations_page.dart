@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/formatters/date_text.dart';
+import '../../../core/routing/app_locations.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_form_sheet.dart';
@@ -10,6 +12,7 @@ import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
 import '../data/obligation_repository.dart';
 import 'obligation_controller.dart';
+import 'obligation_prefill.dart';
 
 class ObligationsPage extends StatefulWidget {
   const ObligationsPage({required this.controller, super.key});
@@ -47,6 +50,13 @@ class _ObligationsPageState extends State<ObligationsPage> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Yükümlülükler'),
+          actions: [
+            IconButton(
+              onPressed: _addObligation,
+              icon: const Icon(Icons.add),
+              tooltip: 'Yükümlülük ekle',
+            ),
+          ],
           bottom: const TabBar(
             tabs: [
               Tab(text: 'Yaklaşan'),
@@ -58,6 +68,16 @@ class _ObligationsPageState extends State<ObligationsPage> {
         body: _body(controller),
       ),
     );
+  }
+
+  /// Liste ekranı kendi kaydını açabilir; kayıt dönünce liste yeniden okunur,
+  /// yoksa yeni satır ancak sekme değiştirince görünürdü.
+  Future<void> _addObligation() async {
+    final saved = await context.push<bool>(
+      obligationCreateLocation,
+      extra: const ObligationPrefill(),
+    );
+    if (saved ?? false) await widget.controller.load();
   }
 
   Widget _body(ObligationListController controller) {

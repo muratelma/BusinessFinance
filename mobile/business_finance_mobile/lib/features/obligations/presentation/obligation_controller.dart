@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/presentation/financial_data_changes.dart';
+import '../data/obligation_direction.dart';
 import '../data/obligation_repository.dart';
 
 class ObligationController extends ChangeNotifier {
@@ -17,13 +18,20 @@ class ObligationController extends ChangeNotifier {
   String? errorMessage;
   ObligationOptions? options;
 
-  Future<void> load() async {
+  /// Kategori listesi yöne bağlıdır: alacak gelir, borç gider kategorisi
+  /// ister. Yön değişince liste yeniden okunur; tek bir listeyi iki yöne
+  /// vermek, sunucunun reddedeceği bir seçimi kullanıcıya sunmak olurdu.
+  Future<void> load({
+    ObligationDirection direction = ObligationDirection.payable,
+  }) async {
     if (isLoading) return;
     isLoading = true;
     errorMessage = null;
     notifyListeners();
     try {
-      options = await _repository.loadPayableOptions();
+      options = await _repository.loadOptions(
+        categoryType: direction.categoryType,
+      );
       unauthorized = false;
     } on ApiException catch (error) {
       unauthorized = error.isUnauthorized;
@@ -37,6 +45,7 @@ class ObligationController extends ChangeNotifier {
   }
 
   Future<bool> create({
+    required ObligationDirection direction,
     required String amount,
     required String categoryId,
     required String issueDate,
@@ -51,7 +60,7 @@ class ObligationController extends ChangeNotifier {
     notifyListeners();
     try {
       await _repository.create({
-        'direction': 'payable',
+        'direction': direction.apiValue,
         'amount': amount,
         'currency': 'TRY',
         'categoryId': categoryId,

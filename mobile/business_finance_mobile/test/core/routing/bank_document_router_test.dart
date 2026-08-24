@@ -181,6 +181,38 @@ void main() {
     }
   });
 
+  // Yükümlülük formu **önerisiz de** açılabilmeli: elle giren kullanıcının
+  // okunmuş bir belgesi yok. Rota `extra` zorunlu tutulduğu sürece form
+  // yalnız kamerayla ulaşılabilir kalıyordu.
+  testWidgets('the obligation form opens with no suggestion at all', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final repository = FakeAuthSessionRepository()..session = testSession();
+    final controller = AuthController(repository);
+    await controller.initialize();
+    final router = createAppRouter(
+      authController: controller,
+      obligationRepository: _FakeObligationRepository(),
+    );
+
+    await tester.pumpWidget(_app(controller, router));
+    await tester.pumpAndSettle();
+
+    router.go(obligationCreateLocation);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Yükümlülük ekle'), findsOneWidget);
+    expect(find.text('Yükümlülük formu açılamadı.'), findsNothing);
+    // Elle girişte yön sorulur; fiş dalında sorulmadığı ayrı testte duruyor.
+    expect(find.text('Tahsil edilecek'), findsOneWidget);
+  });
+
   // Dekontun kendi rotası var ve o da fiş ekranıyla kardeş: karar sayfasına
   // oradan geçiliyor. Rota adı tek sabitte (`bankSlipScanLocation`) duruyor,
   // çünkü menüdeki çağrı ile rota tanımı ayrı dizgiler olduğunda uygulama
@@ -222,7 +254,7 @@ void main() {
 
 class _FakeObligationRepository implements ObligationRepositoryContract {
   @override
-  Future<ObligationOptions> loadPayableOptions() async =>
+  Future<ObligationOptions> loadOptions({required String categoryType}) async =>
       const ObligationOptions(
         categories: [DataChoice('category-1', 'Faturalar')],
         counterparties: [],
