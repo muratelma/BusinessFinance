@@ -20,7 +20,9 @@ using BusinessFinance.Api.Features.SavingsGoals;
 using BusinessFinance.Api.Features.Attachments;
 using BusinessFinance.Api.Features.Imports;
 using BusinessFinance.Api.Features.Receipts;
+using BusinessFinance.Api.Features.Cash;
 using BusinessFinance.Api.Features.Obligations;
+using BusinessFinance.Api.Features.Pos;
 using BusinessFinance.Api.Health;
 using BusinessFinance.Infrastructure;
 
@@ -72,6 +74,8 @@ app.MapDataPortabilityEndpoints();
 app.MapDebtEndpoints();
 app.MapCounterpartyEndpoints();
 app.MapObligationEndpoints();
+app.MapCashCountEndpoints();
+app.MapPosSettlementEndpoints();
 app.MapSavingsGoalEndpoints();
 app.MapAttachmentEndpoints();
 app.MapImportEndpoints();

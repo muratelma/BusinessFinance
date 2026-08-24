@@ -27,7 +27,9 @@ using BusinessFinance.Application.Attachments;
 using BusinessFinance.Application.FinancialActivities;
 using BusinessFinance.Application.Imports;
 using BusinessFinance.Application.Receipts;
+using BusinessFinance.Application.Cash;
 using BusinessFinance.Application.Obligations;
+using BusinessFinance.Application.Pos;
 
 namespace BusinessFinance.Api.Extensions;
 
@@ -126,6 +128,13 @@ public static class ServiceCollectionExtensions
         services.AddTransient<CreateObligationUseCase>();
         services.AddTransient<ListObligationsUseCase>();
         services.AddTransient<SettleObligationUseCase>();
+        services.AddTransient<GetCashCountTodayUseCase>();
+        services.AddTransient<ListCashCountsUseCase>();
+        services.AddTransient<CreateCashCountUseCase>();
+        services.AddTransient<ConfirmCashCountDifferenceUseCase>();
+        services.AddTransient<ListPosSettlementsUseCase>();
+        services.AddTransient<CreatePosSettlementUseCase>();
+        services.AddTransient<MarkPosSettlementTransferredUseCase>();
 
         return services;
     }

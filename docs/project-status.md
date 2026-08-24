@@ -833,6 +833,38 @@ kullanıcı onayıyla durduruldu; yeniden başlatılmadı.
 
 Flutter tarafına dokunulmadı; bu adım yalnız sunucu raporlarıdır.
 
+## 24 Ağustos 2026 — Aşama 04, Grup 7 (1/2): kasa ve POS yazma uçları
+
+- **Sıra kararı**: Grup 7, Grup 5'ten önce yapılıyor. Grup 5'in üçüncü sekmesi
+  `Kasa` ekranına işaret ediyor; o ekran ve onu besleyen uç burada doğmadan
+  sekme boş bir yere açılır ve grubun kendi ölçütü ilk günden ihlal olurdu
+- Yedi uç açıldı: sayımın günü/geçmişi/oluşturulması/farkın onaylanması ve
+  tahsilatın listesi/oluşturulması/geçişin işaretlenmesi
+- **Sayım bir gözlemdir**: yazıldığında ne bakiye ne rapor kıpırdıyor. Fark
+  ancak açık onayla **tek** gelir/gider kaydına dönüşüyor ve o kayıt kapsamını
+  sayımdan alıyor — kategoriden yeniden türetilseydi aynı sayım farklı günlerde
+  farklı kapsam üretebilirdi
+- Beklenen bakiye ve fark **yalnız günün açık sayımında** dönüyor: geçmiş bir
+  günün farkını bugünkü bakiyeye karşı hesaplamak, aradaki bütün hareketleri o
+  günün farkına yazmak olurdu
+- Aynı gün ikinci sayım öncekini iptal ediyor ve ikisi tek `SaveChanges`
+  sınırında yazılıyor; SQL'deki filtreli tekil indeks aynı kuralı zaten tutuyor
+- POS tarafında tahsilat günü tanıyor, geçiş günü taşıyor: geçişten sonra hesap
+  net kadar artıyor, yoldaki toplam sıfırlanıyor ve rapora hiçbir şey eklenmiyor
+- Komisyon **ya tutar ya oran** olarak alınıyor; ikisi birden gönderilirse
+  istek reddediliyor. Oran tutara çevriliyor, saklanan tek şey tutar
+- `moneyInTransit` liste penceresinden bağımsız okunuyor: yolda olan para,
+  kullanıcının hangi aya baktığından etkilenmemeli
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (gerçek SQL dâhil) | **914 geçti**, 1 atlandı (`GeminiLiveContractTests`) |
+
+Grubun ikinci yarısı Flutter ekranlarıdır (`features/cash/`, POS tahsilatı) ve
+sıradaki iştir.
+
 ## Son oturum kapanışı
 
 - Yapılan değişiklik: Aşama 03 **Grup 1 tamamlandı**; yükümlülüğün tanıyan

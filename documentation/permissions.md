@@ -206,6 +206,18 @@ döndürür. Gerçekleşen ve planlanan feed okumaları da owner-scoped kalır; 
 entegrasyon testi yabancı listenin boş ve yabancı settlement'ın reddedildiğini
 kanıtlar.
 
+`POST /api/v1/cash-counts` ve `POST /api/v1/pos-settlements` aynı deseni
+sürdürür. Sayımın hesabı, düzeltmenin kategorisi, tahsilatın hesabı ile gelir ve
+komisyon kategorileri yalnız current user'ın aktif kayıtları arasından çözülür;
+kimlik hiçbir gövdeden okunmaz. Yabancı ya da uygun olmayan hesap `404`,
+yabancı kategori doğrulama hatasıdır. `POST /api/v1/cash-counts/{id}/adjustment`
+ve `POST /api/v1/pos-settlements/{id}/transfer` kaydı `(UserId, kayıt ID)` ile
+çözer; başkasının kaydı ile var olmayan kayıt aynı `404` sonucuna gider.
+`GET /api/v1/cash-counts`, `GET /api/v1/cash-counts/today` ve
+`GET /api/v1/pos-settlements` yalnız current user satırlarını döndürür — yoldaki
+toplam da öyle. API entegrasyon testleri iki ucun da yabancı okumasının boş ve
+yabancı yazmasının reddedildiğini kanıtlar.
+
 Fiş analizi sahiplik sınırını yazmadan uygular. Use case current
 user kimliğini `ICurrentUser`dan alır ve modele yalnız o kullanıcının aktif
 gider kategorilerinin adlarını kapalı küme olarak verir. Sağlayıcıdan dönen ad

@@ -837,6 +837,35 @@ Kapsam filtresi gelir/gider tarafını daraltır; net varlık ve yoldaki para
 kapsamdan **etkilenmez** (ADR 0013). Tanıma altı sabit gruplanmış sorgu ekledi
 (63 → 69) ve hiçbiri tahsilat adediyle büyümüyor.
 
+### Kasa ve POS yazma uçları
+
+```text
+GET  /api/v1/cash-counts/today?accountId=   beklenen bakiye + o günün sayımı
+GET  /api/v1/cash-counts                    geçmiş sayımlar
+POST /api/v1/cash-counts                    gün sonu sayımı (gözlem)
+POST /api/v1/cash-counts/{id}/adjustment    farkı tek kayda çevirir
+
+GET  /api/v1/pos-settlements                tahsilatlar + yoldaki toplam
+POST /api/v1/pos-settlements                tahsilat (tanır, taşımaz)
+POST /api/v1/pos-settlements/{id}/transfer  geçiş (taşır, tanımaz)
+```
+
+Beklenen bakiye ve fark **yalnız günün açık sayımında** döner. Geçmiş bir günün
+farkını bugünkü bakiyeye karşı yeniden hesaplamak, aradaki bütün hareketleri o
+günün farkına yazmak olurdu; sayı doğru görünür, anlamı yanlış olurdu. Geçmiş
+sayımda kalan tek gerçek, sayılan tutar ve varsa yazılmış düzeltme kaydıdır.
+
+Aynı gün ve aynı kasa için ikinci sayım öncekini **iptal eder** ve ikisi tek
+`SaveChanges` sınırında yazılır; ayrı yazılsaydı SQL'deki filtreli tekil indeks
+araya düşen ikinci açık sayımı zaten reddederdi. Düzeltme idempotenttir: bir
+sayımın iki düzeltmesi olamaz, tekrarlanan onay aynı kaydı döndürür.
+
+Komisyon **ya tutar ya oran** olarak gelir, ikisi birden değil: ikisi de
+gönderilseydi hangisinin doğru olduğu sorusu doğardı. Oran gelirse tutara
+çevrilir ve saklanan tek şey tutardır (ADR 0009'un aynı kararı).
+`moneyInTransit` liste penceresinden bağımsız okunur — yolda olan paranın
+toplamı, kullanıcının hangi aya baktığından etkilenmemelidir.
+
 ### Taşınabilirlik: dışa aktarma ile yedek ayrı şeylerdir
 
 İşlem CSV'si kaydın kapsamını `type`'ın yanında bir kolonda taşır. Kapsamsız

@@ -368,6 +368,18 @@ söylenir: doğrulama grafiği kuru olarak kurar, kullanıcı restore'a basmadan
 | `AdvancedReport_LargeFixtureStaysWithinQueryCountAndTimeBudget` (güncellendi) | POS önce iki (61 → 63), tanıma ile altı **sabit** sorgu daha ekledi (63 → 69); hiçbiri tahsilat adediyle büyümüyor |
 | `dashboard_sections_test` (yeni durumlar) | Özet kartında `Yolda` satırı likit varlıktan ayrı duruyor, alt başlığı `POS tahsilatı`, `Bloke` kelimesi hiç geçmiyor; yolda para yokken satır çizilmiyor; net varlık = likit + yolda − kart borcu + alacak − borç |
 
+## Aşama 04 Grup 7 — kasa ve POS yazma uçları
+
+| Test | Neyi kanıtlıyor |
+|---|---|
+| `CashCountEndpointTests.CashCount_RecordsNothingUntilTheDifferenceIsConfirmed` (yeni, API) | **Grubun ölçütü**: sayım yazıldıktan sonra bakiye ve aylık rapor kıpırdamıyor; onaydan sonra tek gider kaydı doğuyor, ikinci onay ikinci kayıt yazmıyor; yabancı kullanıcı ne okuyabiliyor ne onaylayabiliyor |
+| `CashCountEndpointTests.SecondCountOfTheSameDay_SupersedesTheFirst` (yeni, API) | İkinci sayım öncekini iptal ediyor, ikisi de listede kalıyor ve günün ucu ikinciyi gösteriyor; geçmiş satırda fark yeniden hesaplanmıyor |
+| `CashCountEndpointTests.Create_RejectsABankAccount` (yeni, API) | Banka bakiyesi elle sayılamıyor |
+| `CashCountEndpointTests.Confirm_RefusesWhenTheCountMatchesTheExpectedBalance` (yeni, API) | Sayım tuttuğunda sıfır tutarlı bir kayıt yazılmıyor (`409`) |
+| `PosSettlementEndpointTests.PosSale_RecognizesOnTheSaleDay_AndOnlyMovesCashWhenItTransfers` (yeni, API) | **Grubun ölçütü**: tahsilat günü gelir/gider yazılıyor ve hesap kıpırdamıyor; geçiş günü hesap net kadar artıyor ve rapora hiçbir şey eklenmiyor; yoldaki toplam sıfırlanıyor; tekrarlanan geçiş idempotent; yabancı kullanıcı sıfır görüyor ve yazamıyor |
+| `PosSettlementEndpointTests.Create_RejectsCommissionSentAsBothAmountAndRate` (yeni, API) | Komisyon ya tutar ya oran; iki gerçek arasında sunucu seçim yapmıyor |
+| `PosSettlementEndpointTests.Create_RejectsACashAccountAsTheDestination` (yeni, API) | POS parası bankaya geçiyor, tezgâhın çekmecesine değil |
+
 ## Bilinen test boşlukları
 
 - Fiziksel cihaz kanıtı yoktur; emulator kabulü bunun yerine sunulmaz.

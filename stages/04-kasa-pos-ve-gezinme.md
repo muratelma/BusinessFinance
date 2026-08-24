@@ -238,6 +238,11 @@ uçlarının ekranlarıyla aynı checkpoint'te açılmasındaki gerekçenin ayn�
 
 ### Grup 7 — Yazma uçları ve Flutter ekranları
 
+**Sıra kararı:** bu grup Grup 5'ten **önce** yapıldı. Grup 5'in üçüncü sekmesi
+`Kasa` ekranına işaret ediyor ve o ekran ile onu besleyen uç burada doğuyor;
+sırayla gidilseydi sekme ilk günden boş bir yere açılır ve grubun kendi ölçütü
+("iki profilde de dört sekme dolu") daha yazıldığı gün ihlal edilirdi.
+
 - Kasa sayımı ve POS tahsilatının yazma uçları (oluşturma, farkı onaylama,
   geçişi işaretleme) bu grupta açılır: uç ile onu tüketen ekran aynı
   checkpoint'te doğar.

@@ -15,7 +15,9 @@ using BusinessFinance.Application.Accounts.DeleteAccount;
 using BusinessFinance.Infrastructure.Accounts;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.Transactions;
+using BusinessFinance.Application.Pos;
 using BusinessFinance.Application.Profiles;
+using BusinessFinance.Infrastructure.Pos;
 using BusinessFinance.Infrastructure.Profiles;
 using BusinessFinance.Infrastructure.Categories;
 using BusinessFinance.Infrastructure.Transactions;
@@ -50,7 +52,9 @@ using BusinessFinance.Application.Attachments;
 using BusinessFinance.Infrastructure.Attachments;
 using BusinessFinance.Application.Receipts;
 using BusinessFinance.Infrastructure.Receipts;
+using BusinessFinance.Application.Cash;
 using BusinessFinance.Application.Obligations;
+using BusinessFinance.Infrastructure.Cash;
 using BusinessFinance.Infrastructure.Obligations;
 
 namespace BusinessFinance.Infrastructure;
@@ -121,6 +125,8 @@ public static class DependencyInjection
         services.AddScoped<IDebtRepository, EfDebtRepository>();
         services.AddScoped<ICounterpartyRepository, EfCounterpartyRepository>();
         services.AddScoped<IObligationRepository, EfObligationRepository>();
+        services.AddScoped<ICashCountRepository, EfCashCountRepository>();
+        services.AddScoped<IPosSettlementRepository, EfPosSettlementRepository>();
         services.AddScoped<ISavingsGoalRepository, EfSavingsGoalRepository>();
         services.AddScoped<IAttachmentRepository, EfAttachmentRepository>();
         services.AddSingleton<IAttachmentFileInspector, AttachmentFileInspector>();
