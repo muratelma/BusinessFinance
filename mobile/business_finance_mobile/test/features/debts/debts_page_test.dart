@@ -113,6 +113,81 @@ void main() {
       // Form kendini yeniden açmadı.
       expect(find.text('Borç / alacak planı'), findsNothing);
     });
+
+    // Eşleşme **söylenmezse** kullanıcı, dolu gelen adı kendi yazmış gibi
+    // hızla geçer ve kayıt tanımadığı birinin açık bakiyesine eklenir.
+    testWidgets('fişten gelen ad defterdeki kişiyle eşleştiğini söyler', (
+      tester,
+    ) async {
+      final repository = FakeDebtRepository();
+      await _pumpWithPrefill(
+        tester,
+        repository,
+        matchedCounterpartyId: 'counterparty-1',
+      );
+
+      expect(
+        find.textContaining('defterinizde kayıtlı'),
+        findsOneWidget,
+        reason: 'Var olan kişiye bağlanacağı ekranda yazmalı.',
+      );
+      expect(find.text('Bu kişi değil'), findsOneWidget);
+    });
+
+    // Eşleşme yoksa rozet de yok: o adla ilk kez iş yapılıyor olması olağandır
+    // ve her fişte bir uyarı göstermek uyarıyı görünmez yapar.
+    testWidgets('eşleşme yoksa rozet gösterilmez', (tester) async {
+      final repository = FakeDebtRepository();
+      await _pumpWithPrefill(tester, repository);
+
+      expect(find.textContaining('defterinizde kayıtlı'), findsNothing);
+      expect(find.text('Bu kişi değil'), findsNothing);
+    });
+
+    // Reddetme adı **siler**: aynı adı bırakmak sunucunun aynı karşı tarafı
+    // yeniden bulmasıyla sonuçlanırdı, yani reddetme hiçbir şeyi değiştirmezdi.
+    testWidgets('yanlış eşleşme tek dokunuşla reddedilir', (tester) async {
+      final repository = FakeDebtRepository();
+      await _pumpWithPrefill(
+        tester,
+        repository,
+        matchedCounterpartyId: 'counterparty-1',
+      );
+
+      await tester.tap(find.text('Bu kişi değil'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('defterinizde kayıtlı'), findsNothing);
+      expect(find.widgetWithText(TextFormField, 'ERGÜN ÇETİN'), findsNothing);
+
+      // Reddedilen öneri geri gelmez: aynı ad yeniden yazılsa bile kullanıcı
+      // bu kez kendi seçmiştir.
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Kişi / kurum'),
+        'ERGÜN ÇETİN',
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('defterinizde kayıtlı'), findsNothing);
+    });
+
+    // Ad değişince eşleşme hükümsüzdür: kullanıcı artık başka birinden söz
+    // ediyor ve rozeti bırakmak olmayan bir bağı varmış gibi gösterirdi.
+    testWidgets('ad değiştirilince rozet düşer', (tester) async {
+      final repository = FakeDebtRepository();
+      await _pumpWithPrefill(
+        tester,
+        repository,
+        matchedCounterpartyId: 'counterparty-1',
+      );
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'ERGÜN ÇETİN'),
+        'ERGÜN ÇETİNKAYA',
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('defterinizde kayıtlı'), findsNothing);
+    });
   });
 
   testWidgets('debt form keeps invalid money visible instead of submitting', (
@@ -563,6 +638,7 @@ Future<void> _pumpWithPrefill(
   WidgetTester tester,
   FakeDebtRepository repository, {
   ReceiptFeeRecorder? recordFee,
+  String? matchedCounterpartyId,
 }) async {
   tester.view.physicalSize = const Size(1200, 2600);
   tester.view.devicePixelRatio = 1;
@@ -573,8 +649,9 @@ Future<void> _pumpWithPrefill(
       home: DebtsPage(
         repository: repository,
         recordFee: recordFee,
-        lendingPrefill: const LendingPrefill(
+        lendingPrefill: LendingPrefill(
           counterpartyName: 'ERGÜN ÇETİN',
+          matchedCounterpartyId: matchedCounterpartyId,
           amount: '1455.0000',
           date: '2022-11-22',
           feeAmount: '1.6300',

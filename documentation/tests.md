@@ -164,6 +164,16 @@ platform kanalı ister, sözleşme (`ScopeStore`) sahte uygulamayla testli.
 | `DataPortabilityEndpointTests.CounterpartyLedgerCsv_IsOwnerScopedAndCarriesBothRecordKinds` (yeni) | Uç nokta kimlik istiyor (401), sahibinin iki hareket türünü de döndürüyor, **başka kullanıcının defteri boş geliyor** |
 | `export_file_details_test` (Flutter, yeni) | Cari dosyası kendi özet cümlesini kuruyor (`n cari hareket satırı`); iki dosya ekranda birbirinden ayırt ediliyor |
 
+## Aşama 02 — fiş öneri rozeti ve kabul turunun bulgusu
+
+| Test | Neyi kanıtlıyor |
+|---|---|
+| `debts_page_test` — `fişten gelen ad defterdeki kişiyle eşleştiğini söyler` | Sunucu eşleşme bulduysa form bunu ekranda **söylüyor**; sessizce bağlamıyor (ADR 0011) |
+| `debts_page_test` — `eşleşme yoksa rozet gösterilmez` | O adla ilk kez iş yapılması olağandır; her fişte uyarı göstermek uyarıyı görünmez yapardı |
+| `debts_page_test` — `yanlış eşleşme tek dokunuşla reddedilir` | `Bu kişi değil` adı siliyor ve öneri geri gelmiyor — Grup 6'nın ölçütünün arayüz yarısı |
+| `debts_page_test` — `ad değiştirilince rozet düşer` | Ad değişince eşleşme hükümsüz; olmayan bir bağ varmış gibi gösterilmiyor |
+| `counterparties_page_test` — `ayrıntı okuması sözleşmeler için tarih taşır` | **Kabul turunun bulgusu**: sözleşme listesi tarihsiz sorulunca sunucu `request.invalid_format` döndürüyordu ve ayrıntı ekranı gerçek API'de hiç açılmıyordu. Sahte repository ile geçen bir ekranın gerçek sözleşmeyi tutması ancak böyle sabitlenir |
+
 ## Mevcut kabul kanıtı
 
 | Use case | Kural / deny durumu | Beklenen sonuç | Kanıt | Durum |

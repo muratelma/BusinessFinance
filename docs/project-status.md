@@ -591,6 +591,55 @@ bırakıldı.
 | Flutter debug APK | Derlendi |
 | Migration | Üretilmedi ve gerekmedi; şema değişmedi (yedek dosya biçimi değişti) |
 
+## 24 Ağustos 2026 — Aşama 02 kabul turu (Pixel 8 + gerçek API + gerçek SQL)
+
+Tur **Aşama 01'in kabul hesabıyla** yürütüldü (`stage01.kabul@example.test`):
+dükkânın zaten bir geçmişi var ve aşamanın vaadi o geçmişin üstüne geldi. Her
+ölçü fark olarak alındı.
+
+**Otomatik senaryolar** — `integration_test/stage02_counterparty_acceptance_test.dart`,
+cihazda çalıştı, ikisi de geçti:
+
+- **Veresiye defteri:** üç veresiye satış (400+350+250) → gelir **1.000 arttı**,
+  kasa kıpırdamadı, net varlık 1.000 arttı ve alacak bir kez sayıldı. İki kısmi
+  tahsilat (400+200) → kasa 600 oldu, **gelir ikinci kez sayılmadı**, net varlık
+  değişmedi (alacak kasaya taşındı). Cari bakiye 400. Feed beş boyutu doldurdu:
+  üç `income`/`counterparty`, iki `neutral`; hepsi `canCancel`. 200'lük tahsilat
+  iptal edilince kasa 400'e döndü ve açık bakiye 600 olarak yeniden doğdu
+- **Yedek v7 ve cari dosyası:** yedek `schemaVersion 7` ve üç yeni koleksiyonu
+  dolu taşıdı; her sözleşme karşı tarafını **kimlikle** gösterdi (`counterpartyName`
+  alanı dosyada yok). Cari CSV'sinde borçlandırma satırı kategori ve kapsam
+  taşıdı, hesap kolonu boştu; tahsilat satırı hesap taşıdı, kategori ve kapsam
+  kolonları boştu
+
+**Elle gezilen ekran:**
+
+- `Diğer > Cari hesap` kapısı `Borç ve alacaklar`ın hemen üstünde; liste iki
+  karşı tarafı net işaretiyle gösterdi (`₺600,00`, `₺400,00`, ikisi de
+  "Sizden alacağı yok, size borçlu")
+- Ayrıntı: `Size borcu ₺600,00 / Sizin borcunuz ₺0,00 / Net ₺600,00`, dört
+  eylem (veresiye satış, vadeli alım, tahsilat, ödeme), hareket geçmişinde üç
+  satış, iptal edilmiş tahsilat `İptal edildi` rozetiyle soluk, geçerli
+  tahsilat nötr mavi tonda (ADR 0008)
+- `Veri araçları > Yedek`: yeni `Cari hareket CSV dosyası` kartı; önizleme
+  `10 cari hareket satırı` dedi ve başlık satırı `counterpartyName` taşıdı.
+  Uygulama yedeğinin özeti `Yedek sürümü: 7 — 53 kayıt`
+
+**Kabul turunun bulgusu — düzeltildi:**
+
+- **Karşı taraf ayrıntısı gerçek API'de hiç açılmıyordu.** Ekran sözleşmeleri
+  `GET /api/v1/debts` ile okuyor ama **zorunlu** `asOfDate` parametresini
+  göndermiyordu; sunucu `request.invalid_format` döndürüyor, ayrıntı ekranı
+  hataya düşüyordu. Widget testleri sahte repository kullandığı için bunu
+  göremezdi. Repository artık borç ekranıyla aynı parametreyi gönderiyor ve
+  bir test tarihin gittiğini sabitliyor. Kalan tutar kalıcı bir kolon değil,
+  bir tarihe göre hesaplanan projection'dır; tarihsiz sorulamaz
+
+**Kabul turunun verisi sentetiktir** ve kabul hesabının defterinde kalmıştır:
+iki `Kabul Manavı …` karşı tarafı, altı borçlandırma ve dört tahsilat. Aynı
+tur yeniden çalıştırılabilir; her tur kendi kasasını ve kendi karşı tarafını
+açar.
+
 ## Açık kararlar ve riskler
 
 - **Yerel veritabanının silinmesi onay bekliyor.** Aşama 01 Grup 1'in ilk işi;
@@ -606,20 +655,19 @@ bırakıldı.
 
 ## Sıradaki tek küçük görev
 
-- **Aşama 02 kabul turu.** Pixel 8 emulator + çalışan API + gerçek SQL:
-  veresiye satış, kısmi tahsilat, karşı taraf ekranları ve yedek v7
-  tatbikatı (`documentation/restore-runbook.md`). Turdan önce kullanıcının
-  fiş öneri rozeti hakkındaki kararı gerekiyor: kapatılacak mı, yoksa kendi
-  maddesiyle Aşama 03'e mi taşınacak.
+- **Aşama 02'nin kapanış onayı.** Sekiz çalışma grubunun sekizi bitti, fiş
+  öneri rozeti eklendi, kabul turu yürütüldü ve tek bulgusu düzeltildi. Kalan
+  tek çıkış koşulu kullanıcının Aşama 03'ü açıkça onaylaması; onaydan sonra
+  aşama belgesi `docs/archive/stages/` altına taşınır.
 
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: Aşama 02 **Grup 8 uygulandı** — yedek şeması v7 (karşı
-  taraf ve cari defterin iki hareket türü), sözleşmenin karşı tarafı adla
-  değil kimlikle göstermesi, v6'nın reddi ve cari defterin kendi CSV dışa
-  aktarımı (API + Flutter kartı). **Sekiz çalışma grubunun hepsi bitti**
+- Yapılan değişiklik: Aşama 02 **Grup 8 uygulandı** (yedek v7, sözleşmenin
+  karşı tarafı kimlikle, v6'nın reddi, cari defterin kendi CSV dışa aktarımı),
+  **fiş öneri rozeti eklendi** ve **kabul turu yürütüldü**. Turun tek bulgusu
+  — karşı taraf ayrıntısının `asOfDate` göndermemesi — düzeltildi
 - Geçen kontroller: backend build + format + **838 test** (SQL dâhil); Flutter
-  analyze + format + **715 test** + debug APK derlemesi
-- Açık kalan: fiş öneri rozeti (kullanıcı kararı) ve Aşama 02 cihaz kabul turu
-- Sıradaki görev: Aşama 02 kabul turu — Pixel 8 + gerçek API + gerçek SQL,
-  yedek v7 tatbikatı dâhil
+  analyze + format + **720 test** + debug APK derlemesi; cihazda iki kabul
+  senaryosu
+- Sıradaki görev: kullanıcının Aşama 03 onayı; onayla birlikte Aşama 02
+  kapanır ve belgesi arşive taşınır

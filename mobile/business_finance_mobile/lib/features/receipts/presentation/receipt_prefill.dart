@@ -103,6 +103,9 @@ CardPaymentPrefill receiptCardPaymentPrefillFrom(
 /// **Hesap taşınmıyor**: dekont paranın hangi hesaptan çıktığını söylemez.
 /// Vade ve taksit sayısı da taşınmıyor, çünkü belgede yazmıyor — onların
 /// varsayımı formda kuruluyor ve orada değiştirilebiliyor.
+///
+/// Sunucunun bulduğu karşı taraf **eşleşmesi** taşınıyor: ad okunamadıysa
+/// eşleşme de yoktur, o yüzden ikisi aynı koşula bağlı.
 LendingPrefill receiptLendingPrefillFrom(
   ReceiptDraft draft, {
   bool withFee = true,
@@ -110,6 +113,9 @@ LendingPrefill receiptLendingPrefillFrom(
   counterpartyName: draft.counterpartyState.isMissing
       ? null
       : draft.counterpartyName,
+  matchedCounterpartyId: draft.counterpartyState.isMissing
+      ? null
+      : draft.counterpartyId,
   amount: draft.totalAmountState.isMissing ? null : draft.totalAmount,
   date: draft.purchasedAtState.isMissing ? null : draft.purchasedAt,
   feeAmount: withFee && draft.hasFee ? draft.feeAmount : null,

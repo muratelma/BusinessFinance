@@ -76,7 +76,7 @@ class CounterpartiesController extends ChangeNotifier {
     errorMessage = null;
     notifyListeners();
     try {
-      detail = await _repository.loadDetail(counterpartyId);
+      detail = await _repository.loadDetail(counterpartyId, today);
       unauthorized = false;
     } on ApiException catch (error) {
       unauthorized = error.isUnauthorized;

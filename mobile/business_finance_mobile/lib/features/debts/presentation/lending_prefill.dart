@@ -7,6 +7,7 @@
 class LendingPrefill {
   const LendingPrefill({
     this.counterpartyName,
+    this.matchedCounterpartyId,
     this.amount,
     this.date,
     this.feeAmount,
@@ -15,6 +16,17 @@ class LendingPrefill {
 
   /// Dekontta yazan karşı taraf — parayı ödünç alan kişi.
   final String? counterpartyName;
+
+  /// Bu ad kullanıcının defterindeki bir karşı tarafla **eşleştiyse** onun
+  /// kimliği; eşleşme yoksa `null`.
+  ///
+  /// Form bu kimliği sunucuya göndermez — sözleşme karşı tarafı addan bulur ya
+  /// da kurar. Taşınmasının sebebi ekranda söylenmesi: dolu gelen bir ad,
+  /// kullanıcıya kaydın **var olan** bir kişiye, açık bakiyesiyle birlikte
+  /// bağlanacağını söylemeden onaylatılırsa yanlış eşleşme sessizce iki
+  /// kişinin hesabını birbirine karıştırır. Model önerir, kullanıcı onaylar
+  /// (ADR 0011).
+  final String? matchedCounterpartyId;
 
   /// Verilen tutar; dört ondalıklı string. Anapara **ve** toplam geri ödeme
   /// olarak önerilir: kişiler arası borç tipik olarak faizsizdir ve uydurulmuş
@@ -37,4 +49,9 @@ class LendingPrefill {
   /// **Hesap taşınmıyor.** Dekont paranın hangi hesaptan çıktığını söylemez;
   /// açılış hesabını kullanıcı seçer.
   bool get isEmpty => amount == null && counterpartyName == null;
+
+  /// Ekranda gösterilecek bir eşleşme var mı.
+  bool get hasCounterpartyMatch =>
+      matchedCounterpartyId != null &&
+      (counterpartyName?.trim().isNotEmpty ?? false);
 }

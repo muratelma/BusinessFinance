@@ -8,7 +8,11 @@ abstract interface class CounterpartyRepositoryContract {
   Future<CounterpartiesSnapshot> load(CounterpartyBalanceFilter filter);
 
   /// Bir kişinin bakiyesi, hareket geçmişi ve sözleşmeleri.
-  Future<CounterpartyDetail> loadDetail(String counterpartyId);
+  ///
+  /// [asOfDate] sözleşme listesinin **zorunlu** parametresidir: taksitli
+  /// borcun kalanı kalıcı bir kolon değil, bir tarihe göre hesaplanan
+  /// projection'dır ve tarihsiz sorulamaz.
+  Future<CounterpartyDetail> loadDetail(String counterpartyId, String asOfDate);
 
   Future<void> create(String name, String? note);
 
@@ -62,14 +66,20 @@ class CounterpartyRepository implements CounterpartyRepositoryContract {
   /// göre daraltılıyor — cari hesabın dışında dururlar ve toplamları
   /// birbirine karışmaz.
   @override
-  Future<CounterpartyDetail> loadDetail(String counterpartyId) async {
+  Future<CounterpartyDetail> loadDetail(
+    String counterpartyId,
+    String asOfDate,
+  ) async {
     final responses = await Future.wait([
       _client.get('/api/v1/counterparties/$counterpartyId'),
       _client.get(
         '/api/v1/financial-activities'
         '?pageNumber=1&pageSize=50&counterpartyId=$counterpartyId',
       ),
-      _client.get('/api/v1/debts'),
+      // `asOfDate` isteğe bağlı değil: kalan tutar bir tarihe göre hesaplanır
+      // ve tarihsiz istek `request.invalid_format` ile reddedilir. Borç ekranı
+      // da aynı parametreyi gönderiyor; ikisi aynı soruyu soruyor.
+      _client.get('/api/v1/debts?asOfDate=$asOfDate'),
     ]);
     final agreements = _items(responses[2].requireObject())
         .where(

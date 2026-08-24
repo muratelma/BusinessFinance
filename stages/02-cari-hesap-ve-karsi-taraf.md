@@ -279,12 +279,21 @@ geçirir** ve 03'e devreder.
   düzeltmenin bütçe ekranını yeniden yükletmesi için sebep yok.
 - Formlar kayıt türünün kuralını yüzeyde tekrarlıyor: borçlandırma hesap
   sormuyor, tahsilat kategori ve kapsam sormuyor.
-- **Grup 6'dan devreden arayüz payı hâlâ açık**: fiş önerisini gösteren ve
-  tek dokunuşla reddettiren rozet yazılmadı. Fişten gelen ad bugün borç
-  formuna düşüyor ve kayıt onaylanırken zaten aynı karşı tarafa bağlanıyor;
-  rozetin gerçek bir işi olması için fişin doğrudan cari harekete
-  yazılabilmesi gerekiyor ve o yol bu aşamada yok. Kullanıcı onayıyla
-  kapatılacak ya da kendi maddesiyle sonraki aşamaya taşınacak.
+- **Grup 6'dan devreden arayüz payı kapandı** (24 Ağustos 2026, kullanıcı
+  kararı: aşamada bitirilsin). Rozet borç/alacak formunda: fişten gelen ad
+  kullanıcının defterindeki bir karşı tarafla eşleştiyse form bunu **söylüyor**
+  ve `Bu kişi değil` tek dokunuşla reddediyor.
+- **Rozet borç formunda, cari harekette değil.** Fişin doğrudan cari harekete
+  yazılabilmesi ADR 0014'ün 03'e devrettiği "faturayı ödemedim" yolunu
+  açmak olurdu; o iş sonraki aşamanın. Bugün fişten gelen ad borç formuna
+  düşüyor ve sunucu karşı tarafı **addan** bulup bağlıyor — rozetin koruduğu
+  şey tam olarak bu: dolu gelen bir adı kendi yazmış gibi geçen kullanıcı,
+  kaydı tanımadığı birinin açık bakiyesine ekliyor olabilir.
+- **Karar:** reddetme adı **siliyor**. Eşleşmeyi reddedip aynı adı bırakmak,
+  sunucunun aynı karşı tarafı yeniden bulmasıyla sonuçlanırdı; reddetme
+  hiçbir şeyi değiştirmemiş olurdu.
+- **Karar:** reddedilen öneri geri gelmiyor ve ad değiştirilince rozet
+  düşüyor — kullanıcı artık başka birinden söz ediyordur.
 
 ### Grup 8 — Yedek v7 ve dışa aktarma — **Tamamlandı**
 
@@ -398,7 +407,9 @@ flutter build apk --debug --dart-define=API_BASE_URL=http://10.0.2.2:5284
       sayılmıyor.
 - [x] Feed'in tek SQL sorgusunda kaldığı kanıtlandı.
 - [x] `documentation/` ve `docs/project-status.md` güncel.
-- [ ] Cihaz kabul turu (Pixel 8 + gerçek API + gerçek SQL) yürütüldü.
+- [x] Cihaz kabul turu (Pixel 8 + gerçek API + gerçek SQL) yürütüldü
+      (24 Ağustos 2026, Aşama 01'in kabul hesabıyla). İki otomatik senaryo
+      geçti, ekranlar elle gezildi, **bir bulgu düzeltildi**.
 - [ ] Kullanıcı Aşama 03'ü açıkça onayladı.
 
 ## Tamamlanma kaydı

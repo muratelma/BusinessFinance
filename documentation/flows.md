@@ -652,6 +652,23 @@ azaltır. `receivable` tahsilatı bakiyeyi artırır. İkisi de aylık income/ex
 toplamına girmez. Tasarruf hedefi ya bağlı hesabın bakiyesini ya manuel katkıları
 izler; iki kaynak hiçbir zaman toplanmaz.
 
+### Fişten gelen karşı taraf önerisi
+
+```text
+Fiş okundu -> sunucu adı kullanıcının karşı taraflarıyla eşleştirir (tam ad)
+  -> eşleşme yoksa: ad taslakta kalır, uyarı yok
+  -> eşleşme varsa: borç/alacak formunda rozet
+       "… defterinizde kayıtlı. Bu kayıt aynı karşı tarafa bağlanacak."
+       -> kabul: ad olduğu gibi gönderilir, sunucu aynı kişiye bağlar
+       -> "Bu kişi değil": ad silinir, imleç alana gider, öneri geri gelmez
+       -> ad değiştirilir: rozet düşer
+```
+
+Model karşı tarafı **seçmez, önerir** (ADR 0011). Rozetin işi, dolu gelen bir
+adı kullanıcının kendi yazdığı sanıp geçmesini engellemek: kayıt var olan bir
+kişinin açık bakiyesine eklenir ve yanlış eşleşme iki müşterinin hesabını
+birbirine karıştırır.
+
 ### Borç / alacak planı oluşturma
 
 *(Karar gerekçeleri ADR 0009'da.)*

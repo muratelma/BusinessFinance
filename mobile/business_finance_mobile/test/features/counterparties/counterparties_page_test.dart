@@ -71,6 +71,24 @@ void main() {
       expect(find.textContaining('bakiyeye'), findsOneWidget);
     });
 
+    // Aşama 02 kabul turunun bulgusu: sözleşme listesi tarihsiz sorulunca
+    // sunucu `request.invalid_format` döndürüyordu ve ayrıntı ekranı gerçek
+    // API'de hiç açılmıyordu. Kalan tutar bir tarihe göre hesaplanan
+    // projection'dır; tarihsiz sorulamaz.
+    testWidgets('ayrıntı okuması sözleşmeler için tarih taşır', (tester) async {
+      final repository = _FakeRepository();
+      await _pump(tester, repository);
+      await tester.tap(find.text('Ahmet Bakkal'));
+      await tester.pumpAndSettle();
+
+      expect(repository.lastDetailAsOfDate, isNotNull);
+      expect(
+        RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(repository.lastDetailAsOfDate!),
+        isTrue,
+        reason: 'Sunucu yalnız yyyy-MM-dd kabul ediyor.',
+      );
+    });
+
     testWidgets('hareket geçmişi feed satırlarından geliyor', (tester) async {
       await _pump(tester, _FakeRepository());
       await tester.tap(find.text('Ahmet Bakkal'));
@@ -210,6 +228,7 @@ class _FakeRepository implements CounterpartyRepositoryContract {
   final bool unauthorized;
 
   CounterpartyBalanceFilter? lastFilter;
+  String? lastDetailAsOfDate;
   Map<String, Object?>? lastCharge;
   Map<String, Object?>? lastPayment;
 
@@ -262,7 +281,11 @@ class _FakeRepository implements CounterpartyRepositoryContract {
   }
 
   @override
-  Future<CounterpartyDetail> loadDetail(String counterpartyId) async {
+  Future<CounterpartyDetail> loadDetail(
+    String counterpartyId,
+    String asOfDate,
+  ) async {
+    lastDetailAsOfDate = asOfDate;
     final person = counterparties.firstWhere(
       (item) => item.id == counterpartyId,
     );

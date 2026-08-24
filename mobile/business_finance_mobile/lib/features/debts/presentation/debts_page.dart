@@ -652,6 +652,11 @@ class _DebtForm extends StatefulWidget {
 class _DebtFormState extends State<_DebtForm> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
+  final _nameFocus = FocusNode();
+
+  /// Kullanıcı "bu değil" dedi mi. Reddedilen öneri geri gelmez; aksi hâlde
+  /// kullanıcı aynı rozeti her harfte yeniden görürdü.
+  var _counterpartyMatchRejected = false;
   final _principal = TextEditingController();
   final _total = TextEditingController();
   final _count = TextEditingController(text: '1');
@@ -675,6 +680,44 @@ class _DebtFormState extends State<_DebtForm> {
         : widget.accounts.first.id;
     _applyPrefill();
     _syncCategory();
+    _name.addListener(_onNameChanged);
+  }
+
+  /// Ad değişince rozetin görünürlüğü değişebilir; yalnız değiştiğinde çizer.
+  void _onNameChanged() {
+    if (_showsCounterpartyMatch == _matchWasVisible) return;
+    setState(() => _matchWasVisible = _showsCounterpartyMatch);
+  }
+
+  var _matchWasVisible = false;
+
+  /// Rozet yalnız **fişten gelen ad hâlâ yerindeyken** görünür.
+  ///
+  /// Kullanıcı adı değiştirdiyse artık başka birinden söz ediyor ve eşleşme
+  /// hükümsüzdür; rozeti bırakmak, olmayan bir bağı varmış gibi gösterirdi.
+  bool get _showsCounterpartyMatch {
+    final prefill = widget.prefill;
+    if (prefill == null ||
+        !prefill.hasCounterpartyMatch ||
+        _counterpartyMatchRejected) {
+      return false;
+    }
+    return _name.text.trim().toLowerCase() ==
+        prefill.counterpartyName!.trim().toLowerCase();
+  }
+
+  /// Yanlış eşleşmeyi tek dokunuşla reddeder.
+  ///
+  /// Ad **siliniyor**: eşleşmeyi reddedip aynı adı bırakmak, sunucunun aynı
+  /// karşı tarafı yeniden bulmasıyla sonuçlanırdı — reddetme hiçbir şeyi
+  /// değiştirmemiş olurdu.
+  void _rejectCounterpartyMatch() {
+    setState(() {
+      _counterpartyMatchRejected = true;
+      _matchWasVisible = false;
+      _name.clear();
+    });
+    _nameFocus.requestFocus();
   }
 
   /// Dekontun söylediğini yazar, söylemediğini varsayar.
@@ -692,6 +735,7 @@ class _DebtFormState extends State<_DebtForm> {
   void _applyPrefill() {
     final prefill = widget.prefill;
     if (prefill == null || prefill.isEmpty) return;
+    _matchWasVisible = prefill.hasCounterpartyMatch;
 
     // Para çıktı ve geri bekleniyor: bu bir alacak.
     _direction = 'receivable';
@@ -736,7 +780,9 @@ class _DebtFormState extends State<_DebtForm> {
 
   @override
   void dispose() {
+    _name.removeListener(_onNameChanged);
     _name.dispose();
+    _nameFocus.dispose();
     _principal.dispose();
     _total.dispose();
     _count.dispose();
@@ -781,13 +827,34 @@ class _DebtFormState extends State<_DebtForm> {
       },
       children: [
         AppFormField(
-          child: TextFormField(
-            controller: _name,
-            hintLocales: const [Locale('tr', 'TR')],
-            decoration: const InputDecoration(labelText: 'Kişi / kurum'),
-            validator: (value) => value == null || value.trim().isEmpty
-                ? 'Kişi veya kurum adı zorunludur.'
-                : null,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextFormField(
+                controller: _name,
+                focusNode: _nameFocus,
+                hintLocales: const [Locale('tr', 'TR')],
+                decoration: const InputDecoration(labelText: 'Kişi / kurum'),
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Kişi veya kurum adı zorunludur.'
+                    : null,
+              ),
+              // Fişten okunan ad defterdeki bir kişiyle eşleştiyse bunu
+              // **söylemek** zorundayız: kayıt o kişinin açık bakiyesine
+              // eklenecek ve yanlış eşleşme iki müşterinin hesabını
+              // birbirine karıştırır. Model önerir, kullanıcı onaylar
+              // (ADR 0011); reddi tek dokunuş.
+              if (_showsCounterpartyMatch)
+                AppInlineNotice(
+                  icon: Icons.person_search_outlined,
+                  message:
+                      '“${_name.text.trim()}” defterinizde kayıtlı. Bu kayıt '
+                      'aynı karşı tarafa bağlanacak ve onun bakiyesine '
+                      'eklenecek.',
+                  actionLabel: 'Bu kişi değil',
+                  onAction: _rejectCounterpartyMatch,
+                ),
+            ],
           ),
         ),
         AppFormField(
