@@ -152,6 +152,21 @@ girmediği için migration üretmedi. `ScopePreferences`'ın kendisinin doğruda
 `ReceiptPreferences` ile aynı gerekçe — `flutter_secure_storage` sarmalayıcısı
 platform kanalı ister, sözleşme (`ScopeStore`) sahte uygulamayla testli.
 
+## Aşama 03 Grup 1 — yükümlülük domain kuralları
+
+| Test | Neyi kanıtlıyor |
+|---|---|
+| `ObligationTests` (Domain, yeni — 13 test vakası) | Tek seferlik yükümlülük yöne göre gelir/gider tanıyor ve hesap taşımıyor; karşı taraf isteğe bağlı, verilirse owner-scoped ve aktif |
+| `...IssueDateCannotBeFutureButPastAndFutureDueDatesAreValid` | Belge tarihi gelecekte olamıyor; vade geçmişte veya gelecekte olabiliyor ama belge tarihinden önce olamıyor |
+| `...OverdueStateIsDerivedFromTheDateAndOnlyWhileOpen` | `Overdue` kalıcı durum değil; aynı kayıt sorgu tarihine göre gecikiyor ve kapanınca gecikmiş sayılmıyor |
+| `...SettlementMovesCashWithoutCategoryOrScope` | Kapanış hesabı yöne göre artırıyor/azaltıyor; ikinci gelir/gider üretmemesi için settlement'ta kategori ve kapsam alanı yok |
+| `...SettlingTwiceReturnsTheOriginalCashMovement` | İkinci kapanış çağrısı yeni hareket üretmiyor, ilk settlement kimliğini döndürüyor |
+| `...CancellationIsIdempotentAndReversesAnExistingSettlement` | Silme yerine UTC damgalı idempotent iptal var; kapanmış kaydın tanıma ve taşıma tarafı birlikte iptal ediliyor |
+
+Bu grup yalnız Domain katmanına dokundu; EF modeli, migration, endpoint ve
+Flutter yüzeyi değişmedi. Sahiplik foreign key'i, eşzamanlı kapanış ve gerçek
+SQL kanıtları kalıcılık grubunda eklenecek.
+
 ## Aşama 02 Grup 8 — yedek v7 ve cari defterin dışa aktarımı
 
 | Test | Neyi kanıtlıyor |

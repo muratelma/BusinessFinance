@@ -29,8 +29,8 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   **Grup 7** cari hesabın Flutter ekranlarını yazdı (liste, ayrıntı, dört
   form, `Diğer` menüsünde kendi kapısı). **Grup 8** yedek şemasını v7'ye
   taşıdı ve cari deftere kendi CSV dışa aktarımını verdi. **Sekiz çalışma
-  grubunun hepsi bitti.** Açık kalan iki madde: fiş önerisinin görünür
-  kabul/red rozeti (kullanıcı kararı bekliyor) ve cihaz kabul turu
+  grubunun hepsi bitti.** Fiş önerisinin görünür kabul/red rozeti eklendi ve
+  cihaz kabul turu tamamlandı
 - Aktif aşama: **03 — Yükümlülük ve vade.** 24 Ağustos 2026'da kullanıcı
   onayıyla açıldı. Belgesi `stages/03-yukumluluk-ve-vade.md`; yedi çalışma
   grubu. ADR kapısı **yok** (yalnız 02, 04 ve 05 bir ADR ile açılır). İlk işi,
@@ -649,9 +649,6 @@ açar.
 
 ## Açık kararlar ve riskler
 
-- **Yerel veritabanının silinmesi onay bekliyor.** Aşama 01 Grup 1'in ilk işi;
-  geri alınamaz. Mevcut 28 tablodaki her kayıt kişisel bütçe uygulamasından
-  kopyalanmış sentetik veri
 - ~~Eski repoda 16 commit push edilmemiş~~ — kapandı: commit'ler
   `origin/feat/mobile-data-tools-ux`'e gönderildi ve `main`'e merge edildi
   (`1af11f9`). Eski repo artık eksiksiz ve arşiv olarak tam
@@ -662,10 +659,10 @@ açar.
 
 ## Sıradaki tek küçük görev
 
-- **Aşama 03, Grup 1: yükümlülüğün domain katmanı.** Ödenmemiş fatura kendi
-  kabını alır ve gideri **tanır** (hesap bakiyesine dokunmadan); ödeme
-  yükümlülüğü kapatır, hesaptan para çıkarır ve **ikinci bir gider yazmaz**.
-  Gecikme durumu kalıcı kolon değildir, tarihten türetilir.
+- **Aşama 03, Grup 2: cari borçlandırmaya vade.** Mevcut
+  `CounterpartyCharge` isteğe bağlı vade alacak; vadesi gelmiş ve gelmemiş
+  bakiye owner-scoped projection'da ayrı okunacak. Grup 1'in yükümlülük
+  tipleri de aynı checkpoint'te kalıcılığa girecek.
 
 ## 24 Ağustos 2026 — Aşama 02 kapandı, Aşama 03 açıldı
 
@@ -678,14 +675,40 @@ açar.
   olarak işaretlendi. ADR kapısı yok; kod Grup 1'den başlayabilir
 - Bu turda kod değişmedi; yalnız karar belgeleri güncellendi
 
+## 24 Ağustos 2026 — Aşama 03, Grup 1: yükümlülük domaini
+
+- **`Obligation` ekonomik olayı tanıyor:** ödenecek yön gider, tahsil edilecek
+  yön gelir; kategori ve kapsam zorunlu, karşı taraf isteğe bağlı. Hesap alanı
+  taşımadığı için kayıt anında kasa değişmiyor
+- **`ObligationSettlement` nakdi taşıyor:** kategori ve kapsam taşımıyor;
+  tahsilat hesabı artırıyor, ödeme azaltıyor ve aynı gelir/gideri ikinci kez
+  yazmıyor
+- **Kapanış idempotent:** ikinci `Settle` çağrısı ilk settlement'ı döndürüyor.
+  Veritabanı tekilliği ve eşzamanlı istek kanıtı kalıcılığın ekleneceği Grup
+  2'de tamamlanacak
+- **Gecikme saklanmıyor:** durum `Open`, `Settled`, `Cancelled`; gecikme
+  `IsOverdueOn(asOfDate)` ile vade ve sorgu tarihinden türetiliyor
+- Belge tarihi sistemin UTC kayıt tarihinden ileri olamıyor. Vade geçmişte veya
+  gelecekte olabiliyor fakat belge tarihinden önce olamıyor
+- İptal, yükümlülükle varsa settlement'ı birlikte UTC damgasıyla iptal ediyor;
+  fiziksel silme yok
+- Grup yalnız Domain'e dokundu; EF modeline tip eklenmedi, migration/API/Flutter
+  değişikliği oluşmadı
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend test (gerçek SQL dâhil) | **851 geçti**, 1 atlandı (`GeminiLiveContractTests`) |
+| Domain testleri | **235 geçti**; `ObligationTests` 13 yeni vaka |
+| Migration | Üretilmedi ve gerekmedi; EF modeli değişmedi |
+| Flutter | Bu turda değişmedi |
+
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: Aşama 02 **Grup 8 uygulandı** (yedek v7, sözleşmenin
-  karşı tarafı kimlikle, v6'nın reddi, cari defterin kendi CSV dışa aktarımı),
-  **fiş öneri rozeti eklendi** ve **kabul turu yürütüldü**. Turun tek bulgusu
-  — karşı taraf ayrıntısının `asOfDate` göndermemesi — düzeltildi. Ardından
-  aşama kullanıcı onayıyla kapandı ve **Aşama 03 açıldı**
-- Geçen kontroller: backend build + format + **838 test** (SQL dâhil); Flutter
-  analyze + format + **720 test** + debug APK derlemesi; cihazda iki kabul
-  senaryosu
-- Sıradaki görev: Aşama 03 Grup 1 — yükümlülüğün domain katmanı
+- Yapılan değişiklik: Aşama 03 **Grup 1 tamamlandı**; yükümlülüğün tanıyan
+  kaydı, nakdi taşıyan tek settlement'ı, türetilen gecikmesi ve idempotent
+  kapanışı Domain katmanına eklendi
+- Geçen kontroller: backend build + format + **851 test** (gerçek SQL dâhil),
+  1 canlı Gemini testi atlandı; Flutter değişmedi
+- Sıradaki görev: Aşama 03 Grup 2 — cari borçlandırmaya vade ve yükümlülük
+  kalıcılığı

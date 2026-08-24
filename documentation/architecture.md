@@ -618,6 +618,42 @@ açılır ama kilitli değildir — kısmi tahsilat kuraldır, istisna değil.
 listesini değiştiren yazım yalnız onu, para yazan hareket ise gider/kasa
 hedeflerini de yükseltir.
 
+## Tek seferlik yükümlülük domaini
+
+> Aşama 03, Grup 1 — yalnız Domain modeli. Kalıcılık, kullanım senaryoları,
+> endpoint'ler ve okuma projection'ları sonraki gruplarda gelir; bugün EF
+> modelinde yükümlülük tablosu yoktur.
+
+Ödenmemiş tek seferlik fatura artık tekrarlayan plan kavramına sokulmadan
+temsil edilebilir. Model ADR 0014'ün ayrımını iki ayrı kayıtla korur:
+
+| Kayıt | Tanır | Taşır | Kategori | Kapsam | Hesap |
+|---|---|---|---|---|---|
+| `Obligation` | Yöne göre gelir/gider | Hayır | **Zorunlu** | **Zorunlu** | Yok |
+| `ObligationSettlement` | Hayır | **Hesap bakiyesi** | Yok | Yok | **Zorunlu** |
+
+`DebtDirection.Payable` gider, `Receivable` gelir tanır. Yönle çelişen kategori
+reddedilir. Karşı taraf isteğe bağlıdır; elektrik faturası kaydetmek için cari
+hesap açma zorunluluğu yoktur. Karşı taraf verilirse aynı kullanıcıya ait ve
+aktif olmalıdır.
+
+Durum ikinci bir değişebilir gerçek olarak tutulmaz: `Open`, `Settled` ve
+`Cancelled`, settlement ve iptal alanlarından hesaplanır. **Gecikme durum
+değeri değildir**; `IsOverdueOn(asOfDate)` açık kayıt için vade ile sorgu
+tarihini karşılaştırır. Vade bugün geçmişte veya gelecekte olabilir, fakat
+düzenleme tarihinden önce olamaz. Düzenleme tarihi de sistemin UTC kayıt
+zamanından ileri olamaz.
+
+Kapanış aggregate üzerinde idempotenttir. İlk `Settle` çağrısı tek
+`ObligationSettlement` üretir; sonraki çağrılar aynı hareketi döndürür ve ikinci
+nakit etkisi oluşturmaz. Settlement yükümlülüğün tutarını ve yönünü aynen alır:
+tahsilat hesabı artırır, ödeme azaltır. İptal, yükümlülükle varsa settlement'ı
+birlikte UTC zaman damgasıyla iptal eder; finansal geçmiş fiziksel silinmez.
+
+Bu checkpoint EF modeline tip eklemedi. Veritabanı tekilliği, owner-scoped
+ilişkiler ve eşzamanlı kapanış kanıtı kalıcılığın ekleneceği sonraki grubun
+sorumluluğudur; bu nedenle migration üretilmedi.
+
 ### Taşınabilirlik: dışa aktarma ile yedek ayrı şeylerdir
 
 İşlem CSV'si kaydın kapsamını `type`'ın yanında bir kolonda taşır. Kapsamsız

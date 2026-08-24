@@ -83,7 +83,7 @@ kaybolur; ikisi de doğru olur ve sırayla gerçekleşir.
 
 ## Çalışma grupları
 
-### Grup 1 — Domain: yükümlülük ve vade
+### Grup 1 — Domain: yükümlülük ve vade — **Tamamlandı**
 
 - `Obligation`: tek seferlik yükümlülük. Taşıdıkları: yön (ödenecek/tahsil
   edilecek), tutar, düzenleme tarihi, **vade tarihi**, kategori, kapsam,
@@ -99,6 +99,15 @@ kaybolur; ikisi de doğru olur ve sırayla gerçekleşir.
   ama bir faturanın vadesi tam da gelecektedir ve geçmiş vade de meşrudur.
 - Ölçüt: domain testleri tanıma/ödeme ayrımını ve idempotent kapanışı
   kanıtlıyor.
+- Uygulanan ayrım: `Obligation` ekonomik olayı tanır; ona bire bir bağlı
+  `ObligationSettlement` nakdi taşır. Settlement kategori ve kapsam taşımaz.
+- `ObligationStatus` yalnız `Open`, `Settled`, `Cancelled` değerlerini taşır;
+  gecikme `IsOverdueOn(asOfDate)` ile tarihten türetilir.
+- Kapanış aynı aggregate üzerinde idempotenttir: ikinci çağrı ilk settlement'ı
+  döndürür. Kalıcılık ve eşzamanlı istek kapısı Grup 2'de veritabanı tekilliğiyle
+  tamamlanacak.
+- Bu grup yalnız Domain'e dokundu; EF modeline tip eklenmedi, migration ve API
+  sözleşmesi üretilmedi.
 
 ### Grup 2 — Cari borçlandırmaya vade
 
