@@ -31,13 +31,24 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   taşıdı ve cari deftere kendi CSV dışa aktarımını verdi. **Sekiz çalışma
   grubunun hepsi bitti.** Fiş önerisinin görünür kabul/red rozeti eklendi ve
   cihaz kabul turu tamamlandı
-- Aktif aşama: **03 — Yükümlülük ve vade.** 24 Ağustos 2026'da kullanıcı
-  onayıyla açıldı. Belgesi `stages/03-yukumluluk-ve-vade.md`; yedi çalışma
-  grubu. ADR kapısı **yok** (yalnız 02, 04 ve 05 bir ADR ile açılır).
-  **Grup 1–6 tamamlandı**: yükümlülük/domain-kalıcılık, tekrar sınırı,
-  planlanan projection, fişten yazma ve Flutter liste/kapanış akışları hazır.
-  Sırada yalnız **Grup 7 — yedek v8 ve sözleşme belgeleri** var
-- Kalan dört aşamanın belgesi de yazılı, durumları `Planlandı`
+- **Aşama 03 — Yükümlülük ve vade: tamamlandı** (24 Ağustos 2026'da açıldı ve
+  aynı gün kullanıcı onayıyla kapandı). Belgesi
+  `docs/archive/stages/03-yukumluluk-ve-vade.md` altına taşındı ve tamamlanma
+  kaydı orada. Yedi çalışma grubunun hepsi bitti: yükümlülüğün domain'i ve
+  kalıcılığı, cari borçlandırmaya vade, tekrarlayan planda bitiş sınırı,
+  kanonik planlanan projection'a katılım, fiş okumanın "ödemedim" yolunun
+  bağlanması, Flutter liste + idempotent kapanış akışı ve yedek şemasının
+  v8'e taşınması. Kapanış öncesi kod denetimi iki arayüz boşluğu buldu ve
+  ikisi de kapatıldı: yükümlülüğün fotoğrafsız (elle) girişi — yön seçimiyle —
+  ve tekrarlayan plan formunun bitiş tarihi alanı
+- Aktif aşama: **04 — Kasa, POS ve gezinme.** 24 Ağustos 2026'da kullanıcı
+  onayıyla açıldı. Belgesi `stages/04-kasa-pos-ve-gezinme.md`; sekiz çalışma
+  grubu. **Grup 1 (ADR kapısı) tamamlandı**: ADR 0015 yazıldı ve kabul edildi —
+  borç tarafı `Kredi kartlarım`, tahsilat tarafı `POS tahsilatları`, yoldaki
+  para `AccountType` değil projection, kullanılabilir bakiye ile net varlığın
+  farkı tam olarak yoldaki tutar, üçüncü ana sekme ön ayara göre değişiyor.
+  Sırada **Grup 2 — gün sonu kasa sayımı domain'i** var
+- Kalan üç aşamanın belgesi de yazılı, durumları `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
 
@@ -982,6 +993,8 @@ eksiksiz çıktı; iki arayüz boşluğu bulundu ve kapatıldı.
   elle girişi (yön seçimiyle) ve plan formunun bitiş tarihi alanı
 - Geçen kontroller: backend **870 test** (gerçek SQL dâhil); Flutter analyze +
   format + **732 test** + Android debug build geçti
-- Sıradaki görev: Aşama 03'ün bütün grupları ve çıkış koşulları karşılandı.
-  Kalan tek adım kullanıcının aşamayı kapatıp Aşama 04'ü (kasa, POS ve gezinme)
-  açması; o aşama bir ADR ile açılır ve ADR kabul edilmeden koduna başlanmaz
+- Aşama 03 kullanıcı onayıyla **kapatıldı** ve belgesi arşive taşındı; Aşama 04
+  aynı onayla açıldı ve karar kapısı ADR 0015 ile kapatıldı
+- Sıradaki görev: Aşama 04 Grup 2 — gün sonu kasa sayımının domain'i
+  (`CashCount`; beklenen tutar saklanmaz, fark türetilir ve onaysız hiçbir
+  finansal kayıt üretmez)

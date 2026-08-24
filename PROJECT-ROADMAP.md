@@ -47,8 +47,8 @@ oturuyor.
 |---:|---|---|---|
 | 01 | Kapsam boyutu ve işletme kimliği | Her kayıt işletmeye mi şahsa mı ait olduğunu bilir; işletme kategori seti | Tamamlandı (23 Ağu 2026) |
 | 02 | Cari hesap: karşı taraf ve açık bakiye | Müşteri/tedarikçi başına yürüyen bakiye | Tamamlandı (24 Ağu 2026) |
-| 03 | Yükümlülük ve vade | Ödenmemiş fatura kendi kabına kavuşur; plan bitiş sınırı | **Aktif** |
-| 04 | Kasa, POS ve gezinme | Gün sonu kasa, POS tahsilatı ve bloke; ana sekmeler | Planlandı |
+| 03 | Yükümlülük ve vade | Ödenmemiş fatura kendi kabına kavuşur; plan bitiş sınırı | Tamamlandı |
+| 04 | Kasa, POS ve gezinme | Gün sonu kasa, POS tahsilatı ve bloke; ana sekmeler | **Aktif** |
 | 05 | Vergi ve muhasebeci | KDV taşıyan alanlar, vergi takvimi, ay sonu paketi | Planlandı |
 | 06 | Bulut güvenli beta | Ürün kendi makinenden bağımsız çalışır | Planlandı |
 
@@ -62,7 +62,7 @@ duruma göre gözden geçirilir.
 | Aşama | Yazılacak karar |
 |---|---|
 | 02 | Ekonomik olay tanır, ödeme taşır — kart, borç ve cari modellerinin ortak kuralı |
-| 04 | Kart borcu ile kart tahsilatının ayrılması; bloke paranın projection olması; sekme kararı |
+| 04 | Kart borcu ile kart tahsilatının ayrılması; bloke paranın projection olması; sekme kararı — **ADR 0015, kabul edildi** |
 | 05 | Vergi alanları taşır, hesaplamaz; oran ve tarihler koda gömülmez |
 
 ### 01 — Kapsam boyutu ve işletme kimliği

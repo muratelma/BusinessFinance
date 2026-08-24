@@ -319,9 +319,22 @@ flutter build apk --debug --dart-define=API_BASE_URL=http://10.0.2.2:5284
       gider ikinci kez sayılmıyor.
 - [x] Bitiş sınırlı plan sınırı aşmıyor ve retry ikinci kayıt üretmiyor.
 - [x] `documentation/` ve `docs/project-status.md` güncel.
-- [ ] Kullanıcı Aşama 04'ü açıkça onayladı.
+- [x] Kullanıcı Aşama 04'ü açıkça onayladı.
 
 ## Tamamlanma kaydı
 
-Aşama kapandığında burada: hangi commit'lerle bitti, hangi kontroller geçti,
-belge `docs/archive/stages/` altına taşındı mı.
+- Kapanış tarihi: 24 Ağustos 2026. Yedi çalışma grubu ve kapanış öncesi kod
+  denetiminin bulduğu iki arayüz boşluğu tamamlandı.
+- Bitiren commit'ler: `6bae883` (vadeye duyarlı cari bakiye), `47aff61` (plan
+  tekrar sınırı), `b7dae46` (planlanan görünümde yükümlülük), `a34dba6`
+  (ödenmemiş fatura kaydı), `656abdd` (settlement akışı), `aebb6d1` (yedek v8),
+  `58d5959` (fotoğrafsız yükümlülük girişi ve plan bitiş tarihi).
+- Geçen kontroller: backend build (0 uyarı) + `dotnet format --verify-no-changes`
+  temiz + **870 test** (gerçek SQL dâhil; 1 canlı Gemini testi atlandı);
+  Flutter analyze + format + **732 test** + Android debug build.
+- Aşamanın açılma gerekçesi kapandı: ödenmemiş faturanın kendi kabı var, hiçbir
+  sıklık sorulmuyor, vade ve gecikme tarihten türetiliyor, plan kendi sınırında
+  kapanıyor ve hepsi v8 yedeğinde kayıpsız taşınıyor.
+- Devredilen açık iş yok. Aşama 04'ün ADR'si (`documentation/adr/0015-*.md`)
+  bu aşamanın kapanışıyla birlikte yazıldı.
+- Belge `docs/archive/stages/` altına taşındı.

@@ -2,14 +2,17 @@
 
 ## Belge durumu
 
-- Durum: Planlandı
+- Durum: **Aktif** (24 Ağustos 2026'da kullanıcı onayıyla açıldı)
 - Ön koşul: Aşama 03 — Yükümlülük ve vade
+  (**tamamlandı**, `docs/archive/stages/03-yukumluluk-ve-vade.md`)
 - Sonraki aşama: Aşama 05 — Vergi ve muhasebeci
 - Dokunulacak kalıcı belgeler: `documentation/architecture.md`,
   `documentation/flows.md`, `documentation/permissions.md`,
   `documentation/tests.md`, `documentation/design-system.md`,
   `documentation/financial-activity-api-contract.md`,
-  `documentation/restore-runbook.md`, **yeni ADR** (aşağıda)
+  `documentation/restore-runbook.md`,
+  `documentation/adr/0015-card-debt-and-card-collection-are-two-things.md`
+  (**yazıldı ve kabul edildi**)
 - Doğrulanmış ilerleme: `docs/project-status.md`
 
 ## Amaç
@@ -43,9 +46,10 @@ taşar.
 - Silme yerine iptal.
 - Tasarım sistemi token'ları ve erişilebilirlik kapısı.
 
-## Bu aşamanın karar kapısı: "kredi kartı" iki şeydir
+## Bu aşamanın karar kapısı: "kredi kartı" iki şeydir — **kapatıldı**
 
-Aşama başlamadan **bir ADR yazılır.** Bugünkü `CreditCard` borçlandığın karttır;
+Aşama başlamadan **bir ADR yazıldı ve kabul edildi**
+(`documentation/adr/0015-card-debt-and-card-collection-are-two-things.md`). Bugünkü `CreditCard` borçlandığın karttır;
 esnafın gündelik dilinde "kart" ise tahsilat aracıdır. İkisi aynı ekranda aynı
 kelimeyle görünürse kullanıcı hangi yöne baktığını bilemez.
 
@@ -80,11 +84,26 @@ ADR'nin karara bağlayacağı üç şey:
 
 ## Çalışma grupları
 
-### Grup 1 — ADR: kart borcu ile kart tahsilatı ayrımı
+### Grup 1 — ADR: kart borcu ile kart tahsilatı ayrımı — **Tamamlandı**
 
 - Yukarıdaki üç karar yazılır; reddedilen seçenekler (yeni `AccountType`,
   bloke tutarın kalıcı kolon olması) gerekçeleriyle kaydedilir.
 - Ölçüt: ADR kabul edildi ve `CLAUDE.md` belge haritasına eklendi.
+
+Kabul edilen kararlar (`documentation/adr/0015-*.md`):
+
+- **Adlandırma:** borç tarafı `Kredi kartlarım` adını korur; tahsilat tarafı
+  `POS tahsilatları` olur ve o ekranda `kart` kelimesi tek başına hiç
+  kullanılmaz. Bekleyen para arayüzde `yolda` diye adlandırılır — `bloke`
+  bankacılık jargonudur, kullanıcının kelimesi değildir.
+- **POS tahsilatı bir hesap türü değildir:** `AccountType` genişlemez, yoldaki
+  tutar her sorguda hesaplanan bir projection'dır. Hesap yapılsaydı kullanıcı
+  oradan transfer edebilir, kart borcu ödeyebilir ve onu kasa sayımına
+  katabilirdi; üçü de olmamış parayı harcamaktır.
+- **Kullanılabilir bakiye yoldaki parayı içermez, net varlık içerir**; ikisi
+  arasındaki fark tam olarak yoldaki tutardır ve bu bir test kapısıdır.
+- **Üçüncü ana sekme ön ayara göre değişir:** işletmede `Kasa`, kişiselde
+  `Bütçeler`; yerini veren sekme `Diğer` altına iner ve kaybolmaz.
 
 ### Grup 2 — Domain: gün sonu kasa sayımı
 
@@ -124,12 +143,11 @@ ADR'nin karara bağlayacağı üç şey:
 
 - Bugünkü sekmeler: `Özet · İşlemler · Bütçeler · Diğer`. `Bütçeler` ana sekme
   olarak bir ev bütçesi kavramı; işletme kullanıcısının ikinci ekranı kasadır.
-- **Önerilen karar:** üçüncü sekme onboarding ön ayarına göre değişir —
+- **Karar (ADR 0015):** üçüncü sekme onboarding ön ayarına göre değişir —
   işletme kullanıcısında `Kasa`, kişisel kullanıcıda `Bütçeler`. Yerini
   değiştiren sekme **kaybolmaz**, `Diğer` altına iner.
 - Bu, ADR 0013'ün "ön ayar özellik kapatmaz" kuralını bozmaz: hiçbir özellik
-  kapanmıyor, yalnız hangisinin bir dokunuş uzakta olduğu değişiyor. Kararın
-  kendisi Grup 1 ADR'sine yazılır.
+  kapanmıyor, yalnız hangisinin bir dokunuş uzakta olduğu değişiyor.
 - Ölçüt: iki profilde de dört sekme dolu ve hiçbir ekran erişilemez değil.
 
 ### Grup 6 — `İşlem ekle` menüsünün yeniden kurgusu

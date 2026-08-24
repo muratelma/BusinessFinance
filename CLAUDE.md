@@ -357,6 +357,13 @@ secret'ı uygulamaya konmaz.
   üretmez). Kart, borç ve cari modellerinin ortak kuralı; aynı paranın iki kez
   sayılmasını önleyen yapı. Fiş okumanın "ödemedim" yolundaki tutarsızlık
   burada kayda geçti ve Aşama 03'e devredildi
+- `documentation/adr/0015-card-debt-and-card-collection-are-two-things.md` —
+  **Aşama 04'ün karar kapısı**: "kart" iki ayrı şeydir. Borç tarafı
+  `Kredi kartlarım` adını korur, tahsilat tarafı `POS tahsilatları` olur ve
+  orada `kart` kelimesi geçmez; yoldaki para `AccountType` değil bir
+  projection'dır; kullanılabilir bakiye ile net varlığın farkı tam olarak
+  yoldaki tutardır; üçüncü ana sekme onboarding ön ayarına göre değişir ve
+  yerini veren sekme `Diğer` altına iner
 - `documentation/receipt-analysis-api-contract.md`,
   `documentation/receipt-measurement.md` — fiş analizi sözleşmesi ve ölçüm yöntemi
 - `PROJECT-ROADMAP.md` — altı aşamalık zincir, bağımlılık kuralları, kapsam
@@ -364,9 +371,9 @@ secret'ı uygulamaya konmaz.
 - `stages/README.md` — aşama zinciri, hangi belge aktif, yeni aşama açma ve
   biten aşamayı kapatma adımları; **aktif aşama kullanıcı onayı olmadan
   değişmez**
-- `stages/03-*.md` … `stages/06-*.md` — kalan aşamaların çalışma grupları,
+- `stages/04-*.md` … `stages/06-*.md` — kalan aşamaların çalışma grupları,
   testleri ve çıkış koşulları. Tamamlanan aşamalar `docs/archive/stages/`
-  altındadır (Aşama 01 ve 02 orada)
+  altındadır (Aşama 01, 02 ve 03 orada)
 - `docs/backlog.md` — aşamaya bağlanmamış açık işler
 - `templates/STAGE-TEMPLATE.md` — yeni aşama belgesi iskeleti
 
