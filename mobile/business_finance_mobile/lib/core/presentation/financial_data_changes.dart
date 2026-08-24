@@ -21,6 +21,7 @@ class FinancialDataChanges extends ChangeNotifier {
   int _cardsRevision = 0;
   int _planningRevision = 0;
   int _counterpartiesRevision = 0;
+  int _cashRevision = 0;
 
   int get activityFeedRevision => _activityFeedRevision;
   int get dashboardRevision => _dashboardRevision;
@@ -29,6 +30,9 @@ class FinancialDataChanges extends ChangeNotifier {
   int get cardsRevision => _cardsRevision;
   int get planningRevision => _planningRevision;
   int get counterpartiesRevision => _counterpartiesRevision;
+
+  /// Kasa ekranı: gün sonu sayımı ve POS tahsilatları.
+  int get cashRevision => _cashRevision;
 
   /// Kept for the transaction list, which predates the unified feed and follows
   /// the same signal.
@@ -138,6 +142,34 @@ class FinancialDataChanges extends ChangeNotifier {
     counterparties: true,
   );
 
+  /// Gün sonu sayımı yazıldı.
+  ///
+  /// **Yalnız kasa ekranı yenilenir.** Sayım bir gözlemdir: hiçbir bakiyeyi
+  /// değiştirmez ve hiçbir rapora girmez. Bütçeyi yükseltmek, sayılmış parayı
+  /// harcanmış göstermek olurdu.
+  void cashCountRecorded() => _raise(cash: true);
+
+  /// Sayım farkı onaylandı: bu artık gerçek bir gelir/gider kaydıdır.
+  void cashDifferenceConfirmed() => _raise(
+    feed: true,
+    dashboard: true,
+    budgets: true,
+    accounts: true,
+    cash: true,
+  );
+
+  /// POS tahsilatı yazıldı: satış bugün tanınır, hesap kıpırdamaz.
+  ///
+  /// `accounts` yükselmez çünkü para henüz hiçbir hesapta değil; `dashboard`
+  /// yükselir çünkü net varlık yoldaki parayı taşır. `feed` de yükselmez:
+  /// birleşik feed bu iki kaynağı Grup 8'de öğrenecek.
+  void posSettlementRecognized() =>
+      _raise(dashboard: true, budgets: true, cash: true);
+
+  /// Para hesaba geçti: kasa değişir, gelir/gider yeniden tanınmaz.
+  void posSettlementTransferred() =>
+      _raise(dashboard: true, accounts: true, cash: true);
+
   /// Karşı tarafın kendisi eklendi, adı değişti, pasifleşti ya da silindi.
   /// Para hareket etmedi; yalnız kişi listesi değişti.
   void counterpartiesChanged() => _raise(counterparties: true);
@@ -151,6 +183,7 @@ class FinancialDataChanges extends ChangeNotifier {
     cards: true,
     planning: true,
     counterparties: true,
+    cash: true,
   );
 
   void _raise({
@@ -161,6 +194,7 @@ class FinancialDataChanges extends ChangeNotifier {
     bool cards = false,
     bool planning = false,
     bool counterparties = false,
+    bool cash = false,
   }) {
     if (feed) _activityFeedRevision++;
     if (dashboard) _dashboardRevision++;
@@ -169,6 +203,7 @@ class FinancialDataChanges extends ChangeNotifier {
     if (cards) _cardsRevision++;
     if (planning) _planningRevision++;
     if (counterparties) _counterpartiesRevision++;
+    if (cash) _cashRevision++;
     notifyListeners();
   }
 }

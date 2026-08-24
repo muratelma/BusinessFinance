@@ -214,7 +214,7 @@ Yazma uçları bu grupta **açılmadı**: kasa sayımı ve POS tahsilatı uçlar
 tükettikleri ekranlarla birlikte Grup 7'ye alındı — Aşama 03'te yükümlülük
 uçlarının ekranlarıyla aynı checkpoint'te açılmasındaki gerekçenin aynısı.
 
-### Grup 5 — Ana sekme yapısı
+### Grup 5 — Ana sekme yapısı — **Tamamlandı**
 
 - Bugünkü sekmeler: `Özet · İşlemler · Bütçeler · Diğer`. `Bütçeler` ana sekme
   olarak bir ev bütçesi kavramı; işletme kullanıcısının ikinci ekranı kasadır.
@@ -224,6 +224,17 @@ uçlarının ekranlarıyla aynı checkpoint'te açılmasındaki gerekçenin ayn�
 - Bu, ADR 0013'ün "ön ayar özellik kapatmaz" kuralını bozmaz: hiçbir özellik
   kapanmıyor, yalnız hangisinin bir dokunuş uzakta olduğu değişiyor.
 - Ölçüt: iki profilde de dört sekme dolu ve hiçbir ekran erişilemez değil.
+
+Uygulananlar:
+
+- Üçüncü shell dalı profil cevabını dinliyor: işletmede `Kasa`, kişiselde
+  `Bütçeler`. Aynı karar compact alt çubukta ve medium/expanded gezinme rayında
+  uygulanıyor; dal sayısı ve geri yığını değişmiyor.
+- Yerinden inen hedef `Diğer` altında profile göre gösteriliyor: işletmede
+  `Bütçeler`, kişiselde `Kasa`. Profil ayarı sonradan değişince hem ana hedef
+  hem ikincil kapı aynı anda yer değiştiriyor; hiçbir özellik kapanmıyor.
+- İki profil için yönlendirme testi dört ana hedefi, üçüncü hedefin gerçek
+  içeriğini ve `Diğer` altındaki karşı hedefin açılabildiğini doğruluyor.
 
 ### Grup 6 — `İşlem ekle` menüsünün yeniden kurgusu
 
@@ -236,7 +247,7 @@ uçlarının ekranlarıyla aynı checkpoint'te açılmasındaki gerekçenin ayn�
 - Ölçüt: sekiz üstü seçenek tek ekranda kaydırmadan okunabiliyor; erişilebilirlik
   kapısı geçiyor.
 
-### Grup 7 — Yazma uçları ve Flutter ekranları
+### Grup 7 — Yazma uçları ve Flutter ekranları — **Tamamlandı**
 
 **Sıra kararı:** bu grup Grup 5'ten **önce** yapıldı. Grup 5'in üçüncü sekmesi
 `Kasa` ekranına işaret ediyor ve o ekran ile onu besleyen uç burada doğuyor;
@@ -251,6 +262,22 @@ sırayla gidilseydi sekme ilk günden boş bir yere açılır ve grubun kendi ö
 - `Diğer` menüsü yeni yerleşime göre düzenlenir.
 - `FinancialDataChanges` yeni hedefler alır; kasa sayımı bütçeyi yükseltmez.
 - Ölçüt: zorunlu ekran durumları; tasarım sistemi kontrol listesi tamamlandı.
+
+Uygulananlar:
+
+- Sunucu uçlarının yanına açık Dart modelleri, repository ve controller
+  katmanları eklendi; para JSON'da ve istemcide string olarak korunuyor.
+- `Kasa` ekranı `Gün sonu` ve `POS tahsilatları` alt sekmelerini taşıyor.
+  Gün sonu beklenen/sayılan/farkı sunucudan okuyor; fark yalnız ayrı onayla
+  kayda dönüşüyor. POS ekranı brüt, komisyon ve neti ayrı gösteriyor; yoldaki
+  tahsilat görünür onayla hesaba geçmiş işaretleniyor.
+- Loading, empty, error, unauthorized ve stale-cache durumları görünür;
+  controller yaşam döngüsü shell yeniden çizimlerinden bağımsız tutuluyor.
+- `FinancialDataChanges` sayım gözlemini yalnız kasa ekranına, fark onayını
+  finansal yüzeylere, POS tanıma ve geçişini farklı hedeflere yayıyor. Feed,
+  iki yeni kaynağı Grup 8'de öğrenene kadar bilerek yükseltilmiyor.
+- Repository sözleşmesi, mutation hedefleri, iki profil gezinmesi ve iki alt
+  ekranın 2× yazı ölçeği/erişilebilirlik kapısı Flutter testleriyle korunuyor.
 
 ### Grup 8 — Yedek v9 ve sözleşme belgeleri
 

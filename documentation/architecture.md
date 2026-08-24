@@ -866,6 +866,25 @@ gönderilseydi hangisinin doğru olduğu sorusu doğardı. Oran gelirse tutara
 `moneyInTransit` liste penceresinden bağımsız okunur — yolda olan paranın
 toplamı, kullanıcının hangi aya baktığından etkilenmemelidir.
 
+Flutter tarafında iki özellik aynı bağımlılık yönünü korur:
+
+```text
+CashPage
+  ├─ CashCountView → CashCountController → CashRepository → ApiClient
+  └─ PosSettlementsView → PosController → PosRepository → ApiClient
+```
+
+DTO'lar açık Dart modelleridir; para alanları JSON number veya `double`'a
+çevrilmez. Yön kontrolü bile kanonik para metninin işaretinden okunur, tutar
+hesabı istemcide yapılmaz. `_CashPageHost` controller'ları shell'in profil ve
+kapsam kaynaklı yeniden çizimlerinden daha uzun yaşatır; sayfa her çizildiğinde
+yeni istek/listener üretmez ve ikisini tek sahip olarak dispose eder.
+
+Üçüncü `StatefulShellBranch` sabittir; `ScopeController.isVisible` yalnız dalın
+`Kasa` veya `Bütçeler` içeriğini ve gezinme etiketini seçer. Yerinden inen ekran
+`/more/cash` ya da `/more/budgets` rotasında kalır. Böylece profil ön ayarı
+Navigator yığınını yeniden kurmaz ve özellik yetkisine dönüşmez.
+
 ### Taşınabilirlik: dışa aktarma ile yedek ayrı şeylerdir
 
 İşlem CSV'si kaydın kapsamını `type`'ın yanında bir kolonda taşır. Kapsamsız

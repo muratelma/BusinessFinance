@@ -510,6 +510,27 @@ Pasif karşı tarafta borçlandırma butonları kapalı, tahsilat açıktır ve
 sebebi `AppInlineNotice` ile satırın yanında yazar — kapalı bir butonun
 neden kapalı olduğu ekranda görünmezse kullanıcı hatayı kendinde arar.
 
+## Profil ön ayarlı ana gezinme ve Kasa ekranı
+
+Ana gezinme dört hedefi korur. Üçüncü hedef işletme profilinde `Kasa`
+(`point_of_sale`), kişisel profilde `Bütçeler` (`donut_small`) olur; yerinden
+inen hedef `Diğer` listesinde aynı görünür metin ve vektör ikonla yer alır.
+Compact görünümde çentikli alt çubuk, medium/expanded görünümde gezinme rayı
+aynı hedef modelini okur. Seçili durum ikon dolgusu, yazı kalınlığı ve semantic
+`selected` ile birlikte anlatılır; yalnız renge bırakılmaz.
+
+`Kasa` sayfası iki metin etiketli alt sekmedir: `Gün sonu` ve
+`POS tahsilatları`. Gün sonunda beklenen/sayılan/fark, POS tarafında
+brüt/komisyon/net ayrı bilgi hiyerarşileridir. Durumlar `AppStatusChip` içinde
+`Yolda`, `Gecikti` veya `Hesaba geçti` metni ve ikonuyla gösterilir. Sayım farkı
+ve hesaba geçiş finansal sonuç doğurduğu için görünür onay ister; birincil form
+eylemleri gönderim sırasında devre dışıdır. Yeni renk, boşluk, yarıçap veya
+tipografi token'ı eklenmemiştir.
+
+Ekranlar 2.0× metin ölçeğinde iki alt sekmeyle test edilir. Alt gezinme/ray
+hedefleri Material'ın en az 48 dp dokunma alanını, görünür etiketi ve ekran
+okuyucu anlamını korur; sabit genişlikli özel bir mobil yerleşim eklenmez.
+
 ## Erişilebilirlik kuralları
 
 1. **Hiçbir bilgi yalnız renkle taşınmaz.** Her durum ikon veya metinle de
@@ -590,6 +611,8 @@ görünürdür; yeni tasarım token'ı eklenmemiştir.
 | Kapsam anahtarı ve kapsam çipi (üç konum, onay işareti, 2.0×, erişilebilirlik) | `test/core/widgets/app_scope_selector_test.dart` |
 | Üç sayılı hero: tutarlılık, etiketin yönü, 2.0× taşma, `kâr` yasağı | `test/features/dashboard/dashboard_hero_test.dart` |
 | Türkçe Material metinleri | `test/widget_test.dart` |
+| Profil ön ayarlı dört ana hedef ve karşı hedefin `Diğer` erişimi | `test/widget_test.dart` |
+| Kasa/POS 2.0× metin, dokunma hedefi, ad ve kontrast | `test/features/cash/cash_pos_feature_test.dart` |
 | Ham renk / ölçek dışı boşluk / doğrudan genişlik karşılaştırması | `test/architecture/design_tokens_test.dart` |
 | Dokunma hedefi, adlandırılmış hedef, metin kontrastı, 2.0× taşma | `test/helpers/accessibility.dart` + ekran testleri |
 

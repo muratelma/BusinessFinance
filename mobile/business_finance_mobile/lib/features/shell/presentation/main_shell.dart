@@ -6,12 +6,17 @@ import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_content_width.dart';
+import '../../../core/presentation/scope_controller.dart';
 import '../../activities/presentation/quick_add_navigation.dart';
 
 class MainShell extends StatelessWidget {
-  const MainShell({required this.navigationShell, super.key});
+  const MainShell({
+    required this.navigationShell,
+    super.key,
+    this.scopeController,
+  });
 
-  static const _destinations = [
+  static const _leadingDestinations = [
     _ShellDestination(
       label: 'Özet',
       icon: Icons.space_dashboard_outlined,
@@ -22,19 +27,34 @@ class MainShell extends StatelessWidget {
       icon: Icons.receipt_long_outlined,
       selectedIcon: Icons.receipt_long,
     ),
-    _ShellDestination(
-      label: 'Bütçeler',
-      icon: Icons.donut_small_outlined,
-      selectedIcon: Icons.donut_small,
-    ),
-    _ShellDestination(
-      label: 'Diğer',
-      icon: Icons.more_horiz,
-      selectedIcon: Icons.more,
-    ),
   ];
 
+  static const _budgetsDestination = _ShellDestination(
+    label: 'Bütçeler',
+    icon: Icons.donut_small_outlined,
+    selectedIcon: Icons.donut_small,
+  );
+
+  static const _cashDestination = _ShellDestination(
+    label: 'Kasa',
+    icon: Icons.point_of_sale_outlined,
+    selectedIcon: Icons.point_of_sale,
+  );
+
+  static const _moreDestination = _ShellDestination(
+    label: 'Diğer',
+    icon: Icons.more_horiz,
+    selectedIcon: Icons.more,
+  );
+
   final StatefulNavigationShell navigationShell;
+  final ScopeController? scopeController;
+
+  List<_ShellDestination> _destinations(bool hasBusiness) => [
+    ..._leadingDestinations,
+    hasBusiness ? _cashDestination : _budgetsDestination,
+    _moreDestination,
+  ];
 
   void _selectDestination(int index) {
     navigationShell.goBranch(
@@ -45,18 +65,40 @@ class MainShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final controller = scopeController;
+    if (controller == null) return _buildForProfile(context, false);
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) => _buildForProfile(context, controller.isVisible),
+    );
+  }
+
+  Widget _buildForProfile(BuildContext context, bool hasBusiness) {
+    final destinations = _destinations(hasBusiness);
     // Üç kademe: telefon dikeyde alt gezinme çubuğu, telefon yatay/küçük
     // tablette ikon rayı, geniş tablette etiketleri açık genişletilmiş ray.
     // Genişletilmiş ray dar ekranda içeriğe ayrılan yeri yiyeceği için yalnız
     // `expanded` sınıfında açılır.
     return switch (context.windowSize) {
-      AppWindowSize.compact => _buildCompact(context),
-      AppWindowSize.medium => _buildWithRail(context, extended: false),
-      AppWindowSize.expanded => _buildWithRail(context, extended: true),
+      AppWindowSize.compact => _buildCompact(context, destinations),
+      AppWindowSize.medium => _buildWithRail(
+        context,
+        destinations,
+        extended: false,
+      ),
+      AppWindowSize.expanded => _buildWithRail(
+        context,
+        destinations,
+        extended: true,
+      ),
     };
   }
 
-  Widget _buildWithRail(BuildContext context, {required bool extended}) {
+  Widget _buildWithRail(
+    BuildContext context,
+    List<_ShellDestination> destinations, {
+    required bool extended,
+  }) {
     return Scaffold(
       body: SafeArea(
         child: Row(
@@ -86,7 +128,7 @@ class MainShell extends StatelessWidget {
                       ),
               ),
               destinations: [
-                for (final destination in _destinations)
+                for (final destination in destinations)
                   NavigationRailDestination(
                     icon: Icon(destination.icon),
                     selectedIcon: Icon(destination.selectedIcon),
@@ -102,7 +144,10 @@ class MainShell extends StatelessWidget {
     );
   }
 
-  Widget _buildCompact(BuildContext context) {
+  Widget _buildCompact(
+    BuildContext context,
+    List<_ShellDestination> destinations,
+  ) {
     // Başlık sayfanın kendisinden gelir: shell de bir AppBar çizseydi
     // "İşlemler" gibi başlıklar ekranda iki kez görünürdü.
     return Scaffold(
@@ -118,7 +163,7 @@ class MainShell extends StatelessWidget {
         child: const Icon(Icons.add),
       ),
       bottomNavigationBar: _NotchedNavigationBar(
-        destinations: _destinations,
+        destinations: destinations,
         currentIndex: navigationShell.currentIndex,
         onSelected: _selectDestination,
       ),

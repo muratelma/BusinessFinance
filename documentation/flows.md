@@ -55,6 +55,55 @@ hiç kategorisi olmayan kullanıcıya bir kez uygulanır.
 kapsam boyutunu gösterip göstermeyeceğini söyler; `PUT /api/v1/profile` cevabı
 değiştirir ve yalnız arayüzü etkiler — kategoriler olduğu gibi kalır.
 
+## Profil ön ayarlı ana gezinme
+
+```text
+hasBusiness = true   -> Özet · İşlemler · Kasa      · Diğer
+                         Diğer -> Bütçeler
+
+hasBusiness = false  -> Özet · İşlemler · Bütçeler · Diğer
+                         Diğer -> Kasa
+```
+
+Üçüncü dal aynı shell geri yığınını korur; yalnız etiketi, ikonu ve gösterdiği
+ekran profil cevabına göre değişir. Bu bir yetki veya özellik bayrağı değildir.
+Profil cevabı sonradan değişirse ana hedef ile `Diğer` altındaki hedef yer
+değiştirir; ikisi de erişilebilir kalır (ADR 0013 ve ADR 0015).
+
+## Gün sonu kasa sayımı
+
+```text
+Kasa -> Gün sonu -> nakit hesap seç
+     -> GET /api/v1/cash-counts/today?accountId=...
+     -> beklenen bakiye sunucudan gelir
+     -> sayılan tutarı gir -> POST /api/v1/cash-counts
+     -> fark yalnız gösterilir; bakiye/rapor değişmez
+     -> kullanıcı "Farkı kaydet" der ve kategori seçer
+     -> POST /api/v1/cash-counts/{id}/adjustment
+     -> tek gelir/gider kaydı doğar
+```
+
+İstemci beklenen tutarı veya farkı hesaplamaz. Aynı gün ikinci sayım öncekini
+iptal eder; geçmiş gözlem silinmez. Sayım tuttuysa düzeltme eylemi yoktur.
+
+## POS tahsilatı ve hesaba geçiş
+
+```text
+Kasa -> POS tahsilatları -> Tahsilat ekle
+     -> banka hesabı + gelir kategorisi + brüt + tarih/vade
+     -> komisyon: yok | tutar | oran (yalnız biri)
+     -> POST /api/v1/pos-settlements
+     -> brüt gelir ve komisyon gideri tanınır; hesap değişmez
+
+Yolda satırına dokun -> görünür onay
+     -> POST /api/v1/pos-settlements/{id}/transfer
+     -> hedef hesap net kadar artar; gelir/gider yeniden yazılmaz
+```
+
+`Yolda` toplamı net tutardır ve liste tarih aralığından bağımsızdır. POS hedefi
+yalnız banka hesabıdır; kasa hesabı seçilemez. Ekranda brüt, komisyon ve net
+ayrı okunur.
+
 ## Giriş ve session oluşturma
 
 ```text

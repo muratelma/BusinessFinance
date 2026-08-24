@@ -379,6 +379,17 @@ söylenir: doğrulama grafiği kuru olarak kurar, kullanıcı restore'a basmadan
 | `PosSettlementEndpointTests.PosSale_RecognizesOnTheSaleDay_AndOnlyMovesCashWhenItTransfers` (yeni, API) | **Grubun ölçütü**: tahsilat günü gelir/gider yazılıyor ve hesap kıpırdamıyor; geçiş günü hesap net kadar artıyor ve rapora hiçbir şey eklenmiyor; yoldaki toplam sıfırlanıyor; tekrarlanan geçiş idempotent; yabancı kullanıcı sıfır görüyor ve yazamıyor |
 | `PosSettlementEndpointTests.Create_RejectsCommissionSentAsBothAmountAndRate` (yeni, API) | Komisyon ya tutar ya oran; iki gerçek arasında sunucu seçim yapmıyor |
 | `PosSettlementEndpointTests.Create_RejectsACashAccountAsTheDestination` (yeni, API) | POS parası bankaya geçiyor, tezgâhın çekmecesine değil |
+| `cash_pos_feature_test.dart` — kasa repository/controller (yeni, Flutter) | Para string olarak korunuyor; sayım yalnız `cashRevision` yükseltiyor, farkın açık onayı feed/dashboard/bütçe/hesap/kasa hedeflerini bir kez yeniliyor |
+| `cash_pos_feature_test.dart` — POS repository/controller (yeni, Flutter) | Brüt, komisyon ve net ayrı okunuyor; tahsilat dashboard/bütçe/kasayı, geçiş dashboard/hesap/kasayı yeniliyor ve feed Grup 8'e kadar bilerek değişmiyor |
+| `cash_pos_feature_test.dart` — Kasa ekranı (yeni, Flutter) | `Gün sonu` ve `POS tahsilatları` 2.0× metin ölçeğinde taşmıyor; Android dokunma hedefi, adlandırma ve metin kontrastı kapıları geçiyor |
+
+## Aşama 04 Grup 5 — profil ön ayarlı ana sekmeler
+
+| Test | Neyi kanıtlıyor |
+|---|---|
+| `widget_test.dart` — işletme profili (genişletildi) | Dört ana hedefte üçüncü sekme `Kasa`; gerçek Kasa içeriğine açılıyor, `Bütçeler` görünmüyor ve `Diğer` altındaki kapısından açılabiliyor |
+| `widget_test.dart` — kişisel profil (genişletildi) | Dört ana hedefte üçüncü sekme `Bütçeler`; gerçek bütçe içeriğine açılıyor, `Kasa` görünmüyor ve `Diğer` altındaki kapısından açılabiliyor |
+| `more_page_test.dart` (güncellendi) | Kişisel ön ayarda `Kasa` satırı, `Kredi kartlarım` adlandırması, tek kart/ayırıcı yapısı ve erişilebilirlik kapısı korunuyor |
 
 ## Bilinen test boşlukları
 

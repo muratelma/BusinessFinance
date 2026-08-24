@@ -24,6 +24,7 @@ class MorePage extends StatelessWidget {
   }
 
   Widget _body(BuildContext context) {
+    final hasBusiness = context.watch<ScopeController?>()?.isVisible ?? false;
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.medium),
       children: [
@@ -48,9 +49,23 @@ class MorePage extends StatelessWidget {
             ),
             _MenuItem(
               icon: Icons.credit_card_outlined,
-              title: 'Kredi kartları',
+              // Borçlandığınız kart. Tahsil ettiğiniz POS ayrı bir şeydir ve
+              // `Kasa` altındadır (ADR 0015).
+              title: 'Kredi kartlarım',
               onTap: () => context.push('/more/cards'),
             ),
+            if (hasBusiness)
+              _MenuItem(
+                icon: Icons.donut_small_outlined,
+                title: 'Bütçeler',
+                onTap: () => context.push('/more/budgets'),
+              )
+            else
+              _MenuItem(
+                icon: Icons.point_of_sale_outlined,
+                title: 'Kasa',
+                onTap: () => context.push('/more/cash'),
+              ),
             _MenuItem(
               icon: Icons.category_outlined,
               title: 'Kategoriler',

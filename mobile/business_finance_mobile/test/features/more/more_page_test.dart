@@ -17,7 +17,8 @@ void main() {
   /// için, sonraki üçü kurmak için.
   const expectedOrder = [
     'Hesaplar ve transferler',
-    'Kredi kartları',
+    'Kredi kartlarım',
+    'Kasa',
     'Kategoriler',
     // Cari hesap ile taksitli sözleşme kardeş kapılar ve yan yana duruyorlar:
     // biri yürüyen bir hesap, diğeri vadesi belli bir plan.
@@ -29,7 +30,7 @@ void main() {
     'Veri ve yedek',
   ];
 
-  testWidgets('menü dokuz kutuyu kararlaştırılan sırayla gösterir', (
+  testWidgets('kişisel profilde kasa Diğer altında erişilebilir kalır', (
     tester,
   ) async {
     await tester.pumpWidget(_host());
@@ -87,6 +88,8 @@ Widget _host() => MaterialApp.router(
       for (final path in [
         '/more/accounts',
         '/more/cards',
+        '/more/cash',
+        '/more/budgets',
         '/more/categories',
         '/more/counterparties',
         '/more/obligations',

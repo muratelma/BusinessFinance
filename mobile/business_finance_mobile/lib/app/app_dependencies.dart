@@ -16,9 +16,11 @@ import '../features/activities/data/activity_repository.dart';
 import '../features/transactions/data/transaction_repository.dart';
 import '../features/cards/data/finance_repository.dart';
 import '../features/planning/data/planning_repository.dart';
+import '../features/pos/data/pos_repository.dart';
 import '../features/profile/data/profile_repository.dart';
 import '../features/profile/data/scope_preferences.dart';
 import '../features/data_tools/data/data_tools_repository.dart';
+import '../features/cash/data/cash_repository.dart';
 import '../features/counterparties/data/counterparty_repository.dart';
 import '../features/debts/data/debt_repository.dart';
 import '../features/goals/data/goal_repository.dart';
@@ -49,6 +51,8 @@ class AppDependencies {
     this.counterpartyRepository,
     this.goalRepository,
     this.obligationRepository,
+    this.cashRepository,
+    this.posRepository,
     this.receiptRepository,
     this.receiptImageSource,
     this.receiptImageNormalizer,
@@ -85,6 +89,8 @@ class AppDependencies {
     final counterpartyRepository = CounterpartyRepository(apiClient);
     final goalRepository = GoalRepository(apiClient);
     final obligationRepository = ObligationRepository(apiClient);
+    final cashRepository = CashRepository(apiClient);
+    final posRepository = PosRepository(apiClient);
     final receiptRepository = ReceiptRepository(apiClient);
     final profileRepository = ProfileRepository(apiClient);
     // Kapsam anahtarı cihazdan, onboarding cevabı sunucudan okunur; ikisi de
@@ -114,6 +120,8 @@ class AppDependencies {
       counterpartyRepository,
       goalRepository,
       obligationRepository,
+      cashRepository,
+      posRepository,
       receiptRepository,
       ImagePickerReceiptImageSource(),
       const ReceiptImageNormalizer(),
@@ -144,6 +152,8 @@ class AppDependencies {
   final CounterpartyRepositoryContract counterpartyRepository;
   final GoalRepositoryContract goalRepository;
   final ObligationRepositoryContract obligationRepository;
+  final CashRepositoryContract cashRepository;
+  final PosRepositoryContract posRepository;
   final ReceiptRepositoryContract receiptRepository;
 
   /// Fiş çekme akışının cihaz tarafı. Controller kısa ömürlüdür ve akış

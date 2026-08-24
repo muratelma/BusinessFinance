@@ -44,6 +44,11 @@ import '../../features/debts/presentation/debts_page.dart';
 import '../../features/debts/presentation/lending_prefill.dart';
 import '../../features/goals/data/goal_repository.dart';
 import '../../features/goals/presentation/goals_page.dart';
+import '../../features/cash/data/cash_repository.dart';
+import '../../features/cash/presentation/cash_controller.dart';
+import '../../features/cash/presentation/cash_page.dart';
+import '../../features/pos/data/pos_repository.dart';
+import '../../features/pos/presentation/pos_controller.dart';
 import '../../features/obligations/data/obligation_repository.dart';
 import '../../features/obligations/presentation/obligation_controller.dart';
 import '../../features/obligations/presentation/obligation_form_page.dart';
@@ -86,6 +91,8 @@ GoRouter createAppRouter({
   CounterpartyRepositoryContract? counterpartyRepository,
   GoalRepositoryContract? goalRepository,
   ObligationRepositoryContract? obligationRepository,
+  CashRepositoryContract? cashRepository,
+  PosRepositoryContract? posRepository,
   ReceiptRepositoryContract? receiptRepository,
   ReceiptImageSourceContract? receiptImageSource,
   ReceiptImageNormalizerContract? receiptImageNormalizer,
@@ -135,8 +142,10 @@ GoRouter createAppRouter({
         ),
       ),
       StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) =>
-            MainShell(navigationShell: navigationShell),
+        builder: (context, state, navigationShell) => MainShell(
+          navigationShell: navigationShell,
+          scopeController: scopeController,
+        ),
         branches: [
           StatefulShellBranch(
             routes: [
@@ -373,9 +382,13 @@ GoRouter createAppRouter({
             routes: [
               GoRoute(
                 path: '/budgets',
-                pageBuilder: _sessionPageBuilder(
-                  BudgetsPage(
-                    repository: budgetRepository,
+                pageBuilder: (context, state) => _sessionPage(
+                  state,
+                  _AdaptiveThirdDestination(
+                    scopeController: scopeController,
+                    budgetRepository: budgetRepository,
+                    cashRepository: cashRepository,
+                    posRepository: posRepository,
                     changes: financialDataChanges,
                   ),
                   authController,
@@ -536,6 +549,36 @@ GoRouter createAppRouter({
         ),
       ),
       GoRoute(
+        path: '/more/budgets',
+        pageBuilder: _sessionPageBuilder(
+          BudgetsPage(
+            repository: budgetRepository,
+            changes: financialDataChanges,
+          ),
+          authController,
+        ),
+      ),
+      GoRoute(
+        // `Kasa` ekranı: gün sonu sayımı ve POS tahsilatları. Aşama 04 Grup
+        // 5'te işletme profilinde ana sekmeye çıkacak; kişisel profilde
+        // `Diğer` altında kalacak. İki yerleşimde de aynı rota okunur.
+        path: '/more/cash',
+        pageBuilder: (context, state) => _sessionPage(
+          state,
+          cashRepository == null || posRepository == null
+              ? const Scaffold(
+                  body: AppErrorView(message: 'Kasa servisi yapılandırılmadı.'),
+                )
+              : _CashPageHost(
+                  cashRepository: cashRepository,
+                  posRepository: posRepository,
+                  changes: financialDataChanges,
+                  scopeController: scopeController,
+                ),
+          authController,
+        ),
+      ),
+      GoRoute(
         path: '/more/goals',
         pageBuilder: (context, state) => _sessionPage(
           state,
@@ -584,6 +627,110 @@ GoRouter createAppRouter({
         ),
       ),
     ],
+  );
+}
+
+/// Üçüncü ana hedefin ön ayarı profil cevabından gelir; özellik kapatılmaz.
+/// Yerinden inen ekran `Diğer` altında kendi doğrudan rotasını korur.
+class _AdaptiveThirdDestination extends StatelessWidget {
+  const _AdaptiveThirdDestination({
+    required this.scopeController,
+    required this.budgetRepository,
+    required this.cashRepository,
+    required this.posRepository,
+    required this.changes,
+  });
+
+  final ScopeController? scopeController;
+  final BudgetRepositoryContract? budgetRepository;
+  final CashRepositoryContract? cashRepository;
+  final PosRepositoryContract? posRepository;
+  final FinancialDataChanges? changes;
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = scopeController;
+    if (controller == null) return _budgets();
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) => controller.isVisible ? _cash() : _budgets(),
+    );
+  }
+
+  Widget _budgets() => BudgetsPage(
+    key: const ValueKey('primary-budgets'),
+    repository: budgetRepository,
+    changes: changes,
+  );
+
+  Widget _cash() {
+    final cashRepository = this.cashRepository;
+    final posRepository = this.posRepository;
+    if (cashRepository == null || posRepository == null) {
+      return const Scaffold(
+        key: ValueKey('primary-cash-unavailable'),
+        body: AppErrorView(message: 'Kasa servisi yapılandırılmadı.'),
+      );
+    }
+    return _CashPageHost(
+      key: const ValueKey('primary-cash'),
+      cashRepository: cashRepository,
+      posRepository: posRepository,
+      changes: changes,
+      scopeController: scopeController,
+    );
+  }
+}
+
+/// Controller'ları sayfanın yeniden çizimlerinden daha uzun yaşatır.
+class _CashPageHost extends StatefulWidget {
+  const _CashPageHost({
+    required this.cashRepository,
+    required this.posRepository,
+    required this.changes,
+    required this.scopeController,
+    super.key,
+  });
+
+  final CashRepositoryContract cashRepository;
+  final PosRepositoryContract posRepository;
+  final FinancialDataChanges? changes;
+  final ScopeController? scopeController;
+
+  @override
+  State<_CashPageHost> createState() => _CashPageHostState();
+}
+
+class _CashPageHostState extends State<_CashPageHost> {
+  late final CashCountController _cashController;
+  late final PosController _posController;
+
+  @override
+  void initState() {
+    super.initState();
+    _cashController = CashCountController(
+      widget.cashRepository,
+      changes: widget.changes,
+    );
+    _posController = PosController(
+      widget.posRepository,
+      changes: widget.changes,
+    );
+  }
+
+  @override
+  void dispose() {
+    _cashController.dispose();
+    _posController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => CashPage(
+    cashController: _cashController,
+    posController: _posController,
+    scopeController: widget.scopeController,
+    ownsControllers: false,
   );
 }
 

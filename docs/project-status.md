@@ -47,10 +47,12 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   borç tarafı `Kredi kartlarım`, tahsilat tarafı `POS tahsilatları`, yoldaki
   para `AccountType` değil projection, kullanılabilir bakiye ile net varlığın
   farkı tam olarak yoldaki tutar, üçüncü ana sekme ön ayara göre değişiyor.
-  **Grup 2, 3 ve 4 tamamlandı**: iki domain tipi yazıldı ve kalıcılığa girdi,
+  **Grup 2, 3, 4, 5 ve 7 tamamlandı**: iki domain tipi yazıldı ve kalıcılığa girdi,
   hesap bakiyesi ile net varlık ayrıldı, Özet ekranına `Yolda` satırı eklendi ve
-  POS satışı gelir/gider raporunda tanınıyor. Sırada **Grup 5 — ana sekme
-  yapısı** var
+  POS satışı gelir/gider raporunda tanınıyor. Kasa/POS yazma uçları ve Flutter
+  ekranları açıldı; üçüncü ana sekme işletmede `Kasa`, kişiselde `Bütçeler`
+  oluyor ve yerinden inen ekran `Diğer` altında erişilebilir kalıyor. Sırada
+  **Grup 6 — `İşlem ekle` menüsünün niyet eksenine taşınması** var
 - Kalan üç aşamanın belgesi de yazılı, durumları `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
@@ -865,6 +867,37 @@ Flutter tarafına dokunulmadı; bu adım yalnız sunucu raporlarıdır.
 Grubun ikinci yarısı Flutter ekranlarıdır (`features/cash/`, POS tahsilatı) ve
 sıradaki iştir.
 
+## 24 Ağustos 2026 — Aşama 04, Grup 7 (2/2) ve Grup 5
+
+- Kasa/POS uçları açık Dart modelleri, repository ve controller katmanlarıyla
+  Flutter'a bağlandı. `Kasa` sayfasında `Gün sonu` ve `POS tahsilatları` alt
+  sekmeleri var; sayım farkı istemcide hesaplanmıyor, POS brüt/komisyon/neti
+  ayrı okunuyor
+- `FinancialDataChanges` iş anlamına göre ayrıldı: sayım yalnız Kasa'yı,
+  farkın açık onayı finansal yüzeyleri, POS tanıma ile geçiş farklı hedefleri
+  yeniliyor. Feed, yeni kaynakları Grup 8'de öğrenene kadar yükseltilmiyor
+- Controller'lar shell profil/kapsam değişimlerinde yeniden çizilen sayfadan
+  daha uzun yaşıyor ve tek yerde dispose ediliyor; yeniden çizim ağ isteği ve
+  listener sızıntısı üretmiyor
+- Ana shell dört hedefi koruyor. Üçüncü hedef işletme profilinde `Kasa`, kişisel
+  profilde `Bütçeler`; yerinden inen hedef `Diğer` altında. Profil cevabı
+  sonradan değişince ikisi birlikte yer değiştiriyor, özellik kapanmıyor
+- `Kredi kartları` arayüz adı ADR 0015 uyarınca `Kredi kartlarım` oldu;
+  tahsilat tarafı yalnız `POS tahsilatları` adını kullanıyor
+- Yeni Flutter testleri para string hassasiyetini, kasa/POS mutation hedeflerini,
+  iki profilde gezinmeyi ve Kasa'nın iki alt ekranını 2.0× metin ölçeğinde
+  erişilebilirlik kapısıyla doğruluyor
+
+| Kontrol | Sonuç |
+|---|---|
+| Flutter analyze | No issues found |
+| Flutter format | Temiz |
+| Flutter test | **742 geçti** |
+| Flutter debug APK | Oluşturuldu (`API_BASE_URL=http://10.0.2.2:5284`) |
+
+Sıradaki görev Aşama 04 Grup 6'dır: `İşlem ekle` menüsünü dört niyet başlığına
+taşımak.
+
 ## Son oturum kapanışı
 
 - Yapılan değişiklik: Aşama 03 **Grup 1 tamamlandı**; yükümlülüğün tanıyan
@@ -1135,21 +1168,10 @@ eksiksiz çıktı; iki arayüz boşluğu bulundu ve kapatıldı.
 
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: Aşama 03 **Grup 7 tamamlandı**; yedek şeması v8'e
-  yükseltildi, yükümlülük/settlement, cari vadesi ve plan tekrar sınırları
-  kayıpsız geri yükleniyor
-- Geçen kontroller: backend build + format + **870 test** (gerçek SQL dâhil),
-  1 canlı Gemini testi atlandı; Flutter analyze + format + **728 test** + Android
-  debug build geçti
-- Ayrıca kapanış denetiminin bulduğu iki arayüz boşluğu kapatıldı: yükümlülüğün
-  elle girişi (yön seçimiyle) ve plan formunun bitiş tarihi alanı
-- Geçen kontroller: backend **870 test** (gerçek SQL dâhil); Flutter analyze +
-  format + **732 test** + Android debug build geçti
-- Aşama 03 kullanıcı onayıyla **kapatıldı** ve belgesi arşive taşındı; Aşama 04
-  aynı onayla açıldı, karar kapısı ADR 0015 ile kapatıldı ve **Grup 2 ile
-  Grup 3** (kasa sayımının ve POS tahsilatının domain'i) tamamlandı
-- Geçen kontroller: backend build + format + **904 test** (gerçek SQL dâhil),
-  1 canlı Gemini testi atlandı
-- Sıradaki görev: Aşama 04 Grup 5 — ana sekme yapısı. ADR 0015'in kararı:
-  üçüncü sekme onboarding ön ayarına göre değişir (işletmede `Kasa`, kişiselde
-  `Bütçeler`) ve yerini veren sekme `Diğer` altına iner, kaybolmaz
+- Yapılan değişiklik: Aşama 04 **Grup 7 ve Grup 5 tamamlandı**; kasa/POS
+  Flutter ekranları yazma uçlarına bağlandı ve üçüncü ana hedef profil ön
+  ayarına göre `Kasa`/`Bütçeler` olarak yer değiştiriyor
+- Geçen kontroller: Flutter analyze + format + **742 test** + Android debug
+  build
+- Sıradaki görev: Aşama 04 Grup 6 — `İşlem ekle` menüsünü para girdi / para
+  çıktı / belge okut / plan kur niyet eksenine taşımak

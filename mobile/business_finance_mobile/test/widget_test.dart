@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:business_finance_mobile/app/business_finance_app.dart';
 import 'package:business_finance_mobile/core/localization/app_locale.dart';
 import 'package:business_finance_mobile/core/routing/app_router.dart';
+import 'package:business_finance_mobile/core/models/transaction_scope.dart';
+import 'package:business_finance_mobile/core/presentation/scope_controller.dart';
 import 'package:business_finance_mobile/core/theme/app_breakpoints.dart';
 import 'package:business_finance_mobile/core/widgets/app_content_width.dart';
 import 'package:business_finance_mobile/features/transactions/data/transaction_models.dart';
@@ -60,6 +62,59 @@ void main() {
     // başlık çizmediği için "Özet" hem rayda hem sayfa başlığında görünür.
     expect(find.text('Özet'), findsWidgets);
     expect(find.text('Diğer'), findsOneWidget);
+  });
+
+  testWidgets(
+    'işletme profilinde üçüncü sekme Kasa, Bütçeler Diğer altındadır',
+    (tester) async {
+      final scopeController = ScopeController(
+        store: _ShellScopeStore(hasBusiness: true),
+      );
+      await scopeController.ensureLoaded();
+
+      await tester.pumpWidget(_testApp(scopeController: scopeController));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kasa'), findsOneWidget);
+      expect(find.text('Bütçeler'), findsNothing);
+
+      await tester.tap(find.text('Kasa'));
+      await tester.pumpAndSettle();
+      expect(find.text('Kasa servisi yapılandırılmadı.'), findsOneWidget);
+
+      await tester.tap(find.text('Diğer'));
+      await tester.pumpAndSettle();
+      expect(find.text('Bütçeler'), findsOneWidget);
+      await tester.tap(find.text('Bütçeler'));
+      await tester.pumpAndSettle();
+      expect(find.text('Bütçe servisi yapılandırılmadı.'), findsOneWidget);
+    },
+  );
+
+  testWidgets('kişisel profilde üçüncü sekme Bütçeler, Kasa Diğer altındadır', (
+    tester,
+  ) async {
+    final scopeController = ScopeController(
+      store: _ShellScopeStore(hasBusiness: false),
+    );
+    await scopeController.ensureLoaded();
+
+    await tester.pumpWidget(_testApp(scopeController: scopeController));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bütçeler'), findsOneWidget);
+    expect(find.text('Kasa'), findsNothing);
+
+    await tester.tap(find.text('Bütçeler'));
+    await tester.pumpAndSettle();
+    expect(find.text('Bütçe servisi yapılandırılmadı.'), findsOneWidget);
+
+    await tester.tap(find.text('Diğer'));
+    await tester.pumpAndSettle();
+    expect(find.text('Kasa'), findsOneWidget);
+    await tester.tap(find.text('Kasa'));
+    await tester.pumpAndSettle();
+    expect(find.text('Kasa servisi yapılandırılmadı.'), findsOneWidget);
   });
 
   group('shell üç pencere sınıfında doğru gezinmeyi kurar', () {
@@ -157,14 +212,21 @@ void main() {
   });
 }
 
-Widget _testApp() => ChangeNotifierProvider.value(
-  value: testDashboardViewModel(),
-  child: BusinessFinanceApp(
+Widget _testApp({ScopeController? scopeController}) {
+  Widget app = BusinessFinanceApp(
     router: createAppRouter(
       transactionRepository: _ShellTransactionRepository(),
+      scopeController: scopeController,
     ),
-  ),
-);
+  );
+  if (scopeController != null) {
+    app = ChangeNotifierProvider.value(value: scopeController, child: app);
+  }
+  return ChangeNotifierProvider.value(
+    value: testDashboardViewModel(),
+    child: app,
+  );
+}
 
 Finder _globalTransactionAction() => find.byWidgetPredicate(
   (widget) =>
@@ -201,4 +263,29 @@ class _ShellTransactionRepository implements TransactionRepositoryContract {
   @override
   Future<List<TransactionChoice>> listCategories(TransactionKind kind) async =>
       const [];
+}
+
+class _ShellScopeStore implements ScopeStore {
+  _ShellScopeStore({required this.hasBusiness});
+
+  bool hasBusiness;
+  TransactionScope? scope;
+
+  @override
+  Future<void> clear() async {
+    hasBusiness = false;
+    scope = null;
+  }
+
+  @override
+  Future<bool?> readHasBusiness() async => hasBusiness;
+
+  @override
+  Future<TransactionScope?> readScope() async => scope;
+
+  @override
+  Future<void> writeHasBusiness(bool value) async => hasBusiness = value;
+
+  @override
+  Future<void> writeScope(TransactionScope? value) async => scope = value;
 }
