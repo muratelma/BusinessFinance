@@ -516,6 +516,28 @@ public sealed class SqlServerPersistenceIntegrationTests
         Assert.Equal(3, await read.Counterparties.CountAsync(x => x.UserId == restoredOwner.Id));
         Assert.Equal(2, await read.CounterpartyCharges.CountAsync(x => x.UserId == restoredOwner.Id));
         Assert.Equal(2, await read.CounterpartyPayments.CountAsync(x => x.UserId == restoredOwner.Id));
+        // Yükümlülük ve onu kapatan nakit hareketi gerçek SQL üzerinde de
+        // kayıpsız dönüyor. Kapanış, sahiplik anahtarıyla yükümlülüğe bire bir
+        // bağlıdır; yedek onu taşımasaydı geri yüklenen hesapta ödenmiş bir
+        // fatura yeniden açık borç olarak görünürdü.
+        var restoredObligations = await read.Obligations.AsNoTracking()
+            .Include(x => x.Settlement)
+            .Where(x => x.UserId == restoredOwner.Id).ToArrayAsync();
+        Assert.Equal(2, restoredObligations.Length);
+        Assert.Single(restoredObligations, x => x.Status == ObligationStatus.Open);
+        var restoredSettled = Assert.Single(
+            restoredObligations, x => x.Status == ObligationStatus.Settled);
+        Assert.NotNull(restoredSettled.Settlement);
+        Assert.Equal(
+            1, await read.ObligationSettlements.CountAsync(x => x.UserId == restoredOwner.Id));
+        // Cari vadesi ve planın bitiş sınırı da dosyadan geliyor.
+        Assert.Single(
+            await read.CounterpartyCharges
+                .Where(x => x.UserId == restoredOwner.Id && x.DueDate != null).ToArrayAsync());
+        var restoredPlan = await read.RecurringTransactions.AsNoTracking()
+            .SingleAsync(x => x.UserId == restoredOwner.Id);
+        Assert.Equal(12, restoredPlan.OccurrenceLimit);
+        Assert.Equal(1, restoredPlan.GeneratedOccurrenceCount);
         var restoredAttachment = Assert.Single(
             await read.FinancialAttachments.Where(x => x.UserId == restoredOwner.Id).ToArrayAsync());
         await using var restoredContent = await attachmentStore.OpenReadAsync(

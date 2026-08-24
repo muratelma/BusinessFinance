@@ -205,13 +205,29 @@ Uygulananlar:
 - Karşı taraf bakiyesi açık yükümlülüğü bir kez içeriyor ve settlement ile
   düşürüyor. Tekrarlayan plan formu toplam tekrar sınırını açıkça taşıyor.
 
-### Grup 7 — Yedek v8 ve sözleşme belgeleri
+### Grup 7 — Yedek v8 ve sözleşme belgeleri — **Tamamlandı**
 
 - Şema **v8** yazar, yalnız v8 okur.
 - `documentation/financial-activity-api-contract.md` yükümlülükle genişletilir.
 - `documentation/receipt-analysis-api-contract.md`'nin "istemci ne yapar"
   tablosu yeni davranışa göre düzeltilir.
 - Ölçüt: yükümlülükler ve plan bitiş sınırları kayıpsız geri yükleniyor.
+
+Uygulananlar:
+
+- v8 üç yeni bilgiyi taşır: `obligations`, `counterpartyCharges[].dueDate` ve
+  planın `occurrenceLimit` + `generatedOccurrenceCount` alanları. v7 dosyası
+  `restore.unsupported_version` ile reddedilir; yükümlülüğü olmayan bir dosyayı
+  yükseltmek gideri uydurulmuş bir aya ve tarafa yazmak olurdu.
+- Kapanış ayrı bir koleksiyon değil, yükümlülüğün içindeki `settlement`
+  alanıdır: bağ bire birdir ve ayrı yazılsaydı dosya sahipsiz bir ödeme
+  taşıyabilirdi. Gecikme dosyaya hiç yazılmaz, geri yüklenen vadeden türer.
+- Occurrence sayacı dosyadan kopyalanmaz; occurrence geçmişi yeniden oynanarak
+  türetilir ve dosyadaki değer yalnız doğrulama için okunur. Elle büyütülmüş
+  sayaç doğrulama adımında `restore.invalid_backup` ile düşer.
+- Sözleşme belgelerinin ikisi de Grup 4–5'te yeni davranışa göre yazılmıştı;
+  bu grupta yeniden denetlendi ve düzeltme gerekmedi. Yedek sürümünün tek
+  kaynağı `documentation/restore-runbook.md` olarak korundu.
 
 ## Zorunlu testler
 
@@ -280,14 +296,14 @@ flutter build apk --debug --dart-define=API_BASE_URL=http://10.0.2.2:5284
 
 ## Çıkış koşulları
 
-- [ ] Bütün çalışma grupları tamamlandı.
-- [ ] Backend build, test ve format kontrolleri geçti.
-- [ ] Flutter analyze, test, format ve debug build kontrolleri geçti.
-- [ ] Kullanıcı izolasyonu negatif senaryolarla kanıtlandı.
-- [ ] Fatura okutulup "ödemedim" seçildiğinde sıklık sorulmuyor; ödendiğinde
+- [x] Bütün çalışma grupları tamamlandı.
+- [x] Backend build, test ve format kontrolleri geçti.
+- [x] Flutter analyze, test, format ve debug build kontrolleri geçti.
+- [x] Kullanıcı izolasyonu negatif senaryolarla kanıtlandı.
+- [x] Fatura okutulup "ödemedim" seçildiğinde sıklık sorulmuyor; ödendiğinde
       gider ikinci kez sayılmıyor.
-- [ ] Bitiş sınırlı plan sınırı aşmıyor ve retry ikinci kayıt üretmiyor.
-- [ ] `documentation/` ve `docs/project-status.md` güncel.
+- [x] Bitiş sınırlı plan sınırı aşmıyor ve retry ikinci kayıt üretmiyor.
+- [x] `documentation/` ve `docs/project-status.md` güncel.
 - [ ] Kullanıcı Aşama 04'ü açıkça onayladı.
 
 ## Tamamlanma kaydı

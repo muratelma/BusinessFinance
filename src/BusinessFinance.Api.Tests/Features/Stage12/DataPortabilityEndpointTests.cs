@@ -60,7 +60,7 @@ public sealed class DataPortabilityEndpointTests
         using var validate = await target.PostAsync("/api/v1/backups/validate", validateForm);
         validate.EnsureSuccessStatusCode();
         var validation = await validate.Content.ReadFromJsonAsync<BackupValidationResponse>();
-        Assert.Equal(7, validation!.SchemaVersion);
+        Assert.Equal(8, validation!.SchemaVersion);
         Assert.True(validation.EntityCount >= 10);
 
         using var restoreForm = BackupForm(backup);

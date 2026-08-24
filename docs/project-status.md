@@ -897,7 +897,7 @@ açar.
 | Flutter test | **728 geçti** |
 | Android debug build | `app-debug.apk` üretildi |
 
-## Son oturum kapanışı
+## Son oturum kapanışı — Grup 6
 
 - Yapılan değişiklik: Aşama 03 **Grup 6 tamamlandı**; yükümlülük listeleme,
   idempotent ödeme/kapatma, cari vade bakiyesi ve tekrar sınırı Flutter'a bağlandı
@@ -906,3 +906,50 @@ açar.
   debug build geçti
 - Sıradaki görev: Aşama 03 Grup 7 — yedek şemasını v8'e yükseltmek ve yükümlülük
   ile tekrar sınırlarını kayıpsız geri yüklemek
+
+## 24 Ağustos 2026 — Aşama 03, Grup 7: yedek şeması v8
+
+- Yedek artık **v8** yazar ve **yalnız v8** okur. Üç yeni bilgi taşınıyor:
+  `obligations`, `counterpartyCharges[].dueDate` ve planın `occurrenceLimit` +
+  `generatedOccurrenceCount` alanları. Yükümlülüğü olmayan bir v7 dosyası
+  `restore.unsupported_version` ile reddediliyor — yükseltmek gideri uydurulmuş
+  bir aya ve tarafa yazmak olurdu
+- Yükümlülüğü kapatan nakit hareketi ayrı bir koleksiyon değil, yükümlülüğün
+  içindeki `settlement` alanı. Bağ bire bir olduğu için dosyada da öyle duruyor;
+  ayrı yazılsaydı sahipsiz bir ödeme taşınabilirdi. **Gecikme dosyaya hiç
+  yazılmıyor**, geri yüklenen vadeden türüyor
+- Occurrence sayacı dosyadan kopyalanmıyor: occurrence geçmişi yeniden oynanarak
+  türetiliyor, dosyadaki değer yalnız doğrulama için okunuyor. Elle büyütülmüş
+  sayaç, restore'a basılmadan **doğrulama adımında** `restore.invalid_backup`
+  ile düşüyor
+- Karşı taraf, kategori ve hesap bağları hedef kullanıcının kendi kayıtlarına
+  yeniden bağlanıyor; gerçek SQL round-trip'inde iki yükümlülük, bire bir bağlı
+  tek settlement, vadeli borçlandırma ve sınırlı plan kayıpsız dönüyor ve
+  başarısız restore hâlâ atomik
+- Sözleşme belgeleri (`financial-activity-api-contract.md`,
+  `receipt-analysis-api-contract.md`) Grup 4–5'te yeni davranışa göre yazılmıştı;
+  bu grupta denetlendi, düzeltme gerekmedi. Yedek sürümünün tek kaynağı
+  `documentation/restore-runbook.md` olarak korundu
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (gerçek SQL dâhil) | **870 geçti**, 1 atlandı (`GeminiLiveContractTests`) |
+| Domain testleri | **238 geçti** |
+| Flutter analyze | No issues found |
+| Flutter format | 226 dosya, değişiklik gerektirmedi |
+| Flutter test | **728 geçti** |
+| Android debug build | `app-debug.apk` üretildi |
+
+## Son oturum kapanışı
+
+- Yapılan değişiklik: Aşama 03 **Grup 7 tamamlandı**; yedek şeması v8'e
+  yükseltildi, yükümlülük/settlement, cari vadesi ve plan tekrar sınırları
+  kayıpsız geri yükleniyor
+- Geçen kontroller: backend build + format + **870 test** (gerçek SQL dâhil),
+  1 canlı Gemini testi atlandı; Flutter analyze + format + **728 test** + Android
+  debug build geçti
+- Sıradaki görev: Aşama 03'ün yedi grubu da bitti. Kalan tek adım kullanıcının
+  aşamayı kapatıp Aşama 04'ü (kasa, POS ve gezinme — ADR ile açılır) onaylaması;
+  onay gelmeden aktif aşama değişmez

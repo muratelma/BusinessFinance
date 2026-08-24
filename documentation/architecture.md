@@ -642,8 +642,8 @@ hedeflerini de yükseltir.
 
 ## Tek seferlik yükümlülük
 
-> Aşama 03, Grup 1–6 — Domain modeli, kalıcılık, kanonik planlanan projection,
-> ödenmemiş fatura ve settlement akışları uygulanmıştır.
+> Aşama 03, Grup 1–7 — Domain modeli, kalıcılık, kanonik planlanan projection,
+> ödenmemiş fatura, settlement akışları ve yedek şeması v8 uygulanmıştır.
 
 Ödenmemiş tek seferlik fatura artık tekrarlayan plan kavramına sokulmadan
 temsil edilebilir. Model ADR 0014'ün ayrımını iki ayrı kayıtla korur:
@@ -707,6 +707,16 @@ bu dosyada bulunan kolonlara** bakar, çünkü tam eşleşme bir kolon eklendiğ
 sessizce yanlışa döner ve koruma kalkardı (kapsam kolonu eklenirken tam olarak
 bu oldu). Veriyi bir hesaptan diğerine taşımanın tek yolu yedek/geri yükleme
 akışıdır (`documentation/restore-runbook.md`).
+
+Yükümlülük yedeğe kendi koleksiyonuyla girer ve onu kapatan nakit hareketi
+**ayrı bir koleksiyon değildir**: `settlement` yükümlülüğün içinde durur, çünkü
+bağ bire birdir ve ayrı yazılsaydı dosya sahipsiz bir ödeme taşıyabilirdi.
+Gecikme dosyaya yazılmaz — vade ile okuma gününden türeyen bir sonuçtur ve
+saklanan hâli dosyanın açıldığı gün yanlış olurdu. Aynı gerekçeyle tekrarlayan
+planın occurrence sayacı geri yüklerken dosyadan kopyalanmaz, occurrence
+geçmişi yeniden oynanarak türetilir; dosyadaki değer yalnız doğrulama içindir.
+Yedek şemasının **güncel sürümü ve hangi sürümleri okuduğu** tek yerde,
+`documentation/restore-runbook.md` içinde tutulur.
 
 ### Kalıcılık
 

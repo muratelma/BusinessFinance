@@ -286,6 +286,23 @@ kapanış use case'i yükümlülük davranışı açıldığında tamamlanacak.
 | `planning_feature_test` | `occurrenceLimit` ve üretilen sayaç açık DTO'da okunur; plan satırı sınır ilerlemesini gösterir |
 | `AdvancedReport_LargeFixtureStaysWithinQueryCountAndTimeBudget` (gerçek SQL) | Settlement hesap etkisi eklendikten sonra gelişmiş rapor en çok 61 sabit okuma komutunda kalır; sayı kayıt adediyle büyümez |
 
+## Aşama 03 Grup 7 — yedek v8
+
+| Test | Neyi kanıtlıyor |
+|---|---|
+| `DataPortabilityTests.BackupV8_RoundTripsObligationsDueDatesAndOccurrenceLimits` (yeni) | Açık ve kapanmış yükümlülük, kapanışın hesabı ve tutarı, karşı taraf bağının hedef kullanıcının kendi kaydına yeniden bağlanması, cari borçlandırmanın vadesi (ve vadesizin `null` kalması), planın bitiş sınırı ile üretilen sayacı kayıpsız dönüyor; gecikme dosyadan değil geri yüklenen vadeden türüyor |
+| `DataPortabilityTests.BackupBeforeObligations_IsRejectedAndWritesNothing` (yeni) | v7 dosyası `restore.unsupported_version` ile reddediliyor ve hedefe hiçbir şey yazılmıyor: o dosyada yükümlülük yok, yükseltmek gideri uydurulmuş bir aya ve tarafa yazmak olurdu |
+| `DataPortabilityTests.Backup_ValidatesAndRestoresCompleteSyntheticGraphToEmptyOwner` (genişletildi) | Yazılan sürüm v8; sentetik graf yükümlülük ve settlement'ı da içeriyor ve entity sayımı ikisini de sayıyor |
+| `SqlServerPersistenceIntegrationTests.DataPortability_RoundTripAndFailedRestoreAreAtomic` (genişletildi) | **Gerçek SQL**: geri yüklenen hesapta iki yükümlülük, bire bir bağlı tek settlement, vadeli bir borçlandırma ve sınırlı bir plan var; başarısız restore hâlâ atomik |
+| `DataPortabilityEndpointTests` (güncellendi) | Uç noktanın doğrulama cevabı v8 raporluyor ve restore edilen entity sayısı doğrulananla aynı |
+
+| `DataPortabilityTests.Backup_TamperedOccurrenceCountIsRejectedAndWritesNothing` (yeni) | Hash'i ve uzunluğu yeniden hesaplanmış, yalnız sayacı büyütülmüş dosya `restore.invalid_backup` ile hem doğrulamada hem restore'da düşüyor; hedefe hiçbir şey yazılmıyor |
+
+Sayaç dosyadan kopyalanmadığı için sınırı dolmuş bir planı yedek üzerinden
+yeniden üretir hâle getiren yol yoktur. Tutarsızlık **doğrulama adımında**
+söylenir: doğrulama grafiği kuru olarak kurar, kullanıcı restore'a basmadan
+önce dosyanın içeriğinin tutarsız olduğunu öğrenir.
+
 ## Bilinen test boşlukları
 
 - Fiziksel cihaz kanıtı yoktur; emulator kabulü bunun yerine sunulmaz.

@@ -33,11 +33,11 @@ public sealed class DataPortabilityTests
         var conflict = await Assert.ThrowsAsync<DataPortabilityException>(() =>
             service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default));
 
-        Assert.Equal(7, validation.SchemaVersion);
+        Assert.Equal(8, validation.SchemaVersion);
         Assert.Equal(validation.EntityCount, restored.RestoredEntityCount);
         Assert.Equal("restore.destination_not_empty", conflict.Code);
         Assert.Equal("Geri yükleme için hesapta finansal veri bulunmamalıdır.", conflict.Message);
-        Assert.Equal(25, validation.EntityCount);
+        Assert.Equal(28, validation.EntityCount);
         Assert.Equal(2, await context.Accounts.CountAsync(x => x.UserId == targetUserId));
         Assert.Equal(3, await context.Categories.CountAsync(x => x.UserId == targetUserId));
         Assert.Equal(2, await context.Transactions.CountAsync(x => x.UserId == targetUserId));
@@ -391,7 +391,7 @@ public sealed class DataPortabilityTests
         var validation = await service.ValidateBackupAsync(backup.Content, default);
         await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
 
-        Assert.Equal(7, validation.SchemaVersion);
+        Assert.Equal(8, validation.SchemaVersion);
         var restoredPlans = await context.RecurringTransactions
             .AsNoTracking().Where(item => item.UserId == targetUserId).ToArrayAsync();
         var cardPlan = Assert.Single(
@@ -519,6 +519,190 @@ public sealed class DataPortabilityTests
         await context.SaveChangesAsync();
     }
 
+    /// <summary>
+    /// v8'in taşıdığı üç yeni bilgi kayıpsız dönüyor: yükümlülük ve onu kapatan
+    /// nakit hareketi, cari borçlandırmanın vadesi, tekrarlayan planın bitiş
+    /// sınırı ve üretilmiş occurrence sayacı.
+    /// </summary>
+    [Fact]
+    public async Task BackupV8_RoundTripsObligationsDueDatesAndOccurrenceLimits()
+    {
+        await using var context = CreateContext();
+        var sourceUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        await SeedCompleteGraphAsync(context, sourceUserId);
+        await SeedDefaultCategoriesAsync(context, targetUserId);
+        var service = new EfDataPortabilityRepository(context);
+
+        var backup = await service.CreateBackupAsync(sourceUserId, default);
+        var validation = await service.ValidateBackupAsync(backup.Content, default);
+        await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
+
+        Assert.Equal(8, validation.SchemaVersion);
+
+        var restoredObligations = await context.Obligations.AsNoTracking()
+            .Include(x => x.Settlement)
+            .Where(x => x.UserId == targetUserId).ToArrayAsync();
+        Assert.Equal(2, restoredObligations.Length);
+
+        var acik = Assert.Single(restoredObligations, x => x.Direction == DebtDirection.Payable);
+        Assert.Equal(ObligationStatus.Open, acik.Status);
+        Assert.Equal(275.5m, acik.Amount.Amount);
+        Assert.Equal(new DateOnly(2026, 8, 6), acik.IssueDate);
+        Assert.Equal(new DateOnly(2026, 8, 20), acik.DueDate);
+        Assert.Equal(TransactionScope.Business, acik.Scope);
+        // Karşı taraf bağı hedef kullanıcının kendi kaydına yeniden bağlanır;
+        // kaynak kimliği taşınsaydı yükümlülük başka bir kişiyi gösterirdi.
+        var restoredManav = await context.Counterparties.AsNoTracking()
+            .SingleAsync(x => x.UserId == targetUserId && x.Name == "Sentetik Manav");
+        Assert.Equal(restoredManav.Id, acik.CounterpartyId);
+        Assert.Null(acik.Settlement);
+        // Gecikme dosyada taşınan bir alan değil; okunduğu tarihten türüyor.
+        Assert.False(acik.IsOverdueOn(new DateOnly(2026, 8, 20)));
+        Assert.True(acik.IsOverdueOn(new DateOnly(2026, 8, 21)));
+
+        var kapanan = Assert.Single(restoredObligations, x => x.Direction == DebtDirection.Receivable);
+        Assert.Equal(ObligationStatus.Settled, kapanan.Status);
+        Assert.Null(kapanan.CounterpartyId);
+        var settlement = Assert.IsType<ObligationSettlement>(kapanan.Settlement);
+        Assert.Equal(90m, settlement.Amount.Amount);
+        Assert.Equal(new DateOnly(2026, 8, 9), settlement.SettlementDate);
+        var restoredBank = await context.Accounts.AsNoTracking()
+            .SingleAsync(x => x.UserId == targetUserId && x.Name == "Banka");
+        Assert.Equal(restoredBank.Id, settlement.AccountId);
+        Assert.False(settlement.IsCancelled);
+
+        var restoredReceivableCharge = await context.CounterpartyCharges.AsNoTracking()
+            .SingleAsync(x => x.UserId == targetUserId && x.Direction == DebtDirection.Receivable);
+        Assert.Equal(new DateOnly(2026, 8, 20), restoredReceivableCharge.DueDate);
+        // Vadesiz borçlandırmaya vade uydurulmaz.
+        var restoredPayableCharge = await context.CounterpartyCharges.AsNoTracking()
+            .SingleAsync(x => x.UserId == targetUserId && x.Direction == DebtDirection.Payable);
+        Assert.Null(restoredPayableCharge.DueDate);
+
+        var restoredPlan = await context.RecurringTransactions.AsNoTracking()
+            .SingleAsync(x => x.UserId == targetUserId);
+        Assert.Equal(12, restoredPlan.OccurrenceLimit);
+        Assert.Equal(1, restoredPlan.GeneratedOccurrenceCount);
+    }
+
+    /// <summary>
+    /// Elle büyütülmüş occurrence sayacı taşıyan bir dosya geri yüklenmez.
+    /// </summary>
+    /// <remarks>
+    /// Sayaç occurrence geçmişinden türetilir; dosyadaki değer yalnız
+    /// doğrulama içindir. Olduğu gibi yazılsaydı, sınırı dolmuş bir plan
+    /// yedek üzerinden yeniden üretir hâle getirilebilirdi.
+    /// </remarks>
+    [Fact]
+    public async Task Backup_TamperedOccurrenceCountIsRejectedAndWritesNothing()
+    {
+        await using var context = CreateContext();
+        var sourceUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        await SeedCompleteGraphAsync(context, sourceUserId);
+        await SeedDefaultCategoriesAsync(context, targetUserId);
+        var service = new EfDataPortabilityRepository(context);
+        var backup = await service.CreateBackupAsync(sourceUserId, default);
+        var tampered = RewritePayload(backup.Content, snapshot =>
+        {
+            foreach (var plan in snapshot["recurringTransactions"]!.AsArray())
+                plan!.AsObject()["generatedOccurrenceCount"] = 7;
+        });
+
+        // Bütünlük kapısı değil, alan tutarlılığı kapısı reddediyor: hash ve
+        // uzunluk yeniden hesaplandığı için dosya sağlam, içeriği tutarsız.
+        // Doğrulama grafiği kuru olarak kurduğu için tutarsızlık kullanıcıya
+        // restore'a basmadan önce söylenir.
+        var validationError = await Assert.ThrowsAsync<DataPortabilityException>(() =>
+            service.ValidateBackupAsync(tampered, default));
+        var error = await Assert.ThrowsAsync<DataPortabilityException>(() =>
+            service.RestoreBackupAsync(targetUserId, tampered, DateTimeOffset.UtcNow, default));
+
+        Assert.Equal("restore.invalid_backup", validationError.Code);
+        Assert.Equal("restore.invalid_backup", error.Code);
+        Assert.False(await context.RecurringTransactions.AnyAsync(x => x.UserId == targetUserId));
+        Assert.False(await context.Accounts.AnyAsync(x => x.UserId == targetUserId));
+    }
+
+    /// <summary>
+    /// v7 dosyası reddedilir ve hedef hesaba hiçbir şey yazılmaz.
+    /// </summary>
+    /// <remarks>
+    /// v7 yükümlülüğü hiç bilmiyordu: ödenmemiş faturayı tanıyan ekonomik olay
+    /// o dosyada yok. Vadesi, kategorisi ve kapsamı yalnız kullanıcının bildiği
+    /// bilgiler; uydurmak gideri yanlış aya ve yanlış tarafa yazardı. Cari
+    /// vadesi ve planın bitiş sınırı da aynı dosyada eksik. Kapsam (ADR 0013) ve
+    /// cari defter kararının aynısı: eksik bilgi tamamlanmaz, dosya reddedilir.
+    /// </remarks>
+    [Fact]
+    public async Task BackupBeforeObligations_IsRejectedAndWritesNothing()
+    {
+        await using var context = CreateContext();
+        var sourceUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        await SeedCompleteGraphAsync(context, sourceUserId);
+        await SeedDefaultCategoriesAsync(context, targetUserId);
+        var service = new EfDataPortabilityRepository(context);
+        var current = await service.CreateBackupAsync(sourceUserId, default);
+        var legacy = DowngradeToSchemaV7(current.Content);
+
+        var validationError = await Assert.ThrowsAsync<DataPortabilityException>(() =>
+            service.ValidateBackupAsync(legacy, default));
+        var restoreError = await Assert.ThrowsAsync<DataPortabilityException>(() =>
+            service.RestoreBackupAsync(targetUserId, legacy, DateTimeOffset.UtcNow, default));
+
+        Assert.Equal("restore.unsupported_version", validationError.Code);
+        Assert.Equal("restore.unsupported_version", restoreError.Code);
+        Assert.False(await context.Accounts.AnyAsync(x => x.UserId == targetUserId));
+        Assert.False(await context.Obligations.AnyAsync(x => x.UserId == targetUserId));
+    }
+
+    /// <summary>
+    /// Rewrites a current backup into the shape the build before obligations
+    /// produced: schema version 7 with no obligation collection, no counterparty
+    /// due dates and no recurring end limits. The payload hash and length are
+    /// recomputed so the version gate is genuinely what rejects it.
+    /// </summary>
+    private static byte[] DowngradeToSchemaV7(byte[] content) =>
+        RewritePayload(
+            content,
+            snapshot =>
+            {
+                snapshot.Remove("obligations");
+                foreach (var charge in snapshot["counterpartyCharges"]!.AsArray())
+                    charge!.AsObject().Remove("dueDate");
+                foreach (var plan in snapshot["recurringTransactions"]!.AsArray())
+                {
+                    plan!.AsObject().Remove("occurrenceLimit");
+                    plan.AsObject().Remove("generatedOccurrenceCount");
+                }
+            },
+            schemaVersion: 7);
+
+    /// <summary>
+    /// Applies <paramref name="change"/> to the payload of a backup and recomputes
+    /// its length and hash, so the integrity gate is never what rejects the result.
+    /// </summary>
+    private static byte[] RewritePayload(
+        byte[] content,
+        Action<JsonObject> change,
+        int? schemaVersion = null)
+    {
+        var envelope = JsonNode.Parse(Encoding.UTF8.GetString(content))!.AsObject();
+        var payloadJson = Encoding.UTF8.GetString(
+            Convert.FromBase64String(envelope["payload"]!.GetValue<string>()));
+        var snapshot = JsonNode.Parse(payloadJson)!.AsObject();
+        change(snapshot);
+
+        var rewritten = Encoding.UTF8.GetBytes(snapshot.ToJsonString());
+        if (schemaVersion is int version) envelope["schemaVersion"] = version;
+        envelope["payload"] = Convert.ToBase64String(rewritten);
+        envelope["payloadLength"] = rewritten.Length;
+        envelope["payloadSha256"] = Convert.ToHexString(SHA256.HashData(rewritten));
+        return Encoding.UTF8.GetBytes(envelope.ToJsonString());
+    }
+
     private static BusinessFinanceDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<BusinessFinanceDbContext>()
@@ -560,7 +744,7 @@ public sealed class DataPortabilityTests
             new Money(100.25m, CurrencyCode.TRY), RecurringTransactionKind.BillPayment,
             TransactionScope.Business,
             RecurrenceFrequency.Monthly, new DateOnly(2026, 8, 2), null,
-            MonthEndBehavior.ClampToLastDay, "Elektrik");
+            MonthEndBehavior.ClampToLastDay, "Elektrik", 12);
         var occurrence = RecurringTransactionOccurrence.Create(Guid.NewGuid(), recurring, new DateOnly(2026, 8, 2));
         occurrence.RealizeWithTransaction(expense.Id, utc);
         recurring.AdvanceAfter(new DateOnly(2026, 8, 2));
@@ -582,7 +766,7 @@ public sealed class DataPortabilityTests
         var kapanan = new Counterparty(Guid.NewGuid(), userId, "Kapanan Bakkal");
         var veresiye = new CounterpartyCharge(Guid.NewGuid(), userId, manav, incomeCategory,
             DebtDirection.Receivable, new Money(400m, CurrencyCode.TRY), TransactionScope.Business,
-            new DateOnly(2026, 8, 6), "Veresiye satış");
+            new DateOnly(2026, 8, 6), "Veresiye satış", new DateOnly(2026, 8, 20));
         var vadeliAlim = new CounterpartyCharge(Guid.NewGuid(), userId, kapanan, expenseCategory,
             DebtDirection.Payable, new Money(150m, CurrencyCode.TRY), TransactionScope.Business,
             new DateOnly(2026, 8, 7), "Vadeli alım");
@@ -593,6 +777,20 @@ public sealed class DataPortabilityTests
             DebtDirection.Receivable, new Money(50m, CurrencyCode.TRY),
             new DateOnly(2026, 8, 9), "Yanlış tahsilat");
         iptalTahsilat.Cancel(utc);
+
+        // Yükümlülük: biri hâlâ açık ve karşı taraflı (vadesi ileride), biri
+        // karşı tarafsız ve kapanmış. Kapanmış olan, nakdi taşıyan settlement'ın
+        // da kayıpsız döndüğünü kanıtlıyor.
+        var acikFatura = new Obligation(
+            Guid.NewGuid(), userId, expenseCategory, DebtDirection.Payable,
+            new Money(275.5m, CurrencyCode.TRY), TransactionScope.Business,
+            new DateOnly(2026, 8, 6), new DateOnly(2026, 8, 20), utc, manav, "Elektrik faturası");
+        var kapananAlacak = new Obligation(
+            Guid.NewGuid(), userId, incomeCategory, DebtDirection.Receivable,
+            new Money(90m, CurrencyCode.TRY), TransactionScope.Personal,
+            new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 10), utc, null, "Tek seferlik alacak");
+        kapananAlacak.Settle(Guid.NewGuid(), bank, new DateOnly(2026, 8, 9), utc);
+
         kapanan.Deactivate();
 
         cash.Deactivate();
@@ -603,7 +801,8 @@ public sealed class DataPortabilityTests
 
         context.AddRange(cash, bank, incomeCategory, expenseCategory, billCategory, income, expense,
             budget, transfer, card, charge, payment, plan, recurring, occurrence, batch,
-            manav, kapanan, veresiye, vadeliAlim, tahsilat, iptalTahsilat);
+            manav, kapanan, veresiye, vadeliAlim, tahsilat, iptalTahsilat,
+            acikFatura, kapananAlacak);
         await context.SaveChangesAsync();
     }
 

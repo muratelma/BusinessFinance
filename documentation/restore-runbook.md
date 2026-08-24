@@ -1,10 +1,27 @@
 # Backup Restore Runbook
 
-Bu runbook yalnız sentetik yerel veridir. Yazılan şema **v7**; okunabilen
-şema **yalnız v7**. v7 karşı tarafın kendisini (ad, not, aktiflik) ve cari
-defterin iki hareket türünü taşır: borçlandırma (`counterpartyCharges`) ve
-tahsilat (`counterpartyPayments`). Sözleşme karşı tarafı artık **adla değil
-kimlikle** gösterir; ad yedeğin içinde tek yerde durur. Restore merge,
+Bu runbook yalnız sentetik yerel veridir. Yazılan şema **v8**; okunabilen
+şema **yalnız v8**. v8, v7'nin taşıdığı her şeyin (karşı tarafın kendisi —
+ad, not, aktiflik — ve cari defterin iki hareket türü: borçlandırma
+`counterpartyCharges`, tahsilat `counterpartyPayments`) üstüne üç bilgi ekler:
+
+- `obligations` — tek seferlik yükümlülük. Ekonomik olayı **tanır**: kategori,
+  kapsam, düzenleme tarihi ve **vade** taşır, hesap taşımaz. Onu kapatan nakit
+  hareketi ayrı bir koleksiyon değil, yükümlülüğün içindeki `settlement`
+  alanıdır: hesap taşır, kategori ve kapsam taşımaz (ADR 0014). Bire bir bağ
+  dosyada da böyle durduğu için sahipsiz bir ödeme yazılamaz. **Gecikme dosyada
+  yoktur** — kalıcı bir alan değil, vade ile okunduğu günün karşılaştırmasıdır.
+- `counterpartyCharges[].dueDate` — cari borçlandırmanın isteğe bağlı vadesi.
+  Yokluğu meşrudur; `null` gelen satıra tarih uydurulmaz.
+- `recurringTransactions[].occurrenceLimit` ve `generatedOccurrenceCount` —
+  planın toplam tekrar sınırı ve üretilmiş occurrence sayacı. Sayaç geri
+  yüklerken dosyadan **kopyalanmaz**, occurrence geçmişi yeniden oynanarak
+  türetilir ve dosyadaki değer yalnız doğrulama için okunur; aksi hâlde elle
+  değiştirilmiş bir sayaç, sınırı dolmuş bir planı yeniden üretir hâle
+  getirirdi.
+
+Sözleşme karşı tarafı adla değil kimlikle gösterir; ad yedeğin içinde tek yerde
+durur. Restore merge,
 overwrite veya kullanıcı seçerek silme yapmaz; hedef kullanıcının finans alanı
 boş olmalıdır. Yeni hesapta uygulamanın otomatik oluşturduğu, hiç değiştirilmemiş
 başlangıç kategorileri boş alan sayılır ve yedekteki kategorilerle atomik olarak
@@ -20,10 +37,9 @@ doğduğu için zorunlu kolonları backfill istemez. Yükseltme testi önceki
 `LinkDebtsToCounterparties` şemasına gerçek bir cari satırı yazar, migration'ı
 uygular ve vadenin `null` kaldığını doğrular.
 
-Bu değişiklik backup biçimini v8 yapmaz. Yazılan/okunan dosya hâlâ v7'dir ve
-yükümlülükleri veya cari vadesini taşımaz; bunların kayıpsız backup kapsamına
-alınması Aşama 03 Grup 7'nin işidir. Bu checkpoint'te v7 restore edilen cari
-hareketler bilinçli olarak vadesiz (`null`) doğar.
+Bu migration kendi checkpoint'inde backup biçimini değiştirmedi; yükümlülük ve
+cari vadesi Aşama 03 Grup 7'de **v8** kapsamına alındı ve artık kayıpsız
+taşınır.
 
 ## Veritabanı yükseltme notu — Aşama 03 Grup 3
 
@@ -34,28 +50,30 @@ edilir, sonra zorunlu hâle getirilir ve CHECK kısıtları en son kurulur. Kal�
 DEFAULT bırakılmaz. Mevcut planların sınırı bilinmediği için `OccurrenceLimit`
 uydurulmaz ve `null` kalır.
 
-Backup biçimi bu checkpoint'te hâlâ v7'dir ve occurrence sınırını taşımaz;
-yükümlülüklerle birlikte kayıpsız v8 kapsamına alınması Grup 7'nin işidir.
+Sınır ve sayaç Grup 7'de **v8** kapsamına alındı; sınırı dolmuş bir plan geri
+yüklendiğinde pasif ve `nextOccurrenceDate` alanı boş döner.
 
 ## Ön koşullar
 
 - SQL Server `healthy`, API `/health/ready` cevabı 200 olmalıdır.
-- Backup dosyası `business-finance-backup` formatında ve şeması **v7**
-  olmalıdır. v7, v6'nın taşıdığı her şeyin (her finansal kaydın kapsamı
+- Backup dosyası `business-finance-backup` formatında ve şeması **v8**
+  olmalıdır. v8, v6'nın taşıdığı her şeyin (her finansal kaydın kapsamı
   `scope`, hesap/kategori/kart varsayılan kapsamı `defaultScope`) üstüne cari
-  defteri ekler. Borçlandırma kategori ve kapsam taşır, hesap taşımaz;
-  tahsilat hesap taşır, kategori ve kapsam taşımaz (ADR 0014) — iki kaydın
-  alan listesi dosyada da bilerek farklıdır.
+  defteri ve yükümlülükleri ekler. Tanıyan kayıt kategori ve kapsam taşır,
+  hesap taşımaz; taşıyan kayıt hesap taşır, kategori ve kapsam taşımaz
+  (ADR 0014) — iki kaydın alan listesi dosyada da bilerek farklıdır.
 - **Yedek kullanıcı profilini (işletmeniz var mı) taşımaz.** Profil finansal
   bir kayıt değil, bir arayüz tercihidir; geri yüklenen hesabın kendi cevabı
   geçerli kalır. Kategoriler yedekten geldiği için kapsam varsayılanları da
   yedekten gelir ve raporlar doğru bölünür.
-- **v2–v6 yedekleri `restore.unsupported_version` ile reddedilir ve
+- **v2–v7 yedekleri `restore.unsupported_version` ile reddedilir ve
   yükseltilmez.** v2–v5'te kapsam alanı yoktu; v6'da cari defter yoktu —
   o dosya karşı tarafı yalnız sözleşmenin taşıdığı ad olarak biliyordu, açık
-  bakiyesi ve hareketleri hiç yoktu. Eksik alanı doldurmak için bir değer
-  seçmek, kullanıcının işletme ile cebi arasındaki ayrımını (ADR 0013) ya da
-  alacağını uydurmak olurdu; ikisini de yalnız kullanıcı bilir. Reddetme,
+  bakiyesi ve hareketleri hiç yoktu; v7'de yükümlülük yoktu — ödenmemiş
+  faturayı tanıyan ekonomik olay o dosyada hiç bulunmuyor. Eksik alanı
+  doldurmak için bir değer seçmek, kullanıcının işletme ile cebi arasındaki
+  ayrımını (ADR 0013), alacağını ya da bir gideri hangi ay ve hangi tarafta
+  tanıyacağını uydurmak olurdu; hepsini yalnız kullanıcı bilir. Reddetme,
   sessizce yanlış bir geçmiş üretmekten iyidir. Eski bir yedeği taşımanın
   yolu yoktur; o veri sentetiktir ve yeniden girilir.
 - Dosya en fazla 14 MiB envelope, decoded payload en fazla 10 MiB olmalıdır.
@@ -97,6 +115,12 @@ yükümlülüklerle birlikte kayıpsız v8 kapsamına alınması Grup 7'nin işi
    **Cari hesabı da aç:** karşı taraf listesi, notu, pasif olanlar ve her
    birinin açık bakiyesi kaynaktakiyle aynı olmalı. Bakiye kalıcı kolon
    değildir; hareketler eksik gelseydi bakiye sessizce küçülürdü.
+   **`Diğer > Yükümlülükler` ekranını da aç:** yaklaşan, geciken ve kapanan
+   sekmelerinin sayıları kaynaktakiyle aynı olmalı. Kapanmış bir yükümlülük
+   yeniden açık görünüyorsa kapanış dosyadan gelmemiştir. Gecikme sekmesini
+   vadeye göre kontrol et — gecikme dosyada taşınmaz, geri yüklenen vadeden
+   yeniden türer. Tekrarlayan plan listesinde bitiş sınırlı bir planın
+   `üretilen/toplam` sayacı da kaynaktakiyle aynı olmalıdır.
 6. **Kapsamı doğrula:** Özet ekranında anahtarı `İşletme` ve `Şahsi`
    konumlarına al; iki tarafın gelir/gider toplamları kaynaktakiyle aynı
    olmalı. Bir hesabın ve bir kategorinin varsayılan kapsamının da geri
@@ -110,7 +134,7 @@ yükümlülüklerle birlikte kayıpsız v8 kapsamına alınması Grup 7'nin işi
 | Durum | Beklenen sonuç |
 |---|---|
 | Bozuk byte/hash veya eksik attachment | 400; hedefe yazma yok |
-| Schema v2–v6 veya gelecek bir schema | 422 `restore.unsupported_version`; yükseltme denenmez |
+| Schema v2–v7 veya gelecek bir schema | 422 `restore.unsupported_version`; yükseltme denenmez |
 | Dolu hedef kullanıcı | 409 destination not empty; mevcut kayıt korunur |
 | SQL constraint/save hatası | Transaction rollback; hedef SQL graph'ı boş |
 | Object write sonrası SQL hatası | O çağrıda yazılan object key'ler silinir |
