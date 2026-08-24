@@ -642,9 +642,8 @@ hedeflerini de yükseltir.
 
 ## Tek seferlik yükümlülük
 
-> Aşama 03, Grup 1–4 — Domain modeli ve kalıcılığın yanında kanonik planlanan
-> okuma projection'ı da uygulanmıştır. Yazma kullanım senaryoları ve endpoint'ler
-> sonraki gruplardadır.
+> Aşama 03, Grup 1–5 — Domain modeli, kalıcılık, kanonik planlanan projection ve
+> ödenmemiş fatura yazma akışı uygulanmıştır. Settlement yazma akışı Grup 6'dadır.
 
 Ödenmemiş tek seferlik fatura artık tekrarlayan plan kavramına sokulmadan
 temsil edilebilir. Model ADR 0014'ün ayrımını iki ayrı kayıtla korur:
@@ -679,6 +678,12 @@ isteğe bağlı karşı tarafla tek SQL projection'ında okunur. `Open`, gecikme
 `readiness` ve `attentionCode` saklanmaz: iptal/settlement varlığı ile sorgu
 tarihinden türetilir. Settlement oluştuğu anda satır hem kanonik görünümden hem
 onun daraltılmış yaklaşan ödemeler görünümünden düşer.
+
+`CreateObligationUseCase` current user'ı oturumdan alır; kategori, isteğe bağlı
+aktif karşı taraf ve kapsam zincirini doğruladıktan sonra aggregate'i yazar.
+`POST /api/v1/obligations` açılan kaydı gerçekleşen hareket feed'ine
+`obligation` türüyle, raporlara ve net varlığa düzenleme tarihinde katar. Hesap
+tablosuna yazmadığı için kasa bakiyesi değişmez.
 
 ### Taşınabilirlik: dışa aktarma ile yedek ayrı şeylerdir
 

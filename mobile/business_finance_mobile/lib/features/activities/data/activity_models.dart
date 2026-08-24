@@ -18,7 +18,10 @@ enum ActivityKind {
   counterpartyCharge('counterparty-charge'),
 
   /// Cari tahsilat ya da ödeme: kasa değişir, gelir/gider üretilmez.
-  counterpartySettlement('counterparty-settlement');
+  counterpartySettlement('counterparty-settlement'),
+
+  /// Tek seferlik borç veya alacak doğuşu; nakdi değil gelir/gideri etkiler.
+  obligation('obligation');
 
   const ActivityKind(this.apiValue);
   final String apiValue;
@@ -33,6 +36,7 @@ enum ActivityKind {
     'debt-opening' => debtOpening,
     'counterparty-charge' => counterpartyCharge,
     'counterparty-settlement' => counterpartySettlement,
+    'obligation' => obligation,
     _ => throw FormatException('Bilinmeyen hareket türü: $value'),
   };
 
@@ -50,6 +54,7 @@ enum ActivityKind {
     // gider olarak görünür ve etiket ikisini birden karşılar.
     counterpartyCharge => 'Cari hareket',
     counterpartySettlement => 'Cari tahsilat / ödeme',
+    obligation => 'Yükümlülük',
   };
 }
 
@@ -77,7 +82,8 @@ enum ActivitySourceGroup {
 
   /// Açık cari. Taksitli sözleşme `debt` olarak kalır: aynı kişiye ait
   /// olsalar bile biri yürüyen bir hesap, diğeri vadesi belli bir plandır.
-  counterparty('counterparty');
+  counterparty('counterparty'),
+  obligation('obligation');
 
   const ActivitySourceGroup(this.apiValue);
   final String apiValue;
@@ -88,6 +94,7 @@ enum ActivitySourceGroup {
     'transfer' => transfer,
     'debt' => debt,
     'counterparty' => counterparty,
+    'obligation' => obligation,
     _ => throw FormatException('Bilinmeyen kaynak grubu: $value'),
   };
 }

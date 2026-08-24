@@ -27,6 +27,7 @@ using BusinessFinance.Application.Attachments;
 using BusinessFinance.Application.FinancialActivities;
 using BusinessFinance.Application.Imports;
 using BusinessFinance.Application.Receipts;
+using BusinessFinance.Application.Obligations;
 
 namespace BusinessFinance.Api.Extensions;
 
@@ -122,6 +123,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ConfirmImportBatchUseCase>();
         services.AddTransient<ResolveImportDuplicateUseCase>();
         services.AddTransient<AnalyzeReceiptUseCase>();
+        services.AddTransient<CreateObligationUseCase>();
 
         return services;
     }

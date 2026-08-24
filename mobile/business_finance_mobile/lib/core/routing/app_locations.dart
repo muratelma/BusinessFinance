@@ -25,3 +25,6 @@ const refundDecisionLocation = '/transactions/new/refund';
 
 /// Fatura "ödendi mi?" sayfası.
 const invoiceDecisionLocation = '/transactions/new/invoice';
+
+/// Ödenmemiş faturanın tek seferlik yükümlülük formu.
+const obligationCreateLocation = '/transactions/new/obligation';

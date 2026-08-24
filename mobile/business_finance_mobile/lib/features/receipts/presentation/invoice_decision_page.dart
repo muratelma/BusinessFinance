@@ -8,10 +8,8 @@ import '../data/receipt_models.dart';
 
 /// Bir faturada son ödeme tarihi yazması, ödendiğini **söylemez.**
 ///
-/// Yalnız ne zaman ödenmesi gerektiğini söyler. Ödenmemiş faturayı gider olarak
-/// yazmak, henüz çıkmamış parayı çıkmış göstermek olurdu: bakiye düşer, aylık
-/// gider raporu şişer ve fatura gerçekten ödendiğinde aynı para ikinci kez
-/// sayılır.
+/// Yalnız ne zaman ödenmesi gerektiğini söyler. Ödenmemiş fatura belge tarihinde
+/// gider tanıyan bir yükümlülüktür; kasa ancak ödeme kaydedildiğinde değişir.
 ///
 /// Soru karar sayfasına (`BankDocumentDecisionPage`) **girmez** ve bilerek:
 /// orada sorulan "bu tutar ne?", burada sorulan "ödendi mi?" — farklı sorular.
@@ -25,7 +23,7 @@ class InvoiceDecisionPage extends StatelessWidget {
 
   final ReceiptDraft draft;
 
-  /// `true` ödendi (gider), `false` ödenmedi (planlanan ödeme). Yönlendirme
+  /// `true` ödendi (gider), `false` ödenmedi (yükümlülük). Yönlendirme
   /// çağıranda: bu sayfa hangi rotanın neyi yazdığını bilmek zorunda değil.
   final void Function(bool isPaid) onDecided;
 
@@ -65,7 +63,7 @@ class InvoiceDecisionPage extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.small),
           // Hiçbiri önceden seçili değil ve ikisi zıt sonuç üretiyor: biri
-          // parayı bugün çıkarır, diğeri hiç çıkarmaz. Varsayılan koymak,
+          // parayı bugün çıkarır, diğeri bir borç doğurur. Varsayılan koymak,
           // dalgın bir dokunuşla yanlışını yazdırırdı.
           _Choice(
             icon: Icons.check_circle_outline,
@@ -80,8 +78,8 @@ class InvoiceDecisionPage extends StatelessWidget {
             icon: Icons.event_outlined,
             title: 'Henüz ödemedim',
             subtitle:
-                'Planlanan ödeme olarak yazılır; bakiyenizi ve gider '
-                'raporunuzu şimdi etkilemez.',
+                'Gider belge tarihinde yazılır; hesabınızdan şimdi para '
+                'çıkmaz ve son ödeme tarihinde takip edilir.',
             onTap: () => onDecided(false),
           ),
         ],

@@ -1886,7 +1886,10 @@ public sealed class SqlServerPersistenceIntegrationTests
         // 52 → 53 when one-time obligations joined that same canonical planned
         // projection: every obligation is read by one owner-scoped query, not one
         // query per row.
-        Assert.InRange(counter.ReaderCommandCount, 1, 53);
+        // 53 → 60 when obligation recognition joined the realized report: fixed
+        // grouped reads cover period totals, category distribution, net worth,
+        // trend and budget variance. The count still does not grow per obligation.
+        Assert.InRange(counter.ReaderCommandCount, 1, 60);
         Assert.True(
             stopwatch.Elapsed < TimeSpan.FromSeconds(5),
             $"Advanced report took {stopwatch.Elapsed.TotalMilliseconds:N0} ms.");

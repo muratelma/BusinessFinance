@@ -22,22 +22,17 @@ import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
 import '../data/planning_models.dart';
 import '../data/planning_repository.dart';
-import 'bill_prefill.dart';
 import 'planning_controller.dart';
 
 class PlanningPage extends StatefulWidget {
   const PlanningPage({
     required this.repository,
     this.financialDataChanges,
-    this.billPrefill,
     super.key,
   });
 
   final PlanningRepositoryContract repository;
   final FinancialDataChanges? financialDataChanges;
-
-  /// Ödenmemiş bir fatura okunarak gelindiyse plan formu önerilerle açılır.
-  final BillPrefill? billPrefill;
 
   @override
   State<PlanningPage> createState() => _PlanningPageState();
@@ -53,21 +48,7 @@ class _PlanningPageState extends State<PlanningPage> {
       widget.repository,
       financialDataChanges: widget.financialDataChanges,
     )..addListener(_changed);
-    controller.load().then((_) => _openPrefilledForm());
-  }
-
-  /// Faturanın önerdiği planı **bir kez** açar; kart ödeme yolunda öğrenilen
-  /// ders (öneri her tazelemede yeniden kullanılırsa form kendini yeniden
-  /// açar).
-  bool _prefillUsed = false;
-
-  void _openPrefilledForm() {
-    final prefill = widget.billPrefill;
-    if (_prefillUsed || prefill == null || prefill.isEmpty) return;
-    final snapshot = controller.snapshot;
-    if (!mounted || snapshot == null) return;
-    _prefillUsed = true;
-    _showRecurringForm(snapshot, prefill: prefill);
+    controller.load();
   }
 
   @override
@@ -550,16 +531,12 @@ class _PlanningPageState extends State<PlanningPage> {
     if (selected != null) await controller.changeAsOfDate(selected);
   }
 
-  Future<void> _showRecurringForm(
-    PlanningSnapshot snapshot, {
-    BillPrefill? prefill,
-  }) async {
+  Future<void> _showRecurringForm(PlanningSnapshot snapshot) async {
     await AppFormSheet.show<bool>(
       context: context,
       builder: (context) => _RecurringForm(
         snapshot: snapshot,
         onSubmit: controller.createRecurring,
-        prefill: prefill,
       ),
     );
   }
@@ -851,16 +828,9 @@ class _EmptyNote extends StatelessWidget {
 }
 
 class _RecurringForm extends StatefulWidget {
-  const _RecurringForm({
-    required this.snapshot,
-    required this.onSubmit,
-    this.prefill,
-  });
+  const _RecurringForm({required this.snapshot, required this.onSubmit});
   final PlanningSnapshot snapshot;
   final Future<bool> Function(Map<String, Object?>) onSubmit;
-
-  /// Ödenmemiş faturadan gelen öneriler.
-  final BillPrefill? prefill;
 
   @override
   State<_RecurringForm> createState() => _RecurringFormState();
@@ -877,37 +847,6 @@ class _RecurringFormState extends State<_RecurringForm> {
   String frequency = 'monthly';
   String monthEndBehavior = 'clamp-to-last-day';
   DateTime startDate = DateTime.now();
-
-  /// Yalnız bu fatura mı planlanıyor, yoksa her ay tekrarlayan bir plan mı.
-  ///
-  /// Varsayılan tek seferlik: kullanıcı **bir** faturanın fotoğrafını çekti.
-  /// Elektrik faturası her ay gelir ama bunu kullanıcı adına varsaymak, o
-  /// istemediği hâlde tekrar eden bir plan bırakırdı. Tek seferlik plan
-  /// `endDate == startDate` ile ifade ediliyor — yeni bir yazma modeli
-  /// gerekmiyor, tek occurrence üreten mevcut plan yeterli.
-  late bool oneOff = widget.prefill?.isEmpty == false;
-
-  @override
-  void initState() {
-    super.initState();
-    _applyPrefill();
-  }
-
-  /// Faturanın söylediğini yazar. Ödeme kaynağı **bilerek** dışarıda: fatura
-  /// hangi hesaptan ödeneceğini söylemez.
-  void _applyPrefill() {
-    final prefill = widget.prefill;
-    if (prefill == null || prefill.isEmpty) return;
-    kind = 'expense';
-    if (prefill.amount case final value?) {
-      amount.text = MoneyText.editable(value);
-    }
-    if (prefill.description case final value?) description.text = value;
-    if (prefill.categoryId case final value?) categoryId = value;
-    if (prefill.dueDate case final value?) {
-      startDate = DateTime.tryParse(value) ?? startDate;
-    }
-  }
 
   @override
   void dispose() {
@@ -1022,37 +961,18 @@ class _RecurringFormState extends State<_RecurringForm> {
             }
           }),
         ),
-        // Faturadan gelindiğinde sıklık sorusu yerini daha doğru bir soruya
-        // bırakıyor: kullanıcı **bir** faturanın fotoğrafını çekti, her ay
-        // tekrarlamasını isteyip istemediğini söylemedi.
-        if (widget.prefill?.isEmpty == false) ...[
-          const SizedBox(height: AppSpacing.medium),
-          SwitchListTile(
-            value: oneOff,
-            onChanged: (value) => setState(() => oneOff = value),
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Yalnız bu fatura'),
-            subtitle: Text(
-              oneOff
-                  ? 'Tek seferlik planlanan ödeme; tekrar etmez.'
-                  : 'Bu tarihten itibaren ${_frequencyLabel(frequency).toLowerCase()} tekrarlar.',
-            ),
-          ),
-        ],
-        if (widget.prefill?.isEmpty != false || !oneOff) ...[
-          const SizedBox(height: AppSpacing.medium),
-          DropdownButtonFormField<String>(
-            initialValue: frequency,
-            decoration: const InputDecoration(labelText: 'Sıklık'),
-            items: const [
-              DropdownMenuItem(value: 'daily', child: Text('Günlük')),
-              DropdownMenuItem(value: 'weekly', child: Text('Haftalık')),
-              DropdownMenuItem(value: 'monthly', child: Text('Aylık')),
-              DropdownMenuItem(value: 'yearly', child: Text('Yıllık')),
-            ],
-            onChanged: (value) => setState(() => frequency = value!),
-          ),
-        ],
+        const SizedBox(height: AppSpacing.medium),
+        DropdownButtonFormField<String>(
+          initialValue: frequency,
+          decoration: const InputDecoration(labelText: 'Sıklık'),
+          items: const [
+            DropdownMenuItem(value: 'daily', child: Text('Günlük')),
+            DropdownMenuItem(value: 'weekly', child: Text('Haftalık')),
+            DropdownMenuItem(value: 'monthly', child: Text('Aylık')),
+            DropdownMenuItem(value: 'yearly', child: Text('Yıllık')),
+          ],
+          onChanged: (value) => setState(() => frequency = value!),
+        ),
         const SizedBox(height: AppSpacing.medium),
         DropdownButtonFormField<String>(
           initialValue: monthEndBehavior,
@@ -1118,10 +1038,7 @@ class _RecurringFormState extends State<_RecurringForm> {
       'kind': kind,
       'frequency': frequency,
       'startDate': _formatDate(startDate),
-      // Tek seferlik plan: aynı gün biten bir plan tam olarak bir occurrence
-      // üretir. Plan tek başına para üretmez — gerçekleştirilene kadar bakiye
-      // ve gider raporu değişmez, ödenmemiş faturanın istediği tam da budur.
-      'endDate': oneOff ? _formatDate(startDate) : null,
+      'endDate': null,
       'monthEndBehavior': monthEndBehavior,
       'description': description.text.trim().isEmpty
           ? null

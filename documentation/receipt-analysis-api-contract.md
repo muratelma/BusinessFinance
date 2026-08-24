@@ -75,12 +75,12 @@ belirliyor.
 
 | Alan | Ne zaman dolu | İstemci ne yapar |
 |---|---|---|
-| `dueDate` / `dueDateState` | Belgede "SON ÖDEME TARİHİ" / "VADE" yazıyorsa | "Bu faturayı ödediniz mi?" diye sorar |
+| `dueDate` / `dueDateState` | Belgede "SON ÖDEME TARİHİ" / "VADE" yazıyorsa | "Bu faturayı ödediniz mi?" diye sorar; ödenmediyse ayrı belge/vade tarihleriyle yükümlülük formunu açar |
 | `installmentCount` | Fişte taksit yazıyorsa (2–360) | Tek seferlik gider yerine taksit planı önerir |
 | `refundMatch` | `documentType` = `refund_receipt` ve eşleşen gider bulunduysa | "Bu harcamanızı iptal edeyim mi?" diye sorar |
 
-**`dueDate` belgenin kendi tarihinin yerine geçmez.** İkisi ayrı satırlardır ve
-karıştırılırsa henüz ödenmemiş bir fatura düzenlendiği gün harcanmış görünür.
+**`dueDate` belgenin kendi tarihinin yerine geçmez.** İkisi ayrı satırlardır:
+belge tarihi giderin tanındığı, vade borcun takip edildiği gündür.
 Vade tarihinin doğrulaması da farklıdır: bir fiş yarından olamaz ama bir
 faturanın vadesi tam da gelecektedir, geçmiş vade de meşrudur (gecikmiş fatura
 hâlâ ödenmemiştir).

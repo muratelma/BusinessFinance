@@ -520,6 +520,52 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 MatchCounterpartyId = counterparty.Id
             };
 
+        var obligations =
+            from obligation in dbContext.Obligations.AsNoTracking()
+            join category in dbContext.Categories.AsNoTracking()
+                on new { obligation.UserId, Id = obligation.CategoryId }
+                equals new { category.UserId, category.Id }
+            join counterparty in dbContext.Counterparties.AsNoTracking()
+                on new { obligation.UserId, Id = obligation.CounterpartyId }
+                equals new { counterparty.UserId, Id = (Guid?)counterparty.Id }
+                into counterparties
+            from counterparty in counterparties.DefaultIfEmpty()
+            where obligation.UserId == userId
+            select new ActivityRow
+            {
+                ActivityId = obligation.Id,
+                ActivityKind = (int)FinancialActivityKind.Obligation,
+                Effect = obligation.Direction == DebtDirection.Receivable
+                    ? (int)FinancialActivityEffect.Income
+                    : (int)FinancialActivityEffect.Expense,
+                SourceGroup = (int)FinancialActivitySourceGroup.Obligation,
+                Origin = (int)FinancialActivityOrigin.Manual,
+                Status = obligation.IsCancelled
+                    ? (int)FinancialActivityStatus.Cancelled
+                    : (int)FinancialActivityStatus.Realized,
+                ActivityDate = obligation.IssueDate,
+                Amount = obligation.Amount.Amount,
+                Currency = (int)obligation.Amount.Currency,
+                Title = obligation.Description ??
+                        (counterparty == null ? category.Name : counterparty.Name),
+                Description = obligation.Description,
+                CategoryId = category.Id,
+                CategoryName = category.Name,
+                SourceId = counterparty == null ? null : counterparty.Id,
+                SourceName = counterparty == null ? null : counterparty.Name,
+                DestinationId = null,
+                DestinationName = null,
+                CancelledAtUtc = obligation.CancelledAtUtc,
+                Scope = (int?)obligation.Scope,
+                PrincipalPortion = (decimal?)null,
+                InterestPortion = (decimal?)null,
+                MatchAccountId = null,
+                MatchSecondAccountId = null,
+                MatchCreditCardId = null,
+                MatchCategoryId = category.Id,
+                MatchCounterpartyId = obligation.CounterpartyId
+            };
+
         return accountTransactions
             .Concat(transfers)
             .Concat(cardCharges)
@@ -528,7 +574,8 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
             .Concat(debtCashOpenings)
             .Concat(debtCategoricalOpenings)
             .Concat(counterpartyCharges)
-            .Concat(counterpartySettlements);
+            .Concat(counterpartySettlements)
+            .Concat(obligations);
     }
 
     private static IQueryable<ActivityRow> ApplyFilters(

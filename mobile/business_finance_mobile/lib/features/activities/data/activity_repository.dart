@@ -90,7 +90,8 @@ class ActivityRepository implements ActivityRepositoryContract {
       // ödenmiş taksitler sahipsiz kalırdı.
       ActivityKind.debtPayment ||
       ActivityKind.debtCollection ||
-      ActivityKind.debtOpening => throw StateError(
+      ActivityKind.debtOpening ||
+      ActivityKind.obligation => throw StateError(
         'Borç hareketi iptal edilemez: ${activity.activityId}',
       ),
       // Cari hareketin ikisi de iptal edilebilir: tek başına duran kayıtlar,

@@ -143,6 +143,8 @@ class ActivityController extends ChangeNotifier {
         case ActivityKind.counterpartyCharge:
         case ActivityKind.counterpartySettlement:
           financialDataChanges?.counterpartyLedgerChanged();
+        case ActivityKind.obligation:
+          financialDataChanges?.obligationRecognized();
       }
       successMessage = 'Hareket iptal edildi.';
       await load();

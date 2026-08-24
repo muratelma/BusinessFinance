@@ -1,7 +1,7 @@
 import '../../activities/presentation/quick_add_models.dart';
 import '../../cards/presentation/transfer_prefill.dart';
 import '../../debts/presentation/lending_prefill.dart';
-import '../../planning/presentation/bill_prefill.dart';
+import '../../obligations/presentation/obligation_prefill.dart';
 import '../data/receipt_models.dart';
 import '../data/receipt_photo.dart';
 
@@ -122,19 +122,25 @@ LendingPrefill receiptLendingPrefillFrom(
   feeDescription: _feeDescription(draft),
 );
 
-/// Ödenmemiş faturayı plan formunun anladığı önerilere çevirir.
+/// Ödenmemiş faturayı yükümlülük formunun anladığı önerilere çevirir.
 ///
 /// **Ödeme kaynağı taşınmıyor**: fatura hangi hesaptan ödeneceğini söylemez.
-/// Tarih olarak faturanın kendi tarihi değil **son ödeme tarihi** taşınıyor;
-/// ikisi karıştırılırsa ödenmemiş fatura düzenlendiği gün harcanmış görünür.
-BillPrefill receiptBillPrefillFrom(ReceiptDraft draft) => BillPrefill(
-  amount: draft.totalAmountState.isMissing ? null : draft.totalAmount,
-  dueDate: draft.dueDateState.isMissing ? null : draft.dueDate,
-  description: draft.counterpartyState.isMissing
-      ? null
-      : draft.counterpartyName,
-  categoryId: draft.categoryState.isMissing ? null : draft.categoryId,
-);
+/// Belge tarihi ekonomik olayın tanındığı gün, son ödeme tarihi ise vadedir;
+/// iki alan ayrı taşınır. Ödeme kaynağı taşınmaz, çünkü para henüz çıkmamıştır.
+ObligationPrefill receiptObligationPrefillFrom(ReceiptDraft draft) =>
+    ObligationPrefill(
+      amount: _suggestion(draft.totalAmount, draft.totalAmountState),
+      issueDate: _suggestion(draft.purchasedAt, draft.purchasedAtState),
+      dueDate: _suggestion(draft.dueDate, draft.dueDateState),
+      description: _suggestion(draft.counterpartyName, draft.counterpartyState),
+      categoryId: _suggestion(draft.categoryId, draft.categoryState),
+      counterpartyId: draft.counterpartyState.isMissing
+          ? null
+          : draft.counterpartyId,
+      warnings: draft.warnings
+          .map((warning) => warning.message)
+          .toList(growable: false),
+    );
 
 /// Taksitli fişi plan formunun anladığı önerilere çevirir.
 ///

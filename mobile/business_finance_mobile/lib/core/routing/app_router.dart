@@ -34,7 +34,6 @@ import '../../features/transactions/presentation/transactions_page.dart';
 import '../../features/cards/data/finance_repository.dart';
 import '../../features/cards/presentation/finance_page.dart';
 import '../../features/planning/data/planning_repository.dart';
-import '../../features/planning/presentation/bill_prefill.dart';
 import '../../features/planning/presentation/planning_page.dart';
 import '../../features/data_tools/data/data_tools_repository.dart';
 import '../../features/data_tools/presentation/data_tools_page.dart';
@@ -45,6 +44,10 @@ import '../../features/debts/presentation/debts_page.dart';
 import '../../features/debts/presentation/lending_prefill.dart';
 import '../../features/goals/data/goal_repository.dart';
 import '../../features/goals/presentation/goals_page.dart';
+import '../../features/obligations/data/obligation_repository.dart';
+import '../../features/obligations/presentation/obligation_controller.dart';
+import '../../features/obligations/presentation/obligation_form_page.dart';
+import '../../features/obligations/presentation/obligation_prefill.dart';
 import '../../features/receipts/data/receipt_image_source.dart';
 import '../../features/cards/presentation/transfer_prefill.dart';
 import '../../features/receipts/data/receipt_models.dart';
@@ -81,6 +84,7 @@ GoRouter createAppRouter({
   DebtRepositoryContract? debtRepository,
   CounterpartyRepositoryContract? counterpartyRepository,
   GoalRepositoryContract? goalRepository,
+  ObligationRepositoryContract? obligationRepository,
   ReceiptRepositoryContract? receiptRepository,
   ReceiptImageSourceContract? receiptImageSource,
   ReceiptImageNormalizerContract? receiptImageNormalizer,
@@ -253,6 +257,29 @@ GoRouter createAppRouter({
                                     state.extra! as ReceiptDraft,
                                     isPaid,
                                   ),
+                                ),
+                          authController,
+                        ),
+                      ),
+                      GoRoute(
+                        // Yol `obligationCreateLocation` ile aynı olmalı.
+                        path: 'obligation',
+                        pageBuilder: (context, state) => _sessionPage(
+                          state,
+                          obligationRepository == null ||
+                                  state.extra is! ObligationPrefill
+                              ? const Scaffold(
+                                  body: AppErrorView(
+                                    message: 'Yükümlülük formu açılamadı.',
+                                  ),
+                                )
+                              : ObligationFormPage(
+                                  controller: ObligationController(
+                                    obligationRepository,
+                                    changes: financialDataChanges,
+                                  ),
+                                  prefill: state.extra! as ObligationPrefill,
+                                  scopeController: scopeController,
                                 ),
                           authController,
                         ),
@@ -510,9 +537,6 @@ GoRouter createAppRouter({
               : PlanningPage(
                   repository: planningRepository,
                   financialDataChanges: financialDataChanges,
-                  billPrefill: state.extra is BillPrefill
-                      ? state.extra! as BillPrefill
-                      : null,
                 ),
           authController,
         ),
@@ -702,10 +726,8 @@ Page<dynamic> _sessionPage(
 /// Faturanın ödendi/ödenmedi cevabını yazma yollarına bağlar.
 ///
 /// Ödendiyse sıradan bir gider: para çıktı, aylık gidere girer. Ödenmediyse
-/// **hiçbir para hareketi yok** — plan tek başına bakiye ve rapor üretmez ve
-/// ödenmemiş bir faturanın istediği tam olarak budur. Gider yazmak, henüz
-/// çıkmamış parayı çıkmış göstermek ve fatura gerçekten ödendiğinde aynı parayı
-/// ikinci kez saymak olurdu.
+/// belge tarihinde gider tanıyan, fakat hesap bakiyesini değiştirmeyen tek
+/// seferlik bir borç doğar. Sonraki ödeme bu borcu kapatacak ayrı nakit olayıdır.
 void _recordInvoice(BuildContext context, ReceiptDraft draft, bool isPaid) {
   if (isPaid) {
     // Ödeme tarihi faturanın vadesi değil: para bugün çıktı. Taslağın kendi
@@ -717,8 +739,8 @@ void _recordInvoice(BuildContext context, ReceiptDraft draft, bool isPaid) {
     return;
   }
   context.pushReplacement(
-    '/more/planning',
-    extra: receiptBillPrefillFrom(draft),
+    obligationCreateLocation,
+    extra: receiptObligationPrefillFrom(draft),
   );
 }
 

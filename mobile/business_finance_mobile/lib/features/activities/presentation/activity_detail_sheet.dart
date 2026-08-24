@@ -117,6 +117,10 @@ class ActivityDetailSheet extends StatelessWidget {
           if (activity.destinationName != null)
             _DetailRow('Karşı taraf', activity.destinationName!),
         ],
+        ActivityKind.obligation => [
+          if (activity.sourceName != null)
+            _DetailRow('Karşı taraf', activity.sourceName!),
+        ],
       },
       _DetailRow('Köken', activity.origin.label),
       // The title already carries the description when the user wrote one, so

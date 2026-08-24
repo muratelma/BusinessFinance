@@ -830,3 +830,42 @@ açar.
   Android debug build geçti
 - Sıradaki görev: Aşama 03 Grup 5 — fiş okumanın “ödemedim” yolunu
   yükümlülüğe bağlamak
+
+## 24 Ağustos 2026 — Aşama 03, Grup 5: ödenmemiş fatura yükümlülüğü
+
+- Fiş okumanın “Henüz ödemedim” dalı planlama formundan ayrıldı ve
+  `/transactions/new/obligation` formuna bağlandı. Belge tarihi giderin tanınma,
+  son ödeme tarihi borcun vade günü olarak ayrı taşınıyor; hesap ve sıklık
+  sorulmuyor
+- `POST /api/v1/obligations` current user sahipliğiyle açıldı. Kategori zorunlu,
+  karşı taraf isteğe bağlı ve owner-scoped; kapsam sunucudaki aynı çözüm zincirini
+  kullanıyor
+- Açılan yükümlülük hesap bakiyesini değiştirmeden gerçekleşen hareket feed'i,
+  aylık/gelişmiş rapor, bütçe gerçekleşeni ve net varlığa belge tarihinde giriyor.
+  Flutter açık DTO/repository/controller katmanlarıyla bu sözleşmeye bağlandı
+- Eski `BillPrefill` ve planlama formundaki tek fatura özel yolu kaldırıldı;
+  normal tekrarlayan plan formunun davranışı değişmedi
+- Gelişmiş raporun sabit SQL komut kapısı yeni yükümlülük toplamları, kategori,
+  trend, net varlık ve bütçe dilimleri için 53'ten 60'a güncellendi; komut sayısı
+  kayıt adediyle büyümüyor
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (gerçek SQL dâhil) | **867 geçti**, 1 atlandı (`GeminiLiveContractTests`) |
+| Domain testleri | **238 geçti** |
+| Flutter analyze | No issues found |
+| Flutter format | 224 dosya, değişiklik gerektirmedi |
+| Flutter test | **725 geçti** |
+| Android debug build | `app-debug.apk` üretildi |
+
+## Son oturum kapanışı
+
+- Yapılan değişiklik: Aşama 03 **Grup 5 tamamlandı**; ödenmemiş fatura gideri
+  belge tarihinde tanıyan ve nakdi ödeme anına bırakan yükümlülük akışına bağlandı
+- Geçen kontroller: backend build + format + **867 test** (gerçek SQL dâhil),
+  1 canlı Gemini testi atlandı; Flutter analyze + format + **725 test** + Android
+  debug build geçti
+- Sıradaki görev: Aşama 03 Grup 6 — yükümlülük listesi, ödeme/kapatma akışı,
+  cari ayrıntıda vadeli bakiye ve tekrarlayan plan bitiş sınırı alanı

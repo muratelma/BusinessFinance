@@ -558,6 +558,14 @@ neden kapalı olduğu ekranda görünmezse kullanıcı hatayı kendinde arar.
       (`expectNoOverflow` + `expectMeetsAccessibility`,
       `test/helpers/accessibility.dart`).
 
+### Ödenmemiş fatura formu
+
+`/transactions/new/obligation` tam sayfa bir finans formudur. Okunan değerler
+öneri olarak görünür; belge tarihi ile son ödeme tarihi ayrı alanlardır. Form
+hesap ve sıklık alanı çizmez. Loading, error ve unauthorized durumları mevcut
+durum bileşenlerini; gönderim kilidi `AppSubmitButton`'ı kullanır. Yeni renk,
+boşluk veya tipografi token'ı eklenmemiştir.
+
 ## Kuralları uygulayan testler
 
 | Kapı | Yer |

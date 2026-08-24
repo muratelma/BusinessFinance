@@ -108,6 +108,7 @@ class ActivityTile extends StatelessWidget {
           ? Icons.south_west
           : Icons.north_east,
     ActivityKind.counterpartySettlement => Icons.price_check,
+    ActivityKind.obligation => Icons.event_note_outlined,
   };
 
   String get _subtitle {

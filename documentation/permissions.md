@@ -191,13 +191,14 @@ türetileceğini belirler. Her alt sorgu önce current `UserId` ile daralır.
 `null` kalır. API toplam, gecikmiş ve vadesi geçmemiş/vadesiz alacak-borç
 tutarlarını kararlı para dizeleri olarak döndürür.
 
-Henüz yazma endpoint'i bulunmayan `Obligation` kalıcılığı da aynı savunmayı taşır:
+`POST /api/v1/obligations` aynı savunmayı Application ve veritabanı katmanlarında taşır:
 kategori ve isteğe bağlı karşı taraf, settlement'ın hesabı ve bağlı olduğu
 yükümlülük `(UserId, kayıt ID)` composite foreign key'leriyle sınırlıdır.
 `(UserId, ObligationId)` tekilliği farklı bir kullanıcıya bağlanmayı ve aynı
-yükümlülüğe ikinci kapanış yazmayı veritabanı seviyesinde reddeder. Endpoint
-ve use case sahiplik kapısı sonraki çalışma grubunda, davranış açıldığında
-ayrıca belgelenecektir. Okuma tarafı `financial-activities/planned` üzerinden
+yükümlülüğe ikinci kapanış yazmayı veritabanı seviyesinde reddeder. Use case
+kategoriyi ve verilmişse karşı tarafı yalnız current user'ın aktif kayıtları
+arasından çözer; kimlik request body'den alınmaz. Okuma tarafı gerçekleşen
+`financial-activities` ve `financial-activities/planned` üzerinden
 owner-scoped açılmıştır; API entegrasyon testi sahibin iki yönünü görüp yabancı
 kullanıcının boş sonuç aldığını kanıtlar.
 

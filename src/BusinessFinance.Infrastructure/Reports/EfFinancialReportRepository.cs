@@ -113,15 +113,37 @@ internal sealed class EfFinancialReportRepository(
                 group.Key,
                 group.Sum(charge => charge.Amount.Amount)))
             .ToArrayAsync(cancellationToken));
+        var periodObligations = dbContext.Obligations.AsNoTracking().Where(
+            obligation => obligation.UserId == userId &&
+                          !obligation.IsCancelled &&
+                          (scope == null || obligation.Scope == scope) &&
+                          obligation.IssueDate >= start &&
+                          obligation.IssueDate < endExclusive);
+        var obligationIncomeByScope = ScopeAmounts.From(await periodObligations
+            .Where(obligation => obligation.Direction == DebtDirection.Receivable)
+            .GroupBy(obligation => obligation.Scope)
+            .Select(group => new ScopeAmountRow(
+                group.Key,
+                group.Sum(obligation => obligation.Amount.Amount)))
+            .ToArrayAsync(cancellationToken));
+        var obligationExpenseByScope = ScopeAmounts.From(await periodObligations
+            .Where(obligation => obligation.Direction == DebtDirection.Payable)
+            .GroupBy(obligation => obligation.Scope)
+            .Select(group => new ScopeAmountRow(
+                group.Key,
+                group.Sum(obligation => obligation.Amount.Amount)))
+            .ToArrayAsync(cancellationToken));
         var expenseByScope = transactionExpenseByScope
             .Add(cardExpenseByScope)
             .Add(debtOpeningExpenseByScope)
             .Add(debtInterest.Paid)
-            .Add(counterpartyExpenseByScope);
+            .Add(counterpartyExpenseByScope)
+            .Add(obligationExpenseByScope);
         incomeByScope = incomeByScope
             .Add(debtOpeningIncomeByScope)
             .Add(debtInterest.Earned)
-            .Add(counterpartyIncomeByScope);
+            .Add(counterpartyIncomeByScope)
+            .Add(obligationIncomeByScope);
         var totalIncome = incomeByScope.Total;
         var totalExpense = expenseByScope.Total;
         var transactionCategoryExpenses = await (
@@ -187,11 +209,25 @@ internal sealed class EfFinancialReportRepository(
                     expenseGroup.Key.Name,
                     expenseGroup.Sum(item => item.Amount.Amount)))
             .ToArrayAsync(cancellationToken);
+        var obligationCategoryExpenses = await (
+                from obligation in periodObligations
+                join category in dbContext.Categories.AsNoTracking()
+                    on new { obligation.UserId, Id = obligation.CategoryId }
+                    equals new { category.UserId, category.Id }
+                where obligation.Direction == DebtDirection.Payable
+                group obligation by new { category.Id, category.Name }
+                into expenseGroup
+                select new CategoryExpenseDto(
+                    expenseGroup.Key.Id,
+                    expenseGroup.Key.Name,
+                    expenseGroup.Sum(item => item.Amount.Amount)))
+            .ToArrayAsync(cancellationToken);
         var categoryExpenses = transactionCategoryExpenses
             .Concat(cardCategoryExpenses)
             .Concat(debtCategoryExpenses)
             .Concat(interestCategoryExpenses)
             .Concat(counterpartyCategoryExpenses)
+            .Concat(obligationCategoryExpenses)
             .GroupBy(item => new { item.CategoryId, item.CategoryName })
             .Select(group => new CategoryExpenseDto(
                 group.Key.CategoryId,
@@ -457,10 +493,28 @@ internal sealed class EfFinancialReportRepository(
                         .Sum(payment => (decimal?)payment.Amount.Amount) ?? 0m)
             })
             .ToArrayAsync(cancellationToken);
+        var obligationBalances = await dbContext.Obligations.AsNoTracking()
+            .Where(obligation => obligation.UserId == userId &&
+                                 !obligation.IsCancelled &&
+                                 obligation.IssueDate <= asOfDate &&
+                                 !dbContext.ObligationSettlements.Any(settlement =>
+                                     settlement.UserId == userId &&
+                                     settlement.ObligationId == obligation.Id &&
+                                     !settlement.IsCancelled &&
+                                     settlement.SettlementDate <= asOfDate))
+            .GroupBy(obligation => obligation.Direction)
+            .Select(group => new
+            {
+                Direction = group.Key,
+                Amount = group.Sum(item => item.Amount.Amount)
+            })
+            .ToDictionaryAsync(item => item.Direction, item => item.Amount, cancellationToken);
         var receivableDebt = outstandingDebts.GetValueOrDefault(DebtDirection.Receivable) +
-                             counterpartyBalances.Sum(item => item.Receivable);
+                             counterpartyBalances.Sum(item => item.Receivable) +
+                             obligationBalances.GetValueOrDefault(DebtDirection.Receivable);
         var payableDebt = outstandingDebts.GetValueOrDefault(DebtDirection.Payable) +
-                          counterpartyBalances.Sum(item => item.Payable);
+                          counterpartyBalances.Sum(item => item.Payable) +
+                          obligationBalances.GetValueOrDefault(DebtDirection.Payable);
         var futureLoad = await GetFutureLoadAsync(
             userId, asOfDate, daysAhead, cancellationToken);
 
@@ -533,10 +587,22 @@ internal sealed class EfFinancialReportRepository(
         var counterpartyIncome = await counterpartyCharges
             .Where(charge => charge.Direction == DebtDirection.Receivable)
             .SumAsync(charge => charge.Amount.Amount, cancellationToken);
+        var obligations = dbContext.Obligations.AsNoTracking()
+            .Where(obligation => obligation.UserId == userId &&
+                                 !obligation.IsCancelled &&
+                                 (scope == null || obligation.Scope == scope) &&
+                                 obligation.IssueDate >= start &&
+                                 obligation.IssueDate < endExclusive);
+        var obligationExpense = await obligations
+            .Where(obligation => obligation.Direction == DebtDirection.Payable)
+            .SumAsync(obligation => obligation.Amount.Amount, cancellationToken);
+        var obligationIncome = await obligations
+            .Where(obligation => obligation.Direction == DebtDirection.Receivable)
+            .SumAsync(obligation => obligation.Amount.Amount, cancellationToken);
         var expense = transactionExpense + cardExpense + debtOpeningExpense +
-                      debtInterest.Paid.Total + counterpartyExpense;
+                      debtInterest.Paid.Total + counterpartyExpense + obligationExpense;
         var totalIncome = income + debtOpeningIncome.Total + debtInterest.Earned.Total +
-                          counterpartyIncome;
+                          counterpartyIncome + obligationIncome;
         return new PeriodTotalsDto(year, month, totalIncome, expense, totalIncome - expense);
     }
 
@@ -615,6 +681,19 @@ internal sealed class EfFinancialReportRepository(
                 Amount = charge.Amount.Amount
             })
             .ToArrayAsync(cancellationToken);
+        var obligations = await dbContext.Obligations.AsNoTracking()
+            .Where(obligation => obligation.UserId == userId &&
+                                 !obligation.IsCancelled &&
+                                 (scope == null || obligation.Scope == scope) &&
+                                 obligation.IssueDate >= start &&
+                                 obligation.IssueDate < endExclusive)
+            .Select(obligation => new
+            {
+                obligation.IssueDate,
+                obligation.Direction,
+                Amount = obligation.Amount.Amount
+            })
+            .ToArrayAsync(cancellationToken);
         var points = new List<CashFlowPointDto>(trendMonths);
 
         for (var offset = 0; offset < trendMonths; offset++)
@@ -639,6 +718,11 @@ internal sealed class EfFinancialReportRepository(
                     .Where(item => item.ChargeDate.Year == period.Year &&
                                    item.ChargeDate.Month == period.Month &&
                                    item.Direction == DebtDirection.Receivable)
+                    .Sum(item => item.Amount) +
+                obligations
+                    .Where(item => item.IssueDate.Year == period.Year &&
+                                   item.IssueDate.Month == period.Month &&
+                                   item.Direction == DebtDirection.Receivable)
                     .Sum(item => item.Amount);
             var expense = transactions
                 .Where(item => item.TransactionDate.Year == period.Year &&
@@ -662,6 +746,11 @@ internal sealed class EfFinancialReportRepository(
                 counterpartyCharges
                     .Where(item => item.ChargeDate.Year == period.Year &&
                                    item.ChargeDate.Month == period.Month &&
+                                   item.Direction == DebtDirection.Payable)
+                    .Sum(item => item.Amount) +
+                obligations
+                    .Where(item => item.IssueDate.Year == period.Year &&
+                                   item.IssueDate.Month == period.Month &&
                                    item.Direction == DebtDirection.Payable)
                     .Sum(item => item.Amount);
             points.Add(new CashFlowPointDto(
@@ -766,6 +855,23 @@ internal sealed class EfFinancialReportRepository(
                 Spent = group.Sum(item => item.Amount.Amount)
             })
             .ToDictionaryAsync(item => (item.CategoryId, item.Scope), item => item.Spent, cancellationToken);
+        var obligationSpent = await dbContext.Obligations.AsNoTracking()
+            .Where(obligation => obligation.UserId == userId &&
+                                 !obligation.IsCancelled &&
+                                 obligation.Direction == DebtDirection.Payable &&
+                                 obligation.IssueDate >= start &&
+                                 obligation.IssueDate < endExclusive)
+            .GroupBy(obligation => new { obligation.CategoryId, obligation.Scope })
+            .Select(group => new
+            {
+                group.Key.CategoryId,
+                group.Key.Scope,
+                Spent = group.Sum(item => item.Amount.Amount)
+            })
+            .ToDictionaryAsync(
+                item => (item.CategoryId, item.Scope),
+                item => item.Spent,
+                cancellationToken);
 
         return budgets.Select(budget =>
         {
@@ -773,7 +879,8 @@ internal sealed class EfFinancialReportRepository(
             var spent = transactionSpent.GetValueOrDefault(key) +
                         cardSpent.GetValueOrDefault(key) +
                         debtSpent.GetValueOrDefault(key) +
-                        counterpartySpent.GetValueOrDefault(key);
+                        counterpartySpent.GetValueOrDefault(key) +
+                        obligationSpent.GetValueOrDefault(key);
             return new BudgetVarianceDto(
                 budget.CategoryId,
                 budget.CategoryName,

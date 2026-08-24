@@ -50,6 +50,8 @@ using BusinessFinance.Application.Attachments;
 using BusinessFinance.Infrastructure.Attachments;
 using BusinessFinance.Application.Receipts;
 using BusinessFinance.Infrastructure.Receipts;
+using BusinessFinance.Application.Obligations;
+using BusinessFinance.Infrastructure.Obligations;
 
 namespace BusinessFinance.Infrastructure;
 
@@ -118,6 +120,7 @@ public static class DependencyInjection
         services.AddScoped<IDataPortabilityRepository, EfDataPortabilityRepository>();
         services.AddScoped<IDebtRepository, EfDebtRepository>();
         services.AddScoped<ICounterpartyRepository, EfCounterpartyRepository>();
+        services.AddScoped<IObligationRepository, EfObligationRepository>();
         services.AddScoped<ISavingsGoalRepository, EfSavingsGoalRepository>();
         services.AddScoped<IAttachmentRepository, EfAttachmentRepository>();
         services.AddSingleton<IAttachmentFileInspector, AttachmentFileInspector>();

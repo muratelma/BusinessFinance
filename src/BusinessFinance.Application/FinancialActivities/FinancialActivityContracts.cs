@@ -29,7 +29,13 @@ public enum FinancialActivityKind
     /// Cari tahsilat ya da ödeme: kasa değişir, gelir/gider üretilmez.
     /// Ekonomik olay borçlandırmada zaten tanınmıştır.
     /// </summary>
-    CounterpartySettlement = 9
+    CounterpartySettlement = 9,
+
+    /// <summary>
+    /// Tek seferlik vadeli ekonomik olay. Yöne göre gelir/gideri düzenleme
+    /// tarihinde tanır; ödeme daha sonra ayrı, nötr bir hareket olacaktır.
+    /// </summary>
+    Obligation = 10
 }
 
 /// <summary>Effect on the income/expense report.</summary>
@@ -53,7 +59,8 @@ public enum FinancialActivitySourceGroup
     /// aynı kişiye ait olsa da farklı sorular sorar — biri yürüyen bir
     /// hesap, diğeri vadesi belli bir plan.
     /// </summary>
-    Counterparty = 5
+    Counterparty = 5,
+    Obligation = 6
 }
 
 /// <summary>How the activity was produced.</summary>
@@ -233,7 +240,10 @@ public static class FinancialActivityCapabilities
         // kalırdı. Borcu bitirmenin yolu bu satır değil, sözleşme akışıdır.
         if (kind is FinancialActivityKind.DebtPayment
             or FinancialActivityKind.DebtCollection
-            or FinancialActivityKind.DebtOpening)
+            or FinancialActivityKind.DebtOpening
+            // Yükümlülüğün iptal akışı Grup 6'da açılana kadar akış, kullanıcıya
+            // çalışmayan bir iptal eylemi göstermemelidir.
+            or FinancialActivityKind.Obligation)
         {
             return false;
         }

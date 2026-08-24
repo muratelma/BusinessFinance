@@ -36,15 +36,15 @@ void main() {
     expect(answers, [true, false]);
   });
 
-  // Ödenmemiş fatura planlanan tarafa düşer ve planın tarihi **vadedir**;
-  // faturanın kendi tarihi değil. İkisi karıştırılırsa fatura düzenlendiği gün
-  // harcanmış görünür.
-  test('the plan starts on the due date, not on the document date', () {
-    final prefill = receiptBillPrefillFrom(_draft());
+  // Belge tarihi giderin tanınma, son ödeme tarihi borcun vade günüdür.
+  test('keeps the invoice issue and due dates separate', () {
+    final prefill = receiptObligationPrefillFrom(_draft());
 
-    expect(prefill.dueDate, '2026-09-30');
-    expect(prefill.amount, '412.6000');
-    expect(prefill.description, 'ENERJİSA');
+    expect(prefill.issueDate?.value, '2026-09-01');
+    expect(prefill.dueDate?.value, '2026-09-30');
+    expect(prefill.amount?.value, '412.6000');
+    expect(prefill.description?.value, 'ENERJİSA');
+    expect(prefill.counterpartyId, 'counterparty-1');
     // Ödeme kaynağı taşınmıyor: fatura hangi hesaptan ödeneceğini söylemez.
     expect(prefill.isEmpty, isFalse);
   });
@@ -76,6 +76,7 @@ ReceiptDraft _draft({String? dueDate = '2026-09-30'}) => ReceiptDraft(
   documentKind: ReceiptDocumentKind.invoiceOrVoucher,
   counterpartyName: 'ENERJİSA',
   counterpartyState: ReceiptFieldState.read,
+  counterpartyId: 'counterparty-1',
   purchasedAt: '2026-09-01',
   purchasedAtState: ReceiptFieldState.read,
   dueDate: dueDate,

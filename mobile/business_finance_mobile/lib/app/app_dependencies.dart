@@ -22,6 +22,7 @@ import '../features/data_tools/data/data_tools_repository.dart';
 import '../features/counterparties/data/counterparty_repository.dart';
 import '../features/debts/data/debt_repository.dart';
 import '../features/goals/data/goal_repository.dart';
+import '../features/obligations/data/obligation_repository.dart';
 import '../features/receipts/data/receipt_image_source.dart';
 import '../features/receipts/data/receipt_photo.dart';
 import '../features/receipts/data/receipt_preferences.dart';
@@ -47,6 +48,7 @@ class AppDependencies {
     this.debtRepository,
     this.counterpartyRepository,
     this.goalRepository,
+    this.obligationRepository,
     this.receiptRepository,
     this.receiptImageSource,
     this.receiptImageNormalizer,
@@ -82,6 +84,7 @@ class AppDependencies {
     final debtRepository = DebtRepository(apiClient);
     final counterpartyRepository = CounterpartyRepository(apiClient);
     final goalRepository = GoalRepository(apiClient);
+    final obligationRepository = ObligationRepository(apiClient);
     final receiptRepository = ReceiptRepository(apiClient);
     final profileRepository = ProfileRepository(apiClient);
     // Kapsam anahtarı cihazdan, onboarding cevabı sunucudan okunur; ikisi de
@@ -110,6 +113,7 @@ class AppDependencies {
       debtRepository,
       counterpartyRepository,
       goalRepository,
+      obligationRepository,
       receiptRepository,
       ImagePickerReceiptImageSource(),
       const ReceiptImageNormalizer(),
@@ -139,6 +143,7 @@ class AppDependencies {
   final DebtRepositoryContract debtRepository;
   final CounterpartyRepositoryContract counterpartyRepository;
   final GoalRepositoryContract goalRepository;
+  final ObligationRepositoryContract obligationRepository;
   final ReceiptRepositoryContract receiptRepository;
 
   /// Fiş çekme akışının cihaz tarafı. Controller kısa ömürlüdür ve akış

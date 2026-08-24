@@ -5,6 +5,8 @@ import 'package:business_finance_mobile/app/business_finance_app.dart';
 import 'package:business_finance_mobile/core/routing/app_router.dart';
 import 'package:business_finance_mobile/features/auth/presentation/auth_controller.dart';
 import 'package:business_finance_mobile/features/receipts/data/receipt_models.dart';
+import 'package:business_finance_mobile/features/obligations/data/obligation_repository.dart';
+import 'package:business_finance_mobile/core/models/data_choice.dart';
 import 'package:provider/provider.dart';
 
 import '../../helpers/fake_auth.dart';
@@ -138,8 +140,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  // Fatura sayfası da kardeş rota: ödendi cevabı buradan gider formuna,
-  // ödenmedi cevabı planlamaya geçiyor ve ikisi de Navigator'ı patlatmamalı.
+  // Fatura sayfası da kardeş rota: ödendi cevabı gider formuna, ödenmedi
+  // cevabı yükümlülük formuna geçiyor ve ikisi de Navigator'ı patlatmamalı.
   testWidgets('the invoice page routes both answers without crashing', (
     tester,
   ) async {
@@ -152,7 +154,10 @@ void main() {
       final repository = FakeAuthSessionRepository()..session = testSession();
       final controller = AuthController(repository);
       await controller.initialize();
-      final router = createAppRouter(authController: controller);
+      final router = createAppRouter(
+        authController: controller,
+        obligationRepository: _FakeObligationRepository(),
+      );
 
       await tester.pumpWidget(_app(controller, router));
       await tester.pumpAndSettle();
@@ -169,6 +174,10 @@ void main() {
 
       expect(tester.takeException(), isNull, reason: answer);
       expect(find.text('Fatura okundu'), findsNothing, reason: answer);
+      if (answer == 'Henüz ödemedim') {
+        expect(find.text('Ödenmemiş faturayı kaydet'), findsOneWidget);
+        expect(find.textContaining('Sıklık'), findsNothing);
+      }
     }
   });
 
@@ -209,6 +218,18 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Dekont okundu'), findsNothing);
   });
+}
+
+class _FakeObligationRepository implements ObligationRepositoryContract {
+  @override
+  Future<ObligationOptions> loadPayableOptions() async =>
+      const ObligationOptions(
+        categories: [DataChoice('category-1', 'Faturalar')],
+        counterparties: [],
+      );
+
+  @override
+  Future<void> create(Map<String, Object?> input) async {}
 }
 
 Widget _app(AuthController controller, GoRouter router) =>

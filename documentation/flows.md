@@ -993,7 +993,7 @@ ekranına gönderen bir düğme vardı).
    │ alışveriş fişi          -> gider/gelir formu (öneriler)              │
    │ vadeli fatura           -> "Ödediniz mi?"                            │
    │        Ödedim           -> gider formu                               │
-   │        Henüz ödemedim   -> tek seferlik plan (bakiye/rapor etkisi 0)  │
+   │        Henüz ödemedim   -> yükümlülük formu (gider var, nakit yok)    │
    │ taksitli fiş            -> kart seçimi -> taksit planı formu          │
    │ iade fişi               -> eşleşen harcama -> onayla -> İPTAL         │
    │ banka belgesi (dekont)  -> karar sayfası: "Bu tutar ne?"              │
@@ -1026,9 +1026,11 @@ yazılır (banka ücreti, paranın çıktığı yerden alınır) ve **ayrı bir 
 kalır; ana tutara eklemek belgede yazmayan bir toplam uydurmak olurdu. Ücret
 satırı yalnız belgede ücret varsa görünür.
 
-**Ödenmemiş fatura para hareketi üretmez.** Tek seferlik tekrarlayan plan
-(`endDate == startDate`) olarak yazılır: plan tek başına bakiyeye ve gider
-raporuna dokunmaz, yalnız gerçekleştirildiğinde kayıt olur.
+**Ödenmemiş fatura para hareketi üretmez ama gideri tanır.** Kullanıcı belge
+tarihi, son ödeme tarihi, gider kategorisi, isteğe bağlı karşı taraf ve kapsamı
+doğrulayarak tek seferlik yükümlülük yazar. Form hesap veya sıklık sormaz: kasa
+ödeme yapılana kadar değişmez; gider belge tarihinde rapora girer. Ödeme daha
+sonra yükümlülüğü kapatan ayrı ve nötr nakit olayıdır.
 
 **İade yeni kayıt üretmez.** Sunucu geri verilen harcamayı arar, kullanıcı
 görüp onaylar, harcama **iptal edilir** (silinmez). Kısmi iadede kalan tutar

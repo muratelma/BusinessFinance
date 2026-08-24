@@ -267,6 +267,16 @@ kapanış use case'i yükümlülük davranışı açıldığında tamamlanacak.
 | `PlannedFeed_ProjectsOpenOneTimeObligationsWithoutOwnerLeakage` (API, yeni) | Kablo türleri/eylemleri, nötr ödeme etkisi, kapsam filtresi ve pozitif-negatif owner izolasyonu |
 | `planned_activity_test` + `dashboard_sections_test` (Flutter, genişletildi) | İki yükümlülük türü/eylemi parse edilir; tür filtresi iki yönü kapsar ve gecikmiş ödenecek yükümlülük mevcut Özet bandını besler |
 
+## Aşama 03 Grup 5 — ödenmemiş fatura yazma akışı
+
+| Test | Neyi kanıtlıyor |
+|---|---|
+| `ObligationEndpointTests` (API, yeni) | Ödenmemiş fatura gideri belge tarihinde tanır, hesabı değiştirmez, feed/net varlık raporuna girer; yabancı kategori/karşı taraf ve yabancı owner okuması reddedilir |
+| `AdvancedReport_LargeFixtureStaysWithinQueryCountAndTimeBudget` (gerçek SQL, güncellendi) | Yükümlülük rapor dilimleriyle gelişmiş rapor en çok 60 sabit okuma komutunda kalır; sayı yükümlülük adediyle büyümez |
+| `invoice_decision_page_test` (Flutter, genişletildi) | Belge tarihi ile son ödeme tarihi ayrı öneriler olarak yükümlülük formuna taşınır |
+| `obligation_form_page_test` (Flutter, yeni) | Form hesap ve sıklık istemez; payable payload'ında ayrı `issueDate`/`dueDate`, kategori ve isteğe bağlı karşı taraf taşır; erişilebilirlik kapısını geçer |
+| `bank_document_router_test` (Flutter, genişletildi) | “Henüz ödemedim” kardeş rotadaki yükümlülük formuna Navigator çakışması olmadan geçer |
+
 ## Bilinen test boşlukları
 
 - Fiziksel cihaz kanıtı yoktur; emulator kabulü bunun yerine sunulmaz.

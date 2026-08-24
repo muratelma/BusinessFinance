@@ -173,15 +173,19 @@ kaybolur; ikisi de doğru olur ve sırayla gerçekleşir.
 - Flutter iki türü parse eder ve gecikmiş ödenecek satırı mevcut Özet bandında
   gösterir. Hesap seçen ödeme eylemi Grup 6 gelmeden yanlış forma bağlanmadı.
 
-### Grup 5 — Fiş okumanın bağlanması
+### Grup 5 — Fiş okumanın bağlanması — **Tamamlandı**
 
 - `_recordInvoice`'ın "ödemedim" dalı planlama formuna değil yükümlülük
   kaydına gider.
 - Okunan `dueDate` yükümlülüğün vadesi olur; belgenin kendi tarihi düzenleme
   tarihi kalır — ikisi karıştırılmaz.
-- `receiptBillPrefillFrom` yükümlülük formuna uyarlanır; `BillPrefill`'in
-  planlama formuna bağlı hâli kaldırılır.
+- `receiptBillPrefillFrom`, `receiptObligationPrefillFrom` ile değiştirilir;
+  `BillPrefill`'in planlama formuna bağlı hâli kaldırılır.
 - Ölçüt: fatura okutulup "ödemedim" seçildiğinde hiçbir sıklık sorulmuyor.
+- `POST /api/v1/obligations` current user'dan türeyen sahiplik kapısıyla açıldı;
+  kategori zorunlu, karşı taraf isteğe bağlı ve ikisi de owner-scoped doğrulanıyor.
+- Ödenmemiş fatura formu belge tarihi ile vadeyi ayrı gösteriyor; hesap ve sıklık
+  istemiyor. Gider belge tarihinde tanınıyor, hesap bakiyesi değişmiyor.
 
 ### Grup 6 — Flutter
 

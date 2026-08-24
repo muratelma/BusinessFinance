@@ -97,12 +97,13 @@ index'ler ve Domain invariant'ları engeller.
 | Veresiye satış | `counterparty-charge` | `income` | `counterparty` | evet |
 | Vadeli alım | `counterparty-charge` | `expense` | `counterparty` | evet |
 | Cari tahsilat/ödeme | `counterparty-settlement` | `neutral` | `counterparty` | evet |
+| Tek seferlik yükümlülük doğuşu | `obligation` | `income`/`expense` | `obligation` | **hayır** (Grup 6 iptal akışı bekleniyor) |
 
 `canCancel` formülü:
 
 ```text
 canCancel = status == realized
-         && activityKind ∉ { debt-payment, debt-collection, debt-opening }
+         && activityKind ∉ { debt-payment, debt-collection, debt-opening, obligation }
          && origin ∉ { recurring, installment }
 ```
 
