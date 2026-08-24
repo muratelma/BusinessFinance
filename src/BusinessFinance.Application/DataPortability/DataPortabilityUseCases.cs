@@ -28,6 +28,25 @@ public sealed class ExportTransactionsCsvUseCase(
     }
 }
 
+/// <summary>
+/// Cari defterin kendi dosyası.
+/// </summary>
+/// <remarks>
+/// İşlem CSV'sine kolon eklenmedi: o dosya <c>BudgetTransaction</c> tablosunun
+/// dökümüdür ve cari hareket orada hiç bulunmaz — kolon her satırda boş kalır,
+/// dosya da eksik kalmaya devam ederdi. Her dışa aktarma tek kaydın dökümü
+/// olduğu sürece kullanıcı ne okuduğunu bilir.
+/// </remarks>
+public sealed class ExportCounterpartyLedgerCsvUseCase(
+    ICurrentUser currentUser,
+    IDataPortabilityRepository repository)
+{
+    public Task<ApplicationResult<PortableFile>> ExecuteAsync(CancellationToken cancellationToken = default) =>
+        ExportTransactionsCsvUseCase.ExecuteOwnedAsync(
+            currentUser,
+            id => repository.ExportCounterpartyLedgerCsvAsync(id, cancellationToken));
+}
+
 public sealed class ExportFinancialJsonUseCase(
     ICurrentUser currentUser,
     IDataPortabilityRepository repository)

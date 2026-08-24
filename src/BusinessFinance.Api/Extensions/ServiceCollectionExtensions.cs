@@ -100,6 +100,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ListFinancialActivitiesUseCase>();
         services.AddTransient<GetUpcomingPaymentsUseCase>();
         services.AddTransient<ExportTransactionsCsvUseCase>();
+        services.AddTransient<ExportCounterpartyLedgerCsvUseCase>();
         services.AddTransient<ExportFinancialJsonUseCase>();
         services.AddTransient<CreateBackupUseCase>();
         services.AddTransient<ValidateBackupUseCase>();

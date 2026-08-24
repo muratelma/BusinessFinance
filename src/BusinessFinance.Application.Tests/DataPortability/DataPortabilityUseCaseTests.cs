@@ -54,6 +54,8 @@ public sealed class DataPortabilityUseCaseTests
 
         public Task<PortableFile> ExportTransactionsCsvAsync(Guid userId, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+        public Task<PortableFile> ExportCounterpartyLedgerCsvAsync(Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
         public Task<PortableFile> ExportFinancialJsonAsync(Guid userId, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
         public Task<PortableFile> CreateBackupAsync(Guid userId, CancellationToken cancellationToken)

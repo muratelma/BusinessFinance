@@ -1,7 +1,12 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-enum ExportFileKind { transactionsCsv, financialJson, backup }
+enum ExportFileKind {
+  transactionsCsv,
+  counterpartyLedgerCsv,
+  financialJson,
+  backup,
+}
 
 class ExportFileDetails {
   const ExportFileDetails({
@@ -28,6 +33,13 @@ class ExportFileDetails {
         mimeType,
         data,
         fallbackTime,
+      ),
+      ExportFileKind.counterpartyLedgerCsv => _csv(
+        fileName,
+        mimeType,
+        data,
+        fallbackTime,
+        rowLabel: 'cari hareket satırı',
       ),
       ExportFileKind.financialJson => _json(
         fileName,
@@ -65,8 +77,9 @@ class ExportFileDetails {
     String name,
     String type,
     Uint8List bytes,
-    DateTime createdAt,
-  ) {
+    DateTime createdAt, {
+    String rowLabel = 'işlem satırı',
+  }) {
     final text = utf8.decode(bytes).replaceFirst('\ufeff', '');
     final lines = const LineSplitter()
         .convert(text)
@@ -80,7 +93,7 @@ class ExportFileDetails {
       mimeType: type,
       bytes: bytes,
       createdAt: createdAt,
-      summary: ['$recordCount işlem satırı'],
+      summary: ['$recordCount $rowLabel'],
       preview: previewLines.join('\n'),
     );
   }

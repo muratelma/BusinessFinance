@@ -637,7 +637,8 @@ Backup seç -> validate (base64/length/SHA-256/strict JSON/graph/re-scan)
   -> başarı: SQL graph + object content
   -> hata: SQL rollback + bu çağrının object key'lerini sil
 
-CSV/JSON/backup dışa aktar -> authenticated binary download
+CSV (işlem) / CSV (cari defter) / JSON / backup dışa aktar
+  -> authenticated binary download
   -> dosya adı + MIME türü + boyut + oluşturulma zamanı
   -> CSV/JSON: sınırlı uygulama içi önizleme
   -> backup: schema + toplam kayıt; payload ekranda gösterilmez

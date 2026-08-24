@@ -18,6 +18,23 @@ void main() {
     expect(details.sizeLabel, endsWith('byte'));
   });
 
+  // Cari defterin dosyası kendi cümlesini kurar: aynı "işlem satırı"
+  // etiketini paylaşsalardı iki dosya ekranda birbirinden ayırt edilemezdi.
+  test('counterparty ledger CSV details count ledger rows', () {
+    final details = ExportFileDetails.fromBytes(
+      fileName: 'counterparty-ledger.csv',
+      mimeType: 'text/csv',
+      bytes: utf8.encode(
+        'id,date,kind,amount\n1,2026-08-14,charge,10.0000\n'
+        '2,2026-08-15,payment,4.0000\n',
+      ),
+      kind: ExportFileKind.counterpartyLedgerCsv,
+    );
+
+    expect(details.summary, contains('2 cari hareket satırı'));
+    expect(details.preview, contains('charge'));
+  });
+
   test('financial JSON details summarize top-level collections', () {
     final details = ExportFileDetails.fromBytes(
       fileName: 'financial-data.json',

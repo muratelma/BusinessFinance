@@ -509,6 +509,13 @@ public sealed class SqlServerPersistenceIntegrationTests
         Assert.Single(await read.ImportBatches.Where(x => x.UserId == restoredOwner.Id).ToArrayAsync());
         Assert.Single(await read.DebtAgreements.Where(x => x.UserId == restoredOwner.Id).ToArrayAsync());
         Assert.Single(await read.SavingsGoals.Where(x => x.UserId == restoredOwner.Id).ToArrayAsync());
+        // Cari defteri gerçek SQL üzerinde de kayıpsız dönüyor: iki hareketli
+        // karşı taraf, bir sözleşme karşı tarafı, iki borçlandırma ve iki
+        // tahsilat. Yedek bunları taşımasaydı geri yüklenen hesap, açık
+        // alacağı olmayan bir defterle açılırdı.
+        Assert.Equal(3, await read.Counterparties.CountAsync(x => x.UserId == restoredOwner.Id));
+        Assert.Equal(2, await read.CounterpartyCharges.CountAsync(x => x.UserId == restoredOwner.Id));
+        Assert.Equal(2, await read.CounterpartyPayments.CountAsync(x => x.UserId == restoredOwner.Id));
         var restoredAttachment = Assert.Single(
             await read.FinancialAttachments.Where(x => x.UserId == restoredOwner.Id).ToArrayAsync());
         await using var restoredContent = await attachmentStore.OpenReadAsync(

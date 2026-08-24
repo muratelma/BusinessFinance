@@ -26,8 +26,10 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   ve cari hesabın yazma yolu, birleşik feed'e ve raporlara katılması
   tamamlandı. **Grup 6** fiş okumanın karşı taraf önerisini bağladı ve
   **Grup 7** cari hesabın Flutter ekranlarını yazdı (liste, ayrıntı, dört
-  form, `Diğer` menüsünde kendi kapısı). Fiş önerisinin görünür kabul/red
-  rozeti hâlâ açık ve aşama belgesinde yazılı. Kalan: yedek v7
+  form, `Diğer` menüsünde kendi kapısı). **Grup 8** yedek şemasını v7'ye
+  taşıdı ve cari deftere kendi CSV dışa aktarımını verdi. **Sekiz çalışma
+  grubunun hepsi bitti.** Açık kalan iki madde: fiş önerisinin görünür
+  kabul/red rozeti (kullanıcı kararı bekliyor) ve cihaz kabul turu
 - Kalan beş aşamanın belgesi de yazılı, durumları `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
@@ -553,6 +555,42 @@ bırakıldı.
 | Migration | Üretilmedi ve gerekmedi; `HasPendingModelChanges` temiz |
 | Flutter | Bu turda değişmedi |
 
+## 24 Ağustos 2026 — Aşama 02, Grup 8: yedek v7 ve cari defterin dışa aktarımı
+
+- **Yedek şeması v7.** Karşı tarafın kendisi (ad, not, aktiflik) ve cari
+  defterin iki hareket türü yedeğe girdi. Geri yükleme gerçek SQL üzerinde
+  kayıpsız doğrulandı: üç karşı taraf, iki borçlandırma, iki tahsilat
+- **Sözleşme karşı tarafı artık adla değil kimlikle gösteriyor.** v6 adı
+  taşıyor ve geri yüklerken addan yeniden kuruyordu; karşı taraf kendi
+  kaydıyla dosyaya girdiğine göre ad yedeğin içinde tek yerde durmalı
+- **v6 yükseltilmiyor, `restore.unsupported_version` ile reddediliyor.** O
+  dosyada cari defter hiç yok; karşı tarafı bakiyesiz kurmak kullanıcının
+  alacağını sessizce sıfırlamak olurdu. v2–v5 için kapsam boyutunda verilen
+  kararın aynısı (ADR 0013)
+- **Pasifleştirme geri yüklemede hareketlerden sonra uygulanıyor** (hesap ve
+  kategorilerdeki sıranın aynısı). Ters sıra, pasif bir müşterinin geçmişini
+  geri yüklenemez yapardı — borçlandırma yalnız aktif karşı tarafa yazılabilir
+- **Kullanıcı kararı: işlem CSV'sine karşı taraf kolonu eklenmedi; cari defter
+  kendi dosyasını aldı** (`GET /api/v1/exports/counterparty-ledger.csv`).
+  İşlem CSV'si `BudgetTransaction` tablosunun dökümüdür ve cari hareket orada
+  hiç bulunmaz — kolon her satırda boş kalırdı. İki kayıt türünün alan listesi
+  dosyada da bilerek farklı: borçlandırma kategori ve kapsam taşır, hesap
+  kolonu boştur; tahsilat hesap taşır, kategori ve kapsam kolonları boştur
+  (ADR 0014). Cari CSV'si de işlem CSV'si gibi **geri yüklenemez**
+- Cari dosyası Veri araçları > Yedek sekmesine kendi kartıyla girdi ve kendi
+  özet cümlesini kuruyor (`n cari hareket satırı`)
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (SQL dâhil) | **838 geçti**, 1 atlandı (`GeminiLiveContractTests`) |
+| Flutter analyze | No issues found |
+| Flutter format | Temiz |
+| Flutter test | **715 geçti** |
+| Flutter debug APK | Derlendi |
+| Migration | Üretilmedi ve gerekmedi; şema değişmedi (yedek dosya biçimi değişti) |
+
 ## Açık kararlar ve riskler
 
 - **Yerel veritabanının silinmesi onay bekliyor.** Aşama 01 Grup 1'in ilk işi;
@@ -568,21 +606,20 @@ bırakıldı.
 
 ## Sıradaki tek küçük görev
 
-- **Aşama 02, Grup 3: cari bakiye projection'ı.** Kalıcılık (EF eşlemesi ve
-  migration) ve karşı taraf başına bakiyenin **tek sorguda** okunması. Ölçüt
-  bounded query-count: 50 karşı taraflı sentetik veride N+1 yok.
+- **Aşama 02 kabul turu.** Pixel 8 emulator + çalışan API + gerçek SQL:
+  veresiye satış, kısmi tahsilat, karşı taraf ekranları ve yedek v7
+  tatbikatı (`documentation/restore-runbook.md`). Turdan önce kullanıcının
+  fiş öneri rozeti hakkındaki kararı gerekiyor: kapatılacak mı, yoksa kendi
+  maddesiyle Aşama 03'e mi taşınacak.
 
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: Aşama 01 **Grup 7, 8 ve 9 uygulandı** — Flutter kapsam
-  anahtarı ve formdaki kapsam çipi, onboarding sorusunun istemci yüzü, aylık
-  raporun kapsam kırılımı ile özet ekranının üç sayılı hero'su, işlem CSV'sinde
-  kapsam kolonu ve kendi dışa aktarımını tanımanın sağlamlaştırılması.
-  **Dokuz çalışma grubunun hepsi bitti**
-- Geçen kontroller: backend build + format + **804 test** (SQL dahil); Flutter
-  analyze + format + **701 test** + debug APK derlemesi
-- Kabul turu: Pixel 8 emulator + çalışan API + gerçek SQL. Üç otomatik senaryo
-  geçti, ekran elle gezildi, iki bulgu kayda geçti
-- Aşama 01 kullanıcı onayıyla kapandı ve arşivlendi; **Aşama 02 açıldı**.
-  ADR 0014 kabul edildi ve cari hesabın domain katmanı yazıldı (Grup 1–2)
-- Sıradaki görev: Aşama 02 Grup 3 — kalıcılık ve tek sorguluk cari bakiye
+- Yapılan değişiklik: Aşama 02 **Grup 8 uygulandı** — yedek şeması v7 (karşı
+  taraf ve cari defterin iki hareket türü), sözleşmenin karşı tarafı adla
+  değil kimlikle göstermesi, v6'nın reddi ve cari defterin kendi CSV dışa
+  aktarımı (API + Flutter kartı). **Sekiz çalışma grubunun hepsi bitti**
+- Geçen kontroller: backend build + format + **838 test** (SQL dâhil); Flutter
+  analyze + format + **715 test** + debug APK derlemesi
+- Açık kalan: fiş öneri rozeti (kullanıcı kararı) ve Aşama 02 cihaz kabul turu
+- Sıradaki görev: Aşama 02 kabul turu — Pixel 8 + gerçek API + gerçek SQL,
+  yedek v7 tatbikatı dâhil

@@ -18,6 +18,7 @@ public sealed record RestoreSummaryDto(
 public interface IDataPortabilityRepository
 {
     Task<PortableFile> ExportTransactionsCsvAsync(Guid userId, CancellationToken cancellationToken);
+    Task<PortableFile> ExportCounterpartyLedgerCsvAsync(Guid userId, CancellationToken cancellationToken);
     Task<PortableFile> ExportFinancialJsonAsync(Guid userId, CancellationToken cancellationToken);
     Task<PortableFile> CreateBackupAsync(Guid userId, CancellationToken cancellationToken);
     Task<BackupValidationDto> ValidateBackupAsync(byte[] content, CancellationToken cancellationToken);

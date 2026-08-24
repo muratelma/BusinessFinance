@@ -1,10 +1,12 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using BusinessFinance.Api.Features.Accounts;
 using BusinessFinance.Api.Features.Authentication;
 using BusinessFinance.Api.Features.Categories;
+using BusinessFinance.Api.Features.Counterparties;
 using BusinessFinance.Api.Features.DataPortability;
 using BusinessFinance.Api.Features.Transactions;
 
@@ -58,7 +60,7 @@ public sealed class DataPortabilityEndpointTests
         using var validate = await target.PostAsync("/api/v1/backups/validate", validateForm);
         validate.EnsureSuccessStatusCode();
         var validation = await validate.Content.ReadFromJsonAsync<BackupValidationResponse>();
-        Assert.Equal(6, validation!.SchemaVersion);
+        Assert.Equal(7, validation!.SchemaVersion);
         Assert.True(validation.EntityCount >= 10);
 
         using var restoreForm = BackupForm(backup);
@@ -80,6 +82,67 @@ public sealed class DataPortabilityEndpointTests
         using var retryForm = BackupForm(backup);
         using var retry = await target.PostAsync("/api/v1/backups/restore", retryForm);
         Assert.Equal(HttpStatusCode.Conflict, retry.StatusCode);
+    }
+
+    /// <summary>
+    /// Cari defterin dosyası korumalıdır ve yalnız sahibinin hareketlerini taşır.
+    /// </summary>
+    /// <remarks>
+    /// İşlem CSV'sine kolon eklenmedi: o dosya <c>BudgetTransaction</c>
+    /// dökümüdür ve cari hareket orada hiç bulunmaz. Cari defterin kendi
+    /// dosyası olması, her dışa aktarmanın tek kaydın dökümü olmasını korur.
+    /// </remarks>
+    [Fact]
+    public async Task CounterpartyLedgerCsv_IsOwnerScopedAndCarriesBothRecordKinds()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var anonymous = factory.CreateClient();
+        using var unauthorized = await anonymous.GetAsync("/api/v1/exports/counterparty-ledger.csv");
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
+
+        using var owner = await AuthenticateAsync(factory, "ledger-owner@example.test");
+        var account = await CreateAccountAsync(owner);
+        var incomeCategories = await owner.GetFromJsonAsync<CategoryListResponse>(
+            "/api/v1/categories?type=income");
+        var incomeCategory = incomeCategories!.Items[0];
+
+        using var createCounterparty = await owner.PostAsJsonAsync(
+            "/api/v1/counterparties", new CreateCounterpartyRequest("Sentetik Manav"));
+        createCounterparty.EnsureSuccessStatusCode();
+        var counterparty = await createCounterparty.Content
+            .ReadFromJsonAsync<CounterpartyResponse>();
+
+        using var charge = await owner.PostAsJsonAsync(
+            $"/api/v1/counterparties/{counterparty!.Id}/charges",
+            new CreateCounterpartyChargeRequest(
+                "receivable", "400.0000", "TRY", incomeCategory.Id, "2026-08-06",
+                "business", "Veresiye satış"));
+        charge.EnsureSuccessStatusCode();
+        using var payment = await owner.PostAsJsonAsync(
+            $"/api/v1/counterparties/{counterparty.Id}/payments",
+            new CreateCounterpartyPaymentRequest(
+                "receivable", "120.0000", "TRY", account.Id, "2026-08-08", "Kısmi tahsilat"));
+        payment.EnsureSuccessStatusCode();
+
+        using var download = await owner.GetAsync("/api/v1/exports/counterparty-ledger.csv");
+        download.EnsureSuccessStatusCode();
+        Assert.Equal("text/csv", download.Content.Headers.ContentType!.MediaType);
+        var bytes = await download.Content.ReadAsByteArrayAsync();
+        Assert.Equal([0xEF, 0xBB, 0xBF], bytes[..3]);
+        var text = Encoding.UTF8.GetString(bytes);
+        Assert.Contains("counterpartyName", text, StringComparison.Ordinal);
+        Assert.Contains("400.0000", text, StringComparison.Ordinal);
+        Assert.Contains("120.0000", text, StringComparison.Ordinal);
+
+        // Başka kullanıcının defteri boştur: dosya başlığı gelir, satır gelmez.
+        using var stranger = await AuthenticateAsync(factory, "ledger-stranger@example.test");
+        using var strangerDownload = await stranger.GetAsync(
+            "/api/v1/exports/counterparty-ledger.csv");
+        strangerDownload.EnsureSuccessStatusCode();
+        var strangerText = Encoding.UTF8.GetString(
+            await strangerDownload.Content.ReadAsByteArrayAsync());
+        Assert.DoesNotContain("Sentetik Manav", strangerText, StringComparison.Ordinal);
+        Assert.DoesNotContain("400.0000", strangerText, StringComparison.Ordinal);
     }
 
     private static MultipartFormDataContent BackupForm(byte[] content)

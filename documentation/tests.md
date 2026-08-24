@@ -152,6 +152,18 @@ girmediği için migration üretmedi. `ScopePreferences`'ın kendisinin doğruda
 `ReceiptPreferences` ile aynı gerekçe — `flutter_secure_storage` sarmalayıcısı
 platform kanalı ister, sözleşme (`ScopeStore`) sahte uygulamayla testli.
 
+## Aşama 02 Grup 8 — yedek v7 ve cari defterin dışa aktarımı
+
+| Test | Neyi kanıtlıyor |
+|---|---|
+| `DataPortabilityTests.Backup_ValidatesAndRestoresCompleteSyntheticGraphToEmptyOwner` (genişletildi) | v7 yedeği karşı tarafı (ad, not, aktiflik), iki borçlandırmayı ve iki tahsilatı kayıpsız geri yüklüyor; **pasif** karşı tarafın geçmişi de dönüyor (pasifleştirme hareketlerden sonra uygulanıyor), iptal edilmiş tahsilat iptal olarak dönüyor |
+| `DataPortabilityTests.BackupBeforeCounterpartyLedger_IsRejectedAndWritesNothing` (yeni) | v6 dosyası `restore.unsupported_version` ile reddediliyor ve hedefe hiçbir şey yazılmıyor: o dosyada cari defter yok, yükseltmek kullanıcının alacağını sıfırlamak olurdu |
+| `SqlServerPersistenceIntegrationTests.DataPortability_RoundTripAndFailedRestoreAreAtomic` (genişletildi) | **Gerçek SQL**: geri yüklenen hesapta üç karşı taraf, iki borçlandırma ve iki tahsilat var; başarısız restore hâlâ atomik |
+| `DataPortabilityTests.CounterpartyLedgerCsv_CarriesBothRecordKindsWithTheirOwnFields` (yeni) | Cari CSV'sinde borçlandırma kategori/kapsam taşıyor ve hesap kolonu boş; tahsilat hesap taşıyor ve kategori/kapsam kolonları boş; iptal edilmiş hareket dosyada kalıp iptal olduğunu söylüyor |
+| `DataPortabilityTests.CounterpartyLedgerCsv_IncludesInactiveCounterpartiesAndIsFormulaSafe` (yeni) | Pasif karşı tarafın geçmişi dosyada; formül başlangıcı ve virgüllü metin hücrede güvenli |
+| `DataPortabilityEndpointTests.CounterpartyLedgerCsv_IsOwnerScopedAndCarriesBothRecordKinds` (yeni) | Uç nokta kimlik istiyor (401), sahibinin iki hareket türünü de döndürüyor, **başka kullanıcının defteri boş geliyor** |
+| `export_file_details_test` (Flutter, yeni) | Cari dosyası kendi özet cümlesini kuruyor (`n cari hareket satırı`); iki dosya ekranda birbirinden ayırt ediliyor |
+
 ## Mevcut kabul kanıtı
 
 | Use case | Kural / deny durumu | Beklenen sonuç | Kanıt | Durum |

@@ -306,6 +306,18 @@ class _DataToolsPageState extends State<DataToolsPage> {
       kind: ExportFileKind.transactionsCsv,
       icon: Icons.table_view,
     ),
+    // Cari defteri kendi dosyasını alır: işlem CSV'si `BudgetTransaction`
+    // dökümüdür ve cari hareket orada hiç bulunmaz. Ona bir karşı taraf kolonu
+    // eklemek her satırda boş kalırdı; iki dosyanın her biri tek kaydın
+    // dökümü olduğu sürece kullanıcı ne okuduğunu bilir.
+    _exportCard(
+      title: 'Cari hareket CSV dosyası',
+      path: '/api/v1/exports/counterparty-ledger.csv',
+      name: 'counterparty-ledger.csv',
+      type: 'text/csv',
+      kind: ExportFileKind.counterpartyLedgerCsv,
+      icon: Icons.people_alt_outlined,
+    ),
     _exportCard(
       title: 'Finans verisi JSON',
       path: '/api/v1/exports/financial-data.json',

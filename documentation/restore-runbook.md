@@ -1,11 +1,10 @@
 # Backup Restore Runbook
 
-Bu runbook yalnız sentetik yerel veridir. Yazılan şema **v6**; okunabilen
-şema **yalnız v6**. Borç sözleşmesi karşı tarafın kimliğine bağlandıktan
-sonra da yedek **adı** taşımaya devam ediyor: geri yükleme addan karşı
-tarafı yeniden kurar ve aynı ad tek kayıt olur. Karşı taraf kayıtlarının ve
-cari hareketlerin kendilerinin yedeğe girmesi v7 ile olacak; bugün yedeği
-alınan tek cari bilgi, sözleşmelerin taşıdığı addır. Restore merge,
+Bu runbook yalnız sentetik yerel veridir. Yazılan şema **v7**; okunabilen
+şema **yalnız v7**. v7 karşı tarafın kendisini (ad, not, aktiflik) ve cari
+defterin iki hareket türünü taşır: borçlandırma (`counterpartyCharges`) ve
+tahsilat (`counterpartyPayments`). Sözleşme karşı tarafı artık **adla değil
+kimlikle** gösterir; ad yedeğin içinde tek yerde durur. Restore merge,
 overwrite veya kullanıcı seçerek silme yapmaz; hedef kullanıcının finans alanı
 boş olmalıdır. Yeni hesapta uygulamanın otomatik oluşturduğu, hiç değiştirilmemiş
 başlangıç kategorileri boş alan sayılır ve yedekteki kategorilerle atomik olarak
@@ -14,18 +13,23 @@ değiştirilir.
 ## Ön koşullar
 
 - SQL Server `healthy`, API `/health/ready` cevabı 200 olmalıdır.
-- Backup dosyası `business-finance-backup` formatında ve şeması **v6**
-  olmalıdır. v6, her finansal kaydın kapsamını (`scope`) ve hesap/kategori/kart
-  varsayılan kapsamını (`defaultScope`) taşır.
+- Backup dosyası `business-finance-backup` formatında ve şeması **v7**
+  olmalıdır. v7, v6'nın taşıdığı her şeyin (her finansal kaydın kapsamı
+  `scope`, hesap/kategori/kart varsayılan kapsamı `defaultScope`) üstüne cari
+  defteri ekler. Borçlandırma kategori ve kapsam taşır, hesap taşımaz;
+  tahsilat hesap taşır, kategori ve kapsam taşımaz (ADR 0014) — iki kaydın
+  alan listesi dosyada da bilerek farklıdır.
 - **Yedek kullanıcı profilini (işletmeniz var mı) taşımaz.** Profil finansal
   bir kayıt değil, bir arayüz tercihidir; geri yüklenen hesabın kendi cevabı
   geçerli kalır. Kategoriler yedekten geldiği için kapsam varsayılanları da
   yedekten gelir ve raporlar doğru bölünür.
-- **v2–v5 yedekleri `restore.unsupported_version` ile reddedilir ve
-  yükseltilmez.** O dosyalarda kapsam alanı yok; eksik alanı doldurmak için bir
-  değer seçmek, kullanıcının işletme ile cebi arasındaki ayrımını uydurmak
-  olurdu ve bu ayrımı yalnız kullanıcı bilir (ADR 0013). Reddetme, sessizce
-  yanlış etiketlenmiş bir geçmiş üretmekten iyidir. Eski bir yedeği taşımanın
+- **v2–v6 yedekleri `restore.unsupported_version` ile reddedilir ve
+  yükseltilmez.** v2–v5'te kapsam alanı yoktu; v6'da cari defter yoktu —
+  o dosya karşı tarafı yalnız sözleşmenin taşıdığı ad olarak biliyordu, açık
+  bakiyesi ve hareketleri hiç yoktu. Eksik alanı doldurmak için bir değer
+  seçmek, kullanıcının işletme ile cebi arasındaki ayrımını (ADR 0013) ya da
+  alacağını uydurmak olurdu; ikisini de yalnız kullanıcı bilir. Reddetme,
+  sessizce yanlış bir geçmiş üretmekten iyidir. Eski bir yedeği taşımanın
   yolu yoktur; o veri sentetiktir ve yeniden girilir.
 - Dosya en fazla 14 MiB envelope, decoded payload en fazla 10 MiB olmalıdır.
 - Hedef kullanıcıda herhangi bir finans veya attachment metadata kaydı olmamalıdır.
@@ -40,6 +44,12 @@ değiştirilir.
 > yazılır. Veriyi bir hesaptan diğerine taşımanın **tek** yolu bu runbook'taki
 > yedek/geri yükleme akışıdır. İstemci, kendi dışa aktarımını içe aktarma
 > ekranında tanır ve reddeder.
+
+> **Cari defterin kendi CSV'si vardır** (`/api/v1/exports/counterparty-ledger.csv`).
+> İşlem CSV'sine karşı taraf kolonu **eklenmedi**: o dosya `BudgetTransaction`
+> tablosunun dökümüdür ve cari hareket orada hiç bulunmaz — kolon her satırda
+> boş kalırdı. Her dışa aktarma tek kaydın dökümü olduğu sürece kullanıcı ne
+> okuduğunu bilir. Cari CSV'si de geri yüklenemez.
 
 > **Önceki uygulamanın yedekleri okunmaz.** Kişisel bütçe uygulaması
 > `personal-budget-backup` format kimliğiyle ve `.pbbackup.json` uzantısıyla
@@ -57,6 +67,9 @@ değiştirilir.
 4. Schema, entity count ve checksum özetini kontrol et; yalnız beklenen dosyada
    ikinci onayı ver.
 5. Restore sonrası hesap/transaction, borç, hedef ve attachment listelerini aç.
+   **Cari hesabı da aç:** karşı taraf listesi, notu, pasif olanlar ve her
+   birinin açık bakiyesi kaynaktakiyle aynı olmalı. Bakiye kalıcı kolon
+   değildir; hareketler eksik gelseydi bakiye sessizce küçülürdü.
 6. **Kapsamı doğrula:** Özet ekranında anahtarı `İşletme` ve `Şahsi`
    konumlarına al; iki tarafın gelir/gider toplamları kaynaktakiyle aynı
    olmalı. Bir hesabın ve bir kategorinin varsayılan kapsamının da geri
@@ -70,7 +83,7 @@ değiştirilir.
 | Durum | Beklenen sonuç |
 |---|---|
 | Bozuk byte/hash veya eksik attachment | 400; hedefe yazma yok |
-| Schema v2–v5 veya gelecek bir schema | 422 `restore.unsupported_version`; yükseltme denenmez |
+| Schema v2–v6 veya gelecek bir schema | 422 `restore.unsupported_version`; yükseltme denenmez |
 | Dolu hedef kullanıcı | 409 destination not empty; mevcut kayıt korunur |
 | SQL constraint/save hatası | Transaction rollback; hedef SQL graph'ı boş |
 | Object write sonrası SQL hatası | O çağrıda yazılan object key'ler silinir |

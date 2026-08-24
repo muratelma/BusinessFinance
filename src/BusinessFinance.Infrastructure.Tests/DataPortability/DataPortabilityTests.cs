@@ -33,11 +33,11 @@ public sealed class DataPortabilityTests
         var conflict = await Assert.ThrowsAsync<DataPortabilityException>(() =>
             service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default));
 
-        Assert.Equal(6, validation.SchemaVersion);
+        Assert.Equal(7, validation.SchemaVersion);
         Assert.Equal(validation.EntityCount, restored.RestoredEntityCount);
         Assert.Equal("restore.destination_not_empty", conflict.Code);
         Assert.Equal("Geri yükleme için hesapta finansal veri bulunmamalıdır.", conflict.Message);
-        Assert.Equal(19, validation.EntityCount);
+        Assert.Equal(25, validation.EntityCount);
         Assert.Equal(2, await context.Accounts.CountAsync(x => x.UserId == targetUserId));
         Assert.Equal(3, await context.Categories.CountAsync(x => x.UserId == targetUserId));
         Assert.Equal(2, await context.Transactions.CountAsync(x => x.UserId == targetUserId));
@@ -65,6 +65,101 @@ public sealed class DataPortabilityTests
         Assert.Null(
             (await context.Accounts.AsNoTracking()
                 .SingleAsync(x => x.UserId == targetUserId && x.Name == "Banka")).DefaultScope);
+
+        // Cari defteri v7'nin taşıdığı yeni bilgidir: kişi, notu, aktifliği ve
+        // iki hareket türü kayıpsız dönüyor. Tahsilatın iptali de dönüyor —
+        // iptal edilmiş bir tahsilatı geri yüklerken "ödendi" saymak,
+        // kullanıcının alacağını yok ederdi.
+        var restoredManav = await context.Counterparties.AsNoTracking()
+            .SingleAsync(x => x.UserId == targetUserId && x.Name == "Sentetik Manav");
+        Assert.Equal("Çarşı girişinde", restoredManav.Note);
+        Assert.True(restoredManav.IsActive);
+        var restoredKapanan = await context.Counterparties.AsNoTracking()
+            .SingleAsync(x => x.UserId == targetUserId && x.Name == "Kapanan Bakkal");
+        Assert.False(restoredKapanan.IsActive);
+
+        var restoredCharges = await context.CounterpartyCharges.AsNoTracking()
+            .Where(x => x.UserId == targetUserId).ToArrayAsync();
+        Assert.Equal(2, restoredCharges.Length);
+        var receivable = Assert.Single(restoredCharges, x => x.Direction == DebtDirection.Receivable);
+        Assert.Equal(restoredManav.Id, receivable.CounterpartyId);
+        Assert.Equal(400m, receivable.Amount.Amount);
+        // Pasif karşı tarafın borçlandırması da geri geldi.
+        Assert.Contains(restoredCharges, x => x.CounterpartyId == restoredKapanan.Id);
+
+        var restoredPayments = await context.CounterpartyPayments.AsNoTracking()
+            .Where(x => x.UserId == targetUserId).ToArrayAsync();
+        Assert.Equal(2, restoredPayments.Length);
+        Assert.Single(restoredPayments, x => x.IsCancelled);
+        Assert.All(restoredPayments, x => Assert.Equal(restoredManav.Id, x.CounterpartyId));
+    }
+
+    /// <summary>
+    /// v6 dosyası reddedilir ve hedef hesaba hiçbir şey yazılmaz.
+    /// </summary>
+    /// <remarks>
+    /// v6 karşı tarafı yalnız sözleşmenin taşıdığı ad olarak biliyordu: açık
+    /// cari bakiyesi, borçlandırmaları ve tahsilatları o dosyada hiç yok.
+    /// Yükseltmek, alacağı sıfır olan bir müşteri kaydı üretirdi — kullanıcının
+    /// parasını sessizce silmek. Kapsam boyutunda verilen kararın aynısı
+    /// (ADR 0013): eksik bilgi uydurulmaz, dosya açık bir hatayla reddedilir.
+    /// </remarks>
+    [Fact]
+    public async Task BackupBeforeCounterpartyLedger_IsRejectedAndWritesNothing()
+    {
+        await using var context = CreateContext();
+        var sourceUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        await SeedCompleteGraphAsync(context, sourceUserId);
+        await SeedDefaultCategoriesAsync(context, targetUserId);
+        var service = new EfDataPortabilityRepository(context);
+        var current = await service.CreateBackupAsync(sourceUserId, default);
+        var legacy = DowngradeToSchemaV6(current.Content);
+
+        var validationError = await Assert.ThrowsAsync<DataPortabilityException>(() =>
+            service.ValidateBackupAsync(legacy, default));
+        var restoreError = await Assert.ThrowsAsync<DataPortabilityException>(() =>
+            service.RestoreBackupAsync(targetUserId, legacy, DateTimeOffset.UtcNow, default));
+
+        Assert.Equal("restore.unsupported_version", validationError.Code);
+        Assert.Equal("restore.unsupported_version", restoreError.Code);
+        Assert.False(await context.Accounts.AnyAsync(x => x.UserId == targetUserId));
+        Assert.False(await context.Counterparties.AnyAsync(x => x.UserId == targetUserId));
+    }
+
+    /// <summary>
+    /// Rewrites a current backup into the shape the build before the counterparty
+    /// ledger produced: schema version 6, no counterparty collections, and debts
+    /// carrying the counterparty name instead of its id. The payload hash and length
+    /// are recomputed so the version gate is genuinely what rejects it.
+    /// </summary>
+    private static byte[] DowngradeToSchemaV6(byte[] content)
+    {
+        var envelope = JsonNode.Parse(Encoding.UTF8.GetString(content))!.AsObject();
+        var payloadJson = Encoding.UTF8.GetString(
+            Convert.FromBase64String(envelope["payload"]!.GetValue<string>()));
+        var snapshot = JsonNode.Parse(payloadJson)!.AsObject();
+        var names = snapshot["counterparties"]!.AsArray()
+            .ToDictionary(
+                item => item!["id"]!.GetValue<string>(),
+                item => item!["name"]!.GetValue<string>());
+        foreach (var debt in snapshot["debts"]!.AsArray())
+        {
+            var id = debt!["counterpartyId"]!.GetValue<string>();
+            debt.AsObject().Remove("counterpartyId");
+            debt.AsObject()["counterpartyName"] = names[id];
+        }
+
+        snapshot.Remove("counterparties");
+        snapshot.Remove("counterpartyCharges");
+        snapshot.Remove("counterpartyPayments");
+
+        var downgraded = Encoding.UTF8.GetBytes(snapshot.ToJsonString());
+        envelope["schemaVersion"] = 6;
+        envelope["payload"] = Convert.ToBase64String(downgraded);
+        envelope["payloadLength"] = downgraded.Length;
+        envelope["payloadSha256"] = Convert.ToHexString(SHA256.HashData(downgraded));
+        return Encoding.UTF8.GetBytes(envelope.ToJsonString());
     }
 
     [Fact]
@@ -165,6 +260,90 @@ public sealed class DataPortabilityTests
         Assert.All(scopes, value => Assert.Contains(value, new[] { "business", "personal" }));
     }
 
+    /// <summary>
+    /// Cari defterin kendi dosyası: iki kayıt türü, kendi alanlarıyla.
+    /// </summary>
+    /// <remarks>
+    /// Boş hücre eksik veri değildir. Borçlandırma hesap sormaz, tahsilat
+    /// kategori ve kapsam sormaz (ADR 0014); dosyada da sormadıkları soru boş
+    /// kalır ve <c>kind</c> kolonu hangisinin okunacağını söyler. Kolonları
+    /// eşitlemek, olmayan bir soruyu dosyaya yazmak olurdu.
+    /// </remarks>
+    [Fact]
+    public async Task CounterpartyLedgerCsv_CarriesBothRecordKindsWithTheirOwnFields()
+    {
+        await using var context = CreateContext();
+        var userId = Guid.NewGuid();
+        await SeedCompleteGraphAsync(context, userId);
+        var service = new EfDataPortabilityRepository(context);
+
+        var file = await service.ExportCounterpartyLedgerCsvAsync(userId, default);
+        var lines = Encoding.UTF8.GetString(file.Content)
+            .Split('\n')
+            .Select(line => line.TrimEnd('\r'))
+            .Where(line => line.Length > 0)
+            .ToArray();
+        var header = lines[0].TrimStart('\uFEFF').Split(',');
+        var rows = lines.Skip(1).Select(line => line.Split(',')).ToArray();
+        string Cell(string[] row, string column) => row[Array.IndexOf(header, column)];
+
+        Assert.Equal([0xEF, 0xBB, 0xBF], file.Content[..3]);
+        Assert.Equal(4, rows.Length);
+
+        var charge = Assert.Single(rows, row => Cell(row, "kind") == "charge" &&
+            Cell(row, "direction") == "receivable");
+        Assert.Equal("400.0000", Cell(charge, "amount"));
+        Assert.Equal("Sentetik Manav", Cell(charge, "counterpartyName"));
+        Assert.Equal("Maaş", Cell(charge, "categoryName"));
+        Assert.Equal("business", Cell(charge, "scope"));
+        // Borçlandırma para taşımaz: hesap kolonu bilerek boş.
+        Assert.Equal(string.Empty, Cell(charge, "accountId"));
+        Assert.Equal(string.Empty, Cell(charge, "accountName"));
+
+        var payment = Assert.Single(rows, row => Cell(row, "kind") == "payment" &&
+            Cell(row, "isCancelled") == "false");
+        Assert.Equal("120.0000", Cell(payment, "amount"));
+        Assert.Equal("Banka", Cell(payment, "accountName"));
+        // Tahsilat gelir/gider tanımaz: kategori ve kapsam kolonları boş.
+        Assert.Equal(string.Empty, Cell(payment, "categoryId"));
+        Assert.Equal(string.Empty, Cell(payment, "categoryName"));
+        Assert.Equal(string.Empty, Cell(payment, "scope"));
+
+        // İptal edilmiş hareket dosyada kalır ve iptal olduğunu söyler;
+        // silinmiş gibi göstermek kullanıcının kendi arşivinde bir kaydı yok
+        // etmek olurdu.
+        var cancelled = Assert.Single(rows, row => Cell(row, "isCancelled") == "true");
+        Assert.NotEqual(string.Empty, Cell(cancelled, "cancelledAtUtc"));
+    }
+
+    /// <summary>
+    /// Pasif karşı tarafın geçmişi de dosyada; defter kapanmış cariyi de anlatır.
+    /// </summary>
+    [Fact]
+    public async Task CounterpartyLedgerCsv_IncludesInactiveCounterpartiesAndIsFormulaSafe()
+    {
+        await using var context = CreateContext();
+        var userId = Guid.NewGuid();
+        await SeedCompleteGraphAsync(context, userId);
+        var formulaNamed = new Counterparty(Guid.NewGuid(), userId, "=CMD()");
+        var incomeCategory = await context.Categories
+            .SingleAsync(x => x.UserId == userId && x.Name == "Maaş");
+        context.Add(formulaNamed);
+        context.Add(new CounterpartyCharge(
+            Guid.NewGuid(), userId, formulaNamed, incomeCategory, DebtDirection.Receivable,
+            new Money(10m, CurrencyCode.TRY), TransactionScope.Personal,
+            new DateOnly(2026, 8, 10), "Market, haftalık"));
+        await context.SaveChangesAsync();
+        var service = new EfDataPortabilityRepository(context);
+
+        var text = Encoding.UTF8.GetString(
+            (await service.ExportCounterpartyLedgerCsvAsync(userId, default)).Content);
+
+        Assert.Contains("Kapanan Bakkal", text, StringComparison.Ordinal);
+        Assert.Contains("'=CMD()", text, StringComparison.Ordinal);
+        Assert.Contains("\"Market, haftalık\"", text, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task Backup_UnknownVersionPropertyAndDuplicatePropertyAreRejected()
     {
@@ -212,7 +391,7 @@ public sealed class DataPortabilityTests
         var validation = await service.ValidateBackupAsync(backup.Content, default);
         await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
 
-        Assert.Equal(6, validation.SchemaVersion);
+        Assert.Equal(7, validation.SchemaVersion);
         var restoredPlans = await context.RecurringTransactions
             .AsNoTracking().Where(item => item.UserId == targetUserId).ToArrayAsync();
         var cardPlan = Assert.Single(
@@ -395,6 +574,27 @@ public sealed class DataPortabilityTests
         row.MarkImported(expense.Id);
         batch.AddRow(row);
         batch.RecordConfirmation();
+        // Cari hesap: bir borçlandırma (tanır) ve bir tahsilat (taşır), artı
+        // artık iş yapılmayan ama borcu duran pasif bir karşı taraf. Pasif
+        // olanın hareketi, geri yüklemede pasifleştirmenin hareketlerden
+        // **sonra** uygulandığını kanıtlıyor.
+        var manav = new Counterparty(Guid.NewGuid(), userId, "Sentetik Manav", "Çarşı girişinde");
+        var kapanan = new Counterparty(Guid.NewGuid(), userId, "Kapanan Bakkal");
+        var veresiye = new CounterpartyCharge(Guid.NewGuid(), userId, manav, incomeCategory,
+            DebtDirection.Receivable, new Money(400m, CurrencyCode.TRY), TransactionScope.Business,
+            new DateOnly(2026, 8, 6), "Veresiye satış");
+        var vadeliAlim = new CounterpartyCharge(Guid.NewGuid(), userId, kapanan, expenseCategory,
+            DebtDirection.Payable, new Money(150m, CurrencyCode.TRY), TransactionScope.Business,
+            new DateOnly(2026, 8, 7), "Vadeli alım");
+        var tahsilat = new CounterpartyPayment(Guid.NewGuid(), userId, manav, bank,
+            DebtDirection.Receivable, new Money(120m, CurrencyCode.TRY),
+            new DateOnly(2026, 8, 8), "Kısmi tahsilat");
+        var iptalTahsilat = new CounterpartyPayment(Guid.NewGuid(), userId, manav, bank,
+            DebtDirection.Receivable, new Money(50m, CurrencyCode.TRY),
+            new DateOnly(2026, 8, 9), "Yanlış tahsilat");
+        iptalTahsilat.Cancel(utc);
+        kapanan.Deactivate();
+
         cash.Deactivate();
         billCategory.Deactivate();
         card.Update(
@@ -402,7 +602,8 @@ public sealed class DataPortabilityTests
             card.MinimumPaymentRate, false);
 
         context.AddRange(cash, bank, incomeCategory, expenseCategory, billCategory, income, expense,
-            budget, transfer, card, charge, payment, plan, recurring, occurrence, batch);
+            budget, transfer, card, charge, payment, plan, recurring, occurrence, batch,
+            manav, kapanan, veresiye, vadeliAlim, tahsilat, iptalTahsilat);
         await context.SaveChangesAsync();
     }
 

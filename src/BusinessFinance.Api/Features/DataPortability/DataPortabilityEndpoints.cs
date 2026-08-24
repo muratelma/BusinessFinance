@@ -18,6 +18,10 @@ public static class DataPortabilityEndpoints
             .WithName("ExportTransactionsCsv")
             .Produces(StatusCodes.Status200OK, contentType: "text/csv")
             .ProducesProblem(StatusCodes.Status401Unauthorized);
+        exports.MapGet("/counterparty-ledger.csv", ExportCounterpartyLedgerCsvAsync)
+            .WithName("ExportCounterpartyLedgerCsv")
+            .Produces(StatusCodes.Status200OK, contentType: "text/csv")
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
         exports.MapGet("/financial-data.json", ExportFinancialJsonAsync)
             .WithName("ExportFinancialDataJson")
             .Produces(StatusCodes.Status200OK, contentType: "application/json")
@@ -54,6 +58,17 @@ public static class DataPortabilityEndpoints
 
     private static async Task<IResult> ExportTransactionsCsvAsync(
         ExportTransactionsCsvUseCase useCase,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var result = await useCase.ExecuteAsync(cancellationToken);
+        return result.IsSuccess
+            ? Results.File(result.Value.Content, result.Value.ContentType, result.Value.FileName)
+            : result.Error.ToProblemResult(httpContext);
+    }
+
+    private static async Task<IResult> ExportCounterpartyLedgerCsvAsync(
+        ExportCounterpartyLedgerCsvUseCase useCase,
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {

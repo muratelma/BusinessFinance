@@ -286,12 +286,35 @@ geçirir** ve 03'e devreder.
   yazılabilmesi gerekiyor ve o yol bu aşamada yok. Kullanıcı onayıyla
   kapatılacak ya da kendi maddesiyle sonraki aşamaya taşınacak.
 
-### Grup 8 — Yedek v7 ve dışa aktarma
+### Grup 8 — Yedek v7 ve dışa aktarma — **Tamamlandı**
 
 - Şema **v7** yazar, yalnız v7 okur.
 - CSV dışa aktarma karşı taraf kolonu taşır.
 - `documentation/restore-runbook.md` güncellenir.
 - Ölçüt: karşı taraf ve cari hareketler kayıpsız geri yükleniyor.
+- Sonuç: yedek v7 karşı tarafı (ad, not, aktiflik) ve cari defterin iki
+  hareket türünü taşıyor; geri yükleme gerçek SQL üzerinde kayıpsız
+  doğrulandı. v6 dosyası `restore.unsupported_version` ile reddediliyor.
+- **Sözleşme karşı tarafı artık adla değil kimlikle gösteriyor.** v6 adı
+  taşıyor ve geri yüklerken addan yeniden kuruyordu; karşı taraf kendi
+  kaydıyla dosyaya girdiğine göre ad yedeğin içinde tek yerde durmalı, yoksa
+  aynı kişi iki farklı yerden anlatılırdı.
+- **Karar:** v6 yükseltilmiyor, reddediliyor. O dosyada cari defter hiç yok;
+  karşı tarafı bakiyesiz kurmak kullanıcının alacağını sessizce sıfırlamak
+  olurdu. Kapsam boyutunda v2–v5 için verilen kararın aynısı (ADR 0013).
+- **Karar:** pasifleştirme geri yüklemede hareketlerden **sonra** uygulanıyor
+  (hesap ve kategorilerdeki sıranın aynısı). Ters sıra, pasif bir müşterinin
+  geçmişini geri yüklenemez yapardı — borçlandırma yalnız aktif karşı tarafa
+  yazılabiliyor.
+- **Karar (kullanıcı onayıyla): işlem CSV'sine karşı taraf kolonu eklenmedi;
+  cari defter kendi dosyasını aldı** (`GET /api/v1/exports/counterparty-ledger.csv`).
+  İşlem CSV'si `BudgetTransaction` tablosunun dökümüdür ve cari hareket orada
+  hiç bulunmaz — kolon her satırda boş kalırdı. Her dışa aktarma tek kaydın
+  dökümü olduğu sürece kullanıcı ne okuduğunu bilir.
+- Cari CSV'sinde iki kayıt türünün alan listesi bilerek farklı: borçlandırma
+  kategori ve kapsam taşır, hesap kolonu boştur; tahsilat hesap taşır,
+  kategori ve kapsam kolonları boştur (ADR 0014). `kind` kolonu hangisinin
+  okunacağını söyler. Dosya işlem CSV'si gibi **geri yüklenemez**.
 
 ## Zorunlu testler
 
@@ -362,16 +385,20 @@ flutter build apk --debug --dart-define=API_BASE_URL=http://10.0.2.2:5284
 
 ## Çıkış koşulları
 
-- [ ] ADR yazıldı ve kabul edildi.
-- [ ] Bütün çalışma grupları tamamlandı.
-- [ ] Backend build, test ve format kontrolleri geçti.
-- [ ] Flutter analyze, test, format ve debug build kontrolleri geçti.
-- [ ] Kullanıcı izolasyonu negatif senaryolarla kanıtlandı.
-- [ ] Bir müşteriye 3 satış + 2 kısmi tahsilat senaryosu girildi; cari bakiye,
+- [x] ADR yazıldı ve kabul edildi (ADR 0014, 23 Ağustos 2026).
+- [x] Bütün çalışma grupları tamamlandı (Grup 1–8). Grup 6'dan devreden fiş
+      öneri rozeti açık kaldı ve kullanıcı kararı bekliyor: kapatılacak ya da
+      kendi maddesiyle Aşama 03'e taşınacak.
+- [x] Backend build, test ve format kontrolleri geçti (838 test, SQL dâhil).
+- [x] Flutter analyze, test, format ve debug build kontrolleri geçti
+      (715 test).
+- [x] Kullanıcı izolasyonu negatif senaryolarla kanıtlandı.
+- [x] Bir müşteriye 3 satış + 2 kısmi tahsilat senaryosu girildi; cari bakiye,
       net varlık ve gelir raporu birbirini tutuyor, hiçbir tutar iki kez
       sayılmıyor.
-- [ ] Feed'in tek SQL sorgusunda kaldığı kanıtlandı.
-- [ ] `documentation/` ve `docs/project-status.md` güncel.
+- [x] Feed'in tek SQL sorgusunda kaldığı kanıtlandı.
+- [x] `documentation/` ve `docs/project-status.md` güncel.
+- [ ] Cihaz kabul turu (Pixel 8 + gerçek API + gerçek SQL) yürütüldü.
 - [ ] Kullanıcı Aşama 03'ü açıkça onayladı.
 
 ## Tamamlanma kaydı
