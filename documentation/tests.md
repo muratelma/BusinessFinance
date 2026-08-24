@@ -364,7 +364,8 @@ söylenir: doğrulama grafiği kuru olarak kurar, kullanıcı restore'a basmadan
 | `SqlServerPersistenceIntegrationTests.SecondOpenCashCountOfTheSameDay_IsRefusedBySql` (yeni, **gerçek SQL**) | Aynı gün ikinci **açık** sayımı filtreli tekil indeks reddediyor; domain yolu (öncekini iptal et) çalışıyor ve iki satır da kalıyor |
 | `MigrationHistoryTests.AddCashCountsAndPosSettlements_CreatesEmptyTablesWithOwnerScopedGuards` (yeni) | Tablolar boş doğuyor (kolon ekleme yok, DEFAULT yok), sahiplik bileşik anahtarla bağlı, filtreli tekil indeks yerinde ve türetilenler (net tutar, oran, beklenen bakiye, fark) **kolon değil** |
 | `MigrationHistoryTests.Migrations_FormTheExpectedChainAndMatchTheModel` (genişletildi) | Zincir yeni migration'la büyüdü ve model ile şema arasında fark kalmadı |
-| `AdvancedReport_LargeFixtureStaysWithinQueryCountAndTimeBudget` (güncellendi) | POS iki **sabit** sorgu ekledi (61 → 63); ikisi de tahsilat adediyle büyümüyor |
+| `PosSettlementAndCashCount_SeparateUsableBalanceFromNetWorth` (genişletildi, **gerçek SQL**) | Satış tahsil edildiği gün tanınıyor: iki açık tahsilatın brütü gelire, komisyonları gidere giriyor; geçiş günü rapora hiçbir şey eklemiyor ve iptal edilen hiç görünmüyor. Komisyon kendi kategorisinde ayrı duruyor, eğilim de aynı tanımayı gösteriyor |
+| `AdvancedReport_LargeFixtureStaysWithinQueryCountAndTimeBudget` (güncellendi) | POS önce iki (61 → 63), tanıma ile altı **sabit** sorgu daha ekledi (63 → 69); hiçbiri tahsilat adediyle büyümüyor |
 | `dashboard_sections_test` (yeni durumlar) | Özet kartında `Yolda` satırı likit varlıktan ayrı duruyor, alt başlığı `POS tahsilatı`, `Bloke` kelimesi hiç geçmiyor; yolda para yokken satır çizilmiyor; net varlık = likit + yolda − kart borcu + alacak − borç |
 
 ## Bilinen test boşlukları

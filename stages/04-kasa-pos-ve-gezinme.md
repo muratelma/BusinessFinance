@@ -171,7 +171,7 @@ Uygulananlar:
   toplamı, kalıcı kolon değil. İptal edilmiş ve geçmiş tahsilatlar sayılmaz.
 - Bu grup da yalnız Domain'e dokundu; kalıcılık Grup 4'tedir.
 
-### Grup 4 — Kalıcılık, bakiye, net varlık ve Özet ekranı — **Sürüyor**
+### Grup 4 — Kalıcılık, bakiye, net varlık ve Özet ekranı — **Tamamlandı**
 
 - Grup 2 ve 3'ün domain tipleri (`CashCount`, `PosSettlement`) bu grupta
   kalıcılığa girer: EF yapılandırması, owner-scoped bileşik anahtarlar ve tek
@@ -202,13 +202,17 @@ Uygulananlar:
 - Özet ekranına `Yolda` satırı eklendi (alt başlık `POS tahsilatı`); yolda para
   yokken çizilmiyor. Arayüz ADR 0015'in kelimesini kullanıyor, `bloke` demiyor.
 
-Kalan adımlar (bu grubun içinde):
+- POS satışı **tahsil edildiği gün** rapora giriyor: brüt gelir ve komisyon
+  gideri dönem toplamlarına, kategori dağılımına, nakit akışı eğilimine ve
+  (komisyon) bütçe sapmasına katılıyor. Geçiş günü rapora hiçbir şey eklemiyor;
+  eklerse aynı satış iki kez sayılırdı. Sabit SQL komut kapısı 63'ten 69'a
+  çıktı ve hiçbiri tahsilat adediyle büyümüyor.
+- Komisyon bütçeyi tüketiyor (kendi kategorisi olan, o gün tanınmış gerçek bir
+  gider); brüt tutar tüketmiyor çünkü o bir gelirdir.
 
-- POS'un **gelir/gider raporunda tanınması**: brüt gelir ve komisyon gideri
-  dönem toplamlarına, kategori dağılımına, trende ve bütçe sapmasına katılacak.
-  Bugün katılmıyor; yazma ucu henüz olmadığı için tablo boş ve gözlenebilir bir
-  tutarsızlık doğmuyor, ama yazma açılmadan önce kapatılmalı.
-- Kasa sayımı ve POS tahsilatı için yazma uçları.
+Yazma uçları bu grupta **açılmadı**: kasa sayımı ve POS tahsilatı uçları,
+tükettikleri ekranlarla birlikte Grup 7'ye alındı — Aşama 03'te yükümlülük
+uçlarının ekranlarıyla aynı checkpoint'te açılmasındaki gerekçenin aynısı.
 
 ### Grup 5 — Ana sekme yapısı
 
@@ -232,8 +236,11 @@ Kalan adımlar (bu grubun içinde):
 - Ölçüt: sekiz üstü seçenek tek ekranda kaydırmadan okunabiliyor; erişilebilirlik
   kapısı geçiyor.
 
-### Grup 7 — Flutter ekranları
+### Grup 7 — Yazma uçları ve Flutter ekranları
 
+- Kasa sayımı ve POS tahsilatının yazma uçları (oluşturma, farkı onaylama,
+  geçişi işaretleme) bu grupta açılır: uç ile onu tüketen ekran aynı
+  checkpoint'te doğar.
 - `features/cash/`: gün sonu sayım ekranı, geçmiş sayımlar, fark kaydı onayı.
 - POS tahsilatı girişi ve bekleyen geçişler listesi; geçişi işaretleme.
 - `Diğer` menüsü yeni yerleşime göre düzenlenir.

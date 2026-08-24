@@ -47,10 +47,10 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   borç tarafı `Kredi kartlarım`, tahsilat tarafı `POS tahsilatları`, yoldaki
   para `AccountType` değil projection, kullanılabilir bakiye ile net varlığın
   farkı tam olarak yoldaki tutar, üçüncü ana sekme ön ayara göre değişiyor.
-  **Grup 2 ve 3 tamamlandı**, **Grup 4 sürüyor**: iki domain tipi kalıcılığa
-  girdi, hesap bakiyesi ve net varlık ayrıldı, Özet ekranına `Yolda` satırı
-  eklendi. Grup 4'ün kalanı POS'un gelir/gider raporunda tanınması ve yazma
-  uçları
+  **Grup 2, 3 ve 4 tamamlandı**: iki domain tipi yazıldı ve kalıcılığa girdi,
+  hesap bakiyesi ile net varlık ayrıldı, Özet ekranına `Yolda` satırı eklendi ve
+  POS satışı gelir/gider raporunda tanınıyor. Sırada **Grup 5 — ana sekme
+  yapısı** var
 - Kalan üç aşamanın belgesi de yazılı, durumları `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
@@ -808,6 +808,31 @@ Flutter tarafına dokunulmadı; bu grup da yalnız Domain katmanıdır.
 Not: migration'ı üretebilmek için yerelde çalışan `BusinessFinance.Api` süreci
 kullanıcı onayıyla durduruldu; yeniden başlatılmadı.
 
+## 24 Ağustos 2026 — Aşama 04, Grup 4 (2/2): POS satışının raporda tanınması
+
+- POS satışı **tahsil edildiği gün** rapora giriyor, geçtiği gün değil: brüt
+  tutar gelire, komisyon ayrı gider olarak dönem toplamlarına, kategori
+  dağılımına ve nakit akışı eğilimine katılıyor. Geçiş günü rapora hiçbir şey
+  eklemiyor — eklerse aynı satış iki kez sayılırdı
+- **Komisyon bütçeyi tüketiyor**: kendi kategorisi olan, o gün tanınmış gerçek
+  bir gider. Brüt tutar tüketmiyor çünkü o bir gelir ve bütçe gider bütçesi
+- Gerçek SQL testi tanımayı kapıya bağladı: iki açık tahsilatın brütü (1500)
+  gelire, komisyonları (30) gidere giriyor; geçmiş olanın geçiş günü hiçbir şey
+  eklemiyor ve iptal edilen hiç görünmüyor
+- Sabit SQL komut kapısı 63'ten **69**'a çıktı: iki dönemin gelir ve komisyon
+  toplamları, trend ve bütçe sapması. Altı gruplanmış okuma, hiçbiri tahsilat
+  adediyle büyümüyor
+- Yazma uçları bu grupta açılmadı; tükettikleri ekranlarla birlikte **Grup 7**'ye
+  alındı (Aşama 03'te yükümlülük uçlarında verilen kararın aynısı)
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (gerçek SQL dâhil) | **907 geçti**, 1 atlandı (`GeminiLiveContractTests`) |
+
+Flutter tarafına dokunulmadı; bu adım yalnız sunucu raporlarıdır.
+
 ## Son oturum kapanışı
 
 - Yapılan değişiklik: Aşama 03 **Grup 1 tamamlandı**; yükümlülüğün tanıyan
@@ -1093,7 +1118,6 @@ eksiksiz çıktı; iki arayüz boşluğu bulundu ve kapatıldı.
   Grup 3** (kasa sayımının ve POS tahsilatının domain'i) tamamlandı
 - Geçen kontroller: backend build + format + **904 test** (gerçek SQL dâhil),
   1 canlı Gemini testi atlandı
-- Sıradaki görev: Aşama 04 Grup 4'ün kalanı — POS tahsilatının gelir/gider
-  raporunda tanınması (brüt gelir ve komisyon gideri; dönem toplamları,
-  kategori dağılımı, trend ve bütçe sapması), ardından kasa sayımı ile POS
-  tahsilatının yazma uçları
+- Sıradaki görev: Aşama 04 Grup 5 — ana sekme yapısı. ADR 0015'in kararı:
+  üçüncü sekme onboarding ön ayarına göre değişir (işletmede `Kasa`, kişiselde
+  `Bütçeler`) ve yerini veren sekme `Diğer` altına iner, kaybolmaz

@@ -737,9 +737,9 @@ aynısı).
 
 ## POS tahsilatı ve yoldaki para
 
-> Aşama 04, Grup 3–4 — Domain, kalıcılık, hesap bakiyesi ve net varlık
-> uygulanmıştır. POS'un gelir/gider **raporunda** tanınması ve yazma uçları
-> Grup 4'ün kalan adımlarıdır.
+> Aşama 04, Grup 3–4 — Domain, kalıcılık, hesap bakiyesi, net varlık ve
+> gelir/gider raporunda tanıma uygulanmıştır. Yazma uçları ve ekranlar
+> Grup 7'de, birleşik feed ile yedek v9 Grup 8'dedir.
 
 `PosSettlement` ADR 0015'in kaydıdır ve **kredi kartı değildir**: `CreditCard`
 borçlandığın karttır, bu ise tahsilat aracıdır. İkisi aynı kelimeyle anıldığı
@@ -816,6 +816,26 @@ net varlık            = kullanılabilir + yolda − kart borcu + alacak − bor
 yorum değil. Yoldaki toplam tek bir gruplanmış sorguyla okunur; tahsilat başına
 sorgu, gelişmiş raporun sabit komut kapısının tam da reddettiği şekildir
 (61 → 63).
+
+### POS satışı raporda nereye girer
+
+Tanıma **tahsilat gününde**dir; geçiş günü hiçbir gelir/gider yazmaz.
+
+| Rapor | Brüt tutar | Komisyon | Geçiş günü |
+|---|---|---|---|
+| Aylık gelir/gider | **+gelir** | **+gider** | — |
+| Kategori dağılımı | — (gelir tarafı) | komisyon kategorisinde | — |
+| Nakit akışı eğilimi | **+gelir** | **+gider** | — |
+| Bütçe sapması | — | **+harcama** | — |
+| Hesap bakiyesi | — | — | **+net** |
+| Net varlık | yolda iken `moneyInTransit`, geçince likit | — | kova değişir |
+
+Komisyon bütçeyi tüketir çünkü kendi kategorisi olan, o gün tanınmış gerçek bir
+giderdir. Brüt tutar bütçeyi tüketmez: o bir gelirdir ve bütçe gider bütçesidir.
+
+Kapsam filtresi gelir/gider tarafını daraltır; net varlık ve yoldaki para
+kapsamdan **etkilenmez** (ADR 0013). Tanıma altı sabit gruplanmış sorgu ekledi
+(63 → 69) ve hiçbiri tahsilat adediyle büyümüyor.
 
 ### Taşınabilirlik: dışa aktarma ile yedek ayrı şeylerdir
 

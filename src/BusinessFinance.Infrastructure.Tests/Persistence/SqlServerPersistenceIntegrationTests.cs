@@ -1918,7 +1918,11 @@ public sealed class SqlServerPersistenceIntegrationTests
         // transit for net worth. Neither grows with the number of settlements -
         // reading the transit total per settlement is exactly the shape this
         // gate exists to refuse.
-        Assert.InRange(counter.ReaderCommandCount, 1, 63);
+        // 63 → 69 when the pos sale joined the recognized report: gross income
+        // and commission expense for each of the two compared periods, one for
+        // the trend and one for budget variance. Six fixed grouped reads; none
+        // of them grows with the number of settlements.
+        Assert.InRange(counter.ReaderCommandCount, 1, 69);
         Assert.True(
             stopwatch.Elapsed < TimeSpan.FromSeconds(5),
             $"Advanced report took {stopwatch.Elapsed.TotalMilliseconds:N0} ms.");
@@ -3623,6 +3627,25 @@ public sealed class SqlServerPersistenceIntegrationTests
 
         // Sayım bir gözlemdir: hiçbir bakiyeye dokunmaz.
         Assert.Equal(500m, await accountRepository.CalculateBalanceAsync(tillId, owner.Id, default));
+
+        // Satış **tahsil edildiği gün** tanınır, geçtiği gün değil: iki açık
+        // tahsilatın brütü (1000 + 500) gelire, komisyonları (20 + 10) gidere
+        // giriyor. Geçmiş olanın geçiş günü hiçbir şey eklemiyor — eklerse
+        // aynı satış iki kez sayılırdı. İptal edilen 300 hiç görünmüyor.
+        var monthly = await reportRepository.GetMonthlyAsync(owner.Id, 2026, 8, null, default);
+        Assert.Equal(1500m, monthly.TotalIncome);
+        Assert.Equal(30m, monthly.TotalExpense);
+        Assert.Equal(1500m, advanced.PeriodComparison.Current.Income);
+        Assert.Equal(30m, advanced.PeriodComparison.Current.Expense);
+        // Komisyon kendi kategorisinde ayrı duruyor; brüte gömülmüyor.
+        var commissionSlice = Assert.Single(monthly.CategoryExpenses);
+        Assert.Equal("POS komisyonu", commissionSlice.CategoryName);
+        Assert.Equal(30m, commissionSlice.Amount);
+        // Eğilim de aynı tanımayı görüyor.
+        var august = Assert.Single(
+            advanced.CashFlowTrend, point => point.Year == 2026 && point.Month == 8);
+        Assert.Equal(1500m, august.Income);
+        Assert.Equal(30m, august.Expense);
 
         // Yabancı kullanıcı hiçbir şey görmez.
         var strangerReport = await reportRepository.GetAdvancedAsync(

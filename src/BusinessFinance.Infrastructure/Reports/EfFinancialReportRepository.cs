@@ -133,17 +133,44 @@ internal sealed class EfFinancialReportRepository(
                 group.Key,
                 group.Sum(obligation => obligation.Amount.Amount)))
             .ToArrayAsync(cancellationToken));
+        // POS tahsilatı satışı **tahsil edildiği gün** tanır, geçtiği gün
+        // değil (ADR 0015): gelir brüt tutar kadar, komisyon ayrı gider.
+        // Geçiş günü rapora hiç girmez — girseydi aynı satış iki kez sayılırdı.
+        var periodPosSettlements = dbContext.PosSettlements.AsNoTracking().Where(
+            settlement => settlement.UserId == userId &&
+                          !settlement.IsCancelled &&
+                          (scope == null || settlement.Scope == scope) &&
+                          settlement.SettlementDate >= start &&
+                          settlement.SettlementDate < endExclusive);
+        var posIncomeByScope = ScopeAmounts.From(await periodPosSettlements
+            .GroupBy(settlement => settlement.Scope)
+            .Select(group => new ScopeAmountRow(
+                group.Key,
+                group.Sum(settlement => settlement.GrossAmount.Amount)))
+            .ToArrayAsync(cancellationToken));
+        // Komisyon **brüte eklenmez ve ondan düşülmez**: kendi kategorisinde
+        // ayrı bir giderdir. Netten hesaplansaydı kullanıcının kestiği fatura
+        // küçülür, bankanın kesintisi de görünmez olurdu.
+        var posCommissionByScope = ScopeAmounts.From(await periodPosSettlements
+            .Where(settlement => settlement.CommissionAmount > 0m)
+            .GroupBy(settlement => settlement.Scope)
+            .Select(group => new ScopeAmountRow(
+                group.Key,
+                group.Sum(settlement => settlement.CommissionAmount)))
+            .ToArrayAsync(cancellationToken));
         var expenseByScope = transactionExpenseByScope
             .Add(cardExpenseByScope)
             .Add(debtOpeningExpenseByScope)
             .Add(debtInterest.Paid)
             .Add(counterpartyExpenseByScope)
-            .Add(obligationExpenseByScope);
+            .Add(obligationExpenseByScope)
+            .Add(posCommissionByScope);
         incomeByScope = incomeByScope
             .Add(debtOpeningIncomeByScope)
             .Add(debtInterest.Earned)
             .Add(counterpartyIncomeByScope)
-            .Add(obligationIncomeByScope);
+            .Add(obligationIncomeByScope)
+            .Add(posIncomeByScope);
         var totalIncome = incomeByScope.Total;
         var totalExpense = expenseByScope.Total;
         var transactionCategoryExpenses = await (
@@ -222,12 +249,25 @@ internal sealed class EfFinancialReportRepository(
                     expenseGroup.Key.Name,
                     expenseGroup.Sum(item => item.Amount.Amount)))
             .ToArrayAsync(cancellationToken);
+        var posCategoryExpenses = await (
+                from settlement in periodPosSettlements
+                join category in dbContext.Categories.AsNoTracking()
+                    on new { settlement.UserId, Id = settlement.CommissionCategoryId }
+                    equals new { category.UserId, Id = (Guid?)category.Id }
+                group settlement by new { category.Id, category.Name }
+                into expenseGroup
+                select new CategoryExpenseDto(
+                    expenseGroup.Key.Id,
+                    expenseGroup.Key.Name,
+                    expenseGroup.Sum(item => item.CommissionAmount)))
+            .ToArrayAsync(cancellationToken);
         var categoryExpenses = transactionCategoryExpenses
             .Concat(cardCategoryExpenses)
             .Concat(debtCategoryExpenses)
             .Concat(interestCategoryExpenses)
             .Concat(counterpartyCategoryExpenses)
             .Concat(obligationCategoryExpenses)
+            .Concat(posCategoryExpenses)
             .GroupBy(item => new { item.CategoryId, item.CategoryName })
             .Select(group => new CategoryExpenseDto(
                 group.Key.CategoryId,
@@ -621,10 +661,25 @@ internal sealed class EfFinancialReportRepository(
         var obligationIncome = await obligations
             .Where(obligation => obligation.Direction == DebtDirection.Receivable)
             .SumAsync(obligation => obligation.Amount.Amount, cancellationToken);
+        // POS satışı tahsil edildiği gün tanınır: gelir brüt, komisyon ayrı
+        // gider. Geçiş günü hiçbir şey yazmaz (ADR 0015).
+        var posSettlements = dbContext.PosSettlements.AsNoTracking()
+            .Where(settlement => settlement.UserId == userId &&
+                                 !settlement.IsCancelled &&
+                                 (scope == null || settlement.Scope == scope) &&
+                                 settlement.SettlementDate >= start &&
+                                 settlement.SettlementDate < endExclusive);
+        var posIncome = await posSettlements
+            .SumAsync(settlement => (decimal?)settlement.GrossAmount.Amount, cancellationToken)
+            ?? 0m;
+        var posCommission = await posSettlements
+            .SumAsync(settlement => (decimal?)settlement.CommissionAmount, cancellationToken)
+            ?? 0m;
         var expense = transactionExpense + cardExpense + debtOpeningExpense +
-                      debtInterest.Paid.Total + counterpartyExpense + obligationExpense;
+                      debtInterest.Paid.Total + counterpartyExpense + obligationExpense +
+                      posCommission;
         var totalIncome = income + debtOpeningIncome.Total + debtInterest.Earned.Total +
-                          counterpartyIncome + obligationIncome;
+                          counterpartyIncome + obligationIncome + posIncome;
         return new PeriodTotalsDto(year, month, totalIncome, expense, totalIncome - expense);
     }
 
@@ -716,6 +771,19 @@ internal sealed class EfFinancialReportRepository(
                 Amount = obligation.Amount.Amount
             })
             .ToArrayAsync(cancellationToken);
+        var posSettlements = await dbContext.PosSettlements.AsNoTracking()
+            .Where(settlement => settlement.UserId == userId &&
+                                 !settlement.IsCancelled &&
+                                 (scope == null || settlement.Scope == scope) &&
+                                 settlement.SettlementDate >= start &&
+                                 settlement.SettlementDate < endExclusive)
+            .Select(settlement => new
+            {
+                settlement.SettlementDate,
+                Gross = settlement.GrossAmount.Amount,
+                settlement.CommissionAmount
+            })
+            .ToArrayAsync(cancellationToken);
         var points = new List<CashFlowPointDto>(trendMonths);
 
         for (var offset = 0; offset < trendMonths; offset++)
@@ -745,7 +813,11 @@ internal sealed class EfFinancialReportRepository(
                     .Where(item => item.IssueDate.Year == period.Year &&
                                    item.IssueDate.Month == period.Month &&
                                    item.Direction == DebtDirection.Receivable)
-                    .Sum(item => item.Amount);
+                    .Sum(item => item.Amount) +
+                posSettlements
+                    .Where(item => item.SettlementDate.Year == period.Year &&
+                                   item.SettlementDate.Month == period.Month)
+                    .Sum(item => item.Gross);
             var expense = transactions
                 .Where(item => item.TransactionDate.Year == period.Year &&
                                item.TransactionDate.Month == period.Month &&
@@ -774,7 +846,11 @@ internal sealed class EfFinancialReportRepository(
                     .Where(item => item.IssueDate.Year == period.Year &&
                                    item.IssueDate.Month == period.Month &&
                                    item.Direction == DebtDirection.Payable)
-                    .Sum(item => item.Amount);
+                    .Sum(item => item.Amount) +
+                posSettlements
+                    .Where(item => item.SettlementDate.Year == period.Year &&
+                                   item.SettlementDate.Month == period.Month)
+                    .Sum(item => item.CommissionAmount);
             points.Add(new CashFlowPointDto(
                 period.Year, period.Month, income, expense, income - expense));
         }
@@ -895,6 +971,31 @@ internal sealed class EfFinancialReportRepository(
                 item => item.Spent,
                 cancellationToken);
 
+        // POS **komisyonu** bütçeyi tüketir: kendi kategorisi olan, o gün
+        // tanınmış gerçek bir gider. Satışın brüt tutarı tüketmez — o bir
+        // gelirdir ve bütçe gider bütçesidir.
+        var posCommissionSpent = await dbContext.PosSettlements.AsNoTracking()
+            .Where(settlement => settlement.UserId == userId &&
+                                 !settlement.IsCancelled &&
+                                 settlement.CommissionCategoryId != null &&
+                                 settlement.SettlementDate >= start &&
+                                 settlement.SettlementDate < endExclusive)
+            .GroupBy(settlement => new
+            {
+                CategoryId = settlement.CommissionCategoryId!.Value,
+                settlement.Scope
+            })
+            .Select(group => new
+            {
+                group.Key.CategoryId,
+                group.Key.Scope,
+                Spent = group.Sum(item => item.CommissionAmount)
+            })
+            .ToDictionaryAsync(
+                item => (item.CategoryId, item.Scope),
+                item => item.Spent,
+                cancellationToken);
+
         return budgets.Select(budget =>
         {
             var key = (budget.CategoryId, budget.Scope);
@@ -902,7 +1003,8 @@ internal sealed class EfFinancialReportRepository(
                         cardSpent.GetValueOrDefault(key) +
                         debtSpent.GetValueOrDefault(key) +
                         counterpartySpent.GetValueOrDefault(key) +
-                        obligationSpent.GetValueOrDefault(key);
+                        obligationSpent.GetValueOrDefault(key) +
+                        posCommissionSpent.GetValueOrDefault(key);
             return new BudgetVarianceDto(
                 budget.CategoryId,
                 budget.CategoryName,
