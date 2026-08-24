@@ -20,6 +20,13 @@ internal sealed class RecurringTransactionConfiguration : IEntityTypeConfigurati
             table.HasCheckConstraint(
                 "CK_RecurringTransactions_DateRange",
                 "[EndDate] IS NULL OR [EndDate] >= [StartDate]");
+            table.HasCheckConstraint(
+                "CK_RecurringTransactions_OccurrenceLimit",
+                "[OccurrenceLimit] IS NULL OR [OccurrenceLimit] > 0");
+            table.HasCheckConstraint(
+                "CK_RecurringTransactions_GeneratedOccurrenceCount",
+                "[GeneratedOccurrenceCount] >= 0 AND " +
+                "([OccurrenceLimit] IS NULL OR [GeneratedOccurrenceCount] <= [OccurrenceLimit])");
             table.HasCheckConstraint("CK_RecurringTransactions_SourceType", "[SourceType] IN (1, 2)");
 
             // Exactly one funding source: an account (1) or a credit card (2).
@@ -43,6 +50,7 @@ internal sealed class RecurringTransactionConfiguration : IEntityTypeConfigurati
         builder.Property(recurring => recurring.MonthEndBehavior).HasConversion<byte>().HasColumnType("tinyint");
         builder.Property(recurring => recurring.StartDate).HasColumnType("date");
         builder.Property(recurring => recurring.EndDate).HasColumnType("date");
+        builder.Property(recurring => recurring.OccurrenceLimit);
         builder.Property(recurring => recurring.NextOccurrenceDate).HasColumnType("date");
         builder.Property(recurring => recurring.Description)
             .HasMaxLength(RecurringTransaction.MaximumDescriptionLength);

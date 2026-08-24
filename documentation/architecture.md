@@ -733,6 +733,15 @@ oluşturmaz. Occurrence gerçekleşirken durum değişikliği ve `BudgetTransact
 aynı SQL `SaveChanges` sınırındadır; yarım onay bırakılmaz. Cloud scheduler yoktur;
 üretim açık use case olarak çağrılır.
 
+Plan isteğe bağlı iki bitiş sınırı taşır: `EndDate` ve toplam occurrence sayısı
+`OccurrenceLimit`. İkisi birlikte verilebilir; üretim tarihi veya sayaçtan önce
+dolana göre biter. `GeneratedOccurrenceCount` gerçekleşen para hareketini değil,
+üretilmiş occurrence satırını sayar. Sınıra ulaşınca `NextOccurrenceDate=null`
+olur ve plan pasifleşir; geçmiş occurrence'lar silinmez. Planlanan projection da
+aynı sayaçtan sonra tarih türetmez. Mevcut planların sayacı migration sırasında
+owner + plan anahtarıyla bağlı occurrence satırları sayılarak backfill edilir;
+kalıcı veritabanı varsayılanı bırakılmaz.
+
 Raporlar kalıcı ikinci bakiye kaynakları değildir. Bütün toplamlar owner-scoped,
 `AsNoTracking` projection/aggregate sorgularından hesaplanır. Yaklaşan kart
 ekstrelerinde kart başına SQL çağrısı yapılmaz: kart dönemleri bellekte belirlenir,

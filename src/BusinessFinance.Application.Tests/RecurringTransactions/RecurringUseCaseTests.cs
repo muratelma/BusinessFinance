@@ -52,6 +52,31 @@ public sealed class RecurringUseCaseTests
     }
 
     [Fact]
+    public async Task Generate_WithTwelveOccurrenceLimit_StopsAtTwelveAndRetryCreatesNothing()
+    {
+        var (recurring, _, _) = CreateRecurring(
+            UserId,
+            new DateOnly(2026, 1, 1),
+            occurrenceLimit: 12);
+        var repository = new FakeRecurringRepository(recurring);
+        var useCase = new GenerateRecurringOccurrencesUseCase(
+            new FakeCurrentUser(UserId), repository);
+        var command = new GenerateRecurringOccurrencesCommand(new DateOnly(2027, 1, 1));
+
+        var first = await useCase.ExecuteAsync(command);
+        var retry = await useCase.ExecuteAsync(command);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(retry.IsSuccess);
+        Assert.Equal(12, first.Value.GeneratedOccurrences.Count);
+        Assert.Empty(retry.Value.GeneratedOccurrences);
+        Assert.Equal(12, repository.Occurrences.Count);
+        Assert.Equal(12, recurring.GeneratedOccurrenceCount);
+        Assert.False(recurring.IsActive);
+        Assert.Null(recurring.NextOccurrenceDate);
+    }
+
+    [Fact]
     public async Task Realize_Twice_ReturnsOneFinancialTransaction()
     {
         var (recurring, account, category) = CreateRecurring(UserId, new DateOnly(2026, 8, 31));
@@ -607,7 +632,8 @@ public sealed class RecurringUseCaseTests
 
     private static (RecurringTransaction Recurring, Account Account, Category Category) CreateRecurring(
         Guid userId,
-        DateOnly startDate)
+        DateOnly startDate,
+        int? occurrenceLimit = null)
     {
         var account = new Account(
             Guid.NewGuid(), userId, "Bills", AccountType.Bank, CurrencyCode.TRY);
@@ -623,7 +649,8 @@ public sealed class RecurringUseCaseTests
             TransactionScope.Business,
             RecurrenceFrequency.Monthly,
             startDate,
-            description: "Rent");
+            description: "Rent",
+            occurrenceLimit: occurrenceLimit);
         return (recurring, account, category);
     }
 

@@ -25,6 +25,18 @@ yükümlülükleri veya cari vadesini taşımaz; bunların kayıpsız backup kap
 alınması Aşama 03 Grup 7'nin işidir. Bu checkpoint'te v7 restore edilen cari
 hareketler bilinçli olarak vadesiz (`null`) doğar.
 
+## Veritabanı yükseltme notu — Aşama 03 Grup 3
+
+`AddRecurringOccurrenceLimit` migration'ı `OccurrenceLimit int NULL` ve
+`GeneratedOccurrenceCount int NOT NULL` alanlarını ekler. Sayaç önce nullable
+eklenir, mevcut occurrence satırları owner + plan anahtarıyla sayılarak backfill
+edilir, sonra zorunlu hâle getirilir ve CHECK kısıtları en son kurulur. Kalıcı
+DEFAULT bırakılmaz. Mevcut planların sınırı bilinmediği için `OccurrenceLimit`
+uydurulmaz ve `null` kalır.
+
+Backup biçimi bu checkpoint'te hâlâ v7'dir ve occurrence sınırını taşımaz;
+yükümlülüklerle birlikte kayıpsız v8 kapsamına alınması Grup 7'nin işidir.
+
 ## Ön koşullar
 
 - SQL Server `healthy`, API `/health/ready` cevabı 200 olmalıdır.

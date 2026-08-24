@@ -2236,6 +2236,71 @@ public sealed class SqlServerPersistenceIntegrationTests
                 CancellationToken.None));
     }
 
+    [SqlServerFact]
+    public async Task AddRecurringOccurrenceLimit_BackfillsExistingGeneratedCount()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(
+            GetConnectionString(), "AddObligationsAndCounterpartyDueDates");
+        var user = CreateUser("recurring-limit-upgrade@example.test");
+        await database.SeedUsersAsync(user);
+        var account = new Account(
+            Guid.NewGuid(), user.Id, "Sözleşme hesabı", AccountType.Bank, CurrencyCode.TRY);
+        var category = new Category(
+            Guid.NewGuid(), user.Id, "Kira", CategoryType.Expense, TransactionScope.Business);
+
+        await using (var context = database.CreateContext())
+        {
+            context.AddRange(account, category);
+            await context.SaveChangesAsync(CancellationToken.None);
+        }
+
+        var recurringId = Guid.NewGuid();
+        await database.ExecuteAsync(
+            "INSERT INTO [RecurringTransactions] " +
+            "([Id], [UserId], [SourceType], [AccountId], [CreditCardId], [CategoryId], " +
+            "[Amount], [Currency], [Kind], [Scope], [Frequency], [StartDate], [EndDate], " +
+            "[NextOccurrenceDate], [MonthEndBehavior], [Description], [IsActive]) " +
+            "VALUES ({0}, {1}, 1, {2}, NULL, {3}, 1000.0000, 1, 3, 1, 3, " +
+            "'2026-01-01', NULL, '2026-03-01', 1, 'Sentetik kira', 1)",
+            recurringId,
+            user.Id,
+            account.Id,
+            category.Id);
+
+        foreach (var scheduledDate in new[]
+                 {
+                     new DateOnly(2026, 1, 1),
+                     new DateOnly(2026, 2, 1)
+                 })
+        {
+            await database.ExecuteAsync(
+                "INSERT INTO [RecurringTransactionOccurrences] " +
+                "([Id], [UserId], [RecurringTransactionId], [OccurrenceKey], [SourceType], " +
+                "[AccountId], [CreditCardId], [CategoryId], [Amount], [Currency], [Kind], " +
+                "[Scope], [ScheduledDate], [Description], [Status], [BudgetTransactionId], " +
+                "[CreditCardChargeId], [RealizedAtUtc]) " +
+                "VALUES ({0}, {1}, {2}, {3}, 1, {4}, NULL, {5}, 1000.0000, 1, 3, 1, " +
+                "{6}, 'Sentetik kira', 1, NULL, NULL, NULL)",
+                Guid.NewGuid(),
+                user.Id,
+                recurringId,
+                $"{recurringId:N}:{scheduledDate:yyyyMMdd}",
+                account.Id,
+                category.Id,
+                scheduledDate);
+        }
+
+        await database.MigrateToLatestAsync();
+
+        await using var readContext = database.CreateContext();
+        var upgraded = await readContext.RecurringTransactions.AsNoTracking()
+            .SingleAsync(item => item.Id == recurringId, CancellationToken.None);
+        Assert.Equal(2, upgraded.GeneratedOccurrenceCount);
+        Assert.Null(upgraded.OccurrenceLimit);
+        Assert.True(upgraded.IsActive);
+        Assert.Equal(new DateOnly(2026, 3, 1), upgraded.NextOccurrenceDate);
+    }
+
     /// <summary>
     /// Dolu bir veritabanında yükseltme: sözleşmelerdeki her ad bir karşı taraf
     /// olur, aynı ad iki kez kurulmaz ve hiçbir sözleşme karşı tarafını

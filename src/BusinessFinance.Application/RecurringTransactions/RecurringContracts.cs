@@ -17,6 +17,8 @@ public sealed record RecurringTransactionDto(
     RecurrenceFrequency Frequency,
     DateOnly StartDate,
     DateOnly? EndDate,
+    int? OccurrenceLimit,
+    int GeneratedOccurrenceCount,
     DateOnly? NextOccurrenceDate,
     MonthEndBehavior MonthEndBehavior,
     string? Description,
@@ -62,7 +64,8 @@ public sealed record CreateRecurringTransactionCommand(
     DateOnly StartDate,
     DateOnly? EndDate,
     MonthEndBehavior MonthEndBehavior,
-    string? Description);
+    string? Description,
+    int? OccurrenceLimit = null);
 
 /// <summary>
 /// A realized occurrence produces exactly one result, decided by its source: an

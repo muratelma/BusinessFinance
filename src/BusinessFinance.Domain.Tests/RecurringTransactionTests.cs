@@ -123,13 +123,46 @@ public sealed class RecurringTransactionTests
             RecurringTransactionKind.Expense,
             RecurrenceFrequency.Weekly,
             new DateOnly(2026, 8, 1),
-            new DateOnly(2026, 8, 1));
+            new DateOnly(2026, 8, 1),
+            occurrenceLimit: 12);
 
         recurring.AdvanceAfter(new DateOnly(2026, 8, 1));
 
         Assert.False(recurring.IsActive);
         Assert.Null(recurring.NextOccurrenceDate);
         Assert.Throws<InvalidOperationException>(() => recurring.Activate());
+    }
+
+    [Fact]
+    public void AdvanceAfter_OccurrenceLimitCompletesAndDeactivatesSchedule()
+    {
+        var recurring = CreateRecurring(
+            RecurringTransactionKind.Expense,
+            RecurrenceFrequency.Monthly,
+            new DateOnly(2026, 1, 1),
+            new DateOnly(2026, 12, 1),
+            occurrenceLimit: 2);
+
+        recurring.AdvanceAfter(new DateOnly(2026, 1, 1));
+        Assert.Equal(1, recurring.GeneratedOccurrenceCount);
+        Assert.Equal(new DateOnly(2026, 2, 1), recurring.NextOccurrenceDate);
+
+        recurring.AdvanceAfter(new DateOnly(2026, 2, 1));
+
+        Assert.Equal(2, recurring.GeneratedOccurrenceCount);
+        Assert.False(recurring.IsActive);
+        Assert.Null(recurring.NextOccurrenceDate);
+        Assert.Throws<InvalidOperationException>(() => recurring.Activate());
+    }
+
+    [Fact]
+    public void Constructor_WithNonPositiveOccurrenceLimit_IsRejected()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => CreateRecurring(
+            RecurringTransactionKind.Expense,
+            RecurrenceFrequency.Monthly,
+            new DateOnly(2026, 1, 1),
+            occurrenceLimit: 0));
     }
 
     [Fact]
@@ -267,7 +300,8 @@ public sealed class RecurringTransactionTests
         RecurrenceFrequency frequency,
         DateOnly startDate,
         DateOnly? endDate = null,
-        MonthEndBehavior monthEndBehavior = MonthEndBehavior.ClampToLastDay)
+        MonthEndBehavior monthEndBehavior = MonthEndBehavior.ClampToLastDay,
+        int? occurrenceLimit = null)
     {
         var userId = Guid.NewGuid();
         var categoryType = kind == RecurringTransactionKind.Income
@@ -285,7 +319,8 @@ public sealed class RecurringTransactionTests
             startDate,
             endDate,
             monthEndBehavior,
-            " Rent ");
+            " Rent ",
+            occurrenceLimit);
     }
 
     private static Account CreateAccount(Guid userId)

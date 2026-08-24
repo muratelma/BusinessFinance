@@ -84,6 +84,63 @@ public sealed class RecurringEndpointTests
     }
 
     [Fact]
+    public async Task OccurrenceLimitedPlan_GeneratesTwelveThenCompletesAndRetryIsEmpty()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(
+            factory,
+            "recurring-limited-owner@example.test");
+        var account = await CreateAccountAsync(owner);
+        var category = await GetExpenseCategoryAsync(owner);
+        var request = new CreateRecurringTransactionRequest(
+            account.Id,
+            category.Id,
+            "100.0000",
+            "TRY",
+            "expense",
+            "business",
+            "monthly",
+            "2026-01-01",
+            null,
+            "clamp-to-last-day",
+            "Twelve month contract",
+            OccurrenceLimit: 12);
+
+        using var createResponse = await owner.PostAsJsonAsync(
+            "/api/v1/recurring-transactions",
+            request);
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content
+            .ReadFromJsonAsync<RecurringTransactionResponse>();
+        Assert.Equal(12, created!.OccurrenceLimit);
+        Assert.Equal(0, created.GeneratedOccurrenceCount);
+
+        var generateRequest = new GenerateRecurringOccurrencesRequest("2027-01-01");
+        using var generatedResponse = await owner.PostAsJsonAsync(
+            "/api/v1/recurring-transactions/occurrences/generate",
+            generateRequest);
+        using var retryResponse = await owner.PostAsJsonAsync(
+            "/api/v1/recurring-transactions/occurrences/generate",
+            generateRequest);
+        generatedResponse.EnsureSuccessStatusCode();
+        retryResponse.EnsureSuccessStatusCode();
+
+        var generated = await generatedResponse.Content
+            .ReadFromJsonAsync<GenerateRecurringOccurrencesResponse>();
+        var retry = await retryResponse.Content
+            .ReadFromJsonAsync<GenerateRecurringOccurrencesResponse>();
+        Assert.Equal(12, generated!.GeneratedOccurrences.Count);
+        Assert.Empty(retry!.GeneratedOccurrences);
+
+        var plans = await owner.GetFromJsonAsync<RecurringTransactionListResponse>(
+            "/api/v1/recurring-transactions");
+        var completed = Assert.Single(plans!.Items);
+        Assert.False(completed.IsActive);
+        Assert.Null(completed.NextOccurrenceDate);
+        Assert.Equal(12, completed.GeneratedOccurrenceCount);
+    }
+
+    [Fact]
     public async Task Create_WithNumericEnumLikeValues_IsRejected()
     {
         await using var factory = new BusinessFinanceApiFactory();

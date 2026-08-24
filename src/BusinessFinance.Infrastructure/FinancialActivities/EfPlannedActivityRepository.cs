@@ -176,6 +176,7 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
         foreach (var schedule in schedules)
         {
             var dueDate = schedule.NextOccurrenceDate;
+            var projectedOccurrenceCount = schedule.GeneratedOccurrenceCount;
             while (dueDate is DateOnly date && date <= horizonDate)
             {
                 if (!covered.Contains((schedule.Id, date)))
@@ -199,6 +200,13 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
                         categories,
                         cards,
                         availableLimits));
+                }
+
+                projectedOccurrenceCount++;
+                if (schedule.OccurrenceLimit is int occurrenceLimit &&
+                    projectedOccurrenceCount >= occurrenceLimit)
+                {
+                    break;
                 }
 
                 if (date == horizonDate) break;

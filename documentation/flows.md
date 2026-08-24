@@ -451,7 +451,7 @@ bildirimdir; finans kararları backend'de tekrar uygulanır.
 ```text
 POST /recurring-transactions
   -> current user'a ait aktif account + türe uygun aktif category
-  -> tarih/sıklık/ay-sonu invariant'ları
+  -> tarih/sıklık/ay-sonu + opsiyonel bitiş tarihi/occurrence sayısı invariant'ları
   -> RecurringTransaction (henüz finans hareketi değil)
 
 POST /recurring-transactions/occurrences/generate
@@ -459,6 +459,8 @@ POST /recurring-transactions/occurrences/generate
   -> occurrence key üret
   -> owner + key unique constraint
   -> aynı throughDate retry: duplicate yok
+  -> bitiş tarihi veya occurrence sayısından önce dolan sınırda plan pasif
+  -> gerçekleşmiş/planned geçmiş occurrence satırları korunur
 
 POST /recurring-transactions/occurrences/{id}/realize
   -> occurrenceId + current UserId

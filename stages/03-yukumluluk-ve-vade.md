@@ -126,7 +126,7 @@ kaybolur; ikisi de doğru olur ve sırayla gerçekleşir.
   foreign key'lerle kalıcılaştı; bir yükümlülüğe tek settlement veritabanında
   tekil. Endpoint/use case davranışı henüz açılmadı.
 
-### Grup 3 — Tekrarlayan planda bitiş sınırı
+### Grup 3 — Tekrarlayan planda bitiş sınırı — **Tamamlandı**
 
 - Plana bitiş tarihi **veya** tekrar sayısı eklenir; ikisi birden zorunlu değil,
   ikisi birden verilirse önce dolan geçerlidir.
@@ -136,6 +136,23 @@ kaybolur; ikisi de doğru olur ve sırayla gerçekleşir.
   gerçek bir ihtiyaçtır (12 aylık kira sözleşmesi) ve Grup 1 ile birlikte
   "ödenmemiş fatura plan olmaya zorlanıyor" hatasını tamamen kapatır.
 - Ölçüt: 12 tekrarlı plan 13'üncüyü üretmiyor; retry ikinci kayıt açmıyor.
+- Uygulanan alanlar: opsiyonel toplam `OccurrenceLimit` ve kalıcı
+  `GeneratedOccurrenceCount`. Sayaç gerçekleşen para hareketini değil üretilmiş
+  occurrence satırını sayar; bu yüzden onay bekleyen occurrence da sözleşmenin
+  bir tekrarıdır.
+- Bitiş tarihi ve tekrar sınırı birlikte verilebilir. `AdvanceAfter` önce sayaç
+  sınırını, sonra bir sonraki tarihin `EndDate` sınırını denetler; önce dolan
+  planı pasifleştirip `NextOccurrenceDate` alanını temizler. Geçmiş satırlar
+  korunur ve tamamlanmış plan yeniden açılamaz.
+- Planlanan projection henüz üretilmemiş tarihleri türetirken aynı sayacı
+  ilerletir; sınırdan sonra hayali satır göstermez.
+- `AddRecurringOccurrenceLimit` mevcut planların sayacını occurrence
+  tablosundan backfill eder. Kolonlar backfill'den, backfill `NOT NULL` ve CHECK
+  kısıtlarından önce gelir; kalıcı DEFAULT bırakılmaz. Mevcut planların bilinmeyen
+  sınırı `null` kalır.
+- API create/list sözleşmesi `occurrenceLimit` ve
+  `generatedOccurrenceCount` alanlarını taşır. Flutter form alanı Grup 6'da
+  açılacak; yedek v8 kapsamı Grup 7'de tamamlanacak.
 
 ### Grup 4 — Planlanan görünüm ve gecikenler
 

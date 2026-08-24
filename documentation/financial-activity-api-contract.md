@@ -473,6 +473,9 @@ Mevcut `RecurringTransaction` sözleşmesi **geriye uyumlu** biçimde genişler.
 
 // Yeni: kredi kartı kaynağı
 { "sourceType": "credit-card", "accountId": null, "creditCardId": "c7e2…", … }
+
+// İsteğe bağlı toplam occurrence sınırı; endDate ile birlikte de kullanılabilir
+{ "occurrenceLimit": 12, "endDate": null, … }
 ```
 
 `sourceType` gönderilmediğinde `account` varsayılır ve `accountId` zorunludur.
@@ -487,6 +490,13 @@ Mevcut `RecurringTransaction` sözleşmesi **geriye uyumlu** biçimde genişler.
 | Kart/kategori/hesap yabancı veya yok | `404` |
 | Kategori türü uyumsuz | `recurring.category_type_mismatch` |
 | Para birimi eşleşmiyor | `recurring.currency_mismatch` |
+| `occurrenceLimit <= 0` | `recurring.validation` |
+
+`occurrenceLimit` toplam üretilecek occurrence sayısıdır. `endDate` ile birlikte
+verilirse önce dolan sınır geçerlidir. Sınıra ulaşan plan silinmez;
+`isActive=false`, `nextOccurrenceDate=null` olur. Liste cevabı sınırı
+`occurrenceLimit`, bugüne kadar üretilen sayıyı `generatedOccurrenceCount`
+alanında taşır.
 
 ### Örnek plan cevabı — kart kaynağı
 
@@ -503,6 +513,8 @@ Mevcut `RecurringTransaction` sözleşmesi **geriye uyumlu** biçimde genişler.
   "frequency": "monthly",
   "startDate": "2026-08-10",
   "endDate": null,
+  "occurrenceLimit": 12,
+  "generatedOccurrenceCount": 1,
   "nextOccurrenceDate": "2026-09-10",
   "monthEndBehavior": "clamp-to-last-day",
   "description": "Streaming aboneliği",

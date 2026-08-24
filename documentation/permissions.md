@@ -119,6 +119,7 @@ Kapsam alanını taşıyan istek/cevap sözleşmeleri:
 | `POST /api/v1/credit-cards/{id}/charges` | `scope` | Hayır — boşsa kart → kategori; `credit_cards.scope_unresolved` / `credit_cards.invalid_scope` |
 | `POST /api/v1/installment-plans` | `scope` | Hayır — boşsa kart → kategori; `credit_cards.scope_unresolved` / `installments.invalid_scope` |
 | `POST /api/v1/recurring-transactions` | `scope` | Hayır — boşsa kaynak → kategori; `recurring.scope_unresolved` / `recurring.invalid_scope` |
+| `POST /api/v1/recurring-transactions` | `occurrenceLimit` | Hayır — verilirse pozitif toplam occurrence sınırıdır; `endDate` ile birlikte verilebilir ve önce dolan sınır planı pasifleştirir. Sahiplik girdisi değildir |
 | `POST /api/v1/debts` | `scope` | Hayır — boşsa açılış hesabı → kategori; `debt.scope_unresolved` / `debt.invalid_contract` |
 | `POST`/`PUT` hesap, kategori, kart | `defaultScope` | Hayır — boş bırakılabilir; **güncellemede yetkilidir**, boş göndermek etiketi kaldırır. Tanınmayan değer `*.invalid_default_scope` |
 | `POST /api/v1/imports/{id}/confirm` | — | İçe aktarılan CSV kapsam kolonu taşımaz; zincirin ilk halkası hiç dolmaz, hesabın yoksa kategorinin varsayılanı kullanılır, ikisi de boşsa `imports.scope_unresolved` |

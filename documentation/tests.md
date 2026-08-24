@@ -231,6 +231,7 @@ kapanış use case'i yükümlülük davranışı açıldığında tamamlanacak.
 | Geçmiş sınırı | Liste tüm geçmişi çekmez | Pencere dışı satır gelmez; tavan aşılınca kırpılır ve `hasMore` bildirilir; `all` tavanı kaldırmaz | Application + gerçek SQL + Flutter | Geçti |
 | Taksit/idempotency | Plan gelecektir; yalnız realize giderdir | 100 = 33,3333+33,3333+33,3334; retry tek kayıt | Domain/API/SQL + Pixel 8 | Geçti |
 | Recurring idempotency | Aynı dönem ikinci kez üretilmez | İki generate çağrısı, tek occurrence | Domain/Application/API/SQL + Pixel 8 | Geçti |
+| Recurring bitiş sınırı | 12 occurrence üreten plan 13'üncüyü üretmez; retry boş döner | Sayaç 12, plan pasif, sonraki tarih `null` | Domain/Application/API + migration/gerçek SQL | Geçti |
 | Ay sonu ve pasif plan | 28/29/30/31 ile active sınırı korunur | Clamp/skip doğru; pasif plan üretmez | Domain/Application | Geçti |
 | Upcoming birleşimi | Üç plan kaynağı doğru sınıflanır | Gecikmiş/bugün/yaklaşan; yabancı owner dışarıda | Application/API/gerçek SQL | Geçti |
 | Gelişmiş rapor | Transfer/kart ödeme çifte sayılmaz | Net varlık, trend, sapma ve gelecek yük fixture ile eşit | Application/API/gerçek SQL | Geçti |
@@ -245,6 +246,16 @@ kapanış use case'i yükümlülük davranışı açıldığında tamamlanacak.
 - İdempotency key eklendiğinde aynı transaction POST'un ağ seviyesinde
   tekrarına negatif integration testi.
 - Daha geniş ekran, font scaling ve TalkBack ile manuel erişilebilirlik turu.
+
+## Aşama 03 Grup 3 — tekrarlayan plan bitiş sınırı
+
+| Kanıt | Kapsam |
+|---|---|
+| `RecurringTransactionTests.AdvanceAfter_OccurrenceLimitCompletesAndDeactivatesSchedule` | Sayaç sınırında plan pasifleşir, sonraki tarih temizlenir ve tamamlanmış plan yeniden açılamaz |
+| `RecurringUseCaseTests.Generate_WithTwelveOccurrenceLimit_StopsAtTwelveAndRetryCreatesNothing` | 12 aylık plan 12 occurrence üretir; aynı ve daha ileri pencere retry'ı yeni satır açmaz |
+| `RecurringEndpointTests.OccurrenceLimitedPlan_GeneratesTwelveThenCompletesAndRetryIsEmpty` | `occurrenceLimit` create/list sözleşmesinden geçer; cevap üretilen sayacı ve tamamlanmış durumu taşır |
+| `MigrationHistoryTests.AddRecurringOccurrenceLimit_BackfillsBeforeChecksAndLeavesNoDefault` | Kolonlar → occurrence sayımı backfill'i → `NOT NULL` → CHECK sırası; kalıcı DEFAULT yok |
+| `SqlServerPersistenceIntegrationTests.AddRecurringOccurrenceLimit_BackfillsExistingGeneratedCount` | Önceki şemadaki iki occurrence yeni sayaca gerçek SQL yükseltmesinde `2` olarak taşınır |
 
 ## Bilinen test boşlukları
 

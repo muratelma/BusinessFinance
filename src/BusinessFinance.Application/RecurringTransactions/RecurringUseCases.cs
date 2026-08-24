@@ -93,7 +93,8 @@ public sealed class CreateRecurringTransactionUseCase(
                     command.StartDate,
                     command.EndDate,
                     command.MonthEndBehavior,
-                    command.Description)
+                    command.Description,
+                    command.OccurrenceLimit)
                 : new RecurringTransaction(
                     Guid.NewGuid(),
                     userId,
@@ -106,7 +107,8 @@ public sealed class CreateRecurringTransactionUseCase(
                     command.StartDate,
                     command.EndDate,
                     command.MonthEndBehavior,
-                    command.Description);
+                    command.Description,
+                    command.OccurrenceLimit);
             await repository.AddAsync(recurring, cancellationToken);
             return ApplicationResult<RecurringTransactionDto>.Success(ToDto(recurring));
         }
@@ -135,6 +137,8 @@ public sealed class CreateRecurringTransactionUseCase(
         recurring.Frequency,
         recurring.StartDate,
         recurring.EndDate,
+        recurring.OccurrenceLimit,
+        recurring.GeneratedOccurrenceCount,
         recurring.NextOccurrenceDate,
         recurring.MonthEndBehavior,
         recurring.Description,

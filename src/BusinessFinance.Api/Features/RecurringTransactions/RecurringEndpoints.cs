@@ -137,7 +137,8 @@ public static class RecurringEndpoints
             startDate,
             endDate,
             monthEndBehavior,
-            request.Description), cancellationToken);
+            request.Description,
+            request.OccurrenceLimit), cancellationToken);
         if (!result.IsSuccess)
         {
             return result.Error.ToProblemResult(httpContext);
@@ -282,6 +283,8 @@ public static class RecurringEndpoints
         recurring.Frequency.ToString().ToLowerInvariant(),
         FinanceContract.Date(recurring.StartDate),
         recurring.EndDate is DateOnly endDate ? FinanceContract.Date(endDate) : null,
+        recurring.OccurrenceLimit,
+        recurring.GeneratedOccurrenceCount,
         recurring.NextOccurrenceDate is DateOnly nextDate ? FinanceContract.Date(nextDate) : null,
         MonthEndBehaviorValue(recurring.MonthEndBehavior),
         recurring.Description,

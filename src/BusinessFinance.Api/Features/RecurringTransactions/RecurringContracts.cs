@@ -19,7 +19,8 @@ public sealed record CreateRecurringTransactionRequest(
     string MonthEndBehavior,
     string? Description,
     string? SourceType = null,
-    Guid? CreditCardId = null);
+    Guid? CreditCardId = null,
+    int? OccurrenceLimit = null);
 
 public sealed record SetRecurringActiveRequest(bool IsActive);
 
@@ -44,6 +45,8 @@ public sealed record RecurringTransactionResponse(
     string Frequency,
     string StartDate,
     string? EndDate,
+    int? OccurrenceLimit,
+    int GeneratedOccurrenceCount,
     string? NextOccurrenceDate,
     string MonthEndBehavior,
     string? Description,

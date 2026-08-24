@@ -26,7 +26,8 @@ public sealed class MigrationHistoryTests
         "AddUserProfile",
         "AddCounterparties",
         "LinkDebtsToCounterparties",
-        "AddObligationsAndCounterpartyDueDates"
+        "AddObligationsAndCounterpartyDueDates",
+        "AddRecurringOccurrenceLimit"
     ];
 
     [Fact]
@@ -302,6 +303,41 @@ public sealed class MigrationHistoryTests
                 up.OfType<CreateIndexOperation>(),
                 index => index.Name == "UX_ObligationSettlements_UserId_ObligationId" &&
                          index.IsUnique);
+        }
+    }
+
+    [Fact]
+    public void AddRecurringOccurrenceLimit_BackfillsBeforeChecksAndLeavesNoDefault()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_AddRecurringOccurrenceLimit", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations.ToList();
+            var generatedCount = Assert.Single(up.OfType<AddColumnOperation>(), operation =>
+                operation.Table == "RecurringTransactions" &&
+                operation.Name == "GeneratedOccurrenceCount");
+            var occurrenceLimit = Assert.Single(up.OfType<AddColumnOperation>(), operation =>
+                operation.Table == "RecurringTransactions" &&
+                operation.Name == "OccurrenceLimit");
+            Assert.True(generatedCount.IsNullable);
+            Assert.True(occurrenceLimit.IsNullable);
+            Assert.Null(generatedCount.DefaultValue);
+            Assert.Null(generatedCount.DefaultValueSql);
+
+            var backfillIndex = up.FindIndex(operation => operation is SqlOperation);
+            var requiredIndex = up.FindIndex(operation =>
+                operation is AlterColumnOperation alter &&
+                alter.Name == "GeneratedOccurrenceCount" &&
+                !alter.IsNullable);
+            var firstCheckIndex = up.FindIndex(operation =>
+                operation is AddCheckConstraintOperation);
+            Assert.True(backfillIndex >= 0 && backfillIndex < requiredIndex);
+            Assert.True(requiredIndex < firstCheckIndex);
+
+            var backfill = Assert.IsType<SqlOperation>(up[backfillIndex]);
+            Assert.Contains("COUNT(*)", backfill.Sql, StringComparison.Ordinal);
+            Assert.Contains("RecurringTransactionOccurrences", backfill.Sql, StringComparison.Ordinal);
         }
     }
 

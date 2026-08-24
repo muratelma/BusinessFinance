@@ -23,6 +23,8 @@ public sealed class RecurringTransaction
     public RecurrenceFrequency Frequency { get; }
     public DateOnly StartDate { get; }
     public DateOnly? EndDate { get; }
+    public int? OccurrenceLimit { get; }
+    public int GeneratedOccurrenceCount { get; private set; }
     public DateOnly? NextOccurrenceDate { get; private set; }
     public MonthEndBehavior MonthEndBehavior { get; }
     public string? Description { get; }
@@ -49,7 +51,8 @@ public sealed class RecurringTransaction
         DateOnly startDate,
         DateOnly? endDate = null,
         MonthEndBehavior monthEndBehavior = MonthEndBehavior.ClampToLastDay,
-        string? description = null)
+        string? description = null,
+        int? occurrenceLimit = null)
         : this(
             id,
             userId,
@@ -64,7 +67,8 @@ public sealed class RecurringTransaction
             startDate,
             endDate,
             monthEndBehavior,
-            description)
+            description,
+            occurrenceLimit)
     {
     }
 
@@ -85,7 +89,8 @@ public sealed class RecurringTransaction
         DateOnly startDate,
         DateOnly? endDate = null,
         MonthEndBehavior monthEndBehavior = MonthEndBehavior.ClampToLastDay,
-        string? description = null)
+        string? description = null,
+        int? occurrenceLimit = null)
         : this(
             id,
             userId,
@@ -100,7 +105,8 @@ public sealed class RecurringTransaction
             startDate,
             endDate,
             monthEndBehavior,
-            description)
+            description,
+            occurrenceLimit)
     {
     }
 
@@ -184,7 +190,8 @@ public sealed class RecurringTransaction
         DateOnly startDate,
         DateOnly? endDate,
         MonthEndBehavior monthEndBehavior,
-        string? description)
+        string? description,
+        int? occurrenceLimit)
     {
         if (id == Guid.Empty) throw new ArgumentException("Recurring transaction id cannot be empty.", nameof(id));
         if (userId == Guid.Empty) throw new ArgumentException("User id cannot be empty.", nameof(userId));
@@ -229,6 +236,13 @@ public sealed class RecurringTransaction
             throw new ArgumentOutOfRangeException(nameof(endDate), "End date cannot be before the start date.");
         }
 
+        if (occurrenceLimit is <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(occurrenceLimit),
+                "Occurrence limit must be greater than zero when provided.");
+        }
+
         var normalizedDescription = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
         if (normalizedDescription?.Length > MaximumDescriptionLength)
         {
@@ -258,6 +272,8 @@ public sealed class RecurringTransaction
         Frequency = frequency;
         StartDate = startDate;
         EndDate = endDate;
+        OccurrenceLimit = occurrenceLimit;
+        GeneratedOccurrenceCount = 0;
         NextOccurrenceDate = startDate;
         MonthEndBehavior = monthEndBehavior;
         Description = normalizedDescription;
@@ -274,6 +290,14 @@ public sealed class RecurringTransaction
         if (occurrenceDate != NextOccurrenceDate.Value)
         {
             throw new InvalidOperationException("Only the current occurrence can advance the schedule.");
+        }
+
+        GeneratedOccurrenceCount++;
+        if (OccurrenceLimit is int occurrenceLimit && GeneratedOccurrenceCount >= occurrenceLimit)
+        {
+            NextOccurrenceDate = null;
+            IsActive = false;
+            return;
         }
 
         var followingDate = GetFollowingDate(occurrenceDate);

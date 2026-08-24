@@ -751,3 +751,43 @@ açar.
   1 canlı Gemini testi atlandı; Flutter analyze + format + **722 test** +
   Android debug build geçti
 - Sıradaki görev: Aşama 03 Grup 3 — tekrarlayan planda bitiş sınırı
+
+## 24 Ağustos 2026 — Aşama 03, Grup 3: tekrarlayan plan bitiş sınırı
+
+- Tekrarlayan plan artık isteğe bağlı toplam `occurrenceLimit` alıyor. Mevcut
+  `endDate` ile birlikte verilebiliyor; önce dolan sınır geçerli oluyor
+- `GeneratedOccurrenceCount` gerçekleşen para hareketini değil üretilen
+  occurrence satırını sayıyor. Sınıra ulaşan plan silinmeden pasifleşiyor,
+  `NextOccurrenceDate` temizleniyor ve geçmiş occurrence'lar korunuyor
+- `generate(throughDate)` 12 tekrarlı planda yalnız 12 satır üretiyor; aynı veya
+  daha ileri pencereyle retry yeni kayıt açmıyor. Planlanan projection da
+  sınırdan sonra hayali tarih göstermiyor
+- API create/list cevabı `occurrenceLimit` ile `generatedOccurrenceCount`
+  alanlarını taşıyor. Flutter form alanı Grup 6'nın, yedek v8 kapsamı Grup 7'nin
+  işi olarak kaldı
+- `AddRecurringOccurrenceLimit` migration'ı mevcut plan sayaçlarını occurrence
+  tablosundan backfill ediyor. Kolonlar backfill'den, backfill `NOT NULL` ve
+  CHECK kısıtlarından önce çalışıyor; kalıcı DEFAULT bırakılmıyor. Yükseltme
+  önceki şemadaki iki occurrence ile gerçek SQL üzerinde doğrulandı ve hem
+  `BusinessFinance` hem `BusinessFinanceApiSqlTests` sentetik veritabanına
+  uygulandı
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (gerçek SQL dâhil) | **863 geçti**, 1 atlandı (`GeminiLiveContractTests`) |
+| Domain testleri | **238 geçti** |
+| Flutter analyze | No issues found |
+| Flutter format | 220 dosya, değişiklik gerektirmedi |
+| Flutter test | **722 geçti** |
+| Android debug build | `app-debug.apk` üretildi |
+
+## Son oturum kapanışı
+
+- Yapılan değişiklik: Aşama 03 **Grup 3 tamamlandı**; tekrarlayan plan toplam
+  occurrence sınırında kendiliğinden ve geçmişi koruyarak kapanıyor
+- Geçen kontroller: backend build + format + **863 test** (gerçek SQL dâhil),
+  1 canlı Gemini testi atlandı; Flutter analyze + format + **722 test** +
+  Android debug build geçti
+- Sıradaki görev: Aşama 03 Grup 4 — planlanan görünüm ve gecikenler
