@@ -735,6 +735,49 @@ düzeltme anında yeniden türetilmez; aksi hâlde aynı sayım iki farklı gün
 farklı kapsam üretebilirdi (tekrarlayan planın kapsamında verilen kararın
 aynısı).
 
+## POS tahsilatı ve yoldaki para
+
+> Aşama 04, Grup 3 — yalnız **Domain** katmanı uygulanmıştır. Kalıcılık ve
+> yazma yolu, kasa sayımıyla birlikte Grup 4'tedir.
+
+`PosSettlement` ADR 0015'in kaydıdır ve **kredi kartı değildir**: `CreditCard`
+borçlandığın karttır, bu ise tahsilat aracıdır. İkisi aynı kelimeyle anıldığı
+sürece "kartla 800 lira aldım" cümlesi borç olarak kaydediliyordu.
+
+ADR 0014'ün ayrımı burada tek kaydın **iki anına** düşer:
+
+| An | Tanır | Taşır |
+|---|---|---|
+| Tahsilat günü | Gelir **brüt** tutar kadar, komisyon ayrı gider | Hesap bakiyesi kıpırdamaz |
+| Geçiş günü | Hiçbir gelir/gider yazılmaz | Hesap **net** tutar kadar artar |
+
+`SignedAccountEffect` geçiş gerçekleşene kadar sıfırdır; para henüz bankada
+değildir. `MarkTransferred` idempotenttir ve ikinci bir günle işaretlemeyi
+reddeder — para bir kez geçer.
+
+**Komisyon brüt tutardan ayrı okunur ve ona eklenmez.** Net tutarı gelir olarak
+yazmak, kullanıcının gerçekten kestiği faturayı küçültür ve komisyonu görünmez
+bir gidere çevirirdi; dekonttaki işlem ücretinde öğrenilen dersin aynısı.
+Komisyon `Money` değildir çünkü **sıfır meşrudur** — her kartta komisyon
+kesilmez. Komisyon ile gider kategorisi birlikte bulunur ya da birlikte
+bulunmaz; komisyonun tamamı brütü yiyemez, yoksa hesaba hiçbir şey geçmezdi.
+
+**Komisyon oranı saklanmaz, paradan çözülür** (`CommissionRate`). Bu ADR
+0009'un aynı kararıdır: oran ve tutar ayrı ayrı saklansaydı ikisi ayrı ayrı
+düzenlenebilir ve sessizce çelişirdi. Kullanıcı oran girdiğinde
+`CommissionFromRate` onu tutara çevirir; yuvarlama para tarafında yapılır,
+çünkü hesaba geçecek olan paradır.
+
+Para **banka hesabına** geçer: kasa bir kart ödemesi alamaz. Satış bir gelir
+kategorisi ister; POS tahsilatı bir satışı tanır.
+
+`PosTransitBalance` yoldaki parayı verir: geçişi gerçekleşmemiş tahsilatların
+**net** toplamı. Kalıcı kolon değildir ve bir hesap türü de değildir (ADR
+0015). İptal edilmiş ve geçmiş tahsilatlar sayılmaz — ilki hiç olmadı, ikincisi
+artık hesabın kendi bakiyesinde duruyor; ikisini de saymak aynı parayı iki
+yerde göstermek olurdu. Brüt toplamak da bankanın kestiği komisyonu
+kullanıcının cebinde sayardı.
+
 ### Taşınabilirlik: dışa aktarma ile yedek ayrı şeylerdir
 
 İşlem CSV'si kaydın kapsamını `type`'ın yanında bir kolonda taşır. Kapsamsız

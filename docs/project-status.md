@@ -47,8 +47,9 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   borç tarafı `Kredi kartlarım`, tahsilat tarafı `POS tahsilatları`, yoldaki
   para `AccountType` değil projection, kullanılabilir bakiye ile net varlığın
   farkı tam olarak yoldaki tutar, üçüncü ana sekme ön ayara göre değişiyor.
-  **Grup 2 tamamlandı**: gün sonu kasa sayımının domain'i yazıldı. Sırada
-  **Grup 3 — POS tahsilatının domain'i** var
+  **Grup 2 ve 3 tamamlandı**: gün sonu kasa sayımının ve POS tahsilatının
+  domain'i yazıldı. Sırada **Grup 4 — kalıcılık, bakiye, net varlık ve Özet
+  ekranı** var
 - Kalan üç aşamanın belgesi de yazılı, durumları `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
@@ -743,6 +744,33 @@ açar.
 
 Flutter tarafına dokunulmadı; bu grup yalnız Domain katmanıdır.
 
+## 24 Ağustos 2026 — Aşama 04, Grup 3: POS tahsilatı (Domain)
+
+- `PosSettlement` ADR 0014'ün ayrımını tek kaydın **iki anına** koyuyor:
+  tahsilat günü gelir **brüt** tutar kadar tanınıyor ve komisyon ayrı gider
+  yazılıyor, hesap bakiyesi kıpırdamıyor; geçiş günü hesap **net** tutar kadar
+  artıyor ve hiçbir gelir/gider yeniden yazılmıyor. Grubun çıkış ölçütü tek
+  testte duruyor: gelir bir kez, komisyon bir kez
+- **Komisyon brüte eklenmiyor ve ondan düşülerek gizlenmiyor.** Net tutarı gelir
+  yazmak, kesilen faturayı küçültür ve komisyonu görünmez bir gidere çevirirdi.
+  Komisyon `Money` değil: sıfır meşru, her kartta komisyon kesilmez
+- **Oran saklanmıyor, paradan çözülüyor** (ADR 0009'un aynı kararı). Oran ve
+  tutar ayrı ayrı saklansaydı ikisi ayrı ayrı düzenlenip sessizce çelişirdi
+- `PosTransitBalance` yoldaki parayı veriyor: bekleyenlerin **net** toplamı,
+  kalıcı kolon değil ve hesap türü değil (ADR 0015). İptal edilmiş ve geçmiş
+  tahsilatlar sayılmıyor — aynı parayı iki yerde göstermek olurdu
+- Para banka hesabına geçiyor; kasa kart ödemesi alamıyor. `MarkTransferred`
+  idempotent ve ikinci bir günle işaretleme reddediliyor
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (gerçek SQL dâhil) | **904 geçti**, 1 atlandı (`GeminiLiveContractTests`) |
+| Domain testleri | **272 geçti** (17'si yeni `PosSettlementTests`) |
+
+Flutter tarafına dokunulmadı; bu grup da yalnız Domain katmanıdır.
+
 ## Son oturum kapanışı
 
 - Yapılan değişiklik: Aşama 03 **Grup 1 tamamlandı**; yükümlülüğün tanıyan
@@ -1024,11 +1052,11 @@ eksiksiz çıktı; iki arayüz boşluğu bulundu ve kapatıldı.
 - Geçen kontroller: backend **870 test** (gerçek SQL dâhil); Flutter analyze +
   format + **732 test** + Android debug build geçti
 - Aşama 03 kullanıcı onayıyla **kapatıldı** ve belgesi arşive taşındı; Aşama 04
-  aynı onayla açıldı, karar kapısı ADR 0015 ile kapatıldı ve **Grup 2**
-  (gün sonu kasa sayımının domain'i) tamamlandı
-- Geçen kontroller: backend build + format + **887 test** (gerçek SQL dâhil),
+  aynı onayla açıldı, karar kapısı ADR 0015 ile kapatıldı ve **Grup 2 ile
+  Grup 3** (kasa sayımının ve POS tahsilatının domain'i) tamamlandı
+- Geçen kontroller: backend build + format + **904 test** (gerçek SQL dâhil),
   1 canlı Gemini testi atlandı
-- Sıradaki görev: Aşama 04 Grup 3 — POS tahsilatının domain'i (`PosSettlement`;
-  tahsilat gününde gelir brüt tutar kadar tanınır ve komisyon gider yazılır,
-  hesap bakiyesi değişmez; geçiş gününde hesap net tutar kadar artar ve
-  gelir/gider sıfır olur)
+- Sıradaki görev: Aşama 04 Grup 4 — iki domain tipinin kalıcılığı (EF
+  yapılandırması, owner-scoped bileşik anahtarlar, tek migration), ardından
+  kullanılabilir bakiye ile net varlığın ayrılması ve Özet ekranındaki
+  "yolda" satırı

@@ -140,7 +140,7 @@ Uygulananlar:
   eklenecek: ikisini SQL'den okuması gereken ilk grup odur ve kalıcılığı iki
   ayrı yere bölmek migration zincirini gereksiz uzatırdı.
 
-### Grup 3 — Domain: POS tahsilatı
+### Grup 3 — Domain: POS tahsilatı — **Tamamlandı**
 
 - `PosSettlement`: tahsilat tarihi, brüt tutar, komisyon oranı veya tutarı,
   net tutar, beklenen geçiş tarihi, hedef hesap, gerçekleşme durumu, kapsam.
@@ -152,6 +152,24 @@ Uygulananlar:
   ücretinde öğrenilen dersin aynısı.
 - Bloke (yoldaki) tutar = geçmemiş tahsilatların net toplamı; **projection**.
 - Ölçüt: tahsilat + geçiş senaryosunda gelir bir kez, komisyon bir kez sayılıyor.
+
+Uygulananlar:
+
+- `PosSettlement` ADR 0014'ün ayrımını tek kaydın **iki anına** koyar: tahsilat
+  günü gelir brüt tutar kadar tanınır ve komisyon ayrı gider yazılır, hesap
+  kıpırdamaz; geçiş günü hesap net tutar kadar artar ve hiçbir gelir/gider
+  yeniden yazılmaz. `SignedAccountEffect` geçişe kadar sıfırdır.
+- `MarkTransferred` idempotenttir ve ikinci bir günle işaretlemeyi reddeder;
+  para bir kez geçer. Geçiş günü satıştan önce ve gelecekte olamaz.
+- Komisyon `Money` değildir: **sıfır meşrudur**. Komisyon ile gider kategorisi
+  birlikte bulunur ya da hiç bulunmaz; komisyon brütün tamamını yiyemez.
+- **Komisyon oranı saklanmaz, paradan çözülür** (ADR 0009'un aynı kararı).
+  `CommissionFromRate` oranı tutara çevirir ve yuvarlama para tarafında yapılır.
+- Para **banka hesabına** geçer (ADR 0015): kasa bir kart ödemesi alamaz. Satış
+  bir gelir kategorisi ister.
+- `PosTransitBalance` yoldaki parayı verir: bekleyen tahsilatların **net**
+  toplamı, kalıcı kolon değil. İptal edilmiş ve geçmiş tahsilatlar sayılmaz.
+- Bu grup da yalnız Domain'e dokundu; kalıcılık Grup 4'tedir.
 
 ### Grup 4 — Kalıcılık, bakiye, net varlık ve Özet ekranı
 

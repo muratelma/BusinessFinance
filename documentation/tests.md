@@ -336,6 +336,26 @@ söylenir: doğrulama grafiği kuru olarak kurar, kullanıcı restore'a basmadan
 | `CashCountTests.CountDateCannotBeInTheFutureAndScopeIsRequired` | İleri tarihli sayım ve tanımsız kapsam reddediliyor; dünün sayımı meşru |
 | `CashCountTests.Note_IsOptionalTrimmedAndBounded` | Not isteğe bağlı, kırpılıyor ve sınırı aşamıyor |
 
+## Aşama 04 Grup 3 — POS tahsilatı (Domain)
+
+| Test | Neyi kanıtlıyor |
+|---|---|
+| `PosSettlementTests.Settlement_RecognizesOnCollectionDayAndCarriesOnlyOnTransferDay` | **Grubun çıkış ölçütü**: tahsilat günü gelir brüt kadar tanınıyor ve hesap kıpırdamıyor; geçiş günü hesap net kadar artıyor ve brüt/komisyon değişmiyor — hiçbir şey ikinci kez sayılmıyor |
+| `PosSettlementTests.Commission_IsReadBesideTheGrossAmountNotFoldedIntoIt` | Komisyon brüte eklenmiyor ve ondan düşülerek gizlenmiyor; net ile brüt ayrı okunuyor |
+| `PosSettlementTests.CommissionFromRate_ResolvesTheAmountAndTheRateComesBackFromMoney` | Oran tutara çevriliyor, saklanmıyor ve paradan geri çözülüyor (ADR 0009'un aynı kararı) |
+| `PosSettlementTests.CommissionFromRate_RefusesAnImpossibleRate` | Negatif oran, tamamı komisyon olan oran ve dört basamağı aşan oran reddediliyor |
+| `PosSettlementTests.ZeroCommission_IsLegitimateAndCarriesNoExpenseCategory` | Komisyonsuz tahsilat meşru; gider kategorisi taşımıyor |
+| `PosSettlementTests.CommissionAndItsCategoryAppearTogetherOrNotAtAll` | Komisyon ile gider kategorisi birlikte bulunuyor ya da hiç bulunmuyor |
+| `PosSettlementTests.Commission_CannotBeNegativeOrConsumeTheWholeSettlement` | Negatif komisyon ve brütün tamamını yiyen komisyon reddediliyor |
+| `PosSettlementTests.MarkTransferred_IsIdempotentAndRefusesASecondDifferentDay` | İkinci işaretleme yeni bakiye etkisi üretmiyor, ilk damga korunuyor; farklı günle işaretleme reddediliyor |
+| `PosSettlementTests.TransferDate_CannotPrecedeTheSettlementOrSitInTheFuture` | Para satıştan önce ve gelecekte hesaba geçemiyor |
+| `PosSettlementTests.CancelledSettlement_LosesBothItsRecognitionAndItsCashEffect` | İptal hem tanımayı hem bakiye etkisini birlikte kaldırıyor; iptal idempotent |
+| `PosSettlementTests.TransitBalance_SumsOnlyTheNetOfWhatHasNotArrivedYet` | Yoldaki tutar yalnız bekleyenlerin **net** toplamı; geçmiş ve iptal olan sayılmıyor |
+| `PosSettlementTests.TransitBalance_IsEmptyWhenNothingIsWaiting` | Bekleyen yokken toplam sıfır ve `HasMoneyInTransit` yanlış |
+| `PosSettlementTests.PosMoneyArrivesInABankAccountAndTheSaleNeedsAnIncomeCategory` | Kasa, pasif hesap, başkasının hesabı ve gider kategorisi reddediliyor |
+| `PosSettlementTests.ExpectedTransferDateMayBeInTheFutureButNotBeforeTheSale` | Beklenen geçiş günü gelecekte olabilir, satıştan önce olamaz; ileri tarihli tahsilat reddediliyor |
+| `PosSettlementTests.Scope_IsRequiredAndDescriptionIsOptionalTrimmedAndBounded` | Kapsam zorunlu; açıklama isteğe bağlı, kırpılıyor ve sınırlı |
+
 ## Bilinen test boşlukları
 
 - Fiziksel cihaz kanıtı yoktur; emulator kabulü bunun yerine sunulmaz.
