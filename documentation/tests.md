@@ -317,6 +317,25 @@ yeniden üretir hâle getiren yol yoktur. Tutarsızlık **doğrulama adımında*
 söylenir: doğrulama grafiği kuru olarak kurar, kullanıcı restore'a basmadan
 önce dosyanın içeriğinin tutarsız olduğunu öğrenir.
 
+## Aşama 04 Grup 2 — gün sonu kasa sayımı (Domain)
+
+| Test | Neyi kanıtlıyor |
+|---|---|
+| `CashCountTests.CashCount_IsAnObservation_NotAMovement` | Kayıtta `ExpectedBalance` ve `Difference` alanı **yok**; sayım tek başına düzeltme taşımıyor |
+| `CashCountTests.Difference_IsDerivedFromTheBalanceItIsReadAgainst` | Fazla, eksik ve dengede üç durum doğru türetiliyor |
+| `CashCountTests.Difference_FollowsTheBalanceWhenAMovementIsLaterCancelled` | **Aynı sayım**, beklenen bakiye değişince farklı fark veriyor — farkın saklanmadığının kanıtı |
+| `CashCountTests.Difference_CarriesTheTypeAndAPositiveAmountForItsAdjustment` | Fazla gelir, eksik gider tarafında; düzeltme tutarı her zaman pozitif (`Money` sözleşmesi) |
+| `CashCountTests.BalancedDifference_HasNoTypeAndNoAdjustmentAmount` | Sıfır farkın türü sorulamaz ve sıfır tutarlı düzeltme yazılamaz |
+| `CashCountTests.CashCount_ProducesNoFinancialRecordWithoutAnExplicitConfirmation` | **Grubun çıkış ölçütü**: onaysız hiçbir finansal kayıt üretilmiyor |
+| `CashCountTests.RecordAdjustment_IsIdempotentAndRefusesASecondDifferentRecord` | İkinci onay ikinci kayıt üretmiyor, ilk damga korunuyor; farklı kimlikle ikinci düzeltme reddediliyor |
+| `CashCountTests.SecondCountOfTheSameDay_CancelsTheFirstInsteadOfOverwritingIt` | İkinci sayım öncekini iptal ediyor; eski gözlemin tutarı yerinde kalıyor |
+| `CashCountTests.SupersedeWith_RefusesAnotherDayAnotherAccountOrItself` | Başka gün, başka hesap ve kendisi bir sayımı kapatamıyor |
+| `CashCountTests.CancelledCount_IsIdempotentAndCannotRecordAnAdjustment` | İptal idempotent; iptal edilmiş sayım düzeltme yazamıyor |
+| `CashCountTests.EmptyTillIsALegitimateCountButNegativeCashIsNot` | Sıfır sayım meşru; negatif ve dört basamağı aşan tutar reddediliyor |
+| `CashCountTests.OnlyAnOwnedActiveCashAccountCanBeCounted` | Banka hesabı, pasif hesap ve başkasının hesabı sayılamıyor |
+| `CashCountTests.CountDateCannotBeInTheFutureAndScopeIsRequired` | İleri tarihli sayım ve tanımsız kapsam reddediliyor; dünün sayımı meşru |
+| `CashCountTests.Note_IsOptionalTrimmedAndBounded` | Not isteğe bağlı, kırpılıyor ve sınırı aşamıyor |
+
 ## Bilinen test boşlukları
 
 - Fiziksel cihaz kanıtı yoktur; emulator kabulü bunun yerine sunulmaz.

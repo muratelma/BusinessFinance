@@ -47,7 +47,8 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   borç tarafı `Kredi kartlarım`, tahsilat tarafı `POS tahsilatları`, yoldaki
   para `AccountType` değil projection, kullanılabilir bakiye ile net varlığın
   farkı tam olarak yoldaki tutar, üçüncü ana sekme ön ayara göre değişiyor.
-  Sırada **Grup 2 — gün sonu kasa sayımı domain'i** var
+  **Grup 2 tamamlandı**: gün sonu kasa sayımının domain'i yazıldı. Sırada
+  **Grup 3 — POS tahsilatının domain'i** var
 - Kalan üç aşamanın belgesi de yazılı, durumları `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
@@ -713,6 +714,35 @@ açar.
 | Migration | Üretilmedi ve gerekmedi; EF modeli değişmedi |
 | Flutter | Bu turda değişmedi |
 
+## 24 Ağustos 2026 — Aşama 04, Grup 2: gün sonu kasa sayımı (Domain)
+
+- `CashCount` bir para hareketi değil **gözlemdir**: hesap bakiyesine dokunmaz,
+  gelir/gider yazmaz, tek başına hiçbir rapora girmez
+- **Beklenen tutar saklanmıyor.** Fark `DifferenceFrom(expectedBalance)` ile
+  okunduğu anda türetiliyor; aynı sayım, bir hareket sonradan iptal edilince
+  farklı bir fark veriyor ve testi bunu kanıtlıyor. Saklansaydı kayıt doğduğu
+  andan itibaren eskiyen ikinci bir gerçek olurdu
+- **Onaysız hiçbir finansal kayıt üretilmiyor** (grubun çıkış ölçütü). Düzeltme
+  ikinci ve ayrı bir eylem: `RecordAdjustment` tek `BudgetTransaction` kimliği
+  bağlıyor, idempotent ve bir sayımın ikinci düzeltmesi reddediliyor
+- Aynı gün + aynı hesabın ikinci sayımı öncekini **iptal ediyor, üzerine
+  yazmıyor**; eski gözlem tutarıyla birlikte kalıyor
+- Sayılan tutar `Money` değil: sıfır meşru (boş kasa da sayılır), negatif değil.
+  Yalnız kullanıcının kendi, aktif ve **nakit** hesabı sayılabiliyor
+- Bu grup yalnız Domain'e dokundu; `CashCount` ve Grup 3'ün `PosSettlement`
+  tipi için EF modeli, migration ve yazma yolu Grup 4'e alındı — ikisini SQL'den
+  okuması gereken ilk grup odur ve kalıcılığı bölmek migration zincirini
+  gereksiz uzatırdı. Bu kapsam netleştirmesi aşama belgesine yazıldı
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (gerçek SQL dâhil) | **887 geçti**, 1 atlandı (`GeminiLiveContractTests`) |
+| Domain testleri | **255 geçti** (17'si yeni `CashCountTests`) |
+
+Flutter tarafına dokunulmadı; bu grup yalnız Domain katmanıdır.
+
 ## Son oturum kapanışı
 
 - Yapılan değişiklik: Aşama 03 **Grup 1 tamamlandı**; yükümlülüğün tanıyan
@@ -994,7 +1024,11 @@ eksiksiz çıktı; iki arayüz boşluğu bulundu ve kapatıldı.
 - Geçen kontroller: backend **870 test** (gerçek SQL dâhil); Flutter analyze +
   format + **732 test** + Android debug build geçti
 - Aşama 03 kullanıcı onayıyla **kapatıldı** ve belgesi arşive taşındı; Aşama 04
-  aynı onayla açıldı ve karar kapısı ADR 0015 ile kapatıldı
-- Sıradaki görev: Aşama 04 Grup 2 — gün sonu kasa sayımının domain'i
-  (`CashCount`; beklenen tutar saklanmaz, fark türetilir ve onaysız hiçbir
-  finansal kayıt üretmez)
+  aynı onayla açıldı, karar kapısı ADR 0015 ile kapatıldı ve **Grup 2**
+  (gün sonu kasa sayımının domain'i) tamamlandı
+- Geçen kontroller: backend build + format + **887 test** (gerçek SQL dâhil),
+  1 canlı Gemini testi atlandı
+- Sıradaki görev: Aşama 04 Grup 3 — POS tahsilatının domain'i (`PosSettlement`;
+  tahsilat gününde gelir brüt tutar kadar tanınır ve komisyon gider yazılır,
+  hesap bakiyesi değişmez; geçiş gününde hesap net tutar kadar artar ve
+  gelir/gider sıfır olur)

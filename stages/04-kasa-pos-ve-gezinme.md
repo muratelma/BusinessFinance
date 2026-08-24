@@ -105,7 +105,7 @@ Kabul edilen kararlar (`documentation/adr/0015-*.md`):
 - **Üçüncü ana sekme ön ayara göre değişir:** işletmede `Kasa`, kişiselde
   `Bütçeler`; yerini veren sekme `Diğer` altına iner ve kaybolmaz.
 
-### Grup 2 — Domain: gün sonu kasa sayımı
+### Grup 2 — Domain: gün sonu kasa sayımı — **Tamamlandı**
 
 - `CashCount`: tarih, nakit hesabı, sayılan tutar, kapsam, not. **Beklenen
   tutar saklanmaz** — sayım anındaki bakiye projection'dan okunur ve fark
@@ -117,6 +117,28 @@ Kabul edilen kararlar (`documentation/adr/0015-*.md`):
 - Aynı gün ve aynı hesap için ikinci sayım öncekini iptal eder, üzerine
   yazmaz.
 - Ölçüt: fark doğru hesaplanıyor; onaysız hiçbir finansal kayıt üretilmiyor.
+
+Uygulananlar:
+
+- `CashCount` bir gözlemdir: hesap bakiyesine dokunmaz, gelir/gider yazmaz.
+  Beklenen tutar **saklanmaz**; fark `DifferenceFrom(expectedBalance)` ile
+  okunduğu anda türetilir. Aynı sayım, bir hareket sonradan iptal edilince
+  farklı bir fark verir ve bu doğru davranıştır.
+- `CashCountDifference` yönü anlamıyla taşır: fazla gelir, eksik gider. Düzeltme
+  tutarı `Money` sözleşmesi gereği pozitiftir; yönü `TransactionType` taşır.
+  Dengede tür sorulamaz ve sıfır tutarlı kayıt yazılamaz.
+- Sayılan tutar `Money` değildir: **sıfır meşrudur** (boş kasa da sayılır),
+  negatif değildir.
+- `RecordAdjustment` idempotenttir ve bir sayımın ikinci bir düzeltmesi olamaz.
+  Sayım kendiliğinden hiçbir finansal kayıt üretmez.
+- `SupersedeWith` aynı gün + aynı hesabın ikinci sayımında öncekini iptal eder;
+  başka gün, başka hesap veya kendisi bir sayımı kapatamaz.
+- Yalnız kullanıcının kendi, aktif ve **nakit** hesabı sayılır. Kapsam sayım
+  anında sabitlenir, düzeltme anında yeniden türetilmez.
+- **Bu grup yalnız Domain'e dokundu.** `CashCount` ve Grup 3'ün üreteceği
+  `PosSettlement` için EF modeli, migration ve yazma yolu **Grup 4'te**
+  eklenecek: ikisini SQL'den okuması gereken ilk grup odur ve kalıcılığı iki
+  ayrı yere bölmek migration zincirini gereksiz uzatırdı.
 
 ### Grup 3 — Domain: POS tahsilatı
 
@@ -131,8 +153,12 @@ Kabul edilen kararlar (`documentation/adr/0015-*.md`):
 - Bloke (yoldaki) tutar = geçmemiş tahsilatların net toplamı; **projection**.
 - Ölçüt: tahsilat + geçiş senaryosunda gelir bir kez, komisyon bir kez sayılıyor.
 
-### Grup 4 — Bakiye, net varlık ve Özet ekranı
+### Grup 4 — Kalıcılık, bakiye, net varlık ve Özet ekranı
 
+- Grup 2 ve 3'ün domain tipleri (`CashCount`, `PosSettlement`) bu grupta
+  kalıcılığa girer: EF yapılandırması, owner-scoped bileşik anahtarlar ve tek
+  migration. İki modelin kalıcılığını ayrı gruplara bölmek migration zincirini
+  gereksiz uzatırdı.
 - Kullanılabilir bakiye: yoldaki parayı **içermez**.
 - Net varlık: yoldaki parayı **içerir**, ayrı satır olarak gösterilir.
 - Özet ekranına "yolda olan" satırı eklenir; gün sonu farkı varsa uyarı bandına

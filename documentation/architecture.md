@@ -692,6 +692,49 @@ bakiyesi, rapor bakiyeleri ve `obligation-settlement` feed satırında görünü
 kategori/kapsam taşımadığı için aylık gelir-gider ikinci kez değişmez. Karşı
 taraflı açık yükümlülük cari bakiyeye katılır, settlement sonrasında düşer.
 
+## Gün sonu kasa sayımı
+
+> Aşama 04, Grup 2 — yalnız **Domain** katmanı uygulanmıştır. EF modeli,
+> migration ve yazma yolu Grup 4'te, kasa sayımını ve POS tahsilatını SQL'den
+> okuması gereken ilk grupla birlikte eklenecektir.
+
+`CashCount` bir para hareketi **değil, bir gözlemdir**: hesap bakiyesine
+dokunmaz, gelir/gider yazmaz ve tek başına hiçbir rapora girmez. Kasadaki para
+zaten oradaydı; sayması onu değiştirmez.
+
+**Beklenen tutar saklanmaz.** Sayım yalnız sayılan tutarı taşır; fark
+`DifferenceFrom(expectedBalance)` ile, sayım okunduğu anda hesap bakiyesi
+projection'ından türetilir. Bu, bakiyenin kalıcı kolon olmama gerekçesinin
+aynısıdır: fark kaydın yanına yazılsaydı, sonradan iptal edilen bir hareket
+bakiyeyi değiştirdiği anda o sayı sessizce yanlışa dönerdi. Aynı sayım, bir
+hareket iptal edildikten sonra **farklı bir fark verir** — doğru davranış budur.
+
+`CashCountDifference` yönü anlamıyla taşır: fazla çıkan nakit gelir, eksik
+çıkan nakit gider tarafındadır. Tutarı `Money`'ye çevirirken işaret düşer,
+çünkü yönü `TransactionType` taşır. Dengede fark yoktur: `RecognizedType`
+sorulursa hata verir ve sıfır tutarlı bir düzeltme kaydı yazılamaz.
+
+Sayılan tutar `Money` **değildir**: sıfır meşrudur, kasası boşalan esnaf da
+sayım yapar. Negatif sayım reddedilir — kasada eksi nakit bulunmaz.
+
+**Fark otomatik düzeltme hareketi üretmez.** Sayım hatasını gerçek bir para
+hareketi gibi yazmak, olmamış bir gideri kayda geçirmek olurdu. Düzeltme
+ikinci ve ayrı bir eylemdir: kullanıcı açıkça onaylarsa `RecordAdjustment`
+tek bir `BudgetTransaction` kimliğini bağlar. Çağrı idempotenttir (aynı
+kimlikle tekrar ikinci kayıt üretmez) ve farklı bir kimlikle ikinci düzeltme
+reddedilir — bir sayımın iki düzeltmesi olamaz.
+
+**Aynı gün ve aynı hesap için ikinci sayım öncekini iptal eder, üzerine
+yazmaz** (`SupersedeWith`). Eski gözlem gerçekten yapılmıştı ve iptal edilmiş
+hâliyle kalır. Başka bir günün ya da başka bir hesabın sayımı önceki sayımı
+kapatamaz.
+
+Yalnız **kullanıcının kendi, aktif ve nakit** hesabı sayılır: banka bakiyesi
+elle sayılmaz, sayım fiziksel bir gözlemdir. Kapsam sayım anında sabitlenir ve
+düzeltme anında yeniden türetilmez; aksi hâlde aynı sayım iki farklı günde iki
+farklı kapsam üretebilirdi (tekrarlayan planın kapsamında verilen kararın
+aynısı).
+
 ### Taşınabilirlik: dışa aktarma ile yedek ayrı şeylerdir
 
 İşlem CSV'si kaydın kapsamını `type`'ın yanında bir kolonda taşır. Kapsamsız
