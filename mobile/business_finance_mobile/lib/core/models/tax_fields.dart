@@ -39,6 +39,17 @@ class VatFields {
     return '%$text';
   }
 
+  /// Kullanıcının yazdığı tutarı sözleşmenin biçimine çevirir (200 → 200.0000).
+  ///
+  /// Sunucu dört ondalıklı string bekliyor ve ekran biçimlendiricisi de aynı
+  /// biçimi okuyor; ham girdi gönderilseydi tutar ekranda para gibi değil
+  /// `200 TRY` diye görünürdü.
+  static String? amountFromInput(String? input) {
+    final normalized = MoneyText.normalizeInput(input ?? '');
+    if (normalized == null) return null;
+    return double.parse(normalized).toStringAsFixed(4);
+  }
+
   /// Kullanıcının yazdığı yüzdeyi sözleşmenin oranına çevirir (20 → 0.2000).
   ///
   /// Bu bir **vergi hesabı değildir**: yazılan sayının birimini değiştirir,

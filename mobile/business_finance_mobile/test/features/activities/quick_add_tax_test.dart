@@ -158,7 +158,7 @@ void main() {
     await tester.tap(find.text('Kaydet'));
     await tester.pumpAndSettle();
 
-    expect(finance.charges.single.$2['vatAmount'], '20');
+    expect(finance.charges.single.$2['vatAmount'], '20.0000');
   });
 }
 

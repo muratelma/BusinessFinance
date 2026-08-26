@@ -1170,3 +1170,11 @@ planlanan ekranının iki testi de kırmızıya düştü.
 | Sürüm sözleşmede | `DataPortabilityEndpointTests.ExportValidateRestore_RoundTripsThroughProtectedHttpContract` | HTTP cevabında `schemaVersion` 10 |
 | Hedef kapsamı gerçek SQL'de | `SqlServerPersistenceIntegrationTests.DataPortability_RoundTripAndFailedRestoreAreAtomic` | Geri yüklenen iki hedeften biri işletme karşılığı |
 
+## Cihaz kabulünde bulunanlar (26 Ağustos 2026, Aşama 05)
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| KDV tutarı sözleşme biçiminde gidiyor | `quick_add_tax_test` | `20` değil `20.0000`; özet satırı `₺200,00` yazıyor |
+| Rota kabuğu controller'ı bir kez kuruyor | cihaz kabulü | Üstteki sayfadan dönünce takvim boş kalmıyor |
+| Menünün son satırı FAB'ın altında kalmıyor | cihaz kabulü | `Diğer` listesi `fabClearance` payı taşıyor |
+

@@ -2,7 +2,7 @@
 
 ## Belge durumu
 
-- Durum: **Aktif** (26 Ağustos 2026'da kullanıcı onayıyla açıldı)
+- Durum: **Tamamlandı** (26 Ağustos 2026'da cihaz kabul turuyla kapandı; aynı gün kullanıcı onayıyla açılmıştı)
 - Ön koşul: Aşama 04 — Kasa, POS ve gezinme
 - Sonraki aşama: Aşama 06 — Bulut güvenli beta
 - Karar kapısı: `documentation/adr/0016-tax-fields-carry-they-do-not-calculate.md`
@@ -280,19 +280,70 @@ flutter build apk --debug --dart-define=API_BASE_URL=http://10.0.2.2:5284
 
 ## Çıkış koşulları
 
-- [ ] ADR yazıldı ve kabul edildi.
-- [ ] Bütün çalışma grupları tamamlandı.
-- [ ] Backend build, test ve format kontrolleri geçti.
-- [ ] Flutter analyze, test, format ve debug build kontrolleri geçti.
-- [ ] Kullanıcı izolasyonu negatif senaryolarla kanıtlandı.
-- [ ] Bir ayın paketi üretildi; toplamları aynı ayın işletme raporuyla birebir
+- [x] ADR yazıldı ve kabul edildi.
+- [x] Bütün çalışma grupları tamamlandı.
+- [x] Backend build, test ve format kontrolleri geçti.
+- [x] Flutter analyze, test, format ve debug build kontrolleri geçti.
+- [x] Kullanıcı izolasyonu negatif senaryolarla kanıtlandı.
+- [x] Bir ayın paketi üretildi; toplamları aynı ayın işletme raporuyla birebir
       tutuyor ve şahsi hiçbir kayıt içermiyor.
-- [ ] Hiçbir vergi tutarının uygulama tarafından hesaplanmadığı testle
+- [x] Hiçbir vergi tutarının uygulama tarafından hesaplanmadığı testle
       kanıtlandı.
-- [ ] `documentation/` ve `docs/project-status.md` güncel.
+- [x] `documentation/` ve `docs/project-status.md` güncel.
 - [ ] Kullanıcı Aşama 06'yı açıkça onayladı.
+
+## Cihaz kabul turu — 26 Ağustos 2026
+
+Pixel 8 emulator, güncel build'den üretilmiş debug APK, `10.0.2.2:5284`
+üzerinden yerel API. İşletme ön ayarıyla açılan yeni bir hesapta bir aylık
+vergi senaryosu girildi.
+
+| Adım | Beklenen | Görülen |
+|---|---|---|
+| Vergi bölümü | Kapalı, tek satır | `Vergi bilgisi (isteğe bağlı) — KDV girilmedi` |
+| KDV %20 / ₺200 | Özet satırı doluyor | `KDV %20 • ₺200,00` (düzeltmeden sonra) |
+| İndirilebilirlik | İşletme giderinde görünür, kategoriden gelir | `Vergiden düşülebilir — Kategorinin varsayılanından geldi` (açık) |
+| İndirilemeyen gider ₺500 | Anahtar kapatılabiliyor | `Bu kayıt için siz seçtiniz` |
+| Şahsi gider ₺300 | Soru sorulmuyor | Kapsam şahsiye düşünce anahtar hiç çizilmedi |
+| Özet | Kapsam ayrı okunuyor | İşletme neti −₺1.700, şahsi çekim −₺300, ayın neti −₺2.000 |
+| Vergi takvimi | Mevzuat takibi yapılmadığı yazılı | Dört kalem ve iki not ekranda |
+| `KDV beyanı` kurulumu | Form önü dolu açılıyor | Kategori `SGK ve vergi ödemesi`, sıklık `Aylık`, başlangıç 28 Ağustos, açıklama `KDV beyanı` |
+| `Geçici vergi` kurulumu | Çeyreklik ve geçmişe kurmuyor | `Üç ayda bir`, başlangıç 17 Eylül (17 Ağustos geçmişti) |
+| Yaklaşanlar | Kalem listeye düşüyor | `KDV beyanı · 28 Ağustos · Tekrarlayan plan · 1.500,00 lira` |
+| Muhasebeci paketi (varsayılan) | Geçen ay açılıyor | `Temmuz 2026` ve boş ay notu |
+| Muhasebeci paketi (Ağustos) | Toplam raporla birebir | Gider ₺1.700,00; net −₺1.700,00; KDV ₺200,00; indirilemeyen 1 kalem ₺500,00 |
+| Paket içeriği | Şahsi kayıt yok | `2 kayıt`, `1 kayıtta KDV yazılmamış`; ₺300'lük şahsi kayıt yok |
+| Paylaş | Tek dosya cihazdan | Android paylaşım sayfası `muhasebeci-paketi-2026-08.zip` ile açıldı |
+| Yedek | Sürüm v10 | `Yedek sürümü: 10 • 40 kayıt` |
+
+Turda **üç kusur bulundu ve aynı gün düzeltildi**:
+
+- **KDV tutarı sözleşme biçiminde gitmiyordu.** Alandan okunan ham metin
+  (`200`) hem isteğe hem ekrana gidiyordu; para biçimlendiricisi dört ondalıklı
+  dizeyi tanıdığı için özet satırı `200 TRY` diye okunuyordu. Girdi artık
+  `200.0000`'a çevriliyor: hem sözleşmenin biçimi hem ekranın beklediği biçim.
+- **Vergi takvimi ekranı geri dönüşte boşalıyordu.** Controller rota
+  kurucusunda kuruluyordu; üste itilen sayfadan dönünce kurucu yeniden çalışıp
+  yüklenmemiş yeni bir controller veriyor, `initState` bir daha çalışmadığı için
+  liste boş kalıyordu. İki ekran da `Kasa`daki gibi bir kabuk widget'ına alındı.
+- **`Diğer` menüsünün son satırı `+` düğmesinin altında kalıyordu.** Menüye
+  eklenen iki yeni satır listeyi FAB'ın üstüne taşırdı; `Muhasebeci paketi`
+  satırına dokunmak `İşlem ekle` panelini açıyordu. Liste `AppSpacing.fabClearance`
+  payı kazandı.
 
 ## Tamamlanma kaydı
 
-Aşama kapandığında burada: hangi commit'lerle bitti, hangi kontroller geçti,
-belge `docs/archive/stages/` altına taşındı mı.
+Aşama 26 Ağustos 2026'da kapandı. Sekiz çalışma grubu da tamamlandı ve cihaz
+kabul turu yukarıdaki tabloyla yürütüldü.
+
+Commit'ler: `bfff237` (ADR 0016), `17c9e78` (KDV alanları), `1872db5`
+(indirilebilirlik), `205dc56` (vergi takvimi ve dönemin tutarı), `4625da7`
+(muhasebeci paketi), `7b22a47` (karşılık olarak hedefler), `d30a542` (Flutter),
+`d98899c` (yedek v10) ve kabul turunun düzeltmeleri.
+
+Geçen kontroller: backend build (0 uyarı) + `dotnet format --verify-no-changes`
+temiz + **983 test** (gerçek SQL dâhil, 1 canlı Gemini testi atlandı); Flutter
+analyze temiz + `dart format` + **770 test** + Android debug build.
+
+Belge `docs/archive/stages/` altına taşındı. **Aşama 06 açılmadı**: sonraki
+aşama yalnız kullanıcının açık onayıyla `Aktif` olur.

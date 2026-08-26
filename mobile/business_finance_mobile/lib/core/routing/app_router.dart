@@ -47,6 +47,7 @@ import '../../features/goals/presentation/goals_page.dart';
 import '../../features/cash/data/cash_repository.dart';
 import '../../features/cash/presentation/cash_controller.dart';
 import '../../features/cash/presentation/cash_page.dart';
+import '../../features/taxes/data/tax_models.dart';
 import '../../features/taxes/data/tax_repository.dart';
 import '../../features/taxes/presentation/accountant_package_page.dart';
 import '../../features/taxes/presentation/tax_calendar_page.dart';
@@ -612,8 +613,8 @@ GoRouter createAppRouter({
                     message: 'Vergi takvimi servisi yapılandırılmadı.',
                   ),
                 )
-              : TaxCalendarPage(
-                  controller: TaxCalendarController(taxRepository),
+              : _TaxCalendarHost(
+                  repository: taxRepository,
                   // Kalem tek yerde kuruluyor: planlama ekranının formu.
                   onInstall: (suggestion) => context.push(
                     '/more/planning?plan=${suggestion.key}'
@@ -636,9 +637,7 @@ GoRouter createAppRouter({
                     message: 'Muhasebeci paketi servisi yapılandırılmadı.',
                   ),
                 )
-              : AccountantPackagePage(
-                  controller: AccountantPackageController(taxRepository),
-                ),
+              : _AccountantPackageHost(repository: taxRepository),
           authController,
         ),
       ),
@@ -786,6 +785,66 @@ class _CashPageHostState extends State<_CashPageHost> {
     ownsControllers: false,
     initialTab: widget.initialTab,
   );
+}
+
+/// Vergi takvimi ekranının controller'ını **bir kez** kuran kabuk.
+///
+/// Rota kurucusu her yeniden çizimde çalışır; controller orada kurulsaydı üste
+/// itilen bir sayfadan geri dönüldüğünde ekran yüklenmemiş yeni bir
+/// controller'a bağlanır ve boş görünürdü. Kabuk aynı deseni `Kasa`
+/// ekranındakiyle paylaşıyor.
+class _TaxCalendarHost extends StatefulWidget {
+  const _TaxCalendarHost({required this.repository, this.onInstall});
+
+  final TaxRepositoryContract repository;
+  final void Function(TaxCalendarSuggestion suggestion)? onInstall;
+
+  @override
+  State<_TaxCalendarHost> createState() => _TaxCalendarHostState();
+}
+
+class _TaxCalendarHostState extends State<_TaxCalendarHost> {
+  late final TaxCalendarController _controller = TaxCalendarController(
+    widget.repository,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => TaxCalendarPage(
+    controller: _controller,
+    ownsController: false,
+    onInstall: widget.onInstall,
+  );
+}
+
+/// Ay sonu paketi ekranının kabuğu; aynı sebeple var.
+class _AccountantPackageHost extends StatefulWidget {
+  const _AccountantPackageHost({required this.repository});
+
+  final TaxRepositoryContract repository;
+
+  @override
+  State<_AccountantPackageHost> createState() => _AccountantPackageHostState();
+}
+
+class _AccountantPackageHostState extends State<_AccountantPackageHost> {
+  late final AccountantPackageController _controller =
+      AccountantPackageController(widget.repository);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      AccountantPackagePage(controller: _controller, ownsController: false);
 }
 
 String? _authRedirect(AuthController controller, GoRouterState state) {

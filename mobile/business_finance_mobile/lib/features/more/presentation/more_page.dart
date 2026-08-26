@@ -26,7 +26,15 @@ class MorePage extends StatelessWidget {
   Widget _body(BuildContext context) {
     final hasBusiness = context.watch<ScopeController?>()?.isVisible ?? false;
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.medium),
+      // Alt boşluk `+` düğmesini aşacak kadar: kabul turunda son satır
+      // (`Muhasebeci paketi`) düğmenin altında kalıyordu ve dokunuş menüye
+      // değil düğmeye gidiyordu.
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.medium,
+        AppSpacing.medium,
+        AppSpacing.medium,
+        AppSpacing.fabClearance,
+      ),
       children: [
         // Sıra frekansa değil, ne yaptığınıza göre. İlk ikisi yalnız bakmak
         // için açtığınız yerler; sonraki üçü kurduğunuz şeyler; sonuncular

@@ -387,7 +387,7 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
   /// Forma yazılan KDV; ikisi de boşsa kayıt KDV taşımaz.
   VatFields? get _vatFields {
     final rate = VatFields.rateFromPercentInput(_vatRateController.text);
-    final amount = MoneyText.normalizeInput(_vatAmountController.text);
+    final amount = VatFields.amountFromInput(_vatAmountController.text);
     if (rate == null && amount == null) return null;
     return VatFields(rate: rate, amount: amount);
   }

@@ -47,12 +47,14 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   kaydı orada. Sekiz çalışma grubunun hepsi bitti: ADR 0015, gün sonu kasa
   sayımı, POS tahsilatı ve yoldaki para, üçüncü ana sekmenin ön ayara göre
   değişmesi, `İşlem ekle` menüsünün niyet eksenine taşınması ve yedek v9
-- Aktif aşama: **05 — Vergi ve muhasebeci.** 26 Ağustos 2026'da kullanıcı
-  onayıyla açıldı. Belgesi `stages/05-vergi-ve-muhasebeci.md`; sekiz çalışma
-  grubu. **Grup 1'in ADR'si yazıldı** (ADR 0016: vergi alanları taşır,
-  hesaplamaz) ve **kullanıcı kabulü bekliyor**; kabul edilene kadar aşamanın
-  koduna başlanmaz
-- Kalan bir aşamanın belgesi de yazılı, durumu `Planlandı`
+- **Aşama 05 — Vergi ve muhasebeci: tamamlandı** (26 Ağustos 2026'da açıldı ve
+  aynı gün cihaz kabul turuyla kapandı). Belgesi
+  `docs/archive/stages/05-vergi-ve-muhasebeci.md` altına taşındı ve tamamlanma
+  kaydı orada. Sekiz çalışma grubunun hepsi bitti: ADR 0016, KDV taşıyan
+  alanlar, indirilebilirlik, vergi/SGK takvimi, ay sonu muhasebeci paketi,
+  karşılık olarak hedefler, Flutter ve yedek v10
+- **Aktif aşama yok.** Aşama 06 (Bulut güvenli beta) yalnız kullanıcının açık
+  onayıyla açılır
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
 
@@ -1489,4 +1491,63 @@ edene kadar Grup 2 ve sonrasının koduna başlanmaz.
   kalemler yalnız formun ön dolumudur
 - Geçen kontroller: backend build (0 uyarı) + format temiz + **983 test geçti**,
   1 atlandı (canlı Gemini)
+
+## 26 Ağustos 2026 — Aşama 05 cihaz kabul turu ve kapanış
+
+Pixel 8 emulator üzerinde, işletme ön ayarıyla açılan yeni bir hesapta bir
+aylık vergi senaryosu girildi.
+
+- Vergi bölümü kapalı ve tek satır açıldı; KDV %20 / ₺200 girilince özet satırı
+  doldu. İndirilebilirlik anahtarı işletme giderinde kategoriden gelen
+  varsayılanla açık geldi, kapatılabildi ve **şahsi kayıtta hiç çizilmedi**
+- Özet kapsamı ayrı okudu: işletme neti −₺1.700, şahsi çekim −₺300
+- Vergi takvimi dört kalemi ve iki notu gösterdi; `KDV beyanı` formu önü dolu
+  açtı (kategori, sıklık, 28 Ağustos, açıklama) ve kalem yaklaşanlar listesine
+  düştü. `Geçici vergi` çeyreklik ve 17 Eylül başlangıçla açıldı — geçmişe
+  kurmadı
+- Muhasebeci paketi varsayılan olarak geçen ayı (boş) açtı; Ağustos'ta gider
+  ₺1.700,00, net −₺1.700,00, KDV ₺200,00, indirilemeyen 1 kalem ₺500,00 ve
+  **2 kayıt** gösterdi — ₺300'lük şahsi kayıt pakete girmedi. Paylaş, Android
+  paylaşım sayfasını `muhasebeci-paketi-2026-08.zip` ile açtı
+- Yedek önizlemesi `Yedek sürümü: 10` yazdı
+
+**Turda üç kusur bulundu ve aynı gün düzeltildi:**
+
+- **KDV tutarı sözleşme biçiminde gitmiyordu**: alandan okunan ham metin
+  (`200`) hem isteğe hem ekrana gidiyor, özet satırı `200 TRY` diye okunuyordu.
+  Girdi artık `200.0000`'a çevriliyor
+- **Vergi takvimi ekranı geri dönüşte boşalıyordu**: controller rota
+  kurucusunda kuruluyordu ve dönüşte yüklenmemiş yenisi bağlanıyordu. İki ekran
+  da `Kasa`daki gibi kabuk widget'ına alındı
+- **`Diğer` menüsünün son satırı `+` düğmesinin altında kalıyordu**: iki yeni
+  satır listeyi FAB'ın üstüne taşırmıştı. Liste `AppSpacing.fabClearance` payı
+  kazandı
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format | Temiz |
+| Backend test (gerçek SQL dâhil) | **983 geçti**, 1 atlandı (`GeminiLiveContractTests`) |
+| Flutter analyze | No issues found |
+| Flutter format | 244 dosya, değişiklik gerektirmedi |
+| Flutter test | **770 geçti** |
+| Android debug build | `app-debug.apk` üretildi |
+| Cihaz kabul turu | Pixel 8 emulator, bir aylık vergi senaryosu geçti |
+
+**Aşama 05 kapandı.** Belge `docs/archive/stages/05-vergi-ve-muhasebeci.md`
+altına taşındı; `stages/README.md` ve `PROJECT-ROADMAP.md` güncellendi.
+
+Yerel veritabanında kabul turunun bıraktığı sentetik kayıtlar duruyor:
+`vergi-kabul@example.test` hesabı, bir nakit hesap, üç işlem ve bir tekrarlayan
+plan. Hepsi sentetiktir ve istenirse silinebilir.
+
+## Son oturum kapanışı
+
+- Yapılan değişiklik: Aşama 05 **tamamlandı ve kapatıldı**. ADR 0016 ile açıldı;
+  sekiz çalışma grubu ve cihaz kabul turu aynı oturumda yapıldı
+- Geçen kontroller: backend build + format + **983 test** (gerçek SQL dâhil);
+  Flutter analyze + format + **770 test** + Android debug build; Pixel 8
+  emulator üzerinde bir aylık vergi senaryosu
+- Sıradaki görev: **aktif aşama yok.** Aşama 06 (Bulut güvenli beta) yalnız
+  kullanıcının açık onayıyla açılır. Onaya kadar kod değişmez
 
