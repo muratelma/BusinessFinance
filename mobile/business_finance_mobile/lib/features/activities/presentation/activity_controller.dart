@@ -143,6 +143,15 @@ class ActivityController extends ChangeNotifier {
         case ActivityKind.counterpartyCharge:
         case ActivityKind.counterpartySettlement:
           financialDataChanges?.counterpartyLedgerChanged();
+        // Bu beş tür feed üzerinden iptal edilemiyor (canCancel:false), yani
+        // buraya hiç düşmezler. Yine de sessiz bir dal bırakmak, ileride biri
+        // iptal edilebilir olduğunda hangi ekranların yenileneceğini kimseye
+        // sormadan geçirirdi.
+        case ActivityKind.obligationSettlement:
+        case ActivityKind.posSale:
+        case ActivityKind.posCommission:
+        case ActivityKind.posTransfer:
+          financialDataChanges?.transactionsChanged();
         case ActivityKind.obligation:
           financialDataChanges?.obligationRecognized();
       }

@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using BusinessFinance.Application.FinancialActivities;
 using BusinessFinance.Domain;
 using BusinessFinance.Infrastructure.Persistence;
@@ -82,7 +82,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
     }
 
     /// <summary>
-    /// The eight write models, each projected to the identical anonymous shape that
+    /// The write models, each projected to the identical anonymous shape that
     /// <see cref="Queryable.Concat"/> needs to become a single UNION ALL.
     /// </summary>
     private IQueryable<ActivityRow> BuildMergedQuery(Guid userId)
@@ -624,6 +624,141 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 MatchCounterpartyId = obligation.CounterpartyId
             };
 
+        // POS tahsilatı tek kayıttır ama feed'de üç satırdır, çünkü üç ayrı
+        // ekonomik an taşır (ADR 0014): satışın tanındığı gün gelir, aynı gün
+        // komisyon gideri, geçiş günü ise gelir/gider üretmeyen para hareketi.
+        // Üçü de aynı kaydın kimliğini taşır; istemci satırı `tür + kimlik`
+        // ikilisiyle anahtarlar, bu yüzden çakışmazlar.
+        var posSales =
+            from settlement in dbContext.PosSettlements.AsNoTracking()
+            join account in dbContext.Accounts.AsNoTracking()
+                on new { settlement.UserId, Id = settlement.AccountId }
+                equals new { account.UserId, account.Id }
+            join category in dbContext.Categories.AsNoTracking()
+                on new { settlement.UserId, Id = settlement.CategoryId }
+                equals new { category.UserId, category.Id }
+            where settlement.UserId == userId
+            select new ActivityRow
+            {
+                ActivityId = settlement.Id,
+                ActivityKind = (int)FinancialActivityKind.PosSale,
+                Effect = (int)FinancialActivityEffect.Income,
+                SourceGroup = (int)FinancialActivitySourceGroup.Pos,
+                Origin = (int)FinancialActivityOrigin.Manual,
+                Status = settlement.IsCancelled
+                    ? (int)FinancialActivityStatus.Cancelled
+                    : (int)FinancialActivityStatus.Realized,
+                ActivityDate = settlement.SettlementDate,
+                // Gelir brüt tutar kadar tanınır; komisyon ondan düşülmez.
+                Amount = settlement.GrossAmount.Amount,
+                Currency = (int)settlement.GrossAmount.Currency,
+                Title = settlement.Description ?? category.Name,
+                Description = settlement.Description,
+                CategoryId = category.Id,
+                CategoryName = category.Name,
+                // Para henüz bu hesapta değil; hesap satışın nereye geçeceğini
+                // söyleyen hedeftir, çıktığı kaynak değil.
+                SourceId = (Guid?)null,
+                SourceName = (string?)null,
+                DestinationId = account.Id,
+                DestinationName = account.Name,
+                CancelledAtUtc = settlement.CancelledAtUtc,
+                Scope = (int?)settlement.Scope,
+                PrincipalPortion = (decimal?)null,
+                InterestPortion = (decimal?)null,
+                MatchAccountId = account.Id,
+                MatchSecondAccountId = (Guid?)null,
+                MatchCreditCardId = (Guid?)null,
+                MatchCategoryId = category.Id,
+                MatchCounterpartyId = (Guid?)null
+            };
+
+        // Komisyonsuz tahsilatın komisyon satırı da yoktur: sıfır tutarlı bir
+        // gider yazmak, olmamış bir gideri kayda geçirmek olurdu.
+        var posCommissions =
+            from settlement in dbContext.PosSettlements.AsNoTracking()
+            join account in dbContext.Accounts.AsNoTracking()
+                on new { settlement.UserId, Id = settlement.AccountId }
+                equals new { account.UserId, account.Id }
+            join category in dbContext.Categories.AsNoTracking()
+                on new { settlement.UserId, Id = settlement.CommissionCategoryId }
+                equals new { category.UserId, Id = (Guid?)category.Id }
+            where settlement.UserId == userId && settlement.CommissionAmount > 0m
+            select new ActivityRow
+            {
+                ActivityId = settlement.Id,
+                ActivityKind = (int)FinancialActivityKind.PosCommission,
+                Effect = (int)FinancialActivityEffect.Expense,
+                SourceGroup = (int)FinancialActivitySourceGroup.Pos,
+                Origin = (int)FinancialActivityOrigin.Manual,
+                Status = settlement.IsCancelled
+                    ? (int)FinancialActivityStatus.Cancelled
+                    : (int)FinancialActivityStatus.Realized,
+                ActivityDate = settlement.SettlementDate,
+                Amount = settlement.CommissionAmount,
+                Currency = (int)settlement.GrossAmount.Currency,
+                Title = category.Name,
+                Description = settlement.Description,
+                CategoryId = category.Id,
+                CategoryName = category.Name,
+                SourceId = (Guid?)null,
+                SourceName = (string?)null,
+                DestinationId = account.Id,
+                DestinationName = account.Name,
+                CancelledAtUtc = settlement.CancelledAtUtc,
+                Scope = (int?)settlement.Scope,
+                PrincipalPortion = (decimal?)null,
+                InterestPortion = (decimal?)null,
+                MatchAccountId = account.Id,
+                MatchSecondAccountId = (Guid?)null,
+                MatchCreditCardId = (Guid?)null,
+                MatchCategoryId = category.Id,
+                MatchCounterpartyId = (Guid?)null
+            };
+
+        var posTransfers =
+            from settlement in dbContext.PosSettlements.AsNoTracking()
+            join account in dbContext.Accounts.AsNoTracking()
+                on new { settlement.UserId, Id = settlement.AccountId }
+                equals new { account.UserId, account.Id }
+            where settlement.UserId == userId && settlement.TransferredOn != null
+            select new ActivityRow
+            {
+                ActivityId = settlement.Id,
+                ActivityKind = (int)FinancialActivityKind.PosTransfer,
+                Effect = (int)FinancialActivityEffect.Neutral,
+                SourceGroup = (int)FinancialActivitySourceGroup.Pos,
+                Origin = (int)FinancialActivityOrigin.Manual,
+                Status = settlement.IsCancelled
+                    ? (int)FinancialActivityStatus.Cancelled
+                    : (int)FinancialActivityStatus.Realized,
+                ActivityDate = settlement.TransferredOn!.Value,
+                // Hesaba giren net tutar; kalıcı kolon değil, brütten komisyon
+                // düşülerek okunuyor.
+                Amount = settlement.GrossAmount.Amount - settlement.CommissionAmount,
+                Currency = (int)settlement.GrossAmount.Currency,
+                Title = settlement.Description ?? account.Name,
+                Description = settlement.Description,
+                // Geçiş parayı taşır: gelir/gider üretmediği için ne kategori
+                // ne kapsam taşır (ADR 0014). Kapsam filtresi verildiğinde bu
+                // satır düşer, tıpkı transfer ve kart ödemesi gibi.
+                CategoryId = (Guid?)null,
+                CategoryName = (string?)null,
+                SourceId = (Guid?)null,
+                SourceName = (string?)null,
+                DestinationId = account.Id,
+                DestinationName = account.Name,
+                CancelledAtUtc = settlement.CancelledAtUtc,
+                Scope = (int?)null,
+                PrincipalPortion = (decimal?)null,
+                InterestPortion = (decimal?)null,
+                MatchAccountId = account.Id,
+                MatchSecondAccountId = (Guid?)null,
+                MatchCreditCardId = (Guid?)null,
+                MatchCategoryId = (Guid?)null,
+                MatchCounterpartyId = (Guid?)null
+            };
+
         return accountTransactions
             .Concat(transfers)
             .Concat(cardCharges)
@@ -634,7 +769,10 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
             .Concat(counterpartyCharges)
             .Concat(counterpartySettlements)
             .Concat(obligations)
-            .Concat(obligationSettlements);
+            .Concat(obligationSettlements)
+            .Concat(posSales)
+            .Concat(posCommissions)
+            .Concat(posTransfers);
     }
 
     private static IQueryable<ActivityRow> ApplyFilters(

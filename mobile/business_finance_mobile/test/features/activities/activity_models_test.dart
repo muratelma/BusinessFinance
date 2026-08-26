@@ -28,6 +28,53 @@ void main() {
       );
     });
 
+    // Yukarıdaki döngü istemcinin **kendi** listesini gezer: sunucunun
+    // gönderdiği ama istemcide hiç tanımlanmamış bir tür ona görünmez. Tam
+    // olarak bu oldu — `obligation-settlement` sunucuda vardı, burada yoktu ve
+    // yükümlülüğünü ödeyen kullanıcının İşlemler sayfası `FormatException` ile
+    // açılmaz oluyordu. Bu liste sunucunun bugün gönderdiği değerleri sabit
+    // tutar; sunucuya yeni bir tür eklenip buraya yazılmazsa test düşer.
+    test('sunucunun gönderdiği her kablo değeri istemcide karşılanır', () {
+      const serverKinds = {
+        'account-transaction',
+        'transfer',
+        'card-charge',
+        'card-payment',
+        'debt-payment',
+        'debt-collection',
+        'debt-opening',
+        'counterparty-charge',
+        'counterparty-settlement',
+        'obligation',
+        'obligation-settlement',
+        'pos-sale',
+        'pos-commission',
+        'pos-transfer',
+      };
+
+      expect(
+        ActivityKind.values.map((kind) => kind.apiValue).toSet(),
+        serverKinds,
+      );
+      for (final value in serverKinds) {
+        expect(() => ActivityKind.fromApi(value), returnsNormally);
+      }
+
+      const serverGroups = {
+        'account',
+        'credit-card',
+        'transfer',
+        'debt',
+        'counterparty',
+        'obligation',
+        'pos',
+      };
+      expect(
+        ActivitySourceGroup.values.map((group) => group.apiValue).toSet(),
+        serverGroups,
+      );
+    });
+
     test('reads every classification dimension and capability', () {
       final activity = FinancialActivity.fromJson(_json());
 

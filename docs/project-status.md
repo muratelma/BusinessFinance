@@ -1210,3 +1210,48 @@ eksiksiz çıktı; iki arayüz boşluğu bulundu ve kapatıldı.
   build (backend'e dokunulmadı)
 - Sıradaki görev: Aşama 04 Grup 8 — yedek şemasını v9'a yükseltmek, feed
   sözleşmesini kasa sayımı ve POS tahsilatıyla genişletmek
+
+## 26 Ağustos 2026 — Aşama 04, Grup 8: yedek v9 ve feed sözleşmesi
+
+- Yedek **v9** yazıyor ve **yalnız v9** okuyor: `cashCounts` ve
+  `posSettlements` eklendi, v8 `restore.unsupported_version` ile reddediliyor.
+  Boş dizi yazarak yükseltmek, elle girilmiş bir POS gelirini ikinci kez
+  saydırabilirdi — hangi gelirin POS satışı olduğunu yalnız kullanıcı bilir
+- Türetilen hiçbir şey dosyada yok: sayımın beklenen tutarı ve farkı,
+  tahsilatın net tutarı, komisyon oranı ve "yolda mı" geri yüklenen kayıttan
+  çözülüyor. Sayım fark hareketine **yeni** kimliğiyle bağlanıyor; aynı günün
+  kapatılmış ikinci sayımı iptal damgasıyla dönüyor. Bu grup şema değiştirmedi
+- Feed POS tahsilatını **üç satır** olarak öğrendi: `pos-sale` (brüt gelir,
+  tahsilat günü), `pos-commission` (aynı gün gider; komisyon sıfırsa satır yok)
+  ve `pos-transfer` (net tutar, geçiş günü, kapsamsız ve `neutral`). Üçü aynı
+  kimliği taşıyor, istemci `tür + kimlik` ile anahtarlıyor. Yeni `pos` kaynak
+  grubu kredi kartından ayrı (ADR 0015); üçü de feed'den iptal edilemiyor
+- **Kasa sayımı feed'e bilerek girmedi**: para hareketi üretmeyen bir gözlem.
+  Onaylanan fark zaten normal bir işlem satırı olarak görünüyor
+- Yol boyunca gerçek bir hata bulundu ve düzeltildi: `obligation-settlement`
+  sunucuda vardı, istemci enum'unda yoktu; yükümlülüğünü ödeyen kullanıcının
+  İşlemler sayfası `FormatException` ile açılmıyordu. Sunucunun kablo
+  değerlerini sabitleyen yeni bir test bu boşluğu kapattı
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (gerçek SQL dâhil) | **918 geçti**, 1 atlandı (`GeminiLiveContractTests`) |
+| Flutter analyze | No issues found |
+| Flutter format | 235 dosya, değişiklik gerektirmedi |
+| Flutter test | **750 geçti** |
+| Android debug build | `app-debug.apk` üretildi |
+
+## Son oturum kapanışı
+
+- Yapılan değişiklik: Aşama 04 **Grup 6 ve Grup 8 tamamlandı** — `İşlem ekle`
+  menüsü niyet eksenine taşındı; yedek v9'a yükseltildi ve POS tahsilatı
+  birleşik feed'e üç satır olarak girdi
+- Geçen kontroller: backend build + format + **918 test** (gerçek SQL dâhil),
+  1 canlı Gemini testi atlandı; Flutter analyze + format + **750 test** +
+  Android debug build geçti
+- Sıradaki görev: Aşama 04'ün **cihaz kabul turu** — bir günlük perakende
+  senaryosu (gün sonu farkı, POS parası geçene kadar bakiyenin şişmemesi,
+  komisyonun gider olarak görünmesi). Kalan tek çıkış koşulu budur; sonrasında
+  aşama kapatılıp Aşama 05 kullanıcı onayıyla açılır

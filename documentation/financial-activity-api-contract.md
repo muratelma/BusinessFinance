@@ -44,6 +44,16 @@ Bu beş boyut bağımsızdır; tek eksene indirgenmez (bkz. ADR 0004).
 | `debt-opening` | Borcun doğduğu an. Nakit kaynakta `neutral`, gider kaynakta `expense` |
 | `counterparty-charge` | `CounterpartyCharge` — veresiye satış (`income`) ya da vadeli alım (`expense`) |
 | `counterparty-settlement` | `CounterpartyPayment` — cari tahsilat/ödeme; her zaman `neutral` |
+| `obligation` | `Obligation` — tek seferlik yükümlülüğün doğuşu |
+| `obligation-settlement` | `ObligationSettlement` — onu kapatan nakit hareketi; her zaman `neutral` |
+| `pos-sale` | `PosSettlement` — satışın tanındığı an; gelir **brüt** tutar kadar |
+| `pos-commission` | `PosSettlement` — aynı gün tanınan komisyon gideri; komisyon `0` ise satır **yoktur** |
+| `pos-transfer` | `PosSettlement` — paranın hesaba geçtiği an; **net** tutar, `neutral`. Geçmemiş tahsilatta satır yoktur |
+
+Bir POS tahsilatı feed'de **üç satırdır** ve üçü de aynı `activityId`'yi taşır.
+Tek satıra indirilseydi ya komisyon görünmez olurdu ya da hesabın bakiyesindeki
+artışın günü yanlış yazılırdı: gelir tahsilat günü, para ise geçiş günü
+gerçektir. İstemci satırı `activityKind + activityId` ikilisiyle anahtarlar.
 
 ### `effect`
 
@@ -55,7 +65,11 @@ Bu beş boyut bağımsızdır; tek eksene indirgenmez (bkz. ADR 0004).
 
 ### `sourceGroup`
 
-`account`, `credit-card`, `transfer`, `debt`, `counterparty`
+`account`, `credit-card`, `transfer`, `debt`, `counterparty`, `obligation`,
+`pos`
+
+`pos`, `credit-card`'dan ayrı bir gruptur ve olmak zorundadır: biri
+borçlandığın kart, diğeri müşterinin ödediği paradır (ADR 0015).
 
 Açık cari (`counterparty`) ile taksitli sözleşme (`debt`) ayrı gruplardır:
 aynı kişiye ait olsalar bile biri yürüyen bir hesap, diğeri vadesi belli bir
@@ -99,12 +113,17 @@ index'ler ve Domain invariant'ları engeller.
 | Cari tahsilat/ödeme | `counterparty-settlement` | `neutral` | `counterparty` | evet |
 | Tek seferlik yükümlülük doğuşu | `obligation` | `income`/`expense` | `obligation` | **hayır** |
 | Yükümlülük ödeme/tahsilatı | `obligation-settlement` | `neutral` | `obligation` | **hayır** |
+| POS satışının tanınması | `pos-sale` | `income` | `pos` | **hayır** |
+| POS komisyonu | `pos-commission` | `expense` | `pos` | **hayır** |
+| POS parasının hesaba geçmesi | `pos-transfer` | `neutral` | `pos` | **hayır** |
 
 `canCancel` formülü:
 
 ```text
 canCancel = status == realized
-         && activityKind ∉ { debt-payment, debt-collection, debt-opening, obligation, obligation-settlement }
+         && activityKind ∉ { debt-payment, debt-collection, debt-opening,
+                             obligation, obligation-settlement,
+                             pos-sale, pos-commission, pos-transfer }
          && origin ∉ { recurring, installment }
 ```
 
@@ -123,6 +142,15 @@ değil. Borçlandırmayı iptal etmek tanınan gelir/gideri ve açık bakiyeyi
 birlikte geri alır; tahsilatı iptal etmek parayı kasaya geri koyar ve açık
 bakiyeyi yeniden doğurur.
 
+POS tahsilatının üç satırı da feed üzerinden **iptal edilemez**: üçü tek
+kaydın anlarıdır ve birini iptal etmek diğer ikisini sahipsiz bırakırdı. İptal,
+kaydın kendi ekranından tek eylemle yapılır ve üç satırı birlikte kapatır.
+
+`pos-transfer` **kapsam taşımaz** (`scope: null`): parayı taşır, gelir/gider
+üretmez (ADR 0014). Kapsam filtreli okumada düşer; `pos-sale` ve
+`pos-commission` kapsam taşır ve kalır. Komisyon brüt tutardan **düşülmez**:
+gelir brüt kadar tanınır, komisyon kendi kategorisinde ayrı bir giderdir.
+
 `counterparty-settlement` **kapsam taşımaz** (`scope: null`): kart ödemesiyle
 birebir aynı gerekçe — gelir/gider raporuna hiç girmediği için bölünecek bir
 tarafı yok. Kapsam filtreli okumada bu satırlar da düşer.
@@ -134,8 +162,13 @@ yeniden import engeli bozulmaz.
 
 Planlanan occurrence ve projeksiyonlar, recurring tanımının kendisi, taksit
 planının kendisi, kart ekstresi projection'ı, import batch/row teknik kayıtları,
-hesap/kart/kategori/bütçe tanımları, tasarruf hedefi katkıları ve **açılış
-bakiyesi**.
+hesap/kart/kategori/bütçe tanımları, tasarruf hedefi katkıları, **gün sonu kasa
+sayımı** ve **açılış bakiyesi**.
+
+Kasa sayımı feed'de **yoktur** ve bu bir eksiklik değildir: sayım bir
+gözlemdir, hiçbir para hareketi üretmez. Kullanıcı farkı açıkça onaylarsa
+üretilen düzeltme kaydı normal bir `account-transaction` olarak zaten görünür;
+sayımın kendisini de satır yapmak, olmamış bir hareketi kayda geçirmek olurdu.
 
 İptal edilmiş hareketler varsayılan listede kalır, bakiyeye ve rapora katılmaz,
 gelişmiş filtreden gizlenebilir. İptal geçmişi fiziksel silinmez.

@@ -91,8 +91,18 @@ class ActivityRepository implements ActivityRepositoryContract {
       ActivityKind.debtPayment ||
       ActivityKind.debtCollection ||
       ActivityKind.debtOpening ||
-      ActivityKind.obligation => throw StateError(
+      ActivityKind.obligation ||
+      ActivityKind.obligationSettlement => throw StateError(
         'Borç hareketi iptal edilemez: ${activity.activityId}',
+      ),
+      // POS tahsilatı tek kaydın üç satırıdır; birini iptal etmek diğer ikisini
+      // sahipsiz bırakırdı. İptal, kaydın kendi ekranından tek eylemle yapılır
+      // ve üç satırı birlikte kapatır. Sunucu da bu üçü için canCancel:false
+      // döndürüyor, yani bu dal normalde hiç çalışmaz.
+      ActivityKind.posSale ||
+      ActivityKind.posCommission ||
+      ActivityKind.posTransfer => throw StateError(
+        'POS tahsilatı feed üzerinden iptal edilemez: ${activity.activityId}',
       ),
       // Cari hareketin ikisi de iptal edilebilir: tek başına duran kayıtlar,
       // geri dönüşü olmayan bir planın sonucu değiller.

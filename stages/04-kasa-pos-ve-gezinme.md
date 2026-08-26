@@ -303,12 +303,45 @@ Uygulananlar:
 - Repository sözleşmesi, mutation hedefleri, iki profil gezinmesi ve iki alt
   ekranın 2× yazı ölçeği/erişilebilirlik kapısı Flutter testleriyle korunuyor.
 
-### Grup 8 — Yedek v9 ve sözleşme belgeleri
+### Grup 8 — Yedek v9 ve sözleşme belgeleri — **Tamamlandı**
 
 - Şema **v9** yazar, yalnız v9 okur.
 - Feed sözleşmesi iki yeni kaynakla genişletilir.
 - `documentation/design-system.md` yeni bileşenlerle güncellenir.
 - Ölçüt: sayımlar ve tahsilatlar kayıpsız geri yükleniyor.
+
+Uygulananlar:
+
+- Yedek **v9** yazıyor ve **yalnız v9** okuyor. `cashCounts` ve
+  `posSettlements` koleksiyonları eklendi; v8 `restore.unsupported_version`
+  ile reddediliyor. Boş dizi yazarak yükseltmek dürüst olmazdı: v8 dosyasını
+  yazan kullanıcı kartla yaptığı satışı elle bir gelir kaydı olarak girmiş
+  olabilir ve hangi gelirin POS satışı olduğunu yalnız kendisi bilir —
+  yükseltilseydi aynı satış iki kez sayılabilirdi.
+- **Türetilen hiçbir şey dosyaya yazılmadı**: sayımın beklenen tutarı ve farkı,
+  tahsilatın net tutarı, komisyon oranı ve "yolda mı" bilgisi yok; hepsi geri
+  yüklenen kayıttan yeniden çözülüyor. Sayımın fark hareketi **yeni** kimliğine
+  bağlanıyor; aynı gün kapatılmış ikinci sayım iptal damgasıyla dönüyor ve
+  SQL'deki filtreli tekil indeksi geri yüklemede de geçiyor. Bu grup **şema
+  değiştirmedi**: yeni migration yok.
+- Feed POS tahsilatını **üç satır** olarak öğrendi: `pos-sale` (brüt gelir,
+  tahsilat günü), `pos-commission` (aynı gün komisyon gideri, komisyon sıfırsa
+  satır yok) ve `pos-transfer` (net tutar, geçiş günü, `neutral` ve kapsamsız).
+  Üçü aynı kaydın kimliğini taşır; istemci `tür + kimlik` ile anahtarlar. Tek
+  satıra indirilseydi ya komisyon görünmez olurdu ya da bakiye artışının günü
+  yanlış yazılırdı. Yeni `pos` kaynak grubu kredi kartından ayrıdır (ADR 0015).
+- **Kasa sayımı feed'e girmedi** ve bu bilinçlidir: sayım hiçbir para hareketi
+  üretmeyen bir gözlemdir. Farkı onaylandığında üretilen düzeltme kaydı normal
+  bir `account-transaction` olarak zaten görünüyor; sayımın kendisini satır
+  yapmak olmamış bir hareketi kayda geçirmek olurdu.
+- Üç POS satırının hiçbiri feed üzerinden iptal edilemiyor: birini iptal etmek
+  diğer ikisini sahipsiz bırakırdı. İptal kaydın kendi ekranından tek eylemle
+  yapılıyor.
+- **Yol boyunca bulunan gerçek bir hata düzeltildi**: `obligation-settlement`
+  sunucuda vardı ama istemci enum'unda hiç yoktu, yani yükümlülüğünü ödeyen
+  kullanıcının İşlemler sayfası `FormatException` ile açılmıyordu. İstemcinin
+  kendi listesini gezen eski test bu boşluğu göremiyordu; sunucunun gönderdiği
+  kablo değerlerini sabitleyen yeni bir test eklendi.
 
 ## Zorunlu testler
 
@@ -380,16 +413,16 @@ flutter build apk --debug --dart-define=API_BASE_URL=http://10.0.2.2:5284
 
 ## Çıkış koşulları
 
-- [ ] ADR yazıldı ve kabul edildi.
-- [ ] Bütün çalışma grupları tamamlandı.
-- [ ] Backend build, test ve format kontrolleri geçti.
-- [ ] Flutter analyze, test, format ve debug build kontrolleri geçti.
-- [ ] Kullanıcı izolasyonu negatif senaryolarla kanıtlandı.
+- [x] ADR yazıldı ve kabul edildi.
+- [x] Bütün çalışma grupları tamamlandı.
+- [x] Backend build, test ve format kontrolleri geçti.
+- [x] Flutter analyze, test, format ve debug build kontrolleri geçti.
+- [x] Kullanıcı izolasyonu negatif senaryolarla kanıtlandı.
 - [ ] Bir günlük perakende senaryosu girildi: gün sonu farkı doğru, POS parası
       geçene kadar kullanılabilir bakiye şişmiyor, komisyon gider olarak
-      görünüyor.
-- [ ] İki profilde de dört sekme dolu ve hiçbir ekran erişilemez değil.
-- [ ] `documentation/` ve `docs/project-status.md` güncel.
+      görünüyor. **(cihazda elle yapılacak kabul turu)**
+- [x] İki profilde de dört sekme dolu ve hiçbir ekran erişilemez değil.
+- [x] `documentation/` ve `docs/project-status.md` güncel.
 - [ ] Kullanıcı Aşama 05'i açıkça onayladı.
 
 ## Tamamlanma kaydı

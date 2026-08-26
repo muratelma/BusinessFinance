@@ -640,6 +640,27 @@ Anahtar `İşletme` / `Şahsi`   -> o tarafın neti, adı yazılı
 tarafın adı sayının yönüne göre `Şahsi çekim` ya da `Şahsi net` olur. Hesaplanan
 şey nakit esaslı **işletme netidir**; "kâr" kelimesi kullanılmaz.
 
+## POS tahsilatının birleşik akıştaki üç satırı
+
+```text
+10 Ağustos  POS satışı            +1.000,00   gelir    (kapsam taşır)
+10 Ağustos  POS komisyonu            17,50    gider    (kapsam taşır)
+13 Ağustos  POS parası hesaba geçti +982,50   nötr     (kapsam taşımaz)
+```
+
+Üç satır tek kayıttır ve aynı kimliği taşır; istemci onları `tür + kimlik`
+ikilisiyle ayırır. Tek satıra indirilseydi ya komisyon görünmez olurdu ya da
+hesabın bakiyesindeki artışın günü yanlış yazılırdı.
+
+Geçiş satırı kapsam taşımadığı için kapsam filtreli okumada düşer — transfer ve
+kart ödemesiyle aynı kural. Üç satırın hiçbiri feed üzerinden iptal edilemez;
+iptal `Kasa > POS tahsilatları` ekranından tek eylemle yapılır ve üçünü birlikte
+kapatır.
+
+**Gün sonu kasa sayımı feed'de görünmez**: para hareketi üretmeyen bir gözlemdir.
+Farkı onaylandığında üretilen düzeltme kaydı normal bir işlem satırı olarak
+zaten görünür.
+
 ## `İşlem ekle` menüsünün niyet ekseni
 
 Menü tek giriş noktasıdır: kabuktaki çentikli buton ve İşlemler ekranındaki

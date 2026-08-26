@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
@@ -59,6 +59,132 @@ public sealed class FinancialActivityEndpointTests
             "/api/v1/financial-activities");
         Assert.Empty(strangerFeed!.Items);
         Assert.Equal(0, strangerFeed.Pagination.TotalCount);
+    }
+
+    /// <summary>
+    /// Bir POS tahsilatı feed'de üç satırdır: satış geliri, komisyon gideri ve
+    /// paranın hesaba geçtiği nötr hareket.
+    /// </summary>
+    /// <remarks>
+    /// Tek satıra indirilseydi ya komisyon görünmez olurdu ya da hesabın
+    /// bakiyesindeki artışın günü yanlış yazılırdı: gelir tahsilat günü,
+    /// para ise geçiş günü gerçek. Satırların üçü de aynı kaydın kimliğini
+    /// taşır; istemci onları `tür + kimlik` ikilisiyle ayırır.
+    /// </remarks>
+    [Fact]
+    public async Task Feed_ProjectsAPosSettlementAsSaleCommissionAndTransfer()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateClientAsync(factory, "pos-feed-owner@example.test");
+        using var stranger = await CreateClientAsync(factory, "pos-feed-stranger@example.test");
+        var account = await CreateAccountAsync(owner, "Bank");
+        var income = await GetCategoryAsync(owner, "income");
+        var expense = await GetCategoryAsync(owner, "expense");
+
+        Guid settlementId;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<BusinessFinanceDbContext>();
+            var userId = await db.Users
+                .Where(user => user.Email == "pos-feed-owner@example.test")
+                .Select(user => user.Id)
+                .SingleAsync();
+            var bank = await db.Accounts.SingleAsync(item => item.Id == account.Id);
+            var saleCategory = await db.Categories.SingleAsync(item => item.Id == income.Id);
+            var commissionCategory = await db.Categories.SingleAsync(item => item.Id == expense.Id);
+            var createdAt = new DateTimeOffset(2026, 8, 15, 9, 0, 0, TimeSpan.Zero);
+            var settlement = new PosSettlement(
+                Guid.NewGuid(), userId, bank, saleCategory,
+                new Money(1000m, CurrencyCode.TRY), 17.5m, TransactionScope.Business,
+                new DateOnly(2026, 8, 10), new DateOnly(2026, 8, 13), createdAt,
+                commissionCategory, "Kartlı satış");
+            settlement.MarkTransferred(new DateOnly(2026, 8, 13), createdAt);
+            settlementId = settlement.Id;
+            db.PosSettlements.Add(settlement);
+            await db.SaveChangesAsync();
+        }
+
+        var feed = await owner.GetFromJsonAsync<FinancialActivityListResponse>(
+            "/api/v1/financial-activities");
+
+        Assert.Equal(3, feed!.Pagination.TotalCount);
+        Assert.All(feed.Items, item => Assert.Equal("pos", item.SourceGroup));
+        Assert.All(feed.Items, item => Assert.Equal(settlementId, item.ActivityId));
+
+        var sale = Assert.Single(feed.Items, item => item.ActivityKind == "pos-sale");
+        Assert.Equal("income", sale.Effect);
+        // Gelir brüt tutar kadar tanınır; komisyon ondan düşülmez.
+        Assert.Equal("1000.0000", sale.Amount);
+        Assert.Equal("2026-08-10", sale.ActivityDate);
+        Assert.Equal("business", sale.Scope);
+        Assert.False(sale.CanCancel);
+        Assert.False(sale.SupportsAttachments);
+
+        var commission = Assert.Single(feed.Items, item => item.ActivityKind == "pos-commission");
+        Assert.Equal("expense", commission.Effect);
+        Assert.Equal("17.5000", commission.Amount);
+        // Komisyon satışla aynı gün tanınır, paranın geçtiği gün değil.
+        Assert.Equal("2026-08-10", commission.ActivityDate);
+
+        var transfer = Assert.Single(feed.Items, item => item.ActivityKind == "pos-transfer");
+        // Geçiş parayı taşır: gelir/gider yeniden tanınmaz ve kapsam taşımaz.
+        Assert.Equal("neutral", transfer.Effect);
+        Assert.Null(transfer.Scope);
+        Assert.Equal("982.5000", transfer.Amount);
+        Assert.Equal("2026-08-13", transfer.ActivityDate);
+        Assert.Equal("Bank", transfer.DestinationName);
+
+        // Kapsam filtresi kapsamsız satırı eler: geçiş düşer, satış ve komisyon
+        // kalır. İkisini birden göstermek aynı parayı iki kez saydırırdı.
+        var businessOnly = await owner.GetFromJsonAsync<FinancialActivityListResponse>(
+            "/api/v1/financial-activities?scope=business");
+        Assert.Equal(2, businessOnly!.Pagination.TotalCount);
+        Assert.DoesNotContain(businessOnly.Items, item => item.ActivityKind == "pos-transfer");
+
+        var strangerFeed = await stranger.GetFromJsonAsync<FinancialActivityListResponse>(
+            "/api/v1/financial-activities");
+        Assert.Empty(strangerFeed!.Items);
+    }
+
+    /// <summary>
+    /// Yolda olan tahsilat feed'de yalnız iki satırdır: para henüz geçmedi.
+    /// </summary>
+    /// <remarks>
+    /// Geçiş satırı yazılsaydı, feed hesabın henüz almadığı bir parayı almış
+    /// gibi gösterirdi. Komisyonsuz tahsilatın komisyon satırı da yoktur:
+    /// sıfır tutarlı bir gider, olmamış bir gideri kayda geçirmek olurdu.
+    /// </remarks>
+    [Fact]
+    public async Task Feed_LeavesMoneyStillInTransitOutOfTheTransferRow()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateClientAsync(factory, "pos-transit-owner@example.test");
+        var account = await CreateAccountAsync(owner, "Bank");
+        var income = await GetCategoryAsync(owner, "income");
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<BusinessFinanceDbContext>();
+            var userId = await db.Users
+                .Where(user => user.Email == "pos-transit-owner@example.test")
+                .Select(user => user.Id)
+                .SingleAsync();
+            var bank = await db.Accounts.SingleAsync(item => item.Id == account.Id);
+            var saleCategory = await db.Categories.SingleAsync(item => item.Id == income.Id);
+            db.PosSettlements.Add(new PosSettlement(
+                Guid.NewGuid(), userId, bank, saleCategory,
+                new Money(400m, CurrencyCode.TRY), 0m, TransactionScope.Business,
+                new DateOnly(2026, 8, 12), new DateOnly(2026, 8, 15),
+                new DateTimeOffset(2026, 8, 15, 9, 0, 0, TimeSpan.Zero)));
+            await db.SaveChangesAsync();
+        }
+
+        var feed = await owner.GetFromJsonAsync<FinancialActivityListResponse>(
+            "/api/v1/financial-activities");
+
+        var sale = Assert.Single(feed!.Items);
+        Assert.Equal("pos-sale", sale.ActivityKind);
+        Assert.Equal("400.0000", sale.Amount);
     }
 
     [Fact]

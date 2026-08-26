@@ -317,6 +317,18 @@ yeniden üretir hâle getiren yol yoktur. Tutarsızlık **doğrulama adımında*
 söylenir: doğrulama grafiği kuru olarak kurar, kullanıcı restore'a basmadan
 önce dosyanın içeriğinin tutarsız olduğunu öğrenir.
 
+## Aşama 04 Grup 8 — yedek v9 ve feed sözleşmesi
+
+| Test | Neyi kanıtlıyor |
+|---|---|
+| `DataPortabilityTests.BackupV9_RoundTripsCashCountsAndPosSettlements` (yeni) | Kapatılmış ve duran sayım, sayımın fark hareketine **yeni** kimliğiyle bağlanması, yolda olan ve geçmiş tahsilat kayıpsız dönüyor; net tutar ile komisyon oranı dosyadan değil paradan çözülüyor |
+| `DataPortabilityTests.BackupBeforeCashAndPos_IsRejectedAndWritesNothing` (yeni) | v8 dosyası `restore.unsupported_version` ile reddediliyor ve hedefe hiçbir şey yazılmıyor: boş dizi yazarak yükseltmek, elle girilmiş bir POS gelirini ikinci kez saydırabilirdi |
+| `DataPortabilityTests.Backup_ValidatesAndRestoresCompleteSyntheticGraphToEmptyOwner` (genişletildi) | Yazılan sürüm v9; sentetik graf iki sayımı ve iki tahsilatı da içeriyor ve entity sayımı hepsini sayıyor |
+| `SqlServerPersistenceIntegrationTests.DataPortability_RoundTripAndFailedRestoreAreAtomic` (genişletildi) | **Gerçek SQL**: geri yüklenen hesapta iki sayım (biri iptal), fark hareketine bağlı açık sayım, yolda ve geçmiş iki tahsilat var. Sayımlardaki filtreli tekil indeks geri yüklemede de geçiliyor |
+| `FinancialActivityEndpointTests.Feed_ProjectsAPosSettlementAsSaleCommissionAndTransfer` (yeni) | Tek tahsilat feed'de üç satır: brüt gelir ve komisyon tahsilat gününde, net tutar geçiş gününde. Üçü de `canCancel:false`; kapsam filtresi yalnız geçiş satırını eliyor; yabancı kullanıcı hiçbirini görmüyor |
+| `FinancialActivityEndpointTests.Feed_LeavesMoneyStillInTransitOutOfTheTransferRow` (yeni) | Geçmemiş tahsilatın geçiş satırı yok — feed hesabın almadığı parayı almış gibi göstermiyor; komisyonsuz tahsilatın komisyon satırı da yok |
+| `activity_models_test` (yeni durum) | Sunucunun gönderdiği bütün kablo değerleri istemcide karşılanıyor. İstemcinin kendi listesini gezen eski döngü bu boşluğu göremiyordu: `obligation-settlement` sunucuda vardı, istemcide yoktu ve yükümlülüğünü ödeyen kullanıcının İşlemler sayfası `FormatException` ile açılmıyordu |
+
 ## Aşama 04 Grup 2 — gün sonu kasa sayımı (Domain)
 
 | Test | Neyi kanıtlıyor |

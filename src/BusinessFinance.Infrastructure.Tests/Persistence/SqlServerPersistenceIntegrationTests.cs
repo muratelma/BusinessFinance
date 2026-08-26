@@ -1,4 +1,4 @@
-using System.Data.Common;
+﻿using System.Data.Common;
 using System.Diagnostics;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -505,7 +505,7 @@ public sealed class SqlServerPersistenceIntegrationTests
         await using var read = database.CreateContext();
         Assert.Equal(2, await read.Accounts.CountAsync(x => x.UserId == restoredOwner.Id));
         Assert.Equal(3, await read.Categories.CountAsync(x => x.UserId == restoredOwner.Id));
-        Assert.Equal(2, await read.Transactions.CountAsync(x => x.UserId == restoredOwner.Id));
+        Assert.Equal(3, await read.Transactions.CountAsync(x => x.UserId == restoredOwner.Id));
         Assert.Single(await read.ImportBatches.Where(x => x.UserId == restoredOwner.Id).ToArrayAsync());
         Assert.Single(await read.DebtAgreements.Where(x => x.UserId == restoredOwner.Id).ToArrayAsync());
         Assert.Single(await read.SavingsGoals.Where(x => x.UserId == restoredOwner.Id).ToArrayAsync());
@@ -538,6 +538,31 @@ public sealed class SqlServerPersistenceIntegrationTests
             .SingleAsync(x => x.UserId == restoredOwner.Id);
         Assert.Equal(12, restoredPlan.OccurrenceLimit);
         Assert.Equal(1, restoredPlan.GeneratedOccurrenceCount);
+        // Gün sonu sayımı ve POS tahsilatı gerçek SQL üzerinde de kayıpsız
+        // dönüyor. Sayımlarda filtreli tekil indeks var: bir gün ve bir kasa
+        // için yalnız tek açık sayım kalabilir, ikincisi iptal edilmiş olarak
+        // durur. Geri yükleme bu kuralı SQL seviyesinde de geçmek zorunda.
+        var restoredCounts = await read.CashCounts.AsNoTracking()
+            .Where(x => x.UserId == restoredOwner.Id).ToArrayAsync();
+        Assert.Equal(2, restoredCounts.Length);
+        var openCount = Assert.Single(restoredCounts, x => !x.IsCancelled);
+        Assert.Equal(495m, openCount.CountedAmount);
+        // Farkın kaydı sayımın içinde değil, ayrı bir hareket: sayım ona
+        // hedef kullanıcının kendi kimliğiyle bağlanmış olmalı.
+        Assert.NotNull(openCount.AdjustmentTransactionId);
+        Assert.True(await read.Transactions.AnyAsync(
+            x => x.UserId == restoredOwner.Id && x.Id == openCount.AdjustmentTransactionId));
+
+        var restoredSettlements = await read.PosSettlements.AsNoTracking()
+            .Where(x => x.UserId == restoredOwner.Id).ToArrayAsync();
+        Assert.Equal(2, restoredSettlements.Length);
+        var restoredInTransit = Assert.Single(restoredSettlements, x => x.TransferredOn == null);
+        Assert.Equal(500m, restoredInTransit.GrossAmount.Amount);
+        Assert.Equal(12.5m, restoredInTransit.CommissionAmount);
+        // Net tutar ve oran kolon değil: ikisi de dosyadan değil paradan çözülür.
+        Assert.Equal(487.5m, restoredInTransit.NetAmount.Amount);
+        Assert.Single(restoredSettlements, x => x.TransferredOn == new DateOnly(2026, 8, 8));
+
         var restoredAttachment = Assert.Single(
             await read.FinancialAttachments.Where(x => x.UserId == restoredOwner.Id).ToArrayAsync());
         await using var restoredContent = await attachmentStore.OpenReadAsync(

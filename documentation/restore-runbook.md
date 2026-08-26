@@ -1,9 +1,28 @@
 # Backup Restore Runbook
 
-Bu runbook yalnız sentetik yerel veridir. Yazılan şema **v8**; okunabilen
-şema **yalnız v8**. v8, v7'nin taşıdığı her şeyin (karşı tarafın kendisi —
-ad, not, aktiflik — ve cari defterin iki hareket türü: borçlandırma
-`counterpartyCharges`, tahsilat `counterpartyPayments`) üstüne üç bilgi ekler:
+Bu runbook yalnız sentetik yerel veridir. Yazılan şema **v9**; okunabilen
+şema **yalnız v9**. v9, v8'in taşıdığı her şeyin üstüne iki koleksiyon ekler:
+
+- `cashCounts` — gün sonu kasa sayımı. Sayım bir **gözlemdir**: hesap
+  bakiyesine dokunmaz, gelir/gider yazmaz. **Beklenen tutar ve fark dosyada
+  yoktur** — ikisi de kalıcı alan değil, sayım okunduğu anda hesabın kendi
+  bakiyesinden türer. Yazılsalardı geri yüklenen veritabanında sayımın
+  yanındaki sayı hesabın gerçek bakiyesiyle çelişebilirdi. Farkı onaylanmış
+  sayım, o farkı yazan harekete `adjustmentTransactionId` ile bağlıdır ve bağ
+  geri yüklerken **yeni** kimliğe çevrilir. Aynı gün ve aynı kasa için ikinci
+  bir sayım varsa öncekisi iptal edilmiş olarak durur; SQL'deki filtreli tekil
+  indeks bunu geri yüklemede de doğrular.
+- `posSettlements` — POS tahsilatı. Tek kayıt **iki an** taşır (ADR 0014):
+  tahsilat günü gelir brüt tutar kadar tanınır ve komisyon ayrı gider yazılır,
+  hesap kıpırdamaz; `transferredOn` dolduğu gün hesap net tutar kadar artar ve
+  gelir/gider yeniden yazılmaz. **Net tutar, komisyon oranı ve "yolda mı"
+  dosyada yoktur**: net brütten komisyon düşülerek, oran ikisinden, yolda olma
+  ise iptal ve geçiş bilgisinden çözülür. Oran yazılsaydı kuruşa yuvarlanmış
+  komisyonla çelişen ikinci bir gerçek kaynağı doğardı (ADR 0009).
+
+v8 ise v7'nin taşıdığı her şeyin (karşı tarafın kendisi — ad, not, aktiflik —
+ve cari defterin iki hareket türü: borçlandırma `counterpartyCharges`,
+tahsilat `counterpartyPayments`) üstüne üç bilgi eklemişti:
 
 - `obligations` — tek seferlik yükümlülük. Ekonomik olayı **tanır**: kategori,
   kapsam, düzenleme tarihi ve **vade** taşır, hesap taşımaz. Onu kapatan nakit
@@ -67,25 +86,30 @@ kasa sayımının beklenen tutarı ile farkı şemada **bulunmaz**. Migration te
 yokluğu açıkça sınar. `CashCounts` üzerindeki filtreli tekil indeks
 (`IsCancelled = 0`) bir gün ve bir kasa için tek açık sayım bırakır.
 
-Backup biçimi bu checkpoint'te hâlâ **v8**'dir ve kasa sayımlarını, POS
-tahsilatlarını taşımaz; bunların kayıpsız v9 kapsamına alınması Aşama 04
-Grup 8'in işidir.
+Bu migration kendi checkpoint'inde backup biçimini değiştirmedi; kasa sayımı
+ve POS tahsilatı Aşama 04 Grup 8'de **v9** kapsamına alındı ve artık kayıpsız
+taşınır. Grup 8 **şema değiştirmez**: yeni migration yoktur, yalnız var olan
+iki tablo dosyaya girer.
 
 ## Ön koşullar
 
 - SQL Server `healthy`, API `/health/ready` cevabı 200 olmalıdır.
-- Backup dosyası `business-finance-backup` formatında ve şeması **v8**
-  olmalıdır. v8, v6'nın taşıdığı her şeyin (her finansal kaydın kapsamı
+- Backup dosyası `business-finance-backup` formatında ve şeması **v9**
+  olmalıdır. v9, v6'nın taşıdığı her şeyin (her finansal kaydın kapsamı
   `scope`, hesap/kategori/kart varsayılan kapsamı `defaultScope`) üstüne cari
-  defteri ve yükümlülükleri ekler. Tanıyan kayıt kategori ve kapsam taşır,
+  defteri, yükümlülükleri, kasa sayımlarını ve POS tahsilatlarını ekler. Tanıyan kayıt kategori ve kapsam taşır,
   hesap taşımaz; taşıyan kayıt hesap taşır, kategori ve kapsam taşımaz
   (ADR 0014) — iki kaydın alan listesi dosyada da bilerek farklıdır.
 - **Yedek kullanıcı profilini (işletmeniz var mı) taşımaz.** Profil finansal
   bir kayıt değil, bir arayüz tercihidir; geri yüklenen hesabın kendi cevabı
   geçerli kalır. Kategoriler yedekten geldiği için kapsam varsayılanları da
   yedekten gelir ve raporlar doğru bölünür.
-- **v2–v7 yedekleri `restore.unsupported_version` ile reddedilir ve
-  yükseltilmez.** v2–v5'te kapsam alanı yoktu; v6'da cari defter yoktu —
+- **v2–v8 yedekleri `restore.unsupported_version` ile reddedilir ve
+  yükseltilmez.** v8'de kasa sayımı ve POS tahsilatı hiç yoktu; boş dizi
+  yazarak yükseltmek dürüst olmazdı, çünkü o dosyayı yazan kullanıcı kartla
+  yaptığı satışı elle bir gelir kaydı olarak girmiş olabilir ve hangi gelirin
+  POS satışı olduğunu yalnız kendisi bilir — yükseltilseydi aynı satış iki kez
+  sayılabilirdi. v2–v5'te kapsam alanı yoktu; v6'da cari defter yoktu —
   o dosya karşı tarafı yalnız sözleşmenin taşıdığı ad olarak biliyordu, açık
   bakiyesi ve hareketleri hiç yoktu; v7'de yükümlülük yoktu — ödenmemiş
   faturayı tanıyan ekonomik olay o dosyada hiç bulunmuyor. Eksik alanı

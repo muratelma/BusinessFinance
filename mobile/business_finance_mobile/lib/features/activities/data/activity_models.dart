@@ -21,7 +21,22 @@ enum ActivityKind {
   counterpartySettlement('counterparty-settlement'),
 
   /// Tek seferlik borç veya alacak doğuşu; nakdi değil gelir/gideri etkiler.
-  obligation('obligation');
+  obligation('obligation'),
+
+  /// Yükümlülüğü kapatan nakit hareketi: kasa değişir, gelir/gider yeniden
+  /// tanınmaz — ekonomik olay yükümlülük doğarken tanınmıştı.
+  obligationSettlement('obligation-settlement'),
+
+  /// POS satışının tanındığı an: gelir brüt tutar kadar yazılır, hesap
+  /// kıpırdamaz. Komisyon buna dâhil değil, kendi satırında.
+  posSale('pos-sale'),
+
+  /// Bankanın kestiği komisyon: satışla aynı gün tanınan ayrı bir gider.
+  posCommission('pos-commission'),
+
+  /// Yoldaki paranın hesaba geçtiği an: hesap net tutar kadar artar,
+  /// gelir/gider yeniden tanınmaz.
+  posTransfer('pos-transfer');
 
   const ActivityKind(this.apiValue);
   final String apiValue;
@@ -37,6 +52,10 @@ enum ActivityKind {
     'counterparty-charge' => counterpartyCharge,
     'counterparty-settlement' => counterpartySettlement,
     'obligation' => obligation,
+    'obligation-settlement' => obligationSettlement,
+    'pos-sale' => posSale,
+    'pos-commission' => posCommission,
+    'pos-transfer' => posTransfer,
     _ => throw FormatException('Bilinmeyen hareket türü: $value'),
   };
 
@@ -55,6 +74,12 @@ enum ActivityKind {
     counterpartyCharge => 'Cari hareket',
     counterpartySettlement => 'Cari tahsilat / ödeme',
     obligation => 'Yükümlülük',
+    obligationSettlement => 'Yükümlülük ödemesi',
+    // Bu üç etikette `kart` kelimesi tek başına geçmez (ADR 0015): borçlandığın
+    // kart başka bir şeydir ve ikisi aynı listede yan yana görünüyor.
+    posSale => 'POS satışı',
+    posCommission => 'POS komisyonu',
+    posTransfer => 'POS parası hesaba geçti',
   };
 }
 
@@ -83,7 +108,11 @@ enum ActivitySourceGroup {
   /// Açık cari. Taksitli sözleşme `debt` olarak kalır: aynı kişiye ait
   /// olsalar bile biri yürüyen bir hesap, diğeri vadesi belli bir plandır.
   counterparty('counterparty'),
-  obligation('obligation');
+  obligation('obligation'),
+
+  /// POS tahsilatı. Kredi kartından ayrı bir gruptur ve olmak zorundadır:
+  /// biri borçlandığın kart, diğeri müşterinin ödediği para (ADR 0015).
+  pos('pos');
 
   const ActivitySourceGroup(this.apiValue);
   final String apiValue;
@@ -95,6 +124,7 @@ enum ActivitySourceGroup {
     'debt' => debt,
     'counterparty' => counterparty,
     'obligation' => obligation,
+    'pos' => pos,
     _ => throw FormatException('Bilinmeyen kaynak grubu: $value'),
   };
 }

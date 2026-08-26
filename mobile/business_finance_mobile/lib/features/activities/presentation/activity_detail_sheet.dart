@@ -121,6 +121,22 @@ class ActivityDetailSheet extends StatelessWidget {
           if (activity.sourceName != null)
             _DetailRow('Karşı taraf', activity.sourceName!),
         ],
+        ActivityKind.obligationSettlement => [
+          if (activity.sourceName != null)
+            _DetailRow('Hesap', activity.sourceName!),
+          if (activity.destinationName != null)
+            _DetailRow('Karşı taraf', activity.destinationName!),
+        ],
+        // Satış ve komisyon anında paranın çıktığı bir yer yok: hesap, paranın
+        // birkaç gün sonra **geçeceği** yerdir ve satır bunu böyle yazar.
+        ActivityKind.posSale || ActivityKind.posCommission => [
+          if (activity.destinationName != null)
+            _DetailRow('Paranın geçeceği hesap', activity.destinationName!),
+        ],
+        ActivityKind.posTransfer => [
+          if (activity.destinationName != null)
+            _DetailRow('Paranın geçtiği hesap', activity.destinationName!),
+        ],
       },
       _DetailRow('Köken', activity.origin.label),
       // The title already carries the description when the user wrote one, so

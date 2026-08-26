@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
@@ -33,14 +33,14 @@ public sealed class DataPortabilityTests
         var conflict = await Assert.ThrowsAsync<DataPortabilityException>(() =>
             service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default));
 
-        Assert.Equal(8, validation.SchemaVersion);
+        Assert.Equal(9, validation.SchemaVersion);
         Assert.Equal(validation.EntityCount, restored.RestoredEntityCount);
         Assert.Equal("restore.destination_not_empty", conflict.Code);
         Assert.Equal("Geri yükleme için hesapta finansal veri bulunmamalıdır.", conflict.Message);
-        Assert.Equal(28, validation.EntityCount);
+        Assert.Equal(33, validation.EntityCount);
         Assert.Equal(2, await context.Accounts.CountAsync(x => x.UserId == targetUserId));
         Assert.Equal(3, await context.Categories.CountAsync(x => x.UserId == targetUserId));
-        Assert.Equal(2, await context.Transactions.CountAsync(x => x.UserId == targetUserId));
+        Assert.Equal(3, await context.Transactions.CountAsync(x => x.UserId == targetUserId));
         Assert.Single(await context.InstallmentPlans.Where(x => x.UserId == targetUserId).ToArrayAsync());
         Assert.Single(await context.RecurringTransactionOccurrences.Where(x => x.UserId == targetUserId).ToArrayAsync());
         Assert.Single(await context.ImportBatches.Where(x => x.UserId == targetUserId).ToArrayAsync());
@@ -391,7 +391,7 @@ public sealed class DataPortabilityTests
         var validation = await service.ValidateBackupAsync(backup.Content, default);
         await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
 
-        Assert.Equal(8, validation.SchemaVersion);
+        Assert.Equal(9, validation.SchemaVersion);
         var restoredPlans = await context.RecurringTransactions
             .AsNoTracking().Where(item => item.UserId == targetUserId).ToArrayAsync();
         var cardPlan = Assert.Single(
@@ -538,7 +538,7 @@ public sealed class DataPortabilityTests
         var validation = await service.ValidateBackupAsync(backup.Content, default);
         await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
 
-        Assert.Equal(8, validation.SchemaVersion);
+        Assert.Equal(9, validation.SchemaVersion);
 
         var restoredObligations = await context.Obligations.AsNoTracking()
             .Include(x => x.Settlement)
@@ -626,6 +626,127 @@ public sealed class DataPortabilityTests
     }
 
     /// <summary>
+    /// Kasa sayımı ve POS tahsilatı yedekten kayıpsız döner.
+    /// </summary>
+    /// <remarks>
+    /// Türetilen hiçbir şey dosyada yok: sayımın beklenen tutarı ve farkı,
+    /// tahsilatın net tutarı ve komisyon oranı geri yüklenen kayıttan yeniden
+    /// hesaplanıyor. Kapanmış sayımın iptal damgası ve duran sayımın fark
+    /// hareketi de dönüyor - hareket <b>yeni</b> kimliğine bağlanmalı, dosyadaki
+    /// eskisine değil.
+    /// </remarks>
+    [Fact]
+    public async Task BackupV9_RoundTripsCashCountsAndPosSettlements()
+    {
+        await using var context = CreateContext();
+        var sourceUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        await SeedCompleteGraphAsync(context, sourceUserId);
+        await SeedDefaultCategoriesAsync(context, targetUserId);
+        var service = new EfDataPortabilityRepository(context);
+
+        var backup = await service.CreateBackupAsync(sourceUserId, default);
+        var validation = await service.ValidateBackupAsync(backup.Content, default);
+        await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
+
+        Assert.Equal(9, validation.SchemaVersion);
+
+        var counts = await context.CashCounts.AsNoTracking()
+            .Where(item => item.UserId == targetUserId)
+            .OrderBy(item => item.CountedAmount).ToArrayAsync();
+        Assert.Equal(2, counts.Length);
+        var kapatilan = counts[0];
+        var duran = counts[1];
+        Assert.True(kapatilan.IsCancelled);
+        Assert.NotNull(kapatilan.CancelledAtUtc);
+        Assert.False(duran.IsCancelled);
+        Assert.Equal(495m, duran.CountedAmount);
+        Assert.Equal(new DateOnly(2026, 8, 10), duran.CountDate);
+        Assert.Equal(TransactionScope.Business, duran.Scope);
+
+        // Fark hareketi hedef kullanıcının kendi kaydına bağlanmalı.
+        var targetTransactions = await context.Transactions.AsNoTracking()
+            .Where(item => item.UserId == targetUserId).ToArrayAsync();
+        Assert.NotNull(duran.AdjustmentTransactionId);
+        Assert.Contains(targetTransactions, item => item.Id == duran.AdjustmentTransactionId);
+        Assert.DoesNotContain(
+            await context.Transactions.AsNoTracking()
+                .Where(item => item.UserId == sourceUserId).ToArrayAsync(),
+            item => item.Id == duran.AdjustmentTransactionId);
+
+        var settlements = await context.PosSettlements.AsNoTracking()
+            .Where(item => item.UserId == targetUserId)
+            .OrderBy(item => item.SettlementDate).ToArrayAsync();
+        Assert.Equal(2, settlements.Length);
+        var gecmis = settlements[0];
+        var yolda = settlements[1];
+
+        Assert.True(gecmis.IsTransferred);
+        Assert.Equal(new DateOnly(2026, 8, 8), gecmis.TransferredOn);
+        Assert.Equal(0m, gecmis.CommissionAmount);
+        Assert.Null(gecmis.CommissionCategoryId);
+
+        Assert.True(yolda.IsInTransit);
+        Assert.Null(yolda.TransferredOn);
+        Assert.Equal(500m, yolda.GrossAmount.Amount);
+        Assert.Equal(12.5m, yolda.CommissionAmount);
+        // Net tutar ve oran dosyadan gelmiyor, paradan çözülüyor.
+        Assert.Equal(487.5m, yolda.NetAmount.Amount);
+        Assert.Equal(0.025m, yolda.CommissionRate);
+        Assert.NotNull(yolda.CommissionCategoryId);
+    }
+
+    /// <summary>
+    /// v8 dosyası reddedilir ve hedef hesaba hiçbir şey yazılmaz.
+    /// </summary>
+    /// <remarks>
+    /// v8 kasa sayımını ve POS tahsilatını hiç bilmiyordu. Boş dizi yazarak
+    /// yükseltmek dürüst olmazdı: o dosyayı yazan kullanıcı kartla yaptığı
+    /// satışı elle bir gelir kaydı olarak girmiş olabilir ve hangi gelirin POS
+    /// satışı olduğunu yalnız kendisi bilir. Yükseltilseydi aynı satış iki kez
+    /// sayılabilirdi. Kapsam (ADR 0013) ve yükümlülük kararının aynısı.
+    /// </remarks>
+    [Fact]
+    public async Task BackupBeforeCashAndPos_IsRejectedAndWritesNothing()
+    {
+        await using var context = CreateContext();
+        var sourceUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        await SeedCompleteGraphAsync(context, sourceUserId);
+        await SeedDefaultCategoriesAsync(context, targetUserId);
+        var service = new EfDataPortabilityRepository(context);
+        var current = await service.CreateBackupAsync(sourceUserId, default);
+        var legacy = DowngradeToSchemaV8(current.Content);
+
+        var validationError = await Assert.ThrowsAsync<DataPortabilityException>(() =>
+            service.ValidateBackupAsync(legacy, default));
+        var restoreError = await Assert.ThrowsAsync<DataPortabilityException>(() =>
+            service.RestoreBackupAsync(targetUserId, legacy, DateTimeOffset.UtcNow, default));
+
+        Assert.Equal("restore.unsupported_version", validationError.Code);
+        Assert.Equal("restore.unsupported_version", restoreError.Code);
+        Assert.False(await context.Accounts.AnyAsync(x => x.UserId == targetUserId));
+        Assert.False(await context.CashCounts.AnyAsync(x => x.UserId == targetUserId));
+        Assert.False(await context.PosSettlements.AnyAsync(x => x.UserId == targetUserId));
+    }
+
+    /// <summary>
+    /// Rewrites a current backup into the shape the build before the till count
+    /// and the pos settlement produced: schema version 8 with neither collection.
+    /// The payload hash and length are recomputed so the version gate is genuinely
+    /// what rejects it.
+    /// </summary>
+    private static byte[] DowngradeToSchemaV8(byte[] content) =>
+        RewritePayload(
+            content,
+            snapshot =>
+            {
+                snapshot.Remove("cashCounts");
+                snapshot.Remove("posSettlements");
+            },
+            schemaVersion: 8);
+
+    /// <summary>
     /// v7 dosyası reddedilir ve hedef hesaba hiçbir şey yazılmaz.
     /// </summary>
     /// <remarks>
@@ -670,6 +791,8 @@ public sealed class DataPortabilityTests
             snapshot =>
             {
                 snapshot.Remove("obligations");
+                snapshot.Remove("cashCounts");
+                snapshot.Remove("posSettlements");
                 foreach (var charge in snapshot["counterpartyCharges"]!.AsArray())
                     charge!.AsObject().Remove("dueDate");
                 foreach (var plan in snapshot["recurringTransactions"]!.AsArray())
@@ -791,6 +914,34 @@ public sealed class DataPortabilityTests
             new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 10), utc, null, "Tek seferlik alacak");
         kapananAlacak.Settle(Guid.NewGuid(), bank, new DateOnly(2026, 8, 9), utc);
 
+        // Gün sonu sayımı: bir gözlem. İkisi aynı gün ve aynı kasa için, ilki
+        // ikincisi tarafından kapatılmış - iptal edilmiş gözlem de geçmiştir ve
+        // dosyada kalır. Duran sayımın farkı onaylanmış, yani ayrı bir hareketi
+        // var; o hareketin geri yüklemede yeni kimliğine bağlandığı sınanıyor.
+        var kasaFarki = new BudgetTransaction(Guid.NewGuid(), userId, cash, expenseCategory,
+            new Money(5m, CurrencyCode.TRY), TransactionType.Expense, TransactionScope.Business,
+            new DateOnly(2026, 8, 10), "Kasa farkı");
+        var eskiSayim = new CashCount(Guid.NewGuid(), userId, cash, 480m,
+            TransactionScope.Business, new DateOnly(2026, 8, 10), utc, "İlk sayım");
+        var sayim = new CashCount(Guid.NewGuid(), userId, cash, 495m,
+            TransactionScope.Business, new DateOnly(2026, 8, 10), utc, "Yeniden sayıldı");
+        eskiSayim.SupersedeWith(sayim, utc);
+        sayim.RecordAdjustment(kasaFarki.Id, utc);
+
+        // POS tahsilatı: biri hâlâ yolda (hesap kıpırdamadı), biri hesaba
+        // geçmiş. İkisi birlikte, tek kaydın iki anının da kayıpsız döndüğünü
+        // kanıtlıyor. Komisyonsuz olanın gider kategorisi de yoktur.
+        var yoldakiTahsilat = new PosSettlement(
+            Guid.NewGuid(), userId, bank, incomeCategory,
+            new Money(500m, CurrencyCode.TRY), 12.5m, TransactionScope.Business,
+            new DateOnly(2026, 8, 9), new DateOnly(2026, 8, 12), utc,
+            expenseCategory, "Kartlı satış");
+        var gecmisTahsilat = new PosSettlement(
+            Guid.NewGuid(), userId, bank, incomeCategory,
+            new Money(300m, CurrencyCode.TRY), 0m, TransactionScope.Business,
+            new DateOnly(2026, 8, 5), new DateOnly(2026, 8, 8), utc);
+        gecmisTahsilat.MarkTransferred(new DateOnly(2026, 8, 8), utc);
+
         kapanan.Deactivate();
 
         cash.Deactivate();
@@ -802,7 +953,8 @@ public sealed class DataPortabilityTests
         context.AddRange(cash, bank, incomeCategory, expenseCategory, billCategory, income, expense,
             budget, transfer, card, charge, payment, plan, recurring, occurrence, batch,
             manav, kapanan, veresiye, vadeliAlim, tahsilat, iptalTahsilat,
-            acikFatura, kapananAlacak);
+            acikFatura, kapananAlacak, kasaFarki, eskiSayim, sayim,
+            yoldakiTahsilat, gecmisTahsilat);
         await context.SaveChangesAsync();
     }
 

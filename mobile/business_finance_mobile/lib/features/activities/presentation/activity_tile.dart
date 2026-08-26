@@ -109,6 +109,11 @@ class ActivityTile extends StatelessWidget {
           : Icons.north_east,
     ActivityKind.counterpartySettlement => Icons.price_check,
     ActivityKind.obligation => Icons.event_note_outlined,
+    ActivityKind.obligationSettlement => Icons.price_check,
+    ActivityKind.posSale => Icons.point_of_sale_outlined,
+    ActivityKind.posCommission => Icons.percent,
+    // Para yolda değil artık: hesaba indi.
+    ActivityKind.posTransfer => Icons.move_to_inbox_outlined,
   };
 
   String get _subtitle {

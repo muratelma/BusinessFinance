@@ -1,4 +1,4 @@
-using BusinessFinance.Domain;
+﻿using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.FinancialActivities;
 
@@ -36,7 +36,27 @@ public enum FinancialActivityKind
     /// tarihinde tanır; ödeme daha sonra ayrı, nötr bir hareket olacaktır.
     /// </summary>
     Obligation = 10,
-    ObligationSettlement = 11
+    ObligationSettlement = 11,
+
+    /// <summary>
+    /// POS satışının tanındığı an: gelir brüt tutar kadar yazılır, hesap
+    /// kıpırdamaz. Komisyon buna dâhil değildir; kendi satırında durur.
+    /// </summary>
+    PosSale = 12,
+
+    /// <summary>
+    /// Bankanın kestiği komisyon: satışla aynı gün tanınan ayrı bir gider.
+    /// Brüt tutardan düşülerek gösterilseydi kullanıcının gerçekten kestiği
+    /// fatura küçülür ve komisyon görünmez bir gidere dönerdi.
+    /// </summary>
+    PosCommission = 13,
+
+    /// <summary>
+    /// Yoldaki paranın hesaba geçtiği an: hesap net tutar kadar artar,
+    /// gelir/gider <b>yeniden tanınmaz</b> (ADR 0014). Bu satır olmasaydı
+    /// hesabın feed'i bakiyesindeki artışı açıklayamazdı.
+    /// </summary>
+    PosTransfer = 14
 }
 
 /// <summary>Effect on the income/expense report.</summary>
@@ -61,7 +81,13 @@ public enum FinancialActivitySourceGroup
     /// hesap, diğeri vadesi belli bir plan.
     /// </summary>
     Counterparty = 5,
-    Obligation = 6
+    Obligation = 6,
+
+    /// <summary>
+    /// POS tahsilatı. Kredi kartından ayrı bir gruptur ve olmak zorundadır:
+    /// biri borçlandığın kart, diğeri müşterinin ödediği para (ADR 0015).
+    /// </summary>
+    Pos = 7
 }
 
 /// <summary>How the activity was produced.</summary>
@@ -245,7 +271,13 @@ public static class FinancialActivityCapabilities
             // Yükümlülük aggregate'i geçmişi iptal edebilse de birleşik feed
             // henüz bu iki kayıt için bir iptal endpoint'i sunmuyor.
             or FinancialActivityKind.Obligation
-            or FinancialActivityKind.ObligationSettlement)
+            or FinancialActivityKind.ObligationSettlement
+            // POS tahsilatı tek kaydın üç satırıdır; birini iptal etmek
+            // diğer ikisini sahipsiz bırakırdı. İptal kaydın kendi
+            // ekranından, tek eylemle yapılır ve üç satırı birlikte kapatır.
+            or FinancialActivityKind.PosSale
+            or FinancialActivityKind.PosCommission
+            or FinancialActivityKind.PosTransfer)
         {
             return false;
         }

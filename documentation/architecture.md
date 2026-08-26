@@ -738,8 +738,8 @@ aynısı).
 ## POS tahsilatı ve yoldaki para
 
 > Aşama 04, Grup 3–4 — Domain, kalıcılık, hesap bakiyesi, net varlık ve
-> gelir/gider raporunda tanıma uygulanmıştır. Yazma uçları ve ekranlar
-> Grup 7'de, birleşik feed ile yedek v9 Grup 8'dedir.
+> gelir/gider raporunda tanıma; Grup 7 — yazma uçları ve ekranlar; Grup 8 —
+> birleşik feed ve yedek v9. **Tamamı uygulanmıştır.**
 
 `PosSettlement` ADR 0015'in kaydıdır ve **kredi kartı değildir**: `CreditCard`
 borçlandığın karttır, bu ise tahsilat aracıdır. İkisi aynı kelimeyle anıldığı
@@ -778,6 +778,25 @@ kategorisi ister; POS tahsilatı bir satışı tanır.
 artık hesabın kendi bakiyesinde duruyor; ikisini de saymak aynı parayı iki
 yerde göstermek olurdu. Brüt toplamak da bankanın kestiği komisyonu
 kullanıcının cebinde sayardı.
+
+### POS tahsilatı birleşik feed'de üç satırdır
+
+Tek yazma modeli, feed'de üç okuma satırı üretir (Grup 8): `pos-sale` tahsilat
+günü brüt geliri, `pos-commission` aynı gün komisyon giderini, `pos-transfer`
+ise geçiş günü hesaba giren net tutarı gösterir. Üçü de aynı kaydın kimliğini
+taşır; istemci satırı `tür + kimlik` ikilisiyle anahtarlar.
+
+Tek satıra indirilseydi ya komisyon görünmez olurdu ya da hesabın bakiyesindeki
+artışın günü yanlış yazılırdı — gelir tahsilat günü, para ise geçiş günü
+gerçektir. Geçiş satırı **kapsam taşımaz** (parayı taşır, gelir/gider üretmez)
+ve kapsam filtreli okumada düşer; diğer ikisi kapsam taşır ve kalır.
+
+Üç satırın hiçbiri feed üzerinden iptal edilemez: birini iptal etmek diğer
+ikisini sahipsiz bırakırdı. İptal, kaydın kendi ekranından tek eylemle yapılır.
+
+**Gün sonu kasa sayımı feed'de yoktur** ve bu bir eksiklik değildir: sayım
+hiçbir para hareketi üretmeyen bir gözlemdir. Farkı onaylandığında üretilen
+düzeltme kaydı normal bir `account-transaction` olarak zaten görünür.
 
 ### Kalıcılık: iki yeni tablo, türetilen hiçbir şey kolon değil
 

@@ -261,6 +261,11 @@ Birkaç bileşenin sözleşmesinde neden şu kararların olduğu:
 - Alt çubuğun olmadığı ekranlarda (Kategoriler, Hesaplar, …) sayfanın kendi
   kayan butonu sağ altta kalır: daire, ikon ve tooltip.
 - Geniş ekranda çentik yoktur; birincil eylem gezinme rayının başında durur.
+- **Birleşik feed satırı POS'u üç ayrı satır olarak çizer** (`pos-satışı`,
+  `POS komisyonu`, `POS parası hesaba geçti`). Üç etikette de `kart` kelimesi
+  tek başına geçmez (ADR 0015): borçlandığın kart aynı listede yan yana
+  görünüyor. İkonlar sırayla `point_of_sale_outlined`, `percent` ve
+  `move_to_inbox_outlined`; sonuncusu paranın artık yolda olmadığını söyler.
 - **`İşlem ekle` launcher'ı başlıklıdır.** Dokuz satır düz listede telefonda
   kaydırmadan okunmuyordu; satırlar niyet başlıklarının (`Para girdi`,
   `Para çıktı`, `Para taşı`, `Belge okut`, `Plan kur`) altında yoğun

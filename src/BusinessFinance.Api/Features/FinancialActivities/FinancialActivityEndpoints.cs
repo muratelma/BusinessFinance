@@ -1,4 +1,4 @@
-using BusinessFinance.Api.Contracts;
+﻿using BusinessFinance.Api.Contracts;
 using BusinessFinance.Api.Errors;
 using BusinessFinance.Application.FinancialActivities;
 
@@ -303,7 +303,10 @@ public static class FinancialActivityEndpoints
         [FinancialActivityKind.CounterpartyCharge] = "counterparty-charge",
         [FinancialActivityKind.CounterpartySettlement] = "counterparty-settlement",
         [FinancialActivityKind.Obligation] = "obligation",
-        [FinancialActivityKind.ObligationSettlement] = "obligation-settlement"
+        [FinancialActivityKind.ObligationSettlement] = "obligation-settlement",
+        [FinancialActivityKind.PosSale] = "pos-sale",
+        [FinancialActivityKind.PosCommission] = "pos-commission",
+        [FinancialActivityKind.PosTransfer] = "pos-transfer"
     };
 
     internal static readonly Dictionary<FinancialActivityEffect, string> EffectValues = new()
@@ -320,7 +323,8 @@ public static class FinancialActivityEndpoints
         [FinancialActivitySourceGroup.Transfer] = "transfer",
         [FinancialActivitySourceGroup.Debt] = "debt",
         [FinancialActivitySourceGroup.Counterparty] = "counterparty",
-        [FinancialActivitySourceGroup.Obligation] = "obligation"
+        [FinancialActivitySourceGroup.Obligation] = "obligation",
+        [FinancialActivitySourceGroup.Pos] = "pos"
     };
 
     internal static readonly Dictionary<FinancialActivityOrigin, string> OriginValues = new()
