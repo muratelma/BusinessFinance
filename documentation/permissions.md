@@ -124,6 +124,9 @@ Kapsam alanını taşıyan istek/cevap sözleşmeleri:
 | `POST`/`PUT` hesap, kategori, kart | `defaultScope` | Hayır — boş bırakılabilir; **güncellemede yetkilidir**, boş göndermek etiketi kaldırır. Tanınmayan değer `*.invalid_default_scope` |
 | `POST /api/v1/imports/{id}/confirm` | — | İçe aktarılan CSV kapsam kolonu taşımaz; zincirin ilk halkası hiç dolmaz, hesabın yoksa kategorinin varsayılanı kullanılır, ikisi de boşsa `imports.scope_unresolved` |
 | `GET /api/v1/exports/transactions.csv` | `scope` | Dosya her satırın kapsamını `type`'ın yanında taşır. Dışa aktarma okumak ve arşivlemek içindir; aynı dosya içe aktarılamaz (istemci tanır ve reddeder), veri taşımanın yolu yedek/geri yüklemedir |
+| `GET /api/v1/accountant-package` | kapsam **sabit** `business` | Ay sonu paketi; kapsam parametresi almaz. Şahsi kayıt pakete girmez ve bu bir test kapısıdır. Toplamlar aynı ayın işletme raporundan gelir, ikinci hesaplama yolu yoktur |
+| `GET /api/v1/exports/accountant-package.zip` | kapsam **sabit** `business` | Aynı paketin tek dosya hâli (`summary.csv`, `lines.csv`, `attachments.csv` ve kayda bağlı belgeler). Dosya kullanıcının kendi cihazından paylaşılır; sunucu üçüncü kişiye hiçbir şey göndermez |
+| `GET /api/v1/tax-calendar/suggestions` | — | Hazır takvim kalemleri; owner verisi okumaz, hiçbir şey yazmaz ve tutar taşımaz. Kalem mevcut tekrarlayan plan ucundan kurulur |
 | `GET /api/v1/exports/counterparty-ledger.csv` | `scope` (yalnız borçlandırma satırlarında) | Cari defterin dökümü; owner kapsamlı, `ICurrentUser`'dan türetilir. Borçlandırma kategori ve kapsam taşır, hesap kolonu boştur; tahsilat hesap taşır, kategori ve kapsam kolonları boştur (ADR 0014) — `kind` kolonu hangisinin okunacağını söyler. İşlem CSV'sine kolon eklenmedi: o dosya `BudgetTransaction` dökümüdür ve cari hareket orada bulunmaz. Bu dosya da geri yüklenemez |
 
 Kart ödemesi ve transfer endpoint'leri kapsam **almaz**: gelir/gider raporuna

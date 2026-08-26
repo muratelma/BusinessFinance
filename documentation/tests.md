@@ -1116,3 +1116,17 @@ planlanan ekranının iki testi de kırmızıya düştü.
 | Gerçek tutar kayda geçiyor | `TaxCalendarEndpointTests.Realizing_WritesTheAmountTheUserActuallyOwes_WithoutChangingThePlan` | Hareket ₺2.450,75; plan ₺1.000,00 |
 | Okunamayan tutar uydurulmuyor | `TaxCalendarEndpointTests.Realizing_WithAnUnreadableAmount_IsRefused` | `recurring.invalid_amount` |
 
+## Ay sonu muhasebeci paketi (26 Ağustos 2026, Aşama 05 Grup 5)
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Toplamlar raporla birebir | `AccountantPackageEndpointTests.Package_MatchesTheBusinessReport_AndLeaksNoPersonalRecord` | Paket = işletme raporu; satırların toplamı da aynı |
+| Şahsi kayıt sızmıyor | aynı test | Şahsi işlem kimliği cevabın hiçbir yerinde geçmiyor |
+| KDV özeti taşınandan | `AccountantPackageEndpointTests.Package_SummarisesTheCarriedVatAndTheNonDeductibleExpenses` | Gelirde ₺180, giderde ₺20; KDV'siz satırlar sayılıyor |
+| İndirilemeyen ayrı duruyor | aynı test | ₺500 trafik cezası; cevapsızlar ayrıca sayılıyor |
+| Tek dosya, şahsi satırsız | `AccountantPackageEndpointTests.Package_DownloadsAsOneFile_WithoutAnyPersonalLine` | `summary/lines/attachments.csv`; `scope,business` |
+| Belge pakete giriyor | `AccountantPackageEndpointTests.Package_CarriesTheDocumentsAttachedToItsLines` | `attachments/…-fis.png` ve satırdaki ek sayısı |
+| Paket sahibine kapsamlı | `AccountantPackageEndpointTests.Package_IsScopedToItsOwner` | Başkasının ayı boş, hata değil |
+| Olmayan dönem reddediliyor | `AccountantPackageEndpointTests.Package_WithAnImpossiblePeriod_IsRefused` | `accountant_package.invalid_period` |
+| Gerçek SQL'de çalışıyor | `SqlServerPersistenceIntegrationTests.AccountantPackage_ReadsOnlyBusinessLinesAndMatchesTheReport` | LINQ SQL'e iniyor; POS iki satır; toplam raporla eşit |
+

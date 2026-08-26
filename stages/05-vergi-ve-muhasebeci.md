@@ -157,6 +157,13 @@ ADR'nin karara bağlayacağı üç şey:
 - Mevcut dışa aktarma altyapısı genişletilir; ikinci bir dışa aktarma yolu
   yazılmaz.
 - Ölçüt: paket toplamları rapor toplamlarıyla eşit; şahsi kayıt sızmıyor.
+- **Tamamlandı** (26 Ağustos 2026): `GET /api/v1/accountant-package` önizlemeyi,
+  `GET /api/v1/exports/accountant-package.zip` tek dosyayı veriyor. Toplamlar
+  aynı ayın işletme raporundan okunuyor — ikinci hesaplama yolu yok; satırların
+  toplamı da ona eşit (birim + gerçek SQL testi). Kapsam parametresi yok,
+  `Business` sabit. Dosyada `summary.csv`, `lines.csv`, `attachments.csv` ve
+  `attachments/` altında kayda bağlı belgeler var; boyut tavanını aşan ek
+  listede kalıyor ama dosyası konmuyor.
 
 ### Grup 6 — Karşılık olarak hedefler
 

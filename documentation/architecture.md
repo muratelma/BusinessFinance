@@ -1056,6 +1056,39 @@ bu dönemdir, plan değil. Bu yalnız verginin sorunu değildi; elektrik faturas
 gibi her dönem değişen her kalem beklentiyi gerçekleşmiş hareket olarak
 yazıyordu.
 
+### Ay sonu muhasebeci paketi
+
+Paket **ikinci bir hesaplama yolu değildir**. Toplamları aynı ayın işletme
+raporundan (`IFinancialReportRepository.GetMonthlyAsync`, kapsam `Business`)
+okur; satır listesi o toplamın dökümüdür ve toplamına eşit olduğu hem birim hem
+gerçek SQL testiyle sabitlenir. İki ayrı toplama yolu bırakılsaydı, ayrıştıkları
+gün hangisinin doğru olduğunu kimse bilemezdi.
+
+**Kapsam parametresi yoktur.** Filtre çağırana bırakılmaz, `Business` olarak
+sabittir: paket muhasebeciye gider ve şahsi kayıt ona ait değildir. Bu bir
+yorum değil, çıkış koşulu — pakette şahsi bir kayıt kimliğinin geçmediğini
+ayrı bir test tutuyor.
+
+Satırlar raporun okuduğu **aynı kaynakları aynı filtrelerle** okur; tek farkı
+toplamak yerine satır döndürmesidir: işlem, kart harcaması, cari borçlandırma,
+yükümlülük, POS satışı + komisyonu, borç açılışı ve ödenen taksitin faiz payı.
+POS iki satırdır (brüt satış ve ayrı komisyon, ADR 0015); netten tek satır
+yazmak kesilen faturayı küçültürdü.
+
+Paket tek dosyadır: `GET /api/v1/exports/accountant-package.zip` — mevcut dışa
+aktarma ailesinin içinde, `PortableFile` ile. İçinde `summary.csv` (toplamlar,
+KDV özeti, indirilemeyen kalem sayısı), `lines.csv` (satır dökümü) ve
+`attachments.csv` ile `attachments/` altında kayda bağlı belgeler durur.
+Eklerin toplam boyutu bir tavan taşır; tavanı aşan ek **listede kalır ama
+dosyası konmaz** (`isIncluded=false`) — eksik paketi tam sanmak, eksik olduğunu
+bilerek göndermekten kötüdür. Dosya kullanıcının kendi cihazından paylaşılır;
+sunucu üçüncü kişiye hiçbir şey göndermez.
+
+KDV özeti **taşınan alanların toplamıdır**, hesaplanan bir vergi değil: KDV
+yazılmamış satırlar ayrıca sayılır (`linesWithoutVat`), indirilebilirlik
+cevaplanmamış giderler de (`deductibilityUnansweredCount`) — muhasebeci neyi
+soracağını böyle görür.
+
 ## Planlama ve read-model mimarisi
 
 ```text

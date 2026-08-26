@@ -1408,3 +1408,25 @@ edene kadar Grup 2 ve sonrasının koduna başlanmaz.
   yazıyordu
 - Geçen kontroller: backend build (0 uyarı) + format temiz + **970 test geçti**,
   1 atlandı (canlı Gemini)
+
+## 26 Ağustos 2026 — Aşama 05 Grup 5: ay sonu muhasebeci paketi
+
+- `GET /api/v1/accountant-package?year=&month=` önizlemeyi,
+  `GET /api/v1/exports/accountant-package.zip` tek dosyayı veriyor. İkincisi
+  mevcut dışa aktarma ailesinin içinde ve `PortableFile` kullanıyor
+- **Toplamlar aynı ayın işletme raporundan** okunuyor; paket ikinci bir
+  hesaplama yolu açmıyor. Satır listesi o toplamın dökümü ve toplamına eşit
+  olduğu hem API hem gerçek SQL testiyle tutuluyor
+- **Kapsam parametresi yok**: filtre `Business` olarak sabit, çünkü paket
+  muhasebeciye gidiyor. Şahsi kayıt kimliğinin cevabın hiçbir yerinde
+  geçmediğini ayrı bir test tutuyor
+- Satırlar raporun okuduğu aynı yedi kaynağı aynı filtrelerle okuyor: işlem,
+  kart harcaması, cari borçlandırma, yükümlülük, POS satışı + komisyonu, borç
+  açılışı, ödenen taksitin faiz payı. POS iki satır (ADR 0015)
+- Dosyada `summary.csv`, `lines.csv`, `attachments.csv` ve `attachments/`
+  altında kayda bağlı belgeler var. Eklerin toplam boyutu 20 MB tavanı taşıyor;
+  aşan ek listede kalıyor ama dosyası konmuyor (`isIncluded=false`)
+- KDV özeti taşınan alanların toplamı; KDV yazılmamış satırlar ve
+  indirilebilirliği cevaplanmamış giderler ayrıca sayılıyor
+- Geçen kontroller: backend build (0 uyarı) + format temiz + **977 test geçti**,
+  1 atlandı (canlı Gemini)

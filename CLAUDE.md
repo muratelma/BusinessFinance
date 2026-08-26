@@ -252,6 +252,12 @@ gerekçesiyle bozulmaz.
   beklentidir: gerçekleştirme isteği isteğe bağlı bir tutar taşır, kayda o
   geçer ve **planın tutarı değişmez**; yalnız bekleyen occurrence düzeltilebilir.
 
+- **Muhasebeci paketi ikinci bir hesaplama yolu değildir** (Aşama 05 Grup 5).
+  Toplamlarını aynı ayın **işletme** raporundan alır; satırlar o toplamın
+  dökümüdür. Kapsam parametresi yoktur, `Business` sabittir — pakete şahsi
+  hiçbir kayıt girmez ve bu bir test kapısıdır. Dosya mevcut dışa aktarma
+  ailesindedir (`/api/v1/exports/accountant-package.zip`).
+
 - **Kapsam tek yerde türetilir** (`TransactionScopeResolution`): kullanıcının
   açık seçimi → hesabın/kartın etiketi → kategorinin varsayılanı. Üçü de boşsa
   istek `*.scope_unresolved` ile reddedilir; sunucu kapsam **uydurmaz**.

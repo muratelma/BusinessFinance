@@ -25,7 +25,9 @@ using BusinessFinance.Application.RecurringTransactions;
 using BusinessFinance.Application.UpcomingPayments;
 using BusinessFinance.Application.FinancialActivities;
 using BusinessFinance.Application.Imports;
+using BusinessFinance.Application.Taxes;
 using BusinessFinance.Infrastructure.Imports;
+using BusinessFinance.Infrastructure.Taxes;
 using System.Text.Json.Nodes;
 using System.Security.Cryptography;
 using System.Text;
@@ -3887,6 +3889,76 @@ public sealed class SqlServerPersistenceIntegrationTests
         category.Name,
         (byte)category.Type,
         scope is TransactionScope value ? (int)value : (int?)null);
+
+    /// <summary>
+    /// Aşama 05 Grup 5: muhasebeci paketinin satırları gerçek SQL'de çalışıyor,
+    /// yalnız işletme kapsamını taşıyor ve toplamı aynı ayın işletme raporuyla
+    /// birebir tutuyor (ADR 0016).
+    /// </summary>
+    [SqlServerFact]
+    public async Task AccountantPackage_ReadsOnlyBusinessLinesAndMatchesTheReport()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var user = CreateUser("accountant-package@example.test");
+        await database.SeedUsersAsync(user);
+        var personalId = Guid.NewGuid();
+
+        await using (var seed = database.CreateContext())
+        {
+            var account = new Account(
+                Guid.NewGuid(), user.Id, "Banka", AccountType.Bank, CurrencyCode.TRY, 10000m);
+            var expense = new Category(
+                Guid.NewGuid(), user.Id, "Ticari mal", CategoryType.Expense, null, true);
+            var income = new Category(Guid.NewGuid(), user.Id, "Satış", CategoryType.Income);
+            var commission = new Category(
+                Guid.NewGuid(), user.Id, "Banka ve POS komisyonu", CategoryType.Expense);
+            seed.AddRange(account, expense, income, commission);
+            seed.Transactions.AddRange(
+                new BudgetTransaction(
+                    Guid.NewGuid(), user.Id, account, expense,
+                    new Money(120m, CurrencyCode.TRY), TransactionType.Expense,
+                    TransactionScope.Business, new DateOnly(2026, 8, 5),
+                    "Ticari mal", new VatDetails(0.20m, 20m), isTaxDeductible: true),
+                new BudgetTransaction(
+                    personalId, user.Id, account, expense,
+                    new Money(300m, CurrencyCode.TRY), TransactionType.Expense,
+                    TransactionScope.Personal, new DateOnly(2026, 8, 7)));
+            seed.PosSettlements.Add(new PosSettlement(
+                Guid.NewGuid(), user.Id, account, income,
+                new Money(1080m, CurrencyCode.TRY), 30m, TransactionScope.Business,
+                new DateOnly(2026, 8, 9), new DateOnly(2026, 8, 11),
+                new DateTimeOffset(2026, 8, 9, 9, 0, 0, TimeSpan.Zero),
+                commission, "Kartlı satış", new VatDetails(0.20m, 180m)));
+            await seed.SaveChangesAsync(CancellationToken.None);
+        }
+
+        await using var services = CreateServiceProvider(database.ConnectionString);
+        await using var scope = services.CreateAsyncScope();
+        var packageRepository = scope.ServiceProvider
+            .GetRequiredService<IAccountantPackageRepository>();
+        var reportRepository = scope.ServiceProvider
+            .GetRequiredService<IFinancialReportRepository>();
+        var lines = await packageRepository.ListBusinessLinesAsync(
+            user.Id, 2026, 8, CancellationToken.None);
+        var report = await reportRepository.GetMonthlyAsync(
+            user.Id, 2026, 8, TransactionScope.Business, CancellationToken.None);
+
+        // Şahsi kayıt satırlarda yok.
+        Assert.DoesNotContain(lines, line => line.SourceId == personalId);
+
+        // Satırların toplamı raporun toplamıyla birebir: iki hesaplama yolu yok.
+        Assert.Equal(
+            report.TotalIncome,
+            lines.Where(line => line.Type == TransactionType.Income).Sum(line => line.Amount));
+        Assert.Equal(
+            report.TotalExpense,
+            lines.Where(line => line.Type == TransactionType.Expense).Sum(line => line.Amount));
+
+        // POS tahsilatı iki satır: brüt satış ve ayrı komisyon.
+        Assert.Contains(lines, line => line.Source == "pos-sale" && line.Amount == 1080m);
+        Assert.Contains(lines, line => line.Source == "pos-commission" && line.Amount == 30m);
+        Assert.Contains(lines, line => line.VatAmount == 20m && line.IsTaxDeductible == true);
+    }
 
     private static ApplicationUser CreateUser(string email)
     {

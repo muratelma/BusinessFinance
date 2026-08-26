@@ -16,8 +16,10 @@ using BusinessFinance.Infrastructure.Accounts;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.Transactions;
 using BusinessFinance.Application.Pos;
+using BusinessFinance.Application.Taxes;
 using BusinessFinance.Application.Profiles;
 using BusinessFinance.Infrastructure.Pos;
+using BusinessFinance.Infrastructure.Taxes;
 using BusinessFinance.Infrastructure.Profiles;
 using BusinessFinance.Infrastructure.Categories;
 using BusinessFinance.Infrastructure.Transactions;
@@ -127,6 +129,7 @@ public static class DependencyInjection
         services.AddScoped<IObligationRepository, EfObligationRepository>();
         services.AddScoped<ICashCountRepository, EfCashCountRepository>();
         services.AddScoped<IPosSettlementRepository, EfPosSettlementRepository>();
+        services.AddScoped<IAccountantPackageRepository, EfAccountantPackageRepository>();
         services.AddScoped<ISavingsGoalRepository, EfSavingsGoalRepository>();
         services.AddScoped<IAttachmentRepository, EfAttachmentRepository>();
         services.AddSingleton<IAttachmentFileInspector, AttachmentFileInspector>();
