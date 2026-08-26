@@ -347,15 +347,17 @@ public sealed class RecurringTransaction
         {
             RecurrenceFrequency.Daily => occurrenceDate.AddDays(1),
             RecurrenceFrequency.Weekly => occurrenceDate.AddDays(7),
-            RecurrenceFrequency.Monthly => FindMonthlyDate(occurrenceDate),
+            RecurrenceFrequency.Monthly => FindMonthlyDate(occurrenceDate, monthStep: 1),
+            RecurrenceFrequency.Quarterly => FindMonthlyDate(occurrenceDate, monthStep: 3),
             RecurrenceFrequency.Yearly => FindYearlyDate(occurrenceDate),
             _ => throw new InvalidOperationException("Recurrence frequency is not supported.")
         };
     }
 
-    private DateOnly FindMonthlyDate(DateOnly occurrenceDate)
+    private DateOnly FindMonthlyDate(DateOnly occurrenceDate, int monthStep)
     {
-        var targetMonth = new DateOnly(occurrenceDate.Year, occurrenceDate.Month, 1).AddMonths(1);
+        var targetMonth = new DateOnly(occurrenceDate.Year, occurrenceDate.Month, 1)
+            .AddMonths(monthStep);
         while (true)
         {
             var daysInMonth = DateTime.DaysInMonth(targetMonth.Year, targetMonth.Month);
@@ -369,7 +371,7 @@ public sealed class RecurringTransaction
                 return new DateOnly(targetMonth.Year, targetMonth.Month, daysInMonth);
             }
 
-            targetMonth = targetMonth.AddMonths(1);
+            targetMonth = targetMonth.AddMonths(monthStep);
         }
     }
 

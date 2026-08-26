@@ -447,8 +447,22 @@ satırı plan ve tarih adresleyen uçla gerçekleştirir:
 
 ```text
 POST /api/v1/recurring-transactions/{planId}/occurrences/realize
-{ "scheduledDate": "2026-08-31" }
+{ "scheduledDate": "2026-08-31", "amount": "2450.7500" }
 ```
+
+`amount` **isteğe bağlıdır** ve bu dönemin gerçek tutarıdır; boş bırakmak
+"plandaki tutar doğru" demektir. Plandaki tutar bir **beklentidir** ve bazı
+kalemlerde her dönem değişir (elektrik faturası, KDV beyanı, geçici vergi);
+gönderilen tutar yalnız bu dönemin kaydına geçer, **planın tutarı değişmez**.
+Aynı isteğe bağlı alan occurrence adresleyen uçta da vardır
+(`POST /api/v1/recurring-transactions/occurrences/{occurrenceId}/realize`).
+Okunamayan bir tutar `recurring.invalid_amount` ile reddedilir; sunucu bir değer
+uydurmaz. Gerçekleşmiş bir occurrence'ın tutarı **yeniden yazılamaz** —
+düzeltmesi iptal + yeni kayıttır.
+
+`frequency` alanı `daily`, `weekly`, `monthly`, `quarterly` ve `yearly`
+değerlerini alır; `quarterly` üç ayda birdir (geçici verginin ritmi) ve ay sonu
+davranışı aylıkla aynıdır.
 
 Sunucu eksik occurrence'ı kendi üretip gerçekleştirir; iki adım tek karara
 iner. Önceki sözleşmede `actionTargetId` burada `null` idi ve istemcinin

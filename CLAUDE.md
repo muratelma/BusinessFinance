@@ -246,6 +246,12 @@ gerekçesiyle bozulmaz.
   varsayılanı; bulunamazsa istek **reddedilmez**, boş kalır. İşletme netini
   değiştirmez; etkilediği tek çıktı muhasebeci paketidir.
 
+- **Vergi/SGK takvimi ayrı bir altyapı değildir** (ADR 0016, Aşama 05 Grup 4).
+  Takvim kalemi tekrarlayan bir plandır; `GET /api/v1/tax-calendar/suggestions`
+  yalnız **tutarsız öneri** döner ve hiçbir şey yazmaz. Plandaki tutar bir
+  beklentidir: gerçekleştirme isteği isteğe bağlı bir tutar taşır, kayda o
+  geçer ve **planın tutarı değişmez**; yalnız bekleyen occurrence düzeltilebilir.
+
 - **Kapsam tek yerde türetilir** (`TransactionScopeResolution`): kullanıcının
   açık seçimi → hesabın/kartın etiketi → kategorinin varsayılanı. Üçü de boşsa
   istek `*.scope_unresolved` ile reddedilir; sunucu kapsam **uydurmaz**.

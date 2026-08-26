@@ -1027,6 +1027,35 @@ ve rapora girer. Etkilediği tek çıktı muhasebeci paketidir. SQL tarafında i
 kapı `CK_*_IsTaxDeductible` kısıtlarıdır: cevap yalnız işletme kapsamlı gider
 satırında bulunabilir, kategori varsayılanı yalnız gider kategorisinde.
 
+### Vergi ve SGK takvimi: yeni bir zamanlayıcı yok
+
+Takvim kalemi **tekrarlayan bir plandır**. Yeni tablo, yeni zamanlayıcı ve
+ikinci bir "yaklaşanlar" kaynağı yoktur; kalem planlanan projection'a diğer
+planlarla aynı yoldan düşer, aynı yoldan duraklatılır ve silinir.
+
+`GET /api/v1/tax-calendar/suggestions` hazır kalemleri döner: KDV beyanı,
+muhtasar, SGK/Bağkur primi ve geçici vergi. Bu uç **hiçbir şey yazmaz** —
+kalem, önerinin doldurduğu formla mevcut `POST /api/v1/recurring-transactions`
+ucundan kurulur. İkinci bir yazma yolu, aynı planın iki ayrı biçimde
+oluşabilmesi olurdu.
+
+Öneri **tutar taşımaz**: bir sayı önermek, hesaplanmış bir vergi tutarı iddia
+etmek olurdu (ADR 0016). Önerilen gün bir başlangıç noktasıdır; kurulduğu andan
+sonra tarih de tutar da kullanıcınındır ve uygulama onları kendiliğinden
+güncellemez. Mevzuat takibi yapılmadığı arayüzde yazılıdır.
+
+**Çeyreklik dönem** (`RecurrenceFrequency.Quarterly`) eklendi: geçici verginin
+ritmi budur. Ayrı bir hesap yolu değil, aylık adımın üç aylık hâlidir — ay sonu
+davranışı (kısa ayda son güne çekme) aynı kuralı izler.
+
+**Plandaki tutar bir beklentidir.** Gerçekleştirme isteği isteğe bağlı bir tutar
+taşır ve kayda o yazılır; boş bırakmak "plandaki tutar doğru" demektir. Yalnız
+**bekleyen** occurrence düzeltilebilir — gerçekleşmiş olan geçmiştir ve
+düzeltmesi iptal + yeni kayıttır. **Planın kendi tutarı değişmez**: düzeltilen
+bu dönemdir, plan değil. Bu yalnız verginin sorunu değildi; elektrik faturası
+gibi her dönem değişen her kalem beklentiyi gerçekleşmiş hareket olarak
+yazıyordu.
+
 ## Planlama ve read-model mimarisi
 
 ```text

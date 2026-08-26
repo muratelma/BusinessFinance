@@ -15,7 +15,7 @@ internal sealed class RecurringTransactionConfiguration : IEntityTypeConfigurati
             table.HasCheckConstraint("CK_RecurringTransactions_Currency", "[Currency] = 1");
             table.HasCheckConstraint("CK_RecurringTransactions_Kind", "[Kind] IN (1, 2, 3)");
             table.HasCheckConstraint("CK_RecurringTransactions_Scope", "[Scope] IN (1, 2)");
-            table.HasCheckConstraint("CK_RecurringTransactions_Frequency", "[Frequency] IN (1, 2, 3, 4)");
+            table.HasCheckConstraint("CK_RecurringTransactions_Frequency", "[Frequency] IN (1, 2, 3, 4, 5)");
             table.HasCheckConstraint("CK_RecurringTransactions_MonthEndBehavior", "[MonthEndBehavior] IN (1, 2)");
             table.HasCheckConstraint(
                 "CK_RecurringTransactions_DateRange",

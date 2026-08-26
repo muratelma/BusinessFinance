@@ -85,7 +85,17 @@ public sealed record GenerateRecurringOccurrencesResult(
     IReadOnlyList<RecurringOccurrenceDto> GeneratedOccurrences,
     bool HasMoreDue);
 
-public sealed record RealizeRecurringOccurrenceCommand(Guid OccurrenceId);
+/// <summary>
+/// Bekleyen bir occurrence'ı gerçekleştirir.
+/// </summary>
+/// <param name="Amount">
+/// Bu dönemin gerçek tutarı; boşsa plandaki tutar yazılır. Planın tutarı bir
+/// <b>beklentidir</b> ve bazı kalemlerde her dönem değişir (elektrik faturası,
+/// KDV beyanı, geçici vergi); beklentiyi gerçekleşmiş hareket olarak yazmak
+/// olmamış bir tutarı finansal geçmişe koymak olurdu. Planın kendi tutarı
+/// değişmez — düzeltilen bu dönemdir.
+/// </param>
+public sealed record RealizeRecurringOccurrenceCommand(Guid OccurrenceId, decimal? Amount = null);
 
 /// <summary>
 /// Realize the recurring item that falls on one date, generating its occurrence
@@ -107,7 +117,8 @@ public sealed record RealizeRecurringOccurrenceCommand(Guid OccurrenceId);
 /// </remarks>
 public sealed record RealizeDueRecurringCommand(
     Guid RecurringTransactionId,
-    DateOnly ScheduledDate);
+    DateOnly ScheduledDate,
+    decimal? Amount = null);
 
 public sealed record DeleteRecurringTransactionCommand(Guid RecurringTransactionId);
 

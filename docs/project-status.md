@@ -1386,3 +1386,25 @@ edene kadar Grup 2 ve sonrasının koduna başlanmaz.
   model, canlandırdıkları eski şemada olmayan bir kolon taşıyor
 - Geçen kontroller: backend build (0 uyarı) + format temiz + **961 test geçti**,
   1 atlandı (canlı Gemini)
+
+## 26 Ağustos 2026 — Aşama 05 Grup 4: vergi ve SGK takvimi
+
+- Takvim kalemi **tekrarlayan bir plandır**: yeni tablo, yeni zamanlayıcı ve
+  ikinci bir "yaklaşanlar" kaynağı yok. Kalem planlanan projection'a diğer
+  planlarla aynı yoldan düşüyor, aynı yoldan duraklatılıp siliniyor
+- `GET /api/v1/tax-calendar/suggestions` dört hazır kalemi öneriyor (KDV beyanı,
+  muhtasar, SGK/Bağkur primi, geçici vergi) ve **hiçbir şey yazmıyor**; kurulum
+  mevcut `POST /api/v1/recurring-transactions` ucundan yapılıyor
+- Öneri **tutar taşımıyor**: bir sayı önermek hesaplanmış vergi tutarı iddia
+  etmek olurdu. Önerilen gün başlangıç noktası; kurulduktan sonra tarih de tutar
+  da kullanıcınındır
+- `RecurrenceFrequency.Quarterly` eklendi (geçici verginin ritmi). Ayrı bir
+  hesap yolu değil, aylık adımın üç aylık hâli; ay sonu davranışı aynı.
+  `AddQuarterlyRecurrence` migration'ı CHECK kısıtını genişletti
+- **Plandaki tutar bir beklenti**: gerçekleştirme isteği isteğe bağlı bir tutar
+  taşıyor ve kayda o yazılıyor. Yalnız bekleyen occurrence düzeltilebiliyor;
+  planın kendi tutarı değişmiyor. Bu yalnız verginin sorunu değildi — her dönem
+  değişen her kalem (elektrik faturası) beklentiyi gerçekleşmiş hareket olarak
+  yazıyordu
+- Geçen kontroller: backend build (0 uyarı) + format temiz + **970 test geçti**,
+  1 atlandı (canlı Gemini)

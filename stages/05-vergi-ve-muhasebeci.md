@@ -137,6 +137,14 @@ ADR'nin karara bağlayacağı üç şey:
   bunu ekranda yazar.
 - Ölçüt: takvim kalemleri yaklaşanlar listesine düşüyor; kullanıcı düzenleyip
   silebiliyor.
+- **Tamamlandı** (26 Ağustos 2026): takvim kalemi tekrarlayan bir plandır — yeni
+  tablo, yeni zamanlayıcı ve ikinci bir yaklaşanlar kaynağı yok.
+  `GET /api/v1/tax-calendar/suggestions` dört hazır kalemi (KDV beyanı,
+  muhtasar, SGK/Bağkur, geçici vergi) **tutarsız** olarak öneriyor ve hiçbir şey
+  yazmıyor; kalem mevcut tekrarlayan plan ucundan kuruluyor. Geçici verginin
+  ritmi için `RecurrenceFrequency.Quarterly` eklendi (`AddQuarterlyRecurrence`).
+  Gerçekleştirme isteği isteğe bağlı bir tutar taşıyor: plandaki tutar bir
+  beklentidir, kayda kullanıcının yazdığı geçiyor ve planın tutarı değişmiyor.
 
 ### Grup 5 — Ay sonu muhasebeci paketi
 

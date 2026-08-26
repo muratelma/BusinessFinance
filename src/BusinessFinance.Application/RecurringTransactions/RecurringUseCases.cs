@@ -353,6 +353,24 @@ public sealed class RealizeRecurringOccurrenceUseCase(
                 RecurringErrors.ScheduleInactive);
         }
 
+        // Tutar düzeltmesi gerçekleşmeden önce yapılır ve yalnız bekleyen
+        // occurrence'a uygulanır: gerçekleşmiş olan geçmiştir ve kısa devre
+        // aşağıda aynı sonucu geri verir.
+        if (command.Amount is decimal correctedAmount &&
+            occurrence.Status == RecurringOccurrenceStatus.Planned)
+        {
+            try
+            {
+                occurrence.CorrectAmount(
+                    new Money(correctedAmount, occurrence.Amount.Currency));
+            }
+            catch (ArgumentException exception)
+            {
+                return ApplicationResult<RealizeRecurringOccurrenceResult>.Failure(
+                    RecurringErrors.Validation(exception.Message));
+            }
+        }
+
         var category = await categoryRepository.FindOwnedByIdAsync(
             occurrence.CategoryId, userId, cancellationToken);
 
@@ -638,6 +656,7 @@ public sealed class RealizeDueRecurringUseCase(
         }
 
         return await realize.ExecuteAsync(
-            new RealizeRecurringOccurrenceCommand(occurrence.Id), cancellationToken);
+            new RealizeRecurringOccurrenceCommand(occurrence.Id, command.Amount),
+            cancellationToken);
     }
 }

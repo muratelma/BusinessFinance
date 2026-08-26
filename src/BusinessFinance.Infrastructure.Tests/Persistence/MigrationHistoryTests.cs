@@ -30,7 +30,8 @@ public sealed class MigrationHistoryTests
         "AddRecurringOccurrenceLimit",
         "AddCashCountsAndPosSettlements",
         "AddVatFields",
-        "AddTaxDeductibility"
+        "AddTaxDeductibility",
+        "AddQuarterlyRecurrence"
     ];
 
     [Fact]

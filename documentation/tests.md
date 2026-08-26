@@ -1102,3 +1102,17 @@ planlanan ekranının iki testi de kırmızıya düştü.
 | Set öneriyle açılıyor | `TaxDeductibilityEndpointTests.BusinessCategorySet_OpensWithASuggestionAndLeavesTheJudgementCallBlank` | `Ticari mal alımı` dolu, `SGK ve vergi ödemesi` boş |
 | Gerçek SQL'de gidip geliyor | `SqlServerPersistenceIntegrationTests.TaxDeductibility_RoundTripsAndIsGuardedBySqlAsWellAsTheDomain` | Round-trip + `CK_BudgetTransactions_IsTaxDeductible` |
 
+## Vergi takvimi ve dönemin tutarı (26 Ağustos 2026, Aşama 05 Grup 4)
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Çeyreklik üçer ay ilerliyor | `QuarterlyRecurrenceTests.QuarterlySchedule_StepsThreeMonthsAtATime` | 17 Şub → 17 May → 17 Ağu |
+| Kısa ayda son güne çekiliyor | `QuarterlyRecurrenceTests.QuarterlySchedule_ClampsToTheLastDayOfAShortMonth` | 30 Kas → 28 Şub |
+| Bekleyen tutar düzeltilebiliyor | `QuarterlyRecurrenceTests.PlannedOccurrence_CanBeCorrectedToTheAmountTheUserActuallyOwes` | Occurrence değişiyor, plan değişmiyor |
+| Gerçekleşmiş tutar yeniden yazılamıyor | `QuarterlyRecurrenceTests.RealizedOccurrence_CannotHaveItsAmountRewritten` | Geçmişin üstüne yazılmıyor |
+| Öneriler tutarsız | `TaxCalendarEndpointTests.Suggestions_AreOfferedWithoutAnyAmount` | Dört kalem; cevapta `amount` geçmiyor |
+| Öneriler oturum istiyor | `TaxCalendarEndpointTests.Suggestions_RequireAuthentication` | 401 |
+| Kalem yaklaşanlara düşüyor ve silinebiliyor | `TaxCalendarEndpointTests.ACalendarItem_LandsInTheUpcomingListAndCanBeDeleted` | Çeyreklik plan, `recurring-occurrence` satırı, silince liste boş |
+| Gerçek tutar kayda geçiyor | `TaxCalendarEndpointTests.Realizing_WritesTheAmountTheUserActuallyOwes_WithoutChangingThePlan` | Hareket ₺2.450,75; plan ₺1.000,00 |
+| Okunamayan tutar uydurulmuyor | `TaxCalendarEndpointTests.Realizing_WithAnUnreadableAmount_IsRefused` | `recurring.invalid_amount` |
+

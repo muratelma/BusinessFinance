@@ -14,7 +14,7 @@ public sealed class RecurringTransactionOccurrence
     public Guid? AccountId { get; }
     public Guid? CreditCardId { get; }
     public Guid CategoryId { get; }
-    public Money Amount { get; }
+    public Money Amount { get; private set; }
     public RecurringTransactionKind Kind { get; }
 
     /// <summary>
@@ -108,6 +108,42 @@ public sealed class RecurringTransactionOccurrence
         {
             CreditCardChargeId = creditCardChargeId;
         }
+    }
+
+    /// <summary>
+    /// Gerçekleşmeden önce tutarı kullanıcının gördüğü gerçek tutarla
+    /// değiştirir.
+    /// </summary>
+    /// <remarks>
+    /// Plandaki tutar bir <b>beklentidir</b>; bazı kalemlerde her dönem
+    /// değişir — elektrik faturası, KDV beyanı, geçici vergi. Beklentiyi
+    /// gerçekleşmiş bir hareket olarak yazmak, olmamış bir tutarı finansal
+    /// geçmişe koymak olurdu; ADR 0016'nın "tutar kullanıcınındır" kuralının
+    /// takvim tarafındaki karşılığı budur.
+    ///
+    /// Yalnız <b>gerçekleşmemiş</b> bir occurrence düzeltilebilir: gerçekleşmiş
+    /// olan geçmiştir ve düzeltmesi iptal + yeni kayıttır (silme yerine
+    /// pasifleştirme kuralının aynısı). Plan değişmez — bu dönemin tutarıdır,
+    /// planın tutarı değil.
+    /// </remarks>
+    public void CorrectAmount(Money amount)
+    {
+        ArgumentNullException.ThrowIfNull(amount);
+
+        if (Status != RecurringOccurrenceStatus.Planned)
+        {
+            throw new InvalidOperationException(
+                "Only a planned occurrence can have its amount corrected.");
+        }
+
+        if (amount.Currency != Amount.Currency)
+        {
+            throw new ArgumentException(
+                "The corrected amount must use the same currency.",
+                nameof(amount));
+        }
+
+        Amount = amount;
     }
 
     /// <summary>

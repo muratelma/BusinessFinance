@@ -30,7 +30,16 @@ public sealed record GenerateRecurringOccurrencesRequest(string ThroughDate);
 /// Realize the recurring item that falls on <paramref name="ScheduledDate" />,
 /// generating its occurrence row first if nobody has generated it yet.
 /// </summary>
-public sealed record RealizeDueRecurringRequest(string ScheduledDate);
+public sealed record RealizeDueRecurringRequest(string ScheduledDate, string? Amount = null);
+
+/// <summary>
+/// Gerçekleştirme isteğinin gövdesi; tamamı isteğe bağlıdır.
+/// </summary>
+/// <param name="Amount">
+/// Bu dönemin gerçek tutarı. Boşsa plandaki beklenti yazılır; plan tutarı
+/// hiçbir hâlde değişmez.
+/// </param>
+public sealed record RealizeRecurringOccurrenceRequest(string? Amount = null);
 
 public sealed record RecurringTransactionResponse(
     Guid Id,

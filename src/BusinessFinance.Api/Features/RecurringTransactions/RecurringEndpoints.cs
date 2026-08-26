@@ -93,7 +93,7 @@ public static class RecurringEndpoints
         {
             return ApiProblemResults.Validation(
                 httpContext,
-                "Frequency must be daily, weekly, monthly, or yearly.",
+                "Frequency must be daily, weekly, monthly, quarterly, or yearly.",
                 "recurring.invalid_frequency");
         }
         if (!TryParseMonthEndBehavior(request.MonthEndBehavior, out var monthEndBehavior))
@@ -235,8 +235,13 @@ public static class RecurringEndpoints
                 "recurring.invalid_scheduled_date");
         }
 
+        if (!TryParseCorrectedAmount(request.Amount, httpContext, out var dueAmount, out var dueError))
+        {
+            return dueError!;
+        }
+
         var result = await useCase.ExecuteAsync(
-            new RealizeDueRecurringCommand(recurringTransactionId, scheduledDate),
+            new RealizeDueRecurringCommand(recurringTransactionId, scheduledDate, dueAmount),
             cancellationToken);
         return result.IsSuccess
             ? Results.Ok(ToRealizedResponse(result.Value))
@@ -247,10 +252,16 @@ public static class RecurringEndpoints
         Guid occurrenceId,
         RealizeRecurringOccurrenceUseCase useCase,
         HttpContext httpContext,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        RealizeRecurringOccurrenceRequest? request = null)
     {
+        if (!TryParseCorrectedAmount(request?.Amount, httpContext, out var amount, out var error))
+        {
+            return error!;
+        }
+
         var result = await useCase.ExecuteAsync(
-            new RealizeRecurringOccurrenceCommand(occurrenceId), cancellationToken);
+            new RealizeRecurringOccurrenceCommand(occurrenceId, amount), cancellationToken);
         if (!result.IsSuccess)
         {
             return result.Error.ToProblemResult(httpContext);
@@ -358,6 +369,31 @@ public static class RecurringEndpoints
         return kind != default;
     }
 
+    /// <summary>
+    /// Gerçekleştirme sırasında gönderilen tutar; boş bırakmak meşrudur ve
+    /// "plandaki tutar doğru" demektir.
+    /// </summary>
+    private static bool TryParseCorrectedAmount(
+        string? value,
+        HttpContext httpContext,
+        out decimal? amount,
+        out IResult? error)
+    {
+        error = null;
+        if (!FinanceContract.TryParseOptionalAmount(value, out amount) ||
+            amount is <= 0m)
+        {
+            amount = null;
+            error = ApiProblemResults.Validation(
+                httpContext,
+                "Amount must be greater than zero and have at most four decimal places.",
+                "recurring.invalid_amount");
+            return false;
+        }
+
+        return true;
+    }
+
     private static bool TryParseFrequency(string? value, out RecurrenceFrequency frequency)
     {
         frequency = value?.ToLowerInvariant() switch
@@ -366,6 +402,7 @@ public static class RecurringEndpoints
             "weekly" => RecurrenceFrequency.Weekly,
             "monthly" => RecurrenceFrequency.Monthly,
             "yearly" => RecurrenceFrequency.Yearly,
+            "quarterly" => RecurrenceFrequency.Quarterly,
             _ => default
         };
         return frequency != default;
