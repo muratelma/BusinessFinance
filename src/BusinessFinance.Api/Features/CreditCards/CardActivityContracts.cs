@@ -14,7 +14,10 @@ public sealed record CreateCardChargeRequest(
     // Belgedeki KDV; ikisi de boş bırakılabilir. Sunucu birini diğerinden
     // türetmez (ADR 0016).
     string? VatRate = null,
-    string? VatAmount = null);
+    string? VatAmount = null,
+    // Gider matrahtan düşülebilir mi (ADR 0016). Boş bırakılırsa kategorinin
+    // varsayılanı kullanılır; şahsi kayıtta ve gelirde sorulmaz.
+    bool? IsTaxDeductible = null);
 
 public sealed record CreateCardPaymentRequest(
     Guid AccountId,
@@ -34,7 +37,8 @@ public sealed record CardChargeResponse(
     string? Description,
     bool IsCancelled,
     DateTimeOffset? CancelledAtUtc,
-    VatContract? Vat);
+    VatContract? Vat,
+    bool? IsTaxDeductible);
 
 public sealed record CardPaymentResponse(
     Guid Id,

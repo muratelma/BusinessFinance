@@ -23,7 +23,10 @@ public sealed record CreateTransactionCommand(
 
     // Belgedeki KDV; yoksa boştur (ADR 0016). Sunucu hiçbir vergi tutarını
     // hesaplamaz — ne geldiyse o taşınır.
-    VatDto? Vat = null);
+    VatDto? Vat = null,
+    // Gider matrahtan düşülebilir mi (ADR 0016). Boşsa kategorinin varsayılanı
+    // kullanılır; soru yalnız işletme kapsamlı giderde sorulur.
+    bool? IsTaxDeductible = null);
 
 public sealed class CreateTransactionUseCase(
     ICurrentUser currentUser,
@@ -80,7 +83,12 @@ public sealed class CreateTransactionUseCase(
                 scope,
                 command.TransactionDate,
                 command.Description,
-                command.Vat?.ToDomain());
+                command.Vat?.ToDomain(),
+                TaxDeductibilityResolution.Resolve(
+                    command.IsTaxDeductible,
+                    category.DefaultIsTaxDeductible,
+                    scope,
+                    command.Type == TransactionType.Expense));
         }
         catch (ArgumentException exception)
         {
@@ -109,5 +117,6 @@ public sealed class CreateTransactionUseCase(
         transaction.Description,
         transaction.IsCancelled,
         transaction.CancelledAtUtc,
-        VatDto.From(transaction.Vat));
+        VatDto.From(transaction.Vat),
+        transaction.IsTaxDeductible);
 }

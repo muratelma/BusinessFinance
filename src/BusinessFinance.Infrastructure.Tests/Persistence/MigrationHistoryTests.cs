@@ -29,7 +29,8 @@ public sealed class MigrationHistoryTests
         "AddObligationsAndCounterpartyDueDates",
         "AddRecurringOccurrenceLimit",
         "AddCashCountsAndPosSettlements",
-        "AddVatFields"
+        "AddVatFields",
+        "AddTaxDeductibility"
     ];
 
     [Fact]

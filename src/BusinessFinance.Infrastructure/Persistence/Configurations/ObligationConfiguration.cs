@@ -22,6 +22,9 @@ internal sealed class ObligationConfiguration : IEntityTypeConfiguration<Obligat
             table.HasCheckConstraint(
                 "CK_Obligations_VatAmount",
                 VatDetailsConfiguration.AmountConstraint("Amount"));
+            table.HasCheckConstraint(
+                "CK_Obligations_IsTaxDeductible",
+                "[IsTaxDeductible] IS NULL OR ([Scope] = 1 AND [Direction] = 1)");
         });
 
         builder.HasKey(obligation => obligation.Id);
@@ -45,6 +48,7 @@ internal sealed class ObligationConfiguration : IEntityTypeConfiguration<Obligat
         });
 
         builder.OwnsVat(obligation => obligation.Vat);
+        builder.Property(obligation => obligation.IsTaxDeductible);
 
         builder.HasIndex(obligation => new
         { obligation.UserId, obligation.IsCancelled, obligation.DueDate, obligation.Direction })

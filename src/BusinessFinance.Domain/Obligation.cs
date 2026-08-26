@@ -31,6 +31,13 @@ public sealed class Obligation
     /// </summary>
     public VatDetails? Vat { get; }
 
+    /// <summary>
+    /// Gider matrahtan düşülebilir mi (ADR 0016). Yalnız işletme kapsamlı gider
+    /// kayıtlarında anlamlıdır; boş olması üçüncü bir durum değil, sorunun
+    /// sorulmamış olmasıdır. İşletme netini <b>değiştirmez</b>.
+    /// </summary>
+    public bool? IsTaxDeductible { get; }
+
     public DateTimeOffset CreatedAtUtc { get; }
     public ObligationSettlement? Settlement => _settlement;
     public bool IsCancelled { get; private set; }
@@ -63,7 +70,8 @@ public sealed class Obligation
         DateTimeOffset createdAtUtc,
         Counterparty? counterparty = null,
         string? description = null,
-        VatDetails? vat = null)
+        VatDetails? vat = null,
+        bool? isTaxDeductible = null)
     {
         if (id == Guid.Empty)
         {
@@ -124,6 +132,11 @@ public sealed class Obligation
         }
 
         VatDetails.EnsureWithinAmount(vat, amount, nameof(vat));
+        var deductibility = TaxDeductibility.Validate(
+            isTaxDeductible,
+            scope,
+            direction == DebtDirection.Payable,
+            nameof(isTaxDeductible));
 
         Id = id;
         UserId = userId;
@@ -137,6 +150,7 @@ public sealed class Obligation
         CreatedAtUtc = createdAtUtc;
         Description = NormalizeDescription(description);
         Vat = vat;
+        IsTaxDeductible = deductibility;
     }
 
     public static CategoryType RequiredCategoryType(DebtDirection direction) => direction switch

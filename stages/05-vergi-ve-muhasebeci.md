@@ -116,6 +116,16 @@ ADR'nin karara bağlayacağı üç şey:
   giden ilk adımdır. Alan iki durumludur; kısmi durumlar muhasebecinin işidir
   ve pakette not olarak taşınır.
 - Ölçüt: işletme neti indirilebilirlikten etkilenmiyor; yalnız paket etkileniyor.
+- **Tamamlandı** (26 Ağustos 2026): `IsTaxDeductible` gider **tanıyan** dört
+  kayda eklendi (`BudgetTransaction` yalnız gider, `CreditCardCharge`,
+  `CounterpartyCharge` ve `Obligation` yalnız borç yönünde). Kapsamdan ayrı, iki
+  durumlu; şahsi kayıtta ve gelirde soru sorulmaz ve açık cevap **reddedilir**.
+  `Category.DefaultIsTaxDeductible` ve `TaxDeductibilityResolution` zinciri
+  (açık seçim → kategori varsayılanı) eklendi; soru sorulmayan kayıtta
+  kategorinin varsayılanı sessizce düşüyor. İşletme kategori seti gider
+  kalemlerini `true` önerisiyle açıyor, `SGK ve vergi ödemesi` boş kalıyor.
+  `AddTaxDeductibility` migration'ı beş tabloya nullable kolon ve beş CHECK
+  kısıtı ekledi. İşletme neti etkilenmiyor: indirilemeyen gider de gider.
 
 ### Grup 4 — Vergi ve SGK takvimi
 

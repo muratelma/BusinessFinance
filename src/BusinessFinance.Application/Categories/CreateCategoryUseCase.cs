@@ -7,7 +7,11 @@ namespace BusinessFinance.Application.Categories;
 public sealed record CreateCategoryCommand(
     string Name,
     CategoryType Type,
-    TransactionScope? DefaultScope = null);
+    TransactionScope? DefaultScope = null,
+
+    // Yalnız gider kategorisinde anlamlı (ADR 0016); boş bırakmak "bu kategori
+    // cevabı belirlemiyor" demektir.
+    bool? DefaultIsTaxDeductible = null);
 
 public sealed class CreateCategoryUseCase(
     ICurrentUser currentUser,
@@ -29,7 +33,12 @@ public sealed class CreateCategoryUseCase(
         try
         {
             category = new Category(
-                Guid.NewGuid(), userId, command.Name, command.Type, command.DefaultScope);
+                Guid.NewGuid(),
+                userId,
+                command.Name,
+                command.Type,
+                command.DefaultScope,
+                command.DefaultIsTaxDeductible);
         }
         catch (ArgumentException exception)
         {
@@ -56,5 +65,6 @@ public sealed class CreateCategoryUseCase(
         category.Name,
         category.Type,
         category.IsActive,
-        category.DefaultScope);
+        category.DefaultScope,
+        category.DefaultIsTaxDeductible);
 }

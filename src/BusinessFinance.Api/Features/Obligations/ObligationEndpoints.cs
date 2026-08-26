@@ -132,7 +132,8 @@ public static class ObligationEndpoints
                 dueDate,
                 request.CounterpartyId,
                 request.Description,
-                vat),
+                vat,
+                request.IsTaxDeductible),
             cancellationToken);
         if (!result.IsSuccess)
         {
@@ -202,5 +203,6 @@ public static class ObligationEndpoints
         obligation.SettlementDate is DateOnly settlementDate
             ? FinanceContract.Date(settlementDate)
             : null,
-        VatContractMapper.ToContract(obligation.Vat));
+        VatContractMapper.ToContract(obligation.Vat),
+        obligation.IsTaxDeductible);
 }

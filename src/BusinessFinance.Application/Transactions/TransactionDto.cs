@@ -15,4 +15,5 @@ public sealed record TransactionDto(
     string? Description,
     bool IsCancelled,
     DateTimeOffset? CancelledAtUtc,
-    VatDto? Vat);
+    VatDto? Vat,
+    bool? IsTaxDeductible = null);

@@ -235,7 +235,8 @@ public static class CounterpartyEndpoints
                 chargeDate,
                 request.Description,
                 dueDate,
-                vat),
+                vat,
+                request.IsTaxDeductible),
             cancellationToken);
         if (!result.IsSuccess)
         {
@@ -442,7 +443,8 @@ public static class CounterpartyEndpoints
         charge.Description,
         charge.IsCancelled,
         charge.DueDate is DateOnly dueDate ? FinanceContract.Date(dueDate) : null,
-        VatContractMapper.ToContract(charge.Vat));
+        VatContractMapper.ToContract(charge.Vat),
+        charge.IsTaxDeductible);
 
     private static CounterpartyPaymentResponse ToPaymentResponse(CounterpartyPaymentDto payment) => new(
         payment.Id,

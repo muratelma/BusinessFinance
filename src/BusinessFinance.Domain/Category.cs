@@ -20,12 +20,26 @@ public sealed class Category
     /// </remarks>
     public TransactionScope? DefaultScope { get; private set; }
 
+    /// <summary>
+    /// Bu kategoriye yazılan giderlerin indirilebilirlik varsayılanı
+    /// (ADR 0016). Yalnız gider kategorisinde anlamlıdır.
+    /// </summary>
+    /// <remarks>
+    /// Boş olması meşrudur ve "bu kategori cevabı belirlemiyor" demektir.
+    /// Ticari mal alımı indirilir, trafik cezası indirilmez — ikisi de aynı
+    /// kullanıcının işletme gideridir, ayıran şey kategoridir. Kullanıcı her
+    /// kayıtta varsayılanı düzeltebilir; varsayılanı sonradan değiştirmek
+    /// <b>geçmiş kayıtları değiştirmez</b>, tıpkı kapsam etiketinde olduğu gibi.
+    /// </remarks>
+    public bool? DefaultIsTaxDeductible { get; private set; }
+
     public Category(
         Guid id,
         Guid userId,
         string name,
         CategoryType type,
-        TransactionScope? defaultScope = null)
+        TransactionScope? defaultScope = null,
+        bool? defaultIsTaxDeductible = null)
     {
         if (id == Guid.Empty)
         {
@@ -66,6 +80,10 @@ public sealed class Category
         DefaultScope = TransactionScopeGuard.ValidateOptional(
             defaultScope,
             nameof(defaultScope));
+        DefaultIsTaxDeductible = ValidateDeductibilityDefault(
+            defaultIsTaxDeductible,
+            type,
+            nameof(defaultIsTaxDeductible));
     }
 
     /// <summary>
@@ -78,6 +96,32 @@ public sealed class Category
             nameof(defaultScope));
     }
 
+
+    /// <summary>
+    /// İndirilebilirlik varsayılanını belirler; <c>null</c> vermek kaldırır.
+    /// </summary>
+    public void SetDefaultTaxDeductibility(bool? defaultIsTaxDeductible)
+    {
+        DefaultIsTaxDeductible = ValidateDeductibilityDefault(
+            defaultIsTaxDeductible,
+            Type,
+            nameof(defaultIsTaxDeductible));
+    }
+
+    private static bool? ValidateDeductibilityDefault(
+        bool? defaultIsTaxDeductible,
+        CategoryType type,
+        string parameterName)
+    {
+        if (defaultIsTaxDeductible is not null && type != CategoryType.Expense)
+        {
+            throw new ArgumentException(
+                "Only an expense category can carry a tax deductibility default.",
+                parameterName);
+        }
+
+        return defaultIsTaxDeductible;
+    }
 
     public void Deactivate()
     {

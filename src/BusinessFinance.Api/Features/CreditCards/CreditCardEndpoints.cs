@@ -180,7 +180,7 @@ public static class CreditCardEndpoints
 
         var result = await useCase.ExecuteAsync(new CreateCardChargeCommand(
             creditCardId, request.CategoryId, amount, CurrencyCode.TRY, scope, date,
-            request.Description, vat),
+            request.Description, vat, request.IsTaxDeductible),
             cancellationToken);
         if (!result.IsSuccess) return result.Error.ToProblemResult(httpContext);
         var response = ToChargeResponse(result.Value);
@@ -483,7 +483,8 @@ public static class CreditCardEndpoints
         charge.Description,
         charge.IsCancelled,
         charge.CancelledAtUtc,
-        VatContractMapper.ToContract(charge.Vat));
+        VatContractMapper.ToContract(charge.Vat),
+        charge.IsTaxDeductible);
 
     internal static CardPaymentResponse ToPaymentResponse(CardPaymentDto payment) => new(
         payment.Id,

@@ -15,7 +15,10 @@ public sealed record CreateObligationRequest(
     // Belgedeki KDV; ikisi de boş bırakılabilir. Sunucu birini diğerinden
     // türetmez (ADR 0016).
     string? VatRate = null,
-    string? VatAmount = null);
+    string? VatAmount = null,
+    // Gider matrahtan düşülebilir mi (ADR 0016). Boş bırakılırsa kategorinin
+    // varsayılanı kullanılır; şahsi kayıtta ve gelirde sorulmaz.
+    bool? IsTaxDeductible = null);
 
 public sealed record SettleObligationRequest(Guid AccountId, string SettlementDate);
 
@@ -37,6 +40,7 @@ public sealed record ObligationResponse(
     Guid? SettlementId = null,
     Guid? SettlementAccountId = null,
     string? SettlementDate = null,
-    VatContract? Vat = null);
+    VatContract? Vat = null,
+    bool? IsTaxDeductible = null);
 
 public sealed record ObligationListResponse(IReadOnlyList<ObligationResponse> Items);

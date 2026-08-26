@@ -986,6 +986,47 @@ oran da para gibi dört ondalıklı) ve cevapta tek bir `vat` nesnesi olarak dö
 KDV yoksa `null`'dır. Ayrıştırılamayan bir değer `*.invalid_vat` ile reddedilir —
 sunucu bir değer uydurmaz.
 
+### İndirilebilirlik kapsamdan ayrı bir alandır
+
+ADR 0016'nın üçüncü kararı. Kapsam "bu para kimin?", indirilebilirlik "bu gider
+matrahtan düşülebilir mi?" sorusunu yanıtlar; her işletme gideri indirilebilir
+değildir (trafik cezası işletmenin giderdir ama indirilemez). İkisini tek alanda
+birleştirmek, ADR 0013'ün reddettiği "kapsamı başka bir şeyle temsil etme"
+hatasının tekrarı olurdu.
+
+Alan **gider tanıyan** kayıtlarda yaşar: `BudgetTransaction` (yalnız gider),
+`CreditCardCharge`, `CounterpartyCharge` ve `Obligation` (yalnız borç yönünde).
+`PosSettlement` taşımaz — o bir satıştır; içindeki komisyon gideri kendi
+kategorisiyle zaten ayrı bir gider olarak yazılır.
+
+Alan **iki durumludur**; kısmi indirilebilirlik oranı modellenmez, çünkü oran
+girmek hesaplamaya giden ilk adımdır. Boş olması üçüncü bir durum değil,
+**sorunun sorulmamış** olmasıdır: şahsi kayıtta anlamsızdır, gelirde yoktur ve
+alandan önce yazılmış kayıtlarda cevap bilinmez.
+
+Türetme zinciri kapsamınkinin yanında ikinci bir zincirdir
+(`TaxDeductibilityResolution`): **kullanıcının açık seçimi → kategorinin
+varsayılanı**. Kapsam zincirinden bir farkı var — cevap bulunamazsa istek
+**reddedilmez**; kapsam boşsa rapor bozulur, indirilebilirlik boşsa yalnız
+muhasebeci paketinde cevaplanmamış olarak durur.
+
+Soru sorulmayan bir kayıtta kategorinin varsayılanı **sessizce düşer**
+(kullanıcı onu istemedi, kategori söyledi); kullanıcının kendi cevabı düşmez,
+istek **reddedilir** — sessizce yok saymak, kaydedilmeyen bir şeyi kaydedilmiş
+gibi göstermek olurdu.
+
+`Category.DefaultIsTaxDeductible` yalnız gider kategorisinde anlamlıdır. İşletme
+ön ayarıyla açılan set gider kalemlerini `true` önerisiyle kurar; cevabı
+gerçekten muhasebecinin takdirinde olan kalem (`SGK ve vergi ödemesi`) **boş**
+açılır. Öneri kurulduğu an kullanıcının verisidir ve uygulama sonradan
+kendiliğinden değiştirmez; varsayılanı değiştirmek **geçmiş kayıtları
+değiştirmez**.
+
+İndirilebilirlik **işletme netini değiştirmez**: indirilemeyen gider de giderdir
+ve rapora girer. Etkilediği tek çıktı muhasebeci paketidir. SQL tarafında ikinci
+kapı `CK_*_IsTaxDeductible` kısıtlarıdır: cevap yalnız işletme kapsamlı gider
+satırında bulunabilir, kategori varsayılanı yalnız gider kategorisinde.
+
 ## Planlama ve read-model mimarisi
 
 ```text

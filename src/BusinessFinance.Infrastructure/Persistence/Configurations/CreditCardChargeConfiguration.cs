@@ -20,6 +20,9 @@ internal sealed class CreditCardChargeConfiguration : IEntityTypeConfiguration<C
             table.HasCheckConstraint(
                 "CK_CreditCardCharges_VatAmount",
                 VatDetailsConfiguration.AmountConstraint("Amount"));
+            table.HasCheckConstraint(
+                "CK_CreditCardCharges_IsTaxDeductible",
+                "[IsTaxDeductible] IS NULL OR [Scope] = 1");
         });
 
         builder.HasKey(charge => charge.Id);
@@ -38,6 +41,7 @@ internal sealed class CreditCardChargeConfiguration : IEntityTypeConfiguration<C
         });
 
         builder.OwnsVat(charge => charge.Vat);
+        builder.Property(charge => charge.IsTaxDeductible);
 
         builder.HasIndex(charge => new { charge.UserId, charge.CreditCardId, charge.ChargeDate })
             .HasDatabaseName("IX_CreditCardCharges_UserId_CardId_Date");

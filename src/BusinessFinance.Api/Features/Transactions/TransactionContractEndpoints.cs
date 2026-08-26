@@ -110,7 +110,8 @@ public static class TransactionContractEndpoints
                 scope,
                 date,
                 request.Description,
-                vat),
+                vat,
+                request.IsTaxDeductible),
             cancellationToken);
         if (!result.IsSuccess)
         {
@@ -147,7 +148,8 @@ public static class TransactionContractEndpoints
         transaction.Description,
         transaction.IsCancelled,
         transaction.CancelledAtUtc,
-        VatContractMapper.ToContract(transaction.Vat));
+        VatContractMapper.ToContract(transaction.Vat),
+        transaction.IsTaxDeductible);
 
     private static bool TryParseType(string? value, out TransactionType type) =>
         Enum.TryParse(value, true, out type) && type is TransactionType.Income or TransactionType.Expense;

@@ -3,6 +3,7 @@ using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.Counterparties;
 using BusinessFinance.Application.Scopes;
+using BusinessFinance.Application.Taxes;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Obligations;
@@ -70,7 +71,12 @@ public sealed class CreateObligationUseCase(
                 timeProvider.GetUtcNow().ToUniversalTime(),
                 counterparty,
                 command.Description,
-                command.Vat?.ToDomain());
+                command.Vat?.ToDomain(),
+                TaxDeductibilityResolution.Resolve(
+                    command.IsTaxDeductible,
+                    category.DefaultIsTaxDeductible,
+                    scope,
+                    command.Direction == DebtDirection.Payable));
             await repository.AddAsync(obligation, cancellationToken);
             return ApplicationResult<ObligationDto>.Success(ToDto(obligation));
         }

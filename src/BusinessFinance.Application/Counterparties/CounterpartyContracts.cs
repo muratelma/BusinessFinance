@@ -49,7 +49,10 @@ public sealed record CreateCounterpartyChargeCommand(
 
     // Belgedeki KDV; yoksa boştur (ADR 0016). Sunucu hiçbir vergi tutarını
     // hesaplamaz — ne geldiyse o taşınır.
-    VatDto? Vat = null);
+    VatDto? Vat = null,
+    // Gider matrahtan düşülebilir mi (ADR 0016). Boşsa kategorinin varsayılanı
+    // kullanılır; soru yalnız işletme kapsamlı giderde sorulur.
+    bool? IsTaxDeductible = null);
 
 /// <summary>
 /// Tahsilat ya da ödeme: kasayı değiştirir, gelir/gider üretmez. Bu yüzden ne
@@ -76,7 +79,8 @@ public sealed record CounterpartyChargeDto(
     string? Description,
     bool IsCancelled,
     DateOnly? DueDate,
-    VatDto? Vat = null);
+    VatDto? Vat = null,
+    bool? IsTaxDeductible = null);
 
 public sealed record CounterpartyPaymentDto(
     Guid Id,

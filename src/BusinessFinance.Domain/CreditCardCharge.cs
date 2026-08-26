@@ -19,6 +19,13 @@ public sealed class CreditCardCharge
     /// </summary>
     public VatDetails? Vat { get; }
 
+    /// <summary>
+    /// Gider matrahtan düşülebilir mi (ADR 0016). Yalnız işletme kapsamlı gider
+    /// kayıtlarında anlamlıdır; boş olması üçüncü bir durum değil, sorunun
+    /// sorulmamış olmasıdır. İşletme netini <b>değiştirmez</b>.
+    /// </summary>
+    public bool? IsTaxDeductible { get; }
+
     public bool IsCancelled { get; private set; }
     public DateTimeOffset? CancelledAtUtc { get; private set; }
 
@@ -36,7 +43,8 @@ public sealed class CreditCardCharge
         TransactionScope scope,
         DateOnly chargeDate,
         string? description = null,
-        VatDetails? vat = null)
+        VatDetails? vat = null,
+        bool? isTaxDeductible = null)
     {
         if (id == Guid.Empty)
         {
@@ -79,6 +87,8 @@ public sealed class CreditCardCharge
         }
 
         VatDetails.EnsureWithinAmount(vat, amount, nameof(vat));
+        var deductibility = TaxDeductibility.Validate(
+            isTaxDeductible, scope, recognizesExpense: true, nameof(isTaxDeductible));
 
         Id = id;
         UserId = userId;
@@ -89,6 +99,7 @@ public sealed class CreditCardCharge
         ChargeDate = chargeDate;
         Description = NormalizeDescription(description);
         Vat = vat;
+        IsTaxDeductible = deductibility;
     }
 
     public void Cancel(DateTimeOffset cancelledAtUtc)

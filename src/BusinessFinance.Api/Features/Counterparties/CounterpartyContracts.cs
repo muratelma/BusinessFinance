@@ -45,7 +45,10 @@ public sealed record CreateCounterpartyChargeRequest(
     // Belgedeki KDV; ikisi de boş bırakılabilir. Sunucu birini diğerinden
     // türetmez (ADR 0016).
     string? VatRate = null,
-    string? VatAmount = null);
+    string? VatAmount = null,
+    // Gider matrahtan düşülebilir mi (ADR 0016). Boş bırakılırsa kategorinin
+    // varsayılanı kullanılır; şahsi kayıtta ve gelirde sorulmaz.
+    bool? IsTaxDeductible = null);
 
 /// <summary>
 /// Tahsilat / ödeme. Kategori ve kapsam **taşımaz**: gelir/gider raporuna
@@ -71,7 +74,8 @@ public sealed record CounterpartyChargeResponse(
     string? Description,
     bool IsCancelled,
     string? DueDate,
-    VatContract? Vat);
+    VatContract? Vat,
+    bool? IsTaxDeductible);
 
 public sealed record CounterpartyPaymentResponse(
     Guid Id,

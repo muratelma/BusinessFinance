@@ -56,7 +56,8 @@ internal sealed class EfObligationRepository(BusinessFinanceDbContext dbContext)
                 obligation.Settlement == null ? null : obligation.Settlement.SettlementDate,
                 obligation.Vat == null
                     ? null
-                    : new VatDto(obligation.Vat.Rate, obligation.Vat.Amount)))
+                    : new VatDto(obligation.Vat.Rate, obligation.Vat.Amount),
+                obligation.IsTaxDeductible))
             .ToArrayAsync(cancellationToken);
 
     public Task<Obligation?> FindOwnedByIdAsync(

@@ -15,7 +15,8 @@ public sealed record CardChargeDto(
     string? Description,
     bool IsCancelled,
     DateTimeOffset? CancelledAtUtc,
-    VatDto? Vat);
+    VatDto? Vat,
+    bool? IsTaxDeductible = null);
 
 public sealed record CardPaymentDto(
     Guid Id,
@@ -42,7 +43,10 @@ public sealed record CreateCardChargeCommand(
 
     // Belgedeki KDV; yoksa boştur (ADR 0016). Sunucu hiçbir vergi tutarını
     // hesaplamaz — ne geldiyse o taşınır.
-    VatDto? Vat = null);
+    VatDto? Vat = null,
+    // Gider matrahtan düşülebilir mi (ADR 0016). Boşsa kategorinin varsayılanı
+    // kullanılır; soru yalnız işletme kapsamlı giderde sorulur.
+    bool? IsTaxDeductible = null);
 
 public sealed record CreateCardPaymentCommand(
     Guid CreditCardId,

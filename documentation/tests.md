@@ -1080,5 +1080,25 @@ planlanan ekranının iki testi de kırmızıya düştü.
 | Okunamayan değer uydurulmuyor | `VatContractEndpointTests.VatThatCannotBeRead_IsRejectedWithoutGuessing` | `transactions.invalid_vat` |
 | Aşan tutar kırpılmıyor | `VatContractEndpointTests.VatAmountAboveTheRecordAmount_IsRejectedNotClamped` | 400 dönüyor, değer düzeltilmiyor |
 | Gerçek SQL'de gidip geliyor | `SqlServerPersistenceIntegrationTests.VatFields_RoundTripAndAreGuardedBySqlAsWellAsTheDomain` | Round-trip + `CK_BudgetTransactions_VatRate/VatAmount` ikinci kapı |
-| Migration zinciri | `MigrationHistoryTests.Migrations_FormTheExpectedChainAndMatchTheModel` | `AddVatFields` zincirin sonunda; şema modelle örtüşüyor |
+| Migration zinciri | `MigrationHistoryTests.Migrations_FormTheExpectedChainAndMatchTheModel` | `AddVatFields` ve `AddTaxDeductibility` zincirin sonunda; şema modelle örtüşüyor |
+
+## İndirilebilirlik kapsamdan ayrıdır (26 Ağustos 2026, Aşama 05 Grup 3)
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Cevaplanabilir ve boş bırakılabilir | `TaxDeductibilityTests.BusinessExpense_CanAnswerTheQuestionOrLeaveItUnasked` | `true`/`false`/boş üç ayrı sonuç |
+| Şahsi kayda sorulmuyor | `TaxDeductibilityTests.PersonalRecord_IsNotAskedTheQuestion` | Cevap saklanmıyor, reddediliyor |
+| Gelire sorulmuyor | `TaxDeductibilityTests.IncomeRecord_IsNotAskedTheQuestion` | Gider tarafının sorusu |
+| Diğer kayıtlar aynı kural | `TaxDeductibilityTests.OtherRecognizingRecords_FollowTheSameRule` | Kart harcaması; cari ve yükümlülük yalnız borç yönünde |
+| Varsayılan yalnız gider kategorisinde | `TaxDeductibilityTests.OnlyAnExpenseCategory_CarriesADeductibilityDefault` | Gelir kategorisi taşıyamıyor |
+| Açık seçim varsayılanı yeniyor | `TaxDeductibilityResolutionTests.Resolve_PrefersTheExplicitAnswerOverTheCategoryDefault` | Zincirin sırası |
+| Kategori varsayılanı iniyor | `TaxDeductibilityResolutionTests.CreateTransaction_WithoutAnAnswer_TakesTheCategoryDefault` | Kayda ve DTO'ya |
+| Soru sorulmayanda varsayılan düşüyor | `TaxDeductibilityResolutionTests.Resolve_DropsTheCategoryDefault_WhereTheQuestionIsNotAsked` | Şahsi ve gelir |
+| Açık cevap düşmüyor, reddediliyor | `TaxDeductibilityResolutionTests.CreateTransaction_AnsweringForAPersonalRecord_IsRefusedAndWritesNothing` | Geriye kayıt kalmıyor |
+| İşletme neti değişmiyor | `TaxDeductibilityEndpointTests.Deductibility_DoesNotChangeTheBusinessNet` | İndirilemeyen gider de toplama giriyor (₺140) |
+| Cevap sözleşmede | `TaxDeductibilityEndpointTests.Deductibility_IsCarriedOnTheResponse` | `isTaxDeductible` alanı |
+| Şahsi kayıt HTTP'de de reddediliyor | `TaxDeductibilityEndpointTests.AnsweringForAPersonalRecord_IsRefused` | 400 |
+| Varsayılan yalnız işletme kaydına iniyor | `TaxDeductibilityEndpointTests.CategoryDefault_ReachesTheBusinessRecordAndNotThePersonalOne` | Aynı kategori, iki kapsam |
+| Set öneriyle açılıyor | `TaxDeductibilityEndpointTests.BusinessCategorySet_OpensWithASuggestionAndLeavesTheJudgementCallBlank` | `Ticari mal alımı` dolu, `SGK ve vergi ödemesi` boş |
+| Gerçek SQL'de gidip geliyor | `SqlServerPersistenceIntegrationTests.TaxDeductibility_RoundTripsAndIsGuardedBySqlAsWellAsTheDomain` | Round-trip + `CK_BudgetTransactions_IsTaxDeductible` |
 

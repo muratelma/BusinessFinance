@@ -75,7 +75,13 @@ internal sealed class EfCategoryRepository(BusinessFinanceDbContext dbContext)
                 .Select(profile => profile.HasBusiness)
                 .FirstOrDefaultAsync(cancellationToken);
             var categories = DefaultCategorySets.For(hasBusiness).Select(item =>
-                new Category(Guid.NewGuid(), userId, item.Name, item.Type, item.Scope));
+                new Category(
+                    Guid.NewGuid(),
+                    userId,
+                    item.Name,
+                    item.Type,
+                    item.Scope,
+                    item.DefaultIsTaxDeductible));
             await dbContext.Categories.AddRangeAsync(categories, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
             return;

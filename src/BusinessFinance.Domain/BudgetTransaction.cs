@@ -20,6 +20,13 @@ public sealed class BudgetTransaction
     /// </summary>
     public VatDetails? Vat { get; }
 
+    /// <summary>
+    /// Gider matrahtan düşülebilir mi (ADR 0016). Yalnız işletme kapsamlı gider
+    /// kayıtlarında anlamlıdır; boş olması üçüncü bir durum değil, sorunun
+    /// sorulmamış olmasıdır. İşletme netini <b>değiştirmez</b>.
+    /// </summary>
+    public bool? IsTaxDeductible { get; }
+
     public bool IsCancelled { get; private set; }
     public DateTimeOffset? CancelledAtUtc { get; private set; }
 
@@ -38,7 +45,8 @@ public sealed class BudgetTransaction
         TransactionScope scope,
         DateOnly transactionDate,
         string? description = null,
-        VatDetails? vat = null)
+        VatDetails? vat = null,
+        bool? isTaxDeductible = null)
     {
         if (id == Guid.Empty)
         {
@@ -114,6 +122,8 @@ public sealed class BudgetTransaction
         }
 
         VatDetails.EnsureWithinAmount(vat, amount, nameof(vat));
+        var deductibility = TaxDeductibility.Validate(
+            isTaxDeductible, scope, type == TransactionType.Expense, nameof(isTaxDeductible));
 
         Id = id;
         UserId = userId;
@@ -125,6 +135,7 @@ public sealed class BudgetTransaction
         TransactionDate = transactionDate;
         Description = normalizedDescription;
         Vat = vat;
+        IsTaxDeductible = deductibility;
         IsCancelled = false;
     }
 

@@ -12,7 +12,8 @@ public sealed record UpdateCategoryCommand(
     Guid CategoryId,
     string Name,
     bool IsActive,
-    TransactionScope? DefaultScope);
+    TransactionScope? DefaultScope,
+    bool? DefaultIsTaxDeductible = null);
 
 public sealed class UpdateCategoryUseCase(
     ICurrentUser currentUser,
@@ -50,6 +51,7 @@ public sealed class UpdateCategoryUseCase(
             }
 
             category.SetDefaultScope(command.DefaultScope);
+            category.SetDefaultTaxDeductibility(command.DefaultIsTaxDeductible);
 
             if (command.IsActive)
             {

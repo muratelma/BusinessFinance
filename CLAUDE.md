@@ -238,6 +238,14 @@ gerekçesiyle bozulmaz.
   uyuşmazlık uyarıdır, red veya düzeltme değil. KDV kayıt tutarını, bakiyeyi,
   bütçeyi ve işletme netini etkilemez — kayıt tutarı brüttür ve brüt kalır.
 
+- **İndirilebilirlik kapsamdan ayrı bir alandır** (ADR 0016). Gider **tanıyan**
+  kayıtlarda yaşar (`BudgetTransaction` yalnız gider, `CreditCardCharge`,
+  `CounterpartyCharge`/`Obligation` yalnız borç yönünde); iki durumludur, kısmi
+  oran yoktur. Şahsi kayıtta ve gelirde sorulmaz — açık cevap reddedilir,
+  kategorinin varsayılanı sessizce düşer. Zincir: açık seçim → kategorinin
+  varsayılanı; bulunamazsa istek **reddedilmez**, boş kalır. İşletme netini
+  değiştirmez; etkilediği tek çıktı muhasebeci paketidir.
+
 - **Kapsam tek yerde türetilir** (`TransactionScopeResolution`): kullanıcının
   açık seçimi → hesabın/kartın etiketi → kategorinin varsayılanı. Üçü de boşsa
   istek `*.scope_unresolved` ile reddedilir; sunucu kapsam **uydurmaz**.

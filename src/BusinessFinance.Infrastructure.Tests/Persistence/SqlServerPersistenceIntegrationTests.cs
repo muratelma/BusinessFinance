@@ -2198,9 +2198,14 @@ public sealed class SqlServerPersistenceIntegrationTests
 
         await using (var context = database.CreateContext())
         {
-            context.AddRange(category, counterparty);
+            context.Add(counterparty);
             await context.SaveChangesAsync(CancellationToken.None);
         }
+
+        // Kategori ham SQL ile yazılıyor: bu test eski şemayı canlandırıyor ve
+        // güncel model o şemada olmayan bir kolon (indirilebilirlik varsayılanı)
+        // taşıyor. Yükseltme yolunu sınayan testler geçmişin sütunlarıyla yazar.
+        await SeedLegacyCategoryAsync(database, category, scope: null);
 
         var legacyChargeId = Guid.NewGuid();
         await database.ExecuteAsync(
@@ -2314,9 +2319,11 @@ public sealed class SqlServerPersistenceIntegrationTests
 
         await using (var context = database.CreateContext())
         {
-            context.AddRange(account, category);
+            context.Add(account);
             await context.SaveChangesAsync(CancellationToken.None);
         }
+
+        await SeedLegacyCategoryAsync(database, category, TransactionScope.Business);
 
         var recurringId = Guid.NewGuid();
         await database.ExecuteAsync(
@@ -3802,6 +3809,84 @@ public sealed class SqlServerPersistenceIntegrationTests
             withVatId));
         Assert.Contains("CK_BudgetTransactions_VatRate", rateFailure.Message);
     }
+
+    /// <summary>
+    /// Aşama 05 Grup 3: indirilebilirlik gerçek şemada taşınıyor ve SQL,
+    /// domain'in "yalnız işletme kapsamlı gider" kuralını ikinci kez uyguluyor
+    /// (ADR 0016).
+    /// </summary>
+    [SqlServerFact]
+    public async Task TaxDeductibility_RoundTripsAndIsGuardedBySqlAsWellAsTheDomain()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var user = CreateUser("deductibility-round-trip@example.test");
+        await database.SeedUsersAsync(user);
+        var deductibleId = Guid.NewGuid();
+        var personalId = Guid.NewGuid();
+
+        await using (var seed = database.CreateContext())
+        {
+            var account = new Account(
+                Guid.NewGuid(), user.Id, "Kasa", AccountType.Cash, CurrencyCode.TRY, 1000m);
+            var category = new Category(
+                Guid.NewGuid(), user.Id, "Ticari mal", CategoryType.Expense, null, true);
+            seed.Add(account);
+            seed.Add(category);
+            seed.Transactions.AddRange(
+                new BudgetTransaction(
+                    deductibleId, user.Id, account, category,
+                    new Money(120m, CurrencyCode.TRY), TransactionType.Expense,
+                    TransactionScope.Business, new DateOnly(2026, 8, 26),
+                    null, null, isTaxDeductible: false),
+                new BudgetTransaction(
+                    personalId, user.Id, account, category,
+                    new Money(50m, CurrencyCode.TRY), TransactionType.Expense,
+                    TransactionScope.Personal, new DateOnly(2026, 8, 26)));
+            await seed.SaveChangesAsync(CancellationToken.None);
+        }
+
+        await using (var read = database.CreateContext())
+        {
+            var category = await read.Categories.AsNoTracking()
+                .SingleAsync(row => row.UserId == user.Id, CancellationToken.None);
+            var business = await read.Transactions.AsNoTracking()
+                .SingleAsync(row => row.Id == deductibleId, CancellationToken.None);
+            var personal = await read.Transactions.AsNoTracking()
+                .SingleAsync(row => row.Id == personalId, CancellationToken.None);
+
+            Assert.True(category.DefaultIsTaxDeductible);
+            Assert.False(business.IsTaxDeductible);
+
+            // Şahsi kayda soru sorulmadı: cevap boş.
+            Assert.Null(personal.IsTaxDeductible);
+        }
+
+        // SQL tarafındaki ikinci kapı: şahsi kayıt cevabı taşıyamaz.
+        var failure = await Assert.ThrowsAsync<SqlException>(() => database.ExecuteAsync(
+            "UPDATE [BudgetTransactions] SET [IsTaxDeductible] = 1 WHERE [Id] = {0}",
+            personalId));
+        Assert.Contains("CK_BudgetTransactions_IsTaxDeductible", failure.Message);
+    }
+
+    /// <summary>
+    /// Kategoriyi eski şemanın sütunlarıyla yazar.
+    /// </summary>
+    /// <remarks>
+    /// Yükseltme yolunu sınayan testler veritabanını geçmiş bir migration'da
+    /// bırakır; güncel model o şemada olmayan kolonları da yazmak isteyeceği
+    /// için EF ile yazılamaz.
+    /// </remarks>
+    private static Task SeedLegacyCategoryAsync(
+        SqlTestDatabase database,
+        Category category,
+        TransactionScope? scope) => database.ExecuteAsync(
+        "INSERT INTO [Categories] ([Id], [UserId], [Name], [Type], [IsActive], [DefaultScope]) " +
+        "VALUES ({0}, {1}, {2}, {3}, 1, {4})",
+        category.Id,
+        category.UserId,
+        category.Name,
+        (byte)category.Type,
+        scope is TransactionScope value ? (int)value : (int?)null);
 
     private static ApplicationUser CreateUser(string email)
     {

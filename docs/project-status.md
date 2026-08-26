@@ -1364,3 +1364,25 @@ edene kadar Grup 2 ve sonrasının koduna başlanmaz.
 - Geçen kontroller: backend build (0 uyarı) + format temiz + **942 test geçti**,
   1 atlandı (canlı Gemini)
 
+## 26 Ağustos 2026 — Aşama 05 Grup 3: indirilebilirlik
+
+- `IsTaxDeductible` gider **tanıyan** dört kayda eklendi: `BudgetTransaction`
+  (yalnız gider), `CreditCardCharge`, `CounterpartyCharge` ve `Obligation`
+  (yalnız borç yönünde). `PosSettlement` taşımıyor — o bir satış; komisyonu
+  zaten ayrı bir gider olarak yazılıyor
+- Alan kapsamdan ayrı ve iki durumlu. Şahsi kayıtta ve gelirde soru sorulmuyor;
+  açık cevap gönderilirse istek **reddediliyor**, sessizce saklanmıyor
+- `Category.DefaultIsTaxDeductible` ve `TaxDeductibilityResolution` zinciri
+  (kullanıcının açık seçimi → kategorinin varsayılanı) eklendi. Soru sorulmayan
+  kayıtta kategorinin varsayılanı sessizce düşüyor; kullanıcının kendi cevabı
+  düşmüyor
+- İşletme kategori seti gider kalemlerini indirilebilirlik önerisiyle açıyor;
+  cevabı muhasebecinin takdirinde olan `SGK ve vergi ödemesi` boş kalıyor
+- `AddTaxDeductibility` migration'ı beş tabloya nullable kolon ve beş CHECK
+  kısıtı ekledi; iki yerel veritabanına da uygulandı
+- **İşletme neti etkilenmiyor**: indirilemeyen gider de gider olarak sayılıyor.
+  Etkilenecek tek çıktı muhasebeci paketi (Grup 5)
+- Yükseltme yolunu sınayan iki test artık kategoriyi ham SQL ile yazıyor: güncel
+  model, canlandırdıkları eski şemada olmayan bir kolon taşıyor
+- Geçen kontroller: backend build (0 uyarı) + format temiz + **961 test geçti**,
+  1 atlandı (canlı Gemini)

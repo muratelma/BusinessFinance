@@ -57,6 +57,9 @@ internal sealed class CounterpartyChargeConfiguration : IEntityTypeConfiguration
             table.HasCheckConstraint(
                 "CK_CounterpartyCharges_VatAmount",
                 VatDetailsConfiguration.AmountConstraint("Amount"));
+            table.HasCheckConstraint(
+                "CK_CounterpartyCharges_IsTaxDeductible",
+                "[IsTaxDeductible] IS NULL OR ([Scope] = 1 AND [Direction] = 1)");
         });
 
         builder.HasKey(charge => charge.Id);
@@ -77,6 +80,7 @@ internal sealed class CounterpartyChargeConfiguration : IEntityTypeConfiguration
         });
 
         builder.OwnsVat(charge => charge.Vat);
+        builder.Property(charge => charge.IsTaxDeductible);
 
         // Cari bakiye sorgusunun okuduğu indeks: karşı taraf başına, iptal
         // edilmemiş satırlar. Yön sütunu indekste olduğu için alacak/borç

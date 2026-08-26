@@ -57,7 +57,8 @@ public static class CategoryEndpoints
         }
 
         var result = await useCase.ExecuteAsync(
-            new CreateCategoryCommand(request.Name, type, createScope),
+            new CreateCategoryCommand(
+                request.Name, type, createScope, request.DefaultIsTaxDeductible),
             cancellationToken);
         if (!result.IsSuccess)
         {
@@ -115,7 +116,12 @@ public static class CategoryEndpoints
         }
 
         var result = await useCase.ExecuteAsync(
-            new UpdateCategoryCommand(categoryId, request.Name, request.IsActive, updateScope),
+            new UpdateCategoryCommand(
+                categoryId,
+                request.Name,
+                request.IsActive,
+                updateScope,
+                request.DefaultIsTaxDeductible),
             cancellationToken);
         return result.IsSuccess
             ? Results.Ok(ToResponse(result.Value))
@@ -130,5 +136,6 @@ public static class CategoryEndpoints
         item.Name,
         FinanceContract.CategoryTypeValue(item.Type),
         item.IsActive,
-        FinanceContract.OptionalScopeValue(item.DefaultScope));
+        FinanceContract.OptionalScopeValue(item.DefaultScope),
+        item.DefaultIsTaxDeductible);
 }

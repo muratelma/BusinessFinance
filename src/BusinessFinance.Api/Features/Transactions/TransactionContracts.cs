@@ -16,7 +16,10 @@ public sealed record CreateTransactionRequest(
     // Belgedeki KDV; ikisi de boş bırakılabilir. Sunucu birini diğerinden
     // türetmez (ADR 0016).
     string? VatRate = null,
-    string? VatAmount = null);
+    string? VatAmount = null,
+    // Gider matrahtan düşülebilir mi (ADR 0016). Boş bırakılırsa kategorinin
+    // varsayılanı kullanılır; şahsi kayıtta ve gelirde sorulmaz.
+    bool? IsTaxDeductible = null);
 
 public sealed record TransactionResponse(
     Guid Id,
@@ -30,7 +33,8 @@ public sealed record TransactionResponse(
     string? Description,
     bool IsCancelled,
     DateTimeOffset? CancelledAtUtc,
-    VatContract? Vat);
+    VatContract? Vat,
+    bool? IsTaxDeductible);
 
 public sealed record TransactionListResponse(
     IReadOnlyList<TransactionResponse> Items,

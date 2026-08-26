@@ -68,7 +68,12 @@ public sealed class CreateCardChargeUseCase(
                 scope,
                 command.ChargeDate,
                 command.Description,
-                command.Vat?.ToDomain());
+                command.Vat?.ToDomain(),
+                TaxDeductibilityResolution.Resolve(
+                    command.IsTaxDeductible,
+                    category.DefaultIsTaxDeductible,
+                    scope,
+                    recognizesExpense: true));
             await chargeRepository.AddAsync(charge, cancellationToken);
             return ApplicationResult<CardChargeDto>.Success(ToDto(charge));
         }
@@ -95,7 +100,8 @@ public sealed class CreateCardChargeUseCase(
         charge.Description,
         charge.IsCancelled,
         charge.CancelledAtUtc,
-        VatDto.From(charge.Vat));
+        VatDto.From(charge.Vat),
+        charge.IsTaxDeductible);
 }
 
 public sealed class CreateCardPaymentUseCase(
