@@ -1,4 +1,5 @@
 using BusinessFinance.Application.Pos;
+using BusinessFinance.Application.Taxes;
 using BusinessFinance.Domain;
 using BusinessFinance.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -99,7 +100,8 @@ internal sealed class EfPosSettlementRepository(
                     row.settlement.IsInTransit,
                     row.settlement.IsCancelled,
                     row.settlement.IsInTransit &&
-                        row.settlement.ExpectedTransferDate < asOfDate))
+                        row.settlement.ExpectedTransferDate < asOfDate,
+                    VatDto.From(row.settlement.Vat)))
                 .ToArray(),
             transit?.Amount ?? 0m,
             transit?.Count ?? 0);

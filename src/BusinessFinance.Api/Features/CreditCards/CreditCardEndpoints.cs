@@ -170,8 +170,17 @@ public static class CreditCardEndpoints
                 "credit_cards.invalid_scope");
         }
 
+        if (!VatContractMapper.TryParse(request.VatRate, request.VatAmount, out var vat))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Vat rate and amount must have at most four decimal places.",
+                "credit_cards.invalid_vat");
+        }
+
         var result = await useCase.ExecuteAsync(new CreateCardChargeCommand(
-            creditCardId, request.CategoryId, amount, CurrencyCode.TRY, scope, date, request.Description),
+            creditCardId, request.CategoryId, amount, CurrencyCode.TRY, scope, date,
+            request.Description, vat),
             cancellationToken);
         if (!result.IsSuccess) return result.Error.ToProblemResult(httpContext);
         var response = ToChargeResponse(result.Value);
@@ -473,7 +482,8 @@ public static class CreditCardEndpoints
         FinanceContract.Date(charge.ChargeDate),
         charge.Description,
         charge.IsCancelled,
-        charge.CancelledAtUtc);
+        charge.CancelledAtUtc,
+        VatContractMapper.ToContract(charge.Vat));
 
     internal static CardPaymentResponse ToPaymentResponse(CardPaymentDto payment) => new(
         payment.Id,

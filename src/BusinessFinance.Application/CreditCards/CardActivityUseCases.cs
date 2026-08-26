@@ -5,6 +5,7 @@ using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.FinancialActivities;
 using BusinessFinance.Application.Scopes;
+using BusinessFinance.Application.Taxes;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.CreditCards;
@@ -66,7 +67,8 @@ public sealed class CreateCardChargeUseCase(
                 new Money(command.Amount, command.Currency),
                 scope,
                 command.ChargeDate,
-                command.Description);
+                command.Description,
+                command.Vat?.ToDomain());
             await chargeRepository.AddAsync(charge, cancellationToken);
             return ApplicationResult<CardChargeDto>.Success(ToDto(charge));
         }
@@ -92,7 +94,8 @@ public sealed class CreateCardChargeUseCase(
         charge.ChargeDate,
         charge.Description,
         charge.IsCancelled,
-        charge.CancelledAtUtc);
+        charge.CancelledAtUtc,
+        VatDto.From(charge.Vat));
 }
 
 public sealed class CreateCardPaymentUseCase(

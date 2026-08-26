@@ -1,6 +1,6 @@
 # ADR 0016 — Vergi alanları taşır, hesaplamaz; oran ve tarih kullanıcınındır
 
-- Durum: **Önerildi** (26 Ağustos 2026, Aşama 05 Grup 1)
+- Durum: **Kabul edildi** (26 Ağustos 2026, Aşama 05 Grup 1)
 - Bağlam: KDV alanları, indirilebilirlik, vergi/SGK takvimi ve ay sonu
   muhasebeci paketinin eklenmesi
 - İlgili: ADR 0014 (ekonomik olay tanır, ödeme taşır), ADR 0013 (işletme ve

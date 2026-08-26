@@ -1,3 +1,4 @@
+using BusinessFinance.Application.Taxes;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Counterparties;
@@ -44,7 +45,11 @@ public sealed record CreateCounterpartyChargeCommand(
     TransactionScope? Scope,
     DateOnly ChargeDate,
     string? Description,
-    DateOnly? DueDate);
+    DateOnly? DueDate,
+
+    // Belgedeki KDV; yoksa boştur (ADR 0016). Sunucu hiçbir vergi tutarını
+    // hesaplamaz — ne geldiyse o taşınır.
+    VatDto? Vat = null);
 
 /// <summary>
 /// Tahsilat ya da ödeme: kasayı değiştirir, gelir/gider üretmez. Bu yüzden ne
@@ -70,7 +75,8 @@ public sealed record CounterpartyChargeDto(
     DateOnly ChargeDate,
     string? Description,
     bool IsCancelled,
-    DateOnly? DueDate);
+    DateOnly? DueDate,
+    VatDto? Vat = null);
 
 public sealed record CounterpartyPaymentDto(
     Guid Id,

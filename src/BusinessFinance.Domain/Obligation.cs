@@ -24,6 +24,13 @@ public sealed class Obligation
     public DateOnly IssueDate { get; }
     public DateOnly DueDate { get; }
     public string? Description { get; }
+
+    /// <summary>
+    /// Belgedeki KDV; yoksa boştur (ADR 0016). Taşınan bir bilgidir: kayıt
+    /// tutarını ve gelir/gider raporunu <b>etkilemez</b>.
+    /// </summary>
+    public VatDetails? Vat { get; }
+
     public DateTimeOffset CreatedAtUtc { get; }
     public ObligationSettlement? Settlement => _settlement;
     public bool IsCancelled { get; private set; }
@@ -55,7 +62,8 @@ public sealed class Obligation
         DateOnly dueDate,
         DateTimeOffset createdAtUtc,
         Counterparty? counterparty = null,
-        string? description = null)
+        string? description = null,
+        VatDetails? vat = null)
     {
         if (id == Guid.Empty)
         {
@@ -115,6 +123,8 @@ public sealed class Obligation
                 "Due date cannot be before the issue date.");
         }
 
+        VatDetails.EnsureWithinAmount(vat, amount, nameof(vat));
+
         Id = id;
         UserId = userId;
         CounterpartyId = counterparty?.Id;
@@ -126,6 +136,7 @@ public sealed class Obligation
         DueDate = dueDate;
         CreatedAtUtc = createdAtUtc;
         Description = NormalizeDescription(description);
+        Vat = vat;
     }
 
     public static CategoryType RequiredCategoryType(DebtDirection direction) => direction switch

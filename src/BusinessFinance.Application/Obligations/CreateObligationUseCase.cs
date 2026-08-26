@@ -69,7 +69,8 @@ public sealed class CreateObligationUseCase(
                 command.DueDate,
                 timeProvider.GetUtcNow().ToUniversalTime(),
                 counterparty,
-                command.Description);
+                command.Description,
+                command.Vat?.ToDomain());
             await repository.AddAsync(obligation, cancellationToken);
             return ApplicationResult<ObligationDto>.Success(ToDto(obligation));
         }

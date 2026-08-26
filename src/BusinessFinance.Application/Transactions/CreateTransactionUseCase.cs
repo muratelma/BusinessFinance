@@ -3,6 +3,7 @@ using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.Scopes;
+using BusinessFinance.Application.Taxes;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Transactions;
@@ -18,7 +19,11 @@ public sealed record CreateTransactionCommand(
     // kullanılır; üçü de boşsa istek reddedilir.
     TransactionScope? Scope,
     DateOnly TransactionDate,
-    string? Description);
+    string? Description,
+
+    // Belgedeki KDV; yoksa boştur (ADR 0016). Sunucu hiçbir vergi tutarını
+    // hesaplamaz — ne geldiyse o taşınır.
+    VatDto? Vat = null);
 
 public sealed class CreateTransactionUseCase(
     ICurrentUser currentUser,
@@ -74,7 +79,8 @@ public sealed class CreateTransactionUseCase(
                 command.Type,
                 scope,
                 command.TransactionDate,
-                command.Description);
+                command.Description,
+                command.Vat?.ToDomain());
         }
         catch (ArgumentException exception)
         {
@@ -102,5 +108,6 @@ public sealed class CreateTransactionUseCase(
         transaction.TransactionDate,
         transaction.Description,
         transaction.IsCancelled,
-        transaction.CancelledAtUtc);
+        transaction.CancelledAtUtc,
+        VatDto.From(transaction.Vat));
 }

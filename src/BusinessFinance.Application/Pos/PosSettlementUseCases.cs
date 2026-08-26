@@ -3,6 +3,7 @@ using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.Scopes;
+using BusinessFinance.Application.Taxes;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Pos;
@@ -119,7 +120,8 @@ public sealed class CreatePosSettlementUseCase(
                 command.ExpectedTransferDate,
                 timeProvider.GetUtcNow().ToUniversalTime(),
                 commissionCategory,
-                command.Description);
+                command.Description,
+                command.Vat?.ToDomain());
             await repository.AddAsync(settlement, cancellationToken);
 
             return ApplicationResult<PosSettlementDto>.Success(
@@ -241,6 +243,7 @@ internal static class PosSettlementMapper
             settlement.Description,
             settlement.IsInTransit,
             settlement.IsCancelled,
-            settlement.IsInTransit && settlement.ExpectedTransferDate < asOfDate);
+            settlement.IsInTransit && settlement.ExpectedTransferDate < asOfDate,
+            VatDto.From(settlement.Vat));
     }
 }

@@ -152,6 +152,14 @@ public static class PosSettlementEndpoints
                 "pos_settlements.invalid_scope");
         }
 
+        if (!VatContractMapper.TryParse(request.VatRate, request.VatAmount, out var vat))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Vat rate and amount must have at most four decimal places.",
+                "pos_settlements.invalid_vat");
+        }
+
         var result = await useCase.ExecuteAsync(
             new CreatePosSettlementCommand(
                 request.AccountId,
@@ -164,7 +172,8 @@ public static class PosSettlementEndpoints
                 scope,
                 settlementDate,
                 expectedTransferDate,
-                request.Description),
+                request.Description,
+                vat),
             cancellationToken);
         if (!result.IsSuccess)
         {
@@ -219,5 +228,6 @@ public static class PosSettlementEndpoints
         settlement.Description,
         settlement.IsInTransit,
         settlement.IsCancelled,
-        settlement.IsLate);
+        settlement.IsLate,
+        VatContractMapper.ToContract(settlement.Vat));
 }

@@ -1,3 +1,5 @@
+using BusinessFinance.Api.Contracts;
+
 namespace BusinessFinance.Api.Features.Counterparties;
 
 public sealed record CreateCounterpartyRequest(string Name, string? Note = null);
@@ -39,7 +41,11 @@ public sealed record CreateCounterpartyChargeRequest(
     // `counterparties.scope_unresolved` ile reddedilir.
     string? Scope = null,
     string? Description = null,
-    string? DueDate = null);
+    string? DueDate = null,
+    // Belgedeki KDV; ikisi de boş bırakılabilir. Sunucu birini diğerinden
+    // türetmez (ADR 0016).
+    string? VatRate = null,
+    string? VatAmount = null);
 
 /// <summary>
 /// Tahsilat / ödeme. Kategori ve kapsam **taşımaz**: gelir/gider raporuna
@@ -64,7 +70,8 @@ public sealed record CounterpartyChargeResponse(
     string ChargeDate,
     string? Description,
     bool IsCancelled,
-    string? DueDate);
+    string? DueDate,
+    VatContract? Vat);
 
 public sealed record CounterpartyPaymentResponse(
     Guid Id,

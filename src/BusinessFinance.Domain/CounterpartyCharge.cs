@@ -38,6 +38,13 @@ public sealed class CounterpartyCharge
     public DateOnly ChargeDate { get; }
     public DateOnly? DueDate { get; }
     public string? Description { get; }
+
+    /// <summary>
+    /// Belgedeki KDV; yoksa boştur (ADR 0016). Taşınan bir bilgidir: kayıt
+    /// tutarını ve gelir/gider raporunu <b>etkilemez</b>.
+    /// </summary>
+    public VatDetails? Vat { get; }
+
     public bool IsCancelled { get; private set; }
     public DateTimeOffset? CancelledAtUtc { get; private set; }
 
@@ -56,7 +63,8 @@ public sealed class CounterpartyCharge
         TransactionScope scope,
         DateOnly chargeDate,
         string? description = null,
-        DateOnly? dueDate = null)
+        DateOnly? dueDate = null,
+        VatDetails? vat = null)
     {
         if (id == Guid.Empty)
         {
@@ -105,6 +113,8 @@ public sealed class CounterpartyCharge
                 "Due date cannot be before the charge date.");
         }
 
+        VatDetails.EnsureWithinAmount(vat, amount, nameof(vat));
+
         Id = id;
         UserId = userId;
         CounterpartyId = counterparty.Id;
@@ -115,6 +125,7 @@ public sealed class CounterpartyCharge
         ChargeDate = chargeDate;
         DueDate = dueDate;
         Description = NormalizeDescription(description);
+        Vat = vat;
     }
 
     /// <summary>

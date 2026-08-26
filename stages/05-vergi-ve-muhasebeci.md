@@ -86,8 +86,7 @@ ADR'nin karara bağlayacağı üç şey:
   hatırlatmadır ve muhasebeci paketi ikinci bir hesaplama yolu değil, aynı ayın
   işletme raporunun okumasıdır.
 - Ölçüt: ADR kabul edildi ve `CLAUDE.md` belge haritasına eklendi.
-  **Kullanıcı kabulü bekleniyor; kabul edilene kadar aşamanın koduna
-  başlanmaz.**
+- **Tamamlandı** (26 Ağustos 2026): ADR kullanıcı tarafından kabul edildi.
 
 ### Grup 2 — Domain: KDV taşıyan alanlar
 
@@ -97,6 +96,15 @@ ADR'nin karara bağlayacağı üç şey:
   ikisi arasında tutarlılık **uyarısı** verebilir ama değeri düzeltmez.
 - Para hassasiyeti kuralı aynen geçerli: `decimal(19,4)`, API'de string.
 - Ölçüt: KDV alanı boş bırakılabiliyor; hiçbir yerde otomatik bölme yok.
+- **Tamamlandı** (26 Ağustos 2026): `VatDetails` değer nesnesi yazıldı ve
+  gelir/gider **tanıyan** beş kayıt onu taşıyor (`BudgetTransaction`,
+  `CreditCardCharge`, `CounterpartyCharge`, `Obligation`, `PosSettlement`).
+  Parayı yalnız taşıyan kayıtlar KDV taşımıyor. Oran ve tutar bağımsız iki
+  nullable alan; biri diğerinden türetilmiyor ve uyuşmazlık reddedilmiyor.
+  `ImpliedAmount` yalnız uyarı içindir ve hiçbir alanı doldurmuyor. Beş tabloya
+  iki nullable kolon (`AddVatFields`) ve iki CHECK kısıtı eklendi; sözleşmede
+  isteğe bağlı `vatRate`/`vatAmount` alanları ve cevapta tek `vat` nesnesi var.
+  KDV hiçbir toplamı değiştirmiyor — rapor brüt kalıyor.
 
 ### Grup 3 — Domain: indirilebilirlik
 

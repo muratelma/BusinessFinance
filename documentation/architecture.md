@@ -942,6 +942,50 @@ hâlidir — tablolar Aşama 01 Grup 1'de boşaltıldı. Varsayılansız ekleme 
 zamanda o ön koşulu denetler: tablo boş değilse SQL Server komutu reddeder ve
 yükseltme sessizce yanlış veri üretmek yerine durur.
 
+## Vergi alanları: taşınır, hesaplanmaz
+
+ADR 0016'nın mimari karşılığı. Gelir veya gider **tanıyan** beş kayıt bir KDV
+alanı taşır: `BudgetTransaction`, `CreditCardCharge`, `CounterpartyCharge`,
+`Obligation` ve `PosSettlement`. Parayı yalnız **taşıyan** kayıtlar
+(`Transfer`, `CreditCardPayment`, `CounterpartyPayment`,
+`ObligationSettlement`) KDV taşımaz — cevabı hiçbir yerde kullanılmayacak bir
+soru olurdu; kapsamın taşınmama gerekçesiyle aynı.
+
+`VatDetails` bir değer nesnesidir ve iki alanı vardır: `Rate` ve `Amount`.
+İkisi de **nullable**'dır, ikisi de belgeden okunur ve **biri diğerinden
+türetilmez**. Nesnenin kendisi boş olamaz; KDV yoksa alan `null`'dır — içi boş
+bir nesne "KDV yok"un ikinci bir anlatımı olur ve iki temsil er geç ayrışırdı.
+
+Bu, POS komisyonunun kararından bilinçli olarak ayrışır: orada oran paradan
+**çözülür** (`PosSettlement.CommissionRate`), çünkü orayı tek bir banka tek bir
+oranla keser. Faturada öyle değildir — aynı belgede farklı oranlı kalemler
+toplanır, yuvarlama farkı belgenin üstünde durur, tevkifatlı ve istisnalı
+belgeler kuralın tamamen dışındadır.
+
+`VatDetails.ImpliedAmount` yalnız **uyarı** içindir: arayüz "girdiğiniz oran bu
+tutarla uyuşmuyor" diyebilsin diye vardır, hiçbir alanı doldurmaz ve hiçbir
+isteği reddetmez. Uyuşmazlık bir hata değildir; kayıt yazıldığı gibi durur.
+
+KDV **hiçbir toplamı değiştirmez**: kayıt tutarı brüttür ve brüt kalır; bakiye,
+bütçe ilerlemesi, gelir/gider raporu ve işletme neti KDV alanından etkilenmez.
+Birleşik feed de KDV okumaz — feed paranın hareketini anlatır.
+
+### Kalıcılık ve iki kapı
+
+Beş tabloya iki **nullable** kolon eklendi (`VatRate decimal(5,4)`,
+`VatAmount decimal(19,4)`); iki boş kolon "KDV yok" demektir ve domain'in "en az
+biri dolu" invariant'ı SQL'e taşınmaz — SQL'de yokluğun temsili tam olarak iki
+boş sütundur. Sınırlar hem Application/Domain hem SQL tarafında iki bağımsız
+kapıyla korunur: `CK_*_VatRate` oranı `[0, 1)` aralığında tutar,
+`CK_*_VatAmount` tutarı negatif olmaktan ve **kaydın tutarını aşmaktan** alıkoyar.
+Tutarın kaydı aşamaması bir hesaplama değil sınırdır: brüt tutarın içindeki KDV
+brüt tutardan büyük olamaz.
+
+Sözleşme tarafında KDV isteğe bağlı iki string alandır (`vatRate`, `vatAmount`;
+oran da para gibi dört ondalıklı) ve cevapta tek bir `vat` nesnesi olarak döner;
+KDV yoksa `null`'dır. Ayrıştırılamayan bir değer `*.invalid_vat` ile reddedilir —
+sunucu bir değer uydurmaz.
+
 ## Planlama ve read-model mimarisi
 
 ```text

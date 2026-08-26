@@ -1,3 +1,4 @@
+using BusinessFinance.Application.Taxes;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Pos;
@@ -22,7 +23,11 @@ public sealed record CreatePosSettlementCommand(
     TransactionScope? Scope,
     DateOnly SettlementDate,
     DateOnly ExpectedTransferDate,
-    string? Description);
+    string? Description,
+
+    // Belgedeki KDV; yoksa boştur (ADR 0016). Sunucu hiçbir vergi tutarını
+    // hesaplamaz — ne geldiyse o taşınır.
+    VatDto? Vat = null);
 
 public sealed record MarkPosSettlementTransferredCommand(Guid SettlementId, DateOnly TransferDate);
 
@@ -49,7 +54,8 @@ public sealed record PosSettlementDto(
     bool IsInTransit,
     bool IsCancelled,
     // Beklenen gün geçti, para hâlâ gelmedi. Kalıcı değil, okurken türetilir.
-    bool IsLate);
+    bool IsLate,
+    VatDto? Vat = null);
 
 /// <summary>
 /// Tahsilat listesi ve yanında yoldaki toplam.

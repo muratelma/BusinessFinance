@@ -18,6 +18,27 @@ internal static class FinanceContract
                decimal.Round(amount, 4) == amount;
     }
 
+    /// <summary>
+    /// İsteğe bağlı bir para/oran alanı. Boş değer meşrudur ve "yok" demektir.
+    /// </summary>
+    public static bool TryParseOptionalAmount(string? value, out decimal? amount)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            amount = null;
+            return true;
+        }
+
+        if (TryParseAmount(value, out var parsed))
+        {
+            amount = parsed;
+            return true;
+        }
+
+        amount = null;
+        return false;
+    }
+
     public static bool TryParseDate(string? value, out DateOnly date)
     {
         return DateOnly.TryParseExact(
@@ -27,6 +48,9 @@ internal static class FinanceContract
             DateTimeStyles.None,
             out date);
     }
+
+    public static string? OptionalMoney(decimal? value) =>
+        value is decimal amount ? Money(amount) : null;
 
     public static string Money(decimal value) => value.ToString("0.0000", CultureInfo.InvariantCulture);
     public static string Date(DateOnly value) => value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);

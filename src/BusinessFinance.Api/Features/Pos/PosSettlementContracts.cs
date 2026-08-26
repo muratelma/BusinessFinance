@@ -1,3 +1,5 @@
+using BusinessFinance.Api.Contracts;
+
 namespace BusinessFinance.Api.Features.Pos;
 
 public sealed record CreatePosSettlementRequest(
@@ -11,7 +13,12 @@ public sealed record CreatePosSettlementRequest(
     string? CommissionRate = null,
     Guid? CommissionCategoryId = null,
     string? Scope = null,
-    string? Description = null);
+    string? Description = null,
+
+    // Belgedeki KDV; ikisi de boş bırakılabilir. Sunucu birini diğerinden
+    // türetmez (ADR 0016).
+    string? VatRate = null,
+    string? VatAmount = null);
 
 public sealed record MarkPosSettlementTransferredRequest(string TransferDate);
 
@@ -35,7 +42,8 @@ public sealed record PosSettlementResponse(
     string? Description,
     bool IsInTransit,
     bool IsCancelled,
-    bool IsLate);
+    bool IsLate,
+    VatContract? Vat);
 
 public sealed record PosSettlementListResponse(
     IReadOnlyList<PosSettlementResponse> Items,

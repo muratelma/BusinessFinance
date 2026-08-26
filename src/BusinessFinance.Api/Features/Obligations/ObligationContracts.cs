@@ -1,3 +1,5 @@
+using BusinessFinance.Api.Contracts;
+
 namespace BusinessFinance.Api.Features.Obligations;
 
 public sealed record CreateObligationRequest(
@@ -9,7 +11,11 @@ public sealed record CreateObligationRequest(
     string DueDate,
     string? Scope = null,
     Guid? CounterpartyId = null,
-    string? Description = null);
+    string? Description = null,
+    // Belgedeki KDV; ikisi de boş bırakılabilir. Sunucu birini diğerinden
+    // türetmez (ADR 0016).
+    string? VatRate = null,
+    string? VatAmount = null);
 
 public sealed record SettleObligationRequest(Guid AccountId, string SettlementDate);
 
@@ -30,6 +36,7 @@ public sealed record ObligationResponse(
     bool IsOverdue = false,
     Guid? SettlementId = null,
     Guid? SettlementAccountId = null,
-    string? SettlementDate = null);
+    string? SettlementDate = null,
+    VatContract? Vat = null);
 
 public sealed record ObligationListResponse(IReadOnlyList<ObligationResponse> Items);

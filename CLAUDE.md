@@ -231,6 +231,13 @@ gerekçesiyle bozulmaz.
   Pasif karşı tarafa yeni borçlandırma yazılamaz, tahsilat yazılabilir — aksi
   hâlde açık bakiye kapatılamazdı.
 
+- **KDV taşınır, hesaplanmaz** (ADR 0016). Gelir/gider **tanıyan** beş kayıt
+  (`BudgetTransaction`, `CreditCardCharge`, `CounterpartyCharge`, `Obligation`,
+  `PosSettlement`) nullable bir `VatDetails` taşır; parayı yalnız taşıyanlar
+  taşımaz. Oran ve tutar iki bağımsız alandır ve **biri diğerinden türetilmez**;
+  uyuşmazlık uyarıdır, red veya düzeltme değil. KDV kayıt tutarını, bakiyeyi,
+  bütçeyi ve işletme netini etkilemez — kayıt tutarı brüttür ve brüt kalır.
+
 - **Kapsam tek yerde türetilir** (`TransactionScopeResolution`): kullanıcının
   açık seçimi → hesabın/kartın etiketi → kategorinin varsayılanı. Üçü de boşsa
   istek `*.scope_unresolved` ile reddedilir; sunucu kapsam **uydurmaz**.

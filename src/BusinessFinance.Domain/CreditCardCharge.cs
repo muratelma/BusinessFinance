@@ -12,6 +12,13 @@ public sealed class CreditCardCharge
     public TransactionScope Scope { get; }
     public DateOnly ChargeDate { get; }
     public string? Description { get; }
+
+    /// <summary>
+    /// Belgedeki KDV; yoksa boştur (ADR 0016). Taşınan bir bilgidir: kayıt
+    /// tutarını ve gelir/gider raporunu <b>etkilemez</b>.
+    /// </summary>
+    public VatDetails? Vat { get; }
+
     public bool IsCancelled { get; private set; }
     public DateTimeOffset? CancelledAtUtc { get; private set; }
 
@@ -28,7 +35,8 @@ public sealed class CreditCardCharge
         Money amount,
         TransactionScope scope,
         DateOnly chargeDate,
-        string? description = null)
+        string? description = null,
+        VatDetails? vat = null)
     {
         if (id == Guid.Empty)
         {
@@ -70,6 +78,8 @@ public sealed class CreditCardCharge
             throw new ArgumentOutOfRangeException(nameof(chargeDate), "Charge date is required.");
         }
 
+        VatDetails.EnsureWithinAmount(vat, amount, nameof(vat));
+
         Id = id;
         UserId = userId;
         CreditCardId = creditCard.Id;
@@ -78,6 +88,7 @@ public sealed class CreditCardCharge
         Scope = scope;
         ChargeDate = chargeDate;
         Description = NormalizeDescription(description);
+        Vat = vat;
     }
 
     public void Cancel(DateTimeOffset cancelledAtUtc)

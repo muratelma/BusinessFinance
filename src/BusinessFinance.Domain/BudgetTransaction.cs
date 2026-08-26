@@ -13,6 +13,13 @@ public sealed class BudgetTransaction
     public TransactionScope Scope { get; }
     public DateOnly TransactionDate { get; }
     public string? Description { get; }
+
+    /// <summary>
+    /// Belgedeki KDV; yoksa boştur (ADR 0016). Taşınan bir bilgidir: kayıt
+    /// tutarını, bakiyeyi, bütçeyi ve işletme netini <b>etkilemez</b>.
+    /// </summary>
+    public VatDetails? Vat { get; }
+
     public bool IsCancelled { get; private set; }
     public DateTimeOffset? CancelledAtUtc { get; private set; }
 
@@ -30,7 +37,8 @@ public sealed class BudgetTransaction
         TransactionType type,
         TransactionScope scope,
         DateOnly transactionDate,
-        string? description = null)
+        string? description = null,
+        VatDetails? vat = null)
     {
         if (id == Guid.Empty)
         {
@@ -105,6 +113,8 @@ public sealed class BudgetTransaction
                 nameof(description));
         }
 
+        VatDetails.EnsureWithinAmount(vat, amount, nameof(vat));
+
         Id = id;
         UserId = userId;
         AccountId = account.Id;
@@ -114,6 +124,7 @@ public sealed class BudgetTransaction
         Scope = scope;
         TransactionDate = transactionDate;
         Description = normalizedDescription;
+        Vat = vat;
         IsCancelled = false;
     }
 

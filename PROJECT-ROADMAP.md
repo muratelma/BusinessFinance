@@ -63,7 +63,7 @@ duruma göre gözden geçirilir.
 |---|---|
 | 02 | Ekonomik olay tanır, ödeme taşır — kart, borç ve cari modellerinin ortak kuralı |
 | 04 | Kart borcu ile kart tahsilatının ayrılması; bloke paranın projection olması; sekme kararı — **ADR 0015, kabul edildi** |
-| 05 | Vergi alanları taşır, hesaplamaz; oran ve tarihler koda gömülmez — **ADR 0016, yazıldı; kabul bekliyor** |
+| 05 | Vergi alanları taşır, hesaplamaz; oran ve tarihler koda gömülmez — **ADR 0016, kabul edildi** |
 
 ### 01 — Kapsam boyutu ve işletme kimliği
 

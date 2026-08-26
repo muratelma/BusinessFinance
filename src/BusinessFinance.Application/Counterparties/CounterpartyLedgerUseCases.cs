@@ -3,6 +3,7 @@ using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.Scopes;
+using BusinessFinance.Application.Taxes;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Counterparties;
@@ -75,7 +76,8 @@ public sealed class CreateCounterpartyChargeUseCase(
                 scope,
                 command.ChargeDate,
                 command.Description,
-                command.DueDate);
+                command.DueDate,
+                command.Vat?.ToDomain());
             await repository.AddChargeAsync(charge, cancellationToken);
             return ApplicationResult<CounterpartyChargeDto>.Success(ToDto(charge));
         }
@@ -102,7 +104,8 @@ public sealed class CreateCounterpartyChargeUseCase(
         charge.ChargeDate,
         charge.Description,
         charge.IsCancelled,
-        charge.DueDate);
+        charge.DueDate,
+        VatDto.From(charge.Vat));
 }
 
 /// <summary>

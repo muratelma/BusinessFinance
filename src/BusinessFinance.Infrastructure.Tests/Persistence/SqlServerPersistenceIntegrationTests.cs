@@ -3742,6 +3742,67 @@ public sealed class SqlServerPersistenceIntegrationTests
         Assert.Equal(495m, counts[1].CountedAmount);
     }
 
+    /// <summary>
+    /// Aşama 05 Grup 2: KDV sütunları gerçek şemada kayıpsız gidip geliyor ve
+    /// SQL, domain'in koyduğu sınırı ikinci kez uyguluyor (ADR 0016).
+    /// </summary>
+    [SqlServerFact]
+    public async Task VatFields_RoundTripAndAreGuardedBySqlAsWellAsTheDomain()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var user = CreateUser("vat-round-trip@example.test");
+        await database.SeedUsersAsync(user);
+        var withVatId = Guid.NewGuid();
+        var withoutVatId = Guid.NewGuid();
+
+        await using (var seed = database.CreateContext())
+        {
+            var account = new Account(
+                Guid.NewGuid(), user.Id, "Kasa", AccountType.Cash, CurrencyCode.TRY, 1000m);
+            var category = new Category(
+                Guid.NewGuid(), user.Id, "Ticari mal", CategoryType.Expense);
+            seed.Add(account);
+            seed.Add(category);
+            seed.Transactions.AddRange(
+                new BudgetTransaction(
+                    withVatId, user.Id, account, category,
+                    new Money(120m, CurrencyCode.TRY), TransactionType.Expense,
+                    TransactionScope.Business, new DateOnly(2026, 8, 26),
+                    "Fatura", new VatDetails(0.20m, 20m)),
+                new BudgetTransaction(
+                    withoutVatId, user.Id, account, category,
+                    new Money(50m, CurrencyCode.TRY), TransactionType.Expense,
+                    TransactionScope.Business, new DateOnly(2026, 8, 26)));
+            await seed.SaveChangesAsync(CancellationToken.None);
+        }
+
+        await using (var read = database.CreateContext())
+        {
+            var withVat = await read.Transactions.AsNoTracking()
+                .SingleAsync(row => row.Id == withVatId, CancellationToken.None);
+            var withoutVat = await read.Transactions.AsNoTracking()
+                .SingleAsync(row => row.Id == withoutVatId, CancellationToken.None);
+
+            Assert.Equal(0.20m, withVat.Vat?.Rate);
+            Assert.Equal(20m, withVat.Vat?.Amount);
+
+            // İki sütun da boşsa kayıt KDV taşımaz: "yok" tek bir hâldir.
+            Assert.Null(withoutVat.Vat);
+        }
+
+        // SQL tarafındaki ikinci kapı: KDV tutarı kaydın tutarını aşamaz.
+        var sqlFailure = await Assert.ThrowsAsync<SqlException>(() => database.ExecuteAsync(
+            "UPDATE [BudgetTransactions] SET [VatAmount] = 999 WHERE [Id] = {0}",
+            withVatId));
+        Assert.Contains("CK_BudgetTransactions_VatAmount", sqlFailure.Message);
+
+        // Oran sınırı da SQL tarafında duruyor.
+        var rateFailure = await Assert.ThrowsAsync<SqlException>(() => database.ExecuteAsync(
+            "UPDATE [BudgetTransactions] SET [VatRate] = 1 WHERE [Id] = {0}",
+            withVatId));
+        Assert.Contains("CK_BudgetTransactions_VatRate", rateFailure.Message);
+    }
+
     private static ApplicationUser CreateUser(string email)
     {
         return new ApplicationUser(

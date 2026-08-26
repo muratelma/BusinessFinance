@@ -15,6 +15,12 @@ internal sealed class BudgetTransactionConfiguration : IEntityTypeConfiguration<
             table.HasCheckConstraint("CK_BudgetTransactions_Amount", "[Amount] > 0");
             table.HasCheckConstraint("CK_BudgetTransactions_Currency", "[Currency] = 1");
             table.HasCheckConstraint("CK_BudgetTransactions_Scope", "[Scope] IN (1, 2)");
+            table.HasCheckConstraint(
+                "CK_BudgetTransactions_VatRate",
+                VatDetailsConfiguration.RateConstraint);
+            table.HasCheckConstraint(
+                "CK_BudgetTransactions_VatAmount",
+                VatDetailsConfiguration.AmountConstraint("Amount"));
         });
 
         builder.HasKey(transaction => transaction.Id);
@@ -37,6 +43,8 @@ internal sealed class BudgetTransactionConfiguration : IEntityTypeConfiguration<
                 .HasConversion<byte>()
                 .HasColumnType("tinyint");
         });
+
+        builder.OwnsVat(transaction => transaction.Vat);
 
         builder.HasIndex(transaction => new { transaction.UserId, transaction.TransactionDate })
             .HasDatabaseName("IX_BudgetTransactions_UserId_TransactionDate");

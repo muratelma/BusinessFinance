@@ -1,3 +1,4 @@
+using BusinessFinance.Application.Taxes;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Obligations;
@@ -11,7 +12,11 @@ public sealed record CreateObligationCommand(
     DateOnly IssueDate,
     DateOnly DueDate,
     Guid? CounterpartyId,
-    string? Description);
+    string? Description,
+
+    // Belgedeki KDV; yoksa boştur (ADR 0016). Sunucu hiçbir vergi tutarını
+    // hesaplamaz — ne geldiyse o taşınır.
+    VatDto? Vat = null);
 
 public sealed record ObligationDto(
     Guid Id,
@@ -30,7 +35,8 @@ public sealed record ObligationDto(
     bool IsOverdue = false,
     Guid? SettlementId = null,
     Guid? SettlementAccountId = null,
-    DateOnly? SettlementDate = null);
+    DateOnly? SettlementDate = null,
+    VatDto? Vat = null);
 
 public sealed record SettleObligationCommand(
     Guid ObligationId,

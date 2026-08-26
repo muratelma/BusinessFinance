@@ -1059,3 +1059,26 @@ planlanan ekranının iki testi de kırmızıya düştü.
 | Vurgu satırı ayrı duruyor | `app_confirm_dialog_test` | `highlight` ve `message` ayrı ayrı görünüyor |
 | Yıkıcı karar hata renginde | `app_confirm_dialog_test` | `destructive` onayı `colorScheme.error`; ilerleten karar varsayılanı kullanıyor |
 | Bakiye cümlesi ekranda bir kez | `planned_activity_test` | Satırda görünmez, ekran başlığında ve satır semantiğinde durur |
+
+## KDV taşınır, hesaplanmaz (26 Ağustos 2026, Aşama 05 Grup 2)
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| "KDV yok" tek temsil | `VatDetailsTests.Vat_IsOptional_AndTheAbsenceIsASingleRepresentation` | İkisi de boşsa nesne `null`; içi boş nesne kabul edilmiyor |
+| Oran ve tutar bağımsız | `VatDetailsTests.RateAndAmount_AreCarriedIndependently_AndNeitherIsDerivedFromTheOther` | Biri girilip diğeri boş bırakılabiliyor; boş kalan doldurulmuyor |
+| Uyuşmazlık düzeltilmiyor | `VatDetailsTests.MismatchedRateAndAmount_AreKeptAsWritten` | %20 oranla 10 lira KDV yazıldığı gibi duruyor |
+| Uyarı kayda sızmıyor | `VatDetailsTests.ImpliedAmount_IsAWarningOnly_AndNeverFillsTheCarriedAmount` | Hesaplanan tutar dönüyor ama alan boş kalıyor |
+| Sıfır meşru | `VatDetailsTests.ZeroRateAndZeroAmount_AreLegitimate` | İstisna kapsamındaki belge "bilinmiyor" değil |
+| Sınır, hesaplama değil | `VatDetailsTests.Amount_CannotExceedTheRecordItSitsOn` | KDV kaydın tutarını aşamıyor |
+| Beş kayıt da KDV'siz yazılabiliyor | `VatCarryingRecordsTests.EveryRecognizingRecord_CanBeWrittenWithoutVat` | İşlem, kart harcaması, cari borçlandırma, yükümlülük, POS |
+| Tutar değişmiyor | `VatCarryingRecordsTests.VatIsCarried_WithoutChangingTheAmountOfTheRecord` | Kayıt tutarı brüt kalıyor |
+| POS'ta para etkilenmiyor | `VatCarryingRecordsTests.PosSettlement_CarriesVatWithoutTouchingTheMoneyThatMoves` | Net tutar, komisyon ve hesap etkisi aynı |
+| Sınır her yerde | `VatCarryingRecordsTests.VatAmountAboveTheRecordAmount_IsRejectedEverywhere` | Beş kayıt türünde de reddediliyor |
+| Cevapta boş nesne yok | `VatContractEndpointTests.Transaction_WithoutVat_CarriesNoVatAtAll` | `vat` alanı `null` dönüyor |
+| Sunucu bölme yapmıyor | `VatContractEndpointTests.Transaction_WithOnlyARate_DoesNotFillTheAmount` | Yalnız oran gönderildiğinde tutar boş |
+| Rapor brüt kalıyor | `VatContractEndpointTests.MismatchedVat_IsStoredAsWritten_AndTheReportStaysGross` | Gider ₺120; KDV düşülmüyor |
+| Okunamayan değer uydurulmuyor | `VatContractEndpointTests.VatThatCannotBeRead_IsRejectedWithoutGuessing` | `transactions.invalid_vat` |
+| Aşan tutar kırpılmıyor | `VatContractEndpointTests.VatAmountAboveTheRecordAmount_IsRejectedNotClamped` | 400 dönüyor, değer düzeltilmiyor |
+| Gerçek SQL'de gidip geliyor | `SqlServerPersistenceIntegrationTests.VatFields_RoundTripAndAreGuardedBySqlAsWellAsTheDomain` | Round-trip + `CK_BudgetTransactions_VatRate/VatAmount` ikinci kapı |
+| Migration zinciri | `MigrationHistoryTests.Migrations_FormTheExpectedChainAndMatchTheModel` | `AddVatFields` zincirin sonunda; şema modelle örtüşüyor |
+

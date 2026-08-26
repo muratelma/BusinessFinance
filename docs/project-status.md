@@ -1343,3 +1343,24 @@ ADR'nin karara bağladıkları:
 
 Kod değişmedi. **Grup 1'in ölçütü ADR'nin kabul edilmesidir**; kullanıcı kabul
 edene kadar Grup 2 ve sonrasının koduna başlanmaz.
+
+## 26 Ağustos 2026 — Aşama 05 Grup 2: KDV taşıyan alanlar
+
+- `VatDetails` değer nesnesi eklendi: `Rate` ve `Amount` iki bağımsız nullable
+  alandır, ikisi de belgeden okunur ve **biri diğerinden türetilmez**. Nesne
+  boş olamaz; KDV yoksa alan `null`'dır
+- Gelir/gider **tanıyan** beş kayıt KDV taşıyor: `BudgetTransaction`,
+  `CreditCardCharge`, `CounterpartyCharge`, `Obligation`, `PosSettlement`.
+  Parayı yalnız taşıyan kayıtlar (transfer, kart ödemesi, cari tahsilat,
+  yükümlülük kapanışı) taşımıyor
+- Oranla tutar uyuşmasa bile kayıt olduğu gibi duruyor; `ImpliedAmount` yalnız
+  uyarı içindir ve hiçbir alanı doldurmuyor. KDV kayıt tutarını, bakiyeyi,
+  bütçeyi ve işletme netini etkilemiyor — rapor brüt kalıyor
+- `AddVatFields` migration'ı beş tabloya iki nullable kolon
+  (`VatRate decimal(5,4)`, `VatAmount decimal(19,4)`) ve iki CHECK kısıtı ekledi;
+  yerel geliştirme ve test veritabanlarına uygulandı
+- Sözleşme: isteklerde isteğe bağlı `vatRate`/`vatAmount`, cevaplarda tek `vat`
+  nesnesi (KDV yoksa `null`). Okunamayan değer `*.invalid_vat` ile reddediliyor
+- Geçen kontroller: backend build (0 uyarı) + format temiz + **942 test geçti**,
+  1 atlandı (canlı Gemini)
+

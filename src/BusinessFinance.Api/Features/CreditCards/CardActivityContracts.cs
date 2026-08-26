@@ -1,3 +1,5 @@
+using BusinessFinance.Api.Contracts;
+
 namespace BusinessFinance.Api.Features.CreditCards;
 
 public sealed record CreateCardChargeRequest(
@@ -8,7 +10,11 @@ public sealed record CreateCardChargeRequest(
     // isteği reddeder ve bir değer uydurmaz.
     string? Scope,
     string ChargeDate,
-    string? Description);
+    string? Description,
+    // Belgedeki KDV; ikisi de boş bırakılabilir. Sunucu birini diğerinden
+    // türetmez (ADR 0016).
+    string? VatRate = null,
+    string? VatAmount = null);
 
 public sealed record CreateCardPaymentRequest(
     Guid AccountId,
@@ -27,7 +33,8 @@ public sealed record CardChargeResponse(
     string ChargeDate,
     string? Description,
     bool IsCancelled,
-    DateTimeOffset? CancelledAtUtc);
+    DateTimeOffset? CancelledAtUtc,
+    VatContract? Vat);
 
 public sealed record CardPaymentResponse(
     Guid Id,

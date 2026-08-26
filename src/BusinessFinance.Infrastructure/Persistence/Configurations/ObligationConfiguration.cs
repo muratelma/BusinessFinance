@@ -16,6 +16,12 @@ internal sealed class ObligationConfiguration : IEntityTypeConfiguration<Obligat
             table.HasCheckConstraint("CK_Obligations_Direction", "[Direction] IN (1, 2)");
             table.HasCheckConstraint("CK_Obligations_Scope", "[Scope] IN (1, 2)");
             table.HasCheckConstraint("CK_Obligations_DueDate", "[DueDate] >= [IssueDate]");
+            table.HasCheckConstraint(
+                "CK_Obligations_VatRate",
+                VatDetailsConfiguration.RateConstraint);
+            table.HasCheckConstraint(
+                "CK_Obligations_VatAmount",
+                VatDetailsConfiguration.AmountConstraint("Amount"));
         });
 
         builder.HasKey(obligation => obligation.Id);
@@ -37,6 +43,8 @@ internal sealed class ObligationConfiguration : IEntityTypeConfiguration<Obligat
             money.Property(value => value.Currency)
                 .HasColumnName("Currency").HasConversion<byte>().HasColumnType("tinyint");
         });
+
+        builder.OwnsVat(obligation => obligation.Vat);
 
         builder.HasIndex(obligation => new
         { obligation.UserId, obligation.IsCancelled, obligation.DueDate, obligation.Direction })
