@@ -26,6 +26,11 @@ Future<void> openQuickAdd(BuildContext context) async {
       context.push(obligationCreateLocation, extra: const ObligationPrefill());
     case QuickAddOption.income:
       context.push('/transactions/new/income');
+    // POS tahsilatının kendi formu `Kasa` ekranındadır ve orada kalır: tahsilat
+    // listesiyle aynı yerde durması, kullanıcının yoldaki parayı girdiği anda
+    // görmesini sağlıyor. Menü ikinci bir kopya form açmıyor, oraya götürüyor.
+    case QuickAddOption.posCollection:
+      context.push('$cashLocation?tab=pos');
     // Dekontun kendi sayfası var: yön sormaz, üç banka belgesini de okur ve
     // "bu tutar ne?" sorusunu okuma bittikten sonra karar sayfasında sorar.
     case QuickAddOption.bankSlip:

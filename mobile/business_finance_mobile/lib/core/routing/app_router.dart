@@ -562,7 +562,7 @@ GoRouter createAppRouter({
         // `Kasa` ekranı: gün sonu sayımı ve POS tahsilatları. Aşama 04 Grup
         // 5'te işletme profilinde ana sekmeye çıkacak; kişisel profilde
         // `Diğer` altında kalacak. İki yerleşimde de aynı rota okunur.
-        path: '/more/cash',
+        path: cashLocation,
         pageBuilder: (context, state) => _sessionPage(
           state,
           cashRepository == null || posRepository == null
@@ -574,6 +574,10 @@ GoRouter createAppRouter({
                   posRepository: posRepository,
                   changes: financialDataChanges,
                   scopeController: scopeController,
+                  // `İşlem ekle > POS tahsilatı` doğrudan POS sekmesine
+                  // açılıyor; menüden gelen kullanıcıyı gün sonu sayımına
+                  // bırakıp sekmeyi elle buldurmak yolun yarısında bırakmaktı.
+                  initialTab: state.uri.queryParameters['tab'] == 'pos' ? 1 : 0,
                 ),
           authController,
         ),
@@ -690,12 +694,14 @@ class _CashPageHost extends StatefulWidget {
     required this.changes,
     required this.scopeController,
     super.key,
+    this.initialTab = 0,
   });
 
   final CashRepositoryContract cashRepository;
   final PosRepositoryContract posRepository;
   final FinancialDataChanges? changes;
   final ScopeController? scopeController;
+  final int initialTab;
 
   @override
   State<_CashPageHost> createState() => _CashPageHostState();
@@ -731,6 +737,7 @@ class _CashPageHostState extends State<_CashPageHost> {
     posController: _posController,
     scopeController: widget.scopeController,
     ownsControllers: false,
+    initialTab: widget.initialTab,
   );
 }
 

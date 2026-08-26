@@ -640,6 +640,45 @@ Anahtar `İşletme` / `Şahsi`   -> o tarafın neti, adı yazılı
 tarafın adı sayının yönüne göre `Şahsi çekim` ya da `Şahsi net` olur. Hesaplanan
 şey nakit esaslı **işletme netidir**; "kâr" kelimesi kullanılmaz.
 
+## `İşlem ekle` menüsünün niyet ekseni
+
+Menü tek giriş noktasıdır: kabuktaki çentikli buton ve İşlemler ekranındaki
+eylem aynı launcher'ı açar. Dokuz satır düz bir listede telefonda okunmuyordu;
+satırlar **niyet** başlıklarının altında toplandı.
+
+```text
+Para girdi   -> Gelir
+                POS tahsilatı            (Kasa > POS tahsilatları sekmesi)
+Para çıktı   -> Gider
+                Ödenmemiş fatura         (para henüz hareket etmez)
+Para taşı    -> Hesaplar arası transfer
+                Kredi kartı borcu öde
+Belge okut   -> Fiş veya fatura okut
+                Dekont okut
+Plan kur     -> Tekrarlayan işlem planla
+```
+
+Eksen kayıt türü değil niyettir: kullanıcı menüyü açarken "bu bir kart ödemesi
+kaydı mı" diye düşünmez, "param nereye gitti" diye düşünür.
+
+`Para taşı` ayrı bir başlıktır çünkü transfer ile kart borcu ödemesi **gider
+değildir** (ADR 0014): ödemeyi taşır, gelir/gider yazmazlar. İkisini
+`Para çıktı` altına koymak menünün kendisine raporu yanlış anlattırırdı.
+
+**Gün sonu kasa sayımı bu menüde yoktur.** Hiçbir para hareketi üretmeyen bir
+gözlemdir ve `Kasa > Gün sonu` ekranında durur; menüye alınsaydı `İşlem ekle`
+işlem olmayan bir şeyi işlem gibi gösterirdi. Hesap/kart açma, CSV içe aktarma
+ve borç/taksit planları da aynı gerekçeyle kendi ekranlarındadır: bunlar bir şey
+**kurar**, bugün para hareket ettirmez.
+
+Açıklama satırı yalnız yanlış anlaşılabilecek satırlarda durur. `Gelir`,
+`Gider` ve `Hesaplar arası transfer` başlığın altında zaten anlaşılıyor;
+`POS tahsilatı` ise paranın bugün hesaba geçmediğini yazmak zorundadır.
+
+`POS tahsilatı` menüden seçildiğinde `Kasa` ekranı POS sekmesi seçili açılır
+(`/more/cash?tab=pos`). Menü ikinci bir kopya form açmaz: tahsilat formu
+listeyle aynı yerde durur ve kullanıcı yoldaki parayı girdiği anda görür.
+
 ## Kapsamlı işlem ekleme
 
 ```text

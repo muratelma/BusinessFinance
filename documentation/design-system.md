@@ -261,6 +261,13 @@ Birkaç bileşenin sözleşmesinde neden şu kararların olduğu:
 - Alt çubuğun olmadığı ekranlarda (Kategoriler, Hesaplar, …) sayfanın kendi
   kayan butonu sağ altta kalır: daire, ikon ve tooltip.
 - Geniş ekranda çentik yoktur; birincil eylem gezinme rayının başında durur.
+- **`İşlem ekle` launcher'ı başlıklıdır.** Dokuz satır düz listede telefonda
+  kaydırmadan okunmuyordu; satırlar niyet başlıklarının (`Para girdi`,
+  `Para çıktı`, `Para taşı`, `Belge okut`, `Plan kur`) altında yoğun
+  (`dense`) satırlar olarak durur. Açıklama alt satırı her satırda değil,
+  yalnız adı yön veya zaman konusunda tek başına yetmeyen satırlarda bulunur —
+  dokuz açıklama listeyi ekranın dışına taşırıyordu. Başlık rengi
+  `colorScheme.primary`, tipografi `labelLarge`.
 
 ### Bir ekrandaki eylem grupları
 

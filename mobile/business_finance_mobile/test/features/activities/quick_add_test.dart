@@ -15,6 +15,8 @@ import 'package:business_finance_mobile/features/cards/data/finance_repository.d
 import 'package:business_finance_mobile/features/transactions/data/transaction_models.dart';
 import 'package:business_finance_mobile/features/transactions/data/transaction_repository.dart';
 
+import '../../helpers/accessibility.dart';
+
 void main() {
   group('launcher', () {
     testWidgets('offers every way to record a movement', (tester) async {
@@ -33,6 +35,68 @@ void main() {
       // and card creation, CSV import and plans stay on their own screens.
       expect(find.text('Hesap ekle'), findsNothing);
       expect(find.text('CSV içe aktar'), findsNothing);
+    });
+
+    // Dokuz satırın düz listesi okunmuyordu; satırlar niyet başlıklarının
+    // altında duruyor. Başlıklar ekranda gerçekten görünmezse eksen yalnız
+    // enum'da kalır.
+    testWidgets('groups the rows under intent headings', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(body: QuickAddLauncher()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      for (final intent in QuickAddIntent.values) {
+        expect(find.text(intent.label), findsOneWidget);
+      }
+    });
+
+    // Transfer ile kart borcu ödemesi gider değildir (ADR 0014): ödemeyi
+    // taşırlar, gelir/gider yazmazlar. `Para çıktı` altına konsalardı menünün
+    // kendisi raporu yanlış anlatırdı.
+    test('keeps carrying a payment out of the expense heading', () {
+      expect(QuickAddOption.transfer.intent, QuickAddIntent.carry);
+      expect(QuickAddOption.cardPayment.intent, QuickAddIntent.carry);
+      expect(QuickAddOption.expense.intent, QuickAddIntent.moneyOut);
+      expect(QuickAddOption.obligation.intent, QuickAddIntent.moneyOut);
+    });
+
+    // POS satışı `Para girdi`dir ve satır paranın bugün hesaba geçmediğini
+    // söylüyor; söylemeseydi kullanıcı bakiyesinin hemen artmasını beklerdi.
+    testWidgets('offers the pos collection as money coming in', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(body: QuickAddLauncher()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(QuickAddOption.posCollection.intent, QuickAddIntent.moneyIn);
+      expect(find.text('POS tahsilatı'), findsOneWidget);
+      expect(
+        find.textContaining('birkaç gün sonra hesaba geçer'),
+        findsOneWidget,
+      );
+    });
+
+    // Gün sonu sayımı bir gözlemdir: hiçbir para hareketi üretmez ve kendi
+    // ekranında durur. Menüye alınsaydı `İşlem ekle` para hareketi olmayan bir
+    // şeyi işlem gibi gösterirdi.
+    testWidgets('leaves the till count on its own screen', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(body: QuickAddLauncher()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Gün sonu'), findsNothing);
+      expect(find.textContaining('kasa sayımı'), findsNothing);
     });
 
     // Menü ne okuyabildiğini olduğu gibi söylüyor. Tek bir "Fiş ile ekle"
@@ -72,6 +136,48 @@ void main() {
       // Satır parayı bugün hareket ettirmediğini söylüyor; söylemeseydi
       // kullanıcı bunu gider sanıp hesabının azalmasını beklerdi.
       expect(find.textContaining('para henüz hareket etmez'), findsOneWidget);
+    });
+
+    // Aşama 04'ün ölçütü: dokuz satır telefonda **kaydırmadan** okunabilmeli.
+    // Düz listede açıklamalar her satırda duruyordu ve son satırlar ekranın
+    // altında kalıyordu; başlıklara geçerken açıklamalar yalnız yanlış
+    // anlaşılabilecek satırlarda bırakıldı.
+    testWidgets('fits every row on a phone without scrolling', (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(body: QuickAddLauncher()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      for (final option in QuickAddOption.values) {
+        expect(
+          find.text(option.label).hitTestable(),
+          findsOneWidget,
+          reason: '${option.label} kaydırmadan görünmüyor.',
+        );
+      }
+      await expectMeetsAccessibility(tester);
+    });
+
+    // En büyük yazı ölçeğinde liste taşamaz: taşarsa kullanıcı satırı hiç
+    // göremez. Bu ölçekte kaydırma meşrudur, kırpılma değildir.
+    testWidgets('stays usable at the largest text scale', (tester) async {
+      await pumpAtLargestTextScale(
+        tester,
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(body: QuickAddLauncher()),
+        ),
+      );
+
+      expectNoOverflow(tester);
+      expect(find.text('Para girdi'), findsOneWidget);
     });
 
     // Launcher artık pencere sınıfına göre bottom sheet veya dialog açıyor.

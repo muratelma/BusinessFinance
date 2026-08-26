@@ -6,6 +6,10 @@ import 'quick_add_models.dart';
 
 /// The single entry point for recording a movement. It only routes: no financial
 /// rule lives here, and there is no one dynamic form trying to be all of them.
+///
+/// Satırlar [QuickAddIntent] başlıklarının altında toplanır. Dokuz satırın düz
+/// listesi telefonda okunmuyordu; başlık, kullanıcıya listenin tamamını
+/// okutmadan doğru üçlüye bakmasını sağlıyor.
 class QuickAddLauncher extends StatelessWidget {
   const QuickAddLauncher({super.key});
 
@@ -19,9 +23,9 @@ class QuickAddLauncher extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return SafeArea(
-      // The entries with their descriptions do not fit a short screen, a
-      // landscape phone or a large text scale, so the list scrolls instead of
-      // overflowing.
+      // Başlıklar listeyi kısaltmıyor, okunur kılıyor: küçük bir ekranda veya
+      // büyük yazı ölçeğinde hâlâ taşabilir, o yüzden liste kaydırılabilir
+      // kalıyor.
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -36,13 +40,34 @@ class QuickAddLauncher extends StatelessWidget {
               ),
               child: Text('İşlem ekle', style: theme.textTheme.titleLarge),
             ),
-            for (final option in QuickAddOption.values)
-              ListTile(
-                leading: Icon(_icon(option)),
-                title: Text(option.label),
-                subtitle: Text(option.description),
-                onTap: () => Navigator.of(context).pop(option),
+            for (final intent in QuickAddIntent.values) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.medium,
+                  AppSpacing.small,
+                  AppSpacing.medium,
+                  AppSpacing.xSmall,
+                ),
+                child: Text(
+                  intent.label,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
               ),
+              for (final option in QuickAddOption.values.where(
+                (option) => option.intent == intent,
+              ))
+                ListTile(
+                  dense: true,
+                  leading: Icon(_icon(option)),
+                  title: Text(option.label),
+                  subtitle: option.description == null
+                      ? null
+                      : Text(option.description!),
+                  onTap: () => Navigator.of(context).pop(option),
+                ),
+            ],
             const SizedBox(height: AppSpacing.small),
           ],
         ),
@@ -55,6 +80,7 @@ class QuickAddLauncher extends StatelessWidget {
     QuickAddOption.receipt => Icons.receipt_long_outlined,
     QuickAddOption.obligation => Icons.schedule_outlined,
     QuickAddOption.income => Icons.south_west,
+    QuickAddOption.posCollection => Icons.point_of_sale_outlined,
     QuickAddOption.bankSlip => Icons.account_balance_outlined,
     QuickAddOption.transfer => Icons.swap_horiz,
     QuickAddOption.cardPayment => Icons.payments_outlined,

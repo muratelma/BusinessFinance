@@ -19,12 +19,19 @@ class CashPage extends StatefulWidget {
     super.key,
     this.scopeController,
     this.ownsControllers = true,
+    this.initialTab = 0,
   });
 
   final CashCountController cashController;
   final PosController posController;
   final ScopeController? scopeController;
   final bool ownsControllers;
+
+  /// Açılışta seçili sekme: 0 gün sonu, 1 POS tahsilatları.
+  ///
+  /// `İşlem ekle > POS tahsilatı` doğrudan ikinci sekmeye geliyor; menüden
+  /// gelen kullanıcı sekmeyi elle bulmak zorunda kalmıyor.
+  final int initialTab;
 
   @override
   State<CashPage> createState() => _CashPageState();
@@ -44,6 +51,7 @@ class _CashPageState extends State<CashPage> {
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
+      initialIndex: widget.initialTab,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Kasa'),

@@ -236,7 +236,7 @@ Uygulananlar:
 - İki profil için yönlendirme testi dört ana hedefi, üçüncü hedefin gerçek
   içeriğini ve `Diğer` altındaki karşı hedefin açılabildiğini doğruluyor.
 
-### Grup 6 — `İşlem ekle` menüsünün yeniden kurgusu
+### Grup 6 — `İşlem ekle` menüsünün yeniden kurgusu — **Tamamlandı**
 
 - Bugün yedi düz seçenek: gider, fiş, gelir, dekont, transfer, kart ödemesi,
   tekrarlayan plan. Bu aşamada kasa ve POS eklenince liste taşıyor.
@@ -246,6 +246,30 @@ Uygulananlar:
   launcher'ı açmaya devam eder.
 - Ölçüt: sekiz üstü seçenek tek ekranda kaydırmadan okunabiliyor; erişilebilirlik
   kapısı geçiyor.
+
+Uygulananlar:
+
+- Menü **beş başlıkla** kuruldu: `Para girdi`, `Para çıktı`, `Para taşı`,
+  `Belge okut`, `Plan kur`. Belgedeki dört eksene beşincisi eklendi çünkü
+  transfer ile kart borcu ödemesi **gider değildir** (ADR 0014): ödemeyi
+  taşırlar, gelir/gider yazmazlar. `Para çıktı` altına konsalardı menünün
+  kendisi raporu yanlış anlatırdı.
+- POS tahsilatı menüye `Para girdi` altında girdi ve `Kasa` ekranını POS
+  sekmesi seçili açıyor (`/more/cash?tab=pos`). Menü ikinci bir kopya form
+  açmıyor; tahsilat formu listeyle aynı yerde kalıyor.
+- **Gün sonu kasa sayımı menüye alınmadı.** Hiçbir para hareketi üretmeyen bir
+  gözlemdir ve `Kasa > Gün sonu` ekranında durur; menüye alınsaydı `İşlem ekle`
+  işlem olmayan bir şeyi işlem gibi gösterirdi. Hesap açma ve CSV içe aktarma
+  ile aynı gerekçe.
+- Açıklama satırı her satırdan kaldırıldı, yalnız yanlış anlaşılabilecek
+  satırlarda bırakıldı (`POS tahsilatı`, `Ödenmemiş fatura`, `Kredi kartı borcu
+  öde`, iki belge satırı, tekrarlayan plan). Dokuz açıklama listeyi ekranın
+  dışına taşırıyordu.
+- Ölçüt teste bağlandı: 400×800 telefonda dokuz satırın hepsi **kaydırmadan**
+  hit-test edilebiliyor ve aynı testte erişilebilirlik kapısı geçiyor; 2× yazı
+  ölçeğinde taşma yok (o ölçekte kaydırma meşrudur).
+- Tek launcher kuralı korundu: kabuktaki çentikli buton ve İşlemler ekranındaki
+  eylem aynı menüyü açmaya devam ediyor.
 
 ### Grup 7 — Yazma uçları ve Flutter ekranları — **Tamamlandı**
 

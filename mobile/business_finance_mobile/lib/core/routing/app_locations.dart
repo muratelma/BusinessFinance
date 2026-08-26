@@ -28,3 +28,10 @@ const invoiceDecisionLocation = '/transactions/new/invoice';
 
 /// Ödenmemiş faturanın tek seferlik yükümlülük formu.
 const obligationCreateLocation = '/transactions/new/obligation';
+
+/// `Kasa` ekranı: gün sonu sayımı ve POS tahsilatları.
+///
+/// `?tab=pos` ile açıldığında POS sekmesi seçili gelir. Sabit burada, çünkü
+/// ekrana `İşlem ekle` menüsünden de gidiliyor ve rota dizgesinin iki yerde
+/// elle yazılması taşındığında biri geride kalır.
+const cashLocation = '/more/cash';

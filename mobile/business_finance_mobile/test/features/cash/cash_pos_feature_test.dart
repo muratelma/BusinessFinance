@@ -155,6 +155,27 @@ void main() {
     },
   );
 
+  // `İşlem ekle > POS tahsilatı` doğrudan ikinci sekmeye geliyor. Ekran hep
+  // gün sonuyla açılsaydı menüden gelen kullanıcı sekmeyi elle bulmak zorunda
+  // kalır ve menü yolun yarısında bırakırdı.
+  testWidgets('POS sekmesi açılışta seçili gelebilir', (tester) async {
+    final cashController = CashCountController(_FakeCashRepository());
+    final posController = PosController(_FakePosRepository());
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: CashPage(
+          cashController: cashController,
+          posController: posController,
+          initialTab: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Yoldaki para sizindir'), findsOneWidget);
+  });
+
   testWidgets(
     'Kasa iki alt ekranıyla büyük metin erişilebilirlik kapısını geçer',
     (tester) async {

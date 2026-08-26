@@ -1175,3 +1175,38 @@ eksiksiz çıktı; iki arayüz boşluğu bulundu ve kapatıldı.
   build
 - Sıradaki görev: Aşama 04 Grup 6 — `İşlem ekle` menüsünü para girdi / para
   çıktı / belge okut / plan kur niyet eksenine taşımak
+
+## 26 Ağustos 2026 — Aşama 04, Grup 6: `İşlem ekle` niyet ekseni
+
+- Menü düz listeden **beş başlığa** geçti: `Para girdi`, `Para çıktı`,
+  `Para taşı`, `Belge okut`, `Plan kur`. Aşama belgesindeki dört eksene
+  beşincisi eklendi çünkü transfer ile kart borcu ödemesi gider **değildir**
+  (ADR 0014); `Para çıktı` altına konsalardı menü raporu yanlış anlatırdı
+- POS tahsilatı menüye `Para girdi` altında girdi ve `Kasa` ekranını POS sekmesi
+  seçili açıyor (`/more/cash?tab=pos`). İkinci bir kopya form açılmadı; tahsilat
+  formu listeyle aynı yerde kalıyor
+- **Gün sonu kasa sayımı menüye alınmadı**: para hareketi üretmeyen bir gözlem,
+  `Kasa > Gün sonu` ekranında durur. Hesap açma ve CSV içe aktarmanın menüde
+  olmamasıyla aynı gerekçe
+- Açıklama alt satırı her satırdan kaldırılıp yalnız yanlış anlaşılabilecek
+  satırlarda bırakıldı; dokuz açıklama listeyi ekranın dışına taşırıyordu
+- Aşamanın ölçütü teste bağlandı: 400×800 telefonda dokuz satırın hepsi
+  **kaydırmadan** hit-test edilebiliyor ve aynı testte erişilebilirlik kapısı
+  geçiyor; 2× yazı ölçeğinde taşma yok. Tek launcher kuralı korundu
+
+| Kontrol | Sonuç |
+|---|---|
+| Flutter analyze | No issues found |
+| Flutter format | 235 dosya, 1 dosya biçimlendirildi |
+| Flutter test | **749 geçti** |
+| Android debug build | `app-debug.apk` üretildi |
+
+## Son oturum kapanışı
+
+- Yapılan değişiklik: Aşama 04 **Grup 6 tamamlandı**; `İşlem ekle` menüsü niyet
+  eksenine taşındı, POS tahsilatı satırı eklendi, gün sonu sayımı bilinçli
+  olarak menü dışında bırakıldı
+- Geçen kontroller: Flutter analyze + format + **749 test** + Android debug
+  build (backend'e dokunulmadı)
+- Sıradaki görev: Aşama 04 Grup 8 — yedek şemasını v9'a yükseltmek, feed
+  sözleşmesini kasa sayımı ve POS tahsilatıyla genişletmek

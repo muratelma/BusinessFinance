@@ -2,42 +2,85 @@ import 'dart:typed_data';
 
 import '../../../core/models/transaction_scope.dart';
 
+/// Menünün başlıkları: kullanıcının aklındaki **niyet**.
+///
+/// Düz liste dokuz satıra çıkınca okunmaz oldu; satırlar bir eksene bağlanmak
+/// zorundaydı. Eksen kayıt türü değil niyettir, çünkü kullanıcı menüyü açarken
+/// "bu bir `CreditCardPayment` mı" diye düşünmez, "param nereye gitti" diye
+/// düşünür.
+///
+/// [carry] ayrı bir başlık, çünkü transfer ile kart borcu ödemesi **gider
+/// değildir** (ADR 0014): ödemeyi taşırlar, gelir/gider yazmazlar. İkisini
+/// [moneyOut] altına koymak, menünün kendisinin raporu yanlış anlatması
+/// olurdu.
+///
+/// Gün sonu kasa sayımı bu menüde **yok**: hiçbir para hareketi üretmez, bir
+/// gözlemdir ve kendi ekranında (`Kasa > Gün sonu`) durur.
+enum QuickAddIntent {
+  moneyIn('Para girdi'),
+  moneyOut('Para çıktı'),
+  carry('Para taşı'),
+  scanDocument('Belge okut'),
+  plan('Plan kur');
+
+  const QuickAddIntent(this.label);
+  final String label;
+}
+
 /// The ways a user starts a movement. Account and card creation, CSV import
 /// and debt or installment plans stay on their own management screens: those set
 /// something up, they do not record money moving today.
+///
+/// Sıra başlığa göredir: aynı [QuickAddIntent] değerini taşıyan satırlar menüde
+/// ardışık görünür.
 enum QuickAddOption {
-  expense('Gider'),
-  receipt('Fiş veya fatura okut'),
-  obligation('Ödenmemiş fatura'),
-  income('Gelir'),
-  bankSlip('Dekont okut'),
-  transfer('Hesaplar arası transfer'),
-  cardPayment('Kredi kartı borcu öde'),
-  recurringPlan('Tekrarlayan işlem planla');
+  income('Gelir', QuickAddIntent.moneyIn),
+  posCollection('POS tahsilatı', QuickAddIntent.moneyIn),
+  expense('Gider', QuickAddIntent.moneyOut),
+  obligation('Ödenmemiş fatura', QuickAddIntent.moneyOut),
+  transfer('Hesaplar arası transfer', QuickAddIntent.carry),
+  cardPayment('Kredi kartı borcu öde', QuickAddIntent.carry),
+  receipt('Fiş veya fatura okut', QuickAddIntent.scanDocument),
+  bankSlip('Dekont okut', QuickAddIntent.scanDocument),
+  recurringPlan('Tekrarlayan işlem planla', QuickAddIntent.plan);
 
-  const QuickAddOption(this.label);
+  const QuickAddOption(this.label, this.intent);
   final String label;
 
-  String get description => switch (this) {
-    expense => 'Nakit, banka hesabı veya kredi kartından harcama',
-    // Ayrı bir kayıt türü değil: aynı gider ya da gelir, alanları fotoğraftan
-    // önerilmiş hâlde açılıyor. Bu yüzden `Gider`in hemen altında duruyor.
-    receipt => 'Market fişi, fatura veya makbuzun fotoğrafından',
+  /// Satırın altında duracağı başlık.
+  final QuickAddIntent intent;
+
+  /// Satırın altındaki açıklama; başlığın söylemediği bir şey yoksa `null`.
+  ///
+  /// Dokuz satırın hepsine açıklama yazmak menüyü telefonda kaydırmadan
+  /// okunmaz hâle getiriyordu. Açıklama yalnız satır **yanlış anlaşılabilecekse**
+  /// duruyor: adı yön veya zaman konusunda tek başına yeterli olan satırlar
+  /// (`Gelir`, `Gider`, `Hesaplar arası transfer`) başlığın altında zaten
+  /// anlaşılıyor.
+  String? get description => switch (this) {
+    income => null,
+    // POS satışı iki anı olan tek kayıttır: gelir bugün tanınır, para birkaç
+    // gün sonra hesaba geçer. Satır bunu söylemezse kullanıcı bakiyesinin
+    // hemen artmasını bekler.
+    posCollection => 'Kartla satış; para birkaç gün sonra hesaba geçer',
+    expense => null,
     // Fişin "henüz ödemedim" dalıyla aynı kaydı üretir; fotoğrafı olmayan
     // kullanıcı için elle giriş yolu. Para bugün hareket etmediği için
-    // `Gider`in yanında değil, kendi adıyla duruyor.
+    // ne olduğunu yazması şart.
     obligation =>
       'Vadesi olan fatura veya tek seferlik alacak; para henüz '
           'hareket etmez',
-    income => 'Nakit veya banka hesabına gelen para',
+    transfer => null,
+    // Kart ödemesi `Para taşı` altındadır ve gider değildir; satır paranın
+    // nereden nereye gittiğini yazıyor.
+    cardPayment => 'Hesabınızdan kart borcunuza ödeme',
+    // Ayrı bir kayıt türü değil: aynı gider ya da gelir, alanları fotoğraftan
+    // önerilmiş hâlde açılıyor.
+    receipt => 'Market fişi, fatura veya makbuzun fotoğrafından',
     // Dekont ayrı bir giriş, çünkü ayrı bir soru soruyor. Alışveriş belgesinde
     // yön fotoğraftan önce bilinir; dekontta belgedeki tutarın ne olduğu
     // (ödeme, aktarma, kart ödemesi, borç verme) ancak okuma bitince sorulur.
-    // İkisini tek ekranda toplamak, kullanıcıya burada verdiği cevabı orada
-    // tekrar sormak oluyordu.
     bankSlip => 'Havale, EFT, ATM veya kart borcu ödemesi dekontundan',
-    transfer => 'Kendi hesaplarınız arasında para taşıma',
-    cardPayment => 'Hesabınızdan kart borcunuza ödeme',
     recurringPlan => 'Düzenli gelir, gider veya abonelik',
   };
 }
