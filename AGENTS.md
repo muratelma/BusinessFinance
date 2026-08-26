@@ -14,7 +14,9 @@ raporlama boyutudur (`documentation/adr/0013-business-and-personal-are-one-pool.
 Finansal kod yazmadan önce bu ADR okunur.
 
 Ürün kapsamı `PRD-BusinessFinance.md`, geliştirme sırası `PROJECT-ROADMAP.md`
-belgesindedir; zincir altı aşamadır ve hepsinin belgesi `stages/` altındadır.
+belgesindedir; hepsinin belgesi yazılıdır (tamamlananlar `docs/archive/stages/`,
+açık olanlar `stages/` altında). Aşama 06 bir **kümedir** (06, 06.1, 06.2, …):
+ayrı ayrı kapanabilen aşamalar; kural `stages/README.md` içinde.
 Backend ve Flutter tarafı aynı şekilde geliştirilir; ikisi arasında farklı bir
 çalışma biçimi yoktur.
 
@@ -187,7 +189,9 @@ değildir:
   kullanılmaz.
 - `.env`, parola, token, signing key ve connection string Git'e eklenmez.
 - Secret ve finansal veriyi terminal çıktısında veya loglarda gösterme.
-- Ürünü Aşama 06 tamamlanmadan internete açma; API ve SQL loopback'e bağlı kalır.
+- Ürünü Aşama 07 tamamlanmadan internete açma; API ve SQL loopback'e bağlı kalır.
+  Giden bir HTTPS çağrısı (ör. e-posta gönderimi) bu kuralı ihlal etmez;
+  yasak olan dışarıdan gelen bağlantıyı kabul etmektir.
 - Azure ve offline cache'i kendi roadmap aşaması gelmeden ekleme.
 - **Banka bağlantısı / açık bankacılık kapsam dışıdır.** Sağlayıcı SDK'sı,
   adapter veya sandbox bağlantısı eklenmez; bankadan ödeme veya transfer

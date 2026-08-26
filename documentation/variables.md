@@ -87,7 +87,7 @@ konmaz.
 
 Ücretsiz katmanda gönderilen içerik Google'ın ürün geliştirmesinde
 kullanılır; bu yüzden bu aşamada yalnız **sentetik fiş** gönderilir. Gerçek
-fiş gönderimi hem ücretli katman hem bulut güvenlik kapısı (Aşama 06) ister.
+fiş gönderimi hem ücretli katman hem bulut güvenlik kapısı (Aşama 07) ister.
 
 ## Mobil istemci sınırı
 
@@ -106,7 +106,7 @@ Attachment root varsayılan olarak API executable base dizinine göre
 root dışında çözülen path reddedilir. Bu klasör Git'e eklenmez; container/host
 kalıcılığı ayrıca volume ile sağlanmalıdır. Yerel disk şifreleme veya yönetilen
 malware scanning sağlamaz. Backup v2 de şifreli değildir; gerçek finans verisiyle
-kullanım bulut güvenlik kapısına (Aşama 06) kadar yasaktır.
+kullanım bulut güvenlik kapısına (Aşama 07) kadar yasaktır.
 
 ## Yayın öncesi kontrol listesi
 

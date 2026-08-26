@@ -50,20 +50,30 @@ oturuyor.
 | 03 | Yükümlülük ve vade | Ödenmemiş fatura kendi kabına kavuşur; plan bitiş sınırı | Tamamlandı (24 Ağu 2026) |
 | 04 | Kasa, POS ve gezinme | Gün sonu kasa, POS tahsilatı ve bloke; ana sekmeler | Tamamlandı (26 Ağu 2026) |
 | 05 | Vergi ve muhasebeci | KDV taşıyan alanlar, vergi takvimi, ay sonu paketi | Tamamlandı |
-| 06 | Bulut güvenli beta | Ürün kendi makinenden bağımsız çalışır | Planlandı |
+| 06 | Hesap ve kalan işler | Kullanıcı kendi hesabını yönetir; biriken açık işler kapanır | Planlandı |
+| 06.1 | Güvenlik taraması | Secret, bağımlılık, yetkilendirme ve log açıkları kapanır | Planlandı |
+| 06.2 | Arayüz düzeni | Ekranlar bulunabilir ve tutarlı hâle gelir | Planlandı |
+| 06.x | (açılmadı) | Uygulama büyüdükçe çıkan işler | İhtiyaç oldukça |
+| 07 | Bulut güvenli beta | Ürün kendi makinenden bağımsız çalışır | Planlandı |
 
-Altı aşamanın belgesi de `stages/` altında yazılı. `Planlandı` durumundaki bir
+Bütün aşamaların belgesi yazılı: tamamlananlar `docs/archive/stages/`, açık
+olanlar `stages/` altında. **06 bir aşama kümesidir**: aynı hedefe (ürünü buluta
+çıkmadan önce tamamlamak) giden ama ayrı ayrı kapanabilen aşamalar. Uygulamaya
+bir şey eklendikçe arkasında yeni iş kalıyor; tek bir dev aşama listesi sürekli
+büyüdüğü için hiç kapanmaz, ayrı numaralananlar kapanır ve yeni iş yeni bir
+numarayla açılır. Kural `stages/README.md` içinde. `Planlandı` durumundaki bir
 belge yalnız kapsamı kayda geçirir; kullanıcı açıkça onaylayana kadar **Aktif**
 olmaz ve kodu değiştirilmez. Belgeler, sıraları geldiğinde o günkü gerçek
 duruma göre gözden geçirilir.
 
-**Üç aşama bir ADR ile açılır**; kararı yazılmadan işe başlanmaz:
+**Dört aşama bir ADR ile açılır**; kararı yazılmadan işe başlanmaz:
 
 | Aşama | Yazılacak karar |
 |---|---|
 | 02 | Ekonomik olay tanır, ödeme taşır — kart, borç ve cari modellerinin ortak kuralı |
 | 04 | Kart borcu ile kart tahsilatının ayrılması; bloke paranın projection olması; sekme kararı — **ADR 0015, kabul edildi** |
 | 05 | Vergi alanları taşır, hesaplamaz; oran ve tarihler koda gömülmez — **ADR 0016, kabul edildi** |
+| 07 | Fiş okumada veri sınırı: hangi belge hangi katmana gönderilir — **ADR 0011 güncellemesi, yazılmadı** |
 
 ### 01 — Kapsam boyutu ve işletme kimliği
 
@@ -98,21 +108,52 @@ Hareket başına KDV oranı ve tutarı (taşınır, hesaplanmaz). İndirilebilir
 Ay sonu muhasebeci paketi. Tasarruf hedefi "vergi karşılığı" olarak
 konumlanır; yeni modül yazılmaz.
 
-### 06 — Bulut güvenli beta
+### 06 — Hesap ve kalan işler
 
-Container yayını, yönetilen veritabanı, HTTPS, secret yönetimi, e-posta
-doğrulama, parola sıfırlama, izleme, otomatik yedek, Google Play kapalı test.
+Ürünün finansal tarafı beş aşamada kuruldu; kullanıcının kendisi kurulmadı.
+Profil ve güvenlik ekranı (e-posta, parola değiştirme, oturumlar, hesap silme),
+e-posta doğrulama ve parola sıfırlama (kod tabanlı, giden e-posta servisiyle),
+cihaz üstü hatırlatma. Yanında `docs/backlog.md` içinde biriken dört açık işten
+üçü: kırpılan kart alacağı, ayarlanamayan varsayılan kapsam, yapılmamış fiş
+kabul turu ve kapsamı netleşmemiş bütçe iyileştirmeleri. **Açık kapsamlıdır.**
+
+### 06.1 — Güvenlik taraması
+
+Kodun davranışı değil hijyeni denetlenir: secret taraması (repo geçmişi ve APK
+dâhil), bağımlılık zafiyetleri, her owner-scoped uç için negatif test kapsamı,
+log ve hata cevabı sızıntısı. **Çıkan bulguların çözülmesi bu aşamanın işidir**;
+taramalar CI kalite kapısına girer. Buluta ihtiyaç duymaz; 07'nin bulut
+güvenlik işlerinin yerini almaz, ona temiz bir kod tabanıyla girilmesini sağlar.
+
+### 06.2 — Arayüz düzeni
+
+Yeni özellik eklenmez; var olan bulunabilir ve tutarlı hâle gelir. `Diğer`
+sekmesinin on dört hedefi kullanıcının sorusuna göre gruplanır, router özellik
+bazında bölünür (davranış değişmeden), boş/hata/yükleniyor/unauthorized/
+stale-cache beş durumu bütün ekranlarda geriye dönük denetlenir, form desenleri
+hizalanır, erişilebilirlik turu yapılır. **Açık kapsamlıdır ve listesi
+kullanıcıdan gelir.**
+
+### 07 — Bulut güvenli beta
+
+Container yayını, yönetilen veritabanı, HTTPS, secret yönetimi, izleme,
+otomatik yedek, dağıtım hattı, Google Play kapalı test. Kimlik akışları 06'da
+yazılmış olur; burada bulut karşılıkları doğrulanır ve push bildirim (FCM)
+kararı açılır. **ADR 0011'in veri sınırı güncellemesiyle açılır**: gerçek
+belgenin dışarı gitmesi bu kapıdan sonra mümkün olur, kararın kapıdan önce
+yazılması şart.
 
 ## Yedek şeması sürümleri
 
 Aşama 01'den 05'e her aşama yedek şemasını bir sürüm ilerletir (v6 → v10) ve
-**yalnız kendi sürümünü okur.** Bu bilinçli: her aşama yedeğin taşıması gereken
+**yalnız kendi sürümünü okur.** 06 kümesi sürümü ilerletmez: eklediği hiçbir alan
+finansal kayıt taşımıyor. Bu bilinçli: her aşama yedeğin taşıması gereken
 yeni bir alan ekliyor ve eski yedekte o alan **yok**; bir değer uydurmak,
 olmamış bir geçmiş uydurmak olurdu (aynı gerekçe ADR 0013 ve ADR 0012'de).
 
 Bunun bedeli, geliştirme sırasında bir aşamada alınan yedeğin bir sonrakinde
 geri yüklenememesidir. Gerçek kullanıcı verisi olmadığı sürece kabul edilebilir.
-**Aşama 06'dan sonra bu serbestlik kapanır**: gerçek veri geldiğinde yedek
+**Aşama 07'den sonra bu serbestlik kapanır**: gerçek veri geldiğinde yedek
 uyumluluğu bir yükseltme yolu olmak zorundadır.
 
 ## Sonraki kilometre taşları

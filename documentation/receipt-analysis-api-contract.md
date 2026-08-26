@@ -359,4 +359,4 @@ kotayı doldurması diğer kullanıcının kovasını tüketmez.
 Fotoğraf Google Gemini güven sınırını geçer. API anahtarı yalnız sunucudadır ve
 `x-goog-api-key` header'ında taşınır; URL'ye, response'a, loga veya APK'ya
 girmez. Geliştirmede yalnız sentetik fiş kullanılabilir. Gerçek
-fiş, ücretli katman ve bulut güvenlik kapısı (Aşama 06) tamamlanmadan gönderilmez.
+fiş, ücretli katman ve bulut güvenlik kapısı (Aşama 07) tamamlanmadan gönderilmez.

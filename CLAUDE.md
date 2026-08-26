@@ -39,7 +39,7 @@ işletme takibi aynı üründe yaşar. Backend ve Flutter tarafı aynı şekilde
 geliştirilir; katmanlar arasında farklı bir çalışma biçimi yoktur.
 
 Kurucu karar: **işletme ve şahsi para tek havuzda yaşar**, ayrım bir raporlama
-boyutudur (ADR 0013). Geliştirme zinciri altı aşamadır; sırası ve gerekçesi
+boyutudur (ADR 0013). Geliştirme zincirinin sırası ve gerekçesi
 `PROJECT-ROADMAP.md` içinde.
 
 ## Build, test ve çalıştırma komutları
@@ -112,7 +112,7 @@ AVD ana geliştirme/kabul cihazıdır).
   `scripts/New-LocalSqlEnvironment.ps1` değeri ekrana basmadan üretir.
 - Geliştirme/test verisi daima sentetik veridir; gerçek finansal veri
   güvenlik ve geri yükleme kapısı tamamlanmadan kullanılmaz.
-- Ürün Aşama 06 tamamlanmadan internete açılmaz; API ve SQL yalnız
+- Ürün Aşama 07 tamamlanmadan internete açılmaz; API ve SQL yalnız
   loopback'e bind'lıdır.
 
 ## Mimari — katmanlı monolit (mikroservis yok)
@@ -399,14 +399,15 @@ secret'ı uygulamaya konmaz.
   bir hesaplama yolu değil, aynı ayın işletme raporunun okumasıdır
 - `documentation/receipt-analysis-api-contract.md`,
   `documentation/receipt-measurement.md` — fiş analizi sözleşmesi ve ölçüm yöntemi
-- `PROJECT-ROADMAP.md` — altı aşamalık zincir, bağımlılık kuralları, kapsam
+- `PROJECT-ROADMAP.md` — aşama zinciri, bağımlılık kuralları, kapsam
   dışı bırakılanlar ve gerekçeleri, yedek şeması sürüm politikası
 - `stages/README.md` — aşama zinciri, hangi belge aktif, yeni aşama açma ve
   biten aşamayı kapatma adımları; **aktif aşama kullanıcı onayı olmadan
   değişmez**
-- `stages/04-*.md` … `stages/06-*.md` — kalan aşamaların çalışma grupları,
-  testleri ve çıkış koşulları. Tamamlanan aşamalar `docs/archive/stages/`
-  altındadır (Aşama 01, 02 ve 03 orada)
+- `stages/06-*.md`, `stages/06.1-*.md`, `stages/06.2-*.md`, `stages/07-*.md` —
+  kalan aşamaların çalışma grupları, testleri ve çıkış koşulları. **06 bir
+  aşama kümesidir**: ayrı ayrı kapanabilen aşamalar, ihtiyaç oldukça 06.x
+  eklenir. Tamamlanan aşamalar `docs/archive/stages/` altındadır (01–05 orada)
 - `docs/backlog.md` — aşamaya bağlanmamış açık işler
 - `templates/STAGE-TEMPLATE.md` — yeni aşama belgesi iskeleti
 

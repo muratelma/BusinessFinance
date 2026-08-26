@@ -37,6 +37,14 @@ durmuyorlar, izleri kayıt olsun diye yazılı:
 - `İşlem ekle` menüsünün taşması → Aşama 04
 - Ana sekme yapısının işletme kullanıcısına göre kurulmamış olması → Aşama 04
 - "Kredi kartı" kelimesinin POS ile ters anlam taşıması → Aşama 04
+- Fazla ödenmiş kart bakiyesi (madde 1) → Aşama 06
+- Bütçe ekranı iyileştirmeleri (madde 2) → Aşama 06
+- Fiş/dekont akışının cihaz kabul turu (madde 3) → Aşama 06
+- Varsayılan kapsamın uygulamadan ayarlanamaması (madde 5) → Aşama 06
+- Fiş okumada veri sınırı kararı (madde 4) → Aşama 07'nin **açılış kararı**
+
+Yukarıdaki beş madde tabloda **Durum** sütunuyla birlikte duruyor; aşamaya
+bağlanmak alınmak değildir. Aşama açılıp iş bitince satırları tablodan düşer.
 
 ## Park edilenler (bu tur değil)
 

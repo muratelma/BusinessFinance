@@ -1,9 +1,9 @@
-# Aşama 06 — Bulut güvenli beta
+# Aşama 07 — Bulut güvenli beta
 
 ## Belge durumu
 
 - Durum: Planlandı
-- Ön koşul: Aşama 05 — Vergi ve muhasebeci
+- Ön koşul: Aşama 06.2 — Arayüz düzeni (ve zincirdeki bütün 06.x aşamaları)
 - Sonraki aşama: Henüz açılmadı (kilometre taşları `PROJECT-ROADMAP.md` içinde)
 - Dokunulacak kalıcı belgeler: `documentation/architecture.md`,
   `documentation/variables.md`, `documentation/permissions.md`,
@@ -25,8 +25,6 @@ geçtikten sonra gevşer.
 ## Kullanıcıya katkı
 
 - Uygulamayı bilgisayar kapalıyken de kullanmak
-- Parolasını unuttuğunda kendi başına sıfırlamak
-- E-postasını doğrulayarak hesabını güvenceye almak
 - Verisinin düzenli ve doğrulanmış biçimde yedeklendiğini bilmek
 - Google Play üzerinden kurulum yapmak; APK dosyası taşımamak
 
@@ -39,12 +37,34 @@ geçtikten sonra gevşer.
 - Bakiye ve türetilen tutarlar kalıcı kolon değildir.
 - Mobil uygulamaya connection string veya sunucu secret'ı konmaz.
 
+## Bu aşamanın açılış kararı: fiş veri sınırı
+
+**Bu aşamanın koduna başlamadan önce ADR 0011 güncellenir.** Devralınan açık iş
+(`docs/backlog.md` madde 4): hangi belge hangi katmana gönderilir, karar bilinçli
+olarak ertelenmişti.
+
+Gerekçesi buraya ait: bugüne kadar fiş okuma yalnız **sentetik** belgeyle
+çalıştı. Bu aşama gerçek finansal veriye geçiş kapısıdır; gerçek bir fatura,
+gerçek bir dekont ve gerçek bir karşı taraf adı dışarıdaki bir modele gitmeye
+başlamadan önce sınırın yazılı olması gerekir. Kapının kendisi açıldıktan sonra
+yazılan bir sınır, sınır değildir.
+
+Karar en az şunları kapsar: hangi belge türü gönderilir ve hangisi gönderilmez;
+gönderilen belgede maskelenen alan var mı; belge sağlayıcıda ne kadar kalır;
+kullanıcı bunu nasıl öğrenir ve nasıl kapatır. ADR 0011'in mevcut tezi (fiş
+okuma bir **öneri katmanıdır**; yönü ve ödeme kaynağını seçmez) değişmez, üstüne
+veri sınırı eklenir.
+
+Ölçüt: ADR 0011 güncellenmiş ve kabul edilmiş; `documentation/variables.md` ve
+`documentation/receipt-analysis-api-contract.md` sınırı yansıtıyor.
+
 ## Bu aşamanın karar kapısı: gerçek veriye geçiş
 
 Aşağıdakilerin **tamamı** doğrulanmadan hiçbir gerçek finansal veri girilmez ve
 hiçbir dış test kullanıcısı davet edilmez. Bu liste aşamanın çıkış koşulundan
 ayrıdır ve ondan daha katıdır:
 
+- Fiş veri sınırı kararı yazılmış ve kabul edilmiş (yukarıdaki açılış kararı)
 - HTTPS zorunlu, düz HTTP kapalı
 - Secret'lar yönetilen kasada; repoda ve istemcide yok
 - Kullanıcı izolasyonu negatif testlerle bulut ortamında da kanıtlı
@@ -61,7 +81,7 @@ ayrıdır ve ondan daha katıdır:
 - Yönetilen veritabanı ve bağlantı güvenliği
 - Secret yönetimi
 - HTTPS ve sertifika
-- E-posta doğrulama ve parola sıfırlama
+- Kimlik akışlarının bulut ortamındaki karşılığı ve yeniden doğrulanması
 - İzleme, log ve hata takibi
 - Otomatik yedek ve geri yükleme tatbikatı
 - Belge eklerinin yönetilen object store'a taşınması
@@ -76,7 +96,8 @@ ayrıdır ve ondan daha katıdır:
   `PROJECT-ROADMAP.md` içine yazılır.
 - iOS uygulaması ve Play production yayını
 - Çoklu bölge, yüksek erişilebilirlik, otomatik ölçeklenme
-- Push bildirimleri (altyapı kurulur, kullanıcıya görünen bildirim ayrı iş)
+- Push bildiriminin kullanıcıya görünen tarafı; kararı Grup 4'te açılır.
+  Hatırlatma Aşama 06'da cihazın kendi zamanlayıcısıyla zaten çalışıyor
 - Banka bağlantısı — kalıcı olarak kapsam dışı
 
 ## Çalışma grupları
@@ -105,15 +126,25 @@ ayrıdır ve ondan daha katıdır:
   profilde kalır.
 - Ölçüt: düz HTTP isteği kabul edilmiyor.
 
-### Grup 4 — E-posta doğrulama ve parola sıfırlama
+### Grup 4 — Kimlik akışlarının bulut karşılığı
 
-- Kayıt sonrası e-posta doğrulama; doğrulanmamış hesabın sınırı tanımlanır.
-- Parola sıfırlama: tek kullanımlık, süreli, kullanıldığında geçersiz.
-- Her ikisi de **enumeration sızdırmaz**: var olmayan e-posta ile var olan
-  aynı cevabı verir.
-- Sıfırlama başarılı olduğunda kullanıcının **bütün aktif oturumları kapanır**.
-- Auth uçlarındaki mevcut rate limit bu iki yola da uygulanır.
-- Ölçüt: negatif testler enumeration ve tekrar kullanım denemelerini reddediyor.
+E-posta doğrulama ve parola sıfırlama **Aşama 06'da yazıldı** ve kod tabanlı
+çalışıyor. Burada kalan iş, o akışların bulut ortamındaki karşılığıdır:
+
+- Gönderici alan adı doğrulanır (SPF/DKIM) ve teslim edilebilirlik ölçülür.
+  Yerelde tek bir doğrulanmış gönderici adresi yetiyordu; mağazadan kuran
+  kullanıcı için yetmez.
+- E-posta servisinin API anahtarı yönetilen kasaya taşınır (Grup 1).
+- Kod yolu korunur. Gerçek bir HTTPS adresi olduğu için **derin bağlantı**
+  (deep link) isteğe bağlı bir iyileştirme olarak değerlendirilir; kodun yerini
+  almaz, yanına eklenir.
+- Enumeration önleme, tek kullanımlık kod, süre aşımı ve rate limit testleri
+  bulut ortamında yeniden koşulur.
+- **Push bildirim (FCM) kararı burada açılır**: sunucu artık sürekli ayakta.
+  Aşama 06 hatırlatmayı cihazın kendi zamanlayıcısına kurmuştu; FCM'in buna ne
+  eklediği ölçülür ve sonucu `PROJECT-ROADMAP.md` içine yazılır.
+- Ölçüt: bulut ortamında kayıt → doğrulama → parola sıfırlama zinciri gerçek
+  bir e-posta adresiyle uçtan uca çalışıyor; negatif testler yeşil.
 
 ### Grup 5 — İzleme ve log sınırı
 
@@ -217,6 +248,7 @@ flutter build appbundle --release
 
 ## Çıkış koşulları
 
+- [ ] Açılış kararı (ADR 0011 fiş veri sınırı) yazıldı ve kabul edildi.
 - [ ] Bütün çalışma grupları tamamlandı.
 - [ ] Karar kapısındaki maddelerin **tamamı** doğrulandı.
 - [ ] Backend build, test ve format kontrolleri geçti.

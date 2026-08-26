@@ -53,10 +53,23 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   kaydı orada. Sekiz çalışma grubunun hepsi bitti: ADR 0016, KDV taşıyan
   alanlar, indirilebilirlik, vergi/SGK takvimi, ay sonu muhasebeci paketi,
   karşılık olarak hedefler, Flutter ve yedek v10
-- **Aktif aşama yok.** Aşama 06 (Bulut güvenli beta) yalnız kullanıcının açık
-  onayıyla açılır
+- **26 Ağustos 2026: zincire bir aşama kümesi eklendi.** Kullanıcı bulut
+  geçişini ertelemek ve öncesinde ürünü tamamlamak istedi. Bulut aşaması
+  **Aşama 07** oldu (`stages/07-bulut-guvenli-beta.md`) ve önüne üç aşama
+  girdi: **06 — Hesap ve kalan işler**, **06.1 — Güvenlik taraması**,
+  **06.2 — Arayüz düzeni**. Küme, iş biriktiği için bölündü: uygulamaya bir şey
+  eklendikçe arkasında yeni iş kalıyor ve tek bir dev aşama hiç kapanmıyor;
+  ihtiyaç oldukça 06.3, 06.4 açılacak, hepsi kapandıktan sonra 07'ye geçilecek.
+  `stages/README.md` içindeki "alt seviye numara alınmaz" kuralı bu yüzden
+  değiştirildi. E-posta doğrulama ile parola sıfırlama buluttan 06'ya alındı
+  (kod tabanlı, giden e-posta servisiyle çalıştığı için buluta ihtiyaç
+  duymuyor); push bildirim kararı 07'de kaldı; fiş veri sınırı kararı
+  (`docs/backlog.md` madde 4) 07'nin **açılış kararı** oldu.
+  **Yalnız karar belgeleri değişti, kod değişmedi**
+- **Aktif aşama yok.** Aşama 06 yalnız kullanıcının açık onayıyla açılır
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
-  05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
+  05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması →
+  06.2 arayüz düzeni → (gerekirse 06.x) → 07 bulut (`PROJECT-ROADMAP.md`)
 
 ## Taşımada yapılan ve doğrulanan işler
 
@@ -1548,6 +1561,6 @@ plan. Hepsi sentetiktir ve istenirse silinebilir.
 - Geçen kontroller: backend build + format + **983 test** (gerçek SQL dâhil);
   Flutter analyze + format + **770 test** + Android debug build; Pixel 8
   emulator üzerinde bir aylık vergi senaryosu
-- Sıradaki görev: **aktif aşama yok.** Aşama 06 (Bulut güvenli beta) yalnız
+- Sıradaki görev: **aktif aşama yok.** Aşama 06 (Hesap ve kalan işler) yalnız
   kullanıcının açık onayıyla açılır. Onaya kadar kod değişmez
 

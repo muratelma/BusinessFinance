@@ -52,7 +52,7 @@ Reddedilenler ve gerekçeleri:
 | Seçenek | Neden reddedildi |
 |---|---|
 | Güncel oran ve takvimi uygulama sürümüyle dağıtmak | Uygulama, güncel tutmayı taahhüt etmiş olur. Bir sürüm gecikmesi kullanıcının kaçırdığı bir beyan demektir; taahhüdü tutamayacağımız bir sözü vermeyiz |
-| Oranları uzak bir yapılandırmadan çekmek | Aynı taahhüdün ağ üzerinden verilmiş hâli, üstüne yeni bir güven sınırı ve çevrimdışı davranış sorusu. Aşama 06'ya kadar zaten dış bağımlılık eklenmiyor |
+| Oranları uzak bir yapılandırmadan çekmek | Aynı taahhüdün ağ üzerinden verilmiş hâli, üstüne yeni bir güven sınırı ve çevrimdışı davranış sorusu. Aşama 07'ya kadar zaten dış bağımlılık eklenmiyor |
 | Hiçbir öneri sunmamak, her şeyi boş bırakmak | Dürüst ama işe yaramaz: kullanıcı dört kalemi elle kurmak zorunda kalır ve çoğu kurmaz. Öneri sunup sahipliği devretmek ikisinin arasını tutar |
 
 ### 2. Uygulama hiçbir vergi tutarını hesaplamaz

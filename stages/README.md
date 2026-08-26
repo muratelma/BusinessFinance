@@ -14,7 +14,11 @@ sonra aşağıdaki tablodan **aktif** işaretli belge okunur.
 | 03 | `docs/archive/stages/03-yukumluluk-ve-vade.md` | Tamamlandı | 24 Ağustos 2026'da kapandı; yedi grup + kapanış denetimi |
 | 04 | `docs/archive/stages/04-kasa-pos-ve-gezinme.md` | Tamamlandı | 26 Ağustos 2026'da kapandı; sekiz grup, cihaz kabul turu |
 | 05 | `docs/archive/stages/05-vergi-ve-muhasebeci.md` | Tamamlandı | 26 Ağustos 2026'da kapandı; sekiz grup, ADR 0016, cihaz kabul turu |
-| 06 | `06-bulut-guvenli-beta.md` | Planlandı | Gerçek finansal veriye geçiş kapısı. **Aktif aşama yok**; 06 yalnız kullanıcı onayıyla açılır |
+| 06 | `06-hesap-ve-kalan-isler.md` | Planlandı | **Açık kapsamlı.** Hesap ve güvenlik ekranı, e-posta doğrulama/parola sıfırlama, hatırlatma, önceki aşamalardan kalan işler. **Aktif aşama yok**; yalnız kullanıcı onayıyla açılır |
+| 06.1 | `06.1-guvenlik-taramasi.md` | Planlandı | Secret, bağımlılık, yetkilendirme ve log taraması; çıkan bulguların çözülmesi |
+| 06.2 | `06.2-arayuz-duzeni.md` | Planlandı | **Açık kapsamlı.** Gezinme, ekran içi tutarlılık, erişilebilirlik; liste kullanıcıdan gelir |
+| 06.x | — | Açılmadı | Uygulama büyüdükçe çıkan işler için; ihtiyaç oldukça açılır |
+| 07 | `07-bulut-guvenli-beta.md` | Planlandı | Gerçek finansal veriye geçiş kapısı. **Bütün 06.x kapanmadan açılmaz**; ADR 0011 fiş veri sınırıyla açılır |
 
 Zincirin tamamı ve her aşamanın gerekçesi `PROJECT-ROADMAP.md` içindedir.
 Kurucu ürün kararı `documentation/adr/0013-business-and-personal-are-one-pool.md`
@@ -37,9 +41,21 @@ açıkça onaylayana kadar **Aktif** olmaz ve kodu değiştirilmez.
 5. `PROJECT-ROADMAP.md` aşama listesine satır eklenir ve durumu işaretlenir.
 6. `docs/project-status.md` içindeki "Aktif konum" bölümü yeni aşamayı gösterir.
 
-Numaralandırma tamamlanan son aşamadan devam eder: 01 → 02 → … Bir aşamanın
-devamı olan iş alt seviye numara (01.1 gibi) almaz; sıradaki düz numarayı alır
-ve bağı "Ön koşul" satırıyla kurar.
+Numaralandırma tamamlanan son aşamadan devam eder: 01 → 02 → …
+
+**Bir aşama kümesi alt numara alabilir** (06, 06.1, 06.2, …). Bu, "aynı hedefe
+giden ama ayrı ayrı kapanabilen işler" içindir: her alt aşama kendi belgesi,
+kendi çalışma grupları, kendi testleri ve kendi çıkış koşullarıyla tam bir
+aşamadır — düz numaralı bir aşamadan hiçbir farkı yoktur, yalnız aynı kümeye
+ait olduğunu adıyla söyler.
+
+Küme, iş biriktiği için vardır: uygulamaya bir şey eklendikçe arkasında yeni iş
+kalıyor. Tek bir dev aşama, listesi sürekli büyüdüğü için hiç kapanmaz; ayrı
+numaralanan aşamalar kapanır ve yeni iş yeni bir numarayla (06.3, 06.4, …)
+açılır. Küme bittiğinde sıradaki düz numaraya geçilir.
+
+Alt numara **her durumda** kullanılmaz: bağımsız bir hedefi olan iş düz numara
+alır. Bağı "Ön koşul" satırıyla kurulur.
 
 Bir aşama **açık kapsamlı** olabilir: tek bir tezi baştan tarif etmek yerine iş
 listesi kullanıcı yeni bir şey söyledikçe büyür ve aşama "liste bitti" diye
