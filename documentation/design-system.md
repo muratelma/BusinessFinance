@@ -261,6 +261,12 @@ Birkaç bileşenin sözleşmesinde neden şu kararların olduğu:
 - Alt çubuğun olmadığı ekranlarda (Kategoriler, Hesaplar, …) sayfanın kendi
   kayan butonu sağ altta kalır: daire, ikon ve tooltip.
 - Geniş ekranda çentik yoktur; birincil eylem gezinme rayının başında durur.
+- **Üçten fazla segmentli bir seçicide etiket segmentin içinde durmaz.**
+  Segmentler genişliği eşit paylaşır; `Komisyon yok · Tutar · Oran` üçlüsünde
+  ilk etiket telefonda kelimenin ortasından bölünüyordu (`Komisyo / n yok`).
+  Grubun adı `labelMedium` ile üstte durur (`Komisyon`) ve segmentler kısalır
+  (`Yok · Tutar · Oran`) — kapsam seçicisiyle aynı desen. Cihaz kabulünde
+  görüldü ve orada düzeltildi.
 - **Birleşik feed satırı POS'u üç ayrı satır olarak çizer** (`pos-satışı`,
   `POS komisyonu`, `POS parası hesaba geçti`). Üç etikette de `kart` kelimesi
   tek başına geçmez (ADR 0015): borçlandığın kart aynı listede yan yana

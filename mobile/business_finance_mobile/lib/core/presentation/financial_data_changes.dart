@@ -161,14 +161,17 @@ class FinancialDataChanges extends ChangeNotifier {
   /// POS tahsilatı yazıldı: satış bugün tanınır, hesap kıpırdamaz.
   ///
   /// `accounts` yükselmez çünkü para henüz hiçbir hesapta değil; `dashboard`
-  /// yükselir çünkü net varlık yoldaki parayı taşır. `feed` de yükselmez:
-  /// birleşik feed bu iki kaynağı Grup 8'de öğrenecek.
+  /// yükselir çünkü net varlık yoldaki parayı taşır. `feed` de yükselir:
+  /// birleşik feed tahsilatı satış ve komisyon satırı olarak gösteriyor.
   void posSettlementRecognized() =>
-      _raise(dashboard: true, budgets: true, cash: true);
+      _raise(feed: true, dashboard: true, budgets: true, cash: true);
 
   /// Para hesaba geçti: kasa değişir, gelir/gider yeniden tanınmaz.
+  ///
+  /// `feed` yükselir çünkü geçiş kendi satırını doğurur; `budgets` yükselmez,
+  /// bu adım hiçbir gider tanımaz — aynı satış iki kez sayılırdı.
   void posSettlementTransferred() =>
-      _raise(dashboard: true, accounts: true, cash: true);
+      _raise(feed: true, dashboard: true, accounts: true, cash: true);
 
   /// Karşı tarafın kendisi eklendi, adı değişti, pasifleşti ya da silindi.
   /// Para hareket etmedi; yalnız kişi listesi değişti.

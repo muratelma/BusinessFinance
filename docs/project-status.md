@@ -1255,3 +1255,68 @@ eksiksiz çıktı; iki arayüz boşluğu bulundu ve kapatıldı.
   senaryosu (gün sonu farkı, POS parası geçene kadar bakiyenin şişmemesi,
   komisyonun gider olarak görünmesi). Kalan tek çıkış koşulu budur; sonrasında
   aşama kapatılıp Aşama 05 kullanıcı onayıyla açılır
+
+## 26 Ağustos 2026 — Aşama 04 cihaz kabul turu ve kapanış
+
+Pixel 8 emulator üzerinde, güncel build'den üretilmiş debug APK ve yerel API
+ile bir günlük perakende senaryosu girildi. Emulator Impeller kapalı hâlde de
+kare üretmedi; AVD `-gpu swiftshader_indirect` ile yeniden başlatılınca çizdi
+ve tur tamamlandı (not `documentation/local-setup-and-acceptance.md` içinde).
+
+- `+` menüsü beş niyet başlığıyla kaydırmasız okundu; `POS tahsilatı` satırı
+  Kasa ekranını POS sekmesi seçili açtı. Banka hesabı yokken hesap alanı pasif
+  kaldı — POS parası yalnız bankaya geçer
+- Brüt ₺1.000 / komisyon ₺25 tahsilat: `Yolda ₺975,00` yazdı, banka hesabı
+  ₺5.000,00'de kaldı. Rapor geliri **brüt** kadar artırdı (₺8.400 → ₺9.400) ve
+  komisyonu ayrı gider yazdı (₺3.425,50 → ₺3.450,50, `Banka ve POS komisyonu`)
+- Net varlık ₺11.949,50 iken likit ₺9.974,50: yoldaki para net varlığa girdi,
+  harcanabilire girmedi. `Geçti olarak işaretle` sonrası likit ₺10.949,50 oldu
+  ve **net varlık değişmedi** — para yer değiştirdi, yeniden tanınmadı
+- Gün sonu sayımı ₺3.950 (beklenen ₺3.974,50) `Eksik −24,50 lira gider` verdi
+  ve **onaydan önce hiçbir kayıt üretmedi**; onaylanınca tek gider yazıldı
+  (₺3.475,00) ve kasa sayılan tutara oturdu
+- Feed POS'u üç satır olarak gösterdi; sayımın kendisi feed'de yok, farkı
+  yazan kayıt normal bir işlem satırı olarak duruyor
+- Sekmeler iki profilde de dolu: işletmede `Kasa` ana sekme ve `Diğer >
+  Bütçeler`, kişiselde `Bütçeler` ana sekme ve `Diğer > Kasa` açılıyor
+
+**Turda iki gerçek kusur bulundu ve aynı gün düzeltildi:**
+
+- **Feed, POS mutasyonlarından sonra yenilenmiyordu.** Geçiş satırı ancak elle
+  aşağı çekince göründü. Grup 7 feed hedefini bilerek yükseltmiyordu; Grup 8
+  feed'e POS'u öğretti ama `FinancialDataChanges` hedefi güncellenmemişti.
+  Tahsilat ve geçiş artık `feed` hedefini de yükseltiyor — geçiş `budgets`
+  yükseltmiyor, yoksa aynı satış iki kez sayılırdı
+- **Komisyon seçicisinde etiket kelime ortasından bölünüyordu**
+  (`Komisyo / n yok`). Grubun adı kapsam seçicisindeki gibi üste alındı,
+  segmentler `Yok · Tutar · Oran` oldu
+
+| Kontrol | Sonuç |
+|---|---|
+| Backend build (Release) | 0 uyarı, 0 hata |
+| Backend format (`--verify-no-changes`) | Temiz |
+| Backend test (gerçek SQL dâhil) | **918 geçti**, 1 atlandı (`GeminiLiveContractTests`) |
+| Flutter analyze | No issues found |
+| Flutter format | 235 dosya, değişiklik gerektirmedi |
+| Flutter test | **750 geçti** |
+| Android debug build | `app-debug.apk` üretildi |
+| Cihaz kabul turu | Pixel 8 emulator, bir günlük perakende senaryosu geçti |
+
+**Aşama 04 kapandı.** Belge `docs/archive/stages/04-kasa-pos-ve-gezinme.md`
+altına taşındı; `stages/README.md` ve `PROJECT-ROADMAP.md` güncellendi.
+
+Yerel veritabanında kabul turunun bıraktığı sentetik kayıtlar duruyor: bir
+`Ziraat` banka hesabı, bir POS tahsilatı ve bir gün sonu sayımı + fark kaydı.
+Hepsi sentetiktir ve istenirse silinebilir.
+
+## Son oturum kapanışı
+
+- Yapılan değişiklik: Aşama 04 **tamamlandı ve kapatıldı**. Bu oturumda Grup 6
+  (`İşlem ekle` niyet ekseni), Grup 8 (yedek v9 + POS'un birleşik feed'e
+  girmesi) ve cihaz kabul turu yapıldı; turda bulunan iki kusur düzeltildi
+- Geçen kontroller: backend build + format + **918 test** (gerçek SQL dâhil);
+  Flutter analyze + format + **750 test** + Android debug build; Pixel 8
+  emulator üzerinde bir günlük perakende senaryosu
+- Sıradaki görev: **aktif aşama yok.** Aşama 05 (Vergi ve muhasebeci) yalnız
+  kullanıcının açık onayıyla açılır ve kendi ADR'si yazılmadan koduna
+  başlanmaz. Onaya kadar kod değişmez

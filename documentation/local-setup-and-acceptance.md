@@ -146,6 +146,12 @@ docker compose stop sqlserver
   `adb shell am start -n com.nef.business_finance_mobile/.MainActivity --ez enable-impeller false`.
   Bu bir uygulama hatası değil, emulator grafik yığınının durumudur; 23 Ağustos
   2026 kabul turunda görüldü ve bu yolla aşıldı.
+- **Impeller kapalı başlatmak da yetmiyorsa** (26 Ağustos 2026 kabul turu):
+  ekran siyah kalır, `adb shell uiautomator dump` eski bir kareyi gösterir ve
+  dokunuşlar hiçbir şeyi değiştirmez — uygulama kare üretmiyordur. AVD'yi
+  yazılım render'ıyla yeniden başlatmak sorunu kesin olarak çözdü:
+  `emulator -avd Pixel_8 -gpu swiftshader_indirect -no-snapshot-load`.
+  Yavaştır ama her kareyi çizer; kabul turu bu ayarla tamamlandı.
 - Login ekranında eski oturum: APK'yı uninstall/install edin; SQL verisinin
   kalacağını unutmayın ve benzersiz sentetik kullanıcı kullanın.
 

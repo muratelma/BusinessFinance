@@ -12,8 +12,8 @@ sonra aşağıdaki tablodan **aktif** işaretli belge okunur.
 | 01 | `docs/archive/stages/01-kapsam-boyutu-ve-isletme-kimligi.md` | Tamamlandı | 23 Ağustos 2026'da kapandı; dokuz grup, cihaz kabul turu |
 | 02 | `docs/archive/stages/02-cari-hesap-ve-karsi-taraf.md` | Tamamlandı | 24 Ağustos 2026'da kapandı; sekiz grup, cihaz kabul turu |
 | 03 | `docs/archive/stages/03-yukumluluk-ve-vade.md` | Tamamlandı | 24 Ağustos 2026'da kapandı; yedi grup + kapanış denetimi |
-| 04 | `04-kasa-pos-ve-gezinme.md` | **Aktif** | ADR 0015 ile açıldı: kart borcu ile kart tahsilatı ayrımı |
-| 05 | `05-vergi-ve-muhasebeci.md` | Planlandı | ADR ile açılır: vergi alanları taşır, hesaplamaz |
+| 04 | `docs/archive/stages/04-kasa-pos-ve-gezinme.md` | Tamamlandı | 26 Ağustos 2026'da kapandı; sekiz grup, cihaz kabul turu |
+| 05 | `05-vergi-ve-muhasebeci.md` | Planlandı | ADR ile açılır: vergi alanları taşır, hesaplamaz. **Aktif aşama yok**; 05 yalnız kullanıcı onayıyla açılır |
 | 06 | `06-bulut-guvenli-beta.md` | Planlandı | Gerçek finansal veriye geçiş kapısı |
 
 Zincirin tamamı ve her aşamanın gerekçesi `PROJECT-ROADMAP.md` içindedir.

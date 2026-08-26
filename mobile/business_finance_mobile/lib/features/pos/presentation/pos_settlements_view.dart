@@ -368,20 +368,34 @@ class _SettlementFormState extends State<_SettlementForm> {
         onChanged: (value) => setState(() => expectedTransferDate = value),
       ),
       const SizedBox(height: AppSpacing.medium),
-      SegmentedButton<_CommissionMode>(
-        segments: const [
-          ButtonSegment(
-            value: _CommissionMode.none,
-            label: Text('Komisyon yok'),
-          ),
-          ButtonSegment(value: _CommissionMode.amount, label: Text('Tutar')),
-          ButtonSegment(value: _CommissionMode.rate, label: Text('Oran')),
-        ],
-        selected: {commissionMode},
-        onSelectionChanged: (value) => setState(() {
-          commissionMode = value.first;
-          commissionController.clear();
-        }),
+      // Başlık segmentin dışında: üç segment genişliği paylaşınca
+      // `Komisyon yok` kelimenin ortasından bölünüyordu. Kapsam seçicisinde
+      // olduğu gibi grubun adı üstte durur, segmentler kısa kalır.
+      Semantics(
+        container: true,
+        label: 'Komisyon',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Komisyon', style: Theme.of(context).textTheme.labelMedium),
+            const SizedBox(height: AppSpacing.xSmall),
+            SegmentedButton<_CommissionMode>(
+              segments: const [
+                ButtonSegment(value: _CommissionMode.none, label: Text('Yok')),
+                ButtonSegment(
+                  value: _CommissionMode.amount,
+                  label: Text('Tutar'),
+                ),
+                ButtonSegment(value: _CommissionMode.rate, label: Text('Oran')),
+              ],
+              selected: {commissionMode},
+              onSelectionChanged: (value) => setState(() {
+                commissionMode = value.first;
+                commissionController.clear();
+              }),
+            ),
+          ],
+        ),
       ),
       if (commissionMode != _CommissionMode.none) ...[
         const SizedBox(height: AppSpacing.medium),

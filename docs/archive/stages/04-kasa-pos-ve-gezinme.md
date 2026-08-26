@@ -2,7 +2,7 @@
 
 ## Belge durumu
 
-- Durum: **Aktif** (24 Ağustos 2026'da kullanıcı onayıyla açıldı)
+- Durum: **Tamamlandı** (26 Ağustos 2026'da cihaz kabul turuyla kapandı; 24 Ağustos 2026'da kullanıcı onayıyla açılmıştı)
 - Ön koşul: Aşama 03 — Yükümlülük ve vade
   (**tamamlandı**, `docs/archive/stages/03-yukumluluk-ve-vade.md`)
 - Sonraki aşama: Aşama 05 — Vergi ve muhasebeci
@@ -418,14 +418,58 @@ flutter build apk --debug --dart-define=API_BASE_URL=http://10.0.2.2:5284
 - [x] Backend build, test ve format kontrolleri geçti.
 - [x] Flutter analyze, test, format ve debug build kontrolleri geçti.
 - [x] Kullanıcı izolasyonu negatif senaryolarla kanıtlandı.
-- [ ] Bir günlük perakende senaryosu girildi: gün sonu farkı doğru, POS parası
+- [x] Bir günlük perakende senaryosu girildi: gün sonu farkı doğru, POS parası
       geçene kadar kullanılabilir bakiye şişmiyor, komisyon gider olarak
-      görünüyor. **(cihazda elle yapılacak kabul turu)**
+      görünüyor.
 - [x] İki profilde de dört sekme dolu ve hiçbir ekran erişilemez değil.
 - [x] `documentation/` ve `docs/project-status.md` güncel.
 - [ ] Kullanıcı Aşama 05'i açıkça onayladı.
 
+## Cihaz kabul turu — 26 Ağustos 2026
+
+Pixel 8 emulator, güncel build'den üretilmiş debug APK, `10.0.2.2:5284`
+üzerinden yerel API. Emulator Impeller kapalı hâlde bile kare üretmedi; AVD
+`-gpu swiftshader_indirect` ile yeniden başlatılınca her kare çizildi ve tur
+tamamlandı (not `documentation/local-setup-and-acceptance.md` içinde).
+
+Girilen bir günlük perakende senaryosu ve görülen sonuç:
+
+| Adım | Beklenen | Görülen |
+|---|---|---|
+| `+` menüsü | Beş niyet başlığı, dokuz satır, kaydırmasız | `Para girdi · Para çıktı · Para taşı · Belge okut · Plan kur`; gün sonu sayımı menüde yok |
+| `POS tahsilatı` satırı | Kasa ekranı POS sekmesi seçili açılır | Açıldı |
+| Banka hesabı yokken | POS hesabı seçilemez | Alan pasif; banka hesabı eklenince etkinleşti |
+| Tahsilat: brüt ₺1.000, komisyon ₺25 | Yolda ₺975; hesap kıpırdamaz | `Yolda ₺975,00`; Ziraat ₺5.000,00'de kaldı |
+| Rapor | Gelir **brüt** artar, komisyon ayrı gider | Gelir ₺8.400 → ₺9.400; gider ₺3.425,50 → ₺3.450,50; kategoride `Banka ve POS komisyonu ₺25,00` |
+| Net varlık | Yoldaki parayı içerir, likit içermez | Net ₺11.949,50; likit ₺9.974,50; `Yolda ₺975,00, net varlığa eklenir, henüz harcanamaz` |
+| Feed (geçmeden) | İki satır | `POS satışı` + `POS komisyonu`; geçiş satırı yok |
+| `Geçti olarak işaretle` | Likit +net, net varlık **değişmez** | Likit ₺9.974,50 → ₺10.949,50; net varlık ₺11.949,50 aynı kaldı; `Yolda ₺0,00` |
+| Feed (geçtikten sonra) | Üçüncü satır | `POS parası hesaba geçti · nötr ₺975,00` |
+| Gün sonu sayımı ₺3.950 (beklenen ₺3.974,50) | Fark eksik ₺24,50, **kayıt üretmez** | `Eksik −24,50 lira gider`; onaydan önce kasa ₺3.974,50 ve gider ₺3.450,50 değişmedi |
+| `Farkı kaydet` | Tek gider kaydı, kasa sayılana oturur | Gider ₺3.475,00; `Uygulamaya göre ₺3.950,00`; feed'de normal bir işlem satırı — sayımın kendisi feed'de yok |
+| Sekmeler | İki profilde de dolu | İşletmede `Özet · İşlemler · Kasa · Diğer` ve `Diğer > Bütçeler`; kişiselde `… Bütçeler · Diğer` ve `Diğer > Kasa` açılıyor |
+
+Turda **iki gerçek kusur bulundu ve aynı checkpoint'te düzeltildi**:
+
+- **Feed, POS mutasyonlarından sonra yenilenmiyordu.** Geçiş satırı ancak elle
+  aşağı çekince göründü. Grup 7 feed hedefini bilerek yükseltmiyordu ("feed
+  bu kaynakları Grup 8'de öğrenecek"); Grup 8 feed'e POS'u öğretti ama
+  `FinancialDataChanges` hedefi güncellenmemişti. Tahsilat ve geçiş artık
+  `feed` hedefini de yükseltiyor; geçiş `budgets` yükseltmiyor, yoksa aynı
+  satış iki kez sayılırdı.
+- **Komisyon seçicisinde etiket kelime ortasından bölünüyordu**
+  (`Komisyo / n yok`). Üç segment genişliği eşit paylaşıyor. Grubun adı
+  kapsam seçicisindeki gibi üste alındı, segmentler `Yok · Tutar · Oran` oldu.
+
 ## Tamamlanma kaydı
 
-Aşama kapandığında burada: hangi commit'lerle bitti, hangi kontroller geçti,
-belge `docs/archive/stages/` altına taşındı mı.
+Aşama 26 Ağustos 2026'da kapandı. Sekiz çalışma grubu da tamamlandı; kalan tek
+çıkış koşulu olan bir günlük perakende senaryosu Pixel 8 emulator üzerinde
+yukarıdaki tabloyla girildi ve turda bulunan iki kusur aynı gün düzeltildi.
+
+Geçen kontroller: backend build (0 uyarı) + `dotnet format --verify-no-changes`
+temiz + **918 test** (gerçek SQL dâhil, 1 canlı Gemini testi atlandı); Flutter
+analyze temiz + `dart format` + **750 test** + Android debug build.
+
+Belge `docs/archive/stages/` altına taşındı. **Aşama 05 açılmadı**: sonraki
+aşama yalnız kullanıcının açık onayıyla `Aktif` olur.

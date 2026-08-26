@@ -137,7 +137,10 @@ void main() {
       expect(changes.dashboardRevision, 1);
       expect(changes.budgetsRevision, 1);
       expect(changes.accountsRevision, 0);
-      expect(changes.activityFeedRevision, 0);
+      // Tahsilat feed'de iki satır doğuruyor (satış ve komisyon), bu yüzden
+      // feed de yenilenmeli. Yenilenmeseydi kullanıcı İşlemler'e geçtiğinde
+      // az önce girdiği satışı göremezdi — cihaz kabulünde tam olarak bu oldu.
+      expect(changes.activityFeedRevision, 1);
 
       expect(
         await controller.markTransferred(
@@ -150,8 +153,10 @@ void main() {
       expect(changes.cashRevision, 2);
       expect(changes.dashboardRevision, 2);
       expect(changes.accountsRevision, 1);
+      // Geçiş hiçbir gider tanımaz: bütçe yükselmez, yoksa aynı satış iki kez
+      // sayılırdı. Feed ise yükselir; geçiş kendi satırını doğuruyor.
       expect(changes.budgetsRevision, 1);
-      expect(changes.activityFeedRevision, 0);
+      expect(changes.activityFeedRevision, 2);
     },
   );
 
