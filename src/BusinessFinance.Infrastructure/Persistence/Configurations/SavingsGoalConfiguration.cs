@@ -15,6 +15,9 @@ internal sealed class SavingsGoalConfiguration : IEntityTypeConfiguration<Saving
             table.HasCheckConstraint("CK_SavingsGoals_Currency", "[Currency] = 'TRY'");
             table.HasCheckConstraint("CK_SavingsGoals_TrackingMode", "[TrackingMode] IN (1, 2)");
             table.HasCheckConstraint(
+                "CK_SavingsGoals_Scope",
+                "[Scope] IS NULL OR [Scope] IN (1, 2)");
+            table.HasCheckConstraint(
                 "CK_SavingsGoals_ProgressSource",
                 "([TrackingMode] = 1 AND [AccountId] IS NOT NULL) OR ([TrackingMode] = 2 AND [AccountId] IS NULL)");
         });
@@ -28,6 +31,7 @@ internal sealed class SavingsGoalConfiguration : IEntityTypeConfiguration<Saving
                 .HasConversion<string>().HasMaxLength(3).IsUnicode(false);
         });
         builder.Property(x => x.TargetDate).HasColumnType("date");
+        builder.Property(x => x.Scope).HasConversion<byte>().HasColumnType("tinyint");
         builder.Property(x => x.TrackingMode).HasConversion<byte>().HasColumnType("tinyint");
         builder.Property(x => x.Description).HasMaxLength(SavingsGoal.MaximumDescriptionLength);
         builder.Property(x => x.CreatedAtUtc);

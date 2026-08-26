@@ -31,7 +31,8 @@ public sealed class MigrationHistoryTests
         "AddCashCountsAndPosSettlements",
         "AddVatFields",
         "AddTaxDeductibility",
-        "AddQuarterlyRecurrence"
+        "AddQuarterlyRecurrence",
+        "AddSavingsGoalScope"
     ];
 
     [Fact]

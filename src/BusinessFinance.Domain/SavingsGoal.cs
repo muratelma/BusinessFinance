@@ -14,6 +14,21 @@ public sealed class SavingsGoal
     public SavingsGoalTrackingMode TrackingMode { get; }
     public Guid? AccountId { get; }
     public string? Description { get; }
+
+    /// <summary>
+    /// Hedefin kimin parasını kenara koyduğu (ADR 0013).
+    /// </summary>
+    /// <remarks>
+    /// Boş olması meşrudur ve eksik veri değildir: kapsamı arayüzünde hiç
+    /// görmeyen kişisel kullanıcının hedefi etiket taşımaz. İşletme kapsamlı
+    /// hedef bir <b>karşılıktır</b> — vergi için kenara konan para, tatil için
+    /// biriktirilen paradan ayrı raporlanır.
+    ///
+    /// Hedef gelir/gider üretmez; kapsam burada da <b>parayı bölmez</b>, yalnız
+    /// hedeflerin listesini ve toplamını böler.
+    /// </remarks>
+    public TransactionScope? Scope { get; }
+
     public DateTimeOffset CreatedAtUtc { get; }
     public IReadOnlyCollection<SavingsGoalContribution> Contributions => _contributions.AsReadOnly();
 
@@ -32,7 +47,8 @@ public sealed class SavingsGoal
         SavingsGoalTrackingMode trackingMode,
         Guid? accountId,
         DateTimeOffset createdAtUtc,
-        string? description = null)
+        string? description = null,
+        TransactionScope? scope = null)
     {
         if (id == Guid.Empty) throw new ArgumentException("Goal id cannot be empty.", nameof(id));
         if (userId == Guid.Empty) throw new ArgumentException("User id cannot be empty.", nameof(userId));
@@ -60,6 +76,7 @@ public sealed class SavingsGoal
         AccountId = accountId;
         CreatedAtUtc = createdAtUtc;
         Description = normalizedDescription;
+        Scope = TransactionScopeGuard.ValidateOptional(scope, nameof(scope));
     }
 
     public SavingsGoalContribution AddContribution(

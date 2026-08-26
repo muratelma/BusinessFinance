@@ -1430,3 +1430,18 @@ edene kadar Grup 2 ve sonrasının koduna başlanmaz.
   indirilebilirliği cevaplanmamış giderler ayrıca sayılıyor
 - Geçen kontroller: backend build (0 uyarı) + format temiz + **977 test geçti**,
   1 atlandı (canlı Gemini)
+
+## 26 Ağustos 2026 — Aşama 05 Grup 6: karşılık olarak hedefler
+
+- `SavingsGoal` **nullable** bir kapsam kazandı (`AddSavingsGoalScope`). İşletme
+  kapsamlı hedef bir karşılıktır; boş kapsam meşrudur ve eksik veri değildir
+- `GET /api/v1/goals?scope=business` filtreli okumadır ve **kapsamsız hedefleri
+  de eler** — filtrenin her yerdeki kuralı. Filtresiz okuma üç kovalı bir
+  kırılım döner: işletme, şahsi, etiketsiz. Üçüncü kova aylık raporda yok ama
+  burada var, çünkü hedef kapsam taşımak zorunda değil
+- Kırılımın toplamlarını sunucu verir; istemci çıkarma yapmaz
+- **Yeni modül yazılmadı**: karşılık, mevcut manuel katkı mekanizmasının kapsam
+  etiketli hâli. "Vergi karşılığı" bir hedef türü değil, istemcinin ön
+  dolduracağı bir addır
+- Geçen kontroller: backend build (0 uyarı) + format temiz + **981 test geçti**,
+  1 atlandı (canlı Gemini)

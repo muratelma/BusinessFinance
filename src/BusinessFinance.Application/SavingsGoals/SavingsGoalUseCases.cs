@@ -76,7 +76,8 @@ public sealed class CreateSavingsGoalUseCase(
             var goal = new SavingsGoal(
                 Guid.NewGuid(), userId, command.Name,
                 new Money(command.TargetAmount, command.Currency), command.TargetDate,
-                command.TrackingMode, command.AccountId, timeProvider.GetUtcNow(), command.Description);
+                command.TrackingMode, command.AccountId, timeProvider.GetUtcNow(),
+                command.Description, command.Scope);
             await repository.AddAsync(goal, cancellationToken);
             var allocated = await CalculateAllocatedAsync(
                 goal, userId, asOfDate, accountRepository, cancellationToken);
@@ -115,7 +116,8 @@ public sealed class CreateSavingsGoalUseCase(
                 .Select(item => new SavingsGoalContributionDto(
                     item.Id, item.Amount.Amount, item.Amount.Currency, item.ContributionDate,
                     item.ClientRequestId, item.Note, item.CreatedAtUtc))
-                .ToArray());
+                .ToArray(),
+            goal.Scope);
     }
 }
 
@@ -124,23 +126,57 @@ public sealed class ListSavingsGoalsUseCase(
     ISavingsGoalRepository repository,
     IAccountRepository accountRepository)
 {
-    public async Task<ApplicationResult<IReadOnlyList<SavingsGoalDto>>> ExecuteAsync(
+    /// <summary>
+    /// Hedefleri listeler.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="scope"/> verilirse liste yalnız o kapsamı taşır ve
+    /// <b>kapsamsız hedefler de düşer</b> — filtreli okumanın her yerdeki
+    /// kuralı bu (ADR 0013). Kırılım yalnız filtresiz okumada döner: filtreli
+    /// okumada zaten tek kova var.
+    /// </remarks>
+    public async Task<ApplicationResult<SavingsGoalListDto>> ExecuteAsync(
         DateOnly asOfDate,
+        TransactionScope? scope = null,
         CancellationToken cancellationToken = default)
     {
         if (currentUser.UserId is not Guid userId || userId == Guid.Empty)
-            return ApplicationResult<IReadOnlyList<SavingsGoalDto>>.Failure(
+            return ApplicationResult<SavingsGoalListDto>.Failure(
                 SavingsGoalErrors.AuthenticationRequired);
         var goals = await repository.ListAsync(userId, cancellationToken);
-        var result = new List<SavingsGoalDto>(goals.Count);
+        var all = new List<SavingsGoalDto>(goals.Count);
         foreach (var goal in goals)
         {
             var allocated = await CreateSavingsGoalUseCase.CalculateAllocatedAsync(
                 goal, userId, asOfDate, accountRepository, cancellationToken);
-            result.Add(CreateSavingsGoalUseCase.ToDto(goal, allocated, asOfDate));
+            all.Add(CreateSavingsGoalUseCase.ToDto(goal, allocated, asOfDate));
         }
 
-        return ApplicationResult<IReadOnlyList<SavingsGoalDto>>.Success(result);
+        if (scope is TransactionScope requested)
+        {
+            return ApplicationResult<SavingsGoalListDto>.Success(new SavingsGoalListDto(
+                [.. all.Where(goal => goal.Scope == requested)],
+                null));
+        }
+
+        return ApplicationResult<SavingsGoalListDto>.Success(new SavingsGoalListDto(
+            all,
+            new SavingsGoalBreakdownDto(
+                Totals(all, TransactionScope.Business),
+                Totals(all, TransactionScope.Personal),
+                Totals(all, null))));
+    }
+
+    private static SavingsGoalScopeTotalsDto Totals(
+        IReadOnlyList<SavingsGoalDto> goals,
+        TransactionScope? scope)
+    {
+        var bucket = goals.Where(goal => goal.Scope == scope).ToArray();
+        return new SavingsGoalScopeTotalsDto(
+            bucket.Length,
+            bucket.Sum(goal => goal.TargetAmount),
+            bucket.Sum(goal => goal.AllocatedAmount),
+            bucket.Sum(goal => goal.RemainingAmount));
     }
 }
 

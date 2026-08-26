@@ -171,6 +171,12 @@ ADR'nin karara bağlayacağı üç şey:
 - "Vergi karşılığı" hazır bir hedef türü olarak sunulur; **yeni modül
   yazılmaz** — mevcut manuel katkı ve bakiye izleme mekanizması kullanılır.
 - Ölçüt: işletme kapsamlı hedef, şahsi hedeflerden ayrı raporlanıyor.
+- **Tamamlandı** (26 Ağustos 2026): `SavingsGoal` nullable bir kapsam kazandı
+  (`AddSavingsGoalScope`). `GET /api/v1/goals?scope=` filtreli okuma kapsamsız
+  hedefleri de eliyor; filtresiz okuma üç kovalı bir kırılım
+  (`scopeBreakdown`) döndürüyor — işletme, şahsi ve etiketsiz. Yeni modül
+  yazılmadı: karşılık, mevcut manuel katkı mekanizmasının kapsam etiketli
+  hâlidir; "Vergi karşılığı" istemcinin ön dolduracağı bir addır.
 
 ### Grup 7 — Flutter
 

@@ -9,7 +9,10 @@ public sealed record CreateSavingsGoalCommand(
     DateOnly TargetDate,
     SavingsGoalTrackingMode TrackingMode,
     Guid? AccountId,
-    string? Description);
+    string? Description,
+
+    // Hedefin kimin parasını kenara koyduğu; boş bırakmak meşrudur (ADR 0013).
+    TransactionScope? Scope = null);
 
 public sealed record AddSavingsGoalContributionCommand(
     Guid GoalId,
@@ -60,7 +63,35 @@ public sealed record SavingsGoalDto(
     decimal RemainingAmount,
     decimal ProgressPercentage,
     string Status,
-    IReadOnlyList<SavingsGoalContributionDto> Contributions);
+    IReadOnlyList<SavingsGoalContributionDto> Contributions,
+    TransactionScope? Scope = null);
+
+/// <summary>
+/// Bir kapsamın hedef toplamı.
+/// </summary>
+/// <remarks>
+/// Aylık raporun kapsam kırılımıyla aynı desen: toplamı istemci çıkarmaz,
+/// sunucu verir. Üçüncü bir kova burada <b>vardır</b> — hedef kapsam taşımak
+/// zorunda değildir ve etiketsiz hedefleri bir tarafa saymak, olmayan bir
+/// cevabı uydurmak olurdu.
+/// </remarks>
+public sealed record SavingsGoalScopeTotalsDto(
+    int GoalCount,
+    decimal TargetAmount,
+    decimal AllocatedAmount,
+    decimal RemainingAmount);
+
+public sealed record SavingsGoalBreakdownDto(
+    SavingsGoalScopeTotalsDto Business,
+    SavingsGoalScopeTotalsDto Personal,
+    SavingsGoalScopeTotalsDto Unscoped);
+
+/// <summary>
+/// Hedef listesi; kırılım yalnız <b>filtresiz</b> okumada döner.
+/// </summary>
+public sealed record SavingsGoalListDto(
+    IReadOnlyList<SavingsGoalDto> Items,
+    SavingsGoalBreakdownDto? ScopeBreakdown);
 
 public interface ISavingsGoalRepository
 {

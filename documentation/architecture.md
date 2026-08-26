@@ -1089,6 +1089,24 @@ yazılmamış satırlar ayrıca sayılır (`linesWithoutVat`), indirilebilirlik
 cevaplanmamış giderler de (`deductibilityUnansweredCount`) — muhasebeci neyi
 soracağını böyle görür.
 
+### Karşılık olarak hedefler
+
+`SavingsGoal` **nullable** bir kapsam taşır. İşletme kapsamlı hedef bir
+*karşılıktır* — vergi için kenara konan para — ve şahsi hedeflerden ayrı
+raporlanır. Boş olması meşrudur: kapsamı arayüzünde hiç görmeyen kişisel
+kullanıcının hedefi etiket taşımaz.
+
+Hedef gelir/gider üretmez; kapsam burada da **parayı bölmez**, yalnız hedeflerin
+listesini ve toplamını böler (ADR 0013). Yeni bir modül yazılmadı: karşılık,
+mevcut manuel katkı mekanizmasının kapsam etiketli hâlidir.
+
+`GET /api/v1/goals?scope=business` filtreli okumadır ve **kapsamsız hedefleri de
+eler** — filtrenin her yerdeki kuralı bu. Filtresiz okuma bir kırılım döner
+(`scopeBreakdown`): işletme, şahsi ve **etiketsiz** üç kova. Üçüncü kova aylık
+raporda yoktur ama burada vardır, çünkü hedef kapsam taşımak zorunda değildir ve
+etiketsizleri bir tarafa saymak olmayan bir cevabı uydurmak olurdu. Toplamı
+istemci çıkarmaz, sunucu verir.
+
 ## Planlama ve read-model mimarisi
 
 ```text

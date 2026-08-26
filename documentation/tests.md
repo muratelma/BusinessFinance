@@ -1130,3 +1130,12 @@ planlanan ekranının iki testi de kırmızıya düştü.
 | Olmayan dönem reddediliyor | `AccountantPackageEndpointTests.Package_WithAnImpossiblePeriod_IsRefused` | `accountant_package.invalid_period` |
 | Gerçek SQL'de çalışıyor | `SqlServerPersistenceIntegrationTests.AccountantPackage_ReadsOnlyBusinessLinesAndMatchesTheReport` | LINQ SQL'e iniyor; POS iki satır; toplam raporla eşit |
 
+## Karşılık olarak hedefler (26 Ağustos 2026, Aşama 05 Grup 6)
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Kapsam isteğe bağlı | `SavingsGoalTests.Goal_CarriesAnOptionalScope` | Etiketli ve etiketsiz hedef; tanınmayan değer reddediliyor |
+| Kırılım sunucudan | `SavingsGoalEndpointTests.Goals_CarryScope_AndAreReportedSeparately` | Üç kova; işletme karşılığı ₺2.500 ayrılmış, ₺7.500 kalmış |
+| Filtre kapsamsızı da eliyor | aynı test | `scope=business` yalnız bir hedef; kırılım dönmüyor |
+| Tanınmayan kapsam reddediliyor | `SavingsGoalEndpointTests.Goals_WithAnUnknownScope_AreRefused` | Hem yazmada hem okumada 400 |
+

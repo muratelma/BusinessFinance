@@ -51,10 +51,13 @@ public static class SavingsGoalEndpoints
             !string.Equals(request.Currency, "TRY", StringComparison.OrdinalIgnoreCase))
             return ApiProblemResults.Validation(
                 context, "Savings goal fields are invalid.", "goal.invalid_contract");
+        if (!FinanceContract.TryParseOptionalScope(request.Scope, out var scope))
+            return ApiProblemResults.Validation(
+                context, "Scope must be business, personal or empty.", "goal.invalid_scope");
         var result = await useCase.ExecuteAsync(
             new CreateSavingsGoalCommand(
                 request.Name, targetAmount, CurrencyCode.TRY, targetDate, mode,
-                request.AccountId, request.Description),
+                request.AccountId, request.Description, scope),
             asOfDate,
             cancellationToken);
         return result.IsSuccess
@@ -66,16 +69,33 @@ public static class SavingsGoalEndpoints
         string asOfDate,
         ListSavingsGoalsUseCase useCase,
         HttpContext context,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? scope = null)
     {
         if (!FinanceContract.TryParseDate(asOfDate, out var parsedDate))
             return ApiProblemResults.Validation(
                 context, "asOfDate must use yyyy-MM-dd.", "goal.invalid_as_of_date");
-        var result = await useCase.ExecuteAsync(parsedDate, cancellationToken);
+        if (!FinanceContract.TryParseOptionalScope(scope, out var parsedScope))
+            return ApiProblemResults.Validation(
+                context, "Scope must be business, personal or empty.", "goal.invalid_scope");
+        var result = await useCase.ExecuteAsync(parsedDate, parsedScope, cancellationToken);
         return result.IsSuccess
-            ? Results.Ok(new SavingsGoalListResponse(result.Value.Select(ToResponse).ToArray()))
+            ? Results.Ok(new SavingsGoalListResponse(
+                [.. result.Value.Items.Select(ToResponse)],
+                result.Value.ScopeBreakdown is null ? null : ToBreakdown(result.Value.ScopeBreakdown)))
             : result.Error.ToProblemResult(context);
     }
+
+    private static SavingsGoalBreakdownResponse ToBreakdown(SavingsGoalBreakdownDto breakdown) => new(
+        ToTotals(breakdown.Business),
+        ToTotals(breakdown.Personal),
+        ToTotals(breakdown.Unscoped));
+
+    private static SavingsGoalScopeTotalsResponse ToTotals(SavingsGoalScopeTotalsDto totals) => new(
+        totals.GoalCount,
+        FinanceContract.Money(totals.TargetAmount),
+        FinanceContract.Money(totals.AllocatedAmount),
+        FinanceContract.Money(totals.RemainingAmount));
 
     private static async Task<IResult> AddContributionAsync(
         Guid goalId,
@@ -115,7 +135,8 @@ public static class SavingsGoalEndpoints
         goal.Contributions.Select(item => new SavingsGoalContributionResponse(
             item.Id, FinanceContract.Money(item.Amount), item.Currency.ToString(),
             FinanceContract.Date(item.ContributionDate), item.ClientRequestId,
-            item.Note, item.CreatedAtUtc)).ToArray());
+            item.Note, item.CreatedAtUtc)).ToArray(),
+        FinanceContract.OptionalScopeValue(goal.Scope));
 
     private static bool TryTrackingMode(string value, out SavingsGoalTrackingMode mode)
     {

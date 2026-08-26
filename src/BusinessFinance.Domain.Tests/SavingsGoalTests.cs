@@ -44,4 +44,33 @@ public sealed class SavingsGoalTests
     private static SavingsGoal CreateGoal(SavingsGoalTrackingMode mode, Guid? accountId) => new(
         Guid.NewGuid(), Guid.NewGuid(), "Emergency fund", new Money(1000m, CurrencyCode.TRY),
         new DateOnly(2026, 12, 31), mode, accountId, Now, "Safety buffer");
+
+    /// <summary>
+    /// Aşama 05 Grup 6: hedef kapsam taşıyabilir ve taşımayabilir; boş olması
+    /// eksik veri değildir (ADR 0013).
+    /// </summary>
+    [Fact]
+    public void Goal_CarriesAnOptionalScope()
+    {
+        var userId = Guid.NewGuid();
+        var createdAt = new DateTimeOffset(2026, 8, 26, 9, 0, 0, TimeSpan.Zero);
+
+        var reserve = new SavingsGoal(
+            Guid.NewGuid(), userId, "Vergi karşılığı",
+            new Money(10000m, CurrencyCode.TRY), new DateOnly(2026, 12, 31),
+            SavingsGoalTrackingMode.ManualContributions, null, createdAt,
+            "KDV için", TransactionScope.Business);
+        var unscoped = new SavingsGoal(
+            Guid.NewGuid(), userId, "Etiketsiz",
+            new Money(1000m, CurrencyCode.TRY), new DateOnly(2026, 12, 31),
+            SavingsGoalTrackingMode.ManualContributions, null, createdAt);
+
+        Assert.Equal(TransactionScope.Business, reserve.Scope);
+        Assert.Null(unscoped.Scope);
+        Assert.Throws<ArgumentOutOfRangeException>(() => new SavingsGoal(
+            Guid.NewGuid(), userId, "Geçersiz",
+            new Money(1000m, CurrencyCode.TRY), new DateOnly(2026, 12, 31),
+            SavingsGoalTrackingMode.ManualContributions, null, createdAt,
+            null, (TransactionScope)7));
+    }
 }

@@ -111,6 +111,74 @@ public sealed class SavingsGoalEndpointTests
         Assert.Equal(used.Id, Assert.Single(remaining!.Items).Id);
     }
 
+    /// <summary>
+    /// Aşama 05 Grup 6: hedef kapsam taşır ve işletme karşılığı şahsi
+    /// hedeflerden ayrı raporlanır (ADR 0013, ADR 0016).
+    /// </summary>
+    [Fact]
+    public async Task Goals_CarryScope_AndAreReportedSeparately()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var client = await CreateAuthenticatedClientAsync(
+            factory, $"goal-scope-{Guid.NewGuid():N}@example.test");
+
+        var reserve = await CreateGoalAsync(client, new CreateSavingsGoalRequest(
+            "Vergi karşılığı", "10000.0000", "TRY", "2026-12-31",
+            "manual-contributions", null, null, "2026-08-26", "business"));
+        await CreateGoalAsync(client, new CreateSavingsGoalRequest(
+            "Tatil", "5000.0000", "TRY", "2026-12-31",
+            "manual-contributions", null, null, "2026-08-26", "personal"));
+        // Etiketsiz hedef: kapsamı arayüzünde hiç görmeyen kullanıcının hâli.
+        await CreateGoalAsync(client, new CreateSavingsGoalRequest(
+            "Etiketsiz", "1000.0000", "TRY", "2026-12-31",
+            "manual-contributions", null, null, "2026-08-26"));
+
+        using var contribution = await client.PostAsJsonAsync(
+            $"/api/v1/goals/{reserve.Id}/contributions",
+            new AddSavingsGoalContributionRequest(
+                "2500.0000", "TRY", "2026-08-26", Guid.NewGuid(), "KDV için", "2026-08-26"));
+        contribution.EnsureSuccessStatusCode();
+
+        var all = await client.GetFromJsonAsync<SavingsGoalListResponse>(
+            "/api/v1/goals?asOfDate=2026-08-26");
+        var business = await client.GetFromJsonAsync<SavingsGoalListResponse>(
+            "/api/v1/goals?asOfDate=2026-08-26&scope=business");
+
+        Assert.Equal("business", reserve.Scope);
+        Assert.Equal(3, all!.Items.Count);
+
+        // Kırılım sunucudan geliyor; istemci çıkarma yapmıyor.
+        var breakdown = all.ScopeBreakdown!;
+        Assert.Equal(1, breakdown.Business.GoalCount);
+        Assert.Equal("10000.0000", breakdown.Business.TargetAmount);
+        Assert.Equal("2500.0000", breakdown.Business.AllocatedAmount);
+        Assert.Equal("7500.0000", breakdown.Business.RemainingAmount);
+        Assert.Equal(1, breakdown.Personal.GoalCount);
+        Assert.Equal(1, breakdown.Unscoped.GoalCount);
+
+        // Filtreli okumada kapsamsız hedef de düşer ve kırılım dönmez.
+        Assert.Equal("Vergi karşılığı", Assert.Single(business!.Items).Name);
+        Assert.Null(business.ScopeBreakdown);
+    }
+
+    [Fact]
+    public async Task Goals_WithAnUnknownScope_AreRefused()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var client = await CreateAuthenticatedClientAsync(
+            factory, $"goal-scope-invalid-{Guid.NewGuid():N}@example.test");
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/goals",
+            new CreateSavingsGoalRequest(
+                "Belirsiz", "1000.0000", "TRY", "2026-12-31",
+                "manual-contributions", null, null, "2026-08-26", "isletme"));
+        using var listed = await client.GetAsync("/api/v1/goals?asOfDate=2026-08-26&scope=isletme");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, listed.StatusCode);
+    }
+
     private static async Task<SavingsGoalResponse> CreateGoalAsync(
         HttpClient client,
         CreateSavingsGoalRequest request)
