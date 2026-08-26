@@ -484,3 +484,4 @@ $RECYCLE.BIN/
 # Local development tools
 .serena/
 .claude/
+.agents/skills/ui-ux-pro-max/
