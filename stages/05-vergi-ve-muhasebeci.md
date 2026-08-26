@@ -2,9 +2,10 @@
 
 ## Belge durumu
 
-- Durum: Planlandı
+- Durum: **Aktif** (26 Ağustos 2026'da kullanıcı onayıyla açıldı)
 - Ön koşul: Aşama 04 — Kasa, POS ve gezinme
 - Sonraki aşama: Aşama 06 — Bulut güvenli beta
+- Karar kapısı: `documentation/adr/0016-tax-fields-carry-they-do-not-calculate.md`
 - Dokunulacak kalıcı belgeler: `documentation/architecture.md`,
   `documentation/flows.md`, `documentation/permissions.md`,
   `documentation/tests.md`, `documentation/variables.md`,
@@ -80,7 +81,13 @@ ADR'nin karara bağlayacağı üç şey:
 
 - Yukarıdaki üç karar; reddedilen seçenekler (oranı koda gömmek, KDV'yi
   tutardan hesaplamak, takvimi mevzuata bağlamak) gerekçeleriyle yazılır.
+- ADR yazıldı: `documentation/adr/0016-tax-fields-carry-they-do-not-calculate.md`
+  (26 Ağustos 2026). Üç kararın yanına dördüncüsü eklendi: takvim bir
+  hatırlatmadır ve muhasebeci paketi ikinci bir hesaplama yolu değil, aynı ayın
+  işletme raporunun okumasıdır.
 - Ölçüt: ADR kabul edildi ve `CLAUDE.md` belge haritasına eklendi.
+  **Kullanıcı kabulü bekleniyor; kabul edilene kadar aşamanın koduna
+  başlanmaz.**
 
 ### Grup 2 — Domain: KDV taşıyan alanlar
 

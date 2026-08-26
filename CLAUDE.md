@@ -364,6 +364,12 @@ secret'ı uygulamaya konmaz.
   projection'dır; kullanılabilir bakiye ile net varlığın farkı tam olarak
   yoldaki tutardır; üçüncü ana sekme onboarding ön ayarına göre değişir ve
   yerini veren sekme `Diğer` altına iner
+- `documentation/adr/0016-tax-fields-carry-they-do-not-calculate.md` —
+  **Aşama 05'in karar kapısı**: vergiye dair her alan taşıyan ve raporlayan
+  alandır. Oran ve tarih koda gömülmez, kullanıcınındır; uygulama hiçbir vergi
+  tutarını hesaplamaz veya türetmez; indirilebilirlik kapsamdan ayrı, iki
+  durumlu bir alandır ve işletme netini değiştirmez; muhasebeci paketi ikinci
+  bir hesaplama yolu değil, aynı ayın işletme raporunun okumasıdır
 - `documentation/receipt-analysis-api-contract.md`,
   `documentation/receipt-measurement.md` — fiş analizi sözleşmesi ve ölçüm yöntemi
 - `PROJECT-ROADMAP.md` — altı aşamalık zincir, bağımlılık kuralları, kapsam

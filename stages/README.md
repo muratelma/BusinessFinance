@@ -13,7 +13,7 @@ sonra aşağıdaki tablodan **aktif** işaretli belge okunur.
 | 02 | `docs/archive/stages/02-cari-hesap-ve-karsi-taraf.md` | Tamamlandı | 24 Ağustos 2026'da kapandı; sekiz grup, cihaz kabul turu |
 | 03 | `docs/archive/stages/03-yukumluluk-ve-vade.md` | Tamamlandı | 24 Ağustos 2026'da kapandı; yedi grup + kapanış denetimi |
 | 04 | `docs/archive/stages/04-kasa-pos-ve-gezinme.md` | Tamamlandı | 26 Ağustos 2026'da kapandı; sekiz grup, cihaz kabul turu |
-| 05 | `05-vergi-ve-muhasebeci.md` | Planlandı | ADR ile açılır: vergi alanları taşır, hesaplamaz. **Aktif aşama yok**; 05 yalnız kullanıcı onayıyla açılır |
+| 05 | `05-vergi-ve-muhasebeci.md` | **Aktif** | 26 Ağustos 2026'da kullanıcı onayıyla açıldı; ADR 0016 yazıldı, kabul bekliyor |
 | 06 | `06-bulut-guvenli-beta.md` | Planlandı | Gerçek finansal veriye geçiş kapısı |
 
 Zincirin tamamı ve her aşamanın gerekçesi `PROJECT-ROADMAP.md` içindedir.

@@ -41,19 +41,18 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   v8'e taşınması. Kapanış öncesi kod denetimi iki arayüz boşluğu buldu ve
   ikisi de kapatıldı: yükümlülüğün fotoğrafsız (elle) girişi — yön seçimiyle —
   ve tekrarlayan plan formunun bitiş tarihi alanı
-- Aktif aşama: **04 — Kasa, POS ve gezinme.** 24 Ağustos 2026'da kullanıcı
-  onayıyla açıldı. Belgesi `stages/04-kasa-pos-ve-gezinme.md`; sekiz çalışma
-  grubu. **Grup 1 (ADR kapısı) tamamlandı**: ADR 0015 yazıldı ve kabul edildi —
-  borç tarafı `Kredi kartlarım`, tahsilat tarafı `POS tahsilatları`, yoldaki
-  para `AccountType` değil projection, kullanılabilir bakiye ile net varlığın
-  farkı tam olarak yoldaki tutar, üçüncü ana sekme ön ayara göre değişiyor.
-  **Grup 2, 3, 4, 5 ve 7 tamamlandı**: iki domain tipi yazıldı ve kalıcılığa girdi,
-  hesap bakiyesi ile net varlık ayrıldı, Özet ekranına `Yolda` satırı eklendi ve
-  POS satışı gelir/gider raporunda tanınıyor. Kasa/POS yazma uçları ve Flutter
-  ekranları açıldı; üçüncü ana sekme işletmede `Kasa`, kişiselde `Bütçeler`
-  oluyor ve yerinden inen ekran `Diğer` altında erişilebilir kalıyor. Sırada
-  **Grup 6 — `İşlem ekle` menüsünün niyet eksenine taşınması** var
-- Kalan üç aşamanın belgesi de yazılı, durumları `Planlandı`
+- **Aşama 04 — Kasa, POS ve gezinme: tamamlandı** (24 Ağustos 2026'da açıldı,
+  26 Ağustos 2026'da cihaz kabul turuyla kapandı). Belgesi
+  `docs/archive/stages/04-kasa-pos-ve-gezinme.md` altına taşındı ve tamamlanma
+  kaydı orada. Sekiz çalışma grubunun hepsi bitti: ADR 0015, gün sonu kasa
+  sayımı, POS tahsilatı ve yoldaki para, üçüncü ana sekmenin ön ayara göre
+  değişmesi, `İşlem ekle` menüsünün niyet eksenine taşınması ve yedek v9
+- Aktif aşama: **05 — Vergi ve muhasebeci.** 26 Ağustos 2026'da kullanıcı
+  onayıyla açıldı. Belgesi `stages/05-vergi-ve-muhasebeci.md`; sekiz çalışma
+  grubu. **Grup 1'in ADR'si yazıldı** (ADR 0016: vergi alanları taşır,
+  hesaplamaz) ve **kullanıcı kabulü bekliyor**; kabul edilene kadar aşamanın
+  koduna başlanmaz
+- Kalan bir aşamanın belgesi de yazılı, durumu `Planlandı`
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 bulut (`PROJECT-ROADMAP.md`)
 
@@ -1320,3 +1319,27 @@ Hepsi sentetiktir ve istenirse silinebilir.
 - Sıradaki görev: **aktif aşama yok.** Aşama 05 (Vergi ve muhasebeci) yalnız
   kullanıcının açık onayıyla açılır ve kendi ADR'si yazılmadan koduna
   başlanmaz. Onaya kadar kod değişmez
+
+## 26 Ağustos 2026 — Aşama 05 açıldı, ADR 0016 yazıldı
+
+Kullanıcı Aşama 05'i (Vergi ve muhasebeci) açıkça onayladı; belge **Aktif**
+oldu. Aşamanın karar kapısı olan ADR yazıldı:
+`documentation/adr/0016-tax-fields-carry-they-do-not-calculate.md`.
+
+ADR'nin karara bağladıkları:
+
+1. Oran ve tarih koda gömülmez, kullanıcınındır. Uygulama başlangıç önerisi
+   sunar; öneri kurulduğu an kullanıcının verisi olur ve kendiliğinden
+   güncellenmez. Mevzuat takibi yapılmadığı ekranda yazılıdır
+2. Uygulama hiçbir vergi tutarını hesaplamaz veya türetmez. KDV oranı ve tutarı
+   ayrı ayrı taşınan nullable alanlardır; ikisi uyuşmuyorsa uygulama söyler ama
+   düzeltmez. KDV kayıt tutarını, bakiyeyi, bütçeyi ve işletme netini etkilemez
+3. İndirilebilirlik kapsamdan ayrı, yalnız işletme kapsamında anlamlı, iki
+   durumlu bir alandır; işletme netini değiştirmez, yalnız muhasebeci paketini
+   etkiler. Kısmi oran modellenmez
+4. Takvim bir hatırlatmadır (mevcut tekrarlayan yükümlülük altyapısı üzerine
+   kurulur) ve muhasebeci paketi ikinci bir hesaplama yolu değil, aynı ayın
+   işletme raporunun okumasıdır; şahsi kayıt pakete girmez
+
+Kod değişmedi. **Grup 1'in ölçütü ADR'nin kabul edilmesidir**; kullanıcı kabul
+edene kadar Grup 2 ve sonrasının koduna başlanmaz.
