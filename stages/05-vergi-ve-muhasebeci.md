@@ -201,6 +201,13 @@ ADR'nin karara bağlayacağı üç şey:
 - Şema **v10** yazar, yalnız v10 okur.
 - `documentation/variables.md` yeni yapılandırma kaynağını kaydeder.
 - Ölçüt: KDV, indirilebilirlik ve takvim kalemleri kayıpsız geri yükleniyor.
+- **Tamamlandı** (26 Ağustos 2026): şema **v10** yazıyor ve yalnız v10 okuyor.
+  Yeni koleksiyon yok; var olan kayıtlara `vatRate`/`vatAmount`,
+  `isTaxDeductible`, kategoride `defaultIsTaxDeductible` ve hedefte `scope`
+  eklendi. Takvim kalemi ayrı bir koleksiyon değil — tekrarlayan plandır ve
+  `recurringTransactions` içinde durur. v9 dosyası `restore.unsupported_version`
+  ile reddediliyor. `documentation/variables.md` yeni bir yapılandırma kaynağı
+  **olmadığını** kaydetti: oran ve tarih kullanıcının verisidir.
 
 ## Zorunlu testler
 

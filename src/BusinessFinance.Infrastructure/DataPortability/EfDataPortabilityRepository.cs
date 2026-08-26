@@ -20,7 +20,7 @@ public sealed class EfDataPortabilityRepository(
     IAttachmentFileInspector? attachmentInspector = null)
     : IDataPortabilityRepository
 {
-    internal const int SchemaVersion = 9;
+    internal const int SchemaVersion = 10;
 
     /// <summary>
     /// Versions this build can restore. Only <see cref="SchemaVersion"/> is written.
@@ -36,7 +36,7 @@ public sealed class EfDataPortabilityRepository(
     /// boyutundan yoksundu (ADR 0013). Bu yüzden eski yedekler yükseltilmez,
     /// <c>restore.unsupported_version</c> ile reddedilir.
     /// </remarks>
-    private static readonly int[] SupportedSchemaVersions = [9];
+    private static readonly int[] SupportedSchemaVersions = [10];
 
     internal const int MaximumPayloadBytes = 10 * 1024 * 1024;
     internal const int MaximumEntities = 50_000;
@@ -396,9 +396,11 @@ public sealed class EfDataPortabilityRepository(
         var snapshot = new FinancialSnapshot(
             accounts.Select(x => new AccountBackup(x.Id, x.Name, x.Type, x.Currency, x.OpeningBalance,
                 x.IsActive, x.DefaultScope)).ToArray(),
-            categories.Select(x => new CategoryBackup(x.Id, x.Name, x.Type, x.IsActive, x.DefaultScope)).ToArray(),
+            categories.Select(x => new CategoryBackup(x.Id, x.Name, x.Type, x.IsActive, x.DefaultScope,
+                x.DefaultIsTaxDeductible)).ToArray(),
             transactions.Select(x => new TransactionBackup(x.Id, x.AccountId, x.CategoryId, x.Amount.Amount,
-                x.Amount.Currency, x.Type, x.Scope, x.TransactionDate, x.Description, x.IsCancelled, x.CancelledAtUtc)).ToArray(),
+                x.Amount.Currency, x.Type, x.Scope, x.TransactionDate, x.Description, x.IsCancelled,
+                x.CancelledAtUtc, x.Vat?.Rate, x.Vat?.Amount, x.IsTaxDeductible)).ToArray(),
             budgets.Select(x => new BudgetBackup(x.Id, x.CategoryId, x.Limit.Amount, x.Limit.Currency,
                 x.Scope, x.Year, x.Month)).ToArray(),
             transfers.Select(x => new TransferBackup(x.Id, x.SourceAccountId, x.DestinationAccountId,
@@ -406,7 +408,8 @@ public sealed class EfDataPortabilityRepository(
             cards.Select(x => new CardBackup(x.Id, x.Name, x.Limit.Amount, x.Limit.Currency,
                 x.StatementClosingDay, x.PaymentDueDay, x.IsActive, x.MinimumPaymentRate, x.DefaultScope)).ToArray(),
             charges.Select(x => new ChargeBackup(x.Id, x.CreditCardId, x.CategoryId, x.Amount.Amount,
-                x.Amount.Currency, x.Scope, x.ChargeDate, x.Description, x.IsCancelled, x.CancelledAtUtc)).ToArray(),
+                x.Amount.Currency, x.Scope, x.ChargeDate, x.Description, x.IsCancelled, x.CancelledAtUtc,
+                x.Vat?.Rate, x.Vat?.Amount, x.IsTaxDeductible)).ToArray(),
             payments.Select(x => new PaymentBackup(x.Id, x.AccountId, x.CreditCardId, x.Amount.Amount,
                 x.Amount.Currency, x.PaymentDate, x.Description, x.IsCancelled, x.CancelledAtUtc)).ToArray(),
             plans.Select(x => new InstallmentPlanBackup(x.Id, x.CreditCardId, x.CategoryId, x.ClientRequestId,
@@ -432,7 +435,8 @@ public sealed class EfDataPortabilityRepository(
                 x.Id, x.Name, x.Note, x.IsActive)).ToArray(),
             counterpartyCharges.Select(x => new CounterpartyChargeBackup(
                 x.Id, x.CounterpartyId, x.CategoryId, x.Direction, x.Amount.Amount, x.Amount.Currency,
-                x.Scope, x.ChargeDate, x.Description, x.IsCancelled, x.CancelledAtUtc, x.DueDate)).ToArray(),
+                x.Scope, x.ChargeDate, x.Description, x.IsCancelled, x.CancelledAtUtc, x.DueDate,
+                x.Vat?.Rate, x.Vat?.Amount, x.IsTaxDeductible)).ToArray(),
             counterpartyPayments.Select(x => new CounterpartyPaymentBackup(
                 x.Id, x.CounterpartyId, x.AccountId, x.Direction, x.Amount.Amount, x.Amount.Currency,
                 x.PaymentDate, x.Description, x.IsCancelled, x.CancelledAtUtc)).ToArray(),
@@ -445,7 +449,8 @@ public sealed class EfDataPortabilityRepository(
                     : new ObligationSettlementBackup(
                         x.Settlement.Id, x.Settlement.AccountId, x.Settlement.Amount.Amount,
                         x.Settlement.Amount.Currency, x.Settlement.SettlementDate,
-                        x.Settlement.SettledAtUtc))).ToArray(),
+                        x.Settlement.SettledAtUtc),
+                x.Vat?.Rate, x.Vat?.Amount, x.IsTaxDeductible)).ToArray(),
             cashCounts.Select(x => new CashCountBackup(
                 x.Id, x.AccountId, x.CountedAmount, x.Currency, x.Scope, x.CountDate,
                 x.Note, x.CreatedAtUtc, x.AdjustmentTransactionId, x.AdjustedAtUtc,
@@ -454,7 +459,8 @@ public sealed class EfDataPortabilityRepository(
                 x.Id, x.AccountId, x.CategoryId, x.CommissionCategoryId,
                 x.GrossAmount.Amount, x.CommissionAmount, x.Currency, x.Scope,
                 x.SettlementDate, x.ExpectedTransferDate, x.Description, x.CreatedAtUtc,
-                x.TransferredOn, x.TransferredAtUtc, x.IsCancelled, x.CancelledAtUtc)).ToArray(),
+                x.TransferredOn, x.TransferredAtUtc, x.IsCancelled, x.CancelledAtUtc,
+                x.Vat?.Rate, x.Vat?.Amount)).ToArray(),
             debts.Select(x => new DebtBackup(
                 x.Id, x.CounterpartyId, x.Direction, x.Scope, x.Principal.Amount, x.TotalRepayment.Amount,
                 x.Principal.Currency, x.AnnualInterestRate, x.StartDate, x.FirstDueDate,
@@ -469,7 +475,8 @@ public sealed class EfDataPortabilityRepository(
                 x.Contributions.OrderBy(c => c.ContributionDate).ThenBy(c => c.Id)
                     .Select(c => new SavingsGoalContributionBackup(
                         c.Id, c.Amount.Amount, c.Amount.Currency, c.ContributionDate,
-                        c.ClientRequestId, c.Note, c.CreatedAtUtc)).ToArray())).ToArray(),
+                        c.ClientRequestId, c.Note, c.CreatedAtUtc)).ToArray(),
+                x.Scope)).ToArray(),
             attachmentBackups.ToArray());
         EnsureEntityLimit(snapshot);
         return snapshot;
@@ -510,7 +517,8 @@ public sealed class EfDataPortabilityRepository(
                     x.DefaultScope));
             var categoryMap = snapshot.Categories.ToDictionary(
                 x => x.Id,
-                x => new Category(Guid.NewGuid(), userId, x.Name, x.Type, x.DefaultScope));
+                x => new Category(Guid.NewGuid(), userId, x.Name, x.Type, x.DefaultScope,
+                    x.DefaultIsTaxDeductible));
             var cardMap = snapshot.Cards.ToDictionary(
                 x => x.Id,
                 x => new CreditCard(Guid.NewGuid(), userId, x.Name, MoneyOf(x.Limit, x.Currency),
@@ -524,7 +532,7 @@ public sealed class EfDataPortabilityRepository(
                     Required(accountMap, item.AccountId, "transaction account"),
                     Required(categoryMap, item.CategoryId, "transaction category"),
                     MoneyOf(item.Amount, item.Currency), item.Type, item.Scope, item.TransactionDate,
-                    item.Description);
+                    item.Description, VatOf(item.VatRate, item.VatAmount), item.IsTaxDeductible);
                 ApplyCancellation(item.IsCancelled, item.CancelledAtUtc, entity.Cancel);
                 transactionMap.Add(item.Id, entity);
             }
@@ -551,7 +559,8 @@ public sealed class EfDataPortabilityRepository(
                     Guid.NewGuid(), userId,
                     Required(cardMap, item.CreditCardId, "charge card"),
                     Required(categoryMap, item.CategoryId, "charge category"),
-                    MoneyOf(item.Amount, item.Currency), item.Scope, item.ChargeDate, item.Description);
+                    MoneyOf(item.Amount, item.Currency), item.Scope, item.ChargeDate, item.Description,
+                    VatOf(item.VatRate, item.VatAmount), item.IsTaxDeductible);
                 ApplyCancellation(item.IsCancelled, item.CancelledAtUtc, entity.Cancel);
                 chargeMap.Add(item.Id, entity);
             }
@@ -749,7 +758,8 @@ public sealed class EfDataPortabilityRepository(
                     Required(counterpartyMap, item.CounterpartyId, "charge counterparty"),
                     Required(categoryMap, item.CategoryId, "counterparty charge category"),
                     item.Direction, MoneyOf(item.Amount, item.Currency), item.Scope,
-                    item.ChargeDate, item.Description, item.DueDate);
+                    item.ChargeDate, item.Description, item.DueDate,
+                    VatOf(item.VatRate, item.VatAmount), item.IsTaxDeductible);
                 ApplyCancellation(item.IsCancelled, item.CancelledAtUtc, entity.Cancel);
                 counterpartyCharges.Add(entity);
             }
@@ -782,7 +792,7 @@ public sealed class EfDataPortabilityRepository(
                     item.CounterpartyId is Guid obligationCounterpartyId
                         ? Required(counterpartyMap, obligationCounterpartyId, "obligation counterparty")
                         : null,
-                    item.Description);
+                    item.Description, VatOf(item.VatRate, item.VatAmount), item.IsTaxDeductible);
                 if (item.Settlement is ObligationSettlementBackup settlement)
                 {
                     if (MoneyOf(settlement.Amount, settlement.Currency) != entity.Amount)
@@ -835,7 +845,7 @@ public sealed class EfDataPortabilityRepository(
                     item.CommissionCategoryId is Guid commissionCategoryId
                         ? Required(categoryMap, commissionCategoryId, "pos commission category")
                         : null,
-                    item.Description);
+                    item.Description, VatOf(item.VatRate, item.VatAmount));
                 if (item.TransferredOn is DateOnly transferredOn)
                 {
                     if (item.TransferredAtUtc is not DateTimeOffset transferredAtUtc)
@@ -903,7 +913,8 @@ public sealed class EfDataPortabilityRepository(
                     : null;
                 var goal = new SavingsGoal(
                     Guid.NewGuid(), userId, item.Name, MoneyOf(item.TargetAmount, item.Currency),
-                    item.TargetDate, item.TrackingMode, accountId, item.CreatedAtUtc, item.Description);
+                    item.TargetDate, item.TrackingMode, accountId, item.CreatedAtUtc, item.Description,
+                    item.Scope);
                 EnsureUniqueIds(item.Contributions.Select(x => x.Id), "savings goal contribution");
                 foreach (var contribution in item.Contributions)
                     goal.AddContribution(
@@ -1151,6 +1162,18 @@ public sealed class EfDataPortabilityRepository(
             ? value
             : throw Invalid($"Backup contains a dangling {relationship} reference.");
 
+    /// <summary>
+    /// Dosyadaki iki isteğe bağlı KDV alanını tek bir değere çevirir.
+    /// </summary>
+    /// <remarks>
+    /// İkisi de boşsa kayıt KDV taşımaz; "yok"un tek temsili budur. Oranla
+    /// tutarın uyuşup uyuşmadığına <b>bakılmaz</b> — dosyadaki değer
+    /// kullanıcının belgesidir ve geri yüklerken yeniden yorumlanmaz
+    /// (ADR 0016).
+    /// </remarks>
+    private static VatDetails? VatOf(decimal? rate, decimal? amount) =>
+        VatDetails.FromOptional(rate, amount);
+
     private static Money MoneyOf(decimal amount, CurrencyCode currency) => new(amount, currency);
 
     private static void ApplyCancellation(
@@ -1244,10 +1267,18 @@ internal sealed record FinancialSnapshot(
 
 internal sealed record AccountBackup(Guid Id, string Name, AccountType Type, CurrencyCode Currency, decimal OpeningBalance,
     bool IsActive, TransactionScope? DefaultScope);
-internal sealed record CategoryBackup(Guid Id, string Name, CategoryType Type, bool IsActive, TransactionScope? DefaultScope);
+internal sealed record CategoryBackup(Guid Id, string Name, CategoryType Type, bool IsActive,
+    TransactionScope? DefaultScope, bool? DefaultIsTaxDeductible = null);
+/// <remarks>
+/// KDV ve indirilebilirlik dosyada <b>taşınan</b> alanlardır (ADR 0016): ikisi
+/// de boş olabilir ve boş olmaları eksik veri değildir. Oranla tutar birbirini
+/// tutmasa bile olduğu gibi yazılır — geri yüklerken düzeltmek, kullanıcının
+/// belgesini yeniden yorumlamak olurdu.
+/// </remarks>
 internal sealed record TransactionBackup(Guid Id, Guid AccountId, Guid CategoryId, decimal Amount, CurrencyCode Currency,
     TransactionType Type, TransactionScope Scope, DateOnly TransactionDate, string? Description, bool IsCancelled,
-    DateTimeOffset? CancelledAtUtc);
+    DateTimeOffset? CancelledAtUtc, decimal? VatRate = null, decimal? VatAmount = null,
+    bool? IsTaxDeductible = null);
 internal sealed record BudgetBackup(Guid Id, Guid CategoryId, decimal Limit, CurrencyCode Currency,
     TransactionScope Scope, int Year, int Month);
 internal sealed record TransferBackup(Guid Id, Guid SourceAccountId, Guid DestinationAccountId, decimal Amount,
@@ -1256,7 +1287,8 @@ internal sealed record CardBackup(Guid Id, string Name, decimal Limit, CurrencyC
     int StatementClosingDay, int PaymentDueDay, bool IsActive, decimal MinimumPaymentRate,
     TransactionScope? DefaultScope);
 internal sealed record ChargeBackup(Guid Id, Guid CreditCardId, Guid CategoryId, decimal Amount, CurrencyCode Currency,
-    TransactionScope Scope, DateOnly ChargeDate, string? Description, bool IsCancelled, DateTimeOffset? CancelledAtUtc);
+    TransactionScope Scope, DateOnly ChargeDate, string? Description, bool IsCancelled, DateTimeOffset? CancelledAtUtc,
+    decimal? VatRate = null, decimal? VatAmount = null, bool? IsTaxDeductible = null);
 internal sealed record PaymentBackup(Guid Id, Guid AccountId, Guid CreditCardId, decimal Amount, CurrencyCode Currency,
     DateOnly PaymentDate, string? Description, bool IsCancelled, DateTimeOffset? CancelledAtUtc);
 internal sealed record InstallmentPlanBackup(Guid Id, Guid CreditCardId, Guid CategoryId, Guid ClientRequestId,
@@ -1291,7 +1323,8 @@ internal sealed record CounterpartyBackup(Guid Id, string Name, string? Note, bo
 internal sealed record CounterpartyChargeBackup(
     Guid Id, Guid CounterpartyId, Guid CategoryId, DebtDirection Direction, decimal Amount,
     CurrencyCode Currency, TransactionScope Scope, DateOnly ChargeDate, string? Description,
-    bool IsCancelled, DateTimeOffset? CancelledAtUtc, DateOnly? DueDate = null);
+    bool IsCancelled, DateTimeOffset? CancelledAtUtc, DateOnly? DueDate = null,
+    decimal? VatRate = null, decimal? VatAmount = null, bool? IsTaxDeductible = null);
 internal sealed record CounterpartyPaymentBackup(
     Guid Id, Guid CounterpartyId, Guid AccountId, DebtDirection Direction, decimal Amount,
     CurrencyCode Currency, DateOnly PaymentDate, string? Description,
@@ -1308,7 +1341,8 @@ internal sealed record ObligationBackup(
     Guid Id, Guid? CounterpartyId, Guid CategoryId, DebtDirection Direction, decimal Amount,
     CurrencyCode Currency, TransactionScope Scope, DateOnly IssueDate, DateOnly DueDate,
     string? Description, DateTimeOffset CreatedAtUtc, bool IsCancelled,
-    DateTimeOffset? CancelledAtUtc, ObligationSettlementBackup? Settlement);
+    DateTimeOffset? CancelledAtUtc, ObligationSettlementBackup? Settlement,
+    decimal? VatRate = null, decimal? VatAmount = null, bool? IsTaxDeductible = null);
 internal sealed record ObligationSettlementBackup(
     Guid Id, Guid AccountId, decimal Amount, CurrencyCode Currency,
     DateOnly SettlementDate, DateTimeOffset SettledAtUtc);
@@ -1343,7 +1377,8 @@ internal sealed record PosSettlementBackup(
     TransactionScope Scope, DateOnly SettlementDate, DateOnly ExpectedTransferDate,
     string? Description, DateTimeOffset CreatedAtUtc,
     DateOnly? TransferredOn, DateTimeOffset? TransferredAtUtc,
-    bool IsCancelled, DateTimeOffset? CancelledAtUtc);
+    bool IsCancelled, DateTimeOffset? CancelledAtUtc,
+    decimal? VatRate = null, decimal? VatAmount = null);
 /// <remarks>
 /// <see cref="AnnualInterestRate"/> hâlâ yazılıyor ama geri yüklerken
 /// okunmuyor: oran artık paradan çözülüyor, yedekteki değer ise hiçbir hesaba
@@ -1363,7 +1398,8 @@ internal sealed record DebtInstallmentBackup(
 internal sealed record SavingsGoalBackup(
     Guid Id, string Name, decimal TargetAmount, CurrencyCode Currency, DateOnly TargetDate,
     SavingsGoalTrackingMode TrackingMode, Guid? AccountId, string? Description,
-    DateTimeOffset CreatedAtUtc, SavingsGoalContributionBackup[] Contributions);
+    DateTimeOffset CreatedAtUtc, SavingsGoalContributionBackup[] Contributions,
+    TransactionScope? Scope = null);
 internal sealed record SavingsGoalContributionBackup(
     Guid Id, decimal Amount, CurrencyCode Currency, DateOnly ContributionDate,
     Guid ClientRequestId, string? Note, DateTimeOffset CreatedAtUtc);

@@ -33,11 +33,11 @@ public sealed class DataPortabilityTests
         var conflict = await Assert.ThrowsAsync<DataPortabilityException>(() =>
             service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default));
 
-        Assert.Equal(9, validation.SchemaVersion);
+        Assert.Equal(10, validation.SchemaVersion);
         Assert.Equal(validation.EntityCount, restored.RestoredEntityCount);
         Assert.Equal("restore.destination_not_empty", conflict.Code);
         Assert.Equal("Geri yükleme için hesapta finansal veri bulunmamalıdır.", conflict.Message);
-        Assert.Equal(33, validation.EntityCount);
+        Assert.Equal(35, validation.EntityCount);
         Assert.Equal(2, await context.Accounts.CountAsync(x => x.UserId == targetUserId));
         Assert.Equal(3, await context.Categories.CountAsync(x => x.UserId == targetUserId));
         Assert.Equal(3, await context.Transactions.CountAsync(x => x.UserId == targetUserId));
@@ -391,7 +391,7 @@ public sealed class DataPortabilityTests
         var validation = await service.ValidateBackupAsync(backup.Content, default);
         await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
 
-        Assert.Equal(9, validation.SchemaVersion);
+        Assert.Equal(10, validation.SchemaVersion);
         var restoredPlans = await context.RecurringTransactions
             .AsNoTracking().Where(item => item.UserId == targetUserId).ToArrayAsync();
         var cardPlan = Assert.Single(
@@ -538,7 +538,7 @@ public sealed class DataPortabilityTests
         var validation = await service.ValidateBackupAsync(backup.Content, default);
         await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
 
-        Assert.Equal(9, validation.SchemaVersion);
+        Assert.Equal(10, validation.SchemaVersion);
 
         var restoredObligations = await context.Obligations.AsNoTracking()
             .Include(x => x.Settlement)
@@ -636,7 +636,7 @@ public sealed class DataPortabilityTests
     /// eskisine değil.
     /// </remarks>
     [Fact]
-    public async Task BackupV9_RoundTripsCashCountsAndPosSettlements()
+    public async Task Backup_RoundTripsCashCountsAndPosSettlements()
     {
         await using var context = CreateContext();
         var sourceUserId = Guid.NewGuid();
@@ -649,7 +649,7 @@ public sealed class DataPortabilityTests
         var validation = await service.ValidateBackupAsync(backup.Content, default);
         await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
 
-        Assert.Equal(9, validation.SchemaVersion);
+        Assert.Equal(10, validation.SchemaVersion);
 
         var counts = await context.CashCounts.AsNoTracking()
             .Where(item => item.UserId == targetUserId)
@@ -695,6 +695,126 @@ public sealed class DataPortabilityTests
         Assert.Equal(0.025m, yolda.CommissionRate);
         Assert.NotNull(yolda.CommissionCategoryId);
     }
+
+    /// <summary>
+    /// KDV, indirilebilirlik ve hedef kapsamı yedekten kayıpsız döner.
+    /// </summary>
+    /// <remarks>
+    /// Üçü de <b>taşınan</b> alanlardır (ADR 0016): dosya onları yeniden
+    /// yorumlamaz. Oranla tutarın uyuşmadığı kayıt olduğu gibi geri gelir —
+    /// düzeltmek, kullanıcının belgesini yeniden okumak olurdu. Türetilen
+    /// hiçbir şey yine dosyada yok.
+    /// </remarks>
+    [Fact]
+    public async Task BackupV10_RoundTripsVatDeductibilityAndGoalScope()
+    {
+        await using var context = CreateContext();
+        var sourceUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        await SeedCompleteGraphAsync(context, sourceUserId);
+        await SeedDefaultCategoriesAsync(context, targetUserId);
+        var service = new EfDataPortabilityRepository(context);
+
+        var backup = await service.CreateBackupAsync(sourceUserId, default);
+        var validation = await service.ValidateBackupAsync(backup.Content, default);
+        await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
+
+        Assert.Equal(10, validation.SchemaVersion);
+
+        var restoredIncome = await context.Transactions.AsNoTracking()
+            .SingleAsync(item => item.UserId == targetUserId &&
+                                 item.Type == TransactionType.Income);
+        // Oran ve tutar bağımsız iki alan; uyuşmasalar da yazıldığı gibi döner.
+        Assert.Equal(0.20m, restoredIncome.Vat?.Rate);
+        Assert.Equal(150m, restoredIncome.Vat?.Amount);
+        Assert.Null(restoredIncome.IsTaxDeductible);
+
+        var restoredExpense = await context.Transactions.AsNoTracking()
+            .SingleAsync(item => item.UserId == targetUserId &&
+                                 item.Type == TransactionType.Expense &&
+                                 item.Amount.Amount == 100.25m);
+        // KDV yoksa dosyada da yok: "yok"un tek temsili iki boş alandır.
+        Assert.Null(restoredExpense.Vat);
+
+        var restoredCharge = await context.CreditCardCharges.AsNoTracking()
+            .SingleAsync(item => item.UserId == targetUserId);
+        Assert.Null(restoredCharge.Vat?.Rate);
+        Assert.Equal(50m, restoredCharge.Vat?.Amount);
+        Assert.False(restoredCharge.IsTaxDeductible);
+
+        var restoredCategory = await context.Categories.AsNoTracking()
+            .SingleAsync(item => item.UserId == targetUserId && item.Name == "Fatura");
+        Assert.True(restoredCategory.DefaultIsTaxDeductible);
+
+        var restoredGoal = await context.SavingsGoals.AsNoTracking()
+            .Include(item => item.Contributions)
+            .SingleAsync(item => item.UserId == targetUserId);
+        Assert.Equal(TransactionScope.Business, restoredGoal.Scope);
+        Assert.Equal(2500m, Assert.Single(restoredGoal.Contributions).Amount.Amount);
+    }
+
+    /// <summary>
+    /// v9 dosyası reddedilir ve hedef hesaba hiçbir şey yazılmaz.
+    /// </summary>
+    /// <remarks>
+    /// v9 KDV'yi, indirilebilirliği ve hedefin kapsamını hiç bilmiyordu. Üçü de
+    /// yalnız kullanıcının bildiği bilgiler: KDV'yi tutardan çözmek hesaplanmış
+    /// bir vergi iddia etmek, indirilebilirliği varsaymak muhasebecinin yerine
+    /// karar vermek, hedefe kapsam uydurmak da işletme karşılığını şahsi bir
+    /// birikim gibi göstermek olurdu. Zincirin her adımındaki karar aynı: eksik
+    /// bilgi tamamlanmaz, dosya reddedilir.
+    /// </remarks>
+    [Fact]
+    public async Task BackupBeforeTaxFields_IsRejectedAndWritesNothing()
+    {
+        await using var context = CreateContext();
+        var sourceUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        await SeedCompleteGraphAsync(context, sourceUserId);
+        await SeedDefaultCategoriesAsync(context, targetUserId);
+        var service = new EfDataPortabilityRepository(context);
+
+        var legacy = ToLegacyV9(await service.CreateBackupAsync(sourceUserId, default));
+
+        var validationError = await Assert.ThrowsAsync<DataPortabilityException>(() =>
+            service.ValidateBackupAsync(legacy, default));
+        var error = await Assert.ThrowsAsync<DataPortabilityException>(() =>
+            service.RestoreBackupAsync(targetUserId, legacy, DateTimeOffset.UtcNow, default));
+
+        Assert.Equal("restore.unsupported_version", validationError.Code);
+        Assert.Equal("restore.unsupported_version", error.Code);
+        Assert.False(await context.Transactions.AnyAsync(item => item.UserId == targetUserId));
+        Assert.False(await context.SavingsGoals.AnyAsync(item => item.UserId == targetUserId));
+    }
+
+    /// <summary>
+    /// Güncel yedeği v9 gibi gösterir: vergi alanları ve hedef kapsamı silinir.
+    /// </summary>
+    private static byte[] ToLegacyV9(PortableFile backup) =>
+        RewritePayload(
+            backup.Content,
+            snapshot =>
+            {
+                foreach (var category in snapshot["categories"]!.AsArray())
+                    category!.AsObject().Remove("defaultIsTaxDeductible");
+                foreach (var name in new[]
+                         {
+                             "transactions", "charges", "counterpartyCharges", "obligations",
+                             "posSettlements",
+                         })
+                {
+                    foreach (var item in snapshot[name]!.AsArray())
+                    {
+                        item!.AsObject().Remove("vatRate");
+                        item.AsObject().Remove("vatAmount");
+                        item.AsObject().Remove("isTaxDeductible");
+                    }
+                }
+
+                foreach (var goal in snapshot["savingsGoals"]!.AsArray())
+                    goal!.AsObject().Remove("scope");
+            },
+            schemaVersion: 9);
 
     /// <summary>
     /// v8 dosyası reddedilir ve hedef hesaba hiçbir şey yazılmaz.
@@ -844,9 +964,13 @@ public sealed class DataPortabilityTests
         var incomeCategory = new Category(Guid.NewGuid(), userId, "Maaş", CategoryType.Income);
         var expenseCategory = new Category(Guid.NewGuid(), userId, "Market", CategoryType.Expense);
         var billCategory = new Category(Guid.NewGuid(), userId, "Fatura", CategoryType.Expense,
-            TransactionScope.Personal);
+            TransactionScope.Personal, defaultIsTaxDeductible: true);
         var income = new BudgetTransaction(Guid.NewGuid(), userId, bank, incomeCategory,
-            new Money(1000m, CurrencyCode.TRY), TransactionType.Income, TransactionScope.Business, new DateOnly(2026, 8, 1), "=SUM(A1:A2)");
+            new Money(1000m, CurrencyCode.TRY), TransactionType.Income, TransactionScope.Business,
+            new DateOnly(2026, 8, 1), "=SUM(A1:A2)",
+            // Oranla tutar bilerek uyuşmuyor: belge öyle diyorsa dosya da öyle
+            // demeli ve geri yüklerken düzeltilmemeli (ADR 0016).
+            new VatDetails(0.20m, 150m));
         var expense = new BudgetTransaction(Guid.NewGuid(), userId, cash, expenseCategory,
             new Money(100.25m, CurrencyCode.TRY), TransactionType.Expense, TransactionScope.Personal, new DateOnly(2026, 8, 2), "Market, haftalık");
         var budget = new MonthlyBudget(Guid.NewGuid(), userId, expenseCategory,
@@ -856,7 +980,8 @@ public sealed class DataPortabilityTests
         transfer.Cancel(utc);
         var card = new CreditCard(Guid.NewGuid(), userId, "Kart", new Money(5000m, CurrencyCode.TRY), 10, 20);
         var charge = new CreditCardCharge(Guid.NewGuid(), userId, card, expenseCategory,
-            new Money(300m, CurrencyCode.TRY), TransactionScope.Business, new DateOnly(2026, 8, 4), "Taksit");
+            new Money(300m, CurrencyCode.TRY), TransactionScope.Business, new DateOnly(2026, 8, 4), "Taksit",
+            new VatDetails(null, 50m), isTaxDeductible: false);
         var payment = new CreditCardPayment(Guid.NewGuid(), userId, bank, card,
             new Money(100m, CurrencyCode.TRY), new DateOnly(2026, 8, 5), "Ödeme");
         payment.Cancel(utc);
@@ -950,11 +1075,22 @@ public sealed class DataPortabilityTests
             card.Name, card.Limit, card.StatementClosingDay, card.PaymentDueDay,
             card.MinimumPaymentRate, false);
 
+        // İşletme kapsamlı hedef bir karşılıktır; kapsamı dosyada taşınmazsa
+        // geri yüklenen hesapta şahsi hedeflerden ayırt edilemezdi.
+        var vergiKarsiligi = new SavingsGoal(
+            Guid.NewGuid(), userId, "Vergi karşılığı",
+            new Money(10000m, CurrencyCode.TRY), new DateOnly(2026, 12, 31),
+            SavingsGoalTrackingMode.ManualContributions, null, utc, "KDV için",
+            TransactionScope.Business);
+        vergiKarsiligi.AddContribution(
+            Guid.NewGuid(), new Money(2500m, CurrencyCode.TRY), new DateOnly(2026, 8, 11),
+            Guid.NewGuid(), utc);
+
         context.AddRange(cash, bank, incomeCategory, expenseCategory, billCategory, income, expense,
             budget, transfer, card, charge, payment, plan, recurring, occurrence, batch,
             manav, kapanan, veresiye, vadeliAlim, tahsilat, iptalTahsilat,
             acikFatura, kapananAlacak, kasaFarki, eskiSayim, sayim,
-            yoldakiTahsilat, gecmisTahsilat);
+            yoldakiTahsilat, gecmisTahsilat, vergiKarsiligi);
         await context.SaveChangesAsync();
     }
 

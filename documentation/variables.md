@@ -118,3 +118,21 @@ kullanım bulut güvenlik kapısına (Aşama 06) kadar yasaktır.
 - Kalıcı application ID ve Android signing yapılandırması belirlenmelidir.
 - Secret, APK ve Git history taramaları temiz olmalıdır.
 - Development OpenAPI ve ayrıntılı hata davranışı production'da kapalı olmalıdır.
+
+## Vergi tarafının yapılandırma kaynağı: yok
+
+Aşama 05 **yeni bir yapılandırma anahtarı, secret ya da ortam değişkeni
+getirmedi** ve bu bilinçli bir sonuçtur (ADR 0016).
+
+- **Oranlar ve beyan tarihleri yapılandırma değildir.** Mevzuata bağlı hiçbir
+  değer koda, `appsettings`'e ya da ortam değişkenine yazılmaz; uygulama mevzuat
+  takibi yapmaz. Kullanıcının kurduğu takvim kalemi kendi verisidir ve
+  veritabanında tekrarlayan bir plan olarak durur.
+- Takvimin hazır kalemleri (`TaxCalendarSuggestions`) kodda duran bir
+  **şablondur**: tutar taşımaz, kurulduğu an kullanıcının verisi olur ve
+  uygulama onu sonradan kendiliğinden güncellemez. Yapılandırma kaynağı değil,
+  formun ön dolumudur.
+- Muhasebeci paketi dosyası kullanıcının **kendi cihazından** paylaşılır;
+  sunucu üçüncü kişiye hiçbir şey göndermez ve paket için bir adres, anahtar ya
+  da sağlayıcı ayarı yoktur.
+

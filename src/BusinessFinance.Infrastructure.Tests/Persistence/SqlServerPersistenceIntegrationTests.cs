@@ -510,7 +510,14 @@ public sealed class SqlServerPersistenceIntegrationTests
         Assert.Equal(3, await read.Transactions.CountAsync(x => x.UserId == restoredOwner.Id));
         Assert.Single(await read.ImportBatches.Where(x => x.UserId == restoredOwner.Id).ToArrayAsync());
         Assert.Single(await read.DebtAgreements.Where(x => x.UserId == restoredOwner.Id).ToArrayAsync());
-        Assert.Single(await read.SavingsGoals.Where(x => x.UserId == restoredOwner.Id).ToArrayAsync());
+        // İki hedef: paylaşılan grafiğin işletme karşılığı ve bu testin kendi
+        // manuel hedefi. Kapsam gerçek SQL üzerinden de kayıpsız dönüyor —
+        // dönmeseydi geri yüklenen hesapta karşılık şahsi birikimden ayırt
+        // edilemezdi.
+        var restoredGoals = await read.SavingsGoals
+            .Where(x => x.UserId == restoredOwner.Id).ToArrayAsync();
+        Assert.Equal(2, restoredGoals.Length);
+        Assert.Contains(restoredGoals, goal => goal.Scope == TransactionScope.Business);
         // Cari defteri gerçek SQL üzerinde de kayıpsız dönüyor: iki hareketli
         // karşı taraf, bir sözleşme karşı tarafı, iki borçlandırma ve iki
         // tahsilat. Yedek bunları taşımasaydı geri yüklenen hesap, açık

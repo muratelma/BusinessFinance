@@ -1469,3 +1469,24 @@ edene kadar Grup 2 ve sonrasının koduna başlanmaz.
 - Planlama formuna `Üç ayda bir` sıklığı eklendi (geçici verginin ritmi)
 - Geçen kontroller: flutter analyze temiz, `dart format` temiz, **770 test
   geçti**, Android debug build üretildi
+
+## 26 Ağustos 2026 — Aşama 05 Grup 8: yedek v10 ve belgeler
+
+- Yedek şeması **v10** yazıyor ve **yalnız v10** okuyor. Yeni koleksiyon yok:
+  var olan kayıtlara `vatRate`/`vatAmount` (işlem, kart harcaması, cari
+  borçlandırma, yükümlülük, POS), `isTaxDeductible` (gider tanıyanlar),
+  kategoride `defaultIsTaxDeductible` ve hedefte `scope` eklendi
+- Vergi takvimi kaleminin dosyada ayrı bir koleksiyonu **yok**: kalem
+  tekrarlayan bir plandır ve `recurringTransactions` içinde durur; `frequency`
+  artık `quarterly` de olabiliyor
+- Oranla tutarın uyuşmadığı kayıt olduğu gibi geri geliyor — geri yüklerken
+  düzeltmek, kullanıcının belgesini yeniden yorumlamak olurdu
+- **v9 dosyası reddediliyor** (`restore.unsupported_version`) ve hedefe hiçbir
+  şey yazılmıyor: v9 KDV'yi, indirilebilirliği ve hedef kapsamını bilmiyordu;
+  üçünü de uydurmak yanlış bir geçmiş yazmak olurdu
+- `documentation/variables.md` yeni bir yapılandırma kaynağı **olmadığını**
+  kaydetti: oran ve tarih koda değil kullanıcının verisine yazılır, hazır
+  kalemler yalnız formun ön dolumudur
+- Geçen kontroller: backend build (0 uyarı) + format temiz + **983 test geçti**,
+  1 atlandı (canlı Gemini)
+

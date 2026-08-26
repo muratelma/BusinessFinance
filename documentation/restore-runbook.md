@@ -1,7 +1,25 @@
 # Backup Restore Runbook
 
-Bu runbook yalnız sentetik yerel veridir. Yazılan şema **v9**; okunabilen
-şema **yalnız v9**. v9, v8'in taşıdığı her şeyin üstüne iki koleksiyon ekler:
+Bu runbook yalnız sentetik yerel veridir. Yazılan şema **v10**; okunabilen
+şema **yalnız v10**. v10 yeni koleksiyon eklemez; var olan kayıtlara Aşama
+05'in **taşınan** alanlarını ekler:
+
+- `vatRate` / `vatAmount` — işlem, kart harcaması, cari borçlandırma,
+  yükümlülük ve POS tahsilatında. İkisi **bağımsızdır** ve biri diğerinden
+  türetilmez; ikisi de boşsa kayıt KDV taşımaz ve "yok"un tek temsili budur.
+  Oranla tutar birbirini tutmasa bile dosyaya yazıldığı gibi girer ve geri
+  yüklerken **düzeltilmez** — düzeltmek, kullanıcının belgesini yeniden
+  yorumlamak olurdu (ADR 0016).
+- `isTaxDeductible` — gider tanıyan kayıtlarda ve `defaultIsTaxDeductible`
+  kategorilerde. Boş olması üçüncü bir durum değil, sorunun cevaplanmamış
+  olmasıdır.
+- `savingsGoals[].scope` — işletme karşılığını şahsi birikimden ayıran etiket.
+
+Vergi takvimi kaleminin dosyada **ayrı bir koleksiyonu yoktur**: kalem
+tekrarlayan bir plandır ve `recurringTransactions` içinde durur; `frequency`
+artık `quarterly` de olabilir.
+
+v9'un taşıdığı iki koleksiyon aynen yerinde:
 
 - `cashCounts` — gün sonu kasa sayımı. Sayım bir **gözlemdir**: hesap
   bakiyesine dokunmaz, gelir/gider yazmaz. **Beklenen tutar ve fark dosyada
@@ -94,10 +112,11 @@ iki tablo dosyaya girer.
 ## Ön koşullar
 
 - SQL Server `healthy`, API `/health/ready` cevabı 200 olmalıdır.
-- Backup dosyası `business-finance-backup` formatında ve şeması **v9**
-  olmalıdır. v9, v6'nın taşıdığı her şeyin (her finansal kaydın kapsamı
+- Backup dosyası `business-finance-backup` formatında ve şeması **v10**
+  olmalıdır. v10, v6'nın taşıdığı her şeyin (her finansal kaydın kapsamı
   `scope`, hesap/kategori/kart varsayılan kapsamı `defaultScope`) üstüne cari
-  defteri, yükümlülükleri, kasa sayımlarını ve POS tahsilatlarını ekler. Tanıyan kayıt kategori ve kapsam taşır,
+  defteri, yükümlülükleri, kasa sayımlarını, POS tahsilatlarını ve Aşama 05'in
+  vergi alanlarını ekler. Tanıyan kayıt kategori ve kapsam taşır,
   hesap taşımaz; taşıyan kayıt hesap taşır, kategori ve kapsam taşımaz
   (ADR 0014) — iki kaydın alan listesi dosyada da bilerek farklıdır.
 - **Yedek kullanıcı profilini (işletmeniz var mı) taşımaz.** Profil finansal

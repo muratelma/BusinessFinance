@@ -1159,3 +1159,14 @@ planlanan ekranının iki testi de kırmızıya düştü.
 | Paylaşımın dosya adı dönemden | `tax_screens_test` | `muhasebeci-paketi-2026-07.zip` |
 | Sığmayan belge söyleniyor | `tax_screens_test` | Sessizce düşmüyor |
 
+## Yedek v10 (26 Ağustos 2026, Aşama 05 Grup 8)
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Vergi alanları kayıpsız dönüyor | `DataPortabilityTests.BackupV10_RoundTripsVatDeductibilityAndGoalScope` | KDV, indirilebilirlik, kategori varsayılanı ve hedef kapsamı |
+| Uyuşmayan KDV düzeltilmiyor | aynı test | %20 oranla ₺150 tutar olduğu gibi geri geliyor |
+| "KDV yok" tek temsil | aynı test | İki boş alan; nesne kurulmuyor |
+| v9 reddediliyor | `DataPortabilityTests.BackupBeforeTaxFields_IsRejectedAndWritesNothing` | `restore.unsupported_version`; hedefe hiçbir şey yazılmıyor |
+| Sürüm sözleşmede | `DataPortabilityEndpointTests.ExportValidateRestore_RoundTripsThroughProtectedHttpContract` | HTTP cevabında `schemaVersion` 10 |
+| Hedef kapsamı gerçek SQL'de | `SqlServerPersistenceIntegrationTests.DataPortability_RoundTripAndFailedRestoreAreAtomic` | Geri yüklenen iki hedeften biri işletme karşılığı |
+
