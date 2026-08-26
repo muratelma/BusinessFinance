@@ -1170,3 +1170,37 @@ için gider formu açılır ve kalan sunucuda hesaplanır.
 **Taksitli fiş tek seferlik tam tutar gideri üretmez.** Kartı kullanıcı seçer,
 plan yalnız niyettir; yalnız gerçekleşen taksit kart harcaması ve gider üretir.
 
+## Vergi tarafının istemcisi (Aşama 05 Grup 7)
+
+**Vergi bölümü yalnız kapsam boyutunu gören kullanıcıda çizilir.** "İşletmem
+yok" diyen kişinin formunda hiç görünmez: KDV ve matrah onun sorusu değil ve
+alanı göstermek, formu cevaplanmayacak bir soruyla uzatırdı.
+
+Bölüm **kapalı** açılır ve boşken tek satırdır (`KDV girilmedi`). İçinde iki
+alan var — oran (%) ve tutar — ve ikisi de isteğe bağlıdır; boş bırakılırsa
+istekte `vatRate`/`vatAmount` hiç gitmez. Oranla tutarın birbirini tutup
+tutmadığına dair **uyarı yok**: o uyarı istemcide bir vergi tutarı hesaplamak
+olurdu ve bu üründe finansal değeri istemci hesaplamaz. Yazılan yüzde
+sözleşmenin oranına çevrilir (20 → `0.2000`); bu bir hesap değil, birim
+çevirisidir. Tek istemci doğrulaması bir **sınırdır**: KDV kaydın tutarını
+aşamaz.
+
+**İndirilebilirlik anahtarı yalnız işletme kapsamlı giderde görünür.** Kapsam
+çipi şahsiye çevrilince anahtar kaybolur ve istekte alan hiç gitmez — sunucu
+zaten reddederdi; kullanıcının görmediği bir alanı göndermek, reddedilecek bir
+istek kurmak olurdu. Anahtarın altındaki cümle değerin nereden geldiğini söyler
+(sizin seçiminiz / kategorinin varsayılanı / kategori belirlemiyor).
+
+`Diğer` menüsünde iki yeni kapı, **yalnız işletmesi olan kullanıcıda**:
+
+- **Vergi takvimi**: hazır kalemleri listeler ve mevzuat takibi yapılmadığını
+  ekranda yazar. Kaleme dokunmak tekrarlayan plan formunu **önü dolu** açar;
+  ekranın kendi yazma yolu yoktur — olsaydı aynı plan iki ayrı biçimde
+  oluşabilirdi. Öneri tutar taşımaz; başlangıç günü önerilen günün bugünden
+  sonraki ilk düşüşüdür, çünkü geçmişe kurmak ilk gerçekleşmeyi daha kurulurken
+  gecikmiş yapardı.
+- **Muhasebeci paketi**: varsayılan dönem **geçen aydır** (ay kapanmadan paket
+  hazırlanmaz). Ekran toplamları, kayıt ve belge sayısını, KDV yazılmamış ve
+  indirilebilirliği cevaplanmamış kalem sayısını gösterir; hepsi sunucudan
+  gelir. `Paketi paylaş` dosyayı indirir ve cihazın paylaşım sayfasını açar.
+  Boyut tavanını aşan belge varsa bu ekranda **yazılır**, sessizce düşmez.

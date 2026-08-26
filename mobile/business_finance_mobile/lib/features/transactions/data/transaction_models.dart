@@ -1,3 +1,4 @@
+import '../../../core/models/tax_fields.dart';
 import '../../../core/models/transaction_scope.dart';
 
 enum TransactionKind {
@@ -114,6 +115,8 @@ class CreateTransactionInput {
     required this.transactionDate,
     this.description,
     this.scope,
+    this.vat,
+    this.isTaxDeductible,
   });
 
   final String accountId;
@@ -127,6 +130,13 @@ class CreateTransactionInput {
   /// reddeder ve bir değer **uydurmaz**.
   final TransactionScope? scope;
 
+  /// Belgedeki KDV; boş bırakmak meşrudur (ADR 0016).
+  final VatFields? vat;
+
+  /// Gider matrahtan düşülebilir mi. Yalnız işletme kapsamlı giderde
+  /// gönderilir; şahsi kayıtta ve gelirde sunucu isteği reddeder.
+  final bool? isTaxDeductible;
+
   Map<String, Object?> toJson() => {
     'accountId': accountId,
     'categoryId': categoryId,
@@ -136,6 +146,9 @@ class CreateTransactionInput {
     'transactionDate': transactionDate,
     'description': description,
     'scope': scope?.apiValue,
+    'vatRate': vat?.rate,
+    'vatAmount': vat?.amount,
+    'isTaxDeductible': isTaxDeductible,
   };
 }
 
@@ -146,6 +159,7 @@ class TransactionChoice {
     required this.isActive,
     this.kind,
     this.defaultScope,
+    this.defaultIsTaxDeductible,
   });
 
   final String id;
@@ -156,4 +170,8 @@ class TransactionChoice {
   /// Kaynağın ya da kategorinin varsayılan kapsamı. Boş olması meşrudur:
   /// "kapsamı bilmiyorum" değil, "bu kaynak kapsamı belirlemiyor" demektir.
   final TransactionScope? defaultScope;
+
+  /// Kategorinin indirilebilirlik varsayılanı; boş olması "bu kategori cevabı
+  /// belirlemiyor" demektir (ADR 0016).
+  final bool? defaultIsTaxDeductible;
 }

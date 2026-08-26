@@ -47,6 +47,11 @@ import '../../features/goals/presentation/goals_page.dart';
 import '../../features/cash/data/cash_repository.dart';
 import '../../features/cash/presentation/cash_controller.dart';
 import '../../features/cash/presentation/cash_page.dart';
+import '../../features/taxes/data/tax_repository.dart';
+import '../../features/taxes/presentation/accountant_package_page.dart';
+import '../../features/taxes/presentation/tax_calendar_page.dart';
+import '../../features/taxes/presentation/tax_controller.dart';
+import '../../features/planning/presentation/recurring_prefill.dart';
 import '../../features/pos/data/pos_repository.dart';
 import '../../features/pos/presentation/pos_controller.dart';
 import '../../features/obligations/data/obligation_repository.dart';
@@ -93,6 +98,7 @@ GoRouter createAppRouter({
   ObligationRepositoryContract? obligationRepository,
   CashRepositoryContract? cashRepository,
   PosRepositoryContract? posRepository,
+  TaxRepositoryContract? taxRepository,
   ReceiptRepositoryContract? receiptRepository,
   ReceiptImageSourceContract? receiptImageSource,
   ReceiptImageNormalizerContract? receiptImageNormalizer,
@@ -597,6 +603,46 @@ GoRouter createAppRouter({
         ),
       ),
       GoRoute(
+        path: taxCalendarLocation,
+        pageBuilder: (context, state) => _sessionPage(
+          state,
+          taxRepository == null
+              ? const Scaffold(
+                  body: AppErrorView(
+                    message: 'Vergi takvimi servisi yapılandırılmadı.',
+                  ),
+                )
+              : TaxCalendarPage(
+                  controller: TaxCalendarController(taxRepository),
+                  // Kalem tek yerde kuruluyor: planlama ekranının formu.
+                  onInstall: (suggestion) => context.push(
+                    '/more/planning?plan=${suggestion.key}'
+                    '&frequency=${suggestion.frequency}'
+                    '&day=${suggestion.suggestedDayOfMonth}'
+                    '&category=${Uri.encodeComponent(suggestion.suggestedCategoryName)}'
+                    '&label=${Uri.encodeComponent(suggestion.label)}',
+                  ),
+                ),
+          authController,
+        ),
+      ),
+      GoRoute(
+        path: accountantPackageLocation,
+        pageBuilder: (context, state) => _sessionPage(
+          state,
+          taxRepository == null
+              ? const Scaffold(
+                  body: AppErrorView(
+                    message: 'Muhasebeci paketi servisi yapılandırılmadı.',
+                  ),
+                )
+              : AccountantPackagePage(
+                  controller: AccountantPackageController(taxRepository),
+                ),
+          authController,
+        ),
+      ),
+      GoRoute(
         path: '/more/planning',
         pageBuilder: (context, state) => _sessionPage(
           state,
@@ -609,6 +655,7 @@ GoRouter createAppRouter({
               : PlanningPage(
                   repository: planningRepository,
                   financialDataChanges: financialDataChanges,
+                  recurringPrefill: _recurringPrefill(state.uri),
                 ),
           authController,
         ),
@@ -1061,4 +1108,24 @@ Future<void> _recordBankDocument(
         extra: receiptLendingPrefillFrom(draft, withFee: recordFee),
       );
   }
+}
+
+/// Vergi takviminden gelen sorgu parametrelerini forma çevirir.
+///
+/// Eksik ya da okunamayan parametre `null` döner: yarım bir öneriyle form
+/// açmak, kullanıcının görmediği bir alanı doldurulmuş göstermek olurdu.
+RecurringPrefill? _recurringPrefill(Uri uri) {
+  final frequency = uri.queryParameters['frequency'];
+  final day = int.tryParse(uri.queryParameters['day'] ?? '');
+  final category = uri.queryParameters['category'];
+  final label = uri.queryParameters['label'];
+  if (frequency == null || day == null || category == null || label == null) {
+    return null;
+  }
+  return RecurringPrefill.fromSuggestion(
+    label: label,
+    frequency: frequency,
+    dayOfMonth: day,
+    categoryName: category,
+  );
 }

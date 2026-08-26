@@ -89,6 +89,7 @@ class TransactionRepository implements TransactionRepositoryContract {
             isActive: json['isActive'] as bool,
             kind: TransactionKind.fromApi(json['type'] as String),
             defaultScope: TransactionScope.fromApiOrNull(json['defaultScope']),
+            defaultIsTaxDeductible: json['defaultIsTaxDeductible'] as bool?,
           );
         })
         .toList(growable: false);

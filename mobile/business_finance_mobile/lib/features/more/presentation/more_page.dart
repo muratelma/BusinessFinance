@@ -99,6 +99,20 @@ class MorePage extends StatelessWidget {
               title: 'Planlama ve raporlar',
               onTap: () => context.push('/more/planning'),
             ),
+            // Vergi tarafı yalnız işletmesi olana açılır: kapsamı arayüzünde
+            // hiç görmeyen kullanıcının KDV beyanı ve muhasebecisi yoktur.
+            if (hasBusiness) ...[
+              _MenuItem(
+                icon: Icons.event_available_outlined,
+                title: 'Vergi takvimi',
+                onTap: () => context.push('/more/tax-calendar'),
+              ),
+              _MenuItem(
+                icon: Icons.description_outlined,
+                title: 'Muhasebeci paketi',
+                onTap: () => context.push('/more/accountant-package'),
+              ),
+            ],
             _MenuItem(
               icon: Icons.folder_outlined,
               title: 'Veri ve yedek',

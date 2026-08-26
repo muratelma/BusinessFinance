@@ -23,16 +23,25 @@ import '../../../core/widgets/app_status_chip.dart';
 import '../data/planning_models.dart';
 import '../data/planning_repository.dart';
 import 'planning_controller.dart';
+import 'recurring_prefill.dart';
 
 class PlanningPage extends StatefulWidget {
   const PlanningPage({
     required this.repository,
     this.financialDataChanges,
+    this.recurringPrefill,
     super.key,
   });
 
   final PlanningRepositoryContract repository;
   final FinancialDataChanges? financialDataChanges;
+
+  /// Vergi takviminden gelen hazır kalemin alanları.
+  ///
+  /// Kalem burada kuruluyor çünkü tekrarlayan planın formu **tek** yerde
+  /// duruyor; takvim ekranına ikinci bir form yazmak, aynı planın iki ayrı
+  /// biçimde oluşabilmesi olurdu.
+  final RecurringPrefill? recurringPrefill;
 
   @override
   State<PlanningPage> createState() => _PlanningPageState();
@@ -48,7 +57,7 @@ class _PlanningPageState extends State<PlanningPage> {
       widget.repository,
       financialDataChanges: widget.financialDataChanges,
     )..addListener(_changed);
-    controller.load();
+    controller.load().then((_) => _openPrefilledForm());
   }
 
   @override
@@ -60,6 +69,17 @@ class _PlanningPageState extends State<PlanningPage> {
 
   void _changed() {
     if (mounted) setState(() {});
+  }
+
+  /// Takvimden gelindiyse formu önü dolu açar.
+  ///
+  /// Kullanıcı yine de kaydet demek zorunda: hazır kalem bir **öneridir** ve
+  /// dokunmadan yazılan bir plan, kullanıcının kurmadığı bir plan olurdu.
+  Future<void> _openPrefilledForm() async {
+    final prefill = widget.recurringPrefill;
+    final snapshot = controller.snapshot;
+    if (prefill == null || snapshot == null || !mounted) return;
+    await _showRecurringForm(snapshot, prefill: prefill);
   }
 
   @override
@@ -531,10 +551,14 @@ class _PlanningPageState extends State<PlanningPage> {
     if (selected != null) await controller.changeAsOfDate(selected);
   }
 
-  Future<void> _showRecurringForm(PlanningSnapshot snapshot) async {
+  Future<void> _showRecurringForm(
+    PlanningSnapshot snapshot, {
+    RecurringPrefill? prefill,
+  }) async {
     await AppFormSheet.show<bool>(
       context: context,
       builder: (context) => _RecurringForm(
+        prefill: prefill,
         snapshot: snapshot,
         onSubmit: controller.createRecurring,
       ),
@@ -828,9 +852,14 @@ class _EmptyNote extends StatelessWidget {
 }
 
 class _RecurringForm extends StatefulWidget {
-  const _RecurringForm({required this.snapshot, required this.onSubmit});
+  const _RecurringForm({
+    required this.snapshot,
+    required this.onSubmit,
+    this.prefill,
+  });
   final PlanningSnapshot snapshot;
   final Future<bool> Function(Map<String, Object?>) onSubmit;
+  final RecurringPrefill? prefill;
 
   @override
   State<_RecurringForm> createState() => _RecurringFormState();
@@ -852,6 +881,26 @@ class _RecurringFormState extends State<_RecurringForm> {
   /// `yyyy-MM-dd` veya null. Bitiş tarihi ile tekrar sınırı **birlikte**
   /// verilebilir; sunucu önce dolanı uygular.
   String? endDate;
+
+  @override
+  void initState() {
+    super.initState();
+    final prefill = widget.prefill;
+    if (prefill == null) return;
+    kind = prefill.kind;
+    frequency = prefill.frequency;
+    startDate = prefill.startDate;
+    description.text = prefill.description;
+    // Kategori **adla** aranıyor: kimlik istemcide üretilemez ve bulunamazsa
+    // alan boş kalır. Uydurulmuş bir kategori, kullanıcının görmediği bir
+    // kovaya yazmak olurdu.
+    for (final category in widget.snapshot.categories) {
+      if (category.name.toLowerCase() == prefill.categoryName.toLowerCase()) {
+        categoryId = category.id;
+        break;
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -975,6 +1024,8 @@ class _RecurringFormState extends State<_RecurringForm> {
             DropdownMenuItem(value: 'daily', child: Text('Günlük')),
             DropdownMenuItem(value: 'weekly', child: Text('Haftalık')),
             DropdownMenuItem(value: 'monthly', child: Text('Aylık')),
+            // Geçici verginin ritmi; aylığın üç adımlık hâli.
+            DropdownMenuItem(value: 'quarterly', child: Text('Üç ayda bir')),
             DropdownMenuItem(value: 'yearly', child: Text('Yıllık')),
           ],
           onChanged: (value) => setState(() => frequency = value!),

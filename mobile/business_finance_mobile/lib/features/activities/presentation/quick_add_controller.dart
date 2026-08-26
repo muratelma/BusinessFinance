@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/models/tax_fields.dart';
 import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/presentation/financial_data_changes.dart';
@@ -83,6 +84,7 @@ class QuickAddController extends ChangeNotifier {
               id: category.id,
               name: category.name,
               defaultScope: category.defaultScope,
+              defaultIsTaxDeductible: category.defaultIsTaxDeductible,
             ),
         ],
       );
@@ -125,6 +127,7 @@ class QuickAddController extends ChangeNotifier {
               id: category.id,
               name: category.name,
               defaultScope: category.defaultScope,
+              defaultIsTaxDeductible: category.defaultIsTaxDeductible,
             ),
         ],
       );
@@ -154,6 +157,8 @@ class QuickAddController extends ChangeNotifier {
     String? description,
     QuickAddAttachment? attachment,
     TransactionScope? scope,
+    VatFields? vat,
+    bool? isTaxDeductible,
   }) => _submit(isCardSpending: source.isCard, () async {
     if (source.isCard) {
       await _finance.createCharge(source.id, {
@@ -163,6 +168,9 @@ class QuickAddController extends ChangeNotifier {
         'chargeDate': date,
         'description': description,
         'scope': scope?.apiValue,
+        'vatRate': vat?.rate,
+        'vatAmount': vat?.amount,
+        'isTaxDeductible': isTaxDeductible,
       });
       return;
     }
@@ -175,6 +183,8 @@ class QuickAddController extends ChangeNotifier {
         transactionDate: date,
         description: description,
         scope: scope,
+        vat: vat,
+        isTaxDeductible: isTaxDeductible,
       ),
     );
     if (attachment != null) await _attach(created.id, attachment);
@@ -242,6 +252,7 @@ class QuickAddController extends ChangeNotifier {
     required String date,
     String? description,
     TransactionScope? scope,
+    VatFields? vat,
   }) => _submit(
     () => _transactions.create(
       CreateTransactionInput(
@@ -252,6 +263,7 @@ class QuickAddController extends ChangeNotifier {
         transactionDate: date,
         description: description,
         scope: scope,
+        vat: vat,
       ),
     ),
   );

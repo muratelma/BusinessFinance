@@ -35,3 +35,9 @@ const obligationCreateLocation = '/transactions/new/obligation';
 /// ekrana `İşlem ekle` menüsünden de gidiliyor ve rota dizgesinin iki yerde
 /// elle yazılması taşındığında biri geride kalır.
 const cashLocation = '/more/cash';
+
+/// Vergi takvimi: hazır kalemler ve kurdukları tekrarlayan planlar.
+const taxCalendarLocation = '/more/tax-calendar';
+
+/// Ay sonu muhasebeci paketi.
+const accountantPackageLocation = '/more/accountant-package';

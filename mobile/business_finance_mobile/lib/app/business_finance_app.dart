@@ -47,6 +47,7 @@ class BusinessFinanceApp extends StatelessWidget {
              obligationRepository: dependencies?.obligationRepository,
              cashRepository: dependencies?.cashRepository,
              posRepository: dependencies?.posRepository,
+             taxRepository: dependencies?.taxRepository,
              receiptRepository: dependencies?.receiptRepository,
              receiptImageSource: dependencies?.receiptImageSource,
              receiptImageNormalizer: dependencies?.receiptImageNormalizer,

@@ -6,12 +6,16 @@ class FinanceChoice {
     required this.id,
     required this.name,
     this.defaultScope,
+    this.defaultIsTaxDeductible,
   });
   final String id;
   final String name;
 
   /// Hesabın ya da kategorinin varsayılan kapsamı; boş olması meşrudur.
   final TransactionScope? defaultScope;
+
+  /// Kategorinin indirilebilirlik varsayılanı; boş olması meşrudur.
+  final bool? defaultIsTaxDeductible;
 }
 
 class TransferItem {

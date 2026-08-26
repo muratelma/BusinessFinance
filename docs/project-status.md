@@ -1445,3 +1445,27 @@ edene kadar Grup 2 ve sonrasının koduna başlanmaz.
   dolduracağı bir addır
 - Geçen kontroller: backend build (0 uyarı) + format temiz + **981 test geçti**,
   1 atlandı (canlı Gemini)
+
+## 26 Ağustos 2026 — Aşama 05 Grup 7: Flutter
+
+- İşlem formuna **katlanmış** bir vergi bölümü eklendi: KDV oranı ve tutarı,
+  ikisi de isteğe bağlı, boşken tek satır (`KDV girilmedi`). Bölüm yalnız
+  kapsam boyutunu gören kullanıcıda çiziliyor
+- Oranla tutar uyuşmazlığı için **uyarı yazılmadı**: o uyarı istemcide bir vergi
+  tutarı hesaplamak olurdu ve bu üründe finansal değeri istemci hesaplamaz
+  (ADR 0016 uyarıyı zorunlu kılmıyor). Tek istemci doğrulaması bir sınır: KDV
+  kaydın tutarını aşamaz
+- İndirilebilirlik anahtarı yalnız **işletme kapsamlı giderde** görünüyor;
+  kapsam şahsiye çevrilince kayboluyor ve alan istekte hiç gitmiyor
+- `Diğer` menüsüne iki kapı eklendi (yalnız işletme ön ayarında): **Vergi
+  takvimi** ve **Muhasebeci paketi**
+- Takvim ekranı mevzuat takibi yapılmadığını yazıyor; kaleme dokunmak
+  tekrarlayan plan formunu **önü dolu** açıyor. Ekranın kendi yazma yolu yok —
+  olsaydı aynı plan iki ayrı biçimde oluşabilirdi. Başlangıç günü önerilen günün
+  bugünden sonraki ilk düşüşü
+- Paket ekranı varsayılan olarak **geçen ayı** açıyor; toplamları, kayıt/belge
+  sayısını ve cevapsız kalemleri sunucudan gösteriyor, dosyayı cihazdan
+  paylaştırıyor. Boyut tavanını aşan belge ekranda yazılıyor
+- Planlama formuna `Üç ayda bir` sıklığı eklendi (geçici verginin ritmi)
+- Geçen kontroller: flutter analyze temiz, `dart format` temiz, **770 test
+  geçti**, Android debug build üretildi

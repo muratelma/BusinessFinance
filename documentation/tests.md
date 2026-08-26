@@ -1139,3 +1139,23 @@ planlanan ekranının iki testi de kırmızıya düştü.
 | Filtre kapsamsızı da eliyor | aynı test | `scope=business` yalnız bir hedef; kırılım dönmüyor |
 | Tanınmayan kapsam reddediliyor | `SavingsGoalEndpointTests.Goals_WithAnUnknownScope_AreRefused` | Hem yazmada hem okumada 400 |
 
+## Vergi tarafının istemcisi (26 Ağustos 2026, Aşama 05 Grup 7)
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| İşletmesi olmayanda bölüm yok | `quick_add_tax_test` | Vergi bölümü hiç çizilmiyor |
+| Kapalı ve tek satır | `quick_add_tax_test` | `KDV girilmedi`; alanlar kapalıyken yok |
+| Boş KDV istekte gitmiyor | `quick_add_tax_test` | `vatRate`/`vatAmount` null |
+| İstemci de bölmüyor | `quick_add_tax_test` | Yalnız oran girilince tutar boş kalıyor |
+| Sınır alanın yanında | `quick_add_tax_test` | Tutarı aşan KDV kaydı yazdırmıyor |
+| Anahtar yalnız işletme giderinde | `quick_add_tax_test` | Şahsiye çevrilince kayboluyor; gelirde hiç yok |
+| Şahsi kayıtta alan gitmiyor | `quick_add_tax_test` | `isTaxDeductible` null |
+| Kart harcaması da KDV taşıyor | `quick_add_tax_test` | `vatAmount` istekte |
+| Mevzuat takibi yazılı | `tax_screens_test` | Takvim ekranının ilk notu |
+| Kalem kurulum yolunu açıyor | `tax_screens_test` | Dokunuş öneriyi geri veriyor |
+| Ön dolum geçmişe kurmuyor | `tax_screens_test` | 29 Ağustos'ta 28'i seçilirse eylül |
+| Paket toplamları sunucudan | `tax_screens_test` | Kayıt/belge sayısı ve cevapsız kalemler |
+| Şahsi kayıt uyarısı ekranda | `tax_screens_test` | "şahsi hiçbir kayıt girmez" |
+| Paylaşımın dosya adı dönemden | `tax_screens_test` | `muhasebeci-paketi-2026-07.zip` |
+| Sığmayan belge söyleniyor | `tax_screens_test` | Sessizce düşmüyor |
+

@@ -187,6 +187,14 @@ ADR'nin karara bağlayacağı üç şey:
 - Ay sonu paketi ekranı: önizleme, kayıt sayısı, toplamlar, dosya boyutu; sonra
   paylaş.
 - Ölçüt: zorunlu ekran durumları; KDV alanı boşken form sadeliğini bozmuyor.
+- **Tamamlandı** (26 Ağustos 2026): forma katlanmış bir vergi bölümü eklendi
+  (KDV oranı + tutarı, boşken tek satır) ve yalnız kapsam boyutunu gören
+  kullanıcıda çiziliyor. İndirilebilirlik anahtarı yalnız işletme kapsamlı
+  giderde görünüyor; şahsi kayıtta alan istekte hiç gitmiyor. `Diğer` menüsüne
+  **Vergi takvimi** ve **Muhasebeci paketi** kapıları eklendi (yalnız işletme
+  ön ayarında). Takvim kalemi tekrarlayan plan formunu önü dolu açıyor —
+  ekranın kendi yazma yolu yok. Paket ekranı geçen ayı açıyor, toplamları ve
+  eksikleri sunucudan gösteriyor, dosyayı cihazdan paylaştırıyor.
 
 ### Grup 8 — Yedek v10 ve belgeler
 

@@ -256,12 +256,17 @@ class QuickAddChoice {
     required this.id,
     required this.name,
     this.defaultScope,
+    this.defaultIsTaxDeductible,
   });
   final String id;
   final String name;
 
   /// Kategorinin ya da hesabın varsayılan kapsamı; zincirin son halkası.
   final TransactionScope? defaultScope;
+
+  /// Kategorinin indirilebilirlik varsayılanı; boş olması "bu kategori cevabı
+  /// belirlemiyor" demektir (ADR 0016).
+  final bool? defaultIsTaxDeductible;
 }
 
 class ExpenseFormOptions {

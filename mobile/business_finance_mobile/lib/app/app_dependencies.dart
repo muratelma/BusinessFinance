@@ -17,6 +17,7 @@ import '../features/transactions/data/transaction_repository.dart';
 import '../features/cards/data/finance_repository.dart';
 import '../features/planning/data/planning_repository.dart';
 import '../features/pos/data/pos_repository.dart';
+import '../features/taxes/data/tax_repository.dart';
 import '../features/profile/data/profile_repository.dart';
 import '../features/profile/data/scope_preferences.dart';
 import '../features/data_tools/data/data_tools_repository.dart';
@@ -53,6 +54,7 @@ class AppDependencies {
     this.obligationRepository,
     this.cashRepository,
     this.posRepository,
+    this.taxRepository,
     this.receiptRepository,
     this.receiptImageSource,
     this.receiptImageNormalizer,
@@ -91,6 +93,7 @@ class AppDependencies {
     final obligationRepository = ObligationRepository(apiClient);
     final cashRepository = CashRepository(apiClient);
     final posRepository = PosRepository(apiClient);
+    final taxRepository = TaxRepository(apiClient);
     final receiptRepository = ReceiptRepository(apiClient);
     final profileRepository = ProfileRepository(apiClient);
     // Kapsam anahtarı cihazdan, onboarding cevabı sunucudan okunur; ikisi de
@@ -122,6 +125,7 @@ class AppDependencies {
       obligationRepository,
       cashRepository,
       posRepository,
+      taxRepository,
       receiptRepository,
       ImagePickerReceiptImageSource(),
       const ReceiptImageNormalizer(),
@@ -154,6 +158,9 @@ class AppDependencies {
   final ObligationRepositoryContract obligationRepository;
   final CashRepositoryContract cashRepository;
   final PosRepositoryContract posRepository;
+
+  /// Vergi takvimi ve ay sonu muhasebeci paketi.
+  final TaxRepositoryContract taxRepository;
   final ReceiptRepositoryContract receiptRepository;
 
   /// Fiş çekme akışının cihaz tarafı. Controller kısa ömürlüdür ve akış
