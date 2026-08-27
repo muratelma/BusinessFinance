@@ -22,6 +22,10 @@ kullanıcının kaydına erişen ayrıcalıklı rol yoktur.
 | Register/login/refresh | İlgili public endpoint | İzinli | Sahiplik uygulanmaz |
 | Logout | Token yoksa 401 | Kendi session'ı revoke | Başka session'a erişemez |
 | Hesap/kategori CRUD | 401 | İzinli | 404 veya listeden dışlanır |
+| Kendi hesabını okuma (`GET /api/v1/account`) | 401 | Yalnız kendi e-postası ve açık oturum sayısı | Başkasının hesabına yol yok |
+| Oturum listeleme / tek oturum kapatma | 401 | Yalnız kendi oturumları; satır token veya hash taşımaz | Başkasının oturumu 404 ve açık kalır |
+| Parola değiştirme | 401 | Mevcut parola doğrulanır; bütün oturumlar kapanır, çağıran cihaza taze çift döner | Başka kullanıcının parolasına yol yok |
+| Hesap silme (`DELETE /api/v1/account`) | 401 | Parola + açık onay; yalnız kendi verisi (ADR 0017) | Başka kullanıcının verisine dokunan yol yok |
 | Transaction create/read/cancel | 401 | Aktif owner kaynağıyla izinli | 404/400 veya dışlanır |
 | Bütçe create/update/read | 401 | Owner gider kategorisiyle izinli | 404/400 veya dışlanır |
 | Dashboard/report | 401 | Yalnız kendi aggregate sonucu | Verisi toplama girmez |
@@ -261,4 +265,6 @@ bugünkü sorgulara gizli koşul eklenmez.
 ## Henüz uygulanmayan sınırlar
 
 - Hane üyeliği/rolleri — ilgili sonraki roadmap kapsamı
-- Kullanıcı verisi silme ve dışa aktarma izinleri — ilgili ürün aşaması
+- Hesap silme ve dışa aktarma **uygulandı**: silme ADR 0017'ye göre gerçek silmedir
+  (parola + açık onay), dışa aktarma yedek/geri yükleme yolundadır
+- E-posta doğrulama ve parola sıfırlama — Aşama 06 Grup 2

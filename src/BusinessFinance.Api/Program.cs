@@ -3,6 +3,7 @@ using BusinessFinance.Api.Errors;
 using BusinessFinance.Api.Extensions;
 using BusinessFinance.Api.Features.Profiles;
 using BusinessFinance.Api.Features.Authentication;
+using BusinessFinance.Api.Features.UserAccount;
 using BusinessFinance.Api.Features.Accounts;
 using BusinessFinance.Api.Features.Categories;
 using BusinessFinance.Api.Features.Counterparties;
@@ -59,6 +60,7 @@ app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapAuthenticationEndpoints();
+app.MapUserAccountEndpoints();
 app.MapAccountEndpoints();
 app.MapCategoryEndpoints();
 app.MapUserProfileEndpoints();

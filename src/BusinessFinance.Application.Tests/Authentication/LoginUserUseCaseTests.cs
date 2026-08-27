@@ -1,5 +1,6 @@
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Authentication;
+using BusinessFinance.Application.UserAccount;
 using BusinessFinance.Application.Authentication.LoginUser;
 using BusinessFinance.Application.Authentication.Tokens;
 using BusinessFinance.Domain;
@@ -74,6 +75,27 @@ public sealed class LoginUserUseCaseTests
 
     private sealed class FakeIdentityAccountService : IIdentityAccountService
     {
+
+        public Task<UserAccountProfile?> FindAccountAsync(
+            Guid userId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<bool> VerifyPasswordAsync(
+            Guid userId,
+            string password,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<PasswordChangeStatus> ChangePasswordAsync(
+            Guid userId,
+            string currentPassword,
+            string newPassword,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task DeleteAsync(Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
         public AuthenticatedIdentity? AuthenticatedIdentity { get; init; }
         public CancellationToken ReceivedCancellationToken { get; private set; }
 
@@ -135,6 +157,18 @@ public sealed class LoginUserUseCaseTests
 
     private sealed class RecordingRefreshSessionRepository : IRefreshSessionRepository
     {
+
+        public Task<IReadOnlyList<RefreshSession>> ListActiveForUserAsync(
+            Guid userId,
+            DateTimeOffset utcNow,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<RefreshSession?> FindOwnedByIdAsync(
+            Guid sessionId,
+            Guid userId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
         public List<RefreshSession> AddedSessions { get; } = [];
 
         public Task AddAsync(RefreshSession session, CancellationToken cancellationToken)

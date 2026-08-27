@@ -14,6 +14,7 @@ public sealed record LoginRequest(string Email, string Password);
 
 public sealed record TokenPairResponse(
     Guid UserId,
+    Guid SessionId,
     string Email,
     string AccessToken,
     DateTimeOffset AccessTokenExpiresAtUtc,
@@ -23,6 +24,7 @@ public sealed record TokenPairResponse(
 public sealed record RefreshTokenRequest(string RefreshToken);
 
 public sealed record RefreshTokenResponse(
+    Guid SessionId,
     string AccessToken,
     DateTimeOffset AccessTokenExpiresAtUtc,
     string RefreshToken,

@@ -1107,6 +1107,31 @@ raporda yoktur ama burada vardır, çünkü hedef kapsam taşımak zorunda deği
 etiketsizleri bir tarafa saymak olmayan bir cevabı uydurmak olurdu. Toplamı
 istemci çıkarmaz, sunucu verir.
 
+### Hesabın kendisi: oturumlar ve kapatma
+
+`RefreshSession` bu aşamaya kadar yalnız kimlik akışının içinden okunuyordu;
+artık kullanıcının görebildiği bir liste. Okuma **sahiplik kapsamlıdır**
+(`FindOwnedByIdAsync`) ve satır token ya da token hash'i taşımaz — oturumun ne
+zaman açıldığını ve ne zaman düşeceğini söyler, ne olduğunu değil.
+
+Token çiftine `sessionId` eklendi. Sır değildir (token olmadan işe yaramaz) ama
+istemcinin **hangi satırın kendisi olduğunu** bilmesini sağlar; bu bilgi
+olmadan kullanıcı kendi oturumunu kapatıp uygulamadan düşerdi.
+
+**Parola değişimi kimlik akışının bir parçasıdır**: başarılı olduğunda
+kullanıcının bütün refresh oturumları iptal edilir ve isteği yapan cihaz
+cevapla birlikte yeni bir oturum alır. Çalınmış bir parolayla açılmış oturumun,
+parola değiştikten sonra yaşamaya devam etmemesi kuralı budur; taze çift ise
+parolasını değiştiren kullanıcının kendi uygulamasından atılmamasıdır.
+
+**Hesap silme ADR 0017'yi uygular.** `IUserAccountEraser` Application'da bir
+port, `EfUserAccountEraser` Infrastructure'da tek transaction'lı gerçek silme.
+Şemadaki bütün foreign key'ler `Restrict` olduğu için sıra açıkça yazılıdır
+(çocuktan ebeveyne); dosyalar veritabanının dışında yaşadığı için anahtarları
+silmeden önce okunur, dosyaların kendisi transaction kapandıktan sonra silinir.
+Sıra yalnız bu tek sınıfta bilinir ve gerçek SQL üzerinde çalışan bir testle
+korunur.
+
 ## Planlama ve read-model mimarisi
 
 ```text

@@ -43,6 +43,31 @@ internal sealed class EfRefreshSessionRepository(BusinessFinanceDbContext dbCont
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<RefreshSession>> ListActiveForUserAsync(
+        Guid userId,
+        DateTimeOffset utcNow,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.RefreshSessions
+            .AsNoTracking()
+            .Where(session =>
+                session.UserId == userId &&
+                session.RevokedAtUtc == null &&
+                session.ExpiresAtUtc > utcNow)
+            .OrderByDescending(session => session.CreatedAtUtc)
+            .ToArrayAsync(cancellationToken);
+    }
+
+    public Task<RefreshSession?> FindOwnedByIdAsync(
+        Guid sessionId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        return dbContext.RefreshSessions.SingleOrDefaultAsync(
+            session => session.Id == sessionId && session.UserId == userId,
+            cancellationToken);
+    }
+
     public async Task RevokeAllActiveForUserAsync(
         Guid userId,
         DateTimeOffset revokedAtUtc,

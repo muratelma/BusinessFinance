@@ -71,6 +71,7 @@ public static class AuthenticationEndpoints
         return result.IsSuccess
             ? Results.Ok(new TokenPairResponse(
                 result.Value.UserId,
+                result.Value.SessionId,
                 result.Value.Email,
                 result.Value.AccessToken,
                 result.Value.AccessTokenExpiresAtUtc,
@@ -91,6 +92,7 @@ public static class AuthenticationEndpoints
 
         return result.IsSuccess
             ? Results.Ok(new RefreshTokenResponse(
+                result.Value.SessionId,
                 result.Value.AccessToken,
                 result.Value.AccessTokenExpiresAtUtc,
                 result.Value.RefreshToken,

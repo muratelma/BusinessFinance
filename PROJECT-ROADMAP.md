@@ -50,7 +50,7 @@ oturuyor.
 | 03 | Yükümlülük ve vade | Ödenmemiş fatura kendi kabına kavuşur; plan bitiş sınırı | Tamamlandı (24 Ağu 2026) |
 | 04 | Kasa, POS ve gezinme | Gün sonu kasa, POS tahsilatı ve bloke; ana sekmeler | Tamamlandı (26 Ağu 2026) |
 | 05 | Vergi ve muhasebeci | KDV taşıyan alanlar, vergi takvimi, ay sonu paketi | Tamamlandı |
-| 06 | Hesap ve kalan işler | Kullanıcı kendi hesabını yönetir; biriken açık işler kapanır | Planlandı |
+| 06 | Hesap ve kalan işler | Kullanıcı kendi hesabını yönetir; biriken açık işler kapanır | **Aktif** |
 | 06.1 | Güvenlik taraması | Secret, bağımlılık, yetkilendirme ve log açıkları kapanır | Planlandı |
 | 06.2 | Arayüz düzeni | Ekranlar bulunabilir ve tutarlı hâle gelir | Planlandı |
 | 06.x | (açılmadı) | Uygulama büyüdükçe çıkan işler | İhtiyaç oldukça |

@@ -66,7 +66,10 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   duymuyor); push bildirim kararı 07'de kaldı; fiş veri sınırı kararı
   (`docs/backlog.md` madde 4) 07'nin **açılış kararı** oldu.
   **Yalnız karar belgeleri değişti, kod değişmedi**
-- **Aktif aşama yok.** Aşama 06 yalnız kullanıcının açık onayıyla açılır
+- **Aşama 06 — Hesap ve kalan işler: aktif** (27 Ağustos 2026'da kullanıcının
+  açık onayıyla açıldı). Açık kapsamlı aşamadır; yedi çalışma grubu yazılı ve
+  liste kullanıcı yeni bir şey söyledikçe büyür. **Grup 1 — Hesap ve güvenlik
+  ekranı** ile başlandı
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması →
   06.2 arayüz düzeni → (gerekirse 06.x) → 07 bulut (`PROJECT-ROADMAP.md`)

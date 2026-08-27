@@ -2,7 +2,7 @@
 
 ## Belge durumu
 
-- Durum: Planlandı
+- Durum: **Aktif** (27 Ağustos 2026'da kullanıcı onayıyla açıldı)
 - Ön koşul: Aşama 05 — Vergi ve muhasebeci
 - Sonraki aşama: Aşama 06.1 — Güvenlik taraması
 - Dokunulacak kalıcı belgeler: `documentation/architecture.md`,

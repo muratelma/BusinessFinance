@@ -17,6 +17,24 @@ public interface IRefreshSessionRepository
         RefreshSession replacementSession,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Kullanıcının açık oturumları. Süresi geçmiş veya iptal edilmiş oturum
+    /// listeye girmez.
+    /// </summary>
+    Task<IReadOnlyList<RefreshSession>> ListActiveForUserAsync(
+        Guid userId,
+        DateTimeOffset utcNow,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Sahiplik kapsamlı tek oturum okuması: başka kullanıcının oturumu
+    /// bulunamamış sayılır.
+    /// </summary>
+    Task<RefreshSession?> FindOwnedByIdAsync(
+        Guid sessionId,
+        Guid userId,
+        CancellationToken cancellationToken);
+
     Task RevokeAllActiveForUserAsync(
         Guid userId,
         DateTimeOffset revokedAtUtc,

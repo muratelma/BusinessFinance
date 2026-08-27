@@ -1,5 +1,6 @@
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Authentication;
+using BusinessFinance.Application.UserAccount;
 using BusinessFinance.Application.Authentication.RefreshTokens;
 using BusinessFinance.Application.Authentication.Tokens;
 using BusinessFinance.Domain;
@@ -141,6 +142,27 @@ public sealed class RefreshTokensUseCaseTests
 
     private sealed class FakeIdentityAccountService : IIdentityAccountService
     {
+
+        public Task<UserAccountProfile?> FindAccountAsync(
+            Guid userId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<bool> VerifyPasswordAsync(
+            Guid userId,
+            string password,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<PasswordChangeStatus> ChangePasswordAsync(
+            Guid userId,
+            string currentPassword,
+            string newPassword,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task DeleteAsync(Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
         public AuthenticatedIdentity? Identity { get; init; }
 
         public Task<IdentityRegistrationResult> RegisterAsync(
@@ -183,6 +205,18 @@ public sealed class RefreshTokensUseCaseTests
     private sealed class RecordingRefreshSessionRepository(RefreshSession? session)
         : IRefreshSessionRepository
     {
+
+        public Task<IReadOnlyList<RefreshSession>> ListActiveForUserAsync(
+            Guid userId,
+            DateTimeOffset utcNow,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<RefreshSession?> FindOwnedByIdAsync(
+            Guid sessionId,
+            Guid userId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
         public RefreshSession? UpdatedSession { get; private set; }
         public RefreshSession? ReplacementSession { get; private set; }
         public Guid? RevokedAllForUserId { get; private set; }

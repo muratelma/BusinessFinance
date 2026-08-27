@@ -51,6 +51,7 @@ public sealed class LoginUserUseCase
         return ApplicationResult<LoginUserResponse>.Success(
             new LoginUserResponse(
                 identity.UserId,
+                refreshSession.Id,
                 identity.Email,
                 accessToken.Value,
                 accessToken.ExpiresAtUtc,

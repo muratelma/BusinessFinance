@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using BusinessFinance.Application.Authentication;
+using BusinessFinance.Application.UserAccount;
 
 namespace BusinessFinance.Infrastructure.Identity;
 
@@ -121,6 +122,110 @@ public sealed class IdentityAccountService : IIdentityAccountService
         }
 
         return new AuthenticatedIdentity(user.Id, user.Email);
+    }
+
+    public async Task<UserAccountProfile?> FindAccountAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var user = await FindActiveUserAsync(userId, cancellationToken);
+
+        return user is { Email: not null }
+            ? new UserAccountProfile(
+                user.Id,
+                user.Email,
+                user.EmailConfirmed,
+                user.CreatedAtUtc)
+            : null;
+    }
+
+    public async Task<bool> VerifyPasswordAsync(
+        Guid userId,
+        string password,
+        CancellationToken cancellationToken)
+    {
+        var user = await FindActiveUserAsync(userId, cancellationToken);
+        if (user is null)
+        {
+            return false;
+        }
+
+        var isValid = await _userManager.CheckPasswordAsync(user, password ?? string.Empty);
+        cancellationToken.ThrowIfCancellationRequested();
+        return isValid;
+    }
+
+    public async Task<PasswordChangeStatus> ChangePasswordAsync(
+        Guid userId,
+        string currentPassword,
+        string newPassword,
+        CancellationToken cancellationToken)
+    {
+        var user = await FindActiveUserAsync(userId, cancellationToken);
+        if (user is null)
+        {
+            return PasswordChangeStatus.UserNotFound;
+        }
+
+        var result = await _userManager.ChangePasswordAsync(
+            user,
+            currentPassword ?? string.Empty,
+            newPassword ?? string.Empty);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (result.Succeeded)
+        {
+            return PasswordChangeStatus.Succeeded;
+        }
+
+        var errorCodes = result.Errors
+            .Select(error => error.Code)
+            .ToArray();
+
+        if (errorCodes.Contains("PasswordMismatch", StringComparer.Ordinal))
+        {
+            return PasswordChangeStatus.InvalidCurrentPassword;
+        }
+
+        return errorCodes.Any(code => code.StartsWith("Password", StringComparison.Ordinal))
+            ? PasswordChangeStatus.PasswordPolicy
+            : PasswordChangeStatus.InvalidCurrentPassword;
+    }
+
+    public async Task DeleteAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (user is null)
+        {
+            return;
+        }
+
+        var result = await _userManager.DeleteAsync(user);
+        if (!result.Succeeded)
+        {
+            throw new InvalidOperationException(
+                "The identity record could not be deleted.");
+        }
+    }
+
+    private async Task<ApplicationUser?> FindActiveUserAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (userId == Guid.Empty)
+        {
+            return null;
+        }
+
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return user is { IsActive: true } ? user : null;
     }
 
     public async Task<AuthenticatedIdentity?> FindActiveByIdAsync(

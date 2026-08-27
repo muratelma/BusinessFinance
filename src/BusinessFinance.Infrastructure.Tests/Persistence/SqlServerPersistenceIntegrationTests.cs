@@ -21,6 +21,7 @@ using BusinessFinance.Infrastructure.Categories;
 using BusinessFinance.Domain;
 using BusinessFinance.Infrastructure.Identity;
 using BusinessFinance.Infrastructure.Persistence;
+using BusinessFinance.Infrastructure.UserAccounts;
 using BusinessFinance.Application.RecurringTransactions;
 using BusinessFinance.Application.UpcomingPayments;
 using BusinessFinance.Application.FinancialActivities;
@@ -3965,6 +3966,157 @@ public sealed class SqlServerPersistenceIntegrationTests
         Assert.Contains(lines, line => line.Source == "pos-sale" && line.Amount == 1080m);
         Assert.Contains(lines, line => line.Source == "pos-commission" && line.Amount == 30m);
         Assert.Contains(lines, line => line.VatAmount == 20m && line.IsTaxDeductible == true);
+    }
+
+    [SqlServerFact]
+    public async Task UserAccountEraser_RemovesEveryRowTheUserOwnsAndLeavesOtherUsersUntouched()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var owner = CreateUser("erased-owner@example.test");
+        var stranger = CreateUser("kept-stranger@example.test");
+        await database.SeedUsersAsync(owner, stranger);
+
+        var ownerSeed = await SeedActivityFeedGraphAsync(database, owner.Id);
+        await SeedActivityFeedGraphAsync(database, stranger.Id);
+        var objectKey = await SeedRemainingUserDataAsync(database, owner.Id, ownerSeed);
+
+        var objectStore = new RecordingAttachmentObjectStore();
+        await using (var context = database.CreateContext())
+        {
+            var eraser = new EfUserAccountEraser(context, objectStore);
+            await eraser.EraseAsync(owner.Id, CancellationToken.None);
+        }
+
+        await using (var context = database.CreateContext())
+        {
+            Assert.Empty(await context.Accounts.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.Categories.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.Transactions.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.MonthlyBudgets.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.Transfers.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.CreditCards.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.CreditCardCharges.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.CreditCardPayments.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.InstallmentPlans.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.InstallmentItems.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.RecurringTransactions.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.RecurringTransactionOccurrences
+                .Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.ImportBatches.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.ImportRows.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.DebtAgreements.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.DebtInstallments.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.Counterparties.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.CounterpartyCharges.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.CounterpartyPayments.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.Obligations.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.ObligationSettlements.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.CashCounts.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.PosSettlements.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.SavingsGoals.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.SavingsGoalContributions
+                .Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.FinancialAttachments.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.RefreshSessions.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.UserProfiles.Where(x => x.UserId == owner.Id).ToArrayAsync());
+
+            // Aynı şekli taşıyan ikinci kullanıcının defteri yerinde durur.
+            Assert.NotEmpty(await context.Accounts.Where(x => x.UserId == stranger.Id).ToArrayAsync());
+            Assert.NotEmpty(await context.Transactions.Where(x => x.UserId == stranger.Id).ToArrayAsync());
+            Assert.NotEmpty(await context.CreditCardCharges
+                .Where(x => x.UserId == stranger.Id).ToArrayAsync());
+            Assert.NotEmpty(await context.Counterparties.Where(x => x.UserId == stranger.Id).ToArrayAsync());
+            Assert.NotEmpty(await context.DebtInstallments
+                .Where(x => x.UserId == stranger.Id).ToArrayAsync());
+        }
+
+        // Dosya veritabanının dışında yaşıyor; satırla birlikte o da gider.
+        Assert.Equal(objectKey, Assert.Single(objectStore.DeletedKeys));
+    }
+
+    private static async Task<string> SeedRemainingUserDataAsync(
+        SqlTestDatabase database,
+        Guid userId,
+        ActivityFeedSeed seed)
+    {
+        var utc = new DateTimeOffset(2026, 8, 21, 9, 0, 0, TimeSpan.Zero);
+        const string objectKey = "attachments/erase-test/receipt.jpg";
+
+        await using var context = database.CreateContext();
+        var account = await context.Accounts.SingleAsync(
+            item => item.Id == seed.BankAccountId && item.UserId == userId);
+        var expenseCategory = await context.Categories.FirstAsync(
+            item => item.UserId == userId && item.Type == CategoryType.Expense);
+        var incomeCategory = await context.Categories.FirstAsync(
+            item => item.UserId == userId && item.Type == CategoryType.Income);
+        var counterparty = await context.Counterparties.SingleAsync(
+            item => item.Id == seed.LenderId && item.UserId == userId);
+
+        var obligation = new Obligation(
+            Guid.NewGuid(), userId, expenseCategory, DebtDirection.Payable,
+            new Money(180m, CurrencyCode.TRY), TransactionScope.Business,
+            new DateOnly(2026, 8, 10), new DateOnly(2026, 8, 25), utc, counterparty);
+        var settlement = obligation.Settle(
+            Guid.NewGuid(), account, new DateOnly(2026, 8, 20), utc);
+
+        var cashAccount = await context.Accounts.SingleAsync(
+            item => item.UserId == userId && item.Type == AccountType.Cash);
+        var cashCount = new CashCount(
+            Guid.NewGuid(), userId, cashAccount, 4750m, TransactionScope.Business,
+            new DateOnly(2026, 8, 20), utc);
+
+        var posSettlement = new PosSettlement(
+            Guid.NewGuid(), userId, account, incomeCategory,
+            new Money(900m, CurrencyCode.TRY), 18m, TransactionScope.Business,
+            new DateOnly(2026, 8, 20), new DateOnly(2026, 8, 22), utc,
+            expenseCategory);
+
+        var goal = new SavingsGoal(
+            Guid.NewGuid(), userId, "Vergi karşılığı",
+            new Money(5000m, CurrencyCode.TRY), new DateOnly(2026, 12, 31),
+            SavingsGoalTrackingMode.ManualContributions, null, utc);
+        goal.AddContribution(
+            Guid.NewGuid(), new Money(500m, CurrencyCode.TRY),
+            new DateOnly(2026, 8, 20), Guid.NewGuid(), utc);
+
+        var attachment = new FinancialAttachment(
+            Guid.NewGuid(), userId, seed.IncomeId, "receipt.jpg", "image/jpeg",
+            2048, new string('a', 64), objectKey, utc);
+
+        var budget = new MonthlyBudget(
+            Guid.NewGuid(), userId, expenseCategory,
+            new Money(2000m, CurrencyCode.TRY), TransactionScope.Business, 2026, 8);
+
+        var session = new RefreshSession(
+            Guid.NewGuid(), userId, Guid.NewGuid().ToString("N"), utc, utc.AddDays(30));
+
+        context.AddRange(obligation, settlement, cashCount, posSettlement, goal, attachment);
+        context.AddRange(budget, session, new UserProfile(userId, hasBusiness: true));
+        await context.SaveChangesAsync(CancellationToken.None);
+
+        return objectKey;
+    }
+
+    private sealed class RecordingAttachmentObjectStore : IAttachmentObjectStore
+    {
+        public List<string> DeletedKeys { get; } = [];
+
+        public Task WriteAsync(
+            string objectKey,
+            ReadOnlyMemory<byte> content,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<Stream?> OpenReadAsync(
+            string objectKey,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task DeleteIfExistsAsync(string objectKey, CancellationToken cancellationToken)
+        {
+            DeletedKeys.Add(objectKey);
+            return Task.CompletedTask;
+        }
     }
 
     private static ApplicationUser CreateUser(string email)

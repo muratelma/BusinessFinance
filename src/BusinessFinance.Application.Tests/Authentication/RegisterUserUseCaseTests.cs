@@ -1,5 +1,6 @@
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Authentication;
+using BusinessFinance.Application.UserAccount;
 using BusinessFinance.Application.Authentication.RegisterUser;
 using BusinessFinance.Application.Profiles;
 using BusinessFinance.Domain;
@@ -108,6 +109,27 @@ public sealed class RegisterUserUseCaseTests
 
     private sealed class FakeIdentityAccountService : IIdentityAccountService
     {
+
+        public Task<UserAccountProfile?> FindAccountAsync(
+            Guid userId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<bool> VerifyPasswordAsync(
+            Guid userId,
+            string password,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<PasswordChangeStatus> ChangePasswordAsync(
+            Guid userId,
+            string currentPassword,
+            string newPassword,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task DeleteAsync(Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
         public IdentityRegistrationResult RegistrationResult { get; init; } = new(
             IdentityRegistrationStatus.InvalidRegistration,
             null,

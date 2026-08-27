@@ -14,7 +14,7 @@ sonra aşağıdaki tablodan **aktif** işaretli belge okunur.
 | 03 | `docs/archive/stages/03-yukumluluk-ve-vade.md` | Tamamlandı | 24 Ağustos 2026'da kapandı; yedi grup + kapanış denetimi |
 | 04 | `docs/archive/stages/04-kasa-pos-ve-gezinme.md` | Tamamlandı | 26 Ağustos 2026'da kapandı; sekiz grup, cihaz kabul turu |
 | 05 | `docs/archive/stages/05-vergi-ve-muhasebeci.md` | Tamamlandı | 26 Ağustos 2026'da kapandı; sekiz grup, ADR 0016, cihaz kabul turu |
-| 06 | `06-hesap-ve-kalan-isler.md` | Planlandı | **Açık kapsamlı.** Hesap ve güvenlik ekranı, e-posta doğrulama/parola sıfırlama, hatırlatma, önceki aşamalardan kalan işler. **Aktif aşama yok**; yalnız kullanıcı onayıyla açılır |
+| 06 | `06-hesap-ve-kalan-isler.md` | **Aktif** | **Açık kapsamlı.** Hesap ve güvenlik ekranı, e-posta doğrulama/parola sıfırlama, hatırlatma, önceki aşamalardan kalan işler. 27 Ağustos 2026'da kullanıcı onayıyla açıldı |
 | 06.1 | `06.1-guvenlik-taramasi.md` | Planlandı | Secret, bağımlılık, yetkilendirme ve log taraması; çıkan bulguların çözülmesi |
 | 06.2 | `06.2-arayuz-duzeni.md` | Planlandı | **Açık kapsamlı.** Gezinme, ekran içi tutarlılık, erişilebilirlik; liste kullanıcıdan gelir |
 | 06.x | — | Açılmadı | Uygulama büyüdükçe çıkan işler için; ihtiyaç oldukça açılır |

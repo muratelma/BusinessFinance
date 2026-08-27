@@ -91,6 +91,7 @@ public sealed class RefreshTokensUseCase
 
         return ApplicationResult<RefreshTokensResponse>.Success(
             new RefreshTokensResponse(
+                replacementSession.Id,
                 accessToken.Value,
                 accessToken.ExpiresAtUtc,
                 refreshToken.Value,

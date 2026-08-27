@@ -1178,3 +1178,17 @@ planlanan ekranının iki testi de kırmızıya düştü.
 | Rota kabuğu controller'ı bir kez kuruyor | cihaz kabulü | Üstteki sayfadan dönünce takvim boş kalmıyor |
 | Menünün son satırı FAB'ın altında kalmıyor | cihaz kabulü | `Diğer` listesi `fabClearance` payı taşıyor |
 
+## Hesap ve güvenlik ekranının sunucu tarafı (27 Ağustos 2026, Aşama 06 Grup 1)
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Hesap okuma kendi satırını dönüyor | `UserAccountEndpointTests.GetAccount_ReturnsTheCallersOwnEmail` | E-posta, kullanıcı kimliği ve açık oturum sayısı |
+| Oturum satırı sır taşımıyor | `UserAccountEndpointTests.ListSessions_ReturnsOnlyTheCallersSessionsAndNoSecret` | Cevap gövdesinde token ve `hash` kelimesi geçmiyor; yabancının oturumu listede yok |
+| Başkasının oturumu kapatılamıyor | `UserAccountEndpointTests.RevokeSession_WithAnotherUsersSession_ReturnsNotFoundAndLeavesItUsable` | 404 `account.session_not_found`; o oturum sonrasında hâlâ yenileyebiliyor |
+| Kapatılan oturumun token'ı ölüyor | `UserAccountEndpointTests.RevokeSession_ClosesTheSessionAndItsRefreshTokenStopsWorking` | 204, ardından `refresh` 401 |
+| Parola değişimi bütün oturumları kapıyor | `UserAccountEndpointTests.ChangePassword_ClosesEverySessionAndKeepsTheCallingDeviceSignedIn` | Eski iki refresh token 401; cevapla gelen taze çift çalışıyor |
+| Yanlış/zayıf parola reddediliyor | `UserAccountEndpointTests.ChangePassword_With*` | `account.invalid_password` ve `authentication.password_policy` |
+| Silme iki kapı istiyor | `UserAccountEndpointTests.DeleteAccount_Without*` / `_WithWrongPassword_IsRejected` | Onaysız istek 400, yanlış parola 401; hesap ayakta kalıyor |
+| Silme sırası doğru | `UserAccountUseCaseTests.DeleteAccount_ErasesTheDataBeforeTheIdentity` | Önce finansal veri, sonra kimlik |
+| Gerçek silme gerçek SQL'de | `SqlServerPersistenceIntegrationTests.UserAccountEraser_RemovesEveryRowTheUserOwnsAndLeavesOtherUsersUntouched` | 28 tabloda sıfır satır, ikinci kullanıcının defteri yerinde, ek dosyasının silinmesi istendi |
+

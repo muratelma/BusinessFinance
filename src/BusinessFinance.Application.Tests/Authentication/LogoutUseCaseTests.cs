@@ -1,4 +1,5 @@
 using BusinessFinance.Application.Authentication;
+using BusinessFinance.Application.UserAccount;
 using BusinessFinance.Application.Authentication.Logout;
 using BusinessFinance.Application.Authentication.Tokens;
 using BusinessFinance.Domain;
@@ -70,6 +71,18 @@ public sealed class LogoutUseCaseTests
     private sealed class RecordingRepository(RefreshSession? session)
         : IRefreshSessionRepository
     {
+
+        public Task<IReadOnlyList<RefreshSession>> ListActiveForUserAsync(
+            Guid userId,
+            DateTimeOffset utcNow,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<RefreshSession?> FindOwnedByIdAsync(
+            Guid sessionId,
+            Guid userId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
         public RefreshSession? UpdatedSession { get; private set; }
 
         public Task AddAsync(RefreshSession newSession, CancellationToken cancellationToken)
