@@ -193,6 +193,77 @@ public sealed class IdentityAccountService : IIdentityAccountService
             : PasswordChangeStatus.InvalidCurrentPassword;
     }
 
+    public async Task<Guid?> FindActiveUserIdByEmailAsync(
+        string email,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return null;
+        }
+
+        var user = await _userManager.FindByEmailAsync(email.Trim());
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return user is { IsActive: true } ? user.Id : null;
+    }
+
+    public async Task MarkEmailConfirmedAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var user = await FindActiveUserAsync(userId, cancellationToken);
+        if (user is null || user.EmailConfirmed)
+        {
+            return;
+        }
+
+        user.EmailConfirmed = true;
+        var result = await _userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            throw new InvalidOperationException(
+                "The email address could not be marked as confirmed.");
+        }
+    }
+
+    public async Task<PasswordChangeStatus> SetPasswordAsync(
+        Guid userId,
+        string newPassword,
+        CancellationToken cancellationToken)
+    {
+        var user = await FindActiveUserAsync(userId, cancellationToken);
+        if (user is null)
+        {
+            return PasswordChangeStatus.UserNotFound;
+        }
+
+        // Politika **önce** denetlenir, parola sonra değiştirilir. Ters sırada
+        // yapılırsa (kaldır, sonra ekle) politikaya uymayan bir parola denemesi
+        // kullanıcıyı parolasız bırakırdı.
+        foreach (var validator in _userManager.PasswordValidators)
+        {
+            var validation = await validator.ValidateAsync(_userManager, user, newPassword);
+            if (!validation.Succeeded)
+            {
+                return PasswordChangeStatus.PasswordPolicy;
+            }
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var removeResult = await _userManager.RemovePasswordAsync(user);
+        if (!removeResult.Succeeded)
+        {
+            return PasswordChangeStatus.UserNotFound;
+        }
+
+        var addResult = await _userManager.AddPasswordAsync(user, newPassword);
+        return addResult.Succeeded
+            ? PasswordChangeStatus.Succeeded
+            : PasswordChangeStatus.PasswordPolicy;
+    }
+
     public async Task DeleteAsync(Guid userId, CancellationToken cancellationToken)
     {
         var user = await _userManager.FindByIdAsync(userId.ToString());

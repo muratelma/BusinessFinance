@@ -40,6 +40,7 @@ public sealed class BusinessFinanceDbContext(
     public DbSet<SavingsGoalContribution> SavingsGoalContributions => Set<SavingsGoalContribution>();
     public DbSet<FinancialAttachment> FinancialAttachments => Set<FinancialAttachment>();
     public DbSet<RefreshSession> RefreshSessions => Set<RefreshSession>();
+    public DbSet<VerificationCode> VerificationCodes => Set<VerificationCode>();
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
 
     protected override void OnModelCreating(ModelBuilder builder)

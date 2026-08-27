@@ -99,6 +99,8 @@ internal sealed class EfUserAccountEraser(
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
             await dbContext.RefreshSessions
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+            await dbContext.VerificationCodes
+                .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
         });

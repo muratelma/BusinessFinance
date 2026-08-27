@@ -26,6 +26,9 @@ kullanıcının kaydına erişen ayrıcalıklı rol yoktur.
 | Oturum listeleme / tek oturum kapatma | 401 | Yalnız kendi oturumları; satır token veya hash taşımaz | Başkasının oturumu 404 ve açık kalır |
 | Parola değiştirme | 401 | Mevcut parola doğrulanır; bütün oturumlar kapanır, çağıran cihaza taze çift döner | Başka kullanıcının parolasına yol yok |
 | Hesap silme (`DELETE /api/v1/account`) | 401 | Parola + açık onay; yalnız kendi verisi (ADR 0017) | Başka kullanıcının verisine dokunan yol yok |
+| E-posta doğrulama kodu isteme/onaylama | 401 | Yalnız kendi adresine; kod hash'lenir ve cevapta dönmez | Başka adresi doğrulatan yol yok |
+| Parola sıfırlama isteme (`POST /api/v1/auth/password-reset`) | **İzinli, kimlik istemez** | Aynı cevap | Bilinmeyen ve bilinen adres aynı `202`'ye döner |
+| Parola sıfırlamayı tamamlama | **İzinli, kimlik istemez** | Kod + yeni parola; bütün oturumlar kapanır | Bilinmeyen adres, yanlış/süresi geçmiş kod aynı `authentication.invalid_reset_code` |
 | Transaction create/read/cancel | 401 | Aktif owner kaynağıyla izinli | 404/400 veya dışlanır |
 | Bütçe create/update/read | 401 | Owner gider kategorisiyle izinli | 404/400 veya dışlanır |
 | Dashboard/report | 401 | Yalnız kendi aggregate sonucu | Verisi toplama girmez |
@@ -267,4 +270,3 @@ bugünkü sorgulara gizli koşul eklenmez.
 - Hane üyeliği/rolleri — ilgili sonraki roadmap kapsamı
 - Hesap silme ve dışa aktarma **uygulandı**: silme ADR 0017'ye göre gerçek silmedir
   (parola + açık onay), dışa aktarma yedek/geri yükleme yolundadır
-- E-posta doğrulama ve parola sıfırlama — Aşama 06 Grup 2

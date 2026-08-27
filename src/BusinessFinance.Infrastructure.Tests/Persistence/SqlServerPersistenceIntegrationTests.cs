@@ -4018,6 +4018,7 @@ public sealed class SqlServerPersistenceIntegrationTests
                 .Where(x => x.UserId == owner.Id).ToArrayAsync());
             Assert.Empty(await context.FinancialAttachments.Where(x => x.UserId == owner.Id).ToArrayAsync());
             Assert.Empty(await context.RefreshSessions.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.VerificationCodes.Where(x => x.UserId == owner.Id).ToArrayAsync());
             Assert.Empty(await context.UserProfiles.Where(x => x.UserId == owner.Id).ToArrayAsync());
 
             // Aynı şekli taşıyan ikinci kullanıcının defteri yerinde durur.
@@ -4090,8 +4091,17 @@ public sealed class SqlServerPersistenceIntegrationTests
         var session = new RefreshSession(
             Guid.NewGuid(), userId, Guid.NewGuid().ToString("N"), utc, utc.AddDays(30));
 
+        var verificationCode = new VerificationCode(
+            Guid.NewGuid(),
+            userId,
+            VerificationPurpose.EmailConfirmation,
+            new string('c', VerificationCode.CodeHashLength),
+            utc,
+            utc.AddMinutes(15));
+
         context.AddRange(obligation, settlement, cashCount, posSettlement, goal, attachment);
-        context.AddRange(budget, session, new UserProfile(userId, hasBusiness: true));
+        context.AddRange(budget, session, verificationCode);
+        context.Add(new UserProfile(userId, hasBusiness: true));
         await context.SaveChangesAsync(CancellationToken.None);
 
         return objectKey;

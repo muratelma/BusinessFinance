@@ -52,6 +52,31 @@ Invoke-WebRequest http://localhost:5284/health/ready
 `ready` 503 ise API çalışıyor fakat SQL'e erişemiyor demektir. API terminalini
 açık bırakın.
 
+## 3.1. E-posta gönderimi (isteğe bağlı)
+
+Doğrulama ve parola sıfırlama kodları Brevo'nun transactional e-posta ucundan
+gider. **Anahtarsız kurulum çalışır**: uygulama başlar, kayıt olunur, giriş
+yapılır; yalnız posta gitmez ve sunucu `NotConfigured` diye kaydeder. Kod
+akışını cihazda denemek için:
+
+1. Brevo hesabında bir API anahtarı üretin ve gönderici adresini **kendi
+   tarafında doğrulayın** — doğrulanmamış adresten çıkan posta reddedilir ya da
+   spam'e düşer.
+2. Değerleri yalnız user-secrets'a yazın; `appsettings.json`'a, `.env`'e veya
+   terminale kopyalamayın:
+
+```powershell
+dotnet user-secrets --project src/BusinessFinance.Api set "Brevo:ApiKey" "<anahtar>"
+dotnet user-secrets --project src/BusinessFinance.Api set "Brevo:SenderEmail" "<dogrulanmis-adres>"
+```
+
+3. Kabul turunda kullanılacak test adresi **kendi adresinizdir**; sentetik
+   kullanıcıya başkasının adresi yazılmaz.
+
+Canlı sözleşme testi (`BrevoLiveContractTests`) ancak
+`BUSINESS_FINANCE_BREVO_TEST_KEY` ve `BUSINESS_FINANCE_BREVO_TEST_SENDER`
+tanımlıyken çalışır ve gerçek posta gönderir; tanımsızken açıkça skip olur.
+
 ## 4. Pixel 8 emulatorünü hazırlama
 
 Android Studio > Device Manager > `Pixel_8` > Start yolunu izleyin. Emulator

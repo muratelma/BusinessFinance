@@ -1107,6 +1107,40 @@ raporda yoktur ama burada vardır, çünkü hedef kapsam taşımak zorunda deği
 etiketsizleri bir tarafa saymak olmayan bir cevabı uydurmak olurdu. Toplamı
 istemci çıkarmaz, sunucu verir.
 
+### Doğrulama kodu: taşınan tek sır
+
+E-posta doğrulama ve parola sıfırlama tek bir yazma modelini paylaşır
+(`VerificationCode`) ve amaç (`VerificationPurpose`) kodun arandığı her sorgunun
+parçasıdır: doğrulama için üretilmiş bir kodla parola sıfırlanamaz.
+
+Altı haneli bir kod tek başına zayıftır. Onu güvenli kılan üç sınır aggregate'in
+kendi içindedir ve birlikte çalışır: **süre** (15 dakika), **tek kullanım** ve
+**deneme sayısı** (beş yanlıştan sonra kod ölür). Sonuncusu olmadan hız sınırı
+tek başına yetmezdi — saldırgan aynı kodu günlerce tahmin edebilirdi.
+
+Kodun kendisi saklanmaz; refresh token'da olduğu gibi yalnız **SHA-256 hash'i**
+kolonda durur, API cevabında dönmez ve loglanmaz. Yeni kod üretmek eskisini
+tüketilmiş sayar: aynı anda iki geçerli kod, birini gören saldırgana ikinci bir
+şans verirdi.
+
+**Gönderici bir port'tur** (`IVerificationEmailSender`). Application yalnız ne
+gönderileceğini bilir; metin, sağlayıcı ve HTTP çağrısı Infrastructure'dadır
+(`BrevoVerificationEmailSender`). Bu ayrım testlerin ağa çıkmamasının sebebidir:
+tek canlı sözleşme testi ortam değişkeni yokken açıkça skip olur. Anahtar yoksa
+gönderim `NotConfigured` döner — bir hata değil, kapalı bir kapı: yerelde posta
+göndermeden çalışmak mümkün olmalı.
+
+**Doğrulanmamış hesap kilitlenmez.** Kayıtla birlikte kod gider ama kayıt onu
+rehin almaz; posta servisi ulaşılamazsa bile hesap açılır ve kullanıcı giriş
+yapar. Doğrulama, uygulama içindeki kalıcı bir uyarıyı kaldıran adımdır.
+
+**Enumeration iki yolda da kapalıdır.** Bilinmeyen adres, bilinen adres, pasif
+hesap ve az önce kod istemiş adres aynı `202`'ye döner; sıfırlamayı tamamlarken
+bilinmeyen adres, yanlış kod ve süresi geçmiş kod aynı hata koduna gider.
+Kullanıcıya yararlı olan tek ayrım oturum açmış kullanıcının kendi yeniden
+gönderim isteğindedir (`account.verification_code_too_soon`) — orada kimlik
+zaten biliniyor.
+
 ### Hesabın kendisi: oturumlar ve kapatma
 
 `RefreshSession` bu aşamaya kadar yalnız kimlik akışının içinden okunuyordu;

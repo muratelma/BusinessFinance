@@ -32,7 +32,8 @@ public sealed class MigrationHistoryTests
         "AddVatFields",
         "AddTaxDeductibility",
         "AddQuarterlyRecurrence",
-        "AddSavingsGoalScope"
+        "AddSavingsGoalScope",
+        "AddVerificationCodes"
     ];
 
     [Fact]
@@ -406,6 +407,51 @@ public sealed class MigrationHistoryTests
             Assert.Contains("CountedAmount", countColumns);
             Assert.DoesNotContain("ExpectedBalance", countColumns);
             Assert.DoesNotContain("Difference", countColumns);
+        }
+    }
+
+    /// <summary>
+    /// Doğrulama kodları tablosu <b>boş doğar</b>: mevcut hiçbir tabloya kolon
+    /// eklenmez, yorumlanacak bir geçmiş yoktur ve kalıcı bir DEFAULT
+    /// bırakılmaz. Kod açık saklanmadığı için kolon da kodun kendisi değil
+    /// hash'idir.
+    /// </summary>
+    [Fact]
+    public void AddVerificationCodes_CreatesOneEmptyTableThatStoresOnlyTheHash()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_AddVerificationCodes", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations.ToList();
+
+            Assert.Empty(up.OfType<AddColumnOperation>());
+            Assert.Empty(up.OfType<AlterColumnOperation>());
+            Assert.Empty(up.OfType<SqlOperation>());
+
+            var table = Assert.Single(up.OfType<CreateTableOperation>());
+            Assert.Equal("VerificationCodes", table.Name);
+            Assert.All(table.Columns, column =>
+            {
+                Assert.Null(column.DefaultValue);
+                Assert.Null(column.DefaultValueSql);
+            });
+
+            // Kodun kendisi hiçbir kolonda durmaz.
+            var columns = table.Columns.Select(column => column.Name).ToArray();
+            Assert.Contains("CodeHash", columns);
+            Assert.DoesNotContain("Code", columns);
+
+            // Süre, tek kullanım ve deneme sayısı SQL seviyesinde de bağlı.
+            var checks = table.CheckConstraints.Select(check => check.Name).ToArray();
+            Assert.Contains("CK_VerificationCodes_Expiry", checks);
+            Assert.Contains("CK_VerificationCodes_Consumption", checks);
+            Assert.Contains("CK_VerificationCodes_FailedAttempts", checks);
+            Assert.Contains("CK_VerificationCodes_Purpose", checks);
+
+            var ownerKey = Assert.Single(table.ForeignKeys);
+            Assert.Equal("AspNetUsers", ownerKey.PrincipalTable);
+            Assert.Equal(ReferentialAction.Restrict, ownerKey.OnDelete);
         }
     }
 

@@ -3,6 +3,8 @@ using BusinessFinance.Application.Authentication;
 using BusinessFinance.Application.UserAccount;
 using BusinessFinance.Application.Authentication.RegisterUser;
 using BusinessFinance.Application.Profiles;
+using BusinessFinance.Application.Tests.Verification;
+using BusinessFinance.Application.Verification;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Tests.Authentication;
@@ -21,7 +23,7 @@ public sealed class RegisterUserUseCaseTests
                 "user@example.com")
         };
         var profiles = new RecordingUserProfileRepository();
-        var useCase = new RegisterUserUseCase(service, profiles);
+        var useCase = CreateUseCase(service, profiles);
 
         var result = await useCase.ExecuteAsync(
             new RegisterUserCommand("user@example.com", "Valid-Password-123!"));
@@ -42,7 +44,7 @@ public sealed class RegisterUserUseCaseTests
                 null)
         };
         var profiles = new RecordingUserProfileRepository();
-        var useCase = new RegisterUserUseCase(service, profiles);
+        var useCase = CreateUseCase(service, profiles);
 
         var result = await useCase.ExecuteAsync(
             new RegisterUserCommand("user@example.com", "Valid-Password-123!"));
@@ -63,7 +65,7 @@ public sealed class RegisterUserUseCaseTests
                 null)
         };
         var profiles = new RecordingUserProfileRepository();
-        var useCase = new RegisterUserUseCase(service, profiles);
+        var useCase = CreateUseCase(service, profiles);
 
         var result = await useCase.ExecuteAsync(
             new RegisterUserCommand("user@example.com", "weak"));
@@ -78,7 +80,7 @@ public sealed class RegisterUserUseCaseTests
     {
         var service = new FakeIdentityAccountService();
         var profiles = new RecordingUserProfileRepository();
-        var useCase = new RegisterUserUseCase(service, profiles);
+        var useCase = CreateUseCase(service, profiles);
         using var cancellationTokenSource = new CancellationTokenSource();
 
         await useCase.ExecuteAsync(
@@ -107,8 +109,43 @@ public sealed class RegisterUserUseCaseTests
             Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Kayıt artık doğrulama kodu da gönderiyor; testler kodun gidip
+    /// gitmediğini görebilsin diye ikizler dışarıda kurulur.
+    /// </summary>
+    private static RegisterUserUseCase CreateUseCase(
+        FakeIdentityAccountService service,
+        RecordingUserProfileRepository profiles,
+        FakeVerificationCodeService? codeService = null,
+        InMemoryVerificationCodeRepository? codes = null,
+        RecordingVerificationEmailSender? sender = null)
+    {
+        return new RegisterUserUseCase(
+            service,
+            profiles,
+            codeService ?? new FakeVerificationCodeService(),
+            codes ?? new InMemoryVerificationCodeRepository(),
+            sender ?? new RecordingVerificationEmailSender(),
+            new MutableTimeProvider(new DateTimeOffset(2026, 8, 27, 9, 0, 0, TimeSpan.Zero)));
+    }
+
     private sealed class FakeIdentityAccountService : IIdentityAccountService
     {
+        public Task<Guid?> FindActiveUserIdByEmailAsync(
+            string email,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task MarkEmailConfirmedAsync(
+            Guid userId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<PasswordChangeStatus> SetPasswordAsync(
+            Guid userId,
+            string newPassword,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
 
         public Task<UserAccountProfile?> FindAccountAsync(
             Guid userId,

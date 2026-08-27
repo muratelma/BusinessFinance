@@ -61,6 +61,7 @@ app.UseAuthorization();
 
 app.MapAuthenticationEndpoints();
 app.MapUserAccountEndpoints();
+app.MapEmailVerificationEndpoints();
 app.MapAccountEndpoints();
 app.MapCategoryEndpoints();
 app.MapUserProfileEndpoints();

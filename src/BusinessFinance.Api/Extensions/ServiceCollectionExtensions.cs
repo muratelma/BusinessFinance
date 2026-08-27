@@ -17,6 +17,7 @@ using BusinessFinance.Application.Authentication.Logout;
 using BusinessFinance.Application.Authentication.RefreshTokens;
 using BusinessFinance.Application.Authentication.RegisterUser;
 using BusinessFinance.Application.UserAccount;
+using BusinessFinance.Application.Verification;
 using BusinessFinance.Application.Transfers;
 using BusinessFinance.Application.CreditCards;
 using BusinessFinance.Application.Counterparties;
@@ -51,6 +52,10 @@ public static class ServiceCollectionExtensions
         services.AddTransient<RevokeUserSessionUseCase>();
         services.AddTransient<ChangePasswordUseCase>();
         services.AddTransient<DeleteUserAccountUseCase>();
+        services.AddTransient<SendEmailVerificationUseCase>();
+        services.AddTransient<ConfirmEmailUseCase>();
+        services.AddTransient<RequestPasswordResetUseCase>();
+        services.AddTransient<ResetPasswordUseCase>();
         services.AddTransient<CreateAccountUseCase>();
         services.AddTransient<DeleteAccountUseCase>();
         services.AddTransient<ListAccountsUseCase>();

@@ -38,6 +38,26 @@ public interface IIdentityAccountService
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// E-postasıyla aktif kullanıcıyı bulur. <b>Enumeration sorumluluğu
+    /// çağıranındır</b>: bu metot "yok" der, cevabın kullanıcıya nasıl
+    /// döneceğine use case karar verir.
+    /// </summary>
+    Task<Guid?> FindActiveUserIdByEmailAsync(
+        string email,
+        CancellationToken cancellationToken);
+
+    Task MarkEmailConfirmedAsync(Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Mevcut parolayı sormadan yenisini yazar. Yalnız kodu doğrulanmış
+    /// sıfırlama akışı çağırır; parola politikası burada da uygulanır.
+    /// </summary>
+    Task<PasswordChangeStatus> SetPasswordAsync(
+        Guid userId,
+        string newPassword,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Kimlik kaydını kalıcı olarak siler (ADR 0017). Finansal veriyi silmez;
     /// onu <see cref="IUserAccountEraser"/> yapar ve bu çağrıdan önce çalışır.
     /// </summary>

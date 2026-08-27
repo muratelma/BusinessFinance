@@ -1,5 +1,6 @@
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Profiles;
+using BusinessFinance.Application.Verification;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Authentication.RegisterUser;
@@ -8,13 +9,25 @@ public sealed class RegisterUserUseCase
 {
     private readonly IIdentityAccountService _identityAccountService;
     private readonly IUserProfileRepository _userProfileRepository;
+    private readonly IVerificationCodeService _codeService;
+    private readonly IVerificationCodeRepository _codeRepository;
+    private readonly IVerificationEmailSender _emailSender;
+    private readonly TimeProvider _timeProvider;
 
     public RegisterUserUseCase(
         IIdentityAccountService identityAccountService,
-        IUserProfileRepository userProfileRepository)
+        IUserProfileRepository userProfileRepository,
+        IVerificationCodeService codeService,
+        IVerificationCodeRepository codeRepository,
+        IVerificationEmailSender emailSender,
+        TimeProvider timeProvider)
     {
         _identityAccountService = identityAccountService;
         _userProfileRepository = userProfileRepository;
+        _codeService = codeService;
+        _codeRepository = codeRepository;
+        _emailSender = emailSender;
+        _timeProvider = timeProvider;
     }
 
     public async Task<ApplicationResult<RegisterUserResponse>> ExecuteAsync(
@@ -39,6 +52,22 @@ public sealed class RegisterUserUseCase
             await _userProfileRepository.AddAsync(
                 new UserProfile(registeredUserId, command.HasBusiness),
                 cancellationToken);
+
+            // Doğrulama kodu kayıtla birlikte gider ama kaydı **rehin almaz**:
+            // posta servisi ulaşılamazsa bile hesap açılmış olur ve kullanıcı
+            // giriş yapabilir. Doğrulama uygulama içinden yeniden istenebilir.
+            if (registration.Email is not null)
+            {
+                await VerificationCodeIssuer.IssueAsync(
+                    registeredUserId,
+                    registration.Email,
+                    VerificationPurpose.EmailConfirmation,
+                    _codeService,
+                    _codeRepository,
+                    _emailSender,
+                    _timeProvider.GetUtcNow(),
+                    cancellationToken);
+            }
         }
 
         return registration.Status switch

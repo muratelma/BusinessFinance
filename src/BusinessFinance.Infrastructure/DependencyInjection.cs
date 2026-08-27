@@ -19,10 +19,12 @@ using BusinessFinance.Application.Pos;
 using BusinessFinance.Application.Taxes;
 using BusinessFinance.Application.Profiles;
 using BusinessFinance.Application.UserAccount;
+using BusinessFinance.Application.Verification;
 using BusinessFinance.Infrastructure.Pos;
 using BusinessFinance.Infrastructure.Taxes;
 using BusinessFinance.Infrastructure.Profiles;
 using BusinessFinance.Infrastructure.UserAccounts;
+using BusinessFinance.Infrastructure.Verification;
 using BusinessFinance.Infrastructure.Categories;
 using BusinessFinance.Infrastructure.Transactions;
 using BusinessFinance.Application.Budgets;
@@ -105,6 +107,8 @@ public static class DependencyInjection
         services.AddScoped<ICategoryRepository, EfCategoryRepository>();
         services.AddScoped<IUserProfileRepository, EfUserProfileRepository>();
         services.AddScoped<IUserAccountEraser, EfUserAccountEraser>();
+        services.AddScoped<IVerificationCodeRepository, EfVerificationCodeRepository>();
+        services.AddSingleton<IVerificationCodeService, VerificationCodeService>();
         services.AddScoped<IReceiptDuplicateLookup, EfReceiptDuplicateLookup>();
         services.AddScoped<IReceiptRefundLookup, EfReceiptRefundLookup>();
         services.AddScoped<ITransactionRepository, EfTransactionRepository>();
@@ -147,6 +151,22 @@ public static class DependencyInjection
                 client.BaseAddress = new Uri(receiptOptions.BaseUrl);
                 client.Timeout = TimeSpan.FromSeconds(receiptOptions.TimeoutSeconds);
             });
+
+        services
+            .AddHttpClient<IVerificationEmailSender, BrevoVerificationEmailSender>(
+                (provider, client) =>
+                {
+                    var mailOptions = provider
+                        .GetRequiredService<IOptions<BrevoOptions>>().Value;
+                    client.BaseAddress = new Uri(mailOptions.BaseUrl);
+                    client.Timeout = TimeSpan.FromSeconds(mailOptions.TimeoutSeconds);
+                });
+
+        // Gemini ile aynı gerekçe: eksik anahtar bir başlangıç hatası değil,
+        // kapalı bir kapıdır. Posta gitmez, kimlik akışı çalışmaya devam eder.
+        services
+            .AddOptions<BrevoOptions>()
+            .Bind(configuration.GetSection(BrevoOptions.SectionName));
 
         services
             .AddOptions<AttachmentStorageOptions>()

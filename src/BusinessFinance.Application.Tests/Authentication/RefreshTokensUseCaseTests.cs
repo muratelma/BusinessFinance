@@ -142,6 +142,21 @@ public sealed class RefreshTokensUseCaseTests
 
     private sealed class FakeIdentityAccountService : IIdentityAccountService
     {
+        public Task<Guid?> FindActiveUserIdByEmailAsync(
+            string email,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task MarkEmailConfirmedAsync(
+            Guid userId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<PasswordChangeStatus> SetPasswordAsync(
+            Guid userId,
+            string newPassword,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
 
         public Task<UserAccountProfile?> FindAccountAsync(
             Guid userId,

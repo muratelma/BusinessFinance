@@ -64,6 +64,22 @@ boş olmalıdır. Yeni hesapta uygulamanın otomatik oluşturduğu, hiç değiş
 başlangıç kategorileri boş alan sayılır ve yedekteki kategorilerle atomik olarak
 değiştirilir.
 
+## Veritabanı yükseltme notu — Aşama 06 Grup 2
+
+`AddVerificationCodes` migration'ı **yalnız yeni bir tablo kurar**: mevcut hiçbir
+tabloya kolon veya kısıt eklenmez, dolayısıyla backfill sorusu doğmaz. Tablo
+doğrulama ve parola sıfırlama kodlarının **hash'ini** tutar; kodun kendisi
+hiçbir kolonda durmaz.
+
+**Yedek şeması ilerlemez, v10'da kalır.** Doğrulama kodu finansal bir kayıt
+değil, on beş dakika yaşayan geçici bir kimlik durumudur; yedeklenip geri
+yüklenecek bir geçmişi yoktur. Aynı gerekçeyle `RefreshSessions` de yedeğin
+dışındadır. Geri yüklenen bir hesap kodlarını taşımaz ve taşımamalıdır —
+taşısaydı, eski bir yedeği eline geçiren biri o kodları da eline geçirirdi.
+
+Hesap silindiğinde bu tablodaki satırlar da silinir (ADR 0017); silme sırası
+`EfUserAccountEraser` içindedir.
+
 ## Veritabanı yükseltme notu — Aşama 03 Grup 2
 
 `AddObligationsAndCounterpartyDueDates` migration'ı yedek şeması sürümünden

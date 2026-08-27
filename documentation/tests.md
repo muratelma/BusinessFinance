@@ -1206,3 +1206,25 @@ planlanan ekranının iki testi de kırmızıya düştü.
 | İşletme cevabı yeni yerinde | `business_answer_test` | Cevap `Hesabım` sayfasından değişiyor; kapsam boyutu ona uyuyor |
 | Menüde tek kart kaldı | `more_page_test` | Hesap parçaları taşındıktan sonra `Diğer` tek kart, sonuncu satır `Hesabım` |
 
+## E-posta doğrulama ve parola sıfırlama (27 Ağustos 2026, Aşama 06 Grup 2)
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Kodun üç sınırı | `VerificationCodeTests` | Süre, tek kullanım (idempotent) ve beşinci yanlışta ölüm |
+| Kod hash olarak saklanıyor | `VerificationUseCaseTests.SendVerification_SendsACodeToTheUsersOwnAddress` | Kolondaki değer gönderilen kodun hash'i |
+| Yeni kod eskisini öldürüyor | `...SendVerification_AfterTheInterval_IssuesAFreshCodeAndKillsTheOldOne` | İkinci kod üretilince ilki çalışmıyor |
+| Gönderim aralığı | `...SendVerification_TwiceWithinTheInterval_IsRejectedWithoutASecondMail` | 60 sn içinde ikinci posta yok, `account.verification_code_too_soon` |
+| Beş yanlış denemeden sonra doğru kod da geçmiyor | `...ConfirmEmail_AfterFiveWrongGuesses_KillsTheCode` | Tahmin kapısı kapanıyor |
+| Enumeration yok (istek) | `...RequestPasswordReset_ForAnUnknownAddress_LooksExactlyLikeAKnownOne` | İki adres aynı cevap; fark yalnız giden postada |
+| Enumeration yok (bekleme) | `...RequestPasswordReset_WithinTheInterval_StaysSilentInsteadOfSayingWait` | "Bekleyin" demek adresi ele verirdi |
+| Sıfırlama oturumları kapatıyor | `...ResetPassword_WithTheEmailedCode_SetsThePasswordAndClosesEverySession` | Yeni parola yazılıyor, açık oturumlar iptal |
+| Kayıt kodu gönderiyor, hesabı kilitlemiyor | `EmailVerificationEndpointTests.Register_SendsAVerificationCode...` | Kod gitti, giriş çalışıyor, `emailConfirmed` false |
+| Doğrulama HTTP'de uçtan uca | `...ConfirmEmail_WithTheEmailedCode_MarksTheAddressConfirmed` | 204, ardından `GET /api/v1/account` doğrulanmış diyor |
+| Sıfırlama HTTP'de uçtan uca | `...ResetPassword_WithTheEmailedCode_...` | Eski refresh token 401, eski parola 401, yeni parola giriyor |
+| Kod iki kez kullanılamıyor | `...ResetPassword_WithTheSameCodeTwice_FailsTheSecondTime` | İkinci istek `authentication.invalid_reset_code` |
+| Sıfırlama yolu hız sınırında | `...PasswordReset_WhenTheRateLimitIsExceeded_ReturnsTooManyRequests` | 11. istek `rate_limit.exceeded` |
+| Anahtarsız kurulum patlamıyor | `BrevoLiveContractTests.SendCode_WithoutCredentials_...` | `NotConfigured`; hiçbir HTTP çağrısı yok |
+| Gerçek sağlayıcı sözleşmesi | `BrevoLiveContractTests.SendCode_WithRealCredentials_...` | Ortam değişkeni yokken **skip**; koşu ağa çıkmıyor |
+| Yeni tablo boş doğuyor | `MigrationHistoryTests.AddVerificationCodes_CreatesOneEmptyTableThatStoresOnlyTheHash` | Kolon/backfill yok, `Code` kolonu yok, dört CHECK yerinde |
+| Silinen hesabın kodları da gidiyor | `SqlServerPersistenceIntegrationTests.UserAccountEraser_...` | `VerificationCodes` tablosunda sıfır satır |
+

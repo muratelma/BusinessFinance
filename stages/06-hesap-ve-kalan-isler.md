@@ -205,6 +205,18 @@ ikisinin birden kalıp kalmayacağı Aşama 06.2'nin kararı.
 
 ### Grup 2 — E-posta doğrulama ve parola sıfırlama
 
+**Durum: sunucu tarafı tamamlandı (27 Ağustos 2026).** Grupta tanımlanması
+gereken sınır tanımlandı ve `documentation/architecture.md` içine yazıldı:
+**doğrulanmamış hesap kilitlenmez.** Kayıtla birlikte kod gider ama kayıt onu
+rehin almaz; posta servisi ulaşılamazsa bile hesap açılır, giriş yapılır ve
+uygulama çalışır. Doğrulama yalnız uygulama içindeki kalıcı uyarıyı kaldırır.
+
+Kodun ömrü 15 dakika, yeniden gönderim aralığı 60 saniye, deneme sınırı beş
+yanlış. Kod açık saklanmaz (SHA-256), cevapta dönmez ve loglanmaz.
+`AddVerificationCodes` migration'ı **yalnız yeni bir tablo kurar**; tablo boş
+doğar, mevcut hiçbir tabloya kolon eklenmez ve backfill sorusu doğmaz. Yedek
+şeması v10'da kalır (kod finansal kayıt değil, geçici kimlik durumudur).
+
 - Brevo yapılandırması `documentation/variables.md` envanterine girer; API
   anahtarı **yalnız** user-secrets'ta durur, repoya ve terminale yazılmaz.
 - Gönderici Application katmanında bir port olarak soyutlanır; birim ve

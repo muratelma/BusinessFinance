@@ -23,6 +23,14 @@ Bu belge yalnız uygulanmış yapılandırmayı kaydeder; gerçek secret değer 
 | `ASPNETCORE_ENVIRONMENT` | API | Process/profil | launch profile/environment | Ortama göre | Development OpenAPI'nin yanlış ortamda açılması |
 | `ASPNETCORE_URLS` / `--urls` | API | Process | launch profile/CLI | Yerel porta göre | `0.0.0.0` ile istenmeyen ağ yayını |
 | `AttachmentStorage:RootPath` | API | Sunucu, secret değil | `appsettings.json`/environment | Storage taşımasında | Root kaçışı, kayıp veya yanlış volume |
+| `Brevo:ApiKey` | API | **Secret** | Local user-secrets | Sızıntıda ve planlı rotation | Üçüncü tarafın gönderim kotası ve gönderici itibarı başkasınca kullanılır |
+| `Brevo:SenderEmail` | API | Sunucu, secret değil | Local user-secrets/`appsettings.json` | Gönderici adresi değişince | Servis tarafında doğrulanmamış adresten çıkan posta reddedilir veya spam'e düşer |
+| `Brevo:SenderName` | API | Sunucu, secret değil | `appsettings.json`; varsayılan `BusinessFinance` | Ürün adı değişince | Kullanıcının tanımadığı gönderici adı |
+| `Brevo:BaseUrl` | API | Sunucu, secret değil | `appsettings.json` | Sağlayıcı değişiminde | İsteğin yanlış hedefe gitmesi |
+| `Brevo:TimeoutSeconds` | API | Sunucu, secret değil | `appsettings.json`; varsayılan 15 | Sağlayıcı gecikmesine göre | Uzun değer kayıt isteğini bekletir |
+| `BUSINESS_FINANCE_BREVO_TEST_KEY` | Canlı sözleşme testi | **Secret**, geçici test | Environment | Test oturumuyla | Gerçek posta gönderimi; değer test çıktısına yazılmaz |
+| `BUSINESS_FINANCE_BREVO_TEST_SENDER` | Canlı sözleşme testi | Test | Environment | Test oturumuyla | Doğrulanmamış gönderici ile testin düşmesi |
+| `BUSINESS_FINANCE_BREVO_TEST_RECIPIENT` | Canlı sözleşme testi | Test | Environment; varsayılan gönderici adresi | Test oturumuyla | Postanın başkasının kutusuna gitmesi |
 | `Gemini:ApiKey` | API | **Secret** | Local user-secrets | Sızıntıda ve planlı rotation | Üçüncü taraf kotasının ve faturasının başkasınca kullanımı |
 | `Gemini:Model` | API | Sunucu, secret değil | `appsettings.json`; varsayılan `gemini-3.5-flash-lite` | Ölçüm turu sonucuna göre | RPD 20'lik bir modele geçmek günlük kotayı bitirir |
 | `Gemini:BaseUrl` | API | Sunucu, secret değil | `appsettings.json` | Sağlayıcı/bölge değişiminde | İsteğin yanlış hedefe gitmesi |
