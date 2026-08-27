@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../core/localization/app_locale.dart';
+import '../core/presentation/financial_data_changes.dart';
 import '../core/presentation/scope_controller.dart';
 import '../core/routing/app_router.dart';
 import '../core/theme/app_theme.dart';
@@ -10,6 +11,7 @@ import '../features/account/presentation/account_status_controller.dart';
 import '../features/auth/presentation/auth_controller.dart';
 import '../features/dashboard/presentation/dashboard_view_model.dart';
 import '../features/profile/data/profile_repository.dart';
+import '../features/reminders/presentation/reminder_controller.dart';
 import 'app_dependencies.dart';
 
 class BusinessFinanceApp extends StatelessWidget {
@@ -55,6 +57,7 @@ class BusinessFinanceApp extends StatelessWidget {
              receiptImageSource: dependencies?.receiptImageSource,
              receiptImageNormalizer: dependencies?.receiptImageNormalizer,
              receiptPreferences: dependencies?.receiptPreferences,
+             reminderController: dependencies?.reminderController,
            );
 
   final GoRouter router;
@@ -101,6 +104,8 @@ class BusinessFinanceApp extends StatelessWidget {
               authController: authController,
               scopeController: dependencies.scopeController,
               accountStatusController: dependencies.accountStatusController,
+              reminderController: dependencies.reminderController,
+              financialDataChanges: dependencies.financialDataChanges,
               child: app,
             ),
     );
@@ -120,12 +125,19 @@ class _ScopeSessionBinder extends StatefulWidget {
     required this.authController,
     required this.scopeController,
     required this.accountStatusController,
+    required this.reminderController,
+    required this.financialDataChanges,
     required this.child,
   });
 
   final AuthController authController;
   final ScopeController scopeController;
   final AccountStatusController accountStatusController;
+
+  /// Hatırlatma listesi burada tazelenir: ayar ekranı kapalıyken de ödenmiş
+  /// bir kalemin bildirimi düşmeli.
+  final ReminderController reminderController;
+  final FinancialDataChanges financialDataChanges;
   final Widget child;
 
   @override
@@ -133,10 +145,14 @@ class _ScopeSessionBinder extends StatefulWidget {
 }
 
 class _ScopeSessionBinderState extends State<_ScopeSessionBinder> {
+  int _plannedRevision = 0;
+
   @override
   void initState() {
     super.initState();
+    _plannedRevision = widget.financialDataChanges.planningRevision;
     widget.authController.addListener(_handleAuthChanged);
+    widget.financialDataChanges.addListener(_handleDataChanged);
     _handleAuthChanged();
   }
 
@@ -145,17 +161,31 @@ class _ScopeSessionBinderState extends State<_ScopeSessionBinder> {
       case AuthStatus.authenticated:
         widget.scopeController.ensureLoaded();
         widget.accountStatusController.ensureLoaded();
+        widget.reminderController.ensureLoaded();
       case AuthStatus.unauthenticated:
         widget.scopeController.forget();
         widget.accountStatusController.forget();
+        widget.reminderController.forget();
       case AuthStatus.restoring:
         break;
     }
   }
 
+  /// Yalnız **planlanan** görünüm değiştiğinde yeniden kurulur.
+  ///
+  /// Her mutation'a bağlansaydı, hatırlatmayı hiç ilgilendirmeyen bir gün sonu
+  /// sayımı bile telefonun bütün bildirimlerini silip yeniden yazdırırdı.
+  void _handleDataChanged() {
+    final revision = widget.financialDataChanges.planningRevision;
+    if (revision == _plannedRevision) return;
+    _plannedRevision = revision;
+    widget.reminderController.sync();
+  }
+
   @override
   void dispose() {
     widget.authController.removeListener(_handleAuthChanged);
+    widget.financialDataChanges.removeListener(_handleDataChanged);
     super.dispose();
   }
 

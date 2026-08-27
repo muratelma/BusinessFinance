@@ -921,6 +921,39 @@ sıradaki iştir.
 Sıradaki görev Aşama 04 Grup 6'dır: `İşlem ekle` menüsünü dört niyet başlığına
 taşımak.
 
+## 27 Ağustos 2026 — Aşama 06 Grup 3: cihaz üstü hatırlatma
+
+- Vadesi gelen kayıtlar için hatırlatma **telefonun kendi zamanlayıcısına**
+  kuruluyor: internet gerektirmiyor, geliştirme makinesi kapalıyken de çalışıyor.
+  Sunucuda tek satır kod ve tek kolon şema değişmedi
+- Kapı `Diğer → Hatırlatmalar`. `Hesabım` içinde değil: bu bir cihaz ayarıdır ve
+  aynı hesaba başka bir telefondan girildiğinde o telefon kendi kararını taşır
+- Ekran **kademeli**: kapalıyken yalnız tek anahtar duruyor. İzin ancak kullanıcı
+  anahtarı açtığında isteniyor; reddedilirse anahtar kapalı kalıyor, ekran bunu
+  söylüyor ve uygulama sessizce çalışmaya devam ediyor
+- Kaynak kanonik planlanan projection (30 günlük ufuk); istemci **ikinci bir vade
+  mantığı kurmuyor**. Yeniden kurma tek tek iptalin yerine geçiyor: her
+  senkronizasyon `cancelAll` ile başlıyor, ödenen kalemin bildirimi listede
+  olmadığı için kendiliğinden düşüyor
+- Tetikleyici iki tane: oturum açılışı ve `FinancialDataChanges.planningRevision`.
+  Yalnız planlanan hedefe bağlı — gün sonu sayımı gibi hatırlatmayı
+  ilgilendirmeyen bir mutation telefonun bildirimlerini yeniden yazdırmıyor
+- **Bildirim gün başına tek**: aynı güne düşen kalemler tek satırda toplanıyor
+  (`2 ödenecek yükümlülük, 1 kart ekstresi`). Gövdede **tutar ve karşı taraf adı
+  yok** — kilit ekranında görünen metin finansal bilgi taşımamalı
+- Beş kova var; vergi takvimi kaleminin ayrısı **yok**, çünkü kalem tekrarlayan
+  bir plandır ve öyle hatırlatılıyor
+- Liste okunamazsa kurulu bildirimler **düşürülmüyor** ve bu ekranda yazıyor:
+  dünkü hatırlatmayı silmek kullanıcıyı faturasından habersiz bırakırdı
+- Oturum kapanınca ayar siliniyor ve bütün bildirimler iptal ediliyor
+- Kesin alarm istenmiyor (`inexactAllowWhileIdle`); zaman dilimi cihazın o anki
+  UTC farkından kuruluyor, üçüncü bir native bağımlılık eklenmedi
+- Eklenen paketler: `flutter_local_notifications`, `timezone`. Android tarafında
+  `RECEIVE_BOOT_COMPLETED` izni, eklentinin iki alıcısı ve core library
+  desugaring
+- Geçen kontroller: flutter analyze temiz, `dart format` temiz, **814 test
+  geçti**, Android debug build üretildi
+
 ## Son oturum kapanışı
 
 - Yapılan değişiklik: Aşama 03 **Grup 1 tamamlandı**; yükümlülüğün tanıyan
@@ -1565,7 +1598,7 @@ plan. Hepsi sentetiktir ve istenirse silinebilir.
 
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: **Aşama 06 açıldı; Grup 1 ve Grup 2 tamamlandı.** Kullanıcı kendi hesabını görüyor, açık oturumlarını listeleyip
+- Yapılan değişiklik: **Aşama 06 açıldı; Grup 1, 2 ve 3 tamamlandı.** Kullanıcı kendi hesabını görüyor, açık oturumlarını listeleyip
   tek tek kapatıyor, parolasını değiştiriyor ve hesabını silebiliyor. ADR 0017
   yazıldı: hesabı kapatmak bir finansal düzeltme değildir, veri gerçekten
   silinir (parola + açık onay). Token cevaplarına `sessionId` eklendi; işletme
@@ -1578,6 +1611,11 @@ plan. Hepsi sentetiktir ve istenirse silinebilir.
 - Geçen kontroller: backend build + format + **1038 test** (gerçek SQL dâhil,
   2 skip: Gemini ve Brevo canlı sözleşme testleri); Flutter analyze + format +
   **790 test** + Android debug build
-- Sıradaki görev: **Aşama 06 Grup 3** — cihaz üstü hatırlatma (yerel bildirim).
-  Grup 1 ve 2 bitti; ikisinin cihaz kabul turu henüz yapılmadı
+  Grup 3 hatırlatmayı cihaza kurdu: `Diğer → Hatırlatmalar`, gün başına tek
+  bildirim, izin istenmeden hiçbir şey planlanmıyor ve veri değişince kurulu
+  bildirim düşüyor. Backend değişmedi
+- Geçen kontroller (Grup 3): flutter analyze + format + **814 test** + Android
+  debug build
+- Sıradaki görev: **Aşama 06 Grup 4** — varsayılan kapsamın uygulamadan
+  ayarlanması. Grup 1, 2 ve 3'ün cihaz kabul turu henüz yapılmadı
 

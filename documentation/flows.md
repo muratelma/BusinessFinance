@@ -1038,6 +1038,40 @@ olduğunu söylemiyor, ekran da söylemez. Sıfırlama tamamlanınca kullanıcı
 ekranına döner ve yeni parolasıyla girer — bütün oturumlar kapandığı için başka
 cihazda açık kalmış bir oturum da düşmüştür.
 
+## Hatırlatma akışı (Aşama 06 Grup 3)
+
+Hatırlatma **cihazda** kurulur: telefonun kendi zamanlayıcısına yazılır,
+internet gerektirmez ve geliştirme makinesi kapalıyken de çalışır. Sunucudan
+push gelmez (FCM bu aşamada bilerek eklenmedi).
+
+Kapısı `Diğer → Hatırlatmalar`. `Hesabım` içinde değil, çünkü bu bir cihaz
+ayarıdır: aynı hesaba başka bir telefondan girildiğinde o telefon kendi kararını
+taşır.
+
+| Adım | Ne olur |
+|---|---|
+| Ekran ilk açıldığında | Yalnız `Hatırlatmaları aç` anahtarı görünür; hiçbir izin sorulmamıştır ve hiçbir bildirim kurulmamıştır |
+| Anahtar açılır | Bildirim izni **o an** istenir. Verilirse yaklaşan kayıtlar okunur ve bildirimler kurulur |
+| İzin reddedilir | Anahtar kapalı kalır, ekran bunu söyler ve uygulama sessizce çalışmaya devam eder |
+| Tür ve saat seçilir | Beş kova (`Ödenecek yükümlülükler`, `Tahsil edilecekler`, `Tekrarlanan kayıtlar`, `Kart ekstreleri`, `Taksitler`) ve tek bir saat. Her değişiklik listeyi baştan kurar |
+| Veri değişir (ödeme yapıldı, yükümlülük kapandı) | Planlanan görünüm değiştiği için liste baştan kurulur; kapanan kalemin bildirimi **düşer** |
+| Oturum kapanır | Ayar ve kurulu bildirimler unutulur; aynı cihazdan giren ikinci kullanıcı birincisinin hatırlatmalarını devralmaz |
+
+Bildirim **gün başına tektir**: aynı güne düşen kalemler tek satırda toplanır
+(`2 ödenecek yükümlülük, 1 kart ekstresi`). Beş kalem beş bildirim olsaydı
+kullanıcı ilk gün bildirimleri kapatırdı.
+
+Gövdede **tutar ve karşı taraf adı geçmez** — kilit ekranında görünen bir metin
+finansal bilgi taşımamalı. Ne olduğunu söyler, ne kadar olduğunu değil.
+
+Vergi takvimi kaleminin kendi kovası yok: kalem tekrarlayan bir plandır ve
+planlanan görünüme öyle düşer. Ona ayrı bir kova açmak aynı kaydı iki yerden
+hatırlatırdı.
+
+Yaklaşan liste okunamazsa (sunucuya ulaşılamıyor) **kurulu bildirimler olduğu
+gibi kalır** ve ekran bunu söyler: dünkü hatırlatmayı silmek, kullanıcıyı
+faturasından habersiz bırakırdı.
+
 ## Responsive gezinme ve panel akışı
 
 Uygulama tek bir kırılım noktası tanımına dayanır (`AppBreakpoints`, Material 3

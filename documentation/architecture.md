@@ -1229,6 +1229,55 @@ Material color scheme kullanır ve aynı veri görünür aylık metin listesi il
 Semantics açıklamasında tekrar sunulur. Offline persistence yoktur; stale-cache
 yalnız controller belleğindeki son başarılı snapshot'tır ve banner ile işaretlenir.
 
+## Cihaz üstü hatırlatma mimarisi (Aşama 06 Grup 3)
+
+Hatırlatma tamamen **istemci tarafındadır**; backend'de tek satır kod veya tek
+kolon şema değişmedi.
+
+```text
+ActivityRepository.listPlanned(30 gün)   ← kanonik planlanan projection
+        │
+        ▼
+ReminderPlanner (saf)  ── gün başına tek bildirim, kova sayıları
+        │
+        ▼
+NotificationSchedulerContract (port)
+        │
+        ▼
+LocalNotificationScheduler → flutter_local_notifications → Android AlarmManager
+```
+
+Kurallar:
+
+- **İkinci bir vade mantığı yoktur.** Hangi kaydın ne zaman ödeneceğine
+  planlanan projection karar verir; istemci o listeyi zamanlayıcı biçimine
+  çevirir. Vade kuralı istemcide tekrarlansaydı iki gerçek doğardı.
+- **Eklenti kenardadır.** `ReminderPlanner` saf bir sınıftır ve
+  `NotificationSchedulerContract` bir porttur; controller ve planlayıcı
+  testlerinin hiçbiri platform kanalına dokunmaz.
+- **Yeniden kurma, tek tek iptalin yerine geçer.** Her senkronizasyon
+  `cancelAll` ile başlar ve listeyi baştan yazar; ödenen kalemin bildirimi
+  listede olmadığı için kendiliğinden düşer. Senkronizasyon iki yerden tetiklenir:
+  oturum açılışı ve `FinancialDataChanges.planningRevision`. Yalnız planlanan
+  hedefe bağlıdır — gün sonu sayımı gibi hatırlatmayı ilgilendirmeyen bir
+  mutation telefonun bildirimlerini yeniden yazdırmamalı.
+- **Ayar cihazda yaşar** (`flutter_secure_storage`, `ScopePreferences` ile aynı
+  gerekçe) ve oturum kapanınca silinir.
+- **Bildirim gövdesi finansal veri taşımaz**: tutar ve karşı taraf adı geçmez.
+- **Kesin alarm istenmez.** `inexactAllowWhileIdle` kullanılıyor;
+  `SCHEDULE_EXACT_ALARM`/`USE_EXACT_ALARM` bildirilmiyor. Sabah hatırlatmasının
+  saniye hassasiyetine ihtiyacı yok ve kesin alarm Android 14'ten beri
+  kullanıcıyı ikinci bir izin ekranına sokuyor.
+- **Zaman dilimi cihazın o anki UTC farkından kuruluyor**; IANA konum adını
+  öğrenmek için üçüncü bir native bağımlılık (`flutter_timezone`) eklenmedi.
+  Bedeli tek ve sınırlı: yaz saati geçişinin öbür tarafına kurulmuş bir
+  hatırlatma bir saat kayar. Kendi kendini toparlar — liste uygulama her
+  açıldığında ve veri her değiştiğinde o anki farkla yeniden kurulur.
+
+Sunucudan cihaza push (FCM) bu aşamada **eklenmedi**: sunucu ayakta değilken
+hiçbir şey göndermez ve uygulama bugün yalnız geliştirme makinesi açıkken
+çalışıyor. Karar Aşama 07'de yeniden açılır.
+
 ## Doğrulanan teknik kararlar
 
 - Solution biçimi: `.slnx`
@@ -1258,6 +1307,7 @@ yalnız controller belleğindeki son başarılı snapshot'tır ve banner ile iş
 | Application → SQL | Kullanıcıya ait kimlikler | Owner predicate, composite FK, unique constraint |
 | Cihaz depolaması | İstemci state'i | Secure storage; parola yok; logout/401 temizliği |
 | Local host → dış ağ | Yanlış bind/firewall | API ve SQL loopback bind; internet yayını yok |
+| Uygulama → cihaz bildirimi | Kilit ekranında görünen metin | Gövdede tutar ve karşı taraf adı yok; yalnız tür ve adet |
 | API → Gemini | Fiş byte'ları ve güvenilmeyen model yanıtı | Sunucuda secret, `store=false`, timeout/retry, yapılandırılmış JSON, altı kademe doğrulama; fotoğraf/yanıt loglanmaz veya sağlayıcı etkileşim geçmişinde tutulmaz |
 
 Native Android istemci tarayıcı olmadığı için CORS güvenlik sınırı değildir.

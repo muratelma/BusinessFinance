@@ -109,6 +109,13 @@ anlamına gelmez.
 Access ve refresh tokenlar çalışma zamanında Android secure storage'da tek bir
 session kaydı olarak tutulur. Parola saklanmaz ve tokenlar loglanmaz.
 
+Hatırlatma ayarı (açık/kapalı, seçili türler, saat) **yeni bir yapılandırma
+kaynağı değildir**: build flag'i, environment değişkeni ve sunucu alanı yoktur;
+aynı secure storage'da yaşar ve oturum kapanınca silinir. Android tarafında iki
+manifest satırı gerektirir — `RECEIVE_BOOT_COMPLETED` izni ve eklentinin iki
+alıcısı. `SCHEDULE_EXACT_ALARM`/`USE_EXACT_ALARM` **bilerek istenmez**; bildirim
+`inexactAllowWhileIdle` ile kurulur.
+
 Attachment root varsayılan olarak API executable base dizinine göre
 `storage/attachments` değeridir. Object key kullanıcı girdisinden üretilmez ve
 root dışında çözülen path reddedilir. Bu klasör Git'e eklenmez; container/host

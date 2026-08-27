@@ -32,6 +32,9 @@ import '../features/receipts/data/receipt_image_source.dart';
 import '../features/receipts/data/receipt_photo.dart';
 import '../features/receipts/data/receipt_preferences.dart';
 import '../features/receipts/data/receipt_repository.dart';
+import '../features/reminders/data/notification_scheduler.dart';
+import '../features/reminders/data/reminder_preferences.dart';
+import '../features/reminders/presentation/reminder_controller.dart';
 
 class AppDependencies {
   AppDependencies._(
@@ -63,6 +66,7 @@ class AppDependencies {
     this.receiptImageSource,
     this.receiptImageNormalizer,
     this.receiptPreferences,
+    this.reminderController,
     this._httpClient,
   );
 
@@ -104,6 +108,14 @@ class AppDependencies {
     final accountStatusController = AccountStatusController(
       userAccountRepository,
     );
+    // Hatırlatma cihazda kurulur: ayarı cihaz deposundan, hatırlatılacak
+    // listeyi kanonik planlanan projection'dan okur. İkinci bir vade mantığı
+    // yok.
+    final reminderController = ReminderController(
+      ReminderPreferences(),
+      LocalNotificationScheduler(),
+      activityRepository,
+    );
     // Kapsam anahtarı cihazdan, onboarding cevabı sunucudan okunur; ikisi de
     // oturum açıldığında yüklenir (`BusinessFinanceApp`).
     final scopeController = ScopeController(
@@ -140,6 +152,7 @@ class AppDependencies {
       ImagePickerReceiptImageSource(),
       const ReceiptImageNormalizer(),
       ReceiptPreferences(),
+      reminderController,
       httpClient,
     );
   }
@@ -188,12 +201,17 @@ class AppDependencies {
   final ReceiptImageSourceContract receiptImageSource;
   final ReceiptImageNormalizerContract receiptImageNormalizer;
   final ReceiptPreferencesContract receiptPreferences;
+
+  /// Cihaz üstü hatırlatma. Kompozisyon kökünde tek örnek: ayar ekranı
+  /// kapalıyken de (veri değiştiğinde) zamanlayıcıyı yeniden kurması gerekir.
+  final ReminderController reminderController;
   final http.Client _httpClient;
 
   void dispose() {
     authController.dispose();
     financialDataChanges.dispose();
     scopeController.dispose();
+    reminderController.dispose();
     _httpClient.close();
   }
 }

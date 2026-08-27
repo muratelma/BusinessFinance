@@ -582,6 +582,21 @@ Parola sıfırlama kendi sayfasıdır (`/password-reset`) ve giriş/kayıt ile a
 oturumsuz kabuğu paylaşır; `PasswordField` sıfırlama akışında `Yeni parola`
 etiketini alır, çünkü "Parola" demek mevcut parolayı soruyormuş gibi görünürdü.
 
+## Hatırlatma ayarı ekranı (Aşama 06 Grup 3)
+
+Ekranın tamamı cihaz ayarıdır; hiçbir alanı sunucuya yazılmaz. Kapısı `Diğer`
+menüsünde, `Planlama ve raporlar` ile `Veri ve yedek` arasında —
+kurduğunuz şeyler ile dosya işleri arasındaki doğal yer.
+
+Yapı **kademelidir**: kapalıyken tek bir anahtar durur, tür ve saat bölümleri
+hiç çizilmez. Kullanıcı henüz "istiyorum" demeden ona beş kova ve bir saat
+seçtirmek, cevabı kullanılmayacak bir soru sormak olurdu.
+
+Bölümler standart bileşenlerle kurulur: `AppCard` içinde `SwitchListTile`
+satırları, saat için `ListTile` + Material `showTimePicker`. İki `AppInlineNotice`
+kullanılır — izin reddi ve liste okunamaması. Üçüncü bir not (kilit ekranında
+tutar yazmadığı) **her hâlde** durur: gizlilik sözü, ancak görünürse sözdür.
+
 ## Erişilebilirlik kuralları
 
 1. **Hiçbir bilgi yalnız renkle taşınmaz.** Her durum ikon veya metinle de

@@ -47,3 +47,6 @@ const taxCalendarLocation = '/more/tax-calendar';
 
 /// Ay sonu muhasebeci paketi.
 const accountantPackageLocation = '/more/accountant-package';
+
+/// `Hatırlatmalar`: cihazın kendi zamanlayıcısına kurulan uyarıların ayarı.
+const remindersLocation = '/more/reminders';

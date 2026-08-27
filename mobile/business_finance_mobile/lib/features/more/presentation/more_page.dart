@@ -118,6 +118,14 @@ class MorePage extends StatelessWidget {
                 onTap: () => context.push('/more/accountant-package'),
               ),
             ],
+            // Hatırlatma bir cihaz ayarıdır, hesap ayarı değil: aynı hesaba
+            // başka bir telefondan girildiğinde o telefon kendi kararını
+            // taşır. Bu yüzden `Hesabım` içinde değil, kendi kapısında.
+            _MenuItem(
+              icon: Icons.notifications_active_outlined,
+              title: 'Hatırlatmalar',
+              onTap: () => context.push(remindersLocation),
+            ),
             _MenuItem(
               icon: Icons.folder_outlined,
               title: 'Veri ve yedek',

@@ -6,6 +6,16 @@
          tek dosyayı verir ve izin gerektirmez. CAMERA iznini yazmak, hiçbir ek
          yetenek kazandırmadan uygulamayı çalışma zamanı izin diyaloğuna sokar
          (Android, izni bildiren uygulamada onu ayrıca ister). -->
+    <!-- Hatırlatma bildirimleri (Aşama 06 Grup 3). POST_NOTIFICATIONS iznini
+         eklentinin kendi manifesti bildiriyor; buraya yalnız zamanlanmış
+         bildirimin cihaz yeniden başladıktan sonra da yaşaması için gereken
+         izin yazılıyor.
+
+         SCHEDULE_EXACT_ALARM / USE_EXACT_ALARM bilerek istenmiyor: sabah
+         hatırlatmasının saniye hassasiyetine ihtiyacı yok ve kesin alarm
+         Android 14'ten beri kullanıcıyı ikinci bir izin ekranına sokuyor.
+         Bildirim `inexactAllowWhileIdle` ile kuruluyor. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <application
         android:label="business_finance_mobile"
         android:name="${applicationName}"
@@ -32,6 +42,21 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Zamanlanmış bildirimi gösteren ve cihaz yeniden başladığında
+             yeniden kuran alıcılar; ikisi de dışa kapalı. -->
+        <receiver
+            android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver
+            android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

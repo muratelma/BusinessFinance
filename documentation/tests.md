@@ -1242,3 +1242,27 @@ planlanan ekranının iki testi de kırmızıya düştü.
 | İstemci doğrulaması | aynı dosya | Geçersiz adres, kısa kod ve zayıf parola istek üretmiyor |
 | Sıfırlama erişilebilir | aynı dosya | 2.0× ölçekte taşma yok, semantik kapı geçiliyor |
 
+## Cihaz üstü hatırlatma (27 Ağustos 2026, Aşama 06 Grup 3)
+
+Hiçbiri platform kanalına dokunmaz: zamanlayıcı bir port arkasındadır ve
+planlayıcı saf bir sınıftır.
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Aynı günün kalemleri tek bildirim | `reminder_planner_test` | Üç kalem → bir bildirim, gövde `2 ödenecek yükümlülük, 1 kart ekstresi` |
+| Gövde finansal veri taşımıyor | aynı dosya | Başlık ve gövdede tutar da karşı taraf adı da yok |
+| Taksitin üç türü tek kovada | aynı dosya | Kart, borç ve alacak taksidi → `3 taksit` |
+| Seçilmemiş tür planlanmıyor | aynı dosya | Kova kapalıyken o günün bildirimi hiç kurulmuyor |
+| Geçmişe bildirim kurulmuyor | aynı dosya | Geçmiş gün ve bugünün geçmiş saati atlanıyor |
+| Bozuk tarih listeyi düşürmüyor | aynı dosya | Ayrıştırılamayan satır eleniyor, kalan planlanıyor |
+| İzin istenmeden bildirim yok | `reminder_controller_test` | Kapalıyken izin sorulmuyor, planlanan liste bile okunmuyor |
+| İzin reddi sessiz | aynı dosya + `reminder_settings_page_test` | Anahtar kapalı kalıyor, ekran söylüyor, uygulama çalışmaya devam ediyor |
+| Veri değişince bildirim düşüyor | `reminder_controller_test` | Kalem listeden düşünce kurulu bildirim de düşüyor |
+| Okunamayan liste kurulu bildirimi silmiyor | aynı dosya | Hata sonrası zamanlayıcı olduğu gibi kalıyor |
+| Oturum kapanınca unutuluyor | aynı dosya | Ayar siliniyor, bütün bildirimler iptal ediliyor |
+| Saat ve tür değişimi listeyi taşıyor | aynı dosya | Yeni saat/kova hemen yeniden kuruluyor |
+| Ekran kapalıyken sade | `reminder_settings_page_test` | Yalnız ana anahtar; tür ve saat bölümleri yok |
+| Hiç tür seçili değilken | aynı dosya | "Hatırlatma kurulmadı" yazıyor |
+| Gizlilik notu her hâlde duruyor | aynı dosya | Kilit ekranı uyarısı ekranda |
+| Menüdeki yeri | `more_page_test` | `Hatırlatmalar` satırı `Planlama ve raporlar` ile `Veri ve yedek` arasında |
+

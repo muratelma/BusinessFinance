@@ -76,6 +76,8 @@ import '../../features/receipts/presentation/receipt_scan_controller.dart';
 import '../../features/receipts/presentation/receipt_scan_page.dart';
 import '../../features/receipts/presentation/invoice_decision_page.dart';
 import '../../features/receipts/presentation/refund_decision_page.dart';
+import '../../features/reminders/presentation/reminder_controller.dart';
+import '../../features/reminders/presentation/reminder_settings_page.dart';
 import '../widgets/app_state_views.dart';
 import 'app_locations.dart';
 
@@ -110,6 +112,7 @@ GoRouter createAppRouter({
   ReceiptImageSourceContract? receiptImageSource,
   ReceiptImageNormalizerContract? receiptImageNormalizer,
   ReceiptPreferencesContract? receiptPreferences,
+  ReminderController? reminderController,
 }) {
   return GoRouter(
     initialLocation: initialLocation,
@@ -708,6 +711,20 @@ GoRouter createAppRouter({
                   repository: userAccountRepository,
                   authRepository: authRepository,
                 ),
+          authController,
+        ),
+      ),
+      GoRoute(
+        path: remindersLocation,
+        pageBuilder: (context, state) => _sessionPage(
+          state,
+          reminderController == null
+              ? const Scaffold(
+                  body: AppErrorView(
+                    message: 'Hatırlatma servisi yapılandırılmadı.',
+                  ),
+                )
+              : ReminderSettingsPage(controller: reminderController),
           authController,
         ),
       ),

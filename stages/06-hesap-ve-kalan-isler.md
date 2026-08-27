@@ -243,6 +243,24 @@ nokta ve `Hesabım` sayfasındaki kart. Parola sıfırlama giriş ekranının al
 
 ### Grup 3 — Hatırlatma (cihaz üstü bildirim)
 
+**Durum: tamamlandı (27 Ağustos 2026).** Grupta verilmesi gereken üç karar
+verildi ve belgelere yazıldı:
+
+- **Bildirim gün başına tektir.** Aynı güne düşen kalemler tek satırda toplanır
+  (`2 ödenecek yükümlülük, 1 kart ekstresi`); beş kalem beş bildirim olsaydı
+  kullanıcı ilk gün bildirimleri kapatırdı. Vergi takvimi kaleminin ayrı bir
+  kovası **yok**: kalem tekrarlayan bir plandır ve öyle hatırlatılır.
+- **Kesin alarm istenmiyor** (`inexactAllowWhileIdle`). Sabah hatırlatmasının
+  saniye hassasiyetine ihtiyacı yok ve `SCHEDULE_EXACT_ALARM` Android 14'ten
+  beri kullanıcıyı ikinci bir izin ekranına sokuyor.
+- **Zaman dilimi cihazın o anki UTC farkından kuruluyor**; IANA konum adı için
+  üçüncü bir native bağımlılık eklenmedi. Bedeli sınırlı ve kendi kendini
+  toparlıyor (liste her açılışta ve her veri değişiminde yeniden kuruluyor).
+
+Eklenen bağımlılıklar: `flutter_local_notifications` ve `timezone`. Backend'de
+tek satır değişmedi; şema ve yedek sürümü yerinde. Cihaz kabul turu (gerçek
+izin diyaloğu ve düşen bildirim) henüz yapılmadı.
+
 - Vadesi gelen yükümlülük, vergi takvimi kalemi, kart ekstresi ve taksit için
   telefonun kendi zamanlayıcısına yazılan yerel bildirim.
 - Kaynak kanonik planlanan projection'dır; istemci ikinci bir vade mantığı

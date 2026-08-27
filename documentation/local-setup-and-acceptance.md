@@ -149,6 +149,7 @@ Gerçek ad, e-posta, parola, hesap veya finansal açıklama kullanmayın.
 | Timeout/çift gönderim | Unit | Açık timeout; istemci aynı submit'i kilitler | ApiClient/controller testleri |
 | Kapsam: iki esnaf senaryosu | Otomatik | Kapsam gönderilmeden kayıt doğru tarafa yazılır; **işletme neti şahsi harcamadan etkilenmez**; bakiye üç kapsamda da aynı; ikinci esnaf birincinin kaydını hiçbir kapsamda görmez | `stage01_scope_acceptance_test.dart` (Pixel 8 + gerçek API/SQL, 23 Ağustos 2026) |
 | Kapsam: özet ekranı ve form | Manuel | Anahtar üç konumda; hero `İşletme neti` / `Şahsi çekim` / `Bu ayın neti`; `İşletme` seçilince gider yalnız işletme tarafını gösterir; `Varlık durumu` ve `Hesap bakiyeleri` toplam gösterdiğini yazar; formdaki çip kategoriden dolar ve tek dokunuşla değişir | Pixel 8 gözlemi, 23 Ağustos 2026 |
+| Hatırlatma: izin, kurulum ve iptal | Manuel | Anahtar kapalıyken izin sorulmaz; açılınca Android izin diyaloğu çıkar; reddedilince uygulama sessizce çalışır; yaklaşan bir yükümlülük için hatırlatma kurulur ve **ödendiğinde düşer**; bildirim gövdesinde tutar ve kişi adı yoktur | Pixel 8 gözlemi (bekliyor) |
 
 ## 8. Durdurma ve sorun giderme
 

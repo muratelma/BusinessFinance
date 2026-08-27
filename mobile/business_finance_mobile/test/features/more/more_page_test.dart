@@ -27,6 +27,9 @@ void main() {
     'Borç ve alacaklar',
     'Tasarruf hedefleri',
     'Planlama ve raporlar',
+    // Hatırlatma bir cihaz ayarıdır, hesap ayarı değil: aynı hesaba başka bir
+    // telefondan girildiğinde o telefon kendi kararını taşır.
+    'Hatırlatmalar',
     'Veri ve yedek',
     // Hesabın ikinci kapısı; birincisi Özet'in sağ üstündeki ikon.
     'Hesabım',
