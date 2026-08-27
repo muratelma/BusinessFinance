@@ -1379,9 +1379,11 @@ internal sealed class EfFinancialReportRepository(
 
         return cards.Select(card =>
         {
-            var debt = Math.Max(
-                0m,
-                charges.GetValueOrDefault(card.Id) - payments.GetValueOrDefault(card.Id));
+            // Kırpılmaz: negatif borç kartın alacaklı bakiyesidir ve net
+            // varlığa girer. `- cardDebt` toplamında negatif bir borç varlığı
+            // **artırır**; kullanıcının kartta duran parası da onun parasıdır.
+            var debt = charges.GetValueOrDefault(card.Id) -
+                       payments.GetValueOrDefault(card.Id);
             return new CardDebtDto(
                 card.Id,
                 card.Name,

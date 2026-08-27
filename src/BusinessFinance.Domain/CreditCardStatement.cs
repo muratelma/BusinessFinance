@@ -69,11 +69,16 @@ public sealed record CreditCardStatement(
                 "Statement cannot be calculated before its closing date.");
         }
 
-        ValidateNonNegative(previousBalance, nameof(previousBalance));
+        // Devir **negatif olabilir**: geçen dönemden kalan alacaklı bakiye bu
+        // dönemin ekstresinden düşer. Kırpmak, kartında parası olan kullanıcıya
+        // borçlu olmadığı bir tutarı ödetirdi.
         ValidateNonNegative(periodCharges, nameof(periodCharges));
         ValidateNonNegative(paymentsThroughClosing, nameof(paymentsThroughClosing));
         ValidateNonNegative(paymentsAfterClosing, nameof(paymentsAfterClosing));
 
+        // Ekstre borcunun tabanı **duruyor**: bu "ne kadar ödemeliyim"in
+        // cevabıdır ve negatif olamaz. Kartın alacaklı bakiyesi ayrı bir
+        // sorunun cevabıdır (`CurrentDebt`) ve orada kırpılmaz.
         var statementBalance = Math.Max(
             0m,
             previousBalance + periodCharges - paymentsThroughClosing);

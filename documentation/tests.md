@@ -1277,3 +1277,15 @@ planlayıcı saf bir sınıftır.
 | `Belirtilmedi` gerçekten boşaltıyor | aynı dosya | Dolu bir etiket kaldırılabiliyor |
 | İstek gövdesi sözleşmeye uyuyor | `account_feature_test`, `category_feature_test` | `defaultScope` create ve update gövdesinde; kategoride `defaultIsTaxDeductible` de taşınıyor |
 
+## Fazla ödenmiş kart bakiyesi (27 Ağustos 2026, Aşama 06 Grup 5)
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Alacaklı bakiye kırpılmıyor | `SqlServerPersistenceIntegrationTests.OverpaidCard_KeepsItsCreditBalanceInDebtLimitAndNetWorth` | Gerçek SQL: borç −500, kart dağılımı −500, net varlık kart alacağını içeriyor |
+| Kullanılabilir limit limitin üstüne çıkıyor | aynı test + `CreditCardTests` | Alacaklı kartta limit + alacak; limiti aşmış kartta hâlâ sıfır |
+| Devir alacağı düşüyor | `CreditCardStatementTests.Create_WhenPreviousPeriodWasOverpaid_...` | Negatif devir bu dönemin ekstresinden düşüyor |
+| Ekstre negatif borç istemiyor | `CreditCardStatementTests.Create_WhenTheCreditExceedsThePeriod_...` | Devir dönemi aşsa bile ödenecek tutar sıfır, durum `Paid` |
+| İstemci cümleyi çeviriyor | `finance_feature_test` | Liste `alacağınız var` diyor, ayrıntı `Kart alacağınız` yazıyor, `Borç -` hiç geçmiyor |
+| Özet satırı ad ve yön değiştiriyor | `dashboard_sections_test` | `Kart alacağı`, gelir tonu, ekran okuyucuya `net varlığa eklenir` |
+| İşaret yardımcıları | `card_credit_balance_test` | `isNegative` ve `unsigned` tutarı bozmadan işareti okuyor/atıyor |
+

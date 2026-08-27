@@ -49,13 +49,23 @@ public sealed class CreditCardTests
         Assert.False(card.IsActive);
     }
 
+    /// <summary>
+    /// Aşama 06 Grup 5: taban yalnız tek uçta duruyor.
+    /// </summary>
+    /// <remarks>
+    /// Limiti aşmış kartta kullanılabilir tutar sıfırdır — "eksi 2.000
+    /// harcayabilirsiniz" diye bir şey yok. Ters uçta ise kırpma <b>kalktı</b>:
+    /// kartın alacaklı bakiyesi gerçek bir harcama alanıdır, para karttadır.
+    /// Eskiden negatif borç exception atıyordu ve bu, alacaklı bakiyenin
+    /// hiçbir yolda temsil edilememesinin sebebiydi.
+    /// </remarks>
     [Fact]
-    public void CalculateAvailableLimit_WhenDebtExceedsLimit_ClampsAtZero()
+    public void CalculateAvailableLimit_ClampsAtZeroButLetsACreditBalanceRaiseIt()
     {
         var card = CreateCard();
 
         Assert.Equal(0m, card.CalculateAvailableLimit(12000m));
-        Assert.Throws<ArgumentOutOfRangeException>(() => card.CalculateAvailableLimit(-1m));
+        Assert.Equal(10500m, card.CalculateAvailableLimit(-500m));
     }
 
     private static CreditCard CreateCard(

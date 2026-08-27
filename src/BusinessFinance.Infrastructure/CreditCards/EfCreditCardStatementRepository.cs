@@ -44,7 +44,9 @@ internal sealed class EfCreditCardStatementRepository(BusinessFinanceDbContext d
             .SumAsync(payment => payment.Amount.Amount, cancellationToken);
 
         return new StatementActivitySnapshot(
-            Math.Max(0m, previousCharges - previousPayments),
+            // Devir kırpılmaz: geçen dönemden kalan alacaklı bakiye bu dönemin
+            // ekstresinden düşer. Ödenecek tutarın tabanı Domain'de duruyor.
+            previousCharges - previousPayments,
             periodCharges,
             paymentsThroughClosing,
             paymentsAfterClosing);

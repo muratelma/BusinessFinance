@@ -14,7 +14,6 @@ geçmişti; buraya taşındılar çünkü hâlâ geçerliler.
 
 | # | İş | Kaynak | Durum |
 |---|---|---|---|
-| 1 | **Fazla ödenmiş kart bakiyesi net varlıkta kayboluyor** — kart borcu `Math.Max(0, harcama − ödeme)` ile kart başına kırpılıyor. Kartı fazla ödersen oluşan alacaklı bakiye senin paran ama net varlıkta 0 sayılıyor. Mevcut veride tetiklenmiyor; denetimde görüldü, tetiklenmeden finansal anlam değiştirmemek için kayda geçirildi | 2026-08-18 denetim | Öneri |
 | 2 | **Bütçe ekranı iyileştirmeleri** — kapsamı belirsiz; alınmadan önce kısa bir öneri listesine dönmesi gerekiyor. Bütçenin hangi kapsamı sınırladığı sorusu Aşama 01'e girdi; geri kalan iyileştirmeler burada duruyor | kullanıcı listesi | Öneri |
 | 3 | **Fiş/dekont akışının cihaz kabul turu** — belge yönü (harcama/gelir/iade/fatura-ödeme/taksit/borç verme) için Pixel 8'de manuel kabul turu yapılmadı. Kod ve testler yerinde; eksik olan cihaz doğrulaması | devralınan | Açık |
 | 4 | **Fiş okumada veri sınırı kararı** — hangi belgenin hangi katmana gönderileceği kararı bilinçli olarak ertelenmişti. Gerçek ve değerli belgeye geçmeden önce alınmalı ve ADR 0011'e işlenmeli | devralınan | Açık |
@@ -43,8 +42,10 @@ durmuyorlar, izleri kayıt olsun diye yazılı:
 - Fiş okumada veri sınırı kararı (madde 4) → Aşama 07'nin **açılış kararı**
 
 Madde 5 **kapandı** (Aşama 06 Grup 4, 27 Ağustos 2026): varsayılan kapsam artık
-hesap, kart ve kategori formundan ayarlanıyor. Kalan maddeler tabloda **Durum**
-sütunuyla birlikte duruyor; aşamaya bağlanmak alınmak değildir.
+hesap, kart ve kategori formundan ayarlanıyor. Madde 1 **kapandı** (Aşama 06
+Grup 5, 27 Ağustos 2026): kart borcu kırpılmıyor, alacaklı bakiye net varlığa
+giriyor. Kalan maddeler tabloda **Durum** sütunuyla birlikte duruyor; aşamaya
+bağlanmak alınmak değildir.
 
 ## Park edilenler (bu tur değil)
 

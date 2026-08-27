@@ -46,6 +46,55 @@ public sealed class CreditCardStatementTests
         Assert.Equal(expectedStatus, statement.PaymentStatus.ToString());
     }
 
+    /// <summary>
+    /// Aşama 06 Grup 5: geçen dönemden kalan alacaklı bakiye devreder.
+    /// </summary>
+    /// <remarks>
+    /// Devir kırpılsaydı, kartında parası olan kullanıcıdan bu dönemin
+    /// harcamalarının tamamı isteniyordu — borçlu olmadığı bir tutar.
+    /// </remarks>
+    [Fact]
+    public void Create_WhenPreviousPeriodWasOverpaid_CarriesTheCreditForward()
+    {
+        var statement = CreditCardStatement.Create(
+            CreateCard(10, 20),
+            2026,
+            5,
+            new DateOnly(2026, 5, 15),
+            previousBalance: -100m,
+            periodCharges: 300m,
+            paymentsThroughClosing: 0m,
+            paymentsAfterClosing: 0m);
+
+        Assert.Equal(200m, statement.StatementBalance);
+        Assert.Equal(200m, statement.RemainingBalance);
+    }
+
+    /// <summary>
+    /// Ödenecek tutarın tabanı **duruyor**: devreden alacak dönem
+    /// harcamasından büyük olsa bile ekstre negatif borç göstermez.
+    /// "Bu ay ne kadar ödemeliyim" sorusunun cevabı eksi olamaz; kartın
+    /// alacaklı bakiyesi ayrı bir sorunun cevabıdır ve orada kırpılmaz.
+    /// </summary>
+    [Fact]
+    public void Create_WhenTheCreditExceedsThePeriod_StillNeverAsksForANegativeAmount()
+    {
+        var statement = CreditCardStatement.Create(
+            CreateCard(10, 20),
+            2026,
+            5,
+            new DateOnly(2026, 5, 15),
+            previousBalance: -500m,
+            periodCharges: 300m,
+            paymentsThroughClosing: 0m,
+            paymentsAfterClosing: 0m);
+
+        Assert.Equal(0m, statement.StatementBalance);
+        Assert.Equal(0m, statement.RemainingBalance);
+        Assert.Equal(0m, statement.MinimumPayment);
+        Assert.Equal("Paid", statement.PaymentStatus.ToString());
+    }
+
     [Fact]
     public void Create_BeforeClosingDate_IsRejected()
     {

@@ -80,7 +80,12 @@ internal sealed class EfCreditCardRepository(BusinessFinanceDbContext dbContext)
                               payment.UserId == userId &&
                               !payment.IsCancelled)
             .SumAsync(payment => payment.Amount.Amount, cancellationToken);
-        return Math.Max(0m, charges - payments);
+        // **Kırpılmaz.** Negatif sonuç kartın alacaklı bakiyesidir: kullanıcı
+        // kartına borcundan fazlasını ödemiş ya da ödediği harcama sonradan
+        // iptal edilmiştir. Sıfıra çekmek, kullanıcının parasını yok saymak
+        // olurdu — cari hesapta "fazla tahsilat kırpılmaz" kararı (Aşama 02)
+        // aynı soruya zaten bu cevabı veriyordu.
+        return charges - payments;
     }
 
     public async Task UpdateOwnedAsync(

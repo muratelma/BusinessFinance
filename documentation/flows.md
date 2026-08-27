@@ -1038,6 +1038,25 @@ olduğunu söylemiyor, ekran da söylemez. Sıfırlama tamamlanınca kullanıcı
 ekranına döner ve yeni parolasıyla girer — bütün oturumlar kapandığı için başka
 cihazda açık kalmış bir oturum da düşmüştür.
 
+## Fazla ödenmiş kartın anlatımı (Aşama 06 Grup 5)
+
+Kart borcu artık negatif olabilir. Ekranda bu **eksi borç** diye değil,
+**alacak** diye okunur: cümle yönü kendisi söyler, eksi işaretine gerek yoktur.
+
+| Yer | Borçluyken | Alacaklıyken |
+|---|---|---|
+| Kart listesi satırı | `Borç ₺500,00` | `Kartınızda ₺500,00 alacağınız var` |
+| Kart ayrıntısı kutusu | `Güncel borç`, gider tonu | `Kart alacağınız`, gelir tonu |
+| Özet → Varlık durumu | `Kart borcu … net varlığı düşürür` | `Kart alacağı … net varlığa eklenir` |
+| Planlama özeti | `Kart borcu ₺500,00` | `Kart alacağı ₺500,00` |
+
+Satır hem **adını** hem **yönünü** değiştirir. Yalnız birini değiştirmek iki kez
+yanlış olurdu: "Kart borcu −₺500,00, net varlığı düşürür" hem borç olmadığı hâlde
+borç der, hem varlığı artıran bir tutarı düşüren diye anlatır.
+
+Kullanılabilir limit o kartta limitin **üstüne** çıkar; para karttadır ve
+harcanabilir. Ekstre ise değişmez: ödenecek tutar hiçbir zaman negatif olmaz.
+
 ## Varsayılan kapsamın ayarlanması (Aşama 06 Grup 4)
 
 Kapsam türetme zinciri üç halkalıdır: **kullanıcının açık seçimi → kaynağın

@@ -498,14 +498,28 @@ class _NetWorthCard extends StatelessWidget {
             meaning: 'net varlığa eklenir',
           ),
           const SizedBox(height: AppSpacing.small),
-          _NetWorthLine(
-            icon: Icons.credit_card,
-            label: 'Kart borcu',
-            amount: report.creditCardDebt,
-            currency: report.currency,
-            effect: AppMoneyEffect.expense,
-            meaning: 'net varlığı düşürür',
-          ),
+          // Kart borcu negatif olabilir (Aşama 06 Grup 5): fazla ödenmiş
+          // kartta duran para kullanıcınındır ve net varlığı **artırır**.
+          // Satır o zaman hem adını hem yönünü değiştirir; "Kart borcu −₺500,
+          // net varlığı düşürür" iki kez yanlış olurdu.
+          if (MoneyText.isNegative(report.creditCardDebt))
+            _NetWorthLine(
+              icon: Icons.credit_card,
+              label: 'Kart alacağı',
+              amount: MoneyText.unsigned(report.creditCardDebt),
+              currency: report.currency,
+              effect: AppMoneyEffect.income,
+              meaning: 'net varlığa eklenir',
+            )
+          else
+            _NetWorthLine(
+              icon: Icons.credit_card,
+              label: 'Kart borcu',
+              amount: report.creditCardDebt,
+              currency: report.currency,
+              effect: AppMoneyEffect.expense,
+              meaning: 'net varlığı düşürür',
+            ),
           // Net varlık dört terimden hesaplanıyor:
           //   likit varlık − kart borcu + alacak − borç
           // Kart uzun süre ilk ikisini gösterdi; açık bir borcu ya da alacağı

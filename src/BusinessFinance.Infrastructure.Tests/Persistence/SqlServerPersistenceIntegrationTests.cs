@@ -3968,6 +3968,76 @@ public sealed class SqlServerPersistenceIntegrationTests
         Assert.Contains(lines, line => line.VatAmount == 20m && line.IsTaxDeductible == true);
     }
 
+    /// <summary>
+    /// Aşama 06 Grup 5: fazla ödenmiş kartın alacaklı bakiyesi kırpılmaz.
+    /// </summary>
+    /// <remarks>
+    /// Senaryo gerçek yoldan kuruluyor: ödeme borcu aşamaz (uygulama bunu
+    /// reddeder), ama ödenmiş bir harcamanın <b>iptali</b> kartı alacaklı
+    /// bırakır. Eskiden borç <c>Math.Max(0, …)</c> ile kart başına kırpılıyordu
+    /// ve kullanıcının kartta duran parası net varlıkta sıfır sayılıyordu —
+    /// cari hesabın "fazla tahsilat kırpılmaz" kararıyla (Aşama 02) doğrudan
+    /// çelişen ikinci bir cevap.
+    /// </remarks>
+    [SqlServerFact]
+    public async Task OverpaidCard_KeepsItsCreditBalanceInDebtLimitAndNetWorth()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var user = CreateUser("overpaid-card@example.test");
+        await database.SeedUsersAsync(user);
+
+        var account = new Account(
+            Guid.NewGuid(), user.Id, "Banka", AccountType.Bank, CurrencyCode.TRY, 1_000m);
+        var category = new Category(Guid.NewGuid(), user.Id, "Market", CategoryType.Expense);
+        var card = new CreditCard(
+            Guid.NewGuid(), user.Id, "Kart", new Money(10_000m, CurrencyCode.TRY), 10, 20);
+        var charge = new CreditCardCharge(
+            Guid.NewGuid(), user.Id, card, category, new Money(500m, CurrencyCode.TRY),
+            TransactionScope.Business, new DateOnly(2026, 8, 3));
+        var payment = new CreditCardPayment(
+            Guid.NewGuid(), user.Id, account, card, new Money(500m, CurrencyCode.TRY),
+            new DateOnly(2026, 8, 5));
+
+        await using (var seed = database.CreateContext())
+        {
+            seed.AddRange(account, category, card, charge, payment);
+            await seed.SaveChangesAsync(CancellationToken.None);
+        }
+
+        // Harcama iptal edilir; ödeme yerinde kalır. Kart artık 500 alacaklıdır.
+        await using (var context = database.CreateContext())
+        {
+            var stored = await context.CreditCardCharges.SingleAsync(item => item.Id == charge.Id);
+            stored.Cancel(DateTimeOffset.UtcNow);
+            await context.SaveChangesAsync(CancellationToken.None);
+        }
+
+        await using var provider = CreateServiceProvider(database.ConnectionString);
+        await using var scope = provider.CreateAsyncScope();
+        var cards = scope.ServiceProvider.GetRequiredService<ICreditCardRepository>();
+        var reports = scope.ServiceProvider.GetRequiredService<IFinancialReportRepository>();
+
+        var debt = await cards.CalculateCurrentDebtAsync(card.Id, user.Id, CancellationToken.None);
+        Assert.Equal(-500m, debt);
+
+        // Kartta duran para gerçek bir harcama alanıdır: limitin üstüne çıkar.
+        Assert.Equal(10_500m, card.CalculateAvailableLimit(debt));
+
+        var advanced = await reports.GetAdvancedAsync(
+            user.Id, 2026, 8, new DateOnly(2026, 8, 31), 3, 30, null, CancellationToken.None);
+
+        Assert.Equal(-500m, advanced.NetWorth.CreditCardDebt);
+        Assert.Equal(
+            -500m,
+            Assert.Single(advanced.CardDistribution, item => item.CreditCardId == card.Id).Debt);
+
+        // Hesap: 1.000 açılış - 500 kart ödemesi. Net varlık kart alacağını
+        // **içerir**: 500 + 500 = 1.000. Kırpma dursaydı 500 görünecekti ve
+        // kullanıcının 500 lirası ekranda yok olacaktı.
+        Assert.Equal(500m, advanced.NetWorth.LiquidAssets);
+        Assert.Equal(1_000m, advanced.NetWorth.NetWorth);
+    }
+
     [SqlServerFact]
     public async Task UserAccountEraser_RemovesEveryRowTheUserOwnsAndLeavesOtherUsersUntouched()
     {
@@ -4273,10 +4343,16 @@ public sealed class SqlServerPersistenceIntegrationTests
             await context.Database.MigrateAsync(CancellationToken.None);
         }
 
-        public async Task ExecuteAsync(string sql, params object[] parameters)
+        /// <summary>
+        /// Ham SQL çalıştırır. Parametre dizisi <b>nullable</b>: kapsamsız bir
+        /// kategori gibi "değeri yok" durumları çıplak null olarak geçer ve EF
+        /// bunu <c>NULL</c>'a çevirir. <c>DBNull</c> burada çalışmaz — sağlayıcının
+        /// o tip için eşlemesi yok.
+        /// </summary>
+        public async Task ExecuteAsync(string sql, params object?[] parameters)
         {
             await using var context = CreateContext();
-            await context.Database.ExecuteSqlRawAsync(sql, parameters);
+            await context.Database.ExecuteSqlRawAsync(sql, parameters!);
         }
 
         public BusinessFinanceDbContext CreateContext()

@@ -975,9 +975,37 @@ taşımak.
 - Geçen kontroller: flutter analyze temiz, `dart format` temiz, **823 test
   geçti**, Android debug build üretildi
 
+## 27 Ağustos 2026 — Aşama 06 Grup 5: fazla ödenmiş kart bakiyesi
+
+- Kart borcunun kart başına `Math.Max(0, harcama − ödeme)` ile kırpılması
+  **kaldırıldı**. Alacaklı bakiye artık net varlığa giriyor, kart dağılımında
+  görünüyor ve kullanılabilir limiti limitin üstüne çıkarıyor. Ürün "fazla
+  ödenen para kimin?" sorusuna artık tek cevap veriyor; cari hesap tarafı bu
+  cevabı Aşama 02'den beri veriyordu
+- Senaryonun gerçek yolu ödeme değil **iptal**: uygulama borcu aşan ödemeyi
+  zaten reddediyor, ama ödenmiş bir harcamanın iptali kartı alacaklı bırakıyor
+- **Taban iki yerde bilinçli olarak duruyor**, çünkü ayrı bir soruyu
+  cevaplıyorlar: limiti aşmış kartta kullanılabilir tutar sıfırdır ve ekstre
+  borcu negatif olmaz — ekstre "bu ay ne kadar ödemeliyim"in cevabıdır.
+  Ekstrenin **devri** ise kırpılmıyor: geçen dönemden kalan alacak bu dönemin
+  ekstresinden düşüyor, yoksa kartında parası olan kullanıcıdan borçlu olmadığı
+  tutar isteniyordu
+- Arayüz ad ve yön birlikte değişiyor: liste satırı `Kartınızda ₺500,00
+  alacağınız var`, kart ayrıntısı `Kart alacağınız` (gelir tonu), Özet'in varlık
+  kartı `Kart alacağı … net varlığa eklenir`. `Borç −₺500,00` hiçbir yerde
+  yazmıyor
+- Kırılan tek mevcut test `CalculateAvailableLimit`'in negatif borçta exception
+  atmasını bekleyen testti; bilinçli olarak güncellendi
+- `docs/backlog.md` madde 1 kapandı
+- Yanı sıra: `SqlTestDatabase.ExecuteAsync` parametre dizisi nullable yapıldı;
+  önceki gruplardan kalan tek derleyici uyarısı (CS8604) böylece düştü
+- Geçen kontroller: backend build (**0 uyarı**) + format temiz + **1041 test**
+  (gerçek SQL dâhil, 2 skip: Gemini ve Brevo canlı sözleşme testleri); Flutter
+  analyze + format + **829 test** + Android debug build
+
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: **Aşama 06 açıldı; Grup 1, 2, 3 ve 4 tamamlandı.**
+- Yapılan değişiklik: **Aşama 06 açıldı; Grup 1, 2, 3, 4 ve 5 tamamlandı.**
   - **Grup 1** kullanıcının kendi hesabını uygulamaya açtı: e-posta, açık
     oturumlar, parola değiştirme ve hesabı kapatma. ADR 0017 yazıldı — hesabı
     kapatmak bir finansal düzeltme değildir, veri gerçekten silinir (parola +
@@ -992,9 +1020,11 @@ taşımak.
   - **Grup 4** varsayılan kapsamı hesap, kart ve kategori formuna açtı ve
     `PUT`'un sessizce sildiği varsayılanları düzeltti; `docs/backlog.md`
     madde 5 kapandı. Backend değişmedi
-- Geçen kontroller: backend build + format + **1038 test** (gerçek SQL dâhil,
-  2 skip: Gemini ve Brevo canlı sözleşme testleri); Flutter analyze + format +
-  **823 test** + Android debug build
-- Sıradaki görev: **Aşama 06 Grup 5** — fazla ödenmiş kart bakiyesinin net
-  varlıkta kaybolması (backlog madde 1). Grup 1–4'ün cihaz kabul turu henüz
-  yapılmadı
+  - **Grup 5** kart borcundaki kırpmayı kaldırdı: alacaklı bakiye net varlığa
+    giriyor ve arayüzde borç değil alacak olarak okunuyor; madde 1 kapandı.
+    Şema değişmedi, migration yok
+- Geçen kontroller: backend build (0 uyarı) + format temiz + **1041 test**
+  (gerçek SQL dâhil, 2 skip: Gemini ve Brevo canlı sözleşme testleri); Flutter
+  analyze + format + **829 test** + Android debug build
+- Sıradaki görev: **Aşama 06 Grup 6** — fiş/dekont akışının cihaz kabul turu
+  (backlog madde 3). Grup 1–5'in cihaz kabul turu da henüz yapılmadı

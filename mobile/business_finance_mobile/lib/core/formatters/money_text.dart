@@ -16,6 +16,21 @@ class MoneyText {
   /// Ekranda gösterilen ondalık basamak sayısı.
   static const int displayDecimals = 2;
 
+  /// Tutar eksi mi.
+  ///
+  /// Kart borcu **negatif olabilir** (Aşama 06 Grup 5): fazla ödenmiş ya da
+  /// ödenmiş harcaması iptal edilmiş kartta duran para kullanıcınındır. Ekranda
+  /// bu "eksi borç" diye değil, "alacağınız var" diye okunur; kararı çağıran
+  /// verir, bu yalnız soruyu cevaplar.
+  static bool isNegative(String amount) => amount.startsWith('-');
+
+  /// Tutarın işaretsiz hâli.
+  ///
+  /// Cümlenin kendisi yönü söylediğinde eksi işareti gereksizdir ve
+  /// "−₺500 alacağınız var" gibi iki kez olumsuzlanmış bir metin doğururdu.
+  static String unsigned(String amount) =>
+      amount.startsWith('-') ? amount.substring(1) : amount;
+
   static String format(String amount, String currency) {
     final match = RegExp(r'^(-?)(\d+)\.(\d{4})$').firstMatch(amount);
     if (match == null) {

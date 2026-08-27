@@ -93,7 +93,7 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
         return cards.Values.ToDictionary(
             card => card.Id,
             card => card.CalculateAvailableLimit(
-                Math.Max(0m, charged.GetValueOrDefault(card.Id) - paid.GetValueOrDefault(card.Id))));
+                charged.GetValueOrDefault(card.Id) - paid.GetValueOrDefault(card.Id)));
     }
 
     // Grouped on the entity rather than on a projected shape: the provider can only
@@ -463,7 +463,8 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
                 period.ClosingDate.Year,
                 period.ClosingDate.Month,
                 asOfDate,
-                Math.Max(0m, previousCharges - previousPayments),
+                // Devir kırpılmaz; ödenecek tutarın tabanı Domain'de duruyor.
+                previousCharges - previousPayments,
                 periodCharges,
                 paymentsThroughClosing,
                 paymentsAfterClosing);

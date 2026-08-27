@@ -304,6 +304,23 @@ oluşturma ve güncellemede var; Flutter ne gönderiyor ne gösteriyor.
 
 ### Grup 5 — Fazla ödenmiş kart bakiyesi
 
+**Durum: tamamlandı (27 Ağustos 2026).** Kırpma kaldırıldı ve
+`docs/backlog.md` madde 1 kapandı. Grupta iki şey netleşti:
+
+- **Taban nereye konur.** "Kart borcu" ile "ekstre borcu" ayrı sorulardır:
+  birincisi *kimin parası*, ikincisi *ne kadar ödemeliyim*. Birincide taban
+  kalktı (alacaklı bakiye net varlığa girer, kullanılabilir limiti limitin
+  üstüne çıkarır), ikincide durdu (ödenecek tutar negatif olmaz). Ekstrenin
+  **devri** ise kırpılmıyor: geçen dönemin alacağı bu dönemden düşer.
+- **Arayüz ad ve yön birlikte değiştirir.** "Kart borcu −₺500,00, net varlığı
+  düşürür" iki kez yanlış olurdu; satır alacaklıyken `Kart alacağı` olur, gelir
+  tonuna geçer ve ekran okuyucuya `net varlığa eklenir` der.
+
+Senaryonun gerçek yolu ödeme değil **iptaldir**: uygulama borcu aşan ödemeyi
+zaten reddediyor, ama ödenmiş bir harcamanın iptali kartı alacaklı bırakıyor.
+Kırılan tek mevcut test `CalculateAvailableLimit`'in negatif borçta exception
+atmasını bekleyen testti; bilinçli olarak güncellendi.
+
 Devralınan açık iş (`docs/backlog.md` madde 1). Kart borcu
 `Math.Max(0, harcama − ödeme)` ile kart başına kırpılıyor; kartı fazla ödeyen
 kullanıcının alacaklı bakiyesi net varlıkta 0 sayılıyor.

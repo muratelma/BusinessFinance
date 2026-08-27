@@ -134,16 +134,18 @@ public sealed class CreditCard
         return Math.Min(statementBalance, minimum);
     }
 
-    public decimal CalculateAvailableLimit(decimal currentDebt)
-    {
-        if (currentDebt < 0m)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(currentDebt));
-        }
-
-        return Math.Max(0m, Limit.Amount - currentDebt);
-    }
+    /// <summary>
+    /// Kartla bugün ne kadar harcanabilir.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="currentDebt"/> <b>negatif olabilir</b>: kartın alacaklı
+    /// bakiyesi limitin üstüne çıkan bir harcama alanı yaratır ve bu doğrudur —
+    /// para karttadır. Taban yalnız ters uçta duruyor: limiti aşmış bir kartta
+    /// kullanılabilir tutar negatif değil sıfırdır, çünkü "eksi 200 harcayabilirsiniz"
+    /// diye bir şey yok.
+    /// </remarks>
+    public decimal CalculateAvailableLimit(decimal currentDebt) =>
+        Math.Max(0m, Limit.Amount - currentDebt);
 
     private static string NormalizeName(string name)
     {

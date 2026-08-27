@@ -543,6 +543,59 @@ void main() {
     expect(find.text('0 ile 100 arasında bir oran girin.'), findsOneWidget);
   });
 
+  testWidgets('fazla ödenmiş kart borç değil alacak gösterir', (tester) async {
+    // Aşama 06 Grup 5: kartta duran para kullanıcınındır. "Borç −₺500,00"
+    // yazmak ona borcu varmış gibi okunuyordu.
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final controller = FinanceController(
+      _FakeFinanceRepository(cards: [_overpaidCard()]),
+    );
+    await controller.load();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: FinancePage(repository: controller.repository),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('Kartınızda ₺500,00 alacağınız var'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Borç -'), findsNothing);
+  });
+
+  testWidgets('kart ayrıntısı alacaklı bakiyeyi kendi etiketiyle yazar', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final controller = FinanceController(
+      _FakeFinanceRepository(cards: [_overpaidCard()]),
+    );
+    await controller.load();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: CreditCardDetailPage(cardId: 'card-1', controller: controller),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Kart alacağınız'), findsOneWidget);
+    expect(find.text('Güncel borç'), findsNothing);
+    // Kullanılabilir tutar limitin üstüne çıkar: para karttadır.
+    expect(find.text('₺10.500,00'), findsWidgets);
+  });
+
   testWidgets('kart formu varsayılan kapsamı gönderir', (tester) async {
     // Zincirin orta halkası: kartın etiketi, kullanıcı açık seçim yapmadığında
     // harcamanın hangi tarafa yazılacağını söyler.
@@ -1211,6 +1264,20 @@ class _FakeScopeStore implements ScopeStore {
   @override
   Future<void> clear() async {}
 }
+
+/// Fazla ödenmiş kart: borcu eksi, kullanılabilir tutarı limitin üstünde.
+CreditCardItem _overpaidCard() => const CreditCardItem(
+  id: 'card-1',
+  name: 'Test Kart',
+  limit: '10000.0000',
+  currentDebt: '-500.0000',
+  availableLimit: '10500.0000',
+  currency: 'TRY',
+  statementClosingDay: 10,
+  paymentDueDay: 20,
+  minimumPaymentRate: '20.0000',
+  isActive: true,
+);
 
 CreditCardItem _card({TransactionScope? defaultScope}) => CreditCardItem(
   id: 'card-1',

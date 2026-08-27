@@ -247,7 +247,7 @@ class _FinancePageState extends State<FinancePage> {
               icon: Icons.credit_card,
               title: card.name,
               subtitle:
-                  'Borç ${MoneyText.format(card.currentDebt, card.currency)} • '
+                  '${_debtSentence(card)} • '
                   'Kullanılabilir '
                   '${MoneyText.format(card.availableLimit, card.currency)}',
               trailing: const Icon(Icons.chevron_right),
@@ -636,12 +636,21 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
         Row(
           children: [
             Expanded(
-              child: AppMetricTile(
-                label: 'Güncel borç',
-                amount: card.currentDebt,
-                currency: card.currency,
-                effect: AppMoneyEffect.expense,
-              ),
+              // Alacaklı kartta hem etiket hem yön değişir: "Güncel borç
+              // −₺500" kullanıcıya borcu varmış gibi okunur ve kırmızı durur.
+              child: MoneyText.isNegative(card.currentDebt)
+                  ? AppMetricTile(
+                      label: 'Kart alacağınız',
+                      amount: MoneyText.unsigned(card.currentDebt),
+                      currency: card.currency,
+                      effect: AppMoneyEffect.income,
+                    )
+                  : AppMetricTile(
+                      label: 'Güncel borç',
+                      amount: card.currentDebt,
+                      currency: card.currency,
+                      effect: AppMoneyEffect.expense,
+                    ),
             ),
             const SizedBox(width: AppSpacing.medium),
             Expanded(
@@ -2083,6 +2092,18 @@ String? _rateError(String? value) {
 }
 
 String _money(String value) => value.trim().replaceAll(',', '.');
+
+/// Kart satırının borç yarısı.
+///
+/// Alacaklı kartta "Borç −₺500,00" yazmak kullanıcıya borcu varmış gibi
+/// okunuyordu; cümle yönü kendisi söylüyor, eksi işaretine gerek yok
+/// (Aşama 06 Grup 5).
+String _debtSentence(CreditCardItem card) =>
+    MoneyText.isNegative(card.currentDebt)
+    ? 'Kartınızda '
+          '${MoneyText.format(MoneyText.unsigned(card.currentDebt), card.currency)} '
+          'alacağınız var'
+    : 'Borç ${MoneyText.format(card.currentDebt, card.currency)}';
 String? _nullable(String value) => value.trim().isEmpty ? null : value.trim();
 String _dateText(DateTime value) =>
     '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';

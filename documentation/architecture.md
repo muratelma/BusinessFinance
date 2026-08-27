@@ -254,6 +254,21 @@ Account bakiyesi eldeki varlığı temsil eder. Güncel kart borcu
 `limit - güncel borç` olarak hesaplanır. Kart ödemesinin rapora yeniden gider
 yazılmaması aynı satın almanın iki kez sayılmasını önler.
 
+**Kart borcu negatif olabilir ve kırpılmaz** (Aşama 06 Grup 5). Ödeme borcu
+aşamaz — uygulama bunu reddeder — ama ödenmiş bir harcamanın **iptali** kartı
+alacaklı bırakır. O tutar kullanıcının parasıdır: net varlığa girer
+(`- kart borcu` teriminde negatif bir borç varlığı artırır) ve kullanılabilir
+limiti limitin üstüne çıkarır. Eskiden borç kart başına `Math.Max(0, …)` ile
+sıfıra çekiliyordu; bu, cari hesabın "fazla tahsilat kırpılmaz" kararıyla
+doğrudan çelişen ikinci bir cevaptı.
+
+**Taban yalnız iki yerde durur ve ikisi de ayrı bir soruyu cevaplar:**
+kullanılabilir limit limiti aşmış kartta sıfırdır ("eksi harcayabilirsiniz"
+diye bir şey yok), ekstre borcu da negatif olmaz — ekstre "bu ay ne kadar
+ödemeliyim"in cevabıdır. Ekstrenin **devri** ise kırpılmaz: geçen dönemden
+kalan alacaklı bakiye bu dönemin ekstresinden düşer, yoksa kartında parası olan
+kullanıcıdan borçlu olmadığı bir tutar istenirdi.
+
 Ekstre dönemi önceki kesim gününün ertesi ile seçilen kesim günü arasındadır.
 Önceki devir, dönem harcamaları, kesime kadar ödemeler ve kesim sonrası ödemeler
 owner-scoped SQL toplamlarından alınır; Domain `Open`, `Paid` veya `Overdue`
@@ -512,8 +527,9 @@ yapı.
 hesaplar: iki taraf ayrı ayrı durur (`Receivable`, `Payable`) ve `Net` ikisini
 tek cümleye indirir. İptal edilmiş hareket hiç sayılmaz. **Fazla tahsilat
 kırpılmaz**: eksiye düşen taraf, karşı tarafın bizde alacağı olduğu anlamına
-gelir ve gerçektir — sıfıra çekmek kullanıcının parasını ekranda yok ederdi
-(aynı hatanın kart tarafındaki hâli `docs/backlog.md` 1. maddede duruyor).
+gelir ve gerçektir — sıfıra çekmek kullanıcının parasını ekranda yok ederdi.
+Kart tarafı Aşama 06 Grup 5'te aynı cevaba getirildi; ürün artık bu soruya tek
+yerde tek cevap veriyor.
 
 Pasifleştirme yeni iş yapmayı durdurur, geçmişi silmez: **pasif karşı tarafa
 yeni borçlandırma yazılamaz, tahsilat yazılabilir.** Aksi hâlde artık iş

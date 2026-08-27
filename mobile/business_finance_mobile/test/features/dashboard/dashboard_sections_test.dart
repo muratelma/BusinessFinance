@@ -327,6 +327,44 @@ void main() {
       expect(find.text('faiz hariç'), findsNWidgets(2));
     });
 
+    testWidgets('fazla ödenmiş kart varlık kartında alacak olarak durur', (
+      tester,
+    ) async {
+      // Aşama 06 Grup 5: kart borcu negatif olabilir. "Kart borcu −₺500,00,
+      // net varlığı düşürür" satırı iki kez yanlış olurdu; satır hem adını
+      // hem yönünü değiştiriyor.
+      final viewModel = DashboardViewModel(
+        _Source(
+          _report(),
+          advanced: _advanced(
+            // Ekranın başka yerindeki tutarlarla çakışmayan bir değer:
+            // `500.0000` başka bir kutuda da görünüyor ve `find.text` iki
+            // eşleşme buluyordu. Net varlık: 2400 + 560 + 340 - 120.
+            creditCardDebt: '-560.0000',
+            netWorth: '3180.0000',
+          ),
+        ),
+        now: () => DateTime(2026, 8, 9),
+      );
+      await viewModel.load();
+
+      await _pump(tester, viewModel, height: 3000);
+
+      expect(find.text('Kart alacağı'), findsOneWidget);
+      expect(find.text('Kart borcu'), findsNothing);
+      // Rol yalnız ekran okuyucuya söyleniyor; renk bir konuşma kanalı değil.
+      expect(
+        find.bySemanticsLabel(RegExp('Kart alacağı: .*, net varlığa eklenir')),
+        findsOneWidget,
+      );
+
+      final colors = AppTheme.light().extension<AppFinanceColors>()!;
+      expect(
+        tester.widget<Text>(find.text('₺560,00')).style?.color,
+        colors.income,
+      );
+    });
+
     testWidgets('alacak gelir yeşiline boyanmaz', (tester) async {
       // Alacak gelir değil, bir varlık kalemidir. Yeşile boyanırsa hem
       // "yeşil yalnız gelirdir" kuralı kırılır hem de tahsil edilmemiş bir
@@ -707,6 +745,7 @@ AdvancedReport _advanced({
   String payableDebt = '120.0000',
   String netWorth = '2370.0000',
   String moneyInTransit = '0.0000',
+  String creditCardDebt = '250.0000',
 }) => AdvancedReport.fromJson({
   'asOfDate': '2026-08-31',
   'currency': 'TRY',
@@ -719,7 +758,7 @@ AdvancedReport _advanced({
   // toplamı açıklayıp açıklamadığı sınanamazdı.
   'netWorth': {
     'liquidAssets': '2400.0000',
-    'creditCardDebt': '250.0000',
+    'creditCardDebt': creditCardDebt,
     'receivableDebt': receivableDebt,
     'payableDebt': payableDebt,
     'netWorth': netWorth,

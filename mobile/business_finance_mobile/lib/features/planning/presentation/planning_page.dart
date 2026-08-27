@@ -579,7 +579,8 @@ class _SummaryGrid extends StatelessWidget {
         currency: report.currency,
         detail:
             'Likit ${MoneyText.format(report.liquidAssets, report.currency)} • '
-            'Kart borcu ${MoneyText.format(report.creditCardDebt, report.currency)}',
+            '${MoneyText.isNegative(report.creditCardDebt) ? 'Kart alacağı' : 'Kart borcu'} '
+            '${MoneyText.format(MoneyText.unsigned(report.creditCardDebt), report.currency)}',
       ),
       _SummaryCard(
         title: 'Dönem neti',
