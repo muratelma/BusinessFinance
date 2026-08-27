@@ -566,6 +566,22 @@ Parola panelinde yeni parolanın kuralı `helperText` olarak yazılıdır ve
 doğrulama **istek gitmeden** çalışır: kural ekranda yazılıyken sunucuya
 sordurmak kullanıcıyı bekletirdi.
 
+## Doğrulama uyarısı ve kod alanı (Aşama 06 Grup 2)
+
+Doğrulanmamış adresin uyarısı Material'ın `Badge` bileşeniyle hesap ikonunun
+üstünde durur (`smallSize: 8`, etiketsiz). Nokta **tek başına** bilgi taşımaz:
+aynı gerçeği `Hesabım` sayfasındaki kart cümleyle söyler, dolayısıyla rengi
+göremeyen kullanıcı da uyarıyı okur.
+
+Kod alanı altı hane sınırlıdır (`maxLength: 6`, `counterText: ''` ile sayaç
+gizli), sayı klavyesi açar ve doğrulaması **istek gitmeden** çalışır. Panel
+`AppFormSheet`'in üçüncü eylemini (`secondaryLabel`) `Kodu yeniden gönder` için
+kullanır — vazgeçmek de göndermek de olmayan, kendi sonucunu üreten seçenek.
+
+Parola sıfırlama kendi sayfasıdır (`/password-reset`) ve giriş/kayıt ile aynı
+oturumsuz kabuğu paylaşır; `PasswordField` sıfırlama akışında `Yeni parola`
+etiketini alır, çünkü "Parola" demek mevcut parolayı soruyormuş gibi görünürdü.
+
 ## Erişilebilirlik kuralları
 
 1. **Hiçbir bilgi yalnız renkle taşınmaz.** Her durum ikon veya metinle de

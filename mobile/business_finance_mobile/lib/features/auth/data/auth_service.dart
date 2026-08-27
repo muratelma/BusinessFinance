@@ -13,6 +13,14 @@ abstract interface class AuthRemoteService {
   Future<AuthSession> refresh(AuthSession currentSession);
 
   Future<void> logout(String refreshToken);
+
+  Future<void> requestPasswordReset(String email);
+
+  Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  });
 }
 
 class ApiAuthService implements AuthRemoteService {
@@ -64,6 +72,26 @@ class ApiAuthService implements AuthRemoteService {
         json,
         'refreshTokenExpiresAtUtc',
       ),
+    );
+  }
+
+  @override
+  Future<void> requestPasswordReset(String email) async {
+    await _apiClient.post(
+      '/api/v1/auth/password-reset',
+      body: {'email': email},
+    );
+  }
+
+  @override
+  Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    await _apiClient.post(
+      '/api/v1/auth/password-reset/confirm',
+      body: {'email': email, 'code': code, 'newPassword': newPassword},
     );
   }
 

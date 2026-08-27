@@ -14,6 +14,7 @@ import '../../features/account/presentation/account_page.dart';
 import '../../features/auth/data/auth_repository.dart';
 import '../../features/auth/presentation/auth_controller.dart';
 import '../../features/auth/presentation/login_page.dart';
+import '../../features/auth/presentation/password_reset_page.dart';
 import '../../features/auth/presentation/register_page.dart';
 import '../../features/budgets/data/budget_repository.dart';
 import '../../features/budgets/presentation/budgets_page.dart';
@@ -135,6 +136,35 @@ GoRouter createAppRouter({
                 ? (_, _) async {}
                 : authController.login,
             onRegister: () => context.go('/register'),
+            onForgotPassword: (email) => context.go(
+              Uri(
+                path: '/password-reset',
+                queryParameters: email.isEmpty ? null : {'email': email},
+              ).toString(),
+            ),
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/password-reset',
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: PasswordResetPage(
+            initialEmail: state.uri.queryParameters['email'],
+            onRequestCode: authRepository == null
+                ? (_) async {}
+                : authRepository.requestPasswordReset,
+            onReset: authRepository == null
+                ? ({
+                    required email,
+                    required code,
+                    required newPassword,
+                  }) async {}
+                : authRepository.resetPassword,
+            onCompleted: (email) => context.go(
+              Uri(path: '/login', queryParameters: {'email': email}).toString(),
+            ),
+            onBackToLogin: () => context.go('/login'),
           ),
         ),
       ),
@@ -871,7 +901,12 @@ class _AccountantPackageHostState extends State<_AccountantPackageHost> {
 
 String? _authRedirect(AuthController controller, GoRouterState state) {
   final location = state.uri.path;
-  final isAuthRoute = location == '/login' || location == '/register';
+  // Parola sıfırlama da oturumsuz bir kimlik yoludur: giriş yapamayan
+  // kullanıcı buraya gelir ve girişe geri yönlendirilmemelidir.
+  final isAuthRoute =
+      location == '/login' ||
+      location == '/register' ||
+      location == '/password-reset';
   final isRestoringRoute = location == '/restoring';
 
   switch (controller.status) {

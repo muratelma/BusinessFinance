@@ -14,7 +14,11 @@ void main() {
       tester,
       MaterialApp(
         theme: AppTheme.light(),
-        home: LoginPage(onSubmit: (_, _) async {}, onRegister: () {}),
+        home: LoginPage(
+          onSubmit: (_, _) async {},
+          onRegister: () {},
+          onForgotPassword: (_) {},
+        ),
       ),
     );
 
@@ -30,6 +34,7 @@ void main() {
         home: LoginPage(
           onSubmit: (_, _) async => submitCount++,
           onRegister: () {},
+          onForgotPassword: (_) {},
         ),
       ),
     );
@@ -56,6 +61,7 @@ void main() {
             return completer.future;
           },
           onRegister: () {},
+          onForgotPassword: (_) {},
         ),
       ),
     );
@@ -89,6 +95,7 @@ void main() {
             message: 'E-posta veya parola geçersiz.',
           ),
           onRegister: () {},
+          onForgotPassword: (_) {},
         ),
       ),
     );

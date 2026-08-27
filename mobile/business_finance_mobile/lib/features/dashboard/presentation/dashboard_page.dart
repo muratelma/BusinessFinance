@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../account/presentation/account_status_controller.dart';
 import '../../../core/routing/app_locations.dart';
 import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_text.dart';
@@ -42,10 +43,20 @@ class DashboardPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Özet'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.account_circle_outlined),
-            tooltip: 'Hesabım',
-            onPressed: () => context.push(accountLocation),
+          // Doğrulanmamış e-postanın kalıcı uyarısı ikonun üstünde küçük bir
+          // nokta: uyarının doğal yeri, gidip düzelteceği sayfanın kapısıdır.
+          Badge(
+            isLabelVisible:
+                context
+                    .watch<AccountStatusController?>()
+                    ?.needsEmailVerification ??
+                false,
+            smallSize: 8,
+            child: IconButton(
+              icon: const Icon(Icons.account_circle_outlined),
+              tooltip: 'Hesabım',
+              onPressed: () => context.push(accountLocation),
+            ),
           ),
         ],
       ),

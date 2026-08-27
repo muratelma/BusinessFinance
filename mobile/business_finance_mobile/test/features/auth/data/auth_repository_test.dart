@@ -193,11 +193,25 @@ class FakeAuthService implements AuthRemoteService {
   ApiException? refreshError;
   ApiException? logoutError;
 
+  List<String> passwordResetRequests = [];
+
   @override
   Future<AuthSession> login(String email, String password) async {
     loginEmail = email;
     return session;
   }
+
+  @override
+  Future<void> requestPasswordReset(String email) async {
+    passwordResetRequests.add(email);
+  }
+
+  @override
+  Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {}
 
   @override
   Future<void> logout(String refreshToken) async {

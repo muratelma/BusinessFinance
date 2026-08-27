@@ -70,7 +70,12 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   açık onayıyla açıldı). Açık kapsamlı aşamadır; yedi çalışma grubu yazılı ve
   liste kullanıcı yeni bir şey söyledikçe büyür. **Grup 1 — Hesap ve güvenlik
   ekranı tamamlandı** (27 Ağustos 2026): hesap okuma, oturum listesi ve tek tek
-  kapatma, parola değiştirme, hesap silme (ADR 0017) ve `Hesabım` sayfası
+  kapatma, parola değiştirme, hesap silme (ADR 0017) ve `Hesabım` sayfası.
+  **Grup 2 — E-posta doğrulama ve parola sıfırlama tamamlandı** (aynı gün):
+  altı haneli süreli kod, Brevo gönderici port'u, `AddVerificationCodes`
+  migration'ı (zincirin ikinci adımı), doğrulama uyarısı ve `Parolamı unuttum`
+  sayfası. Gerçek posta ile cihaz kabul turu **yapılmadı** — Brevo anahtarı
+  kurulunca yapılacak
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması →
   06.2 arayüz düzeni → (gerekirse 06.x) → 07 bulut (`PROJECT-ROADMAP.md`)
@@ -1560,15 +1565,19 @@ plan. Hepsi sentetiktir ve istenirse silinebilir.
 
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: **Aşama 06 açıldı ve Grup 1 (Hesap ve güvenlik ekranı)
-  tamamlandı.** Kullanıcı kendi hesabını görüyor, açık oturumlarını listeleyip
+- Yapılan değişiklik: **Aşama 06 açıldı; Grup 1 ve Grup 2 tamamlandı.** Kullanıcı kendi hesabını görüyor, açık oturumlarını listeleyip
   tek tek kapatıyor, parolasını değiştiriyor ve hesabını silebiliyor. ADR 0017
   yazıldı: hesabı kapatmak bir finansal düzeltme değildir, veri gerçekten
   silinir (parola + açık onay). Token cevaplarına `sessionId` eklendi; işletme
   cevabı ve çıkış `Diğer` menüsünden `Hesabım` sayfasına taşındı. Şema
   değişmedi, migration yok
-- Geçen kontroller: backend build + format + **1002 test** (gerçek SQL dâhil,
-  1 skip); Flutter analyze + format + **777 test** + Android debug build
-- Sıradaki görev: **Aşama 06 Grup 2** — e-posta doğrulama ve parola sıfırlama
-  (kod tabanlı, Brevo). Grup 1 bitti
+  Grup 2 kimlik akışını tamamladı: kayıtla giden altı haneli doğrulama kodu,
+  parola sıfırlama, Brevo gönderici port'u ve `AddVerificationCodes`
+  migration'ı. Kod açık saklanmaz, cevapta dönmez ve loglanmaz; doğrulanmamış
+  hesap kilitlenmez
+- Geçen kontroller: backend build + format + **1038 test** (gerçek SQL dâhil,
+  2 skip: Gemini ve Brevo canlı sözleşme testleri); Flutter analyze + format +
+  **790 test** + Android debug build
+- Sıradaki görev: **Aşama 06 Grup 3** — cihaz üstü hatırlatma (yerel bildirim).
+  Grup 1 ve 2 bitti; ikisinin cihaz kabul turu henüz yapılmadı
 

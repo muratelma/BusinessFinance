@@ -119,6 +119,57 @@ class AccountController extends ChangeNotifier {
     }
   }
 
+  /// Doğrulama kodu ister.
+  ///
+  /// Dönen değer postanın gerçekten gidip gitmediğini söyler: sunucuda
+  /// gönderici yapılandırılmamışsa istek başarılıdır ama kod yola çıkmamıştır
+  /// ve kullanıcıya bunu söylemek gerekir.
+  Future<VerificationSendResult?> sendVerificationCode() async {
+    if (isSubmitting) return null;
+    isSubmitting = true;
+    errorMessage = null;
+    notifyListeners();
+    try {
+      return await _repository.sendEmailVerification();
+    } on ApiException catch (error) {
+      errorMessage = error.message;
+      return null;
+    } on FormatException {
+      errorMessage = 'Sunucudan beklenmeyen bir yanıt alındı.';
+      return null;
+    } finally {
+      isSubmitting = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> confirmEmail(String code) async {
+    if (isSubmitting) return false;
+    isSubmitting = true;
+    errorMessage = null;
+    notifyListeners();
+    try {
+      await _repository.confirmEmail(code);
+      final current = account;
+      if (current != null) {
+        account = UserAccount(
+          userId: current.userId,
+          email: current.email,
+          emailConfirmed: true,
+          createdAtUtc: current.createdAtUtc,
+          activeSessionCount: current.activeSessionCount,
+        );
+      }
+      return true;
+    } on ApiException catch (error) {
+      errorMessage = error.message;
+      return false;
+    } finally {
+      isSubmitting = false;
+      notifyListeners();
+    }
+  }
+
   Future<bool> deleteAccount({required String password}) async {
     if (isSubmitting) return false;
     isSubmitting = true;

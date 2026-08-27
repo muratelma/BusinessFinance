@@ -1228,3 +1228,17 @@ planlanan ekranının iki testi de kırmızıya düştü.
 | Yeni tablo boş doğuyor | `MigrationHistoryTests.AddVerificationCodes_CreatesOneEmptyTableThatStoresOnlyTheHash` | Kolon/backfill yok, `Code` kolonu yok, dört CHECK yerinde |
 | Silinen hesabın kodları da gidiyor | `SqlServerPersistenceIntegrationTests.UserAccountEraser_...` | `VerificationCodes` tablosunda sıfır satır |
 
+## Doğrulama ve sıfırlamanın istemcisi (27 Ağustos 2026, Aşama 06 Grup 2)
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Doğrulanmış adreste uyarı yok | `account_page_test` | Kart hiç çizilmiyor |
+| Uyarı bir engel değil | aynı dosya | Kart varken sayfanın geri kalanı çalışıyor |
+| Panel açılınca kod isteniyor | aynı dosya | Kullanıcı ikinci bir düğmeye basmıyor |
+| Eksik/yanlış kod | aynı dosya | Altı haneden kısa kod istek üretmiyor; sunucunun reddi panelde kalıyor |
+| Doğru kod uyarıyı kaldırıyor | aynı dosya | Kart kayboluyor, onay mesajı çıkıyor |
+| Sıfırlama iki adımlı | `password_reset_page_test` | Kod istenmeden yeni parola alanı yok |
+| Sıfırlama enumeration sızdırmıyor | aynı dosya | Kayıtsız adres de "adres kayıtlıysa kod gönderildi" diyor |
+| İstemci doğrulaması | aynı dosya | Geçersiz adres, kısa kod ve zayıf parola istek üretmiyor |
+| Sıfırlama erişilebilir | aynı dosya | 2.0× ölçekte taşma yok, semantik kapı geçiliyor |
+

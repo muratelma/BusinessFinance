@@ -20,6 +20,12 @@ abstract interface class AccountRepositoryContract {
 
   /// Hesabı ve bütün verisini siler (ADR 0017). Geri dönüşü yoktur.
   Future<void> deleteAccount({required String password});
+
+  /// Kullanıcının kendi adresine doğrulama kodu göndertir.
+  Future<VerificationSendResult> sendEmailVerification();
+
+  /// Adresi e-postayla gelen kodla doğrular.
+  Future<void> confirmEmail(String code);
 }
 
 class AccountRepository implements AccountRepositoryContract {
@@ -60,6 +66,22 @@ class AccountRepository implements AccountRepositoryContract {
       body: {'currentPassword': currentPassword, 'newPassword': newPassword},
     );
     return RotatedTokens.fromJson(response.requireObject());
+  }
+
+  @override
+  Future<VerificationSendResult> sendEmailVerification() async {
+    final response = await _apiClient.post(
+      '/api/v1/account/email-verification',
+    );
+    return VerificationSendResult.fromJson(response.requireObject());
+  }
+
+  @override
+  Future<void> confirmEmail(String code) async {
+    await _apiClient.post(
+      '/api/v1/account/email-verification/confirm',
+      body: {'code': code},
+    );
   }
 
   @override

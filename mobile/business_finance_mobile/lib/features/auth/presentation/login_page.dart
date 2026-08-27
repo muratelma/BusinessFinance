@@ -11,12 +11,17 @@ class LoginPage extends StatefulWidget {
   const LoginPage({
     required this.onSubmit,
     required this.onRegister,
+    required this.onForgotPassword,
     super.key,
     this.initialEmail,
   });
 
   final LoginSubmit onSubmit;
   final VoidCallback onRegister;
+
+  /// Parolasını unutan kullanıcının kapısı. Girişin hemen altında durur:
+  /// aranacağı yer, kaybedildiği yerdir.
+  final void Function(String email) onForgotPassword;
   final String? initialEmail;
 
   @override
@@ -136,6 +141,14 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                               )
                             : const Text('Giriş yap'),
+                      ),
+                      TextButton(
+                        onPressed: _isSubmitting
+                            ? null
+                            : () => widget.onForgotPassword(
+                                _emailController.text.trim(),
+                              ),
+                        child: const Text('Parolamı unuttum'),
                       ),
                       TextButton(
                         onPressed: _isSubmitting ? null : widget.onRegister,

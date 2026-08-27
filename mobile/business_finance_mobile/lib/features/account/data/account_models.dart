@@ -50,6 +50,27 @@ class UserSessionSummary {
       );
 }
 
+/// Kod gönderme isteğinin sonucu.
+///
+/// `codeSent` yanlışsa istek başarılıdır ama posta gitmemiştir — sunucuda
+/// gönderici yapılandırılmamış olabilir. Kullanıcıya "kod yolda" demek, hiç
+/// gelmeyecek bir postayı beklemesine sebep olurdu.
+class VerificationSendResult {
+  const VerificationSendResult({
+    required this.alreadyConfirmed,
+    required this.codeSent,
+  });
+
+  final bool alreadyConfirmed;
+  final bool codeSent;
+
+  factory VerificationSendResult.fromJson(Map<String, dynamic> json) =>
+      VerificationSendResult(
+        alreadyConfirmed: JsonReaders.boolean(json, 'alreadyConfirmed'),
+        codeSent: JsonReaders.boolean(json, 'codeSent'),
+      );
+}
+
 /// Parola değişiminden sonra sunucunun verdiği taze token çifti.
 class RotatedTokens {
   const RotatedTokens({

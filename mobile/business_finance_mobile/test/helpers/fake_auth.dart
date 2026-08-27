@@ -57,6 +57,21 @@ class FakeAuthSessionRepository implements AuthSessionRepository {
   @override
   Future<AuthSession?> restoreSession() async => session;
 
+  /// Sunucu kayıtlı olmayan adresi de başarıyla karşılar; ikiz de öyle.
+  List<String> passwordResetRequests = [];
+
+  @override
+  Future<void> requestPasswordReset(String email) async {
+    passwordResetRequests.add(email);
+  }
+
+  @override
+  Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {}
+
   @override
   Future<AuthSession?> adoptRotatedTokens({
     String? sessionId,

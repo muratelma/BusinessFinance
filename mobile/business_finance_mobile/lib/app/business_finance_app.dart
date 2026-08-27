@@ -6,6 +6,7 @@ import '../core/localization/app_locale.dart';
 import '../core/presentation/scope_controller.dart';
 import '../core/routing/app_router.dart';
 import '../core/theme/app_theme.dart';
+import '../features/account/presentation/account_status_controller.dart';
 import '../features/auth/presentation/auth_controller.dart';
 import '../features/dashboard/presentation/dashboard_view_model.dart';
 import '../features/profile/data/profile_repository.dart';
@@ -86,6 +87,9 @@ class BusinessFinanceApp extends StatelessWidget {
         if (dependencies != null) ...[
           Provider.value(value: dependencies.apiClient),
           ChangeNotifierProvider.value(value: dependencies.scopeController),
+          ChangeNotifierProvider.value(
+            value: dependencies.accountStatusController,
+          ),
           Provider<ProfileRepositoryContract>.value(
             value: dependencies.profileRepository,
           ),
@@ -96,6 +100,7 @@ class BusinessFinanceApp extends StatelessWidget {
           : _ScopeSessionBinder(
               authController: authController,
               scopeController: dependencies.scopeController,
+              accountStatusController: dependencies.accountStatusController,
               child: app,
             ),
     );
@@ -114,11 +119,13 @@ class _ScopeSessionBinder extends StatefulWidget {
   const _ScopeSessionBinder({
     required this.authController,
     required this.scopeController,
+    required this.accountStatusController,
     required this.child,
   });
 
   final AuthController authController;
   final ScopeController scopeController;
+  final AccountStatusController accountStatusController;
   final Widget child;
 
   @override
@@ -137,8 +144,10 @@ class _ScopeSessionBinderState extends State<_ScopeSessionBinder> {
     switch (widget.authController.status) {
       case AuthStatus.authenticated:
         widget.scopeController.ensureLoaded();
+        widget.accountStatusController.ensureLoaded();
       case AuthStatus.unauthenticated:
         widget.scopeController.forget();
+        widget.accountStatusController.forget();
       case AuthStatus.restoring:
         break;
     }

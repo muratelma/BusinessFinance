@@ -33,6 +33,16 @@ abstract interface class AuthSessionRepository {
   });
 
   Future<void> logout();
+
+  /// Parolasını unutan kullanıcı için kod ister. Kayıtlı olmayan adres de
+  /// başarıyla döner: sunucu hangi adresin hesabı olduğunu söylemez.
+  Future<void> requestPasswordReset(String email);
+
+  Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  });
 }
 
 class AuthRepository implements AuthSessionRepository {
@@ -165,6 +175,21 @@ class AuthRepository implements AuthSessionRepository {
     _session = rotated;
     return rotated;
   }
+
+  @override
+  Future<void> requestPasswordReset(String email) =>
+      _remoteService.requestPasswordReset(email.trim());
+
+  @override
+  Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) => _remoteService.resetPassword(
+    email: email.trim(),
+    code: code.trim(),
+    newPassword: newPassword,
+  );
 
   @override
   Future<void> logout() async {

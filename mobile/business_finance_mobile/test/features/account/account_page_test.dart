@@ -150,6 +150,102 @@ void main() {
 
     expect(repository.deletedWithPassword, 'Valid-Password-123!');
   });
+
+  testWidgets('doğrulanmış adreste uyarı çıkmaz', (tester) async {
+    await tester.pumpWidget(_app(FakeAccountRepository()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('E-posta adresiniz doğrulanmadı'), findsNothing);
+  });
+
+  testWidgets('doğrulanmamış adres uyarı taşır ama hesabı kilitlemez', (
+    tester,
+  ) async {
+    final repository = FakeAccountRepository()..emailConfirmed = false;
+    await tester.pumpWidget(_app(repository));
+    await tester.pumpAndSettle();
+
+    expect(find.text('E-posta adresiniz doğrulanmadı'), findsOneWidget);
+
+    // Sayfanın geri kalanı yerinde: uyarı bir engel değil. Kart araya
+    // girdiği için aşağısı katlanmanın altında kalıyor, kaydırılıyor.
+    expect(find.text('Bu cihaz'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Parolamı değiştir'), 200);
+    expect(find.text('Parolamı değiştir'), findsOneWidget);
+  });
+
+  testWidgets('doğrulama paneli açılınca kod isteği gider', (tester) async {
+    final repository = FakeAccountRepository()..emailConfirmed = false;
+    await tester.pumpWidget(_app(repository));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Adresimi doğrula'));
+    await tester.pumpAndSettle();
+
+    expect(repository.sendVerificationCount, 1);
+    expect(find.widgetWithText(TextField, 'Doğrulama kodu'), findsOneWidget);
+  });
+
+  testWidgets('eksik kod istek üretmez', (tester) async {
+    final repository = FakeAccountRepository()..emailConfirmed = false;
+    await tester.pumpWidget(_app(repository));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Adresimi doğrula'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Doğrulama kodu'),
+      '12',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Doğrula'));
+    await tester.pumpAndSettle();
+
+    expect(repository.confirmedWithCode, isNull);
+    expect(find.text('Altı haneli kodu yazın.'), findsOneWidget);
+  });
+
+  testWidgets('yanlış kod panelde söylenir', (tester) async {
+    final repository = FakeAccountRepository()
+      ..emailConfirmed = false
+      ..confirmError = const ApiException(
+        statusCode: 400,
+        code: 'account.invalid_verification_code',
+        message: 'Kod geçersiz veya süresi dolmuş.',
+      );
+    await tester.pumpWidget(_app(repository));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Adresimi doğrula'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Doğrulama kodu'),
+      '000000',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Doğrula'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Kod geçersiz veya süresi dolmuş.'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Doğrulama kodu'), findsOneWidget);
+  });
+
+  testWidgets('doğru kod uyarıyı kaldırır', (tester) async {
+    final repository = FakeAccountRepository()..emailConfirmed = false;
+    await tester.pumpWidget(_app(repository));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Adresimi doğrula'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Doğrulama kodu'),
+      '123456',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Doğrula'));
+    await tester.pumpAndSettle();
+
+    expect(repository.confirmedWithCode, '123456');
+    expect(find.text('E-posta adresiniz doğrulandı.'), findsOneWidget);
+    expect(find.text('E-posta adresiniz doğrulanmadı'), findsNothing);
+  });
 }
 
 Widget _app(
@@ -175,7 +271,7 @@ class FakeAccountRepository implements AccountRepositoryContract {
   Future<UserAccount> read() async => UserAccount(
     userId: '11111111-1111-1111-1111-111111111111',
     email: 'user@example.test',
-    emailConfirmed: false,
+    emailConfirmed: emailConfirmed,
     createdAtUtc: DateTime.utc(2026, 8, 1, 9),
     activeSessionCount: 2,
   );
@@ -221,5 +317,28 @@ class FakeAccountRepository implements AccountRepositoryContract {
   @override
   Future<void> deleteAccount({required String password}) async {
     deletedWithPassword = password;
+  }
+
+  bool emailConfirmed = true;
+  int sendVerificationCount = 0;
+  String? confirmedWithCode;
+  ApiException? confirmError;
+
+  @override
+  Future<VerificationSendResult> sendEmailVerification() async {
+    sendVerificationCount++;
+    return const VerificationSendResult(
+      alreadyConfirmed: false,
+      codeSent: true,
+    );
+  }
+
+  @override
+  Future<void> confirmEmail(String code) async {
+    if (confirmError case final error?) {
+      throw error;
+    }
+    confirmedWithCode = code;
+    emailConfirmed = true;
   }
 }

@@ -171,7 +171,7 @@ class _StubAccountRepository implements AccountRepositoryContract {
   Future<UserAccount> read() async => UserAccount(
     userId: '11111111-1111-1111-1111-111111111111',
     email: 'user@example.test',
-    emailConfirmed: false,
+    emailConfirmed: true,
     createdAtUtc: DateTime.utc(2026, 8, 1),
     activeSessionCount: 0,
   );
@@ -190,6 +190,13 @@ class _StubAccountRepository implements AccountRepositoryContract {
 
   @override
   Future<void> deleteAccount({required String password}) async {}
+
+  @override
+  Future<VerificationSendResult> sendEmailVerification() async =>
+      const VerificationSendResult(alreadyConfirmed: true, codeSent: false);
+
+  @override
+  Future<void> confirmEmail(String code) async {}
 }
 
 Future<ScopeController> _scopeController({required bool hasBusiness}) async {

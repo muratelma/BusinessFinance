@@ -1011,6 +1011,33 @@ açık onay — yedek alma önerisiyle birlikte — sonra parolanın yeniden yaz
 panel. İkisinden biri tamamlanmazsa hiçbir istek gitmez. Silme başarılı olunca
 istemci çıkış yapar; sunucuda hesap kalmadığı için elindeki token da ölüdür.
 
+## Doğrulama ve parola sıfırlama akışı (Aşama 06 Grup 2)
+
+Kayıt olan kullanıcıya altı haneli bir kod gider ve **hesap kilitlenmez**:
+kullanıcı hemen giriş yapar, uygulamanın tamamını kullanır. Doğrulanmamış
+adresin karşılığı iki yerde görünen tek bir uyarıdır:
+
+| Yer | Ne gösterir |
+|---|---|
+| Özet ekranının hesap ikonu | Küçük bir nokta (`Badge`) — uyarının doğal yeri, gidip düzelteceği sayfanın kapısıdır |
+| `Hesabım` sayfası | Ne olduğunu ve neden işe yaradığını anlatan kart + `Adresimi doğrula` |
+
+Panel açılır açılmaz kod ister; kullanıcı zaten bunun için gelmiştir. Kod
+gönderilemiyorsa (sunucuda gönderici yapılandırılmamışsa) bu **söylenir** —
+yoksa kullanıcı hiç gelmeyecek bir postayı bekler. `Kodu yeniden gönder` aynı
+yolu tekrar çağırır; sunucu 60 saniyeden önceki ikinci isteği reddeder.
+
+**Parolamı unuttum** giriş ekranının hemen altındadır: aranacağı yer,
+kaybedildiği yerdir. Tek sayfa, iki adım — adres yazılır ve kod istenir, sonra
+kod ile yeni parola yazılır. İki ayrı ekran, gelen kodu okuyup dönen kullanıcıya
+adresini yeniden yazdırırdı.
+
+Birinci adımın cevabı **her zaman aynıdır**: *"Adres kayıtlıysa kod gönderildi."*
+Kayıtlı olmayan adres için de bu cümle çıkar; sunucu hangi adresin hesabı
+olduğunu söylemiyor, ekran da söylemez. Sıfırlama tamamlanınca kullanıcı giriş
+ekranına döner ve yeni parolasıyla girer — bütün oturumlar kapandığı için başka
+cihazda açık kalmış bir oturum da düşmüştür.
+
 ## Responsive gezinme ve panel akışı
 
 Uygulama tek bir kırılım noktası tanımına dayanır (`AppBreakpoints`, Material 3

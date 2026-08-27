@@ -9,6 +9,7 @@ import '../features/auth/data/auth_repository.dart';
 import '../features/auth/data/auth_service.dart';
 import '../features/auth/presentation/auth_controller.dart';
 import '../features/account/data/account_repository.dart' as user_account;
+import '../features/account/presentation/account_status_controller.dart';
 import '../features/accounts/data/account_repository.dart';
 import '../features/budgets/data/budget_repository.dart';
 import '../features/categories/data/category_repository.dart';
@@ -41,6 +42,7 @@ class AppDependencies {
     this.scopeController,
     this.profileRepository,
     this.userAccountRepository,
+    this.accountStatusController,
     this.accountRepository,
     this.budgetRepository,
     this.categoryRepository,
@@ -99,6 +101,9 @@ class AppDependencies {
     final receiptRepository = ReceiptRepository(apiClient);
     final profileRepository = ProfileRepository(apiClient);
     final userAccountRepository = user_account.AccountRepository(apiClient);
+    final accountStatusController = AccountStatusController(
+      userAccountRepository,
+    );
     // Kapsam anahtarı cihazdan, onboarding cevabı sunucudan okunur; ikisi de
     // oturum açıldığında yüklenir (`BusinessFinanceApp`).
     final scopeController = ScopeController(
@@ -114,6 +119,7 @@ class AppDependencies {
       scopeController,
       profileRepository,
       userAccountRepository,
+      accountStatusController,
       accountRepository,
       budgetRepository,
       categoryRepository,
@@ -152,6 +158,11 @@ class AppDependencies {
   /// kapatma. Finansal `accountRepository` ile karıştırılmasın diye ad alanı
   /// ayrıldı — biri para hesabı, diğeri kullanıcı hesabı.
   final user_account.AccountRepositoryContract userAccountRepository;
+
+  /// Doğrulanmamış e-postanın kalıcı uyarısı. Uygulama genelinde tek yerde
+  /// tutulur: uyarı Özet'in hesap ikonunda görünür, doğrulama `Hesabım`
+  /// sayfasında yapılır ve ikisi aynı gerçeği okur.
+  final AccountStatusController accountStatusController;
   final AccountRepository accountRepository;
   final BudgetRepositoryContract budgetRepository;
   final CategoryRepository categoryRepository;

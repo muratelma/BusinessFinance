@@ -18,6 +18,7 @@ import '../../profile/data/profile_repository.dart';
 import '../data/account_models.dart';
 import '../data/account_repository.dart';
 import 'account_controller.dart';
+import 'account_status_controller.dart';
 
 /// `Hesabım`.
 ///
@@ -93,6 +94,10 @@ class _AccountPageState extends State<AccountPage> {
             ),
             children: [
               _IdentityCard(account: account),
+              if (!account.emailConfirmed) ...[
+                const SizedBox(height: AppSpacing.medium),
+                _UnverifiedEmailCard(onVerify: _openVerificationSheet),
+              ],
               const SizedBox(height: AppSpacing.medium),
               const _BusinessAnswerCard(),
               const SizedBox(height: AppSpacing.medium),
@@ -169,6 +174,20 @@ class _AccountPageState extends State<AccountPage> {
     );
     if (shouldLogout && mounted) {
       await context.read<AuthController?>()?.logout();
+    }
+  }
+
+  Future<void> _openVerificationSheet() async {
+    final confirmed = await AppFormSheet.show<bool>(
+      context: context,
+      builder: (_) => _VerifyEmailSheet(controller: controller),
+    );
+    if (confirmed == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('E-posta adresiniz doğrulandı.')),
+      );
+      // Özet ekranındaki nokta da düşmeli: uyarı tek bir gerçeği anlatıyor.
+      await context.read<AccountStatusController?>()?.refresh();
     }
   }
 
@@ -311,6 +330,158 @@ class _BusinessAnswerCardState extends State<_BusinessAnswerCard> {
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
+  }
+}
+
+/// Doğrulanmamış adresin kalıcı uyarısı.
+///
+/// Hesap **kilitli değildir**: kart bir engel değil, bir hatırlatmadır. Metin
+/// bunu açıkça söyler, yoksa kullanıcı uygulamanın yarısının kapalı olduğunu
+/// sanır.
+class _UnverifiedEmailCard extends StatelessWidget {
+  const _UnverifiedEmailCard({required this.onVerify});
+
+  final Future<void> Function() onVerify;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.mark_email_unread_outlined,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: AppSpacing.small),
+              Expanded(
+                child: Text(
+                  'E-posta adresiniz doğrulanmadı',
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xSmall),
+          Text(
+            'Uygulamayı kullanmaya devam edebilirsiniz; doğrulama hesabınızı '
+            'güvenceye alır ve parolanızı unuttuğunuzda geri almanızı sağlar.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.small),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.tonalIcon(
+              onPressed: onVerify,
+              icon: const Icon(Icons.mark_email_read_outlined),
+              label: const Text('Adresimi doğrula'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VerifyEmailSheet extends StatefulWidget {
+  const _VerifyEmailSheet({required this.controller});
+
+  final AccountController controller;
+
+  @override
+  State<_VerifyEmailSheet> createState() => _VerifyEmailSheetState();
+}
+
+class _VerifyEmailSheetState extends State<_VerifyEmailSheet> {
+  final _code = TextEditingController();
+  String? _message;
+  bool _codeRequested = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Panel açılır açılmaz kod istenir: kullanıcı zaten bunun için geldi.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _requestCode());
+  }
+
+  @override
+  void dispose() {
+    _code.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppFormSheet<bool>(
+      title: 'Adresimi doğrula',
+      description: _codeRequested
+          ? 'E-postanıza gönderilen altı haneli kodu yazın. Kod 15 dakika '
+                'geçerlidir.'
+          : 'Kod gönderiliyor…',
+      submitLabel: 'Doğrula',
+      onSubmit: _submit,
+      secondaryLabel: 'Kodu yeniden gönder',
+      onSecondary: _resend,
+      children: [
+        TextField(
+          controller: _code,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          decoration: const InputDecoration(
+            labelText: 'Doğrulama kodu',
+            counterText: '',
+          ),
+        ),
+        if (_message != null) ...[
+          const SizedBox(height: AppSpacing.small),
+          Text(
+            _message!,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _requestCode() async {
+    final result = await widget.controller.sendVerificationCode();
+    if (!mounted) return;
+    setState(() {
+      _codeRequested = result != null;
+      // Sunucuda gönderici yapılandırılmamışsa bunu söylemek gerekir; yoksa
+      // kullanıcı hiç gelmeyecek bir postayı bekler.
+      _message = result == null
+          ? widget.controller.errorMessage
+          : result.codeSent
+          ? null
+          : 'Kod gönderilemedi: e-posta servisi yapılandırılmamış.';
+    });
+  }
+
+  Future<bool?> _resend() async {
+    await _requestCode();
+    return null;
+  }
+
+  Future<bool?> _submit() async {
+    final code = _code.text.trim();
+    if (code.length != 6) {
+      setState(() => _message = 'Altı haneli kodu yazın.');
+      return null;
+    }
+    final confirmed = await widget.controller.confirmEmail(code);
+    if (!confirmed) {
+      setState(
+        () => _message = widget.controller.errorMessage ?? 'Kod doğrulanamadı.',
+      );
+      return null;
+    }
+    return true;
   }
 }
 
