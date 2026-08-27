@@ -549,6 +549,23 @@ Ekranlar 2.0× metin ölçeğinde iki alt sekmeyle test edilir. Alt gezinme/ray
 hedefleri Material'ın en az 48 dp dokunma alanını, görünür etiketi ve ekran
 okuyucu anlamını korur; sabit genişlikli özel bir mobil yerleşim eklenmez.
 
+## Hesabın kapısı ve `Hesabım` sayfası (Aşama 06 Grup 1)
+
+`Özet` ekranının `AppBar`'ı tek bir action taşır: `account_circle_outlined`
+ikonu, `Hesabım` tooltip'i ve semantic etiketiyle. İkon bir profil fotoğrafı
+gibi okunmaz — uygulamada avatar yoktur ve kullanıcı görseli hiç saklanmaz.
+Dokunma hedefi `IconButton`'ın Material varsayılanıdır (48 dp).
+
+Sayfa mevcut bileşenlerle kurulur; yeni token, renk veya yarıçap eklenmedi:
+`AppCard` bölümler için, `AppListRow` satırlar için, `AppSectionHeader` bölüm
+başlıkları için, `AppConfirmDialog` onay için, `AppFormSheet` parola ve silme
+panelleri için. Yıkıcı bölüm rengini temadan alır (`colorScheme.error`);
+ayrı bir "tehlike" token'ı tanımlanmadı.
+
+Parola panelinde yeni parolanın kuralı `helperText` olarak yazılıdır ve
+doğrulama **istek gitmeden** çalışır: kural ekranda yazılıyken sunucuya
+sordurmak kullanıcıyı bekletirdi.
+
 ## Erişilebilirlik kuralları
 
 1. **Hiçbir bilgi yalnız renkle taşınmaz.** Her durum ikon veya metinle de

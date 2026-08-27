@@ -8,6 +8,7 @@ import '../core/storage/secure_session_store.dart';
 import '../features/auth/data/auth_repository.dart';
 import '../features/auth/data/auth_service.dart';
 import '../features/auth/presentation/auth_controller.dart';
+import '../features/account/data/account_repository.dart' as user_account;
 import '../features/accounts/data/account_repository.dart';
 import '../features/budgets/data/budget_repository.dart';
 import '../features/categories/data/category_repository.dart';
@@ -39,6 +40,7 @@ class AppDependencies {
     this.financialDataChanges,
     this.scopeController,
     this.profileRepository,
+    this.userAccountRepository,
     this.accountRepository,
     this.budgetRepository,
     this.categoryRepository,
@@ -96,6 +98,7 @@ class AppDependencies {
     final taxRepository = TaxRepository(apiClient);
     final receiptRepository = ReceiptRepository(apiClient);
     final profileRepository = ProfileRepository(apiClient);
+    final userAccountRepository = user_account.AccountRepository(apiClient);
     // Kapsam anahtarı cihazdan, onboarding cevabı sunucudan okunur; ikisi de
     // oturum açıldığında yüklenir (`BusinessFinanceApp`).
     final scopeController = ScopeController(
@@ -110,6 +113,7 @@ class AppDependencies {
       financialDataChanges,
       scopeController,
       profileRepository,
+      userAccountRepository,
       accountRepository,
       budgetRepository,
       categoryRepository,
@@ -143,6 +147,11 @@ class AppDependencies {
   /// filtre yoktur).
   final ScopeController scopeController;
   final ProfileRepositoryContract profileRepository;
+
+  /// Kullanıcının kendi hesabı: e-posta, açık oturumlar, parola ve hesabı
+  /// kapatma. Finansal `accountRepository` ile karıştırılmasın diye ad alanı
+  /// ayrıldı — biri para hesabı, diğeri kullanıcı hesabı.
+  final user_account.AccountRepositoryContract userAccountRepository;
   final AccountRepository accountRepository;
   final BudgetRepositoryContract budgetRepository;
   final CategoryRepository categoryRepository;

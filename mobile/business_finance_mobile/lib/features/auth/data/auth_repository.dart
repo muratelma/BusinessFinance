@@ -20,6 +20,18 @@ abstract interface class AuthSessionRepository {
 
   Future<AuthSession?> refreshSession();
 
+  /// Parola değiştirme gibi, sunucunun **kendiliğinden** taze bir token çifti
+  /// verdiği durumlarda çağrılır: bütün oturumlar kapandığı için elimizdeki
+  /// refresh token artık ölüdür ve yenisi hemen benimsenmezse kullanıcı bir
+  /// sonraki istekte uygulamadan düşer.
+  Future<AuthSession?> adoptRotatedTokens({
+    String? sessionId,
+    required String accessToken,
+    required DateTime accessTokenExpiresAtUtc,
+    required String refreshToken,
+    required DateTime refreshTokenExpiresAtUtc,
+  });
+
   Future<void> logout();
 }
 
@@ -128,6 +140,30 @@ class AuthRepository implements AuthSessionRepository {
       await _clearSession();
       rethrow;
     }
+  }
+
+  @override
+  Future<AuthSession?> adoptRotatedTokens({
+    String? sessionId,
+    required String accessToken,
+    required DateTime accessTokenExpiresAtUtc,
+    required String refreshToken,
+    required DateTime refreshTokenExpiresAtUtc,
+  }) async {
+    final session = _session;
+    if (session == null) {
+      return null;
+    }
+    final rotated = session.rotate(
+      newSessionId: sessionId,
+      newAccessToken: accessToken,
+      newAccessTokenExpiresAtUtc: accessTokenExpiresAtUtc,
+      newRefreshToken: refreshToken,
+      newRefreshTokenExpiresAtUtc: refreshTokenExpiresAtUtc,
+    );
+    await _sessionStore.write(rotated);
+    _session = rotated;
+    return rotated;
   }
 
   @override

@@ -31,6 +31,8 @@ class BusinessFinanceApp extends StatelessWidget {
                      changes: dependencies.financialDataChanges,
                      scopeController: dependencies.scopeController,
                    ),
+             authRepository: dependencies?.authRepository,
+             userAccountRepository: dependencies?.userAccountRepository,
              accountRepository: dependencies?.accountRepository,
              budgetRepository: dependencies?.budgetRepository,
              categoryRepository: dependencies?.categoryRepository,

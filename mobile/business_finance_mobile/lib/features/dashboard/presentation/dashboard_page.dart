@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/routing/app_locations.dart';
 import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_text.dart';
 import '../../../core/models/transaction_scope.dart';
@@ -35,7 +36,19 @@ class DashboardPage extends StatelessWidget {
     final viewModel = context.watch<DashboardViewModel>();
     final state = _stateView(viewModel);
     return Scaffold(
-      appBar: AppBar(title: const Text('Özet')),
+      // Hesabın kapısı sağ üstte: Özet ana sekme olduğu için hesap her
+      // yerden bir dokunuş uzakta kalıyor ve `Diğer` menüsünden bir satır
+      // düşüyor. İkon bir profil fotoğrafı değil — uygulamada avatar yok.
+      appBar: AppBar(
+        title: const Text('Özet'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.account_circle_outlined),
+            tooltip: 'Hesabım',
+            onPressed: () => context.push(accountLocation),
+          ),
+        ],
+      ),
       // Anahtar kaydırılan gövdenin **dışında**: uygulamanın tek kapsam
       // denetimi bu ve yükleme, hata ya da boş durumda da yerinde durmalı —
       // kullanıcı listeyi boş görüp anahtarın nerede olduğunu aramamalı.

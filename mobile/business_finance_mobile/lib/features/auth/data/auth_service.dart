@@ -56,6 +56,7 @@ class ApiAuthService implements AuthRemoteService {
     );
     final json = response.requireObject();
     return currentSession.rotate(
+      newSessionId: _optionalString(json, 'sessionId'),
       newAccessToken: _requiredString(json, 'accessToken'),
       newAccessTokenExpiresAtUtc: _requiredUtc(json, 'accessTokenExpiresAtUtc'),
       newRefreshToken: _requiredString(json, 'refreshToken'),
@@ -73,6 +74,11 @@ class ApiAuthService implements AuthRemoteService {
       body: {'refreshToken': refreshToken},
     );
   }
+}
+
+String? _optionalString(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  return value is String && value.trim().isNotEmpty ? value : null;
 }
 
 String _requiredString(Map<String, dynamic> json, String key) {

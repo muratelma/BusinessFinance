@@ -946,6 +946,7 @@ Menü yedi kutu ve sıra frekansa değil **ne yaptığınıza** göre:
 | 5 | Tasarruf hedefleri | `/more/goals` |
 | 6 | Planlama ve raporlar | `/more/planning` — tekrarlayanlar, yaklaşanlar, raporlar |
 | 7 | Veri ve yedek | `/more/data-tools` — CSV, belgeler, yedek |
+| 8 | Hesabım | `/more/account` — e-posta, işletme cevabı, oturumlar, parola, çıkış, hesabı kapatma |
 
 İlk ikisi yalnız **bakmak** için açtığınız yerler; 3–5 **kurduğunuz** şeyler;
 6 bakış, 7 dosya işi.
@@ -971,6 +972,44 @@ Neyin nereye gittiği ve neden:
 Hızlı ekleme menüsündeki `Transfer`, `/more/accounts?tab=transfers` ile
 doğrudan Transferler sekmesini açar; kullanıcıyı Hesaplar'a bırakıp sekmeyi
 kendisinin bulmasını beklemek istediği işi bir adım uzatırdı.
+
+## Hesabım akışı (Aşama 06 Grup 1)
+
+Hesaba dair parçalar tek sayfada toplandı. Önceden `Diğer` menüsünün altında
+iki ayrı kart olarak duran **işletme cevabı** ve **çıkış** oraya taşındı;
+menüde yalnız sayfanın kapısı kaldı.
+
+Sayfaya iki yerden girilir: **Özet ekranının sağ üstündeki hesap ikonu** ve
+`Diğer > Hesabım`. İkisinin birden kalıp kalmayacağına Aşama 06.2 karar verir;
+o karara kadar iki kapı bir kusur değil, bilerek bırakılmış geçici hâldir.
+İkon `AppBar` action'ıdır ve kapsam anahtarına dokunmaz: anahtar `AppBar`'da
+değil, altındaki ayrı barda ve kaydırılan gövdenin dışında durur.
+
+Sayfanın sırası tehlikeye göredir:
+
+| Sıra | Bölüm | Ne yapar |
+|---|---|---|
+| 1 | Kimlik | E-posta ve hesap açılış tarihi |
+| 2 | İşletmem var | Onboarding cevabı; kategorilere dokunmaz |
+| 3 | Açık oturumlar | Her satır açılış ve geçerlilik tarihi; bu cihaz işaretli |
+| 4 | Güvenlik | Parola değiştirme, çıkış |
+| 5 | Hesabı kapat | Geri dönüşü olmayan silme |
+
+**Oturum satırı ne olduğunu değil ne zaman açıldığını söyler.** Cihaz adı, IP
+ve konum yoktur çünkü sunucu bunları hiç saklamıyor; uydurulmuş bir
+"Windows, İstanbul" satırı denetlenemeyen bir güven vaadi olurdu. Bu cihazın
+satırında kapatma düğmesi yoktur — kendi oturumunu kapatmak "çıkış yap"tır ve
+onun kendi satırı vardır.
+
+**Parola değişimi kullanıcıyı uygulamadan atmaz.** Sunucu bütün oturumları
+kapatır ve cevapla birlikte bu cihaza taze bir token çifti verir; istemci onu
+hemen benimser. Kullanıcı ekranda "diğer cihazlardaki oturumlar kapatıldı"
+cümlesini görür ve yerinde kalır.
+
+**Hesabı kapatmak iki kapıdan geçer** (ADR 0017): önce ne olacağını söyleyen
+açık onay — yedek alma önerisiyle birlikte — sonra parolanın yeniden yazıldığı
+panel. İkisinden biri tamamlanmazsa hiçbir istek gitmez. Silme başarılı olunca
+istemci çıkış yapar; sunucuda hesap kalmadığı için elindeki token da ölüdür.
 
 ## Responsive gezinme ve panel akışı
 

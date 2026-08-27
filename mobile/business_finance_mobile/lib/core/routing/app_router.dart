@@ -9,6 +9,9 @@ import '../presentation/scope_controller.dart';
 import '../../features/accounts/data/account_repository.dart';
 import '../../features/accounts/presentation/accounts_and_transfers_page.dart';
 import '../../features/accounts/presentation/accounts_view_model.dart';
+import '../../features/account/data/account_repository.dart' as user_account;
+import '../../features/account/presentation/account_page.dart';
+import '../../features/auth/data/auth_repository.dart';
 import '../../features/auth/presentation/auth_controller.dart';
 import '../../features/auth/presentation/login_page.dart';
 import '../../features/auth/presentation/register_page.dart';
@@ -82,6 +85,8 @@ export 'app_locations.dart';
 GoRouter createAppRouter({
   String initialLocation = '/dashboard',
   AuthController? authController,
+  AuthSessionRepository? authRepository,
+  user_account.AccountRepositoryContract? userAccountRepository,
   DashboardViewModel Function()? dashboardViewModelFactory,
   AccountRepository? accountRepository,
   BudgetRepositoryContract? budgetRepository,
@@ -655,6 +660,23 @@ GoRouter createAppRouter({
                   repository: planningRepository,
                   financialDataChanges: financialDataChanges,
                   recurringPrefill: _recurringPrefill(state.uri),
+                ),
+          authController,
+        ),
+      ),
+      GoRoute(
+        path: accountLocation,
+        pageBuilder: (context, state) => _sessionPage(
+          state,
+          userAccountRepository == null || authRepository == null
+              ? const Scaffold(
+                  body: AppErrorView(
+                    message: 'Hesap servisi yapılandırılmadı.',
+                  ),
+                )
+              : AccountPage(
+                  repository: userAccountRepository,
+                  authRepository: authRepository,
                 ),
           authController,
         ),

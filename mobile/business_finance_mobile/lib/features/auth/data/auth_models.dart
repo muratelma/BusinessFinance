@@ -2,6 +2,7 @@ class AuthSession {
   const AuthSession({
     required this.userId,
     required this.email,
+    this.sessionId,
     required this.accessToken,
     required this.accessTokenExpiresAtUtc,
     required this.refreshToken,
@@ -10,6 +11,12 @@ class AuthSession {
 
   final String userId;
   final String email;
+
+  /// Bu cihazın açık oturumunun kimliği. Sır değildir — token olmadan hiçbir
+  /// işe yaramaz — ama `Hesabım` sayfasının oturum listesinde hangi satırın
+  /// kendisi olduğunu bilmesini sağlar. Eski bir kurulumda saklanmış oturumda
+  /// bulunmayabilir; o hâlde hiçbir satır "bu cihaz" diye işaretlenmez.
+  final String? sessionId;
   final String accessToken;
   final DateTime accessTokenExpiresAtUtc;
   final String refreshToken;
@@ -18,6 +25,7 @@ class AuthSession {
   factory AuthSession.fromJson(Map<String, dynamic> json) => AuthSession(
     userId: _requiredString(json, 'userId'),
     email: _requiredString(json, 'email'),
+    sessionId: _optionalString(json, 'sessionId'),
     accessToken: _requiredString(json, 'accessToken'),
     accessTokenExpiresAtUtc: _requiredUtcDateTime(
       json,
@@ -33,6 +41,7 @@ class AuthSession {
   Map<String, dynamic> toJson() => {
     'userId': userId,
     'email': email,
+    if (sessionId != null) 'sessionId': sessionId,
     'accessToken': accessToken,
     'accessTokenExpiresAtUtc': accessTokenExpiresAtUtc.toIso8601String(),
     'refreshToken': refreshToken,
@@ -40,6 +49,7 @@ class AuthSession {
   };
 
   AuthSession rotate({
+    String? newSessionId,
     required String newAccessToken,
     required DateTime newAccessTokenExpiresAtUtc,
     required String newRefreshToken,
@@ -47,6 +57,7 @@ class AuthSession {
   }) => AuthSession(
     userId: userId,
     email: email,
+    sessionId: newSessionId ?? sessionId,
     accessToken: newAccessToken,
     accessTokenExpiresAtUtc: newAccessTokenExpiresAtUtc,
     refreshToken: newRefreshToken,
@@ -64,6 +75,11 @@ class RegisterResult {
     userId: _requiredString(json, 'userId'),
     email: _requiredString(json, 'email'),
   );
+}
+
+String? _optionalString(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  return value is String && value.trim().isNotEmpty ? value : null;
 }
 
 String _requiredString(Map<String, dynamic> json, String key) {

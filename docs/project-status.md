@@ -69,7 +69,8 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
 - **Aşama 06 — Hesap ve kalan işler: aktif** (27 Ağustos 2026'da kullanıcının
   açık onayıyla açıldı). Açık kapsamlı aşamadır; yedi çalışma grubu yazılı ve
   liste kullanıcı yeni bir şey söyledikçe büyür. **Grup 1 — Hesap ve güvenlik
-  ekranı** ile başlandı
+  ekranı tamamlandı** (27 Ağustos 2026): hesap okuma, oturum listesi ve tek tek
+  kapatma, parola değiştirme, hesap silme (ADR 0017) ve `Hesabım` sayfası
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması →
   06.2 arayüz düzeni → (gerekirse 06.x) → 07 bulut (`PROJECT-ROADMAP.md`)
@@ -1559,11 +1560,15 @@ plan. Hepsi sentetiktir ve istenirse silinebilir.
 
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: Aşama 05 **tamamlandı ve kapatıldı**. ADR 0016 ile açıldı;
-  sekiz çalışma grubu ve cihaz kabul turu aynı oturumda yapıldı
-- Geçen kontroller: backend build + format + **983 test** (gerçek SQL dâhil);
-  Flutter analyze + format + **770 test** + Android debug build; Pixel 8
-  emulator üzerinde bir aylık vergi senaryosu
-- Sıradaki görev: **aktif aşama yok.** Aşama 06 (Hesap ve kalan işler) yalnız
-  kullanıcının açık onayıyla açılır. Onaya kadar kod değişmez
+- Yapılan değişiklik: **Aşama 06 açıldı ve Grup 1 (Hesap ve güvenlik ekranı)
+  tamamlandı.** Kullanıcı kendi hesabını görüyor, açık oturumlarını listeleyip
+  tek tek kapatıyor, parolasını değiştiriyor ve hesabını silebiliyor. ADR 0017
+  yazıldı: hesabı kapatmak bir finansal düzeltme değildir, veri gerçekten
+  silinir (parola + açık onay). Token cevaplarına `sessionId` eklendi; işletme
+  cevabı ve çıkış `Diğer` menüsünden `Hesabım` sayfasına taşındı. Şema
+  değişmedi, migration yok
+- Geçen kontroller: backend build + format + **1002 test** (gerçek SQL dâhil,
+  1 skip); Flutter analyze + format + **777 test** + Android debug build
+- Sıradaki görev: **Aşama 06 Grup 2** — e-posta doğrulama ve parola sıfırlama
+  (kod tabanlı, Brevo). Grup 1 bitti
 

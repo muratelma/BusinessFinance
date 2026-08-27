@@ -28,6 +28,8 @@ void main() {
     'Tasarruf hedefleri',
     'Planlama ve raporlar',
     'Veri ve yedek',
+    // Hesabın ikinci kapısı; birincisi Özet'in sağ üstündeki ikon.
+    'Hesabım',
   ];
 
   testWidgets('kişisel profilde kasa Diğer altında erişilebilir kalır', (
@@ -39,7 +41,6 @@ void main() {
     final titles = tester
         .widgetList<AppListRow>(find.byType(AppListRow))
         .map((row) => row.title)
-        .where((title) => title != 'Çıkış yap')
         .toList(growable: false);
 
     expect(titles, expectedOrder);
@@ -64,10 +65,10 @@ void main() {
     await tester.pumpWidget(_host());
     await tester.pumpAndSettle();
 
-    // Menü kapıları için bir kart, çıkış için bir kart.
-    expect(find.byType(AppCard), findsNWidgets(2));
-    // Satırlar arasında birer ayrıcı, artı çıkış kartını ayıran bir tane.
-    expect(find.byType(Divider), findsNWidgets(expectedOrder.length - 1 + 1));
+    // Kapıların hepsi tek kartta: hesabın parçaları `Hesabım` sayfasına
+    // taşındıktan sonra menüde ikinci bir kart kalmadı.
+    expect(find.byType(AppCard), findsOneWidget);
+    expect(find.byType(Divider), findsNWidgets(expectedOrder.length - 1));
   });
 
   testWidgets('menü erişilebilirlik kapısını geçer', (tester) async {
@@ -97,6 +98,7 @@ Widget _host() => MaterialApp.router(
         '/more/goals',
         '/more/planning',
         '/more/data-tools',
+        '/more/account',
       ])
         GoRoute(path: path, builder: (_, _) => const SizedBox.shrink()),
     ],

@@ -152,6 +152,21 @@ Sıra bağlayıcı değildir.
 
 ### Grup 1 — Hesap ve güvenlik ekranı
 
+**Durum: tamamlandı (27 Ağustos 2026).** Grupta verilmesi gereken iki karar
+verildi ve belgelere yazıldı:
+
+- **Parola değişimi bütün oturumları kapatır** — isteği yapan cihaz dâhil.
+  Cihaz uygulamadan atılmasın diye cevapla birlikte yeni bir oturum ve taze
+  token çifti alır; elindeki eski refresh token reddedilir. Token cevaplarına
+  bu yüzden `sessionId` eklendi: istemci hangi satırın kendisi olduğunu
+  bilmeden kendi oturumunu kapatabilirdi.
+- **Hesap silme gerçek silmedir** (ADR 0017), anonimleştirme değil. İki kapı
+  ister: parolanın yeniden yazılması ve açık onay. Silmeden önce kullanıcıya
+  yedeğini alması önerilir.
+
+Sayfa `Diğer` menüsünde de duruyor, giriş noktası Özet'in sağ üstünde de:
+ikisinin birden kalıp kalmayacağı Aşama 06.2'nin kararı.
+
 - `Diğer` altındaki dağınık hesap parçaları (işletme anahtarı, çıkış) tek bir
   **Hesabım** sayfasında toplanır; e-posta görünür olur.
 - **Giriş noktası Özet ekranının sağ üstündedir**: `AppBar` action'ı olarak bir

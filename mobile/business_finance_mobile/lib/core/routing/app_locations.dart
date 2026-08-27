@@ -36,6 +36,12 @@ const obligationCreateLocation = '/transactions/new/obligation';
 /// elle yazılması taşındığında biri geride kalır.
 const cashLocation = '/more/cash';
 
+/// `Hesabım`: e-posta, işletme cevabı, açık oturumlar, parola ve hesabı
+/// kapatma. Özet ekranının sağ üstünden ve `Diğer` menüsünden aynı yere
+/// gidilir; iki kapı, gezinme kararı verilene kadar (Aşama 06.2) birlikte
+/// duruyor.
+const accountLocation = '/more/account';
+
 /// Vergi takvimi: hazır kalemler ve kurdukları tekrarlayan planlar.
 const taxCalendarLocation = '/more/tax-calendar';
 

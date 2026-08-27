@@ -1192,3 +1192,17 @@ planlanan ekranının iki testi de kırmızıya düştü.
 | Silme sırası doğru | `UserAccountUseCaseTests.DeleteAccount_ErasesTheDataBeforeTheIdentity` | Önce finansal veri, sonra kimlik |
 | Gerçek silme gerçek SQL'de | `SqlServerPersistenceIntegrationTests.UserAccountEraser_RemovesEveryRowTheUserOwnsAndLeavesOtherUsersUntouched` | 28 tabloda sıfır satır, ikinci kullanıcının defteri yerinde, ek dosyasının silinmesi istendi |
 
+## Hesabım sayfası (27 Ağustos 2026, Aşama 06 Grup 1)
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Sayfa hesabı ve oturumları gösteriyor | `account_page_test` | E-posta, `Bu cihaz` ve `Başka bir cihaz` satırları |
+| Kendi oturumu listeden kapatılmıyor | aynı dosya | Yalnız bir kapatma düğmesi var; kendi satırında yok |
+| Başka cihaz onaydan sonra kapanıyor | aynı dosya | Onaysız istek gitmiyor; kapanan satır listeden düşüyor |
+| Zayıf parola istek üretmiyor | aynı dosya | Kural istemcide, sunucuya sorulmadan söyleniyor |
+| Taze token benimseniyor | aynı dosya | Değişimden sonra saklanan oturum yeni refresh token ve oturum kimliğini taşıyor |
+| Yanlış parola paneli kapatmıyor | aynı dosya | Hata alanın altında; kullanıcı yazdığını düzeltebiliyor |
+| Silme iki kapıdan geçiyor | aynı dosya | Onay + parola; ikisi tamamlanmadan istek yok |
+| İşletme cevabı yeni yerinde | `business_answer_test` | Cevap `Hesabım` sayfasından değişiyor; kapsam boyutu ona uyuyor |
+| Menüde tek kart kaldı | `more_page_test` | Hesap parçaları taşındıktan sonra `Diğer` tek kart, sonuncu satır `Hesabım` |
+

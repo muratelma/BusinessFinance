@@ -7,8 +7,12 @@ import 'package:business_finance_mobile/core/network/api_exception.dart';
 import 'package:business_finance_mobile/core/presentation/scope_controller.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
 import 'package:business_finance_mobile/features/auth/presentation/register_page.dart';
-import 'package:business_finance_mobile/features/more/presentation/more_page.dart';
+import 'package:business_finance_mobile/features/account/data/account_models.dart';
+import 'package:business_finance_mobile/features/account/data/account_repository.dart';
+import 'package:business_finance_mobile/features/account/presentation/account_page.dart';
 import 'package:business_finance_mobile/features/profile/data/profile_repository.dart';
+
+import '../../helpers/fake_auth.dart';
 
 void main() {
   group('kayıt', () {
@@ -39,13 +43,15 @@ void main() {
     });
   });
 
-  group('ayarlar', () {
+  // Cevap `Diğer` menüsünden `Hesabım` sayfasına taşındı: hesaba dair
+  // parçalar tek yerde toplanıyor (Aşama 06 Grup 1).
+  group('hesabım', () {
     testWidgets('cevap değiştirilebilir ve kapsam boyutu ona uyar', (
       tester,
     ) async {
       final repository = _FakeProfileRepository();
       final scope = await _scopeController(hasBusiness: false);
-      await _pumpMore(tester, repository: repository, scope: scope);
+      await _pumpAccount(tester, repository: repository, scope: scope);
       await _revealBusinessAnswer(tester);
 
       await tester.tap(find.text('İşletmem var'));
@@ -66,7 +72,7 @@ void main() {
         ),
       );
       final scope = await _scopeController(hasBusiness: false);
-      await _pumpMore(tester, repository: repository, scope: scope);
+      await _pumpAccount(tester, repository: repository, scope: scope);
       await _revealBusinessAnswer(tester);
 
       await tester.tap(find.text('İşletmem var'));
@@ -79,7 +85,7 @@ void main() {
     testWidgets('bağlanmamış kabukta çalışmayan anahtar gösterilmez', (
       tester,
     ) async {
-      await tester.pumpWidget(_moreHost(const MorePage()));
+      await tester.pumpWidget(_host(_accountPage()));
       await tester.pumpAndSettle();
 
       expect(find.text('İşletmem var'), findsNothing);
@@ -115,9 +121,9 @@ Future<void> _pumpRegister(
   await tester.pumpAndSettle();
 }
 
-/// Menü test ekranına sığmıyor: kapı sayısı arttıkça onboarding cevabı
-/// katlanmanın altına iniyor. Kaydırmadan dokunmak, cevabın kaybolduğunu
-/// değil ekranın küçük olduğunu ölçerdi.
+/// Sayfa test ekranına sığmıyor: onboarding cevabı katlanmanın altına
+/// inebiliyor. Kaydırmadan dokunmak, cevabın kaybolduğunu değil ekranın küçük
+/// olduğunu ölçerdi.
 Future<void> _revealBusinessAnswer(WidgetTester tester) async {
   await tester.dragUntilVisible(
     find.text('İşletmem var'),
@@ -127,43 +133,64 @@ Future<void> _revealBusinessAnswer(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _pumpMore(
+Future<void> _pumpAccount(
   WidgetTester tester, {
   required _FakeProfileRepository repository,
   required ScopeController scope,
 }) async {
   await tester.pumpWidget(
-    _moreHost(
+    _host(
       MultiProvider(
         providers: [
           ChangeNotifierProvider.value(value: scope),
           Provider<ProfileRepositoryContract>.value(value: repository),
         ],
-        child: const MorePage(),
+        child: _accountPage(),
       ),
     ),
   );
   await tester.pumpAndSettle();
 }
 
-Widget _moreHost(Widget child) => MaterialApp.router(
+Widget _accountPage() => AccountPage(
+  repository: _StubAccountRepository(),
+  authRepository: FakeAuthSessionRepository()..session = testSession(),
+);
+
+Widget _host(Widget child) => MaterialApp.router(
   theme: AppTheme.light(),
   routerConfig: GoRouter(
-    routes: [
-      GoRoute(path: '/', builder: (_, _) => child),
-      for (final path in [
-        '/more/accounts',
-        '/more/cards',
-        '/more/categories',
-        '/more/debts',
-        '/more/goals',
-        '/more/planning',
-        '/more/data-tools',
-      ])
-        GoRoute(path: path, builder: (_, _) => const SizedBox.shrink()),
-    ],
+    routes: [GoRoute(path: '/', builder: (_, _) => child)],
   ),
 );
+
+/// Cevabın kendisi test konusu; hesap bilgisi yalnız sayfanın çizilebilmesi
+/// için gerekiyor.
+class _StubAccountRepository implements AccountRepositoryContract {
+  @override
+  Future<UserAccount> read() async => UserAccount(
+    userId: '11111111-1111-1111-1111-111111111111',
+    email: 'user@example.test',
+    emailConfirmed: false,
+    createdAtUtc: DateTime.utc(2026, 8, 1),
+    activeSessionCount: 0,
+  );
+
+  @override
+  Future<List<UserSessionSummary>> listSessions() async => const [];
+
+  @override
+  Future<void> revokeSession(String sessionId) async {}
+
+  @override
+  Future<RotatedTokens> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async => throw UnimplementedError();
+
+  @override
+  Future<void> deleteAccount({required String password}) async {}
+}
 
 Future<ScopeController> _scopeController({required bool hasBusiness}) async {
   final controller = ScopeController(
