@@ -1003,28 +1003,68 @@ taşımak.
   (gerçek SQL dâhil, 2 skip: Gemini ve Brevo canlı sözleşme testleri); Flutter
   analyze + format + **829 test** + Android debug build
 
+## 27 Ağustos 2026 — Aşama 06 Grup 6: fiş/dekont cihaz kabul turu
+
+Pixel 8 emulator'ünde, gerçek API + gerçek SQL + gerçek Gemini ile, Aşama 05'in
+kabul hesabı üzerinde koşuldu. Belgelerin hepsi sentetiktir (HTML'den üretilmiş
+PNG) ve tur bitince cihazdan silindi.
+
+**Altı yolun hepsi tamamlandı:**
+
+| Yol | Sonuç |
+|---|---|
+| Harcama | Market fişi okundu: tutar 280, tarih, ad ve kategori önerildi; **ödeme kaynağı boş bırakıldı** (ADR 0011) |
+| Gelir | Tahsilat makbuzu 2.400 okundu, kategori `Satış geliri`, kapsam kategoriden `İşletme` |
+| Vadeli fatura | `Bu faturayı ödediniz mi?` çıktı; `Henüz ödemedim` yükümlülük formunu açtı (hesap ve sıklık sormadan), son ödeme 2026-09-05 okundu |
+| Taksitli fiş | Kart seçimine dallandı, plan 6 taksit / 3.600 önü dolu geldi; kaydedildikten sonra **güncel borç ₺0,00** kaldı — plan yalnız niyettir |
+| İade | Eşleşen 280'lik harcama bulundu, onayla **iptal** edildi (silinmedi) |
+| Dekont | Dört seçenekli karar sayfası; `Geri bekliyorum` borç/alacak planını açtı, ₺7,50 işlem ücreti **ayrı kayıt** olarak önerildi |
+
+Turun sonunda aritmetik birebir tuttu: işletme neti −₺1.700 → **+₺60,00**
+(+2.400 gelir − 640 yükümlülük), şahsi çekim −₺300 → **−₺307,50** (280'lik
+harcama iade ile iptal edildi, kalan yalnız 7,50'lik dekont ücreti). Taksit
+planı ve borç/alacak gelir/gidere hiç girmedi.
+
+**Turda iki kusur bulundu ve düzeltildi:**
+
+- **Eşleşme bulunan iade fişi hiç açılmıyordu.** `JsonReaders.object` **değer**
+  alır, anahtar değil; çağrı iç nesne yerine taslağın kendisini geçiyordu.
+  Taslak da geçerli bir `Map` olduğu için hata ancak `transactionId` aranırken
+  çıkıyor ve ekranda "Sunucudan beklenmeyen bir fiş yanıtı alındı" görünüyordu.
+  Mevcut testler eşleşmeyi hep elle inşa ettiği için kusur görünmüyordu; iki
+  yeni test artık gövdeden okuyor
+- **Borç/alacak formunda kapsam alanı yoktu** (Aşama 01'de atlanmış).
+  `DebtAgreement` kapsam taşımak zorundadır; kaynağı ve kategorisi kapsam
+  taşımayan kullanıcıda sunucu isteği `scope_unresolved` ile reddediyor ve
+  dekonttan gelen borç planı hiç kurulamıyordu. Alan eklendi: zincirin
+  önizlemesini gösteriyor, çözülemezse **istek gitmeden** formda söylüyor
+
+**Üç kusur backlog'a yazıldı** (6, 7, 8): sunucunun İngilizce hata metninin
+kullanıcıya düşmesi, taksit akışındaki boş kart listesinin sessiz kalması, fiş
+okumanın belgede yazan KDV'yi önermemesi. Üçü de tek satırlık düzeltme değil.
+
+- `docs/backlog.md` madde 3 kapandı
+- Geçen kontroller: flutter analyze temiz, `dart format` temiz, **835 test
+  geçti**, Android debug build üretildi. Backend'e dokunulmadı
+
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: **Aşama 06 açıldı; Grup 1, 2, 3, 4 ve 5 tamamlandı.**
+- Yapılan değişiklik: **Aşama 06 açıldı; Grup 1, 2, 3, 4, 5 ve 6 tamamlandı.**
   - **Grup 1** kullanıcının kendi hesabını uygulamaya açtı: e-posta, açık
-    oturumlar, parola değiştirme ve hesabı kapatma. ADR 0017 yazıldı — hesabı
-    kapatmak bir finansal düzeltme değildir, veri gerçekten silinir (parola +
-    açık onay). Token cevaplarına `sessionId` eklendi
-  - **Grup 2** kimlik akışını tamamladı: kayıtla giden altı haneli doğrulama
-    kodu, parola sıfırlama, Brevo gönderici port'u ve `AddVerificationCodes`
-    migration'ı. Kod açık saklanmaz, cevapta dönmez ve loglanmaz;
-    doğrulanmamış hesap kilitlenmez
+    oturumlar, parola değiştirme ve hesabı kapatma (ADR 0017)
+  - **Grup 2** kimlik akışını tamamladı: altı haneli doğrulama kodu, parola
+    sıfırlama, Brevo gönderici port'u, `AddVerificationCodes` migration'ı
   - **Grup 3** hatırlatmayı cihaza kurdu: `Diğer → Hatırlatmalar`, gün başına
-    tek bildirim, izin istenmeden hiçbir şey planlanmıyor ve veri değişince
-    kurulu bildirim düşüyor. Backend değişmedi
+    tek bildirim, izin istenmeden hiçbir şey planlanmıyor
   - **Grup 4** varsayılan kapsamı hesap, kart ve kategori formuna açtı ve
-    `PUT`'un sessizce sildiği varsayılanları düzeltti; `docs/backlog.md`
-    madde 5 kapandı. Backend değişmedi
+    `PUT`'un sessizce sildiği varsayılanları düzeltti (madde 5 kapandı)
   - **Grup 5** kart borcundaki kırpmayı kaldırdı: alacaklı bakiye net varlığa
-    giriyor ve arayüzde borç değil alacak olarak okunuyor; madde 1 kapandı.
-    Şema değişmedi, migration yok
+    giriyor ve arayüzde borç değil alacak olarak okunuyor (madde 1 kapandı)
+  - **Grup 6** fiş/dekont akışının altı yolunu Pixel 8'de koşturdu; iki kusur
+    düzeltildi, üçü backlog'a yazıldı (madde 3 kapandı)
 - Geçen kontroller: backend build (0 uyarı) + format temiz + **1041 test**
   (gerçek SQL dâhil, 2 skip: Gemini ve Brevo canlı sözleşme testleri); Flutter
-  analyze + format + **829 test** + Android debug build
-- Sıradaki görev: **Aşama 06 Grup 6** — fiş/dekont akışının cihaz kabul turu
-  (backlog madde 3). Grup 1–5'in cihaz kabul turu da henüz yapılmadı
+  analyze + format + **835 test** + Android debug build
+- Sıradaki görev: **Aşama 06 Grup 7** — bütçe ekranı iyileştirmeleri (backlog
+  madde 2). Grubun ilk işi listeyi çıkarmak; liste kullanıcıyla onaylanmadan
+  kod değişmez. Grup 1–5'in cihaz kabul turu hâlâ yapılmadı

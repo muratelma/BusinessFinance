@@ -220,9 +220,16 @@ class ReceiptDraft {
     categoryId: JsonReaders.nullableString(json, 'categoryId'),
     categoryName: JsonReaders.nullableString(json, 'categoryName'),
     categoryState: ReceiptFieldState.parse(json, 'categoryState'),
+    // `object` **değeri** alır, anahtarı değil. Buraya `json` geçiliyordu:
+    // taslağın kendisi geçerli bir `Map` olduğu için hata vermiyor, iç nesne
+    // yerine taslak dönüyor ve `transactionId` bulunamıyordu. Eşleşme bulunan
+    // her iade fişi bu yüzden "beklenmeyen fiş yanıtı" ile düşüyordu
+    // (Aşama 06 Grup 5 cihaz kabul turu).
     refundMatch: json['refundMatch'] == null
         ? null
-        : ReceiptRefundMatch.fromJson(JsonReaders.object(json, 'refundMatch')),
+        : ReceiptRefundMatch.fromJson(
+            JsonReaders.object(json['refundMatch'], 'refundMatch'),
+          ),
     warnings: JsonReaders.list(json, 'warnings')
         .map(
           (item) =>

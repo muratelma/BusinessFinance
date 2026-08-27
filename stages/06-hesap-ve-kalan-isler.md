@@ -337,6 +337,27 @@ kullanıcının alacaklı bakiyesi net varlıkta 0 sayılıyor.
 
 ### Grup 6 — Fiş/dekont akışının cihaz kabul turu
 
+**Durum: tamamlandı (27 Ağustos 2026).** Altı yol da Pixel 8 emulator'ünde,
+gerçek API, gerçek SQL ve gerçek Gemini ile koşuldu; belgelerin hepsi
+sentetiktir ve tur bitince cihazdan silindi. `docs/backlog.md` madde 3 kapandı.
+
+Turda **iki kusur bulundu ve aynı gün düzeltildi:**
+
+- **Eşleşme bulunan iade fişi hiç açılmıyordu.** İstemci `JsonReaders.object`'e
+  iç nesne yerine taslağın kendisini geçiyordu; taslak da geçerli bir `Map`
+  olduğu için hata ancak `transactionId` aranırken çıkıyor ve ekranda
+  "Sunucudan beklenmeyen bir fiş yanıtı alındı" görünüyordu. Mevcut testlerin
+  hiçbiri eşleşmeyi JSON'dan kurmadığı için kusur görünmüyordu.
+- **Borç/alacak formunda kapsam alanı yoktu.** `DebtAgreement` gelir/gider
+  raporunu etkiler ve kapsam taşımak zorundadır; kaynağı ve kategorisi kapsam
+  taşımayan kullanıcıda sunucu isteği reddediyor, dekonttan gelen borç planı
+  hiç kurulamıyordu. Alan Aşama 01'de atlanmış.
+
+**Üç kusur backlog'a yazıldı** (6, 7, 8. maddeler): sunucunun İngilizce hata
+metninin kullanıcıya düşmesi, taksit akışındaki boş kart listesinin sessiz
+kalması ve fiş okumanın KDV önermemesi. Üçü de tek satırlık düzeltme değil;
+birincisi hata kodu envanteri, üçüncüsü sözleşme değişikliği ister.
+
 Devralınan açık iş (`docs/backlog.md` madde 3). Kod ve testler yerinde; eksik
 olan cihaz doğrulaması.
 

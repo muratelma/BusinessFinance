@@ -1312,6 +1312,11 @@ için gider formu açılır ve kalan sunucuda hesaplanır.
 **Taksitli fiş tek seferlik tam tutar gideri üretmez.** Kartı kullanıcı seçer,
 plan yalnız niyettir; yalnız gerçekleşen taksit kart harcaması ve gider üretir.
 
+**Dekonttan gelen borç/alacak planı kapsam sorar** (Aşama 06 Grup 6). Kayıt
+gelir/gider raporunu etkiler ve kapsam taşımak zorundadır; zincir (kaynağın
+etiketi → kategorininki) çözülemiyorsa alan zorunludur ve bu **istek gitmeden**
+formda söylenir. Kapsamı görmeyen kullanıcıda alan hiç çizilmez.
+
 ## Vergi tarafının istemcisi (Aşama 05 Grup 7)
 
 **Vergi bölümü yalnız kapsam boyutunu gören kullanıcıda çizilir.** "İşletmem

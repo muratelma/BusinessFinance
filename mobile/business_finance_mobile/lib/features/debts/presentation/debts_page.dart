@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_input.dart';
 import '../../../core/formatters/money_text.dart';
 import '../../../core/models/data_choice.dart';
+import '../../../core/models/transaction_scope.dart';
 import '../../../core/presentation/financial_data_changes.dart';
+import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_date_field.dart';
@@ -13,6 +16,7 @@ import '../../../core/widgets/app_inline_notice.dart';
 import '../../../core/widgets/app_list_row.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_row_action.dart';
+import '../../../core/widgets/app_scope_selector.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
 import '../../activities/data/receipt_fee_writer.dart';
@@ -672,6 +676,50 @@ class _DebtFormState extends State<_DebtForm> {
 
   bool get _sourceIsCategorical => _source != 'cash';
 
+  /// Kullanıcının açık kapsam seçimi; boşsa zincir karar verir.
+  ///
+  /// `DebtAgreement` gelir/gider raporunu etkiler ve **kapsam taşımak
+  /// zorundadır**. Bu alan Aşama 01'de atlanmıştı: zincir çözülemeyen
+  /// kullanıcıda sunucu isteği reddediyor ve borç planı hiç kurulamıyordu
+  /// (Aşama 06 Grup 6 cihaz kabul turu).
+  TransactionScope? _scope;
+
+  /// Zincir çözülemedi ve kullanıcı da seçmedi.
+  String? _scopeError;
+
+  /// Kapsam boyutunu gören kullanıcı mı. Görmeyen kullanıcıda alan hiç
+  /// çizilmez ve istekte `scope` gitmez.
+  ///
+  /// `read`, `watch` değil: bu getter gönderim geri çağrısından da okunuyor ve
+  /// `watch` yalnız `build` içinde çağrılabilir.
+  bool get _scopeIsVisible =>
+      context.read<ScopeController?>()?.isVisible ?? false;
+
+  /// Formun gösterdiği kapsam: açık seçim → kaynağın etiketi → kategorininki.
+  ///
+  /// Sunucudaki sıranın **önizlemesi** (`TransactionScopeResolution`); karar
+  /// sunucunundur, burası yalnız ne yazılacağını gösterip onu gönderir.
+  TransactionScope? get _resolvedScope => previewResolvedScope(
+    explicit: _scope,
+    source: _sourceIsCategorical
+        ? null
+        : _defaultScopeOf(widget.accounts, _openingAccountId),
+    category: _sourceIsCategorical
+        ? _defaultScopeOf(widget.categories, _categoryId)
+        : null,
+  );
+
+  static TransactionScope? _defaultScopeOf(
+    List<DataChoice> choices,
+    String? id,
+  ) {
+    if (id == null) return null;
+    for (final choice in choices) {
+      if (choice.id == id) return choice.defaultScope;
+    }
+    return null;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -802,8 +850,19 @@ class _DebtFormState extends State<_DebtForm> {
       submitLabel: 'Oluştur',
       onSubmit: () async {
         if (!(_formKey.currentState?.validate() ?? false)) return null;
+        // Kapsamı gören kullanıcıda zincir çözülemiyorsa istek **gitmeden**
+        // alanın yanında söylenir; sunucunun reddi ekranda ham hata olurdu.
+        final scope = _resolvedScope;
+        if (_scopeIsVisible && scope == null) {
+          setState(
+            () => _scopeError =
+                'Kaynak ve kategori kapsam taşımıyor; bu kayıt için seçin.',
+          );
+          return null;
+        }
         final byTotal = _costInput == _DebtCostInput.total;
         return {
+          'scope': scope?.apiValue,
           'counterpartyName': _name.text.trim(),
           'direction': _direction,
           'principal': MoneyInput.wire(_principal.text),
@@ -895,6 +954,23 @@ class _DebtFormState extends State<_DebtForm> {
               setState(() => _openingAccountId = value),
           onCategoryChanged: (value) => setState(() => _categoryId = value),
         ),
+        if (context.watch<ScopeController?>()?.isVisible ?? false)
+          AppFormField(
+            child: AppScopeField(
+              value: _resolvedScope,
+              onChanged: (value) => setState(() {
+                _scope = value;
+                _scopeError = null;
+              }),
+              helperText: _scope != null
+                  ? 'Bu kayıt için siz seçtiniz.'
+                  : _resolvedScope != null
+                  ? 'Kaynağın varsayılanından geldi — değiştirebilirsiniz.'
+                  : 'Ne kaynak ne kategori kapsam taşıyor; bu kayıt için '
+                        'seçin.',
+              errorText: _scopeError,
+            ),
+          ),
         AppFormField(
           child: TextFormField(
             controller: _principal,

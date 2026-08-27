@@ -12,6 +12,7 @@ import 'package:business_finance_mobile/features/receipts/data/receipt_photo.dar
 import 'package:business_finance_mobile/features/receipts/data/receipt_repository.dart';
 
 void main() {
+  _refundRegression();
   test('uploads the shrunk copy as JPEG under the file field', () async {
     late Uri url;
     late String body;
@@ -207,6 +208,76 @@ ReceiptPhoto _photo() => ReceiptPhoto(
   uploadWidth: 1800,
   uploadHeight: 2400,
 );
+
+/// Aşama 06 Grup 6 cihaz kabul turu: eşleşme bulunan iade fişi
+/// "Sunucudan beklenmeyen bir fiş yanıtı alındı." ile düşüyordu.
+///
+/// Sebebi ayrıştırmadaydı: `JsonReaders.object` **değer** alır, anahtar değil;
+/// çağrı iç nesne yerine taslağın kendisini geçiyordu ve taslak da geçerli bir
+/// `Map` olduğu için hata ancak `transactionId` aranırken çıkıyordu. Mevcut
+/// testlerin hiçbiri eşleşmeyi JSON'dan kurmadığı için kusur görünmüyordu.
+void _refundRegression() {
+  test('eşleşme bulunan iade fişi gövdeden okunur', () async {
+    final repository = _repository(
+      (request) async => http.Response(
+        jsonEncode({
+          ..._responseJson(),
+          'documentKind': 'refund_receipt',
+          'refundMatch': {
+            'transactionId': 'ab112148-4449-4a36-b64f-141064aee299',
+            'transactionDate': '2026-08-27',
+            'amount': '280.0000',
+            'description': 'GUNES MARKET',
+            'remainingAmount': null,
+          },
+        }),
+        200,
+        headers: _json,
+      ),
+    );
+
+    final draft = await repository.analyze(
+      _photo(),
+      ReceiptCaptureIntent.expense,
+    );
+
+    expect(draft.documentKind, ReceiptDocumentKind.refundReceipt);
+    final match = draft.refundMatch;
+    expect(match, isNotNull);
+    expect(match!.transactionId, 'ab112148-4449-4a36-b64f-141064aee299');
+    expect(match.amount, '280.0000');
+    // Tam iade: kalan yok, iptal tek başına yeterli.
+    expect(match.isPartial, isFalse);
+  });
+
+  test('kısmi iadede kalan tutar sunucudan gelir', () async {
+    final repository = _repository(
+      (request) async => http.Response(
+        jsonEncode({
+          ..._responseJson(),
+          'documentKind': 'refund_receipt',
+          'refundMatch': {
+            'transactionId': 'ab112148-4449-4a36-b64f-141064aee299',
+            'transactionDate': '2026-08-27',
+            'amount': '280.0000',
+            'description': null,
+            'remainingAmount': '160.0000',
+          },
+        }),
+        200,
+        headers: _json,
+      ),
+    );
+
+    final draft = await repository.analyze(
+      _photo(),
+      ReceiptCaptureIntent.expense,
+    );
+
+    expect(draft.refundMatch!.remainingAmount, '160.0000');
+    expect(draft.refundMatch!.isPartial, isTrue);
+  });
+}
 
 Map<String, dynamic> _responseJson() => <String, dynamic>{
   'counterpartyName': 'Sentetik Market',

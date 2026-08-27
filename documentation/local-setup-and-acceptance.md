@@ -113,6 +113,25 @@ $adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
 siler, SQL named volume içindeki sunucu verisini silmez. Test izolasyonu için her
 koşuda benzersiz sentetik e-posta kullanın.
 
+## 5.1. Fiş turu için sentetik belge üretmek
+
+Kabul turunda **yalnız sentetik belge** kullanılır (Aşama 07'nin veri sınırı
+kararı yazılana kadar gerçek fiş gönderilmez). Belgeler HTML olarak yazılıp
+tarayıcıdan PNG'ye alınabilir ve emulator galerisine kopyalanır:
+
+```powershell
+adb push .\sentetik-fis.png /sdcard/Pictures/
+adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE `
+  -d file:///sdcard/Pictures/sentetik-fis.png
+```
+
+Altı yol altı ayrı belge ister: market fişi (harcama), tahsilat makbuzu
+(gelir), son ödeme tarihli fatura (vadeli), `N TAKSIT` yazan fiş, `IADE FISI`
+ve havale dekontu. Tur bitince görseller cihazdan silinir.
+
+**Gelir yolu satın alma fişi kabul etmez**: sunucu belgeyi sınıflandırır ve
+"bu belge gelir belgesi değil" diyerek reddeder. Bu bir kusur değil, kapıdır.
+
 ## 6. Sentetik kabul veri seti
 
 Gerçek ad, e-posta, parola, hesap veya finansal açıklama kullanmayın.
@@ -149,6 +168,7 @@ Gerçek ad, e-posta, parola, hesap veya finansal açıklama kullanmayın.
 | Timeout/çift gönderim | Unit | Açık timeout; istemci aynı submit'i kilitler | ApiClient/controller testleri |
 | Kapsam: iki esnaf senaryosu | Otomatik | Kapsam gönderilmeden kayıt doğru tarafa yazılır; **işletme neti şahsi harcamadan etkilenmez**; bakiye üç kapsamda da aynı; ikinci esnaf birincinin kaydını hiçbir kapsamda görmez | `stage01_scope_acceptance_test.dart` (Pixel 8 + gerçek API/SQL, 23 Ağustos 2026) |
 | Kapsam: özet ekranı ve form | Manuel | Anahtar üç konumda; hero `İşletme neti` / `Şahsi çekim` / `Bu ayın neti`; `İşletme` seçilince gider yalnız işletme tarafını gösterir; `Varlık durumu` ve `Hesap bakiyeleri` toplam gösterdiğini yazar; formdaki çip kategoriden dolar ve tek dokunuşla değişir | Pixel 8 gözlemi, 23 Ağustos 2026 |
+| Fiş/dekont: belge yönünün altı yolu | Manuel | Harcama, gelir, vadeli fatura, taksitli fiş, iade ve dekont yolları belgeden doğru forma dallanıyor; öneri rozetleri görünüyor; **ödeme kaynağı modelce seçilmiyor** | Pixel 8, 27 Ağustos 2026 (Aşama 06 Grup 6) |
 | Hatırlatma: izin, kurulum ve iptal | Manuel | Anahtar kapalıyken izin sorulmaz; açılınca Android izin diyaloğu çıkar; reddedilince uygulama sessizce çalışır; yaklaşan bir yükümlülük için hatırlatma kurulur ve **ödendiğinde düşer**; bildirim gövdesinde tutar ve kişi adı yoktur | Pixel 8 gözlemi (bekliyor) |
 
 ## 8. Durdurma ve sorun giderme

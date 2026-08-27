@@ -1289,3 +1289,18 @@ planlayıcı saf bir sınıftır.
 | Özet satırı ad ve yön değiştiriyor | `dashboard_sections_test` | `Kart alacağı`, gelir tonu, ekran okuyucuya `net varlığa eklenir` |
 | İşaret yardımcıları | `card_credit_balance_test` | `isNegative` ve `unsigned` tutarı bozmadan işareti okuyor/atıyor |
 
+## Fiş/dekont kabul turunun getirdiği testler (27 Ağustos 2026, Aşama 06 Grup 6)
+
+Turda bulunan iki kusur, bir daha sessizce dönmesin diye kendi kapılarını
+getirdi. İkisi de **JSON'dan** kuruluyor: eski testler nesneleri elle inşa
+ettiği için ayrıştırma hatası hiç görünmüyordu.
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Eşleşen iade gövdeden okunuyor | `receipt_repository_test` | `refundMatch` iç nesneden ayrıştırılıyor; kimlik ve tutar yerinde |
+| Kısmi iadede kalan tutar | aynı dosya | `remainingAmount` sunucudan geliyor, `isPartial` doğru |
+| Borç formunda kapsam alanı | `debt_scope_test` | Kapsamı gören kullanıcıda çiziliyor, görmeyende hiç yok |
+| Seçilen kapsam istekle gidiyor | aynı dosya | `scope: business` gövdede |
+| Zincir çözülemezse istek gitmiyor | aynı dosya | Alanın yanında söyleniyor; sunucunun reddi ekrana düşmüyor |
+| Kaynağın varsayılanı forma doluyor | aynı dosya | Hesabın etiketi alana geliyor ve gönderiliyor |
+
