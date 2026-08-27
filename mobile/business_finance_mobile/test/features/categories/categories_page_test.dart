@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
 import 'package:business_finance_mobile/features/categories/data/category_models.dart';
 import 'package:business_finance_mobile/features/categories/data/category_repository.dart';
@@ -143,13 +144,18 @@ class _Repository implements CategoryRepository {
       categories;
 
   @override
-  Future<BudgetCategory> create({required String name, required String type}) =>
-      throw UnimplementedError();
+  Future<BudgetCategory> create({
+    required String name,
+    required String type,
+    TransactionScope? defaultScope,
+  }) => throw UnimplementedError();
 
   @override
   Future<BudgetCategory> update({
     required String id,
     required bool isActive,
     required String name,
+    TransactionScope? defaultScope,
+    bool? defaultIsTaxDeductible,
   }) => throw UnimplementedError();
 }

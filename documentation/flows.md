@@ -1038,6 +1038,29 @@ olduğunu söylemiyor, ekran da söylemez. Sıfırlama tamamlanınca kullanıcı
 ekranına döner ve yeni parolasıyla girer — bütün oturumlar kapandığı için başka
 cihazda açık kalmış bir oturum da düşmüştür.
 
+## Varsayılan kapsamın ayarlanması (Aşama 06 Grup 4)
+
+Kapsam türetme zinciri üç halkalıdır: **kullanıcının açık seçimi → kaynağın
+(hesap/kart) etiketi → kategorinin varsayılanı**. Orta halka bugüne kadar yalnız
+API'den kurulabiliyordu; artık üç formdan da kuruluyor.
+
+| Form | Alan nerede | Ne anlatır |
+|---|---|---|
+| Hesap ekle/düzenle | Açılış bakiyesinin altında | "Bu hesaptan yazılan kayıtlar bu tarafa yazılır" |
+| Kart ekle/düzenle | Asgari ödeme oranının altında | "Bu kartla yapılan harcamalar bu tarafa yazılır" |
+| Kategori ekle/düzenle | Kategori türünün altında | Zincirin son halkası |
+
+Alanın **üç** konumu var: `Belirtilmedi · İşletme · Şahsi`. `Belirtilmedi` eksik
+veri değil, meşru bir cevaptır — "ben söylemiyorum, kararı bir sonraki halka
+versin". Filtrenin `Hepsi`siyle karıştırılmasın diye adı ayrı: orada boşluk
+"iki tarafı birden oku" demektir.
+
+Alan yalnız **kapsam boyutunu gören** kullanıcıda çizilir; işletmesi olmayan
+kullanıcı üç formda da onu hiç görmez.
+
+Böylece tek hesabına "dükkân kasası" diyen esnaf her kaydı tek tek
+işaretlemekten kurtulur: kayıt kategori ne derse desin hesabın etiketini alır.
+
 ## Hatırlatma akışı (Aşama 06 Grup 3)
 
 Hatırlatma **cihazda** kurulur: telefonun kendi zamanlayıcısına yazılır,

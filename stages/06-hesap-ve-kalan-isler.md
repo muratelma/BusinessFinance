@@ -276,6 +276,20 @@ izin diyaloğu ve düşen bildirim) henüz yapılmadı.
 
 ### Grup 4 — Varsayılan kapsamın uygulamadan ayarlanması
 
+**Durum: tamamlandı (27 Ağustos 2026).** Alan üç forma da eklendi ve
+`docs/backlog.md` madde 5 kapandı. Grupta iki şey netleşti:
+
+- **Alanın üç konumu var**, ikisi değil: `Belirtilmedi · İşletme · Şahsi`.
+  `Belirtilmedi` eksik veri değil, meşru bir cevaptır. Filtrenin `Hepsi`siyle
+  aynı bileşene sıkıştırılmadı: orada boşluk "iki tarafı birden oku" demek,
+  burada "ben söylemiyorum".
+- **Sunucudaki `PUT` yetkiliydi ve istemci bunu bilmiyordu.** Gönderilmeyen
+  `defaultScope` "dokunma" değil "kaldır" anlamına geliyor; Flutter üç
+  güncellemede de alanı hiç göndermiyordu. Yani API'den kurulmuş bir etiket,
+  kullanıcı hesabın adını değiştirdiği anda sessizce siliniyordu. Kategoride
+  aynı kapı `defaultIsTaxDeductible`'ı da siliyordu — o alan bu ekranda
+  düzenlenmiyor ama artık olduğu gibi geri gönderiliyor.
+
 Devralınan açık iş (`docs/backlog.md` madde 5). `defaultScope` alanı API'de
 oluşturma ve güncellemede var; Flutter ne gönderiyor ne gösteriyor.
 

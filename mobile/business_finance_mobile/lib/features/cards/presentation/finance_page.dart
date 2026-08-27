@@ -1,13 +1,16 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_date_field.dart';
 import '../../../core/widgets/app_form_sheet.dart';
 import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_text.dart';
+import '../../../core/models/transaction_scope.dart';
 import '../../../core/presentation/financial_data_changes.dart';
+import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/theme/app_typography.dart';
@@ -17,6 +20,7 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_metric_tile.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_row_action.dart';
+import '../../../core/widgets/app_scope_selector.dart';
 import '../../../core/widgets/app_inline_notice.dart';
 import '../../../core/widgets/app_list_row.dart';
 import '../../../core/widgets/app_section_header.dart';
@@ -1394,6 +1398,8 @@ class _CardDialogState extends State<_CardDialog> {
   late final minimumRate = TextEditingController(
     text: MoneyText.percent(widget.card?.minimumPaymentRate ?? '20.0000'),
   );
+
+  late TransactionScope? defaultScope = widget.card?.defaultScope;
   @override
   void dispose() {
     name.dispose();
@@ -1420,6 +1426,9 @@ class _CardDialogState extends State<_CardDialog> {
           'paymentDueDay': int.parse(due.text),
           'minimumPaymentRate': _money(minimumRate.text),
           if (widget.card != null) 'isActive': widget.card!.isActive,
+          // Kapsamı görmeyen kullanıcıda alan hiç çizilmiyor ama değer yine de
+          // gidiyor: sunucudaki `PUT` yetkili ve göndermemek "kaldır" demek.
+          'defaultScope': defaultScope?.apiValue,
         };
       },
       children: [
@@ -1477,6 +1486,16 @@ class _CardDialogState extends State<_CardDialog> {
             validator: _rateError,
           ),
         ),
+        if (context.watch<ScopeController?>()?.isVisible ?? false)
+          AppFormField(
+            child: AppScopeDefaultField(
+              value: defaultScope,
+              onChanged: (value) => setState(() => defaultScope = value),
+              helperText:
+                  'Bu kartla yapılan harcamalar, siz başka bir şey seçmedikçe '
+                  'bu tarafa yazılır. Boş bırakırsanız kararı kategori verir.',
+            ),
+          ),
       ],
     ),
   );

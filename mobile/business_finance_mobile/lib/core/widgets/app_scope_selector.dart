@@ -136,3 +136,67 @@ class AppScopeChoiceChip extends StatelessWidget {
     );
   }
 }
+
+/// Hesabın, kartın ve kategorinin **varsayılan** kapsamı.
+///
+/// Üç konumu var çünkü alan nullable: `Belirtilmedi` eksik veri değil, meşru
+/// bir cevaptır — "bu kaynak kapsam belirlemiyor, zincirin bir sonraki halkası
+/// karar versin". Filtrenin `Hepsi`siyle karıştırılmasın diye etiketi ayrı:
+/// orada boşluk "iki tarafı birden oku" demek, burada "ben söylemiyorum".
+///
+/// Kaydın kendi kapsamını soran [AppScopeField]'dan da ayrı: orası bir kaydın
+/// hangi tarafa yazılacağını sorar ve boş bırakılamaz.
+class AppScopeDefaultField extends StatelessWidget {
+  const AppScopeDefaultField({
+    required this.value,
+    required this.onChanged,
+    required this.helperText,
+    super.key,
+  });
+
+  final TransactionScope? value;
+  final ValueChanged<TransactionScope?> onChanged;
+
+  /// Alanın ne işe yaradığını söyleyen cümle; çağıran yazar çünkü hesapta,
+  /// kartta ve kategoride farklı okunur.
+  final String helperText;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      container: true,
+      label: 'Varsayılan kapsam',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Varsayılan kapsam', style: theme.textTheme.labelMedium),
+          const SizedBox(height: AppSpacing.xSmall),
+          Wrap(
+            spacing: AppSpacing.small,
+            runSpacing: AppSpacing.small,
+            children: [
+              for (final option in <TransactionScope?>[
+                null,
+                TransactionScope.business,
+                TransactionScope.personal,
+              ])
+                AppScopeChoiceChip(
+                  label: option?.label ?? 'Belirtilmedi',
+                  selected: value == option,
+                  onSelected: () => onChanged(option),
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xSmall),
+          Text(
+            helperText,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

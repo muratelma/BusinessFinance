@@ -582,6 +582,23 @@ Parola sıfırlama kendi sayfasıdır (`/password-reset`) ve giriş/kayıt ile a
 oturumsuz kabuğu paylaşır; `PasswordField` sıfırlama akışında `Yeni parola`
 etiketini alır, çünkü "Parola" demek mevcut parolayı soruyormuş gibi görünürdü.
 
+## Varsayılan kapsam alanı (Aşama 06 Grup 4)
+
+Kapsamın artık **üç** denetimi var ve üçü ayrı şeyler sorar; ortak çipi
+(`AppScopeChoiceChip`) paylaşırlar ama tek bir bileşende toplanmazlar:
+
+| Bileşen | Nerede | Boşluğun anlamı |
+|---|---|---|
+| `AppScopeSwitch` | Özet ekranının kapsam barı | `Hepsi` — iki tarafı birden oku |
+| `AppScopeField` | İşlem formu | Boş kalamaz; zincir çözülemediyse alan zorunlu |
+| `AppScopeDefaultField` | Hesap, kart ve kategori formu | `Belirtilmedi` — bu kaynak kapsam belirlemiyor |
+
+Üçüncüsü Grup 4'te eklendi. Üç çipi de sarmalanır (`Wrap`), seçili olan yalnız
+renkle değil onay işaretiyle bildirilir ve alan kendi yardımcı cümlesini taşır —
+cümleyi çağıran yazar, çünkü hesapta, kartta ve kategoride farklı okunur.
+
+Alan yalnız kapsam boyutunu gören kullanıcıda çizilir.
+
 ## Hatırlatma ayarı ekranı (Aşama 06 Grup 3)
 
 Ekranın tamamı cihaz ayarıdır; hiçbir alanı sunucuya yazılmaz. Kapısı `Diğer`

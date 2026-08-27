@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:business_finance_mobile/core/config/api_config.dart';
 import 'package:business_finance_mobile/core/network/api_client.dart';
+import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 import 'package:business_finance_mobile/core/network/api_exception.dart';
 import 'package:business_finance_mobile/core/presentation/financial_data_changes.dart';
 import 'package:business_finance_mobile/features/accounts/data/account_models.dart';
@@ -27,13 +28,17 @@ void main() {
           'type': 'cash',
           'currency': 'TRY',
           'openingBalance': '1250.1250',
+          'defaultScope': 'business',
         });
         return http.Response(jsonEncode(_accountJson), 201);
       });
 
-      final account = await ApiAccountRepository(
-        client,
-      ).create(name: ' Nakit ', type: 'cash', openingBalance: '1250.1250');
+      final account = await ApiAccountRepository(client).create(
+        name: ' Nakit ',
+        type: 'cash',
+        openingBalance: '1250.1250',
+        defaultScope: TransactionScope.business,
+      );
 
       expect(account.openingBalance, '1250.1250');
       expect(account.balance, '1300.1250');
@@ -149,6 +154,7 @@ void main() {
                 required type,
                 required openingBalance,
                 required isActive,
+                defaultScope,
               }) {
                 count++;
                 return completer.future;
@@ -193,6 +199,7 @@ void main() {
                 required type,
                 required openingBalance,
                 required isActive,
+                defaultScope,
               }) async => false,
           onDelete: (account) async {
             deleteCalls++;
@@ -226,6 +233,7 @@ void main() {
                 required type,
                 required openingBalance,
                 required isActive,
+                defaultScope,
               }) async => false,
           onDelete: (account) async => message,
         ),
@@ -296,6 +304,8 @@ class _FakeAccountRepository implements AccountRepository {
 
   final ApiException? listError;
   final List<String> deletedIds = [];
+  final List<TransactionScope?> createdScopes = [];
+  final List<TransactionScope?> updatedScopes = [];
   int listCalls = 0;
 
   @override
@@ -320,14 +330,22 @@ class _FakeAccountRepository implements AccountRepository {
     required String name,
     required String type,
     required String openingBalance,
-  }) async => Account.fromJson(_accountJson);
+    TransactionScope? defaultScope,
+  }) async {
+    createdScopes.add(defaultScope);
+    return Account.fromJson(_accountJson);
+  }
 
   @override
   Future<Account> update({
     required String id,
     required String name,
     required bool isActive,
-  }) async => Account.fromJson(_accountJson);
+    TransactionScope? defaultScope,
+  }) async {
+    updatedScopes.add(defaultScope);
+    return Account.fromJson(_accountJson);
+  }
 
   @override
   Future<void> delete(String id) async {

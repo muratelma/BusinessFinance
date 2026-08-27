@@ -1,3 +1,5 @@
+import '../../../core/models/transaction_scope.dart';
+
 class Account {
   const Account({
     required this.id,
@@ -7,6 +9,7 @@ class Account {
     required this.isActive,
     required this.openingBalance,
     required this.balance,
+    this.defaultScope,
   });
 
   final String id;
@@ -17,6 +20,12 @@ class Account {
   final String openingBalance;
   final String balance;
 
+  /// Hesabın varsayılan kapsamı; boş olması meşrudur, eksik veri değildir.
+  ///
+  /// Kapsam türetme zincirinin **orta halkası**: kullanıcının açık seçimi yoksa
+  /// kayıt bunu alır, o da boşsa kategorinin varsayılanına düşer.
+  final TransactionScope? defaultScope;
+
   factory Account.fromJson(Map<String, dynamic> json) => Account(
     id: _string(json, 'id'),
     name: _string(json, 'name'),
@@ -25,6 +34,7 @@ class Account {
     isActive: _bool(json, 'isActive'),
     openingBalance: _string(json, 'openingBalance'),
     balance: _string(json, 'balance'),
+    defaultScope: TransactionScope.fromApiOrNull(json['defaultScope']),
   );
 }
 

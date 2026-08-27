@@ -14,7 +14,10 @@ import 'package:http/testing.dart';
 import 'package:business_finance_mobile/core/config/api_config.dart';
 import 'package:business_finance_mobile/core/network/api_client.dart';
 import 'package:business_finance_mobile/core/network/api_exception.dart';
+import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 import 'package:business_finance_mobile/core/presentation/financial_data_changes.dart';
+import 'package:business_finance_mobile/core/presentation/scope_controller.dart';
+import 'package:provider/provider.dart';
 import 'package:business_finance_mobile/features/cards/data/finance_models.dart';
 import 'package:business_finance_mobile/features/cards/data/finance_repository.dart';
 import 'package:business_finance_mobile/features/cards/presentation/finance_controller.dart';
@@ -538,6 +541,63 @@ void main() {
     await tester.pump();
 
     expect(find.text('0 ile 100 arasında bir oran girin.'), findsOneWidget);
+  });
+
+  testWidgets('kart formu varsayılan kapsamı gönderir', (tester) async {
+    // Zincirin orta halkası: kartın etiketi, kullanıcı açık seçim yapmadığında
+    // harcamanın hangi tarafa yazılacağını söyler.
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final repository = _FakeFinanceRepository(
+      cards: [_card(defaultScope: TransactionScope.business)],
+    );
+    final controller = FinanceController(repository);
+    await controller.load();
+
+    await tester.pumpWidget(
+      _scopedApp(
+        hasBusiness: true,
+        child: CreditCardDetailPage(cardId: 'card-1', controller: controller),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Kartı düzenle'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Varsayılan kapsam'), findsOneWidget);
+    await tester.tap(find.text('Şahsi'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kaydet'));
+    await tester.pumpAndSettle();
+
+    expect(repository.lastCardUpdate?['defaultScope'], 'personal');
+  });
+
+  testWidgets('kapsamı görmeyen kullanıcıda kart formunda alan yok', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final controller = FinanceController(_FakeFinanceRepository());
+    await controller.load();
+
+    await tester.pumpWidget(
+      _scopedApp(
+        hasBusiness: false,
+        child: FinancePage(repository: controller.repository),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Kart ekle'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Varsayılan kapsam'), findsNothing);
   });
 
   testWidgets('ekstre penceresi hesabı toplanabilir satırlarla gösterir', (
@@ -1119,7 +1179,40 @@ class _FakeFinanceRepository implements FinanceRepositoryContract {
       currentStatement;
 }
 
-CreditCardItem _card() => const CreditCardItem(
+Widget _scopedApp({required bool hasBusiness, required Widget child}) {
+  final controller = ScopeController(
+    store: _FakeScopeStore(hasBusiness: hasBusiness),
+    readHasBusiness: () async => hasBusiness,
+  )..ensureLoaded();
+
+  return ChangeNotifierProvider<ScopeController>.value(
+    value: controller,
+    child: MaterialApp(theme: AppTheme.light(), home: child),
+  );
+}
+
+class _FakeScopeStore implements ScopeStore {
+  _FakeScopeStore({required this.hasBusiness});
+
+  final bool hasBusiness;
+
+  @override
+  Future<TransactionScope?> readScope() async => null;
+
+  @override
+  Future<void> writeScope(TransactionScope? scope) async {}
+
+  @override
+  Future<bool?> readHasBusiness() async => hasBusiness;
+
+  @override
+  Future<void> writeHasBusiness(bool value) async {}
+
+  @override
+  Future<void> clear() async {}
+}
+
+CreditCardItem _card({TransactionScope? defaultScope}) => CreditCardItem(
   id: 'card-1',
   name: 'Test Kart',
   limit: '10000.0000',
@@ -1130,6 +1223,7 @@ CreditCardItem _card() => const CreditCardItem(
   paymentDueDay: 20,
   minimumPaymentRate: '20.0000',
   isActive: true,
+  defaultScope: defaultScope,
 );
 
 CardStatement _statement({

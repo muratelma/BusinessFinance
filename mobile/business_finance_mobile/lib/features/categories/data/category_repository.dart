@@ -1,15 +1,25 @@
+import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_client.dart';
 import 'category_models.dart';
 
 abstract interface class CategoryRepository {
   Future<List<BudgetCategory>> list({String? type, bool? isActive});
 
-  Future<BudgetCategory> create({required String name, required String type});
+  Future<BudgetCategory> create({
+    required String name,
+    required String type,
+    TransactionScope? defaultScope,
+  });
 
+  /// Sunucudaki `PUT` **yetkilidir**: gönderilmeyen alan "dokunma" değil
+  /// "kaldır" demektir. Bu yüzden hem kapsam hem indirilebilirlik varsayılanı
+  /// çağırandan gelir; ikincisi bu ekranda düzenlenmiyor, yalnız taşınıyor.
   Future<BudgetCategory> update({
     required String id,
     required String name,
     required bool isActive,
+    TransactionScope? defaultScope,
+    bool? defaultIsTaxDeductible,
   });
 }
 
@@ -35,10 +45,15 @@ class ApiCategoryRepository implements CategoryRepository {
   Future<BudgetCategory> create({
     required String name,
     required String type,
+    TransactionScope? defaultScope,
   }) async {
     final response = await _client.post(
       '/api/v1/categories',
-      body: {'name': name.trim(), 'type': type},
+      body: {
+        'name': name.trim(),
+        'type': type,
+        'defaultScope': defaultScope?.apiValue,
+      },
     );
     return BudgetCategory.fromJson(response.requireObject());
   }
@@ -48,10 +63,17 @@ class ApiCategoryRepository implements CategoryRepository {
     required String id,
     required String name,
     required bool isActive,
+    TransactionScope? defaultScope,
+    bool? defaultIsTaxDeductible,
   }) async {
     final response = await _client.put(
       '/api/v1/categories/$id',
-      body: {'name': name.trim(), 'isActive': isActive},
+      body: {
+        'name': name.trim(),
+        'isActive': isActive,
+        'defaultScope': defaultScope?.apiValue,
+        'defaultIsTaxDeductible': defaultIsTaxDeductible,
+      },
     );
     return BudgetCategory.fromJson(response.requireObject());
   }

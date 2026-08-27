@@ -1,3 +1,4 @@
+import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -25,20 +26,35 @@ void main() {
           expect(jsonDecode(request.body), {
             'name': 'Market',
             'type': 'expense',
+            'defaultScope': 'business',
           });
         } else {
           expect(request.url.path, '/api/v1/categories/category-id');
+          // `PUT` yetkili: iki varsayılan da olduğu gibi geri gidiyor,
+          // yoksa adı değiştirilen kategori etiketlerini kaybederdi.
           expect(jsonDecode(request.body), {
             'name': 'Market',
             'isActive': false,
+            'defaultScope': 'personal',
+            'defaultIsTaxDeductible': true,
           });
         }
         return http.Response(jsonEncode(_categoryJson), 200);
       }),
     );
 
-    await repository.create(name: ' Market ', type: 'expense');
-    await repository.update(id: 'category-id', name: 'Market', isActive: false);
+    await repository.create(
+      name: ' Market ',
+      type: 'expense',
+      defaultScope: TransactionScope.business,
+    );
+    await repository.update(
+      id: 'category-id',
+      name: 'Market',
+      isActive: false,
+      defaultScope: TransactionScope.personal,
+      defaultIsTaxDeductible: true,
+    );
     expect(requestCount, 2);
   });
 
@@ -76,7 +92,13 @@ void main() {
             isActive: true,
           ),
           onSave:
-              ({category, required name, required type, required isActive}) {
+              ({
+                category,
+                required name,
+                required type,
+                required isActive,
+                defaultScope,
+              }) {
                 count++;
                 return completer.future;
               },
@@ -120,13 +142,18 @@ class _FakeCategoryRepository implements CategoryRepository {
   }
 
   @override
-  Future<BudgetCategory> create({required String name, required String type}) =>
-      throw UnimplementedError();
+  Future<BudgetCategory> create({
+    required String name,
+    required String type,
+    TransactionScope? defaultScope,
+  }) => throw UnimplementedError();
 
   @override
   Future<BudgetCategory> update({
     required String id,
     required String name,
     required bool isActive,
+    TransactionScope? defaultScope,
+    bool? defaultIsTaxDeductible,
   }) => throw UnimplementedError();
 }

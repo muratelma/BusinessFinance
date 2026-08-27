@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-import '../../../core/widgets/app_confirm_dialog.dart';
+import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/app_confirm_dialog.dart';
+import '../../../core/widgets/app_scope_selector.dart';
 import '../data/account_models.dart';
 
 typedef SaveAccount =
@@ -12,6 +16,7 @@ typedef SaveAccount =
       required String type,
       required String openingBalance,
       required bool isActive,
+      TransactionScope? defaultScope,
     });
 
 typedef DeleteAccount = Future<String?> Function(Account account);
@@ -38,6 +43,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
   late final TextEditingController _balanceController;
   late String _type;
   late bool _isActive;
+  TransactionScope? _defaultScope;
   bool _submitting = false;
   String? _error;
 
@@ -53,6 +59,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
     );
     _type = account?.type ?? 'cash';
     _isActive = account?.isActive ?? true;
+    _defaultScope = account?.defaultScope;
   }
 
   @override
@@ -75,6 +82,9 @@ class _AccountFormPageState extends State<AccountFormPage> {
         type: _type,
         openingBalance: _balanceController.text.replaceAll(',', '.'),
         isActive: _isActive,
+        // Kapsamı görmeyen kullanıcıda alan hiç çizilmiyor ama değer yine de
+        // gidiyor: sunucudaki `PUT` yetkili ve göndermemek "kaldır" demek.
+        defaultScope: _defaultScope,
       );
       if (saved && mounted) Navigator.of(context).pop(true);
     } on ApiException catch (error) {
@@ -167,6 +177,17 @@ class _AccountFormPageState extends State<AccountFormPage> {
                 ),
                 validator: _validateMoney,
               ),
+              if (context.watch<ScopeController?>()?.isVisible ?? false) ...[
+                const SizedBox(height: AppSpacing.medium),
+                AppScopeDefaultField(
+                  value: _defaultScope,
+                  onChanged: (value) => setState(() => _defaultScope = value),
+                  helperText:
+                      'Bu hesaptan yazılan kayıtlar, siz başka bir şey '
+                      'seçmedikçe bu tarafa yazılır. Boş bırakırsanız kararı '
+                      'kategori verir.',
+                ),
+              ],
               if (_editing) ...[
                 const SizedBox(height: AppSpacing.small),
                 Text(

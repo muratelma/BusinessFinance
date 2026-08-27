@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_exception.dart';
 import '../data/category_models.dart';
 import '../data/category_repository.dart';
@@ -50,6 +51,7 @@ class CategoriesViewModel extends ChangeNotifier {
     required String name,
     required String type,
     required bool isActive,
+    TransactionScope? defaultScope,
   }) async {
     if (_isSubmitting) return false;
     _isSubmitting = true;
@@ -58,13 +60,20 @@ class CategoriesViewModel extends ChangeNotifier {
     try {
       final String successMessage;
       if (category == null) {
-        await _repository.create(name: name, type: type);
+        await _repository.create(
+          name: name,
+          type: type,
+          defaultScope: defaultScope,
+        );
         successMessage = 'Kategori oluşturuldu.';
       } else {
         await _repository.update(
           id: category.id,
           name: name,
           isActive: isActive,
+          defaultScope: defaultScope,
+          // Bu ekranda düzenlenmiyor; yalnız olduğu gibi geri gönderiliyor.
+          defaultIsTaxDeductible: category.defaultIsTaxDeductible,
         );
         successMessage = 'Kategori güncellendi.';
       }

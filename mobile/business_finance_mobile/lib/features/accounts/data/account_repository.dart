@@ -1,3 +1,4 @@
+import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_client.dart';
 import 'account_models.dart';
 
@@ -8,12 +9,18 @@ abstract interface class AccountRepository {
     required String name,
     required String type,
     required String openingBalance,
+    TransactionScope? defaultScope,
   });
 
+  /// Sunucudaki `PUT` **yetkilidir**: gönderilmeyen `defaultScope` "dokunma"
+  /// değil "kaldır" demektir. Bu yüzden çağıranın mevcut değeri taşıması
+  /// gerekiyor; adı değiştirilen bir hesabın kapsam etiketi aksi hâlde sessizce
+  /// silinirdi.
   Future<Account> update({
     required String id,
     required String name,
     required bool isActive,
+    TransactionScope? defaultScope,
   });
 
   Future<void> delete(String id);
@@ -42,6 +49,7 @@ class ApiAccountRepository implements AccountRepository {
     required String name,
     required String type,
     required String openingBalance,
+    TransactionScope? defaultScope,
   }) async {
     final response = await _client.post(
       '/api/v1/accounts',
@@ -50,6 +58,7 @@ class ApiAccountRepository implements AccountRepository {
         'type': type,
         'currency': 'TRY',
         'openingBalance': openingBalance.trim(),
+        'defaultScope': defaultScope?.apiValue,
       },
     );
     return Account.fromJson(response.requireObject());
@@ -60,10 +69,15 @@ class ApiAccountRepository implements AccountRepository {
     required String id,
     required String name,
     required bool isActive,
+    TransactionScope? defaultScope,
   }) async {
     final response = await _client.put(
       '/api/v1/accounts/$id',
-      body: {'name': name.trim(), 'isActive': isActive},
+      body: {
+        'name': name.trim(),
+        'isActive': isActive,
+        'defaultScope': defaultScope?.apiValue,
+      },
     );
     return Account.fromJson(response.requireObject());
   }

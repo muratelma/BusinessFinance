@@ -1266,3 +1266,14 @@ planlayıcı saf bir sınıftır.
 | Gizlilik notu her hâlde duruyor | aynı dosya | Kilit ekranı uyarısı ekranda |
 | Menüdeki yeri | `more_page_test` | `Hatırlatmalar` satırı `Planlama ve raporlar` ile `Veri ve yedek` arasında |
 
+## Varsayılan kapsamın uygulamadan ayarlanması (27 Ağustos 2026, Aşama 06 Grup 4)
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Kapsamı görmeyende alan yok | `default_scope_form_test`, `finance_feature_test` | Hesap, kategori ve kart formunda alan hiç çizilmiyor |
+| Üç konum çiziliyor | `default_scope_form_test` | `Belirtilmedi · İşletme · Şahsi` |
+| Seçilen kapsam gidiyor | aynı dosya + `finance_feature_test` | Hesap, kategori ve kartta seçim isteğe geçiyor |
+| Düzenleme kapsamı düşürmüyor | `default_scope_form_test` | Ad değiştirilirken mevcut etiket olduğu gibi geri gidiyor |
+| `Belirtilmedi` gerçekten boşaltıyor | aynı dosya | Dolu bir etiket kaldırılabiliyor |
+| İstek gövdesi sözleşmeye uyuyor | `account_feature_test`, `category_feature_test` | `defaultScope` create ve update gövdesinde; kategoride `defaultIsTaxDeductible` de taşınıyor |
+

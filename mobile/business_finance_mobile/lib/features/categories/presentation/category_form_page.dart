@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/app_scope_selector.dart';
 import '../data/category_models.dart';
 
 typedef SaveCategory =
@@ -10,6 +14,7 @@ typedef SaveCategory =
       required String name,
       required String type,
       required bool isActive,
+      TransactionScope? defaultScope,
     });
 
 class CategoryFormPage extends StatefulWidget {
@@ -27,6 +32,7 @@ class _CategoryFormPageState extends State<CategoryFormPage> {
   late final TextEditingController _nameController;
   late String _type;
   late bool _isActive;
+  TransactionScope? _defaultScope;
   bool _submitting = false;
   String? _error;
 
@@ -38,6 +44,7 @@ class _CategoryFormPageState extends State<CategoryFormPage> {
     _nameController = TextEditingController(text: widget.category?.name ?? '');
     _type = widget.category?.type ?? 'expense';
     _isActive = widget.category?.isActive ?? true;
+    _defaultScope = widget.category?.defaultScope;
   }
 
   @override
@@ -58,6 +65,9 @@ class _CategoryFormPageState extends State<CategoryFormPage> {
         name: _nameController.text,
         type: _type,
         isActive: _isActive,
+        // Kapsamı görmeyen kullanıcıda alan hiç çizilmiyor ama değer yine de
+        // gidiyor: sunucudaki `PUT` yetkili ve göndermemek "kaldır" demek.
+        defaultScope: _defaultScope,
       );
       if (saved && mounted) Navigator.of(context).pop(true);
     } on ApiException catch (error) {
@@ -103,6 +113,16 @@ class _CategoryFormPageState extends State<CategoryFormPage> {
                 ],
                 onChanged: _editing ? null : (value) => _type = value!,
               ),
+              if (context.watch<ScopeController?>()?.isVisible ?? false) ...[
+                const SizedBox(height: AppSpacing.medium),
+                AppScopeDefaultField(
+                  value: _defaultScope,
+                  onChanged: (value) => setState(() => _defaultScope = value),
+                  helperText:
+                      'Zincirin son halkası: kullanıcı seçimi ve hesabın '
+                      'etiketi boşsa kayıt bu tarafa yazılır.',
+                ),
+              ],
               if (_editing) ...[
                 const SizedBox(height: AppSpacing.small),
                 Text(

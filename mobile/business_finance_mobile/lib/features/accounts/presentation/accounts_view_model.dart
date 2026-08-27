@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/presentation/financial_data_changes.dart';
 import '../data/account_models.dart';
@@ -47,6 +48,7 @@ class AccountsViewModel extends ChangeNotifier {
     required String type,
     required String openingBalance,
     required bool isActive,
+    TransactionScope? defaultScope,
   }) async {
     if (_isSubmitting) return false;
     _isSubmitting = true;
@@ -59,6 +61,7 @@ class AccountsViewModel extends ChangeNotifier {
           name: name,
           type: type,
           openingBalance: openingBalance,
+          defaultScope: defaultScope,
         );
         successMessage = 'Hesap oluşturuldu.';
       } else {
@@ -66,6 +69,7 @@ class AccountsViewModel extends ChangeNotifier {
           id: account.id,
           name: name,
           isActive: isActive,
+          defaultScope: defaultScope,
         );
         successMessage = 'Hesap güncellendi.';
       }
