@@ -240,8 +240,17 @@ POST /api/v1/budgets
 
 GET /api/v1/budgets?year&month
   -> [ayın ilk günü, sonraki ayın ilk günü)
-  -> iptal edilmemiş kategori giderleri SUM
+  -> iptal edilmemiş giderler, kategori + KAPSAM çiftiyle SUM
   -> spent / remaining / exceeded
+  -> her satır kendi scope'unu taşır; liste kapsam anahtarıyla filtrelenmez
+
+DELETE /api/v1/budgets/{id}
+  -> BudgetId + current UserId
+  -> gerçek silme; bütçe bir olay değil, kullanıcının kendine koyduğu sınır
+  -> hiçbir harcamaya, bakiyeye veya rapora dokunmaz
+  -> başkasının bütçesi ve var olmayan bütçe aynı 404'e gider
+  -> silindikten sonra o kategori aynı ay yeniden bütçelenebilir
+     (tekil indeks user+category+year+month o kategoriyi kapatıyordu)
 
 GET /api/v1/reports/monthly veya /api/v1/dashboard
   -> owner-scoped aylık income/expense SUM
@@ -592,7 +601,9 @@ sınırında temizlenir. Parola hiçbir zaman secure storage'a yazılmaz.
 ```text
 Dashboard -> kapsam anahtarı + backend aylık toplamları ve hesap bakiyeleri
 İşlemler -> filtre/sayfalama -> ekle veya onayla iptal et
-Bütçeler -> ay seç -> gider kategorisi bütçesi ekle/limiti güncelle
+Bütçeler -> ay seç (oklar veya dönem seçici) -> bütçe ekle / limiti güncelle
+         -> bütçeyi sil (açık onay) / harcamalarını gör
+         -> boş ayda "geçen ayın bütçelerini kopyala"
 Diğer -> Hesaplar / Kategoriler / İşletmem var / Çıkış
 Ana işlem düğmesi -> /transactions/new -> aktif hesap + uygun aktif kategori
 ```
@@ -1351,3 +1362,33 @@ istek kurmak olurdu. Anahtarın altındaki cümle değerin nereden geldiğini s�
   indirilebilirliği cevaplanmamış kalem sayısını gösterir; hepsi sunucudan
   gelir. `Paketi paylaş` dosyayı indirir ve cihazın paylaşım sayfasını açar.
   Boyut tavanını aşan belge varsa bu ekranda **yazılır**, sessizce düşmez.
+
+## Bütçenin istemcideki akışı (Aşama 06 Grup 7)
+
+```text
+Bütçe kurma
+  -> kategori listesi: o ay BÜTÇESİ OLMAYAN aktif gider kategorileri
+     (bütçeli olanı seçilebilir bırakmak kullanıcıyı 409'a götürüyordu)
+  -> kapsam alanı yalnız boyutu gören kullanıcıda çıkar
+     zincir: açık seçim -> kategorinin varsayılanı  (bütçenin hesabı yoktur)
+     çözülemezse istek GİTMEZ, alanın yanında söylenir
+  -> boyutu görmeyen kullanıcıda hiçbir istekte `scope` gitmez
+
+Geçen aydan kopyalama
+  -> önceki ay okunur -> bu ayda karşılığı olan kategori ATLANIR
+  -> limit ve kapsam kaynağından alınır; bütçe aya özel olmaya devam eder
+  -> sonuç tek cümlede bildirilir ("N bütçe geçen aydan kopyalandı")
+
+Eşik uyarısı
+  -> spent / limit >= budgetWarningThreshold ve aşılmamışsa "yaklaştı"
+  -> eşik tek yerde (`core/models/budget_threshold.dart`); bütçe ekranı ve
+     Özet'in `Bütçe durumu` kartı aynı eşiği okur
+  -> ilerleme çubuğu eşikte gider rengine DÖNMEZ; alarm rengi aşıma ayrılmıştır
+
+Harcama dökümü
+  -> kanonik feed projection'ının daraltılmış okuması
+     GET /api/v1/financial-activities
+       ?dateFrom=ayın ilki&dateTo=ayın sonu
+       &categoryId=…&effect=expense&includeCancelled=false&scope=bütçenin kapsamı
+  -> ikinci bir harcama sorgusu kurulmaz
+```

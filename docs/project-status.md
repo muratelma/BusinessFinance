@@ -1047,9 +1047,58 @@ okumanın belgede yazan KDV'yi önermemesi. Üçü de tek satırlık düzeltme d
 - Geçen kontroller: flutter analyze temiz, `dart format` temiz, **835 test
   geçti**, Android debug build üretildi. Backend'e dokunulmadı
 
+## 27 Ağustos 2026 — Aşama 06 Grup 7: bütçe ekranı iyileştirmeleri
+
+Kayıttaki "kapsamı belirsiz" madde önce **on maddelik bir öneri listesine**
+döndü, liste kullanıcıyla onaylandı ve maddelerin hepsi uygulandı — 06.2'ye
+devredilmesi önerilen ikisi dâhil.
+
+**Verilen üç karar:**
+
+- **Bütçe gerçekten silinir**, iptal edilmez. "Silme yerine iptal" kuralı para
+  hareketlerini korur; bütçe bir olay değil, kullanıcının kendine koyduğu bir
+  sınırdır ve hiçbir tutarı beslemez. Pasifleştirme yolu bırakılmadı çünkü tekil
+  indeks (`UserId, CategoryId, Year, Month`) yanlış kurulmuş bir sınırın
+  **doğrusunun da** kurulmasını engelliyordu
+- **Aynı kategorinin iki tarafı ayrı bütçelenmiyor**: indekse kapsam eklenmedi,
+  şema açılmadı. Bunun yerine satır hangi tarafı sınırladığını yazıyor — sessiz
+  bir yarım toplam, olmayan bir ikinci limitten daha yanıltıcıydı
+- **Eşik uyarısı için altıncı bir renk rolü açılmadı** (ADR 0008): uyarı ile
+  aşım aynı renkte olsaydı renk, aşılmamış bir sınır için alarm verirdi
+
+**Uygulanan maddeler:**
+
+| # | İş | Nerede |
+|---|---|---|
+| 1 | Geçen ayın bütçelerini kopyalama; bu ayda karşılığı olan kategori atlanıyor | `budgets_controller` |
+| 2 | Kapsam alanı forma, kapsam etiketi satıra; zincir önizleniyor, çözülemezse istek gitmiyor | `budgets_page`, `budget_models` |
+| 3 | (b) yolu: şema açılmadı, satır hangi tarafı sınırladığını yazıyor | karar |
+| 4 | `DELETE /api/v1/budgets/{id}` + açık onaylı silme | `DeleteBudgetUseCase`, `BudgetEndpoints` |
+| 5 | Eşik uyarısı (`budgetWarningThreshold`), aşımdan önce konuşuyor | `core/models/budget_threshold.dart` |
+| 6 | Harcama dökümü: kanonik feed projection'ının daraltılmış okuması | `BudgetRepository.listSpending` |
+| 7 | Düzenleme alanı `100.0000` yerine `100` gösteriyor | `MoneyText.editable` |
+| 8 | O ay bütçesi olan kategori seçim listesinden düşüyor | `budgets_page` |
+| 9 | Dönem seçici: sekiz ay geriye tek dokunuş, tek istek | `AppMonthPicker` |
+| 10 | Özet'in `Bütçe durumu` kartı eşiği de bildiriyor ve tıklanabilir | `dashboard_page` |
+
+**Bir tespit yanlış çıktı ve düzeltildi:** "bütçe Özet ekranında hiç görünmüyor"
+denmişti; `Bütçe durumu` kartı zaten oradaydı. Gerçek boşluk daha dardı — kart
+yalnız aşımı konuşuyor, eşiğe dayanmış bütçeyi "limit içinde" sayıyordu ve
+karttan bütçe ekranına gidilmiyordu.
+
+Yanı sıra iki gizli kusur kapandı: kapsamı çözülemeyen bütçe isteği sunucunun
+İngilizce cümlesini ekrana düşürüyordu (backlog madde 6'nın tam örneği) ve
+kapsamı `Şahsi` doğan bir bütçe, aynı kategorideki işletme harcamasını hiç
+saymadan "kalan 500" diyebiliyordu.
+
+- `docs/backlog.md` madde 2 kapandı
+- Geçen kontroller: backend build (**0 uyarı**) + format temiz + **1042 test**
+  (gerçek SQL dâhil, 2 skip: Gemini ve Brevo canlı sözleşme testleri); Flutter
+  analyze + `dart format` temiz + **857 test** + Android debug build
+
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: **Aşama 06 açıldı; Grup 1, 2, 3, 4, 5 ve 6 tamamlandı.**
+- Yapılan değişiklik: **Aşama 06 açıldı; Grup 1–7 tamamlandı.**
   - **Grup 1** kullanıcının kendi hesabını uygulamaya açtı: e-posta, açık
     oturumlar, parola değiştirme ve hesabı kapatma (ADR 0017)
   - **Grup 2** kimlik akışını tamamladı: altı haneli doğrulama kodu, parola
@@ -1062,9 +1111,12 @@ okumanın belgede yazan KDV'yi önermemesi. Üçü de tek satırlık düzeltme d
     giriyor ve arayüzde borç değil alacak olarak okunuyor (madde 1 kapandı)
   - **Grup 6** fiş/dekont akışının altı yolunu Pixel 8'de koşturdu; iki kusur
     düzeltildi, üçü backlog'a yazıldı (madde 3 kapandı)
-- Geçen kontroller: backend build (0 uyarı) + format temiz + **1041 test**
+  - **Grup 7** bütçe ekranının on maddesini onaylı bir listeye döküp uyguladı:
+    bütçe silinebiliyor, kapsam taşıdığını yazıyor, aşımdan önce uyarıyor,
+    geçen aydan kopyalanıyor ve harcamalarının dökümünü açıyor (madde 2 kapandı)
+- Geçen kontroller: backend build (0 uyarı) + format temiz + **1042 test**
   (gerçek SQL dâhil, 2 skip: Gemini ve Brevo canlı sözleşme testleri); Flutter
-  analyze + format + **835 test** + Android debug build
-- Sıradaki görev: **Aşama 06 Grup 7** — bütçe ekranı iyileştirmeleri (backlog
-  madde 2). Grubun ilk işi listeyi çıkarmak; liste kullanıcıyla onaylanmadan
-  kod değişmez. Grup 1–5'in cihaz kabul turu hâlâ yapılmadı
+  analyze + format + **857 test** + Android debug build
+- Sıradaki görev: **Grup 1–5 ve 7'nin cihaz kabul turu** (Pixel 8) — aşamanın
+  çıkış koşullarından biri ve hâlâ yapılmadı. Sonrasında kullanıcı Aşama 06'yı
+  kapatmak isterse 06.1 (güvenlik taraması) onayı beklenir

@@ -29,6 +29,11 @@ public static class BudgetEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapDelete("/{budgetId:guid}", DeleteAsync)
+            .WithName("DeleteMonthlyBudget")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
         return endpoints;
     }
 
@@ -95,6 +100,20 @@ public static class BudgetEndpoints
             cancellationToken);
         return result.IsSuccess
             ? Results.Ok(ToResponse(result.Value))
+            : result.Error.ToProblemResult(httpContext);
+    }
+
+    private static async Task<IResult> DeleteAsync(
+        Guid budgetId,
+        DeleteBudgetUseCase useCase,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var result = await useCase.ExecuteAsync(
+            new DeleteBudgetCommand(budgetId),
+            cancellationToken);
+        return result.IsSuccess
+            ? Results.NoContent()
             : result.Error.ToProblemResult(httpContext);
     }
 

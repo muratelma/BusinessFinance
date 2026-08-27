@@ -91,6 +91,22 @@ void main() {
       expect(find.text('Son 6 ay'), findsNothing);
     });
 
+    testWidgets('bütçe kartı aşımdan önce de uyarır', (tester) async {
+      final viewModel = DashboardViewModel(
+        _Source(_report(), advanced: _advanced()),
+        now: () => DateTime(2026, 8, 9),
+      );
+      await viewModel.load();
+
+      await _pump(tester, viewModel, height: 3000);
+
+      expect(find.text('1 bütçe limiti aştı'), findsOneWidget);
+      // Eşiğe dayanmış bütçe kendi rozetini alır; sessizce "limit içinde"
+      // sayılsaydı kart, aşmadan önce uyarma işini hiç yapmazdı.
+      expect(find.text('1 bütçe limitine yaklaştı'), findsOneWidget);
+      expect(find.text('1 bütçe limit içinde'), findsOneWidget);
+    });
+
     testWidgets('yaklaşanlar bölümü en yakın üç kalemi vadesiyle yazar', (
       tester,
     ) async {
@@ -806,6 +822,14 @@ AdvancedReport _advanced({
       'limit': '400.0000',
       'spent': '120.0000',
       'remaining': '280.0000',
+      'isExceeded': false,
+    },
+    // Eşiğe dayanmış bütçe: aşmadı ama "limit içinde" de sayılmaz.
+    {
+      'categoryName': 'utilities',
+      'limit': '200.0000',
+      'spent': '180.0000',
+      'remaining': '20.0000',
       'isExceeded': false,
     },
   ],

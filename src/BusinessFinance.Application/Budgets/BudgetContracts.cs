@@ -29,3 +29,5 @@ public sealed record UpdateBudgetCommand(
     Guid BudgetId,
     decimal Limit,
     CurrencyCode Currency);
+
+public sealed record DeleteBudgetCommand(Guid BudgetId);

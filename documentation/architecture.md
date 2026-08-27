@@ -201,7 +201,14 @@ kalıcı kart hareketlerinden hesaplanan projection'dır.
   pasifleştirilir; hareket UTC zamanıyla idempotent iptal edilir. Düzeltme eski
   hareketi iptal edip yeni doğru hareket oluşturur.
 - MonthlyBudget ilerlemesi saklanmaz; seçili ayın iptal edilmemiş giderlerinden
-  `spent`, `remaining` ve `exceeded` projection'ı üretilir. Aylık rapor aynı
+  `spent`, `remaining` ve `exceeded` projection'ı üretilir.
+- **MonthlyBudget silinebilir** (Aşama 06 Grup 7) ve bu "silme yerine iptal"
+  kuralının bir istisnası değildir: o kural para hareketlerini korur, bütçe ise
+  bir olay değil kullanıcının kendine koyduğu bir **sınırdır**. Hiçbir
+  bakiyeyi, raporu veya net varlığı beslemez; silinmesi hiçbir tutarı
+  değiştirmez. Pasifleştirme yolu bırakılmadı çünkü tekil indeks
+  (`UserId, CategoryId, Year, Month`) o kategoriyi ay boyunca kapatıyor —
+  yanlış kurulmuş bir sınırın doğrusu kurulamıyordu. Aylık rapor aynı
   owner-scoped hareket kaynağından gelir, gider, net ve kategori gruplarını;
   tüm zaman hareketlerinden hesap bakiyelerini üretir.
 - Ortak pagination metadata API Contracts altında tutulur; para decimal string
@@ -345,7 +352,17 @@ edilmez. Hata kodları özelliğe göredir: `transactions.scope_unresolved`,
 `recurring.scope_unresolved`, `debt.scope_unresolved`,
 `imports.scope_unresolved`.
 
-Bütçenin bir hesabı yoktur; zinciri açık seçim ve kategori ile sınırlıdır. CSV
+Bütçenin bir hesabı yoktur; zinciri açık seçim ve kategori ile sınırlıdır.
+Aşama 06 Grup 7'ye kadar istemci bu halkayı hiç göstermiyordu: kategorisinin
+varsayılanı olmayan işletme kullanıcısında istek `budgets.scope_unresolved` ile
+reddediliyor ve ekranda sunucunun İngilizce cümlesi görünüyordu. Zincir artık
+formda önizleniyor ve çözülemediğinde **istek gitmeden** söyleniyor.
+
+Bütçe **kategori + kapsam çiftini** sınırlar ama tekil indeksi kapsam
+taşımaz: bir kategorinin bir ayda tek bütçesi olur ve o bütçe tek bir tarafı
+sınırlar. İkiye bölmek (indekse kapsamı eklemek) bilinçli olarak
+**yapılmadı** — bunun yerine satır hangi tarafı sınırladığını yazıyor, çünkü
+sessiz bir yarım toplam, olmayan bir ikinci limitten daha yanıltıcıydı. CSV
 içe aktarmada ilk halka hiç dolmaz — dosyada kapsam kolonu yok — kalan iki halka
 aynen işler.
 

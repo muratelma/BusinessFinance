@@ -599,6 +599,7 @@ GoRouter createAppRouter({
           BudgetsPage(
             repository: budgetRepository,
             changes: financialDataChanges,
+            scopeController: scopeController,
           ),
           authController,
         ),
@@ -780,6 +781,7 @@ class _AdaptiveThirdDestination extends StatelessWidget {
     key: const ValueKey('primary-budgets'),
     repository: budgetRepository,
     changes: changes,
+    scopeController: scopeController,
   );
 
   Widget _cash() {

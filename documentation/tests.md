@@ -1304,3 +1304,30 @@ ettiği için ayrıştırma hatası hiç görünmüyordu.
 | Zincir çözülemezse istek gitmiyor | aynı dosya | Alanın yanında söyleniyor; sunucunun reddi ekrana düşmüyor |
 | Kaynağın varsayılanı forma doluyor | aynı dosya | Hesabın etiketi alana geliyor ve gönderiliyor |
 
+
+## Bütçe ekranı iyileştirmeleri (27 Ağustos 2026, Aşama 06 Grup 7)
+
+Grubun sekiz maddesi de kendi kapısını getirdi. Backend'de tek yeni uç var
+(silme) ve sahiplik kanıtı pozitif **ve** negatif senaryoyla yazılı.
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Silme sahiplik sınırı | `FinancialQueryEndpointTests.DeleteBudget_RemovesOwnLimitAndReopensTheCategoryForThatMonth` | Başkasının bütçesi 404; sahibin bütçesi 204; ikinci silme yine 404 |
+| Silme kategoriyi ay boyunca geri açıyor | aynı test | Silinen kategoriye aynı ay yeni bütçe kurulabiliyor (tekil indeks) |
+| Silme istemcide | `budgets_controller_test`, `budgets_page_test` | Onay reddedilirse istek gitmiyor; hata satırı listede kalıyor |
+| Silme rotası | `budget_repository_test` | `DELETE /api/v1/budgets/{id}` |
+| Geçen aydan kopyalama | `budgets_controller_test` | Önceki ay okunuyor, bu ayda karşılığı olan kategori atlanıyor, limiti ezilmiyor |
+| Kopyalanacak bir şey yoksa | aynı dosya | Sessiz kalmıyor, tek cümleyle söylüyor |
+| Boyutu görmeyende `scope` gitmiyor | aynı dosya | Kopyalama isteğinde alan hiç yok |
+| Uzak aya tek okumayla gitme | aynı dosya + `budgets_page_test` | Dönem seçici; sekiz ay = tek istek, aynı ay yeniden okunmuyor |
+| Bütçe kapsam taşıyor | `budget_repository_test` | `scope` gövdeden okunuyor; create'te seçim gidiyor, boşsa alan hiç gitmiyor |
+| Kategorinin varsayılanı okunuyor | aynı dosya | `defaultScope` dolu ve boş iki kategori |
+| Satır hangi tarafı sınırladığını yazıyor | `budgets_page_test` | Boyut görünürken kapsam etiketi var, görünmezken hiç yok |
+| Formda zincir önizlemesi | aynı dosya | `Kapsam` alanı ve kategori varsayılanı cümlesi |
+| Aşımdan önce uyarı | aynı dosya | %85'te uyarı rozeti, `aşıldı` metni yok |
+| Eşik altında sessizlik | aynı dosya | %40'ta yalnız `Kalan:` satırı |
+| Özet kartı da eşiği bildiriyor | `dashboard_sections_test` | `1 bütçe limitine yaklaştı` ayrı sayılıyor, `limit içinde`ye karışmıyor |
+| Bütçeli kategori listeden düşüyor | `budgets_page_test` | Sunucunun `duplicate_period` cevabına hiç gidilmiyor |
+| Düzenleme alanı ham dört ondalık göstermiyor | aynı dosya | Alanda `100`, `100.0000` değil |
+| Harcama dökümü | aynı dosya | Kanonik feed okunuyor; satır, tarih ve kaynak adı yerinde |
+| Döküm boşsa | aynı dosya | Boş liste yerine cümle |

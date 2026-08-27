@@ -64,6 +64,7 @@ kullanıcının kaydına erişen ayrıcalıklı rol yoktur.
 | Hareket iptali | Evet | `TransactionId + current UserId` | `transactions.not_found` |
 | Hareket liste/detay | Evet | İlk sorgu koşulu current `UserId`; diğer filtreler bundan sonra uygulanır | Listeye girmez / `transactions.not_found` |
 | Aylık bütçe yazma/okuma | Evet | Kategori ve bütçe current `UserId` ile bulunur | `category_unavailable` / `budgets.not_found` |
+| Aylık bütçe silme (`DELETE /api/v1/budgets/{id}`) | Evet | `FindOwned`+`Remove` tek sorguda `(Id, UserId)` ile; başkasının bütçesi ve var olmayan bütçe aynı sonuca gider | `budgets.not_found` |
 | Aylık rapor/dashboard | Evet | Bütün aggregate ve join sorguları current `UserId` ile başlar | Toplamlara, gruplara ve bakiyeye girmez |
 | Transfer oluşturma | Evet | Source ve destination ayrı ayrı `AccountId + current UserId` ile bulunur | `transfers.account_unavailable` |
 | Transfer liste/detay/iptal | Evet | Transfer sorgusu `TransferId + current UserId` ile kapsamlanır | Listeye girmez / `transfers.not_found` |

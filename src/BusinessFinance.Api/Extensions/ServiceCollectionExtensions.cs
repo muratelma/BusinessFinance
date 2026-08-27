@@ -74,6 +74,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<SetUserProfileUseCase>();
         services.AddTransient<UpdateBudgetUseCase>();
         services.AddTransient<ListBudgetsUseCase>();
+        services.AddTransient<DeleteBudgetUseCase>();
         services.AddTransient<GetMonthlyReportUseCase>();
         services.AddTransient<GetAccountantPackageUseCase>();
         services.AddTransient<DownloadAccountantPackageUseCase>();

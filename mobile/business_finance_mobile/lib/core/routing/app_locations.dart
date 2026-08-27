@@ -36,6 +36,10 @@ const obligationCreateLocation = '/transactions/new/obligation';
 /// elle yazılması taşındığında biri geride kalır.
 const cashLocation = '/more/cash';
 
+/// `Aylık bütçeler`. Kişisel profilde üçüncü ana sekme, işletme profilinde
+/// `Diğer` altında; bu doğrudan rota iki yerleşimde de çalışır (ADR 0015).
+const budgetsLocation = '/more/budgets';
+
 /// `Hesabım`: e-posta, işletme cevabı, açık oturumlar, parola ve hesabı
 /// kapatma. Özet ekranının sağ üstünden ve `Diğer` menüsünden aynı yere
 /// gidilir; iki kapı, gezinme kararı verilene kadar (Aşama 06.2) birlikte

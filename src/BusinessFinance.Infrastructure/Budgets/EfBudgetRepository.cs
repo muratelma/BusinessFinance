@@ -45,6 +45,23 @@ internal sealed class EfBudgetRepository(BusinessFinanceDbContext dbContext)
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<bool> DeleteOwnedAsync(
+        Guid budgetId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var budget = await dbContext.MonthlyBudgets.SingleOrDefaultAsync(
+            value => value.Id == budgetId && value.UserId == userId,
+            cancellationToken);
+        if (budget is null)
+        {
+            return false;
+        }
+        dbContext.MonthlyBudgets.Remove(budget);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     public async Task<IReadOnlyList<BudgetDto>> ListWithProgressAsync(
         Guid userId,
         int year,

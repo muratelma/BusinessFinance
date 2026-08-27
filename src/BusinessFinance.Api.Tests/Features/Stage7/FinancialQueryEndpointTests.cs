@@ -94,6 +94,48 @@ public sealed class FinancialQueryEndpointTests
     }
 
     [Fact]
+    public async Task DeleteBudget_RemovesOwnLimitAndReopensTheCategoryForThatMonth()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(
+            factory, "budget-delete-owner@example.test");
+        using var other = await CreateAuthenticatedClientAsync(
+            factory, "budget-delete-other@example.test");
+        var expense = await GetCategoryAsync(owner, "expense");
+        using var createdResponse = await owner.PostAsJsonAsync(
+            "/api/v1/budgets",
+            new CreateBudgetRequest(expense.Id, "100", "TRY", "business", 2026, 8));
+        Assert.Equal(HttpStatusCode.Created, createdResponse.StatusCode);
+        var created = await createdResponse.Content.ReadFromJsonAsync<BudgetResponse>();
+
+        // Başkasının bütçesi ne okunur ne silinir; var olmayan kayıtla aynı
+        // sonuca gider.
+        using var foreignDelete = await other.DeleteAsync($"/api/v1/budgets/{created!.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, foreignDelete.StatusCode);
+        var stillThere = await owner.GetFromJsonAsync<BudgetListResponse>(
+            "/api/v1/budgets?year=2026&month=8");
+        Assert.Single(stillThere!.Items);
+
+        using var delete = await owner.DeleteAsync($"/api/v1/budgets/{created.Id}");
+        Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
+        using var deleteAgain = await owner.DeleteAsync($"/api/v1/budgets/{created.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, deleteAgain.StatusCode);
+
+        var afterDelete = await owner.GetFromJsonAsync<BudgetListResponse>(
+            "/api/v1/budgets?year=2026&month=8");
+        Assert.Empty(afterDelete!.Items);
+
+        // Silmenin asıl işi budur: tekil indeks o kategoriyi ay boyunca
+        // kapatıyordu, artık doğrusu kurulabiliyor.
+        using var recreated = await owner.PostAsJsonAsync(
+            "/api/v1/budgets",
+            new CreateBudgetRequest(expense.Id, "250", "TRY", "personal", 2026, 8));
+        Assert.Equal(HttpStatusCode.Created, recreated.StatusCode);
+        var recreatedBudget = await recreated.Content.ReadFromJsonAsync<BudgetResponse>();
+        Assert.Equal("personal", recreatedBudget?.Scope);
+    }
+
+    [Fact]
     public async Task MonthlyReport_ExcludesCancelledAndOtherUsersData()
     {
         await using var factory = new BusinessFinanceApiFactory();

@@ -166,6 +166,7 @@ class DashboardPage extends StatelessWidget {
             _BudgetStatus(
               items: advanced.budgetVariances,
               currency: advanced.currency,
+              onOpenBudgets: () => context.push(budgetsLocation),
             ),
           ],
 
@@ -935,22 +936,33 @@ class _LegendRow extends StatelessWidget {
 /// Aşım tutarı `remaining`'dir ve **negatif gelir**; istemci `limit − spent`
 /// çıkarmasını kendisi yapmaz.
 class _BudgetStatus extends StatelessWidget {
-  const _BudgetStatus({required this.items, required this.currency});
+  const _BudgetStatus({
+    required this.items,
+    required this.currency,
+    this.onOpenBudgets,
+  });
 
   final List<BudgetVarianceItem> items;
   final String currency;
+
+  /// Kart bir sonuç bildiriyor; sonucun geldiği yere gidilebilmeli.
+  final VoidCallback? onOpenBudgets;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final exceeded = items.where((item) => item.isExceeded).toList();
-    final withinCount = items.length - exceeded.length;
+    // Eşiğe dayanmış bütçe "limit içinde" sayılmaz: %95 ile %5 aynı satıra
+    // düşseydi kart, aşmadan önce uyarma işini hiç yapmazdı.
+    final nearLimit = items.where((item) => item.isNearLimit).toList();
+    final withinCount = items.length - exceeded.length - nearLimit.length;
 
     return AppCard(
+      onTap: onOpenBudgets,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (exceeded.isEmpty)
+          if (exceeded.isEmpty && nearLimit.isEmpty)
             Wrap(
               spacing: AppSpacing.small,
               runSpacing: AppSpacing.small,
@@ -968,16 +980,30 @@ class _BudgetStatus extends StatelessWidget {
               ],
             )
           else ...[
-            AppStatusChip(
-              label: '${exceeded.length} bütçe limiti aştı',
-              icon: Icons.warning_amber_rounded,
-              tone: AppStatusTone.expense,
-            ),
+            if (exceeded.isNotEmpty)
+              AppStatusChip(
+                label: '${exceeded.length} bütçe limiti aştı',
+                icon: Icons.warning_amber_rounded,
+                tone: AppStatusTone.expense,
+              ),
             for (final item in exceeded)
               Padding(
                 padding: const EdgeInsets.only(top: AppSpacing.small),
                 child: _BudgetExceededRow(item: item, currency: currency),
               ),
+            if (nearLimit.isNotEmpty) ...[
+              if (exceeded.isNotEmpty) const SizedBox(height: AppSpacing.small),
+              AppStatusChip(
+                label: '${nearLimit.length} bütçe limitine yaklaştı',
+                icon: Icons.info_outline,
+                tone: AppStatusTone.planned,
+              ),
+              for (final item in nearLimit)
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.small),
+                  child: _BudgetNearLimitRow(item: item, currency: currency),
+                ),
+            ],
             // Aşmayanlar sayı olarak kalıyor: bölüm bütün bütçeleri hesaba
             // katmalı, yoksa "iki bütçem mi var" izlenimi doğuyor. Adları
             // yazılmıyor — bölümün söylediği şey aşım.
@@ -1040,6 +1066,64 @@ class _BudgetExceededRow extends StatelessWidget {
               currency: currency,
               effect: AppMoneyEffect.expense,
               style: theme.textTheme.titleSmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Eşiğe dayanmış tek bir bütçe satırı.
+///
+/// Aşan satırın kardeşi ama farklı bir şey söylüyor: orada gösterilen sayı
+/// limitin **aşılan** kısmı, burada ayın geri kalanına **kalan** kısmı.
+class _BudgetNearLimitRow extends StatelessWidget {
+  const _BudgetNearLimitRow({required this.item, required this.currency});
+
+  final BudgetVarianceItem item;
+  final String currency;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      container: true,
+      label:
+          '${item.categoryName}: limitine yaklaştı, kalan '
+          '${MoneyText.format(item.remaining, currency)}',
+      child: ExcludeSemantics(
+        child: Row(
+          children: [
+            Icon(
+              AppFinanceIcons.forCategory(
+                item.canonicalName,
+                displayName: item.categoryName,
+              ),
+              size: 18,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: AppSpacing.small),
+            // Kalan tutar adın **altında** duruyor, yanında değil: aşan
+            // satırdaki sayı aşımı, buradaki kalanı söylüyor. Aynı sütuna iki
+            // ayrı anlam koymak ikisini de okunmaz yapardı — üstelik en büyük
+            // yazı ölçeğinde satır taşıyordu.
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.categoryName,
+                    style: theme.textTheme.bodyMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    'kalan ${MoneyText.format(item.remaining, currency)}',
+                    style: theme.textTheme.titleSmall,
+                  ),
+                ],
+              ),
             ),
           ],
         ),

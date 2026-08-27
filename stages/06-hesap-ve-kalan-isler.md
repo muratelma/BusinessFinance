@@ -373,8 +373,37 @@ olan cihaz doğrulaması.
 
 ### Grup 7 — Bütçe ekranı iyileştirmeleri
 
+**Durum: tamamlandı (27 Ağustos 2026).** Kayıttaki belirsizlik önce **on
+maddelik** bir öneri listesine döndü, liste kullanıcıyla onaylandı ve maddelerin
+hepsi uygulandı — 06.2'ye devredilmesi önerilen ikisi dâhil. Grupta verilmesi
+gereken üç karar verildi:
+
+- **Bütçe silinebilir ve bu gerçek silmedir.** "Silme yerine iptal" kuralı para
+  hareketlerini korur; bütçe bir olay değil, kullanıcının kendine koyduğu bir
+  **sınırdır**. Hiçbir bakiyeyi, raporu veya net varlığı beslemez ve silinmesi
+  hiçbir tutarı değiştirmez. Pasifleştirme yolu bırakılmadı çünkü tekil indeks
+  (`UserId, CategoryId, Year, Month`) o kategoriyi ay boyunca kapatıyordu —
+  yanlış kategoriye kurulmuş bir sınırın doğrusu hiç kurulamıyordu.
+- **Aynı kategorinin iki tarafı ayrı bütçelenmiyor** (öneri listesinin 3.
+  maddesi, (b) yolu). Tekil indekse kapsam eklenmedi, şema açılmadı; bunun
+  yerine satır hangi tarafı sınırladığını **yazıyor**. Bu bir eksiklik değil
+  bilinçli bir sınır: sessiz bir yarım toplam, olmayan bir ikinci limitten daha
+  yanıltıcıydı ve düzeltmesi bir migration istiyordu.
+- **Eşik uyarısı için altıncı bir renk rolü açılmadı** (ADR 0008). Uyarı ile
+  aşım aynı renge boyansaydı ikisini ayırt eden tek şey metin kalır, renk de
+  aşılmamış bir sınır için alarm verirdi. Uyarıyı taşıyan şey sözdür.
+
+Yol boyunca bir tespit **yanlış çıktı ve düzeltildi**: "bütçe Özet ekranında hiç
+görünmüyor" denmişti, oysa `Bütçe durumu` kartı zaten oradaydı. Gerçek boşluk
+daha dardı — kart yalnız aşımı konuşuyordu ve karttan bütçe ekranına gidilmiyordu.
+
+Uygulanan sekiz madde: geçen aydan kopyalama, kapsam alanı ve satır etiketi,
+silme ucu (`DELETE /api/v1/budgets/{id}`), eşik uyarısı, harcama dökümü, ham
+dört ondalıklı limit alanı, bütçeli kategorinin listeden düşmesi, dönem seçici;
+artı Özet kartının eşiği bildirmesi ve tıklanabilir olması.
+
 Devralınan açık iş (`docs/backlog.md` madde 2). Kayıtta "kapsamı belirsiz;
-alınmadan önce kısa bir öneri listesine dönmesi gerekiyor" yazıyor.
+alınmadan önce kısa bir öneri listesine dönmesi gerekiyor" yazıyordu.
 
 - **Grubun ilk işi listeyi çıkarmaktır**: mevcut bütçe ekranı incelenir ve
   somut, tek tek yapılabilir maddeler önerilir. Liste kullanıcıyla onaylanmadan
@@ -488,9 +517,8 @@ yedeklenip geri yüklenecek bir geçmiş değildir. Sürüm v10'da kalır.
 - [ ] Flutter analyze, test, format ve debug build kontrolleri geçti.
 - [ ] Kullanıcı izolasyonu, yeni uçların hepsinde negatif senaryolarla kanıtlandı.
 - [ ] Enumeration önleme ve tek kullanımlık kod testleri geçti.
-- [ ] `docs/backlog.md` maddeleri 1, 2, 3 ve 5 kapandı veya gerekçeyle yeniden
-      yazıldı.
-- [ ] ADR 0017 yazıldı ve kabul edildi.
+- [x] `docs/backlog.md` maddeleri 1, 2, 3 ve 5 kapandı (Grup 5, 7, 6 ve 4).
+- [x] ADR 0017 yazıldı ve kabul edildi (Grup 1).
 - [ ] Pixel 8'de kabul turu tamamlandı (hesap akışları, fiş yönü, hatırlatma).
 - [ ] `documentation/` ve `docs/project-status.md` güncel.
 - [ ] Kullanıcı Aşama 06.1'i açıkça onayladı.

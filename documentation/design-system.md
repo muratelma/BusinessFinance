@@ -702,3 +702,35 @@ görünürdür; yeni tasarım token'ı eklenmemiştir.
 Yapısal kapı kaynak kodu tarar. Bunun nedeni, kuralın doğası: ihlal her zaman
 henüz testi olmayan **yeni** bir dosyada ortaya çıkar, dolayısıyla widget
 testleriyle korunamaz.
+
+## Ay/dönem seçici (`AppMonthPicker`)
+
+Ay gezinmesi iki denetimden oluşur ve ikisi ayrı işler için:
+
+- **Oklar** komşu aya gider. Yerinde kalıyorlar; bir ay geri gitmek için panel
+  açmak fazladan iki dokunuş olurdu.
+- **Ay adının kendisi bir butondur** ve dönem seçici panelini açar: yıl için
+  iki ok, altında on iki ay çipi. Uzağa gitmek için oklar yanlış araçtı —
+  sekiz ay geri bakmak sekiz dokunuş ve sekiz ağ isteği demekti.
+
+Takvim (`showDatePicker`) kullanılmaz: gün seçtirir, oysa burada gün diye bir
+şey yoktur ve kullanıcı olmayan bir kararı vermek zorunda kalırdı.
+
+## Bütçenin eşik uyarısı
+
+Bütçe iki eşikte konuşur ve ikisi **birbirine benzemez**:
+
+| Durum | Rozet tonu | Çubuk dolgusu |
+|---|---|---|
+| Eşiğe yaklaştı (`>= budgetWarningThreshold`) | `planned` + `info_outline` | `neutralFill` — değişmez |
+| Limit aşıldı | `expense` + `warning_amber_rounded` | `expenseFill` |
+
+Uyarı için altıncı bir renk rolü **açılmadı** (ADR 0008). İki gerekçe: yeni bir
+hue paleti finansal rollerden çıkarıp dekoratif bir uyarı ailesi kurardı; ve
+uyarı ile aşım aynı renge boyansaydı ikisini ayırt eden tek şey metin kalır,
+renk de aşılmamış bir sınır için alarm verirdi. Uyarıyı taşıyan şey sözdür,
+renk değil — rozet zaten ikon **ve** metin taşımak zorundadır.
+
+Eşiğin değeri tek yerdedir: `lib/core/models/budget_threshold.dart`. Bütçe
+ekranı ve Özet'in `Bütçe durumu` kartı aynı sabiti okur; iki ayrı eşik, Özet
+"limit içinde" derken bütçe ekranının uyarmasına yol açardı.

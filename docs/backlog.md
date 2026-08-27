@@ -14,7 +14,6 @@ geçmişti; buraya taşındılar çünkü hâlâ geçerliler.
 
 | # | İş | Kaynak | Durum |
 |---|---|---|---|
-| 2 | **Bütçe ekranı iyileştirmeleri** — kapsamı belirsiz; alınmadan önce kısa bir öneri listesine dönmesi gerekiyor. Bütçenin hangi kapsamı sınırladığı sorusu Aşama 01'e girdi; geri kalan iyileştirmeler burada duruyor | kullanıcı listesi | Öneri |
 | 4 | **Fiş okumada veri sınırı kararı** — hangi belgenin hangi katmana gönderileceği kararı bilinçli olarak ertelenmişti. Gerçek ve değerli belgeye geçmeden önce alınmalı ve ADR 0011'e işlenmeli | devralınan | Açık |
 | 6 | **Sunucunun İngilizce hata metni kullanıcıya düşüyor** — istemci karşılığı olmayan bir hata kodunda `ApiException.message` (sunucunun `detail` alanı) doğrudan ekrana yazılıyor. Aşama 06 Grup 6 kabul turunda `The scope could not be resolved from the request, the account or the category.` cümlesi Türkçe arayüzde göründü. Kuralımız "kullanıcıya gösterilecek cümleyi API değil istemci üretir" diyor. Tek tek düzeltme değil, hata kodlarının envanterini ve karşılıksız kod için nötr bir yedek cümleyi ister | 2026-08-27 kabul turu | Öneri |
 | 7 | **Taksit akışında boş kart listesi hiçbir şey söylemiyor** — taksitli fiş kartı seçmeye götürüyor ama hesabında kart yoksa ekranda yalnız mavi yönlendirme ve `Kart ekle` düğmesi kalıyor; `Henüz kredi kartı yok` boş durumu çizilmiyor. Akış tıkanmıyor (kart eklenebiliyor) ama ekran boş görünüyor | 2026-08-27 kabul turu | Öneri |
@@ -48,7 +47,9 @@ altı yolu Pixel 8'de koşuldu; turda çıkan iki kusur düzeltildi, üçü bu t
 6, 7 ve 8. madde olarak yazıldı. Madde 5 **kapandı** (Aşama 06 Grup 4, 27 Ağustos 2026): varsayılan kapsam artık
 hesap, kart ve kategori formundan ayarlanıyor. Madde 1 **kapandı** (Aşama 06
 Grup 5, 27 Ağustos 2026): kart borcu kırpılmıyor, alacaklı bakiye net varlığa
-giriyor. Kalan maddeler tabloda **Durum** sütunuyla birlikte duruyor; aşamaya
+giriyor. Madde 2 **kapandı** (Aşama 06 Grup 7, 27 Ağustos 2026): kapsamı belirsiz
+kayıt önce on maddelik bir öneri listesine döndü, liste kullanıcıyla onaylandı ve
+maddelerin hepsi uygulandı. Kalan maddeler tabloda **Durum** sütunuyla birlikte duruyor; aşamaya
 bağlanmak alınmak değildir.
 
 ## Park edilenler (bu tur değil)

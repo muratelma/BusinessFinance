@@ -1,5 +1,6 @@
 import '../../../core/localization/default_category_labels.dart';
 import '../../../core/models/json_readers.dart';
+import '../../../core/models/budget_threshold.dart';
 
 class PlanningChoice {
   const PlanningChoice({required this.id, required this.name, this.type});
@@ -247,6 +248,26 @@ class BudgetVarianceItem {
   /// İstemci bu farkı kendisi hesaplamaz — para aritmetiği sunucudadır.
   final String remaining;
   final bool isExceeded;
+
+  /// Aşılmadı ama eşiği geçti.
+  ///
+  /// Eşik bütçe ekranıyla aynı yerden gelir (`budgetWarningThreshold`).
+  bool get isNearLimit {
+    if (isExceeded) return false;
+    final limitValue = _scaled(limit);
+    final spentValue = _scaled(spent);
+    if (limitValue == null || spentValue == null || limitValue <= BigInt.zero) {
+      return false;
+    }
+    return spentValue.toDouble() / limitValue.toDouble() >=
+        budgetWarningThreshold;
+  }
+
+  static BigInt? _scaled(String value) {
+    final match = RegExp(r'^-?(\d+)\.(\d{4})$').firstMatch(value);
+    if (match == null) return null;
+    return BigInt.tryParse('${match.group(1)}${match.group(2)}');
+  }
 
   factory BudgetVarianceItem.fromJson(Map<String, dynamic> json) {
     final rawName = JsonReaders.string(json, 'categoryName');

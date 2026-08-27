@@ -16,6 +16,7 @@ public interface IBudgetRepository
         Guid userId,
         CancellationToken cancellationToken);
     Task UpdateOwnedAsync(MonthlyBudget budget, Guid userId, CancellationToken cancellationToken);
+    Task<bool> DeleteOwnedAsync(Guid budgetId, Guid userId, CancellationToken cancellationToken);
     Task<IReadOnlyList<BudgetDto>> ListWithProgressAsync(
         Guid userId,
         int year,
