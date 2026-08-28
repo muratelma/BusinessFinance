@@ -145,7 +145,7 @@ public sealed class RealizeInstallmentUseCase(
         if (plan is null)
         {
             return ApplicationResult<CardChargeDto>.Failure(
-                CreditCardErrors.Validation("Installment plan was not found."));
+                CreditCardErrors.InstallmentPlanNotFound(command.InstallmentPlanId));
         }
 
         InstallmentItem item;

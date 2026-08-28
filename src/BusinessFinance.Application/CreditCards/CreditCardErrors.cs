@@ -24,6 +24,18 @@ public static class CreditCardErrors
         "credit_cards.not_found",
         $"Credit card '{id}' was not found.",
         ApplicationErrorType.NotFound);
+
+    /// <summary>
+    /// Taksit planının yokluğu bir doğrulama hatası değildir. Aşama 06.1 Grup
+    /// 3'e kadar öyleydi: gerçekleştirme ucu bulunamayan plan için 400
+    /// dönüyordu ve başka kullanıcıya ait plan da aynı 400'ü alıyordu. Sızıntı
+    /// değildi ama ürünün kendi kuralını bozuyordu — yok olan kayıt ve
+    /// başkasının kaydı <b>aynı 404'e</b> gider.
+    /// </summary>
+    public static ApplicationError InstallmentPlanNotFound(Guid id) => new(
+        "installments.not_found",
+        $"Installment plan '{id}' was not found.",
+        ApplicationErrorType.NotFound);
     public static readonly ApplicationError DuplicateName = new(
         "credit_cards.duplicate_name",
         "A credit card with the same name already exists.",

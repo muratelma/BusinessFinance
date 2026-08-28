@@ -259,6 +259,38 @@ klasörü izni istemez. Flutter–Android platform kanalından yalnız o anda
 indirilen dosya byte'ları, önerilen dosya adı ve MIME türü geçer; token, UserId
 veya sunucu secret'ı native katmana aktarılmaz.
 
+## Sahiplik denetimi tek yerde ölçülür (28 Ağustos 2026, Aşama 06.1 Grup 3)
+
+İzolasyonun kanıtı uçlara dağıtılmış testlere bırakılmadı. Dağıtılmış testlerde
+**olanı görmek kolay, eksik olanı görmek zordur**; bu grubun işi ise eksik test
+aramaktı. `OwnershipIsolationTests` denetimi tek dosyada toplar ve üç şey ölçer.
+
+**1. Kimlik taşıyan her uç (46 uç).** Sahip her kayıt türünden bir tane kurar;
+saldırgan her ucu iki kez çağırır — bir kez sahibin gerçek kimliğiyle, bir kez
+hiç var olmamış bir kimlikle. İki cevabın **statüsü aynı ve 404 olmak**
+zorundadır. Farklı cevap vermek (biri 404, öteki 403 ya da 409) kaydın
+varlığını sızdırır ve saldırgana kimin nesi olduğunu haritalama imkânı verir.
+
+**2. Kimlik taşımayan okuma uçları (31 uç).** Burada denenecek kimlik yoktur;
+sızıntı olursa sunucunun kendi listesinden gelir. Ölçü cevabın şekline bakmadan
+kurulur: sahibin hiçbir kimliği saldırganın gövdesinde geçmemelidir. Aynı test
+sahibin o kimlikleri **gördüğünü** de doğrular — görünmeyen bir kayıt için
+"saldırgan görmüyor" demek bir şey söylemez.
+
+**3. Listenin kendisi.** Prob tablosu elle tutulur ve elle tutulan liste eskir.
+`EveryOwnerScopedRoute_IsProbed` onu uygulamanın gerçek route tablosuyla
+karşılaştırır: kimlik taşıyan yeni bir uç eklenip tabloya yazılmazsa takım
+kırmızıya döner. Denetim dışında bırakılan bir uç, gerekçesiyle birlikte
+`NotOwnerScoped` içine yazılır — bugün o liste **boştur**.
+
+### Denetimin bulduğu
+
+Kırk altı ucun kırk beşi kuralı zaten uyguluyordu. Bir tanesi uygulamıyordu:
+**taksit gerçekleştirme**, bulunamayan plan için `400` dönüyordu. Başka
+kullanıcının planı da aynı `400`'ü aldığı için sızıntı değildi, ama ürünün
+kendi kuralını bozuyordu ve istemcinin hata sözlüğünde karşılığı olmayan bir
+koda düşüyordu. `installments.not_found` ile `404`'e çevrildi.
+
 ## Admin bypass durumu
 
 Mevcut MVP'de rol, admin claim'i veya sahipliği atlayan repository metodu yoktur.

@@ -50,6 +50,12 @@ void main() {
         ApiErrorMessages.resolve('counterparties.not_found'),
         startsWith('Cari hesap bulunamadı'),
       );
+      // Aşama 06.1 Grup 3: taksit gerçekleştirme bulunamayan plan için 400
+      // dönüyordu; 404'e çevrildi ve kodu `installments.not_found` oldu.
+      expect(
+        ApiErrorMessages.resolve('installments.not_found'),
+        startsWith('Taksit planı bulunamadı'),
+      );
     });
 
     test('kabul turunda görülen scope_unresolved artık Türkçe', () {

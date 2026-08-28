@@ -1393,3 +1393,18 @@ betik bulguyu türüyle raporladı ve **1** ile çıktı.
 Test projelerinin bağımlılıkları ürüne girmez ve bu iddia ölçüldü: Android
 `releaseRuntimeClasspath` içinde `junit`, `espresso` veya eski `guava` yok;
 üçü de yalnız `integration_test` projesinde.
+
+## Yetkilendirme kapsamı denetimi (28 Ağustos 2026, Aşama 06.1 Grup 3)
+
+Denetim `OwnershipIsolationTests` içinde tek yerde toplandı; gerekçesi
+`documentation/permissions.md` içindedir.
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Başkasının kaydı = olmayan kayıt | `AnotherUsersRecord_AnswersExactlyLikeAMissingOne` | Kimlik taşıyan 46 uç; her biri sahibin kimliğiyle ve hayalet kimlikle çağrılıyor, iki statü aynı ve 404 olmak zorunda |
+| Liste sahibin kaydını göstermiyor | `ReadEndpoints_ShowNothingThatBelongsToAnotherUser` | Kimlik taşımayan 31 okuma ucu; sahibin hiçbir kimliği saldırganın gövdesinde geçmiyor |
+| Ölçüm boş değil | aynı test | Sahibin 24 kimliğinin hepsi aynı uçlarda **kendisine** görünüyor; görünmeyen kayıt için "saldırgan görmüyor" demek bir şey söylemez |
+| Liste eskimiyor | `EveryOwnerScopedRoute_IsProbed` | Prob tablosu uygulamanın gerçek route tablosuyla karşılaştırılıyor; kimlik taşıyan yeni uç yazılmazsa takım kırmızı |
+| Muafiyet listesi de eskimiyor | aynı test | Artık var olmayan bir uç için yazılmış gerekçe, denetimi olduğundan geniş gösterirdi |
+| Taksit planı yoksa 404 | aynı denetim + `installments.not_found` | Denetimin bulduğu tek kusur: gerçekleştirme ucu bulunamayan plan için 400 dönüyordu |
+| Yeni kod Türkçe konuşuyor | `api_error_messages_test` | `installments.not_found` → "Taksit planı bulunamadı…" |

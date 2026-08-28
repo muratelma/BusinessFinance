@@ -1215,9 +1215,37 @@ kırıldığı denendi.
 Geçen kontroller: backend build (0 uyarı) + format temiz + **1057 test**;
 Flutter analyze + `dart format` temiz + **873 test** + önbelleksiz debug APK.
 
+## 28 Ağustos 2026 — Aşama 06.1 Grup 3: yetkilendirme kapsamı denetimi
+
+Uç listesi elle sayılmadı, koddan üretildi: **108 uç, 46'sı kimlik taşıyor.**
+Denetim tek dosyada toplandı (`OwnershipIsolationTests`) — bu grubun işi yeni
+test yazmaktan çok eksik test aramaktı ve dağıtılmış testlerde eksik olanı
+görmek, olanı görmekten zor.
+
+- Kimlik taşıyan **46 uç**: sahip her kayıt türünden bir tane kuruyor,
+  saldırgan her ucu iki kez çağırıyor — sahibin gerçek kimliğiyle ve hiç var
+  olmamış bir kimlikle. İki statü aynı ve **404** olmak zorunda
+- Kimlik taşımayan **31 okuma ucu**: sahibin hiçbir kimliği saldırganın
+  gövdesinde geçmiyor. Ölçü cevabın şekline bakmadan kuruluyor
+- Ölçümün boş olmadığı ayrıca kapıda: sahibin **24 kimliğinin hepsi** aynı
+  uçlarda kendisine görünüyor
+- Prob tablosu uygulamanın gerçek route tablosuyla karşılaştırılıyor; kimlik
+  taşıyan yeni bir uç yazılmazsa takım kırmızıya döner. Denetim dışı bırakılan
+  uç listesi bugün boş
+
+**Denetim bir kusur buldu.** Taksit gerçekleştirme ucu bulunamayan plan için
+`400` dönüyordu. Başka kullanıcının planı da aynı `400`'ü aldığı için sızıntı
+değildi, ama ürünün kendi kuralını bozuyordu — "yok olan kayıt ve başkasının
+kaydı aynı 404'e gider" — ve istemcinin hata sözlüğünde karşılığı olmayan bir
+koda düşüyordu. `installments.not_found` ile 404'e çevrildi ve istemcideki
+Türkçe karşılığı da kapıya bağlandı.
+
+Geçen kontroller: backend build (0 uyarı) + format temiz + **1060 test**
+(gerçek SQL dâhil, 2 skip); Flutter analyze + format temiz + **873 test**.
+
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: **Aşama 06 kapandı, Aşama 06.1 açıldı; Grup 1 ve 2
+- Yapılan değişiklik: **Aşama 06 kapandı, Aşama 06.1 açıldı; Grup 1, 2 ve 3
   tamamlandı.**
   - Aşama 06'nın sekiz çalışma grubu bitti; `docs/backlog.md` maddeleri 1, 2,
     3, 5, 6, 7 ve 8 kapandı, yalnız madde 4 kaldı (Aşama 07'nin açılış kararı)
@@ -1231,11 +1259,13 @@ Flutter analyze + `dart format` temiz + **873 test** + önbelleksiz debug APK.
     içi 14 paket yükseltildi, üç bulgu gerekçesiyle kabul edildi. Tarama
     ayrıca Android derlemesinin temiz ağaçta hiç kurulmadığını ortaya
     çıkardı; AGP 8.13.0'a sabitlenerek düzeltildi
-- Geçen kontroller: backend build (0 uyarı) + format temiz + **1057 test**
+  - **06.1 Grup 3** sahiplik izolasyonunu koddan üretilen uç listesiyle
+    denetledi: 46 kimlik taşıyan uç + 31 okuma ucu. Tek kusur çıktı ve
+    düzeltildi (taksit gerçekleştirme 400 yerine artık 404)
+- Geçen kontroller: backend build (0 uyarı) + format temiz + **1060 test**
   (gerçek SQL dâhil, 2 skip: Gemini ve Brevo canlı sözleşme testleri);
   Flutter analyze + format + **873 test** + önbelleksiz debug APK
-- Sıradaki görev: **06.1 Grup 3 — yetkilendirme kapsamı denetimi**. Bu grup yeni
-  test yazmaktan çok eksik test aramaktır: owner-scoped uçların listesi koddan
-  üretilir ve her biri için "başka kullanıcının kaydıyla çağrılırsa ne olur"
-  testinin var olup olmadığına bakılır. Kalanlar: 4 log/hata sızıntısı,
-  5 bulguların çözülmesi; ardından Pixel 8 toplu kabul turu
+- Sıradaki görev: **06.1 Grup 4 — log ve hata cevabı sızıntısı**: tutar, karşı
+  taraf, açıklama, e-posta, token ve doğrulama kodu loglara düşüyor mu (elle
+  değil testle); ProblemDetails gövdesi stack trace, SQL metni veya iç yol
+  taşıyor mu. Ardından Grup 5 ve Pixel 8 toplu kabul turu
