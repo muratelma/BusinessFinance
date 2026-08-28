@@ -123,6 +123,31 @@ kalıcılığı ayrıca volume ile sağlanmalıdır. Yerel disk şifreleme veya 
 malware scanning sağlamaz. Backup v2 de şifreli değildir; gerçek finans verisiyle
 kullanım bulut güvenlik kapısına (Aşama 07) kadar yasaktır.
 
+## Envanterin gerçekle karşılaştırılması (28 Ağustos 2026)
+
+Aşama 06.1 Grup 1'de yukarıdaki envanter kodun ve yerel ortamın gerçeğiyle
+karşılaştırıldı. Sonuç: **envanterde yazan her secret gerçekten Git dışında,
+envanterde olmayan hiçbir değer koda sızmamış.** Ayrıntı:
+
+- `appsettings.json` ve `appsettings.Development.json` hiçbir secret anahtarı
+  taşımıyor; ikisi de artık `ConfigurationSecurityTests` ile kapatıldı. Kapı
+  eskiden yalnız `appsettings.json` içindeki `Jwt:SigningKey` ve
+  `ConnectionStrings`'e bakıyordu — `Gemini:ApiKey`, `Brevo:ApiKey` ve
+  geliştirme dosyasının tamamı kapsam dışındaydı.
+- Yerel user-secrets üç değer taşıyor ve üçü de envanterde yazılı.
+  `Brevo:ApiKey` yerelde tanımlı değil; canlı sözleşme testinin skip olması
+  bunun beklenen sonucudur.
+- Repo geçmişinde (62 commit, 3661 nesne) hiçbir sağlayıcı anahtarı, özel
+  anahtar bloğu veya parolalı connection string yok. `.env`, `secrets.json`,
+  keystore ya da sertifika türünden bir dosya **hiç** commit edilmemiş.
+- Debug APK'da gömülü anahtar yok. Paketteki tek proje adresi `10.0.2.2`'dir
+  ve o `API_BASE_URL`'in emulator varsayılanıdır, secret değildir.
+
+Döndürülmesi gereken bir anahtar çıkmadı. İki eksik kapandı: `.gitignore`
+imza anahtarı/sertifika/`key.properties` desenlerini taşımıyordu (bugün böyle
+bir dosya yok, ama Aşama 07 üretecek) ve yapılandırma kapısı yukarıda anlatıldığı
+gibi dardı.
+
 ## Yayın öncesi kontrol listesi
 
 - Production signing key yönetilen secret deposundan alınmalı ve rotation planı

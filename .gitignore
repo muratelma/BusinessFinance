@@ -485,3 +485,19 @@ $RECYCLE.BIN/
 .serena/
 .claude/
 .agents/skills/ui-ux-pro-max/
+
+# Secret taşıyan dosyalar (Aşama 06.1 Grup 1).
+# Bugün repoda böyle bir dosya yok; desen önleyicidir. Android imza anahtarı
+# ve sağlayıcı yapılandırması Aşama 07'de üretilecek ve o gün geç kalmış bir
+# .gitignore, anahtarın commit edilmesi demektir.
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+secrets.json
+key.properties
+google-services.json
+GoogleService-Info.plist
+id_rsa
+id_rsa.*

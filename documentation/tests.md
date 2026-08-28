@@ -1358,3 +1358,26 @@ biri boş durumun ölçüsü, biri fiş sözleşmesi.
 | KDV forma taşınıyor | `receipt_scan_page_test` | Prefill oran ve tutarı taşıyor; yüzde alanına `20` yazılıyor |
 | Sözleşme alanı zorunlu | `receipt_repository_test` | `vat` / `vatState` gövdede yoksa `FormatException` |
 
+## Secret taraması (28 Ağustos 2026, Aşama 06.1 Grup 1)
+
+Tarama üç ayaklıdır ve iki yerde yaşar. Çalışma ağacı bir **test**tir: her
+`dotnet test` koşusunda ve CI'ın her push'unda çalışır, ayrı araç kurulumu
+istemez. Repo geçmişi ve üretilen APK bir teste sığmaz; onlar
+`scripts/Invoke-SecretScan.ps1` içindedir ve CI'da kendi işinde koşar.
+
+Aranan şey **değerin biçimidir**, anahtarın adı değil: bir sağlayıcı anahtarı
+hangi değişkene atanırsa atansın aynı şekle sahiptir. Bulgu raporlanırken
+eşleşen değer hiçbir koşulda basılmaz — rapor türü ve yeri taşır.
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Çalışma ağacında secret yok | `SecretScanTests` | Sağlayıcı anahtarı, özel anahtar bloğu, kodlanmış JWT ve parolalı connection string biçimleri |
+| Tarama gerçekten okuyor | aynı dosya | Kaynak ağacında bu dosyanın kendisi, `appsettings.json` ve `compose.yaml` gezilenler arasında |
+| Tarama gerçekten buluyor | aynı dosya | Sentetik bir anahtar geçici dizine yazılıyor ve tarama onu buluyor; hiçbir dosyayı okumayan tarama da yeşil görünürdü |
+| Yapılandırma secret taşımıyor | `ConfigurationSecurityTests` | `appsettings.json` **ve** `appsettings.Development.json`; `ConnectionStrings`, `Jwt:SigningKey`, `Gemini:ApiKey`, `Brevo:ApiKey` |
+| Kapı boşalmıyor | aynı dosya | Taranan dosya kümesi doğrulanıyor; bir yeniden adlandırma kapıyı sessizce boşaltamaz |
+| Repo geçmişi temiz | `Invoke-SecretScan.ps1` (CI işi) | Bütün commit'lerin ağacı; `fetch-depth: 0` zorunlu, sığ klonda tarama hiçbir şey görmez |
+| APK temiz | aynı betik | `--dart-define` değerleri, gömülü yapılandırma ve asset'ler; APK CI'da üretilmediği için ayak yerelde koşar |
+
+Kapının kırıldığı denendi: sentetik bir anahtar taşıyan paket taratıldığında
+betik bulguyu türüyle raporladı ve **1** ile çıktı.

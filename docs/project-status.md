@@ -1153,30 +1153,54 @@ dağıtılmadığı için istemci ile sunucu birlikte gidiyor; katılığın seb
   (gerçek SQL dâhil, 2 skip: Gemini ve Brevo canlı sözleşme testleri); Flutter
   analyze + `dart format` temiz + **873 test**
 
+## 28 Ağustos 2026 — Aşama 06.1 Grup 1: secret taraması
+
+Üç ayak da tarandı ve **döndürülmesi gereken bir anahtar çıkmadı.**
+
+- **Çalışma ağacı**: sağlayıcı anahtarı, özel anahtar bloğu, kodlanmış JWT ve
+  parolalı connection string biçimleri arandı; bulunan tek şey sentetik test
+  parolaları oldu
+- **Repo geçmişi**: 62 commit, 3661 nesne. `.env`, `secrets.json`, keystore
+  veya sertifika türünden bir dosya **hiç** commit edilmemiş
+- **Debug APK**: gömülü anahtar yok; paketteki tek proje adresi `10.0.2.2`,
+  yani `API_BASE_URL`'in emulator varsayılanı
+- Yerel user-secrets üç değer taşıyor ve üçü de `documentation/variables.md`
+  envanterinde yazılı; envanterde olmayan bir değer koda sızmamış
+
+İki eksik kapandı. `.gitignore` imza anahtarı, sertifika ve `key.properties`
+desenlerini taşımıyordu — bugün böyle bir dosya yok, ama Aşama 07 Android imza
+anahtarını üretecek ve o gün geç kalmış bir `.gitignore` anahtarın commit
+edilmesi demektir. Yapılandırma kapısı da dardı: yalnız `appsettings.json`
+içindeki iki anahtara bakıyordu, `Gemini:ApiKey` / `Brevo:ApiKey` ve
+`appsettings.Development.json` kapsam dışındaydı.
+
+Tarama artık kalıcı ve iki yerde yaşıyor: çalışma ağacı `SecretScanTests` ile
+her `dotnet test` koşusunda, repo geçmişi `scripts/Invoke-SecretScan.ps1` ile
+CI'ın kendi işinde (`fetch-depth: 0` zorunlu — sığ klonda tarama sessizce
+hiçbir şey görmez). **Kapının kırıldığı denendi**: sentetik bir anahtar taşıyan
+paket bulguyu türüyle raporlattı ve betik 1 ile çıktı. Bulgunun değeri hiçbir
+yere yazılmaz; rapor türü ve yeri taşır.
+
+Geçen kontroller: backend build (0 uyarı) + `dotnet format` temiz +
+**1057 test** (gerçek SQL dâhil, 2 skip: Gemini ve Brevo canlı sözleşme
+testleri).
+
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: **Aşama 06 açıldı; Grup 1–8 tamamlandı.**
-  - **Grup 1** kullanıcının kendi hesabını uygulamaya açtı: e-posta, açık
-    oturumlar, parola değiştirme ve hesabı kapatma (ADR 0017)
-  - **Grup 2** kimlik akışını tamamladı: altı haneli doğrulama kodu, parola
-    sıfırlama, Brevo gönderici port'u, `AddVerificationCodes` migration'ı
-  - **Grup 3** hatırlatmayı cihaza kurdu: `Diğer → Hatırlatmalar`, gün başına
-    tek bildirim, izin istenmeden hiçbir şey planlanmıyor
-  - **Grup 4** varsayılan kapsamı hesap, kart ve kategori formuna açtı ve
-    `PUT`'un sessizce sildiği varsayılanları düzeltti (madde 5 kapandı)
-  - **Grup 5** kart borcundaki kırpmayı kaldırdı: alacaklı bakiye net varlığa
-    giriyor ve arayüzde borç değil alacak olarak okunuyor (madde 1 kapandı)
-  - **Grup 6** fiş/dekont akışının altı yolunu Pixel 8'de koşturdu; iki kusur
-    düzeltildi, üçü backlog'a yazıldı (madde 3 kapandı)
-  - **Grup 7** bütçe ekranının on maddesini onaylı bir listeye döküp uyguladı:
-    bütçe silinebiliyor, kapsam taşıdığını yazıyor, aşımdan önce uyarıyor,
-    geçen aydan kopyalanıyor ve harcamalarının dökümünü açıyor (madde 2 kapandı)
-  - **Grup 8** kabul turunda çıkan üç kusuru kapattı: sunucunun İngilizce hata
-    metni artık ekrana düşmüyor, kartsız taksit ekranı boş durumunu çiziyor ve
-    fiş okuma belgede yazan KDV'yi öneriyor (maddeler 6, 7, 8 kapandı)
-- Geçen kontroller: backend build (0 uyarı) + format temiz + **1052 test**
-  (gerçek SQL dâhil, 2 skip: Gemini ve Brevo canlı sözleşme testleri); Flutter
-  analyze + format + **873 test**
-- Sıradaki görev: **Grup 1–5, 7 ve 8'in cihaz kabul turu** (Pixel 8) — aşamanın
-  çıkış koşullarından biri ve hâlâ yapılmadı. Sonrasında kullanıcı Aşama 06'yı
-  kapatmak isterse 06.1 (güvenlik taraması) onayı beklenir
+- Yapılan değişiklik: **Aşama 06 kapandı, Aşama 06.1 açıldı ve Grup 1
+  tamamlandı.**
+  - Aşama 06'nın sekiz çalışma grubu bitti; `docs/backlog.md` maddeleri 1, 2,
+    3, 5, 6, 7 ve 8 kapandı, yalnız madde 4 kaldı (Aşama 07'nin açılış kararı)
+  - Belgesi `docs/archive/stages/06-hesap-ve-kalan-isler.md` altına taşındı;
+    Pixel 8 toplu kabul turu 06.1'in çıkış koşuluna devredildi (kullanıcı
+    kararı)
+  - **06.1 Grup 1** secret taramasını üç ayakta koşturdu ve kalıcı hâle
+    getirdi: çalışma ağacı test olarak, repo geçmişi ve APK betik olarak.
+    Döndürülmesi gereken anahtar çıkmadı; iki önleyici eksik kapandı
+- Geçen kontroller: backend build (0 uyarı) + format temiz + **1057 test**
+  (gerçek SQL dâhil, 2 skip: Gemini ve Brevo canlı sözleşme testleri)
+- Sıradaki görev: **06.1 Grup 2 — bağımlılık zafiyet taraması** (backend
+  `dotnet list package --vulnerable --include-transitive`, Flutter ve Gradle).
+  Aşamanın kalan grupları: 3 yetkilendirme kapsamı denetimi, 4 log/hata
+  sızıntısı, 5 bulguların çözülmesi ve kapının kurulması; ardından Pixel 8
+  toplu kabul turu

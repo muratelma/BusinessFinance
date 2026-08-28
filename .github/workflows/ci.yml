@@ -65,3 +65,20 @@ jobs:
 
       - name: Test
         run: flutter test
+
+  # Aşama 06.1 Grup 1. Çalışma ağacının taraması `dotnet test` içindeki
+  # SecretScanTests'tir; buradaki iş repo geçmişidir: silinmiş bir dosyadaki
+  # anahtar commit'te durmaya devam eder. `fetch-depth: 0` bu yüzden zorunlu —
+  # sığ klonda tarama sessizce hiçbir şey görmez.
+  secret-scan:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Bulgu varsa betik 1 döner ve iş kırılır; uyarı basıp geçmek taramayı
+      # olmamış saymakla aynı şeydir.
+      - name: Secret scan (history)
+        shell: pwsh
+        run: ./scripts/Invoke-SecretScan.ps1
