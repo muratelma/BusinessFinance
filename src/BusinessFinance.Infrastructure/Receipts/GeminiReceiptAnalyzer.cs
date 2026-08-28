@@ -203,6 +203,7 @@ internal sealed class GeminiReceiptAnalyzer : IReceiptAnalyzer
             Text(fields, "dueDate"),
             Text(fields, "subtotalAmount"),
             Text(fields, "taxAmount"),
+            Text(fields, "taxRate"),
             Text(fields, "totalAmount"),
             Text(fields, "feeAmount"),
             Text(fields, "installmentCount"),
@@ -385,6 +386,7 @@ internal sealed class GeminiReceiptAnalyzer : IReceiptAnalyzer
             ["dueDate"] = StringField(),
             ["subtotalAmount"] = StringField(),
             ["taxAmount"] = StringField(),
+            ["taxRate"] = StringField(),
             ["totalAmount"] = StringField(),
             ["feeAmount"] = StringField(),
             ["installmentCount"] = StringField(),
@@ -486,6 +488,11 @@ internal sealed class GeminiReceiptAnalyzer : IReceiptAnalyzer
         - totalAmount: fişte TEK BİR SATIRDA BASILI olan genel toplam (genellikle
           "TOPLAM" veya "GENEL TOPLAM"). Böyle bir satır yoksa boş bırak.
           subtotalAmount: "ARA TOPLAM". taxAmount: toplam KDV tutarı.
+        - taxRate: fişte YAZAN KDV oranı, yalnız sayı ("KDV %20" → "20";
+          "%8 KDV" → "8"). Oranı taxAmount ile totalAmount'tan HESAPLAMA — yalnız
+          basılı oranı oku. Fişte birden çok KDV oranı varsa (market fişlerinde
+          %1, %10 ve %20 aynı fişte olabilir) boş bırak: birden çok oran tek bir
+          orana indirgenemez. taxAmount yine toplam KDV olarak okunur.
         - Tutarları fişte yazdığı değerle, ondalık ayırıcı olarak nokta kullanarak
           döndür. Binlik ayırıcı ve para birimi simgesi koyma. Örnek: "1234.56"
         - purchasedAt: fişin tarihi, yyyy-MM-dd biçiminde. Fişte gg.aa.yyyy

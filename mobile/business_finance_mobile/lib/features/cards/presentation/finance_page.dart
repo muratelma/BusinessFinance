@@ -184,6 +184,7 @@ class _FinancePageState extends State<FinancePage> {
       message: 'Hesaplar arası para taşıdığınızda burada görünür.',
       icon: Icons.swap_horiz,
     ),
+    isEmpty: snapshot.transfers.isEmpty,
     children: [
       for (final transfer in snapshot.transfers)
         Card(
@@ -212,6 +213,7 @@ class _FinancePageState extends State<FinancePage> {
       message: 'Limit ve ekstre günleriyle ilk kartınızı ekleyin.',
       icon: Icons.credit_card,
     ),
+    isEmpty: snapshot.cards.isEmpty,
     children: [
       // Dekonttan gelindiyse liste bir seçim ekranına dönüşür: belge hangi
       // kartın borcunun kapatıldığını söylemez ve yanlış kart başka bir kartın
@@ -1230,12 +1232,22 @@ class _FeatureList extends StatelessWidget {
     required this.addLabel,
     required this.onAdd,
     required this.empty,
+    required this.isEmpty,
     required this.children,
   });
   final String addLabel;
   final Future<void> Function() onRefresh;
   final VoidCallback? onAdd;
   final Widget empty;
+
+  /// Listenin **verisi** boş mu.
+  ///
+  /// `children.isEmpty` ile ölçülmüyor: liste veriden başka satır da taşır
+  /// (fişten gelindiğinde eklenen yönlendirme kutusu gibi). O kutu tek başına
+  /// kaldığında liste dolu sayılır ve ekran boş durumu hiç çizmezdi — fişten
+  /// gelen kullanıcı, hiç kartı olmadığını söyleyen cümleyi göremiyordu.
+  final bool isEmpty;
+
   final List<Widget> children;
 
   @override
@@ -1258,10 +1270,8 @@ class _FeatureList extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.small),
-        if (children.isEmpty)
-          SizedBox(height: 420, child: empty)
-        else
-          ...children,
+        ...children,
+        if (isEmpty) SizedBox(height: 420, child: empty),
       ],
     ),
   );

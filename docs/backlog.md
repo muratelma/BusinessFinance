@@ -15,9 +15,6 @@ geçmişti; buraya taşındılar çünkü hâlâ geçerliler.
 | # | İş | Kaynak | Durum |
 |---|---|---|---|
 | 4 | **Fiş okumada veri sınırı kararı** — hangi belgenin hangi katmana gönderileceği kararı bilinçli olarak ertelenmişti. Gerçek ve değerli belgeye geçmeden önce alınmalı ve ADR 0011'e işlenmeli | devralınan | Açık |
-| 6 | **Sunucunun İngilizce hata metni kullanıcıya düşüyor** — istemci karşılığı olmayan bir hata kodunda `ApiException.message` (sunucunun `detail` alanı) doğrudan ekrana yazılıyor. Aşama 06 Grup 6 kabul turunda `The scope could not be resolved from the request, the account or the category.` cümlesi Türkçe arayüzde göründü. Kuralımız "kullanıcıya gösterilecek cümleyi API değil istemci üretir" diyor. Tek tek düzeltme değil, hata kodlarının envanterini ve karşılıksız kod için nötr bir yedek cümleyi ister | 2026-08-27 kabul turu | Öneri |
-| 7 | **Taksit akışında boş kart listesi hiçbir şey söylemiyor** — taksitli fiş kartı seçmeye götürüyor ama hesabında kart yoksa ekranda yalnız mavi yönlendirme ve `Kart ekle` düğmesi kalıyor; `Henüz kredi kartı yok` boş durumu çizilmiyor. Akış tıkanmıyor (kart eklenebiliyor) ama ekran boş görünüyor | 2026-08-27 kabul turu | Öneri |
-| 8 | **Fiş okuma KDV önermiyor** — belgede `KDV %20 46,67` yazsa bile analiz cevabı KDV alanı taşımıyor ve form `KDV girilmedi` ile açılıyor. ADR 0016 KDV'yi taşınan bir alan yapıyor; fişten okunabilecek bir bilgiyi kullanıcıya yeniden yazdırmak, muhasebeci paketini elle doldurmak demek. Sözleşme değişikliği ister (analiz yanıtına oran/tutar alanı) | 2026-08-27 kabul turu | Öneri |
 
 ## Notlar (iş değil, kayıt)
 
@@ -41,6 +38,11 @@ durmuyorlar, izleri kayıt olsun diye yazılı:
 - Fiş/dekont akışının cihaz kabul turu (madde 3) → Aşama 06
 - Varsayılan kapsamın uygulamadan ayarlanamaması (madde 5) → Aşama 06
 - Fiş okumada veri sınırı kararı (madde 4) → Aşama 07'nin **açılış kararı**
+
+Madde 6, 7 ve 8 **kapandı** (Aşama 06 Grup 8, 28 Ağustos 2026): sunucunun
+İngilizce hata metni artık ekrana düşmüyor (üç katmanlı istemci sözlüğü + nötr
+yedek), taksit akışındaki kartsız ekran boş durumunu çiziyor ve fiş okuma
+belgede yazan KDV'yi öneriyor (analiz sözleşmesine `vat` alanı eklendi).
 
 Madde 3 **kapandı** (Aşama 06 Grup 6, 27 Ağustos 2026): fiş/dekont akışının
 altı yolu Pixel 8'de koşuldu; turda çıkan iki kusur düzeltildi, üçü bu tabloya

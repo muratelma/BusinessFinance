@@ -220,11 +220,7 @@ class ApiClient {
   ApiException _failure(int statusCode, Object? decoded) =>
       decoded is Map<String, dynamic>
       ? ApiException.fromProblemDetails(statusCode, decoded)
-      : ApiException(
-          statusCode: statusCode,
-          code: 'server.request_failed',
-          message: 'İstek tamamlanamadı.',
-        );
+      : ApiException.local('server.request_failed', statusCode: statusCode);
 
   Uri _resolve(String path) {
     final relativePath = path.startsWith('/') ? path.substring(1) : path;

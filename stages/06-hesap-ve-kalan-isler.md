@@ -497,6 +497,46 @@ Bu aşama yedek şemasını **ilerletmez**. Eklenen alanların hiçbiri finansal
 taşımıyor: oturum ve doğrulama kaydı kullanıcının kimliğine ait geçici durumdur,
 yedeklenip geri yüklenecek bir geçmiş değildir. Sürüm v10'da kalır.
 
+### Grup 8 — Kabul turunda çıkan üç kusur
+
+**Durum: tamamlandı (28 Ağustos 2026).** Grup 6'nın cihaz kabul turunda
+bulunup backlog'a yazılan üç madde (6, 7, 8). Üçü de "tek satırlık düzeltme
+değil" diye ertelenmişti ve gerçekten öyle çıktı: biri istemcinin hata
+sözlüğünü, biri boş durumun ölçüsünü, biri fiş sözleşmesini değiştirdi.
+
+**Verilen üç karar:**
+
+- **Hata cümlesi envanterle değil kalıpla çözülür.** Backend ~250 kod üretiyor;
+  her birine elle cümle yazan bir sözlük ilk yeni koddan sonra yine sunucunun
+  cümlesine düşerdi. Çözüm üç katmanlı: tam kod → `<alan>.<sebep>` kalıbı →
+  nötr yedek. Sunucunun `detail` alanı artık **hiçbir koşulda** ekrana yazılmaz.
+- **Boşluk ölçüsü listenin verisidir**, widget sayısı değil. Fişten gelen
+  yönlendirme kutusu bir liste elemanı olduğu için kart yokken bile liste dolu
+  sayılıyordu; `_FeatureList` artık `isEmpty` bayrağını çağıranından alıyor.
+- **Fiş KDV'yi okur ama hesaplamaz** (ADR 0016). Model zaten toplam denetimi
+  için KDV tutarını okuyordu; eksik olan onu taşımaktı. Prompt'a **basılı**
+  oranı okuma görevi eklendi ve hesaplaması açıkça yasaklandı; oran ile tutar
+  bağımsız kaldı, eksik olan diğerinden türetilmiyor. Market fişinin tek bir
+  oranı olmadığı için (%1, %10, %20 bir arada) oranın boş gelmesi meşrudur.
+
+**Uygulananlar:**
+
+| # | İş | Nerede |
+|---|---|---|
+| 6 | Üç katmanlı istemci hata sözlüğü + nötr yedek; `detail` ekrana çıkmıyor | `core/network/api_error_messages.dart`, `api_exception.dart` |
+| 7 | Kartsız kullanıcı hem yönlendirmeyi hem boş durumu görüyor | `finance_page.dart` (`_FeatureList.isEmpty`) |
+| 8 | Analiz cevabına `vat` (`rate` + `amount`) ve `vatState`; form vergi bölümünü açık açıyor | `ReceiptDraftValidator`, `GeminiReceiptAnalyzer`, `ReceiptContracts`, `receipt_prefill.dart`, `quick_add_form_page.dart` |
+
+Sözleşme değişikliği geriye dönük **kırıcıdır**: `vat` ve `vatState` zorunlu
+alanlardır ve istemci eksik gövdeyi `FormatException` ile reddeder. Ürün
+dağıtılmadığı için (Aşama 07 öncesi) istemci ile sunucu birlikte gidiyor;
+diğer `*State` alanlarıyla tutarlı olması bu katılığın sebebidir.
+
+- `docs/backlog.md` maddeleri 6, 7 ve 8 kapandı
+- Geçen kontroller: backend build (**0 uyarı**) + format temiz + **1052 test**
+  (gerçek SQL dâhil, 2 skip: Gemini ve Brevo canlı sözleşme testleri); Flutter
+  analyze + `dart format` temiz + **873 test**
+
 ## Riskler ve azaltımlar
 
 | Risk | Azaltım |
@@ -518,6 +558,7 @@ yedeklenip geri yüklenecek bir geçmiş değildir. Sürüm v10'da kalır.
 - [ ] Kullanıcı izolasyonu, yeni uçların hepsinde negatif senaryolarla kanıtlandı.
 - [ ] Enumeration önleme ve tek kullanımlık kod testleri geçti.
 - [x] `docs/backlog.md` maddeleri 1, 2, 3 ve 5 kapandı (Grup 5, 7, 6 ve 4).
+- [x] Kabul turunda çıkan 6, 7 ve 8. maddeler kapandı (Grup 8).
 - [x] ADR 0017 yazıldı ve kabul edildi (Grup 1).
 - [ ] Pixel 8'de kabul turu tamamlandı (hesap akışları, fiş yönü, hatırlatma).
 - [ ] `documentation/` ve `docs/project-status.md` güncel.

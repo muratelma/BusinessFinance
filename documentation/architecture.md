@@ -1532,6 +1532,39 @@ yeni bir dosyada ortaya çıkar.
 
 Ayrıntı ve yeni ekran kontrol listesi: `documentation/design-system.md`.
 
+## Hata cümlesini istemci üretir
+
+Sunucu kararlı bir **makine kodu** gönderir (`transactions.not_found`,
+`budgets.scope_unresolved`); o kodun hangi dilde, hangi tonda ve hangi
+yönlendirmeyle okunacağı istemcinin işidir. `ProblemDetails` içindeki `detail`
+alanı bu yüzden **hiçbir koşulda ekrana yazılmaz**.
+
+Kural yeni değil ama uygulaması eksikti: 27 Ağustos 2026 kabul turunda
+`The scope could not be resolved from the request, the account or the category.`
+cümlesi Türkçe arayüzde göründü. Sözlükte karşılığı olmayan her kod sunucunun
+kendi cümlesine düşüyordu ve o cümleler geliştiriciye konuşuyor, çoğu İngilizce
+ve hiçbiri kullanıcının o ekranda ne yapabileceğini bilmiyor.
+
+Çeviri tek yerde (`lib/core/network/api_error_messages.dart`) ve üç katmanlı;
+ilk tutan kazanır:
+
+| Katman | Ne yapar | Örnek |
+|---|---|---|
+| Tam kod | Kendi cümlesini hak eden kod. Ölçüt: kalıptan çıkan cümle kullanıcıya **ne yapacağını** söyleyemiyorsa buraya yazılır | `recurring.has_realized_history` → "…silinemez. Durdurmak için planı duraklatabilirsiniz." |
+| Kalıp | Kodlar `<alan>.<sebep>` biçiminde ve sebep tarafı tekrar ediyor. Alanın Türkçe adı sebebin şablonuna konur | `counterparties.not_found` → "Cari hesap bulunamadı…" |
+| Nötr yedek | Hiçbiri tutmazsa. Bilmediği hatayı tarif etmeye çalışmaz | "İşlem tamamlanamadı. Lütfen tekrar deneyin." |
+
+Üçüncü katman kuralın **kapısıdır**: istemci güncellenmeden sunucuya yeni bir
+kod eklendiğinde kullanıcı İngilizce bir cümle değil, anlamlı ve nötr bir cümle
+görür. Envanteri tek tek eşlemek yerine kalıp katmanının olması da bunun içindir
+— backend bugün ~250 kod üretiyor ve her birine elle cümle yazan bir sözlük,
+ilk yeni koddan sonra yine sunucunun cümlesine düşerdi.
+
+`ApiException.message` bu yüzden daima sözlükten gelir; `ApiException.local`
+istemcinin kendi hatalarını (ağ, zaman aşımı, biçimsiz cevap) aynı yoldan
+geçirir. Kapı testi: hiçbir kod İngilizce bir cümleye dönmemeli
+(`test/core/network/api_error_messages_test.dart`).
+
 ## Borç açılışı ve faiz mimarisi
 
 Borç, para hareketi olan kavramlar arasında **hiçbir yazma modeli

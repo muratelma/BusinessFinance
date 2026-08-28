@@ -22,10 +22,7 @@ abstract class LoadableViewModel extends ChangeNotifier {
     } on ApiException catch (error) {
       _error = error;
     } on FormatException {
-      _error = const ApiException(
-        code: 'response.invalid_format',
-        message: 'Sunucudan beklenmeyen bir cevap alındı.',
-      );
+      _error = ApiException.local('response.invalid_format');
     } finally {
       _isLoading = false;
       notifyListeners();

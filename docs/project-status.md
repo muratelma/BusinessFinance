@@ -1096,9 +1096,58 @@ saymadan "kalan 500" diyebiliyordu.
   (gerçek SQL dâhil, 2 skip: Gemini ve Brevo canlı sözleşme testleri); Flutter
   analyze + `dart format` temiz + **857 test** + Android debug build
 
+## 28 Ağustos 2026 — Aşama 06 Grup 8: kabul turunda çıkan üç kusur
+
+27 Ağustos kabul turunda bulunup backlog'a yazılan üç madde (6, 7, 8) kapandı.
+Üçü de "tek satırlık düzeltme değil" diye ertelenmişti ve gerçekten öyle çıktı.
+
+**Madde 6 — sunucunun İngilizce hata metni kullanıcıya düşüyordu.**
+Kabul turunda `The scope could not be resolved from the request, the account or
+the category.` cümlesi Türkçe arayüzde göründü. Sebep yapıda değil, kapsamdaydı:
+çeviri zaten tek yerdeydi (`ApiException._localizedMessage`) ama sözlükte
+karşılığı olmayan **her** kod sunucunun `detail` alanına düşüyordu.
+
+Backend'in ürettiği kod envanteri çıkarıldı: ~250 kod, hepsi `<alan>.<sebep>`
+kalıbında. Her birine elle cümle yazan bir sözlük ilk yeni koddan sonra yine
+sunucunun cümlesine düşerdi, bu yüzden çözüm **üç katmanlı** oldu — tam kod →
+kalıp (alanın Türkçe adı + sebebin şablonu) → nötr yedek. `detail` artık
+hiçbir koşulda ekrana yazılmıyor; kapı testi bunu sızıntı işaretleri arayarak
+tutuyor.
+
+**Madde 7 — taksit akışında boş kart listesi sessizdi.** Boşluk `children.isEmpty`
+ile ölçülüyordu; fişten gelen mavi yönlendirme kutusu da bir liste elemanı
+olduğu için kart yokken bile liste dolu sayılıyor ve `Henüz kredi kartı yok`
+hiç çizilmiyordu. Ölçü artık listenin **verisine** bağlı.
+
+**Madde 8 — fiş okuma KDV önermiyordu.** Model KDV tutarını zaten okuyordu
+(toplam denetimi için); eksik olan onu taşımaktı. Prompt'a fişte **basılı**
+oranı okuma görevi eklendi ve `taxAmount` ile `totalAmount`'tan oran
+hesaplaması açıkça yasaklandı. Analiz cevabı artık kaydın KDV alanıyla aynı
+biçimde `vat` (`rate` + `amount`) ve `vatState` taşıyor; form vergi bölümünü
+**açık** açıyor, çünkü kapalı kalsaydı kullanıcı onaylaması gereken bir öneriyi
+görmeden kaydederdi.
+
+ADR 0016 burada da korundu: oran ile tutar bağımsız kaldı ve eksik olan
+diğerinden **türetilmedi**. 280 brütün içindeki 46,67 tam olarak %20'dir ve
+hesaplaması kolaydır — yine de yapılmıyor, çünkü yapılsaydı taşınan bilgi
+uydurulmuş bilgiye dönerdi. Market fişinin tek bir oranı olmadığı için (%1, %10
+ve %20 bir arada) oranın boş gelmesi meşru bir durumdur. Brütten büyük okunan
+KDV düzeltilmiyor, reddediliyor (`receipt.vat_out_of_range`).
+
+Sözleşme değişikliği geriye dönük kırıcıdır: `vat` ve `vatState` zorunlu
+alanlardır ve istemci eksik gövdeyi `FormatException` ile reddeder. Ürün henüz
+dağıtılmadığı için istemci ile sunucu birlikte gidiyor; katılığın sebebi diğer
+`*State` alanlarıyla tutarlı olmak.
+
+- `docs/backlog.md` maddeleri 6, 7 ve 8 kapandı; tabloda yalnız madde 4
+  (Aşama 07'nin açılış kararı) kaldı
+- Geçen kontroller: backend build (**0 uyarı**) + format temiz + **1052 test**
+  (gerçek SQL dâhil, 2 skip: Gemini ve Brevo canlı sözleşme testleri); Flutter
+  analyze + `dart format` temiz + **873 test**
+
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: **Aşama 06 açıldı; Grup 1–7 tamamlandı.**
+- Yapılan değişiklik: **Aşama 06 açıldı; Grup 1–8 tamamlandı.**
   - **Grup 1** kullanıcının kendi hesabını uygulamaya açtı: e-posta, açık
     oturumlar, parola değiştirme ve hesabı kapatma (ADR 0017)
   - **Grup 2** kimlik akışını tamamladı: altı haneli doğrulama kodu, parola
@@ -1114,9 +1163,12 @@ saymadan "kalan 500" diyebiliyordu.
   - **Grup 7** bütçe ekranının on maddesini onaylı bir listeye döküp uyguladı:
     bütçe silinebiliyor, kapsam taşıdığını yazıyor, aşımdan önce uyarıyor,
     geçen aydan kopyalanıyor ve harcamalarının dökümünü açıyor (madde 2 kapandı)
-- Geçen kontroller: backend build (0 uyarı) + format temiz + **1042 test**
+  - **Grup 8** kabul turunda çıkan üç kusuru kapattı: sunucunun İngilizce hata
+    metni artık ekrana düşmüyor, kartsız taksit ekranı boş durumunu çiziyor ve
+    fiş okuma belgede yazan KDV'yi öneriyor (maddeler 6, 7, 8 kapandı)
+- Geçen kontroller: backend build (0 uyarı) + format temiz + **1052 test**
   (gerçek SQL dâhil, 2 skip: Gemini ve Brevo canlı sözleşme testleri); Flutter
-  analyze + format + **857 test** + Android debug build
-- Sıradaki görev: **Grup 1–5 ve 7'nin cihaz kabul turu** (Pixel 8) — aşamanın
+  analyze + format + **873 test**
+- Sıradaki görev: **Grup 1–5, 7 ve 8'in cihaz kabul turu** (Pixel 8) — aşamanın
   çıkış koşullarından biri ve hâlâ yapılmadı. Sonrasında kullanıcı Aşama 06'yı
   kapatmak isterse 06.1 (güvenlik taraması) onayı beklenir

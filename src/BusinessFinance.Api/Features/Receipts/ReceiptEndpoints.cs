@@ -112,6 +112,12 @@ public static class ReceiptEndpoints
         FieldState(draft.DueDateState),
         draft.TotalAmount is decimal amount ? FinanceContract.Money(amount) : null,
         FieldState(draft.TotalAmountState),
+        draft.Vat is null
+            ? null
+            : new VatContract(
+                FinanceContract.OptionalMoney(draft.Vat.Rate),
+                FinanceContract.OptionalMoney(draft.Vat.Amount)),
+        FieldState(draft.VatState),
         draft.FeeAmount is decimal fee ? FinanceContract.Money(fee) : null,
         FieldState(draft.FeeAmountState),
         draft.InstallmentCount,

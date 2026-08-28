@@ -1,3 +1,4 @@
+import '../../../core/models/tax_fields.dart';
 import 'dart:typed_data';
 
 import '../../../core/models/transaction_scope.dart';
@@ -197,6 +198,7 @@ class QuickAddPrefill {
     this.categoryNameHint,
     this.description,
     this.sourceHint,
+    this.vat,
     this.warnings = const [],
     this.attachment,
     this.keepAttachmentByDefault = true,
@@ -227,6 +229,13 @@ class QuickAddPrefill {
   /// bilmez ve kullanıcı fişteki yazının aksine ödemiş olabilir. Yalnız listeyi
   /// sıralar ve ekranda bir not olarak görünür.
   final PaymentSourceHint? sourceHint;
+
+  /// Belgede yazan KDV (ADR 0016: taşınır, hesaplanmaz).
+  ///
+  /// Oran ve tutar bağımsızdır ve biri boş gelebilir; form eksik olanı
+  /// **hesaplamaz**, boş bırakır. Vergi bölümünü görmeyen kullanıcıda hiç
+  /// kullanılmaz — o kişinin formunda KDV alanı yoktur ve kayda da girmez.
+  final VatFields? vat;
 
   /// Sunucunun ürettiği uyarılar; metin istemcide yeniden yazılmaz.
   final List<String> warnings;

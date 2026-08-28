@@ -1,3 +1,5 @@
+using BusinessFinance.Api.Contracts;
+
 namespace BusinessFinance.Api.Features.Receipts;
 
 public sealed record ReceiptWarningResponse(string Code, string Message);
@@ -30,6 +32,20 @@ public sealed record ReceiptAnalysisResponse(
     string DueDateState,
     string? TotalAmount,
     string TotalAmountState,
+
+    /// <summary>
+    /// Belgede yazan KDV; okunamadıysa <c>null</c>. Kaydın KDV alanıyla
+    /// <b>aynı</b> biçimdedir (<c>rate</c> + <c>amount</c>, dört ondalıklı
+    /// string), çünkü istemci bunu doğrudan forma taşır.
+    /// </summary>
+    /// <remarks>
+    /// ADR 0016: taşınır, hesaplanmaz. Oran ile tutar bağımsızdır ve ikisi de
+    /// tek başına dolabilir — market fişi toplam KDV'yi basar ama tek bir oranı
+    /// yoktur (%1, %10, %20 aynı fişte), hizmet faturasında ise oran basılıyken
+    /// tutar okunamayabilir. Eksik olan boş kalır, diğerinden üretilmez.
+    /// </remarks>
+    VatContract? Vat,
+    string VatState,
     string? FeeAmount,
     string FeeAmountState,
 

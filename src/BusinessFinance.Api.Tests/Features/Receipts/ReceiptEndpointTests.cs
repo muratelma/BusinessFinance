@@ -675,6 +675,7 @@ public sealed class ReceiptEndpointTests
 
         public string? Subtotal { get; set; } = "700,00";
         public string? Tax { get; set; } = "147,50";
+        public string? TaxRate { get; set; }
         public string TotalAmount { get; set; } = "847,50";
         public List<ReceiptAnalysisRequest> Requests { get; } = [];
 
@@ -704,6 +705,7 @@ public sealed class ReceiptEndpointTests
                 DueDate,
                 Subtotal,
                 Tax,
+                TaxRate,
                 TotalAmount,
                 FeeAmount,
                 InstallmentCount,

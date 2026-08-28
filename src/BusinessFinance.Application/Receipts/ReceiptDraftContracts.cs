@@ -50,6 +50,21 @@ public enum ReceiptPaymentHint
 
 public sealed record ReceiptWarning(string Code, string Message);
 
+/// <summary>
+/// Belgeden okunan KDV: oran ve tutar.
+/// </summary>
+/// <remarks>
+/// İkisi <b>bağımsızdır</b> (ADR 0016) ve tam da bu yüzden ikisi de nullable:
+/// bir market fişi toplam KDV tutarını basar ama tek bir oranı yoktur (%1, %10
+/// ve %20 aynı fişte olabilir), bir hizmet faturasında ise oran basılıyken
+/// tutar okunamayabilir. Eksik olanı diğerinden hesaplamak, taşınan bilgiyi
+/// uydurulmuş bilgiye çevirirdi.
+/// </remarks>
+public sealed record ReceiptVat(decimal? Rate, decimal? Amount)
+{
+    public bool IsEmpty => Rate is null && Amount is null;
+}
+
 /// <summary>One of the user's own categories, offered to the model and back.</summary>
 public sealed record ReceiptCategoryOption(Guid Id, string Name);
 
@@ -58,8 +73,9 @@ public sealed record ReceiptCategoryOption(Guid Id, string Name);
 /// user edits it, chooses a payment source, and confirms before any of it
 /// becomes an expense.
 ///
-/// Subtotal and tax are deliberately absent: they are read only to check that
-/// the totals add up, and this stage does not store line-level money.
+/// Subtotal is deliberately absent: it is read only to check that the totals add
+/// up, and this stage does not store line-level money. VAT is not — see
+/// <see cref="ReceiptDraft.Vat" />.
 /// </summary>
 /// <remarks>
 /// <see cref="CounterpartyName" /> bilerek "merchant" değildir: bir belgenin
@@ -118,6 +134,26 @@ public sealed record ReceiptDraft(
     ReceiptFieldState TotalAmountState,
 
     /// <summary>
+    /// Belgede yazan KDV; okunamadıysa <c>null</c>.
+    /// </summary>
+    /// <remarks>
+    /// ADR 0016: KDV <b>taşınır, hesaplanmaz</b>. Buradaki oran ve tutar
+    /// belgeden okunmuş iki bağımsız değerdir; biri diğerinden türetilmez ve
+    /// hiçbiri kayıt tutarını, bakiyeyi veya bütçeyi etkilemez — kayıt tutarı
+    /// brüttür ve brüt kalır.
+    ///
+    /// Taslakta durmasının sebebi ölçülmüş bir eksikliktir: belgede
+    /// "KDV %20 46,67" yazarken form "KDV girilmedi" ile açılıyor ve
+    /// kullanıcı okunabilir bir bilgiyi elle yeniden yazıyordu — yani
+    /// muhasebeci paketini elle dolduruyordu.
+    ///
+    /// Öneri olması burada da bozulmaz (ADR 0011): dolu gelmesi hiçbir şeyin
+    /// yazıldığı anlamına gelmez, kullanıcı formda görüp değiştirebilir.
+    /// </remarks>
+    ReceiptVat? Vat,
+    ReceiptFieldState VatState,
+
+    /// <summary>
     /// The fee printed on a transfer slip, kept apart from the amount moved.
     /// On a dekont these are two numbers on two lines and adding them produced
     /// a 5.004,50 expense that was never spent; the transfer moves money without
@@ -150,6 +186,13 @@ public static class ReceiptWarnings
     public const string TotalsDoNotAddUp = "receipt.totals_do_not_add_up";
     public const string CategoryUnknown = "receipt.category_unknown";
     public const string CurrencyUnexpected = "receipt.currency_unexpected";
+
+    /// <summary>
+    /// Okunan KDV tutarı kaydın tutarıyla bağdaşmıyor (negatif ya da brütten
+    /// büyük). Düzeltilmez, taşınmaz: brütün içindeki KDV brütten büyük
+    /// olamayacağına göre okunan sayı KDV değildir.
+    /// </summary>
+    public const string VatOutOfRange = "receipt.vat_out_of_range";
 
     /// <summary>
     /// A record with the same date, amount and counterparty already exists.

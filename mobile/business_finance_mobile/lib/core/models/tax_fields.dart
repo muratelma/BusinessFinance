@@ -30,13 +30,22 @@ class VatFields {
 
   /// Ekranda yüzde olarak okunan oran; oran yoksa boştur.
   String? get ratePercentLabel {
+    final text = ratePercentInput;
+    return text == null ? null : '%$text';
+  }
+
+  /// Sözleşmenin oranını forma yazılacak yüzdeye çevirir (0.2000 → `20`).
+  ///
+  /// [rateFromPercentInput] fonksiyonunun tersi ve onun gibi bir **birim
+  /// değişimidir**, vergi hesabı değil: tutardan hiçbir şey türetmez. Yüzde
+  /// işareti taşımaz — alanın kendisi zaten yüzde soruyor.
+  String? get ratePercentInput {
     final value = double.tryParse(rate ?? '');
     if (value == null) return null;
     final percent = value * 100;
-    final text = percent == percent.roundToDouble()
+    return percent == percent.roundToDouble()
         ? percent.round().toString()
         : percent.toStringAsFixed(2);
-    return '%$text';
   }
 
   /// Kullanıcının yazdığı tutarı sözleşmenin biçimine çevirir (200 → 200.0000).

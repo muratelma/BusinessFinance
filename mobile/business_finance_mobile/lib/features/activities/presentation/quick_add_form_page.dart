@@ -107,6 +107,19 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
     final date = AppDateField.parse(prefill.date?.value ?? '');
     if (date != null) _date = date;
     _categoryId = prefill.categoryId?.value;
+
+    // Belgede yazan KDV alanlara taşınır ve bölüm **açık** açılır: kapalı
+    // kalsaydı kullanıcı, onaylaması gereken bir öneriyi görmeden kaydederdi.
+    // Oran ile tutar birbirinden türetilmiyor — hangisi geldiyse o yazılıyor,
+    // diğeri boş kalıyor.
+    final vat = prefill.vat;
+    if (vat != null && !vat.isEmpty) {
+      _vatRateController.text = vat.ratePercentInput ?? '';
+      _vatAmountController.text = vat.amount == null
+          ? ''
+          : MoneyText.editable(vat.amount!);
+      _taxExpanded = true;
+    }
   }
 
   /// Ad ile önerilen kategoriyi kullanıcının kendi listesinde arar.

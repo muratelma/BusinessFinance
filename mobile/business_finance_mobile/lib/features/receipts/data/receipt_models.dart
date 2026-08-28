@@ -1,3 +1,4 @@
+import '../../../core/models/tax_fields.dart';
 import '../../../core/models/json_readers.dart';
 
 /// Bir alanın ne kadar güvenilir okunduğu.
@@ -188,6 +189,8 @@ class ReceiptDraft {
     required this.dueDateState,
     required this.totalAmount,
     required this.totalAmountState,
+    required this.vat,
+    required this.vatState,
     required this.feeAmount,
     required this.feeAmountState,
     required this.installmentCount,
@@ -212,6 +215,8 @@ class ReceiptDraft {
     dueDateState: ReceiptFieldState.parse(json, 'dueDateState'),
     totalAmount: _nullableMoney(json, 'totalAmount'),
     totalAmountState: ReceiptFieldState.parse(json, 'totalAmountState'),
+    vat: VatFields.fromJson(json['vat']),
+    vatState: ReceiptFieldState.parse(json, 'vatState'),
     feeAmount: _nullableMoney(json, 'feeAmount'),
     feeAmountState: ReceiptFieldState.parse(json, 'feeAmountState'),
     installmentCount: JsonReaders.nullableInt(json, 'installmentCount'),
@@ -268,6 +273,15 @@ class ReceiptDraft {
   /// Dört ondalıklı string. İstemci parayı yeniden hesaplamaz, taşır.
   final String? totalAmount;
   final ReceiptFieldState totalAmountState;
+
+  /// Belgede yazan KDV; okunamadıysa `null`.
+  ///
+  /// Kaydın kendi KDV alanıyla aynı tipte (ADR 0016: oran ve tutar iki
+  /// bağımsız alan) çünkü doğrudan forma taşınıyor. İstemci hiçbirini
+  /// diğerinden türetmez — sunucu da türetmiyor, fişte hangisi yazıyorsa o
+  /// geliyor.
+  final VatFields? vat;
+  final ReceiptFieldState vatState;
 
   /// Dekonttaki işlem ücreti. Taşınan tutardan **ayrı** durur ve ona asla
   /// eklenmez: transfer parayı taşır, harcanan yalnız bu ücrettir.

@@ -1,3 +1,4 @@
+import 'package:business_finance_mobile/core/models/tax_fields.dart';
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -546,6 +547,39 @@ void main() {
       expect(prefill.amount!.helperText, contains('şüpheli'));
     });
 
+    // 27 Ağustos 2026 kabul turu: belgede "KDV %20 46,67" yazarken form
+    // "KDV girilmedi" ile açılıyordu. Okunabilen bir bilgiyi kullanıcıya
+    // yeniden yazdırmak, muhasebeci paketini elle doldurtmaktı.
+    test('belgede yazan KDV forma taşınır', () {
+      final prefill = receiptPrefillFrom(
+        _draft(
+          vat: const VatFields(rate: '0.2000', amount: '46.6700'),
+        ),
+      );
+
+      expect(prefill.vat!.rate, '0.2000');
+      expect(prefill.vat!.amount, '46.6700');
+      // Alan yüzde soruyor; sözleşme kesir taşıyor. Birim değişimi bir vergi
+      // hesabı değildir.
+      expect(prefill.vat!.ratePercentInput, '20');
+    });
+
+    test('KDV okunmadıysa öneri de yok', () {
+      expect(receiptPrefillFrom(_draft()).vat, isNull);
+    });
+
+    // ADR 0016'nın kapısı: oran ile tutar bağımsızdır. Biri boş geldiğinde
+    // istemci diğerinden **türetmez** — türetseydi uygulama KDV hesaplayan
+    // bir şey olurdu.
+    test('yalnız tutar okunduysa oran boş kalır, hesaplanmaz', () {
+      final prefill = receiptPrefillFrom(
+        _draft(vat: const VatFields(amount: '46.6700')),
+      );
+
+      expect(prefill.vat!.amount, '46.6700');
+      expect(prefill.vat!.rate, isNull);
+    });
+
     test('an unknown payment hint chooses nothing', () {
       final prefill = receiptPrefillFrom(
         _draft(hint: ReceiptPaymentHint.unknown),
@@ -763,6 +797,7 @@ ReceiptDraft _draft({
   ReceiptFieldState? feeState,
   int? installments,
   ReceiptDocumentKind kind = ReceiptDocumentKind.purchaseReceipt,
+  VatFields? vat,
 }) => ReceiptDraft(
   installmentCount: installments,
   documentKind: kind,
@@ -780,6 +815,8 @@ ReceiptDraft _draft({
   totalAmountState: amountSuspect
       ? ReceiptFieldState.suspect
       : ReceiptFieldState.read,
+  vat: vat,
+  vatState: vat == null ? ReceiptFieldState.missing : ReceiptFieldState.read,
   feeAmount: fee,
   feeAmountState:
       feeState ??

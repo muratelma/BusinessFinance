@@ -178,6 +178,8 @@ ReceiptDraft _draft({
   dueDateState: ReceiptFieldState.missing,
   totalAmount: '5000.0000',
   totalAmountState: ReceiptFieldState.read,
+  vat: null,
+  vatState: ReceiptFieldState.missing,
   installmentCount: null,
   feeAmount: fee,
   feeAmountState:

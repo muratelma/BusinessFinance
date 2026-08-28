@@ -882,7 +882,7 @@ public sealed class AnalyzeReceiptUseCaseTests
 
     private static RawReceiptReading EmptyReading() => new(
         ReceiptDocumentKind.PurchaseReceipt,
-        null, null, null, null, null, null, null, null, null, null, null,
+        null, null, null, null, null, null, null, null, null, null, null, null,
         ["counterpartyName", "purchasedAt", "totalAmount", "categoryName"],
         new ReceiptAnalysisUsage(0, 0, 0, TimeSpan.Zero));
 
@@ -891,6 +891,7 @@ public sealed class AnalyzeReceiptUseCaseTests
         string total = "100,00",
         string? subtotal = null,
         string? tax = null,
+        string? taxRate = null,
         string? dueDate = null,
         string? installments = null,
         ReceiptDocumentKind kind = ReceiptDocumentKind.PurchaseReceipt) => new(
@@ -900,6 +901,7 @@ public sealed class AnalyzeReceiptUseCaseTests
             dueDate,
             subtotal,
             tax,
+            taxRate,
             total,
             null,
             installments,

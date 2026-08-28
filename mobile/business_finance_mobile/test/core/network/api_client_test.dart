@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:business_finance_mobile/core/config/api_config.dart';
 import 'package:business_finance_mobile/core/network/api_client.dart';
+import 'package:business_finance_mobile/core/network/api_error_messages.dart';
 import 'package:business_finance_mobile/core/network/api_exception.dart';
 
 void main() {
@@ -92,7 +93,7 @@ void main() {
             .having(
               (error) => error.message,
               'message',
-              'İstek tamamlanamadı.',
+              ApiErrorMessages.neutral,
             ),
       ),
     );
@@ -123,14 +124,53 @@ void main() {
       ),
     );
 
+    // Gövde Türkçe karakter taşısa da ayrıştırılabilmeli: bozuk bir çözümde
+    // `jsonDecode` düşer ve kod hiç okunamadan `server.request_failed`e
+    // dönerdi. Ölçülen şey kodun okunması, sunucunun cümlesi değil.
     await expectLater(
       client.delete('/api/v1/goals/goal-id'),
       throwsA(
-        isA<ApiException>().having(
-          (error) => error.message,
-          'message',
-          'Katkı geçmişi bulunan tasarruf hedefi silinemez.',
+        isA<ApiException>()
+            .having((error) => error.code, 'code', 'goal.has_contributions')
+            .having(
+              (error) => error.message,
+              'message',
+              'Katkı geçmişi olan tasarruf hedefi silinemez.',
+            ),
+      ),
+    );
+  });
+
+  test('never shows the server detail, not even for an unknown code', () async {
+    final client = _createClient(
+      MockClient(
+        (_) async => http.Response.bytes(
+          utf8.encode(
+            jsonEncode({
+              'detail': 'The scope could not be resolved from the request.',
+              'code': 'quantum.flux_capacitor_offline',
+            }),
+          ),
+          409,
+          headers: {'content-type': 'application/problem+json'},
         ),
+      ),
+    );
+
+    await expectLater(
+      client.get('/api/v1/accounts'),
+      throwsA(
+        isA<ApiException>()
+            .having(
+              (error) => error.message,
+              'message',
+              ApiErrorMessages.neutral,
+            )
+            .having(
+              (error) => error.message,
+              'no English leak',
+              isNot(contains('scope')),
+            ),
       ),
     );
   });

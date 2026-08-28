@@ -1331,3 +1331,30 @@ Grubun sekiz maddesi de kendi kapısını getirdi. Backend'de tek yeni uç var
 | Düzenleme alanı ham dört ondalık göstermiyor | aynı dosya | Alanda `100`, `100.0000` değil |
 | Harcama dökümü | aynı dosya | Kanonik feed okunuyor; satır, tarih ve kaynak adı yerinde |
 | Döküm boşsa | aynı dosya | Boş liste yerine cümle |
+
+
+## Kabul turu bulgularının kapanması (28 Ağustos 2026, Aşama 06 Grup 8)
+
+27 Ağustos cihaz kabul turunda bulunan üç kusur (`docs/backlog.md` 6, 7 ve 8).
+Üçünün de kapısı ayrı, çünkü üçü ayrı sınıftan: biri istemcinin hata sözlüğü,
+biri boş durumun ölçüsü, biri fiş sözleşmesi.
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Hiçbir kod İngilizce cümleye dönmüyor | `api_error_messages_test` | Backend'in ürettiği kod kesiti; `The `, `is required`, `scope` gibi sızıntı işaretleri aranıyor |
+| Tam kod katmanı kalıbı eziyor | aynı dosya | `accounts.in_use` pasife alma yolunu da söylüyor |
+| Kalıp katmanı alan adıyla kuruluyor | aynı dosya | `transactions.not_found` → "İşlem bulunamadı…" |
+| Kabul turunda görülen cümle | aynı dosya | Dört `*.scope_unresolved` kodu Türkçe; `scope` kelimesi geçmiyor |
+| Bilinmeyen alan da cümle alıyor | aynı dosya | Sözlükte olmayan alan, sebebi biliniyorsa nötre düşmüyor |
+| Karşılıksız kod nötre düşüyor | aynı dosya + `api_client_test` | Sunucunun `detail`'i ekrana hiç çıkmıyor; biçimsiz kod da nötr |
+| UTF-8 gövde hâlâ ayrıştırılıyor | `api_client_test` | Ölçülen şey artık kodun okunması, sunucunun cümlesi değil |
+| Kartsız kullanıcı boş durumu görüyor | `finance_feature_test` | Fişten gelen yönlendirme kutusu VE `Henüz kredi kartı yok` birlikte |
+| Belgede yazan KDV taslağa taşınıyor | `ReceiptDraftValidatorTests` | Oran ve tutar birlikte okunuyor; `%20` → `0.20` |
+| Oran tutardan türetilmiyor | aynı dosya | 280 brütün içindeki 46,67 tam %20 — yine de oran boş kalıyor |
+| Tutar orandan türetilmiyor | aynı dosya | Yalnız oran okunduğunda tutar boş |
+| Sıfır KDV bir okumadır | aynı dosya | `%0` ile "KDV yazmıyor" ayrı; ilki `read`, ikincisi `missing` |
+| Makul olmayan oran düşüyor | aynı dosya | `%100`, `%120`, negatif ve sayı olmayan |
+| Brütten büyük KDV reddediliyor | aynı dosya | Düzeltilmiyor: tutar boşalıyor, `receipt.vat_out_of_range` uyarısı çıkıyor |
+| KDV forma taşınıyor | `receipt_scan_page_test` | Prefill oran ve tutarı taşıyor; yüzde alanına `20` yazılıyor |
+| Sözleşme alanı zorunlu | `receipt_repository_test` | `vat` / `vatState` gövdede yoksa `FormatException` |
+

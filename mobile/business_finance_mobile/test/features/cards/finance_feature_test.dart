@@ -190,6 +190,37 @@ void main() {
     expect(changes.budgetsRevision, 0);
   });
 
+  // 27 Ağustos 2026 kabul turu: taksitli fiş kart seçmeye götürüyor ama
+  // hesabında kart yoksa ekranda yalnız mavi yönlendirme ile `Kart ekle`
+  // düğmesi kalıyordu. Boş durum, listenin **verisine** bakmadığı için hiç
+  // çizilmiyordu — yönlendirme kutusu tek başına listeyi dolu gösteriyordu.
+  testWidgets('fişten gelen kartsız kullanıcı hem yönlendirmeyi hem boş '
+      'durumu görür', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: FinancePage(
+          repository: _FakeFinanceRepository(),
+          installmentPrefill: const InstallmentPrefill(
+            totalAmount: '3600.0000',
+            installmentCount: 6,
+            firstInstallmentDate: '2026-08-19',
+            description: 'TEKNOSA',
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('6 taksitli alışveriş için'), findsOneWidget);
+    expect(find.text('Henüz kredi kartı yok'), findsOneWidget);
+    expect(find.text('Kart ekle'), findsOneWidget);
+  });
+
   testWidgets('kart ekranı transfer taşımıyor ve girişi doğruluyor', (
     tester,
   ) async {

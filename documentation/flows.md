@@ -762,6 +762,13 @@ refresh reddi -> local session temizliği -> login
 validation -> istek gönderilmez veya 400 ProblemDetails
 ```
 
+**Ekrandaki cümleyi API değil istemci üretir.** Sunucudan kararlı bir kod gelir
+(`budgets.scope_unresolved`), cümle `core/network/api_error_messages.dart`
+içinde kurulur ve `ProblemDetails.detail` hiçbir koşulda ekrana yazılmaz.
+Karşılığı olmayan kod nötr bir cümleye düşer ("İşlem tamamlanamadı. Lütfen
+tekrar deneyin."), sunucunun İngilizce cümlesine değil. Katmanlar ve gerekçe:
+`documentation/architecture.md` → "Hata cümlesini istemci üretir".
+
 APK uninstall/install cihaz session'ını temizler, SQL verisini temizlemez; kabul
 koşuları benzersiz sentetik kullanıcılarla izole edilir.
 
@@ -1391,4 +1398,22 @@ Harcama dökümü
        ?dateFrom=ayın ilki&dateTo=ayın sonu
        &categoryId=…&effect=expense&includeCancelled=false&scope=bütçenin kapsamı
   -> ikinci bir harcama sorgusu kurulmaz
+```
+
+## Fişten gelen KDV ve kartsız taksit yolu (Aşama 06 Grup 8)
+
+```text
+Fiş okundu -> KDV belgede yazıyorsa taslakta gelir (vat.rate / vat.amount)
+  -> form vergi bölümünü AÇIK açar: kullanıcı önerilen KDV'yi görüp onaylar
+     (kapalı kalsaydı onaylaması gereken bir öneriyi görmeden kaydederdi)
+  -> oran ile tutar BAĞIMSIZ: biri boş geldiyse diğerinden türetilmez
+     market fişi -> yalnız tutar (tek bir oran yok: %1, %10, %20 bir arada)
+     hizmet faturası -> yalnız oran okunabilir
+  -> vergi bölümünü görmeyen kullanıcıda hiç kullanılmaz; kayda KDV girmez
+
+Taksitli fiş -> kart seçimi (/more/cards)
+  -> hesabında kart YOKSA: yönlendirme kutusu VE `Henüz kredi kartı yok` boş
+     durumu birlikte çizilir
+  -> boşluk ölçüsü listenin VERİSİDİR, widget sayısı değil: yönlendirme kutusu
+     tek başına listeyi dolu göstermemeli
 ```
