@@ -66,16 +66,24 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   duymuyor); push bildirim kararı 07'de kaldı; fiş veri sınırı kararı
   (`docs/backlog.md` madde 4) 07'nin **açılış kararı** oldu.
   **Yalnız karar belgeleri değişti, kod değişmedi**
-- **Aşama 06 — Hesap ve kalan işler: aktif** (27 Ağustos 2026'da kullanıcının
-  açık onayıyla açıldı). Açık kapsamlı aşamadır; yedi çalışma grubu yazılı ve
-  liste kullanıcı yeni bir şey söyledikçe büyür. **Grup 1 — Hesap ve güvenlik
-  ekranı tamamlandı** (27 Ağustos 2026): hesap okuma, oturum listesi ve tek tek
-  kapatma, parola değiştirme, hesap silme (ADR 0017) ve `Hesabım` sayfası.
-  **Grup 2 — E-posta doğrulama ve parola sıfırlama tamamlandı** (aynı gün):
-  altı haneli süreli kod, Brevo gönderici port'u, `AddVerificationCodes`
-  migration'ı (zincirin ikinci adımı), doğrulama uyarısı ve `Parolamı unuttum`
-  sayfası. Gerçek posta ile cihaz kabul turu **yapılmadı** — Brevo anahtarı
-  kurulunca yapılacak
+- **Aşama 06 — Hesap ve kalan işler: tamamlandı** (27 Ağustos 2026'da açıldı,
+  28 Ağustos 2026'da kullanıcı onayıyla kapandı). Belgesi
+  `docs/archive/stages/06-hesap-ve-kalan-isler.md` altına taşındı ve tamamlanma
+  kaydı orada. Açık kapsamlı bir aşamaydı ve "liste bitti" diye değil, kullanıcı
+  kapatmak istediği için kapandı. Sekiz çalışma grubu: hesap ve güvenlik ekranı
+  (ADR 0017), e-posta doğrulama ve parola sıfırlama, cihaz üstü hatırlatma,
+  varsayılan kapsam, kart alacağının kırpılmaması, fiş/dekont kabul turu, bütçe
+  ekranının on maddesi ve kabul turunda çıkan üç kusurun kapanması.
+  `docs/backlog.md` maddeleri 1, 2, 3, 5, 6, 7 ve 8 kapandı; yalnız madde 4
+  kaldı ve o Aşama 07'nin açılış kararı. **İki iş devredildi:** gerçek posta
+  ile doğrulama turu (Brevo anahtarı kurulunca) ve Pixel 8 toplu kabul turu
+- **Aşama 06.1 — Güvenlik taraması: aktif** (28 Ağustos 2026'da kullanıcının
+  açık onayıyla açıldı). Beş çalışma grubu: secret taraması, bağımlılık zafiyet
+  taraması, yetkilendirme kapsamı denetimi, log ve hata cevabı sızıntısı,
+  bulguların çözülmesi ve CI kapısının kurulması. **Aşama 06'nın Pixel 8 toplu
+  kabul turunu da taşıyor** — kullanıcı kararı: bu aşama koda dokunacağı için
+  (bağımlılık yükseltmesi, eksik negatif testler, log/hata sınırı) turu ondan
+  önce koşmak aynı ekranları iki kez gezmek olurdu
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması →
   06.2 arayüz düzeni → (gerekirse 06.x) → 07 bulut (`PROJECT-ROADMAP.md`)

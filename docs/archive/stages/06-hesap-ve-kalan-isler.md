@@ -2,7 +2,7 @@
 
 ## Belge durumu
 
-- Durum: **Aktif** (27 Ağustos 2026'da kullanıcı onayıyla açıldı)
+- Durum: **Tamamlandı** (28 Ağustos 2026'da kullanıcı onayıyla kapandı)
 - Ön koşul: Aşama 05 — Vergi ve muhasebeci
 - Sonraki aşama: Aşama 06.1 — Güvenlik taraması
 - Dokunulacak kalıcı belgeler: `documentation/architecture.md`,
@@ -552,19 +552,46 @@ diğer `*State` alanlarıyla tutarlı olması bu katılığın sebebidir.
 
 ## Çıkış koşulları
 
-- [ ] Kullanıcının kapsama aldığı bütün çalışma grupları tamamlandı.
-- [ ] Backend build, test ve format kontrolleri geçti.
-- [ ] Flutter analyze, test, format ve debug build kontrolleri geçti.
-- [ ] Kullanıcı izolasyonu, yeni uçların hepsinde negatif senaryolarla kanıtlandı.
-- [ ] Enumeration önleme ve tek kullanımlık kod testleri geçti.
+- [x] Kullanıcının kapsama aldığı bütün çalışma grupları tamamlandı (Grup 1–8).
+- [x] Backend build, test ve format kontrolleri geçti.
+- [x] Flutter analyze, test, format ve debug build kontrolleri geçti.
+- [x] Kullanıcı izolasyonu, yeni uçların hepsinde negatif senaryolarla kanıtlandı
+      (ör. `RevokeSession_WithAnotherUsersSession_…`, bütçe silmenin sahiplik
+      sınırı). Sistematik envanter denetimi **06.1 Grup 3'ün işidir**.
+- [x] Enumeration önleme ve tek kullanımlık kod testleri geçti
+      (`AuthenticationEndpointTests`, `EmailVerificationEndpointTests`,
+      `VerificationUseCaseTests`).
 - [x] `docs/backlog.md` maddeleri 1, 2, 3 ve 5 kapandı (Grup 5, 7, 6 ve 4).
 - [x] Kabul turunda çıkan 6, 7 ve 8. maddeler kapandı (Grup 8).
 - [x] ADR 0017 yazıldı ve kabul edildi (Grup 1).
-- [ ] Pixel 8'de kabul turu tamamlandı (hesap akışları, fiş yönü, hatırlatma).
-- [ ] `documentation/` ve `docs/project-status.md` güncel.
-- [ ] Kullanıcı Aşama 06.1'i açıkça onayladı.
+- [~] Pixel 8'de kabul turu — **06.1 sonrasına ertelendi, kullanıcı kararı**
+      (28 Ağustos 2026). Grup 6 kendi turunu gördü; Grup 1–5, 7 ve 8 görmedi.
+      Gerekçe: 06.1 güvenlik taraması koda dokunacak (bağımlılık yükseltmesi,
+      eksik negatif testler, log/hata sınırı) ve turu ondan önce koşmak, aynı
+      ekranları iki kez gezmek olurdu. Tur **toplu** olarak 06.1'in sonunda
+      koşulur ve 06.1'in çıkış koşuludur.
+- [x] `documentation/` ve `docs/project-status.md` güncel.
+- [x] Kullanıcı Aşama 06.1'i açıkça onayladı (28 Ağustos 2026).
 
 ## Tamamlanma kaydı
 
-Aşama kapandığında burada: hangi commit'lerle bitti, hangi kontroller geçti,
-belge `docs/archive/stages/` altına taşındı mı.
+**28 Ağustos 2026'da kapandı.** Sekiz çalışma grubu; `e2bb396`..`60f57f3`
+aralığındaki commit'lerle bitti (Grup 3 hatırlatma, Grup 4 varsayılan kapsam,
+Grup 5 kart alacağı, Grup 6 fiş kabul turu, Grup 7 bütçe ekranı, Grup 8 kabul
+turu bulguları).
+
+Aşama açık kapsamlıydı ve "liste bitti" diye değil, kullanıcı kapatmak istediği
+için kapandı — `stages/README.md` bu aşama tipini böyle tanımlıyor.
+
+`docs/backlog.md` maddeleri 1, 2, 3, 5, 6, 7 ve 8 kapandı; tabloda yalnız madde
+4 (fiş okumada veri sınırı kararı) kaldı ve o Aşama 07'nin **açılış kararıdır**.
+
+ADR 0017 (hesap silme gerçek silmedir) bu aşamada yazıldı ve kabul edildi.
+
+**Devredilen tek iş:** Pixel 8 toplu kabul turu → Aşama 06.1'in çıkış koşulu.
+
+Geçen kontroller: backend build (0 uyarı) + format temiz + **1052 test**
+(gerçek SQL dâhil, 2 skip: Gemini ve Brevo canlı sözleşme testleri); Flutter
+analyze + `dart format` temiz + **873 test** + Android debug build.
+
+Belge `docs/archive/stages/` altına taşındı.
