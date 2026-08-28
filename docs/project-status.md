@@ -1185,9 +1185,39 @@ Geçen kontroller: backend build (0 uyarı) + `dotnet format` temiz +
 **1057 test** (gerçek SQL dâhil, 2 skip: Gemini ve Brevo canlı sözleşme
 testleri).
 
+## 28 Ağustos 2026 — Aşama 06.1 Grup 2: bağımlılık zafiyet taraması
+
+Backend'de transitive dâhil **zafiyetli paket yok**. Flutter tarafında kısıt
+içindeki **14 paket yükseltildi** — aralarında `archive` 4.0.9 → 4.2.0, yani zip
+ayrıştırıcısı; güvenlik düzeltmesinin en çok anlam taşıdığı yer orası. 873 testin
+hepsi yükseltmeden sonra geçti.
+
+Android release sınıfyolu ayrıca denetlendi: `junit`, `espresso` ve eski `guava`
+yalnız `integration_test` projesinde duruyor, **ürüne girmiyorlar.** Bu bir
+varsayım değil, `releaseRuntimeClasspath` çözülerek ölçüldü.
+
+**Planlanmamış ama gerçek bir bulgu:** Android derlemesi temiz bir ağaçta hiç
+kurulmuyordu. Kırılma bugünün değişikliklerinden gelmiyor — commit'li durum da
+düşüyor; yalnız Gradle önbelleği eski çıktıyı tuttuğu için görünmüyordu. Sebep
+AGP 9'un kendi Kotlin desteğini getirmesi ve kendi Kotlin Gradle eklentisini
+uygulayan `share_plus`'ın derlenmemesi (12.0.2 ve 13.3.0'da aynı).
+`settings.gradle.kts` AGP **8.13.0**'a sabitlendi, temiz derleme geri geldi ve
+yeni APK yeniden tarandı — temiz.
+
+Üç bulgu **gerekçesiyle kabul edildi** ve `docs/backlog.md` içine yazıldı:
+AGP 9 sabiti (9), dört Flutter major yükseltmesi (10) ve `xunit` 2.9.3'ün
+`Legacy` işareti (11). Hiçbirini bilinen bir zafiyet sürüklemiyor.
+
+Zafiyet taraması CI kalite kapısına eklendi. `dotnet list --vulnerable` bulgu
+bulduğunda sıfırdan farklı dönmüyor; çıktı okunup iş elle kırılıyor ve kapının
+kırıldığı denendi.
+
+Geçen kontroller: backend build (0 uyarı) + format temiz + **1057 test**;
+Flutter analyze + `dart format` temiz + **873 test** + önbelleksiz debug APK.
+
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: **Aşama 06 kapandı, Aşama 06.1 açıldı ve Grup 1
+- Yapılan değişiklik: **Aşama 06 kapandı, Aşama 06.1 açıldı; Grup 1 ve 2
   tamamlandı.**
   - Aşama 06'nın sekiz çalışma grubu bitti; `docs/backlog.md` maddeleri 1, 2,
     3, 5, 6, 7 ve 8 kapandı, yalnız madde 4 kaldı (Aşama 07'nin açılış kararı)
@@ -1197,10 +1227,15 @@ testleri).
   - **06.1 Grup 1** secret taramasını üç ayakta koşturdu ve kalıcı hâle
     getirdi: çalışma ağacı test olarak, repo geçmişi ve APK betik olarak.
     Döndürülmesi gereken anahtar çıkmadı; iki önleyici eksik kapandı
+  - **06.1 Grup 2** bağımlılıkları taradı: backend temiz, Flutter'da kısıt
+    içi 14 paket yükseltildi, üç bulgu gerekçesiyle kabul edildi. Tarama
+    ayrıca Android derlemesinin temiz ağaçta hiç kurulmadığını ortaya
+    çıkardı; AGP 8.13.0'a sabitlenerek düzeltildi
 - Geçen kontroller: backend build (0 uyarı) + format temiz + **1057 test**
-  (gerçek SQL dâhil, 2 skip: Gemini ve Brevo canlı sözleşme testleri)
-- Sıradaki görev: **06.1 Grup 2 — bağımlılık zafiyet taraması** (backend
-  `dotnet list package --vulnerable --include-transitive`, Flutter ve Gradle).
-  Aşamanın kalan grupları: 3 yetkilendirme kapsamı denetimi, 4 log/hata
-  sızıntısı, 5 bulguların çözülmesi ve kapının kurulması; ardından Pixel 8
-  toplu kabul turu
+  (gerçek SQL dâhil, 2 skip: Gemini ve Brevo canlı sözleşme testleri);
+  Flutter analyze + format + **873 test** + önbelleksiz debug APK
+- Sıradaki görev: **06.1 Grup 3 — yetkilendirme kapsamı denetimi**. Bu grup yeni
+  test yazmaktan çok eksik test aramaktır: owner-scoped uçların listesi koddan
+  üretilir ve her biri için "başka kullanıcının kaydıyla çağrılırsa ne olur"
+  testinin var olup olmadığına bakılır. Kalanlar: 4 log/hata sızıntısı,
+  5 bulguların çözülmesi; ardından Pixel 8 toplu kabul turu

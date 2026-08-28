@@ -1381,3 +1381,15 @@ eşleşen değer hiçbir koşulda basılmaz — rapor türü ve yeri taşır.
 
 Kapının kırıldığı denendi: sentetik bir anahtar taşıyan paket taratıldığında
 betik bulguyu türüyle raporladı ve **1** ile çıktı.
+
+## Bağımlılık zafiyet taraması (28 Ağustos 2026, Aşama 06.1 Grup 2)
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Zafiyetli paket yok | CI `backend` işi | `dotnet list package --vulnerable --include-transitive`; komut bulgu bulduğunda sıfırdan farklı dönmediği için çıktı okunup iş elle kırılıyor |
+| Flutter testleri yükseltmeden sonra geçiyor | `flutter test` | Kısıt içi 14 paket yükseltildi; 873 testin hepsi geçti |
+| Temiz derleme kuruluyor | `flutter build apk --debug` | Önbelleksiz kurulum; AGP 9 altında `share_plus` derlenmiyordu ve kırılma yalnız temiz ağaçta görünüyordu |
+
+Test projelerinin bağımlılıkları ürüne girmez ve bu iddia ölçüldü: Android
+`releaseRuntimeClasspath` içinde `junit`, `espresso` veya eski `guava` yok;
+üçü de yalnız `integration_test` projesinde.

@@ -32,6 +32,18 @@ jobs:
       - name: Format
         run: dotnet format BusinessFinance.slnx --verify-no-changes --no-restore
 
+      # Aşama 06.1 Grup 2. Transitive dâhil: doğrudan referans verilmeyen paket
+      # de aynı süreçte çalışır. `--vulnerable` bulgu varsa sıfırdan farklı
+      # dönmüyor, bu yüzden çıktı okunuyor ve iş elle kırılıyor.
+      - name: Vulnerable packages
+        shell: pwsh
+        run: |
+          $report = dotnet list BusinessFinance.slnx package --vulnerable --include-transitive
+          $report
+          if ($report -match 'has the following vulnerable packages') {
+            throw 'Zafiyetli paket bulundu.'
+          }
+
       # SQL Server'a bağlanan testler BUSINESS_FINANCE_SQL_TEST_CONNECTION
       # yokken açık skip olur; Gemini canlı sözleşme testi de öyle. CI'da
       # ikisi de koşmaz, bu beklenen davranıştır.
