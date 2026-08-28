@@ -1565,6 +1565,40 @@ istemcinin kendi hatalarını (ağ, zaman aşımı, biçimsiz cevap) aynı yolda
 geçirir. Kapı testi: hiçbir kod İngilizce bir cümleye dönmemeli
 (`test/core/network/api_error_messages_test.dart`).
 
+## Log ve hata sınırı (Aşama 06.1 Grup 4)
+
+Kullanıcının parası, kimliği ve sırrı **log gövdesine girmez**; hata cevabı da
+**sunucunun iç yapısını anlatmaz**. İkisi ayrı sınırdır ve ayrı kapıları var
+(`LeakageTests`).
+
+Uygulamanın kendi log satırları bilerek yoksuldur: ele geçmemiş bir istisna
+yalnız **türünü** ve `traceId`'sini yazar, mesajını ve yığınını değil; posta
+sağlayıcısı yalnız sonucu yazar, adresi ve kodu değil. Bu, log seviyesinden
+bağımsız bir kuraldır ve kapısı da öyle ölçer: bütün süzgeçler kaldırılıp
+`Trace`'e inildiğinde bile `BusinessFinance.*` kategorilerinde hassas bir değer
+geçmemeli.
+
+Framework tarafında bir sınır daha var ve o **yapılandırmadadır**: ASP.NET Core
+istek satırını **sorgu dizesiyle birlikte** `Information` seviyesinde loglar.
+Bugün sorgu dizesinde yalnız kimlik, tarih, enum ve bayrak taşınıyor — hiçbir
+tutar, açıklama veya ad oraya konmuyor. `Microsoft.AspNetCore` kategorisinin
+`Warning`'de kalması bu yüzden bir gürültü tercihi değil, sınırın kendisidir ve
+testle tutulur.
+
+Hata cevabı tarafında ProblemDetails yalnız `title`, `detail`, `code` ve
+`traceId` taşır; yığın izi, SQL metni, iç dosya yolu ya da framework sürümü
+taşımaz. **Development ve Production ayrı ayrı** ölçülür: geliştirme profiline
+özel bir ayrıntılı hata sayfası yoktur ve yanlış ortamda çalışan bir sunucu bu
+yüzden fazladan bir şey anlatmaz. `traceId` bilerek dışarıda tutulur — içerik
+taşımaz ve kullanıcının destekle konuşurken söyleyebileceği tek şeydir.
+
+İstemci tarafında ekrana çıkan cümlenin kaynağı ikidir: `ApiErrorMessages`
+sözlüğü ya da ekranın kendi sabit Türkçe metni. Yakalanan hatanın kendisini
+metne çevirmek (`$error`, `error.toString()`) sunucunun iç yapısını ekrana
+taşırdı; kaynağı tarayan bir test bunu tutar
+(`test/core/network/error_surface_test.dart`). `error.message` serbesttir,
+çünkü o değer sunucudan gelmez — sözlüğün ürettiği cümledir.
+
 ## Borç açılışı ve faiz mimarisi
 
 Borç, para hareketi olan kavramlar arasında **hiçbir yazma modeli

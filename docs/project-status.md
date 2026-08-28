@@ -1240,12 +1240,40 @@ kaydı aynı 404'e gider" — ve istemcinin hata sözlüğünde karşılığı o
 koda düşüyordu. `installments.not_found` ile 404'e çevrildi ve istemcideki
 Türkçe karşılığı da kapıya bağlandı.
 
-Geçen kontroller: backend build (0 uyarı) + format temiz + **1060 test**
+Geçen kontroller: backend build (0 uyarı) + format temiz + **1065 test**
 (gerçek SQL dâhil, 2 skip); Flutter analyze + format temiz + **873 test**.
+
+## 28 Ağustos 2026 — Aşama 06.1 Grup 4: log ve hata cevabı sızıntısı
+
+Elle bakmak bir kereliktir; denetim teste bağlandı (`LeakageTests`). Gerçek bir
+oturum koşuluyor — kayıt, giriş, hesap/kategori/işlem/cari yazma, doğrulama
+kodu, bozuk gövde, yanlış parola, sorgu dizeli okuma — ve log gövdesi sekiz
+değer için taranıyor: e-posta, parola, tutar, açıklama, karşı taraf adı, access
+token, refresh token, doğrulama kodu. **Hiçbiri geçmiyor.**
+
+Ölçü iki seviyede: ürünün gönderdiği yapılandırmayla ve bütün süzgeçler
+kaldırılıp `Trace`'e inildiğinde. Uygulamanın kendi log satırları bilerek
+yoksul — ele geçmemiş istisna yalnız türünü ve `traceId`'sini yazıyor, posta
+sağlayıcısı yalnız sonucu yazıyor.
+
+**Bulgu: ASP.NET Core istek satırını sorgu dizesiyle birlikte loglar.**
+İstemcinin kurduğu bütün sorgular tarandı; bugün orada yalnız kimlik, tarih,
+enum ve bayrak var — hiçbir tutar, açıklama veya ad yok. Ama bunu tutan bir şey
+yoktu. `Microsoft.AspNetCore` kategorisinin `Warning`'de kalması artık bir
+gürültü tercihi değil, sınırın kendisi ve testle tutuluyor.
+
+Hata cevabı tarafında ele geçmemiş bir istisna üretildi: gövdede yığın izi,
+istisna türü/mesajı, SQL metni, iç dosya yolu veya framework sürümü yok.
+**Development ve Production ayrı ayrı** ölçüldü. İstemci tarafı da kapıya
+bağlandı — `lib/` kaynağında yakalanan hatayı metne çevirmek yasak;
+`error.message` serbest, çünkü o değer sunucudan değil sözlükten gelir.
+
+Geçen kontroller: backend build (0 uyarı) + format temiz + **1065 test**
+(gerçek SQL dâhil, 2 skip); Flutter analyze + format temiz + **875 test**.
 
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: **Aşama 06 kapandı, Aşama 06.1 açıldı; Grup 1, 2 ve 3
+- Yapılan değişiklik: **Aşama 06 kapandı, Aşama 06.1 açıldı; Grup 1–4
   tamamlandı.**
   - Aşama 06'nın sekiz çalışma grubu bitti; `docs/backlog.md` maddeleri 1, 2,
     3, 5, 6, 7 ve 8 kapandı, yalnız madde 4 kaldı (Aşama 07'nin açılış kararı)
@@ -1262,10 +1290,13 @@ Geçen kontroller: backend build (0 uyarı) + format temiz + **1060 test**
   - **06.1 Grup 3** sahiplik izolasyonunu koddan üretilen uç listesiyle
     denetledi: 46 kimlik taşıyan uç + 31 okuma ucu. Tek kusur çıktı ve
     düzeltildi (taksit gerçekleştirme 400 yerine artık 404)
-- Geçen kontroller: backend build (0 uyarı) + format temiz + **1060 test**
+  - **06.1 Grup 4** log ve hata cevabı sızıntısını teste bağladı: sekiz
+    hassas değerin hiçbiri loga düşmüyor, hata cevabı iç yapı anlatmıyor
+    (iki ortamda ayrı ayrı) ve istemcide yakalanan hatayı metne çevirmek
+    artık yasak
+- Geçen kontroller: backend build (0 uyarı) + format temiz + **1065 test**
   (gerçek SQL dâhil, 2 skip: Gemini ve Brevo canlı sözleşme testleri);
-  Flutter analyze + format + **873 test** + önbelleksiz debug APK
-- Sıradaki görev: **06.1 Grup 4 — log ve hata cevabı sızıntısı**: tutar, karşı
-  taraf, açıklama, e-posta, token ve doğrulama kodu loglara düşüyor mu (elle
-  değil testle); ProblemDetails gövdesi stack trace, SQL metni veya iç yol
-  taşıyor mu. Ardından Grup 5 ve Pixel 8 toplu kabul turu
+  Flutter analyze + format + **875 test** + önbelleksiz debug APK
+- Sıradaki görev: **06.1 Grup 5 — bulguların çözülmesi ve kapının kurulması**:
+  Grup 1–4'ten çıkan her bulgu bir sonuca bağlı mı, dört tarama da CI'da koşuyor
+  mu ve kapı gerçekten kırılıyor mu. Ardından Pixel 8 toplu kabul turu

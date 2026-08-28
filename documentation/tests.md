@@ -1408,3 +1408,19 @@ Denetim `OwnershipIsolationTests` içinde tek yerde toplandı; gerekçesi
 | Muafiyet listesi de eskimiyor | aynı test | Artık var olmayan bir uç için yazılmış gerekçe, denetimi olduğundan geniş gösterirdi |
 | Taksit planı yoksa 404 | aynı denetim + `installments.not_found` | Denetimin bulduğu tek kusur: gerçekleştirme ucu bulunamayan plan için 400 dönüyordu |
 | Yeni kod Türkçe konuşuyor | `api_error_messages_test` | `installments.not_found` → "Taksit planı bulunamadı…" |
+
+## Log ve hata cevabı sızıntısı (28 Ağustos 2026, Aşama 06.1 Grup 4)
+
+Elle bakmak bir kereliktir; denetim testtir. Gerçek bir oturum koşturuluyor
+(kayıt, giriş, hesap/kategori/işlem/cari yazma, doğrulama kodu, bozuk gövde,
+yanlış parola, sorgu dizeli okuma) ve üretilen log gövdesi taranıyor.
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Ürünün yapılandırmasıyla log temiz | `NothingSensitive_ReachesTheLog` | E-posta, parola, tutar, açıklama, karşı taraf adı, access/refresh token ve doğrulama kodu log gövdesinde hiç geçmiyor |
+| Seviye yükselince de temiz | `OurOwnLogStatements_CarryNothingSensitive` | Bütün süzgeçler kalkıp `Trace`'e inildiğinde `BusinessFinance.*` satırlarında aynı sekiz değerin hiçbiri yok |
+| Tarama boş değil | her ikisi | Hiçbir satır okumayan bir tarama da yeşil görünürdü |
+| İstek logu `Warning`'de kalıyor | `RequestLogging_StaysAtWarning` | ASP.NET Core istek satırını sorgu dizesiyle birlikte loglar; kategori seviyesi sınırın kendisi |
+| Hata cevabı iç yapı anlatmıyor | `ErrorResponse_TellsNothingAboutTheServer` | Ele geçmemiş istisnada gövdede yığın izi, istisna türü/mesajı, SQL metni, iç dosya yolu yok — **Development ve Production ayrı ayrı** |
+| Ekrana çıkan cümlenin kaynağı belli | `error_surface_test` | `lib/` taranıyor: `$error` ve `error.toString()` yasak, `error.message` (sözlük cümlesi) serbest |
+| Kaynak taraması gerçekten okuyor | aynı dosya | 100'den fazla dosya ve `api_error_messages.dart` gezilenler arasında |
