@@ -147,6 +147,11 @@ ObligationPrefill receiptObligationPrefillFrom(ReceiptDraft draft) =>
       counterpartyId: draft.counterpartyState.isMissing
           ? null
           : draft.counterpartyId,
+      // Faturanın KDV'si burada da taşınır. Taşınmadığı sürece, okunan KDV
+      // yalnız "ödedim" yolunda kayda giriyordu; ödenmemiş fatura muhasebeci
+      // paketine KDV'siz gidiyordu — oysa vadesi gelmemiş olması KDV'sini
+      // değiştirmez.
+      vat: draft.vatState.isMissing ? null : draft.vat,
       warnings: draft.warnings
           .map((warning) => warning.message)
           .toList(growable: false),

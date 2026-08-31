@@ -506,112 +506,141 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
       ),
       body: current == null
           ? const AppErrorView(message: 'Kart artık bulunamıyor.')
-          : ListView(
-              padding: const EdgeInsets.all(AppSpacing.medium),
+          : Column(
               children: [
-                _summary(current),
-                const SizedBox(height: AppSpacing.large),
+                // Yazma sonucunu **bu** ekran söyler. Denetim sırasında bulunan
+                // kusur buydu: harcama, ödeme ve taksit planı buradan
+                // yazılıyor ama sonucu yalnız kart listesi gösteriyordu.
+                // Reddedilen bir ödeme sessizce kayboluyor, kullanıcı da
+                // kaydedildi sanıyordu; hata ancak listeye dönünce, bağlamından
+                // kopmuş hâlde görünüyordu.
+                if (widget.controller.errorMessage != null ||
+                    widget.controller.successMessage != null)
+                  MaterialBanner(
+                    content: Text(
+                      widget.controller.errorMessage ??
+                          widget.controller.successMessage!,
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: widget.controller.clearMessage,
+                        child: const Text('Kapat'),
+                      ),
+                    ],
+                  ),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.all(AppSpacing.medium),
+                    children: [
+                      _summary(current),
+                      const SizedBox(height: AppSpacing.large),
 
-                // Planlar kart hareketlerinin dışında: hiç harcaması olmayan
-                // bir kartın planları da görünmeli, yoksa boş durum ekranı
-                // onları gizlerdi.
-                _plansOfCard(current),
-                FutureBuilder<CardActivity>(
-                  future: activity,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState != ConnectionState.done) {
-                      return const AppLoadingView(
-                        message: 'Kart hareketleri yükleniyor',
-                      );
-                    }
-                    if (snapshot.hasError) {
-                      return AppErrorView(
-                        message: 'Kart hareketleri yüklenemedi.',
-                        onRetry: _reloadActivity,
-                      );
-                    }
-                    final value = snapshot.data!;
-                    if (value.charges.isEmpty && value.payments.isEmpty) {
-                      // Seçici boş durumda da duruyor: liste dönem yüzünden
-                      // boş olabilir ve kullanıcının onu genişletebilmesi
-                      // gerekir. Gizlenseydi ekran "hiç hareket yok" derdi.
-                      return Column(
-                        children: [
-                          _PeriodSelector(
-                            selected: widget.controller.period,
-                            onSelected: (period) async {
-                              await widget.controller.selectPeriod(period);
-                              _reloadActivity();
-                            },
-                          ),
-                          const SizedBox(
-                            height: 320,
-                            child: AppEmptyView(
-                              title: 'Bu dönemde kart hareketi yok',
-                              message:
-                                  'Harcama ve ödemeler burada ayrı gösterilir. '
-                                  'Daha eskisi için dönemi genişletin.',
-                              icon: Icons.credit_card,
-                            ),
-                          ),
-                        ],
-                      );
-                    }
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _PeriodSelector(
-                          selected: widget.controller.period,
-                          onSelected: (value) async {
-                            await widget.controller.selectPeriod(value);
-                            _reloadActivity();
-                          },
-                        ),
-                        if (value.hasMore) const _TruncationNotice(),
-                        // Harcama ve ödeme ayrı gruplarda: biri kart borcunu
-                        // büyütür, diğeri küçültür. Tek listede olsalar
-                        // tutarların yönü kaybolurdu.
-                        if (value.charges.isNotEmpty) ...[
-                          const AppSectionHeader(title: 'Harcamalar'),
-                          _movementGroup(
-                            [
-                              for (final item in value.charges)
-                                (
-                                  amount: item.amount,
-                                  currency: item.currency,
-                                  date: item.date,
-                                  description: item.description,
-                                  isCancelled: item.isCancelled,
+                      // Planlar kart hareketlerinin dışında: hiç harcaması olmayan
+                      // bir kartın planları da görünmeli, yoksa boş durum ekranı
+                      // onları gizlerdi.
+                      _plansOfCard(current),
+                      FutureBuilder<CardActivity>(
+                        future: activity,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState !=
+                              ConnectionState.done) {
+                            return const AppLoadingView(
+                              message: 'Kart hareketleri yükleniyor',
+                            );
+                          }
+                          if (snapshot.hasError) {
+                            return AppErrorView(
+                              message: 'Kart hareketleri yüklenemedi.',
+                              onRetry: _reloadActivity,
+                            );
+                          }
+                          final value = snapshot.data!;
+                          if (value.charges.isEmpty && value.payments.isEmpty) {
+                            // Seçici boş durumda da duruyor: liste dönem yüzünden
+                            // boş olabilir ve kullanıcının onu genişletebilmesi
+                            // gerekir. Gizlenseydi ekran "hiç hareket yok" derdi.
+                            return Column(
+                              children: [
+                                _PeriodSelector(
+                                  selected: widget.controller.period,
+                                  onSelected: (period) async {
+                                    await widget.controller.selectPeriod(
+                                      period,
+                                    );
+                                    _reloadActivity();
+                                  },
                                 ),
-                            ],
-                            Icons.shopping_cart_outlined,
-                            AppMoneyEffect.expense,
-                          ),
-                          const SizedBox(height: AppSpacing.medium),
-                        ],
-                        if (value.payments.isNotEmpty) ...[
-                          const AppSectionHeader(title: 'Ödemeler'),
-                          _movementGroup(
-                            [
-                              for (final item in value.payments)
-                                (
-                                  amount: item.amount,
-                                  currency: item.currency,
-                                  date: item.date,
-                                  description: item.description,
-                                  isCancelled: item.isCancelled,
+                                const SizedBox(
+                                  height: 320,
+                                  child: AppEmptyView(
+                                    title: 'Bu dönemde kart hareketi yok',
+                                    message:
+                                        'Harcama ve ödemeler burada ayrı gösterilir. '
+                                        'Daha eskisi için dönemi genişletin.',
+                                    icon: Icons.credit_card,
+                                  ),
                                 ),
-                            ],
-                            Icons.payments_outlined,
+                              ],
+                            );
+                          }
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _PeriodSelector(
+                                selected: widget.controller.period,
+                                onSelected: (value) async {
+                                  await widget.controller.selectPeriod(value);
+                                  _reloadActivity();
+                                },
+                              ),
+                              if (value.hasMore) const _TruncationNotice(),
+                              // Harcama ve ödeme ayrı gruplarda: biri kart borcunu
+                              // büyütür, diğeri küçültür. Tek listede olsalar
+                              // tutarların yönü kaybolurdu.
+                              if (value.charges.isNotEmpty) ...[
+                                const AppSectionHeader(title: 'Harcamalar'),
+                                _movementGroup(
+                                  [
+                                    for (final item in value.charges)
+                                      (
+                                        amount: item.amount,
+                                        currency: item.currency,
+                                        date: item.date,
+                                        description: item.description,
+                                        isCancelled: item.isCancelled,
+                                      ),
+                                  ],
+                                  Icons.shopping_cart_outlined,
+                                  AppMoneyEffect.expense,
+                                ),
+                                const SizedBox(height: AppSpacing.medium),
+                              ],
+                              if (value.payments.isNotEmpty) ...[
+                                const AppSectionHeader(title: 'Ödemeler'),
+                                _movementGroup(
+                                  [
+                                    for (final item in value.payments)
+                                      (
+                                        amount: item.amount,
+                                        currency: item.currency,
+                                        date: item.date,
+                                        description: item.description,
+                                        isCancelled: item.isCancelled,
+                                      ),
+                                  ],
+                                  Icons.payments_outlined,
 
-                            // Kart ödemesi gider değildir: aynı harcamayı iki
-                            // kez saymamak için nötr gösterilir.
-                            AppMoneyEffect.neutral,
-                          ),
-                        ],
-                      ],
-                    );
-                  },
+                                  // Kart ödemesi gider değildir: aynı harcamayı iki
+                                  // kez saymamak için nötr gösterilir.
+                                  AppMoneyEffect.neutral,
+                                ),
+                              ],
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

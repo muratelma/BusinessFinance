@@ -1,4 +1,7 @@
 import 'package:business_finance_mobile/core/models/data_choice.dart';
+import 'package:business_finance_mobile/core/models/tax_fields.dart';
+import 'package:business_finance_mobile/core/models/transaction_scope.dart';
+import 'package:business_finance_mobile/core/presentation/scope_controller.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
 import 'package:business_finance_mobile/features/activities/presentation/quick_add_models.dart';
 import 'package:business_finance_mobile/features/obligations/data/obligation_direction.dart';
@@ -127,6 +130,125 @@ void main() {
     expect(repository.created!['counterpartyId'], isNull);
     expect(repository.created, isNot(contains('accountId')));
   });
+
+  /// Faturanın KDV'si yükümlülüğe de girer.
+  ///
+  /// Kabul turunda bulunan kusur buydu: okuyucu KDV'yi okuyordu, "ödedim"
+  /// yolundaki gider formu onu taşıyordu, ama "henüz ödemedim" yolu düşürüyordu.
+  /// Yükümlülük ADR 0016'nın KDV taşıyan beş kaydından biri ve muhasebeci
+  /// paketine giden tutar oradan geliyor; vadesi gelmemiş olması KDV'sini
+  /// değiştirmez.
+  testWidgets('carries the VAT read from the invoice into the obligation', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(500, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final repository = _FakeRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: ObligationFormPage(
+          controller: ObligationController(repository),
+          today: DateTime(2026, 9, 2),
+          scopeController: await _visibleScope(),
+          prefill: const ObligationPrefill(
+            direction: ObligationDirection.payable,
+            amount: QuickAddSuggestion(
+              '18428.4000',
+              QuickAddSuggestionState.read,
+            ),
+            categoryId: QuickAddSuggestion(
+              'category-1',
+              QuickAddSuggestionState.read,
+            ),
+            vat: VatFields(rate: '0.2000', amount: '3071.4000'),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Belgeden okunan KDV bölümü **açık** gelir: kapalı bir bölümün arkasındaki
+    // öneriyi kullanıcı kontrol edemez.
+    expect(find.text('KDV oranı'), findsOneWidget);
+    expect(find.text('KDV tutarı'), findsOneWidget);
+    expect(find.textContaining('%20'), findsWidgets);
+
+    await tester.ensureVisible(find.text('Yükümlülüğü kaydet'));
+    await tester.tap(find.text('Yükümlülüğü kaydet'));
+    await tester.pumpAndSettle();
+
+    expect(repository.created!['vatRate'], '0.2000');
+    expect(repository.created!['vatAmount'], '3071.4000');
+  });
+
+  /// KDV'si olmayan yükümlülük KDV taşımaz: boş bırakmak geçerli bir cevaptır
+  /// ve uygulama oranı tutardan (ya da tersini) türetmez.
+  testWidgets('sends no VAT when the section is left empty', (tester) async {
+    tester.view.physicalSize = const Size(500, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final repository = _FakeRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: ObligationFormPage(
+          controller: ObligationController(repository),
+          today: DateTime(2026, 9, 2),
+          scopeController: await _visibleScope(),
+          prefill: const ObligationPrefill(
+            direction: ObligationDirection.payable,
+            amount: QuickAddSuggestion(
+              '900.0000',
+              QuickAddSuggestionState.read,
+            ),
+            categoryId: QuickAddSuggestion(
+              'category-1',
+              QuickAddSuggestionState.read,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('KDV girilmedi'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Yükümlülüğü kaydet'));
+    await tester.tap(find.text('Yükümlülüğü kaydet'));
+    await tester.pumpAndSettle();
+
+    expect(repository.created!['vatRate'], isNull);
+    expect(repository.created!['vatAmount'], isNull);
+  });
+}
+
+Future<ScopeController> _visibleScope() async {
+  final controller = ScopeController(store: _MemoryStore());
+  await controller.ensureLoaded();
+  return controller;
+}
+
+class _MemoryStore implements ScopeStore {
+  TransactionScope? scope;
+
+  @override
+  Future<TransactionScope?> readScope() async => scope;
+
+  @override
+  Future<void> writeScope(TransactionScope? value) async => scope = value;
+
+  @override
+  Future<bool?> readHasBusiness() async => true;
+
+  @override
+  Future<void> writeHasBusiness(bool value) async {}
+
+  @override
+  Future<void> clear() async => scope = null;
 }
 
 class _FakeRepository implements ObligationRepositoryContract {
@@ -139,7 +261,13 @@ class _FakeRepository implements ObligationRepositoryContract {
     return ObligationOptions(
       categories: categoryType == 'income'
           ? const [DataChoice('category-2', 'Veresiye satış')]
-          : const [DataChoice('category-1', 'Faturalar')],
+          : const [
+              DataChoice(
+                'category-1',
+                'Faturalar',
+                defaultScope: TransactionScope.business,
+              ),
+            ],
       counterparties: const [DataChoice('counterparty-1', 'ENERJİSA')],
     );
   }

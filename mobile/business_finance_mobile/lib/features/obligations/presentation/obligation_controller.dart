@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/models/tax_fields.dart';
 import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/presentation/financial_data_changes.dart';
@@ -53,6 +54,7 @@ class ObligationController extends ChangeNotifier {
     required TransactionScope? scope,
     String? counterpartyId,
     String? description,
+    VatFields? vat,
   }) async {
     if (isSubmitting) return false;
     isSubmitting = true;
@@ -69,6 +71,10 @@ class ObligationController extends ChangeNotifier {
         'scope': scope?.apiValue,
         'counterpartyId': counterpartyId,
         'description': description,
+        // Oran ve tutar iki bağımsız alandır ve biri diğerinden türetilmez;
+        // ikisi de boşsa kayıt KDV taşımaz.
+        'vatRate': vat?.rate,
+        'vatAmount': vat?.amount,
       });
       changes?.obligationRecognized();
       return true;

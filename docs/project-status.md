@@ -94,6 +94,18 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   yalnız yerelde yapıldı ve commit edilmedi. Kilit dosyasındaki kısıt içi dört
   yükseltme alındı. Backend 1010 test geçti (55 skip: SQL bağlantısı ve Gemini
   canlı sözleşmesi yok), Flutter 875 test yeşil; format ve analyze temiz. **Aşamanın kalan tek işi Pixel 8 toplu kabul turudur**
+- **31 Ağustos 2026: Aşama 06'dan devredilen toplu kabul turu Pixel 8'de
+  koşuldu.** Tur iki kalıcı araç bıraktı — `scripts/New-AcceptanceFixture.ps1`
+  (kabul hesabını API üzerinden dolduruyor) ve `scripts/new-sample-documents.py`
+  (yedi sentetik fiş/fatura/dekont ve bir banka ekstresi CSV'si). **İki kusur
+  bulundu ve ikisi de düzeltildi:** kart detay ekranı yazma sonucunu (hatayı da
+  başarıyı da) hiç söylemiyordu — reddedilen bir ödeme sessizce kayboluyordu; ve
+  fişten okunan KDV "henüz ödemedim" yolunda düşüyordu, oysa `Obligation`
+  ADR 0016'nın KDV taşıyan beş kaydından biri. İkisi de teste bağlandı ve
+  düzeltmeden sonra cihazda yeniden denendi. Flutter tarafında 878 test geçiyor.
+  Kabul turunda çıkan bir yerleşim işi (`Kasa` sekmesinde iki yüzen düğmenin
+  çakışması) `docs/backlog.md` madde 12 olarak Aşama 06.2'ye bırakıldı.
+  **Aşama 06.1'in kalan tek çıkış koşulu kullanıcının 06.2'yi onaylamasıdır**
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması →
   06.2 arayüz düzeni → (gerekirse 06.x) → 07 bulut (`PROJECT-ROADMAP.md`)

@@ -1457,3 +1457,20 @@ Enjeksiyonlar yalnız yerelde yapıldı ve hiçbiri commit edilmedi. Sahiplik
 yüklemini düşürmek yan etki olarak beş testi daha kırdı; kapının kırıldığını
 söyleyen test yine de doğru testtir, çünkü ötekiler bir davranışı, o denetim
 sınırın kendisini ölçer.
+
+## Kabul turunun bulduğu iki kusur (31 Ağustos 2026)
+
+Aşama 06.1'in Pixel 8 turu iki kusur buldu; ikisi de düzeltildi ve teste
+bağlandı. İkisi de aynı türden: sunucu doğru davranıyordu, arayüz onu ya
+söylemiyor ya taşımıyordu.
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Kart detayı yazma sonucunu söylüyor | `finance_feature_test.dart` → `kart detayı yazma sonucunu kendi ekranında söyler` | Reddedilen yazmada hata, başarılı yazmada onay **bu** ekranda görünüyor; kapatılabiliyor. Kusurdan önce mesaj yalnız kart listesinde çiziliyordu ve reddedilen ödeme sessizce kayboluyordu |
+| Fişten gelen KDV yükümlülüğe giriyor | `obligation_form_page_test.dart` → `carries the VAT read from the invoice into the obligation` | Belgeden okunan oran ve tutar forma **açık** bölümde geliyor ve `vatRate`/`vatAmount` olarak gönderiliyor |
+| KDV'siz yükümlülük KDV taşımıyor | aynı dosya → `sends no VAT when the section is left empty` | Boş bırakmak geçerli bir cevap; istemci oranı tutardan (ya da tersini) türetmiyor |
+
+Fikstür ve belge üreticisi turun kendi araçlarıdır, kapı değildir:
+`scripts/New-AcceptanceFixture.ps1` hesabı API üzerinden dolduruyor,
+`scripts/new-sample-documents.py` fiş/fatura/dekont örneklerini üretiyor.
+İkisi de `documentation/local-setup-and-acceptance.md` içinde anlatılıyor.

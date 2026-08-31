@@ -247,6 +247,60 @@ void main() {
     expect(find.text('1–28 arasında gün girin.'), findsOneWidget);
   });
 
+  /// Kabul turunda bulunan kusur: kart detayından yazılan harcama, ödeme ve
+  /// taksit planının sonucu **hiçbir yerde** görünmüyordu. Mesaj denetleyiciye
+  /// yazılıyor ama yalnız kart listesi çiziyordu; reddedilen bir ödeme sessizce
+  /// kayboluyor, kullanıcı kaydedildi sanıyordu.
+  testWidgets('kart detayı yazma sonucunu kendi ekranında söyler', (
+    tester,
+  ) async {
+    final controller = FinanceController(
+      _FakeFinanceRepository(cards: [_card()]),
+    );
+    await controller.load();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: CreditCardDetailPage(cardId: 'card-1', controller: controller),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(MaterialBanner), findsNothing);
+
+    // Sunucunun reddettiği bir yazma: fazla ödeme.
+    await controller.submit(
+      () => throw const ApiException(
+        code: 'credit_cards.payment_exceeds_debt',
+        message: 'Ödeme tutarı kartın güncel borcundan büyük olamaz.',
+        statusCode: 409,
+      ),
+      'Kart borcu ödemesi kaydedildi; yeni gider oluşmadı.',
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Ödeme tutarı kartın güncel borcundan büyük olamaz.'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Kapat'));
+    await tester.pumpAndSettle();
+    expect(find.byType(MaterialBanner), findsNothing);
+
+    // Başarı da söylenir: sessiz başarı ile sessiz başarısızlık aynı görünür.
+    await controller.submit(
+      () async {},
+      'Kart borcu ödemesi kaydedildi; yeni gider oluşmadı.',
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Kart borcu ödemesi kaydedildi; yeni gider oluşmadı.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('kart sayfası tarihleri ayrı satırlarda ve taşmadan gösterir', (
     tester,
   ) async {

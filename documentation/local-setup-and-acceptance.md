@@ -116,18 +116,32 @@ koşuda benzersiz sentetik e-posta kullanın.
 ## 5.1. Fiş turu için sentetik belge üretmek
 
 Kabul turunda **yalnız sentetik belge** kullanılır (Aşama 07'nin veri sınırı
-kararı yazılana kadar gerçek fiş gönderilmez). Belgeler HTML olarak yazılıp
-tarayıcıdan PNG'ye alınabilir ve emulator galerisine kopyalanır:
+kararı yazılana kadar gerçek fiş gönderilmez). Belgeler artık her turda elle
+hazırlanmıyor; `samples/documents/` altında duruyorlar ve şu betikle üretiliyorlar:
 
 ```powershell
-adb push .\sentetik-fis.png /sdcard/Pictures/
-adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE `
-  -d file:///sdcard/Pictures/sentetik-fis.png
+python scripts/new-sample-documents.py
 ```
 
-Altı yol altı ayrı belge ister: market fişi (harcama), tahsilat makbuzu
-(gelir), son ödeme tarihli fatura (vadeli), `N TAKSIT` yazan fiş, `IADE FISI`
-ve havale dekontu. Tur bitince görseller cihazdan silinir.
+Yedi belge yedi ayrı yolu dener: market fişi (çok kalem, iki KDV oranı),
+akaryakıt fişi, toptan alım faturası (vadeli), elektrik faturası (son ödeme
+tarihi), EFT dekontu, POS gün sonu dekontu ve düşük kontrastlı bir fiş. Her
+belgenin altında sentetik olduğu yazar; vergi numaraları geçersiz aralıktadır.
+İçe aktarma için `samples/imports/` altında bir banka ekstresi CSV'si de üretilir
+ve son iki satırı bilerek fikstürdeki hareketlerle çakışır — çift kayıt uyarısı
+denensin diye.
+
+Emulator galerisine kopyalama:
+
+```powershell
+Get-ChildItem samples\documents\*.jpg | ForEach-Object {
+  adb push $_.FullName /sdcard/Pictures/
+  adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE `
+    -d "file:///sdcard/Pictures/$($_.Name)"
+}
+```
+
+Tur bitince görseller cihazdan silinir.
 
 **Gelir yolu satın alma fişi kabul etmez**: sunucu belgeyi sınıflandırır ve
 "bu belge gelir belgesi değil" diyerek reddeder. Bu bir kusur değil, kapıdır.
@@ -135,6 +149,29 @@ ve havale dekontu. Tur bitince görseller cihazdan silinir.
 ## 6. Sentetik kabul veri seti
 
 Gerçek ad, e-posta, parola, hesap veya finansal açıklama kullanmayın.
+
+### 6.1. Dolu bir hesabı tek komutla kurmak
+
+Boş bir hesapta yalnız boş durum ekranları görülebilir; rapor, bütçe ilerlemesi,
+kart ekstresi, cari bakiye ve planlanan görünüm veri ister. Fikstür betiği bu
+veriyi **API üzerinden** yazar (doğrudan SQL değil — kurallar use case'lerde
+yaşıyor ve doğrudan yazılan bir satır kabul turunda gerçek bir kusur gibi
+görünürdü):
+
+```powershell
+./scripts/New-AcceptanceFixture.ps1 -Email vergi-kabul@example.test -Password '<parola>'
+```
+
+Kurduğu şey: dört hesap, iki kart, dört karşı taraf, üç aya yayılmış gelir ve
+gider, transfer, kart harcaması ve ödemesi, altı taksitli bir plan (üçü
+gerçekleşmiş), beş tekrarlayan plan (biri **pasif**), cari borçlandırma ve
+tahsilat (biri fazla tahsilat), iki borç sözleşmesi, üç yükümlülük (biri
+gecikmiş, biri kapalı), iki POS tahsilatı (biri yolda), kasa sayımı, dört bütçe
+(ikisi bilerek aşılmış), iki hedef ve fiş eklerinin bağlandığı hareketler.
+
+Adlandırılmış varlıklar adına göre aranır ve varsa yeniden kullanılır; akış
+kayıtları her koşuda yeniden yazılır. İkinci koşu geçmişi iki katına çıkarır —
+yalnız hesap/kart/karşı taraf kurmak için `-SkipFlows` kullanılır.
 
 | Aktör/veri | Sentetik değer | Beklenen sonuç |
 |---|---|---|
@@ -169,6 +206,12 @@ Gerçek ad, e-posta, parola, hesap veya finansal açıklama kullanmayın.
 | Kapsam: iki esnaf senaryosu | Otomatik | Kapsam gönderilmeden kayıt doğru tarafa yazılır; **işletme neti şahsi harcamadan etkilenmez**; bakiye üç kapsamda da aynı; ikinci esnaf birincinin kaydını hiçbir kapsamda görmez | `stage01_scope_acceptance_test.dart` (Pixel 8 + gerçek API/SQL, 23 Ağustos 2026) |
 | Kapsam: özet ekranı ve form | Manuel | Anahtar üç konumda; hero `İşletme neti` / `Şahsi çekim` / `Bu ayın neti`; `İşletme` seçilince gider yalnız işletme tarafını gösterir; `Varlık durumu` ve `Hesap bakiyeleri` toplam gösterdiğini yazar; formdaki çip kategoriden dolar ve tek dokunuşla değişir | Pixel 8 gözlemi, 23 Ağustos 2026 |
 | Fiş/dekont: belge yönünün altı yolu | Manuel | Harcama, gelir, vadeli fatura, taksitli fiş, iade ve dekont yolları belgeden doğru forma dallanıyor; öneri rozetleri görünüyor; **ödeme kaynağı modelce seçilmiyor** | Pixel 8, 27 Ağustos 2026 (Aşama 06 Grup 6) |
+| Hesap ve güvenlik ekranı | Manuel | E-posta, doğrulama uyarısı, `İşletmem var` anahtarı, açık oturumlar (tek tek kapatılabilir), parola değiştirme, çıkış ve hesabı kapatma tek ekranda | Pixel 8, 31 Ağustos 2026 (ADR 0017) |
+| Doğrulama: posta servisi kapalıyken | Manuel | Kod gönderilemediğinde alanın altında Türkçe cümle: "Kod gönderilemedi: e-posta servisi yapılandırılmamış." Sunucunun İngilizce metni görünmez | Pixel 8, 31 Ağustos 2026 |
+| Bütçe ekranı: kapsam ve aşım | Manuel | Her kartta kategori **ve** kapsam etiketi; aşan bütçe kırmızı ve "Limit ₺X aşıldı"; aşmayan bütçede kalan tutar | Pixel 8, 31 Ağustos 2026 |
+| Kart detayı: yazma sonucu | Manuel+otomatik | Reddedilen ödeme **kart detayında** söyleniyor; başarı da aynı yerde. Turda bulunan kusurun düzeltmesi | Pixel 8 + `finance_feature_test.dart`, 31 Ağustos 2026 |
+| Fişten yükümlülük: KDV | Manuel+otomatik | Faturadan okunan KDV oranı ve tutarı yükümlülük formunda **açık** bölümde geliyor ve kayda giriyor. Turda bulunan kusurun düzeltmesi | Pixel 8 + `obligation_form_page_test.dart`, 31 Ağustos 2026 |
+| POS ve kasa | Manuel | Yoldaki para ayrı toplanıyor; tahsilat kartlarında komisyon, net ve durum rozeti; gün sonu sayımı "yazmak hiçbir bakiyeyi değiştirmez" diyor | Pixel 8, 31 Ağustos 2026 |
 | Hatırlatma: izin, kurulum ve iptal | Manuel | Anahtar kapalıyken izin sorulmaz; açılınca Android izin diyaloğu çıkar; reddedilince uygulama sessizce çalışır; yaklaşan bir yükümlülük için hatırlatma kurulur ve **ödendiğinde düşer**; bildirim gövdesinde tutar ve kişi adı yoktur | Pixel 8 gözlemi (bekliyor) |
 
 ## 8. Durdurma ve sorun giderme
