@@ -1387,6 +1387,7 @@ betik bulguyu türüyle raporladı ve **1** ile çıktı.
 | Kapı | Nerede | Neyi tutuyor |
 |---|---|---|
 | Zafiyetli paket yok | CI `backend` işi | `dotnet list package --vulnerable --include-transitive`; komut bulgu bulduğunda sıfırdan farklı dönmediği için çıktı okunup iş elle kırılıyor |
+| Duyurulu pub paketi yok | CI `flutter` işi | `scripts/Invoke-PubAdvisoryScan.ps1`; `pub outdated --json --show-all` çıktısındaki `isCurrentAffectedByAdvisory` ve `isCurrentRetracted` bayrakları. `--show-all` zorunlu: varsayılan JSON yalnız yeni sürümü olan paketi listeler ve en güncel sürümdeki bir paketin duyurusu görünmezdi |
 | Flutter testleri yükseltmeden sonra geçiyor | `flutter test` | Kısıt içi 14 paket yükseltildi; 873 testin hepsi geçti |
 | Temiz derleme kuruluyor | `flutter build apk --debug` | Önbelleksiz kurulum; AGP 9 altında `share_plus` derlenmiyordu ve kırılma yalnız temiz ağaçta görünüyordu |
 
@@ -1424,3 +1425,35 @@ yanlış parola, sorgu dizeli okuma) ve üretilen log gövdesi taranıyor.
 | Hata cevabı iç yapı anlatmıyor | `ErrorResponse_TellsNothingAboutTheServer` | Ele geçmemiş istisnada gövdede yığın izi, istisna türü/mesajı, SQL metni, iç dosya yolu yok — **Development ve Production ayrı ayrı** |
 | Ekrana çıkan cümlenin kaynağı belli | `error_surface_test` | `lib/` taranıyor: `$error` ve `error.toString()` yasak, `error.message` (sözlük cümlesi) serbest |
 | Kaynak taraması gerçekten okuyor | aynı dosya | 100'den fazla dosya ve `api_error_messages.dart` gezilenler arasında |
+
+## Tarama kapılarının kendisi (31 Ağustos 2026, Aşama 06.1 Grup 5)
+
+Dört taramanın hepsi CI'da koşar. Üçü `dotnet test` adımının içindedir, çünkü
+ölçtükleri şey uygulamanın kendi davranışıdır ve test koşusundan ayırmak aynı
+şeyi iki kez kurmak olurdu; ikisi ayrı iş ister, çünkü ayrı araç zinciriyle
+çalışır.
+
+| Tarama | CI'daki yeri |
+|---|---|
+| Secret — çalışma ağacı | `backend` işi, `dotnet test` (`SecretScanTests`) |
+| Secret — repo geçmişi | `secret-scan` işi, `Invoke-SecretScan.ps1` (`fetch-depth: 0`) |
+| Bağımlılık — backend | `backend` işi, `dotnet list package --vulnerable` |
+| Bağımlılık — pub | `flutter` işi, `Invoke-PubAdvisoryScan.ps1` |
+| Yetkilendirme kapsamı | `backend` işi, `dotnet test` (`OwnershipIsolationTests`) |
+| Log ve hata cevabı | `backend` işi, `dotnet test` (`LeakageTests`) |
+
+**Kapının kırıldığı denendi.** Yeşil bir kapı, çalıştığını değil yalnız bugün
+bir şey bulmadığını söyler; ikisini ayırmanın tek yolu bir bulgu enjekte
+etmektir. Dört tarama için de ayrı ayrı yapıldı:
+
+| Enjekte edilen bulgu | Nerede görüldü |
+|---|---|
+| Sentetik anahtar taşıyan bir paket | `Invoke-SecretScan.ps1` bulguyu türüyle raporladı ve **1** ile çıktı |
+| Sentetik duyuru raporu (`-ReportPath`) | `Invoke-PubAdvisoryScan.ps1` bulguyu raporladı ve **1** ile çıktı |
+| Tek hesap okumasından sahiplik yüklemi düşürüldü | `AnotherUsersRecord_AnswersExactlyLikeAMissingOne` kırmızı |
+| Hata gövdesine istisna mesajı bırakıldı | `ErrorResponse_TellsNothingAboutTheServer` iki ortamda da kırmızı |
+
+Enjeksiyonlar yalnız yerelde yapıldı ve hiçbiri commit edilmedi. Sahiplik
+yüklemini düşürmek yan etki olarak beş testi daha kırdı; kapının kırıldığını
+söyleyen test yine de doğru testtir, çünkü ötekiler bir davranışı, o denetim
+sınırın kendisini ölçer.

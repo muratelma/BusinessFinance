@@ -84,6 +84,16 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   kabul turunu da taşıyor** — kullanıcı kararı: bu aşama koda dokunacağı için
   (bağımlılık yükseltmesi, eksik negatif testler, log/hata sınırı) turu ondan
   önce koşmak aynı ekranları iki kez gezmek olurdu
+- **31 Ağustos 2026: Aşama 06.1 Grup 5 tamamlandı.** Grup 1–4'ten çıkan her
+  bulgu bir sonuca bağlıydı (dört düzeltme, üç yazılı gerekçeyle kabul) ve
+  kapının kurulmasında bir eksik çıktı: bağımlılık taramasının pub ayağı CI'da
+  yoktu, yalnız Grup 2'de elle koşulmuştu. `scripts/Invoke-PubAdvisoryScan.ps1`
+  ile kalıcı oldu (pub.dev güvenlik duyurusu ve geri çekme bayrakları).
+  Dört taramanın da CI'da koştuğu ve **dördünün de bir bulgu enjekte
+  edildiğinde gerçekten kırıldığı** ayrı ayrı doğrulandı; enjeksiyonlar
+  yalnız yerelde yapıldı ve commit edilmedi. Kilit dosyasındaki kısıt içi dört
+  yükseltme alındı. Backend 1010 test geçti (55 skip: SQL bağlantısı ve Gemini
+  canlı sözleşmesi yok), Flutter 875 test yeşil; format ve analyze temiz. **Aşamanın kalan tek işi Pixel 8 toplu kabul turudur**
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması →
   06.2 arayüz düzeni → (gerekirse 06.x) → 07 bulut (`PROJECT-ROADMAP.md`)

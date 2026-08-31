@@ -47,6 +47,12 @@ jobs:
       # SQL Server'a bağlanan testler BUSINESS_FINANCE_SQL_TEST_CONNECTION
       # yokken açık skip olur; Gemini canlı sözleşme testi de öyle. CI'da
       # ikisi de koşmaz, bu beklenen davranıştır.
+      #
+      # Aşama 06.1'in dört taramasından üçü bu adımın içindedir:
+      # SecretScanTests (Grup 1, çalışma ağacı), OwnershipIsolationTests
+      # (Grup 3) ve LeakageTests (Grup 4). Ayrı bir CI adımı almazlar çünkü
+      # ölçtükleri şey uygulamanın kendi davranışı; test koşusundan ayırmak
+      # aynı şeyi iki kez kurmak olurdu.
       - name: Test
         run: dotnet test BusinessFinance.slnx --configuration Release --no-restore --no-build
 
@@ -77,6 +83,14 @@ jobs:
 
       - name: Test
         run: flutter test
+
+      # Aşama 06.1 Grup 2'nin pub tarafı. Backend'deki karşılığı
+      # `dotnet list package --vulnerable` adımıdır; ikisi ayrı işlerde durur
+      # çünkü ayrı araç zincirleri gerektiriyor. Bulgu varsa betik 1 döner.
+      - name: Dependency advisories (pub)
+        shell: pwsh
+        working-directory: .
+        run: ./scripts/Invoke-PubAdvisoryScan.ps1
 
   # Aşama 06.1 Grup 1. Çalışma ağacının taraması `dotnet test` içindeki
   # SecretScanTests'tir; buradaki iş repo geçmişidir: silinmiş bir dosyadaki
