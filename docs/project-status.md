@@ -77,8 +77,10 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   `docs/backlog.md` maddeleri 1, 2, 3, 5, 6, 7 ve 8 kapandı; yalnız madde 4
   kaldı ve o Aşama 07'nin açılış kararı. **İki iş devredildi:** gerçek posta
   ile doğrulama turu (Brevo anahtarı kurulunca) ve Pixel 8 toplu kabul turu
-- **Aşama 06.1 — Güvenlik taraması: aktif** (28 Ağustos 2026'da kullanıcının
-  açık onayıyla açıldı). Beş çalışma grubu: secret taraması, bağımlılık zafiyet
+- **Aşama 06.1 — Güvenlik taraması: tamamlandı** (28 Ağustos 2026'da açıldı,
+  1 Eylül 2026'da kullanıcı onayıyla kapandı). Belge
+  `docs/archive/stages/06.1-guvenlik-taramasi.md` altına taşındı; tamamlanma
+  kaydı orada. Beş çalışma grubu: secret taraması, bağımlılık zafiyet
   taraması, yetkilendirme kapsamı denetimi, log ve hata cevabı sızıntısı,
   bulguların çözülmesi ve CI kapısının kurulması. **Aşama 06'nın Pixel 8 toplu
   kabul turunu da taşıyor** — kullanıcı kararı: bu aşama koda dokunacağı için
@@ -104,10 +106,14 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   ADR 0016'nın KDV taşıyan beş kaydından biri. İkisi de teste bağlandı ve
   düzeltmeden sonra cihazda yeniden denendi. Flutter tarafında 878 test geçiyor.
   Kabul turunda çıkan bir yerleşim işi (`Kasa` sekmesinde iki yüzen düğmenin
-  çakışması) `docs/backlog.md` madde 12 olarak Aşama 06.2'ye bırakıldı.
-  **Aşama 06.1'in kalan tek çıkış koşulu kullanıcının 06.2'yi onaylamasıdır**
+  çakışması) `docs/backlog.md` madde 12 olarak Aşama 06.2'ye bırakıldı
+- **1 Eylül 2026: Aşama 06.1 kapandı, sonraki aşama açılmadı.** 06.2 (Arayüz
+  düzeni) `Planlandı` kalıyor; kapsamını `research/rakip-arayuz-ve-akis/`
+  altındaki rakip arayüz/akış araştırması besliyor (ayrı oturumda yürüyor,
+  uygulama koduna dokunmuyor). Araştırma bitince kullanıcı 06.2'yi açar.
+  **Şu an hiçbir aşama Aktif değil; bu süre boyunca kod değişmez**
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
-  05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması →
+  05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni → (gerekirse 06.x) → 07 bulut (`PROJECT-ROADMAP.md`)
 
 ## Taşımada yapılan ve doğrulanan işler
@@ -1293,32 +1299,37 @@ bağlandı — `lib/` kaynağında yakalanan hatayı metne çevirmek yasak;
 Geçen kontroller: backend build (0 uyarı) + format temiz + **1065 test**
 (gerçek SQL dâhil, 2 skip); Flutter analyze + format temiz + **875 test**.
 
+## 1 Eylül 2026 — Aşama 06.1 kapandı
+
+- **Aşama 06.1 kullanıcı onayıyla kapandı.** Beş çalışma grubunun hepsi, dört
+  CI tarama kapısı ve Pixel 8 toplu kabul turu bitti. Belge
+  `docs/archive/stages/06.1-guvenlik-taramasi.md` altına taşındı; tamamlanma
+  kaydı (commit aralığı `9b42693`..`c56fb56`, grup grup çıktı, geçen kontroller)
+  orada. `PROJECT-ROADMAP.md` ve `stages/README.md` durumu `Tamamlandı`
+- **Sonraki aşama şimdilik açılmadı.** 06.2 (Arayüz düzeni) `Planlandı` kalıyor;
+  kapsamı `research/rakip-arayuz-ve-akis/` altındaki rakip arayüz/akış
+  araştırmasıyla besleniyor ve araştırma bitince kullanıcı açacak. **1 Eylül
+  2026 itibarıyla hiçbir aşama Aktif değil; bu süre boyunca kod değişmez**
+  (`stages/README.md`). Araştırma bu turda başka bir oturumda yürüyor ve
+  uygulama koduna dokunmuyor
+- Bu turda yalnız karar/durum belgeleri değişti; uygulama kodu değişmedi
+- Geçen kontroller (1 Eylül 2026): backend build 0 uyarı + `dotnet format`
+  temiz + `dotnet test` **1010 geçti**, 55 skip (bu koşuda SQL bağlı değildi;
+  gerçek SQL dâhil son tam koşu 31 Ağustos 2026 Grup 4'te 1065 test). Flutter
+  analyze + `dart format` temiz + **878 test** yeşil
+
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: **Aşama 06 kapandı, Aşama 06.1 açıldı; Grup 1–4
-  tamamlandı.**
-  - Aşama 06'nın sekiz çalışma grubu bitti; `docs/backlog.md` maddeleri 1, 2,
-    3, 5, 6, 7 ve 8 kapandı, yalnız madde 4 kaldı (Aşama 07'nin açılış kararı)
-  - Belgesi `docs/archive/stages/06-hesap-ve-kalan-isler.md` altına taşındı;
-    Pixel 8 toplu kabul turu 06.1'in çıkış koşuluna devredildi (kullanıcı
-    kararı)
-  - **06.1 Grup 1** secret taramasını üç ayakta koşturdu ve kalıcı hâle
-    getirdi: çalışma ağacı test olarak, repo geçmişi ve APK betik olarak.
-    Döndürülmesi gereken anahtar çıkmadı; iki önleyici eksik kapandı
-  - **06.1 Grup 2** bağımlılıkları taradı: backend temiz, Flutter'da kısıt
-    içi 14 paket yükseltildi, üç bulgu gerekçesiyle kabul edildi. Tarama
-    ayrıca Android derlemesinin temiz ağaçta hiç kurulmadığını ortaya
-    çıkardı; AGP 8.13.0'a sabitlenerek düzeltildi
-  - **06.1 Grup 3** sahiplik izolasyonunu koddan üretilen uç listesiyle
-    denetledi: 46 kimlik taşıyan uç + 31 okuma ucu. Tek kusur çıktı ve
-    düzeltildi (taksit gerçekleştirme 400 yerine artık 404)
-  - **06.1 Grup 4** log ve hata cevabı sızıntısını teste bağladı: sekiz
-    hassas değerin hiçbiri loga düşmüyor, hata cevabı iç yapı anlatmıyor
-    (iki ortamda ayrı ayrı) ve istemcide yakalanan hatayı metne çevirmek
-    artık yasak
-- Geçen kontroller: backend build (0 uyarı) + format temiz + **1065 test**
-  (gerçek SQL dâhil, 2 skip: Gemini ve Brevo canlı sözleşme testleri);
-  Flutter analyze + format + **875 test** + önbelleksiz debug APK
-- Sıradaki görev: **06.1 Grup 5 — bulguların çözülmesi ve kapının kurulması**:
-  Grup 1–4'ten çıkan her bulgu bir sonuca bağlı mı, dört tarama da CI'da koşuyor
-  mu ve kapı gerçekten kırılıyor mu. Ardından Pixel 8 toplu kabul turu
+- Yapılan değişiklik: **Aşama 06.1 kapandı; sonraki aşama açılmadı.**
+  - 06.1'in beş çalışma grubu (secret, bağımlılık, sahiplik izolasyonu,
+    log/hata sızıntısı, kapının kurulması) ve Pixel 8 kabul turu tamamlandı;
+    belge arşive taşındı (`9b42693`..`c56fb56`)
+  - 06.2 `Planlandı` kalıyor, hiçbir aşama Aktif değil; kapsamı rakip arayüz
+    araştırması (`research/rakip-arayuz-ve-akis/`, ayrı oturum) besleyecek
+  - `docs/backlog.md`: madde 4 (fiş veri sınırı → Aşama 07 açılış kararı),
+    9/10/11 (06.1'de gerekçesiyle kabul edilen zafiyet bulguları) ve 12
+    (`Kasa` sekmesindeki düğme çakışması → 06.2) açık
+- Geçen kontroller: backend `dotnet test` **1010 geçti** (55 skip, SQL bağlı
+  değildi) + build/format temiz; Flutter analyze + format temiz + **878 test**
+- Sıradaki görev: rakip arayüz araştırması tamamlanınca kullanıcının **Aşama
+  06.2'yi açması**; o güne kadar aktif aşama yok ve kod değişmez

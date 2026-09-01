@@ -404,10 +404,11 @@ secret'ı uygulamaya konmaz.
 - `stages/README.md` — aşama zinciri, hangi belge aktif, yeni aşama açma ve
   biten aşamayı kapatma adımları; **aktif aşama kullanıcı onayı olmadan
   değişmez**
-- `stages/06-*.md`, `stages/06.1-*.md`, `stages/06.2-*.md`, `stages/07-*.md` —
-  kalan aşamaların çalışma grupları, testleri ve çıkış koşulları. **06 bir
-  aşama kümesidir**: ayrı ayrı kapanabilen aşamalar, ihtiyaç oldukça 06.x
-  eklenir. Tamamlanan aşamalar `docs/archive/stages/` altındadır (01–05 orada)
+- `stages/06.2-*.md`, `stages/07-*.md` — kalan aşamaların çalışma grupları,
+  testleri ve çıkış koşulları. **06 bir aşama kümesidir**: ayrı ayrı kapanabilen
+  aşamalar, ihtiyaç oldukça 06.x eklenir. Tamamlanan aşamalar
+  `docs/archive/stages/` altındadır (01–06 ve 06.1 orada). 1 Eylül 2026
+  itibarıyla hiçbir aşama Aktif değil; `stages/README.md` tablosu geçerlidir
 - `docs/backlog.md` — aşamaya bağlanmamış açık işler
 - `templates/STAGE-TEMPLATE.md` — yeni aşama belgesi iskeleti
 

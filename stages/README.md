@@ -15,10 +15,14 @@ sonra aşağıdaki tablodan **aktif** işaretli belge okunur.
 | 04 | `docs/archive/stages/04-kasa-pos-ve-gezinme.md` | Tamamlandı | 26 Ağustos 2026'da kapandı; sekiz grup, cihaz kabul turu |
 | 05 | `docs/archive/stages/05-vergi-ve-muhasebeci.md` | Tamamlandı | 26 Ağustos 2026'da kapandı; sekiz grup, ADR 0016, cihaz kabul turu |
 | 06 | `docs/archive/stages/06-hesap-ve-kalan-isler.md` | Tamamlandı | 28 Ağustos 2026'da kapandı; sekiz grup, ADR 0017. Kabul turu 06.1'e devredildi |
-| 06.1 | `06.1-guvenlik-taramasi.md` | **Aktif** | Secret, bağımlılık, yetkilendirme ve log taraması; çıkan bulguların çözülmesi. **06'nın toplu kabul turunu da taşır.** 28 Ağustos 2026'da kullanıcı onayıyla açıldı |
-| 06.2 | `06.2-arayuz-duzeni.md` | Planlandı | **Açık kapsamlı.** Gezinme, ekran içi tutarlılık, erişilebilirlik; liste kullanıcıdan gelir |
+| 06.1 | `docs/archive/stages/06.1-guvenlik-taramasi.md` | Tamamlandı | 1 Eylül 2026'da kapandı; beş grup, dört CI tarama kapısı, Pixel 8 kabul turu |
+| 06.2 | `06.2-arayuz-duzeni.md` | Planlandı | **Açık kapsamlı.** Gezinme, ekran içi tutarlılık, erişilebilirlik; liste kullanıcıdan gelir. Kapsamı `research/rakip-arayuz-ve-akis/` araştırması besliyor; hazır olunca kullanıcı açar |
 | 06.x | — | Açılmadı | Uygulama büyüdükçe çıkan işler için; ihtiyaç oldukça açılır |
 | 07 | `07-bulut-guvenli-beta.md` | Planlandı | Gerçek finansal veriye geçiş kapısı. **Bütün 06.x kapanmadan açılmaz**; ADR 0011 fiş veri sınırıyla açılır |
+
+**1 Eylül 2026 itibarıyla hiçbir aşama Aktif değil.** 06.1 kapandı; 06.2 kapsamı
+rakip arayüz araştırmasıyla besleniyor ve kullanıcı açana kadar Planlandı kalıyor.
+Bu süre boyunca kod değişmez.
 
 Zincirin tamamı ve her aşamanın gerekçesi `PROJECT-ROADMAP.md` içindedir.
 Kurucu ürün kararı `documentation/adr/0013-business-and-personal-are-one-pool.md`
