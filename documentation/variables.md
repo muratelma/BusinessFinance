@@ -20,6 +20,7 @@ Bu belge yalnız uygulanmış yapılandırmayı kaydeder; gerçek secret değer 
 | `BUSINESS_FINANCE_GEMINI_TEST_KEY` | Canlı sözleşme testi ve manuel fiş ölçümü | **Secret**, geçici test | Environment | Test/ölçüm oturumuyla | Kotanın habersiz harcanması; değer test veya ölçüm çıktısına yazılmaz |
 | `BUSINESS_FINANCE_GEMINI_TEST_MODEL` | Canlı sözleşme testi | Test | Environment; varsayılan `gemini-3.5-flash-lite` | Ölçüm turunda | RPD 20'lik modelde testin kotayı bitirmesi |
 | `API_BASE_URL` | Flutter | Build-time, secret değil | `--dart-define` | Hedef ortam değişince | Yanlış API'ye istek; emulator için localhost hatası |
+| `WebClient:AllowedOrigins` | API | Development, secret değil | `appsettings.Development.json` | Yerel web origin'i değişince | Fazla geniş CORS veya tarayıcı isteğinin reddi |
 | `ASPNETCORE_ENVIRONMENT` | API | Process/profil | launch profile/environment | Ortama göre | Development OpenAPI'nin yanlış ortamda açılması |
 | `ASPNETCORE_URLS` / `--urls` | API | Process | launch profile/CLI | Yerel porta göre | `0.0.0.0` ile istenmeyen ağ yayını |
 | `AttachmentStorage:RootPath` | API | Sunucu, secret değil | `appsettings.json`/environment | Storage taşımasında | Root kaçışı, kayıp veya yanlış volume |
@@ -97,13 +98,16 @@ konmaz.
 kullanılır; bu yüzden bu aşamada yalnız **sentetik fiş** gönderilir. Gerçek
 fiş gönderimi hem ücretli katman hem bulut güvenlik kapısı (Aşama 07) ister.
 
-## Mobil istemci sınırı
+## Flutter istemci sınırı
 
 Flutter APK içinde connection string, JWT signing key, SQL parolası veya başka
 sunucu secret'ı bulunmaz. `API_BASE_URL` bir secret değildir; debug APK için
-`http://10.0.2.2:5284` emulator-host köprüsünü seçer. Dart yapılandırması HTTP ve
+`http://10.0.2.2:5284` emulator-host köprüsünü seçer. Web geliştirme varsayılanı
+`http://localhost:5284` olur ve `API_BASE_URL` iki varsayılanı da ezebilir. Yerel
+web origin'i `http://localhost:65087` değerine sabitlenmiştir; API yalnız
+Development ortamında bu origin'e CORS izni verir. Dart yapılandırması HTTP ve
 HTTPS şemalarını kabul eder; debug cleartext izni yalnız debug Android manifestte
-bulunur. Bu durum release/production HTTPS politikasının henüz tamamlandığı
+bulunur. Bu yerel deneme release/production HTTPS politikasının tamamlandığı
 anlamına gelmez.
 
 Access ve refresh tokenlar çalışma zamanında Android secure storage'da tek bir
@@ -175,4 +179,3 @@ getirmedi** ve bu bilinçli bir sonuçtur (ADR 0016).
 - Muhasebeci paketi dosyası kullanıcının **kendi cihazından** paylaşılır;
   sunucu üçüncü kişiye hiçbir şey göndermez ve paket için bir adres, anahtar ya
   da sağlayıcı ayarı yoktur.
-

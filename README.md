@@ -5,7 +5,8 @@ Bu repository; ASP.NET Core, EF Core, SQL Server ve Flutter ile geliştirilen
 içerir. Uygulama hesap, kategori, gelir/gider, kredi kartı ve taksit, tekrarlayan
 plan, borç/alacak, hedef, birleşik finansal hareket akışı, CSV içe/dışa aktarma,
 yedekleme ve fiş okuma akışlarını Pixel 8 Android emulatoründe uçtan uca
-çalıştırır.
+çalıştırır. Yerel Chrome/Edge hedefi API adresi ve Development CORS sınırını
+doğrulamak için dar bir web deneme kabuğu taşır.
 
 İşletme ve şahsi harcama tek havuzda yaşar; ayrım bir raporlama boyutudur.
 Şahıs şirketinin tüzel kişiliği olmadığı için işletmenin kasası ile sahibinin
@@ -59,7 +60,7 @@ Ayrıntısı `AGENTS.md` içindeki "Çelişen bilgi: iki ayrı eksen" bölümün
 - `documentation/`: Mimari, akış, izin, değişken, test ve yerel kabul belgeleri
 - `documentation/adr/`: Geri alınması pahalı kalıcı teknik kararlar
 - `src/`: .NET katmanlı monolit ve test projeleri
-- `mobile/business_finance_mobile/`: Flutter Android istemcisi
+- `mobile/business_finance_mobile/`: Flutter Android istemcisi ve yerel web deneme kabuğu
 
 ## Başlangıç ilkesi
 

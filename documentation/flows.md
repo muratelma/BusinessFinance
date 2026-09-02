@@ -2,10 +2,12 @@
 
 ## Akış okuma sözleşmesi
 
-Kritik akışlarda aktör mobil kullanıcıdır. Başlangıç koşulu yerel SQL ve API'nin
-hazır, APK'nın doğru `API_BASE_URL` ile kurulmuş olmasıdır. Başarı sonucu yalnız
-JWT'deki current user'a ait verinin kalıcılaşıp görünmesidir. `[TB]` güven sınırı
-geçişini, `ALLOW/DENY` yetkilendirme kararını gösterir.
+Kritik akışlarda aktör Flutter istemcisindeki kullanıcıdır. Başlangıç koşulu
+yerel SQL ve API'nin hazır, Android APK'nın veya yerel web istemcisinin doğru
+`API_BASE_URL` ile çalışmasıdır. Web denemesi ayrıca yapılandırılmış Development
+CORS origin'ini ister. Başarı sonucu yalnız JWT'deki current user'a ait verinin
+kalıcılaşıp görünmesidir. `[TB]` güven sınırı geçişini, `ALLOW/DENY`
+yetkilendirme kararını gösterir.
 
 ## API başlangıç ve hata pipeline'ı
 
@@ -13,6 +15,7 @@ geçişini, `ALLOW/DENY` yetkilendirme kararını gösterir.
 HTTP request
   -> Global exception boundary
   -> HTTPS redirection
+  -> Development CORS (yalnız yapılandırılmış yerel web origin'i)
   -> route/endpoint
   -> Application use case
   -> HTTP response

@@ -90,6 +90,22 @@ Bağlı cihazı doğrulamak için Android SDK yolunuz farklıysa yolu uyarlayın
 & "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" devices
 ```
 
+## 4.1. Yerel web denemesi
+
+Web istemcisi yalnız yerel geliştirme denemesi için açılmıştır; production web
+yayını veya Android'e özgü yeteneklerin web karşılığı değildir. API `http`
+profiliyle çalışırken Flutter klasöründe:
+
+```powershell
+flutter run -d chrome --web-port=65087
+```
+
+Web hedefi varsayılan olarak `http://localhost:5284` API adresini kullanır.
+Farklı bir adres gerektiğinde `--dart-define=API_BASE_URL=<adres>` verilebilir.
+API'nin Development CORS politikası yalnız `http://localhost:65087` origin'ini
+kabul ettiği için web portu değiştirilirse `WebClient:AllowedOrigins` de bilinçli
+olarak değiştirilmelidir. Edge aynı origin ve CORS politikasını kullanır.
+
 ## 5. Debug APK üretme ve temiz kurma
 
 Bu build yerel kabul içindir; production/release imzası kanıtı değildir.

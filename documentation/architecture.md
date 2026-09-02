@@ -7,11 +7,13 @@ Hesap, kategori, gelir/gider, kredi kartı ve taksit, tekrarlayan plan,
 borç/alacak, hedef, birleşik finansal hareket akışı, CSV içe/dışa aktarma,
 yedekleme ve fiş okuma akışlarını sunar. Katmanlı monolit ASP.NET Core API
 finansal gerçeğin kaynağıdır; Flutter istemci sonuçları gösterir; SQL Server
-kalıcı depodur. Bugün yalnız sentetik veri, tek host ve Pixel 8 emulatorü
-varsayılır; ürün internete açık değildir.
+kalıcı depodur. Bugün yalnız sentetik veri ve tek host varsayılır; Android
+akışları Pixel 8 emulatoründe, dar web denemesi yerel Chrome/Edge üzerinde
+çalışır. Ürün internete açık değildir.
 
 ```text
 Pixel 8 app --HTTP debug / 10.0.2.2:5284--> Windows loopback API
+Local web  --HTTP debug / localhost:5284----^ (Development CORS)
                                                    |
                                       EF Core -> SQL Server
                                                  127.0.0.1:14334
@@ -1344,6 +1346,9 @@ hiçbir şey göndermez ve uygulama bugün yalnız geliştirme makinesi açıkke
 | API → Gemini | Fiş byte'ları ve güvenilmeyen model yanıtı | Sunucuda secret, `store=false`, timeout/retry, yapılandırılmış JSON, altı kademe doğrulama; fotoğraf/yanıt loglanmaz veya sağlayıcı etkileşim geçmişinde tutulmaz |
 
 Native Android istemci tarayıcı olmadığı için CORS güvenlik sınırı değildir.
+Yerel web istemcisi tarayıcı sınırındadır: yalnız Development ortamında,
+`WebClient:AllowedOrigins` altındaki kesin origin'ler kabul edilir; politika
+authentication veya authorization yerine geçmez.
 Debug HTTP yerel geliştirme içindir; release/production HTTPS ve signing ayrı
 yayın kapısıdır. `/health/live` process'i, `/health/ready` SQL erişimini ölçer.
 

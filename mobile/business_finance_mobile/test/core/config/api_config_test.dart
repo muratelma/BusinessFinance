@@ -3,9 +3,16 @@ import 'package:business_finance_mobile/core/config/api_config.dart';
 
 void main() {
   test('uses the Android emulator host as the secret-free default', () {
-    final config = ApiConfig.fromEnvironment();
+    final config = ApiConfig.fromEnvironment(isWeb: false);
 
-    expect(config.baseUrl.toString(), '${ApiConfig.defaultBaseUrl}/');
+    expect(config.baseUrl.toString(), '${ApiConfig.androidEmulatorBaseUrl}/');
+    expect(config.baseUrl.userInfo, isEmpty);
+  });
+
+  test('uses the local API as the web development default', () {
+    final config = ApiConfig.fromEnvironment(isWeb: true);
+
+    expect(config.baseUrl.toString(), '${ApiConfig.webDevelopmentBaseUrl}/');
     expect(config.baseUrl.userInfo, isEmpty);
   });
 

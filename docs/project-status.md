@@ -112,6 +112,13 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   altındaki rakip arayüz/akış araştırması besliyor (ayrı oturumda yürüyor,
   uygulama koduna dokunmuyor). Araştırma bitince kullanıcı 06.2'yi açar.
   **Şu an hiçbir aşama Aktif değil; bu süre boyunca kod değişmez**
+- **2 Eylül 2026: Aşama 06.2 dar bir yerel web deneme checkpoint'iyle açıldı.**
+  Flutter'ın resmî `web/` platform kabuğu eklendi; web yerelde
+  `http://localhost:5284`, Android emulator `http://10.0.2.2:5284` varsayılanını
+  kullanıyor. API yalnız Development'ta yapılandırılmış
+  `http://localhost:65087` origin'ine CORS izni veriyor; izinli ve izinsiz
+  preflight yolları integration testiyle korunuyor. Responsive web düzeni,
+  bildirim, kamera, yayın ve ayrı API bu checkpoint'in kapsamında değil
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni → (gerekirse 06.x) → 07 bulut (`PROJECT-ROADMAP.md`)
@@ -1318,18 +1325,27 @@ Geçen kontroller: backend build (0 uyarı) + format temiz + **1065 test**
   gerçek SQL dâhil son tam koşu 31 Ağustos 2026 Grup 4'te 1065 test). Flutter
   analyze + `dart format` temiz + **878 test** yeşil
 
+## 2 Eylül 2026 — Aşama 06.2 yerel web denemesi
+
+- Aşama 06.2 kullanıcı isteğiyle açıldı; yalnız ilk bağımsız checkpoint
+  tamamlandı. Geniş arayüz grupları rakip araştırmasını beklemeye devam ediyor
+- Flutter'ın resmî `web/` platform kabuğu eklendi. `ApiConfig` web'de
+  `http://localhost:5284`, Android emulatorde `http://10.0.2.2:5284`
+  varsayılanını seçiyor; açık `API_BASE_URL` her ikisini de ezebiliyor
+- API'nin Development pipeline'ı yalnız `WebClient:AllowedOrigins` içindeki
+  kesin origin'lere CORS izni veriyor. Yerel deneme origin'i
+  `http://localhost:65087`; izinli ve izinsiz preflight ayrı testlerle tutuluyor
+- Kapsam özellikle dar kaldı: responsive web düzeni, bildirim, kamera, web
+  yayını, Windows/iOS ve ayrı API eklenmedi
+- Geçen kontroller: backend Release build 0 uyarı + format temiz + **1012 test**
+  (55 skip: SQL/canlı sağlayıcı ortamı yok); Flutter analyze + format temiz +
+  **879 test**; web build ve Android debug APK başarılı
+
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: **Aşama 06.1 kapandı; sonraki aşama açılmadı.**
-  - 06.1'in beş çalışma grubu (secret, bağımlılık, sahiplik izolasyonu,
-    log/hata sızıntısı, kapının kurulması) ve Pixel 8 kabul turu tamamlandı;
-    belge arşive taşındı (`9b42693`..`c56fb56`)
-  - 06.2 `Planlandı` kalıyor, hiçbir aşama Aktif değil; kapsamı rakip arayüz
-    araştırması (`research/rakip-arayuz-ve-akis/`, ayrı oturum) besleyecek
-  - `docs/backlog.md`: madde 4 (fiş veri sınırı → Aşama 07 açılış kararı),
-    9/10/11 (06.1'de gerekçesiyle kabul edilen zafiyet bulguları) ve 12
-    (`Kasa` sekmesindeki düğme çakışması → 06.2) açık
-- Geçen kontroller: backend `dotnet test` **1010 geçti** (55 skip, SQL bağlı
-  değildi) + build/format temiz; Flutter analyze + format temiz + **878 test**
-- Sıradaki görev: rakip arayüz araştırması tamamlanınca kullanıcının **Aşama
-  06.2'yi açması**; o güne kadar aktif aşama yok ve kod değişmez
+- Yapılan değişiklik: **yerel Flutter web deneme temeli kuruldu.** Resmî web
+  kabuğu, platforma göre yerel API adresi ve Development'a sınırlı CORS eklendi
+- Geçen kontroller: backend build/format temiz + **1012 test** (55 skip);
+  Flutter analyze/format temiz + **879 test**; web ve Android debug build başarılı
+- Sıradaki görev: kullanıcı listesinden Aşama 06.2'nin bir sonraki arayüz
+  checkpoint'ini seçmek

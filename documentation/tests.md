@@ -1382,6 +1382,13 @@ eşleşen değer hiçbir koşulda basılmaz — rapor türü ve yeri taşır.
 Kapının kırıldığı denendi: sentetik bir anahtar taşıyan paket taratıldığında
 betik bulguyu türüyle raporladı ve **1** ile çıktı.
 
+## Yerel web CORS kapısı (2 Eylül 2026, Aşama 06.2)
+
+`CorsPolicyTests`, gerçek API pipeline'ına preflight isteği gönderir. İzinli
+`http://localhost:65087` origin'i `Access-Control-Allow-Origin` başlığını ve
+204 cevabını alır; yapılandırılmamış origin aynı başlığı alamaz. Politika yalnız
+Development ortamında bağlanır ve authentication/authorization yerine geçmez.
+
 ## Bağımlılık zafiyet taraması (28 Ağustos 2026, Aşama 06.1 Grup 2)
 
 | Kapı | Nerede | Neyi tutuyor |

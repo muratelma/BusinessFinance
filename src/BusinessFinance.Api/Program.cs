@@ -40,6 +40,10 @@ builder.Services.AddApplicationUseCases();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApiRateLimiting();
 builder.Services.AddApiAuthenticationResponses();
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddLocalWebClientCors(builder.Configuration);
+}
 builder.Services
     .AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("sql-server", tags: ["ready"]);
@@ -53,6 +57,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseExceptionHandler();
 app.UseHttpsRedirection();
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors(LocalWebClientCorsExtensions.PolicyName);
+}
 app.UseAuthentication();
 // Receipt analysis is partitioned by the authenticated subject, so the rate
 // limiter must see the claims principal before it chooses a bucket.

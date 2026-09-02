@@ -1,17 +1,25 @@
+import 'package:flutter/foundation.dart';
+
 class ApiConfig {
   ApiConfig._(this.baseUrl);
 
-  static const String defaultBaseUrl = 'http://10.0.2.2:5284';
+  static const String androidEmulatorBaseUrl = 'http://10.0.2.2:5284';
+  static const String webDevelopmentBaseUrl = 'http://localhost:5284';
 
   final Uri baseUrl;
 
   factory ApiConfig.fromEnvironment({
     String value = const String.fromEnvironment(
       'API_BASE_URL',
-      defaultValue: defaultBaseUrl,
+      defaultValue: '',
     ),
+    bool isWeb = kIsWeb,
   }) {
-    final uri = Uri.tryParse(value.trim());
+    final configuredValue = value.trim();
+    final effectiveValue = configuredValue.isEmpty
+        ? (isWeb ? webDevelopmentBaseUrl : androidEmulatorBaseUrl)
+        : configuredValue;
+    final uri = Uri.tryParse(effectiveValue);
     if (uri == null ||
         !uri.isAbsolute ||
         (uri.scheme != 'http' && uri.scheme != 'https') ||
@@ -20,7 +28,7 @@ class ApiConfig {
         uri.hasQuery ||
         uri.hasFragment) {
       throw ArgumentError.value(
-        value,
+        effectiveValue,
         'API_BASE_URL',
         'Geçerli bir HTTP(S) adresi olmalıdır.',
       );
