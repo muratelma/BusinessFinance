@@ -1,0 +1,8 @@
+# Ham rakip uygulama kanıtları yerelde tutulur; Git geçmişine eklenmez.
+kanitlar/**/*.png
+kanitlar/**/*.jpg
+kanitlar/**/*.jpeg
+kanitlar/**/*.webp
+kanitlar/**/*.mp4
+kanitlar/**/*.m4a
+
