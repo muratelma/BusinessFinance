@@ -11,9 +11,12 @@
 - **Sorun:** Sürülebilir 3 uygulamanın (Money Manager, Wallet, Bluecoins)
   formlarında işaretli Tur 2 boşlukları var; Tur 2 seçimini kör yapmamak için
   önce bu boşluklar **orta derinlikte** doldurulacak.
-- **Boşluk koşumu ≠ Tur 2.** Boşluk koşumu = formun kendi eksik listesinden,
-  orta derinlik. Tur 2 = seçilen uygulamalarda tam derinlik (D1–D4 olayları,
-  pipeline şeması, ayrıntılı fotoğraf).
+- **Boşluk koşumu ≠ Tur 2.** Boşluk koşumu = formun kendi eksik listesi +
+  **kredi kartı, tekrarlayan işlem (B1), taksit planı (B2)** her uygulamada
+  canlı kurulur; orta derinlik. Tur 2 = seçilen uygulamalarda tam derinlik
+  (D1–D4 olayları, pipeline şeması, ayrıntılı fotoğraf).
+- **Kapsam dışı (boşluk koşumu):** export, yedek/geri yükleme, bütçe kurulum
+  ekranı — seçim-kritik değil.
 - **Belge planı:** Belge 1 (arayüz) ve Belge 2 (akış) **tüm** uygulamaları
   genel anlatır; Tur 2 uygulamaları daha ayrıntılı (daha çok veri). Belge 3
   (öneri) **tüm** uygulamalar için. Karar filtresi yalnız Belge 3'te.
@@ -30,36 +33,51 @@
 
 ### Faz 0 — Plan + commit  *(bu dosya + DURUM + protokol + tek `docs(research)` commit)*
 
-### Faz 1 — Boşluk koşumu: Money Manager  *(yapay zekâ sürer)*
-- [ ] Mevcut veriyi temizle; çekirdek işlemleri **Ağustos 2026** tarihleriyle
-      yeniden gir (3/5/8/12/18 Ağu) + **5. olay** kart ödemesi ₺1.200
-      (Tur 1'de atlanmıştı). Kontrol: son Ana Hesap ₺40.800, net ₺44.950
-- [ ] Kart "Pay" akışı → Settlement vs Payment takvimi
-- [ ] "Balance Payable" vs "Outstanding Balance" ekranı
-- [ ] Rep/Inst (tekrar/taksit) form alanı
-- [ ] Bütçe kurulumu (Total → Budget Setting)
-- [ ] Excel export (Total sekmesi), yedekleme menüsü
-- [ ] Eksik kareler: kart takvimi, bütçe, export
-- [ ] `gozlemler/money-manager.md` + kontrol değerleri güncelle
+### Faz 1 — Boşluk koşumu: Money Manager  *(yapay zekâ sürdü, 10 Eyl 2026)*
+- [x] Uygulama yeni emülatörde temiz + **Türkçe** çıktı; 3 hesap Türkçe
+      adlarla kuruldu (Ana Hesap ₺20.000, Ortak Cuzdan ₺2.000, Is Karti ₺0)
+- [x] 5 çekirdek işlem **Ağustos 2026** tarihleriyle girildi (kart ödemesi
+      dâhil). Kontrol değerleri birebir: Ana Hesap ₺40.800, net ₺44.950,
+      Ağustos gelir ₺25.000 / gider ₺2.050
+- [x] Kart ekstre modeli: "Bu Ay 01/08~31/08" / "Gelecek Ay" = Balance Payable
+      vs Outstanding; Kaynak/Hesap Kesim/Son Ödeme alanları
+- [x] "Ödeme" butonu = ön doldurulmuş Havale (kart ödemesi nötr)
+- [x] Tekrar/Taksit → Tekrarlama (14 seçenek) + Taksit iki ayrı akış
+- [x] Açılış bakiyesi "Bakiye Farkı" davranışı; sıfır tutar sessiz kabul;
+      silme tek onaylı kalıcı; taslak uyarısı yok
+- [x] 15 Türkçe kare (`kanitlar/money-manager/02`–`16`), eski İngilizce silindi
+- [x] `gozlemler/money-manager.md` güncellendi (yeni "Faz 1 boşluk koşumu" bölümü)
+- [x] B1 tekrarlayan (₺600/ay) canlı: tek onayla kaydediliyor; geçmiş/bugünkü
+      tekrar **otomatik** gerçekleşiyor (onaysız), gelecek ayrı "önizleme"
+      bölümünde sayılmıyor. Kareler `17`–`20`
+- [x] B2 taksit (₺6.000 / 6) canlı: "(1/6)" başlık, ay ay ₺1.000 ekstreye
+      bölünüyor, tam tutar bir kerede borç yazılmıyor. Kareler `21`–`23`
+- [x] Kısmi kart ödemesi: "Ödeme" tutarı düzenlenebilir, kısmi yalnız kesilmiş
+      ekstreye uygulanıyor. Kareler `24`–`25`
+- [x] Fiş kamerası = ek dosya, OCR yok
+- **MM Faz 1 TAMAM.** Kareler `02`–`25`. Not: B1/B2 sonrası veri saptı; temiz
+      ₺44.950 durumu `11` karesinde.
+- ~~bütçe kurulumu / export / yedek~~ — kapsam dışı (kullanıcı, 10 Eyl)
 
 ### Faz 2 — Boşluk koşumu: Wallet
-- [ ] K00 onboarding (temiz bakış)
-- [ ] Planned payments oluştur
-- [ ] Debts oluştur
-- [ ] Goals oluştur
-- [ ] Budgets oluştur (Create Budget)
+- [ ] Hesap durumu kontrol (deneme hesabı açıktı); çekirdek 5 işlem Ağustos tarihli
+- [ ] Kredi kartı harcaması + ödemesi (kart hesabı davranışı)
+- [ ] B1 tekrarlayan gider canlı oluştur + üretim davranışı
+- [ ] B2 taksit planı canlı kur + ekstre/borç etkisi
+- [ ] Planned payments / Debts / Goals / Budgets **oluştur** (yalnız boş durum görülmüştü)
 - [ ] Split transaction
-- [ ] Export
 - [ ] Eksik kareler → `gozlemler/wallet-budgetbakers.md` güncelle
+- ~~export~~ kapsam dışı
 
 ### Faz 3 — Boşluk koşumu: Bluecoins
-- [ ] Planlı işlem oluştur
-- [ ] Taksit şartları (kart giderinde)
+- [ ] Çekirdek 5 işlem Ağustos tarihli (kontrol değerleri)
+- [ ] Kredi kartı harcaması + ödemesi
+- [ ] B1 tekrarlayan (Planlı İşlem) canlı oluştur + üretim davranışı
+- [ ] B2 taksit planı canlı kur (kart giderinde "Taksit şartlarını seçin")
 - [ ] Cari hesap türü → tahsilat bağı
 - [ ] Hatırlatıcı oluştur
-- [ ] Yedek / geri yükleme
-- [ ] CSV/PDF/HTML export yüzeyi (Premium sınırına kadar)
 - [ ] Eksik kareler → `gozlemler/bluecoins.md` güncelle
+- ~~yedek / CSV-PDF export~~ kapsam dışı
 
 ### Faz 4 — Yeni uygulama: Goodbudget
 - [ ] **Kullanıcı:** Play Store'dan indir → e-posta ile hesap → 10 dk gezinti

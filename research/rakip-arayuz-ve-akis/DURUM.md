@@ -12,8 +12,12 @@ sonra yeni uygulama Goodbudget test ediliyor (Faz 4), sonra Tur 2'nin 3 uygulama
 seçiliyor (Faz 5). KolayBi masa başı derinleştirmesi paralel (Faz 6). Tur 2
 derin koşum Faz 7, belgeler Faz 8.
 
-**Şu an:** Faz 0 tamam (plan yazıldı, commit). Sıradaki → **Faz 1: Money Manager
-boşluk koşumu** (emülatörde, yapay zekâ sürer). Ayrıntı yol haritasında.
+**Şu an:** Faz 0 + **Faz 1 (Money Manager) TAM tamam** (10 Eyl). MM yeni
+emülatörde Türkçe; 5 çekirdek işlem + B1 tekrarlayan + B2 taksit + kısmi kart
+ödemesi canlı test edildi; kontrol değerleri tuttu (₺44.950). Kart ekstre
+modeli = bizim projeksiyon modeli; tekrarlayan geçmişi otomatik yazıyor
+(bizden fark), taksit ay ay bölünüyor (bizimle aynı). **25 Türkçe kare**
+(`02`–`25`). Sıradaki → **Faz 2: Wallet boşluk koşumu**.
 
 ---
 
@@ -72,7 +76,10 @@ adıyla, transkript ilgili gözlem formunun "Ek — video transkripti" bölümü
    `gozlemler/kolaybi.md` video bölümü + transkript eki dolduruldu.
 6. ✅ (10 Eyl) Tur 1 video notları kapandı; boşluk koşumu + Tur 2 planı
    `TUR2-YOL-HARITASI.md` içine yazıldı, Goodbudget yeni uygulama olarak seçildi.
-7. ⏳ **Faz 1–3:** Money Manager → Wallet → Bluecoins boşluk koşumu (emülatör).
+7a. ✅ (10 Eyl) **Faz 1:** Money Manager boşluk koşumu TAM — Türkçe arayüz,
+   Ağustos tarihli 5 işlem + B1 tekrarlayan + B2 taksit + kısmi kart ödemesi,
+   kart ekstre modeli, açılış bakiyesi. 25 Türkçe kare, form güncellendi.
+7b. ⏳ **Faz 2–3:** Wallet → Bluecoins boşluk koşumu (emülatör).
 8. ⏳ **Faz 4:** Goodbudget (kullanıcı önce elle bakar) → Faz 5 Tur 2 seçimi.
 7. Belge 1 ve 2 taslakları yazılır → onaydan sonra Belge 3.
 
@@ -133,7 +140,7 @@ Yorum, gözlenmiş ürün davranışı gibi yazılmaz.
 
 | # | Uygulama | Paket | Tur 1 (K00–K08) | Ekran görüntüleri | Gözlem formu | Not |
 |---|---|---|---|---|---|---|
-| 1 | Money Manager (Realbyte) | `com.realbyteapps.moneymanagerfree` | Tamamlandı | 11 (+arayüz turu) | Yazıldı | Pilot bitti 1 Eyl; K00–K08 + arayüz taraması; kontrol değerleri birebir tuttu; işletme/şahsi ayrımı `Desteklenmiyor` |
+| 1 | Money Manager (Realbyte) | `com.realbyteapps.moneymanagerfree` | Tamamlandı + **Faz 1** | 15 (Türkçe, `02`–`16`) | Yazıldı + **10 Eyl Faz 1** | Pilot 1 Eyl; **Faz 1 (10 Eyl):** yeni emülatörde Türkçe, Ağustos tarihli 5 işlem, kontrol değerleri tuttu (net ₺44.950). Kart ekstre modeli "Bu Ay/Gelecek Ay" = Balance Payable vs Outstanding; "Ödeme" butonu = ön doldurulmuş Havale; Tekrarlama (14 seçenek)/Taksit ayrı; açılış bakiyesi "Bakiye Farkı". İşletme/şahsi `Desteklenmiyor` |
 | 2 | Paraşüt | `com.parasut` | Girilemedi → resmî kaynak | 3 karusel + 7 video karesi (web sürümü) | Yazıldı + 9 Eyl derinleştirildi + **10 Eyl video akışı** | Mobilde kayıt yok, web'de ücretli. 5 gider türü, kayıt≠ödeme ayrımı (video: "Tahsil edildi" vs "Kalan"), otomatik mahsup, nakit akışı ≠ gelir-gider ayrı rapor, KDV faturadan hesaplanıyor (ADR 0016 farkı). İşletme/şahsi havuz kavramı yok — video baştan sona firma defteri. **Tur 2:** 36 dk eğitim videosundan gerçek arayüz |
 | 3 | Logo İşbaşı | `com.isbasi` | Girilemedi → resmî kaynak | 6 (giriş/kayıt + 2 video karesi) | Yazıldı + 9 Eyl derinleştirildi | Kayıt 3 alan (VKN yok); SMS + "hesabınız hazırlanıyor" satış süreci. Tek kayıt → cari + kasa-banka + stok üç defteri besler; sesli komut; Müşavir Portal canlı. Ücretli. **isbasi.com kullanım videoları notu bekleniyor** |
 | 4 | KolayBi | `com.kolaybi.mobil` | Girilemedi → resmî kaynak | 1 giriş + 7 video karesi (~2020 web + 1 güncel 2026) + transkript | Yazıldı + 9 Eyl derinleştirildi + **10 Eyl video + transkript** | Mobilde kayıt yok. Güncel Durum panosu (nakit akışı + vadesi gelmemiş/geçmiş/belirsiz), kurulum sırası (cari→ürün→finans), **"Ortaklar/Personel Carileri"** ile patron parası (ADR 0013 farkının 2. kanıtı), KDV üründen hesaplanıyor, kısmi ödeme ekranda. Proje ekranı videoda yok → Tur 2 |
@@ -156,8 +163,8 @@ kapanışında.
 ## Sentetik veri tarihi (uyulacak)
 
 Kanonik dönem **Ağustos 2026**, işlem tarihleri 3/5/8/12/18 Ağu (`SENTETIK-TEST-VERISI.md`).
-Money Manager oturumunda işlemler yanlışlıkla 01.09.2026'ya girildi (ay içi
-toplamlar etkilenmedi, kontrol değerleri tuttu, yeniden girilmedi — form notu var).
+Money Manager Tur 1'de işlemler yanlışlıkla 01.09'a girilmişti; **Faz 1'de (10 Eyl)
+yeni emülatörde doğru Ağustos tarihleriyle yeniden girildi** — sapma kapandı.
 Bundan sonraki her uygulama ve Tur 2 Ağustos 2026 + spec gün tarihlerini kullanır.
 
 ## Tur 2 (derin akış)
@@ -167,12 +174,17 @@ boşluk koşumu (Faz 1–3), sonra Goodbudget (Faz 4), sonra Tur 2'nin 3 uygulam
 seçilir (Faz 5). Nihai yapı: **KolayBi (masa başı) + {Money Manager | Wallet |
 Bluecoins}'ten 1 + Goodbudget (elle bakıştan geçerse).**
 
+**Boşluk koşumu standart kalemleri (her uygulamada canlı):** çekirdek 5 işlem
+(Ağustos tarihli) + kredi kartı harcaması/ödemesi + **B1 tekrarlayan** + **B2
+taksit** (`SENTETIK-TEST-VERISI.md`) + formun kendi eksik listesi.
+**Kapsam dışı:** export, yedek/geri yükleme, bütçe kurulum ekranı.
+
 | Uygulama | Rolü | Boşluk koşumu odağı |
 |---|---|---|
-| Money Manager | "Yapımıza en yakın" adayı — para modeli birebir; kart ekstre projeksiyon modeli hiç sınanmadı | Kart "Pay"/Settlement/Payment, Balance Payable vs Outstanding, Rep/Inst, bütçe, export; **tarih düzeltmesi** |
-| Wallet (BudgetBakers) | Finansal UX referansı — dashboard, rapor okunabilirliği | K00 onboarding, Planned/Debts/Goals/Budgets oluşturma, split, export |
-| Bluecoins | En geniş para modeli — net varlık, borç, hatırlatıcı, CSV | Planlı işlem, taksit, cari↔tahsilat, hatırlatıcı, yedek/geri yükleme, export |
-| Goodbudget (yeni) | "Ön muhasebe dışı, bütçe odaklı, bizden farklı" — dijital zarf, "harcamadan önce dağıt" | Faz 4: K00–K08 + arayüz taraması (kullanıcı önce elle bakar) |
+| Money Manager | "Yapımıza en yakın" adayı — para modeli birebir | ✅ çekirdek + kart modeli + Ödeme + Tekrar/Taksit menüsü + açılış bakiyesi (10 Eyl). **Kalan:** B1/B2 canlı kurma |
+| Wallet (BudgetBakers) | Finansal UX referansı — dashboard, rapor okunabilirliği | Çekirdek + kart + B1/B2 + Planned/Debts/Goals/Budgets oluşturma + split |
+| Bluecoins | En geniş para modeli — net varlık, borç, hatırlatıcı | Çekirdek + kart + B1/B2 + cari↔tahsilat + hatırlatıcı |
+| Goodbudget (yeni) | "Ön muhasebe dışı, bütçe odaklı, bizden farklı" — dijital zarf | Faz 4: K00–K08 + arayüz taraması (kullanıcı önce elle bakar) |
 | KolayBi | Türk ön muhasebe temsilcisi (masa başı) | Faz 6: Kullanım Rehberi videolarından proje ekranı, gider formu, cari ekstre |
 
 - Ek olaylar: `SENTETIK-TEST-VERISI.md` → D1–D4 (Faz 7, seçilen 3 uygulamada)

@@ -62,10 +62,20 @@ Tur 1 ile Tur 2 arasında bir ara adım: sürülebilen üç uygulamada (Money Ma
 Wallet, Bluecoins) formun **kendi "eksik kanıt" listesinden** gidilir. Amaç Tur 2
 seçimini kör yapmamak. **Orta derinlik** — Tur 2 kadar ayrıntılı değil:
 
-- Her formun kendi eksik listesi koşulur (kart Pay akışı, planlı işlem oluşturma,
-  taksit, yedek, export vb.); K00–K08 baştan tekrarlanmaz.
+- **Her uygulamada canlı kurulur ve davranışı gözlemlenir:** çekirdek 5 işlem
+  (doğru Ağustos tarihleriyle), **kredi kartı harcaması + ödemesi**,
+  **tekrarlayan işlem** (B1), **taksit planı** (B2 — `SENTETIK-TEST-VERISI.md`).
+  Bunlar sadece "var" denmez, gerçek kayıt oluşturulup üretim/ekstre davranışı
+  izlenir.
+- **İki hızlı gözlem** (bir satır not yeter): (A) kart ödemesinde **kısmi tutar**
+  girilebiliyor mu; (B) işlem formundaki kamera/fiş **OCR mu yoksa sadece
+  fotoğraf ekleme mi**.
+- Planlama / borç / hatırlatıcı gibi formun kendi eksik kalemleri koşulur;
+  K00–K08 baştan tekrarlanmaz.
+- **Kapsam dışı:** export, yedek/geri yükleme, bütçe kurulum ekranı — seçim-kritik
+  değil; gerekirse Tur 2'de veya belge yazımında bakılır.
 - Money Manager istisnası: Tur 1'de işlemler yanlış tarihe girildiği için
-  çekirdek işlemler **Ağustos 2026** tarihleriyle yeniden girilir.
+  çekirdek işlemler Ağustos 2026 tarihleriyle yeniden girildi (10 Eyl, tamam).
 - Eksik ekran görüntüleri tamamlanır; form + varsa kontrol değerleri güncellenir.
 
 Ayrıntılı faz planı: `TUR2-YOL-HARITASI.md`.

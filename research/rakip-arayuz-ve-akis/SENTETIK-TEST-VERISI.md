@@ -55,6 +55,22 @@ yapmadığımızı anlamak için kullanılır:
 Rakip farklı bir finansal model kullanıyorsa yalnız fark kaydedilir. Bu kontrol
 değerleri rakibi BusinessFinance kurallarına uymaya zorlamak için kullanılmaz.
 
+## Boşluk koşumu ek olayları (kredi kartı + tekrarlayan + taksit)
+
+Çekirdek 5 işlemden **sonra** eklenir. Amaç davranış gözlemi: uygulamanın bu
+kayıtları nasıl modellediği (kart borcuna/ekstreye etkisi, tekrarlayanın onaylı
+mı yoksa otomatik mi üretildiği, taksitin ekstreye nasıl bölündüğü). **Çekirdek
+kontrol değerleri bu olaylar eklenmeden önce alınır**; bu olayların kesin bir
+hedef toplamı yoktur, uygulamanın ürettiği sayı forma yazılır.
+
+| # | Olay | Tutar | Kaynak / tarih | Gözlenecek |
+|---|---|---:|---|---|
+| B1 | Tekrarlayan gider — bulut yazılım aboneliği | ₺600,00 / ay | Ana Hesap · ilk çekim 10 Ağustos 2026 · aylık | Tanım nasıl kuruluyor; ileri aylara **otomatik mi / onayla mı** düşüyor; Ağustos'a düşen tutar; pasifleştirme/silme |
+| B2 | Taksitli kart harcaması — tasarım ekipmanı | ₺6.000,00 (6 × ₺1.000) | İş Kartı · ilk taksit 15 Ağustos 2026 · 6 ay | Taksit planı nasıl kuruluyor; **Ağustos ekstresine** kaç TL düşüyor; kalan taksitler nasıl gösteriliyor; kart borcuna etkisi |
+
+Kredi kartı çekirdek akışı (harcama + ödeme) zaten 3. ve 5. çekirdek işlemde
+kapsanıyor; B2 taksit boyutunu ekler.
+
 ## Tur 2 ek olayları
 
 Yalnız seçilen üç uygulamada ve özellik mevcutsa kullanılır:
