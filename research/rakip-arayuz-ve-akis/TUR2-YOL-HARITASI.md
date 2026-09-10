@@ -67,11 +67,12 @@
 - [x] B2 taksit: **Wallet'ta taksit özelliği YOK.** ₺6.000 tek kart harcaması → tüm tutar aynı gün borç + tüm tutar o ayın gideri. Kareler `21`–`24`
 - [x] Budgets **canlı kuruldu**: period + amount + kategori **+ hesap** filtresi; kart harcamasının tam tutarını sayar; Forecasted Spend + over-budget toast. Kareler `26`–`29`
 - [x] Goals **canlı kuruldu**: hedef/biriken/tarih. Kareler `30`–`32`
-- [x] Debts: form görüldü (I Lent/I Borrowed, kayda bağla/bağlama, **hesap zorunlu → bakiye hareket eder**); kayıt oluşturulamadı (rehber izni tuzağı). Kareler `34`–`36`
+- [x] Debts **canlı oluşturuldu** (10 Eyl ek koşum): I Lent "Ada Reklam" ₺5.000. Kaydederken **"Record oluştur → bakiye değişir" seçeneği** (No/Yes) — bakiyeye dokunmak borç bazında opsiyon. "Yes" → Ana Hesap'a "Loan, interests" gideri −₺5.000. Borç detayı = açık Total + bağlı Records. Kareler `34`–`36`, `41`–`44`
 - [x] Split transaction: kaydı alt-kayda oyma akışı görüldü (`38`, `39`)
 - [x] Fiş / kamera: **OCR yok** — yalnız dosya/foto eki (`40`)
-- [x] `gozlemler/wallet-budgetbakers.md` güncellendi (yeni "Faz 2 boşluk koşumu" bölümü + 13 karar satırı); kareler `10`–`40`
-- **Wallet Faz 2 TAMAM.** Veri: Ana Hesap ₺20.200 · Ortak Cuzdan ₺2.150 · İş Kartı −₺6.000 · net ₺16.350. Tur 2'ye seçilirse bulut sıfırlanır.
+- [x] Tekrarlayan plan yönetimi (10 Eyl): otomatik/onaylı kolu dişli ile her zaman değişir (`45`); plan silme düz onay, **gerçekleşmiş occurrence uyarısı yok** (`46`, `47`)
+- [x] `gozlemler/wallet-budgetbakers.md` güncellendi (Faz 2 bölümü + 17 karar satırı); kareler `10`–`47`
+- **Wallet Faz 2 TAMAM.** Veri: Ana Hesap ₺15.200 · Ortak Cuzdan ₺2.150 · İş Kartı −₺6.000 · net ₺11.350. Tur 2'ye seçilirse bulut sıfırlanır.
 - ~~export / onboarding~~ kapsam dışı
 
 ### Faz 3 — Boşluk koşumu: Bluecoins  *(yapay zekâ sürdü, 10 Eyl 2026 — TAMAM)*
@@ -81,10 +82,11 @@
 - [x] **B2 taksit canlı:** oran (%) + ay sayısı (2–24 + Özel) + ilk ödeme tarihi. ₺6.000 → 6×₺1.000. **Taksit 1/6 anında gerçek harcama** (ilk-ödeme tarihinde, "1/6" etiket, kart borcu −₺1.000, Ağustos gideri +₺1.000). **2/6–6/6 aylık hatırlatıcı.** BusinessFinance InstallmentPlan'a çok yakın. Kareler `17`–`22`
 - [x] **B1 tekrarlayan canlı:** "Planlı İşlemler" → Bir Defa/Günlük/Haftalık/Aylık/Yıllık + ayın günü + son ödeme + otomatik checkbox. **Geçmiş tarihe kurulabiliyor.** Tanım hiçbir şey üretmez. Geçmiş/bugün/gelecek occurrence'lar Hatırlatıcılar'da bekliyor ("31 gün gecikmeli"/"bugün süresi doluyor"). Kaydet → "bugün mü / planlanan tarih mi" → materyalize. **Tüm rakiplerin BusinessFinance'e en yakını.** Kareler `23`–`28`
 - [x] Hatırlatıcılar sekmesi = tekrarlayan + taksit occurrence'larının birleşik tarih-sıralı listesi
-- [ ] Cari hesap → tahsilat bağı — **koşulmadı** (Tur 2'ye)
-- [ ] Bağımsız hatırlatıcı — mekanizma B1/B2'de yeterince görüldü
-- [x] `gozlemler/bluecoins.md` güncellendi (yeni "Faz 3 boşluk koşumu" bölümü + 11 karar satırı); kareler `10`–`28`
-- **Bluecoins Faz 3 TAMAM.** Veri: Ana Hesap ₺40.200 · Ortak Cuzdan ₺4.150 · İş Kartı −₺1.000 · net ₺43.350. Emülatörde kararsız (sync klasörü diyaloğu UI kilitledi → force-stop).
+- [x] **Cari hesap** (10 Eyl ek koşum): "Cari hesap" tipi canlı kuruldu ("Ada Reklam cari") — **sıradan bakiye hesabı, fatura nesnesi/tahsilat bağı YOK**. Kareler `32`, `33`
+- [x] **Bağımsız hatırlatıcı** (10 Eyl): "Bir Defa" Planlı İşlem = "Ofis kirasi" ₺10.000 → Hatırlatıcılar'da "Yarın borçlanacak". Kareler `30`, `31`
+- [x] Ek bulgular (10 Eyl): Bölmek/split modu (`29`), taslak uyarısı, Kredi Kartı **ekstre kesim günü** alanı (`32`), kısmi kart ödemesi canlı ₺500 (`34`)
+- [x] `gozlemler/bluecoins.md` güncellendi (Faz 3 bölümü + 15 karar satırı); kareler `10`–`34`
+- **Bluecoins Faz 3 TAMAM.** Veri: Ana Hesap ₺39.700 · Ortak Cuzdan ₺4.150 · İş Kartı −₺500 · Ada Reklam cari ₺0 · net ₺43.350. Emülatörde kararsız (modal diyaloglar dokunuşu işlemiyor → force-stop / keyevent).
 - ~~yedek / CSV-PDF export~~ kapsam dışı
 
 ### Faz 4 — Yeni uygulama: Goodbudget

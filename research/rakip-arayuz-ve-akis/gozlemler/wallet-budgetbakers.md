@@ -186,17 +186,39 @@ renk/ikon + Note. Kuruldu: "Yeni ekipman fonu", hedef ₺20.000, biriken ₺0.
 Özet kartında `₺0 / 0 %` ilerleme çubuğu (`32`). Basit birikim izleyici; hesap
 bakiyesine bağlanması ayrı bir adım (denenmedi).
 
-### Borç (Debts — form görüldü, kayıt oluşturulamadı)
+### Borç (Debts — canlı oluşturuldu, 10 Eyl ek koşum)
 
 + → **I Lent** / **I Borrowed**. Sonra "Bu borç kaydı Wallet'ta zaten var mı?" →
 *Yes, select record* (mevcut bir işleme **bağla**) / *No, skip* (bağımsız). Kare `35`.
-Form (`36`): Name (kime/kimden) + Description + **Account (zorunlu)** + Amount +
-Date + Due date (varsayılan +1 yıl). Active / Closed sekmeleri.
-- Kaydı bir hesaba bağlaması → borç verince/alınca **hesap bakiyesi hareket eder**.
-  Bu, BusinessFinance `CounterpartyCharge`'ın "tanır, bakiyeye dokunmaz"
-  (ADR 0014) ilkesinin **tersi**: Wallet borcu bir ödeme hareketi gibi ele alır.
-- Emülatör tuzağı: cihaz rehberi izni ("name suggestions") reddedilince form
-  kapanıyor; kayıt bu koşumda tamamlanamadı, yapı yalnız formdan okundu.
+Form (`36`, `41`): Name (kime/kimden) + Description + **Account (zorunlu)** + Amount +
+Date + Due date (varsayılan +1 yıl). Active / Closed sekmeleri. Kuruldu: I Lent
+"Ada Reklam" ₺5.000, Ana Hesap.
+
+- **Kaydederken sorulur:** *"Do you want to create a Record for this Debt? If you
+  create a Record your balance will change." → **No** / **Yes, create record***
+  (`42`). Yani **bakiyeye dokunmak borç bazında bir seçim** — zorunlu değil.
+  (Tur 1'deki "hesap zorunlu → bakiye hareket eder" çıkarımı bu yüzden düzeltildi.)
+- **"Yes, create record"** → Ana Hesap'a **"Loan, interests"** kategorili gerçek
+  **gider** kaydı −₺5.000 (Ana Hesap ₺20.200 → **₺15.200**); raporlarda gider sayılır.
+  Kareler `43`, `44`.
+- Borç detayı = açık **Total** + bağlı **Records** listesi; geri ödemeler için
+  **"Add Record"**; Total 0'a inince borç kapanır.
+- **BusinessFinance farkı:** ADR 0014'ün "tanır vs taşır" ayrımı yok — her borç
+  kaydı ya bakiyeyi hareket ettirir ya ettirmez, tek biçim. Ürettiği kayıt genel
+  bir "Loan, interests" gideri, doğru gelir/gider tanıması değil.
+- Emülatör tuzağı: cihaz rehberi izni ("name suggestions") — uygulama içi
+  "Cancel" formu kapatıyor; **Android sistem diyaloğunda "İzin verme"** seçince
+  form açık kalıyor ve kayıt tamamlanabiliyor.
+
+### Tekrarlayan plan yönetimi (10 Eyl ek koşum)
+
+- **Otomatik/onaylı kolu her zaman değiştirilebilir:** plan detayında **dişli
+  ikonu** → aynı "otomatik mi / onaylı mı?" diyaloğu (yalnız ilk onayda değil).
+  Kare `45`.
+- **Plan silme:** düzenleme formunda **çöp ikonu** → yalnız *"Do you really want
+  to delete this item?"* düz onayı. **Gerçekleşmiş occurrence hakkında uyarı
+  yok** (BusinessFinance'in `409 recurring.has_realized_history` korumasının
+  aksine); materyalize olmuş "Paid Today" kaydı bağımsız kalır. Kareler `46`, `47`.
 
 ### Split transaction (canlı görüldü, kaydedilmedi)
 
@@ -214,7 +236,8 @@ tarih veya satıcı okunmaz. OCR / tarama-çıkarma yok (bu ücretsiz akışta).
 
 ### Faz 2 sonrası veri durumu
 
-Ana Hesap ₺20.200 · Ortak Cuzdan ₺2.150 · İş Kartı `−₺6.000` · net ₺16.350.
+Ana Hesap ₺15.200 · Ortak Cuzdan ₺2.150 · İş Kartı `−₺6.000` · net ₺11.350
+(10 Eyl ek koşumda "Ada Reklam" borcu için −₺5.000 "Loan, interests" gideri eklendi).
 Ek: "Aylik gider butcesi" ₺5.000 bütçe, "Yeni ekipman fonu" ₺20.000 hedef,
 B1 planı (sonraki vade 10.10.2026, onay-bekler modda). Wallet Tur 2'ye seçilirse
 bulut verisi sıfırlanıp yeniden girilir.
@@ -238,7 +261,10 @@ bulut verisi sıfırlanıp yeniden girilir.
 | Tekrarlayan planın geçmiş tarihe kurulamaması / geçmiş ayı seçememe | Alma | "Abonelik geçen ay başladı" modellenemiyor; bizim anchor tarihi serbest | Plan tarih seçici |
 | Taksit / taksit planı kavramının hiç olmaması | Alma | ₺6.000'lık alım tek parça borç + tek parça gider; TR pazarında taksit yaygın, InstallmentPlan bunu ayrı modelliyor | Kart harcaması formu |
 | Kredi kartını dönemsiz negatif bakiye + tek son ödeme tarihi olarak tutma | Alma | Ekstre kesim/ödeme dönemi yok; "kesilen ekstre vs bekleyen harcama" ayrımı kaybolur | Kart hesabı |
-| Borcu (Debt) bir hesaba bağlayıp bakiyeyi hareket ettirme | Alma | ADR 0014 "tanır ama taşımaz" ilkesinin tersi; veresiye/vadeli işlemde bakiye kıpırdamamalı | Cari / borç kaydı |
+| Borç kaydederken "Record oluştur → bakiye değişir" seçeneği | Uyarlayarak al | Bakiyeye dokunmayı borç bazında opsiyona bağlaması iyi; ama bizde bu "tanır vs taşır" ayrımı olarak yapısal (ADR 0014), tek soru değil | Cari / borç kaydı |
+| Borcun ürettiği kaydın genel "Loan, interests" gideri olması | Alma | Doğru gelir/gider tanıması değil; bizde `CounterpartyCharge` yönü ve kategoriyi doğru belirler | Cari / borç kaydı |
+| Tekrarlayan planı gerçekleşmiş occurrence uyarısı olmadan silme | Alma | BusinessFinance `409 recurring.has_realized_history` + duraklatma yönlendirmesi kullanır; geçmişi olan plan sessizce silinmemeli | Tekrarlayan plan yönetimi |
+| Otomatik/onaylı kolunun plan detayında her zaman değiştirilebilmesi | Doğrudan al | Kullanıcı planı kurduktan sonra da modunu değiştirebilmeli | Tekrarlayan plan yönetimi |
 | Bütçeye kategori **ve** hesap filtresi verme | Uyarlayarak al | Bizim kategori+kapsam çiftiyle toplama mantığına yakın; hesap yerine kapsam bizde doğru eksen | Bütçe kurulumu |
 | Bütçe detayında Forecasted Spend + ortalama günlük + geçmiş döneme kıyas | Henüz karar verme | Yararlı ama bizim aşama kapsamımızda değil; patronlara sunulacak | Bütçe raporu |
 | Fiş = yalnız dosya/foto eki, OCR yok | Not | Wallet ücretsiz akışında fiş okuma yok; ADR 0011 öneri katmanı bizde ayrı | İşlem eki |
@@ -251,7 +277,8 @@ bulut verisi sıfırlanıp yeniden girilir.
 - Manuel gözlem (Faz 2, 10 Eyl): çekirdek doğrulama + B1 tekrarlayan (canlı, tam akış: kurulum → bekleyen → Confirm → materyalize) + B2 taksit (özellik yok, tek kayıt) + bütçe canlı kurulum + hedef canlı kurulum + split ve fiş akışları görüldü. Kareler `10`–`40`.
 - Resmî kaynak: —
 - Yorum: Hızlı formun varsayılan Expense seçimi ve renk ağırlıklı seçili durumu yanlış kayıt riskini artırır. Tekrarlayan modeli (bekleyen + Confirm/Postpone/Dismiss) BusinessFinance'e en yakın rakip davranışlarından biri; buna karşılık taksit yokluğu ve dönemsiz kart modeli TR pazarı için belirgin eksik.
-- Doğrulanamadı: Onboarding (yeni hesap ilk kurulum), Premium özelliklerin asıl davranışı (Automatic Rule, AI receipt), banka bağlantısı, dışa aktarma/yedek, widget, Debt kaydının bakiye etkisi (form kapandı — yalnız yapı okundu), hedefin hesaba bağlanması, tekrarlayan planın "Yes/otomatik" kolu ve pasifleştirme/silme davranışı.
+- Manuel gözlem (10 Eyl ek koşum): Debt canlı oluşturuldu (I Lent ₺5.000, "Yes create record" → −₺5.000 "Loan, interests" gideri, Ana Hesap ₺15.200); tekrarlayan planın otomatik/onaylı kolu her zaman değiştirilebilir (dişli); plan silme düz onay, gerçekleşmiş occurrence uyarısı yok. Kareler `41`–`47`.
+- Doğrulanamadı: Onboarding (yeni hesap ilk kurulum), Premium özelliklerin asıl davranışı (Automatic Rule, AI receipt), banka bağlantısı, dışa aktarma/yedek, widget, hedefin hesaba bağlanması, tekrarlayan planın "Yes/otomatik" kolunun üretim davranışı.
 
 ## Tek cümlelik sonuç
 

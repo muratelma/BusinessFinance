@@ -84,7 +84,7 @@ kaldı — güncel bakiyeyi ve aylık gelir/gider raporunu etkilemiyor.
 - Uygulamanın hedef kullanıcı varsayımı: Finansal model ayrıntısı isteyen ileri seviye kişisel bütçe kullanıcısı; çok hesap, kredi, ipotek ve rapor kullanıyor.
 - İşletme ve şahsi para yaklaşımı: **Yok.** Kategori/etiket mevcut ama özel kapsam boyutu değil.
 - Transfer ve kart ödemesi yaklaşımı: Ayrı transfer türü, çift bağlı satır, gün toplamında sıfır; kart ödemesi ikinci kez gider değil.
-- Planlama, borç ve tahsilat yaklaşımı: Planlı işlem, hatırlatıcı, kredi/ipotek ve taksit alanları var; cari hesap tür adı görülse de işletme carisi/tahsilat bağı Tur 1'de doğrulanmadı (Faz 3'te de cari↔tahsilat bağı koşulmadı; B1/B2 canlı kuruldu).
+- Planlama, borç ve tahsilat yaklaşımı: Planlı işlem, hatırlatıcı, kredi/ipotek ve taksit alanları var; B1/B2 + bağımsız hatırlatıcı canlı kuruldu (hepsi tek Hatırlatıcılar listesi). **Cari hesap tipi var ama sıradan bakiye hesabı** — fatura nesnesi ve tahsilat→fatura bağı yok (Faz 3'te canlı doğrulandı).
 
 ## Faz 3 boşluk koşumu (10 Eyl 2026) — taksit, tekrarlayan, kart, hatırlatıcı
 
@@ -165,18 +165,70 @@ Hem tekrarlayan hem taksit occurrence'ları burada, **tarih sıralı**, tek list
 gecikmeli / bugün / gelecek etiketli. BusinessFinance'in "planlanan projeksiyonu"
 ile aynı iş (`readiness`/`attentionCode` benzeri gecikme etiketleri).
 
+### Kredi Kartı hesap tipi — ekstre kesim günü VAR
+
+Hesap oluştururken **Hesap Tipi = Kredi Kartı** seçilince ek alanlar açılıyor:
+**Kredi Limiti + Hesap Kesim Günü (Ayın 1. Günü...) + Bitiş tarihi**. Kare `32`.
+Yani Bluecoins'te kredi kartının **ekstre kesim günü kavramı var** (Wallet'ta yok,
+Money Manager'da "Hesap Kesim Tarihi" olarak vardı). Faz 3'te İş Kartı bu alanlar
+varsayılan bırakılarak kurulmuştu; kesim günü davranışı ekstre projeksiyonuna
+Tur 2'de bakılabilir.
+
+### Bölmek (split transaction)
+
+İşlem formunda **"Bölmek"** → çok satırlı mod: **"Hepsini temizle" / "+ Ekle"**
++ **Toplam tutar** göstergesi; her satır kendi tutarı + kategorisi + hesabı +
+notu + çöp ikonuyla. Tek fiş içindeki farklı kalemleri ayrı kategori/hesaba
+bölmek için. Kare `29`.
+
+### Taslak uyarısı
+
+İşlem formundan kaydetmeden çıkınca **"Değişiklik kaydetmeden işlem ekranından
+çıkın mı?"** onayı çıkıyor (Money Manager'da taslak uyarısı **yoktu**; Bluecoins'te var).
+
+### Bağımsız hatırlatıcı (canlı oluşturuldu)
+
+Hatırlatıcılar sekmesi → **+** → **aynı işlem formu** + üstte "*11 Eylül 2026
+günü bir kez program yapın*" banner'ı, tarih yarına ayarlı. Yani bağımsız
+hatırlatıcı = **"Bir Defa"** frekanslı bir Planlı İşlem. Kuruldu: "Ofis kirasi"
+₺10.000, Ana Hesap → Hatırlatıcılar listesinde **"Yarın borçlanacak"** etiketiyle,
+tekrarlayan/taksit occurrence'larıyla **aynı listede** göründü. Kareler `30`, `31`.
+**Bulgu:** Bluecoins'te bağımsız hatırlatıcı + tekrarlayan occurrence + taksit
+occurrence hepsi tek "Planlı İşlemler / Hatırlatıcılar" yapısı.
+
+### Cari hesap → tahsilat bağı (canlı oluşturuldu)
+
+Hesap tipi listesinde **"Alacaklar"** (Varlıklar grubu) ve **"Cari hesap" /
+"Cari hesaplar"** (Cari Hesap grubu) var. Kuruldu: "Ada Reklam cari" (Cari hesap
+tipi). **Cari hesap tipinin özel alanı yok** — Kredi Kartı'nın aksine limit/kesim
+günü taşımıyor; sıradan bir bakiye taşıyan hesap. Kareler `32`, `33`.
+- **Fatura / e-fatura nesnesi YOK.** "Bu tahsilatı şu faturaya bağla" özelliği yok.
+- Veresiye satışı modellemek için: cari hesaba GELİR kaydı → cari bakiye +₺X;
+  tahsilat = cari hesap → banka **transferi** → cari 0'a döner, banka +₺X, gelir
+  ikinci kez sayılmaz. **Net cari bakiye açık tutarı verir**, o kadar.
+- BusinessFinance `Counterparty` + `CounterpartyCharge` (tanır) + `CounterpartyPayment`
+  (taşır) + fatura bağı modelinin karşılığı **yok**; cari hesap yalnız bir kasa gibi.
+
+### Kısmi kart ödemesi (canlı test)
+
+Kart ödemesi ayrı akış değil, Ana Hesap → İş Kartı **transferi**. Kısmi ödeme
+= daha küçük transfer: ₺500 transfer girildi → İş Kartı −₺1.000 → **−₺500**.
+Herhangi bir tutar çalışıyor; ekstre kesim/dönem mantığı devreye girmiyor. Kare `34`.
+
 ### Fiş / kamera
 
 İsim alanının yanında ataç ikonu = **ek dosya** (Tur 1 ile tutarlı). OCR /
-fiş-okuma özelliği görülmedi, pazarlanmıyor. (Emülatörde klavye çubuğu tuzağı
-nedeniyle ek akışı Faz 3'te açılamadı — yapı Tur 1'den biliniyor.)
+fiş-okuma özelliği görülmedi, pazarlanmıyor. Ataç butonu emülatörde adb koordinat
+dokunuşuyla açılamadı (İsim metin alanı + Android el yazısı katmanı butonun hit
+alanının üstüne biniyor; gerçek dokunmatik cihazda sorun olmaz).
 
 ### Faz 3 sonrası veri durumu
 
-Ana Hesap ₺40.200 · Ortak Cuzdan ₺4.150 · İş Kartı −₺1.000 · net ₺43.350.
-Ek: B1 tekrarlayan serisi (sonraki vade 10 Eyl, "bugün süresi doluyor"),
-B2 taksit hatırlatıcıları 2/6–6/6. Bluecoins Tur 2'ye seçilirse dosya sıfırlanıp
-yeniden girilir.
+Ana Hesap ₺39.700 · Ortak Cuzdan ₺4.150 · İş Kartı −₺500 · Ada Reklam cari ₺0 ·
+net ₺43.350. Ek: B1 tekrarlayan serisi (10 Ağu occurrence onaylandı, sonraki
+vade 10 Eyl), B2 taksit hatırlatıcıları 2/6–6/6, "Ofis kirasi" ₺10.000 bağımsız
+hatırlatıcı (11 Eyl), ₺500 kısmi kart ödemesi. Bluecoins Tur 2'ye seçilirse
+dosya sıfırlanıp yeniden girilir.
 
 ## BusinessFinance için kararlar
 
@@ -202,14 +254,20 @@ yeniden girilir.
 | Hatırlatıcılar sekmesi = tekrarlayan + taksit occurrence'larının tarih sıralı birleşik listesi | Doğrudan al | Bizim planlanan projeksiyonumuzla aynı iş; gecikme etiketleri `attentionCode`'a karşılık | Planlanan görünüm |
 | "Yinelenmek" (kaydı çoğaltma) transfer detayında | Henüz karar verme | Benzer transferi hızlı tekrar; küçük kolaylık | Kayıt detayı |
 | Fiş = ataç eki, OCR yok | Not | Bluecoins'te fiş okuma yok; ADR 0011 öneri katmanı bizde ayrı | İşlem eki |
+| Kredi kartında ekstre kesim günü alanı | Uyarlayarak al | Bizde ekstre kesim/ödeme tarihinden asOf projeksiyon; kesim günü kullanıcının, kodda gömülü değil (ADR 0016 mantığı) | Kart hesabı |
+| Bölmek: tek kaydı çok satıra bölme (her satır kendi kategori/hesap) | Henüz karar verme | Tek fişteki farklı kalemleri ayırmak için güçlü; bizde henüz yok | Kayıt detayı |
+| Taslak uyarısı (kaydetmeden çıkışta onay) | Doğrudan al | Money Manager'da yoktu, veri kaybettiriyordu; bizde form terk edilirken uyarı olmalı | Tüm formlar |
+| Cari hesabın sıradan bakiye hesabı olması, fatura nesnesi/tahsilat bağı olmaması | Alma | ADR 0014 cari modelimiz "tanır/taşır" ayrımı + fatura bağı ister; net bakiye tek başına yetmez | Cari hesap / fatura akışı |
+| Bağımsız hatırlatıcı = "Bir Defa" Planlı İşlem, hepsi tek Hatırlatıcılar listesinde | Doğrudan al | Bizim planlanan projeksiyonumuzla aynı: tekrarlayan/taksit/borç/vergi hepsi tek `financial-activities/planned` görünümü | Planlanan görünüm |
 
 ## Kanıt ve güven düzeyi
 
 - Manuel gözlem (Tur 1): K00–K08 emülatörde sentetik veriyle tamamlandı; bütün bakiye kontrol değerleri birebir tuttu.
 - Manuel gözlem (Faz 3, 10 Eyl): tam yeniden koşum — 3 hesap + 5 çekirdek (kontrol ₺44.950 birebir) + **B2 taksit** (6 ay, ₺6.000 → 6×₺1.000, ilk taksit anında + 5 hatırlatıcı) + **B1 tekrarlayan** (aylık, geçmiş tarihli, tanım hiçbir şey üretmiyor, occurrence'lar bekliyor, Kaydet → materyalize). Kareler `10`–`28`.
+- Manuel gözlem (Faz 3 ek, 10 Eyl): Bölmek/split modu + taslak uyarısı + Kredi Kartı kesim günü alanı + **bağımsız hatırlatıcı** (canlı) + **cari hesap** (canlı, fatura bağı yok) + **kısmi kart ödemesi** (canlı ₺500). Kareler `29`–`34`.
 - Resmî kaynak: —
-- Yorum: Bluecoins'in tekrarlayan + taksit modeli **tüm rakipler içinde BusinessFinance'e en yakın olanı** (tanım üretmez, occurrence realize edilir). Buna karşılık bilgi mimarisi hedef esnaf için gereğinden geniş ve uygulama emülatörde kararsız (sync klasörü diyaloğu UI'yi kilitledi).
-- Doğrulanamadı: Cari hesap → tahsilat bağı, bağımsız hatırlatıcı oluşturma, taksitte auto-checkbox ile "otomatik" kol, ekstre kesim/dönem modeli, yedek/geri yükleme, Android widget'ı, fiş ek akışı (emülatör klavye tuzağı), Premium dışa aktarmanın son adımı.
+- Yorum: Bluecoins'in tekrarlayan + taksit + bağımsız hatırlatıcı modeli **tüm rakipler içinde BusinessFinance'e en yakın olanı** (tanım üretmez, occurrence realize edilir, hepsi tek planlanan görünüm). Buna karşılık cari hesap yalnız bir kasa (fatura/tahsilat bağı yok), bilgi mimarisi hedef esnaf için gereğinden geniş ve uygulama emülatörde kararsız (modal diyaloglar dokunuşu işlemiyor).
+- Doğrulanamadı: Taksitte auto-checkbox ile "otomatik" kol, ekstre kesim gününün projeksiyona etkisi, yedek/geri yükleme, Android widget'ı, fiş ek akışının ekranı (emülatör overlay tuzağı), Premium dışa aktarmanın son adımı.
 
 ## Tek cümlelik sonuç
 
