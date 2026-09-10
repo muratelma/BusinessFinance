@@ -12,12 +12,23 @@ sonra yeni uygulama Goodbudget test ediliyor (Faz 4), sonra Tur 2'nin 3 uygulama
 seçiliyor (Faz 5). KolayBi masa başı derinleştirmesi paralel (Faz 6). Tur 2
 derin koşum Faz 7, belgeler Faz 8.
 
-**Şu an:** Faz 0 + **Faz 1 (Money Manager) TAM tamam** (10 Eyl). MM yeni
-emülatörde Türkçe; 5 çekirdek işlem + B1 tekrarlayan + B2 taksit + kısmi kart
-ödemesi canlı test edildi; kontrol değerleri tuttu (₺44.950). Kart ekstre
-modeli = bizim projeksiyon modeli; tekrarlayan geçmişi otomatik yazıyor
-(bizden fark), taksit ay ay bölünüyor (bizimle aynı). **25 Türkçe kare**
-(`02`–`25`). Sıradaki → **Faz 2: Wallet boşluk koşumu**.
+**Şu an:** Faz 0 + **Faz 1 (Money Manager) + Faz 2 (Wallet) TAM tamam** (10 Eyl).
+
+- **Faz 1 — Money Manager:** yeni emülatörde Türkçe; 5 çekirdek + B1 tekrarlayan +
+  B2 taksit + kısmi kart ödemesi canlı; kontrol ₺44.950 tuttu. Kart ekstre modeli
+  = bizim projeksiyon modeli; tekrarlayan geçmişi otomatik yazıyor (bizden fark),
+  taksit ay ay bölünüyor (bizimle aynı). 25 Türkçe kare (`02`–`25`).
+- **Faz 2 — Wallet:** kullanıcı giriş yaptı, bulut verisi geri geldi; çekirdek 5
+  doğrulandı (net ₺22.950). **Kredi kartı = basit negatif bakiye** (ekstre dönemi
+  yok). **B1 tekrarlayan** = Planned payments/Recurrent; geçmiş tarihe kurulamıyor;
+  her örnek bekleyen + Confirm/Postpone/Dismiss (BusinessFinance realize'ine en
+  yakın rakip); ilk onayda "otomatik mi/onaylı mı" plan bazında soruluyor.
+  **B2 taksit = özellik YOK** (₺6.000 tek parça borç + tek parça gider).
+  Budget + Goal canlı kuruldu; Debt formu görüldü (hesap zorunlu, bakiye hareket
+  eder — ADR 0014'ün tersi); split akışı görüldü; **fiş OCR yok** (dosya/foto eki).
+  UI İngilizce (sistem dilini almıyor). 31 kare (`10`–`40`). Veri sonu: net ₺16.350.
+
+**Sıradaki → Faz 3: Bluecoins boşluk koşumu.**
 
 ---
 
@@ -79,7 +90,11 @@ adıyla, transkript ilgili gözlem formunun "Ek — video transkripti" bölümü
 7a. ✅ (10 Eyl) **Faz 1:** Money Manager boşluk koşumu TAM — Türkçe arayüz,
    Ağustos tarihli 5 işlem + B1 tekrarlayan + B2 taksit + kısmi kart ödemesi,
    kart ekstre modeli, açılış bakiyesi. 25 Türkçe kare, form güncellendi.
-7b. ⏳ **Faz 2–3:** Wallet → Bluecoins boşluk koşumu (emülatör).
+7b. ✅ (10 Eyl) **Faz 2:** Wallet boşluk koşumu TAM — çekirdek doğrulama +
+   kredi kartı negatif-bakiye modeli + B1 tekrarlayan (bekleyen/Confirm) +
+   B2 taksit (özellik yok) + Budget/Goal canlı kurulum + Debt formu + split +
+   fiş OCR yok. 31 kare (`10`–`40`), form güncellendi.
+7c. ⏳ **Faz 3:** Bluecoins boşluk koşumu (emülatör).
 8. ⏳ **Faz 4:** Goodbudget (kullanıcı önce elle bakar) → Faz 5 Tur 2 seçimi.
 7. Belge 1 ve 2 taslakları yazılır → onaydan sonra Belge 3.
 
@@ -145,7 +160,7 @@ Yorum, gözlenmiş ürün davranışı gibi yazılmaz.
 | 3 | Logo İşbaşı | `com.isbasi` | Girilemedi → resmî kaynak | 6 (giriş/kayıt + 2 video karesi) | Yazıldı + 9 Eyl derinleştirildi | Kayıt 3 alan (VKN yok); SMS + "hesabınız hazırlanıyor" satış süreci. Tek kayıt → cari + kasa-banka + stok üç defteri besler; sesli komut; Müşavir Portal canlı. Ücretli. **isbasi.com kullanım videoları notu bekleniyor** |
 | 4 | KolayBi | `com.kolaybi.mobil` | Girilemedi → resmî kaynak | 1 giriş + 7 video karesi (~2020 web + 1 güncel 2026) + transkript | Yazıldı + 9 Eyl derinleştirildi + **10 Eyl video + transkript** | Mobilde kayıt yok. Güncel Durum panosu (nakit akışı + vadesi gelmemiş/geçmiş/belirsiz), kurulum sırası (cari→ürün→finans), **"Ortaklar/Personel Carileri"** ile patron parası (ADR 0013 farkının 2. kanıtı), KDV üründen hesaplanıyor, kısmi ödeme ekranda. Proje ekranı videoda yok → Tur 2 |
 | 5 | QuickBooks Solopreneur | `com.intuit.quickbooks` | Girilemedi → resmî kaynak | 4 (onboarding→paywall) | **Yazıldı (9 Eyl)** — yeni şablonla | İşlem başına tek "Type: Business/Personal" alanı → **ADR 0013'ün kavramsal en yakın rakibi**. Ama ayrım ABD Schedule C vergi eksenli; banka bağlantısı + vergi hesaplama bizde kapsam dışı. Split transaction (kalem başına işletme/şahsi) + Rules motoru + tahmini vergi |
-| 6 | Wallet by BudgetBakers | `com.droid4you.application.wallet` | Tamamlandı | 9 (+arayüz turu) | Yazıldı | 1 Eyl; K01–K08 + arayüz taraması. K00 önceden açık deneme hesabı nedeniyle kısmi. Transfer ve kart ödemesi raporda nötr; işletme/şahsi ayrımı `Desteklenmiyor`; cash/checking açılış bakiyesi almıyor |
+| 6 | Wallet by BudgetBakers | `com.droid4you.application.wallet` | Tamamlandı + **Faz 2** | 9 + **31 (`10`–`40`)** | Yazıldı + **10 Eyl Faz 2** | 1 Eyl K01–K08 + arayüz taraması. **Faz 2 (10 Eyl):** çekirdek doğrulama (net ₺22.950); kredi kartı = dönemsiz negatif bakiye; B1 tekrarlayan = Planned payments/Recurrent — geçmişe kurulamaz, her örnek bekleyen + Confirm/Postpone/Dismiss (realize'e en yakın), ilk onayda otomatik/onaylı plan-bazlı seçim; **B2 taksit özelliği YOK** (tek parça); Budget (kategori+hesap filtresi) + Goal canlı; Debt hesap zorunlu → bakiye hareket eder; fiş OCR yok. UI İngilizce. İşletme/şahsi `Desteklenmiyor` |
 | 7 | Bluecoins | `com.rammigsoftware.bluecoins` | Tamamlandı | 10 (+arayüz turu) | Yazıldı | 1 Eyl; K00–K08 + arayüz taraması. Kontrol bakiyeleri birebir; transfer/kart ödemesi nötr; işletme/şahsi ayrımı `Desteklenmiyor`; sıfır tutarlı kayıt kabul ediliyor |
 
 Sonuç değerleri: `Başlanmadı` · `Sürüyor` · `Tamamlandı` · `Kısmi` · `Engelli`
@@ -182,7 +197,7 @@ taksit** (`SENTETIK-TEST-VERISI.md`) + formun kendi eksik listesi.
 | Uygulama | Rolü | Boşluk koşumu odağı |
 |---|---|---|
 | Money Manager | "Yapımıza en yakın" adayı — para modeli birebir | ✅ çekirdek + kart modeli + Ödeme + Tekrar/Taksit menüsü + açılış bakiyesi (10 Eyl). **Kalan:** B1/B2 canlı kurma |
-| Wallet (BudgetBakers) | Finansal UX referansı — dashboard, rapor okunabilirliği | Çekirdek + kart + B1/B2 + Planned/Debts/Goals/Budgets oluşturma + split |
+| Wallet (BudgetBakers) | Finansal UX referansı — dashboard, rapor okunabilirliği; tekrarlayan "bekleyen→onayla" bize çok yakın | ✅ Faz 2 TAM (10 Eyl). Artı: BusinessFinance'e yakın tekrarlayan akış. Eksi: taksit yok, dönemsiz kart, İngilizce UI, işletme/şahsi yok |
 | Bluecoins | En geniş para modeli — net varlık, borç, hatırlatıcı | Çekirdek + kart + B1/B2 + cari↔tahsilat + hatırlatıcı |
 | Goodbudget (yeni) | "Ön muhasebe dışı, bütçe odaklı, bizden farklı" — dijital zarf | Faz 4: K00–K08 + arayüz taraması (kullanıcı önce elle bakar) |
 | KolayBi | Türk ön muhasebe temsilcisi (masa başı) | Faz 6: Kullanım Rehberi videolarından proje ekranı, gider formu, cari ekstre |

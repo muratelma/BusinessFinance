@@ -59,15 +59,20 @@
       ₺44.950 durumu `11` karesinde.
 - ~~bütçe kurulumu / export / yedek~~ — kapsam dışı (kullanıcı, 10 Eyl)
 
-### Faz 2 — Boşluk koşumu: Wallet
-- [ ] Hesap durumu kontrol (deneme hesabı açıktı); çekirdek 5 işlem Ağustos tarihli
-- [ ] Kredi kartı harcaması + ödemesi (kart hesabı davranışı)
-- [ ] B1 tekrarlayan gider canlı oluştur + üretim davranışı
-- [ ] B2 taksit planı canlı kur + ekstre/borç etkisi
-- [ ] Planned payments / Debts / Goals / Budgets **oluştur** (yalnız boş durum görülmüştü)
-- [ ] Split transaction
-- [ ] Eksik kareler → `gozlemler/wallet-budgetbakers.md` güncelle
-- ~~export~~ kapsam dışı
+### Faz 2 — Boşluk koşumu: Wallet  *(yapay zekâ sürdü, 10 Eyl 2026 — TAMAM)*
+- [x] Kullanıcı yeni emülatörde giriş yaptı; bulut verisi (Tur 1 çekirdek 5 + 3 hesap) geri geldi
+- [x] Çekirdek doğrulama: 5 işlem doğru Ağustos tarihli, kontrol değerleri birebir (net ₺22.950)
+- [x] Kredi kartı modeli: **basit negatif bakiye** — ekstre kesim/dönem yok, tek son ödeme tarihi (hatırlatıcı), limit + "Available Credit/Balance" gösterim seçeneği. Kart ödemesi ayrı buton değil, Ana Hesap→Kart transferi → **kısmi ödeme** = küçük transfer
+- [x] B1 tekrarlayan (₺600/ay) canlı: Planned payments → Recurrent. **Geçmiş tarihe kurulamıyor** (10 Ağu reddedildi → 10 Eyl). Tanım para üretmez; her örnek **bekleyen** + Confirm/Postpone/Dismiss; Confirm'de tutar düzenlenebilir "Payment summary". İlk onayda **plan bazında** "otomatik mi / onaylı mı" sorusu → "onaylı" seçildi. Yalnız sonraki örnek listelenir. Kareler `15`–`20`, `33`
+- [x] B2 taksit: **Wallet'ta taksit özelliği YOK.** ₺6.000 tek kart harcaması → tüm tutar aynı gün borç + tüm tutar o ayın gideri. Kareler `21`–`24`
+- [x] Budgets **canlı kuruldu**: period + amount + kategori **+ hesap** filtresi; kart harcamasının tam tutarını sayar; Forecasted Spend + over-budget toast. Kareler `26`–`29`
+- [x] Goals **canlı kuruldu**: hedef/biriken/tarih. Kareler `30`–`32`
+- [x] Debts: form görüldü (I Lent/I Borrowed, kayda bağla/bağlama, **hesap zorunlu → bakiye hareket eder**); kayıt oluşturulamadı (rehber izni tuzağı). Kareler `34`–`36`
+- [x] Split transaction: kaydı alt-kayda oyma akışı görüldü (`38`, `39`)
+- [x] Fiş / kamera: **OCR yok** — yalnız dosya/foto eki (`40`)
+- [x] `gozlemler/wallet-budgetbakers.md` güncellendi (yeni "Faz 2 boşluk koşumu" bölümü + 13 karar satırı); kareler `10`–`40`
+- **Wallet Faz 2 TAMAM.** Veri: Ana Hesap ₺20.200 · Ortak Cuzdan ₺2.150 · İş Kartı −₺6.000 · net ₺16.350. Tur 2'ye seçilirse bulut sıfırlanır.
+- ~~export / onboarding~~ kapsam dışı
 
 ### Faz 3 — Boşluk koşumu: Bluecoins
 - [ ] Çekirdek 5 işlem Ağustos tarihli (kontrol değerleri)
