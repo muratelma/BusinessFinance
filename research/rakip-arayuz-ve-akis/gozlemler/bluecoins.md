@@ -5,12 +5,12 @@
 | Alan | Değer |
 |---|---|
 | Uygulama / geliştirici | Bluecoins Finance & Budget / Mabuhay Software |
-| Sürüm | 13.1.45 (`versionCode=33111`) |
-| Test tarihi | 1 Eylül 2026 |
+| Sürüm | 13.1.45 (`versionCode=33111`) · Faz 3'te aynı sürüm, kurulum 2026-09-07 |
+| Test tarihi | 1 Eylül 2026 (Tur 1, eski PC) · **10 Eylül 2026 (Faz 3 boşluk koşumu, yeni emülatör)** |
 | Cihaz / işletim sistemi | Android emülatör `emulator-5554` (1080x2400) |
-| Dil / para birimi | Türkçe / TRY |
-| Hesap veya plan türü | Yerel ücretsiz sürüm; reklam ve uygulama içi satın alma içeriyor |
-| Erişim kısıtı | Kayıt/giriş yok; PDF/yazıcı, CSV ve HTML dışa aktarma menüsü Premium yükseltme yüzeyinde gösterildi |
+| Dil / para birimi | Türkçe / TRY (sistem dilini alıyor) |
+| Hesap veya plan türü | Yerel ücretsiz sürüm; **bulut senkronizasyonu / giriş yok** → Faz 3'te yeni emülatörde Tur 1 verisi **yoktu**, tam yeniden koşum yapıldı (Money Manager Faz 1 gibi). Hazır gelen ₺0 örnek hesaplar (Birikimler, Çek, Cüzdan, Kredi Kartı, Ev İpoteği) silinmedi, net varlığa etkisi yok. |
+| Erişim kısıtı | Kayıt/giriş yok; PDF/yazıcı, CSV ve HTML dışa aktarma Premium. **Kararsızlık:** transfer kaydından sonra "Varsayılan klasörü bulamıyor" diyaloğu UI'yi kilitledi; force-stop + yeniden başlatma ile kurtarıldı (yerel DB'de veri kaldı). |
 
 ## Görev gözlemleri
 
@@ -39,6 +39,17 @@
 
 Transfer ve kart ödemesi listede kaynak/hedef için ayrı satırlar oluşturdu,
 fakat tarih başlığındaki toplamı ve gider raporunu ikinci kez etkilemedi.
+
+**Faz 3 (10 Eyl 2026)** — yeni emülatörde 3 hesap (Ana Hesap ₺20.000 Banka, Ortak
+Cuzdan ₺2.000 Nakit, Is Karti ₺0 Kredi Kartı) + 5 çekirdek işlem Ağustos 2026
+tarihleriyle yeniden girildi. Kontrol birebir tuttu: **Net Kazançlar Ağustos —
+Gelir ₺25.000,00 / Gider −₺2.050,00 / Net ₺22.950,00**; **Net Kazanç Eylül —
+Varlıklar ₺44.950,00 / Cari hesap ₺0,00 / Net Kazanç ₺44.950,00** (açılış
+bakiyeleri "bugün" tarihli düştüğü için Ağustos satırı ₺22.950, güncel ₺44.950).
+İş Kartı ₺0, Ana Hesap ₺40.800. Transfer + kart ödemesi gün toplamında ₺0.
+Kareler `11`, `15`, `16`. Not: açılış tarihi emülatörde içinde bulunulan aydan
+öncesine çekilemedi (takvim/hesap-makinesi etkileşimi); açılışlar 10 Eyl tarihli
+kaldı — güncel bakiyeyi ve aylık gelir/gider raporunu etkilemiyor.
 
 ## Arayüz taraması (görev dışı, ~10 dk)
 
@@ -73,7 +84,99 @@ fakat tarih başlığındaki toplamı ve gider raporunu ikinci kez etkilemedi.
 - Uygulamanın hedef kullanıcı varsayımı: Finansal model ayrıntısı isteyen ileri seviye kişisel bütçe kullanıcısı; çok hesap, kredi, ipotek ve rapor kullanıyor.
 - İşletme ve şahsi para yaklaşımı: **Yok.** Kategori/etiket mevcut ama özel kapsam boyutu değil.
 - Transfer ve kart ödemesi yaklaşımı: Ayrı transfer türü, çift bağlı satır, gün toplamında sıfır; kart ödemesi ikinci kez gider değil.
-- Planlama, borç ve tahsilat yaklaşımı: Planlı işlem, hatırlatıcı, kredi/ipotek ve taksit alanları var; cari hesap tür adı görülse de işletme carisi/tahsilat bağı Tur 1'de doğrulanmadı.
+- Planlama, borç ve tahsilat yaklaşımı: Planlı işlem, hatırlatıcı, kredi/ipotek ve taksit alanları var; cari hesap tür adı görülse de işletme carisi/tahsilat bağı Tur 1'de doğrulanmadı (Faz 3'te de cari↔tahsilat bağı koşulmadı; B1/B2 canlı kuruldu).
+
+## Faz 3 boşluk koşumu (10 Eyl 2026) — taksit, tekrarlayan, kart, hatırlatıcı
+
+Yeni emülatörde tam yeniden koşum (bulut yok). Kareler `kanitlar/bluecoins/10`–`28`.
+
+### İşlem formu — tek yoğun ekran
+
+İsim + tarih/saat + **Planlı İşlemler** (tekrar) düğmesi + tutar (kırmızı −
+GİDER / yeşil + GELİR, hesap makinesi widget'ı) + kategori + hesap + (kart
+seçilince) **Taksit şartlarını seçin** + Bölmek + Durum + Etiket + Not. Alt bar:
+GİDER / GELİR / TRANSFER + yeşil kaydet. Kare `12`. Hesap makinesi widget'ı bazen
+donuyor (emülatör tuzağı) — tutar alanına doğrudan dokunup klavyeyle yazmak çalışır.
+
+### Kredi kartı modeli
+
+Kart, "Cari Hesap" grubunda **negatif bakiyeli** bir hesap. Kart hesabı seçilince
+işlem formunda **"Taksit şartlarını seçin"** alanı dinamik olarak beliriyor
+(kare `12`). Kart ödemesi Tur 1'deki gibi Ana Hesap → İş Kartı **transferi**
+(raporda nötr); ayrı "kartı öde" akışı yok → **kısmi ödeme** = daha küçük transfer
+(Wallet ile aynı, önemsiz). Ekstre kesim/dönem kavramı Faz 3'te aranmadı.
+
+### Taksit (B2 — tasarım ekipmanı ₺6.000, canlı test 10 Eyl) — Bluecoins'in ayırt edici özelliği
+
+"Taksit şartlarını seçin" → alt sayfa (`17`): **Taksit oranı** (faiz %,
+düzenlenebilir, 0 bırakıldı) + **ay sayısı** dropdown (2/3/6/9/12/15/18/21/24 ay
++ **Özel**) + **İlk ödeme** tarihi. Kuruldu: 6 ay, %0, ilk ödeme 15 Ağustos 2026.
+Onaylayınca form üstünde açıklama: *"15 Ağustos 2026 günü başlayıp 1.000,00'e
+kadar 6 aylık hatırlatıcılar oluşturulacak"* (`19`).
+
+Kaydettikten sonra gözlemler:
+- **₺6.000 → 6 × ₺1.000'e bölündü.** Tam tutar bir kerede yazılmadı.
+- **Taksit 1/6 anında gerçek harcama:** ilk-ödeme tarihinde (15 Ağu) İşlemler
+  listesine "Tasarim ekipmani · Others · 1 / 6 · −₺1.000" olarak düştü; kart
+  borcu −₺1.000, **Ağustos gideri +₺1.000** (rapor ₺2.050 → ₺3.050). Kareler
+  `20`, `22`.
+- **Taksit 2/6–6/6 aylık hatırlatıcı:** Hatırlatıcılar sekmesinde "15 Eyl 2/6",
+  "15 Eki 3/6", "15 Kas 4/6", "15 Ara 5/6", "15 Oca 6/6" — her biri −₺1.000,
+  İş Kartı. Kare `21`.
+- **BusinessFinance `InstallmentPlan`'a çok yakın** (per-item realize): plan
+  niyet, her taksit ayrı gerçekleşir. **Tek fark:** ilk taksit otomatik yazılıyor,
+  BusinessFinance'te ilki de açık realize ister.
+
+### Tekrarlayan işlem (B1 — aylık ₺600 abonelik, canlı test 10 Eyl)
+
+Formda **"Planlı İşlemler"** → alt sayfa (`23`): sıklık çipleri **Bir Defa /
+Günlük / Haftalık / Aylık / Yıllık**; Aylık'ta → "Her ay tekrarla" (her N ay) +
+Tekrarla: **Ayın günü / Haftanın günü** + Tarih + **Son Ödeme Tarihi: Asla /
+1 etkinlik sonra / Son Tarih** + checkbox **"Vade tarihinde otomatik olarak
+işlem olarak girin"** (otomatik mi onaylı mı). Kuruldu: Aylık, başlangıç
+**10 Ağustos 2026** (geçmiş), otomatik checkbox **KAPALI**. Form üstünde banner:
+"(Yenilenen işlem) Her ay tekrarla 10 Ağustos 2026" (`24`).
+
+Gözlemler:
+- **Geçmiş tarihe kurulabiliyor** (Wallet'ın aksine — Wallet içinde bulunulan
+  aydan öncesine izin vermiyordu). Kare `23`.
+- **Tanım tek başına hiçbir şey üretmez** — kaydettikten sonra Ağustos gideri
+  değişmedi, İşlemler listesine kayıt düşmedi (`28` öncesi rapor hâlâ ₺3.050).
+  **BusinessFinance `RecurringTransaction` ile birebir.**
+- Geçmiş + bugünkü + gelecek **tüm occurrence'lar Hatırlatıcılar sekmesinde
+  bekliyor:** geçmiş = *"31 gün gecikmeli"* (kırmızı), bugünkü = *"Bugün süresi
+  doluyor"* (turuncu), gelecek = tarihli. Otomatik yazılan **yok**. Kare `25`.
+  (Money Manager geçmiş/bugünkü occurrence'ı **otomatik** yazıyordu — Bluecoins yazmaz.)
+- Occurrence detayında **[Kaydet] [Düzenle]** (`26`). **Kaydet** → *"İşlem Olarak
+  Kaydet? **Bugün** / **10 Ağustos 2026**"* sorusu (`27`) → seçilen tarihle
+  gerçek işleme dönüşür, hatırlatıcı listesinden düşer, seri devam eder.
+- 10 Ağu occurrence'ı "10 Ağustos" tarihiyle onaylandı → **Ağustos gideri
+  ₺3.050 → ₺3.650**, Ana Hesap −₺600, net varlık ₺44.350 → ₺43.350. Kare `28`.
+- **Tüm rakiplerin içinde BusinessFinance'e en yakın tekrarlayan model.**
+
+### Transfer detayı
+
+Kayıt detayı: iki bağlı satır + her satırda işlem sonrası bakiye + **"Benzer
+işlemler göster"** + **"Yinelenmek"** (transferi tekrarlı yapma) + Düzenle.
+
+### Hatırlatıcılar sekmesi = birleşik bekleyen görünüm
+
+Hem tekrarlayan hem taksit occurrence'ları burada, **tarih sıralı**, tek listede;
+gecikmeli / bugün / gelecek etiketli. BusinessFinance'in "planlanan projeksiyonu"
+ile aynı iş (`readiness`/`attentionCode` benzeri gecikme etiketleri).
+
+### Fiş / kamera
+
+İsim alanının yanında ataç ikonu = **ek dosya** (Tur 1 ile tutarlı). OCR /
+fiş-okuma özelliği görülmedi, pazarlanmıyor. (Emülatörde klavye çubuğu tuzağı
+nedeniyle ek akışı Faz 3'te açılamadı — yapı Tur 1'den biliniyor.)
+
+### Faz 3 sonrası veri durumu
+
+Ana Hesap ₺40.200 · Ortak Cuzdan ₺4.150 · İş Kartı −₺1.000 · net ₺43.350.
+Ek: B1 tekrarlayan serisi (sonraki vade 10 Eyl, "bugün süresi doluyor"),
+B2 taksit hatırlatıcıları 2/6–6/6. Bluecoins Tur 2'ye seçilirse dosya sıfırlanıp
+yeniden girilir.
 
 ## BusinessFinance için kararlar
 
@@ -90,14 +193,28 @@ fakat tarih başlığındaki toplamı ve gider raporunu ikinci kez etkilemedi.
 | Doğrudan düzenleme + kalıcı silme | Alma | Finansal geçmiş korunmuyor; BusinessFinance düzeltme ve iptal kaydı kullanır | Kayıt detayı |
 | Transferi iki bağlı satır ve iki running balance ile gösterme | Uyarlayarak al | Kaynak/hedef etkisi güçlü; tek olay oldukları görsel bağla daha açık tutulmalı | Transfer detayı ve feed |
 | İşletme/şahsi boyutunun olmaması | Alma | ADR 0013'ün temel ihtiyacını karşılamıyor | İşlem formu ve rapor filtresi |
+| Tekrarlayan tanımının hiçbir şey üretmemesi + occurrence'ların bekleyen hatırlatıcı olması | Doğrudan al | BusinessFinance `RecurringTransaction` + occurrence → realize modeliyle birebir; tüm rakiplerin en yakını | Planlanan görünüm / tekrarlayan plan |
+| Geçmiş tarihli tekrarlayanı otomatik yazmayıp "X gün gecikmeli" hatırlatıcı yapma | Doğrudan al | Geçmiş occurrence geçmiştir ama yine de açık onay ister; MM'in sessiz otomatik yazımının tersi (doğru olan bu) | Planlanan görünüm |
+| Occurrence onayında "bugün mü / planlanan tarih mi" sorusu | Uyarlayarak al | Gecikmeli occurrence hangi döneme yazılacak — kullanıcıya sormak doğru; bizde realize isteği tutar/tarih taşıyor | Occurrence realize |
+| Taksit planını N eşit parçaya bölüp her ayına bir kayıt/hatırlatıcı üretme | Doğrudan al | BusinessFinance `InstallmentPlan` per-item realize ile aynı; TR pazarında taksit yaygın | Kart harcaması / taksit planı |
+| İlk taksiti otomatik yazma (kalanları hatırlatıcı) | Uyarlayarak al | Kolaylık ama bizde ilk taksit de açık realize ister — plan hiçbir şey üretmez ilkesi | Taksit planı kurulumu |
+| Taksitte faiz oranı alanı | Henüz karar verme | KDV gibi taşınan bir alan olabilir; hesaplama yapılmamalı (ADR 0016 mantığı) | Taksit planı |
+| Hatırlatıcılar sekmesi = tekrarlayan + taksit occurrence'larının tarih sıralı birleşik listesi | Doğrudan al | Bizim planlanan projeksiyonumuzla aynı iş; gecikme etiketleri `attentionCode`'a karşılık | Planlanan görünüm |
+| "Yinelenmek" (kaydı çoğaltma) transfer detayında | Henüz karar verme | Benzer transferi hızlı tekrar; küçük kolaylık | Kayıt detayı |
+| Fiş = ataç eki, OCR yok | Not | Bluecoins'te fiş okuma yok; ADR 0011 öneri katmanı bizde ayrı | İşlem eki |
 
 ## Kanıt ve güven düzeyi
 
-- Manuel gözlem: K00–K08 emülatörde sentetik veriyle tamamlandı; bütün bakiye kontrol değerleri birebir tuttu.
+- Manuel gözlem (Tur 1): K00–K08 emülatörde sentetik veriyle tamamlandı; bütün bakiye kontrol değerleri birebir tuttu.
+- Manuel gözlem (Faz 3, 10 Eyl): tam yeniden koşum — 3 hesap + 5 çekirdek (kontrol ₺44.950 birebir) + **B2 taksit** (6 ay, ₺6.000 → 6×₺1.000, ilk taksit anında + 5 hatırlatıcı) + **B1 tekrarlayan** (aylık, geçmiş tarihli, tanım hiçbir şey üretmiyor, occurrence'lar bekliyor, Kaydet → materyalize). Kareler `10`–`28`.
 - Resmî kaynak: —
-- Yorum: Bluecoins para modeli BusinessFinance'e güçlü bir teknik referans, fakat bilgi mimarisi hedef esnaf için gereğinden geniş.
-- Doğrulanamadı: Tur 2 planlı/taksitli/cari derin akışlar, yedek/geri yükleme, Android widget'ı ve Premium dışa aktarmanın son adımı.
+- Yorum: Bluecoins'in tekrarlayan + taksit modeli **tüm rakipler içinde BusinessFinance'e en yakın olanı** (tanım üretmez, occurrence realize edilir). Buna karşılık bilgi mimarisi hedef esnaf için gereğinden geniş ve uygulama emülatörde kararsız (sync klasörü diyaloğu UI'yi kilitledi).
+- Doğrulanamadı: Cari hesap → tahsilat bağı, bağımsız hatırlatıcı oluşturma, taksitte auto-checkbox ile "otomatik" kol, ekstre kesim/dönem modeli, yedek/geri yükleme, Android widget'ı, fiş ek akışı (emülatör klavye tuzağı), Premium dışa aktarmanın son adımı.
 
 ## Tek cümlelik sonuç
 
-Bluecoins açılış bakiyesi, running balance, nötr transfer ve dinamik kart/taksit alanlarıyla en güçlü para modeli referansı; ancak yoğun formu, geniş hesap evreni, sıfır tutarı kabul etmesi ve silme yaklaşımı BusinessFinance için sadeleştirilmesi gereken negatif örnekler.
+Bluecoins açılış bakiyesi, running balance, nötr transfer, dinamik kart/taksit
+alanları ve **BusinessFinance'e birebir oturan tekrarlayan/taksit "tanım üretmez,
+occurrence realize edilir" modeliyle** en güçlü para modeli referansı; ancak yoğun
+formu, geniş hesap evreni, sıfır tutarı kabul etmesi, silme yaklaşımı ve emülatör
+kararsızlığı BusinessFinance için sadeleştirilmesi ve dikkat edilmesi gereken noktalar.

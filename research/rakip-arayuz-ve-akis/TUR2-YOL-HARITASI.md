@@ -74,14 +74,17 @@
 - **Wallet Faz 2 TAMAM.** Veri: Ana Hesap ₺20.200 · Ortak Cuzdan ₺2.150 · İş Kartı −₺6.000 · net ₺16.350. Tur 2'ye seçilirse bulut sıfırlanır.
 - ~~export / onboarding~~ kapsam dışı
 
-### Faz 3 — Boşluk koşumu: Bluecoins
-- [ ] Çekirdek 5 işlem Ağustos tarihli (kontrol değerleri)
-- [ ] Kredi kartı harcaması + ödemesi
-- [ ] B1 tekrarlayan (Planlı İşlem) canlı oluştur + üretim davranışı
-- [ ] B2 taksit planı canlı kur (kart giderinde "Taksit şartlarını seçin")
-- [ ] Cari hesap türü → tahsilat bağı
-- [ ] Hatırlatıcı oluştur
-- [ ] Eksik kareler → `gozlemler/bluecoins.md` güncelle
+### Faz 3 — Boşluk koşumu: Bluecoins  *(yapay zekâ sürdü, 10 Eyl 2026 — TAMAM)*
+- [x] Bulut yok → tam yeniden koşum. 3 hesap (Ana Hesap ₺20.000 / Ortak Cuzdan ₺2.000 / Is Karti ₺0)
+- [x] Çekirdek 5 işlem Ağustos tarihli; kontrol birebir (Net Kazanç ₺44.950, İş Kartı ₺0, Ana Hesap ₺40.800)
+- [x] Kredi kartı = negatif bakiyeli hesap (Cari Hesap grubu); kart seçilince "Taksit şartlarını seçin" dinamik alan
+- [x] **B2 taksit canlı:** oran (%) + ay sayısı (2–24 + Özel) + ilk ödeme tarihi. ₺6.000 → 6×₺1.000. **Taksit 1/6 anında gerçek harcama** (ilk-ödeme tarihinde, "1/6" etiket, kart borcu −₺1.000, Ağustos gideri +₺1.000). **2/6–6/6 aylık hatırlatıcı.** BusinessFinance InstallmentPlan'a çok yakın. Kareler `17`–`22`
+- [x] **B1 tekrarlayan canlı:** "Planlı İşlemler" → Bir Defa/Günlük/Haftalık/Aylık/Yıllık + ayın günü + son ödeme + otomatik checkbox. **Geçmiş tarihe kurulabiliyor.** Tanım hiçbir şey üretmez. Geçmiş/bugün/gelecek occurrence'lar Hatırlatıcılar'da bekliyor ("31 gün gecikmeli"/"bugün süresi doluyor"). Kaydet → "bugün mü / planlanan tarih mi" → materyalize. **Tüm rakiplerin BusinessFinance'e en yakını.** Kareler `23`–`28`
+- [x] Hatırlatıcılar sekmesi = tekrarlayan + taksit occurrence'larının birleşik tarih-sıralı listesi
+- [ ] Cari hesap → tahsilat bağı — **koşulmadı** (Tur 2'ye)
+- [ ] Bağımsız hatırlatıcı — mekanizma B1/B2'de yeterince görüldü
+- [x] `gozlemler/bluecoins.md` güncellendi (yeni "Faz 3 boşluk koşumu" bölümü + 11 karar satırı); kareler `10`–`28`
+- **Bluecoins Faz 3 TAMAM.** Veri: Ana Hesap ₺40.200 · Ortak Cuzdan ₺4.150 · İş Kartı −₺1.000 · net ₺43.350. Emülatörde kararsız (sync klasörü diyaloğu UI kilitledi → force-stop).
 - ~~yedek / CSV-PDF export~~ kapsam dışı
 
 ### Faz 4 — Yeni uygulama: Goodbudget

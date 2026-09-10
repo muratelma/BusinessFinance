@@ -28,7 +28,17 @@ derin koşum Faz 7, belgeler Faz 8.
   eder — ADR 0014'ün tersi); split akışı görüldü; **fiş OCR yok** (dosya/foto eki).
   UI İngilizce (sistem dilini almıyor). 31 kare (`10`–`40`). Veri sonu: net ₺16.350.
 
-**Sıradaki → Faz 3: Bluecoins boşluk koşumu.**
+- **Faz 3 — Bluecoins:** bulut yok → tam yeniden koşum. 3 hesap + 5 çekirdek
+  (kontrol ₺44.950 birebir). **B2 taksit** = oran + ay sayısı (2–24 + Özel) +
+  ilk ödeme; ₺6.000 → 6×₺1.000, taksit 1/6 anında + 5 aylık hatırlatıcı
+  (InstallmentPlan'a çok yakın). **B1 tekrarlayan** = "Planlı İşlemler"; geçmiş
+  tarihe kurulabiliyor, **tanım hiçbir şey üretmez**, tüm occurrence'lar
+  Hatırlatıcılar'da bekliyor, Kaydet → "bugün/planlanan tarih" → materyalize.
+  **Tüm rakiplerin BusinessFinance'e en yakın tekrarlayan/taksit modeli.**
+  Emülatörde kararsız (sync klasörü diyaloğu UI kilitledi). 19 kare (`10`–`28`).
+  Veri sonu: net ₺43.350.
+
+**Sıradaki → Faz 4: Goodbudget (kullanıcı önce indirir + hesap açar + elle bakar).**
 
 ---
 
@@ -94,7 +104,11 @@ adıyla, transkript ilgili gözlem formunun "Ek — video transkripti" bölümü
    kredi kartı negatif-bakiye modeli + B1 tekrarlayan (bekleyen/Confirm) +
    B2 taksit (özellik yok) + Budget/Goal canlı kurulum + Debt formu + split +
    fiş OCR yok. 31 kare (`10`–`40`), form güncellendi.
-7c. ⏳ **Faz 3:** Bluecoins boşluk koşumu (emülatör).
+7c. ✅ (10 Eyl) **Faz 3:** Bluecoins boşluk koşumu TAM — tam yeniden koşum
+   (bulut yok), çekirdek doğrulama + B2 taksit (oran/ay/ilk-ödeme, 6×₺1.000,
+   1/6 anında + hatırlatıcılar) + B1 tekrarlayan (geçmişe kurulur, tanım üretmez,
+   occurrence realize). 19 kare (`10`–`28`), form güncellendi.
+7d. ⏳ **Faz 4:** Goodbudget (kullanıcı indirir + hesap açar + elle bakar).
 8. ⏳ **Faz 4:** Goodbudget (kullanıcı önce elle bakar) → Faz 5 Tur 2 seçimi.
 7. Belge 1 ve 2 taslakları yazılır → onaydan sonra Belge 3.
 
@@ -161,7 +175,7 @@ Yorum, gözlenmiş ürün davranışı gibi yazılmaz.
 | 4 | KolayBi | `com.kolaybi.mobil` | Girilemedi → resmî kaynak | 1 giriş + 7 video karesi (~2020 web + 1 güncel 2026) + transkript | Yazıldı + 9 Eyl derinleştirildi + **10 Eyl video + transkript** | Mobilde kayıt yok. Güncel Durum panosu (nakit akışı + vadesi gelmemiş/geçmiş/belirsiz), kurulum sırası (cari→ürün→finans), **"Ortaklar/Personel Carileri"** ile patron parası (ADR 0013 farkının 2. kanıtı), KDV üründen hesaplanıyor, kısmi ödeme ekranda. Proje ekranı videoda yok → Tur 2 |
 | 5 | QuickBooks Solopreneur | `com.intuit.quickbooks` | Girilemedi → resmî kaynak | 4 (onboarding→paywall) | **Yazıldı (9 Eyl)** — yeni şablonla | İşlem başına tek "Type: Business/Personal" alanı → **ADR 0013'ün kavramsal en yakın rakibi**. Ama ayrım ABD Schedule C vergi eksenli; banka bağlantısı + vergi hesaplama bizde kapsam dışı. Split transaction (kalem başına işletme/şahsi) + Rules motoru + tahmini vergi |
 | 6 | Wallet by BudgetBakers | `com.droid4you.application.wallet` | Tamamlandı + **Faz 2** | 9 + **31 (`10`–`40`)** | Yazıldı + **10 Eyl Faz 2** | 1 Eyl K01–K08 + arayüz taraması. **Faz 2 (10 Eyl):** çekirdek doğrulama (net ₺22.950); kredi kartı = dönemsiz negatif bakiye; B1 tekrarlayan = Planned payments/Recurrent — geçmişe kurulamaz, her örnek bekleyen + Confirm/Postpone/Dismiss (realize'e en yakın), ilk onayda otomatik/onaylı plan-bazlı seçim; **B2 taksit özelliği YOK** (tek parça); Budget (kategori+hesap filtresi) + Goal canlı; Debt hesap zorunlu → bakiye hareket eder; fiş OCR yok. UI İngilizce. İşletme/şahsi `Desteklenmiyor` |
-| 7 | Bluecoins | `com.rammigsoftware.bluecoins` | Tamamlandı | 10 (+arayüz turu) | Yazıldı | 1 Eyl; K00–K08 + arayüz taraması. Kontrol bakiyeleri birebir; transfer/kart ödemesi nötr; işletme/şahsi ayrımı `Desteklenmiyor`; sıfır tutarlı kayıt kabul ediliyor |
+| 7 | Bluecoins | `com.rammigsoftware.bluecoins` | Tamamlandı + **Faz 3** | 10 + **19 (`10`–`28`)** | Yazıldı + **10 Eyl Faz 3** | 1 Eyl K00–K08 + arayüz taraması. **Faz 3 (10 Eyl):** bulut yok → tam yeniden koşum; kontrol ₺44.950 birebir. **B2 taksit** = oran + ay sayısı (2–24+Özel) + ilk-ödeme; ₺6.000→6×₺1.000, 1/6 anında + 5 hatırlatıcı. **B1 tekrarlayan** = geçmişe kurulur, **tanım hiçbir şey üretmez**, occurrence'lar Hatırlatıcılar'da bekler, Kaydet→materyalize. **Tekrarlayan/taksit modeli tüm rakiplerin BusinessFinance'e en yakını.** Emülatörde kararsız. İşletme/şahsi `Desteklenmiyor` |
 
 Sonuç değerleri: `Başlanmadı` · `Sürüyor` · `Tamamlandı` · `Kısmi` · `Engelli`
 · `Ücretli` · `Desteklenmiyor`.
@@ -198,7 +212,7 @@ taksit** (`SENTETIK-TEST-VERISI.md`) + formun kendi eksik listesi.
 |---|---|---|
 | Money Manager | "Yapımıza en yakın" adayı — para modeli birebir | ✅ çekirdek + kart modeli + Ödeme + Tekrar/Taksit menüsü + açılış bakiyesi (10 Eyl). **Kalan:** B1/B2 canlı kurma |
 | Wallet (BudgetBakers) | Finansal UX referansı — dashboard, rapor okunabilirliği; tekrarlayan "bekleyen→onayla" bize çok yakın | ✅ Faz 2 TAM (10 Eyl). Artı: BusinessFinance'e yakın tekrarlayan akış. Eksi: taksit yok, dönemsiz kart, İngilizce UI, işletme/şahsi yok |
-| Bluecoins | En geniş para modeli — net varlık, borç, hatırlatıcı | Çekirdek + kart + B1/B2 + cari↔tahsilat + hatırlatıcı |
+| Bluecoins | En geniş para modeli; tekrarlayan/taksit "tanım üretmez, occurrence realize" bize birebir | ✅ Faz 3 TAM (10 Eyl). Artı: BusinessFinance'e en yakın tekrarlayan/taksit modeli, gerçek taksit özelliği. Eksi: yoğun form, geniş hesap evreni, emülatörde kararsız, işletme/şahsi yok. Kalan: cari↔tahsilat |
 | Goodbudget (yeni) | "Ön muhasebe dışı, bütçe odaklı, bizden farklı" — dijital zarf | Faz 4: K00–K08 + arayüz taraması (kullanıcı önce elle bakar) |
 | KolayBi | Türk ön muhasebe temsilcisi (masa başı) | Faz 6: Kullanım Rehberi videolarından proje ekranı, gider formu, cari ekstre |
 
