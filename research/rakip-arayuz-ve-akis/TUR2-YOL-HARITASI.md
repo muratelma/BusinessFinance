@@ -20,14 +20,27 @@
 - **Belge planı:** Belge 1 (arayüz) ve Belge 2 (akış) **tüm** uygulamaları
   genel anlatır; Tur 2 uygulamaları daha ayrıntılı (daha çok veri). Belge 3
   (öneri) **tüm** uygulamalar için. Karar filtresi yalnız Belge 3'te.
-- **Yeni uygulama:** Goodbudget (dijital zarf bütçe — "harcamadan önce dağıt";
-  bizim "kaydet sonra raporla" modelimizin tersi; elle giriş, banka bağlama
-  yok → bizimle aynı giriş modeli, tek fark felsefe). Yedek: YNAB / Spendee.
+- **"Bize benzemeyen" 3. slot için iki aday (10 Eyl güncellendi):**
+  - **Goodbudget** (`com.dayspringtech.envelopes`) — dijital zarf bütçe,
+    "harcamadan önce dağıt"; bizim "kaydet sonra raporla" modelimizin tersi;
+    elle giriş, banka bağlama yok. Household hesabı gerekiyor.
+  - **Hesap Defterim / Cash Book** (`cashbook.cashbook`, Ankit Saraf) —
+    *kullanıcı 10 Eyl'de buldu.* Hint kökenli "khatabook" türü, Türkçe'ye
+    yerelleşmiş **esnaf kasa/veresiye defteri**. Alındı/Ödendi → Denge (tek
+    yürüyen bakiye), çok defter, müşteri veresiyesi takibi, fiş foto, PDF+Excel
+    rapor. Kayıt yok. 5M+ indirme, 4,7★. TR pazarı + hedef kullanıcıya (esnaf)
+    daha yakın → **yapay zekâ önerisi: 3. slot için Goodbudget'a tercih edilir.**
+  - Yedek: YNAB / Spendee.
 - **Emülatör:** Bir uygulama, sırayla (paralel AVD yok). Yapay zekâ adb ile
   sürer; kayıt/SMS/hata kapılarında kullanıcıya devreder, kullanıcı bitirince
   devam eder. `emulator-5554`, Android 17.
-- **Tur 2 nihai yapısı:** KolayBi (masa başı) + {Money Manager | Wallet |
-  Bluecoins}'ten 1 + Goodbudget (elle bakıştan geçerse). Faz 5'te kesinleşir.
+- **Tur 2 nihai yapısı adayı (Faz 5'te kesinleşir):** KolayBi (masa başı) +
+  **Bluecoins** ("yapımıza en yakın" — tekrarlayan/taksit/planlanan modeli
+  bizimle birebir; yapay zekâ önerisi: **kilitlensin**) + **{Hesap Defterim |
+  Goodbudget}'ten 1** ("bize benzemeyen" slot).
+  - Not: Money Manager ve Wallet "yapımıza en yakın" slot için ikinci sıra —
+    MM arayüz sadeliği referansı, Wallet dashboard referansı. Faz 5'te Bluecoins
+    kesinleşmezse bu ikisinden biri.
 
 ## Fazlar
 
@@ -89,17 +102,24 @@
 - **Bluecoins Faz 3 TAMAM.** Veri: Ana Hesap ₺39.700 · Ortak Cuzdan ₺4.150 · İş Kartı −₺500 · Ada Reklam cari ₺0 · net ₺43.350. Emülatörde kararsız (modal diyaloglar dokunuşu işlemiyor → force-stop / keyevent).
 - ~~yedek / CSV-PDF export~~ kapsam dışı
 
-### Faz 4 — Yeni uygulama: Goodbudget
-- [ ] **Kullanıcı:** Play Store'dan indir → e-posta ile hesap → 10 dk gezinti
-      → beğeni kararı
-- [ ] Geçerse: K00–K08 + arayüz taraması + sistem işleyişi (Tur 1 protokolü)
-- [ ] Geçmezse: YNAB veya Spendee'ye geç, fazı tekrarla
-- [ ] Yeni `gozlemler/goodbudget.md`; `MANUEL-TEST-PROTOKOLU.md` + `DURUM.md`
-      tablosuna ekle
+### Faz 4 — "Bize benzemeyen" 3. slot: Hesap Defterim + Goodbudget elle gezinti
+İkisi de emülatörde yüklü (`cashbook.cashbook`, `com.dayspringtech.envelopes`).
+- [ ] **Kullanıcı:** **Hesap Defterim'i** ~15 dk gez (kayıt yok, direkt kullanılır).
+      Tek soru: esnaf minimal defter modeli Belge 3'e ne katıyor?
+- [ ] **Kullanıcı:** **Goodbudget'ı** ~15 dk gez (household hesabı açman gerek —
+      "Create New Household"). Tek soru: zarf arayüzü bizim bütçe ekranımızın
+      kaçırdığı ne gösteriyor?
+- [ ] İkisini kıyasla → **3. slot için birini seç** (yapay zekâ önerisi: Hesap
+      Defterim, TR/esnaf ilgisi için). Diğeri Tur 1 derinliğinde masa başı notu kalır.
+- [ ] Seçilen için: K00–K08 + arayüz taraması + sistem işleyişi (Tur 1 protokolü)
+- [ ] İkisi de zayıf gelirse: YNAB veya Spendee'ye geç
+- [ ] Yeni `gozlemler/<seçilen>.md`; `MANUEL-TEST-PROTOKOLU.md` + `DURUM.md`
+      tablosuna işle
 
 ### Faz 5 — Tur 2 seçimi
-- [ ] 4 uygulama eşit derinlikte kıyaslanır
-- [ ] Tur 2'nin 3'ü kesinleşir → `DURUM.md` "Tur 2" bölümü yazılır
+- [ ] Bluecoins'i "yapımıza en yakın" slota kilitle (kesinleşmezse MM veya Wallet)
+- [ ] Faz 4'ten çıkan "bize benzemeyen" uygulamayı 3. slota koy
+- [ ] Tur 2'nin 3'ü kesinleşir → `DURUM.md` "Tur 2" bölümü + "Kilit bulgular" güncellenir
 
 ### Faz 6 — KolayBi masa başı derinleştirme  *(Faz 1–5 boyunca paralel)*
 - [ ] **Kullanıcı:** "Kullanım Rehberi Bölüm 1/2" videoları → transkript + kareler

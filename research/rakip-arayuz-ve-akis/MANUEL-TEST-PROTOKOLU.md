@@ -2,10 +2,35 @@
 
 ## Amaç
 
-Yedi uygulamayı aynı görevler ve aynı sentetik verilerle karşılaştırmak;
+Rakip uygulamaları aynı görevler ve aynı sentetik verilerle karşılaştırmak;
 arayüz beğenisini ürün davranışından ayırmak ve Aşama 06.2 için kanıt üretmek.
 Bu bir QA kabul testi değildir: rakibin “doğru” davranmasını beklemeyiz,
 gözlenen davranışı kaydederiz.
+
+## İncelenen uygulamalar
+
+**Tur 1 çekirdek 7 uygulama** (`DURUM.md` Tur 1 tablosu):
+
+| # | Uygulama | Paket | Erişim |
+|---|---|---|---|
+| 1 | Money Manager (Realbyte) | `com.realbyteapps.moneymanagerfree` | Sürülebilir |
+| 2 | Paraşüt | `com.parasut` | Masa başı (kayıt web + ücretli) |
+| 3 | Logo İşbaşı | `com.isbasi` | Masa başı (Müşavir Portal) |
+| 4 | KolayBi | `com.kolaybi.mobil` | Masa başı |
+| 5 | QuickBooks Solopreneur | `com.intuit.quickbooks` | Masa başı (ödeme + bölge) |
+| 6 | Wallet by BudgetBakers | `com.droid4you.application.wallet` | Sürülebilir |
+| 7 | Bluecoins | `com.rammigsoftware.bluecoins` | Sürülebilir |
+
+**"Bize benzemeyen" 3. Tur 2 slotu için iki aday** (10 Eyl 2026 eklendi, Faz 4'te
+biri seçilecek):
+
+| # | Uygulama | Paket | Tür |
+|---|---|---|---|
+| 8 | Hesap Defterim (Cash Book / Ankit Saraf) | `cashbook.cashbook` | Esnaf kasa/veresiye defteri, TR yerelleşmiş, kayıt yok |
+| 9 | Goodbudget | `com.dayspringtech.envelopes` | Dijital zarf bütçe, household hesabı gerekli |
+
+Kendi uygulamalarımız (rakip değil, karşılaştırma zemini): `com.nef.business_finance_mobile`,
+`com.nef.personal_budget_mobile`.
 
 ## Test öncesi sabitler
 
