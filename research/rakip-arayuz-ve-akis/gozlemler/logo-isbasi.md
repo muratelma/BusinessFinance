@@ -10,7 +10,19 @@
 | Cihaz / işletim sistemi | Android emülatör `emulator-5554` (1080x2400) |
 | Dil / para birimi | Arayüz İngilizce etiketli (Login/Register/e-mail), içerik Türkçe |
 | Hesap veya plan türü | — |
-| Erişim kısıtı | **Kayıt engeli — iki katmanlı.** (1) Kayıt formu telefon + SMS doğrulaması istiyor, sahte numara sessizce reddediliyor. (2) 2 Eyl 2026: kullanıcı gerçek bilgiyle kayıt oldu; kayıttan sonra **"Hesabınız firmanıza özel hazırlanmaktadır, işlemler tamamlandığında e-posta ile bilgilendirileceksiniz"** pop-up'ı çıkıyor — anında deneme girişi yok, hesap satış/hazırlık sürecine giriyor (büyük ihtimalle ücretli). Uygulamaya hâlâ girilemedi |
+| Erişim kısıtı | **Kayıt engeli — iki katmanlı.** (1) Kayıt formu telefon + SMS doğrulaması istiyor, sahte numara sessizce reddediliyor. (2) 2 Eyl 2026: kullanıcı gerçek bilgiyle kayıt oldu; kayıttan sonra **"Hesabınız firmanıza özel hazırlanmaktadır, işlemler tamamlandığında e-posta ile bilgilendirileceksiniz"** pop-up'ı çıkıyor — hesap satış/hazırlık sürecine giriyor, uygulamaya giriş açılmadı. **Bu çalışmada uygulamaya girilemedi; inceleme tümüyle resmî kaynak.** |
+| İnceleme türü | **Resmî kaynak** (giriş/kayıt ekranları + kullanıcının izlediği tanıtım videosu 2 kare manuel gözlem) |
+
+## Ürün kimliği ve asıl amaç
+
+| Alan | Kısa not |
+|---|---|
+| Tek cümlelik ürün tezi | **Firma bilgisi tanımlamadan cep telefonundan fatura kesmeye** başlatan, e-Fatura + ön muhasebe + stok + cari birleşik bulut programı |
+| Asıl hedef kullanıcı | Mikro işletme, tek kişilik girişimci, esnaf, serbest meslek — kayıt sektör listesinde **"Kurye" ve "Öğrenci"** bile var (mikro/bireysel vurgu) |
+| Çözdüğü ana iş | e-Fatura/e-Arşiv kesme + gelir-gider + cari + kasa-banka + stok + çek-senet; hepsi tek panelde |
+| Açıkça kapsam dışı bıraktığı | Kişisel/gündelik bütçe, yatırım takibi; bordro sınırlı |
+| İş modeli | Ücretli abonelik: Ön Muhasebe 463₺/ay, e-Dönüşüm 463₺/ay, birleşik 738₺/ay (+1 yıl e-imza). Kayıt sonrası satış/hazırlık süreci |
+| BusinessFinance ile aynı kulvarda mı | **Kısmen.** Gelir-gider + cari + fiş okuma + tekrarlayan ortak; ama Logo İşbaşı **e-belge + firma defteri + hafif ERP** (stok, sipariş). İşletme/şahsi tek havuz kavramı yok |
 
 ## Görev gözlemleri
 
@@ -48,13 +60,13 @@ manuel gözlem değildir.
 | Operasyon | Stok takibi (otomatik güncelleme), teklif ve sipariş oluşturma, özet raporlar | Stok ve sipariş **kapsam dışı** — biz finans uygulamasıyız, ERP değil |
 | Entegrasyon | 17 banka entegrasyonu, **akıllı fiş okuma (OCR)**, e-ticaret, online tahsilat, CRM | Banka bağlantısı bizde **kesin kapsam dışı**. Fiş okuma bizde öneri katmanı (ADR 0011) |
 | Hedef kitle | Mikro işletme: tek kişilik girişimci ve küçük ekipler | Bizimkiyle aynı segment (şahıs şirketi, esnaf) |
-| Fiyat/deneme | **14 gün ücretsiz deneme (kart istemiyor)**; 3 paket, 463₺/ay+KDV'den başlıyor; en popüler "e-Dönüşüm + Ön Muhasebe" 738₺/ay; yıllık %25 indirim | Kayıt sonrası "hazırlanıyor" pop-up'ı bu deneme akışının kapısı olabilir — kullanıcının deneme mailini beklemesi gerekiyor |
+| Fiyat | 3 paket, 463₺/ay+KDV'den başlıyor; en popüler "e-Dönüşüm + Ön Muhasebe" 738₺/ay; yıllık %25 indirim (resmî kaynak) | Ücretli ürün; kayıttan sonra "hesabınız hazırlanıyor" satış/hazırlık sürecine giriyor, uygulamaya anında giriş açılmıyor — bu çalışmada uygulamaya girilemedi, inceleme resmî kaynakla |
 
 ### Tanıtım videosundan (`yVPlmkgHHmc`, kullanıcı izledi 2 Eyl 2026)
 
 Video anlatımı: işletme sahipleri için tasarlanmış; ana amaç **e-fatura + ön
 muhasebe**. İnternet olan her yerden e-fatura kesme, müşteri/tedarikçi borç-alacak
-(cari) takibi, anlık stok takibi. Sonunda "14 gün ücretsiz deneyin" → **ücretli**.
+(cari) takibi, anlık stok takibi. Sonunda deneme çağrısı → **ücretli ürün**.
 
 **`05-video-entegrasyonlar.png` — "Entegrasyonlarımız ile verimliliğinizi artırın"**
 sekiz entegrasyon kutucuğu:
@@ -88,6 +100,46 @@ kapsamı bizden geniş (stok, sipariş, e-fatura, banka) ama **işletme/şahsi t
 havuz** gibi bir kavramı yok — klasik "işletme defteri" yaklaşımı. Bizim
 farkımız yine kapsam boyutu ve gündelik hayat + işletmeyi tek üründe tutmak.
 
+## Sistem işleyişi / pipeline
+
+`Resmî kaynak` — isbasi.com + logo.com.tr blog (9 Eyl 2026). Canlı ürün
+davranışı doğrulanmadı.
+
+| Konu | Gözlem | Kanıt etiketi |
+|---|---|---|
+| Kayıt mekanizması | Gelir ve gider **fatura ve fişlerle** kaydediliyor. Türkiye'de ilk: **sesli komutla** işlem girişi (elle yazmak yerine) | Resmî kaynak |
+| Kayıt → entegre güncelleme | Bir işlem kaydedilince otomatik güncelleniyor: **cari hesap** (borç/alacak), **kasa-banka bakiyeleri**, **stok seviyeleri** (alış/satışa göre). Üç defter tek kayıttan besleniyor | Resmî kaynak |
+| Fatura kesme akışı | Satış faturası ekranı: müşteri listeden seç → **bakiyesi anında görünür** → ürün listeden seç (veya ekranda yeni ürün bilgisi gir) → kaydet. Firma bilgisi tanımlamadan da kesilebiliyor | Resmî kaynak |
+| Gider akışı | Gider fişi fotoğrafı → **Akıllı Fiş Okuma (OCR)** → otomatik gider kaydı | Resmî kaynak |
+| Cari hesap | Tüm tahsilat, borç-alacak ve ödeme işlemleri cari hesap içinde; "dilediğiniz yerden" eklenebiliyor, cari içinde kontrol ediliyor. Ekstre + rapor | Resmî kaynak |
+| Tahsilat/ödeme | Nakit tahsilat ve banka hesap bilgisi telefondan eklenebiliyor; cari bakiyeyi kapatır, kasa/banka bakiyesini oynatır | Resmî kaynak |
+| Raporlama | Tarih aralığına göre kategorize raporlar + görsel grafik; firma performansı | Resmî kaynak |
+| İşletme/şahsi ayrım | **Yok.** Klasik firma defteri; patronun şahsi harcaması ancak dolaylı (ortak cari / çekilen para) | Resmî kaynak + Yorum |
+| Entegrasyon temas noktaları | 17 banka hesap hareketi, GİB e-Arşiv Portal, pazaryeri/e-ticaret, Online Tahsilat, İşbaşı POS, Kargo, **Müşavir Portal** (muhasebeci canlı erişim), CRM | Resmî kaynak (`kanitlar/logo-isbasi/05`) |
+| Muhasebeci tarafı | **Müşavir Portal** — muhasebeci kendi ekranından müşterinin fatura/fiş satırlarını liste hâlinde görüyor, satır başına düzenle/detay/sil. Canlı çok-taraflı erişim | Manuel gözlem (video karesi `06`) |
+| Veri nereye yazılıyor | Bulut (web + mobil), gerçek zamanlı senkron, "her alandan erişim" | Resmî kaynak |
+
+**Pipeline şeması (satış → tahsilat):**
+`müşteri seç (bakiye görünür) → ürün/kalem seç → fatura kaydet (e-Fatura/e-Arşiv) →
+cari borç +tutar, stok −adet → Tahsilat Ekle (nakit/banka) → cari kapanır,
+kasa/banka +tutar → rapor + grafik güncellenir → (Müşavir Portal muhasebeciye canlı yansır)`
+
+**Pipeline şeması (gider):**
+`fiş fotoğrafı → Akıllı Fiş Okuma (OCR) → gider kaydı (tür/kategori) →
+gider raporu +tutar, tedarikçi cari +tutar → Ödeme Ekle → kasa/banka −tutar`
+
+## Video/doküman akış yeniden kurulumu
+
+Kullanıcı 2 Eyl 2026'da e-postayla gelen ~1 dk'lık tanıtım videosunu izledi;
+2 kare teslim edildi (`kanitlar/logo-isbasi/05-video-entegrasyonlar.png`,
+`06-video-musavir-portal.png` — yukarıda "Tanıtım videosundan" bölümünde işlendi).
+
+| Akış | Kaynak | Adımlar (yeniden kurulmuş) | BusinessFinance karşılığı |
+|---|---|---|---|
+| Entegrasyon panosu | Video karesi `05` | 8 entegrasyon kutucuğu tek ekranda (pazaryeri, GİB, banka, fiş okuma, online tahsilat, Müşavir Portal, POS, kargo) | Çoğu kapsam dışı; fiş okuma + POS bizde var |
+| Muhasebeci aktarımı | Video karesi `06` | Müşavir Portal: muhasebeci müşterinin fatura/fiş satırlarını listeler, satır başına düzenle/detay/sil | Bizde tek yönlü dosya paketi (`accountant-package.zip`), canlı portal değil |
+| e-Fatura kesme, cep telefonundan tahsilat | isbasi.com kullanım videoları (kullanıcı notu bekleniyor) | — | Video notu gelince doldurulacak |
+
 ## BusinessFinance için kararlar
 
 | Bulgu | Karar | Gerekçe | Etkilenecek ekran/akış |
@@ -99,12 +151,15 @@ farkımız yine kapsam boyutu ve gündelik hayat + işletmeyi tek üründe tutma
 
 ## Kanıt ve güven düzeyi
 
-- Manuel gözlem: Giriş + kayıt ekranı, sektör listesi, sözleşme akışı (emülatör). Sahte numarayla kayıt denendi, reddedildi
-- Resmî kaynak: isbasi.com özellik + fiyat listesi + tanıtım videosu
-  (`youtube.com/watch?v=yVPlmkgHHmc`, kullanıcı izledi 2 Eyl 2026;
-  `kanitlar/logo-isbasi/05`–`06` video kareleri)
-- Doğrulanamadı: Uygulama içi asıl akışların **canlı davranışı** (giriş yapılamadı);
-  Müşavir Portal ve entegrasyonların çalışma biçimi yalnız pazarlama görselinden
+- Manuel gözlem: Giriş + kayıt ekranı, sektör listesi, sözleşme akışı
+  (`kanitlar/logo-isbasi/01`–`04`). Sahte numarayla kayıt denendi, reddedildi.
+  Tanıtım videosu 2 karesi (`05`–`06`, kullanıcı izledi 2 Eyl 2026)
+- Resmî kaynak: isbasi.com özellik + fiyat listesi; logo.com.tr blog "kontrollü
+  gelir-gider takibi"; isbasi.com/muhasebe-programi (9 Eyl 2026)
+- Doğrulanamadı: Uygulama içi asıl akışların **canlı davranışı** ve ekran
+  tasarımı (giriş yapılamadı); işleyiş adımları resmî kaynaktan çıkarıldı,
+  Müşavir Portal ve entegrasyonların çalışma biçimi pazarlama görselinden
+- Kullanıcıdan bekleniyor: isbasi.com kullanım videolarından ekran seviyesi not
 
 ## Tek cümlelik sonuç
 

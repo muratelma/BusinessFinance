@@ -48,10 +48,32 @@ bütçe/planlama, ayar derinliği, arama/filtre, boş ve hata durumları. Bu ad�
 Belge 1'in (arayüz) genişliğini besler; K-görevleri yalnız akışları
 (Belge 2) besler. Kontrol listesi `UYGULAMA-GOZLEM-SABLONU.md` içindedir.
 
-### Tur 2 — en güçlü üç adayda derin akış
+**Görevler sırasında sistem işleyişi de not edilir.** Her K-görevinde ekranın
+ne gösterdiğinin yanında kaydın arka planda ne ürettiği (bakiye, rapor, başka
+kayıt), akışların birbirine bağlanışı ve varsa entegrasyon temas noktaları
+gözlem formundaki **"Sistem işleyişi / pipeline"** bölümüne yazılır. İçine
+girilemeyen uygulamalarda bu bölüm ve **"Video/doküman akış yeniden kurulumu"**
+yardım merkezi + ürün turu + kullanıcının video notlarından `Resmî kaynak`
+etiketiyle doldurulur.
 
-Tur 1 tamamlanınca arayüz, akış ve BusinessFinance'e uygunluk bakımından en
-çok kanıt üreten üç uygulama seçilir. Yalnız bu üçünde şunlar denenir:
+### Ara tur — boşluk koşumu (10 Eyl 2026 eklendi)
+
+Tur 1 ile Tur 2 arasında bir ara adım: sürülebilen üç uygulamada (Money Manager,
+Wallet, Bluecoins) formun **kendi "eksik kanıt" listesinden** gidilir. Amaç Tur 2
+seçimini kör yapmamak. **Orta derinlik** — Tur 2 kadar ayrıntılı değil:
+
+- Her formun kendi eksik listesi koşulur (kart Pay akışı, planlı işlem oluşturma,
+  taksit, yedek, export vb.); K00–K08 baştan tekrarlanmaz.
+- Money Manager istisnası: Tur 1'de işlemler yanlış tarihe girildiği için
+  çekirdek işlemler **Ağustos 2026** tarihleriyle yeniden girilir.
+- Eksik ekran görüntüleri tamamlanır; form + varsa kontrol değerleri güncellenir.
+
+Ayrıntılı faz planı: `TUR2-YOL-HARITASI.md`.
+
+### Tur 2 — seçilen üç uygulamada derin akış
+
+Boşluk koşumu + yeni uygulama (Goodbudget) testinden sonra üç uygulama seçilir.
+Yalnız bu üçünde şunlar denenir:
 
 1. Kredi kartı borcu ve kart ödemesi
 2. Planlanan veya tekrarlayan ödeme
@@ -59,7 +81,7 @@ Tur 1 tamamlanınca arayüz, akış ve BusinessFinance'e uygunluk bakımından e
 4. Kısmi tahsilat veya kısmi ödeme
 5. Arama, filtre, dışa aktarma ve hata/boş durumları
 
-Bu ayrım, yedi uygulamanın her ayrıntısını test ederek süreyi büyütmeyi önler.
+Bu ayrım, her uygulamanın her ayrıntısını test ederek süreyi büyütmeyi önler.
 
 ## Ekran görüntüsü planı
 

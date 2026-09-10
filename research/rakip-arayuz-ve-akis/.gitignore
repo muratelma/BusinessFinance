@@ -1,8 +1,7 @@
-# Ham rakip uygulama kanıtları yerelde tutulur; Git geçmişine eklenmez.
-kanitlar/**/*.png
-kanitlar/**/*.jpg
-kanitlar/**/*.jpeg
-kanitlar/**/*.webp
+# Ekran görüntüleri raporların kanıtıdır ve Git'e dâhildir (sentetik veri,
+# gerçek finansal bilgi yok). Araştırma tamamlanınca bu klasör silinir.
+# Ekran kaydı ve sesli not büyük dosyalardır; yerelde tutulur.
 kanitlar/**/*.mp4
 kanitlar/**/*.m4a
-
+kanitlar/**/*.wav
+kanitlar/**/*.mov

@@ -19,7 +19,7 @@ Kaynak tarih: 2 Eylül 2026. Ayrıntı: `gozlemler/parasut.md`, `gozlemler/logo-
 | Kayıt | Web, VKN/şirket bilgisi | Mobil form + SMS + "hesabınız hazırlanıyor" | Web (mobilde kayıt yok) | Uygulama içi, tek soru (`HasBusiness`) |
 | Hedef kitle | KOBİ, freelancer, e-ticaret, üretim | Mikro işletme, kurye, öğrenci, esnaf | KOBİ, start-up, **şahıs şirketi** | Şahıs şirketi ve esnaf; patronun cebi ile kasası ayrılmayan kesim |
 | Fiyat | ~150 TL/ay+, e-fatura kontör ayrı | 463 TL/ay+KDV'den, 3 paket | PLUS paket + kampanya | — (kendi ürünümüz) |
-| Deneme | 14 gün, kart yok | 14 gün (kayıt sonrası hazırlık süreci) | 14 gün, kısıtsız | — |
+| Erişim | Kayıt web'de, VKN ister | Kayıt sonrası "hesabınız hazırlanıyor" satış süreci | Kayıt yalnız web'de | Uygulama içi kayıt, anında kullanım |
 
 ---
 
@@ -91,9 +91,10 @@ tutuldu.
   işletme parası ile şahsi para hukuken ayrılmadığı için ikisini **tek üründe,
   tek havuzda** tutmak; ayrımı rapora bırakmak. Fatura kesmiyoruz, stok
   tutmuyoruz, bankaya bağlanmıyoruz, vergi hesaplamıyoruz.
-- **Kıyas değeri olan yerler** (Tur 2'de veya deneme hesabıyla bakılabilir):
-  fiş okutma akışı, tekrarlayan (fatura vs. işlem) modeli, nakit akışı
-  projeksiyonu ekranı, cari hesap ekstresi/mutabakat, muhasebeci aktarımı.
+- **Kıyas değeri olan yerler** (Tur 2'de resmî kaynak + kullanıcının video
+  notlarıyla derinleştirilecek): fiş okutma akışı, tekrarlayan (fatura vs.
+  işlem) modeli, nakit akışı projeksiyonu ekranı, cari hesap ekstresi/mutabakat,
+  muhasebeci aktarımı.
 - **Kopyalanmayacak yerler**: e-belge, stok/sipariş, banka bağlantısı, çoklu
   döviz, ödeme başlatma — proje kapsamı dışı, karar filtresi bunları `Alma`
   diyor.

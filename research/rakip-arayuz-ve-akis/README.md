@@ -18,11 +18,20 @@ Araştırma sonunda birbiriyle bağlantılı üç belge hazırlanacak:
 2. **Rakip Uygulamalarda Finansal Akışlar ve Özellikler**
    - Ana ekran, gelir/gider kaydı, işletme/şahsi ayrımı, planlama ve
      raporlama akışları
+   - **Arayüzün arkasındaki işleyiş:** bir kaydın sistemde ne ürettiği, olay
+     modeli, ekrandan ekrana pipeline aşamaları, entegrasyon temas noktaları
    - Akışlar arası bağlantılar ve kullanıcı sürtünmeleri
 3. **BusinessFinance Arayüz ve Akış Önerisi**
    - Bulguların `doğrudan al`, `uyarlayarak al`, `alma` kararlarına
      dönüştürülmesi
    - Etkilenen ekran, akış ve ortak bileşenler
+
+Belgeler yalnız "ne göründüğü"nü değil, **nasıl işlediğini** anlatır:
+uygulamanın asıl amacı, arka plan olay modeli ve pipeline aşamaları her
+uygulama için gözlem formunda ayrı bölümlerdir (`UYGULAMA-GOZLEM-SABLONU.md`).
+İçine girilemeyen uygulamalarda bu boyut yardım merkezi adım adım makaleleri,
+ürün turu ve kullanıcının izlediği tanıtım/eğitim videolarından `Resmî kaynak`
+etiketiyle yeniden kurulur.
 
 Nihai belgeler düzenlenebilir Word dosyası olarak hazırlanacak, onaylanan
 sürümleri ayrıca PDF olarak dışa aktarılacak. Word ve PDF farklı içerikler
@@ -67,13 +76,21 @@ veriyorsa girer:
 - BusinessFinance'ten farklı ve öğretici bir arayüz yaklaşımı sunuyor mu?
 - Deneme hesabı, demo veya güvenilir resmî kaynakla incelenebiliyor mu?
 
-Stok, bordro, banka bağlantısı veya vergi hesaplama tek başına seçim nedeni
-değildir; bunlar BusinessFinance kapsamının dışındadır.
+Stok, bordro, banka bağlantısı veya vergi hesaplama tek başına **uygulama
+seçim** nedeni değildir. Ama seçilmiş bir uygulamanın bu özellikleri Belge 1
+ve 2'de yine anlatılır — belgeleme ile kapsam kararı ayrı şeylerdir.
 
 ## BusinessFinance karar filtresi
 
+**Bu filtre yalnız Belge 3'te (öneri) uygulanır.** Belge 1 ve Belge 2 rakibin
+tüm özellik yüzeyini tarafsız anlatır — bizde kapsam dışı sayılan özellikler
+(stok, banka bağlama, KDV hesaplama, e-belge) dahil; raporu patron okuyup
+kapsamı genişletmek isteyebilir. "Kapsam dışı" bir gözlem etiketi değil, bir
+öneri kararıdır.
+
 Rakipte bulunması bir özelliğin BusinessFinance'e alınacağı anlamına gelmez.
-Her bulgu aşağıdaki sabit kararlarla karşılaştırılır:
+Belge 3'te her bulgu aşağıdaki sabit kararlarla karşılaştırılır; çakışan
+özellik sessizce atılmaz, gerekçesiyle `alma` / `henüz karar verme` yazılır:
 
 - İşletme ve şahsi para tek havuzda yaşar; ayrım raporlama boyutudur.
 - Bakiye, kart borcu ve net varlık kapsam filtresinden etkilenmez.
@@ -87,17 +104,20 @@ Her bulgu aşağıdaki sabit kararlarla karşılaştırılır:
 
 ### Yapay zekânın yapacağı
 
-- Resmî ürün ve yardım sayfalarından masa başı araştırma
+- Resmî ürün ve yardım sayfalarından masa başı araştırma; yardım merkezi
+  adım adım makalelerinden akış ve **sistem işleyişi / pipeline** çıkarımı
+- Emülatörü sürme (ham adb), ekran görüntüsü ve not alma
 - Ekran görüntülerinin ortak başlıklarla incelenmesi
-- Manuel notların tablolara ve akış şemalarına dönüştürülmesi
+- Manuel ve kullanıcı video notlarının tablolara ve akış şemalarına dönüştürülmesi
 - Uygulamalar arası benzerlik, fark ve çelişkilerin bulunması
-- Üç nihai belgenin ilk taslağının yazılması
+- Tüm gözlem formu ve üç nihai belgenin taslağının yazılması
 
 ### Kullanıcının yapacağı
 
-- Uygulamaya girip akışın gerçekten nasıl çalıştığını doğrulamak
-- Sentetik verilerle belirlenen görevleri tamamlamak
-- Kritik adımlarda ekran görüntüsü almak ve kısa sesli not tutmak
+- İçine girilemeyen uygulamaların **tanıtım/eğitim videolarını izleyip** ekran
+  görüntüsü + kısa not vermek (YouTube transkripti/kareleri araçla çekilemiyor)
+- Manuel testte kayıt / SMS / e-posta / VKN / ödeme kapılarını geçmek
+- Emülatörü canlı izleyip "şunu da dene" yönlendirmesi yapmak
 - Yapay zekânın yorumlarını ve BusinessFinance için önerilen kararları onaylamak
 
 ## Kanıt kuralları
@@ -113,12 +133,13 @@ Yorum, gözlemlenmiş ürün davranışı gibi yazılmaz.
 
 ## Uygulama sırası
 
-Yedi rakip uygulama `emulator-5554` cihazına kuruldu (adb ile doğrulandı,
-1 Eylül 2026); aday listesi manuel teste hazırdır. Test yöntemi önce
-**Money Manager (Realbyte)** üzerinde kısa bir pilotla sınanır. Bunun nedeni
-ürün üstünlüğü değil, şirket/VKN kaydı gerektirmeden temel para hareketlerinin
-hızlı kurulabilmesidir. Ardından doğrudan rakip akışını görmek için **Paraşüt**
-test edilir. Pilot formu yeterliyse kalan uygulamalara aynı yöntem uygulanır.
+Yedi rakip uygulama emülatöre kuruldu (adb ile doğrulandı, 1 Eylül 2026; yeni
+PC'de Pixel_8 AVD ile 9 Eylül 2026 yeniden kuruldu). Pilot **Money Manager
+(Realbyte)** ile yapıldı — şirket/VKN kaydı gerektirmeden temel para
+hareketlerinin hızlı kurulabilmesi nedeniyle. Manuel test tamamlanan üç
+uygulama: Money Manager, Wallet by BudgetBakers, Bluecoins. Kalan dördü
+(Paraşüt, Logo İşbaşı, KolayBi, QuickBooks) kayıt/bölge/ücret engeli nedeniyle
+**resmî kaynak** ile incelenir.
 
 Manuel test yapay zekâ ve kullanıcı tarafından **aynı anda** yürütülür: yapay
 zekâ emülatörü sürer ve not alır, kayıt/doğrulama kapılarında durup kullanıcıya
@@ -135,13 +156,12 @@ Pilot testte yalnız şu beş alan incelenecek:
 
 ## Karar sonucu
 
-Manuel test listesi:
-
-- İndirilecek adaylar: **Paraşüt, Logo İşbaşı, KolayBi, QuickBooks
-  Online, Money Manager (Realbyte), Wallet by BudgetBakers, Bluecoins**
-- QuickBooks hesabında Solopreneur planı bölge nedeniyle açılamazsa uygulama
-  manuel test listesinden çıkar ve resmî kaynakla incelenir
-- Yedek veya ek masa başı referansı: **Bizim Hesap, Spendee**
+- **Manuel gözlem (tamamlandı):** Money Manager (Realbyte), Wallet by
+  BudgetBakers, Bluecoins
+- **Resmî kaynak:** Paraşüt, Logo İşbaşı, KolayBi, QuickBooks Online/Solopreneur
+  — kayıt web'de, ücretli/bölge kapısı; uygulamaya girilmiyor. Bulgular yardım
+  merkezi + ürün turu + kullanıcının izlediği videolardan, `Resmî kaynak` etiketli
+- **Yedek veya ek masa başı referansı:** Bizim Hesap, Spendee
 
 Test yöntemi ve ortak veri seti şu iki belgede tanımlıdır:
 
