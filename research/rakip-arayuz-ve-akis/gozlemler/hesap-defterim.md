@@ -112,7 +112,8 @@ kez **silinmeden bırakıldı**. Kural sabitlendi: **ek koşum test verisi hangi
 uygulamada olursa olsun varsayılan olarak silinmez**, yalnız kullanıcı açıkça
 isterse silinir. Hesap Defterim artık diğer üç uygulamayla tutarlı: Ana Hesap
 ₺43.150, genel net ₺47.300 (₺44.950 + ₺2.500 gelir − ₺150 gider) — kalıcı
-olarak sapmış durumda, Tur 2'ye seçilirse sıfırlanıp yeniden kurulur.
+olarak sapmış durumda; Tur 2'ye seçilse bile **sıfırlanmaz**, üzerine eklenir
+(kural genelleştirildi, 11 Eyl — bkz. `MANUEL-TEST-PROTOKOLU.md`).
 
 | Test | Bulgu | Sonuç | Kanıt |
 |---|---|---|---|

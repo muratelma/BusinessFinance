@@ -27,7 +27,7 @@ ikisine de tam Tur 1 koşumu yapılır, Faz 5'te biri seçilir):
 | # | Uygulama | Paket | Tür | Tur 1 durumu |
 |---|---|---|---|---|
 | 8 | Hesap Defterim (Cash Book / Ankit Saraf) | `cashbook.cashbook` | Esnaf kasa/veresiye defteri, TR yerelleşmiş, kayıt yok | **Tamamlandı (10 Eyl)** — `gozlemler/hesap-defterim.md` |
-| 9 | Goodbudget | `com.dayspringtech.envelopes` | Dijital zarf bütçe, household hesabı gerekli | Sıradaki |
+| 9 | Goodbudget | `com.dayspringtech.envelopes` | Dijital zarf bütçe, household hesabı gerekli | **Tamamlandı (11 Eyl)** — `gozlemler/goodbudget.md` |
 
 Kendi uygulamalarımız (rakip değil, karşılaştırma zemini): `com.nef.business_finance_mobile`,
 `com.nef.personal_budget_mobile`.
@@ -74,10 +74,15 @@ itibaren standart; tutarlar `SENTETIK-TEST-VERISI.md` "Ek koşum olayları"):
 | B2 | Taksitli kart harcaması (₺6.000 = 6×₺1.000, ilk 15 Ağu) | Taksit planı nasıl kuruluyor; Ağustos ekstresine kaç TL; kalan taksitler nasıl |
 
 Ek koşum kayıtları test sonrası **silinmez, olduğu gibi cihazda bırakılır**
-(kontrol değerinden sapmış hâlde kalır) — o uygulama Tur 2'ye seçilirse
-sıfırlanıp yeniden kurulur (11 Eyl 2026'da sabitlendi, bkz.
-`gozlemler/hesap-defterim.md` "Metodoloji notu"). İçine girilemeyen (resmî
-kaynak) uygulamalarda A/B/B1/B2 canlı koşulmaz; varsa
+(kontrol değerinden sapmış hâlde kalır) ve **uygulama Tur 2'ye seçilse bile
+sıfırlanmaz** — Tur 2 kayıtları bu verinin üzerine eklenir. (11 Eyl 2026'da
+sabitlendi; ilk sürümde "Tur 2'ye seçilirse sıfırlanır" yazıyordu, ama Hesap
+Defterim'in ikinci ek koşumunda kullanıcıya sorulmadan silme denendi ve
+kullanıcı bunu reddetti — kural o olaydan sonra "hiçbir zaman sormadan silme"
+olarak kesinleşti, bkz. `gozlemler/hesap-defterim.md` "Metodoloji notu"; 11 Eyl
+2026'da Bluecoins Tur 2'ye seçilince aynı ilke Bluecoins'e de uygulandı).
+Yalnız kullanıcı açıkça "sil" veya "kontrol değerine döndür" derse temizlenir.
+İçine girilemeyen (resmî kaynak) uygulamalarda A/B/B1/B2 canlı koşulmaz; varsa
 video/yardım merkezinden `Resmî kaynak` etiketiyle not edilir.
 
 Bir özellik yoksa benzerini zorlayarak üretme. Örneğin işletme/şahsi ayrımı
@@ -132,6 +137,35 @@ Yalnız bu üçünde şunlar denenir:
 3. Fatura/borç oluşturma ve ödeme/tahsilat bağlantısı
 4. Kısmi tahsilat veya kısmi ödeme
 5. Arama, filtre, dışa aktarma ve hata/boş durumları
+6. **Tam arayüz taraması** (11 Eyl 2026 eklendi) — ana sekmelerden erişilebilen
+   **her ekran ve alt menü** en az bir kez açılır, ne gösterdiği kısaca not
+   edilir: tüm Ayarlar alt sayfaları, her rapor/grafik türü (tek örnek değil,
+   hepsi), her formun "gelişmiş/more options" bölümü, her farklı **kayıt
+   türünün** (aynı türden değil, her türden bir örnek) detay sayfası, widget/
+   entegrasyon ekranları (denenmese de açılıp içeriği not edilir). Amaç, sabit
+   K-görevleri dışında kalan köşelerde saklı özellikleri keşfetmek — Bluecoins'in
+   ekstre kesim günü ve bağımsız hatırlatıcı bulguları tam olarak böyle çıktı.
+
+   **Dahil/hariç ilkesi:** *"Bu ekran uygulamanın finansal davranışını/veri
+   modelini mi gösteriyor, yoksa genel-app altyapısını mı?"* Finansal model →
+   gir. Genel-app altyapısı → atla.
+
+   **Atlanır** (hangi uygulama olursa olsun aynı, ürün farkı göstermez):
+   reklamlar; paywall/abonelik satış sayfaları; senkronizasyon/bulut yedekleme
+   altyapısı (QuickSync ve benzerleri — zaten export/yedek kapsam dışı kararıyla
+   aynı mantık); "Arkadaşına öner" / Puanla / Geri bildirim gönder / sosyal
+   medya linkleri; dil, tema (açık/koyu), bildirim izni/sıklığı, PIN/biyometrik
+   kilit gibi mobil uygulama standardı ayarlar.
+
+   **Girilir** (Ayarlar menüsünün içinde olsa bile — finansal parametre
+   taşıdıkları için): varsayılan hesap/kategori/kapsam ayarı; ay/bütçe döngüsü
+   başlangıç günü; kategori yönetimi (ekle/düzenle/sil, alt kategori); hesap
+   yönetimi (arşivleme/pasifleştirme, sıralama, tür değiştirme); kredi kartı
+   ekstre parametreleri (kesim/son ödeme günü varsayılanı); tekrarlayan/planlı
+   işlem genel davranış ayarı (örn. "otomatik mi onaylı mı" varsayılanı).
+
+   Kısa test: *"Bu ayar değişirse bir sonraki kayıt/rapor farklı görünür mü?"*
+   Evet → gir. Hayır (yalnız görünüm/dil/bildirim tercihi) → atla.
 
 Bu ayrım, her uygulamanın her ayrıntısını test ederek süreyi büyütmeyi önler.
 

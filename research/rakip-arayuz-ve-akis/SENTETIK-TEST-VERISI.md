@@ -65,11 +65,12 @@ nasıl modellediği. **Çekirdek kontrol değerleri bu olaylar eklenmeden önce
 alınır**; bu olayların kesin bir hedef toplamı yoktur, uygulamanın ürettiği sayı
 forma yazılır. Özellik yoksa `Desteklenmiyor` yazılır — yokluk da bir bulgudur.
 **Ek koşum kayıtları test sonrası silinmez; olduğu gibi cihazda bırakılır**
-(kontrol değerinden sapmış hâlde kalır) — o uygulama Tur 2'ye seçilirse o
-zaman sıfırlanıp yeniden kurulur. İstisna: silme özelliğinin kendisini test
-etmek için oluşturulan tek seferlik kayıtlar (K08, sıfır-tutar doğrulaması
-gibi) — onlar zaten silinerek test edilir (11 Eyl 2026'da sabitlendi, bkz.
-`gozlemler/hesap-defterim.md` "Metodoloji notu").
+(kontrol değerinden sapmış hâlde kalır) ve **uygulama Tur 2'ye seçilse bile
+sıfırlanmaz** — Tur 2 kayıtları bu verinin üzerine eklenir, yalnız kullanıcı
+açıkça "sil"/"kontrol değerine döndür" derse temizlenir. İstisna: silme
+özelliğinin kendisini test etmek için oluşturulan tek seferlik kayıtlar (K08,
+sıfır-tutar doğrulaması gibi) — onlar zaten silinerek test edilir (kural 11
+Eyl 2026'da sabitlendi, bkz. `gozlemler/hesap-defterim.md` "Metodoloji notu").
 
 | # | Olay | Tutar | Kaynak / tarih | Gözlenecek |
 |---|---|---:|---|---|
@@ -83,7 +84,10 @@ kapsanıyor; A kısmi ödeme boyutunu, B2 taksit boyutunu ekler.
 
 **Koşuldu:** Money Manager, Wallet, Bluecoins (boşluk koşumu, `TUR2-YOL-HARITASI.md`
 Faz 1–3) · **Hesap Defterim** (Tur 1, 10 Eyl — A ✓ / B: OCR yok / B1: Desteklenmiyor
-/ B2: Desteklenmiyor; `gozlemler/hesap-defterim.md`).
+/ B2: Desteklenmiyor; `gozlemler/hesap-defterim.md`) · **Goodbudget** (Tur 1,
+11 Eyl — A: Engelli (1-hesap paywall'ı) / B: Desteklenmiyor (fiş eki hiç yok)
+/ B1: karma model (ilk örnek gerçek kayıt, gelecek örnekler görünmüyor) /
+B2: Desteklenmiyor; `gozlemler/goodbudget.md`).
 
 ## Tur 2 ek olayları
 

@@ -239,8 +239,84 @@ tarih veya satıcı okunmaz. OCR / tarama-çıkarma yok (bu ücretsiz akışta).
 Ana Hesap ₺15.200 · Ortak Cuzdan ₺2.150 · İş Kartı `−₺6.000` · net ₺11.350
 (10 Eyl ek koşumda "Ada Reklam" borcu için −₺5.000 "Loan, interests" gideri eklendi).
 Ek: "Aylik gider butcesi" ₺5.000 bütçe, "Yeni ekipman fonu" ₺20.000 hedef,
-B1 planı (sonraki vade 10.10.2026, onay-bekler modda). Wallet Tur 2'ye seçilirse
-bulut verisi sıfırlanıp yeniden girilir.
+B1 planı (sonraki vade 10.10.2026, onay-bekler modda). **B/B1/B2 canlı koşuldu**
+(B: fiş/split akışı görüldü, OCR yok; B1: tekrarlayan canlı; B2: taksit
+özelliği yok, tek kayıt) — Faz 7'de tekrar koşulmaz. **A (₺400 kısmi kredi
+kartı ödemesi) standart ek koşum olarak hiç koşulmadı** — yalnız K06 çekirdek
+görevinde kavramsal olarak "kart ödemesi = küçük transfer" gözlemlendi, ₺400'lük
+ayrı bir kısmi ödeme testi yapılmadı; **Wallet Faz 7'de bu eksik tamamlanmalı**.
+Wallet Tur 2'ye seçildi (11 Eyl); bulut verisi **sıfırlanmadan** üzerine
+Faz 7 kayıtları eklenecek.
+
+### Faz 7 — Tur 2 derin koşum (11 Eyl 2026, yapay zekâ)
+
+**A tamamlama (₺400 kısmi kart ödemesi):** Bluecoins/Money Manager'la aynı
+model — jenerik bir Transfer (Ana Hesap → İş Kartı, ₺400). Ana Hesap
+₺15.200 → ₺14.800, İş Kartı −₺6.000 → −₺5.600. Ayrı bir "ekstre öde/asgari
+tutar" kavramı yok, tamamen serbest tutarlı transfer.
+
+**D1 (ofis kirası ₺10.000):** "Planned payments" ekranında **One-Time** bir
+planlı ödeme olarak kuruldu. **Geçmiş tarih (5 Eylül) tarih seçiciden tamamen
+engellendi** (1–10 Eylül günleri gri/disabled) — B1'in "geçmişe kurulamıyor"
+bulgusunu doğruluyor, Bluecoins'in aksine. Kategori seçimi **zorunlu**
+(boş bırakılınca kırmızı hata). Bugüne (11 Eylül, "Due today") kurulup
+**Confirm** ile gerçek işleme dönüştürüldü — "Payment summary" ile tarih/
+hesap/tutar son kez düzenlenebiliyor, tıpkı B1'in occurrence realize akışı
+gibi. Ana Hesap ₺14.800 → ₺4.800.
+
+**D2 (Ada Reklam'a ₺12.000 hizmet faturası) — en değerli bulgu:** "Debts"
+sekmesinde yeni bir **"I Lent"** kaydı olarak oluşturuldu (Name/Description/
+Account/Amount/Date/Due date alanlarıyla). Kaydederken **"Do you want to
+create a Record for this Debt? If you create a Record your balance will
+change."** sorusu çıktı — **"No"** seçildi çünkü bu yalnız bir fatura, henüz
+tahsil edilmedi. Sonuç: "Ada Reklam OWES ME ₺12.000,00" borç kaydı oluştu,
+**hiçbir hesap bakiyesi değişmedi** ve işlem geçmişinde hiç görünmedi (yalnız
+Debts ekranında yaşıyor). **Bu, ADR 0014'ün "tanır vs taşır" ayrımını native
+olarak destekleyen tek rakip mekanizması** — Bluecoins ve diğerlerinde böyle
+bir soru/ayrım yok.
+
+**D3 (₺5.000 kısmi tahsilat) — D2'ye sistemsel bağlı:** Aynı Debt kartındaki
+**"Add Record" → "Create new Record"** ile eklendi (Debt action: "Repay
+debt", Account: Ana Hesap, Amount: ₺5.000,00 — placeholder tam borç
+tutarını "₺12.000,00 to Repay debt" gösterip kısmi tutar girilebiliyor).
+Sonuç: borç ₺12.000 → **₺7.000** (aynı Debt/Records nesnesi altında, running
+balance otomatik güncellendi), Ana Hesap ₺4.800 → **₺9.800**. **Bluecoins'in
+D2/D3'ü bağımsız iki hareket olarak tutmasının aksine, Wallet'ta fatura ve
+kısmi tahsilat gerçekten aynı nesnenin parçası** — bizim
+`CounterpartyCharge`/`CounterpartyPayment` çiftine kavramsal olarak en yakın
+rakip model.
+
+**Arama (konu 5):** Canlı filtre + doğru sonuç. "Ada" araması 3 kayıt
+buldu: D3'ün Record'u ("Lending, renting" +₺5.000, notta "Ada Reklam → Me :
+Hizmet faturasi"), ilk borcun Record'u ("Loan, interests" −₺5.000) ve
+çekirdek gelir kaydı ("Sale" ₺25.000). **D2 (Record'suz borç) arama
+sonuçlarında hiç çıkmadı** — işlem tablosuna hiç yazılmadığını doğruluyor.
+Filtre/export'a özel üç nokta menüsü bu oturumda bulunamadı (zaman kısıtı,
+doğrulanamadı olarak işaretlendi).
+
+**Tam arayüz taraması (konu 6, finansal parametre taşıyan ekranlar):**
+- Hamburger menüsü çok geniş: Investments, Statistics, Budgets, Debts,
+  Goals, **Shopping lists**, **Warranties**, **Loyalty cards**, **Currency
+  rates**, **Group sharing** (finansal/yönetim özellikleri) + Get Premium/
+  Bank Sync/Dark mode/Hide Amounts/Invite friends/Follow us/Help (genel-app,
+  atlandı).
+- **Settings → Filters:** "Set custom filters that you can use in
+  Statistics or Records" — Bluecoins'in kayıtlı filtre profillerine benzer
+  bir mekanizma.
+- **Settings → Automatic rules:** "Set up rules to automatically assign
+  categories and labels to your records **and recognize transfers**" —
+  otomatik transfer eşleştirme kuralı, hiçbir rakipte görülmemiş bir özellik.
+- **Settings → Currencies:** "Add other currencies, adjust exchange rates" —
+  Bluecoins'teki çoklu para birimi bulgusuyla paralel, BusinessFinance
+  kapsamı dışı.
+- **Settings → Advanced settings → "Initial day of the month":**
+  **"Beginning of the accounting period: 1"** — tam bizim ay/bütçe döngüsü
+  başlangıç günü kavramımızın karşılığı, değiştirilebilir bir muhasebe
+  dönemi parametresi.
+- Templates: "Create templates to speed up the addition of new records" —
+  Money Manager'ın "Ödeme" ön doldurma butonuna benzer bir kolaylık.
+- Atlanan (genel-app altyapısı): User profile, Premium plans, Notifications,
+  Security (PIN/Fingerprint), Personal data & Privacy, About Wallet.
 
 ## BusinessFinance için kararlar
 
@@ -270,6 +346,11 @@ bulut verisi sıfırlanıp yeniden girilir.
 | Fiş = yalnız dosya/foto eki, OCR yok | Not | Wallet ücretsiz akışında fiş okuma yok; ADR 0011 öneri katmanı bizde ayrı | İşlem eki |
 | Split transaction (kaydı alt-kayıtlara oyma) | Henüz karar verme | Tek fişteki farklı kategorileri ayırmak için işe yarar; bizde henüz yok | Kayıt detayı |
 | Hesap başına minimum bakiye alarmı | Henüz karar verme | Kart borcu / hesap dibe vurunca uyarı; küçük ama kullanışlı | Hesap ayarı / bildirim |
+| Borç kaydederken "Record oluşturursan bakiyen değişir" sorusu ve Record'suz borcun işlem tablosuna hiç yazılmaması | Doğrudan al (olumlu referans) | ADR 0014'ün "tanır vs taşır" ayrımını native destekleyen tek rakip; bizim `CounterpartyCharge` (bakiyeye dokunmaz) / `CounterpartyPayment` (bakiyeyi değiştirir) ayrımının doğruluğunu kanıtlıyor | Cari hesap / fatura akışı |
+| Kısmi tahsilatın ("Add Record") aynı Debt nesnesine bağlı kalması, running balance'ın otomatik düşmesi | Doğrudan al | Bizim `CounterpartyBalance` projeksiyonuyla birebir aynı davranış; Bluecoins'in bağımsız iki hareketinden daha doğru | Cari hesap / kısmi tahsilat |
+| Geçmiş tarihli planlı ödeme/tekrarlayan kurulumunun tarih seçiciden tamamen engellenmesi | Henüz karar verme | Bizde geçmiş tarihli plan kurulabiliyor (ADR gereği); bu bir kısıt, kopyalanacak bir davranış değil ama not edilir | Planlı ödeme tarih seçici |
+| Otomatik transfer tanıma kuralı (Automatic rules) | Henüz karar verme | İki bağımsız kaydın transfer olduğunu otomatik algılama; ilginç ama bizde işlem başlangıcında zaten Transfer tipi seçiliyor | Otomatik kategori/kural motoru |
+| Muhasebe dönemi başlangıç günü ayarı (Advanced settings) | Henüz karar verme | Bütçe/ay döngüsünün 1'den farklı bir günde başlaması; bizim `MonthlyBudget` modelimizde şu an sabit ay başı | Bütçe/ay döngüsü ayarı |
 
 ## Kanıt ve güven düzeyi
 
@@ -278,12 +359,22 @@ bulut verisi sıfırlanıp yeniden girilir.
 - Resmî kaynak: —
 - Yorum: Hızlı formun varsayılan Expense seçimi ve renk ağırlıklı seçili durumu yanlış kayıt riskini artırır. Tekrarlayan modeli (bekleyen + Confirm/Postpone/Dismiss) BusinessFinance'e en yakın rakip davranışlarından biri; buna karşılık taksit yokluğu ve dönemsiz kart modeli TR pazarı için belirgin eksik.
 - Manuel gözlem (10 Eyl ek koşum): Debt canlı oluşturuldu (I Lent ₺5.000, "Yes create record" → −₺5.000 "Loan, interests" gideri, Ana Hesap ₺15.200); tekrarlayan planın otomatik/onaylı kolu her zaman değiştirilebilir (dişli); plan silme düz onay, gerçekleşmiş occurrence uyarısı yok. Kareler `41`–`47`.
-- Doğrulanamadı: Onboarding (yeni hesap ilk kurulum), Premium özelliklerin asıl davranışı (Automatic Rule, AI receipt), banka bağlantısı, dışa aktarma/yedek, widget, hedefin hesaba bağlanması, tekrarlayan planın "Yes/otomatik" kolunun üretim davranışı.
+- Manuel gözlem (Faz 7, 11 Eyl): **A** (₺400 kısmi kart ödemesi, jenerik
+  transfer) + **D1** (planlı ödeme kurulumu, geçmiş tarih engeli, Confirm ile
+  realize) + **D2** (I Lent borç, "Record oluşturursan bakiyen değişir"
+  sorusu, No → bakiye değişmedi) + **D3** (aynı Debt'e Record ile kısmi
+  tahsilat, running balance otomatik güncellendi) canlı test edildi. Arama
+  (konu 5) ve Settings/hamburger menü tam taraması (konu 6: Filters,
+  Automatic rules, Currencies, Advanced settings/Initial day of the month)
+  yapıldı. Kareler `f7-00`–`f7-58` (`kanitlar/wallet/`).
+- Doğrulanamadı: Onboarding (yeni hesap ilk kurulum), Premium özelliklerin asıl davranışı (Automatic Rule, AI receipt), banka bağlantısı, dışa aktarma/yedek, widget, hedefin hesaba bağlanması, tekrarlayan planın "Yes/otomatik" kolunun üretim davranışı, Records ekranının filtre/export üç nokta menüsü.
 
 ## Tek cümlelik sonuç
 
-Wallet güçlü rapor soruları, yönlendirici boş durumları, nötr transfer modeli ve
+Wallet güçlü rapor soruları, yönlendirici boş durumları, nötr transfer modeli,
 BusinessFinance'e çok yakın "bekleyen → onayla" tekrarlayan akışıyla iyi bir
-finansal UX referansı; fakat varsayılan Expense seçimi, kapsam boyutunun yokluğu,
-taksit kavramının hiç olmaması, dönemsiz kart modeli ve aşırı geniş hamburger
-menüsü BusinessFinance için açık negatif örnekler.
+finansal UX referansı ve **Debt/Records mekanizmasıyla ADR 0014'ün "tanır vs
+taşır" ayrımını native destekleyen tek rakip** (Faz 7, D2/D3); buna karşılık
+varsayılan Expense seçimi, kapsam boyutunun yokluğu, taksit kavramının hiç
+olmaması, dönemsiz kart modeli ve aşırı geniş hamburger menüsü BusinessFinance
+için açık negatif örnekler.

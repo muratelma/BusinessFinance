@@ -227,8 +227,78 @@ alanının üstüne biniyor; gerçek dokunmatik cihazda sorun olmaz).
 Ana Hesap ₺39.700 · Ortak Cuzdan ₺4.150 · İş Kartı −₺500 · Ada Reklam cari ₺0 ·
 net ₺43.350. Ek: B1 tekrarlayan serisi (10 Ağu occurrence onaylandı, sonraki
 vade 10 Eyl), B2 taksit hatırlatıcıları 2/6–6/6, "Ofis kirasi" ₺10.000 bağımsız
-hatırlatıcı (11 Eyl), ₺500 kısmi kart ödemesi. Bluecoins Tur 2'ye seçilirse
-dosya sıfırlanıp yeniden girilir.
+hatırlatıcı (11 Eyl), ₺500 kısmi kart ödemesi. **A/B/B1/B2'nin dördü de
+Bluecoins'te canlı koşuldu** (A: ₺500 kısmi kart ödemesi; B: ataç eki, OCR
+yok — yalnız fiş ekleme akışının ekranı emülatör overlay tuzağı nedeniyle
+doğrulanamadı; B1: tekrarlayan canlı; B2: taksit canlı) — Faz 7'de tekrar
+koşulmaz. Bluecoins Tur 2'ye seçildi (11 Eyl); bu veri **sıfırlanmadan**
+Faz 7 kayıtları (D1 tamamlama + D2 + D3) üzerine eklenecek.
+
+### Faz 7 — Tur 2 derin koşum (11 Eyl 2026, yapay zekâ)
+
+**D1 tamamlama:** "Ofis kirasi" hatırlatıcısı (₺10.000, önceden kurulu) vadesinde
+açılıp **"İşlem Olarak Kaydet?" → TAMAM** tek onayıyla gerçek işleme dönüştü;
+Hatırlatıcılar listesinden düştü, Ana Hesap ₺39.700 → ₺29.700. Gerçekleştirme
+akışı B1/B2'nin materyalize akışıyla birebir aynı mekanizma.
+
+**D2 (Ada Reklam'a ₺12.000 hizmet faturası):** Bluecoins'te ayrı bir "fatura"
+nesnesi **yok** — sıradan bir Gelir işlemi olarak "Ada Reklam cari" hesabına
+yazıldı (₺0 → ₺12.000). Durum (ödendi/kısmi/vadesi geçti gibi) alanı yok.
+
+**D3 (D2 için ₺5.000 kısmi tahsilat):** Sıradan bir **Transfer** (Ada Reklam
+cari → Ana Hesap) olarak girildi; running bakiye doğru işledi (Ada Reklam cari
+₺12.000 → ₺7.000, Ana Hesap ₺29.700 → ₺34.700). **Ama bu transfer D2'deki
+faturaya sistemsel olarak bağlı değil** — uygulama "bu faturanın kısmi
+tahsilatı" diye bir ilişki kurmuyor, iki bağımsız hareket aynı cari hesaba
+düşüyor. ADR 0014'ün fatura↔tahsilat bağı gerekliliğinin güçlü bir olumlu
+kanıtı.
+
+**Arama:** Canlı filtre + eşleşen kayıtların **toplamını** gösteriyor
+("Ada" araması → Toplam ₺12.000,00 — iki transfer bacağı birbirini götürüp
+net etkiyi yansıtıyor, Hesap Defterim'in "alt toplamlar da filtrelenir"
+bulgusuna benzer).
+
+**Filtre ekranı çok kapsamlı:** metin/madde adı/alacaklı/not araması, tutar
+aralığı (başlangıç/bitiş), tarih aralığı, işlem tipi, kategori (çoklu seçim),
+hesap (çoklu seçim), etiketler, durum + "Satır tarzı" (liste görünümü
+özelleştirme) + kayıtlı filtre profilleri (kaydet/yükle). Test edilen 5
+uygulama arasında en gelişmiş filtre sistemi.
+
+**Dışa aktarma:** "PDF veya Yazıcıya gönder", "Excel (.csv)", "HTML" — üç
+format, tek dokunuşla erişilebilir (print ikonu).
+
+**Tam arayüz taraması (finansal parametre taşıyan ekranlar):**
+- **Nakit Akım Ayarı** (Hesaplar ekranı): "Nakit Akışı" raporuna hangi
+  hesapların dahil edileceği hesap başına manuel seçiliyor. **Ana Hesap ve
+  Ortak Cüzdan varsayılan olarak kapalı** (yalnız Birikimler/Çek/Cüzdan
+  açık) — bu, "Nakit Akışı" widget'ının Temmuz/Ağustos/Eylül boyunca hep
+  ₺0 göstermesinin nedeniydi (asıl kullanılan hesaplar rapora dahil değildi).
+- **Kategori Ayarları:** Varsayılan Gider Kategorisi ve Varsayılan gelir
+  kategorisi ayrı ayrı ayarlanabiliyor (ikisi de "Others").
+- **Hesap Ayarları:** Varsayılan Hesap = Cüzdan; "Gizli hesapların seçimi"
+  ile hesap gizleme özelliği var.
+- **Gelişmiş Ayarlar → Para birimi:** "Döviz Kurunu Hatırla" ve "Son para
+  birimini hatırla" — Bluecoins **çoklu para birimi + döviz kuru dönüşümü**
+  destekliyor (BusinessFinance yalnız TRY, kapsam dışı bir fark).
+  "Açılır Pencere Hesap Makinesi" ayarı, diğer uygulamalarda gördüğümüz
+  "tutar alanı tam ekran hesap makinesi açıyor" davranışının kapatılabilir
+  bir tercih olduğunu gösteriyor.
+- **Kategoriler ekranı:** iki seviyeli hiyerarşi (grup → alt kategori, ör.
+  "Eve Ait" → Clothing/Grocery/Medicines/School).
+- **Etiketler:** kategoriden bağımsız serbest etiketleme sistemi (Doğum
+  günü, Film, İş, Kişisel, Tatil); "İş"/"Kişisel" etiketleri var ama resmi
+  bir kapsam/scope alanı değil, serbest metin.
+- **Çöp Kutusu:** soft-delete altyapısı mevcut (test sırasında boş kaldı,
+  hiç silme yapılmadı) — K08'de gözlenen "kalıcı silme" bulgusuna ek bir
+  nüans: silinen kayıtlar önce çöp kutusuna düşüyor olabilir, doğrulanamadı.
+- **Takvim sekmesi:** seçilen günün Gider/Gelir/Net kırılımını ayrı bir
+  görünümde gösteriyor (drill-down), K-görevlerinde hiç görülmemiş bir ekran.
+- **Veri Yönetimi:** Excel (.csv) ve QIF **içe aktarma** seçenekleri var
+  (banka ekstresi ayrıştırıcısına benzer bir yeteneğin izi) — kapsam dışı
+  olduğu için derinlemesine denenmedi.
+- Atlanan (genel-app altyapısı): QuickSync, Arkadaşa Öner, Geri Bildirim
+  Gönder, dil/tema/bildirim/PIN ayarları, Seyahat Modu (toggle bulundu ama
+  davranışı test edilemedi — düşük öncelik).
 
 ## BusinessFinance için kararlar
 
@@ -259,20 +329,29 @@ dosya sıfırlanıp yeniden girilir.
 | Taslak uyarısı (kaydetmeden çıkışta onay) | Doğrudan al | Money Manager'da yoktu, veri kaybettiriyordu; bizde form terk edilirken uyarı olmalı | Tüm formlar |
 | Cari hesabın sıradan bakiye hesabı olması, fatura nesnesi/tahsilat bağı olmaması | Alma | ADR 0014 cari modelimiz "tanır/taşır" ayrımı + fatura bağı ister; net bakiye tek başına yetmez | Cari hesap / fatura akışı |
 | Bağımsız hatırlatıcı = "Bir Defa" Planlı İşlem, hepsi tek Hatırlatıcılar listesinde | Doğrudan al | Bizim planlanan projeksiyonumuzla aynı: tekrarlayan/taksit/borç/vergi hepsi tek `financial-activities/planned` görünümü | Planlanan görünüm |
+| Fatura (D2) ve kısmi tahsilatın (D3) sistemsel olarak bağlı olmaması, ikisi de bağımsız hareket | Alma (olumlu referans) | ADR 0014'ün "tanır/taşır" ayrımı + fatura↔tahsilat bağı gerekliliğinin somut kanıtı; Bluecoins bunu çözmemiş, bizim `CounterpartyCharge`/`Payment` modelimiz zaten çözüyor | Cari hesap / fatura akışı |
+| Nakit akışı raporuna dahil edilecek hesapların manuel seçilmesi (hesap başına on/off) | Alma | Hangi hesabın "nakit" sayıldığı gizli bir ayara bağlı olmamalı; bizde bakiye/rapor hesap türünden otomatik türer | Rapor/ayarlar |
+| Varsayılan gider/gelir kategorisi ve varsayılan hesap ayarı | Uyarlayarak al | Form sürtünmesini azaltan makul bir varsayılan; bizde de kategori/hesap seçimi için benzer bir varsayılan düşünülebilir | İşlem formu varsayılanları |
+| Çoklu para birimi + döviz kuru hatırlama | Alma | BusinessFinance yalnız TRY işletiyor (ADR/kapsam kararı); çoklu para birimi kapsam dışı | — |
+| Kapsamlı filtre ekranı (tutar/tarih aralığı + çoklu kategori/hesap/etiket/durum + kayıtlı profil) | Uyarlayarak al | Test edilen en gelişmiş filtre sistemi; bizim aktivite feed'i filtrelerine ölçülü bir hedef | Aktivite feed'i / arama |
+| Üç formatlı dışa aktarma (PDF/Yazıcı, Excel, HTML) tek dokunuşla | Uyarlayarak al | Bizde CSV export var; PDF/HTML seçeneği muhasebeci paketiyle örtüşebilir | Dışa aktarma |
+| Takvim sekmesinde günlük gelir/gider/net drill-down | Uyarlayarak al | Günlük detay görünümü aktivite feed'inde zaten var; ayrı bir takvim görünümü küçük bir katma değer | Rapor/takvim |
 
 ## Kanıt ve güven düzeyi
 
 - Manuel gözlem (Tur 1): K00–K08 emülatörde sentetik veriyle tamamlandı; bütün bakiye kontrol değerleri birebir tuttu.
 - Manuel gözlem (Faz 3, 10 Eyl): tam yeniden koşum — 3 hesap + 5 çekirdek (kontrol ₺44.950 birebir) + **B2 taksit** (6 ay, ₺6.000 → 6×₺1.000, ilk taksit anında + 5 hatırlatıcı) + **B1 tekrarlayan** (aylık, geçmiş tarihli, tanım hiçbir şey üretmiyor, occurrence'lar bekliyor, Kaydet → materyalize). Kareler `10`–`28`.
 - Manuel gözlem (Faz 3 ek, 10 Eyl): Bölmek/split modu + taslak uyarısı + Kredi Kartı kesim günü alanı + **bağımsız hatırlatıcı** (canlı) + **cari hesap** (canlı, fatura bağı yok) + **kısmi kart ödemesi** (canlı ₺500). Kareler `29`–`34`.
+- Manuel gözlem (Faz 7, 11 Eyl): **D1 tamamlama** (hatırlatıcı → gerçek işlem, tek onay) + **D2** (fatura = sıradan Gelir işlemi, invoice nesnesi yok) + **D3** (kısmi tahsilat = sıradan Transfer, D2'ye sistemsel bağı yok) canlı test edildi. Arama (canlı filtre + toplam), filtre ekranı (çok kapsamlı), dışa aktarma (PDF/Excel/HTML) ve tam arayüz taraması (Nakit Akım Ayarı, Kategori/Hesap Ayarları varsayılanları, çoklu para birimi, Kategoriler/Etiketler/Çöp Kutusu/Takvim) tarandı. Kareler `f7-00`–`f7-54` (`kanitlar/bluecoins/`).
 - Resmî kaynak: —
-- Yorum: Bluecoins'in tekrarlayan + taksit + bağımsız hatırlatıcı modeli **tüm rakipler içinde BusinessFinance'e en yakın olanı** (tanım üretmez, occurrence realize edilir, hepsi tek planlanan görünüm). Buna karşılık cari hesap yalnız bir kasa (fatura/tahsilat bağı yok), bilgi mimarisi hedef esnaf için gereğinden geniş ve uygulama emülatörde kararsız (modal diyaloglar dokunuşu işlemiyor).
-- Doğrulanamadı: Taksitte auto-checkbox ile "otomatik" kol, ekstre kesim gününün projeksiyona etkisi, yedek/geri yükleme, Android widget'ı, fiş ek akışının ekranı (emülatör overlay tuzağı), Premium dışa aktarmanın son adımı.
+- Yorum: Bluecoins'in tekrarlayan + taksit + bağımsız hatırlatıcı modeli **tüm rakipler içinde BusinessFinance'e en yakın olanı** (tanım üretmez, occurrence realize edilir, hepsi tek planlanan görünüm). Buna karşılık cari hesap yalnız bir kasa (fatura/tahsilat bağı yok — Faz 7'de D2/D3 ile somut kanıtı görüldü), bilgi mimarisi hedef esnaf için gereğinden geniş ve uygulama emülatörde kararsız (modal diyaloglar dokunuşu işlemiyor).
+- Doğrulanamadı: Taksitte auto-checkbox ile "otomatik" kol, ekstre kesim gününün projeksiyona etkisi, yedek/geri yükleme, Android widget'ı, fiş ek akışının ekranı (emülatör overlay tuzağı), Premium dışa aktarmanın son adımı, Seyahat Modu'nun gerçek davranışı.
 
 ## Tek cümlelik sonuç
 
 Bluecoins açılış bakiyesi, running balance, nötr transfer, dinamik kart/taksit
 alanları ve **BusinessFinance'e birebir oturan tekrarlayan/taksit "tanım üretmez,
 occurrence realize edilir" modeliyle** en güçlü para modeli referansı; ancak yoğun
-formu, geniş hesap evreni, sıfır tutarı kabul etmesi, silme yaklaşımı ve emülatör
-kararsızlığı BusinessFinance için sadeleştirilmesi ve dikkat edilmesi gereken noktalar.
+formu, geniş hesap evreni, sıfır tutarı kabul etmesi, silme yaklaşımı, emülatör
+kararsızlığı ve **fatura ile tahsilatı sistemsel olarak bağlamaması** (Faz 7, D2/D3)
+BusinessFinance için sadeleştirilmesi ve dikkat edilmesi gereken noktalar.

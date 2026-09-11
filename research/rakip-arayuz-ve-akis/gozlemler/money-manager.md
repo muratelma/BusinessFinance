@@ -240,8 +240,11 @@ konulamıyor; Ağustos raporu için sorun olmadı çünkü gelir/gider değil.
   ödemesi (`24`–`25`), fiş kamerası (ek dosya, OCR yok). Kareler `02`–`25`
 - Not: B1/B2 sonrası MM test verisi çekirdek durumdan **saptı** (Ana Hesap
   ₺39.200, taksit serisi + tekrarlayan seri aktif). Temiz ₺44.950 kontrol
-  durumu `11-hesaplar-final-kontrol-degerleri.png` karesinde. MM Tur 2'ye
-  seçilirse veri sıfırlanıp yeniden kurulur
+  durumu `11-hesaplar-final-kontrol-degerleri.png` karesinde. **A/B/B1/B2'nin
+  dördü de MM'de canlı koşuldu** (A: ₺400 kısmi kart ödemesi `24`–`25`; B: fiş
+  kamerası ek dosya, OCR yok; B1: tekrarlayan `17`–`20`; B2: taksit `21`–`23`).
+  MM Tur 2'ye seçilse bile veri sıfırlanmaz, üzerine eklenir (11 Eyl 2026'da
+  genel kural olarak kesinleşti)
 - Fatura→tahsilat MM'de yok. Tur 2'de D1–D4
 - Kapsam dışı (kullanıcı kararı, 10 Eyl): bütçe kurulum ekranı, Excel export,
   yedek/geri yükleme

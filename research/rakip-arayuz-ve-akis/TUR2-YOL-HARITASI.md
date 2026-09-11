@@ -20,27 +20,28 @@
 - **Belge planı:** Belge 1 (arayüz) ve Belge 2 (akış) **tüm** uygulamaları
   genel anlatır; Tur 2 uygulamaları daha ayrıntılı (daha çok veri). Belge 3
   (öneri) **tüm** uygulamalar için. Karar filtresi yalnız Belge 3'te.
-- **"Bize benzemeyen" 3. slot için iki aday (10 Eyl güncellendi):**
-  - **Goodbudget** (`com.dayspringtech.envelopes`) — dijital zarf bütçe,
-    "harcamadan önce dağıt"; bizim "kaydet sonra raporla" modelimizin tersi;
-    elle giriş, banka bağlama yok. Household hesabı gerekiyor.
-  - **Hesap Defterim / Cash Book** (`cashbook.cashbook`, Ankit Saraf) —
-    *kullanıcı 10 Eyl'de buldu.* Hint kökenli "khatabook" türü, Türkçe'ye
-    yerelleşmiş **esnaf kasa/veresiye defteri**. Alındı/Ödendi → Denge (tek
-    yürüyen bakiye), çok defter, müşteri veresiyesi takibi, fiş foto, PDF+Excel
-    rapor. Kayıt yok. 5M+ indirme, 4,7★. TR pazarı + hedef kullanıcıya (esnaf)
-    daha yakın → **yapay zekâ önerisi: 3. slot için Goodbudget'a tercih edilir.**
-  - Yedek: YNAB / Spendee.
+- **"Bize benzemeyen" 3. slot adayları (10 Eyl) ve Faz 5 kararı (11 Eyl):**
+  Goodbudget ve Hesap Defterim'in ikisi de tam Tur 1 + A/B/B1/B2 ek koşumuyla
+  test edildi (Faz 4a/4b) ve ikisinde de **"Fatura/borç → tahsilat/ödeme →
+  kapanış akışı: Yok"** sonucu net biçimde doğrulandı — yani Tur 2'nin asıl
+  amacı olan D1–D4 (yükümlülük/fatura/kısmi tahsilat/tekrarlayan) derinliğini
+  bu ikisinde koşturmak bilinen "yok" sonucunu tekrarlamaktan öteye geçmezdi.
+  Kullanıcı kararıyla **3. slot Wallet'a kaydırıldı**: Wallet'ın Faz 2'de
+  canlı kurulan **Debt özelliği** (I Lent/I Borrowed + bağlı Records + açık
+  Total) D1 (yükümlülük) ve D3'e (kısmi tahsilat) yapısal olarak en yakın
+  mekanizma ve fatura-benzeri (D2) bir senaryoyla henüz hiç zorlanmadı — gerçek
+  keşif potansiyeli taşıyan tek "yakın" aday. Goodbudget ve Hesap Defterim
+  **Tur 1 derinliğinde kalır**, Belge 1/2/3'e o derinlikle girer.
+  - Yedek (Wallet'ta beklenmedik bir engel çıkarsa): Money Manager — ama D1-D4
+    için elinde somut bir ipucu yok (form notu: "Fatura→tahsilat MM'de yok,
+    Tur 2'de D1–D4" — tamamen keşfedilmemiş alan).
 - **Emülatör:** Bir uygulama, sırayla (paralel AVD yok). Yapay zekâ adb ile
   sürer; kayıt/SMS/hata kapılarında kullanıcıya devreder, kullanıcı bitirince
   devam eder. `emulator-5554`, Android 17.
-- **Tur 2 nihai yapısı adayı (Faz 5'te kesinleşir):** KolayBi (masa başı) +
-  **Bluecoins** ("yapımıza en yakın" — tekrarlayan/taksit/planlanan modeli
-  bizimle birebir; yapay zekâ önerisi: **kilitlensin**) + **{Hesap Defterim |
-  Goodbudget}'ten 1** ("bize benzemeyen" slot).
-  - Not: Money Manager ve Wallet "yapımıza en yakın" slot için ikinci sıra —
-    MM arayüz sadeliği referansı, Wallet dashboard referansı. Faz 5'te Bluecoins
-    kesinleşmezse bu ikisinden biri.
+- **Tur 2 nihai yapısı (Faz 5'te kesinleşti, 11 Eyl):** KolayBi (masa başı,
+  video+transkript) + **Bluecoins** ("yapımıza en yakın" — tekrarlayan/taksit/
+  planlanan modeli bizimle birebir, kilitlendi) + **Wallet** (Debt/Records
+  mekanizmasıyla D1-D4'ü genişletmek için en uygun aday, "bize yakın" 2. slot).
 
 ## Fazlar
 
@@ -85,7 +86,7 @@
 - [x] Fiş / kamera: **OCR yok** — yalnız dosya/foto eki (`40`)
 - [x] Tekrarlayan plan yönetimi (10 Eyl): otomatik/onaylı kolu dişli ile her zaman değişir (`45`); plan silme düz onay, **gerçekleşmiş occurrence uyarısı yok** (`46`, `47`)
 - [x] `gozlemler/wallet-budgetbakers.md` güncellendi (Faz 2 bölümü + 17 karar satırı); kareler `10`–`47`
-- **Wallet Faz 2 TAMAM.** Veri: Ana Hesap ₺15.200 · Ortak Cuzdan ₺2.150 · İş Kartı −₺6.000 · net ₺11.350. Tur 2'ye seçilirse bulut sıfırlanır.
+- **Wallet Faz 2 TAMAM.** Veri: Ana Hesap ₺15.200 · Ortak Cuzdan ₺2.150 · İş Kartı −₺6.000 · net ₺11.350. B/B1/B2 canlı koşuldu, **A (₺400 kısmi kart ödemesi) koşulmadı** — Faz 7'de tamamlanmalı. Wallet Tur 2'ye seçildi (11 Eyl); bulut verisi sıfırlanmaz, üzerine eklenir.
 - ~~export / onboarding~~ kapsam dışı
 
 ### Faz 3 — Boşluk koşumu: Bluecoins  *(yapay zekâ sürdü, 10 Eyl 2026 — TAMAM)*
@@ -131,29 +132,63 @@ işleyişi), tıpkı Money Manager/Bluecoins gibi. İkisi de emülatörde yükl�
       Bluecoins konvansiyonuna uyacak şekilde **silinmeden bırakıldı**
       (Ana Hesap ₺43.150, genel net ₺47.300). `gozlemler/hesap-defterim.md`
       tamamen güncellendi.
-- [ ] **Faz 4b — Goodbudget (yapay zekâ):** household hesabı açma kapısı →
-      kullanıcıya devredilir; gerisi K00–K08 + arayüz taraması. Zarf modelinin
-      sistem işleyişi (harcamadan önce dağıt).
-- [ ] **Faz 5'te** ikisi kıyaslanır → 3. slot seçilir. Ön değerlendirme (Hesap
-      Defterim koşumundan sonra): Hesap Defterim TR/esnaf ilgisi taşıyor ama
-      modeli çok ince; Goodbudget'ın zarf felsefesi Belge 3'e daha özgün bir
-      "farklı yol" katabilir. Seçilmeyen Tur 1 derinliğinde kalır.
-- [ ] İkisi de zayıf gelirse: YNAB veya Spendee'ye geç
+- [x] **Faz 4b — Goodbudget (yapay zekâ, 11 Eyl):** household kaydı (gerçek
+      e-posta) kullanıcıya devredildi; gerisi K00–K08 + A/B/B1/B2 ek koşumu
+      yapay zekâ tarafından yapıldı. `gozlemler/goodbudget.md`, kareler `01`–`22`.
+      Bulgu: Envelopes (bütçe) ve Accounts (gerçek hesap) **iki ayrı katman**,
+      Accounts varsayılan kapalı ve ücretsiz sürümde **toplam 1 hesap sınırı**
+      (tüm türler ortak) — **K05 (kart gideri), K06 (transfer) ve A (kısmi kart
+      ödemesi) bu yüzden canlı test edilemedi**. Gelir türü "Credit", zarf
+      seçimi gelirde de zorunlu (Available'a doğrudan yatırma yok) — bu
+      zorunluluk K07'de **"Spending by Envelope" raporunu bozdu** (Ağustos
+      Total Spending -22.950,00, gerçek ₺850 harcama görünmüyor; "Income vs
+      Spending" Income 0,00/Spending -22.950,00 — gerçeğin tam tersi). B1
+      tekrarlayan karma model (ilk örnek anında gerçek kayıt, gelecek örnekler
+      geçmişte görünmüyor); B2 taksit yok; B fiş/kamera hiç yok (5 uygulama
+      arasında tek istisna). K08'de düzenlenip silinen kaydın bakiyeye etkisi
+      tam geri alınmadı (kalıcı ₺16 sapma). Ağırlıkla negatif referans +
+      gelir/gider ayrımı gerekçesine güçlü destek.
+- [x] **Faz 5'te (11 Eyl) kıyaslandı → 3. slot seçilmedi, Wallet'a kaydırıldı.**
+      Gerekçe: ikisi de D1-D4'ün sorduğu "fatura/borç/kısmi tahsilat" alanında
+      zaten "Yok" diye kesinleşmişti (bkz. yukarı "Karar özeti"). İkisi de
+      Tur 1 derinliğinde kalıyor, seçilmedi.
 - [x] `MANUEL-TEST-PROTOKOLU.md` + `DURUM.md` tabloları Hesap Defterim için güncellendi
 
-### Faz 5 — Tur 2 seçimi
-- [ ] Bluecoins'i "yapımıza en yakın" slota kilitle (kesinleşmezse MM veya Wallet)
-- [ ] Faz 4'ten çıkan "bize benzemeyen" uygulamayı 3. slota koy
-- [ ] Tur 2'nin 3'ü kesinleşir → `DURUM.md` "Tur 2" bölümü + "Kilit bulgular" güncellenir
+### Faz 5 — Tur 2 seçimi  *(TAMAM, 11 Eyl 2026)*
+- [x] Bluecoins'i "yapımıza en yakın" slota kilitlendi
+- [x] Faz 4'ten çıkan iki aday (Hesap Defterim, Goodbudget) D1-D4 için zaten
+      "Yok" sonucu verdiğinden 3. slota konmadı; **Wallet** (Debt/Records
+      mekanizması D1-D3'e yapısal olarak en yakın, henüz zorlanmamış) 3. slota
+      seçildi — kullanıcı kararı
+- [x] Tur 2'nin 3'ü kesinleşti: **Bluecoins + KolayBi + Wallet** —
+      `DURUM.md` "Tur 2" bölümü + "Kilit bulgular" güncellendi
 
 ### Faz 6 — KolayBi masa başı derinleştirme  *(Faz 1–5 boyunca paralel)*
 - [ ] **Kullanıcı:** "Kullanım Rehberi Bölüm 1/2" videoları → transkript + kareler
 - [ ] **Yapay zekâ:** forma işle (proje ekranı, gider formu, cari ekstre)
 
 ### Faz 7 — Tur 2 derin koşum
-- [ ] Seçilen 3 uygulamada D1–D4 olayları + protokol 1–5 konuları
-- [ ] Detaylı fotoğraflama + pipeline şemaları
-- [ ] Formların "Tur 2" bölümleri
+- [x] **Bluecoins (11 Eyl 2026, yapay zekâ):** D1 tamamlama (hatırlatıcı →
+      gerçek işlem) + D2 (fatura = sıradan Gelir, invoice nesnesi yok) + D3
+      (kısmi tahsilat = sıradan Transfer, D2'ye sistemsel bağı yok) + arama/
+      filtre/dışa aktarma (konu 5) + tam arayüz taraması (konu 6: Nakit Akım
+      Ayarı, Kategori/Hesap Ayarları varsayılanları, çoklu para birimi,
+      Kategoriler/Etiketler/Çöp Kutusu/Takvim). D4 atlandı (B1 ile birebir
+      aynı senaryo). `gozlemler/bluecoins.md` "Faz 7" bölümü, kareler
+      `f7-00`–`f7-54` (`kanitlar/bluecoins/`). **Bluecoins TAMAM.**
+- [x] **Wallet (11 Eyl 2026, yapay zekâ):** A tamamlama (₺400 kısmi kart
+      ödemesi, jenerik transfer) + D1 (planlı ödeme, geçmiş tarih tarih
+      seçiciden engellendi, Confirm ile realize) + **D2 (I Lent borç,
+      "Record oluşturursan bakiyen değişir" sorusu, No → bakiye değişmedi —
+      ADR 0014'ün en güçlü olumlu kanıtı)** + **D3 (aynı Debt'e Record ile
+      kısmi tahsilat, running balance otomatik güncellendi — Bluecoins'in
+      bağımsız iki hareketinden daha doğru)** + konu 5 (arama) + konu 6 (tam
+      arayüz taraması: Filters, Automatic rules/transfer tanıma, Currencies,
+      Advanced settings/Initial day of the month). `gozlemler/wallet-
+      budgetbakers.md` "Faz 7" bölümü, kareler `f7-00`–`f7-58`
+      (`kanitlar/wallet/`). **Wallet TAMAM.**
+- [ ] KolayBi — Faz 6 (video+transkript) bitince masa başı derinleştirme
+- [ ] Formların "Tur 2" bölümleri tamamlanınca `DURUM.md` güncellenir
 
 ### Faz 8 — Belge yazımı
 - [ ] Belge 1 (arayüz) + Belge 2 (akış) taslak → onay → Belge 3 (öneri)
