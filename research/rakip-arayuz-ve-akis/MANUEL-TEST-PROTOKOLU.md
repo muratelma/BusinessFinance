@@ -21,13 +21,13 @@ gözlenen davranışı kaydederiz.
 | 6 | Wallet by BudgetBakers | `com.droid4you.application.wallet` | Sürülebilir |
 | 7 | Bluecoins | `com.rammigsoftware.bluecoins` | Sürülebilir |
 
-**"Bize benzemeyen" 3. Tur 2 slotu için iki aday** (10 Eyl 2026 eklendi, Faz 4'te
-biri seçilecek):
+**"Bize benzemeyen" 3. Tur 2 slotu için iki aday** (10 Eyl 2026 eklendi; Faz 4'te
+ikisine de tam Tur 1 koşumu yapılır, Faz 5'te biri seçilir):
 
-| # | Uygulama | Paket | Tür |
-|---|---|---|---|
-| 8 | Hesap Defterim (Cash Book / Ankit Saraf) | `cashbook.cashbook` | Esnaf kasa/veresiye defteri, TR yerelleşmiş, kayıt yok |
-| 9 | Goodbudget | `com.dayspringtech.envelopes` | Dijital zarf bütçe, household hesabı gerekli |
+| # | Uygulama | Paket | Tür | Tur 1 durumu |
+|---|---|---|---|---|
+| 8 | Hesap Defterim (Cash Book / Ankit Saraf) | `cashbook.cashbook` | Esnaf kasa/veresiye defteri, TR yerelleşmiş, kayıt yok | **Tamamlandı (10 Eyl)** — `gozlemler/hesap-defterim.md` |
+| 9 | Goodbudget | `com.dayspringtech.envelopes` | Dijital zarf bütçe, household hesabı gerekli | Sıradaki |
 
 Kendi uygulamalarımız (rakip değil, karşılaştırma zemini): `com.nef.business_finance_mobile`,
 `com.nef.personal_budget_mobile`.
@@ -63,9 +63,26 @@ Hedef süre uygulama başına 20–30 dakikadır.
 | K07 | Liste, detay ve aylık raporu incele | Kayıtlar bulunabiliyor, filtrelenebiliyor ve anlaşılabiliyor mu? |
 | K08 | Bir kaydı düzelt veya iptal et | Geri bildirim, hata önleme ve geri alma nasıl? |
 
+**Sürülen uygulamalarda K08'den sonra ek koşum — A / B / B1 / B2** (10 Eyl 2026'dan
+itibaren standart; tutarlar `SENTETIK-TEST-VERISI.md` "Ek koşum olayları"):
+
+| Kimlik | Görev | Kaydedilecek ana soru |
+|---|---|---|
+| A | Kısmi kredi kartı ödemesi (₺400) | Kart ödemesinde tutar serbestçe düşürülebiliyor mu; kısmi ödeme borca/ekstreye nasıl yansıyor |
+| B | Fiş / kamera | OCR mu (tutar/tarih/satıcı okur) yoksa sadece dosya eki mi |
+| B1 | Tekrarlayan gider (₺600/ay, ilk çekim 10 Ağu) | Tanım nasıl kuruluyor; ileri aylara otomatik mi / onaylı mı düşüyor; pasifleştirme/silme |
+| B2 | Taksitli kart harcaması (₺6.000 = 6×₺1.000, ilk 15 Ağu) | Taksit planı nasıl kuruluyor; Ağustos ekstresine kaç TL; kalan taksitler nasıl |
+
+Ek koşum kayıtları test sonrası **silinmez, olduğu gibi cihazda bırakılır**
+(kontrol değerinden sapmış hâlde kalır) — o uygulama Tur 2'ye seçilirse
+sıfırlanıp yeniden kurulur (11 Eyl 2026'da sabitlendi, bkz.
+`gozlemler/hesap-defterim.md` "Metodoloji notu"). İçine girilemeyen (resmî
+kaynak) uygulamalarda A/B/B1/B2 canlı koşulmaz; varsa
+video/yardım merkezinden `Resmî kaynak` etiketiyle not edilir.
+
 Bir özellik yoksa benzerini zorlayarak üretme. Örneğin işletme/şahsi ayrımı
 yoksa kategoriyle taklit etme; doğrudan `Desteklenmiyor` yaz. Bu yokluğun
-kendisi araştırma bulgusudur.
+kendisi araştırma bulgusudur (B1/B2 için de geçerli).
 
 **K00–K08'den sonra ~10 dk'lık arayüz taraması yapılır** (görevlerden bağımsız):
 görev dışı kalan tüm ekranlar bir kez açılır — diğer sekmeler, rapor drill-down,
@@ -85,16 +102,16 @@ etiketiyle doldurulur.
 
 Tur 1 ile Tur 2 arasında bir ara adım: sürülebilen üç uygulamada (Money Manager,
 Wallet, Bluecoins) formun **kendi "eksik kanıt" listesinden** gidilir. Amaç Tur 2
-seçimini kör yapmamak. **Orta derinlik** — Tur 2 kadar ayrıntılı değil:
+seçimini kör yapmamak. **Orta derinlik** — Tur 2 kadar ayrıntılı değil.
+(Yeni sürülen uygulamalarda A/B/B1/B2 zaten Tur 1'in parçası — yukarı bakın;
+boşluk koşumu bu üç uygulamaya özgü, çünkü Tur 1'leri bu adım eklenmeden yapıldı.)
 
 - **Her uygulamada canlı kurulur ve davranışı gözlemlenir:** çekirdek 5 işlem
   (doğru Ağustos tarihleriyle), **kredi kartı harcaması + ödemesi**,
-  **tekrarlayan işlem** (B1), **taksit planı** (B2 — `SENTETIK-TEST-VERISI.md`).
+  **kısmi kart ödemesi** (A), **tekrarlayan işlem** (B1), **taksit planı** (B2),
+  **fiş/kamera** (B) — hepsi `SENTETIK-TEST-VERISI.md` "Ek koşum olayları".
   Bunlar sadece "var" denmez, gerçek kayıt oluşturulup üretim/ekstre davranışı
-  izlenir.
-- **İki hızlı gözlem** (bir satır not yeter): (A) kart ödemesinde **kısmi tutar**
-  girilebiliyor mu; (B) işlem formundaki kamera/fiş **OCR mu yoksa sadece
-  fotoğraf ekleme mi**.
+  izlenir; özellik yoksa `Desteklenmiyor`.
 - Planlama / borç / hatırlatıcı gibi formun kendi eksik kalemleri koşulur;
   K00–K08 baştan tekrarlanmaz.
 - **Kapsam dışı:** export, yedek/geri yükleme, bütçe kurulum ekranı — seçim-kritik

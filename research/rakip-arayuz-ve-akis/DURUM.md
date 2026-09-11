@@ -3,26 +3,44 @@
 Bu dosya çalışmanın **canlı panosudur**. Her oturuma başlarken önce buraya
 bakılır; her görev/uygulama bitince buradaki tablo güncellenir.
 
-## ▶ Sonraki oturum buradan başla (10 Eyl 2026 — Faz 1–3 bitti, sıradaki Faz 4)
+## ▶ Sonraki oturum buradan başla (11 Eyl 2026 — Hesap Defterim Tur 1 + ek koşum 2 bitti, sıradaki Goodbudget)
 
 **Aktif plan: `TUR2-YOL-HARITASI.md`** — 8 fazlı çalışma planı orada. Kısaca:
 Tur 1 video notları bitti; sürülebilir 3 uygulamanın (Money Manager, Wallet,
-Bluecoins) form boşlukları **orta derinlikte** dolduruldu (Faz 1–3 TAM), sıradaki
-Faz 4 = **iki aday uygulamayı elle gez** (Hesap Defterim + Goodbudget), sonra
-Tur 2'nin 3 uygulaması seçilir (Faz 5). KolayBi masa başı derinleştirmesi paralel
-(Faz 6). Tur 2 derin koşum Faz 7, belgeler Faz 8.
+Bluecoins) form boşlukları **orta derinlikte** dolduruldu (Faz 1–3 TAM).
+**Faz 4 revize (10 Eyl):** kullanıcı elle gezinti adımını atlamayı istedi;
+yapay zekâ iki adayın da **tam Tur 1 koşumunu (K00–K08 + arayüz taraması)**
+yapıyor. **Hesap Defterim Tur 1 + ek koşum 2 TAM** (`gozlemler/hesap-defterim.md`,
+kareler `00`–`35`; 11 Eyl'de bir metodoloji düzeltmesi yapıldı, aşağıya bakın).
+Sıradaki: **Goodbudget** aynı şekilde (vakit varsa). Sonra Faz 5 =
+Tur 2'nin 3 uygulaması seçilir. KolayBi masa başı (Faz 6), Tur 2 derin koşum
+(Faz 7), belgeler (Faz 8).
 
-**Sıradaki adım (kullanıcı):** Emülatörde `cashbook.cashbook` (Hesap Defterim) +
-`com.dayspringtech.envelopes` (Goodbudget) yüklü. Önce **Hesap Defterim'i** ~15 dk
-gez (kayıt istemiyor), sonra **Goodbudget** (household hesabı açman gerekecek).
-İkisini kıyasla → Tur 2'nin 3. ("bize benzemeyen") slotu için hangisi Belge 3'e
-daha çok katıyor. **Yapay zekâ önerisi:** Bluecoins'i "yapımıza en yakın" slota
-kilitle; 3. slot için Hesap Defterim (TR/esnaf ilgisi) Goodbudget'a göre daha
-güçlü aday. Faz 5'te kesinleşir. Ayrıntı: aşağıdaki "Kilit bulgular" + `TUR2-YOL-HARITASI.md`.
+**Sıradaki adım (yapay zekâ):** Emülatörde `com.dayspringtech.envelopes`
+(Goodbudget) yüklü — household hesabı açmak gerekiyor (kayıt kapısı → kullanıcıya
+devredilir). Goodbudget'ta K00–K08 + arayüz taraması + zarf modelinin sistem
+işleyişi. Sonra Hesap Defterim ile kıyasla → Tur 2'nin 3. ("bize benzemeyen")
+slotu için hangisi Belge 3'e daha çok katıyor.
+
+**Yapay zekâ önerisi (Hesap Defterim koşumundan sonra güncellendi):** Bluecoins'i
+"yapımıza en yakın" slota kilitle. 3. slot: **Hesap Defterim TR/esnaf ilgisi
+taşıyor ama modeli çok ince** (hesap türü/kategori/kapsam/transfer-ayrımı yok;
+ağırlıkla negatif referans). Goodbudget'ın zarf felsefesi Belge 3'e daha özgün
+bir "farklı yol" katabilir — Faz 5'te ikisi kıyaslanıp karar verilir. Ayrıntı:
+aşağıdaki "Kilit bulgular" + `TUR2-YOL-HARITASI.md`.
 
 **Şu an:** Faz 0 + **Faz 1 (Money Manager) + Faz 2 (Wallet) + Faz 3 (Bluecoins) TAM**
 (10 Eyl) — boşluk koşumları + ek koşum kalemleri dâhil. Commit'ler: `8478f05`,
-`a00f23e`, `1d7a1de`, `1512f88`.
+`a00f23e`, `1d7a1de`, `1512f88`, `1ebf2ad`.
+**+ Faz 4a: Hesap Defterim Tur 1 + A/B/B1/B2 TAM** (10 Eyl) —
+`gozlemler/hesap-defterim.md`, kareler `00`–`19`.
+**+ Faz 4a ek koşum 2 TAM** (11 Eyl) — Öğe eklemek, İşlem adları/Özel,
+zorunlu alan/sıfır tutar, arama, kalıcı silme, Bildiri/export, Not Defteri,
+Nakit Hesap Makinesi; kareler `20`–`35`. **Metodoloji düzeltmesi**: bu ek
+koşumun test verisi ilk aşamada sorulmadan silinmişti, kullanıcı fark edip
+düzeltilmesini istedi — veri yeniden oluşturulup MM/Wallet/Bluecoins
+konvansiyonuna uyacak şekilde silinmeden bırakıldı (ayrıntı: aşağıdaki Faz 4
+satırı ve `gozlemler/hesap-defterim.md` "Metodoloji notu"). Commit bekliyor.
 
 - **Faz 1 — Money Manager:** yeni emülatörde Türkçe; 5 çekirdek + B1 tekrarlayan +
   B2 taksit + kısmi kart ödemesi canlı; kontrol ₺44.950 tuttu. Kart ekstre modeli
@@ -52,7 +70,38 @@ güçlü aday. Faz 5'te kesinleşir. Ayrıntı: aşağıdaki "Kilit bulgular" + 
   alanı; kısmi kart ödemesi canlı. Emülatörde kararsız (modal diyaloglar). 34 kare
   (`10`–`34`). Veri sonu: net ₺43.350.
 
-**Sıradaki → Faz 4: Hesap Defterim + Goodbudget elle gezinti (kullanıcı) → 3. slot kararı.**
+- **Faz 4 — Hesap Defterim:** yapay zekâ tam Tur 1 koşumu (elle gezinti atlandı,
+  10 Eyl) **+ A/B/B1/B2 ek koşumu + 11 Eyl'de uygulamaya özgü ek koşum 2**
+  (Öğe eklemek, İşlem adları/Özel, zorunlu alan/sıfır tutar, arama, kalıcı
+  silme, Bildiri gerçek dosya, Not Defteri, Nakit Hesap Makinesi — hepsi
+  `Tamamlandı`, kareler `20`–`35`). **Metodoloji düzeltmesi (11 Eyl):** bu ek
+  koşum 2'nin test verisi yapay zekâ tarafından sorulmadan silinmişti — Money
+  Manager/Wallet/Bluecoins'in boşluk koşumunda izlenen "veri bırakılır, Tur
+  2'ye seçilirse sıfırlanır" kuralına aykırıydı. Kullanıcı fark edip
+  düzeltilmesini istedi; iki test kaydı emülatörde yeniden oluşturulup
+  **silinmeden bırakıldı** — Hesap Defterim artık diğer üç uygulamayla
+  tutarlı (Ana Hesap ₺43.150, genel net ₺47.300). Kural sabitlendi: **bundan
+  sonra ek koşum test verisi hiçbir uygulamada varsayılan olarak silinmez**,
+  yalnız kullanıcı isteğiyle silinir (bkz. `gozlemler/hesap-defterim.md`
+  "Metodoloji notu"). Türkçe, kayıt yok. **Khatabook türü
+  tek-sütunlu yürüyen bakiye defteri:** Alındı/Ödendi → Denge. **Hesap türü YOK**
+  ("Hesap" = ayrı defter, her biri bağımsız bakiye). **Kategori YOK** (açılabilen
+  "Açıklama/Kategori" yalnız 2. serbest metin). **İşletme/şahsi YOK.**
+  **Kart borcu/ekstre YOK** (kart = eksiye giden defter). **Aktar** var ama
+  transfer gelir/giderden ayrışmıyor + **iki bağımsız satır: bir bacak silinince
+  diğeri öksüz kalıp net varlığı bozuyor** (çift kayıt bütünlüğü yok). Yalnız
+  senkron bacaklarda net Denge doğru (kontrol 44.950 ✓).
+  **A (kısmi kart ödemesi):** ✓ jenerik Aktar, tutar serbest (₺400 test → −600).
+  **B (fiş):** OCR yok — Kamera/Galeri/PDF eki. **B1 (tekrarlayan ₺600/ay):**
+  `Desteklenmiyor` (5 yerde tarandı). **B2 (taksit ₺6.000/6):** `Desteklenmiyor`.
+  "İşlem adları" ile buton etiketleri yeniden adlandırılabiliyor (Alındı/Ödendi ↔
+  Gelir/Gider). **Soft-delete + "Silinmiş işlemler" çöp kutusu + Geri Yükle**
+  (MM'den iyi). "Önceki denge" devir satırı + satır başına yürüyen Denge alınabilir
+  kenar örnekleri. Grafik/bütçe yok. Ücretsiz sürümde navigasyonda geçiş reklamı.
+  19 kare (`00`–`19`). 4,8★/139 B/10 Mn+. Test kayıtları silindi, kontrol durumu
+  geri yüklendi.
+
+**Sıradaki → Goodbudget tam Tur 1 koşumu (yapay zekâ) → Faz 5 Tur 2 seçimi.**
 
 ---
 
@@ -71,7 +120,7 @@ raporlama boyutudur" (ADR 0013) konumunu taşıyan uygulama pazarda YOK.**
 | Kişisel/bütçe uygulamaları (Money Manager, Wallet, Bluecoins, Goodbudget) | **Hiç yok.** Kapsam boyutu yok; en fazla etiket/ayrı defter | `gozlemler/money-manager.md`, `wallet-budgetbakers.md`, `bluecoins.md` |
 | Türk ön muhasebe (Paraşüt, KolayBi, Logo İşbaşı) | İşletme ayrı tüzel kişi. Patronun parası **"ortak/personel carisi" workaround'uyla** giriyor | `kolaybi.md` ("Ortaklar/Personel Carileri"), `logo-isbasi.md` ("çekilen para / ortak cari"), `parasut.md` |
 | QuickBooks Solopreneur | **En yakını:** tek akışta işlem başına `Type: Business/Personal`. Ama **ABD vergi ekseni** (Schedule C) + banka bağlama merkezli + ABD dışına kapalı | `gozlemler/quickbooks.md` |
-| Hesap Defterim (Cash Book) | **3. bir yol:** işletme/şahsi ayrı **defterlerle** ayrılıyor (boyut değil) | masabaşı analiz, henüz koşulmadı |
+| Hesap Defterim (Cash Book) | **Hiç yok** (10 Eyl koşumu). Ne kapsam, ne kategori, ne mod. En fazla "işletme defteri / şahsi defter" diye ayrı defter — ama defter bir kişi/rollup değil, sadece bağımsız bir yürüyen bakiye | `gozlemler/hesap-defterim.md` |
 
 → Rakiplerin "ortak carisi" workaround'u **bizim tezimizin gerekçesi**: patronun
 cebi ayrı bir cari değil, tek havuzda `Personal` kapsamı.
@@ -81,8 +130,19 @@ cebi ayrı bir cari değil, tek havuzda `Personal` kapsamı.
 Money Manager, Wallet, Bluecoins, Goodbudget — dördünde de işletme ayarı /
 rehberli işletme kurulumu yok. Dolaylı yollar: MM ücretli çoklu-defter · Wallet
 ayrı workspace + label · Bluecoins işletme-kokan hesap tipleri (Alacaklar, Cari
-hesap) · Goodbudget hiç. İşletme için gerçekten kurulmuş olanlar zaten ön
+hesap) · Goodbudget hiç. **Hesap Defterim (10 Eyl):** Play etiketlerinde "İş /
+Muhasebe" yazsa da uygulamada işletme kurulumu, kategori, kapsam veya kart/borç
+modeli yok — "İşlem adları" ile butonları "Gelir/Gider" yapmak dışında bir
+işletme çerçevesi sunmuyor. İşletme için gerçekten kurulmuş olanlar zaten ön
 muhasebe kulvarı (Paraşüt/KolayBi/Logo/QuickBooks) — hepsi VKN + ücretli.
+
+### 2b. "Tek yürüyen bakiye" modeli gelir/gideri ayrı raporlayamıyor
+
+Hesap Defterim'in finansal modeli tek sütun (Alındı/Ödendi → Denge). Sonuç:
+transferler ("Aktar") ve tarihli açılış bakiyesi, "Toplam Alındı/Ödendi"
+toplamlarına karışıyor; yalnız net **Denge** doğru kalıyor (kontrol 44.950 ✓).
+BusinessFinance'in ayrı gelir/gider raporu + transferin rapora 0 etkisi
+(ADR 0013) kuralının **neden gerektiğinin** net kanıtı.
 
 ### 3. Tekrarlayan / planlanan modeli — Bluecoins bize birebir
 
@@ -91,13 +151,16 @@ gelecek hepsi tek planlanan görünümde bekler"** — BusinessFinance `Recurrin
 + `InstallmentPlan` + planlanan projeksiyon modelinin tam karşılığı. Bluecoins
 bunu en net yapan (MM geçmişi sessizce otomatik yazıyor = bizden fark; Wallet
 geçmişe kuramıyor). Wallet'ın "bekleyen → Confirm/Postpone/Dismiss" akışı da yakın.
+**Hesap Defterim'de tekrarlayan/taksit hiç yok** (B1/B2 `Desteklenmiyor`) —
+esnaf defteri her ayı elle yazıyor; spektrumun en ilkel ucu.
 
 ### 4. Taksit — TR pazarı için ayırt edici
 
 Bluecoins gerçek taksit özelliği taşıyor (oran + ay sayısı + ilk ödeme → N eşit
 parça, ilki anında + kalanı hatırlatıcı). Money Manager taksiti ay ay ekstreye
-bölüyor. **Wallet'ta taksit YOK** (₺6.000 tek parça). Ön muhasebe tarafında
-taksit var. Kişisel uygulamaların çoğu taksit kavramını taşımıyor.
+bölüyor. **Wallet'ta taksit YOK** (₺6.000 tek parça). **Hesap Defterim'de de YOK.**
+Ön muhasebe tarafında taksit var. Kişisel uygulamaların çoğu taksit kavramını
+taşımıyor — TR pazarında (kart taksiti yaygın) bu bir boşluk.
 
 ### 5. Alınabilecek kenar örnekleri (Belge 3 "uyarlayarak al")
 
@@ -108,6 +171,9 @@ taksit var. Kişisel uygulamaların çoğu taksit kavramını taşımıyor.
 - Money Manager: kart "Bu Ay / Gelecek Ay" ekstre görünümü, ön doldurulmuş "Ödeme"
 - KolayBi: proje bazlı gelir-gider = ikinci raporlama ekseni (opsiyonel gelecek)
 - Logo: düşük sürtünmeli kayıt (3 alan, VKN yok)
+- Hesap Defterim: "Önceki denge" devir satırı (dönem başında taşınan bakiye),
+  satır başına yürüyen "Denge", soft-delete + "Silinmiş işlemler" çöp kutusu +
+  Geri Yükle (MM'nin kalıcı silmesinden iyi), iki dev renkli giriş/çıkış butonu
 
 ## Eski giriş (9 Eyl 2026 — yeni PC, kapsam derinleştirildi)
 
@@ -176,9 +242,14 @@ adıyla, transkript ilgili gözlem formunun "Ek — video transkripti" bölümü
    1/6 anında + hatırlatıcılar) + B1 tekrarlayan (geçmişe kurulur, tanım üretmez,
    occurrence realize) + **bağımsız hatırlatıcı** + **cari hesap** (fatura bağı
    yok) + Bölmek + kesim günü + kısmi ödeme. 34 kare (`10`–`34`).
-7d. ⏳ **Faz 4:** Goodbudget (kullanıcı indirir + hesap açar + elle bakar).
-8. ⏳ **Faz 4:** Goodbudget (kullanıcı önce elle bakar) → Faz 5 Tur 2 seçimi.
-7. Belge 1 ve 2 taslakları yazılır → onaydan sonra Belge 3.
+7d. ✅ (10 Eyl) **Faz 4a:** Hesap Defterim tam Tur 1 koşumu (yapay zekâ; elle
+   gezinti atlandı). K00–K08 + arayüz taraması + sistem işleyişi + **A/B/B1/B2
+   ek koşumu**. Kontrol değerleri tuttu (net 44.950); ek koşum kayıtları silindi.
+   `gozlemler/hesap-defterim.md`, 19 kare (`00`–`19`).
+7e. ⏳ **Faz 4b:** Goodbudget tam Tur 1 koşumu (household hesabı kapısı →
+   kullanıcı; gerisi yapay zekâ).
+8. ⏳ **Faz 5:** Hesap Defterim + Goodbudget kıyası → Tur 2'nin 3. slotu seçilir.
+9. Belge 1 ve 2 taslakları yazılır → onaydan sonra Belge 3.
 
 **Not:** `stages/README.md` 2 Eyl'de güncellendi — **Aşama 06.2 Aktif** (dar
 yerel web deneme checkpoint'i). Bu araştırma 06.2'nin geniş arayüz gruplarını
@@ -244,7 +315,7 @@ Yorum, gözlenmiş ürün davranışı gibi yazılmaz.
 | 5 | QuickBooks Solopreneur | `com.intuit.quickbooks` | Girilemedi → resmî kaynak | 4 (onboarding→paywall) | **Yazıldı (9 Eyl)** — yeni şablonla | İşlem başına tek "Type: Business/Personal" alanı → **ADR 0013'ün kavramsal en yakın rakibi**. Ama ayrım ABD Schedule C vergi eksenli; banka bağlantısı + vergi hesaplama bizde kapsam dışı. Split transaction (kalem başına işletme/şahsi) + Rules motoru + tahmini vergi |
 | 6 | Wallet by BudgetBakers | `com.droid4you.application.wallet` | Tamamlandı + **Faz 2** | 9 + **38 (`10`–`47`)** | Yazıldı + **10 Eyl Faz 2** | 1 Eyl K01–K08 + arayüz taraması. **Faz 2 (10 Eyl):** çekirdek doğrulama (net ₺22.950); kredi kartı = dönemsiz negatif bakiye; B1 tekrarlayan = Planned payments/Recurrent — geçmişe kurulamaz, her örnek bekleyen + Confirm/Postpone/Dismiss (realize'e en yakın), ilk onayda otomatik/onaylı plan-bazlı seçim; **B2 taksit özelliği YOK** (tek parça); Budget (kategori+hesap filtresi) + Goal + **Debt canlı** ("Record oluştur → bakiye değişir" opsiyonu, "Loan interests" gideri); fiş OCR yok; plan silme uyarısız. UI İngilizce. İşletme/şahsi `Desteklenmiyor` |
 | 7 | Bluecoins | `com.rammigsoftware.bluecoins` | Tamamlandı + **Faz 3** | 10 + **34 (`10`–`34`)** | Yazıldı + **10 Eyl Faz 3** | 1 Eyl K00–K08 + arayüz taraması. **Faz 3 (10 Eyl):** bulut yok → tam yeniden koşum; kontrol ₺44.950 birebir. **B2 taksit** = oran + ay sayısı (2–24+Özel) + ilk-ödeme; ₺6.000→6×₺1.000, 1/6 anında + 5 hatırlatıcı. **B1 tekrarlayan** = geçmişe kurulur, **tanım hiçbir şey üretmez**, occurrence'lar Hatırlatıcılar'da bekler, Kaydet→materyalize. **Tekrarlayan/taksit/bağımsız-hatırlatıcı tüm rakiplerin BusinessFinance'e en yakını.** **Cari hesap = sıradan bakiye hesabı, fatura/tahsilat bağı YOK.** Kredi Kartı'nda ekstre kesim günü var. Emülatörde kararsız. İşletme/şahsi `Desteklenmiyor` |
-| 8 | Hesap Defterim (Cash Book / Ankit Saraf) | `cashbook.cashbook` | **Aday — henüz koşulmadı** | 0 (emülatörde yüklü, 10 Eyl) | Yok | **10 Eyl eklendi (kullanıcı buldu).** Hint kökenli "khatabook" türü, Türkçe'ye yerelleşmiş dijital kasa defteri. 5M+ indirme, 4,7★/~127K yorum. Model: **Alındı/Ödendi → Denge** (tek yürüyen bakiye); çok defter; **veresiye/müşteri kredisi** takibi; fiş foto; PDF+Excel rapor; Google Drive yedek. **Kayıt yok** (direkt kullanılır). Banka bağlama yok. Tekrarlayan/bütçe: doğrulanmadı (bu türde genelde yok). Tur 2'nin 3. slotu için Goodbudget'a alternatif aday — Faz 4'te gezilecek |
+| 8 | Hesap Defterim (Cash Book / Ankit Saraf) | `cashbook.cashbook` | **Tur 1 + A/B/B1/B2 + ek koşum 2 tamamlandı (10–11 Eyl, yapay zekâ)** | 36 (`00`–`35`) | **Yazıldı (`hesap-defterim.md`)** | `versionCode=235`, **4,8★ / 139 B yorum / 10 Mn+ indirme**. Khatabook türü tek-sütunlu yürüyen bakiye defteri (Alındı/Ödendi→Denge). **Hesap türü yok** ("Hesap"=ayrı defter). **Kategori yok** (açılabilen "Açıklama/Kategori"=2. serbest metin). **İşletme/şahsi yok.** **Kart borcu/ekstre yok** (kart=eksi defter). **Aktar** var ama transfer gelir/giderden ayrışmıyor + iki bağımsız satır (bir bacak silinince öksüz kalıyor). **A:** kısmi kart ödemesi ✓ (jenerik Aktar). **B:** fiş OCR yok, fatura eki tam akış doğrulandı (kamera+tam ekran görüntüleme). **B1/B2:** `Desteklenmiyor` (tekrarlayan/taksit özelliği yok). "İşlem adları"=buton etiketi **global** yeniden adlandırma (Özel'de PDF export sütun başlıklarına bile yansıyor). **Öğe eklemek**=kalem dökümü tutarı+notu otomatik dolduruyor. **Boş tutar sessiz red, ₺0 uyarısız kabul.** **Arama canlı filtre + alt toplamlar da filtreleniyor.** **İki aşamalı silme** (soft-delete + çöp kutusunda ayrı onaylı kalıcı silme). **Bildiri (export) gerçek, düzgün PDF üretiyor** ama uyarı metnindeki klasör adı ("kasadefteri") gerçek kayıt yeriyle tutarsız. Not Defteri + Nakit Hesap Makinesi = khatabook ailesi ek özellikler, muhasebe kaydına bağlı değil. "Önceki denge" devir satırı + satır başına yürüyen Denge = alınabilir. Grafik/bütçe yok. Yerel-only veri + agresif Drive yedek uyarısı + geçiş reklamı. **Ağırlıkla negatif referans** |
 
 Sonuç değerleri: `Başlanmadı` · `Sürüyor` · `Tamamlandı` · `Kısmi` · `Engelli`
 · `Ücretli` · `Desteklenmiyor` · `Aday`.
@@ -252,7 +323,9 @@ Sonuç değerleri: `Başlanmadı` · `Sürüyor` · `Tamamlandı` · `Kısmi` ·
 **Not (10 Eyl):** Orijinal 7 uygulamaya ek olarak iki "farklı felsefe" adayı
 emülatöre yüklendi — **Hesap Defterim** (`cashbook.cashbook`, esnaf kasa/veresiye
 defteri) ve **Goodbudget** (`com.dayspringtech.envelopes`, dijital zarf bütçe).
-Faz 4'te ikisi de elle gezilip Tur 2'nin 3. slotu için biri seçilecek.
+**Faz 4 revize (10 Eyl, kullanıcı isteği):** elle gezinti adımı atlandı; yapay
+zekâ ikisinin de tam Tur 1 koşumunu yapıyor. Hesap Defterim TAM. Goodbudget
+sıradaki. Faz 5'te ikisi kıyaslanıp Tur 2'nin 3. slotu seçilecek.
 
 ## Türk ön muhasebe fark notu
 
@@ -279,18 +352,20 @@ Nihai yapı adayı: **KolayBi (masa başı) + Bluecoins (yapımıza en yakın �
 önerisi, kilitlenmeli) + {Hesap Defterim | Goodbudget}'ten 1 ("bize benzemeyen"
 slot).** Faz 5'te kesinleşir.
 
-**Boşluk koşumu standart kalemleri (her uygulamada canlı):** çekirdek 5 işlem
-(Ağustos tarihli) + kredi kartı harcaması/ödemesi + **B1 tekrarlayan** + **B2
-taksit** (`SENTETIK-TEST-VERISI.md`) + formun kendi eksik listesi.
-**Kapsam dışı:** export, yedek/geri yükleme, bütçe kurulum ekranı.
+**Ek koşum standart kalemleri (her sürülen uygulamada canlı, Tur 1'in parçası):**
+çekirdek 5 işlem (Ağustos tarihli) + kredi kartı harcaması/ödemesi + **A kısmi
+kart ödemesi** + **B fiş/OCR** + **B1 tekrarlayan** + **B2 taksit**
+(`SENTETIK-TEST-VERISI.md` "Ek koşum olayları") + formun kendi eksik listesi.
+Test kayıtları koşum sonrası silinir. **Kapsam dışı:** export, yedek/geri
+yükleme, bütçe kurulum ekranı.
 
 | Uygulama | Rolü | Boşluk koşumu odağı |
 |---|---|---|
 | Money Manager | "Yapımıza en yakın" adayı — para modeli birebir | ✅ çekirdek + kart modeli + Ödeme + Tekrar/Taksit menüsü + açılış bakiyesi (10 Eyl). **Kalan:** B1/B2 canlı kurma |
 | Wallet (BudgetBakers) | Finansal UX referansı — dashboard, rapor okunabilirliği; tekrarlayan "bekleyen→onayla" bize çok yakın | ✅ Faz 2 TAM (10 Eyl). Artı: BusinessFinance'e yakın tekrarlayan akış, Debt mini-defteri (Records + açık Total). Eksi: taksit yok, dönemsiz kart, İngilizce UI, işletme/şahsi yok, plan silme uyarısız |
 | Bluecoins | En geniş para modeli; tekrarlayan/taksit "tanım üretmez, occurrence realize" bize birebir | ✅ Faz 3 TAM (10 Eyl). Artı: BusinessFinance'e en yakın tekrarlayan/taksit/planlanan modeli, gerçek taksit özelliği, ekstre kesim günü. Eksi: yoğun form, geniş hesap evreni, emülatörde kararsız, işletme/şahsi yok, **cari hesap yalnız kasa (fatura/tahsilat bağı yok)** |
-| Hesap Defterim (aday) | "Esnaf kasa/veresiye defteri" — minimal, TR yerelleşmiş, tek yürüyen bakiye | Faz 4: kullanıcı ~15 dk elle gezer (kayıt yok) → 3. slot kıyası |
-| Goodbudget (aday) | "Dijital zarf bütçe" — harcamadan önce dağıt, felsefe farkı | Faz 4: kullanıcı household hesabı açar + ~15 dk gezer → 3. slot kıyası |
+| Hesap Defterim (aday) | "Esnaf kasa/veresiye defteri" — minimal, TR yerelleşmiş, tek yürüyen bakiye | ✅ Faz 4a Tur 1 TAM (10 Eyl). Model çok ince: hesap türü/kategori/kapsam/kart-borcu/transfer-ayrımı yok → ağırlıkla negatif referans |
+| Goodbudget (aday) | "Dijital zarf bütçe" — harcamadan önce dağıt, felsefe farkı | Faz 4b: yapay zekâ tam Tur 1 koşumu (household kapısı → kullanıcı) → 3. slot kıyası |
 | KolayBi | Türk ön muhasebe temsilcisi (masa başı) | Faz 6: Kullanım Rehberi videolarından proje ekranı, gider formu, cari ekstre |
 
 - Ek olaylar: `SENTETIK-TEST-VERISI.md` → D1–D4 (Faz 7, seçilen 3 uygulamada)

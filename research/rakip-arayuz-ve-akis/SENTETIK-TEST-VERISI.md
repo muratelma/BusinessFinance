@@ -55,21 +55,35 @@ yapmadığımızı anlamak için kullanılır:
 Rakip farklı bir finansal model kullanıyorsa yalnız fark kaydedilir. Bu kontrol
 değerleri rakibi BusinessFinance kurallarına uymaya zorlamak için kullanılmaz.
 
-## Boşluk koşumu ek olayları (kredi kartı + tekrarlayan + taksit)
+## Ek koşum olayları — A / B / B1 / B2 (her sürülebilir uygulamada)
 
-Çekirdek 5 işlemden **sonra** eklenir. Amaç davranış gözlemi: uygulamanın bu
-kayıtları nasıl modellediği (kart borcuna/ekstreye etkisi, tekrarlayanın onaylı
-mı yoksa otomatik mi üretildiği, taksitin ekstreye nasıl bölündüğü). **Çekirdek
-kontrol değerleri bu olaylar eklenmeden önce alınır**; bu olayların kesin bir
-hedef toplamı yoktur, uygulamanın ürettiği sayı forma yazılır.
+Başlangıçta yalnız "boşluk koşumu"na (Money Manager, Wallet, Bluecoins) aitti;
+**10 Eyl 2026'dan itibaren sürülen her uygulamanın standart Tur 1 koşumunun
+parçası** (Hesap Defterim, Goodbudget ve Tur 2 uygulamaları dâhil). Çekirdek 5
+işlemden **sonra** eklenir. Amaç davranış gözlemi: uygulamanın bu kayıtları
+nasıl modellediği. **Çekirdek kontrol değerleri bu olaylar eklenmeden önce
+alınır**; bu olayların kesin bir hedef toplamı yoktur, uygulamanın ürettiği sayı
+forma yazılır. Özellik yoksa `Desteklenmiyor` yazılır — yokluk da bir bulgudur.
+**Ek koşum kayıtları test sonrası silinmez; olduğu gibi cihazda bırakılır**
+(kontrol değerinden sapmış hâlde kalır) — o uygulama Tur 2'ye seçilirse o
+zaman sıfırlanıp yeniden kurulur. İstisna: silme özelliğinin kendisini test
+etmek için oluşturulan tek seferlik kayıtlar (K08, sıfır-tutar doğrulaması
+gibi) — onlar zaten silinerek test edilir (11 Eyl 2026'da sabitlendi, bkz.
+`gozlemler/hesap-defterim.md` "Metodoloji notu").
 
 | # | Olay | Tutar | Kaynak / tarih | Gözlenecek |
 |---|---|---:|---|---|
+| A | **Kısmi kredi kartı ödemesi** | ₺400,00 (kısmi) | Ana Hesap → İş Kartı · gözlem günü | Kart ödemesinde tutar serbestçe düşürülebiliyor mu; kısmi ödeme kart borcuna/ekstreye nasıl yansıyor; "asgari tutar / ekstre öde" gibi override var mı |
+| B | **Fiş / kamera** | — (gözlem) | işlem formu | Kamera/fotoğraf eki **OCR mu** (tutar/tarih/satıcı okuyor) **yoksa sadece dosya eki mi**; ADR 0011 öneri katmanı karşılığı var mı |
 | B1 | Tekrarlayan gider — bulut yazılım aboneliği | ₺600,00 / ay | Ana Hesap · ilk çekim 10 Ağustos 2026 · aylık | Tanım nasıl kuruluyor; ileri aylara **otomatik mi / onayla mı** düşüyor; Ağustos'a düşen tutar; pasifleştirme/silme |
 | B2 | Taksitli kart harcaması — tasarım ekipmanı | ₺6.000,00 (6 × ₺1.000) | İş Kartı · ilk taksit 15 Ağustos 2026 · 6 ay | Taksit planı nasıl kuruluyor; **Ağustos ekstresine** kaç TL düşüyor; kalan taksitler nasıl gösteriliyor; kart borcuna etkisi |
 
-Kredi kartı çekirdek akışı (harcama + ödeme) zaten 3. ve 5. çekirdek işlemde
-kapsanıyor; B2 taksit boyutunu ekler.
+Kredi kartı çekirdek akışı (harcama + tam ödeme) zaten 3. ve 5. çekirdek işlemde
+kapsanıyor; A kısmi ödeme boyutunu, B2 taksit boyutunu ekler.
+
+**Koşuldu:** Money Manager, Wallet, Bluecoins (boşluk koşumu, `TUR2-YOL-HARITASI.md`
+Faz 1–3) · **Hesap Defterim** (Tur 1, 10 Eyl — A ✓ / B: OCR yok / B1: Desteklenmiyor
+/ B2: Desteklenmiyor; `gozlemler/hesap-defterim.md`).
 
 ## Tur 2 ek olayları
 

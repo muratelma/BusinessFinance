@@ -102,19 +102,44 @@
 - **Bluecoins Faz 3 TAMAM.** Veri: Ana Hesap ₺39.700 · Ortak Cuzdan ₺4.150 · İş Kartı −₺500 · Ada Reklam cari ₺0 · net ₺43.350. Emülatörde kararsız (modal diyaloglar dokunuşu işlemiyor → force-stop / keyevent).
 - ~~yedek / CSV-PDF export~~ kapsam dışı
 
-### Faz 4 — "Bize benzemeyen" 3. slot: Hesap Defterim + Goodbudget elle gezinti
-İkisi de emülatörde yüklü (`cashbook.cashbook`, `com.dayspringtech.envelopes`).
-- [ ] **Kullanıcı:** **Hesap Defterim'i** ~15 dk gez (kayıt yok, direkt kullanılır).
-      Tek soru: esnaf minimal defter modeli Belge 3'e ne katıyor?
-- [ ] **Kullanıcı:** **Goodbudget'ı** ~15 dk gez (household hesabı açman gerek —
-      "Create New Household"). Tek soru: zarf arayüzü bizim bütçe ekranımızın
-      kaçırdığı ne gösteriyor?
-- [ ] İkisini kıyasla → **3. slot için birini seç** (yapay zekâ önerisi: Hesap
-      Defterim, TR/esnaf ilgisi için). Diğeri Tur 1 derinliğinde masa başı notu kalır.
-- [ ] Seçilen için: K00–K08 + arayüz taraması + sistem işleyişi (Tur 1 protokolü)
+### Faz 4 — "Bize benzemeyen" 3. slot: Hesap Defterim + Goodbudget tam Tur 1 koşumu
+**Revize (10 Eyl, kullanıcı isteği):** elle gezinti adımı atlandı. Yapay zekâ
+ikisinin de **tam Tur 1 koşumunu** yapar (K00–K08 + arayüz taraması + sistem
+işleyişi), tıpkı Money Manager/Bluecoins gibi. İkisi de emülatörde yüklü
+(`cashbook.cashbook`, `com.dayspringtech.envelopes`).
+- [x] **Faz 4a — Hesap Defterim (yapay zekâ, 10 Eyl):** tam Tur 1 koşumu +
+      A/B/B1/B2 ek koşumu bitti. `gozlemler/hesap-defterim.md`, kareler `00`–`19`.
+      Bulgu: khatabook türü tek-sütunlu yürüyen bakiye defteri; hesap türü/
+      kategori/kapsam/kart-borcu/transfer-ayrımı **yok**; **B1/B2 (tekrarlayan,
+      taksit) özelliği de yok**; transfer bacakları öksüz kalabiliyor; ağırlıkla
+      negatif referans. A (kısmi kart ödemesi) ✓ jenerik Aktar'la çalışıyor.
+      Alınabilir kenarlar: "Önceki denge" devir satırı, satır başına yürüyen
+      Denge, soft-delete çöp kutusu. Kontrol değerleri tuttu (net 44.950), test
+      kayıtları silindi.
+- [x] **Faz 4a ek koşum 2 (yapay zekâ, 11 Eyl, kullanıcı isteği):** kalan
+      form boşlukları + uygulamaya özgü özellikler canlı test edildi — Öğe
+      eklemek (kalem dökümü tutar+not otomatik dolduruyor), İşlem adları/Özel
+      (global yeniden adlandırma, export'a da yansıyor), zorunlu alan (boş
+      tutar sessiz red, ₺0 uyarısız kabul), arama (canlı filtre + alt
+      toplamlar da filtreleniyor), kalıcı silme (iki aşamalı: soft-delete +
+      çöp kutusunda ayrı onaylı kalıcı silme), Bildiri/export (gerçek PDF
+      doğrulandı, ama uyarı metnindeki klasör adı gerçek kayıt yeriyle
+      tutarsız), Not Defteri + Nakit Hesap Makinesi (khatabook ailesi,
+      muhasebeyle bağı yok). Kareler `20`–`35`. **Metodoloji düzeltmesi:** ek
+      koşum verisi ilk aşamada sorulmadan silinmişti; kullanıcı fark edip
+      düzeltilmesini istedi, iki test kaydı yeniden oluşturulup MM/Wallet/
+      Bluecoins konvansiyonuna uyacak şekilde **silinmeden bırakıldı**
+      (Ana Hesap ₺43.150, genel net ₺47.300). `gozlemler/hesap-defterim.md`
+      tamamen güncellendi.
+- [ ] **Faz 4b — Goodbudget (yapay zekâ):** household hesabı açma kapısı →
+      kullanıcıya devredilir; gerisi K00–K08 + arayüz taraması. Zarf modelinin
+      sistem işleyişi (harcamadan önce dağıt).
+- [ ] **Faz 5'te** ikisi kıyaslanır → 3. slot seçilir. Ön değerlendirme (Hesap
+      Defterim koşumundan sonra): Hesap Defterim TR/esnaf ilgisi taşıyor ama
+      modeli çok ince; Goodbudget'ın zarf felsefesi Belge 3'e daha özgün bir
+      "farklı yol" katabilir. Seçilmeyen Tur 1 derinliğinde kalır.
 - [ ] İkisi de zayıf gelirse: YNAB veya Spendee'ye geç
-- [ ] Yeni `gozlemler/<seçilen>.md`; `MANUEL-TEST-PROTOKOLU.md` + `DURUM.md`
-      tablosuna işle
+- [x] `MANUEL-TEST-PROTOKOLU.md` + `DURUM.md` tabloları Hesap Defterim için güncellendi
 
 ### Faz 5 — Tur 2 seçimi
 - [ ] Bluecoins'i "yapımıza en yakın" slota kilitle (kesinleşmezse MM veya Wallet)
