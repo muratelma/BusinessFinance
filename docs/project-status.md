@@ -119,6 +119,15 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   `http://localhost:65087` origin'ine CORS izni veriyor; izinli ve izinsiz
   preflight yolları integration testiyle korunuyor. Responsive web düzeni,
   bildirim, kamera, yayın ve ayrı API bu checkpoint'in kapsamında değil
+- **3–27 Eylül 2026: rakip arayüz/akış araştırması yürüdü, uygulama kodu
+  değişmedi.** `research/rakip-arayuz-ve-akis/` altında Belge 1 (arayüz) ve
+  Belge 2 (finansal akışlar) tamamlandı; Belge 3'ün (BusinessFinance için
+  kararlar) yöntem planı taslak, yazımına başlanmadı. Araştırmanın canlı durumu
+  `research/rakip-arayuz-ve-akis/DURUM.md` içindedir
+- **27 Eylül 2026: 06.2'ye cloud üzerinde Flutter arayüz denemeleri
+  checkpoint'i açıldı.** Belge 3'ten önce yapılır; yalnız Flutter tarafıdır ve
+  sözleşme/backend değişmez. Kapsamı denemeler ilerledikçe aşama belgesine
+  yazılır
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni → (gerekirse 06.x) → 07 bulut (`PROJECT-ROADMAP.md`)
@@ -1341,11 +1350,25 @@ Geçen kontroller: backend build (0 uyarı) + format temiz + **1065 test**
   (55 skip: SQL/canlı sağlayıcı ortamı yok); Flutter analyze + format temiz +
   **879 test**; web build ve Android debug APK başarılı
 
+## 27 Eylül 2026 — Araştırma kaydı ve cloud denemesine hazırlık
+
+- Araştırmanın Belge 1 ve Belge 2 kaynakları, bölüm PDF'leri ve birleşik
+  PDF'leri Git'e alındı; tur öncesi yedekler (`raporlar/_yedek/`), eski sürüm
+  (`belge2-v1/`) ve pilot/deneme belgeleri yerelde kalıyor (`.gitignore`)
+- Aşama 06.2'ye cloud üzerinde Flutter arayüz denemeleri checkpoint'i yazıldı;
+  `docs/backlog.md` madde 12 (Kasa sekmesinde çakışan yüzen düğmeler) 06.2
+  Grup 6 listesine ilk madde olarak girdi
+- `CLAUDE.md` belge haritasındaki "hiçbir aşama Aktif değil" ifadesi 06.2'nin
+  Aktif olduğu gerçeğine çekildi
+- Uygulama kodu değişmedi; build/test koşulmadı. Son doğrulanmış kontroller
+  2 Eylül 2026 kaydındadır
+
 ## Son oturum kapanışı
 
-- Yapılan değişiklik: **yerel Flutter web deneme temeli kuruldu.** Resmî web
-  kabuğu, platforma göre yerel API adresi ve Development'a sınırlı CORS eklendi
-- Geçen kontroller: backend build/format temiz + **1012 test** (55 skip);
-  Flutter analyze/format temiz + **879 test**; web ve Android debug build başarılı
-- Sıradaki görev: kullanıcı listesinden Aşama 06.2'nin bir sonraki arayüz
-  checkpoint'ini seçmek
+- Yapılan değişiklik: araştırmanın Belge 1 ve 2'si commit'e alındı, karar ve
+  durum belgeleri güncellendi, 06.2'ye cloud Flutter deneme checkpoint'i açıldı
+- Geçen kontroller: kod değişmediği için koşulmadı; son tam koşu 2 Eylül 2026
+  (backend **1012 test**, 55 skip; Flutter **879 test**; web ve Android debug
+  build başarılı)
+- Sıradaki görev: commit'leri push edip cloud üzerinde ilk Flutter arayüz
+  denemesini başlatmak; ardından araştırmanın Belge 3'ü

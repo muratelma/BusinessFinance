@@ -18,7 +18,7 @@ Kod veya dosya değişikliğinden önce **sırasıyla** oku:
 ve `PROJECT-ROADMAP.md` de okunur. Kullanıcının mevcut değişikliklerini silme,
 taşıma veya üzerine yazma.
 
-**Aktif aşama yoksa kod değişmez.** Zincirdeki altı belge de yazılı; belgenin
+**Aktif aşama yoksa kod değişmez.** Zincirdeki bütün belgeler yazılı; belgenin
 var olması onu başlatma izni değildir.
 
 Çelişen bilgi görülürse `AGENTS.md` içindeki **"Çelişen bilgi: iki ayrı eksen"**
@@ -407,8 +407,8 @@ secret'ı uygulamaya konmaz.
 - `stages/06.2-*.md`, `stages/07-*.md` — kalan aşamaların çalışma grupları,
   testleri ve çıkış koşulları. **06 bir aşama kümesidir**: ayrı ayrı kapanabilen
   aşamalar, ihtiyaç oldukça 06.x eklenir. Tamamlanan aşamalar
-  `docs/archive/stages/` altındadır (01–06 ve 06.1 orada). 1 Eylül 2026
-  itibarıyla hiçbir aşama Aktif değil; `stages/README.md` tablosu geçerlidir
+  `docs/archive/stages/` altındadır (01–06 ve 06.1 orada). 2 Eylül 2026'dan
+  beri 06.2 Aktif; güncel durum için `stages/README.md` tablosu geçerlidir
 - `docs/backlog.md` — aşamaya bağlanmamış açık işler
 - `templates/STAGE-TEMPLATE.md` — yeni aşama belgesi iskeleti
 

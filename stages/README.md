@@ -22,7 +22,9 @@ sonra aşağıdaki tablodan **aktif** işaretli belge okunur.
 
 **2 Eylül 2026 itibarıyla Aşama 06.2 Aktif.** İlk checkpoint yalnız yerel web
 deneme temelidir; geniş arayüz gruplarının kapsamını rakip arayüz araştırması
-beslemeye devam eder.
+beslemeye devam eder. 27 Eylül 2026 itibarıyla araştırmanın Belge 1 ve Belge 2'si
+kapandı, Belge 3'e başlanmadı; arada cloud üzerinde Flutter arayüz denemeleri
+checkpoint'i açıldı (`06.2-arayuz-duzeni.md`).
 
 Zincirin tamamı ve her aşamanın gerekçesi `PROJECT-ROADMAP.md` içindedir.
 Kurucu ürün kararı `documentation/adr/0013-business-and-personal-are-one-pool.md`

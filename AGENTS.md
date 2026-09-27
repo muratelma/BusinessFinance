@@ -235,8 +235,8 @@ yazdığı gibi uygulanır.
 - Backend değişikliğinde build, test ve format kontrollerini çalıştır.
 - Flutter değişikliğinde analyze, ilgili test ve build kontrollerini çalıştır.
 - Migration, secret ve API sözleşmesi değişikliklerini ayrıca incele.
-- **Aşama belgesinin var olması onu başlatma izni değildir.** Zincirdeki altı
-  belge de yazılı; kod yalnız durumu `Aktif` olan aşamada değişir.
+- **Aşama belgesinin var olması onu başlatma izni değildir.** Zincirdeki bütün
+  belgeler yazılı; kod yalnız durumu `Aktif` olan aşamada değişir.
 - **Bazı aşamalar bir ADR ile açılır** (`PROJECT-ROADMAP.md` içindeki tablo).
   O ADR yazılıp kabul edilmeden ilgili aşamanın koduna başlanmaz.
 - Aşama çıkış koşullarının tümü tamamlanmadan aşamayı bitmiş sayma.
