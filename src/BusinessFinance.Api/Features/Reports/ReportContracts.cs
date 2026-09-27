@@ -108,7 +108,23 @@ public sealed record NetWorthResponse(
     /// Kullanılabilir bakiye ile net varlığın farkı tam olarak budur
     /// (ADR 0015).
     /// </summary>
-    string MoneyInTransit);
+    string MoneyInTransit,
+
+    /// <summary>
+    /// Net varlığın varlık tarafı: likit varlık, yoldaki para, alacak ve
+    /// varsa kart alacağı. Sunucuda toplanır.
+    /// </summary>
+    string TotalAssets,
+
+    /// <summary>
+    /// Net varlığın borç tarafı: kart borcu ve borç. Sunucuda toplanır.
+    /// </summary>
+    string TotalLiabilities,
+
+    /// <summary>
+    /// Yoldaki paranın en yakın hesaba geçiş günü; yolda para yoksa null.
+    /// </summary>
+    string? NextTransitDate);
 
 public sealed record AdvancedFinancialReportResponse(
     string AsOfDate,

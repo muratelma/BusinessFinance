@@ -125,9 +125,23 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   kararlar) yöntem planı taslak, yazımına başlanmadı. Araştırmanın canlı durumu
   `research/rakip-arayuz-ve-akis/DURUM.md` içindedir
 - **27 Eylül 2026: 06.2'ye cloud üzerinde Flutter arayüz denemeleri
-  checkpoint'i açıldı.** Belge 3'ten önce yapılır; yalnız Flutter tarafıdır ve
-  sözleşme/backend değişmez. Kapsamı denemeler ilerledikçe aşama belgesine
-  yazılır
+  checkpoint'i açıldı.** Belge 3'ten önce `ui-trials` dalında yapılır; tasarımın
+  gerektirdiği veri için backend'e ekleme yapılabilir. Kapsamı denemeler
+  ilerledikçe aşama belgesine yazılır. İlk madde Claude Design teslim
+  paketinin uygulanması; ekran ekran ilerliyor:
+  - **Özet**: tipografi DS token'larına eşitlendi, yeni ortak parçalar
+    (`AppPageHeader`, `AppIconCapsule`, `AppRow`, `AppStatusTag`,
+    `AppCardHead`, `AppTextAction`, `AppDateLeaf`, `AppDetailBlock`,
+    `AppSegmentRail`, `AppAvatar`) eklendi, ekran yeniden kuruldu. Backend
+    net varlığın iki tarafının toplamını, yoldaki paranın geçiş gününü ve
+    planlanan görünümde vadesi gelmemiş ödemelerin toplamını
+    (`upcomingOutgoingTotal`) döndürüyor. Ekran görüntüsü düzeneği
+    (`test/screenshots/`) ekranı teslim paketindeki çerçeveyle aynı biçimde
+    çizip karşılaştırmaya açıyor. Kontroller: Flutter analyze temiz, 879 test
+    geçti; backend Release build 0 uyarı, format temiz, Domain/Application/Api
+    testleri geçti. Infrastructure'daki 10 fiş görüntü testi cloud ortamında
+    `libSkiaSharp` yerel kütüphanesi yüklenemediği için düşüyor; değişiklik
+    öncesi kodda da aynı sonuç alındı (ortam kaynaklı)
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni → (gerekirse 06.x) → 07 bulut (`PROJECT-ROADMAP.md`)

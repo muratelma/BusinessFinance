@@ -1,4 +1,6 @@
 abstract final class AppSpacing {
+  /// Başlık ile alt satırı arasındaki nefes payı (tasarımda `gap: 2`).
+  static const double xxSmall = 2;
   static const double xSmall = 4;
   static const double small = 8;
   static const double medium = 16;

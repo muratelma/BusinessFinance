@@ -263,6 +263,17 @@ class BudgetVarianceItem {
         budgetWarningThreshold;
   }
 
+  /// Harcananın limite oranı; halkayı ve yüzdeyi **çizmek** içindir, yeni
+  /// bir tutar üretmez. Limit okunamazsa 0.
+  double get spentRatio {
+    final limitValue = _scaled(limit);
+    final spentValue = _scaled(spent);
+    if (limitValue == null || spentValue == null || limitValue <= BigInt.zero) {
+      return 0;
+    }
+    return spentValue.toDouble() / limitValue.toDouble();
+  }
+
   static BigInt? _scaled(String value) {
     final match = RegExp(r'^-?(\d+)\.(\d{4})$').firstMatch(value);
     if (match == null) return null;
@@ -306,6 +317,10 @@ class AdvancedReport {
     required this.futureLoad,
     required this.accountDistribution,
     required this.cardDistribution,
+    this.totalAssets,
+    this.totalLiabilities,
+    this.nextTransitDate,
+    this.netChange,
   });
 
   final String asOfDate;
@@ -344,6 +359,19 @@ class AdvancedReport {
   final List<DistributionItem> accountDistribution;
   final List<DistributionItem> cardDistribution;
 
+  /// Net varlığın varlık tarafı (likit + yolda + alacak + varsa kart
+  /// alacağı). Sunucuda toplanır; eski sunucu göndermezse `null`.
+  final String? totalAssets;
+
+  /// Net varlığın borç tarafı (kart borcu + borç). Sunucuda toplanır.
+  final String? totalLiabilities;
+
+  /// Yoldaki paranın en yakın hesaba geçiş günü (`yyyy-MM-dd`).
+  final String? nextTransitDate;
+
+  /// Bu ayın neti eksi geçen ayın neti; sunucudan gelir.
+  final String? netChange;
+
   factory AdvancedReport.fromJson(Map<String, dynamic> json) {
     final netWorth = JsonReaders.object(json['netWorth'], 'netWorth');
     final comparison = JsonReaders.object(
@@ -360,6 +388,16 @@ class AdvancedReport {
       payableDebt: JsonReaders.money(netWorth, 'payableDebt'),
       netWorth: JsonReaders.money(netWorth, 'netWorth'),
       moneyInTransit: JsonReaders.money(netWorth, 'moneyInTransit'),
+      totalAssets: netWorth['totalAssets'] is String
+          ? JsonReaders.money(netWorth, 'totalAssets')
+          : null,
+      totalLiabilities: netWorth['totalLiabilities'] is String
+          ? JsonReaders.money(netWorth, 'totalLiabilities')
+          : null,
+      nextTransitDate: JsonReaders.nullableString(netWorth, 'nextTransitDate'),
+      netChange: comparison['netChange'] is String
+          ? JsonReaders.money(comparison, 'netChange')
+          : null,
       currentPeriod: PeriodTotals.fromJson(
         JsonReaders.object(comparison['current'], 'current'),
       ),

@@ -19,8 +19,17 @@ class AccountStatusController extends ChangeNotifier {
   bool _isLoaded = false;
   bool _emailConfirmed = true;
 
+  String? _email;
+
   /// Yalnız yükleme başarılıysa ve adres doğrulanmamışsa doğrudur.
   bool get needsEmailVerification => _isLoaded && !_emailConfirmed;
+
+  /// Oturumdaki e-posta; okunamadıysa `null`.
+  String? get email => _email;
+
+  /// Avatarın baş harfleri: e-postanın yerel kısmından iki harf (`ME`).
+  /// Uygulamada profil fotoğrafı yok; e-posta okunamadıysa boş.
+  String get initials => accountInitials(_email);
 
   Future<void> ensureLoaded() async {
     if (_isLoaded) return;
@@ -31,6 +40,7 @@ class AccountStatusController extends ChangeNotifier {
     try {
       final account = await _repository.read();
       _emailConfirmed = account.emailConfirmed;
+      _email = account.email;
       _isLoaded = true;
       notifyListeners();
     } on Exception {
@@ -43,6 +53,18 @@ class AccountStatusController extends ChangeNotifier {
   void forget() {
     _isLoaded = false;
     _emailConfirmed = true;
+    _email = null;
     notifyListeners();
   }
+}
+
+/// E-postanın yerel kısmından iki büyük harf; Türkçe `i` → `İ` doğru
+/// büyütülür. Harf yoksa boş metin.
+String accountInitials(String? email) {
+  if (email == null) return '';
+  final local = email.split('@').first;
+  final letters = local.replaceAll(RegExp(r'[^A-Za-zÇĞİÖŞÜçğıöşü]'), '');
+  if (letters.isEmpty) return '';
+  final picked = letters.length >= 2 ? letters.substring(0, 2) : letters;
+  return picked.replaceAll('i', 'İ').replaceAll('ı', 'I').toUpperCase();
 }

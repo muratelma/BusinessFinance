@@ -17,31 +17,31 @@ class MainShell extends StatelessWidget {
   });
 
   static const _leadingDestinations = [
-    _ShellDestination(
+    ShellDestination(
       label: 'Özet',
       icon: Icons.space_dashboard_outlined,
       selectedIcon: Icons.space_dashboard,
     ),
-    _ShellDestination(
+    ShellDestination(
       label: 'İşlemler',
       icon: Icons.receipt_long_outlined,
       selectedIcon: Icons.receipt_long,
     ),
   ];
 
-  static const _budgetsDestination = _ShellDestination(
+  static const _budgetsDestination = ShellDestination(
     label: 'Bütçeler',
     icon: Icons.donut_small_outlined,
     selectedIcon: Icons.donut_small,
   );
 
-  static const _cashDestination = _ShellDestination(
+  static const _cashDestination = ShellDestination(
     label: 'Kasa',
     icon: Icons.point_of_sale_outlined,
     selectedIcon: Icons.point_of_sale,
   );
 
-  static const _moreDestination = _ShellDestination(
+  static const _moreDestination = ShellDestination(
     label: 'Diğer',
     icon: Icons.more_horiz,
     selectedIcon: Icons.more,
@@ -50,7 +50,8 @@ class MainShell extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
   final ScopeController? scopeController;
 
-  List<_ShellDestination> _destinations(bool hasBusiness) => [
+  /// Ana sekmeler; üçüncüsü onboarding ön ayarına göre değişir (ADR 0015).
+  static List<ShellDestination> destinationsFor(bool hasBusiness) => [
     ..._leadingDestinations,
     hasBusiness ? _cashDestination : _budgetsDestination,
     _moreDestination,
@@ -74,7 +75,7 @@ class MainShell extends StatelessWidget {
   }
 
   Widget _buildForProfile(BuildContext context, bool hasBusiness) {
-    final destinations = _destinations(hasBusiness);
+    final destinations = destinationsFor(hasBusiness);
     // Üç kademe: telefon dikeyde alt gezinme çubuğu, telefon yatay/küçük
     // tablette ikon rayı, geniş tablette etiketleri açık genişletilmiş ray.
     // Genişletilmiş ray dar ekranda içeriğe ayrılan yeri yiyeceği için yalnız
@@ -96,7 +97,7 @@ class MainShell extends StatelessWidget {
 
   Widget _buildWithRail(
     BuildContext context,
-    List<_ShellDestination> destinations, {
+    List<ShellDestination> destinations, {
     required bool extended,
   }) {
     return Scaffold(
@@ -146,7 +147,7 @@ class MainShell extends StatelessWidget {
 
   Widget _buildCompact(
     BuildContext context,
-    List<_ShellDestination> destinations,
+    List<ShellDestination> destinations,
   ) {
     // Başlık sayfanın kendisinden gelir: shell de bir AppBar çizseydi
     // "İşlemler" gibi başlıklar ekranda iki kez görünürdü.
@@ -162,7 +163,7 @@ class MainShell extends StatelessWidget {
         onPressed: () => openQuickAdd(context),
         child: const Icon(Icons.add),
       ),
-      bottomNavigationBar: _NotchedNavigationBar(
+      bottomNavigationBar: ShellNavigationBar(
         destinations: destinations,
         currentIndex: navigationShell.currentIndex,
         onSelected: _selectDestination,
@@ -176,14 +177,15 @@ class MainShell extends StatelessWidget {
 /// `NavigationBar` çentiği desteklemediği için çubuk elle çiziliyor. Bunun
 /// bedeli, `NavigationBar`'ın hazır verdiği seçili göstergesini ve
 /// erişilebilirlik anlamlarını burada açıkça vermek zorunda olmak.
-class _NotchedNavigationBar extends StatelessWidget {
-  const _NotchedNavigationBar({
+class ShellNavigationBar extends StatelessWidget {
+  const ShellNavigationBar({
     required this.destinations,
     required this.currentIndex,
     required this.onSelected,
+    super.key,
   });
 
-  final List<_ShellDestination> destinations;
+  final List<ShellDestination> destinations;
   final int currentIndex;
   final ValueChanged<int> onSelected;
 
@@ -227,7 +229,7 @@ class _NavItem extends StatelessWidget {
     required this.onTap,
   });
 
-  final _ShellDestination destination;
+  final ShellDestination destination;
   final bool selected;
   final VoidCallback onTap;
 
@@ -254,7 +256,7 @@ class _NavItem extends StatelessWidget {
             children: [
               Icon(
                 selected ? destination.selectedIcon : destination.icon,
-                size: 24,
+                size: 26,
                 color: color,
               ),
               const SizedBox(height: AppSpacing.xSmall),
@@ -275,8 +277,8 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-class _ShellDestination {
-  const _ShellDestination({
+class ShellDestination {
+  const ShellDestination({
     required this.label,
     required this.icon,
     required this.selectedIcon,

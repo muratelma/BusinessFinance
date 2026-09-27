@@ -32,7 +32,7 @@ abstract final class AppTypography {
     return TextTheme(
       // Hero metrik.
       displaySmall: TextStyle(
-        fontSize: 34,
+        fontSize: 36,
         height: 1.15,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.8,
@@ -48,22 +48,22 @@ abstract final class AppTypography {
       ),
       // Kart içi metrik.
       titleLarge: TextStyle(
-        fontSize: 20,
+        fontSize: 22,
         height: 1.3,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w700,
         letterSpacing: -0.2,
         color: onSurface,
       ),
       // Bölüm başlığı.
       titleMedium: TextStyle(
-        fontSize: 16,
+        fontSize: 18,
         height: 1.4,
         fontWeight: FontWeight.w600,
         color: onSurface,
       ),
       // Liste satırı başlığı.
       titleSmall: TextStyle(
-        fontSize: 15,
+        fontSize: 16,
         height: 1.4,
         fontWeight: FontWeight.w600,
         color: onSurface,
@@ -71,22 +71,22 @@ abstract final class AppTypography {
       bodyLarge: TextStyle(fontSize: 16, height: 1.5, color: onSurface),
       bodyMedium: TextStyle(fontSize: 14, height: 1.5, color: onSurface),
       // Yardımcı metin: satır altı, tarih, kaynak.
-      bodySmall: TextStyle(fontSize: 13, height: 1.45, color: onSurfaceVariant),
+      bodySmall: TextStyle(fontSize: 14, height: 1.45, color: onSurfaceVariant),
       labelLarge: const TextStyle(
-        fontSize: 15,
+        fontSize: 16,
         height: 1.2,
         fontWeight: FontWeight.w600,
       ),
       // Bölüm üstü küçük etiket: büyük harf aralığıyla başlıktan ayrılır.
       labelMedium: TextStyle(
-        fontSize: 12,
+        fontSize: 13,
         height: 1.3,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.4,
         color: label,
       ),
       labelSmall: TextStyle(
-        fontSize: 11,
+        fontSize: 13,
         height: 1.3,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.3,

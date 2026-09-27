@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:business_finance_mobile/core/widgets/app_card.dart';
 import 'package:business_finance_mobile/core/theme/app_finance_icons.dart';
 import 'package:business_finance_mobile/core/theme/app_finance_colors.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
@@ -83,7 +82,7 @@ void main() {
 
       expect(find.text('Varlık durumu'), findsOneWidget);
       expect(find.text('Net varlık'), findsOneWidget);
-      expect(find.text('Bütçe durumu'), findsOneWidget);
+      expect(find.text('Bütçeler'), findsOneWidget);
       // `Bu ay nasıl bölündü` ve `Son 6 ay` geçici olarak kapalı: iki grafik
       // de biçim kararını bekliyor. Kapalı olmaları da bir karardır ve
       // sessizce geri açılmamalı.
@@ -100,11 +99,14 @@ void main() {
 
       await _pump(tester, viewModel, height: 3000);
 
-      expect(find.text('1 bütçe limiti aştı'), findsOneWidget);
-      // Eşiğe dayanmış bütçe kendi rozetini alır; sessizce "limit içinde"
-      // sayılsaydı kart, aşmadan önce uyarma işini hiç yapmazdı.
-      expect(find.text('1 bütçe limitine yaklaştı'), findsOneWidget);
-      expect(find.text('1 bütçe limit içinde'), findsOneWidget);
+      // Halkalar en doludan boşa sıralı; eşiğe dayanmış bütçe yüzdesiyle
+      // görünür, "limit içinde" diye kaybolmaz.
+      expect(find.text('%120'), findsOneWidget);
+      expect(find.text('%90'), findsOneWidget);
+      expect(find.text('₺20,00 kaldı'), findsOneWidget);
+      // Üç bütçede iki halka gösterilir (2–3 → ikili).
+      expect(find.text('2 bütçe'), findsOneWidget);
+      expect(find.text('%30'), findsNothing);
     });
 
     testWidgets('yaklaşanlar bölümü en yakın üç kalemi vadesiyle yazar', (
@@ -129,13 +131,19 @@ void main() {
 
       expect(find.text('Yaklaşanlar'), findsOneWidget);
       expect(find.text('7 gün'), findsOneWidget);
-      // Yakın uçtan uzağa sıralı ve üçle sınırlı; dördüncü satır sayıya iner.
+      // Yakın uçtan uzağa sıralı; zaman çizelgesi beş kaleme kadar gösterir.
       expect(viewModel.upcoming.map((item) => item.plannedActivityId), [
         'b',
         'c',
         'a',
+        'd',
       ]);
-      expect(find.text('1 kalem daha'), findsOneWidget);
+      // Vade göreli yazılır: bugün, yarın, n gün sonra.
+      expect(find.textContaining('Bugün · '), findsOneWidget);
+      expect(find.textContaining('3 gün sonra · '), findsOneWidget);
+      // Alt toplam sunucudan gelir; bu sahte kaynak göndermiyor ve istemci
+      // satırları toplamaz.
+      expect(find.text('7 günde çıkacak'), findsNothing);
     });
 
     testWidgets('yaklaşan yokken bölüm gizlenmez, iyi haberi yazar', (
@@ -331,9 +339,12 @@ void main() {
         tester.widget<Text>(find.text('₺250,00')).style?.color, // kart borcu
         colors.expense,
       );
+      // Tasarım kararı (Claude Design teslimi, 27 Eylül 2026): borçlar
+      // tarafının bütün kalemleri gider kırmızısıyla çizilir; alacak varlık
+      // tarafında nötr mavi kalır.
       expect(
         tester.widget<Text>(find.text('₺120,00')).style?.color, // borç
-        colors.neutral,
+        colors.expense,
       );
       expect(
         tester.widget<Text>(find.text('₺340,00')).style?.color, // alacak
@@ -374,10 +385,11 @@ void main() {
         findsOneWidget,
       );
 
+      // Varlık tarafında durur ve o tarafın nötr mavisini alır.
       final colors = AppTheme.light().extension<AppFinanceColors>()!;
       expect(
         tester.widget<Text>(find.text('₺560,00')).style?.color,
-        colors.income,
+        colors.neutral,
       );
     });
 
@@ -445,9 +457,10 @@ void main() {
 
       await _pump(tester, viewModel, height: 3000);
 
-      expect(find.text('1 bütçe limiti aştı'), findsOneWidget);
-      expect(find.text('-₺50,00'), findsOneWidget);
-      expect(find.text('1 bütçe limit içinde'), findsOneWidget);
+      // Aşım tutarı sunucunun negatif `remaining`'idir; işaretsiz ve
+      // "fazla" diye yazılır.
+      expect(find.text('₺50,00 fazla'), findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp('limit aşıldı')), findsOneWidget);
     });
 
     testWidgets('ekran önce bu ayı, sonra şu anki durumu gösterir', (
@@ -467,8 +480,8 @@ void main() {
 
       double topOf(String title) => tester.getTopLeft(find.text(title)).dy;
 
-      expect(topOf('Kategori giderleri'), lessThan(topOf('Bütçe durumu')));
-      expect(topOf('Bütçe durumu'), lessThan(topOf('Varlık durumu')));
+      expect(topOf('Kategori giderleri'), lessThan(topOf('Bütçeler')));
+      expect(topOf('Bütçeler'), lessThan(topOf('Varlık durumu')));
       expect(topOf('Varlık durumu'), lessThan(topOf('Hesap bakiyeleri')));
     });
 
@@ -641,31 +654,25 @@ void main() {
       // kalırdı (telefonda `geçmez` böyle yetim kalıyordu). Tam eşleşme
       // aranıyor: biri ikisini tekrar tek `Text`te birleştirirse düşer.
       expect(find.text('En eskisi 15 Temmuz'), findsOneWidget);
-      // Ayrı bir buton yok: bandın kendisi tek dokunma hedefi. Pembe zeminin
-      // üstündeki gri `FilledButton.tonal` ikinci bir renkli yüzey açıyor,
-      // bandı hem yükseltiyor hem alacalı gösteriyordu.
+      // Ayrı bir buton yok: şeridin kendisi tek dokunma hedefi.
       expect(find.byType(FilledButton), findsNothing);
-      // Chevron banda ait olanla sınırlanıyor: ay seçicinin ileri oku da aynı
-      // ikonu kullanıyor.
       final band = find.ancestor(
         of: find.text('2 gecikmiş ödeme'),
-        matching: find.byType(AppCard),
+        matching: find.byType(InkWell),
       );
       expect(
         find.descendant(of: band, matching: find.byIcon(Icons.chevron_right)),
         findsOneWidget,
       );
-      // Rol ekran okuyucuya bildirilmeli: görünürde buton olmayan bir hedef,
-      // rolü söylenmezse TalkBack kullanıcısı için hiç yoktur.
-      expect(tester.getSemantics(band).flagsCollection.isButton, isTrue);
-      // Semantics'te "buton" demek ama eylem bağlamamak sessiz bir yalan
-      // olurdu: chevron çizilir, ekran okuyucu düğme der, dokunma hiçbir şey
-      // yapmaz. Router bu koşumda kurulu olmadığı için dokunma denenemiyor;
-      // eylemin bağlı olduğu burada doğrulanıyor.
-      expect(tester.widget<AppCard>(band).onTap, isNotNull);
-      // Bandın var olma sebebi: onaylanmayan hareket hiçbir yerde görünmüyor.
-      // Bu cümle "Onay bekliyor"a kısaltılırsa sonuç kaybolur.
-      expect(find.text('Onaylanana kadar kayda geçmez'), findsOneWidget);
+      expect(tester.widget<InkWell>(band).onTap, isNotNull);
+      // Rol ve sonuç ekran okuyucuya söylenir: şeridin var olma sebebi,
+      // onaylanmayan hareketin hiçbir yerde görünmemesi.
+      expect(
+        find.bySemanticsLabel(
+          RegExp('2 gecikmiş ödeme var.*Onaylanana kadar kayda geçmez'),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('gecikme yokken bant hiç çizilmez', (tester) async {
@@ -781,6 +788,8 @@ AdvancedReport _advanced({
     'moneyInTransit': moneyInTransit,
   },
   'periodComparison': {
+    // Fark sunucudan gelir; istemci dönemleri çıkarmaz.
+    'netChange': '400.0000',
     'current': {
       'year': 2026,
       'month': 8,

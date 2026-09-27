@@ -136,7 +136,12 @@ public static class ReportEndpoints
             FinanceContract.Money(report.NetWorth.ReceivableDebt),
             FinanceContract.Money(report.NetWorth.PayableDebt),
             FinanceContract.Money(report.NetWorth.NetWorth),
-            FinanceContract.Money(report.NetWorth.MoneyInTransit)),
+            FinanceContract.Money(report.NetWorth.MoneyInTransit),
+            FinanceContract.Money(report.NetWorth.TotalAssets),
+            FinanceContract.Money(report.NetWorth.TotalLiabilities),
+            report.NetWorth.NextTransitDate is { } nextTransitDate
+                ? FinanceContract.Date(nextTransitDate)
+                : null),
         new PeriodComparisonResponse(
             ToPeriodResponse(report.PeriodComparison.Current),
             ToPeriodResponse(report.PeriodComparison.Previous),

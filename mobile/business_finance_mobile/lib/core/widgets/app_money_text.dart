@@ -8,6 +8,11 @@ import '../theme/app_typography.dart';
 /// cümle tek yerden gelir.
 enum AppMoneyEffect { income, expense, neutral }
 
+/// Tasarım sisteminin para ölçeği (`AppMoneyText size`): ekranın tek büyük
+/// sayısı `hero`, kart içi toplam `metric`, liste satırı `row`, satır içi
+/// ikincil tutar `body`.
+enum AppMoneySize { hero, metric, row, body }
+
 /// Tutar gösterimi.
 ///
 /// Üç işi birden yapar ve üçü de daha önce her çağrı yerinde tekrar
@@ -27,6 +32,7 @@ class AppMoneyText extends StatelessWidget {
     this.textAlign,
     this.semanticsSuffix,
     this.onContainer = false,
+    this.size,
   });
 
   /// Backend'in kayıpsız string sözleşmesindeki tutar (`1234.5600`).
@@ -57,18 +63,41 @@ class AppMoneyText extends StatelessWidget {
   /// ölçülen `on*Container` çiftine döner.
   final bool onContainer;
 
+  /// Verilirse taban stil tasarım sisteminin para ölçeğinden gelir; [style]
+  /// yine de üzerine yazılır (ör. ağırlık veya renk inceltmesi).
+  final AppMoneySize? size;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final base = style ?? theme.textTheme.titleMedium ?? const TextStyle();
+    final scaled = _scaled(theme.textTheme);
+    final base = scaled == null
+        ? (style ?? theme.textTheme.titleMedium ?? const TextStyle())
+        : scaled.merge(style);
+    final money = size == AppMoneySize.hero
+        ? AppTypography.heroMoney(base)
+        : AppTypography.money(base);
 
     return Text(
       _displayText,
       textAlign: textAlign,
       semanticsLabel: _semanticsLabel,
-      style: AppTypography.money(base).copyWith(color: _color(context)),
+      style: money.copyWith(
+        color: _color(context),
+        decoration: isCancelled ? TextDecoration.lineThrough : null,
+      ),
     );
   }
+
+  TextStyle? _scaled(TextTheme text) => switch (size) {
+    null => null,
+    AppMoneySize.hero => text.displaySmall,
+    AppMoneySize.metric => text.titleLarge?.copyWith(
+      fontWeight: FontWeight.w600,
+    ),
+    AppMoneySize.row => text.titleSmall,
+    AppMoneySize.body => text.bodyMedium,
+  };
 
   Color _color(BuildContext context) {
     final colors = AppFinanceColors.of(context);

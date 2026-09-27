@@ -433,9 +433,16 @@ taşır; Flutter iki ekranda aynı widget'ı kullanabilir. Eylem dispatch'i
       "categoryName": "Salary",
       "isProjected": true
     }
-  ]
+  ],
+  "upcomingOutgoingTotal": "233.3333"
 }
 ```
+
+`upcomingOutgoingTotal` pencere içinde vadesi henüz gelmemiş (bugün dahil)
+**ödeme yükümlülüklerinin** toplamıdır: "bu pencerede benden ne çıkacak".
+Tek karışık toplam değildir; gelir, tahsilat ve gecikmişler girmez (örnekte
+gecikmiş abonelik ve maaş dışarıda kalır). Toplam sunucuda yapılır; Özet
+ekranı `7 günde çıkacak` satırını buradan yazar.
 
 Ekstre kaleminde `plannedActivityId` ile `sourceId` aynı kart kimliğidir; bu
 beklenen durumdur, çünkü ekstrenin kendi kalıcı kimliği yoktur (ekstre bir

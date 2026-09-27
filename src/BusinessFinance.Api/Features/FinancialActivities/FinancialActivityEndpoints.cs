@@ -65,7 +65,8 @@ public static class FinancialActivityEndpoints
             FinanceContract.OptionalScopeValue(value.Scope),
             value.TotalCount,
             value.NearestDueDate is DateOnly nearest ? FinanceContract.Date(nearest) : null,
-            value.Items.Select(ToResponse).ToArray()));
+            value.Items.Select(ToResponse).ToArray(),
+            FinanceContract.Money(value.UpcomingOutgoingTotal)));
     }
 
     internal static PlannedActivityResponse ToResponse(PlannedActivityDto item) => new(

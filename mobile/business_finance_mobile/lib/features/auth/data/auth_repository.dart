@@ -100,7 +100,7 @@ class AuthRepository implements AuthSessionRepository {
         return null;
       }
       if (_needsRefresh(stored)) {
-        return refreshSession();
+        return await refreshSession();
       }
       return stored;
     } on FormatException {

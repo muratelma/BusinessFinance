@@ -249,10 +249,12 @@ class PlannedActivityPage {
     required this.totalCount,
     required this.items,
     this.nearestDueDate,
+    this.upcomingOutgoingTotal,
   });
 
   factory PlannedActivityPage.fromJson(Map<String, dynamic> json) =>
       PlannedActivityPage(
+        upcomingOutgoingTotal: json['upcomingOutgoingTotal'] as String?,
         asOfDate: json['asOfDate'] as String,
         daysAhead: json['daysAhead'] as int,
         totalCount: json['totalCount'] as int,
@@ -268,10 +270,15 @@ class PlannedActivityPage {
   final int daysAhead;
   final int totalCount;
 
-  /// No single total is offered on purpose: adding planned income, expenses,
-  /// statements and neutral obligations into one number would mislead.
+  /// No mixed total is offered: planned income, expenses, statements and
+  /// neutral obligations are never added into one number.
   final String? nearestDueDate;
   final List<PlannedActivity> items;
+
+  /// Pencere içinde vadesi gelmemiş **ödeme yükümlülüklerinin** toplamı
+  /// ("7 günde çıkacak"). Sunucuda toplanır; gelir, tahsilat ve gecikmişler
+  /// girmez. Eski sunucu göndermezse `null`.
+  final String? upcomingOutgoingTotal;
 }
 
 /// The horizons the server accepts. Anything else is rejected there, so the UI

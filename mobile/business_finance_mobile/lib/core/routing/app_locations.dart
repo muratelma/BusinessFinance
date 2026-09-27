@@ -54,3 +54,11 @@ const accountantPackageLocation = '/more/accountant-package';
 
 /// `Hatırlatmalar`: cihazın kendi zamanlayıcısına kurulan uyarıların ayarı.
 const remindersLocation = '/more/reminders';
+
+/// `Hesaplar ve transferler`. Özet'in hesap bakiyeleri bölümü ve `Diğer`
+/// menüsü aynı yere gider.
+const accountsLocation = '/more/accounts';
+
+/// `Planlananlar`: gecikmiş ve yaklaşan ödemeler. Özet'in gecikme şeridi ve
+/// yaklaşanlar bölümü buraya açılır.
+const plannedLocation = '/transactions/planned';

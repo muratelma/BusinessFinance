@@ -116,7 +116,19 @@ public sealed record PlannedActivityListResult(
     TransactionScope? Scope,
     int TotalCount,
     DateOnly? NearestDueDate,
-    IReadOnlyList<PlannedActivityDto> Items);
+    IReadOnlyList<PlannedActivityDto> Items,
+
+    /// <summary>
+    /// Pencere içinde vadesi henüz gelmemiş (bugün dahil) **ödeme
+    /// yükümlülüklerinin** toplamı: "bu pencerede benden ne çıkacak".
+    /// </summary>
+    /// <remarks>
+    /// Tek karışık toplam değildir: gelir, tahsilat ve gecikmişler girmez
+    /// (<see cref="PlannedActivityRules.IsPaymentObligation"/>). Gecikmişler
+    /// ayrı bir uyarının konusudur; aynı parayı iki yerde saydırmamak için
+    /// burada yoktur.
+    /// </remarks>
+    decimal UpcomingOutgoingTotal = 0m);
 
 /// <summary>
 /// The single source of planned movements. The upcoming-payments view reads a narrowed

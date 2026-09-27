@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 import 'package:business_finance_mobile/core/presentation/scope_controller.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
-import 'package:business_finance_mobile/core/widgets/app_metric_tile.dart';
+import 'package:business_finance_mobile/core/widgets/app_money_text.dart';
 import 'package:business_finance_mobile/features/dashboard/data/dashboard_models.dart';
 import 'package:business_finance_mobile/features/dashboard/data/dashboard_repository.dart';
 import 'package:business_finance_mobile/features/dashboard/presentation/dashboard_page.dart';
@@ -54,9 +54,10 @@ void main() {
       expect(find.text('Şahsi çekim'), findsOneWidget);
       expect(find.text('Bu ayın neti'), findsOneWidget);
 
-      final business = _amount(tester, 'dashboard-summary-Net');
+      // Hero ayın netini söyler; iki tarafı altındaki gri blokta durur.
+      final business = _amount(tester, 'dashboard-summary-Business');
       final personal = _amount(tester, 'dashboard-summary-Personal');
-      final total = _amount(tester, 'dashboard-summary-Total');
+      final total = _amount(tester, 'dashboard-summary-Net');
 
       expect(business, '400.0000');
       expect(personal, '-50.0000');
@@ -118,7 +119,8 @@ void main() {
       // Filtreli okumada kırılım gelmiyor; ikinci ve üçüncü sayı da yok.
       expect(find.text('Şahsi çekim'), findsNothing);
       expect(find.text('Bu ayın neti'), findsNothing);
-      expect(find.text('Yalnız işletme tarafı'), findsOneWidget);
+      // Geçen ayla karşılaştırma yalnız toplamda anlamlı; tek tarafta yok.
+      expect(find.textContaining('Geçen aya göre'), findsNothing);
     });
 
     testWidgets('üç sayılı hero en büyük yazı ölçeğinde taşmaz', (
@@ -137,8 +139,14 @@ void main() {
   });
 }
 
-String _amount(WidgetTester tester, String key) =>
-    tester.widget<AppMetricTile>(find.byKey(ValueKey(key))).amount;
+String _amount(WidgetTester tester, String key) => tester
+    .widget<AppMoneyText>(
+      find.descendant(
+        of: find.byKey(ValueKey(key)),
+        matching: find.byType(AppMoneyText),
+      ),
+    )
+    .amount;
 
 double _parse(String amount) => double.parse(amount);
 

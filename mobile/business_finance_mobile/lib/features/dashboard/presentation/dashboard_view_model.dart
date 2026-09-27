@@ -67,16 +67,23 @@ class DashboardViewModel extends LoadableViewModel {
   /// Yaklaşanların hepsi gösterilmiyor; kaçının ekranda olmadığı bu sayıda.
   int upcomingHiddenCount = 0;
 
+  /// Pencere içinde vadesi gelmemiş ödemelerin sunucudaki toplamı
+  /// ("7 günde çıkacak"); okunamadıysa `null`.
+  String? upcomingOutgoingTotal;
+
   /// Yaklaşan listesinin penceresi. Ekranda yazılı olmak zorunda: aynı
   /// ekranda 30 günlük başka bir toplam da bulunabiliyor ve iki pencere
   /// etiketsiz yan yana durursa kullanıcı ikisini karşılaştırıp tutturamaz.
   static const upcomingHorizon = PlannedHorizon.week;
 
   /// Ekranda gösterilen en fazla satır sayısı.
-  static const upcomingVisibleCount = 3;
+  static const upcomingVisibleCount = 5;
 
   /// Ekranın o an okuduğu kapsam; başlıkta da bu yazılı durur.
   TransactionScope? get scope => _scopeController?.scope;
+
+  /// Göreli vade etiketleri (`Yarın`, `3 gün sonra`) bu güne göre yazılır.
+  DateTime get today => _now();
 
   /// Kapsam boyutu bu kullanıcıda görünür mü.
   bool get isScopeVisible => _scopeController?.isVisible ?? false;
@@ -109,6 +116,7 @@ class DashboardViewModel extends LoadableViewModel {
       overdue = const [];
       upcoming = const [];
       upcomingHiddenCount = 0;
+      upcomingOutgoingTotal = null;
       return;
     }
     try {
@@ -136,11 +144,13 @@ class DashboardViewModel extends LoadableViewModel {
               .toList()
             ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
       upcoming = ahead.take(upcomingVisibleCount).toList(growable: false);
+      upcomingOutgoingTotal = page.upcomingOutgoingTotal;
       upcomingHiddenCount = ahead.length - upcoming.length;
     } on Exception {
       overdue = const [];
       upcoming = const [];
       upcomingHiddenCount = 0;
+      upcomingOutgoingTotal = null;
     }
   }
 

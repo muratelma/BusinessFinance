@@ -25,6 +25,7 @@ Hepsi `lib/core/theme/` altındadır.
 
 | Ad | Değer | Kullanım |
 |---|---|---|
+| `xxSmall` | 2 | Başlık ile alt satırı arası (tasarımda `gap: 2`) |
 | `xSmall` | 4 | Satır içi küçük ayrım |
 | `small` | 8 | Liste öğeleri arası, chip iç boşluğu |
 | `medium` | 16 | Sayfa ve kart iç boşluğu, bölüm arası |
@@ -158,14 +159,22 @@ yapmaz.
 
 | Rol | Stil | Nerede |
 |---|---|---|
-| Hero metrik | `displaySmall` 34/700 | Ekranın söylediği tek sayı |
-| Ekran başlığı | `headlineSmall` 24/700 | AppBar |
-| Kart metriği | `titleLarge` 20/600 | Kart içi tutar |
-| Bölüm başlığı | `titleMedium` 16/600 | `AppSectionHeader` |
-| Satır başlığı | `titleSmall` 15/600 | Liste satırı |
+| Hero metrik | `displaySmall` 36/700 | Ekranın söylediği tek sayı |
+| Ekran başlığı | `headlineSmall` 24/700; ana ekranlarda `AppPageHeader` 26/700 (−0,6) | Sayfa başlığı |
+| Kart metriği | `titleLarge` 22/700 | Kart içi tutar |
+| Bölüm başlığı | `titleMedium` 18/600 | `AppSectionHeader` |
+| Satır başlığı | `titleSmall` 16/600 | Liste satırı |
 | Gövde | `bodyLarge/Medium` 16/14 | Açıklama metni |
-| Yardımcı | `bodySmall` 13 | Tarih, kaynak, alt satır |
-| Etiket | `labelMedium/Small` 12/11, harf aralıklı | Metrik etiketi, rozet |
+| Yardımcı | `bodySmall` 14 | Tarih, kaynak, alt satır |
+| Etiket | `labelMedium/Small` 13/13, harf aralıklı | Metrik etiketi, rozet, alt çubuk |
+
+Ölçek 27 Eylül 2026'da Claude Design teslim paketinin token'larıyla
+(`tokens/typography.css`) birebir eşitlendi; önceki ölçek bir kademe
+küçüktü.
+
+`AppMoneyText` tasarım sisteminin para ölçeğini `size` ile alır: `hero`
+(36/700), `metric` (22/600), `row` (16/600), `body` (14/400). İptal edilmiş
+tutar soluk renkte ve **üstü çizili** yazılır.
 
 Para için iki yardımcı vardır: `AppTypography.money` (sabit genişlikli rakam)
 ve `heroMoney` (ek ağırlık ve sıkı harf aralığı). Orantılı rakamlarda tutar
@@ -202,6 +211,17 @@ yapılır.
 | `AppScopeSwitch` | Uygulamanın tek kapsam anahtarı: `Hepsi · İşletme · Şahsi` |
 | `AppScopeField` | Formdaki düzeltilebilir kapsam çipi; altında değerin nereden geldiği yazılı |
 | `AppLoadingView` / `AppErrorView` / `AppEmptyView` / `AppUnauthorizedView` | Ortak durum ekranları |
+| `AppPageHeader` | Ana ekranların başlık satırı: 26/700 başlık, sağda 48 dp ikon eylemleri, isteğe bağlı geri oku; en az 64 dp + iç boşluk |
+| `AppAvatar` | Hesabın avatarı: marka zemininde e-postanın baş harfleri; doğrulanmamış e-postada kırmızı nokta |
+| `AppIconCapsule` | Satır başındaki yuvarlak kapsül; zemin rolün `*Container`, ikon `on*Container` tonu. Kapsüllü listelerde ayırıcı 72 dp'den başlar (`rowInset`) |
+| `AppRow` | Kart içi satır: serbest baş (kapsül, tarih yaprağı), 16/600 başlık, iki satırlık alt metin, sağ öğe; büyük yazıda sağ öğe alta iner |
+| `AppDividedColumn` | Satırlar arasına yazının başladığı yerden ayırıcı çizer |
+| `AppStatusTag` | Dolgusuz durum etiketi: ikon 16 + metin 13/600, rolün metin renginde (Tuttu, Eksik, Yolda, Sayılmadı). Dolgulu `AppStatusChip` yalnız sayfadaki tek önemli durum için |
+| `AppCardHead` | Kartın başlık şeridi: 52 dp, solda 15/600 başlık + gri meta, sağda durum, altında kenar çizgisi |
+| `AppTextAction` | Bölüm başlığının sağındaki dolgusuz metin eylemi (`+ Ekle`, `Tümü ›`), 48 dp dokunma alanı |
+| `AppDateLeaf` | Takvim yaprağı 44×48: gün 17/700, ay 11/600 |
+| `AppDetailBlock` / `AppDetailRow` | Panel içindeki gri etiket–değer bloğu (işlem detayı, POS detayı) |
+| `AppSegmentRail` | Tek parça seçim rayı: gri zemin, seçili dilim beyaz + güçlü kenar. Kapsam anahtarı ve kasa seçici bunu kullanır |
 
 Birkaç bileşenin sözleşmesinde neden şu kararların olduğu:
 
@@ -219,10 +239,11 @@ Birkaç bileşenin sözleşmesinde neden şu kararların olduğu:
   başlıklar arasında sol kenar hizası böyle korunur.
 - **`AppMetricTile` kendini tek cümlede duyurur.** Parçalar ayrı okunsaydı
   hangi sayının neye ait olduğu kaybolurdu.
-- **Özet ekranının hero kutusu kapsam varken üç sayıya bölünür**: `İşletme
-  neti` (hero boyu), altında `Şahsi çekim` ve `Bu ayın neti`. Tek bir "net",
-  kapsam boyutu açıkken hangi neti sorduğunu söylemiyordu. Üç sayı da
-  sunucudan gelir; ekran aralarında çıkarma yapmaz. Şahsi tarafın etiketi
+- **Özet ekranının hero kartı** üstte işaretli gelir ve gider satırlarını,
+  kalın bir çizginin altında ayın netini (hero boyu) taşır; anahtar `Hepsi`
+  konumundaysa altındaki gri blokta `İşletme neti` ve şahsi taraf durur. Üç
+  sayı da sunucudan gelir; ekran aralarında çıkarma yapmaz. Geçen ayla fark da
+  sunucudandır (`periodComparison.netChange`). Şahsi tarafın etiketi
   sayının yönüne göre `Şahsi çekim`/`Şahsi net` olur — artı bir sayıya "çekim"
   demek onu eksi gibi okuturdu. **"Kâr" kelimesi hiçbir ekranda kullanılmaz.**
 - **`AppFormSheet` panelin kapanışını kendi üstlenir.** Panel içeriği
@@ -233,10 +254,10 @@ Birkaç bileşenin sözleşmesinde neden şu kararların olduğu:
   `onSecondary`). Filtre panelindeki `Temizle` bunun tek örneğidir:
   temizlemek vazgeçmekten farklıdır — vazgeçmek hiçbir şey değiştirmez,
   temizlemek boş filtreyi uygular.
-- **Kapsam denetimleri segmentli buton değil sarmalanan çiptir.** Üç etiket
-  2.0× yazı ölçeğinde tek satıra sığmıyor ve `SegmentedButton` kaydırılamıyor;
-  anahtarın bir ucu ekran dışında kalırdı. Seçili olmak yalnız dolguyla değil
-  onay işaretiyle de bildirilir.
+- **Kapsam anahtarı tek parça bir raydır** (`AppSegmentRail`). Etiket büyük
+  yazıda dilim içinde küçülür, ray taşmaz. Seçili dilim beyaz yüzey ve güçlü
+  kenarla ayrılır ve ekran okuyucuya `seçili` olarak söylenir. Dilim 40 dp,
+  dokunma alanı rayın iç boşluğunu da kapsar ve 48 dp olur.
 - **Anahtar Özet ekranında, kaydırılan gövdenin dışındadır.** Uygulamanın tek
   kapsam denetimi odur ve yükleme, hata ya da boş durumda da yerinde durmalı;
   kullanıcı boş bir liste görüp anahtarı aramamalı. Bölünen diğer ekranlar
@@ -734,3 +755,37 @@ renk değil — rozet zaten ikon **ve** metin taşımak zorundadır.
 Eşiğin değeri tek yerdedir: `lib/core/models/budget_threshold.dart`. Bütçe
 ekranı ve Özet'in `Bütçe durumu` kartı aynı sabiti okur; iki ayrı eşik, Özet
 "limit içinde" derken bütçe ekranının uyarmasına yol açardı.
+
+## Özet ekranı (Claude Design teslimi, 27 Eylül 2026)
+
+Üstten alta: `AppPageHeader` + avatar · kapsam rayı (kaydırılan gövdenin
+dışında) · ay seçici · gecikmiş ödeme şeridi (`expenseContainer`, 52 dp) ·
+gelir/gider/net kartı · kategori giderleri (104'lük halka + satır altı pay
+çubukları) · bütçe halkaları · yaklaşanlar zaman çizelgesi · varlık durumu ·
+hesap bakiyeleri.
+
+- **Bütçe halkaları** en dolu bütçeleri gösterir: 4 ve fazlası 2×2, 2–3
+  ikili, 1 tek. Aşılan bütçe gider zemininde, halka gider dolgusunda. Yüzde
+  ve halka boyu yalnız çizim oranıdır; kalan/aşım tutarı sunucunun
+  `remaining`'idir.
+- **Yaklaşanlar** 7 günün ödemelerini zaman çizelgesinde (en fazla beş kalem)
+  ve göreli vadeyle (`Yarın`, `3 gün sonra`) yazar; altta sunucunun
+  `upcomingOutgoingTotal`'ı (`7 günde çıkacak`). Gecikmişler bu toplama
+  girmez, şeridin konusudur.
+- **Varlık durumu** net varlık, varlık/borç oran çubuğu ve iki taraf:
+  `Varlıklar` (likit, yolda + geçiş günü, alacak, varsa kart alacağı; nötr
+  mavi) ve `Borçlar` (kart borcu, borç; gider kırmızısı). İki tarafın
+  toplamı sunucudan gelir (`totalAssets`, `totalLiabilities`).
+- Dokununca başka ekrana giden özet kartları (bütçe halkaları, yaklaşanlar)
+  ekran okuyucuya **tek durak**tır: etiket içeriğin cümlelerini taşır, eylem
+  aynı düğümdedir.
+
+### Ekran görüntüsüyle karşılaştırma
+
+`test/screenshots/` ekranları teslim paketindeki çerçeveyle aynı biçimde
+(412×892 dp, 2×, gerçek Roboto ve Material ikon fontu) PNG'ye çizer; örnek
+veri paketteki `DATA` ile aynıdır. Normal test koşusunda atlanır:
+
+```bash
+SCREENSHOT_DIR=/tmp/shots flutter test test/screenshots
+```

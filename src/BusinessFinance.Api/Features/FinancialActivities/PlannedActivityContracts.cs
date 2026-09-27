@@ -56,4 +56,8 @@ public sealed record PlannedActivityListResponse(
     string? Scope,
     int TotalCount,
     string? NearestDueDate,
-    IReadOnlyList<PlannedActivityResponse> Items);
+    IReadOnlyList<PlannedActivityResponse> Items,
+
+    // Pencere içinde vadesi gelmemiş ödeme yükümlülüklerinin toplamı; gelir,
+    // tahsilat ve gecikmişler girmez.
+    string UpcomingOutgoingTotal);

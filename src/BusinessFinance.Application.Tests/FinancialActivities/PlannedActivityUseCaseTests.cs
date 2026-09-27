@@ -101,6 +101,34 @@ public sealed class PlannedActivityUseCaseTests
     }
 
     /// <summary>
+    /// The only total is what will leave the user's hands inside the window: overdue
+    /// items, planned income and collections stay out.
+    /// </summary>
+    [Fact]
+    public async Task Execute_SumsOnlyUpcomingPaymentObligations()
+    {
+        var repository = new FakePlannedActivityRepository(
+            Planned(new DateOnly(2026, 8, 15), PlannedActivityTiming.Today),
+            Planned(new DateOnly(2026, 8, 18), PlannedActivityTiming.Upcoming,
+                PlannedActivityKind.CardStatement,
+                FinancialActivityEffect.Neutral,
+                PlannedActivityAction.PayCard),
+            Planned(new DateOnly(2026, 8, 10), PlannedActivityTiming.Overdue),
+            Planned(new DateOnly(2026, 8, 19), PlannedActivityTiming.Upcoming,
+                effect: FinancialActivityEffect.Income),
+            Planned(new DateOnly(2026, 8, 20), PlannedActivityTiming.Upcoming,
+                PlannedActivityKind.ReceivableInstallment,
+                FinancialActivityEffect.Neutral,
+                PlannedActivityAction.CollectDebt));
+        var useCase = new ListPlannedActivitiesUseCase(new FakeCurrentUser(UserId), repository);
+
+        var result = await useCase.ExecuteAsync(new PlannedActivityQuery(AsOfDate, 7));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(200m, result.Value.UpcomingOutgoingTotal);
+    }
+
+    /// <summary>
     /// The payment-burden slice keeps obligations and drops what the user is owed or
     /// will receive, which is why the upcoming-payments view is smaller by design.
     /// </summary>

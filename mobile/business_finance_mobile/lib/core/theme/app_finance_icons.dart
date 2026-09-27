@@ -52,6 +52,13 @@ abstract final class AppFinanceIcons {
   /// Kullanıcının kendi kategorileri için Türkçe/İngilizce anahtar kelimeler.
   /// Sıra önemlidir: ilk eşleşen kazanır.
   static const Map<String, IconData> _keywords = {
+    // İşletme seti: esnafın en sık gider kalemleri.
+    'ticari mal': Icons.sell_outlined,
+    'personel': Icons.badge_outlined,
+    'maaş': Icons.badge_outlined,
+    'sgk': Icons.account_balance_outlined,
+    'vergi': Icons.account_balance_outlined,
+    'kırtasiye': Icons.edit_outlined,
     'market': Icons.shopping_basket_outlined,
     'alışveriş': Icons.shopping_bag_outlined,
     'giyim': Icons.checkroom_outlined,
@@ -84,9 +91,7 @@ abstract final class AppFinanceIcons {
     'hediye': Icons.card_giftcard_outlined,
     'evcil': Icons.pets_outlined,
     'çocuk': Icons.child_care_outlined,
-    'vergi': Icons.account_balance_outlined,
     'sigorta': Icons.shield_outlined,
-    'maaş': Icons.badge_outlined,
     'gelir': Icons.savings_outlined,
     'yatırım': Icons.trending_up_outlined,
     'birikim': Icons.savings_outlined,

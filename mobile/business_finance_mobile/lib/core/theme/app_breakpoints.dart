@@ -60,3 +60,9 @@ extension AppWindowSizeContext on BuildContext {
   AppWindowSize get windowSize =>
       AppBreakpoints.sizeOfWidth(MediaQuery.sizeOf(this).width);
 }
+
+/// Büyütülmüş yazı ölçeği: satırda ad ile tutar yan yana sığmaz, tutar alt
+/// satıra iner. Eşik, kategori halkasının efsaneyi alta aldığı eşikle aynı.
+extension AppTextScaleX on BuildContext {
+  bool get usesLargeText => MediaQuery.textScalerOf(this).scale(1) > 1.3;
+}

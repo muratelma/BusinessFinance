@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../models/transaction_scope.dart';
 import '../theme/app_spacing.dart';
+import '../theme/app_surfaces.dart';
+import 'app_segment_rail.dart';
 
 /// `Hepsi · İşletme · Şahsi` anahtarı.
 ///
 /// Uygulamanın **tek** kapsam anahtarıdır; sekme başına ayrı filtre yoktur
 /// (ADR 0013). Boş değer `Hepsi` demektir: iki tarafı birden oku.
 ///
-/// Segmentli buton yerine sarmalanan çipler kullanılıyor: üç etiket 2.0×
-/// yazı ölçeğinde tek satıra sığmıyor ve segmentli buton kaydırılamıyor —
-/// büyük yazıda anahtarın bir ucu ekran dışında kalırdı.
+/// Tek parça raydır ([AppSegmentRail]): seçili dilim beyaz yüzey, diğerleri
+/// gri zemin. Etiket büyük yazıda dilim içinde küçülür, ray taşmaz.
 class AppScopeSwitch extends StatelessWidget {
   const AppScopeSwitch({
     required this.value,
@@ -23,24 +24,32 @@ class AppScopeSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      container: true,
-      label: 'Kapsam filtresi',
-      child: Wrap(
-        spacing: AppSpacing.small,
-        runSpacing: AppSpacing.small,
-        children: [
-          for (final option in <TransactionScope?>[
-            null,
-            TransactionScope.business,
-            TransactionScope.personal,
-          ])
-            AppScopeChoiceChip(
-              label: scopeFilterLabel(option),
-              selected: value == option,
-              onSelected: () => onChanged(option),
+    final theme = Theme.of(context);
+    final surfaces = AppSurfaces.of(context);
+    return AppSegmentRail<TransactionScope?>(
+      semanticLabel: 'Kapsam filtresi',
+      values: const [
+        null,
+        TransactionScope.business,
+        TransactionScope.personal,
+      ],
+      selected: value,
+      onChanged: onChanged,
+      segmentLabel: scopeFilterLabel,
+      segmentBuilder: (context, option, selected) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xSmall),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            scopeFilterLabel(option),
+            maxLines: 1,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              height: 1.2,
+              color: selected ? surfaces.ink : surfaces.inkMuted,
             ),
-        ],
+          ),
+        ),
       ),
     );
   }

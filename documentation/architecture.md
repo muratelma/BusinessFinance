@@ -891,6 +891,12 @@ Kapsam filtresi gelir/gider tarafını daraltır; net varlık ve yoldaki para
 kapsamdan **etkilenmez** (ADR 0013). Tanıma altı sabit gruplanmış sorgu ekledi
 (63 → 69) ve hiçbiri tahsilat adediyle büyümüyor.
 
+Net varlık cevabı iki tarafın toplamını da taşır (`totalAssets`: likit + yolda
++ alacak + varsa kart alacağı; `totalLiabilities`: kart borcu + borç) ve
+yoldaki paranın en yakın geçiş gününü (`nextTransitDate`). Üçü de sunucuda
+hesaplanır; Özet ekranının varlık kartı kalemleri kendisi toplamaz. Geçiş günü
+yoldaki tutarı okuyan filtrenin aynısıyla tek bir `MIN` sorgusudur.
+
 ### Kasa ve POS yazma uçları
 
 ```text

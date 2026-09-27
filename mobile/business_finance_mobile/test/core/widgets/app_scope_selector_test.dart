@@ -31,16 +31,19 @@ void main() {
     ) async {
       await _pumpSwitch(tester, value: TransactionScope.personal);
 
-      final chip = tester.widget<ChoiceChip>(
-        find.ancestor(
-          of: find.text('Şahsi'),
-          matching: find.byType(ChoiceChip),
+      // Seçili dilim beyaz yüzey ve güçlü kenarla ayrılır; ekran okuyucuya
+      // da `seçili` olarak söylenir — renk körlüğünde dolgu farkı tek
+      // başına yetmez.
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Şahsi')),
+        matchesSemantics(
+          label: 'Şahsi',
+          isButton: true,
+          hasSelectedState: true,
+          isSelected: true,
+          hasTapAction: true,
         ),
       );
-      expect(chip.selected, isTrue);
-      // Onay işareti çipin kendi sözleşmesinden geliyor; kapatılmadığını
-      // koruyoruz, çünkü renk körlüğünde dolgu farkı tek başına yetmez.
-      expect(chip.showCheckmark, isNot(false));
     });
 
     testWidgets('erişilebilirlik kapısını geçer', (tester) async {

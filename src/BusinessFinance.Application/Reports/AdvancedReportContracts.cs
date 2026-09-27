@@ -55,6 +55,11 @@ public sealed record CardDebtDto(
 /// Aradaki fark tam olarak <see cref="MoneyInTransit"/> kadardır — POS'tan
 /// geçmiş ama henüz hesaba ulaşmamış para kullanıcının parasıdır, ama bugün
 /// harcanamaz.
+/// <para>
+/// <see cref="TotalAssets"/> ve <see cref="TotalLiabilities"/> net varlığın iki
+/// tarafıdır ve sunucuda toplanır; istemci kalemleri kendisi toplamaz. Fazla
+/// ödenmiş kartın negatif borcu (kart alacağı) varlık tarafına geçer.
+/// </para>
 /// </remarks>
 public sealed record NetWorthDto(
     decimal LiquidAssets,
@@ -62,7 +67,14 @@ public sealed record NetWorthDto(
     decimal ReceivableDebt,
     decimal PayableDebt,
     decimal NetWorth,
-    decimal MoneyInTransit);
+    decimal MoneyInTransit,
+    decimal TotalAssets = 0m,
+    decimal TotalLiabilities = 0m,
+
+    /// <summary>
+    /// Yoldaki paranın en yakın hesaba geçiş günü; yolda para yoksa boş.
+    /// </summary>
+    DateOnly? NextTransitDate = null);
 
 public sealed record AdvancedFinancialReportDto(
     DateOnly AsOfDate,

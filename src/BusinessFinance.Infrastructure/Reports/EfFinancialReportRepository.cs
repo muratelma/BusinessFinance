@@ -575,6 +575,19 @@ internal sealed class EfFinancialReportRepository(
                 settlement => (decimal?)(settlement.GrossAmount.Amount -
                                          settlement.CommissionAmount),
                 cancellationToken) ?? 0m;
+        var nextTransitDate = await dbContext.PosSettlements.AsNoTracking()
+            .Where(settlement => settlement.UserId == userId &&
+                                 !settlement.IsCancelled &&
+                                 settlement.SettlementDate <= asOfDate &&
+                                 (settlement.TransferredOn == null ||
+                                  settlement.TransferredOn > asOfDate))
+            .MinAsync(settlement => (DateOnly?)settlement.ExpectedTransferDate, cancellationToken);
+        // Fazla ödenmiş kartın negatif borcu kullanıcının alacağıdır ve varlık
+        // tarafına geçer; iki taraf da burada toplanır, istemcide değil.
+        var cardAsset = cardDebt < 0m ? -cardDebt : 0m;
+        var cardLiability = cardDebt > 0m ? cardDebt : 0m;
+        var totalAssets = liquidAssets + moneyInTransit + receivableDebt + cardAsset;
+        var totalLiabilities = cardLiability + payableDebt;
 
         return new AdvancedFinancialReportDto(
             asOfDate,
@@ -589,7 +602,10 @@ internal sealed class EfFinancialReportRepository(
                 receivableDebt,
                 payableDebt,
                 liquidAssets + moneyInTransit - cardDebt + receivableDebt - payableDebt,
-                moneyInTransit),
+                moneyInTransit,
+                totalAssets,
+                totalLiabilities,
+                nextTransitDate),
             comparison,
             trend,
             budgetVariances,

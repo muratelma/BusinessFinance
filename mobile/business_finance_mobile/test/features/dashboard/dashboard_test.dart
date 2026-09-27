@@ -73,8 +73,9 @@ void main() {
       ),
     );
 
-    expect(find.text('₺500,00'), findsOneWidget);
-    expect(find.text('₺125,00'), findsWidgets);
+    // Hero kartta gelir ve gider işaretli yazılır; net işaretsiz.
+    expect(find.text('+₺500,00'), findsOneWidget);
+    expect(find.text('-₺125,00'), findsOneWidget);
     expect(find.text('₺375,00'), findsOneWidget);
     expect(find.text('Market'), findsOneWidget);
     expect(find.text('Nakit'), findsOneWidget);

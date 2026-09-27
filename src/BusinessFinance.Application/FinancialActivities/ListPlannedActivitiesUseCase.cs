@@ -43,9 +43,9 @@ public sealed class ListPlannedActivitiesUseCase(
         var items = await repository.ListAsync(
             userId, query.AsOfDate, horizonDate, query.Scope, cancellationToken);
 
-        // Overdue first, then by due date. Nothing is summed: adding planned income,
-        // expenses, statements and neutral obligations into one number would be
-        // misleading, so the client gets a count and the nearest date instead.
+        // Overdue first, then by due date. Planned income, expenses, statements and
+        // neutral obligations are never summed into one number; the only total is
+        // the outgoing payment obligations that are not yet overdue.
         var ordered = items
             .OrderByDescending(item => item.Timing == PlannedActivityTiming.Overdue)
             .ThenBy(item => item.DueDate)
@@ -60,7 +60,11 @@ public sealed class ListPlannedActivitiesUseCase(
                 query.Scope,
                 ordered.Length,
                 ordered.Length == 0 ? null : ordered.Min(item => item.DueDate),
-                ordered));
+                ordered,
+                ordered
+                    .Where(item => item.Timing != PlannedActivityTiming.Overdue &&
+                                   PlannedActivityRules.IsPaymentObligation(item))
+                    .Sum(item => item.Amount)));
     }
 }
 
