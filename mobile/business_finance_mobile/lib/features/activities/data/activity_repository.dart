@@ -63,6 +63,7 @@ class ActivityRepository implements ActivityRepositoryContract {
       if (filter.categoryId != null) 'categoryId': filter.categoryId!,
       if (!filter.includeCancelled) 'includeCancelled': 'false',
       'scope': ?scope?.apiValue,
+      'search': ?filter.search,
     };
     final response = await _apiClient.get(
       Uri(

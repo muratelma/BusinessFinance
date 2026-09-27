@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_text.dart';
-import '../../../core/theme/app_finance_colors.dart';
-import '../../../core/widgets/app_list_row.dart';
+import '../../../core/theme/app_breakpoints.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/app_icon_capsule.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_status_chip.dart';
 import '../data/activity_models.dart';
@@ -15,106 +16,135 @@ AppMoneyEffect moneyEffectOf(ActivityEffect effect) => switch (effect) {
   ActivityEffect.neutral => AppMoneyEffect.neutral,
 };
 
-/// One row of the unified history. Deliberately plain: name, source, date and
+/// One row of the unified history. Deliberately plain: name, source and
 /// amount. Description, origin, destination and anything technical belong to the
 /// detail sheet, not to a list the user scans.
+///
+/// Tasarım teslimi (27 Eylül 2026): yuvarlak rol kapsülü 40, başlık 16/600,
+/// alt satır kategori ve hesap, sağda işaretli tutar. İptal edilmiş kayıt
+/// soluk (`0.55`), tutarı üstü çizili ve altında `İptal edildi` rozeti.
 class ActivityTile extends StatelessWidget {
-  const ActivityTile({required this.activity, super.key, this.onTap});
+  const ActivityTile({
+    required this.activity,
+    super.key,
+    this.onTap,
+    this.showDate = true,
+  });
 
   final FinancialActivity activity;
   final VoidCallback? onTap;
 
+  /// Gün başlığıyla gruplanmış listede tarih satırda tekrar yazılmaz.
+  final bool showDate;
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final cancelled = activity.isCancelled;
-    final capsule = _capsule(context);
+    final dim = cancelled ? 0.55 : 1.0;
 
     return Semantics(
       button: onTap != null,
       label: _semanticsLabel(),
       excludeSemantics: true,
-      child: AppListRow(
+      child: InkWell(
         onTap: onTap,
-        dimmed: cancelled,
-        icon: _icon,
-        iconColor: capsule.foreground,
-        // İkon kapsülü hareketin etkisini taşır; renk tek başına anlam
-        // vermez, ikon da türü gösterir.
-        //
-        // Kapsül zemini metin renginin alfa'lı bir kopyası değil, kendi
-        // `*Container` token'ıdır. Alfa yolu her rol için üçüncü bir ton
-        // üretiyordu ve zeminden zemine kayıyordu; container/onContainer
-        // çifti ise kontrast kapısında ölçülen tek bir çifttir.
-        iconBackground: capsule.background,
-        title: activity.title.isEmpty ? activity.kind.label : activity.title,
-        // Kayıt adı kullanıcının yazdığı serbest metindir ve bir cümle
-        // olabilir. Tek satıra sığdırılır; tamamı ayrıntı panelindedir.
-        titleMaxLines: 1,
-        subtitle: _subtitle,
-        badge: cancelled
-            ? const AppStatusChip(
-                label: 'İptal edildi',
-                icon: Icons.block,
-                tone: AppStatusTone.cancelled,
-              )
-            : null,
-        trailing: AppMoneyText(
-          amount: activity.amount,
-          currency: activity.currency,
-          effect: moneyEffectOf(activity.effect),
-          isCancelled: cancelled,
-          signed: true,
-          textAlign: TextAlign.end,
-          style: theme.textTheme.titleSmall,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 64),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.medium,
+              vertical: AppSpacing.small + AppSpacing.xSmall,
+            ),
+            child: Row(
+              children: [
+                Opacity(
+                  opacity: dim,
+                  child: AppIconCapsule(
+                    icon: _icon,
+                    tone: cancelled
+                        ? AppStatusTone.cancelled
+                        : switch (activity.effect) {
+                            ActivityEffect.income => AppStatusTone.income,
+                            ActivityEffect.expense => AppStatusTone.expense,
+                            ActivityEffect.neutral => AppStatusTone.neutral,
+                          },
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.medium),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Opacity(
+                        opacity: dim,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Kayıt adı kullanıcının yazdığı serbest metindir
+                            // ve bir cümle olabilir; tamamı ayrıntıdadır.
+                            Text(
+                              activity.title.isEmpty
+                                  ? activity.kind.label
+                                  : activity.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                            if (_subtitle.isNotEmpty) ...[
+                              const SizedBox(height: AppSpacing.xxSmall),
+                              Text(
+                                _subtitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      if (cancelled) ...[
+                        const SizedBox(height: AppSpacing.xSmall),
+                        const AppStatusChip(
+                          label: 'İptal edildi',
+                          icon: Icons.block,
+                          tone: AppStatusTone.cancelled,
+                        ),
+                      ],
+                      if (context.usesLargeText) ...[
+                        const SizedBox(height: AppSpacing.xSmall),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Opacity(opacity: dim, child: _amount),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (!context.usesLargeText) ...[
+                  const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+                  Opacity(opacity: dim, child: _amount),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  /// Yeşil yalnız gelirdir. Nötr hareket kendi tonunu alır, böylece bir
-  /// transfer para girişiyle karıştırılmaz.
-  ({Color background, Color foreground}) _capsule(BuildContext context) {
-    final colors = AppFinanceColors.of(context);
-    return switch (activity.effect) {
-      ActivityEffect.income => (
-        background: colors.incomeContainer,
-        foreground: colors.onIncomeContainer,
-      ),
-      ActivityEffect.expense => (
-        background: colors.expenseContainer,
-        foreground: colors.onExpenseContainer,
-      ),
-      ActivityEffect.neutral => (
-        background: colors.neutralContainer,
-        foreground: colors.onNeutralContainer,
-      ),
-    };
-  }
+  Widget get _amount => AppMoneyText(
+    amount: activity.amount,
+    currency: activity.currency,
+    effect: moneyEffectOf(activity.effect),
+    isCancelled: activity.isCancelled,
+    signed: true,
+    textAlign: TextAlign.end,
+    size: AppMoneySize.row,
+  );
 
-  IconData get _icon => switch (activity.kind) {
-    ActivityKind.accountTransaction =>
-      activity.effect == ActivityEffect.income
-          ? Icons.south_west
-          : Icons.north_east,
-    ActivityKind.transfer => Icons.swap_horiz,
-    ActivityKind.cardCharge => Icons.credit_card,
-    ActivityKind.cardPayment => Icons.payments_outlined,
-    ActivityKind.debtPayment => Icons.trending_down,
-    ActivityKind.debtCollection => Icons.trending_up,
-    ActivityKind.debtOpening => Icons.handshake_outlined,
-    ActivityKind.counterpartyCharge =>
-      activity.effect == ActivityEffect.income
-          ? Icons.south_west
-          : Icons.north_east,
-    ActivityKind.counterpartySettlement => Icons.price_check,
-    ActivityKind.obligation => Icons.event_note_outlined,
-    ActivityKind.obligationSettlement => Icons.price_check,
-    ActivityKind.posSale => Icons.point_of_sale_outlined,
-    ActivityKind.posCommission => Icons.percent,
-    // Para yolda değil artık: hesaba indi.
-    ActivityKind.posTransfer => Icons.move_to_inbox_outlined,
-  };
+  IconData get _icon => activityIcon(activity);
 
   String get _subtitle {
     // Source and destination read as one route, so they are joined by the arrow
@@ -130,7 +160,7 @@ class ActivityTile extends StatelessWidget {
     return [
       ?_categoryLabel,
       ?route,
-      _readableDate,
+      if (showDate) _readableDate,
       ?_interestLabel,
     ].join(' • ');
   }
@@ -196,3 +226,29 @@ class ActivityTile extends StatelessWidget {
     return buffer.toString();
   }
 }
+
+/// Hareketin türünü gösteren ikon; liste satırı ve ayrıntı paneli aynı ikonu
+/// kullanır.
+IconData activityIcon(FinancialActivity activity) => switch (activity.kind) {
+  ActivityKind.accountTransaction =>
+    activity.effect == ActivityEffect.income
+        ? Icons.south_west
+        : Icons.north_east,
+  ActivityKind.transfer => Icons.swap_horiz,
+  ActivityKind.cardCharge => Icons.credit_card,
+  ActivityKind.cardPayment => Icons.payments_outlined,
+  ActivityKind.debtPayment => Icons.trending_down,
+  ActivityKind.debtCollection => Icons.trending_up,
+  ActivityKind.debtOpening => Icons.handshake_outlined,
+  ActivityKind.counterpartyCharge =>
+    activity.effect == ActivityEffect.income
+        ? Icons.south_west
+        : Icons.north_east,
+  ActivityKind.counterpartySettlement => Icons.price_check,
+  ActivityKind.obligation => Icons.event_note_outlined,
+  ActivityKind.obligationSettlement => Icons.price_check,
+  ActivityKind.posSale => Icons.point_of_sale_outlined,
+  ActivityKind.posCommission => Icons.percent,
+  // Para yolda değil artık: hesaba indi.
+  ActivityKind.posTransfer => Icons.move_to_inbox_outlined,
+};

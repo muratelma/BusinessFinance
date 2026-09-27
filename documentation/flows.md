@@ -1426,3 +1426,23 @@ Taksitli fiş -> kart seçimi (/more/cards)
   -> boşluk ölçüsü listenin VERİSİDİR, widget sayısı değil: yönlendirme kutusu
      tek başına listeyi dolu göstermemeli
 ```
+
+## İşlemler ekranı (Claude Design teslimi, 27 Eylül 2026)
+
+```text
+İşlemler
+  -> arama alanı: yazma 350 ms durunca sunucuda aranır (`search`)
+     boş metin aramayı kaldırır; gelişmiş filtre temizliği aramayı silmez
+  -> tür çipleri: Tümü · Hesaplar · Kredi kartları · Transferler · Borçlar ·
+     Tekrarlananlar
+  -> planlananlar şeridi (30 gün sayısı, "Bakiyeye dahil değil") -> Planlananlar
+  -> güne göre gruplu akış: gün başlığı (24 Eylül · Dün) kaydırırken üstte durur
+  -> satıra dokun -> işlem detayı paneli
+       başlık + tür · kapsam, işaretli tutar + durum kapsülü
+       gri blok: Tarih / Kategori / (Hesaplar A → B | Hesap | Karşı taraf) /
+       Açıklama / Köken / Belge
+       iptal edilebiliyorsa "Hareketi iptal et" -> onay
+         ("Kayıt silinmez; iptal edildi olarak işaretlenir…")
+       edilemiyorsa kilit ikonu + gerekçe (plan, taksit, POS)
+       iptal edilmişse "Kayıt duruyor; toplamları artık etkilemez."
+```

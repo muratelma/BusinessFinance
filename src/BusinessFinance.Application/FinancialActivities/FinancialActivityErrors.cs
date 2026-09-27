@@ -18,4 +18,9 @@ public static class FinancialActivityErrors
         "financial_activities.invalid_page",
         "Page number and page size are out of range.",
         ApplicationErrorType.Validation);
+
+    public static readonly ApplicationError InvalidSearch = new(
+        "financial_activities.invalid_search",
+        "Search text must be at most 100 characters.",
+        ApplicationErrorType.Validation);
 }

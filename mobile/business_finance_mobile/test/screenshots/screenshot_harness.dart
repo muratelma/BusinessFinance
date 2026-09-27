@@ -158,7 +158,12 @@ class _PushedHostState extends State<_PushedHost> {
 ThemeData _screenshotTheme() {
   final theme = AppTheme.light();
   final label = WidgetStatePropertyAll(theme.textTheme.labelLarge);
+  final merged = theme.textTheme.bodyMedium;
   return theme.copyWith(
+    chipTheme: theme.chipTheme.copyWith(
+      labelStyle: merged?.merge(theme.chipTheme.labelStyle),
+      secondaryLabelStyle: merged?.merge(theme.chipTheme.secondaryLabelStyle),
+    ),
     filledButtonTheme: FilledButtonThemeData(
       style: theme.filledButtonTheme.style?.copyWith(textStyle: label),
     ),

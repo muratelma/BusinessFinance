@@ -104,6 +104,8 @@ class _ActivityFilterSheetState extends State<ActivityFilterSheet> {
                   onPressed: () => setState(
                     () => _draft = ActivityFilter(
                       quickFilter: _draft.quickFilter,
+                      // Arama ayrı bir denetimdir; filtre temizliği onu silmez.
+                      search: _draft.search,
                     ),
                   ),
                   child: const Text('Temizle'),

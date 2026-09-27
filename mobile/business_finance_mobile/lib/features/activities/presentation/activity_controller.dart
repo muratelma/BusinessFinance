@@ -185,8 +185,22 @@ class ActivityController extends ChangeNotifier {
   Future<void> selectQuickFilter(ActivityQuickFilter value) =>
       applyFilter(filter.copyWith(quickFilter: value));
 
-  Future<void> clearAdvancedFilters() =>
-      applyFilter(ActivityFilter(quickFilter: filter.quickFilter));
+  /// Aramayı uygular; boş metin aramayı kaldırır. Aynı metin ikinci kez
+  /// istek göndermez.
+  Future<void> search(String text) {
+    final trimmed = text.trim();
+    final next = trimmed.isEmpty ? null : trimmed;
+    if (next == filter.search) return Future.value();
+    return applyFilter(
+      next == null
+          ? filter.copyWith(clearSearch: true)
+          : filter.copyWith(search: next),
+    );
+  }
+
+  Future<void> clearAdvancedFilters() => applyFilter(
+    ActivityFilter(quickFilter: filter.quickFilter, search: filter.search),
+  );
 
   void _handleScopeChanged() {
     final current = scopeController?.scope;

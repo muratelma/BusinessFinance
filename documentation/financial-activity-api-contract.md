@@ -205,6 +205,7 @@ Owner-scoped, `RequireAuthorization`.
 | `creditCardId` | guid | yok | owner-scoped |
 | `categoryId` | guid | yok | owner-scoped |
 | `includeCancelled` | bool | `true` | |
+| `search` | string | — | Kayıt adı, açıklama, kategori ve hesap/karşı taraf adında geçen metin; kırpılır, boşsa filtre yok, en fazla 100 karakter (`400 financial_activities.invalid_search`). Aynı tek sorgunun filtresidir, sayım da ona göre yapılır |
 
 Filtreler v1'de **tek değerlidir** (çoklu seçim yok); `UNION ALL` sorgusunu ve
 index kullanımını basit tutar. Serbest metin araması yoktur.

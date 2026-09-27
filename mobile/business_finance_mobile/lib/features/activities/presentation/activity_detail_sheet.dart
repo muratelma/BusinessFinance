@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_text.dart';
-import '../../../core/theme/app_finance_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
+import '../../../core/widgets/app_detail_block.dart';
+import '../../../core/widgets/app_icon_capsule.dart';
 import '../../../core/widgets/app_money_text.dart';
-import '../../../core/widgets/app_submit_button.dart';
+import '../../../core/widgets/app_status_chip.dart';
 import '../data/activity_models.dart';
-import 'activity_tile.dart' show moneyEffectOf;
+import 'activity_tile.dart' show activityIcon, moneyEffectOf;
 
 /// The detail behind a feed row: a shared header plus the fields that only make
 /// sense for this kind. Actions are offered only where they can actually work,
@@ -29,26 +32,109 @@ class ActivityDetailSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final surfaces = AppSurfaces.of(context);
+    final cancelled = activity.isCancelled;
+    final effectLabel = switch (activity.effect) {
+      ActivityEffect.income => 'Gelir',
+      ActivityEffect.expense => 'Gider',
+      // Nötr hareketin adı türüdür: transfer, kart ödemesi, borç ödemesi.
+      ActivityEffect.neutral => activity.kind.label,
+    };
+    final subtitle = [
+      effectLabel,
+      if (activity.scope != null) activity.scope!.label,
+    ].join(' · ');
+
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.medium),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.medium,
+          0,
+          AppSpacing.medium,
+          AppSpacing.medium,
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              activity.title.isEmpty ? activity.kind.label : activity.title,
-              style: theme.textTheme.titleLarge,
+            Row(
+              children: [
+                AppIconCapsule(icon: activityIcon(activity), tone: _tone),
+                const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Semantics(
+                        header: true,
+                        child: Text(
+                          activity.title.isEmpty
+                              ? activity.kind.label
+                              : activity.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        subtitle,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 0,
+                          color: surfaces.inkMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Kapat',
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
             ),
-            const SizedBox(height: AppSpacing.xSmall),
-            Text(activity.kind.label, style: theme.textTheme.bodyMedium),
             const SizedBox(height: AppSpacing.medium),
-            _AmountLine(activity: activity),
-            const Divider(height: AppSpacing.large),
-            ..._rows(context),
-            const SizedBox(height: AppSpacing.medium),
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: AppSpacing.small,
+              runSpacing: AppSpacing.small,
+              children: [
+                AppMoneyText(
+                  amount: activity.amount,
+                  currency: activity.currency,
+                  effect: moneyEffectOf(activity.effect),
+                  isCancelled: cancelled,
+                  signed: true,
+                  size: AppMoneySize.metric,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                // Sayfadaki tek önemli durum: dolgulu kapsül.
+                cancelled
+                    ? const AppStatusChip(
+                        label: 'İptal edildi',
+                        icon: Icons.block,
+                        tone: AppStatusTone.cancelled,
+                      )
+                    : const AppStatusChip(
+                        label: 'Gerçekleşti',
+                        icon: Icons.check_circle_outline,
+                        tone: AppStatusTone.planned,
+                      ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.small + AppSpacing.xSmall),
+            AppDetailBlock(rows: _rows(context)),
+            const SizedBox(height: AppSpacing.small + AppSpacing.xSmall),
             _Actions(
               activity: activity,
+              effectLabel: effectLabel,
               onCancel: onCancel,
               isCancelling: isCancelling,
             ),
@@ -58,104 +144,108 @@ class ActivityDetailSheet extends StatelessWidget {
     );
   }
 
-  List<Widget> _rows(BuildContext context) {
-    final rows = <_DetailRow>[
-      _DetailRow(
-        'Durum',
-        activity.isCancelled ? 'İptal edildi' : 'Gerçekleşti',
+  AppStatusTone get _tone => activity.isCancelled
+      ? AppStatusTone.cancelled
+      : switch (activity.effect) {
+          ActivityEffect.income => AppStatusTone.income,
+          ActivityEffect.expense => AppStatusTone.expense,
+          ActivityEffect.neutral => AppStatusTone.neutral,
+        };
+
+  List<AppDetailRow> _rows(BuildContext context) {
+    AppDetailRow row(IconData icon, String label, String value) =>
+        AppDetailRow(icon: icon, label: label, value: value);
+    final source = activity.sourceName;
+    final destination = activity.destinationName;
+    final route = (source != null && destination != null)
+        ? '$source → $destination'
+        : null;
+    return [
+      row(
+        Icons.event_outlined,
+        'Tarih',
+        DateText.dayMonthYear(activity.activityDate),
       ),
-      _DetailRow('İş tarihi', activity.activityDate),
       if (activity.categoryName != null)
-        _DetailRow('Kategori', activity.categoryName!),
-      // Source and destination are labelled per kind: "kaynak → hedef" means
-      // something different for a transfer than for a card payment.
+        row(Icons.local_offer_outlined, 'Kategori', activity.categoryName!),
+      // Kaynak ve hedef türe göre adlandırılır: "kaynak → hedef" transferde
+      // ve kart ödemesinde farklı bir şey söyler.
       ...switch (activity.kind) {
-        ActivityKind.transfer => [
-          if (activity.sourceName != null)
-            _DetailRow('Gönderen hesap', activity.sourceName!),
-          if (activity.destinationName != null)
-            _DetailRow('Alan hesap', activity.destinationName!),
-        ],
-        ActivityKind.cardPayment => [
-          if (activity.sourceName != null)
-            _DetailRow('Ödeme hesabı', activity.sourceName!),
-          if (activity.destinationName != null)
-            _DetailRow('Ödenen kart', activity.destinationName!),
+        ActivityKind.transfer || ActivityKind.cardPayment => [
+          if (route != null)
+            row(Icons.swap_horiz, 'Hesaplar', route)
+          else if (source != null)
+            row(Icons.account_balance_outlined, 'Hesap', source),
         ],
         ActivityKind.cardCharge => [
-          if (activity.sourceName != null)
-            _DetailRow('Kredi kartı', activity.sourceName!),
+          if (source != null) row(Icons.credit_card, 'Kredi kartı', source),
         ],
-        // Taksit tek para hareketidir; anapara/faiz onun bölünmesidir.
-        // Kırılım burada duruyor çünkü "2.600'ün nesi gider" sorusunun cevabı
-        // bu: yalnız faiz gider, anapara alınan paranın geri ödemesi.
+        // Taksit tek para hareketidir; anapara/faiz onun bölünmesidir. Kırılım
+        // burada çünkü "2.600'ün nesi gider" sorusunun cevabı bu.
         ActivityKind.debtPayment || ActivityKind.debtCollection => [
-          if (activity.sourceName != null)
-            _DetailRow('Hesap', activity.sourceName!),
+          if (source != null)
+            row(Icons.account_balance_outlined, 'Hesap', source),
           ...?_splitRows(),
         ],
-        // Nakit kaynaklı açılışta paranın girdiği/çıktığı hesap var; gider
-        // kaynaklı açılışta hesap yoktur, kategori satırı yukarıda zaten
-        // yazılıyor.
-        ActivityKind.debtOpening => [
-          if (activity.sourceName != null)
-            _DetailRow('Hesap', activity.sourceName!),
+        ActivityKind.debtOpening || ActivityKind.accountTransaction => [
+          if (source != null) row(_accountIcon(source), 'Hesap', source),
         ],
-        ActivityKind.accountTransaction => [
-          if (activity.sourceName != null)
-            _DetailRow('Hesap', activity.sourceName!),
+        // Borçlandırmanın hesabı yoktur: para el değiştirmedi.
+        ActivityKind.counterpartyCharge || ActivityKind.obligation => [
+          if (source != null) row(Icons.group_outlined, 'Karşı taraf', source),
         ],
-        // Borçlandırmanın hesabı yoktur: para el değiştirmedi, yalnız
-        // kimin kime borçlandığı yazıldı.
-        ActivityKind.counterpartyCharge => [
-          if (activity.sourceName != null)
-            _DetailRow('Karşı taraf', activity.sourceName!),
-        ],
-        ActivityKind.counterpartySettlement => [
-          if (activity.sourceName != null)
-            _DetailRow('Hesap', activity.sourceName!),
-          if (activity.destinationName != null)
-            _DetailRow('Karşı taraf', activity.destinationName!),
-        ],
-        ActivityKind.obligation => [
-          if (activity.sourceName != null)
-            _DetailRow('Karşı taraf', activity.sourceName!),
-        ],
+        ActivityKind.counterpartySettlement ||
         ActivityKind.obligationSettlement => [
-          if (activity.sourceName != null)
-            _DetailRow('Hesap', activity.sourceName!),
-          if (activity.destinationName != null)
-            _DetailRow('Karşı taraf', activity.destinationName!),
+          if (source != null)
+            row(Icons.account_balance_outlined, 'Hesap', source),
+          if (destination != null)
+            row(Icons.group_outlined, 'Karşı taraf', destination),
         ],
         // Satış ve komisyon anında paranın çıktığı bir yer yok: hesap, paranın
-        // birkaç gün sonra **geçeceği** yerdir ve satır bunu böyle yazar.
+        // birkaç gün sonra **geçeceği** yerdir.
         ActivityKind.posSale || ActivityKind.posCommission => [
-          if (activity.destinationName != null)
-            _DetailRow('Paranın geçeceği hesap', activity.destinationName!),
+          if (destination != null)
+            row(
+              Icons.account_balance_outlined,
+              'Paranın geçeceği hesap',
+              destination,
+            ),
         ],
         ActivityKind.posTransfer => [
-          if (activity.destinationName != null)
-            _DetailRow('Paranın geçtiği hesap', activity.destinationName!),
+          if (destination != null)
+            row(
+              Icons.account_balance_outlined,
+              'Paranın geçtiği hesap',
+              destination,
+            ),
         ],
       },
-      _DetailRow('Köken', activity.origin.label),
-      // The title already carries the description when the user wrote one, so
-      // repeating it here would be the same sentence twice.
+      // Başlık zaten açıklamayı taşıyorsa aynı cümle iki kez yazılmaz.
       if (activity.description != null &&
           activity.description!.isNotEmpty &&
           activity.description != activity.title)
-        _DetailRow('Açıklama', activity.description!),
-      if (activity.cancelledAtUtc != null)
-        _DetailRow('İptal zamanı', activity.cancelledAtUtc!),
+        row(Icons.notes, 'Açıklama', activity.description!),
+      row(Icons.edit_note, 'Köken', activity.origin.label),
+      // Belgeler yalnız işlem kaydında olur ve yönetimi Veri araçlarındadır.
+      if (activity.supportsAttachments)
+        row(Icons.attach_file, 'Belge', 'Veri araçlarında'),
     ];
-    return [for (final row in rows) row];
+  }
+
+  static IconData _accountIcon(String name) {
+    final lower = name.toLowerCase();
+    if (lower.contains('kart')) return Icons.credit_card;
+    if (lower.contains('kasa') || lower.contains('cüzdan')) {
+      return Icons.payments_outlined;
+    }
+    return Icons.account_balance_outlined;
   }
 
   /// Borç taksidinin anapara/faiz kırılımı.
   ///
   /// Faizi olmayan taksitte hiç çizilmez: `anapara 2.600 · faiz 0` satırı
   /// bilgi taşımaz, yalnız paneli uzatır.
-  List<_DetailRow>? _splitRows() {
+  List<AppDetailRow>? _splitRows() {
     final interest = activity.interestPortion;
     final principal = activity.principalPortion;
     if (interest == null || principal == null || interest == '0.0000') {
@@ -163,140 +253,110 @@ class ActivityDetailSheet extends StatelessWidget {
     }
     final isPayable = activity.kind == ActivityKind.debtPayment;
     return [
-      _DetailRow('Anapara', MoneyText.format(principal, activity.currency)),
-      _DetailRow(
-        isPayable ? 'Faiz (gider)' : 'Faiz (gelir)',
-        MoneyText.format(interest, activity.currency),
+      AppDetailRow(
+        icon: Icons.account_balance_wallet_outlined,
+        label: 'Anapara',
+        value: MoneyText.format(principal, activity.currency),
+      ),
+      AppDetailRow(
+        icon: Icons.percent,
+        label: isPayable ? 'Faiz (gider)' : 'Faiz (gelir)',
+        value: MoneyText.format(interest, activity.currency),
       ),
     ];
-  }
-}
-
-class _AmountLine extends StatelessWidget {
-  const _AmountLine({required this.activity});
-
-  final FinancialActivity activity;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = AppFinanceColors.of(context);
-    final (label, color) = switch (activity.effect) {
-      ActivityEffect.income => ('Gelir', colors.income),
-      ActivityEffect.expense => ('Gider', colors.expense),
-      // Spelled out, because a neutral movement moves money without changing
-      // what was earned or spent and users read that as a missing number.
-      ActivityEffect.neutral => (
-        'Gelir/gider raporunu etkilemez',
-        colors.neutral,
-      ),
-    };
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AppMoneyText(
-          amount: activity.amount,
-          currency: activity.currency,
-          effect: moneyEffectOf(activity.effect),
-          isCancelled: activity.isCancelled,
-          style: theme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xSmall),
-        Text(label, style: theme.textTheme.bodyMedium?.copyWith(color: color)),
-      ],
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  const _DetailRow(this.label, this.value);
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xSmall),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 140,
-            child: Text(
-              label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.outline,
-              ),
-            ),
-          ),
-          // Long names and descriptions wrap instead of overflowing: this sheet
-          // is where the full text is supposed to be readable.
-          Expanded(child: Text(value, style: theme.textTheme.bodyMedium)),
-        ],
-      ),
-    );
   }
 }
 
 class _Actions extends StatelessWidget {
   const _Actions({
     required this.activity,
+    required this.effectLabel,
     required this.onCancel,
     required this.isCancelling,
   });
 
   final FinancialActivity activity;
+  final String effectLabel;
   final Future<void> Function()? onCancel;
   final bool isCancelling;
 
   @override
   Widget build(BuildContext context) {
-    final children = <Widget>[];
+    final theme = Theme.of(context);
+    final surfaces = AppSurfaces.of(context);
+    final note = theme.textTheme.labelMedium?.copyWith(
+      fontWeight: FontWeight.w400,
+      letterSpacing: 0,
+      height: 1.4,
+      color: surfaces.inkMuted,
+    );
 
-    if (activity.supportsAttachments) {
-      children.add(
-        OutlinedButton.icon(
-          // Attachments exist only for budget transactions, and managing them
-          // still lives in Veri Araçları.
-          onPressed: null,
-          icon: const Icon(Icons.attach_file),
-          label: const Text('Belgeler Veri Araçları ekranında'),
-        ),
+    if (activity.isCancelled) {
+      return Text('Kayıt duruyor; toplamları artık etkilemez.', style: note);
+    }
+    // Nötr hareket para taşır ama kazanılan ya da harcanan tutarı değiştirmez;
+    // yazılmazsa eksik bir sayı gibi okunur.
+    final neutralNote = activity.effect == ActivityEffect.neutral
+        ? Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.small),
+            child: Text('Gelir/gider raporunu etkilemez', style: note),
+          )
+        : null;
+    if (onCancel == null) {
+      // Neden iptal edilemediğini söylemek görünmez ya da ölü bir düğmeden
+      // iyidir.
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ?neutralNote,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.lock_outline, size: 16, color: surfaces.inkMuted),
+              const SizedBox(width: AppSpacing.small),
+              Expanded(
+                child: Text(switch ((activity.origin, activity.kind)) {
+                  (ActivityOrigin.recurring, _) =>
+                    'Tekrarlayan plandan üretilen hareket iptal edilemez.',
+                  (ActivityOrigin.installment, _) =>
+                    'Taksit planından üretilen hareket iptal edilemez.',
+                  (
+                    _,
+                    ActivityKind.posSale ||
+                        ActivityKind.posCommission ||
+                        ActivityKind.posTransfer,
+                  ) =>
+                    'Bu hareket türü iptal edilemez: POS tahsilatıyla birlikte '
+                        'oluşur.',
+                  _ => 'Bu hareket türü iptal edilemez.',
+                }, style: note),
+              ),
+            ],
+          ),
+        ],
       );
     }
-
-    if (onCancel != null) {
-      children.add(
-        AppSubmitButton(
-          label: 'Hareketi iptal et',
-          icon: Icons.block,
-          isBusy: isCancelling,
-          style: AppSubmitButtonStyle.tonal,
-          onSubmit: () => _confirm(context),
-        ),
-      );
-    } else if (!activity.isCancelled) {
-      // Saying why beats an invisible or dead button.
-      children.add(
-        Text(switch (activity.origin) {
-          ActivityOrigin.recurring =>
-            'Tekrarlayan plandan üretilen hareket iptal edilemez.',
-          ActivityOrigin.installment =>
-            'Taksit planından üretilen hareket iptal edilemez.',
-          _ => 'Bu hareket türü iptal edilemez.',
-        }, style: Theme.of(context).textTheme.bodySmall),
-      );
-    }
-
-    if (children.isEmpty) return const SizedBox.shrink();
-    return Wrap(
-      spacing: AppSpacing.small,
-      runSpacing: AppSpacing.small,
-      children: children,
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xSmall),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ?neutralNote,
+          OutlinedButton.icon(
+            onPressed: isCancelling ? null : () => _confirm(context),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
+            icon: isCancelling
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.block),
+            label: const Text('Hareketi iptal et'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -306,10 +366,12 @@ class _Actions extends StatelessWidget {
       icon: Icons.block,
       destructive: true,
       title: 'Hareket iptal edilsin mi?',
+      highlight:
+          '$effectLabel · ${MoneyText.format(activity.amount, activity.currency)}',
       message:
-          'Hareket geçmişte kalır ve silinmez, ancak bakiyeye ve raporlara '
-          'katılmaz.',
-      confirmLabel: 'İptal et',
+          'Kayıt silinmez; iptal edildi olarak işaretlenir ve toplamları '
+          'artık etkilemez.',
+      confirmLabel: 'Hareketi iptal et',
     );
     if (!confirmed) return;
     await onCancel!();

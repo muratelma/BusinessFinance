@@ -176,13 +176,80 @@ void main() {
     );
     await _pump(tester, repository);
 
-    await tester.tap(find.text('Kredi Kartları'));
+    await tester.tap(find.text('Kredi kartları'));
     await tester.pumpAndSettle();
 
     expect(
       repository.filters.last.quickFilter,
       ActivityQuickFilter.creditCards,
     );
+  });
+
+  testWidgets('searches on the server after the user pauses typing', (
+    tester,
+  ) async {
+    // Sayfalı listenin yüklenen kısmını süzmek eksik sonuç verirdi; arama
+    // sunucuya gider ve her tuşta değil, yazma duraklayınca.
+    final repository = _FakeRepository(
+      pages: [
+        _page([_activity(id: 'a')]),
+      ],
+    );
+    await _pump(tester, repository);
+    final before = repository.filters.length;
+
+    await tester.enterText(find.byType(TextField), '  kira ');
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(repository.filters, hasLength(before));
+
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    expect(repository.filters.last.search, 'kira');
+
+    await tester.tap(find.byTooltip('Aramayı temizle'));
+    await tester.pumpAndSettle();
+    expect(repository.filters.last.search, isNull);
+  });
+
+  testWidgets('says what was searched when nothing matches', (tester) async {
+    final repository = _FakeRepository(
+      pages: [
+        _page([_activity(id: 'a')]),
+        _page([]),
+      ],
+    );
+    await _pump(tester, repository);
+
+    await tester.enterText(find.byType(TextField), 'zzz');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Eşleşen hareket yok'), findsOneWidget);
+    expect(find.textContaining('"zzz"'), findsOneWidget);
+  });
+
+  testWidgets('groups the feed by day with a relative day name', (
+    tester,
+  ) async {
+    // Tarih satırda tekrar yazılmaz; gün başlığı söyler.
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: ActivityFeedPage(
+          repository: _FakeRepository(
+            pages: [
+              _page([_activity(id: 'a')]),
+            ],
+          ),
+          now: () => DateTime(2026, 8, 15),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('14 Ağustos  Dün', findRichText: true), findsOneWidget);
+    // Satırın alt metni yalnız hesabı taşır, tarihi değil.
+    expect(find.text('Banka'), findsOneWidget);
   });
 
   testWidgets('shows an empty state that names the reason', (tester) async {
@@ -281,7 +348,7 @@ void main() {
 
     await tester.tap(find.text('Hareketi iptal et'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('İptal et'));
+    await tester.tap(find.text('Hareketi iptal et').last);
     await tester.pumpAndSettle();
 
     expect(repository.cancelled, hasLength(1));

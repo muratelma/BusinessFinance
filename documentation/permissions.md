@@ -303,3 +303,11 @@ bugünkü sorgulara gizli koşul eklenmez.
 - Hane üyeliği/rolleri — ilgili sonraki roadmap kapsamı
 - Hesap silme ve dışa aktarma **uygulandı**: silme ADR 0017'ye göre gerçek silmedir
   (parola + açık onay), dışa aktarma yedek/geri yükleme yolundadır
+
+## İşlem araması (27 Eylül 2026)
+
+`GET /api/v1/financial-activities?search=` yeni bir uç değildir; mevcut feed
+sorgusunun bir filtresidir ve sahiplik kapsamı (`UserId`) aynı sorguda
+uygulanır. Başka kullanıcının kaydı eşleşmez; SQL integration testi
+(`FinancialActivityFeed_SearchMatchesVisibleTextAndCountsOnlyMatches`) iki
+kullanıcılı veriyle bunu doğrular.

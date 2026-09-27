@@ -200,7 +200,17 @@ public sealed record FinancialActivityListCriteria(
 
     // Boşsa toplam. Doluysa kapsamsız satırlar (transfer, kart ödemesi) da düşer.
     TransactionScope? Scope,
-    bool IncludeCancelled);
+    bool IncludeCancelled,
+
+    /// <summary>
+    /// Kayıt adı, açıklama, kategori ve hesap/karşı taraf adında geçen metin;
+    /// boşsa filtre yok.
+    /// </summary>
+    /// <remarks>
+    /// Sayfalı listeyi istemcide süzmek yalnız yüklenmiş sayfayı arardı; arama
+    /// bu yüzden aynı tek sorgunun bir filtresidir ve sayım da ona göre yapılır.
+    /// </remarks>
+    string? Search = null);
 
 public sealed record FinancialActivityPage(
     IReadOnlyList<FinancialActivityRow> Items,

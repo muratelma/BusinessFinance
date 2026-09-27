@@ -1,3 +1,5 @@
+import '../../../core/models/transaction_scope.dart';
+
 /// Which real event happened. The backend sends stable machine values; the label
 /// shown to the user is built here, because the API deliberately carries no
 /// display sentences.
@@ -192,6 +194,7 @@ class FinancialActivity {
     this.cancelledAtUtc,
     this.principalPortion,
     this.interestPortion,
+    this.scope,
   });
 
   factory FinancialActivity.fromJson(Map<String, dynamic> json) =>
@@ -216,6 +219,9 @@ class FinancialActivity {
         cancelledAtUtc: json['cancelledAtUtc'] as String?,
         principalPortion: json['principalPortion'] as String?,
         interestPortion: json['interestPortion'] as String?,
+        scope: json['scope'] is String
+            ? TransactionScope.fromApi(json['scope'] as String)
+            : null,
         canCancel: json['canCancel'] as bool,
         supportsAttachments: json['supportsAttachments'] as bool,
       );
@@ -253,6 +259,10 @@ class FinancialActivity {
   final String? interestPortion;
   final bool canCancel;
   final bool supportsAttachments;
+
+  /// Kaydın kapsamı; transfer ve kart ödemesinde `null` (gelir/gider
+  /// raporuna sıfır etki ederler ve kapsam taşımazlar).
+  final TransactionScope? scope;
 
   bool get isCancelled => status == ActivityStatus.cancelled;
 
@@ -309,8 +319,9 @@ class ActivityPage {
 enum ActivityQuickFilter {
   all('Tümü'),
   accounts('Hesaplar'),
-  creditCards('Kredi Kartları'),
+  creditCards('Kredi kartları'),
   transfers('Transferler'),
+  debts('Borçlar'),
   recurring('Tekrarlananlar');
 
   const ActivityQuickFilter(this.label);
@@ -320,6 +331,7 @@ enum ActivityQuickFilter {
     accounts => ActivitySourceGroup.account,
     creditCards => ActivitySourceGroup.creditCard,
     transfers => ActivitySourceGroup.transfer,
+    debts => ActivitySourceGroup.debt,
     all || recurring => null,
   };
 
@@ -362,9 +374,14 @@ class ActivityFilter {
     this.creditCardId,
     this.categoryId,
     this.includeCancelled = true,
+    this.search,
   });
 
   final ActivityQuickFilter quickFilter;
+
+  /// Kayıt adı, kategori ve hesap adında aranan metin; sunucuda aranır, çünkü
+  /// sayfalı listenin yalnız yüklenen kısmını süzmek eksik sonuç verirdi.
+  final String? search;
   final ActivityDateRange dateRange;
   final ActivityEffect? effect;
   final String? accountId;
@@ -392,7 +409,10 @@ class ActivityFilter {
     bool clearAccountId = false,
     bool clearCreditCardId = false,
     bool clearCategoryId = false,
+    String? search,
+    bool clearSearch = false,
   }) => ActivityFilter(
+    search: clearSearch ? null : (search ?? this.search),
     quickFilter: quickFilter ?? this.quickFilter,
     dateRange: dateRange ?? this.dateRange,
     effect: clearEffect ? null : (effect ?? this.effect),

@@ -145,6 +145,12 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   - **Bütçeler**: geri oklu başlık ve `+`, doluluğa göre dizilmiş kartlar,
     durum kapsülü (`Aşıldı` / `Limite yakın` / `Limit içinde`), limit
     düzenleme ve silme harcama panelinin altında. 880 Flutter testi geçti
+  - **İşlemler + detay**: arama alanı (backend'de feed sorgusunun `search`
+    filtresi, 100 karakter sınırı), `Borçlar` çipi, planlananlar şeridi,
+    güne göre gruplu ve başlığı sabit akış, yeni ayrıntı paneli. İptal
+    edilmiş tutar artık işaretsiz yazılıyor (DS). Kontroller: 881 Flutter
+    testi, backend Application 325 test geçti; SQL arama testi yerelde
+    koşacak (cloud'da SQL yok)
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni → (gerekirse 06.x) → 07 bulut (`PROJECT-ROADMAP.md`)

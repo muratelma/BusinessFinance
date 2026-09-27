@@ -123,7 +123,9 @@ class AppMoneyText extends StatelessWidget {
   String get _formatted => MoneyText.format(amount, currency);
 
   String get _displayText {
-    if (!signed) return _formatted;
+    // İptal edilmiş tutar işaret taşımaz: artık bir yöne para hareketi değil,
+    // üstü çizili bir kayıttır (DS `AppMoneyText`).
+    if (!signed || isCancelled) return _formatted;
     return switch (effect) {
       AppMoneyEffect.income => '+$_formatted',
       AppMoneyEffect.expense => '-$_formatted',

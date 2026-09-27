@@ -152,7 +152,8 @@ public static class FinancialActivityEndpoints
         Guid? categoryId = null,
         Guid? counterpartyId = null,
         string? scope = null,
-        bool includeCancelled = true)
+        bool includeCancelled = true,
+        string? search = null)
     {
         if (!TryParseOptionalDate(dateFrom, out var parsedFrom) ||
             !TryParseOptionalDate(dateTo, out var parsedTo))
@@ -197,7 +198,8 @@ public static class FinancialActivityEndpoints
                 categoryId,
                 counterpartyId,
                 parsedScope,
-                includeCancelled),
+                includeCancelled,
+                search),
             cancellationToken);
         if (!result.IsSuccess)
         {

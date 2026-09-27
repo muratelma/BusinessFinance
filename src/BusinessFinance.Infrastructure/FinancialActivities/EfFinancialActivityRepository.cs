@@ -846,6 +846,19 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
             query = query.Where(row => row.MatchCategoryId == categoryId);
         }
 
+        // Arama birleşik projeksiyonun görünen metinlerinde yapılır; `Contains`
+        // SQL'de kaçışlı `LIKE` olur ve harf duyarlılığı veritabanı
+        // harmanlamasından gelir (varsayılan büyük/küçük harfe duyarsız).
+        if (criteria.Search is { Length: > 0 } search)
+        {
+            query = query.Where(row =>
+                row.Title.Contains(search) ||
+                (row.Description != null && row.Description.Contains(search)) ||
+                (row.CategoryName != null && row.CategoryName.Contains(search)) ||
+                (row.SourceName != null && row.SourceName.Contains(search)) ||
+                (row.DestinationName != null && row.DestinationName.Contains(search)));
+        }
+
         return query;
     }
 

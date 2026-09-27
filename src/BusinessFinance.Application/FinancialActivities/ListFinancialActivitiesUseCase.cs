@@ -8,6 +8,7 @@ public sealed class ListFinancialActivitiesUseCase(
     IFinancialActivityRepository repository)
 {
     public const int MaximumPageSize = 100;
+    public const int MaximumSearchLength = 100;
 
     public async Task<ApplicationResult<FinancialActivityListResult>> ExecuteAsync(
         FinancialActivityListCriteria criteria,
@@ -37,7 +38,17 @@ public sealed class ListFinancialActivitiesUseCase(
                 FinancialActivityErrors.InvalidDateRange);
         }
 
-        var page = await repository.ListAsync(userId, criteria, cancellationToken);
+        var search = string.IsNullOrWhiteSpace(criteria.Search)
+            ? null
+            : criteria.Search.Trim();
+        if (search is { Length: > MaximumSearchLength })
+        {
+            return ApplicationResult<FinancialActivityListResult>.Failure(
+                FinancialActivityErrors.InvalidSearch);
+        }
+
+        var page = await repository.ListAsync(
+            userId, criteria with { Search = search }, cancellationToken);
         return ApplicationResult<FinancialActivityListResult>.Success(
             new FinancialActivityListResult(
                 page.Items.Select(ToDto).ToArray(),

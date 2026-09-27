@@ -3002,6 +3002,44 @@ public sealed class SqlServerPersistenceIntegrationTests
     }
 
     [SqlServerFact]
+    public async Task FinancialActivityFeed_SearchMatchesVisibleTextAndCountsOnlyMatches()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var owner = CreateUser("activity-feed-search@example.test");
+        var stranger = CreateUser("activity-feed-search-stranger@example.test");
+        await database.SeedUsersAsync(owner, stranger);
+        await SeedActivityFeedGraphAsync(database, owner.Id);
+        await SeedActivityFeedGraphAsync(database, stranger.Id);
+
+        await using var provider = CreateServiceProvider(database.ConnectionString);
+        await using var scope = provider.CreateAsyncScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IFinancialActivityRepository>();
+        var all = await repository.ListAsync(owner.Id, AllActivities(), CancellationToken.None);
+        var sample = all.Items.First(item => item.Title.Length >= 3);
+        var needle = sample.Title[..3];
+
+        var found = await repository.ListAsync(
+            owner.Id,
+            AllActivities() with { Search = needle },
+            CancellationToken.None);
+
+        // Arama sayımı da daraltır ve başka kullanıcının kaydı hiç eşleşmez.
+        Assert.Contains(found.Items, item => item.ActivityId == sample.ActivityId);
+        Assert.Equal(found.Items.Count, found.TotalCount);
+        Assert.True(found.TotalCount <= all.TotalCount);
+        Assert.All(found.Items, item => Assert.Contains(
+            new[] { item.Title, item.Description, item.CategoryName, item.SourceName, item.DestinationName },
+            text => text?.Contains(needle, StringComparison.OrdinalIgnoreCase) == true));
+
+        var nothing = await repository.ListAsync(
+            owner.Id,
+            AllActivities() with { Search = "zzzz-eslesmeyen-metin" },
+            CancellationToken.None);
+        Assert.Empty(nothing.Items);
+        Assert.Equal(0, nothing.TotalCount);
+    }
+
+    [SqlServerFact]
     public async Task FinancialActivityFeed_AppliesFiltersWithoutLeakingOtherSources()
     {
         await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());

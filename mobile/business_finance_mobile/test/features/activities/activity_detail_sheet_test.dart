@@ -18,10 +18,9 @@ void main() {
       ),
     );
 
-    expect(find.text('Gönderen hesap'), findsOneWidget);
-    expect(find.text('Alan hesap'), findsOneWidget);
-    // "Ödeme hesabı" belongs to a card payment, not to a transfer.
-    expect(find.text('Ödeme hesabı'), findsNothing);
+    // Tasarım teslimi: iki hesap tek satırda, paranın yönüyle.
+    expect(find.text('Hesaplar'), findsOneWidget);
+    expect(find.text('Banka → Nakit'), findsOneWidget);
   });
 
   testWidgets('labels a card payment by the account and the card it settles', (
@@ -37,8 +36,8 @@ void main() {
       ),
     );
 
-    expect(find.text('Ödeme hesabı'), findsOneWidget);
-    expect(find.text('Ödenen kart'), findsOneWidget);
+    expect(find.text('Hesaplar'), findsOneWidget);
+    expect(find.text('Banka → Test Kart'), findsOneWidget);
   });
 
   testWidgets('spells out that a neutral movement does not change the report', (
@@ -127,7 +126,9 @@ void main() {
 
     await tester.tap(find.text('Hareketi iptal et'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('İptal et'));
+    // Onay düğmesi panelin kendi düğmesiyle aynı adı taşır; son eşleşme
+    // açılan onay penceresindedir.
+    await tester.tap(find.text('Hareketi iptal et').last);
     await tester.pumpAndSettle();
 
     expect(calls, 1);

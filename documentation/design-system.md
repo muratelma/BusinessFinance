@@ -798,3 +798,18 @@ veri paketteki `DATA` ile aynıdır. Normal test koşusunda atlanır:
 ```bash
 SCREENSHOT_DIR=/tmp/shots flutter test test/screenshots
 ```
+
+## İşlemler ekranı (Claude Design teslimi, 27 Eylül 2026)
+
+- `AppPageHeader` + filtre ikonu; gri arama alanı (48 dp, `cardMuted`);
+  yatay kayan çipler (DS `AppScopeChoiceChip`: 14/600, 32 dp); planlananlar
+  şeridi (`plannedContainer`, 48 dp).
+- Akış günlere bölünür: gün başlığı sayfa zemininde 15/600 tarih + gri
+  göreli gün, `PinnedHeaderSliver` ile üstte durur; günün kayıtları tam
+  genişlik beyaz blokta, üst/alt kenar çizgisi, ayırıcı 72 dp'den.
+- Satır: yuvarlak rol kapsülü, 16/600 başlık, alt satırda kategori ve hesap
+  (tarih gün başlığında), sağda `row` boyunda işaretli tutar. İptal edilmiş
+  satır 0,55 soluk, tutar işaretsiz ve üstü çizili, altında `İptal edildi`.
+- Ayrıntı paneli: kapsül + başlık + `Tür · Kapsam`, 28/700 tutar ve dolgulu
+  durum kapsülü (`Gerçekleşti` / `İptal edildi`), `AppDetailBlock`,
+  tam genişlik kenarlı `Hareketi iptal et`.

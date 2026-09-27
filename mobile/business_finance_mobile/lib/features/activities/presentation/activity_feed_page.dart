@@ -1,22 +1,33 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../../../core/formatters/date_text.dart';
 import '../../../core/presentation/financial_data_changes.dart';
 import '../../../core/presentation/scope_controller.dart';
+import '../../../core/theme/app_finance_colors.dart';
+import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_adaptive_sheet.dart';
+import '../../../core/widgets/app_icon_capsule.dart';
+import '../../../core/widgets/app_page_header.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../data/activity_models.dart';
 import '../data/activity_repository.dart';
-import 'activity_controller.dart';
 import '../data/planned_activity_models.dart';
+import 'activity_controller.dart';
 import 'activity_detail_sheet.dart';
 import 'activity_filter_sheet.dart';
 import 'activity_tile.dart';
-import 'planned_summary_card.dart';
 
 /// The unified history: every realized movement in one chronological list,
 /// whichever write model produced it.
+///
+/// Tasarım teslimi (27 Eylül 2026): arama alanı, tür çipleri, planlananlar
+/// şeridi ve güne göre gruplu akış. Gün başlığı kaydırırken üstte durur; her
+/// günün kayıtları tam genişlik beyaz bir blokta, ayırıcı yazının
+/// başladığı yerden.
 class ActivityFeedPage extends StatefulWidget {
   const ActivityFeedPage({
     required this.repository,
@@ -25,6 +36,7 @@ class ActivityFeedPage extends StatefulWidget {
     this.onCreateTransaction,
     this.onShowPlanned,
     this.scopeController,
+    this.now,
   });
 
   final ActivityRepositoryContract repository;
@@ -36,6 +48,9 @@ class ActivityFeedPage extends StatefulWidget {
   final VoidCallback? onCreateTransaction;
   final VoidCallback? onShowPlanned;
 
+  /// Gün başlıklarındaki `Bugün` / `Dün` bu güne göre yazılır.
+  final DateTime Function()? now;
+
   @override
   State<ActivityFeedPage> createState() => _ActivityFeedPageState();
 }
@@ -43,6 +58,8 @@ class ActivityFeedPage extends StatefulWidget {
 class _ActivityFeedPageState extends State<ActivityFeedPage> {
   late final ActivityController _controller;
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
 
   @override
   void initState() {
@@ -76,6 +93,8 @@ class _ActivityFeedPageState extends State<ActivityFeedPage> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
     _scrollController
       ..removeListener(_handleScroll)
       ..dispose();
@@ -91,109 +110,177 @@ class _ActivityFeedPageState extends State<ActivityFeedPage> {
     }
   }
 
+  /// Arama yazarken her tuşta istek gitmez; kısa bir duraklamadan sonra
+  /// sunucuda aranır.
+  void _onSearchChanged(String text) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(
+      const Duration(milliseconds: 350),
+      () => _controller.search(text),
+    );
+    setState(() {});
+  }
+
+  void _clearSearch() {
+    _searchDebounce?.cancel();
+    _searchController.clear();
+    _controller.search('');
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: AnimatedBuilder(
+      body: SafeArea(
+        bottom: false,
+        child: AnimatedBuilder(
           animation: _controller,
-          // Aktif kapsam başlıkta yazılı durur: bu liste bölünen bir okuma ve
-          // filtrenin açık olduğu ekranda görünmezse eksik liste, kayıp kayıt
-          // gibi okunur.
-          builder: (context, _) => Text(
-            _controller.scope == null
-                ? 'İşlemler'
-                : 'İşlemler · ${_controller.scope!.label}',
-          ),
-        ),
-        actions: [
-          AnimatedBuilder(
-            animation: _controller,
-            builder: (context, _) => IconButton(
-              onPressed: _openFilters,
-              tooltip: 'Gelişmiş filtre',
-              icon: Icon(
-                _controller.filter.hasAdvancedFilters
-                    ? Icons.filter_alt
-                    : Icons.filter_alt_outlined,
+          builder: (context, _) => Column(
+            children: [
+              // Aktif kapsam başlıkta yazılı durur: bu liste bölünen bir okuma
+              // ve filtrenin açık olduğu ekranda görünmezse eksik liste, kayıp
+              // kayıt gibi okunur.
+              AppPageHeader(
+                title: _controller.scope == null
+                    ? 'İşlemler'
+                    : 'İşlemler · ${_controller.scope!.label}',
+                actions: [
+                  IconButton(
+                    onPressed: _openFilters,
+                    tooltip: 'Gelişmiş filtre',
+                    icon: Icon(
+                      _controller.filter.hasAdvancedFilters
+                          ? Icons.filter_alt
+                          : Icons.tune,
+                    ),
+                  ),
+                ],
               ),
-            ),
+              if (_controller.unauthorized)
+                const Expanded(child: AppUnauthorizedView())
+              else ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.medium,
+                    AppSpacing.xSmall,
+                    AppSpacing.medium,
+                    0,
+                  ),
+                  child: _SearchField(
+                    controller: _searchController,
+                    onChanged: _onSearchChanged,
+                    onClear: _clearSearch,
+                  ),
+                ),
+                _QuickFilterBar(
+                  selected: _controller.filter.quickFilter,
+                  onSelected: _controller.selectQuickFilter,
+                ),
+                if (_controller.isStale) const _StaleBanner(),
+                Expanded(child: _buildList(context)),
+              ],
+            ],
           ),
-        ],
-      ),
-      body: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) => _buildBody(context),
+        ),
       ),
     );
   }
 
-  Widget _buildBody(BuildContext context) {
-    if (_controller.unauthorized) return const AppUnauthorizedView();
-
-    return Column(
-      children: [
-        _QuickFilterBar(
-          selected: _controller.filter.quickFilter,
-          onSelected: _controller.selectQuickFilter,
-        ),
-        if (_controller.isStale) const _StaleBanner(),
-        if (_planned != null && widget.onShowPlanned != null)
-          PlannedSummaryCard(
-            count: _planned!.totalCount,
-            nearestDueDate: _planned!.nearestDueDate,
-            hasAttention: _planned!.items.any((item) => item.needsAttention),
-            onTap: widget.onShowPlanned!,
-          ),
-        Expanded(
-          child: ColoredBox(
-            color: AppSurfaces.of(context).card,
-            child: _buildList(context),
-          ),
-        ),
-      ],
-    );
-  }
+  Widget _plannedStrip() => Padding(
+    padding: const EdgeInsets.fromLTRB(
+      AppSpacing.medium,
+      AppSpacing.xSmall,
+      AppSpacing.medium,
+      0,
+    ),
+    child: _PlannedStrip(
+      count: _planned!.totalCount,
+      hasAttention: _planned!.items.any((item) => item.needsAttention),
+      onTap: widget.onShowPlanned!,
+    ),
+  );
 
   Widget _buildList(BuildContext context) {
+    final showPlanned = _planned != null && widget.onShowPlanned != null;
+    Widget withPlanned(Widget child) => showPlanned
+        ? Column(
+            children: [
+              _plannedStrip(),
+              Expanded(child: child),
+            ],
+          )
+        : child;
+
     if (_controller.isLoading && _controller.items.isEmpty) {
-      return const AppLoadingView();
+      return withPlanned(const AppLoadingView());
     }
     if (_controller.errorMessage != null && _controller.items.isEmpty) {
-      return AppErrorView(
-        message: _controller.errorMessage!,
-        onRetry: _controller.load,
+      return withPlanned(
+        AppErrorView(
+          message: _controller.errorMessage!,
+          onRetry: _controller.load,
+        ),
       );
     }
     if (_controller.isEmpty) {
-      return AppEmptyView(
-        title: 'Henüz hareket yok',
-        message: _controller.filter.hasAdvancedFilters
-            ? 'Seçtiğiniz filtrelere uyan hareket bulunamadı.'
-            : 'Gelir, gider, transfer ve kart hareketleriniz burada listelenir.',
-        icon: Icons.receipt_long_outlined,
+      final searching = _controller.filter.search != null;
+      return withPlanned(
+        AppEmptyView(
+          title: searching ? 'Eşleşen hareket yok' : 'Henüz hareket yok',
+          message: searching
+              ? '"${_controller.filter.search}" için bir kayıt bulunamadı.'
+              : _controller.filter.hasAdvancedFilters
+              ? 'Seçtiğiniz filtrelere uyan hareket bulunamadı.'
+              : 'Gelir, gider, transfer ve kart hareketleriniz burada listelenir.',
+          icon: searching ? Icons.search_off : Icons.receipt_long_outlined,
+        ),
       );
     }
 
-    final items = _controller.items;
+    final groups = _groupByDay(_controller.items);
     return RefreshIndicator(
       onRefresh: _controller.load,
-      child: ListView.separated(
+      child: CustomScrollView(
         controller: _scrollController,
-        padding: const EdgeInsets.only(bottom: AppSpacing.xLarge),
-        itemCount: items.length + 1,
-        separatorBuilder: (_, _) => const Divider(height: 1),
-        itemBuilder: (context, index) {
-          if (index == items.length) return _buildFooter(context);
-          final activity = items[index];
-          return ActivityTile(
-            key: ValueKey(activity.listKey),
-            activity: activity,
-            onTap: () => _openDetail(activity),
-          );
-        },
+        slivers: [
+          if (showPlanned) SliverToBoxAdapter(child: _plannedStrip()),
+          for (final group in groups)
+            SliverMainAxisGroup(
+              slivers: [
+                PinnedHeaderSliver(
+                  child: _DayHeader(date: group.date, today: _today),
+                ),
+                SliverToBoxAdapter(
+                  child: _DayBlock(
+                    activities: group.items,
+                    onOpen: _openDetail,
+                  ),
+                ),
+              ],
+            ),
+          SliverToBoxAdapter(child: _buildFooter(context)),
+          const SliverToBoxAdapter(
+            child: SizedBox(height: AppSpacing.fabClearance),
+          ),
+        ],
       ),
     );
+  }
+
+  DateTime get _today => (widget.now ?? DateTime.now)();
+
+  static List<({String date, List<FinancialActivity> items})> _groupByDay(
+    List<FinancialActivity> items,
+  ) {
+    final groups = <({String date, List<FinancialActivity> items})>[];
+    for (final item in items) {
+      if (groups.isNotEmpty && groups.last.date == item.activityDate) {
+        groups.last.items.add(item);
+      } else {
+        groups.add((date: item.activityDate, items: [item]));
+      }
+    }
+    return groups;
   }
 
   Widget _buildFooter(BuildContext context) {
@@ -216,7 +303,12 @@ class _ActivityFeedPageState extends State<ActivityFeedPage> {
     }
     final total = _controller.pagination?.totalCount ?? 0;
     return Padding(
-      padding: const EdgeInsets.all(AppSpacing.medium),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.medium,
+        AppSpacing.large - AppSpacing.xSmall,
+        AppSpacing.medium,
+        0,
+      ),
       child: Center(
         child: Text(
           'Toplam $total hareket',
@@ -267,6 +359,60 @@ class _ActivityFeedPageState extends State<ActivityFeedPage> {
   }
 }
 
+/// Arama alanı: gri zemin, 48 dp, solda büyüteç. Arama sunucuda yapılır.
+class _SearchField extends StatelessWidget {
+  const _SearchField({
+    required this.controller,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final surfaces = AppSurfaces.of(context);
+    final theme = Theme.of(context);
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppRadius.field),
+      borderSide: BorderSide.none,
+    );
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      textInputAction: TextInputAction.search,
+      style: theme.textTheme.bodyMedium,
+      decoration: InputDecoration(
+        isDense: true,
+        filled: true,
+        fillColor: surfaces.cardMuted,
+        hintText: 'İşlem, kategori veya hesap ara',
+        hintStyle: theme.textTheme.bodyMedium?.copyWith(
+          color: surfaces.inkFaint,
+        ),
+        prefixIcon: Icon(Icons.search, size: 20, color: surfaces.inkMuted),
+        suffixIcon: controller.text.isEmpty
+            ? null
+            : IconButton(
+                tooltip: 'Aramayı temizle',
+                onPressed: onClear,
+                icon: const Icon(Icons.close, size: 20),
+              ),
+        constraints: const BoxConstraints(minHeight: 48),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.medium,
+          vertical: AppSpacing.small + AppSpacing.xSmall,
+        ),
+        border: border,
+        enabledBorder: border,
+        focusedBorder: border,
+      ),
+    );
+  }
+}
+
 class _QuickFilterBar extends StatelessWidget {
   const _QuickFilterBar({required this.selected, required this.onSelected});
 
@@ -275,24 +421,226 @@ class _QuickFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.medium,
-        vertical: AppSpacing.small,
+    return Semantics(
+      container: true,
+      label: 'İşlem türü',
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.medium,
+          AppSpacing.small + AppSpacing.xSmall,
+          AppSpacing.medium,
+          AppSpacing.small,
+        ),
+        child: Row(
+          children: [
+            for (final filter in ActivityQuickFilter.values)
+              Padding(
+                padding: const EdgeInsets.only(right: AppSpacing.small),
+                child: ChoiceChip(
+                  label: Text(filter.label),
+                  selected: filter == selected,
+                  onSelected: (_) => onSelected(filter),
+                ),
+              ),
+          ],
+        ),
       ),
-      child: Row(
-        children: [
-          for (final filter in ActivityQuickFilter.values)
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.small),
-              child: ChoiceChip(
-                label: Text(filter.label),
-                selected: filter == selected,
-                onSelected: (_) => onSelected(filter),
+    );
+  }
+}
+
+/// Planlananlar şeridi: sayı ve bakiyeye dahil olmadığı; dokununca
+/// Planlananlar açılır.
+class _PlannedStrip extends StatelessWidget {
+  const _PlannedStrip({
+    required this.count,
+    required this.hasAttention,
+    required this.onTap,
+  });
+
+  final int count;
+  final bool hasAttention;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = AppFinanceColors.of(context);
+    final foreground = colors.onPlannedContainer;
+    final radius = BorderRadius.circular(AppRadius.field);
+    final title = '$count planlanan işlem';
+    return Semantics(
+      button: true,
+      label:
+          '$title, bakiyeye dahil değil'
+          '${hasAttention ? ', dikkat isteyen kalem var' : ''}. '
+          'Planlananları açar.',
+      excludeSemantics: true,
+      child: Material(
+        color: colors.plannedContainer,
+        borderRadius: radius,
+        child: InkWell(
+          borderRadius: radius,
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.medium,
+                AppSpacing.small,
+                AppSpacing.small,
+                AppSpacing.small,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    hasAttention ? Icons.error_outline : Icons.event_repeat,
+                    size: 20,
+                    color: foreground,
+                  ),
+                  const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+                  Flexible(
+                    child: Text(
+                      title,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        height: 1.3,
+                        color: foreground,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.small),
+                  Expanded(
+                    child: Text(
+                      'Bakiyeye dahil değil',
+                      textAlign: TextAlign.right,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w400,
+                        letterSpacing: 0,
+                        color: foreground,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, size: 22, color: foreground),
+                ],
               ),
             ),
-        ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Gün başlığı: `24 Eylül` ve yanında `Dün` / `Bugün` / haftanın günü.
+/// Kaydırırken üstte durur; zemini sayfa zeminidir.
+class _DayHeader extends StatelessWidget {
+  const _DayHeader({required this.date, required this.today});
+
+  final String date;
+  final DateTime today;
+
+  static const _weekdays = [
+    'Pazartesi',
+    'Salı',
+    'Çarşamba',
+    'Perşembe',
+    'Cuma',
+    'Cumartesi',
+    'Pazar',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = AppSurfaces.of(context);
+    final parsed = DateTime.tryParse(date);
+    final relative = parsed == null ? null : _relative(parsed);
+    return Semantics(
+      header: true,
+      child: Container(
+        width: double.infinity,
+        color: surfaces.canvas,
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.medium,
+          AppSpacing.large - AppSpacing.xSmall,
+          AppSpacing.medium,
+          AppSpacing.small,
+        ),
+        child: Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: DateText.dayMonth(date),
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontSize: 15,
+                  height: 1.3,
+                ),
+              ),
+              if (relative != null)
+                TextSpan(text: '  $relative', style: theme.textTheme.bodySmall),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _relative(DateTime day) {
+    final start = DateTime(today.year, today.month, today.day);
+    final days = start
+        .difference(DateTime(day.year, day.month, day.day))
+        .inDays;
+    return switch (days) {
+      0 => 'Bugün',
+      1 => 'Dün',
+      _ => _weekdays[day.weekday - 1],
+    };
+  }
+}
+
+/// Bir günün kayıtları: tam genişlik beyaz blok, üst ve alt kenar çizgisi,
+/// satırlar arası ayırıcı yazının başladığı yerden (72 dp).
+class _DayBlock extends StatelessWidget {
+  const _DayBlock({required this.activities, required this.onOpen});
+
+  final List<FinancialActivity> activities;
+  final ValueChanged<FinancialActivity> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final surfaces = AppSurfaces.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: surfaces.card,
+        border: Border.symmetric(
+          horizontal: BorderSide(color: surfaces.border),
+        ),
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(
+          children: [
+            for (var i = 0; i < activities.length; i++) ...[
+              if (i > 0)
+                Padding(
+                  padding: const EdgeInsets.only(left: AppIconCapsule.rowInset),
+                  child: Divider(
+                    height: 1,
+                    thickness: 1,
+                    color: surfaces.border,
+                  ),
+                ),
+              ActivityTile(
+                key: ValueKey(activities[i].listKey),
+                activity: activities[i],
+                showDate: false,
+                onTap: () => onOpen(activities[i]),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

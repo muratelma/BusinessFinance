@@ -190,15 +190,22 @@ abstract final class AppTheme {
         selectedColor: colorScheme.primaryContainer,
         checkmarkColor: colorScheme.onSurface,
         side: BorderSide(color: surfaces.border),
-        labelStyle: textTheme.labelMedium?.copyWith(
+        // DS `AppScopeChoiceChip`: 14/600, 32 dp yükseklik.
+        labelStyle: textTheme.bodyMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+          height: 1.3,
+          letterSpacing: 0.1,
           color: colorScheme.onSurface,
         ),
-        secondaryLabelStyle: textTheme.labelMedium?.copyWith(
+        secondaryLabelStyle: textTheme.bodyMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+          height: 1.3,
+          letterSpacing: 0.1,
           color: colorScheme.onSurface,
         ),
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.small,
-          vertical: AppSpacing.small,
+          vertical: AppSpacing.xSmall,
         ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.chip),

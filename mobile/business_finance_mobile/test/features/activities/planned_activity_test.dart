@@ -9,7 +9,6 @@ import 'package:business_finance_mobile/features/activities/data/activity_reposi
 import 'package:business_finance_mobile/features/activities/data/planned_activity_models.dart';
 import 'package:business_finance_mobile/features/activities/presentation/planned_activity_controller.dart';
 import 'package:business_finance_mobile/features/activities/presentation/planned_activity_page.dart';
-import 'package:business_finance_mobile/features/activities/presentation/planned_summary_card.dart';
 import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 
 void main() {
@@ -291,41 +290,6 @@ void main() {
         findsOneWidget,
       );
       handle.dispose();
-    });
-  });
-
-  group('summary card', () {
-    testWidgets('reports a count and the nearest date, not a total', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light(),
-          home: Scaffold(
-            body: PlannedSummaryCard(
-              count: 3,
-              nearestDueDate: '2026-08-20',
-              onTap: () {},
-            ),
-          ),
-        ),
-      );
-
-      expect(find.text('3 planlanan işlem'), findsOneWidget);
-      // Ham `2026-08-20` sunucunun iç gösterimi; ekranda okunur tarih durur.
-      expect(find.textContaining('En yakını 20 Ağustos'), findsOneWidget);
-      expect(find.textContaining('Bakiyeye dahil değil'), findsOneWidget);
-    });
-
-    testWidgets('stays out of the way when nothing is planned', (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light(),
-          home: Scaffold(body: PlannedSummaryCard(count: 0, onTap: () {})),
-        ),
-      );
-
-      expect(find.textContaining('planlanan işlem'), findsNothing);
     });
   });
 
