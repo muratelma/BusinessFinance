@@ -53,6 +53,19 @@ public sealed class CashCount
     /// <summary>Fark kaydı üretildi mi? Üretilmemiş olması normaldir.</summary>
     public bool IsAdjusted => AdjustmentTransactionId is not null;
 
+    /// <summary>
+    /// Sayım yazıldığı anda uygulamanın bu kasada beklediği bakiye.
+    /// </summary>
+    /// <remarks>
+    /// Güncel bir türetme <b>değildir</b>, tarihsel bir gözlemdir: geçmiş bir
+    /// sayımın farkını bugünkü bakiyeye karşı hesaplamak aradaki bütün
+    /// hareketleri o günün farkına yazmak olurdu. Bu alan "o gün ne
+    /// bekleniyordu" sorusunu kayda geçirir; günün açık sayımının farkı yine
+    /// güncel bakiyeden hesaplanır. Alan eklenmeden önce yazılmış sayımlarda
+    /// bilinmez ve boştur.
+    /// </remarks>
+    public decimal? ExpectedAtCount { get; }
+
     private CashCount()
     {
     }
@@ -65,7 +78,8 @@ public sealed class CashCount
         TransactionScope scope,
         DateOnly countDate,
         DateTimeOffset createdAtUtc,
-        string? note = null)
+        string? note = null,
+        decimal? expectedAtCount = null)
     {
         if (id == Guid.Empty)
         {
@@ -132,6 +146,9 @@ public sealed class CashCount
         CountDate = countDate;
         CreatedAtUtc = createdAtUtc;
         Note = NormalizeNote(note);
+        ExpectedAtCount = expectedAtCount is decimal expected
+            ? decimal.Round(expected, 4)
+            : null;
     }
 
     /// <summary>

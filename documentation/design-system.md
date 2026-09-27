@@ -558,15 +558,25 @@ Compact görünümde çentikli alt çubuk, medium/expanded görünümde gezinme 
 aynı hedef modelini okur. Seçili durum ikon dolgusu, yazı kalınlığı ve semantic
 `selected` ile birlikte anlatılır; yalnız renge bırakılmaz.
 
-`Kasa` sayfası iki metin etiketli alt sekmedir: `Gün sonu` ve
-`POS tahsilatları`. Gün sonunda beklenen/sayılan/fark, POS tarafında
-brüt/komisyon/net ayrı bilgi hiyerarşileridir. Durumlar `AppStatusChip` içinde
+`Kasa` sayfası sekmesiz **tek akıştır** (Claude Design teslimi, KasaV4):
+kasa seçici rayı (ad + bakiye, alan yarıçapı, 56 dp dilim), bugünün sayım
+kartı, `POS tahsilatları` bölümü ve `Son sayımlar`. Sayım kartı sayımdan önce
+beklenen tutarın kaynağını (son sayım, bugünkü nakit giriş/çıkış), sonra elde
+sayılanı, uygulamaya göre tutarı ve farkı gösterir. `Sayımı gir` paneli
+`Toplamı yaz | Banknotla say` segmentiyle açılır; toplam alanı Türkçe binlik
+ayırıcı taşır (`TurkishAmountInputFormatter`), canlı sonuç şeridi rol kapsül
+zemininde `Tuttu` / `₺… eksik` / `₺… fazla` der. Şerit yalnız önizlemedir ve
+`MoneyMath` (10⁴ ölçekli tam sayı) ile hesaplanır; kaydedilen fark sunucudan
+gelir. Takvim yaprağı (`AppDateLeaf`) sabit 44×48 bir işarettir; metni 1,2×
+ölçekte durur ve tarihi satırın kendisi okur. Gün sonunda
+beklenen/sayılan/fark, POS tarafında brüt/komisyon/net ayrı bilgi
+hiyerarşileridir. Durumlar `AppStatusChip` içinde
 `Yolda`, `Gecikti` veya `Hesaba geçti` metni ve ikonuyla gösterilir. Sayım farkı
 ve hesaba geçiş finansal sonuç doğurduğu için görünür onay ister; birincil form
 eylemleri gönderim sırasında devre dışıdır. Yeni renk, boşluk, yarıçap veya
 tipografi token'ı eklenmemiştir.
 
-Ekranlar 2.0× metin ölçeğinde iki alt sekmeyle test edilir. Alt gezinme/ray
+Ekran ve sayım panelinin iki modu 2.0× metin ölçeğinde test edilir. Alt gezinme/ray
 hedefleri Material'ın en az 48 dp dokunma alanını, görünür etiketi ve ekran
 okuyucu anlamını korur; sabit genişlikli özel bir mobil yerleşim eklenmez.
 

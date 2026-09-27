@@ -541,16 +541,6 @@ class _DayHeader extends StatelessWidget {
   final String date;
   final DateTime today;
 
-  static const _weekdays = [
-    'Pazartesi',
-    'Salı',
-    'Çarşamba',
-    'Perşembe',
-    'Cuma',
-    'Cumartesi',
-    'Pazar',
-  ];
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -595,7 +585,7 @@ class _DayHeader extends StatelessWidget {
     return switch (days) {
       0 => 'Bugün',
       1 => 'Dün',
-      _ => _weekdays[day.weekday - 1],
+      _ => DateText.weekdays[day.weekday - 1],
     };
   }
 }

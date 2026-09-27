@@ -67,10 +67,10 @@ internal sealed class EfCashCountRepository(BusinessFinanceDbContext dbContext)
             .ThenByDescending(row => row.count.CreatedAtUtc)
             .ToArrayAsync(cancellationToken);
 
-        // Beklenen bakiye ve fark burada **doldurulmaz**: geçmiş bir günün
-        // farkını bugünkü bakiyeye karşı hesaplamak, aradaki bütün hareketleri
-        // o günün farkına yazmak olurdu. Günün sayımını beklenen bakiyesiyle
-        // birlikte okuyan ayrı bir uç var.
+        // Beklenen bakiye ve fark bugünkü bakiyeden **türetilmez**: geçmiş bir
+        // günün farkını bugünkü bakiyeye karşı hesaplamak, aradaki bütün
+        // hareketleri o günün farkına yazmak olurdu. Sayım yazılırken saklanan
+        // o anki gözlem kullanılır; gözlem yoksa ikisi de boş kalır.
         return rows
             .Select(row => new CashCountDto(
                 row.count.Id,
@@ -82,7 +82,11 @@ internal sealed class EfCashCountRepository(BusinessFinanceDbContext dbContext)
                 row.count.Scope,
                 row.count.Note,
                 row.count.IsCancelled,
-                row.count.AdjustmentTransactionId))
+                row.count.AdjustmentTransactionId,
+                row.count.ExpectedAtCount,
+                row.count.ExpectedAtCount is decimal expected
+                    ? row.count.CountedAmount - expected
+                    : null))
             .ToArray();
     }
 

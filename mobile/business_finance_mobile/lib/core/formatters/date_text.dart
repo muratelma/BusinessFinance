@@ -32,6 +32,24 @@ class DateText {
     return '${parsed.$3} ${months[parsed.$2 - 1]}';
   }
 
+  static const weekdays = [
+    'Pazartesi',
+    'Salı',
+    'Çarşamba',
+    'Perşembe',
+    'Cuma',
+    'Cumartesi',
+    'Pazar',
+  ];
+
+  /// `2026-09-25` → `25 Eylül Perşembe`.
+  static String dayMonthWeekday(String isoDate) {
+    final parsed = _parse(isoDate);
+    if (parsed == null) return isoDate;
+    final weekday = DateTime(parsed.$1, parsed.$2, parsed.$3).weekday;
+    return '${parsed.$3} ${months[parsed.$2 - 1]} ${weekdays[weekday - 1]}';
+  }
+
   /// `2026-08-10` → `10 Ağustos 2026`.
   static String dayMonthYear(String isoDate) {
     final parsed = _parse(isoDate);

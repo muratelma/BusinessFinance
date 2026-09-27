@@ -12,15 +12,27 @@ import '../data/cash_repository.dart';
 /// farkı birlikte gönderir, ekran onu gösterir. İstemci çıkarma yapsaydı iki
 /// gerçek doğar ve yuvarlama farkı kullanıcının kasasında görünürdü.
 class CashCountController extends ChangeNotifier {
-  CashCountController(this._repository, {this.changes});
+  CashCountController(
+    this._repository, {
+    this.changes,
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now;
 
   final CashRepositoryContract _repository;
   final FinancialDataChanges? changes;
+  final DateTime Function() _clock;
+
+  /// Cihazın bugünü (`yyyy-MM-dd`); sayım bu güne yazılır.
+  String get todayIso => _isoDate(_clock());
 
   List<CashAccount> accounts = const [];
   String? selectedAccountId;
   CashCountToday? today;
   List<CashCountItem> history = const [];
+
+  /// Kasa seçicideki her kasanın uygulamaya göre bakiyesi. Seçili kasanınki
+  /// her yüklemede tazelenir; diğerleri ilk yüklemede okunur.
+  Map<String, String> expectedByAccount = const {};
 
   bool isLoading = false;
   bool isSubmitting = false;
@@ -32,6 +44,21 @@ class CashCountController extends ChangeNotifier {
 
   /// Bugünün sayımı; henüz sayılmadıysa boş.
   CashCountItem? get todayCount => today?.count;
+
+  /// `Son sayımlar`: bugünden önceki geçerli sayımlar, yeniden eskiye.
+  /// Bugünün sayımı üstteki kartta durur; yerine yenisi yazılan sayım
+  /// geçmişte tekrar görünmez.
+  List<CashCountItem> get pastCounts => [
+    for (final item in history)
+      if (!item.isCancelled && item.countDate != todayIso) item,
+  ];
+
+  CashAccount? get selectedAccount {
+    for (final account in accounts) {
+      if (account.id == selectedAccountId) return account;
+    }
+    return null;
+  }
 
   /// Kaydedilecek bir fark var mı: sayım yapılmış, tutmamış ve düzeltmesi
   /// henüz yazılmamış.
@@ -61,6 +88,7 @@ class CashCountController extends ChangeNotifier {
       if (accountId != null) {
         today = await _repository.loadToday(accountId: accountId);
         history = await _repository.list(accountId: accountId);
+        await _loadOtherBalances(accountId);
       }
       unauthorized = false;
       isStale = false;
@@ -75,6 +103,30 @@ class CashCountController extends ChangeNotifier {
       isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// Seçicinin ikinci satırı: diğer kasaların bakiyesi. İkincil bir okumadır;
+  /// düşerse seçici yalnız adları gösterir, ekran ayakta kalır.
+  Future<void> _loadOtherBalances(String selectedId) async {
+    final balances = {...expectedByAccount};
+    final current = today;
+    if (current != null) balances[selectedId] = current.expectedBalance;
+    if (accounts.length > 1) {
+      for (final account in accounts) {
+        if (account.id == selectedId || balances.containsKey(account.id)) {
+          continue;
+        }
+        try {
+          final other = await _repository.loadToday(accountId: account.id);
+          balances[account.id] = other.expectedBalance;
+        } on ApiException {
+          // Sessiz: seçici bakiyesiz kalır.
+        } on FormatException {
+          // Sessiz: seçici bakiyesiz kalır.
+        }
+      }
+    }
+    expectedByAccount = balances;
   }
 
   Future<void> selectAccount(String accountId) async {
@@ -150,15 +202,12 @@ class CashCountController extends ChangeNotifier {
       notifyListeners();
     }
   }
-
-  /// Formların varsayılan günü.
-  static String todayDate() {
-    final value = DateTime.now();
-    return '${value.year.toString().padLeft(4, '0')}-'
-        '${value.month.toString().padLeft(2, '0')}-'
-        '${value.day.toString().padLeft(2, '0')}';
-  }
 }
+
+String _isoDate(DateTime value) =>
+    '${value.year.toString().padLeft(4, '0')}-'
+    '${value.month.toString().padLeft(2, '0')}-'
+    '${value.day.toString().padLeft(2, '0')}';
 
 /// Para üzerinde hesap yapmaz; sunucunun gönderdiği kanonik ondalığın yalnız
 /// yönünü okur. `double` kullanmak çok büyük/küçük değerlerde hassasiyet ve

@@ -14,6 +14,7 @@ public sealed class GetCashCountTodayUseCase(
     ICurrentUser currentUser,
     ICashCountRepository repository,
     IAccountRepository accountRepository,
+    IAccountDayFlowReader dayFlowReader,
     TimeProvider timeProvider)
 {
     public async Task<ApplicationResult<CashCountTodayDto>> ExecuteAsync(
@@ -39,6 +40,15 @@ public sealed class GetCashCountTodayUseCase(
             accountId, userId, cancellationToken);
         var count = await repository.FindOpenAsync(
             userId, accountId, today, false, cancellationToken);
+        // Beklenen tutarın nereden geldiğini gösteren iki bilgi: son sayım ve
+        // bugünkü nakit akışı. İkisi de sunucuda okunur.
+        var flow = await dayFlowReader.CalculateDayFlowAsync(
+            accountId, userId, today, cancellationToken);
+        var previous = (await repository.ListAsync(
+                userId,
+                new CashCountListCriteria(accountId, today.AddDays(-366), today.AddDays(-1)),
+                cancellationToken))
+            .FirstOrDefault(item => !item.IsCancelled);
 
         return ApplicationResult<CashCountTodayDto>.Success(
             new CashCountTodayDto(
@@ -48,7 +58,18 @@ public sealed class GetCashCountTodayUseCase(
                 account.Currency,
                 count is null
                     ? null
-                    : CashCountMapper.ToDto(count, account.Name, expectedBalance)));
+                    // Farkı kaydedilmiş sayım bakiyeyi sayılana oturttu; bugünkü
+                    // bakiyeye karşı fark artık sıfırdır. Kullanıcının kaydettiği
+                    // fark sayım anının gözleminde durur.
+                    : CashCountMapper.ToDto(
+                        count,
+                        account.Name,
+                        count.AdjustmentTransactionId is not null && count.ExpectedAtCount is decimal atCount
+                            ? atCount
+                            : expectedBalance),
+                previous,
+                flow.Inflow,
+                flow.Outflow));
     }
 }
 
@@ -125,6 +146,10 @@ public sealed class CreateCashCountUseCase(
             var superseded = await repository.FindOpenAsync(
                 userId, command.AccountId, command.CountDate, true, cancellationToken);
             var now = timeProvider.GetUtcNow().ToUniversalTime();
+            // Sayım bakiyeyi değiştirmez: beklenen bakiye yazmadan önce de
+            // sonra da aynıdır ve sayımın yanına o anın gözlemi olarak düşer.
+            var expectedBalance = await accountRepository.CalculateBalanceAsync(
+                command.AccountId, userId, cancellationToken);
             var cashCount = new CashCount(
                 Guid.NewGuid(),
                 userId,
@@ -133,12 +158,10 @@ public sealed class CreateCashCountUseCase(
                 scope,
                 command.CountDate,
                 now,
-                command.Note);
+                command.Note,
+                expectedBalance);
             superseded?.SupersedeWith(cashCount, now);
             await repository.AddAsync(cashCount, superseded, cancellationToken);
-
-            var expectedBalance = await accountRepository.CalculateBalanceAsync(
-                command.AccountId, userId, cancellationToken);
             return ApplicationResult<CashCountDto>.Success(
                 CashCountMapper.ToDto(cashCount, account.Name, expectedBalance));
         }

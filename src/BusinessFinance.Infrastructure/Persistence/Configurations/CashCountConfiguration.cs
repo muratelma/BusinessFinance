@@ -26,6 +26,9 @@ internal sealed class CashCountConfiguration : IEntityTypeConfiguration<CashCoun
         builder.HasKey(count => count.Id);
         builder.HasAlternateKey(count => new { count.UserId, count.Id });
         builder.Property(count => count.CountedAmount).HasPrecision(19, 4);
+        // Sayım anındaki beklenen bakiye: tarihsel gözlem, nullable (eski
+        // sayımlarda bilinmiyor).
+        builder.Property(count => count.ExpectedAtCount).HasPrecision(19, 4);
         builder.Property(count => count.Currency).HasConversion<byte>().HasColumnType("tinyint");
         builder.Property(count => count.Scope).HasConversion<byte>().HasColumnType("tinyint");
         builder.Property(count => count.CountDate).HasColumnType("date");

@@ -59,40 +59,45 @@ class AppDateLeaf extends StatelessWidget {
     final border = urgent ? colors.expenseContainer : surfaces.border;
     final strong = urgent ? colors.onExpenseContainer : surfaces.ink;
     final soft = urgent ? colors.onExpenseContainer : surfaces.inkMuted;
+    // Yaprak sabit 44×48 bir işarettir; en büyük yazı ölçeğinde gün ve ay
+    // kutuya sığmaz. Metin 1,2×'te durur; tarihi satır ayrıca okur.
     return ExcludeSemantics(
-      child: Container(
-        width: 44,
-        height: 48,
-        decoration: BoxDecoration(
-          color: background,
-          border: Border.all(color: border),
-          borderRadius: BorderRadius.circular(AppRadius.field),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              '$day',
-              style: TextStyle(
-                fontSize: 17,
-                height: 1,
-                fontWeight: FontWeight.w700,
-                fontFeatures: AppTypography.tabularFigures,
-                color: strong,
+      child: MediaQuery.withClampedTextScaling(
+        maxScaleFactor: 1.2,
+        child: Container(
+          width: 44,
+          height: 48,
+          decoration: BoxDecoration(
+            color: background,
+            border: Border.all(color: border),
+            borderRadius: BorderRadius.circular(AppRadius.field),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '$day',
+                style: TextStyle(
+                  fontSize: 17,
+                  height: 1,
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: AppTypography.tabularFigures,
+                  color: strong,
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.xxSmall),
-            Text(
-              month,
-              style: TextStyle(
-                fontSize: 11,
-                height: 1,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.4,
-                color: soft,
+              const SizedBox(height: AppSpacing.xxSmall),
+              Text(
+                month,
+                style: TextStyle(
+                  fontSize: 11,
+                  height: 1,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.4,
+                  color: soft,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

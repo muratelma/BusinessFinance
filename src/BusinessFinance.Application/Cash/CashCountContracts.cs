@@ -25,8 +25,11 @@ public sealed record CashCountListCriteria(Guid? AccountId, DateOnly From, DateO
 /// Bir sayımın okunabilir hâli.
 /// </summary>
 /// <remarks>
-/// <see cref="ExpectedBalance"/> ve <see cref="Difference"/> <b>yalnız günün
-/// açık sayımında</b> doludur. Geçmiş bir sayımın farkını bugünkü bakiyeye
+/// Günün açık sayımında <see cref="ExpectedBalance"/> ve
+/// <see cref="Difference"/> güncel bakiyeden hesaplanır. Geçmiş sayımda ikisi
+/// sayımın yanında saklanan <b>o anki gözlemden</b> gelir
+/// (<c>CashCount.ExpectedAtCount</c>); gözlem yoksa (alan eklenmeden önceki
+/// sayım) boştur. Geçmiş bir sayımın farkını bugünkü bakiyeye
 /// karşı yeniden hesaplamak, aradaki bütün hareketleri o günün farkına
 /// yazmak olurdu — sayı doğru görünür, anlamı yanlış olurdu. Geçmiş sayımda
 /// kalan tek gerçek, sayılan tutar ve varsa yazılmış düzeltme kaydıdır.
@@ -53,7 +56,16 @@ public sealed record CashCountTodayDto(
     string AccountName,
     decimal ExpectedBalance,
     CurrencyCode Currency,
-    CashCountDto? Count);
+    CashCountDto? Count,
+
+    /// <summary>Bugünden önceki son (iptal edilmemiş) sayım; yoksa boş.</summary>
+    CashCountDto? PreviousCount = null,
+
+    /// <summary>Bugün kasaya giren nakit: gelir, gelen transfer, tahsilat.</summary>
+    decimal TodayInflow = 0m,
+
+    /// <summary>Bugün kasadan çıkan nakit: gider, giden transfer, ödeme.</summary>
+    decimal TodayOutflow = 0m);
 
 public interface ICashCountRepository
 {

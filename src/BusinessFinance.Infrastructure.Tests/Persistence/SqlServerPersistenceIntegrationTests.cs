@@ -3704,6 +3704,21 @@ public sealed class SqlServerPersistenceIntegrationTests
             advanced.NetWorth.MoneyInTransit,
             advanced.NetWorth.NetWorth - advanced.NetWorth.LiquidAssets);
         Assert.Equal(2970m, advanced.NetWorth.NetWorth);
+        // İki taraf sunucuda toplanır; yoldaki paranın en yakın geçiş günü
+        // açık tahsilatın beklenen günüdür.
+        Assert.Equal(2970m, advanced.NetWorth.TotalAssets);
+        Assert.Equal(0m, advanced.NetWorth.TotalLiabilities);
+        Assert.Equal(new DateOnly(2026, 8, 26), advanced.NetWorth.NextTransitDate);
+
+        // Günün nakit akışı bakiyeyle aynı kaynakları okur: geçen tahsilatın
+        // neti geçtiği gün girer, sayım hiçbir akış üretmez.
+        var dayFlow = scope.ServiceProvider.GetRequiredService<IAccountDayFlowReader>();
+        Assert.Equal(
+            (980m, 0m),
+            await dayFlow.CalculateDayFlowAsync(bankId, owner.Id, new DateOnly(2026, 8, 22), default));
+        Assert.Equal(
+            (0m, 0m),
+            await dayFlow.CalculateDayFlowAsync(tillId, owner.Id, asOfDate, default));
 
         // Sayım bir gözlemdir: hiçbir bakiyeye dokunmaz.
         Assert.Equal(500m, await accountRepository.CalculateBalanceAsync(tillId, owner.Id, default));

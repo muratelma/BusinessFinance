@@ -31,3 +31,20 @@ public interface IAccountRepository
         Guid userId,
         CancellationToken cancellationToken);
 }
+
+/// <summary>
+/// Bir günün bakiye hareketleri, iki yön ayrı: giren ve çıkan.
+/// </summary>
+/// <remarks>
+/// Hesap bakiyesiyle aynı kaynakları okur, yalnız o güne daraltır; bakiye
+/// kuralı ikinci bir yerde yeniden yazılmaz. Kasa ekranı beklenen tutarın
+/// nereden geldiğini bununla gösterir.
+/// </remarks>
+public interface IAccountDayFlowReader
+{
+    Task<(decimal Inflow, decimal Outflow)> CalculateDayFlowAsync(
+        Guid accountId,
+        Guid userId,
+        DateOnly day,
+        CancellationToken cancellationToken);
+}

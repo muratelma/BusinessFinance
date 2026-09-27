@@ -6,7 +6,7 @@ using BusinessFinance.Infrastructure.Persistence;
 namespace BusinessFinance.Infrastructure.Accounts;
 
 internal sealed class EfAccountRepository(BusinessFinanceDbContext dbContext)
-    : IAccountRepository
+    : IAccountRepository, IAccountDayFlowReader
 {
     public async Task AddAsync(Account account, CancellationToken cancellationToken)
     {
@@ -226,5 +226,97 @@ internal sealed class EfAccountRepository(BusinessFinanceDbContext dbContext)
         return openingBalance.Value + movementBalance + incomingTransfers - outgoingTransfers -
                cardPayments + debtMovements + debtOpenings + counterpartySettlements +
                obligationSettlements + posTransfers;
+    }
+
+    public async Task<(decimal Inflow, decimal Outflow)> CalculateDayFlowAsync(
+        Guid accountId,
+        Guid userId,
+        DateOnly day,
+        CancellationToken cancellationToken)
+    {
+        // `CalculateBalanceAsync` ile aynı kaynaklar, o güne daraltılmış ve
+        // yönleri ayrı toplanmış. Açılış bakiyesi bir gün hareketi değildir.
+        var transactions = await dbContext.Transactions.AsNoTracking()
+            .Where(transaction => transaction.AccountId == accountId &&
+                                  transaction.UserId == userId &&
+                                  !transaction.IsCancelled &&
+                                  transaction.TransactionDate == day)
+            .GroupBy(transaction => transaction.Type)
+            .Select(group => new { group.Key, Amount = group.Sum(item => item.Amount.Amount) })
+            .ToArrayAsync(cancellationToken);
+        var income = transactions.Where(item => item.Key == TransactionType.Income).Sum(item => item.Amount);
+        var expense = transactions.Where(item => item.Key != TransactionType.Income).Sum(item => item.Amount);
+
+        var outgoingTransfers = await dbContext.Transfers.AsNoTracking()
+            .Where(transfer => transfer.SourceAccountId == accountId &&
+                               transfer.UserId == userId &&
+                               !transfer.IsCancelled &&
+                               transfer.TransferDate == day)
+            .SumAsync(transfer => transfer.Amount.Amount, cancellationToken);
+        var incomingTransfers = await dbContext.Transfers.AsNoTracking()
+            .Where(transfer => transfer.DestinationAccountId == accountId &&
+                               transfer.UserId == userId &&
+                               !transfer.IsCancelled &&
+                               transfer.TransferDate == day)
+            .SumAsync(transfer => transfer.Amount.Amount, cancellationToken);
+        var cardPayments = await dbContext.CreditCardPayments.AsNoTracking()
+            .Where(payment => payment.AccountId == accountId &&
+                              payment.UserId == userId &&
+                              !payment.IsCancelled &&
+                              payment.PaymentDate == day)
+            .SumAsync(payment => payment.Amount.Amount, cancellationToken);
+        var debtMovements = await (
+                from installment in dbContext.DebtInstallments.AsNoTracking()
+                join debt in dbContext.DebtAgreements.AsNoTracking()
+                    on new { installment.UserId, DebtId = installment.DebtAgreementId }
+                    equals new { debt.UserId, DebtId = debt.Id }
+                where installment.UserId == userId &&
+                      installment.PaymentAccountId == accountId &&
+                      installment.PaymentDate == day
+                select new { debt.Direction, installment.Amount.Amount })
+            .ToArrayAsync(cancellationToken);
+        var debtOpenings = await dbContext.DebtAgreements.AsNoTracking()
+            .Where(debt => debt.UserId == userId &&
+                           debt.OpeningAccountId == accountId &&
+                           debt.SourceType == DebtSourceType.Cash &&
+                           debt.StartDate == day)
+            .Select(debt => new { debt.Direction, debt.Principal.Amount })
+            .ToArrayAsync(cancellationToken);
+        var counterpartySettlements = await dbContext.CounterpartyPayments.AsNoTracking()
+            .Where(payment => payment.AccountId == accountId &&
+                              payment.UserId == userId &&
+                              !payment.IsCancelled &&
+                              payment.PaymentDate == day)
+            .Select(payment => new { payment.Direction, payment.Amount.Amount })
+            .ToArrayAsync(cancellationToken);
+        var obligationSettlements = await dbContext.ObligationSettlements.AsNoTracking()
+            .Where(settlement => settlement.AccountId == accountId &&
+                                 settlement.UserId == userId &&
+                                 !settlement.IsCancelled &&
+                                 settlement.SettlementDate == day)
+            .Select(settlement => new { settlement.Direction, settlement.Amount.Amount })
+            .ToArrayAsync(cancellationToken);
+        var posTransfers = await dbContext.PosSettlements.AsNoTracking()
+            .Where(settlement => settlement.AccountId == accountId &&
+                                 settlement.UserId == userId &&
+                                 !settlement.IsCancelled &&
+                                 settlement.TransferredOn == day)
+            .SumAsync(
+                settlement => settlement.GrossAmount.Amount - settlement.CommissionAmount,
+                cancellationToken);
+
+        // Borç taksidinde alacak kasaya girer, borç çıkar; açılışta tersi
+        // (alınan borç girer, verilen çıkar).
+        var inflow = income + incomingTransfers + posTransfers +
+                     debtMovements.Where(item => item.Direction == DebtDirection.Receivable).Sum(item => item.Amount) +
+                     debtOpenings.Where(item => item.Direction == DebtDirection.Payable).Sum(item => item.Amount) +
+                     counterpartySettlements.Where(item => item.Direction == DebtDirection.Receivable).Sum(item => item.Amount) +
+                     obligationSettlements.Where(item => item.Direction == DebtDirection.Receivable).Sum(item => item.Amount);
+        var outflow = expense + outgoingTransfers + cardPayments +
+                      debtMovements.Where(item => item.Direction == DebtDirection.Payable).Sum(item => item.Amount) +
+                      debtOpenings.Where(item => item.Direction == DebtDirection.Receivable).Sum(item => item.Amount) +
+                      counterpartySettlements.Where(item => item.Direction == DebtDirection.Payable).Sum(item => item.Amount) +
+                      obligationSettlements.Where(item => item.Direction == DebtDirection.Payable).Sum(item => item.Amount);
+        return (inflow, outflow);
     }
 }

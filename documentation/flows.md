@@ -76,23 +76,26 @@ değiştirir; ikisi de erişilebilir kalır (ADR 0013 ve ADR 0015).
 ## Gün sonu kasa sayımı
 
 ```text
-Kasa -> Gün sonu -> nakit hesap seç
+Kasa -> kasa seçici (birden çok nakit hesap varsa)
      -> GET /api/v1/cash-counts/today?accountId=...
-     -> beklenen bakiye sunucudan gelir
-     -> sayılan tutarı gir -> POST /api/v1/cash-counts
+     -> beklenen bakiye, son sayım, bugünkü nakit giriş/çıkış sunucudan gelir
+     -> Sayımı gir: toplamı yaz | banknotla say (canlı fark önizlemesi)
+     -> POST /api/v1/cash-counts
      -> fark yalnız gösterilir; bakiye/rapor değişmez
      -> kullanıcı "Farkı kaydet" der ve kategori seçer
      -> POST /api/v1/cash-counts/{id}/adjustment
      -> tek gelir/gider kaydı doğar
 ```
 
-İstemci beklenen tutarı veya farkı hesaplamaz. Aynı gün ikinci sayım öncekini
+İstemci kaydedilen farkı hesaplamaz; paneldeki şerit yalnız tam aritmetikli
+bir önizlemedir. `Son sayımlar` her sayımın yazıldığı anki beklenen tutarı ve
+farkını gösterir (sunucudaki `ExpectedAtCount` gözlemi). Aynı gün ikinci sayım öncekini
 iptal eder; geçmiş gözlem silinmez. Sayım tuttuysa düzeltme eylemi yoktur.
 
 ## POS tahsilatı ve hesaba geçiş
 
 ```text
-Kasa -> POS tahsilatları -> Tahsilat ekle
+Kasa -> POS tahsilatları bölümü -> + Ekle
      -> banka hesabı + gelir kategorisi + brüt + tarih/vade
      -> komisyon: yok | tutar | oran (yalnız biri)
      -> POST /api/v1/pos-settlements
@@ -668,7 +671,7 @@ hesabın bakiyesindeki artışın günü yanlış yazılırdı.
 
 Geçiş satırı kapsam taşımadığı için kapsam filtreli okumada düşer — transfer ve
 kart ödemesiyle aynı kural. Üç satırın hiçbiri feed üzerinden iptal edilemez;
-iptal `Kasa > POS tahsilatları` ekranından tek eylemle yapılır ve üçünü birlikte
+iptal `Kasa > POS tahsilatları` bölümünden tek eylemle yapılır ve üçünü birlikte
 kapatır.
 
 **Gün sonu kasa sayımı feed'de görünmez**: para hareketi üretmeyen bir gözlemdir.
@@ -683,7 +686,7 @@ satırlar **niyet** başlıklarının altında toplandı.
 
 ```text
 Para girdi   -> Gelir
-                POS tahsilatı            (Kasa > POS tahsilatları sekmesi)
+                POS tahsilatı            (Kasa > POS tahsilatları bölümü)
 Para çıktı   -> Gider
                 Ödenmemiş fatura         (para henüz hareket etmez)
 Para taşı    -> Hesaplar arası transfer
@@ -701,7 +704,7 @@ değildir** (ADR 0014): ödemeyi taşır, gelir/gider yazmazlar. İkisini
 `Para çıktı` altına koymak menünün kendisine raporu yanlış anlattırırdı.
 
 **Gün sonu kasa sayımı bu menüde yoktur.** Hiçbir para hareketi üretmeyen bir
-gözlemdir ve `Kasa > Gün sonu` ekranında durur; menüye alınsaydı `İşlem ekle`
+gözlemdir ve `Kasa` ekranının sayım kartında durur; menüye alınsaydı `İşlem ekle`
 işlem olmayan bir şeyi işlem gibi gösterirdi. Hesap/kart açma, CSV içe aktarma
 ve borç/taksit planları da aynı gerekçeyle kendi ekranlarındadır: bunlar bir şey
 **kurar**, bugün para hareket ettirmez.
@@ -710,9 +713,9 @@ Açıklama satırı yalnız yanlış anlaşılabilecek satırlarda durur. `Gelir
 `Gider` ve `Hesaplar arası transfer` başlığın altında zaten anlaşılıyor;
 `POS tahsilatı` ise paranın bugün hesaba geçmediğini yazmak zorundadır.
 
-`POS tahsilatı` menüden seçildiğinde `Kasa` ekranı POS sekmesi seçili açılır
-(`/more/cash?tab=pos`). Menü ikinci bir kopya form açmaz: tahsilat formu
-listeyle aynı yerde durur ve kullanıcı yoldaki parayı girdiği anda görür.
+`POS tahsilatı` menüden seçildiğinde `Kasa` ekranı açılır ve tahsilat formu
+doğrudan gelir (`/more/cash?tab=pos`; sekmeler kalktı). Form kapanınca kullanıcı
+yoldaki parayı aynı ekranın `POS tahsilatları` bölümünde görür.
 
 ## Kapsamlı işlem ekleme
 

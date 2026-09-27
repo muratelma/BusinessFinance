@@ -737,12 +737,23 @@ taraflı açık yükümlülük cari bakiyeye katılır, settlement sonrasında d
 dokunmaz, gelir/gider yazmaz ve tek başına hiçbir rapora girmez. Kasadaki para
 zaten oradaydı; sayması onu değiştirmez.
 
-**Beklenen tutar saklanmaz.** Sayım yalnız sayılan tutarı taşır; fark
-`DifferenceFrom(expectedBalance)` ile, sayım okunduğu anda hesap bakiyesi
+**Beklenen tutar kaynak gerçek olarak saklanmaz.** Günün açık sayımının
+farkı `DifferenceFrom(expectedBalance)` ile, sayım okunduğu anda hesap bakiyesi
 projection'ından türetilir. Bu, bakiyenin kalıcı kolon olmama gerekçesinin
 aynısıdır: fark kaydın yanına yazılsaydı, sonradan iptal edilen bir hareket
 bakiyeyi değiştirdiği anda o sayı sessizce yanlışa dönerdi. Aynı sayım, bir
 hareket iptal edildikten sonra **farklı bir fark verir** — doğru davranış budur.
+
+**Sayım anının gözlemi ayrıca tutulur** (`ExpectedAtCount`, 27 Eylül 2026,
+`AddCashCountExpectedSnapshot`). Kasa ekranının `Son sayımlar` listesi her
+sayımın yanında "o gün uygulama ne diyordu" sorusunu cevaplar; bu bir türetme
+değil, sayılan tutar gibi o anda yapılmış bir **gözlemdir** ve sonradan
+değişmemesi gerekir. Kaynak gerçek olmadığı için hiçbir hesap onu okumaz:
+bakiye, rapor ve düzeltme tutarı yine canlı projection'dan gelir. Kolon
+nullable'dır; bu migration'dan önceki sayımlarda boştur ve bugünkü bakiyeden
+doldurulmaz (olmamış bir geçmiş uydurmak olurdu). Farkı kaydedilmiş günün
+sayımı da bu gözlemi okur: düzeltme bakiyeyi sayılana oturttuğu için canlı
+fark sıfırdır, kullanıcının kaydettiği fark ise sayım anındaki tutardır.
 
 `CashCountDifference` yönü anlamıyla taşır: fazla çıkan nakit gelir, eksik
 çıkan nakit gider tarafındadır. Tutarı `Money`'ye çevirirken işaret düşer,
@@ -901,6 +912,7 @@ yoldaki tutarı okuyan filtrenin aynısıyla tek bir `MIN` sorgusudur.
 
 ```text
 GET  /api/v1/cash-counts/today?accountId=   beklenen bakiye + o günün sayımı
+                                            + son sayım + bugünkü nakit giriş/çıkış
 GET  /api/v1/cash-counts                    geçmiş sayımlar
 POST /api/v1/cash-counts                    gün sonu sayımı (gözlem)
 POST /api/v1/cash-counts/{id}/adjustment    farkı tek kayda çevirir
@@ -910,10 +922,18 @@ POST /api/v1/pos-settlements                tahsilat (tanır, taşımaz)
 POST /api/v1/pos-settlements/{id}/transfer  geçiş (taşır, tanımaz)
 ```
 
-Beklenen bakiye ve fark **yalnız günün açık sayımında** döner. Geçmiş bir günün
-farkını bugünkü bakiyeye karşı yeniden hesaplamak, aradaki bütün hareketleri o
-günün farkına yazmak olurdu; sayı doğru görünür, anlamı yanlış olurdu. Geçmiş
-sayımda kalan tek gerçek, sayılan tutar ve varsa yazılmış düzeltme kaydıdır.
+Canlı beklenen bakiye ve fark **yalnız günün açık sayımında** hesaplanır.
+Geçmiş bir günün farkını bugünkü bakiyeye karşı yeniden hesaplamak, aradaki
+bütün hareketleri o günün farkına yazmak olurdu; sayı doğru görünür, anlamı
+yanlış olurdu. Listede geçmiş sayımın beklenen tutarı ve farkı, sayım anında
+saklanan gözlemden (`ExpectedAtCount`) gelir; gözlem yoksa (eski sayım, geri
+yüklenmiş yedek) ikisi boş döner.
+
+`today` cevabı beklenen tutarın nereden geldiğini de taşır: bugünden önceki son
+geçerli sayım (`previousCount`) ve bugünkü nakit giriş/çıkış (`todayInflow`,
+`todayOutflow`). Giriş ve çıkış hesap bakiyesiyle aynı kaynaklardan, yalnız o
+günün tarihine süzülerek sunucuda toplanır (`IAccountDayFlowReader`); istemci
+toplama yapmaz.
 
 Aynı gün ve aynı kasa için ikinci sayım öncekini **iptal eder** ve ikisi tek
 `SaveChanges` sınırında yazılır; ayrı yazılsaydı SQL'deki filtreli tekil indeks

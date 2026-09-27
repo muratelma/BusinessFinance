@@ -1,5 +1,6 @@
 import '../../../core/models/data_choice.dart';
 import '../../../core/models/json_readers.dart';
+import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_client.dart';
 
 /// Bir POS tahsilatı.
@@ -22,6 +23,7 @@ class PosSettlementItem {
     required this.isLate,
     this.transferredOn,
     this.description,
+    this.scope,
   });
 
   final String id;
@@ -38,6 +40,9 @@ class PosSettlementItem {
   final String? transferredOn;
   final String? description;
 
+  /// Satışın kapsamı; eski sunucu göndermezse `null`.
+  final TransactionScope? scope;
+
   factory PosSettlementItem.fromJson(Map<String, dynamic> json) =>
       PosSettlementItem(
         id: JsonReaders.string(json, 'id'),
@@ -53,6 +58,7 @@ class PosSettlementItem {
         isLate: JsonReaders.boolean(json, 'isLate'),
         transferredOn: JsonReaders.nullableString(json, 'transferredOn'),
         description: JsonReaders.nullableString(json, 'description'),
+        scope: TransactionScope.fromApiOrNull(json['scope']),
       );
 }
 

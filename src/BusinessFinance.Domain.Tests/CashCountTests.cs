@@ -231,6 +231,22 @@ public sealed class CashCountTests
             () => NewCount(note: new string('a', CashCount.MaximumNoteLength + 1)));
     }
 
+    [Fact]
+    public void CashCount_KeepsWhatWasExpectedAtThatMoment()
+    {
+        // Güncel beklenen bakiye alanı değildir: sayım anının gözlemidir ve
+        // son sayımlar listesinde o günün farkını söyler. Verilmezse boştur —
+        // eski sayımın beklentisi uydurulmaz.
+        var owner = Guid.NewGuid();
+        var account = NewCashAccount(owner);
+        var observed = new CashCount(
+            Guid.NewGuid(), owner, account, 1000m, TransactionScope.Business,
+            CountDate, CreatedAtUtc, expectedAtCount: 1085.123456m);
+
+        Assert.Equal(1085.1235m, observed.ExpectedAtCount);
+        Assert.Null(NewCount().ExpectedAtCount);
+    }
+
     private static Account NewCashAccount(Guid userId, string name = "Kasa") =>
         new(Guid.NewGuid(), userId, name, AccountType.Cash, CurrencyCode.TRY, 500m);
 

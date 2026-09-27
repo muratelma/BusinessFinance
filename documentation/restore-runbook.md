@@ -106,6 +106,19 @@ uydurulmaz ve `null` kalır.
 Sınır ve sayaç Grup 7'de **v8** kapsamına alındı; sınırı dolmuş bir plan geri
 yüklendiğinde pasif ve `nextOccurrenceDate` alanı boş döner.
 
+## Veritabanı yükseltme notu — Aşama 06.2 (Kasa tasarımı)
+
+`AddCashCountExpectedSnapshot` migration'ı `CashCounts` tablosuna tek bir
+nullable kolon ekler: `ExpectedAtCount decimal(19,4)`. Kolon sayım anındaki
+beklenen bakiyenin **gözlemidir**; hiçbir hesap onu okumaz. Varsayılan ve
+backfill yoktur: eski sayımlarda boş kalır, çünkü o günün beklenen tutarını
+bugünkü bakiyeden türetmek olmamış bir geçmiş uydurmak olurdu.
+
+Yedek biçimi (**v9**) bu kolonu **taşımaz**. Geri yüklenen sayımlarda kolon boş
+kalır ve `Son sayımlar` o satırlar için beklenen tutarı/farkı göstermez; sayılan
+tutar ve düzeltme kaydı kayıpsızdır. Kolonu yedeğe almak bir sonraki biçim
+sürümünün işidir.
+
 ## Veritabanı yükseltme notu — Aşama 04 Grup 4
 
 `AddCashCountsAndPosSettlements` migration'ı `CashCounts` ve `PosSettlements`

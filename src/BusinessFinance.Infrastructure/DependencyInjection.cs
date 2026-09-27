@@ -103,6 +103,7 @@ public static class DependencyInjection
         services.AddScoped<IRefreshSessionRepository, EfRefreshSessionRepository>();
         services.AddSingleton<ISecurityTokenService, JwtSecurityTokenService>();
         services.AddScoped<IAccountRepository, EfAccountRepository>();
+        services.AddScoped<IAccountDayFlowReader, EfAccountRepository>();
         services.AddScoped<IUnusedAccountDeletion, EfUnusedAccountDeletion>();
         services.AddScoped<ICategoryRepository, EfCategoryRepository>();
         services.AddScoped<IUserProfileRepository, EfUserProfileRepository>();

@@ -33,7 +33,8 @@ public sealed class MigrationHistoryTests
         "AddTaxDeductibility",
         "AddQuarterlyRecurrence",
         "AddSavingsGoalScope",
-        "AddVerificationCodes"
+        "AddVerificationCodes",
+        "AddCashCountExpectedSnapshot"
     ];
 
     [Fact]
@@ -452,6 +453,29 @@ public sealed class MigrationHistoryTests
             var ownerKey = Assert.Single(table.ForeignKeys);
             Assert.Equal("AspNetUsers", ownerKey.PrincipalTable);
             Assert.Equal(ReferentialAction.Restrict, ownerKey.OnDelete);
+        }
+    }
+
+    /// <summary>
+    /// Sayım anındaki beklenen bakiye tarihsel bir gözlemdir: eski sayımlarda
+    /// bilinmez, bu yüzden kolon nullable ve varsayılansızdır; backfill yoktur
+    /// (bugünkü bakiyeden doldurmak olmamış bir geçmiş uydurmak olurdu).
+    /// </summary>
+    [Fact]
+    public void AddCashCountExpectedSnapshot_AddsOneNullableColumnWithoutBackfill()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_AddCashCountExpectedSnapshot", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations.ToList();
+            var column = Assert.IsType<AddColumnOperation>(Assert.Single(up));
+            Assert.Equal("CashCounts", column.Table);
+            Assert.Equal("ExpectedAtCount", column.Name);
+            Assert.True(column.IsNullable);
+            Assert.Null(column.DefaultValue);
+            Assert.Null(column.DefaultValueSql);
+            Assert.Equal("decimal(19,4)", column.ColumnType);
         }
     }
 

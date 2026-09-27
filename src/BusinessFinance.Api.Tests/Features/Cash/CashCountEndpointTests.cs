@@ -70,6 +70,14 @@ public sealed class CashCountEndpointTests
         var monthlyAfterAdjustment = await MonthlyAsync(owner, today);
         Assert.Equal("60.0000", monthlyAfterAdjustment.TotalExpense);
 
+        // Kasa ekranı kaydedilen farkı göstermeye devam eder: bugünün sayımı
+        // sayım anındaki beklenen tutarı okur, kapanmış bakiyeyi değil.
+        var afterAdjustment = await owner.GetFromJsonAsync<CashCountTodayResponse>(
+            $"/api/v1/cash-counts/today?accountId={account.Id}");
+        Assert.Equal("940.0000", afterAdjustment!.ExpectedBalance);
+        Assert.Equal("1000.0000", afterAdjustment.Count!.ExpectedBalance);
+        Assert.Equal("-60.0000", afterAdjustment.Count.Difference);
+
         // Tekrar onaylamak ikinci bir kayıt yazmaz.
         using var confirmAgain = await owner.PostAsJsonAsync(
             $"/api/v1/cash-counts/{count.Id}/adjustment",
@@ -127,8 +135,11 @@ public sealed class CashCountEndpointTests
         Assert.Equal(2, list!.Items.Count);
         Assert.True(list.Items.Single(item => item.Id == firstCount.Id).IsCancelled);
         Assert.False(list.Items.Single(item => item.Id == secondCount.Id).IsCancelled);
-        // Geçmiş sayımın farkı listede yeniden hesaplanmaz.
-        Assert.Null(list.Items[0].Difference);
+        // Listedeki fark bugünkü bakiyeye karşı yeniden hesaplanmaz; her
+        // sayımın yazıldığı anki beklenen tutardan gelir.
+        var firstItem = list.Items.Single(item => item.Id == firstCount.Id);
+        Assert.Equal("500.0000", firstItem.ExpectedBalance);
+        Assert.Equal("-20.0000", firstItem.Difference);
     }
 
     /// <summary>

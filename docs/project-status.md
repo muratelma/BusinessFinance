@@ -153,6 +153,15 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     koşacak (cloud'da SQL yok)
   - **İşlem ekle paneli**: üç renkli kutucuk, belgeden oku, diğer listesi;
     seçenek adları tasarıma göre kısaldı
+  - **Kasa**: sekmeler kalktı, tek akış (kasa seçici rayı → bugünün sayım
+    kartı → POS tahsilatları → son sayımlar). Sayım paneli `Toplamı yaz |
+    Banknotla say`, Türkçe binlik ayırıcı ve tam aritmetikli canlı fark
+    önizlemesi taşıyor; POS detayı yeni panelde. Backend: `today` cevabına son
+    sayım ve bugünkü nakit giriş/çıkış eklendi; sayım anındaki beklenen tutar
+    `ExpectedAtCount` olarak saklanıyor (`AddCashCountExpectedSnapshot`,
+    nullable, backfill yok, yedek v9 taşımıyor). Kontroller: 888 Flutter testi,
+    backend Domain/Application/Api geçti; Infrastructure'da yalnız ortam
+    kaynaklı 10 SkiaSharp testi düşüyor
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni → (gerekirse 06.x) → 07 bulut (`PROJECT-ROADMAP.md`)

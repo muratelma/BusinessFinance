@@ -30,4 +30,9 @@ public sealed record CashCountTodayResponse(
     string AccountName,
     string ExpectedBalance,
     string Currency,
-    CashCountResponse? Count);
+    CashCountResponse? Count,
+
+    // Beklenen tutarın nereden geldiği: son sayım ve bugünkü nakit akışı.
+    CashCountResponse? PreviousCount,
+    string TodayInflow,
+    string TodayOutflow);

@@ -227,7 +227,8 @@ ve `POST /api/v1/pos-settlements/{id}/transfer` kaydı `(UserId, kayıt ID)` ile
 çözer; başkasının kaydı ile var olmayan kayıt aynı `404` sonucuna gider.
 `GET /api/v1/cash-counts`, `GET /api/v1/cash-counts/today` ve
 `GET /api/v1/pos-settlements` yalnız current user satırlarını döndürür — yoldaki
-toplam da öyle. API entegrasyon testleri iki ucun da yabancı okumasının boş ve
+toplam da öyle. `today` cevabındaki son sayım ve bugünkü nakit giriş/çıkış da
+aynı `(UserId, AccountId)` süzgeciyle okunur; hesap önce sahiplikle çözülür. API entegrasyon testleri iki ucun da yabancı okumasının boş ve
 yabancı yazmasının reddedildiğini kanıtlar.
 
 Fiş analizi sahiplik sınırını yazmadan uygular. Use case current

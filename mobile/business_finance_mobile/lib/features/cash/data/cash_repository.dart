@@ -64,6 +64,9 @@ class CashCountToday {
     required this.expectedBalance,
     required this.currency,
     this.count,
+    this.previousCount,
+    this.todayInflow,
+    this.todayOutflow,
   });
 
   final String accountId;
@@ -71,6 +74,14 @@ class CashCountToday {
   final String expectedBalance;
   final String currency;
   final CashCountItem? count;
+
+  /// Bugünden önceki son sayım; beklenen tutarın başlangıç noktası.
+  final CashCountItem? previousCount;
+
+  /// Bugün kasaya giren ve çıkan nakit; sunucuda toplanır. Eski sunucu
+  /// göndermezse `null`.
+  final String? todayInflow;
+  final String? todayOutflow;
 
   factory CashCountToday.fromJson(Map<String, dynamic> json) => CashCountToday(
     accountId: JsonReaders.string(json, 'accountId'),
@@ -80,6 +91,17 @@ class CashCountToday {
     count: json['count'] == null
         ? null
         : CashCountItem.fromJson(JsonReaders.object(json['count'], 'count')),
+    previousCount: json['previousCount'] == null
+        ? null
+        : CashCountItem.fromJson(
+            JsonReaders.object(json['previousCount'], 'previousCount'),
+          ),
+    todayInflow: json['todayInflow'] is String
+        ? JsonReaders.money(json, 'todayInflow')
+        : null,
+    todayOutflow: json['todayOutflow'] is String
+        ? JsonReaders.money(json, 'todayOutflow')
+        : null,
   );
 }
 

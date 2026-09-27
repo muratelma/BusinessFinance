@@ -1,408 +1,1176 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/formatters/date_text.dart';
-import '../../../core/formatters/money_input.dart';
+import '../../../core/formatters/money_math.dart';
+import '../../../core/formatters/money_text.dart';
 import '../../../core/models/data_choice.dart';
 import '../../../core/models/transaction_scope.dart';
 import '../../../core/presentation/scope_controller.dart';
+import '../../../core/theme/app_breakpoints.dart';
+import '../../../core/theme/app_finance_colors.dart';
+import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_surfaces.dart';
+import '../../../core/theme/app_typography.dart';
+import '../../../core/widgets/app_adaptive_sheet.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/app_card_head.dart';
+import '../../../core/widgets/app_date_leaf.dart';
+import '../../../core/widgets/app_divided_column.dart';
 import '../../../core/widgets/app_form_sheet.dart';
-import '../../../core/widgets/app_inline_notice.dart';
-import '../../../core/widgets/app_list_row.dart';
-import '../../../core/widgets/app_metric_tile.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_scope_selector.dart';
 import '../../../core/widgets/app_section_header.dart';
-import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
+import '../../../core/widgets/app_status_tag.dart';
+import '../../../core/widgets/app_submit_button.dart';
+import '../../../core/widgets/app_text_action.dart';
 import '../data/cash_repository.dart';
 import 'cash_controller.dart';
 
-/// Gün sonu sayımı sekmesi.
+/// Bugünün sayım kartı: Kasa ekranının ilk kartı.
 ///
-/// Ekran iki sayıyı yan yana koyar: uygulamanın beklediği ve elde sayılan.
-/// Fark **sunucudan gelir**; istemci çıkarma yapmaz.
-class CashCountView extends StatefulWidget {
-  const CashCountView({
+/// Sayımdan önce **beklenen tutarın nereden geldiğini** gösterir (son sayım,
+/// bugünkü nakit giriş ve çıkış); sayımdan sonra elde sayılanı, uygulamaya
+/// göre tutarı ve farkı. Bütün tutarlar sunucudan gelir; kart hesap yapmaz.
+class CashTodayCard extends StatelessWidget {
+  const CashTodayCard({
     required this.controller,
+    required this.today,
+    required this.onCount,
+    required this.onSaveDifference,
     super.key,
-    this.scopeController,
   });
 
   final CashCountController controller;
-  final ScopeController? scopeController;
-
-  @override
-  State<CashCountView> createState() => _CashCountViewState();
-}
-
-class _CashCountViewState extends State<CashCountView> {
-  @override
-  void initState() {
-    super.initState();
-    widget.controller.addListener(_changed);
-    widget.controller.load();
-  }
-
-  @override
-  void dispose() {
-    widget.controller.removeListener(_changed);
-    super.dispose();
-  }
-
-  void _changed() {
-    if (mounted) setState(() {});
-  }
+  final CashCountToday today;
+  final VoidCallback onCount;
+  final VoidCallback onSaveDifference;
 
   @override
   Widget build(BuildContext context) {
-    final controller = widget.controller;
-    if (controller.isLoading && controller.today == null) {
-      return const AppLoadingView(message: 'Kasa yükleniyor');
-    }
-    if (controller.unauthorized && controller.today == null) {
-      return const AppUnauthorizedView();
-    }
-    if (controller.errorMessage != null && controller.today == null) {
-      if (!controller.hasCashAccount && !controller.isLoading) {
-        return _noCashAccount();
-      }
-      return AppErrorView(
-        message: controller.errorMessage!,
-        onRetry: controller.load,
+    final theme = Theme.of(context);
+    final surfaces = AppSurfaces.of(context);
+    final count = controller.todayCount;
+    final help = theme.textTheme.bodySmall?.copyWith(color: surfaces.inkMuted);
+
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppCardHead(
+            title: DateText.dayMonthWeekday(controller.todayIso),
+            status: _status(count),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.medium),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                MergeSemantics(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        count == null
+                            ? 'Uygulamaya göre kasada'
+                            : 'Elde sayılan',
+                        style: help,
+                      ),
+                      const SizedBox(height: AppSpacing.xxSmall),
+                      AppMoneyText(
+                        amount: count?.countedAmount ?? today.expectedBalance,
+                        currency: today.currency,
+                        size: AppMoneySize.hero,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.medium),
+                Divider(height: 1, thickness: 1, color: surfaces.border),
+                const SizedBox(height: AppSpacing.xSmall),
+                ..._breakdown(count),
+                const SizedBox(height: AppSpacing.medium),
+                _actions(context, count),
+                if (count != null) ...[
+                  const SizedBox(height: AppSpacing.small),
+                  Text(_rule(count), style: help),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _status(CashCountItem? count) {
+    if (count == null) {
+      return const AppStatusTag(
+        label: 'Sayılmadı',
+        icon: Icons.schedule,
+        tone: AppStatusTone.planned,
       );
     }
-    if (!controller.hasCashAccount) return _noCashAccount();
-
-    final today = controller.today;
-    if (today == null) {
-      return AppErrorView(message: 'Kasa okunamadı.', onRetry: controller.load);
+    if (count.isAdjusted) {
+      return const AppStatusTag(
+        label: 'Fark kaydedildi',
+        icon: Icons.check_circle_outline,
+        tone: AppStatusTone.neutral,
+      );
     }
-
-    return RefreshIndicator(
-      onRefresh: controller.load,
-      child: ListView(
-        padding: const EdgeInsets.all(AppSpacing.medium),
-        children: [
-          if (controller.isStale)
-            AppInlineNotice(
-              message:
-                  '${controller.errorMessage} Son bilinen sayım gösteriliyor.',
-              actionLabel: 'Yenile',
-              onAction: controller.load,
-            ),
-          if (controller.accounts.length > 1) ...[
-            _accountPicker(controller),
-            const SizedBox(height: AppSpacing.medium),
-          ],
-          _todayCard(controller, today),
-          const SizedBox(height: AppSpacing.large),
-          const AppSectionHeader(title: 'Geçmiş sayımlar'),
-          ..._history(controller),
-        ],
+    return switch (_sign(count.difference)) {
+      0 => const AppStatusTag(
+        label: 'Tuttu',
+        icon: Icons.check_circle_outline,
+        tone: AppStatusTone.income,
       ),
-    );
-  }
-
-  Widget _noCashAccount() => const AppEmptyView(
-    title: 'Sayılacak bir kasa yok.',
-    message:
-        'Gün sonu sayımı yalnız nakit hesaplar içindir; banka bakiyesi elle '
-        'sayılmaz. Önce bir nakit hesap açın.',
-    icon: Icons.point_of_sale_outlined,
-  );
-
-  Widget _accountPicker(CashCountController controller) {
-    return DropdownButtonFormField<String>(
-      initialValue: controller.selectedAccountId,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: 'Kasa'),
-      items: [
-        for (final account in controller.accounts)
-          DropdownMenuItem(value: account.id, child: Text(account.name)),
-      ],
-      onChanged: (value) {
-        if (value != null) controller.selectAccount(value);
-      },
-    );
-  }
-
-  Widget _todayCard(CashCountController controller, CashCountToday today) {
-    final count = controller.todayCount;
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AppMetricTile(
-            label: 'Uygulamaya göre',
-            amount: today.expectedBalance,
-            currency: today.currency,
-            caption:
-                'Bugün ${DateText.dayMonth(CashCountController.todayDate())}',
-            size: AppMetricSize.hero,
-          ),
-          const SizedBox(height: AppSpacing.medium),
-          if (count == null)
-            Text(
-              'Bugün henüz sayım yapılmadı. Sayım bir gözlemdir: yazmak hiçbir '
-              'bakiyeyi değiştirmez.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            )
-          else ...[
-            AppMetricTile(
-              label: 'Elde sayılan',
-              amount: count.countedAmount,
-              currency: count.currency,
-            ),
-            const SizedBox(height: AppSpacing.small),
-            _differenceRow(count),
-          ],
-          const SizedBox(height: AppSpacing.medium),
-          Wrap(
-            spacing: AppSpacing.small,
-            runSpacing: AppSpacing.small,
-            children: [
-              FilledButton.tonalIcon(
-                onPressed: controller.isSubmitting ? null : _openCountForm,
-                icon: const Icon(Icons.calculate_outlined),
-                label: Text(count == null ? 'Sayımı gir' : 'Yeniden say'),
-              ),
-              if (controller.hasOpenDifference)
-                FilledButton.icon(
-                  onPressed: controller.isSubmitting
-                      ? null
-                      : _openDifferenceForm,
-                  icon: const Icon(Icons.playlist_add_check),
-                  label: const Text('Farkı kaydet'),
-                ),
-            ],
-          ),
-          if (controller.hasOpenDifference) ...[
-            const SizedBox(height: AppSpacing.small),
-            Text(
-              'Fark kendiliğinden yazılmaz. Kaydederseniz tek bir '
-              '${controller.differenceCategoryType == 'income' ? 'gelir' : 'gider'} '
-              'kaydı oluşur ve kasa sayılan tutara oturur.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ],
+      < 0 => const AppStatusTag(
+        label: 'Eksik',
+        icon: Icons.error_outline,
+        tone: AppStatusTone.expense,
       ),
-    );
+      _ => const AppStatusTag(
+        label: 'Fazla',
+        icon: Icons.error_outline,
+        tone: AppStatusTone.neutral,
+      ),
+    };
   }
 
-  Widget _differenceRow(CashCountItem count) {
-    final difference = count.difference;
-    if (difference == null) return const SizedBox.shrink();
-    final sign = _moneySign(difference);
-    final balanced = sign == 0;
-    return Row(
-      children: [
-        AppStatusChip(
-          label: count.isAdjusted
-              ? 'Fark kaydedildi'
-              : balanced
-              ? 'Sayım tuttu'
-              : sign > 0
-              ? 'Fazla'
-              : 'Eksik',
-          icon: balanced ? Icons.check_circle_outline : Icons.difference,
-          tone: balanced
-              ? AppStatusTone.neutral
-              : sign > 0
-              ? AppStatusTone.income
-              : AppStatusTone.expense,
+  List<Widget> _breakdown(CashCountItem? count) {
+    final currency = today.currency;
+    if (count != null) {
+      final difference = count.difference;
+      final sign = _sign(difference);
+      return [
+        _KeyValue(
+          label: 'Uygulamaya göre',
+          amount: count.expectedBalance ?? today.expectedBalance,
+          currency: currency,
         ),
-        const SizedBox(width: AppSpacing.small),
-        AppMoneyText(
-          amount: difference,
-          currency: count.currency,
-          signed: true,
-          effect: balanced
-              ? AppMoneyEffect.neutral
-              : sign > 0
-              ? AppMoneyEffect.income
-              : AppMoneyEffect.expense,
-        ),
-      ],
-    );
-  }
-
-  List<Widget> _history(CashCountController controller) {
-    if (controller.history.isEmpty) {
-      return const [
-        AppEmptyView(
-          title: 'Geçmiş sayım yok.',
-          message: 'Yaptığınız her sayım tarihiyle burada kalır.',
-          icon: Icons.history,
-        ),
+        if (difference != null && sign != 0)
+          _KeyValue(
+            label: 'Fark',
+            amount: _abs(difference),
+            currency: currency,
+            effect: sign < 0 ? AppMoneyEffect.expense : AppMoneyEffect.income,
+          ),
       ];
     }
+    final previous = today.previousCount;
+    final inflow = today.todayInflow;
+    final outflow = today.todayOutflow;
     return [
-      for (final item in controller.history)
-        Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.small),
-          child: AppCard(
-            padding: EdgeInsets.zero,
-            child: AppListRow(
-              icon: Icons.calculate_outlined,
-              title: DateText.dayMonth(item.countDate),
-              subtitle: item.isCancelled
-                  ? 'Yerine yeni sayım yapıldı'
-                  : item.isAdjusted
-                  ? 'Farkı kaydedildi'
-                  : item.note ?? 'Sayım',
-              trailing: AppMoneyText(
-                amount: item.countedAmount,
-                currency: item.currency,
-                isCancelled: item.isCancelled,
-              ),
-              dimmed: item.isCancelled,
-            ),
-          ),
+      if (previous != null)
+        _KeyValue(
+          label: _previousLabel(previous.countDate),
+          amount: previous.countedAmount,
+          currency: currency,
+        ),
+      if (inflow != null)
+        _KeyValue(
+          label: 'Bugün nakit giriş',
+          amount: inflow,
+          currency: currency,
+          effect: AppMoneyEffect.income,
+        ),
+      if (outflow != null)
+        _KeyValue(
+          label: 'Bugün nakit çıkış',
+          amount: outflow,
+          currency: currency,
+          effect: AppMoneyEffect.expense,
         ),
     ];
   }
 
-  Future<void> _openCountForm() async {
-    await AppFormSheet.show<bool>(
-      context: context,
-      builder: (_) => _CountForm(
-        controller: widget.controller,
-        scopeController: widget.scopeController,
+  /// Dünkü sayım ise `Dünkü sayım`; daha eskiyse günüyle `Son sayım`.
+  String _previousLabel(String countDate) {
+    final today = DateTime.tryParse(controller.todayIso);
+    final date = DateTime.tryParse(countDate);
+    if (today != null && date != null && today.difference(date).inDays == 1) {
+      return 'Dünkü sayım';
+    }
+    return 'Son sayım · ${DateText.dayMonth(countDate)}';
+  }
+
+  Widget _actions(BuildContext context, CashCountItem? count) {
+    final busy = controller.isSubmitting;
+    if (count == null) {
+      return FilledButton.icon(
+        onPressed: busy ? null : onCount,
+        icon: const Icon(Icons.calculate_outlined),
+        label: const Text('Sayımı gir'),
+      );
+    }
+    final recount = OutlinedButton(
+      onPressed: busy ? null : onCount,
+      child: const Text('Yeniden say'),
+    );
+    if (!controller.hasOpenDifference) return recount;
+    final save = FilledButton.icon(
+      onPressed: busy ? null : onSaveDifference,
+      icon: const Icon(Icons.playlist_add_check),
+      label: const Text('Farkı kaydet'),
+    );
+    // Büyük yazıda iki düğme yan yana sığmaz; alt alta dizilir, birincil üstte.
+    if (context.usesLargeText) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          save,
+          const SizedBox(height: AppSpacing.small),
+          recount,
+        ],
+      );
+    }
+    return Row(
+      children: [
+        Expanded(child: recount),
+        const SizedBox(width: AppSpacing.small),
+        Expanded(child: save),
+      ],
+    );
+  }
+
+  String _rule(CashCountItem count) {
+    final record = _sign(count.difference) > 0 ? 'gelir' : 'gider';
+    if (count.isAdjusted) {
+      return 'Tek bir $record kaydı oluştu; kasa sayılan tutara oturdu.';
+    }
+    if (_sign(count.difference) == 0) return 'Kasa uygulamayla aynı.';
+    return 'Fark kendiliğinden yazılmaz. Kaydederseniz tek bir $record kaydı '
+        'oluşur.';
+  }
+}
+
+/// Kartın açıklama satırı: solda gri etiket, sağda tutar; 36 dp.
+class _KeyValue extends StatelessWidget {
+  const _KeyValue({
+    required this.label,
+    required this.amount,
+    required this.currency,
+    this.effect,
+  });
+
+  final String label;
+  final String amount;
+  final String currency;
+  final AppMoneyEffect? effect;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return MergeSemantics(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 36),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: AppSurfaces.of(context).inkMuted,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.small),
+            AppMoneyText(
+              amount: amount,
+              currency: currency,
+              effect: effect,
+              signed: effect != null,
+              size: AppMoneySize.body,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// `Son sayımlar` bölümü: bugünden önceki sayımlar, sayılan ve beklenen
+/// yan yana; fark sağda. Tamamı `Tümü` ile açılır.
+class CashPastCountsSection extends StatelessWidget {
+  const CashPastCountsSection({
+    required this.controller,
+    required this.onShowAll,
+    super.key,
+  });
+
+  final CashCountController controller;
+  final VoidCallback onShowAll;
+
+  static const shownCount = 4;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = controller.pastCounts;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppSectionHeader(
+          title: 'Son sayımlar',
+          padding: EdgeInsets.zero,
+          trailing: items.isEmpty
+              ? null
+              : AppTextAction(
+                  label: 'Tümü',
+                  trailingIcon: Icons.chevron_right,
+                  onPressed: onShowAll,
+                ),
+        ),
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: items.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.all(AppSpacing.medium),
+                  child: Text(
+                    'Geçmiş sayım yok. Yaptığınız her sayım tarihiyle burada '
+                    'kalır.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                )
+              : AppDividedColumn(
+                  inset: CashCountHistoryRow.inset,
+                  children: [
+                    for (final item in items.take(shownCount))
+                      CashCountHistoryRow(item: item),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Geçmiş sayım satırı. Kapsül kullanılmaz: dar ekranda taşıyordu (tasarım
+/// notu); fark kısa metinle söylenir.
+class CashCountHistoryRow extends StatelessWidget {
+  const CashCountHistoryRow({required this.item, super.key});
+
+  final CashCountItem item;
+
+  /// Ayraç yaprağın sağından başlar: 16 + 44 + 16.
+  static const double inset = AppSpacing.medium * 2 + 44;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = AppSurfaces.of(context);
+    final date = DateTime.tryParse(item.countDate);
+    final expected = item.expectedBalance;
+    final help = theme.textTheme.bodySmall?.copyWith(color: surfaces.inkMuted);
+    final middle = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AppMoneyText(
+          amount: item.countedAmount,
+          currency: item.currency,
+          size: AppMoneySize.row,
+        ),
+        const SizedBox(height: AppSpacing.xxSmall),
+        Text(
+          expected == null
+              ? (item.note ?? 'Sayım')
+              : 'Beklenen ${MoneyText.format(expected, item.currency)}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: help,
+        ),
+      ],
+    );
+    final difference = _difference(context);
+    final stacked = context.usesLargeText;
+
+    return MergeSemantics(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 64),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.medium,
+            vertical: AppSpacing.small + AppSpacing.xSmall,
+          ),
+          child: Row(
+            children: [
+              if (date != null)
+                Semantics(
+                  label: DateText.dayMonth(item.countDate),
+                  child: AppDateLeaf.fromDate(date),
+                ),
+              const SizedBox(width: AppSpacing.medium),
+              Expanded(
+                child: stacked && difference != null
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          middle,
+                          const SizedBox(height: AppSpacing.xSmall),
+                          difference,
+                        ],
+                      )
+                    : middle,
+              ),
+              if (!stacked && difference != null) ...[
+                const SizedBox(width: AppSpacing.small),
+                difference,
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Future<void> _openDifferenceForm() async {
-    await AppFormSheet.show<bool>(
-      context: context,
-      builder: (_) => _DifferenceForm(controller: widget.controller),
+  Widget? _difference(BuildContext context) {
+    final value = item.difference;
+    if (value == null) return null;
+    final colors = AppFinanceColors.of(context);
+    final surfaces = AppSurfaces.of(context);
+    final sign = _sign(value);
+    if (sign == 0) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.check_circle, size: 16, color: colors.income),
+          const SizedBox(width: AppSpacing.xSmall),
+          Text(
+            'Tuttu',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+              color: colors.income,
+            ),
+          ),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AppMoneyText(
+          amount: _abs(value),
+          currency: item.currency,
+          effect: sign < 0 ? AppMoneyEffect.expense : AppMoneyEffect.income,
+          signed: true,
+          size: AppMoneySize.body,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: AppSpacing.xxSmall),
+        Text(
+          '${sign < 0 ? 'Eksik' : 'Fazla'}'
+          '${item.isAdjusted ? ' · kaydedildi' : ''}',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            fontWeight: FontWeight.w400,
+            letterSpacing: 0,
+            color: surfaces.inkMuted,
+          ),
+        ),
+      ],
     );
   }
 }
 
-int _moneySign(String value) {
-  final normalized = value.trim();
-  final digits = normalized.replaceAll(RegExp('[^0-9]'), '');
-  if (digits.isEmpty || !digits.contains(RegExp('[1-9]'))) return 0;
-  return normalized.startsWith('-') ? -1 : 1;
-}
+/// Bütün sayımlar: başlıktaki geçmiş ikonu ve `Tümü` bağlantısı açar.
+Future<void> showAllCashCounts(
+  BuildContext context,
+  CashCountController controller,
+) => AppAdaptiveSheet.show<void>(
+  context: context,
+  builder: (context) {
+    final theme = Theme.of(context);
+    final items = [
+      for (final item in controller.history)
+        if (!item.isCancelled) item,
+    ];
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.large,
+              0,
+              AppSpacing.large,
+              AppSpacing.small,
+            ),
+            child: Semantics(
+              header: true,
+              child: Text('Bütün sayımlar', style: theme.textTheme.titleLarge),
+            ),
+          ),
+          Flexible(
+            child: items.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(AppSpacing.large),
+                    child: Text(
+                      'Geçmiş sayım yok.',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  )
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.medium),
+                    child: AppDividedColumn(
+                      inset: CashCountHistoryRow.inset,
+                      children: [
+                        for (final item in items)
+                          CashCountHistoryRow(item: item),
+                      ],
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  },
+);
 
-class _CountForm extends StatefulWidget {
-  const _CountForm({required this.controller, this.scopeController});
+/// Sayım panelini açar; kaydedilirse `true`.
+Future<bool?> showCashCountSheet(
+  BuildContext context,
+  CashCountController controller,
+  ScopeController? scopeController,
+) => AppAdaptiveSheet.show<bool>(
+  context: context,
+  builder: (_) =>
+      CashCountSheet(controller: controller, scopeController: scopeController),
+);
+
+/// Farkı kaydetme formunu açar.
+Future<bool?> showCashDifferenceForm(
+  BuildContext context,
+  CashCountController controller,
+) => AppFormSheet.show<bool>(
+  context: context,
+  builder: (_) => _DifferenceForm(controller: controller),
+);
+
+enum CashCountMode { total, notes }
+
+/// `Sayımı gir` paneli: toplamı yaz ya da banknotla say.
+///
+/// Canlı sonuç şeridi yalnız **önizlemedir** ve tam aritmetikle (`MoneyMath`,
+/// 10⁴ ölçekli tam sayı) hesaplanır; kaydedilen fark yine sunucudan gelir.
+/// Sayım bir gözlemdir: kaydetmek hiçbir bakiyeyi değiştirmez.
+class CashCountSheet extends StatefulWidget {
+  const CashCountSheet({
+    required this.controller,
+    super.key,
+    this.scopeController,
+    this.initialMode = CashCountMode.total,
+    this.initialNotes,
+    this.initialCoins,
+  });
 
   final CashCountController controller;
   final ScopeController? scopeController;
+  final CashCountMode initialMode;
+
+  /// Banknot adetleri ([banknotes] sırasıyla) ve madeni para metni: panel
+  /// yarım kalmış bir sayımla açılabilir.
+  final List<int>? initialNotes;
+  final String? initialCoins;
+
+  static const banknotes = [200, 100, 50, 20, 10, 5];
 
   @override
-  State<_CountForm> createState() => _CountFormState();
+  State<CashCountSheet> createState() => _CashCountSheetState();
 }
 
-class _CountFormState extends State<_CountForm> {
-  final formKey = GlobalKey<FormState>();
-  final amountController = TextEditingController();
-  final noteController = TextEditingController();
+class _CashCountSheetState extends State<CashCountSheet> {
+  late CashCountMode mode = widget.initialMode;
+  final totalController = TextEditingController();
+  late final coinsController = TextEditingController(text: widget.initialCoins);
+  late final List<int> noteCounts = [
+    for (var i = 0; i < CashCountSheet.banknotes.length; i++)
+      widget.initialNotes?.elementAtOrNull(i) ?? 0,
+  ];
   TransactionScope? explicitScope;
   bool scopeMissing = false;
+  bool amountMissing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    totalController.addListener(_changed);
+    coinsController.addListener(_changed);
+  }
 
   @override
   void dispose() {
-    amountController.dispose();
-    noteController.dispose();
+    totalController.dispose();
+    coinsController.dispose();
     super.dispose();
   }
 
-  /// Zincirin önizlemesi: kullanıcının seçimi → kasanın etiketi. Sayımın
-  /// kategorisi yoktur, zincirin üçüncü halkası burada sorulmaz.
+  void _changed() => setState(() => amountMissing = false);
+
+  TransactionScope? get accountScope =>
+      widget.controller.selectedAccount?.defaultScope;
+
+  /// Zincir: kullanıcının seçimi → kasanın etiketi. Sayımın kategorisi yok.
   TransactionScope? get resolvedScope => explicitScope ?? accountScope;
 
-  TransactionScope? get accountScope {
-    for (final account in widget.controller.accounts) {
-      if (account.id == widget.controller.selectedAccountId) {
-        return account.defaultScope;
-      }
+  /// Kapsam yalnız zincir çözülemediğinde sorulur; yoksa sunucu kapsam
+  /// uydurmaz ve sayımı reddederdi.
+  bool get showScope => accountScope == null;
+
+  /// Sayılan tutar (10⁴ ölçekli); toplam modunda alan boşsa `null`.
+  BigInt? get counted {
+    if (mode == CashCountMode.total) {
+      final wire = MoneyMath.fromInput(totalController.text);
+      return wire == null ? null : MoneyMath.parse(wire);
     }
-    return null;
+    var sum = BigInt.zero;
+    for (var i = 0; i < noteCounts.length; i++) {
+      sum +=
+          MoneyMath.lira(CashCountSheet.banknotes[i]) *
+          BigInt.from(noteCounts[i]);
+    }
+    final coins = MoneyMath.fromInput(coinsController.text);
+    if (coins != null) sum += MoneyMath.parse(coins) ?? BigInt.zero;
+    return sum;
   }
 
-  /// Kapsam çipleri boyut görünürken **ya da** zincir çözülemediğinde çizilir.
-  /// İkincisi olmasaydı kasasını etiketlememiş kullanıcı sayımını hiç
-  /// kaydedemezdi: sunucu kapsam uydurmaz ve isteği reddederdi.
-  bool get showScope =>
-      (widget.scopeController?.isVisible ?? false) || resolvedScope == null;
-
   @override
-  Widget build(BuildContext context) => Form(
-    key: formKey,
-    child: AppFormSheet<bool>(
-      title: 'Gün sonu sayımı',
-      description:
-          'Sayım bir gözlemdir: yazmak hiçbir bakiyeyi değiştirmez ve hiçbir '
-          'rapora girmez.',
-      submitLabel: 'Sayımı kaydet',
-      onSubmit: _submit,
-      children: [
-        TextFormField(
-          controller: amountController,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Kasada sayılan',
-            helperText: 'Kasa boşsa sıfır yazın; bu da bir sayımdır.',
-          ),
-          autofocus: true,
-          validator: (value) {
-            final amount = MoneyInput.parse(value ?? '');
-            if (amount == null || amount < 0) {
-              return 'Geçerli bir tutar girin.';
-            }
-            return null;
-          },
-        ),
-        const SizedBox(height: AppSpacing.medium),
-        TextFormField(
-          controller: noteController,
-          decoration: const InputDecoration(labelText: 'Not (isteğe bağlı)'),
-        ),
-        if (showScope) ...[
-          const SizedBox(height: AppSpacing.medium),
-          AppScopeField(
-            value: resolvedScope,
-            onChanged: (value) => setState(() {
-              explicitScope = value;
-              scopeMissing = false;
-            }),
-            helperText: explicitScope != null
-                ? 'Bu sayım için siz seçtiniz.'
-                : accountScope != null
-                ? 'Kasanın etiketinden geldi — değiştirebilirsiniz.'
-                : 'Kasa kapsam taşımıyor; bu sayım için seçin.',
-            errorText: scopeMissing ? 'Bu sayım için kapsam seçin.' : null,
-          ),
-        ],
-      ],
-    ),
-  );
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = AppSurfaces.of(context);
+    final controller = widget.controller;
+    final today = controller.today;
+    final currency = today?.currency ?? 'TRY';
+    final value = counted;
+    final help = theme.textTheme.bodySmall?.copyWith(color: surfaces.inkMuted);
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    final accountName =
+        controller.selectedAccount?.name ?? today?.accountName ?? 'Kasa';
 
-  Future<bool?> _submit() async {
-    if (!formKey.currentState!.validate()) return null;
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.medium,
+          0,
+          AppSpacing.medium,
+          AppSpacing.large + keyboard,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Semantics(
+              header: true,
+              child: Text('Sayımı gir', style: theme.textTheme.headlineSmall),
+            ),
+            const SizedBox(height: AppSpacing.xSmall),
+            Text(
+              '$accountName · ${DateText.dayMonth(controller.todayIso)}',
+              style: theme.textTheme.bodyLarge,
+            ),
+            const SizedBox(height: AppSpacing.medium),
+            SegmentedButton<CashCountMode>(
+              segments: const [
+                ButtonSegment(
+                  value: CashCountMode.total,
+                  label: Text('Toplamı yaz'),
+                ),
+                ButtonSegment(
+                  value: CashCountMode.notes,
+                  label: Text('Banknotla say'),
+                ),
+              ],
+              selected: {mode},
+              onSelectionChanged: (selection) => setState(() {
+                mode = selection.first;
+                amountMissing = false;
+              }),
+            ),
+            const SizedBox(height: AppSpacing.large),
+            Text(
+              'Elde sayılan',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.labelMedium?.copyWith(letterSpacing: 0),
+            ),
+            const SizedBox(height: AppSpacing.xSmall),
+            Center(
+              child: mode == CashCountMode.total
+                  ? _TotalField(controller: totalController)
+                  : AppMoneyText(
+                      amount: MoneyMath.wire(value ?? BigInt.zero),
+                      currency: currency,
+                      size: AppMoneySize.hero,
+                    ),
+            ),
+            if (amountMissing) ...[
+              const SizedBox(height: AppSpacing.small),
+              Text(
+                'Sayılan tutarı yazın; kasa boşsa 0 yazın.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ],
+            if (value != null && today != null) ...[
+              const SizedBox(height: AppSpacing.medium),
+              _ResultStrip(
+                counted: value,
+                expected: today.expectedBalance,
+                currency: currency,
+              ),
+            ],
+            if (mode == CashCountMode.notes) ...[
+              const SizedBox(height: AppSpacing.medium),
+              _BanknoteCard(
+                counts: noteCounts,
+                currency: currency,
+                coinsController: coinsController,
+                onChanged: (index, count) =>
+                    setState(() => noteCounts[index] = count),
+              ),
+            ],
+            if (showScope) ...[
+              const SizedBox(height: AppSpacing.medium),
+              AppScopeField(
+                value: resolvedScope,
+                onChanged: (value) => setState(() {
+                  explicitScope = value;
+                  scopeMissing = false;
+                }),
+                helperText: 'Kasa kapsam taşımıyor; bu sayım için seçin.',
+                errorText: scopeMissing ? 'Bu sayım için kapsam seçin.' : null,
+              ),
+            ],
+            const SizedBox(height: AppSpacing.medium),
+            Text(
+              '${mode == CashCountMode.notes ? 'Her banknotun adedini girin; toplam kendiliğinden hesaplanır. ' : ''}'
+              'Sayım bir gözlemdir; kaydetmek bakiyeyi değiştirmez.',
+              style: help,
+            ),
+            ListenableBuilder(
+              listenable: controller,
+              builder: (context, _) {
+                final error = controller.errorMessage;
+                if (error == null || controller.isSubmitting) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.small),
+                  child: Text(
+                    error,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: AppSpacing.medium),
+            AppSubmitButton(
+              label: 'Sayımı kaydet',
+              icon: Icons.check,
+              onSubmit: _submit,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _submit() async {
+    final value = counted;
+    if (value == null) {
+      setState(() => amountMissing = true);
+      return;
+    }
     // Zincir çözülemediyse istek sunucuya gitmeden burada duruyor: sunucu da
     // reddederdi (`cash_counts.scope_unresolved`) ama kullanıcı hatayı
     // düzeltebileceği yerde görmeli.
     if (resolvedScope == null) {
       setState(() => scopeMissing = true);
-      return null;
+      return;
     }
-    final note = noteController.text.trim();
     final saved = await widget.controller.recordCount(
-      countedAmount: MoneyInput.wire(amountController.text),
-      countDate: CashCountController.todayDate(),
+      countedAmount: MoneyMath.wire(value),
+      countDate: widget.controller.todayIso,
       scope: resolvedScope,
-      note: note.isEmpty ? null : note,
     );
-    return saved ? true : null;
+    if (saved && mounted) Navigator.of(context).pop(true);
   }
+}
+
+/// Toplam modunun giriş alanı: 36/700, altında 2 dp marka çizgisi, Türkçe
+/// binlik ayırıcı (`23.100`).
+class _TotalField extends StatelessWidget {
+  const _TotalField({required this.controller});
+
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final style = AppTypography.heroMoney(theme.textTheme.displaySmall!);
+    return Container(
+      constraints: const BoxConstraints(minWidth: 220),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.medium,
+        AppSpacing.xSmall,
+        AppSpacing.medium,
+        AppSpacing.small,
+      ),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: theme.colorScheme.primary, width: 2),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          ExcludeSemantics(child: Text('₺', style: style)),
+          const SizedBox(width: AppSpacing.xSmall),
+          Flexible(
+            child: IntrinsicWidth(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 48),
+                // Görünür etiket alanın üstündeki `Elde sayılan`; ekran
+                // okuyucu alanı bu adla duyar.
+                child: Semantics(
+                  label: 'Elde sayılan tutar',
+                  child: TextField(
+                    controller: controller,
+                    autofocus: true,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: const [TurkishAmountInputFormatter()],
+                    style: style,
+                    decoration: const InputDecoration(
+                      hintText: '0',
+                      isCollapsed: true,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      filled: false,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Canlı sonuç şeridi: rol kapsül zemini — tuttu yeşil, eksik kırmızı, fazla
+/// mavi.
+class _ResultStrip extends StatelessWidget {
+  const _ResultStrip({
+    required this.counted,
+    required this.expected,
+    required this.currency,
+  });
+
+  final BigInt counted;
+  final String expected;
+  final String currency;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppFinanceColors.of(context);
+    final theme = Theme.of(context);
+    final expectedValue = MoneyMath.parse(expected) ?? BigInt.zero;
+    final difference = counted - expectedValue;
+    final amount = MoneyText.format(MoneyMath.wire(difference.abs()), currency);
+    final (background, foreground, icon, title) = switch (difference.sign) {
+      0 => (
+        colors.incomeContainer,
+        colors.onIncomeContainer,
+        Icons.check_circle_outline,
+        'Tuttu',
+      ),
+      < 0 => (
+        colors.expenseContainer,
+        colors.onExpenseContainer,
+        Icons.difference_outlined,
+        '$amount eksik',
+      ),
+      _ => (
+        colors.neutralContainer,
+        colors.onNeutralContainer,
+        Icons.difference_outlined,
+        '$amount fazla',
+      ),
+    };
+    return Semantics(
+      liveRegion: true,
+      child: MergeSemantics(
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.medium,
+            vertical: AppSpacing.small + AppSpacing.xSmall,
+          ),
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(AppRadius.field),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 22, color: foreground),
+              const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        height: 1.3,
+                        color: foreground,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxSmall),
+                    Text(
+                      'Uygulamaya göre ${MoneyText.format(expected, currency)}',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.w400,
+                        letterSpacing: 0,
+                        color: foreground,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Banknot satırları ve madeni para kutusu.
+class _BanknoteCard extends StatelessWidget {
+  const _BanknoteCard({
+    required this.counts,
+    required this.currency,
+    required this.coinsController,
+    required this.onChanged,
+  });
+
+  final List<int> counts;
+  final String currency;
+  final TextEditingController coinsController;
+  final void Function(int index, int count) onChanged;
+
+  static const _rowPadding = EdgeInsets.fromLTRB(
+    AppSpacing.medium,
+    AppSpacing.xSmall,
+    AppSpacing.small + AppSpacing.xSmall,
+    AppSpacing.xSmall,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = AppSurfaces.of(context);
+    final strong = theme.textTheme.titleSmall?.copyWith(
+      height: 1,
+      fontFeatures: AppTypography.tabularFigures,
+    );
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: AppDividedColumn(
+        inset: AppSpacing.medium,
+        children: [
+          for (var i = 0; i < counts.length; i++)
+            Padding(
+              padding: _rowPadding,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 56),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 64,
+                      child: Text(
+                        '₺${CashCountSheet.banknotes[i]}',
+                        style: strong,
+                      ),
+                    ),
+                    _NoteStepper(
+                      value: counts[i],
+                      label: '${CashCountSheet.banknotes[i]} lira',
+                      onChanged: (count) => onChanged(i, count),
+                    ),
+                    const SizedBox(width: AppSpacing.small),
+                    // Adet sıfırken tutar soluk: `AppMoneyText` rengi rolden
+                    // seçtiği için burada düz metin.
+                    Expanded(
+                      child: Text(
+                        MoneyText.format(
+                          MoneyMath.wire(
+                            MoneyMath.lira(CashCountSheet.banknotes[i]) *
+                                BigInt.from(counts[i]),
+                          ),
+                          currency,
+                        ),
+                        textAlign: TextAlign.right,
+                        style: AppTypography.money(theme.textTheme.bodyMedium!)
+                            .copyWith(
+                              color: counts[i] == 0
+                                  ? surfaces.inkFaint
+                                  : surfaces.ink,
+                            ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          Padding(
+            padding: _rowPadding,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 56),
+              child: Row(
+                children: [
+                  Expanded(child: Text('Madeni para', style: strong)),
+                  Container(
+                    width: 120,
+                    height: 48,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.small + AppSpacing.xSmall,
+                    ),
+                    decoration: BoxDecoration(
+                      color: surfaces.canvas,
+                      border: Border.all(color: surfaces.border),
+                      borderRadius: BorderRadius.circular(AppRadius.field),
+                    ),
+                    child: Row(
+                      children: [
+                        ExcludeSemantics(
+                          child: Text('₺', style: theme.textTheme.bodySmall),
+                        ),
+                        Expanded(
+                          child: Semantics(
+                            label: 'Madeni para toplamı',
+                            child: TextField(
+                              controller: coinsController,
+                              textAlign: TextAlign.right,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                              inputFormatters: const [
+                                TurkishAmountInputFormatter(),
+                              ],
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              decoration: const InputDecoration(
+                                isCollapsed: true,
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                filled: false,
+                                hintText: '0',
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Banknot adedi: −/+ düğmeleri (44 dp daire, 48 dp dokunma alanı) ve adet.
+class _NoteStepper extends StatelessWidget {
+  const _NoteStepper({
+    required this.value,
+    required this.label,
+    required this.onChanged,
+  });
+
+  final int value;
+  final String label;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final surfaces = AppSurfaces.of(context);
+    final style = IconButton.styleFrom(
+      fixedSize: const Size.square(44),
+      minimumSize: const Size.square(44),
+      tapTargetSize: MaterialTapTargetSize.padded,
+      backgroundColor: surfaces.card,
+      foregroundColor: surfaces.ink,
+      side: BorderSide(color: surfaces.border),
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          style: style,
+          tooltip: '$label azalt',
+          onPressed: value == 0 ? null : () => onChanged(value - 1),
+          icon: const Icon(Icons.remove, size: 20),
+        ),
+        SizedBox(
+          width: 40,
+          child: Semantics(
+            label: '$label adedi',
+            value: '$value',
+            excludeSemantics: true,
+            child: Text(
+              '$value',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                height: 1,
+                fontFeatures: AppTypography.tabularFigures,
+                color: value == 0 ? surfaces.inkFaint : surfaces.ink,
+              ),
+            ),
+          ),
+        ),
+        IconButton(
+          style: style,
+          tooltip: '$label artır',
+          onPressed: () => onChanged(value + 1),
+          icon: const Icon(Icons.add, size: 20),
+        ),
+      ],
+    );
+  }
+}
+
+/// Tutarın mutlak değeri (dört ondalıklı dize); işaret ayrıca söylenir.
+String _abs(String value) {
+  final parsed = MoneyMath.parse(value);
+  return parsed == null ? value : MoneyMath.wire(parsed.abs());
+}
+
+int _sign(String? value) {
+  final normalized = value?.trim();
+  if (normalized == null || normalized.isEmpty) return 0;
+  final digits = normalized.replaceAll(RegExp('[^0-9]'), '');
+  if (digits.isEmpty || !digits.contains(RegExp('[1-9]'))) return 0;
+  return normalized.startsWith('-') ? -1 : 1;
 }
 
 class _DifferenceForm extends StatefulWidget {

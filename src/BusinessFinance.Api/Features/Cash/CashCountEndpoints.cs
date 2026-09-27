@@ -96,7 +96,10 @@ public static class CashCountEndpoints
             today.AccountName,
             FinanceContract.Money(today.ExpectedBalance),
             today.Currency.ToString(),
-            today.Count is null ? null : ToResponse(today.Count)));
+            today.Count is null ? null : ToResponse(today.Count),
+            today.PreviousCount is null ? null : ToResponse(today.PreviousCount),
+            FinanceContract.Money(today.TodayInflow),
+            FinanceContract.Money(today.TodayOutflow)));
     }
 
     private static async Task<IResult> CreateAsync(

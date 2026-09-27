@@ -160,55 +160,145 @@ void main() {
     },
   );
 
-  // `İşlem ekle > POS tahsilatı` doğrudan ikinci sekmeye geliyor. Ekran hep
-  // gün sonuyla açılsaydı menüden gelen kullanıcı sekmeyi elle bulmak zorunda
-  // kalır ve menü yolun yarısında bırakırdı.
-  testWidgets('POS sekmesi açılışta seçili gelebilir', (tester) async {
-    final cashController = CashCountController(_FakeCashRepository());
-    final posController = PosController(_FakePosRepository());
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light(),
-        home: CashPage(
-          cashController: cashController,
-          posController: posController,
-          initialTab: 1,
-        ),
-      ),
-    );
+  // `İşlem ekle > POS tahsilatı` Kasa'ya gelir ve formu doğrudan açar. Ekran
+  // sayımla açılıp kalsaydı menüden gelen kullanıcı `+ Ekle`yi elle bulmak
+  // zorunda kalır ve menü yolun yarısında bırakırdı.
+  testWidgets('POS yolu açılışta tahsilat formunu açar', (tester) async {
+    await tester.pumpWidget(_app(initialTab: 1));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Yoldaki para sizindir'), findsOneWidget);
+    expect(find.text('POS tahsilatı'), findsOneWidget);
   });
 
-  testWidgets(
-    'Kasa iki alt ekranıyla büyük metin erişilebilirlik kapısını geçer',
-    (tester) async {
-      final cashController = CashCountController(_FakeCashRepository());
-      final posController = PosController(_FakePosRepository());
-      await pumpAtLargestTextScale(
-        tester,
-        MaterialApp(
-          theme: AppTheme.light(),
-          home: CashPage(
-            cashController: cashController,
-            posController: posController,
-          ),
-        ),
-        surfaceSize: const Size(400, 1000),
-      );
+  testWidgets('Kasa tek akıştır: sayım, yoldaki POS ve son sayımlar', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(412, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final repository = _FakeCashRepository()..previous = _previousCount;
+    await tester.pumpWidget(_app(cash: repository));
+    await tester.pumpAndSettle();
 
-      expectNoOverflow(tester);
-      await expectMeetsAccessibility(tester);
+    expect(find.byType(TabBar), findsNothing);
+    expect(find.text('25 Eylül Cuma'), findsOneWidget);
+    expect(find.text('Sayılmadı'), findsOneWidget);
+    expect(find.text('Dünkü sayım'), findsOneWidget);
+    expect(find.text('+₺2.450,00'), findsOneWidget);
+    expect(find.text('-₺665,00'), findsOneWidget);
+    expect(find.text('POS tahsilatları'), findsOneWidget);
+    expect(find.text('Son sayımlar'), findsOneWidget);
+    // Geçmiş satırı sunucunun o anki gözlemini okur: beklenen ve kaydedilen
+    // fark.
+    expect(find.text('Beklenen ₺21.520,00'), findsOneWidget);
+    expect(find.text('Eksik · kaydedildi'), findsOneWidget);
+  });
 
-      await tester.tap(find.text('POS tahsilatları'));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('Yoldaki para sizindir'), findsOneWidget);
-      expectNoOverflow(tester);
-      await expectMeetsAccessibility(tester);
-    },
+  testWidgets('banknotla sayım tam aritmetikle toplanır ve farkı önizler', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(412, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final repository = _FakeCashRepository();
+    await tester.pumpWidget(_app(cash: repository));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Sayımı gir'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Banknotla say'));
+    await tester.pumpAndSettle();
+
+    // 100 TL beklenen; 50 + 20 + 20 + 5 + 0,10 = 95,10 → 4,90 eksik.
+    for (final note in [50, 20, 20, 5]) {
+      await tester.tap(find.byTooltip('$note lira artır'));
+      await tester.pump();
+    }
+    await tester.enterText(find.byType(TextField), '0,10');
+    await tester.pumpAndSettle();
+    expect(find.text('₺4,90 eksik'), findsOneWidget);
+
+    await tester.tap(find.text('Sayımı kaydet'));
+    await tester.pumpAndSettle();
+    expect(repository.createdAmount, '95.1000');
+    expect(repository.createdDate, '2026-09-25');
+  });
+
+  testWidgets('toplam alanı Türkçe binlik ayırıcıyla yazılır', (tester) async {
+    tester.view.physicalSize = const Size(412, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final repository = _FakeCashRepository();
+    await tester.pumpWidget(_app(cash: repository));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Sayımı gir'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, '23100');
+    await tester.pumpAndSettle();
+    expect(find.text('23.100'), findsOneWidget);
+    expect(find.text('₺23.000,00 fazla'), findsOneWidget);
+
+    await tester.tap(find.text('Sayımı kaydet'));
+    await tester.pumpAndSettle();
+    expect(repository.createdAmount, '23100.0000');
+  });
+
+  testWidgets('Kasa büyük metin erişilebilirlik kapısını geçer', (
+    tester,
+  ) async {
+    final repository = _FakeCashRepository()..previous = _previousCount;
+    await pumpAtLargestTextScale(
+      tester,
+      _app(cash: repository, twoAccounts: true),
+      surfaceSize: const Size(400, 1000),
+    );
+
+    expectNoOverflow(tester);
+    await expectMeetsAccessibility(tester);
+
+    await tester.ensureVisible(find.text('Sayımı gir'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sayımı gir'));
+    await tester.pumpAndSettle();
+    expectNoOverflow(tester);
+    await expectMeetsAccessibility(tester);
+
+    await tester.tap(find.text('Banknotla say'));
+    await tester.pumpAndSettle();
+    expectNoOverflow(tester);
+    await expectMeetsAccessibility(tester);
+  });
+}
+
+Widget _app({
+  _FakeCashRepository? cash,
+  int initialTab = 0,
+  bool twoAccounts = false,
+}) {
+  final repository = (cash ?? _FakeCashRepository())..twoAccounts = twoAccounts;
+  return MaterialApp(
+    theme: AppTheme.light(),
+    home: CashPage(
+      cashController: CashCountController(
+        repository,
+        clock: () => DateTime(2026, 9, 25, 18),
+      ),
+      posController: PosController(_FakePosRepository()),
+      initialTab: initialTab,
+    ),
   );
 }
+
+final _previousCount = CashCountItem.fromJson({
+  ..._cashCountJson,
+  'id': 'previous',
+  'countDate': '2026-09-24',
+  'countedAmount': '21400.0000',
+  'expectedBalance': '21520.0000',
+  'difference': '-120.0000',
+  'adjustmentTransactionId': 'adjustment',
+});
 
 ApiClient _client(MockClientHandler handler) => ApiClient(
   config: ApiConfig.fromEnvironment(value: 'https://api.test'),
@@ -217,15 +307,25 @@ ApiClient _client(MockClientHandler handler) => ApiClient(
 
 class _FakeCashRepository implements CashRepositoryContract {
   CashCountItem? currentCount;
+  CashCountItem? previous;
   String? createdScope;
+  String? createdAmount;
+  String? createdDate;
+  bool twoAccounts = false;
 
   @override
-  Future<List<CashAccount>> loadCashAccounts() async => const [
-    CashAccount(
+  Future<List<CashAccount>> loadCashAccounts() async => [
+    const CashAccount(
       id: 'cash-account',
       name: 'Merkez kasa',
       defaultScope: TransactionScope.business,
     ),
+    if (twoAccounts)
+      const CashAccount(
+        id: 'wallet',
+        name: 'Şahsi cüzdan',
+        defaultScope: TransactionScope.personal,
+      ),
   ];
 
   @override
@@ -236,11 +336,16 @@ class _FakeCashRepository implements CashRepositoryContract {
         expectedBalance: '100.0000',
         currency: 'TRY',
         count: currentCount,
+        previousCount: previous,
+        todayInflow: '2450.0000',
+        todayOutflow: '665.0000',
       );
 
   @override
-  Future<List<CashCountItem>> list({required String accountId}) async =>
-      currentCount == null ? const [] : [currentCount!];
+  Future<List<CashCountItem>> list({required String accountId}) async => [
+    ?currentCount,
+    ?previous,
+  ];
 
   @override
   Future<CashCountItem> create({
@@ -251,6 +356,8 @@ class _FakeCashRepository implements CashRepositoryContract {
     String? note,
   }) async {
     createdScope = scope;
+    createdAmount = countedAmount;
+    createdDate = countDate;
     return currentCount = _cashCount(difference: '5.0000');
   }
 
