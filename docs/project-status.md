@@ -142,6 +142,9 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     testleri geçti. Infrastructure'daki 10 fiş görüntü testi cloud ortamında
     `libSkiaSharp` yerel kütüphanesi yüklenemediği için düşüyor; değişiklik
     öncesi kodda da aynı sonuç alındı (ortam kaynaklı)
+  - **Bütçeler**: geri oklu başlık ve `+`, doluluğa göre dizilmiş kartlar,
+    durum kapsülü (`Aşıldı` / `Limite yakın` / `Limit içinde`), limit
+    düzenleme ve silme harcama panelinin altında. 880 Flutter testi geçti
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni → (gerekirse 06.x) → 07 bulut (`PROJECT-ROADMAP.md`)

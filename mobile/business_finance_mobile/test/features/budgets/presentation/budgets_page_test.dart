@@ -42,18 +42,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Limit ₺25,00 aşıldı'), findsOneWidget);
-    // Kartın hangi widget'la çizildiğine değil, ekran okuyucunun aşımı
-    // duyurduğuna bağlanır.
+    // Aşım görünürde rozet ve "fazla" tutarıyla, ekran okuyucuda cümleyle.
+    expect(find.text('Aşıldı'), findsOneWidget);
+    expect(find.text('₺25,00 fazla'), findsOneWidget);
     expect(
       find.bySemanticsLabel(RegExp('Limit ₺25,00 aşıldı')),
       findsOneWidget,
     );
 
-    // Eylem artık tooltip'e gömülü sade bir ikon değil, etiketi görünen dolgulu
-    // bir buton: başlık çubuğunda kayboluyordu ve tooltip yalnız uzun basınca
-    // çıktığı için ikon tek başına "neyi ekliyorum" sorusunu cevaplamıyordu.
-    await tester.tap(find.widgetWithText(FilledButton, 'Bütçe'));
+    // Başlıktaki + eylemi (tasarım teslimi): ekran okuyucuya adıyla söylenir.
+    await tester.tap(find.byTooltip('Bütçe ekle'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Oluştur'));
     await tester.pump();
@@ -95,8 +93,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Limitin yüzde 85 kadarı harcandı'), findsOne);
-    expect(find.textContaining('aşıldı'), findsNothing);
+    expect(find.text('Limite yakın'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(RegExp('Limitin yüzde 85 kadarı harcandı')),
+      findsOneWidget,
+    );
+    expect(find.text('Aşıldı'), findsNothing);
   });
 
   testWidgets('stays quiet well below the threshold', (tester) async {
@@ -128,8 +130,48 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Kalan: ₺60,00'), findsOneWidget);
-    expect(find.textContaining('harcandı'), findsNothing);
+    expect(find.text('₺60,00 kaldı'), findsOneWidget);
+    expect(find.text('Limit içinde'), findsOneWidget);
+    expect(find.text('Limite yakın'), findsNothing);
+  });
+
+  testWidgets('lists the fullest budget first', (tester) async {
+    // Tasarım teslimi: ekranın ilk söylemesi gereken aşılan bütçedir; liste
+    // eklendiği sıraya değil doluluğa göre dizilir.
+    BudgetItem budget(String name, String spent, String exceeded) => BudgetItem(
+      id: name,
+      categoryId: name,
+      categoryName: name,
+      limit: '100.0000',
+      spent: spent,
+      remaining: exceeded == '0.0000' ? '60.0000' : '0.0000',
+      exceeded: exceeded,
+      currency: 'TRY',
+      scope: TransactionScope.business,
+      year: 2026,
+      month: 8,
+    );
+    final controller = BudgetsController(
+      _BudgetPageRepository(
+        items: [
+          budget('Kırtasiye', '40.0000', '0.0000'),
+          budget('Yakıt', '130.0000', '30.0000'),
+        ],
+      ),
+      initialMonth: DateTime(2026, 8),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: BudgetsPage(controller: controller),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getTopLeft(find.text('Yakıt')).dy,
+      lessThan(tester.getTopLeft(find.text('Kırtasiye')).dy),
+    );
   });
 
   testWidgets('hides the scope when the dimension is not visible', (
@@ -186,7 +228,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Bütçe'));
+    await tester.tap(find.byTooltip('Bütçe ekle'));
     await tester.pumpAndSettle();
 
     expect(find.text('Kapsam'), findsOneWidget);
@@ -211,7 +253,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Bütçe'));
+    await tester.tap(find.byTooltip('Bütçe ekle'));
     await tester.pumpAndSettle();
 
     // `Market` bu ay zaten bütçeli; seçilebilir bırakmak kullanıcıyı
@@ -237,7 +279,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Bütçe eylemleri'));
+    await tester.tap(find.text('Market'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Limiti düzenle'));
     await tester.pumpAndSettle();
@@ -262,7 +304,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Bütçe eylemleri'));
+    await tester.tap(find.text('Market'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Bütçeyi sil'));
     await tester.pumpAndSettle();
@@ -272,7 +314,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(repository.deletedIds, isEmpty);
 
-    await tester.tap(find.byTooltip('Bütçe eylemleri'));
+    await tester.tap(find.text('Market'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Bütçeyi sil'));
     await tester.pumpAndSettle();
@@ -334,9 +376,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Bütçe eylemleri'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Harcamaları gör'));
+    // Kartın tamamı harcamaları açar.
+    await tester.tap(find.text('Market'));
     await tester.pumpAndSettle();
 
     expect(repository.spendingRequests, ['budget']);
@@ -358,9 +399,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Bütçe eylemleri'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Harcamaları gör'));
+    // Kartın tamamı harcamaları açar.
+    await tester.tap(find.text('Market'));
     await tester.pumpAndSettle();
 
     expect(find.text('Bu ay bu bütçeye düşen harcama yok.'), findsOneWidget);

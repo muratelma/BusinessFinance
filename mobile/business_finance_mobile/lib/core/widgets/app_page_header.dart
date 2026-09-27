@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_spacing.dart';
+import '../theme/app_surfaces.dart';
 
 /// Ana ekranların başlık satırı: sayfa başlığı sayfanın kendisinden gelir.
 ///
@@ -32,34 +33,42 @@ class AppPageHeader extends StatelessWidget {
         AppSpacing.xSmall,
         AppSpacing.xSmall,
       ),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 64),
-        child: Row(
-          children: [
-            if (onBack != null) ...[
-              IconButton(
-                tooltip: 'Geri',
-                onPressed: onBack,
-                icon: const Icon(Icons.arrow_back),
-              ),
-              const SizedBox(width: AppSpacing.xSmall),
-            ],
-            Expanded(
-              child: Semantics(
-                header: true,
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontSize: 26,
-                    letterSpacing: -0.6,
+      // Başlık eylemleri mürekkep renginde: gri ikon devre dışı gibi okunur.
+      child: IconButtonTheme(
+        data: IconButtonThemeData(
+          style: IconButton.styleFrom(
+            foregroundColor: AppSurfaces.of(context).ink,
+          ),
+        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 64),
+          child: Row(
+            children: [
+              if (onBack != null) ...[
+                IconButton(
+                  tooltip: 'Geri',
+                  onPressed: onBack,
+                  icon: const Icon(Icons.arrow_back),
+                ),
+                const SizedBox(width: AppSpacing.xSmall),
+              ],
+              Expanded(
+                child: Semantics(
+                  header: true,
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontSize: 26,
+                      letterSpacing: -0.6,
+                    ),
                   ),
                 ),
               ),
-            ),
-            ...actions,
-          ],
+              ...actions,
+            ],
+          ),
         ),
       ),
     );

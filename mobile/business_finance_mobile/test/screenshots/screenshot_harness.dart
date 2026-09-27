@@ -39,6 +39,7 @@ Future<void> loadDesignFonts() async {
     roboto.addFont(_fontData('${dir.path}/Roboto-$weight.ttf'));
   }
   await roboto.load();
+
   final icons = FontLoader('MaterialIcons')
     ..addFont(_fontData('${dir.path}/MaterialIcons-Regular.otf'));
   await icons.load();
@@ -58,6 +59,7 @@ Future<void> captureScreen(
   bool withNavBar = true,
   int selectedTab = 0,
   bool hasBusiness = true,
+  bool pushed = false,
   Future<void> Function(WidgetTester tester)? before,
 }) async {
   // Font yükleme gerçek G/Ç'dir; sahte zamanın içinde hiç tamamlanmaz.
@@ -92,8 +94,8 @@ Future<void> captureScreen(
       key: boundary,
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.light(),
-        home: body,
+        theme: _screenshotTheme(),
+        home: pushed ? _PushedHost(child: body) : body,
       ),
     ),
   );
@@ -119,4 +121,52 @@ Future<void> _settle(WidgetTester tester) async {
   for (var i = 0; i < 10; i++) {
     await tester.pump(const Duration(milliseconds: 100));
   }
+}
+
+/// Sayfayı bir önceki rotanın üstüne iter: geri oku olan tam ekran sayfalar
+/// (Bütçeler, Hesabım) böyle çizilir.
+class _PushedHost extends StatefulWidget {
+  const _PushedHost({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_PushedHost> createState() => _PushedHostState();
+}
+
+class _PushedHostState extends State<_PushedHost> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.of(context).push(
+        PageRouteBuilder<void>(
+          transitionDuration: Duration.zero,
+          pageBuilder: (_, _, _) => widget.child,
+        ),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}
+
+/// Düğme temaları ham `labelLarge`'ı alır ve font ailesi taşımaz; cihazda o
+/// metin Roboto'dur, test motorunda kutu fontudur. Görüntü cihazdaki gibi
+/// olsun diye düğme metni temanın birleşik (Roboto'lu) stiliyle çizilir.
+ThemeData _screenshotTheme() {
+  final theme = AppTheme.light();
+  final label = WidgetStatePropertyAll(theme.textTheme.labelLarge);
+  return theme.copyWith(
+    filledButtonTheme: FilledButtonThemeData(
+      style: theme.filledButtonTheme.style?.copyWith(textStyle: label),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: theme.outlinedButtonTheme.style?.copyWith(textStyle: label),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: theme.textButtonTheme.style?.copyWith(textStyle: label),
+    ),
+  );
 }

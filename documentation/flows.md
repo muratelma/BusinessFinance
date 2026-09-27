@@ -1391,9 +1391,15 @@ Geçen aydan kopyalama
 
 Eşik uyarısı
   -> spent / limit >= budgetWarningThreshold ve aşılmamışsa "yaklaştı"
-  -> eşik tek yerde (`core/models/budget_threshold.dart`); bütçe ekranı ve
-     Özet'in `Bütçe durumu` kartı aynı eşiği okur
+  -> eşik tek yerde (`core/models/budget_threshold.dart`); bütçe kartı
+     `Limite yakın` kapsülünü bu eşikte gösterir
   -> ilerleme çubuğu eşikte gider rengine DÖNMEZ; alarm rengi aşıma ayrılmıştır
+
+Bütçe kartı (Claude Design teslimi, 27 Eylül 2026)
+  -> liste doluluğa göre dizilir: aşılan en üstte
+  -> karta dokunmak harcama dökümünü açar; `Limiti düzenle` ve `Bütçeyi sil`
+     bu panelin altındadır (kartta menü yoktur)
+  -> `Geçen ayın bütçelerini kopyala` listenin sonunda kenarlı düğme
 
 Harcama dökümü
   -> kanonik feed projection'ının daraltılmış okuması

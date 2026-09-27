@@ -743,8 +743,17 @@ Bütçe iki eşikte konuşur ve ikisi **birbirine benzemez**:
 
 | Durum | Rozet tonu | Çubuk dolgusu |
 |---|---|---|
-| Eşiğe yaklaştı (`>= budgetWarningThreshold`) | `planned` + `info_outline` | `neutralFill` — değişmez |
-| Limit aşıldı | `expense` + `warning_amber_rounded` | `expenseFill` |
+| Limit içinde | `planned` + `check_circle_outline` (`Limit içinde`) | `neutralFill` |
+| Eşiğe yaklaştı (`>= budgetWarningThreshold`) | `planned` + `info_outline` (`Limite yakın`) | `neutralFill` — değişmez |
+| Limit aşıldı | `expense` + `warning_amber_rounded` (`Aşıldı`) | `expenseFill` |
+
+Bütçeler ekranı (Claude Design teslimi): geri oklu `AppPageHeader` ve `+`,
+ay seçici, doluluğa göre dizilmiş kartlar. Kart: kategori kapsülü (aşımda
+gider tonu), ad ve kapsam, sağ üstte durum kapsülü; `metric` boyunda
+harcanan `/ limit`, 8 dp çubuk, altında `%NN` ve `₺… kaldı` / `₺… fazla`
+(aşımda gider rengi). Tasarımdaki %88 bütçe `Limit içinde` görünüyordu;
+Aşama 06'nın "aşılmadan önce uyar" kararı korunarak eşiği geçen bütçe
+`Limite yakın` kapsülü alır.
 
 Uyarı için altıncı bir renk rolü **açılmadı** (ADR 0008). İki gerekçe: yeni bir
 hue paleti finansal rollerden çıkarıp dekoratif bir uyarı ailesi kurardı; ve

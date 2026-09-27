@@ -66,6 +66,17 @@ class BudgetItem {
     return (spentValue.toDouble() / limitValue.toDouble() * 100).round();
   }
 
+  /// Harcananın limite oranı, 1'de kırpılmadan: aşılmış bütçeleri de kendi
+  /// aralarında sıralamak için. Yalnız sıralama ve çizim; tutar üretmez.
+  double get progressRatio {
+    final limitValue = _scaledAmount(limit);
+    final spentValue = _scaledAmount(spent);
+    if (limitValue == null || spentValue == null || limitValue <= BigInt.zero) {
+      return 0;
+    }
+    return spentValue.toDouble() / limitValue.toDouble();
+  }
+
   double get progress {
     final limitValue = _scaledAmount(limit);
     final spentValue = _scaledAmount(spent);

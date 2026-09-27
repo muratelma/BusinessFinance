@@ -6,15 +6,20 @@ import '../../../core/models/transaction_scope.dart';
 import '../../../core/presentation/financial_data_changes.dart';
 import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_finance_colors.dart';
+import '../../../core/theme/app_finance_icons.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_adaptive_sheet.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_form_sheet.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/app_icon_capsule.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_month_picker.dart';
+import '../../../core/widgets/app_page_header.dart';
 import '../../../core/widgets/app_scope_selector.dart';
+import '../../../core/widgets/app_share_bar.dart';
 import '../../../core/widgets/app_status_chip.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../data/budget_models.dart';
@@ -77,71 +82,53 @@ class _BudgetsPageState extends State<BudgetsPage> {
     if (controller == null) {
       return const AppErrorView(message: 'Bütçe servisi yapılandırılmadı.');
     }
+    // Kişisel profilde ana sekmedir ve geri oku yoktur; işletme profilinde
+    // Özet'ten veya `Diğer`'den açılır ve geri döner (ADR 0015).
+    final canPop = Navigator.of(context).canPop();
     return Scaffold(
-      appBar: AppBar(
-        // Başlıkta kapsam yazmıyor çünkü bu liste **bölünmüyor**: iki tarafın
-        // sınırı da aynı listede duruyor ve her satır kendi kapsamını yazıyor.
-        title: const Text('Aylık bütçeler'),
-        // Sayfaya özel ekleme eylemi başlıkta durur; ekranın altındaki
-        // ortalanmış buton uygulamanın genel "işlem ekle" eylemine ayrılmıştır
-        // ve iki kayan buton aynı ekranda birbiriyle yarışıyordu.
-        // Sade bir ikon başlık çubuğunda kayboluyordu: aynı renkte, aynı
-        // ağırlıkta, çerçevesiz. Dolgulu bir buton onu bir eylem gibi
-        // gösteriyor. Etiket de eklendi — ikon tek başına "neyi ekliyorum"
-        // sorusunu cevaplamıyordu ve tooltip yalnız uzun basınca çıkıyor.
-        actions: [
-          FilledButton.tonalIcon(
-            onPressed: controller.isSubmitting
-                ? null
-                : () => _showCreate(controller),
-            icon: const Icon(Icons.add),
-            label: const Text('Bütçe'),
-          ),
-          PopupMenuButton<_BudgetsMenuAction>(
-            tooltip: 'Bütçe seçenekleri',
-            enabled: !controller.isSubmitting,
-            onSelected: (action) => switch (action) {
-              _BudgetsMenuAction.copyPreviousMonth => _copyPreviousMonth(
-                controller,
-              ),
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(
-                value: _BudgetsMenuAction.copyPreviousMonth,
-                child: Text('Geçen ayın bütçelerini kopyala'),
-              ),
-            ],
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          _MonthSelector(
-            controller: controller,
-            onPickMonth: () => _pickMonth(controller),
-          ),
-          if (controller.successMessage != null)
-            MaterialBanner(
-              content: Text(controller.successMessage!),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            // Başlıkta kapsam yazmıyor çünkü bu liste **bölünmüyor**: iki
+            // tarafın sınırı da aynı listede duruyor ve her kart kendi
+            // kapsamını yazıyor.
+            AppPageHeader(
+              title: 'Bütçeler',
+              onBack: canPop ? () => Navigator.of(context).maybePop() : null,
               actions: [
-                TextButton(
-                  onPressed: controller.clearMessage,
-                  child: const Text('Kapat'),
+                IconButton(
+                  tooltip: 'Bütçe ekle',
+                  onPressed: controller.isSubmitting
+                      ? null
+                      : () => _showCreate(controller),
+                  icon: const Icon(Icons.add),
                 ),
               ],
             ),
-          if (controller.errorMessage != null && controller.items != null)
-            MaterialBanner(
-              content: Text(controller.errorMessage!),
-              actions: [
-                TextButton(
-                  onPressed: controller.clearMessage,
-                  child: const Text('Kapat'),
-                ),
-              ],
-            ),
-          Expanded(child: _body(controller)),
-        ],
+            if (controller.successMessage != null)
+              MaterialBanner(
+                content: Text(controller.successMessage!),
+                actions: [
+                  TextButton(
+                    onPressed: controller.clearMessage,
+                    child: const Text('Kapat'),
+                  ),
+                ],
+              ),
+            if (controller.errorMessage != null && controller.items != null)
+              MaterialBanner(
+                content: Text(controller.errorMessage!),
+                actions: [
+                  TextButton(
+                    onPressed: controller.clearMessage,
+                    child: const Text('Kapat'),
+                  ),
+                ],
+              ),
+            Expanded(child: _body(controller)),
+          ],
+        ),
       ),
     );
   }
@@ -159,12 +146,18 @@ class _BudgetsPageState extends State<BudgetsPage> {
         onRetry: controller.load,
       );
     }
+    final month = _MonthSelector(
+      controller: controller,
+      onPickMonth: () => _pickMonth(controller),
+    );
     final items = controller.items ?? const <BudgetItem>[];
     if (items.isEmpty) {
       return RefreshIndicator(
         onRefresh: controller.load,
         child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.medium),
           children: [
+            month,
             SizedBox(
               height: 440,
               child: AppEmptyView(
@@ -187,25 +180,38 @@ class _BudgetsPageState extends State<BudgetsPage> {
         ),
       );
     }
+    // En dolu bütçe en üstte: ekranın ilk söylemesi gereken aşılanlardır.
+    final sorted = [...items]
+      ..sort((a, b) => b.progressRatio.compareTo(a.progressRatio));
     return RefreshIndicator(
       onRefresh: controller.load,
-      child: ListView.separated(
+      child: ListView(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.medium,
-          AppSpacing.small,
+          AppSpacing.xSmall,
           AppSpacing.medium,
           AppSpacing.fabClearance,
         ),
-        itemCount: items.length,
-        separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.small),
-        itemBuilder: (context, index) => _BudgetCard(
-          item: items[index],
-          busy: controller.isSubmitting,
-          showScope: controller.isScopeVisible,
-          onEdit: () => _showUpdate(controller, items[index]),
-          onDelete: () => _confirmDelete(controller, items[index]),
-          onShowSpending: () => _showSpending(controller, items[index]),
-        ),
+        children: [
+          month,
+          const SizedBox(height: AppSpacing.small),
+          for (var i = 0; i < sorted.length; i++) ...[
+            if (i > 0) const SizedBox(height: AppSpacing.small),
+            _BudgetCard(
+              item: sorted[i],
+              showScope: controller.isScopeVisible,
+              onOpen: () => _showSpending(controller, sorted[i]),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.medium),
+          OutlinedButton.icon(
+            onPressed: controller.isSubmitting
+                ? null
+                : () => _copyPreviousMonth(controller),
+            icon: const Icon(Icons.content_copy_outlined),
+            label: const Text('Geçen ayın bütçelerini kopyala'),
+          ),
+        ],
       ),
     );
   }
@@ -226,11 +232,25 @@ class _BudgetsPageState extends State<BudgetsPage> {
   ///
   /// `1.500 / 2.000` bir sonuçtur; kullanıcının sorduğu soru o sonucun
   /// nereden geldiğidir ve ekranda bunu söyleyen hiçbir şey yoktu.
-  Future<void> _showSpending(BudgetsController controller, BudgetItem item) =>
-      AppAdaptiveSheet.show<void>(
-        context: context,
-        builder: (_) => _SpendingSheet(controller: controller, item: item),
-      );
+  ///
+  /// Panel bütçenin ayrıntısıdır: limiti düzenleme ve silme de oradadır, kart
+  /// yüzeyi tasarımdaki gibi sade kalır.
+  Future<void> _showSpending(
+    BudgetsController controller,
+    BudgetItem item,
+  ) async {
+    final action = await AppAdaptiveSheet.show<_BudgetRowAction>(
+      context: context,
+      builder: (_) => _SpendingSheet(controller: controller, item: item),
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case _BudgetRowAction.edit:
+        await _showUpdate(controller, item);
+      case _BudgetRowAction.delete:
+        await _confirmDelete(controller, item);
+    }
+  }
 
   Future<void> _confirmDelete(
     BudgetsController controller,
@@ -275,8 +295,6 @@ class _BudgetsPageState extends State<BudgetsPage> {
   }
 }
 
-enum _BudgetsMenuAction { copyPreviousMonth }
-
 class _MonthSelector extends StatelessWidget {
   const _MonthSelector({required this.controller, required this.onPickMonth});
   final BudgetsController controller;
@@ -287,222 +305,207 @@ class _MonthSelector extends StatelessWidget {
     container: true,
     label: 'Seçili bütçe ayı ${_monthText(controller.selectedMonth)}',
     child: Row(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        IconButton(
-          tooltip: 'Önceki ay',
-          onPressed: controller.isLoading
-              ? null
-              : () => controller.changeMonth(-1),
-          icon: const Icon(Icons.chevron_left),
-        ),
-        // En büyük yazı ölçeğinde ay adı iki ok butonu arasına sığmıyor ve
-        // satırı taşırıyordu; esnek olduğu için artık daralıyor.
         // Ayın kendisi de bir eylem: oklar komşu ay içindir, uzağa gitmek
         // için dönem seçici açılır.
-        Flexible(
-          child: TextButton(
-            onPressed: controller.isLoading ? null : onPickMonth,
-            child: Text(
-              _monthText(controller.selectedMonth),
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium,
+        Expanded(
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: InkWell(
+              onTap: controller.isLoading ? null : onPickMonth,
+              borderRadius: BorderRadius.circular(AppRadius.field),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: AppSpacing.small + AppSpacing.xSmall,
+                ),
+                child: Text(
+                  _monthText(controller.selectedMonth),
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
             ),
           ),
         ),
-        IconButton(
-          tooltip: 'Sonraki ay',
-          onPressed: controller.isLoading
-              ? null
-              : () => controller.changeMonth(1),
-          icon: const Icon(Icons.chevron_right),
+        // Okların glifi sayfa kenarına hizalansın diye dokunma alanı sağa
+        // taşar.
+        Transform.translate(
+          offset: const Offset(AppSpacing.small + AppSpacing.xSmall, 0),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: 'Önceki ay',
+                onPressed: controller.isLoading
+                    ? null
+                    : () => controller.changeMonth(-1),
+                icon: const Icon(Icons.chevron_left),
+              ),
+              IconButton(
+                tooltip: 'Sonraki ay',
+                onPressed: controller.isLoading
+                    ? null
+                    : () => controller.changeMonth(1),
+                icon: const Icon(Icons.chevron_right),
+              ),
+            ],
+          ),
         ),
       ],
     ),
   );
 }
 
+/// Bir bütçe: kategori kapsülü, ad ve kapsam, durum kapsülü; harcanan / limit,
+/// dolum çubuğu, yüzde ve kalan (ya da aşım).
+///
+/// Kalan ve aşım sunucudan gelir (`remaining`, `exceeded`); yüzde ve çubuk
+/// yalnız çizim oranıdır.
 class _BudgetCard extends StatelessWidget {
   const _BudgetCard({
     required this.item,
-    required this.busy,
     required this.showScope,
-    required this.onEdit,
-    required this.onDelete,
-    required this.onShowSpending,
+    required this.onOpen,
   });
   final BudgetItem item;
-  final bool busy;
   final bool showScope;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-  final VoidCallback onShowSpending;
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = AppFinanceColors.of(context);
+    final surfaces = AppSurfaces.of(context);
     final limit = MoneyText.format(item.limit, item.currency);
     final spent = MoneyText.format(item.spent, item.currency);
     final remaining = MoneyText.format(item.remaining, item.currency);
     final exceeded = MoneyText.format(item.exceeded, item.currency);
-    final financeColors = AppFinanceColors.of(context);
+    final over = item.isExceeded;
     final percent = item.spentPercent;
-    // Kart tek cümlede duyurulur, fakat eylem menüsü ağaçta kalır: bütün
-    // kartı `ExcludeSemantics` ile sarmak menünün erişilebilirliğini de
-    // götürüyordu.
+    final tone = over ? colors.expense : surfaces.inkMuted;
+    final footStyle = theme.textTheme.labelMedium?.copyWith(
+      letterSpacing: 0,
+      color: tone,
+    );
+
     return Semantics(
       container: true,
+      button: true,
+      onTap: onOpen,
       label:
           '${item.categoryName} bütçesi.'
           '${showScope ? ' Kapsam ${item.scope.label}.' : ''}'
           ' Limit $limit. Harcanan $spent.'
-          '${item.isExceeded ? ' Limit $exceeded aşıldı.' : ' Kalan $remaining.'}',
-      child: AppCard(
-        onTap: onShowSpending,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: ExcludeSemantics(
+          '${over ? ' Limit $exceeded aşıldı.' : ' Kalan $remaining.'}'
+          '${!over && item.isNearLimit && percent != null ? ' Limitin yüzde $percent kadarı harcandı.' : ''}'
+          ' Harcamaları ve eylemleri açar.',
+      child: ExcludeSemantics(
+        child: AppCard(
+          onTap: onOpen,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AppIconCapsule(
+                    icon: AppFinanceIcons.forCategory(item.categoryName),
+                    tone: over ? AppStatusTone.expense : null,
+                  ),
+                  const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           item.categoryName,
-                          style: Theme.of(context).textTheme.titleMedium,
+                          style: theme.textTheme.titleSmall,
                         ),
                         // Bütçe **kategori + kapsam çiftini** sınırlar; hangi
-                        // tarafı sınırladığı yazmazsa, öteki tarafın harcaması
+                        // tarafı sınırladığı yazmazsa öteki tarafın harcaması
                         // sessizce sayılmıyor gibi görünür.
                         if (showScope)
                           Text(
                             item.scope.label,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
-                                ),
+                            style: theme.textTheme.bodySmall,
                           ),
                       ],
                     ),
                   ),
-                ),
-                PopupMenuButton<_BudgetRowAction>(
-                  tooltip: 'Bütçe eylemleri',
-                  enabled: !busy,
-                  onSelected: (action) => switch (action) {
-                    _BudgetRowAction.edit => onEdit(),
-                    _BudgetRowAction.delete => onDelete(),
-                    _BudgetRowAction.showSpending => onShowSpending(),
+                  const SizedBox(width: AppSpacing.small),
+                  // Aşım rengin yanında rozetle de bildirilir; renk tek
+                  // başına taşımaz. Eşiği geçen bütçe aşılmadan önce de
+                  // konuşur (Aşama 06 kararı): bütçenin işi ay sürerken
+                  // uyarmaktır.
+                  switch ((over, item.isNearLimit)) {
+                    (true, _) => const AppStatusChip(
+                      label: 'Aşıldı',
+                      icon: Icons.warning_amber_rounded,
+                      tone: AppStatusTone.expense,
+                    ),
+                    (false, true) => const AppStatusChip(
+                      label: 'Limite yakın',
+                      icon: Icons.info_outline,
+                      tone: AppStatusTone.planned,
+                    ),
+                    _ => const AppStatusChip(
+                      label: 'Limit içinde',
+                      icon: Icons.check_circle_outline,
+                      tone: AppStatusTone.planned,
+                    ),
                   },
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: _BudgetRowAction.edit,
-                      child: Text('Limiti düzenle'),
-                    ),
-                    const PopupMenuItem(
-                      value: _BudgetRowAction.showSpending,
-                      child: Text('Harcamaları gör'),
-                    ),
-                    const PopupMenuItem(
-                      value: _BudgetRowAction.delete,
-                      child: Text('Bütçeyi sil'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            ExcludeSemantics(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: AppSpacing.small),
-                  // Harcanan tutar bütçenin asıl sayısıdır; limit onun yanında
-                  // bağlam olarak durur.
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Flexible(
-                        child: AppMoneyText(
-                          amount: item.spent,
-                          currency: item.currency,
-                          effect: item.isExceeded
-                              ? AppMoneyEffect.expense
-                              : null,
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.xSmall),
-                      Flexible(
-                        child: Text(
-                          '/ $limit',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.small),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(AppRadius.chip),
-                    child: LinearProgressIndicator(
-                      value: item.progress,
-                      minHeight: 8,
-                      // Marka rengi akromatik olduğu için burada neredeyse
-                      // siyah bir şerit çiziliyordu. İlerleme bir grafik
-                      // dolgusudur; rengi de dolgu token'ından gelir.
-                      //
-                      // Eşiği geçmiş bütçe **gider rengine dönmez**: uyarı ile
-                      // aşım aynı görünseydi ikisini ayırt eden tek şey metin
-                      // kalır ve renk, aşılmamış bir sınır için alarm verirdi.
-                      color: item.isExceeded
-                          ? financeColors.expenseFill
-                          : financeColors.neutralFill,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.small),
-                  // Aşım rengin yanında rozetle de bildirilir; renk tek başına
-                  // taşımaz.
-                  if (item.isExceeded)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: AppStatusChip(
-                        label: 'Limit $exceeded aşıldı',
-                        icon: Icons.warning_amber_rounded,
-                        tone: AppStatusTone.expense,
-                      ),
-                    )
-                  // Aşılmadan önce de konuşur. Bütçenin işi ayın sonunda kötü
-                  // haberi bildirmek değil, ay sürerken uyarmaktır.
-                  else if (item.isNearLimit && percent != null)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: AppStatusChip(
-                        label:
-                            'Limitin yüzde $percent kadarı harcandı · '
-                            'kalan $remaining',
-                        icon: Icons.info_outline,
-                        tone: AppStatusTone.planned,
-                      ),
-                    )
-                  else
-                    Text(
-                      'Kalan: $remaining',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: AppSpacing.medium),
+              // Harcanan tutar bütçenin asıl sayısıdır; limit yanında bağlam.
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.end,
+                spacing: AppSpacing.small - AppSpacing.xxSmall,
+                children: [
+                  AppMoneyText(
+                    amount: item.spent,
+                    currency: item.currency,
+                    size: AppMoneySize.metric,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.xSmall),
+                    child: Text('/ $limit', style: theme.textTheme.bodySmall),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.small),
+              // Eşiği geçmiş ama aşmamış bütçe gider rengine dönmez: uyarı ile
+              // aşım aynı görünseydi renk, aşılmamış bir sınır için alarm
+              // verirdi.
+              AppShareBar(
+                ratio: item.progress,
+                color: over ? colors.expenseFill : colors.neutralFill,
+                height: 8,
+              ),
+              const SizedBox(height: AppSpacing.small),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      percent == null ? '' : '%$percent',
+                      style: footStyle,
+                    ),
+                  ),
+                  Text(
+                    over ? '$exceeded fazla' : '$remaining kaldı',
+                    style: footStyle,
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-enum _BudgetRowAction { edit, showSpending, delete }
+enum _BudgetRowAction { edit, delete }
 
 class _CreateBudgetDialog extends StatefulWidget {
   const _CreateBudgetDialog({required this.controller});
@@ -812,6 +815,36 @@ class _SpendingSheetState extends State<_SpendingSheet> {
                 ),
               );
             },
+          ),
+          const SizedBox(height: AppSpacing.medium),
+          // Limiti düzenlemek ve bütçeyi silmek bütçenin ayrıntısına aittir;
+          // kart yüzeyi sade kalır.
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: widget.controller.isSubmitting
+                      ? null
+                      : () => Navigator.of(context).pop(_BudgetRowAction.edit),
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Limiti düzenle'),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.small),
+              Expanded(
+                child: TextButton.icon(
+                  onPressed: widget.controller.isSubmitting
+                      ? null
+                      : () =>
+                            Navigator.of(context).pop(_BudgetRowAction.delete),
+                  style: TextButton.styleFrom(
+                    foregroundColor: theme.colorScheme.error,
+                  ),
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('Bütçeyi sil'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
