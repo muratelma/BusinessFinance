@@ -5,3 +5,17 @@ kanitlar/**/*.mp4
 kanitlar/**/*.m4a
 kanitlar/**/*.wav
 kanitlar/**/*.mov
+
+# Belge üretiminin türev çıktıları. Bölüm PDF'i, Markdown kopyası, denetim
+# dosyaları, isaretli/ ve onizleme/ Git'e girer; belge başka makinede
+# üretilmeden de incelenebilir.
+__pycache__/
+
+# Tur öncesi yedekler ve deneme belgeleri yerelde kalır. Belge 1 ve Belge 2
+# (kaynak + bölüm PDF'leri + tam/) Git'e girer; eskiyen sürümler ve pilotlar girmez.
+raporlar/_yedek/
+raporlar/belge2-v1/
+raporlar/belge2-nasil-olabilir/
+raporlar/pilot/
+raporlar/pilot-*/
+raporlar/pilot-deneme-paketi.zip

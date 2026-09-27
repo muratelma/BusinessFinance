@@ -1,0 +1,194 @@
+[
+  {
+    "id": "E0231",
+    "original": "money-manager/07-rapor-agustos.png",
+    "original_sha256": "94f1656eaf25137710bb06065369f954d7adaf8ad73bb723dd57c2a3edb99719",
+    "copy_sha256": "94f1656eaf25137710bb06065369f954d7adaf8ad73bb723dd57c2a3edb99719",
+    "redacted_box": null
+  },
+  {
+    "id": "E0236",
+    "original": "money-manager/12-hesaplar-kart-borcu-bu-ay.png",
+    "original_sha256": "59b282f4e83fee3dff54bb2495042001d69c3cecfc8449cc845af5102db7ecdb",
+    "copy_sha256": "59b282f4e83fee3dff54bb2495042001d69c3cecfc8449cc845af5102db7ecdb",
+    "redacted_box": null
+  },
+  {
+    "id": "E0254",
+    "original": "money-manager/30-ayarlar-izgarasi.png",
+    "original_sha256": "bbf378f9db079e75a8ef49bc88ee1ea02d7067a39caa117c495126fe0a298e5f",
+    "copy_sha256": "bbf378f9db079e75a8ef49bc88ee1ea02d7067a39caa117c495126fe0a298e5f",
+    "redacted_box": null
+  },
+  {
+    "id": "E0228",
+    "original": "money-manager/03-dolu-ana-ekran.png",
+    "original_sha256": "f082d8ca8d965d32c38314209e5d4d49403fb52a1f6393a8b570956939842902",
+    "copy_sha256": "f082d8ca8d965d32c38314209e5d4d49403fb52a1f6393a8b570956939842902",
+    "redacted_box": null
+  },
+  {
+    "id": "E0227",
+    "original": "money-manager/02-bos-ana-ekran.png",
+    "original_sha256": "39e206728de88ca3fa3d759ad35979c322aee3acd1818204049d5d88c872a77f",
+    "copy_sha256": "39e206728de88ca3fa3d759ad35979c322aee3acd1818204049d5d88c872a77f",
+    "redacted_box": null
+  },
+  {
+    "id": "E0017",
+    "original": "bluecoins/01-ilk-acilis.png",
+    "original_sha256": "4838a0f0e720ef8ca9acfad07ba6e17276999565b138f520f4ccd6220a8b82f8",
+    "copy_sha256": "4838a0f0e720ef8ca9acfad07ba6e17276999565b138f520f4ccd6220a8b82f8",
+    "redacted_box": null
+  },
+  {
+    "id": "E0018",
+    "original": "bluecoins/02-bos-ana-ekran.png",
+    "original_sha256": "a37a124db839c994560c6feb12932353e47d37620260a28642127a88959b0c65",
+    "copy_sha256": "a37a124db839c994560c6feb12932353e47d37620260a28642127a88959b0c65",
+    "redacted_box": null
+  },
+  {
+    "id": "E0025",
+    "original": "bluecoins/09-ozgun-ozellik.png",
+    "original_sha256": "ccbd296cddf9aa297f9b99de5cebbfeae020cae04ac2bf63d8af94f518800c7e",
+    "copy_sha256": "ccbd296cddf9aa297f9b99de5cebbfeae020cae04ac2bf63d8af94f518800c7e",
+    "redacted_box": null
+  },
+  {
+    "id": "E0026",
+    "original": "bluecoins/10-fresh-bos-ana-ekran.png",
+    "original_sha256": "edb512bccba3b910a22460dbe81eebb908340b6a85d4f85bc471cf18fcd9f90f",
+    "copy_sha256": "edb512bccba3b910a22460dbe81eebb908340b6a85d4f85bc471cf18fcd9f90f",
+    "redacted_box": null
+  },
+  {
+    "id": "E0056",
+    "original": "bluecoins/f7-05-hatirlaticilar.png",
+    "original_sha256": "fda3de10e08b9b5b342a5c55ca6171da2ffdbe010390e5675a4fe5cc743517c4",
+    "copy_sha256": "fda3de10e08b9b5b342a5c55ca6171da2ffdbe010390e5675a4fe5cc743517c4",
+    "redacted_box": null
+  },
+  {
+    "id": "E0084",
+    "original": "bluecoins/f7-33-menu2.png",
+    "original_sha256": "899edfe2fef9cb5f210784d185a3d9ac01022928c1c56eef6a1a9c74bacbd1fa",
+    "copy_sha256": "899edfe2fef9cb5f210784d185a3d9ac01022928c1c56eef6a1a9c74bacbd1fa",
+    "redacted_box": null
+  },
+  {
+    "id": "E0103",
+    "original": "bluecoins/f7-52-nav-check.png",
+    "original_sha256": "80f998c40e27536190df0c6e5502d502150dd00f5f1744d223081bde9c68552b",
+    "copy_sha256": "80f998c40e27536190df0c6e5502d502150dd00f5f1744d223081bde9c68552b",
+    "redacted_box": null
+  },
+  {
+    "id": "E0274",
+    "original": "wallet-budgetbakers/00-magaza.png",
+    "original_sha256": "67aaec7b65243d9e3edbd63cd4b97dc7232c9bfd1fc09a90751d5dc8de96bbca",
+    "copy_sha256": "67aaec7b65243d9e3edbd63cd4b97dc7232c9bfd1fc09a90751d5dc8de96bbca",
+    "redacted_box": null
+  },
+  {
+    "id": "E0275",
+    "original": "wallet-budgetbakers/02b-menu.png",
+    "original_sha256": "5d270ad7a3782c6161341713f275bee2061ba609806c0c42ece1dcf84f4a14f2",
+    "copy_sha256": "9d8c660a1753e509bad1531c6d55646ab7599fa3047c3fde9dd94a0f3f77f379",
+    "redacted_box": [
+      200,
+      205,
+      560,
+      296
+    ]
+  },
+  {
+    "id": "E0276",
+    "original": "wallet-budgetbakers/03-dolu-ana-ekran.png",
+    "original_sha256": "748ad90068419686c108484e0237641c9d89e594a2c3846da16252a78196ff73",
+    "copy_sha256": "748ad90068419686c108484e0237641c9d89e594a2c3846da16252a78196ff73",
+    "redacted_box": null
+  },
+  {
+    "id": "E0376",
+    "original": "wallet-budgetbakers/f7-55-menu-scroll.png",
+    "original_sha256": "02e7d8b84050955879bc27dc62117eb586dc4cf7e4d008079034dcd875ab85ab",
+    "copy_sha256": "02e7d8b84050955879bc27dc62117eb586dc4cf7e4d008079034dcd875ab85ab",
+    "redacted_box": null
+  },
+  {
+    "id": "E0135",
+    "original": "hesap-defterim/01-ilk-acilis-hosgeldin.png",
+    "original_sha256": "23549a0555801bef59aff3622d5be3e046b0ffb73ad9ee153a0bdfb5b1b9f1af",
+    "copy_sha256": "23549a0555801bef59aff3622d5be3e046b0ffb73ad9ee153a0bdfb5b1b9f1af",
+    "redacted_box": null
+  },
+  {
+    "id": "E0136",
+    "original": "hesap-defterim/02-bos-ana-ekran.png",
+    "original_sha256": "322cf04db5bb5dfff169373d7e4fe87f25b6e3f5cc8f538f5f58ef11ea3af6de",
+    "copy_sha256": "322cf04db5bb5dfff169373d7e4fe87f25b6e3f5cc8f538f5f58ef11ea3af6de",
+    "redacted_box": null
+  },
+  {
+    "id": "E0137",
+    "original": "hesap-defterim/03-dolu-ana-ekran.png",
+    "original_sha256": "60ae2b5b1ffec9fc37f29dee484df694189148605795835ed15434c231d200c6",
+    "copy_sha256": "60ae2b5b1ffec9fc37f29dee484df694189148605795835ed15434c231d200c6",
+    "redacted_box": null
+  },
+  {
+    "id": "E0171",
+    "original": "hesap-defterim/36-drawer-menu-ust.png",
+    "original_sha256": "94ad925cfbf9cd5141fa2a1f4426aa1df0db8b380ad71d55c8dc4139bdbcb60c",
+    "copy_sha256": "94ad925cfbf9cd5141fa2a1f4426aa1df0db8b380ad71d55c8dc4139bdbcb60c",
+    "redacted_box": null
+  },
+  {
+    "id": "E0106",
+    "original": "goodbudget/01-ilk-acilis.png",
+    "original_sha256": "6f8b4b1bc9f8d33db20687fd8d145548900fb734da23332d1e9f12dd229b913d",
+    "copy_sha256": "6f8b4b1bc9f8d33db20687fd8d145548900fb734da23332d1e9f12dd229b913d",
+    "redacted_box": null
+  },
+  {
+    "id": "E0115",
+    "original": "goodbudget/08-envelopes-filled-home.png",
+    "original_sha256": "1ef58076869d452b444e121827e6656c73368c8e26c9665e753c206c353fba06",
+    "copy_sha256": "611e235ae6c225e039c6b2f0182ff29968c64365376854b68f89cb34152473a0",
+    "redacted_box": [
+      160,
+      160,
+      450,
+      262
+    ]
+  },
+  {
+    "id": "E0211",
+    "original": "kolaybi/d24-destek-guncel-durum-panosu.png",
+    "original_sha256": "dc5912acbbda779b87f2e9b86a139601925c0c2f309c0062ee70a8d3f680a137",
+    "copy_sha256": "dc5912acbbda779b87f2e9b86a139601925c0c2f309c0062ee70a8d3f680a137",
+    "redacted_box": null
+  },
+  {
+    "id": "E0181",
+    "original": "kolaybi/d33-video-guncel-durum-panosu.png",
+    "original_sha256": "121b681351cbea4b347765ddee5eff4a2aff9656eb85a73b4f5fffc0f7dc5133",
+    "copy_sha256": "121b681351cbea4b347765ddee5eff4a2aff9656eb85a73b4f5fffc0f7dc5133",
+    "redacted_box": null
+  },
+  {
+    "id": "E0187",
+    "original": "kolaybi/d39-guncel-arayuz-2026.png",
+    "original_sha256": "3418fc4b6b454183bba16ad56435fed1c2e1e6313b157ebb15aead6a48aa1846",
+    "copy_sha256": "3418fc4b6b454183bba16ad56435fed1c2e1e6313b157ebb15aead6a48aa1846",
+    "redacted_box": null
+  },
+  {
+    "id": "E0262",
+    "original": "parasut/04-video-cari-hesap-durumu.png",
+    "original_sha256": "c100a6b1254a47a7b76559682a89a6d3eda240813ba9f501af8de5e22e9e5883",
+    "copy_sha256": "c100a6b1254a47a7b76559682a89a6d3eda240813ba9f501af8de5e22e9e5883",
+    "redacted_box": null
+  }
+]

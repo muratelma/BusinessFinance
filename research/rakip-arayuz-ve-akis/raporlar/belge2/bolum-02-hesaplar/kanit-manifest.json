@@ -1,0 +1,106 @@
+{
+  "bolum": "Belge 2 · Bölüm 2 · Hesaplar ve para aktarımı",
+  "tarih": "2026-09-21",
+  "kanitlar": [
+    {
+      "kimlik": "E0022",
+      "yol": "kanitlar/bluecoins/06-islem-listesi.png",
+      "sha256": "88564021011316d20cd472de0ee19fe951309f06a06a23a8c0d734a70ee794a4",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0113",
+      "yol": "kanitlar/goodbudget/06-ana-hesap-created.png",
+      "sha256": "90d6bab37ff4f8e7f708e58937efec7958424c0325fec08d61a80a61a9e4ce0b",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0119",
+      "yol": "kanitlar/goodbudget/12-account-transfer-screen.png",
+      "sha256": "0e61035306e9ba13a21127252fa1ef6c774493a021f9e44a62898cceff598eca",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0140",
+      "yol": "kanitlar/hesap-defterim/06b-islemler-butun-hesaplar.png",
+      "sha256": "2b493aed4982c88a1e525901167493b4391888c7bcf34f3faf9138e730577b22",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0145",
+      "yol": "kanitlar/hesap-defterim/10-hesap-eklem-formu.png",
+      "sha256": "9f303615860af471f829545df0ce568f740fdfcf6a32cf7fe285399cae82c8f6",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0147",
+      "yol": "kanitlar/hesap-defterim/12-aktar-transfer-formu.png",
+      "sha256": "3ec0e6e1e0add36dd9df0d700b44b7ec9bcdca8aab871f34d6352bdf436c8797",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0239",
+      "yol": "kanitlar/money-manager/15-acilis-bakiye-farki-dialog.png",
+      "sha256": "df951d82637e2882349d88f97281cba8000cb22e383c600c8538ba7b2f8e8f74",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0240",
+      "yol": "kanitlar/money-manager/16-acilis-bakiye-farki-defter.png",
+      "sha256": "cc92528d1ece4a2e1f8ff042cbfa09c15c56d6387e6967fedd4df799c3fcfa9f",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0252",
+      "yol": "kanitlar/money-manager/28-toplama-dahil-et-anahtari.png",
+      "sha256": "70ec6413ffa894cee43a63549f3af120dc2d5825f01ccded384933e74e0decf1",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0253",
+      "yol": "kanitlar/money-manager/29-toplama-dahil-kapali-net-varlik.png",
+      "sha256": "a5919fd6af848de2acfaf5d223f264b01d47b79a828bc16fd1d29ec633d3aa8f",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0285",
+      "yol": "kanitlar/wallet-budgetbakers/12-kontrol-records-listesi.png",
+      "sha256": "c14853808e292435b13396ec3cd61d6afebd2f6c84c34e62bf14a9319626de07",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0435",
+      "yol": "kanitlar/bluecoins/f7-75-transfer-ucreti-kendi-hesabi-ve-kategorisi.png",
+      "sha256": "433a0b3f53e1dc9ef684533d43446ac6ad98b8dec78fbca6c8020bb8180dd36e",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0436",
+      "yol": "kanitlar/wallet-budgetbakers/f7-66-aktarim-formu.png",
+      "sha256": "307fb6a3557647411a0db12f4e20b7fa56f530aa6a602fdf4e58a0d4d0f69e52",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0462",
+      "yol": "kanitlar/money-manager/57-havale-formu-harc-alani.png",
+      "sha256": "f9d5588ab93bcbed6289416d30fa96406a0c0b3f96a8388e62ec27f2c310c96e",
+      "envanter": "aynı"
+    }
+  ],
+  "isaretli_turevler": [
+    "E0022-9.png",
+    "E0113-3.png",
+    "E0119-8.png",
+    "E0140-11.png",
+    "E0145-2.png",
+    "E0147-7.png",
+    "E0239-0.png",
+    "E0240-1.png",
+    "E0252-12.png",
+    "E0253-13.png",
+    "E0285-10.png",
+    "E0435-5.png",
+    "E0436-6.png",
+    "E0462-4.png"
+  ]
+}

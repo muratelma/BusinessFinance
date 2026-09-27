@@ -1,0 +1,172 @@
+{
+  "bolum": "Belge 1 · Bölüm 10 · Veri aktarımı, yedek ve paylaşım",
+  "tarih": "2026-09-24",
+  "kanitlar": [
+    {
+      "kimlik": "E0090",
+      "yol": "kanitlar/bluecoins/f7-39-ayarlar.png",
+      "sha256": "8bff9fa814a503e9d060ae657eb93f3cfaf3e179c11507b94b05767cfc14d35e",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0091",
+      "yol": "kanitlar/bluecoins/f7-40-diger-ayarlar.png",
+      "sha256": "9675748f193d6ed8e7e064fdf08b136f2022570dbabb5c5d1089e4bf30a2ec27",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0105",
+      "yol": "kanitlar/bluecoins/f7-54-print.png",
+      "sha256": "13a9353d0181d98791e31b7249523a93b9c65aa464655cdfcedcf7137d37f0ba",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0115",
+      "yol": "kanitlar/goodbudget/08-envelopes-filled-home.png",
+      "sha256": "1ef58076869d452b444e121827e6656c73368c8e26c9665e753c206c353fba06",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0128",
+      "yol": "kanitlar/goodbudget/21-no-receipt-attachment.png",
+      "sha256": "a9f9b223da7faa547ba042676e2712ee060a8e51d81c17c3a237787fbc55f73a",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0149",
+      "yol": "kanitlar/hesap-defterim/14-yedekleme-nag-dialog.png",
+      "sha256": "ad9d45c8a69241442cde3ebfd60ade5123fc4ed5ec28cdcd8a41f5963defe445",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0157",
+      "yol": "kanitlar/hesap-defterim/22-fatura-ekle-secenekler.png",
+      "sha256": "6c79bf462f19e41e9fc7d6d2a00f762ca8ad8f0bc06fbddc9e74c085f08a03c0",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0158",
+      "yol": "kanitlar/hesap-defterim/24-kayit-eklendi-atac-ikonu.png",
+      "sha256": "c9876ede83bd19dd245a02526797bb40615c9dcf6836ea13b886aec19ee84f02",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0169",
+      "yol": "kanitlar/hesap-defterim/34-bildiri-pdf-excel-secim.png",
+      "sha256": "e34106c532d357f2f4dad2c355bb98c2ecafa0ef552534a2c15357c7b7b838c9",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0175",
+      "yol": "kanitlar/hesap-defterim/40-bildiri-defter-basina-pdf-excel.png",
+      "sha256": "bb39f35c0c6c276e92c037ac24a32806da3d77e57582c46395cabd07a45df1e8",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0176",
+      "yol": "kanitlar/hesap-defterim/41-bildiri-kasadefteri-uyarisi.png",
+      "sha256": "4063fd4ff1c6688e36d9875632c253d72bee437f5b2b494ee02c603482d40adc",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0187",
+      "yol": "kanitlar/kolaybi/d39-guncel-arayuz-2026.png",
+      "sha256": "3418fc4b6b454183bba16ad56435fed1c2e1e6313b157ebb15aead6a48aa1846",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0198",
+      "yol": "kanitlar/kolaybi/d11-destek-gider-listesi.png",
+      "sha256": "902918ba960833d4f0f7ec7b4212264fc38595b19728e0af8ae25f26d7e07ee0",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0254",
+      "yol": "kanitlar/money-manager/30-ayarlar-izgarasi.png",
+      "sha256": "bbf378f9db079e75a8ef49bc88ee1ea02d7067a39caa117c495126fe0a298e5f",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0313",
+      "yol": "kanitlar/wallet-budgetbakers/40-add-receipt-dosya-veya-foto.png",
+      "sha256": "5795a9e34e1235920d71e5c4530869d9704ef3df430b2e388d8ffa18d0c4b412",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0376",
+      "yol": "kanitlar/wallet-budgetbakers/f7-55-menu-scroll.png",
+      "sha256": "02e7d8b84050955879bc27dc62117eb586dc4cf7e4d008079034dcd875ab85ab",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0399",
+      "yol": "kanitlar/wallet-budgetbakers/49-u03-records-menu-bakiye-planli-secenekleri.png",
+      "sha256": "20d0093b21bf7a5c9bfc482b8a456bdd7c84884b646b5c44ec27a7a7358d6c12",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0427",
+      "yol": "kanitlar/hesap-defterim/49-uretilen-pdf-icerigi.png",
+      "sha256": "0dd9a031baa97b10dc78c9dd4f90797d70ff2d557e9ec8b0630ab6dcbde5c431",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0428",
+      "yol": "kanitlar/wallet-budgetbakers/f7-105-disa-aktarma-formu-pdf-xls-csv.png",
+      "sha256": "ab284ab4d4909b96cff0e1d6652c8fe48b1e48ae721db1ce7631832a103ae1d6",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0437",
+      "yol": "kanitlar/wallet-budgetbakers/f7-65-hesap-duzenleme-alt-min-max-bakiye.png",
+      "sha256": "bf23543a5f5aa0688ac0aab22dde63894c6b84d03ec4a2df426273cdb013b4ee",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0445",
+      "yol": "kanitlar/bluecoins/f7-71-veri-yonetimi-ice-aktarma-csv-qif.png",
+      "sha256": "869f26d0ba19274f4204c60167af21e36a48e4f3b668477d5278fff142e4dacd",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0447",
+      "yol": "kanitlar/hesap-defterim/48-kasadefteri-klasoru-uyarisi.png",
+      "sha256": "35f25a877611bbc05915e548743edcb29b05567e5092f0e02084c59037f28e68",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0450",
+      "yol": "kanitlar/wallet-budgetbakers/f7-104-cekmece-others-imports-exports-locations.png",
+      "sha256": "f0b6e2cd504c9e7c360e7cd1acf000d947a80572f7f491dd39f01567cff55815",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0471",
+      "yol": "kanitlar/wallet-budgetbakers/f7-62-hesap-turu-secimi-bank-sync-import-manual.png",
+      "sha256": "171dede327de4b6058ebb472bcfecaf51b51890ac523bfae2dc4953c37c8367e",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0493",
+      "yol": "kanitlar/bluecoins/f7-72-csv-ice-aktarma-ve-cikti-aciklamasi.png",
+      "sha256": "40db47bc52ad278a961dd71175c13dfdad014dde42ea09b541cab8e64dc5b2eb",
+      "envanter": "aynı"
+    }
+  ],
+  "isaretli_turevler": [
+    "E0090-12.png",
+    "E0091-4.png",
+    "E0105-3.png",
+    "E0149-10.png",
+    "E0157-7.png",
+    "E0158-8.png",
+    "E0169-0.png",
+    "E0176-2.png",
+    "E0198-6.png",
+    "E0254-11.png",
+    "E0313-9.png",
+    "E0376-13.png",
+    "E0427-1.png",
+    "E0471-5.png"
+  ]
+}

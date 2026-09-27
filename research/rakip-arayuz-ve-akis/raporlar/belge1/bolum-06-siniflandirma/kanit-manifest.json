@@ -1,0 +1,141 @@
+{
+  "bolum": "Belge 1 · Bölüm 6 · Sınıflandırma yüzeyleri",
+  "tarih": "2026-09-24",
+  "kanitlar": [
+    {
+      "kimlik": "E0071",
+      "yol": "kanitlar/bluecoins/f7-20-hesap-secim.png",
+      "sha256": "a5dd209097f34a31e750f811b4736614552771a5657ad89a4e0456798fa3c52b",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0082",
+      "yol": "kanitlar/bluecoins/f7-31-filtre.png",
+      "sha256": "f4d787a3fdb710c3f309157a2fa49e2b8828b97c7eadb2f84e48b9417049b6ef",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0087",
+      "yol": "kanitlar/bluecoins/f7-36-kategoriler2.png",
+      "sha256": "78252571f90285e8446fd8aab97796dc64bb57196846d8b2484251b6f854fd86",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0088",
+      "yol": "kanitlar/bluecoins/f7-37-etiketler.png",
+      "sha256": "6a89e3f8bf3abfa038560e9cfa4d7401e0fe113343beee6c4701fc9f1b5497d3",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0116",
+      "yol": "kanitlar/goodbudget/09-credit-type-selected.png",
+      "sha256": "bd107e0187240cef429321ed7f2ec2de31a5070c8a520c6bb4f61c7a11564a70",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0139",
+      "yol": "kanitlar/hesap-defterim/05-siniflandirma-islem-adlari.png",
+      "sha256": "565df2105845cb7c8fd2280cc7e77dc0581087fefeaf319ee8dbaa19cc8e0ad2",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0151",
+      "yol": "kanitlar/hesap-defterim/16-kategori-alani-acik-form.png",
+      "sha256": "04b63e6d100350eaf18bcbdbf21615481d9d37027e82cb79417280bec2cb638e",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0188",
+      "yol": "kanitlar/kolaybi/d01-destek-proje-listesi.png",
+      "sha256": "f31647914d301a83ef48f04ca96bc4728619e41b309858e8313f96ff11e22fc8",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0190",
+      "yol": "kanitlar/kolaybi/d03-destek-proje-detay-ozet.png",
+      "sha256": "33fe04a4f16ed4d7410479214644abe450273fd523a4dac621fd0bb37080a37c",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0193",
+      "yol": "kanitlar/kolaybi/d06-destek-gider-tipleri.png",
+      "sha256": "1dca15d1e3c5b0d621ab8c0ee9f1dac06d26e2242bb2ab6a1159b40195e80f1c",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0194",
+      "yol": "kanitlar/kolaybi/d07-destek-cari-listesi.png",
+      "sha256": "a67f6c8298bebeaaf7297e2aa6e297c6b53519ec24d6c23eaf36657ed01a7818",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0201",
+      "yol": "kanitlar/kolaybi/d14-destek-personel-carileri.png",
+      "sha256": "39696a398a8f08fdd6ca494dc20b6707940734a86b24eea58c819c510ed849db",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0229",
+      "yol": "kanitlar/money-manager/04-islem-formu-ve-kategori.png",
+      "sha256": "993fe4c26fdd4d515fdafbefc49740c37e7fdec84702bccb1c35058d25ee21e4",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0278",
+      "yol": "kanitlar/wallet-budgetbakers/05-siniflandirma.png",
+      "sha256": "8a6dccc4c6d869ffff9be1a537e7887b8ad94a5ef27e30c00e78e0523a952d59",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0349",
+      "yol": "kanitlar/wallet-budgetbakers/f7-28-category-list.png",
+      "sha256": "e910b01216256a6f9dc9da8ec449f1897d4ab404c476a8e44ab35e304bbf8967",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0378",
+      "yol": "kanitlar/wallet-budgetbakers/f7-57-settings-scroll.png",
+      "sha256": "5228e1f2fd25b00b53851079db5354dfd3dc08c23dc468a3a2980c2133370c2c",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0425",
+      "yol": "kanitlar/wallet-budgetbakers/f7-80-labels-gorunumu-isletme-sahsi-yalniz-150.png",
+      "sha256": "cd59b7d1511b51ae88ac72fcb10c5ed51c13da752caa29b351f9d8cb769471db",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0426",
+      "yol": "kanitlar/bluecoins/f7-67-etiket-secici-is-kisisel-hazir.png",
+      "sha256": "95d6adbf6ed3cac4586c1b8d5207751f2650748a019452e93b3992d52a08e89a",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0491",
+      "yol": "kanitlar/bluecoins/f7-68-etiketli-kayit-listede-is-cipi.png",
+      "sha256": "669b822ba1eb6cd0a71b78279bf6febbd7a5083ad68d1d0304419b43d4a1969b",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0497",
+      "yol": "kanitlar/wallet-budgetbakers/f7-79-etiket-olusturma-formu.png",
+      "sha256": "5da926222c886b4bdb9e857babf89dbf57db6cca6efca7c2be30e6322fdc4f09",
+      "envanter": "aynı"
+    }
+  ],
+  "isaretli_turevler": [
+    "E0071-1.png",
+    "E0088-6.png",
+    "E0116-5.png",
+    "E0139-4.png",
+    "E0151-3.png",
+    "E0188-9.png",
+    "E0190-10.png",
+    "E0194-11.png",
+    "E0201-12.png",
+    "E0229-0.png",
+    "E0278-8.png",
+    "E0349-2.png",
+    "E0491-7.png"
+  ]
+}

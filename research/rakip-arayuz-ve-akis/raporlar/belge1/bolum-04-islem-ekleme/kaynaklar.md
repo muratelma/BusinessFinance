@@ -1,0 +1,50 @@
+# Kaynak dizini — Belge 1 · Bölüm 4 · İşlem ekleme ve geri bildirim
+
+`isaretli/` altındaki türevler bu bölüm için üzerine numaralı işaret çizilmiş
+kopyalardır ve özgünden farklıdır; ölçüm ve alıntı her zaman özgüne dayanır.
+
+| Kimlik | Şekil | Uygulama | Özgün dosya | SHA-256 | Envanter |
+|---|---|---|---|---|---|
+| E0020 | 4.3, 4.16 | bluecoins | [kanitlar/bluecoins/04-islem-formu.png](../../../kanitlar/bluecoins/04-islem-formu.png) | `98709457bd0119ace1b1bd984ed3cea7a6235c05cbceb510f46805927bcfb657` | aynı |
+| E0024 | 4.26 | bluecoins | [kanitlar/bluecoins/08-hata-veya-bos-durum.png](../../../kanitlar/bluecoins/08-hata-veya-bos-durum.png) | `9f01da0081768a789fe1974e3df3ae96a24a4affa13def0713e51a682705f431` | aynı |
+| E0089 | 4.29 | bluecoins | [kanitlar/bluecoins/f7-38-cop-kutusu.png](../../../kanitlar/bluecoins/f7-38-cop-kutusu.png) | `c563cb8476914eccb9c57d0e12d8060eedd5a35d13ca04d07f77ea34ca468c1a` | aynı |
+| E0116 | 4.7, 4.12 | goodbudget | [kanitlar/goodbudget/09-credit-type-selected.png](../../../kanitlar/goodbudget/09-credit-type-selected.png) | `bd107e0187240cef429321ed7f2ec2de31a5070c8a520c6bb4f61c7a11564a70` | aynı |
+| E0117 | 4.24 | goodbudget | [kanitlar/goodbudget/10-income-requires-envelope.png](../../../kanitlar/goodbudget/10-income-requires-envelope.png) | `485fae5b059a8bce5800a405b5a7ae6c823c15de8c56951396e367a2b001112d` | aynı |
+| E0125 | 4.27 | goodbudget | [kanitlar/goodbudget/18-delete-confirmation.png](../../../kanitlar/goodbudget/18-delete-confirmation.png) | `3a59f831a19a0e24d22712771f6b6e2166ca1c713437d22986a977bc0f47deec` | aynı |
+| E0128 | — | goodbudget | [kanitlar/goodbudget/21-no-receipt-attachment.png](../../../kanitlar/goodbudget/21-no-receipt-attachment.png) | `a9f9b223da7faa547ba042676e2712ee060a8e51d81c17c3a237787fbc55f73a` | aynı |
+| E0133 | — | goodbudget | [kanitlar/goodbudget/26-schedule-frequency-listesi.png](../../../kanitlar/goodbudget/26-schedule-frequency-listesi.png) | `6e7a5ea3aeac95eedd803bad1075c77921c3a6498ca7364ae441f284ff95c694` | aynı |
+| E0138 | 4.6, 4.11, 4.16, 4.20 | hesap-defterim | [kanitlar/hesap-defterim/04-islem-formu-alindi.png](../../../kanitlar/hesap-defterim/04-islem-formu-alindi.png) | `edc6ddaa68a417b92084cbbd5b7a3677ed20fdad051bdf11176950a3e9be7854` | aynı |
+| E0141 | 4.21 | hesap-defterim | [kanitlar/hesap-defterim/06-islem-listesi.png](../../../kanitlar/hesap-defterim/06-islem-listesi.png) | `8e35e60101fa41c5e6cc6b42bf3ac63ce5797429f899a3f37982e81a52c3ca09` | aynı |
+| E0155 | 4.17 | hesap-defterim | [kanitlar/hesap-defterim/20-oge-eklemek-dialog.png](../../../kanitlar/hesap-defterim/20-oge-eklemek-dialog.png) | `0f6983efc6c35d38439b6d25da3e6fd903917212cc7a99c0361e317339f12dc4` | aynı |
+| E0161 | 4.18 | hesap-defterim | [kanitlar/hesap-defterim/27-yeniden-adlandirilmis-basliklar.png](../../../kanitlar/hesap-defterim/27-yeniden-adlandirilmis-basliklar.png) | `c89a5cc3a07b2622d1ae89f7a36dabf071a8cfc328dee2889eff3cc82f9cd32e` | aynı |
+| E0167 | 4.28 | hesap-defterim | [kanitlar/hesap-defterim/32-silinmis-islemler-context-menu.png](../../../kanitlar/hesap-defterim/32-silinmis-islemler-context-menu.png) | `144ffe76a813d4405c090568cbb0f191db028982839d3110c38db62c2d851bf8` | aynı |
+| E0178 | — | hesap-defterim | [kanitlar/hesap-defterim/43-ayarlar-alt-bolum-donem-baslangici.png](../../../kanitlar/hesap-defterim/43-ayarlar-alt-bolum-donem-baslangici.png) | `c9d2acb37ff94b1dbcca376c0e83ad2537f1df8c688071b45eb1c17824d3308c` | aynı |
+| E0192 | 4.30 | kolaybi | [kanitlar/kolaybi/d05-destek-yeni-gider-formu.png](../../../kanitlar/kolaybi/d05-destek-yeni-gider-formu.png) | `7c4421f8e6b5455479d3ded9e1017da7f97305c58f1333dc44680dfefcc4fe59` | aynı |
+| E0200 | 4.31 | kolaybi | [kanitlar/kolaybi/d13-destek-alis-faturasi-formu.png](../../../kanitlar/kolaybi/d13-destek-alis-faturasi-formu.png) | `c18af26d3fd433b17a0b7ac5112462336a4281d86a831d230adc17a27c291a7f` | aynı |
+| E0229 | 4.2, 4.8 | money-manager | [kanitlar/money-manager/04-islem-formu-ve-kategori.png](../../../kanitlar/money-manager/04-islem-formu-ve-kategori.png) | `993fe4c26fdd4d515fdafbefc49740c37e7fdec84702bccb1c35058d25ee21e4` | aynı |
+| E0232 | 4.20, 4.22 | money-manager | [kanitlar/money-manager/08-hata-toast-hesap-sec.png](../../../kanitlar/money-manager/08-hata-toast-hesap-sec.png) | `d80d9b7483fb0cf9d27a9ea04109ff6d34a750c680e4dd1ff5e916740d057a3d` | aynı |
+| E0254 | — | money-manager | [kanitlar/money-manager/30-ayarlar-izgarasi.png](../../../kanitlar/money-manager/30-ayarlar-izgarasi.png) | `bbf378f9db079e75a8ef49bc88ee1ea02d7067a39caa117c495126fe0a298e5f` | aynı |
+| E0277 | 4.5, 4.9, 4.14 | wallet-budgetbakers | [kanitlar/wallet-budgetbakers/04-islem-formu.png](../../../kanitlar/wallet-budgetbakers/04-islem-formu.png) | `394a14c018fcce672de97b9bbd7afdb9e506aa95d51fc1b0f4afedfd1bd60d15` | aynı |
+| E0281 | 4.23 | wallet-budgetbakers | [kanitlar/wallet-budgetbakers/08-hata-veya-bos-durum.png](../../../kanitlar/wallet-budgetbakers/08-hata-veya-bos-durum.png) | `10c0cfcc05871a57e802ad5f35870eef1b42b576c5b95d97e71249affbb73c6c` | aynı |
+| E0311 | 4.19 | wallet-budgetbakers | [kanitlar/wallet-budgetbakers/38-split-record-ekrani.png](../../../kanitlar/wallet-budgetbakers/38-split-record-ekrani.png) | `dedb1d16cc8a7a2441f82c8552e78625df340cdc3ecbd93d73ce39c964dc53d9` | aynı |
+| E0324 | 4.1 | wallet-budgetbakers | [kanitlar/wallet-budgetbakers/f7-03-fab-menu.png](../../../kanitlar/wallet-budgetbakers/f7-03-fab-menu.png) | `d2ab5471680dddc8f54071b41eb4aee05293987911a102ee042d280b481000f3` | aynı |
+| E0327 | 4.10 | wallet-budgetbakers | [kanitlar/wallet-budgetbakers/f7-06-transfer-form2.png](../../../kanitlar/wallet-budgetbakers/f7-06-transfer-form2.png) | `002f4ffdb74a2f681286e19485dcbc3eb280d73d7cc7b3f07eac5beeb5a01ecb` | aynı |
+| E0339 | 4.15 | wallet-budgetbakers | [kanitlar/wallet-budgetbakers/f7-18-form-check.png](../../../kanitlar/wallet-budgetbakers/f7-18-form-check.png) | `9a51be6d18de11b4ef7aba2b754b12a69bbe9536e94eb84dc303389f35aa8deb` | aynı |
+| E0347 | 4.25 | wallet-budgetbakers | [kanitlar/wallet-budgetbakers/f7-26-d1-saved.png](../../../kanitlar/wallet-budgetbakers/f7-26-d1-saved.png) | `a7b951593a5a6d24c59c34620c54c40f32cb62feb532f28b97b5a320fb79a777` | aynı |
+| E0376 | — | wallet-budgetbakers | [kanitlar/wallet-budgetbakers/f7-55-menu-scroll.png](../../../kanitlar/wallet-budgetbakers/f7-55-menu-scroll.png) | `02e7d8b84050955879bc27dc62117eb586dc4cf7e4d008079034dcd875ab85ab` | aynı |
+| E0377 | — | wallet-budgetbakers | [kanitlar/wallet-budgetbakers/f7-56-settings.png](../../../kanitlar/wallet-budgetbakers/f7-56-settings.png) | `f8d27b98a70664c4bd5548c789215b9b3ecf5363681879a07c02c3e99dacd212` | aynı |
+| E0378 | — | wallet-budgetbakers | [kanitlar/wallet-budgetbakers/f7-57-settings-scroll.png](../../../kanitlar/wallet-budgetbakers/f7-57-settings-scroll.png) | `5228e1f2fd25b00b53851079db5354dfd3dc08c23dc468a3a2980c2133370c2c` | aynı |
+| E0401 | — | bluecoins | [kanitlar/bluecoins/işlemler.png](../../../kanitlar/bluecoins/işlemler.png) | `d308326802898643be6563697c633eb83bc03aeb214889ab6d24dddff0f29d15` | aynı |
+| E0402 | — | bluecoins | [kanitlar/bluecoins/ögeler özeti.png](../../../kanitlar/bluecoins/ögeler özeti.png) | `9a9bf1913cdc20d1ec744d496d6c3b62b5572e68b23ce95ccebbee44d6ccc2bf` | aynı |
+| E0434 | — | money-manager | [kanitlar/money-manager/50-sifir-tutarli-kayit-kabul-edildi-eylul-1600.png](../../../kanitlar/money-manager/50-sifir-tutarli-kayit-kabul-edildi-eylul-1600.png) | `9e5956670b5001ed07da64301cb7c2e7f3cca0b059c4ae59ecf0f77654481645` | aynı |
+| E0448 | 4.4 | bluecoins | [kanitlar/bluecoins/f7-66-durum-alani-dort-deger.png](../../../kanitlar/bluecoins/f7-66-durum-alani-dort-deger.png) | `ab0efb0cb1b18e3c562e58215d6a3fc2ccd121a48ef61acd503527b580a556d7` | aynı |
+| E0450 | — | wallet-budgetbakers | [kanitlar/wallet-budgetbakers/f7-104-cekmece-others-imports-exports-locations.png](../../../kanitlar/wallet-budgetbakers/f7-104-cekmece-others-imports-exports-locations.png) | `f0b6e2cd504c9e7c360e7cd1acf000d947a80572f7f491dd39f01567cff55815` | aynı |
+| E0453 | — | goodbudget | [kanitlar/goodbudget/42-ayarlar-alt.png](../../../kanitlar/goodbudget/42-ayarlar-alt.png) | `6407c1f07b7c72160db9c4dbf7f35fe415922038f41c33678652ded180176c58` | aynı |
+| E0463 | 4.16 | money-manager | [kanitlar/money-manager/47-form-tutar-tus-takimi.png](../../../kanitlar/money-manager/47-form-tutar-tus-takimi.png) | `ab68ed14f0ed3c3c3860e2f64a68f66ef55d71bbcc82e78ad31b4c3b98649eeb` | aynı |
+| E0464 | — | money-manager | [kanitlar/money-manager/48-tam-ekran-hesap-makinesi.png](../../../kanitlar/money-manager/48-tam-ekran-hesap-makinesi.png) | `f721715a9793515f55c8554b58697d8f593a4d4887a344d67272c2da26a4910b` | aynı |
+| E0465 | — | money-manager | [kanitlar/money-manager/49-tutar-bos-form-kaydet-oncesi.png](../../../kanitlar/money-manager/49-tutar-bos-form-kaydet-oncesi.png) | `b40bdc65ee8bee3321da99f408625bf7660693112e9764390f616c627ea60022` | aynı |
+| E0468 | — | money-manager | [kanitlar/money-manager/59-silme-onay-diyalogu.png](../../../kanitlar/money-manager/59-silme-onay-diyalogu.png) | `6b46f2621a397d4653585a87b2f1ad84a17e1401db2ddeff67f0adb96a679c03` | aynı |
+| E0484 | — | wallet-budgetbakers | [kanitlar/wallet-budgetbakers/f7-102-kayit-silme-onayi.png](../../../kanitlar/wallet-budgetbakers/f7-102-kayit-silme-onayi.png) | `6f4934e10021ed51a52ec1e614ca5507127f06c7b48ae1fa3c2fb7e897b5c9c3` | aynı |
+| E0487 | 4.13 | bluecoins | [kanitlar/bluecoins/f7-57-islem-formu-varsayilan-tur-gider.png](../../../kanitlar/bluecoins/f7-57-islem-formu-varsayilan-tur-gider.png) | `dacafdaef32c08d0c5b655fd4ab583696fefaa532c1c6d26b9c51763f405b56a` | aynı |
+| E0490 | — | bluecoins | [kanitlar/bluecoins/f7-65-bolunmus-kayit-listede-2-kategoriler.png](../../../kanitlar/bluecoins/f7-65-bolunmus-kayit-listede-2-kategoriler.png) | `021e6ddc6a14a7a2a9bde13ed4a46d15f409b90a676a3f28f69d92869dedfd2d` | aynı |
+| E0495 | — | goodbudget | [kanitlar/goodbudget/41-ayarlar-ust-cop-kutusu-yok.png](../../../kanitlar/goodbudget/41-ayarlar-ust-cop-kutusu-yok.png) | `dc8c6ff6b8347d92ac0009b7b99792eb26397546171ee94bb25f7587ce83e3a2` | aynı |

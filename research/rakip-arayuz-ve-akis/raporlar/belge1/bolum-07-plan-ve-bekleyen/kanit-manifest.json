@@ -1,0 +1,267 @@
+{
+  "bolum": "Belge 1 · Bölüm 7 · Plan, tekrar, taksit ve bekleyen",
+  "tarih": "2026-09-24",
+  "kanitlar": [
+    {
+      "kimlik": "E0034",
+      "yol": "kanitlar/bluecoins/18-b2-taksit-6ay-15agu.png",
+      "sha256": "f46f3ba25217caabe15c427195ed09832fc3b650e71c650200cf57161fded437",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0035",
+      "yol": "kanitlar/bluecoins/19-b2-6ay-hatirlatici-metni.png",
+      "sha256": "c2ff16a53c41313245528592046a0a601acb132b7e5b27363efe7ff34e859bb2",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0039",
+      "yol": "kanitlar/bluecoins/23-b1-planli-islem-aylik-sheet.png",
+      "sha256": "0b5f28ad47f8fdc7c073b342ae41c7a4eb3e53aaf1bca0425c525e701d6ddc75",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0047",
+      "yol": "kanitlar/bluecoins/31-hatirlatici-listesi-bagimsiz-tekrar-taksit.png",
+      "sha256": "a43b7c34c05d70c0acacda6f47bc9868ca5144cec100126e0d2598aa2a5a5107",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0056",
+      "yol": "kanitlar/bluecoins/f7-05-hatirlaticilar.png",
+      "sha256": "fda3de10e08b9b5b342a5c55ca6171da2ffdbe010390e5675a4fe5cc743517c4",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0087",
+      "yol": "kanitlar/bluecoins/f7-36-kategoriler2.png",
+      "sha256": "78252571f90285e8446fd8aab97796dc64bb57196846d8b2484251b6f854fd86",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0115",
+      "yol": "kanitlar/goodbudget/08-envelopes-filled-home.png",
+      "sha256": "1ef58076869d452b444e121827e6656c73368c8e26c9665e753c206c353fba06",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0133",
+      "yol": "kanitlar/goodbudget/26-schedule-frequency-listesi.png",
+      "sha256": "6e7a5ea3aeac95eedd803bad1075c77921c3a6498ca7364ae441f284ff95c694",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0204",
+      "yol": "kanitlar/kolaybi/d17-destek-calisan-maasi-detay.png",
+      "sha256": "7341f50592d09197685e28a20ef9bc0fed37ba9e1fc9d93c078192ee674c96f3",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0205",
+      "yol": "kanitlar/kolaybi/d18-destek-tekrarli-maas-formu.png",
+      "sha256": "e93058ba313b190283f9b64b089972ecc802975c852f03b9e77509498a4a850f",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0216",
+      "yol": "kanitlar/kolaybi/d29-destek-nakit-akis-raporu.png",
+      "sha256": "9846c467e7c0c8e49a36514effd31483764cec5af5a647d49b40be169dcbaa63",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0241",
+      "yol": "kanitlar/money-manager/17-tekrarlayan-aylik-form.png",
+      "sha256": "ea053f5f0dc25db4a6b6d7b7351c71360bc7d66a4e08b2d85e2471f63a764e0a",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0244",
+      "yol": "kanitlar/money-manager/20-tekrarlayan-ekim-onizleme.png",
+      "sha256": "4f6146da8c52df74e568a8dc3c76ef6baa655bbdfa22aa2f14cb8980f5f0f76d",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0245",
+      "yol": "kanitlar/money-manager/21-taksit-6ay-form.png",
+      "sha256": "bc5527c868ba600d36d1cd91b0352e7f7201dfdc3df7af0d18cd864f539daaa0",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0246",
+      "yol": "kanitlar/money-manager/22-taksit-1-6-agustos.png",
+      "sha256": "0e99069fcd73dff1292de493d69d8313de66c12489a92eb61d7110bfd1af5197",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0274",
+      "yol": "kanitlar/wallet-budgetbakers/00-magaza.png",
+      "sha256": "67aaec7b65243d9e3edbd63cd4b97dc7232c9bfd1fc09a90751d5dc8de96bbca",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0288",
+      "yol": "kanitlar/wallet-budgetbakers/15-b1-tekrarlayan-form.png",
+      "sha256": "2b29d8772ac6b74200deb15de38354e7d7d275273cf1ec1c4d24e7a8ff5f8c16",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0290",
+      "yol": "kanitlar/wallet-budgetbakers/17-b1-confirm-payment-summary.png",
+      "sha256": "33eb23add1a80c616cde627512899c47cb9f38da59b9b5ba737b0e363cb81d5d",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0291",
+      "yol": "kanitlar/wallet-budgetbakers/18-b1-otomatik-mi-onayli-mi-secimi.png",
+      "sha256": "802c340aa020082c98fb33dbc0ea1afbde2588a442c922da8a5c012955a37350",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0292",
+      "yol": "kanitlar/wallet-budgetbakers/19-b1-onay-sonrasi-paid-today-siradaki-pending.png",
+      "sha256": "12bc59ce369eb3470b56e145709d7d8e6d199384472c341c1695a46edc848a8a",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0293",
+      "yol": "kanitlar/wallet-budgetbakers/20-b1-sonrasi-ana-hesap-20200.png",
+      "sha256": "8acfc573a7eebd7ec02633f56b15e9f9a20d21bbdbc72d0841d5312908377885",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0302",
+      "yol": "kanitlar/wallet-budgetbakers/29-butce-detay-6600-harcama.png",
+      "sha256": "0e54e0cc5af8ad75c4e63873dedc05d155d3f0ad2280fc67c06331371abfbabc",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0304",
+      "yol": "kanitlar/wallet-budgetbakers/31-goal-detay-formu.png",
+      "sha256": "682fa2b9e2b2837143e04a3bacba4ae0bd8558f59f25bc8f180141c4b5f6aca4",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0305",
+      "yol": "kanitlar/wallet-budgetbakers/32-butce-ve-goal-birlikte.png",
+      "sha256": "19fdc8097951071844ccd9388e9292d733bbe3b7e9ff9da3cf2db7f50de250e5",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0306",
+      "yol": "kanitlar/wallet-budgetbakers/33-planned-payments-b1-siradaki.png",
+      "sha256": "364eb8b84e9b198f32f8edb6c508b7029a6450b5d2922b88964a75d38f3ff2d6",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0318",
+      "yol": "kanitlar/wallet-budgetbakers/45-planned-otomatik-onayli-toggle-her-zaman.png",
+      "sha256": "b1778814e208166452fe526931604438d15f48dc9afe392780a45b03555306bf",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0399",
+      "yol": "kanitlar/wallet-budgetbakers/49-u03-records-menu-bakiye-planli-secenekleri.png",
+      "sha256": "20d0093b21bf7a5c9bfc482b8a456bdd7c84884b646b5c44ec27a7a7358d6c12",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0400",
+      "yol": "kanitlar/wallet-budgetbakers/50-u02-plan-menu-postpone-dismiss.png",
+      "sha256": "7682e200087fc8ba10aa6c75668c887985cea6194c927b616b06f41a21063ebc",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0407",
+      "yol": "kanitlar/money-manager/37-ekim-islemler-taksit-3-6.png",
+      "sha256": "ab0f5b498f2946c1c1ffd0bd0b6a2e2e5afc4b97142edcf244633a814cf1fa5e",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0416",
+      "yol": "kanitlar/money-manager/46-ayarlar-tekrarlayan-islemler.png",
+      "sha256": "01b6911424ef2f785a879f75d36400405ceb3a12f1b82e984a6382fa5d6d8a97",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0429",
+      "yol": "kanitlar/money-manager/69-tekrar-ne-zaman-uygulanir-secenekleri.png",
+      "sha256": "0f14bad56b9eb9a944852b48c0f8ea767e321888d8f377d7ac0f8a70bd41f341",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0430",
+      "yol": "kanitlar/money-manager/66-tekrarli-kaydetme-onay-diyalogu.png",
+      "sha256": "94d70a33573321d577eac215e36354428fa9c68c86d8368082b00bf745693bbf",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0431",
+      "yol": "kanitlar/money-manager/71-butce-listesi-yalniz-yiyecek-1400.png",
+      "sha256": "1eca8493c36fa0977cd474b4e8bdd9ba088eff4c1f14cac5232b97f93b0c1d35",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0432",
+      "yol": "kanitlar/money-manager/72-butce-duzenleme-varsayilan-ve-aylik.png",
+      "sha256": "b5553a462f996ef16c2131cbbce23798db18006f5a6e4fd076f40edd57f5df15",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0433",
+      "yol": "kanitlar/money-manager/70-toplam-sekmesi-ekim-butce-blogu-yuzde-0.png",
+      "sha256": "bd62179842fca0ba22130deb832d3fb9342c1637f6a0c66de3effb304e82e053",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0442",
+      "yol": "kanitlar/bluecoins/f7-56-butce-ozeti-ayrinti-butce-sifir.png",
+      "sha256": "9ab925da04d0b3fa40e7cb47a2fe8d9b0e7a5b98b92a6e25422f7f8400c78938",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0469",
+      "yol": "kanitlar/wallet-budgetbakers/f7-59-home-balance-trend-ve-bekleyen-odeme-yuklenmis.png",
+      "sha256": "e70953040ea5bbcb980baebbd15df167ad2cce6753a9c2b04d1e21a5aa947d15",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0470",
+      "yol": "kanitlar/wallet-budgetbakers/f7-60-hedef-ayrintisi-0-20000.png",
+      "sha256": "db0a19880c85ff7cad87cbf19d356d54bc4d7dd24d1094b4d0c49edcbab4d454",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0498",
+      "yol": "kanitlar/wallet-budgetbakers/f7-101-planned-payments-siralama-secenekleri.png",
+      "sha256": "529ea30bd67c9553f52e42953256a50a17983426583791c8149ae53b35d39cf8",
+      "envanter": "aynı"
+    }
+  ],
+  "isaretli_turevler": [
+    "E0034-8.png",
+    "E0035-9.png",
+    "E0039-1.png",
+    "E0047-10.png",
+    "E0056-11.png",
+    "E0115-23.png",
+    "E0133-3.png",
+    "E0204-4.png",
+    "E0205-5.png",
+    "E0216-24.png",
+    "E0241-0.png",
+    "E0244-13.png",
+    "E0245-6.png",
+    "E0246-7.png",
+    "E0288-2.png",
+    "E0290-16.png",
+    "E0291-17.png",
+    "E0292-19.png",
+    "E0293-14.png",
+    "E0302-20.png",
+    "E0304-21.png",
+    "E0305-22.png",
+    "E0306-12.png",
+    "E0318-18.png",
+    "E0469-15.png"
+  ]
+}

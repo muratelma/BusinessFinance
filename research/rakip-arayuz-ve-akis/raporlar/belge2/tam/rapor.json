@@ -1,0 +1,22 @@
+{
+  "sayfa": 105,
+  "bolum_baslangic": {
+    "bolum-01-gelir-gider": 3,
+    "bolum-02-hesaplar": 13,
+    "bolum-03-kart": 22,
+    "bolum-04-borc-cari": 34,
+    "bolum-05-zaman": 44,
+    "bolum-06-siniflandirma": 54,
+    "bolum-07-rapor": 63,
+    "bolum-08-veri": 73,
+    "bolum-09-belge": 82,
+    "bolum-10-kapanis": 94
+  },
+  "kanit_eki": 102,
+  "basilan_kare": 129,
+  "hash_denetimi": 129,
+  "kirik_atif": [],
+  "bozuk_karakter": [],
+  "metinde_gizli_sozcuk": [],
+  "uyarilar": []
+}

@@ -1,0 +1,227 @@
+{
+  "bolum": "Belge 1 · Bölüm 3 · işaretli ekran anlatımı",
+  "tarih": "2026-09-16",
+  "kanitlar": [
+    {
+      "kimlik": "E0017",
+      "ozgun": "bluecoins/01-ilk-acilis.png",
+      "kosum": "Bluecoins · Tur 1",
+      "tur": "canli",
+      "ozgun_sha256": "4838a0f0e720ef8ca9acfad07ba6e17276999565b138f520f4ccd6220a8b82f8",
+      "envanter": "envanterle aynı",
+      "kopya_sha256": "4838a0f0e720ef8ca9acfad07ba6e17276999565b138f520f4ccd6220a8b82f8",
+      "karartma": false
+    },
+    {
+      "kimlik": "E0026",
+      "ozgun": "bluecoins/10-fresh-bos-ana-ekran.png",
+      "kosum": "Bluecoins · Faz 3, 10 Eylül 2026",
+      "tur": "canli",
+      "ozgun_sha256": "edb512bccba3b910a22460dbe81eebb908340b6a85d4f85bc471cf18fcd9f90f",
+      "envanter": "envanterle aynı",
+      "kopya_sha256": "edb512bccba3b910a22460dbe81eebb908340b6a85d4f85bc471cf18fcd9f90f",
+      "karartma": false
+    },
+    {
+      "kimlik": "E0056",
+      "ozgun": "bluecoins/f7-05-hatirlaticilar.png",
+      "kosum": "Bluecoins · Faz 7, 11 Eylül 2026",
+      "tur": "canli",
+      "ozgun_sha256": "fda3de10e08b9b5b342a5c55ca6171da2ffdbe010390e5675a4fe5cc743517c4",
+      "envanter": "envanterle aynı",
+      "kopya_sha256": "fda3de10e08b9b5b342a5c55ca6171da2ffdbe010390e5675a4fe5cc743517c4",
+      "karartma": false
+    },
+    {
+      "kimlik": "E0084",
+      "ozgun": "bluecoins/f7-33-menu2.png",
+      "kosum": "Bluecoins · Faz 7, 11 Eylül 2026",
+      "tur": "canli",
+      "ozgun_sha256": "899edfe2fef9cb5f210784d185a3d9ac01022928c1c56eef6a1a9c74bacbd1fa",
+      "envanter": "envanterle aynı",
+      "kopya_sha256": "899edfe2fef9cb5f210784d185a3d9ac01022928c1c56eef6a1a9c74bacbd1fa",
+      "karartma": false
+    },
+    {
+      "kimlik": "E0103",
+      "ozgun": "bluecoins/f7-52-nav-check.png",
+      "kosum": "Bluecoins · Faz 7, 11 Eylül 2026",
+      "tur": "canli",
+      "ozgun_sha256": "80f998c40e27536190df0c6e5502d502150dd00f5f1744d223081bde9c68552b",
+      "envanter": "envanterle aynı",
+      "kopya_sha256": "80f998c40e27536190df0c6e5502d502150dd00f5f1744d223081bde9c68552b",
+      "karartma": false
+    },
+    {
+      "kimlik": "E0106",
+      "ozgun": "goodbudget/01-ilk-acilis.png",
+      "kosum": "Goodbudget · 11 Eylül 2026",
+      "tur": "canli",
+      "ozgun_sha256": "6f8b4b1bc9f8d33db20687fd8d145548900fb734da23332d1e9f12dd229b913d",
+      "envanter": "envanterle aynı",
+      "kopya_sha256": "6f8b4b1bc9f8d33db20687fd8d145548900fb734da23332d1e9f12dd229b913d",
+      "karartma": false
+    },
+    {
+      "kimlik": "E0115",
+      "ozgun": "goodbudget/08-envelopes-filled-home.png",
+      "kosum": "Goodbudget · 11 Eylül 2026",
+      "tur": "canli",
+      "ozgun_sha256": "1ef58076869d452b444e121827e6656c73368c8e26c9665e753c206c353fba06",
+      "envanter": "envanterle aynı",
+      "kopya_sha256": "8f8271e1c7012d170dbb6ed9ad1f7247f096e09606d56c035cc02668d10e44cc",
+      "karartma": true
+    },
+    {
+      "kimlik": "E0135",
+      "ozgun": "hesap-defterim/01-ilk-acilis-hosgeldin.png",
+      "kosum": "Hesap Defterim · Tur 1, 10 Eylül 2026",
+      "tur": "canli",
+      "ozgun_sha256": "23549a0555801bef59aff3622d5be3e046b0ffb73ad9ee153a0bdfb5b1b9f1af",
+      "envanter": "envanterle aynı",
+      "kopya_sha256": "23549a0555801bef59aff3622d5be3e046b0ffb73ad9ee153a0bdfb5b1b9f1af",
+      "karartma": false
+    },
+    {
+      "kimlik": "E0136",
+      "ozgun": "hesap-defterim/02-bos-ana-ekran.png",
+      "kosum": "Hesap Defterim · Tur 1, 10 Eylül 2026",
+      "tur": "canli",
+      "ozgun_sha256": "322cf04db5bb5dfff169373d7e4fe87f25b6e3f5cc8f538f5f58ef11ea3af6de",
+      "envanter": "envanterle aynı",
+      "kopya_sha256": "322cf04db5bb5dfff169373d7e4fe87f25b6e3f5cc8f538f5f58ef11ea3af6de",
+      "karartma": false
+    },
+    {
+      "kimlik": "E0137",
+      "ozgun": "hesap-defterim/03-dolu-ana-ekran.png",
+      "kosum": "Hesap Defterim · Tur 1, 10 Eylül 2026",
+      "tur": "canli",
+      "ozgun_sha256": "60ae2b5b1ffec9fc37f29dee484df694189148605795835ed15434c231d200c6",
+      "envanter": "envanterle aynı",
+      "kopya_sha256": "60ae2b5b1ffec9fc37f29dee484df694189148605795835ed15434c231d200c6",
+      "karartma": false
+    },
+    {
+      "kimlik": "E0171",
+      "ozgun": "hesap-defterim/36-drawer-menu-ust.png",
+      "kosum": "Hesap Defterim · 12 Eylül 2026",
+      "tur": "canli",
+      "ozgun_sha256": "94ad925cfbf9cd5141fa2a1f4426aa1df0db8b380ad71d55c8dc4139bdbcb60c",
+      "envanter": "envanterle aynı",
+      "kopya_sha256": "94ad925cfbf9cd5141fa2a1f4426aa1df0db8b380ad71d55c8dc4139bdbcb60c",
+      "karartma": false
+    },
+    {
+      "kimlik": "E0181",
+      "ozgun": "kolaybi/d33-video-guncel-durum-panosu.png",
+      "kosum": "KolayBi · tanıtım videosu karesi",
+      "tur": "kaynak",
+      "ozgun_sha256": "121b681351cbea4b347765ddee5eff4a2aff9656eb85a73b4f5fffc0f7dc5133",
+      "envanter": "envanterle aynı",
+      "kopya_sha256": "121b681351cbea4b347765ddee5eff4a2aff9656eb85a73b4f5fffc0f7dc5133",
+      "karartma": false
+    },
+    {
+      "kimlik": "E0211",
+      "ozgun": "kolaybi/d24-destek-guncel-durum-panosu.png",
+      "kosum": "KolayBi · destek sayfası görseli, 12 Eylül 2026 erişim",
+      "tur": "kaynak",
+      "ozgun_sha256": "dc5912acbbda779b87f2e9b86a139601925c0c2f309c0062ee70a8d3f680a137",
+      "envanter": "envanterle aynı",
+      "kopya_sha256": "dc5912acbbda779b87f2e9b86a139601925c0c2f309c0062ee70a8d3f680a137",
+      "karartma": false
+    },
+    {
+      "kimlik": "E0227",
+      "ozgun": "money-manager/02-bos-ana-ekran.png",
+      "kosum": "Money Manager · Faz 1, 10 Eylül 2026",
+      "tur": "canli",
+      "ozgun_sha256": "39e206728de88ca3fa3d759ad35979c322aee3acd1818204049d5d88c872a77f",
+      "envanter": "envanterle aynı",
+      "kopya_sha256": "39e206728de88ca3fa3d759ad35979c322aee3acd1818204049d5d88c872a77f",
+      "karartma": false
+    },
+    {
+      "kimlik": "E0228",
+      "ozgun": "money-manager/03-dolu-ana-ekran.png",
+      "kosum": "Money Manager · Faz 1, 10 Eylül 2026",
+      "tur": "canli",
+      "ozgun_sha256": "f082d8ca8d965d32c38314209e5d4d49403fb52a1f6393a8b570956939842902",
+      "envanter": "envanterle aynı",
+      "kopya_sha256": "f082d8ca8d965d32c38314209e5d4d49403fb52a1f6393a8b570956939842902",
+      "karartma": false
+    },
+    {
+      "kimlik": "E0262",
+      "ozgun": "parasut/04-video-cari-hesap-durumu.png",
+      "kosum": "Paraşüt · tanıtım videosu karesi",
+      "tur": "cizim",
+      "ozgun_sha256": "c100a6b1254a47a7b76559682a89a6d3eda240813ba9f501af8de5e22e9e5883",
+      "envanter": "envanterle aynı",
+      "kopya_sha256": "c100a6b1254a47a7b76559682a89a6d3eda240813ba9f501af8de5e22e9e5883",
+      "karartma": false
+    },
+    {
+      "kimlik": "E0274",
+      "ozgun": "wallet-budgetbakers/00-magaza.png",
+      "kosum": "Wallet · Tur 1",
+      "tur": "canli",
+      "ozgun_sha256": "67aaec7b65243d9e3edbd63cd4b97dc7232c9bfd1fc09a90751d5dc8de96bbca",
+      "envanter": "envanterle aynı",
+      "kopya_sha256": "67aaec7b65243d9e3edbd63cd4b97dc7232c9bfd1fc09a90751d5dc8de96bbca",
+      "karartma": false
+    },
+    {
+      "kimlik": "E0276",
+      "ozgun": "wallet-budgetbakers/03-dolu-ana-ekran.png",
+      "kosum": "Wallet · Tur 1",
+      "tur": "canli",
+      "ozgun_sha256": "748ad90068419686c108484e0237641c9d89e594a2c3846da16252a78196ff73",
+      "envanter": "envanterle aynı",
+      "kopya_sha256": "748ad90068419686c108484e0237641c9d89e594a2c3846da16252a78196ff73",
+      "karartma": false
+    },
+    {
+      "kimlik": "E0376",
+      "ozgun": "wallet-budgetbakers/f7-55-menu-scroll.png",
+      "kosum": "Wallet · Faz 7, 11 Eylül 2026",
+      "tur": "canli",
+      "ozgun_sha256": "02e7d8b84050955879bc27dc62117eb586dc4cf7e4d008079034dcd875ab85ab",
+      "envanter": "envanterle aynı",
+      "kopya_sha256": "02e7d8b84050955879bc27dc62117eb586dc4cf7e4d008079034dcd875ab85ab",
+      "karartma": false
+    }
+  ],
+  "isaretli_turevler": [
+    "E0017-s3.png",
+    "E0026-s9.png",
+    "E0056-s8.png",
+    "E0103-fab1.png",
+    "E0103-nav2.png",
+    "E0103-sade.png",
+    "E0106-s3.png",
+    "E0115-fab3.png",
+    "E0115-nav1.png",
+    "E0115-s4.png",
+    "E0115-sade.png",
+    "E0135-s3.png",
+    "E0136-s9.png",
+    "E0137-nav4.png",
+    "E0137-s7.png",
+    "E0137-sade.png",
+    "E0171-s6.png",
+    "E0211-s10.png",
+    "E0227-s9.png",
+    "E0228-fab0.png",
+    "E0228-nav0.png",
+    "E0228-s4.png",
+    "E0228-sade.png",
+    "E0262-s11.png",
+    "E0274-s8.png",
+    "E0276-fab2.png",
+    "E0276-nav3.png",
+    "E0276-sade.png",
+    "E0376-s6.png"
+  ]
+}

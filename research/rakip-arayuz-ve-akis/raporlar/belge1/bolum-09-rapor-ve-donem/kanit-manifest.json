@@ -1,0 +1,225 @@
+{
+  "bolum": "Belge 1 · Bölüm 9 · Rapor ve dönem seçimi",
+  "tarih": "2026-09-24",
+  "kanitlar": [
+    {
+      "kimlik": "E0023",
+      "yol": "kanitlar/bluecoins/07-rapor.png",
+      "sha256": "71b3c0f1c57a72aefc081b0ba4e255a3fda71d72554ade893fb11e8325df6664",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0053",
+      "yol": "kanitlar/bluecoins/f7-02-hesaplar-scroll2.png",
+      "sha256": "b32956ab4acb9da649d6e8ce55e49f65c257b3c69f72cc58d3bd1a0254fbf5cf",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0082",
+      "yol": "kanitlar/bluecoins/f7-31-filtre.png",
+      "sha256": "f4d787a3fdb710c3f309157a2fa49e2b8828b97c7eadb2f84e48b9417049b6ef",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0086",
+      "yol": "kanitlar/bluecoins/f7-35-nakit-akim-ayari.png",
+      "sha256": "64aa7f1fab1e2a558c7f9a8681bbcd8e166e43b8fd017791aaba1a0fb6faa716",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0098",
+      "yol": "kanitlar/bluecoins/f7-47-takvim.png",
+      "sha256": "99e6c09f6f8af4e750e4a647fba2e1922d25d529b955a77e2ea039cc49981218",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0121",
+      "yol": "kanitlar/goodbudget/14-reports-default-current-month.png",
+      "sha256": "348aa794a685464c5a08f529bee241e741563cd6aa248fd20f4a023587acdde9",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0122",
+      "yol": "kanitlar/goodbudget/15-report-empty-state.png",
+      "sha256": "2b9f3d896dba758b0c148eaf057e1789a6c47b4ec28f74c2dadc410daf524dea",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0127",
+      "yol": "kanitlar/goodbudget/20-search-results.png",
+      "sha256": "150bb8f0538d28f4cfd98780a9cbc1654eaccea7f8dba15b09155820b1285632",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0142",
+      "yol": "kanitlar/hesap-defterim/07-rapor-aylik-butun-hesaplar.png",
+      "sha256": "437c6c53fd77baae1ba02cd943c3de4e80ecc073287c36c1b08509f6519ed09b",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0144",
+      "yol": "kanitlar/hesap-defterim/09-ozgun-ozellik-takvim.png",
+      "sha256": "f5fb1bad7c17739954f2b98ead571bc29e8c670bd9d3f7c2bc978249ce83887a",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0148",
+      "yol": "kanitlar/hesap-defterim/13-ozet-tasarruf-agustos.png",
+      "sha256": "2c7aa49189ce04ade941aa86bdb88676f95606d2c5cf5c5619cabcde792131ea",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0150",
+      "yol": "kanitlar/hesap-defterim/15-ayarlar.png",
+      "sha256": "96da4a2a4e075ff8f728ddea1465d2e627d8a5f53807c03e122e7f8a8c5db1e7",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0214",
+      "yol": "kanitlar/kolaybi/d27-destek-kdv-raporu.png",
+      "sha256": "26d6205444f7460c8848c61b846c6f35198d2be2c1f4ee8790fa8d999b093e9a",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0231",
+      "yol": "kanitlar/money-manager/07-rapor-agustos.png",
+      "sha256": "94f1656eaf25137710bb06065369f954d7adaf8ad73bb723dd57c2a3edb99719",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0234",
+      "yol": "kanitlar/money-manager/10-takvim-gorunumu.png",
+      "sha256": "fd1db058703eeed7b9d9a1b8a36acc14371e189b334e00613377b0f7b6737532",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0250",
+      "yol": "kanitlar/money-manager/26-toplam-sekmesi-agustos.png",
+      "sha256": "c101130074dbf1024a2fcb0a0ad16903244428756d420d7b3560f3e532969dc4",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0251",
+      "yol": "kanitlar/money-manager/27-filtre-paneli-agustos-hesap.png",
+      "sha256": "04cda8794263f3b7f2e13754498a4ee15d0892fcc19558df51afeada16a3a59e",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0252",
+      "yol": "kanitlar/money-manager/28-toplama-dahil-et-anahtari.png",
+      "sha256": "70ec6413ffa894cee43a63549f3af120dc2d5825f01ccded384933e74e0decf1",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0253",
+      "yol": "kanitlar/money-manager/29-toplama-dahil-kapali-net-varlik.png",
+      "sha256": "a5919fd6af848de2acfaf5d223f264b01d47b79a828bc16fd1d29ec633d3aa8f",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0280",
+      "yol": "kanitlar/wallet-budgetbakers/07-rapor.png",
+      "sha256": "afebcf904a27d3fc7e630d845f4558a7e96072ee612037cb1ff7d5a0eef67ba6",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0377",
+      "yol": "kanitlar/wallet-budgetbakers/f7-56-settings.png",
+      "sha256": "f8d27b98a70664c4bd5548c789215b9b3ecf5363681879a07c02c3e99dacd212",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0446",
+      "yol": "kanitlar/bluecoins/f7-63-nakit-akim-ayari-hesap-secimi.png",
+      "sha256": "67ea858a2012046d0f8a43554c849c95772d1defdb3fa0f9167eaed07700cbfa",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0457",
+      "yol": "kanitlar/money-manager/55-filtre-is-karti-secili-1000-havale-ayri.png",
+      "sha256": "2436f937bcba100188f1c183b94b017527c7e298c9c457216ed8a252a36bc581",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0458",
+      "yol": "kanitlar/hesap-defterim/45-haftalik-cipi-onceki-denge-43150.png",
+      "sha256": "9977a88d1ebbdf4168894e3af796f02dbec535b14d8fc7e23e21e62b9d952afe",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0466",
+      "yol": "kanitlar/money-manager/53-pastadan-kategori-ayrintisi-diger.png",
+      "sha256": "2553db982276cd91416d70d24d3b1aeac1e99e52129e44be4a7ffe9bd0414ae4",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0467",
+      "yol": "kanitlar/money-manager/56-filtre-uygulanmis-liste-1000.png",
+      "sha256": "605f2010bd0c4fd7e73beffccdc7186c8f03887bf6dd8bcc936ab6fd8ebb78f4",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0473",
+      "yol": "kanitlar/wallet-budgetbakers/f7-69-donem-secici-goreli-araliklar-6m-1y-kilitli.png",
+      "sha256": "f1aca61ce1ac351affd9369724d09df197869b7096c1bbe723a9dcfd6a2c24c2",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0474",
+      "yol": "kanitlar/wallet-budgetbakers/f7-70-donem-secici-ozel-tarih-araligi.png",
+      "sha256": "f4a2ff5e285e2fd5abed58025dcc35ceda258c855210e2000255101cbc5bb467",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0475",
+      "yol": "kanitlar/wallet-budgetbakers/f7-71-donem-listesi-today-week-month-year.png",
+      "sha256": "45db657e4ebfe65ba8bdaa7a5a37b2c0bbae54cf1ff03701cd4211dfb818b2f4",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0476",
+      "yol": "kanitlar/wallet-budgetbakers/f7-74-filtre-formu-ust.png",
+      "sha256": "c079e546c60a877bf2ac738cb1d7ea3fa6e1a1cf923c6fe7e0dd23f967230cf0",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0477",
+      "yol": "kanitlar/wallet-budgetbakers/f7-75-filtre-formu-transfers-debts-include.png",
+      "sha256": "f943c357013108698e70e503f7bc54b4c3dbb00b9df313666999e147e12ef9d6",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0492",
+      "yol": "kanitlar/bluecoins/f7-70-filtre-profili-kaydet-ac-sifirla.png",
+      "sha256": "070251815828b7d3d0c77e2f3c1078373b9e2e865b27e934f2ad49ea2a26d165",
+      "envanter": "aynı"
+    }
+  ],
+  "isaretli_turevler": [
+    "E0023-1.png",
+    "E0023-s5-2.png",
+    "E0053-11.png",
+    "E0082-17.png",
+    "E0086-22.png",
+    "E0098-6.png",
+    "E0121-3.png",
+    "E0121-s5-3.png",
+    "E0122-23.png",
+    "E0142-4.png",
+    "E0142-9.png",
+    "E0142-s5-1.png",
+    "E0144-7.png",
+    "E0148-10.png",
+    "E0214-24.png",
+    "E0231-0.png",
+    "E0231-s5-0.png",
+    "E0234-8.png",
+    "E0250-5.png",
+    "E0251-18.png",
+    "E0252-20.png",
+    "E0253-21.png",
+    "E0280-2.png",
+    "E0280-s5-4.png",
+    "E0476-19.png"
+  ]
+}

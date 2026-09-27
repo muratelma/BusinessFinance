@@ -1,0 +1,50 @@
+{
+  "bolum": "Belge 2 · Bölüm 9 · Ön muhasebe programları: belge, vergi ve müşavir",
+  "tarih": "2026-09-21",
+  "kanitlar": [
+    {
+      "kimlik": "E0198",
+      "yol": "kanitlar/kolaybi/d11-destek-gider-listesi.png",
+      "sha256": "902918ba960833d4f0f7ec7b4212264fc38595b19728e0af8ae25f26d7e07ee0",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0200",
+      "yol": "kanitlar/kolaybi/d13-destek-alis-faturasi-formu.png",
+      "sha256": "c18af26d3fd433b17a0b7ac5112462336a4281d86a831d230adc17a27c291a7f",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0209",
+      "yol": "kanitlar/kolaybi/d22-destek-cekler.png",
+      "sha256": "b7ac3e15ab97b8c4ea220e547aef11bd8dd95868de66029f1ff44caaa3ae0455",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0210",
+      "yol": "kanitlar/kolaybi/d23-destek-senetler.png",
+      "sha256": "d8484f422cf6c85f83278bcb22f76e0ab42c24240a63ed96650b2647b1a71bf2",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0213",
+      "yol": "kanitlar/kolaybi/d26-destek-alis-satis-raporu.png",
+      "sha256": "fe40fd8427dddcaac11a2fb98a21a8fa401cdeafd2e2671e195b232f8be2c9c5",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0214",
+      "yol": "kanitlar/kolaybi/d27-destek-kdv-raporu.png",
+      "sha256": "26d6205444f7460c8848c61b846c6f35198d2be2c1f4ee8790fa8d999b093e9a",
+      "envanter": "aynı"
+    }
+  ],
+  "isaretli_turevler": [
+    "E0198-1.png",
+    "E0200-0.png",
+    "E0209-2.png",
+    "E0210-3.png",
+    "E0213-5.png",
+    "E0214-4.png"
+  ]
+}

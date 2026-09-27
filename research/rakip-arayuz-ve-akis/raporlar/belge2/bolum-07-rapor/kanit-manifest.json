@@ -1,0 +1,120 @@
+{
+  "bolum": "Belge 2 · Bölüm 7 · Raporun neyi saydığı",
+  "tarih": "2026-09-21",
+  "kanitlar": [
+    {
+      "kimlik": "E0023",
+      "yol": "kanitlar/bluecoins/07-rapor.png",
+      "sha256": "71b3c0f1c57a72aefc081b0ba4e255a3fda71d72554ade893fb11e8325df6664",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0032",
+      "yol": "kanitlar/bluecoins/16-kontrol-degerleri-net-kazanc-44950.png",
+      "sha256": "37ce6d603c4dfb2b6ea6bac8001fc90adffee4a59c3293605843bbd932e9c31a",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0053",
+      "yol": "kanitlar/bluecoins/f7-02-hesaplar-scroll2.png",
+      "sha256": "b32956ab4acb9da649d6e8ce55e49f65c257b3c69f72cc58d3bd1a0254fbf5cf",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0121",
+      "yol": "kanitlar/goodbudget/14-reports-default-current-month.png",
+      "sha256": "348aa794a685464c5a08f529bee241e741563cd6aa248fd20f4a023587acdde9",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0123",
+      "yol": "kanitlar/goodbudget/16-spending-by-envelope-negative-bug.png",
+      "sha256": "a10732ee2063504dcf3ebb3a6a745afa8f18a5cfd8727af495d9a91d10b7aaff",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0124",
+      "yol": "kanitlar/goodbudget/17-income-vs-spending-bug.png",
+      "sha256": "5828d9885cbce879e54dfcdf74ef3c72bceb00b542e2b4b10b3cced96b34233a",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0148",
+      "yol": "kanitlar/hesap-defterim/13-ozet-tasarruf-agustos.png",
+      "sha256": "2c7aa49189ce04ade941aa86bdb88676f95606d2c5cf5c5619cabcde792131ea",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0215",
+      "yol": "kanitlar/kolaybi/d28-destek-gelir-gider-raporu.png",
+      "sha256": "d5765a6eb49c55eaa9067e69730d1eae49cc02979be8b0549c2c5dabaa3395bb",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0216",
+      "yol": "kanitlar/kolaybi/d29-destek-nakit-akis-raporu.png",
+      "sha256": "9846c467e7c0c8e49a36514effd31483764cec5af5a647d49b40be169dcbaa63",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0231",
+      "yol": "kanitlar/money-manager/07-rapor-agustos.png",
+      "sha256": "94f1656eaf25137710bb06065369f954d7adaf8ad73bb723dd57c2a3edb99719",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0250",
+      "yol": "kanitlar/money-manager/26-toplam-sekmesi-agustos.png",
+      "sha256": "c101130074dbf1024a2fcb0a0ad16903244428756d420d7b3560f3e532969dc4",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0251",
+      "yol": "kanitlar/money-manager/27-filtre-paneli-agustos-hesap.png",
+      "sha256": "04cda8794263f3b7f2e13754498a4ee15d0892fcc19558df51afeada16a3a59e",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0280",
+      "yol": "kanitlar/wallet-budgetbakers/07-rapor.png",
+      "sha256": "afebcf904a27d3fc7e630d845f4558a7e96072ee612037cb1ff7d5a0eef67ba6",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0284",
+      "yol": "kanitlar/wallet-budgetbakers/11-kontrol-cash-flow-agustos.png",
+      "sha256": "3ca8ba453671dd6257fac4b92442c1fedb5c12fd9653bfd4b37bda673970c228",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0405",
+      "yol": "kanitlar/money-manager/35-toplam-sekmesi-eylul.png",
+      "sha256": "824296b69b613acc56efb25caa7dcc270a976c6ea8f3f6d15b109c9220904ee6",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0423",
+      "yol": "kanitlar/goodbudget/36-rapor-income-vs-spending-3284.png",
+      "sha256": "eb8facb5e65c8b0fdc2427eae7210d7976089370ee82047175eb0e9014a1f2a9",
+      "envanter": "aynı"
+    }
+  ],
+  "isaretli_turevler": [
+    "E0023-2.png",
+    "E0032-8.png",
+    "E0053-9.png",
+    "E0121-5.png",
+    "E0123-12.png",
+    "E0124-13.png",
+    "E0148-7.png",
+    "E0215-15.png",
+    "E0216-14.png",
+    "E0231-1.png",
+    "E0250-6.png",
+    "E0251-10.png",
+    "E0280-0.png",
+    "E0284-4.png",
+    "E0405-11.png",
+    "E0423-3.png"
+  ]
+}

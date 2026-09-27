@@ -1,0 +1,106 @@
+{
+  "bolum": "Belge 2 · Bölüm 8 · Veri: dışa aktarma, yedek ve yardımcı araçlar",
+  "tarih": "2026-09-21",
+  "kanitlar": [
+    {
+      "kimlik": "E0089",
+      "yol": "kanitlar/bluecoins/f7-38-cop-kutusu.png",
+      "sha256": "c563cb8476914eccb9c57d0e12d8060eedd5a35d13ca04d07f77ea34ca468c1a",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0100",
+      "yol": "kanitlar/bluecoins/f7-49-seyahat-modu.png",
+      "sha256": "949377b513ff0a310af685053c9733aafc9448bb94dab4b01866515d913dcb67",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0128",
+      "yol": "kanitlar/goodbudget/21-no-receipt-attachment.png",
+      "sha256": "a9f9b223da7faa547ba042676e2712ee060a8e51d81c17c3a237787fbc55f73a",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0143",
+      "yol": "kanitlar/hesap-defterim/08-silinmis-islemler.png",
+      "sha256": "81dc241f7f78a1377918a9bbcb4b8439e78d4072b4c0b1810386d79de0f25dae",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0149",
+      "yol": "kanitlar/hesap-defterim/14-yedekleme-nag-dialog.png",
+      "sha256": "ad9d45c8a69241442cde3ebfd60ade5123fc4ed5ec28cdcd8a41f5963defe445",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0165",
+      "yol": "kanitlar/hesap-defterim/30-not-defteri-checklist.png",
+      "sha256": "453c0fefb6056090df90c1fd1234a90db14e2e95a74af2c4a3f2fe9f036a0655",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0166",
+      "yol": "kanitlar/hesap-defterim/31-nakit-hesap-makinesi.png",
+      "sha256": "0d395bc5b4baf5b5adc014ebede63b2e6c684d3ac0ec1a8639dcdb0836bfe3ee",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0176",
+      "yol": "kanitlar/hesap-defterim/41-bildiri-kasadefteri-uyarisi.png",
+      "sha256": "4063fd4ff1c6688e36d9875632c253d72bee437f5b2b494ee02c603482d40adc",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0196",
+      "yol": "kanitlar/kolaybi/d09-destek-cari-detay-ekstre-dialog.png",
+      "sha256": "bef298af9b52dddaa7c167c8318527f9d1737e0a334e8a61f964c8b1ec600a8a",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0197",
+      "yol": "kanitlar/kolaybi/d10-destek-cari-ekstre-onizleme.png",
+      "sha256": "df266dac59bdb8aac8cb41fa1fea0bb41fee260b85d82ff7ea8976475ce86826",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0254",
+      "yol": "kanitlar/money-manager/30-ayarlar-izgarasi.png",
+      "sha256": "bbf378f9db079e75a8ef49bc88ee1ea02d7067a39caa117c495126fe0a298e5f",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0427",
+      "yol": "kanitlar/hesap-defterim/49-uretilen-pdf-icerigi.png",
+      "sha256": "0dd9a031baa97b10dc78c9dd4f90797d70ff2d557e9ec8b0630ab6dcbde5c431",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0428",
+      "yol": "kanitlar/wallet-budgetbakers/f7-105-disa-aktarma-formu-pdf-xls-csv.png",
+      "sha256": "ab284ab4d4909b96cff0e1d6652c8fe48b1e48ae721db1ce7631832a103ae1d6",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0445",
+      "yol": "kanitlar/bluecoins/f7-71-veri-yonetimi-ice-aktarma-csv-qif.png",
+      "sha256": "869f26d0ba19274f4204c60167af21e36a48e4f3b668477d5278fff142e4dacd",
+      "envanter": "aynı"
+    }
+  ],
+  "isaretli_turevler": [
+    "E0089-7.png",
+    "E0100-13.png",
+    "E0128-8.png",
+    "E0143-6.png",
+    "E0149-5.png",
+    "E0165-11.png",
+    "E0166-12.png",
+    "E0176-1.png",
+    "E0196-9.png",
+    "E0197-10.png",
+    "E0254-2.png",
+    "E0427-0.png",
+    "E0428-3.png",
+    "E0445-4.png"
+  ]
+}

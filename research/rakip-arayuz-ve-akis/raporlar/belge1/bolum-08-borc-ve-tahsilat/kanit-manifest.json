@@ -1,0 +1,155 @@
+{
+  "bolum": "Belge 1 · Bölüm 8 · Borç, fatura ve tahsilat",
+  "tarih": "2026-09-24",
+  "kanitlar": [
+    {
+      "kimlik": "E0072",
+      "yol": "kanitlar/bluecoins/f7-21-hesap-secici.png",
+      "sha256": "864c1b94d401210a259cbcd5df04cf6d7ac26c5350796de373dfa6312d7edc21",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0074",
+      "yol": "kanitlar/bluecoins/f7-23-hesap-dogru-secildi.png",
+      "sha256": "0b07b81e1eeba033288985c65259c9ce003be8d1cefa69106cbecd063f60f267",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0078",
+      "yol": "kanitlar/bluecoins/f7-27-transfer-hazir.png",
+      "sha256": "6a9e82d1719e6d850feb4bbff38642a1146cbc1bf9ba08eb31aaafb5c59fc16f",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0079",
+      "yol": "kanitlar/bluecoins/f7-28-d3-kaydedildi.png",
+      "sha256": "5f7f11e65fa73e92494555baba55a975964e59f77c32c1885c455d9ce20d63e5",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0195",
+      "yol": "kanitlar/kolaybi/d08-destek-cari-olusturma-formu.png",
+      "sha256": "872edf19cffcdc0c64dbcfc1108b12f9e6c20a44ad60746affd33db4bd9d7130",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0196",
+      "yol": "kanitlar/kolaybi/d09-destek-cari-detay-ekstre-dialog.png",
+      "sha256": "bef298af9b52dddaa7c167c8318527f9d1737e0a334e8a61f964c8b1ec600a8a",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0197",
+      "yol": "kanitlar/kolaybi/d10-destek-cari-ekstre-onizleme.png",
+      "sha256": "df266dac59bdb8aac8cb41fa1fea0bb41fee260b85d82ff7ea8976475ce86826",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0307",
+      "yol": "kanitlar/wallet-budgetbakers/34-debts-bos-durum.png",
+      "sha256": "6cd1ec8ce7e40d5c9a0c4926b216dd33319905cb06ac34bbf85fd8242e4c364c",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0308",
+      "yol": "kanitlar/wallet-budgetbakers/35-debt-kayit-baglama-sorusu.png",
+      "sha256": "419d908e109a33a393a07de40a866def38beb74862d549e19e182cd2adbdbf7c",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0358",
+      "yol": "kanitlar/wallet-budgetbakers/f7-37-debts-fab.png",
+      "sha256": "a18d3677e89a81fa43ef08f491e1a31c1cc2854c5e5b6887270fb4e004418e55",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0362",
+      "yol": "kanitlar/wallet-budgetbakers/f7-41-i-lent-form4.png",
+      "sha256": "134cb77aae1ce530846594b734abf415645e7de646705411f8dd33683910d114",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0364",
+      "yol": "kanitlar/wallet-budgetbakers/f7-43-amount-12000.png",
+      "sha256": "08f92cc38fe0ec5c31f410c7522c18645dabd0655dd372fb2a130f135438d241",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0365",
+      "yol": "kanitlar/wallet-budgetbakers/f7-44-d2-saved.png",
+      "sha256": "a2c70de593a0436f9bbcd26adceda3de04338c78e380113feebd8914cbd81682",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0366",
+      "yol": "kanitlar/wallet-budgetbakers/f7-45-d2-final.png",
+      "sha256": "2bbb7ccb7dfd951ccb8dca3f05314485e3fa489f6eceb106b8d6215ed6d508dc",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0367",
+      "yol": "kanitlar/wallet-budgetbakers/f7-46-add-record-form.png",
+      "sha256": "155aa75cebf3b7e0368fe95456ed1567236abeee9711943fd375244a9a09caaa",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0369",
+      "yol": "kanitlar/wallet-budgetbakers/f7-48-amount-5000.png",
+      "sha256": "63cfb0c0e14d3a02471dbd57fb3c6389bc66138e89142767527cee505b1994eb",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0370",
+      "yol": "kanitlar/wallet-budgetbakers/f7-49-d3-saved.png",
+      "sha256": "040018d95b1ac948048487b857eae8c8d8a12b482aaefdf101a1ffe5b2c351a9",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0441",
+      "yol": "kanitlar/wallet-budgetbakers/f7-86-mevcut-kayda-baglama-listesi.png",
+      "sha256": "34d7f924fd2cbb926b787d958e635a8b50dc8cf9982d9ff6e06baa644d7086a6",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0448",
+      "yol": "kanitlar/bluecoins/f7-66-durum-alani-dort-deger.png",
+      "sha256": "ab0efb0cb1b18e3c562e58215d6a3fc2ccd121a48ef61acd503527b580a556d7",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0449",
+      "yol": "kanitlar/bluecoins/f7-77-cari-hesap-formu-vade-alani-yok.png",
+      "sha256": "f314204bba8331e5070edd2ad3fb841d22b97dba839485bee20bd480a6d54231",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0451",
+      "yol": "kanitlar/wallet-budgetbakers/f7-88-debt-action-iki-deger.png",
+      "sha256": "f8dc17fb4af40f8b3bbe6e44199d0b9a94bab5d610b96bf10f3c43222f240bb1",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0478",
+      "yol": "kanitlar/wallet-budgetbakers/f7-84-borc-kayit-listesi-5000.png",
+      "sha256": "0f71a06b61fe11193597b8194fd4acc3f50ffef3b809763892fa9eb32f61ba58",
+      "envanter": "aynı"
+    }
+  ],
+  "isaretli_turevler": [
+    "E0072-0.png",
+    "E0074-2.png",
+    "E0078-6.png",
+    "E0079-9.png",
+    "E0195-13.png",
+    "E0196-12.png",
+    "E0197-14.png",
+    "E0307-1.png",
+    "E0308-3.png",
+    "E0364-4.png",
+    "E0365-5.png",
+    "E0366-10.png",
+    "E0367-7.png",
+    "E0369-8.png",
+    "E0370-11.png"
+  ]
+}

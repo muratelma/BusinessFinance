@@ -1,0 +1,300 @@
+{
+  "bolum": "Belge 1 · Bölüm 4 · İşlem ekleme ve geri bildirim",
+  "tarih": "2026-09-24",
+  "kanitlar": [
+    {
+      "kimlik": "E0020",
+      "yol": "kanitlar/bluecoins/04-islem-formu.png",
+      "sha256": "98709457bd0119ace1b1bd984ed3cea7a6235c05cbceb510f46805927bcfb657",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0024",
+      "yol": "kanitlar/bluecoins/08-hata-veya-bos-durum.png",
+      "sha256": "9f01da0081768a789fe1974e3df3ae96a24a4affa13def0713e51a682705f431",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0089",
+      "yol": "kanitlar/bluecoins/f7-38-cop-kutusu.png",
+      "sha256": "c563cb8476914eccb9c57d0e12d8060eedd5a35d13ca04d07f77ea34ca468c1a",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0116",
+      "yol": "kanitlar/goodbudget/09-credit-type-selected.png",
+      "sha256": "bd107e0187240cef429321ed7f2ec2de31a5070c8a520c6bb4f61c7a11564a70",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0117",
+      "yol": "kanitlar/goodbudget/10-income-requires-envelope.png",
+      "sha256": "485fae5b059a8bce5800a405b5a7ae6c823c15de8c56951396e367a2b001112d",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0125",
+      "yol": "kanitlar/goodbudget/18-delete-confirmation.png",
+      "sha256": "3a59f831a19a0e24d22712771f6b6e2166ca1c713437d22986a977bc0f47deec",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0128",
+      "yol": "kanitlar/goodbudget/21-no-receipt-attachment.png",
+      "sha256": "a9f9b223da7faa547ba042676e2712ee060a8e51d81c17c3a237787fbc55f73a",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0133",
+      "yol": "kanitlar/goodbudget/26-schedule-frequency-listesi.png",
+      "sha256": "6e7a5ea3aeac95eedd803bad1075c77921c3a6498ca7364ae441f284ff95c694",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0138",
+      "yol": "kanitlar/hesap-defterim/04-islem-formu-alindi.png",
+      "sha256": "edc6ddaa68a417b92084cbbd5b7a3677ed20fdad051bdf11176950a3e9be7854",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0141",
+      "yol": "kanitlar/hesap-defterim/06-islem-listesi.png",
+      "sha256": "8e35e60101fa41c5e6cc6b42bf3ac63ce5797429f899a3f37982e81a52c3ca09",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0155",
+      "yol": "kanitlar/hesap-defterim/20-oge-eklemek-dialog.png",
+      "sha256": "0f6983efc6c35d38439b6d25da3e6fd903917212cc7a99c0361e317339f12dc4",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0161",
+      "yol": "kanitlar/hesap-defterim/27-yeniden-adlandirilmis-basliklar.png",
+      "sha256": "c89a5cc3a07b2622d1ae89f7a36dabf071a8cfc328dee2889eff3cc82f9cd32e",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0167",
+      "yol": "kanitlar/hesap-defterim/32-silinmis-islemler-context-menu.png",
+      "sha256": "144ffe76a813d4405c090568cbb0f191db028982839d3110c38db62c2d851bf8",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0178",
+      "yol": "kanitlar/hesap-defterim/43-ayarlar-alt-bolum-donem-baslangici.png",
+      "sha256": "c9d2acb37ff94b1dbcca376c0e83ad2537f1df8c688071b45eb1c17824d3308c",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0192",
+      "yol": "kanitlar/kolaybi/d05-destek-yeni-gider-formu.png",
+      "sha256": "7c4421f8e6b5455479d3ded9e1017da7f97305c58f1333dc44680dfefcc4fe59",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0200",
+      "yol": "kanitlar/kolaybi/d13-destek-alis-faturasi-formu.png",
+      "sha256": "c18af26d3fd433b17a0b7ac5112462336a4281d86a831d230adc17a27c291a7f",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0229",
+      "yol": "kanitlar/money-manager/04-islem-formu-ve-kategori.png",
+      "sha256": "993fe4c26fdd4d515fdafbefc49740c37e7fdec84702bccb1c35058d25ee21e4",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0232",
+      "yol": "kanitlar/money-manager/08-hata-toast-hesap-sec.png",
+      "sha256": "d80d9b7483fb0cf9d27a9ea04109ff6d34a750c680e4dd1ff5e916740d057a3d",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0254",
+      "yol": "kanitlar/money-manager/30-ayarlar-izgarasi.png",
+      "sha256": "bbf378f9db079e75a8ef49bc88ee1ea02d7067a39caa117c495126fe0a298e5f",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0277",
+      "yol": "kanitlar/wallet-budgetbakers/04-islem-formu.png",
+      "sha256": "394a14c018fcce672de97b9bbd7afdb9e506aa95d51fc1b0f4afedfd1bd60d15",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0281",
+      "yol": "kanitlar/wallet-budgetbakers/08-hata-veya-bos-durum.png",
+      "sha256": "10c0cfcc05871a57e802ad5f35870eef1b42b576c5b95d97e71249affbb73c6c",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0311",
+      "yol": "kanitlar/wallet-budgetbakers/38-split-record-ekrani.png",
+      "sha256": "dedb1d16cc8a7a2441f82c8552e78625df340cdc3ecbd93d73ce39c964dc53d9",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0324",
+      "yol": "kanitlar/wallet-budgetbakers/f7-03-fab-menu.png",
+      "sha256": "d2ab5471680dddc8f54071b41eb4aee05293987911a102ee042d280b481000f3",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0327",
+      "yol": "kanitlar/wallet-budgetbakers/f7-06-transfer-form2.png",
+      "sha256": "002f4ffdb74a2f681286e19485dcbc3eb280d73d7cc7b3f07eac5beeb5a01ecb",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0339",
+      "yol": "kanitlar/wallet-budgetbakers/f7-18-form-check.png",
+      "sha256": "9a51be6d18de11b4ef7aba2b754b12a69bbe9536e94eb84dc303389f35aa8deb",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0347",
+      "yol": "kanitlar/wallet-budgetbakers/f7-26-d1-saved.png",
+      "sha256": "a7b951593a5a6d24c59c34620c54c40f32cb62feb532f28b97b5a320fb79a777",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0376",
+      "yol": "kanitlar/wallet-budgetbakers/f7-55-menu-scroll.png",
+      "sha256": "02e7d8b84050955879bc27dc62117eb586dc4cf7e4d008079034dcd875ab85ab",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0377",
+      "yol": "kanitlar/wallet-budgetbakers/f7-56-settings.png",
+      "sha256": "f8d27b98a70664c4bd5548c789215b9b3ecf5363681879a07c02c3e99dacd212",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0378",
+      "yol": "kanitlar/wallet-budgetbakers/f7-57-settings-scroll.png",
+      "sha256": "5228e1f2fd25b00b53851079db5354dfd3dc08c23dc468a3a2980c2133370c2c",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0401",
+      "yol": "kanitlar/bluecoins/işlemler.png",
+      "sha256": "d308326802898643be6563697c633eb83bc03aeb214889ab6d24dddff0f29d15",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0402",
+      "yol": "kanitlar/bluecoins/ögeler özeti.png",
+      "sha256": "9a9bf1913cdc20d1ec744d496d6c3b62b5572e68b23ce95ccebbee44d6ccc2bf",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0434",
+      "yol": "kanitlar/money-manager/50-sifir-tutarli-kayit-kabul-edildi-eylul-1600.png",
+      "sha256": "9e5956670b5001ed07da64301cb7c2e7f3cca0b059c4ae59ecf0f77654481645",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0448",
+      "yol": "kanitlar/bluecoins/f7-66-durum-alani-dort-deger.png",
+      "sha256": "ab0efb0cb1b18e3c562e58215d6a3fc2ccd121a48ef61acd503527b580a556d7",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0450",
+      "yol": "kanitlar/wallet-budgetbakers/f7-104-cekmece-others-imports-exports-locations.png",
+      "sha256": "f0b6e2cd504c9e7c360e7cd1acf000d947a80572f7f491dd39f01567cff55815",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0453",
+      "yol": "kanitlar/goodbudget/42-ayarlar-alt.png",
+      "sha256": "6407c1f07b7c72160db9c4dbf7f35fe415922038f41c33678652ded180176c58",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0463",
+      "yol": "kanitlar/money-manager/47-form-tutar-tus-takimi.png",
+      "sha256": "ab68ed14f0ed3c3c3860e2f64a68f66ef55d71bbcc82e78ad31b4c3b98649eeb",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0464",
+      "yol": "kanitlar/money-manager/48-tam-ekran-hesap-makinesi.png",
+      "sha256": "f721715a9793515f55c8554b58697d8f593a4d4887a344d67272c2da26a4910b",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0465",
+      "yol": "kanitlar/money-manager/49-tutar-bos-form-kaydet-oncesi.png",
+      "sha256": "b40bdc65ee8bee3321da99f408625bf7660693112e9764390f616c627ea60022",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0468",
+      "yol": "kanitlar/money-manager/59-silme-onay-diyalogu.png",
+      "sha256": "6b46f2621a397d4653585a87b2f1ad84a17e1401db2ddeff67f0adb96a679c03",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0484",
+      "yol": "kanitlar/wallet-budgetbakers/f7-102-kayit-silme-onayi.png",
+      "sha256": "6f4934e10021ed51a52ec1e614ca5507127f06c7b48ae1fa3c2fb7e897b5c9c3",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0487",
+      "yol": "kanitlar/bluecoins/f7-57-islem-formu-varsayilan-tur-gider.png",
+      "sha256": "dacafdaef32c08d0c5b655fd4ab583696fefaa532c1c6d26b9c51763f405b56a",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0490",
+      "yol": "kanitlar/bluecoins/f7-65-bolunmus-kayit-listede-2-kategoriler.png",
+      "sha256": "021e6ddc6a14a7a2a9bde13ed4a46d15f409b90a676a3f28f69d92869dedfd2d",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0495",
+      "yol": "kanitlar/goodbudget/41-ayarlar-ust-cop-kutusu-yok.png",
+      "sha256": "dc8c6ff6b8347d92ac0009b7b99792eb26397546171ee94bb25f7587ce83e3a2",
+      "envanter": "aynı"
+    }
+  ],
+  "isaretli_turevler": [
+    "E0020-2.png",
+    "E0020-k6-0.png",
+    "E0024-28.png",
+    "E0089-31.png",
+    "E0116-6.png",
+    "E0116-s5-4.png",
+    "E0117-26.png",
+    "E0125-29.png",
+    "E0138-5.png",
+    "E0138-k6-1.png",
+    "E0138-k7-1.png",
+    "E0138-s5-3.png",
+    "E0141-23.png",
+    "E0155-18.png",
+    "E0161-19.png",
+    "E0167-30.png",
+    "E0192-32.png",
+    "E0200-33.png",
+    "E0229-1.png",
+    "E0229-s5-0.png",
+    "E0232-24.png",
+    "E0232-k7-0.png",
+    "E0277-13.png",
+    "E0277-4.png",
+    "E0277-s5-1.png",
+    "E0281-25.png",
+    "E0311-20.png",
+    "E0324-0.png",
+    "E0327-s5-2.png",
+    "E0339-14.png",
+    "E0347-27.png",
+    "E0448-3.png",
+    "E0463-k6-2.png",
+    "E0487-s5-5.png"
+  ]
+}

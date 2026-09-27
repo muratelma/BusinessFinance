@@ -1,0 +1,25 @@
+{
+  "sayfa": 97,
+  "bolum_baslangic": {
+    "bolum-01-giris": 3,
+    "bolum-02-ana-ekran": 8,
+    "bolum-03-gorsel-dil": 17,
+    "bolum-04-islem-ekleme": 23,
+    "bolum-05-hesap-kart-transfer": 34,
+    "bolum-06-siniflandirma": 43,
+    "bolum-07-plan-ve-bekleyen": 50,
+    "bolum-08-borc-ve-tahsilat": 60,
+    "bolum-09-rapor-ve-donem": 67,
+    "bolum-10-veri-aktarimi": 75,
+    "bolum-11-diger-moduller": 83,
+    "bolum-12-ortak-tercihler": 86
+  },
+  "kanit_eki": 91,
+  "basilan_kare": 154,
+  "anilan_basilmayan": 126,
+  "hash_denetimi": 280,
+  "kirik_atif": [],
+  "bozuk_karakter": [],
+  "metinde_gizli_sozcuk": [],
+  "uyarilar": []
+}

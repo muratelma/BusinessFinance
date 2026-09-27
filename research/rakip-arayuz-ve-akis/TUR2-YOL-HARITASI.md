@@ -1,10 +1,49 @@
 # Tur 2 Yol Haritası ve Boşluk Koşumu Planı
 
+**15 Eylül son durum: Faz 8 kullanıcı onayıyla açıldı. P5-P pilot ve teknik dışa aktarım hazır; kullanıcı pilot değerlendirmesi bekleniyor.**
+365/365 görsel incelendi ve envanterde (357 başlangıç + GB-U01 3, WL-U 3, BC-U01 2). B09 WL-U01 ile kapandı: Wallet'ın borç modeli ADR 0014'e eşdeğer değil.
+B01–B19: 14 kanıtla kapalı, 5 kapsamı sınırlı (B06, B08, B10, B11, B12), 0 açık. P4-tema-01–10 kapandı. f7-54 hesap sahibinin adını gösterir: teslimde karartılmalı.
+Ölçülmeyen davranışlar (Wallet Postpone/Dismiss sonucu, Bluecoins otomatik kol ve liste yenilenme kök nedeni, Hesap Defterim e-posta alıcısı/teslimi) doğrulanmış sayılmaz.
+Mekanik kapı: dokuz form 0 hata/0 uyarı, 21/21 test. Geçiş kapısı 12/12; 15 Eylül kullanıcı onayı kaydedildi. Pilot değerlendirilmeden tam raporlar yazılmaz.
+Sıradaki tek iş pilot değerlendirmesi. Teslim: raporlar/pilot/pilot-islem-ekleme.pdf ve .docx.
+Aşağıdaki eski paket devirleri tarihseldir; güncel ayrıntı BULGU-DOGRULAMA-KAYDI.md sonundadır.
+
+
+## Güncel Goodbudget kapsamı — 14 Eylül 2026
+
+Goodbudget G01 28/28 tamam; form düzeltmeleri uygulandı. B06 nedensellik
+iddiaları sınırlandırıldı, B07 hesap/paket bilgisi kaynakla kapandı. B05/GB-U01 kullanıcı ekran kontrolüyle kapandı. Goodbudget tamam;
+agent yeni emülatör koşumu başlatmadı.
+KolayBi G01/G02, P1-B08, P1-B15, P1-hesap-defterim-G01/G02, P1-B11, P1-B12, P1-money-manager-G01, P1-parasut-G01, P1-logo-isbasi-G01, P1-quickbooks-G01, P1-B13, P1-B18, P1-K kapandı (E0392); sıradaki paket P2-G01. Faz 8 açılmadı.
+
+Aşağıdaki eski Goodbudget özetlerinde geçen zorunlu gelir-zarf ilişkisi,
+liste dışı tekrar, kalıcı silme kusuru ve bütün hesap türlerine ortak limit
+hükümleri tarihsel/geçersizdir; rapora taşınmaz. Güncel kaynak
+[Goodbudget formu](gozlemler/goodbudget.md) ve
+[bulgu kaydı](BULGU-DOGRULAMA-KAYDI.md) sonundaki kapanış bölümüdür.
+28/357 yalnız yeni görsel denetimin sayacıdır; önceki koşumlar korunur.
+Ek canlı kontrol iş bölümü FAZ7-8-UYGULAMA-PLANI.md'deki 14 Eylül kararıdır.
+
+
 > Bu dosya, 10 Eyl 2026'da kullanıcıyla kararlaştırılan çalışma planının kalıcı
-> kaydıdır. Oturum değişince buradan devam edilir. Canlı ilerleme `DURUM.md`
-> tablolarındadır; bu dosya **planı** tutar, ilerlemeyi değil.
+> kaydıdır. Oturum değişince buradan devam edilir.
+>
+> **Rol ayrımı (12 Eyl 2026'da netleştirildi):** bu dosya **planı ve fazların
+> kapanış kaydını** tutar — hangi faz neyi kapsıyordu, ne zaman ve neyle
+> kapandı. **Güncel durum, sıradaki adım ve kilit bulgular `DURUM.md`'dedir.**
+> Bir bilgi ikisinde birden varsa `DURUM.md` günceldir. Faz bölümlerindeki
+> `[x]` satırları ilerleme takibi için değil, o fazın **neyle kapandığının**
+> kanıtı içindir.
 
 ## Karar özeti (10 Eyl 2026)
+
+**14 Eylül 2026 güncellemesi:** Faz 7/7.5 kapanışı ve Faz 8'in ayrıntılı
+uygulama planı [FAZ7-8-UYGULAMA-PLANI.md](FAZ7-8-UYGULAMA-PLANI.md)'dedir.
+P0.1/P0.2, Money Manager, Hesap Defterim, Goodbudget, Paraşüt, Logo İşbaşı, QuickBooks, KolayBi, Bluecoins ve Wallet metin haritaları tamam; P0 kapandı; P1-B01, P1-B02-B04, P1-B14 ve P1-goodbudget-G01 kapandı;
+sırada P1-goodbudget-T01 var.
+Güncel devam noktası DURUM.md'dir. Görsel içerik incelemesi başladı: Goodbudget 28/357.
+Aşağıdaki tarihli kapanışlar geçmiş koşumları anlatır; yeni denetim bulguları
+kapanmış veya Bluecoins/Wallet Faz 7.5 yapılmış anlamına gelmez.
 
 - **Tur 1 video notları tamam:** Logo (2 Eyl), Paraşüt + KolayBi (10 Eyl).
   QuickBooks'ta video yok. 7 gözlem formu Tur 1 derinliğinde.
@@ -39,8 +78,8 @@
   sürer; kayıt/SMS/hata kapılarında kullanıcıya devreder, kullanıcı bitirince
   devam eder. `emulator-5554`, Android 17.
 - **Tur 2 nihai yapısı (Faz 5'te kesinleşti, 11 Eyl):** KolayBi (masa başı,
-  video+transkript) + **Bluecoins** ("yapımıza en yakın" — tekrarlayan/taksit/
-  planlanan modeli bizimle birebir, kilitlendi) + **Wallet** (Debt/Records
+  video+transkript) + **Bluecoins** (tekrarlayan/taksit/planlanan arayüzünü incelemek için seçildi;
+  model eşdeğerliği P2-G02 sonucunda doğrulanmış sayılmıyor) + **Wallet** (Debt/Records
   mekanizmasıyla D1-D4'ü genişletmek için en uygun aday, "bize yakın" 2. slot).
 
 ## Fazlar
@@ -76,8 +115,8 @@
 ### Faz 2 — Boşluk koşumu: Wallet  *(yapay zekâ sürdü, 10 Eyl 2026 — TAMAM)*
 - [x] Kullanıcı yeni emülatörde giriş yaptı; bulut verisi (Tur 1 çekirdek 5 + 3 hesap) geri geldi
 - [x] Çekirdek doğrulama: 5 işlem doğru Ağustos tarihli, kontrol değerleri birebir (net ₺22.950)
-- [x] Kredi kartı modeli: **basit negatif bakiye** — ekstre kesim/dönem yok, tek son ödeme tarihi (hatırlatıcı), limit + "Available Credit/Balance" gösterim seçeneği. Kart ödemesi ayrı buton değil, Ana Hesap→Kart transferi → **kısmi ödeme** = küçük transfer
-- [x] B1 tekrarlayan (₺600/ay) canlı: Planned payments → Recurrent. **Geçmiş tarihe kurulamıyor** (10 Ağu reddedildi → 10 Eyl). Tanım para üretmez; her örnek **bekleyen** + Confirm/Postpone/Dismiss; Confirm'de tutar düzenlenebilir "Payment summary". İlk onayda **plan bazında** "otomatik mi / onaylı mı" sorusu → "onaylı" seçildi. Yalnız sonraki örnek listelenir. Kareler `15`–`20`, `33`
+- [x] Kredi kartı modeli: **basit negatif bakiye** — ekstre kesim/dönem yok, tek son ödeme tarihi (hatırlatıcı olduğu doğrulanmadı — P3-G01), limit + "Available Credit/Balance" gösterim seçeneği. Kart ödemesi ayrı buton değil, Ana Hesap→Kart transferi → **kısmi ödeme** = küçük transfer
+- [x] B1 tekrarlayan (₺600/ay) canlı: Planned payments → Recurrent. **Geçmiş tarihe kurulamıyor** (10 Ağu reddedildi → 10 Eyl). Tanım para üretmez; her örnek **bekleyen** + Confirm/Postpone/Dismiss; Confirm'de tutar düzenlenebilir "Payment summary". İlk onayda **plan bazında** "otomatik mi / onaylı mı" sorusu → "onaylı" seçildi. Yalnız sonraki örnek listelenir. Kareler `15`–`20`, `33` *(P3-G01 sınırı: soru ilk onaydan sonra gelir ve Yes/otomatik önceden seçilidir; "No" seçimi dolaylı kanıtlı (P3-G02 E0318); Postpone/Dismiss seçenekleri WL-U02 ile kareli, sonuçları denenmedi; ayrıntı BULGU-DOGRULAMA-KAYDI.md P3-G01)*
 - [x] B2 taksit: **Wallet'ta taksit özelliği YOK.** ₺6.000 tek kart harcaması → tüm tutar aynı gün borç + tüm tutar o ayın gideri. Kareler `21`–`24`
 - [x] Budgets **canlı kuruldu**: period + amount + kategori **+ hesap** filtresi; kart harcamasının tam tutarını sayar; Forecasted Spend + over-budget toast. Kareler `26`–`29`
 - [x] Goals **canlı kuruldu**: hedef/biriken/tarih. Kareler `30`–`32`
@@ -89,19 +128,22 @@
 - **Wallet Faz 2 TAMAM.** Veri: Ana Hesap ₺15.200 · Ortak Cuzdan ₺2.150 · İş Kartı −₺6.000 · net ₺11.350. B/B1/B2 canlı koşuldu, **A (₺400 kısmi kart ödemesi) koşulmadı** — Faz 7'de tamamlanmalı. Wallet Tur 2'ye seçildi (11 Eyl); bulut verisi sıfırlanmaz, üzerine eklenir.
 - ~~export / onboarding~~ kapsam dışı
 
-### Faz 3 — Boşluk koşumu: Bluecoins  *(yapay zekâ sürdü, 10 Eyl 2026 — TAMAM)*
-- [x] Bulut yok → tam yeniden koşum. 3 hesap (Ana Hesap ₺20.000 / Ortak Cuzdan ₺2.000 / Is Karti ₺0)
-- [x] Çekirdek 5 işlem Ağustos tarihli; kontrol birebir (Net Kazanç ₺44.950, İş Kartı ₺0, Ana Hesap ₺40.800)
-- [x] Kredi kartı = negatif bakiyeli hesap (Cari Hesap grubu); kart seçilince "Taksit şartlarını seçin" dinamik alan
-- [x] **B2 taksit canlı:** oran (%) + ay sayısı (2–24 + Özel) + ilk ödeme tarihi. ₺6.000 → 6×₺1.000. **Taksit 1/6 anında gerçek harcama** (ilk-ödeme tarihinde, "1/6" etiket, kart borcu −₺1.000, Ağustos gideri +₺1.000). **2/6–6/6 aylık hatırlatıcı.** BusinessFinance InstallmentPlan'a çok yakın. Kareler `17`–`22`
-- [x] **B1 tekrarlayan canlı:** "Planlı İşlemler" → Bir Defa/Günlük/Haftalık/Aylık/Yıllık + ayın günü + son ödeme + otomatik checkbox. **Geçmiş tarihe kurulabiliyor.** Tanım hiçbir şey üretmez. Geçmiş/bugün/gelecek occurrence'lar Hatırlatıcılar'da bekliyor ("31 gün gecikmeli"/"bugün süresi doluyor"). Kaydet → "bugün mü / planlanan tarih mi" → materyalize. **Tüm rakiplerin BusinessFinance'e en yakını.** Kareler `23`–`28`
-- [x] Hatırlatıcılar sekmesi = tekrarlayan + taksit occurrence'larının birleşik tarih-sıralı listesi
-- [x] **Cari hesap** (10 Eyl ek koşum): "Cari hesap" tipi canlı kuruldu ("Ada Reklam cari") — **sıradan bakiye hesabı, fatura nesnesi/tahsilat bağı YOK**. Kareler `32`, `33`
-- [x] **Bağımsız hatırlatıcı** (10 Eyl): "Bir Defa" Planlı İşlem = "Ofis kirasi" ₺10.000 → Hatırlatıcılar'da "Yarın borçlanacak". Kareler `30`, `31`
-- [x] Ek bulgular (10 Eyl): Bölmek/split modu (`29`), taslak uyarısı, Kredi Kartı **ekstre kesim günü** alanı (`32`), kısmi kart ödemesi canlı ₺500 (`34`)
-- [x] `gozlemler/bluecoins.md` güncellendi (Faz 3 bölümü + 15 karar satırı); kareler `10`–`34`
-- **Bluecoins Faz 3 TAMAM.** Veri: Ana Hesap ₺39.700 · Ortak Cuzdan ₺4.150 · İş Kartı −₺500 · Ada Reklam cari ₺0 · net ₺43.350. Emülatörde kararsız (modal diyaloglar dokunuşu işlemiyor → force-stop / keyevent).
-- ~~yedek / CSV-PDF export~~ kapsam dışı
+### Faz 3 — Bluecoins: 10 Eylül koşumu, 15 Eylül P2-G02 doğrulaması
+
+- [x] Çekirdek: 44.950 net; P2-G01 hesap/akış ayrımı kayıtlı.
+- [x] B2: 6.000, 6 ay, oran 0,00 ve geçmiş ilk ödeme 15 Ağustos.
+  Bir gerçek 1.000 işlem + beş 1.000 hatırlatıcı; E0033–E0038.
+- [x] B1: otomatik kapalı panel, geçmiş başlangıç, bekleyenler, tarih
+  seçimiyle elle onay ve 600 gider artışı; E0039–E0044, E0047/E0050.
+- [x] Bölme formu, tek seferlik kira listesi, kart alanları, cari hesap
+  satırı ve 500 kısmi kart transferi; E0045–E0050.
+- [x] Bakiye zinciri: 44.950→43.950→43.350; kısmi ödeme neti değiştirmiyor.
+- [ ] Açık otomasyon, geleceğe ilk taksit, silme/geri yükleme, ekstre
+  davranışı, cari ilişki, taslak/fiş akışı henüz doğrulanmadı.
+- Faz 3'ün tarihsel koşumu tamamlanmış olsa da bu açıklıklar kapanmış
+  değildir. BF ile birebir/en yakın model hükmü kaldırıldı.
+- Sıradaki görsel paketi P2-G03: E0051–E0079, 29 kare.
+
 
 ### Faz 4 — "Bize benzemeyen" 3. slot: Hesap Defterim + Goodbudget tam Tur 1 koşumu
 **Revize (10 Eyl, kullanıcı isteği):** elle gezinti adımı atlandı. Yapay zekâ
@@ -112,7 +154,7 @@ işleyişi), tıpkı Money Manager/Bluecoins gibi. İkisi de emülatörde yükl�
       A/B/B1/B2 ek koşumu bitti. `gozlemler/hesap-defterim.md`, kareler `00`–`19`.
       Bulgu: khatabook türü tek-sütunlu yürüyen bakiye defteri; hesap türü/
       kategori/kapsam/kart-borcu/transfer-ayrımı **yok**; **B1/B2 (tekrarlayan,
-      taksit) özelliği de yok**; transfer bacakları öksüz kalabiliyor; ağırlıkla
+      taksit) özelliği de yok**; transfer bacaklarının öksüz kalabildiği koşum notudur (görsel kanıtı yok — P1-B12); ağırlıkla
       negatif referans. A (kısmi kart ödemesi) ✓ jenerik Aktar'la çalışıyor.
       Alınabilir kenarlar: "Önceki denge" devir satırı, satır başına yürüyen
       Denge, soft-delete çöp kutusu. Kontrol değerleri tuttu (net 44.950), test
@@ -163,9 +205,24 @@ işleyişi), tıpkı Money Manager/Bluecoins gibi. İkisi de emülatörde yükl�
 - [x] Tur 2'nin 3'ü kesinleşti: **Bluecoins + KolayBi + Wallet** —
       `DURUM.md` "Tur 2" bölümü + "Kilit bulgular" güncellendi
 
-### Faz 6 — KolayBi masa başı derinleştirme  *(Faz 1–5 boyunca paralel)*
-- [ ] **Kullanıcı:** "Kullanım Rehberi Bölüm 1/2" videoları → transkript + kareler
-- [ ] **Yapay zekâ:** forma işle (proje ekranı, gider formu, cari ekstre)
+### Faz 6 — KolayBi masa başı derinleştirme  *(TAMAM, 12 Eyl 2026)*
+**Yöntem değişti (kullanıcı kararı, 12 Eyl):** video+transkript yerine önce
+**resmî destek merkezi** tarandı — `kolaybi.com/destek/*` sayfalarının metni sığ
+ama içlerindeki ekran görüntüleri 2023+ arayüzü alan seviyesinde gösteriyor
+(2020 videosundan güncel). Video karesi artık **doğrulama** adımı, birincil
+kaynak değil.
+- [x] **Yapay zekâ:** 12 modül sayfası indirildi, **117 mockup** tarandı,
+      ayırt edici **31'i** `kanitlar/kolaybi/d01`–`d31` olarak repoya alındı;
+      `gozlemler/kolaybi.md` "Faz 6" bölümü yazıldı (proje, gider, cari/ekstre,
+      finans+kredi kartı, personel/maaş, satış/satın alma, raporlar, pano)
+- [x] Üç boşluk kapandı: **proje ekranı · gider formu · cari ekstre**
+- [x] **Video kaynaklı hata düzeltildi:** 2020 karesinde Finans dört sekmeliydi
+      ve forma "kredi kartı kavramı yok" diye geçmişti; güncel sürümde ayrı
+      **`Kredi Kartları`** sekmesi var (kesim günü + son ödeme günü + limit +
+      minimum ödeme oranı)
+- [ ] **Kullanıcı (kalan, doğrulama):** `Ayarlar` ekranı (Proje Takip anahtarı),
+      `Tekrarlı Genel Giderler` listesi, `Ödeme/Tahsilat Ekle` kısmi tutar
+      davranışı, `Ödeme Durumu: Ödendi` işaretlemenin kasaya etkisi
 
 ### Faz 7 — Tur 2 derin koşum
 - [x] **Bluecoins (11 Eyl 2026, yapay zekâ):** D1 tamamlama (hatırlatıcı →
@@ -182,19 +239,47 @@ işleyişi), tıpkı Money Manager/Bluecoins gibi. İkisi de emülatörde yükl�
       "Record oluşturursan bakiyen değişir" sorusu, No → bakiye değişmedi —
       ADR 0014'ün en güçlü olumlu kanıtı)** + **D3 (aynı Debt'e Record ile
       kısmi tahsilat, running balance otomatik güncellendi — Bluecoins'in
-      bağımsız iki hareketinden daha doğru)** + konu 5 (arama) + konu 6 (tam
+      bağımsız iki hareketinden daha doğru)** *(P3-K notu: tarihsel kapanış
+      kaydıdır. "En güçlü olumlu kanıt" hükmü daraltıldı — Record'suz borcun
+      bakiye/liste etkisi 0 kareli, Record'lu kayıtların rapor etkisi ölçülmedi,
+      B09 kapsamı sınırlı; "running balance" yerine kanıt borç kartında kalan
+      tutardır (12.000 → 7.000); "daha doğru" bir değerlendirmedir. Geçmiş tarih
+      engeli yalnız planlı ödeme seçicisinde; D1 Property insurance kategorisiyle
+      kaydedildi. Ayrıntı BULGU-DOGRULAMA-KAYDI.md P3-G03/G04/T.)* + konu 5 (arama) + konu 6 (tam
       arayüz taraması: Filters, Automatic rules/transfer tanıma, Currencies,
       Advanced settings/Initial day of the month). `gozlemler/wallet-
       budgetbakers.md` "Faz 7" bölümü, kareler `f7-00`–`f7-58`
-      (`kanitlar/wallet/`). **Wallet TAMAM.**
-- [ ] KolayBi — Faz 6 (video+transkript) bitince masa başı derinleştirme
+      (`kanitlar/wallet-budgetbakers/`). **Wallet TAMAM.**
+- [x] **KolayBi (12 Eyl 2026, yapay zekâ):** Faz 6 destek merkezi taramasıyla
+      Tur 2 konularının 5'i kapandı — konu 1 (kredi kartı **var**, model
+      okundu), konu 2 (tekrarlayan form alanları, sonlu plan), konu 3 (cari
+      detayında `Borç/Alacak Ekle` vs `Ödeme/Tahsilat Ekle` iki ayrı düğme),
+      konu 4 (kısmi tahsilat + yürüyen bakiye), konu 5 (arama/filtre/ekstre
+      PDF+e-posta). Konu 6 büyük ölçüde kapandı; **Ayarlar** ve **davranış**
+      açık. `gozlemler/kolaybi.md` "Faz 6" bölümü, `d01`–`d31`.
+      **KolayBi masa başı derinliğinde TAMAM** — sürülemediği için Bluecoins/
+      Wallet ile aynı davranış derinliğine hiçbir zaman ulaşmayacak, bu
+      asimetri Belge 1/2'de açıkça yazılacak.
 - [ ] Formların "Tur 2" bölümleri tamamlanınca `DURUM.md` güncellenir
 
 ### Faz 8 — Belge yazımı
-- [ ] Belge 1 (arayüz) + Belge 2 (akış) taslak → onay → Belge 3 (öneri)
+
+**Başlanmadı.** Önce Faz 7.5 kapanışı ve kanıt/bulgu aktarımı gerekir.
+Bluecoins ve Wallet'ın derin koşumları yukarıda kayıtlıdır; kalan tam Faz 7.5
+incelemeleri ayrıntılı planın P2/P3 adımlarıdır.
+
+- [x] P0–P3: envanter, hata kapanışı ve iki uygulamanın tam doğrulaması.
+- [ ] P4: tematik aktarım, geçiş kapısı ve kullanıcının Faz 8 onayı.
+  *(15 Eylül P4-K: tematik aktarım ve geçiş kapısı tamam, 11/12; kullanıcı onayı bekleniyor.)*
+- [ ] P5: Belge 1/2 örnek bölümleri, geri bildirim, tam taslaklar ve onay.
+- [ ] P6: yalnız onaylı Belge 1/2'den Belge 3 üretimi ve onay.
+- [ ] P7: aynı kaynaktan Word/PDF, içerik/biçim kontrolü ve kalıcı kanıt paketi.
+
+Kabul ölçütleri ve malzeme dağılımı ayrıntılı planda; güncel ilerleme DURUM.md'de tutulur.
 
 ## Commit ritmi
 
-Her fazın sonunda gerçek ilerleme varsa `docs(research)` commit. Hafıza kuralı
-gereği **her commit öncesi kullanıcıya sorulur** ([[ask-before-docs-commits]]).
+Repo `AGENTS.md` Git kuralları geçerlidir. Araştırma belgesi tek başına
+belge commit'i istisnasına girmez; bu plan/durum kaydı için commit yapılmaz.
+Önceki faz başına `docs(research)` önerisi güncel repo kuralının yerine geçmez.
 Video transkript yöntemi: [[rakip-video-transkript-yontemi]].

@@ -1,11 +1,29 @@
 # Manuel Rakip Uygulama Test Protokolü
 
+**15 Eylül son durum: Faz 8 kullanıcı onayıyla açıldı. P5-P pilot ve teknik dışa aktarım hazır; kullanıcı pilot değerlendirmesi bekleniyor.**
+365/365 görsel incelendi ve envanterde (357 başlangıç + GB-U01 3, WL-U 3, BC-U01 2). B09 WL-U01 ile kapandı: Wallet'ın borç modeli ADR 0014'e eşdeğer değil.
+B01–B19: 14 kanıtla kapalı, 5 kapsamı sınırlı (B06, B08, B10, B11, B12), 0 açık. P4-tema-01–10 kapandı. f7-54 hesap sahibinin adını gösterir: teslimde karartılmalı.
+Ölçülmeyen davranışlar (Wallet Postpone/Dismiss sonucu, Bluecoins otomatik kol ve liste yenilenme kök nedeni, Hesap Defterim e-posta alıcısı/teslimi) doğrulanmış sayılmaz.
+Mekanik kapı: dokuz form 0 hata/0 uyarı, 21/21 test. Geçiş kapısı 12/12; 15 Eylül kullanıcı onayı kaydedildi. Pilot değerlendirilmeden tam raporlar yazılmaz.
+Sıradaki tek iş pilot değerlendirmesi. Teslim: raporlar/pilot/pilot-islem-ekleme.pdf ve .docx.
+Aşağıdaki eski paket devirleri tarihseldir; güncel ayrıntı BULGU-DOGRULAMA-KAYDI.md sonundadır.
+
+
+14 Eylül kullanıcı kararı: mevcut koşumlar korunur; gerekli ek emülatör
+kontrollerini agentın uygulama başına hazırladığı listeyle kullanıcı yapar.
+Agent otomatik canlı test başlatmaz. Güncel sınır ve kapanış kuralları
+[mevcut plandadır](FAZ7-8-UYGULAMA-PLANI.md).
+Goodbudget GB-U01 kullanıcı ekran kontrolüyle kapandı; P1-kolaybi-G01/G02, P1-B08, P1-B15, P1-hesap-defterim-G01/G02, P1-B11, P1-B12, P1-money-manager-G01, P1-parasut-G01, P1-logo-isbasi-G01, P1-quickbooks-G01, P1-B13, P1-B18 ve P1-K de kapandı, sonraki paket P2-G01.
+
+
 ## Amaç
 
 Rakip uygulamaları aynı görevler ve aynı sentetik verilerle karşılaştırmak;
-arayüz beğenisini ürün davranışından ayırmak ve Aşama 06.2 için kanıt üretmek.
-Bu bir QA kabul testi değildir: rakibin “doğru” davranmasını beklemeyiz,
-gözlenen davranışı kaydederiz.
+arayüz beğenisini ürün davranışından ayırmak ve **BusinessFinance'in tamamı
+için** kanıt üretmek — arayüz, özellikler, akışlar ve pipeline'lar
+(`README.md` → "Belge durumu"). Bu bir QA kabul testi **değildir**: rakibin
+"doğru" davranmasını beklemeyiz, gözlenen davranışı kaydederiz. Rakibin bizden
+farklı davranması bir hata değil, başka bir tasarım kararıdır.
 
 ## İncelenen uygulamalar
 
@@ -17,7 +35,7 @@ gözlenen davranışı kaydederiz.
 | 2 | Paraşüt | `com.parasut` | Masa başı (kayıt web + ücretli) |
 | 3 | Logo İşbaşı | `com.isbasi` | Masa başı (Müşavir Portal) |
 | 4 | KolayBi | `com.kolaybi.mobil` | Masa başı |
-| 5 | QuickBooks Solopreneur | `com.intuit.quickbooks` | Masa başı (ödeme + bölge) |
+| 5 | QuickBooks Solopreneur (kareler: QuickBooks mobil onboarding + QBO Simple Start plan ekranı) | `com.intuit.quickbooks` | Masa başı (ödeme + bölge) |
 | 6 | Wallet by BudgetBakers | `com.droid4you.application.wallet` | Sürülebilir |
 | 7 | Bluecoins | `com.rammigsoftware.bluecoins` | Sürülebilir |
 
@@ -73,23 +91,21 @@ itibaren standart; tutarlar `SENTETIK-TEST-VERISI.md` "Ek koşum olayları"):
 | B1 | Tekrarlayan gider (₺600/ay, ilk çekim 10 Ağu) | Tanım nasıl kuruluyor; ileri aylara otomatik mi / onaylı mı düşüyor; pasifleştirme/silme |
 | B2 | Taksitli kart harcaması (₺6.000 = 6×₺1.000, ilk 15 Ağu) | Taksit planı nasıl kuruluyor; Ağustos ekstresine kaç TL; kalan taksitler nasıl |
 
-Ek koşum kayıtları test sonrası **silinmez, olduğu gibi cihazda bırakılır**
-(kontrol değerinden sapmış hâlde kalır) ve **uygulama Tur 2'ye seçilse bile
-sıfırlanmaz** — Tur 2 kayıtları bu verinin üzerine eklenir. (11 Eyl 2026'da
-sabitlendi; ilk sürümde "Tur 2'ye seçilirse sıfırlanır" yazıyordu, ama Hesap
-Defterim'in ikinci ek koşumunda kullanıcıya sorulmadan silme denendi ve
-kullanıcı bunu reddetti — kural o olaydan sonra "hiçbir zaman sormadan silme"
-olarak kesinleşti, bkz. `gozlemler/hesap-defterim.md` "Metodoloji notu"; 11 Eyl
-2026'da Bluecoins Tur 2'ye seçilince aynı ilke Bluecoins'e de uygulandı).
-Yalnız kullanıcı açıkça "sil" veya "kontrol değerine döndür" derse temizlenir.
+**Test verisi silme kuralı** `SENTETIK-TEST-VERISI.md` → "Ek koşum olayları"
+bölümündedir (tek kaynak): kayıtlar silinmez, Tur 2'ye seçilse bile
+sıfırlanmaz, yalnız kullanıcı açıkça isterse temizlenir.
+
 İçine girilemeyen (resmî kaynak) uygulamalarda A/B/B1/B2 canlı koşulmaz; varsa
-video/yardım merkezinden `Resmî kaynak` etiketiyle not edilir.
+resmî destek merkezi, yardım makalesi veya videodan `Resmî kaynak` etiketiyle
+not edilir.
 
 Bir özellik yoksa benzerini zorlayarak üretme. Örneğin işletme/şahsi ayrımı
 yoksa kategoriyle taklit etme; doğrudan `Desteklenmiyor` yaz. Bu yokluğun
 kendisi araştırma bulgusudur (B1/B2 için de geçerli).
 
-**K00–K08'den sonra ~10 dk'lık arayüz taraması yapılır** (görevlerden bağımsız):
+**K00–K08'den sonra ~10 dk'lık _hızlı arayüz gezintisi_ yapılır** (görevlerden
+bağımsız; Tur 2'nin çok daha uzun **"tam arayüz taraması"**ndan farklıdır —
+aşağıda konu 6):
 görev dışı kalan tüm ekranlar bir kez açılır — diğer sekmeler, rapor drill-down,
 bütçe/planlama, ayar derinliği, arama/filtre, boş ve hata durumları. Bu adım
 Belge 1'in (arayüz) genişliğini besler; K-görevleri yalnız akışları
@@ -190,6 +206,139 @@ Ham görüntü kırpılmaz; cihaz ve saat bağlamı korunur. Gerçek bilgi yanl�
 görünürse paylaşmadan önce bulanıklaştırılır. Tam oturum için ekran kaydı
 isteğe bağlıdır; bu sabit ekran görüntüleri zorunlu kanıttır.
 
+### Kanıt karesi **dolu** olmalı ve dönemi **Ağustos 2026** (12 Eyl 2026 eklendi)
+
+Bu kareler belge yazımında kullanılacak; okuyanın uygulamayı anlaması için
+ekranda **veri görünmesi** gerekir. İki kural:
+
+**1. Dolu durum çekilir.** Boş veya sıfırlanmış ekran kanıt değildir. Kart
+borcu, taksit serisi ve tekrarlayan kayıt **ekranda görünürken** çekilir.
+*(Money Manager'da kontrol karesinde kart ₺0,00 görünüyordu — harcandı ve
+ödendi — okuyan "bu uygulama kart harcamasını göstermiyor" sanabilirdi.)*
+
+**2. Dönem seçilebiliyorsa Ağustos 2026'ya alınır.** Sentetik verinin
+çoğunluğu Ağustos 2026'ya girildi (`SENTETIK-TEST-VERISI.md`); ay gezgini,
+filtre paneli, rapor dönemi ve hesap defteri o aya alınarak çekilir, yoksa
+ekranlar boş veya yarım görünür. Kare adında ay belirtmek serbesttir.
+
+**Üç istisna — bu durumlarda Ağustos zorlanmaz:**
+
+- **Dönemsiz ekranlar:** form, ayar, onboarding, diyalog, boş durum, mağaza
+  sayfası, kategori/hesap yönetimi. Dönem kavramı yoksa kural uygulanmaz.
+- **Verinin başka aya düştüğü durum:** bazı uygulamalar geçmiş tarihe kayıt
+  kurdurmuyor (Wallet'ta B1 planı 10 Eylül'e düştü) ya da taksit/tekrar sonraki
+  aya taşıyor. Veri neredeyse kare oradan çekilir.
+- **Varsayılan dönemin kendisi bulguysa:** Goodbudget'ta raporların varsayılan
+  olarak **içinde bulunulan ayı** göstermesi kritik bir bulgudur
+  (`14-reports-default-current-month.png`); o kareyi Ağustos'a çevirmek kanıtı
+  yok eder. Bu durumda **hem varsayılan hem Ağustos** çekilir.
+
+Dönem seçici bir ürün özelliğiyse (Hesap Defterim'de `Herşey / Günlük /
+Haftalık / Aylık / Yıllık`) farklı seçimlerin davranış farkı **kasıtlı olarak**
+ayrı karelerle gösterilir.
+
+**Ayrıca hesap kavramı olan uygulamalarda her hesap türünün kendi defteri ayrı
+bir karedir** — hesap listesi çoğu üründe yalnız toplam gösterir, hareketler
+hesabın içindedir. **Varsa** en az bir nakit hesabı ve bir kredi kartı hesabının
+defteri çekilir; kart defterinde harcama + ödeme + varsa taksit satırı **aynı
+karede** görünmelidir. Hesap ayrımı olmayan üründe (Hesap Defterim'in tek
+sütunlu yürüyen bakiye defteri) bu madde uygulanmaz.
+
+
+## Gözlem formu yazım kuralları (12 Eyl 2026 — Money Manager denetiminden)
+
+> **Bu kuralların makineyle bakılabilen kısmı `./denetim.sh` ile denetlenir**
+> (ölü atıf, yollu atıf dahil · yetim kare, yalnız kısa kodla anılan dahil ·
+> belirsiz aralık atıfı · yasak kalıp · tablo sütun uyumsuzluğu). Formu yazmadan
+> önce ve yazdıktan sonra çalıştırın. Çıkış kodu: 0 hata yok, 1 hata var, 2
+> kullanım hatası veya olmayan form. Tam adı başka yerde geçen karenin kısa
+> kodla da anılması ve çözülemeyen kısa kodlar varsayılan olarak hatadır;
+> `--siki` uyumluluk için aynı davranışı korur. Çift ters tırnakla
+> yazılmış kod parçası ve çitli kod bloğu kural örneği sayılır. Kapının kendi pozitif/
+> negatif testleri: `node denetim-test.cjs` *(14 Eyl 2026, P1-K)*. İçerik
+> doğruluğu — karede yazan ile metinde yazanın aynı olması — elle kontrol
+> edilir, script bunu göremez.
+
+Money Manager doğrulama turunda 24 hata çıktı ve hepsi dört kalıptan geliyordu.
+Kalan uygulamalarda tekrarlanmasın diye kural hâline getirildi.
+
+### 1. Ekran etiketi **ekranda göründüğü dilde** alıntılanır
+
+Uygulama Türkçe çalışıyorsa sekme, buton, sütun, boş durum ve hata metni
+**Türkçe** yazılır. Belge 1 bir arayüz belgesidir; İngilizce ada göre yazılmış
+bir sekme adı orada doğrudan yanlış bilgi olur.
+
+> Money Manager'da 11 yerde İngilizce yazılmıştı: `Daily/Calendar/Monthly` →
+> **Gün/Takvim/Ay**, `Save/Continue` → **Kaydet/Devam et**,
+> `"No data available."` → **"Veri yok."**, `Balance Payable/Outstanding` →
+> **Bu Ay/Gelecek Ay**.
+
+Uygulamanın kendi dili İngilizceyse (Wallet, Goodbudget) İngilizce yazılır —
+kural "Türkçeleştir" değil, **"ekranda ne yazıyorsa o"**.
+
+Uygulamalar arası karşılaştırma tablolarında özgün etiketin yanına parantez
+içinde Türkçe karşılık yazılabilir (`Envelopes` (zarflar)); okunabilirlik için
+serbesttir, ama **özgün etiket silinmez**.
+
+### 2. Kanıt atıfı **tam dosya adıyla** yapılır
+
+`` `04-islem-formu-ve-kategori.png` `` yazılır. **Yasak olan belirsiz
+aralıktır** (`` `04` ``, `` `10`–`28` ``): hangi karenin hangi cümleyi
+desteklediğini kaybettiriyor ve Belge 1/2'de her cümlenin altına kare konacak.
+
+**Serbest olan iki biçim:**
+
+- **Açık liste** — bir iddia birden çok kareye dayanıyorsa hepsi adıyla yazılır:
+  `` `12-hesaplar-kart-borcu-bu-ay.png`, `23-taksit-kart-borcu-bu-gelecek-ay.png` ``
+- **Sıralı akış** — bir akış anlatılıyorsa kareler ok diziliminde verilir:
+  `` `f7-15-yeni-islem.png` → `f7-19-tutar-girildi.png` → `f7-24-d2-kaydedildi.png` ``
+
+> Bluecoins (90), Wallet (106) ve KolayBi (39) hâlâ aralıkla anıyor —
+> 235 kare. Bu üçü doğrulama turunda tam ada çevrilecek.
+> *(14 Eyl 2026, P1-K: KolayBi tam ada çevrildi ve P1'in yedi formu yeni
+> kapıdan hatasız geçiyor. Bluecoins'te 80, Wallet'ta 97 tam adsız kare ve
+> üçer belirsiz aralık kaldı; P2/P3 G paketlerinde kapanır.)*
+
+### 3. Kare değişirse **atıf da değişir**; ölü atıf bırakılmaz
+
+Bir kare silinir, yeniden çekilir veya adı değişirse forma giden bütün atıflar
+aynı commit'te güncellenir. Form denetiminin ilk adımı şudur: **formda anılan
+her dosya diskte var mı, diskteki her dosya formda anılıyor mu.**
+
+> Money Manager'da Faz 1'de İngilizce kareler Türkçeleriyle değiştirilmiş ama
+> form güncellenmemişti: **9 ölü atıf**, üçünün karşılığı hiç yoktu.
+
+### 4. Yeniden koşumda eski koşumun iddiaları **ya doğrulanır ya düşer**
+
+Bir uygulama yeni cihazda/dilde/sürümde yeniden koşulduğunda, önceki koşumdan
+gelen her cümle ya yeni kareyle doğrulanır ya `Doğrulanamadı` olarak işaretlenir
+ya da silinir. Sessizce taşınmaz.
+
+> Money Manager'da Tur 1'den taşınan iki cümle yeni koşumun kareleriyle
+> **çelişiyordu**: "Salary %100" (gelirin kategorisi **Diğer** çıktı) ve
+> "Türkçe yok" (arayüzün tamamı Türkçeydi).
+
+### 5. Emülatörde ayar değiştirilirse **ölçülür ve geri alınır**
+
+Davranış anlamak için bir ayar açılıp kapatılabilir; ama önce/sonra değerleri
+kareyle kaydedilir, ayar **aynı oturumda eski hâline döndürülür** ve geri
+alındığı forma yazılır. **Geri alınamayacak bir değişiklikse (tek yönlü geçiş,
+veri üreten/silen ayar) önce kullanıcıya sorulur.** Kayıt silme bu kapsamda
+değildir — o `SENTETIK-TEST-VERISI.md` kuralına tabidir (kullanıcı istemeden
+silinmez).
+
+### 6. "Ne kazandırıyor / ne kaybettiriyor" nerede zorunlu
+
+Karar tablosunda **`alma` ve `kararı yeniden sor`** satırlarında **zorunludur** —
+bunlar bir yaklaşımı reddeden veya kendi kararımızı sorgulayan satırlar, gerekçe
+tek taraflı olamaz. `doğrudan al` ve apaçık `uyarlayarak al` satırlarında
+isteğe bağlıdır; kısa gerekçe yeter. Ayrıca formun **"Ne kazandırıyor / ne
+kaybettiriyor"** bölümü yalnız o uygulamanın **ayırt edici** yaklaşımları için
+doldurulur, her gözlem için değil.
+
+> Money Manager'da "Toplama Dahil Et" kapatılıp net varlığa etkisi ölçüldü
+> (₺42.350 → ₺38.200), sonra açılıp toplamların döndüğü doğrulandı.
+
 ## Test sırasında not alma
 
 Her görevde yalnız şu alanlar doldurulur:
@@ -198,17 +347,27 @@ Her görevde yalnız şu alanlar doldurulur:
 - Adım/dokunuş sayısı: Yaklaşık değer
 - İyi çalışan nokta: Bir cümle
 - Sürtünme veya belirsizlik: Bir cümle
-- Kanıt: İlgili ekran görüntüsü adı
-- BusinessFinance kararı: `Doğrudan al`, `Uyarlayarak al`, `Alma`, `Henüz karar verme`
+- Kanıt: İlgili ekran görüntüsü adı **+ kanıt etiketi**
+  (`Manuel gözlem` / `Resmî kaynak (alt tür)` / `Çıkarım` / `Doğrulanamadı` —
+  tanımlar `README.md` → "Kanıt etiketleri — tek kaynak")
+- BusinessFinance kararı: beş sonuçtan biri — tanımlar `README.md` →
+  "Karar sonuçları — tek kaynak". Gerekçe yalnız "ADR'miz böyle" diyemez
 
-## İlk oturum
+## Uygulama başına döngü
 
-İlk pilot **Money Manager (Realbyte)** ile yapılır:
+Pilot **Money Manager (Realbyte)** ile yapıldı (1 Eyl 2026). Sonraki her
+uygulamada izlenen sıra:
 
 1. `K00–K08` görevlerini uygula.
-2. Yukarıdaki ekran görüntülerini al.
-3. `UYGULAMA-GOZLEM-SABLONU.md` dosyasını Money Manager için kopyala ve kısa
-   notları doldur.
-4. Görüntüleri ve notları toplu olarak yapay zekâya ver.
-5. Formda eksik bir alan yoksa Paraşüt'e ve ardından kalan uygulamalara geç.
+2. Sürülen uygulamada ek koşumu (A / B / B1 / B2) ekle.
+3. ~10 dk hızlı arayüz gezintisi; kanıt karelerini
+   `kanitlar/<uygulama>/` altına adlandırma kuralıyla kaydet
+   (`kanitlar/README.md`).
+4. `UYGULAMA-GOZLEM-SABLONU.md` kopyalanarak `gozlemler/<uygulama>.md`
+   doldurulur; her satır kanıt etiketi taşır.
+5. `DURUM.md` tablosu güncellenir, kullanıcı formu onaylar, sıradaki uygulamaya
+   geçilir.
+
+**Dokuz uygulamanın dokuzu da bu döngüden geçti** (5 canlı, 4 masa başı);
+güncel dağılım `README.md` → "İnceleme türü" bölümündedir.
 

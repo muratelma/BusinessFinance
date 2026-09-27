@@ -1,0 +1,50 @@
+{
+  "bolum": "Belge 1 · Bölüm 2 · Ürün kimliği",
+  "tarih": "2026-09-16",
+  "kanitlar": [
+    {
+      "kimlik": "E0103",
+      "yol": "kanitlar/bluecoins/f7-52-nav-check.png",
+      "sha256": "80f998c40e27536190df0c6e5502d502150dd00f5f1744d223081bde9c68552b",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0115",
+      "yol": "kanitlar/goodbudget/08-envelopes-filled-home.png",
+      "sha256": "1ef58076869d452b444e121827e6656c73368c8e26c9665e753c206c353fba06",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0137",
+      "yol": "kanitlar/hesap-defterim/03-dolu-ana-ekran.png",
+      "sha256": "60ae2b5b1ffec9fc37f29dee484df694189148605795835ed15434c231d200c6",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0211",
+      "yol": "kanitlar/kolaybi/d24-destek-guncel-durum-panosu.png",
+      "sha256": "dc5912acbbda779b87f2e9b86a139601925c0c2f309c0062ee70a8d3f680a137",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0228",
+      "yol": "kanitlar/money-manager/03-dolu-ana-ekran.png",
+      "sha256": "f082d8ca8d965d32c38314209e5d4d49403fb52a1f6393a8b570956939842902",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0276",
+      "yol": "kanitlar/wallet-budgetbakers/03-dolu-ana-ekran.png",
+      "sha256": "748ad90068419686c108484e0237641c9d89e594a2c3846da16252a78196ff73",
+      "envanter": "aynı"
+    }
+  ],
+  "isaretli_turevler": [
+    "E0103-1.png",
+    "E0115-4.png",
+    "E0137-3.png",
+    "E0211-5.png",
+    "E0228-0.png",
+    "E0276-2.png"
+  ]
+}

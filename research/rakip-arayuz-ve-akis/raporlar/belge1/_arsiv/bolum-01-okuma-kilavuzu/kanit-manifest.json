@@ -1,0 +1,13 @@
+{
+  "bolum": "Belge 1 · Bölüm 1 · Okuma kılavuzu ve kanıt düzeyleri",
+  "tarih": "2026-09-16",
+  "kanitlar": [
+    {
+      "kimlik": "E0262",
+      "yol": "kanitlar/parasut/04-video-cari-hesap-durumu.png",
+      "sha256": "c100a6b1254a47a7b76559682a89a6d3eda240813ba9f501af8de5e22e9e5883",
+      "envanter": "aynı"
+    }
+  ],
+  "isaretli_turevler": []
+}

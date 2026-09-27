@@ -1,5 +1,11 @@
 # Uygulama Gözlem Formu — [Uygulama adı]
 
+> **Doldurmadan önce:** `MANUEL-TEST-PROTOKOLU.md` → **"Gözlem formu yazım
+> kuralları"**. Özet: ekran etiketleri **ekranda göründüğü dilde** yazılır ·
+> kanıt atıfı **tam dosya adıyla** yapılır · kare değişirse atıf da değişir ·
+> önceki koşumdan gelen iddia ya doğrulanır ya `Doğrulanamadı` olur ·
+> kareler **dolu** ve dönemi **Ağustos 2026** olmalıdır.
+
 ## Oturum bilgisi
 
 | Alan | Değer |
@@ -45,10 +51,14 @@ tarafı — kişisel bütçe ürünü değil; Money Manager tam tersi.)
 Sonuç değerleri: `Tamamlandı`, `Desteklenmiyor`, `Ücretli`, `Engelli`,
 `Belirsiz`.
 
-## Arayüz taraması (görev dışı, ~10 dk)
+## Hızlı arayüz gezintisi (Tur 1, görev dışı, ~10 dk)
 
 K00–K08 bittikten sonra görevlerden bağımsız olarak gezilir. Amaç Belge 1 için
 genişlik: her ekranı bir kez aç, ekran görüntüsü al, tek satır not düş.
+
+**Tur 2'nin "tam arayüz taraması"yla karıştırılmamalı** — o, seçilen üç
+uygulamada *her* ekranın ve alt menünün açılmasını isteyen ayrı ve çok daha
+uzun bir adımdır (`MANUEL-TEST-PROTOKOLU.md` → Tur 2, konu 6).
 
 | Alan | Gezildi mi | Kısa gözlem |
 |---|---|---|
@@ -101,7 +111,11 @@ resmî kaynakta yardım merkezi + ürün turundan çıkarılır; her satır kan�
 videosu ve yardım merkezi adım adım makalelerinden akışların yeniden kurulumu.
 Tümü `Resmî kaynak` etiketlidir; canlı ürün davranışı değildir.
 
-| Akış | Kaynak (video zaman damgası / makale başlığı) | Adımlar (yeniden kurulmuş) | BusinessFinance karşılığı |
+Kolon kuralı: **"Bizdeki en yakın yapı"** bir *eşleme* notudur, değerlendirme
+değil — hangisinin iyi olduğu burada yazılmaz (bkz. `README.md` → "Gözlem
+formlarında dil kuralı").
+
+| Akış | Kaynak (video zaman damgası / makale başlığı) | Adımlar (yeniden kurulmuş) | Bizdeki en yakın yapı (eşleme) |
 |---|---|---|---|
 | Gelir/fatura girişi | | | |
 | Gider/fiş girişi | | | |
@@ -112,6 +126,17 @@ Tümü `Resmî kaynak` etiketlidir; canlı ürün davranışı değildir.
 
 Kullanıcının verdiği video ekran görüntüleri `kanitlar/<uygulama>/` altına
 protokol adıyla kaydedilir; her satırda ilgili görsel adı yazılır.
+
+## Ne kazandırıyor / ne kaybettiriyor
+
+**Zorunlu bölüm.** Bu formdaki her ayırt edici yaklaşım için doldurulur.
+Rakibi puanlamıyoruz; ödünleşimini yazıyoruz (`README.md` → "Gözlem
+formlarında dil kuralı"). Bizim kararımız bir ölçüt değil, karşılaştırmanın
+öbür tarafıdır.
+
+| Yaklaşım (rakip ne yapıyor) | Ne kazandırıyor | Ne kaybettiriyor | Bizdeki karşılığı (eşleme) |
+|---|---|---|---|
+| | | | |
 
 ## Akış özeti
 
@@ -124,16 +149,24 @@ protokol adıyla kaydedilir; her satırda ilgili görsel adı yazılır.
 
 ## BusinessFinance için kararlar
 
-| Bulgu | Karar | Gerekçe | Etkilenecek ekran/akış |
+Belge 3'ün ön değerlendirmesi; kesin karar Belge 3'te. **Beş sonucun tanımı
+`README.md` → "Karar sonuçları — tek kaynak" bölümündedir**, buraya
+kopyalanmaz. `Gerekçe` sütunu yalnız "ADR'miz böyle" diyemez — rakibin
+çözümünün **ne kazandırdığını ve ne kaybettirdiğini** söylemek zorundadır.
+
+| Bulgu | Karar | Gerekçe (kazandırdığı + kaybettirdiği) | Etkilenecek ekran/akış |
 |---|---|---|---|
-| | Doğrudan al / Uyarlayarak al / Alma / Henüz karar verme | | |
+| | Doğrudan al / Uyarlayarak al / Alma / Henüz karar verme / **Kararı yeniden sor** | | |
 
 ## Kanıt ve güven düzeyi
 
+Etiket tanımları `README.md` → "Kanıt etiketleri — tek kaynak" bölümündedir.
+
 - Manuel gözlem:
-- Resmî kaynak:
-- Yorum:
+- Resmî kaynak (alt tür parantezle):
+- Çıkarım:
 - Doğrulanamadı:
+- Kullanıcıdan bekleniyor:
 
 ## Tek cümlelik sonuç
 

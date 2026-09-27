@@ -1,0 +1,151 @@
+{
+  "bolum": "Belge 1 · Bölüm 11 · Diğer modüller ve yardımcı araçlar",
+  "tarih": "2026-09-24",
+  "kanitlar": [
+    {
+      "kimlik": "E0095",
+      "yol": "kanitlar/bluecoins/f7-44-gelismis-ayarlar.png",
+      "sha256": "bbb5e7464c1294407dd0886e8c5fdd290ef641fd49e2c1bd806ed2d94b8f9804",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0098",
+      "yol": "kanitlar/bluecoins/f7-47-takvim.png",
+      "sha256": "99e6c09f6f8af4e750e4a647fba2e1922d25d529b955a77e2ea039cc49981218",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0100",
+      "yol": "kanitlar/bluecoins/f7-49-seyahat-modu.png",
+      "sha256": "949377b513ff0a310af685053c9733aafc9448bb94dab4b01866515d913dcb67",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0144",
+      "yol": "kanitlar/hesap-defterim/09-ozgun-ozellik-takvim.png",
+      "sha256": "f5fb1bad7c17739954f2b98ead571bc29e8c670bd9d3f7c2bc978249ce83887a",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0155",
+      "yol": "kanitlar/hesap-defterim/20-oge-eklemek-dialog.png",
+      "sha256": "0f6983efc6c35d38439b6d25da3e6fd903917212cc7a99c0361e317339f12dc4",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0165",
+      "yol": "kanitlar/hesap-defterim/30-not-defteri-checklist.png",
+      "sha256": "453c0fefb6056090df90c1fd1234a90db14e2e95a74af2c4a3f2fe9f036a0655",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0166",
+      "yol": "kanitlar/hesap-defterim/31-nakit-hesap-makinesi.png",
+      "sha256": "0d395bc5b4baf5b5adc014ebede63b2e6c684d3ac0ec1a8639dcdb0836bfe3ee",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0201",
+      "yol": "kanitlar/kolaybi/d14-destek-personel-carileri.png",
+      "sha256": "39696a398a8f08fdd6ca494dc20b6707940734a86b24eea58c819c510ed849db",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0202",
+      "yol": "kanitlar/kolaybi/d15-destek-personel-cari-detay.png",
+      "sha256": "71453e76c96e9a06faa058afdd171952db22bc0ed35a33b333805091f297dd79",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0203",
+      "yol": "kanitlar/kolaybi/d16-destek-maas-odeme-secimi.png",
+      "sha256": "24a51045e443cff1054afb2e7abd00381a636f9ad45dcd3574286532e361e9f7",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0209",
+      "yol": "kanitlar/kolaybi/d22-destek-cekler.png",
+      "sha256": "b7ac3e15ab97b8c4ea220e547aef11bd8dd95868de66029f1ff44caaa3ae0455",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0210",
+      "yol": "kanitlar/kolaybi/d23-destek-senetler.png",
+      "sha256": "d8484f422cf6c85f83278bcb22f76e0ab42c24240a63ed96650b2647b1a71bf2",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0212",
+      "yol": "kanitlar/kolaybi/d25-destek-notlar-hatirlatici.png",
+      "sha256": "4306d29fc027a339bee91e0c11739815116aa38c764ab97ac2acd41e55d4cfac",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0218",
+      "yol": "kanitlar/kolaybi/d31-destek-urun-varyantlar.png",
+      "sha256": "5581be7e54574634754ae32132d45029d31aa9f0ea79f4fad73e081504905637",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0228",
+      "yol": "kanitlar/money-manager/03-dolu-ana-ekran.png",
+      "sha256": "f082d8ca8d965d32c38314209e5d4d49403fb52a1f6393a8b570956939842902",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0254",
+      "yol": "kanitlar/money-manager/30-ayarlar-izgarasi.png",
+      "sha256": "bbf378f9db079e75a8ef49bc88ee1ea02d7067a39caa117c495126fe0a298e5f",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0294",
+      "yol": "kanitlar/wallet-budgetbakers/21-b2-islem-detay-taksit-alani-yok.png",
+      "sha256": "34db218a83fa470df0094489cee18b7860e3475da355576986c304067973b0f6",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0376",
+      "yol": "kanitlar/wallet-budgetbakers/f7-55-menu-scroll.png",
+      "sha256": "02e7d8b84050955879bc27dc62117eb586dc4cf7e4d008079034dcd875ab85ab",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0454",
+      "yol": "kanitlar/bluecoins/f7-78-seyahat-modu-etiket-seciyor.png",
+      "sha256": "66ffe490bb76ae061bdd8f2b90a136b860008fafae9356d9b59656b96827d329",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0455",
+      "yol": "kanitlar/money-manager/61-calcbox-ayri-uygulama-play-sayfasi.png",
+      "sha256": "f18fce516b438865a4c0db097812ab08c60951b2f13806d63fe62e26a84c9d19",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0456",
+      "yol": "kanitlar/money-manager/62-pcden-yonet-ucretli-surum-ekrani.png",
+      "sha256": "89a994eedfc636ce953665f48acdd4fce19f66111fc346ed9322e0a3ae60109a",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0479",
+      "yol": "kanitlar/wallet-budgetbakers/f7-89-warranties-bos-durum.png",
+      "sha256": "8b20ef329ceff795be116c81fca005ca1963dd7f1018d3232670f76d5d707e5c",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0480",
+      "yol": "kanitlar/wallet-budgetbakers/f7-91-shopping-lists-elbise.png",
+      "sha256": "9573eb32422ec691c197cb0b5b22e8c24eec66d0e452b160609744821a8fc610",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0481",
+      "yol": "kanitlar/wallet-budgetbakers/f7-93-loyalty-cards-bos-durum.png",
+      "sha256": "a5e2ed94932abf29144d8ab3eb29ad4224811a80370fbcbcb3d7647ce8aebf8b",
+      "envanter": "aynı"
+    }
+  ],
+  "isaretli_turevler": []
+}

@@ -1,0 +1,198 @@
+{
+  "bolum": "Belge 1 · Bölüm 2 · Gezinme ve ana ekran",
+  "tarih": "2026-09-24",
+  "kanitlar": [
+    {
+      "kimlik": "E0017",
+      "yol": "kanitlar/bluecoins/01-ilk-acilis.png",
+      "sha256": "4838a0f0e720ef8ca9acfad07ba6e17276999565b138f520f4ccd6220a8b82f8",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0026",
+      "yol": "kanitlar/bluecoins/10-fresh-bos-ana-ekran.png",
+      "sha256": "edb512bccba3b910a22460dbe81eebb908340b6a85d4f85bc471cf18fcd9f90f",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0084",
+      "yol": "kanitlar/bluecoins/f7-33-menu2.png",
+      "sha256": "899edfe2fef9cb5f210784d185a3d9ac01022928c1c56eef6a1a9c74bacbd1fa",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0103",
+      "yol": "kanitlar/bluecoins/f7-52-nav-check.png",
+      "sha256": "80f998c40e27536190df0c6e5502d502150dd00f5f1744d223081bde9c68552b",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0106",
+      "yol": "kanitlar/goodbudget/01-ilk-acilis.png",
+      "sha256": "6f8b4b1bc9f8d33db20687fd8d145548900fb734da23332d1e9f12dd229b913d",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0109",
+      "yol": "kanitlar/goodbudget/02-setup-budget-envelope.png",
+      "sha256": "5afb12d0ee478835c75ccc5da8bdc721af2b67dece0b5e52f5c286f5897dc439",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0110",
+      "yol": "kanitlar/goodbudget/03-register-household.png",
+      "sha256": "dd3f3226559bc23b009cd971643586b974362a603a0363e4296d8d3b861616a1",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0115",
+      "yol": "kanitlar/goodbudget/08-envelopes-filled-home.png",
+      "sha256": "1ef58076869d452b444e121827e6656c73368c8e26c9665e753c206c353fba06",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0135",
+      "yol": "kanitlar/hesap-defterim/01-ilk-acilis-hosgeldin.png",
+      "sha256": "23549a0555801bef59aff3622d5be3e046b0ffb73ad9ee153a0bdfb5b1b9f1af",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0136",
+      "yol": "kanitlar/hesap-defterim/02-bos-ana-ekran.png",
+      "sha256": "322cf04db5bb5dfff169373d7e4fe87f25b6e3f5cc8f538f5f58ef11ea3af6de",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0137",
+      "yol": "kanitlar/hesap-defterim/03-dolu-ana-ekran.png",
+      "sha256": "60ae2b5b1ffec9fc37f29dee484df694189148605795835ed15434c231d200c6",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0150",
+      "yol": "kanitlar/hesap-defterim/15-ayarlar.png",
+      "sha256": "96da4a2a4e075ff8f728ddea1465d2e627d8a5f53807c03e122e7f8a8c5db1e7",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0171",
+      "yol": "kanitlar/hesap-defterim/36-drawer-menu-ust.png",
+      "sha256": "94ad925cfbf9cd5141fa2a1f4426aa1df0db8b380ad71d55c8dc4139bdbcb60c",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0181",
+      "yol": "kanitlar/kolaybi/d33-video-guncel-durum-panosu.png",
+      "sha256": "121b681351cbea4b347765ddee5eff4a2aff9656eb85a73b4f5fffc0f7dc5133",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0187",
+      "yol": "kanitlar/kolaybi/d39-guncel-arayuz-2026.png",
+      "sha256": "3418fc4b6b454183bba16ad56435fed1c2e1e6313b157ebb15aead6a48aa1846",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0211",
+      "yol": "kanitlar/kolaybi/d24-destek-guncel-durum-panosu.png",
+      "sha256": "dc5912acbbda779b87f2e9b86a139601925c0c2f309c0062ee70a8d3f680a137",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0227",
+      "yol": "kanitlar/money-manager/02-bos-ana-ekran.png",
+      "sha256": "39e206728de88ca3fa3d759ad35979c322aee3acd1818204049d5d88c872a77f",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0228",
+      "yol": "kanitlar/money-manager/03-dolu-ana-ekran.png",
+      "sha256": "f082d8ca8d965d32c38314209e5d4d49403fb52a1f6393a8b570956939842902",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0254",
+      "yol": "kanitlar/money-manager/30-ayarlar-izgarasi.png",
+      "sha256": "bbf378f9db079e75a8ef49bc88ee1ea02d7067a39caa117c495126fe0a298e5f",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0276",
+      "yol": "kanitlar/wallet-budgetbakers/03-dolu-ana-ekran.png",
+      "sha256": "748ad90068419686c108484e0237641c9d89e594a2c3846da16252a78196ff73",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0376",
+      "yol": "kanitlar/wallet-budgetbakers/f7-55-menu-scroll.png",
+      "sha256": "02e7d8b84050955879bc27dc62117eb586dc4cf7e4d008079034dcd875ab85ab",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0450",
+      "yol": "kanitlar/wallet-budgetbakers/f7-104-cekmece-others-imports-exports-locations.png",
+      "sha256": "f0b6e2cd504c9e7c360e7cd1acf000d947a80572f7f491dd39f01567cff55815",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0469",
+      "yol": "kanitlar/wallet-budgetbakers/f7-59-home-balance-trend-ve-bekleyen-odeme-yuklenmis.png",
+      "sha256": "e70953040ea5bbcb980baebbd15df167ad2cce6753a9c2b04d1e21a5aa947d15",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0486",
+      "yol": "kanitlar/bluecoins/f7-55-soguk-acilis-hesaplar-sekmesi-secili.png",
+      "sha256": "a01bc5147ec83869bf66d42be0bd9dd312d4cfc6b8b4ab864bcf911823398c30",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0488",
+      "yol": "kanitlar/bluecoins/f7-61-cekmece-iki-hesaplar-kalemi.png",
+      "sha256": "d2254247f7e2ef2aaa965cc2bac58a01fffd5a17178a9325c8d4819746ce0a8f",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0489",
+      "yol": "kanitlar/bluecoins/f7-62-ikinci-hesaplar-hesap-kurulum-ekrani.png",
+      "sha256": "0d466b8174a01074af41ca5ef261247a32675bb90d0f90b72632b0b0d9d97fd8",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0496",
+      "yol": "kanitlar/hesap-defterim/44-soguk-acilis-ana-hesap-defteri.png",
+      "sha256": "058762b0d604b05c93069d72b1cebc00f89eb64ea8cb1ae748c09337a77aa868",
+      "envanter": "aynı"
+    }
+  ],
+  "isaretli_turevler": [
+    "E0017-0.png",
+    "E0026-25.png",
+    "E0084-18.png",
+    "E0103-4.png",
+    "E0103-9.png",
+    "E0103-k7-1.png",
+    "E0103-s5-2.png",
+    "E0109-2.png",
+    "E0115-10.png",
+    "E0115-7.png",
+    "E0115-k7-3.png",
+    "E0115-s5-1.png",
+    "E0135-1.png",
+    "E0136-26.png",
+    "E0137-19.png",
+    "E0137-6.png",
+    "E0137-s5-4.png",
+    "E0171-17.png",
+    "E0211-27.png",
+    "E0227-24.png",
+    "E0228-3.png",
+    "E0228-8.png",
+    "E0228-k7-0.png",
+    "E0228-s5-0.png",
+    "E0276-5.png",
+    "E0276-k7-2.png",
+    "E0276-s5-3.png",
+    "E0376-16.png"
+  ]
+}

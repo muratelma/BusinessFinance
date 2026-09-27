@@ -1,0 +1,85 @@
+{
+  "bolum": "Belge 2 · Bölüm 6 · Sınıflandırma: işletme mi, şahsi mi",
+  "tarih": "2026-09-21",
+  "kanitlar": [
+    {
+      "kimlik": "E0020",
+      "yol": "kanitlar/bluecoins/04-islem-formu.png",
+      "sha256": "98709457bd0119ace1b1bd984ed3cea7a6235c05cbceb510f46805927bcfb657",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0087",
+      "yol": "kanitlar/bluecoins/f7-36-kategoriler2.png",
+      "sha256": "78252571f90285e8446fd8aab97796dc64bb57196846d8b2484251b6f854fd86",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0088",
+      "yol": "kanitlar/bluecoins/f7-37-etiketler.png",
+      "sha256": "6a89e3f8bf3abfa038560e9cfa4d7401e0fe113343beee6c4701fc9f1b5497d3",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0151",
+      "yol": "kanitlar/hesap-defterim/16-kategori-alani-acik-form.png",
+      "sha256": "04b63e6d100350eaf18bcbdbf21615481d9d37027e82cb79417280bec2cb638e",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0161",
+      "yol": "kanitlar/hesap-defterim/27-yeniden-adlandirilmis-basliklar.png",
+      "sha256": "c89a5cc3a07b2622d1ae89f7a36dabf071a8cfc328dee2889eff3cc82f9cd32e",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0188",
+      "yol": "kanitlar/kolaybi/d01-destek-proje-listesi.png",
+      "sha256": "f31647914d301a83ef48f04ca96bc4728619e41b309858e8313f96ff11e22fc8",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0190",
+      "yol": "kanitlar/kolaybi/d03-destek-proje-detay-ozet.png",
+      "sha256": "33fe04a4f16ed4d7410479214644abe450273fd523a4dac621fd0bb37080a37c",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0229",
+      "yol": "kanitlar/money-manager/04-islem-formu-ve-kategori.png",
+      "sha256": "993fe4c26fdd4d515fdafbefc49740c37e7fdec84702bccb1c35058d25ee21e4",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0294",
+      "yol": "kanitlar/wallet-budgetbakers/21-b2-islem-detay-taksit-alani-yok.png",
+      "sha256": "34db218a83fa470df0094489cee18b7860e3475da355576986c304067973b0f6",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0417",
+      "yol": "kanitlar/goodbudget/30-oncesi-zarflar.png",
+      "sha256": "3fc9be1ccc797badac65afc2205f2b3743339314b6d6ec08b14234a695ba1767",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0425",
+      "yol": "kanitlar/wallet-budgetbakers/f7-80-labels-gorunumu-isletme-sahsi-yalniz-150.png",
+      "sha256": "cd59b7d1511b51ae88ac72fcb10c5ed51c13da752caa29b351f9d8cb769471db",
+      "envanter": "aynı"
+    }
+  ],
+  "isaretli_turevler": [
+    "E0020-1.png",
+    "E0087-6.png",
+    "E0088-5.png",
+    "E0151-3.png",
+    "E0161-8.png",
+    "E0188-9.png",
+    "E0190-10.png",
+    "E0229-0.png",
+    "E0294-2.png",
+    "E0417-7.png",
+    "E0425-4.png"
+  ]
+}

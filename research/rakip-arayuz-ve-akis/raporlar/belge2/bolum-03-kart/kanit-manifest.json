@@ -1,0 +1,162 @@
+{
+  "bolum": "Belge 2 · Bölüm 3 · Kart: harcama, taksit, borç, ödeme",
+  "tarih": "2026-09-21",
+  "kanitlar": [
+    {
+      "kimlik": "E0037",
+      "yol": "kanitlar/bluecoins/21-b2-kalan-5-taksit-hatirlatici.png",
+      "sha256": "1f9081cdeead076dd9b3c1b941b3acc1976dcb4861db7313901ae660aa5252ad",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0048",
+      "yol": "kanitlar/bluecoins/32-kart-hesap-kesim-gunu-limit-alanlari.png",
+      "sha256": "123cb6c6e1ef2c684ca04573e91bdab970d6facbd80da65a7a89c1840285abb7",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0050",
+      "yol": "kanitlar/bluecoins/34-kismi-kart-odemesi-500-transfer.png",
+      "sha256": "71a2be83c39d24474f03bc1ca34fbd50e588d148ba6155901287509bbb0418fd",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0153",
+      "yol": "kanitlar/hesap-defterim/18-kismi-odeme-is-karti.png",
+      "sha256": "5d4434f4956b2d5b1e0b125322e6b6e8b8459471f0694f020e82640d12352cad",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0208",
+      "yol": "kanitlar/kolaybi/d21-destek-yeni-kredi-karti-formu.png",
+      "sha256": "ff28440fb6af1ec6c95532c8fe581b53f20d4821cd5fe492910c9a377f379fe8",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0233",
+      "yol": "kanitlar/money-manager/09-kart-hesap-ekstre-modeli.png",
+      "sha256": "967d9adb56e5659cb7dc0e22be431deef3a9d33b3831b4abe23020d45e6554cc",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0236",
+      "yol": "kanitlar/money-manager/12-hesaplar-kart-borcu-bu-ay.png",
+      "sha256": "59b282f4e83fee3dff54bb2495042001d69c3cecfc8449cc845af5102db7ecdb",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0245",
+      "yol": "kanitlar/money-manager/21-taksit-6ay-form.png",
+      "sha256": "bc5527c868ba600d36d1cd91b0352e7f7201dfdc3df7af0d18cd864f539daaa0",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0246",
+      "yol": "kanitlar/money-manager/22-taksit-1-6-agustos.png",
+      "sha256": "0e99069fcd73dff1292de493d69d8313de66c12489a92eb61d7110bfd1af5197",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0248",
+      "yol": "kanitlar/money-manager/24-kismi-kart-odemesi-400.png",
+      "sha256": "7f86909b29f9a82087fd1501d993611b9e9493c4ed62d1a774f8f67b138bc45f",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0249",
+      "yol": "kanitlar/money-manager/25-kismi-odeme-sonrasi-borc.png",
+      "sha256": "fccfff898e93388b0678643ba1b9648ce1b0f530abf8d55bc340aee878a26c84",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0294",
+      "yol": "kanitlar/wallet-budgetbakers/21-b2-islem-detay-taksit-alani-yok.png",
+      "sha256": "34db218a83fa470df0094489cee18b7860e3475da355576986c304067973b0f6",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0297",
+      "yol": "kanitlar/wallet-budgetbakers/24-kart-hesap-detay-negatif-bakiye.png",
+      "sha256": "694eb5714e956eeec1a92a137f41ff1f9d0bd794737f269e1319372e4e2e05b3",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0298",
+      "yol": "kanitlar/wallet-budgetbakers/25-kart-hesap-ayarlari.png",
+      "sha256": "1fc012a413dfd00285b86c8bc7f37e78dad6873e22ca7e0a9b4a6b65fd8c65ca",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0405",
+      "yol": "kanitlar/money-manager/35-toplam-sekmesi-eylul.png",
+      "sha256": "824296b69b613acc56efb25caa7dcc270a976c6ea8f3f6d15b109c9220904ee6",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0407",
+      "yol": "kanitlar/money-manager/37-ekim-islemler-taksit-3-6.png",
+      "sha256": "ab0f5b498f2946c1c1ffd0bd0b6a2e2e5afc4b97142edcf244633a814cf1fa5e",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0409",
+      "yol": "kanitlar/money-manager/39-aralik-islemler-taksit-5-6.png",
+      "sha256": "098af51a841cb204acefe6f242899e177a34926a0f77e84e2ccb937a29392372",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0410",
+      "yol": "kanitlar/money-manager/40-ocak-islemler-taksit-6-6.png",
+      "sha256": "6b3f45a8c0d4ffc7fe4e83af672172a9003f2b530eeeb99f4f0f8f1dc38dad31",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0411",
+      "yol": "kanitlar/money-manager/41-subat-islemler-veri-yok.png",
+      "sha256": "7058e21c2ce1df8feae87c6cda671f5e94097f438f00407776601df93e377a4c",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0412",
+      "yol": "kanitlar/money-manager/42-kart-defteri-ekim-bakiye-2600.png",
+      "sha256": "835d6e7f10911d6fbf7444ef70c8be98fd5d83f94d0ba5a1c2176a8ff81e53e1",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0413",
+      "yol": "kanitlar/money-manager/43-kart-defteri-ocak-bakiye-5600.png",
+      "sha256": "4cc3dbd47090007c41c6deb1ac6304795d5bee9e814d4a3a279851cdcb6f7bc1",
+      "envanter": "aynı"
+    },
+    {
+      "kimlik": "E0414",
+      "yol": "kanitlar/money-manager/44-hesaplar-borclar-1600.png",
+      "sha256": "b89ca7963a7f6348d715416fac51574406f73a093941fc0951954e9b018e0866",
+      "envanter": "aynı"
+    }
+  ],
+  "isaretli_turevler": [
+    "E0037-9.png",
+    "E0048-1.png",
+    "E0050-17.png",
+    "E0153-6.png",
+    "E0208-3.png",
+    "E0233-0.png",
+    "E0236-4.png",
+    "E0245-7.png",
+    "E0246-8.png",
+    "E0248-15.png",
+    "E0249-16.png",
+    "E0294-10.png",
+    "E0297-5.png",
+    "E0298-2.png",
+    "E0405-18.png",
+    "E0407-11.png",
+    "E0409-12.png",
+    "E0410-13.png",
+    "E0411-14.png",
+    "E0412-20.png",
+    "E0413-21.png",
+    "E0414-19.png"
+  ]
+}

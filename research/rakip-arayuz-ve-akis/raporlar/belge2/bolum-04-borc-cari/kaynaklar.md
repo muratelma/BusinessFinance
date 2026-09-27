@@ -1,0 +1,25 @@
+# Kaynak dizini — Belge 2 · Bölüm 4 · Borç, cari ve tahsilat
+
+`isaretli/` altındaki türevler bu bölüm için üzerine numaralı işaret çizilmiş
+kopyalardır ve özgünden farklıdır; ölçüm ve alıntı her zaman özgüne dayanır.
+
+| Kimlik | Şekil | Uygulama | Özgün dosya | SHA-256 | Envanter |
+|---|---|---|---|---|---|
+| E0049 | 4.1 | bluecoins | [kanitlar/bluecoins/33-cari-hesap-olusturuldu.png](../../../kanitlar/bluecoins/33-cari-hesap-olusturuldu.png) | `918101f321e7bdc9544ec7795b7c3b2abac2b7fae7e9c906bfca8e25426074e0` | aynı |
+| E0055 | 4.12 | bluecoins | [kanitlar/bluecoins/f7-04-tum-hesaplar.png](../../../kanitlar/bluecoins/f7-04-tum-hesaplar.png) | `272550488e8863d393004dff1e6c2fc799afbdaa581e19ef331d77af99b927ff` | aynı |
+| E0074 | 4.9 | bluecoins | [kanitlar/bluecoins/f7-23-hesap-dogru-secildi.png](../../../kanitlar/bluecoins/f7-23-hesap-dogru-secildi.png) | `0b07b81e1eeba033288985c65259c9ce003be8d1cefa69106cbecd063f60f267` | aynı |
+| E0075 | 4.10 | bluecoins | [kanitlar/bluecoins/f7-24-d2-kaydedildi.png](../../../kanitlar/bluecoins/f7-24-d2-kaydedildi.png) | `91b8eef9cd165396c2dd6d494efe3c1ef9232b2f912b3aec5968a71ed113a2bf` | aynı |
+| E0079 | 4.11 | bluecoins | [kanitlar/bluecoins/f7-28-d3-kaydedildi.png](../../../kanitlar/bluecoins/f7-28-d3-kaydedildi.png) | `5f7f11e65fa73e92494555baba55a975964e59f77c32c1885c455d9ce20d63e5` | aynı |
+| E0177 | 4.4 | hesap-defterim | [kanitlar/hesap-defterim/42-drawer-diger-uygulamalar-veresiye-gelirgider.png](../../../kanitlar/hesap-defterim/42-drawer-diger-uygulamalar-veresiye-gelirgider.png) | `53f8a9b3c1df19684669dc94c1b701bce5a4c17810fb352e7e5cff76ca3b06dd` | aynı |
+| E0194 | 4.18 | kolaybi | [kanitlar/kolaybi/d07-destek-cari-listesi.png](../../../kanitlar/kolaybi/d07-destek-cari-listesi.png) | `a67f6c8298bebeaaf7297e2aa6e297c6b53519ec24d6c23eaf36657ed01a7818` | aynı |
+| E0195 | 4.17 | kolaybi | [kanitlar/kolaybi/d08-destek-cari-olusturma-formu.png](../../../kanitlar/kolaybi/d08-destek-cari-olusturma-formu.png) | `872edf19cffcdc0c64dbcfc1108b12f9e6c20a44ad60746affd33db4bd9d7130` | aynı |
+| E0308 | 4.5 | wallet-budgetbakers | [kanitlar/wallet-budgetbakers/35-debt-kayit-baglama-sorusu.png](../../../kanitlar/wallet-budgetbakers/35-debt-kayit-baglama-sorusu.png) | `419d908e109a33a393a07de40a866def38beb74862d549e19e182cd2adbdbf7c` | aynı |
+| E0309 | 4.6 | wallet-budgetbakers | [kanitlar/wallet-budgetbakers/36-debt-i-lent-formu.png](../../../kanitlar/wallet-budgetbakers/36-debt-i-lent-formu.png) | `62fa8d17d9c14bc75ca86356440221e851626e05a7dd4dc7ce7d3c482865b687` | aynı |
+| E0315 | 4.7 | wallet-budgetbakers | [kanitlar/wallet-budgetbakers/42-debt-kayit-olustur-mu-bakiye-degisir.png](../../../kanitlar/wallet-budgetbakers/42-debt-kayit-olustur-mu-bakiye-degisir.png) | `115368f11aa2a6b9d8469ed87546afe36b288f426ca7137d6e29dab5f1cca971` | aynı |
+| E0316 | 4.2 | wallet-budgetbakers | [kanitlar/wallet-budgetbakers/43-debt-olusturuldu-i-lent.png](../../../kanitlar/wallet-budgetbakers/43-debt-olusturuldu-i-lent.png) | `862dd8ffe026500a0b39715420f6c2a713d85cfa1cf134b35a5f7e96adee0d2c` | aynı |
+| E0317 | 4.8 | wallet-budgetbakers | [kanitlar/wallet-budgetbakers/44-debt-records-loan-interests-kaydi.png](../../../kanitlar/wallet-budgetbakers/44-debt-records-loan-interests-kaydi.png) | `ee6664e0d836daa0c743fdf23f5d847786b34f58d3340a8bfd03733d81852a86` | aynı |
+| E0358 | 4.3 | wallet-budgetbakers | [kanitlar/wallet-budgetbakers/f7-37-debts-fab.png](../../../kanitlar/wallet-budgetbakers/f7-37-debts-fab.png) | `a18d3677e89a81fa43ef08f491e1a31c1cc2854c5e5b6887270fb4e004418e55` | aynı |
+| E0367 | 4.13 | wallet-budgetbakers | [kanitlar/wallet-budgetbakers/f7-46-add-record-form.png](../../../kanitlar/wallet-budgetbakers/f7-46-add-record-form.png) | `155aa75cebf3b7e0368fe95456ed1567236abeee9711943fd375244a9a09caaa` | aynı |
+| E0368 | 4.14 | wallet-budgetbakers | [kanitlar/wallet-budgetbakers/f7-47-new-record-form.png](../../../kanitlar/wallet-budgetbakers/f7-47-new-record-form.png) | `acf97982bbd0c372bff5d0b3584de527477aab82d1567ba1d6bb35b7ab52c903` | aynı |
+| E0370 | 4.15 | wallet-budgetbakers | [kanitlar/wallet-budgetbakers/f7-49-d3-saved.png](../../../kanitlar/wallet-budgetbakers/f7-49-d3-saved.png) | `040018d95b1ac948048487b857eae8c8d8a12b482aaefdf101a1ffe5b2c351a9` | aynı |
+| E0398 | 4.16 | wallet-budgetbakers | [kanitlar/wallet-budgetbakers/48-u01-cash-flow-30-gun-borc-kayitlari-dahil.png](../../../kanitlar/wallet-budgetbakers/48-u01-cash-flow-30-gun-borc-kayitlari-dahil.png) | `cb450a49d2f54c8f5750d84e1150802fe8a24f1c2de30a6153e2c6354a28abe2` | aynı |
