@@ -8,6 +8,8 @@ import 'package:business_finance_mobile/features/account/presentation/account_pa
 
 import '../../helpers/fake_auth.dart';
 
+import '../../helpers/accessibility.dart';
+
 void main() {
   testWidgets('hesap sayfası e-postayı ve açık oturumları gösterir', (
     tester,
@@ -38,11 +40,58 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Oturum kapatılsın mı?'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Kapat'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Oturumu kapat'));
     await tester.pumpAndSettle();
 
     expect(repository.revokedSessionId, 'session-other');
     expect(find.text('Başka bir cihaz'), findsNothing);
+  });
+
+  testWidgets('sayfa büyük metin erişilebilirlik kapısını geçer', (
+    tester,
+  ) async {
+    await pumpAtLargestTextScale(tester, _app(FakeAccountRepository()));
+    expectNoOverflow(tester);
+    await expectMeetsAccessibility(tester);
+    await tester.scrollUntilVisible(find.text('Hesabımı sil'), 300);
+    await tester.pumpAndSettle();
+    expectNoOverflow(tester);
+    await expectMeetsAccessibility(tester);
+  });
+
+  testWidgets('oturum satırı göreli zamanı ve geçerliliği söyler', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(FakeAccountRepository(), now: () => DateTime(2026, 8, 17, 12)),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text("7 gün önce açıldı · 9 Eylül'e kadar geçerli"),
+      findsOneWidget,
+    );
+    expect(find.text("Şu an açık · 19 Eylül'e kadar geçerli"), findsOneWidget);
+  });
+
+  testWidgets('diğer oturumlar tek onayla kapanır; bu cihaz kalır', (
+    tester,
+  ) async {
+    final repository = FakeAccountRepository();
+    await tester.pumpWidget(_app(repository));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Açık oturumlar · 2'), findsOneWidget);
+    await tester.tap(find.text('Diğerlerini kapat'));
+    await tester.pumpAndSettle();
+    expect(find.text('Diğer oturumlar kapatılsın mı?'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Hepsini kapat'));
+    await tester.pumpAndSettle();
+
+    expect(repository.revokedSessionId, 'session-other');
+    expect(find.text('Başka bir cihaz'), findsNothing);
+    expect(find.text('Bu cihaz'), findsOneWidget);
+    expect(find.text('Diğerlerini kapat'), findsNothing);
   });
 
   testWidgets('zayıf yeni parola istek gitmeden reddedilir', (tester) async {
@@ -126,6 +175,8 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(find.text('Hesabımı sil'), 200);
+    await tester.ensureVisible(find.text('Hesabımı sil'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Hesabımı sil'));
     await tester.pumpAndSettle();
 
@@ -155,7 +206,10 @@ void main() {
     await tester.pumpWidget(_app(FakeAccountRepository()));
     await tester.pumpAndSettle();
 
-    expect(find.text('E-posta adresiniz doğrulanmadı'), findsNothing);
+    expect(
+      find.textContaining('E-posta adresiniz doğrulanmadı.'),
+      findsNothing,
+    );
   });
 
   testWidgets('doğrulanmamış adres uyarı taşır ama hesabı kilitlemez', (
@@ -165,7 +219,10 @@ void main() {
     await tester.pumpWidget(_app(repository));
     await tester.pumpAndSettle();
 
-    expect(find.text('E-posta adresiniz doğrulanmadı'), findsOneWidget);
+    expect(
+      find.textContaining('E-posta adresiniz doğrulanmadı.'),
+      findsOneWidget,
+    );
 
     // Sayfanın geri kalanı yerinde: uyarı bir engel değil. Kart araya
     // girdiği için aşağısı katlanmanın altında kalıyor, kaydırılıyor.
@@ -244,17 +301,22 @@ void main() {
 
     expect(repository.confirmedWithCode, '123456');
     expect(find.text('E-posta adresiniz doğrulandı.'), findsOneWidget);
-    expect(find.text('E-posta adresiniz doğrulanmadı'), findsNothing);
+    expect(
+      find.textContaining('E-posta adresiniz doğrulanmadı.'),
+      findsNothing,
+    );
   });
 }
 
 Widget _app(
   AccountRepositoryContract repository, {
   FakeAuthSessionRepository? authRepository,
+  DateTime Function()? now,
 }) => MaterialApp(
   theme: AppTheme.light(),
   home: AccountPage(
     repository: repository,
+    now: now,
     authRepository:
         authRepository ??
         (FakeAuthSessionRepository()..session = testSession()),

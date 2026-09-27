@@ -166,6 +166,11 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     dört grup — Para ve hesaplar, Planlama, Vergi ve muhasebe (yalnız
     işletme), Ayarlar. `Hesabım` liste satırından karta taşındı; kişisel
     profilde `Kasa` Para ve hesaplar altında. 888 Flutter testi geçti
+  - **Hesabım**: geri oklu tam ekran; doğrulama uyarısı kimlik kartının
+    içinde, `Tercihler` altında `İşletmem var`, oturumlarda sayaç, göreli
+    zaman ve `Diğerlerini kapat` (var olan tekil uçla sırayla), ayrı
+    `Çıkış yap` düğmesi, silmeden önce yedek kapısı. Büyük yazıda bölüm
+    başlığının yan eylemi alta iniyor. 891 Flutter testi geçti
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni → (gerekirse 06.x) → 07 bulut (`PROJECT-ROADMAP.md`)

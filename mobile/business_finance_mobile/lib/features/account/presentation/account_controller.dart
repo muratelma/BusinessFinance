@@ -81,6 +81,26 @@ class AccountController extends ChangeNotifier {
     }
   }
 
+  /// Bu cihaz dışındaki bütün oturumları kapatır (`Diğerlerini kapat`).
+  ///
+  /// Sunucuda toplu bir uç yok; oturumlar tek tek kapatılır. Biri düşerse
+  /// kalanlar denenmez ve liste sunucudan yeniden okunur: ekran hangi
+  /// oturumların hâlâ açık olduğunu tahmin etmek yerine gerçeği gösterir.
+  Future<bool> revokeOtherSessions() async {
+    final current = currentSessionId;
+    final others = [
+      for (final session in sessions)
+        if (session.sessionId != current) session.sessionId,
+    ];
+    for (final sessionId in others) {
+      if (!await revokeSession(sessionId)) {
+        await load();
+        return false;
+      }
+    }
+    return true;
+  }
+
   /// Parolayı değiştirir ve dönen taze token çiftini **hemen** benimser:
   /// sunucu bütün oturumları kapattığı için elimizdeki refresh token artık
   /// ölüdür ve benimsenmezse kullanıcı bir sonraki istekte düşerdi.

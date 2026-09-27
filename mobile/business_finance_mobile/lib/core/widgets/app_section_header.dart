@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_breakpoints.dart';
 import '../theme/app_spacing.dart';
 
 /// Bölüm başlığı ve isteğe bağlı yan eylemi.
@@ -23,19 +24,25 @@ class AppSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final heading = Semantics(
+      header: true,
+      child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+    );
+    // Büyük yazıda yan eylem başlığın yanına sığmaz; altına iner.
+    if (trailing != null && context.usesLargeText) {
+      return Padding(
+        padding: padding,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [heading, trailing!],
+        ),
+      );
+    }
     return Padding(
       padding: padding,
       child: Row(
         children: [
-          Expanded(
-            child: Semantics(
-              header: true,
-              child: Text(
-                title,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-          ),
+          Expanded(child: heading),
           ?trailing,
         ],
       ),

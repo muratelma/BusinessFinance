@@ -1001,8 +1001,8 @@ Hesaba dair parçalar tek sayfada toplandı. Önceden `Diğer` menüsünün alt�
 iki ayrı kart olarak duran **işletme cevabı** ve **çıkış** oraya taşındı;
 menüde yalnız sayfanın kapısı kaldı.
 
-Sayfaya iki yerden girilir: **Özet ekranının sağ üstündeki hesap ikonu** ve
-`Diğer > Hesabım`. İkisinin birden kalıp kalmayacağına Aşama 06.2 karar verir;
+Sayfaya iki yerden girilir: **Özet ekranının sağ üstündeki avatar** ve
+`Diğer` menüsünün tepesindeki hesap kartı. İkisinin birden kalıp kalmayacağına Aşama 06.2 karar verir;
 o karara kadar iki kapı bir kusur değil, bilerek bırakılmış geçici hâldir.
 İkon `AppBar` action'ıdır ve kapsam anahtarına dokunmaz: anahtar `AppBar`'da
 değil, altındaki ayrı barda ve kaydırılan gövdenin dışında durur.
@@ -1011,11 +1011,17 @@ Sayfanın sırası tehlikeye göredir:
 
 | Sıra | Bölüm | Ne yapar |
 |---|---|---|
-| 1 | Kimlik | E-posta ve hesap açılış tarihi |
-| 2 | İşletmem var | Onboarding cevabı; kategorilere dokunmaz |
-| 3 | Açık oturumlar | Her satır açılış ve geçerlilik tarihi; bu cihaz işaretli |
-| 4 | Güvenlik | Parola değiştirme, çıkış |
-| 5 | Hesabı kapat | Geri dönüşü olmayan silme |
+| 1 | Kimlik | Baş harfler, e-posta, açılış tarihi; doğrulanmamışsa uyarı ve `Adresimi doğrula` aynı kartta |
+| 2 | Tercihler | `İşletmem var`; alt metin duruma göre değişir, kategorilere dokunmaz |
+| 3 | Açık oturumlar · N | Bu cihaz en üstte; göreli açılış (`7 gün önce açıldı`) ve `18 Ekim'e kadar geçerli`; `Diğerlerini kapat` |
+| 4 | Güvenlik | Parola değiştirme |
+| — | Çıkış yap | Kendi tam genişlik kenarlı düğmesi |
+| 5 | Hesabı kapat | Önce `Veri ve yedek` kapısı, sonra kırmızı `Hesabımı sil` |
+
+(Claude Design teslimi, 27 Eylül 2026, HesabimV5.) `Diğerlerini kapat` bu
+cihaz dışındaki oturumları tek onayla kapatır. Sunucuda toplu bir uç yok;
+istemci var olan `DELETE /api/v1/account/sessions/{id}` ucunu her oturum için
+çağırır, biri düşerse durur ve listeyi sunucudan yeniden okur.
 
 **Oturum satırı ne olduğunu değil ne zaman açıldığını söyler.** Cihaz adı, IP
 ve konum yoktur çünkü sunucu bunları hiç saklamıyor; uydurulmuş bir

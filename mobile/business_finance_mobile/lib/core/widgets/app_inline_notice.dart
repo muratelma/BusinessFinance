@@ -18,8 +18,18 @@ class AppInlineNotice extends StatelessWidget {
     this.icon = Icons.info_outline,
     this.actionLabel,
     this.onAction,
+    this.margin = const EdgeInsets.fromLTRB(
+      AppSpacing.medium,
+      AppSpacing.small,
+      AppSpacing.medium,
+      AppSpacing.small,
+    ),
     super.key,
   });
+
+  /// Dış boşluk. Kartın içinde duran uyarı (Hesabım kimlik kartı) kartın
+  /// kendi iç boşluğunu kullanır ve sıfır verir.
+  final EdgeInsetsGeometry margin;
 
   final String message;
   final IconData icon;
@@ -32,12 +42,7 @@ class AppInlineNotice extends StatelessWidget {
     final colors = AppFinanceColors.of(context);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.medium,
-        AppSpacing.small,
-        AppSpacing.medium,
-        AppSpacing.small,
-      ),
+      padding: margin,
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.medium),
         decoration: BoxDecoration(

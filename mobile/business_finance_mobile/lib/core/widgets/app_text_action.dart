@@ -47,7 +47,8 @@ class AppTextAction extends StatelessWidget {
                   Icon(icon, size: 18, color: ink),
                   const SizedBox(width: AppSpacing.xSmall),
                 ],
-                Text(label, style: style),
+                // Büyük yazıda etiket satır kırar; eylem ekran dışına taşmaz.
+                Flexible(child: Text(label, style: style)),
                 if (trailingIcon != null) ...[
                   const SizedBox(width: AppSpacing.xSmall),
                   Icon(trailingIcon, size: 18, color: ink),

@@ -1,16 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/formatters/date_text.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/presentation/scope_controller.dart';
+import '../../../core/theme/app_finance_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
+import '../../../core/widgets/app_avatar.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
+import '../../../core/widgets/app_divided_column.dart';
 import '../../../core/widgets/app_form_sheet.dart';
-import '../../../core/widgets/app_list_row.dart';
+import '../../../core/widgets/app_icon_capsule.dart';
+import '../../../core/widgets/app_inline_notice.dart';
+import '../../../core/widgets/app_page_header.dart';
+import '../../../core/widgets/app_row.dart';
 import '../../../core/widgets/app_section_header.dart';
 import '../../../core/widgets/app_state_views.dart';
+import '../../../core/widgets/app_status_chip.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../auth/presentation/auth_validation.dart';
@@ -26,15 +35,23 @@ import 'account_status_controller.dart';
 /// parola, çıkış ve hesabı kapatma — tek sayfada toplanır. Sıra tehlikeye
 /// göredir: önce kim olduğunuz, sonra nereden açık olduğunuz, en sonda geri
 /// dönüşü olmayan eylem.
+///
+/// Tasarım teslimi (27 Eylül 2026, HesabimV5): doğrulama uyarısı kimlik
+/// kartının içinde, `İşletmem var` Tercihler altında, oturumlarda sayaç ve
+/// `Diğerlerini kapat`, çıkış kendi düğmesi, silmeden önce yedek adımı.
 class AccountPage extends StatefulWidget {
   const AccountPage({
     required this.repository,
     required this.authRepository,
     super.key,
+    this.now,
   });
 
   final AccountRepositoryContract repository;
   final AuthSessionRepository authRepository;
+
+  /// Göreli zamanın (`7 gün önce açıldı`) saati; testte sabitlenir.
+  final DateTime Function()? now;
 
   @override
   State<AccountPage> createState() => _AccountPageState();
@@ -62,11 +79,28 @@ class _AccountPageState extends State<AccountPage> {
     super.dispose();
   }
 
+  DateTime get _now => (widget.now ?? DateTime.now)();
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Hesabım')),
-    body: _body(),
-  );
+  Widget build(BuildContext context) {
+    final canPop = Navigator.of(context).canPop();
+    return Scaffold(
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AppPageHeader(
+              title: 'Hesabım',
+              onBack: canPop ? () => Navigator.of(context).maybePop() : null,
+            ),
+            if (controller.isSubmitting) const LinearProgressIndicator(),
+            Expanded(child: _body()),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _body() {
     if (controller.unauthorized) return const AppUnauthorizedView();
@@ -80,60 +114,78 @@ class _AccountPageState extends State<AccountPage> {
         onRetry: controller.load,
       );
     }
+    final sessions = controller.sessions;
+    final others = sessions
+        .where((session) => session.sessionId != controller.currentSessionId)
+        .length;
 
-    return Column(
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.medium,
+        AppSpacing.xSmall,
+        AppSpacing.medium,
+        AppSpacing.xLarge,
+      ),
       children: [
-        if (controller.isSubmitting) const LinearProgressIndicator(),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.medium,
-              AppSpacing.medium,
-              AppSpacing.medium,
-              AppSpacing.fabClearance,
-            ),
-            children: [
-              _IdentityCard(account: account),
-              if (!account.emailConfirmed) ...[
-                const SizedBox(height: AppSpacing.medium),
-                _UnverifiedEmailCard(onVerify: _openVerificationSheet),
-              ],
-              const SizedBox(height: AppSpacing.medium),
-              const _BusinessAnswerCard(),
-              const SizedBox(height: AppSpacing.medium),
-              const AppSectionHeader(title: 'Açık oturumlar'),
-              _SessionsCard(
-                sessions: controller.sessions,
-                currentSessionId: controller.currentSessionId,
-                onRevoke: _confirmRevoke,
-              ),
-              const SizedBox(height: AppSpacing.medium),
-              const AppSectionHeader(title: 'Güvenlik'),
-              AppCard(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  children: [
-                    AppListRow(
-                      icon: Icons.password_outlined,
-                      title: 'Parolamı değiştir',
-                      subtitle:
-                          'Değiştirdiğinizde diğer cihazlardaki oturumlar kapanır.',
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: _openPasswordSheet,
+        _IdentityCard(account: account, onVerify: _openVerificationSheet),
+        const _BusinessAnswerSection(),
+        const SizedBox(height: AppSpacing.large),
+        AppSectionHeader(
+          title: 'Açık oturumlar · ${sessions.length}',
+          padding: EdgeInsets.zero,
+          trailing: others == 0
+              ? null
+              // Toplu eylem gri hap: satırdaki tekil `×`'ten ayrı okunur.
+              : TextButton.icon(
+                  style: TextButton.styleFrom(
+                    backgroundColor: AppSurfaces.of(context).cardMuted,
+                    foregroundColor: AppSurfaces.of(context).ink,
+                    shape: const StadiumBorder(),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.small + AppSpacing.xSmall,
                     ),
-                    AppListRow(
-                      icon: Icons.logout,
-                      title: 'Çıkış yap',
-                      subtitle: 'Bu cihazdaki güvenli oturum kapatılır.',
-                      onTap: _confirmLogout,
-                    ),
-                  ],
+                  ),
+                  onPressed: controller.isSubmitting
+                      ? null
+                      : () => _confirmRevokeOthers(others),
+                  icon: const Icon(Icons.logout, size: 18),
+                  label: const Text('Diğerlerini kapat'),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.medium),
-              _DangerCard(onDelete: _openDeleteSheet),
-            ],
+        ),
+        _SessionsCard(
+          sessions: sessions,
+          currentSessionId: controller.currentSessionId,
+          now: _now,
+          onRevoke: _confirmRevoke,
+        ),
+        const SizedBox(height: AppSpacing.large),
+        const AppSectionHeader(title: 'Güvenlik', padding: EdgeInsets.zero),
+        const SizedBox(height: AppSpacing.small),
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: AppRow(
+            padding: _rowPadding,
+            leading: const AppIconCapsule(icon: Icons.password_outlined),
+            title: 'Parolamı değiştir',
+            subtitle:
+                'Diğer cihazlardaki oturumlar kapanır; bu cihazda açık '
+                'kalırsınız.',
+            trailing: const _Chevron(),
+            onTap: _openPasswordSheet,
           ),
+        ),
+        const SizedBox(height: AppSpacing.large),
+        OutlinedButton.icon(
+          onPressed: _confirmLogout,
+          icon: const Icon(Icons.logout),
+          label: const Text('Çıkış yap'),
+        ),
+        const SizedBox(height: AppSpacing.large),
+        const AppSectionHeader(title: 'Hesabı kapat', padding: EdgeInsets.zero),
+        const SizedBox(height: AppSpacing.small),
+        _DangerCard(
+          onBackup: () => GoRouter.maybeOf(context)?.push('/more/data-tools'),
+          onDelete: _openDeleteSheet,
         ),
       ],
     );
@@ -146,8 +198,8 @@ class _AccountPageState extends State<AccountPage> {
       title: 'Oturum kapatılsın mı?',
       message:
           'O cihaz bir sonraki denemesinde yeniden giriş yapmak zorunda kalır.',
-      highlight: 'Açılış: ${_formatDateTime(session.createdAtUtc)}',
-      confirmLabel: 'Kapat',
+      highlight: _openedText(session.createdAtUtc, _now),
+      confirmLabel: 'Oturumu kapat',
       destructive: true,
     );
     if (!confirmed || !mounted) return;
@@ -164,12 +216,39 @@ class _AccountPageState extends State<AccountPage> {
     );
   }
 
+  Future<void> _confirmRevokeOthers(int count) async {
+    final confirmed = await AppConfirmDialog.show(
+      context: context,
+      icon: Icons.no_accounts_outlined,
+      title: 'Diğer oturumlar kapatılsın mı?',
+      message:
+          '$count cihazdaki oturum kapanır; o cihazlar yeniden giriş yapmak '
+          'zorunda kalır. Bu cihazda açık kalırsınız.',
+      confirmLabel: 'Hepsini kapat',
+      destructive: true,
+    );
+    if (!confirmed || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final done = await controller.revokeOtherSessions();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          done
+              ? 'Diğer oturumlar kapatıldı.'
+              : controller.errorMessage ?? 'Bazı oturumlar kapatılamadı.',
+        ),
+      ),
+    );
+  }
+
   Future<void> _confirmLogout() async {
     final shouldLogout = await AppConfirmDialog.show(
       context: context,
       icon: Icons.logout,
       title: 'Çıkış yapılsın mı?',
-      message: 'Bu cihazdaki oturum bilgileri güvenli biçimde silinecek.',
+      message:
+          'Bu cihazdaki oturum bilgileri güvenli biçimde silinir; kayıtlarınız '
+          'sunucuda kalır.',
       confirmLabel: 'Çıkış yap',
     );
     if (shouldLogout && mounted) {
@@ -209,15 +288,15 @@ class _AccountPageState extends State<AccountPage> {
   }
 
   Future<void> _openDeleteSheet() async {
-    // İlk kapı: ne olacağını söyleyen açık onay.
+    // İlk kapı: ne olacağını söyleyen açık onay. Yedek adımı artık aynı
+    // kartın bir üst satırında duruyor.
     final confirmed = await AppConfirmDialog.show(
       context: context,
       icon: Icons.delete_forever_outlined,
       title: 'Hesabınız silinsin mi?',
       message:
           'Hesabınız ve bütün kayıtlarınız kalıcı olarak silinir; geri '
-          'getirilemez. Silmeden önce Diğer > Veri ve yedek adımından '
-          'yedeğinizi almanız önerilir.',
+          'getirilemez. Sonraki adımda parolanız sorulur.',
       highlight: controller.account?.email,
       confirmLabel: 'Devam et',
       destructive: true,
@@ -237,28 +316,92 @@ class _AccountPageState extends State<AccountPage> {
   }
 }
 
+const _rowPadding = EdgeInsets.fromLTRB(
+  AppSpacing.medium,
+  AppSpacing.small + AppSpacing.xSmall,
+  AppSpacing.small + AppSpacing.xSmall,
+  AppSpacing.small + AppSpacing.xSmall,
+);
+
+class _Chevron extends StatelessWidget {
+  const _Chevron();
+
+  @override
+  Widget build(BuildContext context) => Icon(
+    Icons.chevron_right,
+    size: 22,
+    color: AppSurfaces.of(context).inkMuted,
+  );
+}
+
+/// Kim olduğunuz: baş harfler, e-posta, hesap açılışı. Doğrulanmamış adresin
+/// uyarısı ayrı bir kart değil, bu kartın içindedir.
+///
+/// Hesap **kilitli değildir**: uyarı bir engel değil, bir hatırlatmadır. Metin
+/// bunu açıkça söyler, yoksa kullanıcı uygulamanın yarısının kapalı olduğunu
+/// sanır.
 class _IdentityCard extends StatelessWidget {
-  const _IdentityCard({required this.account});
+  const _IdentityCard({required this.account, required this.onVerify});
 
   final UserAccount account;
+  final Future<void> Function() onVerify;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return AppCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('E-posta', style: theme.textTheme.labelMedium),
-          const SizedBox(height: AppSpacing.xSmall),
-          Text(account.email, style: theme.textTheme.titleMedium),
-          const SizedBox(height: AppSpacing.small),
-          Text(
-            'Hesap açılışı: ${_formatDate(account.createdAtUtc)}',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+          Row(
+            children: [
+              AppAvatar(initials: accountInitials(account.email), size: 56),
+              const SizedBox(width: AppSpacing.medium),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      account.email,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontSize: 17,
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxSmall),
+                    Text(
+                      'Hesap açılışı · '
+                      '${_dayMonthYear(account.createdAtUtc.toLocal())}',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
+          const SizedBox(height: AppSpacing.medium),
+          if (account.emailConfirmed)
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: AppStatusChip(
+                label: 'E-posta doğrulandı',
+                icon: Icons.check_circle_outline,
+                tone: AppStatusTone.income,
+              ),
+            )
+          else
+            AppInlineNotice(
+              icon: Icons.mark_email_unread_outlined,
+              message:
+                  'E-posta adresiniz doğrulanmadı. Uygulamayı kullanmaya '
+                  'devam edebilirsiniz; doğrulama parolanızı unuttuğunuzda '
+                  'hesabı geri almanızı sağlar.',
+              actionLabel: 'Adresimi doğrula',
+              onAction: onVerify,
+              margin: EdgeInsets.zero,
+            ),
         ],
       ),
     );
@@ -271,39 +414,78 @@ class _IdentityCard extends StatelessWidget {
 /// arayüzde görünüp görünmeyeceğini belirler. Kategorilere dokunmaz — o
 /// noktada liste artık kullanıcınındır ve sildiği bir kategoriyi geri
 /// getirmek silme eylemini anlamsız kılardı.
-class _BusinessAnswerCard extends StatefulWidget {
-  const _BusinessAnswerCard();
+class _BusinessAnswerSection extends StatefulWidget {
+  const _BusinessAnswerSection();
 
   @override
-  State<_BusinessAnswerCard> createState() => _BusinessAnswerCardState();
+  State<_BusinessAnswerSection> createState() => _BusinessAnswerSectionState();
 }
 
-class _BusinessAnswerCardState extends State<_BusinessAnswerCard> {
+class _BusinessAnswerSectionState extends State<_BusinessAnswerSection> {
   bool _isSaving = false;
 
   @override
   Widget build(BuildContext context) {
     final scopeController = context.watch<ScopeController?>();
     final repository = context.read<ProfileRepositoryContract?>();
-    // Bağlanmamış kabukta (test ya da bağımlılıksız kurulum) kart hiç
+    // Bağlanmamış kabukta (test ya da bağımlılıksız kurulum) bölüm hiç
     // çizilmez: değiştirilemeyen bir anahtar göstermek, kullanıcıya
     // çalışmayan bir düğme vermek olurdu.
     if (scopeController == null || repository == null) {
       return const SizedBox.shrink();
     }
-    return AppCard(
-      child: SwitchListTile(
-        value: scopeController.isVisible,
-        onChanged: _isSaving
-            ? null
-            : (value) => _save(repository, scopeController, value),
-        contentPadding: EdgeInsets.zero,
-        title: const Text('İşletmem var'),
-        subtitle: const Text(
-          'Açıkken kayıtlarınızı işletme ve şahsi olarak ayrı '
-          'okuyabilirsiniz. Kapalıyken bu ayrım hiç görünmez. '
-          'Kategorileriniz iki durumda da olduğu gibi kalır.',
-        ),
+    final on = scopeController.isVisible;
+    final onChanged = _isSaving
+        ? null
+        : (bool value) => _save(repository, scopeController, value);
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.large),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const AppSectionHeader(title: 'Tercihler', padding: EdgeInsets.zero),
+          const SizedBox(height: AppSpacing.small),
+          AppCard(
+            padding: EdgeInsets.zero,
+            child: MergeSemantics(
+              child: InkWell(
+                onTap: onChanged == null ? null : () => onChanged(!on),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.medium,
+                    vertical: AppSpacing.small + AppSpacing.xSmall,
+                  ),
+                  child: Row(
+                    children: [
+                      const AppIconCapsule(icon: Icons.storefront_outlined),
+                      const SizedBox(width: AppSpacing.medium),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'İşletmem var',
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                            const SizedBox(height: AppSpacing.xxSmall),
+                            Text(
+                              '${on ? 'Kayıtlar işletme ve şahsi olarak ayrı '
+                                        'okunur.' : 'İşletme ve şahsi ayrımı gizli.'}'
+                              ' Kategoriler değişmez.',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.small),
+                      Switch(value: on, onChanged: onChanged),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -330,61 +512,6 @@ class _BusinessAnswerCardState extends State<_BusinessAnswerCard> {
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
-  }
-}
-
-/// Doğrulanmamış adresin kalıcı uyarısı.
-///
-/// Hesap **kilitli değildir**: kart bir engel değil, bir hatırlatmadır. Metin
-/// bunu açıkça söyler, yoksa kullanıcı uygulamanın yarısının kapalı olduğunu
-/// sanır.
-class _UnverifiedEmailCard extends StatelessWidget {
-  const _UnverifiedEmailCard({required this.onVerify});
-
-  final Future<void> Function() onVerify;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.mark_email_unread_outlined,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: AppSpacing.small),
-              Expanded(
-                child: Text(
-                  'E-posta adresiniz doğrulanmadı',
-                  style: theme.textTheme.titleMedium,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xSmall),
-          Text(
-            'Uygulamayı kullanmaya devam edebilirsiniz; doğrulama hesabınızı '
-            'güvenceye alır ve parolanızı unuttuğunuzda geri almanızı sağlar.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.small),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: FilledButton.tonalIcon(
-              onPressed: onVerify,
-              icon: const Icon(Icons.mark_email_read_outlined),
-              label: const Text('Adresimi doğrula'),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -489,18 +616,18 @@ class _SessionsCard extends StatelessWidget {
   const _SessionsCard({
     required this.sessions,
     required this.currentSessionId,
+    required this.now,
     required this.onRevoke,
   });
 
   final List<UserSessionSummary> sessions;
   final String? currentSessionId;
+  final DateTime now;
   final Future<void> Function(UserSessionSummary session) onRevoke;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final surfaces = AppSurfaces.of(context);
-
     if (sessions.isEmpty) {
       return AppCard(
         child: Text(
@@ -509,77 +636,93 @@ class _SessionsCard extends StatelessWidget {
         ),
       );
     }
-
+    // Bu cihaz en üstte: kullanıcı önce kendini bulur.
+    final ordered = [
+      ...sessions.where((session) => session.sessionId == currentSessionId),
+      ...sessions.where((session) => session.sessionId != currentSessionId),
+    ];
     return AppCard(
       padding: EdgeInsets.zero,
-      child: Column(
+      child: AppDividedColumn(
+        inset: AppIconCapsule.rowInset,
         children: [
-          for (final (index, session) in sessions.indexed) ...[
-            if (index > 0)
-              Divider(height: 1, thickness: 1, color: surfaces.border),
-            AppListRow(
-              icon: Icons.devices_outlined,
-              title: session.sessionId == currentSessionId
-                  ? 'Bu cihaz'
-                  : 'Başka bir cihaz',
-              subtitle:
-                  'Açılış: ${_formatDateTime(session.createdAtUtc)}\n'
-                  'Geçerlilik: ${_formatDate(session.expiresAtUtc)}',
-              trailing: session.sessionId == currentSessionId
-                  // Kendi oturumunu buradan kapatmak "çıkış yap"tır ve onun
-                  // kendi satırı var; iki yerde iki farklı isimle aynı şeyi
-                  // sunmak kullanıcıyı yanıltırdı.
-                  ? null
-                  : IconButton(
-                      icon: const Icon(Icons.close),
-                      tooltip: 'Oturumu kapat',
-                      onPressed: () => onRevoke(session),
-                    ),
-            ),
-          ],
+          for (final session in ordered)
+            _sessionRow(session, session.sessionId == currentSessionId),
         ],
       ),
     );
   }
+
+  Widget _sessionRow(UserSessionSummary session, bool current) {
+    final subtitle =
+        '${current ? 'Şu an açık' : _openedText(session.createdAtUtc, now)}'
+        ' · ${_validUntil(session.expiresAtUtc, now)}';
+    return AppRow(
+      padding: current
+          ? _rowPadding
+          : const EdgeInsets.fromLTRB(
+              AppSpacing.medium,
+              AppSpacing.small + AppSpacing.xSmall,
+              AppSpacing.xSmall,
+              AppSpacing.small + AppSpacing.xSmall,
+            ),
+      leading: AppIconCapsule(
+        icon: current ? Icons.smartphone_outlined : Icons.devices_outlined,
+        tone: current ? AppStatusTone.neutral : null,
+      ),
+      title: current ? 'Bu cihaz' : 'Başka bir cihaz',
+      subtitle: subtitle,
+      // Kendi oturumunu buradan kapatmak "çıkış yap"tır ve onun kendi
+      // düğmesi var; iki yerde iki farklı isimle aynı şeyi sunmak
+      // kullanıcıyı yanıltırdı.
+      trailing: current
+          ? null
+          : IconButton(
+              icon: const Icon(Icons.close),
+              tooltip: 'Oturumu kapat',
+              onPressed: () => onRevoke(session),
+            ),
+    );
+  }
 }
 
+/// Geri dönüşü olmayan eylemin kartı: önce yedek adımı, sonra silme.
 class _DangerCard extends StatelessWidget {
-  const _DangerCard({required this.onDelete});
+  const _DangerCard({required this.onBackup, required this.onDelete});
 
+  final VoidCallback onBackup;
   final Future<void> Function() onDelete;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = AppFinanceColors.of(context);
     return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: EdgeInsets.zero,
+      child: AppDividedColumn(
+        inset: AppIconCapsule.rowInset,
         children: [
-          Text(
-            'Hesabı kapat',
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.error,
-            ),
+          AppRow(
+            padding: _rowPadding,
+            leading: const AppIconCapsule(icon: Icons.folder_outlined),
+            title: 'Önce yedeğinizi alın',
+            subtitle: 'Diğer › Veri ve yedek',
+            trailing: const _Chevron(),
+            onTap: onBackup,
           ),
-          const SizedBox(height: AppSpacing.xSmall),
-          Text(
-            'Hesabınız ve bütün kayıtlarınız kalıcı olarak silinir. '
-            'Bu işlem geri alınamaz.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+          AppRow(
+            padding: _rowPadding,
+            leading: const AppIconCapsule(
+              icon: Icons.delete_forever_outlined,
+              tone: AppStatusTone.expense,
             ),
-          ),
-          const SizedBox(height: AppSpacing.small),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: onDelete,
-              icon: const Icon(Icons.delete_forever_outlined),
-              label: const Text('Hesabımı sil'),
-              style: TextButton.styleFrom(
-                foregroundColor: theme.colorScheme.error,
-              ),
-            ),
+            title: 'Hesabımı sil',
+            titleStyle: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(color: colors.expense),
+            subtitle:
+                'Hesap ve bütün kayıtlar kalıcı olarak silinir; geri '
+                'alınamaz.',
+            onTap: onDelete,
           ),
         ],
       ),
@@ -735,15 +878,38 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
   }
 }
 
-String _formatDate(DateTime utc) {
-  final local = utc.toLocal();
-  return '${local.day.toString().padLeft(2, '0')}.'
-      '${local.month.toString().padLeft(2, '0')}.${local.year}';
+/// `2026-03-14` → `14 Mart 2026`.
+String _dayMonthYear(DateTime local) =>
+    '${local.day} ${DateText.months[local.month - 1]} ${local.year}';
+
+/// Oturumun ne zaman açıldığı, göreli: `Bugün açıldı`, `7 gün önce açıldı`.
+String _openedText(DateTime createdUtc, DateTime now) {
+  final created = createdUtc.toLocal();
+  final days = DateTime(
+    now.year,
+    now.month,
+    now.day,
+  ).difference(DateTime(created.year, created.month, created.day)).inDays;
+  return switch (days) {
+    <= 0 => 'Bugün açıldı',
+    1 => 'Dün açıldı',
+    _ => '$days gün önce açıldı',
+  };
 }
 
-String _formatDateTime(DateTime utc) {
-  final local = utc.toLocal();
-  return '${_formatDate(utc)} '
-      '${local.hour.toString().padLeft(2, '0')}:'
-      '${local.minute.toString().padLeft(2, '0')}';
+/// `18 Ekim'e kadar geçerli`. Türkçe yönelme eki ay adının son ünlüsüne
+/// uyar; yıl değişiyorsa ek yerine yıl yazılır (`Geçerlilik: 3 Ocak 2027`).
+String _validUntil(DateTime expiresUtc, DateTime now) {
+  final local = expiresUtc.toLocal();
+  final month = DateText.months[local.month - 1];
+  if (local.year != now.year) {
+    return 'Geçerlilik: ${local.day} $month ${local.year}';
+  }
+  const front = {'e', 'i', 'ö', 'ü'};
+  final vowels = month
+      .toLowerCase()
+      .split('')
+      .where((c) => 'aeıioöuü'.contains(c));
+  final suffix = front.contains(vowels.last) ? 'e' : 'a';
+  return "${local.day} $month'$suffix kadar geçerli";
 }
