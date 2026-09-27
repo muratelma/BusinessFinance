@@ -1,0 +1,26 @@
+/* Boşluk — kaynak: lib/core/theme/app_spacing.dart ve app_breakpoints.dart.
+   Ölçek dışı değer uydurulmaz; yakın adıma yuvarlanır. */
+:root {
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+
+  /* Ölçeğin adımı değil, tek amaçlı yerleşim sabitleri */
+  --fab-clearance: 96px;
+  --nav-notch: 72px;
+
+  /* Pencere sınıfı eşikleri (Material 3) */
+  --breakpoint-medium: 600px;
+  --breakpoint-expanded: 840px;
+  --content-max-width: 720px;
+  --donut-with-legend: 320px;
+
+  /* Dokunma hedefi ve bileşen yükseklikleri */
+  --touch-target: 48px;
+  --chip-height: 32px;
+  --row-icon-size: 40px;
+  --nav-bar-height: 76px;
+}
