@@ -162,6 +162,10 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     nullable, backfill yok, yedek v9 taşımıyor). Kontroller: 888 Flutter testi,
     backend Domain/Application/Api geçti; Infrastructure'da yalnız ortam
     kaynaklı 10 SkiaSharp testi düşüyor
+  - **Diğer**: hesap kartı (baş harf, e-posta, doğrulanmamış adres rozeti) ve
+    dört grup — Para ve hesaplar, Planlama, Vergi ve muhasebe (yalnız
+    işletme), Ayarlar. `Hesabım` liste satırından karta taşındı; kişisel
+    profilde `Kasa` Para ve hesaplar altında. 888 Flutter testi geçti
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni → (gerekirse 06.x) → 07 bulut (`PROJECT-ROADMAP.md`)

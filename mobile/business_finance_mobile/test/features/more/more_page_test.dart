@@ -1,109 +1,152 @@
+import 'package:business_finance_mobile/core/presentation/scope_controller.dart';
+import 'package:business_finance_mobile/core/theme/app_theme.dart';
+import 'package:business_finance_mobile/core/widgets/app_card.dart';
+import 'package:business_finance_mobile/core/widgets/app_row.dart';
+import 'package:business_finance_mobile/features/account/data/account_models.dart';
+import 'package:business_finance_mobile/features/account/data/account_repository.dart';
+import 'package:business_finance_mobile/features/account/presentation/account_status_controller.dart';
+import 'package:business_finance_mobile/features/more/presentation/more_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:business_finance_mobile/core/theme/app_theme.dart';
-import 'package:business_finance_mobile/core/widgets/app_card.dart';
-import 'package:business_finance_mobile/core/widgets/app_list_row.dart';
-import 'package:business_finance_mobile/features/more/presentation/more_page.dart';
+import 'package:provider/provider.dart';
 
 import '../../helpers/accessibility.dart';
 
 void main() {
-  /// Menü satırlarının sırası ve adları kasıtlı.
-  ///
-  /// Önceki hâlde tek bir satır "İçe aktarma, borç, hedef ve yedek" diyordu:
-  /// dört alakasız şeyi sayan bir başlık, gruplamanın yanlış olduğunun kendi
-  /// itirafıydı. Sıra da frekansa değil ne yaptığınıza göre: ilk ikisi bakmak
-  /// için, sonraki üçü kurmak için.
-  const expectedOrder = [
-    'Hesaplar ve transferler',
-    'Kredi kartlarım',
-    'Kasa',
-    'Kategoriler',
-    // Cari hesap ile taksitli sözleşme kardeş kapılar ve yan yana duruyorlar:
-    // biri yürüyen bir hesap, diğeri vadesi belli bir plan.
-    'Cari hesap',
-    'Yükümlülükler',
-    'Borç ve alacaklar',
-    'Tasarruf hedefleri',
-    'Planlama ve raporlar',
-    // Hatırlatma bir cihaz ayarıdır, hesap ayarı değil: aynı hesaba başka bir
-    // telefondan girildiğinde o telefon kendi kararını taşır.
-    'Hatırlatmalar',
-    'Veri ve yedek',
-    // Hesabın ikinci kapısı; birincisi Özet'in sağ üstündeki ikon.
-    'Hesabım',
-  ];
+  List<String> titles(WidgetTester tester) => tester
+      .widgetList<AppRow>(find.byType(AppRow))
+      .map((row) => row.title)
+      .toList(growable: false);
 
-  testWidgets('kişisel profilde kasa Diğer altında erişilebilir kalır', (
+  /// Kapılar kullanıcının sorusuna göre gruplanır (06.2 Grup 1). Kişisel
+  /// profilde üçüncü sekme `Bütçeler` olduğu için `Kasa` paranın durduğu
+  /// yerlerin yanına iner; vergi grubu hiç yoktur.
+  testWidgets('kişisel profilde kasa Para ve hesaplar altında durur', (
     tester,
   ) async {
-    await tester.pumpWidget(_host());
-    await tester.pumpAndSettle();
-
-    final titles = tester
-        .widgetList<AppListRow>(find.byType(AppListRow))
-        .map((row) => row.title)
-        .toList(growable: false);
-
-    expect(titles, expectedOrder);
-
-    // Eski birleşik satır geri gelmemeli.
-    expect(find.textContaining('İçe aktarma, borç'), findsNothing);
-  });
-
-  /// Kapıların hepsi tek kart, aralarında ayrıcı.
-  ///
-  /// Satır başına ayrı kart iki yönden de yanlıştı: yapışık hâlde yan yana iki
-  /// kenarlık kalın bir çizgi gibi görünüyor, boşluklu hâlde ise birbiriyle
-  /// ilgili yedi kapı yedi ayrı kutu gibi okunuyordu.
-  testWidgets('menü tek kart içinde, ayrıcılarla bölünmüş', (tester) async {
-    // Uzun bir ekran: sekizinci kapı geldiğinde menü varsayılan test
-    // penceresine sığmaz oldu ve çıkış kartı hiç kurulmuyordu. Ölçülen şey
-    // yapı, pencerenin boyu değil.
     tester.view.physicalSize = const Size(1080, 3200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-
-    await tester.pumpWidget(_host());
+    await tester.pumpWidget(_host(hasBusiness: false));
     await tester.pumpAndSettle();
 
-    // Kapıların hepsi tek kartta: hesabın parçaları `Hesabım` sayfasına
-    // taşındıktan sonra menüde ikinci bir kart kalmadı.
-    expect(find.byType(AppCard), findsOneWidget);
-    expect(find.byType(Divider), findsNWidgets(expectedOrder.length - 1));
+    expect(titles(tester), [
+      'Hesaplar ve transferler',
+      'Kredi kartlarım',
+      'Kasa',
+      'Borç ve alacaklar',
+      'Cari hesap',
+      'Yükümlülükler',
+      'Tasarruf hedefleri',
+      'Planlama ve raporlar',
+      'Kategoriler',
+      'Hatırlatmalar',
+      'Veri ve yedek',
+    ]);
+    expect(find.text('Vergi ve muhasebe'), findsNothing);
+    // Hesap kartı + üç grup.
+    expect(find.byType(AppCard), findsNWidgets(4));
+  });
+
+  testWidgets('işletme profilinde bütçeler ve vergi grubu gelir', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 3200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_host(hasBusiness: true));
+    await tester.pumpAndSettle();
+
+    final shown = titles(tester);
+    expect(shown, contains('Bütçeler'));
+    expect(shown, isNot(contains('Kasa')));
+    expect(shown, containsAll(['Vergi takvimi', 'Muhasebeci paketi']));
+    for (final label in [
+      'Para ve hesaplar',
+      'Planlama',
+      'Vergi ve muhasebe',
+      'Ayarlar',
+    ]) {
+      expect(find.text(label), findsOneWidget);
+    }
+  });
+
+  testWidgets('hesap kartı e-postayı ve doğrulanmamış adresi söyler', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_host(hasBusiness: false));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Hesabım'), findsOneWidget);
+    expect(find.text('esnaf@ornek.com'), findsOneWidget);
+    expect(find.text('E-posta doğrulanmadı'), findsOneWidget);
+    expect(find.text('ES'), findsOneWidget);
+
+    await tester.tap(find.text('Hesabım'));
+    await tester.pumpAndSettle();
+    expect(find.text('hesap sayfası'), findsOneWidget);
   });
 
   testWidgets('menü erişilebilirlik kapısını geçer', (tester) async {
-    await pumpAtLargestTextScale(tester, _host());
+    await pumpAtLargestTextScale(tester, _host(hasBusiness: true));
 
     expectNoOverflow(tester);
     await expectMeetsAccessibility(tester);
   });
 }
 
-Widget _host() => MaterialApp.router(
-  theme: AppTheme.light(),
-  routerConfig: GoRouter(
-    routes: [
-      GoRoute(path: '/', builder: (_, _) => const MorePage()),
-      // Menüdeki her satırın gerçekten bir hedefi olduğunu doğrulamak için
-      // hepsi tanımlı; eksik bir rota testte değil kullanıcıda patlardı.
-      for (final path in [
-        '/more/accounts',
-        '/more/cards',
-        '/more/cash',
-        '/more/budgets',
-        '/more/categories',
-        '/more/counterparties',
-        '/more/obligations',
-        '/more/debts',
-        '/more/goals',
-        '/more/planning',
-        '/more/data-tools',
-        '/more/account',
-      ])
-        GoRoute(path: path, builder: (_, _) => const SizedBox.shrink()),
+Widget _host({required bool hasBusiness}) {
+  final scope = ScopeController(readHasBusiness: () async => hasBusiness);
+  final status = AccountStatusController(_Account())..ensureLoaded();
+  scope.ensureLoaded();
+  return MultiProvider(
+    providers: [
+      ChangeNotifierProvider<ScopeController?>.value(value: scope),
+      ChangeNotifierProvider<AccountStatusController?>.value(value: status),
     ],
-  ),
-);
+    child: MaterialApp.router(
+      theme: AppTheme.light(),
+      routerConfig: GoRouter(
+        routes: [
+          GoRoute(path: '/', builder: (_, _) => const MorePage()),
+          GoRoute(
+            path: '/more/account',
+            builder: (_, _) => const Text('hesap sayfası'),
+          ),
+          // Menüdeki her satırın gerçekten bir hedefi olduğunu doğrulamak
+          // için hepsi tanımlı; eksik bir rota testte değil kullanıcıda
+          // patlardı.
+          for (final path in [
+            '/more/accounts',
+            '/more/cards',
+            '/more/cash',
+            '/more/budgets',
+            '/more/categories',
+            '/more/counterparties',
+            '/more/obligations',
+            '/more/debts',
+            '/more/goals',
+            '/more/planning',
+            '/more/tax-calendar',
+            '/more/accountant-package',
+            '/more/reminders',
+            '/more/data-tools',
+          ])
+            GoRoute(path: path, builder: (_, _) => const SizedBox.shrink()),
+        ],
+      ),
+    ),
+  );
+}
+
+class _Account extends Fake implements AccountRepositoryContract {
+  @override
+  Future<UserAccount> read() async => UserAccount(
+    userId: 'u1',
+    email: 'esnaf@ornek.com',
+    emailConfirmed: false,
+    createdAtUtc: DateTime.utc(2026, 3, 14),
+    activeSessionCount: 1,
+  );
+}

@@ -6,143 +6,225 @@ import '../../../core/presentation/scope_controller.dart';
 import '../../../core/routing/app_locations.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
+import '../../../core/widgets/app_avatar.dart';
 import '../../../core/widgets/app_card.dart';
-import '../../../core/widgets/app_list_row.dart';
+import '../../../core/widgets/app_divided_column.dart';
+import '../../../core/widgets/app_icon_capsule.dart';
+import '../../../core/widgets/app_page_header.dart';
+import '../../../core/widgets/app_row.dart';
+import '../../../core/widgets/app_status_chip.dart';
+import '../../account/presentation/account_status_controller.dart';
 
+/// `Diğer`: ana sekmelere sığmayan kapılar.
+///
+/// Tasarım teslimi (27 Eylül 2026, DigerV2): üstte hesap kartı, altında
+/// kullanıcının sorusuna göre dört grup — *param nerede* (Para ve hesaplar),
+/// *ne zaman ne olacak* (Planlama), *muhasebeciye ne vereceğim* (Vergi ve
+/// muhasebe, yalnız işletmesi olana) ve *ayarlarım* (Ayarlar). Her grup tek
+/// kart; satırlar arasında ikon hizasından başlayan ince ayırıcı var.
 class MorePage extends StatelessWidget {
   const MorePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Diğer')),
-      body: _body(context),
-    );
-  }
-
-  Widget _body(BuildContext context) {
     final hasBusiness = context.watch<ScopeController?>()?.isVisible ?? false;
-    return ListView(
-      // Alt boşluk `+` düğmesini aşacak kadar: kabul turunda son satır
-      // (`Muhasebeci paketi`) düğmenin altında kalıyordu ve dokunuş menüye
-      // değil düğmeye gidiyordu.
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.medium,
-        AppSpacing.medium,
-        AppSpacing.medium,
-        AppSpacing.fabClearance,
-      ),
-      children: [
-        // Sıra frekansa değil, ne yaptığınıza göre. İlk ikisi yalnız bakmak
-        // için açtığınız yerler; sonraki üçü kurduğunuz şeyler; sonuncular
-        // bakış ve dosya işleri.
-        //
-        // Önceki hâlde tek bir satır "İçe aktarma, borç, hedef ve yedek"
-        // diyordu: dört alakasız şeyi sayan bir başlık, gruplamanın yanlış
-        // olduğunun kendi itirafıydı.
-        //
-        // Yedisi **tek** kartın içinde. Menü satırı bir liste kaydı değil, bir
-        // kapı: hepsi aynı yere ait ve aralarına boşluk koymak yedi ayrı kutu
-        // izlenimi veriyordu. Ayrım için çerçeve değil ince ayırıcı yeter —
-        // ayarlar listeleri her yerde böyle kurulu.
-        _MenuGroup(
-          items: [
-            _MenuItem(
-              icon: Icons.account_balance_wallet_outlined,
-              title: 'Hesaplar ve transferler',
-              onTap: () => context.push('/more/accounts'),
-            ),
-            _MenuItem(
-              icon: Icons.credit_card_outlined,
-              // Borçlandığınız kart. Tahsil ettiğiniz POS ayrı bir şeydir ve
-              // `Kasa` altındadır (ADR 0015).
-              title: 'Kredi kartlarım',
-              onTap: () => context.push('/more/cards'),
-            ),
-            if (hasBusiness)
-              _MenuItem(
-                icon: Icons.donut_small_outlined,
-                title: 'Bütçeler',
-                onTap: () => context.push('/more/budgets'),
-              )
-            else
-              _MenuItem(
-                icon: Icons.point_of_sale_outlined,
-                title: 'Kasa',
-                onTap: () => context.push('/more/cash'),
+    final groups = _groups(context, hasBusiness);
+    return Scaffold(
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const AppPageHeader(title: 'Diğer'),
+            Expanded(
+              child: ListView(
+                // Alt boşluk `+` düğmesini aşacak kadar: son satır düğmenin
+                // altında kalıp dokunuşu yutmamalı.
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.medium,
+                  AppSpacing.xSmall,
+                  AppSpacing.medium,
+                  AppSpacing.fabClearance,
+                ),
+                children: [
+                  const _AccountCard(),
+                  for (final group in groups) ...[
+                    const SizedBox(height: AppSpacing.large),
+                    _MenuGroup(group: group),
+                  ],
+                ],
               ),
-            _MenuItem(
-              icon: Icons.category_outlined,
-              title: 'Kategoriler',
-              onTap: () => context.push('/more/categories'),
-            ),
-            // Cari hesap ile taksitli sözleşme kardeş kapılar: biri
-            // yürüyen bir hesap, diğeri vadesi belli bir plan. Aynı kapıya
-            // koymak, kullanıcıya iki farklı soruyu tek yerde sordurur.
-            _MenuItem(
-              icon: Icons.people_outline,
-              title: 'Cari hesap',
-              onTap: () => context.push('/more/counterparties'),
-            ),
-            _MenuItem(
-              icon: Icons.event_note_outlined,
-              title: 'Yükümlülükler',
-              onTap: () => context.push('/more/obligations'),
-            ),
-            _MenuItem(
-              icon: Icons.handshake_outlined,
-              title: 'Borç ve alacaklar',
-              onTap: () => context.push('/more/debts'),
-            ),
-            _MenuItem(
-              icon: Icons.savings_outlined,
-              title: 'Tasarruf hedefleri',
-              onTap: () => context.push('/more/goals'),
-            ),
-            _MenuItem(
-              icon: Icons.event_repeat,
-              title: 'Planlama ve raporlar',
-              onTap: () => context.push('/more/planning'),
-            ),
-            // Vergi tarafı yalnız işletmesi olana açılır: kapsamı arayüzünde
-            // hiç görmeyen kullanıcının KDV beyanı ve muhasebecisi yoktur.
-            if (hasBusiness) ...[
-              _MenuItem(
-                icon: Icons.event_available_outlined,
-                title: 'Vergi takvimi',
-                onTap: () => context.push('/more/tax-calendar'),
-              ),
-              _MenuItem(
-                icon: Icons.description_outlined,
-                title: 'Muhasebeci paketi',
-                onTap: () => context.push('/more/accountant-package'),
-              ),
-            ],
-            // Hatırlatma bir cihaz ayarıdır, hesap ayarı değil: aynı hesaba
-            // başka bir telefondan girildiğinde o telefon kendi kararını
-            // taşır. Bu yüzden `Hesabım` içinde değil, kendi kapısında.
-            _MenuItem(
-              icon: Icons.notifications_active_outlined,
-              title: 'Hatırlatmalar',
-              onTap: () => context.push(remindersLocation),
-            ),
-            _MenuItem(
-              icon: Icons.folder_outlined,
-              title: 'Veri ve yedek',
-              onTap: () => context.push('/more/data-tools'),
-            ),
-            // Hesabın ikinci kapısı. Birincisi Özet'in sağ üstündeki ikon;
-            // ikisinin birden durup durmayacağına Aşama 06.2 karar verir.
-            _MenuItem(
-              icon: Icons.account_circle_outlined,
-              title: 'Hesabım',
-              onTap: () => context.push(accountLocation),
             ),
           ],
         ),
-      ],
+      ),
     );
   }
+
+  List<_Group> _groups(BuildContext context, bool hasBusiness) {
+    void go(String location) => context.push(location);
+    return [
+      _Group('Para ve hesaplar', [
+        _MenuItem(
+          icon: Icons.account_balance_wallet_outlined,
+          title: 'Hesaplar ve transferler',
+          onTap: () => go('/more/accounts'),
+        ),
+        // Borçlandığınız kart. Tahsil ettiğiniz POS ayrı bir şeydir ve
+        // `Kasa` altındadır (ADR 0015).
+        _MenuItem(
+          icon: Icons.credit_card_outlined,
+          title: 'Kredi kartlarım',
+          onTap: () => go('/more/cards'),
+        ),
+        // Kişisel profilde üçüncü sekme `Bütçeler`dir; yerinden inen `Kasa`
+        // paranın durduğu yerlerin yanına gelir (ADR 0015).
+        if (!hasBusiness)
+          _MenuItem(
+            icon: Icons.point_of_sale_outlined,
+            title: 'Kasa',
+            onTap: () => go('/more/cash'),
+          ),
+        _MenuItem(
+          icon: Icons.handshake_outlined,
+          title: 'Borç ve alacaklar',
+          onTap: () => go('/more/debts'),
+        ),
+        _MenuItem(
+          icon: Icons.people_outline,
+          title: 'Cari hesap',
+          onTap: () => go('/more/counterparties'),
+        ),
+      ]),
+      _Group('Planlama', [
+        // İşletme profilinde üçüncü sekme `Kasa`; `Bütçeler` buradadır.
+        if (hasBusiness)
+          _MenuItem(
+            icon: Icons.donut_small_outlined,
+            title: 'Bütçeler',
+            onTap: () => go('/more/budgets'),
+          ),
+        _MenuItem(
+          icon: Icons.event_note_outlined,
+          title: 'Yükümlülükler',
+          onTap: () => go('/more/obligations'),
+        ),
+        _MenuItem(
+          icon: Icons.savings_outlined,
+          title: 'Tasarruf hedefleri',
+          onTap: () => go('/more/goals'),
+        ),
+        _MenuItem(
+          icon: Icons.event_repeat,
+          title: 'Planlama ve raporlar',
+          onTap: () => go('/more/planning'),
+        ),
+      ]),
+      // Vergi tarafı yalnız işletmesi olana açılır: kapsamı arayüzünde hiç
+      // görmeyen kullanıcının KDV beyanı ve muhasebecisi yoktur.
+      if (hasBusiness)
+        _Group('Vergi ve muhasebe', [
+          _MenuItem(
+            icon: Icons.event_available_outlined,
+            title: 'Vergi takvimi',
+            onTap: () => go('/more/tax-calendar'),
+          ),
+          _MenuItem(
+            icon: Icons.description_outlined,
+            title: 'Muhasebeci paketi',
+            onTap: () => go('/more/accountant-package'),
+          ),
+        ]),
+      _Group('Ayarlar', [
+        _MenuItem(
+          icon: Icons.category_outlined,
+          title: 'Kategoriler',
+          onTap: () => go('/more/categories'),
+        ),
+        // Hatırlatma bir cihaz ayarıdır, hesap ayarı değil: aynı hesaba başka
+        // bir telefondan girildiğinde o telefon kendi kararını taşır.
+        _MenuItem(
+          icon: Icons.notifications_active_outlined,
+          title: 'Hatırlatmalar',
+          onTap: () => go(remindersLocation),
+        ),
+        _MenuItem(
+          icon: Icons.folder_outlined,
+          title: 'Veri ve yedek',
+          onTap: () => go('/more/data-tools'),
+        ),
+      ]),
+    ];
+  }
+}
+
+/// Hesabın ikinci kapısı (birincisi Özet'in sağ üstündeki avatar): baş
+/// harfler, e-posta ve doğrulanmamış adresin kalıcı uyarısı.
+class _AccountCard extends StatelessWidget {
+  const _AccountCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = AppSurfaces.of(context);
+    final status = context.watch<AccountStatusController?>();
+    final email = status?.email;
+    final unverified = status?.needsEmailVerification ?? false;
+    // Kartın dokunma düğümü ile metni tek düğüm: ekran okuyucu adsız bir
+    // düğme okumasın.
+    return MergeSemantics(
+      child: Semantics(
+        button: true,
+        child: AppCard(
+          padding: EdgeInsets.zero,
+          onTap: () => context.push(accountLocation),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.medium),
+            child: Row(
+              children: [
+                AppAvatar(initials: status?.initials ?? '', size: 48),
+                const SizedBox(width: AppSpacing.medium),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Hesabım', style: theme.textTheme.titleSmall),
+                      if (email != null) ...[
+                        const SizedBox(height: AppSpacing.xxSmall),
+                        Text(
+                          email,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
+                      if (unverified) ...[
+                        const SizedBox(height: AppSpacing.xSmall),
+                        const AppStatusChip(
+                          label: 'E-posta doğrulanmadı',
+                          icon: Icons.mail_outline,
+                          tone: AppStatusTone.expense,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.small),
+                Icon(Icons.chevron_right, size: 22, color: surfaces.inkMuted),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Group {
+  const _Group(this.label, this.items);
+
+  final String label;
+  final List<_MenuItem> items;
 }
 
 class _MenuItem {
@@ -157,45 +239,64 @@ class _MenuItem {
   final VoidCallback onTap;
 }
 
-/// Tek çerçeve, içinde satırlar.
-///
-/// Kartın kendisi bir kez çiziliyor; satırlar arasındaki sınırı ikon
-/// hizasından başlayan ince bir ayırıcı söylüyor. Satır başına ayrı kart
-/// (ister yapışık ister boşluklu) iki yönden de yanlıştı: yapışık hâlde yan
-/// yana iki kenarlık kalın bir çizgi gibi görünüyor, boşluklu hâlde ise
-/// birbiriyle ilgili yedi kapı yedi ayrı kutu gibi okunuyordu.
+/// Grup etiketi ve tek kart; satırlar ikon kapsülü, başlık ve chevron.
 class _MenuGroup extends StatelessWidget {
-  const _MenuGroup({required this.items});
+  const _MenuGroup({required this.group});
 
-  final List<_MenuItem> items;
+  final _Group group;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final surfaces = AppSurfaces.of(context);
-
-    return AppCard(
-      padding: EdgeInsets.zero,
-      child: Column(
-        children: [
-          for (final (index, item) in items.indexed) ...[
-            if (index > 0)
-              Divider(
-                height: 1,
-                thickness: 1,
-                // Ayırıcı ikonun altından değil başlığın hizasından başlar;
-                // ikon sütunu kesintisiz kalır.
-                indent: AppSpacing.medium + 40 + AppSpacing.medium,
-                color: surfaces.border,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xSmall,
+            0,
+            AppSpacing.xSmall,
+            AppSpacing.small,
+          ),
+          child: Semantics(
+            header: true,
+            child: Text(
+              group.label,
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontSize: 14,
+                letterSpacing: 0.1,
+                color: surfaces.inkMuted,
               ),
-            AppListRow(
-              icon: item.icon,
-              title: item.title,
-              trailing: const Icon(Icons.chevron_right),
-              onTap: item.onTap,
             ),
-          ],
-        ],
-      ),
+          ),
+        ),
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: AppDividedColumn(
+            inset: AppIconCapsule.rowInset,
+            children: [
+              for (final item in group.items)
+                AppRow(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.medium,
+                    AppSpacing.small,
+                    AppSpacing.small + AppSpacing.xSmall,
+                    AppSpacing.small,
+                  ),
+                  leading: AppIconCapsule(icon: item.icon),
+                  title: item.title,
+                  trailing: Icon(
+                    Icons.chevron_right,
+                    size: 22,
+                    color: surfaces.inkMuted,
+                  ),
+                  onTap: item.onTap,
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

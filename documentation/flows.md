@@ -958,22 +958,20 @@ oluşturulamaz.
 
 ## Diğer menüsünün yerleşimi
 
-Menü yedi kutu ve sıra frekansa değil **ne yaptığınıza** göre:
+Claude Design teslimiyle (27 Eylül 2026, 06.2 Grup 1'in ilk adımı) menü
+**kullanıcının sorusuna göre** dört gruba ayrıldı; üstte hesap kartı durur:
 
-| | Kutu | İçerik |
-|---|---|---|
-| 1 | Hesaplar ve transferler | `/more/accounts` — iki sekme |
-| 2 | Kredi kartları | `/more/cards` — harcama, taksitli harcama, ödeme, ekstre |
-| 3 | Kategoriler | `/more/categories` |
-| 4 | Cari hesap | `/more/counterparties` |
-| 5 | Borç ve alacaklar | `/more/debts` |
-| 5 | Tasarruf hedefleri | `/more/goals` |
-| 6 | Planlama ve raporlar | `/more/planning` — tekrarlayanlar, yaklaşanlar, raporlar |
-| 7 | Veri ve yedek | `/more/data-tools` — CSV, belgeler, yedek |
-| 8 | Hesabım | `/more/account` — e-posta, işletme cevabı, oturumlar, parola, çıkış, hesabı kapatma |
+| Grup | Kapılar |
+|---|---|
+| (kart) | Hesabım — baş harfler, e-posta, doğrulanmamışsa `E-posta doğrulanmadı` |
+| Para ve hesaplar | Hesaplar ve transferler · Kredi kartlarım · (kişisel profilde) Kasa · Borç ve alacaklar · Cari hesap |
+| Planlama | (işletme profilinde) Bütçeler · Yükümlülükler · Tasarruf hedefleri · Planlama ve raporlar |
+| Vergi ve muhasebe | Vergi takvimi · Muhasebeci paketi — yalnız işletmesi olana |
+| Ayarlar | Kategoriler · Hatırlatmalar · Veri ve yedek |
 
-İlk ikisi yalnız **bakmak** için açtığınız yerler; 3–5 **kurduğunuz** şeyler;
-6 bakış, 7 dosya işi.
+Üçüncü sekmeden inen hedef (ADR 0015) kendi sorusunun grubuna girer: `Kasa`
+paranın durduğu yerlerin yanına, `Bütçeler` planlamaya. `Hesabım` artık liste
+satırı değil, menünün tepesindeki karttır; ikinci kapı Özet'in avatarıdır.
 
 Önceki hâlde beş kutu vardı ve biri "İçe aktarma, borç, hedef ve yedek"
 diyordu — dört alakasız şeyi sayan bir başlık, gruplamanın yanlış olduğunun
