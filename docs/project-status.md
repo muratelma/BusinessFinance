@@ -151,6 +151,8 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     edilmiş tutar artık işaretsiz yazılıyor (DS). Kontroller: 881 Flutter
     testi, backend Application 325 test geçti; SQL arama testi yerelde
     koşacak (cloud'da SQL yok)
+  - **İşlem ekle paneli**: üç renkli kutucuk, belgeden oku, diğer listesi;
+    seçenek adları tasarıma göre kısaldı
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni → (gerekirse 06.x) → 07 bulut (`PROJECT-ROADMAP.md`)

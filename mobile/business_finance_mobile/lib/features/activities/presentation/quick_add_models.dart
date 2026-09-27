@@ -39,11 +39,11 @@ enum QuickAddOption {
   posCollection('POS tahsilatı', QuickAddIntent.moneyIn),
   expense('Gider', QuickAddIntent.moneyOut),
   obligation('Ödenmemiş fatura', QuickAddIntent.moneyOut),
-  transfer('Hesaplar arası transfer', QuickAddIntent.carry),
-  cardPayment('Kredi kartı borcu öde', QuickAddIntent.carry),
-  receipt('Fiş veya fatura okut', QuickAddIntent.scanDocument),
-  bankSlip('Dekont okut', QuickAddIntent.scanDocument),
-  recurringPlan('Tekrarlayan işlem planla', QuickAddIntent.plan);
+  transfer('Transfer', QuickAddIntent.carry),
+  cardPayment('Kart borcu öde', QuickAddIntent.carry),
+  receipt('Fiş veya fatura', QuickAddIntent.scanDocument),
+  bankSlip('Banka dekontu', QuickAddIntent.scanDocument),
+  recurringPlan('Tekrarlayan işlem', QuickAddIntent.plan);
 
   const QuickAddOption(this.label, this.intent);
   final String label;
@@ -51,38 +51,30 @@ enum QuickAddOption {
   /// Satırın altında duracağı başlık.
   final QuickAddIntent intent;
 
-  /// Satırın altındaki açıklama; başlığın söylemediği bir şey yoksa `null`.
+  /// Satırın altındaki tek satırlık açıklama; adın söylemediği bir şey
+  /// yoksa `null` (tasarım teslimi, 27 Eylül 2026).
   ///
-  /// Dokuz satırın hepsine açıklama yazmak menüyü telefonda kaydırmadan
-  /// okunmaz hâle getiriyordu. Açıklama yalnız satır **yanlış anlaşılabilecekse**
-  /// duruyor: adı yön veya zaman konusunda tek başına yeterli olan satırlar
-  /// (`Gelir`, `Gider`, `Hesaplar arası transfer`) başlığın altında zaten
-  /// anlaşılıyor.
+  /// Kutucuklardaki seçenekler (gelir, gider, transfer, belgeler) açıklama
+  /// göstermez; açıklama yalnız satırın **yanlış anlaşılabileceği** yerde
+  /// durur. POS satışı iki anı olan tek kayıttır (gelir bugün, para sonra);
+  /// ödenmemiş fatura bugün para hareket ettirmez.
   String? get description => switch (this) {
-    income => null,
-    // POS satışı iki anı olan tek kayıttır: gelir bugün tanınır, para birkaç
-    // gün sonra hesaba geçer. Satır bunu söylemezse kullanıcı bakiyesinin
-    // hemen artmasını bekler.
-    posCollection => 'Kartla satış; para birkaç gün sonra hesaba geçer',
-    expense => null,
-    // Fişin "henüz ödemedim" dalıyla aynı kaydı üretir; fotoğrafı olmayan
-    // kullanıcı için elle giriş yolu. Para bugün hareket etmediği için
-    // ne olduğunu yazması şart.
+    posCollection => 'Kartla satış, sonra hesaba geçer',
+    obligation => 'Vadesi olan, henüz ödenmedi',
+    recurringPlan => 'Kira, abonelik, maaş',
+    _ => null,
+  };
+
+  /// Ekran okuyucunun seçenek için okuyacağı cümle: kutucukta görünmeyen
+  /// ayrıntıyı da taşır.
+  String get spokenLabel => switch (this) {
+    transfer => 'Hesaplar arası transfer',
+    cardPayment => 'Kredi kartı borcunu öde, gider yazmaz',
+    receipt => 'Fiş veya faturayı fotoğraftan oku',
+    bankSlip => 'Banka dekontunu oku: havale, EFT, ATM veya kart ödemesi',
     obligation =>
-      'Vadesi olan fatura veya tek seferlik alacak; para henüz '
-          'hareket etmez',
-    transfer => null,
-    // Kart ödemesi `Para taşı` altındadır ve gider değildir; satır paranın
-    // nereden nereye gittiğini yazıyor.
-    cardPayment => 'Hesabınızdan kart borcunuza ödeme',
-    // Ayrı bir kayıt türü değil: aynı gider ya da gelir, alanları fotoğraftan
-    // önerilmiş hâlde açılıyor.
-    receipt => 'Market fişi, fatura veya makbuzun fotoğrafından',
-    // Dekont ayrı bir giriş, çünkü ayrı bir soru soruyor. Alışveriş belgesinde
-    // yön fotoğraftan önce bilinir; dekontta belgedeki tutarın ne olduğu
-    // (ödeme, aktarma, kart ödemesi, borç verme) ancak okuma bitince sorulur.
-    bankSlip => 'Havale, EFT, ATM veya kart borcu ödemesi dekontundan',
-    recurringPlan => 'Düzenli gelir, gider veya abonelik',
+      'Ödenmemiş fatura: vadesi olan, henüz ödenmedi, para hareket etmez',
+    _ => description == null ? label : '$label: $description',
   };
 }
 

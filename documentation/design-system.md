@@ -813,3 +813,15 @@ SCREENSHOT_DIR=/tmp/shots flutter test test/screenshots
 - Ayrıntı paneli: kapsül + başlık + `Tür · Kapsam`, 28/700 tutar ve dolgulu
   durum kapsülü (`Gerçekleşti` / `İptal edildi`), `AppDetailBlock`,
   tam genişlik kenarlı `Hareketi iptal et`.
+
+## İşlem ekle paneli (Claude Design teslimi, 27 Eylül 2026)
+
+Kök Navigator'da açılır, alt çubuğun üstüne biner. Başlık `İşlem ekle`
+(24/700). Üç katman: rol kapsül renginde üç kutucuk (Gelir / Gider /
+Transfer; 96 dp, kart yarıçapı, ikon 24 + 14/600), `Belgeden oku` altında iki
+gri kutucuk (Fiş veya fatura, Banka dekontu; 64 dp), `Diğer` altında kapsüllü
+satırlar (POS tahsilatı, Ödenmemiş fatura, Kart borcu öde, Tekrarlayan işlem).
+Açıklama yalnız yanlış anlaşılabilecek satırda; kutucukta görünmeyen ayrıntı
+ekran okuyucu cümlesindedir (`QuickAddOption.spokenLabel`). Niyet başlıkları
+(`Para girdi`, `Para taşı`…) panelden kalktı; `QuickAddIntent` modelde
+duruyor ve transferin gider sayılmadığını (ADR 0014) yine o taşır.

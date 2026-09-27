@@ -40,7 +40,12 @@ void main() {
     // Dokuz satırın düz listesi okunmuyordu; satırlar niyet başlıklarının
     // altında duruyor. Başlıklar ekranda gerçekten görünmezse eksen yalnız
     // enum'da kalır.
-    testWidgets('groups the rows under intent headings', (tester) async {
+    // Tasarım teslimi (27 Eylül 2026): niyet başlıkları yerine üç katman —
+    // renkli üç kutucuk, belgeden oku, diğer. Transfer nötr maviyle gelir ve
+    // giderden ayrı durur (ADR 0014).
+    testWidgets('puts the three common moves first, then documents', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light(),
@@ -49,9 +54,16 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      for (final intent in QuickAddIntent.values) {
-        expect(find.text(intent.label), findsOneWidget);
-      }
+      double top(String label) =>
+          tester.getTopLeft(find.bySemanticsLabel(RegExp(label))).dy;
+      expect(top('^Gelir'), top('^Gider'));
+      expect(top('Hesaplar arası transfer'), top('^Gelir'));
+      expect(find.text('Belgeden oku'), findsOneWidget);
+      expect(find.text('Diğer'), findsOneWidget);
+      expect(
+        top('^Gelir'),
+        lessThan(tester.getTopLeft(find.text('Belgeden oku')).dy),
+      );
     });
 
     // Transfer ile kart borcu ödemesi gider değildir (ADR 0014): ödemeyi
@@ -77,10 +89,7 @@ void main() {
 
       expect(QuickAddOption.posCollection.intent, QuickAddIntent.moneyIn);
       expect(find.text('POS tahsilatı'), findsOneWidget);
-      expect(
-        find.textContaining('birkaç gün sonra hesaba geçer'),
-        findsOneWidget,
-      );
+      expect(find.text('Kartla satış, sonra hesaba geçer'), findsOneWidget);
     });
 
     // Gün sonu sayımı bir gözlemdir: hiçbir para hareketi üretmez ve kendi
@@ -113,8 +122,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Fiş veya fatura okut'), findsOneWidget);
-      expect(find.text('Dekont okut'), findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp('Fiş veya fatura')), findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp('Banka dekontu')), findsOneWidget);
       expect(find.text('Fiş ile ekle'), findsNothing);
     });
 
@@ -135,7 +144,11 @@ void main() {
       expect(find.text('Ödenmemiş fatura'), findsOneWidget);
       // Satır parayı bugün hareket ettirmediğini söylüyor; söylemeseydi
       // kullanıcı bunu gider sanıp hesabının azalmasını beklerdi.
-      expect(find.textContaining('para henüz hareket etmez'), findsOneWidget);
+      expect(find.text('Vadesi olan, henüz ödenmedi'), findsOneWidget);
+      expect(
+        find.bySemanticsLabel(RegExp('para hareket etmez')),
+        findsOneWidget,
+      );
     });
 
     // Aşama 04'ün ölçütü: dokuz satır telefonda **kaydırmadan** okunabilmeli.
@@ -177,7 +190,7 @@ void main() {
       );
 
       expectNoOverflow(tester);
-      expect(find.text('Para girdi'), findsOneWidget);
+      expect(find.text('Belgeden oku'), findsOneWidget);
     });
 
     // Launcher artık pencere sınıfına göre bottom sheet veya dialog açıyor.
@@ -212,7 +225,7 @@ void main() {
 
         await tester.tap(find.text('aç'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Kredi kartı borcu öde'));
+        await tester.tap(find.text('Kart borcu öde'));
         await tester.pumpAndSettle();
 
         expect(chosen, QuickAddOption.cardPayment);
