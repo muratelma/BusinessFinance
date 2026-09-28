@@ -171,6 +171,21 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     zaman ve `Diğerlerini kapat` (var olan tekil uçla sırayla), ayrı
     `Çıkış yap` düğmesi, silmeden önce yedek kapısı. Büyük yazıda bölüm
     başlığının yan eylemi alta iniyor. 891 Flutter testi geçti
+  - **Yerel doğrulama ve ilk cihaz düzeltmeleri (28 Eylül 2026)**: migration
+    geliştirme ve `BusinessFinanceApiSqlTests` veritabanlarına uygulandı; SQL
+    dahil bütün backend testleri yerelde ilk kez koştu ve SkiaSharp testleri
+    geçti. Buluttan kalan tek kırık: gelişmiş raporun sorgu bütçesi 69'du,
+    net varlığın sıradaki geçiş günü sabit bir `MIN` sorgusu ekliyor → 70.
+    Pixel 8 karşılaştırmasından üç düzeltme: `İşlem ekle > POS tahsilatı`
+    formundan vazgeçen kullanıcı geldiği ekrana dönüyor ve ayrı sayfa olarak
+    açılan `Kasa` geri ok taşıyor (alt çubuksuz ekranda kalıyordu); şahsi
+    tarafın adı yönünden bağımsız olarak `Şahsi net` (tasarım kararı, bulut
+    oturumu eski `Şahsi çekim` kuralını korumuştu); `Yeme-içme` kategorisi
+    nötr ikona düşüyordu, yemek ikonunu alıyor. Yerel sentetik veride eski
+    sayımların `ExpectedAtCount` değeri kayıtlı düzeltme kaydından geri
+    çıkarıldı (kod değişmedi; alan hâlâ backfill'siz). Kontroller: backend
+    SQL dahil geçti (Domain 311, Application 325, Api 235, Infrastructure 203
+    + 2 canlı test atlandı), format temiz; Flutter analyze temiz, 895 test
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni → (gerekirse 06.x) → 07 bulut (`PROJECT-ROADMAP.md`)

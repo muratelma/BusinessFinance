@@ -287,7 +287,7 @@ gerekçesiyle bozulmaz.
 
 - **Aylık rapor filtresiz okunduğunda ayın iki tarafını ayrı ayrı toplayan bir
   kırılım da döner** (`scopeBreakdown`). Özet ekranının hero'su üç sayıyı ondan
-  kurar: `İşletme neti`, `Şahsi çekim` ve `Bu ayın neti`. Üçü de sunucudan
+  kurar: `İşletme neti`, `Şahsi net` ve `Bu ayın neti`. Üçü de sunucudan
   gelir; istemci aralarında çıkarma yapmaz. Filtreli okumada kırılım yoktur.
   Üçüncü sayı **kasa değişimi değildir** — kart harcaması harcandığı gün gider
   yazılır, ödendiği gün değil.

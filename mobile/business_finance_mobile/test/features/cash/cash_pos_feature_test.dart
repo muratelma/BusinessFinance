@@ -170,6 +170,73 @@ void main() {
     expect(find.text('POS tahsilatı'), findsOneWidget);
   });
 
+  // Menüden açılan Kasa alt çubuğun dışında, ayrı bir sayfadır. Vazgeçen
+  // kullanıcı orada kalsaydı alt çubuksuz bir ekranda ve geri oksuz kalırdı
+  // (cihaz kabulü, 28 Eylül 2026).
+  testWidgets('POS formundan vazgeçen kullanıcı geldiği ekrana döner', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => CashPage(
+                    cashController: CashCountController(
+                      _FakeCashRepository(),
+                      clock: () => DateTime(2026, 9, 25, 18),
+                    ),
+                    posController: PosController(_FakePosRepository()),
+                    initialTab: 1,
+                  ),
+                ),
+              ),
+              child: const Text('Başlangıç'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Başlangıç'));
+    await tester.pumpAndSettle();
+    expect(find.text('POS tahsilatı'), findsOneWidget);
+
+    await tester.tap(find.text('Vazgeç'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CashPage), findsNothing);
+    expect(find.text('Başlangıç'), findsOneWidget);
+  });
+
+  testWidgets('ayrı sayfa olarak açılan Kasa geri ok taşır', (tester) async {
+    await tester.pumpWidget(_app());
+    await tester.pumpAndSettle();
+    // Kök sayfada (ana sekme) geri gidilecek yer yok.
+    expect(find.byTooltip('Geri'), findsNothing);
+
+    final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+    navigator.push(
+      MaterialPageRoute<void>(
+        builder: (_) => CashPage(
+          cashController: CashCountController(
+            _FakeCashRepository(),
+            clock: () => DateTime(2026, 9, 25, 18),
+          ),
+          posController: PosController(_FakePosRepository()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Geri'), findsOneWidget);
+    await tester.tap(find.byTooltip('Geri'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CashPage), findsOneWidget);
+  });
+
   testWidgets('Kasa tek akıştır: sayım, yoldaki POS ve son sayımlar', (
     tester,
   ) async {

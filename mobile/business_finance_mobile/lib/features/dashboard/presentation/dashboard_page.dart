@@ -460,7 +460,7 @@ class _HeroCard extends StatelessWidget {
                   _SplitLine(
                     key: const ValueKey('dashboard-summary-Personal'),
                     icon: Icons.person_outline,
-                    label: _personalLabel(breakdown.personal.net),
+                    label: _netLabel(TransactionScope.personal),
                     amount: breakdown.personal.net,
                     currency: report.currency,
                   ),
@@ -507,12 +507,6 @@ class _HeroCard extends StatelessWidget {
     TransactionScope.business => 'İşletme neti',
     TransactionScope.personal => 'Şahsi net',
   };
-
-  /// Şahsi tarafın adı sayının yönüne göre değişir: çoğu esnafta şahsi taraf
-  /// yalnız harcamadır ve doğru kelime **çekim**; artı bir ayda "çekim" demek
-  /// sayıyı eksi gibi okuturdu.
-  static String _personalLabel(String personalNet) =>
-      personalNet.startsWith('-') ? 'Şahsi çekim' : 'Şahsi net';
 
   /// Geçen ayla karşılaştırma. Fark sunucudan gelir (`netChange`); eski
   /// sunucu göndermiyorsa satır açıklamaya döner.

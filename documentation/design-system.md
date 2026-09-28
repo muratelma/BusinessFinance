@@ -244,8 +244,8 @@ Birkaç bileşenin sözleşmesinde neden şu kararların olduğu:
   konumundaysa altındaki gri blokta `İşletme neti` ve şahsi taraf durur. Üç
   sayı da sunucudan gelir; ekran aralarında çıkarma yapmaz. Geçen ayla fark da
   sunucudandır (`periodComparison.netChange`). Şahsi tarafın etiketi
-  sayının yönüne göre `Şahsi çekim`/`Şahsi net` olur — artı bir sayıya "çekim"
-  demek onu eksi gibi okuturdu. **"Kâr" kelimesi hiçbir ekranda kullanılmaz.**
+  her zaman `Şahsi net`tir; yön işaretten ve renkten okunur (tasarım teslimi,
+  27 Eylül 2026 — eskiden eksi ayda `Şahsi çekim` yazıyordu). **"Kâr" kelimesi hiçbir ekranda kullanılmaz.**
 - **`AppFormSheet` panelin kapanışını kendi üstlenir.** Panel içeriği
   `Navigator.pop` çağırmaz; sonucu döndürür, kabuk kapatır. `null` dönmek
   "doğrulama düştü, açık kal" demektir. Bu, kapanışın **tek** bir yerde

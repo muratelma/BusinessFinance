@@ -1957,7 +1957,9 @@ public sealed class SqlServerPersistenceIntegrationTests
         // and commission expense for each of the two compared periods, one for
         // the trend and one for budget variance. Six fixed grouped reads; none
         // of them grows with the number of settlements.
-        Assert.InRange(counter.ReaderCommandCount, 1, 69);
+        // 69 → 70 when net worth started naming the next transit day: one MIN
+        // over the settlements still in transit, not one read per settlement.
+        Assert.InRange(counter.ReaderCommandCount, 1, 70);
         Assert.True(
             stopwatch.Elapsed < TimeSpan.FromSeconds(5),
             $"Advanced report took {stopwatch.Elapsed.TotalMilliseconds:N0} ms.");

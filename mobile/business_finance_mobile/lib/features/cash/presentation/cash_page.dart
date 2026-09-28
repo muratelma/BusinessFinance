@@ -59,15 +59,21 @@ class _CashPageState extends State<CashPage> {
     _cash.addListener(_changed);
     _cash.load();
     if (widget.initialTab == 1) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        showPosSettlementForm(
-          context,
-          widget.posController,
-          widget.scopeController,
-        );
-      });
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openPosForm());
     }
+  }
+
+  /// Menüden gelen kullanıcı Kasa'ya değil forma gelmişti: vazgeçerse
+  /// geldiği ekrana döner. Kaydederse burada kalır ve yeni tahsilatı listede
+  /// görür.
+  Future<void> _openPosForm() async {
+    if (!mounted) return;
+    final saved = await showPosSettlementForm(
+      context,
+      widget.posController,
+      widget.scopeController,
+    );
+    if (saved == null && mounted) Navigator.of(context).maybePop();
   }
 
   @override
@@ -97,6 +103,12 @@ class _CashPageState extends State<CashPage> {
           children: [
             AppPageHeader(
               title: 'Kasa',
+              // Ana sekmedeyken geri gidilecek yer yok; `Diğer` altından veya
+              // `İşlem ekle` menüsünden açıldığında alt çubuk görünmez ve
+              // geri ok tek çıkış yoludur.
+              onBack: Navigator.of(context).canPop()
+                  ? () => Navigator.of(context).maybePop()
+                  : null,
               actions: [
                 IconButton(
                   tooltip: 'Bütün sayımlar',

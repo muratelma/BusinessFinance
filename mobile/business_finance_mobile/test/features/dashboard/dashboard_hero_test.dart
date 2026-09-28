@@ -51,7 +51,7 @@ void main() {
       await _pumpDashboard(tester, hasBusiness: true);
 
       expect(find.text('İşletme neti'), findsOneWidget);
-      expect(find.text('Şahsi çekim'), findsOneWidget);
+      expect(find.text('Şahsi net'), findsOneWidget);
       expect(find.text('Bu ayın neti'), findsOneWidget);
 
       // Hero ayın netini söyler; iki tarafı altındaki gri blokta durur.
@@ -80,19 +80,22 @@ void main() {
       expect(find.textContaining('âr', findRichText: true), findsNothing);
     });
 
-    testWidgets('şahsi taraf artıdaysa "çekim" denmez', (tester) async {
-      await _pumpDashboard(
-        tester,
-        hasBusiness: true,
-        personal: const ScopeTotals(
-          income: '900.0000',
-          expense: '50.0000',
-          net: '850.0000',
-        ),
-      );
+    testWidgets('şahsi taraf eksi de artı da olsa adı "Şahsi net"', (
+      tester,
+    ) async {
+      // Etiket sayının yönüne göre değişmez (tasarım kararı, 27 Eylül 2026):
+      // yön işaretten ve renkten okunur, iki farklı ad aynı satırı iki şey
+      // gibi gösteriyordu.
+      for (final net in ['-50.0000', '850.0000']) {
+        await _pumpDashboard(
+          tester,
+          hasBusiness: true,
+          personal: ScopeTotals(income: '0.0000', expense: '0.0000', net: net),
+        );
 
-      expect(find.text('Şahsi net'), findsOneWidget);
-      expect(find.text('Şahsi çekim'), findsNothing);
+        expect(find.text('Şahsi net'), findsOneWidget);
+        expect(find.text('Şahsi çekim'), findsNothing);
+      }
     });
 
     testWidgets('işletmesi olmayan kullanıcıda ekran bugünkü hâlini korur', (
@@ -102,7 +105,7 @@ void main() {
 
       expect(find.text('Bu ayın neti'), findsOneWidget);
       expect(find.text('İşletme neti'), findsNothing);
-      expect(find.text('Şahsi çekim'), findsNothing);
+      expect(find.text('Şahsi net'), findsNothing);
       expect(_amount(tester, 'dashboard-summary-Net'), '350.0000');
     });
 
@@ -117,7 +120,7 @@ void main() {
 
       expect(find.text('İşletme neti'), findsOneWidget);
       // Filtreli okumada kırılım gelmiyor; ikinci ve üçüncü sayı da yok.
-      expect(find.text('Şahsi çekim'), findsNothing);
+      expect(find.text('Şahsi net'), findsNothing);
       expect(find.text('Bu ayın neti'), findsNothing);
       // Geçen ayla karşılaştırma yalnız toplamda anlamlı; tek tarafta yok.
       expect(find.textContaining('Geçen aya göre'), findsNothing);

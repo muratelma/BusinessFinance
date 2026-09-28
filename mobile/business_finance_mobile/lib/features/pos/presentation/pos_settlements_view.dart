@@ -425,8 +425,8 @@ class PosSettlementSheet extends StatelessWidget {
 }
 
 /// Yeni POS tahsilatı formunu açar (bölüm başlığındaki `+ Ekle` ve
-/// `İşlem ekle > POS tahsilatı`).
-Future<void> showPosSettlementForm(
+/// `İşlem ekle > POS tahsilatı`). Kaydedilince `true`, vazgeçilince `null`.
+Future<bool?> showPosSettlementForm(
   BuildContext context,
   PosController controller,
   ScopeController? scopeController,

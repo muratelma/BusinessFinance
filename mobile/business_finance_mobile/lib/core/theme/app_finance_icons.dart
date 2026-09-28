@@ -84,7 +84,9 @@ abstract final class AppFinanceIcons {
     'kitap': Icons.menu_book_outlined,
     'eğlence': Icons.movie_outlined,
     'restoran': Icons.restaurant_outlined,
-    'yemek': Icons.restaurant_outlined,
+    // `yemek` değil `yeme`: varsayılan setteki ad `Yeme-içme` ve `yemek`
+    // onu tutmuyordu; kategori nötr etiket ikonuna düşüyordu.
+    'yeme': Icons.restaurant_outlined,
     'kafe': Icons.local_cafe_outlined,
     'tatil': Icons.beach_access_outlined,
     'seyahat': Icons.flight_outlined,

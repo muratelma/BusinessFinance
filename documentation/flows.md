@@ -649,12 +649,12 @@ GET /api/v1/dashboard?year&month[&scope]
 
 Kapsam boyutu görünmüyor      -> tek sayı: `Bu ayın neti`
 Anahtar `Hepsi`               -> `İşletme neti` (hero)
-                                 `Şahsi çekim` + `Bu ayın neti`
+                                 `Şahsi net` + `Bu ayın neti`
 Anahtar `İşletme` / `Şahsi`   -> o tarafın neti, adı yazılı
 ```
 
 Üç sayının üçü de sunucudan gelir; istemci aralarında çıkarma yapmaz. Şahsi
-tarafın adı sayının yönüne göre `Şahsi çekim` ya da `Şahsi net` olur. Hesaplanan
+tarafın adı sayının yönünden bağımsız olarak `Şahsi net`tir. Hesaplanan
 şey nakit esaslı **işletme netidir**; "kâr" kelimesi kullanılmaz.
 
 ## POS tahsilatının birleşik akıştaki üç satırı
@@ -714,8 +714,10 @@ Açıklama satırı yalnız yanlış anlaşılabilecek satırlarda durur. `Gelir
 `POS tahsilatı` ise paranın bugün hesaba geçmediğini yazmak zorundadır.
 
 `POS tahsilatı` menüden seçildiğinde `Kasa` ekranı açılır ve tahsilat formu
-doğrudan gelir (`/more/cash?tab=pos`; sekmeler kalktı). Form kapanınca kullanıcı
-yoldaki parayı aynı ekranın `POS tahsilatları` bölümünde görür.
+doğrudan gelir (`/more/cash?tab=pos`; sekmeler kalktı). Kaydedince kullanıcı
+yoldaki parayı aynı ekranın `POS tahsilatları` bölümünde görür; `Vazgeç`
+derse geldiği ekrana döner. Bu yoldan açılan `Kasa` alt çubuğun dışındadır ve
+başlığında geri ok taşır.
 
 ## Kapsamlı işlem ekleme
 

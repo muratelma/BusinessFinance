@@ -488,7 +488,7 @@ raporun kendi toplamına eşittir — gelir/gider üreten her kayıt tam olarak 
 kapsam taşır ve üçüncü bir kova yoktur.
 
 Kırılım **sunucudan hazır gelir** çünkü istemci finansal toplamı ikinci kez
-hesaplamaz. "İşletme neti" ile "şahsi çekim" bir çıkarma değil, ayrı ayrı
+hesaplamaz. "İşletme neti" ile "şahsi net" bir çıkarma değil, ayrı ayrı
 toplanmış iki tablodur; istemci çıkarsaydı ekrandaki sayı sunucununkiyle
 tutmayabilirdi.
 
@@ -501,12 +501,12 @@ değişmez (en fazla iki satır döner ve toplam onların toplamıdır). Kırıl
 ikinci bir tur sorguyla almak, özet ekranının ilk isteğini iki katına
 çıkarırdı.
 
-Ekranda üç sayı durur: **işletme neti** (hero), **şahsi çekim** ve **bu ayın
-neti**. Üçüncüsü ilk ikisinin toplamıdır ve nakit hareketi değildir — kart
+Ekranda üç sayı durur: **işletme neti**, **şahsi net** ve **bu ayın neti**
+(hero). Üçüncüsü ilk ikisinin toplamıdır ve nakit hareketi değildir — kart
 harcaması harcandığı gün gider yazılır, ödendiği gün değil. Şahsi tarafın adı
-sayının yönüne göre değişir (`Şahsi çekim` / `Şahsi net`): çoğu ayda şahsi
-taraf yalnız harcamadır, ama şahsi bir gelir girilen ayda "çekim" demek artı
-bir sayıyı eksi gibi okuturdu. **"Kâr" kelimesi hiçbir yerde kullanılmaz** —
+sayının yönüne göre değişmez: eskiden eksi ayda `Şahsi çekim` yazıyordu;
+tasarım teslimiyle (27 Eylül 2026) tek ad `Şahsi net` oldu, yön işaretten ve
+renkten okunur. **"Kâr" kelimesi hiçbir yerde kullanılmaz** —
 muhasebe kârı satılan malın maliyetini ister ve ürün sınırının dışındadır.
 
 Kapsam boyutu görünmeyen kullanıcıda ekran bugünkü davranışını korur: tek `Bu
