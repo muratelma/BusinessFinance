@@ -157,11 +157,33 @@ class _DataToolsPageState extends State<DataToolsPage> {
         Text(batch.fileName, style: Theme.of(context).textTheme.titleMedium),
         Text('İçe aktarma durumu: ${_importBatchStatusLabel(batch.status)}'),
         const SizedBox(height: AppSpacing.small),
+        // Parayı yalnız taşıyan satırlar gelir/gider olarak ikinci kez
+        // sayılır (ADR 0014; 28 Eylül denetimi U8).
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.small),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline),
+                const SizedBox(width: AppSpacing.small),
+                Expanded(
+                  child: Text(
+                    'POS parasının hesaba geçişi, kredi kartı borcu ödemesi ve '
+                    'kendi hesaplarınız arasındaki aktarımı atlayın. Bunlar '
+                    'içe aktarılırsa gelir ya da gider olarak ikinci kez '
+                    'sayılır; uygulamada zaten kendi kayıtlarıyla duruyorlar.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
         for (final row in batch.rows) _importRowCard(row),
         FilledButton(
           onPressed:
-              batch.rows.any((row) => row.status == 'ready') &&
-                  !controller.isSubmitting
+              controller.rowsToImport.isNotEmpty && !controller.isSubmitting
               ? controller.confirmImport
               : null,
           child: const Text('Hazır satırları içe aktar'),
@@ -177,7 +199,8 @@ class _DataToolsPageState extends State<DataToolsPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Satır ${row.rowNumber} • ${_importRowStatusLabel(row.status)}',
+            'Satır ${row.rowNumber} • '
+            '${controller.isSkipped(row) ? 'Atlanacak' : _importRowStatusLabel(row.status)}',
             style: Theme.of(context).textTheme.titleSmall,
           ),
           Text(
@@ -190,10 +213,29 @@ class _DataToolsPageState extends State<DataToolsPage> {
               row.error!,
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
+          if (row.looksLikeCarriedMoney &&
+              (row.status == 'valid' || row.status == 'ready'))
+            Text(
+              'Bu satır POS yatışı, kart borcu ödemesi ya da kendi '
+              'hesaplarınız arasında aktarım olabilir; öyleyse atlayın.',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           if (row.status == 'valid')
             TextButton(
               onPressed: () => _mapRow(row),
               child: const Text('Hesap ve kategori eşle'),
+            ),
+          if (row.status == 'ready')
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: controller.isSubmitting
+                    ? null
+                    : () => controller.toggleSkip(row),
+                child: Text(
+                  controller.isSkipped(row) ? 'Atlamayı geri al' : 'Atla',
+                ),
+              ),
             ),
           if (row.status == 'pending-duplicate-review')
             Wrap(

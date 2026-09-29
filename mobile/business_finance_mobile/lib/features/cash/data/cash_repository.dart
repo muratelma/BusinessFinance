@@ -67,6 +67,7 @@ class CashCountToday {
     this.previousCount,
     this.todayInflow,
     this.todayOutflow,
+    this.changeSinceCount,
   });
 
   final String accountId;
@@ -82,6 +83,11 @@ class CashCountToday {
   /// göndermezse `null`.
   final String? todayInflow;
   final String? todayOutflow;
+
+  /// Bugünkü sayımdan bu yana kasa bakiyesindeki değişim; sunucu hesaplar.
+  /// Sayım yoksa ya da bilinmiyorsa `null`. Sıfırdan farklıysa sayımdan sonra
+  /// kasaya hareket girmiştir ve ekran "oturdu" diyemez.
+  final String? changeSinceCount;
 
   factory CashCountToday.fromJson(Map<String, dynamic> json) => CashCountToday(
     accountId: JsonReaders.string(json, 'accountId'),
@@ -101,6 +107,9 @@ class CashCountToday {
         : null,
     todayOutflow: json['todayOutflow'] is String
         ? JsonReaders.money(json, 'todayOutflow')
+        : null,
+    changeSinceCount: json['changeSinceCount'] is String
+        ? JsonReaders.money(json, 'changeSinceCount')
         : null,
   );
 }

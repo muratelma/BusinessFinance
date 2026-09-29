@@ -920,7 +920,16 @@ POST /api/v1/cash-counts/{id}/adjustment    farkı tek kayda çevirir
 GET  /api/v1/pos-settlements                tahsilatlar + yoldaki toplam
 POST /api/v1/pos-settlements                tahsilat (tanır, taşımaz)
 POST /api/v1/pos-settlements/{id}/transfer  geçiş (taşır, tanımaz)
+DELETE /api/v1/pos-settlements/{id}/transfer geçişin geri alınması (net tutar
+                                            hesaptan geri çekilir; satış kalır)
+DELETE /api/v1/pos-settlements/{id}         iptal (satış, komisyon ve varsa
+                                            geçiş birlikte düşer)
 ```
+
+`today` cevabı ayrıca `changeSinceCount` taşır: günün sayımından bu yana kasa
+bakiyesindeki değişim (farkı kaydedilmiş sayımda güncel bakiye − sayılan,
+kaydedilmemişte güncel bakiye − sayım anındaki beklenen; gözlem yoksa boş).
+Farkın anlamını değiştirmez; ekranın "oturdu" diyememesi için vardır.
 
 Canlı beklenen bakiye ve fark **yalnız günün açık sayımında** hesaplanır.
 Geçmiş bir günün farkını bugünkü bakiyeye karşı yeniden hesaplamak, aradaki

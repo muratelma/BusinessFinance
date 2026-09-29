@@ -186,6 +186,56 @@ void main() {
     );
   });
 
+  // 28 Eylül denetimi U8: ekstredeki POS yatışı, kart borcu ödemesi ya da
+  // kendi hesaplar arası aktarım içe aktarılırsa gelir/gider olarak ikinci
+  // kez sayılır. Kullanıcı o satırı atlayabilmeli.
+  test('atlanan hazır satır içe aktarmaya gönderilmez', () async {
+    final repository = FakeDataToolsRepository();
+    final controller = DataToolsController(repository)
+      ..importBatch =
+          const ImportBatchItem('batch-1', 'statement.csv', 'staged', [
+            ImportRowItem(id: '1', rowNumber: 1, status: 'ready'),
+            ImportRowItem(id: '2', rowNumber: 2, status: 'ready'),
+            ImportRowItem(id: '3', rowNumber: 3, status: 'valid'),
+          ]);
+
+    final second = controller.importBatch!.rows[1];
+    controller.toggleSkip(second);
+    expect(controller.isSkipped(second), isTrue);
+    expect(controller.rowsToImport.map((row) => row.id), ['1']);
+
+    // Atlamayı geri almak satırı yeniden içe aktarılacaklara katar.
+    controller.toggleSkip(second);
+    expect(controller.rowsToImport.map((row) => row.id), ['1', '2']);
+
+    controller.toggleSkip(second);
+    await controller.confirmImport();
+    expect(repository.confirmedRowIds, ['1']);
+  });
+
+  test(
+    'parayı yalnız taşıyan satır açıklamasından tanınır, ipucu temkinlidir',
+    () {
+      ImportRowItem row(String? description) => ImportRowItem(
+        id: 'x',
+        rowNumber: 1,
+        status: 'ready',
+        description: description,
+      );
+
+      expect(row('ÜYE İŞYERİ POS YATIŞI 1234').looksLikeCarriedMoney, isTrue);
+      expect(row('Kredi kartı ödemesi').looksLikeCarriedMoney, isTrue);
+      expect(row('KK ODEME 4543').looksLikeCarriedMoney, isTrue);
+      expect(row('Hesaplar arası virman').looksLikeCarriedMoney, isTrue);
+      // Gerçek gelir/giderde de geçen kelimeler işaretlenmez.
+      expect(row('EFT - Kira ödemesi').looksLikeCarriedMoney, isFalse);
+      expect(row('Havale: müşteri tahsilatı').looksLikeCarriedMoney, isFalse);
+      // "POS" kelime olarak aranır; POSTA gibi kelimeler yakalanmaz.
+      expect(row('PTT posta gideri').looksLikeCarriedMoney, isFalse);
+      expect(row(null).looksLikeCarriedMoney, isFalse);
+    },
+  );
+
   /// Confirming imported rows creates real transactions. Before this the other
   /// screens kept showing numbers that no longer existed until the user pulled
   /// to refresh.
@@ -396,6 +446,7 @@ class FakeDataToolsRepository implements DataToolsRepositoryContract {
   int uploadAttachmentCount = 0;
   ApiException? loadError;
   ApiException? downloadError;
+  List<String>? confirmedRowIds;
   ImportBatchItem confirmResponse = const ImportBatchItem(
     'batch-1',
     'statement.csv',
@@ -438,7 +489,11 @@ class FakeDataToolsRepository implements DataToolsRepositoryContract {
   Future<ImportBatchItem> confirmImport(
     String batchId,
     List<String> rowIds,
-  ) async => confirmResponse;
+  ) async {
+    confirmedRowIds = rowIds;
+    return confirmResponse;
+  }
+
   @override
   Future<void> mapImportRow(
     String batchId,

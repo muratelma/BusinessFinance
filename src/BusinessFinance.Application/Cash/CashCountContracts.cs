@@ -65,7 +65,20 @@ public sealed record CashCountTodayDto(
     decimal TodayInflow = 0m,
 
     /// <summary>Bugün kasadan çıkan nakit: gider, giden transfer, ödeme.</summary>
-    decimal TodayOutflow = 0m);
+    decimal TodayOutflow = 0m,
+
+    /// <summary>
+    /// Bugünkü sayımdan bu yana kasa bakiyesindeki değişim; sayım yoksa ya da
+    /// sayım anının gözlemi bilinmiyorsa boştur.
+    /// </summary>
+    /// <remarks>
+    /// Farkı kaydedilmiş sayımda bakiye sayılan tutara oturmuştu, değişim
+    /// güncel bakiye − sayılan tutardır; kaydedilmemiş sayımda güncel bakiye −
+    /// sayım anındaki beklenen tutardır. Sıfırdan farklıysa sayımdan sonra
+    /// kasaya hareket girmiştir ve ekran "oturdu" diyemez (28 Eylül denetimi
+    /// U10). Sunucu hesaplar; istemci çıkarma yapmaz.
+    /// </remarks>
+    decimal? ChangeSinceCount = null);
 
 public interface ICashCountRepository
 {

@@ -225,6 +225,11 @@ kimlik hiçbir gövdeden okunmaz. Yabancı ya da uygun olmayan hesap `404`,
 yabancı kategori doğrulama hatasıdır. `POST /api/v1/cash-counts/{id}/adjustment`
 ve `POST /api/v1/pos-settlements/{id}/transfer` kaydı `(UserId, kayıt ID)` ile
 çözer; başkasının kaydı ile var olmayan kayıt aynı `404` sonucuna gider.
+Aynı kural 29 Eylül 2026'da eklenen iki uçta da geçerlidir:
+`DELETE /api/v1/pos-settlements/{id}/transfer` (yanlış "hesaba geçti"nin geri
+alınması) ve `DELETE /api/v1/pos-settlements/{id}` (tahsilatın iptali). İkisi de
+`OwnershipIsolationTests` denetimindedir; iptal edilmiş kaydın geçişini geri
+almak `409` döner.
 `GET /api/v1/cash-counts`, `GET /api/v1/cash-counts/today` ve
 `GET /api/v1/pos-settlements` yalnız current user satırlarını döndürür — yoldaki
 toplam da öyle. `today` cevabındaki son sayım ve bugünkü nakit giriş/çıkış da

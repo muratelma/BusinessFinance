@@ -69,7 +69,23 @@ public sealed class GetCashCountTodayUseCase(
                             : expectedBalance),
                 previous,
                 flow.Inflow,
-                flow.Outflow));
+                flow.Outflow,
+                ChangeSinceCount(count, expectedBalance)));
+    }
+
+    private static decimal? ChangeSinceCount(CashCount? count, decimal expectedBalance)
+    {
+        if (count is null)
+        {
+            return null;
+        }
+
+        if (count.AdjustmentTransactionId is not null)
+        {
+            return expectedBalance - count.CountedAmount;
+        }
+
+        return count.ExpectedAtCount is decimal atCount ? expectedBalance - atCount : null;
     }
 }
 

@@ -114,6 +114,15 @@ Henüz uygulanmamış davranış, uygulanmış gibi yazılmaz.
 - [ ] Manuel kabul adımları (gerekiyorsa) tamamlandı.
 - [ ] Kullanıcı sonraki aşamayı açıkça onayladı.
 
+## Sapmalar
+
+Başlangıç tasarımından (ilgili ADR'nin "Başlangıç tasarımı", bu belgenin çalışma
+grupları) her ayrılış buraya yazılır (`AGENTS.md` "Kararlardan sapma").
+Kullanıcının gördüğü davranışı değiştiren sapma, uygulanmadan önce sorulur.
+
+| Tarih | Grup | Yazılı olan | Yapılan | Gerekçe | Kullanıcı |
+|---|---|---|---|---|---|
+
 ## Tamamlanma kaydı
 
 Aşama kapandığında: hangi commit'lerle bitti, hangi kontroller geçti, belge

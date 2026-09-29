@@ -133,6 +133,43 @@ void main() {
     expect(changes.budgetsRevision, 0);
   });
 
+  /// Kasa nakit hesapların bakiyesini gösterir. Bir hesabın bakiyesini
+  /// değiştirebilen her olay Kasa'yı da eskitir; yenilemeyen ekran kullanıcıya
+  /// kasada olmayan bir sayı gösterir (28 Eylül denetimi U11).
+  test('every event that can move an account balance refreshes Kasa', () {
+    final events = <String, void Function(FinancialDataChanges)>{
+      'accountsChanged': (c) => c.accountsChanged(),
+      'transactionsChanged': (c) => c.transactionsChanged(),
+      'transferChanged': (c) => c.transferChanged(),
+      'cardPaymentChanged': (c) => c.cardPaymentChanged(),
+      'recurringRealized': (c) => c.recurringRealized(),
+      'importConfirmed': (c) => c.importConfirmed(),
+      'debtChanged': (c) => c.debtChanged(),
+      'counterpartyLedgerChanged': (c) => c.counterpartyLedgerChanged(),
+      'obligationSettled': (c) => c.obligationSettled(),
+      'cashDifferenceConfirmed': (c) => c.cashDifferenceConfirmed(),
+      'posSettlementTransferred': (c) => c.posSettlementTransferred(),
+      'posSettlementTransferReverted': (c) => c.posSettlementTransferReverted(),
+      'posSettlementCancelled': (c) => c.posSettlementCancelled(),
+    };
+
+    for (final entry in events.entries) {
+      final changes = FinancialDataChanges();
+      entry.value(changes);
+      expect(changes.accountsRevision, 1, reason: entry.key);
+      expect(changes.cashRevision, 1, reason: entry.key);
+    }
+  });
+
+  /// Kart harcaması hiçbir hesabı kıpırdatmaz; Kasa'yı boşuna yükletmez.
+  test('a card charge leaves Kasa alone', () {
+    final changes = FinancialDataChanges();
+
+    changes.cardSpendingChanged();
+
+    expect(changes.cashRevision, 0);
+  });
+
   test('a restore replaces everything, so every screen is stale', () {
     final changes = FinancialDataChanges();
 

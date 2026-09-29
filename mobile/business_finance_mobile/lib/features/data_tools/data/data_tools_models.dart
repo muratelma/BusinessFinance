@@ -45,6 +45,52 @@ class ImportRowItem {
   final String? description;
   final String? error;
   final String? duplicateReason;
+
+  /// Açıklaması parayı yalnız **taşıyan** bir işleme benziyor mu: POS yatışı,
+  /// kredi kartı borcu ödemesi, kendi hesaplar arası aktarım.
+  ///
+  /// Bu satırlar içe aktarılırsa gelir/gider olarak ikinci kez sayılır
+  /// (ADR 0014; 28 Eylül denetimi U8). Karar değil **ipucudur**: bankaların
+  /// açıklama dili farklıdır, liste bilerek temkinli tutuldu ("EFT", "havale"
+  /// gibi gerçek gelir/giderde de geçen kelimeler yok). Asıl çözüm içe
+  /// aktarımın bu satırları tanımasıdır (`research/fikir-kaydi.md` F05).
+  bool get looksLikeCarriedMoney {
+    final text = description;
+    if (text == null) return false;
+    final normalized = _asciiUpper(text);
+    return _carriedMoneyPattern.hasMatch(normalized);
+  }
+}
+
+final _carriedMoneyPattern = RegExp(
+  r'\bPOS\b|UYE ISYERI|KREDI KARTI|KART ODEME|KK ODEME|VIRMAN|'
+  r'HESAPLAR ARASI|KENDI HESAB',
+);
+
+/// Türkçe harfleri ASCII büyük harfe indirir; `toUpperCase` tek başına `i`yi
+/// `I` yapar ve "üye işyeri" ile "UYE ISYERI" eşleşmezdi.
+String _asciiUpper(String value) {
+  const map = {
+    'ı': 'I',
+    'i': 'I',
+    'İ': 'I',
+    'ş': 'S',
+    'Ş': 'S',
+    'ğ': 'G',
+    'Ğ': 'G',
+    'ü': 'U',
+    'Ü': 'U',
+    'ö': 'O',
+    'Ö': 'O',
+    'ç': 'C',
+    'Ç': 'C',
+  };
+  final buffer = StringBuffer();
+  for (final rune in value.runes) {
+    final char = String.fromCharCode(rune);
+    buffer.write(map[char] ?? char.toUpperCase());
+  }
+  return buffer.toString();
 }
 
 class ImportBatchItem {

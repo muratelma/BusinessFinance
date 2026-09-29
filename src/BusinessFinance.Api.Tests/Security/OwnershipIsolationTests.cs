@@ -380,6 +380,10 @@ public sealed class OwnershipIsolationTests
         yield return Json("POS tahsilatını taşıma", HttpMethod.Post,
             "api/v1/pos-settlements/{id:guid}/transfer",
             new MarkPosSettlementTransferredRequest(Today), f.PosSettlementId);
+        yield return Json("POS geçişini geri alma", HttpMethod.Delete,
+            "api/v1/pos-settlements/{id:guid}/transfer", null, f.PosSettlementId);
+        yield return Json("POS tahsilatını iptal", HttpMethod.Delete,
+            "api/v1/pos-settlements/{id:guid}", null, f.PosSettlementId);
 
         yield return Json("tekrarlayan planı silme", HttpMethod.Delete,
             "api/v1/recurring-transactions/{recurringTransactionId:guid}",

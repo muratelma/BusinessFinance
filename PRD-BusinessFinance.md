@@ -5,7 +5,11 @@
 Bu ürün; **şahıs şirketi sahibinin ve esnafın** işletme ve şahsi finansını tek
 mobil uygulamada takip etmesini sağlar. Gelir, gider, nakit ve banka hesapları,
 kredi kartları, bütçeler, borç ve alacaklar, müşteri/tedarikçi cari hesapları,
-faturalar, günlük kasa ve ay sonunda muhasebeciye giden veri aynı yerde durur.
+faturalar, günlük kasa ve gün sonu, POS tahsilatları ve vergi ödemeleri aynı
+yerde durur.
+
+Ürün bir **işletme bütçe uygulamasıdır**; muhasebe ya da ön muhasebe programı
+değildir.
 
 Şahıs şirketinin tüzel kişiliği yoktur: işletmenin kasası ile sahibinin cebi
 **aynı ceptir**. Ürün bu gerçeği modelin merkezine koyar — işletme ve şahsi
@@ -29,19 +33,25 @@ soruların tek yerden cevaplanmasını engeller:
 - Hangi müşteriden ne alacağım, hangi tedarikçiye ne borcum var?
 - Hangi fatura ne zaman ödenecek, hangisi gecikti?
 - Kredi kartında ne kadar güncel borç ve gelecek taksit var?
-- Bugün kasa tuttu mu?
-- Ay sonunda muhasebeciye ne göndereceğim?
+- Bugün ne sattım, kasa tuttu mu, kartla satışın parası bankaya ne zaman
+  gelecek?
+- Hangi vergiyi ne zaman ödeyeceğim, bu yıl ne ödedim?
 
 Amaç, bu sorulara güvenilir cevap veren bir takip ürünü oluşturmak.
 
-### Ürün sınırı: muhasebe yerine geçmez
+### Ürün sınırı: bütçe uygulamasıdır, muhasebe yerine geçmez
 
-Ürün **beyanname üretmez ve vergi hesaplamaz.** Yaptığı iş, işletmenin parasal
-hareketlerini eksiksiz ve doğru biçimde toplayıp muhasebeciye giden veriyi
-hazırlamaktır. Bu sınır bilinçlidir: yanlış hesaplanmış bir vergi rakamı
-kullanıcıyı cezaya sokar ve bu sorumluluk bir takip uygulamasının
-üstlenebileceği bir şey değildir. Vergiye dair alanlar **taşıyan ve raporlayan**
-alanlardır; hesaplayan alan eklenmez.
+Ürün bir **işletme bütçe uygulamasıdır**; muhasebe ya da ön muhasebe programı
+değildir. **Beyanname üretmez, vergi hesaplamaz ve muhasebeciye veri paketi
+hazırlamaz.** Yaptığı iş, işletmenin parasal hareketlerini eksiksiz ve doğru
+biçimde toplayıp sahibine "param nerede, ne kazandım, ne ödeyeceğim"
+sorularının cevabını vermektir. Bu sınır bilinçlidir: yanlış hesaplanmış bir
+vergi rakamı kullanıcıyı cezaya sokar ve bu sorumluluk bir takip uygulamasının
+üstlenebileceği bir şey değildir.
+
+**Vergi bir nakit planıdır** (ADR 0018): vergi ve SGK ödemeleri kendi
+ekranında tanımlanan, ödendiği gün hesaptan düşen planlardır. Tutarı kullanıcı
+girer; uygulama hiçbir vergi tutarını türetmez.
 
 Aynı gerekçeyle ürün **muhasebe kârı** hesaplamaz. Hesapladığı şey nakit esaslı
 **işletme netidir**: işletme geliri eksi işletme gideri. Gerçek kâr satılan
@@ -53,7 +63,9 @@ arayüzde "kâr" kelimesi kullanılmaz.
 - İşletme ve şahsi finansı tek yerde toplamak, ikisini ayrıştırılabilir tutmak.
 - Bakiye ve raporların aynı finansal hareketlerden hesaplanmasını sağlamak.
 - Kullanıcıların verilerini birbirinden güvenli biçimde ayırmak.
-- Ay sonunda muhasebeciye gidecek veriyi hazır hale getirmek.
+- Esnafın günlük ritmini (gün sonu, kasa, POS'un bankaya geçişi) az dokunuşla
+  karşılamak.
+- Vergi ve SGK ödemelerini nakit planının parçası olarak takip etmek.
 - Android ile başlayıp Google Play'e, sonra iOS'a ilerlemek.
 - Sürümler arasında veri kaybetmeden ilerlemek.
 
@@ -64,12 +76,14 @@ arayüzde "kâr" kelimesi kullanılmaz.
 - İki farklı kullanıcı birbirinin hiçbir finansal verisine erişemez.
 - Tekrarlanan API isteği çift finansal kayıt oluşturmaz.
 - Aynı harcama iki kez sayılmaz (transfer, kart ödemesi, taksit).
+- Aynı satış iki kez gelir sayılmaz (gün sonu, kartla tahsilat, POS yatışı).
 - Yedekleme ve geri yükleme gerçek finansal veri kullanılmadan önce denenir.
 
 ## 3. Hedef kullanıcı
 
 **İşini kendi yürüten şahıs şirketi sahibi ve esnaf.** Muhasebe personeli
-yoktur, kayıtları kendi tutar, ay sonunda muhasebecisine belge gönderir.
+yoktur, kayıtları kendi tutar; vergi işlerini çoğu zaman bir muhasebeciyle
+yürütür.
 
 İki tipik profil ve ikisi de kapsamdadır:
 
@@ -101,6 +115,10 @@ Personel rolleri, onay akışları, bordro ve stok ana kapsamda değildir.
 - Gerçek finansal veri kullanılmadan önce güvenlik ve geri yükleme doğrulanır.
 - Mikroservis yerine küçük, katmanlı monolit kullanılır.
 - Ürün vergi hesaplamaz ve beyanname üretmez.
+- Ürün bir bütçe uygulamasıdır; ön muhasebe özelliği (muhasebeci paketi, KDV
+  takibi, fatura kesme) eklenmez.
+- Satışlar gün sonu toplamıyla girilebilir; tek tek giriş de mümkündür. Hiçbir
+  akış fotoğrafa ya da POS'a bağlı değildir.
 
 ## 5. Ürünün bugünkü hâli
 
@@ -157,7 +175,9 @@ karşılıyor.
 - Aktif/pasif hesap durumu
 - Hesaplar arası transfer
 - Hareketlerden hesaplanan bakiye
-- Hesap mutabakatı
+- POS parasının bankaya geçişinin gerçek yatan tutarla eşleştirilmesi (yatış);
+  banka hesabı için ayrı bir sayım/mutabakat **yoktur** — kullanıcının bütün
+  hareketleri eksiksiz girmesini varsayar
 
 ### 6.4 Gelir, gider ve kategoriler
 
@@ -190,26 +210,44 @@ karşılıyor.
 
 - Tek seferlik yükümlülük kaydı (ödenmemiş fatura)
 - Vade tarihi, ödendi/ödenmedi durumu, gecikme
-- Tekrarlayan gelir, gider ve abonelikler
+- Tekrarlayan gelir, gider ve abonelikler; "seçilen aylarda" sıklığı
 - Tekrarlayan planda bitiş sınırı (bitiş tarihi veya tekrar sayısı)
 - Yaklaşan ödeme takvimi ve gecikenler
 - Fiş/fatura okumanın "henüz ödemedim" yoluna bağlanması
 
-### 6.8 Kasa ve POS
+### 6.8 Kasa, gün sonu ve POS
 
-- Gün sonu nakit sayımı; beklenen ile sayılan arasındaki fark
-- POS tahsilatı: tahsilat, bloke süresi, hesaba geçiş
-- POS komisyonunun ayrı gider olarak kaydı
+Kararlar: ADR 0019 (ilkeler); ayrıntı ve başlangıç tasarımı ADR 0019 ile
+`research/kasa-pos-gun-sonu/KAPANIS.md`'dedir.
+
+- **Gün sonu:** günün nakit ve kartlı satışı tek adımda, elle ya da Z raporu
+  fotoğrafından; var olan kayıtları üretir, aynı satışı iki kez saymaz ve
+  düzeltilebilir
+- **Kasa sayımı** ve fark; kasanın tek gerçeği hesap bakiyesidir
+- **POS tanımı** (yemek kartı dahil) ile az dokunuşlu kartlı satış girişi
+- POS tahsilatı: tahsilat, yolda, hesaba geçiş; komisyon ayrı gider
+- **Yatış:** POS parasının bankaya gerçek yatan tutarla geçişi ve kesinti;
+  düzeltilebilir
+- **Kartla tahsil:** veresiye ve alacağın kartla kapatılması gelir yazmaz, para
+  yola çıkar
 - Tahsil edilen ama henüz hesaba geçmemiş paranın kullanılabilir bakiyeyi
-  şişirmemesi
+  şişirmemesi; beklenen tahsilatın görünmesi
 
-### 6.9 Vergi ve muhasebeci
+### 6.9 Vergi ve SGK ödemeleri
 
-- Hareket başına KDV oranı ve tutarı — **taşınır, hesaplanmaz**
-- İndirilebilirlik bilgisi; kapsam alanından **ayrı** bir alan
-- Vergi ve SGK takvimi (KDV beyanı, geçici vergi, Bağkur, muhtasar)
-- Ay sonu muhasebeci paketi: işletme gelir/gider, KDV özeti ve belgeler
+Kararlar: ADR 0018 (ilkeler); ayrıntı ve başlangıç tasarımı ADR 0018 ile
+`research/vergi/YENI-YAKLASIM.md` §6.6'dadır.
+
+- **Vergi ekranı:** tanımlı vergiler, sıradaki tarihler, gecikenler ve
+  ödenenler; tanımlı vergi bir tekrarlayan plandır ve Yaklaşanlar'da görünür
+- **Toplu vergi ödemesi:** kullanıcı hiçbir vergiyi tanımlamadan, ödediği vergiyi
+  tek tutarla yazabilir; tanımlı vergi yalnız hatırlatma içindir
+- Tutarı bilinmeyen vergi meşrudur; tutar ödemede girilir; ödeme düzeltilebilir
+- Hazır vergi türleri tarih ve sıklık önerir; öneri kurulduğu an kullanıcının
+  verisidir
 - Vergi karşılığı için para ayırma (mevcut hedef mekanizmasıyla)
+- **Yok:** KDV alanları, indirilebilirlik, muhasebeci paketi (ADR 0018 ile
+  kaldırıldı)
 
 ### 6.10 Bütçeler ve hedefler
 
@@ -234,6 +272,8 @@ karşılıyor.
 
 - Fiş, fatura ve dekont fotoğrafından öneri üretme (öneri katmanı; yönü ve
   ödeme kaynağını model seçmez)
+- Z raporu ve banka gün sonu fotoğrafından gün sonu önerisi (öneri katmanı;
+  okunan alanlar ADR 0019'un başlangıç tasarımındadır)
 - Fiş veya belge ekinin kaydın yanında saklanması
 - CSV ekstre içe aktarma, kolon eşleştirme, tekrar kayıt tespiti
 - İçe aktarma ön izlemesi, onayı ve hatalı satır raporu
@@ -280,7 +320,10 @@ seçenek listesi olarak büyümez; niyet ekseninde gruplanır.
 3. İşlem ekler; kapsam varsayılan zincirinden dolu gelir, gerekirse düzeltir.
 4. Bakiye, bütçe ve raporlar güncellenir.
 5. Özet ekranında aylık durum, yaklaşan ödemeler ve gecikenler görünür.
-6. Ay sonunda muhasebeciye gidecek paketi üretir.
+6. İşletme profilinde akşam gün sonunu girer; kartla satışın parası bankaya
+   geçince yatışı işaretler.
+7. Ödediği vergiyi vergi ekranından yazar — tanımlı bir vergiyi "ödedim" diye
+   kapatarak ya da hiçbir şey tanımlamadan tek tutarla.
 
 ### Zorunlu ekran durumları
 
@@ -350,8 +393,9 @@ başına korumaz.
 ### İşletme
 
 `Counterparty`, `CounterpartyLedger`, `DebtAgreement`, `Obligation` (tek
-seferlik yükümlülük/fatura), `CashCount` (gün sonu), `PosSettlement`,
-`TaxCalendarEntry`
+seferlik yükümlülük/fatura), `CashCount` (kasa sayımı), `PosSettlement`,
+POS tanımı, POS yatışı, gün sonu bağlayıcı kimliği; vergi kalemi vergi türü
+taşıyan bir `RecurringTransaction`'dır (ayrı kayıt türü değil)
 
 ### Veri ve belge
 
@@ -487,12 +531,24 @@ Risk: Kullanıcı kapsamı işaretlemezse işletme neti anlamsızlaşır.
 Karar kapısı: Kapsam varsayılan zincirden dolu gelir ve onay ekranında görünür.
 Yaygın durumda kullanıcıdan ek dokunuş istenmez.
 
-### Vergi alanlarının hesaplayan alana dönüşmesi
+### Vergi bilgisinin hesaplamaya ya da danışmanlığa dönüşmesi
 
-Risk: Yanlış hesaplanmış vergi rakamı kullanıcıyı cezaya sokar.
+Risk: Yanlış hesaplanmış bir vergi rakamı ya da yanlış bir ipucu kullanıcıyı
+cezaya sokar.
 
-Karar kapısı: Vergi alanları taşır ve raporlar. Hesaplayan bir alan, ürün sınırı
-gözden geçirilmeden eklenmez.
+Karar kapısı: Uygulama hiçbir vergi tutarını türetmez; tutar kullanıcıdan gelir.
+Hazır vergi türlerinin tarih ve sıklığı bir öneridir, kurulduğu an kullanıcının
+verisidir (ADR 0016 §1, ADR 0018). İpuçları "genelde" diliyle yazılır ve
+kullanıcıyı muhasebecisine yönlendirir.
+
+### Aynı satışın iki kez sayılması
+
+Risk: Gün sonu toplamı, gün içinde tek tek girilmiş satışı, kartla veresiye
+tahsilatını ya da faturalı satışı ikinci kez gelir yazar.
+
+Karar kapısı: Gün sonu o günün zaten girilmiş kayıtlarını hesaba katar ve
+kullanıcıya gösterir (ADR 0019). Fotoğraftan okuma, varsayılanları gerçek Z
+örnekleriyle doğrulanmadan kullanıma açılmaz.
 
 ### Bulut ve gerçek veri
 
@@ -532,6 +588,10 @@ framework veya servisleri eklenmez.
 - **Personel ve bordro.**
 - **Stok ve satılan malın maliyeti**; dolayısıyla muhasebe kârı.
 - **Muhasebe ve vergi beyannamesi.**
+- **Ön muhasebe:** muhasebeciye veri paketi, KDV takibi, fatura kesme, satış
+  satış kayıt ve adisyon.
+- **Banka hesabı sayımı / bakiye mutabakatı.** Kullanıcının bütün hareketleri
+  eksiksiz girmesini varsayar; pratikte olmaz.
 - LTD/AŞ ayrımı, ortak cari hesabı, çok kullanıcılı işletme ve onay akışları.
 - Hane ve ortak bütçe.
 - Kripto cüzdan anahtarı saklama; hisse veya kripto alım-satım emri verme.

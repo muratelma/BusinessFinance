@@ -1481,3 +1481,24 @@ Fikstür ve belge üreticisi turun kendi araçlarıdır, kapı değildir:
 `scripts/New-AcceptanceFixture.ps1` hesabı API üzerinden dolduruyor,
 `scripts/new-sample-documents.py` fiş/fatura/dekont örneklerini üretiyor.
 İkisi de `documentation/local-setup-and-acceptance.md` içinde anlatılıyor.
+
+## Aşama 06.3 Grup 1 — kesin hatalar (29 Eylül 2026)
+
+28 Eylül denetiminin kesin hataları. Kontroller: backend SQL dahil geçti
+(Domain 313, Application 325, Api 237, Infrastructure 203 + 2 canlı test
+atlandı), format temiz; Flutter analyze temiz, 907 test geçti (19 ekran
+görüntüsü testi atlandı), format temiz.
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| U11 — bakiyeyi değiştiren her olay Kasa'yı yeniler | `financial_data_changes_test.dart` → `every event that can move an account balance refreshes Kasa`, `a card charge leaves Kasa alone` | Hesapları yükselten on üç olayın hepsi `cash` hedefini de yükseltiyor; kart harcaması yükseltmiyor |
+| U11 — Kasa sinyali dinliyor | `cash_pos_feature_test.dart` → `başka ekrandaki nakit hareket Kasa ve POS listesini yeniler`, `Kasa kendi sayımından sonra kendini bir kez yükler` | Kusur yalnız sinyalde değildi: Kasa ve POS controller'ları `cash` hedefini hiç dinlemiyordu. Artık yeniden yükleniyorlar, kasa listesini de tazeliyorlar, kendi değişikliklerinde iki kez yüklenmiyorlar, kapandıktan sonra dinlemiyorlar |
+| U12 — geçişin geri alınması (Domain) | `PosSettlementTests.RevertTransfer_PutsTheMoneyBackOnTheRoadWithoutTouchingTheSale`, `RevertTransfer_IsRefusedOnACancelledSettlement` | Geri alma yalnız hesaptaki net tutarı geri çekiyor; satış ve komisyon kalıyor; idempotent; iptal edilmiş kayıtta reddediliyor |
+| U12 — geri alma ve iptal uçları | `PosSettlementEndpointTests.WrongTransferCanBeReverted_AndAWrongSaleCanBeCancelled` | Bakiye, aylık rapor ve yoldaki para üzerinden: geri alma → para yeniden yolda, satış kalıyor; iptal → satış, komisyon ve yoldaki tutar düşüyor; ikisi de idempotent; iptal edilmişin geçişi `409`; yabancı kullanıcı `404` |
+| U12 — sahiplik | `OwnershipIsolationTests` | İki yeni uç prob listesinde; route tablosu karşılaştırması onları da istiyor |
+| U12 — istemci | `cash_pos_feature_test.dart` → `geçiş geri alınır ve kayıt iptal edilir…`, `POS deposu geri almayı ve iptali DELETE ile gönderir`, `POS ayrıntısı geçişi geri alır ve kaydı onayla iptal eder` | Geri alma bütçeyi yükseltmiyor, iptal yükseltiyor; iki eylem de onaysız çalışmıyor; yoldaki kayıtta "geri al" yok |
+| U10 — sayımdan sonra değişim | `CashCountEndpointTests.MovementAfterACount_IsReportedAsAChangeSinceTheCount` ve düzeltme senaryosundaki `ChangeSinceCount = 0` | T1b: tutan sayımdan sonra dün tarihli gider girilince `changeSinceCount = -25`; düzeltmeden sonra sıfır; sayım yoksa boş |
+| U10 — ekran | `cash_pos_feature_test.dart` → `sayımdan sonra değişen kasa "oturdu" demez`, `sayımdan sonra girilen kayıt iki ihtimali de söyler`, `Son sayımlar bugünün sayımını da gösterir` | Durum `Sonradan kayıt girildi`; değişim ayrı satır değil, `Uygulamaya göre`nin altında kısa açıklama; tek cümlelik yönlendirme; "oturdu" metni yok. Bugünkü sayım `Son sayımlar`da da görünüyor (29 Eylül emülatör denemesinden sonra kullanıcının seçimi) |
+| U8 — içe aktarımda atla | `data_tools_feature_test.dart` → `atlanan hazır satır içe aktarmaya gönderilmez`, `parayı yalnız taşıyan satır açıklamasından tanınır, ipucu temkinlidir` | Atlanan satır onay isteğine girmiyor, geri alınabiliyor; ipucu Türkçe harflerle eşleşiyor, "EFT", "havale" ve "posta" yakalanmıyor |
+| V-U6 — tarih alanı etiketi | `app_date_field_test.dart` → `boş alanda etiket yer tutucunun üstünde durur` | Etiket ile "Seçilmedi" üst üste binmiyor |
+| V-U8, V-U9 — plan satırı | `planning_feature_test.dart` → `plan satırı en erken bekleyen kalemi ve sıklığı Türkçe yazar` | Üç aylık plan "Üç ayda bir" yazıyor; bekleyen kalem varken satır onun tarihini gösteriyor ("Sıradaki 17 Ağustos"), üretilecek bir sonrakini değil |

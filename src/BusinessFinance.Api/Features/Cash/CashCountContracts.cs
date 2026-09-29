@@ -35,4 +35,7 @@ public sealed record CashCountTodayResponse(
     // Beklenen tutarın nereden geldiği: son sayım ve bugünkü nakit akışı.
     CashCountResponse? PreviousCount,
     string TodayInflow,
-    string TodayOutflow);
+    string TodayOutflow,
+
+    // Sayımdan bu yana kasa bakiyesindeki değişim; bilinmiyorsa boş.
+    string? ChangeSinceCount = null);

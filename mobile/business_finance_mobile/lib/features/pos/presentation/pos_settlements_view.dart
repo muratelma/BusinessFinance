@@ -401,10 +401,69 @@ class PosSettlementSheet extends StatelessWidget {
                 label: const Text('Hesaba geçti'),
               ),
             ],
+            // Yanlış girişin düzeltme yolu (28 Eylül denetimi U12): geçiş
+            // geri alınır, kayıt silinmez iptal edilir.
+            const SizedBox(height: AppSpacing.small),
+            if (done)
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
+                onPressed: controller.isSubmitting
+                    ? null
+                    : () => _confirmRevert(context),
+                icon: const Icon(Icons.undo),
+                label: const Text('Hesaba geçmedi, geri al'),
+              ),
+            TextButton.icon(
+              style: TextButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+                foregroundColor: theme.colorScheme.error,
+              ),
+              onPressed: controller.isSubmitting
+                  ? null
+                  : () => _confirmCancel(context),
+              icon: const Icon(Icons.block),
+              label: const Text('Kaydı iptal et'),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _confirmRevert(BuildContext context) async {
+    final confirmed = await AppConfirmDialog.show(
+      context: context,
+      icon: Icons.undo,
+      title: 'Geçiş geri alınsın mı?',
+      message:
+          'Net tutar hesaptan geri çekilir ve yeniden yolda görünür. Satış ve '
+          'komisyon olduğu gibi kalır.',
+      highlight: MoneyText.format(item.netAmount, item.currency),
+      confirmLabel: 'Geri al',
+    );
+    if (!confirmed || !context.mounted) return;
+    final saved = await controller.revertTransfer(item);
+    if (saved && context.mounted) Navigator.of(context).maybePop();
+  }
+
+  Future<void> _confirmCancel(BuildContext context) async {
+    final confirmed = await AppConfirmDialog.show(
+      context: context,
+      icon: Icons.block,
+      title: 'POS tahsilatı iptal edilsin mi?',
+      message: item.isInTransit
+          ? 'Satış ve komisyon kayıtlardan düşer, yoldaki tutar kalkar.'
+          : 'Satış ve komisyon kayıtlardan düşer, hesaba geçen tutar geri '
+                'çekilir.',
+      highlight: MoneyText.format(item.grossAmount, item.currency),
+      confirmLabel: 'İptal et',
+      destructive: true,
+    );
+    if (!confirmed || !context.mounted) return;
+    final saved = await controller.cancel(item);
+    if (saved && context.mounted) Navigator.of(context).maybePop();
   }
 
   Future<void> _confirmTransfer(BuildContext context) async {

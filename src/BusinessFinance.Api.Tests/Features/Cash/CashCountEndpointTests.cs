@@ -7,6 +7,7 @@ using BusinessFinance.Api.Features.Authentication;
 using BusinessFinance.Api.Features.Cash;
 using BusinessFinance.Api.Features.Categories;
 using BusinessFinance.Api.Features.Reports;
+using BusinessFinance.Api.Features.Transactions;
 
 namespace BusinessFinance.Api.Tests.Features.Cash;
 
@@ -77,6 +78,8 @@ public sealed class CashCountEndpointTests
         Assert.Equal("940.0000", afterAdjustment!.ExpectedBalance);
         Assert.Equal("1000.0000", afterAdjustment.Count!.ExpectedBalance);
         Assert.Equal("-60.0000", afterAdjustment.Count.Difference);
+        // Düzeltme bakiyeyi sayılana oturttu; sayımdan bu yana değişim yok.
+        Assert.Equal("0.0000", afterAdjustment.ChangeSinceCount);
 
         // Tekrar onaylamak ikinci bir kayıt yazmaz.
         using var confirmAgain = await owner.PostAsJsonAsync(
@@ -99,6 +102,56 @@ public sealed class CashCountEndpointTests
         using var foreignToday = await stranger.GetAsync(
             new Uri($"/api/v1/cash-counts/today?accountId={account.Id}", UriKind.Relative));
         Assert.Equal(HttpStatusCode.NotFound, foreignToday.StatusCode);
+    }
+
+    /// <summary>
+    /// 28 Eylül denetimi U10 (T1b): sayım tuttu, sonra dün tarihli bir nakit
+    /// gider girildi ve ekran hâlâ "kasa sayılan tutara oturdu" diyordu. Sunucu
+    /// artık sayımdan bu yana değişimi ayrıca söyler; farkın anlamı değişmez.
+    /// </summary>
+    [Fact]
+    public async Task MovementAfterACount_IsReportedAsAChangeSinceTheCount()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(
+            factory, "cash-after-count@example.test");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var account = await CreateAccountAsync(owner, "Sentetik kasa", "cash", "1000.0000");
+        var expense = await FirstCategoryAsync(owner, "expense");
+
+        using var create = await owner.PostAsJsonAsync(
+            "/api/v1/cash-counts",
+            new CreateCashCountRequest(account.Id, "1000.0000", Date(today), "business"));
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+
+        var matched = await owner.GetFromJsonAsync<CashCountTodayResponse>(
+            $"/api/v1/cash-counts/today?accountId={account.Id}");
+        Assert.Equal("0.0000", matched!.Count!.Difference);
+        Assert.Equal("0.0000", matched.ChangeSinceCount);
+
+        using var lateExpense = await owner.PostAsJsonAsync(
+            "/api/v1/transactions",
+            new CreateTransactionRequest(
+                account.Id,
+                expense.Id,
+                "25.0000",
+                "TRY",
+                "expense",
+                "business",
+                Date(today.AddDays(-1)),
+                "Dünden kalan fiş"));
+        Assert.Equal(HttpStatusCode.Created, lateExpense.StatusCode);
+
+        var afterExpense = await owner.GetFromJsonAsync<CashCountTodayResponse>(
+            $"/api/v1/cash-counts/today?accountId={account.Id}");
+        Assert.Equal("975.0000", afterExpense!.ExpectedBalance);
+        Assert.Equal("-25.0000", afterExpense.ChangeSinceCount);
+
+        // Sayım yoksa değişim de yoktur.
+        var otherAccount = await CreateAccountAsync(owner, "İkinci kasa", "cash", "10.0000");
+        var uncounted = await owner.GetFromJsonAsync<CashCountTodayResponse>(
+            $"/api/v1/cash-counts/today?accountId={otherAccount.Id}");
+        Assert.Null(uncounted!.ChangeSinceCount);
     }
 
     /// <summary>

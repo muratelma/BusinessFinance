@@ -31,6 +31,10 @@ public sealed record CreatePosSettlementCommand(
 
 public sealed record MarkPosSettlementTransferredCommand(Guid SettlementId, DateOnly TransferDate);
 
+public sealed record RevertPosSettlementTransferCommand(Guid SettlementId);
+
+public sealed record CancelPosSettlementCommand(Guid SettlementId);
+
 public sealed record PosSettlementListCriteria(bool InTransitOnly, DateOnly From, DateOnly To);
 
 public sealed record PosSettlementDto(

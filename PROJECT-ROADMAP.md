@@ -52,7 +52,8 @@ oturuyor.
 | 05 | Vergi ve muhasebeci | KDV taşıyan alanlar, vergi takvimi, ay sonu paketi | Tamamlandı |
 | 06 | Hesap ve kalan işler | Kullanıcı kendi hesabını yönetir; biriken açık işler kapanır | Tamamlandı |
 | 06.1 | Güvenlik taraması | Secret, bağımlılık, yetkilendirme ve log açıkları kapanır | Tamamlandı (1 Eyl 2026) |
-| 06.2 | Arayüz düzeni | Ekranlar bulunabilir ve tutarlı hâle gelir | Aktif (2 Eyl 2026) |
+| 06.2 | Arayüz düzeni | Ekranlar bulunabilir ve tutarlı hâle gelir | Beklemede (29 Eyl 2026'dan beri) |
+| 06.3 | Bütünsel düzenleme | Kasa, gün sonu, POS ve vergi gerçek hayatta çalışır; KDV ve muhasebeci paketi kalkar; listeler ve filtreler | Aktif (29 Eyl 2026) |
 | 06.x | (açılmadı) | Uygulama büyüdükçe çıkan işler | İhtiyaç oldukça |
 | 07 | Bulut güvenli beta | Ürün kendi makinenden bağımsız çalışır | Planlandı |
 
@@ -66,13 +67,14 @@ belge yalnız kapsamı kayda geçirir; kullanıcı açıkça onaylayana kadar **
 olmaz ve kodu değiştirilmez. Belgeler, sıraları geldiğinde o günkü gerçek
 duruma göre gözden geçirilir.
 
-**Dört aşama bir ADR ile açılır**; kararı yazılmadan işe başlanmaz:
+**Beş aşama bir ADR ile açılır**; kararı yazılmadan işe başlanmaz:
 
 | Aşama | Yazılacak karar |
 |---|---|
 | 02 | Ekonomik olay tanır, ödeme taşır — kart, borç ve cari modellerinin ortak kuralı |
 | 04 | Kart borcu ile kart tahsilatının ayrılması; bloke paranın projection olması; sekme kararı — **ADR 0015, kabul edildi** |
 | 05 | Vergi alanları taşır, hesaplamaz; oran ve tarihler koda gömülmez — **ADR 0016, kabul edildi** |
+| 06.3 | Vergi bir nakit planıdır — **ADR 0018, kabul edildi** (Grup 2–3'ün kapısı); gün sonu var olan kayıtları üretir, POS tanımı, yatış, kartla tahsil — **ADR 0019, kabul edildi** (Grup 4–7'nin kapısı) |
 | 07 | Fiş okumada veri sınırı: hangi belge hangi katmana gönderilir — **ADR 0011 güncellemesi, yazılmadı** |
 
 ### 01 — Kapsam boyutu ve işletme kimliği
@@ -132,7 +134,17 @@ sekmesinin on dört hedefi kullanıcının sorusuna göre gruplanır, router öz
 bazında bölünür (davranış değişmeden), boş/hata/yükleniyor/unauthorized/
 stale-cache beş durumu bütün ekranlarda geriye dönük denetlenir, form desenleri
 hizalanır, erişilebilirlik turu yapılır. **Açık kapsamlıdır ve listesi
-kullanıcıdan gelir.**
+kullanıcıdan gelir.** 29 Eylül 2026'dan beri beklemede; 06.3'ten sonra sürer.
+
+### 06.3 — Bütünsel düzenleme
+
+28 Eylül 2026'daki gerçek hayat denetimi Kasa, POS ve vergi tarafının bütün
+olarak ele alınmasını gerektirdi. Kesin hatalar kapanır; KDV alanları,
+indirilebilirlik ve muhasebeci paketi kalkar (ürün bütçe uygulamasıdır, ön
+muhasebe değildir); vergi kendi ekranında bir nakit planı olur; gün sonu, POS
+tanımı, yatış ve kartla tahsil kurulur; Kasa sekmesi yeniden tasarlanır; Z
+raporu fotoğraftan okunur; İşlemler filtreleri kendi karar adımıyla ele alınır.
+**ADR 0018 ve ADR 0019 ile açılır.** Yedek şemasını v11'e taşır.
 
 ### 07 — Bulut güvenli beta
 
@@ -146,8 +158,12 @@ yazılması şart.
 ## Yedek şeması sürümleri
 
 Aşama 01'den 05'e her aşama yedek şemasını bir sürüm ilerletir (v6 → v10) ve
-**yalnız kendi sürümünü okur.** 06 kümesi sürümü ilerletmez: eklediği hiçbir alan
-finansal kayıt taşımıyor. Bu bilinçli: her aşama yedeğin taşıması gereken
+**yalnız kendi sürümünü okur.** 06, 06.1 ve 06.2 sürümü ilerletmez: eklediği
+hiçbir alan finansal kayıt taşımıyor. **06.3 ilerletir (v10 → v11)**, çünkü
+finansal kayıt ekler ve kaldırır; aşama boyunca **tek sürüm** kullanılır ve
+şekli aşamanın son şema grubunda sabitlenir.
+
+"Yalnız kendi sürümünü okur" bilinçlidir: her aşama yedeğin taşıması gereken
 yeni bir alan ekliyor ve eski yedekte o alan **yok**; bir değer uydurmak,
 olmamış bir geçmiş uydurmak olurdu (aynı gerekçe ADR 0013 ve ADR 0012'de).
 
@@ -176,7 +192,9 @@ Devralınan plandan **çıkarılan** işler ve gerekçeleri:
 | Tam offline senkronizasyon | Kuyruk, idempotency ve conflict çözümü, online ürün oturmadan ödenecek bir maliyet. **04 buluta çıktığında yeniden değerlendirilir**: dükkânda internet kesikken satış kaydedilemiyorsa uygulama o an işe yaramaz |
 | Personel ve bordro | Tek başına aşama büyüklüğünde; SGK tarafı vergi sınırına değiyor |
 | Stok ve satılan malın maliyeti | Muhasebe kârı hesaplamak demek; ürün sınırının dışında |
-| Muhasebe ve beyanname | Ürün vergi hesaplamaz, taşır ve raporlar |
+| Muhasebe ve beyanname | Ürün vergi hesaplamaz; vergi bir nakit planıdır (ADR 0018) |
+| Ön muhasebe: muhasebeci paketi, KDV takibi, fatura kesme | Ürün bir bütçe uygulamasıdır; muhasebeciye veri hazırlamak ön muhasebenin işi (kullanıcı, 29 Eylül 2026; ADR 0018) |
+| Banka hesabı sayımı / mutabakatı | Kullanıcının bütün hareketleri eksiksiz girmesini varsayar; pratikte olmaz (kullanıcı, 28 Eylül 2026) |
 
 ## Bağımlılık kuralları
 
@@ -185,9 +203,10 @@ Devralınan plandan **çıkarılan** işler ve gerekçeleri:
 - Karşı taraf (02) gerçek bir kayıt olmadan fatura karşı tarafa bağlanmaz.
 - Bulut güvenlik kapısı tamamlanmadan gerçek finansal veri veya dış test
   kullanıcısı eklenmez.
-- Vergiye dair hiçbir alan hesaplayan bir alana dönüştürülmez; taşır ve
-  raporlar.
-- İndirilebilirlik bayrağı kapsam alanıyla birleştirilmez (ADR 0013).
+- Hiçbir vergi tutarı türetilmez veya tahmin edilmez; tutar kullanıcıdan gelir
+  (ADR 0016 §1, ADR 0018).
+- Gün sonu, kartla tahsil ve POS yatışı aynı satışı ikinci kez gelir yazmaz
+  (ADR 0014, ADR 0019).
 - Manuel yatırım modeli doğrulanmadan fiyat API'si eklenmez.
 
 ## Her aşamanın ortak yapısı

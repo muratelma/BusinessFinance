@@ -151,6 +151,45 @@ public sealed class PosSettlementTests
             () => settlement.MarkTransferred(new DateOnly(2026, 8, 24), CreatedAtUtc));
     }
 
+    /// <summary>
+    /// 28 Eylül denetimi U12: yanlışlıkla "hesaba geçti" denen tahsilat
+    /// düzeltilemiyordu; bankada olmayan para uygulamada banka bakiyesindeydi.
+    /// </summary>
+    [Fact]
+    public void RevertTransfer_PutsTheMoneyBackOnTheRoadWithoutTouchingTheSale()
+    {
+        var settlement = NewSettlement(gross: 1000m, commission: 17.9m);
+        settlement.MarkTransferred(TransferDate, CreatedAtUtc);
+
+        settlement.RevertTransfer();
+
+        Assert.True(settlement.IsInTransit);
+        Assert.Null(settlement.TransferredOn);
+        Assert.Null(settlement.TransferredAtUtc);
+        Assert.Equal(0m, settlement.SignedAccountEffect);
+        // Satış ve komisyon tahsilat gününde tanındı; geri alma onlara dokunmaz.
+        Assert.Equal(1000m, settlement.GrossAmount.Amount);
+        Assert.Equal(17.9m, settlement.CommissionAmount);
+
+        // İdempotent: yoldaki tahsilatta ikinci çağrı bir şey değiştirmez.
+        settlement.RevertTransfer();
+        Assert.True(settlement.IsInTransit);
+
+        // Doğru günle yeniden işaretlenebilir.
+        settlement.MarkTransferred(TransferDate, CreatedAtUtc);
+        Assert.Equal(982.1m, settlement.SignedAccountEffect);
+    }
+
+    [Fact]
+    public void RevertTransfer_IsRefusedOnACancelledSettlement()
+    {
+        var settlement = NewSettlement(gross: 1000m, commission: 0m);
+        settlement.MarkTransferred(TransferDate, CreatedAtUtc);
+        settlement.Cancel(CreatedAtUtc);
+
+        Assert.Throws<InvalidOperationException>(settlement.RevertTransfer);
+    }
+
     [Fact]
     public void TransferDate_CannotPrecedeTheSettlementOrSitInTheFuture()
     {

@@ -99,7 +99,8 @@ public static class CashCountEndpoints
             today.Count is null ? null : ToResponse(today.Count),
             today.PreviousCount is null ? null : ToResponse(today.PreviousCount),
             FinanceContract.Money(today.TodayInflow),
-            FinanceContract.Money(today.TodayOutflow)));
+            FinanceContract.Money(today.TodayOutflow),
+            today.ChangeSinceCount is decimal change ? FinanceContract.Money(change) : null));
     }
 
     private static async Task<IResult> CreateAsync(

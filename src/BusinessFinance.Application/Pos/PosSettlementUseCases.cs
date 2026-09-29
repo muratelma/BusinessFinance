@@ -195,6 +195,129 @@ public sealed class MarkPosSettlementTransferredUseCase(
                 PosSettlementErrors.Conflict(exception.Message));
         }
 
+        return ApplicationResult<PosSettlementDto>.Success(
+            await PosSettlementMapper.ToDtoAsync(
+                settlement, userId, accountRepository, categoryRepository,
+                timeProvider, cancellationToken));
+    }
+}
+
+/// <summary>
+/// "Hesaba geçti" yanlışlıkla işaretlendiyse tahsilatı yeniden yola döndürür.
+/// </summary>
+/// <remarks>
+/// Yalnız hesaba yazılmış net tutar geri çekilir; satış ve komisyon tahsilat
+/// gününde tanındı ve olduğu gibi kalır (ADR 0014). 28 Eylül denetimi U12.
+/// Aşama 06.3 Grup 5'te yatış kaydı gelince bu davranış yatışın geri
+/// alınmasına taşınır.
+/// </remarks>
+public sealed class RevertPosSettlementTransferUseCase(
+    ICurrentUser currentUser,
+    IPosSettlementRepository repository,
+    IAccountRepository accountRepository,
+    ICategoryRepository categoryRepository,
+    TimeProvider timeProvider)
+{
+    public async Task<ApplicationResult<PosSettlementDto>> ExecuteAsync(
+        RevertPosSettlementTransferCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        return await PosSettlementMutation.ApplyAsync(
+            currentUser, repository, accountRepository, categoryRepository, timeProvider,
+            command.SettlementId,
+            settlement => settlement.RevertTransfer(),
+            cancellationToken);
+    }
+}
+
+/// <summary>
+/// Silme yerine iptal: yanlış girilen POS tahsilatı hem tanıdığı satışı ve
+/// komisyonu hem varsa hesaba taşıdığı parayı birlikte kaybeder.
+/// </summary>
+/// <remarks>
+/// İdempotenttir; iptal edilmiş kaydı yeniden iptal etmek aynı cevabı döner.
+/// 28 Eylül denetimi U12: domain'de iptal vardı, ona ulaşan bir yol yoktu.
+/// </remarks>
+public sealed class CancelPosSettlementUseCase(
+    ICurrentUser currentUser,
+    IPosSettlementRepository repository,
+    IAccountRepository accountRepository,
+    ICategoryRepository categoryRepository,
+    TimeProvider timeProvider)
+{
+    public async Task<ApplicationResult<PosSettlementDto>> ExecuteAsync(
+        CancelPosSettlementCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        return await PosSettlementMutation.ApplyAsync(
+            currentUser, repository, accountRepository, categoryRepository, timeProvider,
+            command.SettlementId,
+            settlement => settlement.Cancel(timeProvider.GetUtcNow().ToUniversalTime()),
+            cancellationToken);
+    }
+}
+
+/// <summary>
+/// Sahip olunan bir tahsilatı bulur, üzerinde tek bir domain adımı uygular ve
+/// kaydeder. Başka kullanıcının ya da var olmayan kaydın cevabı aynıdır.
+/// </summary>
+internal static class PosSettlementMutation
+{
+    public static async Task<ApplicationResult<PosSettlementDto>> ApplyAsync(
+        ICurrentUser currentUser,
+        IPosSettlementRepository repository,
+        IAccountRepository accountRepository,
+        ICategoryRepository categoryRepository,
+        TimeProvider timeProvider,
+        Guid settlementId,
+        Action<PosSettlement> change,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not Guid userId || userId == Guid.Empty)
+        {
+            return ApplicationResult<PosSettlementDto>.Failure(
+                PosSettlementErrors.AuthenticationRequired);
+        }
+
+        var settlement = await repository.FindOwnedByIdAsync(
+            settlementId, userId, true, cancellationToken);
+        if (settlement is null)
+        {
+            return ApplicationResult<PosSettlementDto>.Failure(
+                PosSettlementErrors.NotFound(settlementId));
+        }
+
+        try
+        {
+            change(settlement);
+            await repository.SaveAsync(cancellationToken);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return ApplicationResult<PosSettlementDto>.Failure(
+                PosSettlementErrors.Conflict(exception.Message));
+        }
+
+        return ApplicationResult<PosSettlementDto>.Success(
+            await PosSettlementMapper.ToDtoAsync(
+                settlement, userId, accountRepository, categoryRepository,
+                timeProvider, cancellationToken));
+    }
+}
+
+internal static class PosSettlementMapper
+{
+    /// <summary>Adları sahiplik kapsamında okuyup cevabı kurar.</summary>
+    public static async Task<PosSettlementDto> ToDtoAsync(
+        PosSettlement settlement,
+        Guid userId,
+        IAccountRepository accountRepository,
+        ICategoryRepository categoryRepository,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
         var account = await accountRepository.FindOwnedByIdAsync(
             settlement.AccountId, userId, cancellationToken);
         var category = await categoryRepository.FindOwnedByIdAsync(
@@ -204,18 +327,14 @@ public sealed class MarkPosSettlementTransferredUseCase(
                 commissionCategoryId, userId, cancellationToken)
             : null;
 
-        return ApplicationResult<PosSettlementDto>.Success(
-            PosSettlementMapper.ToDto(
-                settlement,
-                account?.Name ?? string.Empty,
-                category?.Name ?? string.Empty,
-                commissionCategory?.Name,
-                DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime)));
+        return ToDto(
+            settlement,
+            account?.Name ?? string.Empty,
+            category?.Name ?? string.Empty,
+            commissionCategory?.Name,
+            DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime));
     }
-}
 
-internal static class PosSettlementMapper
-{
     public static PosSettlementDto ToDto(
         PosSettlement settlement,
         string accountName,

@@ -1,6 +1,11 @@
 # ADR 0005 — Tekrarlayan Planın Kaynağı: Hesap veya Kredi Kartı
 
-- Durum: Kabul edildi ve uygulandı
+- Durum: Kabul edildi ve uygulandı. **ADR 0018 (kabul edildi, 29 Eylül 2026) bu
+  kurala dokunabilir:** başlangıç tasarımında (ADR 0018 §T4) vergi türündeki
+  planın kaynağı isteğe bağlıdır ("tam olarak biri dolu" → "en çok biri dolu")
+  ve kaynak ödeme anında verilir. Uygulamada farklı bir yol seçilirse bu ADR
+  aynen kalabilir. Gerçekleşen kalemin "tam olarak tek sonuç" kuralı her
+  durumda değişmez.
 - Tarih: 2026-08-14
 - Kapsam: `RecurringTransaction`, `RecurringTransactionOccurrence`, backup şeması
 

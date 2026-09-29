@@ -267,7 +267,9 @@ Birkaç bileşenin sözleşmesinde neden şu kararların olduğu:
   toplam gösterdiklerini söyleyen bir satır durur.
 - **`AppDateField` kendi görünümünü tanımlamaz.** `InputDecorator` ile tema
   dekorasyonunu okur; tarih alanı yanındaki metin alanlarından ayrı bir tür
-  gibi görünmemelidir.
+  gibi görünmemelidir. Etiketi **her zaman üstte** durur
+  (`FloatingLabelBehavior.always`): değer yokken yer tutucu ("Seçilmedi")
+  içerik yerinde çizilir ve etiket aşağı inseydi ikisi üst üste binerdi.
 
 ### Gezinme ve birincil eylem
 
@@ -560,7 +562,7 @@ aynı hedef modelini okur. Seçili durum ikon dolgusu, yazı kalınlığı ve se
 
 `Kasa` sayfası sekmesiz **tek akıştır** (Claude Design teslimi, KasaV4):
 kasa seçici rayı (ad + bakiye, alan yarıçapı, 56 dp dilim), bugünün sayım
-kartı, `POS tahsilatları` bölümü ve `Son sayımlar`. Sayım kartı sayımdan önce
+kartı, `POS tahsilatları` bölümü ve `Son sayımlar` (bugünkü sayım dahil). Sayım kartı sayımdan önce
 beklenen tutarın kaynağını (son sayım, bugünkü nakit giriş/çıkış), sonra elde
 sayılanı, uygulamaya göre tutarı ve farkı gösterir. `Sayımı gir` paneli
 `Toplamı yaz | Banknotla say` segmentiyle açılır; toplam alanı Türkçe binlik

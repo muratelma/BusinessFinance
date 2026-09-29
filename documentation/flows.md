@@ -88,9 +88,26 @@ Kasa -> kasa seçici (birden çok nakit hesap varsa)
 ```
 
 İstemci kaydedilen farkı hesaplamaz; paneldeki şerit yalnız tam aritmetikli
-bir önizlemedir. `Son sayımlar` her sayımın yazıldığı anki beklenen tutarı ve
+bir önizlemedir. `Son sayımlar` (bugünkü sayım dahil) her sayımın yazıldığı anki beklenen tutarı ve
 farkını gösterir (sunucudaki `ExpectedAtCount` gözlemi). Aynı gün ikinci sayım öncekini
 iptal eder; geçmiş gözlem silinmez. Sayım tuttuysa düzeltme eylemi yoktur.
+
+Sayımdan sonra kasaya hareket girerse (ör. dün tarihli bir fiş sonradan
+girildi) `today` cevabı **sayımdan bu yana değişimi** (`changeSinceCount`)
+ayrıca taşır: farkı kaydedilmiş sayımda güncel bakiye − sayılan tutar,
+kaydedilmemiş sayımda güncel bakiye − sayım anındaki beklenen. Sıfırdan
+farklıysa kart "oturdu" / "Tuttu" demez; durum `Sonradan kayıt girildi`
+olur, değişim `Uygulamaya göre` satırının altında kısa bir açıklama olarak
+durur (`−₺300,00 sayımdan sonra girildi`) ve altında tek cümle yazar: "Kayıt
+sayımdan önce olduysa farkı kaydedin." Uygulama kaydın sayımdan sonra
+**girildiğini** bilir, olayın ne zaman **olduğunu** bilmez (kayıtlarda saat
+yok); fark ancak olay sayımdan önceyse (ör. dünkü fatura) gerçektir. Farkın anlamı değişmez; sunucu hesaplar, istemci çıkarma yapmaz.
+
+Kasa ekranı `FinancialDataChanges.cash` hedefini dinler ve hesapları
+yükselten her olay bu hedefi de yükseltir: başka bir ekranda girilen nakit
+gider, transfer, cari tahsilat, yükümlülük kapatma, tekrarlayan kalem ya da
+içe aktarım Kasa'yı kendiliğinden yeniler; kasa listesi ve diğer kasaların
+bakiyesi de yeniden okunur.
 
 ## POS tahsilatı ve hesaba geçiş
 
@@ -104,6 +121,16 @@ Kasa -> POS tahsilatları bölümü -> + Ekle
 Yolda satırına dokun -> görünür onay
      -> POST /api/v1/pos-settlements/{id}/transfer
      -> hedef hesap net kadar artar; gelir/gider yeniden yazılmaz
+
+Geçmiş satıra dokun -> "Hesaba geçmedi, geri al" -> görünür onay
+     -> DELETE /api/v1/pos-settlements/{id}/transfer
+     -> net tutar hesaptan geri çekilir, kayıt yeniden yolda;
+        satış ve komisyon tanınmış olarak kalır
+
+Herhangi bir satır -> "Kaydı iptal et" -> yıkıcı onay
+     -> DELETE /api/v1/pos-settlements/{id}
+     -> satış, komisyon ve varsa hesaba geçen tutar birlikte düşer;
+        kayıt silinmez, iptal edilir ve listeden kalkar
 ```
 
 `Yolda` toplamı net tutardır ve liste tarih aralığından bağımsızdır. POS hedefi
@@ -791,8 +818,21 @@ CSV seç -> 2 MiB/type/encoding/delimiter/header doğrula
   -> staging rows (transaction yok)
   -> owner account/category eşle
   -> duplicate: skip | import-anyway
-  -> ready row kimlikleriyle confirm
+  -> hazır satır: Atla | Atlamayı geri al (istemcide; atlanan satır gönderilmez)
+  -> atlanmamış ready row kimlikleriyle confirm
   -> tek SQL transaction; retry yeni transaction üretmez
+```
+
+Önizlemenin başında kalıcı bir not durur: POS parasının hesaba geçişi,
+kredi kartı borcu ödemesi ve kendi hesaplar arası aktarım içe aktarılırsa
+gelir ya da gider olarak **ikinci kez** sayılır (ADR 0014); bunlar atlanmalı.
+Açıklaması bu işlemlere benzeyen satır ("POS", "üye işyeri", "kredi kartı",
+"KK ödeme", "virman", "hesaplar arası") ayrıca uyarı taşır. Bu bir ipucudur,
+karar değil; "EFT" ve "havale" gibi gerçek gelir/giderde de geçen kelimeler
+bilerek listede yok. İçe aktarımın bu satırları kendisinin tanıması ayrı bir
+turun işidir (`research/fikir-kaydi.md` F05).
+
+```text
 
 Fiş seç -> 5 MiB + allowlist -> magic byte + threat signature
   -> random object key'e temp write/move

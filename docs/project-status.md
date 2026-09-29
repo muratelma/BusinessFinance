@@ -186,9 +186,48 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     çıkarıldı (kod değişmedi; alan hâlâ backfill'siz). Kontroller: backend
     SQL dahil geçti (Domain 311, Application 325, Api 235, Infrastructure 203
     + 2 canlı test atlandı), format temiz; Flutter analyze temiz, 895 test
+  - **Bütünsel düzenleme kararları (28 Eylül 2026, kod değişmedi)**: Kasa/POS ve
+    vergi temaları araştırılıp kullanıcı kararıyla kapandı (`research/YOL-HARITASI.md`,
+    `research/kasa-pos-gun-sonu/KAPANIS.md`, `research/vergi/YENI-YAKLASIM.md`).
+    **Veri kaybettiren karar (kullanıcı onayı):** muhasebeci paketi, KDV alanları ve
+    indirilebilirlik kaldırılacak; girilmiş KDV/indirilebilirlik verisi silinebilir —
+    yerel veri sentetik. Uygulamadan önce kararlar temiz bir oturumda denetlenecek;
+    ADR, PRD ve aşama belgeleri denetimden sonra yazılacak
+- **29 Eylül 2026: karar denetimi yapıldı, karar belgeleri yazıldı, Aşama 06.3
+  açıldı (kod değişmedi, commit atılmadı).** Denetim `research/DENETIM-2026-09-29.md`
+  ve dış kaynak ekinde; sonuçları `research/kasa-pos-gun-sonu/KAPANIS.md`
+  (KP1–KP22) ve `research/vergi/YENI-YAKLASIM.md` §6.6'ya işlendi. Kullanıcı
+  muhasebeci paketinin **tamamen** kaldırılmasına karar verdi (ürün bütçe
+  uygulamasıdır, ön muhasebe değildir). Yazılanlar: **ADR 0018** (vergi bir nakit
+  planıdır) ve **ADR 0019** (gün sonu, POS tanımı, yatış, kartla tahsil) —
+  ikisi de kullanıcı onayıyla **kabul edildi** (29 Eylül 2026); ADR 0005, 0015 ve 0016'ya
+  yönlendirme notları; PRD, `AGENTS.md`, `CLAUDE.md`, `PROJECT-ROADMAP.md`.
+  Kullanıcı kararıyla ADR'ler artık **iki katmanlı** (bağlayıcı "İlkeler" +
+  değişebilir "Başlangıç tasarımı"); `AGENTS.md`'ye "Kararlardan sapma" kuralı,
+  aşama belgelerine "Sapmalar" tablosu eklendi.
+  **Aşama 06.3 — Bütünsel düzenleme Aktif, 06.2 Beklemede** (kullanıcı kararı).
+  Dal `ui-trials`'ta kalıyor; bir bulut oturumu açıldığında `main`'e alınıp yeni
+  dal açılacak
+  - **06.3 Grup 1 — kesin hatalar (29 Eylül 2026, tamamlandı; emülatör
+    kabulü kullanıcıyla yapıldı)**: Kasa her bakiye değişiminde yenileniyor
+    (Kasa/POS controller'ları `cash` hedefini hiç dinlemiyordu; hesapları
+    yükselten her olay artık `cash`'i de yükseltiyor); POS kaydı iptal
+    edilebiliyor ve yanlış "hesaba geçti" geri alınabiliyor (iki yeni `DELETE`
+    ucu, sahiplik denetiminde); sayımdan sonra değişen kasa "oturdu" demiyor
+    (`today.changeSinceCount`); içe aktarımda çifte sayım notu, ipucu ve satır
+    başına "Atla"; boş tarih alanında üst üste binen etiket, "quarterly" ve
+    yanıltıcı "Sonraki" düzeldi. Kontroller: backend SQL dahil geçti (Domain
+    313, Application 325, Api 237, Infrastructure 203 + 2 canlı test atlandı),
+    build 0 uyarı, format temiz; Flutter analyze temiz, 907 test geçti (19 ekran
+    görüntüsü testi atlandı), format temiz, debug APK derlendi. Pixel 8
+    denemesinde (T1b, T2, T6, CSV, plan satırı) sayım kartının anlatımı
+    kullanıcıyla yeniden kuruldu: bugünkü sayım `Son sayımlar`da da görünüyor,
+    durum `Sonradan kayıt girildi`, değişim `Uygulamaya göre`nin altında kısa
+    açıklama ve tek cümlelik yönlendirme. Son koşum: Flutter 909 test geçti
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
-  06.2 arayüz düzeni → (gerekirse 06.x) → 07 bulut (`PROJECT-ROADMAP.md`)
+  06.2 arayüz düzeni (beklemede) → **06.3 bütünsel düzenleme (aktif)** →
+  (gerekirse 06.x) → 07 bulut (`PROJECT-ROADMAP.md`)
 
 ## Taşımada yapılan ve doğrulanan işler
 

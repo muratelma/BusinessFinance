@@ -16,11 +16,24 @@ class CashCountController extends ChangeNotifier {
     this._repository, {
     this.changes,
     DateTime Function()? clock,
-  }) : _clock = clock ?? DateTime.now;
+  }) : _clock = clock ?? DateTime.now,
+       _seenCashRevision = changes?.cashRevision ?? 0 {
+    changes?.addListener(_handleFinancialDataChanged);
+  }
 
   final CashRepositoryContract _repository;
   final FinancialDataChanges? changes;
   final DateTime Function() _clock;
+
+  /// Başka bir ekranın yaptığı değişiklik (nakit gider, transfer, cari
+  /// tahsilat…) Kasa'yı eskittiğinde yeniden yüklemek için. Kendi yazdığı
+  /// değişiklikte kendini ikinci kez yüklemez.
+  int _seenCashRevision;
+
+  /// Dışarıdan gelen bir değişiklikten sonra kasa listesi ve diğer kasaların
+  /// bakiyesi de yeniden okunur: yeni açılan ya da kapanan bir kasa, başka bir
+  /// kasanın değişen bakiyesi önbellekte kalmasın.
+  bool _reloadAccounts = false;
 
   /// Cihazın bugünü (`yyyy-MM-dd`); sayım bu güne yazılır.
   String get todayIso => _isoDate(_clock());
@@ -45,12 +58,12 @@ class CashCountController extends ChangeNotifier {
   /// Bugünün sayımı; henüz sayılmadıysa boş.
   CashCountItem? get todayCount => today?.count;
 
-  /// `Son sayımlar`: bugünden önceki geçerli sayımlar, yeniden eskiye.
-  /// Bugünün sayımı üstteki kartta durur; yerine yenisi yazılan sayım
-  /// geçmişte tekrar görünmez.
-  List<CashCountItem> get pastCounts => [
+  /// `Son sayımlar`: geçerli sayımlar, **bugünkü dahil**, yeniden eskiye
+  /// (kullanıcı, 29 Eylül: bugünün sayımı listede de görünsün). Yerine yenisi
+  /// yazılan sayım listede tekrar görünmez.
+  List<CashCountItem> get recentCounts => [
     for (final item in history)
-      if (!item.isCancelled && item.countDate != todayIso) item,
+      if (!item.isCancelled) item,
   ];
 
   CashAccount? get selectedAccount {
@@ -80,8 +93,12 @@ class CashCountController extends ChangeNotifier {
     errorMessage = null;
     notifyListeners();
     try {
-      if (accounts.isEmpty) {
+      if (accounts.isEmpty || _reloadAccounts) {
         accounts = await _repository.loadCashAccounts();
+        _reloadAccounts = false;
+        if (!accounts.any((account) => account.id == selectedAccountId)) {
+          selectedAccountId = null;
+        }
       }
       selectedAccountId ??= accounts.isEmpty ? null : accounts.first.id;
       final accountId = selectedAccountId;
@@ -157,7 +174,7 @@ class CashCountController extends ChangeNotifier {
         note: note,
       );
       // Sayım hiçbir bakiyeyi değiştirmez; yalnız bu ekran yenilenir.
-      changes?.cashCountRecorded();
+      _announce((c) => c.cashCountRecorded());
       await load();
       return true;
     } on ApiException catch (error) {
@@ -187,7 +204,7 @@ class CashCountController extends ChangeNotifier {
         cashCountId: count.id,
         categoryId: categoryId,
       );
-      changes?.cashDifferenceConfirmed();
+      _announce((c) => c.cashDifferenceConfirmed());
       await load();
       return true;
     } on ApiException catch (error) {
@@ -201,6 +218,30 @@ class CashCountController extends ChangeNotifier {
       isSubmitting = false;
       notifyListeners();
     }
+  }
+
+  /// Kendi değişikliğini duyururken dinleyicinin bu ekranı ikinci kez
+  /// yüklemesini önler; ekran zaten ardından kendini yüklüyor.
+  void _announce(void Function(FinancialDataChanges changes) raise) {
+    final current = changes;
+    if (current == null) return;
+    _seenCashRevision = current.cashRevision + 1;
+    raise(current);
+  }
+
+  void _handleFinancialDataChanged() {
+    final revision = changes?.cashRevision ?? 0;
+    if (revision == _seenCashRevision) return;
+    _seenCashRevision = revision;
+    _reloadAccounts = true;
+    expectedByAccount = const {};
+    load();
+  }
+
+  @override
+  void dispose() {
+    changes?.removeListener(_handleFinancialDataChanged);
+    super.dispose();
   }
 }
 

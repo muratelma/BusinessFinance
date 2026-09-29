@@ -13,6 +13,11 @@ işletme takibi aynı üründe yaşar.
 raporlama boyutudur (`documentation/adr/0013-business-and-personal-are-one-pool.md`).
 Finansal kod yazmadan önce bu ADR okunur.
 
+Ürün bir **işletme bütçe uygulamasıdır, ön muhasebe değildir.** Ön muhasebe
+ürünleri fikir için incelenir ama bir özelliği sunmaları bize gerektiğinin
+kanıtı sayılmaz; "gerekli mi" sorusu bizim kullanıcımız, mevzuat ve bütçe
+uygulaması sınırıyla cevaplanır.
+
 Ürün kapsamı `PRD-BusinessFinance.md`, geliştirme sırası `PROJECT-ROADMAP.md`
 belgesindedir; hepsinin belgesi yazılıdır (tamamlananlar `docs/archive/stages/`,
 açık olanlar `stages/` altında). Aşama 06 bir **kümedir** (06, 06.1, 06.2, …):
@@ -56,9 +61,50 @@ listede sıralanamaz; sıralamaya çalışmak kategori hatasıdır.
 4. `PROJECT-ROADMAP.md` (sıra ve bağımlılık)
 5. Aktif `stages/<numara>-*.md` (o aşamanın ayrıntısı)
 
+`research/` altındaki kapanış listeleri (`kasa-pos-gun-sonu/KAPANIS.md`,
+`vergi/YENI-YAKLASIM.md` §6.6) kararların gerekçesi ve ayrıntısıdır; bir ADR veya
+aşama belgesiyle çeliştiklerinde ADR ve aşama belgesi geçerlidir ve çelişki
+kullanıcıya sorulur. Neyin bağlayıcı, neyin başlangıç tasarımı olduğu
+"Kararlardan sapma" bölümündedir.
+
 Bir belge çalışan koda aykırı bir şey **anlatıyorsa** belge yanlıştır ve
 düzeltilir. Bir belge çalışan koddan farklı bir şey **istiyorsa** kod eksiktir
 ve aşama belgesine iş olarak girer. İkisini ayırt etmek çağıranın işidir.
+
+## Kararlardan sapma
+
+Kararlar yazıldıkları gün doğru görünür; bir kısmı kod yazılırken yanlış ya da
+eksik çıkar. Bu yüzden karar belgeleri **bağlayıcı olanı** ve **başlangıç
+tasarımını** ayırır:
+
+- **Bağlayıcı:** ADR'lerin **"İlkeler"** bölümü (ADR 0018'den itibaren ADR'ler iki
+  katmanlıdır; 0001–0017 tek katmanlıdır ve onlarda **"Karar"** bölümü
+  bağlayıcıdır), PRD ve bu dosyadaki ürün ve mimari kurallar.
+- **Başlangıç tasarımı:** ADR'lerin **"Başlangıç tasarımı"** bölümü, aşama
+  belgelerinin çalışma gruplarındaki ayrıntılar ve `research/` kapanış
+  listelerinin ayrıntıları (varsayılanlar, alan listeleri, uç ve tablo biçimi,
+  ekran akışının ayrıntısı).
+
+Kod yazılırken daha iyi ya da gerekli bir yol bulunursa agent başlangıç
+tasarımından **sapabilir**:
+
+1. Hiçbir bağlayıcı ilkeyi ve kuralı bozmaz.
+2. Sapma, neyin yazılı olduğu, neyin yapıldığı ve gerekçesiyle aktif aşama
+   belgesinin **"Sapmalar"** tablosuna yazılır.
+3. Checkpoint sonunda kullanıcıya söylenir.
+4. **Kullanıcının gördüğü davranışı değiştiren** sapma (ekranda ne sorulduğu,
+   hangi sayının nasıl hesaplanıp gösterildiği, bir akışın adımları)
+   uygulanmadan önce kullanıcıya kısa bir soruyla sorulur. İç tasarım (şema,
+   uç ve sınıf yapısı, sorgu biçimi) bu soruyu beklemez.
+
+Sapma sayılmayanlar — bunlar her zaman önce sorulur: veri kaybettiren ya da geri
+döndürülemeyen şema kararı, var olan API sözleşmesini kıran değişiklik, bir
+bağlayıcı ilkenin değişmesi.
+
+Bir ilke ya da kullanıcı kararı kodda **somut bir zarar** doğuruyorsa (çifte
+sayım, veri kaybı, çözülemeyen bir çelişki) agent onu körü körüne uygulamaz:
+durur, sorunu ve seçenekleri kullanıcıya getirir. İlke yalnız kullanıcı kararı
+ve ADR güncellemesiyle değişir.
 
 ## Kullanıcıyla iletişim
 
@@ -118,13 +164,21 @@ ve aşama belgesine iş olarak girer. İkisini ayırt etmek çağıranın işidi
 - **İşletme/şahsi ayrımı tek havuz üzerinde bir boyuttur** (ADR 0013). Havuzu
   ikiye bölme, mod seçimi ekleme, kapsamı kategoriyle temsil etme. Bakiye,
   kart borcu ve net varlık kapsam filtresinden etkilenmez.
-- **Kapsam ile indirilebilirlik ayrı alanlardır**; tek alanda birleştirme.
+- **KDV alanları, indirilebilirlik ve muhasebeci paketi kaldırılıyor** (ADR 0018,
+  Aşama 06.3 Grup 2). Kaldırılana kadar yeni kodu bunlara bağlama, onları
+  genişletme.
+- **Aynı satışı iki kez gelir yazma.** Gün sonu var olan kayıtları üretir ve o
+  gün zaten girilmiş kayıtları hesaba katar; kartla tahsilat ve POS yatışı gelir
+  yazmaz (ADR 0019, ADR 0014).
 - Migration ve API sözleşme değişikliklerini incelemeden uygulama.
 
 ### Ürün sınırı — arayüz metnini de bağlar
 
-- **Uygulama vergi hesaplamaz ve beyanname üretmez.** Vergiye dair alanlar
-  taşıyan ve raporlayan alanlardır; bir tutarı türeten kod yazma.
+- **Uygulama vergi hesaplamaz ve beyanname üretmez.** Vergi bir nakit planıdır
+  (ADR 0018): vergi tutarı kullanıcıdan gelir; bir vergi tutarını türeten ya da
+  tahmin eden kod yazma.
+- **Ön muhasebe özelliği ekleme:** muhasebeciye veri paketi, KDV takibi, fatura
+  kesme, satış satış kayıt ve adisyon kapsam dışıdır.
 - **"Kâr" kelimesi kullanılmaz.** Hesaplanan şey nakit esaslı **işletme
   netidir**; muhasebe kârı satılan malın maliyetini ister ve kapsam dışıdır.
   Yanlış kelime kullanıcıyı vergi beyanında yanıltır.
@@ -215,7 +269,8 @@ Ne değiştiyse hangi belgeye dokunulacağı:
 | Yeni/değişen endpoint, request veya response sözleşmesi | `documentation/permissions.md` (sahiplik sınırı), varsa ilgili API sözleşme belgesi |
 | Kullanıcının gördüğü yeni akış (ekran, form, aksiyon zinciri) | `documentation/flows.md` |
 | Katman, aggregate, okuma modeli veya veri akışı değişikliği | `documentation/architecture.md` |
-| Geri alınması pahalı kalıcı teknik karar | Yeni `documentation/adr/NNNN-*.md` |
+| Geri alınması pahalı kalıcı teknik karar | Yeni `documentation/adr/NNNN-*.md` — iki katmanlı: **İlkeler** (bağlayıcı) ve **Başlangıç tasarımı** (değişebilir); sık değişecek ayrıntı ADR'ye değil aşama belgesine yazılır |
+| Başlangıç tasarımından sapma | Aktif `stages/<numara>-*.md` "Sapmalar" tablosu ("Kararlardan sapma") |
 | Yeni test sınıfı/kapsamı veya kabul senaryosu | `documentation/tests.md` |
 | Yeni environment değişkeni, secret veya build flag | `documentation/variables.md` |
 | Yeni ekran, bileşen, token veya gezinme değişikliği | `documentation/design-system.md` |

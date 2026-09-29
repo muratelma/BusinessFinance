@@ -32,6 +32,11 @@ class FinancialDataChanges extends ChangeNotifier {
   int get counterpartiesRevision => _counterpartiesRevision;
 
   /// Kasa ekranı: gün sonu sayımı ve POS tahsilatları.
+  ///
+  /// Hesapları yükselten her olay bunu da yükseltir (`_raise`): Kasa nakit
+  /// hesapların bakiyesini gösterir, o bakiyeyi değiştiren her kayıt — gelir,
+  /// gider, transfer, cari tahsilat, yükümlülük kapatma, tekrarlayan kalem,
+  /// içe aktarım — Kasa'yı da eskitir.
   int get cashRevision => _cashRevision;
 
   /// Kept for the transaction list, which predates the unified feed and follows
@@ -173,6 +178,21 @@ class FinancialDataChanges extends ChangeNotifier {
   void posSettlementTransferred() =>
       _raise(feed: true, dashboard: true, accounts: true, cash: true);
 
+  /// "Hesaba geçti" geri alındı: para yeniden yolda. Geçişin tersi olduğu için
+  /// aynı hedefleri yükseltir; satış yeniden tanınmaz.
+  void posSettlementTransferReverted() =>
+      _raise(feed: true, dashboard: true, accounts: true, cash: true);
+
+  /// POS tahsilatı iptal edildi: satış ve komisyon düşer (bütçe), varsa
+  /// hesaba geçen tutar da düşer (hesaplar).
+  void posSettlementCancelled() => _raise(
+    feed: true,
+    dashboard: true,
+    budgets: true,
+    accounts: true,
+    cash: true,
+  );
+
   /// Karşı tarafın kendisi eklendi, adı değişti, pasifleşti ya da silindi.
   /// Para hareket etmedi; yalnız kişi listesi değişti.
   void counterpartiesChanged() => _raise(counterparties: true);
@@ -206,7 +226,11 @@ class FinancialDataChanges extends ChangeNotifier {
     if (cards) _cardsRevision++;
     if (planning) _planningRevision++;
     if (counterparties) _counterpartiesRevision++;
-    if (cash) _cashRevision++;
+    // Kasa bir hesap bakiyesi görünümüdür: hesaplar değiştiyse kasa da
+    // değişmiş olabilir. Kural burada tek yerde durur ki yeni bir olay onu
+    // unutamasın (28 Eylül denetimi U11: nakit gider ve transfer Kasa'yı
+    // yenilemiyordu).
+    if (cash || accounts) _cashRevision++;
     notifyListeners();
   }
 }

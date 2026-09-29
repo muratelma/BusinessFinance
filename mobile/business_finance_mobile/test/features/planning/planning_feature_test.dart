@@ -352,6 +352,61 @@ void main() {
   /// ve altında tam genişlikte bir `Sil` şeridi, sonra rozet alanına taşınan
   /// bir silme butonu. Duraklatma ve silme artık satıra dokununca açılan
   /// panelde; liste tek işi yapıyor ve tutar sağ bloğuna döndü.
+  // Vergi araştırması V-U8 ve V-U9: üç aylık plan "quarterly" yazıyordu ve
+  // vadesi gelmiş bekleyen kalem varken satır iki ay sonrasını gösteriyordu.
+  testWidgets('plan satırı en erken bekleyen kalemi ve sıklığı Türkçe yazar', (
+    tester,
+  ) async {
+    final quarterly = RecurringTransactionItem(
+      id: 'p1',
+      sourceType: 'account',
+      accountId: 'account',
+      creditCardId: null,
+      categoryId: 'category',
+      amount: '8500.0000',
+      currency: 'TRY',
+      kind: 'expense',
+      frequency: 'quarterly',
+      startDate: '2026-08-17',
+      endDate: null,
+      occurrenceLimit: null,
+      generatedOccurrenceCount: 1,
+      nextOccurrenceDate: '2026-11-17',
+      monthEndBehavior: 'clamp-to-last-day',
+      description: 'Geçici vergi',
+      isActive: true,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: PlanningPage(
+          repository: _FakePlanningRepository(
+            plans: [quarterly],
+            occurrences: const [
+              RecurringOccurrenceItem(
+                id: 'occ-1',
+                recurringTransactionId: 'p1',
+                categoryId: 'category',
+                amount: '8500.0000',
+                currency: 'TRY',
+                kind: 'expense',
+                scheduledDate: '2026-08-17',
+                description: 'Geçici vergi',
+                status: 'planned',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Üç ayda bir'), findsWidgets);
+    expect(find.textContaining('quarterly'), findsNothing);
+    expect(find.textContaining('Sıradaki 17 Ağustos'), findsOneWidget);
+    expect(find.textContaining('17 Kasım'), findsNothing);
+  });
+
   testWidgets('plan satırı denetim taşımıyor, panel açıyor', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

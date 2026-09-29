@@ -11,6 +11,7 @@ import 'package:business_finance_mobile/features/cash/presentation/cash_controll
 import 'package:business_finance_mobile/features/cash/presentation/cash_page.dart';
 import 'package:business_finance_mobile/features/pos/data/pos_repository.dart';
 import 'package:business_finance_mobile/features/pos/presentation/pos_controller.dart';
+import 'package:business_finance_mobile/features/pos/presentation/pos_settlements_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -109,6 +110,140 @@ void main() {
       expect(changes.activityFeedRevision, 1);
     },
   );
+
+  // 28 Eylül denetimi U11: Kasa'dan açılan nakit gider kaydedildi, Kasa
+  // ekranı eski bakiyeyi göstermeye devam etti.
+  test('başka ekrandaki nakit hareket Kasa ve POS listesini yeniler', () async {
+    final cashRepository = _FakeCashRepository();
+    final posRepository = _FakePosRepository();
+    final changes = FinancialDataChanges();
+    final cash = CashCountController(cashRepository, changes: changes);
+    final pos = PosController(posRepository, changes: changes);
+    await cash.load();
+    await pos.load();
+    expect(cashRepository.todayLoads, 1);
+    expect(cashRepository.accountLoads, 1);
+    expect(posRepository.listLoads, 1);
+
+    changes.transactionsChanged();
+    await pumpEventQueue();
+
+    expect(cashRepository.todayLoads, 2);
+    // Kasa listesi de yeniden okunur: yeni açılan ya da kapanan bir kasa
+    // önbellekte kalmasın.
+    expect(cashRepository.accountLoads, 2);
+    expect(posRepository.listLoads, 2);
+
+    cash.dispose();
+    pos.dispose();
+    changes.transferChanged();
+    await pumpEventQueue();
+    expect(cashRepository.todayLoads, 2, reason: 'kapanan ekran dinlemez');
+  });
+
+  // 28 Eylül denetimi U12: yanlış "hesaba geçti" ve yanlış POS kaydı
+  // düzeltilemiyordu.
+  test(
+    'geçiş geri alınır ve kayıt iptal edilir; yalnız etkiledikleri yenilenir',
+    () async {
+      final repository = _FakePosRepository();
+      final changes = FinancialDataChanges();
+      final controller = PosController(repository, changes: changes);
+      await controller.create(
+        accountId: 'bank-account',
+        categoryId: 'income-category',
+        grossAmount: '100.0000',
+        settlementDate: '2026-08-24',
+        expectedTransferDate: '2026-08-26',
+        scope: TransactionScope.business,
+      );
+      final item = repository.current.items.single;
+      await controller.markTransferred(item, '2026-08-25');
+      final budgetsBefore = changes.budgetsRevision;
+      final accountsBefore = changes.accountsRevision;
+      final loadsBefore = repository.listLoads;
+
+      expect(await controller.revertTransfer(item), isTrue);
+      await pumpEventQueue();
+      expect(repository.revertedId, item.id);
+      expect(controller.items.single.isInTransit, isTrue);
+      expect(changes.accountsRevision, accountsBefore + 1);
+      // Satış yeniden tanınmaz: bütçe yükselmez.
+      expect(changes.budgetsRevision, budgetsBefore);
+      // Kendi değişikliğinden sonra bir kez yüklenir.
+      expect(repository.listLoads, loadsBefore + 1);
+
+      expect(await controller.cancel(item), isTrue);
+      expect(repository.cancelledId, item.id);
+      expect(controller.items, isEmpty);
+      // İptal satışı ve komisyonu düşürür: bütçe de yenilenir.
+      expect(changes.budgetsRevision, budgetsBefore + 1);
+      expect(changes.accountsRevision, accountsBefore + 2);
+      controller.dispose();
+    },
+  );
+
+  test('POS deposu geri almayı ve iptali DELETE ile gönderir', () async {
+    final requests = <String>[];
+    final repository = PosRepository(
+      _client((request) async {
+        requests.add('${request.method} ${request.url.path}');
+        return http.Response('{}', 200);
+      }),
+    );
+
+    await repository.revertTransfer(settlementId: 'pos-1');
+    await repository.cancel(settlementId: 'pos-1');
+
+    expect(requests, [
+      'DELETE /api/v1/pos-settlements/pos-1/transfer',
+      'DELETE /api/v1/pos-settlements/pos-1',
+    ]);
+  });
+
+  // Kullanıcı, 29 Eylül: bugünün sayımı "Son sayımlar" listesinde de
+  // görünsün; iptal edilen (yerine yenisi yazılan) sayım görünmesin.
+  test('Son sayımlar bugünün sayımını da gösterir', () async {
+    final today = CashCountItem.fromJson({
+      ..._cashCountJson,
+      'id': 'today',
+      'countDate': '2026-09-25',
+    });
+    final superseded = CashCountItem.fromJson({
+      ..._cashCountJson,
+      'id': 'superseded',
+      'countDate': '2026-09-25',
+      'isCancelled': true,
+    });
+    final repository = _FakeCashRepository()
+      ..currentCount = today
+      ..previous = superseded;
+    final controller = CashCountController(
+      repository,
+      clock: () => DateTime(2026, 9, 25, 18),
+    );
+    await controller.load();
+
+    expect(controller.recentCounts.map((item) => item.id), ['today']);
+  });
+
+  test('Kasa kendi sayımından sonra kendini bir kez yükler', () async {
+    final repository = _FakeCashRepository();
+    final changes = FinancialDataChanges();
+    final controller = CashCountController(repository, changes: changes);
+    await controller.load();
+
+    await controller.recordCount(
+      countedAmount: '100.0000',
+      countDate: '2026-08-24',
+      scope: TransactionScope.business,
+    );
+    await pumpEventQueue();
+
+    expect(repository.todayLoads, 2);
+    expect(repository.accountLoads, 1);
+    controller.dispose();
+  });
 
   test(
     'POS tahsilatı satışı tanır; geçiş yalnız hesabı hareket ettirir',
@@ -235,6 +370,102 @@ void main() {
     await tester.tap(find.byTooltip('Geri'));
     await tester.pumpAndSettle();
     expect(find.byType(CashPage), findsOneWidget);
+  });
+
+  testWidgets('POS ayrıntısı geçişi geri alır ve kaydı onayla iptal eder', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(412, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final repository = _FakePosRepository();
+    final controller = PosController(repository);
+    final transferred = PosSettlementItem.fromJson({
+      ..._posItemJson,
+      'transferredOn': '2026-08-25',
+      'isInTransit': false,
+    });
+
+    Future<void> show(PosSettlementItem item) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: PosSettlementSheet(item: item, controller: controller),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await show(transferred);
+    await tester.tap(find.text('Hesaba geçmedi, geri al'));
+    await tester.pumpAndSettle();
+    expect(find.text('Geçiş geri alınsın mı?'), findsOneWidget);
+    await tester.tap(find.text('Geri al'));
+    await tester.pumpAndSettle();
+    expect(repository.revertedId, 'pos-settlement');
+
+    // Yoldaki kayıtta geri alınacak bir geçiş yok; iptal her zaman var ve
+    // onaysız çalışmaz.
+    await show(PosSettlementItem.fromJson(_posItemJson));
+    expect(find.text('Hesaba geçmedi, geri al'), findsNothing);
+    await tester.tap(find.text('Kaydı iptal et'));
+    await tester.pumpAndSettle();
+    expect(find.text('POS tahsilatı iptal edilsin mi?'), findsOneWidget);
+    expect(repository.cancelledId, isNull);
+    await tester.tap(find.text('İptal et'));
+    await tester.pumpAndSettle();
+    expect(repository.cancelledId, 'pos-settlement');
+  });
+
+  // 28 Eylül denetimi U10 (T1b): sayımdan sonra girilen dünkü gider ekranı
+  // değiştirmiyor, kart "oturdu" demeye devam ediyordu.
+  testWidgets('sayımdan sonra değişen kasa "oturdu" demez', (tester) async {
+    tester.view.physicalSize = const Size(412, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final repository = _FakeCashRepository()
+      ..currentCount = _cashCount(
+        difference: '-60.0000',
+        adjustmentTransactionId: 'adjustment',
+      )
+      ..changeSinceCount = '-25.0000';
+    await tester.pumpWidget(_app(cash: repository));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sonradan kayıt girildi'), findsOneWidget);
+    expect(find.text('Fark kaydedildi'), findsNothing);
+    expect(find.text('−₺25,00 sayımdan sonra girildi'), findsOneWidget);
+    expect(find.textContaining('oturdu'), findsNothing);
+    expect(find.text('Emin olmak için yeniden sayın.'), findsOneWidget);
+  });
+
+  // 29 Eylül emülatör denemesi: tutan sayımdan sonra dün tarihli 300 TL fatura
+  // girildi. Fark gerçek olabilir (fatura dün ödendiyse) ya da olmayabilir;
+  // uygulama saati bilmediği için ekran iki ihtimali de söyler.
+  testWidgets('sayımdan sonra girilen kayıt iki ihtimali de söyler', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(412, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final repository = _FakeCashRepository()
+      ..currentCount = _cashCount(difference: '300.0000')
+      ..changeSinceCount = '-300.0000';
+    await tester.pumpWidget(_app(cash: repository));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sonradan kayıt girildi'), findsOneWidget);
+    // Ayrı satır yok: değişim "Uygulamaya göre"nin altında kısa açıklama,
+    // altında tek cümle.
+    expect(find.text('Sayımdan sonra girilen'), findsNothing);
+    expect(find.text('−₺300,00 sayımdan sonra girildi'), findsOneWidget);
+    expect(
+      find.text('Kayıt sayımdan önce olduysa farkı kaydedin.'),
+      findsOneWidget,
+    );
+    expect(find.text('Farkı kaydet'), findsOneWidget);
   });
 
   testWidgets('Kasa tek akıştır: sayım, yoldaki POS ve son sayımlar', (
@@ -379,34 +610,43 @@ class _FakeCashRepository implements CashRepositoryContract {
   String? createdAmount;
   String? createdDate;
   bool twoAccounts = false;
+  int accountLoads = 0;
+  int todayLoads = 0;
+  String? changeSinceCount;
 
   @override
-  Future<List<CashAccount>> loadCashAccounts() async => [
-    const CashAccount(
-      id: 'cash-account',
-      name: 'Merkez kasa',
-      defaultScope: TransactionScope.business,
-    ),
-    if (twoAccounts)
+  Future<List<CashAccount>> loadCashAccounts() async {
+    accountLoads++;
+    return [
       const CashAccount(
-        id: 'wallet',
-        name: 'Şahsi cüzdan',
-        defaultScope: TransactionScope.personal,
+        id: 'cash-account',
+        name: 'Merkez kasa',
+        defaultScope: TransactionScope.business,
       ),
-  ];
+      if (twoAccounts)
+        const CashAccount(
+          id: 'wallet',
+          name: 'Şahsi cüzdan',
+          defaultScope: TransactionScope.personal,
+        ),
+    ];
+  }
 
   @override
-  Future<CashCountToday> loadToday({required String accountId}) async =>
-      CashCountToday(
-        accountId: accountId,
-        accountName: 'Merkez kasa',
-        expectedBalance: '100.0000',
-        currency: 'TRY',
-        count: currentCount,
-        previousCount: previous,
-        todayInflow: '2450.0000',
-        todayOutflow: '665.0000',
-      );
+  Future<CashCountToday> loadToday({required String accountId}) async {
+    todayLoads++;
+    return CashCountToday(
+      accountId: accountId,
+      accountName: 'Merkez kasa',
+      expectedBalance: '100.0000',
+      currency: 'TRY',
+      count: currentCount,
+      previousCount: previous,
+      todayInflow: '2450.0000',
+      todayOutflow: '665.0000',
+      changeSinceCount: changeSinceCount,
+    );
+  }
 
   @override
   Future<List<CashCountItem>> list({required String accountId}) async => [
@@ -450,10 +690,13 @@ class _FakePosRepository implements PosRepositoryContract {
   );
   Map<String, Object?>? created;
   String? transferDate;
+  int listLoads = 0;
 
   @override
-  Future<PosSettlementList> list({required bool inTransitOnly}) async =>
-      current;
+  Future<PosSettlementList> list({required bool inTransitOnly}) async {
+    listLoads++;
+    return current;
+  }
 
   @override
   Future<PosOptions> loadOptions() async => const PosOptions(
@@ -486,6 +729,29 @@ class _FakePosRepository implements PosRepositoryContract {
           'isInTransit': false,
         }),
       ],
+      moneyInTransit: '0.0000',
+      inTransitCount: 0,
+    );
+  }
+
+  String? revertedId;
+  String? cancelledId;
+
+  @override
+  Future<void> revertTransfer({required String settlementId}) async {
+    revertedId = settlementId;
+    current = PosSettlementList(
+      items: [PosSettlementItem.fromJson(_posItemJson)],
+      moneyInTransit: '97.5000',
+      inTransitCount: 1,
+    );
+  }
+
+  @override
+  Future<void> cancel({required String settlementId}) async {
+    cancelledId = settlementId;
+    current = const PosSettlementList(
+      items: [],
       moneyInTransit: '0.0000',
       inTransitCount: 0,
     );

@@ -47,6 +47,16 @@ void main() {
     expect(find.text('Seçilmedi'), findsOneWidget);
   });
 
+  // Vergi araştırması V-U6: boş alanda etiket içerik yerine iniyor ve
+  // "Seçilmedi" ile üst üste çiziliyordu. Etiket her zaman üstte durur.
+  testWidgets('boş alanda etiket yer tutucunun üstünde durur', (tester) async {
+    await pump(tester, onChanged: (_) {});
+
+    final label = tester.getRect(find.text('İşlem tarihi'));
+    final placeholder = tester.getRect(find.text('Seçilmedi'));
+    expect(label.bottom, lessThanOrEqualTo(placeholder.top));
+  });
+
   testWidgets('seçilen günü API biçiminde bildirir', (tester) async {
     String? reported;
     await pump(

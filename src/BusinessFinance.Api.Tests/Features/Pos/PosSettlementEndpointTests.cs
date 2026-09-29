@@ -128,6 +128,96 @@ public sealed class PosSettlementEndpointTests
         Assert.Equal(HttpStatusCode.NotFound, foreignCreate.StatusCode);
     }
 
+    /// <summary>
+    /// 28 Eylül denetimi U12: yanlışlıkla "hesaba geçti" denen tahsilat ve
+    /// yanlış girilen POS kaydı düzeltilemiyordu. Geri alma yalnız hesaptaki
+    /// parayı geri çeker; iptal satışı, komisyonu ve yoldaki parayı birlikte
+    /// kaldırır.
+    /// </summary>
+    [Fact]
+    public async Task WrongTransferCanBeReverted_AndAWrongSaleCanBeCancelled()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(
+            factory, "pos-undo-owner@example.test");
+        using var stranger = await CreateAuthenticatedClientAsync(
+            factory, "pos-undo-stranger@example.test");
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var account = await CreateAccountAsync(owner, "Sentetik banka", "bank", "1000.0000");
+        var income = await FirstCategoryAsync(owner, "income");
+        var expense = await FirstCategoryAsync(owner, "expense");
+
+        using var create = await owner.PostAsJsonAsync(
+            "/api/v1/pos-settlements",
+            new CreatePosSettlementRequest(
+                account.Id,
+                income.Id,
+                "1000.0000",
+                "TRY",
+                Date(today),
+                Date(today.AddDays(2)),
+                CommissionRate: "0.0150",
+                CommissionCategoryId: expense.Id,
+                Scope: "business"));
+        var settlement = (await create.Content.ReadFromJsonAsync<PosSettlementResponse>())!;
+        using var transfer = await owner.PostAsJsonAsync(
+            $"/api/v1/pos-settlements/{settlement.Id}/transfer",
+            new MarkPosSettlementTransferredRequest(Date(today)));
+        Assert.Equal(HttpStatusCode.OK, transfer.StatusCode);
+
+        // Yabancı kullanıcı geri alamaz ve iptal edemez; cevap var olmayan
+        // kayıtla aynıdır.
+        using var foreignRevert = await stranger.DeleteAsync(
+            $"/api/v1/pos-settlements/{settlement.Id}/transfer");
+        Assert.Equal(HttpStatusCode.NotFound, foreignRevert.StatusCode);
+        using var foreignCancel = await stranger.DeleteAsync(
+            $"/api/v1/pos-settlements/{settlement.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, foreignCancel.StatusCode);
+
+        // Geçiş geri alındı: para yeniden yolda, hesap bakiyesi eski hâlinde,
+        // satış ve komisyon tanınmış olarak kalır.
+        using var revert = await owner.DeleteAsync(
+            $"/api/v1/pos-settlements/{settlement.Id}/transfer");
+        Assert.Equal(HttpStatusCode.OK, revert.StatusCode);
+        var reverted = (await revert.Content.ReadFromJsonAsync<PosSettlementResponse>())!;
+        Assert.True(reverted.IsInTransit);
+        Assert.Null(reverted.TransferredOn);
+        var accountAfterRevert = await owner.GetFromJsonAsync<AccountResponse>(
+            $"/api/v1/accounts/{account.Id}");
+        Assert.Equal("1000.0000", accountAfterRevert!.Balance);
+        var advancedAfterRevert = await AdvancedAsync(owner, today);
+        Assert.Equal("985.0000", advancedAfterRevert.NetWorth.MoneyInTransit);
+        var monthlyAfterRevert = await MonthlyAsync(owner, today);
+        Assert.Equal("1000.0000", monthlyAfterRevert.TotalIncome);
+        Assert.Equal("15.0000", monthlyAfterRevert.TotalExpense);
+
+        // Geri almak idempotenttir.
+        using var revertAgain = await owner.DeleteAsync(
+            $"/api/v1/pos-settlements/{settlement.Id}/transfer");
+        Assert.Equal(HttpStatusCode.OK, revertAgain.StatusCode);
+
+        // İptal: satış, komisyon ve yoldaki para birlikte düşer.
+        using var cancel = await owner.DeleteAsync($"/api/v1/pos-settlements/{settlement.Id}");
+        Assert.Equal(HttpStatusCode.OK, cancel.StatusCode);
+        var cancelled = (await cancel.Content.ReadFromJsonAsync<PosSettlementResponse>())!;
+        Assert.True(cancelled.IsCancelled);
+        Assert.False(cancelled.IsInTransit);
+        var monthlyAfterCancel = await MonthlyAsync(owner, today);
+        Assert.Equal("0.0000", monthlyAfterCancel.TotalIncome);
+        Assert.Equal("0.0000", monthlyAfterCancel.TotalExpense);
+        var advancedAfterCancel = await AdvancedAsync(owner, today);
+        Assert.Equal("0.0000", advancedAfterCancel.NetWorth.MoneyInTransit);
+
+        // İptal idempotenttir; iptal edilmiş kaydın geçişi geri alınamaz.
+        using var cancelAgain = await owner.DeleteAsync(
+            $"/api/v1/pos-settlements/{settlement.Id}");
+        Assert.Equal(HttpStatusCode.OK, cancelAgain.StatusCode);
+        using var revertCancelled = await owner.DeleteAsync(
+            $"/api/v1/pos-settlements/{settlement.Id}/transfer");
+        Assert.Equal(HttpStatusCode.Conflict, revertCancelled.StatusCode);
+    }
+
     [Fact]
     public async Task Create_RejectsCommissionSentAsBothAmountAndRate()
     {

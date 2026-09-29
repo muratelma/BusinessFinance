@@ -247,4 +247,10 @@ class _DesignPos implements PosRepositoryContract {
     required String settlementId,
     required String transferDate,
   }) async {}
+
+  @override
+  Future<void> revertTransfer({required String settlementId}) async {}
+
+  @override
+  Future<void> cancel({required String settlementId}) async {}
 }

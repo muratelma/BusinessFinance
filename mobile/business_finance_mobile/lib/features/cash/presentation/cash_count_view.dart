@@ -105,12 +105,23 @@ class CashTodayCard extends StatelessWidget {
     );
   }
 
+  /// Sayımdan sonra kasaya hareket girdi mi (28 Eylül denetimi U10)?
+  /// Sunucunun gönderdiği değişimin yalnız yönüne bakılır.
+  bool get _changedSinceCount => _sign(today.changeSinceCount) != 0;
+
   Widget _status(CashCountItem? count) {
     if (count == null) {
       return const AppStatusTag(
         label: 'Sayılmadı',
         icon: Icons.schedule,
         tone: AppStatusTone.planned,
+      );
+    }
+    if (_changedSinceCount) {
+      return const AppStatusTag(
+        label: 'Sonradan kayıt girildi',
+        icon: Icons.update,
+        tone: AppStatusTone.neutral,
       );
     }
     if (count.isAdjusted) {
@@ -149,6 +160,9 @@ class CashTodayCard extends StatelessWidget {
           label: 'Uygulamaya göre',
           amount: count.expectedBalance ?? today.expectedBalance,
           currency: currency,
+          // Sayımdan sonra girilen kayıt ayrı bir satır değil, bu sayının
+          // neden değiştiğinin açıklamasıdır (29 Eylül emülatör denemesi).
+          detail: _changedSinceCount ? _changeDetail(currency) : null,
         ),
         if (difference != null && sign != 0)
           _KeyValue(
@@ -235,8 +249,26 @@ class CashTodayCard extends StatelessWidget {
     );
   }
 
+  /// `−₺300,00 sayımdan sonra girildi`: işaret sunucunun gönderdiği
+  /// değişimden okunur, istemci çıkarma yapmaz.
+  String _changeDetail(String currency) {
+    final change = today.changeSinceCount!;
+    final sign = _sign(change) < 0 ? '−' : '+';
+    return '$sign${MoneyText.format(_abs(change), currency)} sayımdan sonra '
+        'girildi';
+  }
+
   String _rule(CashCountItem count) {
     final record = _sign(count.difference) > 0 ? 'gelir' : 'gider';
+    // Uygulama kaydın sayımdan sonra **girildiğini** bilir, olayın ne zaman
+    // **olduğunu** bilmez: kayıtlarda saat yok. Metin iki ihtimali ayırır
+    // (28 Eylül denetimi U10, 29 Eylül emülatör denemesi).
+    // Tek kısa cümle: fark ancak kayıt sayımdan önceki bir olaysa gerçektir.
+    if (_changedSinceCount) {
+      if (count.isAdjusted) return 'Emin olmak için yeniden sayın.';
+      if (_sign(count.difference) == 0) return 'Kasa yine uygulamayla aynı.';
+      return 'Kayıt sayımdan önce olduysa farkı kaydedin.';
+    }
     if (count.isAdjusted) {
       return 'Tek bir $record kaydı oluştu; kasa sayılan tutara oturdu.';
     }
@@ -253,12 +285,16 @@ class _KeyValue extends StatelessWidget {
     required this.amount,
     required this.currency,
     this.effect,
+    this.detail,
   });
 
   final String label;
   final String amount;
   final String currency;
   final AppMoneyEffect? effect;
+
+  /// Etiketin altında küçük gri açıklama; sayının neden değiştiğini söyler.
+  final String? detail;
 
   @override
   Widget build(BuildContext context) {
@@ -269,11 +305,23 @@ class _KeyValue extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: Text(
-                label,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: AppSurfaces.of(context).inkMuted,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: AppSurfaces.of(context).inkMuted,
+                    ),
+                  ),
+                  if (detail != null)
+                    Text(
+                      detail!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppSurfaces.of(context).inkMuted,
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(width: AppSpacing.small),
@@ -291,7 +339,7 @@ class _KeyValue extends StatelessWidget {
   }
 }
 
-/// `Son sayımlar` bölümü: bugünden önceki sayımlar, sayılan ve beklenen
+/// `Son sayımlar` bölümü: bugünkü dahil geçerli sayımlar, sayılan ve beklenen
 /// yan yana; fark sağda. Tamamı `Tümü` ile açılır.
 class CashPastCountsSection extends StatelessWidget {
   const CashPastCountsSection({
@@ -307,7 +355,7 @@ class CashPastCountsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = controller.pastCounts;
+    final items = controller.recentCounts;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

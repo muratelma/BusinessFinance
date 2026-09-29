@@ -6,10 +6,17 @@ import '../../../core/presentation/financial_data_changes.dart';
 import '../data/pos_repository.dart';
 
 class PosController extends ChangeNotifier {
-  PosController(this._repository, {this.changes});
+  PosController(this._repository, {this.changes})
+    : _seenCashRevision = changes?.cashRevision ?? 0 {
+    changes?.addListener(_handleFinancialDataChanged);
+  }
 
   final PosRepositoryContract _repository;
   final FinancialDataChanges? changes;
+
+  /// Kasa ekranındaki POS listesi de `cash` hedefini izler; kendi yazdığı
+  /// değişiklikte kendini ikinci kez yüklemez.
+  int _seenCashRevision;
 
   PosSettlementList? settlements;
   PosOptions? options;
@@ -94,7 +101,7 @@ class PosController extends ChangeNotifier {
         'scope': scope?.apiValue,
         'description': description,
       });
-      changes?.posSettlementRecognized();
+      _announce((c) => c.posSettlementRecognized());
       await load();
       return true;
     } on ApiException catch (error) {
@@ -123,7 +130,7 @@ class PosController extends ChangeNotifier {
         settlementId: item.id,
         transferDate: transferDate,
       );
-      changes?.posSettlementTransferred();
+      _announce((c) => c.posSettlementTransferred());
       await load();
       return true;
     } on ApiException catch (error) {
@@ -137,5 +144,63 @@ class PosController extends ChangeNotifier {
       isSubmitting = false;
       notifyListeners();
     }
+  }
+
+  /// Yanlışlıkla "hesaba geçti" denmiş tahsilatı yeniden yola döndürür.
+  Future<bool> revertTransfer(PosSettlementItem item) => _mutate(
+    () => _repository.revertTransfer(settlementId: item.id),
+    (c) => c.posSettlementTransferReverted(),
+  );
+
+  /// Silme yerine iptal.
+  Future<bool> cancel(PosSettlementItem item) => _mutate(
+    () => _repository.cancel(settlementId: item.id),
+    (c) => c.posSettlementCancelled(),
+  );
+
+  Future<bool> _mutate(
+    Future<void> Function() request,
+    void Function(FinancialDataChanges changes) raise,
+  ) async {
+    if (isSubmitting) return false;
+    isSubmitting = true;
+    errorMessage = null;
+    notifyListeners();
+    try {
+      await request();
+      _announce(raise);
+      await load();
+      return true;
+    } on ApiException catch (error) {
+      unauthorized = error.isUnauthorized;
+      errorMessage = error.message;
+      return false;
+    } on FormatException {
+      errorMessage = 'Sunucudan beklenmeyen bir yanıt alındı.';
+      return false;
+    } finally {
+      isSubmitting = false;
+      notifyListeners();
+    }
+  }
+
+  void _announce(void Function(FinancialDataChanges changes) raise) {
+    final current = changes;
+    if (current == null) return;
+    _seenCashRevision = current.cashRevision + 1;
+    raise(current);
+  }
+
+  void _handleFinancialDataChanged() {
+    final revision = changes?.cashRevision ?? 0;
+    if (revision == _seenCashRevision) return;
+    _seenCashRevision = revision;
+    load();
+  }
+
+  @override
+  void dispose() {
+    changes?.removeListener(_handleFinancialDataChanged);
+    super.dispose();
   }
 }

@@ -35,6 +35,25 @@ public static class PosSettlementEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
+        // "Hesaba geçti"nin geri alınması: aynı kaynağın silinmesi, POST'un
+        // karşılığı. Yalnız hesaba yazılan net tutarı geri çeker.
+        endpoints.MapDelete("/api/v1/pos-settlements/{id:guid}/transfer", RevertTransferAsync)
+            .WithTags("PosSettlements")
+            .WithName("RevertPosSettlementTransfer")
+            .RequireAuthorization()
+            .Produces<PosSettlementResponse>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+        // Silme yerine iptal: kayıt kalır, bütün etkisi düşer (cari iptal
+        // uçlarıyla aynı desen).
+        endpoints.MapDelete("/api/v1/pos-settlements/{id:guid}", CancelAsync)
+            .WithTags("PosSettlements")
+            .WithName("CancelPosSettlement")
+            .RequireAuthorization()
+            .Produces<PosSettlementResponse>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
         return endpoints;
     }
 
@@ -201,6 +220,32 @@ public static class PosSettlementEndpoints
 
         var result = await useCase.ExecuteAsync(
             new MarkPosSettlementTransferredCommand(id, transferDate), cancellationToken);
+        return result.IsSuccess
+            ? Results.Ok(ToResponse(result.Value))
+            : result.Error.ToProblemResult(httpContext);
+    }
+
+    private static async Task<IResult> RevertTransferAsync(
+        Guid id,
+        RevertPosSettlementTransferUseCase useCase,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var result = await useCase.ExecuteAsync(
+            new RevertPosSettlementTransferCommand(id), cancellationToken);
+        return result.IsSuccess
+            ? Results.Ok(ToResponse(result.Value))
+            : result.Error.ToProblemResult(httpContext);
+    }
+
+    private static async Task<IResult> CancelAsync(
+        Guid id,
+        CancelPosSettlementUseCase useCase,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var result = await useCase.ExecuteAsync(
+            new CancelPosSettlementCommand(id), cancellationToken);
         return result.IsSuccess
             ? Results.Ok(ToResponse(result.Value))
             : result.Error.ToProblemResult(httpContext);

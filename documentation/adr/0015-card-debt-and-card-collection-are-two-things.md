@@ -1,6 +1,9 @@
 # ADR 0015 — "Kart" iki ayrı şeydir: borçlandığın kart ve tahsil ettiğin POS
 
-- Durum: **Kabul edildi** (24 Ağustos 2026, Aşama 04 Grup 1)
+- Durum: **Kabul edildi** (24 Ağustos 2026, Aşama 04 Grup 1). **ADR 0019
+  (kabul edildi, 29 Eylül 2026) bu kararı genişletir:** §1'in kelime kuralı ("kartla
+  satış", "Kartla gelecek") ve §2–3'ün yoldaki para tanımı (POS satışı + kartla
+  tahsil; test kapısı ikisini kapsar).
 - Bağlam: Gün sonu kasa, POS tahsilatı ve ana gezinmenin eklenmesi
 - İlgili: ADR 0014 (ekonomik olay tanır, ödeme taşır), ADR 0013 (işletme ve
   şahsi tek havuzdur; ön ayar özellik kapatmaz), ADR 0010 (net varlık borcu

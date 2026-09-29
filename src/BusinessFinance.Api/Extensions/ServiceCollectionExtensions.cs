@@ -150,6 +150,8 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ListPosSettlementsUseCase>();
         services.AddTransient<CreatePosSettlementUseCase>();
         services.AddTransient<MarkPosSettlementTransferredUseCase>();
+        services.AddTransient<RevertPosSettlementTransferUseCase>();
+        services.AddTransient<CancelPosSettlementUseCase>();
 
         return services;
     }

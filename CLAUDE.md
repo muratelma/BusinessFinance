@@ -39,8 +39,9 @@ işletme takibi aynı üründe yaşar. Backend ve Flutter tarafı aynı şekilde
 geliştirilir; katmanlar arasında farklı bir çalışma biçimi yoktur.
 
 Kurucu karar: **işletme ve şahsi para tek havuzda yaşar**, ayrım bir raporlama
-boyutudur (ADR 0013). Geliştirme zincirinin sırası ve gerekçesi
-`PROJECT-ROADMAP.md` içinde.
+boyutudur (ADR 0013). Ürün bir **işletme bütçe uygulamasıdır, ön muhasebe
+değildir**: muhasebeciye veri paketi, KDV takibi veya fatura kesme eklenmez.
+Geliştirme zincirinin sırası ve gerekçesi `PROJECT-ROADMAP.md` içinde.
 
 ## Build, test ve çalıştırma komutları
 
@@ -231,32 +232,36 @@ gerekçesiyle bozulmaz.
   Pasif karşı tarafa yeni borçlandırma yazılamaz, tahsilat yazılabilir — aksi
   hâlde açık bakiye kapatılamazdı.
 
-- **KDV taşınır, hesaplanmaz** (ADR 0016). Gelir/gider **tanıyan** beş kayıt
-  (`BudgetTransaction`, `CreditCardCharge`, `CounterpartyCharge`, `Obligation`,
-  `PosSettlement`) nullable bir `VatDetails` taşır; parayı yalnız taşıyanlar
-  taşımaz. Oran ve tutar iki bağımsız alandır ve **biri diğerinden türetilmez**;
-  uyuşmazlık uyarıdır, red veya düzeltme değil. KDV kayıt tutarını, bakiyeyi,
-  bütçeyi ve işletme netini etkilemez — kayıt tutarı brüttür ve brüt kalır.
+- **Vergi bir nakit planıdır** (ADR 0018, kabul edildi; Aşama 06.3 Grup 2–3).
+  **KDV alanları, indirilebilirlik ve muhasebeci paketi kalkıyor.** Grup 2
+  uygulanana kadar kodda duruyorlar (`VatDetails` beş tanıyan kayıtta,
+  `TaxDeductibility`, `/api/v1/accountant-package`); **yeni kod bu alanlara
+  bağlanmaz, onları genişletmez.** Uygulama hiçbir vergi tutarını türetmez
+  (ADR 0016 §1 ve bu ilke yürürlükte).
 
-- **İndirilebilirlik kapsamdan ayrı bir alandır** (ADR 0016). Gider **tanıyan**
-  kayıtlarda yaşar (`BudgetTransaction` yalnız gider, `CreditCardCharge`,
-  `CounterpartyCharge`/`Obligation` yalnız borç yönünde); iki durumludur, kısmi
-  oran yoktur. Şahsi kayıtta ve gelirde sorulmaz — açık cevap reddedilir,
-  kategorinin varsayılanı sessizce düşer. Zincir: açık seçim → kategorinin
-  varsayılanı; bulunamazsa istek **reddedilmez**, boş kalır. İşletme netini
-  değiştirmez; etkilediği tek çıktı muhasebeci paketidir.
+- **Vergi ilkeleri** (ADR 0018 "İlkeler", bağlayıcı): vergi bir nakit
+  çıkışıdır, ödendiği gün etkiler; ödenmemiş vergi hiçbir toplamı etkilemez;
+  kullanıcı vergiyi **tanımlamadan da** tek tutarla toplu ödeme yazabilir;
+  tutarı bilinmeyen vergi meşrudur ve tahminle toplama katılmaz; vergi ayrı bir
+  kayıt türü değildir (tanımlı vergi bir tekrarlayan plandır, ödenen vergi bir
+  giderdir); ödeme silme yerine iptalle düzeltilir; bir kalem tam olarak tek
+  sonuç taşır; kimlik bir ada bağlanmaz. **Başlangıç tasarımı** (ADR 0018
+  §T1–T7, değişebilir): planda vergi türü alanı, nullable tutar, "Ödedim"de
+  tutar + gün + hesap/kart, toplu ödemenin bekleyenleri "kapatıldı" yapması,
+  kategoride "vergi" işareti. Bugünkü kod: plan tutarı zorunlu
+  (`[Amount] > 0`), gerçekleştirme yalnız tutarı değiştirebilir ve kaydı vade
+  gününe yazar.
 
-- **Vergi/SGK takvimi ayrı bir altyapı değildir** (ADR 0016, Aşama 05 Grup 4).
-  Takvim kalemi tekrarlayan bir plandır; `GET /api/v1/tax-calendar/suggestions`
-  yalnız **tutarsız öneri** döner ve hiçbir şey yazmaz. Plandaki tutar bir
-  beklentidir: gerçekleştirme isteği isteğe bağlı bir tutar taşır, kayda o
-  geçer ve **planın tutarı değişmez**; yalnız bekleyen occurrence düzeltilebilir.
-
-- **Muhasebeci paketi ikinci bir hesaplama yolu değildir** (Aşama 05 Grup 5).
-  Toplamlarını aynı ayın **işletme** raporundan alır; satırlar o toplamın
-  dökümüdür. Kapsam parametresi yoktur, `Business` sabittir — pakete şahsi
-  hiçbir kayıt girmez ve bu bir test kapısıdır. Dosya mevcut dışa aktarma
-  ailesindedir (`/api/v1/exports/accountant-package.zip`).
+- **Gün sonu ilkeleri** (ADR 0019 "İlkeler", bağlayıcı; Aşama 06.3 Grup 4–7):
+  gün sonu yeni bir kayıt türü değildir, var olan kayıtları (gelir, POS
+  tahsilatı) üretir; aynı satış iki kez gelir sayılmaz — gün sonu o gün zaten
+  girilmiş kayıtları hesaba katar; POS yatışı ve kartla tahsil **taşır**, gelir
+  yazmaz; **yoldaki para bir projection'dır ve iki kaynaklıdır** (POS satışı +
+  kartla tahsil), kullanılabilir bakiye ile net varlığın farkı tam olarak
+  yoldaki tutardır; kasada tek gerçek hesap bakiyesidir; belge okuma bir
+  öneridir. **Başlangıç tasarımı** (ADR 0019 §T1–T7, değişebilir): Z'den
+  okunacak alanlar, "zaten girilmiş" varsayılanları, POS tanımı alanları, yatış
+  ve kesinti biçimi.
 
 - **Kapsam tek yerde türetilir** (`TransactionScopeResolution`): kullanıcının
   açık seçimi → hesabın/kartın etiketi → kategorinin varsayılanı. Üçü de boşsa
@@ -346,9 +351,10 @@ sheet'i ve ortak `İşlem ekle` launcher'ını barındırır. Ekranda gösterile
 etiketleri (`Kart harcaması`, `Tekrarlayan plan`) **Flutter'da** üretilir; API
 kararlı makine değerleri gönderir, kullanıcı cümlesi göndermez.
 
-`FinancialDataChanges` altı hedef taşır (`activityFeed`, `dashboard`, `budgets`,
-`accounts`, `cards`, `planning`); her mutation yalnız etkileyebileceğini
-yükseltir (ör. kart ödemesi bütçeyi yükseltmez — aynı harcama iki kez sayılırdı).
+`FinancialDataChanges` sekiz hedef taşır (`activityFeed`, `dashboard`, `budgets`,
+`accounts`, `cards`, `planning`, `counterparties`, `cash`); her mutation yalnız
+etkileyebileceğini yükseltir (ör. kart ödemesi bütçeyi yükseltmez — aynı
+harcama iki kez sayılırdı).
 
 `AppDependencies` composition root'unda kurulur (provider ile). Her feature
 API DTO'larını açık Dart sınıflarıyla temsil eder — ham `Map`/JSON geçirilmez.
@@ -396,7 +402,26 @@ secret'ı uygulamaya konmaz.
   alandır. Oran ve tarih koda gömülmez, kullanıcınındır; uygulama hiçbir vergi
   tutarını hesaplamaz veya türetmez; indirilebilirlik kapsamdan ayrı, iki
   durumlu bir alandır ve işletme netini değiştirmez; muhasebeci paketi ikinci
-  bir hesaplama yolu değil, aynı ayın işletme raporunun okumasıdır
+  bir hesaplama yolu değil, aynı ayın işletme raporunun okumasıdır. **KDV,
+  indirilebilirlik ve paket bölümleri ADR 0018 ile yerini ona bıraktı**;
+  oran/tarih kullanıcınındır ve "vergi tutarı türetilmez" ilkesi kalır
+- `documentation/adr/0018-tax-is-a-cash-plan.md` — **Aşama 06.3'ün vergi karar
+  kapısı (kabul edildi 29 Eylül 2026; ilk iki katmanlı ADR)**: ilkeler — vergi
+  tutarı türetilmez, ön muhasebe yükü (KDV, indirilebilirlik, muhasebeci
+  paketi) kalkar, vergi bir nakit çıkışıdır, tanımlamadan toplu ödenebilir,
+  tutarsız vergi meşrudur, ayrı kayıt türü yoktur, ödeme düzeltilebilir. Başlangıç tasarımı: vergi ekranı,
+  vergi türü, "Ödedim", toplu ödeme, "vergi" işareti; ADR 0005'in kaynak
+  kuralına dokunabilir
+- `documentation/adr/0019-day-close-produces-existing-records.md` — **Aşama
+  06.3'ün kasa/POS karar kapısı (kabul edildi 29 Eylül 2026; iki katmanlı)**:
+  ilkeler — tanır / taşır, aynı satış iki kez sayılmaz, gün sonu yeni kayıt
+  türü değildir, hiçbir akış fotoğrafa ya da POS'a bağlı değildir, yoldaki para
+  iki kaynaklı projection'dır (ADR 0015'i genişletir), kasada tek gerçek hesap bakiyesidir.
+  Başlangıç tasarımı: gün sonu paneli, Z okuma, POS tanımı, yatış, kartla tahsil
+- `research/` — karar gerekçeleri: `YOL-HARITASI.md` (bütünsel düzenlemenin iş
+  paketleri), `kasa-pos-gun-sonu/KAPANIS.md` (KP1–KP22), `vergi/YENI-YAKLASIM.md`
+  §6.6, `DENETIM-2026-09-29.md`, `fikir-kaydi.md`. Bağlayıcı olan ADR ve aşama
+  belgesidir; `research/` gerekçe ve geçmiştir
 - `documentation/receipt-analysis-api-contract.md`,
   `documentation/receipt-measurement.md` — fiş analizi sözleşmesi ve ölçüm yöntemi
 - `PROJECT-ROADMAP.md` — aşama zinciri, bağımlılık kuralları, kapsam
@@ -404,11 +429,12 @@ secret'ı uygulamaya konmaz.
 - `stages/README.md` — aşama zinciri, hangi belge aktif, yeni aşama açma ve
   biten aşamayı kapatma adımları; **aktif aşama kullanıcı onayı olmadan
   değişmez**
-- `stages/06.2-*.md`, `stages/07-*.md` — kalan aşamaların çalışma grupları,
-  testleri ve çıkış koşulları. **06 bir aşama kümesidir**: ayrı ayrı kapanabilen
-  aşamalar, ihtiyaç oldukça 06.x eklenir. Tamamlanan aşamalar
-  `docs/archive/stages/` altındadır (01–06 ve 06.1 orada). 2 Eylül 2026'dan
-  beri 06.2 Aktif; güncel durum için `stages/README.md` tablosu geçerlidir
+- `stages/06.2-*.md`, `stages/06.3-*.md`, `stages/07-*.md` — kalan aşamaların
+  çalışma grupları, testleri ve çıkış koşulları. **06 bir aşama kümesidir**:
+  ayrı ayrı kapanabilen aşamalar, ihtiyaç oldukça 06.x eklenir. Tamamlanan
+  aşamalar `docs/archive/stages/` altındadır (01–06 ve 06.1 orada). 29 Eylül
+  2026'dan beri **06.3 Aktif, 06.2 Beklemede**; güncel durum için
+  `stages/README.md` tablosu geçerlidir
 - `docs/backlog.md` — aşamaya bağlanmamış açık işler
 - `templates/STAGE-TEMPLATE.md` — yeni aşama belgesi iskeleti
 
@@ -421,8 +447,18 @@ güncelleme haritası** tablosundadır; kod ve belge aynı commit'te güncelleni
   `Aktif` olan aşamada değişir; aktif aşama kullanıcı onayı olmadan değişmez.
 - **Bazı aşamalar bir ADR ile açılır** (`PROJECT-ROADMAP.md` tablosu). O ADR
   yazılıp kabul edilmeden ilgili aşamanın koduna başlanmaz.
-- **Uygulama vergi hesaplamaz, beyanname üretmez ve "kâr" demez.** Vergi
-  alanları taşır ve raporlar; hesaplanan şey nakit esaslı **işletme netidir**.
+- **Bağlayıcı olan ilkelerdir, ayrıntı başlangıç tasarımıdır** (`AGENTS.md`
+  "Kararlardan sapma"). ADR 0018'den itibaren ADR'lerin "İlkeler" bölümü
+  bağlayıcı, "Başlangıç tasarımı" bölümü değişebilir; aşama belgesi ayrıntıları
+  da öyle. Sapma aşama belgesinin "Sapmalar" tablosuna yazılır ve kullanıcıya
+  söylenir; kullanıcının gördüğü davranışı değiştiren sapma önce sorulur. Bir
+  ilke kodda somut zarar doğuruyorsa körü körüne uygulanmaz, kullanıcıya
+  getirilir.
+- **Uygulama vergi hesaplamaz, beyanname üretmez ve "kâr" demez.** Vergi bir
+  nakit planıdır (ADR 0018): tutarı kullanıcı girer, uygulama türetmez.
+  Hesaplanan şey nakit esaslı **işletme netidir**.
+- **Ürün bütçe uygulamasıdır, ön muhasebe değildir.** Muhasebeciye veri paketi,
+  KDV takibi, fatura kesme, satış satış kayıt eklenmez.
 - **İşletme/şahsi havuzu bölünmez** (ADR 0013): mod seçimi, ayrı veri alanı ve
   kapsamın kategoriyle temsili reddedildi. Bakiye, kart borcu ve net varlık
   kapsam filtresinden etkilenmez.

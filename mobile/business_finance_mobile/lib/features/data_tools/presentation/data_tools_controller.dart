@@ -40,6 +40,26 @@ class DataToolsController extends ChangeNotifier {
   final DateTime Function() _now;
   DataToolsSnapshot? snapshot;
   ImportBatchItem? importBatch;
+
+  /// Kullanıcının içe aktarmadan çıkardığı hazır satırlar. Sunucuya
+  /// gönderilmez: onay isteği yalnız seçilen satırları taşır, atlanan satır
+  /// hiç gönderilmez (28 Eylül denetimi U8).
+  Set<String> skippedRowIds = const {};
+
+  bool isSkipped(ImportRowItem row) => skippedRowIds.contains(row.id);
+
+  void toggleSkip(ImportRowItem row) {
+    final next = {...skippedRowIds};
+    if (!next.remove(row.id)) next.add(row.id);
+    skippedRowIds = next;
+    notifyListeners();
+  }
+
+  /// İçe aktarılacak satırlar: hazır olanlardan atlananlar çıkarılır.
+  List<ImportRowItem> get rowsToImport => [
+    for (final row in importBatch?.rows ?? const <ImportRowItem>[])
+      if (row.status == 'ready' && !skippedRowIds.contains(row.id)) row,
+  ];
   List<AttachmentItem> attachments = const [];
   String? selectedTransactionId;
   bool isLoading = false;
@@ -82,6 +102,7 @@ class DataToolsController extends ChangeNotifier {
       _submit(
         () async {
           importResultSummary = null;
+          skippedRowIds = const {};
           importBatch = await _repository.stageCsv(upload, fields);
         },
         'CSV satırları önizlemeye alındı.',
@@ -113,10 +134,7 @@ class DataToolsController extends ChangeNotifier {
   );
   Future<bool> confirmImport() =>
       _submit(onSuccess: (changes) => changes.importConfirmed(), () async {
-        final ids = importBatch!.rows
-            .where((row) => row.status == 'ready')
-            .map((row) => row.id)
-            .toList();
+        final ids = rowsToImport.map((row) => row.id).toList();
         importBatch = await _repository.confirmImport(importBatch!.id, ids);
         importResultSummary = ImportResultSummary(
           imported: importBatch!.rows

@@ -73,6 +73,10 @@ class AppDateField extends StatelessWidget {
           isEmpty: !hasValue,
           decoration: InputDecoration(
             labelText: label,
+            // Değer yokken de yer tutucu ("Seçilmedi") içerik yerinde
+            // çizildiği için etiket her zaman üstte durur; aksi hâlde ikisi
+            // üst üste biniyordu (vergi araştırması V-U6).
+            floatingLabelBehavior: FloatingLabelBehavior.always,
             helperText: helperText,
             enabled: enabled,
             suffixIcon: const Icon(Icons.calendar_today_outlined),

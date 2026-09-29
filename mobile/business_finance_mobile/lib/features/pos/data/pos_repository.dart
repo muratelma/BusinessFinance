@@ -113,6 +113,13 @@ abstract interface class PosRepositoryContract {
     required String settlementId,
     required String transferDate,
   });
+
+  /// Yanlışlıkla "hesaba geçti" denmiş tahsilatı yeniden yola döndürür.
+  Future<void> revertTransfer({required String settlementId});
+
+  /// Silme yerine iptal: satış, komisyon ve varsa hesaba geçen tutar birlikte
+  /// düşer.
+  Future<void> cancel({required String settlementId});
 }
 
 class PosRepository implements PosRepositoryContract {
@@ -169,6 +176,16 @@ class PosRepository implements PosRepositoryContract {
       '/api/v1/pos-settlements/$settlementId/transfer',
       body: {'transferDate': transferDate},
     );
+  }
+
+  @override
+  Future<void> revertTransfer({required String settlementId}) async {
+    await _client.delete('/api/v1/pos-settlements/$settlementId/transfer');
+  }
+
+  @override
+  Future<void> cancel({required String settlementId}) async {
+    await _client.delete('/api/v1/pos-settlements/$settlementId');
   }
 
   List<Map<String, dynamic>> _items(Map<String, dynamic> json) =>

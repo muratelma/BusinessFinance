@@ -297,6 +297,30 @@ public sealed class PosSettlement
     }
 
     /// <summary>
+    /// Yanlışlıkla "hesaba geçti" denmiş tahsilatı yeniden yola döndürür.
+    /// </summary>
+    /// <remarks>
+    /// Geçiş ayrı bir finansal kayıt değil, tahsilatın bir anıdır; geri almak
+    /// yalnız hesaba yazılmış net tutarı geri çeker. Gelir ve komisyon tahsilat
+    /// gününde tanındı ve olduğu gibi kalır — satış olmuştur, yalnız para henüz
+    /// gelmemiştir (ADR 0014).
+    ///
+    /// Çağrı idempotenttir: yoldaki bir tahsilatta hiçbir şey yapmaz. İptal
+    /// edilmiş tahsilat geri alınamaz; iptal zaten bütün etkiyi kaldırdı.
+    /// </remarks>
+    public void RevertTransfer()
+    {
+        if (IsCancelled)
+        {
+            throw new InvalidOperationException(
+                "A cancelled pos settlement has no transfer to revert.");
+        }
+
+        TransferredOn = null;
+        TransferredAtUtc = null;
+    }
+
+    /// <summary>
     /// Silme yerine iptal. İptal edilen tahsilat hem tanıdığı gelir/gideri hem
     /// varsa taşıdığı bakiye etkisini birlikte kaybeder; ikisi tek kaydın iki
     /// anıdır ve birini bırakıp diğerini silmek defteri açık bırakırdı.

@@ -1187,6 +1187,7 @@ String _frequencyLabel(String frequency) => switch (frequency) {
   'daily' => 'Günlük',
   'weekly' => 'Haftalık',
   'monthly' => 'Aylık',
+  'quarterly' => 'Üç ayda bir',
   'yearly' => 'Yıllık',
   _ => frequency,
 };
@@ -1238,9 +1239,30 @@ class _RecurringPlanCard extends StatelessWidget {
       _categoryName(snapshot, item.categoryId) ??
       _kindLabel(item.kind);
 
+  /// Satırda gösterilen sıradaki tarih: planın en erken **bekleyen** kalemi,
+  /// yoksa henüz üretilmemiş sıradaki tarih.
+  ///
+  /// `nextOccurrenceDate` üretilecek bir sonraki kalemi söyler; vadesi gelmiş
+  /// ama ödenmemiş kalem varken onu göstermek, Özet "bugün" derken Planlama'nın
+  /// iki ay sonrasını söylemesi demekti (vergi araştırması V-U9).
+  String? get _nextDate {
+    String? earliest;
+    for (final occurrence in snapshot.occurrences) {
+      if (occurrence.recurringTransactionId != item.id ||
+          !occurrence.canRealize) {
+        continue;
+      }
+      if (earliest == null ||
+          occurrence.scheduledDate.compareTo(earliest) < 0) {
+        earliest = occurrence.scheduledDate;
+      }
+    }
+    return earliest ?? item.nextOccurrenceDate;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final next = item.nextOccurrenceDate;
+    final next = _nextDate;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.small),
@@ -1257,7 +1279,7 @@ class _RecurringPlanCard extends StatelessWidget {
               '${item.generatedOccurrenceCount} / ${item.occurrenceLimit} tekrar',
             next == null
                 ? 'plan tamamlandı'
-                : 'Sonraki ${DateText.dayMonth(next)}',
+                : 'Sıradaki ${DateText.dayMonth(next)}',
           ].join(' · '),
           // Duraklatılmış plan yalnız bulunduğu bölümden anlaşılmıyor: bölüm
           // kapalıyken açıp tek satıra bakan kullanıcı durumu görmeli.
