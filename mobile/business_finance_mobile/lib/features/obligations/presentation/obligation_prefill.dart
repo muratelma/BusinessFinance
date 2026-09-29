@@ -1,4 +1,3 @@
-import '../../../core/models/tax_fields.dart';
 import '../../activities/presentation/quick_add_models.dart';
 import '../data/obligation_direction.dart';
 
@@ -15,7 +14,6 @@ class ObligationPrefill {
     this.description,
     this.categoryId,
     this.counterpartyId,
-    this.vat,
     this.warnings = const [],
   });
 
@@ -30,11 +28,6 @@ class ObligationPrefill {
   final QuickAddSuggestion? description;
   final QuickAddSuggestion? categoryId;
   final String? counterpartyId;
-
-  /// Belgede yazan KDV. Yükümlülük gideri **tanıyan** bir kayıttır ve
-  /// ADR 0016'ya göre KDV taşır; okunan bir bilgiyi forma taşımamak onu
-  /// kullanıcıya yeniden yazdırmak olurdu.
-  final VatFields? vat;
 
   final List<String> warnings;
 

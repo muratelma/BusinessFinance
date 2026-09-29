@@ -26,9 +26,7 @@ using BusinessFinance.Application.RecurringTransactions;
 using BusinessFinance.Application.UpcomingPayments;
 using BusinessFinance.Application.FinancialActivities;
 using BusinessFinance.Application.Imports;
-using BusinessFinance.Application.Taxes;
 using BusinessFinance.Infrastructure.Imports;
-using BusinessFinance.Infrastructure.Taxes;
 using System.Text.Json.Nodes;
 using System.Security.Cryptography;
 using System.Text;
@@ -3815,122 +3813,65 @@ public sealed class SqlServerPersistenceIntegrationTests
     }
 
     /// <summary>
-    /// Aşama 05 Grup 2: KDV sütunları gerçek şemada kayıpsız gidip geliyor ve
-    /// SQL, domain'in koyduğu sınırı ikinci kez uyguluyor (ADR 0016).
+    /// Aşama 06.3 Grup 2: KDV ve indirilebilirlik kolonları dolu bir
+    /// veritabanında kalkıyor (ADR 0018). Veri kaybı kullanıcı kararıdır: kayıt
+    /// ve tutarı kalır, yalnız taşınan KDV bilgisi, indirilebilirlik ve
+    /// onları koruyan CHECK'ler gider.
     /// </summary>
     [SqlServerFact]
-    public async Task VatFields_RoundTripAndAreGuardedBySqlAsWellAsTheDomain()
+    public async Task RemoveVatAndTaxDeductibility_DropsTheColumnsAndKeepsTheRecords()
     {
-        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
-        var user = CreateUser("vat-round-trip@example.test");
+        await using var database = await SqlTestDatabase.CreateAsync(
+            GetConnectionString(), "AddCashCountExpectedSnapshot");
+        var user = CreateUser("vat-removal@example.test");
         await database.SeedUsersAsync(user);
-        var withVatId = Guid.NewGuid();
-        var withoutVatId = Guid.NewGuid();
+        var transactionId = Guid.NewGuid();
+        var categoryId = Guid.NewGuid();
 
+        // O adımın şeması bugünkü modelden yalnız nullable KDV kolonlarıyla
+        // ayrılıyor: satır bugünkü modelle yazılıyor, eski kolonlar ham SQL ile
+        // dolduruluyor.
         await using (var seed = database.CreateContext())
         {
             var account = new Account(
                 Guid.NewGuid(), user.Id, "Kasa", AccountType.Cash, CurrencyCode.TRY, 1000m);
             var category = new Category(
-                Guid.NewGuid(), user.Id, "Ticari mal", CategoryType.Expense);
+                categoryId, user.Id, "Ticari mal", CategoryType.Expense, TransactionScope.Business);
             seed.Add(account);
             seed.Add(category);
-            seed.Transactions.AddRange(
-                new BudgetTransaction(
-                    withVatId, user.Id, account, category,
-                    new Money(120m, CurrencyCode.TRY), TransactionType.Expense,
-                    TransactionScope.Business, new DateOnly(2026, 8, 26),
-                    "Fatura", new VatDetails(0.20m, 20m)),
-                new BudgetTransaction(
-                    withoutVatId, user.Id, account, category,
-                    new Money(50m, CurrencyCode.TRY), TransactionType.Expense,
-                    TransactionScope.Business, new DateOnly(2026, 8, 26)));
+            seed.Transactions.Add(new BudgetTransaction(
+                transactionId, user.Id, account, category,
+                new Money(120m, CurrencyCode.TRY), TransactionType.Expense,
+                TransactionScope.Business, new DateOnly(2026, 8, 26), "Fatura"));
             await seed.SaveChangesAsync(CancellationToken.None);
         }
 
-        await using (var read = database.CreateContext())
-        {
-            var withVat = await read.Transactions.AsNoTracking()
-                .SingleAsync(row => row.Id == withVatId, CancellationToken.None);
-            var withoutVat = await read.Transactions.AsNoTracking()
-                .SingleAsync(row => row.Id == withoutVatId, CancellationToken.None);
+        await database.ExecuteAsync(
+            "UPDATE [BudgetTransactions] SET [VatRate] = 0.2, [VatAmount] = 20, " +
+            "[IsTaxDeductible] = 1 WHERE [Id] = {0}",
+            transactionId);
+        await database.ExecuteAsync(
+            "UPDATE [Categories] SET [DefaultIsTaxDeductible] = 1 WHERE [Id] = {0}",
+            categoryId);
 
-            Assert.Equal(0.20m, withVat.Vat?.Rate);
-            Assert.Equal(20m, withVat.Vat?.Amount);
+        await database.MigrateToLatestAsync();
 
-            // İki sütun da boşsa kayıt KDV taşımaz: "yok" tek bir hâldir.
-            Assert.Null(withoutVat.Vat);
-        }
+        await using var read = database.CreateContext();
+        var transaction = await read.Transactions.AsNoTracking()
+            .SingleAsync(row => row.Id == transactionId, CancellationToken.None);
+        Assert.Equal(120m, transaction.Amount.Amount);
+        Assert.Equal("Fatura", transaction.Description);
 
-        // SQL tarafındaki ikinci kapı: KDV tutarı kaydın tutarını aşamaz.
-        var sqlFailure = await Assert.ThrowsAsync<SqlException>(() => database.ExecuteAsync(
-            "UPDATE [BudgetTransactions] SET [VatAmount] = 999 WHERE [Id] = {0}",
-            withVatId));
-        Assert.Contains("CK_BudgetTransactions_VatAmount", sqlFailure.Message);
-
-        // Oran sınırı da SQL tarafında duruyor.
-        var rateFailure = await Assert.ThrowsAsync<SqlException>(() => database.ExecuteAsync(
-            "UPDATE [BudgetTransactions] SET [VatRate] = 1 WHERE [Id] = {0}",
-            withVatId));
-        Assert.Contains("CK_BudgetTransactions_VatRate", rateFailure.Message);
-    }
-
-    /// <summary>
-    /// Aşama 05 Grup 3: indirilebilirlik gerçek şemada taşınıyor ve SQL,
-    /// domain'in "yalnız işletme kapsamlı gider" kuralını ikinci kez uyguluyor
-    /// (ADR 0016).
-    /// </summary>
-    [SqlServerFact]
-    public async Task TaxDeductibility_RoundTripsAndIsGuardedBySqlAsWellAsTheDomain()
-    {
-        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
-        var user = CreateUser("deductibility-round-trip@example.test");
-        await database.SeedUsersAsync(user);
-        var deductibleId = Guid.NewGuid();
-        var personalId = Guid.NewGuid();
-
-        await using (var seed = database.CreateContext())
-        {
-            var account = new Account(
-                Guid.NewGuid(), user.Id, "Kasa", AccountType.Cash, CurrencyCode.TRY, 1000m);
-            var category = new Category(
-                Guid.NewGuid(), user.Id, "Ticari mal", CategoryType.Expense, null, true);
-            seed.Add(account);
-            seed.Add(category);
-            seed.Transactions.AddRange(
-                new BudgetTransaction(
-                    deductibleId, user.Id, account, category,
-                    new Money(120m, CurrencyCode.TRY), TransactionType.Expense,
-                    TransactionScope.Business, new DateOnly(2026, 8, 26),
-                    null, null, isTaxDeductible: false),
-                new BudgetTransaction(
-                    personalId, user.Id, account, category,
-                    new Money(50m, CurrencyCode.TRY), TransactionType.Expense,
-                    TransactionScope.Personal, new DateOnly(2026, 8, 26)));
-            await seed.SaveChangesAsync(CancellationToken.None);
-        }
-
-        await using (var read = database.CreateContext())
-        {
-            var category = await read.Categories.AsNoTracking()
-                .SingleAsync(row => row.UserId == user.Id, CancellationToken.None);
-            var business = await read.Transactions.AsNoTracking()
-                .SingleAsync(row => row.Id == deductibleId, CancellationToken.None);
-            var personal = await read.Transactions.AsNoTracking()
-                .SingleAsync(row => row.Id == personalId, CancellationToken.None);
-
-            Assert.True(category.DefaultIsTaxDeductible);
-            Assert.False(business.IsTaxDeductible);
-
-            // Şahsi kayda soru sorulmadı: cevap boş.
-            Assert.Null(personal.IsTaxDeductible);
-        }
-
-        // SQL tarafındaki ikinci kapı: şahsi kayıt cevabı taşıyamaz.
-        var failure = await Assert.ThrowsAsync<SqlException>(() => database.ExecuteAsync(
-            "UPDATE [BudgetTransactions] SET [IsTaxDeductible] = 1 WHERE [Id] = {0}",
-            personalId));
-        Assert.Contains("CK_BudgetTransactions_IsTaxDeductible", failure.Message);
+        var columns = await read.Database.SqlQueryRaw<int>(
+                "SELECT COUNT(*) AS [Value] FROM sys.columns WHERE [name] IN " +
+                "('VatRate', 'VatAmount', 'IsTaxDeductible', 'DefaultIsTaxDeductible')")
+            .SingleAsync(CancellationToken.None);
+        var checks = await read.Database.SqlQueryRaw<int>(
+                "SELECT COUNT(*) AS [Value] FROM sys.check_constraints " +
+                "WHERE [name] LIKE '%[_]Vat%' OR [name] LIKE '%[_]IsTaxDeductible'")
+            .SingleAsync(CancellationToken.None);
+        Assert.Equal(0, columns);
+        Assert.Equal(0, checks);
     }
 
     /// <summary>
@@ -3952,76 +3893,6 @@ public sealed class SqlServerPersistenceIntegrationTests
         category.Name,
         (byte)category.Type,
         scope is TransactionScope value ? (int)value : (int?)null);
-
-    /// <summary>
-    /// Aşama 05 Grup 5: muhasebeci paketinin satırları gerçek SQL'de çalışıyor,
-    /// yalnız işletme kapsamını taşıyor ve toplamı aynı ayın işletme raporuyla
-    /// birebir tutuyor (ADR 0016).
-    /// </summary>
-    [SqlServerFact]
-    public async Task AccountantPackage_ReadsOnlyBusinessLinesAndMatchesTheReport()
-    {
-        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
-        var user = CreateUser("accountant-package@example.test");
-        await database.SeedUsersAsync(user);
-        var personalId = Guid.NewGuid();
-
-        await using (var seed = database.CreateContext())
-        {
-            var account = new Account(
-                Guid.NewGuid(), user.Id, "Banka", AccountType.Bank, CurrencyCode.TRY, 10000m);
-            var expense = new Category(
-                Guid.NewGuid(), user.Id, "Ticari mal", CategoryType.Expense, null, true);
-            var income = new Category(Guid.NewGuid(), user.Id, "Satış", CategoryType.Income);
-            var commission = new Category(
-                Guid.NewGuid(), user.Id, "Banka ve POS komisyonu", CategoryType.Expense);
-            seed.AddRange(account, expense, income, commission);
-            seed.Transactions.AddRange(
-                new BudgetTransaction(
-                    Guid.NewGuid(), user.Id, account, expense,
-                    new Money(120m, CurrencyCode.TRY), TransactionType.Expense,
-                    TransactionScope.Business, new DateOnly(2026, 8, 5),
-                    "Ticari mal", new VatDetails(0.20m, 20m), isTaxDeductible: true),
-                new BudgetTransaction(
-                    personalId, user.Id, account, expense,
-                    new Money(300m, CurrencyCode.TRY), TransactionType.Expense,
-                    TransactionScope.Personal, new DateOnly(2026, 8, 7)));
-            seed.PosSettlements.Add(new PosSettlement(
-                Guid.NewGuid(), user.Id, account, income,
-                new Money(1080m, CurrencyCode.TRY), 30m, TransactionScope.Business,
-                new DateOnly(2026, 8, 9), new DateOnly(2026, 8, 11),
-                new DateTimeOffset(2026, 8, 9, 9, 0, 0, TimeSpan.Zero),
-                commission, "Kartlı satış", new VatDetails(0.20m, 180m)));
-            await seed.SaveChangesAsync(CancellationToken.None);
-        }
-
-        await using var services = CreateServiceProvider(database.ConnectionString);
-        await using var scope = services.CreateAsyncScope();
-        var packageRepository = scope.ServiceProvider
-            .GetRequiredService<IAccountantPackageRepository>();
-        var reportRepository = scope.ServiceProvider
-            .GetRequiredService<IFinancialReportRepository>();
-        var lines = await packageRepository.ListBusinessLinesAsync(
-            user.Id, 2026, 8, CancellationToken.None);
-        var report = await reportRepository.GetMonthlyAsync(
-            user.Id, 2026, 8, TransactionScope.Business, CancellationToken.None);
-
-        // Şahsi kayıt satırlarda yok.
-        Assert.DoesNotContain(lines, line => line.SourceId == personalId);
-
-        // Satırların toplamı raporun toplamıyla birebir: iki hesaplama yolu yok.
-        Assert.Equal(
-            report.TotalIncome,
-            lines.Where(line => line.Type == TransactionType.Income).Sum(line => line.Amount));
-        Assert.Equal(
-            report.TotalExpense,
-            lines.Where(line => line.Type == TransactionType.Expense).Sum(line => line.Amount));
-
-        // POS tahsilatı iki satır: brüt satış ve ayrı komisyon.
-        Assert.Contains(lines, line => line.Source == "pos-sale" && line.Amount == 1080m);
-        Assert.Contains(lines, line => line.Source == "pos-commission" && line.Amount == 30m);
-        Assert.Contains(lines, line => line.VatAmount == 20m && line.IsTaxDeductible == true);
-    }
 
     /// <summary>
     /// Aşama 06 Grup 5: fazla ödenmiş kartın alacaklı bakiyesi kırpılmaz.

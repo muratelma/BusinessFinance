@@ -94,8 +94,6 @@ ReceiptDraft _draft({ReceiptRefundMatch? match}) => ReceiptDraft(
   dueDateState: ReceiptFieldState.missing,
   totalAmount: '320.0000',
   totalAmountState: ReceiptFieldState.read,
-  vat: null,
-  vatState: ReceiptFieldState.missing,
   feeAmount: null,
   feeAmountState: ReceiptFieldState.missing,
   installmentCount: null,

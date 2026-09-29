@@ -14,12 +14,6 @@ internal sealed class PosSettlementConfiguration : IEntityTypeConfiguration<PosS
             table.HasCheckConstraint("CK_PosSettlements_GrossAmount", "[GrossAmount] > 0");
             table.HasCheckConstraint("CK_PosSettlements_Currency", "[Currency] = 1");
             table.HasCheckConstraint("CK_PosSettlements_Scope", "[Scope] IN (1, 2)");
-            table.HasCheckConstraint(
-                "CK_PosSettlements_VatRate",
-                VatDetailsConfiguration.RateConstraint);
-            table.HasCheckConstraint(
-                "CK_PosSettlements_VatAmount",
-                VatDetailsConfiguration.AmountConstraint("GrossAmount"));
             // Komisyon sıfır olabilir ama brütün tamamını yiyemez: hesaba
             // hiçbir şey geçmeyen bir tahsilat tahsilat değildir.
             table.HasCheckConstraint(
@@ -72,8 +66,6 @@ internal sealed class PosSettlementConfiguration : IEntityTypeConfiguration<PosS
             money.Property(value => value.Currency)
                 .HasColumnName("Currency").HasConversion<byte>().HasColumnType("tinyint");
         });
-
-        builder.OwnsVat(settlement => settlement.Vat);
 
         // Yoldaki parayı okuyan sorgu bu indeksten gider: geçmemiş ve iptal
         // edilmemiş satırlar.

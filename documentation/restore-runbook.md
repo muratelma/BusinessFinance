@@ -1,18 +1,19 @@
 # Backup Restore Runbook
 
-Bu runbook yalnız sentetik yerel veridir. Yazılan şema **v10**; okunabilen
-şema **yalnız v10**. v10 yeni koleksiyon eklemez; var olan kayıtlara Aşama
-05'in **taşınan** alanlarını ekler:
+Bu runbook yalnız sentetik yerel veridir. Yazılan şema **v11**; okunabilen
+şema **yalnız v11**.
 
-- `vatRate` / `vatAmount` — işlem, kart harcaması, cari borçlandırma,
-  yükümlülük ve POS tahsilatında. İkisi **bağımsızdır** ve biri diğerinden
-  türetilmez; ikisi de boşsa kayıt KDV taşımaz ve "yok"un tek temsili budur.
-  Oranla tutar birbirini tutmasa bile dosyaya yazıldığı gibi girer ve geri
-  yüklerken **düzeltilmez** — düzeltmek, kullanıcının belgesini yeniden
-  yorumlamak olurdu (ADR 0016).
-- `isTaxDeductible` — gider tanıyan kayıtlarda ve `defaultIsTaxDeductible`
-  kategorilerde. Boş olması üçüncü bir durum değil, sorunun cevaplanmamış
-  olmasıdır.
+**v11 Aşama 06.3 boyunca şekil değiştirir** (`PROJECT-ROADMAP.md` yedek şeması
+politikası): Grup 2, 3 ve 5 onu ayrı ayrı değiştirir ve ara checkpoint'te
+alınan bir yedeğin sonraki checkpoint'te okunamaması kabul edilir (veri
+sentetik). Şekil Grup 5 sonunda sabitlenir.
+
+v11'in bugünkü hâli (Aşama 06.3 Grup 2) v10'un **KDV ve indirilebilirlik
+alanları olmadan** aynısıdır (ADR 0018): işlem, kart harcaması, cari
+borçlandırma, yükümlülük ve POS tahsilatı `vatRate` / `vatAmount` taşımaz;
+gider kayıtları `isTaxDeductible`, kategoriler `defaultIsTaxDeductible` taşımaz.
+Yeni koleksiyon yoktur. v10'dan kalan alanlar yerinde:
+
 - `savingsGoals[].scope` — işletme karşılığını şahsi birikimden ayıran etiket.
 
 Vergi takvimi kaleminin dosyada **ayrı bir koleksiyonu yoktur**: kalem
@@ -64,6 +65,17 @@ boş olmalıdır. Yeni hesapta uygulamanın otomatik oluşturduğu, hiç değiş
 başlangıç kategorileri boş alan sayılır ve yedekteki kategorilerle atomik olarak
 değiştirilir.
 
+## Veritabanı yükseltme notu — Aşama 06.3 Grup 2
+
+`RemoveVatAndTaxDeductibility` migration'ı **veri kaybettiren** bir adımdır
+(kullanıcı kararı, `docs/project-status.md`; ADR 0018). Beş tablodaki
+`VatRate`/`VatAmount` kolonları, dört tablodaki `IsTaxDeductible` kolonu,
+`Categories.DefaultIsTaxDeductible` kolonu ve bunları koruyan `CK_*` kısıtları
+düşer. Sıra kurala uyar: kısıtlar kolonlardan önce düşer; geri dönüşte kolonlar
+nullable ve varsayılansız eklenir, kısıtlar sonra kurulur (geri dönüş veriyi
+geri getirmez). Kayıtların kendisi ve tutarları kalır; yükseltme testi dolu bir
+veritabanında bunu doğrular.
+
 ## Veritabanı yükseltme notu — Aşama 06 Grup 2
 
 `AddVerificationCodes` migration'ı **yalnız yeni bir tablo kurar**: mevcut hiçbir
@@ -71,7 +83,7 @@ tabloya kolon veya kısıt eklenmez, dolayısıyla backfill sorusu doğmaz. Tabl
 doğrulama ve parola sıfırlama kodlarının **hash'ini** tutar; kodun kendisi
 hiçbir kolonda durmaz.
 
-**Yedek şeması ilerlemez, v10'da kalır.** Doğrulama kodu finansal bir kayıt
+**Yedek şeması ilerlemez** (o gün v10'du). Doğrulama kodu finansal bir kayıt
 değil, on beş dakika yaşayan geçici bir kimlik durumudur; yedeklenip geri
 yüklenecek bir geçmişi yoktur. Aynı gerekçeyle `RefreshSessions` de yedeğin
 dışındadır. Geri yüklenen bir hesap kodlarını taşımaz ve taşımamalıdır —
@@ -141,19 +153,20 @@ iki tablo dosyaya girer.
 ## Ön koşullar
 
 - SQL Server `healthy`, API `/health/ready` cevabı 200 olmalıdır.
-- Backup dosyası `business-finance-backup` formatında ve şeması **v10**
-  olmalıdır. v10, v6'nın taşıdığı her şeyin (her finansal kaydın kapsamı
+- Backup dosyası `business-finance-backup` formatında ve şeması **v11**
+  olmalıdır. v11, v6'nın taşıdığı her şeyin (her finansal kaydın kapsamı
   `scope`, hesap/kategori/kart varsayılan kapsamı `defaultScope`) üstüne cari
-  defteri, yükümlülükleri, kasa sayımlarını, POS tahsilatlarını ve Aşama 05'in
-  vergi alanlarını ekler. Tanıyan kayıt kategori ve kapsam taşır,
+  defteri, yükümlülükleri, kasa sayımlarını, POS tahsilatlarını ve hedeflerin
+  kapsamını ekler; KDV ve indirilebilirlik taşımaz. Tanıyan kayıt kategori ve kapsam taşır,
   hesap taşımaz; taşıyan kayıt hesap taşır, kategori ve kapsam taşımaz
   (ADR 0014) — iki kaydın alan listesi dosyada da bilerek farklıdır.
 - **Yedek kullanıcı profilini (işletmeniz var mı) taşımaz.** Profil finansal
   bir kayıt değil, bir arayüz tercihidir; geri yüklenen hesabın kendi cevabı
   geçerli kalır. Kategoriler yedekten geldiği için kapsam varsayılanları da
   yedekten gelir ve raporlar doğru bölünür.
-- **v2–v8 yedekleri `restore.unsupported_version` ile reddedilir ve
-  yükseltilmez.** v8'de kasa sayımı ve POS tahsilatı hiç yoktu; boş dizi
+- **v2–v10 yedekleri `restore.unsupported_version` ile reddedilir ve
+  yükseltilmez.** v10 KDV ve indirilebilirlik taşıyordu; Aşama 06.3 yalnız
+  v11'i okur ve alanları sessizce düşürmek yerine dosyayı reddeder. v8'de kasa sayımı ve POS tahsilatı hiç yoktu; boş dizi
   yazarak yükseltmek dürüst olmazdı, çünkü o dosyayı yazan kullanıcı kartla
   yaptığı satışı elle bir gelir kaydı olarak girmiş olabilir ve hangi gelirin
   POS satışı olduğunu yalnız kendisi bilir — yükseltilseydi aynı satış iki kez

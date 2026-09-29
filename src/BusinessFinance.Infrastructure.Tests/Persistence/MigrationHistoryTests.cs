@@ -34,7 +34,8 @@ public sealed class MigrationHistoryTests
         "AddQuarterlyRecurrence",
         "AddSavingsGoalScope",
         "AddVerificationCodes",
-        "AddCashCountExpectedSnapshot"
+        "AddCashCountExpectedSnapshot",
+        "RemoveVatAndTaxDeductibility"
     ];
 
     [Fact]
@@ -476,6 +477,63 @@ public sealed class MigrationHistoryTests
             Assert.Null(column.DefaultValue);
             Assert.Null(column.DefaultValueSql);
             Assert.Equal("decimal(19,4)", column.ColumnType);
+        }
+    }
+
+    /// <summary>
+    /// KDV ve indirilebilirlik kalkıyor (ADR 0018): veri kaybettiren bir adım,
+    /// kullanıcı kararıyla. Kısıtlar kolonlardan önce düşer; geri dönüşte
+    /// kolonlar kısıtlardan önce, nullable ve varsayılansız geri gelir.
+    /// Başka hiçbir şeye dokunulmaz.
+    /// </summary>
+    [Fact]
+    public void RemoveVatAndTaxDeductibility_DropsChecksBeforeColumnsAndTouchesNothingElse()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_RemoveVatAndTaxDeductibility", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations.ToList();
+            Assert.All(up, operation => Assert.True(
+                operation is DropCheckConstraintOperation or DropColumnOperation));
+
+            var dropped = up.OfType<DropColumnOperation>()
+                .Select(operation => $"{operation.Table}.{operation.Name}")
+                .OrderBy(name => name, StringComparer.Ordinal)
+                .ToArray();
+            Assert.Equal(
+                [
+                    "BudgetTransactions.IsTaxDeductible",
+                    "BudgetTransactions.VatAmount",
+                    "BudgetTransactions.VatRate",
+                    "Categories.DefaultIsTaxDeductible",
+                    "CounterpartyCharges.IsTaxDeductible",
+                    "CounterpartyCharges.VatAmount",
+                    "CounterpartyCharges.VatRate",
+                    "CreditCardCharges.IsTaxDeductible",
+                    "CreditCardCharges.VatAmount",
+                    "CreditCardCharges.VatRate",
+                    "Obligations.IsTaxDeductible",
+                    "Obligations.VatAmount",
+                    "Obligations.VatRate",
+                    "PosSettlements.VatAmount",
+                    "PosSettlements.VatRate",
+                ],
+                dropped);
+            Assert.True(
+                up.FindLastIndex(operation => operation is DropCheckConstraintOperation) <
+                up.FindIndex(operation => operation is DropColumnOperation));
+
+            var down = migration.Migration.DownOperations.ToList();
+            Assert.True(
+                down.FindLastIndex(operation => operation is AddColumnOperation) <
+                down.FindIndex(operation => operation is AddCheckConstraintOperation));
+            Assert.All(down.OfType<AddColumnOperation>(), column =>
+            {
+                Assert.True(column.IsNullable);
+                Assert.Null(column.DefaultValue);
+                Assert.Null(column.DefaultValueSql);
+            });
         }
     }
 

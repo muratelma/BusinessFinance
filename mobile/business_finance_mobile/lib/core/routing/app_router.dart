@@ -53,7 +53,6 @@ import '../../features/cash/presentation/cash_controller.dart';
 import '../../features/cash/presentation/cash_page.dart';
 import '../../features/taxes/data/tax_models.dart';
 import '../../features/taxes/data/tax_repository.dart';
-import '../../features/taxes/presentation/accountant_package_page.dart';
 import '../../features/taxes/presentation/tax_calendar_page.dart';
 import '../../features/taxes/presentation/tax_controller.dart';
 import '../../features/planning/presentation/recurring_prefill.dart';
@@ -667,20 +666,6 @@ GoRouter createAppRouter({
         ),
       ),
       GoRoute(
-        path: accountantPackageLocation,
-        pageBuilder: (context, state) => _sessionPage(
-          state,
-          taxRepository == null
-              ? const Scaffold(
-                  body: AppErrorView(
-                    message: 'Muhasebeci paketi servisi yapılandırılmadı.',
-                  ),
-                )
-              : _AccountantPackageHost(repository: taxRepository),
-          authController,
-        ),
-      ),
-      GoRoute(
         path: '/more/planning',
         pageBuilder: (context, state) => _sessionPage(
           state,
@@ -891,31 +876,6 @@ class _TaxCalendarHostState extends State<_TaxCalendarHost> {
     ownsController: false,
     onInstall: widget.onInstall,
   );
-}
-
-/// Ay sonu paketi ekranının kabuğu; aynı sebeple var.
-class _AccountantPackageHost extends StatefulWidget {
-  const _AccountantPackageHost({required this.repository});
-
-  final TaxRepositoryContract repository;
-
-  @override
-  State<_AccountantPackageHost> createState() => _AccountantPackageHostState();
-}
-
-class _AccountantPackageHostState extends State<_AccountantPackageHost> {
-  late final AccountantPackageController _controller =
-      AccountantPackageController(widget.repository);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) =>
-      AccountantPackagePage(controller: _controller, ownsController: false);
 }
 
 String? _authRedirect(AuthController controller, GoRouterState state) {

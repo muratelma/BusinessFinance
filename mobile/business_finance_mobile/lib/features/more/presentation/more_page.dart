@@ -19,8 +19,8 @@ import '../../account/presentation/account_status_controller.dart';
 ///
 /// Tasarım teslimi (27 Eylül 2026, DigerV2): üstte hesap kartı, altında
 /// kullanıcının sorusuna göre dört grup — *param nerede* (Para ve hesaplar),
-/// *ne zaman ne olacak* (Planlama), *muhasebeciye ne vereceğim* (Vergi ve
-/// muhasebe, yalnız işletmesi olana) ve *ayarlarım* (Ayarlar). Her grup tek
+/// *ne zaman ne olacak* (Planlama), *vergim ne zaman* (Vergi, yalnız
+/// işletmesi olana) ve *ayarlarım* (Ayarlar). Her grup tek
 /// kart; satırlar arasında ikon hizasından başlayan ince ayırıcı var.
 class MorePage extends StatelessWidget {
   const MorePage({super.key});
@@ -120,19 +120,14 @@ class MorePage extends StatelessWidget {
           onTap: () => go('/more/planning'),
         ),
       ]),
-      // Vergi tarafı yalnız işletmesi olana açılır: kapsamı arayüzünde hiç
-      // görmeyen kullanıcının KDV beyanı ve muhasebecisi yoktur.
+      // Vergi tarafı yalnız işletmesi olana açılır. Muhasebeci paketi
+      // kalktı (ADR 0018); vergi ekranı Aşama 06.3 Grup 3'te geliyor.
       if (hasBusiness)
-        _Group('Vergi ve muhasebe', [
+        _Group('Vergi', [
           _MenuItem(
             icon: Icons.event_available_outlined,
             title: 'Vergi takvimi',
             onTap: () => go('/more/tax-calendar'),
-          ),
-          _MenuItem(
-            icon: Icons.description_outlined,
-            title: 'Muhasebeci paketi',
-            onTap: () => go('/more/accountant-package'),
           ),
         ]),
       _Group('Ayarlar', [

@@ -11,7 +11,6 @@ using BusinessFinance.Application.Transactions;
 using BusinessFinance.Application.Budgets;
 using BusinessFinance.Application.Profiles;
 using BusinessFinance.Application.Reports;
-using BusinessFinance.Application.Taxes;
 using BusinessFinance.Application.Authentication.LoginUser;
 using BusinessFinance.Application.Authentication.Logout;
 using BusinessFinance.Application.Authentication.RefreshTokens;
@@ -76,8 +75,6 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ListBudgetsUseCase>();
         services.AddTransient<DeleteBudgetUseCase>();
         services.AddTransient<GetMonthlyReportUseCase>();
-        services.AddTransient<GetAccountantPackageUseCase>();
-        services.AddTransient<DownloadAccountantPackageUseCase>();
         services.AddTransient<GetAdvancedFinancialReportUseCase>();
         services.AddTransient<CreateTransferUseCase>();
         services.AddTransient<GetTransferUseCase>();

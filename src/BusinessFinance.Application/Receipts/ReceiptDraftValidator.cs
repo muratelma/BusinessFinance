@@ -89,12 +89,9 @@ public static class ReceiptDraftValidator
             : ReadAmount(
                 unreadable.Contains("feeAmount") ? null : reading.FeeAmount,
                 warnings);
+        // KDV yalnız toplamı denetlemek için okunur; taslağa taşınmaz, forma
+        // yazılmaz (ADR 0018).
         var tax = TryAmount(reading.TaxAmount);
-        // KDV yalnız toplamı denetlemek için değil, kaydın üstünde taşınmak
-        // için de okunuyor (ADR 0016). Oran ile tutar birbirinden
-        // türetilmiyor: fişte hangisi yazıyorsa o taşınıyor, diğeri boş
-        // kalıyor. Türetmek, taşınan bilgiyi uydurulmuş bilgiye çevirirdi.
-        var (vat, vatState) = ReadVat(tax, reading.TaxRate, total, warnings);
         // Taksit sayısı para değil sayıdır ve sınırı domain'den gelir: bir
         // plan en fazla 360 taksit taşıyabilir. Anlaşılmayan değer sessizce
         // 1'e düşmez — düşseydi taksitli bir alışveriş tek seferlik tam tutar
@@ -155,8 +152,6 @@ public static class ReceiptDraftValidator
             dueDateState,
             total,
             totalState,
-            vat,
-            vatState,
             fee,
             feeState,
             currency,
@@ -165,59 +160,6 @@ public static class ReceiptDraftValidator
             categoryName,
             categoryState,
             warnings);
-    }
-
-    /// <summary>
-    /// Belgede yazan KDV'yi taslağa taşır. Hiçbir şey hesaplamaz.
-    /// </summary>
-    /// <remarks>
-    /// İki bağımsız alan (ADR 0016): biri okunup diğeri okunamadıysa eksik olan
-    /// boş kalır — oranı tutardan, tutarı orandan üretmek uygulamayı KDV
-    /// hesaplayan bir şeye çevirirdi ve ADR'nin reddettiği tam olarak budur.
-    ///
-    /// Tutar kaydın kendi tutarından büyükse taşınmaz: brütün içindeki KDV
-    /// brütten büyük olamaz, yani okunan sayı KDV değildir. Bu bir düzeltme
-    /// değil, bir reddediştir — yanlış sayı boş bırakılır ve uyarılır.
-    /// </remarks>
-    private static (ReceiptVat? Value, ReceiptFieldState State) ReadVat(
-        decimal? amount,
-        string? rawRate,
-        decimal? total,
-        List<ReceiptWarning> warnings)
-    {
-        var rate = TryVatRate(rawRate);
-
-        if (amount is { } vat && (vat < 0 || (total is { } gross && vat > gross)))
-        {
-            warnings.Add(new ReceiptWarning(
-                ReceiptWarnings.VatOutOfRange,
-                "Fişten okunan KDV tutarı kaydın tutarıyla bağdaşmıyor; "
-                + "boş bırakıldı."));
-            amount = null;
-        }
-
-        if (amount is null && rate is null)
-            return (null, ReceiptFieldState.Missing);
-
-        return (new ReceiptVat(rate, amount), ReceiptFieldState.Read);
-    }
-
-    /// <summary>
-    /// Fişte basılı KDV oranını okur ("20" → 0,20).
-    /// </summary>
-    /// <remarks>
-    /// Birim değişimi bir vergi hesabı değildir; sözleşme oranı kesir olarak
-    /// taşır ve fiş yüzde olarak basar. %0 ile %100 arası kabul edilir: sıfır
-    /// KDV meşru bir orandır (istisna kapsamındaki satış), %100 ve üstü ise
-    /// yanlış okunmuş bir sayıdır.
-    /// </remarks>
-    private static decimal? TryVatRate(string? raw)
-    {
-        var percent = TryAmount(raw);
-        if (percent is not { } value || value < 0 || value >= 100)
-            return null;
-
-        return decimal.Round(value / 100m, 4, MidpointRounding.AwayFromZero);
     }
 
     private static (decimal? Value, ReceiptFieldState State) ReadAmount(

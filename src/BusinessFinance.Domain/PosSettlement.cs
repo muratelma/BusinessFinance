@@ -59,12 +59,6 @@ public sealed class PosSettlement
 
     public string? Description { get; }
 
-    /// <summary>
-    /// Belgedeki KDV; yoksa boştur (ADR 0016). Taşınan bir bilgidir: satışın brüt
-    /// tutarını ve gelir/gider raporunu <b>etkilemez</b>.
-    /// </summary>
-    public VatDetails? Vat { get; }
-
     public DateTimeOffset CreatedAtUtc { get; }
 
     /// <summary>Paranın hesaba gerçekten geçtiği gün; geçmediyse boştur.</summary>
@@ -91,8 +85,7 @@ public sealed class PosSettlement
         DateOnly expectedTransferDate,
         DateTimeOffset createdAtUtc,
         Category? commissionCategory = null,
-        string? description = null,
-        VatDetails? vat = null)
+        string? description = null)
     {
         if (id == Guid.Empty)
         {
@@ -163,8 +156,6 @@ public sealed class PosSettlement
                 "Expected transfer date cannot be before the settlement date.");
         }
 
-        VatDetails.EnsureWithinAmount(vat, grossAmount, nameof(vat));
-
         Id = id;
         UserId = userId;
         AccountId = account.Id;
@@ -177,7 +168,6 @@ public sealed class PosSettlement
         ExpectedTransferDate = expectedTransferDate;
         CreatedAtUtc = createdAtUtc;
         Description = NormalizeDescription(description);
-        Vat = vat;
     }
 
     /// <summary>

@@ -192,7 +192,7 @@ class AppDependencies {
   final CashRepositoryContract cashRepository;
   final PosRepositoryContract posRepository;
 
-  /// Vergi takvimi ve ay sonu muhasebeci paketi.
+  /// Vergi takvimi.
   final TaxRepositoryContract taxRepository;
   final ReceiptRepositoryContract receiptRepository;
 

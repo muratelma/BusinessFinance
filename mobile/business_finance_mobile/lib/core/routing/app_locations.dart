@@ -49,9 +49,6 @@ const accountLocation = '/more/account';
 /// Vergi takvimi: hazır kalemler ve kurdukları tekrarlayan planlar.
 const taxCalendarLocation = '/more/tax-calendar';
 
-/// Ay sonu muhasebeci paketi.
-const accountantPackageLocation = '/more/accountant-package';
-
 /// `Hatırlatmalar`: cihazın kendi zamanlayıcısına kurulan uyarıların ayarı.
 const remindersLocation = '/more/reminders';
 

@@ -113,14 +113,6 @@ public static class ObligationEndpoints
                 "obligations.invalid_scope");
         }
 
-        if (!VatContractMapper.TryParse(request.VatRate, request.VatAmount, out var vat))
-        {
-            return ApiProblemResults.Validation(
-                httpContext,
-                "Vat rate and amount must have at most four decimal places.",
-                "obligations.invalid_vat");
-        }
-
         var result = await useCase.ExecuteAsync(
             new CreateObligationCommand(
                 direction,
@@ -131,9 +123,7 @@ public static class ObligationEndpoints
                 issueDate,
                 dueDate,
                 request.CounterpartyId,
-                request.Description,
-                vat,
-                request.IsTaxDeductible),
+                request.Description),
             cancellationToken);
         if (!result.IsSuccess)
         {
@@ -202,7 +192,5 @@ public static class ObligationEndpoints
         obligation.SettlementAccountId,
         obligation.SettlementDate is DateOnly settlementDate
             ? FinanceContract.Date(settlementDate)
-            : null,
-        VatContractMapper.ToContract(obligation.Vat),
-        obligation.IsTaxDeductible);
+            : null);
 }

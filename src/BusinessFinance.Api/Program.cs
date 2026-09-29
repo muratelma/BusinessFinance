@@ -88,7 +88,6 @@ app.MapCounterpartyEndpoints();
 app.MapObligationEndpoints();
 app.MapCashCountEndpoints();
 app.MapTaxCalendarEndpoints();
-app.MapAccountantPackageEndpoints();
 app.MapPosSettlementEndpoints();
 app.MapSavingsGoalEndpoints();
 app.MapAttachmentEndpoints();

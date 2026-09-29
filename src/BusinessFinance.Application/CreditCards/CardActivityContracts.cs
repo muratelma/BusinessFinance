@@ -1,5 +1,4 @@
 using BusinessFinance.Application.Abstractions.Queries;
-using BusinessFinance.Application.Taxes;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.CreditCards;
@@ -14,9 +13,7 @@ public sealed record CardChargeDto(
     DateOnly ChargeDate,
     string? Description,
     bool IsCancelled,
-    DateTimeOffset? CancelledAtUtc,
-    VatDto? Vat,
-    bool? IsTaxDeductible = null);
+    DateTimeOffset? CancelledAtUtc);
 
 public sealed record CardPaymentDto(
     Guid Id,
@@ -39,14 +36,7 @@ public sealed record CreateCardChargeCommand(
     // kullanılır; üçü de boşsa istek reddedilir.
     TransactionScope? Scope,
     DateOnly ChargeDate,
-    string? Description,
-
-    // Belgedeki KDV; yoksa boştur (ADR 0016). Sunucu hiçbir vergi tutarını
-    // hesaplamaz — ne geldiyse o taşınır.
-    VatDto? Vat = null,
-    // Gider matrahtan düşülebilir mi (ADR 0016). Boşsa kategorinin varsayılanı
-    // kullanılır; soru yalnız işletme kapsamlı giderde sorulur.
-    bool? IsTaxDeductible = null);
+    string? Description);
 
 public sealed record CreateCardPaymentCommand(
     Guid CreditCardId,

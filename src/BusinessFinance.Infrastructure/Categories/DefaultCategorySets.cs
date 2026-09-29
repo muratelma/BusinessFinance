@@ -45,34 +45,13 @@ internal static class DefaultCategorySets
         string LegacyName,
         string Name,
         CategoryType Type,
-        TransactionScope Scope,
-        bool? DefaultIsTaxDeductible = null);
+        TransactionScope Scope);
 
     private static DefaultCategory Personal(string name, CategoryType type) =>
         new(name, name, type, TransactionScope.Personal);
 
-    /// <summary>
-    /// İşletme kalemi. Gider kalemleri indirilebilirlik varsayılanı
-    /// <c>true</c> ile açılır (ADR 0016): esnafın işletme giderlerinin
-    /// çoğunluğu indirilir ve her kayıtta tek tek sormak formu boğardı.
-    /// </summary>
-    /// <remarks>
-    /// Bu bir <b>öneridir</b>, hüküm değil: kurulduğu an kullanıcının verisi
-    /// olur, her kayıtta düzeltilebilir ve uygulama sonradan kendiliğinden
-    /// değiştirmez. Cevabı gerçekten muhasebecinin takdirinde olan kalem
-    /// (<c>SGK ve vergi ödemesi</c>) <b>boş</b> açılır — uydurmak yerine
-    /// sormak.
-    /// </remarks>
-    private static DefaultCategory Business(
-        string name,
-        CategoryType type,
-        bool? defaultIsTaxDeductible = null) =>
-        new(
-            name,
-            name,
-            type,
-            TransactionScope.Business,
-            defaultIsTaxDeductible ?? (type == CategoryType.Expense ? true : null));
+    private static DefaultCategory Business(string name, CategoryType type) =>
+        new(name, name, type, TransactionScope.Business);
 
     /// <summary>
     /// İşletmesi olmayan kullanıcının seti. Devralınan liste olduğu gibi kaldı;
@@ -133,9 +112,7 @@ internal static class DefaultCategorySets
         Business("Ticari mal alımı", CategoryType.Expense),
         Business("İşyeri kirası", CategoryType.Expense),
         Business("Personel ücreti", CategoryType.Expense),
-        // Cevabı muhasebecinin takdirinde: uygulama uydurmaz, kullanıcıya sorar.
-        new("SGK ve vergi ödemesi", "SGK ve vergi ödemesi",
-            CategoryType.Expense, TransactionScope.Business),
+        Business("SGK ve vergi ödemesi", CategoryType.Expense),
         Business("Elektrik, su, doğalgaz", CategoryType.Expense),
         Business("İletişim", CategoryType.Expense),
         Business("Nakliye ve kargo", CategoryType.Expense),

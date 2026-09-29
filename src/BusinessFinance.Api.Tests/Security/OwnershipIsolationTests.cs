@@ -167,7 +167,6 @@ public sealed class OwnershipIsolationTests
         "/api/v1/reports/monthly?year=2026&month=8",
         "/api/v1/reports/advanced?year=2026&month=8",
         "/api/v1/dashboard",
-        "/api/v1/accountant-package?year=2026&month=8",
         "/api/v1/tax-calendar/suggestions",
         "/api/v1/account",
         "/api/v1/account/sessions",
@@ -245,6 +244,28 @@ public sealed class OwnershipIsolationTests
         // gerekçe, denetimi olduğundan geniş gösterir.
         var stale = excused.Where(route => !routes.Contains(route)).ToList();
         Assert.Empty(stale);
+    }
+
+    /// <summary>
+    /// Muhasebeci paketi kalktı (ADR 0018): ne okuma ucu ne zip dışa aktarımı
+    /// route tablosunda kalır. Kalan bir uç, kaldırılmış bir ön muhasebe
+    /// özelliğinin sessizce yaşaması olurdu.
+    /// </summary>
+    [Fact]
+    public async Task AccountantPackageRoutes_AreGone()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var client = factory.CreateClient();
+
+        var routes = factory.Services
+            .GetRequiredService<EndpointDataSource>()
+            .Endpoints
+            .OfType<RouteEndpoint>()
+            .Select(endpoint => endpoint.RoutePattern.RawText ?? string.Empty);
+
+        Assert.DoesNotContain(
+            routes,
+            route => route.Contains("accountant", StringComparison.OrdinalIgnoreCase));
     }
 
     // ---------------------------------------------------------------------

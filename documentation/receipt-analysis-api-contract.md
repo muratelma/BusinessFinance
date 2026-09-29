@@ -182,8 +182,6 @@ olurdu.
   "purchasedAtState": "read",
   "totalAmount": "847.5000",
   "totalAmountState": "suspect",
-  "vat": { "rate": "0.2000", "amount": "141.2500" },
-  "vatState": "read",
   "currencyCode": "TRY",
   "paymentHint": "card",
   "categoryId": "11111111-1111-1111-1111-111111111111",
@@ -224,37 +222,14 @@ yerinde kalır; öneriyi reddeden kullanıcı adsız bir taslakla baş başa
 kalmamalı. Başka kullanıcının aynı adlı karşı tarafı hiçbir koşulda
 önerilmez.
 
-### KDV (`vat`)
+### KDV
 
-Belgede yazan KDV, kaydın KDV alanıyla **aynı biçimde** döner (`rate` +
-`amount`, dört ondalıklı string): istemci bunu doğrudan forma taşır ve
-kullanıcı okunabilen bir bilgiyi elle yeniden yazmaz. Okunamadıysa `vat` boş
-(`null`) ve `vatState` `missing` olur.
-
-ADR 0016 burada da geçerlidir — **KDV taşınır, hesaplanmaz**:
-
-- **Oran ve tutar iki bağımsız alandır**; ikisi de tek başına dolabilir ve
-  eksik olan diğerinden **türetilmez**. Bir market fişi toplam KDV tutarını
-  basar ama tek bir oranı yoktur (%1, %10 ve %20 aynı fişte olabilir) — model
-  o durumda oranı boş bırakır, tutarı yine okur. Bir hizmet faturasında ise
-  oran basılıyken tutar okunamayabilir.
-- Model yalnız **basılı** oranı okur. `taxAmount` ile `totalAmount`'tan oran
-  hesaplaması prompt düzeyinde yasaktır; hesaplansaydı taşınan bilgi değil
-  uydurulmuş bilgi olurdu.
-- `%0` bir okumadır, boşluk değil: istisna kapsamındaki satışın KDV'si sıfırdır
-  ve bu "KDV yazmıyor" ile aynı şey değildir. `%100` ve üstü ise yanlış okunmuş
-  bir sayıdır ve düşer.
-- KDV kayıt tutarını, bakiyeyi, bütçeyi ve işletme netini **etkilemez**; kayıt
-  tutarı brüttür ve brüt kalır.
-
-Okunan tutar kaydın kendi tutarından büyükse taşınmaz: brütün içindeki KDV
-brütten büyük olamayacağına göre okunan sayı KDV değildir. Düzeltilmez —
-boş bırakılır ve `receipt.vat_out_of_range` uyarısı döner.
-
-Alan yalnız bir **öneridir** (ADR 0011): dolu gelmesi hiçbir şeyin yazıldığı
-anlamına gelmez, kullanıcı formda görüp değiştirebilir. İstemcide vergi bölümü
-kapsam boyutunu görmeyen kullanıcıda hiç çizilmez ve o kişinin kaydına KDV
-girmez.
+Taslakta **KDV alanı yoktur** (ADR 0018, Aşama 06.3 Grup 2): ürün KDV tutmaz ve
+belgede yazan KDV forma yazılmaz. Model belgedeki toplam KDV tutarını
+(`taxAmount`) yine okur, ama yalnız **tutarlılık denetimi** için: ara toplam ile
+KDV genel toplamı tutmazsa toplam `suspect` olur ve
+`receipt.totals_do_not_add_up` uyarısı döner. Oran (`taxRate`) artık okunmaz.
+`vat`, `vatState` ve `receipt.vat_out_of_range` sözleşmeden kalktı.
 
 ### Uyarılar
 

@@ -76,13 +76,7 @@ public sealed class CreateCounterpartyChargeUseCase(
                 scope,
                 command.ChargeDate,
                 command.Description,
-                command.DueDate,
-                command.Vat?.ToDomain(),
-                TaxDeductibilityResolution.Resolve(
-                    command.IsTaxDeductible,
-                    category.DefaultIsTaxDeductible,
-                    scope,
-                    command.Direction == DebtDirection.Payable));
+                command.DueDate);
             await repository.AddChargeAsync(charge, cancellationToken);
             return ApplicationResult<CounterpartyChargeDto>.Success(ToDto(charge));
         }
@@ -109,9 +103,7 @@ public sealed class CreateCounterpartyChargeUseCase(
         charge.ChargeDate,
         charge.Description,
         charge.IsCancelled,
-        charge.DueDate,
-        VatDto.From(charge.Vat),
-        charge.IsTaxDeductible);
+        charge.DueDate);
 }
 
 /// <summary>

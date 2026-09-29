@@ -1008,7 +1008,7 @@ Claude Design teslimiyle (27 Eylül 2026, 06.2 Grup 1'in ilk adımı) menü
 | (kart) | Hesabım — baş harfler, e-posta, doğrulanmamışsa `E-posta doğrulanmadı` |
 | Para ve hesaplar | Hesaplar ve transferler · Kredi kartlarım · (kişisel profilde) Kasa · Borç ve alacaklar · Cari hesap |
 | Planlama | (işletme profilinde) Bütçeler · Yükümlülükler · Tasarruf hedefleri · Planlama ve raporlar |
-| Vergi ve muhasebe | Vergi takvimi · Muhasebeci paketi — yalnız işletmesi olana |
+| Vergi | Vergi takvimi — yalnız işletmesi olana (muhasebeci paketi Aşama 06.3 Grup 2'de kalktı) |
 | Ayarlar | Kategoriler · Hatırlatmalar · Veri ve yedek |
 
 Üçüncü sekmeden inen hedef (ADR 0015) kendi sorusunun grubuna girer: `Kasa`
@@ -1387,40 +1387,22 @@ gelir/gider raporunu etkiler ve kapsam taşımak zorundadır; zincir (kaynağın
 etiketi → kategorininki) çözülemiyorsa alan zorunludur ve bu **istek gitmeden**
 formda söylenir. Kapsamı görmeyen kullanıcıda alan hiç çizilmez.
 
-## Vergi tarafının istemcisi (Aşama 05 Grup 7)
+## Vergi tarafının istemcisi
 
-**Vergi bölümü yalnız kapsam boyutunu gören kullanıcıda çizilir.** "İşletmem
-yok" diyen kişinin formunda hiç görünmez: KDV ve matrah onun sorusu değil ve
-alanı göstermek, formu cevaplanmayacak bir soruyla uzatırdı.
+**Formlarda vergi alanı yoktur** (ADR 0018, Aşama 06.3 Grup 2). Gider, gelir,
+kart harcaması ve yükümlülük formlarında KDV bölümü ve indirilebilirlik anahtarı
+kalktı; işletmesi olan kullanıcı da görmez ve istekte `vatRate`, `vatAmount`,
+`isTaxDeductible` hiç gitmez. Muhasebeci paketi ekranı ve `Diğer` menüsündeki
+kapısı da kalktı.
 
-Bölüm **kapalı** açılır ve boşken tek satırdır (`KDV girilmedi`). İçinde iki
-alan var — oran (%) ve tutar — ve ikisi de isteğe bağlıdır; boş bırakılırsa
-istekte `vatRate`/`vatAmount` hiç gitmez. Oranla tutarın birbirini tutup
-tutmadığına dair **uyarı yok**: o uyarı istemcide bir vergi tutarı hesaplamak
-olurdu ve bu üründe finansal değeri istemci hesaplamaz. Yazılan yüzde
-sözleşmenin oranına çevrilir (20 → `0.2000`); bu bir hesap değil, birim
-çevirisidir. Tek istemci doğrulaması bir **sınırdır**: KDV kaydın tutarını
-aşamaz.
-
-**İndirilebilirlik anahtarı yalnız işletme kapsamlı giderde görünür.** Kapsam
-çipi şahsiye çevrilince anahtar kaybolur ve istekte alan hiç gitmez — sunucu
-zaten reddederdi; kullanıcının görmediği bir alanı göndermek, reddedilecek bir
-istek kurmak olurdu. Anahtarın altındaki cümle değerin nereden geldiğini söyler
-(sizin seçiminiz / kategorinin varsayılanı / kategori belirlemiyor).
-
-`Diğer` menüsünde iki yeni kapı, **yalnız işletmesi olan kullanıcıda**:
+`Diğer` menüsünün `Vergi` grubunda, **yalnız işletmesi olan kullanıcıda**:
 
 - **Vergi takvimi**: hazır kalemleri listeler ve mevzuat takibi yapılmadığını
   ekranda yazar. Kaleme dokunmak tekrarlayan plan formunu **önü dolu** açar;
   ekranın kendi yazma yolu yoktur — olsaydı aynı plan iki ayrı biçimde
   oluşabilirdi. Öneri tutar taşımaz; başlangıç günü önerilen günün bugünden
   sonraki ilk düşüşüdür, çünkü geçmişe kurmak ilk gerçekleşmeyi daha kurulurken
-  gecikmiş yapardı.
-- **Muhasebeci paketi**: varsayılan dönem **geçen aydır** (ay kapanmadan paket
-  hazırlanmaz). Ekran toplamları, kayıt ve belge sayısını, KDV yazılmamış ve
-  indirilebilirliği cevaplanmamış kalem sayısını gösterir; hepsi sunucudan
-  gelir. `Paketi paylaş` dosyayı indirir ve cihazın paylaşım sayfasını açar.
-  Boyut tavanını aşan belge varsa bu ekranda **yazılır**, sessizce düşmez.
+  gecikmiş yapardı. Vergi ekranı Aşama 06.3 Grup 3'te bunun yerini alır.
 
 ## Bütçenin istemcideki akışı (Aşama 06 Grup 7)
 
@@ -1458,16 +1440,12 @@ Harcama dökümü
   -> ikinci bir harcama sorgusu kurulmaz
 ```
 
-## Fişten gelen KDV ve kartsız taksit yolu (Aşama 06 Grup 8)
+## Fişte KDV ve kartsız taksit yolu
 
 ```text
-Fiş okundu -> KDV belgede yazıyorsa taslakta gelir (vat.rate / vat.amount)
-  -> form vergi bölümünü AÇIK açar: kullanıcı önerilen KDV'yi görüp onaylar
-     (kapalı kalsaydı onaylaması gereken bir öneriyi görmeden kaydederdi)
-  -> oran ile tutar BAĞIMSIZ: biri boş geldiyse diğerinden türetilmez
-     market fişi -> yalnız tutar (tek bir oran yok: %1, %10, %20 bir arada)
-     hizmet faturası -> yalnız oran okunabilir
-  -> vergi bölümünü görmeyen kullanıcıda hiç kullanılmaz; kayda KDV girmez
+Fiş okundu -> model KDV tutarını okur, ama yalnız "ara toplam + KDV = toplam"
+  denetimi için; tutmazsa toplam şüpheli işaretlenir
+  -> taslakta KDV alanı YOK; KDV forma hiç ulaşmaz (ADR 0018)
 
 Taksitli fiş -> kart seçimi (/more/cards)
   -> hesabında kart YOKSA: yönlendirme kutusu VE `Henüz kredi kartı yok` boş

@@ -224,6 +224,20 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     kullanıcıyla yeniden kuruldu: bugünkü sayım `Son sayımlar`da da görünüyor,
     durum `Sonradan kayıt girildi`, değişim `Uygulamaya göre`nin altında kısa
     açıklama ve tek cümlelik yönlendirme. Son koşum: Flutter 909 test geçti
+  - **06.3 Grup 2 — KDV, indirilebilirlik ve muhasebeci paketi kalktı
+    (29 Eylül 2026, tamamlandı; emülatör kabulü kullanıcıyla yapıldı)**: ADR 0018
+    İ2'nin uygulaması. Beş kayıttan KDV, gider kayıtlarından ve kategoriden
+    indirilebilirlik, muhasebeci paketinin iki ucu ve ekranı kaldırıldı.
+    **Veri kaybettiren migration** `RemoveVatAndTaxDeductibility` (yukarıdaki 28
+    Eylül kullanıcı onayı): on beş kolon ve on beş `CK_*` kısıtı düşüyor,
+    kısıtlar önce; dolu veritabanında yükseltme testi geçti. Yedek şeması v11
+    (KDV'siz), v10 reddediliyor. Fiş okuma KDV'yi forma yazmıyor; tutar yalnız
+    toplam denetiminde. Formlarda KDV bölümü ve indirilebilirlik anahtarı yok;
+    `Diğer`deki grup `Vergi` adını aldı. Kontroller: backend SQL dahil geçti
+    (Domain 292, Application 308, Api 220, Infrastructure 202 + 2 canlı test
+    atlandı), build 0 uyarı, format temiz; Flutter analyze temiz, 895 test
+    geçti (19 ekran görüntüsü testi atlandı), format temiz, debug APK derlendi.
+    Migration yerel geliştirme veritabanına uygulandı
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni (beklemede) → **06.3 bütünsel düzenleme (aktif)** →

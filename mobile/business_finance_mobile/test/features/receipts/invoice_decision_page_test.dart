@@ -85,8 +85,6 @@ ReceiptDraft _draft({String? dueDate = '2026-09-30'}) => ReceiptDraft(
       : ReceiptFieldState.read,
   totalAmount: '412.6000',
   totalAmountState: ReceiptFieldState.read,
-  vat: null,
-  vatState: ReceiptFieldState.missing,
   feeAmount: null,
   feeAmountState: ReceiptFieldState.missing,
   installmentCount: null,

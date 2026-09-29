@@ -14,19 +14,6 @@ public sealed class BudgetTransaction
     public DateOnly TransactionDate { get; }
     public string? Description { get; }
 
-    /// <summary>
-    /// Belgedeki KDV; yoksa boştur (ADR 0016). Taşınan bir bilgidir: kayıt
-    /// tutarını, bakiyeyi, bütçeyi ve işletme netini <b>etkilemez</b>.
-    /// </summary>
-    public VatDetails? Vat { get; }
-
-    /// <summary>
-    /// Gider matrahtan düşülebilir mi (ADR 0016). Yalnız işletme kapsamlı gider
-    /// kayıtlarında anlamlıdır; boş olması üçüncü bir durum değil, sorunun
-    /// sorulmamış olmasıdır. İşletme netini <b>değiştirmez</b>.
-    /// </summary>
-    public bool? IsTaxDeductible { get; }
-
     public bool IsCancelled { get; private set; }
     public DateTimeOffset? CancelledAtUtc { get; private set; }
 
@@ -44,9 +31,7 @@ public sealed class BudgetTransaction
         TransactionType type,
         TransactionScope scope,
         DateOnly transactionDate,
-        string? description = null,
-        VatDetails? vat = null,
-        bool? isTaxDeductible = null)
+        string? description = null)
     {
         if (id == Guid.Empty)
         {
@@ -121,10 +106,6 @@ public sealed class BudgetTransaction
                 nameof(description));
         }
 
-        VatDetails.EnsureWithinAmount(vat, amount, nameof(vat));
-        var deductibility = TaxDeductibility.Validate(
-            isTaxDeductible, scope, type == TransactionType.Expense, nameof(isTaxDeductible));
-
         Id = id;
         UserId = userId;
         AccountId = account.Id;
@@ -134,8 +115,6 @@ public sealed class BudgetTransaction
         Scope = scope;
         TransactionDate = transactionDate;
         Description = normalizedDescription;
-        Vat = vat;
-        IsTaxDeductible = deductibility;
         IsCancelled = false;
     }
 

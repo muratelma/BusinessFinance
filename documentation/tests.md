@@ -438,7 +438,7 @@ Test projesi: `src/BusinessFinance.Domain.Tests`
 | Alan | Senaryo sayısı | Doğrulanan ana davranışlar |
 |---|---:|---|
 | Bağımlılık yönü | 1 | Application yalnız Domain project reference'ı taşır ve dış paket içermez |
-| Fiş taslağı doğrulama | 41 | Tutar ayırıcı çözümü (`847,50`, `1.234,56`, `1,234.56`, `1.234`, `847,5000`, `₺` ve `TL` ekli), sayı olmayan/negatif/aralık dışı tutarın düşürülmesi; ISO ve `gg.aa.yyyy` tarih, gelecek ve 10 yıldan eski tarihin düşürülmesi; ara toplam+KDV tutarlılığı ve yuvarlama toleransı; yabancı para biriminin `Suspect` yapılması; kategorinin yalnız kullanıcının kendi listesinden çözülmesi; modelin okunamadı dediği alanın hiç parse edilmemesi; hiç okunamayan fişin uydurulmuş değil boş taslak üretmesi |
+| Fiş taslağı doğrulama | 41 | Tutar ayırıcı çözümü (`847,50`, `1.234,56`, `1,234.56`, `1.234`, `847,5000`, `₺` ve `TL` ekli), sayı olmayan/negatif/aralık dışı tutarın düşürülmesi; ISO ve `gg.aa.yyyy` tarih, gelecek ve 10 yıldan eski tarihin düşürülmesi; ara toplam+KDV tutarlılığı ve yuvarlama toleransı (KDV yalnız bu denetimde okunur, taslağa taşınmaz); yabancı para biriminin `Suspect` yapılması; kategorinin yalnız kullanıcının kendi listesinden çözülmesi; modelin okunamadı dediği alanın hiç parse edilmemesi; hiç okunamayan fişin uydurulmuş değil boş taslak üretmesi |
 | Fiş analiz use case'i | 12 | Kimliksiz, boş, sınır üstü ve gerçek uzunluğu uyuşmayan dosya; ortak denetçi reddi; PDF kapısı; çözülemeyen görsel; disabled/unavailable/provider-429/unreadable aktarımı; yalnız aktif owner gider kategorileri; tutarsız toplamın `Suspect` olması |
 | Hesap oluşturma komutu | 3 | Current user sahipliği, Domain doğrulamasından sonra persistence, cancellation aktarımı |
 | Hesap listeleme sorgusu | 6 | Pagination/filter/sort sözleşmesi, DTO eşleme, boş sonuç, cancellation ve geçersiz girdiler |
@@ -1060,48 +1060,6 @@ planlanan ekranının iki testi de kırmızıya düştü.
 | Yıkıcı karar hata renginde | `app_confirm_dialog_test` | `destructive` onayı `colorScheme.error`; ilerleten karar varsayılanı kullanıyor |
 | Bakiye cümlesi ekranda bir kez | `planned_activity_test` | Satırda görünmez, ekran başlığında ve satır semantiğinde durur |
 
-## KDV taşınır, hesaplanmaz (26 Ağustos 2026, Aşama 05 Grup 2)
-
-| Kapı | Nerede | Neyi tutuyor |
-|---|---|---|
-| "KDV yok" tek temsil | `VatDetailsTests.Vat_IsOptional_AndTheAbsenceIsASingleRepresentation` | İkisi de boşsa nesne `null`; içi boş nesne kabul edilmiyor |
-| Oran ve tutar bağımsız | `VatDetailsTests.RateAndAmount_AreCarriedIndependently_AndNeitherIsDerivedFromTheOther` | Biri girilip diğeri boş bırakılabiliyor; boş kalan doldurulmuyor |
-| Uyuşmazlık düzeltilmiyor | `VatDetailsTests.MismatchedRateAndAmount_AreKeptAsWritten` | %20 oranla 10 lira KDV yazıldığı gibi duruyor |
-| Uyarı kayda sızmıyor | `VatDetailsTests.ImpliedAmount_IsAWarningOnly_AndNeverFillsTheCarriedAmount` | Hesaplanan tutar dönüyor ama alan boş kalıyor |
-| Sıfır meşru | `VatDetailsTests.ZeroRateAndZeroAmount_AreLegitimate` | İstisna kapsamındaki belge "bilinmiyor" değil |
-| Sınır, hesaplama değil | `VatDetailsTests.Amount_CannotExceedTheRecordItSitsOn` | KDV kaydın tutarını aşamıyor |
-| Beş kayıt da KDV'siz yazılabiliyor | `VatCarryingRecordsTests.EveryRecognizingRecord_CanBeWrittenWithoutVat` | İşlem, kart harcaması, cari borçlandırma, yükümlülük, POS |
-| Tutar değişmiyor | `VatCarryingRecordsTests.VatIsCarried_WithoutChangingTheAmountOfTheRecord` | Kayıt tutarı brüt kalıyor |
-| POS'ta para etkilenmiyor | `VatCarryingRecordsTests.PosSettlement_CarriesVatWithoutTouchingTheMoneyThatMoves` | Net tutar, komisyon ve hesap etkisi aynı |
-| Sınır her yerde | `VatCarryingRecordsTests.VatAmountAboveTheRecordAmount_IsRejectedEverywhere` | Beş kayıt türünde de reddediliyor |
-| Cevapta boş nesne yok | `VatContractEndpointTests.Transaction_WithoutVat_CarriesNoVatAtAll` | `vat` alanı `null` dönüyor |
-| Sunucu bölme yapmıyor | `VatContractEndpointTests.Transaction_WithOnlyARate_DoesNotFillTheAmount` | Yalnız oran gönderildiğinde tutar boş |
-| Rapor brüt kalıyor | `VatContractEndpointTests.MismatchedVat_IsStoredAsWritten_AndTheReportStaysGross` | Gider ₺120; KDV düşülmüyor |
-| Okunamayan değer uydurulmuyor | `VatContractEndpointTests.VatThatCannotBeRead_IsRejectedWithoutGuessing` | `transactions.invalid_vat` |
-| Aşan tutar kırpılmıyor | `VatContractEndpointTests.VatAmountAboveTheRecordAmount_IsRejectedNotClamped` | 400 dönüyor, değer düzeltilmiyor |
-| Gerçek SQL'de gidip geliyor | `SqlServerPersistenceIntegrationTests.VatFields_RoundTripAndAreGuardedBySqlAsWellAsTheDomain` | Round-trip + `CK_BudgetTransactions_VatRate/VatAmount` ikinci kapı |
-| Migration zinciri | `MigrationHistoryTests.Migrations_FormTheExpectedChainAndMatchTheModel` | `AddVatFields` ve `AddTaxDeductibility` zincirin sonunda; şema modelle örtüşüyor |
-
-## İndirilebilirlik kapsamdan ayrıdır (26 Ağustos 2026, Aşama 05 Grup 3)
-
-| Kapı | Nerede | Neyi tutuyor |
-|---|---|---|
-| Cevaplanabilir ve boş bırakılabilir | `TaxDeductibilityTests.BusinessExpense_CanAnswerTheQuestionOrLeaveItUnasked` | `true`/`false`/boş üç ayrı sonuç |
-| Şahsi kayda sorulmuyor | `TaxDeductibilityTests.PersonalRecord_IsNotAskedTheQuestion` | Cevap saklanmıyor, reddediliyor |
-| Gelire sorulmuyor | `TaxDeductibilityTests.IncomeRecord_IsNotAskedTheQuestion` | Gider tarafının sorusu |
-| Diğer kayıtlar aynı kural | `TaxDeductibilityTests.OtherRecognizingRecords_FollowTheSameRule` | Kart harcaması; cari ve yükümlülük yalnız borç yönünde |
-| Varsayılan yalnız gider kategorisinde | `TaxDeductibilityTests.OnlyAnExpenseCategory_CarriesADeductibilityDefault` | Gelir kategorisi taşıyamıyor |
-| Açık seçim varsayılanı yeniyor | `TaxDeductibilityResolutionTests.Resolve_PrefersTheExplicitAnswerOverTheCategoryDefault` | Zincirin sırası |
-| Kategori varsayılanı iniyor | `TaxDeductibilityResolutionTests.CreateTransaction_WithoutAnAnswer_TakesTheCategoryDefault` | Kayda ve DTO'ya |
-| Soru sorulmayanda varsayılan düşüyor | `TaxDeductibilityResolutionTests.Resolve_DropsTheCategoryDefault_WhereTheQuestionIsNotAsked` | Şahsi ve gelir |
-| Açık cevap düşmüyor, reddediliyor | `TaxDeductibilityResolutionTests.CreateTransaction_AnsweringForAPersonalRecord_IsRefusedAndWritesNothing` | Geriye kayıt kalmıyor |
-| İşletme neti değişmiyor | `TaxDeductibilityEndpointTests.Deductibility_DoesNotChangeTheBusinessNet` | İndirilemeyen gider de toplama giriyor (₺140) |
-| Cevap sözleşmede | `TaxDeductibilityEndpointTests.Deductibility_IsCarriedOnTheResponse` | `isTaxDeductible` alanı |
-| Şahsi kayıt HTTP'de de reddediliyor | `TaxDeductibilityEndpointTests.AnsweringForAPersonalRecord_IsRefused` | 400 |
-| Varsayılan yalnız işletme kaydına iniyor | `TaxDeductibilityEndpointTests.CategoryDefault_ReachesTheBusinessRecordAndNotThePersonalOne` | Aynı kategori, iki kapsam |
-| Set öneriyle açılıyor | `TaxDeductibilityEndpointTests.BusinessCategorySet_OpensWithASuggestionAndLeavesTheJudgementCallBlank` | `Ticari mal alımı` dolu, `SGK ve vergi ödemesi` boş |
-| Gerçek SQL'de gidip geliyor | `SqlServerPersistenceIntegrationTests.TaxDeductibility_RoundTripsAndIsGuardedBySqlAsWellAsTheDomain` | Round-trip + `CK_BudgetTransactions_IsTaxDeductible` |
-
 ## Vergi takvimi ve dönemin tutarı (26 Ağustos 2026, Aşama 05 Grup 4)
 
 | Kapı | Nerede | Neyi tutuyor |
@@ -1116,20 +1074,6 @@ planlanan ekranının iki testi de kırmızıya düştü.
 | Gerçek tutar kayda geçiyor | `TaxCalendarEndpointTests.Realizing_WritesTheAmountTheUserActuallyOwes_WithoutChangingThePlan` | Hareket ₺2.450,75; plan ₺1.000,00 |
 | Okunamayan tutar uydurulmuyor | `TaxCalendarEndpointTests.Realizing_WithAnUnreadableAmount_IsRefused` | `recurring.invalid_amount` |
 
-## Ay sonu muhasebeci paketi (26 Ağustos 2026, Aşama 05 Grup 5)
-
-| Kapı | Nerede | Neyi tutuyor |
-|---|---|---|
-| Toplamlar raporla birebir | `AccountantPackageEndpointTests.Package_MatchesTheBusinessReport_AndLeaksNoPersonalRecord` | Paket = işletme raporu; satırların toplamı da aynı |
-| Şahsi kayıt sızmıyor | aynı test | Şahsi işlem kimliği cevabın hiçbir yerinde geçmiyor |
-| KDV özeti taşınandan | `AccountantPackageEndpointTests.Package_SummarisesTheCarriedVatAndTheNonDeductibleExpenses` | Gelirde ₺180, giderde ₺20; KDV'siz satırlar sayılıyor |
-| İndirilemeyen ayrı duruyor | aynı test | ₺500 trafik cezası; cevapsızlar ayrıca sayılıyor |
-| Tek dosya, şahsi satırsız | `AccountantPackageEndpointTests.Package_DownloadsAsOneFile_WithoutAnyPersonalLine` | `summary/lines/attachments.csv`; `scope,business` |
-| Belge pakete giriyor | `AccountantPackageEndpointTests.Package_CarriesTheDocumentsAttachedToItsLines` | `attachments/…-fis.png` ve satırdaki ek sayısı |
-| Paket sahibine kapsamlı | `AccountantPackageEndpointTests.Package_IsScopedToItsOwner` | Başkasının ayı boş, hata değil |
-| Olmayan dönem reddediliyor | `AccountantPackageEndpointTests.Package_WithAnImpossiblePeriod_IsRefused` | `accountant_package.invalid_period` |
-| Gerçek SQL'de çalışıyor | `SqlServerPersistenceIntegrationTests.AccountantPackage_ReadsOnlyBusinessLinesAndMatchesTheReport` | LINQ SQL'e iniyor; POS iki satır; toplam raporla eşit |
-
 ## Karşılık olarak hedefler (26 Ağustos 2026, Aşama 05 Grup 6)
 
 | Kapı | Nerede | Neyi tutuyor |
@@ -1139,42 +1083,27 @@ planlanan ekranının iki testi de kırmızıya düştü.
 | Filtre kapsamsızı da eliyor | aynı test | `scope=business` yalnız bir hedef; kırılım dönmüyor |
 | Tanınmayan kapsam reddediliyor | `SavingsGoalEndpointTests.Goals_WithAnUnknownScope_AreRefused` | Hem yazmada hem okumada 400 |
 
-## Vergi tarafının istemcisi (26 Ağustos 2026, Aşama 05 Grup 7)
+## Vergi takviminin istemcisi (26 Ağustos 2026, Aşama 05 Grup 7)
 
 | Kapı | Nerede | Neyi tutuyor |
 |---|---|---|
-| İşletmesi olmayanda bölüm yok | `quick_add_tax_test` | Vergi bölümü hiç çizilmiyor |
-| Kapalı ve tek satır | `quick_add_tax_test` | `KDV girilmedi`; alanlar kapalıyken yok |
-| Boş KDV istekte gitmiyor | `quick_add_tax_test` | `vatRate`/`vatAmount` null |
-| İstemci de bölmüyor | `quick_add_tax_test` | Yalnız oran girilince tutar boş kalıyor |
-| Sınır alanın yanında | `quick_add_tax_test` | Tutarı aşan KDV kaydı yazdırmıyor |
-| Anahtar yalnız işletme giderinde | `quick_add_tax_test` | Şahsiye çevrilince kayboluyor; gelirde hiç yok |
-| Şahsi kayıtta alan gitmiyor | `quick_add_tax_test` | `isTaxDeductible` null |
-| Kart harcaması da KDV taşıyor | `quick_add_tax_test` | `vatAmount` istekte |
 | Mevzuat takibi yazılı | `tax_screens_test` | Takvim ekranının ilk notu |
 | Kalem kurulum yolunu açıyor | `tax_screens_test` | Dokunuş öneriyi geri veriyor |
 | Ön dolum geçmişe kurmuyor | `tax_screens_test` | 29 Ağustos'ta 28'i seçilirse eylül |
-| Paket toplamları sunucudan | `tax_screens_test` | Kayıt/belge sayısı ve cevapsız kalemler |
-| Şahsi kayıt uyarısı ekranda | `tax_screens_test` | "şahsi hiçbir kayıt girmez" |
-| Paylaşımın dosya adı dönemden | `tax_screens_test` | `muhasebeci-paketi-2026-07.zip` |
-| Sığmayan belge söyleniyor | `tax_screens_test` | Sessizce düşmüyor |
 
 ## Yedek v10 (26 Ağustos 2026, Aşama 05 Grup 8)
 
 | Kapı | Nerede | Neyi tutuyor |
 |---|---|---|
-| Vergi alanları kayıpsız dönüyor | `DataPortabilityTests.BackupV10_RoundTripsVatDeductibilityAndGoalScope` | KDV, indirilebilirlik, kategori varsayılanı ve hedef kapsamı |
-| Uyuşmayan KDV düzeltilmiyor | aynı test | %20 oranla ₺150 tutar olduğu gibi geri geliyor |
-| "KDV yok" tek temsil | aynı test | İki boş alan; nesne kurulmuyor |
-| v9 reddediliyor | `DataPortabilityTests.BackupBeforeTaxFields_IsRejectedAndWritesNothing` | `restore.unsupported_version`; hedefe hiçbir şey yazılmıyor |
-| Sürüm sözleşmede | `DataPortabilityEndpointTests.ExportValidateRestore_RoundTripsThroughProtectedHttpContract` | HTTP cevabında `schemaVersion` 10 |
+| Hedef kapsamı kayıpsız dönüyor | `DataPortabilityTests.BackupV11_CarriesNoVatOrDeductibilityAndRoundTripsGoalScope` | v11'de: hedef kapsamı dönüyor, dosyada KDV ve indirilebilirlik yok (Aşama 06.3 Grup 2) |
+| v10 reddediliyor | `DataPortabilityTests.BackupV10_IsRejectedAndWritesNothing` | `restore.unsupported_version`; hedefe hiçbir şey yazılmıyor (Aşama 06.3 Grup 2'den beri) |
+| Sürüm sözleşmede | `DataPortabilityEndpointTests.ExportValidateRestore_RoundTripsThroughProtectedHttpContract` | HTTP cevabında `schemaVersion` 11 |
 | Hedef kapsamı gerçek SQL'de | `SqlServerPersistenceIntegrationTests.DataPortability_RoundTripAndFailedRestoreAreAtomic` | Geri yüklenen iki hedeften biri işletme karşılığı |
 
 ## Cihaz kabulünde bulunanlar (26 Ağustos 2026, Aşama 05)
 
 | Kapı | Nerede | Neyi tutuyor |
 |---|---|---|
-| KDV tutarı sözleşme biçiminde gidiyor | `quick_add_tax_test` | `20` değil `20.0000`; özet satırı `₺200,00` yazıyor |
 | Rota kabuğu controller'ı bir kez kuruyor | cihaz kabulü | Üstteki sayfadan dönünce takvim boş kalmıyor |
 | Menünün son satırı FAB'ın altında kalmıyor | cihaz kabulü | `Diğer` listesi `fabClearance` payı taşıyor |
 
@@ -1275,7 +1204,7 @@ planlayıcı saf bir sınıftır.
 | Seçilen kapsam gidiyor | aynı dosya + `finance_feature_test` | Hesap, kategori ve kartta seçim isteğe geçiyor |
 | Düzenleme kapsamı düşürmüyor | `default_scope_form_test` | Ad değiştirilirken mevcut etiket olduğu gibi geri gidiyor |
 | `Belirtilmedi` gerçekten boşaltıyor | aynı dosya | Dolu bir etiket kaldırılabiliyor |
-| İstek gövdesi sözleşmeye uyuyor | `account_feature_test`, `category_feature_test` | `defaultScope` create ve update gövdesinde; kategoride `defaultIsTaxDeductible` de taşınıyor |
+| İstek gövdesi sözleşmeye uyuyor | `account_feature_test`, `category_feature_test` | `defaultScope` create ve update gövdesinde |
 
 ## Fazla ödenmiş kart bakiyesi (27 Ağustos 2026, Aşama 06 Grup 5)
 
@@ -1349,14 +1278,6 @@ biri boş durumun ölçüsü, biri fiş sözleşmesi.
 | Karşılıksız kod nötre düşüyor | aynı dosya + `api_client_test` | Sunucunun `detail`'i ekrana hiç çıkmıyor; biçimsiz kod da nötr |
 | UTF-8 gövde hâlâ ayrıştırılıyor | `api_client_test` | Ölçülen şey artık kodun okunması, sunucunun cümlesi değil |
 | Kartsız kullanıcı boş durumu görüyor | `finance_feature_test` | Fişten gelen yönlendirme kutusu VE `Henüz kredi kartı yok` birlikte |
-| Belgede yazan KDV taslağa taşınıyor | `ReceiptDraftValidatorTests` | Oran ve tutar birlikte okunuyor; `%20` → `0.20` |
-| Oran tutardan türetilmiyor | aynı dosya | 280 brütün içindeki 46,67 tam %20 — yine de oran boş kalıyor |
-| Tutar orandan türetilmiyor | aynı dosya | Yalnız oran okunduğunda tutar boş |
-| Sıfır KDV bir okumadır | aynı dosya | `%0` ile "KDV yazmıyor" ayrı; ilki `read`, ikincisi `missing` |
-| Makul olmayan oran düşüyor | aynı dosya | `%100`, `%120`, negatif ve sayı olmayan |
-| Brütten büyük KDV reddediliyor | aynı dosya | Düzeltilmiyor: tutar boşalıyor, `receipt.vat_out_of_range` uyarısı çıkıyor |
-| KDV forma taşınıyor | `receipt_scan_page_test` | Prefill oran ve tutarı taşıyor; yüzde alanına `20` yazılıyor |
-| Sözleşme alanı zorunlu | `receipt_repository_test` | `vat` / `vatState` gövdede yoksa `FormatException` |
 
 ## Secret taraması (28 Ağustos 2026, Aşama 06.1 Grup 1)
 
@@ -1474,8 +1395,6 @@ söylemiyor ya taşımıyordu.
 | Kapı | Nerede | Neyi tutuyor |
 |---|---|---|
 | Kart detayı yazma sonucunu söylüyor | `finance_feature_test.dart` → `kart detayı yazma sonucunu kendi ekranında söyler` | Reddedilen yazmada hata, başarılı yazmada onay **bu** ekranda görünüyor; kapatılabiliyor. Kusurdan önce mesaj yalnız kart listesinde çiziliyordu ve reddedilen ödeme sessizce kayboluyordu |
-| Fişten gelen KDV yükümlülüğe giriyor | `obligation_form_page_test.dart` → `carries the VAT read from the invoice into the obligation` | Belgeden okunan oran ve tutar forma **açık** bölümde geliyor ve `vatRate`/`vatAmount` olarak gönderiliyor |
-| KDV'siz yükümlülük KDV taşımıyor | aynı dosya → `sends no VAT when the section is left empty` | Boş bırakmak geçerli bir cevap; istemci oranı tutardan (ya da tersini) türetmiyor |
 
 Fikstür ve belge üreticisi turun kendi araçlarıdır, kapı değildir:
 `scripts/New-AcceptanceFixture.ps1` hesabı API üzerinden dolduruyor,
@@ -1502,3 +1421,22 @@ görüntüsü testi atlandı), format temiz.
 | U8 — içe aktarımda atla | `data_tools_feature_test.dart` → `atlanan hazır satır içe aktarmaya gönderilmez`, `parayı yalnız taşıyan satır açıklamasından tanınır, ipucu temkinlidir` | Atlanan satır onay isteğine girmiyor, geri alınabiliyor; ipucu Türkçe harflerle eşleşiyor, "EFT", "havale" ve "posta" yakalanmıyor |
 | V-U6 — tarih alanı etiketi | `app_date_field_test.dart` → `boş alanda etiket yer tutucunun üstünde durur` | Etiket ile "Seçilmedi" üst üste binmiyor |
 | V-U8, V-U9 — plan satırı | `planning_feature_test.dart` → `plan satırı en erken bekleyen kalemi ve sıklığı Türkçe yazar` | Üç aylık plan "Üç ayda bir" yazıyor; bekleyen kalem varken satır onun tarihini gösteriyor ("Sıradaki 17 Ağustos"), üretilecek bir sonrakini değil |
+
+## Aşama 06.3 Grup 2 — KDV, indirilebilirlik ve muhasebeci paketi kalktı (29 Eylül 2026)
+
+ADR 0018 İ2. Aşama 05'in KDV, indirilebilirlik ve muhasebeci paketi testleri
+(`VatDetailsTests`, `VatCarryingRecordsTests`, `TaxDeductibilityTests`,
+`TaxDeductibilityResolutionTests`, `VatContractEndpointTests`,
+`TaxDeductibilityEndpointTests`, `AccountantPackageEndpointTests`, ilgili SQL,
+fiş ve Flutter testleri) davranışla birlikte silindi. Yerlerine yokluğu ve
+yükseltmeyi tutan kapılar geldi.
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Migration sırası ve kapsamı | `MigrationHistoryTests.RemoveVatAndTaxDeductibility_DropsChecksBeforeColumnsAndTouchesNothingElse` | Yalnız CHECK ve kolon düşürülüyor; on beş kolonun tam listesi; kısıtlar kolonlardan önce; geri dönüşte kolonlar nullable ve varsayılansız, kısıtlardan önce |
+| Dolu veritabanında yükseltme | `SqlServerPersistenceIntegrationTests.RemoveVatAndTaxDeductibility_DropsTheColumnsAndKeepsTheRecords` | `AddCashCountExpectedSnapshot` adımında KDV'si ve indirilebilirliği dolu satır yazılıyor; yükseltmeden sonra kayıt ve tutarı yerinde, kolonlar ve `CK_*` kısıtları yok |
+| Yedek v11 | `DataPortabilityTests.BackupV11_CarriesNoVatOrDeductibilityAndRoundTripsGoalScope`, `BackupV10_IsRejectedAndWritesNothing` | Dosyada `vat…` ve `…TaxDeductible` anahtarı yok; v10 reddediliyor |
+| Paket uçları yok | `OwnershipIsolationTests.AccountantPackageRoutes_AreGone` | Route tablosunda `accountant` geçen uç kalmadı |
+| Fiş KDV'yi forma taşımıyor | `ReceiptDraftValidatorTests.Validate_ReceiptPrintsVat_LeavesTheTotalAloneAndWarnsNothing` | Okunan KDV toplamı değiştirmiyor, uyarı üretmiyor; taslakta KDV alanı yok (derleme düzeyinde) |
+| Formlarda vergi alanı yok | `quick_add_tax_test.dart`, `obligation_form_page_test.dart` → `has no VAT section and sends no VAT` | İşletmesi olan kullanıcının gider, gelir ve yükümlülük formunda `KDV` metni ve `Vergiden düşülebilir` yok; hesap ve kart isteğinde `vat…`/`…TaxDeductible` anahtarı gitmiyor |
+| Menüde paket yok | `more_page_test.dart` | `Vergi` grubunda yalnız `Vergi takvimi`; `Muhasebeci paketi` yok |

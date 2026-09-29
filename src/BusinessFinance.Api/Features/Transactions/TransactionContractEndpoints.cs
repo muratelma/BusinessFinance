@@ -92,14 +92,6 @@ public static class TransactionContractEndpoints
                 "transactions.invalid_date");
         }
 
-        if (!VatContractMapper.TryParse(request.VatRate, request.VatAmount, out var vat))
-        {
-            return ApiProblemResults.Validation(
-                httpContext,
-                "Vat rate and amount must have at most four decimal places.",
-                "transactions.invalid_vat");
-        }
-
         var result = await useCase.ExecuteAsync(
             new CreateTransactionCommand(
                 request.AccountId,
@@ -109,9 +101,7 @@ public static class TransactionContractEndpoints
                 type,
                 scope,
                 date,
-                request.Description,
-                vat,
-                request.IsTaxDeductible),
+                request.Description),
             cancellationToken);
         if (!result.IsSuccess)
         {
@@ -147,9 +137,7 @@ public static class TransactionContractEndpoints
         FinanceContract.Date(transaction.TransactionDate),
         transaction.Description,
         transaction.IsCancelled,
-        transaction.CancelledAtUtc,
-        VatContractMapper.ToContract(transaction.Vat),
-        transaction.IsTaxDeductible);
+        transaction.CancelledAtUtc);
 
     private static bool TryParseType(string? value, out TransactionType type) =>
         Enum.TryParse(value, true, out type) && type is TransactionType.Income or TransactionType.Expense;

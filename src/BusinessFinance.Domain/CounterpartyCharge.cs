@@ -39,19 +39,6 @@ public sealed class CounterpartyCharge
     public DateOnly? DueDate { get; }
     public string? Description { get; }
 
-    /// <summary>
-    /// Belgedeki KDV; yoksa boştur (ADR 0016). Taşınan bir bilgidir: kayıt
-    /// tutarını ve gelir/gider raporunu <b>etkilemez</b>.
-    /// </summary>
-    public VatDetails? Vat { get; }
-
-    /// <summary>
-    /// Gider matrahtan düşülebilir mi (ADR 0016). Yalnız işletme kapsamlı gider
-    /// kayıtlarında anlamlıdır; boş olması üçüncü bir durum değil, sorunun
-    /// sorulmamış olmasıdır. İşletme netini <b>değiştirmez</b>.
-    /// </summary>
-    public bool? IsTaxDeductible { get; }
-
     public bool IsCancelled { get; private set; }
     public DateTimeOffset? CancelledAtUtc { get; private set; }
 
@@ -70,9 +57,7 @@ public sealed class CounterpartyCharge
         TransactionScope scope,
         DateOnly chargeDate,
         string? description = null,
-        DateOnly? dueDate = null,
-        VatDetails? vat = null,
-        bool? isTaxDeductible = null)
+        DateOnly? dueDate = null)
     {
         if (id == Guid.Empty)
         {
@@ -121,13 +106,6 @@ public sealed class CounterpartyCharge
                 "Due date cannot be before the charge date.");
         }
 
-        VatDetails.EnsureWithinAmount(vat, amount, nameof(vat));
-        var deductibility = TaxDeductibility.Validate(
-            isTaxDeductible,
-            scope,
-            direction == DebtDirection.Payable,
-            nameof(isTaxDeductible));
-
         Id = id;
         UserId = userId;
         CounterpartyId = counterparty.Id;
@@ -138,8 +116,6 @@ public sealed class CounterpartyCharge
         ChargeDate = chargeDate;
         DueDate = dueDate;
         Description = NormalizeDescription(description);
-        Vat = vat;
-        IsTaxDeductible = deductibility;
     }
 
     /// <summary>

@@ -51,15 +51,6 @@ internal sealed class CounterpartyChargeConfiguration : IEntityTypeConfiguration
 
             // Borçlandırma gelir/gider tanır, bu yüzden kapsam taşır (ADR 0013).
             table.HasCheckConstraint("CK_CounterpartyCharges_Scope", "[Scope] IN (1, 2)");
-            table.HasCheckConstraint(
-                "CK_CounterpartyCharges_VatRate",
-                VatDetailsConfiguration.RateConstraint);
-            table.HasCheckConstraint(
-                "CK_CounterpartyCharges_VatAmount",
-                VatDetailsConfiguration.AmountConstraint("Amount"));
-            table.HasCheckConstraint(
-                "CK_CounterpartyCharges_IsTaxDeductible",
-                "[IsTaxDeductible] IS NULL OR ([Scope] = 1 AND [Direction] = 1)");
         });
 
         builder.HasKey(charge => charge.Id);
@@ -78,9 +69,6 @@ internal sealed class CounterpartyChargeConfiguration : IEntityTypeConfiguration
             money.Property(value => value.Currency)
                 .HasColumnName("Currency").HasConversion<byte>().HasColumnType("tinyint");
         });
-
-        builder.OwnsVat(charge => charge.Vat);
-        builder.Property(charge => charge.IsTaxDeductible);
 
         // Cari bakiye sorgusunun okuduğu indeks: karşı taraf başına, iptal
         // edilmemiş satırlar. Yön sütunu indekste olduğu için alacak/borç

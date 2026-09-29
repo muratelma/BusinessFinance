@@ -34,10 +34,6 @@ QuickAddPrefill receiptPrefillFrom(
     ReceiptPaymentHint.card => PaymentSourceHint.card,
     ReceiptPaymentHint.unknown => null,
   },
-  // Belgede yazan KDV forma taşınır: okunabilen bir bilgiyi kullanıcıya
-  // yeniden yazdırmak, muhasebeci paketini elle doldurtmak olurdu. Okunmadıysa
-  // boş kalır — istemci de sunucu da oranı tutardan (ya da tersini) türetmez.
-  vat: draft.vatState.isMissing ? null : draft.vat,
   warnings: draft.warnings
       .map((warning) => warning.message)
       .toList(growable: false),
@@ -147,11 +143,6 @@ ObligationPrefill receiptObligationPrefillFrom(ReceiptDraft draft) =>
       counterpartyId: draft.counterpartyState.isMissing
           ? null
           : draft.counterpartyId,
-      // Faturanın KDV'si burada da taşınır. Taşınmadığı sürece, okunan KDV
-      // yalnız "ödedim" yolunda kayda giriyordu; ödenmemiş fatura muhasebeci
-      // paketine KDV'siz gidiyordu — oysa vadesi gelmemiş olması KDV'sini
-      // değiştirmez.
-      vat: draft.vatState.isMissing ? null : draft.vat,
       warnings: draft.warnings
           .map((warning) => warning.message)
           .toList(growable: false),

@@ -202,14 +202,6 @@ public sealed record RawReceiptReading(
     string? DueDate,
     string? SubtotalAmount,
     string? TaxAmount,
-
-    /// <summary>
-    /// Fişte <b>yazan</b> KDV oranı ("KDV %20" → "20"). Tutardan asla
-    /// türetilmez (ADR 0016: oran ve tutar iki bağımsız alandır) ve fişte
-    /// birden çok oran varsa boş kalır — bir market fişindeki %1, %10 ve %20
-    /// tek bir orana indirgenemez, indirgenirse taşınan bilgi yanlış olur.
-    /// </summary>
-    string? TaxRate,
     string? TotalAmount,
     string? FeeAmount,
 

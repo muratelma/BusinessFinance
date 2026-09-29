@@ -1012,90 +1012,36 @@ hâlidir — tablolar Aşama 01 Grup 1'de boşaltıldı. Varsayılansız ekleme 
 zamanda o ön koşulu denetler: tablo boş değilse SQL Server komutu reddeder ve
 yükseltme sessizce yanlış veri üretmek yerine durur.
 
-## Vergi alanları: taşınır, hesaplanmaz
+## Vergi: kayıtta vergi alanı yok
 
-ADR 0016'nın mimari karşılığı. Gelir veya gider **tanıyan** beş kayıt bir KDV
-alanı taşır: `BudgetTransaction`, `CreditCardCharge`, `CounterpartyCharge`,
-`Obligation` ve `PosSettlement`. Parayı yalnız **taşıyan** kayıtlar
-(`Transfer`, `CreditCardPayment`, `CounterpartyPayment`,
-`ObligationSettlement`) KDV taşımaz — cevabı hiçbir yerde kullanılmayacak bir
-soru olurdu; kapsamın taşınmama gerekçesiyle aynı.
+ADR 0016 vergiye dair bilgiyi kayıtların üstüne taşınan alanlar olarak kurmuştu:
+gelir veya gider tanıyan beş kayıtta KDV (`VatDetails`), gider tarafında
+indirilebilirlik, kategoride indirilebilirlik varsayılanı ve bunları okuyan ay
+sonu muhasebeci paketi. **ADR 0018 bunların hepsini kaldırdı** (Aşama 06.3
+Grup 2): ürün bir bütçe uygulamasıdır, ön muhasebe değildir; KDV'yi muhasebeci
+GİB'e zaten elektronik giden belgelerden kurar.
 
-`VatDetails` bir değer nesnesidir ve iki alanı vardır: `Rate` ve `Amount`.
-İkisi de **nullable**'dır, ikisi de belgeden okunur ve **biri diğerinden
-türetilmez**. Nesnenin kendisi boş olamaz; KDV yoksa alan `null`'dır — içi boş
-bir nesne "KDV yok"un ikinci bir anlatımı olur ve iki temsil er geç ayrışırdı.
+- **Şema:** `RemoveVatAndTaxDeductibility` migration'ı `BudgetTransactions`,
+  `CreditCardCharges`, `CounterpartyCharges`, `Obligations` ve `PosSettlements`
+  tablolarındaki `VatRate`/`VatAmount` kolonlarını, dört tablodaki
+  `IsTaxDeductible` kolonunu, `Categories.DefaultIsTaxDeductible` kolonunu ve
+  bunları koruyan `CK_*_VatRate`, `CK_*_VatAmount`, `CK_*_IsTaxDeductible`
+  kısıtlarını düşürür. Kısıtlar kolonlardan önce düşer; geri dönüşte kolonlar
+  kısıtlardan önce, nullable ve varsayılansız gelir. **Veri kaybettiren bir
+  adımdır** ve kullanıcı kararıdır (`docs/project-status.md`).
+- **Sözleşme:** istekte `vatRate`, `vatAmount`, `isTaxDeductible`,
+  `defaultIsTaxDeductible` alanları yoktur; cevapta `vat` nesnesi dönmez.
+  `/api/v1/accountant-package` ve `/api/v1/exports/accountant-package.zip`
+  uçları kalktı.
+- **Fiş okuma:** model belgedeki KDV tutarını okur, ama yalnız "ara toplam +
+  KDV = genel toplam" denetimi için; taslakta KDV alanı yoktur ve KDV forma
+  hiç ulaşmaz.
+- **Yedek:** şema v11; KDV ve indirilebilirlik taşınmaz
+  (`documentation/restore-runbook.md`).
 
-Bu, POS komisyonunun kararından bilinçli olarak ayrışır: orada oran paradan
-**çözülür** (`PosSettlement.CommissionRate`), çünkü orayı tek bir banka tek bir
-oranla keser. Faturada öyle değildir — aynı belgede farklı oranlı kalemler
-toplanır, yuvarlama farkı belgenin üstünde durur, tevkifatlı ve istisnalı
-belgeler kuralın tamamen dışındadır.
-
-`VatDetails.ImpliedAmount` yalnız **uyarı** içindir: arayüz "girdiğiniz oran bu
-tutarla uyuşmuyor" diyebilsin diye vardır, hiçbir alanı doldurmaz ve hiçbir
-isteği reddetmez. Uyuşmazlık bir hata değildir; kayıt yazıldığı gibi durur.
-
-KDV **hiçbir toplamı değiştirmez**: kayıt tutarı brüttür ve brüt kalır; bakiye,
-bütçe ilerlemesi, gelir/gider raporu ve işletme neti KDV alanından etkilenmez.
-Birleşik feed de KDV okumaz — feed paranın hareketini anlatır.
-
-### Kalıcılık ve iki kapı
-
-Beş tabloya iki **nullable** kolon eklendi (`VatRate decimal(5,4)`,
-`VatAmount decimal(19,4)`); iki boş kolon "KDV yok" demektir ve domain'in "en az
-biri dolu" invariant'ı SQL'e taşınmaz — SQL'de yokluğun temsili tam olarak iki
-boş sütundur. Sınırlar hem Application/Domain hem SQL tarafında iki bağımsız
-kapıyla korunur: `CK_*_VatRate` oranı `[0, 1)` aralığında tutar,
-`CK_*_VatAmount` tutarı negatif olmaktan ve **kaydın tutarını aşmaktan** alıkoyar.
-Tutarın kaydı aşamaması bir hesaplama değil sınırdır: brüt tutarın içindeki KDV
-brüt tutardan büyük olamaz.
-
-Sözleşme tarafında KDV isteğe bağlı iki string alandır (`vatRate`, `vatAmount`;
-oran da para gibi dört ondalıklı) ve cevapta tek bir `vat` nesnesi olarak döner;
-KDV yoksa `null`'dır. Ayrıştırılamayan bir değer `*.invalid_vat` ile reddedilir —
-sunucu bir değer uydurmaz.
-
-### İndirilebilirlik kapsamdan ayrı bir alandır
-
-ADR 0016'nın üçüncü kararı. Kapsam "bu para kimin?", indirilebilirlik "bu gider
-matrahtan düşülebilir mi?" sorusunu yanıtlar; her işletme gideri indirilebilir
-değildir (trafik cezası işletmenin giderdir ama indirilemez). İkisini tek alanda
-birleştirmek, ADR 0013'ün reddettiği "kapsamı başka bir şeyle temsil etme"
-hatasının tekrarı olurdu.
-
-Alan **gider tanıyan** kayıtlarda yaşar: `BudgetTransaction` (yalnız gider),
-`CreditCardCharge`, `CounterpartyCharge` ve `Obligation` (yalnız borç yönünde).
-`PosSettlement` taşımaz — o bir satıştır; içindeki komisyon gideri kendi
-kategorisiyle zaten ayrı bir gider olarak yazılır.
-
-Alan **iki durumludur**; kısmi indirilebilirlik oranı modellenmez, çünkü oran
-girmek hesaplamaya giden ilk adımdır. Boş olması üçüncü bir durum değil,
-**sorunun sorulmamış** olmasıdır: şahsi kayıtta anlamsızdır, gelirde yoktur ve
-alandan önce yazılmış kayıtlarda cevap bilinmez.
-
-Türetme zinciri kapsamınkinin yanında ikinci bir zincirdir
-(`TaxDeductibilityResolution`): **kullanıcının açık seçimi → kategorinin
-varsayılanı**. Kapsam zincirinden bir farkı var — cevap bulunamazsa istek
-**reddedilmez**; kapsam boşsa rapor bozulur, indirilebilirlik boşsa yalnız
-muhasebeci paketinde cevaplanmamış olarak durur.
-
-Soru sorulmayan bir kayıtta kategorinin varsayılanı **sessizce düşer**
-(kullanıcı onu istemedi, kategori söyledi); kullanıcının kendi cevabı düşmez,
-istek **reddedilir** — sessizce yok saymak, kaydedilmeyen bir şeyi kaydedilmiş
-gibi göstermek olurdu.
-
-`Category.DefaultIsTaxDeductible` yalnız gider kategorisinde anlamlıdır. İşletme
-ön ayarıyla açılan set gider kalemlerini `true` önerisiyle kurar; cevabı
-gerçekten muhasebecinin takdirinde olan kalem (`SGK ve vergi ödemesi`) **boş**
-açılır. Öneri kurulduğu an kullanıcının verisidir ve uygulama sonradan
-kendiliğinden değiştirmez; varsayılanı değiştirmek **geçmiş kayıtları
-değiştirmez**.
-
-İndirilebilirlik **işletme netini değiştirmez**: indirilemeyen gider de giderdir
-ve rapora girer. Etkilediği tek çıktı muhasebeci paketidir. SQL tarafında ikinci
-kapı `CK_*_IsTaxDeductible` kısıtlarıdır: cevap yalnız işletme kapsamlı gider
-satırında bulunabilir, kategori varsayılanı yalnız gider kategorisinde.
+Yürürlükte kalan ilke: uygulama **hiçbir vergi tutarını türetmez** (ADR 0016
+§1, ADR 0018 İ1). Vergi bir nakit çıkışıdır — tanımlıysa bir tekrarlayan plan,
+ödendiyse o gün yazılan bir giderdir. Vergi ekranı Aşama 06.3 Grup 3'te gelir.
 
 ### Vergi ve SGK takvimi: yeni bir zamanlayıcı yok
 
@@ -1125,39 +1071,6 @@ düzeltmesi iptal + yeni kayıttır. **Planın kendi tutarı değişmez**: düze
 bu dönemdir, plan değil. Bu yalnız verginin sorunu değildi; elektrik faturası
 gibi her dönem değişen her kalem beklentiyi gerçekleşmiş hareket olarak
 yazıyordu.
-
-### Ay sonu muhasebeci paketi
-
-Paket **ikinci bir hesaplama yolu değildir**. Toplamları aynı ayın işletme
-raporundan (`IFinancialReportRepository.GetMonthlyAsync`, kapsam `Business`)
-okur; satır listesi o toplamın dökümüdür ve toplamına eşit olduğu hem birim hem
-gerçek SQL testiyle sabitlenir. İki ayrı toplama yolu bırakılsaydı, ayrıştıkları
-gün hangisinin doğru olduğunu kimse bilemezdi.
-
-**Kapsam parametresi yoktur.** Filtre çağırana bırakılmaz, `Business` olarak
-sabittir: paket muhasebeciye gider ve şahsi kayıt ona ait değildir. Bu bir
-yorum değil, çıkış koşulu — pakette şahsi bir kayıt kimliğinin geçmediğini
-ayrı bir test tutuyor.
-
-Satırlar raporun okuduğu **aynı kaynakları aynı filtrelerle** okur; tek farkı
-toplamak yerine satır döndürmesidir: işlem, kart harcaması, cari borçlandırma,
-yükümlülük, POS satışı + komisyonu, borç açılışı ve ödenen taksitin faiz payı.
-POS iki satırdır (brüt satış ve ayrı komisyon, ADR 0015); netten tek satır
-yazmak kesilen faturayı küçültürdü.
-
-Paket tek dosyadır: `GET /api/v1/exports/accountant-package.zip` — mevcut dışa
-aktarma ailesinin içinde, `PortableFile` ile. İçinde `summary.csv` (toplamlar,
-KDV özeti, indirilemeyen kalem sayısı), `lines.csv` (satır dökümü) ve
-`attachments.csv` ile `attachments/` altında kayda bağlı belgeler durur.
-Eklerin toplam boyutu bir tavan taşır; tavanı aşan ek **listede kalır ama
-dosyası konmaz** (`isIncluded=false`) — eksik paketi tam sanmak, eksik olduğunu
-bilerek göndermekten kötüdür. Dosya kullanıcının kendi cihazından paylaşılır;
-sunucu üçüncü kişiye hiçbir şey göndermez.
-
-KDV özeti **taşınan alanların toplamıdır**, hesaplanan bir vergi değil: KDV
-yazılmamış satırlar ayrıca sayılır (`linesWithoutVat`), indirilebilirlik
-cevaplanmamış giderler de (`deductibilityUnansweredCount`) — muhasebeci neyi
-soracağını böyle görür.
 
 ### Karşılık olarak hedefler
 

@@ -7,5 +7,4 @@ public sealed record CategoryListItemDto(
     string Name,
     CategoryType Type,
     bool IsActive,
-    TransactionScope? DefaultScope,
-    bool? DefaultIsTaxDeductible = null);
+    TransactionScope? DefaultScope);

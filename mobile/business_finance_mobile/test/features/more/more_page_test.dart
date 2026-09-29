@@ -44,7 +44,7 @@ void main() {
       'Hatırlatmalar',
       'Veri ve yedek',
     ]);
-    expect(find.text('Vergi ve muhasebe'), findsNothing);
+    expect(find.text('Vergi'), findsNothing);
     // Hesap kartı + üç grup.
     expect(find.byType(AppCard), findsNWidgets(4));
   });
@@ -61,13 +61,9 @@ void main() {
     final shown = titles(tester);
     expect(shown, contains('Bütçeler'));
     expect(shown, isNot(contains('Kasa')));
-    expect(shown, containsAll(['Vergi takvimi', 'Muhasebeci paketi']));
-    for (final label in [
-      'Para ve hesaplar',
-      'Planlama',
-      'Vergi ve muhasebe',
-      'Ayarlar',
-    ]) {
+    expect(shown, contains('Vergi takvimi'));
+    expect(shown, isNot(contains('Muhasebeci paketi')));
+    for (final label in ['Para ve hesaplar', 'Planlama', 'Vergi', 'Ayarlar']) {
       expect(find.text(label), findsOneWidget);
     }
   });
@@ -129,7 +125,6 @@ Widget _host({required bool hasBusiness}) {
             '/more/goals',
             '/more/planning',
             '/more/tax-calendar',
-            '/more/accountant-package',
             '/more/reminders',
             '/more/data-tools',
           ])

@@ -92,7 +92,6 @@ class FinanceRepository implements FinanceRepositoryContract {
               JsonReaders.string(json, 'name'),
             ),
             defaultScope: TransactionScope.fromApiOrNull(json['defaultScope']),
-            defaultIsTaxDeductible: json['defaultIsTaxDeductible'] as bool?,
           ),
         )
         .toList(growable: false);

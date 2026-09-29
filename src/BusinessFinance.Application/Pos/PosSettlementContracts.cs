@@ -23,11 +23,7 @@ public sealed record CreatePosSettlementCommand(
     TransactionScope? Scope,
     DateOnly SettlementDate,
     DateOnly ExpectedTransferDate,
-    string? Description,
-
-    // Belgedeki KDV; yoksa boştur (ADR 0016). Sunucu hiçbir vergi tutarını
-    // hesaplamaz — ne geldiyse o taşınır.
-    VatDto? Vat = null);
+    string? Description);
 
 public sealed record MarkPosSettlementTransferredCommand(Guid SettlementId, DateOnly TransferDate);
 
@@ -58,8 +54,7 @@ public sealed record PosSettlementDto(
     bool IsInTransit,
     bool IsCancelled,
     // Beklenen gün geçti, para hâlâ gelmedi. Kalıcı değil, okurken türetilir.
-    bool IsLate,
-    VatDto? Vat = null);
+    bool IsLate);
 
 /// <summary>
 /// Tahsilat listesi ve yanında yoldaki toplam.

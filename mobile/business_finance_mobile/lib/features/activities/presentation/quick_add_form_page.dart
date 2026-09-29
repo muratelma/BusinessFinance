@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/formatters/money_text.dart';
-import '../../../core/models/tax_fields.dart';
 import '../../../core/models/transaction_scope.dart';
 import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -52,8 +51,6 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _vatRateController = TextEditingController();
-  final _vatAmountController = TextEditingController();
 
   PaymentSource? _source;
   String? _accountId;
@@ -65,15 +62,6 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
 
   /// Zincir çözülemedi ve kullanıcı yine de kaydetmeye çalıştı.
   bool _scopeMissing = false;
-
-  /// Vergi bölümü açık mı. Kapalı başlar: KDV'si olmayan kayıt formu
-  /// şişirmemeli, olan kayıt da bir dokunuş uzakta olmalı.
-  bool _taxExpanded = false;
-
-  /// Kullanıcının indirilebilirlik cevabı. Boş bırakmak "sorulmadı" demektir
-  /// ve o hâlde istekte alan hiç gitmez — sunucu kategorinin varsayılanını
-  /// kullanır.
-  bool? _isTaxDeductible;
   late bool _keepAttachment = widget.prefill?.keepAttachmentByDefault ?? true;
   late DateTime _date = widget.today ?? DateTime.now();
 
@@ -107,19 +95,6 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
     final date = AppDateField.parse(prefill.date?.value ?? '');
     if (date != null) _date = date;
     _categoryId = prefill.categoryId?.value;
-
-    // Belgede yazan KDV alanlara taşınır ve bölüm **açık** açılır: kapalı
-    // kalsaydı kullanıcı, onaylaması gereken bir öneriyi görmeden kaydederdi.
-    // Oran ile tutar birbirinden türetilmiyor — hangisi geldiyse o yazılıyor,
-    // diğeri boş kalıyor.
-    final vat = prefill.vat;
-    if (vat != null && !vat.isEmpty) {
-      _vatRateController.text = vat.ratePercentInput ?? '';
-      _vatAmountController.text = vat.amount == null
-          ? ''
-          : MoneyText.editable(vat.amount!);
-      _taxExpanded = true;
-    }
   }
 
   /// Ad ile önerilen kategoriyi kullanıcının kendi listesinde arar.
@@ -143,8 +118,6 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
   void dispose() {
     _amountController.dispose();
     _descriptionController.dispose();
-    _vatRateController.dispose();
-    _vatAmountController.dispose();
     super.dispose();
   }
 
@@ -245,7 +218,6 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
               suffixIcon: _suggestionIcon(widget.prefill?.description),
             ),
           ),
-          ..._buildTaxSection(context),
           ..._buildKeepAttachment(context),
           ..._buildAutoFeeNotice(context),
           if (controller.errorMessage != null)
@@ -273,159 +245,6 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
         ],
       ),
     );
-  }
-
-  /// Vergi bölümü: KDV ve indirilebilirlik.
-  ///
-  /// Yalnız kapsam boyutunu gören kullanıcıda çizilir. "İşletmem yok" diyen
-  /// kişinin formunda hiç görünmez — KDV ve matrah onun sorusu değil, alanı
-  /// göstermek formu cevaplanmayacak bir soruyla uzatırdı.
-  ///
-  /// Bölüm **kapalı** açılır ve boşken tek satırdır: KDV'si olmayan kayıt için
-  /// form sadeliğini bozmaz.
-  ///
-  /// Oranla tutarın birbirini tutup tutmadığına dair uyarı **yok**: o uyarı
-  /// istemcide bir vergi tutarı hesaplamak olurdu ve bu üründe finansal değeri
-  /// istemci hesaplamaz. ADR 0016 uyarıyı zorunlu kılmıyor, "söyleyebilir"
-  /// diyor.
-  List<Widget> _buildTaxSection(BuildContext context) {
-    if (!_showScope) return const [];
-    final isBusinessExpense =
-        widget.isExpense && _resolvedScope == TransactionScope.business;
-    return [
-      Card(
-        margin: EdgeInsets.zero,
-        clipBehavior: Clip.antiAlias,
-        child: ExpansionTile(
-          initiallyExpanded: _taxExpanded,
-          onExpansionChanged: (value) => setState(() => _taxExpanded = value),
-          tilePadding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.medium,
-          ),
-          childrenPadding: const EdgeInsets.fromLTRB(
-            AppSpacing.medium,
-            0,
-            AppSpacing.medium,
-            AppSpacing.medium,
-          ),
-          title: const Text('Vergi bilgisi (isteğe bağlı)'),
-          subtitle: Text(_taxSummary),
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _vatRateController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'KDV oranı',
-                      suffixText: '%',
-                    ),
-                    validator: _validateVatRate,
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.medium),
-                Expanded(
-                  child: TextFormField(
-                    controller: _vatAmountController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'KDV tutarı',
-                      suffixText: 'TRY',
-                    ),
-                    validator: _validateVatAmount,
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.small),
-            const AppInlineNotice(
-              icon: Icons.info_outline,
-              message:
-                  'Belgede ne yazıyorsa onu girin. Uygulama KDV hesaplamaz; '
-                  'boş bırakmak da geçerli bir cevaptır.',
-            ),
-            if (isBusinessExpense) ...[
-              const SizedBox(height: AppSpacing.small),
-              SwitchListTile(
-                value: _isTaxDeductible ?? _categoryDeductibleDefault ?? false,
-                onChanged: (value) => setState(() => _isTaxDeductible = value),
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Vergiden düşülebilir'),
-                subtitle: Text(_deductibilityHelperText),
-              ),
-            ],
-          ],
-        ),
-      ),
-      const SizedBox(height: AppSpacing.medium),
-    ];
-  }
-
-  /// Kapalı bölümün altındaki tek satır: içinde ne olduğunu söyler.
-  String get _taxSummary {
-    final vat = _vatFields;
-    if (vat == null) return 'KDV girilmedi';
-    final rate = vat.ratePercentLabel;
-    final amount = vat.amount;
-    if (rate != null && amount != null) {
-      return 'KDV $rate • ${MoneyText.format(amount, 'TRY')}';
-    }
-    if (rate != null) return 'KDV $rate';
-    return 'KDV ${MoneyText.format(amount!, 'TRY')}';
-  }
-
-  String get _deductibilityHelperText => _isTaxDeductible != null
-      ? 'Bu kayıt için siz seçtiniz.'
-      : _categoryDeductibleDefault == null
-      ? 'Kategori varsayılan taşımıyor; boş bırakılırsa cevapsız kalır.'
-      : 'Kategorinin varsayılanından geldi — değiştirebilirsiniz.';
-
-  /// Seçili kategorinin indirilebilirlik varsayılanı.
-  bool? get _categoryDeductibleDefault {
-    if (_categoryId == null) return null;
-    for (final category in _categoryChoices) {
-      if (category.id == _categoryId) return category.defaultIsTaxDeductible;
-    }
-    return null;
-  }
-
-  /// Forma yazılan KDV; ikisi de boşsa kayıt KDV taşımaz.
-  VatFields? get _vatFields {
-    final rate = VatFields.rateFromPercentInput(_vatRateController.text);
-    final amount = VatFields.amountFromInput(_vatAmountController.text);
-    if (rate == null && amount == null) return null;
-    return VatFields(rate: rate, amount: amount);
-  }
-
-  String? _validateVatRate(String? value) {
-    if ((value ?? '').trim().isEmpty) return null;
-    return VatFields.rateFromPercentInput(value) == null
-        ? '0 ile 100 arasında bir oran girin.'
-        : null;
-  }
-
-  String? _validateVatAmount(String? value) {
-    if ((value ?? '').trim().isEmpty) return null;
-    final normalized = MoneyText.normalizeInput(value ?? '');
-    if (normalized == null) return 'Geçerli bir tutar girin.';
-    final amount = double.tryParse(normalized);
-    final total = double.tryParse(
-      MoneyText.normalizeInput(_amountController.text) ?? '',
-    );
-    if (amount == null) return 'Geçerli bir tutar girin.';
-    // Sınır, hesaplama değil: brütün içindeki KDV brütten büyük olamaz.
-    if (total != null && amount > total) {
-      return 'KDV, kaydın tutarından büyük olamaz.';
-    }
-    return null;
   }
 
   /// Formun tepesinde duran öneri notları.
@@ -730,12 +549,6 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
             description: description.isEmpty ? null : description,
             attachment: attachment,
             scope: _resolvedScope,
-            vat: _vatFields,
-            // Soru yalnız işletme kapsamlı giderde sorulur; başka hâlde alan
-            // hiç gitmez ve sunucu isteği reddetmez.
-            isTaxDeductible: _resolvedScope == TransactionScope.business
-                ? _isTaxDeductible
-                : null,
           )
         : await widget.controller.submitIncome(
             accountId: _accountId!,
@@ -744,7 +557,6 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
             date: _formattedDate,
             description: description.isEmpty ? null : description,
             scope: _resolvedScope,
-            vat: _vatFields,
           );
     if (!saved || !mounted) return;
 

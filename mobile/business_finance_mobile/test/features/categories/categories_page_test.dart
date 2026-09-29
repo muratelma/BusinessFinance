@@ -156,6 +156,5 @@ class _Repository implements CategoryRepository {
     required bool isActive,
     required String name,
     TransactionScope? defaultScope,
-    bool? defaultIsTaxDeductible,
   }) => throw UnimplementedError();
 }

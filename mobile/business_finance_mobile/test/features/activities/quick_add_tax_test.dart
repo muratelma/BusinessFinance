@@ -11,118 +11,30 @@ import 'package:business_finance_mobile/features/cards/data/finance_repository.d
 import 'package:business_finance_mobile/features/transactions/data/transaction_models.dart';
 import 'package:business_finance_mobile/features/transactions/data/transaction_repository.dart';
 
-/// Aşama 05 Grup 7: formdaki vergi bölümü. KDV isteğe bağlı ve katlanmış,
-/// indirilebilirlik yalnız işletme kapsamlı giderde görünür (ADR 0016).
+/// Aşama 06.3 Grup 2: KDV ve indirilebilirlik formdan kalktı (ADR 0018).
+/// İşletmesi olan kullanıcı da vergi bölümü görmez ve istekte bu alanlar hiç
+/// gitmez.
 void main() {
-  testWidgets('işletmesi olmayan kullanıcıda vergi bölümü hiç çizilmez', (
+  testWidgets('işletme kullanıcısının gider formunda vergi bölümü yok', (
     tester,
   ) async {
-    await _pumpForm(tester, hasBusiness: false);
+    await _pumpForm(tester, hasBusiness: true);
+    await _selectSource(tester, 'Dükkân kasası');
+    await _selectCategory(tester, 'Market');
 
     expect(find.text('Vergi bilgisi (isteğe bağlı)'), findsNothing);
-  });
-
-  testWidgets('bölüm kapalı açılır ve boşken tek satırdır', (tester) async {
-    await _pumpForm(tester, hasBusiness: true);
-
-    expect(find.text('Vergi bilgisi (isteğe bağlı)'), findsOneWidget);
-    expect(find.text('KDV girilmedi'), findsOneWidget);
-    // Kapalıyken alanlar çizilmiyor: form sadeliği bozulmuyor.
-    expect(find.text('KDV oranı'), findsNothing);
-    expect(find.text('KDV tutarı'), findsNothing);
-  });
-
-  testWidgets('KDV boş bırakıldığında istekte hiç gitmez', (tester) async {
-    final transactions = _FakeTransactions();
-    await _pumpForm(tester, hasBusiness: true, transactions: transactions);
-
-    await _selectSource(tester, 'Dükkân kasası');
-    await _selectCategory(tester, 'Market');
-    await tester.enterText(find.byType(TextFormField).first, '120');
-    await tester.tap(find.text('Kaydet'));
-    await tester.pumpAndSettle();
-
-    final input = transactions.created.single;
-    expect(input.vat, isNull);
-    expect(input.toJson()['vatRate'], isNull);
-    expect(input.toJson()['vatAmount'], isNull);
-  });
-
-  testWidgets('yalnız oran girilirse tutar boş gider — istemci de bölmez', (
-    tester,
-  ) async {
-    final transactions = _FakeTransactions();
-    await _pumpForm(tester, hasBusiness: true, transactions: transactions);
-
-    await _selectSource(tester, 'Dükkân kasası');
-    await _selectCategory(tester, 'Market');
-    await tester.enterText(find.byType(TextFormField).first, '120');
-    await _openTaxSection(tester);
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'KDV oranı'),
-      '20',
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Kaydet'));
-    await tester.pumpAndSettle();
-
-    final input = transactions.created.single;
-    expect(input.vat!.rate, '0.2000');
-    expect(input.vat!.amount, isNull);
-  });
-
-  testWidgets('kaydın tutarını aşan KDV alanın yanında reddedilir', (
-    tester,
-  ) async {
-    final transactions = _FakeTransactions();
-    await _pumpForm(tester, hasBusiness: true, transactions: transactions);
-
-    await _selectSource(tester, 'Dükkân kasası');
-    await _selectCategory(tester, 'Market');
-    await tester.enterText(find.byType(TextFormField).first, '120');
-    await _openTaxSection(tester);
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'KDV tutarı'),
-      '200',
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Kaydet'));
-    await tester.pumpAndSettle();
-
-    expect(transactions.created, isEmpty);
-    expect(find.text('KDV, kaydın tutarından büyük olamaz.'), findsOneWidget);
-  });
-
-  testWidgets('indirilebilirlik yalnız işletme kapsamlı giderde görünür', (
-    tester,
-  ) async {
-    await _pumpForm(tester, hasBusiness: true);
-
-    await _selectSource(tester, 'Dükkân kasası');
-    await _selectCategory(tester, 'Market');
-    await _openTaxSection(tester);
-    expect(find.text('Vergiden düşülebilir'), findsOneWidget);
-
-    // Aynı kayıt şahsi işaretlenince soru kayboluyor.
-    await tester.tap(find.text('Şahsi'));
-    await tester.pumpAndSettle();
+    expect(find.textContaining('KDV'), findsNothing);
     expect(find.text('Vergiden düşülebilir'), findsNothing);
   });
 
-  testWidgets('gelir formunda indirilebilirlik sorulmaz', (tester) async {
+  testWidgets('gelir formunda da vergi bölümü yok', (tester) async {
     await _pumpForm(tester, hasBusiness: true, isExpense: false);
 
-    await tester.tap(find.byType(DropdownButtonFormField<String>).first);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Dükkân kasası').last);
-    await tester.pumpAndSettle();
-    await _openTaxSection(tester);
-
-    expect(find.text('KDV oranı'), findsOneWidget);
-    expect(find.text('Vergiden düşülebilir'), findsNothing);
+    expect(find.text('Vergi bilgisi (isteğe bağlı)'), findsNothing);
+    expect(find.textContaining('KDV'), findsNothing);
   });
 
-  testWidgets('şahsi kayıtta indirilebilirlik istekte hiç gitmez', (
+  testWidgets('hesaptan gider isteğinde KDV ve indirilebilirlik gitmez', (
     tester,
   ) async {
     final transactions = _FakeTransactions();
@@ -130,42 +42,30 @@ void main() {
 
     await _selectSource(tester, 'Dükkân kasası');
     await _selectCategory(tester, 'Market');
-    await _openTaxSection(tester);
-    await tester.tap(find.text('Vergiden düşülebilir'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Şahsi'));
-    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).first, '120');
     await tester.tap(find.text('Kaydet'));
     await tester.pumpAndSettle();
 
-    expect(transactions.created.single.isTaxDeductible, isNull);
+    expect(_taxKeys(transactions.created.single.toJson()), isEmpty);
   });
 
-  testWidgets('kart harcaması da KDV taşır', (tester) async {
+  testWidgets('kart harcaması isteğinde de gitmez', (tester) async {
     final finance = _FakeFinance();
     await _pumpForm(tester, hasBusiness: true, finance: finance);
 
     await _selectSource(tester, 'İşletme kartı');
     await _selectCategory(tester, 'Market');
     await tester.enterText(find.byType(TextFormField).first, '120');
-    await _openTaxSection(tester);
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'KDV tutarı'),
-      '20',
-    );
-    await tester.pumpAndSettle();
     await tester.tap(find.text('Kaydet'));
     await tester.pumpAndSettle();
 
-    expect(finance.charges.single.$2['vatAmount'], '20.0000');
+    expect(_taxKeys(finance.charges.single.$2), isEmpty);
   });
 }
 
-Future<void> _openTaxSection(WidgetTester tester) async {
-  await tester.tap(find.text('Vergi bilgisi (isteğe bağlı)'));
-  await tester.pumpAndSettle();
-}
+Iterable<String> _taxKeys(Map<String, Object?> body) => body.keys.where(
+  (key) => key.startsWith('vat') || key.contains('TaxDeductible'),
+);
 
 Future<void> _selectSource(WidgetTester tester, String name) async {
   await tester.tap(find.byType(DropdownButtonFormField<PaymentSource>));
@@ -324,7 +224,6 @@ class _FakeFinance implements FinanceRepositoryContract {
         id: 'cat-1',
         name: 'Market',
         defaultScope: TransactionScope.business,
-        defaultIsTaxDeductible: true,
       ),
     ],
   );

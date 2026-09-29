@@ -127,101 +127,21 @@ public sealed class ReceiptDraftValidatorTests
         Assert.Contains(draft.Warnings, warning => warning.Code == ReceiptWarnings.DateUnparsed);
     }
 
-    // ---- KDV: taşınır, hesaplanmaz (ADR 0016) --------------------------------
+    // ---- KDV: yalnız toplamı denetler (ADR 0018) -----------------------------
 
     /// <summary>
-    /// Belgede yazan KDV forma taşınır. 27 Ağustos 2026 kabul turunda fişte
-    /// "KDV %20 46,67" yazarken form "KDV girilmedi" ile açılıyordu — okunabilen
-    /// bir bilgiyi kullanıcıya yeniden yazdırmak, muhasebeci paketini elle
-    /// doldurtmak demekti.
+    /// Belgede yazan KDV taslağa taşınmaz: ürün KDV tutmaz. Okunan tutar yalnız
+    /// ara toplam + KDV = toplam denetiminde kullanılır; tek başına ne bir uyarı
+    /// üretir ne de tutarı değiştirir.
     /// </summary>
     [Fact]
-    public void Validate_ReceiptPrintsRateAndAmount_CarriesBothOntoTheDraft()
+    public void Validate_ReceiptPrintsVat_LeavesTheTotalAloneAndWarnsNothing()
     {
-        var draft = Validate(Reading(total: "280,00", tax: "46,67", taxRate: "20"));
+        var draft = Validate(Reading(total: "280,00", tax: "46,67"));
 
-        Assert.Equal(ReceiptFieldState.Read, draft.VatState);
-        Assert.Equal(0.20m, draft.Vat!.Rate);
-        Assert.Equal(46.67m, draft.Vat.Amount);
-    }
-
-    /// <summary>
-    /// Kapının kendisi: eksik alan diğerinden <b>üretilmez</b>. Üretilseydi
-    /// uygulama KDV hesaplayan bir şey olurdu ve ADR 0016'nın reddettiği tam
-    /// olarak budur.
-    /// </summary>
-    [Fact]
-    public void Validate_ReceiptPrintsOnlyTheAmount_DoesNotDeriveTheRate()
-    {
-        // 280 brütün içindeki 46,67 tam olarak %20'dir; hesaplamak kolay
-        // olduğu için değil, doğru olmadığı için yapılmıyor.
-        var draft = Validate(Reading(total: "280,00", tax: "46,67", taxRate: null));
-
-        Assert.Equal(ReceiptFieldState.Read, draft.VatState);
-        Assert.Null(draft.Vat!.Rate);
-        Assert.Equal(46.67m, draft.Vat.Amount);
-    }
-
-    [Fact]
-    public void Validate_ReceiptPrintsOnlyTheRate_DoesNotDeriveTheAmount()
-    {
-        var draft = Validate(Reading(total: "280,00", tax: null, taxRate: "20"));
-
-        Assert.Equal(0.20m, draft.Vat!.Rate);
-        Assert.Null(draft.Vat.Amount);
-    }
-
-    /// <summary>
-    /// Market fişinde %1, %10 ve %20 bir arada olabilir; model tek bir oran
-    /// bulamadığında oranı boş bırakır ama toplam KDV tutarı yine taşınır.
-    /// </summary>
-    [Fact]
-    public void Validate_ReceiptWithoutVatAtAll_CarriesNothingInsteadOfZero()
-    {
-        var draft = Validate(Reading(total: "280,00", tax: null, taxRate: null));
-
-        Assert.Null(draft.Vat);
-        Assert.Equal(ReceiptFieldState.Missing, draft.VatState);
-    }
-
-    /// <summary>
-    /// Brütün içindeki KDV brütten büyük olamaz: okunan sayı KDV değildir.
-    /// Düzeltilmez — boş bırakılır ve uyarılır.
-    /// </summary>
-    [Fact]
-    public void Validate_VatLargerThanTheTotal_IsRefusedRatherThanRepaired()
-    {
-        var draft = Validate(Reading(total: "280,00", tax: "460,00", taxRate: "20"));
-
-        Assert.Null(draft.Vat!.Amount);
-        Assert.Equal(0.20m, draft.Vat.Rate);
-        Assert.Contains(draft.Warnings, w => w.Code == ReceiptWarnings.VatOutOfRange);
-    }
-
-    [Theory]
-    [InlineData("100")]
-    [InlineData("120")]
-    [InlineData("-5")]
-    [InlineData("yirmi")]
-    public void Validate_ImplausibleVatRate_IsDroppedInsteadOfCarried(string rate)
-    {
-        var draft = Validate(Reading(total: "280,00", tax: null, taxRate: rate));
-
-        Assert.Null(draft.Vat);
-    }
-
-    /// <summary>
-    /// Sıfır KDV meşru bir orandır (istisna kapsamındaki satış) ve boş
-    /// bırakılmakla aynı şey değildir.
-    /// </summary>
-    [Fact]
-    public void Validate_ZeroVatRate_IsAReadingNotAnAbsence()
-    {
-        var draft = Validate(Reading(total: "280,00", tax: "0", taxRate: "0"));
-
-        Assert.Equal(ReceiptFieldState.Read, draft.VatState);
-        Assert.Equal(0m, draft.Vat!.Rate);
-        Assert.Equal(0m, draft.Vat.Amount);
+        Assert.Equal(280.00m, draft.TotalAmount);
+        Assert.Equal(ReceiptFieldState.Read, draft.TotalAmountState);
+        Assert.Empty(draft.Warnings);
     }
 
     // ---- Pass 4: consistency -------------------------------------------------
@@ -439,7 +359,7 @@ public sealed class ReceiptDraftValidatorTests
         var draft = ReceiptDraftValidator.Validate(
             new RawReceiptReading(
                 ReceiptDocumentKind.PurchaseReceipt,
-                null, null, null, null, null, null, null, null, null, null, null, null, [], NoUsage),
+                null, null, null, null, null, null, null, null, null, null, null, [], NoUsage),
             Categories,
             Today);
 
@@ -540,7 +460,6 @@ public sealed class ReceiptDraftValidatorTests
         string? date = "17.08.2026",
         string? subtotal = null,
         string? tax = null,
-        string? taxRate = null,
         string? total = "100,00",
         string? fee = null,
         string? currency = "TRY",
@@ -550,6 +469,6 @@ public sealed class ReceiptDraftValidatorTests
         string? installments = null) =>
         new(
           ReceiptDocumentKind.PurchaseReceipt,
-          merchant, date, dueDate, subtotal, tax, taxRate, total, fee, installments,
+          merchant, date, dueDate, subtotal, tax, total, fee, installments,
           currency, paymentHint, category, [], NoUsage);
 }

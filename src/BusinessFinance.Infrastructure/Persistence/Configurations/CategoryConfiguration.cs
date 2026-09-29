@@ -13,14 +13,10 @@ internal sealed class CategoryConfiguration : IEntityTypeConfiguration<Category>
         {
             table.HasCheckConstraint("CK_Categories_Type", "[Type] IN (1, 2)");
             table.HasCheckConstraint(
-                "CK_Categories_IsTaxDeductible",
-                "[DefaultIsTaxDeductible] IS NULL OR [Type] = 2");
-            table.HasCheckConstraint(
                 "CK_Categories_DefaultScope",
                 "[DefaultScope] IS NULL OR [DefaultScope] IN (1, 2)");
         });
 
-        builder.Property(category => category.DefaultIsTaxDeductible);
         builder.HasKey(category => category.Id);
         builder.HasAlternateKey(category => new { category.UserId, category.Id });
 

@@ -1,19 +1,16 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:business_finance_mobile/core/network/api_client.dart';
 import 'package:business_finance_mobile/core/network/api_exception.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
 import 'package:business_finance_mobile/core/widgets/app_state_views.dart';
 import 'package:business_finance_mobile/features/planning/presentation/recurring_prefill.dart';
 import 'package:business_finance_mobile/features/taxes/data/tax_models.dart';
 import 'package:business_finance_mobile/features/taxes/data/tax_repository.dart';
-import 'package:business_finance_mobile/features/taxes/presentation/accountant_package_page.dart';
 import 'package:business_finance_mobile/features/taxes/presentation/tax_calendar_page.dart';
 import 'package:business_finance_mobile/features/taxes/presentation/tax_controller.dart';
 
-/// Aşama 05 Grup 7: vergi takvimi ve muhasebeci paketi ekranları.
+/// Aşama 05 Grup 7: vergi takvimi ekranı. Muhasebeci paketi Aşama 06.3
+/// Grup 2'de kalktı (ADR 0018).
 void main() {
   group('vergi takvimi', () {
     testWidgets('mevzuat takibi yapılmadığı ekranda yazılı', (tester) async {
@@ -85,63 +82,6 @@ void main() {
       expect(prefill.frequency, 'quarterly');
     });
   });
-
-  group('muhasebeci paketi', () {
-    testWidgets('toplamlar ve içerik sunucudan geldiği gibi gösterilir', (
-      tester,
-    ) async {
-      await _pumpPackage(tester, _FakeTaxRepository());
-
-      expect(find.text('Temmuz 2026'), findsOneWidget);
-      expect(find.text('12 kayıt'), findsOneWidget);
-      expect(find.text('3 belge'), findsOneWidget);
-      expect(find.text('2 kayıtta KDV yazılmamış'), findsOneWidget);
-      expect(
-        find.text('1 giderde indirilebilirlik cevaplanmamış'),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('şahsi kaydın pakete girmediği ekranda yazılı', (tester) async {
-      await _pumpPackage(tester, _FakeTaxRepository());
-
-      expect(find.textContaining('şahsi hiçbir kayıt girmez'), findsOneWidget);
-    });
-
-    testWidgets('paylaş dosyayı indirir ve adını dönemden kurar', (
-      tester,
-    ) async {
-      final shared = <String>[];
-      await _pumpPackage(
-        tester,
-        _FakeTaxRepository(),
-        share: (bytes, name) async => shared.add(name),
-      );
-
-      await tester.tap(find.text('Paketi paylaş'));
-      await tester.pumpAndSettle();
-
-      expect(shared.single, 'muhasebeci-paketi-2026-07.zip');
-    });
-
-    testWidgets('boş ayda paket boş olduğunu söyler', (tester) async {
-      await _pumpPackage(tester, _FakeTaxRepository(emptyMonth: true));
-
-      expect(
-        find.textContaining('Bu ayda işletme kapsamlı kayıt yok'),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('sığmayan belge sessizce düşmez', (tester) async {
-      await _pumpPackage(tester, _FakeTaxRepository(omittedAttachment: true));
-
-      expect(
-        find.textContaining('boyut sınırını aştığı için dosyaya konmadı'),
-        findsOneWidget,
-      );
-    });
-  });
 }
 
 Future<void> _pumpCalendar(
@@ -164,39 +104,10 @@ Future<void> _pumpCalendar(
   await tester.pumpAndSettle();
 }
 
-Future<void> _pumpPackage(
-  WidgetTester tester,
-  TaxRepositoryContract repository, {
-  Future<void> Function(Uint8List, String)? share,
-}) async {
-  tester.view.physicalSize = const Size(500, 2000);
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.reset);
-  await tester.pumpWidget(
-    MaterialApp(
-      theme: AppTheme.light(),
-      home: AccountantPackagePage(
-        controller: AccountantPackageController(
-          repository,
-          today: DateTime(2026, 8, 26),
-        ),
-        share: share,
-      ),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
-
 class _FakeTaxRepository implements TaxRepositoryContract {
-  _FakeTaxRepository({
-    this.unauthorized = false,
-    this.emptyMonth = false,
-    this.omittedAttachment = false,
-  });
+  _FakeTaxRepository({this.unauthorized = false});
 
   final bool unauthorized;
-  final bool emptyMonth;
-  final bool omittedAttachment;
 
   @override
   Future<List<TaxCalendarSuggestion>> loadSuggestions() async {
@@ -226,35 +137,4 @@ class _FakeTaxRepository implements TaxRepositoryContract {
       ),
     ];
   }
-
-  @override
-  Future<AccountantPackage> loadPackage(int year, int month) async =>
-      AccountantPackage.fromJson({
-        'year': year,
-        'month': month,
-        'currency': 'TRY',
-        'totalIncome': emptyMonth ? '0.0000' : '9400.0000',
-        'totalExpense': emptyMonth ? '0.0000' : '3450.5000',
-        'net': emptyMonth ? '0.0000' : '5949.5000',
-        'vatOnIncome': '180.0000',
-        'vatOnExpense': '20.0000',
-        'linesWithoutVat': 2,
-        'nonDeductibleExpense': '500.0000',
-        'nonDeductibleCount': 1,
-        'deductibilityUnansweredCount': 1,
-        'lines': emptyMonth
-            ? <Map<String, dynamic>>[]
-            : List.generate(12, (index) => <String, dynamic>{'id': '$index'}),
-        'attachments': emptyMonth
-            ? <Map<String, dynamic>>[]
-            : [
-                {'isIncluded': true},
-                {'isIncluded': true},
-                {'isIncluded': !omittedAttachment},
-              ],
-      });
-
-  @override
-  Future<ApiBinaryResponse> downloadPackage(int year, int month) async =>
-      const ApiBinaryResponse(bytes: [1, 2, 3], contentType: 'application/zip');
 }

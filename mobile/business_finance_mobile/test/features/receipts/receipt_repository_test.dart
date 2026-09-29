@@ -291,8 +291,6 @@ Map<String, dynamic> _responseJson() => <String, dynamic>{
   'installmentCount': null,
   'totalAmount': '847.5000',
   'totalAmountState': 'suspect',
-  'vat': {'rate': '0.2000', 'amount': '141.2500'},
-  'vatState': 'read',
   'currencyCode': 'TRY',
   'paymentHint': 'card',
   'categoryId': '11111111-1111-1111-1111-111111111111',

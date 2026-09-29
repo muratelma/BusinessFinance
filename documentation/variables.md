@@ -176,6 +176,3 @@ getirmedi** ve bu bilinçli bir sonuçtur (ADR 0016).
   **şablondur**: tutar taşımaz, kurulduğu an kullanıcının verisi olur ve
   uygulama onu sonradan kendiliğinden güncellemez. Yapılandırma kaynağı değil,
   formun ön dolumudur.
-- Muhasebeci paketi dosyası kullanıcının **kendi cihazından** paylaşılır;
-  sunucu üçüncü kişiye hiçbir şey göndermez ve paket için bir adres, anahtar ya
-  da sağlayıcı ayarı yoktur.

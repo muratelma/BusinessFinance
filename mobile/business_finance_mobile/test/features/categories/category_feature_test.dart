@@ -30,13 +30,12 @@ void main() {
           });
         } else {
           expect(request.url.path, '/api/v1/categories/category-id');
-          // `PUT` yetkili: iki varsayılan da olduğu gibi geri gidiyor,
-          // yoksa adı değiştirilen kategori etiketlerini kaybederdi.
+          // `PUT` yetkili: varsayılan kapsam olduğu gibi geri gidiyor,
+          // yoksa adı değiştirilen kategori etiketini kaybederdi.
           expect(jsonDecode(request.body), {
             'name': 'Market',
             'isActive': false,
             'defaultScope': 'personal',
-            'defaultIsTaxDeductible': true,
           });
         }
         return http.Response(jsonEncode(_categoryJson), 200);
@@ -53,7 +52,6 @@ void main() {
       name: 'Market',
       isActive: false,
       defaultScope: TransactionScope.personal,
-      defaultIsTaxDeductible: true,
     );
     expect(requestCount, 2);
   });
@@ -154,6 +152,5 @@ class _FakeCategoryRepository implements CategoryRepository {
     required String name,
     required bool isActive,
     TransactionScope? defaultScope,
-    bool? defaultIsTaxDeductible,
   }) => throw UnimplementedError();
 }

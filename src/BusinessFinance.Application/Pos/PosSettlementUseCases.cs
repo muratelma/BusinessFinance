@@ -120,8 +120,7 @@ public sealed class CreatePosSettlementUseCase(
                 command.ExpectedTransferDate,
                 timeProvider.GetUtcNow().ToUniversalTime(),
                 commissionCategory,
-                command.Description,
-                command.Vat?.ToDomain());
+                command.Description);
             await repository.AddAsync(settlement, cancellationToken);
 
             return ApplicationResult<PosSettlementDto>.Success(
@@ -362,7 +361,6 @@ internal static class PosSettlementMapper
             settlement.Description,
             settlement.IsInTransit,
             settlement.IsCancelled,
-            settlement.IsInTransit && settlement.ExpectedTransferDate < asOfDate,
-            VatDto.From(settlement.Vat));
+            settlement.IsInTransit && settlement.ExpectedTransferDate < asOfDate);
     }
 }

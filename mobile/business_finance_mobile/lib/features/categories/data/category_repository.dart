@@ -12,14 +12,12 @@ abstract interface class CategoryRepository {
   });
 
   /// Sunucudaki `PUT` **yetkilidir**: gönderilmeyen alan "dokunma" değil
-  /// "kaldır" demektir. Bu yüzden hem kapsam hem indirilebilirlik varsayılanı
-  /// çağırandan gelir; ikincisi bu ekranda düzenlenmiyor, yalnız taşınıyor.
+  /// "kaldır" demektir. Bu yüzden kapsam çağırandan gelir.
   Future<BudgetCategory> update({
     required String id,
     required String name,
     required bool isActive,
     TransactionScope? defaultScope,
-    bool? defaultIsTaxDeductible,
   });
 }
 
@@ -64,7 +62,6 @@ class ApiCategoryRepository implements CategoryRepository {
     required String name,
     required bool isActive,
     TransactionScope? defaultScope,
-    bool? defaultIsTaxDeductible,
   }) async {
     final response = await _client.put(
       '/api/v1/categories/$id',
@@ -72,7 +69,6 @@ class ApiCategoryRepository implements CategoryRepository {
         'name': name.trim(),
         'isActive': isActive,
         'defaultScope': defaultScope?.apiValue,
-        'defaultIsTaxDeductible': defaultIsTaxDeductible,
       },
     );
     return BudgetCategory.fromJson(response.requireObject());

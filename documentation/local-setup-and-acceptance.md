@@ -226,7 +226,7 @@ yalnız hesap/kart/karşı taraf kurmak için `-SkipFlows` kullanılır.
 | Doğrulama: posta servisi kapalıyken | Manuel | Kod gönderilemediğinde alanın altında Türkçe cümle: "Kod gönderilemedi: e-posta servisi yapılandırılmamış." Sunucunun İngilizce metni görünmez | Pixel 8, 31 Ağustos 2026 |
 | Bütçe ekranı: kapsam ve aşım | Manuel | Her kartta kategori **ve** kapsam etiketi; aşan bütçe kırmızı ve "Limit ₺X aşıldı"; aşmayan bütçede kalan tutar | Pixel 8, 31 Ağustos 2026 |
 | Kart detayı: yazma sonucu | Manuel+otomatik | Reddedilen ödeme **kart detayında** söyleniyor; başarı da aynı yerde. Turda bulunan kusurun düzeltmesi | Pixel 8 + `finance_feature_test.dart`, 31 Ağustos 2026 |
-| Fişten yükümlülük: KDV | Manuel+otomatik | Faturadan okunan KDV oranı ve tutarı yükümlülük formunda **açık** bölümde geliyor ve kayda giriyor. Turda bulunan kusurun düzeltmesi | Pixel 8 + `obligation_form_page_test.dart`, 31 Ağustos 2026 |
+| Fişten yükümlülük: KDV | — | Aşama 06.3 Grup 2'de geçersiz oldu: KDV alanları kalktı (ADR 0018), formda KDV bölümü yok | 31 Ağustos 2026'da geçti; 29 Eylül 2026'dan beri uygulanmaz |
 | POS ve kasa | Manuel | Yoldaki para ayrı toplanıyor; tahsilat kartlarında komisyon, net ve durum rozeti; gün sonu sayımı "yazmak hiçbir bakiyeyi değiştirmez" diyor | Pixel 8, 31 Ağustos 2026 |
 | Hatırlatma: izin, kurulum ve iptal | Manuel | Anahtar kapalıyken izin sorulmaz; açılınca Android izin diyaloğu çıkar; reddedilince uygulama sessizce çalışır; yaklaşan bir yükümlülük için hatırlatma kurulur ve **ödendiğinde düşer**; bildirim gövdesinde tutar ve kişi adı yoktur | Pixel 8 gözlemi (bekliyor) |
 

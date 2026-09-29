@@ -70,13 +70,7 @@ public sealed class CreateObligationUseCase(
                 command.DueDate,
                 timeProvider.GetUtcNow().ToUniversalTime(),
                 counterparty,
-                command.Description,
-                command.Vat?.ToDomain(),
-                TaxDeductibilityResolution.Resolve(
-                    command.IsTaxDeductible,
-                    category.DefaultIsTaxDeductible,
-                    scope,
-                    command.Direction == DebtDirection.Payable));
+                command.Description);
             await repository.AddAsync(obligation, cancellationToken);
             return ApplicationResult<ObligationDto>.Success(ToDto(obligation));
         }

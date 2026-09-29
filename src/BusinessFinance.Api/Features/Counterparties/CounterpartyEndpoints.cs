@@ -216,14 +216,6 @@ public static class CounterpartyEndpoints
             dueDate = parsedDueDate;
         }
 
-        if (!VatContractMapper.TryParse(request.VatRate, request.VatAmount, out var vat))
-        {
-            return ApiProblemResults.Validation(
-                httpContext,
-                "Vat rate and amount must have at most four decimal places.",
-                "counterparties.invalid_vat");
-        }
-
         var result = await useCase.ExecuteAsync(
             new CreateCounterpartyChargeCommand(
                 counterpartyId,
@@ -234,9 +226,7 @@ public static class CounterpartyEndpoints
                 scope,
                 chargeDate,
                 request.Description,
-                dueDate,
-                vat,
-                request.IsTaxDeductible),
+                dueDate),
             cancellationToken);
         if (!result.IsSuccess)
         {
@@ -442,9 +432,7 @@ public static class CounterpartyEndpoints
         FinanceContract.Date(charge.ChargeDate),
         charge.Description,
         charge.IsCancelled,
-        charge.DueDate is DateOnly dueDate ? FinanceContract.Date(dueDate) : null,
-        VatContractMapper.ToContract(charge.Vat),
-        charge.IsTaxDeductible);
+        charge.DueDate is DateOnly dueDate ? FinanceContract.Date(dueDate) : null);
 
     private static CounterpartyPaymentResponse ToPaymentResponse(CounterpartyPaymentDto payment) => new(
         payment.Id,

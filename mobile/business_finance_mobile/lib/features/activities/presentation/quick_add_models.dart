@@ -1,4 +1,3 @@
-import '../../../core/models/tax_fields.dart';
 import 'dart:typed_data';
 
 import '../../../core/models/transaction_scope.dart';
@@ -190,7 +189,6 @@ class QuickAddPrefill {
     this.categoryNameHint,
     this.description,
     this.sourceHint,
-    this.vat,
     this.warnings = const [],
     this.attachment,
     this.keepAttachmentByDefault = true,
@@ -222,13 +220,6 @@ class QuickAddPrefill {
   /// sıralar ve ekranda bir not olarak görünür.
   final PaymentSourceHint? sourceHint;
 
-  /// Belgede yazan KDV (ADR 0016: taşınır, hesaplanmaz).
-  ///
-  /// Oran ve tutar bağımsızdır ve biri boş gelebilir; form eksik olanı
-  /// **hesaplamaz**, boş bırakır. Vergi bölümünü görmeyen kullanıcıda hiç
-  /// kullanılmaz — o kişinin formunda KDV alanı yoktur ve kayda da girmez.
-  final VatFields? vat;
-
   /// Sunucunun ürettiği uyarılar; metin istemcide yeniden yazılmaz.
   final List<String> warnings;
 
@@ -257,17 +248,12 @@ class QuickAddChoice {
     required this.id,
     required this.name,
     this.defaultScope,
-    this.defaultIsTaxDeductible,
   });
   final String id;
   final String name;
 
   /// Kategorinin ya da hesabın varsayılan kapsamı; zincirin son halkası.
   final TransactionScope? defaultScope;
-
-  /// Kategorinin indirilebilirlik varsayılanı; boş olması "bu kategori cevabı
-  /// belirlemiyor" demektir (ADR 0016).
-  final bool? defaultIsTaxDeductible;
 }
 
 class ExpenseFormOptions {

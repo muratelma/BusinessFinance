@@ -72,8 +72,6 @@ class CategoriesViewModel extends ChangeNotifier {
           name: name,
           isActive: isActive,
           defaultScope: defaultScope,
-          // Bu ekranda düzenlenmiyor; yalnız olduğu gibi geri gönderiliyor.
-          defaultIsTaxDeductible: category.defaultIsTaxDeductible,
         );
         successMessage = 'Kategori güncellendi.';
       }

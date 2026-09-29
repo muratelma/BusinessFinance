@@ -1,5 +1,4 @@
 using BusinessFinance.Application.Obligations;
-using BusinessFinance.Application.Taxes;
 using BusinessFinance.Domain;
 using BusinessFinance.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
@@ -53,11 +52,7 @@ internal sealed class EfObligationRepository(BusinessFinanceDbContext dbContext)
                     obligation.DueDate < asOfDate,
                 obligation.Settlement == null ? null : obligation.Settlement.Id,
                 obligation.Settlement == null ? null : obligation.Settlement.AccountId,
-                obligation.Settlement == null ? null : obligation.Settlement.SettlementDate,
-                obligation.Vat == null
-                    ? null
-                    : new VatDto(obligation.Vat.Rate, obligation.Vat.Amount),
-                obligation.IsTaxDeductible))
+                obligation.Settlement == null ? null : obligation.Settlement.SettlementDate))
             .ToArrayAsync(cancellationToken);
 
     public Task<Obligation?> FindOwnedByIdAsync(
