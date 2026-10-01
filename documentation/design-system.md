@@ -853,7 +853,8 @@ duruyor ve transferin gider sayılmadığını (ADR 0014) yine o taşır.
 
 ## Vergi takibi (Claude Design teslimi, 30 Eylül 2026, Aşama 06.3 Grup 3)
 
-Kaynak `design_handoff_vergiler/` (Git dışı; ölçü `screens-v5/*.jsx`). Teslimin
+Kaynak `design/vergiler-handoff/` (ölçü `screens-v5/*.jsx`, kıyaslama referansı
+`screenshots/`). Teslimin
 örnek verisi tasarımı göstermek içindir; dönem etiketi ("KDV · Ağustos") gibi
 anlamlar uygulanmadı, satırda vergi adı ve tarih yaprağı durur.
 
@@ -884,3 +885,47 @@ anlamlar uygulanmadı, satırda vergi adı ve tarih yaprağı durur.
 - **Özet**: Yaklaşanlar kartının başında gecikenler satırı (gider zemini, sayı,
   en eski vade, sunucunun gecikmiş toplamı; ok yok, kart Planlananlar'ı açar).
   Üstteki gecikme şeridi tutarsız kalır; ok ile tarih arasında 8 dp.
+
+### Vergi panellerinin kabuğu (1 Ekim 2026, emülatör turu)
+
+- **`TaxSheetBody`** paneli ekranın tamamına yaymaz: tutamaç ve alt güvenli
+  alan dahil panel, durum çubuğunun altındaki alanın en çok %91,7'sini kaplar
+  (tasarımdaki 818/892); arkada sayfanın başlığı görünür kalır. İçerik
+  sığmıyorsa gövde kayar. Form panellerinde gönderim butonu `footer` olarak
+  **kaydırmanın dışında** durur ve gövde kayıyorsa üstünde 1 dp çizgi çıkar.
+- **`AppAdaptiveSheet`** panelleri `useSafeArea` ile açar: uzun panel durum
+  çubuğunun altına girmez, tutamaç her zaman tutulabilir (bütün paneller).
+- **`TaxAmountInput`** simge ve tutarı tek grup olarak çizginin ortasına
+  koyar; alan yalnız yazılan kadar yer kaplar (temanın alan dolgusu burada
+  kapalıdır), etiketle tutar arası 4 + 4 dp.
+- **İki panel üst üste açılmaz**: bekleyen kalemin "Tutarı gir"i panelin
+  yerine açılır ve kapanınca kalem paneli yeni tutarla geri gelir; ikincisi
+  birincisinin kapanış animasyonu ve klavye indikten sonra açılır.
+- **`AppDateField.iconLeading`**: takvim simgesi değerin solunda (tasarımdaki
+  panel alanları); varsayılan sağdadır, diğer formlar öyle çizilmiştir.
+- **`AppConfirmSubject`**: karar tek bir kayıt hakkındaysa kayıt kartı (yukarıda
+  "Onay penceresi").
+- Ödenenler ana sayfada son 5 ödemeyi, `Tümü` hepsini ay başlıkları altında
+  gösterir; başlık toplam yazmaz.
+
+## POS'larım ve POS'tan dolan tahsilat formu (1 Ekim 2026, Aşama 06.3 Grup 4)
+
+Tasarım teslimi yok; mevcut dille kuruldu. Kasa sekmesi yeniden tasarlanınca
+(Grup 6) kapı "Kartla gelecek" bölümüne taşınır.
+
+- **Kapı**: Kasa'daki "POS tahsilatları" başlığında `POS'larım` ve `+ Ekle`.
+- **POS'larım**: kart içinde `AppRow` (POS kapsülü, ad, `hesap · %oran · süre`).
+  Sağda **yıldız**: dolu yıldız ana POS'tur, boş yıldıza dokunmak onu ana POS
+  yapar; pasif POS'ta yıldız yerine `Pasif` etiketi durur. Boş durum bir
+  sonraki adımı sunar ("POS ekle").
+- **POS formu** ayrı sayfadır: ad, paranın geçeceği hesap, satış kategorisi,
+  komisyon oranı (%), komisyon gider kategorisi (yalnız oran yazılınca), kaç
+  günde geçtiği, "İş günü say" anahtarı. İşletme setindeki "Satış geliri" ve
+  "Banka ve POS komisyonu" hazır seçili gelir. Düzenlemede altta `Pasife al` /
+  `Etkinleştir` ve kırmızı metinli `Sil`.
+- **Tahsilat formu**: POS seçiliyken yalnız POS, tutar ve gün sorulur; altında
+  `AppDetailBlock` ile komisyon, hesaba geçecek, beklenen gün ve hesap
+  (sunucunun önizlemesi; tutar yazılana kadar `—`). POS seçiminde **"Elle gir"
+  bir POS değildir**: `AppMenuGroupLabel` ile ayrı grup başlığının ("POS
+  seçmeden") altında ve kalem simgesiyle durur.
+- **Kelime**: arayüzde "tanım" geçmez; "POS", "POS ekle", "Elle gir".

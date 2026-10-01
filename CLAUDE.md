@@ -131,7 +131,8 @@ ASP.NET Core API (composition root, ProblemDetails, JWT bearer, rate limit)
       │                 CreditCard/Charge/Payment, InstallmentPlan,
       │                 RecurringTransaction/Occurrence (+RecurringSourceType),
       │                 DebtAgreement/Installment, Counterparty +
-      │                 CounterpartyCharge/Payment, RefreshSession)
+      │                 CounterpartyCharge/Payment, Obligation, CashCount,
+      │                 PosSettlement, PosDefinition, RefreshSession)
       └── Infrastructure (EF Core SQL Server, ASP.NET Core Identity,
                           `BusinessFinanceDbContext`, Ef*Repository adapter'ları)
               │
@@ -232,12 +233,11 @@ gerekçesiyle bozulmaz.
   Pasif karşı tarafa yeni borçlandırma yazılamaz, tahsilat yazılabilir — aksi
   hâlde açık bakiye kapatılamazdı.
 
-- **Vergi bir nakit planıdır** (ADR 0018, kabul edildi; Aşama 06.3 Grup 2–3).
-  **KDV alanları, indirilebilirlik ve muhasebeci paketi kalkıyor.** Grup 2
-  uygulanana kadar kodda duruyorlar (`VatDetails` beş tanıyan kayıtta,
-  `TaxDeductibility`, `/api/v1/accountant-package`); **yeni kod bu alanlara
-  bağlanmaz, onları genişletmez.** Uygulama hiçbir vergi tutarını türetmez
-  (ADR 0016 §1 ve bu ilke yürürlükte).
+- **Vergi bir nakit planıdır** (ADR 0018, kabul edildi; Aşama 06.3 Grup 2–3,
+  ikisi de uygulandı). **KDV alanları, indirilebilirlik ve muhasebeci paketi
+  kalktı** (`VatDetails`, `TaxDeductibility`, `/api/v1/accountant-package`
+  kodda yok); geri eklenmez. Uygulama hiçbir vergi tutarını türetmez (ADR 0016
+  §1 ve bu ilke yürürlükte).
 
 - **Vergi ilkeleri** (ADR 0018 "İlkeler", bağlayıcı): vergi bir nakit
   çıkışıdır, ödendiği gün etkiler; ödenmemiş vergi hiçbir toplamı etkilemez;
@@ -248,9 +248,11 @@ gerekçesiyle bozulmaz.
   sonuç taşır; kimlik bir ada bağlanmaz. **Başlangıç tasarımı** (ADR 0018
   §T1–T7, değişebilir): planda vergi türü alanı, nullable tutar, "Ödedim"de
   tutar + gün + hesap/kart, toplu ödemenin bekleyenleri "kapatıldı" yapması,
-  kategoride "vergi" işareti. Bugünkü kod: plan tutarı zorunlu
-  (`[Amount] > 0`), gerçekleştirme yalnız tutarı değiştirebilir ve kaydı vade
-  gününe yazar.
+  kategoride "vergi" işareti. **Uygulandı (Aşama 06.3 Grup 3):** tekrarlayan
+  plan `TaxKind`, ayın günü ve "seçilen aylarda" ritmi taşır; vergi planında
+  tutar ve kaynak boş olabilir; kalem `Closed` durumunu ve kapatan ödemeyi
+  taşır; "Ödedim" kaydı **ödeme gününe** yazar. Ekranı `Vergi takibi`
+  (`lib/features/taxes/`); vergi planı Tekrarlayanlar'da görünmez.
 
 - **Gün sonu ilkeleri** (ADR 0019 "İlkeler", bağlayıcı; Aşama 06.3 Grup 4–7):
   gün sonu yeni bir kayıt türü değildir, var olan kayıtları (gelir, POS
@@ -262,6 +264,20 @@ gerekçesiyle bozulmaz.
   öneridir. **Başlangıç tasarımı** (ADR 0019 §T1–T7, değişebilir): Z'den
   okunacak alanlar, "zaten girilmiş" varsayılanları, POS tanımı alanları, yatış
   ve kesinti biçimi.
+
+- **POS bir kez eklenir, tahsilat ondan dolar** (ADR 0019 T4; Aşama 06.3
+  Grup 4, uygulandı). `PosDefinition` ad, banka hesabı, satış kategorisi,
+  varsayılan komisyon oranı, komisyon kategorisi (oran varsa zorunlu), geçiş
+  günü ve iş günü seçeneği taşır; **para hareketi üretmez**. Tahsilat isteği
+  `posDefinitionId` taşırsa boş alanlar ondan dolar, açıkça gönderilen alan
+  onu ezer. **Oran POS'ta saklanır, tahsilatta saklanmaz** (tahsilat tutarı
+  taşır, ADR 0009); POS'u düzenlemek yazılmış tahsilatı değiştirmez. İş günü
+  seçeneğiyle beklenen gün hafta sonuna düşmez. Komisyon, net ve beklenen gün
+  önizlemesi sunucudandır (`GET /api/v1/pos-definitions/{id}/preview`);
+  istemci hesaplamaz. Kullanıcı başına en çok bir **ana POS** (`IsDefault`)
+  vardır ve formda seçili gelir. Tahsilatı olan POS silinemez, pasife alınır.
+  **Arayüzde "tanım" kelimesi geçmez; "POS" denir** (kullanıcı kararı); kod
+  ve belgelerde `PosDefinition` adı kalır.
 
 - **Kapsam tek yerde türetilir** (`TransactionScopeResolution`): kullanıcının
   açık seçimi → hesabın/kartın etiketi → kategorinin varsayılanı. Üçü de boşsa
@@ -377,6 +393,12 @@ secret'ı uygulamaya konmaz.
   görünüm ve recurring source sözleşmeleri, örnek JSON, hata kodları
 - `documentation/design-system.md` — token'lar, pencere sınıfları, bileşen
   kataloğu, erişilebilirlik kuralları ve yeni ekran kontrol listesi
+- `design/` — Claude Design teslimleri (`claude-design-handoff/` Özet ve ortak
+  dil, `vergiler-handoff/` vergi ekranı) ve verilen brifler (`brifler/`).
+  Teslimdeki ekran görüntüleri kıyaslamanın referansıdır;
+  `test/screenshots/*_screenshot_test.dart` ekranları aynı çerçevede çizer
+  (`SCREENSHOT_DIR` verilince çalışır). Yeni ekranların tasarımı Kasa
+  bittikten sonra yapılır; o zamana kadar ekranlar mevcut dille kurulur
 - `documentation/adr/0008-two-tone-financial-roles.md` — finansal rol başına
   metin ve dolgu tonu ayrımı, nötr rolün maviye dönmesi
 - `documentation/adr/0011-receipt-reading-is-a-suggestion-layer.md` — fiş

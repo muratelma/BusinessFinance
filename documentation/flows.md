@@ -1023,7 +1023,7 @@ Claude Design teslimiyle (27 Eylül 2026, 06.2 Grup 1'in ilk adımı) menü
 | (kart) | Hesabım — baş harfler, e-posta, doğrulanmamışsa `E-posta doğrulanmadı` |
 | Para ve hesaplar | Hesaplar ve transferler · Kredi kartlarım · (kişisel profilde) Kasa · Borç ve alacaklar · Cari hesap |
 | Planlama | (işletme profilinde) Bütçeler · Yükümlülükler · Tasarruf hedefleri · Planlama ve raporlar |
-| Vergi | Vergi takvimi — yalnız işletmesi olana (muhasebeci paketi Aşama 06.3 Grup 2'de kalktı) |
+| Vergi | Vergi takibi — yalnız işletmesi olana (muhasebeci paketi Aşama 06.3 Grup 2'de, `Vergi takvimi` Grup 3'te kalktı) |
 | Ayarlar | Kategoriler · Hatırlatmalar · Veri ve yedek |
 
 Üçüncü sekmeden inen hedef (ADR 0015) kendi sorusunun grubuna girer: `Kasa`
@@ -1191,7 +1191,7 @@ kullanıcı ilk gün bildirimleri kapatırdı.
 Gövdede **tutar ve karşı taraf adı geçmez** — kilit ekranında görünen bir metin
 finansal bilgi taşımamalı. Ne olduğunu söyler, ne kadar olduğunu değil.
 
-Vergi takvimi kaleminin kendi kovası yok: kalem tekrarlayan bir plandır ve
+Vergi kaleminin kendi kovası yok: kalem tekrarlayan bir plandır ve
 planlanan görünüme öyle düşer. Ona ayrı bir kova açmak aynı kaydı iki yerden
 hatırlatırdı.
 
@@ -1412,12 +1412,11 @@ kapısı da kalktı.
 
 `Diğer` menüsünün `Vergi` grubunda, **yalnız işletmesi olan kullanıcıda**:
 
-- **Vergi takvimi**: hazır kalemleri listeler ve mevzuat takibi yapılmadığını
-  ekranda yazar. Kaleme dokunmak tekrarlayan plan formunu **önü dolu** açar;
-  ekranın kendi yazma yolu yoktur — olsaydı aynı plan iki ayrı biçimde
-  oluşabilirdi. Öneri tutar taşımaz; başlangıç günü önerilen günün bugünden
-  sonraki ilk düşüşüdür, çünkü geçmişe kurmak ilk gerçekleşmeyi daha kurulurken
-  gecikmiş yapardı. Vergi ekranı Aşama 06.3 Grup 3'te bunun yerini alır.
+- **Vergi takibi** (Aşama 06.3 Grup 3; `Vergi takvimi`nin yerini aldı):
+  bekleyenler, tanımlı vergiler ve ödenenler; akışı aşağıda "Vergi takibi"
+  bölümündedir. Hazır türler tutar taşımaz; başlangıç günü önerilen günün
+  bugünden sonraki ilk düşüşüdür, çünkü geçmişe kurmak ilk kalemi daha
+  kurulurken gecikmiş yapardı.
 
 ## Bütçenin istemcideki akışı (Aşama 06 Grup 7)
 

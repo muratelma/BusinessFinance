@@ -12,7 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'screenshot_harness.dart';
 
-/// Tasarımın `Vergiler` verisi (`design_handoff_vergiler/screenshots`): bugün
+/// Tasarımın `Vergiler` verisi (`design/vergiler-handoff/screenshots`): bugün
 /// 29 Eylül 2026; KDV 28 Eylül'de gecikti ve tutarı belli değil, Bağkur yarın
 /// ve tanımdan 8.950; Motorlu taşıtlar temmuzda kartla ödendi, eylülde bir
 /// toplu ödeme Bağkur'un iki kalemini kapattı.

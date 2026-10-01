@@ -57,7 +57,7 @@ v9'un taşıdığı iki koleksiyon aynen yerinde:
   indeks bunu geri yüklemede de doğrular.
 - `posDefinitions` — POS tanımı (Aşama 06.3 Grup 4, ADR 0019 T4): ad, banka
   hesabı, satış ve komisyon kategorisi, varsayılan oran, geçiş günü, iş günü
-  seçeneği, aktiflik. Para taşımaz. Oran burada **yazılır** çünkü tanımın kendi
+  seçeneği, aktiflik ve ana POS işareti (`isDefault`). Para taşımaz. Oran burada **yazılır** çünkü tanımın kendi
   alanıdır. Geri yüklemede tahsilatlardan önce kurulur ve kimliği yeniden
   eşlenir.
 - `posSettlements` — POS tahsilatı. `posDefinitionId` tahsilatın yazıldığı

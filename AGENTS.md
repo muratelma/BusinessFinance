@@ -164,9 +164,9 @@ ve ADR güncellemesiyle değişir.
 - **İşletme/şahsi ayrımı tek havuz üzerinde bir boyuttur** (ADR 0013). Havuzu
   ikiye bölme, mod seçimi ekleme, kapsamı kategoriyle temsil etme. Bakiye,
   kart borcu ve net varlık kapsam filtresinden etkilenmez.
-- **KDV alanları, indirilebilirlik ve muhasebeci paketi kaldırılıyor** (ADR 0018,
-  Aşama 06.3 Grup 2). Kaldırılana kadar yeni kodu bunlara bağlama, onları
-  genişletme.
+- **KDV alanları, indirilebilirlik ve muhasebeci paketi kaldırıldı** (ADR 0018,
+  Aşama 06.3 Grup 2). Geri ekleme; vergiye dair yeni alan yalnız nakit planı
+  içindir.
 - **Aynı satışı iki kez gelir yazma.** Gün sonu var olan kayıtları üretir ve o
   gün zaten girilmiş kayıtları hesaba katar; kartla tahsilat ve POS yatışı gelir
   yazmaz (ADR 0019, ADR 0014).

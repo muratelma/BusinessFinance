@@ -955,6 +955,14 @@ DELETE /api/v1/pos-settlements/{id}/transfer geçişin geri alınması (net tuta
                                             hesaptan geri çekilir; satış kalır)
 DELETE /api/v1/pos-settlements/{id}         iptal (satış, komisyon ve varsa
                                             geçiş birlikte düşer)
+
+GET  /api/v1/pos-definitions                kullanıcının POS'ları (ana POS önce)
+POST /api/v1/pos-definitions                POS ekler (para hareketi yazmaz)
+PUT  /api/v1/pos-definitions/{id}           düzenler; yazılmış tahsilat değişmez
+PATCH /api/v1/pos-definitions/{id}/active   pasife alır / etkinleştirir
+PUT  /api/v1/pos-definitions/{id}/default   ana POS'u seçer (kullanıcı başına bir)
+DELETE /api/v1/pos-definitions/{id}         siler; tahsilatı varsa 409
+GET  /api/v1/pos-definitions/{id}/preview   komisyon, net ve beklenen gün
 ```
 
 `today` cevabı ayrıca `changeSinceCount` taşır: günün sayımından bu yana kasa
