@@ -1473,3 +1473,34 @@ Taksitli fiş -> kart seçimi (/more/cards)
        edilemiyorsa kilit ikonu + gerekçe (plan, taksit, POS)
        iptal edilmişse "Kayıt duruyor; toplamları artık etkilemez."
 ```
+
+## Vergi takibi (Aşama 06.3 Grup 3, ADR 0018)
+
+```text
+Diğer › Vergi › Vergi takibi                       (işletme profilinde)
+  GET /api/v1/taxes?asOfDate&daysAhead=30  + hesaplar, kartlar, vergi kategorileri
+  tanım yok  -> "Ödediğiniz vergiyi tek tutarla yazın" + "Vergilerimi tanımla"
+  tanım var  -> Bekleyenler (gecikenler ve 30 gün) · Vergilerim · Ödenenler
+  alt şerit  -> "Vergi ödemesi ekle"
+     POST /api/v1/tax-payments {clientRequestId, tutar, gün, hesap|kart, kategori, not?, closes[]}
+     bekleyen varsa vadesi gelmiş ve geçmiş olanlar seçili gelir
+  satır "Ödedim" -> POST /recurring-transactions/{plan}/occurrences/realize
+     {scheduledDate, amount, paidOn, accountId|creditCardId}; gider ödeme gününe
+  satır       -> bekleyen ayrıntısı: [Tutarı gir] -> .../occurrences/amount  [Ödedim]
+     tutar paneli ayrıntının yerine açılır; kapanınca ayrıntı (yeni tutarla) geri gelir
+  Ödenenler: son 5 ödeme; hepsi "Tümü"nde (sayfa sayfa, ay başlıkları altında)
+  Ödenenler satırı -> ödeme ayrıntısı -> "Ödemeyi geri al"
+     POST /api/v1/tax-payments/{id}/undo; kalem(ler) yeniden bekler
+  Vergilerim › + Ekle -> tür listesi (tek seçim) -> tanım formu -> POST /recurring-transactions
+  Vergilerimi tanımla -> tür listesi (çoklu) -> POST /api/v1/taxes/plans (hepsi ya da hiçbiri)
+  Vergilerim satırı -> GET /api/v1/taxes/plans/{id}: gecikenler + sıradaki 3, geçmiş
+     Düzenle -> PUT /recurring-transactions/{id}; ritim değişirse bekleyenler yeniden kurulur
+     Duraklat / Sürdür -> PATCH .../active;  Sil -> DELETE (ödenmiş kalemi yoksa)
+```
+
+Her yazma `FinancialDataChanges`'e bildirilir: ödeme ve geri alma
+`taxPaymentChanged` (feed, özet, bütçe, hesap ya da kart, planlama; hesap
+yükselince Kasa da), tanım değişiklikleri `taxPlansChanged` (özet, planlama).
+Ekran feed ve planlama hedeflerini dinler: gider formundan vergi kategorisiyle
+girilen ödeme de Ödenenler'e düşer. Planlananlar'da ve Planlama'daki yaklaşan
+listede vergi kalemi "Ödedim →" ile bu ekrana gelir; orada gerçekleştirilmez.

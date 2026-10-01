@@ -1,11 +1,13 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_text.dart';
 import '../../../core/presentation/financial_data_changes.dart';
+import '../../../core/routing/app_locations.dart';
 import '../../../core/theme/app_finance_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_adaptive_sheet.dart';
@@ -16,32 +18,25 @@ import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_section_header.dart';
 import '../../../core/widgets/app_form_sheet.dart';
 import '../../../core/widgets/app_menu_group_label.dart';
+import '../../../core/widgets/app_month_chips.dart';
 import '../../../core/widgets/app_responsive_grid.dart';
 import '../../../core/widgets/app_row_action.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
+import '../../../core/widgets/app_unknown_amount.dart';
 import '../data/planning_models.dart';
 import '../data/planning_repository.dart';
 import 'planning_controller.dart';
-import 'recurring_prefill.dart';
 
 class PlanningPage extends StatefulWidget {
   const PlanningPage({
     required this.repository,
     this.financialDataChanges,
-    this.recurringPrefill,
     super.key,
   });
 
   final PlanningRepositoryContract repository;
   final FinancialDataChanges? financialDataChanges;
-
-  /// Vergi takviminden gelen hazır kalemin alanları.
-  ///
-  /// Kalem burada kuruluyor çünkü tekrarlayan planın formu **tek** yerde
-  /// duruyor; takvim ekranına ikinci bir form yazmak, aynı planın iki ayrı
-  /// biçimde oluşabilmesi olurdu.
-  final RecurringPrefill? recurringPrefill;
 
   @override
   State<PlanningPage> createState() => _PlanningPageState();
@@ -57,7 +52,7 @@ class _PlanningPageState extends State<PlanningPage> {
       widget.repository,
       financialDataChanges: widget.financialDataChanges,
     )..addListener(_changed);
-    controller.load().then((_) => _openPrefilledForm());
+    controller.load();
   }
 
   @override
@@ -69,17 +64,6 @@ class _PlanningPageState extends State<PlanningPage> {
 
   void _changed() {
     if (mounted) setState(() {});
-  }
-
-  /// Takvimden gelindiyse formu önü dolu açar.
-  ///
-  /// Kullanıcı yine de kaydet demek zorunda: hazır kalem bir **öneridir** ve
-  /// dokunmadan yazılan bir plan, kullanıcının kurmadığı bir plan olurdu.
-  Future<void> _openPrefilledForm() async {
-    final prefill = widget.recurringPrefill;
-    final snapshot = controller.snapshot;
-    if (prefill == null || snapshot == null || !mounted) return;
-    await _showRecurringForm(snapshot, prefill: prefill);
   }
 
   @override
@@ -281,10 +265,12 @@ class _PlanningPageState extends State<PlanningPage> {
                         '${_sourceLabel(item.sourceType)}'
                         '${item.description == null ? '' : '\n${item.description}'}',
                     badge: _upcomingBadge(snapshot, item, timing),
-                    trailing: AppMoneyText(
-                      amount: item.amount,
-                      currency: item.currency,
-                    ),
+                    trailing: item.amount == null
+                        ? const AppUnknownAmount()
+                        : AppMoneyText(
+                            amount: item.amount!,
+                            currency: item.currency,
+                          ),
                   ),
                 ),
               ),
@@ -307,6 +293,26 @@ class _PlanningPageState extends State<PlanningPage> {
     UpcomingPaymentItem item,
     String timing,
   ) {
+    // Vergi kalemi burada gerçekleştirilmez; vadesi gelmemişi de ödenebilir.
+    if (item.isTax) {
+      return Wrap(
+        spacing: AppSpacing.small,
+        runSpacing: AppSpacing.small,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          if (timing == 'overdue')
+            const AppStatusChip(
+              label: 'Gecikmiş',
+              icon: Icons.warning_amber_outlined,
+              tone: AppStatusTone.expense,
+            ),
+          AppRowAction(
+            label: 'Ödedim →',
+            onPressed: () => context.push(taxesLocation),
+          ),
+        ],
+      );
+    }
     final generated = snapshot.occurrences.any(
       (occurrence) => occurrence.id == item.sourceId && occurrence.canRealize,
     );
@@ -375,7 +381,7 @@ class _PlanningPageState extends State<PlanningPage> {
       title: 'Gerçekleştirilsin mi?',
       highlight:
           '${item.title}\n'
-          '${MoneyText.format(item.amount, item.currency)}',
+          '${MoneyText.format(item.amount!, item.currency)}',
       message:
           '${source == null ? 'Bu kayıt' : '$source hesabındaki bu kayıt'} '
           'gerçek harekete dönüşecek ve bakiyeye girecek.',
@@ -551,14 +557,10 @@ class _PlanningPageState extends State<PlanningPage> {
     if (selected != null) await controller.changeAsOfDate(selected);
   }
 
-  Future<void> _showRecurringForm(
-    PlanningSnapshot snapshot, {
-    RecurringPrefill? prefill,
-  }) async {
+  Future<void> _showRecurringForm(PlanningSnapshot snapshot) async {
     await AppFormSheet.show<bool>(
       context: context,
       builder: (context) => _RecurringForm(
-        prefill: prefill,
         snapshot: snapshot,
         onSubmit: controller.createRecurring,
       ),
@@ -853,14 +855,9 @@ class _EmptyNote extends StatelessWidget {
 }
 
 class _RecurringForm extends StatefulWidget {
-  const _RecurringForm({
-    required this.snapshot,
-    required this.onSubmit,
-    this.prefill,
-  });
+  const _RecurringForm({required this.snapshot, required this.onSubmit});
   final PlanningSnapshot snapshot;
   final Future<bool> Function(Map<String, Object?>) onSubmit;
-  final RecurringPrefill? prefill;
 
   @override
   State<_RecurringForm> createState() => _RecurringFormState();
@@ -879,29 +876,13 @@ class _RecurringFormState extends State<_RecurringForm> {
   String monthEndBehavior = 'clamp-to-last-day';
   DateTime startDate = DateTime.now();
 
+  /// "Seçilen aylarda" ritminin ayları (1–12); başlangıç ayıyla açılır.
+  late Set<int> months = {DateTime.now().month};
+  bool monthsInvalid = false;
+
   /// `yyyy-MM-dd` veya null. Bitiş tarihi ile tekrar sınırı **birlikte**
   /// verilebilir; sunucu önce dolanı uygular.
   String? endDate;
-
-  @override
-  void initState() {
-    super.initState();
-    final prefill = widget.prefill;
-    if (prefill == null) return;
-    kind = prefill.kind;
-    frequency = prefill.frequency;
-    startDate = prefill.startDate;
-    description.text = prefill.description;
-    // Kategori **adla** aranıyor: kimlik istemcide üretilemez ve bulunamazsa
-    // alan boş kalır. Uydurulmuş bir kategori, kullanıcının görmediği bir
-    // kovaya yazmak olurdu.
-    for (final category in widget.snapshot.categories) {
-      if (category.name.toLowerCase() == prefill.categoryName.toLowerCase()) {
-        categoryId = category.id;
-        break;
-      }
-    }
-  }
 
   @override
   void dispose() {
@@ -1022,6 +1003,12 @@ class _RecurringFormState extends State<_RecurringForm> {
           initialValue: frequency,
           decoration: const InputDecoration(labelText: 'Sıklık'),
           items: const [
+            // Emlak Mayıs ve Kasım, gelir vergisi Mart ve Temmuz gibi
+            // ritimler "6 ayda bir"e sığmıyor (ADR 0018 T2).
+            DropdownMenuItem(
+              value: 'selected-months',
+              child: Text('Seçilen aylarda'),
+            ),
             DropdownMenuItem(value: 'daily', child: Text('Günlük')),
             DropdownMenuItem(value: 'weekly', child: Text('Haftalık')),
             DropdownMenuItem(value: 'monthly', child: Text('Aylık')),
@@ -1031,6 +1018,28 @@ class _RecurringFormState extends State<_RecurringForm> {
           ],
           onChanged: (value) => setState(() => frequency = value!),
         ),
+        if (frequency == 'selected-months') ...[
+          const SizedBox(height: AppSpacing.small),
+          AppMonthChips(
+            selected: months,
+            onChanged: (value) => setState(() {
+              months = value;
+              monthsInvalid = false;
+            }),
+          ),
+          if (monthsInvalid)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.small),
+              child: Text(
+                months.isEmpty
+                    ? 'En az bir ay seçin.'
+                    : 'Başlangıç seçilen aylardan birinde olmalı.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
+            ),
+        ],
         const SizedBox(height: AppSpacing.medium),
         DropdownButtonFormField<String>(
           initialValue: monthEndBehavior,
@@ -1121,6 +1130,12 @@ class _RecurringFormState extends State<_RecurringForm> {
   /// ekranda kalır; hata mesajını controller banner'da gösterir.
   Future<bool?> _submit() async {
     if (!formKey.currentState!.validate()) return null;
+    final selectedMonths = frequency == 'selected-months';
+    if (selectedMonths &&
+        (months.isEmpty || !months.contains(startDate.month))) {
+      setState(() => monthsInvalid = true);
+      return null;
+    }
     final normalizedAmount = double.parse(
       amount.text.trim().replaceAll(',', '.'),
     ).toStringAsFixed(4);
@@ -1140,6 +1155,7 @@ class _RecurringFormState extends State<_RecurringForm> {
           ? null
           : int.parse(occurrenceLimit.text.trim()),
       'monthEndBehavior': monthEndBehavior,
+      if (selectedMonths) 'months': (months.toList()..sort()),
       'description': description.text.trim().isEmpty
           ? null
           : description.text.trim(),
@@ -1189,6 +1205,7 @@ String _frequencyLabel(String frequency) => switch (frequency) {
   'monthly' => 'Aylık',
   'quarterly' => 'Üç ayda bir',
   'yearly' => 'Yıllık',
+  'selected-months' => 'Seçilen aylarda',
   _ => frequency,
 };
 

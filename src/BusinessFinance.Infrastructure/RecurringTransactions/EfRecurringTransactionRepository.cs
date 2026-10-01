@@ -32,6 +32,63 @@ internal sealed class EfRecurringTransactionRepository(BusinessFinanceDbContext 
             .ToArrayAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<RecurringTransactionOccurrence>> ListPlanOccurrencesAsync(
+        Guid recurringTransactionId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.RecurringTransactionOccurrences
+            .Where(occurrence => occurrence.UserId == userId &&
+                                 occurrence.RecurringTransactionId == recurringTransactionId)
+            .OrderBy(occurrence => occurrence.ScheduledDate)
+            .ToArrayAsync(cancellationToken);
+    }
+
+    public async Task SaveEditAsync(
+        RecurringTransaction recurring,
+        IReadOnlyCollection<RecurringTransactionOccurrence> removedOccurrences,
+        CancellationToken cancellationToken)
+    {
+        if (dbContext.Entry(recurring).State == EntityState.Detached)
+        {
+            throw new InvalidOperationException("Recurring transaction must be tracked before update.");
+        }
+
+        // Yeniden kurulan bekleyenler tahmindir; hiçbir finansal kayıt onlara
+        // bağlı değildir. Plan değişikliğiyle aynı sınırda silinirler.
+        dbContext.RecurringTransactionOccurrences.RemoveRange(removedOccurrences);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<RecurringTransactionOccurrence>> ListClosedByAsync(
+        Guid userId,
+        Guid? transactionId,
+        Guid? chargeId,
+        CancellationToken cancellationToken)
+    {
+        if (transactionId is null && chargeId is null) return [];
+
+        return await dbContext.RecurringTransactionOccurrences
+            .Where(occurrence => occurrence.UserId == userId &&
+                                 ((transactionId != null && occurrence.ClosedByTransactionId == transactionId) ||
+                                  (chargeId != null && occurrence.ClosedByChargeId == chargeId)))
+            .ToArrayAsync(cancellationToken);
+    }
+
+    public async Task<bool> TrySaveOccurrenceChangeAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            dbContext.ChangeTracker.Clear();
+            return false;
+        }
+    }
+
     public async Task<IReadOnlyList<RecurringTransaction>> ListDueAsync(
         Guid userId,
         DateOnly throughDate,
@@ -52,6 +109,14 @@ internal sealed class EfRecurringTransactionRepository(BusinessFinanceDbContext 
         CancellationToken cancellationToken)
     {
         await dbContext.RecurringTransactions.AddAsync(recurring, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task AddRangeAsync(
+        IReadOnlyCollection<RecurringTransaction> plans,
+        CancellationToken cancellationToken)
+    {
+        await dbContext.RecurringTransactions.AddRangeAsync(plans, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -99,8 +164,9 @@ internal sealed class EfRecurringTransactionRepository(BusinessFinanceDbContext 
             .Where(occurrence => occurrence.UserId == userId &&
                                  occurrence.RecurringTransactionId == recurringTransactionId)
             .ToArrayAsync(cancellationToken);
+        // Kapatılmış kalem de geçmiştir: bir vergi ödemesi ona bağlıdır.
         if (occurrences.Any(occurrence =>
-                occurrence.Status == RecurringOccurrenceStatus.Realized))
+                occurrence.Status != RecurringOccurrenceStatus.Planned))
         {
             return RecurringDeletionResult.HasRealizedHistory;
         }
@@ -146,9 +212,10 @@ internal sealed class EfRecurringTransactionRepository(BusinessFinanceDbContext 
         Guid recurringTransactionId,
         DateOnly scheduledDate,
         Guid userId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool track = false)
     {
-        return OccurrenceQuery(false).SingleOrDefaultAsync(
+        return OccurrenceQuery(track).SingleOrDefaultAsync(
             occurrence => occurrence.UserId == userId &&
                           occurrence.RecurringTransactionId == recurringTransactionId &&
                           occurrence.ScheduledDate == scheduledDate,

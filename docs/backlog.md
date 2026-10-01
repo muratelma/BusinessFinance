@@ -62,3 +62,9 @@ bağlanmak alınmak değildir.
 
 - Gerçek portföy takibi (Borsa/Kripto varlık sınıfı olarak — kategori olarak
   değil; gerekçe `EfCategoryRepository.Defaults` doc yorumunda).
+- Harf aralığı (1 Ekim 2026): temada aralığı yazılmamış altı stil (bölüm ve
+  satır başlığı, gövde, yardımcı metin, buton) Material 3'ün varsayılan
+  aralığını alıyor; tasarım sisteminde bunlar sıfır ve aynı cümle tasarımda
+  tek satıra sığarken uygulamada alt satıra kayabiliyor. Vergi takibi'nde
+  denendi, kullanıcı fark görmedi ve erteledi. Yapılırsa değer
+  `AppTypography.textTheme` ölçeğine yazılır; bütün uygulamayı etkiler.

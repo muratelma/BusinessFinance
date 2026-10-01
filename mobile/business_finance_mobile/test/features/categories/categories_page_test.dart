@@ -148,6 +148,7 @@ class _Repository implements CategoryRepository {
     required String name,
     required String type,
     TransactionScope? defaultScope,
+    bool isTax = false,
   }) => throw UnimplementedError();
 
   @override
@@ -156,5 +157,6 @@ class _Repository implements CategoryRepository {
     required bool isActive,
     required String name,
     TransactionScope? defaultScope,
+    bool? isTax,
   }) => throw UnimplementedError();
 }

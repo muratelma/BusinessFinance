@@ -4,6 +4,7 @@ using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.FinancialActivities;
+using BusinessFinance.Application.RecurringTransactions;
 using BusinessFinance.Application.Scopes;
 using BusinessFinance.Application.Taxes;
 using BusinessFinance.Domain;
@@ -214,6 +215,7 @@ public sealed class CancelCardChargeUseCase(
     ICurrentUser currentUser,
     ICardChargeRepository repository,
     IActivityOriginReader originReader,
+    IRecurringTransactionRepository recurringRepository,
     TimeProvider timeProvider)
 {
     public async Task<ApplicationResult<CardChargeDto>> ExecuteAsync(
@@ -243,7 +245,12 @@ public sealed class CancelCardChargeUseCase(
             return ApplicationResult<CardChargeDto>.Failure(CreditCardErrors.CancelOriginLocked);
         }
 
+        // Kartla ödenmiş bir vergi, kapattığı kalemlerle birlikte geri alınır
+        // (ADR 0018 İ7); tek SaveChanges ikisini birlikte yazar.
+        var closed = await recurringRepository.ListClosedByAsync(
+            userId, null, charge.Id, cancellationToken);
         charge.Cancel(timeProvider.GetUtcNow());
+        foreach (var occurrence in closed) occurrence.Reopen();
         await repository.UpdateOwnedAsync(charge, userId, cancellationToken);
         return ApplicationResult<CardChargeDto>.Success(CreateCardChargeUseCase.ToDto(charge));
     }

@@ -11,16 +11,20 @@ import 'app_divided_column.dart';
 /// İşlem detayı (Tarih / Kategori / Hesap / Not) ve POS tahsilatı detayı
 /// (Brüt satış / Komisyon / Beklenen gün) bununla çizilir.
 class AppDetailBlock extends StatelessWidget {
-  const AppDetailBlock({required this.rows, super.key});
+  const AppDetailBlock({required this.rows, super.key, this.background});
 
   final List<AppDetailRow> rows;
+
+  /// Zemin; verilmezse gri kart yüzeyi. Gri sayfa zemininde duran blok
+  /// (vergi tanımı ayrıntısı) kart yüzeyini alır.
+  final Color? background;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.medium),
       decoration: BoxDecoration(
-        color: AppSurfaces.of(context).cardMuted,
+        color: background ?? AppSurfaces.of(context).cardMuted,
         borderRadius: BorderRadius.circular(AppRadius.field),
       ),
       child: AppDividedColumn(

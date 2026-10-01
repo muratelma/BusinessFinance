@@ -238,6 +238,29 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     atlandı), build 0 uyarı, format temiz; Flutter analyze temiz, 895 test
     geçti (19 ekran görüntüsü testi atlandı), format temiz, debug APK derlendi.
     Migration yerel geliştirme veritabanına uygulandı
+  - **06.3 Grup 3 — Vergi takibi (1 Ekim 2026, tamamlandı; emülatör denemesini
+    kullanıcı yaptı)**: ADR 0018'in uygulaması. Tekrarlayan plan vergi türü,
+    ayın günü ve "seçilen aylarda" ritmi taşıyor; vergi planında tutar ve
+    kaynak boş olabiliyor; kalem "kapatıldı" durumunu ve kapatan ödemeyi
+    taşıyor; kategoride vergi işareti var. `AddTaxPlans` migration'ı veri
+    kaybettirmiyor, dolu veritabanında yükseltme testi geçti. Yeni uçlar:
+    vergi okuması, tanım ayrıntısı, toplu tanımlama, "Ödedim" (ödeme günü +
+    hesap/kart), "tutar belli oldu", geri alma, toplu vergi ödemesi (istek
+    kimliğiyle idempotent) ve Ödenenler. Vergide kapsam kaynağın etiketine
+    bakmıyor (ADR 0018 İ9, kullanıcı kararıyla güncellendi). Flutter'da
+    `Vergi takvimi` kalktı, yerine **Vergi takibi** geldi: ilk kullanım,
+    Bekleyenler / Vergilerim / Ödenenler (son beş, hepsi ay başlıklarıyla
+    `Tümü`nde), "Ödedim", "Tutarı gir", "Vergi ödemesi ekle", tanım formu ve
+    ayrıntısı. Emülatör turunda kullanıcının bildirdikleri düzeltildi: tutar
+    alanının ortalanması, "Tutarı gir"in kaleme geri dönmesi, panellerin ekranı
+    kaplaması ve kapatılamaması, geri alma onayının tasarımdaki kayıt kartına
+    geçmesi, `Sil`in kırmızı kalması. Tasarımla karşılaştırma için
+    `test/screenshots/taxes_screenshot_test` eklendi. Vergi menüsü kişisel
+    profilde gizli kalıyor (kullanıcı kararı, 1 Ekim). Kontroller: backend SQL
+    dahil geçti (Domain 307, Application 327, Api 240, Infrastructure 206 + 2
+    canlı test atlandı), build 0 uyarı, format temiz; Flutter analyze temiz,
+    919 test geçti (33 ekran görüntüsü testi atlandı), format temiz, debug APK
+    derlendi
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni (beklemede) → **06.3 bütünsel düzenleme (aktif)** →

@@ -7,7 +7,8 @@ namespace BusinessFinance.Application.Categories;
 public sealed record CreateCategoryCommand(
     string Name,
     CategoryType Type,
-    TransactionScope? DefaultScope = null);
+    TransactionScope? DefaultScope = null,
+    bool IsTax = false);
 
 public sealed class CreateCategoryUseCase(
     ICurrentUser currentUser,
@@ -33,7 +34,8 @@ public sealed class CreateCategoryUseCase(
                 userId,
                 command.Name,
                 command.Type,
-                command.DefaultScope);
+                command.DefaultScope,
+                command.IsTax);
         }
         catch (ArgumentException exception)
         {
@@ -60,5 +62,6 @@ public sealed class CreateCategoryUseCase(
         category.Name,
         category.Type,
         category.IsActive,
-        category.DefaultScope);
+        category.DefaultScope,
+        category.IsTax);
 }

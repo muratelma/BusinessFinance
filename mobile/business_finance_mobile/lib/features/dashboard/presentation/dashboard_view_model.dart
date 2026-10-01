@@ -71,6 +71,10 @@ class DashboardViewModel extends LoadableViewModel {
   /// ("7 günde çıkacak"); okunamadıysa `null`.
   String? upcomingOutgoingTotal;
 
+  /// Gecikmiş ödemelerin tutarı belli olanlarının sunucudaki toplamı;
+  /// okunamadıysa `null`. Yaklaşanlar kartının gecikenler satırı bunu yazar.
+  String? overdueOutgoingTotal;
+
   /// Yaklaşan listesinin penceresi. Ekranda yazılı olmak zorunda: aynı
   /// ekranda 30 günlük başka bir toplam da bulunabiliyor ve iki pencere
   /// etiketsiz yan yana durursa kullanıcı ikisini karşılaştırıp tutturamaz.
@@ -117,6 +121,7 @@ class DashboardViewModel extends LoadableViewModel {
       upcoming = const [];
       upcomingHiddenCount = 0;
       upcomingOutgoingTotal = null;
+      overdueOutgoingTotal = null;
       return;
     }
     try {
@@ -145,12 +150,14 @@ class DashboardViewModel extends LoadableViewModel {
             ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
       upcoming = ahead.take(upcomingVisibleCount).toList(growable: false);
       upcomingOutgoingTotal = page.upcomingOutgoingTotal;
+      overdueOutgoingTotal = page.overdueOutgoingTotal;
       upcomingHiddenCount = ahead.length - upcoming.length;
     } on Exception {
       overdue = const [];
       upcoming = const [];
       upcomingHiddenCount = 0;
       upcomingOutgoingTotal = null;
+      overdueOutgoingTotal = null;
     }
   }
 

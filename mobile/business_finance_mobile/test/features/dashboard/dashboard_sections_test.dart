@@ -168,6 +168,56 @@ void main() {
       expect(find.text('Bu hafta ödeme yok.'), findsOneWidget);
     });
 
+    testWidgets('kartın başında gecikenler sunucunun toplamıyla durur', (
+      tester,
+    ) async {
+      final viewModel = DashboardViewModel(
+        _Source(_report(), advanced: _advanced()),
+        activityRepository: _PlannedSource([
+          _planned(id: 'a', timing: 'overdue', dueDate: '2026-07-15'),
+          _planned(id: 'b', timing: 'upcoming', dueDate: '2026-08-12'),
+        ], overdueTotal: '41280.0000'),
+        now: () => DateTime(2026, 8, 9),
+      );
+      await viewModel.load();
+
+      await _pump(tester, viewModel, height: 3000);
+
+      // Toplam sunucudan gelir; geciken toplamı "7 günde çıkacak"a girmez.
+      expect(find.text('₺41.280,00'), findsOneWidget);
+      expect(find.text('1 gecikmiş ödeme'), findsNWidgets(2));
+    });
+
+    testWidgets('tutarı belli olmayan kalem cümleyle yazılır', (tester) async {
+      final viewModel = DashboardViewModel(
+        _Source(_report(), advanced: _advanced()),
+        activityRepository: _PlannedSource([
+          PlannedActivity.fromJson({
+            'plannedActivityId': 'kdv',
+            'plannedKind': 'recurring-occurrence',
+            'effect': 'expense',
+            'timing': 'upcoming',
+            'readiness': 'ready',
+            'attentionCode': null,
+            'actionKind': 'realize',
+            'dueDate': '2026-08-12',
+            'amount': null,
+            'currency': 'TRY',
+            'title': 'KDV',
+            'isProjected': true,
+            'isPaymentObligation': true,
+            'taxKind': 'vat-return',
+          }),
+        ]),
+        now: () => DateTime(2026, 8, 9),
+      );
+      await viewModel.load();
+
+      await _pump(tester, viewModel, height: 3000);
+
+      expect(find.text('Tutar ödemede girilecek'), findsOneWidget);
+    });
+
     testWidgets('yaklaşan tutarı gider kırmızısında yazılır', (tester) async {
       // Bölümün bütün söylediği şey bunların ödenecek olması; rengi kısmak
       // uyarıyı kısar. Bir ara nötr bırakılmıştı, geri alındı.
@@ -647,19 +697,23 @@ void main() {
 
       await _pump(tester, viewModel);
 
-      expect(find.text('2 gecikmiş ödeme'), findsOneWidget);
+      // Şerit ve Yaklaşanlar kartının başındaki satır aynı sayıyı söyler
+      // (kullanıcı kararı, 30 Eylül 2026: ikisi de kalır).
+      expect(find.text('2 gecikmiş ödeme'), findsNWidgets(2));
       // Tutar toplamı yok: istemci parayı ikinci kez hesaplamaz.
       // Vade ve gerekçe **ayrı** satırlar; tek cümle olsalardı sarma noktası
       // kabın genişliğine düşer ve son kelime yalnız başına alt satıra
       // kalırdı (telefonda `geçmez` böyle yetim kalıyordu). Tam eşleşme
       // aranıyor: biri ikisini tekrar tek `Text`te birleştirirse düşer.
-      expect(find.text('En eskisi 15 Temmuz'), findsOneWidget);
+      expect(find.text('En eskisi 15 Temmuz'), findsNWidgets(2));
       // Ayrı bir buton yok: şeridin kendisi tek dokunma hedefi.
       expect(find.byType(FilledButton), findsNothing);
-      final band = find.ancestor(
-        of: find.text('2 gecikmiş ödeme'),
-        matching: find.byType(InkWell),
-      );
+      final band = find
+          .ancestor(
+            of: find.text('2 gecikmiş ödeme').first,
+            matching: find.byType(InkWell),
+          )
+          .first;
       expect(
         find.descendant(of: band, matching: find.byIcon(Icons.chevron_right)),
         findsOneWidget,
@@ -882,10 +936,11 @@ class _Source implements DashboardDataSource {
 
 /// Planlanan projeksiyonun sahtesi.
 class _PlannedSource implements ActivityRepositoryContract {
-  _PlannedSource(this.items);
-  _PlannedSource.failing() : items = null;
+  _PlannedSource(this.items, {this.overdueTotal});
+  _PlannedSource.failing() : items = null, overdueTotal = null;
 
   final List<PlannedActivity>? items;
+  final String? overdueTotal;
 
   @override
   Future<PlannedActivityPage> listPlanned({
@@ -900,6 +955,7 @@ class _PlannedSource implements ActivityRepositoryContract {
       daysAhead: horizon.days,
       totalCount: loaded.length,
       items: loaded,
+      overdueOutgoingTotal: overdueTotal,
     );
   }
 

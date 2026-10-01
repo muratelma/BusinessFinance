@@ -20,12 +20,26 @@ public sealed class Category
     /// </remarks>
     public TransactionScope? DefaultScope { get; private set; }
 
+    /// <summary>
+    /// Bu kategorideki giderlerin ödenmiş vergi olduğunu söyleyen işaret
+    /// (ADR 0018 T6).
+    /// </summary>
+    /// <remarks>
+    /// Vergi ekranının "Ödenenler" listesi bu işaretli kategorilerdeki
+    /// giderlerdir: gider formundan girilen vergi ile vergi ekranından girilen
+    /// aynı listede görünür. İşaret kovanın türünü söyler, tek bir kaydın
+    /// kimliğini değil; kimlik bir ada bağlanmaz (İ8). Yalnız gider
+    /// kategorisi işaretlenebilir — vergi bir nakit çıkışıdır.
+    /// </remarks>
+    public bool IsTax { get; private set; }
+
     public Category(
         Guid id,
         Guid userId,
         string name,
         CategoryType type,
-        TransactionScope? defaultScope = null)
+        TransactionScope? defaultScope = null,
+        bool isTax = false)
     {
         if (id == Guid.Empty)
         {
@@ -66,6 +80,20 @@ public sealed class Category
         DefaultScope = TransactionScopeGuard.ValidateOptional(
             defaultScope,
             nameof(defaultScope));
+        SetTax(isTax);
+    }
+
+    /// <summary>
+    /// Vergi işaretini koyar ya da kaldırır; gelir kategorisi işaretlenemez.
+    /// </summary>
+    public void SetTax(bool isTax)
+    {
+        if (isTax && Type != CategoryType.Expense)
+        {
+            throw new ArgumentException("Only an expense category can be marked as tax.", nameof(isTax));
+        }
+
+        IsTax = isTax;
     }
 
     /// <summary>

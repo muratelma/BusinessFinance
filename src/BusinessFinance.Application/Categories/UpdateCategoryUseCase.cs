@@ -8,11 +8,16 @@ namespace BusinessFinance.Application.Categories;
 /// Kategorinin tam güncel hâli; <see cref="DefaultScope"/> yetkilidir ve boş
 /// gönderilmesi varsayılanı kaldırır.
 /// </summary>
+/// <param name="IsTax">
+/// Vergi işareti (ADR 0018 T6); boşsa değişmez. Alanı bilmeyen bir istemci
+/// kategoriyi yeniden adlandırırken işareti sessizce kaldırmasın diye.
+/// </param>
 public sealed record UpdateCategoryCommand(
     Guid CategoryId,
     string Name,
     bool IsActive,
-    TransactionScope? DefaultScope);
+    TransactionScope? DefaultScope,
+    bool? IsTax = null);
 
 public sealed class UpdateCategoryUseCase(
     ICurrentUser currentUser,
@@ -50,6 +55,7 @@ public sealed class UpdateCategoryUseCase(
             }
 
             category.SetDefaultScope(command.DefaultScope);
+            if (command.IsTax is bool isTax) category.SetTax(isTax);
 
             if (command.IsActive)
             {

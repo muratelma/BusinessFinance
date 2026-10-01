@@ -15,6 +15,9 @@ internal sealed class CategoryConfiguration : IEntityTypeConfiguration<Category>
             table.HasCheckConstraint(
                 "CK_Categories_DefaultScope",
                 "[DefaultScope] IS NULL OR [DefaultScope] IN (1, 2)");
+
+            // Vergi bir nakit çıkışıdır; yalnız gider kategorisi işaretlenir.
+            table.HasCheckConstraint("CK_Categories_IsTax", "[IsTax] = 0 OR [Type] = 2");
         });
 
         builder.HasKey(category => category.Id);
@@ -26,6 +29,7 @@ internal sealed class CategoryConfiguration : IEntityTypeConfiguration<Category>
         builder.Property(category => category.Type).HasConversion<byte>().HasColumnType("tinyint");
         builder.Property(category => category.DefaultScope).HasConversion<byte?>().HasColumnType("tinyint");
         builder.Property(category => category.IsActive).IsRequired();
+        builder.Property(category => category.IsTax).IsRequired();
 
         builder.HasIndex(category => new { category.UserId, category.Type, category.Name })
             .IsUnique()

@@ -30,6 +30,9 @@ abstract final class AppAdaptiveSheet {
         // `showDialog` bunu zaten kök Navigator'da açıyor (varsayılanı
         // `true`); iki dalın aynı katmanda açılması ayrıca tutarlılık.
         useRootNavigator: true,
+        // Uzun panel ekranın tepesine kadar çıkınca tutamaç durum çubuğunun
+        // altında kalıyor ve panel tutulup indirilemiyordu.
+        useSafeArea: true,
         isScrollControlled: isScrollControlled,
         isDismissible: isDismissible,
         enableDrag: isDismissible,

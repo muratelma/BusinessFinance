@@ -8,17 +8,38 @@ politikası): Grup 2, 3 ve 5 onu ayrı ayrı değiştirir ve ara checkpoint'te
 alınan bir yedeğin sonraki checkpoint'te okunamaması kabul edilir (veri
 sentetik). Şekil Grup 5 sonunda sabitlenir.
 
-v11'in bugünkü hâli (Aşama 06.3 Grup 2) v10'un **KDV ve indirilebilirlik
-alanları olmadan** aynısıdır (ADR 0018): işlem, kart harcaması, cari
+v11'in bugünkü hâli (Aşama 06.3 Grup 3) v10'un **KDV ve indirilebilirlik
+alanları olmadan** aynısıdır (ADR 0018, Grup 2): işlem, kart harcaması, cari
 borçlandırma, yükümlülük ve POS tahsilatı `vatRate` / `vatAmount` taşımaz;
 gider kayıtları `isTaxDeductible`, kategoriler `defaultIsTaxDeductible` taşımaz.
 Yeni koleksiyon yoktur. v10'dan kalan alanlar yerinde:
 
 - `savingsGoals[].scope` — işletme karşılığını şahsi birikimden ayıran etiket.
 
-Vergi takvimi kaleminin dosyada **ayrı bir koleksiyonu yoktur**: kalem
-tekrarlayan bir plandır ve `recurringTransactions` içinde durur; `frequency`
-artık `quarterly` de olabilir.
+**Grup 3 vergi planını ekledi.** Vergi ayrı bir koleksiyon değildir (ADR 0018
+İ6): tanımlı vergi `recurringTransactions` içinde, ödenen vergi `transactions`
+ya da `charges` içinde durur. Eklenen alanlar:
+
+- `categories[].isTax` — vergi işareti; "Ödenenler" bu kategorilerden okunur.
+- `recurringTransactions[]` — `taxKind`, `dayOfMonth`, `selectedMonths` (ay
+  kümesi, bit 0 Ocak); `amount` ve `sourceType` yalnız vergi planında boş
+  olabilir; `frequency` artık `selected-months` da olabilir.
+- `recurringTransactions[].occurrences[]` — kalemin **anlık görüntüsü**:
+  `status` (`planned`, `realized`, `closed`), `amount` ("tutar belli oldu" ile
+  yazılan dahil, boş olabilir), kaynak (`sourceType`, `accountId`,
+  `creditCardId`; ödeme anında seçilen), `categoryId`, `scope`, `description` ve
+  kapatılmış kalemde `closedByTransactionId` / `closedByChargeId` /
+  `closedAtUtc`. Kapatan ödemenin bağı geri yüklerken **yeni** kimliğine
+  çevrilir.
+
+**Tekrarlayan plan geçmişi yeniden oynanarak kurulmaz.** Ritmi sonradan
+değişmiş bir planın eski kalemleri yeni ritme uymaz; plan ve kalemleri anlık
+görüntüden kurulur ve iki şey doğrulanır: `generatedOccurrenceCount` dosyadaki
+kalem sayısına eşittir (elle büyütülmüş bir sayaç sınırı dolmuş bir planı
+yeniden üretir hâle getirirdi) ve hiçbir kalem planın `nextOccurrenceDate`
+gününden sonra değildir. Kalemler ayrı günlerde olmalıdır. Grup 2'de alınmış ve
+tekrarlayan kalem içeren bir v11 yedeği, kalemlerin `status` alanını taşımadığı
+için reddedilir (veri sentetik; aşamanın yedek politikası).
 
 v9'un taşıdığı iki koleksiyon aynen yerinde:
 
@@ -52,11 +73,10 @@ tahsilat `counterpartyPayments`) üstüne üç bilgi eklemişti:
 - `counterpartyCharges[].dueDate` — cari borçlandırmanın isteğe bağlı vadesi.
   Yokluğu meşrudur; `null` gelen satıra tarih uydurulmaz.
 - `recurringTransactions[].occurrenceLimit` ve `generatedOccurrenceCount` —
-  planın toplam tekrar sınırı ve üretilmiş occurrence sayacı. Sayaç geri
-  yüklerken dosyadan **kopyalanmaz**, occurrence geçmişi yeniden oynanarak
-  türetilir ve dosyadaki değer yalnız doğrulama için okunur; aksi hâlde elle
-  değiştirilmiş bir sayaç, sınırı dolmuş bir planı yeniden üretir hâle
-  getirirdi.
+  planın toplam tekrar sınırı ve üretilmiş occurrence sayacı. Sayaç dosyadaki
+  kalem sayısıyla doğrulanır (Grup 3'ten beri; öncesinde geçmiş yeniden
+  oynanıyordu); aksi hâlde elle değiştirilmiş bir sayaç, sınırı dolmuş bir
+  planı yeniden üretir hâle getirirdi.
 
 Sözleşme karşı tarafı adla değil kimlikle gösterir; ad yedeğin içinde tek yerde
 durur. Restore merge,
@@ -64,6 +84,20 @@ overwrite veya kullanıcı seçerek silme yapmaz; hedef kullanıcının finans a
 boş olmalıdır. Yeni hesapta uygulamanın otomatik oluşturduğu, hiç değiştirilmemiş
 başlangıç kategorileri boş alan sayılır ve yedekteki kategorilerle atomik olarak
 değiştirilir.
+
+## Veritabanı yükseltme notu — Aşama 06.3 Grup 3
+
+`AddTaxPlans` migration'ı **veri kaybettirmez**. `RecurringTransactions` ve
+`RecurringTransactionOccurrences` tablolarında `Amount` ile `SourceType`
+nullable olur; plana `TaxKind`, `DayOfMonth`, `SelectedMonths`, kaleme
+`ClosedByTransactionId`, `ClosedByChargeId`, `ClosedAtUtc` eklenir (hepsi
+nullable, varsayılansız); `Categories.IsTax` nullable eklenir, varsayılan
+setlerin iki vergi kategorisi ("SGK ve vergi ödemesi", "Vergi ve harç") bir
+kez işaretlenerek doldurulur, sonra `NOT NULL` yapılır — kalıcı bir DEFAULT
+kalmaz. Sıra kurala uyar: eski kısıtlar düşer, kolonlar eklenir ve gevşer,
+backfill çalışır, yeni kısıtlar en son kurulur. Mevcut her satır yeni kısıtları
+olduğu gibi sağlar; yükseltme testi dolu bir veritabanında bunu ve kısıtların
+NULL'u "bilinmiyor" diye geçirmediğini doğrular.
 
 ## Veritabanı yükseltme notu — Aşama 06.3 Grup 2
 

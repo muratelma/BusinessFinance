@@ -22,16 +22,17 @@ public sealed record UpcomingPaymentCandidate(
     Guid SourceId,
     UpcomingPaymentSourceType SourceType,
     string Title,
-    decimal Amount,
+    decimal? Amount,
     CurrencyCode Currency,
     DateOnly DueDate,
     string? Description);
 
+/// <param name="Amount">Tutarı henüz belli olmayan vergi kaleminde boştur.</param>
 public sealed record UpcomingPaymentDto(
     Guid SourceId,
     UpcomingPaymentSourceType SourceType,
     string Title,
-    decimal Amount,
+    decimal? Amount,
     CurrencyCode Currency,
     DateOnly DueDate,
     UpcomingPaymentTiming Timing,

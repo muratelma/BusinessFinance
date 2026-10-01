@@ -17,6 +17,7 @@ using BusinessFinance.Api.Features.Obligations;
 using BusinessFinance.Api.Features.Pos;
 using BusinessFinance.Api.Features.RecurringTransactions;
 using BusinessFinance.Api.Features.SavingsGoals;
+using BusinessFinance.Api.Features.Taxes;
 using BusinessFinance.Api.Features.Transactions;
 using BusinessFinance.Api.Features.Transfers;
 using BusinessFinance.Api.Features.UserAccount;
@@ -168,6 +169,8 @@ public sealed class OwnershipIsolationTests
         "/api/v1/reports/advanced?year=2026&month=8",
         "/api/v1/dashboard",
         "/api/v1/tax-calendar/suggestions",
+        "/api/v1/taxes?asOfDate=2026-08-28",
+        "/api/v1/tax-payments",
         "/api/v1/account",
         "/api/v1/account/sessions",
         "/api/v1/profile",
@@ -196,6 +199,8 @@ public sealed class OwnershipIsolationTests
         ("hedef", f.GoalId),
         ("borç", f.DebtId),
         ("tekrarlayan plan", f.RecurringId),
+        ("vergi planı", f.TaxPlanId),
+        ("vergi ödemesi", f.TaxPaymentId),
         ("occurrence", f.OccurrenceId),
         ("taksit planı", f.InstallmentPlanId),
         ("yükümlülük", f.ObligationId),
@@ -418,6 +423,26 @@ public sealed class OwnershipIsolationTests
         yield return Json("tek occurrence gerçekleştirme", HttpMethod.Post,
             "api/v1/recurring-transactions/occurrences/{occurrenceId:guid}/realize",
             new RealizeRecurringOccurrenceRequest(), f.OccurrenceId);
+        yield return Json("tekrarlayan planı düzenleme", HttpMethod.Put,
+            "api/v1/recurring-transactions/{recurringTransactionId:guid}",
+            new UpdateRecurringTransactionRequest(
+                f.AccountId, f.ExpenseCategoryId, "80.0000", "business", "monthly",
+                "2026-08-01", null, "clamp-to-last-day", "Ele geçirilen"),
+            f.RecurringId);
+        yield return Json("kalemin tutarını yazma", HttpMethod.Post,
+            "api/v1/recurring-transactions/{recurringTransactionId:guid}/occurrences/amount",
+            new SetOccurrenceAmountRequest("2026-09-30", "999.0000"), f.TaxPlanId);
+        yield return Json("kalemin ödemesini geri alma", HttpMethod.Post,
+            "api/v1/recurring-transactions/occurrences/{occurrenceId:guid}/undo",
+            null, f.OccurrenceId);
+
+        yield return new Probe("vergi tanımı ayrıntısı", HttpMethod.Get,
+            "api/v1/taxes/plans/{recurringTransactionId:guid}",
+            $"/api/v1/taxes/plans/{f.TaxPlanId}?asOfDate={Today}",
+            $"/api/v1/taxes/plans/{GhostId}?asOfDate={Today}",
+            null);
+        yield return Json("vergi ödemesini geri alma", HttpMethod.Post,
+            "api/v1/tax-payments/{paymentId:guid}/undo", null, f.TaxPaymentId);
 
         yield return Json("işlem okuma", HttpMethod.Get,
             "api/v1/transactions/{transactionId:guid}", null, f.TransactionId);
@@ -512,6 +537,8 @@ public sealed class OwnershipIsolationTests
         Guid DebtId,
         Guid RecurringId,
         Guid OccurrenceId,
+        Guid TaxPlanId,
+        Guid TaxPaymentId,
         Guid InstallmentPlanId,
         Guid ObligationId,
         Guid PosSettlementId,
@@ -528,7 +555,7 @@ public sealed class OwnershipIsolationTests
             GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId,
             GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId,
             GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId,
-            GhostId);
+            GhostId, GhostId, GhostId);
     }
 
     private sealed record Probe(
@@ -655,6 +682,23 @@ public sealed class OwnershipIsolationTests
             "/api/v1/recurring-transactions/occurrences",
             CancellationToken.None);
 
+        // Vergi planı ve vergi ödemesi kişisel setin vergi işaretli
+        // kategorisine yazılır (ADR 0018 T6).
+        var categories = await owner.GetFromJsonAsync<CategoryListResponse>(
+            "/api/v1/categories?type=expense",
+            CancellationToken.None);
+        var taxCategory = categories!.Items.First(item => item.IsTax);
+        var taxPlan = await CreateAsync<RecurringTransactionResponse>(
+            owner, "/api/v1/recurring-transactions",
+            new CreateRecurringTransactionRequest(
+                null, taxCategory.Id, null, "TRY", "expense", null,
+                "monthly", "2026-08-31", null, "clamp-to-last-day", "Bağkur",
+                TaxKind: "social-security-premium", DayOfMonth: 31));
+        var taxPayment = await CreateAsync<TaxPaymentResponse>(
+            owner, "/api/v1/tax-payments",
+            new CreateTaxPaymentRequest(
+                Guid.NewGuid(), "1500.0000", Today, taxCategory.Id, AccountId: account.Id));
+
         var installmentPlan = await CreateAsync<InstallmentPlanResponse>(
             owner, "/api/v1/installment-plans",
             new CreateInstallmentPlanRequest(
@@ -704,6 +748,8 @@ public sealed class OwnershipIsolationTests
             debt.Id,
             recurring.Id,
             occurrences!.Items[0].Id,
+            taxPlan.Id,
+            taxPayment.PaymentId,
             installmentPlan.Id,
             obligation.Id,
             pos.Id,

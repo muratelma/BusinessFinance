@@ -4,13 +4,16 @@ using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.RecurringTransactions;
 
+/// <param name="Amount">Beklenen tutar; yalnız vergi planında boş olabilir.</param>
+/// <param name="SourceType">Yalnız vergi planında boş olabilir (ADR 0018 T4).</param>
+/// <param name="TaxKind">Doluysa plan bir vergidir (ADR 0018 T2).</param>
 public sealed record RecurringTransactionDto(
     Guid Id,
-    RecurringSourceType SourceType,
+    RecurringSourceType? SourceType,
     Guid? AccountId,
     Guid? CreditCardId,
     Guid CategoryId,
-    decimal Amount,
+    decimal? Amount,
     CurrencyCode Currency,
     RecurringTransactionKind Kind,
     TransactionScope Scope,
@@ -22,17 +25,25 @@ public sealed record RecurringTransactionDto(
     DateOnly? NextOccurrenceDate,
     MonthEndBehavior MonthEndBehavior,
     string? Description,
-    bool IsActive);
+    bool IsActive,
+    TaxKind? TaxKind = null,
+    int? DayOfMonth = null,
+    int? SelectedMonths = null);
 
+/// <param name="Amount">Bu dönemin tutarı; bilinmiyorsa boştur.</param>
+/// <param name="ClosedByTransactionId">
+/// Kalemi kapatan toplu vergi ödemesi (hesaptan); yalnız kapatılmış kalemde.
+/// </param>
+/// <param name="ClosedByChargeId">Kalemi kapatan toplu vergi ödemesi (kartla).</param>
 public sealed record RecurringOccurrenceDto(
     Guid Id,
     Guid RecurringTransactionId,
     string OccurrenceKey,
-    RecurringSourceType SourceType,
+    RecurringSourceType? SourceType,
     Guid? AccountId,
     Guid? CreditCardId,
     Guid CategoryId,
-    decimal Amount,
+    decimal? Amount,
     CurrencyCode Currency,
     RecurringTransactionKind Kind,
     TransactionScope Scope,
@@ -41,31 +52,84 @@ public sealed record RecurringOccurrenceDto(
     RecurringOccurrenceStatus Status,
     Guid? BudgetTransactionId,
     Guid? CreditCardChargeId,
-    DateTimeOffset? RealizedAtUtc);
+    DateTimeOffset? RealizedAtUtc,
+    Guid? ClosedByTransactionId = null,
+    Guid? ClosedByChargeId = null,
+    DateTimeOffset? ClosedAtUtc = null);
 
 /// <summary>
 /// Exactly one of <paramref name="AccountId"/> and <paramref name="CreditCardId"/>
-/// must be set, matching <paramref name="SourceType"/>.
+/// must be set, matching <paramref name="SourceType"/>. Only a tax plan may leave
+/// all three empty; its source is then chosen when it is paid.
 /// </summary>
 public sealed record CreateRecurringTransactionCommand(
-    RecurringSourceType SourceType,
+    RecurringSourceType? SourceType,
     Guid? AccountId,
     Guid? CreditCardId,
     Guid CategoryId,
-    decimal Amount,
+    decimal? Amount,
     CurrencyCode Currency,
     RecurringTransactionKind Kind,
 
     // Kullanıcının açık seçimi. Boşsa kaynağın (hesap ya da kart), yoksa
     // kategorinin varsayılanı kullanılır; üçü de boşsa istek reddedilir.
-    // Planın ürettiği her kayıt bu kapsamı alır.
+    // Vergi planında zincir yoktur: seçim yoksa profilin tarafıdır; kaynağın
+    // etiketine bakılmaz (ADR 0018 İ9). Planın ürettiği her kayıt bu kapsamı alır.
     TransactionScope? Scope,
     RecurrenceFrequency Frequency,
     DateOnly StartDate,
     DateOnly? EndDate,
     MonthEndBehavior MonthEndBehavior,
     string? Description,
-    int? OccurrenceLimit = null);
+    int? OccurrenceLimit = null,
+    TaxKind? TaxKind = null,
+    int? DayOfMonth = null,
+    int? SelectedMonths = null);
+
+/// <summary>
+/// Bir planın tam güncel hâli. Ritim alanlarından biri değişirse plan yeni
+/// ritimle <see cref="StartDate"/> gününden yeniden başlar: bekleyen kalemler
+/// yeniden kurulur, ödenmiş ve kapatılmış kalemler geçmiş olarak kalır.
+/// </summary>
+public sealed record UpdateRecurringTransactionCommand(
+    Guid RecurringTransactionId,
+    RecurringSourceType? SourceType,
+    Guid? AccountId,
+    Guid? CreditCardId,
+    Guid CategoryId,
+    decimal? Amount,
+    TransactionScope? Scope,
+    string? Description,
+    RecurrenceFrequency Frequency,
+    DateOnly StartDate,
+    DateOnly? EndDate,
+    MonthEndBehavior MonthEndBehavior,
+    int? DayOfMonth,
+    int? SelectedMonths);
+
+/// <summary>
+/// Bekleyen bir kalemin bu dönemki tutarı ("tutar belli oldu", ADR 0018 T3).
+/// Plan değişmez.
+/// </summary>
+public sealed record SetOccurrenceAmountCommand(
+    Guid RecurringTransactionId,
+    DateOnly ScheduledDate,
+    decimal Amount);
+
+/// <summary>
+/// Gerçekleşmiş bir kalemin ödemesini geri alır: ürettiği kayıt iptal
+/// edilir, kalem bekleyene döner (ADR 0018 İ7).
+/// </summary>
+public sealed record UndoRecurringOccurrenceCommand(Guid OccurrenceId);
+
+/// <summary>
+/// Ödemenin yapıldığı hesap ya da kart. İkisi birden verilemez; ikisi de
+/// boşsa kalemin kendi kaynağı kullanılır.
+/// </summary>
+public sealed record RecurringPaymentDetails(
+    DateOnly? PaidOn = null,
+    Guid? AccountId = null,
+    Guid? CreditCardId = null);
 
 /// <summary>
 /// A realized occurrence produces exactly one result, decided by its source: an
@@ -95,7 +159,14 @@ public sealed record GenerateRecurringOccurrencesResult(
 /// olmamış bir tutarı finansal geçmişe koymak olurdu. Planın kendi tutarı
 /// değişmez — düzeltilen bu dönemdir.
 /// </param>
-public sealed record RealizeRecurringOccurrenceCommand(Guid OccurrenceId, decimal? Amount = null);
+/// <param name="Payment">
+/// "Ödedim" ayrıntısı: ödeme günü ve kaynağı (ADR 0018 T4). Boşsa kayıt vade
+/// gününe, kalemin kendi kaynağından yazılır (bu alandan önceki davranış).
+/// </param>
+public sealed record RealizeRecurringOccurrenceCommand(
+    Guid OccurrenceId,
+    decimal? Amount = null,
+    RecurringPaymentDetails? Payment = null);
 
 /// <summary>
 /// Realize the recurring item that falls on one date, generating its occurrence
@@ -118,7 +189,8 @@ public sealed record RealizeRecurringOccurrenceCommand(Guid OccurrenceId, decima
 public sealed record RealizeDueRecurringCommand(
     Guid RecurringTransactionId,
     DateOnly ScheduledDate,
-    decimal? Amount = null);
+    decimal? Amount = null,
+    RecurringPaymentDetails? Payment = null);
 
 public sealed record DeleteRecurringTransactionCommand(Guid RecurringTransactionId);
 
@@ -144,11 +216,43 @@ public interface IRecurringTransactionRepository
     Task<IReadOnlyList<RecurringTransaction>> ListAsync(
         Guid userId,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Bir planın bütün kalemleri, izlenerek (düzenleme bekleyenleri günceller
+    /// ya da yeniden kurar).
+    /// </summary>
+    Task<IReadOnlyList<RecurringTransactionOccurrence>> ListPlanOccurrencesAsync(
+        Guid recurringTransactionId,
+        Guid userId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// İzlenen plan ve kalemlerindeki değişiklikleri tek <c>SaveChanges</c>
+    /// ile yazar; <paramref name="removedOccurrences"/> (yeniden kurulan
+    /// bekleyenler) aynı sınırda silinir.
+    /// </summary>
+    Task SaveEditAsync(
+        RecurringTransaction recurring,
+        IReadOnlyCollection<RecurringTransactionOccurrence> removedOccurrences,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Bir vergi ödemesinin kapattığı kalemler, izlenerek. Ödeme iptal edilince
+    /// aynı sınırda bekleyene dönerler.
+    /// </summary>
+    Task<IReadOnlyList<RecurringTransactionOccurrence>> ListClosedByAsync(
+        Guid userId,
+        Guid? transactionId,
+        Guid? chargeId,
+        CancellationToken cancellationToken);
     Task<IReadOnlyList<RecurringTransaction>> ListDueAsync(
         Guid userId,
         DateOnly throughDate,
         CancellationToken cancellationToken);
     Task AddAsync(RecurringTransaction recurring, CancellationToken cancellationToken);
+
+    /// <summary>Planların hepsini tek <c>SaveChanges</c> ile yazar.</summary>
+    Task AddRangeAsync(IReadOnlyCollection<RecurringTransaction> plans, CancellationToken cancellationToken);
     Task UpdateAsync(RecurringTransaction recurring, CancellationToken cancellationToken);
     Task<bool> TrySaveGeneratedAsync(
         IReadOnlyCollection<RecurringTransactionOccurrence> occurrences,
@@ -186,7 +290,15 @@ public interface IRecurringTransactionRepository
         Guid recurringTransactionId,
         DateOnly scheduledDate,
         Guid userId,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        bool track = false);
+
+    /// <summary>
+    /// İzlenen kalem değişikliğini ve iptal edilen sonuç kaydını tek
+    /// <c>SaveChanges</c> ile yazar. Kalemin sürüm damgası çakışırsa (başka bir
+    /// istek aynı kalemi değiştirdi) <see langword="false"/> döner.
+    /// </summary>
+    Task<bool> TrySaveOccurrenceChangeAsync(CancellationToken cancellationToken);
     Task<IReadOnlyList<RecurringTransactionOccurrence>> ListOccurrencesAsync(
         Guid userId,
         CancellationToken cancellationToken);

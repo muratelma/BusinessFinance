@@ -60,6 +60,8 @@ using BusinessFinance.Application.Cash;
 using BusinessFinance.Application.Obligations;
 using BusinessFinance.Infrastructure.Cash;
 using BusinessFinance.Infrastructure.Obligations;
+using BusinessFinance.Application.Taxes;
+using BusinessFinance.Infrastructure.Taxes;
 
 namespace BusinessFinance.Infrastructure;
 
@@ -120,6 +122,7 @@ public static class DependencyInjection
         services.AddScoped<ICreditCardStatementRepository, EfCreditCardStatementRepository>();
         services.AddScoped<IInstallmentPlanRepository, EfInstallmentPlanRepository>();
         services.AddScoped<IRecurringTransactionRepository, EfRecurringTransactionRepository>();
+        services.AddScoped<ITaxPaymentRepository, EfTaxPaymentRepository>();
         // One instance serves both ports so a request that lists activities and then
         // checks an origin shares the same DbContext scope.
         services.AddScoped<EfFinancialActivityRepository>();

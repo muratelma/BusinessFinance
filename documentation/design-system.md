@@ -371,6 +371,19 @@ görünüyor, göz sütunu takip edemiyordu — oysa ikisi aynı bilginin iki h�
 duruyordu: en önemli bilgi — ne kadar para, hangi yönde — paragrafın
 ortasındaki bir cümlenin içinde kayboluyordu.
 
+Yerleşim tasarım sistemindeki diyalogdur: en çok 360 dp genişlik, 24 dp iç
+boşluk, kademeler arası 16 dp; onay dolgulu, `Vazgeç` tonlu dolgulu ve ikisi
+alt alta tam genişlikte. **Ayrı bir başlık yoktur**: `title` verilmezse büyük
+satır (22/700) vurgunun kendisidir (`Motorlu taşıtlar · ₺2.180,00`) ve eylemin
+adı yalnız onay butonunda yazar. `title` veren eski çağrılarda büyük satır başlıktır, vurgu
+kendi zemininde altında kalır.
+
+Karar tek bir kayıt hakkındaysa **kayıt kartı** (`AppConfirmSubject`)
+kullanılır: ad (16/600), tarih ve kaynak, tutar (22/700) ayrı satırlarda ve
+sola yaslı; ikon ve büyük satır çizilmez, mesaj da sola yaslanır. Ad ile tutar
+aynı satıra sıkışmadığı için uzun adlar satırı bölmez. Vergi ödemesini geri
+alma ve vergi tanımını silme bu kartla açılır.
+
 - **`destructive: true` yalnız gerçekten yıkıcı kararda.** Onay butonunu her
   pencerede kırmızıya boyamak, akromatik markanın bıraktığı az sayıdaki anlamlı
   rengi tüketir. Silme ve iptal yıkıcı; gerçekleştirme ve çıkış değil.
@@ -837,3 +850,37 @@ Açıklama yalnız yanlış anlaşılabilecek satırda; kutucukta görünmeyen a
 ekran okuyucu cümlesindedir (`QuickAddOption.spokenLabel`). Niyet başlıkları
 (`Para girdi`, `Para taşı`…) panelden kalktı; `QuickAddIntent` modelde
 duruyor ve transferin gider sayılmadığını (ADR 0014) yine o taşır.
+
+## Vergi takibi (Claude Design teslimi, 30 Eylül 2026, Aşama 06.3 Grup 3)
+
+Kaynak `design_handoff_vergiler/` (Git dışı; ölçü `screens-v5/*.jsx`). Teslimin
+örnek verisi tasarımı göstermek içindir; dönem etiketi ("KDV · Ağustos") gibi
+anlamlar uygulanmadı, satırda vergi adı ve tarih yaprağı durur.
+
+- **Sayfa kabuğu** (`TaxPageScaffold`): geri oklu `AppPageHeader`, kayan gövde
+  (yan 16, alt 32) ve isteğe bağlı sabit alt şerit (üstte 1 dp çizgi, tuval
+  zemini). Vergi takibinin alt şeridi her hâlde "Vergi ödemesi ekle"dir; bir
+  gönderim değil panel açtığı için `AppSubmitButton` değil `FilledButton`.
+- **Bekleyenler kartı**: `AppCardHead` "Gecikenler ve 30 gün" + `N gecikti`;
+  satır en az 72 dp (tarih yaprağı, ad, durum + göreli gün, tutar ya da
+  "Tutar ödemede girilecek"); sağda kenarlı hap `TaxPayButton` (36 dp, dokunma
+  48). Alt şerit gri, iki eşit hücre: "Ödenecek" (gecikenler dahil) ve
+  "Tutarı belli olmayan · N ödeme"; ikincisi sıfırsa çizilmez.
+- **Paneller**: form panelleri 24/700 başlık + tek satır (`TaxSheetTitle`) ve
+  büyük tutar alanı (`TaxAmountInput`, "Sayımı gir" dili); ayrıntı panelleri
+  kapsül + ad + `Vergi · İşletme` + kapat (`TaxSheetHead`), tutar + durum,
+  `AppDetailBlock`, başka sayfaya giden bağlantı ayrı kartta eylem satırı
+  (`TaxActionCard` / `TaxActionRow`, en az 64 dp), altta en fazla iki eşit
+  buton (`TaxSheetFooter`, büyük yazıda alt alta). Yıkıcı eylem kenarlı ve
+  kırmızı metinli; onay diyaloğu sonucu yazar.
+- **Tanım formu**: kapsam rayı en üstte ve başlıksız (`AppSegmentRail`,
+  Özet'teki anahtarın iki dilimli hâli; yalnız `ScopeController.isVisible`).
+  Ay seçimi `AppMonthChips` (6×2, büyük yazıda 4×3, seçili marka dolgusu);
+  tekrarlayan plan formu da aynı çipleri kullanır. Başlangıç, ritimden
+  türetilen tarihlerin seçimidir. Ritim değişince nötr `AppInlineNotice`.
+- **Ortak yeni parçalar**: `AppUnknownAmount` (tutarı belli olmayan kalemin
+  tutar yeri; Planlananlar, Özet, Planlama), `AppMonthChips`,
+  `AppDetailBlock.background`, `AppDateField.valueText` (Türkçe tarih).
+- **Özet**: Yaklaşanlar kartının başında gecikenler satırı (gider zemini, sayı,
+  en eski vade, sunucunun gecikmiş toplamı; ok yok, kart Planlananlar'ı açar).
+  Üstteki gecikme şeridi tutarsız kalır; ok ile tarih arasında 8 dp.

@@ -228,8 +228,9 @@ public sealed class FinancialEntityMappingTests
         Assert.Equal(Microsoft.EntityFrameworkCore.Metadata.ValueGenerated.OnAddOrUpdate, version.ValueGenerated);
         Assert.All(occurrence.GetForeignKeys(), foreignKey =>
             Assert.Equal(DeleteBehavior.Restrict, foreignKey.DeleteBehavior));
-        // user, schedule, category, account, credit card, budget transaction, card charge
-        Assert.Equal(7, occurrence.GetForeignKeys().Count());
+        // user, schedule, category, account, credit card, budget transaction, card charge,
+        // and the tax payment that closed it: a transaction or a card charge (ADR 0018 T5)
+        Assert.Equal(9, occurrence.GetForeignKeys().Count());
     }
 
     [Fact]

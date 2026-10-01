@@ -142,6 +142,8 @@ class DashboardPage extends StatelessWidget {
             onOpen: () => context.push(plannedLocation),
             child: DashboardUpcomingCard(
               items: viewModel.upcoming,
+              overdue: viewModel.overdue,
+              overdueTotal: viewModel.overdueOutgoingTotal,
               total: viewModel.upcomingOutgoingTotal,
               currency: report.currency,
               today: viewModel.today,
@@ -323,6 +325,8 @@ class _OverdueBand extends StatelessWidget {
                         ),
                       ),
                     ),
+                    // Ok tarihe yapışık duruyordu (kullanıcı, 30 Eylül).
+                    const SizedBox(width: AppSpacing.small),
                     Icon(Icons.chevron_right, size: 22, color: foreground),
                   ],
                 ),

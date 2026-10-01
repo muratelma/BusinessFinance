@@ -71,7 +71,12 @@ public sealed record PlannedActivityDto(
     PlannedActivityAttention? AttentionCode,
     PlannedActivityAction ActionKind,
     DateOnly DueDate,
-    decimal Amount,
+
+    /// <summary>
+    /// Kalemin tutarı; tutarı ödeme gününe kadar bilinmeyen vergide boştur
+    /// (ADR 0018 İ5). Boş tutar hiçbir toplama tahminle katılmaz.
+    /// </summary>
+    decimal? Amount,
     CurrencyCode Currency,
     string Title,
     string? Description,
@@ -103,7 +108,17 @@ public sealed record PlannedActivityDto(
     /// <summary>
     /// Aggregate içindeki sıra numarası; uç nokta istemiyorsa <c>null</c>.
     /// </summary>
-    int? ActionSequence);
+    int? ActionSequence,
+
+    /// <summary>
+    /// Tekrarlanan satırın planı, üretilmiş olsun olmasın; diğer türlerde boş.
+    /// "Ödedim", "tutar belli oldu" ve toplu ödemede kalem plan + vade ile
+    /// adreslenir.
+    /// </summary>
+    Guid? RecurringTransactionId = null,
+
+    /// <summary>Plan bir vergiyse türü (ADR 0018 T2); değilse boş.</summary>
+    TaxKind? TaxKind = null);
 
 public sealed record PlannedActivityQuery(
     DateOnly AsOfDate,
@@ -128,7 +143,27 @@ public sealed record PlannedActivityListResult(
     /// ayrı bir uyarının konusudur; aynı parayı iki yerde saydırmamak için
     /// burada yoktur.
     /// </remarks>
-    decimal UpcomingOutgoingTotal = 0m);
+    decimal UpcomingOutgoingTotal = 0m,
+
+    /// <summary>
+    /// <see cref="UpcomingOutgoingTotal"/>'ın diliminde olup tutarı belli
+    /// olmayan kalem sayısı (ADR 0018 T3): toplam bu kalemleri tahminle
+    /// saymaz, kaç tane olduklarını ayrıca söyler.
+    /// </summary>
+    int UnknownAmountCount = 0,
+
+    /// <summary>
+    /// Gecikmiş <b>ödeme yükümlülüklerinin</b> tutarı belli olanlarının
+    /// toplamı. Özet'in "N gecikmiş ödeme" satırı bunu yazar; pencereden
+    /// bağımsızdır, çünkü gecikmişlerin alt sınırı yoktur.
+    /// </summary>
+    decimal OverdueOutgoingTotal = 0m,
+
+    /// <summary>
+    /// Gecikmiş ödeme yükümlülüklerinden tutarı belli olmayanların sayısı.
+    /// Toplama tahminle katılmazlar (ADR 0018 İ5).
+    /// </summary>
+    int OverdueUnknownAmountCount = 0);
 
 /// <summary>
 /// The single source of planned movements. The upcoming-payments view reads a narrowed
@@ -145,6 +180,18 @@ public interface IPlannedActivityRepository
         DateOnly asOfDate,
         DateOnly horizonDate,
         TransactionScope? scope,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Tek bir tekrarlayan planın henüz gerçekleşmemiş kalemleri, ufka kadar.
+    /// Aynı izdüşüm kuralıyla kurulur; yalnız o planın satırlarını üretir, bu
+    /// yüzden seyrek ritimli bir plan için uzak bir ufuk ucuzdur.
+    /// </summary>
+    Task<IReadOnlyList<PlannedActivityDto>> ListForRecurringPlanAsync(
+        Guid userId,
+        Guid recurringTransactionId,
+        DateOnly asOfDate,
+        DateOnly horizonDate,
         CancellationToken cancellationToken);
 }
 

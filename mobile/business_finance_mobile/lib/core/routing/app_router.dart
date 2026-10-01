@@ -51,11 +51,9 @@ import '../../features/goals/presentation/goals_page.dart';
 import '../../features/cash/data/cash_repository.dart';
 import '../../features/cash/presentation/cash_controller.dart';
 import '../../features/cash/presentation/cash_page.dart';
-import '../../features/taxes/data/tax_models.dart';
 import '../../features/taxes/data/tax_repository.dart';
-import '../../features/taxes/presentation/tax_calendar_page.dart';
 import '../../features/taxes/presentation/tax_controller.dart';
-import '../../features/planning/presentation/recurring_prefill.dart';
+import '../../features/taxes/presentation/tax_tracking_page.dart';
 import '../../features/pos/data/pos_repository.dart';
 import '../../features/pos/presentation/pos_controller.dart';
 import '../../features/obligations/data/obligation_repository.dart';
@@ -642,25 +640,18 @@ GoRouter createAppRouter({
         ),
       ),
       GoRoute(
-        path: taxCalendarLocation,
+        path: taxesLocation,
         pageBuilder: (context, state) => _sessionPage(
           state,
           taxRepository == null
               ? const Scaffold(
                   body: AppErrorView(
-                    message: 'Vergi takvimi servisi yapılandırılmadı.',
+                    message: 'Vergi servisi yapılandırılmadı.',
                   ),
                 )
-              : _TaxCalendarHost(
+              : _TaxesHost(
                   repository: taxRepository,
-                  // Kalem tek yerde kuruluyor: planlama ekranının formu.
-                  onInstall: (suggestion) => context.push(
-                    '/more/planning?plan=${suggestion.key}'
-                    '&frequency=${suggestion.frequency}'
-                    '&day=${suggestion.suggestedDayOfMonth}'
-                    '&category=${Uri.encodeComponent(suggestion.suggestedCategoryName)}'
-                    '&label=${Uri.encodeComponent(suggestion.label)}',
-                  ),
+                  changes: financialDataChanges,
                 ),
           authController,
         ),
@@ -678,7 +669,6 @@ GoRouter createAppRouter({
               : PlanningPage(
                   repository: planningRepository,
                   financialDataChanges: financialDataChanges,
-                  recurringPrefill: _recurringPrefill(state.uri),
                 ),
           authController,
         ),
@@ -843,25 +833,26 @@ class _CashPageHostState extends State<_CashPageHost> {
   );
 }
 
-/// Vergi takvimi ekranının controller'ını **bir kez** kuran kabuk.
+/// Vergi takibi ekranının controller'ını **bir kez** kuran kabuk.
 ///
 /// Rota kurucusu her yeniden çizimde çalışır; controller orada kurulsaydı üste
 /// itilen bir sayfadan geri dönüldüğünde ekran yüklenmemiş yeni bir
 /// controller'a bağlanır ve boş görünürdü. Kabuk aynı deseni `Kasa`
 /// ekranındakiyle paylaşıyor.
-class _TaxCalendarHost extends StatefulWidget {
-  const _TaxCalendarHost({required this.repository, this.onInstall});
+class _TaxesHost extends StatefulWidget {
+  const _TaxesHost({required this.repository, this.changes});
 
   final TaxRepositoryContract repository;
-  final void Function(TaxCalendarSuggestion suggestion)? onInstall;
+  final FinancialDataChanges? changes;
 
   @override
-  State<_TaxCalendarHost> createState() => _TaxCalendarHostState();
+  State<_TaxesHost> createState() => _TaxesHostState();
 }
 
-class _TaxCalendarHostState extends State<_TaxCalendarHost> {
-  late final TaxCalendarController _controller = TaxCalendarController(
+class _TaxesHostState extends State<_TaxesHost> {
+  late final TaxController _controller = TaxController(
     widget.repository,
+    changes: widget.changes,
   );
 
   @override
@@ -871,11 +862,8 @@ class _TaxCalendarHostState extends State<_TaxCalendarHost> {
   }
 
   @override
-  Widget build(BuildContext context) => TaxCalendarPage(
-    controller: _controller,
-    ownsController: false,
-    onInstall: widget.onInstall,
-  );
+  Widget build(BuildContext context) =>
+      TaxTrackingPage(controller: _controller, ownsController: false);
 }
 
 String? _authRedirect(AuthController controller, GoRouterState state) {
@@ -1203,24 +1191,4 @@ Future<void> _recordBankDocument(
         extra: receiptLendingPrefillFrom(draft, withFee: recordFee),
       );
   }
-}
-
-/// Vergi takviminden gelen sorgu parametrelerini forma çevirir.
-///
-/// Eksik ya da okunamayan parametre `null` döner: yarım bir öneriyle form
-/// açmak, kullanıcının görmediği bir alanı doldurulmuş göstermek olurdu.
-RecurringPrefill? _recurringPrefill(Uri uri) {
-  final frequency = uri.queryParameters['frequency'];
-  final day = int.tryParse(uri.queryParameters['day'] ?? '');
-  final category = uri.queryParameters['category'];
-  final label = uri.queryParameters['label'];
-  if (frequency == null || day == null || category == null || label == null) {
-    return null;
-  }
-  return RecurringPrefill.fromSuggestion(
-    label: label,
-    frequency: frequency,
-    dayOfMonth: day,
-    categoryName: category,
-  );
 }

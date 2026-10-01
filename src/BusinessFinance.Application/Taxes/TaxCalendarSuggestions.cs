@@ -3,76 +3,57 @@ using BusinessFinance.Domain;
 namespace BusinessFinance.Application.Taxes;
 
 /// <summary>
-/// Vergi ve SGK takviminin hazır kalemleri.
+/// Vergi ekranının hazır türleri (ADR 0018 T2; ayrıntı
+/// <c>research/vergi/YENI-YAKLASIM.md</c> §6.6).
 /// </summary>
 /// <remarks>
-/// ADR 0016: bunlar <b>önerilerdir, mevzuat değildir</b>. Uygulama mevzuat
-/// takibi yapmaz; öneri kurulduğu an kullanıcının verisi olur, kullanıcı
-/// düzenler ve siler, uygulama onu sonradan kendiliğinden güncellemez.
-///
-/// Öneri <b>tutar taşımaz</b>. Tutar kullanıcınındır ve bu kalemlerin çoğunda
-/// her dönem değişir; bir sayı önermek, hesaplanmış bir vergi tutarı iddia
-/// etmek olurdu.
-///
-/// Kurulum <b>ikinci bir yazma yolu açmaz</b>: kalem, mevcut tekrarlayan plan
-/// ucundan (`POST /api/v1/recurring-transactions`) önerinin doldurduğu formla
-/// kurulur. Yeni bir zamanlayıcı, yeni bir tablo ve ikinci bir "yaklaşanlar"
-/// kaynağı yoktur — kalem tekrarlayan bir plandır ve planlanan görünüme
-/// oradan düşer.
+/// <para>
+/// Bunlar <b>önerilerdir, mevzuat değildir</b>. Uygulama mevzuat takibi yapmaz;
+/// öneri kurulduğu an kullanıcının verisi olur, kullanıcı düzenler ve siler,
+/// uygulama onu sonradan kendiliğinden güncellemez.
+/// </para>
+/// <para>
+/// Öneri yalnız <b>ritim ve gün</b> taşır, <b>tutar taşımaz</b> (V-K3, V-K7):
+/// tutar kullanıcınındır ve bu kalemlerin çoğunda her dönem değişir; bir sayı
+/// önermek, hesaplanmış bir vergi tutarı iddia etmek olurdu (İ1). Kategori de
+/// taşımaz: vergi, kullanıcının vergi işaretli kategorisine yazılır.
+/// </para>
+/// <para>
+/// Kurulum <b>ikinci bir yazma yolu açmaz</b>: tür, mevcut tekrarlayan plan
+/// ucundan (<c>POST /api/v1/recurring-transactions</c>) vergi türüyle kurulur.
+/// </para>
 /// </remarks>
 public static class TaxCalendarSuggestions
 {
     /// <summary>
-    /// Hazır kalemin sözleşme karşılığı.
+    /// Hazır türün sözleşme karşılığı.
     /// </summary>
-    /// <param name="Key">Kararlı makine değeri; kullanıcıya gösterilecek cümleyi istemci kurar.</param>
-    /// <param name="SuggestedDayOfMonth">
-    /// Önerilen gün. Bir <b>başlangıç noktasıdır</b>: kullanıcı kurarken
-    /// değiştirebilir ve kurulduktan sonra tarih tamamen ona aittir.
+    /// <param name="TaxKind">Türün kararlı makine değeri; adı ve ipucunu istemci kurar.</param>
+    /// <param name="Months">
+    /// "Seçilen aylarda" ve "yılda bir" ritminin ayları (1–12); diğerlerinde boş.
     /// </param>
-    /// <param name="SuggestedCategoryName">
-    /// İşletme kategori setinde bu kalemin düştüğü kategori. Kategori yoksa
-    /// istemci kullanıcıya seçtirir; sunucu kategori <b>oluşturmaz</b>.
+    /// <param name="DayOfMonth">
+    /// Önerilen gün; <c>31</c> "ay sonu" demektir (kısa aylarda son gün). Bir
+    /// <b>başlangıç noktasıdır</b>: kurulduktan sonra tarih kullanıcınındır.
     /// </param>
     public sealed record TaxCalendarSuggestion(
-        string Key,
+        TaxKind TaxKind,
         RecurrenceFrequency Frequency,
-        int SuggestedDayOfMonth,
-        string SuggestedCategoryName,
-        RecurringTransactionKind Kind,
-        TransactionScope Scope);
+        IReadOnlyList<int> Months,
+        int DayOfMonth);
 
-    private const string TaxCategory = "SGK ve vergi ödemesi";
+    /// <summary>"Ay sonu": kısa aylarda ayın son gününe iner.</summary>
+    public const int MonthEnd = 31;
 
     public static IReadOnlyList<TaxCalendarSuggestion> All { get; } =
     [
-        new(
-            "vat-return",
-            RecurrenceFrequency.Monthly,
-            28,
-            TaxCategory,
-            RecurringTransactionKind.Expense,
-            TransactionScope.Business),
-        new(
-            "withholding-return",
-            RecurrenceFrequency.Monthly,
-            26,
-            TaxCategory,
-            RecurringTransactionKind.Expense,
-            TransactionScope.Business),
-        new(
-            "social-security-premium",
-            RecurrenceFrequency.Monthly,
-            30,
-            TaxCategory,
-            RecurringTransactionKind.Expense,
-            TransactionScope.Business),
-        new(
-            "advance-tax",
-            RecurrenceFrequency.Quarterly,
-            17,
-            TaxCategory,
-            RecurringTransactionKind.Expense,
-            TransactionScope.Business)
+        new(TaxKind.SocialSecurityPremium, RecurrenceFrequency.Monthly, [], MonthEnd),
+        new(TaxKind.VatReturn, RecurrenceFrequency.Monthly, [], 28),
+        new(TaxKind.WithholdingReturn, RecurrenceFrequency.Monthly, [], 26),
+        new(TaxKind.AdvanceTax, RecurrenceFrequency.SelectedMonths, [2, 5, 8, 11], 17),
+        new(TaxKind.AnnualIncomeTax, RecurrenceFrequency.SelectedMonths, [3, 7], MonthEnd),
+        new(TaxKind.PropertyTax, RecurrenceFrequency.SelectedMonths, [5, 11], MonthEnd),
+        new(TaxKind.MotorVehicleTax, RecurrenceFrequency.SelectedMonths, [1, 7], MonthEnd),
+        new(TaxKind.AdvertisingTax, RecurrenceFrequency.Yearly, [1], MonthEnd)
     ];
 }

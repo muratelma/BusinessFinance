@@ -66,7 +66,10 @@ public static class FinancialActivityEndpoints
             value.TotalCount,
             value.NearestDueDate is DateOnly nearest ? FinanceContract.Date(nearest) : null,
             value.Items.Select(ToResponse).ToArray(),
-            FinanceContract.Money(value.UpcomingOutgoingTotal)));
+            FinanceContract.Money(value.UpcomingOutgoingTotal),
+            value.UnknownAmountCount,
+            FinanceContract.Money(value.OverdueOutgoingTotal),
+            value.OverdueUnknownAmountCount));
     }
 
     internal static PlannedActivityResponse ToResponse(PlannedActivityDto item) => new(
@@ -80,7 +83,7 @@ public static class FinancialActivityEndpoints
             : null,
         ActionValues[item.ActionKind],
         FinanceContract.Date(item.DueDate),
-        FinanceContract.Money(item.Amount),
+        FinanceContract.OptionalMoney(item.Amount),
         item.Currency.ToString(),
         item.Title,
         item.Description,
@@ -91,7 +94,9 @@ public static class FinancialActivityEndpoints
         item.IsProjected,
         PlannedActivityRules.IsPaymentObligation(item),
         item.ActionTargetId,
-        item.ActionSequence);
+        item.ActionSequence,
+        item.RecurringTransactionId,
+        Taxes.TaxContractValues.OptionalTaxKindValue(item.TaxKind));
 
     internal static readonly Dictionary<PlannedActivityKind, string> PlannedKindValues = new()
     {

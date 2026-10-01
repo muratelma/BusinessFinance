@@ -52,6 +52,7 @@ class CategoriesViewModel extends ChangeNotifier {
     required String type,
     required bool isActive,
     TransactionScope? defaultScope,
+    bool isTax = false,
   }) async {
     if (_isSubmitting) return false;
     _isSubmitting = true;
@@ -64,6 +65,7 @@ class CategoriesViewModel extends ChangeNotifier {
           name: name,
           type: type,
           defaultScope: defaultScope,
+          isTax: isTax,
         );
         successMessage = 'Kategori oluşturuldu.';
       } else {
@@ -72,6 +74,7 @@ class CategoriesViewModel extends ChangeNotifier {
           name: name,
           isActive: isActive,
           defaultScope: defaultScope,
+          isTax: isTax,
         );
         successMessage = 'Kategori güncellendi.';
       }

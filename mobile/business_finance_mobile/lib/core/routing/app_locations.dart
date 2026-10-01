@@ -46,8 +46,8 @@ const budgetsLocation = '/more/budgets';
 /// duruyor.
 const accountLocation = '/more/account';
 
-/// Vergi takvimi: hazır kalemler ve kurdukları tekrarlayan planlar.
-const taxCalendarLocation = '/more/tax-calendar';
+/// Vergi takibi: bekleyenler, tanımlı vergiler ve ödenenler (ADR 0018).
+const taxesLocation = '/more/taxes';
 
 /// `Hatırlatmalar`: cihazın kendi zamanlayıcısına kurulan uyarıların ayarı.
 const remindersLocation = '/more/reminders';

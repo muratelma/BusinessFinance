@@ -45,7 +45,8 @@ public sealed class ListPlannedActivitiesUseCase(
 
         // Overdue first, then by due date. Planned income, expenses, statements and
         // neutral obligations are never summed into one number; the only total is
-        // the outgoing payment obligations that are not yet overdue.
+        // the outgoing payment obligations that are not yet overdue. An item whose
+        // amount is not known yet (a tax) is counted, never estimated.
         var ordered = items
             .OrderByDescending(item => item.Timing == PlannedActivityTiming.Overdue)
             .ThenBy(item => item.DueDate)
@@ -53,6 +54,15 @@ public sealed class ListPlannedActivitiesUseCase(
             .ThenBy(item => item.PlannedActivityId)
             .ToArray();
 
+        var obligations = ordered
+            .Where(PlannedActivityRules.IsPaymentObligation)
+            .ToArray();
+        var outgoing = obligations
+            .Where(item => item.Timing != PlannedActivityTiming.Overdue)
+            .ToArray();
+        var overdue = obligations
+            .Where(item => item.Timing == PlannedActivityTiming.Overdue)
+            .ToArray();
         return ApplicationResult<PlannedActivityListResult>.Success(
             new PlannedActivityListResult(
                 query.AsOfDate,
@@ -61,10 +71,10 @@ public sealed class ListPlannedActivitiesUseCase(
                 ordered.Length,
                 ordered.Length == 0 ? null : ordered.Min(item => item.DueDate),
                 ordered,
-                ordered
-                    .Where(item => item.Timing != PlannedActivityTiming.Overdue &&
-                                   PlannedActivityRules.IsPaymentObligation(item))
-                    .Sum(item => item.Amount)));
+                outgoing.Sum(item => item.Amount ?? 0m),
+                outgoing.Count(item => item.Amount is null),
+                overdue.Sum(item => item.Amount ?? 0m),
+                overdue.Count(item => item.Amount is null)));
     }
 }
 

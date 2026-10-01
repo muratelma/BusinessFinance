@@ -216,6 +216,9 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsTax")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -239,6 +242,8 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.ToTable("Categories", null, t =>
                         {
                             t.HasCheckConstraint("CK_Categories_DefaultScope", "[DefaultScope] IS NULL OR [DefaultScope] IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_Categories_IsTax", "[IsTax] = 0 OR [Type] = 2");
 
                             t.HasCheckConstraint("CK_Categories_Type", "[Type] IN (1, 2)");
                         });
@@ -1281,11 +1286,22 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("AccountId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<decimal?>("AmountValue")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("decimal(19,4)")
+                        .HasColumnName("Amount");
+
                     b.Property<Guid>("CategoryId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid?>("CreditCardId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte>("Currency")
+                        .HasColumnType("tinyint");
+
+                    b.Property<byte?>("DayOfMonth")
+                        .HasColumnType("tinyint");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
@@ -1318,11 +1334,17 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.Property<byte>("Scope")
                         .HasColumnType("tinyint");
 
-                    b.Property<byte>("SourceType")
+                    b.Property<short?>("SelectedMonths")
+                        .HasColumnType("smallint");
+
+                    b.Property<byte?>("SourceType")
                         .HasColumnType("tinyint");
 
                     b.Property<DateOnly>("StartDate")
                         .HasColumnType("date");
+
+                    b.Property<byte?>("TaxKind")
+                        .HasColumnType("tinyint");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
@@ -1340,13 +1362,15 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
 
                     b.ToTable("RecurringTransactions", null, t =>
                         {
-                            t.HasCheckConstraint("CK_RecurringTransactions_Amount", "[Amount] > 0");
+                            t.HasCheckConstraint("CK_RecurringTransactions_Amount", "([Amount] IS NULL AND [TaxKind] IS NOT NULL) OR ([Amount] IS NOT NULL AND [Amount] > 0)");
 
                             t.HasCheckConstraint("CK_RecurringTransactions_Currency", "[Currency] = 1");
 
                             t.HasCheckConstraint("CK_RecurringTransactions_DateRange", "[EndDate] IS NULL OR [EndDate] >= [StartDate]");
 
-                            t.HasCheckConstraint("CK_RecurringTransactions_Frequency", "[Frequency] IN (1, 2, 3, 4, 5)");
+                            t.HasCheckConstraint("CK_RecurringTransactions_DayOfMonth", "[DayOfMonth] IS NULL OR ([DayOfMonth] BETWEEN 1 AND 31 AND [Frequency] NOT IN (1, 2))");
+
+                            t.HasCheckConstraint("CK_RecurringTransactions_Frequency", "[Frequency] IN (1, 2, 3, 4, 5, 6)");
 
                             t.HasCheckConstraint("CK_RecurringTransactions_GeneratedOccurrenceCount", "[GeneratedOccurrenceCount] >= 0 AND ([OccurrenceLimit] IS NULL OR [GeneratedOccurrenceCount] <= [OccurrenceLimit])");
 
@@ -1360,9 +1384,13 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_RecurringTransactions_Scope", "[Scope] IN (1, 2)");
 
-                            t.HasCheckConstraint("CK_RecurringTransactions_Source", "([SourceType] = 1 AND [AccountId] IS NOT NULL AND [CreditCardId] IS NULL) OR ([SourceType] = 2 AND [AccountId] IS NULL AND [CreditCardId] IS NOT NULL)");
+                            t.HasCheckConstraint("CK_RecurringTransactions_SelectedMonths", "([Frequency] = 6 AND [SelectedMonths] IS NOT NULL AND [SelectedMonths] BETWEEN 1 AND 4095) OR ([Frequency] <> 6 AND [SelectedMonths] IS NULL)");
 
-                            t.HasCheckConstraint("CK_RecurringTransactions_SourceType", "[SourceType] IN (1, 2)");
+                            t.HasCheckConstraint("CK_RecurringTransactions_Source", "([SourceType] IS NOT NULL AND [SourceType] = 1 AND [AccountId] IS NOT NULL AND [CreditCardId] IS NULL) OR ([SourceType] IS NOT NULL AND [SourceType] = 2 AND [AccountId] IS NULL AND [CreditCardId] IS NOT NULL) OR ([SourceType] IS NULL AND [TaxKind] IS NOT NULL AND [AccountId] IS NULL AND [CreditCardId] IS NULL)");
+
+                            t.HasCheckConstraint("CK_RecurringTransactions_SourceType", "[SourceType] IS NULL OR [SourceType] IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_RecurringTransactions_TaxKind", "[TaxKind] IS NULL OR ([TaxKind] BETWEEN 1 AND 9 AND [Kind] = 2)");
                         });
                 });
 
@@ -1375,10 +1403,24 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("AccountId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<decimal?>("AmountValue")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("decimal(19,4)")
+                        .HasColumnName("Amount");
+
                     b.Property<Guid?>("BudgetTransactionId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("CategoryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("ClosedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("ClosedByChargeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ClosedByTransactionId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid?>("CreditCardChargeId")
@@ -1386,6 +1428,9 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid?>("CreditCardId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte>("Currency")
+                        .HasColumnType("tinyint");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
@@ -1412,7 +1457,7 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.Property<byte>("Scope")
                         .HasColumnType("tinyint");
 
-                    b.Property<byte>("SourceType")
+                    b.Property<byte?>("SourceType")
                         .HasColumnType("tinyint");
 
                     b.Property<byte>("Status")
@@ -1440,6 +1485,14 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId", "CategoryId");
 
+                    b.HasIndex("UserId", "ClosedByChargeId")
+                        .HasDatabaseName("IX_RecurringOccurrences_UserId_ClosedByChargeId")
+                        .HasFilter("[ClosedByChargeId] IS NOT NULL");
+
+                    b.HasIndex("UserId", "ClosedByTransactionId")
+                        .HasDatabaseName("IX_RecurringOccurrences_UserId_ClosedByTransactionId")
+                        .HasFilter("[ClosedByTransactionId] IS NOT NULL");
+
                     b.HasIndex("UserId", "CreditCardChargeId")
                         .IsUnique()
                         .HasDatabaseName("UX_RecurringOccurrences_UserId_ChargeId")
@@ -1458,21 +1511,21 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
 
                     b.ToTable("RecurringTransactionOccurrences", null, t =>
                         {
-                            t.HasCheckConstraint("CK_RecurringOccurrences_Amount", "[Amount] > 0");
+                            t.HasCheckConstraint("CK_RecurringOccurrences_Amount", "[Amount] IS NULL OR [Amount] > 0");
 
                             t.HasCheckConstraint("CK_RecurringOccurrences_Currency", "[Currency] = 1");
 
                             t.HasCheckConstraint("CK_RecurringOccurrences_Kind", "[Kind] IN (1, 2, 3)");
 
-                            t.HasCheckConstraint("CK_RecurringOccurrences_Realization", "([Status] = 1 AND [BudgetTransactionId] IS NULL AND [CreditCardChargeId] IS NULL AND [RealizedAtUtc] IS NULL) OR ([Status] = 2 AND [RealizedAtUtc] IS NOT NULL AND (([SourceType] = 1 AND [BudgetTransactionId] IS NOT NULL AND [CreditCardChargeId] IS NULL) OR ([SourceType] = 2 AND [BudgetTransactionId] IS NULL AND [CreditCardChargeId] IS NOT NULL)))");
+                            t.HasCheckConstraint("CK_RecurringOccurrences_Realization", "([Status] = 1 AND [BudgetTransactionId] IS NULL AND [CreditCardChargeId] IS NULL AND [RealizedAtUtc] IS NULL AND [ClosedByTransactionId] IS NULL AND [ClosedByChargeId] IS NULL AND [ClosedAtUtc] IS NULL) OR ([Status] = 2 AND [RealizedAtUtc] IS NOT NULL AND [Amount] IS NOT NULL AND [SourceType] IS NOT NULL AND [ClosedByTransactionId] IS NULL AND [ClosedByChargeId] IS NULL AND [ClosedAtUtc] IS NULL AND (([SourceType] = 1 AND [BudgetTransactionId] IS NOT NULL AND [CreditCardChargeId] IS NULL) OR ([SourceType] = 2 AND [BudgetTransactionId] IS NULL AND [CreditCardChargeId] IS NOT NULL))) OR ([Status] = 3 AND [BudgetTransactionId] IS NULL AND [CreditCardChargeId] IS NULL AND [RealizedAtUtc] IS NULL AND [ClosedAtUtc] IS NOT NULL AND (([ClosedByTransactionId] IS NOT NULL AND [ClosedByChargeId] IS NULL) OR ([ClosedByTransactionId] IS NULL AND [ClosedByChargeId] IS NOT NULL)))");
 
                             t.HasCheckConstraint("CK_RecurringOccurrences_Scope", "[Scope] IN (1, 2)");
 
-                            t.HasCheckConstraint("CK_RecurringOccurrences_Source", "([SourceType] = 1 AND [AccountId] IS NOT NULL AND [CreditCardId] IS NULL) OR ([SourceType] = 2 AND [AccountId] IS NULL AND [CreditCardId] IS NOT NULL)");
+                            t.HasCheckConstraint("CK_RecurringOccurrences_Source", "([SourceType] IS NOT NULL AND [SourceType] = 1 AND [AccountId] IS NOT NULL AND [CreditCardId] IS NULL) OR ([SourceType] IS NOT NULL AND [SourceType] = 2 AND [AccountId] IS NULL AND [CreditCardId] IS NOT NULL) OR ([SourceType] IS NULL AND [AccountId] IS NULL AND [CreditCardId] IS NULL)");
 
-                            t.HasCheckConstraint("CK_RecurringOccurrences_SourceType", "[SourceType] IN (1, 2)");
+                            t.HasCheckConstraint("CK_RecurringOccurrences_SourceType", "[SourceType] IS NULL OR [SourceType] IN (1, 2)");
 
-                            t.HasCheckConstraint("CK_RecurringOccurrences_Status", "[Status] IN (1, 2)");
+                            t.HasCheckConstraint("CK_RecurringOccurrences_Status", "[Status] IN (1, 2, 3)");
                         });
                 });
 
@@ -2762,31 +2815,6 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .HasForeignKey("UserId", "CreditCardId")
                         .HasPrincipalKey("UserId", "Id")
                         .OnDelete(DeleteBehavior.Restrict);
-
-                    b.OwnsOne("BusinessFinance.Domain.Money", "Amount", b1 =>
-                        {
-                            b1.Property<Guid>("RecurringTransactionId")
-                                .HasColumnType("uniqueidentifier");
-
-                            b1.Property<decimal>("Amount")
-                                .HasPrecision(19, 4)
-                                .HasColumnType("decimal(19,4)")
-                                .HasColumnName("Amount");
-
-                            b1.Property<byte>("Currency")
-                                .HasColumnType("tinyint")
-                                .HasColumnName("Currency");
-
-                            b1.HasKey("RecurringTransactionId");
-
-                            b1.ToTable("RecurringTransactions");
-
-                            b1.WithOwner()
-                                .HasForeignKey("RecurringTransactionId");
-                        });
-
-                    b.Navigation("Amount")
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("BusinessFinance.Domain.RecurringTransactionOccurrence", b =>
@@ -2818,6 +2846,18 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
 
                     b.HasOne("BusinessFinance.Domain.CreditCardCharge", null)
                         .WithMany()
+                        .HasForeignKey("UserId", "ClosedByChargeId")
+                        .HasPrincipalKey("UserId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("BusinessFinance.Domain.BudgetTransaction", null)
+                        .WithMany()
+                        .HasForeignKey("UserId", "ClosedByTransactionId")
+                        .HasPrincipalKey("UserId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("BusinessFinance.Domain.CreditCardCharge", null)
+                        .WithMany()
                         .HasForeignKey("UserId", "CreditCardChargeId")
                         .HasPrincipalKey("UserId", "Id")
                         .OnDelete(DeleteBehavior.Restrict);
@@ -2833,31 +2873,6 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .HasForeignKey("UserId", "RecurringTransactionId")
                         .HasPrincipalKey("UserId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.OwnsOne("BusinessFinance.Domain.Money", "Amount", b1 =>
-                        {
-                            b1.Property<Guid>("RecurringTransactionOccurrenceId")
-                                .HasColumnType("uniqueidentifier");
-
-                            b1.Property<decimal>("Amount")
-                                .HasPrecision(19, 4)
-                                .HasColumnType("decimal(19,4)")
-                                .HasColumnName("Amount");
-
-                            b1.Property<byte>("Currency")
-                                .HasColumnType("tinyint")
-                                .HasColumnName("Currency");
-
-                            b1.HasKey("RecurringTransactionOccurrenceId");
-
-                            b1.ToTable("RecurringTransactionOccurrences");
-
-                            b1.WithOwner()
-                                .HasForeignKey("RecurringTransactionOccurrenceId");
-                        });
-
-                    b.Navigation("Amount")
                         .IsRequired();
                 });
 

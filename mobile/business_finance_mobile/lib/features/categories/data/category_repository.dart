@@ -9,6 +9,7 @@ abstract interface class CategoryRepository {
     required String name,
     required String type,
     TransactionScope? defaultScope,
+    bool isTax = false,
   });
 
   /// Sunucudaki `PUT` **yetkilidir**: gönderilmeyen alan "dokunma" değil
@@ -18,6 +19,9 @@ abstract interface class CategoryRepository {
     required String name,
     required bool isActive,
     TransactionScope? defaultScope,
+
+    /// Boşsa gönderilmez ve sunucu işareti değiştirmez.
+    bool? isTax,
   });
 }
 
@@ -44,6 +48,7 @@ class ApiCategoryRepository implements CategoryRepository {
     required String name,
     required String type,
     TransactionScope? defaultScope,
+    bool isTax = false,
   }) async {
     final response = await _client.post(
       '/api/v1/categories',
@@ -51,6 +56,7 @@ class ApiCategoryRepository implements CategoryRepository {
         'name': name.trim(),
         'type': type,
         'defaultScope': defaultScope?.apiValue,
+        'isTax': isTax,
       },
     );
     return BudgetCategory.fromJson(response.requireObject());
@@ -62,6 +68,7 @@ class ApiCategoryRepository implements CategoryRepository {
     required String name,
     required bool isActive,
     TransactionScope? defaultScope,
+    bool? isTax,
   }) async {
     final response = await _client.put(
       '/api/v1/categories/$id',
@@ -69,6 +76,7 @@ class ApiCategoryRepository implements CategoryRepository {
         'name': name.trim(),
         'isActive': isActive,
         'defaultScope': defaultScope?.apiValue,
+        'isTax': ?isTax,
       },
     );
     return BudgetCategory.fromJson(response.requireObject());

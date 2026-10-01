@@ -193,6 +193,24 @@ class FinancialDataChanges extends ChangeNotifier {
     cash: true,
   );
 
+  /// Vergi ödendi ya da ödeme geri alındı (ADR 0018).
+  ///
+  /// Ödenen vergi normal bir giderdir: hesaptan ödendiyse hesap, kartla
+  /// ödendiyse kart borcu değişir; bütçe ve rapor tanır. Kalem bekleyenlerden
+  /// düştüğü (ya da geri döndüğü) için planlanan görünüm de yenilenir.
+  void taxPaymentChanged({required bool card}) => _raise(
+    feed: true,
+    dashboard: true,
+    budgets: true,
+    accounts: !card,
+    cards: card,
+    planning: true,
+  );
+
+  /// Vergi tanımı eklendi, düzenlendi, duraklatıldı, silindi ya da bir
+  /// kaleme tutar yazıldı. Para hareket etmedi; yalnız bekleyenler değişti.
+  void taxPlansChanged() => _raise(dashboard: true, planning: true);
+
   /// Karşı tarafın kendisi eklendi, adı değişti, pasifleşti ya da silindi.
   /// Para hareket etmedi; yalnız kişi listesi değişti.
   void counterpartiesChanged() => _raise(counterparties: true);

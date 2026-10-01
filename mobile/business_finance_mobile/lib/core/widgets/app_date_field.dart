@@ -23,7 +23,17 @@ class AppDateField extends StatelessWidget {
     this.firstDate,
     this.lastDate,
     this.enabled = true,
+    this.valueText,
+    this.iconLeading = false,
   });
+
+  /// Takvim simgesi değerin solunda durur (tasarımdaki panel alanları).
+  /// Varsayılan sağdadır; diğer formlar öyle çizilmiştir.
+  final bool iconLeading;
+
+  /// Değerin ekrandaki hâli (`29 Eylül 2026 · bugün`); verilmezse değer
+  /// olduğu gibi yazılır.
+  final String? valueText;
 
   final String label;
 
@@ -64,7 +74,7 @@ class AppDateField extends StatelessWidget {
 
     return Semantics(
       button: enabled,
-      label: '$label: ${hasValue ? value! : placeholder}',
+      label: '$label: ${hasValue ? (valueText ?? value!) : placeholder}',
       excludeSemantics: true,
       child: InkWell(
         onTap: enabled ? () => _pick(context) : null,
@@ -79,10 +89,13 @@ class AppDateField extends StatelessWidget {
             floatingLabelBehavior: FloatingLabelBehavior.always,
             helperText: helperText,
             enabled: enabled,
-            suffixIcon: const Icon(Icons.calendar_today_outlined),
+            prefixIcon: iconLeading ? const Icon(Icons.event_outlined) : null,
+            suffixIcon: iconLeading
+                ? null
+                : const Icon(Icons.calendar_today_outlined),
           ),
           child: Text(
-            hasValue ? value! : placeholder,
+            hasValue ? (valueText ?? value!) : placeholder,
             style: hasValue
                 ? null
                 : theme.textTheme.bodyMedium?.copyWith(

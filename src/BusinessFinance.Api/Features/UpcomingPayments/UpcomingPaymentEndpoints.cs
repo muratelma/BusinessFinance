@@ -48,7 +48,7 @@ public static class UpcomingPaymentEndpoints
         payment.SourceId,
         SourceTypeValue(payment.SourceType),
         payment.Title,
-        FinanceContract.Money(payment.Amount),
+        FinanceContract.OptionalMoney(payment.Amount),
         payment.Currency.ToString(),
         FinanceContract.Date(payment.DueDate),
         payment.Timing.ToString().ToLowerInvariant(),

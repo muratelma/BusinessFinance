@@ -41,4 +41,24 @@ public static class TransactionScopeResolution
     {
         return Resolve(requested, null, categoryDefault);
     }
+
+    /// <summary>
+    /// Vergi kaydının kapsamı: kullanıcının açık seçimi → profilin tarafı
+    /// (ADR 0018 İ9).
+    /// </summary>
+    /// <remarks>
+    /// Ödeme kaynağının etiketi vergide kapsamı <b>belirlemez</b>: işletme
+    /// vergisini şahsi kartla ödemek olağandır ve kartın etiketi vergiyi şahsi
+    /// yapmamalıdır (kullanıcı kararı, 30 Eylül 2026). Seçim vergi tanımında
+    /// sorulur; tanımsız toplu ödemede sorulmaz ve profilin tarafına yazılır.
+    /// Profilin cevabı her zaman vardır; bu yüzden sonuç hiçbir zaman boş
+    /// değildir — uydurma değil, kullanıcının kendi cevabıdır.
+    /// </remarks>
+    public static TransactionScope ResolveTax(
+        TransactionScope? requested,
+        bool hasBusiness)
+    {
+        return requested ??
+            (hasBusiness ? TransactionScope.Business : TransactionScope.Personal);
+    }
 }

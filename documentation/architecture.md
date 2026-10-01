@@ -1041,7 +1041,67 @@ GİB'e zaten elektronik giden belgelerden kurar.
 
 Yürürlükte kalan ilke: uygulama **hiçbir vergi tutarını türetmez** (ADR 0016
 §1, ADR 0018 İ1). Vergi bir nakit çıkışıdır — tanımlıysa bir tekrarlayan plan,
-ödendiyse o gün yazılan bir giderdir. Vergi ekranı Aşama 06.3 Grup 3'te gelir.
+ödendiyse o gün yazılan bir giderdir.
+
+### Vergi bir nakit planıdır (Aşama 06.3 Grup 3, ADR 0018)
+
+Vergi **ayrı bir kayıt türü değildir** (İ6). Yeni aggregate, yeni tablo ve
+ikinci bir "yaklaşanlar" kaynağı yoktur; mevcut modeller genişledi:
+
+- **Tanımlı vergi** `RecurringTransaction.TaxKind` dolu bir plandır. Vergi planında
+  beklenen tutar (`AmountValue`) ve kaynak (`SourceType`) boş olabilir; sıradan
+  planda ikisi de zorunlu kalır (ADR 0005). Tutar ile para birimi artık ayrı
+  alanlardır (`Money?` hesaplanır), çünkü "bilinmiyor" sıfır değildir (İ5).
+- **Ritim** iki alanla genişledi: `DayOfMonth` (boşsa başlangıç günü; `31` ay
+  sonu) ve `SelectedMonths` (ay kümesi, `RecurrenceFrequency.SelectedMonths`).
+  Mevcut planlarda ikisi de boştur ve davranış değişmez.
+- **Kalem** (`RecurringTransactionOccurrence`) tutarı boş olabilir ("tutar belli
+  oldu" onu yazar); kaynağı ödeme anında değişebilir; yeni `Closed` durumu toplu
+  ödemeyle kapatılmış kalemdir ve kendi sonucu yerine kapatan ödemenin
+  kimliğini (`ClosedByTransactionId` ya da `ClosedByChargeId`) taşır. Bir kalem
+  tam olarak tek sonuç taşır (İ7); SQL'deki `CK_RecurringOccurrences_Realization`
+  üç durumu da ayrı ayrı denetler.
+- **Ödenen vergi** vergi işaretli (`Category.IsTax`) bir kategorideki gider ya da
+  kart harcamasıdır. "Ödenenler" bu iki tablonun `UNION ALL` okumasıdır
+  (`EfTaxPaymentRepository`); gider formundan girilen vergi de oradadır (T6).
+- **"Ödedim"** kalemi ödeme gününe ve seçilen kaynaktan gerçekleştirir; kaynağın
+  tek dallanması (hesap → gider, kart → kart harcaması) değişmedi.
+  **Geri alma** sonucu iptal eder ve kalemi bekleyene döndürür, tek
+  `SaveChanges` sınırında. Birleşik akıştaki köken kilidi yerinde kalır.
+- **Toplu vergi ödemesi** tek gider (ya da kart harcaması) yazar ve seçilen
+  kalemleri kapatır. Ödeme kimliği istek kimliği ile kullanıcı kimliğinden
+  türetilir (`RequestScopedId`): tekrar gönderilen istek ikinci gider yazmaz ve
+  gider tablosuna bir istek kolonu eklenmez. Ödemenin iptali — vergi ekranından
+  da İşlemler'den de — kapattığı kalemleri aynı sınırda açar.
+- **Kalemi yerinde üretmek** (`RecurringOccurrenceMaterializer`): "Ödedim",
+  "tutar belli oldu" ve kapatma henüz üretilmemiş bir güne yazabilir; yalnız o
+  plan o güne kadar ilerletilir, gün ritme düşmüyorsa plana dokunulmaz.
+- **Düzenleme** ritmi de değiştirebilir (kullanıcı kararı, 30 Eylül 2026):
+  bekleyen kalemler yeniden kurulur, ödenmiş ve kapatılmış kalemler kalır, yeni
+  başlangıç son ödenen kalemden sonradır. Ritim değişmezse bekleyenler planı
+  izler; kullanıcının o dönem için yazdığı tutar korunur.
+- **Kapsam** açık seçimden, yoksa profilin tarafından gelir
+  (`TransactionScopeResolution.ResolveTax`); ödeme kaynağının etiketine bakılmaz
+  (ADR 0018 İ9, 30 Eylül 2026). Vergide ADR 0013 zincirinin hesap/kart basamağı
+  yoktur.
+- **Toplu tanımlama** (`CreateTaxPlansUseCase`) her planı tek plan oluşturmanın
+  kuralıyla kurar (`CreateRecurringTransactionUseCase.BuildAsync`: doğrular,
+  yazmaz) ve hepsini tek `SaveChanges` ile yazar.
+- **Planlanan projection** tutarsız kalemi `amount = null` ile taşır; "7 günde
+  çıkacak" toplamı onu saymaz, `UnknownAmountCount` ile ayrıca söyler. Gecikmiş
+  yükümlülüklerin toplamı ayrı bir alandadır (`OverdueOutgoingTotal`). Satır
+  planın kimliğini ve vergi türünü taşır; vergi türü kalemin sorgusuna join ile
+  gelir, projection'ın sorgu sayısı değişmedi. Vergi ekranının toplamı
+  (`PendingTotal`) aynı satırlardan, gecikenler dahil kurulur.
+- **Tanım ayrıntısı** projection'ı yalnız o plan için izdüşürür
+  (`IPlannedActivityRepository.ListForRecurringPlanAsync`, üç yıllık ufuk) ve
+  gecikmişleri + vadesi gelmemiş ilk üç kalemi gösterir; seyrek ritimli vergide
+  sabit bir pencere listeyi boş bırakırdı.
+- **Geri yükleme** tekrarlayan planı artık geçmişi yeniden oynayarak değil anlık
+  görüntüden kurar (`RecurringTransaction.Restore`,
+  `RecurringTransactionOccurrence.Restore`): ritmi değişmiş bir planın eski
+  kalemleri yeni ritme uymaz. Sayacın kalem sayısına eşit olduğu ve hiçbir
+  kalemin sıradaki günden sonra olmadığı doğrulanır.
 
 ### Vergi ve SGK takvimi: yeni bir zamanlayıcı yok
 
@@ -1049,11 +1109,12 @@ Takvim kalemi **tekrarlayan bir plandır**. Yeni tablo, yeni zamanlayıcı ve
 ikinci bir "yaklaşanlar" kaynağı yoktur; kalem planlanan projection'a diğer
 planlarla aynı yoldan düşer, aynı yoldan duraklatılır ve silinir.
 
-`GET /api/v1/tax-calendar/suggestions` hazır kalemleri döner: KDV beyanı,
-muhtasar, SGK/Bağkur primi ve geçici vergi. Bu uç **hiçbir şey yazmaz** —
-kalem, önerinin doldurduğu formla mevcut `POST /api/v1/recurring-transactions`
-ucundan kurulur. İkinci bir yazma yolu, aynı planın iki ayrı biçimde
-oluşabilmesi olurdu.
+`GET /api/v1/tax-calendar/suggestions` hazır vergi türlerini döner (Aşama 06.3
+Grup 3'ten beri sekiz tür: Bağkur, KDV, muhtasar ve prim hizmet, geçici vergi,
+yıllık gelir vergisi, emlak, motorlu taşıtlar, ilan-reklam). Bu uç **hiçbir şey
+yazmaz** — tür, önerinin doldurduğu formla mevcut
+`POST /api/v1/recurring-transactions` ucundan `taxKind` ile kurulur. İkinci bir
+yazma yolu, aynı planın iki ayrı biçimde oluşabilmesi olurdu.
 
 Öneri **tutar taşımaz**: bir sayı önermek, hesaplanmış bir vergi tutarı iddia
 etmek olurdu (ADR 0016). Önerilen gün bir başlangıç noktasıdır; kurulduğu andan

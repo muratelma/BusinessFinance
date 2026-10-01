@@ -101,6 +101,31 @@ public sealed class PlannedActivityUseCaseTests
     }
 
     /// <summary>
+    /// Gecikmiş ödeme yükümlülükleri kendi toplamını alır; tutarı belli olmayan
+    /// gecikmiş kalem toplama girmez, sayısı ayrıca döner. Gelir gecikmiş olsa da
+    /// girmez.
+    /// </summary>
+    [Fact]
+    public async Task Execute_SumsOverdueObligationsSeparately()
+    {
+        var repository = new FakePlannedActivityRepository(
+            Planned(new DateOnly(2026, 8, 10), PlannedActivityTiming.Overdue),
+            Planned(new DateOnly(2026, 8, 11), PlannedActivityTiming.Overdue) with { Amount = null },
+            Planned(new DateOnly(2026, 8, 12), PlannedActivityTiming.Overdue,
+                effect: FinancialActivityEffect.Income),
+            Planned(new DateOnly(2026, 8, 16), PlannedActivityTiming.Upcoming));
+        var useCase = new ListPlannedActivitiesUseCase(new FakeCurrentUser(UserId), repository);
+
+        var result = await useCase.ExecuteAsync(new PlannedActivityQuery(AsOfDate, 7));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(100m, result.Value.OverdueOutgoingTotal);
+        Assert.Equal(1, result.Value.OverdueUnknownAmountCount);
+        Assert.Equal(100m, result.Value.UpcomingOutgoingTotal);
+        Assert.Equal(0, result.Value.UnknownAmountCount);
+    }
+
+    /// <summary>
     /// The only total is what will leave the user's hands inside the window: overdue
     /// items, planned income and collections stay out.
     /// </summary>
@@ -220,5 +245,14 @@ public sealed class PlannedActivityUseCaseTests
             LastHorizon = horizonDate;
             return Task.FromResult<IReadOnlyList<PlannedActivityDto>>(items);
         }
+
+        public Task<IReadOnlyList<PlannedActivityDto>> ListForRecurringPlanAsync(
+            Guid userId,
+            Guid recurringTransactionId,
+            DateOnly asOfDate,
+            DateOnly horizonDate,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<PlannedActivityDto>>(
+                [.. items.Where(item => item.RecurringTransactionId == recurringTransactionId)]);
     }
 }

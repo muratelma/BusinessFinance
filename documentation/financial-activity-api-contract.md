@@ -435,15 +435,29 @@ taşır; Flutter iki ekranda aynı widget'ı kullanabilir. Eylem dispatch'i
       "isProjected": true
     }
   ],
-  "upcomingOutgoingTotal": "233.3333"
+  "upcomingOutgoingTotal": "233.3333",
+  "unknownAmountCount": 0,
+  "overdueOutgoingTotal": "149.9000",
+  "overdueUnknownAmountCount": 0
 }
 ```
 
 `upcomingOutgoingTotal` pencere içinde vadesi henüz gelmemiş (bugün dahil)
 **ödeme yükümlülüklerinin** toplamıdır: "bu pencerede benden ne çıkacak".
+Tutarı henüz belli olmayan kalem (tutarsız vergi, ADR 0018 İ5) bu toplama
+**tahminle katılmaz**; aynı dilimde kaç tane olduğu `unknownAmountCount`
+alanında ayrıca döner ve istemci "2 kalemin tutarı belli değil" der. Böyle bir
+kalemin `amount` alanı `null`'dır; vergi planının kalemi ayrıca `taxKind` ve
+`recurringTransactionId` taşır (§5).
 Tek karışık toplam değildir; gelir, tahsilat ve gecikmişler girmez (örnekte
 gecikmiş abonelik ve maaş dışarıda kalır). Toplam sunucuda yapılır; Özet
 ekranı `7 günde çıkacak` satırını buradan yazar.
+
+`overdueOutgoingTotal` gecikmiş **ödeme yükümlülüklerinin** tutarı belli
+olanlarının toplamıdır; tutarı belli olmayan gecikmiş kalemlerin sayısı
+`overdueUnknownAmountCount`'tadır. Gecikmişlerin alt sınırı olmadığı için bu
+toplam `daysAhead`'den bağımsızdır; `upcomingOutgoingTotal`'a eklenmez. Özet'in
+Yaklaşanlar kartındaki "N gecikmiş ödeme" satırı bunu yazar.
 
 Ekstre kaleminde `plannedActivityId` ile `sourceId` aynı kart kimliğidir; bu
 beklenen durumdur, çünkü ekstrenin kendi kalıcı kimliği yoktur (ekstre bir
@@ -468,16 +482,19 @@ Okunamayan bir tutar `recurring.invalid_amount` ile reddedilir; sunucu bir değe
 uydurmaz. Gerçekleşmiş bir occurrence'ın tutarı **yeniden yazılamaz** —
 düzeltmesi iptal + yeni kayıttır.
 
-`frequency` alanı `daily`, `weekly`, `monthly`, `quarterly` ve `yearly`
-değerlerini alır; `quarterly` üç ayda birdir (geçici verginin ritmi) ve ay sonu
-davranışı aylıkla aynıdır.
+`frequency` alanı `daily`, `weekly`, `monthly`, `quarterly`, `yearly` ve
+`selected-months` değerlerini alır; `quarterly` üç ayda birdir ve ay sonu
+davranışı aylıkla aynıdır. `selected-months` yalnız `months` listesindeki
+aylarda, `dayOfMonth` gününde düşer (§5).
 
 Sunucu eksik occurrence'ı kendi üretip gerçekleştirir; iki adım tek karara
 iner. Önceki sözleşmede `actionTargetId` burada `null` idi ve istemcinin
 gönderecek kimliği olmadığı için eylem hiç çalışmıyordu.
 
 Tarihi gelmemiş bir kalem `recurring.not_due_yet` ile reddedilir: plan tarihi
-gelene kadar bir tahmindir.
+gelene kadar bir tahmindir. **İstisna — ödeme günü verilirse** (`paidOn`,
+vergi ekranının "Ödedim"i): kayıt vade gününe değil ödeme gününe yazılır ve
+ödeme günü gelecekte olamaz, bu yüzden vadesi gelmemiş kalem de ödenebilir (§5).
 
 ### Sıralama ve kurallar
 
@@ -683,8 +700,201 @@ varsa iptal reddedilir:
 Kart harcaması için `credit_card_charges.cancel_origin_locked`.
 
 Manuel, `csv-import`, transfer ve kart ödemesi iptali **mevcut kurallarla
-çalışmaya devam eder** — bu bir regresyon kapısıdır. Borç/alacak endpoint'inde
+çalışmaya devam eder** — bu bir regresyon kapısıdır. Bir vergi ödemesinin
+iptali, kapattığı kalemleri aynı `SaveChanges` sınırında bekleyene döndürür
+(§5). Borç/alacak endpoint'inde
 zaten geri alma yolu yoktur; `canCancel=false` sabittir.
+
+---
+
+## 5. Vergi planı (Aşama 06.3 Grup 3, ADR 0018)
+
+> **Uygulandı (backend).** Vergi ayrı bir kayıt türü değildir (İ6): tanımlı
+> vergi, `taxKind` alanı dolu bir tekrarlayan plandır; ödenen vergi vergi
+> işaretli kategorideki bir gider ya da kart harcamasıdır. Aşağıdaki alanlar
+> §3'ün sözleşmesini geriye uyumlu biçimde genişletir; sıradan plan eskisi gibi
+> çalışır.
+
+### Plan alanları
+
+| Alan | Anlamı |
+|---|---|
+| `taxKind` | `social-security-premium`, `vat-return`, `withholding-return`, `advance-tax`, `annual-income-tax`, `property-tax`, `motor-vehicle-tax`, `advertising-tax`, `custom`; sıradan planda `null`. Adı ve ipucunu istemci kurar |
+| `amount` | Beklenen tutar; **yalnız vergi planında `null` olabilir** (tutarı ödeme gününe kadar bilinmeyen vergi, İ5). Sıfır hâlâ reddedilir |
+| `sourceType`, `accountId`, `creditCardId` | Yalnız vergi planında üçü birden boş olabilir; kaynak ödemede seçilir (T4). Sıradan planda kural değişmedi (ADR 0005) |
+| `frequency` | Yeni değer `selected-months` |
+| `months` | `selected-months` ritminin ayları (1–12); diğer ritimlerde `null` |
+| `dayOfMonth` | Ayın günü (1–31); boşsa başlangıç günü. `31` ay sonudur: kısa ayda son gün, başlangıç 30 Eylül olsa bile sonraki kalem 31 Ekim |
+
+`startDate` ritmin ilk kalemidir ve ritme uymalıdır (seçili bir ayda, `dayOfMonth`
+gününde ya da ay sonuna sıkıştırılmış). Vergi planının adı (`description`)
+zorunludur: aynı kategoride Bağkur, KDV ve geçici vergi yan yana durur. Vergi
+planının kategorisi **vergi işaretli bir gider kategorisi** olmalıdır
+(`recurring.category_not_tax`).
+
+**Kapsam** (İ9, 30 Eylül 2026'da güncellendi): açık seçim → profilin tarafı
+(işletmesi olan kullanıcıda `business`, olmayanda `personal`). **Hesabın ya da
+kartın etiketine bakılmaz**; işletme vergisi şahsi kartla ödenebilir. Sonuç hiç
+boş değildir. Bu kural vergi planına, toplu tanımlamaya ve toplu vergi ödemesine
+uygulanır; istemci seçimi vergi tanımında sunar.
+
+### Uçlar
+
+```text
+PUT  /api/v1/recurring-transactions/{planId}                         düzenleme
+POST /api/v1/recurring-transactions/{planId}/occurrences/realize     "Ödedim" (paidOn, accountId|creditCardId)
+POST /api/v1/recurring-transactions/occurrences/{occurrenceId}/realize
+POST /api/v1/recurring-transactions/{planId}/occurrences/amount      "tutar belli oldu"
+POST /api/v1/recurring-transactions/occurrences/{occurrenceId}/undo  "Ödedim"i geri al
+GET  /api/v1/tax-calendar/suggestions                                hazır türler
+GET  /api/v1/taxes?asOfDate=…&daysAhead=30                           vergi ekranı
+POST /api/v1/taxes/plans                                             "Vergilerimi tanımla" (toplu)
+GET  /api/v1/taxes/plans/{planId}?asOfDate=…                         vergi tanımı ayrıntısı
+GET  /api/v1/tax-payments?skip=0&take=20                             Ödenenler › Tümü
+POST /api/v1/tax-payments                                            "Vergi ödemesi ekle" (toplu)
+POST /api/v1/tax-payments/{paymentId}/undo                           ödemeyi geri al
+```
+
+**Düzenleme** planın tam hâlidir (tür, vergi türü, para birimi değişmez). Ritim
+alanlarından biri (`frequency`, `startDate`, `endDate`, `monthEndBehavior`,
+`dayOfMonth`, `months`) değişirse plan yeni ritimle `startDate` gününden yeniden
+başlar: bekleyen kalemler tahmindir ve yeniden kurulur, ödenmiş ve kapatılmış
+kalemler geçmiş olarak kalır. Yeni başlangıç son ödenen ya da kapatılan
+kalemden sonra olmalıdır (`recurring.reschedule_before_history`; kullanıcı
+kararı, 30 Eylül 2026). Ritim değişmezse bekleyen kalemler planın yeni adını,
+kaynağını, kategorisini ve kapsamını alır; tutar yalnız plandan gelmişse değişir
+— kullanıcının o dönem için yazdığı tutar korunur.
+
+**"Ödedim"** gövdesi `{ "scheduledDate", "amount"?, "paidOn"?, "accountId"?,
+"creditCardId"? }`. `paidOn` verilirse kayıt **ödeme gününe** yazılır ve vadesi
+gelmemiş kalem de ödenebilir; `paidOn` gelecekte olamaz
+(`recurring.paid_on_in_future`; sunucu UTC günü bir gün payla karşılaştırır).
+Kaynak verilirse kalemin kaynağını geçersiz kılar; kartla ödeme kart harcaması
+yazar. Tutarı olmayan kalemde `amount` zorunludur
+(`recurring.amount_required`), kaynağı olmayan kalemde hesap ya da kart
+(`recurring.source_required`).
+
+**"Tutar belli oldu"** gövdesi `{ "scheduledDate", "amount" }`; bekleyen kaleme
+yazar, ileri bir tarih için de. Plan değişmez.
+
+**Geri alma** ürettiği kaydı iptal eder (silmez) ve kalemi bekleyene döndürür;
+kalemin tutarı kalır. Birleşik akıştaki köken kilidi
+(`*.cancel_origin_locked`) yerinde kalır: planın ürettiği kayıt İşlemler'den
+iptal edilmez, geri alma bu uçtandır. Toplu ödemeyle kapatılmış kalem buradan
+geri alınmaz (`recurring.closed_by_payment`).
+
+**Toplu tanımlama** gövdesi `{ "items": [ … ] }`; her öğe tek plan
+oluşturmanın isteğidir (`POST /api/v1/recurring-transactions`) ve `taxKind`
+taşır. En çok 20 öğe. Her öğe tek planla aynı kuralla doğrulanır; biri
+geçersizse **hiçbiri yazılmaz** (tek `SaveChanges`) ve ilk hatanın kodu döner.
+Cevap `201 Created` + `{ "items": [plan…] }`. Vergi türü boş öğe
+`taxes.plan_not_tax` ile reddedilir.
+
+### Kalem durumu `closed`
+
+Occurrence `status` alanı yeni `closed` değerini alır: kalem toplu bir vergi
+ödemesiyle kapatıldı, kendi sonucu yoktur, kapatan ödemenin kimliğini
+`closedByTransactionId` ya da `closedByChargeId` alanında, zamanını
+`closedAtUtc`'de taşır. Bir ödeme birden çok kalemi kapatabilir; bir kalem tam
+olarak tek sonuç taşır (İ7). Kapatılmış kalem "Ödedim" olamaz
+(`recurring.already_settled`) ve planlanan görünümde görünmez.
+
+### Toplu vergi ödemesi
+
+```json
+{
+  "clientRequestId": "0e6f8a2c-5b1d-4c7e-9f30-2a4b6c8d0e12",
+  "amount": "17900.0000",
+  "paidOn": "2026-09-28",
+  "categoryId": "3a9b0c11-5d2f-4e88-b7a6-0c1d4e5f6a72",
+  "accountId": "5b8c1e02-6a4d-4f79-8c13-9d0e2f4a6b81",
+  "creditCardId": null,
+  "scope": null,
+  "note": "Temmuz–Ağustos Bağkur",
+  "closes": [
+    { "recurringTransactionId": "b31f7c48-0d92-4e56-a1c7-3f8b2d5e6a09", "scheduledDate": "2026-07-31" },
+    { "recurringTransactionId": "b31f7c48-0d92-4e56-a1c7-3f8b2d5e6a09", "scheduledDate": "2026-08-31" }
+  ]
+}
+```
+
+Hiçbir vergi tanımlamadan tek tutarla ödeme (İ4): `closes` boş olabilir. Hesap
+ya da kart tam olarak biri; kategori vergi işaretli olmalıdır. Tutar kalemlere
+dağıtılmaz ve eşleştirilmez. Seçilen kalemler — henüz üretilmemiş olsalar da —
+`closed` olur. Ödeme ve kapatma tek `SaveChanges` sınırında yazılır.
+
+**İdempotentlik:** ödemenin kimliği `clientRequestId` ile kullanıcı kimliğinden
+türetilir; aynı istek tekrar gelirse ikinci gider yazılmaz, ilk ödeme döner. İki
+kullanıcının aynı istek kimliği iki ayrı ödeme kimliği üretir.
+
+Cevap (`201 Created`) ve Ödenenler satırı aynı biçimdedir:
+
+```json
+{
+  "paymentId": "8f1a2b3c-4d5e-8f60-9a1b-2c3d4e5f6a7b",
+  "sourceType": "account",
+  "sourceId": "5b8c1e02-6a4d-4f79-8c13-9d0e2f4a6b81",
+  "sourceName": "Dükkan hesabı",
+  "categoryId": "3a9b0c11-5d2f-4e88-b7a6-0c1d4e5f6a72",
+  "categoryName": "SGK ve vergi ödemesi",
+  "amount": "17900.0000",
+  "currency": "TRY",
+  "paidOn": "2026-09-28",
+  "description": "Temmuz–Ağustos Bağkur",
+  "scope": "business",
+  "realizedItem": null,
+  "closedItems": [
+    { "occurrenceId": "…", "recurringTransactionId": "b31f…", "scheduledDate": "2026-07-31", "name": "Bağkur", "taxKind": "social-security-premium" },
+    { "occurrenceId": "…", "recurringTransactionId": "b31f…", "scheduledDate": "2026-08-31", "name": "Bağkur", "taxKind": "social-security-premium" }
+  ],
+  "isCancelled": false
+}
+```
+
+`realizedItem` doluysa ödeme bir kalemin "Ödedim" sonucudur. **Geri alma**
+(`POST /api/v1/tax-payments/{paymentId}/undo`) doğru yolu kendisi seçer:
+"Ödedim" sonucuysa kalemin geri alması, değilse ödemenin iptali ve kapattığı
+kalemlerin bekleyene dönmesi. Aynı sonuç İşlemler'den iptalle de alınır:
+`DELETE /api/v1/transactions/{id}` ve `DELETE /api/v1/credit-card-charges/{id}`
+bir vergi ödemesinin kapattığı kalemleri aynı sınırda açar. Taksit planının
+kaydı bu uçla geri alınmaz (`tax_payments.undo_origin_locked`).
+
+### Vergi ekranı okuması
+
+`GET /api/v1/taxes` tanımlı vergileri (`plans`), gecikmiş ve pencere içindeki
+kalemleri (`pending`) ve son beş ödemeyi (`recentPayments`, `hasMorePayments`)
+döner. `pending` **planlanan projection'ın daraltılmış görünümüdür** (İ6): vergi
+için ikinci bir sorgu yoktur; satırlar §2'nin şeklindedir. `pendingTotal`
+bekleyenlerin tutarı belli olanlarının toplamıdır ve **gecikenleri de içerir**
+(ekranın kartı "Gecikenler ve 30 gün"dür); `pendingUnknownAmountCount` tutarı
+belli olmayanların sayısıdır, yine gecikenler dahil. "Ödenenler" vergi
+işaretli kategorilerdeki iptal edilmemiş giderler ve kart harcamalarıdır; gider
+formundan girilen vergi de oradadır (T6).
+
+Tanım ayrıntısı (`/api/v1/taxes/plans/{planId}`) `upcoming`'de gecikmiş
+kalemlerin hepsini ve vadesi gelmemiş **ilk üç** kalemi döner (pencere değil
+sayı: yılda bir ödenen vergide de dolar; ufuk üç yıl, yalnız o plan
+izdüşürülür). `history` ödenen ya da kapatılan her kalemi ödemesiyle ve kalemin
+kendi beklenen tutarıyla (`amount`, boş olabilir) döner.
+
+### Hazır türler
+
+`GET /api/v1/tax-calendar/suggestions` her tür için `taxKind`, `frequency`,
+`months` ve `dayOfMonth` döner; **tutar, kategori ve kapsam taşımaz** (V-K3).
+Önceki şekil (`key`, `suggestedCategoryName`, `kind`, `scope`) ve 30 Eylül'de
+`personalScopeAllowed` kalktı (kapsam her vergide seçilebilir, İ9); bu uç yalnız
+bu uygulamanın istemcisi tarafından okunuyor.
+
+### Hata kodları
+
+| HTTP | `code` |
+|---|---|
+| 400 | `recurring.category_not_tax`, `recurring.amount_required`, `recurring.source_required`, `recurring.paid_on_in_future`, `recurring.reschedule_before_history`, `recurring.invalid_tax_kind`, `recurring.invalid_months`, `recurring.invalid_paid_on` |
+| 409 | `recurring.already_settled`, `recurring.closed_by_payment`, `recurring.concurrent_change` |
+| 400 | `tax_payments.invalid_source`, `tax_payments.category_not_tax`, `tax_payments.paid_on_in_future`, `tax_payments.item_not_tax`, `tax_payments.invalid_amount`, `tax_payments.invalid_page` |
+| 400 | `taxes.plans_empty`, `taxes.too_many_plans`, `taxes.plan_not_tax` (ve tek plan oluşturmanın bütün `recurring.*` kodları) |
+| 404 | `tax_payments.item_not_found`, `tax_payments.not_found`, `taxes.plan_not_found` |
+| 409 | `tax_payments.item_not_pending`, `tax_payments.item_inactive`, `tax_payments.card_limit_insufficient`, `tax_payments.concurrent_change`, `tax_payments.undo_origin_locked` |
 
 ---
 

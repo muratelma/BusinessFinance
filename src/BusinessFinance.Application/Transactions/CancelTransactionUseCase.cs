@@ -1,6 +1,7 @@
 using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.FinancialActivities;
+using BusinessFinance.Application.RecurringTransactions;
 
 namespace BusinessFinance.Application.Transactions;
 
@@ -10,6 +11,7 @@ public sealed class CancelTransactionUseCase(
     ICurrentUser currentUser,
     ITransactionRepository repository,
     IActivityOriginReader originReader,
+    IRecurringTransactionRepository recurringRepository,
     TimeProvider timeProvider)
 {
     public async Task<ApplicationResult<TransactionDto>> ExecuteAsync(
@@ -50,7 +52,14 @@ public sealed class CancelTransactionUseCase(
                 TransactionErrors.CancelOriginLocked);
         }
 
+        // Bir vergi ödemesi kapattığı kalemlerle birlikte geri alınır (ADR 0018
+        // İ7): iptal edilmiş bir ödemeye bağlı "kapatıldı" kalem sahte bir
+        // "ödendi" olurdu. Aynı DbContext'teki tek SaveChanges ikisini birlikte
+        // yazar.
+        var closed = await recurringRepository.ListClosedByAsync(
+            userId, transaction.Id, null, cancellationToken);
         transaction.Cancel(timeProvider.GetUtcNow());
+        foreach (var occurrence in closed) occurrence.Reopen();
         await repository.UpdateOwnedAsync(transaction, userId, cancellationToken);
         return ApplicationResult<TransactionDto>.Success(CreateTransactionUseCase.ToDto(transaction));
     }

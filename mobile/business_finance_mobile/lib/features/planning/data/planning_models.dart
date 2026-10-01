@@ -150,28 +150,39 @@ class UpcomingPaymentItem {
     required this.dueDate,
     required this.timing,
     required this.description,
+    this.isTax = false,
   });
 
   final String sourceId;
   final String sourceType;
   final String title;
-  final String amount;
+
+  /// Tutarı ödeme gününe kadar belli olmayan vergi kaleminde boştur
+  /// (ADR 0018 İ5); boş tutar sıfır değildir.
+  final String? amount;
   final String currency;
   final String dueDate;
   final String timing;
   final String? description;
 
-  factory UpcomingPaymentItem.fromJson(Map<String, dynamic> json) =>
-      UpcomingPaymentItem(
-        sourceId: JsonReaders.string(json, 'sourceId'),
-        sourceType: JsonReaders.string(json, 'sourceType'),
-        title: JsonReaders.string(json, 'title'),
-        amount: JsonReaders.money(json, 'amount'),
-        currency: JsonReaders.string(json, 'currency'),
-        dueDate: JsonReaders.date(json, 'dueDate'),
-        timing: JsonReaders.string(json, 'timing'),
-        description: JsonReaders.nullableString(json, 'description'),
-      );
+  /// Vergi planının kalemi mi. Vergi burada gerçekleştirilmez: tutar, ödeme
+  /// günü ve hesap/kart ister ve onları Vergi takibi sorar (ADR 0018 T4).
+  final bool isTax;
+
+  factory UpcomingPaymentItem.fromJson(
+    Map<String, dynamic> json, {
+    bool isTax = false,
+  }) => UpcomingPaymentItem(
+    isTax: isTax,
+    sourceId: JsonReaders.string(json, 'sourceId'),
+    sourceType: JsonReaders.string(json, 'sourceType'),
+    title: JsonReaders.string(json, 'title'),
+    amount: json['amount'] == null ? null : JsonReaders.money(json, 'amount'),
+    currency: JsonReaders.string(json, 'currency'),
+    dueDate: JsonReaders.date(json, 'dueDate'),
+    timing: JsonReaders.string(json, 'timing'),
+    description: JsonReaders.nullableString(json, 'description'),
+  );
 }
 
 class PeriodTotals {

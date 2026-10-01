@@ -400,7 +400,7 @@ public sealed class EfDataPortabilityRepository(
             accounts.Select(x => new AccountBackup(x.Id, x.Name, x.Type, x.Currency, x.OpeningBalance,
                 x.IsActive, x.DefaultScope)).ToArray(),
             categories.Select(x => new CategoryBackup(x.Id, x.Name, x.Type, x.IsActive,
-                x.DefaultScope)).ToArray(),
+                x.DefaultScope, x.IsTax)).ToArray(),
             transactions.Select(x => new TransactionBackup(x.Id, x.AccountId, x.CategoryId, x.Amount.Amount,
                 x.Amount.Currency, x.Type, x.Scope, x.TransactionDate, x.Description, x.IsCancelled,
                 x.CancelledAtUtc)).ToArray(),
@@ -420,13 +420,16 @@ public sealed class EfDataPortabilityRepository(
                 x.Description, x.Items.OrderBy(i => i.Sequence).Select(i => new InstallmentItemBackup(
                     i.Id, i.Sequence, i.Amount.Amount, i.Amount.Currency, i.ScheduledDate,
                     i.CreditCardChargeId, i.RealizedAtUtc)).ToArray())).ToArray(),
-            recurring.Select(x => new RecurringBackup(x.Id, x.AccountId, x.CategoryId, x.Amount.Amount,
-                x.Amount.Currency, x.Kind, x.Scope, x.Frequency, x.StartDate, x.EndDate, x.NextOccurrenceDate,
+            recurring.Select(x => new RecurringBackup(x.Id, x.AccountId, x.CategoryId, x.AmountValue,
+                x.Currency, x.Kind, x.Scope, x.Frequency, x.StartDate, x.EndDate, x.NextOccurrenceDate,
                 x.MonthEndBehavior, x.Description, x.IsActive,
                 occurrences.Where(o => o.RecurringTransactionId == x.Id).OrderBy(o => o.ScheduledDate)
                     .Select(o => new OccurrenceBackup(o.Id, o.ScheduledDate, o.BudgetTransactionId,
-                        o.RealizedAtUtc, o.CreditCardChargeId)).ToArray(),
-                x.SourceType, x.OccurrenceLimit, x.GeneratedOccurrenceCount, x.CreditCardId)).ToArray(),
+                        o.RealizedAtUtc, o.CreditCardChargeId, o.Status, o.AmountValue, o.SourceType,
+                        o.AccountId, o.CreditCardId, o.CategoryId, o.Scope, o.Description,
+                        o.ClosedByTransactionId, o.ClosedByChargeId, o.ClosedAtUtc)).ToArray(),
+                x.SourceType, x.OccurrenceLimit, x.GeneratedOccurrenceCount, x.CreditCardId,
+                x.TaxKind, x.DayOfMonth, x.SelectedMonths)).ToArray(),
             batches.Select(x => new ImportBatchBackup(x.Id, x.FileName, x.FileFingerprint, x.FileSizeBytes,
                 x.EncodingName, x.Delimiter, x.DateColumn, x.AmountColumn, x.DescriptionColumn,
                 x.ReferenceColumn, x.DateFormat, x.DecimalSeparator, x.Status, x.CreatedAtUtc,
@@ -519,7 +522,7 @@ public sealed class EfDataPortabilityRepository(
                     x.DefaultScope));
             var categoryMap = snapshot.Categories.ToDictionary(
                 x => x.Id,
-                x => new Category(Guid.NewGuid(), userId, x.Name, x.Type, x.DefaultScope));
+                x => new Category(Guid.NewGuid(), userId, x.Name, x.Type, x.DefaultScope, x.IsTax));
             var cardMap = snapshot.Cards.ToDictionary(
                 x => x.Id,
                 x => new CreditCard(Guid.NewGuid(), userId, x.Name, MoneyOf(x.Limit, x.Currency),
@@ -607,67 +610,69 @@ public sealed class EfDataPortabilityRepository(
             var occurrences = new List<RecurringTransactionOccurrence>();
             foreach (var item in snapshot.RecurringTransactions)
             {
-                var sourceType = item.SourceType;
-                if (sourceType == RecurringSourceType.Account
-                    ? item.AccountId is null || item.CreditCardId is not null
-                    : item.CreditCardId is null || item.AccountId is not null)
-                {
-                    throw Invalid("Recurring source must be exactly one account or credit card.");
-                }
+                var account = item.AccountId is Guid planAccountId
+                    ? Required(accountMap, planAccountId, "recurring account")
+                    : null;
+                var card = item.CreditCardId is Guid planCardId
+                    ? Required(cardMap, planCardId, "recurring credit card")
+                    : null;
+                var entity = RecurringTransaction.Restore(
+                    Guid.NewGuid(), userId, account, card,
+                    Required(categoryMap, item.CategoryId, "recurring category"),
+                    OptionalMoneyOf(item.Amount, item.Currency), item.Kind, item.Scope, item.Frequency,
+                    item.StartDate, item.EndDate, item.MonthEndBehavior, item.Description,
+                    item.OccurrenceLimit, item.TaxKind, item.DayOfMonth, item.SelectedMonths,
+                    item.GeneratedOccurrenceCount, item.NextOccurrenceDate, item.IsActive);
+                if (entity.SourceType != item.SourceType)
+                    throw Invalid("Recurring source must match its source type.");
 
-                var amount = MoneyOf(item.Amount, item.Currency);
-                var category = Required(categoryMap, item.CategoryId, "recurring category");
-                var entity = sourceType == RecurringSourceType.CreditCard
-                    ? new RecurringTransaction(
-                        Guid.NewGuid(), userId,
-                        Required(cardMap, item.CreditCardId!.Value, "recurring credit card"),
-                        category, amount, item.Kind, item.Scope, item.Frequency,
-                        item.StartDate, item.EndDate, item.MonthEndBehavior, item.Description,
-                        item.OccurrenceLimit)
-                    : new RecurringTransaction(
-                        Guid.NewGuid(), userId,
-                        Required(accountMap, item.AccountId!.Value, "recurring account"),
-                        category, amount, item.Kind, item.Scope, item.Frequency,
-                        item.StartDate, item.EndDate, item.MonthEndBehavior, item.Description,
-                        item.OccurrenceLimit);
+                // Plan geçmişi yeniden oynanarak kurulmuyor: ritmi sonradan
+                // değişmiş bir planın eski kalemleri yeni ritme uymaz. Kalemler
+                // anlık görüntü olarak geri gelir ve iki şey doğrulanır: sayaç
+                // kalem sayısına eşittir (elle değiştirilmiş bir sayaç sınırı
+                // dolmuş bir planı yeniden üretir hâle getirirdi) ve hiçbir
+                // kalem planın sıradaki gününden sonra değildir.
+                if (item.Occurrences.Length != item.GeneratedOccurrenceCount)
+                    throw Invalid("Recurring occurrence count does not match its history.");
+                if (item.Occurrences.Select(x => x.ScheduledDate).Distinct().Count() != item.Occurrences.Length)
+                    throw Invalid("Recurring occurrences must fall on distinct dates.");
                 foreach (var occurrence in item.Occurrences.OrderBy(x => x.ScheduledDate))
                 {
-                    if (entity.NextOccurrenceDate != occurrence.ScheduledDate)
-                        throw Invalid("Recurring occurrence sequence is not contiguous.");
-                    var restoredOccurrence = RecurringTransactionOccurrence.Create(
-                        Guid.NewGuid(), entity, occurrence.ScheduledDate);
-                    var hasResult = occurrence.BudgetTransactionId is not null ||
-                                    occurrence.CreditCardChargeId is not null;
-                    if (hasResult != (occurrence.RealizedAtUtc is not null))
-                        throw Invalid("Recurring realization fields must appear together.");
-                    if (occurrence.BudgetTransactionId is not null &&
-                        occurrence.CreditCardChargeId is not null)
-                    {
-                        throw Invalid("A recurring occurrence cannot carry two realization results.");
-                    }
+                    if (occurrence.Status is not RecurringOccurrenceStatus status)
+                        throw Invalid("Recurring occurrence status is required.");
+                    if (entity.NextOccurrenceDate is DateOnly next && occurrence.ScheduledDate >= next)
+                        throw Invalid("Recurring occurrence falls after the plan's next date.");
+                    if (occurrence.Scope is not TransactionScope occurrenceScope ||
+                        occurrence.CategoryId is not Guid occurrenceCategoryId)
+                        throw Invalid("Recurring occurrence snapshot is incomplete.");
 
-                    if (occurrence.BudgetTransactionId is Guid transactionId)
-                        restoredOccurrence.RealizeWithTransaction(
-                            Required(transactionMap, transactionId, "occurrence transaction").Id,
-                            occurrence.RealizedAtUtc!.Value);
-                    if (occurrence.CreditCardChargeId is Guid restoredChargeId)
-                        restoredOccurrence.RealizeWithCharge(
-                            Required(chargeMap, restoredChargeId, "occurrence charge").Id,
-                            occurrence.RealizedAtUtc!.Value);
-                    occurrences.Add(restoredOccurrence);
-                    entity.AdvanceAfter(occurrence.ScheduledDate);
+                    occurrences.Add(RecurringTransactionOccurrence.Restore(
+                        Guid.NewGuid(), entity, occurrence.ScheduledDate, occurrence.SourceType,
+                        occurrence.AccountId is Guid occurrenceAccountId
+                            ? Required(accountMap, occurrenceAccountId, "occurrence account").Id
+                            : null,
+                        occurrence.CreditCardId is Guid occurrenceCardId
+                            ? Required(cardMap, occurrenceCardId, "occurrence credit card").Id
+                            : null,
+                        Required(categoryMap, occurrenceCategoryId, "occurrence category").Id,
+                        OptionalMoneyOf(occurrence.Amount, item.Currency),
+                        occurrenceScope, occurrence.Description, status,
+                        occurrence.BudgetTransactionId is Guid transactionId
+                            ? Required(transactionMap, transactionId, "occurrence transaction").Id
+                            : null,
+                        occurrence.CreditCardChargeId is Guid restoredChargeId
+                            ? Required(chargeMap, restoredChargeId, "occurrence charge").Id
+                            : null,
+                        occurrence.RealizedAtUtc,
+                        occurrence.ClosedByTransactionId is Guid closingTransactionId
+                            ? Required(transactionMap, closingTransactionId, "occurrence closing transaction").Id
+                            : null,
+                        occurrence.ClosedByChargeId is Guid closingChargeId
+                            ? Required(chargeMap, closingChargeId, "occurrence closing charge").Id
+                            : null,
+                        occurrence.ClosedAtUtc));
                 }
-                if (entity.NextOccurrenceDate != item.NextOccurrenceDate)
-                    throw Invalid("Recurring next date does not match its occurrence history.");
-                // Sayaç dosyadan olduğu gibi yazılmıyor, occurrence geçmişi
-                // yeniden oynanarak türetiliyor; dosyadaki değer yalnız
-                // doğrulama için okunuyor. Aksi hâlde elle değiştirilmiş bir
-                // sayaç, sınırı dolmuş bir planı yeniden üretir hâle getirirdi.
-                if (entity.GeneratedOccurrenceCount != item.GeneratedOccurrenceCount)
-                    throw Invalid("Recurring occurrence count does not match its history.");
-                if (!item.IsActive && entity.IsActive) entity.Deactivate();
-                if (item.IsActive != entity.IsActive)
-                    throw Invalid("Recurring active state is inconsistent.");
+
                 recurringTransactions.Add(entity);
             }
 
@@ -1163,6 +1168,9 @@ public sealed class EfDataPortabilityRepository(
 
     private static Money MoneyOf(decimal amount, CurrencyCode currency) => new(amount, currency);
 
+    private static Money? OptionalMoneyOf(decimal? amount, CurrencyCode currency) =>
+        amount is decimal value ? new Money(value, currency) : null;
+
     private static void ApplyCancellation(
         bool isCancelled,
         DateTimeOffset? cancelledAtUtc,
@@ -1255,7 +1263,7 @@ internal sealed record FinancialSnapshot(
 internal sealed record AccountBackup(Guid Id, string Name, AccountType Type, CurrencyCode Currency, decimal OpeningBalance,
     bool IsActive, TransactionScope? DefaultScope);
 internal sealed record CategoryBackup(Guid Id, string Name, CategoryType Type, bool IsActive,
-    TransactionScope? DefaultScope);
+    TransactionScope? DefaultScope, bool IsTax = false);
 internal sealed record TransactionBackup(Guid Id, Guid AccountId, Guid CategoryId, decimal Amount, CurrencyCode Currency,
     TransactionType Type, TransactionScope Scope, DateOnly TransactionDate, string? Description, bool IsCancelled,
     DateTimeOffset? CancelledAtUtc);
@@ -1275,15 +1283,24 @@ internal sealed record InstallmentPlanBackup(Guid Id, Guid CreditCardId, Guid Ca
     DateOnly FirstInstallmentDate, string? Description, InstallmentItemBackup[] Items);
 internal sealed record InstallmentItemBackup(Guid Id, int Sequence, decimal Amount, CurrencyCode Currency,
     DateOnly ScheduledDate, Guid? CreditCardChargeId, DateTimeOffset? RealizedAtUtc);
-internal sealed record RecurringBackup(Guid Id, Guid? AccountId, Guid CategoryId, decimal Amount,
+internal sealed record RecurringBackup(Guid Id, Guid? AccountId, Guid CategoryId, decimal? Amount,
     CurrencyCode Currency, RecurringTransactionKind Kind, TransactionScope Scope, RecurrenceFrequency Frequency,
     DateOnly StartDate, DateOnly? EndDate, DateOnly? NextOccurrenceDate, MonthEndBehavior MonthEndBehavior,
     string? Description, bool IsActive, OccurrenceBackup[] Occurrences,
-    RecurringSourceType SourceType, int? OccurrenceLimit, int GeneratedOccurrenceCount,
-    Guid? CreditCardId = null);
+    RecurringSourceType? SourceType, int? OccurrenceLimit, int GeneratedOccurrenceCount,
+    Guid? CreditCardId = null, TaxKind? TaxKind = null, int? DayOfMonth = null, int? SelectedMonths = null);
+
+/// <summary>
+/// Kalemin anlık görüntüsü. Kaynak, kategori, kapsam ve tutar plandan farklı
+/// olabilir: ödeme anında seçilen kaynak, "tutar belli oldu", plan sonradan
+/// düzenlendiğinde geçmişte kalan kalem.
+/// </summary>
 internal sealed record OccurrenceBackup(Guid Id, DateOnly ScheduledDate,
     Guid? BudgetTransactionId, DateTimeOffset? RealizedAtUtc,
-    Guid? CreditCardChargeId = null);
+    Guid? CreditCardChargeId = null, RecurringOccurrenceStatus? Status = null, decimal? Amount = null,
+    RecurringSourceType? SourceType = null, Guid? AccountId = null, Guid? CreditCardId = null,
+    Guid? CategoryId = null, TransactionScope? Scope = null, string? Description = null,
+    Guid? ClosedByTransactionId = null, Guid? ClosedByChargeId = null, DateTimeOffset? ClosedAtUtc = null);
 internal sealed record ImportBatchBackup(Guid Id, string FileName, string FileFingerprint, long FileSizeBytes,
     string EncodingName, string Delimiter, string DateColumn, string AmountColumn,
     string? DescriptionColumn, string? ReferenceColumn, string DateFormat, string DecimalSeparator,

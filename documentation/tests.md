@@ -1068,11 +1068,11 @@ planlanan ekranının iki testi de kırmızıya düştü.
 | Kısa ayda son güne çekiliyor | `QuarterlyRecurrenceTests.QuarterlySchedule_ClampsToTheLastDayOfAShortMonth` | 30 Kas → 28 Şub |
 | Bekleyen tutar düzeltilebiliyor | `QuarterlyRecurrenceTests.PlannedOccurrence_CanBeCorrectedToTheAmountTheUserActuallyOwes` | Occurrence değişiyor, plan değişmiyor |
 | Gerçekleşmiş tutar yeniden yazılamıyor | `QuarterlyRecurrenceTests.RealizedOccurrence_CannotHaveItsAmountRewritten` | Geçmişin üstüne yazılmıyor |
-| Öneriler tutarsız | `TaxCalendarEndpointTests.Suggestions_AreOfferedWithoutAnyAmount` | Dört kalem; cevapta `amount` geçmiyor |
-| Öneriler oturum istiyor | `TaxCalendarEndpointTests.Suggestions_RequireAuthentication` | 401 |
-| Kalem yaklaşanlara düşüyor ve silinebiliyor | `TaxCalendarEndpointTests.ACalendarItem_LandsInTheUpcomingListAndCanBeDeleted` | Çeyreklik plan, `recurring-occurrence` satırı, silince liste boş |
-| Gerçek tutar kayda geçiyor | `TaxCalendarEndpointTests.Realizing_WritesTheAmountTheUserActuallyOwes_WithoutChangingThePlan` | Hareket ₺2.450,75; plan ₺1.000,00 |
-| Okunamayan tutar uydurulmuyor | `TaxCalendarEndpointTests.Realizing_WithAnUnreadableAmount_IsRefused` | `recurring.invalid_amount` |
+| Öneriler tutarsız | `TaxEndpointTests.Suggestions_OfferRhythmAndDayButNoAmount` | Grup 3'ten beri sekiz tür; cevapta `amount` geçmiyor |
+| Öneriler oturum istiyor | `TaxEndpointTests.Suggestions_RequireAuthentication` | 401 |
+| Kalem yaklaşanlara düşüyor ve silinebiliyor | `TaxEndpointTests.AnOrdinaryPlan_LandsInTheUpcomingListAndCanBeDeleted` | Çeyreklik plan, `recurring-occurrence` satırı, silince liste boş |
+| Gerçek tutar kayda geçiyor | `TaxEndpointTests.Realizing_WritesTheAmountTheUserActuallyOwes_WithoutChangingThePlan` | Hareket ₺2.450,75; plan ₺1.000,00 |
+| Okunamayan tutar uydurulmuyor | `TaxEndpointTests.Realizing_WithAnUnreadableAmount_IsRefused` | `recurring.invalid_amount` |
 
 ## Karşılık olarak hedefler (26 Ağustos 2026, Aşama 05 Grup 6)
 
@@ -1083,13 +1083,27 @@ planlanan ekranının iki testi de kırmızıya düştü.
 | Filtre kapsamsızı da eliyor | aynı test | `scope=business` yalnız bir hedef; kırılım dönmüyor |
 | Tanınmayan kapsam reddediliyor | `SavingsGoalEndpointTests.Goals_WithAnUnknownScope_AreRefused` | Hem yazmada hem okumada 400 |
 
-## Vergi takviminin istemcisi (26 Ağustos 2026, Aşama 05 Grup 7)
+## Vergi takibinin istemcisi (30 Eylül 2026, Aşama 06.3 Grup 3)
+
+Aşama 05'in `Vergi takvimi` ekranı ve testleri (`tax_screens_test`) kalktı;
+yerini Vergi takibi aldı.
 
 | Kapı | Nerede | Neyi tutuyor |
 |---|---|---|
-| Mevzuat takibi yazılı | `tax_screens_test` | Takvim ekranının ilk notu |
-| Kalem kurulum yolunu açıyor | `tax_screens_test` | Dokunuş öneriyi geri veriyor |
-| Ön dolum geçmişe kurmuyor | `tax_screens_test` | 29 Ağustos'ta 28'i seçilirse eylül |
+| İlk kullanımda ana eylem tek tutarla ödeme | `tax_tracking_page_test` | Tanım yokken "Vergi ödemesi ekle" altta, "Vergilerimi tanımla" ikincil; gider formundan girilen vergi Ödenenler'de |
+| Bekleyenlerin toplamı sunucudan | `tax_tracking_page_test` | "Gecikenler ve 30 gün", "N gecikti", "Ödenecek" ve "Tutarı belli olmayan · N ödeme"; tutarsız kalem "Tutar ödemede girilecek" |
+| Şahsi ve duraklatılmış etiket | `tax_tracking_page_test` | Kapsamı gören kullanıcıda `Şahsi`, pasif tanımda `Duraklatıldı` |
+| "Ödedim" gövdesi | `tax_tracking_page_test` | Tutar, ödeme günü, hesap; tanımdan gelen kaynak "Tanımdan geldi."; gecikmişte tutar boş gelir ve istenir; sunucu hatası panelde kalır |
+| Toplu ödemede vadesi gelenler seçili | `tax_tracking_page_test` | Yalnız gecikmiş kalem `closes`'ta; istek kimliği paneli başına bir |
+| Durum hâlleri | `tax_tracking_page_test` | Yetkisiz, okuma hatası ve 2.0× yazıda taşma yok |
+| Değişiklik bildirimi | `tax_tracking_page_test` | Ödeme geri alma `planning` ve `accounts`'u yükseltir, ekran yeniden okur |
+| Ritim metni ve başlangıç seçenekleri | `tax_schedule_test` | Türkçe gün eki, iki ay tam/fazlası kısa, ay sonu kısa ayda son gün, sıradaki iki vade, göreli vade |
+| "Tutarı gir" kaleme geri döner | `tax_tracking_page_test` | Tutar kaydedilince kalemin paneli yeni tutarla yeniden açılır; "Ödedim" elinin altında |
+| Başlıksız onay diyaloğu | `app_confirm_dialog_test` | `title` verilmezse vurgu büyük satırdır (22), eylemin adı yalnız butonda, `Vazgeç` tonlu dolgulu; 2.0× yazıda taşma yok |
+| Tasarımla yan yana karşılaştırma | `test/screenshots/taxes_screenshot_test` | Yalnız `SCREENSHOT_DIR` ile çalışır: dolu hâl, "Ödedim" (iki hâl), tutar alanı (boş ve üç tutar), ödeme ekle, bekleyen, ödenmiş, geri alma onayı, toplu ödeme, Duraklat/Sil |
+| Tutarsız planlanan kalem | `planned_activity_test` | Boş tutar okunur, `isDirectlyRealizable` yanlış; satır "Tutar ödemede girilecek" ve "Ödedim →" |
+| Özet'te gecikenler satırı | `dashboard_sections_test` | Sunucunun gecikmiş toplamı kartın başında; şerit ve satır aynı sayıyı söyler; tutarsız kalem cümleyle |
+| Kategorinin vergi işareti | `category_feature_test` | Anahtar gider kategorisinde görünür ve `isTax` gönderir; güncellemede verilmezse gönderilmez |
 
 ## Yedek v10 (26 Ağustos 2026, Aşama 05 Grup 8)
 
@@ -1439,4 +1453,40 @@ yükseltmeyi tutan kapılar geldi.
 | Paket uçları yok | `OwnershipIsolationTests.AccountantPackageRoutes_AreGone` | Route tablosunda `accountant` geçen uç kalmadı |
 | Fiş KDV'yi forma taşımıyor | `ReceiptDraftValidatorTests.Validate_ReceiptPrintsVat_LeavesTheTotalAloneAndWarnsNothing` | Okunan KDV toplamı değiştirmiyor, uyarı üretmiyor; taslakta KDV alanı yok (derleme düzeyinde) |
 | Formlarda vergi alanı yok | `quick_add_tax_test.dart`, `obligation_form_page_test.dart` → `has no VAT section and sends no VAT` | İşletmesi olan kullanıcının gider, gelir ve yükümlülük formunda `KDV` metni ve `Vergiden düşülebilir` yok; hesap ve kart isteğinde `vat…`/`…TaxDeductible` anahtarı gitmiyor |
-| Menüde paket yok | `more_page_test.dart` | `Vergi` grubunda yalnız `Vergi takvimi`; `Muhasebeci paketi` yok |
+| Menüde paket yok | `more_page_test.dart` | `Vergi` grubunda yalnız `Vergi takibi`; `Muhasebeci paketi` yok |
+
+## Aşama 06.3 Grup 3 — vergi bir nakit planıdır: backend (30 Eylül 2026)
+
+ADR 0018 İ1–İ9. Tanımlı vergi `taxKind` dolu bir tekrarlayan plandır, ödenen
+vergi vergi işaretli kategorideki bir giderdir. Flutter tarafı bu tabloya ekranla
+birlikte girecek.
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| "Seçilen aylarda" ritmi | `TaxPlanTests.SelectedMonths_*` | Mayıs–Kasım ay sonu (31 May → 30 Kas → 31 May); Şub/May/Ağu/Kas 17'si yıl dönümünü aşıyor; "atla" kısa ayı geçiyor |
+| "Ay sonu" | `TaxPlanTests.MonthEnd_IsTheLastDayEvenWhenTheStartMonthIsShort` | 30 Eyl → 31 Eki → 30 Kas → 28 Şub |
+| Ritme uymayan başlangıç | `TaxPlanTests.AStartOffTheRhythm_IsRejected`, `SelectedMonths_RequireAtLeastOneMonth_AndBelongOnlyToThatRhythm` | Seçilmemiş ay ya da yanlış gün reddediliyor; ay kümesi yalnız o ritimde |
+| Tutarsız/kaynaksız yalnız vergi | `TaxPlanTests.OnlyATaxPlan_MayLackAnAmount`, `ATaxPlan_NeedsAName_AndMustBeAnExpense`, `TaxEndpointTests.AnOrdinaryPlanWithoutSource_IsRefused` | Sıradan planda tutar ve kaynak zorunlu (ADR 0005); vergi planı ad ister ve gider olmalı |
+| Vergi işareti | `TaxPlanTests.OnlyAnExpenseCategory_CanBeMarkedAsTax`, `TaxEndpointTests.TheTaxMark_BelongsToExpenseCategoriesAndSurvivesARename` | Gelir kategorisi işaretlenemiyor; alanı göndermeyen güncelleme işareti değiştirmiyor |
+| Tek sonuç (İ7) | `TaxPlanTests.AClosedItem_HasNoResultOfItsOwn_AndTakesNoSecondOne`, `TaxEndpointTests.AClosedItem_CannotBePaidAgain` | Kapatılmış kalem ikinci ödeme almıyor (`recurring.already_settled`, `tax_payments.item_not_pending`) |
+| Tutar bilinmeden ödeme yok | `TaxPlanTests.AnItemWithoutAmount_CannotBeRealizedUntilTheAmountIsKnown`, `TaxEndpointTests.PayingAnItemWithoutAmount_RequiresTheAmount`, `PayingAnUnsourcedItem_RequiresAnAccountOrCard` | `recurring.amount_required`, `recurring.source_required` |
+| "Ödedim" ödeme gününe | `TaxEndpointTests.PayingAnItem_WritesOnThePaymentDay_AndUndoReturnsItToPending`, `TaxUseCaseTests.PayingWithACard_WritesACardChargeOnThePaymentDay` | Kayıt ödeme gününe ve seçilen kaynaktan; vadesi gelmemiş kalem ödenebiliyor; kartla ödeme kart harcaması |
+| Geri alma | aynı test, `TaxPlanTests.Reopen_ReturnsASettledItemToPending`, `TaxUseCaseTests.UndoingAClosedItem_PointsAtItsPayment` | Gider iptal, kalem bekleyene döner ve tutarı kalır; kapatılmış kalem kendi ekranından geri alınmaz |
+| Tanımsız toplu ödeme ve tekrar gönderim | `TaxEndpointTests.ATaxPaymentWithoutDefinitions_IsOneExpense_AndARetryWritesNothingNew`, `TaxUseCaseTests.ATaxPaymentSentTwice_IsWrittenOnce`, `TheSameRequestIdOfTwoUsers_GivesTwoPaymentIds` | Tek gider; aynı istek ikinci gider yazmıyor; iki kullanıcı aynı istek kimliğiyle çarpışmıyor |
+| Kapatma ve iptalle açılma | `TaxEndpointTests.ATaxPayment_ClosesItems_AndCancellingItAnywhereReopensThem`, `TaxUseCaseTests.ATaxPayment_ClosesTheChosenItems` | Seçilen (üretilmemiş olanlar dahil) kalemler kapanıyor; İşlemler'den iptal onları açıyor |
+| Yalnız vergi kalemi, yalnız vergi kategorisi | `TaxEndpointTests.ATaxPayment_CannotCloseAnOrdinaryPlan`, `ATaxPayment_ToACategoryNotMarkedAsTax_IsRefused`, `ATaxPlan_OnACategoryNotMarkedAsTax_IsRefused` | `tax_payments.item_not_tax`, `*.category_not_tax` |
+| Tutarsız kalem tahmin edilmiyor (İ5) | `TaxEndpointTests.ATaxWithoutAmountOrSource_IsPendingButCountedNeverEstimated` | Planlanan satırda `amount = null`, `upcomingOutgoingTotal` 0, `unknownAmountCount` 1 |
+| "Tutar belli oldu" | `TaxEndpointTests.KnowingTheAmountEarly_WritesTheItemNotThePlan` | İleri bir kaleme yazılıyor, plan boş kalıyor |
+| Ritim değişikliği | `TaxEndpointTests.ChangingTheRhythm_RestartsThePlanAfterItsHistory`, `TaxUseCaseTests.ChangingTheRhythm_RebuildsPendingItemsAndKeepsPaidOnes`, `TaxPlanTests.Reschedule_MustStartAfterTheLastSettledItem` | Bekleyenler yeniden kuruluyor, ödenen kalıyor; yeni başlangıç son ödenenden önceyse `recurring.reschedule_before_history` |
+| Düzenlemede o dönemin tutarı | `TaxPlanTests.FollowPlan_KeepsAnAmountWrittenForThatPeriod` | Plandan gelen tutar planı izliyor, yazılmış tutar korunuyor |
+| Vergide kapsam (İ9, 30 Eylül güncellemesi) | `TransactionScopeResolutionTests.ResolveTax_TakesTheChoiceOrTheProfileSide`, `TaxUseCaseTests.ATaxPaymentFromAPersonalAccount_StaysOnTheProfileSide`, `ATaxPlanOnAPersonalCard_TakesTheChoiceOrTheProfileSide`, `TaxEndpointTests.TaxScope_FollowsTheProfileUnlessChosenExplicitly`, `ATaxPaymentFromAPersonalAccount_StaysBusiness` | Açık seçim → profil; şahsi etiketli hesap ya da kart vergiyi şahsi yapmıyor |
+| Bekleyenlerin toplamı gecikeni sayar | `TaxUseCaseTests.TheTaxOverview_TotalsPendingItemsIncludingOverdue`, `TaxEndpointTests.OverdueTaxItems_CountInTheTaxTotal_AndInTheirOwnPlannedTotal` | `pendingTotal` gecikenler dahil, tutarsız kalem sayıya giriyor; planlanan görünümde `overdueOutgoingTotal` ayrı, "7 günde çıkacak"a eklenmiyor |
+| Gecikmiş yükümlülük toplamı | `PlannedActivityUseCaseTests.Execute_SumsOverdueObligationsSeparately` | Gecikmiş gider toplanıyor, tutarsız gecikmiş sayılıyor, gecikmiş gelir girmiyor |
+| Tanım ayrıntısında sıradaki 3 | `TaxUseCaseTests.ThePlanDetail_ShowsOverdueAndTheNextThree`, `TaxEndpointTests.ThePlanDetail_ShowsTheNextThreeEvenForASparseRhythm` | Gecikmişlerin hepsi + vadesi gelmemiş ilk üç; yılda iki kez ödenen verginin üç kalemi görünüyor |
+| Toplu vergi tanımlama | `TaxUseCaseTests.CreatingSeveralTaxPlans_WritesThemTogether`, `CreatingSeveralTaxPlans_WithOneInvalid_WritesNone`, `CreatingSeveralTaxPlans_RefusesAnOrdinaryPlan`, `TaxEndpointTests.SeveralTaxes_AreDefinedTogether_OrNotAtAll`, `DefiningTaxesTogether_RefusesAnOrdinaryPlan` | Tek yazma; biri geçersizse (başkasının kategorisi dahil) hiçbiri yazılmıyor; vergi türü boş öğe `taxes.plan_not_tax` |
+| Sahiplik | `OwnershipIsolationTests` | Beş yeni kimlikli uç (düzenleme, tutar, geri alma, vergi ayrıntısı, ödeme geri alma) başkasının kaydında ve olmayan kayıtta aynı 404; vergi ekranı ve Ödenenler başkasının kimliğini göstermiyor |
+| Migration sırası | `MigrationHistoryTests.AddTaxPlans_LoosensBeforeItConstrainsAndLosesNothing` | Kolon düşmüyor; kısıtlar önce düşüp en son kuruluyor; backfill `IsTax`'tan sonra, kısıtlardan önce; yeni kolonlar nullable ve varsayılansız |
+| Dolu veritabanında yükseltme | `SqlServerPersistenceIntegrationTests.AddTaxPlans_UpgradesAPopulatedDatabaseWithoutLosingAnything` | Eski plan ve kalemi yerinde; iki varsayılan vergi kategorisi işaretli, gelir kategorisi değil; tutarsız, kaynaksız ve ay kümesiz sıradan plan SQL'de reddediliyor (NULL "bilinmiyor" diye geçmiyor); kalıcı DEFAULT yok |
+| Gerçek SQL'de vergi planı | `SqlServerPersistenceIntegrationTests.TaxPlans_PersistClosedItemsAndReadAsPaymentsAndPendingItems` | Kaynaksız, tutarsız plan kalıcı; kapatılmış kalem ödemesini taşıyor; kısıtlar tutarsız durumu reddediyor; Ödenenler gider ve kart harcamasını tek sorguda birleştiriyor; projection tutarsız kalemi taşıyor |
+| Yedek v11 | `DataPortabilityTests.BackupV11_RoundTripsTaxPlansWithTheirHistory` | Vergi türü, ay kümesi, ay sonu, ödenmiş/kapatılmış/bekleyen kalemler, ritmi değişmiş geçmiş ve yazılmış tutar kayıpsız dönüyor; kapatan ödeme yeni kimliğine bağlanıyor |
+| Sorgu bütçesi | `SqlServerPersistenceIntegrationTests.AdvancedReport_LargeFixtureStaysWithinQueryCountAndTimeBudget` | Vergi türü kalemin sorgusuna join ile geldi; projection'ın sorgu sayısı değişmedi |

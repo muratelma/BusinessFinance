@@ -53,8 +53,8 @@ public sealed class QuarterlyRecurrenceTests
 
         occurrence.CorrectAmount(new Money(2450.75m, CurrencyCode.TRY));
 
-        Assert.Equal(2450.75m, occurrence.Amount.Amount);
-        Assert.Equal(1000m, plan.Amount.Amount);
+        Assert.Equal(2450.75m, occurrence.Amount!.Amount);
+        Assert.Equal(1000m, plan.Amount!.Amount);
     }
 
     /// <summary>
@@ -71,7 +71,7 @@ public sealed class QuarterlyRecurrenceTests
 
         Assert.Throws<InvalidOperationException>(
             () => occurrence.CorrectAmount(new Money(2450.75m, CurrencyCode.TRY)));
-        Assert.Equal(1000m, occurrence.Amount.Amount);
+        Assert.Equal(1000m, occurrence.Amount!.Amount);
     }
 
     private static RecurringTransaction NewPlan(

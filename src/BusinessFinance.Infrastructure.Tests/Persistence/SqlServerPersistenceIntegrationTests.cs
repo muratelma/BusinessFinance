@@ -31,6 +31,8 @@ using System.Text.Json.Nodes;
 using System.Security.Cryptography;
 using System.Text;
 using BusinessFinance.Infrastructure.DataPortability;
+using BusinessFinance.Infrastructure.FinancialActivities;
+using BusinessFinance.Infrastructure.Taxes;
 using BusinessFinance.Application.DataPortability;
 using BusinessFinance.Infrastructure.Tests.DataPortability;
 using BusinessFinance.Application.SavingsGoals;
@@ -1568,7 +1570,7 @@ public sealed class SqlServerPersistenceIntegrationTests
                 owner.Id,
                 account,
                 category,
-                occurrence.Amount,
+                occurrence.Amount!,
                 occurrence.GetTransactionType(),
                 TransactionScope.Business,
                 occurrence.ScheduledDate,
@@ -1638,10 +1640,10 @@ public sealed class SqlServerPersistenceIntegrationTests
         Assert.NotNull(firstOccurrence);
         Assert.NotNull(secondOccurrence);
         var firstTransaction = new BudgetTransaction(
-            Guid.NewGuid(), user.Id, account, category, occurrence.Amount,
+            Guid.NewGuid(), user.Id, account, category, occurrence.Amount!,
             TransactionType.Expense, TransactionScope.Business, occurrence.ScheduledDate);
         var secondTransaction = new BudgetTransaction(
-            Guid.NewGuid(), user.Id, account, category, occurrence.Amount,
+            Guid.NewGuid(), user.Id, account, category, occurrence.Amount!,
             TransactionType.Expense, TransactionScope.Business, occurrence.ScheduledDate);
         var now = new DateTimeOffset(2026, 8, 31, 12, 0, 0, TimeSpan.Zero);
         firstOccurrence.RealizeWithTransaction(firstTransaction.Id, now);
@@ -2818,8 +2820,8 @@ public sealed class SqlServerPersistenceIntegrationTests
         Assert.Equal(3, stored.Length);
         Assert.All(stored, item =>
         {
-            Assert.Equal(125.5m, item.Amount.Amount);
-            Assert.Equal(CurrencyCode.TRY, item.Amount.Currency);
+            Assert.Equal(125.5m, item.Amount!.Amount);
+            Assert.Equal(CurrencyCode.TRY, item.Amount!.Currency);
         });
     }
 
@@ -3173,9 +3175,9 @@ public sealed class SqlServerPersistenceIntegrationTests
         Assert.NotNull(firstOccurrence);
         Assert.NotNull(secondOccurrence);
         var firstCharge = new CreditCardCharge(
-            Guid.NewGuid(), user.Id, card, category, occurrence.Amount, TransactionScope.Business, occurrence.ScheduledDate);
+            Guid.NewGuid(), user.Id, card, category, occurrence.Amount!, TransactionScope.Business, occurrence.ScheduledDate);
         var secondCharge = new CreditCardCharge(
-            Guid.NewGuid(), user.Id, card, category, occurrence.Amount, TransactionScope.Business, occurrence.ScheduledDate);
+            Guid.NewGuid(), user.Id, card, category, occurrence.Amount!, TransactionScope.Business, occurrence.ScheduledDate);
         var now = new DateTimeOffset(2026, 8, 31, 12, 0, 0, TimeSpan.Zero);
         firstOccurrence.RealizeWithCharge(firstCharge.Id, now);
         secondOccurrence.RealizeWithCharge(secondCharge.Id, now);
@@ -3828,17 +3830,17 @@ public sealed class SqlServerPersistenceIntegrationTests
         var transactionId = Guid.NewGuid();
         var categoryId = Guid.NewGuid();
 
-        // O adımın şeması bugünkü modelden yalnız nullable KDV kolonlarıyla
-        // ayrılıyor: satır bugünkü modelle yazılıyor, eski kolonlar ham SQL ile
-        // dolduruluyor.
+        // O adımın şeması bugünkü modelden nullable KDV kolonlarıyla ve vergi
+        // işaretinin yokluğuyla ayrılıyor: kategori eski kolonlarla ham SQL ile,
+        // hesap ve işlem bugünkü modelle yazılıyor; KDV ham SQL ile dolduruluyor.
+        var category = new Category(
+            categoryId, user.Id, "Ticari mal", CategoryType.Expense, TransactionScope.Business);
+        await SeedLegacyCategoryAsync(database, category, TransactionScope.Business);
         await using (var seed = database.CreateContext())
         {
             var account = new Account(
                 Guid.NewGuid(), user.Id, "Kasa", AccountType.Cash, CurrencyCode.TRY, 1000m);
-            var category = new Category(
-                categoryId, user.Id, "Ticari mal", CategoryType.Expense, TransactionScope.Business);
             seed.Add(account);
-            seed.Add(category);
             seed.Transactions.Add(new BudgetTransaction(
                 transactionId, user.Id, account, category,
                 new Money(120m, CurrencyCode.TRY), TransactionType.Expense,
@@ -3872,6 +3874,176 @@ public sealed class SqlServerPersistenceIntegrationTests
             .SingleAsync(CancellationToken.None);
         Assert.Equal(0, columns);
         Assert.Equal(0, checks);
+    }
+
+    /// <summary>
+    /// Aşama 06.3 Grup 3: vergi planı dolu bir veritabanında kurulur (ADR 0018).
+    /// Hiçbir veri kaybolmaz; mevcut plan ve kalemi olduğu gibi kalır ve yeni
+    /// kısıtları sağlar. Varsayılan setlerin iki vergi kategorisi bir kez
+    /// işaretlenir, başka hiçbiri.
+    /// </summary>
+    [SqlServerFact]
+    public async Task AddTaxPlans_UpgradesAPopulatedDatabaseWithoutLosingAnything()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(
+            GetConnectionString(), "RemoveVatAndTaxDeductibility");
+        var user = CreateUser("tax-plans-upgrade@example.test");
+        await database.SeedUsersAsync(user);
+
+        var business = new Category(Guid.NewGuid(), user.Id, "SGK ve vergi ödemesi", CategoryType.Expense);
+        var personal = new Category(Guid.NewGuid(), user.Id, "Vergi ve harç", CategoryType.Expense);
+        var market = new Category(Guid.NewGuid(), user.Id, "Market", CategoryType.Expense);
+        var incomeNamedLikeTax = new Category(Guid.NewGuid(), user.Id, "Vergi ve harç", CategoryType.Income);
+        foreach (var category in new[] { business, personal, market, incomeNamedLikeTax })
+        {
+            await SeedLegacyCategoryAsync(database, category, TransactionScope.Business);
+        }
+
+        var account = new Account(Guid.NewGuid(), user.Id, "Banka", AccountType.Bank, CurrencyCode.TRY, 1000m);
+        await using (var seed = database.CreateContext())
+        {
+            seed.Add(account);
+            await seed.SaveChangesAsync(CancellationToken.None);
+        }
+
+        // O adımda tutar ve kaynak zorunluydu, vergi türü yoktu: plan ve
+        // kalemi eski kolonlarla ham SQL ile yazılıyor.
+        var planId = Guid.NewGuid();
+        var occurrenceId = Guid.NewGuid();
+        await database.ExecuteAsync(
+            "INSERT INTO [RecurringTransactions] ([Id], [UserId], [SourceType], [AccountId], [CreditCardId], " +
+            "[CategoryId], [Amount], [Currency], [Kind], [Scope], [Frequency], [StartDate], [EndDate], " +
+            "[OccurrenceLimit], [GeneratedOccurrenceCount], [NextOccurrenceDate], [MonthEndBehavior], " +
+            "[Description], [IsActive]) VALUES ({0}, {1}, 1, {2}, NULL, {3}, 250, 1, 2, 1, 3, '2026-09-15', " +
+            "NULL, NULL, 1, '2026-10-15', 1, N'Kira', 1)",
+            planId, user.Id, account.Id, market.Id);
+        await database.ExecuteAsync(
+            "INSERT INTO [RecurringTransactionOccurrences] ([Id], [UserId], [RecurringTransactionId], " +
+            "[OccurrenceKey], [SourceType], [AccountId], [CreditCardId], [CategoryId], [Amount], [Currency], " +
+            "[Kind], [Scope], [ScheduledDate], [Description], [Status], [BudgetTransactionId], " +
+            "[CreditCardChargeId], [RealizedAtUtc]) VALUES ({0}, {1}, {2}, {3}, 1, {4}, NULL, {5}, 250, 1, " +
+            "2, 1, '2026-09-15', N'Kira', 1, NULL, NULL, NULL)",
+            occurrenceId, user.Id, planId,
+            RecurringTransactionOccurrence.CreateOccurrenceKey(planId, new DateOnly(2026, 9, 15)),
+            account.Id, market.Id);
+
+        await database.MigrateToLatestAsync();
+
+        await using var read = database.CreateContext();
+        var marks = await read.Categories.AsNoTracking()
+            .Where(item => item.UserId == user.Id)
+            .ToDictionaryAsync(item => item.Id, item => item.IsTax, CancellationToken.None);
+        Assert.True(marks[business.Id]);
+        Assert.True(marks[personal.Id]);
+        Assert.False(marks[market.Id]);
+        Assert.False(marks[incomeNamedLikeTax.Id]);
+
+        var plan = await read.RecurringTransactions.AsNoTracking()
+            .SingleAsync(item => item.Id == planId, CancellationToken.None);
+        Assert.Equal(250m, plan.AmountValue);
+        Assert.Equal(RecurringSourceType.Account, plan.SourceType);
+        Assert.Null(plan.TaxKind);
+        Assert.Null(plan.DayOfMonth);
+        Assert.Null(plan.SelectedMonths);
+        var occurrence = await read.RecurringTransactionOccurrences.AsNoTracking()
+            .SingleAsync(item => item.Id == occurrenceId, CancellationToken.None);
+        Assert.Equal(250m, occurrence.AmountValue);
+        Assert.Equal(RecurringOccurrenceStatus.Planned, occurrence.Status);
+
+        // Tutarsız ve kaynaksız plan yalnız vergidir; "seçilen aylarda" ay kümesi
+        // ister. Kısıtlar SQL'de de duruyor ve NULL'u bilinmeyen diye geçirmiyor.
+        await Assert.ThrowsAsync<SqlException>(() => database.ExecuteAsync(
+            "UPDATE [RecurringTransactions] SET [Amount] = NULL WHERE [Id] = {0}", planId));
+        await Assert.ThrowsAsync<SqlException>(() => database.ExecuteAsync(
+            "UPDATE [RecurringTransactions] SET [SourceType] = NULL WHERE [Id] = {0}", planId));
+        await Assert.ThrowsAsync<SqlException>(() => database.ExecuteAsync(
+            "UPDATE [RecurringTransactions] SET [Frequency] = 6 WHERE [Id] = {0}", planId));
+
+        var defaults = await read.Database.SqlQueryRaw<int>(
+                "SELECT COUNT(*) AS [Value] FROM sys.default_constraints d " +
+                "JOIN sys.columns c ON d.parent_object_id = c.object_id AND d.parent_column_id = c.column_id " +
+                "WHERE c.[name] IN ('IsTax', 'TaxKind', 'DayOfMonth', 'SelectedMonths', " +
+                "'ClosedByTransactionId', 'ClosedByChargeId', 'ClosedAtUtc')")
+            .SingleAsync(CancellationToken.None);
+        Assert.Equal(0, defaults);
+    }
+
+    /// <summary>
+    /// Vergi planı ve toplu ödeme gerçek SQL'de: kaynaksız ve tutarsız plan
+    /// kalıcı olur, kapatılmış kalem ödemesini taşır, kısıtlar tutarsız durumu
+    /// reddeder. "Ödenenler" gider ile kart harcamasını tek sorguda birleştirir
+    /// ve planlanan projection tutarsız kalemi tahminsiz taşır.
+    /// </summary>
+    [SqlServerFact]
+    public async Task TaxPlans_PersistClosedItemsAndReadAsPaymentsAndPendingItems()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var user = CreateUser("tax-plans@example.test");
+        await database.SeedUsersAsync(user);
+        var utc = new DateTimeOffset(2026, 9, 1, 8, 0, 0, TimeSpan.Zero);
+
+        var bank = new Account(Guid.NewGuid(), user.Id, "Banka", AccountType.Bank, CurrencyCode.TRY, 20_000m);
+        var card = new CreditCard(Guid.NewGuid(), user.Id, "Kart", new Money(10_000m, CurrencyCode.TRY), 10, 20);
+        var taxCategory = new Category(
+            Guid.NewGuid(), user.Id, "SGK ve vergi ödemesi", CategoryType.Expense, TransactionScope.Business, isTax: true);
+        var income = new Category(Guid.NewGuid(), user.Id, "Satış", CategoryType.Income);
+        var plan = new RecurringTransaction(
+            Guid.NewGuid(), user.Id, taxCategory, null, TaxKind.SocialSecurityPremium, TransactionScope.Business,
+            RecurrenceFrequency.Monthly, new DateOnly(2026, 8, 31), description: "Bağkur", dayOfMonth: 31);
+        var august = RecurringTransactionOccurrence.Create(Guid.NewGuid(), plan, new DateOnly(2026, 8, 31));
+        plan.AdvanceAfter(new DateOnly(2026, 8, 31));
+        var bulk = new BudgetTransaction(
+            Guid.NewGuid(), user.Id, bank, taxCategory, new Money(8950m, CurrencyCode.TRY),
+            TransactionType.Expense, TransactionScope.Business, new DateOnly(2026, 8, 30), "Ağustos Bağkur");
+        august.CloseWithTransaction(bulk.Id, utc);
+        var cardTax = new CreditCardCharge(
+            Guid.NewGuid(), user.Id, card, taxCategory, new Money(2180m, CurrencyCode.TRY),
+            TransactionScope.Personal, new DateOnly(2026, 7, 31), "MTV");
+
+        await using (var seed = database.CreateContext())
+        {
+            seed.AddRange(bank, card, taxCategory, income, plan, august, bulk, cardTax);
+            await seed.SaveChangesAsync(CancellationToken.None);
+        }
+
+        await using var read = database.CreateContext();
+        var stored = await read.RecurringTransactionOccurrences.AsNoTracking()
+            .SingleAsync(item => item.Id == august.Id, CancellationToken.None);
+        Assert.Equal(RecurringOccurrenceStatus.Closed, stored.Status);
+        Assert.Equal(bulk.Id, stored.ClosedByTransactionId);
+        Assert.Null(stored.AmountValue);
+
+        // Kapatılmış kalem kapanış zamanı olmadan duramaz; gelir kategorisi
+        // vergi olarak işaretlenemez.
+        await Assert.ThrowsAsync<SqlException>(() => database.ExecuteAsync(
+            "UPDATE [RecurringTransactionOccurrences] SET [ClosedAtUtc] = NULL WHERE [Id] = {0}", august.Id));
+        await Assert.ThrowsAsync<SqlException>(() => database.ExecuteAsync(
+            "UPDATE [Categories] SET [IsTax] = 1 WHERE [Id] = {0}", income.Id));
+
+        var payments = await new EfTaxPaymentRepository(read).ListAsync(user.Id, 0, 10, CancellationToken.None);
+        Assert.Equal([bulk.Id, cardTax.Id], payments.Items.Select(item => item.PaymentId));
+        Assert.False(payments.HasMore);
+        var closed = Assert.Single(payments.Items[0].ClosedItems);
+        Assert.Equal(new DateOnly(2026, 8, 31), closed.ScheduledDate);
+        Assert.Equal(TaxKind.SocialSecurityPremium, closed.TaxKind);
+        Assert.Equal(RecurringSourceType.CreditCard, payments.Items[1].SourceType);
+
+        // Karttaki MTV harcaması bir ekstre satırı da üretir; burada ölçülen
+        // vergi planının kalemleri.
+        var pending = (await new EfPlannedActivityRepository(read).ListAsync(
+                user.Id, new DateOnly(2026, 9, 1), new DateOnly(2026, 10, 31), null, CancellationToken.None))
+            .Where(item => item.PlannedKind == PlannedActivityKind.RecurringOccurrence)
+            .ToArray();
+        Assert.Equal(
+            [new DateOnly(2026, 9, 30), new DateOnly(2026, 10, 31)],
+            pending.Select(item => item.DueDate).Order());
+        Assert.All(pending, item =>
+        {
+            Assert.Null(item.Amount);
+            Assert.Equal(TaxKind.SocialSecurityPremium, item.TaxKind);
+            Assert.Equal(plan.Id, item.RecurringTransactionId);
+            Assert.Null(item.AttentionCode);
+        });
     }
 
     /// <summary>

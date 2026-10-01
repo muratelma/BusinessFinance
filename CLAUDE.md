@@ -266,7 +266,9 @@ gerekçesiyle bozulmaz.
 - **Kapsam tek yerde türetilir** (`TransactionScopeResolution`): kullanıcının
   açık seçimi → hesabın/kartın etiketi → kategorinin varsayılanı. Üçü de boşsa
   istek `*.scope_unresolved` ile reddedilir; sunucu kapsam **uydurmaz**.
-  İstemcinin kapsam göndermesi zorunlu değildir.
+  İstemcinin kapsam göndermesi zorunlu değildir. **Vergide zincir yoktur**
+  (ADR 0018 İ9, 30 Eylül 2026): açık seçim → profilin tarafı; ödeme kaynağının
+  etiketine bakılmaz (işletme vergisi şahsi kartla ödenebilir).
 
 - **İki varsayılan kategori seti var**, kaydolurken sorulan tek soruya göre
   seçilir (`UserProfile.HasBusiness`). Kişisel setin tamamı `Şahsi`; işletme

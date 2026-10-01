@@ -35,7 +35,8 @@ public sealed class MigrationHistoryTests
         "AddSavingsGoalScope",
         "AddVerificationCodes",
         "AddCashCountExpectedSnapshot",
-        "RemoveVatAndTaxDeductibility"
+        "RemoveVatAndTaxDeductibility",
+        "AddTaxPlans"
     ];
 
     [Fact]
@@ -534,6 +535,61 @@ public sealed class MigrationHistoryTests
                 Assert.Null(column.DefaultValue);
                 Assert.Null(column.DefaultValueSql);
             });
+        }
+    }
+
+    /// <summary>
+    /// Vergi planı (ADR 0018): eski kısıtlar düşer, kolonlar eklenir ve gevşer,
+    /// backfill çalışır, yeni kısıtlar en son eklenir. Geçmişi bilinmeyen her yeni
+    /// kolon nullable'dır; <c>IsTax</c> dolduruluncaya kadar nullable kalır ve
+    /// hiçbir kolon kalıcı bir DEFAULT bırakmaz. Hiçbir kolon düşmez.
+    /// </summary>
+    [Fact]
+    public void AddTaxPlans_LoosensBeforeItConstrainsAndLosesNothing()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_AddTaxPlans", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations.ToList();
+            Assert.DoesNotContain(up, operation => operation is DropColumnOperation or DropTableOperation);
+
+            var lastDrop = up.FindLastIndex(operation => operation is DropCheckConstraintOperation);
+            var firstAdd = up.FindIndex(operation => operation is AddCheckConstraintOperation);
+            var backfill = up.FindIndex(operation => operation is SqlOperation);
+            var lastColumnChange = up.FindLastIndex(operation =>
+                operation is AddColumnOperation or AlterColumnOperation);
+            Assert.True(lastDrop < up.FindIndex(operation => operation is AddColumnOperation or AlterColumnOperation));
+            Assert.True(backfill > up.FindIndex(operation =>
+                operation is AddColumnOperation { Name: "IsTax" }));
+            Assert.True(lastColumnChange < firstAdd);
+            Assert.True(backfill < firstAdd);
+
+            Assert.All(up.OfType<AddColumnOperation>(), column =>
+            {
+                Assert.True(column.IsNullable);
+                Assert.Null(column.DefaultValue);
+                Assert.Null(column.DefaultValueSql);
+            });
+
+            // Gevşeyen kolonlar: tutar ve kaynak yalnız vergi planında boş olabilir.
+            var loosened = up.OfType<AlterColumnOperation>()
+                .Where(operation => operation.IsNullable)
+                .Select(operation => $"{operation.Table}.{operation.Name}")
+                .OrderBy(name => name, StringComparer.Ordinal)
+                .ToArray();
+            Assert.Equal(
+                [
+                    "RecurringTransactionOccurrences.Amount",
+                    "RecurringTransactionOccurrences.SourceType",
+                    "RecurringTransactions.Amount",
+                    "RecurringTransactions.SourceType",
+                ],
+                loosened);
+
+            var tightened = Assert.Single(up.OfType<AlterColumnOperation>(), operation => !operation.IsNullable);
+            Assert.Equal("Categories.IsTax", $"{tightened.Table}.{tightened.Name}");
+            Assert.Null(tightened.DefaultValue);
         }
     }
 

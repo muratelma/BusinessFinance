@@ -729,6 +729,68 @@ public sealed class DataPortabilityTests
     }
 
     /// <summary>
+    /// Vergi planı (ADR 0018) yedekten kayıpsız döner: tutarsız ve kaynaksız
+    /// plan, vergi türü, "seçilen aylarda" ritmi, ödenmiş kalem, toplu ödemeyle
+    /// kapatılmış kalemler, ritmi sonradan değişmiş geçmiş ve "tutar belli oldu"
+    /// ile yazılmış bekleyen tutar.
+    /// </summary>
+    /// <remarks>
+    /// Ritmi değişmiş bir plan geçmişi yeniden oynanarak kurulamaz: eski
+    /// kalemler yeni ritme uymaz. Geri yükleme bu yüzden anlık görüntüyle
+    /// çalışır; kapatan ödeme yeni kimliğine bağlanmalıdır.
+    /// </remarks>
+    [Fact]
+    public async Task BackupV11_RoundTripsTaxPlansWithTheirHistory()
+    {
+        await using var context = CreateContext();
+        var sourceUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        await SeedTaxGraphAsync(context, sourceUserId);
+        await SeedDefaultCategoriesAsync(context, targetUserId);
+        var service = new EfDataPortabilityRepository(context);
+
+        var backup = await service.CreateBackupAsync(sourceUserId, default);
+        await service.ValidateBackupAsync(backup.Content, default);
+        await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
+
+        var plan = await context.RecurringTransactions.AsNoTracking()
+            .SingleAsync(item => item.UserId == targetUserId);
+        Assert.Equal(TaxKind.PropertyTax, plan.TaxKind);
+        Assert.Null(plan.AmountValue);
+        Assert.Null(plan.SourceType);
+        Assert.Equal(RecurrenceFrequency.SelectedMonths, plan.Frequency);
+        Assert.Equal((1 << 4) | (1 << 10), plan.SelectedMonths);
+        Assert.Equal(31, plan.DayOfMonth);
+        Assert.Equal(4, plan.GeneratedOccurrenceCount);
+        Assert.Equal(new DateOnly(2027, 5, 31), plan.NextOccurrenceDate);
+
+        var items = await context.RecurringTransactionOccurrences.AsNoTracking()
+            .Where(item => item.UserId == targetUserId)
+            .OrderBy(item => item.ScheduledDate)
+            .ToArrayAsync();
+        Assert.Equal(
+            [
+                RecurringOccurrenceStatus.Realized,
+                RecurringOccurrenceStatus.Closed,
+                RecurringOccurrenceStatus.Closed,
+                RecurringOccurrenceStatus.Planned
+            ],
+            items.Select(item => item.Status));
+        var transactions = await context.Transactions.AsNoTracking()
+            .Where(item => item.UserId == targetUserId)
+            .ToDictionaryAsync(item => item.Id);
+        Assert.Equal(900m, transactions[items[0].BudgetTransactionId!.Value].Amount.Amount);
+        Assert.Equal(items[1].ClosedByTransactionId, items[2].ClosedByTransactionId);
+        Assert.Equal(1800m, transactions[items[1].ClosedByTransactionId!.Value].Amount.Amount);
+        Assert.Equal(950m, items[3].AmountValue);
+        Assert.Null(items[3].SourceType);
+
+        var taxCategory = await context.Categories.AsNoTracking()
+            .SingleAsync(item => item.UserId == targetUserId && item.Id == plan.CategoryId);
+        Assert.True(taxCategory.IsTax);
+    }
+
+    /// <summary>
     /// v10 dosyası reddedilir ve hedef hesaba hiçbir şey yazılmaz.
     /// </summary>
     /// <remarks>
@@ -1051,6 +1113,51 @@ public sealed class DataPortabilityTests
             manav, kapanan, veresiye, vadeliAlim, tahsilat, iptalTahsilat,
             acikFatura, kapananAlacak, kasaFarki, eskiSayim, sayim,
             yoldakiTahsilat, gecmisTahsilat, vergiKarsiligi);
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Emlak vergisi: aylık başladı, üç kalemi ödendi ya da kapatıldı, sonra
+    /// Mayıs–Kasım ritmine geçti; yeni ritmin ilk kalemine tutar yazıldı.
+    /// </summary>
+    private static async Task SeedTaxGraphAsync(BusinessFinanceDbContext context, Guid userId)
+    {
+        var utc = new DateTimeOffset(2026, 9, 1, 8, 0, 0, TimeSpan.Zero);
+        var bank = new Account(Guid.NewGuid(), userId, "Banka", AccountType.Bank, CurrencyCode.TRY, 20_000m);
+        var taxCategory = new Category(
+            Guid.NewGuid(), userId, "Vergi ve harç", CategoryType.Expense, TransactionScope.Personal, isTax: true);
+        var plan = new RecurringTransaction(
+            Guid.NewGuid(), userId, taxCategory, null, TaxKind.PropertyTax, TransactionScope.Personal,
+            RecurrenceFrequency.Monthly, new DateOnly(2026, 6, 30), description: "Emlak", dayOfMonth: 31);
+
+        var paid = RecurringTransactionOccurrence.Create(Guid.NewGuid(), plan, new DateOnly(2026, 6, 30));
+        plan.AdvanceAfter(new DateOnly(2026, 6, 30));
+        var july = RecurringTransactionOccurrence.Create(Guid.NewGuid(), plan, new DateOnly(2026, 7, 31));
+        plan.AdvanceAfter(new DateOnly(2026, 7, 31));
+        var august = RecurringTransactionOccurrence.Create(Guid.NewGuid(), plan, new DateOnly(2026, 8, 31));
+        plan.AdvanceAfter(new DateOnly(2026, 8, 31));
+
+        paid.CorrectAmount(new Money(900m, CurrencyCode.TRY));
+        paid.UseAccount(bank.Id);
+        var paidExpense = new BudgetTransaction(
+            Guid.NewGuid(), userId, bank, taxCategory, paid.Amount!, TransactionType.Expense,
+            TransactionScope.Personal, new DateOnly(2026, 6, 28), "Emlak");
+        paid.RealizeWithTransaction(paidExpense.Id, utc);
+
+        var bulk = new BudgetTransaction(
+            Guid.NewGuid(), userId, bank, taxCategory, new Money(1800m, CurrencyCode.TRY),
+            TransactionType.Expense, TransactionScope.Personal, new DateOnly(2026, 8, 30), "Temmuz–Ağustos");
+        july.CloseWithTransaction(bulk.Id, utc);
+        august.CloseWithTransaction(bulk.Id, utc);
+
+        plan.Reschedule(
+            RecurrenceFrequency.SelectedMonths, new DateOnly(2026, 11, 30), null,
+            MonthEndBehavior.ClampToLastDay, 31, (1 << 4) | (1 << 10), new DateOnly(2026, 8, 31), 3);
+        var november = RecurringTransactionOccurrence.Create(Guid.NewGuid(), plan, new DateOnly(2026, 11, 30));
+        plan.AdvanceAfter(new DateOnly(2026, 11, 30));
+        november.CorrectAmount(new Money(950m, CurrencyCode.TRY));
+
+        context.AddRange(bank, taxCategory, plan, paidExpense, bulk, paid, july, august, november);
         await context.SaveChangesAsync();
     }
 

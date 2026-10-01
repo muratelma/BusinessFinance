@@ -61,7 +61,7 @@ void main() {
     final shown = titles(tester);
     expect(shown, contains('Bütçeler'));
     expect(shown, isNot(contains('Kasa')));
-    expect(shown, contains('Vergi takvimi'));
+    expect(shown, contains('Vergi takibi'));
     expect(shown, isNot(contains('Muhasebeci paketi')));
     for (final label in ['Para ve hesaplar', 'Planlama', 'Vergi', 'Ayarlar']) {
       expect(find.text(label), findsOneWidget);

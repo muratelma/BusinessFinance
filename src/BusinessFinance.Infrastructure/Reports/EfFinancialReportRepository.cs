@@ -1420,16 +1420,17 @@ internal sealed class EfFinancialReportRepository(
         var future = candidates.Where(item => item.DueDate >= asOfDate).ToArray();
         var recurring = future
             .Where(item => item.SourceType == UpcomingPaymentSourceType.RecurringOccurrence)
-            .Sum(item => item.Amount);
+            // Tutarı belli olmayan vergi tahminle sayılmaz (ADR 0018 İ5).
+            .Sum(item => item.Amount ?? 0m);
         var statements = future
             .Where(item => item.SourceType == UpcomingPaymentSourceType.CreditCardStatement)
-            .Sum(item => item.Amount);
+            .Sum(item => item.Amount ?? 0m);
         var installments = future
             .Where(item => item.SourceType == UpcomingPaymentSourceType.Installment)
-            .Sum(item => item.Amount);
+            .Sum(item => item.Amount ?? 0m);
         var debtInstallments = future
             .Where(item => item.SourceType == UpcomingPaymentSourceType.DebtInstallment)
-            .Sum(item => item.Amount);
+            .Sum(item => item.Amount ?? 0m);
         return new FutureLoadDto(
             asOfDate,
             throughDate,

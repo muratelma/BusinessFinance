@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../core/formatters/date_text.dart';
+import '../../../core/formatters/money_math.dart';
 import '../../../core/formatters/money_text.dart';
 import '../../../core/theme/app_breakpoints.dart';
 import '../../../core/theme/app_finance_colors.dart';
@@ -21,6 +22,7 @@ import '../../../core/widgets/app_row.dart';
 import '../../../core/widgets/app_section_header.dart';
 import '../../../core/widgets/app_share_bar.dart';
 import '../../../core/widgets/app_status_chip.dart';
+import '../../../core/widgets/app_unknown_amount.dart';
 import '../../activities/data/planned_activity_models.dart';
 import '../../planning/data/planning_models.dart';
 import '../data/dashboard_models.dart';
@@ -567,6 +569,11 @@ class _BudgetRing extends StatelessWidget {
 ///
 /// **Boş durumda gizlenmiyor**: "ödeme yok" kendi başına iyi haberdir ve
 /// bölüm her hafta yerinde durmalı.
+///
+/// **Gecikenler listeye girmez**, kartın başında tek bir satırda durur: sayı,
+/// en eski vade ve sunucunun gecikmiş toplamı. Yedi gecikmiş ödeme listeye
+/// girseydi haftanın ödemelerini kartın dışına iterdi. Geciken toplamı
+/// "7 günde çıkacak"a eklenmez.
 class DashboardUpcomingCard extends StatelessWidget {
   const DashboardUpcomingCard({
     required this.items,
@@ -575,9 +582,17 @@ class DashboardUpcomingCard extends StatelessWidget {
     required this.today,
     required this.onOpen,
     super.key,
+    this.overdue = const [],
+    this.overdueTotal,
   });
 
   final List<PlannedActivity> items;
+
+  /// Gecikmiş ödeme yükümlülükleri; kartın başındaki tek satır.
+  final List<PlannedActivity> overdue;
+
+  /// Gecikmişlerin tutarı belli olanlarının sunucudaki toplamı.
+  final String? overdueTotal;
   final String? total;
   final String currency;
   final DateTime today;
@@ -587,15 +602,27 @@ class DashboardUpcomingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final surfaces = AppSurfaces.of(context);
-    if (items.isEmpty) {
+    if (items.isEmpty && overdue.isEmpty) {
       return AppCard(
         onTap: onOpen,
         child: Text('Bu hafta ödeme yok.', style: theme.textTheme.bodyMedium),
       );
     }
+    final oldest = overdue.isEmpty
+        ? null
+        : overdue
+              .map((item) => item.dueDate)
+              .reduce((a, b) => a.compareTo(b) <= 0 ? a : b);
+    final shownOverdueTotal =
+        overdueTotal != null && MoneyMath.parse(overdueTotal!) != BigInt.zero
+        ? overdueTotal
+        : null;
     return _TappableSummary(
       onTap: onOpen,
       label: [
+        if (oldest != null)
+          _overdueSentence(overdue.length, oldest, shownOverdueTotal, currency),
+        if (items.isEmpty) 'Bu hafta ödeme yok',
         for (final item in items)
           _upcomingSentence(item, _relative(item.dueDate)),
         if (total != null)
@@ -608,23 +635,39 @@ class DashboardUpcomingCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.medium,
-                vertical: AppSpacing.small,
+            if (oldest != null)
+              _OverdueRow(
+                count: overdue.length,
+                oldest: oldest,
+                total: shownOverdueTotal,
+                currency: currency,
               ),
-              child: Column(
-                children: [
-                  for (var i = 0; i < items.length; i++)
-                    _TimelineRow(
-                      item: items[i],
-                      first: i == 0,
-                      last: i == items.length - 1,
-                      relative: _relative(items[i].dueDate),
-                    ),
-                ],
+            if (items.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.medium),
+                child: Text(
+                  'Bu hafta ödeme yok.',
+                  style: theme.textTheme.bodyMedium,
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.medium,
+                  vertical: AppSpacing.small,
+                ),
+                child: Column(
+                  children: [
+                    for (var i = 0; i < items.length; i++)
+                      _TimelineRow(
+                        item: items[i],
+                        first: i == 0,
+                        last: i == items.length - 1,
+                        relative: _relative(items[i].dueDate),
+                      ),
+                  ],
+                ),
               ),
-            ),
             if (total != null)
               MergeSemantics(
                 child: Container(
@@ -700,12 +743,14 @@ class _TimelineRow extends StatelessWidget {
     final due = DateTime.tryParse(item.dueDate);
     final leaf = due == null ? null : AppDateLeaf.fromDate(due);
     final large = context.usesLargeText;
-    final amount = AppMoneyText(
-      amount: item.amount,
-      currency: item.currency,
-      effect: AppMoneyEffect.expense,
-      size: AppMoneySize.row,
-    );
+    final amount = item.amount == null
+        ? const AppUnknownAmount()
+        : AppMoneyText(
+            amount: item.amount!,
+            currency: item.currency,
+            effect: AppMoneyEffect.expense,
+            size: AppMoneySize.row,
+          );
 
     return Semantics(
       container: true,
@@ -1206,7 +1251,7 @@ String _ringSentence(BudgetVarianceItem item, String currency) {
 
 /// Yaklaşan satırın ekran okuyucu cümlesi.
 String _upcomingSentence(PlannedActivity item, String relative) =>
-    '${item.title}: ${MoneyText.format(item.amount, item.currency)}, '
+    '${item.title}: ${_amountSentence(item)}, '
     'vadesi ${DateText.dayMonth(item.dueDate)}, $relative, '
     '${item.plannedKind.label}';
 
@@ -1231,4 +1276,88 @@ class _TappableSummary extends StatelessWidget {
     onTap: onTap,
     child: ExcludeSemantics(child: child),
   );
+}
+
+String _amountSentence(PlannedActivity item) => item.amount == null
+    ? AppUnknownAmount.text
+    : MoneyText.format(item.amount!, item.currency);
+
+String _overdueSentence(
+  int count,
+  String oldest,
+  String? total,
+  String currency,
+) {
+  final amount = total == null ? '' : ', ${MoneyText.format(total, currency)}';
+  return '$count gecikmiş ödeme, en eskisi ${DateText.dayMonth(oldest)}$amount';
+}
+
+/// Yaklaşanlar kartının başındaki gecikenler satırı: gider zemini, sayı, en
+/// eski vade ve toplam. Ok yok: kartın tamamı zaten Planlananlar'ı açıyor.
+class _OverdueRow extends StatelessWidget {
+  const _OverdueRow({
+    required this.count,
+    required this.oldest,
+    required this.currency,
+    this.total,
+  });
+
+  final int count;
+  final String oldest;
+  final String currency;
+  final String? total;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = AppFinanceColors.of(context);
+    final surfaces = AppSurfaces.of(context);
+    final foreground = colors.onExpenseContainer;
+    return Container(
+      constraints: const BoxConstraints(minHeight: 64),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.medium,
+        vertical: AppSpacing.small + AppSpacing.xSmall,
+      ),
+      decoration: BoxDecoration(
+        color: colors.expenseContainer,
+        border: Border(bottom: BorderSide(color: surfaces.border)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, size: 22, color: foreground),
+          const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '$count gecikmiş ödeme',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: foreground,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxSmall),
+                Text(
+                  'En eskisi ${DateText.dayMonth(oldest)}',
+                  style: theme.textTheme.bodySmall?.copyWith(color: foreground),
+                ),
+              ],
+            ),
+          ),
+          if (total != null) ...[
+            const SizedBox(width: AppSpacing.small),
+            AppMoneyText(
+              amount: total!,
+              currency: currency,
+              effect: AppMoneyEffect.expense,
+              onContainer: true,
+              size: AppMoneySize.row,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }

@@ -1,5 +1,6 @@
 using BusinessFinance.Api.Contracts;
 using BusinessFinance.Api.Errors;
+using BusinessFinance.Api.Features.Taxes;
 using BusinessFinance.Api.Features.Transactions;
 using BusinessFinance.Api.Features.CreditCards;
 using BusinessFinance.Application.RecurringTransactions;
@@ -23,6 +24,12 @@ public static class RecurringEndpoints
             .WithName("ListRecurringTransactions")
             .Produces<RecurringTransactionListResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status401Unauthorized);
+        group.MapPut("/{recurringTransactionId:guid}", UpdateAsync)
+            .WithName("UpdateRecurringTransaction")
+            .Produces<RecurringTransactionResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
         group.MapPatch("/{recurringTransactionId:guid}/active", SetActiveAsync)
             .WithName("SetRecurringTransactionActive")
             .Produces<RecurringTransactionResponse>(StatusCodes.Status200OK)
@@ -49,7 +56,14 @@ public static class RecurringEndpoints
             .Produces<RealizeRecurringOccurrenceResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+        group.MapPost("/occurrences/{occurrenceId:guid}/undo", UndoAsync)
+            .WithName("UndoRecurringOccurrence")
+            .Produces<RecurringOccurrenceResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
         // Addressed by plan and date rather than by occurrence id: the planned
         // view projects dates whose occurrence row does not exist yet, and those
         // rows had no id to send. Realizing one is a single decision, so it is a
@@ -57,6 +71,13 @@ public static class RecurringEndpoints
         group.MapPost("/{recurringTransactionId:guid}/occurrences/realize", RealizeDueAsync)
             .WithName("RealizeDueRecurring")
             .Produces<RealizeRecurringOccurrenceResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+        group.MapPost("/{recurringTransactionId:guid}/occurrences/amount", SetAmountAsync)
+            .WithName("SetRecurringOccurrenceAmount")
+            .Produces<RecurringOccurrenceResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -70,61 +91,92 @@ public static class RecurringEndpoints
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
-        if (!FinanceContract.TryParseAmount(request.Amount, out var amount) || amount <= 0m)
+        if (!TryCreateCommand(request, httpContext, out var command, out var error))
         {
-            return ApiProblemResults.Validation(
-                httpContext,
-                "Amount must be greater than zero and have at most four decimal places.",
-                "recurring.invalid_amount");
+            return error!;
         }
+
+        var result = await useCase.ExecuteAsync(command!, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return result.Error.ToProblemResult(httpContext);
+        }
+
+        var response = ToResponse(result.Value);
+        return Results.Created($"/api/v1/recurring-transactions/{response.Id}", response);
+    }
+
+    /// <summary>
+    /// Oluşturma isteğinin biçim denetimi; tek plan ve toplu vergi tanımlama
+    /// aynı kuralı kullanır.
+    /// </summary>
+    internal static bool TryCreateCommand(
+        CreateRecurringTransactionRequest request,
+        HttpContext httpContext,
+        out CreateRecurringTransactionCommand? command,
+        out IResult? error)
+    {
+        command = null;
+        if (!TaxContractValues.TryParseTaxKind(request.TaxKind, out var taxKind))
+        {
+            error = ApiProblemResults.Validation(
+                httpContext, "Tax kind is not supported.", "recurring.invalid_tax_kind");
+            return false;
+        }
+
+        if (!TryParsePlanAmount(request.Amount, taxKind is not null, httpContext, out var amount, out error))
+        {
+            return false;
+        }
+
         if (!string.Equals(request.Currency, "TRY", StringComparison.OrdinalIgnoreCase))
         {
-            return ApiProblemResults.Validation(
+            error = ApiProblemResults.Validation(
                 httpContext, "Only TRY currency is currently supported.", "recurring.invalid_currency");
+            return false;
         }
+
         if (!TryParseKind(request.Kind, out var kind))
         {
-            return ApiProblemResults.Validation(
+            error = ApiProblemResults.Validation(
                 httpContext,
                 "Kind must be income, expense, or bill-payment.",
                 "recurring.invalid_kind");
+            return false;
         }
-        if (!TryParseFrequency(request.Frequency, out var frequency))
-        {
-            return ApiProblemResults.Validation(
+
+        if (!TryParseRhythm(
+                request.Frequency,
+                request.MonthEndBehavior,
+                request.StartDate,
+                request.EndDate,
+                request.Months,
                 httpContext,
-                "Frequency must be daily, weekly, monthly, quarterly, or yearly.",
-                "recurring.invalid_frequency");
-        }
-        if (!TryParseMonthEndBehavior(request.MonthEndBehavior, out var monthEndBehavior))
+                out var rhythm,
+                out error))
         {
-            return ApiProblemResults.Validation(
-                httpContext,
-                "Month-end behavior must be clamp-to-last-day or skip-invalid-period.",
-                "recurring.invalid_month_end_behavior");
+            return false;
         }
-        if (!FinanceContract.TryParseDate(request.StartDate, out var startDate) ||
-            !TryParseOptionalDate(request.EndDate, out var endDate))
+
+        if (!TryParseSourceType(request.SourceType, request.AccountId, request.CreditCardId, out var sourceType))
         {
-            return ApiProblemResults.Validation(
-                httpContext, "Dates must use the yyyy-MM-dd format.", "recurring.invalid_date");
-        }
-        if (!TryParseSourceType(request.SourceType, out var sourceType))
-        {
-            return ApiProblemResults.Validation(
+            error = ApiProblemResults.Validation(
                 httpContext,
                 "Source type must be account or credit-card.",
                 "recurring.invalid_source_type");
+            return false;
         }
+
         if (!FinanceContract.TryParseOptionalScope(request.Scope, out var scope))
         {
-            return ApiProblemResults.Validation(
+            error = ApiProblemResults.Validation(
                 httpContext,
                 "Plan scope must be business, personal or empty.",
                 "recurring.invalid_scope");
+            return false;
         }
 
-        var result = await useCase.ExecuteAsync(new CreateRecurringTransactionCommand(
+        command = new CreateRecurringTransactionCommand(
             sourceType,
             request.AccountId,
             request.CreditCardId,
@@ -133,19 +185,80 @@ public static class RecurringEndpoints
             CurrencyCode.TRY,
             kind,
             scope,
-            frequency,
-            startDate,
-            endDate,
-            monthEndBehavior,
+            rhythm.Frequency,
+            rhythm.StartDate,
+            rhythm.EndDate,
+            rhythm.MonthEndBehavior,
             request.Description,
-            request.OccurrenceLimit), cancellationToken);
-        if (!result.IsSuccess)
+            request.OccurrenceLimit,
+            taxKind,
+            request.DayOfMonth,
+            rhythm.SelectedMonths);
+        error = null;
+        return true;
+    }
+
+    private static async Task<IResult> UpdateAsync(
+        Guid recurringTransactionId,
+        UpdateRecurringTransactionRequest request,
+        UpdateRecurringTransactionUseCase useCase,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        // Tutar boş olabilir mi, planın vergi olup olmadığına bağlıdır; bunu
+        // domain bilir. Burada yalnız biçim denetlenir.
+        if (!TryParsePlanAmount(request.Amount, allowEmpty: true, httpContext, out var amount, out var amountError))
         {
-            return result.Error.ToProblemResult(httpContext);
+            return amountError!;
         }
 
-        var response = ToResponse(result.Value);
-        return Results.Created($"/api/v1/recurring-transactions/{response.Id}", response);
+        if (!TryParseRhythm(
+                request.Frequency,
+                request.MonthEndBehavior,
+                request.StartDate,
+                request.EndDate,
+                request.Months,
+                httpContext,
+                out var rhythm,
+                out var rhythmError))
+        {
+            return rhythmError!;
+        }
+
+        if (!TryParseSourceType(request.SourceType, request.AccountId, request.CreditCardId, out var sourceType))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Source type must be account or credit-card.",
+                "recurring.invalid_source_type");
+        }
+
+        if (!FinanceContract.TryParseOptionalScope(request.Scope, out var scope))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Plan scope must be business, personal or empty.",
+                "recurring.invalid_scope");
+        }
+
+        var result = await useCase.ExecuteAsync(new UpdateRecurringTransactionCommand(
+            recurringTransactionId,
+            sourceType,
+            request.AccountId,
+            request.CreditCardId,
+            request.CategoryId,
+            amount,
+            scope,
+            request.Description,
+            rhythm.Frequency,
+            rhythm.StartDate,
+            rhythm.EndDate,
+            rhythm.MonthEndBehavior,
+            request.DayOfMonth,
+            rhythm.SelectedMonths), cancellationToken);
+        return result.IsSuccess
+            ? Results.Ok(ToResponse(result.Value))
+            : result.Error.ToProblemResult(httpContext);
     }
 
     private static async Task<IResult> ListAsync(
@@ -240,8 +353,14 @@ public static class RecurringEndpoints
             return dueError!;
         }
 
+        if (!TryParsePayment(request.PaidOn, request.AccountId, request.CreditCardId, httpContext,
+                out var payment, out var paymentError))
+        {
+            return paymentError!;
+        }
+
         var result = await useCase.ExecuteAsync(
-            new RealizeDueRecurringCommand(recurringTransactionId, scheduledDate, dueAmount),
+            new RealizeDueRecurringCommand(recurringTransactionId, scheduledDate, dueAmount, payment),
             cancellationToken);
         return result.IsSuccess
             ? Results.Ok(ToRealizedResponse(result.Value))
@@ -260,14 +379,63 @@ public static class RecurringEndpoints
             return error!;
         }
 
+        if (!TryParsePayment(request?.PaidOn, request?.AccountId, request?.CreditCardId, httpContext,
+                out var payment, out var paymentError))
+        {
+            return paymentError!;
+        }
+
         var result = await useCase.ExecuteAsync(
-            new RealizeRecurringOccurrenceCommand(occurrenceId, amount), cancellationToken);
+            new RealizeRecurringOccurrenceCommand(occurrenceId, amount, payment), cancellationToken);
         if (!result.IsSuccess)
         {
             return result.Error.ToProblemResult(httpContext);
         }
 
         return Results.Ok(ToRealizedResponse(result.Value));
+    }
+
+    private static async Task<IResult> SetAmountAsync(
+        Guid recurringTransactionId,
+        SetOccurrenceAmountRequest request,
+        SetOccurrenceAmountUseCase useCase,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        if (!FinanceContract.TryParseDate(request.ScheduledDate, out var scheduledDate))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Scheduled date must use the yyyy-MM-dd format.",
+                "recurring.invalid_scheduled_date");
+        }
+
+        if (!FinanceContract.TryParseAmount(request.Amount, out var amount) || amount <= 0m)
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Amount must be greater than zero and have at most four decimal places.",
+                "recurring.invalid_amount");
+        }
+
+        var result = await useCase.ExecuteAsync(
+            new SetOccurrenceAmountCommand(recurringTransactionId, scheduledDate, amount), cancellationToken);
+        return result.IsSuccess
+            ? Results.Ok(ToResponse(result.Value))
+            : result.Error.ToProblemResult(httpContext);
+    }
+
+    private static async Task<IResult> UndoAsync(
+        Guid occurrenceId,
+        UndoRecurringOccurrenceUseCase useCase,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var result = await useCase.ExecuteAsync(
+            new UndoRecurringOccurrenceCommand(occurrenceId), cancellationToken);
+        return result.IsSuccess
+            ? Results.Ok(ToResponse(result.Value))
+            : result.Error.ToProblemResult(httpContext);
     }
 
     private static RealizeRecurringOccurrenceResponse ToRealizedResponse(
@@ -283,15 +451,15 @@ public static class RecurringEndpoints
 
     internal static RecurringTransactionResponse ToResponse(RecurringTransactionDto recurring) => new(
         recurring.Id,
-        SourceTypeValue(recurring.SourceType),
+        OptionalSourceTypeValue(recurring.SourceType),
         recurring.AccountId,
         recurring.CreditCardId,
         recurring.CategoryId,
-        FinanceContract.Money(recurring.Amount),
+        FinanceContract.OptionalMoney(recurring.Amount),
         recurring.Currency.ToString(),
         KindValue(recurring.Kind),
         FinanceContract.ScopeValue(recurring.Scope),
-        recurring.Frequency.ToString().ToLowerInvariant(),
+        TaxContractValues.FrequencyValue(recurring.Frequency),
         FinanceContract.Date(recurring.StartDate),
         recurring.EndDate is DateOnly endDate ? FinanceContract.Date(endDate) : null,
         recurring.OccurrenceLimit,
@@ -299,17 +467,20 @@ public static class RecurringEndpoints
         recurring.NextOccurrenceDate is DateOnly nextDate ? FinanceContract.Date(nextDate) : null,
         MonthEndBehaviorValue(recurring.MonthEndBehavior),
         recurring.Description,
-        recurring.IsActive);
+        recurring.IsActive,
+        TaxContractValues.OptionalTaxKindValue(recurring.TaxKind),
+        recurring.DayOfMonth,
+        TaxContractValues.MonthsValue(recurring.SelectedMonths));
 
     internal static RecurringOccurrenceResponse ToResponse(RecurringOccurrenceDto occurrence) => new(
         occurrence.Id,
         occurrence.RecurringTransactionId,
         occurrence.OccurrenceKey,
-        SourceTypeValue(occurrence.SourceType),
+        OptionalSourceTypeValue(occurrence.SourceType),
         occurrence.AccountId,
         occurrence.CreditCardId,
         occurrence.CategoryId,
-        FinanceContract.Money(occurrence.Amount),
+        FinanceContract.OptionalMoney(occurrence.Amount),
         occurrence.Currency.ToString(),
         KindValue(occurrence.Kind),
         FinanceContract.ScopeValue(occurrence.Scope),
@@ -318,17 +489,83 @@ public static class RecurringEndpoints
         occurrence.Status.ToString().ToLowerInvariant(),
         occurrence.BudgetTransactionId,
         occurrence.CreditCardChargeId,
-        occurrence.RealizedAtUtc);
+        occurrence.RealizedAtUtc,
+        occurrence.ClosedByTransactionId,
+        occurrence.ClosedByChargeId,
+        occurrence.ClosedAtUtc);
+
+    private sealed record Rhythm(
+        RecurrenceFrequency Frequency,
+        DateOnly StartDate,
+        DateOnly? EndDate,
+        MonthEndBehavior MonthEndBehavior,
+        int? SelectedMonths);
+
+    private static bool TryParseRhythm(
+        string frequencyValue,
+        string monthEndBehaviorValue,
+        string startDateValue,
+        string? endDateValue,
+        IReadOnlyList<int>? months,
+        HttpContext httpContext,
+        out Rhythm rhythm,
+        out IResult? error)
+    {
+        rhythm = null!;
+        error = null;
+        if (!TaxContractValues.TryParseFrequency(frequencyValue, out var frequency))
+        {
+            error = ApiProblemResults.Validation(
+                httpContext,
+                "Frequency must be daily, weekly, monthly, quarterly, yearly, or selected-months.",
+                "recurring.invalid_frequency");
+            return false;
+        }
+
+        if (!TryParseMonthEndBehavior(monthEndBehaviorValue, out var monthEndBehavior))
+        {
+            error = ApiProblemResults.Validation(
+                httpContext,
+                "Month-end behavior must be clamp-to-last-day or skip-invalid-period.",
+                "recurring.invalid_month_end_behavior");
+            return false;
+        }
+
+        if (!FinanceContract.TryParseDate(startDateValue, out var startDate) ||
+            !TryParseOptionalDate(endDateValue, out var endDate))
+        {
+            error = ApiProblemResults.Validation(
+                httpContext, "Dates must use the yyyy-MM-dd format.", "recurring.invalid_date");
+            return false;
+        }
+
+        if (!TaxContractValues.TryParseMonths(months, out var selectedMonths))
+        {
+            error = ApiProblemResults.Validation(
+                httpContext, "Months must be distinct values between 1 and 12.", "recurring.invalid_months");
+            return false;
+        }
+
+        rhythm = new Rhythm(frequency, startDate, endDate, monthEndBehavior, selectedMonths);
+        return true;
+    }
 
     /// <summary>
-    /// An absent value means account, so clients written before credit-card sources
-    /// keep working unchanged.
+    /// An absent value means account when an account is sent, card when only a card
+    /// is sent, and no source when neither is — the last is legal only for a tax
+    /// plan, which the use case decides.
     /// </summary>
-    private static bool TryParseSourceType(string? value, out RecurringSourceType sourceType)
+    private static bool TryParseSourceType(
+        string? value,
+        Guid? accountId,
+        Guid? creditCardId,
+        out RecurringSourceType? sourceType)
     {
         if (value is null)
         {
-            sourceType = RecurringSourceType.Account;
+            sourceType = accountId is not null
+                ? RecurringSourceType.Account
+                : creditCardId is not null ? RecurringSourceType.CreditCard : null;
             return true;
         }
 
@@ -336,9 +573,9 @@ public static class RecurringEndpoints
         {
             "account" => RecurringSourceType.Account,
             "credit-card" => RecurringSourceType.CreditCard,
-            _ => default
+            _ => null
         };
-        return sourceType != default;
+        return sourceType is not null;
     }
 
     private static string SourceTypeValue(RecurringSourceType sourceType) => sourceType switch
@@ -347,6 +584,9 @@ public static class RecurringEndpoints
         RecurringSourceType.CreditCard => "credit-card",
         _ => throw new ArgumentOutOfRangeException(nameof(sourceType), sourceType, null)
     };
+
+    private static string? OptionalSourceTypeValue(RecurringSourceType? sourceType) =>
+        sourceType is RecurringSourceType value ? SourceTypeValue(value) : null;
 
     private static bool TryParseOptionalDate(string? value, out DateOnly? date)
     {
@@ -370,8 +610,35 @@ public static class RecurringEndpoints
     }
 
     /// <summary>
+    /// Planın beklenen tutarı: sıfırdan büyük; boşsa yalnız izin verildiğinde
+    /// (vergi planı) geçerlidir.
+    /// </summary>
+    private static bool TryParsePlanAmount(
+        string? value,
+        bool allowEmpty,
+        HttpContext httpContext,
+        out decimal? amount,
+        out IResult? error)
+    {
+        error = null;
+        amount = null;
+        if (value is null && allowEmpty) return true;
+        if (FinanceContract.TryParseAmount(value, out var parsed) && parsed > 0m)
+        {
+            amount = parsed;
+            return true;
+        }
+
+        error = ApiProblemResults.Validation(
+            httpContext,
+            "Amount must be greater than zero and have at most four decimal places.",
+            "recurring.invalid_amount");
+        return false;
+    }
+
+    /// <summary>
     /// Gerçekleştirme sırasında gönderilen tutar; boş bırakmak meşrudur ve
-    /// "plandaki tutar doğru" demektir.
+    /// "kalemdeki tutar doğru" demektir.
     /// </summary>
     private static bool TryParseCorrectedAmount(
         string? value,
@@ -394,18 +661,28 @@ public static class RecurringEndpoints
         return true;
     }
 
-    private static bool TryParseFrequency(string? value, out RecurrenceFrequency frequency)
+    /// <summary>"Ödedim" ayrıntısı; hiçbiri verilmezse eski davranış.</summary>
+    private static bool TryParsePayment(
+        string? paidOnValue,
+        Guid? accountId,
+        Guid? creditCardId,
+        HttpContext httpContext,
+        out RecurringPaymentDetails? payment,
+        out IResult? error)
     {
-        frequency = value?.ToLowerInvariant() switch
+        payment = null;
+        error = null;
+        if (paidOnValue is null && accountId is null && creditCardId is null) return true;
+
+        if (!TryParseOptionalDate(paidOnValue, out var paidOn))
         {
-            "daily" => RecurrenceFrequency.Daily,
-            "weekly" => RecurrenceFrequency.Weekly,
-            "monthly" => RecurrenceFrequency.Monthly,
-            "yearly" => RecurrenceFrequency.Yearly,
-            "quarterly" => RecurrenceFrequency.Quarterly,
-            _ => default
-        };
-        return frequency != default;
+            error = ApiProblemResults.Validation(
+                httpContext, "Paid-on date must use the yyyy-MM-dd format.", "recurring.invalid_paid_on");
+            return false;
+        }
+
+        payment = new RecurringPaymentDetails(paidOn, accountId, creditCardId);
+        return true;
     }
 
     private static bool TryParseMonthEndBehavior(string? value, out MonthEndBehavior behavior)

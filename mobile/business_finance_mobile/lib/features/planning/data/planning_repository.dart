@@ -56,16 +56,44 @@ class PlanningRepository implements PlanningRepositoryContract {
       _client.get('/api/v1/credit-cards'),
     ]);
 
+    // Vergi planları Tekrarlayanlar'da görünmez; kendi ekranları var
+    // (ADR 0018 T2). Tutarı boş olabilen vergi planı ve kalemi burada hiç
+    // okunmaz. Yaklaşan ödemelerde kalırlar ama eylemleri Vergi takibi'ne
+    // gider.
+    final plans = _items(responses[0].requireObject());
+    final taxPlanIds = {
+      for (final plan in plans)
+        if (plan['taxKind'] != null) JsonReaders.string(plan, 'id'),
+    };
+    final occurrences = _items(responses[1].requireObject());
+    final taxSourceIds = {
+      ...taxPlanIds,
+      for (final occurrence in occurrences)
+        if (taxPlanIds.contains(occurrence['recurringTransactionId']))
+          JsonReaders.string(occurrence, 'id'),
+    };
     return PlanningSnapshot(
-      recurringTransactions: _items(
-        responses[0].requireObject(),
-      ).map(RecurringTransactionItem.fromJson).toList(growable: false),
-      occurrences: _items(
-        responses[1].requireObject(),
-      ).map(RecurringOccurrenceItem.fromJson).toList(growable: false),
-      upcomingPayments: _items(
-        responses[2].requireObject(),
-      ).map(UpcomingPaymentItem.fromJson).toList(growable: false),
+      recurringTransactions: plans
+          .where((plan) => plan['taxKind'] == null)
+          .map(RecurringTransactionItem.fromJson)
+          .toList(growable: false),
+      occurrences: occurrences
+          .where(
+            (occurrence) =>
+                !taxPlanIds.contains(occurrence['recurringTransactionId']),
+          )
+          .map(RecurringOccurrenceItem.fromJson)
+          .toList(growable: false),
+      upcomingPayments: _items(responses[2].requireObject())
+          .map(
+            (item) => UpcomingPaymentItem.fromJson(
+              item,
+              isTax:
+                  item['sourceType'] == 'recurring-occurrence' &&
+                  taxSourceIds.contains(item['sourceId']),
+            ),
+          )
+          .toList(growable: false),
       report: AdvancedReport.fromJson(responses[3].requireObject()),
       accounts: _items(
         responses[4].requireObject(),

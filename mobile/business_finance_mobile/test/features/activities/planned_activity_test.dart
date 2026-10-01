@@ -25,6 +25,42 @@ void main() {
       expect(item.isProjected, isFalse);
     });
 
+    test('tutarı belli olmayan vergi kalemi boş tutarla okunur', () {
+      final item = PlannedActivity.fromJson({
+        ..._json(attention: null),
+        'timing': 'upcoming',
+        'amount': null,
+        'recurringTransactionId': 'plan-1',
+        'taxKind': 'vat-return',
+      });
+
+      expect(item.amount, isNull);
+      expect(item.isTax, isTrue);
+      expect(item.recurringTransactionId, 'plan-1');
+      // Vergi burada gerçekleştirilmez; "Ödedim" vergi ekranındadır.
+      expect(item.isDirectlyRealizable, isFalse);
+    });
+
+    testWidgets('tutarsız kalem tutar yerine cümle gösterir', (tester) async {
+      final item = PlannedActivity.fromJson({
+        ..._json(attention: null),
+        'amount': null,
+        'recurringTransactionId': 'plan-1',
+        'taxKind': 'vat-return',
+      });
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: PlannedActivityTile(activity: item, onAction: () {}),
+          ),
+        ),
+      );
+
+      expect(find.text('Tutar ödemede girilecek'), findsOneWidget);
+      expect(find.text('Ödedim →'), findsOneWidget);
+    });
+
     test('reads both one-time obligation directions and actions', () {
       final payable = PlannedActivity.fromJson(
         _json(

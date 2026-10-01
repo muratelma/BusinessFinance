@@ -5,6 +5,7 @@ import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_text.dart';
 import '../../../core/presentation/financial_data_changes.dart';
 import '../../../core/presentation/scope_controller.dart';
+import '../../../core/routing/app_locations.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
@@ -13,6 +14,7 @@ import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_row_action.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
+import '../../../core/widgets/app_unknown_amount.dart';
 import '../data/activity_models.dart';
 import '../data/activity_repository.dart';
 import '../data/planned_activity_models.dart';
@@ -106,6 +108,12 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
   /// hesaptan yapılacağını soruyor; formu bu listeye kopyalamak yerine
   /// kullanıcı o kaydın kendi ekranına gidiyor.
   Future<void> _act(PlannedActivity activity) async {
+    // Vergi kalemi tutar, ödeme günü ve hesap/kart ister; onları vergi
+    // ekranının "Ödedim" paneli sorar (ADR 0018 T4).
+    if (activity.isTax) {
+      await context.push(taxesLocation);
+      return;
+    }
     // Hesap seçen yükümlülük ödeme/tahsilat akışı Grup 6'da açılacak. Satır ve
     // uyarı bu grupta görünür, fakat yanlış bir forma yönlendirilmez.
     if (activity.plannedKind == PlannedKind.payableObligation ||
@@ -136,7 +144,7 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
       title: 'Gerçekleştirilsin mi?',
       highlight:
           '${activity.title}\n'
-          '${MoneyText.format(activity.amount, activity.currency)}',
+          '${MoneyText.format(activity.amount!, activity.currency)}',
       message:
           '${source == null ? 'Bu kayıt' : '$source hesabındaki bu kayıt'} '
           'gerçek harekete dönüşecek ve bakiyeye girecek.',
@@ -253,15 +261,19 @@ class PlannedActivityTile extends StatelessWidget {
                     if (onAction != null && _showsAction) _action(context),
                   ],
                 ),
-                trailing: AppMoneyText(
-                  amount: activity.amount,
-                  currency: activity.currency,
-                  // Planlanan tutar henüz hareket etmedi; rolü taşır ama
-                  // gerçekleşmiş bir kayıt gibi okunmaz.
-                  effect: activity.effect == ActivityEffect.income
-                      ? AppMoneyEffect.income
-                      : AppMoneyEffect.expense,
-                ),
+                trailing: activity.amount == null
+                    // Tutarı ödeme gününe kadar belli olmayan vergi: sıfır
+                    // değildir, tahmin de gösterilmez (ADR 0018 İ5).
+                    ? const AppUnknownAmount()
+                    : AppMoneyText(
+                        amount: activity.amount!,
+                        currency: activity.currency,
+                        // Planlanan tutar henüz hareket etmedi; rolü taşır
+                        // ama gerçekleşmiş bir kayıt gibi okunmaz.
+                        effect: activity.effect == ActivityEffect.income
+                            ? AppMoneyEffect.income
+                            : AppMoneyEffect.expense,
+                      ),
               ),
               if (activity.attentionCode != null)
                 Padding(
@@ -321,6 +333,10 @@ class PlannedActivityTile extends StatelessWidget {
         activity.plannedKind == PlannedKind.receivableObligation) {
       return const SizedBox.shrink();
     }
+    // Vergi kalemi vergi ekranında ödenir; vadesi gelmemişi de ödenebilir.
+    if (activity.isTax) {
+      return AppRowAction(label: 'Ödedim →', onPressed: onAction);
+    }
     return AppRowAction(
       // Ok yalnız başka bir ekrana giden eylemde: `Öde →` kullanıcıyı ödeme
       // formuna götürür, `Gerçekleştir` burada tamamlanır. Engelli bir
@@ -344,7 +360,9 @@ class PlannedActivityTile extends StatelessWidget {
   /// gönderir; oysa eksik bir şey yok, yalnız gün gelmemiş. Satırdaki tarih ve
   /// `Yaklaşan` rozeti bunu zaten söylüyor.
   bool get _showsAction =>
-      activity.actionKind != PlannedAction.realize || activity.isDue;
+      activity.isTax ||
+      activity.actionKind != PlannedAction.realize ||
+      activity.isDue;
 
   String _semanticsLabel() {
     final buffer = StringBuffer()
@@ -352,7 +370,11 @@ class PlannedActivityTile extends StatelessWidget {
       ..write('. ')
       ..write(activity.title)
       ..write('. ')
-      ..write(MoneyText.format(activity.amount, activity.currency))
+      ..write(
+        activity.amount == null
+            ? AppUnknownAmount.text
+            : MoneyText.format(activity.amount!, activity.currency),
+      )
       ..write('. ')
       ..write(activity.timing.label)
       ..write(' ')

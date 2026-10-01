@@ -80,7 +80,8 @@ internal sealed class EfCategoryRepository(BusinessFinanceDbContext dbContext)
                     userId,
                     item.Name,
                     item.Type,
-                    item.Scope));
+                    item.Scope,
+                    item.IsTax));
             await dbContext.Categories.AddRangeAsync(categories, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
             return;

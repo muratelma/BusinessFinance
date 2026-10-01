@@ -4,7 +4,9 @@ public sealed record UpcomingPaymentResponse(
     Guid SourceId,
     string SourceType,
     string Title,
-    string Amount,
+
+    // Tutarı henüz belli olmayan vergi kaleminde boştur.
+    string? Amount,
     string Currency,
     string DueDate,
     string Timing,

@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/presentation/scope_controller.dart';
+import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_scope_selector.dart';
 import '../data/category_models.dart';
 
@@ -15,6 +17,7 @@ typedef SaveCategory =
       required String type,
       required bool isActive,
       TransactionScope? defaultScope,
+      bool isTax,
     });
 
 class CategoryFormPage extends StatefulWidget {
@@ -33,6 +36,7 @@ class _CategoryFormPageState extends State<CategoryFormPage> {
   late String _type;
   late bool _isActive;
   TransactionScope? _defaultScope;
+  late bool _isTax;
   bool _submitting = false;
   String? _error;
 
@@ -45,6 +49,7 @@ class _CategoryFormPageState extends State<CategoryFormPage> {
     _type = widget.category?.type ?? 'expense';
     _isActive = widget.category?.isActive ?? true;
     _defaultScope = widget.category?.defaultScope;
+    _isTax = widget.category?.isTax ?? false;
   }
 
   @override
@@ -68,6 +73,8 @@ class _CategoryFormPageState extends State<CategoryFormPage> {
         // Kapsamı görmeyen kullanıcıda alan hiç çizilmiyor ama değer yine de
         // gidiyor: sunucudaki `PUT` yetkili ve göndermemek "kaldır" demek.
         defaultScope: _defaultScope,
+        // İşaret yalnız gider kategorisinde anlamlı; sunucu gelirde reddeder.
+        isTax: _type == 'expense' && _isTax,
       );
       if (saved && mounted) Navigator.of(context).pop(true);
     } on ApiException catch (error) {
@@ -111,8 +118,17 @@ class _CategoryFormPageState extends State<CategoryFormPage> {
                   DropdownMenuItem(value: 'expense', child: Text('Gider')),
                   DropdownMenuItem(value: 'income', child: Text('Gelir')),
                 ],
-                onChanged: _editing ? null : (value) => _type = value!,
+                onChanged: _editing
+                    ? null
+                    : (value) => setState(() => _type = value!),
               ),
+              if (_type == 'expense') ...[
+                const SizedBox(height: AppSpacing.medium),
+                _TaxSwitch(
+                  value: _isTax,
+                  onChanged: (value) => setState(() => _isTax = value),
+                ),
+              ],
               if (context.watch<ScopeController?>()?.isVisible ?? false) ...[
                 const SizedBox(height: AppSpacing.medium),
                 AppScopeDefaultField(
@@ -161,6 +177,56 @@ class _CategoryFormPageState extends State<CategoryFormPage> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Kategorinin "Vergi" işareti: kart içinde başlık, tek cümle ve anahtar.
+class _TaxSwitch extends StatelessWidget {
+  const _TaxSwitch({required this.value, required this.onChanged});
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = AppSurfaces.of(context);
+    return MergeSemantics(
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.medium,
+          vertical: AppSpacing.small + AppSpacing.xSmall,
+        ),
+        decoration: BoxDecoration(
+          color: surfaces.card,
+          border: Border.all(color: surfaces.border),
+          borderRadius: BorderRadius.circular(AppRadius.card),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Vergi', style: theme.textTheme.titleSmall),
+                  const SizedBox(height: AppSpacing.xxSmall),
+                  Text(
+                    "Bu kategorideki giderler Vergi takibi › Ödenenler'de "
+                    'görünür.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: surfaces.inkMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.medium),
+            Switch(value: value, onChanged: onChanged),
+          ],
         ),
       ),
     );

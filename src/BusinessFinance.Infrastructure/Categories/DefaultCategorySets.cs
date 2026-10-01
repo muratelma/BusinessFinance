@@ -41,11 +41,24 @@ namespace BusinessFinance.Infrastructure.Categories;
 /// </remarks>
 internal static class DefaultCategorySets
 {
+    /// <param name="IsTax">
+    /// Vergi işareti (ADR 0018 T6). Her sette tek bir kategori işaretli gelir;
+    /// vergi ekranı ödenen vergiyi o kategoriye yazar ve "Ödenenler" listesini
+    /// işaretli kategorilerden okur. Kullanıcı sonradan başka kategorileri de
+    /// işaretleyebilir.
+    /// </param>
     internal readonly record struct DefaultCategory(
         string LegacyName,
         string Name,
         CategoryType Type,
-        TransactionScope Scope);
+        TransactionScope Scope,
+        bool IsTax = false);
+
+    /// <summary>İşletme setinin vergi kategorisi.</summary>
+    internal const string BusinessTaxCategoryName = "SGK ve vergi ödemesi";
+
+    /// <summary>Kişisel setin vergi kategorisi.</summary>
+    internal const string PersonalTaxCategoryName = "Vergi ve harç";
 
     private static DefaultCategory Personal(string name, CategoryType type) =>
         new(name, name, type, TransactionScope.Personal);
@@ -86,7 +99,7 @@ internal static class DefaultCategorySets
         Personal("Ev eşyası", CategoryType.Expense),
         Personal("Evcil hayvan", CategoryType.Expense),
         Personal("Hediye", CategoryType.Expense),
-        Personal("Vergi ve harç", CategoryType.Expense),
+        Personal(PersonalTaxCategoryName, CategoryType.Expense) with { IsTax = true },
         Personal("Sigorta", CategoryType.Expense),
 
         // Borcun faizi gerçek bir giderdir ve şimdiye kadar kategorisizdi.
@@ -112,7 +125,7 @@ internal static class DefaultCategorySets
         Business("Ticari mal alımı", CategoryType.Expense),
         Business("İşyeri kirası", CategoryType.Expense),
         Business("Personel ücreti", CategoryType.Expense),
-        Business("SGK ve vergi ödemesi", CategoryType.Expense),
+        Business(BusinessTaxCategoryName, CategoryType.Expense) with { IsTax = true },
         Business("Elektrik, su, doğalgaz", CategoryType.Expense),
         Business("İletişim", CategoryType.Expense),
         Business("Nakliye ve kargo", CategoryType.Expense),

@@ -67,6 +67,29 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
         return items;
     }
 
+    public async Task<IReadOnlyList<PlannedActivityDto>> ListForRecurringPlanAsync(
+        Guid userId,
+        Guid recurringTransactionId,
+        DateOnly asOfDate,
+        DateOnly horizonDate,
+        CancellationToken cancellationToken)
+    {
+        var accounts = await dbContext.Accounts.AsNoTracking()
+            .Where(account => account.UserId == userId)
+            .ToDictionaryAsync(account => account.Id, cancellationToken);
+        var categories = await dbContext.Categories.AsNoTracking()
+            .Where(category => category.UserId == userId)
+            .ToDictionaryAsync(category => category.Id, cancellationToken);
+        var cards = await dbContext.CreditCards.AsNoTracking()
+            .Where(card => card.UserId == userId)
+            .ToDictionaryAsync(card => card.Id, cancellationToken);
+        var availableLimits = await CalculateAvailableLimitsAsync(userId, cards, cancellationToken);
+
+        return await ListRecurringAsync(
+            userId, asOfDate, horizonDate, accounts, categories, cards, availableLimits,
+            scope: null, cancellationToken, recurringTransactionId);
+    }
+
     private sealed record CardMovement(Guid CreditCardId, DateOnly Date, decimal Amount);
 
     /// <summary>
@@ -128,23 +151,30 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
         IReadOnlyDictionary<Guid, CreditCard> cards,
         IReadOnlyDictionary<Guid, decimal> availableLimits,
         TransactionScope? scope,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Guid? scheduleId = null)
     {
         // A pending occurrence whose schedule was deactivated is not an
         // obligation any more, so it drops out of the planned view exactly like
-        // the projected dates behind it already do.
-        var occurrences = await dbContext.RecurringTransactionOccurrences.AsNoTracking()
-            .Where(occurrence => occurrence.UserId == userId &&
-                                 occurrence.Status == RecurringOccurrenceStatus.Planned &&
-                                 (scope == null || occurrence.Scope == scope) &&
-                                 occurrence.ScheduledDate <= horizonDate &&
-                                 dbContext.RecurringTransactions.Any(schedule =>
-                                     schedule.UserId == userId &&
-                                     schedule.Id == occurrence.RecurringTransactionId &&
-                                     schedule.IsActive))
+        // the projected dates behind it already do. The join also brings the
+        // plan's tax kind: an occurrence does not copy it, and a second query
+        // for it would cost every caller of this projection one more round trip.
+        var occurrences = await (
+                from occurrence in dbContext.RecurringTransactionOccurrences.AsNoTracking()
+                join schedule in dbContext.RecurringTransactions.AsNoTracking()
+                    on new { occurrence.UserId, Id = occurrence.RecurringTransactionId }
+                    equals new { schedule.UserId, schedule.Id }
+                where occurrence.UserId == userId &&
+                      (scheduleId == null || occurrence.RecurringTransactionId == scheduleId) &&
+                      occurrence.Status == RecurringOccurrenceStatus.Planned &&
+                      (scope == null || occurrence.Scope == scope) &&
+                      occurrence.ScheduledDate <= horizonDate &&
+                      schedule.IsActive
+                select new { Occurrence = occurrence, schedule.TaxKind })
             .ToArrayAsync(cancellationToken);
         var schedules = await dbContext.RecurringTransactions.AsNoTracking()
             .Where(recurring => recurring.UserId == userId &&
+                                (scheduleId == null || recurring.Id == scheduleId) &&
                                 recurring.IsActive &&
                                 (scope == null || recurring.Scope == scope) &&
                                 recurring.NextOccurrenceDate != null &&
@@ -153,7 +183,7 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
 
         var items = new List<PlannedActivityDto>();
         var covered = new HashSet<(Guid ScheduleId, DateOnly Date)>();
-        foreach (var occurrence in occurrences)
+        foreach (var (occurrence, taxKind) in occurrences.Select(row => (row.Occurrence, row.TaxKind)))
         {
             covered.Add((occurrence.RecurringTransactionId, occurrence.ScheduledDate));
             items.Add(BuildRecurring(
@@ -163,10 +193,11 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
                 occurrence.AccountId,
                 occurrence.CreditCardId,
                 occurrence.CategoryId,
-                occurrence.Amount,
+                occurrence.AmountValue,
                 occurrence.Kind,
                 occurrence.ScheduledDate,
                 occurrence.Description,
+                taxKind,
                 isProjected: false,
                 asOfDate,
                 accounts,
@@ -192,10 +223,11 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
                         schedule.AccountId,
                         schedule.CreditCardId,
                         schedule.CategoryId,
-                        schedule.Amount,
+                        schedule.AmountValue,
                         schedule.Kind,
                         date,
                         schedule.Description,
+                        schedule.TaxKind,
                         isProjected: true,
                         asOfDate,
                         accounts,
@@ -222,14 +254,15 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
     private static PlannedActivityDto BuildRecurring(
         Guid plannedActivityId,
         Guid scheduleId,
-        RecurringSourceType sourceType,
+        RecurringSourceType? sourceType,
         Guid? accountId,
         Guid? creditCardId,
         Guid categoryId,
-        Money amount,
+        decimal? amount,
         RecurringTransactionKind kind,
         DateOnly dueDate,
         string? description,
+        TaxKind? taxKind,
         bool isProjected,
         DateOnly asOfDate,
         IReadOnlyDictionary<Guid, Account> accounts,
@@ -237,7 +270,6 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
         IReadOnlyDictionary<Guid, CreditCard> cards,
         IReadOnlyDictionary<Guid, decimal> availableLimits)
     {
-        _ = scheduleId;
         var category = categories.GetValueOrDefault(categoryId);
         PlannedActivityAttention? attention = null;
         Guid? sourceId;
@@ -252,10 +284,17 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
             {
                 attention = PlannedActivityAttention.CardInactive;
             }
-            else if (availableLimits.GetValueOrDefault(cardId) < amount.Amount)
+            else if (amount is decimal known && availableLimits.GetValueOrDefault(cardId) < known)
             {
                 attention = PlannedActivityAttention.CardLimitInsufficient;
             }
+        }
+        else if (sourceType is null)
+        {
+            // Kaynaksız vergi kalemi: hesap ya da kart ödemede seçilir (ADR 0018
+            // T4). Bu bir eksik değildir; dikkat gerektirmez.
+            sourceId = null;
+            sourceName = null;
         }
         else
         {
@@ -288,8 +327,8 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
             attention,
             PlannedActivityAction.Realize,
             dueDate,
-            amount.Amount,
-            amount.Currency,
+            amount,
+            CurrencyCode.TRY,
             description ?? category?.Name ?? string.Empty,
             description,
             sourceId,
@@ -307,7 +346,9 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
             // kullanıcı kararı değil, sistemin idempotentlik için tuttuğu bir
             // defter işi; karar gerçekleştirmektir.
             isProjected ? scheduleId : plannedActivityId,
-            null);
+            null,
+            scheduleId,
+            taxKind);
     }
 
     private async Task<IReadOnlyList<PlannedActivityDto>> ListInstallmentsAsync(

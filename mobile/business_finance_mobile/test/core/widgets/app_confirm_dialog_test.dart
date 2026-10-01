@@ -142,6 +142,115 @@ void main() {
     expect(find.text('Bakiyeye girecek.'), findsOneWidget);
   });
 
+  /// Tasarım sistemindeki diyalogda ayrı başlık yoktur: büyük satır kararın
+  /// konusudur, eylemin adı onay butonunda yazar.
+  testWidgets('başlık verilmezse vurgu satırı büyük satırdır', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => AppConfirmDialog.show(
+                context: context,
+                destructive: true,
+                highlight: 'Motorlu taşıtlar · ₺2.180,00',
+                message: 'Gider iptal edilir; kalem yeniden bekleyene döner.',
+                confirmLabel: 'Ödemeyi geri al',
+              ),
+              child: const Text('aç'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('aç'));
+    await tester.pumpAndSettle();
+
+    final headline = tester.widget<Text>(
+      find.text('Motorlu taşıtlar · ₺2.180,00'),
+    );
+    expect(headline.style?.fontSize, 22);
+    // Eylemin adı yalnız butonda; ayrı bir başlık satırı yok.
+    expect(find.text('Ödemeyi geri al'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Vazgeç'), findsOneWidget);
+  });
+
+  testWidgets('2.0× yazıda taşma olmaz', (tester) async {
+    tester.view.physicalSize = const Size(360 * 3, 640 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: const TextScaler.linear(2)),
+          child: child!,
+        ),
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => AppConfirmDialog.show(
+                context: context,
+                destructive: true,
+                highlight: 'Motorlu taşıtlar · ₺2.180,00',
+                message:
+                    'Gider iptal edilir; kapattığı 2 kalem yeniden bekler.',
+                confirmLabel: 'Ödemeyi geri al',
+              ),
+              child: const Text('aç'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('aç'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+  });
+
+  /// Kayıt kartı: ad ve tutar ayrı satırlardadır; uzun ad büyük satırı
+  /// ikiye bölmez.
+  testWidgets('kayıt kartı adı, ayrıntıyı ve tutarı ayrı taşır', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => AppConfirmDialog.show(
+                context: context,
+                destructive: true,
+                subject: const AppConfirmSubject(
+                  title: 'SGK ve vergi ödemesi · Eylül dönemi',
+                  detail: '26 Eylül · Ziraat vadesiz',
+                  amount: '₺1.300,00',
+                ),
+                message: 'Gider iptal edilir ve toplamları artık etkilemez.',
+                confirmLabel: 'Ödemeyi geri al',
+              ),
+              child: const Text('aç'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('aç'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('SGK ve vergi ödemesi · Eylül dönemi'), findsOneWidget);
+    expect(find.text('26 Eylül · Ziraat vadesiz'), findsOneWidget);
+    expect(find.text('₺1.300,00'), findsOneWidget);
+    // Kartla açılan pencerede ikon kutusu çizilmez.
+    expect(find.byIcon(Icons.warning_amber_rounded), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   /// Yıkıcı kararın rengi hata rolünden gelir.
   ///
   /// Marka rengi akromatik olduğu için ekranda anlam taşıyan renk azdır; onay
@@ -174,9 +283,7 @@ void main() {
     }
 
     await pumpDialog(destructive: true);
-    final scheme = Theme.of(
-      tester.element(find.byType(AlertDialog)),
-    ).colorScheme;
+    final scheme = Theme.of(tester.element(find.byType(Dialog))).colorScheme;
     var button = tester.widget<FilledButton>(
       find.widgetWithText(FilledButton, 'Onay'),
     );

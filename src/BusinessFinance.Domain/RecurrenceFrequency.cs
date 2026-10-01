@@ -12,5 +12,13 @@ public enum RecurrenceFrequency
     /// üç adımlık hâli olduğu için ayrı bir hesap yolu değil, aynı yolun
     /// adımıdır (Aşama 05 Grup 4).
     /// </summary>
-    Quarterly = 5
+    Quarterly = 5,
+
+    /// <summary>
+    /// Yalnız seçilen aylarda, aynı günde (ör. emlak vergisi Mayıs ve Kasım,
+    /// gelir vergisi Mart ve Temmuz). "Altı ayda bir" bu ritimleri ifade
+    /// edemiyor: Mart–Temmuz arası dört, Temmuz–Mart arası sekiz ay
+    /// (ADR 0018 T2). Aylar planın <c>SelectedMonths</c> alanındadır.
+    /// </summary>
+    SelectedMonths = 6
 }

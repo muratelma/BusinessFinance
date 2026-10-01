@@ -120,14 +120,13 @@ class MorePage extends StatelessWidget {
           onTap: () => go('/more/planning'),
         ),
       ]),
-      // Vergi tarafı yalnız işletmesi olana açılır. Muhasebeci paketi
-      // kalktı (ADR 0018); vergi ekranı Aşama 06.3 Grup 3'te geliyor.
+      // Vergi tarafı yalnız işletmesi olana açılır (06.2 Grup 1).
       if (hasBusiness)
         _Group('Vergi', [
           _MenuItem(
-            icon: Icons.event_available_outlined,
-            title: 'Vergi takvimi',
-            onTap: () => go('/more/tax-calendar'),
+            icon: Icons.receipt_long_outlined,
+            title: 'Vergi takibi',
+            onTap: () => go(taxesLocation),
           ),
         ]),
       _Group('Ayarlar', [

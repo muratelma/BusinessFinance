@@ -45,6 +45,7 @@ void main() {
                 required openingBalance,
                 required isActive,
                 defaultScope,
+                isTax = false,
               }) async {
                 sent = defaultScope;
                 saved = true;
@@ -91,6 +92,7 @@ void main() {
                 required openingBalance,
                 required isActive,
                 defaultScope,
+                isTax = false,
               }) async {
                 sent = defaultScope;
                 return true;
@@ -129,6 +131,7 @@ void main() {
                 required openingBalance,
                 required isActive,
                 defaultScope,
+                isTax = false,
               }) async {
                 sent = defaultScope;
                 return true;
@@ -166,6 +169,7 @@ void main() {
                 required type,
                 required isActive,
                 defaultScope,
+                isTax = false,
               }) async {
                 sent = defaultScope;
                 return true;
@@ -203,6 +207,7 @@ Widget _accountForm({
           required openingBalance,
           required isActive,
           defaultScope,
+          isTax = false,
         }) async => true,
   ),
 );
@@ -223,6 +228,7 @@ Widget _categoryForm({
           required type,
           required isActive,
           defaultScope,
+          isTax = false,
         }) async => true,
   ),
 );

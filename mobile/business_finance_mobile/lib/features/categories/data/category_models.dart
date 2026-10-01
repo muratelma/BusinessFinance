@@ -8,6 +8,7 @@ class BudgetCategory {
     required this.type,
     required this.isActive,
     this.defaultScope,
+    this.isTax = false,
   });
 
   final String id;
@@ -21,12 +22,17 @@ class BudgetCategory {
   /// etiketi boşsa kayıt bunu alır.
   final TransactionScope? defaultScope;
 
+  /// "Vergi" işareti: bu kategorideki giderler Vergi takibi › Ödenenler'de
+  /// görünür (ADR 0018 T6). Yalnız gider kategorisi taşır.
+  final bool isTax;
+
   factory BudgetCategory.fromJson(Map<String, dynamic> json) => BudgetCategory(
     id: _readString(json, 'id'),
     name: DefaultCategoryLabels.localized(_readString(json, 'name')),
     type: _readString(json, 'type'),
     isActive: _readBool(json, 'isActive'),
     defaultScope: TransactionScope.fromApiOrNull(json['defaultScope']),
+    isTax: json['isTax'] == true,
   );
 }
 

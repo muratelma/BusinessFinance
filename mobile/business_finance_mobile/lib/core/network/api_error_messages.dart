@@ -83,6 +83,8 @@ abstract final class ApiErrorMessages {
     'credit_card_charges': 'Kart harcaması',
     'installments': 'Taksit planı',
     'recurring': 'Tekrarlayan plan',
+    'taxes': 'Vergi',
+    'tax_payments': 'Vergi ödemesi',
     'counterparties': 'Cari hesap',
     'counterparty_charges': 'Cari borçlandırma',
     'counterparty_payments': 'Cari tahsilat',
@@ -287,6 +289,35 @@ abstract final class ApiErrorMessages {
         'Kartın kullanılabilir limiti bu kayıt için yetmiyor.',
     'recurring.occurrence_not_found':
         'Planlanan kayıt bulunamadı. Listeyi yenileyip tekrar deneyin.',
+    'recurring.amount_required': 'Ödediğiniz tutarı yazın.',
+    'recurring.source_required': 'Nereden ödendiğini seçin.',
+    'recurring.paid_on_in_future': 'Ödeme günü ileri bir tarih olamaz.',
+    'recurring.reschedule_before_history':
+        'Yeni başlangıç son ödenen kalemden sonra olmalı.',
+    'recurring.already_settled': 'Bu kalem zaten ödendi ya da kapatıldı.',
+    'recurring.closed_by_payment':
+        'Bu kalem toplu bir ödemeyle kapatıldı; geri alma o ödemeden yapılır.',
+    'recurring.category_not_tax':
+        'Vergi, vergi işaretli bir gider kategorisine yazılır.',
+    'recurring.concurrent_change':
+        'Kayıt aynı anda değişti. Ekranı yenileyip tekrar deneyin.',
+
+    // Vergi
+    'tax_payments.category_not_tax':
+        'Vergi, vergi işaretli bir gider kategorisine yazılır.',
+    'tax_payments.paid_on_in_future': 'Ödeme günü ileri bir tarih olamaz.',
+    'tax_payments.card_limit_insufficient':
+        'Kartın kullanılabilir limiti bu ödeme için yetmiyor.',
+    'tax_payments.item_not_pending':
+        'Seçilen kalemlerden biri zaten ödendi ya da kapatıldı. '
+        'Listeyi yenileyin.',
+    'tax_payments.item_inactive':
+        'Duraklatılmış bir verginin kalemi kapatılamaz.',
+    'tax_payments.undo_origin_locked':
+        'Bu kayıt bir taksit planına ait; geri alma kendi ekranından yapılır.',
+    'tax_payments.concurrent_change':
+        'Kayıt aynı anda değişti. Ekranı yenileyip tekrar deneyin.',
+    'taxes.plan_not_found': 'Vergi tanımı bulunamadı.',
 
     // Cari hesap
     'counterparties.has_history':

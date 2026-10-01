@@ -26,6 +26,24 @@ public sealed class TransactionScopeResolutionTests
         Assert.Equal(TransactionScope.Personal, resolved);
     }
 
+    /// <summary>
+    /// Vergide kapsam açık seçimden, yoksa profilin tarafından gelir; ödeme
+    /// kaynağının etiketi bakılmaz (ADR 0018 İ9, 30 Eylül 2026). Sonuç hiç boş
+    /// değildir.
+    /// </summary>
+    [Theory]
+    [InlineData(null, true, TransactionScope.Business)]
+    [InlineData(null, false, TransactionScope.Personal)]
+    [InlineData(TransactionScope.Personal, true, TransactionScope.Personal)]
+    [InlineData(TransactionScope.Business, false, TransactionScope.Business)]
+    public void ResolveTax_TakesTheChoiceOrTheProfileSide(
+        TransactionScope? requested,
+        bool hasBusiness,
+        TransactionScope expected)
+    {
+        Assert.Equal(expected, TransactionScopeResolution.ResolveTax(requested, hasBusiness));
+    }
+
     [Fact]
     public void Resolve_PrefersTheSourceOverTheCategory()
     {

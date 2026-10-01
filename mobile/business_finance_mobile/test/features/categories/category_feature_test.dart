@@ -27,6 +27,7 @@ void main() {
             'name': 'Market',
             'type': 'expense',
             'defaultScope': 'business',
+            'isTax': false,
           });
         } else {
           expect(request.url.path, '/api/v1/categories/category-id');
@@ -96,6 +97,7 @@ void main() {
                 required type,
                 required isActive,
                 defaultScope,
+                isTax = false,
               }) {
                 count++;
                 return completer.future;
@@ -112,6 +114,48 @@ void main() {
     expect(find.text('Kaydediliyor'), findsOneWidget);
     completer.complete(false);
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('gider kategorisi vergi olarak işaretlenir', (tester) async {
+    bool? sent;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: CategoryFormPage(
+          category: const BudgetCategory(
+            id: 'category-id',
+            name: 'Vergi ve harç',
+            type: 'expense',
+            isActive: true,
+          ),
+          onSave:
+              ({
+                category,
+                required name,
+                required type,
+                required isActive,
+                defaultScope,
+                isTax = false,
+              }) async {
+                sent = isTax;
+                return true;
+              },
+        ),
+      ),
+    );
+
+    expect(
+      find.text(
+        "Bu kategorideki giderler Vergi takibi › Ödenenler'de görünür.",
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byType(Switch).first);
+    await tester.pump();
+    await tester.tap(find.text('Kaydet'));
+    await tester.pumpAndSettle();
+
+    expect(sent, isTrue);
   });
 }
 
@@ -144,6 +188,7 @@ class _FakeCategoryRepository implements CategoryRepository {
     required String name,
     required String type,
     TransactionScope? defaultScope,
+    bool isTax = false,
   }) => throw UnimplementedError();
 
   @override
@@ -152,5 +197,6 @@ class _FakeCategoryRepository implements CategoryRepository {
     required String name,
     required bool isActive,
     TransactionScope? defaultScope,
+    bool? isTax,
   }) => throw UnimplementedError();
 }

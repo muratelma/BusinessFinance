@@ -73,8 +73,13 @@ iptalle geri alınır. Gerçekleşen bir plan kalemi tam olarak tek sonuç taş�
 **İ8 — Kimlik ada bağlanmaz.** Bir kaydın ya da planın vergi olduğu, kullanıcının
 değiştirebileceği bir ad ya da kategori adı üzerinden tanınmaz.
 
-**İ9 — Kapsam zincire uyar.** Vergi kayıtları kapsamı ADR 0013 zinciriyle alır;
-kullanıcının açık seçimi önce gelir, sunucu kapsam uydurmaz.
+**İ9 — Kapsam kullanıcının seçimidir, yoksa profilin tarafıdır.** Vergi kaydının
+kapsamı kullanıcının açık seçiminden, seçim yoksa profilin tarafından (işletmesi
+olan kullanıcıda işletme, olmayanda şahsi) gelir. **Ödeme kaynağının etiketi
+kapsamı belirlemez:** işletme vergisini şahsi kartla ödemek olağandır. Sunucu
+kapsam uydurmaz. *(30 Eylül 2026, kullanıcı kararıyla değişti; önceki metin
+"vergi kayıtları kapsamı ADR 0013 zinciriyle alır" idi ve zincirin hesap/kart
+etiketi basamağını içeriyordu.)*
 
 Reddedilenler (ilke düzeyinde):
 
@@ -159,12 +164,14 @@ değiştiren sapma uygulanmadan önce kullanıcıya sorulur (`AGENTS.md`).
 
 ### T7. Kapsam (İ9)
 
-- Kapsam sorulmaz: işletme profilinde vergiler işletme, kişisel profilde şahsi;
-  MTV ve emlak türlerinde tanımda şahsi seçilebilir. Türün kapsamı zincirin
-  "varsayılan" basamağıdır.
-- İşletme kapsamlı vergi işletme netini düşürür; gelir vergisi ve Bağkur da dahil
-  olduğu için işletme neti "vergiden sonraki para"dır ve Özet'in açıklaması bunu
-  söyler.
+- **(30 Eylül 2026'da değişti.)** Her vergi tanımında `İşletme · Şahsi` seçimi
+  sorulur: formun en üstünde, başlıksız, varsayılanı profilin tarafı; hesap ya da
+  kart seçimi onu değiştirmez. İşletmesi olmayan kullanıcıda seçim görünmez ve
+  vergi şahsidir. Tanımsız toplu ödemede seçim yoktur; kapsam profilin
+  tarafıdır (şahsi yazmak isteyen gider formunu kullanır). İlk metin "kapsam
+  sorulmaz; yalnız MTV ve emlakta şahsi seçilebilir" idi.
+- İşletme kapsamlı vergi işletme netini düşürür. Özet'e bunu söyleyen bir
+  açıklama **eklenmedi** (kullanıcı kararı, 30 Eylül 2026).
 
 Reddedilen tasarımlar:
 

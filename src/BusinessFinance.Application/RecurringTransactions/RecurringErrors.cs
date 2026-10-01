@@ -76,6 +76,72 @@ public static class RecurringErrors
         "recurring.income_card_source_not_supported",
         "A recurring income cannot be sourced from a credit card.",
         ApplicationErrorType.Validation);
+    /// <summary>
+    /// Vergi planının kategorisi vergi işaretli bir gider kategorisi olmalı:
+    /// vergi ekranı ödenenleri işaretli kategorilerden okur (ADR 0018 T6).
+    /// </summary>
+    public static readonly ApplicationError CategoryNotTax = new(
+        "recurring.category_not_tax",
+        "A tax plan requires an active expense category marked as tax.",
+        ApplicationErrorType.Validation);
+
+    /// <summary>
+    /// Tutarı bilinmeyen kalem tutarsız gerçekleşemez; ödeme tutarı
+    /// kullanıcıdan gelir (ADR 0018 İ1, İ5).
+    /// </summary>
+    public static readonly ApplicationError AmountRequired = new(
+        "recurring.amount_required",
+        "This item has no amount yet, so the paid amount is required.",
+        ApplicationErrorType.Validation);
+
+    /// <summary>
+    /// Ödenmemiş vergi hiçbir toplamı etkilemez (İ3); ileri tarihli bir ödeme
+    /// henüz olmamış bir nakit çıkışını geçmişe yazardı.
+    /// </summary>
+    public static readonly ApplicationError PaidOnInFuture = new(
+        "recurring.paid_on_in_future",
+        "The payment date cannot be in the future.",
+        ApplicationErrorType.Validation);
+
+    /// <summary>
+    /// Kalem toplu bir vergi ödemesiyle kapatıldı; geri alma o ödemeden yapılır.
+    /// </summary>
+    public static readonly ApplicationError ClosedByPayment = new(
+        "recurring.closed_by_payment",
+        "The item was closed by a tax payment; undo that payment instead.",
+        ApplicationErrorType.Conflict);
+
+    /// <summary>
+    /// Kalem zaten ödendi ya da kapatıldı; ikinci bir sonuç "tek sonuç"
+    /// kuralını bozardı.
+    /// </summary>
+    public static readonly ApplicationError AlreadySettled = new(
+        "recurring.already_settled",
+        "The item was already paid or closed.",
+        ApplicationErrorType.Conflict);
+
+    /// <summary>
+    /// Yeni ritim son ödenen ya da kapatılan kalemden sonra başlamalı.
+    /// </summary>
+    public static readonly ApplicationError RescheduleBeforeHistory = new(
+        "recurring.reschedule_before_history",
+        "The new rhythm must start after the last paid or closed item.",
+        ApplicationErrorType.Validation);
+
+    /// <summary>
+    /// Kaynaksız vergi kaleminin ödemesi hesap ya da kart ister (ADR 0018 T4).
+    /// </summary>
+    public static readonly ApplicationError SourceRequired = new(
+        "recurring.source_required",
+        "Choose the account or credit card the payment was made from.",
+        ApplicationErrorType.Validation);
+
+    /// <summary>Başka bir istek aynı kalemi aynı anda değiştirdi.</summary>
+    public static readonly ApplicationError ConcurrentChange = new(
+        "recurring.concurrent_change",
+        "The item was changed by another request. Refresh and try again.",
+        ApplicationErrorType.Conflict);
+
     public static readonly ApplicationError CardUnavailable = new(
         "recurring.card_unavailable",
         "The credit card was not found or is inactive.",

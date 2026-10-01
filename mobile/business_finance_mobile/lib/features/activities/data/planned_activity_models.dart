@@ -154,6 +154,8 @@ class PlannedActivity {
     this.sourceName,
     this.categoryId,
     this.categoryName,
+    this.recurringTransactionId,
+    this.taxKind,
   });
 
   factory PlannedActivity.fromJson(Map<String, dynamic> json) =>
@@ -168,7 +170,7 @@ class PlannedActivity {
             : PlannedAttention.fromApi(json['attentionCode'] as String),
         actionKind: PlannedAction.fromApi(json['actionKind'] as String),
         dueDate: json['dueDate'] as String,
-        amount: json['amount'] as String,
+        amount: json['amount'] as String?,
         currency: json['currency'] as String,
         title: json['title'] as String,
         description: json['description'] as String?,
@@ -180,6 +182,8 @@ class PlannedActivity {
         isPaymentObligation: json['isPaymentObligation'] as bool,
         actionTargetId: json['actionTargetId'] as String?,
         actionSequence: json['actionSequence'] as int?,
+        recurringTransactionId: json['recurringTransactionId'] as String?,
+        taxKind: json['taxKind'] as String?,
       );
 
   final String plannedActivityId;
@@ -190,7 +194,11 @@ class PlannedActivity {
   final PlannedAttention? attentionCode;
   final PlannedAction actionKind;
   final String dueDate;
-  final String amount;
+
+  /// Beklenen tutar. **Boş olabilir**: tutarı ödeme gününe kadar belli olmayan
+  /// vergi kalemi (ADR 0018 İ5). Boş tutar sıfır değildir; ekran "Tutar
+  /// ödemede girilecek" der, toplamlar onu tahminle saymaz.
+  final String? amount;
   final String currency;
   final String title;
   final String? description;
@@ -219,6 +227,41 @@ class PlannedActivity {
   /// kuralın ikinci bir kopyası doğar ve iki taraf sessizce ayrışabilirdi.
   final bool isPaymentObligation;
 
+  /// Satırı üreten tekrarlayan plan; yalnız tekrarlayan kalemde dolu.
+  final String? recurringTransactionId;
+
+  /// Vergi planının kalemiyse türü (`social-security-premium` …).
+  final String? taxKind;
+
+  bool get isTax => taxKind != null;
+
+  /// Aynı kalem, bu dönem için yazılmış tutarla ("Tutarı gir"). Sunucudan
+  /// yeni okuma gelene kadar açık panel eski tutarı göstermesin diye.
+  PlannedActivity withAmount(String value) => PlannedActivity(
+    plannedActivityId: plannedActivityId,
+    plannedKind: plannedKind,
+    effect: effect,
+    timing: timing,
+    readiness: readiness,
+    attentionCode: attentionCode,
+    actionKind: actionKind,
+    dueDate: dueDate,
+    amount: value,
+    currency: currency,
+    title: title,
+    description: description,
+    sourceId: sourceId,
+    sourceName: sourceName,
+    categoryId: categoryId,
+    categoryName: categoryName,
+    isProjected: isProjected,
+    isPaymentObligation: isPaymentObligation,
+    actionTargetId: actionTargetId,
+    actionSequence: actionSequence,
+    recurringTransactionId: recurringTransactionId,
+    taxKind: taxKind,
+  );
+
   bool get needsAttention => readiness == PlannedReadiness.needsAttention;
 
   String get listKey => '${plannedKind.apiValue}:$plannedActivityId';
@@ -235,9 +278,14 @@ class PlannedActivity {
   /// `realize` gövde istemiyor: onay dışında sorulacak bir şey yok, kayıt
   /// zaten tutarı ve tarihi taşıyor. Ödeme ve tahsilat ise hangi hesaptan
   /// yapılacağını sorar; onlar kendi ekranlarına gider.
+  ///
+  /// Vergi kalemi burada gerçekleştirilmez: tutar, ödeme günü ve hesap/kart
+  /// ister ve bunları vergi ekranının "Ödedim" paneli sorar (ADR 0018 T4).
   bool get isDirectlyRealizable =>
       actionKind == PlannedAction.realize &&
       actionTargetId != null &&
+      !isTax &&
+      amount != null &&
       isDue &&
       !needsAttention;
 }
@@ -250,11 +298,13 @@ class PlannedActivityPage {
     required this.items,
     this.nearestDueDate,
     this.upcomingOutgoingTotal,
+    this.overdueOutgoingTotal,
   });
 
   factory PlannedActivityPage.fromJson(Map<String, dynamic> json) =>
       PlannedActivityPage(
         upcomingOutgoingTotal: json['upcomingOutgoingTotal'] as String?,
+        overdueOutgoingTotal: json['overdueOutgoingTotal'] as String?,
         asOfDate: json['asOfDate'] as String,
         daysAhead: json['daysAhead'] as int,
         totalCount: json['totalCount'] as int,
@@ -279,6 +329,10 @@ class PlannedActivityPage {
   /// ("7 günde çıkacak"). Sunucuda toplanır; gelir, tahsilat ve gecikmişler
   /// girmez. Eski sunucu göndermezse `null`.
   final String? upcomingOutgoingTotal;
+
+  /// Gecikmiş ödeme yükümlülüklerinin tutarı belli olanlarının toplamı;
+  /// pencereden bağımsız. Sunucuda toplanır, eski sunucu göndermezse `null`.
+  final String? overdueOutgoingTotal;
 }
 
 /// The horizons the server accepts. Anything else is rejected there, so the UI

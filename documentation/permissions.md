@@ -39,6 +39,9 @@ kullanıcının kaydına erişen ayrıcalıklı rol yoktur.
 | Taksit create/list/realize | 401 | Owner kart/kategori/plan ile izinli | 404/400 veya dışlanır |
 | Recurring create/list/active | 401 | Owner hesap/kategori ve current user planı | 404/400 veya dışlanır |
 | Occurrence generate/list/realize | 401 | Yalnız current user plan/occurrence'ı | 404/400 veya dışlanır |
+| Recurring düzenleme, "tutar belli oldu", "Ödedim"i geri alma | 401 | Plan ve occurrence `(Id, current UserId)` ile bulunur; yeni kaynak ve kategori ayrı ayrı owner kapsamında doğrulanır | 404 |
+| Vergi ekranı, tanım ayrıntısı, Ödenenler | 401 | Plan, planlanan projection ve ödeme sorguları current `UserId` ile başlar | 404 / listeye girmez |
+| Toplu vergi ödemesi ve geri alması | 401 | Hesap/kart, vergi kategorisi ve kapatılan her kalemin planı owner kapsamında bulunur; ödeme kimliği istek kimliği **ve kullanıcı kimliğinden** türetilir | 404; başkasının kalemi kapatılamaz |
 | Borç create/list/pay | 401 | Owner hesap ve owner gider kategorisiyle izinli | 404/400 veya listeden dışlanır |
 | Karşı taraf create/list/get/update/delete | 401 | Yalnız current user'ın karşı tarafı; `asOfDate` yalnız gecikme projection'ını belirler | 404; hareketi varsa 409 |
 | Cari borçlandırma / tahsilat | 401 | Owner karşı taraf + owner kategori/hesap; opsiyonel vade sahiplik girdisi değildir | 404/400; pasif tarafa borçlandırma 409 |
@@ -75,6 +78,12 @@ kullanıcının kaydına erişen ayrıcalıklı rol yoktur.
 | Taksit planı/gerçekleştirme | Evet | Kart, kategori ve plan current user ile bulunur; request ID owner kapsamında tekildir | Listeye girmez / not found |
 | Recurring tanımı | Evet | Hesap/kategori current user ile bulunur; yeni plan `UserId`yi oturumdan alır | Kaynak erişilemez / listeye girmez |
 | Occurrence üretme/onaylama | Evet | Due sorgusu ve occurrence lookup current `UserId` taşır; key owner kapsamında tekildir | Üretilmez / not found |
+| Recurring düzenleme (`PUT /api/v1/recurring-transactions/{id}`) | Evet | Plan `(Id, current UserId)`; yeni hesap/kart ve kategori ayrı ayrı current user ile bulunur | `recurring.not_found` |
+| Kaleme tutar yazma / ödemeyi geri alma | Evet | Plan ya da occurrence `(Id, current UserId)`; üretme yalnız o planı ilerletir | `recurring.not_found` / `recurring.occurrence_not_found` |
+| Vergi ekranı (`GET /api/v1/taxes`, `/taxes/plans/{id}`) | Evet | Plan listesi, planlanan projection ve Ödenenler sorgusu current `UserId` ile başlar; vergi olmayan plan ayrıntıda bulunmaz | `taxes.plan_not_found` |
+| Toplu vergi tanımlama (`POST /api/v1/taxes/plans`) | Evet | Her öğe tek plan oluşturmanın kuralıyla: hesap/kart ve kategori `(Id, current UserId)`; başka kullanıcının kategorisi `recurring.category_unavailable` ile reddedilir ve **hiçbir öğe yazılmaz** (tek `SaveChanges`) | `recurring.*_unavailable` |
+| Toplu vergi ödemesi (`POST /api/v1/tax-payments`) | Evet | Hesap/kart ve kategori current user ile; kapatılan her kalemin planı `(Id, current UserId)`; ödeme kimliği `clientRequestId` + current `UserId`'den türetilir, iki kullanıcı aynı istek kimliğiyle çarpışamaz | `tax_payments.item_not_found` / kaynak erişilemez |
+| Vergi ödemesini geri alma (`POST /api/v1/tax-payments/{id}/undo`) | Evet | Gider ya da kart harcaması `(Id, current UserId)`; kapattığı kalemler de owner kapsamında açılır | `tax_payments.not_found` |
 | Upcoming ve advanced report | Evet | Her kaynak sorgusunun ilk filtresi current `UserId`dir | Feed ve aggregate'e girmez |
 | Fiş fotoğrafı analizi | Evet | Kategori sorgusu `current UserId + Expense + Active` ile sınırlıdır; request `UserId` taşımaz | Kategori adı modele verilmez ve kimliğe çözülemez; endpoint salt okunurdur |
 
@@ -133,7 +142,10 @@ Kapsam alanını taşıyan istek/cevap sözleşmeleri:
 | `POST /api/v1/imports/{id}/confirm` | — | İçe aktarılan CSV kapsam kolonu taşımaz; zincirin ilk halkası hiç dolmaz, hesabın yoksa kategorinin varsayılanı kullanılır, ikisi de boşsa `imports.scope_unresolved` |
 | `GET /api/v1/exports/transactions.csv` | `scope` | Dosya her satırın kapsamını `type`'ın yanında taşır. Dışa aktarma okumak ve arşivlemek içindir; aynı dosya içe aktarılamaz (istemci tanır ve reddeder), veri taşımanın yolu yedek/geri yüklemedir |
 | `GET /api/v1/goals` | isteğe bağlı `scope` | Hedefler owner kapsamlıdır. Filtreli okuma kapsamsız hedefleri de eler; kırılım yalnız filtresiz okumada döner |
-| `GET /api/v1/tax-calendar/suggestions` | — | Hazır takvim kalemleri; owner verisi okumaz, hiçbir şey yazmaz ve tutar taşımaz. Kalem mevcut tekrarlayan plan ucundan kurulur |
+| `GET /api/v1/tax-calendar/suggestions` | — | Hazır vergi türleri; owner verisi okumaz, hiçbir şey yazmaz, tutar ve kategori taşımaz. Tür mevcut tekrarlayan plan ucundan `taxKind` ile kurulur |
+| `POST`/`PUT /api/v1/recurring-transactions` (vergi planı), `POST /api/v1/taxes/plans` | `scope` | Hayır — boşsa profilin tarafı; **hesabın/kartın etiketine bakılmaz**; sonuç hiç boş değildir (ADR 0018 İ9, 30 Eylül 2026). Tanınmayan değer `recurring.invalid_scope` |
+| `POST /api/v1/tax-payments` | `scope` | Hayır — boşsa profilin tarafı; hesabın/kartın etiketine bakılmaz (İ9). İstemci göndermez. Tanınmayan değer `tax_payments.invalid_scope` |
+| `POST`/`PUT` kategori | `isTax` | Hayır — yalnız gider kategorisi işaretlenir; güncellemede boş göndermek işareti **değiştirmez**. Sahiplik girdisi değildir |
 | `GET /api/v1/exports/counterparty-ledger.csv` | `scope` (yalnız borçlandırma satırlarında) | Cari defterin dökümü; owner kapsamlı, `ICurrentUser`'dan türetilir. Borçlandırma kategori ve kapsam taşır, hesap kolonu boştur; tahsilat hesap taşır, kategori ve kapsam kolonları boştur (ADR 0014) — `kind` kolonu hangisinin okunacağını söyler. İşlem CSV'sine kolon eklenmedi: o dosya `BudgetTransaction` dökümüdür ve cari hareket orada bulunmaz. Bu dosya da geri yüklenemez |
 
 Kart ödemesi ve transfer endpoint'leri kapsam **almaz**: gelir/gider raporuna
