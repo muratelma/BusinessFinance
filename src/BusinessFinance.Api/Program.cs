@@ -89,6 +89,7 @@ app.MapObligationEndpoints();
 app.MapCashCountEndpoints();
 app.MapTaxEndpoints();
 app.MapPosSettlementEndpoints();
+app.MapPosDefinitionEndpoints();
 app.MapSavingsGoalEndpoints();
 app.MapAttachmentEndpoints();
 app.MapImportEndpoints();

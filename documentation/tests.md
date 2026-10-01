@@ -1490,3 +1490,32 @@ birlikte girecek.
 | Gerçek SQL'de vergi planı | `SqlServerPersistenceIntegrationTests.TaxPlans_PersistClosedItemsAndReadAsPaymentsAndPendingItems` | Kaynaksız, tutarsız plan kalıcı; kapatılmış kalem ödemesini taşıyor; kısıtlar tutarsız durumu reddediyor; Ödenenler gider ve kart harcamasını tek sorguda birleştiriyor; projection tutarsız kalemi taşıyor |
 | Yedek v11 | `DataPortabilityTests.BackupV11_RoundTripsTaxPlansWithTheirHistory` | Vergi türü, ay kümesi, ay sonu, ödenmiş/kapatılmış/bekleyen kalemler, ritmi değişmiş geçmiş ve yazılmış tutar kayıpsız dönüyor; kapatan ödeme yeni kimliğine bağlanıyor |
 | Sorgu bütçesi | `SqlServerPersistenceIntegrationTests.AdvancedReport_LargeFixtureStaysWithinQueryCountAndTimeBudget` | Vergi türü kalemin sorgusuna join ile geldi; projection'ın sorgu sayısı değişmedi |
+
+## Aşama 06.3 Grup 4 — POS tanımı (1 Ekim 2026)
+
+ADR 0019 T4: POS bir kez tanımlanır, tahsilat ondan dolar. Tanım para hareketi
+üretmez; oran tanımda saklanır, tahsilatta saklanmaz.
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Beklenen gün iş günüyle sayılır | `PosDefinitionTests` | Takvim günüyle cuma + 1 cumartesi, iş günüyle pazartesi; cumartesi satışı pazartesi; 0 gün hafta sonunda hafta içine taşınır; birkaç iş günü hafta sonunu atlar |
+| Oran ve kategori birlikte | `PosDefinitionTests` | Oran sıfırdan büyükse gider kategorisi zorunlu; sıfır oranlı tanım kategorisiz olabilir; oran 0–1 arası ve en çok dört basamak |
+| Tanımın sınırları | `PosDefinitionTests` | Kasa hedef olamaz, satış gelir kategorisine, komisyon gider kategorisine; ad boş ya da uzun olamaz; başka kullanıcının hesabı/kategorisi reddedilir |
+| Tahsilat tanımını hatırlar | `PosDefinitionTests` | `PosDefinitionId` dolu ya da boş; başka kullanıcının tanımına bağlanamaz |
+| Tutar + gün yeter | `PosDefinitionEndpointTests` | Tanımla yazılan tahsilat yalnız brüt ve gün gönderir; hesap, kategori, komisyon ve beklenen gün tanımdan; önizleme ile yazılan kayıt aynı sayıları söyler |
+| Açık alan tanımı ezer | `PosDefinitionEndpointTests` | Açıkça gönderilen komisyon tutarı ve beklenen gün geçerli; komisyonsuz girilen tahsilat kategori taşımaz |
+| Tanımsız tahsilat kendi alanlarını taşır | `PosDefinitionEndpointTests` | Hesap/kategori/beklenen gün yoksa `pos_settlements.details_required`; sunucu uydurmaz |
+| Silme yerine pasifleştirme | `PosDefinitionEndpointTests` | Tahsilatı olan tanım `409 pos_definitions.has_settlements`; kullanılmamış tanım silinir; pasif tanımla tahsilat `409 pos_definitions.inactive` |
+| Düzenleme geçmişe dokunmaz | `PosDefinitionEndpointTests` | Oran değişince yazılmış tahsilatın komisyonu değişmez, adı yeni adla görünür |
+| Sahiplik | `PosDefinitionEndpointTests`, `OwnershipIsolationTests` | Yabancı kullanıcı listede görmez; güncelleme, silme, önizleme ve tanımla tahsilat var olmayan kayıtla aynı cevabı alır; dört yeni uç prob tablosunda |
+| Ana POS | `PosDefinitionTests`, `PosDefinitionEndpointTests`, `pos_definition_test` | İlk eklenen kendiliğinden ana POS; başkası seçilince öncekinin işareti kalkar ve liste onunla başlar; pasife alınan işaretini kaybeder, pasif POS seçilemez; yabancı kullanıcı seçemez; form ana POS seçili açılır; yıldız seçimi değiştirir |
+| En uzun ad | `pos_definition_test` | 80 karakterlik POS adı listede (2.0× yazıda) ve tahsilat formunda taşma üretmez |
+| Seçenekler tazedir | `pos_definition_test` | Hesap ve kategori seçenekleri her form açılışında yeniden okunur |
+| Ana POS migration'ı | `MigrationHistoryTests` | `AddPosDefinitionDefault`: kolon önce nullable, sonra backfill (`0`), en son zorunlu; kalıcı DEFAULT yok |
+| Migration | `MigrationHistoryTests` | `AddPosDefinitions` zincirde; yeni boş tablo, tahsilata nullable ve varsayılansız bağ, sahiplik kapsamlı yabancı anahtarlar, hiçbir silme ya da veri taşıma yok |
+| Yedek | `DataPortabilityTests` | İki tanım (biri pasif) gidiş-dönüşte aynen döner; tahsilat hedef kullanıcının yeni tanımına bağlanır, tanımsız tahsilat tanımsız kalır |
+| Oran çevirisi ve özet | `pos_definition_test` | `0.0179` ↔ `1,79`; boş alan sıfır oran; özet `hesap · %oran · süre` |
+| Tahsilat formu | `pos_definition_test` | Tanım varken yalnız tutar ve gün sorulur, özet sunucunun önizlemesinden; tanım yokken form her şeyi sorar ve tanımlamayı önerir; "Tanımsız" elle girişi açar |
+| POS'larım | `pos_definition_test` | Liste, pasif etiketi, boş durum, okuma hatası, form hazır kategorileri seçili açar, doğrulama düşerse istek gitmez, 2.0× yazıda taşma yok |
+| Değişiklik bildirimi | `pos_definition_test` | Tanım kaydı hiçbir finansal hedefi yükseltmez; silme hatası tanım sayfasında kalır |
+| Ekran görüntüsü | `test/screenshots/pos_screenshot_test` | Yalnız `SCREENSHOT_DIR` ile: POS'larım, tanım formu, tanımdan dolan tahsilat formu |

@@ -40,6 +40,13 @@ public sealed class PosSettlement
     /// </summary>
     public Guid? CommissionCategoryId { get; }
 
+    /// <summary>
+    /// Tahsilatın yazıldığı POS tanımı (ADR 0019 T4). Tanımlar gelmeden önce
+    /// yazılmış ve tanımsız girilen tahsilatlarda boştur: hangi POS'tan geldiği
+    /// bilinmiyor ve uydurulmaz.
+    /// </summary>
+    public Guid? PosDefinitionId { get; }
+
     /// <summary>Müşterinin ödediği tutar. Gelir <b>bu</b> tutar kadar tanınır.</summary>
     public Money GrossAmount { get; }
 
@@ -85,11 +92,18 @@ public sealed class PosSettlement
         DateOnly expectedTransferDate,
         DateTimeOffset createdAtUtc,
         Category? commissionCategory = null,
-        string? description = null)
+        string? description = null,
+        PosDefinition? definition = null)
     {
         if (id == Guid.Empty)
         {
             throw new ArgumentException("Pos settlement id cannot be empty.", nameof(id));
+        }
+
+        if (definition is not null && definition.UserId != userId)
+        {
+            throw new ArgumentException(
+                "Pos definition must belong to the pos settlement user.", nameof(definition));
         }
 
         if (userId == Guid.Empty)
@@ -161,6 +175,7 @@ public sealed class PosSettlement
         AccountId = account.Id;
         CategoryId = category.Id;
         CommissionCategoryId = commissionCategory?.Id;
+        PosDefinitionId = definition?.Id;
         GrossAmount = grossAmount;
         CommissionAmount = commissionAmount;
         Scope = scope;

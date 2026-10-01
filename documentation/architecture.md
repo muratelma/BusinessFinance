@@ -818,6 +818,37 @@ düzenlenebilir ve sessizce çelişirdi. Kullanıcı oran girdiğinde
 Para **banka hesabına** geçer: kasa bir kart ödemesi alamaz. Satış bir gelir
 kategorisi ister; POS tahsilatı bir satışı tanır.
 
+### POS tanımı (Aşama 06.3 Grup 4, ADR 0019 T4)
+
+`PosDefinition` kullanıcının bir kez girdiği ayardır: ad, paranın geçeceği
+banka hesabı, satış kategorisi, varsayılan komisyon oranı, komisyon kategorisi
+(oran sıfırdan büyükse zorunlu), geçiş günü ve iş günü seçeneği. **Para
+hareketi üretmez**; yalnız tahsilatı doldurur. Yemek kartı ayrı bir özellik
+değil, kendi oranı ve süresi olan bir tanımdır.
+
+- Tahsilat isteği `posDefinitionId` taşıyabilir; boş bırakılan alanlar (hesap,
+  satış kategorisi, komisyon, komisyon kategorisi, beklenen gün) tanımdan dolar,
+  açıkça gönderilen alan tanımı ezer. Tanımsız istekte hesap, kategori ve
+  beklenen gün zorunludur (`pos_settlements.details_required`); sunucu
+  uydurmaz.
+- Oran **tanımda** saklanır, tahsilatta saklanmaz: tahsilat tutarı taşır ve
+  oran ondan çözülür (ADR 0009). Tanım sonradan değişse de yazılmış tahsilat
+  yazıldığı tutarla kalır.
+- Beklenen gün `PosDefinition.ExpectedTransferDate` ile hesaplanır. İş günü
+  seçeneği açıksa süre hafta içi günlerle sayılır ve sonuç hafta sonuna düşmez
+  (cuma satışının ertesi günü pazartesidir); tatil takvimi yoktur.
+- Önizleme (`GET /api/v1/pos-definitions/{id}/preview`) komisyonu, neti ve
+  beklenen günü tahsilatı yazan kuralla aynı yerden döner; istemci parayı
+  kendisi hesaplamaz.
+- **Ana POS** (`IsDefault`): tahsilat formunda seçili gelen POS. Kullanıcı
+  başına en çok bir tanedir ve bu, işareti koyan use case'te korunur (öncekinin
+  işareti aynı `SaveChanges`'te kalkar). İlk eklenen POS kendiliğinden ana POS
+  olur; pasife alınan POS işaretini kaybeder ve pasif POS seçilemez.
+- `PosSettlement.PosDefinitionId` nullable'dır: tanımlardan önce yazılmış ve
+  tanımsız girilen tahsilatın hangi POS'tan geldiği bilinmiyor ve uydurulmaz.
+  Tahsilatı olan tanım silinemez (`409 pos_definitions.has_settlements`),
+  pasife alınır; pasif tanımla yeni tahsilat yazılamaz.
+
 `PosTransitBalance` yoldaki parayı verir: geçişi gerçekleşmemiş tahsilatların
 **net** toplamı. Kalıcı kolon değildir ve bir hesap türü de değildir (ADR
 0015). İptal edilmiş ve geçmiş tahsilatlar sayılmaz — ilki hiç olmadı, ikincisi

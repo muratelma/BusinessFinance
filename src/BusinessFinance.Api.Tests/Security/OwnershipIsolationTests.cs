@@ -158,6 +158,7 @@ public sealed class OwnershipIsolationTests
         "/api/v1/installment-plans",
         "/api/v1/obligations",
         "/api/v1/pos-settlements",
+        "/api/v1/pos-definitions",
         $"/api/v1/cash-counts?accountId={f.AccountId}",
         $"/api/v1/cash-counts/today?accountId={f.AccountId}",
         "/api/v1/recurring-transactions",
@@ -205,6 +206,7 @@ public sealed class OwnershipIsolationTests
         ("taksit planı", f.InstallmentPlanId),
         ("yükümlülük", f.ObligationId),
         ("POS tahsilatı", f.PosSettlementId),
+        ("POS tanımı", f.PosDefinitionId),
         ("kasa sayımı", f.CashCountId),
         ("içe aktarma partisi", f.ImportBatchId),
         ("oturum", f.SessionId)
@@ -411,6 +413,28 @@ public sealed class OwnershipIsolationTests
         yield return Json("POS tahsilatını iptal", HttpMethod.Delete,
             "api/v1/pos-settlements/{id:guid}", null, f.PosSettlementId);
 
+        yield return Json("POS tanımını güncelleme", HttpMethod.Put,
+            "api/v1/pos-definitions/{id:guid}",
+            new SavePosDefinitionRequest(
+                "Ele geçirilen", f.SecondAccountId, f.IncomeCategoryId, "0.0000", 1, true),
+            f.PosDefinitionId);
+        yield return Json("POS tanımını pasife alma", patch,
+            "api/v1/pos-definitions/{id:guid}/active",
+            new SetPosDefinitionActiveRequest(false), f.PosDefinitionId);
+        yield return Json("POS'u ana POS yapma", HttpMethod.Put,
+            "api/v1/pos-definitions/{id:guid}/default", null, f.PosDefinitionId);
+        yield return Json("POS tanımını silme", HttpMethod.Delete,
+            "api/v1/pos-definitions/{id:guid}", null, f.PosDefinitionId);
+        // Sorgu dizesi imzaya girmez; doğrulamayı geçip sahiplik denetimine
+        // ulaşsın diye iki yola da aynı geçerli değerler eklenir.
+        yield return new Probe("POS tanımıyla önizleme", HttpMethod.Get,
+            "api/v1/pos-definitions/{id:guid}/preview",
+            $"/api/v1/pos-definitions/{f.PosDefinitionId}/preview" +
+            "?grossAmount=100.0000&settlementDate=2026-08-28",
+            $"/api/v1/pos-definitions/{GhostId}/preview" +
+            "?grossAmount=100.0000&settlementDate=2026-08-28",
+            null);
+
         yield return Json("tekrarlayan planı silme", HttpMethod.Delete,
             "api/v1/recurring-transactions/{recurringTransactionId:guid}",
             null, f.RecurringId);
@@ -542,6 +566,7 @@ public sealed class OwnershipIsolationTests
         Guid InstallmentPlanId,
         Guid ObligationId,
         Guid PosSettlementId,
+        Guid PosDefinitionId,
         Guid CashCountId,
         Guid ImportBatchId,
         Guid ImportRowId,
@@ -555,7 +580,7 @@ public sealed class OwnershipIsolationTests
             GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId,
             GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId,
             GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId,
-            GhostId, GhostId, GhostId);
+            GhostId, GhostId, GhostId, GhostId);
     }
 
     private sealed record Probe(
@@ -714,6 +739,11 @@ public sealed class OwnershipIsolationTests
                 secondAccount.Id, income.Id, "500.0000", "TRY", Today, "2026-08-30",
                 "10.0000", null, expense.Id, "business"));
 
+        var posDefinition = await CreateAsync<PosDefinitionResponse>(
+            owner, "/api/v1/pos-definitions",
+            new SavePosDefinitionRequest(
+                "Sentetik POS", secondAccount.Id, income.Id, "0.0150", 1, true, expense.Id));
+
         var cashCount = await CreateAsync<CashCountResponse>(owner, "/api/v1/cash-counts",
             new CreateCashCountRequest(account.Id, "4000.0000", Today, "business"));
 
@@ -753,6 +783,7 @@ public sealed class OwnershipIsolationTests
             installmentPlan.Id,
             obligation.Id,
             pos.Id,
+            posDefinition.Id,
             cashCount.Id,
             batch.Id,
             batch.Rows[0].Id,

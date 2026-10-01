@@ -288,6 +288,7 @@ public sealed class EfDataPortabilityRepository(
             // Sayım bir gözlemdir, farkı yazan hareket ise ayrı bir kayıt:
             // sayım o harekete kimlikle bağlanır, onu içermez.
             dbContext.CashCounts.AddRange(graph.CashCounts);
+            dbContext.PosDefinitions.AddRange(graph.PosDefinitions);
             dbContext.PosSettlements.AddRange(graph.PosSettlements);
             dbContext.DebtAgreements.AddRange(graph.Debts);
             dbContext.SavingsGoals.AddRange(graph.Goals);
@@ -369,6 +370,8 @@ public sealed class EfDataPortabilityRepository(
         // tahsilatın net tutarı ve komisyon oranı dosyaya yazılmaz: hiçbiri
         // kalıcı alan değil, okunduğu anda türetilen değerlerdir.
         var cashCounts = await dbContext.CashCounts.AsNoTracking()
+            .Where(x => x.UserId == userId).OrderBy(x => x.Id).ToArrayAsync(cancellationToken);
+        var posDefinitions = await dbContext.PosDefinitions.AsNoTracking()
             .Where(x => x.UserId == userId).OrderBy(x => x.Id).ToArrayAsync(cancellationToken);
         var posSettlements = await dbContext.PosSettlements.AsNoTracking()
             .Where(x => x.UserId == userId).OrderBy(x => x.Id).ToArrayAsync(cancellationToken);
@@ -460,12 +463,16 @@ public sealed class EfDataPortabilityRepository(
                 x.Id, x.AccountId, x.CountedAmount, x.Currency, x.Scope, x.CountDate,
                 x.Note, x.CreatedAtUtc, x.AdjustmentTransactionId, x.AdjustedAtUtc,
                 x.IsCancelled, x.CancelledAtUtc)).ToArray(),
+            posDefinitions.Select(x => new PosDefinitionBackup(
+                x.Id, x.Name, x.AccountId, x.SalesCategoryId, x.CommissionCategoryId,
+                x.CommissionRate, x.TransferDays, x.BusinessDaysOnly, x.IsActive,
+                x.CreatedAtUtc, x.IsDefault)).ToArray(),
             posSettlements.Select(x => new PosSettlementBackup(
                 x.Id, x.AccountId, x.CategoryId, x.CommissionCategoryId,
                 x.GrossAmount.Amount, x.CommissionAmount, x.Currency, x.Scope,
                 x.SettlementDate, x.ExpectedTransferDate, x.Description, x.CreatedAtUtc,
                 x.TransferredOn, x.TransferredAtUtc, x.IsCancelled,
-                x.CancelledAtUtc)).ToArray(),
+                x.CancelledAtUtc, x.PosDefinitionId)).ToArray(),
             debts.Select(x => new DebtBackup(
                 x.Id, x.CounterpartyId, x.Direction, x.Scope, x.Principal.Amount, x.TotalRepayment.Amount,
                 x.Principal.Currency, x.AnnualInterestRate, x.StartDate, x.FirstDueDate,
@@ -509,6 +516,7 @@ public sealed class EfDataPortabilityRepository(
             snapshot.Obligations.Where(x => x.Settlement is not null).Select(x => x.Settlement!.Id),
             "obligation settlement");
         EnsureUniqueIds(snapshot.CashCounts.Select(x => x.Id), "cash count");
+        EnsureUniqueIds(snapshot.PosDefinitions.Select(x => x.Id), "pos definition");
         EnsureUniqueIds(snapshot.PosSettlements.Select(x => x.Id), "pos settlement");
         EnsureUniqueIds(snapshot.Debts.Select(x => x.Id), "debt");
         EnsureUniqueIds(snapshot.SavingsGoals.Select(x => x.Id), "savings goal");
@@ -837,6 +845,31 @@ public sealed class EfDataPortabilityRepository(
             // Tahsilat geliri tanır, geçiş parayı taşır (ADR 0014). Geçiş
             // dosyadaki günle yeniden işaretleniyor; hesaba giren net tutar
             // brüt ile komisyondan çözüldüğü için dosyadan okunmuyor.
+            // POS tanımı (ADR 0019 T4): tahsilatlardan önce kurulur, çünkü
+            // tahsilat ona kimlikle bağlanır. Pasif hesap ya da kategoriye
+            // bağlı tanım, bağlandığı kayıt yeniden pasife alınmadan önce
+            // kurulur (aşağıdaki pasifleştirme adımı en sonda).
+            var posDefinitionMap = new Dictionary<Guid, PosDefinition>();
+            foreach (var item in snapshot.PosDefinitions)
+            {
+                var entity = new PosDefinition(
+                    Guid.NewGuid(), userId, item.Name,
+                    Required(accountMap, item.AccountId, "pos definition account"),
+                    Required(categoryMap, item.SalesCategoryId, "pos definition sales category"),
+                    item.CommissionRate,
+                    item.CommissionCategoryId is Guid definitionCommissionCategoryId
+                        ? Required(
+                            categoryMap, definitionCommissionCategoryId,
+                            "pos definition commission category")
+                        : null,
+                    item.TransferDays, item.BusinessDaysOnly, item.CreatedAtUtc);
+                // Ana POS işareti pasifleştirmeden önce konur; pasif POS zaten
+                // varsayılan olamaz ve işaret onunla birlikte düşer.
+                if (item.IsDefault && item.IsActive) entity.SetDefault(true);
+                if (!item.IsActive) entity.SetActive(false);
+                posDefinitionMap.Add(item.Id, entity);
+            }
+
             var posSettlements = new List<PosSettlement>();
             foreach (var item in snapshot.PosSettlements)
             {
@@ -849,7 +882,10 @@ public sealed class EfDataPortabilityRepository(
                     item.CommissionCategoryId is Guid commissionCategoryId
                         ? Required(categoryMap, commissionCategoryId, "pos commission category")
                         : null,
-                    item.Description);
+                    item.Description,
+                    item.PosDefinitionId is Guid posDefinitionId
+                        ? Required(posDefinitionMap, posDefinitionId, "pos settlement definition")
+                        : null);
                 if (item.TransferredOn is DateOnly transferredOn)
                 {
                     if (item.TransferredAtUtc is not DateTimeOffset transferredAtUtc)
@@ -973,7 +1009,8 @@ public sealed class EfDataPortabilityRepository(
                 installmentPlans.ToArray(), recurringTransactions.ToArray(), occurrences.ToArray(),
                 importBatches.ToArray(), counterpartyMap.Values.ToArray(),
                 counterpartyCharges.ToArray(), counterpartyPayments.ToArray(),
-                obligations.ToArray(), cashCounts.ToArray(), posSettlements.ToArray(),
+                obligations.ToArray(), cashCounts.ToArray(),
+                posDefinitionMap.Values.ToArray(), posSettlements.ToArray(),
                 debts.ToArray(), goals.ToArray(), restoredAttachments.ToArray());
         }
         catch (DataPortabilityException)
@@ -1006,6 +1043,7 @@ public sealed class EfDataPortabilityRepository(
             await dbContext.CounterpartyPayments.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.Obligations.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.CashCounts.AnyAsync(x => x.UserId == userId, cancellationToken) ||
+            await dbContext.PosDefinitions.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.PosSettlements.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.DebtAgreements.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.SavingsGoals.AnyAsync(x => x.UserId == userId, cancellationToken) ||
@@ -1132,7 +1170,8 @@ public sealed class EfDataPortabilityRepository(
             snapshot.RecurringTransactions is null || snapshot.ImportBatches is null ||
             snapshot.Counterparties is null || snapshot.CounterpartyCharges is null ||
             snapshot.CounterpartyPayments is null || snapshot.Obligations is null ||
-            snapshot.CashCounts is null || snapshot.PosSettlements is null ||
+            snapshot.CashCounts is null || snapshot.PosDefinitions is null ||
+            snapshot.PosSettlements is null ||
             snapshot.Debts is null || snapshot.SavingsGoals is null || snapshot.Attachments is null)
             throw Invalid("Every backup collection is required.");
         if (snapshot.InstallmentPlans.Any(x => x.Items is null) ||
@@ -1241,6 +1280,7 @@ internal sealed record FinancialSnapshot(
     CounterpartyPaymentBackup[] CounterpartyPayments,
     ObligationBackup[] Obligations,
     CashCountBackup[] CashCounts,
+    PosDefinitionBackup[] PosDefinitions,
     PosSettlementBackup[] PosSettlements,
     DebtBackup[] Debts,
     SavingsGoalBackup[] SavingsGoals,
@@ -1254,7 +1294,7 @@ internal sealed record FinancialSnapshot(
         ImportBatches.Length + ImportBatches.Sum(x => x.Rows.Length) +
         Counterparties.Length + CounterpartyCharges.Length + CounterpartyPayments.Length +
         Obligations.Length + Obligations.Count(x => x.Settlement is not null) +
-        CashCounts.Length + PosSettlements.Length +
+        CashCounts.Length + PosDefinitions.Length + PosSettlements.Length +
         Debts.Length + Debts.Sum(x => x.Installments.Length) +
         SavingsGoals.Length + SavingsGoals.Sum(x => x.Contributions.Length) +
         Attachments.Length;
@@ -1371,7 +1411,19 @@ internal sealed record PosSettlementBackup(
     TransactionScope Scope, DateOnly SettlementDate, DateOnly ExpectedTransferDate,
     string? Description, DateTimeOffset CreatedAtUtc,
     DateOnly? TransferredOn, DateTimeOffset? TransferredAtUtc,
-    bool IsCancelled, DateTimeOffset? CancelledAtUtc);
+    bool IsCancelled, DateTimeOffset? CancelledAtUtc,
+    Guid? PosDefinitionId = null);
+
+/// <remarks>
+/// POS tanımı para taşımaz; yalnız tahsilat formunu dolduran ayardır (ADR 0019
+/// T4). Oran burada yazılır çünkü tanımın kendi alanıdır; tahsilattaki oran
+/// ise yazılmaz, tutardan çözülür.
+/// </remarks>
+internal sealed record PosDefinitionBackup(
+    Guid Id, string Name, Guid AccountId, Guid SalesCategoryId, Guid? CommissionCategoryId,
+    decimal CommissionRate, int TransferDays, bool BusinessDaysOnly, bool IsActive,
+    DateTimeOffset CreatedAtUtc, bool IsDefault = false);
+
 /// <remarks>
 /// <see cref="AnnualInterestRate"/> hâlâ yazılıyor ama geri yüklerken
 /// okunmuyor: oran artık paradan çözülüyor, yedekteki değer ise hiçbir hesaba
@@ -1433,6 +1485,7 @@ internal sealed record RestoredGraph(
     CounterpartyPayment[] CounterpartyPayments,
     Obligation[] Obligations,
     CashCount[] CashCounts,
+    PosDefinition[] PosDefinitions,
     PosSettlement[] PosSettlements,
     DebtAgreement[] Debts,
     SavingsGoal[] Goals,

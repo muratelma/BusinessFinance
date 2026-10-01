@@ -138,6 +138,7 @@ public static class DependencyInjection
         services.AddScoped<IObligationRepository, EfObligationRepository>();
         services.AddScoped<ICashCountRepository, EfCashCountRepository>();
         services.AddScoped<IPosSettlementRepository, EfPosSettlementRepository>();
+        services.AddScoped<IPosDefinitionRepository, EfPosDefinitionRepository>();
         services.AddScoped<ISavingsGoalRepository, EfSavingsGoalRepository>();
         services.AddScoped<IAttachmentRepository, EfAttachmentRepository>();
         services.AddSingleton<IAttachmentFileInspector, AttachmentFileInspector>();

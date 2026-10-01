@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/formatters/date_text.dart';
@@ -12,6 +14,7 @@ import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_date_field.dart';
 import '../../../core/widgets/app_form_sheet.dart';
 import '../../../core/widgets/app_inline_notice.dart';
+import '../../../core/widgets/app_menu_group_label.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_adaptive_sheet.dart';
 import '../../../core/widgets/app_card_head.dart';
@@ -28,6 +31,7 @@ import '../../../core/widgets/app_status_tag.dart';
 import '../../../core/widgets/app_text_action.dart';
 import '../data/pos_repository.dart';
 import 'pos_controller.dart';
+import 'pos_definitions_page.dart';
 
 /// POS tahsilatları bölümü: Kasa ekranının tek akışındaki kart.
 ///
@@ -79,14 +83,31 @@ class _PosSectionState extends State<PosSection> {
         AppSectionHeader(
           title: 'POS tahsilatları',
           padding: EdgeInsets.zero,
-          trailing: AppTextAction(
-            label: 'Ekle',
-            icon: Icons.add,
-            onPressed: () => showPosSettlementForm(
-              context,
-              controller,
-              widget.scopeController,
-            ),
+          // POS'larım tanımların evidir (ADR 0019 T4); Kasa sekmesi
+          // yeniden kurulana kadar kapısı burada durur.
+          trailing: Wrap(
+            spacing: AppSpacing.xSmall,
+            children: [
+              AppTextAction(
+                label: "POS'larım",
+                onPressed: () =>
+                    Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            PosDefinitionsPage(controller: controller),
+                      ),
+                    ),
+              ),
+              AppTextAction(
+                label: 'Ekle',
+                icon: Icons.add,
+                onPressed: () => showPosSettlementForm(
+                  context,
+                  controller,
+                  widget.scopeController,
+                ),
+              ),
+            ],
           ),
         ),
         _body(context, controller),
@@ -297,7 +318,10 @@ class PosSettlementSheet extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        ['POS tahsilatı', ?item.scope?.label].join(' · '),
+                        [
+                          item.posDefinitionName ?? 'POS tahsilatı',
+                          ?item.scope?.label,
+                        ].join(' · '),
                         style: note,
                       ),
                     ],
@@ -517,13 +541,22 @@ class _SettlementForm extends StatefulWidget {
   State<_SettlementForm> createState() => _SettlementFormState();
 }
 
+/// POS tahsilatı formu.
+///
+/// **Tanımlı POS seçiliyse** (ADR 0019 T4) form yalnız tutarı ve günü sorar;
+/// hesap, kategori, komisyon ve beklenen gün tanımdan gelir ve sunucunun
+/// önizlemesiyle gösterilir. İstemci komisyonu ve neti kendisi hesaplamaz.
+/// Tanım yoksa ya da kullanıcı "Tanımsız" seçerse form bütün alanları sorar.
 class _SettlementFormState extends State<_SettlementForm> {
+  /// "Tanımsız (elle gir)" seçeneğinin açılır listedeki değeri.
+  static const _manual = '';
+
   final formKey = GlobalKey<FormState>();
   final grossController = TextEditingController();
   final commissionController = TextEditingController();
   final descriptionController = TextEditingController();
 
-  late final Future<PosOptions> options;
+  late Future<PosOptions> options;
   String? accountId;
   String? categoryId;
   String? commissionCategoryId;
@@ -534,24 +567,83 @@ class _SettlementFormState extends State<_SettlementForm> {
   bool scopeMissing = false;
   PosOptions? loaded;
 
+  /// Seçili POS tanımı; `null` tanımsız giriştir.
+  String? definitionId;
+  bool definitionChosen = false;
+
+  PosPreview? preview;
+  Timer? _previewTimer;
+  int _previewRequest = 0;
+
+  PosController get controller => widget.controller;
+
+  PosDefinitionItem? get definition {
+    for (final item in controller.activeDefinitions) {
+      if (item.id == definitionId) return item;
+    }
+    return null;
+  }
+
   @override
   void initState() {
     super.initState();
-    options = widget.controller.loadOptions();
+    options = _load();
+    grossController.addListener(_schedulePreview);
+  }
+
+  Future<PosOptions> _load() async {
+    final results = await Future.wait([
+      controller.loadOptions(),
+      controller.loadDefinitions(),
+    ]);
+    return results[0] as PosOptions;
   }
 
   @override
   void dispose() {
+    _previewTimer?.cancel();
     grossController.dispose();
     commissionController.dispose();
     descriptionController.dispose();
     super.dispose();
   }
 
-  TransactionScope? get resolvedScope =>
-      explicitScope ??
-      _choiceScope(accountId, loaded?.accounts) ??
-      _choiceScope(categoryId, loaded?.incomeCategories);
+  /// Tutar ya da gün değişince önizleme kısa bir duraklamadan sonra
+  /// istenir; her tuşta istek atılmaz.
+  void _schedulePreview() {
+    _previewTimer?.cancel();
+    final current = definition;
+    final amount = MoneyInput.parse(grossController.text);
+    if (current == null || amount == null || amount <= 0) {
+      if (preview != null) setState(() => preview = null);
+      return;
+    }
+    _previewTimer = Timer(const Duration(milliseconds: 350), _loadPreview);
+  }
+
+  Future<void> _loadPreview() async {
+    final current = definition;
+    if (current == null) return;
+    final request = ++_previewRequest;
+    final result = await controller.preview(
+      definitionId: current.id,
+      grossAmount: MoneyInput.wire(grossController.text),
+      settlementDate: settlementDate,
+    );
+    // Sonradan değişen tutarın cevabı eskisinin üstüne yazılmasın.
+    if (!mounted || request != _previewRequest) return;
+    setState(() => preview = result);
+  }
+
+  TransactionScope? get resolvedScope {
+    final current = definition;
+    return explicitScope ??
+        _choiceScope(current?.accountId ?? accountId, loaded?.accounts) ??
+        _choiceScope(
+          current?.salesCategoryId ?? categoryId,
+          loaded?.incomeCategories,
+        );
+  }
 
   TransactionScope? _choiceScope(String? id, List<DataChoice>? choices) {
     if (id == null || choices == null) return null;
@@ -586,6 +678,12 @@ class _SettlementFormState extends State<_SettlementForm> {
             }
             if (!snapshot.hasData) return const LinearProgressIndicator();
             loaded = snapshot.data;
+            // İlk açılışta ana POS (yoksa ilk POS) seçili gelir: akşamki
+            // giriş "tutar + kaydet"tir.
+            if (!definitionChosen && controller.preferredDefinition != null) {
+              definitionChosen = true;
+              definitionId = controller.preferredDefinition!.id;
+            }
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: _fields(snapshot.data!),
@@ -597,7 +695,60 @@ class _SettlementFormState extends State<_SettlementForm> {
   );
 
   List<Widget> _fields(PosOptions options) {
+    final definitions = controller.activeDefinitions;
+    final current = definition;
     return [
+      if (definitions.isEmpty)
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.medium),
+          child: AppInlineNotice(
+            message:
+                "POS'unuzu bir kez eklerseniz sonraki girişlerde yalnız "
+                'tutarı yazarsınız.',
+            actionLabel: 'POS ekle',
+            onAction: _defineFirst,
+          ),
+        )
+      else ...[
+        DropdownButtonFormField<String>(
+          key: ValueKey('pos-definition-${definitionId ?? _manual}'),
+          initialValue: definitionId ?? _manual,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'POS'),
+          // "Elle gir" bir POS değildir: kendi grup başlığının altında ve
+          // kalem simgesiyle durur, POS adlarıyla karışmaz.
+          items: [
+            const DropdownMenuItem<String>(
+              enabled: false,
+              child: AppMenuGroupLabel("POS'larım"),
+            ),
+            for (final item in definitions)
+              DropdownMenuItem(value: item.id, child: Text(item.name)),
+            const DropdownMenuItem<String>(
+              enabled: false,
+              child: AppMenuGroupLabel('POS seçmeden'),
+            ),
+            const DropdownMenuItem(
+              value: _manual,
+              child: Row(
+                children: [
+                  Icon(Icons.edit_outlined, size: 18),
+                  SizedBox(width: AppSpacing.small),
+                  Text('Elle gir'),
+                ],
+              ),
+            ),
+          ],
+          onChanged: (value) {
+            setState(() {
+              definitionId = value == null || value == _manual ? null : value;
+              preview = null;
+            });
+            _schedulePreview();
+          },
+        ),
+        const SizedBox(height: AppSpacing.medium),
+      ],
       TextFormField(
         controller: grossController,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -608,107 +759,10 @@ class _SettlementFormState extends State<_SettlementForm> {
         validator: MoneyInput.positiveError,
       ),
       const SizedBox(height: AppSpacing.medium),
-      DropdownButtonFormField<String>(
-        initialValue: accountId,
-        isExpanded: true,
-        decoration: const InputDecoration(
-          labelText: 'Paranın geçeceği hesap',
-          helperText: 'POS parası bankaya geçer.',
-        ),
-        items: [
-          for (final account in options.accounts)
-            DropdownMenuItem(value: account.id, child: Text(account.name)),
-        ],
-        onChanged: (value) => setState(() => accountId = value),
-        validator: (value) => value == null ? 'Hesap seçin.' : null,
-      ),
-      const SizedBox(height: AppSpacing.medium),
-      DropdownButtonFormField<String>(
-        initialValue: categoryId,
-        isExpanded: true,
-        decoration: const InputDecoration(labelText: 'Satış kategorisi'),
-        items: [
-          for (final category in options.incomeCategories)
-            DropdownMenuItem(value: category.id, child: Text(category.name)),
-        ],
-        onChanged: (value) => setState(() => categoryId = value),
-        validator: (value) => value == null ? 'Kategori seçin.' : null,
-      ),
-      const SizedBox(height: AppSpacing.medium),
-      AppDateField(
-        label: 'Tahsilat günü',
-        value: settlementDate,
-        lastDate: DateTime.now(),
-        onChanged: (value) => setState(() => settlementDate = value),
-      ),
-      const SizedBox(height: AppSpacing.medium),
-      AppDateField(
-        label: 'Paranın beklendiği gün',
-        value: expectedTransferDate,
-        firstDate: AppDateField.parse(settlementDate),
-        onChanged: (value) => setState(() => expectedTransferDate = value),
-      ),
-      const SizedBox(height: AppSpacing.medium),
-      // Başlık segmentin dışında: üç segment genişliği paylaşınca
-      // `Komisyon yok` kelimenin ortasından bölünüyordu. Kapsam seçicisinde
-      // olduğu gibi grubun adı üstte durur, segmentler kısa kalır.
-      Semantics(
-        container: true,
-        label: 'Komisyon',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Komisyon', style: Theme.of(context).textTheme.labelMedium),
-            const SizedBox(height: AppSpacing.xSmall),
-            SegmentedButton<_CommissionMode>(
-              segments: const [
-                ButtonSegment(value: _CommissionMode.none, label: Text('Yok')),
-                ButtonSegment(
-                  value: _CommissionMode.amount,
-                  label: Text('Tutar'),
-                ),
-                ButtonSegment(value: _CommissionMode.rate, label: Text('Oran')),
-              ],
-              selected: {commissionMode},
-              onSelectionChanged: (value) => setState(() {
-                commissionMode = value.first;
-                commissionController.clear();
-              }),
-            ),
-          ],
-        ),
-      ),
-      if (commissionMode != _CommissionMode.none) ...[
-        const SizedBox(height: AppSpacing.medium),
-        TextFormField(
-          controller: commissionController,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            labelText: commissionMode == _CommissionMode.amount
-                ? 'Kesilen komisyon'
-                : 'Komisyon oranı (%)',
-            helperText: commissionMode == _CommissionMode.amount
-                ? 'Brüt tutardan düşülmez, yanında ayrı gider olarak durur.'
-                : 'Örnek: 1,5 yazın. Oran saklanmaz, tutara çevrilir.',
-          ),
-          validator: MoneyInput.positiveError,
-        ),
-        const SizedBox(height: AppSpacing.medium),
-        DropdownButtonFormField<String>(
-          initialValue: commissionCategoryId,
-          isExpanded: true,
-          decoration: const InputDecoration(
-            labelText: 'Komisyon gider kategorisi',
-          ),
-          items: [
-            for (final category in options.expenseCategories)
-              DropdownMenuItem(value: category.id, child: Text(category.name)),
-          ],
-          onChanged: (value) => setState(() => commissionCategoryId = value),
-          validator: (value) =>
-              value == null ? 'Komisyon için kategori seçin.' : null,
-        ),
-      ],
+      if (current != null)
+        ..._definitionFields(current)
+      else
+        ..._manualFields(options),
       const SizedBox(height: AppSpacing.medium),
       TextFormField(
         controller: descriptionController,
@@ -728,11 +782,194 @@ class _SettlementFormState extends State<_SettlementForm> {
     ];
   }
 
+  /// Tanımlı POS: gün ve sunucunun önizlemesi. Hesap, kategori ve oran
+  /// tanımdadır; burada sorulmaz.
+  List<Widget> _definitionFields(PosDefinitionItem current) {
+    final shown = preview;
+    return [
+      AppDateField(
+        label: 'Tahsilat günü',
+        value: settlementDate,
+        lastDate: DateTime.now(),
+        onChanged: (value) {
+          setState(() => settlementDate = value);
+          _schedulePreview();
+        },
+      ),
+      const SizedBox(height: AppSpacing.medium),
+      AppDetailBlock(
+        rows: [
+          AppDetailRow(
+            label: 'Komisyon (${current.rateLabel})',
+            trailing: shown == null
+                ? null
+                : AppMoneyText(
+                    amount: shown.commissionAmount,
+                    currency: shown.currency,
+                    effect: AppMoneyEffect.expense,
+                    signed: !_isZeroMoney(shown.commissionAmount),
+                    size: AppMoneySize.body,
+                  ),
+            value: shown == null ? '—' : null,
+          ),
+          AppDetailRow(
+            label: 'Hesaba geçecek',
+            trailing: shown == null
+                ? null
+                : AppMoneyText(
+                    amount: shown.netAmount,
+                    currency: shown.currency,
+                    size: AppMoneySize.body,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+            value: shown == null ? '—' : null,
+          ),
+          AppDetailRow(
+            label: 'Beklenen gün',
+            value: shown == null
+                ? current.transferLabel
+                : DateText.dayMonthWeekday(shown.expectedTransferDate),
+          ),
+          AppDetailRow(label: 'Geçeceği hesap', value: current.accountName),
+        ],
+      ),
+    ];
+  }
+
+  List<Widget> _manualFields(PosOptions options) => [
+    DropdownButtonFormField<String>(
+      initialValue: accountId,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Paranın geçeceği hesap',
+        helperText: 'POS parası bankaya geçer.',
+      ),
+      items: [
+        for (final account in options.accounts)
+          DropdownMenuItem(value: account.id, child: Text(account.name)),
+      ],
+      onChanged: (value) => setState(() => accountId = value),
+      validator: (value) => value == null ? 'Hesap seçin.' : null,
+    ),
+    const SizedBox(height: AppSpacing.medium),
+    DropdownButtonFormField<String>(
+      initialValue: categoryId,
+      isExpanded: true,
+      decoration: const InputDecoration(labelText: 'Satış kategorisi'),
+      items: [
+        for (final category in options.incomeCategories)
+          DropdownMenuItem(value: category.id, child: Text(category.name)),
+      ],
+      onChanged: (value) => setState(() => categoryId = value),
+      validator: (value) => value == null ? 'Kategori seçin.' : null,
+    ),
+    const SizedBox(height: AppSpacing.medium),
+    AppDateField(
+      label: 'Tahsilat günü',
+      value: settlementDate,
+      lastDate: DateTime.now(),
+      onChanged: (value) => setState(() => settlementDate = value),
+    ),
+    const SizedBox(height: AppSpacing.medium),
+    AppDateField(
+      label: 'Paranın beklendiği gün',
+      value: expectedTransferDate,
+      firstDate: AppDateField.parse(settlementDate),
+      onChanged: (value) => setState(() => expectedTransferDate = value),
+    ),
+    const SizedBox(height: AppSpacing.medium),
+    // Başlık segmentin dışında: üç segment genişliği paylaşınca
+    // `Komisyon yok` kelimenin ortasından bölünüyordu. Kapsam seçicisinde
+    // olduğu gibi grubun adı üstte durur, segmentler kısa kalır.
+    Semantics(
+      container: true,
+      label: 'Komisyon',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Komisyon', style: Theme.of(context).textTheme.labelMedium),
+          const SizedBox(height: AppSpacing.xSmall),
+          SegmentedButton<_CommissionMode>(
+            segments: const [
+              ButtonSegment(value: _CommissionMode.none, label: Text('Yok')),
+              ButtonSegment(
+                value: _CommissionMode.amount,
+                label: Text('Tutar'),
+              ),
+              ButtonSegment(value: _CommissionMode.rate, label: Text('Oran')),
+            ],
+            selected: {commissionMode},
+            onSelectionChanged: (value) => setState(() {
+              commissionMode = value.first;
+              commissionController.clear();
+            }),
+          ),
+        ],
+      ),
+    ),
+    if (commissionMode != _CommissionMode.none) ...[
+      const SizedBox(height: AppSpacing.medium),
+      TextFormField(
+        controller: commissionController,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: InputDecoration(
+          labelText: commissionMode == _CommissionMode.amount
+              ? 'Kesilen komisyon'
+              : 'Komisyon oranı (%)',
+          helperText: commissionMode == _CommissionMode.amount
+              ? 'Brüt tutardan düşülmez, yanında ayrı gider olarak durur.'
+              : 'Örnek: 1,5 yazın. Oran saklanmaz, tutara çevrilir.',
+        ),
+        validator: MoneyInput.positiveError,
+      ),
+      const SizedBox(height: AppSpacing.medium),
+      DropdownButtonFormField<String>(
+        initialValue: commissionCategoryId,
+        isExpanded: true,
+        decoration: const InputDecoration(
+          labelText: 'Komisyon gider kategorisi',
+        ),
+        items: [
+          for (final category in options.expenseCategories)
+            DropdownMenuItem(value: category.id, child: Text(category.name)),
+        ],
+        onChanged: (value) => setState(() => commissionCategoryId = value),
+        validator: (value) =>
+            value == null ? 'Komisyon için kategori seçin.' : null,
+      ),
+    ],
+  ];
+
+  /// İlk POS'u formdan çıkmadan tanımlatır; dönüşte tanım seçili gelir.
+  Future<void> _defineFirst() async {
+    final saved = await openPosDefinitionForm(context, controller);
+    if (saved != true || !mounted) return;
+    setState(() {
+      definitionChosen = true;
+      definitionId = controller.preferredDefinition?.id;
+    });
+    _schedulePreview();
+  }
+
   Future<bool?> _submit() async {
     if (!formKey.currentState!.validate()) return null;
     if (resolvedScope == null) {
       setState(() => scopeMissing = true);
       return null;
+    }
+
+    final description = descriptionController.text.trim();
+    final current = definition;
+    if (current != null) {
+      // Tanımlı POS: gerisini sunucu tanımdan doldurur.
+      final saved = await controller.create(
+        grossAmount: MoneyInput.wire(grossController.text),
+        settlementDate: settlementDate,
+        scope: resolvedScope,
+        posDefinitionId: current.id,
+        description: description.isEmpty ? null : description,
+      );
+      return saved ? true : null;
     }
 
     // Komisyon **ya tutar ya oran** gider; ikisini birden göndermek sunucunun
@@ -746,8 +983,7 @@ class _SettlementFormState extends State<_SettlementForm> {
       commissionRate = (percent / 100).toStringAsFixed(4);
     }
 
-    final description = descriptionController.text.trim();
-    final saved = await widget.controller.create(
+    final saved = await controller.create(
       accountId: accountId!,
       categoryId: categoryId!,
       grossAmount: MoneyInput.wire(grossController.text),

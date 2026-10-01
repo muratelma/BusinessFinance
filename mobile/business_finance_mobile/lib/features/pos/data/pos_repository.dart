@@ -24,7 +24,11 @@ class PosSettlementItem {
     this.transferredOn,
     this.description,
     this.scope,
+    this.posDefinitionName,
   });
+
+  /// Tahsilatın yazıldığı POS tanımının adı; tanımsız girilende `null`.
+  final String? posDefinitionName;
 
   final String id;
   final String accountName;
@@ -59,7 +63,167 @@ class PosSettlementItem {
         transferredOn: JsonReaders.nullableString(json, 'transferredOn'),
         description: JsonReaders.nullableString(json, 'description'),
         scope: TransactionScope.fromApiOrNull(json['scope']),
+        posDefinitionName: JsonReaders.nullableString(
+          json,
+          'posDefinitionName',
+        ),
       );
+}
+
+/// POS tanımı (ADR 0019 T4): bir kez girilen ayar. Para taşımaz; tahsilat
+/// formunu doldurur.
+class PosDefinitionItem {
+  const PosDefinitionItem({
+    required this.id,
+    required this.name,
+    required this.accountId,
+    required this.accountName,
+    required this.salesCategoryId,
+    required this.salesCategoryName,
+    required this.commissionRate,
+    required this.transferDays,
+    required this.businessDaysOnly,
+    required this.isActive,
+    this.isDefault = false,
+    this.commissionCategoryId,
+    this.commissionCategoryName,
+  });
+
+  /// Ana POS: tahsilat formunda seçili gelir; kullanıcı başına en çok bir tane.
+  final bool isDefault;
+
+  factory PosDefinitionItem.fromJson(Map<String, dynamic> json) =>
+      PosDefinitionItem(
+        id: JsonReaders.string(json, 'id'),
+        name: JsonReaders.string(json, 'name'),
+        accountId: JsonReaders.string(json, 'accountId'),
+        accountName: JsonReaders.string(json, 'accountName'),
+        salesCategoryId: JsonReaders.string(json, 'salesCategoryId'),
+        salesCategoryName: JsonReaders.string(json, 'salesCategoryName'),
+        commissionCategoryId: JsonReaders.nullableString(
+          json,
+          'commissionCategoryId',
+        ),
+        commissionCategoryName: JsonReaders.nullableString(
+          json,
+          'commissionCategoryName',
+        ),
+        commissionRate: JsonReaders.string(json, 'commissionRate'),
+        transferDays: JsonReaders.integer(json, 'transferDays'),
+        businessDaysOnly: JsonReaders.boolean(json, 'businessDaysOnly'),
+        isActive: JsonReaders.boolean(json, 'isActive'),
+        isDefault: json['isDefault'] as bool? ?? false,
+      );
+
+  final String id;
+  final String name;
+  final String accountId;
+  final String accountName;
+  final String salesCategoryId;
+  final String salesCategoryName;
+  final String? commissionCategoryId;
+  final String? commissionCategoryName;
+
+  /// Ondalık kesir, dört basamak: `0.0179` = %1,79. Para değildir.
+  final String commissionRate;
+  final int transferDays;
+  final bool businessDaysOnly;
+  final bool isActive;
+
+  /// `%1,79` · oran sıfırsa `Komisyon yok`.
+  String get rateLabel {
+    final percent = PosRate.percentText(commissionRate);
+    return percent == null ? 'Komisyon yok' : '%$percent';
+  }
+
+  /// `Aynı gün` · `1 iş günü` · `20 gün`.
+  String get transferLabel => transferDays == 0
+      ? 'Aynı gün'
+      : '$transferDays ${businessDaysOnly ? 'iş günü' : 'gün'}';
+
+  /// Liste satırının alt yazısı: `Ziraat Vadesiz · %1,79 · 1 iş günü`.
+  String get summary => '$accountName · $rateLabel · $transferLabel';
+}
+
+/// Oranın kullanıcıya gösterilen yüzdesi ile sözleşmedeki kesri arasındaki
+/// çeviri. Oran para değildir; yuvarlama burada kayıp üretmez çünkü iki yanda
+/// da en çok dört (kesir) / iki (yüzde) basamak vardır.
+abstract final class PosRate {
+  /// `0.0179` → `1,79`; sıfır ya da okunamayan değer `null`.
+  static String? percentText(String fraction) {
+    final value = double.tryParse(fraction);
+    if (value == null || value <= 0) return null;
+    var text = (value * 100).toStringAsFixed(2);
+    if (text.contains('.')) {
+      text = text.replaceFirst(RegExp(r'0+$'), '');
+      text = text.replaceFirst(RegExp(r'\.$'), '');
+    }
+    return text.replaceAll('.', ',');
+  }
+
+  /// `1,79` → `0.0179`; boş alan sıfır orandır. Okunamazsa ya da aralık
+  /// dışındaysa `null`.
+  static String? fractionWire(String percentInput) {
+    final trimmed = percentInput.trim();
+    if (trimmed.isEmpty) return '0.0000';
+    final percent = double.tryParse(trimmed.replaceAll(',', '.'));
+    if (percent == null || percent < 0 || percent >= 100) return null;
+    return (percent / 100).toStringAsFixed(4);
+  }
+}
+
+/// Tanımla yazılacak tahsilatın sunucudan gelen önizlemesi. İstemci
+/// komisyonu ve neti kendisi hesaplamaz.
+class PosPreview {
+  const PosPreview({
+    required this.commissionAmount,
+    required this.netAmount,
+    required this.currency,
+    required this.expectedTransferDate,
+  });
+
+  factory PosPreview.fromJson(Map<String, dynamic> json) => PosPreview(
+    commissionAmount: JsonReaders.money(json, 'commissionAmount'),
+    netAmount: JsonReaders.money(json, 'netAmount'),
+    currency: JsonReaders.string(json, 'currency'),
+    expectedTransferDate: JsonReaders.date(json, 'expectedTransferDate'),
+  );
+
+  final String commissionAmount;
+  final String netAmount;
+  final String currency;
+  final String expectedTransferDate;
+}
+
+/// POS tanımı formunun gönderdiği alanlar.
+class PosDefinitionInput {
+  const PosDefinitionInput({
+    required this.name,
+    required this.accountId,
+    required this.salesCategoryId,
+    required this.commissionRate,
+    required this.transferDays,
+    required this.businessDaysOnly,
+    this.commissionCategoryId,
+  });
+
+  final String name;
+  final String accountId;
+  final String salesCategoryId;
+  final String commissionRate;
+  final int transferDays;
+  final bool businessDaysOnly;
+  final String? commissionCategoryId;
+
+  Map<String, Object?> toJson() => {
+    'name': name,
+    'accountId': accountId,
+    'salesCategoryId': salesCategoryId,
+    'commissionRate': commissionRate,
+    'transferDays': transferDays,
+    'businessDaysOnly': businessDaysOnly,
+    'commissionCategoryId': commissionCategoryId,
+  };
 }
 
 class PosSettlementList {
@@ -120,6 +284,29 @@ abstract interface class PosRepositoryContract {
   /// Silme yerine iptal: satış, komisyon ve varsa hesaba geçen tutar birlikte
   /// düşer.
   Future<void> cancel({required String settlementId});
+
+  /// Kullanıcının POS tanımları; önce aktifler.
+  Future<List<PosDefinitionItem>> listDefinitions();
+
+  /// [definitionId] verilirse düzenler, verilmezse yeni tanım açar.
+  Future<void> saveDefinition(PosDefinitionInput input, {String? definitionId});
+
+  Future<void> setDefinitionActive({
+    required String definitionId,
+    required bool isActive,
+  });
+
+  /// Ana POS'u seçer; öncekinin işareti sunucuda kalkar.
+  Future<void> setDefaultDefinition({required String definitionId});
+
+  /// Tahsilatı olan tanım silinmez (409); pasife alınır.
+  Future<void> deleteDefinition({required String definitionId});
+
+  Future<PosPreview> preview({
+    required String definitionId,
+    required String grossAmount,
+    required String settlementDate,
+  });
 }
 
 class PosRepository implements PosRepositoryContract {
@@ -186,6 +373,63 @@ class PosRepository implements PosRepositoryContract {
   @override
   Future<void> cancel({required String settlementId}) async {
     await _client.delete('/api/v1/pos-settlements/$settlementId');
+  }
+
+  @override
+  Future<List<PosDefinitionItem>> listDefinitions() async {
+    final response = await _client.get('/api/v1/pos-definitions');
+    return _items(
+      response.requireObject(),
+    ).map(PosDefinitionItem.fromJson).toList(growable: false);
+  }
+
+  @override
+  Future<void> saveDefinition(
+    PosDefinitionInput input, {
+    String? definitionId,
+  }) async {
+    if (definitionId == null) {
+      await _client.post('/api/v1/pos-definitions', body: input.toJson());
+    } else {
+      await _client.put(
+        '/api/v1/pos-definitions/$definitionId',
+        body: input.toJson(),
+      );
+    }
+  }
+
+  @override
+  Future<void> setDefinitionActive({
+    required String definitionId,
+    required bool isActive,
+  }) async {
+    await _client.patch(
+      '/api/v1/pos-definitions/$definitionId/active',
+      body: {'isActive': isActive},
+    );
+  }
+
+  @override
+  Future<void> setDefaultDefinition({required String definitionId}) async {
+    await _client.put('/api/v1/pos-definitions/$definitionId/default');
+  }
+
+  @override
+  Future<void> deleteDefinition({required String definitionId}) async {
+    await _client.delete('/api/v1/pos-definitions/$definitionId');
+  }
+
+  @override
+  Future<PosPreview> preview({
+    required String definitionId,
+    required String grossAmount,
+    required String settlementDate,
+  }) async {
+    final response = await _client.get(
+      '/api/v1/pos-definitions/$definitionId/preview'
+      '?grossAmount=$grossAmount&settlementDate=$settlementDate',
+    );
+    return PosPreview.fromJson(response.requireObject());
   }
 
   List<Map<String, dynamic>> _items(Map<String, dynamic> json) =>

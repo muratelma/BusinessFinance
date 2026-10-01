@@ -160,6 +160,13 @@ public static class ServiceCollectionExtensions
         services.AddTransient<MarkPosSettlementTransferredUseCase>();
         services.AddTransient<RevertPosSettlementTransferUseCase>();
         services.AddTransient<CancelPosSettlementUseCase>();
+        services.AddTransient<ListPosDefinitionsUseCase>();
+        services.AddTransient<CreatePosDefinitionUseCase>();
+        services.AddTransient<UpdatePosDefinitionUseCase>();
+        services.AddTransient<SetPosDefinitionActiveUseCase>();
+        services.AddTransient<SetDefaultPosDefinitionUseCase>();
+        services.AddTransient<DeletePosDefinitionUseCase>();
+        services.AddTransient<PreviewPosSettlementUseCase>();
 
         return services;
     }

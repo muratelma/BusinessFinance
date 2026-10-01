@@ -11,10 +11,15 @@ namespace BusinessFinance.Application.Pos;
 /// gönderilseydi hangisinin doğru olduğu sorusu doğardı ve iki gerçek arasında
 /// seçim yapmak sunucunun işi değildir. Oran gelirse tutara çevrilir ve
 /// saklanan tek şey tutardır (ADR 0009'un aynı kararı).
+///
+/// <see cref="PosDefinitionId"/> verilirse boş bırakılan alanlar tanımdan
+/// dolar (ADR 0019 T4): hesap, satış kategorisi, komisyon (tanımın oranıyla),
+/// komisyon kategorisi ve beklenen gün. Açıkça gönderilen alan tanımı ezer.
+/// Tanım verilmezse hesap, kategori ve beklenen gün zorunludur.
 /// </remarks>
 public sealed record CreatePosSettlementCommand(
-    Guid AccountId,
-    Guid CategoryId,
+    Guid? AccountId,
+    Guid? CategoryId,
     decimal GrossAmount,
     CurrencyCode Currency,
     decimal? CommissionAmount,
@@ -22,8 +27,9 @@ public sealed record CreatePosSettlementCommand(
     Guid? CommissionCategoryId,
     TransactionScope? Scope,
     DateOnly SettlementDate,
-    DateOnly ExpectedTransferDate,
-    string? Description);
+    DateOnly? ExpectedTransferDate,
+    string? Description,
+    Guid? PosDefinitionId = null);
 
 public sealed record MarkPosSettlementTransferredCommand(Guid SettlementId, DateOnly TransferDate);
 
@@ -54,7 +60,10 @@ public sealed record PosSettlementDto(
     bool IsInTransit,
     bool IsCancelled,
     // Beklenen gün geçti, para hâlâ gelmedi. Kalıcı değil, okurken türetilir.
-    bool IsLate);
+    bool IsLate,
+    // Tahsilatın yazıldığı POS tanımı; tanımsız girilende boştur.
+    Guid? PosDefinitionId = null,
+    string? PosDefinitionName = null);
 
 /// <summary>
 /// Tahsilat listesi ve yanında yoldaki toplam.

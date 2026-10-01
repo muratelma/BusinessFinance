@@ -2,18 +2,25 @@ using BusinessFinance.Api.Contracts;
 
 namespace BusinessFinance.Api.Features.Pos;
 
+/// <summary>
+/// <c>PosDefinitionId</c> verilirse boş bırakılan alanlar tanımdan dolar
+/// (ADR 0019 T4): hesap, satış kategorisi, komisyon (tanımın oranıyla),
+/// komisyon kategorisi ve beklenen gün; açıkça gönderilen alan tanımı ezer.
+/// Tanım verilmezse hesap, kategori ve beklenen gün zorunludur.
+/// </summary>
 public sealed record CreatePosSettlementRequest(
-    Guid AccountId,
-    Guid CategoryId,
+    Guid? AccountId,
+    Guid? CategoryId,
     string GrossAmount,
     string Currency,
     string SettlementDate,
-    string ExpectedTransferDate,
+    string? ExpectedTransferDate = null,
     string? CommissionAmount = null,
     string? CommissionRate = null,
     Guid? CommissionCategoryId = null,
     string? Scope = null,
-    string? Description = null);
+    string? Description = null,
+    Guid? PosDefinitionId = null);
 
 public sealed record MarkPosSettlementTransferredRequest(string TransferDate);
 
@@ -37,7 +44,9 @@ public sealed record PosSettlementResponse(
     string? Description,
     bool IsInTransit,
     bool IsCancelled,
-    bool IsLate);
+    bool IsLate,
+    Guid? PosDefinitionId,
+    string? PosDefinitionName);
 
 public sealed record PosSettlementListResponse(
     IReadOnlyList<PosSettlementResponse> Items,

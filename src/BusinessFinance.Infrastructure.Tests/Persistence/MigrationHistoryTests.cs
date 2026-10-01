@@ -36,7 +36,9 @@ public sealed class MigrationHistoryTests
         "AddVerificationCodes",
         "AddCashCountExpectedSnapshot",
         "RemoveVatAndTaxDeductibility",
-        "AddTaxPlans"
+        "AddTaxPlans",
+        "AddPosDefinitions",
+        "AddPosDefinitionDefault"
     ];
 
     [Fact]
@@ -478,6 +480,86 @@ public sealed class MigrationHistoryTests
             Assert.Null(column.DefaultValue);
             Assert.Null(column.DefaultValueSql);
             Assert.Equal("decimal(19,4)", column.ColumnType);
+        }
+    }
+
+    /// <summary>
+    /// POS tanımı yeni ve boş bir tablodur; mevcut tahsilatlara eklenen bağ
+    /// <b>nullable</b>dır ve varsayılan taşımaz: tanımlar gelmeden önce yazılmış
+    /// tahsilatın hangi POS'tan geldiği bilinmiyor ve uydurulmaz (ADR 0019 T4).
+    /// </summary>
+    [Fact]
+    public void AddPosDefinitions_CreatesOneEmptyTableAndLinksSettlementsWithoutInventingHistory()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_AddPosDefinitions", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations.ToList();
+
+            var column = Assert.IsType<AddColumnOperation>(
+                Assert.Single(up.OfType<AddColumnOperation>()));
+            Assert.Equal("PosSettlements", column.Table);
+            Assert.Equal("PosDefinitionId", column.Name);
+            Assert.True(column.IsNullable);
+            Assert.Null(column.DefaultValue);
+            Assert.Null(column.DefaultValueSql);
+
+            var table = Assert.Single(up.OfType<CreateTableOperation>());
+            Assert.Equal("PosDefinitions", table.Name);
+            // Sahiplik: hesap ve iki kategori (UserId, Id) çiftiyle bağlanır.
+            Assert.Contains(table.UniqueConstraints, key =>
+                key.Columns.SequenceEqual(["UserId", "Id"]));
+            Assert.All(
+                table.ForeignKeys.Where(key => key.PrincipalTable != "AspNetUsers"),
+                key => Assert.Equal("UserId", key.Columns[0]));
+            Assert.Equal(3, table.CheckConstraints.Count);
+
+            // Tahsilatın tanıma bağı da sahiplik kapsamlıdır ve tablo
+            // kurulduktan sonra eklenir.
+            var link = Assert.Single(up.OfType<AddForeignKeyOperation>());
+            Assert.Equal("PosSettlements", link.Table);
+            Assert.Equal(["UserId", "PosDefinitionId"], link.Columns);
+            Assert.Equal("PosDefinitions", link.PrincipalTable);
+            Assert.True(up.IndexOf(link) > up.IndexOf(table));
+
+            // Hiçbir şey silinmez, hiçbir veri taşınmaz.
+            Assert.Empty(up.OfType<DropColumnOperation>());
+            Assert.Empty(up.OfType<DropTableOperation>());
+            Assert.Empty(up.OfType<SqlOperation>());
+        }
+    }
+
+    /// <summary>
+    /// Ana POS işareti dolu olabilecek bir tabloya eklenir: önce nullable,
+    /// sonra backfill, en son zorunlu. Kalıcı bir DEFAULT bırakılmaz ve
+    /// sunucu kimseye ana POS atamaz ("seçilmedi" bilinen değerdir).
+    /// </summary>
+    [Fact]
+    public void AddPosDefinitionDefault_BackfillsBeforeRequiringAndLeavesNoDefault()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_AddPosDefinitionDefault", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations.ToList();
+            Assert.Equal(3, up.Count);
+
+            var column = Assert.IsType<AddColumnOperation>(up[0]);
+            Assert.Equal("PosDefinitions", column.Table);
+            Assert.Equal("IsDefault", column.Name);
+            Assert.True(column.IsNullable);
+            Assert.Null(column.DefaultValue);
+            Assert.Null(column.DefaultValueSql);
+
+            var backfill = Assert.IsType<SqlOperation>(up[1]);
+            Assert.Contains("[IsDefault] = 0", backfill.Sql, StringComparison.Ordinal);
+
+            var required = Assert.IsType<AlterColumnOperation>(up[2]);
+            Assert.Equal("IsDefault", required.Name);
+            Assert.False(required.IsNullable);
+            Assert.Null(required.DefaultValue);
+            Assert.Null(required.DefaultValueSql);
         }
     }
 

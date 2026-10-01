@@ -92,6 +92,7 @@ abstract final class ApiErrorMessages {
     'obligations': 'Yükümlülük',
     'goal': 'Tasarruf hedefi',
     'pos_settlements': 'POS tahsilatı',
+    'pos_definitions': 'POS',
     'cash_counts': 'Kasa sayımı',
     'imports': 'İçe aktarma',
     'backup': 'Yedek',
@@ -346,6 +347,22 @@ abstract final class ApiErrorMessages {
         'Sayım beklenen bakiyeyle aynı; kaydedilecek bir fark yok.',
     'pos_settlements.commission_ambiguous':
         'Komisyonu ya tutar ya oran olarak girin; ikisi birden olmaz.',
+    'pos_settlements.details_required':
+        'Hesap, satış kategorisi ve beklenen gün gerekli.',
+    'pos_settlements.definition_unavailable':
+        'Bu POS bulunamadı. Listeyi yenileyip yeniden seçin.',
+    'pos_definitions.has_settlements':
+        'Bu POS ile tahsilat yazıldığı için silinemez. Kullanmayacaksanız '
+        'pasife alabilirsiniz.',
+    'pos_definitions.inactive':
+        'Bu POS pasif. Yeni tahsilat için etkinleştirin ya da başka bir POS '
+        'seçin.',
+    'pos_definitions.account_unavailable':
+        'POS parası aktif bir banka hesabına geçer; hesabı yeniden seçin.',
+    'pos_definitions.sales_category_unavailable':
+        'Satış için aktif bir gelir kategorisi seçin.',
+    'pos_definitions.commission_category_unavailable':
+        'Komisyon için aktif bir gider kategorisi seçin.',
 
     // İçe aktarma, yedek, geri yükleme
     'imports.confirmation_conflict':

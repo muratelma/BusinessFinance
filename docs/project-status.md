@@ -261,6 +261,26 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     canlı test atlandı), build 0 uyarı, format temiz; Flutter analyze temiz,
     919 test geçti (33 ekran görüntüsü testi atlandı), format temiz, debug APK
     derlendi
+  - **06.3 Grup 4 — POS (1 Ekim 2026, tamamlandı; emülatör denemesini
+    kullanıcı yaptı)**: ADR 0019 T4'ün uygulaması. Kullanıcı POS'unu bir kez
+    ekliyor (`POS'larım`): ad, paranın geçeceği banka hesabı, satış kategorisi,
+    komisyon oranı ve kategorisi, geçiş günü, iş günü seçeneği; yemek kartı da
+    bir POS. Tahsilat formu POS seçiliyken yalnız tutarı ve günü soruyor;
+    komisyon, hesaba geçecek net ve beklenen gün sunucunun önizlemesinden
+    geliyor. İş günü seçeneğiyle beklenen gün hafta sonuna düşmüyor. Yıldızla
+    seçilen **ana POS** formda seçili geliyor. Tahsilatı olan POS silinemiyor,
+    pasife alınıyor. `AddPosDefinitions` (yeni tablo + tahsilata nullable bağ)
+    ve `AddPosDefinitionDefault` (nullable → backfill → zorunlu) migration'ları
+    veri kaybettirmiyor; yerel geliştirme veritabanına uygulandı. Yedek v11
+    `posDefinitions` taşıyor; önceki v11 yedekleri reddediliyor. Emülatör
+    turunda bulunan bir eski hata da kapandı: POS formları hesap ve kategori
+    seçeneklerini bir kez okuyup saklıyordu, artık her açılışta okuyor.
+    Kullanıcı kararları: POS işletmesi olmayan kullanıcı için ayrıca
+    tasarlanmaz; arayüzde "tanım" kelimesi geçmez; yeni ekranların tasarımı
+    Kasa bittikten sonra yapılır. Kontroller: backend SQL dahil geçti (Domain
+    322, Application 327, Api 248, Infrastructure 208 + 2 canlı test atlandı),
+    build 0 uyarı, format temiz; Flutter analyze temiz, 938 test geçti (37
+    ekran görüntüsü testi atlandı), format temiz, debug APK derlendi
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni (beklemede) → **06.3 bütünsel düzenleme (aktif)** →

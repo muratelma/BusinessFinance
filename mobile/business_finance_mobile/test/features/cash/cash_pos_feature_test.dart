@@ -756,6 +756,34 @@ class _FakePosRepository implements PosRepositoryContract {
       inTransitCount: 0,
     );
   }
+
+  @override
+  Future<List<PosDefinitionItem>> listDefinitions() async => const [];
+
+  @override
+  Future<void> saveDefinition(
+    PosDefinitionInput input, {
+    String? definitionId,
+  }) async {}
+
+  @override
+  Future<void> setDefinitionActive({
+    required String definitionId,
+    required bool isActive,
+  }) async {}
+
+  @override
+  Future<void> deleteDefinition({required String definitionId}) async {}
+
+  @override
+  Future<void> setDefaultDefinition({required String definitionId}) async {}
+
+  @override
+  Future<PosPreview> preview({
+    required String definitionId,
+    required String grossAmount,
+    required String settlementDate,
+  }) async => throw UnimplementedError();
 }
 
 CashCountItem _cashCount({

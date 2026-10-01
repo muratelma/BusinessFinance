@@ -112,10 +112,25 @@ bakiyesi de yeniden okunur.
 ## POS tahsilatı ve hesaba geçiş
 
 ```text
+Kasa -> POS tahsilatları bölümü -> POS'larım          (ADR 0019 T4)
+     -> GET /api/v1/pos-definitions
+     -> + : ad, banka hesabı, satış kategorisi, komisyon oranı (%),
+            komisyon gider kategorisi (oran varsa), geçiş günü, iş günü seçeneği
+            -> POST /api/v1/pos-definitions        (tanım para hareketi yazmaz)
+     -> satırdaki yıldız -> ana POS: PUT .../{id}/default
+            (tahsilat formunda seçili gelen; kullanıcı başına bir tane, ilk eklenen kendiliğinden)
+     -> satır -> düzenle: PUT .../{id} | Pasife al / Etkinleştir: PATCH .../{id}/active
+              | Sil: DELETE .../{id} (tahsilatı varsa 409, pasife alma yönlendirmesi)
+
 Kasa -> POS tahsilatları bölümü -> + Ekle
-     -> banka hesabı + gelir kategorisi + brüt + tarih/vade
-     -> komisyon: yok | tutar | oran (yalnız biri)
-     -> POST /api/v1/pos-settlements
+     tanım var  -> ana POS (yoksa ilk POS) seçili gelir -> brüt + tahsilat günü
+                   -> GET /api/v1/pos-definitions/{id}/preview?grossAmount&settlementDate
+                      (komisyon, hesaba geçecek net, beklenen gün; istemci hesaplamaz)
+                   -> POST /api/v1/pos-settlements {posDefinitionId, grossAmount, settlementDate}
+     tanım yok ya da "Elle gir" (kendi grup başlığı altında)
+                -> banka hesabı + gelir kategorisi + brüt + tarih/vade
+                -> komisyon: yok | tutar | oran (yalnız biri)
+                -> POST /api/v1/pos-settlements
      -> brüt gelir ve komisyon gideri tanınır; hesap değişmez
 
 Yolda satırına dokun -> görünür onay

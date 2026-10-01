@@ -76,6 +76,8 @@ internal sealed class PosSettlementConfiguration : IEntityTypeConfiguration<PosS
             .HasDatabaseName("IX_PosSettlements_UserId_SettlementDate");
         builder.HasIndex(settlement => new { settlement.UserId, settlement.AccountId })
             .HasDatabaseName("IX_PosSettlements_UserId_AccountId");
+        builder.HasIndex(settlement => new { settlement.UserId, settlement.PosDefinitionId })
+            .HasDatabaseName("IX_PosSettlements_UserId_PosDefinitionId");
 
         builder.HasOne<ApplicationUser>().WithMany()
             .HasForeignKey(settlement => settlement.UserId)
@@ -91,6 +93,13 @@ internal sealed class PosSettlementConfiguration : IEntityTypeConfiguration<PosS
         builder.HasOne<Category>().WithMany()
             .HasForeignKey(settlement => new { settlement.UserId, settlement.CommissionCategoryId })
             .HasPrincipalKey(category => new { category.UserId, category.Id })
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired(false);
+        // Tanımlar gelmeden önceki ve tanımsız girilen tahsilatlarda boştur
+        // (ADR 0019 T4); tahsilatı olan tanım silinemez.
+        builder.HasOne<PosDefinition>().WithMany()
+            .HasForeignKey(settlement => new { settlement.UserId, settlement.PosDefinitionId })
+            .HasPrincipalKey(definition => new { definition.UserId, definition.Id })
             .OnDelete(DeleteBehavior.Restrict)
             .IsRequired(false);
     }

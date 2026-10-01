@@ -8,7 +8,10 @@ politikası): Grup 2, 3 ve 5 onu ayrı ayrı değiştirir ve ara checkpoint'te
 alınan bir yedeğin sonraki checkpoint'te okunamaması kabul edilir (veri
 sentetik). Şekil Grup 5 sonunda sabitlenir.
 
-v11'in bugünkü hâli (Aşama 06.3 Grup 3) v10'un **KDV ve indirilebilirlik
+v11'in bugünkü hâli (Aşama 06.3 Grup 4) bir yeni koleksiyon taşır:
+`posDefinitions` (aşağıda). Bu koleksiyonu taşımayan, Grup 3 ve öncesinde
+alınmış bir v11 yedeği **reddedilir** ("Every backup collection is required").
+Geri kalanı v10'un **KDV ve indirilebilirlik
 alanları olmadan** aynısıdır (ADR 0018, Grup 2): işlem, kart harcaması, cari
 borçlandırma, yükümlülük ve POS tahsilatı `vatRate` / `vatAmount` taşımaz;
 gider kayıtları `isTaxDeductible`, kategoriler `defaultIsTaxDeductible` taşımaz.
@@ -52,7 +55,14 @@ v9'un taşıdığı iki koleksiyon aynen yerinde:
   geri yüklerken **yeni** kimliğe çevrilir. Aynı gün ve aynı kasa için ikinci
   bir sayım varsa öncekisi iptal edilmiş olarak durur; SQL'deki filtreli tekil
   indeks bunu geri yüklemede de doğrular.
-- `posSettlements` — POS tahsilatı. Tek kayıt **iki an** taşır (ADR 0014):
+- `posDefinitions` — POS tanımı (Aşama 06.3 Grup 4, ADR 0019 T4): ad, banka
+  hesabı, satış ve komisyon kategorisi, varsayılan oran, geçiş günü, iş günü
+  seçeneği, aktiflik. Para taşımaz. Oran burada **yazılır** çünkü tanımın kendi
+  alanıdır. Geri yüklemede tahsilatlardan önce kurulur ve kimliği yeniden
+  eşlenir.
+- `posSettlements` — POS tahsilatı. `posDefinitionId` tahsilatın yazıldığı
+  tanımı gösterir ve geri yüklerken **yeni** kimliğe çevrilir; tanımsız
+  girilen ve tanımlardan önce yazılmış tahsilatta boştur. Tek kayıt **iki an** taşır (ADR 0014):
   tahsilat günü gelir brüt tutar kadar tanınır ve komisyon ayrı gider yazılır,
   hesap kıpırdamaz; `transferredOn` dolduğu gün hesap net tutar kadar artar ve
   gelir/gider yeniden yazılmaz. **Net tutar, komisyon oranı ve "yolda mı"

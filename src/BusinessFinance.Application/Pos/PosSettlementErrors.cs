@@ -34,6 +34,17 @@ public static class PosSettlementErrors
         "The scope could not be resolved from the request, the account or the category.",
         ApplicationErrorType.Validation);
 
+    public static readonly ApplicationError DefinitionUnavailable = new(
+        "pos_settlements.definition_unavailable",
+        "An owned pos definition is required.",
+        ApplicationErrorType.NotFound);
+
+    /// <summary>Tanım verilmediğinde formun kendi doldurması gereken alanlar.</summary>
+    public static readonly ApplicationError DetailsRequired = new(
+        "pos_settlements.details_required",
+        "Account, category and expected transfer date are required without a pos definition.",
+        ApplicationErrorType.Validation);
+
     public static ApplicationError NotFound(Guid id) => new(
         "pos_settlements.not_found",
         $"Pos settlement '{id}' was not found.",

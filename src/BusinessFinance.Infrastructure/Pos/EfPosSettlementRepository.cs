@@ -34,6 +34,11 @@ internal sealed class EfPosSettlementRepository(
                 equals new { commissionCategory.UserId, Id = (Guid?)commissionCategory.Id }
                 into commissionCategories
             from commissionCategory in commissionCategories.DefaultIfEmpty()
+            join definition in dbContext.PosDefinitions.AsNoTracking()
+                on new { settlement.UserId, Id = settlement.PosDefinitionId }
+                equals new { definition.UserId, Id = (Guid?)definition.Id }
+                into definitions
+            from definition in definitions.DefaultIfEmpty()
             where settlement.UserId == userId &&
                   !settlement.IsCancelled &&
                   settlement.SettlementDate >= criteria.From &&
@@ -46,6 +51,7 @@ internal sealed class EfPosSettlementRepository(
                 CommissionCategoryName = commissionCategory == null
                     ? null
                     : commissionCategory.Name,
+                DefinitionName = definition == null ? null : definition.Name,
             };
 
         if (criteria.InTransitOnly)
@@ -99,7 +105,9 @@ internal sealed class EfPosSettlementRepository(
                     row.settlement.IsInTransit,
                     row.settlement.IsCancelled,
                     row.settlement.IsInTransit &&
-                        row.settlement.ExpectedTransferDate < asOfDate))
+                        row.settlement.ExpectedTransferDate < asOfDate,
+                    row.settlement.PosDefinitionId,
+                    row.DefinitionName))
                 .ToArray(),
             transit?.Amount ?? 0m,
             transit?.Count ?? 0);

@@ -1,0 +1,198 @@
+import 'package:business_finance_mobile/core/models/data_choice.dart';
+import 'package:business_finance_mobile/core/models/transaction_scope.dart';
+import 'package:business_finance_mobile/features/pos/data/pos_repository.dart';
+import 'package:business_finance_mobile/features/pos/presentation/pos_controller.dart';
+import 'package:business_finance_mobile/features/pos/presentation/pos_definitions_page.dart';
+import 'package:business_finance_mobile/features/pos/presentation/pos_settlements_view.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'screenshot_harness.dart';
+
+/// POS tanımı ekranları (Aşama 06.3 Grup 4): POS'larım, tanım formu ve
+/// tanımdan dolan tahsilat formu. Tasarım teslimi yok; mevcut dille kuruldu.
+void main() {
+  PosController controller() => PosController(_DesignPos());
+
+  testWidgets("POS'larım", (tester) async {
+    await captureScreen(
+      tester,
+      'pos-01-poslarim',
+      PosDefinitionsPage(controller: controller()),
+      withNavBar: false,
+      pushed: true,
+    );
+  }, skip: !screenshotsEnabled);
+
+  testWidgets('POS tanımı formu', (tester) async {
+    await captureScreen(
+      tester,
+      'pos-02-tanim-formu',
+      PosDefinitionFormPage(controller: controller()),
+      withNavBar: false,
+      pushed: true,
+      before: (tester) async {
+        await tester.enterText(find.byType(TextFormField).at(0), 'Ziraat POS');
+        await tester.enterText(find.byType(TextFormField).at(1), '1,79');
+      },
+    );
+  }, skip: !screenshotsEnabled);
+
+  testWidgets('tanımdan dolan tahsilat formu', (tester) async {
+    final pos = controller();
+    await captureScreen(
+      tester,
+      'pos-03-tahsilat-formu',
+      Scaffold(
+        appBar: AppBar(title: const Text('Kasa')),
+        body: const SizedBox.expand(),
+      ),
+      withNavBar: false,
+      before: (tester) async {
+        showPosSettlementForm(tester.element(find.text('Kasa')), pos, null);
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
+        await tester.enterText(find.byType(TextFormField).first, '22650');
+        await tester.pump(const Duration(milliseconds: 400));
+      },
+    );
+  }, skip: !screenshotsEnabled);
+
+  testWidgets('POS seçimi açık', (tester) async {
+    final pos = controller();
+    await captureScreen(
+      tester,
+      'pos-04-pos-secimi',
+      Scaffold(
+        appBar: AppBar(title: const Text('Kasa')),
+        body: const SizedBox.expand(),
+      ),
+      withNavBar: false,
+      before: (tester) async {
+        showPosSettlementForm(tester.element(find.text('Kasa')), pos, null);
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
+        await tester.tap(find.text('Ziraat POS'));
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
+      },
+    );
+  }, skip: !screenshotsEnabled);
+}
+
+class _DesignPos implements PosRepositoryContract {
+  static const _definitions = [
+    PosDefinitionItem(
+      id: 'ziraat',
+      name: 'Ziraat POS',
+      accountId: 'ziraat-hesap',
+      accountName: 'Ziraat işletme',
+      salesCategoryId: 'satis',
+      salesCategoryName: 'Satış geliri',
+      commissionCategoryId: 'komisyon',
+      commissionCategoryName: 'Banka ve POS komisyonu',
+      commissionRate: '0.0175',
+      transferDays: 1,
+      businessDaysOnly: true,
+      isActive: true,
+    ),
+    PosDefinitionItem(
+      id: 'yemek',
+      name: 'Yemek kartı',
+      accountId: 'ziraat-hesap',
+      accountName: 'Ziraat işletme',
+      salesCategoryId: 'satis',
+      salesCategoryName: 'Satış geliri',
+      commissionCategoryId: 'komisyon',
+      commissionCategoryName: 'Banka ve POS komisyonu',
+      commissionRate: '0.0650',
+      transferDays: 20,
+      businessDaysOnly: false,
+      isActive: true,
+    ),
+    PosDefinitionItem(
+      id: 'eski',
+      name: 'Eski banka POS',
+      accountId: 'ziraat-hesap',
+      accountName: 'Ziraat işletme',
+      salesCategoryId: 'satis',
+      salesCategoryName: 'Satış geliri',
+      commissionRate: '0.0000',
+      transferDays: 0,
+      businessDaysOnly: true,
+      isActive: false,
+    ),
+  ];
+
+  @override
+  Future<List<PosDefinitionItem>> listDefinitions() async => _definitions;
+
+  @override
+  Future<PosOptions> loadOptions() async => const PosOptions(
+    accounts: [
+      DataChoice(
+        'ziraat-hesap',
+        'Ziraat işletme',
+        defaultScope: TransactionScope.business,
+      ),
+    ],
+    incomeCategories: [DataChoice('satis', 'Satış geliri')],
+    expenseCategories: [
+      DataChoice('kira', 'Kira'),
+      DataChoice('komisyon', 'Banka ve POS komisyonu'),
+    ],
+  );
+
+  @override
+  Future<PosPreview> preview({
+    required String definitionId,
+    required String grossAmount,
+    required String settlementDate,
+  }) async => const PosPreview(
+    commissionAmount: '396.3800',
+    netAmount: '22253.6200',
+    currency: 'TRY',
+    expectedTransferDate: '2026-09-28',
+  );
+
+  @override
+  Future<PosSettlementList> list({required bool inTransitOnly}) async =>
+      const PosSettlementList(
+        items: [],
+        moneyInTransit: '0.0000',
+        inTransitCount: 0,
+      );
+
+  @override
+  Future<void> create(Map<String, Object?> input) async {}
+
+  @override
+  Future<void> markTransferred({
+    required String settlementId,
+    required String transferDate,
+  }) async {}
+
+  @override
+  Future<void> revertTransfer({required String settlementId}) async {}
+
+  @override
+  Future<void> cancel({required String settlementId}) async {}
+
+  @override
+  Future<void> saveDefinition(
+    PosDefinitionInput input, {
+    String? definitionId,
+  }) async {}
+
+  @override
+  Future<void> setDefinitionActive({
+    required String definitionId,
+    required bool isActive,
+  }) async {}
+
+  @override
+  Future<void> deleteDefinition({required String definitionId}) async {}
+
+  @override
+  Future<void> setDefaultDefinition({required String definitionId}) async {}
+}

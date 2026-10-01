@@ -37,7 +37,8 @@ public sealed class DataPortabilityTests
         Assert.Equal(validation.EntityCount, restored.RestoredEntityCount);
         Assert.Equal("restore.destination_not_empty", conflict.Code);
         Assert.Equal("Geri yükleme için hesapta finansal veri bulunmamalıdır.", conflict.Message);
-        Assert.Equal(35, validation.EntityCount);
+        // İki POS tanımı (ADR 0019 T4) sayıya dahil.
+        Assert.Equal(37, validation.EntityCount);
         Assert.Equal(2, await context.Accounts.CountAsync(x => x.UserId == targetUserId));
         Assert.Equal(3, await context.Categories.CountAsync(x => x.UserId == targetUserId));
         Assert.Equal(3, await context.Transactions.CountAsync(x => x.UserId == targetUserId));
@@ -694,6 +695,33 @@ public sealed class DataPortabilityTests
         Assert.Equal(487.5m, yolda.NetAmount.Amount);
         Assert.Equal(0.025m, yolda.CommissionRate);
         Assert.NotNull(yolda.CommissionCategoryId);
+
+        // POS tanımları (ADR 0019 T4): ayarlar aynen döner, tahsilat hedef
+        // kullanıcının **yeni** tanımına bağlanır; tanımsız tahsilat tanımsız
+        // kalır.
+        var definitions = await context.PosDefinitions.AsNoTracking()
+            .Where(item => item.UserId == targetUserId)
+            .OrderBy(item => item.Name).ToArrayAsync();
+        Assert.Equal(2, definitions.Length);
+        var pasif = definitions[0];
+        var aktif = definitions[1];
+        Assert.Equal("Eski POS", pasif.Name);
+        Assert.False(pasif.IsActive);
+        Assert.Null(pasif.CommissionCategoryId);
+        Assert.Equal("Ziraat POS", aktif.Name);
+        Assert.True(aktif.IsActive);
+        Assert.Equal(0.025m, aktif.CommissionRate);
+        Assert.Equal(3, aktif.TransferDays);
+        Assert.True(aktif.BusinessDaysOnly);
+        // Ana POS işareti de döner.
+        Assert.True(aktif.IsDefault);
+        Assert.False(pasif.IsDefault);
+        Assert.Equal(aktif.Id, yolda.PosDefinitionId);
+        Assert.Null(gecmis.PosDefinitionId);
+        Assert.DoesNotContain(
+            await context.PosDefinitions.AsNoTracking()
+                .Where(item => item.UserId == sourceUserId).ToArrayAsync(),
+            item => item.Id == yolda.PosDefinitionId);
     }
 
     /// <summary>
@@ -1078,11 +1106,20 @@ public sealed class DataPortabilityTests
         // POS tahsilatı: biri hâlâ yolda (hesap kıpırdamadı), biri hesaba
         // geçmiş. İkisi birlikte, tek kaydın iki anının da kayıpsız döndüğünü
         // kanıtlıyor. Komisyonsuz olanın gider kategorisi de yoktur.
+        // POS tanımı: yoldaki tahsilat onunla yazıldı, geçmiş tahsilat
+        // tanımsız (tanımlar gelmeden önceki kayıt). İkinci tanım pasif.
+        var posTanimi = new PosDefinition(
+            Guid.NewGuid(), userId, "Ziraat POS", bank, incomeCategory, 0.025m,
+            expenseCategory, 3, true, utc);
+        posTanimi.SetDefault(true);
+        var pasifPosTanimi = new PosDefinition(
+            Guid.NewGuid(), userId, "Eski POS", bank, incomeCategory, 0m, null, 0, false, utc);
+        pasifPosTanimi.SetActive(false);
         var yoldakiTahsilat = new PosSettlement(
             Guid.NewGuid(), userId, bank, incomeCategory,
             new Money(500m, CurrencyCode.TRY), 12.5m, TransactionScope.Business,
             new DateOnly(2026, 8, 9), new DateOnly(2026, 8, 12), utc,
-            expenseCategory, "Kartlı satış");
+            expenseCategory, "Kartlı satış", posTanimi);
         var gecmisTahsilat = new PosSettlement(
             Guid.NewGuid(), userId, bank, incomeCategory,
             new Money(300m, CurrencyCode.TRY), 0m, TransactionScope.Business,
@@ -1112,7 +1149,7 @@ public sealed class DataPortabilityTests
             budget, transfer, card, charge, payment, plan, recurring, occurrence, batch,
             manav, kapanan, veresiye, vadeliAlim, tahsilat, iptalTahsilat,
             acikFatura, kapananAlacak, kasaFarki, eskiSayim, sayim,
-            yoldakiTahsilat, gecmisTahsilat, vergiKarsiligi);
+            posTanimi, pasifPosTanimi, yoldakiTahsilat, gecmisTahsilat, vergiKarsiligi);
         await context.SaveChangesAsync();
     }
 

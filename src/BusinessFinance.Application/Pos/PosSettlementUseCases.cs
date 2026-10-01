@@ -42,6 +42,7 @@ public sealed class ListPosSettlementsUseCase(
 public sealed class CreatePosSettlementUseCase(
     ICurrentUser currentUser,
     IPosSettlementRepository repository,
+    IPosDefinitionRepository definitionRepository,
     IAccountRepository accountRepository,
     ICategoryRepository categoryRepository,
     TimeProvider timeProvider)
@@ -63,8 +64,35 @@ public sealed class CreatePosSettlementUseCase(
                 PosSettlementErrors.CommissionAmbiguous);
         }
 
+        // Tanım formu doldurur; açıkça gönderilen alan tanımı ezer (ADR 0019 T4).
+        PosDefinition? definition = null;
+        if (command.PosDefinitionId is Guid definitionId)
+        {
+            definition = await definitionRepository.FindOwnedByIdAsync(
+                definitionId, userId, false, cancellationToken);
+            if (definition is null)
+            {
+                return ApplicationResult<PosSettlementDto>.Failure(
+                    PosSettlementErrors.DefinitionUnavailable);
+            }
+
+            if (!definition.IsActive)
+            {
+                return ApplicationResult<PosSettlementDto>.Failure(PosDefinitionErrors.Inactive);
+            }
+        }
+
+        if ((command.AccountId ?? definition?.AccountId) is not Guid accountId ||
+            (command.CategoryId ?? definition?.SalesCategoryId) is not Guid categoryId ||
+            (command.ExpectedTransferDate ?? definition?.ExpectedTransferDate(command.SettlementDate))
+                is not DateOnly expectedTransferDate)
+        {
+            return ApplicationResult<PosSettlementDto>.Failure(
+                PosSettlementErrors.DetailsRequired);
+        }
+
         var account = await accountRepository.FindOwnedByIdAsync(
-            command.AccountId, userId, cancellationToken);
+            accountId, userId, cancellationToken);
         if (account is null || !account.IsActive || account.Type != AccountType.Bank ||
             account.Currency != command.Currency)
         {
@@ -73,15 +101,34 @@ public sealed class CreatePosSettlementUseCase(
         }
 
         var category = await categoryRepository.FindOwnedByIdAsync(
-            command.CategoryId, userId, cancellationToken);
+            categoryId, userId, cancellationToken);
         if (category is null || !category.IsActive || category.Type != CategoryType.Income)
         {
             return ApplicationResult<PosSettlementDto>.Failure(
                 PosSettlementErrors.CategoryUnavailable);
         }
 
+        // Komisyon açıkça gelmediyse tanımın oranı uygulanır; kategori de
+        // tanımdan gelir.
+        var commissionRate = command.CommissionRate;
+        var commissionCategoryFromDefinition = false;
+        var requestedCommissionCategoryId = command.CommissionCategoryId;
+        if (definition is not null)
+        {
+            if (command.CommissionAmount is null && commissionRate is null)
+            {
+                commissionRate = definition.CommissionRate;
+            }
+
+            if (requestedCommissionCategoryId is null)
+            {
+                requestedCommissionCategoryId = definition.CommissionCategoryId;
+                commissionCategoryFromDefinition = true;
+            }
+        }
+
         Category? commissionCategory = null;
-        if (command.CommissionCategoryId is Guid commissionCategoryId)
+        if (requestedCommissionCategoryId is Guid commissionCategoryId)
         {
             commissionCategory = await categoryRepository.FindOwnedByIdAsync(
                 commissionCategoryId, userId, cancellationToken);
@@ -104,9 +151,15 @@ public sealed class CreatePosSettlementUseCase(
         try
         {
             var grossAmount = new Money(command.GrossAmount, command.Currency);
-            var commissionAmount = command.CommissionRate is decimal rate
+            var commissionAmount = commissionRate is decimal rate
                 ? PosSettlement.CommissionFromRate(grossAmount, rate)
                 : command.CommissionAmount ?? 0m;
+            // Tanımın kategorisi yalnız komisyon varsa taşınır; komisyonsuz
+            // tahsilat kategori taşımaz.
+            if (commissionAmount == 0m && commissionCategoryFromDefinition)
+            {
+                commissionCategory = null;
+            }
 
             var settlement = new PosSettlement(
                 Guid.NewGuid(),
@@ -117,10 +170,11 @@ public sealed class CreatePosSettlementUseCase(
                 commissionAmount,
                 scope,
                 command.SettlementDate,
-                command.ExpectedTransferDate,
+                expectedTransferDate,
                 timeProvider.GetUtcNow().ToUniversalTime(),
                 commissionCategory,
-                command.Description);
+                command.Description,
+                definition);
             await repository.AddAsync(settlement, cancellationToken);
 
             return ApplicationResult<PosSettlementDto>.Success(
@@ -129,7 +183,8 @@ public sealed class CreatePosSettlementUseCase(
                     account.Name,
                     category.Name,
                     commissionCategory?.Name,
-                    DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime)));
+                    DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime),
+                    definition?.Name));
         }
         catch (ArgumentException exception)
         {
@@ -154,6 +209,7 @@ public sealed class CreatePosSettlementUseCase(
 public sealed class MarkPosSettlementTransferredUseCase(
     ICurrentUser currentUser,
     IPosSettlementRepository repository,
+    IPosDefinitionRepository definitionRepository,
     IAccountRepository accountRepository,
     ICategoryRepository categoryRepository,
     TimeProvider timeProvider)
@@ -197,7 +253,7 @@ public sealed class MarkPosSettlementTransferredUseCase(
         return ApplicationResult<PosSettlementDto>.Success(
             await PosSettlementMapper.ToDtoAsync(
                 settlement, userId, accountRepository, categoryRepository,
-                timeProvider, cancellationToken));
+                definitionRepository, timeProvider, cancellationToken));
     }
 }
 
@@ -213,6 +269,7 @@ public sealed class MarkPosSettlementTransferredUseCase(
 public sealed class RevertPosSettlementTransferUseCase(
     ICurrentUser currentUser,
     IPosSettlementRepository repository,
+    IPosDefinitionRepository definitionRepository,
     IAccountRepository accountRepository,
     ICategoryRepository categoryRepository,
     TimeProvider timeProvider)
@@ -223,7 +280,8 @@ public sealed class RevertPosSettlementTransferUseCase(
     {
         ArgumentNullException.ThrowIfNull(command);
         return await PosSettlementMutation.ApplyAsync(
-            currentUser, repository, accountRepository, categoryRepository, timeProvider,
+            currentUser, repository, definitionRepository, accountRepository,
+            categoryRepository, timeProvider,
             command.SettlementId,
             settlement => settlement.RevertTransfer(),
             cancellationToken);
@@ -241,6 +299,7 @@ public sealed class RevertPosSettlementTransferUseCase(
 public sealed class CancelPosSettlementUseCase(
     ICurrentUser currentUser,
     IPosSettlementRepository repository,
+    IPosDefinitionRepository definitionRepository,
     IAccountRepository accountRepository,
     ICategoryRepository categoryRepository,
     TimeProvider timeProvider)
@@ -251,7 +310,8 @@ public sealed class CancelPosSettlementUseCase(
     {
         ArgumentNullException.ThrowIfNull(command);
         return await PosSettlementMutation.ApplyAsync(
-            currentUser, repository, accountRepository, categoryRepository, timeProvider,
+            currentUser, repository, definitionRepository, accountRepository,
+            categoryRepository, timeProvider,
             command.SettlementId,
             settlement => settlement.Cancel(timeProvider.GetUtcNow().ToUniversalTime()),
             cancellationToken);
@@ -267,6 +327,7 @@ internal static class PosSettlementMutation
     public static async Task<ApplicationResult<PosSettlementDto>> ApplyAsync(
         ICurrentUser currentUser,
         IPosSettlementRepository repository,
+        IPosDefinitionRepository definitionRepository,
         IAccountRepository accountRepository,
         ICategoryRepository categoryRepository,
         TimeProvider timeProvider,
@@ -302,7 +363,7 @@ internal static class PosSettlementMutation
         return ApplicationResult<PosSettlementDto>.Success(
             await PosSettlementMapper.ToDtoAsync(
                 settlement, userId, accountRepository, categoryRepository,
-                timeProvider, cancellationToken));
+                definitionRepository, timeProvider, cancellationToken));
     }
 }
 
@@ -314,9 +375,14 @@ internal static class PosSettlementMapper
         Guid userId,
         IAccountRepository accountRepository,
         ICategoryRepository categoryRepository,
+        IPosDefinitionRepository definitionRepository,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
+        var definition = settlement.PosDefinitionId is Guid definitionId
+            ? await definitionRepository.FindOwnedByIdAsync(
+                definitionId, userId, false, cancellationToken)
+            : null;
         var account = await accountRepository.FindOwnedByIdAsync(
             settlement.AccountId, userId, cancellationToken);
         var category = await categoryRepository.FindOwnedByIdAsync(
@@ -331,7 +397,8 @@ internal static class PosSettlementMapper
             account?.Name ?? string.Empty,
             category?.Name ?? string.Empty,
             commissionCategory?.Name,
-            DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime));
+            DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime),
+            definition?.Name);
     }
 
     public static PosSettlementDto ToDto(
@@ -339,7 +406,8 @@ internal static class PosSettlementMapper
         string accountName,
         string categoryName,
         string? commissionCategoryName,
-        DateOnly asOfDate)
+        DateOnly asOfDate,
+        string? definitionName = null)
     {
         return new PosSettlementDto(
             settlement.Id,
@@ -361,6 +429,8 @@ internal static class PosSettlementMapper
             settlement.Description,
             settlement.IsInTransit,
             settlement.IsCancelled,
-            settlement.IsInTransit && settlement.ExpectedTransferDate < asOfDate);
+            settlement.IsInTransit && settlement.ExpectedTransferDate < asOfDate,
+            settlement.PosDefinitionId,
+            definitionName);
     }
 }

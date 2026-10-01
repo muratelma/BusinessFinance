@@ -154,13 +154,18 @@ public static class PosSettlementEndpoints
                 "pos_settlements.invalid_settlement_date");
         }
 
-        if (!FinanceContract.TryParseDate(
-                request.ExpectedTransferDate, out var expectedTransferDate))
+        DateOnly? expectedTransferDate = null;
+        if (request.ExpectedTransferDate is not null)
         {
-            return ApiProblemResults.Validation(
-                httpContext,
-                "Expected transfer date must use the yyyy-MM-dd format.",
-                "pos_settlements.invalid_expected_transfer_date");
+            if (!FinanceContract.TryParseDate(request.ExpectedTransferDate, out var parsed))
+            {
+                return ApiProblemResults.Validation(
+                    httpContext,
+                    "Expected transfer date must use the yyyy-MM-dd format.",
+                    "pos_settlements.invalid_expected_transfer_date");
+            }
+
+            expectedTransferDate = parsed;
         }
 
         if (!FinanceContract.TryParseOptionalScope(request.Scope, out var scope))
@@ -183,7 +188,8 @@ public static class PosSettlementEndpoints
                 scope,
                 settlementDate,
                 expectedTransferDate,
-                request.Description),
+                request.Description,
+                request.PosDefinitionId),
             cancellationToken);
         if (!result.IsSuccess)
         {
@@ -264,5 +270,7 @@ public static class PosSettlementEndpoints
         settlement.Description,
         settlement.IsInTransit,
         settlement.IsCancelled,
-        settlement.IsLate);
+        settlement.IsLate,
+        settlement.PosDefinitionId,
+        settlement.PosDefinitionName);
 }
