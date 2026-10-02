@@ -743,6 +743,8 @@ public sealed class FinancialActivityEndpointTests
         Assert.Equal("receivable", afterSale.Side);
         Assert.Equal("increased", afterSale.Change);
         Assert.Null(afterSale.AvailableLimit);
+        // İlk kayıttan önce kişiyle açık bir hesap yoktu.
+        Assert.Equal("settled", afterSale.PreviousSide);
 
         // Tahsilat hesabı artırır, alacağı azaltır; sonraki tahsilat bunu
         // değiştirmez.
@@ -751,11 +753,17 @@ public sealed class FinancialActivityEndpointTests
             (await BalancesAsync("counterparty-settlement", collection.Id))
             .Select(item => (item.Holder, item.Balance, item.Change, item.Side)));
 
-        // Fazla tahsilat kırpılmaz: taraf değişir, tutar artı kalır.
+        // Fazla tahsilat kırpılmaz: taraf değişir, tutar artı kalır. Önceki
+        // taraf da döner ki istemci tarafın bu hareketle çevrildiğini söylesin.
+        var afterOver = await BalancesAsync("counterparty-settlement", overCollection.Id);
         Assert.Equal(
             [("account", "1800.0000", "increased", null), ("counterparty", "100.0000", "increased", "payable")],
-            (await BalancesAsync("counterparty-settlement", overCollection.Id))
-            .Select(item => (item.Holder, item.Balance, item.Change, item.Side)));
+            afterOver.Select(item => (item.Holder, item.Balance, item.Change, item.Side)));
+        Assert.Equal("receivable", afterOver[1].PreviousSide);
+        Assert.Null(afterOver[0].PreviousSide);
+        // Tarafı değiştirmeyen tahsilatta önceki ve sonraki taraf aynıdır.
+        var afterFirstCollection = await BalancesAsync("counterparty-settlement", collection.Id);
+        Assert.Equal(("receivable", "receivable"), (afterFirstCollection[1].PreviousSide, afterFirstCollection[1].Side));
 
         // Tek seferlik borç da aynı cariye yazılır; kapanınca düşer.
         var obligation = await PostAsync<ObligationResponse>(
@@ -774,6 +782,22 @@ public sealed class FinancialActivityEndpointTests
         Assert.Equal(
             [("account", "1500.0000", "decreased", null), ("counterparty", "100.0000", "decreased", "payable")],
             afterSettlement.Select(item => (item.Holder, item.Balance, item.Change, item.Side)));
+
+        // Akış: cari ve yükümlülük kayıtları yönünü taşır; kaynak hep hesap,
+        // hedef hep karşı taraftır (alacak tahsilatında da yer değiştirmez).
+        var feed = await owner.GetFromJsonAsync<FinancialActivityListResponse>(
+            "/api/v1/financial-activities?pageSize=50");
+        var settlementRow = Assert.Single(
+            feed!.Items, item => item.ActivityId == settled.SettlementId!.Value);
+        Assert.Equal(
+            ("Bank", "Ahmet Bakkal", "payable"),
+            (settlementRow.SourceName, settlementRow.DestinationName, settlementRow.Direction));
+        var collectionRow = Assert.Single(feed.Items, item => item.ActivityId == collection.Id);
+        Assert.Equal(
+            ("Bank", "Ahmet Bakkal", "receivable"),
+            (collectionRow.SourceName, collectionRow.DestinationName, collectionRow.Direction));
+        Assert.Equal("receivable", Assert.Single(feed.Items, item => item.ActivityId == sale.Id).Direction);
+        Assert.Equal("payable", Assert.Single(feed.Items, item => item.ActivityId == obligation.Id).Direction);
 
         // Kapanış, yükümlülüğün kendi sonrasını değiştirmez: o an hâlâ açıktı.
         Assert.Equal(

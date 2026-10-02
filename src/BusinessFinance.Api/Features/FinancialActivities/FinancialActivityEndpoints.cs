@@ -71,7 +71,10 @@ public static class FinancialActivityEndpoints
                     balance.Currency.ToString(),
                     BalanceChangeValues[balance.Change],
                     balance.AvailableLimit is decimal limit ? FinanceContract.Money(limit) : null,
-                    balance.Side is ActivityBalanceSide side ? BalanceSideValues[side] : null))
+                    balance.Side is ActivityBalanceSide side ? BalanceSideValues[side] : null,
+                    balance.PreviousSide is ActivityBalanceSide previous
+                        ? BalanceSideValues[previous]
+                        : null))
                 .ToArray()));
     }
 
@@ -313,7 +316,13 @@ public static class FinancialActivityEndpoints
             activity.TransferredOn is DateOnly transferred
                 ? FinanceContract.Date(transferred)
                 : null,
-            activity.SettlementCount);
+            activity.SettlementCount,
+            activity.Direction switch
+            {
+                BusinessFinance.Domain.DebtDirection.Receivable => "receivable",
+                BusinessFinance.Domain.DebtDirection.Payable => "payable",
+                _ => null
+            });
     }
 
     private static bool TryParseOptionalDate(string? value, out DateOnly? date)

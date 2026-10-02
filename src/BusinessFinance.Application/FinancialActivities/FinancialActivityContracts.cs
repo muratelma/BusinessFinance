@@ -203,7 +203,14 @@ public sealed record FinancialActivityRow(
     DateOnly? TransferredOn = null,
 
     /// <summary>Yatışın kapattığı tahsilat sayısı; geri alınmış yatışta sıfır.</summary>
-    int? SettlementCount = null);
+    int? SettlementCount = null,
+
+    /// <summary>
+    /// Cari ve yükümlülük kayıtlarında yön: alacak mı, borç mu. Aynı tür iki
+    /// yönü de taşır (tahsilat / ödeme); istemci adı ve paranın akış yönünü
+    /// bundan kurar. Diğer türlerde boştur.
+    /// </summary>
+    DebtDirection? Direction = null);
 
 /// <summary>
 /// Bakiyesi gösterilen yer: bir hesap, bir kredi kartı, bir karşı tarafın
@@ -271,7 +278,10 @@ public sealed record ActivityBalanceAfter(
     // tutulmaz; kartın <b>bugünkü</b> limitiyle hesaplanır.
     decimal? AvailableLimit = null,
     // Yalnız cari ve borçta.
-    ActivityBalanceSide? Side = null);
+    ActivityBalanceSide? Side = null,
+    // Yalnız caride: hareketten hemen önceki taraf. Sonrakinden farklıysa
+    // hareket tarafı çevirmiştir (alacak kapandı, geriye borç kaldı).
+    ActivityBalanceSide? PreviousSide = null);
 
 public interface IActivityBalanceReader
 {

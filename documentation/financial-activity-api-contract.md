@@ -185,6 +185,21 @@ sözleşmede durur ama bugün hiçbir akış satırında dönmez.
 kalır. Komisyon brüt tutardan **düşülmez**: gelir brüt kadar tanınır, komisyon
 kendi kategorisinde ayrı bir giderdir.
 
+### Yön (`direction`)
+
+Cari ve yükümlülük satırları yönünü taşır: `receivable` (karşı taraf bize
+borçlu) ya da `payable` (biz ona borçluyuz); diğer türlerde `null`.
+`counterparty-settlement` ve `obligation-settlement` iki yönü de taşıyan
+türlerdir: aynı tür hem **tahsilat** hem **ödeme**dir, hangisi olduğunu yön
+söyler. İstemci adı (`Cari tahsilat` / `Cari ödeme`, `Alacak tahsilatı` /
+`Borç ödemesi`) ve paranın akış yönünü (`kişi → hesap` ya da `hesap → kişi`)
+bundan kurar.
+
+Bu iki türde **`sourceName` hep hesap, `destinationName` hep karşı taraftır**
+(2 Ekim 2026). `obligation-settlement` daha önce adları paranın akış yönüyle
+gönderiyordu; alacak tahsilatında hesap ile karşı taraf yer değiştiriyor ve
+ayrıntı "Hesap: Ahmet Bakkal" yazıyordu.
+
 ### Sıra
 
 ```text
@@ -252,6 +267,10 @@ ayrıntı açıldığında okunur. Kalıcı bir alan değildir.
   `payable` (biz ona borçluyuz), `settled` (açık tutar yok). Fazla tahsilat
   kırpılmaz, tarafı çevirir. Kaynakları kişinin güncel bakiyesiyle aynıdır
   (borçlandırma, tahsilat/ödeme, açık yükümlülük).
+- Cari bakiye **önceki tarafı** da taşır (`previousSide`): hareketten hemen
+  önce kim kime borçluydu. Sonrakinden farklıysa hareket tarafı çevirmiştir
+  (alacak tahsil edildi, geriye borç kaldı); istemci bunu tek satırla söyler.
+  İlk kayıtta `settled`'dır.
 - **Borç kayıtları anlaşmanın kalanını döner** (`holder: "debt"`): açılış ve
   taksit. `balance` o an henüz ödenmemiş taksitlerin toplamıdır; `side`
   anlaşmanın yönüdür, kalan sıfırsa `settled`.

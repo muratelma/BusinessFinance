@@ -61,7 +61,13 @@ public sealed record FinancialActivityResponse(
     string? TransferredOn = null,
 
     /// <summary>Yatışın kapattığı tahsilat sayısı.</summary>
-    int? SettlementCount = null);
+    int? SettlementCount = null,
+
+    /// <summary>
+    /// Cari ve yükümlülük kayıtlarında yön: <c>receivable</c> ya da
+    /// <c>payable</c>; diğer türlerde <c>null</c>.
+    /// </summary>
+    string? Direction = null);
 
 /// <summary>
 /// Bir hareketten hemen sonra hesabın bakiyesi ya da kartın borcu.
@@ -71,6 +77,7 @@ public sealed record FinancialActivityResponse(
 /// <c>decreased</c> ya da <c>unchanged</c> (POS satışı: para henüz yolda).
 /// <c>availableLimit</c> yalnız kartta, <c>side</c> yalnız cari ve borçta
 /// dolar: <c>receivable</c>, <c>payable</c> ya da <c>settled</c>.
+/// <c>previousSide</c> yalnız caride: hareketten hemen önceki taraf.
 /// </summary>
 public sealed record ActivityBalanceResponse(
     string Holder,
@@ -80,7 +87,8 @@ public sealed record ActivityBalanceResponse(
     string Currency,
     string Change,
     string? AvailableLimit = null,
-    string? Side = null);
+    string? Side = null,
+    string? PreviousSide = null);
 
 /// <summary>
 /// Hareketin hesabı ya da kartı yoksa, iptal edilmişse ya da ne zaman

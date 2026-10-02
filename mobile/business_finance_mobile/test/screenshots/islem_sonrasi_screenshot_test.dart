@@ -50,6 +50,7 @@ FinancialActivity _row(
   String? destination,
   String? category,
   TransactionScope? scope,
+  ActivityDirection? direction,
 }) => FinancialActivity(
   activityId: id,
   kind: kind,
@@ -67,6 +68,7 @@ FinancialActivity _row(
   canCancel: true,
   supportsAttachments: false,
   scope: scope,
+  direction: direction,
 );
 
 final _items = [
@@ -76,9 +78,10 @@ final _items = [
     ActivityEffect.neutral,
     ActivitySourceGroup.account,
     'Ahmet Bakkal',
-    '200.0000',
+    '600.0000',
     source: 'Kasa',
     destination: 'Ahmet Bakkal',
+    direction: ActivityDirection.receivable,
   ),
   _row(
     'taksit',
@@ -111,17 +114,18 @@ class _Feed extends Fake implements ActivityRepositoryContract {
       ActivityBalance(
         holder: ActivityBalanceHolder.account,
         name: 'Kasa',
-        balance: '1200.0000',
+        balance: '1600.0000',
         currency: 'TRY',
         change: ActivityBalanceChange.increased,
       ),
       ActivityBalance(
         holder: ActivityBalanceHolder.counterparty,
         name: 'Ahmet Bakkal',
-        balance: '500.0000',
+        balance: '100.0000',
         currency: 'TRY',
-        change: ActivityBalanceChange.decreased,
-        side: ActivityBalanceSide.receivable,
+        change: ActivityBalanceChange.increased,
+        side: ActivityBalanceSide.payable,
+        previousSide: ActivityBalanceSide.receivable,
       ),
     ],
     ActivityKind.debtPayment => const [

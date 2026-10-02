@@ -325,15 +325,19 @@ void main() {
     testWidgets('cari kayıt kişinin açık bakiyesini tarafıyla yazar', (
       tester,
     ) async {
-      ActivityBalance person(String amount, ActivityBalanceSide side) =>
-          ActivityBalance(
-            holder: ActivityBalanceHolder.counterparty,
-            name: 'Ahmet Bakkal',
-            balance: amount,
-            currency: 'TRY',
-            change: ActivityBalanceChange.decreased,
-            side: side,
-          );
+      ActivityBalance person(
+        String amount,
+        ActivityBalanceSide side, {
+        ActivityBalanceSide previous = ActivityBalanceSide.receivable,
+      }) => ActivityBalance(
+        holder: ActivityBalanceHolder.counterparty,
+        name: 'Ahmet Bakkal',
+        balance: amount,
+        currency: 'TRY',
+        change: ActivityBalanceChange.decreased,
+        side: side,
+        previousSide: previous,
+      );
       final charge = _activity(
         kind: ActivityKind.counterpartyCharge,
         effect: ActivityEffect.income,
@@ -349,10 +353,15 @@ void main() {
       final before = tester.getSize(find.byType(ActivityDetailSheet));
       pending.complete([person('500.0000', ActivityBalanceSide.receivable)]);
       await tester.pumpAndSettle();
-      expect(find.text('₺500,00 alacak'), findsOneWidget);
+      // Etiket tarafı söyler; taraf değişmediyse açıklama yoktur.
+      expect(find.text('Alacağın'), findsOneWidget);
+      expect(find.text('Cari'), findsNothing);
+      expect(find.text('₺500,00'), findsOneWidget);
+      expect(find.textContaining('kapandı'), findsNothing);
       expect(tester.getSize(find.byType(ActivityDetailSheet)), before);
 
-      // Fazla tahsilat tarafı çevirir; tutar artı kalır.
+      // Taraf çevrildi: tutar artı kalır, etiket `Borcun` olur ve neden
+      // değiştiğini tek satır söyler.
       await _pumpSheet(
         tester,
         charge,
@@ -360,7 +369,42 @@ void main() {
           person('100.0000', ActivityBalanceSide.payable),
         ]),
       );
-      expect(find.text('₺100,00 borç'), findsOneWidget);
+      expect(find.text('Borcun'), findsOneWidget);
+      expect(find.text('₺100,00'), findsOneWidget);
+      expect(
+        find.text('Alacağın kapandı; ₺100,00 borcun var.'),
+        findsOneWidget,
+      );
+
+      await _pumpSheet(
+        tester,
+        charge,
+        balances: Future.value([
+          person(
+            '250.0000',
+            ActivityBalanceSide.receivable,
+            previous: ActivityBalanceSide.payable,
+          ),
+        ]),
+      );
+      expect(
+        find.text('Borcun kapandı; ₺250,00 alacağın var.'),
+        findsOneWidget,
+      );
+
+      // İlk kayıt çevirme değildir: önce açık hesap yoktu.
+      await _pumpSheet(
+        tester,
+        charge,
+        balances: Future.value([
+          person(
+            '700.0000',
+            ActivityBalanceSide.receivable,
+            previous: ActivityBalanceSide.settled,
+          ),
+        ]),
+      );
+      expect(find.textContaining('kapandı'), findsNothing);
 
       await _pumpSheet(
         tester,
@@ -368,7 +412,102 @@ void main() {
         balances: Future.value([person('0.0000', ActivityBalanceSide.settled)]),
       );
       expect(find.text('Kapandı'), findsOneWidget);
+      expect(find.text('Cari'), findsOneWidget);
       expect(find.textContaining('₺0,00'), findsNothing);
+      expect(find.textContaining('kapandı;'), findsNothing);
+    });
+
+    testWidgets('tahsilat ile ödeme adını ve yönünü yönden alır', (
+      tester,
+    ) async {
+      FinancialActivity settlement(
+        ActivityKind kind,
+        ActivityDirection? direction,
+      ) => FinancialActivity(
+        activityId: 'settlement-1',
+        kind: kind,
+        effect: ActivityEffect.neutral,
+        sourceGroup: ActivitySourceGroup.account,
+        origin: ActivityOrigin.manual,
+        status: ActivityStatus.realized,
+        activityDate: '2026-10-02',
+        amount: '400.0000',
+        currency: 'TRY',
+        title: 'Tek seferlik alacak',
+        sourceName: 'Dukkan Kasasi',
+        destinationName: 'Ahmet Bakkal',
+        canCancel: false,
+        supportsAttachments: false,
+        direction: direction,
+      );
+      final collection = settlement(
+        ActivityKind.obligationSettlement,
+        ActivityDirection.receivable,
+      );
+
+      expect(collection.kindLabel, 'Alacak tahsilatı');
+      expect(
+        settlement(
+          ActivityKind.obligationSettlement,
+          ActivityDirection.payable,
+        ).kindLabel,
+        'Borç ödemesi',
+      );
+      expect(
+        settlement(
+          ActivityKind.counterpartySettlement,
+          ActivityDirection.receivable,
+        ).kindLabel,
+        'Cari tahsilat',
+      );
+      expect(
+        settlement(
+          ActivityKind.counterpartySettlement,
+          ActivityDirection.payable,
+        ).kindLabel,
+        'Cari ödeme',
+      );
+      // Yön gelmezse eski, iki yönü de karşılayan ad kalır.
+      expect(
+        settlement(ActivityKind.counterpartySettlement, null).kindLabel,
+        'Cari tahsilat / ödeme',
+      );
+
+      // Ayrıntı: hesap hesaptır, kişi kişidir; alt başlık tahsilat der.
+      await _pumpSheet(tester, collection);
+      expect(find.text('Alacak tahsilatı'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.widgetWithText(AppDetailRow, 'Hesap'),
+          matching: find.text('Dukkan Kasasi'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.widgetWithText(AppDetailRow, 'Karşı taraf'),
+          matching: find.text('Ahmet Bakkal'),
+        ),
+        findsOneWidget,
+      );
+
+      // Liste: tahsilatta para kişiden hesaba gelir, ödemede hesaptan kişiye.
+      await _pumpTile(tester, collection);
+      expect(
+        find.textContaining('Ahmet Bakkal → Dukkan Kasasi'),
+        findsOneWidget,
+      );
+      await _pumpTile(
+        tester,
+        settlement(
+          ActivityKind.obligationSettlement,
+          ActivityDirection.payable,
+        ),
+      );
+      expect(
+        find.textContaining('Dukkan Kasasi → Ahmet Bakkal'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('tahsilat hesabın bakiyesini ve kişinin carisini ayırır', (
@@ -402,8 +541,8 @@ void main() {
       );
 
       expect(find.text('Bakiye'), findsOneWidget);
-      expect(find.text('Cari'), findsOneWidget);
-      expect(find.text('₺500,00 alacak'), findsOneWidget);
+      expect(find.text('Alacağın'), findsOneWidget);
+      expect(find.text('₺500,00'), findsOneWidget);
     });
 
     testWidgets('borç taksidi kalan borcu, kapanan borç "Kapandı" yazar', (

@@ -86,7 +86,7 @@ class ActivityTile extends StatelessWidget {
                             // ve bir cümle olabilir; tamamı ayrıntıdadır.
                             Text(
                               activity.title.isEmpty
-                                  ? activity.kind.label
+                                  ? activity.kindLabel
                                   : activity.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -188,6 +188,9 @@ class ActivityTile extends StatelessWidget {
     final source = activity.sourceName;
     final destination = activity.destinationName;
     final route = switch ((source, destination)) {
+      // Tahsilatta para karşı taraftan hesaba gelir: ok ters yazılır.
+      (final String account, final String person) when activity.isCollection =>
+        '$person → $account',
       (final String from, final String to) => '$from → $to',
       (final String from, null) => from,
       (null, final String to) => to,
@@ -249,7 +252,7 @@ class ActivityTile extends StatelessWidget {
   /// screen reader conveys everything the colour and icon imply visually.
   String _semanticsLabel() {
     final buffer = StringBuffer()
-      ..write(activity.kind.label)
+      ..write(activity.kindLabel)
       ..write('. ')
       ..write(activity.title.isEmpty ? '' : '${activity.title}. ')
       ..write(switch (activity.effect) {

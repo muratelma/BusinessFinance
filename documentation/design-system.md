@@ -327,10 +327,18 @@ Birkaç bileşenin sözleşmesinde neden şu kararların olduğu:
   kullanıcı kararı). Üçü de düz yazılır; yeşil/kırmızı yalnız hesap
   bakiyesinde ve kart borcundadır ("alacağım arttı"nın iyi mi kötü mü olduğu
   belli değildir):
-  - `Cari` — kişinin açık bakiyesi: `₺500,00 alacak`, `₺100,00 borç` ya da
-    `Kapandı`. Veresiye/vadeli kayıt, tahsilat/ödeme ve karşı tarafı olan tek
-    seferlik borç/alacakta. Tutar ve taraf sunucudan gelir; kelimeyi istemci
-    yazar.
+  - Kişinin açık bakiyesi — **etiket ve ikon tarafı söyler**: `Alacağın`
+    (`call_received`) ya da `Borcun` (`call_made`), yanında tutar; açık tutar
+    yoksa `Cari — Kapandı`. Veresiye/vadeli kayıt, tahsilat/ödeme ve karşı
+    tarafı olan tek seferlik borç/alacakta. İlk teslimde satır
+    `Cari — ₺100,00 borç` idi; kullanıcı emülatörde fazla tahsilat sonrası
+    kimin kime borçlu olduğunu okuyamadı. Dört seçenek çizildi; seçilen bu.
+  - **Taraf çevrildiyse tek satır açıklama** gri bloğun hemen altında,
+    `swap_vert` ikonuyla: `Alacağın kapandı; ₺100,00 borcun var.` (tersi:
+    `Borcun kapandı; … alacağın var.`). Yalnız o hareket tarafı çevirdiğinde
+    çıkar (`previousSide` ≠ `side`); ilk kayıt ve kapanış çevirme değildir.
+    Cümle nedeni varsaymaz: fazla tahsilat da olabilir, eskiden kalan bir
+    borç da.
   - `Kalan` — borç anlaşmasının kalanı; sıfırsa `Kapandı`. Borç açılışı ve
     taksitte.
   - `Limit` — kartın o andaki borca göre kalan limiti; `Kart borcu`nun
@@ -338,6 +346,11 @@ Birkaç bileşenin sözleşmesinde neden şu kararların olduğu:
   Satırların ikonu ve etiketi tek yerdedir (`_BalanceSlot`): cevap beklenirken
   çizilen `…` satırı ile dolu satır aynıdır, panel boyut değiştirmez. `Kalan
   limit` denendi ve 2.0× yazıda taştı; etiket bu yüzden `Limit`.
+- **Tahsilat ile ödeme adını yönden alır.** `Cari tahsilat` / `Cari ödeme`,
+  `Alacak tahsilatı` / `Borç ödemesi`; yön gelmezse iki yönü karşılayan eski
+  ad kalır. Liste satırında ok paranın yönüdür: tahsilatta `kişi → hesap`,
+  ödemede `hesap → kişi`. Ayrıntıda `Hesap` hep hesap, `Karşı taraf` hep
+  kişidir.
 - **`İşlem ekle` launcher'ı başlıklıdır.** Dokuz satır düz listede telefonda
   kaydırmadan okunmuyordu; satırlar niyet başlıklarının (`Para girdi`,
   `Para çıktı`, `Para taşı`, `Belge okut`, `Plan kur`) altında yoğun

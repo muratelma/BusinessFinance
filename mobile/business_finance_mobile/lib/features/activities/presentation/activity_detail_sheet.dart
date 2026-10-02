@@ -45,7 +45,7 @@ class ActivityDetailSheet extends StatelessWidget {
       ActivityEffect.income => 'Gelir',
       ActivityEffect.expense => 'Gider',
       // Nötr hareketin adı türüdür: transfer, kart ödemesi, borç ödemesi.
-      ActivityEffect.neutral => activity.kind.label,
+      ActivityEffect.neutral => activity.kindLabel,
     };
     final subtitle = [
       effectLabel,
@@ -76,7 +76,7 @@ class ActivityDetailSheet extends StatelessWidget {
                         header: true,
                         child: Text(
                           activity.title.isEmpty
-                              ? activity.kind.label
+                              ? activity.kindLabel
                               : activity.title,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -139,14 +139,21 @@ class ActivityDetailSheet extends StatelessWidget {
             const SizedBox(height: AppSpacing.small + AppSpacing.xSmall),
             FutureBuilder<List<ActivityBalance>>(
               future: balances,
-              builder: (context, snapshot) => AppDetailBlock(
-                rows: [
-                  ..._rows(context),
-                  ..._balanceRows(
-                    context,
-                    balances == null ? const [] : snapshot.data,
-                    failed: snapshot.hasError,
+              builder: (context, snapshot) => Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppDetailBlock(
+                    rows: [
+                      ..._rows(context),
+                      ..._balanceRows(
+                        context,
+                        balances == null ? const [] : snapshot.data,
+                        failed: snapshot.hasError,
+                      ),
+                    ],
                   ),
+                  ?_flipNote(context, snapshot.data),
                 ],
               ),
             ),
@@ -246,19 +253,26 @@ class ActivityDetailSheet extends StatelessWidget {
               ),
           ],
           // Tutar hep artıdır; kimin kime borçlu olduğunu sunucunun
-          // gönderdiği taraf söyler.
+          // gönderdiği taraf söyler. Etiket ve ikon tarafı taşır: "cari"
+          // kelimesini bilmeyen de `Alacağın` ile `Borcun`u ayırır.
           ActivityBalanceHolder.counterparty => [
-            AppDetailRow(
-              icon: _BalanceSlot.counterparty.icon,
-              label: _BalanceSlot.counterparty.label,
-              value: switch (item.side) {
-                ActivityBalanceSide.receivable =>
-                  '${MoneyText.format(item.balance, item.currency)} alacak',
-                ActivityBalanceSide.payable =>
-                  '${MoneyText.format(item.balance, item.currency)} borç',
-                ActivityBalanceSide.settled || null => 'Kapandı',
-              },
-            ),
+            switch (item.side) {
+              ActivityBalanceSide.receivable => AppDetailRow(
+                icon: Icons.call_received,
+                label: 'Alacağın',
+                trailing: _plainMoney(item.balance, item.currency),
+              ),
+              ActivityBalanceSide.payable => AppDetailRow(
+                icon: Icons.call_made,
+                label: 'Borcun',
+                trailing: _plainMoney(item.balance, item.currency),
+              ),
+              ActivityBalanceSide.settled || null => AppDetailRow(
+                icon: _BalanceSlot.counterparty.icon,
+                label: _BalanceSlot.counterparty.label,
+                value: 'Kapandı',
+              ),
+            },
           ],
           ActivityBalanceHolder.debt => [
             AppDetailRow(
@@ -274,6 +288,40 @@ class ActivityDetailSheet extends StatelessWidget {
           ],
         },
     ];
+  }
+
+  /// Hareket carinin tarafını çevirdiyse tek satır açıklama: alacak tahsil
+  /// edilirken geriye borç kalması (fazla tahsilat, eski bir borç) satırdaki
+  /// `Borcun` etiketiyle tek başına anlaşılmıyordu.
+  Widget? _flipNote(BuildContext context, List<ActivityBalance>? loaded) {
+    if (loaded == null || activity.isCancelled) return null;
+    final flipped = loaded.where((item) => item.flippedSide).firstOrNull;
+    if (flipped == null) return null;
+    final surfaces = AppSurfaces.of(context);
+    final amount = MoneyText.format(flipped.balance, flipped.currency);
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.small + AppSpacing.xSmall),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.swap_vert, size: 16, color: surfaces.inkMuted),
+          const SizedBox(width: AppSpacing.small),
+          Expanded(
+            child: Text(
+              flipped.side == ActivityBalanceSide.payable
+                  ? 'Alacağın kapandı; $amount borcun var.'
+                  : 'Borcun kapandı; $amount alacağın var.',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w400,
+                letterSpacing: 0,
+                height: 1.4,
+                color: surfaces.inkMuted,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   static Widget _coloredMoney(ActivityBalance item) => AppMoneyText(

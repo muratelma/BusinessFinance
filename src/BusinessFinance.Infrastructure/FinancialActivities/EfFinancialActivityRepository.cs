@@ -106,14 +106,12 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
             // tahsilat kırpılmaz; taraf değiştirir.
             var net = await CounterpartyNet.SumAsync(
                 dbContext, counterpartyId, userId, cutoff, cancellationToken);
-            var side = net > 0m
-                ? ActivityBalanceSide.Receivable
-                : net < 0m ? ActivityBalanceSide.Payable : ActivityBalanceSide.Settled;
+            var side = SideOf(net);
             // Gösterilen tutar hep artıdır; "arttı" o tutarın büyüdüğünü söyler.
             var grew = side switch
             {
-                ActivityBalanceSide.Receivable => located.CounterpartyNetIncreases,
-                ActivityBalanceSide.Payable => !located.CounterpartyNetIncreases,
+                ActivityBalanceSide.Receivable => located.CounterpartyNetDelta > 0m,
+                ActivityBalanceSide.Payable => located.CounterpartyNetDelta < 0m,
                 _ => false
             };
             balances.Add(new ActivityBalanceAfter(
@@ -123,7 +121,9 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Math.Abs(net),
                 CurrencyCode.TRY,
                 grew ? ActivityBalanceChange.Increased : ActivityBalanceChange.Decreased,
-                Side: side));
+                Side: side,
+                // Hareketin kendi etkisi geri alınınca önceki bakiye kalır.
+                PreviousSide: SideOf(net - located.CounterpartyNetDelta)));
         }
 
         if (located.DebtAgreementId is Guid debtId)
@@ -163,6 +163,11 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
 
         return balances;
     }
+
+    private static ActivityBalanceSide SideOf(decimal net) =>
+        net > 0m
+            ? ActivityBalanceSide.Receivable
+            : net < 0m ? ActivityBalanceSide.Payable : ActivityBalanceSide.Settled;
 
     /// <summary>
     /// Hareketi kendi tablosunda, sahiplik kapsamıyla bulur: günü, giriş anı
@@ -311,7 +316,9 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                         AccountIncreases = item.Direction == DebtDirection.Receivable,
                         CounterpartyId = item.CounterpartyId,
                         // Tahsilat alacağı, ödeme borcu kapatır.
-                        CounterpartyNetIncreases = item.Direction == DebtDirection.Payable
+                        CounterpartyNetDelta = item.Direction == DebtDirection.Payable
+                            ? item.Amount.Amount
+                            : -item.Amount.Amount
                     })
                     .SingleOrDefaultAsync(cancellationToken);
 
@@ -333,7 +340,9 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                                                  obligation.Id == item.ObligationId)
                             .Select(obligation => obligation.CounterpartyId)
                             .FirstOrDefault(),
-                        CounterpartyNetIncreases = item.Direction == DebtDirection.Payable
+                        CounterpartyNetDelta = item.Direction == DebtDirection.Payable
+                            ? item.Amount.Amount
+                            : -item.Amount.Amount
                     })
                     .SingleOrDefaultAsync(cancellationToken);
 
@@ -369,7 +378,9 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                         null)
                     {
                         CounterpartyId = item.CounterpartyId,
-                        CounterpartyNetIncreases = item.Direction == DebtDirection.Receivable
+                        CounterpartyNetDelta = item.Direction == DebtDirection.Receivable
+                            ? item.Amount.Amount
+                            : -item.Amount.Amount
                     })
                     .SingleOrDefaultAsync(cancellationToken);
 
@@ -387,7 +398,9 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                         null)
                     {
                         CounterpartyId = item.CounterpartyId,
-                        CounterpartyNetIncreases = item.Direction == DebtDirection.Receivable
+                        CounterpartyNetDelta = item.Direction == DebtDirection.Receivable
+                            ? item.Amount.Amount
+                            : -item.Amount.Amount
                     })
                     .SingleOrDefaultAsync(cancellationToken);
 
@@ -434,10 +447,10 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
         public Guid? CounterpartyId { get; init; }
 
         /// <summary>
-        /// Net cari (alacak − borç) arttıysa <c>true</c>: alacak yazıldı ya
-        /// da borç ödendi.
+        /// Hareketin net cariye (alacak − borç) etkisi: alacak yazılınca ya
+        /// da borç ödenince artı, tahsilatta ya da borç yazılınca eksi.
         /// </summary>
-        public bool CounterpartyNetIncreases { get; init; }
+        public decimal CounterpartyNetDelta { get; init; }
 
         /// <summary>Kalan tutarı değişen borç anlaşması; yoksa boş.</summary>
         public Guid? DebtAgreementId { get; init; }
@@ -589,6 +602,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 NetAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
+                Direction = (int?)null,
                 SettlementCount = (int?)null,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
@@ -639,6 +653,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 NetAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
+                Direction = (int?)null,
                 SettlementCount = (int?)null,
                 MatchAccountId = source.Id,
                 MatchSecondAccountId = destination.Id,
@@ -694,6 +709,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 NetAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
+                Direction = (int?)null,
                 SettlementCount = (int?)null,
                 MatchAccountId = null,
                 MatchSecondAccountId = null,
@@ -744,6 +760,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 NetAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
+                Direction = (int?)null,
                 SettlementCount = (int?)null,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
@@ -805,6 +822,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 NetAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
+                Direction = (int?)null,
                 SettlementCount = (int?)null,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
@@ -860,6 +878,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 NetAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
+                Direction = (int?)null,
                 SettlementCount = (int?)null,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
@@ -916,6 +935,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 NetAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
+                Direction = (int?)null,
                 SettlementCount = (int?)null,
                 MatchAccountId = null,
                 MatchSecondAccountId = null,
@@ -975,6 +995,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 NetAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
+                Direction = (int?)charge.Direction,
                 SettlementCount = (int?)null,
                 MatchAccountId = null,
                 MatchSecondAccountId = null,
@@ -1025,6 +1046,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 NetAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
+                Direction = (int?)payment.Direction,
                 SettlementCount = (int?)null,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
@@ -1078,6 +1100,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 NetAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
+                Direction = (int?)obligation.Direction,
                 SettlementCount = (int?)null,
                 MatchAccountId = null,
                 MatchSecondAccountId = null,
@@ -1121,18 +1144,13 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Description = obligation.Description,
                 CategoryId = null,
                 CategoryName = null,
-                SourceId = settlement.Direction == DebtDirection.Payable
-                    ? account.Id
-                    : counterparty == null ? null : counterparty.Id,
-                SourceName = settlement.Direction == DebtDirection.Payable
-                    ? account.Name
-                    : counterparty == null ? null : counterparty.Name,
-                DestinationId = settlement.Direction == DebtDirection.Receivable
-                    ? account.Id
-                    : counterparty == null ? null : counterparty.Id,
-                DestinationName = settlement.Direction == DebtDirection.Receivable
-                    ? account.Name
-                    : counterparty == null ? null : counterparty.Name,
+                // Kaynak hep hesap, hedef hep karşı taraf — cari tahsilat ve
+                // ödemeyle aynı. Paranın hangi yöne aktığını `Direction` söyler;
+                // ad yön değiştirince istemci hesabı karşı taraf sanıyordu.
+                SourceId = (Guid?)account.Id,
+                SourceName = account.Name,
+                DestinationId = counterparty == null ? null : (Guid?)counterparty.Id,
+                DestinationName = counterparty == null ? null : counterparty.Name,
                 CancelledAtUtc = settlement.CancelledAtUtc,
                 Scope = null,
                 PrincipalPortion = null,
@@ -1143,6 +1161,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 NetAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
+                Direction = (int?)settlement.Direction,
                 SettlementCount = (int?)null,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
@@ -1205,6 +1224,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 NetAmount = (decimal?)(settlement.GrossAmount.Amount - settlement.CommissionAmount),
                 ExpectedTransferDate = (DateOnly?)settlement.ExpectedTransferDate,
                 TransferredOn = settlement.TransferredOn,
+                Direction = (int?)null,
                 SettlementCount = (int?)null,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = (Guid?)null,
@@ -1271,6 +1291,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 NetAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
+                Direction = (int?)null,
                 SettlementCount = (int?)dbContext.PosSettlements.Count(closed =>
                     closed.UserId == userId && closed.PosDepositId == deposit.Id),
                 MatchAccountId = account.Id,
@@ -1421,7 +1442,8 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
         row.NetAmount,
         row.ExpectedTransferDate,
         row.TransferredOn,
-        row.SettlementCount);
+        row.SettlementCount,
+        row.Direction is int direction ? (DebtDirection)direction : null);
 
     /// <summary>
     /// The shared UNION ALL shape. Enums are carried as int so every branch produces the
@@ -1471,6 +1493,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
         public DateOnly? ExpectedTransferDate { get; init; }
         public DateOnly? TransferredOn { get; init; }
         public int? SettlementCount { get; init; }
+        public int? Direction { get; init; }
         public Guid? MatchAccountId { get; init; }
 
         /// <summary>
