@@ -314,6 +314,17 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     ekran görüntüsü testi atlandı), format temiz, debug APK derlendi. İki
     migration da yerel geliştirme veritabanına uygulandı. Kullanıcı
     emülatörde denedi ve commit'i onayladı
+  - **İşlem ayrıntısında cari, kalan borç ve kalan limit (2 Ekim 2026)**:
+    işlem sonrası bakiyenin yanına, hareketin değiştirdiği diğer sayılar
+    geldi — cari kayıtta kişinin açık bakiyesi, borç açılışı ve taksidinde
+    anlaşmanın kalanı, kart harcaması ve ödemesinde kalan limit. Var olan
+    `/balances` okumasına eklendi; yeni uç ve migration yok. Kalan limit
+    kartın bugünkü limitiyle hesaplanır (limitin geçmişi tutulmuyor;
+    kullanıcı kabul etti). Kullanıcı kararları: nakit hesabın eksiye düşmesi
+    engellenmez ve uyarı eklenmez; eski kayıtlarda bu satırlar gösterilmez.
+    Kontroller: backend SQL dahil (Domain 329, Application 329, Api 258,
+    Infrastructure 218 + 2 canlı test atlandı), Flutter 999 test (47 ekran
+    görüntüsü testi atlandı), debug APK derlendi. Emülatörde henüz denenmedi
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni (beklemede) → **06.3 bütünsel düzenleme (aktif)** →

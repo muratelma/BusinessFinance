@@ -4110,6 +4110,181 @@ public sealed class SqlServerPersistenceIntegrationTests
     }
 
     /// <summary>
+    /// İşlem sonrası cari bakiye, kalan borç ve kalan limit gerçek SQL'de.
+    /// </summary>
+    /// <remarks>
+    /// Kişinin güncel bakiyesi başka bir sorgudan okunur (bütün karşı taraflar
+    /// tek sorguda). İki okuma ayrışırsa ayrıntıdaki sayı ile kişinin
+    /// sayfasındaki sayı birbirini tutmaz; son hareketin sonrası güncel
+    /// bakiyeye eşit olmalıdır.
+    /// </remarks>
+    [SqlServerFact]
+    public async Task ActivityBalances_ReadTheCounterpartyTheDebtAndTheCardLimitAfterEachMovement()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var owner = CreateUser("holder-balance-owner@example.test");
+        var stranger = CreateUser("holder-balance-stranger@example.test");
+        await database.SeedUsersAsync(owner, stranger);
+        var day = new DateOnly(2026, 8, 20);
+        var morning = new DateTimeOffset(2026, 8, 20, 6, 0, 0, TimeSpan.Zero);
+        Guid personId, legacyId, saleId, firstCollectionId, obligationId, secondCollectionId,
+            settlementId, debtId, installmentId, chargeId;
+
+        await using (var seed = database.CreateContext())
+        {
+            var bank = new Account(
+                Guid.NewGuid(), owner.Id, "Banka", AccountType.Bank, CurrencyCode.TRY, 1000m);
+            var sales = new Category(Guid.NewGuid(), owner.Id, "Satış", CategoryType.Income);
+            var costs = new Category(Guid.NewGuid(), owner.Id, "Gider", CategoryType.Expense);
+            var person = new Counterparty(Guid.NewGuid(), owner.Id, "Ahmet Bakkal");
+            var lender = new Counterparty(Guid.NewGuid(), owner.Id, "Banka kredisi");
+            var card = new CreditCard(
+                Guid.NewGuid(), owner.Id, "Kart", new Money(5000m, CurrencyCode.TRY), 10, 20);
+
+            CounterpartyCharge Sale(decimal amount) => new(
+                Guid.NewGuid(), owner.Id, person, sales, DebtDirection.Receivable,
+                new Money(amount, CurrencyCode.TRY), TransactionScope.Business, day);
+            CounterpartyPayment Collection(decimal amount) => new(
+                Guid.NewGuid(), owner.Id, person, bank, DebtDirection.Receivable,
+                new Money(amount, CurrencyCode.TRY), day);
+
+            var legacy = Sale(50m);
+            var sale = Sale(700m);
+            var firstCollection = Collection(200m);
+            // Kişiye tek seferlik 300 borç; günün sonunda kapanır.
+            var obligation = new Obligation(
+                Guid.NewGuid(), owner.Id, costs, DebtDirection.Payable,
+                new Money(300m, CurrencyCode.TRY), TransactionScope.Business,
+                day, day.AddDays(10), morning.AddHours(3), person);
+            // 600 tahsilat: alacağı aşar, kişi alacaklıya döner.
+            var secondCollection = Collection(600m);
+            var settlement = obligation.Settle(
+                Guid.NewGuid(), bank, day, morning.AddHours(5));
+
+            // 300 alındı, 400 geri ödenecek, iki taksit; ilki aynı gün ödendi.
+            var debt = new DebtAgreement(
+                Guid.NewGuid(), owner.Id, lender, DebtDirection.Payable,
+                TransactionScope.Business,
+                new Money(300m, CurrencyCode.TRY), new Money(400m, CurrencyCode.TRY),
+                DebtSourceType.Cash, bank, null,
+                day, day.AddDays(10), 2);
+            debt.GetInstallment(1).MarkPaid(bank, day, morning.AddHours(7));
+            var charge = new CreditCardCharge(
+                Guid.NewGuid(), owner.Id, card, costs, new Money(300m, CurrencyCode.TRY),
+                TransactionScope.Business, day, "Kart harcaması");
+
+            seed.AddRange(
+                bank, sales, costs, person, lender, card, legacy, sale, firstCollection,
+                obligation, secondCollection, debt, charge);
+            void EnteredAt(object entity, int hour) =>
+                seed.Entry(entity).Property("CreatedAtUtc").CurrentValue =
+                    morning.AddHours(hour);
+            EnteredAt(sale, 1);
+            EnteredAt(firstCollection, 2);
+            EnteredAt(secondCollection, 4);
+            EnteredAt(debt, 6);
+            EnteredAt(charge, 8);
+            await seed.SaveChangesAsync();
+
+            personId = person.Id;
+            legacyId = legacy.Id;
+            saleId = sale.Id;
+            firstCollectionId = firstCollection.Id;
+            obligationId = obligation.Id;
+            secondCollectionId = secondCollection.Id;
+            settlementId = settlement.Id;
+            debtId = debt.Id;
+            installmentId = debt.GetInstallment(1).Id;
+            chargeId = charge.Id;
+        }
+
+        // Giriş anı tutulmadan önce yazılmış bir veresiye.
+        await database.ExecuteAsync(
+            "UPDATE [CounterpartyCharges] SET [CreatedAtUtc] = NULL WHERE [Id] = {0}", legacyId);
+
+        await using var services = CreateServiceProvider(database.ConnectionString);
+        await using var scope = services.CreateAsyncScope();
+        var balances = scope.ServiceProvider.GetRequiredService<IActivityBalanceReader>();
+
+        async Task<(decimal Balance, ActivityBalanceSide? Side, ActivityBalanceChange Change)> HolderAsync(
+            FinancialActivityKind kind, Guid id, ActivityBalanceHolder holder)
+        {
+            var item = Assert.Single(
+                (await balances.GetBalancesAfterAsync(owner.Id, kind, id, CancellationToken.None))!,
+                candidate => candidate.Holder == holder);
+            return (item.Balance, item.Side, item.Change);
+        }
+
+        // Eski kayıt günün en eskisi sayılır: 50 + 700.
+        Assert.Equal(
+            (750m, ActivityBalanceSide.Receivable, ActivityBalanceChange.Increased),
+            await HolderAsync(
+                FinancialActivityKind.CounterpartyCharge, saleId, ActivityBalanceHolder.Counterparty));
+        Assert.Equal(
+            (550m, ActivityBalanceSide.Receivable, ActivityBalanceChange.Decreased),
+            await HolderAsync(
+                FinancialActivityKind.CounterpartySettlement, firstCollectionId,
+                ActivityBalanceHolder.Counterparty));
+        // Kişiye 300 borç yazıldı: alacak 250'ye iner.
+        Assert.Equal(
+            (250m, ActivityBalanceSide.Receivable, ActivityBalanceChange.Decreased),
+            await HolderAsync(
+                FinancialActivityKind.Obligation, obligationId, ActivityBalanceHolder.Counterparty));
+        // Fazla tahsilat kırpılmaz: taraf değişir.
+        Assert.Equal(
+            (350m, ActivityBalanceSide.Payable, ActivityBalanceChange.Increased),
+            await HolderAsync(
+                FinancialActivityKind.CounterpartySettlement, secondCollectionId,
+                ActivityBalanceHolder.Counterparty));
+        // Yükümlülük kapandı: borç 300 azalır.
+        Assert.Equal(
+            (50m, ActivityBalanceSide.Payable, ActivityBalanceChange.Decreased),
+            await HolderAsync(
+                FinancialActivityKind.ObligationSettlement, settlementId,
+                ActivityBalanceHolder.Counterparty));
+
+        // Son hareketin sonrası kişinin güncel bakiyesidir.
+        var counterparties = scope.ServiceProvider.GetRequiredService<ICounterpartyRepository>();
+        var current = await counterparties.FindBalanceAsync(personId, owner.Id, day, default);
+        Assert.Equal(-50m, current!.Net);
+
+        // Giriş anı bilinmeyen eski kaydın yeri bilinmez: bakiye dönmez.
+        Assert.Empty((await balances.GetBalancesAfterAsync(
+            owner.Id, FinancialActivityKind.CounterpartyCharge, legacyId, CancellationToken.None))!);
+
+        // Borç: açılışta bütün taksitler açık, ilk ödemeden sonra biri kalır.
+        Assert.Equal(
+            (400m, ActivityBalanceSide.Payable, ActivityBalanceChange.Increased),
+            await HolderAsync(
+                FinancialActivityKind.DebtOpening, debtId, ActivityBalanceHolder.Debt));
+        Assert.Equal(
+            (200m, ActivityBalanceSide.Payable, ActivityBalanceChange.Decreased),
+            await HolderAsync(
+                FinancialActivityKind.DebtPayment, installmentId, ActivityBalanceHolder.Debt));
+        await using (var verify = database.CreateContext())
+        {
+            var debt = await verify.DebtAgreements
+                .Include(item => item.Installments)
+                .SingleAsync(item => item.Id == debtId);
+            Assert.Equal(200m, debt.RemainingAmount);
+        }
+
+        // Kart: borç 300, kalan limit 4700.
+        var afterCharge = Assert.Single((await balances.GetBalancesAfterAsync(
+            owner.Id, FinancialActivityKind.CardCharge, chargeId, CancellationToken.None))!);
+        Assert.Equal(300m, afterCharge.Balance);
+        Assert.Equal(4700m, afterCharge.AvailableLimit);
+
+        // Başkasının hareketi ile olmayan hareket ayırt edilemez.
+        Assert.Null(await balances.GetBalancesAfterAsync(
+            stranger.Id, FinancialActivityKind.CounterpartyCharge, saleId, CancellationToken.None));
+        Assert.Null(await balances.GetBalancesAfterAsync(
+            stranger.Id, FinancialActivityKind.Obligation, obligationId, CancellationToken.None));
+        Assert.Null(await balances.GetBalancesAfterAsync(
+            stranger.Id, FinancialActivityKind.DebtOpening, debtId, CancellationToken.None));
+    }
+
+    /// <summary>
     /// İşlemler'in gün içi sırası ve "işlem sonrası bakiye" gerçek SQL'de:
     /// aynı günün kayıtları giriş anına göre dizilir (en yeni üstte, anı
     /// bilinmeyen en altta) ve her hareketin sonrası o sıraya göre hesaplanır.

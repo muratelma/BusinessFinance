@@ -246,7 +246,7 @@ class _Feed extends Fake implements ActivityRepositoryContract {
   ) async => activity.kind == ActivityKind.posSale
       ? const [
           ActivityBalance(
-            isCard: false,
+            holder: ActivityBalanceHolder.account,
             name: 'Ziraat Vadesiz',
             balance: '18400.0000',
             currency: 'TRY',

@@ -59,7 +59,7 @@ class _DesignFeed extends Fake implements ActivityRepositoryContract {
     FinancialActivity activity,
   ) async => const [
     ActivityBalance(
-      isCard: false,
+      holder: ActivityBalanceHolder.account,
       name: 'Ziraat Vadesiz',
       balance: '48250.0000',
       currency: 'TRY',

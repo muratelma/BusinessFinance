@@ -955,6 +955,22 @@ kapsamıyla bulunur; birleşik sorgu tek satır için kullanılmaz. Hesabı olma
 (veresiye, yükümlülük), iptal edilmiş ve giriş anı bilinmeyen hareket için
 bakiye dönmez.
 
+Aynı okuma hesabın yanında hareketin değiştirdiği diğer sayıları da döner
+(2 Ekim 2026, kullanıcı kararı): cari kayıtta **karşı tarafın açık bakiyesi**,
+borç kaydında **anlaşmanın kalanı**, kartta **kalan limit**. Üçü de aynı kesim
+noktasını kullanır ve kalıcı değildir.
+
+- Cari: `CounterpartyNet` kişinin güncel bakiyesiyle aynı dört kaynağı
+  (borçlandırma, tahsilat/ödeme, açık yükümlülük) aynı işaretlerle toplar.
+  Güncel bakiye bütün karşı tarafları tek sorguda okuduğu için ayrı durur;
+  ikisinin ayrışmadığını test tutar (son hareketin sonrası = güncel bakiye).
+  Tutar artı döner, tarafı `ActivityBalanceSide` söyler; fazla tahsilat
+  kırpılmaz. Yükümlülük doğduğu andan kapandığı ana kadar açıktır.
+- Borç: o an ödenmemiş taksitlerin toplamı; `DebtAgreement.RemainingAmount`
+  ile aynı tanım, kesim noktasıyla.
+- Limit: kartın **bugünkü** limiti eksi o andaki borç. Limitin geçmişi
+  tutulmaz; bu bilinen ve kabul edilmiş bir sınırdır.
+
 Her bakiye, hareketin ona ne yaptığını da taşır (`ActivityBalanceChange`:
 arttı, azaldı, değişmedi). Yön sunucudadır çünkü istemcinin elindeki satır
 onu her türde bilmez (cari tahsilat, yükümlülük kapanışı). **POS satışı

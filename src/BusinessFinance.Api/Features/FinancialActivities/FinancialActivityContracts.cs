@@ -65,9 +65,12 @@ public sealed record FinancialActivityResponse(
 
 /// <summary>
 /// Bir hareketten hemen sonra hesabın bakiyesi ya da kartın borcu.
-/// <c>holder</c>: <c>account</c> ya da <c>credit-card</c>. <c>change</c>:
-/// hareketin bu bakiyeye ne yaptığı — <c>increased</c>, <c>decreased</c> ya da
-/// <c>unchanged</c> (POS satışı: para henüz yolda).
+/// <c>holder</c>: <c>account</c>, <c>credit-card</c>, <c>counterparty</c>
+/// (karşı tarafın açık cari bakiyesi) ya da <c>debt</c> (borcun kalan tutarı).
+/// <c>change</c>: hareketin bu bakiyeye ne yaptığı — <c>increased</c>,
+/// <c>decreased</c> ya da <c>unchanged</c> (POS satışı: para henüz yolda).
+/// <c>availableLimit</c> yalnız kartta, <c>side</c> yalnız cari ve borçta
+/// dolar: <c>receivable</c>, <c>payable</c> ya da <c>settled</c>.
 /// </summary>
 public sealed record ActivityBalanceResponse(
     string Holder,
@@ -75,7 +78,9 @@ public sealed record ActivityBalanceResponse(
     string Name,
     string Balance,
     string Currency,
-    string Change);
+    string Change,
+    string? AvailableLimit = null,
+    string? Side = null);
 
 /// <summary>
 /// Hareketin hesabı ya da kartı yoksa, iptal edilmişse ya da ne zaman

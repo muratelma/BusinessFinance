@@ -176,7 +176,7 @@ void main() {
 
       pending.complete(const [
         ActivityBalance(
-          isCard: false,
+          holder: ActivityBalanceHolder.account,
           name: 'Banka',
           balance: '900.0000',
           currency: 'TRY',
@@ -203,14 +203,14 @@ void main() {
         ),
         balances: Future.value(const [
           ActivityBalance(
-            isCard: false,
+            holder: ActivityBalanceHolder.account,
             name: 'Banka',
             balance: '750.0000',
             currency: 'TRY',
             change: ActivityBalanceChange.decreased,
           ),
           ActivityBalance(
-            isCard: false,
+            holder: ActivityBalanceHolder.account,
             name: 'Kasa',
             balance: '1200.0000',
             currency: 'TRY',
@@ -237,14 +237,14 @@ void main() {
         ),
         balances: Future.value(const [
           ActivityBalance(
-            isCard: false,
+            holder: ActivityBalanceHolder.account,
             name: 'Banka',
             balance: '630.0000',
             currency: 'TRY',
             change: ActivityBalanceChange.decreased,
           ),
           ActivityBalance(
-            isCard: true,
+            holder: ActivityBalanceHolder.card,
             name: 'Bonus',
             balance: '180.0000',
             currency: 'TRY',
@@ -289,7 +289,7 @@ void main() {
           .style
           ?.color;
       ActivityBalance bank(ActivityBalanceChange change) => ActivityBalance(
-        isCard: false,
+        holder: ActivityBalanceHolder.account,
         name: 'Banka',
         balance: '900.0000',
         currency: 'TRY',
@@ -320,6 +320,167 @@ void main() {
       );
       expect(find.text('Bakiye'), findsOneWidget);
       expect(balanceColor(), colors.neutral);
+    });
+
+    testWidgets('cari kayıt kişinin açık bakiyesini tarafıyla yazar', (
+      tester,
+    ) async {
+      ActivityBalance person(String amount, ActivityBalanceSide side) =>
+          ActivityBalance(
+            holder: ActivityBalanceHolder.counterparty,
+            name: 'Ahmet Bakkal',
+            balance: amount,
+            currency: 'TRY',
+            change: ActivityBalanceChange.decreased,
+            side: side,
+          );
+      final charge = _activity(
+        kind: ActivityKind.counterpartyCharge,
+        effect: ActivityEffect.income,
+        source: 'Ahmet Bakkal',
+      );
+
+      // Veresiye hesaba dokunmaz: bakiye satırı yok, yalnız cari.
+      final pending = Completer<List<ActivityBalance>>();
+      await _pumpSheet(tester, charge, balances: pending.future);
+      expect(find.text('Bakiye'), findsNothing);
+      expect(find.text('Cari'), findsOneWidget);
+      expect(find.text('…'), findsOneWidget);
+      final before = tester.getSize(find.byType(ActivityDetailSheet));
+      pending.complete([person('500.0000', ActivityBalanceSide.receivable)]);
+      await tester.pumpAndSettle();
+      expect(find.text('₺500,00 alacak'), findsOneWidget);
+      expect(tester.getSize(find.byType(ActivityDetailSheet)), before);
+
+      // Fazla tahsilat tarafı çevirir; tutar artı kalır.
+      await _pumpSheet(
+        tester,
+        charge,
+        balances: Future.value([
+          person('100.0000', ActivityBalanceSide.payable),
+        ]),
+      );
+      expect(find.text('₺100,00 borç'), findsOneWidget);
+
+      await _pumpSheet(
+        tester,
+        charge,
+        balances: Future.value([person('0.0000', ActivityBalanceSide.settled)]),
+      );
+      expect(find.text('Kapandı'), findsOneWidget);
+      expect(find.textContaining('₺0,00'), findsNothing);
+    });
+
+    testWidgets('tahsilat hesabın bakiyesini ve kişinin carisini ayırır', (
+      tester,
+    ) async {
+      await _pumpSheet(
+        tester,
+        _activity(
+          kind: ActivityKind.counterpartySettlement,
+          effect: ActivityEffect.neutral,
+          source: 'Banka',
+          destination: 'Ahmet Bakkal',
+        ),
+        balances: Future.value(const [
+          ActivityBalance(
+            holder: ActivityBalanceHolder.account,
+            name: 'Banka',
+            balance: '1200.0000',
+            currency: 'TRY',
+            change: ActivityBalanceChange.increased,
+          ),
+          ActivityBalance(
+            holder: ActivityBalanceHolder.counterparty,
+            name: 'Ahmet Bakkal',
+            balance: '500.0000',
+            currency: 'TRY',
+            change: ActivityBalanceChange.decreased,
+            side: ActivityBalanceSide.receivable,
+          ),
+        ]),
+      );
+
+      expect(find.text('Bakiye'), findsOneWidget);
+      expect(find.text('Cari'), findsOneWidget);
+      expect(find.text('₺500,00 alacak'), findsOneWidget);
+    });
+
+    testWidgets('borç taksidi kalan borcu, kapanan borç "Kapandı" yazar', (
+      tester,
+    ) async {
+      ActivityBalance debt(String amount, ActivityBalanceSide side) =>
+          ActivityBalance(
+            holder: ActivityBalanceHolder.debt,
+            name: 'Dükkan kredisi',
+            balance: amount,
+            currency: 'TRY',
+            change: ActivityBalanceChange.decreased,
+            side: side,
+          );
+      const account = ActivityBalance(
+        holder: ActivityBalanceHolder.account,
+        name: 'Banka',
+        balance: '1400.0000',
+        currency: 'TRY',
+        change: ActivityBalanceChange.decreased,
+      );
+      final installment = _activity(
+        kind: ActivityKind.debtPayment,
+        effect: ActivityEffect.neutral,
+      );
+
+      final pending = Completer<List<ActivityBalance>>();
+      await _pumpSheet(tester, installment, balances: pending.future);
+      expect(find.text('Bakiye'), findsOneWidget);
+      expect(find.text('Kalan'), findsOneWidget);
+      expect(find.text('…'), findsNWidgets(2));
+      pending.complete([
+        account,
+        debt('600.0000', ActivityBalanceSide.payable),
+      ]);
+      await tester.pumpAndSettle();
+      expect(find.text('₺600,00'), findsOneWidget);
+
+      await _pumpSheet(
+        tester,
+        installment,
+        balances: Future.value([
+          account,
+          debt('0.0000', ActivityBalanceSide.settled),
+        ]),
+      );
+      expect(find.text('Kapandı'), findsOneWidget);
+    });
+
+    testWidgets('kart harcaması borcun yanında kalan limiti yazar', (
+      tester,
+    ) async {
+      final charge = _activity(kind: ActivityKind.cardCharge, source: 'Bonus');
+      final pending = Completer<List<ActivityBalance>>();
+      await _pumpSheet(tester, charge, balances: pending.future);
+
+      // İki satır da baştan yerindedir.
+      expect(find.text('Kart borcu'), findsOneWidget);
+      expect(find.text('Limit'), findsOneWidget);
+      expect(find.text('…'), findsNWidgets(2));
+      final before = tester.getSize(find.byType(ActivityDetailSheet));
+
+      pending.complete(const [
+        ActivityBalance(
+          holder: ActivityBalanceHolder.card,
+          name: 'Bonus',
+          balance: '300.0000',
+          currency: 'TRY',
+          change: ActivityBalanceChange.increased,
+          availableLimit: '4700.0000',
+        ),
+      ]);
+      await tester.pumpAndSettle();
+
+      expect(find.text('₺300,00'), findsOneWidget);
+      expect(find.text('₺4.700,00'), findsOneWidget);
+      expect(tester.getSize(find.byType(ActivityDetailSheet)), before);
     });
 
     testWidgets('en büyük yazıda taşmaz ve erişilebilirlik kapısını geçer', (
@@ -356,18 +517,35 @@ void main() {
                 ),
                 balances: Future.value(const [
                   ActivityBalance(
-                    isCard: false,
+                    holder: ActivityBalanceHolder.account,
                     name: 'Banka',
                     balance: '123456789.5000',
                     currency: 'TRY',
                     change: ActivityBalanceChange.decreased,
                   ),
                   ActivityBalance(
-                    isCard: true,
+                    holder: ActivityBalanceHolder.card,
                     name: 'Bonus',
                     balance: '123456789.5000',
                     currency: 'TRY',
                     change: ActivityBalanceChange.decreased,
+                    availableLimit: '123456789.5000',
+                  ),
+                  ActivityBalance(
+                    holder: ActivityBalanceHolder.counterparty,
+                    name: 'Ahmet Bakkal',
+                    balance: '123456789.5000',
+                    currency: 'TRY',
+                    change: ActivityBalanceChange.decreased,
+                    side: ActivityBalanceSide.receivable,
+                  ),
+                  ActivityBalance(
+                    holder: ActivityBalanceHolder.debt,
+                    name: 'Kredi',
+                    balance: '123456789.5000',
+                    currency: 'TRY',
+                    change: ActivityBalanceChange.decreased,
+                    side: ActivityBalanceSide.payable,
                   ),
                 ]),
               ),
@@ -437,6 +615,7 @@ void main() {
                       'balance': '180.0000',
                       'currency': 'TRY',
                       'change': 'decreased',
+                      'availableLimit': '4820.0000',
                     },
                   ],
                 }),
@@ -457,6 +636,8 @@ void main() {
         '/api/v1/financial-activities/card-payment/activity-1/balances',
       );
       expect(balances.map((item) => item.isCard), [false, true]);
+      expect(balances.map((item) => item.availableLimit), [null, '4820.0000']);
+      expect(balances.map((item) => item.side), [null, null]);
       // Para dört basamaklı metin olarak kalır.
       expect(balances.first.balance, '630.0000');
       expect(balances.map((item) => item.change), [
@@ -480,6 +661,38 @@ void main() {
           'balance': '1.0000',
           'currency': 'TRY',
           'change': 'sideways',
+        }),
+        throwsFormatException,
+      );
+      final person = ActivityBalance.fromJson({
+        'holder': 'counterparty',
+        'name': 'Ahmet Bakkal',
+        'balance': '100.0000',
+        'currency': 'TRY',
+        'change': 'increased',
+        'side': 'payable',
+      });
+      expect(person.holder, ActivityBalanceHolder.counterparty);
+      expect(person.side, ActivityBalanceSide.payable);
+      expect(
+        ActivityBalance.fromJson({
+          'holder': 'debt',
+          'name': '',
+          'balance': '0.0000',
+          'currency': 'TRY',
+          'change': 'decreased',
+          'side': 'settled',
+        }).side,
+        ActivityBalanceSide.settled,
+      );
+      expect(
+        () => ActivityBalance.fromJson({
+          'holder': 'debt',
+          'name': '',
+          'balance': '1.0000',
+          'currency': 'TRY',
+          'change': 'decreased',
+          'side': 'upside-down',
         }),
         throwsFormatException,
       );

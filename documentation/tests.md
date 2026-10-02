@@ -1557,15 +1557,16 @@ atlandı), build 0 uyarı, format temiz; Flutter analyze temiz, 972 test geçti
 Yatışın emülatör turunda çıkan dört iş: gün içi sıra, komisyon ve kesintinin
 ayrı satır olmaktan çıkması, başlık kuralı ve ayrıntıdaki işlem sonrası bakiye;
 yatış ayrıntısının "yükleniyor" perdesi. Kontroller: backend SQL dahil geçti
-(Domain 329, Application 329, Api 257, Infrastructure 217 + 2 canlı test
-atlandı), build 0 uyarı, format temiz; Flutter analyze temiz, 995 test geçti
-(44 ekran görüntüsü testi atlandı), format temiz, debug APK derlendi.
+(Domain 329, Application 329, Api 258, Infrastructure 218 + 2 canlı test
+atlandı), build 0 uyarı, format temiz; Flutter analyze temiz, 999 test geçti
+(47 ekran görüntüsü testi atlandı), format temiz, debug APK derlendi.
 
 | Kapı | Nerede | Neyi tutuyor |
 |---|---|---|
 | Gün içi sıra | `FinancialActivityEndpointTests.Feed_OrdersADayByEntryTimeAcrossKinds_NewestFirst`, `SqlServerPersistenceIntegrationTests.ActivityFeed_OrdersADayByEntryTimeAndReadsTheBalanceAfterEachMovement` | Aynı günün kayıtları türe göre değil giriş anına göre, en yeni üstte; giriş anı bilinmeyen kayıt günün sonunda; dün için bugün girilen kayıt kendi gününde. Gerçek SQL'de de aynı sıra (tek `UNION ALL` sorgusu korunur) |
 | Komisyon ve kesinti satır değil | `FinancialActivityEndpointTests.Feed_ProjectsAPosSettlementAsSaleWithItsCommissionAndADeposit`, `PosDepositEndpointTests`, SQL testi | Satış satırı `feeAmount`, `netAmount`, `channelName`, beklenen ve geçiş gününü; yatış satırı `feeAmount`, `settlementCount`, `channelName`'i taşır; akışta gider satırı yoktur; kesinti yine bir `BudgetTransaction`'dır ve kapsamını korur; `pos-commission` süzgeç değeri `400` |
 | Başlık hesap adına düşmez | `FinancialActivityEndpointTests.Feed_DoesNotNameAMoneyMovementAfterAnAccountOrCard`, SQL testi | Açıklamasız transfer, kart ödemesi ve yatışta `title` boş; açıklama varsa o |
+| Cari, kalan borç, kalan limit | `FinancialActivityEndpointTests.Balances_ReportTheCounterpartyTheDebtAndTheCardLimit`, `SqlServerPersistenceIntegrationTests.ActivityBalances_ReadTheCounterpartyTheDebtAndTheCardLimitAfterEachMovement`, `activity_pos_rows_test` | Veresiye yalnız cariyi döner; tahsilat hesap + cari; fazla tahsilat tarafı çevirir, tutar artı kalır; yükümlülük cariye yazılır ve kapanınca düşer, kapanış yükümlülüğün kendi sonrasını değiştirmez; karşı tarafsız yükümlülük boş liste; borç açılışında bütün taksitler, taksitten sonra kalanı, son taksitte `settled`; kartta borcun yanında kalan limit. **Son hareketin sonrası güncel değere eşit** (kişinin `Net`'i, borcun `RemainingAmount`'ı). Giriş anı bilinmeyen veresiye günün en eskisi sayılır ama kendi bakiyesi dönmez. Sahiplik: başkasının cari, yükümlülük ve borç kaydı `null`. İstemcide satırlar yerinde bekler ve panel boyut değiştirmez; `Kapandı`; 2.0× yazıda taşma yok; bilinmeyen `side` reddedilir |
 | Bakiyenin yönü | `Balances_FollowEachMovementInFeedOrder`, `PosDepositEndpointTests`, SQL testi, `activity_pos_rows_test` → `bakiyenin rengi paranın yönünü söyler` | Gider ve transfer kaynağı `decreased`, gelir, transfer hedefi ve yatış `increased`; kart harcaması borcu artırır, ödeme azaltır; POS satışı hesabını `unchanged` ile ve o anki bakiyeyle döner. İstemcide giren yeşil, çıkan kırmızı, değişmeyen mavi; bilinmeyen `change` değeri reddedilir |
 | İşlem sonrası bakiye | `FinancialActivityEndpointTests.Balances_FollowEachMovementInFeedOrder`, SQL testi | Her hareketin sonrası akış sırasına göre; sonradan girilen kayıt öncekinin sonrasını değiştirmez; transfer iki hesap, kart ödemesi hesap + kart borcu döner; son hareketin sonrası güncel bakiyeye eşit; yatışın sonrası kesintiyi içerir; iptal edilmiş, para taşımayan ve giriş anı bilinmeyen hareket boş liste; bilinmeyen tür `400` |
 | Sahiplik | `OwnershipIsolationTests`, `Balances_FollowEachMovementInFeedOrder`, SQL testi | Başkasının hareketi, olmayan hareket ve türü tutmayan kimlik aynı `404`; uç prob tablosunda |

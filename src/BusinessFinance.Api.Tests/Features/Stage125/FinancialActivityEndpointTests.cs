@@ -5,7 +5,10 @@ using System.Text.Json.Nodes;
 using BusinessFinance.Api.Features.Accounts;
 using BusinessFinance.Api.Features.Authentication;
 using BusinessFinance.Api.Features.Categories;
+using BusinessFinance.Api.Features.Counterparties;
 using BusinessFinance.Api.Features.CreditCards;
+using BusinessFinance.Api.Features.Debts;
+using BusinessFinance.Api.Features.Obligations;
 using BusinessFinance.Api.Features.FinancialActivities;
 using BusinessFinance.Api.Features.RecurringTransactions;
 using BusinessFinance.Api.Features.Transfers;
@@ -695,6 +698,143 @@ public sealed class FinancialActivityEndpointTests
         using var unknownKind = await owner.GetAsync(
             $"/api/v1/financial-activities/not-a-kind/{income.Id}/balances");
         Assert.Equal(HttpStatusCode.BadRequest, unknownKind.StatusCode);
+    }
+
+    /// <summary>
+    /// Hesabın yanında, hareketin değiştirdiği diğer sayılar: karşı tarafın
+    /// açık carisi, borcun kalanı ve kartın kalan limiti. Hepsi akışın
+    /// sırasıyla kesilir ve son hareketin sonrası güncel değere eşittir.
+    /// </summary>
+    [Fact]
+    public async Task Balances_ReportTheCounterpartyTheDebtAndTheCardLimit()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateClientAsync(factory, "activity-holders@example.test");
+        var bank = await CreateAccountAsync(owner, "Bank");
+        var loanAccount = await CreateAccountAsync(owner, "Loan");
+        var expenseCategory = await GetCategoryAsync(owner, "expense");
+        var incomeCategory = await GetCategoryAsync(owner, "income");
+        const string Day = "2026-08-14";
+
+        async Task<IReadOnlyList<ActivityBalanceResponse>> BalancesAsync(string kind, Guid id) =>
+            (await owner.GetFromJsonAsync<ActivityBalanceListResponse>(
+                $"/api/v1/financial-activities/{kind}/{id}/balances"))!.Items;
+
+        // Cari: 700 veresiye, 200 tahsilat, sonra 600 tahsilat (100 fazla).
+        var person = await PostAsync<CounterpartyResponse>(
+            owner, "/api/v1/counterparties", new CreateCounterpartyRequest("Ahmet Bakkal"));
+        var sale = await PostAsync<CounterpartyChargeResponse>(
+            owner, $"/api/v1/counterparties/{person.Id}/charges",
+            new CreateCounterpartyChargeRequest(
+                "receivable", "700.0000", "TRY", incomeCategory.Id, Day, "business"));
+        var collection = await PostAsync<CounterpartyPaymentResponse>(
+            owner, $"/api/v1/counterparties/{person.Id}/payments",
+            new CreateCounterpartyPaymentRequest("receivable", "200.0000", "TRY", bank.Id, Day));
+        var overCollection = await PostAsync<CounterpartyPaymentResponse>(
+            owner, $"/api/v1/counterparties/{person.Id}/payments",
+            new CreateCounterpartyPaymentRequest("receivable", "600.0000", "TRY", bank.Id, Day));
+
+        // Veresiye hesaba dokunmaz: yalnız kişinin carisi döner.
+        var afterSale = Assert.Single(await BalancesAsync("counterparty-charge", sale.Id));
+        Assert.Equal("counterparty", afterSale.Holder);
+        Assert.Equal(person.Id, afterSale.Id);
+        Assert.Equal("Ahmet Bakkal", afterSale.Name);
+        Assert.Equal("700.0000", afterSale.Balance);
+        Assert.Equal("receivable", afterSale.Side);
+        Assert.Equal("increased", afterSale.Change);
+        Assert.Null(afterSale.AvailableLimit);
+
+        // Tahsilat hesabı artırır, alacağı azaltır; sonraki tahsilat bunu
+        // değiştirmez.
+        Assert.Equal(
+            [("account", "1200.0000", "increased", null), ("counterparty", "500.0000", "decreased", "receivable")],
+            (await BalancesAsync("counterparty-settlement", collection.Id))
+            .Select(item => (item.Holder, item.Balance, item.Change, item.Side)));
+
+        // Fazla tahsilat kırpılmaz: taraf değişir, tutar artı kalır.
+        Assert.Equal(
+            [("account", "1800.0000", "increased", null), ("counterparty", "100.0000", "increased", "payable")],
+            (await BalancesAsync("counterparty-settlement", overCollection.Id))
+            .Select(item => (item.Holder, item.Balance, item.Change, item.Side)));
+
+        // Tek seferlik borç da aynı cariye yazılır; kapanınca düşer.
+        var obligation = await PostAsync<ObligationResponse>(
+            owner, "/api/v1/obligations",
+            new CreateObligationRequest(
+                "payable", "300.0000", "TRY", expenseCategory.Id, Day, Day, "business", person.Id));
+        var afterObligation = Assert.Single(await BalancesAsync("obligation", obligation.Id));
+        Assert.Equal(
+            ("counterparty", "400.0000", "increased", "payable"),
+            (afterObligation.Holder, afterObligation.Balance, afterObligation.Change, afterObligation.Side));
+
+        var settled = await PostAsync<ObligationResponse>(
+            owner, $"/api/v1/obligations/{obligation.Id}/settlement",
+            new SettleObligationRequest(bank.Id, Day));
+        var afterSettlement = await BalancesAsync("obligation-settlement", settled.SettlementId!.Value);
+        Assert.Equal(
+            [("account", "1500.0000", "decreased", null), ("counterparty", "100.0000", "decreased", "payable")],
+            afterSettlement.Select(item => (item.Holder, item.Balance, item.Change, item.Side)));
+
+        // Kapanış, yükümlülüğün kendi sonrasını değiştirmez: o an hâlâ açıktı.
+        Assert.Equal(
+            "400.0000", Assert.Single(await BalancesAsync("obligation", obligation.Id)).Balance);
+
+        // Son hareketin sonrası kişinin güncel bakiyesidir.
+        var currentPerson = await owner.GetFromJsonAsync<CounterpartyResponse>(
+            $"/api/v1/counterparties/{person.Id}");
+        Assert.Equal("-100.0000", currentPerson!.Net);
+
+        // Karşı tarafı olmayan yükümlülükte gösterilecek bir cari yoktur.
+        var nameless = await PostAsync<ObligationResponse>(
+            owner, "/api/v1/obligations",
+            new CreateObligationRequest(
+                "payable", "50.0000", "TRY", expenseCategory.Id, Day, Day, "business"));
+        Assert.Empty(await BalancesAsync("obligation", nameless.Id));
+
+        // Borç: 1000 alındı, 1200 geri ödenecek, iki taksit.
+        var debt = await PostAsync<DebtResponse>(
+            owner, "/api/v1/debts",
+            new CreateDebtRequest(
+                "Lender", "payable", "business", "1000.0000", "1200.0000", null, "TRY",
+                "cash", loanAccount.Id, null,
+                "2026-07-01", "2026-08-10", 2, "Dükkan kredisi", "2026-08-11"));
+        Assert.Equal(
+            [("account", "2000.0000", "increased", null), ("debt", "1200.0000", "increased", "payable")],
+            (await BalancesAsync("debt-opening", debt.Id))
+            .Select(item => (item.Holder, item.Balance, item.Change, item.Side)));
+
+        var afterFirst = await PostAsync<DebtResponse>(
+            owner, $"/api/v1/debts/{debt.Id}/installments/1/pay",
+            new PayDebtInstallmentRequest(loanAccount.Id, "2026-08-11", "2026-08-11"));
+        var firstInstallment = afterFirst.Installments.Single(item => item.Sequence == 1);
+        Assert.Equal(
+            [("account", "1400.0000", "decreased", null), ("debt", "600.0000", "decreased", "payable")],
+            (await BalancesAsync("debt-payment", firstInstallment.Id))
+            .Select(item => (item.Holder, item.Balance, item.Change, item.Side)));
+        Assert.Equal("600.0000", afterFirst.RemainingAmount);
+
+        var afterSecond = await PostAsync<DebtResponse>(
+            owner, $"/api/v1/debts/{debt.Id}/installments/2/pay",
+            new PayDebtInstallmentRequest(loanAccount.Id, "2026-08-11", "2026-08-11"));
+        var secondInstallment = afterSecond.Installments.Single(item => item.Sequence == 2);
+        var closed = (await BalancesAsync("debt-payment", secondInstallment.Id))[1];
+        Assert.Equal(("debt", "0.0000", "settled"), (closed.Holder, closed.Balance, closed.Side));
+        // İkinci ödeme birincinin sonrasını değiştirmez.
+        Assert.Equal(
+            "600.0000", (await BalancesAsync("debt-payment", firstInstallment.Id))[1].Balance);
+
+        // Kart: borcun yanında, o andaki borca göre kalan limit.
+        var card = await PostAsync<CreditCardResponse>(owner, "/api/v1/credit-cards",
+            new CreateCreditCardRequest("Card", "5000.0000", "TRY", 10, 20));
+        var charge = await PostAsync<CardChargeResponse>(owner, $"/api/v1/credit-cards/{card.Id}/charges",
+            new CreateCardChargeRequest(expenseCategory.Id, "300.0000", "TRY", "business", Day, "Kart"));
+        var payment = await PostAsync<CardPaymentResponse>(owner, $"/api/v1/credit-cards/{card.Id}/payments",
+            new CreateCardPaymentRequest(bank.Id, "120.0000", "TRY", Day, null));
+        var afterCharge = Assert.Single(await BalancesAsync("card-charge", charge.Id));
+        Assert.Equal(("300.0000", "4700.0000"), (afterCharge.Balance, afterCharge.AvailableLimit));
+        var afterPayment = (await BalancesAsync("card-payment", payment.Id))[1];
+        Assert.Equal(("180.0000", "4820.0000"), (afterPayment.Balance, afterPayment.AvailableLimit));
+        Assert.Null(afterPayment.Side);
     }
 
     private static async Task<TResponse> PostAsync<TResponse>(

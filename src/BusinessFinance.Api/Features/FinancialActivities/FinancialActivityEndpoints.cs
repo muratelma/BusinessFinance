@@ -69,7 +69,9 @@ public static class FinancialActivityEndpoints
                     balance.Name,
                     FinanceContract.Money(balance.Balance),
                     balance.Currency.ToString(),
-                    BalanceChangeValues[balance.Change]))
+                    BalanceChangeValues[balance.Change],
+                    balance.AvailableLimit is decimal limit ? FinanceContract.Money(limit) : null,
+                    balance.Side is ActivityBalanceSide side ? BalanceSideValues[side] : null))
                 .ToArray()));
     }
 
@@ -401,7 +403,16 @@ public static class FinancialActivityEndpoints
     internal static readonly Dictionary<ActivityBalanceHolder, string> BalanceHolderValues = new()
     {
         [ActivityBalanceHolder.Account] = "account",
-        [ActivityBalanceHolder.CreditCard] = "credit-card"
+        [ActivityBalanceHolder.CreditCard] = "credit-card",
+        [ActivityBalanceHolder.Counterparty] = "counterparty",
+        [ActivityBalanceHolder.Debt] = "debt"
+    };
+
+    internal static readonly Dictionary<ActivityBalanceSide, string> BalanceSideValues = new()
+    {
+        [ActivityBalanceSide.Receivable] = "receivable",
+        [ActivityBalanceSide.Payable] = "payable",
+        [ActivityBalanceSide.Settled] = "settled"
     };
 
     internal static readonly Dictionary<ActivityBalanceChange, string> BalanceChangeValues = new()

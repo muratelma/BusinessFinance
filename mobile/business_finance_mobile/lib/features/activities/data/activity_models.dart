@@ -321,43 +321,80 @@ enum ActivityBalanceChange {
   unchanged,
 }
 
+/// Bakiyesi gösterilen yer.
+enum ActivityBalanceHolder {
+  account,
+  card,
+
+  /// Karşı tarafın açık cari bakiyesi.
+  counterparty,
+
+  /// Borç anlaşmasının kalan tutarı.
+  debt,
+}
+
+/// Cari ve borç bakiyesinin tarafı. Tutar hep artıdır; kimin kime borçlu
+/// olduğunu sunucu söyler.
+enum ActivityBalanceSide { receivable, payable, settled }
+
 class ActivityBalance {
   const ActivityBalance({
-    required this.isCard,
+    required this.holder,
     required this.name,
     required this.balance,
     required this.currency,
     required this.change,
+    this.availableLimit,
+    this.side,
   });
 
-  factory ActivityBalance.fromJson(Map<String, dynamic> json) =>
-      ActivityBalance(
-        isCard: switch (json['holder']) {
-          'account' => false,
-          'credit-card' => true,
-          final other => throw FormatException(
-            'Bilinmeyen bakiye yeri: $other',
-          ),
-        },
-        name: json['name'] as String,
-        balance: json['balance'] as String,
-        currency: json['currency'] as String,
-        change: switch (json['change']) {
-          'increased' => ActivityBalanceChange.increased,
-          'decreased' => ActivityBalanceChange.decreased,
-          'unchanged' => ActivityBalanceChange.unchanged,
-          final other => throw FormatException(
-            'Bilinmeyen bakiye değişimi: $other',
-          ),
-        },
-      );
+  factory ActivityBalance.fromJson(
+    Map<String, dynamic> json,
+  ) => ActivityBalance(
+    holder: switch (json['holder']) {
+      'account' => ActivityBalanceHolder.account,
+      'credit-card' => ActivityBalanceHolder.card,
+      'counterparty' => ActivityBalanceHolder.counterparty,
+      'debt' => ActivityBalanceHolder.debt,
+      final other => throw FormatException('Bilinmeyen bakiye yeri: $other'),
+    },
+    availableLimit: json['availableLimit'] as String?,
+    side: switch (json['side']) {
+      null => null,
+      'receivable' => ActivityBalanceSide.receivable,
+      'payable' => ActivityBalanceSide.payable,
+      'settled' => ActivityBalanceSide.settled,
+      final other => throw FormatException('Bilinmeyen bakiye tarafı: $other'),
+    },
+    name: json['name'] as String,
+    balance: json['balance'] as String,
+    currency: json['currency'] as String,
+    change: switch (json['change']) {
+      'increased' => ActivityBalanceChange.increased,
+      'decreased' => ActivityBalanceChange.decreased,
+      'unchanged' => ActivityBalanceChange.unchanged,
+      final other => throw FormatException(
+        'Bilinmeyen bakiye değişimi: $other',
+      ),
+    },
+  );
 
-  /// `true`: kartın borcu; `false`: hesabın bakiyesi.
-  final bool isCard;
+  final ActivityBalanceHolder holder;
   final String name;
+
+  /// Hesapta bakiye, kartta borç, caride açık tutar, borçta kalan tutar.
   final String balance;
   final String currency;
   final ActivityBalanceChange change;
+
+  /// Yalnız kartta: o andaki borca göre kalan limit. Kartın bugünkü
+  /// limitiyle hesaplanır; limitin geçmişi tutulmaz.
+  final String? availableLimit;
+
+  /// Yalnız cari ve borçta.
+  final ActivityBalanceSide? side;
+
+  bool get isCard => holder == ActivityBalanceHolder.card;
 }
 
 class ActivityPagination {

@@ -2,6 +2,7 @@
 using BusinessFinance.Application.FinancialActivities;
 using BusinessFinance.Domain;
 using BusinessFinance.Infrastructure.Accounts;
+using BusinessFinance.Infrastructure.Counterparties;
 using BusinessFinance.Infrastructure.CreditCards;
 using BusinessFinance.Infrastructure.Persistence;
 
@@ -77,7 +78,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
         {
             var card = await dbContext.CreditCards.AsNoTracking()
                 .Where(item => item.UserId == userId && item.Id == creditCardId)
-                .Select(item => new { item.Name, item.Limit.Currency })
+                .Select(item => new { item.Name, item.Limit.Currency, Limit = item.Limit.Amount })
                 .SingleAsync(cancellationToken);
             var debt = await CardDebt.SumAsync(
                 dbContext, creditCardId, userId, cutoff, cancellationToken);
@@ -89,7 +90,75 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 card.Currency,
                 located.CardDebtIncreases
                     ? ActivityBalanceChange.Increased
-                    : ActivityBalanceChange.Decreased));
+                    : ActivityBalanceChange.Decreased,
+                // Limitin geçmişi tutulmaz: bugünkü limitle hesaplanır.
+                // Kartın kendi kuralı gibi sıfırın altına inmez.
+                AvailableLimit: Math.Max(0m, card.Limit - debt)));
+        }
+
+        if (located.CounterpartyId is Guid counterpartyId)
+        {
+            var name = await dbContext.Counterparties.AsNoTracking()
+                .Where(item => item.UserId == userId && item.Id == counterpartyId)
+                .Select(item => item.Name)
+                .SingleAsync(cancellationToken);
+            // Artı: karşı taraf bize borçlu. Eksi: biz ona borçluyuz. Fazla
+            // tahsilat kırpılmaz; taraf değiştirir.
+            var net = await CounterpartyNet.SumAsync(
+                dbContext, counterpartyId, userId, cutoff, cancellationToken);
+            var side = net > 0m
+                ? ActivityBalanceSide.Receivable
+                : net < 0m ? ActivityBalanceSide.Payable : ActivityBalanceSide.Settled;
+            // Gösterilen tutar hep artıdır; "arttı" o tutarın büyüdüğünü söyler.
+            var grew = side switch
+            {
+                ActivityBalanceSide.Receivable => located.CounterpartyNetIncreases,
+                ActivityBalanceSide.Payable => !located.CounterpartyNetIncreases,
+                _ => false
+            };
+            balances.Add(new ActivityBalanceAfter(
+                ActivityBalanceHolder.Counterparty,
+                counterpartyId,
+                name,
+                Math.Abs(net),
+                CurrencyCode.TRY,
+                grew ? ActivityBalanceChange.Increased : ActivityBalanceChange.Decreased,
+                Side: side));
+        }
+
+        if (located.DebtAgreementId is Guid debtId)
+        {
+            var debt = await dbContext.DebtAgreements.AsNoTracking()
+                .Where(item => item.UserId == userId && item.Id == debtId)
+                .Select(item => new { item.Description, item.Direction, item.Principal.Currency })
+                .SingleAsync(cancellationToken);
+            // Kalan: bu hareketin anında henüz ödenmemiş taksitler. Giriş anı
+            // bilinmeyen ödeme günün en eskisi sayılır (akışın sırası).
+            var date = cutoff.Date;
+            var entryAt = cutoff.EntryAtUtc;
+            var remaining = await dbContext.DebtInstallments.AsNoTracking()
+                .Where(item => item.UserId == userId &&
+                               item.DebtAgreementId == debtId &&
+                               (item.PaymentAccountId == null ||
+                                item.PaymentDate > date ||
+                                (item.PaymentDate == date &&
+                                 item.PaidAtUtc != null &&
+                                 item.PaidAtUtc > entryAt)))
+                .SumAsync(item => item.Amount.Amount, cancellationToken);
+            balances.Add(new ActivityBalanceAfter(
+                ActivityBalanceHolder.Debt,
+                debtId,
+                debt.Description ?? string.Empty,
+                remaining,
+                debt.Currency,
+                located.DebtIncreases
+                    ? ActivityBalanceChange.Increased
+                    : ActivityBalanceChange.Decreased,
+                Side: remaining == 0m
+                    ? ActivityBalanceSide.Settled
+                    : debt.Direction == DebtDirection.Payable
+                        ? ActivityBalanceSide.Payable
+                        : ActivityBalanceSide.Receivable));
         }
 
         return balances;
@@ -101,9 +170,9 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
     /// </summary>
     /// <remarks>
     /// Birleşik sorgu üzerinden aranmaz: tek satır için on üç kaynağı
-    /// birleştirmek gereksizdir. Veresiye ve yükümlülük bulunur ama hesap
-    /// taşımaz: gösterilecek bir "sonrası" yoktur. POS satışı hesabını taşır
-    /// ama ona dokunmaz: bakiye o an neyse odur, para yoldadır.
+    /// birleştirmek gereksizdir. Veresiye ve yükümlülük hesap taşımaz ama
+    /// karşı tarafın carisini değiştirir. POS satışı hesabını taşır ama ona
+    /// dokunmaz: bakiye o an neyse odur, para yoldadır.
     /// </remarks>
     private async Task<LocatedActivity?> LocateAsync(
         Guid userId,
@@ -202,7 +271,8 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                             null,
                             null)
                         {
-                            AccountIncreases = debt.Direction == DebtDirection.Receivable
+                            AccountIncreases = debt.Direction == DebtDirection.Receivable,
+                            DebtAgreementId = debt.Id
                         })
                     .SingleOrDefaultAsync(cancellationToken);
 
@@ -220,7 +290,9 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                         null,
                         null)
                     {
-                        AccountIncreases = item.Direction == DebtDirection.Payable
+                        AccountIncreases = item.Direction == DebtDirection.Payable,
+                        DebtAgreementId = item.Id,
+                        DebtIncreases = true
                     })
                     .SingleOrDefaultAsync(cancellationToken);
 
@@ -236,7 +308,10 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                         null,
                         null)
                     {
-                        AccountIncreases = item.Direction == DebtDirection.Receivable
+                        AccountIncreases = item.Direction == DebtDirection.Receivable,
+                        CounterpartyId = item.CounterpartyId,
+                        // Tahsilat alacağı, ödeme borcu kapatır.
+                        CounterpartyNetIncreases = item.Direction == DebtDirection.Payable
                     })
                     .SingleOrDefaultAsync(cancellationToken);
 
@@ -252,7 +327,13 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                         null,
                         null)
                     {
-                        AccountIncreases = item.Direction == DebtDirection.Receivable
+                        AccountIncreases = item.Direction == DebtDirection.Receivable,
+                        CounterpartyId = dbContext.Obligations
+                            .Where(obligation => obligation.UserId == item.UserId &&
+                                                 obligation.Id == item.ObligationId)
+                            .Select(obligation => obligation.CounterpartyId)
+                            .FirstOrDefault(),
+                        CounterpartyNetIncreases = item.Direction == DebtDirection.Payable
                     })
                     .SingleOrDefaultAsync(cancellationToken);
 
@@ -275,16 +356,40 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                     .SingleOrDefaultAsync(cancellationToken);
 
             case FinancialActivityKind.CounterpartyCharge:
+                // Borçlandırma tanır: hesaba dokunmaz, cariyi değiştirir.
                 return await dbContext.CounterpartyCharges.AsNoTracking()
-                    .AnyAsync(item => item.UserId == userId && item.Id == activityId, cancellationToken)
-                    ? LocatedActivity.WithoutMoney
-                    : null;
+                    .Where(item => item.UserId == userId && item.Id == activityId)
+                    .Select(item => new LocatedActivity(
+                        item.ChargeDate,
+                        EF.Property<DateTimeOffset?>(item, EntryTimestamp.PropertyName),
+                        item.IsCancelled,
+                        null,
+                        null,
+                        null,
+                        null)
+                    {
+                        CounterpartyId = item.CounterpartyId,
+                        CounterpartyNetIncreases = item.Direction == DebtDirection.Receivable
+                    })
+                    .SingleOrDefaultAsync(cancellationToken);
 
             case FinancialActivityKind.Obligation:
+                // Karşı tarafı olmayan yükümlülükte gösterilecek bir cari yoktur.
                 return await dbContext.Obligations.AsNoTracking()
-                    .AnyAsync(item => item.UserId == userId && item.Id == activityId, cancellationToken)
-                    ? LocatedActivity.WithoutMoney
-                    : null;
+                    .Where(item => item.UserId == userId && item.Id == activityId)
+                    .Select(item => new LocatedActivity(
+                        item.IssueDate,
+                        item.CreatedAtUtc,
+                        item.IsCancelled,
+                        null,
+                        null,
+                        null,
+                        null)
+                    {
+                        CounterpartyId = item.CounterpartyId,
+                        CounterpartyNetIncreases = item.Direction == DebtDirection.Receivable
+                    })
+                    .SingleOrDefaultAsync(cancellationToken);
 
             case FinancialActivityKind.PosSale:
                 return await dbContext.PosSettlements.AsNoTracking()
@@ -325,9 +430,20 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
         /// <summary>Kartın borcu arttıysa (harcama) <c>true</c>; ödemede azalır.</summary>
         public bool CardDebtIncreases { get; init; }
 
-        /// <summary>Tanıyan ama para taşımayan hareket: bakiye dönmez.</summary>
-        public static readonly LocatedActivity WithoutMoney =
-            new(default, null, false, null, null, null, null);
+        /// <summary>Carisi değişen karşı taraf; yoksa boş.</summary>
+        public Guid? CounterpartyId { get; init; }
+
+        /// <summary>
+        /// Net cari (alacak − borç) arttıysa <c>true</c>: alacak yazıldı ya
+        /// da borç ödendi.
+        /// </summary>
+        public bool CounterpartyNetIncreases { get; init; }
+
+        /// <summary>Kalan tutarı değişen borç anlaşması; yoksa boş.</summary>
+        public Guid? DebtAgreementId { get; init; }
+
+        /// <summary>Borç açıldıysa <c>true</c>; taksitte kalan azalır.</summary>
+        public bool DebtIncreases { get; init; }
     }
 
     public async Task<FinancialActivityOrigin> GetTransactionOriginAsync(

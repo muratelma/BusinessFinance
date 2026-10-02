@@ -205,11 +205,36 @@ public sealed record FinancialActivityRow(
     /// <summary>Yatışın kapattığı tahsilat sayısı; geri alınmış yatışta sıfır.</summary>
     int? SettlementCount = null);
 
-/// <summary>Bakiyesi gösterilen yer: bir hesap ya da bir kredi kartı.</summary>
+/// <summary>
+/// Bakiyesi gösterilen yer: bir hesap, bir kredi kartı, bir karşı tarafın
+/// carisi ya da bir borç anlaşması.
+/// </summary>
 public enum ActivityBalanceHolder
 {
     Account = 1,
-    CreditCard = 2
+    CreditCard = 2,
+
+    /// <summary>Karşı tarafın açık cari bakiyesi (alacak ya da borç).</summary>
+    Counterparty = 3,
+
+    /// <summary>Borç anlaşmasının kalan tutarı (ödenmemiş taksitler).</summary>
+    Debt = 4
+}
+
+/// <summary>
+/// Cari ve borç bakiyesinin tarafı. Tutar hep artıdır; kimin kime borçlu
+/// olduğunu bu söyler, istemci işaretten türetmez.
+/// </summary>
+public enum ActivityBalanceSide
+{
+    /// <summary>Karşı taraf bize borçlu.</summary>
+    Receivable = 1,
+
+    /// <summary>Biz karşı tarafa borçluyuz.</summary>
+    Payable = 2,
+
+    /// <summary>Açık tutar kalmadı.</summary>
+    Settled = 3
 }
 
 /// <summary>
@@ -241,7 +266,12 @@ public sealed record ActivityBalanceAfter(
     string Name,
     decimal Balance,
     CurrencyCode Currency,
-    ActivityBalanceChange Change);
+    ActivityBalanceChange Change,
+    // Yalnız kartta: o andaki borca göre kalan limit. Limitin geçmişi
+    // tutulmaz; kartın <b>bugünkü</b> limitiyle hesaplanır.
+    decimal? AvailableLimit = null,
+    // Yalnız cari ve borçta.
+    ActivityBalanceSide? Side = null);
 
 public interface IActivityBalanceReader
 {
@@ -249,11 +279,12 @@ public interface IActivityBalanceReader
     /// Hareketin dokunduğu hesap ve kartların o hareketten sonraki bakiyesi.
     /// </summary>
     /// <returns>
-    /// Hareket bu kullanıcıya ait değilse ya da yoksa <c>null</c>. Hareketin
-    /// bir hesabı ya da kartı yoksa (veresiye, yükümlülük), iptal edilmişse
-    /// ya da ne zaman girildiği bilinmiyorsa boş liste: bilinmeyen bir sıra
-    /// için bakiye uydurulmaz. POS satışı hesabını <b>değişmemiş</b> olarak
-    /// döner: satış tanır, para yatışla geçer.
+    /// Hareket bu kullanıcıya ait değilse ya da yoksa <c>null</c>. Hareket
+    /// iptal edilmişse ya da ne zaman girildiği bilinmiyorsa boş liste:
+    /// bilinmeyen bir sıra için bakiye uydurulmaz. POS satışı hesabını
+    /// <b>değişmemiş</b> olarak döner: satış tanır, para yatışla geçer.
+    /// Cari kayıt karşı tarafın açık bakiyesini, borç kaydı anlaşmanın kalan
+    /// tutarını da döner.
     /// </returns>
     Task<IReadOnlyList<ActivityBalanceAfter>?> GetBalancesAfterAsync(
         Guid userId,

@@ -323,6 +323,21 @@ Birkaç bileşenin sözleşmesinde neden şu kararların olduğu:
   `POS / Komisyon / Net tutar / Hesap / Geçiş günü` (yoldaysa `Beklenen`)
   satırlarını taşır. Etiketler kısadır: `AppDetailRow` etiketi esnemez ve
   2.0× yazıda uzun etiket tutarı sıkıştırır.
+- **İşlem ayrıntısında hesabın dışındaki "sonrası" satırları** (2 Ekim 2026,
+  kullanıcı kararı). Üçü de düz yazılır; yeşil/kırmızı yalnız hesap
+  bakiyesinde ve kart borcundadır ("alacağım arttı"nın iyi mi kötü mü olduğu
+  belli değildir):
+  - `Cari` — kişinin açık bakiyesi: `₺500,00 alacak`, `₺100,00 borç` ya da
+    `Kapandı`. Veresiye/vadeli kayıt, tahsilat/ödeme ve karşı tarafı olan tek
+    seferlik borç/alacakta. Tutar ve taraf sunucudan gelir; kelimeyi istemci
+    yazar.
+  - `Kalan` — borç anlaşmasının kalanı; sıfırsa `Kapandı`. Borç açılışı ve
+    taksitte.
+  - `Limit` — kartın o andaki borca göre kalan limiti; `Kart borcu`nun
+    altında. Bugünkü limitle hesaplanır.
+  Satırların ikonu ve etiketi tek yerdedir (`_BalanceSlot`): cevap beklenirken
+  çizilen `…` satırı ile dolu satır aynıdır, panel boyut değiştirmez. `Kalan
+  limit` denendi ve 2.0× yazıda taştı; etiket bu yüzden `Limit`.
 - **`İşlem ekle` launcher'ı başlıklıdır.** Dokuz satır düz listede telefonda
   kaydırmadan okunmuyordu; satırlar niyet başlıklarının (`Para girdi`,
   `Para çıktı`, `Para taşı`, `Belge okut`, `Plan kur`) altında yoğun

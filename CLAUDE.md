@@ -318,6 +318,15 @@ gerekçesiyle bozulmaz.
   çıkan kırmızı). **POS satışı hesabını "değişmedi" ile döner ve bakiyesi
   mavidir**: satış gelir yazar, para yatışla geçer. Ayrıntıda `Köken` satırı
   yoktur.
+- **Aynı okuma hareketin değiştirdiği diğer sayıları da döner**: cari kayıtta
+  karşı tarafın açık bakiyesi (`CounterpartyNet`; tutar artı, tarafı `side`
+  söyler, fazla tahsilat kırpılmaz), borç kaydında anlaşmanın kalanı, kartta
+  kalan limit. Kalan limit kartın **bugünkü** limitiyle hesaplanır — limitin
+  geçmişi tutulmaz (kullanıcı kabul etti). Bu üç satır düz yazılır; renk
+  yalnız hesap bakiyesinde ve kart borcundadır.
+- **Nakit hesap eksiye düşebilir** ve bunun için ne engel ne uyarı vardır
+  (kullanıcı kararı, 2 Ekim 2026): bakiye hareketlerden hesaplanır, giriş
+  sırası olay sırası değildir ve yarım çalışan bir yasak daha kötüdür.
 
 - **Kapsam tek yerde türetilir** (`TransactionScopeResolution`): kullanıcının
   açık seçimi → hesabın/kartın etiketi → kategorinin varsayılanı. Üçü de boşsa

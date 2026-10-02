@@ -240,9 +240,27 @@ ayrıntı açıldığında okunur. Kalıcı bir alan değildir.
 - **POS satışı hesabını `unchanged` ile döner** (2 Ekim 2026): satış gelir
   yazar ama hesaba dokunmaz, para yatışla geçer. Dönen sayı hesabın o anki
   bakiyesidir; satışın tutarı içinde değildir.
-- **Boş liste** döner: hareketin hesabı ya da kartı yoksa (veresiye,
-  yükümlülük), iptal edilmişse ya da giriş anı bilinmiyorsa. Bilinmeyen bir
-  sıra için bakiye uydurulmaz.
+- **Kart kalan limiti de taşır** (`availableLimit`): o andaki borca göre
+  `limit − borç`, sıfırın altına inmez. Limitin geçmişi tutulmaz; kartın
+  **bugünkü** limitiyle hesaplanır (kullanıcı kararı, 2 Ekim 2026: limit sık
+  değişmez). Limit sonradan değiştirilirse eski harcamanın ayrıntısındaki
+  sayı o günkü gerçeği değil, bugünkü limite göre hesabı gösterir.
+- **Cari kayıtlar karşı tarafın açık bakiyesini döner** (`holder:
+  "counterparty"`): veresiye/vadeli kayıt, cari tahsilat/ödeme, karşı tarafı
+  olan tek seferlik yükümlülük ve kapanışı. `balance` **hep artıdır**; kimin
+  kime borçlu olduğunu `side` söyler: `receivable` (karşı taraf bize borçlu),
+  `payable` (biz ona borçluyuz), `settled` (açık tutar yok). Fazla tahsilat
+  kırpılmaz, tarafı çevirir. Kaynakları kişinin güncel bakiyesiyle aynıdır
+  (borçlandırma, tahsilat/ödeme, açık yükümlülük).
+- **Borç kayıtları anlaşmanın kalanını döner** (`holder: "debt"`): açılış ve
+  taksit. `balance` o an henüz ödenmemiş taksitlerin toplamıdır; `side`
+  anlaşmanın yönüdür, kalan sıfırsa `settled`.
+- `change` bu iki yerde gösterilen (artı) tutarın büyüdüğünü ya da
+  küçüldüğünü söyler. `availableLimit` yalnız kartta, `side` yalnız cari ve
+  borçta dolar; diğerlerinde `null`.
+- **Boş liste** döner: hareketin hesabı, kartı, karşı tarafı ya da borcu
+  yoksa (karşı tarafsız yükümlülük), iptal edilmişse ya da giriş anı
+  bilinmiyorsa. Bilinmeyen bir sıra için bakiye uydurulmaz.
 - Başkasının hareketi, olmayan hareket ve türü tutmayan kimlik aynı `404
   financial_activities.not_found` cevabını alır; bilinmeyen tür `400`.
 - Yatışın sonrası kesinti giderini de içerir. `GET /api/v1/pos-deposits/{id}`

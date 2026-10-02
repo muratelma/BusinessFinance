@@ -171,15 +171,17 @@ class ActivityDetailSheet extends StatelessWidget {
           ActivityEffect.neutral => AppStatusTone.neutral,
         };
 
-  /// Hareketten hemen sonra hesabın bakiyesi ve kartın borcu.
+  /// Hareketten hemen sonraki sayılar: hesabın bakiyesi, kartın borcu ve
+  /// kalan limiti, karşı tarafın açık carisi, borcun kalanı.
   ///
-  /// Sunucudan gelir. Cevap beklenirken satır, türün dokunduğu yer kadar
-  /// (`…`) çizilir; iptal edilmiş hareketin ve hesabı olmayan türün satırı
-  /// yoktur.
+  /// Hepsi sunucudan gelir. Cevap beklenirken satırlar, türün dokunduğu
+  /// yerler kadar (`…`) çizilir; iptal edilmiş hareketin satırı yoktur.
   ///
-  /// Sayının rengi hareketin o bakiyeye ne yaptığını söyler: para girdiyse
-  /// yeşil, çıktıysa kırmızı, dokunmadıysa mavi (POS satışı — para yolda).
-  /// Kart borcunda yön terstir: borcun artması kırmızıdır.
+  /// Hesap bakiyesinin ve kart borcunun rengi hareketin ona ne yaptığını
+  /// söyler: para girdiyse yeşil, çıktıysa kırmızı, dokunmadıysa mavi (POS
+  /// satışı — para yolda). Kart borcunda yön terstir: borcun artması
+  /// kırmızıdır. Limit, cari ve kalan borç düz yazılır: "alacağım arttı"nın
+  /// iyi mi kötü mü olduğu belli değildir.
   List<AppDetailRow> _balanceRows(
     BuildContext context,
     List<ActivityBalance>? loaded, {
@@ -188,55 +190,106 @@ class ActivityDetailSheet extends StatelessWidget {
     if (failed || activity.isCancelled) return const [];
     if (loaded == null) {
       return [
-        for (final isCard in _expectedBalances)
-          AppDetailRow(
-            icon: _balanceIcon(isCard),
-            label: _balanceLabel(isCard),
-            value: '…',
-          ),
+        for (final slot in _expectedBalances)
+          AppDetailRow(icon: slot.icon, label: slot.label, value: '…'),
       ];
     }
     // İki hesap (transfer) aynı etiketi taşır; hangisinin hangisi olduğunu
     // hesabın adı söyler.
-    final accounts = loaded.where((item) => !item.isCard).length;
+    final accounts = loaded
+        .where((item) => item.holder == ActivityBalanceHolder.account)
+        .length;
     return [
       for (final item in loaded)
-        AppDetailRow(
-          icon: _balanceIcon(item.isCard),
-          label: _balanceLabel(item.isCard),
-          trailing: accounts > 1 && !item.isCard
-              ? Text.rich(
-                  TextSpan(
-                    text: '${item.name} · ',
-                    children: [
+        ...switch (item.holder) {
+          ActivityBalanceHolder.account => [
+            AppDetailRow(
+              icon: _BalanceSlot.account.icon,
+              label: _BalanceSlot.account.label,
+              trailing: accounts > 1
+                  ? Text.rich(
                       TextSpan(
-                        text: MoneyText.format(item.balance, item.currency),
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: _balanceColor(context, item),
-                        ),
+                        text: '${item.name} · ',
+                        children: [
+                          TextSpan(
+                            text: MoneyText.format(item.balance, item.currency),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: _balanceColor(context, item),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  textAlign: TextAlign.right,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    height: 1.35,
-                    fontWeight: FontWeight.w500,
-                    color: AppSurfaces.of(context).ink,
-                  ),
-                )
-              : AppMoneyText(
-                  amount: item.balance,
-                  currency: item.currency,
-                  effect: _balanceEffect(item),
-                  size: AppMoneySize.body,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-        ),
+                      textAlign: TextAlign.right,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        height: 1.35,
+                        fontWeight: FontWeight.w500,
+                        color: AppSurfaces.of(context).ink,
+                      ),
+                    )
+                  : _coloredMoney(item),
+            ),
+          ],
+          ActivityBalanceHolder.card => [
+            AppDetailRow(
+              icon: _BalanceSlot.cardDebt.icon,
+              label: _BalanceSlot.cardDebt.label,
+              trailing: _coloredMoney(item),
+            ),
+            if (item.availableLimit != null)
+              AppDetailRow(
+                icon: _BalanceSlot.cardLimit.icon,
+                label: _BalanceSlot.cardLimit.label,
+                trailing: _plainMoney(item.availableLimit!, item.currency),
+              ),
+          ],
+          // Tutar hep artıdır; kimin kime borçlu olduğunu sunucunun
+          // gönderdiği taraf söyler.
+          ActivityBalanceHolder.counterparty => [
+            AppDetailRow(
+              icon: _BalanceSlot.counterparty.icon,
+              label: _BalanceSlot.counterparty.label,
+              value: switch (item.side) {
+                ActivityBalanceSide.receivable =>
+                  '${MoneyText.format(item.balance, item.currency)} alacak',
+                ActivityBalanceSide.payable =>
+                  '${MoneyText.format(item.balance, item.currency)} borç',
+                ActivityBalanceSide.settled || null => 'Kapandı',
+              },
+            ),
+          ],
+          ActivityBalanceHolder.debt => [
+            AppDetailRow(
+              icon: _BalanceSlot.debt.icon,
+              label: _BalanceSlot.debt.label,
+              value: item.side == ActivityBalanceSide.settled
+                  ? 'Kapandı'
+                  : null,
+              trailing: item.side == ActivityBalanceSide.settled
+                  ? null
+                  : _plainMoney(item.balance, item.currency),
+            ),
+          ],
+        },
     ];
   }
+
+  static Widget _coloredMoney(ActivityBalance item) => AppMoneyText(
+    amount: item.balance,
+    currency: item.currency,
+    effect: _balanceEffect(item),
+    size: AppMoneySize.body,
+    style: const TextStyle(fontWeight: FontWeight.w600),
+  );
+
+  static Widget _plainMoney(String amount, String currency) => AppMoneyText(
+    amount: amount,
+    currency: currency,
+    size: AppMoneySize.body,
+    style: const TextStyle(fontWeight: FontWeight.w600),
+  );
 
   static AppMoneyEffect _balanceEffect(ActivityBalance item) =>
       switch (item.change) {
@@ -256,30 +309,47 @@ class ActivityDetailSheet extends StatelessWidget {
     };
   }
 
-  static String _balanceLabel(bool isCard) => isCard ? 'Kart borcu' : 'Bakiye';
-
-  static IconData _balanceIcon(bool isCard) =>
-      isCard ? Icons.credit_card : Icons.account_balance_wallet_outlined;
-
-  /// Türün dokunduğu yerler; `true` kart, `false` hesap. Yalnız cevap
-  /// beklenirken satırın yerini tutmak içindir.
-  List<bool> get _expectedBalances => switch (activity.kind) {
-    ActivityKind.transfer => const [false, false],
-    ActivityKind.cardPayment => const [false, true],
-    ActivityKind.cardCharge => const [true],
+  /// Türün dokunduğu yerler. Yalnız cevap beklenirken satırların yerini
+  /// tutmak içindir: panel, sayılar gelince boyut değiştirmesin.
+  List<_BalanceSlot> get _expectedBalances => switch (activity.kind) {
+    ActivityKind.transfer => const [_BalanceSlot.account, _BalanceSlot.account],
+    ActivityKind.cardPayment => const [
+      _BalanceSlot.account,
+      _BalanceSlot.cardDebt,
+      _BalanceSlot.cardLimit,
+    ],
+    ActivityKind.cardCharge => const [
+      _BalanceSlot.cardDebt,
+      _BalanceSlot.cardLimit,
+    ],
     ActivityKind.accountTransaction ||
-    ActivityKind.debtPayment ||
-    ActivityKind.debtCollection ||
-    ActivityKind.counterpartySettlement ||
-    ActivityKind.obligationSettlement ||
     ActivityKind.posDeposit ||
     // Satış hesaba dokunmaz ama hesabı vardır: bakiyenin değişmediği
     // (paranın yolda olduğu) burada görünür.
-    ActivityKind.posSale => const [false],
+    ActivityKind.posSale => const [_BalanceSlot.account],
+    ActivityKind.debtPayment || ActivityKind.debtCollection => const [
+      _BalanceSlot.account,
+      _BalanceSlot.debt,
+    ],
     // Nakit kaynaklı açılış bir hesaba dokunur; gider kaynaklıda hesap yok.
-    ActivityKind.debtOpening =>
-      activity.sourceName == null ? const [] : const [false],
-    ActivityKind.counterpartyCharge || ActivityKind.obligation => const [],
+    ActivityKind.debtOpening => [
+      if (activity.sourceName != null) _BalanceSlot.account,
+      _BalanceSlot.debt,
+    ],
+    ActivityKind.counterpartySettlement => const [
+      _BalanceSlot.account,
+      _BalanceSlot.counterparty,
+    ],
+    // Borçlandırma hesaba dokunmaz; yalnız kişinin carisi değişir.
+    ActivityKind.counterpartyCharge => const [_BalanceSlot.counterparty],
+    // Tek seferlik yükümlülüğün karşı tarafı olmayabilir.
+    ActivityKind.obligation => [
+      if (activity.sourceName != null) _BalanceSlot.counterparty,
+    ],
+    ActivityKind.obligationSettlement => [
+      _BalanceSlot.account,
+      if (activity.destinationName != null) _BalanceSlot.counterparty,
+    ],
   };
 
   List<AppDetailRow> _rows(BuildContext context) {
@@ -432,6 +502,21 @@ class ActivityDetailSheet extends StatelessWidget {
       ),
     ];
   }
+}
+
+/// İşlem sonrası satırların ikonu ve etiketi. Etiketler kısadır:
+/// `AppDetailRow` etiketi esnemez ve en büyük yazıda uzun etiket taşar.
+enum _BalanceSlot {
+  account(Icons.account_balance_wallet_outlined, 'Bakiye'),
+  cardDebt(Icons.credit_card, 'Kart borcu'),
+  cardLimit(Icons.speed, 'Limit'),
+  counterparty(Icons.handshake_outlined, 'Cari'),
+  debt(Icons.hourglass_bottom, 'Kalan');
+
+  const _BalanceSlot(this.icon, this.label);
+
+  final IconData icon;
+  final String label;
 }
 
 class _Actions extends StatelessWidget {

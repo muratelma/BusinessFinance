@@ -494,7 +494,7 @@ void main() {
           )
           ..balances = const [
             ActivityBalance(
-              isCard: false,
+              holder: ActivityBalanceHolder.account,
               name: 'Banka',
               balance: '900.0000',
               currency: 'TRY',
