@@ -19,7 +19,10 @@ public sealed class PosSettlementTests
     [Fact]
     public void Settlement_RecognizesOnCollectionDayAndCarriesOnlyOnTransferDay()
     {
-        var settlement = NewSettlement(gross: 1000m, commission: 17.9m);
+        var userId = Guid.NewGuid();
+        var account = NewBankAccount(userId);
+        var settlement = NewSettlement(
+            userId: userId, account: account, gross: 1000m, commission: 17.9m);
 
         // Tahsilat günü: gelir brüt tutar kadar tanındı, komisyon ayrı gider,
         // hesap bakiyesi kıpırdamadı — para henüz bankada değil.
@@ -29,7 +32,7 @@ public sealed class PosSettlementTests
         Assert.Equal(0m, settlement.SignedAccountEffect);
         Assert.True(settlement.IsInTransit);
 
-        settlement.MarkTransferred(TransferDate, CreatedAtUtc);
+        Deposit(account, settlement);
 
         // Geçiş günü: hesap net tutar kadar arttı ve hiçbir gelir/gider
         // yeniden yazılmadı. Brüt ve komisyon değişmedi — ikinci kez sayılan
@@ -132,81 +135,15 @@ public sealed class PosSettlementTests
             () => NewSettlement(gross: 100m, commission: 0.00001m));
     }
 
-    [Fact]
-    public void MarkTransferred_IsIdempotentAndRefusesASecondDifferentDay()
-    {
-        // Tahsilat iki gün önce yapıldı ki geçiş için geçerli iki ayrı gün
-        // kalsın; aksi hâlde ikinci gün zaten tarih kapısına takılırdı.
-        var settlement = NewSettlement(settlementDate: new DateOnly(2026, 8, 22));
-        var transferredOn = new DateOnly(2026, 8, 23);
-
-        settlement.MarkTransferred(transferredOn, CreatedAtUtc);
-        settlement.MarkTransferred(transferredOn, CreatedAtUtc.AddHours(3));
-
-        // İlk damga korunur: ikinci işaretleme yeni bir olay değildir.
-        Assert.Equal(CreatedAtUtc, settlement.TransferredAtUtc);
-        Assert.Equal(transferredOn, settlement.TransferredOn);
-        // Para bir kez geçer: başka bir günle işaretlemek reddedilir.
-        Assert.Throws<InvalidOperationException>(
-            () => settlement.MarkTransferred(new DateOnly(2026, 8, 24), CreatedAtUtc));
-    }
-
     /// <summary>
-    /// 28 Eylül denetimi U12: yanlışlıkla "hesaba geçti" denen tahsilat
-    /// düzeltilemiyordu; bankada olmayan para uygulamada banka bakiyesindeydi.
+    /// Yolda iptal edilen tahsilat tanıdığı satışı ve yoldaki parayı birlikte
+    /// kaybeder. Yatışa bağlı tahsilatın iptali <see cref="PosDepositTests"/>
+    /// içindedir.
     /// </summary>
     [Fact]
-    public void RevertTransfer_PutsTheMoneyBackOnTheRoadWithoutTouchingTheSale()
-    {
-        var settlement = NewSettlement(gross: 1000m, commission: 17.9m);
-        settlement.MarkTransferred(TransferDate, CreatedAtUtc);
-
-        settlement.RevertTransfer();
-
-        Assert.True(settlement.IsInTransit);
-        Assert.Null(settlement.TransferredOn);
-        Assert.Null(settlement.TransferredAtUtc);
-        Assert.Equal(0m, settlement.SignedAccountEffect);
-        // Satış ve komisyon tahsilat gününde tanındı; geri alma onlara dokunmaz.
-        Assert.Equal(1000m, settlement.GrossAmount.Amount);
-        Assert.Equal(17.9m, settlement.CommissionAmount);
-
-        // İdempotent: yoldaki tahsilatta ikinci çağrı bir şey değiştirmez.
-        settlement.RevertTransfer();
-        Assert.True(settlement.IsInTransit);
-
-        // Doğru günle yeniden işaretlenebilir.
-        settlement.MarkTransferred(TransferDate, CreatedAtUtc);
-        Assert.Equal(982.1m, settlement.SignedAccountEffect);
-    }
-
-    [Fact]
-    public void RevertTransfer_IsRefusedOnACancelledSettlement()
-    {
-        var settlement = NewSettlement(gross: 1000m, commission: 0m);
-        settlement.MarkTransferred(TransferDate, CreatedAtUtc);
-        settlement.Cancel(CreatedAtUtc);
-
-        Assert.Throws<InvalidOperationException>(settlement.RevertTransfer);
-    }
-
-    [Fact]
-    public void TransferDate_CannotPrecedeTheSettlementOrSitInTheFuture()
-    {
-        var settlement = NewSettlement();
-
-        Assert.Throws<ArgumentOutOfRangeException>(
-            () => settlement.MarkTransferred(new DateOnly(2026, 8, 23), CreatedAtUtc));
-        Assert.Throws<ArgumentOutOfRangeException>(
-            () => settlement.MarkTransferred(new DateOnly(2026, 8, 25), CreatedAtUtc));
-        Assert.False(settlement.IsTransferred);
-    }
-
-    [Fact]
-    public void CancelledSettlement_LosesBothItsRecognitionAndItsCashEffect()
+    public void CancelledSettlement_LosesItsRecognitionAndLeavesTheRoad()
     {
         var settlement = NewSettlement(gross: 1000m, commission: 20m);
-        settlement.MarkTransferred(TransferDate, CreatedAtUtc);
 
         settlement.Cancel(CreatedAtUtc);
         settlement.Cancel(CreatedAtUtc.AddHours(1));
@@ -215,8 +152,6 @@ public sealed class PosSettlementTests
         Assert.Equal(CreatedAtUtc, settlement.CancelledAtUtc);
         Assert.Equal(0m, settlement.SignedAccountEffect);
         Assert.False(settlement.IsInTransit);
-        Assert.Throws<InvalidOperationException>(
-            () => settlement.MarkTransferred(TransferDate, CreatedAtUtc));
     }
 
     /// <summary>
@@ -230,7 +165,7 @@ public sealed class PosSettlementTests
         var waiting = NewSettlement(userId: userId, account: account, gross: 1000m, commission: 20m);
         var alsoWaiting = NewSettlement(userId: userId, account: account, gross: 500m, commission: 0m);
         var arrived = NewSettlement(userId: userId, account: account, gross: 800m, commission: 10m);
-        arrived.MarkTransferred(TransferDate, CreatedAtUtc);
+        Deposit(account, arrived);
         var cancelled = NewSettlement(userId: userId, account: account, gross: 400m, commission: 0m);
         cancelled.Cancel(CreatedAtUtc);
 
@@ -297,6 +232,12 @@ public sealed class PosSettlementTests
             () => NewSettlement(
                 description: new string('a', PosSettlement.MaximumDescriptionLength + 1)));
     }
+
+    /// <summary>Para hesaba yalnız bir yatışla geçer (ADR 0019 T5).</summary>
+    private static PosDeposit Deposit(Account account, PosSettlement settlement) =>
+        PosDeposit.Record(
+            Guid.NewGuid(), settlement.UserId, account, [settlement], settlement.NetAmount,
+            TransferDate, CreatedAtUtc);
 
     private static Account NewBankAccount(Guid userId, string name = "Banka") =>
         new(Guid.NewGuid(), userId, name, AccountType.Bank, CurrencyCode.TRY, 1000m);

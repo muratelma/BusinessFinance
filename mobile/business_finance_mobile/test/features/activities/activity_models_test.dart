@@ -48,8 +48,7 @@ void main() {
         'obligation',
         'obligation-settlement',
         'pos-sale',
-        'pos-commission',
-        'pos-transfer',
+        'pos-deposit',
       };
 
       expect(
@@ -105,6 +104,23 @@ void main() {
         expect(charge.listKey, 'card-charge:${charge.activityId}');
       },
     );
+
+    test('her köken değerini okur; yatış kesintisi kendi kökenidir', () {
+      const serverOrigins = {
+        'manual',
+        'csv-import',
+        'recurring',
+        'installment',
+        'pos-deposit',
+      };
+
+      expect(
+        ActivityOrigin.values.map((origin) => origin.apiValue).toSet(),
+        serverOrigins,
+      );
+      expect(ActivityOrigin.fromApi('pos-deposit').label, 'Yatış kesintisi');
+      expect(ActivityKind.fromApi('pos-deposit'), ActivityKind.posDeposit);
+    });
 
     test('rejects an unknown enum value instead of guessing', () {
       expect(

@@ -275,6 +275,14 @@ ActivityRepository _httpRepository(
 }
 
 class _FakeRepository implements ActivityRepositoryContract {
+  @override
+  Future<List<ActivityBalance>> balancesAfter(
+    FinancialActivity activity,
+  ) async => balances;
+
+  /// İşlem ayrıntısındaki "kalan bakiye" için dönecek cevap.
+  List<ActivityBalance> balances = const [];
+
   _FakeRepository({this.hasNextPage = false, this.error});
 
   final bool hasNextPage;

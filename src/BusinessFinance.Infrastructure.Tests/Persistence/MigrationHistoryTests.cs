@@ -38,7 +38,9 @@ public sealed class MigrationHistoryTests
         "RemoveVatAndTaxDeductibility",
         "AddTaxPlans",
         "AddPosDefinitions",
-        "AddPosDefinitionDefault"
+        "AddPosDefinitionDefault",
+        "AddPosDeposits",
+        "AddEntryTimestamps"
     ];
 
     [Fact]
@@ -672,6 +674,132 @@ public sealed class MigrationHistoryTests
             var tightened = Assert.Single(up.OfType<AlterColumnOperation>(), operation => !operation.IsNullable);
             Assert.Equal("Categories.IsTax", $"{tightened.Table}.{tightened.Name}");
             Assert.Null(tightened.DefaultValue);
+        }
+    }
+
+    /// <summary>
+    /// Yatış (ADR 0019 T5) dolu olabilecek bir tabloya bağlanır: önce yeni tablo
+    /// ve kolonlar, sonra mevcut "hesaba geçti" verisinin yatışa taşınması, en
+    /// son kısıtlar ve bağ. Kısıtlar backfill'den önce gelseydi geçmiş bir
+    /// tahsilatı olan veritabanında yükseltme ilk satırda dururdu. Hiçbir kolon
+    /// düşmez ve hiçbir kolon kalıcı bir DEFAULT bırakmaz.
+    /// </summary>
+    [Fact]
+    public void AddPosDeposits_BackfillsBeforeItConstrainsAndLosesNothing()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_AddPosDeposits", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations.ToList();
+            Assert.DoesNotContain(up, operation => operation is DropColumnOperation or DropTableOperation);
+
+            var table = Assert.Single(up.OfType<CreateTableOperation>());
+            Assert.Equal("PosDeposits", table.Name);
+            Assert.Equal(0, up.IndexOf(table));
+            Assert.All(table.Columns, column =>
+            {
+                Assert.Null(column.DefaultValue);
+                Assert.Null(column.DefaultValueSql);
+            });
+            // Beklenen tutar kolon değildir: yatan ile kesintinin toplamıdır.
+            Assert.DoesNotContain(table.Columns, column => column.Name == "ExpectedAmount");
+            // Sahiplik: hesap ve kesinti gideri (UserId, Id) çiftiyle bağlanır.
+            Assert.All(
+                table.ForeignKeys.Where(key => key.PrincipalTable != "AspNetUsers"),
+                key =>
+                {
+                    Assert.Equal("UserId", key.Columns[0]);
+                    Assert.Equal(ReferentialAction.Restrict, key.OnDelete);
+                });
+            Assert.Contains(table.CheckConstraints, check => check.Name == "CK_PosDeposits_Deduction");
+
+            var columns = up.OfType<AddColumnOperation>().ToArray();
+            Assert.Equal(
+                ["PosDepositId", "Version"],
+                columns.Select(column => column.Name).OrderBy(name => name, StringComparer.Ordinal));
+            Assert.All(columns, column =>
+            {
+                Assert.Equal("PosSettlements", column.Table);
+                Assert.Null(column.DefaultValue);
+                Assert.Null(column.DefaultValueSql);
+            });
+            // Hangi yatışla geçtiği yeni bir bilgidir: kolon nullable doğar ve
+            // yalnız geçmiş tahsilatlarda doldurulur.
+            Assert.True(columns.Single(column => column.Name == "PosDepositId").IsNullable);
+            Assert.True(columns.Single(column => column.Name == "Version").IsRowVersion);
+
+            var lastColumn = up.FindLastIndex(operation => operation is AddColumnOperation);
+            var firstBackfill = up.FindIndex(operation => operation is SqlOperation);
+            var lastBackfill = up.FindLastIndex(operation => operation is SqlOperation);
+            var firstCheck = up.FindIndex(operation => operation is AddCheckConstraintOperation);
+            var link = Assert.Single(up.OfType<AddForeignKeyOperation>());
+            Assert.True(lastColumn < firstBackfill);
+            Assert.True(lastBackfill < firstCheck);
+            Assert.True(lastBackfill < up.IndexOf(link));
+
+            // Eski geçiş kısıtı backfill'den önce düşer, yenisi sonra eklenir.
+            var dropped = Assert.Single(up.OfType<DropCheckConstraintOperation>());
+            Assert.Equal("CK_PosSettlements_Transfer", dropped.Name);
+            Assert.True(up.IndexOf(dropped) < firstBackfill);
+            Assert.Equal(
+                ["CK_PosSettlements_CancelledNotDeposited", "CK_PosSettlements_Transfer"],
+                up.OfType<AddCheckConstraintOperation>()
+                    .Select(check => check.Name).OrderBy(name => name, StringComparer.Ordinal));
+
+            // Her geçiş bir yatıştır; iptal edilmiş tahsilat yatışa bağlı kalmaz.
+            var backfill = up.OfType<SqlOperation>().Select(operation => operation.Sql).ToArray();
+            Assert.Equal(2, backfill.Length);
+            Assert.Contains("INSERT INTO [PosDeposits]", backfill[0], StringComparison.Ordinal);
+            Assert.Contains("[GrossAmount] - [CommissionAmount]", backfill[0], StringComparison.Ordinal);
+            Assert.Contains("[IsCancelled] = 1", backfill[1], StringComparison.Ordinal);
+
+            // Tahsilat yatışa günüyle birlikte bağlanır: geçiş günü yatışın
+            // gününden ayrışamaz.
+            Assert.Equal("PosSettlements", link.Table);
+            Assert.Equal(["UserId", "PosDepositId", "TransferredOn"], link.Columns);
+            Assert.Equal("PosDeposits", link.PrincipalTable);
+            Assert.NotNull(link.PrincipalColumns);
+            Assert.Equal(["UserId", "Id", "DepositDate"], link.PrincipalColumns);
+            Assert.Equal(ReferentialAction.Restrict, link.OnDelete);
+        }
+    }
+
+    /// <summary>
+    /// Giriş anı (İşlemler'de gün içi sıra ve "işlem sonrası bakiye") yedi dolu
+    /// tabloya eklenir. Eski kayıtların ne zaman girildiği bilinmez: kolon
+    /// nullable'dır, varsayılansızdır ve <b>backfill yoktur</b> — bugünün saatini
+    /// yazmak bütün geçmişi aynı ana girilmiş gösterirdi.
+    /// </summary>
+    [Fact]
+    public void AddEntryTimestamps_AddsNullableColumnsAndInventsNoHistory()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_AddEntryTimestamps", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations.ToList();
+            var columns = up.OfType<AddColumnOperation>().ToArray();
+            Assert.Equal(up.Count, columns.Length);
+            Assert.Equal(
+                [
+                    "BudgetTransactions",
+                    "CounterpartyCharges",
+                    "CounterpartyPayments",
+                    "CreditCardCharges",
+                    "CreditCardPayments",
+                    "DebtAgreements",
+                    "Transfers",
+                ],
+                columns.Select(column => column.Table).OrderBy(name => name, StringComparer.Ordinal));
+            Assert.All(columns, column =>
+            {
+                Assert.Equal("CreatedAtUtc", column.Name);
+                Assert.Equal("datetimeoffset", column.ColumnType);
+                Assert.True(column.IsNullable);
+                Assert.Null(column.DefaultValue);
+                Assert.Null(column.DefaultValueSql);
+            });
         }
     }
 

@@ -43,6 +43,22 @@ public sealed class FinancialActivityCapabilityTests
             kind, FinancialActivityOrigin.Manual, FinancialActivityStatus.Realized));
     }
 
+    /// <summary>
+    /// POS yatışı kendi ucundan geri alınır; kesinti gideri de yatışla birlikte
+    /// doğar ve yalnız onunla birlikte geri alınır. Kesinti tek başına iptal
+    /// edilseydi yatış, hesaba gerçekte geçmemiş bir tutarı geçmiş gösterirdi.
+    /// </summary>
+    [Theory]
+    [InlineData(FinancialActivityKind.PosDeposit, FinancialActivityOrigin.Manual)]
+    [InlineData(FinancialActivityKind.AccountTransaction, FinancialActivityOrigin.PosDeposit)]
+    public void CanCancel_RejectsAPosDepositAndItsDeduction(
+        FinancialActivityKind kind,
+        FinancialActivityOrigin origin)
+    {
+        Assert.False(FinancialActivityCapabilities.CanCancel(
+            kind, origin, FinancialActivityStatus.Realized));
+    }
+
     [Fact]
     public void CanCancel_RejectsAnAlreadyCancelledActivity()
     {

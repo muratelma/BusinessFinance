@@ -32,6 +32,9 @@ import '../../../core/widgets/app_text_action.dart';
 import '../data/pos_repository.dart';
 import 'pos_controller.dart';
 import 'pos_definitions_page.dart';
+import 'pos_deposit_sheets.dart';
+
+export 'pos_deposit_sheets.dart' show posSettlementTitle;
 
 /// POS tahsilatları bölümü: Kasa ekranının tek akışındaki kart.
 ///
@@ -43,6 +46,9 @@ import 'pos_definitions_page.dart';
 /// tahsilat sayısı, yoldaki toplam, altında yoldakiler (mavi saat kapsülü) ve
 /// son geçenler (yeşil tik). Ekleme bölüm başlığındaki `+ Ekle` ile; sayfanın
 /// kendi yüzen düğmesi yok (06.2 Grup 6 madde 1).
+///
+/// Yolda tahsilat varken toplamın altında `Hesaba geçenleri işaretle` durur
+/// (ADR 0019 T5): para hesaba yalnız bir yatışla geçer.
 class PosSection extends StatefulWidget {
   const PosSection({required this.controller, super.key, this.scopeController});
 
@@ -193,6 +199,23 @@ class _PosSectionState extends State<PosSection> {
                   ),
                 ),
               ),
+              if (inTransit.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.medium,
+                    0,
+                    AppSpacing.medium,
+                    AppSpacing.small,
+                  ),
+                  child: Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: AppTextAction(
+                      label: 'Hesaba geçenleri işaretle',
+                      icon: Icons.check,
+                      onPressed: () => showPosDepositForm(context, controller),
+                    ),
+                  ),
+                ),
               Divider(height: 1, thickness: 1, color: surfaces.border),
               if (rows.isEmpty)
                 Padding(
@@ -226,15 +249,33 @@ class _PosSectionState extends State<PosSection> {
     BuildContext context,
     PosController controller,
     PosSettlementItem item,
-  ) => AppAdaptiveSheet.show<void>(
-    context: context,
-    builder: (_) => PosSettlementSheet(item: item, controller: controller),
-  );
+  ) async {
+    final next = await AppAdaptiveSheet.show<PosSettlementSheetAction>(
+      context: context,
+      builder: (_) => PosSettlementSheet(item: item, controller: controller),
+    );
+    if (next == null || !context.mounted) return;
+    switch (next) {
+      case PosSettlementSheetAction.deposit:
+        await showPosDepositForm(
+          context,
+          controller,
+          initialSettlementId: item.id,
+        );
+      case PosSettlementSheetAction.viewDeposit:
+        await showPosDepositDetail(
+          context,
+          repository: controller.repository,
+          depositId: item.posDepositId!,
+          changes: controller.changes,
+        );
+    }
+  }
 }
 
-/// Tahsilatın başlığı: kullanıcının yazdığı açıklama, yoksa günü.
-String posSettlementTitle(PosSettlementItem item) =>
-    item.description ?? '${DateText.dayMonth(item.settlementDate)} gün sonu';
+/// Tahsilat ayrıntısının kapanırken istediği sonraki panel. İki panel üst
+/// üste açılmaz: ayrıntı kapanır, açan taraf sıradakini açar.
+enum PosSettlementSheetAction { deposit, viewDeposit }
 
 class _SettlementRow extends StatelessWidget {
   const _SettlementRow({required this.item, required this.onTap});
@@ -274,6 +315,9 @@ class _SettlementRow extends StatelessWidget {
 
 /// POS tahsilatının ayrıntısı: net tutar ve durum, brüt/komisyon/gün/hesap,
 /// kural metni ve yoldaysa `Hesaba geçti`.
+///
+/// `Hesaba geçti` yatış panelini bu tahsilat seçili açtırır; hesaba geçmiş
+/// tahsilat yatışına götürür ve yatış geri alınmadan iptal edilemez.
 class PosSettlementSheet extends StatelessWidget {
   const PosSettlementSheet({
     required this.item,
@@ -412,64 +456,59 @@ class PosSettlementSheet extends StatelessWidget {
                         'işaretleyin; komisyon gider olarak kalır.',
               style: note?.copyWith(color: surfaces.inkMuted),
             ),
+            const SizedBox(height: AppSpacing.medium),
             if (!done) ...[
-              const SizedBox(height: AppSpacing.medium),
+              // Yatış paneli bu tahsilat seçili açılır: gerçekten yatan
+              // tutar ve gün orada yazılır.
               FilledButton.icon(
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(48),
                 ),
                 onPressed: controller.isSubmitting
                     ? null
-                    : () => _confirmTransfer(context),
+                    : () => Navigator.of(
+                        context,
+                      ).pop(PosSettlementSheetAction.deposit),
                 icon: const Icon(Icons.check),
                 label: const Text('Hesaba geçti'),
               ),
-            ],
-            // Yanlış girişin düzeltme yolu (28 Eylül denetimi U12): geçiş
-            // geri alınır, kayıt silinmez iptal edilir.
-            const SizedBox(height: AppSpacing.small),
-            if (done)
+              // Yanlış girişin düzeltme yolu (28 Eylül denetimi U12): kayıt
+              // silinmez, iptal edilir.
+              const SizedBox(height: AppSpacing.small),
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  foregroundColor: theme.colorScheme.error,
+                ),
+                onPressed: controller.isSubmitting
+                    ? null
+                    : () => _confirmCancel(context),
+                icon: const Icon(Icons.block),
+                label: const Text('Kaydı iptal et'),
+              ),
+            ] else if (item.posDepositId != null) ...[
+              // Hesaba geçiş yatışın işidir: gerçek yatan tutar ve geri alma
+              // oradadır. Yatışa bağlı tahsilat iptal edilemez.
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(48),
                 ),
-                onPressed: controller.isSubmitting
-                    ? null
-                    : () => _confirmRevert(context),
-                icon: const Icon(Icons.undo),
-                label: const Text('Hesaba geçmedi, geri al'),
+                onPressed: () => Navigator.of(
+                  context,
+                ).pop(PosSettlementSheetAction.viewDeposit),
+                icon: const Icon(Icons.move_to_inbox_outlined),
+                label: const Text('Yatışı gör'),
               ),
-            TextButton.icon(
-              style: TextButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
-                foregroundColor: theme.colorScheme.error,
+              const SizedBox(height: AppSpacing.small),
+              Text(
+                'Kaydı iptal etmek için önce yatışı geri alın.',
+                style: note?.copyWith(color: surfaces.inkMuted),
               ),
-              onPressed: controller.isSubmitting
-                  ? null
-                  : () => _confirmCancel(context),
-              icon: const Icon(Icons.block),
-              label: const Text('Kaydı iptal et'),
-            ),
+            ],
           ],
         ),
       ),
     );
-  }
-
-  Future<void> _confirmRevert(BuildContext context) async {
-    final confirmed = await AppConfirmDialog.show(
-      context: context,
-      icon: Icons.undo,
-      title: 'Geçiş geri alınsın mı?',
-      message:
-          'Net tutar hesaptan geri çekilir ve yeniden yolda görünür. Satış ve '
-          'komisyon olduğu gibi kalır.',
-      highlight: MoneyText.format(item.netAmount, item.currency),
-      confirmLabel: 'Geri al',
-    );
-    if (!confirmed || !context.mounted) return;
-    final saved = await controller.revertTransfer(item);
-    if (saved && context.mounted) Navigator.of(context).maybePop();
   }
 
   Future<void> _confirmCancel(BuildContext context) async {
@@ -477,32 +516,13 @@ class PosSettlementSheet extends StatelessWidget {
       context: context,
       icon: Icons.block,
       title: 'POS tahsilatı iptal edilsin mi?',
-      message: item.isInTransit
-          ? 'Satış ve komisyon kayıtlardan düşer, yoldaki tutar kalkar.'
-          : 'Satış ve komisyon kayıtlardan düşer, hesaba geçen tutar geri '
-                'çekilir.',
+      message: 'Satış ve komisyon kayıtlardan düşer, yoldaki tutar kalkar.',
       highlight: MoneyText.format(item.grossAmount, item.currency),
       confirmLabel: 'İptal et',
       destructive: true,
     );
     if (!confirmed || !context.mounted) return;
     final saved = await controller.cancel(item);
-    if (saved && context.mounted) Navigator.of(context).maybePop();
-  }
-
-  Future<void> _confirmTransfer(BuildContext context) async {
-    final confirmed = await AppConfirmDialog.show(
-      context: context,
-      icon: Icons.account_balance_outlined,
-      title: 'Para hesaba geçti mi?',
-      message:
-          'Hesabınıza net tutar eklenir. Satış tahsil edildiği gün zaten gelir '
-          'olarak yazıldı; bu adım gelir veya gider yazmaz.',
-      highlight: MoneyText.format(item.netAmount, item.currency),
-      confirmLabel: 'Geçti olarak işaretle',
-    );
-    if (!confirmed || !context.mounted) return;
-    final saved = await controller.markTransferred(item, _today());
     if (saved && context.mounted) Navigator.of(context).maybePop();
   }
 }

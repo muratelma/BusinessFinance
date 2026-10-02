@@ -206,6 +206,7 @@ public sealed class OwnershipIsolationTests
         ("taksit planı", f.InstallmentPlanId),
         ("yükümlülük", f.ObligationId),
         ("POS tahsilatı", f.PosSettlementId),
+        ("POS yatışı", f.PosDepositId),
         ("POS tanımı", f.PosDefinitionId),
         ("kasa sayımı", f.CashCountId),
         ("içe aktarma partisi", f.ImportBatchId),
@@ -405,13 +406,29 @@ public sealed class OwnershipIsolationTests
             "api/v1/obligations/{id:guid}/settlement",
             new SettleObligationRequest(f.AccountId, Today), f.ObligationId);
 
-        yield return Json("POS tahsilatını taşıma", HttpMethod.Post,
-            "api/v1/pos-settlements/{id:guid}/transfer",
-            new MarkPosSettlementTransferredRequest(Today), f.PosSettlementId);
-        yield return Json("POS geçişini geri alma", HttpMethod.Delete,
-            "api/v1/pos-settlements/{id:guid}/transfer", null, f.PosSettlementId);
         yield return Json("POS tahsilatını iptal", HttpMethod.Delete,
             "api/v1/pos-settlements/{id:guid}", null, f.PosSettlementId);
+
+        // İlk yol değeri kimlik değil türdür; hayalet yol elle kurulur.
+        yield return new Probe("işlem sonrası bakiye", HttpMethod.Get,
+            "api/v1/financial-activities/{activityKind}/{activityId:guid}/balances",
+            $"/api/v1/financial-activities/account-transaction/{f.TransactionId}/balances",
+            $"/api/v1/financial-activities/account-transaction/{GhostId}/balances",
+            null);
+
+        yield return Json("POS yatışını okuma", HttpMethod.Get,
+            "api/v1/pos-deposits/{id:guid}", null, f.PosDepositId);
+        yield return Json("POS yatışını geri alma", HttpMethod.Delete,
+            "api/v1/pos-deposits/{id:guid}", null, f.PosDepositId);
+        // Önizleme kimliği yolda değil sorgu dizesinde taşır; başkasının
+        // tahsilatı ile olmayan tahsilat aynı cevabı vermelidir. Yatış yazan
+        // POST kimliği gövdede taşıdığı için `PosDepositEndpointTests` içinde
+        // ölçülür.
+        yield return new Probe("POS yatışı önizlemesi", HttpMethod.Get,
+            "api/v1/pos-deposits/preview",
+            $"/api/v1/pos-deposits/preview?settlementIds={f.PosSettlementId}",
+            $"/api/v1/pos-deposits/preview?settlementIds={GhostId}",
+            null);
 
         yield return Json("POS tanımını güncelleme", HttpMethod.Put,
             "api/v1/pos-definitions/{id:guid}",
@@ -566,6 +583,7 @@ public sealed class OwnershipIsolationTests
         Guid InstallmentPlanId,
         Guid ObligationId,
         Guid PosSettlementId,
+        Guid PosDepositId,
         Guid PosDefinitionId,
         Guid CashCountId,
         Guid ImportBatchId,
@@ -580,7 +598,7 @@ public sealed class OwnershipIsolationTests
             GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId,
             GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId,
             GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId,
-            GhostId, GhostId, GhostId, GhostId);
+            GhostId, GhostId, GhostId, GhostId, GhostId);
     }
 
     private sealed record Probe(
@@ -739,6 +757,17 @@ public sealed class OwnershipIsolationTests
                 secondAccount.Id, income.Id, "500.0000", "TRY", Today, "2026-08-30",
                 "10.0000", null, expense.Id, "business"));
 
+        // Yatış kendi tahsilatını kapatır: yukarıdaki tahsilat yolda kalmalı
+        // ki iptal probu sahiplikten başka bir nedenle reddedilmesin.
+        var depositedPos = await CreateAsync<PosSettlementResponse>(
+            owner, "/api/v1/pos-settlements",
+            new CreatePosSettlementRequest(
+                secondAccount.Id, income.Id, "300.0000", "TRY", Today, "2026-08-30",
+                "6.0000", null, expense.Id, "business"));
+        var posDeposit = await CreateAsync<PosDepositResponse>(owner, "/api/v1/pos-deposits",
+            new CreatePosDepositRequest(
+                Guid.NewGuid(), [depositedPos.Id], "294.0000", Today));
+
         var posDefinition = await CreateAsync<PosDefinitionResponse>(
             owner, "/api/v1/pos-definitions",
             new SavePosDefinitionRequest(
@@ -783,6 +812,7 @@ public sealed class OwnershipIsolationTests
             installmentPlan.Id,
             obligation.Id,
             pos.Id,
+            posDeposit.Id,
             posDefinition.Id,
             cashCount.Id,
             batch.Id,

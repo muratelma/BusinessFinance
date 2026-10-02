@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json.Nodes;
 using BusinessFinance.Api.Features.Accounts;
 using BusinessFinance.Api.Features.Authentication;
 using BusinessFinance.Api.Features.Categories;
@@ -16,11 +17,12 @@ public sealed class PosSettlementEndpointTests
 
     /// <summary>
     /// ADR 0015'in iki anı tek testte: tahsilat günü satışı tanır ve hesabı
-    /// kıpırdatmaz, geçiş günü hesabı artırır ve <b>hiçbir gelir/gider
-    /// yazmaz</b>. İkincisi yazsaydı aynı satış iki kez sayılırdı.
+    /// kıpırdatmaz, yatış günü hesabı artırır ve <b>hiçbir gelir/gider
+    /// yazmaz</b>. İkincisi yazsaydı aynı satış iki kez sayılırdı. Tahsilat
+    /// hesaba yalnız bir yatışla geçer (ADR 0019 T5).
     /// </summary>
     [Fact]
-    public async Task PosSale_RecognizesOnTheSaleDay_AndOnlyMovesCashWhenItTransfers()
+    public async Task PosSale_RecognizesOnTheSaleDay_AndOnlyMovesCashWhenItIsDeposited()
     {
         await using var factory = new BusinessFinanceApiFactory();
         using var owner = await CreateAuthenticatedClientAsync(
@@ -75,19 +77,23 @@ public sealed class PosSettlementEndpointTests
         Assert.Equal("1000.0000", monthlyBefore.TotalIncome);
         Assert.Equal("15.0000", monthlyBefore.TotalExpense);
 
-        using var transfer = await owner.PostAsJsonAsync(
-            $"/api/v1/pos-settlements/{settlement.Id}/transfer",
-            new MarkPosSettlementTransferredRequest(Date(today)));
-        Assert.Equal(HttpStatusCode.OK, transfer.StatusCode);
-        var transferred = (await transfer.Content.ReadFromJsonAsync<PosSettlementResponse>())!;
+        var depositRequest = new CreatePosDepositRequest(
+            Guid.NewGuid(), [settlement.Id], "985.0000", Date(today));
+        using var deposit = await owner.PostAsJsonAsync("/api/v1/pos-deposits", depositRequest);
+        Assert.Equal(HttpStatusCode.Created, deposit.StatusCode);
+        var deposited = (await deposit.Content.ReadFromJsonAsync<PosDepositResponse>())!;
+        Assert.Equal("0.0000", deposited.DeductionAmount);
+        Assert.Null(deposited.DeductionTransactionId);
+        var transferred = Assert.Single(deposited.Settlements);
         Assert.False(transferred.IsInTransit);
         Assert.Equal(Date(today), transferred.TransferredOn);
+        Assert.Equal(deposited.Id, transferred.PosDepositId);
 
         var accountAfter = await owner.GetFromJsonAsync<AccountResponse>(
             $"/api/v1/accounts/{account.Id}");
         Assert.Equal("1985.0000", accountAfter!.Balance);
 
-        // Geçiş günü rapora hiçbir şey eklemedi.
+        // Yatış günü rapora hiçbir şey eklemedi.
         var monthlyAfter = await MonthlyAsync(owner, today);
         Assert.Equal("1000.0000", monthlyAfter.TotalIncome);
         Assert.Equal("15.0000", monthlyAfter.TotalExpense);
@@ -97,11 +103,10 @@ public sealed class PosSettlementEndpointTests
         Assert.Equal("1985.0000", advancedAfter.NetWorth.LiquidAssets);
         Assert.Equal("1985.0000", advancedAfter.NetWorth.NetWorth);
 
-        // Aynı günle tekrarlamak ikinci bir bakiye etkisi üretmez.
-        using var transferAgain = await owner.PostAsJsonAsync(
-            $"/api/v1/pos-settlements/{settlement.Id}/transfer",
-            new MarkPosSettlementTransferredRequest(Date(today)));
-        Assert.Equal(HttpStatusCode.OK, transferAgain.StatusCode);
+        // Aynı isteği tekrarlamak ikinci bir bakiye etkisi üretmez.
+        using var depositAgain = await owner.PostAsJsonAsync(
+            "/api/v1/pos-deposits", depositRequest);
+        Assert.Equal(HttpStatusCode.Created, depositAgain.StatusCode);
         var accountAgain = await owner.GetFromJsonAsync<AccountResponse>(
             $"/api/v1/accounts/{account.Id}");
         Assert.Equal("1985.0000", accountAgain!.Balance);
@@ -111,10 +116,9 @@ public sealed class PosSettlementEndpointTests
             "/api/v1/pos-settlements");
         Assert.Empty(strangerList!.Items);
         Assert.Equal("0.0000", strangerList.MoneyInTransit);
-        using var foreignTransfer = await stranger.PostAsJsonAsync(
-            $"/api/v1/pos-settlements/{settlement.Id}/transfer",
-            new MarkPosSettlementTransferredRequest(Date(today)));
-        Assert.Equal(HttpStatusCode.NotFound, foreignTransfer.StatusCode);
+        using var foreignRevert = await stranger.DeleteAsync(
+            $"/api/v1/pos-deposits/{deposited.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, foreignRevert.StatusCode);
         using var foreignCreate = await stranger.PostAsJsonAsync(
             "/api/v1/pos-settlements",
             new CreatePosSettlementRequest(
@@ -130,12 +134,13 @@ public sealed class PosSettlementEndpointTests
 
     /// <summary>
     /// 28 Eylül denetimi U12: yanlışlıkla "hesaba geçti" denen tahsilat ve
-    /// yanlış girilen POS kaydı düzeltilemiyordu. Geri alma yalnız hesaptaki
-    /// parayı geri çeker; iptal satışı, komisyonu ve yoldaki parayı birlikte
-    /// kaldırır.
+    /// yanlış girilen POS kaydı düzeltilemiyordu. Yatışı geri almak yalnız
+    /// hesaptaki parayı geri çeker; iptal satışı, komisyonu ve yoldaki parayı
+    /// birlikte kaldırır. Yatışa bağlı tahsilat önce yatış geri alınmadan
+    /// iptal edilemez (ADR 0019 T5).
     /// </summary>
     [Fact]
-    public async Task WrongTransferCanBeReverted_AndAWrongSaleCanBeCancelled()
+    public async Task WrongDepositCanBeReverted_AndAWrongSaleCanBeCancelledOnlyAfterwards()
     {
         await using var factory = new BusinessFinanceApiFactory();
         using var owner = await CreateAuthenticatedClientAsync(
@@ -161,28 +166,48 @@ public sealed class PosSettlementEndpointTests
                 CommissionCategoryId: expense.Id,
                 Scope: "business"));
         var settlement = (await create.Content.ReadFromJsonAsync<PosSettlementResponse>())!;
-        using var transfer = await owner.PostAsJsonAsync(
-            $"/api/v1/pos-settlements/{settlement.Id}/transfer",
-            new MarkPosSettlementTransferredRequest(Date(today)));
-        Assert.Equal(HttpStatusCode.OK, transfer.StatusCode);
+        using var deposit = await owner.PostAsJsonAsync(
+            "/api/v1/pos-deposits",
+            new CreatePosDepositRequest(
+                Guid.NewGuid(), [settlement.Id], "985.0000", Date(today)));
+        Assert.Equal(HttpStatusCode.Created, deposit.StatusCode);
+        var deposited = (await deposit.Content.ReadFromJsonAsync<PosDepositResponse>())!;
 
         // Yabancı kullanıcı geri alamaz ve iptal edemez; cevap var olmayan
         // kayıtla aynıdır.
         using var foreignRevert = await stranger.DeleteAsync(
-            $"/api/v1/pos-settlements/{settlement.Id}/transfer");
+            $"/api/v1/pos-deposits/{deposited.Id}");
         Assert.Equal(HttpStatusCode.NotFound, foreignRevert.StatusCode);
         using var foreignCancel = await stranger.DeleteAsync(
             $"/api/v1/pos-settlements/{settlement.Id}");
         Assert.Equal(HttpStatusCode.NotFound, foreignCancel.StatusCode);
 
-        // Geçiş geri alındı: para yeniden yolda, hesap bakiyesi eski hâlinde,
+        // Yatışa bağlı tahsilat iptal edilemez: yatış o tahsilatın netini
+        // hesaba taşıdı. Cevap kendi kodunu taşır ki istemci "önce yatışı
+        // geri alın" diyebilsin; hiçbir şey değişmez.
+        using var lockedCancel = await owner.DeleteAsync(
+            $"/api/v1/pos-settlements/{settlement.Id}");
+        Assert.Equal(HttpStatusCode.Conflict, lockedCancel.StatusCode);
+        var lockedProblem = await lockedCancel.Content.ReadFromJsonAsync<JsonObject>();
+        Assert.Equal(
+            "pos_settlements.deposit_locked", lockedProblem!["code"]!.GetValue<string>());
+        var accountWhileLocked = await owner.GetFromJsonAsync<AccountResponse>(
+            $"/api/v1/accounts/{account.Id}");
+        Assert.Equal("1985.0000", accountWhileLocked!.Balance);
+
+        // Yatış geri alındı: para yeniden yolda, hesap bakiyesi eski hâlinde,
         // satış ve komisyon tanınmış olarak kalır.
-        using var revert = await owner.DeleteAsync(
-            $"/api/v1/pos-settlements/{settlement.Id}/transfer");
+        using var revert = await owner.DeleteAsync($"/api/v1/pos-deposits/{deposited.Id}");
         Assert.Equal(HttpStatusCode.OK, revert.StatusCode);
-        var reverted = (await revert.Content.ReadFromJsonAsync<PosSettlementResponse>())!;
+        var revertedDeposit = (await revert.Content.ReadFromJsonAsync<PosDepositResponse>())!;
+        Assert.True(revertedDeposit.IsCancelled);
+        Assert.Empty(revertedDeposit.Settlements);
+        var listAfterRevert = await owner.GetFromJsonAsync<PosSettlementListResponse>(
+            "/api/v1/pos-settlements?inTransitOnly=true");
+        var reverted = Assert.Single(listAfterRevert!.Items);
         Assert.True(reverted.IsInTransit);
         Assert.Null(reverted.TransferredOn);
+        Assert.Null(reverted.PosDepositId);
         var accountAfterRevert = await owner.GetFromJsonAsync<AccountResponse>(
             $"/api/v1/accounts/{account.Id}");
         Assert.Equal("1000.0000", accountAfterRevert!.Balance);
@@ -194,7 +219,7 @@ public sealed class PosSettlementEndpointTests
 
         // Geri almak idempotenttir.
         using var revertAgain = await owner.DeleteAsync(
-            $"/api/v1/pos-settlements/{settlement.Id}/transfer");
+            $"/api/v1/pos-deposits/{deposited.Id}");
         Assert.Equal(HttpStatusCode.OK, revertAgain.StatusCode);
 
         // İptal: satış, komisyon ve yoldaki para birlikte düşer.
@@ -209,13 +234,19 @@ public sealed class PosSettlementEndpointTests
         var advancedAfterCancel = await AdvancedAsync(owner, today);
         Assert.Equal("0.0000", advancedAfterCancel.NetWorth.MoneyInTransit);
 
-        // İptal idempotenttir; iptal edilmiş kaydın geçişi geri alınamaz.
+        // İptal idempotenttir; iptal edilmiş tahsilat bir yatışla kapatılamaz.
         using var cancelAgain = await owner.DeleteAsync(
             $"/api/v1/pos-settlements/{settlement.Id}");
         Assert.Equal(HttpStatusCode.OK, cancelAgain.StatusCode);
-        using var revertCancelled = await owner.DeleteAsync(
-            $"/api/v1/pos-settlements/{settlement.Id}/transfer");
-        Assert.Equal(HttpStatusCode.Conflict, revertCancelled.StatusCode);
+        using var depositCancelled = await owner.PostAsJsonAsync(
+            "/api/v1/pos-deposits",
+            new CreatePosDepositRequest(
+                Guid.NewGuid(), [settlement.Id], "985.0000", Date(today)));
+        Assert.Equal(HttpStatusCode.Conflict, depositCancelled.StatusCode);
+        var cancelledProblem = await depositCancelled.Content.ReadFromJsonAsync<JsonObject>();
+        Assert.Equal(
+            "pos_deposits.settlement_not_in_transit",
+            cancelledProblem!["code"]!.GetValue<string>());
     }
 
     [Fact]

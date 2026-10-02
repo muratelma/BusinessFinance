@@ -141,49 +141,39 @@ void main() {
     expect(cashRepository.todayLoads, 2, reason: 'kapanan ekran dinlemez');
   });
 
-  // 28 Eylül denetimi U12: yanlış "hesaba geçti" ve yanlış POS kaydı
-  // düzeltilemiyordu.
-  test(
-    'geçiş geri alınır ve kayıt iptal edilir; yalnız etkiledikleri yenilenir',
-    () async {
-      final repository = _FakePosRepository();
-      final changes = FinancialDataChanges();
-      final controller = PosController(repository, changes: changes);
-      await controller.create(
-        accountId: 'bank-account',
-        categoryId: 'income-category',
-        grossAmount: '100.0000',
-        settlementDate: '2026-08-24',
-        expectedTransferDate: '2026-08-26',
-        scope: TransactionScope.business,
-      );
-      final item = repository.current.items.single;
-      await controller.markTransferred(item, '2026-08-25');
-      final budgetsBefore = changes.budgetsRevision;
-      final accountsBefore = changes.accountsRevision;
-      final loadsBefore = repository.listLoads;
+  // 28 Eylül denetimi U12: yanlış POS kaydı düzeltilemiyordu. Hesaba geçişin
+  // geri alınması yatışın işidir (`pos_deposit_test.dart`).
+  test('yoldaki kayıt iptal edilir; yalnız etkiledikleri yenilenir', () async {
+    final repository = _FakePosRepository();
+    final changes = FinancialDataChanges();
+    final controller = PosController(repository, changes: changes);
+    await controller.create(
+      accountId: 'bank-account',
+      categoryId: 'income-category',
+      grossAmount: '100.0000',
+      settlementDate: '2026-08-24',
+      expectedTransferDate: '2026-08-26',
+      scope: TransactionScope.business,
+    );
+    final item = repository.current.items.single;
+    final budgetsBefore = changes.budgetsRevision;
+    final accountsBefore = changes.accountsRevision;
+    final loadsBefore = repository.listLoads;
 
-      expect(await controller.revertTransfer(item), isTrue);
-      await pumpEventQueue();
-      expect(repository.revertedId, item.id);
-      expect(controller.items.single.isInTransit, isTrue);
-      expect(changes.accountsRevision, accountsBefore + 1);
-      // Satış yeniden tanınmaz: bütçe yükselmez.
-      expect(changes.budgetsRevision, budgetsBefore);
-      // Kendi değişikliğinden sonra bir kez yüklenir.
-      expect(repository.listLoads, loadsBefore + 1);
+    expect(await controller.cancel(item), isTrue);
+    await pumpEventQueue();
+    expect(repository.cancelledId, item.id);
+    expect(controller.items, isEmpty);
+    // İptal satışı ve komisyonu düşürür: bütçe de yenilenir.
+    expect(changes.budgetsRevision, budgetsBefore + 1);
+    // Yoldaki para hiçbir hesapta değildi: hesaplar yenilenmez.
+    expect(changes.accountsRevision, accountsBefore);
+    // Kendi değişikliğinden sonra bir kez yüklenir.
+    expect(repository.listLoads, loadsBefore + 1);
+    controller.dispose();
+  });
 
-      expect(await controller.cancel(item), isTrue);
-      expect(repository.cancelledId, item.id);
-      expect(controller.items, isEmpty);
-      // İptal satışı ve komisyonu düşürür: bütçe de yenilenir.
-      expect(changes.budgetsRevision, budgetsBefore + 1);
-      expect(changes.accountsRevision, accountsBefore + 2);
-      controller.dispose();
-    },
-  );
-
-  test('POS deposu geri almayı ve iptali DELETE ile gönderir', () async {
+  test('POS deposu iptali DELETE ile gönderir', () async {
     final requests = <String>[];
     final repository = PosRepository(
       _client((request) async {
@@ -192,13 +182,9 @@ void main() {
       }),
     );
 
-    await repository.revertTransfer(settlementId: 'pos-1');
     await repository.cancel(settlementId: 'pos-1');
 
-    expect(requests, [
-      'DELETE /api/v1/pos-settlements/pos-1/transfer',
-      'DELETE /api/v1/pos-settlements/pos-1',
-    ]);
+    expect(requests, ['DELETE /api/v1/pos-settlements/pos-1']);
   });
 
   // Kullanıcı, 29 Eylül: bugünün sayımı "Son sayımlar" listesinde de
@@ -246,7 +232,7 @@ void main() {
   });
 
   test(
-    'POS tahsilatı satışı tanır; geçiş yalnız hesabı hareket ettirir',
+    'POS tahsilatı satışı tanır; yatış yalnız hesabı hareket ettirir',
     () async {
       final repository = _FakePosRepository();
       final changes = FinancialDataChanges();
@@ -278,18 +264,22 @@ void main() {
       expect(changes.activityFeedRevision, 1);
 
       expect(
-        await controller.markTransferred(
-          repository.current.items.single,
-          '2026-08-25',
+        await controller.createDeposit(
+          clientRequestId: 'request-1',
+          settlementIds: [repository.current.items.single.id],
+          depositedAmount: '97.5000',
+          depositDate: '2026-08-25',
         ),
         isTrue,
       );
-      expect(repository.transferDate, '2026-08-25');
+      expect(repository.depositInput?['depositDate'], '2026-08-25');
+      expect(controller.items.single.isInTransit, isFalse);
       expect(changes.cashRevision, 2);
       expect(changes.dashboardRevision, 2);
       expect(changes.accountsRevision, 1);
-      // Geçiş hiçbir gider tanımaz: bütçe yükselmez, yoksa aynı satış iki kez
-      // sayılırdı. Feed ise yükselir; geçiş kendi satırını doğuruyor.
+      // Beklendiği kadar yatan para hiçbir gider tanımaz: bütçe yükselmez,
+      // yoksa aynı satış iki kez sayılırdı. Feed ise yükselir; yatış kendi
+      // satırını doğuruyor.
       expect(changes.budgetsRevision, 1);
       expect(changes.activityFeedRevision, 2);
     },
@@ -372,9 +362,8 @@ void main() {
     expect(find.byType(CashPage), findsOneWidget);
   });
 
-  testWidgets('POS ayrıntısı geçişi geri alır ve kaydı onayla iptal eder', (
-    tester,
-  ) async {
+  testWidgets('POS ayrıntısı yoldaki kaydı onayla iptal eder; hesaba geçmiş '
+      'kayıt yatışına götürür', (tester) async {
     tester.view.physicalSize = const Size(412, 1200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -384,6 +373,7 @@ void main() {
       ..._posItemJson,
       'transferredOn': '2026-08-25',
       'isInTransit': false,
+      'posDepositId': 'deposit-1',
     });
 
     Future<void> show(PosSettlementItem item) async {
@@ -398,18 +388,21 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    // Hesaba geçmiş kayıt yatışa bağlıdır: iptal sunulmaz, yol yatışadır.
     await show(transferred);
-    await tester.tap(find.text('Hesaba geçmedi, geri al'));
-    await tester.pumpAndSettle();
-    expect(find.text('Geçiş geri alınsın mı?'), findsOneWidget);
-    await tester.tap(find.text('Geri al'));
-    await tester.pumpAndSettle();
-    expect(repository.revertedId, 'pos-settlement');
+    expect(find.text('Yatışı gör'), findsOneWidget);
+    expect(find.text('Kaydı iptal et'), findsNothing);
+    expect(find.text('Hesaba geçti'), findsOneWidget, reason: 'durum etiketi');
+    expect(
+      find.text('Kaydı iptal etmek için önce yatışı geri alın.'),
+      findsOneWidget,
+    );
 
-    // Yoldaki kayıtta geri alınacak bir geçiş yok; iptal her zaman var ve
-    // onaysız çalışmaz.
+    // Yoldaki kayıtta görülecek bir yatış yok; iptal vardır ve onaysız
+    // çalışmaz.
     await show(PosSettlementItem.fromJson(_posItemJson));
-    expect(find.text('Hesaba geçmedi, geri al'), findsNothing);
+    expect(find.text('Yatışı gör'), findsNothing);
+    expect(find.text('Hesaba geçti'), findsOneWidget, reason: 'eylem düğmesi');
     await tester.tap(find.text('Kaydı iptal et'));
     await tester.pumpAndSettle();
     expect(find.text('POS tahsilatı iptal edilsin mi?'), findsOneWidget);
@@ -689,7 +682,7 @@ class _FakePosRepository implements PosRepositoryContract {
     inTransitCount: 0,
   );
   Map<String, Object?>? created;
-  String? transferDate;
+  Map<String, Object?>? depositInput;
   int listLoads = 0;
 
   @override
@@ -716,36 +709,60 @@ class _FakePosRepository implements PosRepositoryContract {
   }
 
   @override
-  Future<void> markTransferred({
-    required String settlementId,
-    required String transferDate,
+  Future<PosDepositPreview> previewDeposit({
+    required List<String> settlementIds,
+    String? depositedAmount,
+  }) async => throw UnimplementedError();
+
+  @override
+  Future<PosDeposit> createDeposit({
+    required String clientRequestId,
+    required List<String> settlementIds,
+    required String depositedAmount,
+    required String depositDate,
+    String? deductionCategoryId,
   }) async {
-    this.transferDate = transferDate;
+    depositInput = {
+      'clientRequestId': clientRequestId,
+      'settlementIds': settlementIds,
+      'depositedAmount': depositedAmount,
+      'depositDate': depositDate,
+      'deductionCategoryId': deductionCategoryId,
+    };
     current = PosSettlementList(
       items: [
         PosSettlementItem.fromJson({
           ..._posItemJson,
-          'transferredOn': transferDate,
+          'transferredOn': depositDate,
           'isInTransit': false,
+          'posDepositId': 'deposit-1',
         }),
       ],
       moneyInTransit: '0.0000',
       inTransitCount: 0,
     );
-  }
-
-  String? revertedId;
-  String? cancelledId;
-
-  @override
-  Future<void> revertTransfer({required String settlementId}) async {
-    revertedId = settlementId;
-    current = PosSettlementList(
-      items: [PosSettlementItem.fromJson(_posItemJson)],
-      moneyInTransit: '97.5000',
-      inTransitCount: 1,
+    return PosDeposit(
+      id: 'deposit-1',
+      accountName: 'Banka',
+      depositDate: depositDate,
+      expectedAmount: '97.5000',
+      depositedAmount: depositedAmount,
+      deductionAmount: '0.0000',
+      currency: 'TRY',
+      isCancelled: false,
+      settlements: current.items,
     );
   }
+
+  @override
+  Future<PosDeposit> getDeposit({required String depositId}) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<PosDeposit> revertDeposit({required String depositId}) async =>
+      throw UnimplementedError();
+
+  String? cancelledId;
 
   @override
   Future<void> cancel({required String settlementId}) async {

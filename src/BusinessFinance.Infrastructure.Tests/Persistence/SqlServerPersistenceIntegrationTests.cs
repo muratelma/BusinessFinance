@@ -38,6 +38,7 @@ using BusinessFinance.Infrastructure.Tests.DataPortability;
 using BusinessFinance.Application.SavingsGoals;
 using BusinessFinance.Application.Attachments;
 using BusinessFinance.Application.Categories;
+using BusinessFinance.Application.Pos;
 using BusinessFinance.Application.Receipts;
 
 namespace BusinessFinance.Infrastructure.Tests.Persistence;
@@ -3667,7 +3668,9 @@ public sealed class SqlServerPersistenceIntegrationTests
                 Guid.NewGuid(), owner.Id, bank, sales, new Money(1000m, CurrencyCode.TRY), 20m,
                 TransactionScope.Business, settlementDate, new DateOnly(2026, 8, 22), now,
                 commission);
-            transferred.MarkTransferred(new DateOnly(2026, 8, 22), now);
+            var deposit = PosDeposit.Record(
+                Guid.NewGuid(), owner.Id, bank, [transferred],
+                new Money(980m, CurrencyCode.TRY), new DateOnly(2026, 8, 22), now);
             // Yolda: tahsil edildi, hesaba geçmedi. Net 490.
             var waiting = new PosSettlement(
                 Guid.NewGuid(), owner.Id, bank, sales, new Money(500m, CurrencyCode.TRY), 10m,
@@ -3682,7 +3685,8 @@ public sealed class SqlServerPersistenceIntegrationTests
                 Guid.NewGuid(), owner.Id, till, 480m, TransactionScope.Business, asOfDate, now,
                 "Gün sonu");
 
-            seed.AddRange(bank, till, sales, commission, transferred, waiting, cancelled, count);
+            seed.AddRange(
+                bank, till, sales, commission, transferred, deposit, waiting, cancelled, count);
             await seed.SaveChangesAsync();
         }
 
@@ -3760,6 +3764,547 @@ public sealed class SqlServerPersistenceIntegrationTests
     }
 
     /// <summary>
+    /// Aşama 06.3 Grup 5: mevcut "hesaba geçti" verisi dolu bir veritabanında
+    /// yatışa taşınır (ADR 0019 T5). Her geçiş bir yatıştır; hiçbir bakiye
+    /// değişmez ve hiçbir bilgi kaybolmaz.
+    /// </summary>
+    /// <remarks>
+    /// Eski kuralda hesaba geçtikten sonra iptal edilmiş tahsilat geçiş gününü
+    /// taşımaya devam ediyordu. Yeni kuralda iptal edilmiş tahsilat bir yatışa
+    /// bağlı kalamaz: geçiş bilgisi aynı gün ve tutarla, iptal edilmiş bir
+    /// yatış olarak durur ve tahsilattaki gün boşalır.
+    /// </remarks>
+    [SqlServerFact]
+    public async Task AddPosDeposits_UpgradesAPopulatedDatabaseAndTurnsEveryTransferIntoADeposit()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(
+            GetConnectionString(), "AddPosDefinitionDefault");
+        var user = CreateUser("pos-deposits-upgrade@example.test");
+        await database.SeedUsersAsync(user);
+
+        var bank = new Account(
+            Guid.NewGuid(), user.Id, "Banka", AccountType.Bank, CurrencyCode.TRY, 1000m);
+        var sales = new Category(Guid.NewGuid(), user.Id, "Satış", CategoryType.Income);
+        var commission = new Category(
+            Guid.NewGuid(), user.Id, "POS komisyonu", CategoryType.Expense);
+        await using (var seed = database.CreateContext())
+        {
+            seed.AddRange(bank, sales, commission);
+            await seed.SaveChangesAsync(CancellationToken.None);
+        }
+
+        // O adımda tahsilat yatış kimliği ve sürüm kolonu taşımıyordu: dört
+        // tahsilat eski kolonlarla ham SQL ile yazılıyor.
+        var createdAt = new DateTimeOffset(2026, 8, 20, 18, 0, 0, TimeSpan.Zero);
+        var transferredAt = new DateTimeOffset(2026, 8, 22, 9, 30, 0, TimeSpan.Zero);
+        var cancelledAt = new DateTimeOffset(2026, 8, 23, 11, 0, 0, TimeSpan.Zero);
+        var transferredId = Guid.NewGuid();
+        var waitingId = Guid.NewGuid();
+        var cancelledAfterTransferId = Guid.NewGuid();
+        var cancelledInTransitId = Guid.NewGuid();
+
+        async Task InsertLegacySettlementAsync(
+            Guid id,
+            decimal gross,
+            decimal commissionAmount,
+            DateOnly? transferredOn,
+            bool isCancelled)
+        {
+            await database.ExecuteAsync(
+                "INSERT INTO [PosSettlements] ([Id], [UserId], [AccountId], [CategoryId], " +
+                "[CommissionCategoryId], [GrossAmount], [Currency], [CommissionAmount], [Scope], " +
+                "[SettlementDate], [ExpectedTransferDate], [TransferredOn], [TransferredAtUtc], " +
+                "[Description], [CreatedAtUtc], [IsCancelled], [CancelledAtUtc], [PosDefinitionId]) " +
+                "VALUES ({0}, {1}, {2}, {3}, {4}, {5}, 1, {6}, 1, '2026-08-20', '2026-08-22', " +
+                "{7}, {8}, NULL, {9}, {10}, {11}, NULL)",
+                id, user.Id, bank.Id, sales.Id,
+                commissionAmount > 0m ? commission.Id : null,
+                gross, commissionAmount,
+                transferredOn,
+                transferredOn is null ? null : transferredAt,
+                createdAt, isCancelled,
+                isCancelled ? cancelledAt : null);
+        }
+
+        await InsertLegacySettlementAsync(
+            transferredId, 1000m, 20m, new DateOnly(2026, 8, 22), false);
+        await InsertLegacySettlementAsync(waitingId, 500m, 10m, null, false);
+        await InsertLegacySettlementAsync(
+            cancelledAfterTransferId, 300m, 0m, new DateOnly(2026, 8, 21), true);
+        await InsertLegacySettlementAsync(cancelledInTransitId, 200m, 0m, null, true);
+
+        await database.MigrateToLatestAsync();
+
+        await using (var read = database.CreateContext())
+        {
+            var settlements = await read.PosSettlements.AsNoTracking()
+                .ToDictionaryAsync(item => item.Id, CancellationToken.None);
+            var deposits = await read.PosDeposits.AsNoTracking()
+                .OrderBy(item => item.DepositDate).ToArrayAsync(CancellationToken.None);
+            Assert.Equal(2, deposits.Length);
+            var reverted = deposits[0];
+            var live = deposits[1];
+
+            // Geçmiş tahsilat: netiyle, kesintisiz bir yatış. Eski yolda fark
+            // yazılamıyordu; uydurulmaz.
+            Assert.False(live.IsCancelled);
+            Assert.Equal(bank.Id, live.AccountId);
+            Assert.Equal(new DateOnly(2026, 8, 22), live.DepositDate);
+            Assert.Equal(980m, live.DepositedAmount.Amount);
+            Assert.Equal(0m, live.DeductionAmount);
+            Assert.Null(live.DeductionTransactionId);
+            Assert.Equal(transferredAt, live.CreatedAtUtc);
+            var transferred = settlements[transferredId];
+            Assert.Equal(live.Id, transferred.PosDepositId);
+            Assert.Equal(new DateOnly(2026, 8, 22), transferred.TransferredOn);
+            Assert.Equal(transferredAt, transferred.TransferredAtUtc);
+            Assert.False(transferred.IsInTransit);
+
+            // Geçip iptal edilmiş tahsilat: bilgi iptal edilmiş bir yatışta
+            // durur, tahsilat hiçbir yatışa bağlı değildir.
+            Assert.True(reverted.IsCancelled);
+            Assert.Equal(cancelledAt, reverted.CancelledAtUtc);
+            Assert.Equal(new DateOnly(2026, 8, 21), reverted.DepositDate);
+            Assert.Equal(300m, reverted.DepositedAmount.Amount);
+            var cancelledAfterTransfer = settlements[cancelledAfterTransferId];
+            Assert.True(cancelledAfterTransfer.IsCancelled);
+            Assert.Null(cancelledAfterTransfer.PosDepositId);
+            Assert.Null(cancelledAfterTransfer.TransferredOn);
+            Assert.Null(cancelledAfterTransfer.TransferredAtUtc);
+
+            // Yoldaki ve yoldayken iptal edilmiş tahsilat olduğu gibi kalır.
+            Assert.True(settlements[waitingId].IsInTransit);
+            Assert.Null(settlements[waitingId].PosDepositId);
+            Assert.True(settlements[cancelledInTransitId].IsCancelled);
+            Assert.Null(settlements[cancelledInTransitId].PosDepositId);
+
+            var defaults = await read.Database.SqlQueryRaw<int>(
+                    "SELECT COUNT(*) AS [Value] FROM sys.default_constraints d " +
+                    "JOIN sys.tables t ON d.parent_object_id = t.object_id " +
+                    "JOIN sys.columns c ON d.parent_object_id = c.object_id " +
+                    "AND d.parent_column_id = c.column_id " +
+                    "WHERE t.[name] = 'PosDeposits' OR c.[name] IN ('PosDepositId', 'Version')")
+                .SingleAsync(CancellationToken.None);
+            Assert.Equal(0, defaults);
+        }
+
+        // Hiçbir bakiye kıpırdamadı: hesaba yalnız geçmiş tahsilatın neti girdi,
+        // yolda yalnız bekleyen tahsilatın neti var.
+        await using var services = CreateServiceProvider(database.ConnectionString);
+        await using var scope = services.CreateAsyncScope();
+        var accountRepository = scope.ServiceProvider.GetRequiredService<IAccountRepository>();
+        var reportRepository = scope.ServiceProvider.GetRequiredService<IFinancialReportRepository>();
+        Assert.Equal(1980m, await accountRepository.CalculateBalanceAsync(bank.Id, user.Id, default));
+        var advanced = await reportRepository.GetAdvancedAsync(
+            user.Id, 2026, 8, new DateOnly(2026, 8, 24), 2, 30, null, default);
+        Assert.Equal(490m, advanced.NetWorth.MoneyInTransit);
+        Assert.Equal(1980m, advanced.NetWorth.LiquidAssets);
+        var monthly = await reportRepository.GetMonthlyAsync(user.Id, 2026, 8, null, default);
+        Assert.Equal(1500m, monthly.TotalIncome);
+        Assert.Equal(30m, monthly.TotalExpense);
+
+        // Birleşik akışta geçiş artık yatışın satırıdır; iptal edilmiş yatış
+        // da geçmiştir ve iptal edilmiş olarak görünür.
+        var feed = await scope.ServiceProvider.GetRequiredService<IFinancialActivityRepository>()
+            .ListAsync(user.Id, AllActivities(), CancellationToken.None);
+        var depositRows = feed.Items
+            .Where(item => item.ActivityKind == FinancialActivityKind.PosDeposit)
+            .OrderBy(item => item.ActivityDate).ToArray();
+        Assert.Equal(2, depositRows.Length);
+        Assert.Equal(FinancialActivityStatus.Cancelled, depositRows[0].Status);
+        Assert.Equal(300m, depositRows[0].Amount);
+        Assert.Equal(FinancialActivityStatus.Realized, depositRows[1].Status);
+        Assert.Equal(980m, depositRows[1].Amount);
+
+        // Taşınan yatış yeni kuralla geri alınabilir: tahsilat yola döner.
+        var depositRepository = scope.ServiceProvider.GetRequiredService<IPosDepositRepository>();
+        var liveDepositId = depositRows[1].ActivityId;
+        var deposit = await depositRepository.FindOwnedByIdAsync(
+            liveDepositId, user.Id, true, CancellationToken.None);
+        var closed = await depositRepository.FindSettlementsOfDepositAsync(
+            liveDepositId, user.Id, CancellationToken.None);
+        Assert.Equal(transferredId, Assert.Single(closed).Id);
+        deposit!.Revert(closed, null, new DateTimeOffset(2026, 10, 2, 8, 0, 0, TimeSpan.Zero));
+        Assert.True(await depositRepository.TrySaveAsync(CancellationToken.None));
+        Assert.Equal(1000m, await accountRepository.CalculateBalanceAsync(bank.Id, user.Id, default));
+    }
+
+    /// <summary>
+    /// Yatış gerçek SQL'de: hesaba tam olarak yatan tutar girer, kesinti gideri
+    /// yatışa bağlıdır ve tahsilatın yatışla bağı SQL seviyesinde de korunur.
+    /// </summary>
+    /// <remarks>
+    /// Üç kapı ölçülüyor: tahsilattaki geçiş günü yatışın gününden ayrışamaz
+    /// (üçlü foreign key), yatışa bağlı tahsilat iptal edilemez (CHECK) ve aynı
+    /// tahsilat için yarışan yatış ile iptalden yalnız biri yazılır
+    /// (rowversion).
+    /// </remarks>
+    [SqlServerFact]
+    public async Task PosDeposit_MovesExactlyTheDepositedAmountAndSqlGuardsTheLink()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var owner = CreateUser("pos-deposit-owner@example.test");
+        var stranger = CreateUser("pos-deposit-stranger@example.test");
+        await database.SeedUsersAsync(owner, stranger);
+        var now = new DateTimeOffset(2026, 8, 24, 18, 0, 0, TimeSpan.Zero);
+        var depositDate = new DateOnly(2026, 8, 22);
+        Guid bankId, firstId, raceId, depositId, deductionId;
+
+        await using (var seed = database.CreateContext())
+        {
+            var bank = new Account(
+                Guid.NewGuid(), owner.Id, "Banka", AccountType.Bank, CurrencyCode.TRY, 1000m);
+            var sales = new Category(Guid.NewGuid(), owner.Id, "Satış", CategoryType.Income);
+            var commission = new Category(
+                Guid.NewGuid(), owner.Id, "POS komisyonu", CategoryType.Expense);
+            var first = new PosSettlement(
+                Guid.NewGuid(), owner.Id, bank, sales, new Money(1000m, CurrencyCode.TRY), 20m,
+                TransactionScope.Business, new DateOnly(2026, 8, 20), depositDate, now, commission);
+            var second = new PosSettlement(
+                Guid.NewGuid(), owner.Id, bank, sales, new Money(500m, CurrencyCode.TRY), 10m,
+                TransactionScope.Business, new DateOnly(2026, 8, 21), depositDate, now, commission);
+            var race = new PosSettlement(
+                Guid.NewGuid(), owner.Id, bank, sales, new Money(200m, CurrencyCode.TRY), 0m,
+                TransactionScope.Business, new DateOnly(2026, 8, 21), depositDate, now);
+            // Beklenen 980 + 490 = 1470; banka 1450 yatırdı, 20 kesinti.
+            var deduction = new BudgetTransaction(
+                Guid.NewGuid(), owner.Id, bank, commission, new Money(20m, CurrencyCode.TRY),
+                TransactionType.Expense, TransactionScope.Business, depositDate);
+            var deposit = PosDeposit.Record(
+                Guid.NewGuid(), owner.Id, bank, [first, second],
+                new Money(1450m, CurrencyCode.TRY), depositDate, now, deduction);
+            bankId = bank.Id;
+            firstId = first.Id;
+            raceId = race.Id;
+            depositId = deposit.Id;
+            deductionId = deduction.Id;
+
+            seed.AddRange(bank, sales, commission, first, second, race, deduction, deposit);
+            await seed.SaveChangesAsync();
+        }
+
+        await using var services = CreateServiceProvider(database.ConnectionString);
+        await using var scope = services.CreateAsyncScope();
+        var accountRepository = scope.ServiceProvider.GetRequiredService<IAccountRepository>();
+        var reportRepository = scope.ServiceProvider.GetRequiredService<IFinancialReportRepository>();
+        var depositRepository = scope.ServiceProvider.GetRequiredService<IPosDepositRepository>();
+
+        // Hesaba netler girdi (1470), kesinti gideri çıktı (20): farkı tam
+        // olarak yatan tutar.
+        Assert.Equal(2450m, await accountRepository.CalculateBalanceAsync(bankId, owner.Id, default));
+        var dayFlow = scope.ServiceProvider.GetRequiredService<IAccountDayFlowReader>();
+        Assert.Equal(
+            (1470m, 20m),
+            await dayFlow.CalculateDayFlowAsync(bankId, owner.Id, depositDate, default));
+
+        // Yatış gelir yazmaz; kesinti komisyon kategorisinde bir giderdir.
+        var monthly = await reportRepository.GetMonthlyAsync(owner.Id, 2026, 8, null, default);
+        Assert.Equal(1700m, monthly.TotalIncome);
+        Assert.Equal(50m, monthly.TotalExpense);
+        Assert.Equal(50m, Assert.Single(monthly.CategoryExpenses).Amount);
+
+        var advanced = await reportRepository.GetAdvancedAsync(
+            owner.Id, 2026, 8, new DateOnly(2026, 8, 24), 2, 30, null, default);
+        Assert.Equal(200m, advanced.NetWorth.MoneyInTransit);
+        Assert.Equal(
+            advanced.NetWorth.MoneyInTransit,
+            advanced.NetWorth.NetWorth - advanced.NetWorth.LiquidAssets);
+
+        // Okuma modeli: yatış kapattığı tahsilatlarla ve kesinti kategorisiyle.
+        var dto = await depositRepository.GetAsync(depositId, owner.Id, default);
+        Assert.Equal(1470m, dto!.ExpectedAmount);
+        Assert.Equal(1450m, dto.DepositedAmount);
+        Assert.Equal(20m, dto.DeductionAmount);
+        Assert.Equal(deductionId, dto.DeductionTransactionId);
+        Assert.Equal("POS komisyonu", dto.DeductionCategoryName);
+        Assert.Equal(2, dto.Settlements.Count);
+        Assert.Null(await depositRepository.GetAsync(depositId, stranger.Id, default));
+        Assert.Empty(await depositRepository.FindOwnedSettlementsAsync(
+            [firstId], stranger.Id, default));
+
+        // Birleşik akış: yatış tek satır ve gerçekten yatan tutar.
+        var activities = scope.ServiceProvider.GetRequiredService<IFinancialActivityRepository>();
+        var feed = await activities.ListAsync(owner.Id, AllActivities(), CancellationToken.None);
+        var depositRow = Assert.Single(
+            feed.Items, item => item.ActivityKind == FinancialActivityKind.PosDeposit);
+        Assert.Equal(depositId, depositRow.ActivityId);
+        Assert.Equal(1450m, depositRow.Amount);
+        Assert.Null(depositRow.Scope);
+        // Kesinti yatışın parçasıdır; akışta ayrı satır olmaz ama tek başına
+        // iptal edilemeyen bir gider olarak durur.
+        Assert.Equal(20m, depositRow.FeeAmount);
+        Assert.Equal(2, depositRow.SettlementCount);
+        Assert.DoesNotContain(feed.Items, item => item.ActivityId == deductionId);
+        Assert.False(FinancialActivityCapabilities.CanCancel(
+            FinancialActivityKind.AccountTransaction,
+            FinancialActivityOrigin.PosDeposit,
+            FinancialActivityStatus.Realized));
+        Assert.Equal(
+            FinancialActivityOrigin.PosDeposit,
+            await scope.ServiceProvider.GetRequiredService<IActivityOriginReader>()
+                .GetTransactionOriginAsync(owner.Id, deductionId, CancellationToken.None));
+        Assert.Empty((await activities.ListAsync(
+            stranger.Id, AllActivities(), CancellationToken.None)).Items);
+
+        // SQL kapıları. Geçiş günü yatışın gününden ayrışamaz.
+        await Assert.ThrowsAsync<SqlException>(() => database.ExecuteAsync(
+            "UPDATE [PosSettlements] SET [TransferredOn] = '2026-08-23' WHERE [Id] = {0}", firstId));
+        // Yatışa bağlı tahsilat iptal edilemez.
+        await Assert.ThrowsAsync<SqlException>(() => database.ExecuteAsync(
+            "UPDATE [PosSettlements] SET [IsCancelled] = 1, [CancelledAtUtc] = SYSUTCDATETIME() " +
+            "WHERE [Id] = {0}", firstId));
+        // Yatış, gün ve damga birlikte bulunur.
+        await Assert.ThrowsAsync<SqlException>(() => database.ExecuteAsync(
+            "UPDATE [PosSettlements] SET [PosDepositId] = NULL WHERE [Id] = {0}", firstId));
+        // Kesinti ile gider kaydı birlikte bulunur.
+        await Assert.ThrowsAsync<SqlException>(() => database.ExecuteAsync(
+            "UPDATE [PosDeposits] SET [DeductionTransactionId] = NULL WHERE [Id] = {0}", depositId));
+        // Başka kullanıcının yatışına tahsilat bağlanamaz.
+        await Assert.ThrowsAsync<SqlException>(() => database.ExecuteAsync(
+            "UPDATE [PosSettlements] SET [UserId] = {1} WHERE [Id] = {0}", firstId, stranger.Id));
+
+        // Yarış: aynı tahsilat bir bağlamda yatışla kapanırken ötekinde iptal
+        // ediliyor. İkinci yazma hiçbir şey değiştirmez.
+        await using (var depositing = database.CreateContext())
+        await using (var cancelling = database.CreateContext())
+        {
+            var bank = await depositing.Accounts.SingleAsync(item => item.Id == bankId);
+            var toDeposit = await depositing.PosSettlements.SingleAsync(item => item.Id == raceId);
+            var toCancel = await cancelling.PosSettlements.SingleAsync(item => item.Id == raceId);
+
+            depositing.Add(PosDeposit.Record(
+                Guid.NewGuid(), owner.Id, bank, [toDeposit],
+                new Money(200m, CurrencyCode.TRY), depositDate, now));
+            await depositing.SaveChangesAsync();
+
+            toCancel.Cancel(now);
+            await Assert.ThrowsAsync<DbUpdateConcurrencyException>(
+                () => cancelling.SaveChangesAsync());
+        }
+
+        await using (var read = database.CreateContext())
+        {
+            var raced = await read.PosSettlements.AsNoTracking().SingleAsync(item => item.Id == raceId);
+            Assert.False(raced.IsCancelled);
+            Assert.NotNull(raced.PosDepositId);
+        }
+
+        // Geri alma: kapatılan iki tahsilat yola döner, kesinti gideri iptal
+        // olur, yatış kaydı iptal damgasıyla kalır.
+        var tracked = await depositRepository.FindOwnedByIdAsync(depositId, owner.Id, true, default);
+        var closed = await depositRepository.FindSettlementsOfDepositAsync(depositId, owner.Id, default);
+        var trackedDeduction = await scope.ServiceProvider
+            .GetRequiredService<BusinessFinanceDbContext>()
+            .Transactions.SingleAsync(item => item.Id == deductionId);
+        tracked!.Revert(closed, trackedDeduction, now);
+        Assert.True(await depositRepository.TrySaveAsync(default));
+
+        // 1000 açılış + yarışta yatan 200.
+        Assert.Equal(1200m, await accountRepository.CalculateBalanceAsync(bankId, owner.Id, default));
+        var afterRevert = await depositRepository.GetAsync(depositId, owner.Id, default);
+        Assert.True(afterRevert!.IsCancelled);
+        Assert.Empty(afterRevert.Settlements);
+        var monthlyAfter = await reportRepository.GetMonthlyAsync(owner.Id, 2026, 8, null, default);
+        Assert.Equal(1700m, monthlyAfter.TotalIncome);
+        Assert.Equal(30m, monthlyAfter.TotalExpense);
+    }
+
+    /// <summary>
+    /// İşlemler'in gün içi sırası ve "işlem sonrası bakiye" gerçek SQL'de:
+    /// aynı günün kayıtları giriş anına göre dizilir (en yeni üstte, anı
+    /// bilinmeyen en altta) ve her hareketin sonrası o sıraya göre hesaplanır.
+    /// </summary>
+    /// <remarks>
+    /// Sıra ve bakiye aynı kuralı okur; ayrışsalardı ekrandaki satırların
+    /// sırası ile yanlarındaki bakiye birbirini tutmazdı. POS satışı ve yatışı
+    /// komisyonu ve kesintiyi kendi satırında taşır; ikisi de akışta ayrı satır
+    /// değildir.
+    /// </remarks>
+    [SqlServerFact]
+    public async Task ActivityFeed_OrdersADayByEntryTimeAndReadsTheBalanceAfterEachMovement()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var owner = CreateUser("entry-order-owner@example.test");
+        var stranger = CreateUser("entry-order-stranger@example.test");
+        await database.SeedUsersAsync(owner, stranger);
+        var day = new DateOnly(2026, 8, 20);
+        var morning = new DateTimeOffset(2026, 8, 20, 6, 0, 0, TimeSpan.Zero);
+        Guid bankId, tillId, cardId, legacyId, incomeId, expenseId, transferId, chargeId,
+            paymentId, saleId, depositId, cancelledId, yesterdayId;
+
+        await using (var seed = database.CreateContext())
+        {
+            var bank = new Account(
+                Guid.NewGuid(), owner.Id, "Banka", AccountType.Bank, CurrencyCode.TRY, 1000m);
+            var till = new Account(
+                Guid.NewGuid(), owner.Id, "Kasa", AccountType.Cash, CurrencyCode.TRY, 0m);
+            var sales = new Category(Guid.NewGuid(), owner.Id, "Satış", CategoryType.Income);
+            var costs = new Category(Guid.NewGuid(), owner.Id, "Gider", CategoryType.Expense);
+            var card = new CreditCard(
+                Guid.NewGuid(), owner.Id, "Kart", new Money(5000m, CurrencyCode.TRY), 10, 20);
+            var pos = new PosDefinition(
+                Guid.NewGuid(), owner.Id, "Dükkan POS", bank, sales, 0.02m, costs, 1, false, morning);
+
+            BudgetTransaction Transaction(decimal amount, TransactionType type, DateOnly date, string text) =>
+                new(Guid.NewGuid(), owner.Id, bank, type == TransactionType.Income ? sales : costs,
+                    new Money(amount, CurrencyCode.TRY), type, TransactionScope.Business, date, text);
+
+            var yesterday = Transaction(40m, TransactionType.Expense, day.AddDays(-1), "Dün");
+            var legacy = Transaction(50m, TransactionType.Expense, day, "Eski kayıt");
+            var income = Transaction(500m, TransactionType.Income, day, "Gelir");
+            var expense = Transaction(100m, TransactionType.Expense, day, "Gider");
+            var cancelled = Transaction(70m, TransactionType.Expense, day, "İptal");
+            cancelled.Cancel(morning.AddHours(9));
+            var transfer = new Transfer(
+                Guid.NewGuid(), owner.Id, bank, till, new Money(200m, CurrencyCode.TRY), day, null);
+            var charge = new CreditCardCharge(
+                Guid.NewGuid(), owner.Id, card, costs, new Money(300m, CurrencyCode.TRY),
+                TransactionScope.Business, day, "Kart harcaması");
+            var payment = new CreditCardPayment(
+                Guid.NewGuid(), owner.Id, bank, card, new Money(120m, CurrencyCode.TRY), day, null);
+            // 1000 brüt, 20 komisyon; banka 980 yerine 970 yatırdı (10 kesinti).
+            var sale = new PosSettlement(
+                Guid.NewGuid(), owner.Id, bank, sales, new Money(1000m, CurrencyCode.TRY), 20m,
+                TransactionScope.Business, day, day, morning.AddHours(6), costs, "Kartlı satış", pos);
+            var deduction = Transaction(10m, TransactionType.Expense, day, "kesinti");
+            var deposit = PosDeposit.Record(
+                Guid.NewGuid(), owner.Id, bank, [sale], new Money(970m, CurrencyCode.TRY), day,
+                morning.AddHours(7), deduction);
+
+            seed.AddRange(
+                bank, till, sales, costs, card, pos, yesterday, legacy, income, expense, cancelled,
+                transfer, charge, payment, sale, deduction, deposit);
+            // Giriş anı kayıtla birlikte yazılır; test sırayı kendisi verir.
+            void EnteredAt(object entity, int hour) =>
+                seed.Entry(entity).Property("CreatedAtUtc").CurrentValue =
+                    morning.AddHours(hour);
+            EnteredAt(yesterday, 10);
+            EnteredAt(income, 1);
+            EnteredAt(expense, 2);
+            EnteredAt(transfer, 3);
+            EnteredAt(charge, 4);
+            EnteredAt(payment, 5);
+            // Kesinti yatışla aynı yazmada doğar ve saati ondan bir an sonradır.
+            seed.Entry(deduction).Property<DateTimeOffset?>("CreatedAtUtc").CurrentValue =
+                morning.AddHours(7).AddMilliseconds(5);
+            EnteredAt(cancelled, 8);
+            await seed.SaveChangesAsync();
+
+            bankId = bank.Id;
+            tillId = till.Id;
+            cardId = card.Id;
+            legacyId = legacy.Id;
+            incomeId = income.Id;
+            expenseId = expense.Id;
+            transferId = transfer.Id;
+            chargeId = charge.Id;
+            paymentId = payment.Id;
+            saleId = sale.Id;
+            depositId = deposit.Id;
+            cancelledId = cancelled.Id;
+            yesterdayId = yesterday.Id;
+        }
+
+        // Giriş anı tutulmadan önce yazılmış bir kayıt.
+        await database.ExecuteAsync(
+            "UPDATE [BudgetTransactions] SET [CreatedAtUtc] = NULL WHERE [Id] = {0}", legacyId);
+
+        await using var services = CreateServiceProvider(database.ConnectionString);
+        await using var scope = services.CreateAsyncScope();
+        var activities = scope.ServiceProvider.GetRequiredService<IFinancialActivityRepository>();
+        var balances = scope.ServiceProvider.GetRequiredService<IActivityBalanceReader>();
+
+        var feed = await activities.ListAsync(owner.Id, AllActivities(), CancellationToken.None);
+
+        // En yeni üstte; anı bilinmeyen günün sonunda; dün, bugün girilse de
+        // kendi gününde. Kesinti gideri ve komisyon ayrı satır değildir.
+        Assert.Equal(
+            [
+                cancelledId, depositId, saleId, paymentId, chargeId, transferId, expenseId,
+                incomeId, legacyId, yesterdayId,
+            ],
+            feed.Items.Select(item => item.ActivityId));
+        Assert.Equal(10, feed.TotalCount);
+
+        var saleRow = feed.Items.Single(item => item.ActivityId == saleId);
+        Assert.Equal(1000m, saleRow.Amount);
+        Assert.Equal(20m, saleRow.FeeAmount);
+        Assert.Equal(980m, saleRow.NetAmount);
+        Assert.Equal("Dükkan POS", saleRow.ChannelName);
+        Assert.Equal(day, saleRow.TransferredOn);
+        var depositRow = feed.Items.Single(item => item.ActivityId == depositId);
+        Assert.Equal(970m, depositRow.Amount);
+        Assert.Equal(10m, depositRow.FeeAmount);
+        Assert.Equal(1, depositRow.SettlementCount);
+        Assert.Equal("Dükkan POS", depositRow.ChannelName);
+        Assert.Equal(string.Empty, depositRow.Title);
+        var transferRow = feed.Items.Single(item => item.ActivityId == transferId);
+        Assert.Equal(string.Empty, transferRow.Title);
+        Assert.Equal(string.Empty, feed.Items.Single(item => item.ActivityId == paymentId).Title);
+
+        // POS adıyla arama yatışı ve satışı bulur.
+        var searched = await activities.ListAsync(
+            owner.Id, AllActivities() with { Search = "Dükkan" }, CancellationToken.None);
+        Assert.Equal(
+            [depositId, saleId], searched.Items.Select(item => item.ActivityId));
+
+        async Task<decimal[]> AfterAsync(FinancialActivityKind kind, Guid id) =>
+            (await balances.GetBalancesAfterAsync(owner.Id, kind, id, CancellationToken.None))!
+            .Select(item => item.Balance).ToArray();
+
+        // 1000 açılış − 40 dün − 50 eski kayıt (günün en eskisi) + 500 gelir.
+        Assert.Equal([1410m], await AfterAsync(FinancialActivityKind.AccountTransaction, incomeId));
+        Assert.Equal([1310m], await AfterAsync(FinancialActivityKind.AccountTransaction, expenseId));
+        // Transfer iki hesaba dokunur: banka 1110, kasa 200.
+        Assert.Equal([1110m, 200m], await AfterAsync(FinancialActivityKind.Transfer, transferId));
+        Assert.Equal([300m], await AfterAsync(FinancialActivityKind.CardCharge, chargeId));
+        // Kart ödemesi: banka 990, kart borcu 180.
+        Assert.Equal([990m, 180m], await AfterAsync(FinancialActivityKind.CardPayment, paymentId));
+        // Yatış: +980 net − 10 kesinti. Kesintinin saati yatıştan sonra olsa da
+        // yatışın sonrası onu içerir.
+        Assert.Equal([1960m], await AfterAsync(FinancialActivityKind.PosDeposit, depositId));
+        // Dünün kaydı bugün girildi; sonrası yalnız kendi gününe kadarki
+        // hareketleri sayar.
+        Assert.Equal([960m], await AfterAsync(FinancialActivityKind.AccountTransaction, yesterdayId));
+
+        // Satış tanır, para taşımaz: hesabının bakiyesi o an neyse odur
+        // (kart ödemesinden sonraki 990) ve değişmemiş olarak döner.
+        var afterSale = Assert.Single((await balances.GetBalancesAfterAsync(
+            owner.Id, FinancialActivityKind.PosSale, saleId, CancellationToken.None))!);
+        Assert.Equal(bankId, afterSale.HolderId);
+        Assert.Equal(990m, afterSale.Balance);
+        Assert.Equal(ActivityBalanceChange.Unchanged, afterSale.Change);
+        var afterDeposit = Assert.Single((await balances.GetBalancesAfterAsync(
+            owner.Id, FinancialActivityKind.PosDeposit, depositId, CancellationToken.None))!);
+        Assert.Equal(ActivityBalanceChange.Increased, afterDeposit.Change);
+        var afterPayment = (await balances.GetBalancesAfterAsync(
+            owner.Id, FinancialActivityKind.CardPayment, paymentId, CancellationToken.None))!;
+        Assert.Equal(
+            [ActivityBalanceChange.Decreased, ActivityBalanceChange.Decreased],
+            afterPayment.Select(item => item.Change));
+
+        // İptal edilenin etkisi, eski kaydın yeri yok.
+        Assert.Empty(await AfterAsync(FinancialActivityKind.AccountTransaction, cancelledId));
+        Assert.Empty(await AfterAsync(FinancialActivityKind.AccountTransaction, legacyId));
+
+        // Son hareketin sonrası hesabın güncel bakiyesidir: iki okuma aynı
+        // hareket listesini kullanır.
+        var accounts = scope.ServiceProvider.GetRequiredService<IAccountRepository>();
+        Assert.Equal(1960m, await accounts.CalculateBalanceAsync(bankId, owner.Id, default));
+        Assert.Equal(200m, await accounts.CalculateBalanceAsync(tillId, owner.Id, default));
+        var cards = scope.ServiceProvider.GetRequiredService<ICreditCardRepository>();
+        Assert.Equal(180m, await cards.CalculateCurrentDebtAsync(cardId, owner.Id, default));
+
+        // Başkasının hareketi ile olmayan hareket ayırt edilemez.
+        Assert.Null(await balances.GetBalancesAfterAsync(
+            stranger.Id, FinancialActivityKind.AccountTransaction, incomeId, CancellationToken.None));
+        Assert.Null(await balances.GetBalancesAfterAsync(
+            owner.Id, FinancialActivityKind.AccountTransaction, Guid.NewGuid(), CancellationToken.None));
+        Assert.Null(await balances.GetBalancesAfterAsync(
+            owner.Id, FinancialActivityKind.Transfer, incomeId, CancellationToken.None));
+    }
+
+    /// <summary>
     /// Bir gün ve bir kasa için ikinci <b>açık</b> sayım veritabanı seviyesinde
     /// de engellenir: iki eşzamanlı yazar aynı gün için iki açık sayım
     /// bıraksaydı hangisinin geçerli olduğu belirsizleşirdi.
@@ -3829,24 +4374,30 @@ public sealed class SqlServerPersistenceIntegrationTests
         await database.SeedUsersAsync(user);
         var transactionId = Guid.NewGuid();
         var categoryId = Guid.NewGuid();
+        var accountId = Guid.NewGuid();
 
         // O adımın şeması bugünkü modelden nullable KDV kolonlarıyla ve vergi
         // işaretinin yokluğuyla ayrılıyor: kategori eski kolonlarla ham SQL ile,
-        // hesap ve işlem bugünkü modelle yazılıyor; KDV ham SQL ile dolduruluyor.
+        // hesap bugünkü modelle; işlem ham SQL ile yazılıyor (o adımda giriş anı
+        // kolonu da yoktu) ve KDV ham SQL ile dolduruluyor.
         var category = new Category(
             categoryId, user.Id, "Ticari mal", CategoryType.Expense, TransactionScope.Business);
         await SeedLegacyCategoryAsync(database, category, TransactionScope.Business);
         await using (var seed = database.CreateContext())
         {
             var account = new Account(
-                Guid.NewGuid(), user.Id, "Kasa", AccountType.Cash, CurrencyCode.TRY, 1000m);
+                accountId, user.Id, "Kasa", AccountType.Cash, CurrencyCode.TRY, 1000m);
             seed.Add(account);
-            seed.Transactions.Add(new BudgetTransaction(
-                transactionId, user.Id, account, category,
-                new Money(120m, CurrencyCode.TRY), TransactionType.Expense,
-                TransactionScope.Business, new DateOnly(2026, 8, 26), "Fatura"));
             await seed.SaveChangesAsync(CancellationToken.None);
         }
+
+        await database.ExecuteAsync(
+            "INSERT INTO [BudgetTransactions] ([Id], [UserId], [AccountId], [CategoryId], [Amount], " +
+            "[Currency], [Type], [Scope], [TransactionDate], [Description], [IsCancelled], " +
+            "[CancelledAtUtc]) VALUES ({0}, {1}, {2}, {3}, 120, {4}, {5}, {6}, '2026-08-26', " +
+            "N'Fatura', 0, NULL)",
+            transactionId, user.Id, accountId, categoryId,
+            (byte)CurrencyCode.TRY, (byte)TransactionType.Expense, (byte)TransactionScope.Business);
 
         await database.ExecuteAsync(
             "UPDATE [BudgetTransactions] SET [VatRate] = 0.2, [VatAmount] = 20, " +

@@ -30,15 +30,15 @@ enum ActivityKind {
   obligationSettlement('obligation-settlement'),
 
   /// POS satışının tanındığı an: gelir brüt tutar kadar yazılır, hesap
-  /// kıpırdamaz. Komisyon buna dâhil değil, kendi satırında.
+  /// kıpırdamaz. Bankanın kestiği komisyon ayrı satır değildir; bu satırın
+  /// parçasıdır ([FinancialActivity.feeAmount]).
   posSale('pos-sale'),
 
-  /// Bankanın kestiği komisyon: satışla aynı gün tanınan ayrı bir gider.
-  posCommission('pos-commission'),
-
-  /// Yoldaki paranın hesaba geçtiği an: hesap net tutar kadar artar,
-  /// gelir/gider yeniden tanınmaz.
-  posTransfer('pos-transfer');
+  /// Yoldaki paranın hesaba yattığı an (ADR 0019 T5): bir yatış bir ya da
+  /// birkaç tahsilatı kapatır, gelir/gider yeniden tanınmaz. Tutar bankanın
+  /// gerçekten yatırdığı tutardır; eksik kalan kısım (kesinti) bu satırın
+  /// parçasıdır ([FinancialActivity.feeAmount]).
+  posDeposit('pos-deposit');
 
   const ActivityKind(this.apiValue);
   final String apiValue;
@@ -56,8 +56,7 @@ enum ActivityKind {
     'obligation' => obligation,
     'obligation-settlement' => obligationSettlement,
     'pos-sale' => posSale,
-    'pos-commission' => posCommission,
-    'pos-transfer' => posTransfer,
+    'pos-deposit' => posDeposit,
     _ => throw FormatException('Bilinmeyen hareket türü: $value'),
   };
 
@@ -77,11 +76,10 @@ enum ActivityKind {
     counterpartySettlement => 'Cari tahsilat / ödeme',
     obligation => 'Yükümlülük',
     obligationSettlement => 'Yükümlülük ödemesi',
-    // Bu üç etikette `kart` kelimesi tek başına geçmez (ADR 0015): borçlandığın
+    // Bu iki etikette `kart` kelimesi tek başına geçmez (ADR 0015): borçlandığın
     // kart başka bir şeydir ve ikisi aynı listede yan yana görünüyor.
     posSale => 'POS satışı',
-    posCommission => 'POS komisyonu',
-    posTransfer => 'POS parası hesaba geçti',
+    posDeposit => 'POS yatışı',
   };
 }
 
@@ -135,7 +133,11 @@ enum ActivityOrigin {
   manual('manual'),
   csvImport('csv-import'),
   recurring('recurring'),
-  installment('installment');
+  installment('installment'),
+
+  /// Bir POS yatışının kesinti gideri: yatışla birlikte doğar ve yalnız
+  /// onunla birlikte geri alınır.
+  posDeposit('pos-deposit');
 
   const ActivityOrigin(this.apiValue);
   final String apiValue;
@@ -145,6 +147,7 @@ enum ActivityOrigin {
     'csv-import' => csvImport,
     'recurring' => recurring,
     'installment' => installment,
+    'pos-deposit' => posDeposit,
     _ => throw FormatException('Bilinmeyen hareket kökeni: $value'),
   };
 
@@ -153,6 +156,7 @@ enum ActivityOrigin {
     csvImport => 'CSV içe aktarma',
     recurring => 'Tekrarlayan plan',
     installment => 'Taksit planı',
+    posDeposit => 'Yatış kesintisi',
   };
 }
 
@@ -195,6 +199,12 @@ class FinancialActivity {
     this.principalPortion,
     this.interestPortion,
     this.scope,
+    this.channelName,
+    this.feeAmount,
+    this.netAmount,
+    this.expectedTransferDate,
+    this.transferredOn,
+    this.settlementCount,
   });
 
   factory FinancialActivity.fromJson(Map<String, dynamic> json) =>
@@ -224,6 +234,12 @@ class FinancialActivity {
             : null,
         canCancel: json['canCancel'] as bool,
         supportsAttachments: json['supportsAttachments'] as bool,
+        channelName: json['channelName'] as String?,
+        feeAmount: json['feeAmount'] as String?,
+        netAmount: json['netAmount'] as String?,
+        expectedTransferDate: json['expectedTransferDate'] as String?,
+        transferredOn: json['transferredOn'] as String?,
+        settlementCount: json['settlementCount'] as int?,
       );
 
   final String activityId;
@@ -264,10 +280,84 @@ class FinancialActivity {
   /// raporuna sıfır etki ederler ve kapsam taşımazlar).
   final TransactionScope? scope;
 
+  /// Kaydın geldiği POS'un adı (POS satışı ve yatışı); POS seçilmeden
+  /// girilende `null`.
+  final String? channelName;
+
+  /// Kaydın **parçası** olan gider: POS satışında bankanın kestiği komisyon,
+  /// yatışta eksik yatan kesinti. Ayrı satır değildir; bağlı olduğu kaydın
+  /// satırında ve ayrıntısında gösterilir. Sıfırsa ya da yoksa `null`.
+  final String? feeAmount;
+
+  /// POS satışında hesaba geçecek (ya da geçmiş) net tutar.
+  final String? netAmount;
+
+  /// POS satışında paranın beklendiği gün ve, geçtiyse, geçtiği gün.
+  final String? expectedTransferDate;
+  final String? transferredOn;
+
+  /// Yatışın kapattığı tahsilat sayısı.
+  final int? settlementCount;
+
+  bool get hasFee =>
+      feeAmount != null &&
+      feeAmount!.replaceAll(RegExp('[^0-9]'), '').contains(RegExp('[1-9]'));
+
   bool get isCancelled => status == ActivityStatus.cancelled;
 
   /// Ids repeat across write models, so a list key needs the kind as well.
   String get listKey => '${kind.apiValue}:$activityId';
+}
+
+/// Bir hareketten hemen sonra hesabın bakiyesi ya da kartın borcu. Sunucu
+/// hesaplar; istemci para aritmetiği yapmaz.
+/// Hareketin o bakiyeye ne yaptığı. Sunucu söyler; istemci türden türetmez
+/// (cari tahsilatın yönü satırda yoktur).
+enum ActivityBalanceChange {
+  increased,
+  decreased,
+
+  /// Hareket hesaba dokunmadı: POS satışı tanır, para henüz yoldadır.
+  unchanged,
+}
+
+class ActivityBalance {
+  const ActivityBalance({
+    required this.isCard,
+    required this.name,
+    required this.balance,
+    required this.currency,
+    required this.change,
+  });
+
+  factory ActivityBalance.fromJson(Map<String, dynamic> json) =>
+      ActivityBalance(
+        isCard: switch (json['holder']) {
+          'account' => false,
+          'credit-card' => true,
+          final other => throw FormatException(
+            'Bilinmeyen bakiye yeri: $other',
+          ),
+        },
+        name: json['name'] as String,
+        balance: json['balance'] as String,
+        currency: json['currency'] as String,
+        change: switch (json['change']) {
+          'increased' => ActivityBalanceChange.increased,
+          'decreased' => ActivityBalanceChange.decreased,
+          'unchanged' => ActivityBalanceChange.unchanged,
+          final other => throw FormatException(
+            'Bilinmeyen bakiye değişimi: $other',
+          ),
+        },
+      );
+
+  /// `true`: kartın borcu; `false`: hesabın bakiyesi.
+  final bool isCard;
+  final String name;
+  final String balance;
+  final String currency;
+  final ActivityBalanceChange change;
 }
 
 class ActivityPagination {

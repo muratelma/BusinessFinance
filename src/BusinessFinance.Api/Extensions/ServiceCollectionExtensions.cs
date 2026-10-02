@@ -124,6 +124,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<GetTaxPlanDetailUseCase>();
         services.AddTransient<ListPlannedActivitiesUseCase>();
         services.AddTransient<ListFinancialActivitiesUseCase>();
+        services.AddTransient<GetActivityBalancesUseCase>();
         services.AddTransient<GetUpcomingPaymentsUseCase>();
         services.AddTransient<ExportTransactionsCsvUseCase>();
         services.AddTransient<ExportCounterpartyLedgerCsvUseCase>();
@@ -157,8 +158,6 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ConfirmCashCountDifferenceUseCase>();
         services.AddTransient<ListPosSettlementsUseCase>();
         services.AddTransient<CreatePosSettlementUseCase>();
-        services.AddTransient<MarkPosSettlementTransferredUseCase>();
-        services.AddTransient<RevertPosSettlementTransferUseCase>();
         services.AddTransient<CancelPosSettlementUseCase>();
         services.AddTransient<ListPosDefinitionsUseCase>();
         services.AddTransient<CreatePosDefinitionUseCase>();
@@ -167,6 +166,10 @@ public static class ServiceCollectionExtensions
         services.AddTransient<SetDefaultPosDefinitionUseCase>();
         services.AddTransient<DeletePosDefinitionUseCase>();
         services.AddTransient<PreviewPosSettlementUseCase>();
+        services.AddTransient<PreviewPosDepositUseCase>();
+        services.AddTransient<CreatePosDepositUseCase>();
+        services.AddTransient<GetPosDepositUseCase>();
+        services.AddTransient<RevertPosDepositUseCase>();
 
         return services;
     }

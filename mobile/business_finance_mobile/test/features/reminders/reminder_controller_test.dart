@@ -205,6 +205,14 @@ class _FakePreferences implements ReminderPreferencesContract {
 }
 
 class _FakeActivityRepository implements ActivityRepositoryContract {
+  @override
+  Future<List<ActivityBalance>> balancesAfter(
+    FinancialActivity activity,
+  ) async => balances;
+
+  /// İşlem ayrıntısındaki "kalan bakiye" için dönecek cevap.
+  List<ActivityBalance> balances = const [];
+
   _FakeActivityRepository({this.items = const []});
 
   List<PlannedActivity> items;

@@ -295,7 +295,9 @@ public sealed class UndoTaxPaymentUseCase(
         var origin = transaction is not null
             ? await originReader.GetTransactionOriginAsync(userId, paymentId, cancellationToken)
             : await originReader.GetCardChargeOriginAsync(userId, paymentId, cancellationToken);
-        if (origin == FinancialActivityOrigin.Installment)
+        // Taksit ve POS yatışı kesintisi kendi kaynağından geri alınır; buradan
+        // iptal etmek kaynağı iptal edilmiş bir kayda bağlı bırakırdı.
+        if (origin is FinancialActivityOrigin.Installment or FinancialActivityOrigin.PosDeposit)
         {
             return ApplicationResult<TaxPaymentDto>.Failure(TaxErrors.UndoOriginLocked);
         }

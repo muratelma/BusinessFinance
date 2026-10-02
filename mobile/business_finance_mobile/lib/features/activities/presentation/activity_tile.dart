@@ -134,15 +134,51 @@ class ActivityTile extends StatelessWidget {
     );
   }
 
-  Widget get _amount => AppMoneyText(
-    amount: activity.amount,
-    currency: activity.currency,
-    effect: moneyEffectOf(activity.effect),
-    isCancelled: activity.isCancelled,
-    signed: true,
-    textAlign: TextAlign.end,
-    size: AppMoneySize.row,
+  /// Tutar ve, varsa, kaydın parçası olan gider (komisyon / kesinti).
+  ///
+  /// Parça ayrı bir satır değildir: beş satışın beş komisyonu alt alta beş
+  /// kırmızı satır olunca hangisinin hangi satışa ait olduğu okunmuyordu.
+  /// Tutarın altında durur ki sol alt satır kısa kalsın ve taşmasın.
+  Widget get _amount => Builder(
+    builder: (context) {
+      final amount = AppMoneyText(
+        amount: activity.amount,
+        currency: activity.currency,
+        effect: moneyEffectOf(activity.effect),
+        isCancelled: activity.isCancelled,
+        signed: true,
+        textAlign: TextAlign.end,
+        size: AppMoneySize.row,
+      );
+      final fee = _feeLabel;
+      if (fee == null) return amount;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          amount,
+          const SizedBox(height: AppSpacing.xxSmall),
+          Text(
+            fee,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              decoration: activity.isCancelled
+                  ? TextDecoration.lineThrough
+                  : null,
+            ),
+          ),
+        ],
+      );
+    },
   );
+
+  /// `komisyon ₺97,50` (POS satışı) · `kesinti ₺7,50` (yatış).
+  String? get _feeLabel {
+    if (!activity.hasFee) return null;
+    final name = activity.kind == ActivityKind.posDeposit
+        ? 'kesinti'
+        : 'komisyon';
+    return '$name ${MoneyText.format(activity.feeAmount!, activity.currency)}';
+  }
 
   IconData get _icon => activityIcon(activity);
 
@@ -157,12 +193,27 @@ class ActivityTile extends StatelessWidget {
       (null, final String to) => to,
       _ => null,
     };
+    // POS satışında satırı tanıtan şey POS'tur; paranın geçeceği hesap
+    // ayrıntıdadır. POS seçilmeden girilen satışta hesap yazılır.
+    final place = activity.kind == ActivityKind.posSale
+        ? (activity.channelName ?? route)
+        : route;
     return [
       ?_categoryLabel,
-      ?route,
+      // Tek POS'un tahsilatlarını kapatan yatışta POS'un adı.
+      if (activity.kind == ActivityKind.posDeposit) ?activity.channelName,
+      // Başlık zaten bu adsa tekrar yazılmaz.
+      if (place != null && place != activity.title) place,
+      ?_settlementCountLabel,
       if (showDate) _readableDate,
       ?_interestLabel,
     ].join(' • ');
+  }
+
+  /// Birden çok tahsilatı kapatan yatışta kaç tahsilat olduğu.
+  String? get _settlementCountLabel {
+    final count = activity.settlementCount;
+    return count == null || count < 2 ? null : '$count tahsilat';
   }
 
   /// Kategori satırın ilk bilgisidir çünkü hareketin **ne olduğunu** o söyler.
@@ -248,7 +299,6 @@ IconData activityIcon(FinancialActivity activity) => switch (activity.kind) {
   ActivityKind.obligation => Icons.event_note_outlined,
   ActivityKind.obligationSettlement => Icons.price_check,
   ActivityKind.posSale => Icons.point_of_sale_outlined,
-  ActivityKind.posCommission => Icons.percent,
   // Para yolda değil artık: hesaba indi.
-  ActivityKind.posTransfer => Icons.move_to_inbox_outlined,
+  ActivityKind.posDeposit => Icons.move_to_inbox_outlined,
 };

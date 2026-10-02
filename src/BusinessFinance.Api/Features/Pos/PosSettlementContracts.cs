@@ -22,8 +22,6 @@ public sealed record CreatePosSettlementRequest(
     string? Description = null,
     Guid? PosDefinitionId = null);
 
-public sealed record MarkPosSettlementTransferredRequest(string TransferDate);
-
 public sealed record PosSettlementResponse(
     Guid Id,
     Guid AccountId,
@@ -46,7 +44,9 @@ public sealed record PosSettlementResponse(
     bool IsCancelled,
     bool IsLate,
     Guid? PosDefinitionId,
-    string? PosDefinitionName);
+    string? PosDefinitionName,
+    // Parayı hesaba geçiren yatış; para yoldaysa boştur.
+    Guid? PosDepositId);
 
 public sealed record PosSettlementListResponse(
     IReadOnlyList<PosSettlementResponse> Items,

@@ -55,6 +55,19 @@ void main() {
 
 class _DesignFeed extends Fake implements ActivityRepositoryContract {
   @override
+  Future<List<ActivityBalance>> balancesAfter(
+    FinancialActivity activity,
+  ) async => const [
+    ActivityBalance(
+      isCard: false,
+      name: 'Ziraat Vadesiz',
+      balance: '48250.0000',
+      currency: 'TRY',
+      change: ActivityBalanceChange.decreased,
+    ),
+  ];
+
+  @override
   Future<ActivityPage> list({
     int pageNumber = 1,
     int pageSize = 20,
@@ -160,12 +173,11 @@ final _items = [
   _a(
     'Banka ve POS komisyonu',
     '2026-09-23',
-    ActivityKind.posCommission,
+    ActivityKind.accountTransaction,
     ActivityEffect.expense,
     '396.3800',
     category: 'Banka ücreti',
-    destination: 'Ziraat Vadesiz',
-    canCancel: false,
+    source: 'Ziraat Vadesiz',
   ),
   _a(
     'Dis hekimi',

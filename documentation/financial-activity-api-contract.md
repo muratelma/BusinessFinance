@@ -47,13 +47,37 @@ Bu beş boyut bağımsızdır; tek eksene indirgenmez (bkz. ADR 0004).
 | `obligation` | `Obligation` — tek seferlik yükümlülüğün doğuşu |
 | `obligation-settlement` | `ObligationSettlement` — onu kapatan nakit hareketi; her zaman `neutral` |
 | `pos-sale` | `PosSettlement` — satışın tanındığı an; gelir **brüt** tutar kadar |
-| `pos-commission` | `PosSettlement` — aynı gün tanınan komisyon gideri; komisyon `0` ise satır **yoktur** |
-| `pos-transfer` | `PosSettlement` — paranın hesaba geçtiği an; **net** tutar, `neutral`. Geçmemiş tahsilatta satır yoktur |
+| `pos-deposit` | `PosDeposit` — paranın hesaba yattığı an; **gerçekten yatan** tutar, `neutral`. `activityId` yatışın kimliğidir; bir yatış birkaç tahsilatı kapatabilir |
 
-Bir POS tahsilatı feed'de **üç satırdır** ve üçü de aynı `activityId`'yi taşır.
-Tek satıra indirilseydi ya komisyon görünmez olurdu ya da hesabın bakiyesindeki
-artışın günü yanlış yazılırdı: gelir tahsilat günü, para ise geçiş günü
-gerçektir. İstemci satırı `activityKind + activityId` ikilisiyle anahtarlar.
+Bir POS tahsilatı feed'de **tek satırdır** (`pos-sale`, tahsilatın
+`activityId`'siyle, brüt tutarla). Paranın hesaba geçişi tahsilatın değil
+**yatışın** satırıdır (`pos-deposit`, Aşama 06.3 Grup 5): gelir tahsilat günü,
+para ise yatış günü gerçektir. İstemci satırı `activityKind + activityId`
+ikilisiyle anahtarlar.
+
+**Bir kaydın parçası ayrı satır olmaz** (2 Ekim 2026, kullanıcı kararı).
+Komisyon satışın, kesinti yatışın parçasıdır ve bağlı olduğu satırda taşınır:
+
+| Alan | `pos-sale` | `pos-deposit` |
+|---|---|---|
+| `feeAmount` | komisyon; sıfırsa `null` | kesinti; sıfırsa `null` |
+| `channelName` | tahsilatın POS'u; POS seçilmeden girilende `null` | kapattığı tahsilatların hepsi aynı POS'tansa o; değilse `null` |
+| `netAmount` | hesaba geçecek (ya da geçmiş) net | — |
+| `expectedTransferDate`, `transferredOn` | beklenen gün; geçtiyse geçtiği gün | — |
+| `settlementCount` | — | kapattığı tahsilat sayısı (geri alınmış yatışta `0`) |
+
+`feeAmount` gider olarak **tanınmıştır**: raporlarda ve bütçede sayılır.
+`amount` ondan etkilenmez — satışta brüt, yatışta gerçekten yatan tutardır.
+Bedeli: akışı `effect=expense` ya da komisyon kategorisiyle süzmek bu
+tutarları ayrı satır olarak getirmez.
+
+`pos-commission` değeri **kalktı** (2 Ekim 2026): beş satışın beş komisyonu
+alt alta beş ayrı satır olunca hangisinin hangi satışa ait olduğu okunmuyordu.
+Bu değerle süzmek `400 financial_activities.invalid_filter_value` döner.
+
+`pos-transfer` değeri **kalktı** (2 Ekim 2026): yerini `pos-deposit` aldı.
+Tahsilat başına bir satır yerine yatış başına bir satır vardır ve tutar
+tahsilatın neti değil bankanın yatırdığı tutardır.
 
 ### `effect`
 
@@ -82,6 +106,7 @@ plandır ve kullanıcı ikisini ayrı sorar.
 | `csv-import` | `ImportRow.BudgetTransactionId` eşleşiyor |
 | `recurring` | `RecurringTransactionOccurrence` sonuç bağlantısı eşleşiyor |
 | `installment` | `InstallmentItem.CreditCardChargeId` eşleşiyor |
+| `pos-deposit` | `PosDeposit.DeductionTransactionId` eşleşiyor — bir POS yatışının kesinti gideri |
 | `manual` | Hiçbiri eşleşmiyor |
 
 Aynı sonuç hareketinin birden fazla kökene bağlanmasını filtered unique
@@ -114,8 +139,7 @@ index'ler ve Domain invariant'ları engeller.
 | Tek seferlik yükümlülük doğuşu | `obligation` | `income`/`expense` | `obligation` | **hayır** |
 | Yükümlülük ödeme/tahsilatı | `obligation-settlement` | `neutral` | `obligation` | **hayır** |
 | POS satışının tanınması | `pos-sale` | `income` | `pos` | **hayır** |
-| POS komisyonu | `pos-commission` | `expense` | `pos` | **hayır** |
-| POS parasının hesaba geçmesi | `pos-transfer` | `neutral` | `pos` | **hayır** |
+| POS yatışı | `pos-deposit` | `neutral` | `pos` | **hayır** |
 
 `canCancel` formülü:
 
@@ -123,8 +147,8 @@ index'ler ve Domain invariant'ları engeller.
 canCancel = status == realized
          && activityKind ∉ { debt-payment, debt-collection, debt-opening,
                              obligation, obligation-settlement,
-                             pos-sale, pos-commission, pos-transfer }
-         && origin ∉ { recurring, installment }
+                             pos-sale, pos-deposit }
+         && origin ∉ { recurring, installment, pos-deposit }
 ```
 
 Borç açılışı iptal edilemez: o satır sözleşmenin kendisidir, iptali borcu
@@ -142,14 +166,87 @@ değil. Borçlandırmayı iptal etmek tanınan gelir/gideri ve açık bakiyeyi
 birlikte geri alır; tahsilatı iptal etmek parayı kasaya geri koyar ve açık
 bakiyeyi yeniden doğurur.
 
-POS tahsilatının üç satırı da feed üzerinden **iptal edilemez**: üçü tek
-kaydın anlarıdır ve birini iptal etmek diğer ikisini sahipsiz bırakırdı. İptal,
-kaydın kendi ekranından tek eylemle yapılır ve üç satırı birlikte kapatır.
+POS satışı feed üzerinden **iptal edilemez**: iptal, kaydın kendi ekranından
+tek eylemle yapılır ve satışı, komisyonu ve yoldaki tutarı birlikte kaldırır;
+yatışa bağlı tahsilat `409 pos_settlements.deposit_locked` döner.
 
-`pos-transfer` **kapsam taşımaz** (`scope: null`): parayı taşır, gelir/gider
-üretmez (ADR 0014). Kapsam filtreli okumada düşer; `pos-sale` ve
-`pos-commission` kapsam taşır ve kalır. Komisyon brüt tutardan **düşülmez**:
-gelir brüt kadar tanınır, komisyon kendi kategorisinde ayrı bir giderdir.
+`pos-deposit` de feed üzerinden iptal edilmez: yatış kendi ucundan
+(`DELETE /api/v1/pos-deposits/{id}`) geri alınır ve geri alma kapattığı
+tahsilatları yola döndürür. Geri alınmış yatış feed'de `cancelled` durumuyla
+kalır. Yatışın **kesinti gideri** bir `BudgetTransaction`'dır ama akışta
+**satır değildir** (yatışın `feeAmount`'ıdır); kökeni `pos-deposit`'tir ve tek
+başına iptal edilemez (`409 transactions.cancel_origin_locked`): iptal
+edilseydi yatış, hesaba gerçekte geçmemiş bir tutarı geçmiş gösterirdi. Vergi
+ödemesini geri alma ucu da aynı kökeni reddeder. `origin=pos-deposit` değeri
+sözleşmede durur ama bugün hiçbir akış satırında dönmez.
+
+`pos-deposit` **kapsam taşımaz** (`scope: null`): parayı taşır, gelir/gider
+üretmez (ADR 0014). Kapsam filtreli okumada düşer; `pos-sale` kapsam taşır ve
+kalır. Komisyon brüt tutardan **düşülmez**: gelir brüt kadar tanınır, komisyon
+kendi kategorisinde ayrı bir giderdir.
+
+### Sıra
+
+```text
+activityDate DESC, girişAnı DESC, activityKind, activityId
+```
+
+Aynı günün kayıtları türe göre değil **giriş sırasına** göre dizilir, en yeni
+üstte (2 Ekim 2026). Giriş anını sunucu yazar (kaydın veritabanına yazıldığı
+an); kullanıcıdan istenmez ve cevapta taşınmaz. Kaydın günü kullanıcının
+seçtiği tarihtir: dün için bugün girilen kayıt dünün altında durur. Bu alandan
+önce yazılmış kayıtların giriş anı **bilinmez ve uydurulmaz**; günün sonuna
+düşer ve kendi aralarında eski sıralarını (tür, kimlik) korurlar.
+
+### Başlık
+
+`title` kullanıcının yazdığı açıklamadır. Açıklama yoksa yedek, kaydın **ne
+olduğunu** söyleyen addır ve bir hesap ya da kart adı **olmaz**:
+
+| Tür | Açıklama yoksa `title` |
+|---|---|
+| gelir/gider, kart harcaması, POS satışı | kategori adı |
+| borç, cari, yükümlülük | karşı tarafın adı (yoksa kategori) |
+| transfer, kart ödemesi, POS yatışı | **boş dize** — istemci türün adını yazar |
+
+Para taşıyan kaydın hesabı ve kartı zaten `sourceName` / `destinationName`
+içindedir; başlıkta tekrar edilince satır "Ziraat / Ziraat" diye okunuyordu.
+Türün adı istemcinindir (API cümle göndermez).
+
+### İşlem sonrası bakiye
+
+```text
+GET /api/v1/financial-activities/{activityKind}/{activityId}/balances
+```
+
+```json
+{ "items": [
+  { "holder": "account",     "id": "…", "name": "Ziraat Vadesiz", "balance": "630.0000", "currency": "TRY", "change": "decreased" },
+  { "holder": "credit-card", "id": "…", "name": "Bonus",          "balance": "180.0000", "currency": "TRY", "change": "decreased" }
+] }
+```
+
+Hareketin dokunduğu hesabın bakiyesi ve kartın borcu, o hareketten **hemen
+sonra**. "Sonra", akışın sırasıdır: önceki günler bütünüyle, aynı günde giriş
+anı bu hareketten büyük olmayanlar. Akışın tek sorgusuna eklenmez; yalnız
+ayrıntı açıldığında okunur. Kalıcı bir alan değildir.
+
+- Transfer iki hesap, kart ödemesi bir hesap ve bir kart döner.
+- **`change`** hareketin o bakiyeye ne yaptığını söyler: `increased`,
+  `decreased` ya da `unchanged`. Kartta bakiye **borçtur**: harcama
+  `increased`, ödeme `decreased`. İstemci bunu türden türetmez (cari
+  tahsilatın ve yükümlülük kapanışının yönü satırda yoktur); yalnız renge
+  çevirir.
+- **POS satışı hesabını `unchanged` ile döner** (2 Ekim 2026): satış gelir
+  yazar ama hesaba dokunmaz, para yatışla geçer. Dönen sayı hesabın o anki
+  bakiyesidir; satışın tutarı içinde değildir.
+- **Boş liste** döner: hareketin hesabı ya da kartı yoksa (veresiye,
+  yükümlülük), iptal edilmişse ya da giriş anı bilinmiyorsa. Bilinmeyen bir
+  sıra için bakiye uydurulmaz.
+- Başkasının hareketi, olmayan hareket ve türü tutmayan kimlik aynı `404
+  financial_activities.not_found` cevabını alır; bilinmeyen tür `400`.
+- Yatışın sonrası kesinti giderini de içerir. `GET /api/v1/pos-deposits/{id}`
+  aynı sayıyı `balanceAfter` alanında taşır.
 
 `counterparty-settlement` **kapsam taşımaz** (`scope: null`): kart ödemesiyle
 birebir aynı gerekçe — gelir/gider raporuna hiç girmediği için bölünecek bir

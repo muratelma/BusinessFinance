@@ -18,6 +18,11 @@ abstract interface class ActivityRepositoryContract {
   /// Cancels the movement through the endpoint that owns its write model.
   Future<void> cancel(FinancialActivity activity);
 
+  /// Hareketin dokunduğu hesabın bakiyesi ya da kartın borcu, o hareketten
+  /// hemen sonra. Hareket para taşımıyorsa, iptal edilmişse ya da ne zaman
+  /// girildiği bilinmiyorsa boş liste.
+  Future<List<ActivityBalance>> balancesAfter(FinancialActivity activity);
+
   /// Reads what has not happened yet, within one of the offered horizons.
   Future<PlannedActivityPage> listPlanned({
     required PlannedHorizon horizon,
@@ -75,6 +80,24 @@ class ActivityRepository implements ActivityRepositoryContract {
   }
 
   @override
+  Future<List<ActivityBalance>> balancesAfter(
+    FinancialActivity activity,
+  ) async {
+    final response = await _apiClient.get(
+      '/api/v1/financial-activities/${activity.kind.apiValue}'
+      '/${activity.activityId}/balances',
+    );
+    final items = response.requireObject()['items'];
+    if (items is! List) {
+      throw const FormatException('Bakiye listesi beklenen biçimde değil.');
+    }
+    return [
+      for (final item in items)
+        ActivityBalance.fromJson(item as Map<String, dynamic>),
+    ];
+  }
+
+  @override
   Future<void> cancel(FinancialActivity activity) async {
     // The feed is a read model, so cancelling goes back to the write model that
     // produced the row. Debt movements have no reversal at all, which is why the
@@ -96,13 +119,12 @@ class ActivityRepository implements ActivityRepositoryContract {
       ActivityKind.obligationSettlement => throw StateError(
         'Borç hareketi iptal edilemez: ${activity.activityId}',
       ),
-      // POS tahsilatı tek kaydın üç satırıdır; birini iptal etmek diğer ikisini
-      // sahipsiz bırakırdı. İptal, kaydın kendi ekranından tek eylemle yapılır
-      // ve üç satırı birlikte kapatır. Sunucu da bu üçü için canCancel:false
-      // döndürüyor, yani bu dal normalde hiç çalışmaz.
-      ActivityKind.posSale ||
-      ActivityKind.posCommission ||
-      ActivityKind.posTransfer => throw StateError(
+      // POS tahsilatı kendi ekranından iptal edilir: iptal satışı, komisyonu
+      // ve yoldaki tutarı birlikte kaldırır. Yatış da kendi panelinden geri
+      // alınır: geri alma kapattığı tahsilatları yola döndürür. Sunucu bu
+      // ikisi için canCancel:false döndürüyor, yani bu dal normalde hiç
+      // çalışmaz.
+      ActivityKind.posSale || ActivityKind.posDeposit => throw StateError(
         'POS tahsilatı feed üzerinden iptal edilemez: ${activity.activityId}',
       ),
       // Cari hareketin ikisi de iptal edilebilir: tek başına duran kayıtlar,

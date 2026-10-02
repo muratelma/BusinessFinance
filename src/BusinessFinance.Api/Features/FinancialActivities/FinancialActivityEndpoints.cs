@@ -25,7 +25,52 @@ public static class FinancialActivityEndpoints
             .Produces<PlannedActivityListResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized);
+        // İşlem ayrıntısındaki "işlem sonrası bakiye". Akışın tek sorgusuna
+        // eklenmez; yalnız ayrıntı açıldığında, o hareket için okunur.
+        endpoints.MapGet(
+                "/api/v1/financial-activities/{activityKind}/{activityId:guid}/balances",
+                GetBalancesAsync)
+            .WithTags("Financial Activities")
+            .WithName("GetFinancialActivityBalances")
+            .RequireAuthorization()
+            .Produces<ActivityBalanceListResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
         return endpoints;
+    }
+
+    private static async Task<IResult> GetBalancesAsync(
+        string activityKind,
+        Guid activityId,
+        GetActivityBalancesUseCase useCase,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        if (!TryParseOptional(activityKind, ActivityKindValues, out var kind) || kind is null)
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Activity kind is not recognised.",
+                "financial_activities.invalid_filter_value");
+        }
+
+        var result = await useCase.ExecuteAsync(kind.Value, activityId, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return result.Error.ToProblemResult(httpContext);
+        }
+
+        return Results.Ok(new ActivityBalanceListResponse(
+            result.Value
+                .Select(balance => new ActivityBalanceResponse(
+                    BalanceHolderValues[balance.Holder],
+                    balance.HolderId,
+                    balance.Name,
+                    FinanceContract.Money(balance.Balance),
+                    balance.Currency.ToString(),
+                    BalanceChangeValues[balance.Change]))
+                .ToArray()));
     }
 
     private static async Task<IResult> ListPlannedAsync(
@@ -256,7 +301,17 @@ public static class FinancialActivityEndpoints
                 : null,
             activity.InterestPortion is decimal interest
                 ? FinanceContract.Money(interest)
-                : null);
+                : null,
+            activity.ChannelName,
+            activity.FeeAmount is decimal fee ? FinanceContract.Money(fee) : null,
+            activity.NetAmount is decimal net ? FinanceContract.Money(net) : null,
+            activity.ExpectedTransferDate is DateOnly expected
+                ? FinanceContract.Date(expected)
+                : null,
+            activity.TransferredOn is DateOnly transferred
+                ? FinanceContract.Date(transferred)
+                : null,
+            activity.SettlementCount);
     }
 
     private static bool TryParseOptionalDate(string? value, out DateOnly? date)
@@ -313,8 +368,7 @@ public static class FinancialActivityEndpoints
         [FinancialActivityKind.Obligation] = "obligation",
         [FinancialActivityKind.ObligationSettlement] = "obligation-settlement",
         [FinancialActivityKind.PosSale] = "pos-sale",
-        [FinancialActivityKind.PosCommission] = "pos-commission",
-        [FinancialActivityKind.PosTransfer] = "pos-transfer"
+        [FinancialActivityKind.PosDeposit] = "pos-deposit"
     };
 
     internal static readonly Dictionary<FinancialActivityEffect, string> EffectValues = new()
@@ -340,7 +394,21 @@ public static class FinancialActivityEndpoints
         [FinancialActivityOrigin.Manual] = "manual",
         [FinancialActivityOrigin.CsvImport] = "csv-import",
         [FinancialActivityOrigin.Recurring] = "recurring",
-        [FinancialActivityOrigin.Installment] = "installment"
+        [FinancialActivityOrigin.Installment] = "installment",
+        [FinancialActivityOrigin.PosDeposit] = "pos-deposit"
+    };
+
+    internal static readonly Dictionary<ActivityBalanceHolder, string> BalanceHolderValues = new()
+    {
+        [ActivityBalanceHolder.Account] = "account",
+        [ActivityBalanceHolder.CreditCard] = "credit-card"
+    };
+
+    internal static readonly Dictionary<ActivityBalanceChange, string> BalanceChangeValues = new()
+    {
+        [ActivityBalanceChange.Unchanged] = "unchanged",
+        [ActivityBalanceChange.Increased] = "increased",
+        [ActivityBalanceChange.Decreased] = "decreased"
     };
 
     internal static readonly Dictionary<FinancialActivityStatus, string> StatusValues = new()

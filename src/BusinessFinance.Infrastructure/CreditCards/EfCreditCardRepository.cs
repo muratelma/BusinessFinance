@@ -70,22 +70,8 @@ internal sealed class EfCreditCardRepository(BusinessFinanceDbContext dbContext)
         Guid userId,
         CancellationToken cancellationToken)
     {
-        var charges = await dbContext.CreditCardCharges.AsNoTracking()
-            .Where(charge => charge.CreditCardId == creditCardId &&
-                             charge.UserId == userId &&
-                             !charge.IsCancelled)
-            .SumAsync(charge => charge.Amount.Amount, cancellationToken);
-        var payments = await dbContext.CreditCardPayments.AsNoTracking()
-            .Where(payment => payment.CreditCardId == creditCardId &&
-                              payment.UserId == userId &&
-                              !payment.IsCancelled)
-            .SumAsync(payment => payment.Amount.Amount, cancellationToken);
-        // **Kırpılmaz.** Negatif sonuç kartın alacaklı bakiyesidir: kullanıcı
-        // kartına borcundan fazlasını ödemiş ya da ödediği harcama sonradan
-        // iptal edilmiştir. Sıfıra çekmek, kullanıcının parasını yok saymak
-        // olurdu — cari hesapta "fazla tahsilat kırpılmaz" kararı (Aşama 02)
-        // aynı soruya zaten bu cevabı veriyordu.
-        return charges - payments;
+        return await CardDebt.SumAsync(
+            dbContext, creditCardId, userId, cutoff: null, cancellationToken);
     }
 
     public async Task UpdateOwnedAsync(

@@ -40,23 +40,26 @@ public enum FinancialActivityKind
 
     /// <summary>
     /// POS satışının tanındığı an: gelir brüt tutar kadar yazılır, hesap
-    /// kıpırdamaz. Komisyon buna dâhil değildir; kendi satırında durur.
+    /// kıpırdamaz. Bankanın kestiği komisyon ayrı bir satır <b>değildir</b>;
+    /// bu satırın parçasıdır (<see cref="FinancialActivityRow.FeeAmount"/>).
+    /// Tutar yine brüttür: komisyon ondan düşülerek gösterilseydi kullanıcının
+    /// gerçekten kestiği fatura küçülürdü.
     /// </summary>
+    /// <remarks>
+    /// 13 değeri eskiden komisyonun kendi satırıydı (<c>pos-commission</c>) ve
+    /// 2 Ekim 2026'da kalktı: beş satışın beş komisyonu alt alta beş ayrı
+    /// satır olunca hangisinin hangi satışa ait olduğu okunmuyordu.
+    /// </remarks>
     PosSale = 12,
 
     /// <summary>
-    /// Bankanın kestiği komisyon: satışla aynı gün tanınan ayrı bir gider.
-    /// Brüt tutardan düşülerek gösterilseydi kullanıcının gerçekten kestiği
-    /// fatura küçülür ve komisyon görünmez bir gidere dönerdi.
+    /// Yoldaki paranın hesaba yattığı an (ADR 0019 T5): bir yatış bir ya da
+    /// birkaç tahsilatı kapatır, gelir/gider <b>yeniden tanınmaz</b>
+    /// (ADR 0014). Satırın tutarı bankanın gerçekten yatırdığı tutardır;
+    /// beklenenden eksik kalan kısım (kesinti) bu satırın parçasıdır
+    /// (<see cref="FinancialActivityRow.FeeAmount"/>), ayrı satır değildir.
     /// </summary>
-    PosCommission = 13,
-
-    /// <summary>
-    /// Yoldaki paranın hesaba geçtiği an: hesap net tutar kadar artar,
-    /// gelir/gider <b>yeniden tanınmaz</b> (ADR 0014). Bu satır olmasaydı
-    /// hesabın feed'i bakiyesindeki artışı açıklayamazdı.
-    /// </summary>
-    PosTransfer = 14
+    PosDeposit = 14
 }
 
 /// <summary>Effect on the income/expense report.</summary>
@@ -96,7 +99,13 @@ public enum FinancialActivityOrigin
     Manual = 1,
     CsvImport = 2,
     Recurring = 3,
-    Installment = 4
+    Installment = 4,
+
+    /// <summary>
+    /// Bir POS yatışının kesinti gideri: yatışla birlikte doğar ve yalnız
+    /// onunla birlikte geri alınır.
+    /// </summary>
+    PosDeposit = 5
 }
 
 public enum FinancialActivityStatus
@@ -163,7 +172,95 @@ public sealed record FinancialActivityRow(
     decimal? PrincipalPortion,
 
     /// <inheritdoc cref="PrincipalPortion" />
-    decimal? InterestPortion);
+    decimal? InterestPortion,
+
+    /// <summary>
+    /// Kaydın geldiği POS'un adı. Satışta tahsilatın POS'u; yatışta kapattığı
+    /// tahsilatların hepsi aynı POS'tansa onun adı. POS seçilmeden girilende
+    /// ve karışık yatışta <c>null</c>.
+    /// </summary>
+    string? ChannelName = null,
+
+    /// <summary>
+    /// Kaydın <b>parçası</b> olan gider: POS satışında komisyon, yatışta
+    /// kesinti. Sıfırsa <c>null</c>.
+    /// </summary>
+    /// <remarks>
+    /// Bu tutar bir gider olarak tanınmıştır ve raporlarda, bütçede sayılır;
+    /// yalnız akışta ayrı satır olmaz, bağlı olduğu kaydın satırında ve
+    /// ayrıntısında gösterilir. <see cref="Amount"/> ondan etkilenmez: satışta
+    /// brüt, yatışta gerçekten yatan tutardır.
+    /// </remarks>
+    decimal? FeeAmount = null,
+
+    /// <summary>POS satışında hesaba geçecek (ya da geçmiş) net tutar.</summary>
+    decimal? NetAmount = null,
+
+    /// <summary>POS satışında paranın beklendiği gün.</summary>
+    DateOnly? ExpectedTransferDate = null,
+
+    /// <summary>POS satışında paranın hesaba geçtiği gün; yoldaysa <c>null</c>.</summary>
+    DateOnly? TransferredOn = null,
+
+    /// <summary>Yatışın kapattığı tahsilat sayısı; geri alınmış yatışta sıfır.</summary>
+    int? SettlementCount = null);
+
+/// <summary>Bakiyesi gösterilen yer: bir hesap ya da bir kredi kartı.</summary>
+public enum ActivityBalanceHolder
+{
+    Account = 1,
+    CreditCard = 2
+}
+
+/// <summary>
+/// Hareketin o bakiyeye ne yaptığı: artırdı, azalttı ya da dokunmadı.
+/// </summary>
+/// <remarks>
+/// İstemci bunu hareketin türünden türetmez: cari tahsilatın ve yükümlülük
+/// kapanışının yönü satırda yoktur. <see cref="Unchanged"/> yalnız tanıyan ama
+/// para taşımayan harekette döner (POS satışı): para henüz yoldadır.
+/// </remarks>
+public enum ActivityBalanceChange
+{
+    Unchanged = 0,
+    Increased = 1,
+    Decreased = 2
+}
+
+/// <summary>
+/// Bir hareketten <b>hemen sonra</b> hesabın bakiyesi ya da kartın borcu.
+/// </summary>
+/// <remarks>
+/// Kalıcı bir alan değildir; okunduğu anda hareketlerden hesaplanır (bakiye
+/// kalıcı kolon değildir). "Sonra", akışın sırasıdır: önce kaydın günü, gün
+/// içinde kaydın girildiği an.
+/// </remarks>
+public sealed record ActivityBalanceAfter(
+    ActivityBalanceHolder Holder,
+    Guid HolderId,
+    string Name,
+    decimal Balance,
+    CurrencyCode Currency,
+    ActivityBalanceChange Change);
+
+public interface IActivityBalanceReader
+{
+    /// <summary>
+    /// Hareketin dokunduğu hesap ve kartların o hareketten sonraki bakiyesi.
+    /// </summary>
+    /// <returns>
+    /// Hareket bu kullanıcıya ait değilse ya da yoksa <c>null</c>. Hareketin
+    /// bir hesabı ya da kartı yoksa (veresiye, yükümlülük), iptal edilmişse
+    /// ya da ne zaman girildiği bilinmiyorsa boş liste: bilinmeyen bir sıra
+    /// için bakiye uydurulmaz. POS satışı hesabını <b>değişmemiş</b> olarak
+    /// döner: satış tanır, para yatışla geçer.
+    /// </returns>
+    Task<IReadOnlyList<ActivityBalanceAfter>?> GetBalancesAfterAsync(
+        Guid userId,
+        FinancialActivityKind kind,
+        Guid activityId,
+        CancellationToken cancellationToken);
+}
 
 /// <summary>
 /// A <see cref="FinancialActivityRow"/> plus the capabilities the client may act on.
@@ -282,12 +379,12 @@ public static class FinancialActivityCapabilities
             // henüz bu iki kayıt için bir iptal endpoint'i sunmuyor.
             or FinancialActivityKind.Obligation
             or FinancialActivityKind.ObligationSettlement
-            // POS tahsilatı tek kaydın üç satırıdır; birini iptal etmek
-            // diğer ikisini sahipsiz bırakırdı. İptal kaydın kendi
-            // ekranından, tek eylemle yapılır ve üç satırı birlikte kapatır.
+            // POS tahsilatı kendi ekranından iptal edilir: iptal satışı,
+            // komisyonu ve yoldaki tutarı birlikte kaldırır.
             or FinancialActivityKind.PosSale
-            or FinancialActivityKind.PosCommission
-            or FinancialActivityKind.PosTransfer)
+            // Yatış kendi ucundan geri alınır: geri alma kapattığı
+            // tahsilatları yola döndürür ve kesinti giderini iptal eder.
+            or FinancialActivityKind.PosDeposit)
         {
             return false;
         }
@@ -297,7 +394,11 @@ public static class FinancialActivityCapabilities
         // tahsilat taşıdığı parayı. Sözleşmeden farkları burada: ikisi de tek
         // başına duran bir kayıt, geri dönüşü olmayan bir planın sonucu değil.
 
-        return origin is not (FinancialActivityOrigin.Recurring or FinancialActivityOrigin.Installment);
+        // Yatışın kesinti gideri tek başına iptal edilemez: iptal edilseydi
+        // yatış, hesaba gerçekte geçmemiş bir tutarı geçmiş gösterirdi.
+        return origin is not (FinancialActivityOrigin.Recurring
+            or FinancialActivityOrigin.Installment
+            or FinancialActivityOrigin.PosDeposit);
     }
 
     /// <summary>

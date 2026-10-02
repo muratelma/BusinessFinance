@@ -936,6 +936,14 @@ class _Source implements DashboardDataSource {
 
 /// Planlanan projeksiyonun sahtesi.
 class _PlannedSource implements ActivityRepositoryContract {
+  @override
+  Future<List<ActivityBalance>> balancesAfter(
+    FinancialActivity activity,
+  ) async => balances;
+
+  /// İşlem ayrıntısındaki "kalan bakiye" için dönecek cevap.
+  List<ActivityBalance> balances = const [];
+
   _PlannedSource(this.items, {this.overdueTotal});
   _PlannedSource.failing() : items = null, overdueTotal = null;
 

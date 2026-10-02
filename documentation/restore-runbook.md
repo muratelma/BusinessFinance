@@ -64,11 +64,28 @@ v9'un taşıdığı iki koleksiyon aynen yerinde:
   tanımı gösterir ve geri yüklerken **yeni** kimliğe çevrilir; tanımsız
   girilen ve tanımlardan önce yazılmış tahsilatta boştur. Tek kayıt **iki an** taşır (ADR 0014):
   tahsilat günü gelir brüt tutar kadar tanınır ve komisyon ayrı gider yazılır,
-  hesap kıpırdamaz; `transferredOn` dolduğu gün hesap net tutar kadar artar ve
-  gelir/gider yeniden yazılmaz. **Net tutar, komisyon oranı ve "yolda mı"
-  dosyada yoktur**: net brütten komisyon düşülerek, oran ikisinden, yolda olma
-  ise iptal ve geçiş bilgisinden çözülür. Oran yazılsaydı kuruşa yuvarlanmış
-  komisyonla çelişen ikinci bir gerçek kaynağı doğardı (ADR 0009).
+  hesap kıpırdamaz; bir yatışa (`posDepositId`) bağlandığı gün hesap net tutar
+  kadar artar ve gelir/gider yeniden yazılmaz. **Geçiş günü tahsilatta
+  yazılmaz** (Aşama 06.3 Grup 5): yatışın günüdür ve ondan okunur. **Net tutar,
+  komisyon oranı ve "yolda mı" dosyada yoktur**: net brütten komisyon
+  düşülerek, oran ikisinden, yolda olma ise iptal ve yatış bağından çözülür.
+  Oran yazılsaydı kuruşa yuvarlanmış komisyonla çelişen ikinci bir gerçek
+  kaynağı doğardı (ADR 0009). İptal edilmiş tahsilat yatışa bağlı olamaz.
+- `posDeposits` — POS yatışı (Aşama 06.3 Grup 5, ADR 0019 T5): hesap, yatış
+  günü, **gerçekten yatan tutar** (`depositedAmount`), kesinti
+  (`deductionAmount`), kesinti giderinin kimliği (`deductionTransactionId`;
+  gider `transactions` arasındadır) ve iptal damgası. **Beklenen tutar dosyada
+  yoktur**: yatan ile kesintinin toplamıdır. Geri yüklemede yatış, kapattığı
+  tahsilatlarla birlikte domain kurallarından geçerek kurulur ve dosyadaki
+  kesinti tahsilatların netinden yeniden hesaplananla **karşılaştırılır**;
+  tutmuyorsa yedek reddedilir (dosyadaki sayı olduğu gibi yazılsaydı hesaba
+  giren tutar yatışın söylediğinden ayrışırdı). Geri alınmış yatış tahsilat
+  taşımaz: kaydı ve iptal edilmiş kesinti gideri kalır. Yatışın ve kesinti
+  giderinin kimlikleri geri yüklerken **yeni** kimliklere çevrilir.
+
+  Grup 4'te alınmış bir v11 yedeği `posDeposits` koleksiyonunu ve tahsilatın
+  `posDepositId` alanını taşımadığı için reddedilir (veri sentetik; aşamanın
+  yedek politikası).
 
 v8 ise v7'nin taşıdığı her şeyin (karşı tarafın kendisi — ad, not, aktiflik —
 ve cari defterin iki hareket türü: borçlandırma `counterpartyCharges`,
@@ -94,6 +111,49 @@ overwrite veya kullanıcı seçerek silme yapmaz; hedef kullanıcının finans a
 boş olmalıdır. Yeni hesapta uygulamanın otomatik oluşturduğu, hiç değiştirilmemiş
 başlangıç kategorileri boş alan sayılır ve yedekteki kategorilerle atomik olarak
 değiştirilir.
+
+## Veritabanı yükseltme notu — Aşama 06.3 Grup 5 (giriş anı)
+
+`AddEntryTimestamps` migration'ı **veri kaybettirmez**: yedi tabloya
+(`BudgetTransactions`, `Transfers`, `CreditCardCharges`, `CreditCardPayments`,
+`CounterpartyCharges`, `CounterpartyPayments`, `DebtAgreements`) nullable ve
+varsayılansız bir `CreatedAtUtc` kolonu ekler. **Backfill yoktur**: mevcut
+kayıtların ne zaman girildiği bilinmez; bugünün saatini yazmak bütün geçmişi
+aynı ana girilmiş gösterirdi. Boş değer İşlemler'de günün sonuna düşer ve o
+kayıt için "işlem sonrası bakiye" gösterilmez.
+
+**Yedek** bu yedi kaydın `createdAtUtc` alanını taşır (v11, isteğe bağlı alan).
+Geri yüklemede dosyadaki an yazılır; dosyada yoksa kolon boş kalır — geri
+yükleme anı kaydın girildiği an değildir.
+
+## Veritabanı yükseltme notu — Aşama 06.3 Grup 5 (yatış)
+
+`AddPosDeposits` migration'ı **veri kaybettirmez**, ama mevcut veriyi yeni
+biçime **taşır**. Sıra kurala uyar: önce `PosDeposits` tablosu ve
+`PosSettlements`'a iki kolon (`PosDepositId` nullable, `Version` rowversion;
+ikisi de varsayılansız), sonra backfill, en son kısıtlar ve tahsilat → yatış
+foreign key'i.
+
+- **Her "hesaba geçti" bir yatışa dönüşür**: `TransferredOn` dolu her tahsilat
+  için aynı gün, tahsilatın netiyle ve **kesintisiz** bir yatış yazılır (eski
+  yolda fark yazılamıyordu; uydurulmaz). Tahsilat o yatışa bağlanır;
+  `TransferredOn` yerinde kalır ve artık yatışın gününün kopyasıdır.
+- **Hesaba geçtikten sonra iptal edilmiş tahsilat** yeni kuralda bir yatışa
+  bağlı kalamaz. Geçiş bilgisi kaybolmaz: aynı gün ve tutarla **iptal edilmiş
+  bir yatış** olarak durur; tahsilattaki geçiş günü ve damgası boşalır.
+- Hiçbir bakiye değişmez: yükseltme testi dolu bir veritabanında (geçmiş,
+  yoldaki, geçip iptal edilmiş ve yoldayken iptal edilmiş tahsilat) hesap
+  bakiyesini, yoldaki parayı ve aylık raporu yükseltmeden sonra ölçer ve
+  taşınan yatışın yeni kuralla geri alınabildiğini doğrular.
+- Yeni kısıtlar: tahsilatta yatış, geçiş günü ve damgası birlikte bulunur ya
+  da hiç bulunmaz; iptal edilmiş tahsilat yatışa bağlı olamaz; yatışta kesinti
+  ile gider kaydı birlikte bulunur ya da hiç bulunmaz; bir gider en çok bir
+  yatışın kesintisidir.
+
+Geri dönüş (`Down`) yatış tablosunu düşürür ve eski geçiş kısıtını yeniden
+kurar; canlı tahsilatlar geçiş gününü korur. Kesinti giderleri sıradan gider
+olarak kalır ve iptal edilmiş yatışların bilgisi geri gelmez — geri dönüş
+yalnız geliştirme içindir.
 
 ## Veritabanı yükseltme notu — Aşama 06.3 Grup 3
 

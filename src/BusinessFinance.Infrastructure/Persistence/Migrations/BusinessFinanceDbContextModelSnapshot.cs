@@ -88,6 +88,9 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("CategoryId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTimeOffset?>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<string>("Description")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -300,6 +303,9 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("CounterpartyId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTimeOffset?>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<string>("Description")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -355,6 +361,9 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("CounterpartyId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
@@ -464,6 +473,9 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.Property<DateOnly>("ChargeDate")
                         .HasColumnType("date");
 
+                    b.Property<DateTimeOffset?>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<Guid>("CreditCardId")
                         .HasColumnType("uniqueidentifier");
 
@@ -508,6 +520,9 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTimeOffset?>("CancelledAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
 
                     b.Property<Guid>("CreditCardId")
@@ -557,6 +572,9 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("CounterpartyId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
@@ -1255,6 +1273,62 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BusinessFinance.Domain.PosDeposit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("CancelledAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("DeductionAmount")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("decimal(19,4)");
+
+                    b.Property<Guid?>("DeductionTransactionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("DepositDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsCancelled")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("UserId", "Id");
+
+                    b.HasIndex("UserId", "AccountId")
+                        .HasDatabaseName("IX_PosDeposits_UserId_AccountId");
+
+                    b.HasIndex("UserId", "DeductionTransactionId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_PosDeposits_UserId_DeductionTransactionId")
+                        .HasFilter("[DeductionTransactionId] IS NOT NULL");
+
+                    b.HasIndex("UserId", "DepositDate")
+                        .HasDatabaseName("IX_PosDeposits_UserId_DepositDate");
+
+                    b.ToTable("PosDeposits", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PosDeposits_Currency", "[Currency] = 1");
+
+                            t.HasCheckConstraint("CK_PosDeposits_Deduction", "([DeductionAmount] = 0 AND [DeductionTransactionId] IS NULL) OR ([DeductionAmount] > 0 AND [DeductionTransactionId] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_PosDeposits_DepositedAmount", "[DepositedAmount] > 0");
+                        });
+                });
+
             modelBuilder.Entity("BusinessFinance.Domain.PosSettlement", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1293,6 +1367,9 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("PosDefinitionId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("PosDepositId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<byte>("Scope")
                         .HasColumnType("tinyint");
 
@@ -1307,6 +1384,12 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
 
                     b.HasKey("Id");
 
@@ -1328,8 +1411,13 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId", "IsCancelled", "TransferredOn")
                         .HasDatabaseName("IX_PosSettlements_UserId_Cancelled_TransferredOn");
 
+                    b.HasIndex("UserId", "PosDepositId", "TransferredOn")
+                        .HasDatabaseName("IX_PosSettlements_UserId_PosDepositId_TransferredOn");
+
                     b.ToTable("PosSettlements", null, t =>
                         {
+                            t.HasCheckConstraint("CK_PosSettlements_CancelledNotDeposited", "[IsCancelled] = 0 OR [PosDepositId] IS NULL");
+
                             t.HasCheckConstraint("CK_PosSettlements_Commission", "[CommissionAmount] >= 0 AND [CommissionAmount] < [GrossAmount]");
 
                             t.HasCheckConstraint("CK_PosSettlements_CommissionCategory", "([CommissionAmount] = 0 AND [CommissionCategoryId] IS NULL) OR ([CommissionAmount] > 0 AND [CommissionCategoryId] IS NOT NULL)");
@@ -1342,7 +1430,7 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_PosSettlements_Scope", "[Scope] IN (1, 2)");
 
-                            t.HasCheckConstraint("CK_PosSettlements_Transfer", "([TransferredOn] IS NULL AND [TransferredAtUtc] IS NULL) OR ([TransferredOn] IS NOT NULL AND [TransferredAtUtc] IS NOT NULL AND [TransferredOn] >= [SettlementDate])");
+                            t.HasCheckConstraint("CK_PosSettlements_Transfer", "([PosDepositId] IS NULL AND [TransferredOn] IS NULL AND [TransferredAtUtc] IS NULL) OR ([PosDepositId] IS NOT NULL AND [TransferredOn] IS NOT NULL AND [TransferredAtUtc] IS NOT NULL AND [TransferredOn] >= [SettlementDate])");
                         });
                 });
 
@@ -1753,6 +1841,9 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTimeOffset?>("CancelledAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
 
                     b.Property<string>("Description")
@@ -2833,6 +2924,53 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("BusinessFinance.Domain.PosDeposit", b =>
+                {
+                    b.HasOne("BusinessFinance.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BusinessFinance.Domain.Account", null)
+                        .WithMany()
+                        .HasForeignKey("UserId", "AccountId")
+                        .HasPrincipalKey("UserId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BusinessFinance.Domain.BudgetTransaction", null)
+                        .WithMany()
+                        .HasForeignKey("UserId", "DeductionTransactionId")
+                        .HasPrincipalKey("UserId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.OwnsOne("BusinessFinance.Domain.Money", "DepositedAmount", b1 =>
+                        {
+                            b1.Property<Guid>("PosDepositId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(19, 4)
+                                .HasColumnType("decimal(19,4)")
+                                .HasColumnName("DepositedAmount");
+
+                            b1.Property<byte>("Currency")
+                                .HasColumnType("tinyint")
+                                .HasColumnName("Currency");
+
+                            b1.HasKey("PosDepositId");
+
+                            b1.ToTable("PosDeposits");
+
+                            b1.WithOwner()
+                                .HasForeignKey("PosDepositId");
+                        });
+
+                    b.Navigation("DepositedAmount")
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("BusinessFinance.Domain.PosSettlement", b =>
                 {
                     b.HasOne("BusinessFinance.Infrastructure.Identity.ApplicationUser", null)
@@ -2865,6 +3003,12 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("UserId", "PosDefinitionId")
                         .HasPrincipalKey("UserId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("BusinessFinance.Domain.PosDeposit", null)
+                        .WithMany()
+                        .HasForeignKey("UserId", "PosDepositId", "TransferredOn")
+                        .HasPrincipalKey("UserId", "Id", "DepositDate")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.OwnsOne("BusinessFinance.Domain.Money", "GrossAmount", b1 =>

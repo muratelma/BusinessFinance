@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:business_finance_mobile/core/network/api_exception.dart';
@@ -8,6 +10,7 @@ import 'package:business_finance_mobile/features/activities/data/activity_reposi
 import 'package:business_finance_mobile/features/activities/data/planned_activity_models.dart';
 import 'package:business_finance_mobile/features/activities/presentation/activity_feed_page.dart';
 import 'package:business_finance_mobile/core/models/transaction_scope.dart';
+import 'package:business_finance_mobile/features/pos/data/pos_repository.dart';
 
 void main() {
   testWidgets('işlem akışı erişilebilirlik kapısını geçer', (tester) async {
@@ -344,7 +347,7 @@ void main() {
 
     await tester.tap(find.text('Market'));
     await tester.pumpAndSettle();
-    expect(find.text('Köken'), findsOneWidget);
+    expect(find.text('Tarih'), findsOneWidget);
 
     await tester.tap(find.text('Hareketi iptal et'));
     await tester.pumpAndSettle();
@@ -353,7 +356,7 @@ void main() {
 
     expect(repository.cancelled, hasLength(1));
     // The sheet closes and the outcome is reported once.
-    expect(find.text('Köken'), findsNothing);
+    expect(find.text('Tarih'), findsNothing);
     expect(find.text('Hareket iptal edildi.'), findsOneWidget);
   });
 
@@ -372,8 +375,170 @@ void main() {
     await tester.tap(find.text('Kira'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Köken'), findsOneWidget);
+    expect(find.text('Tarih'), findsOneWidget);
     expect(find.text('Hareketi iptal et'), findsNothing);
+  });
+
+  // Yatış satırı genel ayrıntıyı değil yatışın kendi ayrıntısını açar:
+  // kapattığı tahsilatlar, kesinti ve geri alma oradadır (ADR 0019 T5).
+  testWidgets('POS yatışı satırı yatış ayrıntısını açar', (tester) async {
+    final posRepository = _FakePosRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: ActivityFeedPage(
+          repository: _FakeRepository(
+            pages: [
+              _page([
+                _activity(
+                  id: 'deposit-1',
+                  kind: ActivityKind.posDeposit,
+                  effect: ActivityEffect.neutral,
+                  sourceGroup: ActivitySourceGroup.pos,
+                  title: 'Ziraat',
+                  canCancel: false,
+                ),
+              ]),
+            ],
+          ),
+          posRepository: posRepository,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Ziraat'));
+    await tester.pumpAndSettle();
+
+    expect(posRepository.requestedDepositId, 'deposit-1');
+    expect(find.text('POS yatışı'), findsOneWidget);
+    expect(find.text('Yatışı geri al'), findsOneWidget);
+    // Genel ayrıntı değil: onun durum kapsülü burada yoktur.
+    expect(find.text('Gerçekleşti'), findsNothing);
+  });
+
+  // 2 Ekim 2026 emülatör turu: yatışa dokununca önce ekranı kaplayan bir
+  // "yükleniyor" penceresi açılıyor, sonra küçülüyordu. Panel satırın
+  // taşıdıklarıyla hemen ve son boyutunda açılır.
+  testWidgets('yatış ayrıntısı yüklenmeyi beklemeden açılır', (tester) async {
+    final posRepository = _FakePosRepository()..pending = Completer<void>();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: ActivityFeedPage(
+          repository: _FakeRepository(
+            pages: [
+              _page([
+                _activity(
+                  id: 'deposit-1',
+                  kind: ActivityKind.posDeposit,
+                  effect: ActivityEffect.neutral,
+                  sourceGroup: ActivitySourceGroup.pos,
+                  title: '',
+                  sourceName: null,
+                  destinationName: 'Ziraat',
+                  amount: '195.0000',
+                  canCancel: false,
+                ),
+              ]),
+            ],
+          ),
+          posRepository: posRepository,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('POS yatışı'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Yatış yükleniyor'), findsNothing);
+    expect(find.text('Hesaba yatan tutar'), findsOneWidget);
+    expect(find.text('Tarih'), findsOneWidget);
+    // Yüklenmeden geri alınamaz.
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.ancestor(
+              of: find.text('Yatışı geri al'),
+              matching: find.bySubtype<OutlinedButton>(),
+            ),
+          )
+          .onPressed,
+      isNull,
+    );
+
+    posRepository.pending!.complete();
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.ancestor(
+              of: find.text('Yatışı geri al'),
+              matching: find.bySubtype<OutlinedButton>(),
+            ),
+          )
+          .onPressed,
+      isNotNull,
+    );
+    expect(find.text('Bakiye'), findsOneWidget);
+  });
+
+  testWidgets('ayrıntı açılırken kalan bakiye bir kez istenir', (tester) async {
+    final repository =
+        _FakeRepository(
+            pages: [
+              _page([_activity(id: 'a', title: 'Kira', canCancel: false)]),
+            ],
+          )
+          ..balances = const [
+            ActivityBalance(
+              isCard: false,
+              name: 'Banka',
+              balance: '900.0000',
+              currency: 'TRY',
+              change: ActivityBalanceChange.decreased,
+            ),
+          ];
+    await _pump(tester, repository);
+
+    await tester.tap(find.text('Kira'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bakiye'), findsOneWidget);
+    expect(repository.balanceRequests, 1);
+  });
+
+  testWidgets('POS deposu yokken yatış satırı genel ayrıntıda açılır', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _FakeRepository(
+        pages: [
+          _page([
+            _activity(
+              id: 'deposit-1',
+              kind: ActivityKind.posDeposit,
+              effect: ActivityEffect.neutral,
+              sourceGroup: ActivitySourceGroup.pos,
+              title: 'Ziraat',
+              canCancel: false,
+            ),
+          ]),
+        ],
+      ),
+    );
+
+    await tester.tap(find.text('Ziraat'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tarih'), findsOneWidget);
+    expect(
+      find.text("Yatış, Kasa'daki POS tahsilatlarından geri alınır."),
+      findsOneWidget,
+    );
   });
 
   testWidgets('borç taksidi satırı tek kayıttır, faizini alt satırda söyler', (
@@ -432,6 +597,35 @@ void main() {
 
     expect(find.textContaining('faizi'), findsNothing);
   });
+}
+
+/// Yalnız yatış okumasını karşılar; feed başka hiçbir POS ucuna dokunmaz.
+class _FakePosRepository implements PosRepositoryContract {
+  String? requestedDepositId;
+
+  /// Verilirse okuma bu tamamlanana kadar bekler.
+  Completer<void>? pending;
+
+  @override
+  Future<PosDeposit> getDeposit({required String depositId}) async {
+    requestedDepositId = depositId;
+    await pending?.future;
+    return const PosDeposit(
+      id: 'deposit-1',
+      accountName: 'Ziraat',
+      depositDate: '2026-08-27',
+      expectedAmount: '195.0000',
+      depositedAmount: '195.0000',
+      deductionAmount: '0.0000',
+      currency: 'TRY',
+      isCancelled: false,
+      settlements: [],
+      balanceAfter: '1195.0000',
+    );
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 Future<void> _pump(
@@ -499,6 +693,18 @@ FinancialActivity _activity({
 );
 
 class _FakeRepository implements ActivityRepositoryContract {
+  @override
+  Future<List<ActivityBalance>> balancesAfter(
+    FinancialActivity activity,
+  ) async {
+    balanceRequests++;
+    return balances;
+  }
+
+  /// İşlem ayrıntısındaki "kalan bakiye" için dönecek cevap.
+  List<ActivityBalance> balances = const [];
+  int balanceRequests = 0;
+
   _FakeRepository({this.pages = const [], this.error});
 
   final List<ActivityPage> pages;

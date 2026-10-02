@@ -133,19 +133,34 @@ Kasa -> POS tahsilatları bölümü -> + Ekle
                 -> POST /api/v1/pos-settlements
      -> brüt gelir ve komisyon gideri tanınır; hesap değişmez
 
-Yolda satırına dokun -> görünür onay
-     -> POST /api/v1/pos-settlements/{id}/transfer
-     -> hedef hesap net kadar artar; gelir/gider yeniden yazılmaz
+Kasa -> POS tahsilatları -> "Hesaba geçenleri işaretle"   (yolda tahsilat varken)
+     ya da yoldaki satır -> ayrıntı -> "Hesaba geçti"      (yalnız o tahsilat seçili)
+     -> yoldaki tahsilatların seçimi (günü gelmişler seçili gelir;
+        bir yatış tek hesaba düşer, başka hesabın tahsilatı seçilemez)
+     -> GET /api/v1/pos-deposits/preview?settlementIds=…[&depositedAmount=…]
+        (beklenen toplam, kesinti, dolu gelecek kesinti kategorisi; istemci hesaplamaz)
+     -> yatan tutar (beklenenle dolu gelir) + yattığı gün
+        yatan < beklenen  -> "Kesinti" ve kategori (POS'un komisyon kategorisi seçili)
+        yatan > beklenen  -> alanın altında uyarı, kayıt gönderilmez
+     -> POST /api/v1/pos-deposits {clientRequestId, settlementIds, depositedAmount,
+                                   depositDate, deductionCategoryId?}
+     -> hesap tam olarak yatan tutar kadar artar; gelir yazılmaz;
+        eksik kalan kısım kesinti gideri olarak yazılır
 
-Geçmiş satıra dokun -> "Hesaba geçmedi, geri al" -> görünür onay
-     -> DELETE /api/v1/pos-settlements/{id}/transfer
-     -> net tutar hesaptan geri çekilir, kayıt yeniden yolda;
+Hesaba geçmiş satır -> ayrıntı -> "Yatışı gör"
+     (ya da İşlemler'de "POS parası hesaba geçti" satırı)
+     -> GET /api/v1/pos-deposits/{id}
+     -> yatan, beklenen, kesinti, gün, hesap, kapattığı tahsilatlar
+     -> "Yatışı geri al" -> görünür onay -> DELETE /api/v1/pos-deposits/{id}
+     -> tahsilatlar yeniden yolda, kesinti gideri iptal, yatış kaydı kalır;
         satış ve komisyon tanınmış olarak kalır
 
-Herhangi bir satır -> "Kaydı iptal et" -> yıkıcı onay
+Yoldaki satır -> ayrıntı -> "Kaydı iptal et" -> yıkıcı onay
      -> DELETE /api/v1/pos-settlements/{id}
-     -> satış, komisyon ve varsa hesaba geçen tutar birlikte düşer;
+     -> satış, komisyon ve yoldaki tutar birlikte düşer;
         kayıt silinmez, iptal edilir ve listeden kalkar
+     hesaba geçmiş tahsilatta iptal sunulmaz: önce yatış geri alınır
+     (doğrudan çağrı 409 pos_settlements.deposit_locked)
 ```
 
 `Yolda` toplamı net tutardır ve liste tarih aralığından bağımsızdır. POS hedefi
@@ -699,17 +714,24 @@ Anahtar `İşletme` / `Şahsi`   -> o tarafın neti, adı yazılı
 tarafın adı sayının yönünden bağımsız olarak `Şahsi net`tir. Hesaplanan
 şey nakit esaslı **işletme netidir**; "kâr" kelimesi kullanılmaz.
 
-## POS tahsilatının birleşik akıştaki üç satırı
+## POS tahsilatının ve yatışının birleşik akıştaki satırları
 
 ```text
-10 Ağustos  POS satışı            +1.000,00   gelir    (kapsam taşır)
-10 Ağustos  POS komisyonu            17,50    gider    (kapsam taşır)
-13 Ağustos  POS parası hesaba geçti +982,50   nötr     (kapsam taşımaz)
+13 Ağustos  POS yatışı                      975,00   nötr   (kapsam taşımaz)
+            Ziraat POS • Ziraat Vadesiz     kesinti ₺7,50
+10 Ağustos  Akşam servisi                +1.000,00   gelir  (kapsam taşır)
+            Satış geliri • Ziraat POS       komisyon ₺17,50
 ```
 
-Üç satır tek kayıttır ve aynı kimliği taşır; istemci onları `tür + kimlik`
-ikilisiyle ayırır. Tek satıra indirilseydi ya komisyon görünmez olurdu ya da
-hesabın bakiyesindeki artışın günü yanlış yazılırdı.
+İki satır, dört değil: komisyon satışın, kesinti yatışın **parçasıdır** ve
+tutarın altında yazılır. Satış tahsilatın, yatış satırı yatışın kimliğini
+taşır. Yatış satırı bankanın gerçekten yatırdığı tutarı gösterir (beklenen
+982,50 idi). Satışa dokunmak komisyonu, neti, hesabı ve geçiş gününü tek
+panelde gösterir; yatışa dokunmak yatış ayrıntısını açar.
+
+Aynı günün satırları **giriş sırasına** göre dizilir, en yeni üstte. Üst satır
+kaydın ne olduğunu söyler (açıklama; yoksa kategori, kişi ya da türün adı —
+hesap adı olmaz); sol alt satır kategori, POS ve hesabı.
 
 Geçiş satırı kapsam taşımadığı için kapsam filtreli okumada düşer — transfer ve
 kart ödemesiyle aynı kural. Üç satırın hiçbiri feed üzerinden iptal edilemez;
@@ -1481,7 +1503,11 @@ Taksitli fiş -> kart seçimi (/more/cards)
   -> satıra dokun -> işlem detayı paneli
        başlık + tür · kapsam, işaretli tutar + durum kapsülü
        gri blok: Tarih / Kategori / (Hesaplar A → B | Hesap | Karşı taraf) /
-       Açıklama / Köken / Belge
+       Açıklama / Belge / Bakiye (işlem sonrası; kartta "Kart borcu")
+         -> GET /api/v1/financial-activities/{kind}/{id}/balances
+            (panel açılırken bir kez; satır yerinde bekler, sunucu hesaplar)
+       POS satışında: POS / Komisyon / Net tutar / Hesap / Geçiş günü | Beklenen
+       POS yatışında: yatış ayrıntısı (satırın taşıdıklarıyla hemen açılır)
        iptal edilebiliyorsa "Hareketi iptal et" -> onay
          ("Kayıt silinmez; iptal edildi olarak işaretlenir…")
        edilemiyorsa kilit ikonu + gerekçe (plan, taksit, POS)

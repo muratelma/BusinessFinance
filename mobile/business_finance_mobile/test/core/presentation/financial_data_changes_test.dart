@@ -148,9 +148,9 @@ void main() {
       'counterpartyLedgerChanged': (c) => c.counterpartyLedgerChanged(),
       'obligationSettled': (c) => c.obligationSettled(),
       'cashDifferenceConfirmed': (c) => c.cashDifferenceConfirmed(),
-      'posSettlementTransferred': (c) => c.posSettlementTransferred(),
-      'posSettlementTransferReverted': (c) => c.posSettlementTransferReverted(),
-      'posSettlementCancelled': (c) => c.posSettlementCancelled(),
+      'posDepositChanged': (c) => c.posDepositChanged(deduction: false),
+      'posDepositChanged (kesintili)': (c) =>
+          c.posDepositChanged(deduction: true),
     };
 
     for (final entry in events.entries) {

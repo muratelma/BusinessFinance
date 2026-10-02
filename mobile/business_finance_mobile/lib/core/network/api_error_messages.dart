@@ -92,6 +92,7 @@ abstract final class ApiErrorMessages {
     'obligations': 'Yükümlülük',
     'goal': 'Tasarruf hedefi',
     'pos_settlements': 'POS tahsilatı',
+    'pos_deposits': 'POS yatışı',
     'pos_definitions': 'POS',
     'cash_counts': 'Kasa sayımı',
     'imports': 'İçe aktarma',
@@ -351,6 +352,34 @@ abstract final class ApiErrorMessages {
         'Hesap, satış kategorisi ve beklenen gün gerekli.',
     'pos_settlements.definition_unavailable':
         'Bu POS bulunamadı. Listeyi yenileyip yeniden seçin.',
+    'pos_settlements.deposit_locked':
+        'Bu tahsilat hesaba geçti. İptal etmek için önce yatışı geri alın.',
+    'pos_deposits.amount_exceeds_expected':
+        'Yatan tutar beklenenden fazla olamaz. Komisyon fazla yazıldıysa '
+        'tahsilatı iptal edip yeniden girin.',
+    'pos_deposits.invalid_amount': 'Yatan tutarı sıfırdan büyük girin.',
+    'pos_deposits.invalid_deposit_date':
+        'Yatış günü ileri bir tarih ya da tahsilattan önce olamaz.',
+    'pos_deposits.settlements_required': 'En az bir tahsilat seçin.',
+    'pos_deposits.too_many_settlements':
+        'Tek yatışta en çok 100 tahsilat kapatılabilir.',
+    'pos_deposits.settlement_not_found':
+        'Seçilen tahsilatlardan biri bulunamadı. Listeyi yenileyin.',
+    'pos_deposits.settlement_not_in_transit':
+        'Seçilen tahsilatlardan biri artık yolda değil. Listeyi yenileyin.',
+    'pos_deposits.mixed_accounts':
+        'Bir yatış tek hesaba düşer; aynı hesabın tahsilatlarını seçin.',
+    'pos_deposits.account_unavailable':
+        'Tahsilatların geçeceği hesap aktif değil.',
+    'pos_deposits.deduction_category_required':
+        'Eksik yatan tutar için bir gider kategorisi seçin.',
+    'pos_deposits.deduction_category_unavailable':
+        'Kesinti için aktif bir gider kategorisi seçin.',
+    'pos_deposits.scope_unresolved':
+        'Kesintinin işletme mi şahsi mi olduğu belirlenemedi; işletme ve '
+        'şahsi tahsilatları ayrı ayrı işaretleyin.',
+    'pos_deposits.concurrent_change':
+        'Tahsilatlar bu sırada değişti. Listeyi yenileyip yeniden deneyin.',
     'pos_definitions.has_settlements':
         'Bu POS ile tahsilat yazıldığı için silinemez. Kullanmayacaksanız '
         'pasife alabilirsiniz.',

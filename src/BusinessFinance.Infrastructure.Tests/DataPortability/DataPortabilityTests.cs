@@ -37,8 +37,8 @@ public sealed class DataPortabilityTests
         Assert.Equal(validation.EntityCount, restored.RestoredEntityCount);
         Assert.Equal("restore.destination_not_empty", conflict.Code);
         Assert.Equal("Geri yükleme için hesapta finansal veri bulunmamalıdır.", conflict.Message);
-        // İki POS tanımı (ADR 0019 T4) sayıya dahil.
-        Assert.Equal(37, validation.EntityCount);
+        // İki POS tanımı (ADR 0019 T4) ve bir POS yatışı (T5) sayıya dahil.
+        Assert.Equal(38, validation.EntityCount);
         Assert.Equal(2, await context.Accounts.CountAsync(x => x.UserId == targetUserId));
         Assert.Equal(3, await context.Categories.CountAsync(x => x.UserId == targetUserId));
         Assert.Equal(3, await context.Transactions.CountAsync(x => x.UserId == targetUserId));
@@ -686,9 +686,23 @@ public sealed class DataPortabilityTests
         Assert.Equal(new DateOnly(2026, 8, 8), gecmis.TransferredOn);
         Assert.Equal(0m, gecmis.CommissionAmount);
         Assert.Null(gecmis.CommissionCategoryId);
+        // Geçiş günü dosyada tahsilatta değil yatışta durur; tahsilat hedef
+        // kullanıcının **yeni** yatışına bağlanır.
+        var yatis = await context.PosDeposits.AsNoTracking()
+            .SingleAsync(item => item.UserId == targetUserId);
+        Assert.Equal(yatis.Id, gecmis.PosDepositId);
+        Assert.Equal(new DateOnly(2026, 8, 8), yatis.DepositDate);
+        Assert.Equal(300m, yatis.DepositedAmount.Amount);
+        Assert.Equal(0m, yatis.DeductionAmount);
+        Assert.Null(yatis.DeductionTransactionId);
+        Assert.DoesNotContain(
+            await context.PosDeposits.AsNoTracking()
+                .Where(item => item.UserId == sourceUserId).ToArrayAsync(),
+            item => item.Id == yatis.Id);
 
         Assert.True(yolda.IsInTransit);
         Assert.Null(yolda.TransferredOn);
+        Assert.Null(yolda.PosDepositId);
         Assert.Equal(500m, yolda.GrossAmount.Amount);
         Assert.Equal(12.5m, yolda.CommissionAmount);
         // Net tutar ve oran dosyadan gelmiyor, paradan çözülüyor.
@@ -722,6 +736,212 @@ public sealed class DataPortabilityTests
             await context.PosDefinitions.AsNoTracking()
                 .Where(item => item.UserId == sourceUserId).ToArrayAsync(),
             item => item.Id == yolda.PosDefinitionId);
+    }
+
+    /// <summary>
+    /// Kaydın girildiği an yedekle birlikte taşınır: geri yüklenen hesapta
+    /// İşlemler'in gün içi sırası ve "işlem sonrası bakiye" aynı kalır.
+    /// </summary>
+    /// <remarks>
+    /// Geri yükleme anı kaydın girildiği an <b>değildir</b>. Dosyada giriş anı
+    /// olmayan kayıt boş kalır; hepsine geri yükleme saatini yazmak, bütün
+    /// geçmişi aynı ana girilmiş gösterirdi.
+    /// </remarks>
+    [Fact]
+    public async Task BackupV11_CarriesEntryTimesAndDoesNotInventThemOnRestore()
+    {
+        await using var context = CreateContext();
+        var sourceUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        var legacyUserId = Guid.NewGuid();
+        await SeedCompleteGraphAsync(context, sourceUserId);
+        await SeedDefaultCategoriesAsync(context, targetUserId);
+        await SeedDefaultCategoriesAsync(context, legacyUserId);
+        var service = new EfDataPortabilityRepository(context);
+
+        static DateTimeOffset? EntryTime(BusinessFinanceDbContext db, object entity) =>
+            (DateTimeOffset?)db.Entry(entity).Property("CreatedAtUtc").CurrentValue;
+
+        // Kaynak kayıtlar yazılırken damgalandı; biri "eski kayıt" olsun.
+        var sourceTransactions = await context.Transactions
+            .Where(item => item.UserId == sourceUserId).ToArrayAsync();
+        Assert.All(sourceTransactions, item => Assert.NotNull(EntryTime(context, item)));
+        var legacy = sourceTransactions.Single(item => item.Description == "Market, haftalık");
+        var stamped = sourceTransactions.Single(item => item.Description == "=SUM(A1:A2)");
+        var stampedAt = new DateTimeOffset(2026, 8, 1, 9, 15, 0, TimeSpan.Zero);
+        context.Entry(legacy).Property<DateTimeOffset?>("CreatedAtUtc").CurrentValue = null;
+        context.Entry(stamped).Property<DateTimeOffset?>("CreatedAtUtc").CurrentValue = stampedAt;
+        await context.SaveChangesAsync();
+
+        var backup = await service.CreateBackupAsync(sourceUserId, default);
+        await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
+
+        var restored = await context.Transactions
+            .Where(item => item.UserId == targetUserId).ToArrayAsync();
+        Assert.Equal(
+            stampedAt,
+            EntryTime(context, restored.Single(item => item.Description == "=SUM(A1:A2)")));
+        Assert.Null(EntryTime(context, restored.Single(item => item.Description == "Market, haftalık")));
+        // Transfer, kart harcaması ve kart ödemesi de kendi anını taşır.
+        var sourceTransfer = await context.Transfers.SingleAsync(item => item.UserId == sourceUserId);
+        var restoredTransfer = await context.Transfers.SingleAsync(item => item.UserId == targetUserId);
+        Assert.Equal(EntryTime(context, sourceTransfer), EntryTime(context, restoredTransfer));
+        var sourceCharge = await context.CreditCardCharges.SingleAsync(item => item.UserId == sourceUserId);
+        var restoredCharge = await context.CreditCardCharges.SingleAsync(item => item.UserId == targetUserId);
+        Assert.Equal(EntryTime(context, sourceCharge), EntryTime(context, restoredCharge));
+
+        // Giriş anı taşımayan bir dosya: hiçbir kayda saat uydurulmaz.
+        var withoutTimes = RewritePayload(backup.Content, snapshot =>
+        {
+            foreach (var collection in new[]
+                     {
+                         "transactions", "transfers", "charges", "payments",
+                         "counterpartyCharges", "counterpartyPayments", "debts",
+                     })
+            {
+                foreach (var item in snapshot[collection]!.AsArray())
+                    item!.AsObject().Remove("createdAtUtc");
+            }
+        });
+        await service.RestoreBackupAsync(legacyUserId, withoutTimes, DateTimeOffset.UtcNow, default);
+
+        Assert.All(
+            await context.Transactions.Where(item => item.UserId == legacyUserId).ToArrayAsync(),
+            item => Assert.Null(EntryTime(context, item)));
+        Assert.Null(EntryTime(
+            context, await context.Transfers.SingleAsync(item => item.UserId == legacyUserId)));
+
+        // Geri yükleme bittikten sonra yeni kayıtlar yine damgalanır.
+        var account = await context.Accounts.FirstAsync(
+            item => item.UserId == targetUserId && item.IsActive);
+        var category = await context.Categories.FirstAsync(
+            item => item.UserId == targetUserId && item.IsActive && item.Type == CategoryType.Expense);
+        var fresh = new BudgetTransaction(
+            Guid.NewGuid(), targetUserId, account, category, new Money(1m, CurrencyCode.TRY),
+            TransactionType.Expense, TransactionScope.Business, new DateOnly(2026, 8, 12));
+        context.Add(fresh);
+        await context.SaveChangesAsync();
+        Assert.NotNull(EntryTime(context, fresh));
+    }
+
+    /// <summary>
+    /// POS yatışı yedekten kayıpsız döner: kapattığı tahsilatlar, kesinti
+    /// gideri ve geri alınmış yatış birlikte.
+    /// </summary>
+    /// <remarks>
+    /// Yatış dosyada beklenen tutarı taşımaz; geri yüklenirken kapattığı
+    /// tahsilatların netinden yeniden hesaplanır ve dosyadaki kesintiyle
+    /// karşılaştırılır. Geri alınmış yatış tahsilat taşımaz: tahsilatı yola
+    /// dönmüş, kesinti gideri iptal edilmiştir; kaydın kendisi geçmiştir ve
+    /// kalır (silme yerine iptal).
+    /// </remarks>
+    [Fact]
+    public async Task BackupV11_RoundTripsPosDepositsWithDeductionAndRevertedDeposit()
+    {
+        await using var context = CreateContext();
+        var sourceUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        await SeedPosDepositGraphAsync(context, sourceUserId);
+        await SeedDefaultCategoriesAsync(context, targetUserId);
+        var service = new EfDataPortabilityRepository(context);
+
+        var backup = await service.CreateBackupAsync(sourceUserId, default);
+        await service.ValidateBackupAsync(backup.Content, default);
+        await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
+
+        var deposits = await context.PosDeposits.AsNoTracking()
+            .Where(item => item.UserId == targetUserId)
+            .OrderBy(item => item.DepositDate).ToArrayAsync();
+        Assert.Equal(2, deposits.Length);
+        var duran = deposits[0];
+        var geriAlinan = deposits[1];
+        var transactions = await context.Transactions.AsNoTracking()
+            .Where(item => item.UserId == targetUserId)
+            .ToDictionaryAsync(item => item.Id);
+        var settlements = await context.PosSettlements.AsNoTracking()
+            .Where(item => item.UserId == targetUserId)
+            .OrderBy(item => item.SettlementDate).ToArrayAsync();
+        Assert.Equal(3, settlements.Length);
+
+        // Duran yatış iki tahsilatı kapatır: 980 + 490 beklenir, 1450 yattı.
+        Assert.False(duran.IsCancelled);
+        Assert.Equal(new DateOnly(2026, 9, 14), duran.DepositDate);
+        Assert.Equal(1450m, duran.DepositedAmount.Amount);
+        Assert.Equal(20m, duran.DeductionAmount);
+        Assert.Equal(1470m, duran.ExpectedAmount);
+        var kesinti = transactions[duran.DeductionTransactionId!.Value];
+        Assert.False(kesinti.IsCancelled);
+        Assert.Equal(20m, kesinti.Amount.Amount);
+        Assert.Equal(TransactionType.Expense, kesinti.Type);
+        Assert.Equal(duran.AccountId, kesinti.AccountId);
+        Assert.Equal(duran.DepositDate, kesinti.TransactionDate);
+        Assert.All(settlements[..2], item =>
+        {
+            Assert.Equal(duran.Id, item.PosDepositId);
+            Assert.Equal(duran.DepositDate, item.TransferredOn);
+            Assert.NotNull(item.TransferredAtUtc);
+        });
+
+        // Geri alınan yatış kayıt olarak kalır; tahsilatı yoldadır ve kesinti
+        // gideri iptal edilmiştir.
+        Assert.True(geriAlinan.IsCancelled);
+        Assert.NotNull(geriAlinan.CancelledAtUtc);
+        Assert.Equal(195m, geriAlinan.DepositedAmount.Amount);
+        Assert.Equal(5m, geriAlinan.DeductionAmount);
+        var iptalKesinti = transactions[geriAlinan.DeductionTransactionId!.Value];
+        Assert.True(iptalKesinti.IsCancelled);
+        Assert.Equal(5m, iptalKesinti.Amount.Amount);
+        Assert.True(settlements[2].IsInTransit);
+        Assert.Null(settlements[2].PosDepositId);
+        Assert.Null(settlements[2].TransferredOn);
+
+        // Hiçbir kimlik kaynaktan taşınmaz.
+        var sourceDepositIds = await context.PosDeposits.AsNoTracking()
+            .Where(item => item.UserId == sourceUserId).Select(item => item.Id).ToArrayAsync();
+        Assert.Equal(2, sourceDepositIds.Length);
+        Assert.DoesNotContain(duran.Id, sourceDepositIds);
+        Assert.DoesNotContain(geriAlinan.Id, sourceDepositIds);
+    }
+
+    /// <summary>
+    /// Kesintisi kapattığı tahsilatlarla tutmayan bir yatış geri yüklenmez.
+    /// </summary>
+    /// <remarks>
+    /// Yatan tutar ile kesintinin toplamı tahsilatların neti olmalıdır.
+    /// Dosyadaki sayı olduğu gibi yazılsaydı hesaba giren tutar, yatışın
+    /// söylediği tutardan sessizce ayrışırdı.
+    /// </remarks>
+    [Theory]
+    [InlineData("deductionAmount", "1.0000")]
+    [InlineData("depositedAmount", "1400.0000")]
+    public async Task Backup_TamperedPosDepositIsRejectedAndWritesNothing(string field, string value)
+    {
+        await using var context = CreateContext();
+        var sourceUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        await SeedPosDepositGraphAsync(context, sourceUserId);
+        await SeedDefaultCategoriesAsync(context, targetUserId);
+        var service = new EfDataPortabilityRepository(context);
+        var backup = await service.CreateBackupAsync(sourceUserId, default);
+        var tampered = RewritePayload(backup.Content, snapshot =>
+        {
+            foreach (var deposit in snapshot["posDeposits"]!.AsArray())
+            {
+                if (!deposit!["isCancelled"]!.GetValue<bool>())
+                    deposit.AsObject()[field] = value;
+            }
+        });
+
+        var validationError = await Assert.ThrowsAsync<DataPortabilityException>(() =>
+            service.ValidateBackupAsync(tampered, default));
+        var error = await Assert.ThrowsAsync<DataPortabilityException>(() =>
+            service.RestoreBackupAsync(targetUserId, tampered, DateTimeOffset.UtcNow, default));
+
+        Assert.Equal("restore.invalid_backup", validationError.Code);
+        Assert.Equal("restore.invalid_backup", error.Code);
+        Assert.False(await context.PosDeposits.AnyAsync(x => x.UserId == targetUserId));
+        Assert.False(await context.PosSettlements.AnyAsync(x => x.UserId == targetUserId));
+        Assert.False(await context.Accounts.AnyAsync(x => x.UserId == targetUserId));
     }
 
     /// <summary>
@@ -1124,7 +1344,10 @@ public sealed class DataPortabilityTests
             Guid.NewGuid(), userId, bank, incomeCategory,
             new Money(300m, CurrencyCode.TRY), 0m, TransactionScope.Business,
             new DateOnly(2026, 8, 5), new DateOnly(2026, 8, 8), utc);
-        gecmisTahsilat.MarkTransferred(new DateOnly(2026, 8, 8), utc);
+        // Geçiş bir yatıştır (ADR 0019 T5): beklendiği kadar yattı, kesinti yok.
+        var gecmisYatis = PosDeposit.Record(
+            Guid.NewGuid(), userId, bank, [gecmisTahsilat],
+            new Money(300m, CurrencyCode.TRY), new DateOnly(2026, 8, 8), utc);
 
         kapanan.Deactivate();
 
@@ -1149,7 +1372,56 @@ public sealed class DataPortabilityTests
             budget, transfer, card, charge, payment, plan, recurring, occurrence, batch,
             manav, kapanan, veresiye, vadeliAlim, tahsilat, iptalTahsilat,
             acikFatura, kapananAlacak, kasaFarki, eskiSayim, sayim,
-            posTanimi, pasifPosTanimi, yoldakiTahsilat, gecmisTahsilat, vergiKarsiligi);
+            posTanimi, pasifPosTanimi, yoldakiTahsilat, gecmisTahsilat, gecmisYatis,
+            vergiKarsiligi);
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// İki tahsilatı eksik tutarla kapatan bir yatış ve kesintisiyle birlikte
+    /// geri alınmış ikinci bir yatış.
+    /// </summary>
+    private static async Task SeedPosDepositGraphAsync(BusinessFinanceDbContext context, Guid userId)
+    {
+        var utc = new DateTimeOffset(2026, 9, 15, 9, 0, 0, TimeSpan.Zero);
+        var bank = new Account(Guid.NewGuid(), userId, "Banka", AccountType.Bank, CurrencyCode.TRY, 5_000m);
+        var sales = new Category(Guid.NewGuid(), userId, "Satış geliri", CategoryType.Income);
+        var commission = new Category(
+            Guid.NewGuid(), userId, "Banka ve POS komisyonu", CategoryType.Expense);
+        var pos = new PosDefinition(
+            Guid.NewGuid(), userId, "Sentetik POS", bank, sales, 0.02m, commission, 2, true, utc);
+        pos.SetDefault(true);
+
+        var ilk = new PosSettlement(
+            Guid.NewGuid(), userId, bank, sales, new Money(1000m, CurrencyCode.TRY), 20m,
+            TransactionScope.Business, new DateOnly(2026, 9, 10), new DateOnly(2026, 9, 12), utc,
+            commission, null, pos);
+        var ikinci = new PosSettlement(
+            Guid.NewGuid(), userId, bank, sales, new Money(500m, CurrencyCode.TRY), 10m,
+            TransactionScope.Business, new DateOnly(2026, 9, 11), new DateOnly(2026, 9, 15), utc,
+            commission, null, pos);
+        var ucuncu = new PosSettlement(
+            Guid.NewGuid(), userId, bank, sales, new Money(200m, CurrencyCode.TRY), 0m,
+            TransactionScope.Business, new DateOnly(2026, 9, 12), new DateOnly(2026, 9, 16), utc);
+
+        var kesinti = new BudgetTransaction(
+            Guid.NewGuid(), userId, bank, commission, new Money(20m, CurrencyCode.TRY),
+            TransactionType.Expense, TransactionScope.Business, new DateOnly(2026, 9, 14));
+        var yatis = PosDeposit.Record(
+            Guid.NewGuid(), userId, bank, [ilk, ikinci],
+            new Money(1450m, CurrencyCode.TRY), new DateOnly(2026, 9, 14), utc, kesinti);
+
+        var geriAlinanKesinti = new BudgetTransaction(
+            Guid.NewGuid(), userId, bank, commission, new Money(5m, CurrencyCode.TRY),
+            TransactionType.Expense, TransactionScope.Business, new DateOnly(2026, 9, 15));
+        var geriAlinanYatis = PosDeposit.Record(
+            Guid.NewGuid(), userId, bank, [ucuncu],
+            new Money(195m, CurrencyCode.TRY), new DateOnly(2026, 9, 15), utc, geriAlinanKesinti);
+        geriAlinanYatis.Revert([ucuncu], geriAlinanKesinti, utc);
+
+        context.AddRange(
+            bank, sales, commission, pos, ilk, ikinci, ucuncu, kesinti, geriAlinanKesinti,
+            yatis, geriAlinanYatis);
         await context.SaveChangesAsync();
     }
 
@@ -1222,6 +1494,7 @@ public sealed class DataPortabilityTests
             {
                 SetVersions<RecurringTransactionOccurrence>(eventData.Context);
                 SetVersions<ImportRow>(eventData.Context);
+                SetVersions<PosSettlement>(eventData.Context);
             }
             return ValueTask.FromResult(result);
         }

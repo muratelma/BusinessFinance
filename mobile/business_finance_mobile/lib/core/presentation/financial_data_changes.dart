@@ -171,27 +171,28 @@ class FinancialDataChanges extends ChangeNotifier {
   void posSettlementRecognized() =>
       _raise(feed: true, dashboard: true, budgets: true, cash: true);
 
-  /// Para hesaba geçti: kasa değişir, gelir/gider yeniden tanınmaz.
+  /// POS yatışı yazıldı ya da geri alındı (ADR 0019 T5): para hesaba geçti
+  /// ya da yeniden yola döndü. Satış yeniden tanınmaz.
   ///
-  /// `feed` yükselir çünkü geçiş kendi satırını doğurur; `budgets` yükselmez,
-  /// bu adım hiçbir gider tanımaz — aynı satış iki kez sayılırdı.
-  void posSettlementTransferred() =>
-      _raise(feed: true, dashboard: true, accounts: true, cash: true);
-
-  /// "Hesaba geçti" geri alındı: para yeniden yolda. Geçişin tersi olduğu için
-  /// aynı hedefleri yükseltir; satış yeniden tanınmaz.
-  void posSettlementTransferReverted() =>
-      _raise(feed: true, dashboard: true, accounts: true, cash: true);
-
-  /// POS tahsilatı iptal edildi: satış ve komisyon düşer (bütçe), varsa
-  /// hesaba geçen tutar da düşer (hesaplar).
-  void posSettlementCancelled() => _raise(
+  /// `feed` yükselir çünkü yatış kendi satırını doğurur. `budgets` yalnız
+  /// [deduction] varsa yükselir: banka eksik yatırdıysa fark bir kesinti
+  /// **gideridir** ve bütçeyi tüketir; beklendiği kadar yatan para hiçbir
+  /// gider tanımaz — bütçeyi yükseltmek aynı satışı iki kez saymak olurdu.
+  void posDepositChanged({required bool deduction}) => _raise(
     feed: true,
     dashboard: true,
-    budgets: true,
+    budgets: deduction,
     accounts: true,
     cash: true,
   );
+
+  /// POS tahsilatı iptal edildi: satış ve komisyon düşer (bütçe), yoldaki
+  /// tutar kalkar.
+  ///
+  /// `accounts` yükselmez: yalnız yoldaki tahsilat iptal edilebilir, hesaba
+  /// geçmiş olan önce yatışı geri alınarak yola döner.
+  void posSettlementCancelled() =>
+      _raise(feed: true, dashboard: true, budgets: true, cash: true);
 
   /// Vergi ödendi ya da ödeme geri alındı (ADR 0018).
   ///

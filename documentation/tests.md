@@ -359,9 +359,8 @@ söylenir: doğrulama grafiği kuru olarak kurar, kullanıcı restore'a basmadan
 | `PosSettlementTests.ZeroCommission_IsLegitimateAndCarriesNoExpenseCategory` | Komisyonsuz tahsilat meşru; gider kategorisi taşımıyor |
 | `PosSettlementTests.CommissionAndItsCategoryAppearTogetherOrNotAtAll` | Komisyon ile gider kategorisi birlikte bulunuyor ya da hiç bulunmuyor |
 | `PosSettlementTests.Commission_CannotBeNegativeOrConsumeTheWholeSettlement` | Negatif komisyon ve brütün tamamını yiyen komisyon reddediliyor |
-| `PosSettlementTests.MarkTransferred_IsIdempotentAndRefusesASecondDifferentDay` | İkinci işaretleme yeni bakiye etkisi üretmiyor, ilk damga korunuyor; farklı günle işaretleme reddediliyor |
-| `PosSettlementTests.TransferDate_CannotPrecedeTheSettlementOrSitInTheFuture` | Para satıştan önce ve gelecekte hesaba geçemiyor |
-| `PosSettlementTests.CancelledSettlement_LosesBothItsRecognitionAndItsCashEffect` | İptal hem tanımayı hem bakiye etkisini birlikte kaldırıyor; iptal idempotent |
+| `PosDepositTests.DepositDate_CannotPrecedeASettlementOrSitInTheFuture` | Para satıştan önce ve gelecekte hesaba geçemiyor (2 Ekim 2026'dan beri geçişi yatış yazar; önceki `MarkTransferred_*` ve `TransferDate_*` testlerinin yerini aldı) |
+| `PosSettlementTests.CancelledSettlement_LosesItsRecognitionAndLeavesTheRoad` | İptal tanımayı ve yoldaki tutarı birlikte kaldırıyor; iptal idempotent |
 | `PosSettlementTests.TransitBalance_SumsOnlyTheNetOfWhatHasNotArrivedYet` | Yoldaki tutar yalnız bekleyenlerin **net** toplamı; geçmiş ve iptal olan sayılmıyor |
 | `PosSettlementTests.TransitBalance_IsEmptyWhenNothingIsWaiting` | Bekleyen yokken toplam sıfır ve `HasMoneyInTransit` yanlış |
 | `PosSettlementTests.PosMoneyArrivesInABankAccountAndTheSaleNeedsAnIncomeCategory` | Kasa, pasif hesap, başkasının hesabı ve gider kategorisi reddediliyor |
@@ -1426,7 +1425,7 @@ görüntüsü testi atlandı), format temiz.
 |---|---|---|
 | U11 — bakiyeyi değiştiren her olay Kasa'yı yeniler | `financial_data_changes_test.dart` → `every event that can move an account balance refreshes Kasa`, `a card charge leaves Kasa alone` | Hesapları yükselten on üç olayın hepsi `cash` hedefini de yükseltiyor; kart harcaması yükseltmiyor |
 | U11 — Kasa sinyali dinliyor | `cash_pos_feature_test.dart` → `başka ekrandaki nakit hareket Kasa ve POS listesini yeniler`, `Kasa kendi sayımından sonra kendini bir kez yükler` | Kusur yalnız sinyalde değildi: Kasa ve POS controller'ları `cash` hedefini hiç dinlemiyordu. Artık yeniden yükleniyorlar, kasa listesini de tazeliyorlar, kendi değişikliklerinde iki kez yüklenmiyorlar, kapandıktan sonra dinlemiyorlar |
-| U12 — geçişin geri alınması (Domain) | `PosSettlementTests.RevertTransfer_PutsTheMoneyBackOnTheRoadWithoutTouchingTheSale`, `RevertTransfer_IsRefusedOnACancelledSettlement` | Geri alma yalnız hesaptaki net tutarı geri çekiyor; satış ve komisyon kalıyor; idempotent; iptal edilmiş kayıtta reddediliyor |
+| U12 — geçişin geri alınması (Domain) — **2 Ekim 2026'da yatışa taşındı** (aşağıda "Aşama 06.3 Grup 5"); bu satırdaki testler ve `/transfer` uçları kalktı | `PosSettlementTests.RevertTransfer_PutsTheMoneyBackOnTheRoadWithoutTouchingTheSale`, `RevertTransfer_IsRefusedOnACancelledSettlement` | Geri alma yalnız hesaptaki net tutarı geri çekiyor; satış ve komisyon kalıyor; idempotent; iptal edilmiş kayıtta reddediliyor |
 | U12 — geri alma ve iptal uçları | `PosSettlementEndpointTests.WrongTransferCanBeReverted_AndAWrongSaleCanBeCancelled` | Bakiye, aylık rapor ve yoldaki para üzerinden: geri alma → para yeniden yolda, satış kalıyor; iptal → satış, komisyon ve yoldaki tutar düşüyor; ikisi de idempotent; iptal edilmişin geçişi `409`; yabancı kullanıcı `404` |
 | U12 — sahiplik | `OwnershipIsolationTests` | İki yeni uç prob listesinde; route tablosu karşılaştırması onları da istiyor |
 | U12 — istemci | `cash_pos_feature_test.dart` → `geçiş geri alınır ve kayıt iptal edilir…`, `POS deposu geri almayı ve iptali DELETE ile gönderir`, `POS ayrıntısı geçişi geri alır ve kaydı onayla iptal eder` | Geri alma bütçeyi yükseltmiyor, iptal yükseltiyor; iki eylem de onaysız çalışmıyor; yoldaki kayıtta "geri al" yok |
@@ -1519,3 +1518,63 @@ ADR 0019 T4: POS bir kez tanımlanır, tahsilat ondan dolar. Tanım para hareket
 | POS'larım | `pos_definition_test` | Liste, pasif etiketi, boş durum, okuma hatası, form hazır kategorileri seçili açar, doğrulama düşerse istek gitmez, 2.0× yazıda taşma yok |
 | Değişiklik bildirimi | `pos_definition_test` | Tanım kaydı hiçbir finansal hedefi yükseltmez; silme hatası tanım sayfasında kalır |
 | Ekran görüntüsü | `test/screenshots/pos_screenshot_test` | Yalnız `SCREENSHOT_DIR` ile: POS'larım, tanım formu, tanımdan dolan tahsilat formu |
+
+## Aşama 06.3 Grup 5 — POS yatışı (2 Ekim 2026)
+
+ADR 0019 T5: para hesaba yalnız bir yatışla geçer. Yatış bir ya da birkaç
+yoldaki tahsilatı bankanın gerçekten yatırdığı tutarla kapatır; eksik yatan
+kısım kesinti gideridir, fazlası reddedilir. Kontroller: backend SQL dahil
+geçti (Domain 329, Application 329, Api 254, Infrastructure 214 + 2 canlı test
+atlandı), build 0 uyarı, format temiz; Flutter analyze temiz, 972 test geçti
+(39 ekran görüntüsü testi atlandı), format temiz, debug APK derlendi.
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Kesinti = beklenen − yatan | `PosDepositTests` | Birkaç tahsilat tek hareketle kapanır; eksik yatan kısım kesinti olur ve bir gider kaydıyla taşınır; kesinti ile gider birlikte bulunur ve hesap, gün, tutar olarak tutmak zorundadır |
+| Fazla yatan reddedilir | `PosDepositTests`, `PosDepositEndpointTests` | Beklenen netin bir kuruş üstü `pos_deposits.amount_exceeds_expected`; hiçbir şey yazılmaz |
+| Tek hesap, yoldakiler, geçerli gün | `PosDepositTests`, `PosDepositEndpointTests` | Farklı hesapların tahsilatı (`mixed_accounts`), hesaba geçmiş ya da iptal edilmiş tahsilat (`settlement_not_in_transit`), satıştan önceki ya da gelecekteki gün (`invalid_deposit_date`), boş ve yinelenen seçim reddedilir; kasa yatış alamaz |
+| Geri alma | `PosDepositTests`, `PosDepositEndpointTests` | Kapatılan bütün tahsilatlar yola döner, kesinti gideri iptal olur, yatış kaydı kalır; idempotent; eksik tahsilat listesiyle geri alınamaz; yola dönen tahsilat yeniden kapatılabilir |
+| Yatışa bağlı tahsilat iptal edilemez | `PosDepositTests`, `PosSettlementEndpointTests` | `409 pos_settlements.deposit_locked`, bakiye değişmez; yatış geri alındıktan sonra iptal çalışır |
+| Yatış gelir yazmaz, hesaba tam yatan girer | `PosDepositEndpointTests`, `PosSettlementEndpointTests` | Bakiye yatan tutar kadar artar; aylık gelir değişmez, gider yalnız kesinti kadar artar; yoldaki para ve net varlık; önizleme ile kayıt aynı sayıları söyler ve önizleme hiçbir şey yazmaz |
+| Kesinti kategorisi ve kapsamı | `PosDepositEndpointTests` | POS'un komisyon kategorisi dolu gelir; adayı olmayan seçimde `deduction_category_required`, gelir kategorisi `deduction_category_unavailable`; kesinti kapattığı satışın kapsamını alır |
+| İdempotent istek | `PosDepositEndpointTests` | Aynı `clientRequestId` ikinci yatış ya da kesinti gideri yazmaz |
+| Birleşik akış | `FinancialActivityEndpointTests`, `PosDepositEndpointTests`, `FinancialActivityCapabilityTests` | Yatış tek satır (`pos-deposit`, yatışın kimliği, gerçekten yatan tutar, kapsamsız, `canCancel:false`); kesinti ayrı satır değil, yatışın `feeAmount`'ı (aşağıda "İşlemler: sıra, ad ve bakiye"); kesinti giderinin doğrudan iptali `409 transactions.cancel_origin_locked`; geri alınmış yatış `cancelled` |
+| Sahiplik | `OwnershipIsolationTests`, `PosDepositEndpointTests` | Okuma, geri alma ve önizleme prob tablosunda; gövdeyle çalışan `POST` başkasının tahsilatıyla olmayan tahsilata aynı `404`'ü verir; yabancı kullanıcının akışında yatış görünmez |
+| Migration biçimi | `MigrationHistoryTests.AddPosDeposits_BackfillsBeforeItConstrainsAndLosesNothing` | Zincirde; tablo → kolonlar → backfill → kısıtlar ve bağ; hiçbir kolon düşmez, kalıcı DEFAULT yok; tahsilat yatışa günüyle birlikte bağlanır |
+| Dolu veritabanında yükseltme | `SqlServerPersistenceIntegrationTests.AddPosDeposits_UpgradesAPopulatedDatabaseAndTurnsEveryTransferIntoADeposit` | Geçmiş tahsilat kesintisiz bir yatışa, geçip iptal edilmiş tahsilat iptal edilmiş bir yatışa dönüşür; yoldaki ve yoldayken iptal edilmiş tahsilat değişmez; bakiye, yoldaki para ve aylık rapor aynı kalır; taşınan yatış geri alınabilir |
+| SQL kapıları ve yarış | `SqlServerPersistenceIntegrationTests.PosDeposit_MovesExactlyTheDepositedAmountAndSqlGuardsTheLink` | Geçiş günü yatışın gününden ayrışamaz (üçlü FK), yatışa bağlı tahsilat SQL'de de iptal edilemez, kesinti ile gider birlikte bulunur; aynı tahsilat için yarışan yatış ile iptalden ikincisi `DbUpdateConcurrencyException` alır; günlük akış ve aylık rapor |
+| Yedek | `DataPortabilityTests` | Kesintili yatış ve geri alınmış yatış gidiş-dönüşte kayıpsız; kimlikler yenilenir; kesintisi ya da yatan tutarı tahsilatlarla tutmayan dosya reddedilir ve hiçbir şey yazılmaz |
+| Depo ve modeller (Flutter) | `pos_deposit_test` → `depo` | Önizleme seçimi sorgu dizesiyle, tutarı metin olarak gönderir; yatış gövdeyle yazılır, `DELETE` ile geri alınır; para JSON sayısı olarak gelirse reddedilir |
+| Değişiklik bildirimi | `pos_deposit_test` → `controller`, `financial_data_changes_test` | Yatış ve geri alması akışı, özeti, hesapları ve kasayı yeniler; bütçe **yalnız kesinti varsa** yenilenir; hata hiçbir hedefi yükseltmez; yoldaki tahsilatın iptali hesapları yükseltmez |
+| Yatış formu | `pos_deposit_test` → `yatış formu` | Günü gelmiş tahsilatlar seçili gelir, beklenen tutar sunucudan yazılır; başka hesabın tahsilatı seçilemez; eksik tutarda kesinti ve dolu kategori görünür ve öyle gönderilir; fazla tutar ve boş seçim kaydedilmez; sunucu hatası panelde kalır; 2.0× yazıda taşma yok, erişilebilirlik kapısı |
+| Yatış ayrıntısı | `pos_deposit_test` → `yatış ayrıntısı` | Kesinti, kategori ve kapattığı tahsilatlar; geri alma onaysız çalışmaz; geri alınmış yatış eylem sunmaz; okuma hatası yeniden denenir, geri alma hatası panelde görünür; 2.0× yazı ve erişilebilirlik |
+| Kasa'daki kapı | `pos_deposit_test` → `POS tahsilatları bölümü`, `cash_pos_feature_test` | "Hesaba geçenleri işaretle" yalnız yolda tahsilat varken; ayrıntıdaki "Hesaba geçti" paneli o tahsilatla açar; hesaba geçmiş tahsilat yatışına götürür ve iptal sunmaz |
+| İşlemler | `activity_feed_page_test`, `activity_models_test` | Yatış satırı yatış ayrıntısını açar; `pos-deposit` türü ve kökeni okunur |
+| Ekran görüntüsü | `test/screenshots/pos_screenshot_test` | Yalnız `SCREENSHOT_DIR` ile: yatış formu (kesintili) ve yatış ayrıntısı |
+
+## Aşama 06.3 Grup 5 — İşlemler: sıra, ad ve bakiye (2 Ekim 2026)
+
+Yatışın emülatör turunda çıkan dört iş: gün içi sıra, komisyon ve kesintinin
+ayrı satır olmaktan çıkması, başlık kuralı ve ayrıntıdaki işlem sonrası bakiye;
+yatış ayrıntısının "yükleniyor" perdesi. Kontroller: backend SQL dahil geçti
+(Domain 329, Application 329, Api 257, Infrastructure 217 + 2 canlı test
+atlandı), build 0 uyarı, format temiz; Flutter analyze temiz, 995 test geçti
+(44 ekran görüntüsü testi atlandı), format temiz, debug APK derlendi.
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Gün içi sıra | `FinancialActivityEndpointTests.Feed_OrdersADayByEntryTimeAcrossKinds_NewestFirst`, `SqlServerPersistenceIntegrationTests.ActivityFeed_OrdersADayByEntryTimeAndReadsTheBalanceAfterEachMovement` | Aynı günün kayıtları türe göre değil giriş anına göre, en yeni üstte; giriş anı bilinmeyen kayıt günün sonunda; dün için bugün girilen kayıt kendi gününde. Gerçek SQL'de de aynı sıra (tek `UNION ALL` sorgusu korunur) |
+| Komisyon ve kesinti satır değil | `FinancialActivityEndpointTests.Feed_ProjectsAPosSettlementAsSaleWithItsCommissionAndADeposit`, `PosDepositEndpointTests`, SQL testi | Satış satırı `feeAmount`, `netAmount`, `channelName`, beklenen ve geçiş gününü; yatış satırı `feeAmount`, `settlementCount`, `channelName`'i taşır; akışta gider satırı yoktur; kesinti yine bir `BudgetTransaction`'dır ve kapsamını korur; `pos-commission` süzgeç değeri `400` |
+| Başlık hesap adına düşmez | `FinancialActivityEndpointTests.Feed_DoesNotNameAMoneyMovementAfterAnAccountOrCard`, SQL testi | Açıklamasız transfer, kart ödemesi ve yatışta `title` boş; açıklama varsa o |
+| Bakiyenin yönü | `Balances_FollowEachMovementInFeedOrder`, `PosDepositEndpointTests`, SQL testi, `activity_pos_rows_test` → `bakiyenin rengi paranın yönünü söyler` | Gider ve transfer kaynağı `decreased`, gelir, transfer hedefi ve yatış `increased`; kart harcaması borcu artırır, ödeme azaltır; POS satışı hesabını `unchanged` ile ve o anki bakiyeyle döner. İstemcide giren yeşil, çıkan kırmızı, değişmeyen mavi; bilinmeyen `change` değeri reddedilir |
+| İşlem sonrası bakiye | `FinancialActivityEndpointTests.Balances_FollowEachMovementInFeedOrder`, SQL testi | Her hareketin sonrası akış sırasına göre; sonradan girilen kayıt öncekinin sonrasını değiştirmez; transfer iki hesap, kart ödemesi hesap + kart borcu döner; son hareketin sonrası güncel bakiyeye eşit; yatışın sonrası kesintiyi içerir; iptal edilmiş, para taşımayan ve giriş anı bilinmeyen hareket boş liste; bilinmeyen tür `400` |
+| Sahiplik | `OwnershipIsolationTests`, `Balances_FollowEachMovementInFeedOrder`, SQL testi | Başkasının hareketi, olmayan hareket ve türü tutmayan kimlik aynı `404`; uç prob tablosunda |
+| Bakiyenin tek kaynağı | SQL testi, mevcut bakiye testleri | `CalculateBalanceAsync` ve işlem sonrası bakiye aynı hareket listesini (`AccountMovements`, `CardDebt`) okur; mevcut bakiye, günlük akış ve rapor testleri değişmeden geçer |
+| Migration | `MigrationHistoryTests.AddEntryTimestamps_AddsNullableColumnsAndInventsNoHistory` | Zincirde; yedi tabloya nullable, varsayılansız kolon; backfill yok |
+| Yedek | `DataPortabilityTests.BackupV11_CarriesEntryTimesAndDoesNotInventThemOnRestore` | Giriş anı gidiş-dönüşte korunur; dosyada yoksa geri yüklenen kayıt boş kalır (geri yükleme saati yazılmaz); geri yüklemeden sonra yeni kayıt yine damgalanır |
+| Eski şemada tohumlama | `RemoveVatAndTaxDeductibility_DropsTheColumnsAndKeepsTheRecords` | İşlem artık ham SQL ile yazılır: o adımda giriş anı kolonu yoktu |
+| Satır (Flutter) | `activity_pos_rows_test` → `satır` | Komisyon ve kesinti tutarın altında; sol alt satır `kategori • POS`; yatış türünün adıyla ve `N tahsilat`la; açıklamasız transfer ve kart ödemesi türünün adıyla; en uzun ad ve 2.0× yazıda taşma yok |
+| Ayrıntı (Flutter) | `activity_pos_rows_test` → `ayrıntı`, `activity_feed_page_test` | POS satışı komisyonu, neti ve günü tek panelde; `Köken` satırı yok; `Bakiye` satırı yerinde bekler ve panel boyut değiştirmez; transferde iki hesap adıyla; kart ödemesinde `Bakiye` + `Kart borcu`; bilinmeyen bakiye ve okuma hatası satır bırakmaz; bakiye panel açılırken bir kez istenir; 2.0× yazı ve erişilebilirlik |
+| Yatış ayrıntısının açılışı | `pos_deposit_test` → `yatış ayrıntısı`, `activity_feed_page_test` | Özetle açılınca "yükleniyor" yok, panel hemen ve son boyutunda; `Yatışı geri al` yüklenene kadar kapalı; özetsiz açılışta bekleme kutusu ekranı kaplamaz; okuma hatası panelde yeniden denenir |
+| Depo ve model (Flutter) | `activity_pos_rows_test` → `depo ve model` | Yeni satır alanları okunur, yoksa boş; bakiye `tür/kimlik` yoluyla istenir ve para metin olarak kalır |
+| Ekran görüntüsü | `test/screenshots/islemler_pos_screenshot_test` | Yalnız `SCREENSHOT_DIR` ile: 1–2 Ekim listesi, satış ayrıntısı (geçmiş ve yolda), yatış ayrıntısı |

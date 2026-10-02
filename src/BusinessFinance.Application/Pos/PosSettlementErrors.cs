@@ -45,6 +45,15 @@ public static class PosSettlementErrors
         "Account, category and expected transfer date are required without a pos definition.",
         ApplicationErrorType.Validation);
 
+    /// <summary>
+    /// Yatışa bağlı tahsilat iptal edilemez; önce yatış geri alınır
+    /// (ADR 0019 T5).
+    /// </summary>
+    public static readonly ApplicationError DepositLocked = new(
+        "pos_settlements.deposit_locked",
+        "A deposited pos settlement cannot be cancelled; revert the deposit first.",
+        ApplicationErrorType.Conflict);
+
     public static ApplicationError NotFound(Guid id) => new(
         "pos_settlements.not_found",
         $"Pos settlement '{id}' was not found.",

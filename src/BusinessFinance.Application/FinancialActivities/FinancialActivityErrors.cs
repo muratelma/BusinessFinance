@@ -19,6 +19,12 @@ public static class FinancialActivityErrors
         "Page number and page size are out of range.",
         ApplicationErrorType.Validation);
 
+    /// <summary>Başka kullanıcının hareketi ile var olmayan hareket aynı cevaptır.</summary>
+    public static ApplicationError NotFound(Guid activityId) => new(
+        "financial_activities.not_found",
+        $"Financial activity '{activityId}' was not found.",
+        ApplicationErrorType.NotFound);
+
     public static readonly ApplicationError InvalidSearch = new(
         "financial_activities.invalid_search",
         "Search text must be at most 100 characters.",

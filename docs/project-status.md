@@ -281,6 +281,39 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     322, Application 327, Api 248, Infrastructure 208 + 2 canlı test atlandı),
     build 0 uyarı, format temiz; Flutter analyze temiz, 938 test geçti (37
     ekran görüntüsü testi atlandı), format temiz, debug APK derlendi
+  - **06.3 Grup 5, teslim 1/3 — POS yatışı (2 Ekim 2026; emülatörde denendi
+    ve commit'lendi)**:
+    ADR 0019 T5'in uygulaması. Para hesaba artık yalnız bir **yatışla**
+    geçiyor: kullanıcı yoldaki tahsilatları toplu seçip bankanın gerçekten
+    yatırdığı tutarı ve günü yazıyor (`Hesaba geçenleri işaretle`). Eksik
+    yatan kısım POS'un komisyon kategorisine kesinti gideri olarak yazılıyor;
+    beklenenden fazla tutar reddediliyor. Yatış geri alınabiliyor (tahsilatlar
+    yola dönüyor, kesinti iptal oluyor, kayıt kalıyor); yatışa bağlı tahsilat
+    önce yatış geri alınmadan iptal edilemiyor. `/api/v1/pos-deposits` altında
+    dört uç; `POST`/`DELETE /api/v1/pos-settlements/{id}/transfer` kalktı ve
+    birleşik akışta `pos-transfer` yerini `pos-deposit`'e bıraktı (**sözleşme
+    kırılması**, tek tüketici kendi istemcimiz; kullanıcı onayı bekliyor).
+    `AddPosDeposits` migration'ı veri kaybettirmiyor: mevcut her "hesaba
+    geçti" bir yatışa taşınıyor, geçip iptal edilmiş eski tahsilat iptal
+    edilmiş bir yatışa dönüşüyor; dolu veritabanında yükseltme testi geçti,
+    API SQL test veritabanına ve yerel geliştirme veritabanına uygulandı.
+    Yedek v11 `posDeposits` taşıyor; Grup 4'te alınmış v11 yedekleri
+    reddediliyor. **Emülatör turunda (2 Ekim) kullanıcının bildirdikleri
+    aynı gün yapıldı:** İşlemler aynı günün kayıtlarını artık giriş sırasına
+    göre diziyor (`AddEntryTimestamps`: yedi tabloya nullable giriş anı,
+    backfill yok; sunucu yazar); komisyon ve kesinti ayrı satır olmaktan
+    çıkıp satışın ve yatışın tutarının altına ve ayrıntısına girdi
+    (`pos-commission` akış türü kalktı); para taşıyan satırın başlığı hesap
+    adına düşmüyor; işlem ayrıntısından `Köken` kalktı ve `Bakiye` (işlem
+    sonrası) geldi; yatış ayrıntısı ekranı kaplayan "yükleniyor" penceresi
+    açmıyor ve diğer ayrıntıların diliyle çiziliyor; bakiyenin rengi paranın
+    yönünü söylüyor (giren yeşil, çıkan kırmızı, POS satışında mavi: para
+    yolda). Kontroller (son koşum): backend SQL dahil geçti (Domain 329,
+    Application 329, Api 257, Infrastructure 217 + 2 canlı test atlandı),
+    build 0 uyarı, format temiz; Flutter analyze temiz, 995 test geçti (44
+    ekran görüntüsü testi atlandı), format temiz, debug APK derlendi. İki
+    migration da yerel geliştirme veritabanına uygulandı. Kullanıcı
+    emülatörde denedi ve commit'i onayladı
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni (beklemede) → **06.3 bütünsel düzenleme (aktif)** →

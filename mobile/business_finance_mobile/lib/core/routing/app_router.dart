@@ -229,6 +229,7 @@ GoRouter createAppRouter({
                             repository: activityRepository,
                             changes: financialDataChanges,
                             scopeController: scopeController,
+                            posRepository: posRepository,
                             onCreateTransaction: () => openQuickAdd(context),
                             onShowPlanned: () =>
                                 context.push('/transactions/planned'),

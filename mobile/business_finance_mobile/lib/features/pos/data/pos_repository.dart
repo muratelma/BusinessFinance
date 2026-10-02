@@ -21,16 +21,26 @@ class PosSettlementItem {
     required this.expectedTransferDate,
     required this.isInTransit,
     required this.isLate,
+    this.accountId = '',
     this.transferredOn,
     this.description,
     this.scope,
     this.posDefinitionName,
+    this.posDepositId,
   });
 
   /// Tahsilatın yazıldığı POS tanımının adı; tanımsız girilende `null`.
   final String? posDefinitionName;
 
+  /// Parayı hesaba geçiren yatış; para yoldaysa `null`. Yatışa bağlı
+  /// tahsilat önce yatış geri alınmadan iptal edilemez.
+  final String? posDepositId;
+
   final String id;
+
+  /// Paranın geçeceği hesap. Bir yatış tek hesaba düşer; toplu seçim yalnız
+  /// aynı hesaptaki tahsilatları birlikte kapatır.
+  final String accountId;
   final String accountName;
   final String categoryName;
   final String grossAmount;
@@ -50,6 +60,7 @@ class PosSettlementItem {
   factory PosSettlementItem.fromJson(Map<String, dynamic> json) =>
       PosSettlementItem(
         id: JsonReaders.string(json, 'id'),
+        accountId: JsonReaders.string(json, 'accountId'),
         accountName: JsonReaders.string(json, 'accountName'),
         categoryName: JsonReaders.string(json, 'categoryName'),
         grossAmount: JsonReaders.money(json, 'grossAmount'),
@@ -67,8 +78,144 @@ class PosSettlementItem {
           json,
           'posDefinitionName',
         ),
+        posDepositId: JsonReaders.nullableString(json, 'posDepositId'),
       );
 }
+
+/// Yatış formunun sunucudan gelen önizlemesi (ADR 0019 T5). Beklenen toplam
+/// ve kesinti istemcide hesaplanmaz.
+class PosDepositPreview {
+  const PosDepositPreview({
+    required this.accountName,
+    required this.settlementCount,
+    required this.expectedAmount,
+    required this.depositedAmount,
+    required this.deductionAmount,
+    required this.exceedsExpected,
+    required this.currency,
+    required this.earliestDepositDate,
+    this.deductionCategoryId,
+    this.deductionCategoryName,
+  });
+
+  factory PosDepositPreview.fromJson(Map<String, dynamic> json) =>
+      PosDepositPreview(
+        accountName: JsonReaders.string(json, 'accountName'),
+        settlementCount: JsonReaders.integer(json, 'settlementCount'),
+        expectedAmount: JsonReaders.money(json, 'expectedAmount'),
+        depositedAmount: JsonReaders.money(json, 'depositedAmount'),
+        deductionAmount: JsonReaders.money(json, 'deductionAmount'),
+        exceedsExpected: JsonReaders.boolean(json, 'exceedsExpected'),
+        deductionCategoryId: JsonReaders.nullableString(
+          json,
+          'deductionCategoryId',
+        ),
+        deductionCategoryName: JsonReaders.nullableString(
+          json,
+          'deductionCategoryName',
+        ),
+        currency: JsonReaders.string(json, 'currency'),
+        earliestDepositDate: JsonReaders.date(json, 'earliestDepositDate'),
+      );
+
+  final String accountName;
+  final int settlementCount;
+
+  /// Seçilen tahsilatların net toplamı.
+  final String expectedAmount;
+  final String depositedAmount;
+
+  /// Beklenen eksi yatan; fazla yatan tutarda sıfır döner.
+  final String deductionAmount;
+
+  /// Yatan tutar beklenenden fazla: kayıt reddedilir.
+  final bool exceedsExpected;
+
+  /// Kesinti varsa dolu gelecek kategori: POS'un komisyon kategorisi.
+  final String? deductionCategoryId;
+  final String? deductionCategoryName;
+  final String currency;
+
+  /// Yatış bu günden önce olamaz: seçilen tahsilatların en geç olanı.
+  final String earliestDepositDate;
+
+  bool get hasDeduction => !_isZero(deductionAmount);
+}
+
+/// Bankanın POS parasını hesaba yatırdığı an: bir ya da birkaç tahsilatı tek
+/// para hareketiyle kapatır. Eksik yatan kısım kesinti gideridir.
+class PosDeposit {
+  const PosDeposit({
+    required this.id,
+    required this.accountName,
+    required this.depositDate,
+    required this.expectedAmount,
+    required this.depositedAmount,
+    required this.deductionAmount,
+    required this.currency,
+    required this.isCancelled,
+    required this.settlements,
+    this.deductionCategoryName,
+    this.balanceAfter,
+    this.grossAmount,
+    this.commissionAmount,
+  });
+
+  factory PosDeposit.fromJson(Map<String, dynamic> json) => PosDeposit(
+    balanceAfter: JsonReaders.nullableString(json, 'balanceAfter'),
+    grossAmount: JsonReaders.nullableString(json, 'grossAmount'),
+    commissionAmount: JsonReaders.nullableString(json, 'commissionAmount'),
+    id: JsonReaders.string(json, 'id'),
+    accountName: JsonReaders.string(json, 'accountName'),
+    depositDate: JsonReaders.date(json, 'depositDate'),
+    expectedAmount: JsonReaders.money(json, 'expectedAmount'),
+    depositedAmount: JsonReaders.money(json, 'depositedAmount'),
+    deductionAmount: JsonReaders.money(json, 'deductionAmount'),
+    deductionCategoryName: JsonReaders.nullableString(
+      json,
+      'deductionCategoryName',
+    ),
+    currency: JsonReaders.string(json, 'currency'),
+    isCancelled: JsonReaders.boolean(json, 'isCancelled'),
+    settlements: JsonReaders.list(json, 'settlements')
+        .map(
+          (item) => PosSettlementItem.fromJson(
+            JsonReaders.object(item, 'settlement'),
+          ),
+        )
+        .toList(growable: false),
+  );
+
+  final String id;
+  final String accountName;
+  final String depositDate;
+  final String expectedAmount;
+
+  /// Bankanın gerçekten yatırdığı tutar.
+  final String depositedAmount;
+  final String deductionAmount;
+  final String? deductionCategoryName;
+  final String currency;
+
+  /// Geri alınmış yatış: kayıt durur, tahsilatları yola dönmüştür.
+  final bool isCancelled;
+
+  /// Kapattığı tahsilatlar; geri alınmış yatışta boştur.
+  final List<PosSettlementItem> settlements;
+
+  /// Yatıştan hemen sonra hesabın bakiyesi; yalnız yatış okunurken gelir.
+  final String? balanceAfter;
+
+  /// Kapattığı tahsilatların brüt satış ve komisyon toplamı; sunucudan gelir.
+  /// Geri alınmış yatışta boştur.
+  final String? grossAmount;
+  final String? commissionAmount;
+
+  bool get hasDeduction => !_isZero(deductionAmount);
+}
+
+bool _isZero(String money) =>
+    !money.replaceAll(RegExp('[^0-9]'), '').contains(RegExp('[1-9]'));
 
 /// POS tanımı (ADR 0019 T4): bir kez girilen ayar. Para taşımaz; tahsilat
 /// formunu doldurur.
@@ -273,16 +420,30 @@ abstract interface class PosRepositoryContract {
 
   Future<void> create(Map<String, Object?> input);
 
-  Future<void> markTransferred({
-    required String settlementId,
-    required String transferDate,
+  /// Seçilen yoldaki tahsilatlar için beklenen toplam ve kesinti. Tutar
+  /// verilmezse beklenen tutar yatmış sayılır.
+  Future<PosDepositPreview> previewDeposit({
+    required List<String> settlementIds,
+    String? depositedAmount,
   });
 
-  /// Yanlışlıkla "hesaba geçti" denmiş tahsilatı yeniden yola döndürür.
-  Future<void> revertTransfer({required String settlementId});
+  /// "Hesaba geçenleri işaretle": seçilen tahsilatları tek yatışla kapatır.
+  /// [clientRequestId] aynı isteğin ikinci kez yazılmasını önler.
+  Future<PosDeposit> createDeposit({
+    required String clientRequestId,
+    required List<String> settlementIds,
+    required String depositedAmount,
+    required String depositDate,
+    String? deductionCategoryId,
+  });
 
-  /// Silme yerine iptal: satış, komisyon ve varsa hesaba geçen tutar birlikte
-  /// düşer.
+  Future<PosDeposit> getDeposit({required String depositId});
+
+  /// Yatışı geri alır: tahsilatlar yola döner, kesinti gideri iptal olur.
+  Future<PosDeposit> revertDeposit({required String depositId});
+
+  /// Silme yerine iptal: satış ve komisyon düşer, yoldaki tutar kalkar.
+  /// Yatışa bağlı tahsilat reddedilir; önce yatış geri alınır.
   Future<void> cancel({required String settlementId});
 
   /// Kullanıcının POS tanımları; önce aktifler.
@@ -355,19 +516,49 @@ class PosRepository implements PosRepositoryContract {
   }
 
   @override
-  Future<void> markTransferred({
-    required String settlementId,
-    required String transferDate,
+  Future<PosDepositPreview> previewDeposit({
+    required List<String> settlementIds,
+    String? depositedAmount,
   }) async {
-    await _client.post(
-      '/api/v1/pos-settlements/$settlementId/transfer',
-      body: {'transferDate': transferDate},
-    );
+    final query = [
+      for (final id in settlementIds) 'settlementIds=$id',
+      if (depositedAmount != null) 'depositedAmount=$depositedAmount',
+    ].join('&');
+    final response = await _client.get('/api/v1/pos-deposits/preview?$query');
+    return PosDepositPreview.fromJson(response.requireObject());
   }
 
   @override
-  Future<void> revertTransfer({required String settlementId}) async {
-    await _client.delete('/api/v1/pos-settlements/$settlementId/transfer');
+  Future<PosDeposit> createDeposit({
+    required String clientRequestId,
+    required List<String> settlementIds,
+    required String depositedAmount,
+    required String depositDate,
+    String? deductionCategoryId,
+  }) async {
+    final response = await _client.post(
+      '/api/v1/pos-deposits',
+      body: {
+        'clientRequestId': clientRequestId,
+        'settlementIds': settlementIds,
+        'depositedAmount': depositedAmount,
+        'depositDate': depositDate,
+        'deductionCategoryId': deductionCategoryId,
+      },
+    );
+    return PosDeposit.fromJson(response.requireObject());
+  }
+
+  @override
+  Future<PosDeposit> getDeposit({required String depositId}) async {
+    final response = await _client.get('/api/v1/pos-deposits/$depositId');
+    return PosDeposit.fromJson(response.requireObject());
+  }
+
+  @override
+  Future<PosDeposit> revertDeposit({required String depositId}) async {
+    final response = await _client.delete('/api/v1/pos-deposits/$depositId');
+    return PosDeposit.fromJson(response.requireObject());
   }
 
   @override

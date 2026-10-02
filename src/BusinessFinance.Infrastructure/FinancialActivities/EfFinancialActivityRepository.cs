@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using BusinessFinance.Application.FinancialActivities;
 using BusinessFinance.Domain;
+using BusinessFinance.Infrastructure.Accounts;
+using BusinessFinance.Infrastructure.CreditCards;
 using BusinessFinance.Infrastructure.Persistence;
 
 namespace BusinessFinance.Infrastructure.FinancialActivities;
@@ -15,8 +17,319 @@ namespace BusinessFinance.Infrastructure.FinancialActivities;
 /// request. Keeping the merge in SQL is what makes page three cost the same as page one.
 /// </remarks>
 internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbContext)
-    : IFinancialActivityRepository, IActivityOriginReader
+    : IFinancialActivityRepository, IActivityOriginReader, IActivityBalanceReader
 {
+    public async Task<IReadOnlyList<ActivityBalanceAfter>?> GetBalancesAfterAsync(
+        Guid userId,
+        FinancialActivityKind kind,
+        Guid activityId,
+        CancellationToken cancellationToken)
+    {
+        var located = await LocateAsync(userId, kind, activityId, cancellationToken);
+        if (located is null)
+        {
+            return null;
+        }
+
+        // İptal edilmiş hareketin bakiye etkisi yoktur; giriş anı bilinmeyen
+        // eski kaydın gün içindeki yeri bilinmez. İkisinde de sayı uydurulmaz.
+        if (located.IsCancelled || located.EntryAtUtc is not DateTimeOffset entryAtUtc)
+        {
+            return [];
+        }
+
+        var cutoff = new EntryCutoff(located.Date, entryAtUtc, located.OwnExpenseId);
+        var balances = new List<ActivityBalanceAfter>();
+        // İkinci hesap yalnız transferin hedefidir: para ona girer.
+        var accounts = new (Guid? Id, ActivityBalanceChange Change)[]
+        {
+            (located.AccountId, located.AccountIncreases switch
+            {
+                true => ActivityBalanceChange.Increased,
+                false => ActivityBalanceChange.Decreased,
+                null => ActivityBalanceChange.Unchanged
+            }),
+            (located.SecondAccountId, ActivityBalanceChange.Increased)
+        };
+        foreach (var (holderId, change) in accounts)
+        {
+            if (holderId is not Guid accountId)
+            {
+                continue;
+            }
+
+            var account = await dbContext.Accounts.AsNoTracking()
+                .Where(item => item.UserId == userId && item.Id == accountId)
+                .Select(item => new { item.Name, item.OpeningBalance, item.Currency })
+                .SingleAsync(cancellationToken);
+            var movements = await AccountMovements.SumAsync(
+                dbContext, accountId, userId, cutoff, cancellationToken);
+            balances.Add(new ActivityBalanceAfter(
+                ActivityBalanceHolder.Account,
+                accountId,
+                account.Name,
+                account.OpeningBalance + movements,
+                account.Currency,
+                change));
+        }
+
+        if (located.CreditCardId is Guid creditCardId)
+        {
+            var card = await dbContext.CreditCards.AsNoTracking()
+                .Where(item => item.UserId == userId && item.Id == creditCardId)
+                .Select(item => new { item.Name, item.Limit.Currency })
+                .SingleAsync(cancellationToken);
+            var debt = await CardDebt.SumAsync(
+                dbContext, creditCardId, userId, cutoff, cancellationToken);
+            balances.Add(new ActivityBalanceAfter(
+                ActivityBalanceHolder.CreditCard,
+                creditCardId,
+                card.Name,
+                debt,
+                card.Currency,
+                located.CardDebtIncreases
+                    ? ActivityBalanceChange.Increased
+                    : ActivityBalanceChange.Decreased));
+        }
+
+        return balances;
+    }
+
+    /// <summary>
+    /// Hareketi kendi tablosunda, sahiplik kapsamıyla bulur: günü, giriş anı
+    /// ve dokunduğu hesaplar ile kart.
+    /// </summary>
+    /// <remarks>
+    /// Birleşik sorgu üzerinden aranmaz: tek satır için on üç kaynağı
+    /// birleştirmek gereksizdir. Veresiye ve yükümlülük bulunur ama hesap
+    /// taşımaz: gösterilecek bir "sonrası" yoktur. POS satışı hesabını taşır
+    /// ama ona dokunmaz: bakiye o an neyse odur, para yoldadır.
+    /// </remarks>
+    private async Task<LocatedActivity?> LocateAsync(
+        Guid userId,
+        FinancialActivityKind kind,
+        Guid activityId,
+        CancellationToken cancellationToken)
+    {
+        switch (kind)
+        {
+            case FinancialActivityKind.AccountTransaction:
+                return await dbContext.Transactions.AsNoTracking()
+                    .Where(item => item.UserId == userId && item.Id == activityId)
+                    .Select(item => new LocatedActivity(
+                        item.TransactionDate,
+                        EF.Property<DateTimeOffset?>(item, EntryTimestamp.PropertyName),
+                        item.IsCancelled,
+                        item.AccountId,
+                        null,
+                        null,
+                        null)
+                    {
+                        AccountIncreases = item.Type == TransactionType.Income
+                    })
+                    .SingleOrDefaultAsync(cancellationToken);
+
+            case FinancialActivityKind.Transfer:
+                return await dbContext.Transfers.AsNoTracking()
+                    .Where(item => item.UserId == userId && item.Id == activityId)
+                    .Select(item => new LocatedActivity(
+                        item.TransferDate,
+                        EF.Property<DateTimeOffset?>(item, EntryTimestamp.PropertyName),
+                        item.IsCancelled,
+                        item.SourceAccountId,
+                        item.DestinationAccountId,
+                        null,
+                        null)
+                    {
+                        AccountIncreases = false
+                    })
+                    .SingleOrDefaultAsync(cancellationToken);
+
+            case FinancialActivityKind.CardCharge:
+                return await dbContext.CreditCardCharges.AsNoTracking()
+                    .Where(item => item.UserId == userId && item.Id == activityId)
+                    .Select(item => new LocatedActivity(
+                        item.ChargeDate,
+                        EF.Property<DateTimeOffset?>(item, EntryTimestamp.PropertyName),
+                        item.IsCancelled,
+                        null,
+                        null,
+                        item.CreditCardId,
+                        null)
+                    {
+                        CardDebtIncreases = true
+                    })
+                    .SingleOrDefaultAsync(cancellationToken);
+
+            case FinancialActivityKind.CardPayment:
+                return await dbContext.CreditCardPayments.AsNoTracking()
+                    .Where(item => item.UserId == userId && item.Id == activityId)
+                    .Select(item => new LocatedActivity(
+                        item.PaymentDate,
+                        EF.Property<DateTimeOffset?>(item, EntryTimestamp.PropertyName),
+                        item.IsCancelled,
+                        item.AccountId,
+                        null,
+                        item.CreditCardId,
+                        null)
+                    {
+                        AccountIncreases = false,
+                        CardDebtIncreases = false
+                    })
+                    .SingleOrDefaultAsync(cancellationToken);
+
+            case FinancialActivityKind.DebtPayment:
+            case FinancialActivityKind.DebtCollection:
+                var direction = kind == FinancialActivityKind.DebtPayment
+                    ? DebtDirection.Payable
+                    : DebtDirection.Receivable;
+                return await (
+                        from installment in dbContext.DebtInstallments.AsNoTracking()
+                        join debt in dbContext.DebtAgreements.AsNoTracking()
+                            on new { installment.UserId, Id = installment.DebtAgreementId }
+                            equals new { debt.UserId, debt.Id }
+                        where installment.UserId == userId &&
+                              installment.Id == activityId &&
+                              installment.PaymentAccountId != null &&
+                              installment.PaymentDate != null &&
+                              debt.Direction == direction
+                        select new LocatedActivity(
+                            installment.PaymentDate!.Value,
+                            installment.PaidAtUtc,
+                            false,
+                            installment.PaymentAccountId,
+                            null,
+                            null,
+                            null)
+                        {
+                            AccountIncreases = debt.Direction == DebtDirection.Receivable
+                        })
+                    .SingleOrDefaultAsync(cancellationToken);
+
+            case FinancialActivityKind.DebtOpening:
+                // Nakit kaynaklı açılış bir hesaba dokunur; gider ya da gelir
+                // kaynaklı açılışta hesap boştur ve bakiye dönmez.
+                return await dbContext.DebtAgreements.AsNoTracking()
+                    .Where(item => item.UserId == userId && item.Id == activityId)
+                    .Select(item => new LocatedActivity(
+                        item.StartDate,
+                        EF.Property<DateTimeOffset?>(item, EntryTimestamp.PropertyName),
+                        false,
+                        item.SourceType == DebtSourceType.Cash ? item.OpeningAccountId : null,
+                        null,
+                        null,
+                        null)
+                    {
+                        AccountIncreases = item.Direction == DebtDirection.Payable
+                    })
+                    .SingleOrDefaultAsync(cancellationToken);
+
+            case FinancialActivityKind.CounterpartySettlement:
+                return await dbContext.CounterpartyPayments.AsNoTracking()
+                    .Where(item => item.UserId == userId && item.Id == activityId)
+                    .Select(item => new LocatedActivity(
+                        item.PaymentDate,
+                        EF.Property<DateTimeOffset?>(item, EntryTimestamp.PropertyName),
+                        item.IsCancelled,
+                        item.AccountId,
+                        null,
+                        null,
+                        null)
+                    {
+                        AccountIncreases = item.Direction == DebtDirection.Receivable
+                    })
+                    .SingleOrDefaultAsync(cancellationToken);
+
+            case FinancialActivityKind.ObligationSettlement:
+                return await dbContext.ObligationSettlements.AsNoTracking()
+                    .Where(item => item.UserId == userId && item.Id == activityId)
+                    .Select(item => new LocatedActivity(
+                        item.SettlementDate,
+                        item.SettledAtUtc,
+                        item.IsCancelled,
+                        item.AccountId,
+                        null,
+                        null,
+                        null)
+                    {
+                        AccountIncreases = item.Direction == DebtDirection.Receivable
+                    })
+                    .SingleOrDefaultAsync(cancellationToken);
+
+            case FinancialActivityKind.PosDeposit:
+                // Kesinti gideri yatışla aynı yazmada doğar ama saati ondan bir
+                // an sonradır; yatışın "sonrası" onu da içermelidir.
+                return await dbContext.PosDeposits.AsNoTracking()
+                    .Where(item => item.UserId == userId && item.Id == activityId)
+                    .Select(item => new LocatedActivity(
+                        item.DepositDate,
+                        item.CreatedAtUtc,
+                        item.IsCancelled,
+                        item.AccountId,
+                        null,
+                        null,
+                        item.DeductionTransactionId)
+                    {
+                        AccountIncreases = true
+                    })
+                    .SingleOrDefaultAsync(cancellationToken);
+
+            case FinancialActivityKind.CounterpartyCharge:
+                return await dbContext.CounterpartyCharges.AsNoTracking()
+                    .AnyAsync(item => item.UserId == userId && item.Id == activityId, cancellationToken)
+                    ? LocatedActivity.WithoutMoney
+                    : null;
+
+            case FinancialActivityKind.Obligation:
+                return await dbContext.Obligations.AsNoTracking()
+                    .AnyAsync(item => item.UserId == userId && item.Id == activityId, cancellationToken)
+                    ? LocatedActivity.WithoutMoney
+                    : null;
+
+            case FinancialActivityKind.PosSale:
+                return await dbContext.PosSettlements.AsNoTracking()
+                    .Where(item => item.UserId == userId && item.Id == activityId)
+                    .Select(item => new LocatedActivity(
+                        item.SettlementDate,
+                        item.CreatedAtUtc,
+                        item.IsCancelled,
+                        item.AccountId,
+                        null,
+                        null,
+                        null))
+                    .SingleOrDefaultAsync(cancellationToken);
+
+            default:
+                return null;
+        }
+    }
+
+    /// <param name="Date">Hareketin günü.</param>
+    /// <param name="EntryAtUtc">Yazıldığı an; eski kayıtta boş.</param>
+    /// <param name="OwnExpenseId">Yatışın kesinti gideri.</param>
+    private sealed record LocatedActivity(
+        DateOnly Date,
+        DateTimeOffset? EntryAtUtc,
+        bool IsCancelled,
+        Guid? AccountId,
+        Guid? SecondAccountId,
+        Guid? CreditCardId,
+        Guid? OwnExpenseId)
+    {
+        /// <summary>
+        /// Para hesaba girdiyse <c>true</c>, çıktıysa <c>false</c>; hareket
+        /// hesaba dokunmadıysa (POS satışı) boş.
+        /// </summary>
+        public bool? AccountIncreases { get; init; }
+
+        /// <summary>Kartın borcu arttıysa (harcama) <c>true</c>; ödemede azalır.</summary>
+        public bool CardDebtIncreases { get; init; }
+
+        /// <summary>Tanıyan ama para taşımayan hareket: bakiye dönmez.</summary>
+        public static readonly LocatedActivity WithoutMoney =
+            new(default, null, false, null, null, null, null);
+    }
+
     public async Task<FinancialActivityOrigin> GetTransactionOriginAsync(
         Guid userId,
         Guid transactionId,
@@ -29,11 +342,21 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
             return FinancialActivityOrigin.CsvImport;
         }
 
-        return await dbContext.RecurringTransactionOccurrences.AsNoTracking().AnyAsync(
-            occurrence => occurrence.UserId == userId &&
-                          occurrence.BudgetTransactionId == transactionId,
+        if (await dbContext.RecurringTransactionOccurrences.AsNoTracking().AnyAsync(
+                occurrence => occurrence.UserId == userId &&
+                              occurrence.BudgetTransactionId == transactionId,
+                cancellationToken))
+        {
+            return FinancialActivityOrigin.Recurring;
+        }
+
+        // Geri alınmış yatışın gideri de yatışa aittir: kökeni değişmez,
+        // zaten iptal edilmiştir.
+        return await dbContext.PosDeposits.AsNoTracking().AnyAsync(
+            deposit => deposit.UserId == userId &&
+                       deposit.DeductionTransactionId == transactionId,
             cancellationToken)
-            ? FinancialActivityOrigin.Recurring
+            ? FinancialActivityOrigin.PosDeposit
             : FinancialActivityOrigin.Manual;
     }
 
@@ -70,6 +393,10 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
         var totalCount = await merged.CountAsync(cancellationToken);
         var rows = await merged
             .OrderByDescending(row => row.ActivityDate)
+            // Gün içinde giriş sırası, en yeni üstte. Giriş anı bilinmeyen
+            // eski kayıtlar günün sonuna düşer (NULL en küçüktür) ve kendi
+            // aralarında eski sıralarını korur.
+            .ThenByDescending(row => row.EntryAtUtc)
             .ThenBy(row => row.ActivityKind)
             .ThenBy(row => row.ActivityId)
             .Skip((criteria.PageNumber - 1) * criteria.PageSize)
@@ -95,7 +422,12 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
             join category in dbContext.Categories.AsNoTracking()
                 on new { transaction.UserId, Id = transaction.CategoryId }
                 equals new { category.UserId, category.Id }
-            where transaction.UserId == userId
+                // Yatışın kesinti gideri ayrı satır değildir: yatış satırının
+                // parçasıdır ve orada gösterilir. Gider olarak raporda sayılır.
+            where transaction.UserId == userId &&
+                  !dbContext.PosDeposits.Any(deposit =>
+                      deposit.UserId == userId &&
+                      deposit.DeductionTransactionId == transaction.Id)
             select new ActivityRow
             {
                 ActivityId = transaction.Id,
@@ -135,6 +467,13 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Scope = (int?)transaction.Scope,
                 PrincipalPortion = (decimal?)null,
                 InterestPortion = (decimal?)null,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(transaction, EntryTimestamp.PropertyName),
+                ChannelName = (string?)null,
+                FeeAmount = (decimal?)null,
+                NetAmount = (decimal?)null,
+                ExpectedTransferDate = (DateOnly?)null,
+                TransferredOn = (DateOnly?)null,
+                SettlementCount = (int?)null,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
@@ -164,7 +503,9 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 ActivityDate = transfer.TransferDate,
                 Amount = transfer.Amount.Amount,
                 Currency = (int)transfer.Amount.Currency,
-                Title = transfer.Description ?? destination.Name,
+                // Açıklama yoksa başlık boştur: istemci türün adını yazar.
+                // Hedef hesabın adı alt satırdaki "kaynak → hedef"te zaten var.
+                Title = transfer.Description ?? string.Empty,
                 Description = transfer.Description,
                 CategoryId = null,
                 CategoryName = null,
@@ -176,6 +517,13 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Scope = (int?)null,
                 PrincipalPortion = (decimal?)null,
                 InterestPortion = (decimal?)null,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(transfer, EntryTimestamp.PropertyName),
+                ChannelName = (string?)null,
+                FeeAmount = (decimal?)null,
+                NetAmount = (decimal?)null,
+                ExpectedTransferDate = (DateOnly?)null,
+                TransferredOn = (DateOnly?)null,
+                SettlementCount = (int?)null,
                 MatchAccountId = source.Id,
                 MatchSecondAccountId = destination.Id,
                 MatchCreditCardId = null,
@@ -224,6 +572,13 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Scope = (int?)charge.Scope,
                 PrincipalPortion = (decimal?)null,
                 InterestPortion = (decimal?)null,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(charge, EntryTimestamp.PropertyName),
+                ChannelName = (string?)null,
+                FeeAmount = (decimal?)null,
+                NetAmount = (decimal?)null,
+                ExpectedTransferDate = (DateOnly?)null,
+                TransferredOn = (DateOnly?)null,
+                SettlementCount = (int?)null,
                 MatchAccountId = null,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = card.Id,
@@ -255,7 +610,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 ActivityDate = payment.PaymentDate,
                 Amount = payment.Amount.Amount,
                 Currency = (int)payment.Amount.Currency,
-                Title = payment.Description ?? card.Name,
+                Title = payment.Description ?? string.Empty,
                 Description = payment.Description,
                 CategoryId = null,
                 CategoryName = null,
@@ -267,6 +622,13 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Scope = (int?)null,
                 PrincipalPortion = (decimal?)null,
                 InterestPortion = (decimal?)null,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(payment, EntryTimestamp.PropertyName),
+                ChannelName = (string?)null,
+                FeeAmount = (decimal?)null,
+                NetAmount = (decimal?)null,
+                ExpectedTransferDate = (DateOnly?)null,
+                TransferredOn = (DateOnly?)null,
+                SettlementCount = (int?)null,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = card.Id,
@@ -321,6 +683,13 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 PrincipalPortion = installment.PrincipalPortion,
                 Scope = (int?)debt.Scope,
                 InterestPortion = installment.InterestPortion,
+                EntryAtUtc = installment.PaidAtUtc,
+                ChannelName = (string?)null,
+                FeeAmount = (decimal?)null,
+                NetAmount = (decimal?)null,
+                ExpectedTransferDate = (DateOnly?)null,
+                TransferredOn = (DateOnly?)null,
+                SettlementCount = (int?)null,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
@@ -369,6 +738,13 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Scope = (int?)debt.Scope,
                 PrincipalPortion = (decimal?)null,
                 InterestPortion = (decimal?)null,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(debt, EntryTimestamp.PropertyName),
+                ChannelName = (string?)null,
+                FeeAmount = (decimal?)null,
+                NetAmount = (decimal?)null,
+                ExpectedTransferDate = (DateOnly?)null,
+                TransferredOn = (DateOnly?)null,
+                SettlementCount = (int?)null,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
@@ -418,6 +794,13 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Scope = (int?)debt.Scope,
                 PrincipalPortion = (decimal?)null,
                 InterestPortion = (decimal?)null,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(debt, EntryTimestamp.PropertyName),
+                ChannelName = (string?)null,
+                FeeAmount = (decimal?)null,
+                NetAmount = (decimal?)null,
+                ExpectedTransferDate = (DateOnly?)null,
+                TransferredOn = (DateOnly?)null,
+                SettlementCount = (int?)null,
                 MatchAccountId = null,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
@@ -470,6 +853,13 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 InterestPortion = (decimal?)null,
 
                 // Hesap eşleşmesi yok: borçlandırma hiçbir kasadan geçmez.
+                EntryAtUtc = EF.Property<DateTimeOffset?>(charge, EntryTimestamp.PropertyName),
+                ChannelName = (string?)null,
+                FeeAmount = (decimal?)null,
+                NetAmount = (decimal?)null,
+                ExpectedTransferDate = (DateOnly?)null,
+                TransferredOn = (DateOnly?)null,
+                SettlementCount = (int?)null,
                 MatchAccountId = null,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
@@ -513,6 +903,13 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Scope = (int?)null,
                 PrincipalPortion = (decimal?)null,
                 InterestPortion = (decimal?)null,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(payment, EntryTimestamp.PropertyName),
+                ChannelName = (string?)null,
+                FeeAmount = (decimal?)null,
+                NetAmount = (decimal?)null,
+                ExpectedTransferDate = (DateOnly?)null,
+                TransferredOn = (DateOnly?)null,
+                SettlementCount = (int?)null,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
@@ -559,6 +956,13 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Scope = (int?)obligation.Scope,
                 PrincipalPortion = (decimal?)null,
                 InterestPortion = (decimal?)null,
+                EntryAtUtc = (DateTimeOffset?)obligation.CreatedAtUtc,
+                ChannelName = (string?)null,
+                FeeAmount = (decimal?)null,
+                NetAmount = (decimal?)null,
+                ExpectedTransferDate = (DateOnly?)null,
+                TransferredOn = (DateOnly?)null,
+                SettlementCount = (int?)null,
                 MatchAccountId = null,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
@@ -617,6 +1021,13 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Scope = null,
                 PrincipalPortion = null,
                 InterestPortion = null,
+                EntryAtUtc = (DateTimeOffset?)settlement.SettledAtUtc,
+                ChannelName = (string?)null,
+                FeeAmount = (decimal?)null,
+                NetAmount = (decimal?)null,
+                ExpectedTransferDate = (DateOnly?)null,
+                TransferredOn = (DateOnly?)null,
+                SettlementCount = (int?)null,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
@@ -624,11 +1035,10 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 MatchCounterpartyId = obligation.CounterpartyId
             };
 
-        // POS tahsilatı tek kayıttır ama feed'de üç satırdır, çünkü üç ayrı
-        // ekonomik an taşır (ADR 0014): satışın tanındığı gün gelir, aynı gün
-        // komisyon gideri, geçiş günü ise gelir/gider üretmeyen para hareketi.
-        // Üçü de aynı kaydın kimliğini taşır; istemci satırı `tür + kimlik`
-        // ikilisiyle anahtarlar, bu yüzden çakışmazlar.
+        // POS tahsilatı feed'de tek satırdır: satışın tanındığı gün, brüt
+        // tutarla. Komisyon aynı gün tanınan bir giderdir ama ayrı satır
+        // değildir; satışın parçası olarak taşınır (`FeeAmount`). Paranın
+        // hesaba geçişi tahsilatın değil yatışın satırıdır.
         var posSales =
             from settlement in dbContext.PosSettlements.AsNoTracking()
             join account in dbContext.Accounts.AsNoTracking()
@@ -637,6 +1047,11 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
             join category in dbContext.Categories.AsNoTracking()
                 on new { settlement.UserId, Id = settlement.CategoryId }
                 equals new { category.UserId, category.Id }
+            join definition in dbContext.PosDefinitions.AsNoTracking()
+                on new { settlement.UserId, Id = settlement.PosDefinitionId }
+                equals new { definition.UserId, Id = (Guid?)definition.Id }
+                into definitions
+            from definition in definitions.DefaultIfEmpty()
             where settlement.UserId == userId
             select new ActivityRow
             {
@@ -666,6 +1081,15 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Scope = (int?)settlement.Scope,
                 PrincipalPortion = (decimal?)null,
                 InterestPortion = (decimal?)null,
+                EntryAtUtc = (DateTimeOffset?)settlement.CreatedAtUtc,
+                ChannelName = definition == null ? null : definition.Name,
+                FeeAmount = settlement.CommissionAmount > 0m
+                    ? (decimal?)settlement.CommissionAmount
+                    : null,
+                NetAmount = (decimal?)(settlement.GrossAmount.Amount - settlement.CommissionAmount),
+                ExpectedTransferDate = (DateOnly?)settlement.ExpectedTransferDate,
+                TransferredOn = settlement.TransferredOn,
+                SettlementCount = (int?)null,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = (Guid?)null,
                 MatchCreditCardId = (Guid?)null,
@@ -673,73 +1097,32 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 MatchCounterpartyId = (Guid?)null
             };
 
-        // Komisyonsuz tahsilatın komisyon satırı da yoktur: sıfır tutarlı bir
-        // gider yazmak, olmamış bir gideri kayda geçirmek olurdu.
-        var posCommissions =
-            from settlement in dbContext.PosSettlements.AsNoTracking()
+        // Yatış tek para hareketidir ve tek satırdır: kaç tahsilatı kapatırsa
+        // kapatsın bankanın hesaba yatırdığı tutarı gösterir (ADR 0019 T5).
+        // Beklenenden eksik kalan kısım (kesinti) bu satırın parçasıdır
+        // (`FeeAmount`); kesinti gideri akışta ayrı satır olmaz.
+        var posDeposits =
+            from deposit in dbContext.PosDeposits.AsNoTracking()
             join account in dbContext.Accounts.AsNoTracking()
-                on new { settlement.UserId, Id = settlement.AccountId }
+                on new { deposit.UserId, Id = deposit.AccountId }
                 equals new { account.UserId, account.Id }
-            join category in dbContext.Categories.AsNoTracking()
-                on new { settlement.UserId, Id = settlement.CommissionCategoryId }
-                equals new { category.UserId, Id = (Guid?)category.Id }
-            where settlement.UserId == userId && settlement.CommissionAmount > 0m
+            where deposit.UserId == userId
             select new ActivityRow
             {
-                ActivityId = settlement.Id,
-                ActivityKind = (int)FinancialActivityKind.PosCommission,
-                Effect = (int)FinancialActivityEffect.Expense,
-                SourceGroup = (int)FinancialActivitySourceGroup.Pos,
-                Origin = (int)FinancialActivityOrigin.Manual,
-                Status = settlement.IsCancelled
-                    ? (int)FinancialActivityStatus.Cancelled
-                    : (int)FinancialActivityStatus.Realized,
-                ActivityDate = settlement.SettlementDate,
-                Amount = settlement.CommissionAmount,
-                Currency = (int)settlement.GrossAmount.Currency,
-                Title = category.Name,
-                Description = settlement.Description,
-                CategoryId = category.Id,
-                CategoryName = category.Name,
-                SourceId = (Guid?)null,
-                SourceName = (string?)null,
-                DestinationId = account.Id,
-                DestinationName = account.Name,
-                CancelledAtUtc = settlement.CancelledAtUtc,
-                Scope = (int?)settlement.Scope,
-                PrincipalPortion = (decimal?)null,
-                InterestPortion = (decimal?)null,
-                MatchAccountId = account.Id,
-                MatchSecondAccountId = (Guid?)null,
-                MatchCreditCardId = (Guid?)null,
-                MatchCategoryId = category.Id,
-                MatchCounterpartyId = (Guid?)null
-            };
-
-        var posTransfers =
-            from settlement in dbContext.PosSettlements.AsNoTracking()
-            join account in dbContext.Accounts.AsNoTracking()
-                on new { settlement.UserId, Id = settlement.AccountId }
-                equals new { account.UserId, account.Id }
-            where settlement.UserId == userId && settlement.TransferredOn != null
-            select new ActivityRow
-            {
-                ActivityId = settlement.Id,
-                ActivityKind = (int)FinancialActivityKind.PosTransfer,
+                ActivityId = deposit.Id,
+                ActivityKind = (int)FinancialActivityKind.PosDeposit,
                 Effect = (int)FinancialActivityEffect.Neutral,
                 SourceGroup = (int)FinancialActivitySourceGroup.Pos,
                 Origin = (int)FinancialActivityOrigin.Manual,
-                Status = settlement.IsCancelled
+                Status = deposit.IsCancelled
                     ? (int)FinancialActivityStatus.Cancelled
                     : (int)FinancialActivityStatus.Realized,
-                ActivityDate = settlement.TransferredOn!.Value,
-                // Hesaba giren net tutar; kalıcı kolon değil, brütten komisyon
-                // düşülerek okunuyor.
-                Amount = settlement.GrossAmount.Amount - settlement.CommissionAmount,
-                Currency = (int)settlement.GrossAmount.Currency,
-                Title = settlement.Description ?? account.Name,
-                Description = settlement.Description,
-                // Geçiş parayı taşır: gelir/gider üretmediği için ne kategori
+                ActivityDate = deposit.DepositDate,
+                Amount = deposit.DepositedAmount.Amount,
+                Currency = (int)deposit.DepositedAmount.Currency,
+                Title = string.Empty,
+                Description = (string?)null,
+                // Yatış parayı taşır: gelir/gider üretmediği için ne kategori
                 // ne kapsam taşır (ADR 0014). Kapsam filtresi verildiğinde bu
                 // satır düşer, tıpkı transfer ve kart ödemesi gibi.
                 CategoryId = (Guid?)null,
@@ -748,10 +1131,32 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 SourceName = (string?)null,
                 DestinationId = account.Id,
                 DestinationName = account.Name,
-                CancelledAtUtc = settlement.CancelledAtUtc,
+                CancelledAtUtc = deposit.CancelledAtUtc,
                 Scope = (int?)null,
                 PrincipalPortion = (decimal?)null,
                 InterestPortion = (decimal?)null,
+                EntryAtUtc = (DateTimeOffset?)deposit.CreatedAtUtc,
+                ChannelName = dbContext.PosSettlements
+                        .Where(closed => closed.UserId == userId &&
+                                         closed.PosDepositId == deposit.Id)
+                        .Select(closed => closed.PosDefinitionId)
+                        .Distinct()
+                        .Count() == 1
+                    ? (from closed in dbContext.PosSettlements
+                       join definition in dbContext.PosDefinitions
+                           on new { closed.UserId, Id = closed.PosDefinitionId }
+                           equals new { definition.UserId, Id = (Guid?)definition.Id }
+                       where closed.UserId == userId && closed.PosDepositId == deposit.Id
+                       select definition.Name).Min()
+                    : null,
+                FeeAmount = deposit.DeductionAmount > 0m
+                    ? (decimal?)deposit.DeductionAmount
+                    : null,
+                NetAmount = (decimal?)null,
+                ExpectedTransferDate = (DateOnly?)null,
+                TransferredOn = (DateOnly?)null,
+                SettlementCount = (int?)dbContext.PosSettlements.Count(closed =>
+                    closed.UserId == userId && closed.PosDepositId == deposit.Id),
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = (Guid?)null,
                 MatchCreditCardId = (Guid?)null,
@@ -771,8 +1176,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
             .Concat(obligations)
             .Concat(obligationSettlements)
             .Concat(posSales)
-            .Concat(posCommissions)
-            .Concat(posTransfers);
+            .Concat(posDeposits);
     }
 
     private static IQueryable<ActivityRow> ApplyFilters(
@@ -856,7 +1260,8 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 (row.Description != null && row.Description.Contains(search)) ||
                 (row.CategoryName != null && row.CategoryName.Contains(search)) ||
                 (row.SourceName != null && row.SourceName.Contains(search)) ||
-                (row.DestinationName != null && row.DestinationName.Contains(search)));
+                (row.DestinationName != null && row.DestinationName.Contains(search)) ||
+                (row.ChannelName != null && row.ChannelName.Contains(search)));
         }
 
         return query;
@@ -894,7 +1299,13 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
         row.CancelledAtUtc,
         row.Scope is int scope ? (TransactionScope)scope : null,
         row.PrincipalPortion,
-        row.InterestPortion);
+        row.InterestPortion,
+        row.ChannelName,
+        row.FeeAmount,
+        row.NetAmount,
+        row.ExpectedTransferDate,
+        row.TransferredOn,
+        row.SettlementCount);
 
     /// <summary>
     /// The shared UNION ALL shape. Enums are carried as int so every branch produces the
@@ -930,6 +1341,20 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
         /// <summary>Borç taksidinin payları; diğer türlerde <c>null</c>.</summary>
         public decimal? PrincipalPortion { get; init; }
         public decimal? InterestPortion { get; init; }
+
+        /// <summary>
+        /// Kaydın yazıldığı an; gün içi sırayı belirler. Eski kayıtlarda
+        /// <c>null</c>.
+        /// </summary>
+        public DateTimeOffset? EntryAtUtc { get; init; }
+
+        /// <summary>POS satışı ve yatışının alanları; diğer türlerde <c>null</c>.</summary>
+        public string? ChannelName { get; init; }
+        public decimal? FeeAmount { get; init; }
+        public decimal? NetAmount { get; init; }
+        public DateOnly? ExpectedTransferDate { get; init; }
+        public DateOnly? TransferredOn { get; init; }
+        public int? SettlementCount { get; init; }
         public Guid? MatchAccountId { get; init; }
 
         /// <summary>

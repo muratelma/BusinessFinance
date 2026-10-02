@@ -31,10 +31,6 @@ public sealed record CreatePosSettlementCommand(
     string? Description,
     Guid? PosDefinitionId = null);
 
-public sealed record MarkPosSettlementTransferredCommand(Guid SettlementId, DateOnly TransferDate);
-
-public sealed record RevertPosSettlementTransferCommand(Guid SettlementId);
-
 public sealed record CancelPosSettlementCommand(Guid SettlementId);
 
 public sealed record PosSettlementListCriteria(bool InTransitOnly, DateOnly From, DateOnly To);
@@ -63,7 +59,9 @@ public sealed record PosSettlementDto(
     bool IsLate,
     // Tahsilatın yazıldığı POS tanımı; tanımsız girilende boştur.
     Guid? PosDefinitionId = null,
-    string? PosDefinitionName = null);
+    string? PosDefinitionName = null,
+    // Parayı hesaba geçiren yatış; para yoldaysa boştur.
+    Guid? PosDepositId = null);
 
 /// <summary>
 /// Tahsilat listesi ve yanında yoldaki toplam.

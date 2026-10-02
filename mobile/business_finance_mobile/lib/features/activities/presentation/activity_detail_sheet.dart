@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_text.dart';
+import '../../../core/theme/app_finance_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
@@ -21,9 +22,15 @@ class ActivityDetailSheet extends StatelessWidget {
     super.key,
     this.onCancel,
     this.isCancelling = false,
+    this.balances,
   });
 
   final FinancialActivity activity;
+
+  /// İşlem sonrası bakiye; panel açılırken **bir kez** istenmiş okuma.
+  /// Verilmezse satır hiç çizilmez. Sonuç gelene kadar satır yerinde durur
+  /// (`…`), panel sonradan büyümez.
+  final Future<List<ActivityBalance>>? balances;
 
   /// Null when this kind cannot be cancelled, which hides the action entirely.
   final Future<void> Function()? onCancel;
@@ -130,7 +137,19 @@ class ActivityDetailSheet extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.small + AppSpacing.xSmall),
-            AppDetailBlock(rows: _rows(context)),
+            FutureBuilder<List<ActivityBalance>>(
+              future: balances,
+              builder: (context, snapshot) => AppDetailBlock(
+                rows: [
+                  ..._rows(context),
+                  ..._balanceRows(
+                    context,
+                    balances == null ? const [] : snapshot.data,
+                    failed: snapshot.hasError,
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: AppSpacing.small + AppSpacing.xSmall),
             _Actions(
               activity: activity,
@@ -151,6 +170,117 @@ class ActivityDetailSheet extends StatelessWidget {
           ActivityEffect.expense => AppStatusTone.expense,
           ActivityEffect.neutral => AppStatusTone.neutral,
         };
+
+  /// Hareketten hemen sonra hesabın bakiyesi ve kartın borcu.
+  ///
+  /// Sunucudan gelir. Cevap beklenirken satır, türün dokunduğu yer kadar
+  /// (`…`) çizilir; iptal edilmiş hareketin ve hesabı olmayan türün satırı
+  /// yoktur.
+  ///
+  /// Sayının rengi hareketin o bakiyeye ne yaptığını söyler: para girdiyse
+  /// yeşil, çıktıysa kırmızı, dokunmadıysa mavi (POS satışı — para yolda).
+  /// Kart borcunda yön terstir: borcun artması kırmızıdır.
+  List<AppDetailRow> _balanceRows(
+    BuildContext context,
+    List<ActivityBalance>? loaded, {
+    required bool failed,
+  }) {
+    if (failed || activity.isCancelled) return const [];
+    if (loaded == null) {
+      return [
+        for (final isCard in _expectedBalances)
+          AppDetailRow(
+            icon: _balanceIcon(isCard),
+            label: _balanceLabel(isCard),
+            value: '…',
+          ),
+      ];
+    }
+    // İki hesap (transfer) aynı etiketi taşır; hangisinin hangisi olduğunu
+    // hesabın adı söyler.
+    final accounts = loaded.where((item) => !item.isCard).length;
+    return [
+      for (final item in loaded)
+        AppDetailRow(
+          icon: _balanceIcon(item.isCard),
+          label: _balanceLabel(item.isCard),
+          trailing: accounts > 1 && !item.isCard
+              ? Text.rich(
+                  TextSpan(
+                    text: '${item.name} · ',
+                    children: [
+                      TextSpan(
+                        text: MoneyText.format(item.balance, item.currency),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: _balanceColor(context, item),
+                        ),
+                      ),
+                    ],
+                  ),
+                  textAlign: TextAlign.right,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    height: 1.35,
+                    fontWeight: FontWeight.w500,
+                    color: AppSurfaces.of(context).ink,
+                  ),
+                )
+              : AppMoneyText(
+                  amount: item.balance,
+                  currency: item.currency,
+                  effect: _balanceEffect(item),
+                  size: AppMoneySize.body,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+        ),
+    ];
+  }
+
+  static AppMoneyEffect _balanceEffect(ActivityBalance item) =>
+      switch (item.change) {
+        ActivityBalanceChange.unchanged => AppMoneyEffect.neutral,
+        ActivityBalanceChange.increased =>
+          item.isCard ? AppMoneyEffect.expense : AppMoneyEffect.income,
+        ActivityBalanceChange.decreased =>
+          item.isCard ? AppMoneyEffect.income : AppMoneyEffect.expense,
+      };
+
+  static Color _balanceColor(BuildContext context, ActivityBalance item) {
+    final colors = AppFinanceColors.of(context);
+    return switch (_balanceEffect(item)) {
+      AppMoneyEffect.income => colors.income,
+      AppMoneyEffect.expense => colors.expense,
+      AppMoneyEffect.neutral => colors.neutral,
+    };
+  }
+
+  static String _balanceLabel(bool isCard) => isCard ? 'Kart borcu' : 'Bakiye';
+
+  static IconData _balanceIcon(bool isCard) =>
+      isCard ? Icons.credit_card : Icons.account_balance_wallet_outlined;
+
+  /// Türün dokunduğu yerler; `true` kart, `false` hesap. Yalnız cevap
+  /// beklenirken satırın yerini tutmak içindir.
+  List<bool> get _expectedBalances => switch (activity.kind) {
+    ActivityKind.transfer => const [false, false],
+    ActivityKind.cardPayment => const [false, true],
+    ActivityKind.cardCharge => const [true],
+    ActivityKind.accountTransaction ||
+    ActivityKind.debtPayment ||
+    ActivityKind.debtCollection ||
+    ActivityKind.counterpartySettlement ||
+    ActivityKind.obligationSettlement ||
+    ActivityKind.posDeposit ||
+    // Satış hesaba dokunmaz ama hesabı vardır: bakiyenin değişmediği
+    // (paranın yolda olduğu) burada görünür.
+    ActivityKind.posSale => const [false],
+    // Nakit kaynaklı açılış bir hesaba dokunur; gider kaynaklıda hesap yok.
+    ActivityKind.debtOpening =>
+      activity.sourceName == null ? const [] : const [false],
+    ActivityKind.counterpartyCharge || ActivityKind.obligation => const [],
+  };
 
   List<AppDetailRow> _rows(BuildContext context) {
     AppDetailRow row(IconData icon, String label, String value) =>
@@ -201,17 +331,52 @@ class ActivityDetailSheet extends StatelessWidget {
           if (destination != null)
             row(Icons.group_outlined, 'Karşı taraf', destination),
         ],
-        // Satış ve komisyon anında paranın çıktığı bir yer yok: hesap, paranın
-        // birkaç gün sonra **geçeceği** yerdir.
-        ActivityKind.posSale || ActivityKind.posCommission => [
+        // POS satışı tek kayıttır: brüt gelir başlıktaki tutardır, komisyon
+        // ve hesaba geçecek net onun parçalarıdır ve burada okunur.
+        ActivityKind.posSale => [
+          if (activity.channelName != null)
+            row(Icons.point_of_sale_outlined, 'POS', activity.channelName!),
+          if (activity.hasFee)
+            AppDetailRow(
+              icon: Icons.percent,
+              label: 'Komisyon',
+              trailing: AppMoneyText(
+                amount: activity.feeAmount!,
+                currency: activity.currency,
+                effect: AppMoneyEffect.expense,
+                signed: true,
+                size: AppMoneySize.body,
+              ),
+            ),
+          if (activity.netAmount != null)
+            AppDetailRow(
+              icon: Icons.move_to_inbox_outlined,
+              // Etiket kısa: `AppDetailRow` etiketi esnemez ve büyük yazıda
+              // tutarı sıkıştırır. Geçip geçmediğini alttaki gün satırı söyler.
+              label: 'Net tutar',
+              trailing: AppMoneyText(
+                amount: activity.netAmount!,
+                currency: activity.currency,
+                size: AppMoneySize.body,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
           if (destination != null)
+            row(Icons.account_balance_outlined, 'Hesap', destination),
+          if (activity.transferredOn != null)
             row(
-              Icons.account_balance_outlined,
-              'Paranın geçeceği hesap',
-              destination,
+              Icons.check_circle_outline,
+              'Geçiş günü',
+              DateText.dayMonthYear(activity.transferredOn!),
+            )
+          else if (activity.expectedTransferDate != null)
+            row(
+              Icons.schedule,
+              'Beklenen',
+              DateText.dayMonthYear(activity.expectedTransferDate!),
             ),
         ],
-        ActivityKind.posTransfer => [
+        ActivityKind.posDeposit => [
           if (destination != null)
             row(
               Icons.account_balance_outlined,
@@ -225,7 +390,9 @@ class ActivityDetailSheet extends StatelessWidget {
           activity.description!.isNotEmpty &&
           activity.description != activity.title)
         row(Icons.notes, 'Açıklama', activity.description!),
-      row(Icons.edit_note, 'Köken', activity.origin.label),
+      // Köken satırı yok (kullanıcı kararı, 2 Ekim 2026): ayrıntı kalabalıktı
+      // ve köken bugün yalnız "neden iptal edilemiyor"u açıklıyor — onu da
+      // alttaki kilit notu söylüyor. Banka bağlantısı gelirse geri eklenir.
       // Belgeler yalnız işlem kaydında olur ve yönetimi Veri araçlarındadır.
       if (activity.supportsAttachments)
         row(Icons.attach_file, 'Belge', 'Veri araçlarında'),
@@ -320,14 +487,11 @@ class _Actions extends StatelessWidget {
                     'Tekrarlayan plandan üretilen hareket iptal edilemez.',
                   (ActivityOrigin.installment, _) =>
                     'Taksit planından üretilen hareket iptal edilemez.',
-                  (
-                    _,
-                    ActivityKind.posSale ||
-                        ActivityKind.posCommission ||
-                        ActivityKind.posTransfer,
-                  ) =>
-                    'Bu hareket türü iptal edilemez: POS tahsilatıyla birlikte '
-                        'oluşur.',
+                  (_, ActivityKind.posDeposit) =>
+                    'Yatış, Kasa\'daki POS tahsilatlarından geri alınır.',
+                  (_, ActivityKind.posSale) =>
+                    'POS tahsilatı Kasa\'daki POS tahsilatlarından iptal '
+                        'edilir.',
                   _ => 'Bu hareket türü iptal edilemez.',
                 }, style: note),
               ),

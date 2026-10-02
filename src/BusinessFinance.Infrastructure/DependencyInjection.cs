@@ -130,6 +130,8 @@ public static class DependencyInjection
             provider.GetRequiredService<EfFinancialActivityRepository>());
         services.AddScoped<IActivityOriginReader>(provider =>
             provider.GetRequiredService<EfFinancialActivityRepository>());
+        services.AddScoped<IActivityBalanceReader>(provider =>
+            provider.GetRequiredService<EfFinancialActivityRepository>());
         services.AddScoped<IPlannedActivityRepository, EfPlannedActivityRepository>();
         services.AddScoped<IUpcomingPaymentRepository, EfUpcomingPaymentRepository>();
         services.AddScoped<IDataPortabilityRepository, EfDataPortabilityRepository>();
@@ -139,6 +141,7 @@ public static class DependencyInjection
         services.AddScoped<ICashCountRepository, EfCashCountRepository>();
         services.AddScoped<IPosSettlementRepository, EfPosSettlementRepository>();
         services.AddScoped<IPosDefinitionRepository, EfPosDefinitionRepository>();
+        services.AddScoped<IPosDepositRepository, EfPosDepositRepository>();
         services.AddScoped<ISavingsGoalRepository, EfSavingsGoalRepository>();
         services.AddScoped<IAttachmentRepository, EfAttachmentRepository>();
         services.AddSingleton<IAttachmentFileInspector, AttachmentFileInspector>();

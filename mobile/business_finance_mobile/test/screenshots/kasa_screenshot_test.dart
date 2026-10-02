@@ -271,13 +271,27 @@ class _DesignPos implements PosRepositoryContract {
   Future<void> create(Map<String, Object?> input) async {}
 
   @override
-  Future<void> markTransferred({
-    required String settlementId,
-    required String transferDate,
-  }) async {}
+  Future<PosDepositPreview> previewDeposit({
+    required List<String> settlementIds,
+    String? depositedAmount,
+  }) async => throw UnimplementedError();
 
   @override
-  Future<void> revertTransfer({required String settlementId}) async {}
+  Future<PosDeposit> createDeposit({
+    required String clientRequestId,
+    required List<String> settlementIds,
+    required String depositedAmount,
+    required String depositDate,
+    String? deductionCategoryId,
+  }) async => throw UnimplementedError();
+
+  @override
+  Future<PosDeposit> getDeposit({required String depositId}) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<PosDeposit> revertDeposit({required String depositId}) async =>
+      throw UnimplementedError();
 
   @override
   Future<void> cancel({required String settlementId}) async {}

@@ -37,6 +37,7 @@ public sealed class BusinessFinanceDbContext(
     public DbSet<CashCount> CashCounts => Set<CashCount>();
     public DbSet<PosSettlement> PosSettlements => Set<PosSettlement>();
     public DbSet<PosDefinition> PosDefinitions => Set<PosDefinition>();
+    public DbSet<PosDeposit> PosDeposits => Set<PosDeposit>();
     public DbSet<SavingsGoal> SavingsGoals => Set<SavingsGoal>();
     public DbSet<SavingsGoalContribution> SavingsGoalContributions => Set<SavingsGoalContribution>();
     public DbSet<FinancialAttachment> FinancialAttachments => Set<FinancialAttachment>();
@@ -48,5 +49,27 @@ public sealed class BusinessFinanceDbContext(
     {
         base.OnModelCreating(builder);
         builder.ApplyConfigurationsFromAssembly(typeof(BusinessFinanceDbContext).Assembly);
+        EntryTimestamp.Configure(builder);
+    }
+
+    /// <summary>
+    /// Yeni kayıtlara giriş anının yazılıp yazılmayacağı. Yalnız yedekten geri
+    /// yükleme kapatır: geri yüklenen kayıt dosyadaki anı taşır, dosyada
+    /// yoksa boş kalır — geri yükleme anı kaydın girildiği an değildir.
+    /// </summary>
+    internal bool StampsEntryTime { get; set; } = true;
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        if (StampsEntryTime) EntryTimestamp.Stamp(this);
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(
+        bool acceptAllChangesOnSuccess,
+        CancellationToken cancellationToken = default)
+    {
+        if (StampsEntryTime) EntryTimestamp.Stamp(this);
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 }

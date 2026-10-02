@@ -27,12 +27,19 @@ internal sealed class PosSettlementConfiguration : IEntityTypeConfiguration<PosS
             table.HasCheckConstraint(
                 "CK_PosSettlements_ExpectedTransferDate",
                 "[ExpectedTransferDate] >= [SettlementDate]");
-            // Geçiş günü ile damgası birlikte bulunur; geçiş satıştan önce olamaz.
+            // Yatış, geçiş günü ve damgası birlikte bulunur ya da hiç bulunmaz:
+            // tahsilat hesaba yalnız bir yatışla geçer (ADR 0019 T5). Geçiş
+            // satıştan önce olamaz.
             table.HasCheckConstraint(
                 "CK_PosSettlements_Transfer",
-                "([TransferredOn] IS NULL AND [TransferredAtUtc] IS NULL) OR " +
-                "([TransferredOn] IS NOT NULL AND [TransferredAtUtc] IS NOT NULL AND " +
-                "[TransferredOn] >= [SettlementDate])");
+                "([PosDepositId] IS NULL AND [TransferredOn] IS NULL AND [TransferredAtUtc] IS NULL) OR " +
+                "([PosDepositId] IS NOT NULL AND [TransferredOn] IS NOT NULL AND " +
+                "[TransferredAtUtc] IS NOT NULL AND [TransferredOn] >= [SettlementDate])");
+            // İptal edilmiş tahsilat bir yatışa bağlı kalamaz; iptalden önce
+            // yatış geri alınır.
+            table.HasCheckConstraint(
+                "CK_PosSettlements_CancelledNotDeposited",
+                "[IsCancelled] = 0 OR [PosDepositId] IS NULL");
         });
 
         builder.HasKey(settlement => settlement.Id);
@@ -49,6 +56,9 @@ internal sealed class PosSettlementConfiguration : IEntityTypeConfiguration<PosS
         builder.Property(settlement => settlement.Description)
             .HasMaxLength(PosSettlement.MaximumDescriptionLength);
         builder.Property(settlement => settlement.IsCancelled).IsRequired();
+        // Yatış ile iptal aynı tahsilat için yarışabilir; kaybeden yazma
+        // hiçbir şey değiştirmez.
+        builder.Property<byte[]>("Version").IsRequired().IsRowVersion();
 
         // Net tutar, oran ve yolda olma durumu **türetilir**; kolon değildir
         // (ADR 0015). Saklansalardı brüt veya komisyon düzeltildiğinde
@@ -78,6 +88,9 @@ internal sealed class PosSettlementConfiguration : IEntityTypeConfiguration<PosS
             .HasDatabaseName("IX_PosSettlements_UserId_AccountId");
         builder.HasIndex(settlement => new { settlement.UserId, settlement.PosDefinitionId })
             .HasDatabaseName("IX_PosSettlements_UserId_PosDefinitionId");
+        builder.HasIndex(settlement => new
+        { settlement.UserId, settlement.PosDepositId, settlement.TransferredOn })
+            .HasDatabaseName("IX_PosSettlements_UserId_PosDepositId_TransferredOn");
 
         builder.HasOne<ApplicationUser>().WithMany()
             .HasForeignKey(settlement => settlement.UserId)
@@ -93,6 +106,14 @@ internal sealed class PosSettlementConfiguration : IEntityTypeConfiguration<PosS
         builder.HasOne<Category>().WithMany()
             .HasForeignKey(settlement => new { settlement.UserId, settlement.CommissionCategoryId })
             .HasPrincipalKey(category => new { category.UserId, category.Id })
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired(false);
+        // Yatışa günüyle birlikte bağlanır: `TransferredOn` yatışın gününün
+        // kopyasıdır ve SQL onun ayrışmasına izin vermez.
+        builder.HasOne<PosDeposit>().WithMany()
+            .HasForeignKey(settlement => new
+            { settlement.UserId, settlement.PosDepositId, settlement.TransferredOn })
+            .HasPrincipalKey(deposit => new { deposit.UserId, deposit.Id, deposit.DepositDate })
             .OnDelete(DeleteBehavior.Restrict)
             .IsRequired(false);
         // Tanımlar gelmeden önceki ve tanımsız girilen tahsilatlarda boştur

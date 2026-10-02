@@ -799,8 +799,8 @@ ADR 0014'ün ayrımı burada tek kaydın **iki anına** düşer:
 | Geçiş günü | Hiçbir gelir/gider yazılmaz | Hesap **net** tutar kadar artar |
 
 `SignedAccountEffect` geçiş gerçekleşene kadar sıfırdır; para henüz bankada
-değildir. `MarkTransferred` idempotenttir ve ikinci bir günle işaretlemeyi
-reddeder — para bir kez geçer.
+değildir. Tahsilat hesaba **yalnız bir yatışla** geçer (aşağıda "POS yatışı");
+tahsilatı yatışsız "hesaba geçti" yapan bir yol yoktur.
 
 **Komisyon brüt tutardan ayrı okunur ve ona eklenmez.** Net tutarı gelir olarak
 yazmak, kullanıcının gerçekten kestiği faturayı küçültür ve komisyonu görünmez
@@ -856,20 +856,116 @@ artık hesabın kendi bakiyesinde duruyor; ikisini de saymak aynı parayı iki
 yerde göstermek olurdu. Brüt toplamak da bankanın kestiği komisyonu
 kullanıcının cebinde sayardı.
 
-### POS tahsilatı birleşik feed'de üç satırdır
+### POS yatışı (ADR 0019 T5; Aşama 06.3 Grup 5, uygulandı)
 
-Tek yazma modeli, feed'de üç okuma satırı üretir (Grup 8): `pos-sale` tahsilat
-günü brüt geliri, `pos-commission` aynı gün komisyon giderini, `pos-transfer`
-ise geçiş günü hesaba giren net tutarı gösterir. Üçü de aynı kaydın kimliğini
-taşır; istemci satırı `tür + kimlik` ikilisiyle anahtarlar.
+`PosDeposit` bankanın POS parasını hesaba yatırdığı andır: **bir ya da birkaç**
+yoldaki tahsilatı tek para hareketiyle kapatır. Yatış **taşır** (ADR 0014):
+hesap bakiyesini değiştirir, gelir yazmaz — satış tahsilat gününde tanındı.
 
-Tek satıra indirilseydi ya komisyon görünmez olurdu ya da hesabın bakiyesindeki
-artışın günü yanlış yazılırdı — gelir tahsilat günü, para ise geçiş günü
-gerçektir. Geçiş satırı **kapsam taşımaz** (parayı taşır, gelir/gider üretmez)
-ve kapsam filtreli okumada düşer; diğer ikisi kapsam taşır ve kalır.
+- **Yatan tutar kullanıcının girdiği sayıdır** (`DepositedAmount`): bankanın
+  gerçekten yatırdığı tutar. Beklenen tutar (kapatılan tahsilatların net
+  toplamı) kolon değildir; yatan ile kesintinin toplamıdır.
+- **Eksik yatan kısım kesintidir** ve sıradan bir giderdir: aynı hesaptan,
+  yatış günü, tam fark kadar bir `BudgetTransaction`. Yatış onu kimliğiyle
+  taşır (`DeductionTransactionId`). Raporlara, bütçeye ve dışa aktarıma ikinci
+  bir kaynak açılmaz. Hesaba tahsilatların neti girer, kesinti gideri çıkar;
+  farkı tam olarak yatan tutardır.
+- **Fazla yatan tutar reddedilir**: fazlası gelir değil, fazla yazılmış
+  komisyondur; gelir yazmak satışı şişirirdi.
+- **Bir yatış tek hesaba düşer**; farklı POS'ların aynı hesaba geçen
+  tahsilatları birlikte kapatılabilir. Yatış günü kapattığı hiçbir tahsilattan
+  önce ve gelecekte olamaz.
+- **Kesinti kategorisi**: açık seçim → seçilen tahsilatların POS'undaki
+  komisyon kategorisi (POS'u yoksa tahsilatın kendi komisyon kategorisi), tek
+  aday varsa. Aday yoksa ya da birden çoksa sunucu seçmez
+  (`pos_deposits.deduction_category_required`). **Kesintinin kapsamı**: açık
+  seçim → tahsilatların ortak kapsamı → hesabın etiketi → kategorinin
+  varsayılanı; hiçbiri yoksa `pos_deposits.scope_unresolved`.
+- **Geri alma** (`Revert`) üç şeyi birlikte yapar: tahsilatlar yola döner,
+  kesinti gideri iptal olur, yatış iptal damgası alır. Kayıt silinmez.
+- **Yatışa bağlı tahsilat iptal edilemez** (`409 pos_settlements.deposit_locked`);
+  önce yatış geri alınır. Kesinti gideri de tek başına iptal edilemez
+  (`transactions.cancel_origin_locked`): iptal edilseydi yatış, hesaba gerçekte
+  geçmemiş bir tutarı geçmiş gösterirdi.
+- Yatış isteği `clientRequestId` ile idempotenttir (`RequestScopedId`, amaç
+  `pos-deposit`): aynı istek ilk yatışı döner.
 
-Üç satırın hiçbiri feed üzerinden iptal edilemez: birini iptal etmek diğer
-ikisini sahipsiz bırakırdı. İptal, kaydın kendi ekranından tek eylemle yapılır.
+`PosSettlement.TransferredOn` kalır, ama artık **yatışın gününün kopyasıdır**:
+tahsilat yatışa `(UserId, PosDepositId, TransferredOn)` üçlü foreign key'iyle
+bağlanır ve SQL kopyanın ayrışmasına izin vermez. Kopya, tarihe göre okuyan
+sorguların (bakiye, net varlık, günlük akış, raporlar) yatış tablosuna
+birleşmeden çalışmasını sağlar; bu sorgular yatış gelirken değişmedi.
+`PosSettlements.Version` (rowversion) aynı tahsilat için yarışan yatış ile
+iptalden yalnız birinin yazılmasını sağlar.
+
+### POS tahsilatı ve yatışı birleşik feed'de
+
+Tahsilat feed'de **tek** okuma satırıdır: `pos-sale`, tahsilat günü, brüt
+tutarla ve tahsilatın kimliğiyle. Paranın hesaba geçişi tahsilatın değil
+**yatışın** satırıdır: `pos-deposit`, yatışın kimliğiyle, yatış günü ve
+**gerçekten yatan tutarla** tek satırdır — kaç tahsilatı kapatırsa kapatsın.
+İki satır ayrı günlerin gerçeğidir: gelir tahsilat günü, para yatış günü.
+
+**Bir kaydın parçası ayrı satır olmaz** (2 Ekim 2026, kullanıcı kararı;
+fikir kaydı F06 ve KP11 kesinti için bunu zaten söylüyordu). Komisyon satışın,
+kesinti yatışın parçasıdır: ikisi de gider olarak tanınır ve raporda, bütçede
+sayılır, ama akışta bağlı olduğu satırın alanıdır (`FeeAmount`). Ayrı satır
+olduklarında beş satışın beş komisyonu alt alta duruyor ve hangisinin hangi
+satışa ait olduğu okunmuyordu. Borç taksidindeki faizle aynı desen: parça
+ayrı hareket değildir. Kesinti gideri (`BudgetTransaction`) akıştan süzülür;
+`pos-commission` türü kalktı.
+
+Yatış satırı **kapsam taşımaz** (parayı taşır, gelir/gider üretmez) ve kapsam
+filtreli okumada düşer; satış kapsam taşır ve kalır.
+
+Bu satırların hiçbiri feed üzerinden iptal edilemez. Tahsilat kendi
+ekranından iptal edilir; yatış kendi ucundan geri alınır ve kesinti gideri
+onunla birlikte düşer.
+
+### Giriş anı, gün içi sıra ve işlem sonrası bakiye (2 Ekim 2026)
+
+Akış gün içinde **giriş sırasına** göre dizilir (en yeni üstte); türe göre
+dizildiğinde günün akışı okunmuyordu. Sıranın kaynağı kaydın veritabanına
+yazıldığı andır:
+
+- **Kullanıcıdan istenmez ve Domain'in bilgisi değildir.** Kaydın tarihi
+  kullanıcının seçtiği gündür; giriş anı kalıcılığın bir gözlemidir. Bu yüzden
+  bir **gölge kolondur** (`CreatedAtUtc`, `EntryTimestamp`) ve
+  `BusinessFinanceDbContext.SaveChanges` içinde yazılır; Domain
+  constructor'ları değişmedi.
+- Kendi anını taşımayan yedi tabloya eklendi (`BudgetTransactions`,
+  `Transfers`, `CreditCardCharges`, `CreditCardPayments`,
+  `CounterpartyCharges`, `CounterpartyPayments`, `DebtAgreements`). POS
+  tahsilatı, yatış, yükümlülük ve kapanışı ile borç taksidi bu bilgiyi kendi
+  alanında zaten taşıyor; akış her dalda doğru alanı okur.
+- **Eski kayıtlarda boştur**: ne zaman girildikleri bilinmez ve uydurulmaz.
+  Boş değer sıralamada günün en eskisi sayılır. Yedekten geri yüklenen kayıt
+  dosyadaki anı taşır; geri yükleme anı yazılmaz
+  (`StampsEntryTime` yalnız geri yüklemede kapanır).
+
+**İşlem sonrası bakiye** aynı sırayı okur
+(`GET /api/v1/financial-activities/{kind}/{id}/balances`): önceki günler
+bütünüyle, aynı günde giriş anı o hareketten büyük olmayanlar. Kalıcı kolon
+değildir. Hesap hareketlerinin listesi **tek yerdedir** (`AccountMovements`,
+kart için `CardDebt`): güncel bakiye (`CalculateBalanceAsync`) ve işlem sonrası
+bakiye aynı listeyi kullanır, ikincisi yalnız bir kesim noktası
+(`EntryCutoff`) ekler. İki ayrı liste olsaydı yeni bir para yolu eklendiğinde
+biri unutulur ve iki sayı ayrışırdı. Hareket kendi tablosunda, sahiplik
+kapsamıyla bulunur; birleşik sorgu tek satır için kullanılmaz. Hesabı olmayan
+(veresiye, yükümlülük), iptal edilmiş ve giriş anı bilinmeyen hareket için
+bakiye dönmez.
+
+Her bakiye, hareketin ona ne yaptığını da taşır (`ActivityBalanceChange`:
+arttı, azaldı, değişmedi). Yön sunucudadır çünkü istemcinin elindeki satır
+onu her türde bilmez (cari tahsilat, yükümlülük kapanışı). **POS satışı
+hesabını "değişmedi" olarak döner**: satış tanır, para yatışla geçer. Kullanıcı
+yeşil `+₺1.500` satırını "hesabıma para girdi" diye okuyabiliyordu; ayrıntıdaki
+mavi bakiye paranın henüz yolda olduğunu söyler (kullanıcı kararı, 2 Ekim
+2026). Satır kalabalık olduğu için işaret listeye değil ayrıntıya kondu.
+
+**Başlık hesap adına düşmez.** Açıklaması olmayan transfer, kart ödemesi ve
+yatışta `title` boştur ve istemci türün adını yazar; hesap alt satırdaki
+"kaynak → hedef"te zaten vardır.
 
 **Gün sonu kasa sayımı feed'de yoktur** ve bu bir eksiklik değildir: sayım
 hiçbir para hareketi üretmeyen bir gözlemdir. Farkı onaylandığında üretilen
@@ -950,11 +1046,16 @@ POST /api/v1/cash-counts/{id}/adjustment    farkı tek kayda çevirir
 
 GET  /api/v1/pos-settlements                tahsilatlar + yoldaki toplam
 POST /api/v1/pos-settlements                tahsilat (tanır, taşımaz)
-POST /api/v1/pos-settlements/{id}/transfer  geçiş (taşır, tanımaz)
-DELETE /api/v1/pos-settlements/{id}/transfer geçişin geri alınması (net tutar
-                                            hesaptan geri çekilir; satış kalır)
-DELETE /api/v1/pos-settlements/{id}         iptal (satış, komisyon ve varsa
-                                            geçiş birlikte düşer)
+DELETE /api/v1/pos-settlements/{id}         iptal (satış, komisyon ve yoldaki
+                                            tutar düşer); yatışa bağlıysa 409
+
+GET  /api/v1/pos-deposits/preview           seçilen tahsilatlar için beklenen,
+                                            kesinti ve dolu gelecek kategori
+POST /api/v1/pos-deposits                   yatış (taşır, tanımaz); eksik yatan
+                                            kısım kesinti gideri olur
+GET  /api/v1/pos-deposits/{id}              yatış ve kapattığı tahsilatlar
+DELETE /api/v1/pos-deposits/{id}            yatışın geri alınması (tahsilatlar
+                                            yola döner, kesinti iptal olur)
 
 GET  /api/v1/pos-definitions                kullanıcının POS'ları (ana POS önce)
 POST /api/v1/pos-definitions                POS ekler (para hareketi yazmaz)

@@ -17,6 +17,8 @@ import '../data/activity_models.dart';
 import '../data/activity_repository.dart';
 import '../data/planned_activity_models.dart';
 import 'activity_controller.dart';
+import '../../pos/data/pos_repository.dart';
+import '../../pos/presentation/pos_deposit_sheets.dart';
 import 'activity_detail_sheet.dart';
 import 'activity_filter_sheet.dart';
 import 'activity_tile.dart';
@@ -36,11 +38,16 @@ class ActivityFeedPage extends StatefulWidget {
     this.onCreateTransaction,
     this.onShowPlanned,
     this.scopeController,
+    this.posRepository,
     this.now,
   });
 
   final ActivityRepositoryContract repository;
   final FinancialDataChanges? changes;
+
+  /// Yatış satırı kendi ayrıntısını (kapattığı tahsilatlar, kesinti, geri
+  /// alma) bu depodan okur. Verilmezse satır genel ayrıntı panelinde açılır.
+  final PosRepositoryContract? posRepository;
 
   /// Uygulama genelindeki kapsam anahtarı. Bu ekran anahtarı **değiştirmez**,
   /// yalnız uygular ve başlığında yazar; tek anahtar Özet ekranındadır.
@@ -319,12 +326,39 @@ class _ActivityFeedPageState extends State<ActivityFeedPage> {
   }
 
   Future<void> _openDetail(FinancialActivity activity) async {
+    final posRepository = widget.posRepository;
+    if (activity.kind == ActivityKind.posDeposit && posRepository != null) {
+      // Yatış geri alınınca akış `FinancialDataChanges` ile kendini yeniler.
+      // Satırın taşıdıklarıyla panel hemen açılır; kapattığı tahsilatlar
+      // yerinde yüklenir.
+      await showPosDepositDetail(
+        context,
+        repository: posRepository,
+        depositId: activity.activityId,
+        changes: widget.changes,
+        initial: PosDepositSummary(
+          depositedAmount: activity.amount,
+          depositDate: activity.activityDate,
+          accountName: activity.destinationName ?? '',
+          currency: activity.currency,
+          isCancelled: activity.isCancelled,
+          deductionAmount: activity.hasFee ? activity.feeAmount : null,
+          settlementCount: activity.settlementCount ?? 0,
+        ),
+      );
+      return;
+    }
+    // Bir kez istenir; panel yeniden çizilirken yeniden okunmaz.
+    final balances = activity.isCancelled
+        ? null
+        : _controller.balancesAfter(activity);
     await AppAdaptiveSheet.show<void>(
       context: context,
       builder: (sheetContext) => AnimatedBuilder(
         animation: _controller,
         builder: (context, _) => ActivityDetailSheet(
           activity: activity,
+          balances: balances,
           isCancelling: _controller.isCancelling,
           onCancel: activity.canCancel
               ? () async {

@@ -539,6 +539,14 @@ Map<String, dynamic> _json({
 };
 
 class _FakeRepository implements ActivityRepositoryContract {
+  @override
+  Future<List<ActivityBalance>> balancesAfter(
+    FinancialActivity activity,
+  ) async => balances;
+
+  /// İşlem ayrıntısındaki "kalan bakiye" için dönecek cevap.
+  List<ActivityBalance> balances = const [];
+
   _FakeRepository({this.page, this.error});
 
   final PlannedActivityPage? page;

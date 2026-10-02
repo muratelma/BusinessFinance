@@ -127,105 +127,10 @@ internal sealed class EfAccountRepository(BusinessFinanceDbContext dbContext)
             throw new InvalidOperationException("Owned account was not found.");
         }
 
-        var movementBalance = await dbContext.Transactions
-            .AsNoTracking()
-            .Where(transaction => transaction.AccountId == accountId &&
-                                  transaction.UserId == userId &&
-                                  !transaction.IsCancelled)
-            .SumAsync(
-                transaction => transaction.Type == TransactionType.Income
-                    ? transaction.Amount.Amount
-                    : -transaction.Amount.Amount,
-                cancellationToken);
-
-        var outgoingTransfers = await dbContext.Transfers
-            .AsNoTracking()
-            .Where(transfer => transfer.SourceAccountId == accountId &&
-                               transfer.UserId == userId &&
-                               !transfer.IsCancelled)
-            .SumAsync(transfer => transfer.Amount.Amount, cancellationToken);
-        var incomingTransfers = await dbContext.Transfers
-            .AsNoTracking()
-            .Where(transfer => transfer.DestinationAccountId == accountId &&
-                               transfer.UserId == userId &&
-                               !transfer.IsCancelled)
-            .SumAsync(transfer => transfer.Amount.Amount, cancellationToken);
-        var cardPayments = await dbContext.CreditCardPayments
-            .AsNoTracking()
-            .Where(payment => payment.AccountId == accountId &&
-                              payment.UserId == userId &&
-                              !payment.IsCancelled)
-            .SumAsync(payment => payment.Amount.Amount, cancellationToken);
-        var debtMovements = await (
-                from installment in dbContext.DebtInstallments.AsNoTracking()
-                join debt in dbContext.DebtAgreements.AsNoTracking()
-                    on new { installment.UserId, DebtId = installment.DebtAgreementId }
-                    equals new { debt.UserId, DebtId = debt.Id }
-                where installment.UserId == userId &&
-                      installment.PaymentAccountId == accountId
-                select debt.Direction == DebtDirection.Receivable
-                    ? installment.Amount.Amount
-                    : -installment.Amount.Amount)
-            .SumAsync(cancellationToken);
-
-        // Borcun açılışı. Nakit kaynaklı bir borçta para hesaba girmiştir,
-        // alacakta çıkmıştır; ikisi de gelir/gider değildir. Bu hareket
-        // olmadan taksitler hesabı boşaltıyor ama karşılığında hiçbir şey
-        // girmemiş görünüyordu. Gider kaynaklı borç parayı hiç hareket
-        // ettirmez: tüketim zaten gider olarak yazılır.
-        var debtOpenings = await dbContext.DebtAgreements
-            .AsNoTracking()
-            .Where(debt => debt.UserId == userId &&
-                           debt.OpeningAccountId == accountId &&
-                           debt.SourceType == DebtSourceType.Cash)
-            .SumAsync(
-                debt => debt.Direction == DebtDirection.Payable
-                    ? debt.Principal.Amount
-                    : -debt.Principal.Amount,
-                cancellationToken);
-
-        // Cari tahsilat/ödeme parayı taşır: tahsilat kasayı artırır, ödeme
-        // azaltır. Gelir/gider üretmediği için rapora değil yalnız buraya
-        // girer (ADR 0014).
-        var counterpartySettlements = await dbContext.CounterpartyPayments
-            .AsNoTracking()
-            .Where(payment => payment.AccountId == accountId &&
-                              payment.UserId == userId &&
-                              !payment.IsCancelled)
-            .SumAsync(
-                payment => payment.Direction == DebtDirection.Receivable
-                    ? payment.Amount.Amount
-                    : -payment.Amount.Amount,
-                cancellationToken);
-
-        var obligationSettlements = await dbContext.ObligationSettlements
-            .AsNoTracking()
-            .Where(settlement => settlement.AccountId == accountId &&
-                                 settlement.UserId == userId &&
-                                 !settlement.IsCancelled)
-            .SumAsync(
-                settlement => settlement.Direction == DebtDirection.Receivable
-                    ? settlement.Amount.Amount
-                    : -settlement.Amount.Amount,
-                cancellationToken);
-
-        // POS tahsilatı hesaba **ancak geçtiği gün** girer ve girdiği tutar
-        // nettir (ADR 0015). Tahsilat günü eklenseydi, kullanılabilir bakiye
-        // daha bankaya ulaşmamış parayı harcanabilir gösterirdi; brüt
-        // eklenseydi bankanın kestiği komisyon kullanıcının cebinde sayılırdı.
-        var posTransfers = await dbContext.PosSettlements
-            .AsNoTracking()
-            .Where(settlement => settlement.AccountId == accountId &&
-                                 settlement.UserId == userId &&
-                                 !settlement.IsCancelled &&
-                                 settlement.TransferredOn != null)
-            .SumAsync(
-                settlement => settlement.GrossAmount.Amount - settlement.CommissionAmount,
-                cancellationToken);
-
-        return openingBalance.Value + movementBalance + incomingTransfers - outgoingTransfers -
-               cardPayments + debtMovements + debtOpenings + counterpartySettlements +
-               obligationSettlements + posTransfers;
+        // Hareketlerin listesi tek yerdedir; "işlem sonrası bakiye" de aynı
+        // listeyi bir kesim noktasıyla okur.
+        return openingBalance.Value + await AccountMovements.SumAsync(
+            dbContext, accountId, userId, cutoff: null, cancellationToken);
     }
 
     public async Task<(decimal Inflow, decimal Outflow)> CalculateDayFlowAsync(

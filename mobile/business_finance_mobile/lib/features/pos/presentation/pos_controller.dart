@@ -14,6 +14,9 @@ class PosController extends ChangeNotifier {
   final PosRepositoryContract _repository;
   final FinancialDataChanges? changes;
 
+  /// Yatış ayrıntısı kendi controller'ını bu depoyla kurar.
+  PosRepositoryContract get repository => _repository;
+
   /// Kasa ekranındaki POS listesi de `cash` hedefini izler; kendi yazdığı
   /// değişiklikte kendini ikinci kez yüklemez.
   int _seenCashRevision;
@@ -147,20 +150,60 @@ class PosController extends ChangeNotifier {
     }
   }
 
-  Future<bool> markTransferred(
-    PosSettlementItem item,
-    String transferDate,
-  ) async {
+  /// Yolda olan tahsilatlar; yatış formu bunlardan seçtirir. Liste "yalnız
+  /// yoldakiler" süzgecinden bağımsız olarak eldeki satırlardan okunur.
+  List<PosSettlementItem> get inTransitItems => [
+    for (final item in items)
+      if (item.isInTransit) item,
+  ];
+
+  /// Yatış formunun önizlemesi. Hata formu durdurmaz; `null` döner ve
+  /// [depositPreviewError] nedenini taşır.
+  String? depositPreviewError;
+
+  Future<PosDepositPreview?> previewDeposit({
+    required List<String> settlementIds,
+    String? depositedAmount,
+  }) async {
+    try {
+      final preview = await _repository.previewDeposit(
+        settlementIds: settlementIds,
+        depositedAmount: depositedAmount,
+      );
+      depositPreviewError = null;
+      return preview;
+    } on ApiException catch (error) {
+      unauthorized = unauthorized || error.isUnauthorized;
+      depositPreviewError = error.message;
+      return null;
+    } on FormatException {
+      depositPreviewError = 'Sunucudan beklenmeyen bir yanıt alındı.';
+      return null;
+    }
+  }
+
+  /// "Hesaba geçenleri işaretle": seçilen tahsilatlar tek yatışla kapanır.
+  /// Hata [errorMessage]'a yazılır ve form açık kalır.
+  Future<bool> createDeposit({
+    required String clientRequestId,
+    required List<String> settlementIds,
+    required String depositedAmount,
+    required String depositDate,
+    String? deductionCategoryId,
+  }) async {
     if (isSubmitting) return false;
     isSubmitting = true;
     errorMessage = null;
     notifyListeners();
     try {
-      await _repository.markTransferred(
-        settlementId: item.id,
-        transferDate: transferDate,
+      final deposit = await _repository.createDeposit(
+        clientRequestId: clientRequestId,
+        settlementIds: settlementIds,
+        depositedAmount: depositedAmount,
+        depositDate: depositDate,
+        deductionCategoryId: deductionCategoryId,
       );
-      _announce((c) => c.posSettlementTransferred());
+      _announce((c) => c.posDepositChanged(deduction: deposit.hasDeduction));
       await load();
       return true;
     } on ApiException catch (error) {
@@ -259,13 +302,7 @@ class PosController extends ChangeNotifier {
     }
   }
 
-  /// Yanlışlıkla "hesaba geçti" denmiş tahsilatı yeniden yola döndürür.
-  Future<bool> revertTransfer(PosSettlementItem item) => _mutate(
-    () => _repository.revertTransfer(settlementId: item.id),
-    (c) => c.posSettlementTransferReverted(),
-  );
-
-  /// Silme yerine iptal.
+  /// Silme yerine iptal. Yalnız yoldaki tahsilat iptal edilir.
   Future<bool> cancel(PosSettlementItem item) => _mutate(
     () => _repository.cancel(settlementId: item.id),
     (c) => c.posSettlementCancelled(),

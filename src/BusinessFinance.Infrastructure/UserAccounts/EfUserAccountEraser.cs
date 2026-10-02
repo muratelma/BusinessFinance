@@ -59,6 +59,10 @@ internal sealed class EfUserAccountEraser(
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
             await dbContext.PosSettlements
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+            // Yatış, tahsilatlar gittikten sonra ve kesinti giderinden önce
+            // silinir: tahsilat yatışa, yatış gider kaydına bağlıdır.
+            await dbContext.PosDeposits
+                .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
             // Tanım, tahsilatlar gittikten sonra silinir (tahsilat ona bağlıdır).
             await dbContext.PosDefinitions
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);

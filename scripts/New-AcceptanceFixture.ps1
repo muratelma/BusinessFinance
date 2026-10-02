@@ -714,8 +714,13 @@ $transferred = Invoke-Api -Method Post -Path '/api/v1/pos-settlements' -Body @{
     vatAmount             = '2125.0000'
 }
 Add-Count 'POS tahsilati'
-Invoke-Api -Method Post -Path "/api/v1/pos-settlements/$($transferred.id)/transfer" -Body @{
-    transferDate = (Day -14)
+# Yatis: banka beklenen 12.526,87 yerine 12.500,00 yatirdi; fark (26,87) kesinti
+# gideri olarak tahsilatin komisyon kategorisine yazilir.
+Invoke-Api -Method Post -Path '/api/v1/pos-deposits' -Body @{
+    clientRequestId = [guid]::NewGuid()
+    settlementIds   = @($transferred.id)
+    depositedAmount = (Money 12500)
+    depositDate     = (Day -14)
 } -Tolerate | Out-Null
 
 $inTransit = Invoke-Api -Method Post -Path '/api/v1/pos-settlements' -Body @{

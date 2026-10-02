@@ -290,11 +290,39 @@ Birkaç bileşenin sözleşmesinde neden şu kararların olduğu:
   Grubun adı `labelMedium` ile üstte durur (`Komisyon`) ve segmentler kısalır
   (`Yok · Tutar · Oran`) — kapsam seçicisiyle aynı desen. Cihaz kabulünde
   görüldü ve orada düzeltildi.
-- **Birleşik feed satırı POS'u üç ayrı satır olarak çizer** (`pos-satışı`,
-  `POS komisyonu`, `POS parası hesaba geçti`). Üç etikette de `kart` kelimesi
-  tek başına geçmez (ADR 0015): borçlandığın kart aynı listede yan yana
-  görünüyor. İkonlar sırayla `point_of_sale_outlined`, `percent` ve
-  `move_to_inbox_outlined`; sonuncusu paranın artık yolda olmadığını söyler.
+- **Birleşik feed POS'u iki satır olarak çizer**: `POS satışı` ve
+  `POS yatışı`. İki etikette de `kart` kelimesi tek başına geçmez (ADR 0015):
+  borçlandığın kart aynı listede yan yana görünüyor. İkonlar
+  `point_of_sale_outlined` ve `move_to_inbox_outlined`; ikincisi paranın artık
+  yolda olmadığını söyler. Yatış satırına dokununca genel ayrıntı yerine yatış
+  ayrıntısı açılır.
+- **İşlem satırının adı** (2 Ekim 2026, kullanıcı kararı). Üç kural:
+  1. **Üst satır kaydın ne olduğunu söyler, hesap adı olmaz.** Açıklama
+     yazıldıysa o; yoksa gelir/giderde kategori, kişiyle ilgili kayıtta kişi,
+     para taşıyan kayıtta türün adı (`Transfer`, `Kart ödemesi`, `POS yatışı`).
+     Sunucu bu türlerde boş başlık gönderir; adı istemci yazar.
+  2. **Sol alt satır nerede olduğunu söyler ve üst satırı tekrar etmez**:
+     kategori • POS adı • hesap ya da "kaynak → hedef". POS satışında hesap
+     yazılmaz (ayrıntıdadır); yatışta birden çok tahsilat varsa `N tahsilat`.
+  3. **Bir kaydın parçası ayrı satır olmaz.** Komisyon satışın, kesinti
+     yatışın tutarının **altında** `bodySmall` ile yazılır (`komisyon ₺97,50`,
+     `kesinti ₺14,00`). Sol alt satıra konmaz: orası taşardı. İptal edilmiş
+     satırda tutarla birlikte üstü çizilir.
+  Aynı günün satırları giriş sırasına göre dizilir, en yeni üstte.
+- **İşlem ayrıntısı.** `Köken` satırı yoktur (kullanıcı kararı, 2 Ekim 2026:
+  ayrıntı kalabalıktı; banka bağlantısı gelirse geri eklenir) — neden iptal
+  edilemediğini alttaki kilit notu söyler. Para taşıyan harekette son satır
+  **`Bakiye`**dir: o hareketten hemen sonraki hesap bakiyesi (kartta
+  `Kart borcu`; transferde iki satır, değer `hesap · tutar`). **Sayının rengi
+  paranın yönüdür** (kullanıcı kararı, 2 Ekim 2026): hesaba para girdiyse
+  yeşil, çıktıysa kırmızı; kart borcunda ters (borç arttıysa kırmızı). POS
+  satışında bakiye **mavidir**: satış gelir yazdı ama hesaba dokunmadı, para
+  yolda. Yönü sunucu söyler (`change`), istemci türden türetmez. Sunucudan gelir
+  ve panel açılırken bir kez istenir; cevap beklenirken satır `…` ile
+  **yerinde durur**, panel sonradan büyümez. POS satışının ayrıntısı
+  `POS / Komisyon / Net tutar / Hesap / Geçiş günü` (yoldaysa `Beklenen`)
+  satırlarını taşır. Etiketler kısadır: `AppDetailRow` etiketi esnemez ve
+  2.0× yazıda uzun etiket tutarı sıkıştırır.
 - **`İşlem ekle` launcher'ı başlıklıdır.** Dokuz satır düz listede telefonda
   kaydırmadan okunmuyordu; satırlar niyet başlıklarının (`Para girdi`,
   `Para çıktı`, `Para taşı`, `Belge okut`, `Plan kur`) altında yoğun
@@ -587,7 +615,8 @@ gelir. Takvim yaprağı (`AppDateLeaf`) sabit 44×48 bir işarettir; metni 1,2×
 beklenen/sayılan/fark, POS tarafında brüt/komisyon/net ayrı bilgi
 hiyerarşileridir. Durumlar `AppStatusChip` içinde
 `Yolda`, `Gecikti` veya `Hesaba geçti` metni ve ikonuyla gösterilir. Sayım farkı
-ve hesaba geçiş finansal sonuç doğurduğu için görünür onay ister; birincil form
+finansal sonuç doğurduğu için görünür onay ister; hesaba geçiş bir onay
+penceresi değil, tutarı ve günü soran yatış panelidir (aşağıda). Birincil form
 eylemleri gönderim sırasında devre dışıdır. Yeni renk, boşluk, yarıçap veya
 tipografi token'ı eklenmemiştir.
 
@@ -929,3 +958,69 @@ Tasarım teslimi yok; mevcut dille kuruldu. Kasa sekmesi yeniden tasarlanınca
   bir POS değildir**: `AppMenuGroupLabel` ile ayrı grup başlığının ("POS
   seçmeden") altında ve kalem simgesiyle durur.
 - **Kelime**: arayüzde "tanım" geçmez; "POS", "POS ekle", "Elle gir".
+
+## Yatış panelleri (2 Ekim 2026, Aşama 06.3 Grup 5)
+
+Tasarım teslimi yok; mevcut dille kuruldu (`lib/features/pos/presentation/
+pos_deposit_sheets.dart`). Kasa sekmesi yeniden tasarlanınca (Grup 6) kapı
+"Kartla gelecek" bölümüne taşınır.
+
+- **Kapı**: "POS tahsilatları" kartında, yoldaki toplamın altında
+  `AppTextAction` — `Hesaba geçenleri işaretle`. Yalnız yolda tahsilat varken
+  görünür. Yoldaki satırın ayrıntısındaki `Hesaba geçti` aynı paneli yalnız o
+  tahsilat seçili açar.
+- **Panel üst üste açılmaz**: tahsilat ayrıntısı bir sonuçla kapanır
+  (`PosSettlementSheetAction`), açan taraf sıradaki paneli açar — vergi
+  panellerindeki kuralın aynısı.
+- **"Hesaba geçenleri işaretle"** bir `AppFormSheet`'tir: yoldaki tahsilatlar
+  onay kutulu satırlarla (başlık, `hesap · beklenen gün`, sağda net tutar),
+  `AppDetailBlock` içinde `Beklenen` ve `Hesap`, `Yatan tutar` alanı (beklenen
+  tutarla dolu gelir), `Yattığı gün`. Günü gelmiş tahsilatlar seçili gelir.
+  Bir yatış tek hesaba düşer: ilk seçimden sonra başka hesabın satırları
+  soluklaşır ve seçilemez; birden çok hesap varsa altında tek cümle yazar.
+  Satır `CheckboxListTile` değildir — o kendi yazı stilini taşır; satırın
+  tamamı dokunma hedefidir ve yazısı `bodyMedium` / `bodySmall`'dır.
+- **Kesinti yalnız fark varsa görünür**: yatan tutar beklenenden azsa
+  `Kesinti` satırı (gider tonunda, işaretli) ve `Kesinti kategorisi` alanı
+  çıkar; kategori POS'un komisyon kategorisiyle dolu gelir. Yatan tutar
+  beklenenden fazlaysa alanın altında hata metni durur ve kayıt gönderilmez.
+  Beklenen ve kesinti **sunucunun önizlemesidir**; tutar yazılırken kısa bir
+  duraklamadan sonra istenir.
+- **Yatış ayrıntısı**: tahsilat ayrıntısıyla aynı iskelet — kapsül + başlık
+  (`POS yatışı`, altında hesap), büyük tutar (yatan), durum etiketi
+  (`Hesaba geçti · gün` ya da `Geri alındı`), `AppDetailBlock` (Satış,
+  Komisyon, Beklenen, Kesinti, Kategori, Tarih, Hesap, Bakiye),
+  `Kapattığı tahsilatlar`, tek cümle
+  kural metni ve çerçeveli `Yatışı geri al` (görünür onayla). Geri alınmış
+  yatışta eylem yoktur. Kapattığı tahsilatların başlığı kullanıcının yazdığı
+  metindir ve uzun olabilir; `AppDetailRow` yerine saran bir satırla çizilir
+  (`AppDetailRow` etiketi esnemez ve 2.0× yazıda taşar).
+- **Hesaba geçmiş tahsilatın ayrıntısı** `Kaydı iptal et` sunmaz; yerinde
+  `Yatışı gör` ve "Kaydı iptal etmek için önce yatışı geri alın." durur.
+- Hata durumları görünür: yatış panelinde ve yatış ayrıntısında
+  `AppInlineNotice`; ayrıntı okunamazsa `AppErrorView` ("Tekrar dene"), oturum
+  bittiyse `AppUnauthorizedView`.
+- **Yatış ayrıntısı diğer işlem ayrıntılarının dilini kullanır** (2 Ekim
+  2026, kullanıcı bildirimi): kapsül ve büyük tutar **nötr rolde** (mavi) —
+  listedeki satırla aynı; satırlar ikonludur; `Bakiye` yeşildir (yatış parayı
+  hesaba sokar). İlk teslimde kapsül gri, tutar siyahtı ve panel diğer
+  ayrıntıların yanında yarım görünüyordu. Gün etiketi `Tarih`tir: ikonlu
+  satırda uzun etiket 2.0× yazıda taşıyor.
+- **Yatış ayrıntısı yatan tutarın nereden geldiğini söyler** (2 Ekim 2026,
+  kullanıcı isteği): `Satış` (kapattığı tahsilatların brüt toplamı) ve
+  `Komisyon` satırları `Beklenen`in üstünde durur — satış − komisyon =
+  beklenen. Günler sonra yatan küsuratlı bir tutarda ne kadar komisyon
+  kesildiği başka türlü okunmuyordu. İki toplam sunucudan gelir
+  (`grossAmount`, `commissionAmount`); komisyon satış günü gider yazılmıştır,
+  burada yeniden yazılmaz. Sıfır komisyonda da satır durur (panel yüklenince
+  boyut değiştirmesin); geri alınmış yatışta iki satır da yoktur. `Komisyon`
+  bankanın anlaşmalı payı, `Kesinti` beklenenin altında yatan farktır; ikonları
+  ayrıdır (`percent`, `remove_circle_outline`).
+- **Yatış ayrıntısı diğer ayrıntılar gibi açılır** (2 Ekim 2026): ekranı
+  kaplayan bir "yükleniyor" perdesi yoktur. İşlemler'den açılınca satırın
+  taşıdıklarıyla (`PosDepositSummary`: yatan tutar, gün, hesap, kesinti,
+  tahsilat sayısı) **hemen ve son boyutunda** çizilir; `Beklenen`, `Bakiye` ve
+  kapattığı tahsilatlar `…` ile yerlerinde bekler, `Yatışı geri al` yüklenene
+  kadar kapalıdır. Kasa'daki tahsilattan açılınca (özet yok) sabit yükseklikte
+  küçük bir bekleme kutusu gösterilir. `AppLoadingView` bir panelin içinde
+  çıplak kullanılmaz: ortalandığı için paneli tam yüksekliğe çıkarır.

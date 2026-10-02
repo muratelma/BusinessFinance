@@ -16,6 +16,8 @@ namespace BusinessFinance.Domain;
 /// <item>Geçiş günü <b>taşır</b>: hesap net tutar kadar artar, gelir/gider
 /// sıfır. Aynı satışın ikinci kez sayılması böyle önlenir.</item>
 /// </list>
+/// Geçişi <see cref="PosDeposit"/> yazar: bankaya yatan para bir ya da birkaç
+/// tahsilatı birlikte kapatır.
 /// </remarks>
 public sealed class PosSettlement
 {
@@ -68,7 +70,25 @@ public sealed class PosSettlement
 
     public DateTimeOffset CreatedAtUtc { get; }
 
-    /// <summary>Paranın hesaba gerçekten geçtiği gün; geçmediyse boştur.</summary>
+    /// <summary>
+    /// Parayı hesaba geçiren yatış (ADR 0019 T5); para yoldaysa boştur.
+    /// </summary>
+    /// <remarks>
+    /// Tahsilat hesaba <b>yalnız bir yatışla</b> geçer: bu alanı ve aşağıdaki
+    /// iki alanı <see cref="PosDeposit"/> yazar ve geri alır. Üçü birlikte
+    /// dolar ya da birlikte boş kalır.
+    /// </remarks>
+    public Guid? PosDepositId { get; private set; }
+
+    /// <summary>
+    /// Paranın hesaba geçtiği gün; yatışın günüyle aynıdır, geçmediyse boştur.
+    /// </summary>
+    /// <remarks>
+    /// Yatışın gününün kopyasıdır ve ondan ayrışamaz: SQL'de tahsilat yatışa
+    /// <c>(UserId, PosDepositId, TransferredOn)</c> üçlüsüyle bağlanır. Kopya,
+    /// tarihe göre okuyan bütün sorguların (bakiye, net varlık, günlük akış)
+    /// yatış tablosuna birleşmeden çalışmasını sağlar.
+    /// </remarks>
     public DateOnly? TransferredOn { get; private set; }
     public DateTimeOffset? TransferredAtUtc { get; private set; }
 
@@ -250,86 +270,65 @@ public sealed class PosSettlement
     }
 
     /// <summary>
-    /// Paranın hesaba geçtiğini işaretler.
+    /// Tahsilatı bir yatışa bağlar: para o gün hesaba geçmiştir.
     /// </summary>
     /// <remarks>
     /// Bu an <b>hiçbir gelir veya gider yazmaz</b>: satış tahsilat gününde
     /// zaten tanındı. Yazsaydı aynı satış iki kez sayılırdı.
     ///
-    /// Çağrı idempotenttir: aynı günle tekrarlamak ikinci bir bakiye etkisi
-    /// üretmez. Farklı bir günle tekrarlamak reddedilir — para bir kez geçer.
+    /// Yalnız <see cref="PosDeposit"/> çağırır; tahsilatı yatışsız "hesaba
+    /// geçti" yapan bir yol yoktur (ADR 0019 T5: iki yol yan yana yaşamaz).
     /// </remarks>
-    public void MarkTransferred(DateOnly transferDate, DateTimeOffset transferredAtUtc)
+    internal void AttachToDeposit(Guid depositId, DateOnly depositDate, DateTimeOffset attachedAtUtc)
     {
-        if (transferredAtUtc.Offset != TimeSpan.Zero)
-        {
-            throw new ArgumentException("Transfer time must be UTC.", nameof(transferredAtUtc));
-        }
-
-        if (IsCancelled)
+        if (!IsInTransit)
         {
             throw new InvalidOperationException(
-                "A cancelled pos settlement cannot be marked as transferred.");
+                "Only a pos settlement that is still in transit can be deposited.");
         }
 
-        if (transferDate == default || transferDate < SettlementDate)
+        if (depositDate < SettlementDate)
         {
             throw new ArgumentOutOfRangeException(
-                nameof(transferDate),
-                "Transfer date cannot be before the settlement date.");
+                nameof(depositDate),
+                "Deposit date cannot be before the settlement date.");
         }
 
-        if (transferDate > DateOnly.FromDateTime(transferredAtUtc.UtcDateTime))
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(transferDate),
-                "Transfer date cannot be in the future.");
-        }
-
-        if (TransferredOn is DateOnly existing)
-        {
-            if (existing != transferDate)
-            {
-                throw new InvalidOperationException(
-                    "This pos settlement already transferred on a different day.");
-            }
-
-            return;
-        }
-
-        TransferredOn = transferDate;
-        TransferredAtUtc = transferredAtUtc;
+        PosDepositId = depositId;
+        TransferredOn = depositDate;
+        TransferredAtUtc = attachedAtUtc;
     }
 
     /// <summary>
-    /// Yanlışlıkla "hesaba geçti" denmiş tahsilatı yeniden yola döndürür.
+    /// Yatış geri alındığında tahsilatı yeniden yola döndürür.
     /// </summary>
     /// <remarks>
-    /// Geçiş ayrı bir finansal kayıt değil, tahsilatın bir anıdır; geri almak
-    /// yalnız hesaba yazılmış net tutarı geri çeker. Gelir ve komisyon tahsilat
-    /// gününde tanındı ve olduğu gibi kalır — satış olmuştur, yalnız para henüz
-    /// gelmemiştir (ADR 0014).
-    ///
-    /// Çağrı idempotenttir: yoldaki bir tahsilatta hiçbir şey yapmaz. İptal
-    /// edilmiş tahsilat geri alınamaz; iptal zaten bütün etkiyi kaldırdı.
+    /// Yalnız hesaba yazılmış net tutar geri çekilir. Gelir ve komisyon
+    /// tahsilat gününde tanındı ve olduğu gibi kalır — satış olmuştur, yalnız
+    /// para henüz gelmemiştir (ADR 0014).
     /// </remarks>
-    public void RevertTransfer()
+    internal void DetachFromDeposit(Guid depositId)
     {
-        if (IsCancelled)
+        if (PosDepositId != depositId)
         {
             throw new InvalidOperationException(
-                "A cancelled pos settlement has no transfer to revert.");
+                "This pos settlement does not belong to the deposit being reverted.");
         }
 
+        PosDepositId = null;
         TransferredOn = null;
         TransferredAtUtc = null;
     }
 
     /// <summary>
-    /// Silme yerine iptal. İptal edilen tahsilat hem tanıdığı gelir/gideri hem
-    /// varsa taşıdığı bakiye etkisini birlikte kaybeder; ikisi tek kaydın iki
-    /// anıdır ve birini bırakıp diğerini silmek defteri açık bırakırdı.
+    /// Silme yerine iptal. İptal edilen tahsilat tanıdığı geliri ve komisyonu
+    /// kaybeder; yoldaki para da onunla birlikte düşer.
     /// </summary>
+    /// <remarks>
+    /// Yatışa bağlı tahsilat iptal edilemez: yatış o tahsilatın netini hesaba
+    /// taşımıştır ve iptal, yatışın tutarını açıklanamaz bırakırdı. Önce yatış
+    /// geri alınır (ADR 0019 T5).
+    /// </remarks>
     public void Cancel(DateTimeOffset cancelledAtUtc)
     {
         if (cancelledAtUtc.Offset != TimeSpan.Zero)
@@ -340,6 +339,12 @@ public sealed class PosSettlement
         if (IsCancelled)
         {
             return;
+        }
+
+        if (PosDepositId is not null)
+        {
+            throw new InvalidOperationException(
+                "A deposited pos settlement cannot be cancelled; revert the deposit first.");
         }
 
         IsCancelled = true;

@@ -144,6 +144,12 @@ public sealed class BusinessFinanceApiFactory : WebApplicationFactory<Program>
             {
                 entry.Property<byte[]>("Version").CurrentValue = Guid.NewGuid().ToByteArray();
             }
+
+            foreach (var entry in context.ChangeTracker.Entries<PosSettlement>()
+                         .Where(entry => entry.State is EntityState.Added or EntityState.Modified))
+            {
+                entry.Property<byte[]>("Version").CurrentValue = Guid.NewGuid().ToByteArray();
+            }
         }
     }
 }

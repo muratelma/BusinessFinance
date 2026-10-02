@@ -26,34 +26,17 @@ public static class PosSettlementEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
-        endpoints.MapPost("/api/v1/pos-settlements/{id:guid}/transfer", MarkTransferredAsync)
-            .WithTags("PosSettlements")
-            .WithName("MarkPosSettlementTransferred")
-            .RequireAuthorization()
-            .Produces<PosSettlementResponse>()
-            .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status409Conflict);
-        // "Hesaba geçti"nin geri alınması: aynı kaynağın silinmesi, POST'un
-        // karşılığı. Yalnız hesaba yazılan net tutarı geri çeker.
-        endpoints.MapDelete("/api/v1/pos-settlements/{id:guid}/transfer", RevertTransferAsync)
-            .WithTags("PosSettlements")
-            .WithName("RevertPosSettlementTransfer")
-            .RequireAuthorization()
-            .Produces<PosSettlementResponse>()
-            .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status409Conflict);
         // Silme yerine iptal: kayıt kalır, bütün etkisi düşer (cari iptal
-        // uçlarıyla aynı desen).
+        // uçlarıyla aynı desen). Yatışa bağlı tahsilat 409 döner; paranın
+        // hesaba geçişi `/api/v1/pos-deposits` ile yazılır ve geri alınır.
         endpoints.MapDelete("/api/v1/pos-settlements/{id:guid}", CancelAsync)
             .WithTags("PosSettlements")
             .WithName("CancelPosSettlement")
             .RequireAuthorization()
             .Produces<PosSettlementResponse>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
         return endpoints;
     }
 
@@ -200,41 +183,6 @@ public static class PosSettlementEndpoints
         return Results.Created($"/api/v1/pos-settlements/{response.Id}", response);
     }
 
-    private static async Task<IResult> MarkTransferredAsync(
-        Guid id,
-        MarkPosSettlementTransferredRequest request,
-        MarkPosSettlementTransferredUseCase useCase,
-        HttpContext httpContext,
-        CancellationToken cancellationToken)
-    {
-        if (!FinanceContract.TryParseDate(request.TransferDate, out var transferDate))
-        {
-            return ApiProblemResults.Validation(
-                httpContext,
-                "Transfer date must use the yyyy-MM-dd format.",
-                "pos_settlements.invalid_transfer_date");
-        }
-
-        var result = await useCase.ExecuteAsync(
-            new MarkPosSettlementTransferredCommand(id, transferDate), cancellationToken);
-        return result.IsSuccess
-            ? Results.Ok(ToResponse(result.Value))
-            : result.Error.ToProblemResult(httpContext);
-    }
-
-    private static async Task<IResult> RevertTransferAsync(
-        Guid id,
-        RevertPosSettlementTransferUseCase useCase,
-        HttpContext httpContext,
-        CancellationToken cancellationToken)
-    {
-        var result = await useCase.ExecuteAsync(
-            new RevertPosSettlementTransferCommand(id), cancellationToken);
-        return result.IsSuccess
-            ? Results.Ok(ToResponse(result.Value))
-            : result.Error.ToProblemResult(httpContext);
-    }
-
     private static async Task<IResult> CancelAsync(
         Guid id,
         CancelPosSettlementUseCase useCase,
@@ -248,7 +196,7 @@ public static class PosSettlementEndpoints
             : result.Error.ToProblemResult(httpContext);
     }
 
-    private static PosSettlementResponse ToResponse(PosSettlementDto settlement) => new(
+    internal static PosSettlementResponse ToResponse(PosSettlementDto settlement) => new(
         settlement.Id,
         settlement.AccountId,
         settlement.AccountName,
@@ -272,5 +220,6 @@ public static class PosSettlementEndpoints
         settlement.IsCancelled,
         settlement.IsLate,
         settlement.PosDefinitionId,
-        settlement.PosDefinitionName);
+        settlement.PosDefinitionName,
+        settlement.PosDepositId);
 }

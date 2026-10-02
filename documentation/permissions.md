@@ -235,13 +235,32 @@ sürdürür. Sayımın hesabı, düzeltmenin kategorisi, tahsilatın hesabı ile
 komisyon kategorileri yalnız current user'ın aktif kayıtları arasından çözülür;
 kimlik hiçbir gövdeden okunmaz. Yabancı ya da uygun olmayan hesap `404`,
 yabancı kategori doğrulama hatasıdır. `POST /api/v1/cash-counts/{id}/adjustment`
-ve `POST /api/v1/pos-settlements/{id}/transfer` kaydı `(UserId, kayıt ID)` ile
-çözer; başkasının kaydı ile var olmayan kayıt aynı `404` sonucuna gider.
-Aynı kural 29 Eylül 2026'da eklenen iki uçta da geçerlidir:
-`DELETE /api/v1/pos-settlements/{id}/transfer` (yanlış "hesaba geçti"nin geri
-alınması) ve `DELETE /api/v1/pos-settlements/{id}` (tahsilatın iptali). İkisi de
-`OwnershipIsolationTests` denetimindedir; iptal edilmiş kaydın geçişini geri
-almak `409` döner.
+ve `DELETE /api/v1/pos-settlements/{id}` (tahsilatın iptali) kaydı
+`(UserId, kayıt ID)` ile çözer; başkasının kaydı ile var olmayan kayıt aynı
+`404` sonucuna gider.
+
+POS yatışının dört ucu (Aşama 06.3 Grup 5) aynı sınırı taşır.
+`POST /api/v1/pos-deposits` ve `GET /api/v1/pos-deposits/preview` tahsilat
+kimliklerini gövdede ve sorgu dizesinde alır; tahsilatlar yalnız current user'ın
+satırları arasından çözülür ve **biri bile** bulunamazsa cevap
+`404 pos_deposits.settlement_not_found`'dur — başkasının tahsilatı ile var
+olmayan tahsilat ayırt edilemez. Kesinti kategorisi de owner-scoped çözülür.
+`GET` ve `DELETE /api/v1/pos-deposits/{id}` yatışı `(UserId, kayıt ID)` ile
+çözer. Sahiplik SQL'de de durur: yatış hesaba ve kesinti giderine, tahsilat
+yatışa `UserId` ile başlayan bileşik foreign key'lerle bağlanır; başka
+kullanıcının yatışına tahsilat bağlanamaz. Kimlik taşıyan iki uç ve önizleme
+`OwnershipIsolationTests` prob tablosundadır; gövdeyle çalışan `POST`
+`PosDepositEndpointTests` içinde ölçülür.
+
+`GET /api/v1/financial-activities/{activityKind}/{activityId}/balances` (işlem
+sonrası bakiye, 2 Ekim 2026) hareketi kendi tablosunda `(UserId, kayıt ID)` ile
+arar; başkasının hareketi, olmayan hareket ve türü tutmayan kimlik aynı `404`
+cevabını alır. Dönen hesap ve kart da owner-scoped okunur; bakiye toplamı yalnız
+o kullanıcının hareketlerinden kurulur. Uç `OwnershipIsolationTests` prob
+tablosundadır.
+
+29 Eylül 2026'da eklenen `POST`/`DELETE /api/v1/pos-settlements/{id}/transfer`
+uçları 2 Ekim 2026'da **kalktı**: para hesaba yalnız yatışla geçer.
 `GET /api/v1/cash-counts`, `GET /api/v1/cash-counts/today` ve
 `GET /api/v1/pos-settlements` yalnız current user satırlarını döndürür — yoldaki
 toplam da öyle. `today` cevabındaki son sayım ve bugünkü nakit giriş/çıkış da

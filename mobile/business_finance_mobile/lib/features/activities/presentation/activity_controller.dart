@@ -149,8 +149,7 @@ class ActivityController extends ChangeNotifier {
         // sormadan geçirirdi.
         case ActivityKind.obligationSettlement:
         case ActivityKind.posSale:
-        case ActivityKind.posCommission:
-        case ActivityKind.posTransfer:
+        case ActivityKind.posDeposit:
           financialDataChanges?.transactionsChanged();
         case ActivityKind.obligation:
           financialDataChanges?.obligationRecognized();
@@ -168,6 +167,20 @@ class ActivityController extends ChangeNotifier {
     } finally {
       isCancelling = false;
       notifyListeners();
+    }
+  }
+
+  /// İşlem ayrıntısındaki "kalan bakiye". Hata ayrıntıyı bozmaz: satır
+  /// gösterilmez, panel geri kalanıyla açılır.
+  Future<List<ActivityBalance>> balancesAfter(
+    FinancialActivity activity,
+  ) async {
+    try {
+      return await _repository.balancesAfter(activity);
+    } on ApiException {
+      return const [];
+    } on FormatException {
+      return const [];
     }
   }
 

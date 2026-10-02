@@ -107,7 +107,8 @@ internal sealed class EfPosSettlementRepository(
                     row.settlement.IsInTransit &&
                         row.settlement.ExpectedTransferDate < asOfDate,
                     row.settlement.PosDefinitionId,
-                    row.DefinitionName))
+                    row.DefinitionName,
+                    row.settlement.PosDepositId))
                 .ToArray(),
             transit?.Amount ?? 0m,
             transit?.Count ?? 0);
@@ -123,6 +124,19 @@ internal sealed class EfPosSettlementRepository(
                 settlement => settlement.Id == settlementId && settlement.UserId == userId,
                 cancellationToken);
 
-    public Task SaveAsync(CancellationToken cancellationToken) =>
-        dbContext.SaveChangesAsync(cancellationToken);
+    public async Task SaveAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Aynı anda bir yatış bu tahsilatı kapattı ya da bıraktı; kaybeden
+            // yazma hiçbir şey değiştirmez ve çakışma olarak döner.
+            dbContext.ChangeTracker.Clear();
+            throw new InvalidOperationException(
+                "The pos settlement changed while it was being saved.");
+        }
+    }
 }

@@ -132,7 +132,8 @@ ASP.NET Core API (composition root, ProblemDetails, JWT bearer, rate limit)
       │                 RecurringTransaction/Occurrence (+RecurringSourceType),
       │                 DebtAgreement/Installment, Counterparty +
       │                 CounterpartyCharge/Payment, Obligation, CashCount,
-      │                 PosSettlement, PosDefinition, RefreshSession)
+      │                 PosSettlement, PosDefinition, PosDeposit,
+      │                 RefreshSession)
       └── Infrastructure (EF Core SQL Server, ASP.NET Core Identity,
                           `BusinessFinanceDbContext`, Ef*Repository adapter'ları)
               │
@@ -278,6 +279,45 @@ gerekçesiyle bozulmaz.
   vardır ve formda seçili gelir. Tahsilatı olan POS silinemez, pasife alınır.
   **Arayüzde "tanım" kelimesi geçmez; "POS" denir** (kullanıcı kararı); kod
   ve belgelerde `PosDefinition` adı kalır.
+
+- **Para hesaba yalnız bir yatışla geçer** (ADR 0019 T5; Aşama 06.3 Grup 5,
+  ilk teslim). `PosDeposit` aynı hesaba geçen bir ya da birkaç yoldaki
+  tahsilatı **bankanın gerçekten yatırdığı tutarla** kapatır; yatış **taşır**,
+  gelir yazmaz. Eksik yatan kısım **kesintidir** ve sıradan bir giderdir
+  (`BudgetTransaction`, POS'un komisyon kategorisi, kökeni `pos-deposit`);
+  fazla yatan tutar reddedilir. Beklenen tutar kolon değildir (yatan +
+  kesinti). `PosSettlement.TransferredOn` yatışın gününün **kopyasıdır**
+  (üçlü foreign key ayrışmasına izin vermez); bakiye ve rapor sorguları onu
+  okur. Yatış geri alınır (tahsilatlar yola döner, kesinti iptal olur, kayıt
+  kalır); yatışa bağlı tahsilat ve kesinti gideri tek başına iptal edilemez
+  (`pos_settlements.deposit_locked`, `transactions.cancel_origin_locked`).
+  Tahsilatı yatışsız "hesaba geçti" yapan bir yol **yoktur**; `/transfer`
+  uçları ve `pos-transfer` akış türü kalktı. Önizleme (beklenen, kesinti,
+  dolu gelecek kategori) sunucudandır: `GET /api/v1/pos-deposits/preview`.
+
+- **İşlemler'de bir kaydın parçası ayrı satır olmaz** (kullanıcı kararı,
+  2 Ekim 2026). POS komisyonu satışın, kesinti yatışın **parçasıdır**: gider
+  olarak tanınır ve raporda sayılır, ama akışta bağlı olduğu satırın alanıdır
+  (`feeAmount`) ve tutarın altında yazılır. `pos-commission` akış türü
+  **kalktı**; geri eklenmez. Borç taksidindeki faizle aynı desen.
+- **Akış gün içinde giriş sırasına göre dizilir** (en yeni üstte), türe göre
+  değil. Giriş anını **sunucu yazar** (`EntryTimestamp`: yedi tabloda gölge
+  `CreatedAtUtc`, `SaveChanges`'te); kullanıcıdan istenmez, Domain bilmez.
+  Eski kayıtlarda boştur ve **uydurulmaz**; yedek onu taşır, geri yükleme
+  anı yazılmaz.
+- **Satırın başlığı hesap ya da kart adı olmaz.** Açıklama → gelir/giderde
+  kategori, kişiyle ilgili kayıtta kişi; para taşıyan kayıtta (transfer, kart
+  ödemesi, yatış) sunucu **boş başlık** gönderir ve türün adını istemci yazar.
+- **İşlem sonrası bakiye bir projection'dır**
+  (`GET /api/v1/financial-activities/{kind}/{id}/balances`): akışın sırasıyla
+  kesilir, kalıcı kolon değildir. Hesap hareketlerinin listesi tek yerdedir
+  (`AccountMovements`, kart için `CardDebt`); güncel bakiye de onu okur. Yeni
+  bir para yolu **oraya** eklenir. Giriş anı bilinmeyen, iptal edilmiş ve
+  hesabı olmayan harekette bakiye dönmez. Her bakiye yönünü de taşır
+  (`change`); istemci onu türden türetmez, yalnız renge çevirir (giren yeşil,
+  çıkan kırmızı). **POS satışı hesabını "değişmedi" ile döner ve bakiyesi
+  mavidir**: satış gelir yazar, para yatışla geçer. Ayrıntıda `Köken` satırı
+  yoktur.
 
 - **Kapsam tek yerde türetilir** (`TransactionScopeResolution`): kullanıcının
   açık seçimi → hesabın/kartın etiketi → kategorinin varsayılanı. Üçü de boşsa
