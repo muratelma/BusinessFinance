@@ -14,8 +14,8 @@ import '../../../core/models/transaction_scope.dart';
 /// [moneyOut] altına koymak, menünün kendisinin raporu yanlış anlatması
 /// olurdu.
 ///
-/// Gün sonu kasa sayımı bu menüde **yok**: hiçbir para hareketi üretmez, bir
-/// gözlemdir ve kendi ekranında (`Kasa > Gün sonu`) durur.
+/// Kasa sayımı bu menüde **yok**: hiçbir para hareketi üretmez, bir
+/// gözlemdir ve kendi ekranında (`Kasa > Kasayı say`) durur.
 enum QuickAddIntent {
   moneyIn('Para girdi'),
   moneyOut('Para çıktı'),
@@ -36,6 +36,10 @@ enum QuickAddIntent {
 enum QuickAddOption {
   income('Gelir', QuickAddIntent.moneyIn),
   posCollection('POS tahsilatı', QuickAddIntent.moneyIn),
+
+  /// Günün satışı toplamla girilir: nakit kasaya gelir, kart POS tahsilatı
+  /// olur (ADR 0019 T1). İşletme profilinde `POS tahsilatı`nın yerini alır.
+  dayClose('Gün sonu', QuickAddIntent.moneyIn),
   expense('Gider', QuickAddIntent.moneyOut),
   obligation('Ödenmemiş fatura', QuickAddIntent.moneyOut),
   transfer('Transfer', QuickAddIntent.carry),
@@ -59,6 +63,7 @@ enum QuickAddOption {
   /// ödenmemiş fatura bugün para hareket ettirmez.
   String? get description => switch (this) {
     posCollection => 'Kartla satış, sonra hesaba geçer',
+    dayClose => 'Günün nakit ve kartlı satışı',
     obligation => 'Vadesi olan, henüz ödenmedi',
     recurringPlan => 'Kira, abonelik, maaş',
     _ => null,

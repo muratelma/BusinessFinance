@@ -39,6 +39,7 @@ using BusinessFinance.Application.SavingsGoals;
 using BusinessFinance.Application.Attachments;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.Pos;
+using BusinessFinance.Application.DayCloses;
 using BusinessFinance.Application.Receipts;
 
 namespace BusinessFinance.Infrastructure.Tests.Persistence;
@@ -4532,6 +4533,264 @@ public sealed class SqlServerPersistenceIntegrationTests
         Assert.Equal(480m, counts[0].CountedAmount);
         Assert.False(counts[1].IsCancelled);
         Assert.Equal(495m, counts[1].CountedAmount);
+    }
+
+    /// <summary>
+    /// Gün sonu gerçek SQL üzerinde (ADR 0019 T1): gün başına tek gün sonu ve
+    /// tek Z numarası kuralını veritabanı da zorlar; okumalar SQL'e çevrilir;
+    /// ürettiği kayıtlar akışta kendi kökenleriyle görünür.
+    /// </summary>
+    /// <remarks>
+    /// Uygulama katmanı aynı kuralları önce kendisi denetler; tekil indeksler
+    /// aynı anda gelen iki isteğin ikisinin de o denetimi geçtiği durumu
+    /// kapatır. Geri alınmış gün sonu indeksin dışındadır: gün yeniden açılır.
+    /// </remarks>
+    [SqlServerFact]
+    public async Task DayClose_LinksItsRecordsAndSqlAllowsOneClosePerDayAndZNumber()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var owner = CreateUser("day-close-owner@example.test");
+        var stranger = CreateUser("day-close-stranger@example.test");
+        await database.SeedUsersAsync(owner, stranger);
+        var now = new DateTimeOffset(2026, 10, 3, 18, 0, 0, TimeSpan.Zero);
+        var day = new DateOnly(2026, 10, 3);
+        var closeId = Guid.NewGuid();
+        Account till;
+        Account bank;
+        Category sales;
+        Category commission;
+        PosDefinition pos;
+        Guid manualSaleId;
+        Guid manualPosSaleId;
+        Guid collectionId;
+        Guid incomeId;
+        Guid settlementId;
+
+        await using (var seed = database.CreateContext())
+        {
+            till = new Account(
+                Guid.NewGuid(), owner.Id, "Kasa", AccountType.Cash, CurrencyCode.TRY, 0m);
+            bank = new Account(
+                Guid.NewGuid(), owner.Id, "Banka", AccountType.Bank, CurrencyCode.TRY, 0m);
+            var personalTill = new Account(
+                Guid.NewGuid(), owner.Id, "Cüzdan", AccountType.Cash, CurrencyCode.TRY, 0m,
+                TransactionScope.Personal);
+            sales = new Category(Guid.NewGuid(), owner.Id, "Satış", CategoryType.Income);
+            commission = new Category(
+                Guid.NewGuid(), owner.Id, "POS komisyonu", CategoryType.Expense);
+            pos = new PosDefinition(
+                Guid.NewGuid(), owner.Id, "Sentetik POS", bank, sales, 0.02m, commission, 1,
+                false, now);
+            pos.SetDefault(true);
+            var customer = new Counterparty(Guid.NewGuid(), owner.Id, "Sentetik müşteri");
+
+            // Gün içinde tek tek girilmişler.
+            var manualSale = new BudgetTransaction(
+                Guid.NewGuid(), owner.Id, till, sales, new Money(1250m, CurrencyCode.TRY),
+                TransactionType.Income, TransactionScope.Business, day);
+            // Şahsi nakit gelir ve banka hesabına gelir satış listesine girmez.
+            var personalIncome = new BudgetTransaction(
+                Guid.NewGuid(), owner.Id, till, sales, new Money(70m, CurrencyCode.TRY),
+                TransactionType.Income, TransactionScope.Personal, day);
+            var bankIncome = new BudgetTransaction(
+                Guid.NewGuid(), owner.Id, bank, sales, new Money(90m, CurrencyCode.TRY),
+                TransactionType.Income, TransactionScope.Business, day);
+            var manualPosSale = new PosSettlement(
+                Guid.NewGuid(), owner.Id, bank, sales, new Money(800m, CurrencyCode.TRY), 16m,
+                TransactionScope.Business, day, day.AddDays(1), now, commission, null, pos);
+            var collection = new CounterpartyPayment(
+                Guid.NewGuid(), owner.Id, customer, till, DebtDirection.Receivable,
+                new Money(300m, CurrencyCode.TRY), day);
+
+            var income = new BudgetTransaction(
+                Guid.NewGuid(), owner.Id, till, sales, new Money(2100m, CurrencyCode.TRY),
+                TransactionType.Income, TransactionScope.Business, day, dayCloseId: closeId);
+            var settlement = new PosSettlement(
+                Guid.NewGuid(), owner.Id, bank, sales, new Money(1880m, CurrencyCode.TRY), 37.6m,
+                TransactionScope.Business, day, day.AddDays(1), now, commission, null, pos,
+                closeId);
+            var close = DayClose.Record(
+                closeId, owner.Id, day, now, [income], [settlement], zNumber: 3143);
+
+            seed.AddRange(
+                till, bank, personalTill, sales, commission, pos, customer, manualSale,
+                personalIncome, bankIncome, manualPosSale, collection, close, income, settlement);
+            await seed.SaveChangesAsync();
+            manualSaleId = manualSale.Id;
+            manualPosSaleId = manualPosSale.Id;
+            collectionId = collection.Id;
+            incomeId = income.Id;
+            settlementId = settlement.Id;
+        }
+
+        // Aynı güne ikinci gün sonu ve aynı Z numarası SQL'de reddedilir.
+        await using (var second = database.CreateContext())
+        {
+            second.Add(DayClose.Record(Guid.NewGuid(), owner.Id, day, now, [], []));
+            await Assert.ThrowsAsync<DbUpdateException>(() => second.SaveChangesAsync());
+        }
+
+        await using (var sameZ = database.CreateContext())
+        {
+            sameZ.Add(DayClose.Record(
+                Guid.NewGuid(), owner.Id, day.AddDays(-1), now, [], [], zNumber: 3143));
+            await Assert.ThrowsAsync<DbUpdateException>(() => sameZ.SaveChangesAsync());
+        }
+
+        // Açıkça "ek" gün sonu ve başka kullanıcının aynı günü yazılabilir.
+        await using (var allowed = database.CreateContext())
+        {
+            allowed.Add(DayClose.Record(
+                Guid.NewGuid(), owner.Id, day, now, [], [], isAdditional: true));
+            allowed.Add(DayClose.Record(
+                Guid.NewGuid(), stranger.Id, day, now, [], [], zNumber: 3143));
+            await allowed.SaveChangesAsync();
+        }
+
+        // Var olmayan bir gün sonuna bağlı kayıt yazılamaz.
+        await using (var dangling = database.CreateContext())
+        {
+            dangling.Add(new BudgetTransaction(
+                Guid.NewGuid(), owner.Id, till, sales, new Money(10m, CurrencyCode.TRY),
+                TransactionType.Income, TransactionScope.Business, day,
+                dayCloseId: Guid.NewGuid()));
+            await Assert.ThrowsAsync<DbUpdateException>(() => dangling.SaveChangesAsync());
+        }
+
+        await using var provider = CreateServiceProvider(database.ConnectionString);
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var repository = scope.ServiceProvider.GetRequiredService<IDayCloseRepository>();
+
+            // Zaten girilmiş kayıtlar: işletme nakit satışı ve POS tahsilatı
+            // işaretli, nakit cari tahsilat işaretsiz; gün sonunun kendi
+            // kayıtları, şahsi gelir ve banka geliri listede yok.
+            var existing = await repository.ListExistingRecordsAsync(
+                owner.Id, day, day, CancellationToken.None);
+            Assert.False(await scope.ServiceProvider.GetRequiredService<IDayCloseCountReader>()
+                .IsCountedAsync(
+                    owner.Id, DayCloseRecordKind.Income, manualSaleId, CancellationToken.None));
+            Assert.Equal(
+                new[] { manualSaleId, manualPosSaleId, collectionId }.Order(),
+                existing.Select(record => record.Id).Order());
+            Assert.True(existing.Single(record => record.Id == manualSaleId).IncludedByDefault);
+            Assert.Equal(
+                pos.Id, existing.Single(record => record.Id == manualPosSaleId).PosDefinitionId);
+            var listedCollection = existing.Single(record => record.Id == collectionId);
+            Assert.False(listedCollection.IncludedByDefault);
+            Assert.Equal("Sentetik müşteri", listedCollection.Title);
+
+            // Gün sonu elle girilmiş satışı sayar: kayıt listeden düşer, gün
+            // sonunun okumasına girer ve akış satırı gün sonunu gösterir. Aynı
+            // kaydı ikinci bir gün sonu sayamaz (tekil indeks).
+            await using (var count = database.CreateContext())
+            {
+                var close = await count.DayCloses.SingleAsync(item => item.Id == closeId);
+                count.Add(new DayCloseCountedRecord(
+                    close, DayCloseRecordKind.Income, manualSaleId));
+                await count.SaveChangesAsync();
+            }
+
+            await using (var twice = database.CreateContext())
+            {
+                var other = await twice.DayCloses.SingleAsync(
+                    item => item.UserId == owner.Id && item.IsAdditional);
+                twice.Add(new DayCloseCountedRecord(
+                    other, DayCloseRecordKind.Income, manualSaleId));
+                await Assert.ThrowsAsync<DbUpdateException>(() => twice.SaveChangesAsync());
+            }
+
+            Assert.True(await scope.ServiceProvider.GetRequiredService<IDayCloseCountReader>()
+                .IsCountedAsync(
+                    owner.Id, DayCloseRecordKind.Income, manualSaleId, CancellationToken.None));
+            Assert.False(await scope.ServiceProvider.GetRequiredService<IDayCloseCountReader>()
+                .IsCountedAsync(
+                    stranger.Id, DayCloseRecordKind.Income, manualSaleId, CancellationToken.None));
+            var afterCount = await repository.ListExistingRecordsAsync(
+                owner.Id, day, day, CancellationToken.None);
+            Assert.DoesNotContain(afterCount, record => record.Id == manualSaleId);
+
+            var read = await repository.GetAsync(closeId, owner.Id, CancellationToken.None);
+            Assert.Equal(manualSaleId, Assert.Single(read!.CountedRecords).Id);
+            Assert.Equal(1250m, read.CountedCashAmount);
+            Assert.Equal(0m, read.CountedCardAmount);
+            Assert.Equal(2100m, read!.CashAmount);
+            Assert.Equal(1880m, read.CardGrossAmount);
+            Assert.Equal(37.6m, read.CommissionAmount);
+            Assert.Equal(incomeId, Assert.Single(read.Incomes).TransactionId);
+            Assert.Equal(closeId, Assert.Single(read.Settlements).DayCloseId);
+            Assert.Null(await repository.GetAsync(closeId, stranger.Id, CancellationToken.None));
+
+            var covering = await repository.ListCoveringAsync(
+                owner.Id, day, day, CancellationToken.None);
+            Assert.Equal(2, covering.Count);
+            Assert.True(await repository.ZNumberExistsAsync(owner.Id, 3143, CancellationToken.None));
+            Assert.False(await repository.ZNumberExistsAsync(owner.Id, 3144, CancellationToken.None));
+
+            // Son gün sonunun kasası ve kategorisi seçili gelir; şahsi etiketli
+            // nakit hesap aday değildir.
+            var defaults = await repository.GetDefaultsAsync(owner.Id, CancellationToken.None);
+            Assert.Equal(till.Id, defaults.LastCashAccountId);
+            Assert.Equal(sales.Id, defaults.LastCashCategoryId);
+            Assert.Equal([till.Id], defaults.CashAccountIds);
+
+            // Akış: ürettiği gelir ve POS satışı kendi satırlarıdır ve kökenleri
+            // gün sonudur; gün sonunun ayrı bir satırı yoktur (İ3).
+            var feed = scope.ServiceProvider.GetRequiredService<IFinancialActivityRepository>();
+            var page = await feed.ListAsync(owner.Id, AllActivities(), CancellationToken.None);
+            var byId = page.Items.ToDictionary(item => item.ActivityId);
+            Assert.Equal(7, page.TotalCount);
+            Assert.Equal(FinancialActivityOrigin.DayClose, byId[incomeId].Origin);
+            Assert.Equal(FinancialActivityOrigin.DayClose, byId[settlementId].Origin);
+            Assert.Equal(FinancialActivityOrigin.Manual, byId[manualSaleId].Origin);
+            Assert.Equal(FinancialActivityOrigin.Manual, byId[manualPosSaleId].Origin);
+            // Satır gün sonunun kimliğini taşır: yazılan ve sayılan kayıtta.
+            Assert.Equal(closeId, byId[incomeId].DayCloseId);
+            Assert.Equal(closeId, byId[settlementId].DayCloseId);
+            Assert.Equal(closeId, byId[manualSaleId].DayCloseId);
+            Assert.Null(byId[manualPosSaleId].DayCloseId);
+            Assert.Null(byId[collectionId].DayCloseId);
+            var origins = scope.ServiceProvider.GetRequiredService<IActivityOriginReader>();
+            Assert.Equal(
+                FinancialActivityOrigin.DayClose,
+                await origins.GetTransactionOriginAsync(owner.Id, incomeId, CancellationToken.None));
+        }
+
+        // Geri alma: kayıtlar iptal olur, gün ve Z numarası yeniden açılır.
+        await using (var revert = database.CreateContext())
+        {
+            var close = await revert.DayCloses.SingleAsync(item => item.Id == closeId);
+            var incomes = await revert.Transactions
+                .Where(item => item.DayCloseId == closeId).ToArrayAsync();
+            var settlements = await revert.PosSettlements
+                .Where(item => item.DayCloseId == closeId).ToArrayAsync();
+            close.Revert(incomes, settlements, now.AddHours(1));
+            revert.RemoveRange(await revert.DayCloseCountedRecords
+                .Where(item => item.DayCloseId == closeId).ToArrayAsync());
+            revert.Add(DayClose.Record(Guid.NewGuid(), owner.Id, day, now, [], [], zNumber: 3143));
+            await revert.SaveChangesAsync();
+        }
+
+        await using (var read = database.CreateContext())
+        {
+            Assert.True((await read.Transactions.SingleAsync(item => item.Id == incomeId)).IsCancelled);
+            Assert.True(
+                (await read.PosSettlements.SingleAsync(item => item.Id == settlementId)).IsCancelled);
+            // Geri alınan, "ek" olan ve günü yeniden kapatan gün sonu.
+            Assert.Equal(3, await read.DayCloses.CountAsync(item => item.UserId == owner.Id));
+        }
+
+        // Hesap silme gün sonlarını da götürür; kayıtlarla bağı sırayı bozmaz.
+        await using (var erase = database.CreateContext())
+        {
+            await new EfUserAccountEraser(erase, new RecordingAttachmentObjectStore())
+                .EraseAsync(owner.Id, CancellationToken.None);
+        }
+
+        await using var afterErase = database.CreateContext();
+        Assert.Empty(await afterErase.DayCloses.Where(x => x.UserId == owner.Id).ToArrayAsync());
+        Assert.Empty(await afterErase.Transactions.Where(x => x.UserId == owner.Id).ToArrayAsync());
+        Assert.Single(await afterErase.DayCloses.Where(x => x.UserId == stranger.Id).ToArrayAsync());
     }
 
     /// <summary>

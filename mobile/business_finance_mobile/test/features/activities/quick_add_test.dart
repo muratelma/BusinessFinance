@@ -4,6 +4,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
+import 'package:business_finance_mobile/core/models/transaction_scope.dart';
+import 'package:business_finance_mobile/core/presentation/scope_controller.dart';
 import 'package:business_finance_mobile/core/network/api_exception.dart';
 import 'package:business_finance_mobile/core/presentation/financial_data_changes.dart';
 import 'package:business_finance_mobile/features/activities/presentation/quick_add_controller.dart';
@@ -17,6 +20,29 @@ import 'package:business_finance_mobile/features/transactions/data/transaction_r
 
 import '../../helpers/accessibility.dart';
 
+/// Kişisel profilde menüde duran satırlar: `Gün sonu` dışındaki her şey.
+final _personalOptions = [
+  for (final option in QuickAddOption.values)
+    if (option != QuickAddOption.dayClose) option,
+];
+
+class _BusinessStore implements ScopeStore {
+  @override
+  Future<TransactionScope?> readScope() async => null;
+
+  @override
+  Future<void> writeScope(TransactionScope? value) async {}
+
+  @override
+  Future<bool?> readHasBusiness() async => true;
+
+  @override
+  Future<void> writeHasBusiness(bool value) async {}
+
+  @override
+  Future<void> clear() async {}
+}
+
 void main() {
   group('launcher', () {
     testWidgets('offers every way to record a movement', (tester) async {
@@ -28,9 +54,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      for (final option in QuickAddOption.values) {
+      for (final option in _personalOptions) {
         expect(find.text(option.label), findsOneWidget);
       }
+      // Gün sonu işletme profilinin satırıdır.
+      expect(find.text('Gün sonu'), findsNothing);
       // Setting something up is not recording money moving today, so account
       // and card creation, CSV import and plans stay on their own screens.
       expect(find.text('Hesap ekle'), findsNothing);
@@ -152,6 +180,34 @@ void main() {
     });
 
     // Aşama 04'ün ölçütü: dokuz satır telefonda **kaydırmadan** okunabilmeli.
+    // İşletme profilinde esnaf satışı günün toplamıyla girer: `POS tahsilatı`
+    // satırının yerini `Gün sonu` alır (ADR 0019 T1). Tek POS tahsilatı
+    // Kasa'dan girilmeye devam eder.
+    testWidgets('işletme profilinde POS tahsilatının yerinde Gün sonu durur', (
+      tester,
+    ) async {
+      final scope = ScopeController(
+        store: _BusinessStore(),
+        readHasBusiness: () async => true,
+      );
+      await scope.ensureLoaded();
+      await tester.pumpWidget(
+        ChangeNotifierProvider<ScopeController>.value(
+          value: scope,
+          child: MaterialApp(
+            theme: AppTheme.light(),
+            home: Scaffold(body: QuickAddLauncher()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Gün sonu'), findsOneWidget);
+      expect(find.text('Günün nakit ve kartlı satışı'), findsOneWidget);
+      expect(find.text('POS tahsilatı'), findsNothing);
+      await expectMeetsAccessibility(tester);
+    });
+
     // Düz listede açıklamalar her satırda duruyordu ve son satırlar ekranın
     // altında kalıyordu; başlıklara geçerken açıklamalar yalnız yanlış
     // anlaşılabilecek satırlarda bırakıldı.
@@ -168,7 +224,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      for (final option in QuickAddOption.values) {
+      for (final option in _personalOptions) {
         expect(
           find.text(option.label).hitTestable(),
           findsOneWidget,

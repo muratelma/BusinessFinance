@@ -108,7 +108,8 @@ internal sealed class EfPosSettlementRepository(
                         row.settlement.ExpectedTransferDate < asOfDate,
                     row.settlement.PosDefinitionId,
                     row.DefinitionName,
-                    row.settlement.PosDepositId))
+                    row.settlement.PosDepositId,
+                    row.settlement.DayCloseId))
                 .ToArray(),
             transit?.Amount ?? 0m,
             transit?.Count ?? 0);

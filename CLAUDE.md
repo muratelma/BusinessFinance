@@ -295,6 +295,33 @@ gerekçesiyle bozulmaz.
   uçları ve `pos-transfer` akış türü kalktı. Önizleme (beklenen, kesinti,
   dolu gelecek kategori) sunucudandır: `GET /api/v1/pos-deposits/preview`.
 
+- **Gün sonu var olan kayıtları üretir; kimliği tutar taşımaz** (ADR 0019 T1–T2;
+  Aşama 06.3 Grup 5, ikinci teslim). Nakit satış kasaya bir `BudgetTransaction`,
+  her POS'un kartlı satışı bir `PosSettlement` olur; ikisi `DayClose`'a nullable
+  `DayCloseId` ile bağlanır. `DayClose` **tutar, not ve durum taşımaz** (gün,
+  isteğe bağlı aralık ve Z no, "ek" işareti, geri alma damgası); rapor, net,
+  bütçe, bakiye ve akış onu okumaz — ADR 0019'un reddettiği `DailyClose` bir
+  ikinci kaynaktı, bu değil (kullanıcı kararı, 4 Ekim 2026). Hesap tek yerdedir
+  (`DayClosePlan`): önizleme (`POST /api/v1/day-closes/preview`) ve kayıt aynı
+  planı kurar; istemci hiçbir tutarı hesaplamaz. Yazılan = girilen − işaretli
+  "zaten girilmiş" kayıtlar; istek yalnız **değişen** işaretleri taşır. Nakit
+  tarafına yalnız nakit hesaba yazılmış **İşletme** gelirleri girer. Nakit,
+  kart ve toplamdan ikisi yeter; yalnız biri verilirse öbür tarafa dokunulmaz.
+  Hiç kayıt üretmeyen gün sonu meşrudur ve günü kapatır. Gün başına tek gün
+  sonu; ikincisi yalnız açıkça `isAdditional`. Geri alma bir bütündür; ürettiği
+  kayıt tek başına iptal edilemez (`origin: day-close`,
+  `pos_settlements.day_close_locked`), tahsilatı yatışa bağlıysa önce yatış
+  geri alınır (`day_closes.deposit_locked`). **Gün sonu düştüğü kayıtları
+  sahiplenir** (`DayCloseCountedRecords`; tutarsız bağ): sayılan kayıt yeniden
+  listelenmez ve tek başına iptal edilemez (`*.day_close_counted`), geri almada
+  serbest kalır. Ana gün sonu, eki dururken geri alınamaz. **Ekran günü
+  gösterir, tek gün sonunu değil** (`GET /api/v1/day-closes/day?date=`): ana
+  ve ekler, yazdıkları, saydıkları, dışarıda kalanlar ve günün toplamı
+  (yazılan + sayılan; sunucudan). Akış satırı `dayCloseId` taşır ve bağlı
+  kayıtta `canCancel` `false`'tur. **Akışta gün sonunun satırı yoktur.**
+  Arayüzde `Gün sonu` satış girişidir; çekmecenin sayılması `Kasa sayımı`dır.
+  Ekranı `lib/features/day_close/`.
+
 - **İşlemler'de bir kaydın parçası ayrı satır olmaz** (kullanıcı kararı,
   2 Ekim 2026). POS komisyonu satışın, kesinti yatışın **parçasıdır**: gider
   olarak tanınır ve raporda sayılır, ama akışta bağlı olduğu satırın alanıdır

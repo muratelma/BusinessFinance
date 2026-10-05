@@ -54,6 +54,21 @@ public static class PosSettlementErrors
         "A deposited pos settlement cannot be cancelled; revert the deposit first.",
         ApplicationErrorType.Conflict);
 
+    /// <summary>
+    /// Gün sonunun ürettiği tahsilat tek başına iptal edilemez; gün sonu bir
+    /// bütün olarak geri alınır (ADR 0019 T1).
+    /// </summary>
+    public static readonly ApplicationError DayCloseLocked = new(
+        "pos_settlements.day_close_locked",
+        "A pos settlement produced by a day close cannot be cancelled; revert the day close.",
+        ApplicationErrorType.Conflict);
+
+    /// <summary>Tahsilat bir gün sonunda sayıldı; önce gün sonu geri alınır.</summary>
+    public static readonly ApplicationError DayCloseCounted = new(
+        "pos_settlements.day_close_counted",
+        "A pos settlement counted in a day close cannot be cancelled; revert the day close first.",
+        ApplicationErrorType.Conflict);
+
     public static ApplicationError NotFound(Guid id) => new(
         "pos_settlements.not_found",
         $"Pos settlement '{id}' was not found.",

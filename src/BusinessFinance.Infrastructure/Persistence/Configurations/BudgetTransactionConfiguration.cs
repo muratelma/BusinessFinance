@@ -55,6 +55,19 @@ internal sealed class BudgetTransactionConfiguration : IEntityTypeConfiguration<
         })
             .HasDatabaseName("IX_BudgetTransactions_UserId_CategoryId_TransactionDate");
 
+        // Gün sonunun ürettiği gelirler; birleşik akıştaki köken ve "zaten
+        // girilmiş kayıtlar" okuması bu indeksten gider.
+        builder.HasIndex(transaction => new { transaction.UserId, transaction.DayCloseId })
+            .HasFilter("[DayCloseId] IS NOT NULL")
+            .HasDatabaseName("IX_BudgetTransactions_UserId_DayCloseId");
+
+        // Elle girilen kayıtta boştur (ADR 0019 T1).
+        builder.HasOne<DayClose>()
+            .WithMany()
+            .HasForeignKey(transaction => new { transaction.UserId, transaction.DayCloseId })
+            .HasPrincipalKey(dayClose => new { dayClose.UserId, dayClose.Id })
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired(false);
         builder.HasOne<ApplicationUser>()
             .WithMany()
             .HasForeignKey(transaction => transaction.UserId)

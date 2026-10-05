@@ -479,6 +479,15 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
             return FinancialActivityOrigin.Recurring;
         }
 
+        if (await dbContext.Transactions.AsNoTracking().AnyAsync(
+                transaction => transaction.UserId == userId &&
+                               transaction.Id == transactionId &&
+                               transaction.DayCloseId != null,
+                cancellationToken))
+        {
+            return FinancialActivityOrigin.DayClose;
+        }
+
         // Geri alınmış yatışın gideri de yatışa aittir: kökeni değişmez,
         // zaten iptal edilmiştir.
         return await dbContext.PosDeposits.AsNoTracking().AnyAsync(
@@ -574,7 +583,9 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                         occurrence.UserId == userId &&
                         occurrence.BudgetTransactionId == transaction.Id)
                         ? (int)FinancialActivityOrigin.Recurring
-                        : (int)FinancialActivityOrigin.Manual,
+                        : transaction.DayCloseId != null
+                            ? (int)FinancialActivityOrigin.DayClose
+                            : (int)FinancialActivityOrigin.Manual,
                 Status = transaction.IsCancelled
                     ? (int)FinancialActivityStatus.Cancelled
                     : (int)FinancialActivityStatus.Realized,
@@ -604,6 +615,13 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
                 SettlementCount = (int?)null,
+                // Gün sonunun yazdığı ya da saydığı kayıt.
+                DayCloseId = transaction.DayCloseId ?? dbContext.DayCloseCountedRecords
+                        .Where(counted => counted.UserId == userId &&
+                                          counted.Kind == DayCloseRecordKind.Income &&
+                                          counted.RecordId == transaction.Id)
+                        .Select(counted => (Guid?)counted.DayCloseId)
+                        .FirstOrDefault(),
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
@@ -655,6 +673,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
                 SettlementCount = (int?)null,
+                DayCloseId = (Guid?)null,
                 MatchAccountId = source.Id,
                 MatchSecondAccountId = destination.Id,
                 MatchCreditCardId = null,
@@ -711,6 +730,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
                 SettlementCount = (int?)null,
+                DayCloseId = (Guid?)null,
                 MatchAccountId = null,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = card.Id,
@@ -762,6 +782,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
                 SettlementCount = (int?)null,
+                DayCloseId = (Guid?)null,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = card.Id,
@@ -824,6 +845,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
                 SettlementCount = (int?)null,
+                DayCloseId = (Guid?)null,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
@@ -880,6 +902,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
                 SettlementCount = (int?)null,
+                DayCloseId = (Guid?)null,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
@@ -937,6 +960,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
                 SettlementCount = (int?)null,
+                DayCloseId = (Guid?)null,
                 MatchAccountId = null,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
@@ -997,6 +1021,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)charge.Direction,
                 SettlementCount = (int?)null,
+                DayCloseId = (Guid?)null,
                 MatchAccountId = null,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
@@ -1048,6 +1073,12 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)payment.Direction,
                 SettlementCount = (int?)null,
+                DayCloseId = dbContext.DayCloseCountedRecords
+                        .Where(counted => counted.UserId == userId &&
+                                          counted.Kind == DayCloseRecordKind.CounterpartyPayment &&
+                                          counted.RecordId == payment.Id)
+                        .Select(counted => (Guid?)counted.DayCloseId)
+                        .FirstOrDefault(),
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
@@ -1102,6 +1133,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)obligation.Direction,
                 SettlementCount = (int?)null,
+                DayCloseId = (Guid?)null,
                 MatchAccountId = null,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
@@ -1163,6 +1195,12 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)settlement.Direction,
                 SettlementCount = (int?)null,
+                DayCloseId = dbContext.DayCloseCountedRecords
+                        .Where(counted => counted.UserId == userId &&
+                                          counted.Kind == DayCloseRecordKind.ObligationSettlement &&
+                                          counted.RecordId == settlement.Id)
+                        .Select(counted => (Guid?)counted.DayCloseId)
+                        .FirstOrDefault(),
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
@@ -1194,7 +1232,9 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 ActivityKind = (int)FinancialActivityKind.PosSale,
                 Effect = (int)FinancialActivityEffect.Income,
                 SourceGroup = (int)FinancialActivitySourceGroup.Pos,
-                Origin = (int)FinancialActivityOrigin.Manual,
+                Origin = settlement.DayCloseId != null
+                    ? (int)FinancialActivityOrigin.DayClose
+                    : (int)FinancialActivityOrigin.Manual,
                 Status = settlement.IsCancelled
                     ? (int)FinancialActivityStatus.Cancelled
                     : (int)FinancialActivityStatus.Realized,
@@ -1226,6 +1266,12 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 TransferredOn = settlement.TransferredOn,
                 Direction = (int?)null,
                 SettlementCount = (int?)null,
+                DayCloseId = settlement.DayCloseId ?? dbContext.DayCloseCountedRecords
+                        .Where(counted => counted.UserId == userId &&
+                                          counted.Kind == DayCloseRecordKind.PosSettlement &&
+                                          counted.RecordId == settlement.Id)
+                        .Select(counted => (Guid?)counted.DayCloseId)
+                        .FirstOrDefault(),
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = (Guid?)null,
                 MatchCreditCardId = (Guid?)null,
@@ -1294,6 +1340,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Direction = (int?)null,
                 SettlementCount = (int?)dbContext.PosSettlements.Count(closed =>
                     closed.UserId == userId && closed.PosDepositId == deposit.Id),
+                DayCloseId = (Guid?)null,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = (Guid?)null,
                 MatchCreditCardId = (Guid?)null,
@@ -1443,7 +1490,8 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
         row.ExpectedTransferDate,
         row.TransferredOn,
         row.SettlementCount,
-        row.Direction is int direction ? (DebtDirection)direction : null);
+        row.Direction is int direction ? (DebtDirection)direction : null,
+        row.DayCloseId);
 
     /// <summary>
     /// The shared UNION ALL shape. Enums are carried as int so every branch produces the
@@ -1494,6 +1542,9 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
         public DateOnly? TransferredOn { get; init; }
         public int? SettlementCount { get; init; }
         public int? Direction { get; init; }
+
+        /// <summary>Kaydı yazan ya da sayan gün sonu; yoksa <c>null</c>.</summary>
+        public Guid? DayCloseId { get; init; }
         public Guid? MatchAccountId { get; init; }
 
         /// <summary>

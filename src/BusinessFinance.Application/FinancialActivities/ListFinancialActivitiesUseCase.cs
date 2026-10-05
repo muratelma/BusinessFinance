@@ -59,6 +59,9 @@ public sealed class ListFinancialActivitiesUseCase(
 
     internal static FinancialActivityDto ToDto(FinancialActivityRow row) => new(
         row,
-        FinancialActivityCapabilities.CanCancel(row.ActivityKind, row.Origin, row.Status),
+        // Bir gün sonuna bağlı kayıt (yazdığı ya da saydığı) tek başına iptal
+        // edilemez; iptal uçları aynı kuralı uygular.
+        FinancialActivityCapabilities.CanCancel(row.ActivityKind, row.Origin, row.Status) &&
+            row.DayCloseId is null,
         FinancialActivityCapabilities.SupportsAttachments(row.ActivityKind));
 }

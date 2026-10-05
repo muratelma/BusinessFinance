@@ -252,6 +252,25 @@ kullanıcının yatışına tahsilat bağlanamaz. Kimlik taşıyan iki uç ve ö
 `OwnershipIsolationTests` prob tablosundadır; gövdeyle çalışan `POST`
 `PosDepositEndpointTests` içinde ölçülür.
 
+Gün sonunun beş ucu (Aşama 06.3 Grup 5) aynı sınırı taşır.
+`POST /api/v1/day-closes` ve `POST /api/v1/day-closes/preview` POS, kasa ve
+kategori kimliklerini gövdede alır; hepsi yalnız current user'ın satırları
+arasından çözülür. Başkasının POS'u ile var olmayan POS aynı
+`404 day_closes.pos_unavailable`, başkasının kasası ile var olmayan kasa aynı
+`404 day_closes.cash_account_unavailable` cevabını alır. "Zaten girilmiş
+kayıtlar" listesi ve "bu gün kapatıldı" bilgisi yalnız o kullanıcının
+kayıtlarından kurulur; başka kullanıcının aynı günü kapatmış olması görünmez.
+`GET /api/v1/day-closes?from=&to=` ve `GET /api/v1/day-closes/day?date=`
+yalnız current user'ın gün sonlarını ve kayıtlarını döner. Sayılan kaydın bağı
+(`DayCloseCountedRecords`) `UserId` taşır ve "sayıldı mı" okuması owner-scoped
+yapılır: başka kullanıcının bağı bir kaydı kilitleyemez.
+`GET` ve `DELETE /api/v1/day-closes/{id}` gün sonunu `(UserId, kayıt ID)` ile
+çözer. Sahiplik SQL'de de durur: gelir ve tahsilat gün sonuna `UserId` ile
+başlayan bileşik foreign key'le bağlanır; tekil indeksler `UserId` ile başlar,
+yani iki kullanıcı aynı günü ve aynı Z numarasını ayrı ayrı kapatabilir.
+Kimlik taşıyan iki uç ve liste `OwnershipIsolationTests` içindedir; gövdeyle
+çalışan iki `POST` `DayCloseEndpointTests` içinde ölçülür.
+
 `GET /api/v1/financial-activities/{activityKind}/{activityId}/balances` (işlem
 sonrası bakiye, 2 Ekim 2026) hareketi kendi tablosunda `(UserId, kayıt ID)` ile
 arar; başkasının hareketi, olmayan hareket ve türü tutmayan kimlik aynı `404`

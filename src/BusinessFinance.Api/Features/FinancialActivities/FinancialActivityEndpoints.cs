@@ -1,4 +1,4 @@
-﻿using BusinessFinance.Api.Contracts;
+using BusinessFinance.Api.Contracts;
 using BusinessFinance.Api.Errors;
 using BusinessFinance.Application.FinancialActivities;
 
@@ -322,7 +322,8 @@ public static class FinancialActivityEndpoints
                 BusinessFinance.Domain.DebtDirection.Receivable => "receivable",
                 BusinessFinance.Domain.DebtDirection.Payable => "payable",
                 _ => null
-            });
+            },
+            activity.DayCloseId);
     }
 
     private static bool TryParseOptionalDate(string? value, out DateOnly? date)
@@ -406,7 +407,8 @@ public static class FinancialActivityEndpoints
         [FinancialActivityOrigin.CsvImport] = "csv-import",
         [FinancialActivityOrigin.Recurring] = "recurring",
         [FinancialActivityOrigin.Installment] = "installment",
-        [FinancialActivityOrigin.PosDeposit] = "pos-deposit"
+        [FinancialActivityOrigin.PosDeposit] = "pos-deposit",
+        [FinancialActivityOrigin.DayClose] = "day-close"
     };
 
     internal static readonly Dictionary<ActivityBalanceHolder, string> BalanceHolderValues = new()

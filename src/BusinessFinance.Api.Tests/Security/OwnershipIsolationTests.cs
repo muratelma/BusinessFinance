@@ -15,6 +15,7 @@ using BusinessFinance.Api.Features.Debts;
 using BusinessFinance.Api.Features.Imports;
 using BusinessFinance.Api.Features.Obligations;
 using BusinessFinance.Api.Features.Pos;
+using BusinessFinance.Api.Features.DayCloses;
 using BusinessFinance.Api.Features.RecurringTransactions;
 using BusinessFinance.Api.Features.SavingsGoals;
 using BusinessFinance.Api.Features.Taxes;
@@ -159,6 +160,8 @@ public sealed class OwnershipIsolationTests
         "/api/v1/obligations",
         "/api/v1/pos-settlements",
         "/api/v1/pos-definitions",
+        "/api/v1/day-closes?from=2026-08-01&to=2026-08-31",
+        "/api/v1/day-closes/day?date=2026-08-27",
         $"/api/v1/cash-counts?accountId={f.AccountId}",
         $"/api/v1/cash-counts/today?accountId={f.AccountId}",
         "/api/v1/recurring-transactions",
@@ -208,6 +211,7 @@ public sealed class OwnershipIsolationTests
         ("POS tahsilatı", f.PosSettlementId),
         ("POS yatışı", f.PosDepositId),
         ("POS tanımı", f.PosDefinitionId),
+        ("gün sonu", f.DayCloseId),
         ("kasa sayımı", f.CashCountId),
         ("içe aktarma partisi", f.ImportBatchId),
         ("oturum", f.SessionId)
@@ -430,6 +434,13 @@ public sealed class OwnershipIsolationTests
             $"/api/v1/pos-deposits/preview?settlementIds={GhostId}",
             null);
 
+        // Gün sonunu yazan POST ve önizleme kimliği gövdede taşır;
+        // `DayCloseEndpointTests` içinde ölçülür.
+        yield return Json("gün sonunu okuma", HttpMethod.Get,
+            "api/v1/day-closes/{id:guid}", null, f.DayCloseId);
+        yield return Json("gün sonunu geri alma", HttpMethod.Delete,
+            "api/v1/day-closes/{id:guid}", null, f.DayCloseId);
+
         yield return Json("POS tanımını güncelleme", HttpMethod.Put,
             "api/v1/pos-definitions/{id:guid}",
             new SavePosDefinitionRequest(
@@ -585,6 +596,7 @@ public sealed class OwnershipIsolationTests
         Guid PosSettlementId,
         Guid PosDepositId,
         Guid PosDefinitionId,
+        Guid DayCloseId,
         Guid CashCountId,
         Guid ImportBatchId,
         Guid ImportRowId,
@@ -598,7 +610,7 @@ public sealed class OwnershipIsolationTests
             GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId,
             GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId,
             GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId,
-            GhostId, GhostId, GhostId, GhostId, GhostId);
+            GhostId, GhostId, GhostId, GhostId, GhostId, GhostId);
     }
 
     private sealed record Probe(
@@ -773,6 +785,13 @@ public sealed class OwnershipIsolationTests
             new SavePosDefinitionRequest(
                 "Sentetik POS", secondAccount.Id, income.Id, "0.0150", 1, true, expense.Id));
 
+        // Gün sonu bir önceki güne yazılır: o gün tek tek girilmiş kayıt yok,
+        // düşülecek bir şey de yok.
+        var dayClose = await CreateAsync<DayCloseResponse>(owner, "/api/v1/day-closes",
+            new DayCloseRequest(
+                "2026-08-27", CashAmount: "10.0000", CashAccountId: account.Id,
+                CashCategoryId: income.Id, ClientRequestId: Guid.NewGuid()));
+
         var cashCount = await CreateAsync<CashCountResponse>(owner, "/api/v1/cash-counts",
             new CreateCashCountRequest(account.Id, "4000.0000", Today, "business"));
 
@@ -814,6 +833,7 @@ public sealed class OwnershipIsolationTests
             pos.Id,
             posDeposit.Id,
             posDefinition.Id,
+            dayClose.Id,
             cashCount.Id,
             batch.Id,
             batch.Rows[0].Id,

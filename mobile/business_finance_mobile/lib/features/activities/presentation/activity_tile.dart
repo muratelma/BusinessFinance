@@ -203,6 +203,8 @@ class ActivityTile extends StatelessWidget {
         : route;
     return [
       ?_categoryLabel,
+      // Kaydın bir gün sonuna ait olduğu satırda okunur.
+      if (activity.isWrittenByDayClose) 'Gün sonu',
       // Tek POS'un tahsilatlarını kapatan yatışta POS'un adı.
       if (activity.kind == ActivityKind.posDeposit) ?activity.channelName,
       // Başlık zaten bu adsa tekrar yazılmaz.

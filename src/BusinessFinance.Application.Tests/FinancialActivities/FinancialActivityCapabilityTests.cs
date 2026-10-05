@@ -51,6 +51,8 @@ public sealed class FinancialActivityCapabilityTests
     [Theory]
     [InlineData(FinancialActivityKind.PosDeposit, FinancialActivityOrigin.Manual)]
     [InlineData(FinancialActivityKind.AccountTransaction, FinancialActivityOrigin.PosDeposit)]
+    [InlineData(FinancialActivityKind.AccountTransaction, FinancialActivityOrigin.DayClose)]
+    [InlineData(FinancialActivityKind.PosSale, FinancialActivityOrigin.DayClose)]
     public void CanCancel_RejectsAPosDepositAndItsDeduction(
         FinancialActivityKind kind,
         FinancialActivityOrigin origin)

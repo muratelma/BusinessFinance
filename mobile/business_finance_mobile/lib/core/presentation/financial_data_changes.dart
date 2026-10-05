@@ -186,6 +186,20 @@ class FinancialDataChanges extends ChangeNotifier {
     cash: true,
   );
 
+  /// Gün sonu yazıldı ya da geri alındı (ADR 0019 T1): nakit satış kasaya
+  /// bir gelir, kartlı satış bir POS tahsilatı olur.
+  ///
+  /// Gelir kasayı değiştirir (`accounts`) ve ikisi de satış tanır (`budgets`,
+  /// `dashboard`, `feed`). Kart parası yolda kalır; Kasa'daki POS bölümü de
+  /// yenilenir (`cash`).
+  void dayCloseChanged() => _raise(
+    feed: true,
+    dashboard: true,
+    budgets: true,
+    accounts: true,
+    cash: true,
+  );
+
   /// POS tahsilatı iptal edildi: satış ve komisyon düşer (bütçe), yoldaki
   /// tutar kalkar.
   ///

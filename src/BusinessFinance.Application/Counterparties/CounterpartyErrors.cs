@@ -60,6 +60,12 @@ public static class CounterpartyErrors
         $"Counterparty charge '{id}' was not found.",
         ApplicationErrorType.NotFound);
 
+    /// <summary>Tahsilat bir gün sonunda sayıldı; önce gün sonu geri alınır.</summary>
+    public static readonly ApplicationError PaymentDayCloseCounted = new(
+        "counterparty_payments.day_close_counted",
+        "A payment counted in a day close cannot be cancelled; revert the day close first.",
+        ApplicationErrorType.Conflict);
+
     public static ApplicationError PaymentNotFound(Guid id) => new(
         "counterparty_payments.not_found",
         $"Counterparty payment '{id}' was not found.",

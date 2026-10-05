@@ -14,6 +14,13 @@ public sealed class BudgetTransaction
     public DateOnly TransactionDate { get; }
     public string? Description { get; }
 
+    /// <summary>
+    /// Kaydı üreten gün sonu (ADR 0019 T1); elle girilen kayıtta boştur.
+    /// Gün sonundan gelen kayıt tek başına değil, gün sonuyla birlikte geri
+    /// alınır.
+    /// </summary>
+    public Guid? DayCloseId { get; }
+
     public bool IsCancelled { get; private set; }
     public DateTimeOffset? CancelledAtUtc { get; private set; }
 
@@ -31,11 +38,22 @@ public sealed class BudgetTransaction
         TransactionType type,
         TransactionScope scope,
         DateOnly transactionDate,
-        string? description = null)
+        string? description = null,
+        Guid? dayCloseId = null)
     {
         if (id == Guid.Empty)
         {
             throw new ArgumentException("Transaction id cannot be empty.", nameof(id));
+        }
+
+        if (dayCloseId == Guid.Empty)
+        {
+            throw new ArgumentException("Day close id cannot be empty.", nameof(dayCloseId));
+        }
+
+        if (dayCloseId is not null && type != TransactionType.Income)
+        {
+            throw new InvalidOperationException("A day close produces income, never an expense.");
         }
 
         if (userId == Guid.Empty)
@@ -115,6 +133,7 @@ public sealed class BudgetTransaction
         Scope = scope;
         TransactionDate = transactionDate;
         Description = normalizedDescription;
+        DayCloseId = dayCloseId;
         IsCancelled = false;
     }
 

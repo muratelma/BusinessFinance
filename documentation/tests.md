@@ -1580,3 +1580,69 @@ atlandı), build 0 uyarı, format temiz; Flutter analyze temiz, 1000 test geçti
 | Yatış ayrıntısının açılışı | `pos_deposit_test` → `yatış ayrıntısı`, `activity_feed_page_test` | Özetle açılınca "yükleniyor" yok, panel hemen ve son boyutunda; `Yatışı geri al` yüklenene kadar kapalı; özetsiz açılışta bekleme kutusu ekranı kaplamaz; okuma hatası panelde yeniden denenir |
 | Depo ve model (Flutter) | `activity_pos_rows_test` → `depo ve model` | Yeni satır alanları okunur, yoksa boş; bakiye `tür/kimlik` yoluyla istenir ve para metin olarak kalır |
 | Ekran görüntüsü | `test/screenshots/islemler_pos_screenshot_test` | Yalnız `SCREENSHOT_DIR` ile: 1–2 Ekim listesi, satış ayrıntısı (geçmiş ve yolda), yatış ayrıntısı |
+
+## Aşama 06.3 Grup 5 — Gün sonu: backend (4 Ekim 2026)
+
+ADR 0019 T1–T2: gün sonu yeni bir kayıt türü değildir; nakit satış kasaya bir
+gelir, kartlı satış bir POS tahsilatı olur ve o gün zaten girilmiş kayıtlar
+düşülür. Gün sonunun kimliği (`DayClose`) tutar taşımaz. Kontroller: backend SQL
+dahil geçti (Domain 339, Application 331, Api 266, Infrastructure 222 + 2 canlı
+test atlandı), build 0 uyarı, format temiz. Flutter bu notta yok; ekranı ayrı
+yazılır.
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Kimlik tutar taşımaz, kayıtlar sıradan | `DayCloseTests`, `MigrationHistoryTests.AddDayCloses_*` | Gün sonu gelir ve tahsilatı kimliğiyle bağlar; kendi tablosunda `decimal` kolon yoktur; hiç kayıt üretmeyen gün sonu günü kapatır; gider bir gün sonuna bağlanamaz |
+| Yalnız kendi kayıtları | `DayCloseTests` | Başka gün sonunun, elle girilmiş, başka günün ya da iptal edilmiş kaydı reddedilir; gelecek gün, ters aralık ve sıfır Z no reddedilir |
+| Zaten girilmiş kayıtlar düşülür | `DayCloseEndpointTests.DayClose_WritesTheRemainder_*` | Nakit 3.350 − girilmiş 1.250 = 2.100 gelir; kart 2.680 − girilmiş 800 = 1.880 tahsilat (komisyon POS'un oranıyla); günün geliri tam olarak Z'nin toplamı; satış ve POS işaretli, nakit cari tahsilat işaretsiz gelir; önizleme ile kayıt aynı sayıları söyler ve önizleme hiçbir şey yazmaz |
+| Üç alandan ikisi | `DayCloseEndpointTests.TwoOfCashCardAndTotal_AreEnough` | Kart toplamdan hesaplanıp ana POS'a yazılır; nakit toplamdan hesaplanır; yalnız nakitte kart tarafına dokunulmaz; yalnız toplam `amounts_required`; toplam parçadan küçükse `total_below_parts`; üçü de verilip tutmuyorsa fark döner ve kayıt yazılır |
+| Her şeyi girilmiş gün ve ek gün sonu | `DayCloseEndpointTests.ADayWithEverythingAlreadyEntered_*` | Yazılacak tutar sıfırken gün kayıt üretmeden kapanır; aynı güne ikinci gün sonu `409 already_closed`; `isAdditional` ile yazılır ve kayıtlar işaretsiz gelir; kapatılmamış güne ek gün sonu `not_closed_yet` |
+| İşaretli kayıtlar tutarı aşamaz | `DayCloseEndpointTests.RecordsExceedingTheDayClose_*` | `existing_exceeds_cash` ve `existing_exceeds_card`; reddedilen istek hiçbir şey yazmaz; işaret kaldırılınca (ve cari tahsilat işaretlenince) yazılır |
+| Geri alma bir bütündür | `DayCloseTests`, `DayCloseEndpointTests.RevertedDayClose_*` | Gelir ve tahsilat birlikte iptal olur, gün yeniden açılır, kayıt ne yazdığını hatırlar; idempotent; ürettiği tahsilat yatışa bağlıysa `409 day_closes.deposit_locked` ve hiçbir şey değişmez; yatış geri alınınca çalışır |
+| Köken kilidi | `DayCloseEndpointTests`, `FinancialActivityCapabilityTests` | Akışta iki satırın kökeni `day-close`, `canCancel:false`; gün sonunun ayrı satırı yok; gelirin doğrudan iptali `409 transactions.cancel_origin_locked`, tahsilatın `409 pos_settlements.day_close_locked` |
+| İdempotent istek | `DayCloseEndpointTests.DayClose_IsIdempotentPerClientRequest` | Aynı `clientRequestId` ikinci gün sonu ya da kayıt yazmaz; kimliksiz kayıt reddedilir |
+| Z no ve aralık | `DayCloseEndpointTests.ZNumberAndRange_*` | Aralığın ortasındaki gün kapalıdır; aynı Z no ikinci kez `409 z_number_exists`; toplam aralığın son gününe yazılır; geçersiz gün, Z no ve eksi tutar reddedilir |
+| Sahiplik | `OwnershipIsolationTests`, `DayCloseEndpointTests.AnotherUsersDayCloses_*` | Okuma ve geri alma prob tablosunda, liste okuma yollarında; başkasının POS'u ve kasası olmayanla aynı `404`'ü verir; yabancı sahibin gününü kapalı görmez, kayıtlarını listede görmez |
+| Migration biçimi | `MigrationHistoryTests.AddDayCloses_LinksExistingTablesWithNullableColumnsAndCarriesNoAmount` | Zincirde; iki tabloya nullable, varsayılansız kolon; backfill yok; hiçbir kolon ya da tablo düşmez; bağ kolonlardan ve tablodan sonra |
+| SQL kapıları | `SqlServerPersistenceIntegrationTests.DayClose_LinksItsRecordsAndSqlAllowsOneClosePerDayAndZNumber` | Aynı güne ikinci gün sonu ve aynı Z no SQL'de reddedilir; "ek" gün sonu ve başka kullanıcının aynı günü yazılır; var olmayan gün sonuna bağlı kayıt yazılamaz; "zaten girilmiş" okuması SQL'de çalışır ve şahsi nakit geliri, banka gelirini ve gün sonunun kendi kayıtlarını dışarıda bırakır; akış kökeni; geri alınca gün ve Z no yeniden açılır; hesap silme gün sonlarını götürür |
+| Yedek | `DataPortabilityTests.BackupV11_RoundTripsDayClosesWithTheirRecords`, `Backup_TamperedDayCloseIsRejectedAndWritesNothing` | Kayıt üretmiş, geri alınmış ve kayıtsız (aralıklı, Z no'lu) gün sonu gidiş-dönüşte kayıpsız; kimlikler yenilenir; elle girilmiş gelir bağlanmaz; var olmayan gün sonuna bağlı kayıt ve kayıtları canlı kalmış geri alınmış gün sonu reddedilir, hiçbir şey yazılmaz |
+## Aşama 06.3 Grup 5 — Gün sonu: Flutter (4 Ekim 2026)
+
+Panel, gün sonu ayrıntısı, Kasa kartı ve iki kapı. Kontroller: analyze temiz,
+format temiz, 1028 test geçti (52 ekran görüntüsü testi atlandı), debug APK
+derlendi.
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Depo ve modeller | `day_close_test` → `depo` | Önizleme gövdeyle gider, yalnız yazılan alanları ve değişen işaretleri taşır, istek kimliği taşımaz; kayıt istek kimliğiyle yazılır; liste ve geri alma; para JSON sayısı olarak gelirse reddedilir |
+| Değişiklik bildirimi | `day_close_test` → `controller`, `financial_data_changes_test` | Kayıt ve geri alma akışı, özeti, bütçeyi, hesapları ve kasayı yeniler, kartları yenilemez; reddedilen kayıt hiçbir hedefi yükseltmez ve hata kodunu taşır; başka ekrandan gelen değişiklik "bugün"ü yeniden okutur |
+| Panel | `day_close_test` → `gün sonu paneli` | POS alanları ve kayıtlar sunucudan gelir; tutar yazılınca `Yazılacak` görünür; işaret değişince yalnız değişen kayıt gönderilir, varsayılana dönen gönderilmez; kaydet girdiyi gönderir ve kapanır; tutarsız kaydetme eksiği söyler; aşan kayıt alanın yanında söylenir ve yazılmaz; toplamdan hesaplanan kart alanın altında yazar; kapalı günde alanlar kilitli, `Ek gün sonu` açar; kasa seçilemediyse alanlar açılır; sunucu hatası panelde kalır; 2.0× yazıda taşma yok, erişilebilirlik kapısı |
+| Ayrıntı ve geri alma | `day_close_test` → `gün sonu ayrıntısı` | Tutarlar ve yazdığı kayıtlar; geri alma onaysız çalışmaz; hesaba geçmiş tahsilatta "Önce yatışı geri alın."; geri alınmış gün sonu eylem sunmaz; 2.0× yazı ve erişilebilirlik |
+| Kasa kartı ve kapılar | `day_close_test` → `Kasa kartı`, `cash_pos_feature_test` | Gün açıkken `Gün sonunu gir`, kapalıyken yazdığı ve `Ek gün sonu gir`; Kasa kartı paneli açar; menüden gelen panel vazgeçince geldiği ekrana döner; Kasa'da "Gün sonu sayımı" metni kalmadı |
+| "+" menüsü | `quick_add_test` | İşletme profilinde `POS tahsilatı`nın yerinde `Gün sonu`; kişisel profilde `Gün sonu` yok |
+| İşlemler | `activity_models_test`, `activity_detail_sheet_test` | `day-close` kökeni okunur (bilinmeyen köken reddedilir); gün sonundan gelen kayıt iptal sunmaz, nedenini söyler ve `Gün sonunu gör`e götürür |
+| Ekran görüntüsü | `test/screenshots/gun_sonu_screenshot_test` | Yalnız `SCREENSHOT_DIR` ile: boş ve dolu panel, toplamdan hesaplanan kart, kapalı gün, ayrıntı, Kasa kartı |
+## Aşama 06.3 Grup 5 — Gün sonu: sayılan kayıtların bağı ve günün ayrıntısı (4 Ekim 2026)
+
+Emülatör turunda çıkan iki sorunun düzeltmesi: düşülen kayıt ek gün sonunda
+yeniden düşülebiliyordu; ekran günü değil tek gün sonunu gösteriyordu.
+Kontroller: backend SQL dahil geçti (Domain 340, Application 331, Api 267,
+Infrastructure 223 + 2 canlı test atlandı), build 0 uyarı, format temiz;
+Flutter analyze ve format temiz, 1033 test geçti (55 ekran görüntüsü testi
+atlandı), debug APK derlendi.
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Bağ tutar taşımaz | `DayCloseTests.CountedRecord_*`, `MigrationHistoryTests.AddDayCloseCountedRecords_*` | Bağ yalnız gün sonu, tür ve kayıt kimliği taşır; geri alınmış gün sonu kayıt sayamaz; migration yalnız yeni tablo ve indeks kurar, `decimal` kolon yok, tekil indeks `UserId, Kind, RecordId` |
+| Sayılan kayıt sahiplenilir | `DayCloseEndpointTests.DayClose_WritesTheRemainder_*`, `CountedRecords_AreOwnedUntilTheDayCloseIsReverted` | Düşülen satış ve POS tahsilatı gün sonunun `countedRecords`'unda; işaretsiz cari tahsilat sayılmaz; kullanıcı işaretlerse sayılır; ek gün sonunda sayılmış kayıt listede yok ve override ile de yeniden sayılamaz |
+| Sayılan kayıt iptal edilemez | Aynı testler | Gelir `409 transactions.day_close_counted`, POS tahsilatı `409 pos_settlements.day_close_counted`, cari tahsilat `409 counterparty_payments.day_close_counted`; gün sonu geri alınınca üçü de serbest kalır ve iptal çalışır |
+| Ana/ek kuralı | `CountedRecords_AreOwnedUntilTheDayCloseIsReverted` | Ek dururken ana gün sonu `409 day_closes.additional_exists`; ek geri alınınca ana geri alınır |
+| Günün okuması | Aynı testler, `OwnershipIsolationTests` | `GET /day-closes/day`: ana önce, ek sonra; günün toplamı yazılan + sayılan (kullanıcının yazdığı tutar); sayılmayan kayıt `outsideRecords`'ta; yabancı kullanıcı sahibin kimliklerini görmez |
+| Akış satırı | `DayCloseEndpointTests`, SQL testi | Yazılan ve sayılan kayıtta `dayCloseId`; sayılan kayıt kökeni `manual` ama `canCancel:false`; bağsız kayıt `dayCloseId:null` ve iptal edilebilir |
+| SQL kapıları | `SqlServerPersistenceIntegrationTests.DayClose_LinksItsRecordsAndSqlAllowsOneClosePerDayAndZNumber` | Aynı kaydı ikinci gün sonu sayamaz (tekil indeks); "sayıldı mı" okuması owner-scoped; sayılan kayıt listeden düşer ve gün sonunun okumasına girer; akış alt sorgusu SQL'e çevrilir; hesap silme bağları götürür |
+| Yedek | `DataPortabilityTests.BackupV11_RoundTripsDayClosesWithTheirRecords`, `Backup_TamperedDayCloseIsRejectedAndWritesNothing` | Sayılan kaydın bağı yeni kimliklerle döner; aynı kaydı iki gün sonunun saydığı dosya reddedilir |
+| Gün ayrıntısı (Flutter) | `day_close_test` → `gün ayrıntısı` | Günün toplamı, yazılan (`Yazıldı · …`) ve sayılan (`Sayıldı · …`) kayıtlar, dışarıda kalanlar; ana ve ek birlikte, eki olan anada düğme yerine yönlendirme; geri alma onaylı, günde gün sonu kalmayınca panel kapanır; hesaba geçmiş tahsilatta ne yapılacağı; girilmemiş gün; okuma hatası yeniden denenir; 2.0× yazı ve erişilebilirlik |
+| Kasa kartı (Flutter) | `day_close_test` → `Kasa kartı` | Kapalı günde günün toplamı tek satırda ve günün ayrıntısını açar; `Ek gün sonu gir` |
+| İşlemler (Flutter) | `activity_models_test`, `activity_detail_sheet_test` | `dayCloseId` okunur; yazılan ve sayılan kayıt ayrılır; sayılan kayıt iptal sunmaz, "Gün sonunda sayıldı" der ve güne götürür |
+| Panel (Flutter) | `day_close_test` → `gün sonu paneli` | Ana POS görünür, diğer POS'lar `Diğer POS'lar (n)` ile açılır |
+| Ekran görüntüsü | `test/screenshots/gun_sonu_screenshot_test` | Gün ayrıntısı (tek gün sonu; ana ve ek) eklendi |

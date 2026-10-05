@@ -31,6 +31,10 @@ Future<void> openQuickAdd(BuildContext context) async {
     // görmesini sağlıyor. Menü ikinci bir kopya form açmıyor, oraya götürüyor.
     case QuickAddOption.posCollection:
       context.push('$cashLocation?tab=pos');
+    // Gün sonunun paneli de Kasa'da açılır: kaydedince kullanıcı günün
+    // kapandığını ve yoldaki parayı aynı ekranda görür.
+    case QuickAddOption.dayClose:
+      context.push('$cashLocation?tab=day-close');
     // Dekontun kendi sayfası var: yön sormaz, üç banka belgesini de okur ve
     // "bu tutar ne?" sorusunu okuma bittikten sonra karar sayfasında sorar.
     case QuickAddOption.bankSlip:

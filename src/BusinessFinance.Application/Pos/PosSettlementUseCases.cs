@@ -1,6 +1,7 @@
 using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Accounts;
+using BusinessFinance.Application.DayCloses;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.Scopes;
 using BusinessFinance.Application.Taxes;
@@ -213,6 +214,7 @@ public sealed class CreatePosSettlementUseCase(
 /// </remarks>
 public sealed class CancelPosSettlementUseCase(
     ICurrentUser currentUser,
+    IDayCloseCountReader dayCloseCountReader,
     IPosSettlementRepository repository,
     IPosDefinitionRepository definitionRepository,
     IAccountRepository accountRepository,
@@ -224,6 +226,17 @@ public sealed class CancelPosSettlementUseCase(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
+        // Bir gün sonunda sayılan tahsilat tek başına iptal edilemez. Kayıt
+        // bu kullanıcıya ait değilse sonuç zaten boştur ve aşağıda 404 döner.
+        if (currentUser.UserId is Guid userId &&
+            await dayCloseCountReader.IsCountedAsync(
+                userId, DayCloseRecordKind.PosSettlement, command.SettlementId,
+                cancellationToken))
+        {
+            return ApplicationResult<PosSettlementDto>.Failure(
+                PosSettlementErrors.DayCloseCounted);
+        }
+
         return await PosSettlementMutation.ApplyAsync(
             currentUser, repository, definitionRepository, accountRepository,
             categoryRepository, timeProvider,
@@ -268,6 +281,12 @@ internal static class PosSettlementMutation
         {
             return ApplicationResult<PosSettlementDto>.Failure(
                 PosSettlementErrors.DepositLocked);
+        }
+
+        if (settlement is { IsCancelled: false, DayCloseId: not null })
+        {
+            return ApplicationResult<PosSettlementDto>.Failure(
+                PosSettlementErrors.DayCloseLocked);
         }
 
         try
@@ -353,6 +372,7 @@ public static class PosSettlementMapper
             settlement.IsInTransit && settlement.ExpectedTransferDate < asOfDate,
             settlement.PosDefinitionId,
             definitionName,
-            settlement.PosDepositId);
+            settlement.PosDepositId,
+            settlement.DayCloseId);
     }
 }

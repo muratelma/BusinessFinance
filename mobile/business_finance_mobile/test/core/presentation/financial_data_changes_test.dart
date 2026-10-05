@@ -151,6 +151,8 @@ void main() {
       'posDepositChanged': (c) => c.posDepositChanged(deduction: false),
       'posDepositChanged (kesintili)': (c) =>
           c.posDepositChanged(deduction: true),
+      // Gün sonunun nakit satışı kasaya girer.
+      'dayCloseChanged': (c) => c.dayCloseChanged(),
     };
 
     for (final entry in events.entries) {

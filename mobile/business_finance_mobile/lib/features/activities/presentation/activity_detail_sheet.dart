@@ -23,7 +23,12 @@ class ActivityDetailSheet extends StatelessWidget {
     this.onCancel,
     this.isCancelling = false,
     this.balances,
+    this.onShowDayClose,
   });
+
+  /// Gün sonundan gelen kayıtta gün sonunun ayrıntısını açar; geri alma
+  /// oradadır. Verilmezse eylem çizilmez.
+  final VoidCallback? onShowDayClose;
 
   final FinancialActivity activity;
 
@@ -163,6 +168,7 @@ class ActivityDetailSheet extends StatelessWidget {
               effectLabel: effectLabel,
               onCancel: onCancel,
               isCancelling: isCancelling,
+              onShowDayClose: onShowDayClose,
             ),
           ],
         ),
@@ -573,8 +579,10 @@ class _Actions extends StatelessWidget {
     required this.effectLabel,
     required this.onCancel,
     required this.isCancelling,
+    this.onShowDayClose,
   });
 
+  final VoidCallback? onShowDayClose;
   final FinancialActivity activity;
   final String effectLabel;
   final Future<void> Function()? onCancel;
@@ -616,6 +624,12 @@ class _Actions extends StatelessWidget {
               const SizedBox(width: AppSpacing.small),
               Expanded(
                 child: Text(switch ((activity.origin, activity.kind)) {
+                  (ActivityOrigin.dayClose, _) =>
+                    'Gün sonundan gelen kayıt tek başına iptal edilemez; '
+                        'gün sonu geri alınır.',
+                  _ when activity.isCountedInDayClose =>
+                    'Gün sonunda sayıldı; tek başına iptal edilemez. Önce '
+                        'gün sonu geri alınır.',
                   (ActivityOrigin.recurring, _) =>
                     'Tekrarlayan plandan üretilen hareket iptal edilemez.',
                   (ActivityOrigin.installment, _) =>
@@ -630,6 +644,17 @@ class _Actions extends StatelessWidget {
               ),
             ],
           ),
+          if (activity.belongsToDayClose && onShowDayClose != null) ...[
+            const SizedBox(height: AppSpacing.small),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
+              onPressed: onShowDayClose,
+              icon: const Icon(Icons.fact_check_outlined),
+              label: const Text('Gün sonunu gör'),
+            ),
+          ],
         ],
       );
     }

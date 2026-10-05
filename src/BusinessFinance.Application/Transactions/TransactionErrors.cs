@@ -32,6 +32,15 @@ public static class TransactionErrors
         "transactions.scope_unresolved",
         "The scope could not be resolved from the request, the account or the category.",
         ApplicationErrorType.Validation);
+    /// <summary>
+    /// Kayıt bir gün sonunda sayıldı (tutardan düşüldü); iptal edilseydi günün
+    /// geliri sessizce eksilirdi. Önce gün sonu geri alınır.
+    /// </summary>
+    public static readonly ApplicationError DayCloseCounted = new(
+        "transactions.day_close_counted",
+        "A transaction counted in a day close cannot be cancelled; revert the day close first.",
+        ApplicationErrorType.Conflict);
+
     public static readonly ApplicationError CancelOriginLocked = new(
         "transactions.cancel_origin_locked",
         "A transaction produced by a recurring plan cannot be cancelled.",

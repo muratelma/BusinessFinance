@@ -46,7 +46,10 @@ public sealed record PosSettlementResponse(
     Guid? PosDefinitionId,
     string? PosDefinitionName,
     // Parayı hesaba geçiren yatış; para yoldaysa boştur.
-    Guid? PosDepositId);
+    Guid? PosDepositId,
+    // Tahsilatı üreten gün sonu; tek tek girilende boştur. Doluysa tahsilat
+    // tek başına iptal edilemez, gün sonu geri alınır.
+    Guid? DayCloseId = null);
 
 public sealed record PosSettlementListResponse(
     IReadOnlyList<PosSettlementResponse> Items,

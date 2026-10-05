@@ -354,6 +354,53 @@ abstract final class ApiErrorMessages {
         'Bu POS bulunamadı. Listeyi yenileyip yeniden seçin.',
     'pos_settlements.deposit_locked':
         'Bu tahsilat hesaba geçti. İptal etmek için önce yatışı geri alın.',
+    'pos_settlements.day_close_locked':
+        'Bu tahsilat gün sonundan geldi. İptal için gün sonunu geri alın.',
+    'day_closes.invalid_date': 'Gün ileri bir tarih olamaz.',
+    'day_closes.invalid_amount': 'Tutarlar eksi olamaz.',
+    'day_closes.amounts_required': 'Nakit ya da kart tutarını yazın.',
+    'day_closes.total_below_parts': 'Toplam, yazdığınız tutardan küçük olamaz.',
+    'day_closes.pos_required': 'Kart tutarı için önce bir POS ekleyin.',
+    'day_closes.pos_unavailable':
+        'Seçilen POS bulunamadı. Paneli kapatıp yeniden açın.',
+    'day_closes.pos_unusable':
+        "POS'un hesabı ya da kategorisi kullanılamıyor. POS'u düzenleyin.",
+    'day_closes.existing_exceeds_cash':
+        'İşaretli kayıtlar nakit tutarını aşıyor. Tutarı düzeltin ya da '
+        'işareti kaldırın.',
+    'day_closes.existing_exceeds_card':
+        'İşaretli kartlı kayıtlar kart tutarını aşıyor. Tutarı düzeltin ya '
+        'da işareti kaldırın.',
+    'day_closes.cash_account_required':
+        'Nakit satışın yazılacağı kasayı seçin.',
+    'day_closes.cash_account_unavailable': 'Seçilen kasa kullanılamıyor.',
+    'day_closes.cash_category_required':
+        'Nakit satış için bir gelir kategorisi seçin.',
+    'day_closes.cash_category_unavailable': 'Seçilen kategori kullanılamıyor.',
+    'day_closes.scope_unresolved':
+        'Kasanın ya da kategorinin İşletme / Şahsi etiketi yok. Birini '
+        'etiketleyip yeniden deneyin.',
+    'day_closes.already_closed':
+        'Bu günün gün sonu girildi. İkinci bir cihazın gün sonuysa ek '
+        'olarak kaydedin.',
+    'day_closes.not_closed_yet':
+        'Bu gün henüz kapatılmadı; ek gün sonu yazılamaz.',
+    'day_closes.z_number_exists': 'Bu Z raporu daha önce girildi.',
+    'day_closes.additional_exists':
+        'Bu günün ek gün sonu duruyor. Önce onu geri alın.',
+    'transactions.day_close_counted':
+        'Bu kayıt gün sonunda sayıldı. İptal için önce gün sonunu geri alın.',
+    'pos_settlements.day_close_counted':
+        'Bu tahsilat gün sonunda sayıldı. İptal için önce gün sonunu geri '
+        'alın.',
+    'counterparty_payments.day_close_counted':
+        'Bu tahsilat gün sonunda sayıldı. İptal için önce gün sonunu geri '
+        'alın.',
+    'day_closes.deposit_locked':
+        'Kart parası hesaba geçmiş. Önce yatışı geri alın.',
+    'day_closes.concurrent_change':
+        'Gün bu sırada değişti. Paneli kapatıp yeniden deneyin.',
+    'day_closes.not_found': 'Gün sonu bulunamadı.',
     'pos_deposits.amount_exceeds_expected':
         'Yatan tutar beklenenden fazla olamaz. Komisyon fazla yazıldıysa '
         'tahsilatı iptal edip yeniden girin.',

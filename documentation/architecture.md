@@ -898,6 +898,78 @@ birleşmeden çalışmasını sağlar; bu sorgular yatış gelirken değişmedi.
 `PosSettlements.Version` (rowversion) aynı tahsilat için yarışan yatış ile
 iptalden yalnız birinin yazılmasını sağlar.
 
+### Gün sonu (ADR 0019 T1–T2; Aşama 06.3 Grup 5, backend uygulandı)
+
+Gün sonu **yeni bir finansal kayıt türü değildir** (İ3): nakit satış kasaya
+sıradan bir gelir (`BudgetTransaction`), her POS'un kartlı satışı sıradan bir
+POS tahsilatı (`PosSettlement`) olur. İkisi de raporlara, bütçeye, bakiyeye ve
+İşlemler'e başka her gelir ve tahsilat gibi girer.
+
+`DayClose` bu kayıtları birbirine bağlayan **kimliktir** ve **tutar taşımaz**:
+kapatılan gün, isteğe bağlı aralık başı ve Z numarası, "ek gün sonu" işareti ve
+geri alma damgası. Rapor, net, bütçe, bakiye ve akış onu okumaz; cevapladığı üç
+soru "hangi kayıtlar birlikte doğdu", "gün kapatıldı mı" ve "hangi Z ile"dir.
+Gelir ve tahsilat ona nullable `DayCloseId` ile bağlanır. ADR 0019'un reddettiği
+"ayrı `DailyClose` tablosu" Z toplamı, not ve durum taşıyan bir ikinci kaynaktı;
+tutar taşımayan kimlik o reddin dışındadır (kullanıcı kararı, 4 Ekim 2026).
+
+- **Hesap tek yerdedir** (`DayClosePlan`): önizleme ve kayıt aynı planı kurar.
+  Yazılan nakit = nakit − işaretli nakit kayıtlar; yazılan kart = kart −
+  işaretli kartlı kayıtlar (İ2: aynı satış iki kez gelir sayılmaz).
+- **Üç alandan ikisi**: nakit, POS satırları ve toplamdan ikisi yeter. Toplamdan
+  hesaplanan kart ana POS'a yazılır. Yalnız nakit ya da yalnız kart verilirse
+  öbür tarafa dokunulmaz. Üçü de verilip tutmuyorsa fark döner, kayıt
+  engellenmez: toplam kayıt üretmez (T3).
+- **Zaten girilmiş kayıtlar**: nakit hesaba yazılmış **İşletme** kapsamlı
+  gelirler ve POS tahsilatları işaretli; nakit hesaba cari ve alacak
+  tahsilatları işaretsiz gelir. Banka hesabına yazılmış gelir, şahsi nakit
+  gelir ve bir gün sonunun ürettiği kayıtlar listede yoktur. Kartlı kayıt kendi
+  POS satırından düşer; o satıra tutar yazılmadıysa ana POS'un satırından.
+  İstek yalnız kullanıcının **değiştirdiği** işaretleri taşır; panel açıkken
+  girilen bir kayıt varsayılanıyla işlenir.
+- **İşaretli kayıtlar tutarı aşarsa** istek reddedilir
+  (`day_closes.existing_exceeds_cash` / `_card`). Yazılacak tutar sıfırsa o
+  taraf için kayıt üretilmez; **hiç kayıt üretmeyen gün sonu meşrudur** ve günü
+  kapatır.
+- **Kasa ve satış kategorisi**: açık seçim → son gün sonununki → tek (şahsi
+  etiketli olmayan) nakit hesap ve ana POS'un satış kategorisi. Sunucu birden
+  çok aday arasından seçmez. Kapsam sorulmaz, zincirle çözülür; çözülemezse
+  `day_closes.scope_unresolved`. POS satırı hesabı, kategorileri, oranı ve
+  beklenen günü POS'tan alır.
+- **Gün başına tek gün sonu**: ikincisi yalnız açıkça `isAdditional` ile yazılır
+  ve o günün zaten kapalı olmasını ister. Ek gün sonunda hiçbir kayıt işaretli
+  gelmez (ilk gün sonunda düşüldüler). Aralıktaki bütün günler kapalı sayılır;
+  aynı Z numarası ikinci kez yazılamaz. İki kural SQL'de filtreli tekil
+  indekslerle de durur.
+- **Geri alma bir bütündür** (`Revert`): ürettiği gelir ve tahsilatlar birlikte
+  iptal olur, gün yeniden açılır, gün sonu kaydı kalır. Ürettiği bir tahsilat
+  yatışla hesaba geçtiyse `409 day_closes.deposit_locked`; önce yatış geri
+  alınır. Kayıtlar tek başına iptal edilemez (köken kilidi).
+- İstek `clientRequestId` ile idempotenttir (`RequestScopedId`, amaç
+  `day-close`); gün sonu ve kayıtları tek `SaveChanges` ile yazılır.
+- **Gün sonu düştüğü kayıtları sahiplenir** (`DayCloseCountedRecord`: gün
+  sonu, kayıt türü, kayıt kimliği; tutarsız). Bağ olmadan aynı kayıt bir ek
+  gün sonunda ikinci kez düşülebiliyor ve sonradan iptal edilince günün
+  geliri sessizce eksiliyordu. Sayılan kayıt "zaten girilmiş" listesinde
+  görünmez ve tek başına iptal edilemez (`*.day_close_counted`); bir kayıt en
+  çok bir gün sonunda sayılır (tekil indeks). Geri alma bağı siler. Bağ dört
+  ayrı tabloyu gösterdiği için kayda foreign key yoktur; sayılan kayıt
+  silinemediği ve iptal edilemediği için bağ boşa düşemez.
+- **Ana gün sonu, eki dururken geri alınamaz**
+  (`day_closes.additional_exists`).
+- **Günün okuması** (`GET /api/v1/day-closes/day?date=`): o günün gün sonları
+  (ana önce), her birinin yazdığı ve saydığı kayıtlar, dışarıda kalan tek tek
+  girilmiş kayıtlar ve günün toplamı. Toplam saklanmaz: geri alınmamış gün
+  sonlarının yazdığı ve saydığı kayıtlardan toplanır. "Zaten girilmiş" listesi
+  ile "saydığı kayıtlar" aynı okumadır (`ReadRecordsAsync`); biri
+  sayılmamışları, diğeri sayılmışları alır.
+- **Akış satırı gün sonunun kimliğini taşır** (`DayCloseId`): yazılan kayıtta
+  kaydın kendi alanından, sayılan kayıtta bağdan. Bağlı kayıtta `canCancel`
+  `false`'tur.
+
+Z numarasını ve aralığı sunucu kabul eder; arayüzü ve "iki aya böl" Grup 7'de
+(Z okuma) gelir.
+
 ### POS tahsilatı ve yatışı birleşik feed'de
 
 Tahsilat feed'de **tek** okuma satırıdır: `pos-sale`, tahsilat günü, brüt
@@ -1072,6 +1144,17 @@ POST /api/v1/pos-deposits                   yatış (taşır, tanımaz); eksik y
 GET  /api/v1/pos-deposits/{id}              yatış ve kapattığı tahsilatlar
 DELETE /api/v1/pos-deposits/{id}            yatışın geri alınması (tahsilatlar
                                             yola döner, kesinti iptal olur)
+
+POST /api/v1/day-closes/preview             gün sonunun önizlemesi: yazılacak
+                                            tutarlar, düşülen kayıtlar, komisyon
+                                            (hiçbir şey yazmaz)
+POST /api/v1/day-closes                     gün sonu: nakit gelir + POS tahsilatı
+GET  /api/v1/day-closes?from=&to=           aralıktaki günleri kapatan gün sonları
+GET  /api/v1/day-closes/day?date=           günün bütünü: gün sonları, yazdıkları,
+                                            saydıkları, dışarıda kalanlar, toplam
+GET  /api/v1/day-closes/{id}                gün sonu ve ürettiği kayıtlar
+DELETE /api/v1/day-closes/{id}              bir bütün olarak geri alma; ürettiği
+                                            tahsilat yatışa bağlıysa 409
 
 GET  /api/v1/pos-definitions                kullanıcının POS'ları (ana POS önce)
 POST /api/v1/pos-definitions                POS ekler (para hareketi yazmaz)

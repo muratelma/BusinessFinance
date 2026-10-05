@@ -49,6 +49,13 @@ public sealed class PosSettlement
     /// </summary>
     public Guid? PosDefinitionId { get; }
 
+    /// <summary>
+    /// Tahsilatı üreten gün sonu (ADR 0019 T1); tek tek girilen tahsilatta
+    /// boştur. Gün sonundan gelen tahsilat tek başına değil, gün sonuyla
+    /// birlikte geri alınır.
+    /// </summary>
+    public Guid? DayCloseId { get; }
+
     /// <summary>Müşterinin ödediği tutar. Gelir <b>bu</b> tutar kadar tanınır.</summary>
     public Money GrossAmount { get; }
 
@@ -113,11 +120,17 @@ public sealed class PosSettlement
         DateTimeOffset createdAtUtc,
         Category? commissionCategory = null,
         string? description = null,
-        PosDefinition? definition = null)
+        PosDefinition? definition = null,
+        Guid? dayCloseId = null)
     {
         if (id == Guid.Empty)
         {
             throw new ArgumentException("Pos settlement id cannot be empty.", nameof(id));
+        }
+
+        if (dayCloseId == Guid.Empty)
+        {
+            throw new ArgumentException("Day close id cannot be empty.", nameof(dayCloseId));
         }
 
         if (definition is not null && definition.UserId != userId)
@@ -196,6 +209,7 @@ public sealed class PosSettlement
         CategoryId = category.Id;
         CommissionCategoryId = commissionCategory?.Id;
         PosDefinitionId = definition?.Id;
+        DayCloseId = dayCloseId;
         GrossAmount = grossAmount;
         CommissionAmount = commissionAmount;
         Scope = scope;

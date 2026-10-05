@@ -1,4 +1,4 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
@@ -945,6 +945,135 @@ public sealed class DataPortabilityTests
     }
 
     /// <summary>
+    /// v11 gün sonunu taşır (ADR 0019 T1): gün sonu tutar taşımayan bir
+    /// kimliktir; ürettiği gelir ve POS tahsilatı ona bağlı döner.
+    /// </summary>
+    /// <remarks>
+    /// Geri alınmış gün sonu kayıt olarak kalır ve kayıtları iptal edilmiş
+    /// döner; hiç kayıt üretmemiş gün sonu (her şey tek tek girilmiş, ya da
+    /// birkaç günlük Z) da döner — günün kapalı olduğu bilgisi yalnız ondadır.
+    /// </remarks>
+    [Fact]
+    public async Task BackupV11_RoundTripsDayClosesWithTheirRecords()
+    {
+        await using var context = CreateContext();
+        var sourceUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        await SeedDayCloseGraphAsync(context, sourceUserId);
+        await SeedDefaultCategoriesAsync(context, targetUserId);
+        var service = new EfDataPortabilityRepository(context);
+
+        var backup = await service.CreateBackupAsync(sourceUserId, default);
+        await service.ValidateBackupAsync(backup.Content, default);
+        await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
+
+        var closes = await context.DayCloses.AsNoTracking()
+            .Where(item => item.UserId == targetUserId)
+            .OrderBy(item => item.ClosedOn).ToArrayAsync();
+        Assert.Equal(3, closes.Length);
+        var duran = closes[0];
+        var geriAlinan = closes[1];
+        var bos = closes[2];
+        var incomes = await context.Transactions.AsNoTracking()
+            .Where(item => item.UserId == targetUserId).ToArrayAsync();
+        var settlements = await context.PosSettlements.AsNoTracking()
+            .Where(item => item.UserId == targetUserId).ToArrayAsync();
+
+        Assert.False(duran.IsCancelled);
+        Assert.Equal(new DateOnly(2026, 9, 20), duran.ClosedOn);
+        var gelir = Assert.Single(incomes, item => item.DayCloseId == duran.Id);
+        Assert.Equal(2100m, gelir.Amount.Amount);
+        Assert.False(gelir.IsCancelled);
+        var tahsilat = Assert.Single(settlements, item => item.DayCloseId == duran.Id);
+        Assert.Equal(1480m, tahsilat.GrossAmount.Amount);
+        Assert.Equal(29.6m, tahsilat.CommissionAmount);
+        Assert.True(tahsilat.IsInTransit);
+
+        Assert.True(geriAlinan.IsCancelled);
+        Assert.NotNull(geriAlinan.CancelledAtUtc);
+        var iptalGelir = Assert.Single(incomes, item => item.DayCloseId == geriAlinan.Id);
+        Assert.True(iptalGelir.IsCancelled);
+        Assert.Equal(500m, iptalGelir.Amount.Amount);
+
+        Assert.False(bos.IsCancelled);
+        Assert.Equal(new DateOnly(2026, 9, 24), bos.ClosedOn);
+        Assert.Equal(new DateOnly(2026, 9, 22), bos.RangeStart);
+        Assert.Equal(3143, bos.ZNumber);
+        Assert.DoesNotContain(incomes, item => item.DayCloseId == bos.Id);
+
+        // Elle girilmiş gelir hiçbir gün sonuna bağlanmaz; ama duran gün sonu
+        // onu saymıştır ve bağ yeni kimliklerle döner.
+        var elle = Assert.Single(incomes, item => item.DayCloseId is null);
+        var sayilan = Assert.Single(await context.DayCloseCountedRecords.AsNoTracking()
+            .Where(item => item.UserId == targetUserId).ToArrayAsync());
+        Assert.Equal(duran.Id, sayilan.DayCloseId);
+        Assert.Equal(DayCloseRecordKind.Income, sayilan.Kind);
+        Assert.Equal(elle.Id, sayilan.RecordId);
+
+        // Hiçbir kimlik kaynaktan taşınmaz.
+        var sourceIds = await context.DayCloses.AsNoTracking()
+            .Where(item => item.UserId == sourceUserId).Select(item => item.Id).ToArrayAsync();
+        Assert.Equal(3, sourceIds.Length);
+        Assert.All(closes, item => Assert.DoesNotContain(item.Id, sourceIds));
+    }
+
+    /// <summary>
+    /// Var olmayan bir gün sonuna bağlı kayıt ya da kayıtları canlı kalmış
+    /// geri alınmış bir gün sonu geri yüklenmez.
+    /// </summary>
+    [Fact]
+    public async Task Backup_TamperedDayCloseIsRejectedAndWritesNothing()
+    {
+        await using var context = CreateContext();
+        var sourceUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        await SeedDayCloseGraphAsync(context, sourceUserId);
+        await SeedDefaultCategoriesAsync(context, targetUserId);
+        var service = new EfDataPortabilityRepository(context);
+        var backup = await service.CreateBackupAsync(sourceUserId, default);
+
+        var dangling = RewritePayload(backup.Content, snapshot =>
+        {
+            foreach (var transaction in snapshot["transactions"]!.AsArray())
+            {
+                if (transaction!["dayCloseId"] is not null)
+                    transaction.AsObject()["dayCloseId"] = Guid.NewGuid().ToString();
+            }
+        });
+        var liveUnderReverted = RewritePayload(backup.Content, snapshot =>
+        {
+            foreach (var transaction in snapshot["transactions"]!.AsArray())
+            {
+                transaction!.AsObject()["isCancelled"] = false;
+                transaction.AsObject()["cancelledAtUtc"] = null;
+            }
+        });
+
+        var countedTwice = RewritePayload(backup.Content, snapshot =>
+        {
+            var closes = snapshot["dayCloses"]!.AsArray();
+            var counted = closes
+                .Select(close => close!["countedRecords"]?.AsArray())
+                .First(records => records is { Count: > 0 })!;
+            foreach (var close in closes)
+            {
+                if (!close!["isCancelled"]!.GetValue<bool>())
+                    close.AsObject()["countedRecords"] = counted.DeepClone();
+            }
+        });
+
+        foreach (var tampered in new[] { dangling, liveUnderReverted, countedTwice })
+        {
+            var error = await Assert.ThrowsAsync<DataPortabilityException>(() =>
+                service.RestoreBackupAsync(targetUserId, tampered, DateTimeOffset.UtcNow, default));
+            Assert.Equal("restore.invalid_backup", error.Code);
+        }
+
+        Assert.False(await context.DayCloses.AnyAsync(x => x.UserId == targetUserId));
+        Assert.False(await context.Accounts.AnyAsync(x => x.UserId == targetUserId));
+    }
+
+    /// <summary>
     /// v11 KDV ve indirilebilirlik taşımaz (ADR 0018); hedef kapsamı yedekten
     /// kayıpsız döner.
     /// </summary>
@@ -1422,6 +1551,59 @@ public sealed class DataPortabilityTests
         context.AddRange(
             bank, sales, commission, pos, ilk, ikinci, ucuncu, kesinti, geriAlinanKesinti,
             yatis, geriAlinanYatis);
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Üç gün sonu: gelir ve POS tahsilatı üretmiş bir gün sonu, geri alınmış
+    /// bir gün sonu ve hiç kayıt üretmemiş birkaç günlük bir Z; yanında elle
+    /// girilmiş bir gelir.
+    /// </summary>
+    private static async Task SeedDayCloseGraphAsync(BusinessFinanceDbContext context, Guid userId)
+    {
+        var utc = new DateTimeOffset(2026, 9, 25, 9, 0, 0, TimeSpan.Zero);
+        var till = new Account(Guid.NewGuid(), userId, "Kasa", AccountType.Cash, CurrencyCode.TRY, 0m);
+        var bank = new Account(Guid.NewGuid(), userId, "Banka", AccountType.Bank, CurrencyCode.TRY, 0m);
+        var sales = new Category(Guid.NewGuid(), userId, "Satış geliri", CategoryType.Income);
+        var commission = new Category(
+            Guid.NewGuid(), userId, "Banka ve POS komisyonu", CategoryType.Expense);
+        var pos = new PosDefinition(
+            Guid.NewGuid(), userId, "Sentetik POS", bank, sales, 0.02m, commission, 1, false, utc);
+
+        var elle = new BudgetTransaction(
+            Guid.NewGuid(), userId, till, sales, new Money(1250m, CurrencyCode.TRY),
+            TransactionType.Income, TransactionScope.Business, new DateOnly(2026, 9, 20));
+
+        var duranId = Guid.NewGuid();
+        var gelir = new BudgetTransaction(
+            Guid.NewGuid(), userId, till, sales, new Money(2100m, CurrencyCode.TRY),
+            TransactionType.Income, TransactionScope.Business, new DateOnly(2026, 9, 20),
+            dayCloseId: duranId);
+        var tahsilat = new PosSettlement(
+            Guid.NewGuid(), userId, bank, sales, new Money(1480m, CurrencyCode.TRY), 29.6m,
+            TransactionScope.Business, new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 21), utc,
+            commission, null, pos, duranId);
+        var duran = DayClose.Record(
+            duranId, userId, new DateOnly(2026, 9, 20), utc, [gelir], [tahsilat]);
+
+        var geriAlinanId = Guid.NewGuid();
+        var iptalGelir = new BudgetTransaction(
+            Guid.NewGuid(), userId, till, sales, new Money(500m, CurrencyCode.TRY),
+            TransactionType.Income, TransactionScope.Business, new DateOnly(2026, 9, 21),
+            dayCloseId: geriAlinanId);
+        var geriAlinan = DayClose.Record(
+            geriAlinanId, userId, new DateOnly(2026, 9, 21), utc, [iptalGelir], []);
+        geriAlinan.Revert([iptalGelir], [], utc);
+
+        var bos = DayClose.Record(
+            Guid.NewGuid(), userId, new DateOnly(2026, 9, 24), utc, [], [],
+            rangeStart: new DateOnly(2026, 9, 22), zNumber: 3143);
+        // Duran gün sonu, elle girilmiş satışı saymıştır.
+        var sayilan = new DayCloseCountedRecord(duran, DayCloseRecordKind.Income, elle.Id);
+
+        context.AddRange(
+            till, bank, sales, commission, pos, duran, geriAlinan, bos, elle, gelir, iptalGelir,
+            tahsilat, sayilan);
         await context.SaveChangesAsync();
     }
 

@@ -20,6 +20,8 @@ using BusinessFinance.Application.Profiles;
 using BusinessFinance.Application.UserAccount;
 using BusinessFinance.Application.Verification;
 using BusinessFinance.Infrastructure.Pos;
+using BusinessFinance.Application.DayCloses;
+using BusinessFinance.Infrastructure.DayCloses;
 using BusinessFinance.Infrastructure.Profiles;
 using BusinessFinance.Infrastructure.UserAccounts;
 using BusinessFinance.Infrastructure.Verification;
@@ -142,6 +144,8 @@ public static class DependencyInjection
         services.AddScoped<IPosSettlementRepository, EfPosSettlementRepository>();
         services.AddScoped<IPosDefinitionRepository, EfPosDefinitionRepository>();
         services.AddScoped<IPosDepositRepository, EfPosDepositRepository>();
+        services.AddScoped<IDayCloseRepository, EfDayCloseRepository>();
+        services.AddScoped<IDayCloseCountReader, EfDayCloseRepository>();
         services.AddScoped<ISavingsGoalRepository, EfSavingsGoalRepository>();
         services.AddScoped<IAttachmentRepository, EfAttachmentRepository>();
         services.AddSingleton<IAttachmentFileInspector, AttachmentFileInspector>();

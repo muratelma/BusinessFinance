@@ -269,6 +269,9 @@ public sealed class EfDataPortabilityRepository(
             dbContext.Categories.RemoveRange(replaceableDefaultCategories);
             dbContext.Accounts.AddRange(graph.Accounts);
             dbContext.Categories.AddRange(graph.Categories);
+            // Gün sonu, ürettiği gelir ve tahsilatların bağlandığı kimliktir.
+            dbContext.DayCloses.AddRange(graph.DayCloses);
+            dbContext.DayCloseCountedRecords.AddRange(graph.DayCloseCountedRecords);
             dbContext.Transactions.AddRange(graph.Transactions);
             dbContext.MonthlyBudgets.AddRange(graph.Budgets);
             dbContext.Transfers.AddRange(graph.Transfers);
@@ -416,6 +419,16 @@ public sealed class EfDataPortabilityRepository(
         // tutarı yatış taşır; tahsilat ona kimlikle bağlanır.
         var posDeposits = await dbContext.PosDeposits.AsNoTracking()
             .Where(x => x.UserId == userId).OrderBy(x => x.Id).ToArrayAsync(cancellationToken);
+        // Gün sonu (ADR 0019 T1) tutar taşımaz: yalnız kimlik, gün ve Z no.
+        // Ürettiği gelir ve tahsilatlar ona kimlikle bağlanır.
+        var dayCloses = await dbContext.DayCloses.AsNoTracking()
+            .Where(x => x.UserId == userId).OrderBy(x => x.Id).ToArrayAsync(cancellationToken);
+        // Gün sonunun saydığı kayıtlar: bağ, kaydın kendisi değil.
+        var dayCloseCounted = (await dbContext.DayCloseCountedRecords.AsNoTracking()
+                .Where(x => x.UserId == userId)
+                .OrderBy(x => x.Kind).ThenBy(x => x.RecordId)
+                .ToArrayAsync(cancellationToken))
+            .ToLookup(x => x.DayCloseId);
         var goals = await dbContext.SavingsGoals.AsNoTracking().Include(x => x.Contributions)
             .Where(x => x.UserId == userId).OrderBy(x => x.Id).ToArrayAsync(cancellationToken);
         var attachments = await dbContext.FinancialAttachments.AsNoTracking()
@@ -447,7 +460,7 @@ public sealed class EfDataPortabilityRepository(
                 x.DefaultScope, x.IsTax)).ToArray(),
             transactions.Select(x => new TransactionBackup(x.Id, x.AccountId, x.CategoryId, x.Amount.Amount,
                 x.Amount.Currency, x.Type, x.Scope, x.TransactionDate, x.Description, x.IsCancelled,
-                x.CancelledAtUtc, entryTimes.GetValueOrDefault(x.Id))).ToArray(),
+                x.CancelledAtUtc, entryTimes.GetValueOrDefault(x.Id), x.DayCloseId)).ToArray(),
             budgets.Select(x => new BudgetBackup(x.Id, x.CategoryId, x.Limit.Amount, x.Limit.Currency,
                 x.Scope, x.Year, x.Month)).ToArray(),
             transfers.Select(x => new TransferBackup(x.Id, x.SourceAccountId, x.DestinationAccountId,
@@ -515,11 +528,18 @@ public sealed class EfDataPortabilityRepository(
                 x.Id, x.AccountId, x.CategoryId, x.CommissionCategoryId,
                 x.GrossAmount.Amount, x.CommissionAmount, x.Currency, x.Scope,
                 x.SettlementDate, x.ExpectedTransferDate, x.Description, x.CreatedAtUtc,
-                x.IsCancelled, x.CancelledAtUtc, x.PosDefinitionId, x.PosDepositId)).ToArray(),
+                x.IsCancelled, x.CancelledAtUtc, x.PosDefinitionId, x.PosDepositId,
+                x.DayCloseId)).ToArray(),
             posDeposits.Select(x => new PosDepositBackup(
                 x.Id, x.AccountId, x.DepositedAmount.Amount, x.DeductionAmount, x.Currency,
                 x.DepositDate, x.CreatedAtUtc, x.DeductionTransactionId,
                 x.IsCancelled, x.CancelledAtUtc)).ToArray(),
+            dayCloses.Select(x => new DayCloseBackup(
+                x.Id, x.ClosedOn, x.RangeStart, x.ZNumber, x.IsAdditional, x.CreatedAtUtc,
+                x.IsCancelled, x.CancelledAtUtc,
+                dayCloseCounted[x.Id]
+                    .Select(c => new DayCloseCountedBackup(c.Kind, c.RecordId))
+                    .ToArray())).ToArray(),
             debts.Select(x => new DebtBackup(
                 x.Id, x.CounterpartyId, x.Direction, x.Scope, x.Principal.Amount, x.TotalRepayment.Amount,
                 x.Principal.Currency, x.AnnualInterestRate, x.StartDate, x.FirstDueDate,
@@ -567,6 +587,7 @@ public sealed class EfDataPortabilityRepository(
         EnsureUniqueIds(snapshot.PosDefinitions.Select(x => x.Id), "pos definition");
         EnsureUniqueIds(snapshot.PosSettlements.Select(x => x.Id), "pos settlement");
         EnsureUniqueIds(snapshot.PosDeposits.Select(x => x.Id), "pos deposit");
+        EnsureUniqueIds(snapshot.DayCloses.Select(x => x.Id), "day close");
         EnsureUniqueIds(snapshot.Debts.Select(x => x.Id), "debt");
         EnsureUniqueIds(snapshot.SavingsGoals.Select(x => x.Id), "savings goal");
         EnsureUniqueIds(snapshot.Attachments.Select(x => x.Id), "attachment");
@@ -589,6 +610,9 @@ public sealed class EfDataPortabilityRepository(
             // anı kaydın girildiği an değildir.
             var entryTimes = new Dictionary<object, DateTimeOffset?>(
                 ReferenceEqualityComparer.Instance);
+            // Gün sonunun kimliği kayıtlardan önce bilinmelidir: gelir ve
+            // tahsilat onu kurulurken taşır.
+            var dayCloseIdMap = snapshot.DayCloses.ToDictionary(x => x.Id, _ => Guid.NewGuid());
             var transactionMap = new Dictionary<Guid, BudgetTransaction>();
             foreach (var item in snapshot.Transactions)
             {
@@ -597,7 +621,10 @@ public sealed class EfDataPortabilityRepository(
                     Required(accountMap, item.AccountId, "transaction account"),
                     Required(categoryMap, item.CategoryId, "transaction category"),
                     MoneyOf(item.Amount, item.Currency), item.Type, item.Scope, item.TransactionDate,
-                    item.Description);
+                    item.Description,
+                    item.DayCloseId is Guid dayCloseId
+                        ? Required(dayCloseIdMap, dayCloseId, "transaction day close")
+                        : null);
                 ApplyCancellation(item.IsCancelled, item.CancelledAtUtc, entity.Cancel);
                 entryTimes[entity] = item.CreatedAtUtc;
                 transactionMap.Add(item.Id, entity);
@@ -834,6 +861,9 @@ public sealed class EfDataPortabilityRepository(
                 counterpartyCharges.Add(entity);
             }
 
+            // Sayılan kaydın bağı geri yüklerken yeni kimliğe çevrilir.
+            var counterpartyPaymentIds = new Dictionary<Guid, Guid>();
+            var obligationSettlementIds = new Dictionary<Guid, Guid>();
             var counterpartyPayments = new List<CounterpartyPayment>();
             foreach (var item in snapshot.CounterpartyPayments)
             {
@@ -845,6 +875,7 @@ public sealed class EfDataPortabilityRepository(
                     item.PaymentDate, item.Description);
                 ApplyCancellation(item.IsCancelled, item.CancelledAtUtc, entity.Cancel);
                 entryTimes[entity] = item.CreatedAtUtc;
+                counterpartyPaymentIds[item.Id] = entity.Id;
                 counterpartyPayments.Add(entity);
             }
 
@@ -872,6 +903,7 @@ public sealed class EfDataPortabilityRepository(
                         Guid.NewGuid(),
                         Required(accountMap, settlement.AccountId, "obligation settlement account"),
                         settlement.SettlementDate, settlement.SettledAtUtc);
+                    obligationSettlementIds[settlement.Id] = entity.Settlement!.Id;
                 }
                 ApplyCancellation(item.IsCancelled, item.CancelledAtUtc, entity.Cancel);
                 obligations.Add(entity);
@@ -945,6 +977,9 @@ public sealed class EfDataPortabilityRepository(
                     item.Description,
                     item.PosDefinitionId is Guid posDefinitionId
                         ? Required(posDefinitionMap, posDefinitionId, "pos settlement definition")
+                        : null,
+                    item.DayCloseId is Guid settlementDayCloseId
+                        ? Required(dayCloseIdMap, settlementDayCloseId, "pos settlement day close")
                         : null);
                 if (item.IsCancelled && item.PosDepositId is not null)
                     throw Invalid("A cancelled pos settlement cannot belong to a deposit.");
@@ -995,6 +1030,72 @@ public sealed class EfDataPortabilityRepository(
                     x.PosDepositId is Guid depositId &&
                     snapshot.PosDeposits.All(deposit => deposit.Id != depositId)))
                 throw Invalid("Backup contains a dangling pos settlement deposit reference.");
+
+            // Gün sonu ürettiği kayıtlarla birlikte kurulur: domain aynı
+            // kuralları uygular (kayıtlar canlı ve kapatılan günlerin içinde).
+            // Geri alınmış gün sonunun kayıtları iptal edilmiş olmalıdır.
+            var dayCloses = new List<DayClose>();
+            var dayCloseCounted = new List<DayCloseCountedRecord>();
+            foreach (var item in snapshot.DayCloses)
+            {
+                var incomes = snapshot.Transactions
+                    .Where(x => x.DayCloseId == item.Id)
+                    .Select(x => transactionMap[x.Id])
+                    .ToArray();
+                var settlements = snapshot.PosSettlements
+                    .Where(x => x.DayCloseId == item.Id)
+                    .Select(x => posSettlementMap[x.Id])
+                    .ToArray();
+                if (item.IsCancelled != item.CancelledAtUtc.HasValue)
+                    throw Invalid("Cancellation flag and timestamp must appear together.");
+                if (item.CancelledAtUtc is DateTimeOffset dayCloseCancelledAtUtc)
+                {
+                    if (incomes.Any(x => !x.IsCancelled) || settlements.Any(x => !x.IsCancelled))
+                        throw Invalid("A reverted day close cannot keep live records.");
+                    if (item.CountedRecords is { Length: > 0 })
+                        throw Invalid("A reverted day close cannot keep counted records.");
+                    dayCloses.Add(DayClose.Restore(
+                        dayCloseIdMap[item.Id], userId, item.ClosedOn, item.RangeStart,
+                        item.ZNumber, item.IsAdditional, item.CreatedAtUtc,
+                        dayCloseCancelledAtUtc));
+                    continue;
+                }
+
+                var restored = DayClose.Record(
+                    dayCloseIdMap[item.Id], userId, item.ClosedOn, item.CreatedAtUtc,
+                    incomes, settlements, item.RangeStart, item.ZNumber, item.IsAdditional);
+                dayCloses.Add(restored);
+
+                // Sayılan kayıt canlı olmalı ve gün sonunun yazdığı bir kayıt
+                // olmamalıdır; bağ yeni kimliğe çevrilir.
+                foreach (var counted in item.CountedRecords ?? [])
+                {
+                    var recordId = counted.Kind switch
+                    {
+                        DayCloseRecordKind.Income =>
+                            Required(transactionMap, counted.RecordId, "counted transaction") is
+                            { IsCancelled: false, DayCloseId: null } transaction
+                                ? transaction.Id
+                                : throw Invalid("A counted transaction must be live and manual."),
+                        DayCloseRecordKind.PosSettlement =>
+                            Required(posSettlementMap, counted.RecordId, "counted pos settlement") is
+                            { IsCancelled: false, DayCloseId: null } settlement
+                                ? settlement.Id
+                                : throw Invalid("A counted pos settlement must be live and manual."),
+                        DayCloseRecordKind.CounterpartyPayment =>
+                            Required(counterpartyPaymentIds, counted.RecordId, "counted payment"),
+                        DayCloseRecordKind.ObligationSettlement =>
+                            Required(
+                                obligationSettlementIds, counted.RecordId,
+                                "counted obligation settlement"),
+                        _ => throw Invalid("Counted record kind is not supported."),
+                    };
+                    dayCloseCounted.Add(new DayCloseCountedRecord(restored, counted.Kind, recordId));
+                }
+            }
+
+            if (dayCloseCounted.GroupBy(x => (x.Kind, x.RecordId)).Any(group => group.Count() > 1))
+                throw Invalid("A record can be counted by one day close only.");
 
             var debts = new List<DebtAgreement>();
             foreach (var item in snapshot.Debts)
@@ -1112,7 +1213,7 @@ public sealed class EfDataPortabilityRepository(
                 counterpartyCharges.ToArray(), counterpartyPayments.ToArray(),
                 obligations.ToArray(), cashCounts.ToArray(),
                 posDefinitionMap.Values.ToArray(), posSettlementMap.Values.ToArray(),
-                posDeposits.ToArray(),
+                posDeposits.ToArray(), dayCloses.ToArray(), dayCloseCounted.ToArray(),
                 debts.ToArray(), goals.ToArray(), restoredAttachments.ToArray(), entryTimes);
         }
         catch (DataPortabilityException)
@@ -1148,6 +1249,9 @@ public sealed class EfDataPortabilityRepository(
             await dbContext.PosDefinitions.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.PosSettlements.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.PosDeposits.AnyAsync(x => x.UserId == userId, cancellationToken) ||
+            await dbContext.DayCloses.AnyAsync(x => x.UserId == userId, cancellationToken) ||
+            await dbContext.DayCloseCountedRecords.AnyAsync(
+                x => x.UserId == userId, cancellationToken) ||
             await dbContext.DebtAgreements.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.SavingsGoals.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.FinancialAttachments.AnyAsync(x => x.UserId == userId, cancellationToken);
@@ -1275,6 +1379,7 @@ public sealed class EfDataPortabilityRepository(
             snapshot.CounterpartyPayments is null || snapshot.Obligations is null ||
             snapshot.CashCounts is null || snapshot.PosDefinitions is null ||
             snapshot.PosSettlements is null || snapshot.PosDeposits is null ||
+            snapshot.DayCloses is null ||
             snapshot.Debts is null || snapshot.SavingsGoals is null || snapshot.Attachments is null)
             throw Invalid("Every backup collection is required.");
         if (snapshot.InstallmentPlans.Any(x => x.Items is null) ||
@@ -1404,6 +1509,7 @@ internal sealed record FinancialSnapshot(
     PosDefinitionBackup[] PosDefinitions,
     PosSettlementBackup[] PosSettlements,
     PosDepositBackup[] PosDeposits,
+    DayCloseBackup[] DayCloses,
     DebtBackup[] Debts,
     SavingsGoalBackup[] SavingsGoals,
     AttachmentBackup[] Attachments)
@@ -1417,7 +1523,8 @@ internal sealed record FinancialSnapshot(
         Counterparties.Length + CounterpartyCharges.Length + CounterpartyPayments.Length +
         Obligations.Length + Obligations.Count(x => x.Settlement is not null) +
         CashCounts.Length + PosDefinitions.Length + PosSettlements.Length +
-        PosDeposits.Length +
+        PosDeposits.Length + DayCloses.Length +
+        DayCloses.Sum(x => x.CountedRecords?.Length ?? 0) +
         Debts.Length + Debts.Sum(x => x.Installments.Length) +
         SavingsGoals.Length + SavingsGoals.Sum(x => x.Contributions.Length) +
         Attachments.Length;
@@ -1429,7 +1536,7 @@ internal sealed record CategoryBackup(Guid Id, string Name, CategoryType Type, b
     TransactionScope? DefaultScope, bool IsTax = false);
 internal sealed record TransactionBackup(Guid Id, Guid AccountId, Guid CategoryId, decimal Amount, CurrencyCode Currency,
     TransactionType Type, TransactionScope Scope, DateOnly TransactionDate, string? Description, bool IsCancelled,
-    DateTimeOffset? CancelledAtUtc, DateTimeOffset? CreatedAtUtc = null);
+    DateTimeOffset? CancelledAtUtc, DateTimeOffset? CreatedAtUtc = null, Guid? DayCloseId = null);
 internal sealed record BudgetBackup(Guid Id, Guid CategoryId, decimal Limit, CurrencyCode Currency,
     TransactionScope Scope, int Year, int Month);
 internal sealed record TransferBackup(Guid Id, Guid SourceAccountId, Guid DestinationAccountId, decimal Amount,
@@ -1539,7 +1646,23 @@ internal sealed record PosSettlementBackup(
     TransactionScope Scope, DateOnly SettlementDate, DateOnly ExpectedTransferDate,
     string? Description, DateTimeOffset CreatedAtUtc,
     bool IsCancelled, DateTimeOffset? CancelledAtUtc,
-    Guid? PosDefinitionId = null, Guid? PosDepositId = null);
+    Guid? PosDefinitionId = null, Guid? PosDepositId = null, Guid? DayCloseId = null);
+
+/// <remarks>
+/// Gün sonu <b>tutar taşımaz</b> (ADR 0019 İ3): yalnız kimlik, kapatılan gün
+/// (ya da aralık), Z no ve "ek gün sonu" işareti. Ürettiği gelir ve POS
+/// tahsilatı dosyada kendi dizilerindedir ve ona <c>DayCloseId</c> ile bağlanır.
+/// </remarks>
+internal sealed record DayCloseBackup(
+    Guid Id, DateOnly ClosedOn, DateOnly? RangeStart, int? ZNumber, bool IsAdditional,
+    DateTimeOffset CreatedAtUtc, bool IsCancelled, DateTimeOffset? CancelledAtUtc,
+    DayCloseCountedBackup[]? CountedRecords = null);
+
+/// <remarks>
+/// Gün sonunun saydığı, tek tek girilmiş bir kayıt: türü ve dosyadaki kimliği.
+/// Kaydın kendisi dosyada kendi dizisindedir; burada yalnız bağ durur.
+/// </remarks>
+internal sealed record DayCloseCountedBackup(DayCloseRecordKind Kind, Guid RecordId);
 
 /// <remarks>
 /// Yatış <b>taşır</b> (ADR 0019 T5): bankanın gerçekten yatırdığı tutar ve gün.
@@ -1629,6 +1752,8 @@ internal sealed record RestoredGraph(
     PosDefinition[] PosDefinitions,
     PosSettlement[] PosSettlements,
     PosDeposit[] PosDeposits,
+    DayClose[] DayCloses,
+    DayCloseCountedRecord[] DayCloseCountedRecords,
     DebtAgreement[] Debts,
     SavingsGoal[] Goals,
     RestoredAttachment[] Attachments,

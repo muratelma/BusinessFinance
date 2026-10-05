@@ -86,6 +86,27 @@ v9'un taşıdığı iki koleksiyon aynen yerinde:
   Grup 4'te alınmış bir v11 yedeği `posDeposits` koleksiyonunu ve tahsilatın
   `posDepositId` alanını taşımadığı için reddedilir (veri sentetik; aşamanın
   yedek politikası).
+- `dayCloses` — gün sonu (Aşama 06.3 Grup 5, ADR 0019 T1): kapatılan gün
+  (`closedOn`), birkaç günlük Z'nin ilk günü (`rangeStart`, boş olabilir), Z
+  numarası (`zNumber`, boş olabilir), "ek gün sonu" işareti (`isAdditional`),
+  yazıldığı an ve iptal damgası. **Tutar taşımaz** (ADR 0019 İ3): ürettiği
+  gelir `transactions`, ürettiği tahsilat `posSettlements` arasındadır ve ona
+  `dayCloseId` ile bağlanır; iki alan da elle girilen kayıtta boştur. Hiç kayıt
+  üretmemiş gün sonu da dosyadadır — günün kapalı olduğu bilgisi yalnız ondadır.
+  Geri yüklemede gün sonu, kayıtlarıyla birlikte domain kurallarından geçerek
+  kurulur (kayıtlar canlı ve kapatılan günlerin içinde); geri alınmış gün
+  sonunun kayıtları iptal edilmiş olmalıdır, değilse yedek reddedilir. Var
+  olmayan bir gün sonuna bağlı kayıt da reddedilir. Kimlikler geri yüklerken
+  **yeni** kimliklere çevrilir. `dayCloses[].countedRecords` gün sonunun
+  saydığı (tek tek girilmiş ve tutardan düşülmüş) kayıtları taşır: türü
+  (`kind`) ve dosyadaki kimliği (`recordId`). Kaydın kendisi kendi
+  dizisindedir; burada yalnız bağ durur. Geri yüklemede sayılan kayıt canlı ve
+  elle girilmiş olmalı, bir kayıt en çok bir gün sonunda sayılmalı ve geri
+  alınmış gün sonu sayılan kayıt taşımamalıdır; aksi hâlde yedek reddedilir.
+
+  2 Ekim 2026'da (yatış tesliminde) alınmış bir v11 yedeği `dayCloses`
+  koleksiyonunu taşımadığı için reddedilir (veri sentetik; aşamanın yedek
+  politikası).
 
 v8 ise v7'nin taşıdığı her şeyin (karşı tarafın kendisi — ad, not, aktiflik —
 ve cari defterin iki hareket türü: borçlandırma `counterpartyCharges`,
@@ -111,6 +132,31 @@ overwrite veya kullanıcı seçerek silme yapmaz; hedef kullanıcının finans a
 boş olmalıdır. Yeni hesapta uygulamanın otomatik oluşturduğu, hiç değiştirilmemiş
 başlangıç kategorileri boş alan sayılır ve yedekteki kategorilerle atomik olarak
 değiştirilir.
+
+## Veritabanı yükseltme notu — Aşama 06.3 Grup 5 (gün sonunun saydığı kayıtlar)
+
+`AddDayCloseCountedRecords` migration'ı **veri kaybettirmez** ve mevcut hiçbir
+tabloya dokunmaz: yalnız yeni, boş `DayCloseCountedRecords` tablosunu ve iki
+indeksini kurar. Tablo tutar taşımaz. Tekil indeks (`UserId, Kind, RecordId`)
+bir kaydın iki gün sonunda sayılmasını SQL'de de engeller. Bu migration'dan
+önce girilmiş gün sonlarının (yalnız 4 Ekim 2026 deneme verisi) saydığı
+kayıtlar bilinmez ve uydurulmaz: o kayıtlar bağsız kalır.
+
+## Veritabanı yükseltme notu — Aşama 06.3 Grup 5 (gün sonu)
+
+`AddDayCloses` migration'ı **veri kaybettirmez** ve mevcut veriye dokunmaz:
+`BudgetTransactions` ve `PosSettlements` tablolarına nullable, varsayılansız
+bir `DayCloseId` kolonu ekler ve yeni, boş `DayCloses` tablosunu kurar.
+**Backfill yoktur**: mevcut hiçbir kayıt bir gün sonundan gelmedi. Sıra kurala
+uyar: önce kolonlar, sonra tablo ve indeksler, en son foreign key'ler.
+
+`DayCloses` tutar kolonu taşımaz. İki filtreli tekil indeks kuralı SQL'de de
+tutar: kullanıcı ve gün başına geri alınmamış, "ek" olmayan tek gün sonu; kullanıcı
+başına geri alınmamış tek Z numarası.
+
+Geri dönüş (`Down`) iki kolonu ve tabloyu düşürür; gün sonunun ürettiği
+kayıtlar sıradan gelir ve tahsilat olarak kalır, hangi gün sonundan geldikleri
+bilgisi geri gelmez — geri dönüş yalnız geliştirme içindir.
 
 ## Veritabanı yükseltme notu — Aşama 06.3 Grup 5 (giriş anı)
 

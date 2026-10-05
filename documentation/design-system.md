@@ -1025,6 +1025,62 @@ pos_deposit_sheets.dart`). Kasa sekmesi yeniden tasarlanınca (Grup 6) kapı
   (`AppDetailRow` etiketi esnemez ve 2.0× yazıda taşar).
 - **Hesaba geçmiş tahsilatın ayrıntısı** `Kaydı iptal et` sunmaz; yerinde
   `Yatışı gör` ve "Kaydı iptal etmek için önce yatışı geri alın." durur.
+
+## Gün sonu paneli, ayrıntısı ve Kasa kartı (4 Ekim 2026, Aşama 06.3 Grup 5)
+
+Tasarım teslimi yok; mevcut dille kuruldu (`lib/features/day_close/`).
+Kasa sekmesi yeniden tasarlanınca (Grup 6) kart "Bugün" bölümüne taşınır.
+Kullanıcı paneli ekran görüntüsünde onayladı (4 Ekim).
+
+- **Kelime**: `Gün sonu` günün **satışının** girilmesidir. Çekmecedeki nakdin
+  sayılması `Kasa sayımı` / `Kasayı say`dır; ikisi aynı adı taşımaz.
+- **Kapılar**: "+" menüsünde işletme profilinde `POS tahsilatı`nın yerinde
+  `Gün sonu` (alt yazı: `Günün nakit ve kartlı satışı`); Kasa'nın en üstünde
+  gün sonu kartı. Menüden gelen kullanıcı vazgeçerse geldiği ekrana döner.
+- **Panel** bir `AppFormSheet`'tir: `Gün`, `Nakit`, her POS için adını taşıyan
+  bir alan, `Toplam`. Alan etiketleri tek kelimedir. `Toplam`ın altında tek
+  cümle durur: "İkisini yazmak yeter; üçüncüsü hesaplanır." Hesaplanan alan
+  **boş kalır** ve altında `Toplamdan hesaplandı: ₺…` yazar; istemci alana
+  tutar yazmaz.
+- **Zaten girilmiş kayıtlar**: başlık `Gün sonu tutarında var mı?`, altında
+  `İşaretli kayıtlar düşülür.` Satırlar yatış panelindeki onay kutulu satırın
+  aynısıdır (başlık, `Nakit · kasa` / `Kart · POS` / `Cari tahsilat · kasa`,
+  sağda tutar). Liste boşsa bölüm çizilmez.
+- **`Yazılacak`** gri zeminli blokta, ayırıcılı satırlarla: `Nakit satış` ve
+  yazılan her POS. Alt yazı iki kısa satırdır (`₺800,00 düşüldü` /
+  `komisyon ₺32,90 · 5 Ekim beklenir`); tutar gelir tonundadır. Yazılacak
+  kayıt yoksa tek satır: "Yazılacak kayıt yok; gün kapatılır." Blok yalnız
+  engel yokken görünür.
+- **Kasa ve kategori sorulmaz**: özetin altındaki `Kasayı ya da kategoriyi
+  değiştir` iki açılır alanı gösterir. Sunucu seçemediyse alanlar kendiliğinden
+  açılır.
+- **Engeller alanın yanında söylenir** (alanın `errorText`'i); bir alana ait
+  olmayanlar listenin altında tek bir `AppInlineNotice`'tir. "Tutar yazılmadı"
+  yalnız `Gün sonunu kaydet`e basıldıktan sonra söylenir: boş açılan panel
+  uyarıyla karşılamaz.
+- **Kapalı gün**: `Gün`ün altında bildirim ve `Ek gün sonu` onay satırı;
+  alanlar kilitli, kayıt listesi gizli. Kutu işaretlenince ikisi de açılır.
+- **Gün ayrıntısı günü gösterir, tek gün sonunu değil** (`showDayCloseDay`;
+  4 Ekim emülatör turundan sonra). Yatış ayrıntısıyla aynı iskelet: kapsül +
+  başlık (`Gün sonu`, altında gün), durum etiketi (`Gün kapatıldı` / `Gün sonu
+  girilmedi`), `AppDetailBlock` içinde günün `Nakit` ve `Kart` toplamı.
+  Altında her gün sonu için bir bölüm (`Gün sonu`, `Ek gün sonu`, varsa
+  `· Z 3143`): gri blokta kayıt satırları, alt yazı kaydın bağını söyler
+  (`Yazıldı · Dükkan kasası`, `Yazıldı · yolda`, `Sayıldı · nakit`), altında
+  çerçeveli `Gün sonunu geri al` / `Eki geri al`. Eki olan ana gün sonunda
+  düğme yerine tek cümle durur. En altta `Gün sonunun dışında` (sayılmamış,
+  tek tek girilmiş kayıtlar). Büyük tutar yoktur: gün tek bir para hareketi
+  değildir.
+- **Kasa kartı** `AppCard`'dır: kapsül, `Gün sonu`, altında `Bugün girilmedi`
+  ya da `Bugün girildi`. Gün açıkken tam genişlik `Gün sonunu gir`; kapalıyken
+  günün toplamını taşıyan dokunulabilir tek satır (`Nakit ₺… · Kart ₺…`,
+  sağda ok; günün ayrıntısını açar) ve metin eylemi `Ek gün sonu gir`.
+- **Gün sonuna bağlı kayıt İşlemler'de okunur**: gün sonunun yazdığı kayıt
+  satırın alt yazısında `Gün sonu` taşır. Ayrıntıda `Hareketi iptal et`
+  yerine kilit satırı (yazılan: "Gün sonundan gelen kayıt…", sayılan: "Gün
+  sonunda sayıldı…") ve çerçeveli `Gün sonunu gör` durur. Kasa'daki tahsilat
+  ayrıntısı gün sonundan gelen tahsilatta `Kaydı iptal et` yerine tek cümleyi
+  gösterir.
 - Hata durumları görünür: yatış panelinde ve yatış ayrıntısında
   `AppInlineNotice`; ayrıntı okunamazsa `AppErrorView` ("Tekrar dene"), oturum
   bittiyse `AppUnauthorizedView`.

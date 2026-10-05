@@ -107,6 +107,7 @@ plandır ve kullanıcı ikisini ayrı sorar.
 | `recurring` | `RecurringTransactionOccurrence` sonuç bağlantısı eşleşiyor |
 | `installment` | `InstallmentItem.CreditCardChargeId` eşleşiyor |
 | `pos-deposit` | `PosDeposit.DeductionTransactionId` eşleşiyor — bir POS yatışının kesinti gideri |
+| `day-close` | Kaydın `DayCloseId` alanı dolu — bir gün sonunun ürettiği nakit gelir (`account-transaction`) ya da POS satışı (`pos-sale`) |
 | `manual` | Hiçbiri eşleşmiyor |
 
 Aynı sonuç hareketinin birden fazla kökene bağlanmasını filtered unique
@@ -140,6 +141,8 @@ index'ler ve Domain invariant'ları engeller.
 | Yükümlülük ödeme/tahsilatı | `obligation-settlement` | `neutral` | `obligation` | **hayır** |
 | POS satışının tanınması | `pos-sale` | `income` | `pos` | **hayır** |
 | POS yatışı | `pos-deposit` | `neutral` | `pos` | **hayır** |
+| Gün sonunun nakit geliri | `account-transaction` | `income` | `account` | **hayır** (`day-close`) |
+| Gün sonunun POS satışı | `pos-sale` | `income` | `pos` | **hayır** |
 
 `canCancel` formülü:
 
@@ -148,7 +151,8 @@ canCancel = status == realized
          && activityKind ∉ { debt-payment, debt-collection, debt-opening,
                              obligation, obligation-settlement,
                              pos-sale, pos-deposit }
-         && origin ∉ { recurring, installment, pos-deposit }
+         && origin ∉ { recurring, installment, pos-deposit, day-close }
+         && dayCloseId == null
 ```
 
 Borç açılışı iptal edilemez: o satır sözleşmenin kendisidir, iptali borcu
@@ -179,6 +183,22 @@ başına iptal edilemez (`409 transactions.cancel_origin_locked`): iptal
 edilseydi yatış, hesaba gerçekte geçmemiş bir tutarı geçmiş gösterirdi. Vergi
 ödemesini geri alma ucu da aynı kökeni reddeder. `origin=pos-deposit` değeri
 sözleşmede durur ama bugün hiçbir akış satırında dönmez.
+
+**Gün sonu akışta bir satır değildir** (ADR 0019 İ3, Aşama 06.3 Grup 5): ayrı
+bir `activityKind` yoktur. Ürettiği nakit gelir ve POS satışı kendi
+satırlarıdır, kökenleri `day-close`'dur ve tek başlarına iptal edilemezler
+(`409 transactions.cancel_origin_locked`, `409 pos_settlements.day_close_locked`).
+Gün sonu kendi ucundan (`DELETE /api/v1/day-closes/{id}`) bir bütün olarak geri
+alınır; geri alınınca iki satır da `cancelled` olur ve kökenleri değişmez.
+Satır gün sonunun kimliğini taşır (`dayCloseId`): gün sonunun **yazdığı**
+kayıtta (kökeni `day-close`) ve gün sonunun **saydığı**, tek tek girilmiş
+kayıtta (kökeni olduğu gibi kalır, çoğu zaman `manual`). İkisinde de
+`canCancel` `false`'tur; sayılan kaydın doğrudan iptali
+`409 transactions.day_close_counted` / `pos_settlements.day_close_counted` /
+`counterparty_payments.day_close_counted` döner. İstemci ayrıntıdan günü açar:
+`GET /api/v1/day-closes/day?date=`. Gün sonu geri alınınca sayılan kayıtların
+bağı kalkar (`dayCloseId: null`, yeniden iptal edilebilir); yazılan kayıtlar
+iptal edilmiş olarak kalır.
 
 `pos-deposit` **kapsam taşımaz** (`scope: null`): parayı taşır, gelir/gider
 üretmez (ADR 0014). Kapsam filtreli okumada düşer; `pos-sale` kapsam taşır ve

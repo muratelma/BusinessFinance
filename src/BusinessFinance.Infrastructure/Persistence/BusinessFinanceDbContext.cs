@@ -38,6 +38,8 @@ public sealed class BusinessFinanceDbContext(
     public DbSet<PosSettlement> PosSettlements => Set<PosSettlement>();
     public DbSet<PosDefinition> PosDefinitions => Set<PosDefinition>();
     public DbSet<PosDeposit> PosDeposits => Set<PosDeposit>();
+    public DbSet<DayClose> DayCloses => Set<DayClose>();
+    public DbSet<DayCloseCountedRecord> DayCloseCountedRecords => Set<DayCloseCountedRecord>();
     public DbSet<SavingsGoal> SavingsGoals => Set<SavingsGoal>();
     public DbSet<SavingsGoalContribution> SavingsGoalContributions => Set<SavingsGoalContribution>();
     public DbSet<FinancialAttachment> FinancialAttachments => Set<FinancialAttachment>();

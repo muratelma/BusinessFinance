@@ -33,6 +33,7 @@ import '../features/receipts/data/receipt_photo.dart';
 import '../features/receipts/data/receipt_preferences.dart';
 import '../features/receipts/data/receipt_repository.dart';
 import '../features/reminders/data/notification_scheduler.dart';
+import '../features/day_close/data/day_close_repository.dart';
 import '../features/reminders/data/reminder_preferences.dart';
 import '../features/reminders/presentation/reminder_controller.dart';
 
@@ -61,6 +62,7 @@ class AppDependencies {
     this.obligationRepository,
     this.cashRepository,
     this.posRepository,
+    this.dayCloseRepository,
     this.taxRepository,
     this.receiptRepository,
     this.receiptImageSource,
@@ -101,6 +103,7 @@ class AppDependencies {
     final obligationRepository = ObligationRepository(apiClient);
     final cashRepository = CashRepository(apiClient);
     final posRepository = PosRepository(apiClient);
+    final dayCloseRepository = DayCloseRepository(apiClient);
     final taxRepository = TaxRepository(apiClient);
     final receiptRepository = ReceiptRepository(apiClient);
     final profileRepository = ProfileRepository(apiClient);
@@ -147,6 +150,7 @@ class AppDependencies {
       obligationRepository,
       cashRepository,
       posRepository,
+      dayCloseRepository,
       taxRepository,
       receiptRepository,
       ImagePickerReceiptImageSource(),
@@ -191,6 +195,7 @@ class AppDependencies {
   final ObligationRepositoryContract obligationRepository;
   final CashRepositoryContract cashRepository;
   final PosRepositoryContract posRepository;
+  final DayCloseRepositoryContract dayCloseRepository;
 
   /// Vergi takvimi.
   final TaxRepositoryContract taxRepository;

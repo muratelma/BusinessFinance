@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_finance_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -32,8 +34,12 @@ class QuickAddLauncher extends StatelessWidget {
     QuickAddOption.transfer,
   ];
   static const _documents = [QuickAddOption.receipt, QuickAddOption.bankSlip];
-  static const _more = [
-    QuickAddOption.posCollection,
+
+  /// İşletme profilinde `POS tahsilatı`nın yerini `Gün sonu` alır (ADR 0019
+  /// T1): esnaf satışı tek tek değil günün toplamıyla girer. Tek POS
+  /// tahsilatı Kasa'dan girilmeye devam eder.
+  static List<QuickAddOption> _more(bool hasBusiness) => [
+    hasBusiness ? QuickAddOption.dayClose : QuickAddOption.posCollection,
     QuickAddOption.obligation,
     QuickAddOption.cardPayment,
     QuickAddOption.recurringPlan,
@@ -45,6 +51,7 @@ class QuickAddLauncher extends StatelessWidget {
     final surfaces = AppSurfaces.of(context);
     final label = theme.textTheme.labelMedium;
     void pick(QuickAddOption option) => Navigator.of(context).pop(option);
+    final more = _more(context.watch<ScopeController?>()?.isVisible ?? false);
 
     return SafeArea(
       // Büyük yazı ölçeğinde panel taşabilir; kaydırma meşrudur, kırpılma
@@ -106,7 +113,7 @@ class QuickAddLauncher extends StatelessWidget {
             AppDividedColumn(
               inset: AppIconCapsule.rowInset - AppSpacing.medium,
               children: [
-                for (final option in _more)
+                for (final option in more)
                   AppRow(
                     padding: const EdgeInsets.symmetric(
                       vertical: AppSpacing.small + AppSpacing.xxSmall,
@@ -138,6 +145,7 @@ IconData quickAddIcon(QuickAddOption option) => switch (option) {
   QuickAddOption.obligation => Icons.schedule_outlined,
   QuickAddOption.income => Icons.south_west,
   QuickAddOption.posCollection => Icons.point_of_sale_outlined,
+  QuickAddOption.dayClose => Icons.fact_check_outlined,
   QuickAddOption.bankSlip => Icons.account_balance_outlined,
   QuickAddOption.transfer => Icons.swap_horiz,
   QuickAddOption.cardPayment => Icons.credit_card,

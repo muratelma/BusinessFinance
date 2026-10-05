@@ -9,6 +9,8 @@ import 'package:business_finance_mobile/core/theme/app_theme.dart';
 import 'package:business_finance_mobile/features/cash/data/cash_repository.dart';
 import 'package:business_finance_mobile/features/cash/presentation/cash_controller.dart';
 import 'package:business_finance_mobile/features/cash/presentation/cash_page.dart';
+import 'package:business_finance_mobile/features/day_close/data/day_close_repository.dart';
+import 'package:business_finance_mobile/features/day_close/presentation/day_close_controller.dart';
 import 'package:business_finance_mobile/features/pos/data/pos_repository.dart';
 import 'package:business_finance_mobile/features/pos/presentation/pos_controller.dart';
 import 'package:business_finance_mobile/features/pos/presentation/pos_settlements_view.dart';
@@ -560,6 +562,132 @@ void main() {
     expectNoOverflow(tester);
     await expectMeetsAccessibility(tester);
   });
+
+  // Gün sonu Kasa'nın en üstünde durur (ADR 0019 T1): gün açıkken birincil
+  // eylem paneli açar. Gün sonu satışı yazar; kasa sayımı ayrı bir iştir ve
+  // kendi kartındadır.
+  testWidgets('Kasa gün sonu kartını gösterir ve paneli açar', (tester) async {
+    final dayClose = DayCloseController(_FakeDayCloseRepository());
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: CashPage(
+          cashController: CashCountController(
+            _FakeCashRepository(),
+            clock: () => DateTime(2026, 9, 25, 18),
+          ),
+          posController: PosController(_FakePosRepository()),
+          dayCloseController: dayClose,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Gün sonu'), findsOneWidget);
+    expect(find.text('Bugün girilmedi'), findsOneWidget);
+    expect(find.text('Gün sonu sayımı'), findsNothing);
+    await expectMeetsAccessibility(tester);
+
+    await tester.tap(find.text('Gün sonunu gir'));
+    await tester.pumpAndSettle();
+    expect(find.text('Gün sonunu kaydet'), findsOneWidget);
+  });
+
+  // `İşlem ekle > Gün sonu` Kasa'yı paneliyle açar; vazgeçen kullanıcı
+  // geldiği ekrana döner.
+  testWidgets('menüden gelen gün sonu paneli vazgeçince geri döner', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => CashPage(
+                    cashController: CashCountController(
+                      _FakeCashRepository(),
+                      clock: () => DateTime(2026, 9, 25, 18),
+                    ),
+                    posController: PosController(_FakePosRepository()),
+                    dayCloseController: DayCloseController(
+                      _FakeDayCloseRepository(),
+                    ),
+                    initialTab: 2,
+                  ),
+                ),
+              ),
+              child: const Text('Başlangıç'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Başlangıç'));
+    await tester.pumpAndSettle();
+    expect(find.text('Gün sonunu kaydet'), findsOneWidget);
+
+    await tester.tap(find.text('Vazgeç'));
+    await tester.pumpAndSettle();
+    expect(find.text('Başlangıç'), findsOneWidget);
+    expect(find.text('Kasa'), findsNothing);
+  });
+}
+
+class _FakeDayCloseRepository implements DayCloseRepositoryContract {
+  @override
+  Future<DayClosePreview> preview(DayCloseInput input) async => DayClosePreview(
+    date: input.date,
+    currency: 'TRY',
+    closedBy: const [],
+    cash: const DayCloseCashLine(
+      stated: false,
+      enteredAmount: '0.0000',
+      isComputed: false,
+      deductedAmount: '0.0000',
+      amountToWrite: '0.0000',
+    ),
+    posLines: const [],
+    totalComputed: '0.0000',
+    existingRecords: const [],
+    blockerCode: 'day_closes.amounts_required',
+  );
+
+  @override
+  Future<List<DayClose>> list({
+    required String from,
+    required String to,
+  }) async => const [];
+
+  @override
+  Future<DayCloseDay> day({required String date}) async => DayCloseDay(
+    date: date,
+    closes: const [],
+    outsideRecords: const [],
+    cashTotal: '0.0000',
+    cardTotal: '0.0000',
+    currency: 'TRY',
+  );
+
+  @override
+  Future<DayClose> create({
+    required String clientRequestId,
+    required DayCloseInput input,
+  }) async => throw UnimplementedError();
+
+  @override
+  Future<DayClose> get({required String dayCloseId}) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<DayClose> revert({required String dayCloseId}) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<DayCloseOptions> loadOptions() async =>
+      const DayCloseOptions(cashAccounts: [], categories: []);
 }
 
 Widget _app({

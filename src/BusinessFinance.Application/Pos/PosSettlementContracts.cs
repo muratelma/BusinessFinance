@@ -61,7 +61,9 @@ public sealed record PosSettlementDto(
     Guid? PosDefinitionId = null,
     string? PosDefinitionName = null,
     // Parayı hesaba geçiren yatış; para yoldaysa boştur.
-    Guid? PosDepositId = null);
+    Guid? PosDepositId = null,
+    // Tahsilatı üreten gün sonu; tek tek girilende boştur.
+    Guid? DayCloseId = null);
 
 /// <summary>
 /// Tahsilat listesi ve yanında yoldaki toplam.

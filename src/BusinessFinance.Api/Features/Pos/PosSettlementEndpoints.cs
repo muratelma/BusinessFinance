@@ -221,5 +221,6 @@ public static class PosSettlementEndpoints
         settlement.IsLate,
         settlement.PosDefinitionId,
         settlement.PosDefinitionName,
-        settlement.PosDepositId);
+        settlement.PosDepositId,
+        settlement.DayCloseId);
 }

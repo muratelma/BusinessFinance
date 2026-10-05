@@ -27,7 +27,12 @@ class PosSettlementItem {
     this.scope,
     this.posDefinitionName,
     this.posDepositId,
+    this.dayCloseId,
   });
+
+  /// Tahsilatı üreten gün sonu; tek tek girilende `null`. Gün sonundan gelen
+  /// tahsilat tek başına iptal edilemez, gün sonu geri alınır.
+  final String? dayCloseId;
 
   /// Tahsilatın yazıldığı POS tanımının adı; tanımsız girilende `null`.
   final String? posDefinitionName;
@@ -79,6 +84,7 @@ class PosSettlementItem {
           'posDefinitionName',
         ),
         posDepositId: JsonReaders.nullableString(json, 'posDepositId'),
+        dayCloseId: JsonReaders.nullableString(json, 'dayCloseId'),
       );
 }
 

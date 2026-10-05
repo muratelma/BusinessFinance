@@ -112,6 +112,7 @@ void main() {
         'recurring',
         'installment',
         'pos-deposit',
+        'day-close',
       };
 
       expect(
@@ -119,6 +120,26 @@ void main() {
         serverOrigins,
       );
       expect(ActivityOrigin.fromApi('pos-deposit').label, 'Yatış kesintisi');
+      expect(ActivityOrigin.fromApi('day-close'), ActivityOrigin.dayClose);
+    });
+
+    // Satır gün sonunun kimliğini taşır: yazılan kayıtta kökenle birlikte,
+    // sayılan (tek tek girilmiş) kayıtta kökensiz.
+    test('gün sonuna bağlı kaydı yazılan ve sayılan diye ayırır', () {
+      final written = FinancialActivity.fromJson(
+        _json(origin: 'day-close')..['dayCloseId'] = 'close-1',
+      );
+      final counted = FinancialActivity.fromJson(
+        _json()..['dayCloseId'] = 'close-1',
+      );
+      final plain = FinancialActivity.fromJson(_json());
+
+      expect(written.isWrittenByDayClose, isTrue);
+      expect(written.isCountedInDayClose, isFalse);
+      expect(counted.isCountedInDayClose, isTrue);
+      expect(counted.belongsToDayClose, isTrue);
+      expect(plain.belongsToDayClose, isFalse);
+      expect(plain.dayCloseId, isNull);
       expect(ActivityKind.fromApi('pos-deposit'), ActivityKind.posDeposit);
     });
 

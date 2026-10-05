@@ -1,7 +1,9 @@
 using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
+using BusinessFinance.Application.DayCloses;
 using BusinessFinance.Application.FinancialActivities;
 using BusinessFinance.Application.RecurringTransactions;
+using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Transactions;
 
@@ -12,6 +14,7 @@ public sealed class CancelTransactionUseCase(
     ITransactionRepository repository,
     IActivityOriginReader originReader,
     IRecurringTransactionRepository recurringRepository,
+    IDayCloseCountReader dayCloseCountReader,
     TimeProvider timeProvider)
 {
     public async Task<ApplicationResult<TransactionDto>> ExecuteAsync(
@@ -50,6 +53,13 @@ public sealed class CancelTransactionUseCase(
         {
             return ApplicationResult<TransactionDto>.Failure(
                 TransactionErrors.CancelOriginLocked);
+        }
+
+        if (!transaction.IsCancelled &&
+            await dayCloseCountReader.IsCountedAsync(
+                userId, DayCloseRecordKind.Income, transaction.Id, cancellationToken))
+        {
+            return ApplicationResult<TransactionDto>.Failure(TransactionErrors.DayCloseCounted);
         }
 
         // Bir vergi ödemesi kapattığı kalemlerle birlikte geri alınır (ADR 0018

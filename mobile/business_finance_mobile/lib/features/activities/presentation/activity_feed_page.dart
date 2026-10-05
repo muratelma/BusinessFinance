@@ -17,6 +17,9 @@ import '../data/activity_models.dart';
 import '../data/activity_repository.dart';
 import '../data/planned_activity_models.dart';
 import 'activity_controller.dart';
+import '../../day_close/data/day_close_repository.dart';
+import '../../day_close/presentation/day_close_controller.dart';
+import '../../day_close/presentation/day_close_detail.dart';
 import '../../pos/data/pos_repository.dart';
 import '../../pos/presentation/pos_deposit_sheets.dart';
 import 'activity_detail_sheet.dart';
@@ -39,8 +42,13 @@ class ActivityFeedPage extends StatefulWidget {
     this.onShowPlanned,
     this.scopeController,
     this.posRepository,
+    this.dayCloseRepository,
     this.now,
   });
+
+  /// Gün sonundan gelen kaydın ayrıntısı gün sonunu (ve geri almayı) bu
+  /// depodan açar. Verilmezse eylem çizilmez.
+  final DayCloseRepositoryContract? dayCloseRepository;
 
   final ActivityRepositoryContract repository;
   final FinancialDataChanges? changes;
@@ -360,6 +368,13 @@ class _ActivityFeedPageState extends State<ActivityFeedPage> {
           activity: activity,
           balances: balances,
           isCancelling: _controller.isCancelling,
+          onShowDayClose:
+              activity.belongsToDayClose && widget.dayCloseRepository != null
+              ? () {
+                  Navigator.of(sheetContext).pop();
+                  _openDayClose(activity);
+                }
+              : null,
           onCancel: activity.canCancel
               ? () async {
                   final cancelled = await _controller.cancel(activity);
@@ -373,6 +388,23 @@ class _ActivityFeedPageState extends State<ActivityFeedPage> {
     );
     if (!mounted) return;
     _showPendingMessage();
+  }
+
+  /// Kaydın gününü açar: o günün gün sonları (ana ve ekler), yazdıkları ve
+  /// saydıkları kayıtlar. Geri alma oradadır.
+  Future<void> _openDayClose(FinancialActivity activity) async {
+    final repository = widget.dayCloseRepository;
+    if (repository == null) return;
+    final controller = DayCloseController(repository, changes: widget.changes);
+    try {
+      await showDayCloseDay(
+        context,
+        controller: controller,
+        date: activity.activityDate,
+      );
+    } finally {
+      controller.dispose();
+    }
   }
 
   void _showPendingMessage() {

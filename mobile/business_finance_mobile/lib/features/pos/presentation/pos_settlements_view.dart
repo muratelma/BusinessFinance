@@ -475,17 +475,25 @@ class PosSettlementSheet extends StatelessWidget {
               // Yanlış girişin düzeltme yolu (28 Eylül denetimi U12): kayıt
               // silinmez, iptal edilir.
               const SizedBox(height: AppSpacing.small),
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                  foregroundColor: theme.colorScheme.error,
+              // Gün sonundan gelen tahsilat tek başına iptal edilemez: gün
+              // sonu bir bütün olarak geri alınır (ADR 0019 T1).
+              if (item.dayCloseId != null)
+                Text(
+                  'Gün sonundan geldi. İptal için gün sonunu geri alın.',
+                  style: note?.copyWith(color: surfaces.inkMuted),
+                )
+              else
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                    foregroundColor: theme.colorScheme.error,
+                  ),
+                  onPressed: controller.isSubmitting
+                      ? null
+                      : () => _confirmCancel(context),
+                  icon: const Icon(Icons.block),
+                  label: const Text('Kaydı iptal et'),
                 ),
-                onPressed: controller.isSubmitting
-                    ? null
-                    : () => _confirmCancel(context),
-                icon: const Icon(Icons.block),
-                label: const Text('Kaydı iptal et'),
-              ),
             ] else if (item.posDepositId != null) ...[
               // Hesaba geçiş yatışın işidir: gerçek yatan tutar ve geri alma
               // oradadır. Yatışa bağlı tahsilat iptal edilemez.

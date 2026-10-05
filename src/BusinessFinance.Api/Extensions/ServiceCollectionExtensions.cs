@@ -33,6 +33,7 @@ using BusinessFinance.Application.Receipts;
 using BusinessFinance.Application.Cash;
 using BusinessFinance.Application.Obligations;
 using BusinessFinance.Application.Pos;
+using BusinessFinance.Application.DayCloses;
 
 namespace BusinessFinance.Api.Extensions;
 
@@ -170,6 +171,12 @@ public static class ServiceCollectionExtensions
         services.AddTransient<CreatePosDepositUseCase>();
         services.AddTransient<GetPosDepositUseCase>();
         services.AddTransient<RevertPosDepositUseCase>();
+        services.AddTransient<PreviewDayCloseUseCase>();
+        services.AddTransient<CreateDayCloseUseCase>();
+        services.AddTransient<GetDayCloseUseCase>();
+        services.AddTransient<ListDayClosesUseCase>();
+        services.AddTransient<GetDayCloseDayUseCase>();
+        services.AddTransient<RevertDayCloseUseCase>();
 
         return services;
     }

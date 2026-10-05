@@ -1,6 +1,7 @@
 using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Accounts;
+using BusinessFinance.Application.DayCloses;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.Scopes;
 using BusinessFinance.Application.Taxes;
@@ -224,6 +225,7 @@ public sealed class CancelCounterpartyChargeUseCase(
 public sealed class CancelCounterpartyPaymentUseCase(
     ICurrentUser currentUser,
     ICounterpartyRepository repository,
+    IDayCloseCountReader dayCloseCountReader,
     TimeProvider timeProvider)
 {
     public async Task<ApplicationResult<CounterpartyPaymentDto>> ExecuteAsync(
@@ -241,6 +243,14 @@ public sealed class CancelCounterpartyPaymentUseCase(
         {
             return ApplicationResult<CounterpartyPaymentDto>.Failure(
                 CounterpartyErrors.PaymentNotFound(paymentId));
+        }
+
+        if (!payment.IsCancelled &&
+            await dayCloseCountReader.IsCountedAsync(
+                userId, DayCloseRecordKind.CounterpartyPayment, payment.Id, cancellationToken))
+        {
+            return ApplicationResult<CounterpartyPaymentDto>.Failure(
+                CounterpartyErrors.PaymentDayCloseCounted);
         }
 
         payment.Cancel(timeProvider.GetUtcNow().ToUniversalTime());

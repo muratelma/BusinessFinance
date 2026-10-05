@@ -92,6 +92,16 @@ internal sealed class PosSettlementConfiguration : IEntityTypeConfiguration<PosS
         { settlement.UserId, settlement.PosDepositId, settlement.TransferredOn })
             .HasDatabaseName("IX_PosSettlements_UserId_PosDepositId_TransferredOn");
 
+        builder.HasIndex(settlement => new { settlement.UserId, settlement.DayCloseId })
+            .HasFilter("[DayCloseId] IS NOT NULL")
+            .HasDatabaseName("IX_PosSettlements_UserId_DayCloseId");
+
+        // Tek tek girilen tahsilatta boştur (ADR 0019 T1).
+        builder.HasOne<DayClose>().WithMany()
+            .HasForeignKey(settlement => new { settlement.UserId, settlement.DayCloseId })
+            .HasPrincipalKey(dayClose => new { dayClose.UserId, dayClose.Id })
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired(false);
         builder.HasOne<ApplicationUser>().WithMany()
             .HasForeignKey(settlement => settlement.UserId)
             .OnDelete(DeleteBehavior.Restrict);

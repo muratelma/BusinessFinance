@@ -78,7 +78,7 @@ Reddedilenler (ilke düzeyinde):
 
 | Reddedilen | Neden |
 |---|---|
-| Ayrı bir `DailyClose` tablosu (Z toplamı, not, durum) | Raporlara, işletme netine, bütçeye, birleşik akışa ve yedeğe ikinci bir kaynak ekler (İ3) |
+| Ayrı bir `DailyClose` tablosu (Z toplamı, not, durum) | Raporlara, işletme netine, bütçeye, birleşik akışa ve yedeğe ikinci bir kaynak ekler (İ3). **Tutar taşımayan kimlik kaydı bu reddin dışındadır** (kullanıcı kararı, 4 Ekim 2026): gün sonunun kimliği (`DayCloses`: gün, isteğe bağlı aralık başı ve Z no, "ek" işareti, geri alma damgası) tutar, not ve durum taşımaz; rapor, net, bütçe, bakiye ve akış onu okumaz. Kayıt yalnız "hangi kayıtlar birlikte doğdu, gün kapatıldı mı, hangi Z ile" sorularını cevaplar |
 | Kartla veresiye tahsilatında "POS'a girmeyin" uyarısıyla yetinmek | Esnafın en olağan işlerinden birini cevapsız bırakır; kullanıcı POS'a girerse gelir iki kez sayılır |
 | Banka hesabı için sayım ("banka mutabakatı") | Kullanıcının bütün hareketleri %100 girmesini bekler; pratikte olmaz (kullanıcı) |
 | POS tahsilatını bir hesap türü yapmak | ADR 0015 §2'nin reddi aynen geçerlidir |

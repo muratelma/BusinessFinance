@@ -40,7 +40,9 @@ public sealed class MigrationHistoryTests
         "AddPosDefinitions",
         "AddPosDefinitionDefault",
         "AddPosDeposits",
-        "AddEntryTimestamps"
+        "AddEntryTimestamps",
+        "AddDayCloses",
+        "AddDayCloseCountedRecords"
     ];
 
     [Fact]
@@ -800,6 +802,78 @@ public sealed class MigrationHistoryTests
                 Assert.Null(column.DefaultValue);
                 Assert.Null(column.DefaultValueSql);
             });
+        }
+    }
+
+    /// <summary>
+    /// Gün sonu kimliği dolu iki tabloya (gelir ve POS tahsilatı) eklenir.
+    /// Eski kayıtlar hiçbir gün sonundan gelmedi: kolon nullable'dır,
+    /// varsayılansızdır ve backfill yoktur. Kolonlar bağdan önce eklenir;
+    /// hiçbir kolon ya da tablo düşmez. Yeni tablo tutar taşımaz
+    /// (ADR 0019 İ3).
+    /// </summary>
+    [Fact]
+    public void AddDayCloses_LinksExistingTablesWithNullableColumnsAndCarriesNoAmount()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_AddDayCloses", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations.ToList();
+            Assert.DoesNotContain(up, operation => operation is DropColumnOperation or DropTableOperation);
+
+            var columns = up.OfType<AddColumnOperation>().ToArray();
+            Assert.Equal(
+                ["BudgetTransactions", "PosSettlements"],
+                columns.Select(column => column.Table).OrderBy(name => name, StringComparer.Ordinal));
+            Assert.All(columns, column =>
+            {
+                Assert.Equal("DayCloseId", column.Name);
+                Assert.True(column.IsNullable);
+                Assert.Null(column.DefaultValue);
+                Assert.Null(column.DefaultValueSql);
+            });
+
+            var table = Assert.Single(up.OfType<CreateTableOperation>());
+            Assert.Equal("DayCloses", table.Name);
+            Assert.DoesNotContain(
+                table.Columns,
+                column => column.ColumnType?.StartsWith("decimal", StringComparison.Ordinal) == true);
+
+            var lastColumn = columns.Max(column => up.IndexOf(column));
+            var foreignKeys = up.OfType<AddForeignKeyOperation>().ToArray();
+            Assert.Equal(2, foreignKeys.Length);
+            Assert.All(foreignKeys, key =>
+            {
+                Assert.Equal("DayCloses", key.PrincipalTable);
+                Assert.True(up.IndexOf(key) > lastColumn);
+                Assert.True(up.IndexOf(key) > up.IndexOf(table));
+            });
+        }
+    }
+
+    /// <summary>
+    /// Gün sonunun saydığı kayıtların bağı yeni, boş bir tablodur: mevcut
+    /// hiçbir tabloya dokunmaz, tutar taşımaz ve bir kaydın iki gün sonunda
+    /// sayılmasını tekil indeksle engeller.
+    /// </summary>
+    [Fact]
+    public void AddDayCloseCountedRecords_AddsOnlyALinkTableWithNoAmount()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_AddDayCloseCountedRecords", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations.ToList();
+            var table = Assert.Single(up.OfType<CreateTableOperation>());
+            Assert.Equal("DayCloseCountedRecords", table.Name);
+            Assert.DoesNotContain(
+                table.Columns,
+                column => column.ColumnType?.StartsWith("decimal", StringComparison.Ordinal) == true);
+            Assert.All(up, operation =>
+                Assert.True(operation is CreateTableOperation or CreateIndexOperation));
+            var unique = Assert.Single(up.OfType<CreateIndexOperation>(), index => index.IsUnique);
+            Assert.Equal(["UserId", "Kind", "RecordId"], unique.Columns);
         }
     }
 

@@ -154,6 +154,72 @@ void main() {
     expect(calls, 0);
   });
 
+  // Gün sonundan gelen kayıt tek başına iptal edilemez (ADR 0019 T1): ayrıntı
+  // nedenini söyler ve gün sonuna götürür; geri alma oradadır.
+  testWidgets('gün sonundan gelen kayıt iptal sunmaz, gün sonuna götürür', (
+    tester,
+  ) async {
+    var opened = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Scaffold(
+          body: ActivityDetailSheet(
+            activity: _activity(
+              effect: ActivityEffect.income,
+              origin: ActivityOrigin.dayClose,
+              canCancel: false,
+            ),
+            onShowDayClose: () => opened++,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Hareketi iptal et'), findsNothing);
+    expect(
+      find.textContaining('Gün sonundan gelen kayıt tek başına iptal edilemez'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Gün sonunu gör'));
+    expect(opened, 1);
+  });
+
+  // Tek tek girilmiş ama bir gün sonunda sayılmış kayıt da iptal sunmaz:
+  // iptal edilseydi günün geliri sessizce eksilirdi. Ayrıntı nedenini söyler
+  // ve aynı güne götürür.
+  testWidgets('gün sonunda sayılan kayıt iptal sunmaz, güne götürür', (
+    tester,
+  ) async {
+    var opened = 0;
+    final activity = _activity(
+      effect: ActivityEffect.income,
+      canCancel: false,
+      dayCloseId: 'close-1',
+    );
+    expect(activity.isCountedInDayClose, isTrue);
+    expect(activity.isWrittenByDayClose, isFalse);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Scaffold(
+          body: ActivityDetailSheet(
+            activity: activity,
+            onShowDayClose: () => opened++,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Hareketi iptal et'), findsNothing);
+    expect(find.textContaining('Gün sonunda sayıldı'), findsOneWidget);
+    await tester.tap(find.text('Gün sonunu gör'));
+    expect(opened, 1);
+  });
+
   testWidgets('wraps a long description instead of overflowing', (
     tester,
   ) async {
@@ -236,6 +302,7 @@ FinancialActivity _activity({
   String? destinationName,
   bool canCancel = true,
   bool supportsAttachments = true,
+  String? dayCloseId,
 }) => FinancialActivity(
   activityId: 'a',
   kind: kind,
@@ -253,4 +320,5 @@ FinancialActivity _activity({
   destinationName: destinationName,
   canCancel: canCancel,
   supportsAttachments: supportsAttachments,
+  dayCloseId: dayCloseId,
 );

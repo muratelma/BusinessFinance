@@ -67,7 +67,11 @@ public sealed record FinancialActivityResponse(
     /// Cari ve yükümlülük kayıtlarında yön: <c>receivable</c> ya da
     /// <c>payable</c>; diğer türlerde <c>null</c>.
     /// </summary>
-    string? Direction = null);
+    string? Direction = null,
+    // Kaydın bağlı olduğu gün sonu: gün sonunun yazdığı (`origin: day-close`)
+    // ya da saydığı (tek tek girilmiş ve tutardan düşülmüş) kayıtta doludur.
+    // İkisi de tek başına iptal edilemez.
+    Guid? DayCloseId = null);
 
 /// <summary>
 /// Bir hareketten hemen sonra hesabın bakiyesi ya da kartın borcu.

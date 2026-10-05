@@ -105,7 +105,13 @@ public enum FinancialActivityOrigin
     /// Bir POS yatışının kesinti gideri: yatışla birlikte doğar ve yalnız
     /// onunla birlikte geri alınır.
     /// </summary>
-    PosDeposit = 5
+    PosDeposit = 5,
+
+    /// <summary>
+    /// Bir gün sonunun ürettiği nakit gelir ya da POS satışı (ADR 0019 T1):
+    /// gün sonuyla birlikte doğar ve yalnız onunla birlikte geri alınır.
+    /// </summary>
+    DayClose = 6
 }
 
 public enum FinancialActivityStatus
@@ -210,7 +216,15 @@ public sealed record FinancialActivityRow(
     /// yönü de taşır (tahsilat / ödeme); istemci adı ve paranın akış yönünü
     /// bundan kurar. Diğer türlerde boştur.
     /// </summary>
-    DebtDirection? Direction = null);
+    DebtDirection? Direction = null,
+
+    /// <summary>
+    /// Kaydın bağlı olduğu gün sonu: gün sonunun <b>yazdığı</b> kayıtta
+    /// (kökeni <see cref="FinancialActivityOrigin.DayClose"/>) ya da gün
+    /// sonunun <b>saydığı</b>, tek tek girilmiş kayıtta doludur. İkisi de tek
+    /// başına iptal edilemez; gün sonu geri alınır.
+    /// </summary>
+    Guid? DayCloseId = null);
 
 /// <summary>
 /// Bakiyesi gösterilen yer: bir hesap, bir kredi kartı, bir karşı tarafın
@@ -436,10 +450,12 @@ public static class FinancialActivityCapabilities
         // başına duran bir kayıt, geri dönüşü olmayan bir planın sonucu değil.
 
         // Yatışın kesinti gideri tek başına iptal edilemez: iptal edilseydi
-        // yatış, hesaba gerçekte geçmemiş bir tutarı geçmiş gösterirdi.
+        // yatış, hesaba gerçekte geçmemiş bir tutarı geçmiş gösterirdi. Gün
+        // sonunun geliri de öyle: gün sonu bir bütün olarak geri alınır.
         return origin is not (FinancialActivityOrigin.Recurring
             or FinancialActivityOrigin.Installment
-            or FinancialActivityOrigin.PosDeposit);
+            or FinancialActivityOrigin.PosDeposit
+            or FinancialActivityOrigin.DayClose);
     }
 
     /// <summary>

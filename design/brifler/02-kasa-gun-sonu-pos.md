@@ -92,6 +92,16 @@ Başlık `Gün sonu · 29 Eylül` (gün değiştirilebilir). Üstte **"Z raporun
   = 2.100`, `Kart 2.680 − girilmiş POS 800 − kartla tahsil 400 = 1.480`.
 - Birincil eylem **Gün sonunu kaydet**.
 
+> **Tasarım notu (kullanıcı, 4 Ekim 2026 — emülatör denemesi).** "Her POS için
+> bir satır" çok POS'lu işletmede paneli uzatıyor: üç POS üç boş alan demek ve
+> `Yazılacak` özeti ekranın altında kalıyor. Bugünkü ara çözüm: ana POS'un alanı
+> hep görünür, diğerleri `Diğer POS'lar (2)` metin eylemiyle açılır. Kasa
+> tasarlanırken bu bölüm **yeniden düşünülsün**: kart tutarının çok POS'a
+> dağıtılması için daha iyi bir yerleşim (tek "Kart" alanı + dağıtım, POS
+> çipleri, satır içi ekleme…) ve `Yazılacak` özetinin kaydırmadan görünmesi.
+> Kısıt: hiçbir tutar istemcide hesaplanmaz; hesaplanan alan boş durur ve
+> altında "Toplamdan hesaplandı" yazar.
+
 ### K5 · Gün sonu paneli — Z'den okunmuş
 Aynı panel; okunan alanlar bir işaretle (`Z'den okundu`), Z no görünür, değerler düzeltilebilir. Okunan
 değer bir **öneridir**; kullanıcı onaylar.

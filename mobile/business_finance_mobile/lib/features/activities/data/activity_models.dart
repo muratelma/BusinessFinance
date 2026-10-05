@@ -137,7 +137,11 @@ enum ActivityOrigin {
 
   /// Bir POS yatışının kesinti gideri: yatışla birlikte doğar ve yalnız
   /// onunla birlikte geri alınır.
-  posDeposit('pos-deposit');
+  posDeposit('pos-deposit'),
+
+  /// Bir gün sonunun ürettiği nakit gelir ya da POS satışı: gün sonuyla
+  /// birlikte doğar ve yalnız onunla birlikte geri alınır.
+  dayClose('day-close');
 
   const ActivityOrigin(this.apiValue);
   final String apiValue;
@@ -148,6 +152,7 @@ enum ActivityOrigin {
     'recurring' => recurring,
     'installment' => installment,
     'pos-deposit' => posDeposit,
+    'day-close' => dayClose,
     _ => throw FormatException('Bilinmeyen hareket kökeni: $value'),
   };
 
@@ -157,6 +162,7 @@ enum ActivityOrigin {
     recurring => 'Tekrarlayan plan',
     installment => 'Taksit planı',
     posDeposit => 'Yatış kesintisi',
+    dayClose => 'Gün sonu',
   };
 }
 
@@ -206,6 +212,7 @@ class FinancialActivity {
     this.expectedTransferDate,
     this.transferredOn,
     this.settlementCount,
+    this.dayCloseId,
   });
 
   factory FinancialActivity.fromJson(Map<String, dynamic> json) =>
@@ -241,6 +248,7 @@ class FinancialActivity {
         expectedTransferDate: json['expectedTransferDate'] as String?,
         transferredOn: json['transferredOn'] as String?,
         settlementCount: json['settlementCount'] as int?,
+        dayCloseId: json['dayCloseId'] as String?,
         direction: switch (json['direction']) {
           null => null,
           'receivable' => ActivityDirection.receivable,
@@ -308,6 +316,19 @@ class FinancialActivity {
 
   /// Cari ve yükümlülük kayıtlarında yön; diğer türlerde boştur.
   final ActivityDirection? direction;
+
+  /// Kaydın bağlı olduğu gün sonu: gün sonunun yazdığı ya da saydığı kayıtta
+  /// doludur. İkisi de tek başına iptal edilemez; gün sonu geri alınır.
+  final String? dayCloseId;
+
+  /// Gün sonunun yazdığı kayıt (nakit satış ya da POS satışı).
+  bool get isWrittenByDayClose => origin == ActivityOrigin.dayClose;
+
+  /// Tek tek girilmiş, sonra bir gün sonunda sayılmış (tutardan düşülmüş)
+  /// kayıt.
+  bool get isCountedInDayClose => dayCloseId != null && !isWrittenByDayClose;
+
+  bool get belongsToDayClose => isWrittenByDayClose || dayCloseId != null;
 
   /// Türün adı. Tahsilat ile ödeme aynı türdür; hangisi olduğunu yön söyler.
   String get kindLabel => switch ((kind, direction)) {

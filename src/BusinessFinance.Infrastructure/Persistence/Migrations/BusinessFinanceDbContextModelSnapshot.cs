@@ -91,6 +91,9 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<Guid?>("DayCloseId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Description")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -111,6 +114,10 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("UserId", "DayCloseId")
+                        .HasDatabaseName("IX_BudgetTransactions_UserId_DayCloseId")
+                        .HasFilter("[DayCloseId] IS NOT NULL");
 
                     b.HasIndex("UserId", "TransactionDate")
                         .HasDatabaseName("IX_BudgetTransactions_UserId_TransactionDate");
@@ -554,6 +561,84 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("CK_CreditCardPayments_Amount", "[Amount] > 0");
 
                             t.HasCheckConstraint("CK_CreditCardPayments_Currency", "[Currency] = 1");
+                        });
+                });
+
+            modelBuilder.Entity("BusinessFinance.Domain.DayClose", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("CancelledAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateOnly>("ClosedOn")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsAdditional")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsCancelled")
+                        .HasColumnType("bit");
+
+                    b.Property<DateOnly?>("RangeStart")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("ZNumber")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "ClosedOn")
+                        .IsUnique()
+                        .HasDatabaseName("UX_DayCloses_UserId_ClosedOn")
+                        .HasFilter("[IsCancelled] = 0 AND [IsAdditional] = 0");
+
+                    b.HasIndex("UserId", "ZNumber")
+                        .IsUnique()
+                        .HasDatabaseName("UX_DayCloses_UserId_ZNumber")
+                        .HasFilter("[ZNumber] IS NOT NULL AND [IsCancelled] = 0");
+
+                    b.ToTable("DayCloses", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_DayCloses_Range", "[RangeStart] IS NULL OR [RangeStart] < [ClosedOn]");
+
+                            t.HasCheckConstraint("CK_DayCloses_ZNumber", "[ZNumber] IS NULL OR [ZNumber] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("BusinessFinance.Domain.DayCloseCountedRecord", b =>
+                {
+                    b.Property<Guid>("DayCloseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte>("Kind")
+                        .HasColumnType("tinyint");
+
+                    b.Property<Guid>("RecordId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("DayCloseId", "Kind", "RecordId");
+
+                    b.HasIndex("UserId", "DayCloseId");
+
+                    b.HasIndex("UserId", "Kind", "RecordId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_DayCloseCountedRecords_UserId_Kind_RecordId");
+
+                    b.ToTable("DayCloseCountedRecords", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_DayCloseCountedRecords_Kind", "[Kind] IN (1, 2, 3, 4)");
                         });
                 });
 
@@ -1354,6 +1439,9 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<Guid?>("DayCloseId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Description")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -1401,6 +1489,10 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId", "CategoryId");
 
                     b.HasIndex("UserId", "CommissionCategoryId");
+
+                    b.HasIndex("UserId", "DayCloseId")
+                        .HasDatabaseName("IX_PosSettlements_UserId_DayCloseId")
+                        .HasFilter("[DayCloseId] IS NOT NULL");
 
                     b.HasIndex("UserId", "PosDefinitionId")
                         .HasDatabaseName("IX_PosSettlements_UserId_PosDefinitionId");
@@ -2185,6 +2277,12 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("BusinessFinance.Domain.DayClose", null)
+                        .WithMany()
+                        .HasForeignKey("UserId", "DayCloseId")
+                        .HasPrincipalKey("UserId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.OwnsOne("BusinessFinance.Domain.Money", "Amount", b1 =>
                         {
                             b1.Property<Guid>("BudgetTransactionId")
@@ -2474,6 +2572,25 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         });
 
                     b.Navigation("Amount")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BusinessFinance.Domain.DayClose", b =>
+                {
+                    b.HasOne("BusinessFinance.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BusinessFinance.Domain.DayCloseCountedRecord", b =>
+                {
+                    b.HasOne("BusinessFinance.Domain.DayClose", null)
+                        .WithMany()
+                        .HasForeignKey("UserId", "DayCloseId")
+                        .HasPrincipalKey("UserId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
@@ -2996,6 +3113,12 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.HasOne("BusinessFinance.Domain.Category", null)
                         .WithMany()
                         .HasForeignKey("UserId", "CommissionCategoryId")
+                        .HasPrincipalKey("UserId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("BusinessFinance.Domain.DayClose", null)
+                        .WithMany()
+                        .HasForeignKey("UserId", "DayCloseId")
                         .HasPrincipalKey("UserId", "Id")
                         .OnDelete(DeleteBehavior.Restrict);
 

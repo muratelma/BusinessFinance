@@ -11,7 +11,11 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_inline_notice.dart';
 import '../../../core/widgets/app_page_header.dart';
 import '../../../core/widgets/app_segment_rail.dart';
+import '../../../core/widgets/app_date_field.dart';
 import '../../../core/widgets/app_state_views.dart';
+import '../../day_close/presentation/day_close_controller.dart';
+import '../../day_close/presentation/day_close_detail.dart';
+import '../../day_close/presentation/day_close_sheets.dart';
 import '../../pos/presentation/pos_controller.dart';
 import '../../pos/presentation/pos_settlements_view.dart';
 import '../data/cash_repository.dart';
@@ -20,8 +24,10 @@ import 'cash_count_view.dart';
 
 /// `Kasa`: tezgâh üstü esnafın günlük ekranı.
 ///
-/// Tasarım teslimi (27 Eylül 2026, KasaV4): sekme yok, tek akış — bugünün
-/// sayımı → yoldaki POS tahsilatları → son sayımlar. İkisi tek ekranda çünkü
+/// Tasarım teslimi (27 Eylül 2026, KasaV4): sekme yok, tek akış — gün sonu
+/// → bugünün sayımı → yoldaki POS tahsilatları → son sayımlar. **Gün sonu**
+/// günün satışını yazar; **kasa sayımı** çekmecedeki nakdi sayar ve ayrı bir
+/// iştir (ADR 0019 T6). İkisi tek ekranda çünkü
 /// ikisi de **günün parası**: kasadaki nakit ve müşterinin kartla ödediği,
 /// henüz yolda olan para. Kredi kartı borcu burada değildir — o başka bir
 /// şeydir ve adı `Kredi kartlarım`dır (ADR 0015).
@@ -31,19 +37,23 @@ class CashPage extends StatefulWidget {
     required this.posController,
     super.key,
     this.scopeController,
+    this.dayCloseController,
     this.ownsControllers = true,
     this.initialTab = 0,
   });
+
+  /// Gün sonu; verilmezse kartı çizilmez.
+  final DayCloseController? dayCloseController;
 
   final CashCountController cashController;
   final PosController posController;
   final ScopeController? scopeController;
   final bool ownsControllers;
 
-  /// `1`: açılışta yeni POS tahsilatı formu açılır.
+  /// `1`: açılışta yeni POS tahsilatı formu, `2`: gün sonu paneli açılır.
   ///
-  /// `İşlem ekle > POS tahsilatı` buraya gelir; eskiden ikinci sekmeyi
-  /// seçiyordu, sekmeler kalkınca doğrudan formu açıyor.
+  /// `İşlem ekle` menüsü buraya gelir; eskiden ikinci sekmeyi seçiyordu,
+  /// sekmeler kalkınca doğrudan paneli açıyor.
   final int initialTab;
 
   @override
@@ -58,9 +68,42 @@ class _CashPageState extends State<CashPage> {
     super.initState();
     _cash.addListener(_changed);
     _cash.load();
+    widget.dayCloseController?.addListener(_changed);
+    _loadDayClose();
     if (widget.initialTab == 1) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _openPosForm());
+    } else if (widget.initialTab == 2) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _openDayCloseForm(fromMenu: true),
+      );
     }
+  }
+
+  Future<void> _loadDayClose() async =>
+      widget.dayCloseController?.loadDay(AppDateField.format(DateTime.now()));
+
+  /// Gün sonu panelini açar. Menüden gelen kullanıcı vazgeçerse geldiği
+  /// ekrana döner; kaydederse Kasa'da kalır ve günün kapandığını görür.
+  Future<void> _openDayCloseForm({
+    bool additional = false,
+    bool fromMenu = false,
+  }) async {
+    final controller = widget.dayCloseController;
+    if (!mounted || controller == null) return;
+    final saved = await showDayCloseForm(
+      context,
+      controller,
+      additional: additional,
+    );
+    if (saved == null && fromMenu && mounted) {
+      Navigator.of(context).maybePop();
+    }
+  }
+
+  Future<void> _openDay(String date) async {
+    final controller = widget.dayCloseController;
+    if (controller == null) return;
+    await showDayCloseDay(context, controller: controller, date: date);
   }
 
   /// Menüden gelen kullanıcı Kasa'ya değil forma gelmişti: vazgeçerse
@@ -79,9 +122,11 @@ class _CashPageState extends State<CashPage> {
   @override
   void dispose() {
     _cash.removeListener(_changed);
+    widget.dayCloseController?.removeListener(_changed);
     if (widget.ownsControllers) {
       widget.cashController.dispose();
       widget.posController.dispose();
+      widget.dayCloseController?.dispose();
     }
     super.dispose();
   }
@@ -91,7 +136,7 @@ class _CashPageState extends State<CashPage> {
   }
 
   Future<void> _refresh() =>
-      Future.wait([_cash.load(), widget.posController.load()]);
+      Future.wait([_cash.load(), widget.posController.load(), _loadDayClose()]);
 
   @override
   Widget build(BuildContext context) {
@@ -174,6 +219,15 @@ class _CashPageState extends State<CashPage> {
                 onAction: controller.load,
               ),
             ),
+          if (widget.dayCloseController case final dayClose?) ...[
+            DayCloseTodayCard(
+              controller: dayClose,
+              onEnter: ({required additional}) =>
+                  _openDayCloseForm(additional: additional),
+              onOpen: _openDay,
+            ),
+            const SizedBox(height: AppSpacing.large - AppSpacing.xSmall),
+          ],
           if (today != null)
             CashTodayCard(
               controller: controller,
@@ -191,7 +245,7 @@ class _CashPageState extends State<CashPage> {
               child: AppEmptyView(
                 title: 'Sayılacak bir kasa yok.',
                 message:
-                    'Gün sonu sayımı yalnız nakit hesaplar içindir; banka '
+                    'Kasa sayımı yalnız nakit hesaplar içindir; banka '
                     'bakiyesi elle sayılmaz. Önce bir nakit hesap açın.',
                 icon: Icons.point_of_sale_outlined,
               ),

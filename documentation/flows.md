@@ -109,6 +109,63 @@ gider, transfer, cari tahsilat, yükümlülük kapatma, tekrarlayan kalem ya da
 içe aktarım Kasa'yı kendiliğinden yeniler; kasa listesi ve diğer kasaların
 bakiyesi de yeniden okunur.
 
+## Gün sonu
+
+Gün sonu günün satışını toplamla yazar (ADR 0019 T1–T2); kasa sayımından ayrı
+bir iştir. Yeni bir kayıt türü üretmez: nakit satış kasaya bir gelir, her POS'un
+kartlı satışı bir POS tahsilatı olur.
+
+```text
+İşlem ekle -> Gün sonu      (işletme profilinde; "POS tahsilatı"nın yerinde)
+Kasa -> Gün sonu kartı -> "Gün sonunu gir"
+     -> panel: Gün · Nakit · her POS için bir alan · Toplam
+        (ikisini yazmak yeter; boş alan gönderilmez, sunucu hesaplar)
+     -> POST /api/v1/day-closes/preview        (her değişiklikte; hiçbir şey yazmaz)
+        -> "Gün sonu tutarında var mı?": o gün tek tek girilmiş kayıtlar
+           satışlar ve POS tahsilatları işaretli, nakit cari tahsilat işaretsiz
+           işaret değişince yalnız değişen kayıt gönderilir (recordOverrides)
+        -> "Yazılacak": nakit satış (kasa, düşülen), her POS (düşülen, komisyon,
+           beklenen gün); tutarların hepsi önizlemeden
+        -> hesaplanan alan boş durur, altında "Toplamdan hesaplandı: ₺…"
+        -> toplam nakit + karttan farklıysa fark bildirimi; kayıt engellenmez
+        -> engel (blockerCode) ilgili alanın yanında söylenir, kayıt gönderilmez
+     -> "Kasayı ya da kategoriyi değiştir": kasa ve satış kategorisi
+        (seçili gelir; sunucu seçemediyse alanlar kendiliğinden açılır)
+     -> POST /api/v1/day-closes {clientRequestId, date, cashAmount?, posAmounts,
+                                 totalAmount?, recordOverrides, isAdditional}
+     -> nakit kasaya girer; kart parası yolda, komisyon gider yazılır
+
+Gün zaten kapalı
+     -> panel: "Bu günün gün sonu girildi" + "Ek gün sonu" kutusu; alanlar kilitli
+     -> kutu işaretlenince alanlar açılır; kayıtlar bu kez işaretsiz gelir
+     -> Kasa kartındaki "Ek gün sonu gir" paneli kutu işaretli açar
+
+Kasa -> Gün sonu kartı -> "Nakit ₺… · Kart ₺…" satırı        (günün toplamı)
+İşlemler -> gün sonunun yazdığı ya da saydığı kayıt -> ayrıntı -> "Gün sonunu gör"
+     -> GET /api/v1/day-closes/day?date=…
+     -> günün ayrıntısı: günün Nakit ve Kart toplamı (yazılan + sayılan)
+        -> "Gün sonu": yazdığı kayıtlar ("Yazıldı · …") ve saydığı kayıtlar
+           ("Sayıldı · nakit/kart"), altında "Gün sonunu geri al"
+        -> "Ek gün sonu": aynı düzen, altında "Eki geri al"
+        -> "Gün sonunun dışında": tek tek girilmiş, sayılmamış kayıtlar
+     -> geri al -> görünür onay -> DELETE /api/v1/day-closes/{id}
+     -> yazdığı kayıtlar birlikte iptal olur; saydığı kayıtlar serbest kalır
+        (yeniden listelenir, tek başına iptal edilebilir); gün sonu kaydı kalır
+     -> ek duruyorsa ana gün sonunda düğme yoktur: "önce ek gün sonunu geri alın"
+     -> ürettiği tahsilat hesaba geçtiyse 409: "Önce yatışı geri alın."
+     -> günde gün sonu kalmadıysa panel kapanır
+```
+
+Gün sonu, düştüğü kayıtları sahiplenir: sayılan kayıt sonraki panellerde (ek
+gün sonu dahil) listelenmez ve İşlemler'de `Hareketi iptal et` sunmaz
+("Gün sonunda sayıldı; tek başına iptal edilemez"). İşlemler satırının alt
+yazısında gün sonunun yazdığı kayıt `Gün sonu` diye okunur.
+
+Gün sonundan gelen gelir İşlemler'de, POS tahsilatı Kasa'da tek başına iptal
+sunmaz; ikisi de nedenini söyler. Kasa kartı `FinancialDataChanges.cash`
+hedefini dinler: başka ekrandan geri alınan gün sonu kartı kendiliğinden
+yeniler. Z numarası ve birkaç günlük Z'nin arayüzü Z okumayla (Grup 7) gelir.
+
 ## POS tahsilatı ve hesaba geçiş
 
 ```text

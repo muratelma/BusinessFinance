@@ -54,6 +54,8 @@ import '../../features/cash/presentation/cash_page.dart';
 import '../../features/taxes/data/tax_repository.dart';
 import '../../features/taxes/presentation/tax_controller.dart';
 import '../../features/taxes/presentation/tax_tracking_page.dart';
+import '../../features/day_close/data/day_close_repository.dart';
+import '../../features/day_close/presentation/day_close_controller.dart';
 import '../../features/pos/data/pos_repository.dart';
 import '../../features/pos/presentation/pos_controller.dart';
 import '../../features/obligations/data/obligation_repository.dart';
@@ -104,6 +106,7 @@ GoRouter createAppRouter({
   ObligationRepositoryContract? obligationRepository,
   CashRepositoryContract? cashRepository,
   PosRepositoryContract? posRepository,
+  DayCloseRepositoryContract? dayCloseRepository,
   TaxRepositoryContract? taxRepository,
   ReceiptRepositoryContract? receiptRepository,
   ReceiptImageSourceContract? receiptImageSource,
@@ -230,6 +233,7 @@ GoRouter createAppRouter({
                             changes: financialDataChanges,
                             scopeController: scopeController,
                             posRepository: posRepository,
+                            dayCloseRepository: dayCloseRepository,
                             onCreateTransaction: () => openQuickAdd(context),
                             onShowPlanned: () =>
                                 context.push('/transactions/planned'),
@@ -432,6 +436,7 @@ GoRouter createAppRouter({
                     budgetRepository: budgetRepository,
                     cashRepository: cashRepository,
                     posRepository: posRepository,
+                    dayCloseRepository: dayCloseRepository,
                     changes: financialDataChanges,
                   ),
                   authController,
@@ -616,12 +621,17 @@ GoRouter createAppRouter({
               : _CashPageHost(
                   cashRepository: cashRepository,
                   posRepository: posRepository,
+                  dayCloseRepository: dayCloseRepository,
                   changes: financialDataChanges,
                   scopeController: scopeController,
-                  // `İşlem ekle > POS tahsilatı` doğrudan POS sekmesine
-                  // açılıyor; menüden gelen kullanıcıyı gün sonu sayımına
-                  // bırakıp sekmeyi elle buldurmak yolun yarısında bırakmaktı.
-                  initialTab: state.uri.queryParameters['tab'] == 'pos' ? 1 : 0,
+                  // `İşlem ekle > Gün sonu` ve `POS tahsilatı` doğrudan kendi
+                  // paneline açılıyor; menüden gelen kullanıcıyı Kasa'ya
+                  // bırakıp düğmeyi elle buldurmak yolun yarısında bırakmaktı.
+                  initialTab: switch (state.uri.queryParameters['tab']) {
+                    'pos' => 1,
+                    'day-close' => 2,
+                    _ => 0,
+                  },
                 ),
           authController,
         ),
@@ -735,12 +745,14 @@ class _AdaptiveThirdDestination extends StatelessWidget {
     required this.cashRepository,
     required this.posRepository,
     required this.changes,
+    this.dayCloseRepository,
   });
 
   final ScopeController? scopeController;
   final BudgetRepositoryContract? budgetRepository;
   final CashRepositoryContract? cashRepository;
   final PosRepositoryContract? posRepository;
+  final DayCloseRepositoryContract? dayCloseRepository;
   final FinancialDataChanges? changes;
 
   @override
@@ -773,6 +785,7 @@ class _AdaptiveThirdDestination extends StatelessWidget {
       key: const ValueKey('primary-cash'),
       cashRepository: cashRepository,
       posRepository: posRepository,
+      dayCloseRepository: dayCloseRepository,
       changes: changes,
       scopeController: scopeController,
     );
@@ -788,10 +801,12 @@ class _CashPageHost extends StatefulWidget {
     required this.scopeController,
     super.key,
     this.initialTab = 0,
+    this.dayCloseRepository,
   });
 
   final CashRepositoryContract cashRepository;
   final PosRepositoryContract posRepository;
+  final DayCloseRepositoryContract? dayCloseRepository;
   final FinancialDataChanges? changes;
   final ScopeController? scopeController;
   final int initialTab;
@@ -803,10 +818,18 @@ class _CashPageHost extends StatefulWidget {
 class _CashPageHostState extends State<_CashPageHost> {
   late final CashCountController _cashController;
   late final PosController _posController;
+  DayCloseController? _dayCloseController;
 
   @override
   void initState() {
     super.initState();
+    final dayCloseRepository = widget.dayCloseRepository;
+    if (dayCloseRepository != null) {
+      _dayCloseController = DayCloseController(
+        dayCloseRepository,
+        changes: widget.changes,
+      );
+    }
     _cashController = CashCountController(
       widget.cashRepository,
       changes: widget.changes,
@@ -821,6 +844,7 @@ class _CashPageHostState extends State<_CashPageHost> {
   void dispose() {
     _cashController.dispose();
     _posController.dispose();
+    _dayCloseController?.dispose();
     super.dispose();
   }
 
@@ -828,6 +852,7 @@ class _CashPageHostState extends State<_CashPageHost> {
   Widget build(BuildContext context) => CashPage(
     cashController: _cashController,
     posController: _posController,
+    dayCloseController: _dayCloseController,
     scopeController: widget.scopeController,
     ownsControllers: false,
     initialTab: widget.initialTab,
