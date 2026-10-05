@@ -66,8 +66,15 @@ internal sealed class EfObligationRepository(BusinessFinanceDbContext dbContext)
                 obligation => obligation.Id == obligationId && obligation.UserId == userId,
                 cancellationToken);
 
-    public async Task SaveSettlementAsync(CancellationToken cancellationToken)
+    public async Task SaveSettlementAsync(
+        PosSettlement? cardSettlement,
+        CancellationToken cancellationToken)
     {
+        if (cardSettlement is not null)
+        {
+            await dbContext.PosSettlements.AddAsync(cardSettlement, cancellationToken);
+        }
+
         var newSettlement = dbContext.ChangeTracker
             .Entries<ObligationSettlement>()
             .SingleOrDefault(entry => entry.State == EntityState.Modified);

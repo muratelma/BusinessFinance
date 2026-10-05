@@ -42,7 +42,8 @@ public sealed class MigrationHistoryTests
         "AddPosDeposits",
         "AddEntryTimestamps",
         "AddDayCloses",
-        "AddDayCloseCountedRecords"
+        "AddDayCloseCountedRecords",
+        "AddCardCollections"
     ];
 
     [Fact]
@@ -874,6 +875,57 @@ public sealed class MigrationHistoryTests
                 Assert.True(operation is CreateTableOperation or CreateIndexOperation));
             var unique = Assert.Single(up.OfType<CreateIndexOperation>(), index => index.IsUnique);
             Assert.Equal(["UserId", "Kind", "RecordId"], unique.Columns);
+        }
+    }
+
+    /// <summary>
+    /// Kartla tahsil (ADR 0019 T5): mevcut her POS tahsilatı satıştır ve öyle
+    /// kalır. Tür nullable eklenir, satış olarak doldurulur, sonra zorunlu olur;
+    /// kalıcı DEFAULT kalmaz. Yeni CHECK'ler kolonlardan ve backfill'den sonra
+    /// gelir. Hiçbir kolon düşmez.
+    /// </summary>
+    [Fact]
+    public void AddCardCollections_BackfillsTheKindBeforeItConstrainsAndLosesNothing()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_AddCardCollections", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations.ToList();
+            Assert.Empty(up.OfType<DropColumnOperation>());
+            Assert.Empty(up.OfType<DropTableOperation>());
+
+            var kind = Assert.Single(
+                up.OfType<AddColumnOperation>(), column => column.Name == "Kind");
+            Assert.True(kind.IsNullable);
+            Assert.Null(kind.DefaultValue);
+            Assert.Null(kind.DefaultValueSql);
+
+            var backfill = Assert.Single(up.OfType<SqlOperation>());
+            Assert.Contains("SET [Kind] = 1", backfill.Sql, StringComparison.Ordinal);
+
+            var required = Assert.Single(
+                up.OfType<AlterColumnOperation>(), column => column.Name == "Kind");
+            Assert.False(required.IsNullable);
+            Assert.Null(required.DefaultValue);
+            Assert.Null(required.DefaultValueSql);
+
+            Assert.True(up.IndexOf(kind) < up.IndexOf(backfill));
+            Assert.True(up.IndexOf(backfill) < up.IndexOf(required));
+            var checks = up.OfType<AddCheckConstraintOperation>().ToList();
+            Assert.Equal(3, checks.Count);
+            Assert.All(checks, check => Assert.True(up.IndexOf(check) > up.IndexOf(required)));
+
+            // Kategori ve kapsam yalnız gevşer; iki bağ kolonu nullable gelir.
+            Assert.All(
+                up.OfType<AlterColumnOperation>()
+                    .Where(column => column.Name is "CategoryId" or "Scope"),
+                column => Assert.True(column.IsNullable));
+            Assert.All(
+                up.OfType<AddColumnOperation>().Where(column => column.Name == "PosSettlementId"),
+                column => Assert.True(column.IsNullable));
+            Assert.Equal(
+                2, up.OfType<AddColumnOperation>().Count(column => column.Name == "PosSettlementId"));
         }
     }
 

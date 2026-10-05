@@ -7,6 +7,9 @@ namespace BusinessFinance.Domain;
 /// <b>Taşır, tanımaz</b> (ADR 0014). Hesap bakiyesini değiştirir; ekonomik
 /// olay <see cref="Obligation"/> tarafından daha önce tanındığı için kategori
 /// ve kapsam taşımaz.
+///
+/// Kartla (POS) tahsilde paranın yoldaki kaydını taşır
+/// (<see cref="PosSettlementId"/>); hesap o gün kıpırdamaz, para yatışla girer.
 /// </remarks>
 public sealed class ObligationSettlement
 {
@@ -18,6 +21,10 @@ public sealed class ObligationSettlement
     public Money Amount { get; }
     public DateOnly SettlementDate { get; }
     public DateTimeOffset SettledAtUtc { get; }
+
+    /// <summary>Kartla tahsilde paranın yoldaki kaydı; değilse boş.</summary>
+    public Guid? PosSettlementId { get; }
+
     public bool IsCancelled { get; private set; }
     public DateTimeOffset? CancelledAtUtc { get; private set; }
 
@@ -35,7 +42,8 @@ public sealed class ObligationSettlement
         Money amount,
         DateOnly issueDate,
         DateOnly settlementDate,
-        DateTimeOffset settledAtUtc)
+        DateTimeOffset settledAtUtc,
+        PosSettlement? cardSettlement = null)
     {
         if (id == Guid.Empty)
         {
@@ -96,8 +104,11 @@ public sealed class ObligationSettlement
                 "Settlement date cannot be in the future.");
         }
 
+        cardSettlement?.EnsureCollects(userId, account, direction, amount, settlementDate);
+
         Id = id;
         UserId = userId;
+        PosSettlementId = cardSettlement?.Id;
         ObligationId = obligationId;
         AccountId = account.Id;
         Direction = direction;
@@ -108,10 +119,15 @@ public sealed class ObligationSettlement
         SettledAtUtc = settledAtUtc;
     }
 
-    /// <summary>Tahsilat hesabı artırır, ödeme hesabı azaltır.</summary>
-    public decimal SignedAccountEffect => Direction == DebtDirection.Receivable
-        ? Amount.Amount
-        : -Amount.Amount;
+    /// <summary>
+    /// Tahsilat hesabı artırır, ödeme hesabı azaltır; kartla tahsilde sıfırdır
+    /// çünkü para hesaba yatışla girer.
+    /// </summary>
+    public decimal SignedAccountEffect => PosSettlementId is not null
+        ? 0m
+        : Direction == DebtDirection.Receivable
+            ? Amount.Amount
+            : -Amount.Amount;
 
     internal void Cancel(DateTimeOffset cancelledAtUtc)
     {

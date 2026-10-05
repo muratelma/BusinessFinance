@@ -898,6 +898,42 @@ birleşmeden çalışmasını sağlar; bu sorgular yatış gelirken değişmedi.
 `PosSettlements.Version` (rowversion) aynı tahsilat için yarışan yatış ile
 iptalden yalnız birinin yazılmasını sağlar.
 
+### Kartla tahsil (ADR 0019 T5; Aşama 06.3 Grup 5 teslim 3/3)
+
+Müşteri veresiye borcunu ya da tek seferlik alacağı POS'tan kartla öderse
+kayıt **var olan `PosSettlement`'ın ikinci türüdür** (`Kind`: `Sale` |
+`Collection`). Tahsil türü satışın yolunu paylaşır (komisyon, yolda bekleme,
+yatış) ama **gelir tanımaz**: gelir kategorisi yoktur (`CategoryId` boş),
+kapsamı yalnız komisyonun kapsamıdır (komisyon yoksa boş). Komisyon satıştaki
+kuralla tahsil günü gider yazılır (Grup 5 açılış kararı 1).
+
+`CounterpartyPayment.PosSettlementId` ve `ObligationSettlement.PosSettlementId`
+tahsilatı bu kayda bağlar (filtreli tekil indeks: bir tahsil kaydı tek
+tahsilata aittir). Bağlıyken tahsilatın **hesap etkisi sıfırdır**: cari ya da
+alacak o gün brüt tutarla kapanır, para hesaba yatışla ve net olarak girer.
+Böylece yoldaki para, net varlık, yatış, işlem sonrası bakiye ve gün sonu
+listesi **tek kaynaktan iki kaynaklı** olur (İ6); ayrı bir tablo seçilseydi her
+biri ikinci kaynağı ayrıca öğrenmek zorundaydı.
+
+Kuralın uygulandığı yerler: gelir okuyan rapor, trend ve bütçe sorguları
+`Kind = Sale` ile süzer (komisyon iki türde de giderdir);
+`AccountMovements`, raporun hesap başına toplamları ve Kasa'nın günlük akışı
+bağlı tahsilatı saymaz; akışta `pos-sale` satırları tahsili göstermez, cari
+tahsilat ve yükümlülük kapanışı satırı POS alanlarını taşır; POS listesi,
+yatış ayrıntısı ve gün sonu listesi kişinin adını `CardCollectionPayers`'tan
+okur. Kurulum `CardCollectionBuilder`'dadır (POS'tan dolum, kapsam zinciri
+hesabın etiketi → komisyon kategorisi; sunucu kapsam uydurmaz).
+
+İptal bir bütündür: cari tahsilatın iptali tahsil kaydını da iptal eder; para
+yatışla geçtiyse önce yatış geri alınır (`counterparty_payments.deposit_locked`),
+gün sonunda sayıldıysa önce gün sonu. Tahsil kaydı Kasa'dan tek başına iptal
+edilemez (`pos_settlements.collection_locked`). Yükümlülük kapanışının geri
+alma ucu yoktur; kartla kapanış da bugün düzeltilemez (nakitte de böyle).
+
+**Bilinen ikinci liste:** raporun hesap başına bakiye toplamları
+`AccountMovements`'tan ayrı yazılmıştır; kartla tahsil süzgeci iki yerde de
+vardır. Birleştirilmesi ayrı bir iş olarak kayıtlıdır.
+
 ### Gün sonu (ADR 0019 T1–T2; Aşama 06.3 Grup 5, backend uygulandı)
 
 Gün sonu **yeni bir finansal kayıt türü değildir** (İ3): nakit satış kasaya

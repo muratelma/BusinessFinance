@@ -258,11 +258,25 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
 
     public async Task AddPaymentAsync(
         CounterpartyPayment payment,
+        PosSettlement? cardSettlement,
         CancellationToken cancellationToken)
     {
+        if (cardSettlement is not null)
+        {
+            await dbContext.PosSettlements.AddAsync(cardSettlement, cancellationToken);
+        }
+
         await dbContext.CounterpartyPayments.AddAsync(payment, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public Task<PosSettlement?> FindCardSettlementAsync(
+        Guid settlementId,
+        Guid userId,
+        CancellationToken cancellationToken) =>
+        dbContext.PosSettlements.SingleOrDefaultAsync(
+            settlement => settlement.Id == settlementId && settlement.UserId == userId,
+            cancellationToken);
 
     public Task<CounterpartyCharge?> FindOwnedChargeAsync(
         Guid chargeId,
@@ -289,9 +303,22 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
         return dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public Task SavePaymentAsync(CounterpartyPayment payment, CancellationToken cancellationToken)
+    public async Task<bool> TrySavePaymentAsync(
+        CounterpartyPayment payment,
+        CancellationToken cancellationToken)
     {
-        return dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Kartla tahsilin POS kaydı bu sırada bir yatışa bağlandı; kaybeden
+            // yazma hiçbir şey değiştirmez.
+            dbContext.ChangeTracker.Clear();
+            return false;
+        }
     }
 
     /// <summary>

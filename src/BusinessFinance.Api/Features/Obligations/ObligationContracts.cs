@@ -1,4 +1,5 @@
 using BusinessFinance.Api.Contracts;
+using BusinessFinance.Api.Features.Pos;
 
 namespace BusinessFinance.Api.Features.Obligations;
 
@@ -13,7 +14,14 @@ public sealed record CreateObligationRequest(
     Guid? CounterpartyId = null,
     string? Description = null);
 
-public sealed record SettleObligationRequest(Guid AccountId, string SettlementDate);
+/// <remarks>
+/// <c>card</c> doluysa alacak kartla (POS) tahsil edilmiştir (ADR 0019 T5);
+/// <c>accountId</c> boş kalabilir (POS'un hesabı).
+/// </remarks>
+public sealed record SettleObligationRequest(
+    Guid? AccountId,
+    string SettlementDate,
+    CardCollectionRequest? Card = null);
 
 public sealed record ObligationResponse(
     Guid Id,

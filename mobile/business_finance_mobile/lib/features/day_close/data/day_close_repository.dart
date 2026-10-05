@@ -76,6 +76,7 @@ class DayCloseExistingRecord {
     required this.includedByDefault,
     required this.included,
     this.posDefinitionId,
+    this.isCardCollection = false,
   });
 
   factory DayCloseExistingRecord.fromJson(Map<String, dynamic> json) =>
@@ -90,7 +91,11 @@ class DayCloseExistingRecord {
         accountName: JsonReaders.string(json, 'accountName'),
         includedByDefault: JsonReaders.boolean(json, 'includedByDefault'),
         included: JsonReaders.boolean(json, 'included'),
+        isCardCollection: json['isCardCollection'] == true,
       );
+
+  /// Kart tarafında bir alacağın kartla tahsili (KP7, KP13): satış değildir
+  /// ama yazar kasanın KART satırındadır; başlık kişinin adıdır.
 
   /// `income`, `pos-settlement`, `counterparty-payment`,
   /// `obligation-settlement`.
@@ -105,6 +110,7 @@ class DayCloseExistingRecord {
   /// Kullanıcının yazdığı ad, yoksa kategori ya da kişi; boş olabilir.
   final String title;
   final String? posDefinitionId;
+  final bool isCardCollection;
   final String accountName;
   final bool includedByDefault;
   final bool included;

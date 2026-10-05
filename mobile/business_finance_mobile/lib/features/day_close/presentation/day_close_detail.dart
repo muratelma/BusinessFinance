@@ -238,7 +238,11 @@ class _DayCloseDaySheetState extends State<DayCloseDaySheet> {
                   for (final record in shown.outsideRecords)
                     _RecordRow(
                       title: _recordTitle(record),
-                      subtitle: record.isCash ? 'Nakit' : 'Kart',
+                      subtitle: record.isCash
+                          ? 'Nakit'
+                          : record.isCardCollection
+                          ? 'Kartla tahsil'
+                          : 'Kart',
                       amount: record.amount,
                       currency: shown.currency,
                     ),
@@ -349,6 +353,8 @@ class _CloseSection extends StatelessWidget {
                   title: _recordTitle(record),
                   subtitle: record.isCash
                       ? 'Sayıldı · nakit'
+                      : record.isCardCollection
+                      ? 'Sayıldı · kartla tahsil'
                       : 'Sayıldı · kart',
                   amount: record.amount,
                   currency: close.currency,

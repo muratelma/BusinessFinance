@@ -424,12 +424,16 @@ class _CounterpartyDetailPageState extends State<CounterpartyDetailPage> {
     final snapshot = controller.snapshot;
     if (snapshot == null) return;
     final open = isReceivable ? person.receivable : person.payable;
+    // Kartla tahsil yalnız tahsilatta; POS'lar her açılışta yeniden okunur.
+    final cards = isReceivable ? await controller.loadCardCollection() : null;
+    if (!mounted) return;
     final payload = await AppFormSheet.show<Map<String, Object?>>(
       context: context,
       builder: (_) => CounterpartyPaymentForm(
         today: controller.today,
         accounts: snapshot.accounts,
         isReceivable: isReceivable,
+        cards: cards,
         suggestedAmount: MoneyInput.parse(open) == null || open.startsWith('-')
             ? null
             : open,
@@ -440,7 +444,8 @@ class _CounterpartyDetailPageState extends State<CounterpartyDetailPage> {
       person.id,
       isReceivable: isReceivable,
       amount: payload['amount']! as String,
-      accountId: payload['accountId']! as String,
+      accountId: payload['accountId'] as String?,
+      card: payload['card'] as Map<String, Object?>?,
       paymentDate: payload['paymentDate']! as String,
       description: payload['description'] as String?,
     );

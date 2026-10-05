@@ -1,3 +1,4 @@
+using BusinessFinance.Application.Pos;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Obligations;
@@ -32,10 +33,16 @@ public sealed record ObligationDto(
     Guid? SettlementAccountId = null,
     DateOnly? SettlementDate = null);
 
+/// <remarks>
+/// <see cref="Card"/> doluysa alacak kartla (POS) tahsil edilmiştir (ADR 0019
+/// T5): alacak bugün kapanır, para hesaba yatışla geçer. Kartla yalnız alacak
+/// kapanır; ödenecek fatura POS'tan geçmez.
+/// </remarks>
 public sealed record SettleObligationCommand(
     Guid ObligationId,
-    Guid AccountId,
-    DateOnly SettlementDate);
+    Guid? AccountId,
+    DateOnly SettlementDate,
+    CardCollectionInput? Card = null);
 
 public interface IObligationRepository
 {
@@ -49,7 +56,10 @@ public interface IObligationRepository
         Guid userId,
         bool track,
         CancellationToken cancellationToken);
-    Task SaveSettlementAsync(CancellationToken cancellationToken);
+    /// <summary>
+    /// Kapanışı ve kartla tahsilse POS kaydını tek <c>SaveChanges</c> ile yazar.
+    /// </summary>
+    Task SaveSettlementAsync(PosSettlement? cardSettlement, CancellationToken cancellationToken);
 }
 
 public sealed class ObligationConcurrencyException : Exception

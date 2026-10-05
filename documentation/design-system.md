@@ -1108,3 +1108,28 @@ Kullanıcı paneli ekran görüntüsünde onayladı (4 Ekim).
   kadar kapalıdır. Kasa'daki tahsilattan açılınca (özet yok) sabit yükseklikte
   küçük bir bekleme kutusu gösterilir. `AppLoadingView` bir panelin içinde
   çıplak kullanılmaz: ortalandığı için paneli tam yüksekliğe çıkarır.
+
+## Kartla tahsil (5 Ekim 2026, Aşama 06.3 Grup 5 teslim 3/3)
+
+Tasarım teslimi yok; mevcut dille kuruldu.
+
+- **`CollectionMethodRail`** (`lib/features/pos/presentation/card_collection_fields.dart`):
+  `Nakit / hesaba · Kartla (POS)` rayı, `AppSegmentRail` üstünde. Yalnız
+  tahsilatta çıkar (cari tahsilat formu, `Yükümlülükler > Tahsil et ve kapat`);
+  ödemede yoktur ("POS" yalnız satış tarafında, ADR 0019 T7).
+- **`CardCollectionFields`**: kartla seçilince hesap alanının yerine gelir.
+  POS seçici (ana POS seçili; `Elle gir` kendi grup başlığında) ve POS
+  seçiliyken POS tahsilatı formundaki önizleme bloğunun aynısı (`Komisyon`,
+  `Hesaba geçecek`, `Beklenen gün`, `Geçeceği hesap`); elle girişte hesap,
+  beklenen gün ve `Yok · Tutar · Oran` komisyon. Tutar ve gün formun kendi
+  alanlarıdır.
+- **Kasa POS listesi**: tahsil satırının başlığı kişi, alt yazısı
+  `Tahsilat · Hesaba geçecek · …`; ayrıntıda `Tahsil edilen` (brüt satış
+  yerine), alt başlıkta `Kartla tahsil`, iptal düğmesi yerine "Tahsilatın
+  parçası. İptal için tahsilatı kişinin hareketlerinden iptal edin."
+- **Yatış ayrıntısı**: `Satış` ve `Tahsilat` iki ayrı satır (tutarlar
+  sunucudan); tahsil yoksa yalnız `Satış`.
+- **İşlemler**: satır `Ahmet → Garanti POS` (POS yoksa `hesap (kartla)`),
+  tutarın altında `komisyon ₺…`; ayrıntıda `POS`, `Komisyon`, `Net tutar`,
+  `Hesap`, `Beklenen`/`Geçiş günü`.
+- **Gün sonu listesi**: kart tarafındaki tahsil `Kartla tahsil · POS`.

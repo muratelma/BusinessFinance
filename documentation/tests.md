@@ -1647,3 +1647,19 @@ atlandı), debug APK derlendi.
 | POS tahsilatı listesi | `DayCloseEndpointTests.DayClose_WritesTheRemainder_*`, `cash_pos_feature_test` | `GET /pos-settlements` sayılan tahsilatta `countedInDayCloseId` taşır, gün sonunun yazdığında boştur (o `dayCloseId` taşır); Kasa'daki ayrıntı sayılan tahsilatta `Kaydı iptal et` sunmaz, "Gün sonunda sayıldı" der (5 Ekim 2026) |
 | Panel (Flutter) | `day_close_test` → `gün sonu paneli` | Ana POS görünür, diğer POS'lar `Diğer POS'lar (n)` ile açılır |
 | Ekran görüntüsü | `test/screenshots/gun_sonu_screenshot_test` | Gün ayrıntısı (tek gün sonu; ana ve ek) eklendi |
+
+## Aşama 06.3 Grup 5 — Kartla tahsil (5 Ekim 2026)
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Model | `PosSettlementTests.Collection_SharesTheRoadButRecognizesNoIncome`, `CardCollectedPayment_LeavesTheAccountToTheDeposit` | Tahsil türü kategori taşımaz, kapsamı yalnız komisyonun; yatışla hesaba net girer; bağlı cari tahsilatın hesap etkisi 0; yalnız tahsilat yönünde, aynı tutar, gün ve hesapla kurulur |
+| Uçtan uca | `CardCollectionEndpointTests.CardCollection_ClosesTheReceivable_*` | Cari brüt kapanır; hesap kıpırdamaz, para yolda (net); gelir yalnız veresiye, komisyon gider; İ6 (likit + yolda = net varlık); İşlemler tek satır, `pos-sale` yok; `/balances` hesap `unchanged`; Kasa'dan iptal `collection_locked`; yatış `collectionAmount`'u ayırır; yatışa bağlıyken iptal `deposit_locked`, yatış geri alınınca iptal cariyi açar ve komisyonu düşürür |
+| Kurallar | `CardCollection_RejectsPayments_*`, `ReceivableObligation_CanBeSettledByCard_*`, `CardCollection_CannotUseAnotherUsersPos` | Ödemede kart reddedilir; POS'suz girişte hesap + beklenen gün zorunlu, komisyonsuz tahsilin kapsamı yok; alacak kartla kapanır, ödenecek fatura kapanmaz; başkasının POS'u 404 ve hiçbir şey yazılmaz |
+| Gün sonu | `DayCloseEndpointTests.CardCollection_IsDeductedFromTheCardSide_*` | Kartla tahsil kart tarafında `isCardCollection` ile listelenir ve varsayılan düşülür; sayılınca cari tahsilat iptal edilemez, akış satırı `dayCloseId` taşır |
+| Migration | `MigrationHistoryTests.AddCardCollections_BackfillsTheKindBeforeItConstrainsAndLosesNothing` | Tür nullable → backfill → zorunlu, DEFAULT yok; CHECK'ler en sonda; hiçbir kolon düşmez |
+| Flutter | `card_collection_test`, `counterparties_page_test` | Kategorisiz tahsil okunur ve kişiyle adlanır; eski sunucu satış sayılır; yatış satış/tahsil ayrımı; `cardCollectionChanged` Kasa'yı yeniler, hesapları değil; satır `Ahmet → Garanti POS` + komisyon; ayrıntı POS, net, beklenen; yatışa bağlıyken yönlendirme; tahsilat formunda `Kartla (POS)` → istek `card` bloğunu taşır, hesap gitmez; ödemede seçenek yok |
+
+**Doğrulanmadı (bulut oturumu):** `[SqlServerFact]` testleri ve migration'ın
+gerçek SQL Server'da koşumu. LINQ'in SQL'e çevrilmesi (POS listesindeki
+`UNION ALL` alt sorgusu, akışın yeni join'leri) `ToQueryString` ile kontrol
+edildi; yerelde SQL dahil koşu gerekir.

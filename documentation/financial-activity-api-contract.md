@@ -66,6 +66,15 @@ Komisyon satışın, kesinti yatışın parçasıdır ve bağlı olduğu satırd
 | `expectedTransferDate`, `transferredOn` | beklenen gün; geçtiyse geçtiği gün | — |
 | `settlementCount` | — | kapattığı tahsilat sayısı (geri alınmış yatışta `0`) |
 
+**Kartla tahsil** (ADR 0019 T5, 5 Ekim 2026) ayrı bir `activityKind`
+değildir: `counterparty-settlement` ya da `obligation-settlement` satırıdır
+ve `pos-sale` satırı **üretmez** (gelir yazmaz). Satır POS satışının
+alanlarını taşır: `feeAmount` (komisyon), `channelName` (POS; elle girildiyse
+`null`), `netAmount` (yalnız kartla tahsilde dolu — istemci türü bundan
+anlar), `expectedTransferDate`, `transferredOn` (yatışla geçtiyse).
+`canCancel` para yatışla geçtiyse `false`'tur. `/balances` hesabı
+`unchanged` döner (para yolda).
+
 `feeAmount` gider olarak **tanınmıştır**: raporlarda ve bütçede sayılır.
 `amount` ondan etkilenmez — satışta brüt, yatışta gerçekten yatan tutardır.
 Bedeli: akışı `effect=expense` ya da komisyon kategorisiyle süzmek bu

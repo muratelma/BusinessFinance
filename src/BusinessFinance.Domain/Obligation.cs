@@ -155,11 +155,17 @@ public sealed class Obligation
     /// Yükümlülüğü kapatan tek nakit hareketini üretir. Sonraki çağrılar aynı
     /// hareketi döndürür; ikinci bir ödeme oluşturmaz.
     /// </summary>
+    /// <remarks>
+    /// Alacak kartla (POS) tahsil edildiyse <paramref name="cardSettlement"/>
+    /// paranın yoldaki kaydıdır (ADR 0019 T5): alacak bugün kapanır, para
+    /// hesaba yatışla geçer.
+    /// </remarks>
     public ObligationSettlement Settle(
         Guid settlementId,
         Account account,
         DateOnly settlementDate,
-        DateTimeOffset settledAtUtc)
+        DateTimeOffset settledAtUtc,
+        PosSettlement? cardSettlement = null)
     {
         if (IsCancelled)
         {
@@ -180,7 +186,8 @@ public sealed class Obligation
             Amount,
             IssueDate,
             settlementDate,
-            settledAtUtc);
+            settledAtUtc,
+            cardSettlement);
         return _settlement;
     }
 

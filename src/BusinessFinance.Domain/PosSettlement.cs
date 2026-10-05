@@ -18,6 +18,12 @@ namespace BusinessFinance.Domain;
 /// </list>
 /// Geçişi <see cref="PosDeposit"/> yazar: bankaya yatan para bir ya da birkaç
 /// tahsilatı birlikte kapatır.
+///
+/// <see cref="Kind"/> kaydın satış mı yoksa daha önce tanınmış bir alacağın
+/// kartla tahsili mi olduğunu söyler (ADR 0019 T5). Tahsil türü satışın bütün
+/// yolunu (komisyon, yolda bekleme, yatış) paylaşır ama <b>gelir tanımaz</b>:
+/// gelir veresiye satışta ya da tek seferlik alacakta zaten yazılmıştır. Bu
+/// yüzden gelir kategorisi taşımaz; kapsamı da yalnız komisyonu içindir.
 /// </remarks>
 public sealed class PosSettlement
 {
@@ -34,8 +40,14 @@ public sealed class PosSettlement
     /// <summary>Paranın geçeceği banka hesabı.</summary>
     public Guid AccountId { get; }
 
-    /// <summary>Satış gelirinin yazılacağı gelir kategorisi.</summary>
-    public Guid CategoryId { get; }
+    /// <summary>Satış mı, kartla tahsil mi.</summary>
+    public PosSettlementKind Kind { get; }
+
+    /// <summary>
+    /// Satış gelirinin yazılacağı gelir kategorisi; kartla tahsilde boştur
+    /// (gelir tanımaz).
+    /// </summary>
+    public Guid? CategoryId { get; }
 
     /// <summary>
     /// Komisyonun yazılacağı gider kategorisi; komisyon sıfırsa boştur.
@@ -67,7 +79,12 @@ public sealed class PosSettlement
 
     public CurrencyCode Currency => GrossAmount.Currency;
 
-    public TransactionScope Scope { get; }
+    /// <summary>
+    /// Satışta gelirin ve komisyonun kapsamı. Kartla tahsilde yalnız
+    /// komisyonun kapsamıdır ve komisyon yoksa boştur: gelir/gider raporuna
+    /// girecek bir tutar yoktur, sorulacak bir taraf da yoktur.
+    /// </summary>
+    public TransactionScope? Scope { get; }
     public DateOnly SettlementDate { get; }
 
     /// <summary>Paranın hesaba geçmesi beklenen gün.</summary>
@@ -122,6 +139,81 @@ public sealed class PosSettlement
         string? description = null,
         PosDefinition? definition = null,
         Guid? dayCloseId = null)
+        : this(
+            PosSettlementKind.Sale,
+            id,
+            userId,
+            account,
+            category ?? throw new ArgumentNullException(nameof(category)),
+            grossAmount,
+            commissionAmount,
+            scope,
+            settlementDate,
+            expectedTransferDate,
+            createdAtUtc,
+            commissionCategory,
+            description,
+            definition,
+            dayCloseId)
+    {
+    }
+
+    /// <summary>
+    /// Daha önce tanınmış bir alacağın kartla tahsili (ADR 0019 T5): para
+    /// satıştaki gibi yola çıkar, gelir yazılmaz.
+    /// </summary>
+    /// <remarks>
+    /// Komisyon satıştaki kuralla tahsil günü gider yazılır (Aşama 06.3 Grup 5
+    /// açılış kararı 1); kapsam yalnız onun içindir ve komisyon varsa
+    /// zorunludur, yoksa boştur. Tahsil bir gün sonundan doğmaz: gün sonu
+    /// satış yazar.
+    /// </remarks>
+    public static PosSettlement Collect(
+        Guid id,
+        Guid userId,
+        Account account,
+        Money grossAmount,
+        decimal commissionAmount,
+        TransactionScope? scope,
+        DateOnly settlementDate,
+        DateOnly expectedTransferDate,
+        DateTimeOffset createdAtUtc,
+        Category? commissionCategory = null,
+        string? description = null,
+        PosDefinition? definition = null) =>
+        new(
+            PosSettlementKind.Collection,
+            id,
+            userId,
+            account,
+            null,
+            grossAmount,
+            commissionAmount,
+            scope,
+            settlementDate,
+            expectedTransferDate,
+            createdAtUtc,
+            commissionCategory,
+            description,
+            definition,
+            null);
+
+    private PosSettlement(
+        PosSettlementKind kind,
+        Guid id,
+        Guid userId,
+        Account account,
+        Category? category,
+        Money grossAmount,
+        decimal commissionAmount,
+        TransactionScope? scope,
+        DateOnly settlementDate,
+        DateOnly expectedTransferDate,
+        DateTimeOffset createdAtUtc,
+        Category? commissionCategory,
+        string? description,
+        PosDefinition? definition,
+        Guid? dayCloseId)
     {
         if (id == Guid.Empty)
         {
@@ -145,9 +237,9 @@ public sealed class PosSettlement
         }
 
         ArgumentNullException.ThrowIfNull(account);
-        ArgumentNullException.ThrowIfNull(category);
         ArgumentNullException.ThrowIfNull(grossAmount);
-        if (account.UserId != userId || category.UserId != userId ||
+        if (account.UserId != userId ||
+            category is not null && category.UserId != userId ||
             commissionCategory is not null && commissionCategory.UserId != userId)
         {
             throw new ArgumentException(
@@ -173,14 +265,64 @@ public sealed class PosSettlement
                 nameof(grossAmount));
         }
 
-        if (!category.IsActive || category.Type != CategoryType.Income)
+        switch (kind)
         {
-            throw new InvalidOperationException(
-                "An active income category is required: a pos settlement recognizes a sale.");
+            case PosSettlementKind.Sale:
+                if (category is null || !category.IsActive || category.Type != CategoryType.Income)
+                {
+                    throw new InvalidOperationException(
+                        "An active income category is required: a pos settlement recognizes a sale.");
+                }
+
+                if (scope is not TransactionScope saleScope)
+                {
+                    throw new ArgumentNullException(
+                        nameof(scope), "A sale is recognized on one side of the pool.");
+                }
+
+                TransactionScopeGuard.Validate(saleScope, nameof(scope));
+                break;
+
+            case PosSettlementKind.Collection:
+                // Gelir alacakta tanındı; tahsil onu ikinci kez tanımaz.
+                if (category is not null)
+                {
+                    throw new InvalidOperationException(
+                        "A card collection recognizes no income and carries no income category.");
+                }
+
+                if (dayCloseId is not null)
+                {
+                    throw new InvalidOperationException(
+                        "A day close writes sales; it does not collect receivables.");
+                }
+
+                // Kapsam yalnız komisyonun kapsamıdır: komisyon varsa
+                // zorunlu, yoksa sorulacak bir taraf yoktur.
+                if (commissionAmount > 0m)
+                {
+                    if (scope is not TransactionScope commissionScope)
+                    {
+                        throw new ArgumentNullException(
+                            nameof(scope), "A commission is recognized on one side of the pool.");
+                    }
+
+                    TransactionScopeGuard.Validate(commissionScope, nameof(scope));
+                }
+                else if (scope is not null)
+                {
+                    throw new InvalidOperationException(
+                        "A card collection without a commission has nothing to put on a side.");
+                }
+
+                break;
+
+            default:
+                throw new ArgumentOutOfRangeException(
+                    nameof(kind), kind, "Pos settlement kind is not supported.");
         }
 
         ValidateCommission(commissionAmount, grossAmount, commissionCategory);
-        TransactionScopeGuard.Validate(scope, nameof(scope));
         if (createdAtUtc.Offset != TimeSpan.Zero)
         {
             throw new ArgumentException("Creation time must be UTC.", nameof(createdAtUtc));
@@ -205,8 +347,9 @@ public sealed class PosSettlement
 
         Id = id;
         UserId = userId;
+        Kind = kind;
         AccountId = account.Id;
-        CategoryId = category.Id;
+        CategoryId = category?.Id;
         CommissionCategoryId = commissionCategory?.Id;
         PosDefinitionId = definition?.Id;
         DayCloseId = dayCloseId;
@@ -241,6 +384,53 @@ public sealed class PosSettlement
             CommissionAmount / GrossAmount.Amount, RateDecimals, MidpointRounding.AwayFromZero);
 
     public bool IsTransferred => TransferredOn is not null;
+
+    /// <summary>Gelir tanıyan satış mı; kartla tahsil değil.</summary>
+    public bool IsSale => Kind == PosSettlementKind.Sale;
+
+    /// <summary>
+    /// Kartla tahsilin bu kaydı, onu doğuran tahsilatla (cari ya da tek
+    /// seferlik alacak) birlikte taşıyabileceğini denetler: aynı kullanıcı,
+    /// aynı hesap, aynı gün, aynı tutar.
+    /// </summary>
+    /// <remarks>
+    /// Yön tahsilattır: kart yalnız müşteriden para alırken POS'tan geçer;
+    /// tedarikçiye kartla ödemek kredi kartıdır ve başka bir kayıttır (ADR 0019
+    /// T7: "POS" yalnız satış tarafında).
+    /// </remarks>
+    internal void EnsureCollects(
+        Guid userId,
+        Account account,
+        DebtDirection direction,
+        Money amount,
+        DateOnly collectedOn)
+    {
+        if (direction != DebtDirection.Receivable)
+        {
+            throw new InvalidOperationException(
+                "Only a collection can be taken by card; paying a supplier is not a pos settlement.");
+        }
+
+        if (Kind != PosSettlementKind.Collection)
+        {
+            throw new InvalidOperationException(
+                "A card collection must carry a collection, not a sale.");
+        }
+
+        if (UserId != userId || AccountId != account.Id)
+        {
+            throw new ArgumentException(
+                "The card collection must belong to the same user and account.");
+        }
+
+        if (GrossAmount.Amount != amount.Amount ||
+            Currency != amount.Currency ||
+            SettlementDate != collectedOn)
+        {
+            throw new ArgumentException(
+                "The card collection must carry the same amount and day as the collection.");
+        }
+    }
 
     /// <summary>Yolda: tahsil edildi ama henüz hesaba geçmedi.</summary>
     public bool IsInTransit => !IsCancelled && !IsTransferred;

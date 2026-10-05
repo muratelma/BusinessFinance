@@ -1019,7 +1019,22 @@ Karşı taraf ekle (ad, isteğe bağlı not)
      sonuç: gelir/gider **bugün** yazılır, kasa kıpırdamaz
   -> Tahsilat / ödeme:  hesap, tutar, tarih, açıklama
      sonuç: kasa değişir, gelir/gider **üretilmez**
+  -> Tahsilat · Kartla (POS)  (yalnız tahsilatta; ADR 0019 T5)
+                  POS (ana POS seçili) ya da "Elle gir": hesap, beklenen gün,
+                  isteğe bağlı komisyon; komisyon/net/beklenen gün sunucunun
+                  önizlemesinden
+     sonuç: cari bugün kapanır, gelir yazılmaz, komisyon gider olur;
+            para yolda, Kasa'daki POS listesinde kişi adıyla durur ve
+            hesaba yatışla geçer
 ```
+
+Tek seferlik alacağın kapanışı (`Yükümlülükler > Tahsil et ve kapat`) aynı
+`Nasıl ödendi?` rayını taşır; ödenecek faturada ray yoktur. Kartla alınan
+tahsilat İşlemler'de cari tahsilatın satırıdır (`Ahmet → Garanti POS`,
+tutarın altında komisyon); ayrıntıda POS, komisyon, net ve beklenen gün,
+bakiye "değişmedi" (mavi). Yatış ayrıntısı satışla tahsili ayrı satırda
+yazar. İptal tahsilatın kendisinden yapılır; para yatışla geçtiyse önce yatış
+geri alınır.
 
 Yön kategorinin türünü belirler: alacak doğuran borçlandırma gelir
 kategorisi, borç doğuran gider kategorisi ister; tutmayan istek reddedilir.

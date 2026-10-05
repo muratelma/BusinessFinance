@@ -111,6 +111,10 @@ internal sealed class ObligationSettlementConfiguration
         builder.HasIndex(settlement => new
         { settlement.UserId, settlement.AccountId, settlement.SettlementDate })
             .HasDatabaseName("IX_ObligationSettlements_UserId_AccountId_Date");
+        builder.HasIndex(settlement => new { settlement.UserId, settlement.PosSettlementId })
+            .IsUnique()
+            .HasFilter("[PosSettlementId] IS NOT NULL")
+            .HasDatabaseName("UX_ObligationSettlements_UserId_PosSettlementId");
 
         builder.HasOne<ApplicationUser>().WithMany()
             .HasForeignKey(settlement => settlement.UserId)
@@ -119,5 +123,11 @@ internal sealed class ObligationSettlementConfiguration
             .HasForeignKey(settlement => new { settlement.UserId, settlement.AccountId })
             .HasPrincipalKey(account => new { account.UserId, account.Id })
             .OnDelete(DeleteBehavior.Restrict);
+        // Kartla tahsilde paranın yoldaki kaydı (ADR 0019 T5); değilse boş.
+        builder.HasOne<PosSettlement>().WithMany()
+            .HasForeignKey(settlement => new { settlement.UserId, settlement.PosSettlementId })
+            .HasPrincipalKey(pos => new { pos.UserId, pos.Id })
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired(false);
     }
 }

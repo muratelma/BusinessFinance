@@ -22,12 +22,18 @@ public sealed record CreatePosSettlementRequest(
     string? Description = null,
     Guid? PosDefinitionId = null);
 
+/// <remarks>
+/// <c>kind</c> <c>sale</c> ya da <c>collection</c>'dır. Kartla tahsilde
+/// (<c>collection</c>, ADR 0019 T5) <c>categoryId</c>, <c>categoryName</c> ve
+/// komisyonsuzsa <c>scope</c> boştur: kayıt gelir tanımaz;
+/// <c>counterpartyName</c> parayı ödeyen kişidir.
+/// </remarks>
 public sealed record PosSettlementResponse(
     Guid Id,
     Guid AccountId,
     string AccountName,
-    Guid CategoryId,
-    string CategoryName,
+    Guid? CategoryId,
+    string? CategoryName,
     Guid? CommissionCategoryId,
     string? CommissionCategoryName,
     string GrossAmount,
@@ -35,7 +41,7 @@ public sealed record PosSettlementResponse(
     string NetAmount,
     string CommissionRate,
     string Currency,
-    string Scope,
+    string? Scope,
     string SettlementDate,
     string ExpectedTransferDate,
     string? TransferredOn,
@@ -52,7 +58,9 @@ public sealed record PosSettlementResponse(
     Guid? DayCloseId = null,
     // Tek tek girilmiş tahsilatı sayan gün sonu; sayılmamışsa boştur. Doluysa
     // tahsilat tek başına iptal edilemez, önce gün sonu geri alınır.
-    Guid? CountedInDayCloseId = null);
+    Guid? CountedInDayCloseId = null,
+    string Kind = "sale",
+    string? CounterpartyName = null);
 
 public sealed record PosSettlementListResponse(
     IReadOnlyList<PosSettlementResponse> Items,

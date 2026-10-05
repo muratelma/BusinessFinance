@@ -87,7 +87,15 @@ public interface ICounterpartyRepository
 
     Task AddChargeAsync(CounterpartyCharge charge, CancellationToken cancellationToken);
 
-    Task AddPaymentAsync(CounterpartyPayment payment, CancellationToken cancellationToken);
+    /// <summary>
+    /// Tahsilatı ve kartla tahsilse POS kaydını tek <c>SaveChanges</c> ile
+    /// yazar: biri yazılıp öbürü yazılmasaydı ya cari kapanır ama para hiçbir
+    /// yerde görünmez ya da para yolda görünür ama cari açık kalırdı.
+    /// </summary>
+    Task AddPaymentAsync(
+        CounterpartyPayment payment,
+        PosSettlement? cardSettlement,
+        CancellationToken cancellationToken);
 
     Task<CounterpartyCharge?> FindOwnedChargeAsync(
         Guid chargeId,
@@ -101,5 +109,15 @@ public interface ICounterpartyRepository
 
     Task SaveChargeAsync(CounterpartyCharge charge, CancellationToken cancellationToken);
 
-    Task SavePaymentAsync(CounterpartyPayment payment, CancellationToken cancellationToken);
+    /// <summary>Kartla tahsilin POS kaydı, izlenen hâlde.</summary>
+    Task<PosSettlement?> FindCardSettlementAsync(
+        Guid settlementId,
+        Guid userId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Tahsilattaki değişikliği (ve varsa POS kaydındakini) yazar. POS kaydı bu
+    /// sırada bir yatışa bağlandıysa <c>false</c> döner ve hiçbir şey yazılmaz.
+    /// </summary>
+    Task<bool> TrySavePaymentAsync(CounterpartyPayment payment, CancellationToken cancellationToken);
 }

@@ -125,6 +125,11 @@ internal sealed class CounterpartyPaymentConfiguration : IEntityTypeConfiguratio
             .HasDatabaseName("IX_CounterpartyPayments_UserId_CounterpartyId_Cancelled_Direction");
         builder.HasIndex(payment => new { payment.UserId, payment.AccountId, payment.PaymentDate })
             .HasDatabaseName("IX_CounterpartyPayments_UserId_AccountId_Date");
+        // Bir kartla tahsil kaydı tek bir tahsilatın yoldaki parasıdır.
+        builder.HasIndex(payment => new { payment.UserId, payment.PosSettlementId })
+            .IsUnique()
+            .HasFilter("[PosSettlementId] IS NOT NULL")
+            .HasDatabaseName("UX_CounterpartyPayments_UserId_PosSettlementId");
 
         builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(payment => payment.UserId)
             .OnDelete(DeleteBehavior.Restrict);
@@ -136,5 +141,11 @@ internal sealed class CounterpartyPaymentConfiguration : IEntityTypeConfiguratio
             .HasForeignKey(payment => new { payment.UserId, payment.AccountId })
             .HasPrincipalKey(account => new { account.UserId, account.Id })
             .OnDelete(DeleteBehavior.Restrict);
+        // Kartla tahsilde paranın yoldaki kaydı (ADR 0019 T5); değilse boş.
+        builder.HasOne<PosSettlement>().WithMany()
+            .HasForeignKey(payment => new { payment.UserId, payment.PosSettlementId })
+            .HasPrincipalKey(settlement => new { settlement.UserId, settlement.Id })
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired(false);
     }
 }

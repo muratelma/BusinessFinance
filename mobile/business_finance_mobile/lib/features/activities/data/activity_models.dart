@@ -295,8 +295,8 @@ class FinancialActivity {
   /// raporuna sıfır etki ederler ve kapsam taşımazlar).
   final TransactionScope? scope;
 
-  /// Kaydın geldiği POS'un adı (POS satışı ve yatışı); POS seçilmeden
-  /// girilende `null`.
+  /// Kaydın geldiği POS'un adı (POS satışı, yatışı ve kartla tahsil); POS
+  /// seçilmeden girilende `null`.
   final String? channelName;
 
   /// Kaydın **parçası** olan gider: POS satışında bankanın kestiği komisyon,
@@ -348,6 +348,10 @@ class FinancialActivity {
       direction == ActivityDirection.receivable &&
       (kind == ActivityKind.counterpartySettlement ||
           kind == ActivityKind.obligationSettlement);
+
+  /// Alacağın kartla (POS) tahsili (ADR 0019 T5): para yoldadır ve hesaba
+  /// yatışla geçer. Sunucu net tutarı yalnız kartla tahsilde gönderir.
+  bool get isCardCollection => isCollection && netAmount != null;
 
   bool get hasFee =>
       feeAmount != null &&

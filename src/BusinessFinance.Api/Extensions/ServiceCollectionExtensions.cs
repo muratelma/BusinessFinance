@@ -159,6 +159,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ConfirmCashCountDifferenceUseCase>();
         services.AddTransient<ListPosSettlementsUseCase>();
         services.AddTransient<CreatePosSettlementUseCase>();
+        services.AddTransient<CardCollectionBuilder>();
         services.AddTransient<CancelPosSettlementUseCase>();
         services.AddTransient<ListPosDefinitionsUseCase>();
         services.AddTransient<CreatePosDefinitionUseCase>();

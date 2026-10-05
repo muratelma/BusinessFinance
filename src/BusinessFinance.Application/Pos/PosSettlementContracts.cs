@@ -35,12 +35,17 @@ public sealed record CancelPosSettlementCommand(Guid SettlementId);
 
 public sealed record PosSettlementListCriteria(bool InTransitOnly, DateOnly From, DateOnly To);
 
+/// <remarks>
+/// Kartla tahsilde (<see cref="Kind"/>) gelir kategorisi ve kapsam boştur;
+/// kayıt bir satış değil, bir alacağın POS'tan geçen tahsilidir ve
+/// <see cref="CounterpartyName"/> kimden tahsil edildiğini söyler.
+/// </remarks>
 public sealed record PosSettlementDto(
     Guid Id,
     Guid AccountId,
     string AccountName,
-    Guid CategoryId,
-    string CategoryName,
+    Guid? CategoryId,
+    string? CategoryName,
     Guid? CommissionCategoryId,
     string? CommissionCategoryName,
     decimal GrossAmount,
@@ -48,7 +53,7 @@ public sealed record PosSettlementDto(
     decimal NetAmount,
     decimal CommissionRate,
     CurrencyCode Currency,
-    TransactionScope Scope,
+    TransactionScope? Scope,
     DateOnly SettlementDate,
     DateOnly ExpectedTransferDate,
     DateOnly? TransferredOn,
@@ -66,7 +71,11 @@ public sealed record PosSettlementDto(
     Guid? DayCloseId = null,
     // Tek tek girilmiş tahsilatı sayan gün sonu; sayılmamışsa boştur. Doluysa
     // tahsilat tek başına iptal edilemez. Yalnız liste okumasında dolar.
-    Guid? CountedInDayCloseId = null);
+    Guid? CountedInDayCloseId = null,
+    PosSettlementKind Kind = PosSettlementKind.Sale,
+    // Kartla tahsilde parayı ödeyen kişi (cari ya da tek seferlik alacağın
+    // karşı tarafı); satışta ve karşı tarafı olmayan alacakta boş.
+    string? CounterpartyName = null);
 
 /// <summary>
 /// Tahsilat listesi ve yanında yoldaki toplam.

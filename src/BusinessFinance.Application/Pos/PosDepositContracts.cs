@@ -74,7 +74,12 @@ public sealed record PosDepositDto(
     // günü gider yazılmıştır; burada yeniden yazılmaz, yalnız gösterilir.
     // Geri alınmış yatışta tahsilat kalmadığı için boştur.
     decimal? GrossAmount = null,
-    decimal? CommissionAmount = null);
+    decimal? CommissionAmount = null,
+    // Brütün satışlardan ve kartla tahsil edilen alacaklardan (ADR 0019 T5)
+    // gelen kısımları: tahsil satış değildir, gelir yazmamıştır. Ayrıntı
+    // ikisini ayrı satırda yazar; istemci brütten çıkarma yapmaz.
+    decimal? CollectionAmount = null,
+    decimal? SaleAmount = null);
 
 public interface IPosDepositRepository
 {

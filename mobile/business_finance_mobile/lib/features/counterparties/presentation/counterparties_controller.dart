@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/presentation/financial_data_changes.dart';
+import '../../pos/data/pos_repository.dart';
+import '../../pos/presentation/card_collection_fields.dart';
 import '../data/counterparty_models.dart';
 import '../data/counterparty_repository.dart';
 
@@ -15,9 +17,14 @@ class CounterpartiesController extends ChangeNotifier {
     this._repository, {
     DateTime Function()? now,
     this.financialDataChanges,
+    this.posRepository,
   }) : _now = now ?? DateTime.now;
 
   final CounterpartyRepositoryContract _repository;
+
+  /// Kartla tahsil (ADR 0019 T5) için POS'lar ve önizleme; yoksa tahsilat
+  /// formu "Kartla (POS)" seçeneğini göstermez.
+  final PosRepositoryContract? posRepository;
 
   /// Borçlandırma gelir/gider tanır, tahsilat kasayı değiştirir; ikisi de
   /// arkadaki ekranları bayatlatır.
@@ -145,29 +152,63 @@ class CounterpartiesController extends ChangeNotifier {
     detailId: counterpartyId,
   );
 
+  /// Kartla tahsil formunun okumaları: POS'lar her açılışta yeniden okunur
+  /// (yeni eklenen POS görünsün); hesap ve kategoriler listenin okumasından.
+  /// POS deposu yoksa ya da okunamazsa `null`: form kart seçeneğini göstermez.
+  Future<CardCollectionSource?> loadCardCollection() async {
+    final pos = posRepository;
+    final loaded = snapshot;
+    if (pos == null || loaded == null) return null;
+    try {
+      final definitions = await pos.listDefinitions();
+      return CardCollectionSource(
+        definitions: definitions
+            .where((item) => item.isActive)
+            .toList(growable: false),
+        bankAccounts: loaded.accounts
+            .where((account) => account.type == 'bank')
+            .toList(growable: false),
+        expenseCategories: loaded.categoriesOfType('expense'),
+        preview: pos.preview,
+      );
+    } on ApiException {
+      return null;
+    } on FormatException {
+      return null;
+    }
+  }
+
   /// Tahsilat ya da ödeme: kasa değişir, gelir/gider üretilmez.
   ///
   /// Mesaj yöne göre değişir — alacak tahsil edilirken "ödeme yapıldı" demek,
-  /// kullanıcıya para verdiğini söylemek olurdu.
+  /// kullanıcıya para verdiğini söylemek olurdu. [card] doluysa tahsilat
+  /// kartla (POS) alındı: hesap POS'tan gelir, para yola çıkar.
   Future<bool> addPayment(
     String counterpartyId, {
     required bool isReceivable,
     required String amount,
-    required String accountId,
     required String paymentDate,
+    String? accountId,
+    Map<String, Object?>? card,
     String? description,
   }) => _submit(
     () => _repository.addPayment(counterpartyId, {
       'direction': isReceivable ? 'receivable' : 'payable',
       'amount': amount,
       'currency': 'TRY',
-      'accountId': accountId,
+      'accountId': ?accountId,
       'paymentDate': paymentDate,
+      'card': ?card,
       if (description != null && description.isNotEmpty)
         'description': description,
     }),
-    isReceivable ? 'Tahsilat kaydedildi.' : 'Ödeme kaydedildi.',
+    card != null
+        ? 'Kartla tahsilat kaydedildi; para yolda.'
+        : isReceivable
+        ? 'Tahsilat kaydedildi.'
+        : 'Ödeme kaydedildi.',
     detailId: counterpartyId,
+    signal: card != null ? financialDataChanges?.cardCollectionChanged : null,
   );
 
   void clearMessage() {
@@ -185,6 +226,7 @@ class CounterpartiesController extends ChangeNotifier {
     String success, {
     bool peopleOnly = false,
     String? detailId,
+    VoidCallback? signal,
   }) async {
     if (isSubmitting) return false;
     isSubmitting = true;
@@ -193,7 +235,9 @@ class CounterpartiesController extends ChangeNotifier {
     notifyListeners();
     try {
       await action();
-      if (peopleOnly) {
+      if (signal != null) {
+        signal();
+      } else if (peopleOnly) {
         financialDataChanges?.counterpartiesChanged();
       } else {
         financialDataChanges?.counterpartyLedgerChanged();

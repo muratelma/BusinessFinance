@@ -328,7 +328,7 @@ internal static class FieldRun
         public Task AddChargeAsync(CounterpartyCharge charge, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task AddPaymentAsync(CounterpartyPayment payment, CancellationToken cancellationToken) =>
+        public Task AddPaymentAsync(CounterpartyPayment payment, PosSettlement? cardSettlement, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
         public Task<CounterpartyCharge?> FindOwnedChargeAsync(
@@ -342,7 +342,10 @@ internal static class FieldRun
         public Task SaveChargeAsync(CounterpartyCharge charge, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task SavePaymentAsync(CounterpartyPayment payment, CancellationToken cancellationToken) =>
+        public Task<PosSettlement?> FindCardSettlementAsync(Guid settlementId, Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<bool> TrySavePaymentAsync(CounterpartyPayment payment, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
     }
 

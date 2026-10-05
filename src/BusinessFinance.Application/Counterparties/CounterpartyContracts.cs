@@ -1,3 +1,4 @@
+using BusinessFinance.Application.Pos;
 using BusinessFinance.Application.Taxes;
 using BusinessFinance.Domain;
 
@@ -51,14 +52,22 @@ public sealed record CreateCounterpartyChargeCommand(
 /// Tahsilat ya da ödeme: kasayı değiştirir, gelir/gider üretmez. Bu yüzden ne
 /// kategori ne kapsam taşır.
 /// </summary>
+/// <remarks>
+/// <see cref="Card"/> doluysa tahsilat kartla (POS) alınmıştır (ADR 0019 T5):
+/// para yola çıkar ve hesaba yatışla geçer; hesap POS'tan ya da
+/// <see cref="CardCollectionInput.AccountId"/>'den gelir ve
+/// <see cref="AccountId"/> boş kalabilir. Doluysa <see cref="AccountId"/>
+/// zorunludur.
+/// </remarks>
 public sealed record CreateCounterpartyPaymentCommand(
     Guid CounterpartyId,
-    Guid AccountId,
+    Guid? AccountId,
     DebtDirection Direction,
     decimal Amount,
     CurrencyCode Currency,
     DateOnly PaymentDate,
-    string? Description);
+    string? Description,
+    CardCollectionInput? Card = null);
 
 public sealed record CounterpartyChargeDto(
     Guid Id,
@@ -82,4 +91,6 @@ public sealed record CounterpartyPaymentDto(
     CurrencyCode Currency,
     DateOnly PaymentDate,
     string? Description,
-    bool IsCancelled);
+    bool IsCancelled,
+    // Kartla tahsilde paranın yoldaki POS kaydı; değilse boş.
+    Guid? PosSettlementId = null);

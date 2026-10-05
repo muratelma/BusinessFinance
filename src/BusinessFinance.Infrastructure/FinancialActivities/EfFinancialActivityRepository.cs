@@ -313,7 +313,11 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                         null,
                         null)
                     {
-                        AccountIncreases = item.Direction == DebtDirection.Receivable,
+                        // Kartla tahsil hesaba dokunmaz: para yoldadır, yatışla
+                        // girer (POS satışı gibi "değişmedi").
+                        AccountIncreases = item.PosSettlementId != null
+                            ? null
+                            : item.Direction == DebtDirection.Receivable,
                         CounterpartyId = item.CounterpartyId,
                         // Tahsilat alacağı, ödeme borcu kapatır.
                         CounterpartyNetDelta = item.Direction == DebtDirection.Payable
@@ -334,7 +338,9 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                         null,
                         null)
                     {
-                        AccountIncreases = item.Direction == DebtDirection.Receivable,
+                        AccountIncreases = item.PosSettlementId != null
+                            ? null
+                            : item.Direction == DebtDirection.Receivable,
                         CounterpartyId = dbContext.Obligations
                             .Where(obligation => obligation.UserId == item.UserId &&
                                                  obligation.Id == item.ObligationId)
@@ -1030,7 +1036,9 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
             };
 
         // Tahsilat/ödeme taşır: kasayı değiştirir, gelir/gider üretmez ve bu
-        // yüzden kart ödemesi gibi kapsamsızdır.
+        // yüzden kart ödemesi gibi kapsamsızdır. Kartla tahsil (ADR 0019 T5)
+        // ayrı satır değildir: POS kaydının komisyonu, neti ve günleri bu
+        // satırın parçasıdır, tıpkı POS satışında olduğu gibi.
         var counterpartySettlements =
             from payment in dbContext.CounterpartyPayments.AsNoTracking()
             join counterparty in dbContext.Counterparties.AsNoTracking()
@@ -1039,6 +1047,16 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
             join account in dbContext.Accounts.AsNoTracking()
                 on new { payment.UserId, Id = payment.AccountId }
                 equals new { account.UserId, account.Id }
+            join card in dbContext.PosSettlements.AsNoTracking()
+                on new { payment.UserId, Id = payment.PosSettlementId }
+                equals new { card.UserId, Id = (Guid?)card.Id }
+                into cards
+            from card in cards.DefaultIfEmpty()
+            join definition in dbContext.PosDefinitions.AsNoTracking()
+                on new { UserId = (Guid?)card.UserId, Id = card.PosDefinitionId }
+                equals new { UserId = (Guid?)definition.UserId, Id = (Guid?)definition.Id }
+                into definitions
+            from definition in definitions.DefaultIfEmpty()
             where payment.UserId == userId
             select new ActivityRow
             {
@@ -1066,17 +1084,25 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 PrincipalPortion = (decimal?)null,
                 InterestPortion = (decimal?)null,
                 EntryAtUtc = EF.Property<DateTimeOffset?>(payment, EntryTimestamp.PropertyName),
-                ChannelName = (string?)null,
-                FeeAmount = (decimal?)null,
-                NetAmount = (decimal?)null,
-                ExpectedTransferDate = (DateOnly?)null,
-                TransferredOn = (DateOnly?)null,
+                ChannelName = definition == null ? null : definition.Name,
+                FeeAmount = card != null && card.CommissionAmount > 0m
+                    ? (decimal?)card.CommissionAmount
+                    : null,
+                NetAmount = card == null
+                    ? null
+                    : (decimal?)(card.GrossAmount.Amount - card.CommissionAmount),
+                ExpectedTransferDate = card == null ? null : (DateOnly?)card.ExpectedTransferDate,
+                TransferredOn = card == null ? null : card.TransferredOn,
                 Direction = (int?)payment.Direction,
                 SettlementCount = (int?)null,
+                // Nakit tahsilat kendi kaydıyla, kartla tahsil POS kaydıyla
+                // sayılır (gün sonunun kart tarafı).
                 DayCloseId = dbContext.DayCloseCountedRecords
                         .Where(counted => counted.UserId == userId &&
-                                          counted.Kind == DayCloseRecordKind.CounterpartyPayment &&
-                                          counted.RecordId == payment.Id)
+                                          ((counted.Kind == DayCloseRecordKind.CounterpartyPayment &&
+                                            counted.RecordId == payment.Id) ||
+                                           (counted.Kind == DayCloseRecordKind.PosSettlement &&
+                                            (Guid?)counted.RecordId == payment.PosSettlementId)))
                         .Select(counted => (Guid?)counted.DayCloseId)
                         .FirstOrDefault(),
                 MatchAccountId = account.Id,
@@ -1157,6 +1183,16 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 equals new { counterparty.UserId, Id = (Guid?)counterparty.Id }
                 into counterparties
             from counterparty in counterparties.DefaultIfEmpty()
+            join card in dbContext.PosSettlements.AsNoTracking()
+                on new { settlement.UserId, Id = settlement.PosSettlementId }
+                equals new { card.UserId, Id = (Guid?)card.Id }
+                into cards
+            from card in cards.DefaultIfEmpty()
+            join definition in dbContext.PosDefinitions.AsNoTracking()
+                on new { UserId = (Guid?)card.UserId, Id = card.PosDefinitionId }
+                equals new { UserId = (Guid?)definition.UserId, Id = (Guid?)definition.Id }
+                into definitions
+            from definition in definitions.DefaultIfEmpty()
             where settlement.UserId == userId
             select new ActivityRow
             {
@@ -1188,17 +1224,23 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 PrincipalPortion = null,
                 InterestPortion = null,
                 EntryAtUtc = (DateTimeOffset?)settlement.SettledAtUtc,
-                ChannelName = (string?)null,
-                FeeAmount = (decimal?)null,
-                NetAmount = (decimal?)null,
-                ExpectedTransferDate = (DateOnly?)null,
-                TransferredOn = (DateOnly?)null,
+                ChannelName = definition == null ? null : definition.Name,
+                FeeAmount = card != null && card.CommissionAmount > 0m
+                    ? (decimal?)card.CommissionAmount
+                    : null,
+                NetAmount = card == null
+                    ? null
+                    : (decimal?)(card.GrossAmount.Amount - card.CommissionAmount),
+                ExpectedTransferDate = card == null ? null : (DateOnly?)card.ExpectedTransferDate,
+                TransferredOn = card == null ? null : card.TransferredOn,
                 Direction = (int?)settlement.Direction,
                 SettlementCount = (int?)null,
                 DayCloseId = dbContext.DayCloseCountedRecords
                         .Where(counted => counted.UserId == userId &&
-                                          counted.Kind == DayCloseRecordKind.ObligationSettlement &&
-                                          counted.RecordId == settlement.Id)
+                                          ((counted.Kind == DayCloseRecordKind.ObligationSettlement &&
+                                            counted.RecordId == settlement.Id) ||
+                                           (counted.Kind == DayCloseRecordKind.PosSettlement &&
+                                            (Guid?)counted.RecordId == settlement.PosSettlementId)))
                         .Select(counted => (Guid?)counted.DayCloseId)
                         .FirstOrDefault(),
                 MatchAccountId = account.Id,
@@ -1212,6 +1254,8 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
         // tutarla. Komisyon aynı gün tanınan bir giderdir ama ayrı satır
         // değildir; satışın parçası olarak taşınır (`FeeAmount`). Paranın
         // hesaba geçişi tahsilatın değil yatışın satırıdır.
+        // Kartla tahsil bu satırlara girmez: tahsilatın kendi satırının
+        // parçasıdır ve gelir yazmaz.
         var posSales =
             from settlement in dbContext.PosSettlements.AsNoTracking()
             join account in dbContext.Accounts.AsNoTracking()
@@ -1219,13 +1263,13 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 equals new { account.UserId, account.Id }
             join category in dbContext.Categories.AsNoTracking()
                 on new { settlement.UserId, Id = settlement.CategoryId }
-                equals new { category.UserId, category.Id }
+                equals new { category.UserId, Id = (Guid?)category.Id }
             join definition in dbContext.PosDefinitions.AsNoTracking()
                 on new { settlement.UserId, Id = settlement.PosDefinitionId }
                 equals new { definition.UserId, Id = (Guid?)definition.Id }
                 into definitions
             from definition in definitions.DefaultIfEmpty()
-            where settlement.UserId == userId
+            where settlement.UserId == userId && settlement.Kind == PosSettlementKind.Sale
             select new ActivityRow
             {
                 ActivityId = settlement.Id,

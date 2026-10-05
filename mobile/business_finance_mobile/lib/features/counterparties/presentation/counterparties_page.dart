@@ -8,6 +8,7 @@ import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_form_sheet.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
+import '../../pos/data/pos_repository.dart';
 import '../data/counterparty_models.dart';
 import '../data/counterparty_repository.dart';
 import 'counterparties_controller.dart';
@@ -24,10 +25,14 @@ class CounterpartiesPage extends StatefulWidget {
     required this.repository,
     this.changes,
     this.showScope = false,
+    this.posRepository,
     super.key,
   });
 
   final CounterpartyRepositoryContract repository;
+
+  /// Tahsilatın kartla (POS) alınabilmesi için; yoksa seçenek görünmez.
+  final PosRepositoryContract? posRepository;
   final FinancialDataChanges? changes;
 
   /// Kapsam boyutu yalnız "işletmem var" diyen kullanıcıda görünür.
@@ -46,6 +51,7 @@ class _CounterpartiesPageState extends State<CounterpartiesPage> {
     controller = CounterpartiesController(
       widget.repository,
       financialDataChanges: widget.changes,
+      posRepository: widget.posRepository,
     )..addListener(_changed);
     controller.load();
   }

@@ -17,6 +17,12 @@ namespace BusinessFinance.Domain;
 /// Yön, kapattığı borçlandırmanın yönüdür: <see cref="DebtDirection.Receivable"/>
 /// müşteriden para almaktır (hesap artar), <see cref="DebtDirection.Payable"/>
 /// tedarikçiye para vermektir (hesap azalır).
+///
+/// <b>Kartla tahsil</b> (ADR 0019 T5): müşteri borcunu POS'tan kartla öderse
+/// tahsilat bir <see cref="PosSettlement"/> (<see cref="PosSettlementKind.Collection"/>)
+/// taşır. Cari o gün brüt tutarla kapanır; hesap ise o gün kıpırdamaz — para
+/// yoldadır ve hesaba satıştaki gibi yatışla, net olarak geçer. Tahsilat
+/// hesaba ikinci kez yazsaydı aynı para iki kez sayılırdı.
 /// </remarks>
 public sealed class CounterpartyPayment
 {
@@ -30,6 +36,13 @@ public sealed class CounterpartyPayment
     public Money Amount { get; }
     public DateOnly PaymentDate { get; }
     public string? Description { get; }
+
+    /// <summary>
+    /// Kartla tahsilde paranın yoldaki kaydı; nakit ya da havaleyle alınan
+    /// tahsilatta ve ödemede boştur.
+    /// </summary>
+    public Guid? PosSettlementId { get; }
+
     public bool IsCancelled { get; private set; }
     public DateTimeOffset? CancelledAtUtc { get; private set; }
 
@@ -46,7 +59,8 @@ public sealed class CounterpartyPayment
         DebtDirection direction,
         Money amount,
         DateOnly paymentDate,
-        string? description = null)
+        string? description = null,
+        PosSettlement? cardSettlement = null)
     {
         if (id == Guid.Empty)
         {
@@ -97,8 +111,14 @@ public sealed class CounterpartyPayment
             throw new ArgumentOutOfRangeException(nameof(paymentDate), "Payment date is required.");
         }
 
+        if (cardSettlement is not null)
+        {
+            cardSettlement.EnsureCollects(userId, account, direction, amount, paymentDate);
+        }
+
         Id = id;
         UserId = userId;
+        PosSettlementId = cardSettlement?.Id;
         CounterpartyId = counterparty.Id;
         AccountId = account.Id;
         Direction = direction;
@@ -113,10 +133,14 @@ public sealed class CounterpartyPayment
     /// <remarks>
     /// İşaret tek yerde duruyor ki bakiye ve feed aynı cevabı versin; iki
     /// yerde yazılsaydı biri unutulduğunda para bir tarafta kaybolurdu.
+    ///
+    /// Kartla tahsilde sıfırdır: para hesaba yatışla girer.
     /// </remarks>
-    public decimal SignedAccountEffect => Direction == DebtDirection.Receivable
-        ? Amount.Amount
-        : -Amount.Amount;
+    public decimal SignedAccountEffect => PosSettlementId is not null
+        ? 0m
+        : Direction == DebtDirection.Receivable
+            ? Amount.Amount
+            : -Amount.Amount;
 
     public void Cancel(DateTimeOffset cancelledAtUtc)
     {

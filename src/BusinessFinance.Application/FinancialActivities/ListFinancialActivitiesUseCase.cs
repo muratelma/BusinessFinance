@@ -62,6 +62,11 @@ public sealed class ListFinancialActivitiesUseCase(
         // Bir gün sonuna bağlı kayıt (yazdığı ya da saydığı) tek başına iptal
         // edilemez; iptal uçları aynı kuralı uygular.
         FinancialActivityCapabilities.CanCancel(row.ActivityKind, row.Origin, row.Status) &&
-            row.DayCloseId is null,
+            row.DayCloseId is null &&
+            // Parası yatışla hesaba geçmiş kartla tahsil, önce yatış geri
+            // alınmadan iptal edilemez (ADR 0019 T5); iptal ucu aynı kuralı
+            // uygular.
+            !(row.ActivityKind == FinancialActivityKind.CounterpartySettlement &&
+              row.TransferredOn is not null),
         FinancialActivityCapabilities.SupportsAttachments(row.ActivityKind));
 }

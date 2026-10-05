@@ -1,4 +1,5 @@
 using BusinessFinance.Api.Contracts;
+using BusinessFinance.Api.Features.Pos;
 
 namespace BusinessFinance.Api.Features.Counterparties;
 
@@ -47,13 +48,19 @@ public sealed record CreateCounterpartyChargeRequest(
 /// Tahsilat / ödeme. Kategori ve kapsam **taşımaz**: gelir/gider raporuna
 /// girmez, yalnız kasayı değiştirir.
 /// </summary>
+/// <remarks>
+/// <c>card</c> doluysa tahsilat kartla (POS) alınmıştır (ADR 0019 T5): para
+/// yola çıkar, hesaba yatışla geçer; <c>accountId</c> boş kalabilir (POS'un
+/// hesabı). Kart yalnız tahsilatta (<c>receivable</c>) geçerlidir.
+/// </remarks>
 public sealed record CreateCounterpartyPaymentRequest(
     string Direction,
     string Amount,
     string Currency,
-    Guid AccountId,
+    Guid? AccountId,
     string PaymentDate,
-    string? Description = null);
+    string? Description = null,
+    CardCollectionRequest? Card = null);
 
 public sealed record CounterpartyChargeResponse(
     Guid Id,
@@ -77,4 +84,6 @@ public sealed record CounterpartyPaymentResponse(
     string Currency,
     string PaymentDate,
     string? Description,
-    bool IsCancelled);
+    bool IsCancelled,
+    // Kartla tahsilde paranın yoldaki POS kaydı; değilse boş.
+    Guid? PosSettlementId = null);

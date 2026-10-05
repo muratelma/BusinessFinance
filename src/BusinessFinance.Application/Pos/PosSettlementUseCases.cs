@@ -289,6 +289,12 @@ internal static class PosSettlementMutation
                 PosSettlementErrors.DayCloseLocked);
         }
 
+        if (settlement is { IsCancelled: false, Kind: PosSettlementKind.Collection })
+        {
+            return ApplicationResult<PosSettlementDto>.Failure(
+                PosSettlementErrors.CollectionLocked);
+        }
+
         try
         {
             change(settlement);
@@ -325,8 +331,9 @@ public static class PosSettlementMapper
             : null;
         var account = await accountRepository.FindOwnedByIdAsync(
             settlement.AccountId, userId, cancellationToken);
-        var category = await categoryRepository.FindOwnedByIdAsync(
-            settlement.CategoryId, userId, cancellationToken);
+        var category = settlement.CategoryId is Guid categoryId
+            ? await categoryRepository.FindOwnedByIdAsync(categoryId, userId, cancellationToken)
+            : null;
         var commissionCategory = settlement.CommissionCategoryId is Guid commissionCategoryId
             ? await categoryRepository.FindOwnedByIdAsync(
                 commissionCategoryId, userId, cancellationToken)
@@ -335,7 +342,7 @@ public static class PosSettlementMapper
         return ToDto(
             settlement,
             account?.Name ?? string.Empty,
-            category?.Name ?? string.Empty,
+            category?.Name,
             commissionCategory?.Name,
             DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime),
             definition?.Name);
@@ -344,10 +351,11 @@ public static class PosSettlementMapper
     public static PosSettlementDto ToDto(
         PosSettlement settlement,
         string accountName,
-        string categoryName,
+        string? categoryName,
         string? commissionCategoryName,
         DateOnly asOfDate,
-        string? definitionName = null)
+        string? definitionName = null,
+        string? counterpartyName = null)
     {
         return new PosSettlementDto(
             settlement.Id,
@@ -373,6 +381,8 @@ public static class PosSettlementMapper
             settlement.PosDefinitionId,
             definitionName,
             settlement.PosDepositId,
-            settlement.DayCloseId);
+            settlement.DayCloseId,
+            Kind: settlement.Kind,
+            CounterpartyName: counterpartyName);
     }
 }

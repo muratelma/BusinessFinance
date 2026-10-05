@@ -311,7 +311,12 @@ public sealed class CreatePosDepositUseCase(
         PosDepositSelection selection,
         Category category)
     {
-        var scopes = selection.Settlements.Select(settlement => settlement.Scope).Distinct().ToArray();
+        // Komisyonsuz kartla tahsilin kapsamı yoktur ve oy kullanmaz.
+        var scopes = selection.Settlements
+            .Select(settlement => settlement.Scope)
+            .OfType<TransactionScope>()
+            .Distinct()
+            .ToArray();
         return requested ??
             (scopes.Length == 1
                 ? scopes[0]

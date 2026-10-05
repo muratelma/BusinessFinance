@@ -10,6 +10,7 @@ import '../../../core/widgets/app_list_row.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
+import '../../pos/presentation/card_collection_fields.dart';
 import '../data/obligation_repository.dart';
 import 'obligation_controller.dart';
 import 'obligation_prefill.dart';
@@ -224,27 +225,43 @@ class _SettlementForm extends StatefulWidget {
 
 class _SettlementFormState extends State<_SettlementForm> {
   final formKey = GlobalKey<FormState>();
+  final cardFields = GlobalKey<CardCollectionFieldsState>();
   late final Future<List<ObligationAccount>> accounts;
+  late final TextEditingController amount;
+  Future<CardCollectionSource?>? cards;
   String? accountId;
+  CollectionMethod method = CollectionMethod.account;
+
+  bool get receivable => widget.item.direction != 'payable';
+  bool get byCard => method == CollectionMethod.card;
 
   @override
   void initState() {
     super.initState();
     accounts = widget.controller.loadAccounts();
+    // Alacağın tutarı sabittir; kart önizlemesi onu okur.
+    amount = TextEditingController(text: widget.item.amount);
+    // Kartla tahsil yalnız alacakta (ADR 0019 T5).
+    if (receivable) cards = widget.controller.loadCardCollection();
+  }
+
+  @override
+  void dispose() {
+    amount.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => Form(
     key: formKey,
     child: AppFormSheet<bool>(
-      title: widget.item.direction == 'payable'
-          ? 'Ödemeyi kaydet'
-          : 'Tahsilatı kaydet',
-      description:
-          'Bu işlem yalnız hesap bakiyesini değiştirir; gelir veya gider yeniden yazılmaz.',
-      submitLabel: widget.item.direction == 'payable'
-          ? 'Öde ve kapat'
-          : 'Tahsil et ve kapat',
+      title: receivable ? 'Tahsilatı kaydet' : 'Ödemeyi kaydet',
+      description: byCard
+          ? 'Alacak bugün kapanır; gelir yeniden yazılmaz. Para yola çıkar, '
+                'hesaba yatışla geçer.'
+          : 'Bu işlem yalnız hesap bakiyesini değiştirir; gelir veya gider '
+                'yeniden yazılmaz.',
+      submitLabel: receivable ? 'Tahsil et ve kapat' : 'Öde ve kapat',
       onSubmit: _submit,
       children: [
         AppMoneyText(
@@ -252,38 +269,76 @@ class _SettlementFormState extends State<_SettlementForm> {
           currency: widget.item.currency,
         ),
         const SizedBox(height: AppSpacing.medium),
-        FutureBuilder<List<ObligationAccount>>(
-          future: accounts,
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return const Text(
-                'Hesaplar yüklenemedi. Paneli kapatıp yeniden deneyin.',
-              );
-            }
-            if (!snapshot.hasData) return const LinearProgressIndicator();
-            return DropdownButtonFormField<String>(
-              initialValue: accountId,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Hesap'),
-              items: [
-                for (final account in snapshot.data!)
-                  DropdownMenuItem(
-                    value: account.id,
-                    child: Text(account.name),
+        if (cards != null)
+          FutureBuilder<CardCollectionSource?>(
+            future: cards,
+            builder: (context, snapshot) {
+              final source = snapshot.data;
+              if (source == null) return const SizedBox.shrink();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  CollectionMethodRail(
+                    selected: method,
+                    onChanged: (value) => setState(() => method = value),
                   ),
-              ],
-              onChanged: (value) => accountId = value,
-              validator: (value) => value == null ? 'Hesap seçin.' : null,
-            );
-          },
-        ),
+                  const SizedBox(height: AppSpacing.medium),
+                  if (byCard)
+                    CardCollectionFields(
+                      key: cardFields,
+                      source: source,
+                      amount: amount,
+                      collectedOn: _today(),
+                    ),
+                ],
+              );
+            },
+          ),
+        if (!byCard)
+          FutureBuilder<List<ObligationAccount>>(
+            future: accounts,
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return const Text(
+                  'Hesaplar yüklenemedi. Paneli kapatıp yeniden deneyin.',
+                );
+              }
+              if (!snapshot.hasData) return const LinearProgressIndicator();
+              return DropdownButtonFormField<String>(
+                initialValue: accountId,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Hesap'),
+                items: [
+                  for (final account in snapshot.data!)
+                    DropdownMenuItem(
+                      value: account.id,
+                      child: Text(account.name),
+                    ),
+                ],
+                onChanged: (value) => accountId = value,
+                validator: (value) => value == null ? 'Hesap seçin.' : null,
+              );
+            },
+          ),
       ],
     ),
   );
 
   Future<bool?> _submit() async {
     if (!formKey.currentState!.validate()) return null;
-    final success = await widget.controller.settle(widget.item, accountId!);
+    final success = byCard
+        ? await widget.controller.settle(
+            widget.item,
+            card: cardFields.currentState?.request,
+          )
+        : await widget.controller.settle(widget.item, accountId: accountId);
     return success ? true : null;
+  }
+
+  static String _today() {
+    final value = DateTime.now();
+    return '${value.year.toString().padLeft(4, '0')}-'
+        '${value.month.toString().padLeft(2, '0')}-'
+        '${value.day.toString().padLeft(2, '0')}';
   }
 }

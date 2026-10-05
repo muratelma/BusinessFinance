@@ -273,8 +273,9 @@ class _FakeObligationRepository implements ObligationRepositoryContract {
   @override
   Future<void> settle({
     required String obligationId,
-    required String accountId,
+    required String? accountId,
     required String settlementDate,
+    Map<String, Object?>? card,
   }) async {}
 }
 

@@ -57,6 +57,10 @@ internal sealed class EfUserAccountEraser(
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
             await dbContext.Obligations
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+            // Cari tahsilat kartla tahsilin POS kaydına bağlıdır (ADR 0019 T5);
+            // tahsilatlar ondan önce silinir.
+            await dbContext.CounterpartyPayments
+                .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
             await dbContext.PosSettlements
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
             // Yatış, tahsilatlar gittikten sonra ve kesinti giderinden önce
@@ -67,8 +71,6 @@ internal sealed class EfUserAccountEraser(
             await dbContext.PosDefinitions
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
             await dbContext.CashCounts
-                .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
-            await dbContext.CounterpartyPayments
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
             await dbContext.CounterpartyCharges
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);

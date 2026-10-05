@@ -1,6 +1,7 @@
 using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Accounts;
+using BusinessFinance.Application.Pos;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Obligations;
@@ -28,6 +29,7 @@ public sealed class SettleObligationUseCase(
     ICurrentUser currentUser,
     IObligationRepository repository,
     IAccountRepository accountRepository,
+    CardCollectionBuilder cardCollectionBuilder,
     TimeProvider timeProvider)
 {
     public async Task<ApplicationResult<ObligationDto>> ExecuteAsync(
@@ -48,22 +50,57 @@ public sealed class SettleObligationUseCase(
                 ObligationErrors.NotFound(command.ObligationId));
         }
 
-        var account = await accountRepository.FindOwnedByIdAsync(
-            command.AccountId, userId, cancellationToken);
-        if (account is null || !account.IsActive || account.Currency != obligation.Amount.Currency)
-        {
-            return ApplicationResult<ObligationDto>.Failure(
-                ObligationErrors.AccountUnavailable);
-        }
-
         try
         {
+            Account? account;
+            PosSettlement? cardSettlement = null;
+            // Kapanmış yükümlülükte ikinci kez POS kaydı kurulmaz: Settle aynı
+            // kapanışı döndürür.
+            if (command.Card is CardCollectionInput card && obligation.Settlement is null)
+            {
+                if (obligation.Direction != DebtDirection.Receivable)
+                {
+                    return ApplicationResult<ObligationDto>.Failure(
+                        ObligationErrors.CardRequiresReceivable);
+                }
+
+                var built = await cardCollectionBuilder.BuildAsync(
+                    userId,
+                    card with { AccountId = card.AccountId ?? command.AccountId },
+                    obligation.Amount,
+                    command.SettlementDate,
+                    timeProvider.GetUtcNow().ToUniversalTime(),
+                    obligation.Description,
+                    cancellationToken);
+                if (built.Error is ApplicationError error)
+                {
+                    return ApplicationResult<ObligationDto>.Failure(error);
+                }
+
+                cardSettlement = built.Settlement;
+                account = built.Account;
+            }
+            else
+            {
+                account = command.AccountId is Guid accountId
+                    ? await accountRepository.FindOwnedByIdAsync(
+                        accountId, userId, cancellationToken)
+                    : null;
+                if (account is null || !account.IsActive ||
+                    account.Currency != obligation.Amount.Currency)
+                {
+                    return ApplicationResult<ObligationDto>.Failure(
+                        ObligationErrors.AccountUnavailable);
+                }
+            }
+
             obligation.Settle(
                 Guid.NewGuid(),
-                account,
+                account!,
                 command.SettlementDate,
-                timeProvider.GetUtcNow());
-            await repository.SaveSettlementAsync(cancellationToken);
+                timeProvider.GetUtcNow(),
+                cardSettlement);
+            await repository.SaveSettlementAsync(cardSettlement, cancellationToken);
             return ApplicationResult<ObligationDto>.Success(ToDto(obligation));
         }
         catch (ObligationConcurrencyException)

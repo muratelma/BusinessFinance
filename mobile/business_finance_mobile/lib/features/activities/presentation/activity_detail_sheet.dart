@@ -448,6 +448,54 @@ class ActivityDetailSheet extends StatelessWidget {
         ActivityKind.counterpartyCharge || ActivityKind.obligation => [
           if (source != null) row(Icons.group_outlined, 'Karşı taraf', source),
         ],
+        // Kartla tahsil (ADR 0019 T5) POS satışının parçalarını taşır:
+        // komisyon ve hesaba geçecek net bu kaydın bölünmesidir.
+        ActivityKind.counterpartySettlement ||
+        ActivityKind.obligationSettlement when activity.isCardCollection => [
+          if (destination != null)
+            row(Icons.group_outlined, 'Karşı taraf', destination),
+          row(
+            Icons.point_of_sale_outlined,
+            'POS',
+            activity.channelName ?? 'Elle girildi',
+          ),
+          if (activity.hasFee)
+            AppDetailRow(
+              icon: Icons.percent,
+              label: 'Komisyon',
+              trailing: AppMoneyText(
+                amount: activity.feeAmount!,
+                currency: activity.currency,
+                effect: AppMoneyEffect.expense,
+                signed: true,
+                size: AppMoneySize.body,
+              ),
+            ),
+          AppDetailRow(
+            icon: Icons.move_to_inbox_outlined,
+            label: 'Net tutar',
+            trailing: AppMoneyText(
+              amount: activity.netAmount!,
+              currency: activity.currency,
+              size: AppMoneySize.body,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          if (source != null)
+            row(Icons.account_balance_outlined, 'Hesap', source),
+          if (activity.transferredOn != null)
+            row(
+              Icons.check_circle_outline,
+              'Geçiş günü',
+              DateText.dayMonthYear(activity.transferredOn!),
+            )
+          else if (activity.expectedTransferDate != null)
+            row(
+              Icons.schedule,
+              'Beklenen',
+              DateText.dayMonthYear(activity.expectedTransferDate!),
+            ),
+        ],
         ActivityKind.counterpartySettlement ||
         ActivityKind.obligationSettlement => [
           if (source != null)
@@ -630,6 +678,13 @@ class _Actions extends StatelessWidget {
                   _ when activity.isCountedInDayClose =>
                     'Gün sonunda sayıldı; tek başına iptal edilemez. Önce '
                         'gün sonu geri alınır.',
+                  // Kartla tahsilin parası yatışla hesaba geçti (ADR 0019
+                  // T5): yatış geri alınınca tahsilat yeniden iptal edilir.
+                  _
+                      when activity.isCardCollection &&
+                          activity.transferredOn != null =>
+                    'Para yatışla hesaba geçti; iptal için önce Kasa\'daki '
+                        'yatış geri alınır.',
                   (ActivityOrigin.recurring, _) =>
                     'Tekrarlayan plandan üretilen hareket iptal edilemez.',
                   (ActivityOrigin.installment, _) =>

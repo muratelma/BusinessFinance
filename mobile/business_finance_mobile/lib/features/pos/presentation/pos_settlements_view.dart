@@ -287,10 +287,12 @@ class _SettlementRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final surfaces = AppSurfaces.of(context);
     final late = item.isInTransit && item.isLate;
-    final subtitle = item.isInTransit
+    final state = item.isInTransit
         ? '${late ? 'Gecikti · beklenen' : 'Hesaba geçecek ·'} '
               '${DateText.dayMonth(item.expectedTransferDate)}'
         : 'Hesaba geçti · ${DateText.dayMonth(item.transferredOn!)}';
+    // Kartla tahsil satış değildir: satırda kendini söyler.
+    final subtitle = item.isCollection ? 'Tahsilat · $state' : state;
     return AppRow(
       onTap: onTap,
       leading: AppIconCapsule(
@@ -364,6 +366,7 @@ class PosSettlementSheet extends StatelessWidget {
                       Text(
                         [
                           item.posDefinitionName ?? 'POS tahsilatı',
+                          if (item.isCollection) 'Kartla tahsil',
                           ?item.scope?.label,
                         ].join(' · '),
                         style: note,
@@ -418,7 +421,8 @@ class PosSettlementSheet extends StatelessWidget {
             AppDetailBlock(
               rows: [
                 AppDetailRow(
-                  label: 'Brüt satış',
+                  // Kartla tahsil satış değildir; gelir alacakta yazıldı.
+                  label: item.isCollection ? 'Tahsil edilen' : 'Brüt satış',
                   trailing: AppMoneyText(
                     amount: item.grossAmount,
                     currency: item.currency,
@@ -449,7 +453,10 @@ class PosSettlementSheet extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.medium),
             Text(
-              done
+              item.isCollection
+                  ? 'Kartla tahsil: alacak kapandı, gelir yeniden yazılmadı. '
+                        '${done ? 'Tutar hesaba geçti.' : 'Hesaba geçtiğinde işaretleyin.'}'
+                  : done
                   ? 'Tutar hesaba geçti; komisyon ayrı bir gider olarak '
                         'kaydedildi.'
                   : 'Yoldaki tutar net varlığa dahildir. Hesaba geçtiğinde '
@@ -480,6 +487,15 @@ class PosSettlementSheet extends StatelessWidget {
               if (item.dayCloseId != null)
                 Text(
                   'Gün sonundan geldi. İptal için gün sonunu geri alın.',
+                  style: note?.copyWith(color: surfaces.inkMuted),
+                )
+              // Kartla tahsil, onu doğuran tahsilatın parçasıdır: tahsilat
+              // iptal edilince birlikte iptal olur (sunucu
+              // `pos_settlements.collection_locked`).
+              else if (item.isCollection)
+                Text(
+                  'Tahsilatın parçası. İptal için tahsilatı kişinin '
+                  'hareketlerinden iptal edin.',
                   style: note?.copyWith(color: surfaces.inkMuted),
                 )
               // Tek tek girilip gün sonunda sayılan tahsilat da öyle: iptal

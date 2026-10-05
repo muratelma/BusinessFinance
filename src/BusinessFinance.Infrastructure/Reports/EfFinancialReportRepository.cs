@@ -142,8 +142,10 @@ internal sealed class EfFinancialReportRepository(
                           (scope == null || settlement.Scope == scope) &&
                           settlement.SettlementDate >= start &&
                           settlement.SettlementDate < endExclusive);
+        // Kartla tahsil gelir değildir: gelir alacakta tanındı (ADR 0019 T5).
         var posIncomeByScope = ScopeAmounts.From(await periodPosSettlements
-            .GroupBy(settlement => settlement.Scope)
+            .Where(settlement => settlement.Kind == PosSettlementKind.Sale)
+            .GroupBy(settlement => settlement.Scope!.Value)
             .Select(group => new ScopeAmountRow(
                 group.Key,
                 group.Sum(settlement => settlement.GrossAmount.Amount)))
@@ -151,9 +153,11 @@ internal sealed class EfFinancialReportRepository(
         // Komisyon **brüte eklenmez ve ondan düşülmez**: kendi kategorisinde
         // ayrı bir giderdir. Netten hesaplansaydı kullanıcının kestiği fatura
         // küçülür, bankanın kesintisi de görünmez olurdu.
+        // Komisyon satışta da kartla tahsilde de giderdir; komisyonlu kaydın
+        // kapsamı doludur.
         var posCommissionByScope = ScopeAmounts.From(await periodPosSettlements
             .Where(settlement => settlement.CommissionAmount > 0m)
-            .GroupBy(settlement => settlement.Scope)
+            .GroupBy(settlement => settlement.Scope!.Value)
             .Select(group => new ScopeAmountRow(
                 group.Key,
                 group.Sum(settlement => settlement.CommissionAmount)))
@@ -686,6 +690,7 @@ internal sealed class EfFinancialReportRepository(
                                  settlement.SettlementDate >= start &&
                                  settlement.SettlementDate < endExclusive);
         var posIncome = await posSettlements
+            .Where(settlement => settlement.Kind == PosSettlementKind.Sale)
             .SumAsync(settlement => (decimal?)settlement.GrossAmount.Amount, cancellationToken)
             ?? 0m;
         var posCommission = await posSettlements
@@ -796,7 +801,10 @@ internal sealed class EfFinancialReportRepository(
             .Select(settlement => new
             {
                 settlement.SettlementDate,
-                Gross = settlement.GrossAmount.Amount,
+                // Kartla tahsil gelir yazmaz; komisyonu yine giderdir.
+                Gross = settlement.Kind == PosSettlementKind.Sale
+                    ? settlement.GrossAmount.Amount
+                    : 0m,
                 settlement.CommissionAmount
             })
             .ToArrayAsync(cancellationToken);
@@ -996,10 +1004,11 @@ internal sealed class EfFinancialReportRepository(
                                  settlement.CommissionCategoryId != null &&
                                  settlement.SettlementDate >= start &&
                                  settlement.SettlementDate < endExclusive)
+            // Komisyonlu kaydın kapsamı doludur (satışta da kartla tahsilde de).
             .GroupBy(settlement => new
             {
                 CategoryId = settlement.CommissionCategoryId!.Value,
-                settlement.Scope
+                Scope = settlement.Scope!.Value
             })
             .Select(group => new
             {
@@ -1159,8 +1168,11 @@ internal sealed class EfFinancialReportRepository(
         DateOnly? asOfDate,
         CancellationToken cancellationToken) =>
         dbContext.CounterpartyPayments.AsNoTracking()
+            // Kartla tahsil hesaba yatışla girer; burada sayılsaydı aynı para
+            // iki kez girerdi (ADR 0019 T5).
             .Where(payment => payment.UserId == userId &&
                               !payment.IsCancelled &&
+                              payment.PosSettlementId == null &&
                               (asOfDate == null || payment.PaymentDate <= asOfDate))
             .GroupBy(payment => payment.AccountId)
             .Select(group => new
@@ -1180,6 +1192,7 @@ internal sealed class EfFinancialReportRepository(
         dbContext.ObligationSettlements.AsNoTracking()
             .Where(settlement => settlement.UserId == userId &&
                                  !settlement.IsCancelled &&
+                                 settlement.PosSettlementId == null &&
                                  (asOfDate == null || settlement.SettlementDate <= asOfDate))
             .GroupBy(settlement => settlement.AccountId)
             .Select(group => new

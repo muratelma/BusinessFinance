@@ -191,6 +191,7 @@ internal sealed class EfAccountRepository(BusinessFinanceDbContext dbContext)
             .Where(payment => payment.AccountId == accountId &&
                               payment.UserId == userId &&
                               !payment.IsCancelled &&
+                              payment.PosSettlementId == null &&
                               payment.PaymentDate == day)
             .Select(payment => new { payment.Direction, payment.Amount.Amount })
             .ToArrayAsync(cancellationToken);
@@ -198,6 +199,7 @@ internal sealed class EfAccountRepository(BusinessFinanceDbContext dbContext)
             .Where(settlement => settlement.AccountId == accountId &&
                                  settlement.UserId == userId &&
                                  !settlement.IsCancelled &&
+                                 settlement.PosSettlementId == null &&
                                  settlement.SettlementDate == day)
             .Select(settlement => new { settlement.Direction, settlement.Amount.Amount })
             .ToArrayAsync(cancellationToken);

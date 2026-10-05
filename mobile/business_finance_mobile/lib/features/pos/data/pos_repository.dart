@@ -3,6 +3,27 @@ import '../../../core/models/json_readers.dart';
 import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_client.dart';
 
+/// POS'tan geçen paranın ne olduğu (ADR 0019 T5).
+///
+/// Satış gelir yazar. Kartla tahsil daha önce tanınmış bir alacağın (veresiye,
+/// tek seferlik alacak) POS'tan geçen tahsilidir ve gelir yazmaz; satışla aynı
+/// yoldan (yolda bekleme, yatış) hesaba geçer.
+enum PosSettlementKind {
+  sale('sale'),
+  collection('collection');
+
+  const PosSettlementKind(this.apiValue);
+
+  final String apiValue;
+
+  /// Alanı göndermeyen eski sunucu yalnız satış yazıyordu.
+  static PosSettlementKind fromApi(Object? value) => switch (value) {
+    'collection' => collection,
+    null || 'sale' => sale,
+    _ => throw FormatException('Unknown pos settlement kind: $value'),
+  };
+}
+
 /// Bir POS tahsilatı.
 ///
 /// Brüt, komisyon ve net **ayrı** okunur: neti gelir diye göstermek,
@@ -29,7 +50,17 @@ class PosSettlementItem {
     this.posDepositId,
     this.dayCloseId,
     this.countedInDayCloseId,
+    this.kind = PosSettlementKind.sale,
+    this.counterpartyName,
   });
+
+  /// Satış mı, kartla tahsil mi.
+  final PosSettlementKind kind;
+
+  /// Kartla tahsilde parayı ödeyen kişi; satışta `null`.
+  final String? counterpartyName;
+
+  bool get isCollection => kind == PosSettlementKind.collection;
 
   /// Tek tek girilmiş tahsilatı sayan gün sonu; sayılmamışsa `null`. Sayılan
   /// tahsilat tek başına iptal edilemez, önce gün sonu geri alınır.
@@ -52,7 +83,9 @@ class PosSettlementItem {
   /// aynı hesaptaki tahsilatları birlikte kapatır.
   final String accountId;
   final String accountName;
-  final String categoryName;
+
+  /// Satışın gelir kategorisi; kartla tahsilde `null` (gelir tanımaz).
+  final String? categoryName;
   final String grossAmount;
   final String commissionAmount;
   final String netAmount;
@@ -72,7 +105,7 @@ class PosSettlementItem {
         id: JsonReaders.string(json, 'id'),
         accountId: JsonReaders.string(json, 'accountId'),
         accountName: JsonReaders.string(json, 'accountName'),
-        categoryName: JsonReaders.string(json, 'categoryName'),
+        categoryName: JsonReaders.nullableString(json, 'categoryName'),
         grossAmount: JsonReaders.money(json, 'grossAmount'),
         commissionAmount: JsonReaders.money(json, 'commissionAmount'),
         netAmount: JsonReaders.money(json, 'netAmount'),
@@ -94,6 +127,8 @@ class PosSettlementItem {
           json,
           'countedInDayCloseId',
         ),
+        kind: PosSettlementKind.fromApi(json['kind']),
+        counterpartyName: JsonReaders.nullableString(json, 'counterpartyName'),
       );
 }
 
@@ -174,12 +209,16 @@ class PosDeposit {
     this.balanceAfter,
     this.grossAmount,
     this.commissionAmount,
+    this.collectionAmount,
+    this.saleAmount,
   });
 
   factory PosDeposit.fromJson(Map<String, dynamic> json) => PosDeposit(
     balanceAfter: JsonReaders.nullableString(json, 'balanceAfter'),
     grossAmount: JsonReaders.nullableString(json, 'grossAmount'),
     commissionAmount: JsonReaders.nullableString(json, 'commissionAmount'),
+    collectionAmount: JsonReaders.nullableString(json, 'collectionAmount'),
+    saleAmount: JsonReaders.nullableString(json, 'saleAmount'),
     id: JsonReaders.string(json, 'id'),
     accountName: JsonReaders.string(json, 'accountName'),
     depositDate: JsonReaders.date(json, 'depositDate'),
@@ -225,6 +264,17 @@ class PosDeposit {
   /// Geri alınmış yatışta boştur.
   final String? grossAmount;
   final String? commissionAmount;
+
+  /// Brütün satışlardan ve kartla tahsil edilmiş alacaklardan gelen kısmı;
+  /// sunucudan gelir, istemci brütten çıkarmaz. Eski sunucuda `null`.
+  final String? collectionAmount;
+  final String? saleAmount;
+
+  bool get hasCollection =>
+      collectionAmount != null && !_isZero(collectionAmount!);
+
+  /// Satış payı var mı; eski sunucu ayırmıyorsa her şey satıştır.
+  bool get hasSale => saleAmount == null || !_isZero(saleAmount!);
 
   bool get hasDeduction => !_isZero(deductionAmount);
 }

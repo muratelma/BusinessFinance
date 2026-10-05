@@ -24,6 +24,12 @@ public static class ObligationErrors
         "The scope could not be resolved from the request or the category.",
         ApplicationErrorType.Validation);
 
+    /// <summary>Kartla (POS) yalnız alacak kapanır; ödenecek fatura POS'tan geçmez.</summary>
+    public static readonly ApplicationError CardRequiresReceivable = new(
+        "obligations.card_requires_receivable",
+        "Only a receivable can be collected by card.",
+        ApplicationErrorType.Validation);
+
     public static readonly ApplicationError AccountUnavailable = new(
         "obligations.account_unavailable",
         "An active owned account with the matching currency is required.",

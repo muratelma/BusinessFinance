@@ -3,6 +3,7 @@ using BusinessFinance.Application.DayCloses;
 using BusinessFinance.Application.Pos;
 using BusinessFinance.Domain;
 using BusinessFinance.Infrastructure.Persistence;
+using BusinessFinance.Infrastructure.Pos;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -251,7 +252,9 @@ internal sealed class EfDayCloseRepository(
             })
             .ToArrayAsync(cancellationToken);
 
-        // Kart tarafı: tek tek girilmiş POS tahsilatları.
+        // Kart tarafı: tek tek girilmiş POS tahsilatları ve kartla tahsil
+        // edilmiş alacaklar (KP7, KP13). Kartla tahsil de yazar kasanın KART
+        // satırına düşer; gün sonu onu düşmezse satış iki kez gelir sayılır.
         var settlements = await (
             from settlement in dbContext.PosSettlements.AsNoTracking()
             join account in dbContext.Accounts.AsNoTracking()
@@ -259,7 +262,13 @@ internal sealed class EfDayCloseRepository(
                 equals new { account.UserId, account.Id }
             join category in dbContext.Categories.AsNoTracking()
                 on new { settlement.UserId, Id = settlement.CategoryId }
-                equals new { category.UserId, category.Id }
+                equals new { category.UserId, Id = (Guid?)category.Id }
+                into categories
+            from category in categories.DefaultIfEmpty()
+            join payer in CardCollectionPayers.Query(dbContext, userId)
+                on settlement.Id equals payer.SettlementId
+                into payers
+            from payer in payers.DefaultIfEmpty()
             where settlement.UserId == userId &&
                   !settlement.IsCancelled &&
                   settlement.DayCloseId == null &&
@@ -271,8 +280,10 @@ internal sealed class EfDayCloseRepository(
                 settlement.Id,
                 Date = settlement.SettlementDate,
                 Amount = settlement.GrossAmount.Amount,
-                Title = settlement.Description ?? category.Name,
+                Title = settlement.Description ??
+                        (category != null ? category.Name : payer != null ? payer.Name : null),
                 settlement.PosDefinitionId,
+                settlement.Kind,
                 AccountName = account.Name,
                 CountedBy = dbContext.DayCloseCountedRecords
                     .Where(counted => counted.UserId == userId &&
@@ -367,7 +378,8 @@ internal sealed class EfDayCloseRepository(
             .. settlements.Select(row => new RecordRow(
                 new DayCloseExistingRecordDto(
                     DayCloseRecordKind.PosSettlement, row.Id, DayCloseSide.Card, row.Date,
-                    row.Amount, row.Title, row.PosDefinitionId, row.AccountName, true, true),
+                    row.Amount, row.Title ?? string.Empty, row.PosDefinitionId, row.AccountName,
+                    true, true, row.Kind == PosSettlementKind.Collection),
                 row.CountedBy)),
         ];
     }
@@ -419,6 +431,7 @@ internal sealed class EfDayCloseRepository(
             })
             .ToArrayAsync(cancellationToken);
 
+        // Gün sonu yalnız satış yazar; satışın kategorisi doludur.
         var settlements = await (
             from settlement in dbContext.PosSettlements.AsNoTracking()
             join account in dbContext.Accounts.AsNoTracking()
@@ -426,7 +439,7 @@ internal sealed class EfDayCloseRepository(
                 equals new { account.UserId, account.Id }
             join category in dbContext.Categories.AsNoTracking()
                 on new { settlement.UserId, Id = settlement.CategoryId }
-                equals new { category.UserId, category.Id }
+                equals new { category.UserId, Id = (Guid?)category.Id }
             join commissionCategory in dbContext.Categories.AsNoTracking()
                 on new { settlement.UserId, Id = settlement.CommissionCategoryId }
                 equals new { commissionCategory.UserId, Id = (Guid?)commissionCategory.Id }

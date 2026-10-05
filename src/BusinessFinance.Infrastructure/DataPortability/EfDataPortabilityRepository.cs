@@ -505,7 +505,7 @@ public sealed class EfDataPortabilityRepository(
             counterpartyPayments.Select(x => new CounterpartyPaymentBackup(
                 x.Id, x.CounterpartyId, x.AccountId, x.Direction, x.Amount.Amount, x.Amount.Currency,
                 x.PaymentDate, x.Description, x.IsCancelled, x.CancelledAtUtc,
-                entryTimes.GetValueOrDefault(x.Id))).ToArray(),
+                entryTimes.GetValueOrDefault(x.Id), x.PosSettlementId)).ToArray(),
             obligations.Select(x => new ObligationBackup(
                 x.Id, x.CounterpartyId, x.CategoryId, x.Direction, x.Amount.Amount, x.Amount.Currency,
                 x.Scope, x.IssueDate, x.DueDate, x.Description, x.CreatedAtUtc,
@@ -515,7 +515,7 @@ public sealed class EfDataPortabilityRepository(
                     : new ObligationSettlementBackup(
                         x.Settlement.Id, x.Settlement.AccountId, x.Settlement.Amount.Amount,
                         x.Settlement.Amount.Currency, x.Settlement.SettlementDate,
-                        x.Settlement.SettledAtUtc))).ToArray(),
+                        x.Settlement.SettledAtUtc, x.Settlement.PosSettlementId))).ToArray(),
             cashCounts.Select(x => new CashCountBackup(
                 x.Id, x.AccountId, x.CountedAmount, x.Currency, x.Scope, x.CountDate,
                 x.Note, x.CreatedAtUtc, x.AdjustmentTransactionId, x.AdjustedAtUtc,
@@ -529,7 +529,7 @@ public sealed class EfDataPortabilityRepository(
                 x.GrossAmount.Amount, x.CommissionAmount, x.Currency, x.Scope,
                 x.SettlementDate, x.ExpectedTransferDate, x.Description, x.CreatedAtUtc,
                 x.IsCancelled, x.CancelledAtUtc, x.PosDefinitionId, x.PosDepositId,
-                x.DayCloseId)).ToArray(),
+                x.DayCloseId, x.Kind)).ToArray(),
             posDeposits.Select(x => new PosDepositBackup(
                 x.Id, x.AccountId, x.DepositedAmount.Amount, x.DeductionAmount, x.Currency,
                 x.DepositDate, x.CreatedAtUtc, x.DeductionTransactionId,
@@ -861,54 +861,6 @@ public sealed class EfDataPortabilityRepository(
                 counterpartyCharges.Add(entity);
             }
 
-            // Sayılan kaydın bağı geri yüklerken yeni kimliğe çevrilir.
-            var counterpartyPaymentIds = new Dictionary<Guid, Guid>();
-            var obligationSettlementIds = new Dictionary<Guid, Guid>();
-            var counterpartyPayments = new List<CounterpartyPayment>();
-            foreach (var item in snapshot.CounterpartyPayments)
-            {
-                var entity = new CounterpartyPayment(
-                    Guid.NewGuid(), userId,
-                    Required(counterpartyMap, item.CounterpartyId, "payment counterparty"),
-                    Required(accountMap, item.AccountId, "counterparty payment account"),
-                    item.Direction, MoneyOf(item.Amount, item.Currency),
-                    item.PaymentDate, item.Description);
-                ApplyCancellation(item.IsCancelled, item.CancelledAtUtc, entity.Cancel);
-                entryTimes[entity] = item.CreatedAtUtc;
-                counterpartyPaymentIds[item.Id] = entity.Id;
-                counterpartyPayments.Add(entity);
-            }
-
-            // Yükümlülük ekonomik olayı tanır, kapanışı nakdi taşır (ADR 0014).
-            // Kapanış bu yüzden yükümlülüğün kendi metodundan doğuyor: tutarı
-            // ve yönü dosyadan yeniden okunsaydı, kapanış yükümlülükten farklı
-            // bir para taşıyabilirdi.
-            var obligations = new List<Obligation>();
-            foreach (var item in snapshot.Obligations)
-            {
-                var entity = new Obligation(
-                    Guid.NewGuid(), userId,
-                    Required(categoryMap, item.CategoryId, "obligation category"),
-                    item.Direction, MoneyOf(item.Amount, item.Currency), item.Scope,
-                    item.IssueDate, item.DueDate, item.CreatedAtUtc,
-                    item.CounterpartyId is Guid obligationCounterpartyId
-                        ? Required(counterpartyMap, obligationCounterpartyId, "obligation counterparty")
-                        : null,
-                    item.Description);
-                if (item.Settlement is ObligationSettlementBackup settlement)
-                {
-                    if (MoneyOf(settlement.Amount, settlement.Currency) != entity.Amount)
-                        throw Invalid("Obligation settlement amount does not match its obligation.");
-                    entity.Settle(
-                        Guid.NewGuid(),
-                        Required(accountMap, settlement.AccountId, "obligation settlement account"),
-                        settlement.SettlementDate, settlement.SettledAtUtc);
-                    obligationSettlementIds[settlement.Id] = entity.Settlement!.Id;
-                }
-                ApplyCancellation(item.IsCancelled, item.CancelledAtUtc, entity.Cancel);
-                obligations.Add(entity);
-            }
-
             // Sayım hesabın bakiyesine dokunmaz; geri yüklenirken de dokunmaz.
             // Beklenen tutar ve fark dosyada olmadığı için burada yeniden
             // hesaplanmaz: ikisi de sayım okunduğu anda hesabın kendi
@@ -965,27 +917,117 @@ public sealed class EfDataPortabilityRepository(
             var posSettlementMap = new Dictionary<Guid, PosSettlement>();
             foreach (var item in snapshot.PosSettlements)
             {
-                var entity = new PosSettlement(
-                    Guid.NewGuid(), userId,
-                    Required(accountMap, item.AccountId, "pos settlement account"),
-                    Required(categoryMap, item.CategoryId, "pos settlement category"),
-                    MoneyOf(item.GrossAmount, item.Currency), item.CommissionAmount, item.Scope,
-                    item.SettlementDate, item.ExpectedTransferDate, item.CreatedAtUtc,
-                    item.CommissionCategoryId is Guid commissionCategoryId
-                        ? Required(categoryMap, commissionCategoryId, "pos commission category")
-                        : null,
-                    item.Description,
-                    item.PosDefinitionId is Guid posDefinitionId
-                        ? Required(posDefinitionMap, posDefinitionId, "pos settlement definition")
-                        : null,
-                    item.DayCloseId is Guid settlementDayCloseId
-                        ? Required(dayCloseIdMap, settlementDayCloseId, "pos settlement day close")
-                        : null);
+                var settlementAccount = Required(accountMap, item.AccountId, "pos settlement account");
+                var settlementCommissionCategory = item.CommissionCategoryId is Guid commissionCategoryId
+                    ? Required(categoryMap, commissionCategoryId, "pos commission category")
+                    : null;
+                var settlementDefinition = item.PosDefinitionId is Guid posDefinitionId
+                    ? Required(posDefinitionMap, posDefinitionId, "pos settlement definition")
+                    : null;
+                // Kartla tahsil gelir tanımaz (ADR 0019 T5): kategori taşımaz ve
+                // aşağıda onu doğuran tahsilata bağlanır.
+                var entity = item.Kind switch
+                {
+                    PosSettlementKind.Sale => new PosSettlement(
+                        Guid.NewGuid(), userId,
+                        settlementAccount,
+                        Required(
+                            categoryMap,
+                            item.CategoryId ?? throw Invalid("A pos sale is missing its category."),
+                            "pos settlement category"),
+                        MoneyOf(item.GrossAmount, item.Currency), item.CommissionAmount,
+                        item.Scope ?? throw Invalid("A pos sale is missing its scope."),
+                        item.SettlementDate, item.ExpectedTransferDate, item.CreatedAtUtc,
+                        settlementCommissionCategory,
+                        item.Description,
+                        settlementDefinition,
+                        item.DayCloseId is Guid settlementDayCloseId
+                            ? Required(dayCloseIdMap, settlementDayCloseId, "pos settlement day close")
+                            : null),
+                    PosSettlementKind.Collection => PosSettlement.Collect(
+                        Guid.NewGuid(), userId,
+                        settlementAccount,
+                        MoneyOf(item.GrossAmount, item.Currency), item.CommissionAmount, item.Scope,
+                        item.SettlementDate, item.ExpectedTransferDate, item.CreatedAtUtc,
+                        settlementCommissionCategory,
+                        item.Description,
+                        settlementDefinition),
+                    _ => throw Invalid("Unknown pos settlement kind.")
+                };
                 if (item.IsCancelled && item.PosDepositId is not null)
                     throw Invalid("A cancelled pos settlement cannot belong to a deposit.");
                 ApplyCancellation(item.IsCancelled, item.CancelledAtUtc, entity.Cancel);
                 posSettlementMap.Add(item.Id, entity);
             }
+
+            // Kartla tahsil (ADR 0019 T5) tam olarak bir tahsilata aittir: cari
+            // tahsilata ya da tek seferlik alacağın kapanışına. Sahipsiz ya da
+            // iki kez bağlanan tahsil kaydı yedeği geçersiz kılar.
+            var unclaimedCollections = snapshot.PosSettlements
+                .Where(x => x.Kind == PosSettlementKind.Collection)
+                .Select(x => x.Id)
+                .ToHashSet();
+            PosSettlement? TakeCardCollection(Guid? settlementId)
+            {
+                if (settlementId is not Guid id)
+                    return null;
+                if (!unclaimedCollections.Remove(id))
+                    throw Invalid("A card collection is missing or claimed twice.");
+                return Required(posSettlementMap, id, "card collection");
+            }
+
+            // Sayılan kaydın bağı geri yüklerken yeni kimliğe çevrilir.
+            var counterpartyPaymentIds = new Dictionary<Guid, Guid>();
+            var obligationSettlementIds = new Dictionary<Guid, Guid>();
+            var counterpartyPayments = new List<CounterpartyPayment>();
+            foreach (var item in snapshot.CounterpartyPayments)
+            {
+                var entity = new CounterpartyPayment(
+                    Guid.NewGuid(), userId,
+                    Required(counterpartyMap, item.CounterpartyId, "payment counterparty"),
+                    Required(accountMap, item.AccountId, "counterparty payment account"),
+                    item.Direction, MoneyOf(item.Amount, item.Currency),
+                    item.PaymentDate, item.Description,
+                    TakeCardCollection(item.PosSettlementId));
+                ApplyCancellation(item.IsCancelled, item.CancelledAtUtc, entity.Cancel);
+                entryTimes[entity] = item.CreatedAtUtc;
+                counterpartyPaymentIds[item.Id] = entity.Id;
+                counterpartyPayments.Add(entity);
+            }
+
+            // Yükümlülük ekonomik olayı tanır, kapanışı nakdi taşır (ADR 0014).
+            // Kapanış bu yüzden yükümlülüğün kendi metodundan doğuyor: tutarı
+            // ve yönü dosyadan yeniden okunsaydı, kapanış yükümlülükten farklı
+            // bir para taşıyabilirdi.
+            var obligations = new List<Obligation>();
+            foreach (var item in snapshot.Obligations)
+            {
+                var entity = new Obligation(
+                    Guid.NewGuid(), userId,
+                    Required(categoryMap, item.CategoryId, "obligation category"),
+                    item.Direction, MoneyOf(item.Amount, item.Currency), item.Scope,
+                    item.IssueDate, item.DueDate, item.CreatedAtUtc,
+                    item.CounterpartyId is Guid obligationCounterpartyId
+                        ? Required(counterpartyMap, obligationCounterpartyId, "obligation counterparty")
+                        : null,
+                    item.Description);
+                if (item.Settlement is ObligationSettlementBackup settlement)
+                {
+                    if (MoneyOf(settlement.Amount, settlement.Currency) != entity.Amount)
+                        throw Invalid("Obligation settlement amount does not match its obligation.");
+                    entity.Settle(
+                        Guid.NewGuid(),
+                        Required(accountMap, settlement.AccountId, "obligation settlement account"),
+                        settlement.SettlementDate, settlement.SettledAtUtc,
+                        TakeCardCollection(settlement.PosSettlementId));
+                    obligationSettlementIds[settlement.Id] = entity.Settlement!.Id;
+                }
+                ApplyCancellation(item.IsCancelled, item.CancelledAtUtc, entity.Cancel);
+                obligations.Add(entity);
+            }
+
+            if (unclaimedCollections.Count > 0)
+                throw Invalid("A card collection does not belong to any collection.");
 
             // Yatış kapattığı tahsilatlarla birlikte kurulur: domain aynı
             // kuralları uygular (aynı hesap, yolda olma, yatan = beklenen −
@@ -1594,10 +1636,15 @@ internal sealed record CounterpartyChargeBackup(
     CurrencyCode Currency, TransactionScope Scope, DateOnly ChargeDate, string? Description,
     bool IsCancelled, DateTimeOffset? CancelledAtUtc, DateOnly? DueDate = null,
     DateTimeOffset? CreatedAtUtc = null);
+/// <remarks>
+/// Kartla tahsilde (<see cref="PosSettlementId"/>) para POS kaydıyla yoldadır;
+/// tahsilat hesaba dokunmaz (ADR 0019 T5).
+/// </remarks>
 internal sealed record CounterpartyPaymentBackup(
     Guid Id, Guid CounterpartyId, Guid AccountId, DebtDirection Direction, decimal Amount,
     CurrencyCode Currency, DateOnly PaymentDate, string? Description,
-    bool IsCancelled, DateTimeOffset? CancelledAtUtc, DateTimeOffset? CreatedAtUtc = null);
+    bool IsCancelled, DateTimeOffset? CancelledAtUtc, DateTimeOffset? CreatedAtUtc = null,
+    Guid? PosSettlementId = null);
 /// <remarks>
 /// Yükümlülük <b>tanır</b>: kategori ve kapsam taşır, hesap taşımaz. Onu
 /// kapatan <see cref="Settlement"/> <b>taşır</b>: hesap taşır, kategori ve
@@ -1613,7 +1660,7 @@ internal sealed record ObligationBackup(
     DateTimeOffset? CancelledAtUtc, ObligationSettlementBackup? Settlement);
 internal sealed record ObligationSettlementBackup(
     Guid Id, Guid AccountId, decimal Amount, CurrencyCode Currency,
-    DateOnly SettlementDate, DateTimeOffset SettledAtUtc);
+    DateOnly SettlementDate, DateTimeOffset SettledAtUtc, Guid? PosSettlementId = null);
 /// <remarks>
 /// Sayım bir <b>gözlemdir</b>: hesap bakiyesine dokunmaz, gelir/gider yazmaz.
 /// Beklenen bakiye ve fark dosyada <b>yok</b> - ikisi de kalıcı alan değil,
@@ -1639,14 +1686,19 @@ internal sealed record CashCountBackup(
 /// tutarından çözülür. Oran yazılsaydı kuruşa yuvarlanmış komisyonla çelişen
 /// ikinci bir gerçek kaynağı doğardı (ADR 0009 ile aynı karar). "Yolda mı" da
 /// yazılmaz; iptal ve geçiş bilgisinden türer.
+///
+/// Kartla tahsilde (<see cref="Kind"/>) gelir kategorisi yoktur ve kapsam
+/// yalnız komisyonun kapsamıdır; kayıt onu doğuran tahsilatla birlikte okunur.
+/// Alan eklenmeden önceki v11 dosyalarında tür yoktur ve satış sayılır.
 /// </remarks>
 internal sealed record PosSettlementBackup(
-    Guid Id, Guid AccountId, Guid CategoryId, Guid? CommissionCategoryId,
+    Guid Id, Guid AccountId, Guid? CategoryId, Guid? CommissionCategoryId,
     decimal GrossAmount, decimal CommissionAmount, CurrencyCode Currency,
-    TransactionScope Scope, DateOnly SettlementDate, DateOnly ExpectedTransferDate,
+    TransactionScope? Scope, DateOnly SettlementDate, DateOnly ExpectedTransferDate,
     string? Description, DateTimeOffset CreatedAtUtc,
     bool IsCancelled, DateTimeOffset? CancelledAtUtc,
-    Guid? PosDefinitionId = null, Guid? PosDepositId = null, Guid? DayCloseId = null);
+    Guid? PosDefinitionId = null, Guid? PosDepositId = null, Guid? DayCloseId = null,
+    PosSettlementKind Kind = PosSettlementKind.Sale);
 
 /// <remarks>
 /// Gün sonu <b>tutar taşımaz</b> (ADR 0019 İ3): yalnız kimlik, kapatılan gün

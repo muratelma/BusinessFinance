@@ -63,6 +63,16 @@ public static class PosSettlementErrors
         "A pos settlement produced by a day close cannot be cancelled; revert the day close.",
         ApplicationErrorType.Conflict);
 
+    /// <summary>
+    /// Kartla tahsil, onu doğuran tahsilatın parçasıdır (ADR 0019 T5): cari
+    /// tahsilat iptal edilince birlikte iptal olur; tek başına iptal edilseydi
+    /// cari kapanmış, para hiçbir yerde görünmez olurdu.
+    /// </summary>
+    public static readonly ApplicationError CollectionLocked = new(
+        "pos_settlements.collection_locked",
+        "A card collection is cancelled with the collection that produced it.",
+        ApplicationErrorType.Conflict);
+
     /// <summary>Tahsilat bir gün sonunda sayıldı; önce gün sonu geri alınır.</summary>
     public static readonly ApplicationError DayCloseCounted = new(
         "pos_settlements.day_close_counted",

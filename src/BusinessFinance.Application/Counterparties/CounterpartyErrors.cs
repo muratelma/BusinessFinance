@@ -61,6 +61,26 @@ public static class CounterpartyErrors
         ApplicationErrorType.NotFound);
 
     /// <summary>Tahsilat bir gün sonunda sayıldı; önce gün sonu geri alınır.</summary>
+    /// <summary>
+    /// Kartla tahsilin parası bir yatışla hesaba geçti; önce yatış geri alınır
+    /// (ADR 0019 T5).
+    /// </summary>
+    public static readonly ApplicationError PaymentDepositLocked = new(
+        "counterparty_payments.deposit_locked",
+        "A card collection that reached the account through a deposit cannot be cancelled; revert the deposit first.",
+        ApplicationErrorType.Conflict);
+
+    /// <summary>Kartla yalnız tahsilat alınır; tedarikçiye ödeme POS'tan geçmez.</summary>
+    public static readonly ApplicationError CardRequiresCollection = new(
+        "counterparty_payments.card_requires_collection",
+        "Only a collection can be taken by card.",
+        ApplicationErrorType.Validation);
+
+    public static readonly ApplicationError PaymentChanged = new(
+        "counterparty_payments.concurrent_change",
+        "The payment changed while it was being saved; reload and try again.",
+        ApplicationErrorType.Conflict);
+
     public static readonly ApplicationError PaymentDayCloseCounted = new(
         "counterparty_payments.day_close_counted",
         "A payment counted in a day close cannot be cancelled; revert the day close first.",

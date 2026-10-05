@@ -1,4 +1,5 @@
 using BusinessFinance.Api.Contracts;
+using BusinessFinance.Api.Features.Pos;
 using BusinessFinance.Api.Errors;
 using BusinessFinance.Application.Counterparties;
 using BusinessFinance.Domain;
@@ -262,6 +263,12 @@ public static class CounterpartyEndpoints
                 "counterparties.invalid_date");
         }
 
+        if (!CardCollectionRequests.TryParse(
+                request.Card, httpContext, out var card, out var cardError))
+        {
+            return cardError!;
+        }
+
         var result = await useCase.ExecuteAsync(
             new CreateCounterpartyPaymentCommand(
                 counterpartyId,
@@ -270,7 +277,8 @@ public static class CounterpartyEndpoints
                 amount,
                 CurrencyCode.TRY,
                 paymentDate,
-                request.Description),
+                request.Description,
+                card),
             cancellationToken);
         if (!result.IsSuccess)
         {
@@ -443,5 +451,6 @@ public static class CounterpartyEndpoints
         payment.Currency.ToString(),
         FinanceContract.Date(payment.PaymentDate),
         payment.Description,
-        payment.IsCancelled);
+        payment.IsCancelled,
+        payment.PosSettlementId);
 }

@@ -368,3 +368,23 @@ sorgusunun bir filtresidir ve sahiplik kapsamı (`UserId`) aynı sorguda
 uygulanır. Başka kullanıcının kaydı eşleşmez; SQL integration testi
 (`FinancialActivityFeed_SearchMatchesVisibleTextAndCountsOnlyMatches`) iki
 kullanıcılı veriyle bunu doğrular.
+
+## Aşama 06.3 Grup 5 — Kartla tahsil (5 Ekim 2026)
+
+`POST /api/v1/counterparties/{id}/payments` ve
+`POST /api/v1/obligations/{id}/settlement` isteğe bağlı bir `card` bloğu alır
+(`posDefinitionId`, `accountId`, `commissionAmount`, `commissionRate`,
+`commissionCategoryId`, `expectedTransferDate`). POS, hesap ve komisyon
+kategorisi current user kapsamında okunur; başkasının POS'u var olmayanla aynı
+`404 pos_settlements.definition_unavailable` cevabını alır ve hiçbir kayıt
+yazılmaz (`CardCollectionEndpointTests`). Kart yalnız tahsilatta geçerlidir
+(`counterparty_payments.card_requires_collection`,
+`obligations.card_requires_receivable`). Tahsil kaydı tahsilatla tek
+`SaveChanges` sınırında yazılır; bağ `(UserId, PosSettlementId)` composite
+foreign key'idir. `DELETE /api/v1/pos-settlements/{id}` tahsil kaydında
+`409 pos_settlements.collection_locked`; cari tahsilatın iptali para yatışla
+geçtiyse `409 counterparty_payments.deposit_locked`, gün sonunda sayıldıysa
+`409 counterparty_payments.day_close_counted` döner.
+`GET /api/v1/pos-settlements` satırı tahsilde boş `categoryId`/`categoryName`,
+`kind` ve kişinin adını (`counterpartyName`) taşır; ad owner-scoped okunur.
+Yatış ayrıntısı brütü `saleAmount` ve `collectionAmount` olarak ayırır.

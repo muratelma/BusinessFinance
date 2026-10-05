@@ -2,6 +2,7 @@ using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.DayCloses;
+using BusinessFinance.Application.Pos;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.Scopes;
 using BusinessFinance.Application.Taxes;
@@ -110,10 +111,16 @@ public sealed class CreateCounterpartyChargeUseCase(
 /// <summary>
 /// Tahsilat ya da ödeme yazar: kasa değişir, gelir/gider üretilmez.
 /// </summary>
+/// <remarks>
+/// Kartla tahsilde (ADR 0019 T5) cari brüt tutarla bugün kapanır, para POS
+/// kaydıyla yola çıkar; komisyon tahsil günü gider yazılır, gelir yazılmaz.
+/// </remarks>
 public sealed class CreateCounterpartyPaymentUseCase(
     ICurrentUser currentUser,
     ICounterpartyRepository repository,
-    IAccountRepository accountRepository)
+    IAccountRepository accountRepository,
+    CardCollectionBuilder cardCollectionBuilder,
+    TimeProvider timeProvider)
 {
     public async Task<ApplicationResult<CounterpartyPaymentDto>> ExecuteAsync(
         CreateCounterpartyPaymentCommand command,
@@ -137,26 +144,64 @@ public sealed class CreateCounterpartyPaymentUseCase(
         // Pasif karşı taraf **bilerek** engellenmiyor: artık iş yapılmayan bir
         // müşteri kalan borcunu ödeyebilmeli, yoksa bakiye kapatılamaz hâle
         // gelirdi.
-        var account = await accountRepository.FindOwnedByIdAsync(
-            command.AccountId, userId, cancellationToken);
-        if (account is null || !account.IsActive)
-        {
-            return ApplicationResult<CounterpartyPaymentDto>.Failure(
-                CounterpartyErrors.AccountUnavailable);
-        }
-
         try
         {
+            var amount = new Money(command.Amount, command.Currency);
+            Account? account;
+            PosSettlement? cardSettlement = null;
+            if (command.Card is CardCollectionInput card)
+            {
+                if (command.Direction != DebtDirection.Receivable)
+                {
+                    return ApplicationResult<CounterpartyPaymentDto>.Failure(
+                        CounterpartyErrors.CardRequiresCollection);
+                }
+
+                // Hesap formda ayrıca seçilmişse kartın hesabı odur.
+                var built = await cardCollectionBuilder.BuildAsync(
+                    userId,
+                    card with { AccountId = card.AccountId ?? command.AccountId },
+                    amount,
+                    command.PaymentDate,
+                    timeProvider.GetUtcNow().ToUniversalTime(),
+                    command.Description,
+                    cancellationToken);
+                if (built.Error is ApplicationError error)
+                {
+                    return ApplicationResult<CounterpartyPaymentDto>.Failure(error);
+                }
+
+                cardSettlement = built.Settlement;
+                account = built.Account;
+            }
+            else
+            {
+                if (command.AccountId is not Guid accountId)
+                {
+                    return ApplicationResult<CounterpartyPaymentDto>.Failure(
+                        CounterpartyErrors.AccountUnavailable);
+                }
+
+                account = await accountRepository.FindOwnedByIdAsync(
+                    accountId, userId, cancellationToken);
+                if (account is null || !account.IsActive)
+                {
+                    return ApplicationResult<CounterpartyPaymentDto>.Failure(
+                        CounterpartyErrors.AccountUnavailable);
+                }
+            }
+
             var payment = new CounterpartyPayment(
                 Guid.NewGuid(),
                 userId,
                 counterparty,
-                account,
+                account!,
                 command.Direction,
-                new Money(command.Amount, command.Currency),
+                amount,
                 command.PaymentDate,
-                command.Description);
-            await repository.AddPaymentAsync(payment, cancellationToken);
+                command.Description,
+                cardSettlement);
+            await repository.AddPaymentAsync(payment, cardSettlement, cancellationToken);
             return ApplicationResult<CounterpartyPaymentDto>.Success(ToDto(payment));
         }
         catch (ArgumentException exception)
@@ -180,7 +225,8 @@ public sealed class CreateCounterpartyPaymentUseCase(
         payment.Amount.Currency,
         payment.PaymentDate,
         payment.Description,
-        payment.IsCancelled);
+        payment.IsCancelled,
+        payment.PosSettlementId);
 }
 
 /// <summary>
@@ -222,6 +268,11 @@ public sealed class CancelCounterpartyChargeUseCase(
 /// Tahsilatı iptal eder: kasadan çıkan/giren para geri alınır, açık bakiye
 /// yeniden doğar.
 /// </summary>
+/// <remarks>
+/// Kartla tahsilde POS kaydı da birlikte iptal olur: yoldaki para ve komisyon
+/// gideri düşer (K4). Para yatışla hesaba geçtiyse önce yatış geri alınır; gün
+/// sonunda sayıldıysa önce gün sonu.
+/// </remarks>
 public sealed class CancelCounterpartyPaymentUseCase(
     ICurrentUser currentUser,
     ICounterpartyRepository repository,
@@ -245,16 +296,44 @@ public sealed class CancelCounterpartyPaymentUseCase(
                 CounterpartyErrors.PaymentNotFound(paymentId));
         }
 
-        if (!payment.IsCancelled &&
+        if (payment.IsCancelled)
+        {
+            return ApplicationResult<CounterpartyPaymentDto>.Success(
+                CreateCounterpartyPaymentUseCase.ToDto(payment));
+        }
+
+        if (await dayCloseCountReader.IsCountedAsync(
+                userId, DayCloseRecordKind.CounterpartyPayment, payment.Id, cancellationToken) ||
+            payment.PosSettlementId is Guid countedSettlementId &&
             await dayCloseCountReader.IsCountedAsync(
-                userId, DayCloseRecordKind.CounterpartyPayment, payment.Id, cancellationToken))
+                userId, DayCloseRecordKind.PosSettlement, countedSettlementId, cancellationToken))
         {
             return ApplicationResult<CounterpartyPaymentDto>.Failure(
                 CounterpartyErrors.PaymentDayCloseCounted);
         }
 
-        payment.Cancel(timeProvider.GetUtcNow().ToUniversalTime());
-        await repository.SavePaymentAsync(payment, cancellationToken);
+        var cancelledAtUtc = timeProvider.GetUtcNow().ToUniversalTime();
+        if (payment.PosSettlementId is Guid settlementId)
+        {
+            var cardSettlement = await repository.FindCardSettlementAsync(
+                settlementId, userId, cancellationToken)
+                ?? throw new InvalidOperationException("A card collection lost its pos settlement.");
+            if (cardSettlement is { IsCancelled: false, PosDepositId: not null })
+            {
+                return ApplicationResult<CounterpartyPaymentDto>.Failure(
+                    CounterpartyErrors.PaymentDepositLocked);
+            }
+
+            cardSettlement.Cancel(cancelledAtUtc);
+        }
+
+        payment.Cancel(cancelledAtUtc);
+        if (!await repository.TrySavePaymentAsync(payment, cancellationToken))
+        {
+            return ApplicationResult<CounterpartyPaymentDto>.Failure(
+                CounterpartyErrors.PaymentChanged);
+        }
+
         return ApplicationResult<CounterpartyPaymentDto>.Success(
             CreateCounterpartyPaymentUseCase.ToDto(payment));
     }

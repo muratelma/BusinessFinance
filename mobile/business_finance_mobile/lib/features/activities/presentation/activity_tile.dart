@@ -188,6 +188,10 @@ class ActivityTile extends StatelessWidget {
     final source = activity.sourceName;
     final destination = activity.destinationName;
     final route = switch ((source, destination)) {
+      // Kartla tahsilde para POS'tan geçer: yer POS'tur, hesap ayrıntıdadır.
+      (final String account, final String person)
+          when activity.isCardCollection =>
+        '$person → ${activity.channelName ?? '$account (kartla)'}',
       // Tahsilatta para karşı taraftan hesaba gelir: ok ters yazılır.
       (final String account, final String person) when activity.isCollection =>
         '$person → $account',

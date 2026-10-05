@@ -233,6 +233,82 @@ public sealed class PosSettlementTests
                 description: new string('a', PosSettlement.MaximumDescriptionLength + 1)));
     }
 
+    /// <summary>
+    /// Kartla tahsil (ADR 0019 T5) satışın yolunu paylaşır ama gelir
+    /// tanımaz: kategori taşımaz, kapsamı yalnız komisyonun kapsamıdır.
+    /// </summary>
+    [Fact]
+    public void Collection_SharesTheRoadButRecognizesNoIncome()
+    {
+        var userId = Guid.NewGuid();
+        var account = NewBankAccount(userId);
+        var commissionCategory = new Category(
+            Guid.NewGuid(), userId, "POS komisyonu", CategoryType.Expense);
+        var collection = PosSettlement.Collect(
+            Guid.NewGuid(), userId, account, new Money(1000m, CurrencyCode.TRY), 15m,
+            TransactionScope.Business, SettlementDate, SettlementDate, CreatedAtUtc,
+            commissionCategory);
+
+        Assert.Equal(PosSettlementKind.Collection, collection.Kind);
+        Assert.False(collection.IsSale);
+        Assert.Null(collection.CategoryId);
+        Assert.Equal(985m, collection.NetAmount.Amount);
+        Assert.True(collection.IsInTransit);
+        Assert.Equal(0m, collection.SignedAccountEffect);
+
+        Deposit(account, collection);
+        Assert.Equal(985m, collection.SignedAccountEffect);
+
+        // Komisyonsuz tahsilin kapsamı yoktur; komisyonlunun zorunludur.
+        var free = PosSettlement.Collect(
+            Guid.NewGuid(), userId, account, new Money(200m, CurrencyCode.TRY), 0m,
+            null, SettlementDate, SettlementDate, CreatedAtUtc);
+        Assert.Null(free.Scope);
+        Assert.Throws<ArgumentNullException>(() => PosSettlement.Collect(
+            Guid.NewGuid(), userId, account, new Money(200m, CurrencyCode.TRY), 3m,
+            null, SettlementDate, SettlementDate, CreatedAtUtc, commissionCategory));
+        Assert.Throws<InvalidOperationException>(() => PosSettlement.Collect(
+            Guid.NewGuid(), userId, account, new Money(200m, CurrencyCode.TRY), 0m,
+            TransactionScope.Business, SettlementDate, SettlementDate, CreatedAtUtc));
+    }
+
+    /// <summary>
+    /// Kartla tahsil eden cari tahsilat hesaba dokunmaz; yalnız tahsilat yönünde,
+    /// aynı tutar, gün ve hesapla kurulabilir.
+    /// </summary>
+    [Fact]
+    public void CardCollectedPayment_LeavesTheAccountToTheDeposit()
+    {
+        var userId = Guid.NewGuid();
+        var account = NewBankAccount(userId);
+        var customer = new Counterparty(Guid.NewGuid(), userId, "Ahmet");
+        var amount = new Money(500m, CurrencyCode.TRY);
+        PosSettlement Collect(decimal gross = 500m, Account? on = null) => PosSettlement.Collect(
+            Guid.NewGuid(), userId, on ?? account, new Money(gross, CurrencyCode.TRY), 0m, null,
+            SettlementDate, SettlementDate, CreatedAtUtc);
+
+        var collection = Collect();
+        var payment = new CounterpartyPayment(
+            Guid.NewGuid(), userId, customer, account, DebtDirection.Receivable, amount,
+            SettlementDate, cardSettlement: collection);
+        Assert.Equal(collection.Id, payment.PosSettlementId);
+        Assert.Equal(0m, payment.SignedAccountEffect);
+
+        Assert.Throws<InvalidOperationException>(() => new CounterpartyPayment(
+            Guid.NewGuid(), userId, customer, account, DebtDirection.Payable, amount,
+            SettlementDate, cardSettlement: Collect()));
+        Assert.Throws<ArgumentException>(() => new CounterpartyPayment(
+            Guid.NewGuid(), userId, customer, account, DebtDirection.Receivable, amount,
+            SettlementDate, cardSettlement: Collect(gross: 499m)));
+        Assert.Throws<ArgumentException>(() => new CounterpartyPayment(
+            Guid.NewGuid(), userId, customer, account, DebtDirection.Receivable, amount,
+            SettlementDate, cardSettlement: Collect(on: NewBankAccount(userId, "Başka banka"))));
+        Assert.Throws<InvalidOperationException>(() => new CounterpartyPayment(
+            Guid.NewGuid(), userId, customer, account, DebtDirection.Receivable, amount,
+            SettlementDate, cardSettlement: NewSettlement(
+                userId: userId, account: account, gross: 500m, commission: 0m)));
+    }
+
     /// <summary>Para hesaba yalnız bir yatışla geçer (ADR 0019 T5).</summary>
     private static PosDeposit Deposit(Account account, PosSettlement settlement) =>
         PosDeposit.Record(

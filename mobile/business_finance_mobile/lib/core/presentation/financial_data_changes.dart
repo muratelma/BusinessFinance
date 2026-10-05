@@ -126,6 +126,22 @@ class FinancialDataChanges extends ChangeNotifier {
     counterparties: true,
   );
 
+  /// Bir alacak kartla (POS) tahsil edildi ya da bu tahsilat iptal edildi
+  /// (ADR 0019 T5).
+  ///
+  /// Cari (ya da alacak) kapanır, para yola çıkar: `accounts` yükselmez çünkü
+  /// hesap kıpırdamadı, Kasa'daki POS bölümü (`cash`) ve net varlık
+  /// (`dashboard`) yükselir. Komisyon tahsil günü gider yazıldığı için bütçe de
+  /// yenilenir; alacak kapandığı için planlanan görünüm de.
+  void cardCollectionChanged() => _raise(
+    feed: true,
+    dashboard: true,
+    budgets: true,
+    planning: true,
+    counterparties: true,
+    cash: true,
+  );
+
   /// Tek seferlik yükümlülük ekonomik olayı şimdi tanır; kasa ödeme anına kadar
   /// değişmez. Bu yüzden hesaplar değil feed, rapor/bütçe ve planlanan görünüm
   /// yenilenir.

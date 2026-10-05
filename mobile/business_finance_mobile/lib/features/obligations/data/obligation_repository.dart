@@ -70,10 +70,13 @@ abstract interface class ObligationRepositoryContract {
 
   Future<List<ObligationAccount>> loadActiveAccounts();
 
+  /// [card] doluysa alacak kartla (POS) tahsil edildi (ADR 0019 T5); hesap
+  /// POS'tan gelir ve [accountId] boş kalabilir.
   Future<void> settle({
     required String obligationId,
-    required String accountId,
+    required String? accountId,
     required String settlementDate,
+    Map<String, Object?>? card,
   });
 }
 
@@ -136,12 +139,17 @@ class ObligationRepository implements ObligationRepositoryContract {
   @override
   Future<void> settle({
     required String obligationId,
-    required String accountId,
+    required String? accountId,
     required String settlementDate,
+    Map<String, Object?>? card,
   }) async {
     await _client.post(
       '/api/v1/obligations/$obligationId/settlement',
-      body: {'accountId': accountId, 'settlementDate': settlementDate},
+      body: {
+        'accountId': ?accountId,
+        'settlementDate': settlementDate,
+        'card': ?card,
+      },
     );
   }
 

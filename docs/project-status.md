@@ -353,6 +353,27 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     Flutter analyze ve format temiz, 1033 test geçti (55 ekran görüntüsü
     testi atlandı). Kullanıcı emülatörde denedi ve onayladı; debug APK bu koşumda
     derlenmedi
+  - **06.3 Grup 5, teslim 3/3 — kartla tahsil (5 Ekim 2026, bulut oturumu;
+    gerçek SQL ve emülatör denemesi kullanıcıda)**: ADR 0019 T5'in kartla
+    tahsil kısmı. Müşteri veresiye borcunu ya da tek seferlik alacağı POS'tan
+    kartla ödeyince cari (alacak) o gün brüt tutarla kapanır, gelir ikinci kez
+    yazılmaz, komisyon tahsil günü gider olur; para yolda bekler ve hesaba
+    satışlarla aynı yatışla, net olarak geçer. Kayıt `PosSettlement`'ın ikinci
+    türüdür (`Kind = Collection`); cari tahsilat ve yükümlülük kapanışı ona
+    bağlanır. Flutter: tahsilat formunda ve alacak kapatma panelinde
+    `Nakit / hesaba · Kartla (POS)` rayı; Kasa POS listesi, yatış ayrıntısı,
+    İşlemler ve gün sonu listesi tahsili kişi adıyla ve satıştan ayrı gösterir.
+    Kullanıcı kararları K1–K4 ve K8–K9 öneriyle, K6 B ile; K5 yön A, tasarımı
+    bekliyor (aşama belgesi). `GET /api/v1/pos-settlements` satırında tahsil
+    türünde kategori boş (onaylı sözleşme değişikliği). **Migration
+    `AddCardCollections`** veri kaybettirmez (tür nullable → satış olarak
+    backfill → zorunlu; kategori ve kapsam nullable; iki bağ kolonu); **yerel
+    veritabanlarına henüz uygulanmadı**. Kontroller (bulut): backend build 0
+    uyarı, format temiz; Domain 342, Application 331, Api 270 (+2 SQL testi
+    atlandı), Infrastructure 167 (+59 SQL testi atlandı) — **SQL testleri
+    koşmadı, başarı sayılmaz**; LINQ'in SQL'e çevrilmesi `ToQueryString` ile
+    kontrol edildi. Flutter analyze ve format temiz, 1042 test geçti (55 ekran
+    görüntüsü testi atlandı); debug APK derlenmedi (bulutta Android SDK yok)
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni (beklemede) → **06.3 bütünsel düzenleme (aktif)** →

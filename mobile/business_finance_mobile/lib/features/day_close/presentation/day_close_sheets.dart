@@ -515,12 +515,14 @@ class _DayCloseFormState extends State<_DayCloseForm> {
     DayClosePreview shown,
   ) {
     if (!record.isCash) {
+      // Kartla tahsil satış değildir: kendini söyler (KP7).
+      final label = record.isCardCollection ? 'Kartla tahsil' : 'Kart';
       for (final line in shown.posLines) {
         if (line.posDefinitionId == record.posDefinitionId) {
-          return 'Kart · ${line.name}';
+          return '$label · ${line.name}';
         }
       }
-      return 'Kart · ${record.accountName}';
+      return '$label · ${record.accountName}';
     }
     final kind = switch (record.kind) {
       'counterparty-payment' => 'Cari tahsilat',

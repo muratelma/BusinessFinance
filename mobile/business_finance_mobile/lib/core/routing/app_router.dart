@@ -546,6 +546,7 @@ GoRouter createAppRouter({
               : CounterpartiesPage(
                   repository: counterpartyRepository,
                   changes: financialDataChanges,
+                  posRepository: posRepository,
                   // Kapsam çipi yalnız "işletmem var" diyene görünür;
                   // cevabı görünmeyen kullanıcıda hiçbir istekte kapsam
                   // gitmez.
@@ -591,6 +592,7 @@ GoRouter createAppRouter({
                   controller: ObligationListController(
                     obligationRepository,
                     changes: financialDataChanges,
+                    posRepository: posRepository,
                   ),
                 ),
           authController,

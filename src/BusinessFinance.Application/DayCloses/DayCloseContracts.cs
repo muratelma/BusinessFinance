@@ -64,7 +64,10 @@ public sealed record DayCloseExistingRecordDto(
     // Paranın girdiği (ya da geçeceği) hesabın adı.
     string AccountName,
     bool IncludedByDefault,
-    bool Included);
+    bool Included,
+    // Kart tarafında bir alacağın kartla tahsili (satış değil); başlık kişinin
+    // adıdır. Satış gibi varsayılan olarak düşülür (KP7).
+    bool IsCardCollection = false);
 
 /// <summary>Panelin nakit satırı: girilen, düşülen ve yazılacak tutar.</summary>
 public sealed record DayCloseCashLineDto(

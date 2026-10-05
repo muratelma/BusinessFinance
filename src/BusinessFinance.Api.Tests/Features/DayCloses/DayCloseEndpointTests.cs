@@ -493,6 +493,59 @@ public sealed class DayCloseEndpointTests
         Assert.Equal("300.0000", await BalanceAsync(owner, f.TillId));
     }
 
+    /// <summary>
+    /// Kartla tahsil (KP7, KP13) de yazar kasanın KART satırındadır: gün sonu
+    /// onu satış gibi varsayılan olarak düşer ve sahiplenir; sayılan tahsilat
+    /// tek başına iptal edilemez.
+    /// </summary>
+    [Fact]
+    public async Task CardCollection_IsDeductedFromTheCardSide_AndOwnedByTheDayClose()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(factory, "close-card-collection@example.test");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var f = await SeedAsync(owner);
+        using var counterparty = await owner.PostAsJsonAsync(
+            "/api/v1/counterparties", new CreateCounterpartyRequest("Kartla ödeyen müşteri"));
+        var customerId = (await counterparty.Content.ReadFromJsonAsync<CounterpartyResponse>())!.Id;
+        using var collect = await owner.PostAsJsonAsync(
+            $"/api/v1/counterparties/{customerId}/payments",
+            new CreateCounterpartyPaymentRequest(
+                "receivable", "400.0000", "TRY", null, Date(today),
+                Card: new CardCollectionRequest(PosDefinitionId: f.PosDefinitionId)));
+        Assert.Equal(HttpStatusCode.Created, collect.StatusCode);
+        var payment = (await collect.Content.ReadFromJsonAsync<CounterpartyPaymentResponse>())!;
+
+        var preview = await PreviewAsync(
+            owner,
+            new DayCloseRequest(
+                Date(today), PosAmounts: [new(f.PosDefinitionId, "1000.0000")]));
+        var listed = Assert.Single(preview.ExistingRecords);
+        Assert.Equal("pos-settlement", listed.Kind);
+        Assert.Equal(payment.PosSettlementId, listed.Id);
+        Assert.Equal("card", listed.Side);
+        Assert.True(listed.IsCardCollection);
+        Assert.True(listed.IncludedByDefault);
+        Assert.Equal("Kartla ödeyen müşteri", listed.Title);
+        Assert.Equal("600.0000", Assert.Single(preview.PosLines).AmountToWrite);
+
+        var close = await CloseAsync(
+            owner,
+            new DayCloseRequest(Date(today), PosAmounts: [new(f.PosDefinitionId, "1000.0000")]));
+        Assert.Equal("600.0000", close.CardGrossAmount);
+        Assert.Equal("400.0000", close.CountedCardAmount);
+
+        using var cancel = await owner.DeleteAsync($"/api/v1/counterparty-payments/{payment.Id}");
+        Assert.Equal(HttpStatusCode.Conflict, cancel.StatusCode);
+        Assert.Equal("counterparty_payments.day_close_counted", await CodeAsync(cancel));
+
+        var feed = await owner.GetFromJsonAsync<FinancialActivityListResponse>(
+            "/api/v1/financial-activities?pageNumber=1&pageSize=50");
+        var row = Assert.Single(feed!.Items, item => item.ActivityKind == "counterparty-settlement");
+        Assert.Equal(close.Id, row.DayCloseId);
+        Assert.False(row.CanCancel);
+    }
+
     /// <summary>Aynı istek kimliği ikinci bir gün sonu ya da kayıt yazmaz.</summary>
     [Fact]
     public async Task DayClose_IsIdempotentPerClientRequest()

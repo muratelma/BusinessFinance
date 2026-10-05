@@ -21,6 +21,8 @@ internal sealed class EfPosSettlementRepository(
         PosSettlementListCriteria criteria,
         CancellationToken cancellationToken)
     {
+        // Kartla tahsilde gelir kategorisi yoktur; kimden tahsil edildiği
+        // tahsilattan okunur.
         var query =
             from settlement in dbContext.PosSettlements.AsNoTracking()
             join account in dbContext.Accounts.AsNoTracking()
@@ -28,7 +30,13 @@ internal sealed class EfPosSettlementRepository(
                 equals new { account.UserId, account.Id }
             join category in dbContext.Categories.AsNoTracking()
                 on new { settlement.UserId, Id = settlement.CategoryId }
-                equals new { category.UserId, category.Id }
+                equals new { category.UserId, Id = (Guid?)category.Id }
+                into categories
+            from category in categories.DefaultIfEmpty()
+            join payer in CardCollectionPayers.Query(dbContext, userId)
+                on settlement.Id equals payer.SettlementId
+                into payers
+            from payer in payers.DefaultIfEmpty()
             join commissionCategory in dbContext.Categories.AsNoTracking()
                 on new { settlement.UserId, Id = settlement.CommissionCategoryId }
                 equals new { commissionCategory.UserId, Id = (Guid?)commissionCategory.Id }
@@ -47,7 +55,8 @@ internal sealed class EfPosSettlementRepository(
             {
                 settlement,
                 AccountName = account.Name,
-                CategoryName = category.Name,
+                CategoryName = category == null ? null : category.Name,
+                CounterpartyName = payer == null ? null : payer.Name,
                 CommissionCategoryName = commissionCategory == null
                     ? null
                     : commissionCategory.Name,
@@ -117,7 +126,9 @@ internal sealed class EfPosSettlementRepository(
                     row.DefinitionName,
                     row.settlement.PosDepositId,
                     row.settlement.DayCloseId,
-                    row.CountedInDayCloseId))
+                    row.CountedInDayCloseId,
+                    row.settlement.Kind,
+                    row.CounterpartyName))
                 .ToArray(),
             transit?.Amount ?? 0m,
             transit?.Count ?? 0);

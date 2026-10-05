@@ -72,15 +72,18 @@ internal static class AccountMovements
 
         // Cari tahsilat/ödeme parayı taşır: tahsilat kasayı artırır, ödeme
         // azaltır. Gelir/gider üretmediği için rapora değil yalnız buraya
-        // girer (ADR 0014).
+        // girer (ADR 0014). Kartla tahsil burada sayılmaz: parası POS
+        // kaydıyla yoldadır ve hesaba yatışla girer (ADR 0019 T5).
         var counterpartyPayments = dbContext.CounterpartyPayments.AsNoTracking()
             .Where(payment => payment.AccountId == accountId &&
                               payment.UserId == userId &&
-                              !payment.IsCancelled);
+                              !payment.IsCancelled &&
+                              payment.PosSettlementId == null);
         var obligationSettlements = dbContext.ObligationSettlements.AsNoTracking()
             .Where(settlement => settlement.AccountId == accountId &&
                                  settlement.UserId == userId &&
-                                 !settlement.IsCancelled);
+                                 !settlement.IsCancelled &&
+                                 settlement.PosSettlementId == null);
 
         // POS tahsilatı hesaba **ancak geçtiği gün** girer ve girdiği tutar
         // nettir (ADR 0015). Tahsilat günü eklenseydi, kullanılabilir bakiye

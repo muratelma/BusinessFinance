@@ -71,6 +71,13 @@ v9'un taşıdığı iki koleksiyon aynen yerinde:
   düşülerek, oran ikisinden, yolda olma ise iptal ve yatış bağından çözülür.
   Oran yazılsaydı kuruşa yuvarlanmış komisyonla çelişen ikinci bir gerçek
   kaynağı doğardı (ADR 0009). İptal edilmiş tahsilat yatışa bağlı olamaz.
+  `kind` (`Sale` | `Collection`, Aşama 06.3 Grup 5 teslim 3/3) kartla tahsili
+  ayırır: tahsil türünde `categoryId` boştur ve `scope` yalnız komisyon varsa
+  doludur. Alanı taşımayan önceki v11 dosyalarında tür yoktur ve satış sayılır.
+  Her tahsil kaydı tam olarak bir `counterpartyPayments` satırına ya da bir
+  yükümlülük kapanışına (`posSettlementId`) aittir; sahipsiz ya da iki kez
+  bağlanan tahsil kaydı yedeği geçersiz kılar. Geri yüklemede tahsil kayıtları
+  tahsilatlardan önce kurulur.
 - `posDeposits` — POS yatışı (Aşama 06.3 Grup 5, ADR 0019 T5): hesap, yatış
   günü, **gerçekten yatan tutar** (`depositedAmount`), kesinti
   (`deductionAmount`), kesinti giderinin kimliği (`deductionTransactionId`;
@@ -141,6 +148,18 @@ indeksini kurar. Tablo tutar taşımaz. Tekil indeks (`UserId, Kind, RecordId`)
 bir kaydın iki gün sonunda sayılmasını SQL'de de engeller. Bu migration'dan
 önce girilmiş gün sonlarının (yalnız 4 Ekim 2026 deneme verisi) saydığı
 kayıtlar bilinmez ve uydurulmaz: o kayıtlar bağsız kalır.
+
+## Veritabanı yükseltme notu — Aşama 06.3 Grup 5 (kartla tahsil)
+
+`AddCardCollections` migration'ı **veri kaybettirmez**. `PosSettlements`'a
+`Kind` eklenir: nullable eklenir, mevcut her satır satış (`1`) olarak
+doldurulur, sonra `NOT NULL` yapılır; kalıcı DEFAULT bırakılmaz.
+`CategoryId` ve `Scope` yalnız gevşer (nullable); `CounterpartyPayments` ve
+`ObligationSettlements`'a nullable `PosSettlementId` ile filtreli tekil indeks
+ve foreign key eklenir. Yeni CHECK'ler (`CK_PosSettlements_Kind`,
+`CK_PosSettlements_KindShape`, gevşeyen `CK_PosSettlements_Scope`) kolonlardan
+ve backfill'den sonra gelir. Geri dönüş (`Down`) kartla tahsil kaydı varken
+çalışmaz: kategorisi olmayan satır `NOT NULL` kategoriye dönemez.
 
 ## Veritabanı yükseltme notu — Aşama 06.3 Grup 5 (gün sonu)
 

@@ -75,11 +75,19 @@ internal sealed class EfPosDepositRepository(
             return null;
         }
 
+        // Kartla tahsilde gelir kategorisi yoktur; kimden tahsil edildiği
+        // tahsilattan okunur.
         var rows = await (
             from settlement in dbContext.PosSettlements.AsNoTracking()
             join category in dbContext.Categories.AsNoTracking()
                 on new { settlement.UserId, Id = settlement.CategoryId }
-                equals new { category.UserId, category.Id }
+                equals new { category.UserId, Id = (Guid?)category.Id }
+                into categories
+            from category in categories.DefaultIfEmpty()
+            join payer in CardCollectionPayers.Query(dbContext, userId)
+                on settlement.Id equals payer.SettlementId
+                into payers
+            from payer in payers.DefaultIfEmpty()
             join commissionCategory in dbContext.Categories.AsNoTracking()
                 on new { settlement.UserId, Id = settlement.CommissionCategoryId }
                 equals new { commissionCategory.UserId, Id = (Guid?)commissionCategory.Id }
@@ -95,7 +103,8 @@ internal sealed class EfPosDepositRepository(
             select new
             {
                 settlement,
-                CategoryName = category.Name,
+                CategoryName = category == null ? null : category.Name,
+                CounterpartyName = payer == null ? null : payer.Name,
                 CommissionCategoryName = commissionCategory == null
                     ? null
                     : commissionCategory.Name,
@@ -125,14 +134,23 @@ internal sealed class EfPosDepositRepository(
                     row.CategoryName,
                     row.CommissionCategoryName,
                     asOfDate,
-                    row.DefinitionName))
+                    row.DefinitionName,
+                    row.CounterpartyName))
                 .ToArray(),
             GrossAmount: rows.Length == 0
                 ? null
                 : rows.Sum(row => row.settlement.GrossAmount.Amount),
             CommissionAmount: rows.Length == 0
                 ? null
-                : rows.Sum(row => row.settlement.CommissionAmount));
+                : rows.Sum(row => row.settlement.CommissionAmount),
+            CollectionAmount: rows.Length == 0
+                ? null
+                : rows.Where(row => !row.settlement.IsSale)
+                    .Sum(row => row.settlement.GrossAmount.Amount),
+            SaleAmount: rows.Length == 0
+                ? null
+                : rows.Where(row => row.settlement.IsSale)
+                    .Sum(row => row.settlement.GrossAmount.Amount));
     }
 
     public async Task<IReadOnlyList<Guid>> ListDeductionCategoryCandidatesAsync(

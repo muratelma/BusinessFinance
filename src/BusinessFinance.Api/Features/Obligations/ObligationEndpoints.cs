@@ -1,4 +1,5 @@
 using BusinessFinance.Api.Contracts;
+using BusinessFinance.Api.Features.Pos;
 using BusinessFinance.Api.Errors;
 using BusinessFinance.Application.Obligations;
 using BusinessFinance.Domain;
@@ -165,8 +166,14 @@ public static class ObligationEndpoints
                 "obligations.invalid_settlement_date");
         }
 
+        if (!CardCollectionRequests.TryParse(
+                request.Card, httpContext, out var card, out var cardError))
+        {
+            return cardError!;
+        }
+
         var result = await useCase.ExecuteAsync(
-            new SettleObligationCommand(id, request.AccountId, settlementDate),
+            new SettleObligationCommand(id, request.AccountId, settlementDate, card),
             cancellationToken);
         return result.IsSuccess
             ? Results.Ok(ToResponse(result.Value))

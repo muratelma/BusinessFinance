@@ -48,7 +48,9 @@ public sealed record DayCloseExistingRecordResponse(
     Guid? PosDefinitionId,
     string AccountName,
     bool IncludedByDefault,
-    bool Included);
+    bool Included,
+    // Kart tarafında bir alacağın kartla tahsili; başlık kişinin adıdır.
+    bool IsCardCollection = false);
 
 public sealed record DayCloseCashLineResponse(
     bool Stated,
@@ -451,7 +453,8 @@ public static class DayCloseEndpoints
         record.PosDefinitionId,
         record.AccountName,
         record.IncludedByDefault,
-        record.Included);
+        record.Included,
+        record.IsCardCollection);
 
     private static DayCloseSummaryResponse ToResponse(DayCloseSummaryDto summary) => new(
         summary.Id,

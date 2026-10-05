@@ -209,7 +209,7 @@ public static class PosSettlementEndpoints
         FinanceContract.Money(settlement.NetAmount),
         FinanceContract.Money(settlement.CommissionRate),
         settlement.Currency.ToString(),
-        FinanceContract.ScopeValue(settlement.Scope),
+        settlement.Scope is TransactionScope scope ? FinanceContract.ScopeValue(scope) : null,
         FinanceContract.Date(settlement.SettlementDate),
         FinanceContract.Date(settlement.ExpectedTransferDate),
         settlement.TransferredOn is DateOnly transferredOn
@@ -223,5 +223,14 @@ public static class PosSettlementEndpoints
         settlement.PosDefinitionName,
         settlement.PosDepositId,
         settlement.DayCloseId,
-        settlement.CountedInDayCloseId);
+        settlement.CountedInDayCloseId,
+        KindValue(settlement.Kind),
+        settlement.CounterpartyName);
+
+    internal static string KindValue(PosSettlementKind kind) => kind switch
+    {
+        PosSettlementKind.Sale => "sale",
+        PosSettlementKind.Collection => "collection",
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
+    };
 }

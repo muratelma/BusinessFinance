@@ -27,8 +27,12 @@ import 'pos_controller.dart';
 import 'pos_deposit_controller.dart';
 
 /// Tahsilatın başlığı: kullanıcının yazdığı açıklama, yoksa günü.
-String posSettlementTitle(PosSettlementItem item) =>
-    item.description ?? '${DateText.dayMonth(item.settlementDate)} gün sonu';
+/// Kartla tahsilde satırın adı parayı ödeyen kişidir (ADR 0019 T5): satış
+/// değildir ve "gün sonu" diye okunmamalıdır.
+String posSettlementTitle(PosSettlementItem item) => item.isCollection
+    ? (item.description ?? item.counterpartyName ?? 'Kartla tahsil')
+    : (item.description ??
+          '${DateText.dayMonth(item.settlementDate)} gün sonu');
 
 /// "Hesaba geçenleri işaretle" panelini açar (ADR 0019 T5). Kaydedilince
 /// `true`, vazgeçilince `null`.
@@ -741,20 +745,34 @@ class _PosDepositDetailSheetState extends State<PosDepositDetailSheet> {
                 // kesildiği başka türlü okunmuyor. Komisyon satış günü gider
                 // yazıldı; burada yalnız gösterilir. Sıfır olsa da satır
                 // durur: panel yüklenince boyut değiştirmesin.
+                // Kartla tahsil (ADR 0019 T5) satış değildir: ayrı satırda
+                // okunur. İki tutar da sunucudandır; istemci brütten çıkarmaz.
                 if (!summary.isCancelled &&
                     (loading || deposit?.grossAmount != null)) ...[
-                  AppDetailRow(
-                    icon: Icons.point_of_sale_outlined,
-                    label: 'Satış',
-                    trailing: deposit?.grossAmount == null
-                        ? null
-                        : AppMoneyText(
-                            amount: deposit!.grossAmount!,
-                            currency: deposit.currency,
-                            size: AppMoneySize.body,
-                          ),
-                    value: deposit?.grossAmount == null ? _pending : null,
-                  ),
+                  if (deposit?.hasSale ?? true)
+                    AppDetailRow(
+                      icon: Icons.point_of_sale_outlined,
+                      label: 'Satış',
+                      trailing: deposit?.grossAmount == null
+                          ? null
+                          : AppMoneyText(
+                              amount:
+                                  deposit!.saleAmount ?? deposit.grossAmount!,
+                              currency: deposit.currency,
+                              size: AppMoneySize.body,
+                            ),
+                      value: deposit?.grossAmount == null ? _pending : null,
+                    ),
+                  if (deposit?.hasCollection ?? false)
+                    AppDetailRow(
+                      icon: Icons.handshake_outlined,
+                      label: 'Tahsilat',
+                      trailing: AppMoneyText(
+                        amount: deposit!.collectionAmount!,
+                        currency: deposit.currency,
+                        size: AppMoneySize.body,
+                      ),
+                    ),
                   AppDetailRow(
                     icon: Icons.percent,
                     label: 'Komisyon',

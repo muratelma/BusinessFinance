@@ -59,7 +59,11 @@ public sealed record PosDepositResponse(
     // Kapattığı tahsilatların brüt satış ve komisyon toplamı; geri alınmış
     // yatışta boş. Komisyon satış günü gider yazılmıştır, burada bilgidir.
     string? GrossAmount = null,
-    string? CommissionAmount = null);
+    string? CommissionAmount = null,
+    // Brütün satışlardan ve kartla tahsil edilmiş alacaklardan gelen
+    // kısımları; tahsil satış değildir.
+    string? CollectionAmount = null,
+    string? SaleAmount = null);
 
 public static class PosDepositEndpoints
 {
@@ -234,5 +238,11 @@ public static class PosDepositEndpoints
         deposit.GrossAmount is decimal gross ? FinanceContract.Money(gross) : null,
         deposit.CommissionAmount is decimal commission
             ? FinanceContract.Money(commission)
+            : null,
+        deposit.CollectionAmount is decimal collection
+            ? FinanceContract.Money(collection)
+            : null,
+        deposit.SaleAmount is decimal sale
+            ? FinanceContract.Money(sale)
             : null);
 }

@@ -13,7 +13,18 @@ internal sealed class PosSettlementConfiguration : IEntityTypeConfiguration<PosS
         {
             table.HasCheckConstraint("CK_PosSettlements_GrossAmount", "[GrossAmount] > 0");
             table.HasCheckConstraint("CK_PosSettlements_Currency", "[Currency] = 1");
-            table.HasCheckConstraint("CK_PosSettlements_Scope", "[Scope] IN (1, 2)");
+            table.HasCheckConstraint(
+                "CK_PosSettlements_Scope", "[Scope] IS NULL OR [Scope] IN (1, 2)");
+            table.HasCheckConstraint("CK_PosSettlements_Kind", "[Kind] IN (1, 2)");
+            // Satış gelir tanır: kategori ve kapsam doludur. Kartla tahsil
+            // tanımaz (ADR 0019 T5): gelir kategorisi yoktur, gün sonundan
+            // doğmaz ve kapsamı yalnız komisyonun kapsamıdır.
+            table.HasCheckConstraint(
+                "CK_PosSettlements_KindShape",
+                "([Kind] = 1 AND [CategoryId] IS NOT NULL AND [Scope] IS NOT NULL) OR " +
+                "([Kind] = 2 AND [CategoryId] IS NULL AND [DayCloseId] IS NULL AND " +
+                "(([CommissionAmount] = 0 AND [Scope] IS NULL) OR " +
+                "([CommissionAmount] > 0 AND [Scope] IS NOT NULL)))");
             // Komisyon sıfır olabilir ama brütün tamamını yiyemez: hesaba
             // hiçbir şey geçmeyen bir tahsilat tahsilat değildir.
             table.HasCheckConstraint(
@@ -44,6 +55,8 @@ internal sealed class PosSettlementConfiguration : IEntityTypeConfiguration<PosS
 
         builder.HasKey(settlement => settlement.Id);
         builder.HasAlternateKey(settlement => new { settlement.UserId, settlement.Id });
+        builder.Property(settlement => settlement.Kind)
+            .HasConversion<byte>().HasColumnType("tinyint");
         builder.Property(settlement => settlement.CommissionAmount).HasPrecision(19, 4);
         builder.Property(settlement => settlement.Scope)
             .HasConversion<byte>().HasColumnType("tinyint");
@@ -69,6 +82,7 @@ internal sealed class PosSettlementConfiguration : IEntityTypeConfiguration<PosS
         builder.Ignore(settlement => settlement.IsTransferred);
         builder.Ignore(settlement => settlement.IsInTransit);
         builder.Ignore(settlement => settlement.SignedAccountEffect);
+        builder.Ignore(settlement => settlement.IsSale);
 
         builder.OwnsOne(settlement => settlement.GrossAmount, money =>
         {
@@ -109,10 +123,12 @@ internal sealed class PosSettlementConfiguration : IEntityTypeConfiguration<PosS
             .HasForeignKey(settlement => new { settlement.UserId, settlement.AccountId })
             .HasPrincipalKey(account => new { account.UserId, account.Id })
             .OnDelete(DeleteBehavior.Restrict);
+        // Kartla tahsilde boştur: tahsil gelir tanımaz.
         builder.HasOne<Category>().WithMany()
             .HasForeignKey(settlement => new { settlement.UserId, settlement.CategoryId })
             .HasPrincipalKey(category => new { category.UserId, category.Id })
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired(false);
         builder.HasOne<Category>().WithMany()
             .HasForeignKey(settlement => new { settlement.UserId, settlement.CommissionCategoryId })
             .HasPrincipalKey(category => new { category.UserId, category.Id })

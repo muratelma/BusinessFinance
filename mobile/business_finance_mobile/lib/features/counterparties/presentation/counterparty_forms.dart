@@ -7,6 +7,7 @@ import '../../../core/models/transaction_scope.dart';
 import '../../../core/widgets/app_date_field.dart';
 import '../../../core/widgets/app_form_sheet.dart';
 import '../../../core/widgets/app_scope_selector.dart';
+import '../../pos/presentation/card_collection_fields.dart';
 import '../data/counterparty_models.dart';
 
 /// Karşı tarafın kendisi: ad, not ve aktiflik.
@@ -310,6 +311,10 @@ class _CounterpartyChargeFormState extends State<CounterpartyChargeForm> {
 /// Kategori ve kapsam alanı **yok**: bu kayıt gelir/gider üretmez, yalnız
 /// kasayı değiştirir. Sorulsaydı cevabı hiçbir yerde kullanılmayan bir soru
 /// olurdu.
+///
+/// Tahsilatta [cards] verilirse `Nasıl ödendi?` rayı çıkar (ADR 0019 T5):
+/// kartla alınan tahsilatta hesap yerine POS sorulur, para yola çıkar ve
+/// hesaba yatışla geçer.
 class CounterpartyPaymentForm extends StatefulWidget {
   const CounterpartyPaymentForm({
     required this.today,
@@ -317,7 +322,11 @@ class CounterpartyPaymentForm extends StatefulWidget {
     required this.isReceivable,
     super.key,
     this.suggestedAmount,
+    this.cards,
   });
+
+  /// Kartla tahsilin okumaları; yoksa ray gösterilmez.
+  final CardCollectionSource? cards;
 
   final String today;
   final List<DataChoice> accounts;
@@ -338,8 +347,12 @@ class _CounterpartyPaymentFormState extends State<CounterpartyPaymentForm> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _amount;
   final _description = TextEditingController();
+  final _cardFields = GlobalKey<CardCollectionFieldsState>();
   late String _date;
   String? _accountId;
+  CollectionMethod _method = CollectionMethod.account;
+
+  bool get _byCard => _method == CollectionMethod.card;
 
   @override
   void initState() {
@@ -365,7 +378,10 @@ class _CounterpartyPaymentFormState extends State<CounterpartyPaymentForm> {
     key: _formKey,
     child: AppFormSheet<Map<String, Object?>>(
       title: widget.isReceivable ? 'Tahsilat' : 'Ödeme',
-      description: widget.isReceivable
+      description: _byCard
+          ? 'Alacak bugün kapanır; satış geliri zaten yazılmıştı, ikinci kez '
+                'gelir yazılmaz. Para yola çıkar, hesaba yatışla geçer.'
+          : widget.isReceivable
           ? 'Kasaya para girer; satış geliri zaten yazılmıştı, ikinci kez '
                 'gelir yazılmaz.'
           : 'Kasadan para çıkar; alım gideri zaten yazılmıştı, ikinci kez '
@@ -375,12 +391,20 @@ class _CounterpartyPaymentFormState extends State<CounterpartyPaymentForm> {
         if (!(_formKey.currentState?.validate() ?? false)) return null;
         return {
           'amount': MoneyInput.wire(_amount.text),
-          'accountId': _accountId,
+          'accountId': _byCard ? null : _accountId,
+          'card': _byCard ? _cardFields.currentState?.request : null,
           'paymentDate': _date,
           'description': _description.text.trim(),
         };
       },
       children: [
+        if (widget.isReceivable && widget.cards != null)
+          AppFormField(
+            child: CollectionMethodRail(
+              selected: _method,
+              onChanged: (value) => setState(() => _method = value),
+            ),
+          ),
         AppFormField(
           child: TextFormField(
             controller: _amount,
@@ -396,29 +420,43 @@ class _CounterpartyPaymentFormState extends State<CounterpartyPaymentForm> {
           ),
         ),
         AppFormField(
-          child: DropdownButtonFormField<String>(
-            initialValue: _accountId,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: widget.isReceivable
-                  ? 'Paranın gireceği hesap'
-                  : 'Ödeme hesabı',
-            ),
-            items: [
-              for (final account in widget.accounts)
-                DropdownMenuItem(value: account.id, child: Text(account.name)),
-            ],
-            onChanged: (value) => setState(() => _accountId = value),
-            validator: (value) => value == null ? 'Bir hesap seçin.' : null,
-          ),
-        ),
-        AppFormField(
           child: AppDateField(
             label: 'Tarih',
             value: _date,
+            lastDate: _byCard ? DateTime.now() : null,
             onChanged: (value) => setState(() => _date = value),
           ),
         ),
+        if (_byCard)
+          AppFormField(
+            child: CardCollectionFields(
+              key: _cardFields,
+              source: widget.cards!,
+              amount: _amount,
+              collectedOn: _date,
+            ),
+          )
+        else
+          AppFormField(
+            child: DropdownButtonFormField<String>(
+              initialValue: _accountId,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: widget.isReceivable
+                    ? 'Paranın gireceği hesap'
+                    : 'Ödeme hesabı',
+              ),
+              items: [
+                for (final account in widget.accounts)
+                  DropdownMenuItem(
+                    value: account.id,
+                    child: Text(account.name),
+                  ),
+              ],
+              onChanged: (value) => setState(() => _accountId = value),
+              validator: (value) => value == null ? 'Bir hesap seçin.' : null,
+            ),
+          ),
         AppFormField(
           child: TextFormField(
             controller: _description,

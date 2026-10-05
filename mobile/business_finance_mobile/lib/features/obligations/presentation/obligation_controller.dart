@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/presentation/financial_data_changes.dart';
+import '../../pos/data/pos_repository.dart';
+import '../../pos/presentation/card_collection_fields.dart';
 import '../data/obligation_direction.dart';
 import '../data/obligation_repository.dart';
 
@@ -87,10 +89,17 @@ class ObligationController extends ChangeNotifier {
 }
 
 class ObligationListController extends ChangeNotifier {
-  ObligationListController(this._repository, {this.changes});
+  ObligationListController(
+    this._repository, {
+    this.changes,
+    this.posRepository,
+  });
 
   final ObligationRepositoryContract _repository;
   final FinancialDataChanges? changes;
+
+  /// Alacağın kartla (POS) kapatılabilmesi için; yoksa seçenek görünmez.
+  final PosRepositoryContract? posRepository;
 
   List<ObligationItem> items = const [];
   bool isLoading = false;
@@ -123,14 +132,53 @@ class ObligationListController extends ChangeNotifier {
   Future<List<ObligationAccount>> loadAccounts() =>
       _repository.loadActiveAccounts();
 
-  Future<bool> settle(ObligationItem item, String accountId) async {
+  /// Kartla tahsilin okumaları (ADR 0019 T5): POS'lar, banka hesapları ve
+  /// komisyon kategorileri. Okunamazsa `null`; panel kart seçeneğini
+  /// göstermez.
+  Future<CardCollectionSource?> loadCardCollection() async {
+    final pos = posRepository;
+    if (pos == null) return null;
+    try {
+      final results = await Future.wait([
+        pos.listDefinitions(),
+        pos.loadOptions(),
+      ]);
+      final definitions = results[0] as List<PosDefinitionItem>;
+      final options = results[1] as PosOptions;
+      return CardCollectionSource(
+        definitions: definitions
+            .where((item) => item.isActive)
+            .toList(growable: false),
+        bankAccounts: options.accounts,
+        expenseCategories: options.expenseCategories,
+        preview: pos.preview,
+      );
+    } on ApiException {
+      return null;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  /// [card] doluysa alacak kartla tahsil edildi: alacak kapanır, para yola
+  /// çıkar; hesap kıpırdamaz.
+  Future<bool> settle(
+    ObligationItem item, {
+    String? accountId,
+    Map<String, Object?>? card,
+  }) async {
     try {
       await _repository.settle(
         obligationId: item.id,
         accountId: accountId,
         settlementDate: _today(),
+        card: card,
       );
-      changes?.obligationSettled();
+      if (card != null) {
+        changes?.cardCollectionChanged();
+      } else {
+        changes?.obligationSettled();
+      }
       await load();
       return true;
     } on ApiException catch (error) {

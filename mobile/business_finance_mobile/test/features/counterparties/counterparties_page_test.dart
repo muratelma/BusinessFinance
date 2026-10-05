@@ -9,6 +9,7 @@ import 'package:business_finance_mobile/features/activities/data/activity_models
 import 'package:business_finance_mobile/features/counterparties/data/counterparty_models.dart';
 import 'package:business_finance_mobile/features/counterparties/data/counterparty_repository.dart';
 import 'package:business_finance_mobile/features/counterparties/presentation/counterparties_page.dart';
+import 'package:business_finance_mobile/features/pos/data/pos_repository.dart';
 
 import '../../helpers/accessibility.dart';
 
@@ -167,6 +168,54 @@ void main() {
       expect(payment.containsKey('scope'), isFalse);
     });
 
+    // Kartla tahsil (ADR 0019 T5): müşteri borcunu POS'tan öder. Hesap
+    // yerine POS sorulur, para yola çıkar; istek `card` bloğunu taşır.
+    testWidgets('tahsilat kartla (POS) alınınca hesap değil POS gidiyor', (
+      tester,
+    ) async {
+      final repository = _FakeRepository();
+      final pos = _FakePosRepository();
+      await _pump(tester, repository, pos: pos);
+      await tester.tap(find.text('Ahmet Bakkal'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Tahsilat'));
+      await tester.pumpAndSettle();
+      expect(find.text('Kartla (POS)'), findsOneWidget);
+      expect(find.text('Paranın gireceği hesap'), findsOneWidget);
+
+      await tester.tap(find.text('Kartla (POS)'));
+      await tester.pumpAndSettle();
+      // Ana POS seçili gelir; hesap sorulmaz, önizleme sunucudan.
+      expect(find.text('Paranın gireceği hesap'), findsNothing);
+      expect(find.text('Garanti POS'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      expect(pos.lastPreviewAmount, '400.0000');
+      expect(find.text('₺394,00'), findsOneWidget);
+
+      await tester.tap(find.text('Kaydet'));
+      await tester.pumpAndSettle();
+
+      final payment = repository.lastPayment!;
+      expect(payment['direction'], 'receivable');
+      expect(payment.containsKey('accountId'), isFalse);
+      expect(payment['card'], {'posDefinitionId': 'pos-1'});
+    });
+
+    // Tedarikçiye ödeme POS'tan geçmez (ADR 0019 T7): seçenek çıkmaz.
+    testWidgets('ödeme formunda kart seçeneği yok', (tester) async {
+      await _pump(tester, _FakeRepository(), pos: _FakePosRepository());
+      await tester.tap(find.text('Toptancı Zeynep'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Ödeme'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kartla (POS)'), findsNothing);
+      expect(find.text('Ödeme hesabı'), findsOneWidget);
+    });
+
     // Borçlandırma kasaya dokunmaz: form hesap sormaz, kategori sorar.
     testWidgets('veresiye satış formu hesap değil kategori soruyor', (
       tester,
@@ -242,7 +291,11 @@ void main() {
   });
 }
 
-Future<void> _pump(WidgetTester tester, _FakeRepository repository) async {
+Future<void> _pump(
+  WidgetTester tester,
+  _FakeRepository repository, {
+  PosRepositoryContract? pos,
+}) async {
   tester.view.physicalSize = const Size(1080, 3200);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -250,10 +303,50 @@ Future<void> _pump(WidgetTester tester, _FakeRepository repository) async {
   await tester.pumpWidget(
     MaterialApp(
       theme: AppTheme.light(),
-      home: CounterpartiesPage(repository: repository),
+      home: CounterpartiesPage(repository: repository, posRepository: pos),
     ),
   );
   await tester.pumpAndSettle();
+}
+
+/// Kartla tahsilin okuduğu iki şey: POS'lar ve önizleme.
+class _FakePosRepository implements PosRepositoryContract {
+  String? lastPreviewAmount;
+
+  @override
+  Future<List<PosDefinitionItem>> listDefinitions() async => const [
+    PosDefinitionItem(
+      id: 'pos-1',
+      name: 'Garanti POS',
+      accountId: 'bank-1',
+      accountName: 'Garanti Vadesiz',
+      salesCategoryId: 'category-income',
+      salesCategoryName: 'Satış geliri',
+      commissionRate: '0.0150',
+      transferDays: 1,
+      businessDaysOnly: false,
+      isActive: true,
+      isDefault: true,
+    ),
+  ];
+
+  @override
+  Future<PosPreview> preview({
+    required String definitionId,
+    required String grossAmount,
+    required String settlementDate,
+  }) async {
+    lastPreviewAmount = grossAmount;
+    return const PosPreview(
+      commissionAmount: '6.0000',
+      netAmount: '394.0000',
+      currency: 'TRY',
+      expectedTransferDate: '2026-10-06',
+    );
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeRepository implements CounterpartyRepositoryContract {
