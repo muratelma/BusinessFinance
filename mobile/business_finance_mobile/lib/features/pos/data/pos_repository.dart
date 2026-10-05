@@ -28,7 +28,12 @@ class PosSettlementItem {
     this.posDefinitionName,
     this.posDepositId,
     this.dayCloseId,
+    this.countedInDayCloseId,
   });
+
+  /// Tek tek girilmiş tahsilatı sayan gün sonu; sayılmamışsa `null`. Sayılan
+  /// tahsilat tek başına iptal edilemez, önce gün sonu geri alınır.
+  final String? countedInDayCloseId;
 
   /// Tahsilatı üreten gün sonu; tek tek girilende `null`. Gün sonundan gelen
   /// tahsilat tek başına iptal edilemez, gün sonu geri alınır.
@@ -85,6 +90,10 @@ class PosSettlementItem {
         ),
         posDepositId: JsonReaders.nullableString(json, 'posDepositId'),
         dayCloseId: JsonReaders.nullableString(json, 'dayCloseId'),
+        countedInDayCloseId: JsonReaders.nullableString(
+          json,
+          'countedInDayCloseId',
+        ),
       );
 }
 

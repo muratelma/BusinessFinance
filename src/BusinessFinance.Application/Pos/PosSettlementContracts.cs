@@ -63,7 +63,10 @@ public sealed record PosSettlementDto(
     // Parayı hesaba geçiren yatış; para yoldaysa boştur.
     Guid? PosDepositId = null,
     // Tahsilatı üreten gün sonu; tek tek girilende boştur.
-    Guid? DayCloseId = null);
+    Guid? DayCloseId = null,
+    // Tek tek girilmiş tahsilatı sayan gün sonu; sayılmamışsa boştur. Doluysa
+    // tahsilat tek başına iptal edilemez. Yalnız liste okumasında dolar.
+    Guid? CountedInDayCloseId = null);
 
 /// <summary>
 /// Tahsilat listesi ve yanında yoldaki toplam.

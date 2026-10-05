@@ -52,6 +52,13 @@ internal sealed class EfPosSettlementRepository(
                     ? null
                     : commissionCategory.Name,
                 DefinitionName = definition == null ? null : definition.Name,
+                // Tahsilatı sayan gün sonu: bağ tutar taşımaz, yalnız kimliktir.
+                CountedInDayCloseId = dbContext.DayCloseCountedRecords
+                    .Where(counted => counted.UserId == userId &&
+                                      counted.Kind == DayCloseRecordKind.PosSettlement &&
+                                      counted.RecordId == settlement.Id)
+                    .Select(counted => (Guid?)counted.DayCloseId)
+                    .FirstOrDefault(),
             };
 
         if (criteria.InTransitOnly)
@@ -109,7 +116,8 @@ internal sealed class EfPosSettlementRepository(
                     row.settlement.PosDefinitionId,
                     row.DefinitionName,
                     row.settlement.PosDepositId,
-                    row.settlement.DayCloseId))
+                    row.settlement.DayCloseId,
+                    row.CountedInDayCloseId))
                 .ToArray(),
             transit?.Amount ?? 0m,
             transit?.Count ?? 0);

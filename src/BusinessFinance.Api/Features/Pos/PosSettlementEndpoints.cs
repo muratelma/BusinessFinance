@@ -222,5 +222,6 @@ public static class PosSettlementEndpoints
         settlement.PosDefinitionId,
         settlement.PosDefinitionName,
         settlement.PosDepositId,
-        settlement.DayCloseId);
+        settlement.DayCloseId,
+        settlement.CountedInDayCloseId);
 }

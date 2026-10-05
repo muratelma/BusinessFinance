@@ -412,6 +412,20 @@ void main() {
     await tester.tap(find.text('İptal et'));
     await tester.pumpAndSettle();
     expect(repository.cancelledId, 'pos-settlement');
+
+    // Gün sonunda sayılmış kayıt iptal sunmaz; sunucu zaten reddederdi.
+    await show(
+      PosSettlementItem.fromJson({
+        ..._posItemJson,
+        'countedInDayCloseId': 'close-1',
+      }),
+    );
+    expect(find.text('Kaydı iptal et'), findsNothing);
+    expect(find.text('Hesaba geçti'), findsOneWidget, reason: 'eylem düğmesi');
+    expect(
+      find.text('Gün sonunda sayıldı. İptal için gün sonunu geri alın.'),
+      findsOneWidget,
+    );
   });
 
   // 28 Eylül denetimi U10 (T1b): sayımdan sonra girilen dünkü gider ekranı

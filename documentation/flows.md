@@ -161,6 +161,10 @@ gün sonu dahil) listelenmez ve İşlemler'de `Hareketi iptal et` sunmaz
 ("Gün sonunda sayıldı; tek başına iptal edilemez"). İşlemler satırının alt
 yazısında gün sonunun yazdığı kayıt `Gün sonu` diye okunur.
 
+Sayılan POS tahsilatının Kasa'daki ayrıntısı da `Kaydı iptal et` sunmaz: "Gün sonunda
+sayıldı. İptal için gün sonunu geri alın." (tahsilat cevabındaki
+`countedInDayCloseId`'den okunur).
+
 Gün sonundan gelen gelir İşlemler'de, POS tahsilatı Kasa'da tek başına iptal
 sunmaz; ikisi de nedenini söyler. Kasa kartı `FinancialDataChanges.cash`
 hedefini dinler: başka ekrandan geri alınan gün sonu kartı kendiliğinden

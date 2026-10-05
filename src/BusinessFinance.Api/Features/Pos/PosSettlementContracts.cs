@@ -49,7 +49,10 @@ public sealed record PosSettlementResponse(
     Guid? PosDepositId,
     // Tahsilatı üreten gün sonu; tek tek girilende boştur. Doluysa tahsilat
     // tek başına iptal edilemez, gün sonu geri alınır.
-    Guid? DayCloseId = null);
+    Guid? DayCloseId = null,
+    // Tek tek girilmiş tahsilatı sayan gün sonu; sayılmamışsa boştur. Doluysa
+    // tahsilat tek başına iptal edilemez, önce gün sonu geri alınır.
+    Guid? CountedInDayCloseId = null);
 
 public sealed record PosSettlementListResponse(
     IReadOnlyList<PosSettlementResponse> Items,

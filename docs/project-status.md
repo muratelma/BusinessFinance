@@ -325,6 +325,34 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     Kontroller: backend SQL dahil (Domain 329, Application 329, Api 258,
     Infrastructure 218 + 2 canlı test atlandı), Flutter 999 test (47 ekran
     görüntüsü testi atlandı), debug APK derlendi. Emülatörde henüz denenmedi
+  - **06.3 Grup 5, teslim 2/3 — Gün sonu (4 Ekim 2026'da yazıldı ve
+    emülatörde denendi; 5 Ekim 2026'da commit'lendi ve push edildi)**:
+    ADR 0019 T1–T2'nin uygulaması. Kullanıcı günün nakit ve kartlı satışını
+    tek panelden giriyor; nakit kasaya bir gelir, her POS'un kartlı satışı
+    bir POS tahsilatı oluyor ve o gün tek tek girilmiş kayıtlar düşülüyor
+    (aynı satış iki kez gelir sayılmıyor). `DayClose` tutar taşımayan bir
+    kimlik (kullanıcı kararı G1); `DayCloseCountedRecords` gün sonunun
+    **saydığı** kayıtların tutarsız bağı: sayılan kayıt yeniden listelenmiyor
+    ve tek başına iptal edilemiyor, geri almada serbest kalıyor. Gün başına
+    tek gün sonu, ikincisi açıkça "ek"; geri alma bir bütün; ekran tek gün
+    sonunu değil **günü** gösteriyor. `/api/v1/day-closes` altında altı uç;
+    hesap tek yerde (`DayClosePlan`), istemci tutar hesaplamıyor. İki
+    migration (`AddDayCloses`, `AddDayCloseCountedRecords`) yalnız nullable
+    kolon ve yeni tablo ekliyor, veri kaybettirmiyor; yerel geliştirme ve API
+    SQL test veritabanlarına uygulandı. Yedek v11 `dayCloses` taşıyor.
+    Kararlar ve sapmalar aşama belgesinde (G1–G4, B1–B5, Sapmalar 4 Ekim)
+  - **Sayılmış POS tahsilatında iptal düğmesi (5 Ekim 2026)**: gün sonunda
+    sayılmış bir POS tahsilatının Kasa'daki ayrıntısı `Kaydı iptal et`
+    sunuyor, dokununca sunucu `pos_settlements.day_close_counted` ile
+    reddediyordu. `GET /api/v1/pos-settlements` cevabı artık
+    `countedInDayCloseId` taşıyor (ek alan, sözleşme kırılmıyor; bağ
+    owner-scoped okunuyor, migration yok) ve ayrıntı düğme yerine "Gün
+    sonunda sayıldı. İptal için gün sonunu geri alın." diyor. Kontroller:
+    backend SQL dahil geçti (Domain 340, Application 331, Api 267,
+    Infrastructure 223 + 2 canlı test atlandı), build 0 uyarı, format temiz;
+    Flutter analyze ve format temiz, 1033 test geçti (55 ekran görüntüsü
+    testi atlandı). Kullanıcı emülatörde denedi ve onayladı; debug APK bu koşumda
+    derlenmedi
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni (beklemede) → **06.3 bütünsel düzenleme (aktif)** →

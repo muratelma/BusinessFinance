@@ -1644,5 +1644,6 @@ atlandı), debug APK derlendi.
 | Gün ayrıntısı (Flutter) | `day_close_test` → `gün ayrıntısı` | Günün toplamı, yazılan (`Yazıldı · …`) ve sayılan (`Sayıldı · …`) kayıtlar, dışarıda kalanlar; ana ve ek birlikte, eki olan anada düğme yerine yönlendirme; geri alma onaylı, günde gün sonu kalmayınca panel kapanır; hesaba geçmiş tahsilatta ne yapılacağı; girilmemiş gün; okuma hatası yeniden denenir; 2.0× yazı ve erişilebilirlik |
 | Kasa kartı (Flutter) | `day_close_test` → `Kasa kartı` | Kapalı günde günün toplamı tek satırda ve günün ayrıntısını açar; `Ek gün sonu gir` |
 | İşlemler (Flutter) | `activity_models_test`, `activity_detail_sheet_test` | `dayCloseId` okunur; yazılan ve sayılan kayıt ayrılır; sayılan kayıt iptal sunmaz, "Gün sonunda sayıldı" der ve güne götürür |
+| POS tahsilatı listesi | `DayCloseEndpointTests.DayClose_WritesTheRemainder_*`, `cash_pos_feature_test` | `GET /pos-settlements` sayılan tahsilatta `countedInDayCloseId` taşır, gün sonunun yazdığında boştur (o `dayCloseId` taşır); Kasa'daki ayrıntı sayılan tahsilatta `Kaydı iptal et` sunmaz, "Gün sonunda sayıldı" der (5 Ekim 2026) |
 | Panel (Flutter) | `day_close_test` → `gün sonu paneli` | Ana POS görünür, diğer POS'lar `Diğer POS'lar (n)` ile açılır |
 | Ekran görüntüsü | `test/screenshots/gun_sonu_screenshot_test` | Gün ayrıntısı (tek gün sonu; ana ve ek) eklendi |

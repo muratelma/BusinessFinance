@@ -482,6 +482,13 @@ class PosSettlementSheet extends StatelessWidget {
                   'Gün sonundan geldi. İptal için gün sonunu geri alın.',
                   style: note?.copyWith(color: surfaces.inkMuted),
                 )
+              // Tek tek girilip gün sonunda sayılan tahsilat da öyle: iptal
+              // edilseydi günün geliri sessizce eksilirdi.
+              else if (item.countedInDayCloseId != null)
+                Text(
+                  'Gün sonunda sayıldı. İptal için gün sonunu geri alın.',
+                  style: note?.copyWith(color: surfaces.inkMuted),
+                )
               else
                 TextButton.icon(
                   style: TextButton.styleFrom(

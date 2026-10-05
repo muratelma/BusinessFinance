@@ -154,6 +154,17 @@ public sealed class DayCloseEndpointTests
         Assert.Equal(HttpStatusCode.Conflict, cancelCountedPos.StatusCode);
         Assert.Equal("pos_settlements.day_close_counted", await CodeAsync(cancelCountedPos));
 
+        // Tahsilat listesi de aynı bağı taşır: istemci iptali sunmadan önce
+        // bilir. Gün sonunun yazdığı tahsilat sayılmış değildir, üretilmiştir.
+        var settlements = await owner.GetFromJsonAsync<PosSettlementListResponse>(
+            $"/api/v1/pos-settlements?from={Date(today)}&to={Date(today)}");
+        var countedPos = Assert.Single(settlements!.Items, item => item.Id == posSale.Id);
+        Assert.Equal(close.Id, countedPos.CountedInDayCloseId);
+        Assert.Null(countedPos.DayCloseId);
+        var producedPos = Assert.Single(settlements.Items, item => item.Id == settlement.Id);
+        Assert.Null(producedPos.CountedInDayCloseId);
+        Assert.Equal(close.Id, producedPos.DayCloseId);
+
         // Akış satırı gün sonunun kimliğini taşır: yazdığı kayıtta da saydığı
         // kayıtta da. Sayılmayan kayıt bağsızdır ve iptal edilebilir.
         var saleRow = Assert.Single(feed.Items, item => item.ActivityId == sale.Id);
