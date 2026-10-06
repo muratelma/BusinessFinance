@@ -1968,7 +1968,10 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         // one list (RecognizedItems): the two period totals, the trend and
         // budget variance each read it with one grouped UNION ALL query
         // instead of one query per source.
-        Assert.InRange(counter.ReaderCommandCount, 1, 37);
+        // 37 → 29 when the nine money paths that change an account balance
+        // moved into one list (AccountMovements): the balances as of the day
+        // are one grouped UNION ALL query instead of one query per path.
+        Assert.InRange(counter.ReaderCommandCount, 1, 29);
         Assert.True(
             stopwatch.Elapsed < TimeSpan.FromSeconds(5),
             $"Advanced report took {stopwatch.Elapsed.TotalMilliseconds:N0} ms.");

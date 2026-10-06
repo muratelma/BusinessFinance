@@ -441,6 +441,19 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     335, Application 331, Api 274, Infrastructure 227 + 2 canlı test atlandı),
     build 0 uyarı, format temiz. Sırada: hesap hareketlerinin tek listeye
     alınması
+  - **06.3 Grup 8 zemini — hesap hareketleri tek listede (6 Ekim 2026)**:
+    bakiyeyi değiştiren dokuz para yolu `AccountMovements` içinde bir kez
+    tanımlandı (`UNION ALL`: hesap, gün, giriş anı, işaretli tutar). Hesabın
+    bakiyesi, işlem sonrası bakiye, aylık ve gelişmiş rapordaki hesap
+    bakiyeleri ve Kasa'nın günlük giren/çıkanı onu okuyor; dört kopya ve
+    kartla tahsil süzgecinin üç tekrarı kalktı. **Davranış değişmedi.**
+    Gelişmiş raporun sorgu sayısı 37'den 29'a indi; rapor deposu 1.479
+    satırdan 580 satıra indi. Sözleşme ve şema değişmedi. Kontroller: backend
+    SQL dahil geçti (Domain 335, Application 331, Api 274, Infrastructure 227
+    + 2 canlı test atlandı), build 0 uyarı, format temiz. Kart borcu, cari
+    bakiye ve yoldaki para güvence testinde bütün yollarda tutuyor; onlara
+    dokunulmadı. Sırada: kapsamın yazılma ve süzülme kuralları (seçenekli
+    karar)
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni (beklemede) → **06.3 bütünsel düzenleme (aktif)** →

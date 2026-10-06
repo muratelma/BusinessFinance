@@ -348,8 +348,9 @@ gerekçesiyle bozulmaz.
 - **İşlem sonrası bakiye bir projection'dır**
   (`GET /api/v1/financial-activities/{kind}/{id}/balances`): akışın sırasıyla
   kesilir, kalıcı kolon değildir. Hesap hareketlerinin listesi tek yerdedir
-  (`AccountMovements`, kart için `CardDebt`); güncel bakiye de onu okur. Yeni
-  bir para yolu **oraya** eklenir. Giriş anı bilinmeyen, iptal edilmiş ve
+  (`AccountMovements`, kart için `CardDebt`); güncel bakiye, raporlardaki
+  hesap bakiyeleri ve Kasa'nın günlük giren/çıkanı da onu okur. Yeni bir para
+  yolu **oraya** eklenir. Giriş anı bilinmeyen, iptal edilmiş ve
   hesabı olmayan harekette bakiye dönmez. Her bakiye yönünü de taşır
   (`change`); istemci onu türden türetmez, yalnız renge çevirir (giren yeşil,
   çıkan kırmızı). **POS satışı hesabını "değişmedi" ile döner ve bakiyesi

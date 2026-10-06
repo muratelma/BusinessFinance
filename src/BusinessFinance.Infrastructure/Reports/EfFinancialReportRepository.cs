@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using BusinessFinance.Application.Reports;
 using BusinessFinance.Domain;
+using BusinessFinance.Infrastructure.Accounts;
 using BusinessFinance.Infrastructure.Persistence;
 using BusinessFinance.Application.UpcomingPayments;
 
@@ -84,85 +85,7 @@ internal sealed class EfFinancialReportRepository(
             .ThenBy(item => item.CategoryId)
             .ToArray();
 
-        var accounts = await dbContext.Accounts.AsNoTracking()
-            .Where(account => account.UserId == userId)
-            .OrderBy(account => account.Name)
-            .ThenBy(account => account.Id)
-            .Select(account => new { account.Id, account.Name, account.OpeningBalance, account.Type })
-            .ToArrayAsync(cancellationToken);
-        var movements = await dbContext.Transactions.AsNoTracking()
-            .Where(transaction => transaction.UserId == userId && !transaction.IsCancelled)
-            .GroupBy(transaction => transaction.AccountId)
-            .Select(group => new
-            {
-                AccountId = group.Key,
-                Balance = group.Sum(transaction => transaction.Type == TransactionType.Income
-                    ? transaction.Amount.Amount
-                    : -transaction.Amount.Amount)
-            })
-            .ToDictionaryAsync(value => value.AccountId, value => value.Balance, cancellationToken);
-        var outgoingTransfers = await dbContext.Transfers.AsNoTracking()
-            .Where(transfer => transfer.UserId == userId && !transfer.IsCancelled)
-            .GroupBy(transfer => transfer.SourceAccountId)
-            .Select(group => new
-            {
-                AccountId = group.Key,
-                Amount = group.Sum(transfer => transfer.Amount.Amount)
-            })
-            .ToDictionaryAsync(value => value.AccountId, value => value.Amount, cancellationToken);
-        var incomingTransfers = await dbContext.Transfers.AsNoTracking()
-            .Where(transfer => transfer.UserId == userId && !transfer.IsCancelled)
-            .GroupBy(transfer => transfer.DestinationAccountId)
-            .Select(group => new
-            {
-                AccountId = group.Key,
-                Amount = group.Sum(transfer => transfer.Amount.Amount)
-            })
-            .ToDictionaryAsync(value => value.AccountId, value => value.Amount, cancellationToken);
-        var cardPayments = await dbContext.CreditCardPayments.AsNoTracking()
-            .Where(payment => payment.UserId == userId && !payment.IsCancelled)
-            .GroupBy(payment => payment.AccountId)
-            .Select(group => new
-            {
-                AccountId = group.Key,
-                Amount = group.Sum(payment => payment.Amount.Amount)
-            })
-            .ToDictionaryAsync(value => value.AccountId, value => value.Amount, cancellationToken);
-        var debtMovements = await (
-                from installment in dbContext.DebtInstallments.AsNoTracking()
-                join debt in dbContext.DebtAgreements.AsNoTracking()
-                    on new { installment.UserId, DebtId = installment.DebtAgreementId }
-                    equals new { debt.UserId, DebtId = debt.Id }
-                where installment.UserId == userId && installment.PaymentAccountId != null
-                group new { installment, debt } by installment.PaymentAccountId into movementGroup
-                select new
-                {
-                    AccountId = movementGroup.Key!.Value,
-                    Amount = movementGroup.Sum(item => item.debt.Direction == DebtDirection.Receivable
-                        ? item.installment.Amount.Amount
-                        : -item.installment.Amount.Amount)
-                })
-            .ToDictionaryAsync(value => value.AccountId, value => value.Amount, cancellationToken);
-        var debtOpenings = await DebtOpeningsByAccountAsync(userId, null, cancellationToken);
-        var counterpartySettlements = await CounterpartySettlementsByAccountAsync(
-            userId, null, cancellationToken);
-        var obligationSettlements = await ObligationSettlementsByAccountAsync(
-            userId, null, cancellationToken);
-        var posTransfers = await PosTransfersByAccountAsync(userId, null, cancellationToken);
-        var accountBalances = accounts.Select(account => new AccountBalanceDto(
-            account.Id,
-            account.Name,
-            account.OpeningBalance +
-            movements.GetValueOrDefault(account.Id) +
-            incomingTransfers.GetValueOrDefault(account.Id) -
-            outgoingTransfers.GetValueOrDefault(account.Id) -
-            cardPayments.GetValueOrDefault(account.Id) +
-            debtMovements.GetValueOrDefault(account.Id) +
-            debtOpenings.GetValueOrDefault(account.Id) +
-            counterpartySettlements.GetValueOrDefault(account.Id) +
-            obligationSettlements.GetValueOrDefault(account.Id) +
-            posTransfers.GetValueOrDefault(account.Id),
-            account.Type)).ToArray();
+        var accountBalances = await GetAccountBalancesAsync(userId, null, cancellationToken);
 
         return new MonthlyReportDto(
             year,
@@ -263,7 +186,7 @@ internal sealed class EfFinancialReportRepository(
             userId, year, month, trendMonths, scope, cancellationToken);
         var budgetVariances = await GetBudgetVariancesAsync(
             userId, year, month, scope, cancellationToken);
-        var accountDistribution = await GetAccountBalancesAsOfAsync(
+        var accountDistribution = await GetAccountBalancesAsync(
             userId, asOfDate, cancellationToken);
         var cardDistribution = await GetCardDebtsAsOfAsync(
             userId, asOfDate, cancellationToken);
@@ -545,9 +468,19 @@ internal sealed class EfFinancialReportRepository(
         }).ToArray();
     }
 
-    private async Task<IReadOnlyList<AccountBalanceDto>> GetAccountBalancesAsOfAsync(
+    /// <summary>
+    /// Hesap bakiyeleri: açılış bakiyesi artı hareketlerin toplamı;
+    /// <paramref name="asOfDate"/> verilirse o gün dahil.
+    /// </summary>
+    /// <remarks>
+    /// Hareketlerin listesi tek yerdedir (<see cref="AccountMovements"/>):
+    /// hesabın kendi bakiyesi, "işlem sonrası bakiye" ve kasanın günlük akışı da
+    /// onu okur. Kapsam filtresi buraya hiç girmez: kasadaki para tek havuzdur
+    /// ve kapsam anahtarının konumuna göre değişmez (ADR 0013).
+    /// </remarks>
+    private async Task<AccountBalanceDto[]> GetAccountBalancesAsync(
         Guid userId,
-        DateOnly asOfDate,
+        DateOnly? asOfDate,
         CancellationToken cancellationToken)
     {
         var accounts = await dbContext.Accounts.AsNoTracking()
@@ -556,188 +489,15 @@ internal sealed class EfFinancialReportRepository(
             .ThenBy(account => account.Id)
             .Select(account => new { account.Id, account.Name, account.OpeningBalance, account.Type })
             .ToArrayAsync(cancellationToken);
-        var movements = await dbContext.Transactions.AsNoTracking()
-            .Where(transaction => transaction.UserId == userId &&
-                                  !transaction.IsCancelled &&
-                                  transaction.TransactionDate <= asOfDate)
-            .GroupBy(transaction => transaction.AccountId)
-            .Select(group => new
-            {
-                AccountId = group.Key,
-                Balance = group.Sum(transaction => transaction.Type == TransactionType.Income
-                    ? transaction.Amount.Amount
-                    : -transaction.Amount.Amount)
-            })
-            .ToDictionaryAsync(item => item.AccountId, item => item.Balance, cancellationToken);
-        var outgoing = await dbContext.Transfers.AsNoTracking()
-            .Where(transfer => transfer.UserId == userId &&
-                               !transfer.IsCancelled &&
-                               transfer.TransferDate <= asOfDate)
-            .GroupBy(transfer => transfer.SourceAccountId)
-            .Select(group => new { AccountId = group.Key, Amount = group.Sum(item => item.Amount.Amount) })
-            .ToDictionaryAsync(item => item.AccountId, item => item.Amount, cancellationToken);
-        var incoming = await dbContext.Transfers.AsNoTracking()
-            .Where(transfer => transfer.UserId == userId &&
-                               !transfer.IsCancelled &&
-                               transfer.TransferDate <= asOfDate)
-            .GroupBy(transfer => transfer.DestinationAccountId)
-            .Select(group => new { AccountId = group.Key, Amount = group.Sum(item => item.Amount.Amount) })
-            .ToDictionaryAsync(item => item.AccountId, item => item.Amount, cancellationToken);
-        var cardPayments = await dbContext.CreditCardPayments.AsNoTracking()
-            .Where(payment => payment.UserId == userId &&
-                              !payment.IsCancelled &&
-                              payment.PaymentDate <= asOfDate)
-            .GroupBy(payment => payment.AccountId)
-            .Select(group => new { AccountId = group.Key, Amount = group.Sum(item => item.Amount.Amount) })
-            .ToDictionaryAsync(item => item.AccountId, item => item.Amount, cancellationToken);
-        var debtMovements = await (
-                from installment in dbContext.DebtInstallments.AsNoTracking()
-                join debt in dbContext.DebtAgreements.AsNoTracking()
-                    on new { installment.UserId, DebtId = installment.DebtAgreementId }
-                    equals new { debt.UserId, DebtId = debt.Id }
-                where installment.UserId == userId &&
-                      installment.PaymentAccountId != null &&
-                      installment.PaymentDate <= asOfDate
-                group new { installment, debt } by installment.PaymentAccountId into movementGroup
-                select new
-                {
-                    AccountId = movementGroup.Key!.Value,
-                    Amount = movementGroup.Sum(item => item.debt.Direction == DebtDirection.Receivable
-                        ? item.installment.Amount.Amount
-                        : -item.installment.Amount.Amount)
-                })
-            .ToDictionaryAsync(item => item.AccountId, item => item.Amount, cancellationToken);
-        var debtOpenings = await DebtOpeningsByAccountAsync(userId, asOfDate, cancellationToken);
-        var counterpartySettlements = await CounterpartySettlementsByAccountAsync(
-            userId, asOfDate, cancellationToken);
-        var obligationSettlements = await ObligationSettlementsByAccountAsync(
-            userId, asOfDate, cancellationToken);
-        var posTransfers = await PosTransfersByAccountAsync(
-            userId, asOfDate, cancellationToken);
+        var movements = await AccountMovements.SumByAccountAsync(
+            dbContext, userId, asOfDate, cancellationToken);
 
         return accounts.Select(account => new AccountBalanceDto(
             account.Id,
             account.Name,
-            account.OpeningBalance +
-            movements.GetValueOrDefault(account.Id) +
-            incoming.GetValueOrDefault(account.Id) -
-            outgoing.GetValueOrDefault(account.Id) -
-            cardPayments.GetValueOrDefault(account.Id) +
-            debtMovements.GetValueOrDefault(account.Id) +
-            debtOpenings.GetValueOrDefault(account.Id) +
-            counterpartySettlements.GetValueOrDefault(account.Id) +
-            obligationSettlements.GetValueOrDefault(account.Id) +
-            posTransfers.GetValueOrDefault(account.Id),
+            account.OpeningBalance + movements.GetValueOrDefault(account.Id),
             account.Type)).ToArray();
     }
-
-    /// <summary>
-    /// POS tahsilatının hesap başına etkisi: yalnız <b>geçmiş</b> olanlar ve
-    /// yalnız <b>net</b> tutar.
-    /// </summary>
-    /// <remarks>
-    /// Tahsilat günü hesaba hiçbir şey girmez (ADR 0015): para henüz bankada
-    /// değildir ve o gün eklemek, ulaşmamış parayı harcanabilir gösterirdi.
-    /// Brüt eklemek de bankanın kestiği komisyonu kullanıcının cebinde
-    /// sayardı; hesaba geçen tutar nettir.
-    /// </remarks>
-    private Task<Dictionary<Guid, decimal>> PosTransfersByAccountAsync(
-        Guid userId,
-        DateOnly? asOfDate,
-        CancellationToken cancellationToken) =>
-        dbContext.PosSettlements.AsNoTracking()
-            .Where(settlement => settlement.UserId == userId &&
-                                 !settlement.IsCancelled &&
-                                 settlement.TransferredOn != null &&
-                                 (asOfDate == null || settlement.TransferredOn <= asOfDate))
-            .GroupBy(settlement => settlement.AccountId)
-            .Select(group => new
-            {
-                AccountId = group.Key,
-                Amount = group.Sum(settlement =>
-                    settlement.GrossAmount.Amount - settlement.CommissionAmount)
-            })
-            .ToDictionaryAsync(item => item.AccountId, item => item.Amount, cancellationToken);
-
-    /// <summary>
-    /// Cari tahsilat/ödemenin hesap başına net etkisi: tahsilat artırır,
-    /// ödeme azaltır.
-    /// </summary>
-    /// <remarks>
-    /// Tahsilat parayı <b>taşır</b> (ADR 0014). Bakiyeye katılmasaydı
-    /// tahsil edilen para kasada hiç görünmez, cari bakiye düşerken karşılığı
-    /// hiçbir yere girmemiş olurdu. Gelir/gider tarafına ise hiç dokunmaz.
-    /// </remarks>
-    private Task<Dictionary<Guid, decimal>> CounterpartySettlementsByAccountAsync(
-        Guid userId,
-        DateOnly? asOfDate,
-        CancellationToken cancellationToken) =>
-        dbContext.CounterpartyPayments.AsNoTracking()
-            // Kartla tahsil hesaba yatışla girer; burada sayılsaydı aynı para
-            // iki kez girerdi (ADR 0019 T5).
-            .Where(payment => payment.UserId == userId &&
-                              !payment.IsCancelled &&
-                              payment.PosSettlementId == null &&
-                              (asOfDate == null || payment.PaymentDate <= asOfDate))
-            .GroupBy(payment => payment.AccountId)
-            .Select(group => new
-            {
-                AccountId = group.Key,
-                Amount = group.Sum(payment =>
-                    payment.Direction == DebtDirection.Receivable
-                        ? payment.Amount.Amount
-                        : -payment.Amount.Amount)
-            })
-            .ToDictionaryAsync(item => item.AccountId, item => item.Amount, cancellationToken);
-
-    private Task<Dictionary<Guid, decimal>> ObligationSettlementsByAccountAsync(
-        Guid userId,
-        DateOnly? asOfDate,
-        CancellationToken cancellationToken) =>
-        dbContext.ObligationSettlements.AsNoTracking()
-            .Where(settlement => settlement.UserId == userId &&
-                                 !settlement.IsCancelled &&
-                                 settlement.PosSettlementId == null &&
-                                 (asOfDate == null || settlement.SettlementDate <= asOfDate))
-            .GroupBy(settlement => settlement.AccountId)
-            .Select(group => new
-            {
-                AccountId = group.Key,
-                Amount = group.Sum(settlement =>
-                    settlement.Direction == DebtDirection.Receivable
-                        ? settlement.Amount.Amount
-                        : -settlement.Amount.Amount)
-            })
-            .ToDictionaryAsync(item => item.AccountId, item => item.Amount, cancellationToken);
-
-
-    /// <summary>
-    /// Nakit kaynaklı borçların açılış hareketi, hesap başına.
-    /// </summary>
-    /// <remarks>
-    /// Borç alındığında para hesaba girer, alacak verildiğinde çıkar; ikisi de
-    /// gelir/gider değildir. Bu hareket olmadan taksitler hesabı boşaltıyor
-    /// ama karşılığında hiçbir şey girmemiş görünüyordu. Gider kaynaklı borç
-    /// burada yer almaz: orada para değil tüketim vardır.
-    /// </remarks>
-    private Task<Dictionary<Guid, decimal>> DebtOpeningsByAccountAsync(
-        Guid userId,
-        DateOnly? asOfDate,
-        CancellationToken cancellationToken) =>
-        dbContext.DebtAgreements.AsNoTracking()
-            .Where(debt => debt.UserId == userId &&
-                           debt.OpeningAccountId != null &&
-                           debt.SourceType == DebtSourceType.Cash &&
-                           (asOfDate == null || debt.StartDate <= asOfDate))
-            .GroupBy(debt => debt.OpeningAccountId)
-            .Select(group => new
-            {
-                AccountId = group.Key!.Value,
-                Amount = group.Sum(debt => debt.Direction == DebtDirection.Payable
-                    ? debt.Principal.Amount
-                    : -debt.Principal.Amount)
-            })
-            .ToDictionaryAsync(item => item.AccountId, item => item.Amount, cancellationToken);
 
     private async Task<IReadOnlyList<CardDebtDto>> GetCardDebtsAsOfAsync(
         Guid userId,

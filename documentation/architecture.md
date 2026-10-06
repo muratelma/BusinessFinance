@@ -967,9 +967,10 @@ gün sonunda sayıldıysa önce gün sonu. Tahsil kaydı Kasa'dan tek başına i
 edilemez (`pos_settlements.collection_locked`). Yükümlülük kapanışının geri
 alma ucu yoktur; kartla kapanış da bugün düzeltilemez (nakitte de böyle).
 
-**Bilinen ikinci liste:** raporun hesap başına bakiye toplamları
-`AccountMovements`'tan ayrı yazılmıştır; kartla tahsil süzgeci iki yerde de
-vardır. Birleştirilmesi ayrı bir iş olarak kayıtlıdır.
+**İkinci liste kalktı (6 Ekim 2026):** raporun hesap başına bakiye toplamları
+ve Kasa'nın günlük akışı önceden `AccountMovements`'tan ayrı yazılmıştı ve
+kartla tahsil süzgeci üç yerde tekrarlanıyordu. Dördü de artık aynı listeyi
+okur; süzgeç tek yerdedir.
 
 ### Gün sonu (ADR 0019 T1–T2; Aşama 06.3 Grup 5, backend uygulandı)
 
@@ -1092,10 +1093,14 @@ yazıldığı andır:
 (`GET /api/v1/financial-activities/{kind}/{id}/balances`): önceki günler
 bütünüyle, aynı günde giriş anı o hareketten büyük olmayanlar. Kalıcı kolon
 değildir. Hesap hareketlerinin listesi **tek yerdedir** (`AccountMovements`,
-kart için `CardDebt`): güncel bakiye (`CalculateBalanceAsync`) ve işlem sonrası
-bakiye aynı listeyi kullanır, ikincisi yalnız bir kesim noktası
-(`EntryCutoff`) ekler. İki ayrı liste olsaydı yeni bir para yolu eklendiğinde
-biri unutulur ve iki sayı ayrışırdı. Hareket kendi tablosunda, sahiplik
+kart için `CardDebt`): dokuz para yolu `UNION ALL` ile tek şekle iner (hesap,
+gün, giriş anı, işaretli tutar). Güncel bakiye (`CalculateBalanceAsync`),
+işlem sonrası bakiye, aylık ve gelişmiş rapordaki hesap bakiyeleri
+(`SumByAccountAsync`) ve Kasa'nın günlük giren/çıkanı (`FlowAsync`) aynı
+listeyi okur; işlem sonrası bakiye yalnız bir kesim noktası (`EntryCutoff`)
+ekler. Ayrı listeler olsaydı yeni bir para yolu eklendiğinde biri unutulur ve
+sayılar ayrışırdı; dört okumanın birbirini tutması
+`MoneyFoundation_BalancesDebtsAndTransitAgreeAcrossEveryRead` ile korunur. Hareket kendi tablosunda, sahiplik
 kapsamıyla bulunur; birleşik sorgu tek satır için kullanılmaz. Hesabı olmayan
 (veresiye, yükümlülük), iptal edilmiş ve giriş anı bilinmeyen hareket için
 bakiye dönmez.

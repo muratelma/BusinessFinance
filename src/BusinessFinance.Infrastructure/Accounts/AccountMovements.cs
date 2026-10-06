@@ -17,48 +17,121 @@ namespace BusinessFinance.Infrastructure.Accounts;
 internal sealed record EntryCutoff(DateOnly Date, DateTimeOffset EntryAtUtc, Guid? OwnExpenseId);
 
 /// <summary>
-/// Bir hesabın bakiyesini değiştiren bütün hareketlerin toplamı; açılış
-/// bakiyesi hariç.
+/// Bir hesabın bakiyesini değiştiren tek bir hareket: hangi hesap, hangi gün,
+/// ne zaman yazıldı ve bakiyeyi ne kadar değiştirdi.
+/// </summary>
+internal sealed class AccountMovement
+{
+    public Guid AccountId { get; init; }
+
+    public DateOnly Date { get; init; }
+
+    /// <summary>Yazıldığı an; eski kayıtlarda boş.</summary>
+    public DateTimeOffset? EntryAtUtc { get; init; }
+
+    /// <summary>İşaretli tutar: hesaba giren artı, hesaptan çıkan eksi.</summary>
+    public decimal Amount { get; init; }
+
+    /// <summary>
+    /// Hareket bir gelir/gider kaydıysa kimliği; yatışın kesintisini kesim
+    /// noktasından bağımsız saymak için. Diğer kaynaklarda boş.
+    /// </summary>
+    public Guid? TransactionId { get; init; }
+}
+
+/// <summary>
+/// Bir hesabın bakiyesini değiştiren bütün hareketlerin <b>tek</b> listesi;
+/// açılış bakiyesi hariç.
 /// </summary>
 /// <remarks>
-/// Kaynakların listesi <b>tek yerde</b> durur: güncel bakiye
-/// (<see cref="EfAccountRepository.CalculateBalanceAsync"/>) ve "işlem sonrası
-/// bakiye" aynı listeyi okur, ikincisi yalnız bir kesim noktası ekler. İki ayrı
-/// liste olsaydı yeni bir para yolu eklendiğinde biri unutulur ve iki sayı
-/// sessizce ayrışırdı.
-///
-/// Kesim, akışın sırasıyla aynıdır: önceki günler bütünüyle, aynı günde ise
-/// giriş anı kesim anından büyük olmayanlar. Giriş anı bilinmeyen eski kayıt
-/// günün en eskisi sayılır ve toplama girer.
+/// <para>
+/// Bir kayıt ya ekonomik olayı tanır ya ödemeyi taşır (ADR 0014). Burası
+/// parayı hareket ettirenlerin listesidir; gelir ve gider yazanların listesi
+/// <see cref="Reports.RecognizedItems"/> içindedir.
+/// </para>
+/// <para>
+/// Güncel bakiye, "işlem sonrası bakiye", raporlardaki hesap bakiyeleri ve
+/// kasanın günlük giren/çıkanı <b>hep bu listeyi</b> okur. Dört ayrı liste
+/// olduğunda yeni bir para yolu eklenirken biri unutulur ve sayılar sessizce
+/// ayrışır; yeni bir para yolu <b>buraya</b> eklenir.
+/// </para>
+/// <para>
+/// Kaynaklar <c>UNION ALL</c> ile birleşir; süzme ve toplama veritabanında
+/// yapılır.
+/// </para>
 /// </remarks>
 internal static class AccountMovements
 {
-    public static async Task<decimal> SumAsync(
+    public static IQueryable<AccountMovement> Query(
         BusinessFinanceDbContext dbContext,
-        Guid accountId,
-        Guid userId,
-        EntryCutoff? cutoff,
-        CancellationToken cancellationToken)
+        Guid userId)
     {
+        // Gelir hesaba girer, gider çıkar.
         var transactions = dbContext.Transactions.AsNoTracking()
-            .Where(transaction => transaction.AccountId == accountId &&
-                                  transaction.UserId == userId &&
-                                  !transaction.IsCancelled);
+            .Where(transaction => transaction.UserId == userId && !transaction.IsCancelled)
+            .Select(transaction => new AccountMovement
+            {
+                AccountId = transaction.AccountId,
+                Date = transaction.TransactionDate,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(transaction, EntryTimestamp.PropertyName),
+                Amount = transaction.Type == TransactionType.Income
+                    ? transaction.Amount.Amount
+                    : -transaction.Amount.Amount,
+                TransactionId = transaction.Id
+            });
+
+        // Transfer tek olaydır ama iki hesabı değiştirir: kaynaktan çıkar,
+        // hedefe girer.
         var outgoingTransfers = dbContext.Transfers.AsNoTracking()
-            .Where(transfer => transfer.SourceAccountId == accountId &&
-                               transfer.UserId == userId &&
-                               !transfer.IsCancelled);
+            .Where(transfer => transfer.UserId == userId && !transfer.IsCancelled)
+            .Select(transfer => new AccountMovement
+            {
+                AccountId = transfer.SourceAccountId,
+                Date = transfer.TransferDate,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(transfer, EntryTimestamp.PropertyName),
+                Amount = -transfer.Amount.Amount,
+                TransactionId = null
+            });
         var incomingTransfers = dbContext.Transfers.AsNoTracking()
-            .Where(transfer => transfer.DestinationAccountId == accountId &&
-                               transfer.UserId == userId &&
-                               !transfer.IsCancelled);
+            .Where(transfer => transfer.UserId == userId && !transfer.IsCancelled)
+            .Select(transfer => new AccountMovement
+            {
+                AccountId = transfer.DestinationAccountId,
+                Date = transfer.TransferDate,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(transfer, EntryTimestamp.PropertyName),
+                Amount = transfer.Amount.Amount,
+                TransactionId = null
+            });
+
         var cardPayments = dbContext.CreditCardPayments.AsNoTracking()
-            .Where(payment => payment.AccountId == accountId &&
-                              payment.UserId == userId &&
-                              !payment.IsCancelled);
-        var installments = dbContext.DebtInstallments.AsNoTracking()
-            .Where(installment => installment.UserId == userId &&
-                                  installment.PaymentAccountId == accountId);
+            .Where(payment => payment.UserId == userId && !payment.IsCancelled)
+            .Select(payment => new AccountMovement
+            {
+                AccountId = payment.AccountId,
+                Date = payment.PaymentDate,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(payment, EntryTimestamp.PropertyName),
+                Amount = -payment.Amount.Amount,
+                TransactionId = null
+            });
+
+        // Ödenen taksit: alacakta hesaba girer, borçta çıkar. Tutarın tamamı
+        // (anapara + faiz) hareket eder.
+        var debtInstallments =
+            from installment in dbContext.DebtInstallments.AsNoTracking()
+            join debt in dbContext.DebtAgreements.AsNoTracking()
+                on new { installment.UserId, DebtId = installment.DebtAgreementId }
+                equals new { debt.UserId, DebtId = debt.Id }
+            where installment.UserId == userId && installment.PaymentAccountId != null
+            select new AccountMovement
+            {
+                AccountId = installment.PaymentAccountId!.Value,
+                Date = installment.PaymentDate!.Value,
+                EntryAtUtc = installment.PaidAtUtc,
+                Amount = debt.Direction == DebtDirection.Receivable
+                    ? installment.Amount.Amount
+                    : -installment.Amount.Amount,
+                TransactionId = null
+            };
 
         // Borcun açılışı. Nakit kaynaklı bir borçta para hesaba girmiştir,
         // alacakta çıkmıştır; ikisi de gelir/gider değildir. Bu hareket
@@ -67,123 +140,161 @@ internal static class AccountMovements
         // ettirmez: tüketim zaten gider olarak yazılır.
         var debtOpenings = dbContext.DebtAgreements.AsNoTracking()
             .Where(debt => debt.UserId == userId &&
-                           debt.OpeningAccountId == accountId &&
-                           debt.SourceType == DebtSourceType.Cash);
+                           debt.OpeningAccountId != null &&
+                           debt.SourceType == DebtSourceType.Cash)
+            .Select(debt => new AccountMovement
+            {
+                AccountId = debt.OpeningAccountId!.Value,
+                Date = debt.StartDate,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(debt, EntryTimestamp.PropertyName),
+                Amount = debt.Direction == DebtDirection.Payable
+                    ? debt.Principal.Amount
+                    : -debt.Principal.Amount,
+                TransactionId = null
+            });
 
         // Cari tahsilat/ödeme parayı taşır: tahsilat kasayı artırır, ödeme
         // azaltır. Gelir/gider üretmediği için rapora değil yalnız buraya
         // girer (ADR 0014). Kartla tahsil burada sayılmaz: parası POS
         // kaydıyla yoldadır ve hesaba yatışla girer (ADR 0019 T5).
         var counterpartyPayments = dbContext.CounterpartyPayments.AsNoTracking()
-            .Where(payment => payment.AccountId == accountId &&
-                              payment.UserId == userId &&
+            .Where(payment => payment.UserId == userId &&
                               !payment.IsCancelled &&
-                              payment.PosSettlementId == null);
+                              payment.PosSettlementId == null)
+            .Select(payment => new AccountMovement
+            {
+                AccountId = payment.AccountId,
+                Date = payment.PaymentDate,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(payment, EntryTimestamp.PropertyName),
+                Amount = payment.Direction == DebtDirection.Receivable
+                    ? payment.Amount.Amount
+                    : -payment.Amount.Amount,
+                TransactionId = null
+            });
         var obligationSettlements = dbContext.ObligationSettlements.AsNoTracking()
-            .Where(settlement => settlement.AccountId == accountId &&
-                                 settlement.UserId == userId &&
+            .Where(settlement => settlement.UserId == userId &&
                                  !settlement.IsCancelled &&
-                                 settlement.PosSettlementId == null);
+                                 settlement.PosSettlementId == null)
+            .Select(settlement => new AccountMovement
+            {
+                AccountId = settlement.AccountId,
+                Date = settlement.SettlementDate,
+                EntryAtUtc = (DateTimeOffset?)settlement.SettledAtUtc,
+                Amount = settlement.Direction == DebtDirection.Receivable
+                    ? settlement.Amount.Amount
+                    : -settlement.Amount.Amount,
+                TransactionId = null
+            });
 
         // POS tahsilatı hesaba **ancak geçtiği gün** girer ve girdiği tutar
         // nettir (ADR 0015). Tahsilat günü eklenseydi, kullanılabilir bakiye
         // daha bankaya ulaşmamış parayı harcanabilir gösterirdi; brüt
         // eklenseydi bankanın kestiği komisyon kullanıcının cebinde sayılırdı.
         var posTransfers = dbContext.PosSettlements.AsNoTracking()
-            .Where(settlement => settlement.AccountId == accountId &&
-                                 settlement.UserId == userId &&
+            .Where(settlement => settlement.UserId == userId &&
                                  !settlement.IsCancelled &&
-                                 settlement.TransferredOn != null);
+                                 settlement.TransferredOn != null)
+            .Select(settlement => new AccountMovement
+            {
+                AccountId = settlement.AccountId,
+                Date = settlement.TransferredOn!.Value,
+                EntryAtUtc = settlement.TransferredAtUtc,
+                Amount = settlement.GrossAmount.Amount - settlement.CommissionAmount,
+                TransactionId = null
+            });
 
+        return transactions
+            .Concat(outgoingTransfers)
+            .Concat(incomingTransfers)
+            .Concat(cardPayments)
+            .Concat(debtInstallments)
+            .Concat(debtOpenings)
+            .Concat(counterpartyPayments)
+            .Concat(obligationSettlements)
+            .Concat(posTransfers);
+    }
+
+    /// <summary>
+    /// Bir hesabın hareketlerinin toplamı; <paramref name="cutoff"/> verilirse
+    /// o hareketin hemen sonrasına kadar.
+    /// </summary>
+    /// <remarks>
+    /// Kesim, akışın sırasıyla aynıdır: önceki günler bütünüyle, aynı günde ise
+    /// giriş anı kesim anından büyük olmayanlar. Giriş anı bilinmeyen eski kayıt
+    /// günün en eskisi sayılır ve toplama girer.
+    /// </remarks>
+    public static Task<decimal> SumAsync(
+        BusinessFinanceDbContext dbContext,
+        Guid accountId,
+        Guid userId,
+        EntryCutoff? cutoff,
+        CancellationToken cancellationToken)
+    {
+        var movements = Query(dbContext, userId)
+            .Where(movement => movement.AccountId == accountId);
         if (cutoff is not null)
         {
             var date = cutoff.Date;
             var entryAt = cutoff.EntryAtUtc;
             var ownExpenseId = cutoff.OwnExpenseId;
-            transactions = transactions.Where(transaction =>
-                transaction.TransactionDate < date ||
-                (transaction.TransactionDate == date &&
-                 (EF.Property<DateTimeOffset?>(transaction, EntryTimestamp.PropertyName) == null ||
-                  EF.Property<DateTimeOffset?>(transaction, EntryTimestamp.PropertyName) <= entryAt)) ||
-                transaction.Id == ownExpenseId);
-            outgoingTransfers = outgoingTransfers.Where(transfer =>
-                transfer.TransferDate < date ||
-                (transfer.TransferDate == date &&
-                 (EF.Property<DateTimeOffset?>(transfer, EntryTimestamp.PropertyName) == null ||
-                  EF.Property<DateTimeOffset?>(transfer, EntryTimestamp.PropertyName) <= entryAt)));
-            incomingTransfers = incomingTransfers.Where(transfer =>
-                transfer.TransferDate < date ||
-                (transfer.TransferDate == date &&
-                 (EF.Property<DateTimeOffset?>(transfer, EntryTimestamp.PropertyName) == null ||
-                  EF.Property<DateTimeOffset?>(transfer, EntryTimestamp.PropertyName) <= entryAt)));
-            cardPayments = cardPayments.Where(payment =>
-                payment.PaymentDate < date ||
-                (payment.PaymentDate == date &&
-                 (EF.Property<DateTimeOffset?>(payment, EntryTimestamp.PropertyName) == null ||
-                  EF.Property<DateTimeOffset?>(payment, EntryTimestamp.PropertyName) <= entryAt)));
-            installments = installments.Where(installment =>
-                installment.PaymentDate < date ||
-                (installment.PaymentDate == date &&
-                 (installment.PaidAtUtc == null || installment.PaidAtUtc <= entryAt)));
-            debtOpenings = debtOpenings.Where(debt =>
-                debt.StartDate < date ||
-                (debt.StartDate == date &&
-                 (EF.Property<DateTimeOffset?>(debt, EntryTimestamp.PropertyName) == null ||
-                  EF.Property<DateTimeOffset?>(debt, EntryTimestamp.PropertyName) <= entryAt)));
-            counterpartyPayments = counterpartyPayments.Where(payment =>
-                payment.PaymentDate < date ||
-                (payment.PaymentDate == date &&
-                 (EF.Property<DateTimeOffset?>(payment, EntryTimestamp.PropertyName) == null ||
-                  EF.Property<DateTimeOffset?>(payment, EntryTimestamp.PropertyName) <= entryAt)));
-            obligationSettlements = obligationSettlements.Where(settlement =>
-                settlement.SettlementDate < date ||
-                (settlement.SettlementDate == date && settlement.SettledAtUtc <= entryAt));
-            posTransfers = posTransfers.Where(settlement =>
-                settlement.TransferredOn < date ||
-                (settlement.TransferredOn == date && settlement.TransferredAtUtc <= entryAt));
+            movements = movements.Where(movement =>
+                movement.Date < date ||
+                (movement.Date == date &&
+                 (movement.EntryAtUtc == null || movement.EntryAtUtc <= entryAt)) ||
+                (ownExpenseId != null && movement.TransactionId == ownExpenseId));
         }
 
-        var transactionTotal = await transactions.SumAsync(
-            transaction => transaction.Type == TransactionType.Income
-                ? transaction.Amount.Amount
-                : -transaction.Amount.Amount,
-            cancellationToken);
-        var outgoingTotal = await outgoingTransfers.SumAsync(
-            transfer => transfer.Amount.Amount, cancellationToken);
-        var incomingTotal = await incomingTransfers.SumAsync(
-            transfer => transfer.Amount.Amount, cancellationToken);
-        var cardPaymentTotal = await cardPayments.SumAsync(
-            payment => payment.Amount.Amount, cancellationToken);
-        var installmentTotal = await (
-                from installment in installments
-                join debt in dbContext.DebtAgreements.AsNoTracking()
-                    on new { installment.UserId, DebtId = installment.DebtAgreementId }
-                    equals new { debt.UserId, DebtId = debt.Id }
-                select debt.Direction == DebtDirection.Receivable
-                    ? installment.Amount.Amount
-                    : -installment.Amount.Amount)
-            .SumAsync(cancellationToken);
-        var debtOpeningTotal = await debtOpenings.SumAsync(
-            debt => debt.Direction == DebtDirection.Payable
-                ? debt.Principal.Amount
-                : -debt.Principal.Amount,
-            cancellationToken);
-        var counterpartyTotal = await counterpartyPayments.SumAsync(
-            payment => payment.Direction == DebtDirection.Receivable
-                ? payment.Amount.Amount
-                : -payment.Amount.Amount,
-            cancellationToken);
-        var obligationTotal = await obligationSettlements.SumAsync(
-            settlement => settlement.Direction == DebtDirection.Receivable
-                ? settlement.Amount.Amount
-                : -settlement.Amount.Amount,
-            cancellationToken);
-        var posTotal = await posTransfers.SumAsync(
-            settlement => settlement.GrossAmount.Amount - settlement.CommissionAmount,
-            cancellationToken);
+        return movements.SumAsync(movement => movement.Amount, cancellationToken);
+    }
 
-        return transactionTotal + incomingTotal - outgoingTotal - cardPaymentTotal +
-               installmentTotal + debtOpeningTotal + counterpartyTotal + obligationTotal +
-               posTotal;
+    /// <summary>
+    /// Kullanıcının bütün hesaplarının hareket toplamı, hesap başına;
+    /// <paramref name="asOfDate"/> verilirse o gün dahil.
+    /// </summary>
+    public static Task<Dictionary<Guid, decimal>> SumByAccountAsync(
+        BusinessFinanceDbContext dbContext,
+        Guid userId,
+        DateOnly? asOfDate,
+        CancellationToken cancellationToken)
+    {
+        var movements = Query(dbContext, userId);
+        if (asOfDate is DateOnly asOf)
+        {
+            movements = movements.Where(movement => movement.Date <= asOf);
+        }
+
+        return movements
+            .GroupBy(movement => movement.AccountId)
+            .Select(group => new
+            {
+                AccountId = group.Key,
+                Amount = group.Sum(movement => movement.Amount)
+            })
+            .ToDictionaryAsync(row => row.AccountId, row => row.Amount, cancellationToken);
+    }
+
+    /// <summary>
+    /// Bir hesaba bir dönemde giren ve çıkan toplam; iki uç da dahil.
+    /// </summary>
+    public static async Task<(decimal Inflow, decimal Outflow)> FlowAsync(
+        BusinessFinanceDbContext dbContext,
+        Guid accountId,
+        Guid userId,
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken)
+    {
+        var flow = await Query(dbContext, userId)
+            .Where(movement => movement.AccountId == accountId &&
+                               movement.Date >= from &&
+                               movement.Date <= to)
+            .GroupBy(movement => movement.AccountId)
+            .Select(group => new
+            {
+                Inflow = group.Sum(movement => movement.Amount > 0m ? movement.Amount : 0m),
+                Outflow = group.Sum(movement => movement.Amount < 0m ? -movement.Amount : 0m)
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+        return flow is null ? (0m, 0m) : (flow.Inflow, flow.Outflow);
     }
 }

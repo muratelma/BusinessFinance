@@ -1705,3 +1705,11 @@ veritabanında yapılır; gerçek SQL Server'da koşuldu. Kaldırılan:
 içi hesap uygulamada çağrılmıyordu; kapsam duyarlılığını artık bütçe güvence
 testi tutuyor (aynı kategoride işletme ve şahsi komisyon, işletme bütçesi yalnız
 kendi tarafını sayar).
+
+**Hesap hareketleri de tek listede (6 Ekim 2026).** Dokuz para yolu
+`AccountMovements` içinde bir kez tanımlı; hesabın bakiyesi, işlem sonrası
+bakiye, iki rapordaki hesap bakiyeleri ve Kasa'nın günlük giren/çıkanı onu
+okur. Davranış değişmedi: bakiye güvence testi ile bakiyeyi elle sabitleyen
+mevcut testler (`PosSettlementAndCashCount_…`, `PosDeposit_Moves…`,
+`ActivityFeed_OrdersADayByEntryTime…`, `ActivityBalances_Read…`,
+`CardCollectionEndpointTests`) aynı sonucu veriyor. Sorgu bütçesi 37 → 29.
