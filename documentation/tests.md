@@ -1692,4 +1692,16 @@ kırılan kapı budur.
 | Gelir ve gider | `SqlServerPersistenceIntegrationTests.MoneyFoundation_IncomeAndExpenseAgreeAcrossEveryRead` | Üç kapsam okumasında (hepsi, işletme, şahsi) aylık raporun toplamı = kategori dağılımının toplamı = dönem karşılaştırmasının ayı = eğilimin ayı; iki taraf filtresiz okumayı tam böler ve kırılım aynısını söyler; kategori dağılımı kurgunun kalemleriyle birebir (komisyon + kesinti + kartla tahsil komisyonu, faiz kendi kovasında). Eğilim önceden borç açılışını ve faizi kapsamla süzmüyordu |
 | Bütçe | `MoneyFoundation_BudgetSpendingIsTheCategoryExpenseOfItsScope` | Her bütçenin harcaması, raporda o kategorinin o kapsamdaki giderine eşit; Bütçeler listesi ile gelişmiş rapordaki bütçe sapması aynı sayıyı gösterir. Tek seferlik borç, POS komisyonu ve borç faizi dahil |
 | Bakiye, borç, yoldaki para | `MoneyFoundation_BalancesDebtsAndTransitAgreeAcrossEveryRead` | Hesabın bakiyesi = aylık rapordaki = tarihli rapordaki = açılış + günlerin giren/çıkan toplamı; kart borcu kartın okumasında ve raporda aynı; kişi listesindeki açık alacak/borç + borç anlaşmalarının kalan anaparası = net varlıktaki alacak/borç; POS listesindeki yoldaki toplam = net varlıktaki |
-| Sorgu bütçesi | `AdvancedReport_LargeFixtureStaysWithinQueryCountAndTimeBudget` (güncellendi) | 70 → 72: bütçe sapması faizi kapsam başına tek gruplu sorguyla ve kategorisini tek sorguyla okur; borç ya da taksit adediyle büyümez |
+| Sorgu bütçesi | `AdvancedReport_LargeFixtureStaysWithinQueryCountAndTimeBudget` (güncellendi) | 70 → 72: bütçe sapması faizi kapsam başına tek gruplu sorguyla ve kategorisini tek sorguyla okur; borç ya da taksit adediyle büyümez. **72 → 37** gelir/gider kalemleri tek listeye (`RecognizedItems`) alınınca: iki dönem toplamı, eğilim ve bütçe sapması kaynak başına sorgu yerine gruplu tek `UNION ALL` sorgusu okur |
+
+**Tek liste (6 Ekim 2026).** Gelir/gider kalemleri `RecognizedItems`'a alındı;
+davranış değişmedi ve bunu yukarıdaki üç güvence testi ile raporun sayıları
+elle sabitleyen mevcut testleri (`ScopeFilter_Splits…`, `DebtInterest_Counts…`,
+`PosSettlementAndCashCount_…`, `PosDeposit_Moves…`, `AdvancedReport_Calculates…`)
+doğruluyor. Gruplama (kapsam, kategori, yıl ve ay) `UNION ALL` üstünde
+veritabanında yapılır; gerçek SQL Server'da koşuldu. Kaldırılan:
+`MonthlyBudgetTests` içindeki altı `CalculateProgress_*` testi ve
+`TransactionScopeTests.MonthlyBudget_Progress_CountsOnlyItsOwnScope` — bellek
+içi hesap uygulamada çağrılmıyordu; kapsam duyarlılığını artık bütçe güvence
+testi tutuyor (aynı kategoride işletme ve şahsi komisyon, işletme bütçesi yalnız
+kendi tarafını sayar).

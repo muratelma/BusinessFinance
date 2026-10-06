@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using BusinessFinance.Application.Reports;
 using BusinessFinance.Domain;
-using BusinessFinance.Infrastructure.Categories;
 using BusinessFinance.Infrastructure.Persistence;
 using BusinessFinance.Application.UpcomingPayments;
 
@@ -32,251 +31,54 @@ internal sealed class EfFinancialReportRepository(
     {
         var start = new DateOnly(year, month, 1);
         var endExclusive = start.AddMonths(1);
-        var periodTransactions = dbContext.Transactions.AsNoTracking().Where(
-            transaction => transaction.UserId == userId &&
-                           !transaction.IsCancelled &&
-                           (scope == null || transaction.Scope == scope) &&
-                           transaction.TransactionDate >= start &&
-                           transaction.TransactionDate < endExclusive);
 
-        // Toplamlar kapsam kırılımıyla birlikte okunuyor: `SUM` yerine kapsama
-        // göre `GROUP BY`. Sorgu sayısı değişmiyor — en fazla iki satır dönüyor
-        // ve toplam onların toplamı. Kırılımı ikinci bir tur sorguyla almak,
-        // özet ekranının ilk isteğini iki katına çıkarırdı.
-        var incomeByScope = ScopeAmounts.From(await periodTransactions
-            .Where(transaction => transaction.Type == TransactionType.Income)
-            .GroupBy(transaction => transaction.Scope)
-            .Select(group => new ScopeAmountRow(
-                group.Key,
-                group.Sum(transaction => transaction.Amount.Amount)))
-            .ToArrayAsync(cancellationToken));
-        var transactionExpenseByScope = ScopeAmounts.From(await periodTransactions
-            .Where(transaction => transaction.Type == TransactionType.Expense)
-            .GroupBy(transaction => transaction.Scope)
-            .Select(group => new ScopeAmountRow(
-                group.Key,
-                group.Sum(transaction => transaction.Amount.Amount)))
-            .ToArrayAsync(cancellationToken));
-        var periodCardCharges = dbContext.CreditCardCharges.AsNoTracking().Where(
-            charge => charge.UserId == userId &&
-                      !charge.IsCancelled &&
-                      (scope == null || charge.Scope == scope) &&
-                      charge.ChargeDate >= start &&
-                      charge.ChargeDate < endExclusive);
-        var cardExpenseByScope = ScopeAmounts.From(await periodCardCharges
-            .GroupBy(charge => charge.Scope)
-            .Select(group => new ScopeAmountRow(
-                group.Key,
-                group.Sum(charge => charge.Amount.Amount)))
-            .ToArrayAsync(cancellationToken));
+        // Tanınmış bütün gelir ve gider kalemleri tek listeden okunur
+        // (RecognizedItems); kaynakların her biri orada bir kez tanımlıdır.
+        var items = RecognizedItems.InPeriod(dbContext, userId, start, endExclusive, scope);
 
-        // Gider kaynaklı borcun açılışı bir giderdir ve tam o gün yazılır —
-        // kredi kartı harcamasıyla birebir aynı kural. Taksit ödemeleri gider
-        // üretmez; üretselerdi aynı tüketim iki kez sayılırdı.
-        var periodDebtOpenings = dbContext.DebtAgreements.AsNoTracking().Where(
-            debt => debt.UserId == userId &&
-                    debt.SourceType == DebtSourceType.Expense &&
-                    (scope == null || debt.Scope == scope) &&
-                    debt.StartDate >= start &&
-                    debt.StartDate < endExclusive);
-        var debtOpeningExpenseByScope = ScopeAmounts.From(await periodDebtOpenings
-            .GroupBy(debt => debt.Scope)
-            .Select(group => new ScopeAmountRow(
-                group.Key,
-                group.Sum(debt => debt.Principal.Amount)))
-            .ToArrayAsync(cancellationToken));
-        var debtOpeningIncomeByScope = await DebtOpeningIncomeAsync(
-            userId, start, endExclusive, scope, cancellationToken);
-        var debtInterest = await DebtInterestAsync(
-            userId, start, endExclusive, scope, cancellationToken);
+        // Toplamlar kapsam kırılımıyla birlikte okunuyor: tek gruplu sorgu, en
+        // fazla dört satır dönüyor ve toplam onların toplamı. Kırılımı ikinci
+        // bir tur sorguyla almak, özet ekranının ilk isteğini iki katına
+        // çıkarırdı. Üçüncü bir kova yok: gelir/gider üreten her kayıt tam
+        // olarak bir kapsam taşır, bu yüzden iki taraf filtresiz okumanın
+        // toplamını birebir verir.
+        var totals = await items
+            .GroupBy(item => new { item.Type, item.Scope })
+            .Select(group => new
+            {
+                group.Key.Type,
+                group.Key.Scope,
+                Amount = group.Sum(item => item.Amount)
+            })
+            .ToArrayAsync(cancellationToken);
+        decimal Total(TransactionType type, TransactionScope side) => totals
+            .Where(row => row.Type == (int)type && row.Scope == (int)side)
+            .Sum(row => row.Amount);
+        var businessIncome = Total(TransactionType.Income, TransactionScope.Business);
+        var personalIncome = Total(TransactionType.Income, TransactionScope.Personal);
+        var businessExpense = Total(TransactionType.Expense, TransactionScope.Business);
+        var personalExpense = Total(TransactionType.Expense, TransactionScope.Personal);
+        var totalIncome = businessIncome + personalIncome;
+        var totalExpense = businessExpense + personalExpense;
 
-        // Cari borçlandırma ekonomik olayı tanır: veresiye satış o gün
-        // gelir, vadeli alım o gün giderdir (ADR 0014). Tahsilat buraya
-        // hiç girmez — girseydi aynı satış iki kez sayılırdı.
-        var periodCounterpartyCharges = dbContext.CounterpartyCharges.AsNoTracking().Where(
-            charge => charge.UserId == userId &&
-                      !charge.IsCancelled &&
-                      (scope == null || charge.Scope == scope) &&
-                      charge.ChargeDate >= start &&
-                      charge.ChargeDate < endExclusive);
-        var counterpartyIncomeByScope = ScopeAmounts.From(await periodCounterpartyCharges
-            .Where(charge => charge.Direction == DebtDirection.Receivable)
-            .GroupBy(charge => charge.Scope)
-            .Select(group => new ScopeAmountRow(
-                group.Key,
-                group.Sum(charge => charge.Amount.Amount)))
-            .ToArrayAsync(cancellationToken));
-        var counterpartyExpenseByScope = ScopeAmounts.From(await periodCounterpartyCharges
-            .Where(charge => charge.Direction == DebtDirection.Payable)
-            .GroupBy(charge => charge.Scope)
-            .Select(group => new ScopeAmountRow(
-                group.Key,
-                group.Sum(charge => charge.Amount.Amount)))
-            .ToArrayAsync(cancellationToken));
-        var periodObligations = dbContext.Obligations.AsNoTracking().Where(
-            obligation => obligation.UserId == userId &&
-                          !obligation.IsCancelled &&
-                          (scope == null || obligation.Scope == scope) &&
-                          obligation.IssueDate >= start &&
-                          obligation.IssueDate < endExclusive);
-        var obligationIncomeByScope = ScopeAmounts.From(await periodObligations
-            .Where(obligation => obligation.Direction == DebtDirection.Receivable)
-            .GroupBy(obligation => obligation.Scope)
-            .Select(group => new ScopeAmountRow(
-                group.Key,
-                group.Sum(obligation => obligation.Amount.Amount)))
-            .ToArrayAsync(cancellationToken));
-        var obligationExpenseByScope = ScopeAmounts.From(await periodObligations
-            .Where(obligation => obligation.Direction == DebtDirection.Payable)
-            .GroupBy(obligation => obligation.Scope)
-            .Select(group => new ScopeAmountRow(
-                group.Key,
-                group.Sum(obligation => obligation.Amount.Amount)))
-            .ToArrayAsync(cancellationToken));
-        // POS tahsilatı satışı **tahsil edildiği gün** tanır, geçtiği gün
-        // değil (ADR 0015): gelir brüt tutar kadar, komisyon ayrı gider.
-        // Geçiş günü rapora hiç girmez — girseydi aynı satış iki kez sayılırdı.
-        var periodPosSettlements = dbContext.PosSettlements.AsNoTracking().Where(
-            settlement => settlement.UserId == userId &&
-                          !settlement.IsCancelled &&
-                          (scope == null || settlement.Scope == scope) &&
-                          settlement.SettlementDate >= start &&
-                          settlement.SettlementDate < endExclusive);
-        // Kartla tahsil gelir değildir: gelir alacakta tanındı (ADR 0019 T5).
-        var posIncomeByScope = ScopeAmounts.From(await periodPosSettlements
-            .Where(settlement => settlement.Kind == PosSettlementKind.Sale)
-            .GroupBy(settlement => settlement.Scope!.Value)
-            .Select(group => new ScopeAmountRow(
-                group.Key,
-                group.Sum(settlement => settlement.GrossAmount.Amount)))
-            .ToArrayAsync(cancellationToken));
-        // Komisyon **brüte eklenmez ve ondan düşülmez**: kendi kategorisinde
-        // ayrı bir giderdir. Netten hesaplansaydı kullanıcının kestiği fatura
-        // küçülür, bankanın kesintisi de görünmez olurdu.
-        // Komisyon satışta da kartla tahsilde de giderdir; komisyonlu kaydın
-        // kapsamı doludur.
-        var posCommissionByScope = ScopeAmounts.From(await periodPosSettlements
-            .Where(settlement => settlement.CommissionAmount > 0m)
-            .GroupBy(settlement => settlement.Scope!.Value)
-            .Select(group => new ScopeAmountRow(
-                group.Key,
-                group.Sum(settlement => settlement.CommissionAmount)))
-            .ToArrayAsync(cancellationToken));
-        var expenseByScope = transactionExpenseByScope
-            .Add(cardExpenseByScope)
-            .Add(debtOpeningExpenseByScope)
-            .Add(debtInterest.Paid)
-            .Add(counterpartyExpenseByScope)
-            .Add(obligationExpenseByScope)
-            .Add(posCommissionByScope);
-        incomeByScope = incomeByScope
-            .Add(debtOpeningIncomeByScope)
-            .Add(debtInterest.Earned)
-            .Add(counterpartyIncomeByScope)
-            .Add(obligationIncomeByScope)
-            .Add(posIncomeByScope);
-        var totalIncome = incomeByScope.Total;
-        var totalExpense = expenseByScope.Total;
-        var transactionCategoryExpenses = await (
-                from transaction in periodTransactions
-                join category in dbContext.Categories.AsNoTracking()
-                    on new { transaction.UserId, Id = transaction.CategoryId }
-                    equals new { category.UserId, category.Id }
-                where transaction.Type == TransactionType.Expense
-                group transaction by new { category.Id, category.Name }
-                into expenseGroup
-                orderby expenseGroup.Sum(item => item.Amount.Amount) descending,
-                    expenseGroup.Key.Name,
-                    expenseGroup.Key.Id
-                select new CategoryExpenseDto(
-                    expenseGroup.Key.Id,
-                    expenseGroup.Key.Name,
-                    expenseGroup.Sum(item => item.Amount.Amount)))
-            .ToArrayAsync(cancellationToken);
-        var cardCategoryExpenses = await (
-                from charge in periodCardCharges
-                join category in dbContext.Categories.AsNoTracking()
-                    on new { charge.UserId, Id = charge.CategoryId }
-                    equals new { category.UserId, category.Id }
-                group charge by new { category.Id, category.Name }
-                into expenseGroup
-                select new CategoryExpenseDto(
-                    expenseGroup.Key.Id,
-                    expenseGroup.Key.Name,
-                    expenseGroup.Sum(item => item.Amount.Amount)))
-            .ToArrayAsync(cancellationToken);
-        var debtCategoryExpenses = await (
-                from debt in periodDebtOpenings
-                join category in dbContext.Categories.AsNoTracking()
-                    on new { debt.UserId, Id = debt.CategoryId!.Value }
-                    equals new { category.UserId, category.Id }
-                group debt by new { category.Id, category.Name }
-                into expenseGroup
-                select new CategoryExpenseDto(
-                    expenseGroup.Key.Id,
-                    expenseGroup.Key.Name,
-                    expenseGroup.Sum(item => item.Principal.Amount)))
-            .ToArrayAsync(cancellationToken);
-        // Faiz gider **toplamına** zaten giriyordu ama dağılımda hiç yoktu:
-        // ekranda "Gider" ile kategori listesi açıklamasız biçimde tutmuyordu.
-        // Kalıcı bir hareket üretmiyoruz — taksit ödemesi hesabı tutarın
-        // tamamı kadar düşürdüğü için ikinci bir kayıt aynı parayı iki kez
-        // düşerdi — yalnız dağılımda kendi kovasına yazılıyor.
-        var interestCategoryExpenses = await InterestCategoryExpensesAsync(
-            userId, debtInterest.Paid.Total, cancellationToken);
-
-        // Vadeli alım dağılımda da kendi kategorisinde durur; toplam ile
-        // dağılımın birbirini tutması bunun koşulu.
-        var counterpartyCategoryExpenses = await (
-                from charge in periodCounterpartyCharges
-                join category in dbContext.Categories.AsNoTracking()
-                    on new { charge.UserId, Id = charge.CategoryId }
-                    equals new { category.UserId, category.Id }
-                where charge.Direction == DebtDirection.Payable
-                group charge by new { category.Id, category.Name }
-                into expenseGroup
-                select new CategoryExpenseDto(
-                    expenseGroup.Key.Id,
-                    expenseGroup.Key.Name,
-                    expenseGroup.Sum(item => item.Amount.Amount)))
-            .ToArrayAsync(cancellationToken);
-        var obligationCategoryExpenses = await (
-                from obligation in periodObligations
-                join category in dbContext.Categories.AsNoTracking()
-                    on new { obligation.UserId, Id = obligation.CategoryId }
-                    equals new { category.UserId, category.Id }
-                where obligation.Direction == DebtDirection.Payable
-                group obligation by new { category.Id, category.Name }
-                into expenseGroup
-                select new CategoryExpenseDto(
-                    expenseGroup.Key.Id,
-                    expenseGroup.Key.Name,
-                    expenseGroup.Sum(item => item.Amount.Amount)))
-            .ToArrayAsync(cancellationToken);
-        var posCategoryExpenses = await (
-                from settlement in periodPosSettlements
-                join category in dbContext.Categories.AsNoTracking()
-                    on new { settlement.UserId, Id = settlement.CommissionCategoryId }
-                    equals new { category.UserId, Id = (Guid?)category.Id }
-                group settlement by new { category.Id, category.Name }
-                into expenseGroup
-                select new CategoryExpenseDto(
-                    expenseGroup.Key.Id,
-                    expenseGroup.Key.Name,
-                    expenseGroup.Sum(item => item.CommissionAmount)))
-            .ToArrayAsync(cancellationToken);
-        var categoryExpenses = transactionCategoryExpenses
-            .Concat(cardCategoryExpenses)
-            .Concat(debtCategoryExpenses)
-            .Concat(interestCategoryExpenses)
-            .Concat(counterpartyCategoryExpenses)
-            .Concat(obligationCategoryExpenses)
-            .Concat(posCategoryExpenses)
-            .GroupBy(item => new { item.CategoryId, item.CategoryName })
-            .Select(group => new CategoryExpenseDto(
-                group.Key.CategoryId,
-                group.Key.CategoryName,
-                group.Sum(item => item.Amount)))
+        // Dağılım toplamla aynı kalemlerden gelir; "Gider" ile kategori
+        // listesinin birbirini tutması bunun sonucudur. Kategorisi bulunamayan
+        // borç faizi toplamda kalır, burada görünmez: uydurma bir kimlikle
+        // satır üretmek daha kötü olurdu, istemci o kimlikle filtreleyip boş
+        // sonuç alırdı.
+        var categoryExpenses = (await (
+                    from item in items
+                    join category in dbContext.Categories.AsNoTracking()
+                            .Where(category => category.UserId == userId)
+                        on item.CategoryId equals (Guid?)category.Id
+                    where item.Type == (int)TransactionType.Expense
+                    group item by new { category.Id, category.Name }
+                    into expenseGroup
+                    select new CategoryExpenseDto(
+                        expenseGroup.Key.Id,
+                        expenseGroup.Key.Name,
+                        expenseGroup.Sum(item => item.Amount)))
+                .ToArrayAsync(cancellationToken))
             .OrderByDescending(item => item.Amount)
             .ThenBy(item => item.CategoryName)
             .ThenBy(item => item.CategoryId)
@@ -379,13 +181,13 @@ internal sealed class EfFinancialReportRepository(
             scope is null
                 ? new MonthlyScopeBreakdownDto(
                     new ScopeTotalsDto(
-                        incomeByScope.Business,
-                        expenseByScope.Business,
-                        incomeByScope.Business - expenseByScope.Business),
+                        businessIncome,
+                        businessExpense,
+                        businessIncome - businessExpense),
                     new ScopeTotalsDto(
-                        incomeByScope.Personal,
-                        expenseByScope.Personal,
-                        incomeByScope.Personal - expenseByScope.Personal))
+                        personalIncome,
+                        personalExpense,
+                        personalIncome - personalExpense))
                 : null);
     }
 
@@ -471,7 +273,7 @@ internal sealed class EfFinancialReportRepository(
         //
         // Önce taksitin tamamı (anapara + faiz) toplanıyordu ve bu, bilançoyu
         // gelir tablosuyla çelişkiye düşürüyordu: faiz gider olarak
-        // `DebtInterestAsync` ile **ödendikçe** yazılıyor, ama net varlık
+        // `RecognizedItems` içinde **ödendikçe** yazılıyor, ama net varlık
         // faizin tamamını borcun doğduğu gün düşüyordu. 1.000 anapara /
         // 1.200 toplam bir kredi çekildiğinde hesap 1.000 artıyor, borç 1.200
         // görünüyor ve net varlık daha ilk gün 200 azalıyordu — hiçbir faiz
@@ -626,84 +428,29 @@ internal sealed class EfFinancialReportRepository(
         CancellationToken cancellationToken)
     {
         var start = new DateOnly(year, month, 1);
-        var endExclusive = start.AddMonths(1);
-        var transactions = dbContext.Transactions.AsNoTracking().Where(
-            transaction => transaction.UserId == userId &&
-                           !transaction.IsCancelled &&
-                           (scope == null || transaction.Scope == scope) &&
-                           transaction.TransactionDate >= start &&
-                           transaction.TransactionDate < endExclusive);
-        var income = await transactions
-            .Where(transaction => transaction.Type == TransactionType.Income)
-            .SumAsync(transaction => transaction.Amount.Amount, cancellationToken);
-        var transactionExpense = await transactions
-            .Where(transaction => transaction.Type == TransactionType.Expense)
-            .SumAsync(transaction => transaction.Amount.Amount, cancellationToken);
-        var cardExpense = await dbContext.CreditCardCharges.AsNoTracking()
-            .Where(charge => charge.UserId == userId &&
-                             !charge.IsCancelled &&
-                             (scope == null || charge.Scope == scope) &&
-                             charge.ChargeDate >= start &&
-                             charge.ChargeDate < endExclusive)
-            .SumAsync(charge => charge.Amount.Amount, cancellationToken);
-        var debtOpeningExpense = await dbContext.DebtAgreements.AsNoTracking()
-            .Where(debt => debt.UserId == userId &&
-                           debt.SourceType == DebtSourceType.Expense &&
-                           (scope == null || debt.Scope == scope) &&
-                           debt.StartDate >= start &&
-                           debt.StartDate < endExclusive)
-            .SumAsync(debt => debt.Principal.Amount, cancellationToken);
-        var debtOpeningIncome = await DebtOpeningIncomeAsync(
-            userId, start, endExclusive, scope, cancellationToken);
-        var debtInterest = await DebtInterestAsync(
-            userId, start, endExclusive, scope, cancellationToken);
-        var counterpartyCharges = dbContext.CounterpartyCharges.AsNoTracking()
-            .Where(charge => charge.UserId == userId &&
-                             !charge.IsCancelled &&
-                             (scope == null || charge.Scope == scope) &&
-                             charge.ChargeDate >= start &&
-                             charge.ChargeDate < endExclusive);
-        var counterpartyExpense = await counterpartyCharges
-            .Where(charge => charge.Direction == DebtDirection.Payable)
-            .SumAsync(charge => charge.Amount.Amount, cancellationToken);
-        var counterpartyIncome = await counterpartyCharges
-            .Where(charge => charge.Direction == DebtDirection.Receivable)
-            .SumAsync(charge => charge.Amount.Amount, cancellationToken);
-        var obligations = dbContext.Obligations.AsNoTracking()
-            .Where(obligation => obligation.UserId == userId &&
-                                 !obligation.IsCancelled &&
-                                 (scope == null || obligation.Scope == scope) &&
-                                 obligation.IssueDate >= start &&
-                                 obligation.IssueDate < endExclusive);
-        var obligationExpense = await obligations
-            .Where(obligation => obligation.Direction == DebtDirection.Payable)
-            .SumAsync(obligation => obligation.Amount.Amount, cancellationToken);
-        var obligationIncome = await obligations
-            .Where(obligation => obligation.Direction == DebtDirection.Receivable)
-            .SumAsync(obligation => obligation.Amount.Amount, cancellationToken);
-        // POS satışı tahsil edildiği gün tanınır: gelir brüt, komisyon ayrı
-        // gider. Geçiş günü hiçbir şey yazmaz (ADR 0015).
-        var posSettlements = dbContext.PosSettlements.AsNoTracking()
-            .Where(settlement => settlement.UserId == userId &&
-                                 !settlement.IsCancelled &&
-                                 (scope == null || settlement.Scope == scope) &&
-                                 settlement.SettlementDate >= start &&
-                                 settlement.SettlementDate < endExclusive);
-        var posIncome = await posSettlements
-            .Where(settlement => settlement.Kind == PosSettlementKind.Sale)
-            .SumAsync(settlement => (decimal?)settlement.GrossAmount.Amount, cancellationToken)
-            ?? 0m;
-        var posCommission = await posSettlements
-            .SumAsync(settlement => (decimal?)settlement.CommissionAmount, cancellationToken)
-            ?? 0m;
-        var expense = transactionExpense + cardExpense + debtOpeningExpense +
-                      debtInterest.Paid.Total + counterpartyExpense + obligationExpense +
-                      posCommission;
-        var totalIncome = income + debtOpeningIncome.Total + debtInterest.Earned.Total +
-                          counterpartyIncome + obligationIncome + posIncome;
-        return new PeriodTotalsDto(year, month, totalIncome, expense, totalIncome - expense);
+        var totals = await RecognizedItems
+            .InPeriod(dbContext, userId, start, start.AddMonths(1), scope)
+            .GroupBy(item => item.Type)
+            .Select(group => new { Type = group.Key, Amount = group.Sum(item => item.Amount) })
+            .ToArrayAsync(cancellationToken);
+        var income = totals
+            .Where(row => row.Type == (int)TransactionType.Income)
+            .Sum(row => row.Amount);
+        var expense = totals
+            .Where(row => row.Type == (int)TransactionType.Expense)
+            .Sum(row => row.Amount);
+        return new PeriodTotalsDto(year, month, income, expense, income - expense);
     }
 
+    /// <summary>
+    /// Son <paramref name="trendMonths"/> ayın gelir ve gideri.
+    /// </summary>
+    /// <remarks>
+    /// Eğilim, dönem toplamı ve aylık raporla <b>aynı kalemleri</b> okur
+    /// (<see cref="RecognizedItems"/>): aynı ay üç yerde aynı sayıyı verir.
+    /// Aylara bölme veritabanında yapılır; dönen satır sayısı ay sayısının iki
+    /// katını geçmez.
+    /// </remarks>
     private async Task<IReadOnlyList<CashFlowPointDto>> GetCashFlowTrendAsync(
         Guid userId,
         int year,
@@ -714,100 +461,15 @@ internal sealed class EfFinancialReportRepository(
     {
         var endExclusive = new DateOnly(year, month, 1).AddMonths(1);
         var start = endExclusive.AddMonths(-trendMonths);
-        var transactions = await dbContext.Transactions.AsNoTracking()
-            .Where(transaction => transaction.UserId == userId &&
-                                  !transaction.IsCancelled &&
-                                  (scope == null || transaction.Scope == scope) &&
-                                  transaction.TransactionDate >= start &&
-                                  transaction.TransactionDate < endExclusive)
-            .Select(transaction => new
+        var totals = await RecognizedItems
+            .InPeriod(dbContext, userId, start, endExclusive, scope)
+            .GroupBy(item => new { item.Date.Year, item.Date.Month, item.Type })
+            .Select(group => new
             {
-                transaction.TransactionDate,
-                transaction.Type,
-                Amount = transaction.Amount.Amount
-            })
-            .ToArrayAsync(cancellationToken);
-        var cardCharges = await dbContext.CreditCardCharges.AsNoTracking()
-            .Where(charge => charge.UserId == userId &&
-                             !charge.IsCancelled &&
-                             (scope == null || charge.Scope == scope) &&
-                             charge.ChargeDate >= start &&
-                             charge.ChargeDate < endExclusive)
-            .Select(charge => new { charge.ChargeDate, Amount = charge.Amount.Amount })
-            .ToArrayAsync(cancellationToken);
-        // Gider ve gelir kaynaklı açılışlar tek sorguda; ay döngüsünde kaynağa
-        // göre ayrılıyorlar.
-        var debtOpenings = await dbContext.DebtAgreements.AsNoTracking()
-            .Where(debt => debt.UserId == userId &&
-                           (debt.SourceType == DebtSourceType.Expense ||
-                            debt.SourceType == DebtSourceType.Income) &&
-                           (scope == null || debt.Scope == scope) &&
-                           debt.StartDate >= start &&
-                           debt.StartDate < endExclusive)
-            .Select(debt => new
-            {
-                debt.StartDate,
-                debt.SourceType,
-                Amount = debt.Principal.Amount
-            })
-            .ToArrayAsync(cancellationToken);
-        var debtInterest = await (
-                from installment in dbContext.DebtInstallments.AsNoTracking()
-                join debt in dbContext.DebtAgreements.AsNoTracking()
-                    on new { installment.UserId, DebtId = installment.DebtAgreementId }
-                    equals new { debt.UserId, DebtId = debt.Id }
-                where installment.UserId == userId &&
-                      installment.InterestPortion != null &&
-                      (scope == null || debt.Scope == scope) &&
-                      installment.PaymentDate >= start &&
-                      installment.PaymentDate < endExclusive
-                select new
-                {
-                    PaymentDate = installment.PaymentDate!.Value,
-                    debt.Direction,
-                    Amount = installment.InterestPortion!.Value
-                })
-            .ToArrayAsync(cancellationToken);
-        var counterpartyCharges = await dbContext.CounterpartyCharges.AsNoTracking()
-            .Where(charge => charge.UserId == userId &&
-                             !charge.IsCancelled &&
-                             (scope == null || charge.Scope == scope) &&
-                             charge.ChargeDate >= start &&
-                             charge.ChargeDate < endExclusive)
-            .Select(charge => new
-            {
-                charge.ChargeDate,
-                charge.Direction,
-                Amount = charge.Amount.Amount
-            })
-            .ToArrayAsync(cancellationToken);
-        var obligations = await dbContext.Obligations.AsNoTracking()
-            .Where(obligation => obligation.UserId == userId &&
-                                 !obligation.IsCancelled &&
-                                 (scope == null || obligation.Scope == scope) &&
-                                 obligation.IssueDate >= start &&
-                                 obligation.IssueDate < endExclusive)
-            .Select(obligation => new
-            {
-                obligation.IssueDate,
-                obligation.Direction,
-                Amount = obligation.Amount.Amount
-            })
-            .ToArrayAsync(cancellationToken);
-        var posSettlements = await dbContext.PosSettlements.AsNoTracking()
-            .Where(settlement => settlement.UserId == userId &&
-                                 !settlement.IsCancelled &&
-                                 (scope == null || settlement.Scope == scope) &&
-                                 settlement.SettlementDate >= start &&
-                                 settlement.SettlementDate < endExclusive)
-            .Select(settlement => new
-            {
-                settlement.SettlementDate,
-                // Kartla tahsil gelir yazmaz; komisyonu yine giderdir.
-                Gross = settlement.Kind == PosSettlementKind.Sale
-                    ? settlement.GrossAmount.Amount
-                    : 0m,
-                settlement.CommissionAmount
+                group.Key.Year,
+                group.Key.Month,
+                group.Key.Type,
+                Amount = group.Sum(item => item.Amount)
             })
             .ToArrayAsync(cancellationToken);
         var points = new List<CashFlowPointDto>(trendMonths);
@@ -815,68 +477,13 @@ internal sealed class EfFinancialReportRepository(
         for (var offset = 0; offset < trendMonths; offset++)
         {
             var period = start.AddMonths(offset);
-            var income = transactions
-                .Where(item => item.TransactionDate.Year == period.Year &&
-                               item.TransactionDate.Month == period.Month &&
-                               item.Type == TransactionType.Income)
-                .Sum(item => item.Amount) +
-                debtOpenings
-                    .Where(item => item.StartDate.Year == period.Year &&
-                                   item.StartDate.Month == period.Month &&
-                                   item.SourceType == DebtSourceType.Income)
-                    .Sum(item => item.Amount) +
-                debtInterest
-                    .Where(item => item.PaymentDate.Year == period.Year &&
-                                   item.PaymentDate.Month == period.Month &&
-                                   item.Direction == DebtDirection.Receivable)
-                    .Sum(item => item.Amount) +
-                counterpartyCharges
-                    .Where(item => item.ChargeDate.Year == period.Year &&
-                                   item.ChargeDate.Month == period.Month &&
-                                   item.Direction == DebtDirection.Receivable)
-                    .Sum(item => item.Amount) +
-                obligations
-                    .Where(item => item.IssueDate.Year == period.Year &&
-                                   item.IssueDate.Month == period.Month &&
-                                   item.Direction == DebtDirection.Receivable)
-                    .Sum(item => item.Amount) +
-                posSettlements
-                    .Where(item => item.SettlementDate.Year == period.Year &&
-                                   item.SettlementDate.Month == period.Month)
-                    .Sum(item => item.Gross);
-            var expense = transactions
-                .Where(item => item.TransactionDate.Year == period.Year &&
-                               item.TransactionDate.Month == period.Month &&
-                               item.Type == TransactionType.Expense)
-                .Sum(item => item.Amount) +
-                cardCharges
-                    .Where(item => item.ChargeDate.Year == period.Year &&
-                                   item.ChargeDate.Month == period.Month)
-                    .Sum(item => item.Amount) +
-                debtOpenings
-                    .Where(item => item.StartDate.Year == period.Year &&
-                                   item.StartDate.Month == period.Month &&
-                                   item.SourceType == DebtSourceType.Expense)
-                    .Sum(item => item.Amount) +
-                debtInterest
-                    .Where(item => item.PaymentDate.Year == period.Year &&
-                                   item.PaymentDate.Month == period.Month &&
-                                   item.Direction == DebtDirection.Payable)
-                    .Sum(item => item.Amount) +
-                counterpartyCharges
-                    .Where(item => item.ChargeDate.Year == period.Year &&
-                                   item.ChargeDate.Month == period.Month &&
-                                   item.Direction == DebtDirection.Payable)
-                    .Sum(item => item.Amount) +
-                obligations
-                    .Where(item => item.IssueDate.Year == period.Year &&
-                                   item.IssueDate.Month == period.Month &&
-                                   item.Direction == DebtDirection.Payable)
-                    .Sum(item => item.Amount) +
-                posSettlements
-                    .Where(item => item.SettlementDate.Year == period.Year &&
-                                   item.SettlementDate.Month == period.Month)
-                    .Sum(item => item.CommissionAmount);
+            decimal Sum(TransactionType type) => totals
+                .Where(row => row.Year == period.Year &&
+                              row.Month == period.Month &&
+                              row.Type == (int)type)
+                .Sum(row => row.Amount);
+            var income = Sum(TransactionType.Income);
+            var expense = Sum(TransactionType.Expense);
             points.Add(new CashFlowPointDto(
                 period.Year, period.Month, income, expense, income - expense));
         }
@@ -885,14 +492,16 @@ internal sealed class EfFinancialReportRepository(
     }
 
     /// <summary>
-    /// Bütçe sapması. Harcama kategoriyle değil <b>kategori + kapsam
-    /// çiftiyle</b> toplanır ve her bütçe kendi kapsamıyla eşleşir.
+    /// Bütçe sapması. Her bütçe, raporda kendi kategorisinin kendi
+    /// kapsamındaki gideriyle eşleşir.
     /// </summary>
     /// <remarks>
-    /// Aynı kategori hem işletme hem şahsi harcama tutabildiği için, ikisini
-    /// birden saymak kullanıcının koymadığı bir sınırı aşılmış gösterirdi.
-    /// Aynı kural <c>MonthlyBudget.CalculateProgress</c> ve
-    /// <c>EfBudgetRepository</c> içinde de yazılı.
+    /// Harcama kategoriyle değil <b>kategori + kapsam çiftiyle</b> okunur: aynı
+    /// kategori hem işletme hem şahsi harcama tutabildiği için, ikisini birden
+    /// saymak kullanıcının koymadığı bir sınırı aşılmış gösterirdi. Sayı
+    /// Bütçeler listesiyle aynı yerden gelir
+    /// (<see cref="RecognizedItems.ExpenseByCategoryAndScopeAsync"/>); iki
+    /// ekran aynı bütçeye iki ayrı harcama gösteremez.
     /// <paramref name="scope"/> ayrıca listeyi daraltır: kapsam anahtarı
     /// işletmedeyken şahsi bütçeler görünmez.
     /// </remarks>
@@ -904,7 +513,6 @@ internal sealed class EfFinancialReportRepository(
         CancellationToken cancellationToken)
     {
         var start = new DateOnly(year, month, 1);
-        var endExclusive = start.AddMonths(1);
         var budgets = await (
                 from budget in dbContext.MonthlyBudgets.AsNoTracking()
                 join category in dbContext.Categories.AsNoTracking()
@@ -921,128 +529,12 @@ internal sealed class EfFinancialReportRepository(
                     Limit = budget.Limit.Amount
                 })
             .ToArrayAsync(cancellationToken);
-        var transactionSpent = await dbContext.Transactions.AsNoTracking()
-            .Where(transaction => transaction.UserId == userId &&
-                                  !transaction.IsCancelled &&
-                                  transaction.Type == TransactionType.Expense &&
-                                  transaction.TransactionDate >= start &&
-                                  transaction.TransactionDate < endExclusive)
-            .GroupBy(transaction => new { transaction.CategoryId, transaction.Scope })
-            .Select(group => new
-            {
-                group.Key.CategoryId,
-                group.Key.Scope,
-                Spent = group.Sum(item => item.Amount.Amount)
-            })
-            .ToDictionaryAsync(item => (item.CategoryId, item.Scope), item => item.Spent, cancellationToken);
-        var cardSpent = await dbContext.CreditCardCharges.AsNoTracking()
-            .Where(charge => charge.UserId == userId &&
-                             !charge.IsCancelled &&
-                             charge.ChargeDate >= start &&
-                             charge.ChargeDate < endExclusive)
-            .GroupBy(charge => new { charge.CategoryId, charge.Scope })
-            .Select(group => new
-            {
-                group.Key.CategoryId,
-                group.Key.Scope,
-                Spent = group.Sum(item => item.Amount.Amount)
-            })
-            .ToDictionaryAsync(item => (item.CategoryId, item.Scope), item => item.Spent, cancellationToken);
-        var debtSpent = await dbContext.DebtAgreements.AsNoTracking()
-            .Where(debt => debt.UserId == userId &&
-                           debt.SourceType == DebtSourceType.Expense &&
-                           debt.StartDate >= start &&
-                           debt.StartDate < endExclusive)
-            .GroupBy(debt => new { CategoryId = debt.CategoryId!.Value, debt.Scope })
-            .Select(group => new
-            {
-                group.Key.CategoryId,
-                group.Key.Scope,
-                Spent = group.Sum(item => item.Principal.Amount)
-            })
-            .ToDictionaryAsync(item => (item.CategoryId, item.Scope), item => item.Spent, cancellationToken);
-
-        // Vadeli alım da bütçeyi tüketir: tüketim gerçek, kategorili ve o
-        // gün tanınmış. Tahsilat tüketmez — tüketseydi aynı alım bütçeden
-        // iki kez düşerdi.
-        var counterpartySpent = await dbContext.CounterpartyCharges.AsNoTracking()
-            .Where(charge => charge.UserId == userId &&
-                             !charge.IsCancelled &&
-                             charge.Direction == DebtDirection.Payable &&
-                             charge.ChargeDate >= start &&
-                             charge.ChargeDate < endExclusive)
-            .GroupBy(charge => new { charge.CategoryId, charge.Scope })
-            .Select(group => new
-            {
-                group.Key.CategoryId,
-                group.Key.Scope,
-                Spent = group.Sum(item => item.Amount.Amount)
-            })
-            .ToDictionaryAsync(item => (item.CategoryId, item.Scope), item => item.Spent, cancellationToken);
-        var obligationSpent = await dbContext.Obligations.AsNoTracking()
-            .Where(obligation => obligation.UserId == userId &&
-                                 !obligation.IsCancelled &&
-                                 obligation.Direction == DebtDirection.Payable &&
-                                 obligation.IssueDate >= start &&
-                                 obligation.IssueDate < endExclusive)
-            .GroupBy(obligation => new { obligation.CategoryId, obligation.Scope })
-            .Select(group => new
-            {
-                group.Key.CategoryId,
-                group.Key.Scope,
-                Spent = group.Sum(item => item.Amount.Amount)
-            })
-            .ToDictionaryAsync(
-                item => (item.CategoryId, item.Scope),
-                item => item.Spent,
-                cancellationToken);
-
-        // POS **komisyonu** bütçeyi tüketir: kendi kategorisi olan, o gün
-        // tanınmış gerçek bir gider. Satışın brüt tutarı tüketmez — o bir
-        // gelirdir ve bütçe gider bütçesidir.
-        var posCommissionSpent = await dbContext.PosSettlements.AsNoTracking()
-            .Where(settlement => settlement.UserId == userId &&
-                                 !settlement.IsCancelled &&
-                                 settlement.CommissionCategoryId != null &&
-                                 settlement.SettlementDate >= start &&
-                                 settlement.SettlementDate < endExclusive)
-            // Komisyonlu kaydın kapsamı doludur (satışta da kartla tahsilde de).
-            .GroupBy(settlement => new
-            {
-                CategoryId = settlement.CommissionCategoryId!.Value,
-                Scope = settlement.Scope!.Value
-            })
-            .Select(group => new
-            {
-                group.Key.CategoryId,
-                group.Key.Scope,
-                Spent = group.Sum(item => item.CommissionAmount)
-            })
-            .ToDictionaryAsync(
-                item => (item.CategoryId, item.Scope),
-                item => item.Spent,
-                cancellationToken);
-
-        // Ödenen borç faizi de kendi kategorisinin bütçesini tüketir: kategori
-        // dağılımında o kovada duran bir giderdir ve bütçe aynı sayıyı okur.
-        var interestPaid = (await DebtInterestAsync(
-            userId, start, endExclusive, null, cancellationToken)).Paid;
-        var interestCategoryId = await InterestCategoryIdAsync(userId, cancellationToken);
+        var spentByCategory = await RecognizedItems.ExpenseByCategoryAndScopeAsync(
+            dbContext, userId, start, start.AddMonths(1), cancellationToken);
 
         return budgets.Select(budget =>
         {
-            var key = (budget.CategoryId, budget.Scope);
-            var spent = transactionSpent.GetValueOrDefault(key) +
-                        cardSpent.GetValueOrDefault(key) +
-                        debtSpent.GetValueOrDefault(key) +
-                        counterpartySpent.GetValueOrDefault(key) +
-                        obligationSpent.GetValueOrDefault(key) +
-                        posCommissionSpent.GetValueOrDefault(key) +
-                        (budget.CategoryId == interestCategoryId
-                            ? budget.Scope == TransactionScope.Business
-                                ? interestPaid.Business
-                                : interestPaid.Personal
-                            : 0m);
+            var spent = spentByCategory.GetValueOrDefault((budget.CategoryId, budget.Scope));
             return new BudgetVarianceDto(
                 budget.CategoryId,
                 budget.CategoryName,
@@ -1218,157 +710,6 @@ internal sealed class EfFinancialReportRepository(
             })
             .ToDictionaryAsync(item => item.AccountId, item => item.Amount, cancellationToken);
 
-    /// <summary>
-    /// Gelir kaynaklı alacakların açılış geliri.
-    /// </summary>
-    /// <remarks>
-    /// Gider kaynaklı borcun aynadaki hâli: bir şey satıldı, bedeli sonra
-    /// alınacak. Gelir satış anında yazılır; tahsilatlar yalnız bakiyeyi
-    /// hareket ettirir. Tahsilat da gelir yazsaydı aynı satış iki kez
-    /// sayılırdı.
-    /// </remarks>
-    private async Task<ScopeAmounts> DebtOpeningIncomeAsync(
-        Guid userId,
-        DateOnly start,
-        DateOnly endExclusive,
-        TransactionScope? scope,
-        CancellationToken cancellationToken) =>
-        ScopeAmounts.From(await dbContext.DebtAgreements.AsNoTracking()
-            .Where(debt => debt.UserId == userId &&
-                           debt.SourceType == DebtSourceType.Income &&
-                           (scope == null || debt.Scope == scope) &&
-                           debt.StartDate >= start &&
-                           debt.StartDate < endExclusive)
-            .GroupBy(debt => debt.Scope)
-            .Select(group => new ScopeAmountRow(
-                group.Key,
-                group.Sum(debt => debt.Principal.Amount)))
-            .ToArrayAsync(cancellationToken));
-
-    /// <summary>
-    /// Bir dönemde ödenen taksitlerin faiz payı: borçta gider, alacakta gelir.
-    /// </summary>
-    /// <remarks>
-    /// Borcun gerçek maliyeti faizdir. Anapara geri ödemesi gider değildir —
-    /// borç azalır, para azalır, servet değişmez — ama faiz karşılığında
-    /// hiçbir şey alınmaz, o yüzden gerçek bir giderdir. Alacakta aynı tutar
-    /// gelirdir.
-    ///
-    /// Ayrımı olmayan taksitler (bu ayrımdan önce oluşmuş, açılışı da kayıtsız
-    /// olan borçlar) sıfır faiz katar. Uydurma bir faiz yazmaktansa hiç
-    /// yazmamak doğrudur.
-    /// </remarks>
-    /// <summary>
-    /// Ödenen borç faizinin kategori dağılımındaki satırı.
-    /// </summary>
-    /// <remarks>
-    /// Kategori kullanıcının kendi kayıtlarından, kanonik adla bulunuyor;
-    /// pasifleştirilmiş olsa da bulunur (silme yerine pasifleştirme kuralı).
-    /// Kullanıcı kategoriyi yeniden adlandırdıysa eşleşme olmaz ve faiz
-    /// dağılımda görünmez — toplamdaki payı yine doğrudur, yalnız kovasız
-    /// kalır. Uydurma bir kimlikle satır üretmek daha kötü olurdu: istemci o
-    /// kimlikle filtreleyip boş sonuç alırdı.
-    /// </remarks>
-    private Task<Guid?> InterestCategoryIdAsync(
-        Guid userId,
-        CancellationToken cancellationToken) =>
-        dbContext.Categories.AsNoTracking()
-            .Where(item => item.UserId == userId &&
-                           item.Type == CategoryType.Expense &&
-                           item.Name == EfCategoryRepository.InterestExpenseCategoryName)
-            .Select(item => (Guid?)item.Id)
-            .FirstOrDefaultAsync(cancellationToken);
-
-    private async Task<CategoryExpenseDto[]> InterestCategoryExpensesAsync(
-        Guid userId,
-        decimal interestPaid,
-        CancellationToken cancellationToken)
-    {
-        if (interestPaid <= 0m) return [];
-        var category = await dbContext.Categories.AsNoTracking()
-            .Where(item => item.UserId == userId &&
-                           item.Type == CategoryType.Expense &&
-                           item.Name == EfCategoryRepository.InterestExpenseCategoryName)
-            .Select(item => new { item.Id, item.Name })
-            .FirstOrDefaultAsync(cancellationToken);
-        return category is null
-            ? []
-            : [new CategoryExpenseDto(category.Id, category.Name, interestPaid)];
-    }
-
-    private async Task<(ScopeAmounts Paid, ScopeAmounts Earned)> DebtInterestAsync(
-        Guid userId,
-        DateOnly start,
-        DateOnly endExclusive,
-        TransactionScope? scope,
-        CancellationToken cancellationToken)
-    {
-        var totals = await (
-                from installment in dbContext.DebtInstallments.AsNoTracking()
-                join debt in dbContext.DebtAgreements.AsNoTracking()
-                    on new { installment.UserId, DebtId = installment.DebtAgreementId }
-                    equals new { debt.UserId, DebtId = debt.Id }
-                where installment.UserId == userId &&
-                      installment.InterestPortion != null &&
-                      (scope == null || debt.Scope == scope) &&
-                      installment.PaymentDate >= start &&
-                      installment.PaymentDate < endExclusive
-                group installment by new { debt.Direction, debt.Scope } into directionGroup
-                select new
-                {
-                    directionGroup.Key.Direction,
-                    directionGroup.Key.Scope,
-                    Amount = directionGroup.Sum(item => item.InterestPortion!.Value)
-                })
-            .ToArrayAsync(cancellationToken);
-
-        return (
-            ScopeAmounts.From(totals
-                .Where(item => item.Direction == DebtDirection.Payable)
-                .Select(item => new ScopeAmountRow(item.Scope, item.Amount))),
-            ScopeAmounts.From(totals
-                .Where(item => item.Direction == DebtDirection.Receivable)
-                .Select(item => new ScopeAmountRow(item.Scope, item.Amount))));
-    }
-
-    /// <summary>
-    /// Tek bir kapsam satırı: gruplanmış sorguların projeksiyon tipi.
-    /// </summary>
-    private sealed record ScopeAmountRow(TransactionScope Scope, decimal Amount);
-
-    /// <summary>
-    /// Bir tutarın iki kapsama dağılmış hâli.
-    /// </summary>
-    /// <remarks>
-    /// Üçüncü bir kova yok: gelir/gider üreten her kayıt tam olarak bir kapsam
-    /// taşır, bu yüzden <see cref="Total"/> ikisinin toplamıdır ve filtresiz
-    /// okumanın toplamıyla birebir aynıdır.
-    /// </remarks>
-    private readonly record struct ScopeAmounts(decimal Business, decimal Personal)
-    {
-        internal decimal Total => Business + Personal;
-
-        internal ScopeAmounts Add(ScopeAmounts other) =>
-            new(Business + other.Business, Personal + other.Personal);
-
-        internal static ScopeAmounts From(IEnumerable<ScopeAmountRow> rows)
-        {
-            var business = 0m;
-            var personal = 0m;
-            foreach (var row in rows)
-            {
-                if (row.Scope == TransactionScope.Business)
-                {
-                    business += row.Amount;
-                }
-                else
-                {
-                    personal += row.Amount;
-                }
-            }
-            return new ScopeAmounts(business, personal);
-        }
-    }
 
     /// <summary>
     /// Nakit kaynaklı borçların açılış hareketi, hesap başına.

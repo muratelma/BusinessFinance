@@ -423,22 +423,49 @@ tarafları karşılaştırdığında aynı para hareketini iki kez saydırırdı
 iki tarafın toplamı, filtresiz okumanın toplamından küçüktür ve olması gereken
 budur.
 
-Bütçe ilerlemesi kapsama duyarlıdır ve bu kural **üç yerde birden** yazılıdır:
-`MonthlyBudget.CalculateProgress` (bellek içi), `EfBudgetRepository` (bütçe
-listesi) ve `GetBudgetVariancesAsync` (gelişmiş rapor). Üçü de harcamayı
-kategoriyle değil **kategori + kapsam çiftiyle** toplar; aynı kategori hem
-işletme hem şahsi harcama tutabildiği için, ikisini birden saymak kullanıcının
-koymadığı bir sınırı aşılmış gösterirdi.
+### Gelir/gider kalemlerinin tek listesi
+
+Bir kayıt ya ekonomik olayı tanır ya ödemeyi taşır (ADR 0014). **Tanıyan
+kayıtların listesi tek yerdedir:** `RecognizedItems`
+(`src/BusinessFinance.Infrastructure/Reports/`). Sekiz kaynağı `UNION ALL` ile
+tek şekle indirir (gün, yön, kapsam, kategori, tutar):
+
+| Kaynak | Yön | Gün |
+|---|---|---|
+| Hesaptan gelir/gider (`BudgetTransaction`; yatışın kesintisi dahil) | Kaydın türü | İşlem günü |
+| Kart harcaması | Gider | Harcama günü |
+| Gider ya da gelir kaynaklı borcun açılışı | Borçta gider, alacakta gelir | Başlangıç günü |
+| Ödenen taksidin faiz payı | Borçta gider, alacakta gelir | Ödeme günü |
+| Cari borçlandırma | Alacakta gelir, borçta gider | Borçlandırma günü |
+| Tek seferlik alacak/borç | Alacakta gelir, borçta gider | Doğduğu gün |
+| POS satışı (brüt) | Gelir | Tahsil günü |
+| POS komisyonu (satışta ve kartla tahsilde) | Gider | Tahsil günü |
+
+Aylık raporun toplamı, kapsam kırılımı ve kategori dağılımı, dönem
+karşılaştırması, nakit akışı eğilimi, Bütçeler listesi ve bütçe sapması **hep
+bu listeyi** gruplu tek sorguyla okur. Önceden her okuma kaynakları kendi
+sayıyordu ve sessizce ayrışmışlardı: bütçe listesi tek seferlik borcu ve POS
+komisyonunu saymıyor, iki bütçe okuması faizi saymıyor, eğilim borç açılışını
+ve faizi kapsamla süzmüyordu. Yeni bir tanıma yolu `RecognizedItems`'a eklenir
+ve bütün okumalar onu aynı anda görür. Taşıyan kayıtların listesi
+`AccountMovements` içindedir.
+
+Faiz gideri kalıcı bir hareket üretmez; kategorisi kanonik adıyla bulunur.
+Kullanıcı kategoriyi yeniden adlandırdıysa faiz toplamda kalır, dağılımda ve
+bütçede görünmez (bilinen sınır; aşama belgesinde).
+
+Bütçe ilerlemesi kapsama duyarlıdır: harcama kategoriyle değil **kategori +
+kapsam çiftiyle** okunur (`RecognizedItems.ExpenseByCategoryAndScopeAsync`);
+aynı kategori hem işletme hem şahsi harcama tutabildiği için, ikisini birden
+saymak kullanıcının koymadığı bir sınırı aşılmış gösterirdi.
 
 **Bütçenin harcaması, raporda o kategorinin o kapsamdaki gideridir** (kullanıcı
-kararı, 6 Ekim 2026). Bütçe listesi ve bütçe sapması, aylık raporun kategori
-dağılımıyla aynı kaynakları sayar: hesaptan gider, kart harcaması, vadeli alım,
-gider kaynaklı borcun açılışı, tek seferlik borç, POS komisyonu ve ödenen borç
-faizi. Bu üç okumanın aynı kategoriye aynı sayıyı vermesi
-`MoneyFoundation_BudgetSpendingIsTheCategoryExpenseOfItsScope` ile korunur;
-önceden bütçe listesi tek seferlik borcu ve komisyonu, iki bütçe okuması da
-faizi saymıyordu. `MonthlyBudget.CalculateProgress` yalnız hesap hareketlerini
-görür ve uygulama kodunda çağrılmaz.
+kararı, 6 Ekim 2026). Bütçeler listesi ve bütçe sapması aynı fonksiyonu
+çağırır; kategori dağılımı aynı listeyi okur. Üçünün aynı kategoriye aynı
+sayıyı vermesi `MoneyFoundation_BudgetSpendingIsTheCategoryExpenseOfItsScope`
+ile korunur. Yalnız hesap hareketlerini gören bellek içi
+`MonthlyBudget.CalculateProgress` kaldırıldı: uygulama kodunda çağrılmıyordu ve
+kuralı eksik anlatıyordu.
 
 ### Plan kapsamı gerçekleşmede yeniden türetilmez
 

@@ -88,49 +88,6 @@ public sealed class MonthlyBudget
         Month = month;
     }
 
-    public MonthlyBudgetProgress CalculateProgress(
-        IEnumerable<BudgetTransaction> transactions)
-    {
-        ArgumentNullException.ThrowIfNull(transactions);
-
-        var spentAmount = 0m;
-
-        foreach (var transaction in transactions)
-        {
-            // Kapsam da eleyen bir boyuttur: aynı kategori hem işletme hem
-            // şahsi harcama tutabildiği için, hangi tarafın sınırlandığı
-            // bütçenin kendi kapsamından okunur. İkisini birden saymak,
-            // kullanıcının koymadığı bir sınırı aşılmış göstermek olurdu.
-            if (transaction.IsCancelled ||
-                transaction.UserId != UserId ||
-                transaction.CategoryId != CategoryId ||
-                transaction.Scope != Scope ||
-                transaction.Type != TransactionType.Expense ||
-                transaction.TransactionDate < PeriodStart ||
-                transaction.TransactionDate > PeriodEnd)
-            {
-                continue;
-            }
-
-            if (transaction.Amount.Currency != Limit.Currency)
-            {
-                throw new InvalidOperationException(
-                    "Transaction currency must match the monthly budget currency.");
-            }
-
-            spentAmount += transaction.Amount.Amount;
-        }
-
-        var remainingAmount = Math.Max(Limit.Amount - spentAmount, 0m);
-        var exceededAmount = Math.Max(spentAmount - Limit.Amount, 0m);
-
-        return new MonthlyBudgetProgress(
-            spentAmount,
-            remainingAmount,
-            exceededAmount,
-            Limit.Currency);
-    }
-
     public void UpdateLimit(Money limit)
     {
         ArgumentNullException.ThrowIfNull(limit);

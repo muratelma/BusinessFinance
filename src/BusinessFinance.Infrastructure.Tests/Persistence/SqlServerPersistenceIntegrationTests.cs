@@ -1964,7 +1964,11 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         // 70 → 72 when paid debt interest joined budget variance: one grouped
         // read for the interest per scope and one for the category it belongs
         // to. Neither grows with the number of debts or installments.
-        Assert.InRange(counter.ReaderCommandCount, 1, 72);
+        // 72 → 37 when every recognized income and expense source moved into
+        // one list (RecognizedItems): the two period totals, the trend and
+        // budget variance each read it with one grouped UNION ALL query
+        // instead of one query per source.
+        Assert.InRange(counter.ReaderCommandCount, 1, 37);
         Assert.True(
             stopwatch.Elapsed < TimeSpan.FromSeconds(5),
             $"Advanced report took {stopwatch.Elapsed.TotalMilliseconds:N0} ms.");

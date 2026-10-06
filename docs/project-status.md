@@ -428,6 +428,19 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     test atlandı), build 0 uyarı, format temiz. Sırada: gelir/gider
     kalemlerinin ve hesap hareketlerinin tek listeye alınması (davranış
     değiştirmeyen yeniden düzenleme)
+  - **06.3 Grup 8 zemini — gelir/gider kalemleri tek listede (6 Ekim 2026)**:
+    tanıyan sekiz kaynak `RecognizedItems` içinde bir kez tanımlandı
+    (`UNION ALL`); aylık raporun toplamı, kapsam kırılımı ve kategori dağılımı,
+    dönem karşılaştırması, nakit akışı eğilimi, Bütçeler listesi ve bütçe
+    sapması onu gruplu tek sorguyla okuyor. **Davranış değişmedi**; güvence
+    senaryosu ve sayıları elle sabitleyen mevcut rapor testleri aynı sonucu
+    veriyor. Gelişmiş raporun sorgu sayısı 72'den 37'ye indi. Uygulamada
+    çağrılmayan ve kuralı eksik anlatan bellek içi
+    `MonthlyBudget.CalculateProgress` yedi testiyle birlikte kaldırıldı.
+    Sözleşme ve şema değişmedi. Kontroller: backend SQL dahil geçti (Domain
+    335, Application 331, Api 274, Infrastructure 227 + 2 canlı test atlandı),
+    build 0 uyarı, format temiz. Sırada: hesap hareketlerinin tek listeye
+    alınması
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni (beklemede) → **06.3 bütünsel düzenleme (aktif)** →

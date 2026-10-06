@@ -236,37 +236,6 @@ public class TransactionScopeTests
     }
 
     /// <summary>
-    /// Aynı kategoriye giren şahsi harcama, işletme bütçesini tüketmez. Bütçe
-    /// kapsamını bilir; onu bilmeseydi esnafın kendi market alışverişi dükkânın
-    /// sınırını aşmış gösterirdi.
-    /// </summary>
-    [Fact]
-    public void MonthlyBudget_Progress_CountsOnlyItsOwnScope()
-    {
-        var userId = Guid.NewGuid();
-        var account = CreateAccount(userId);
-        var category = CreateCategory(userId, CategoryType.Expense);
-        var budget = new MonthlyBudget(
-            Guid.NewGuid(),
-            userId,
-            category,
-            new Money(1000m, CurrencyCode.TRY),
-            TransactionScope.Business,
-            2026,
-            8);
-
-        var progress = budget.CalculateProgress(
-        [
-            Spend(userId, account, category, 400m, TransactionScope.Business),
-            Spend(userId, account, category, 900m, TransactionScope.Personal)
-        ]);
-
-        Assert.Equal(400m, progress.SpentAmount);
-        Assert.Equal(600m, progress.RemainingAmount);
-        Assert.Equal(0m, progress.ExceededAmount);
-    }
-
-    /// <summary>
     /// Transfer ve kart ödemesi gelir/gider raporuna sıfır etki eder (ADR 0002,
     /// ADR 0003). Kapsam sormak, cevabı hiçbir yerde kullanılmayan bir soru
     /// sormak olurdu; bu yüzden alan da yoktur ve eklenmesi bu testi kırar.
@@ -325,24 +294,6 @@ public class TransactionScopeTests
         Action act = () => account.SetDefaultScope(Undefined);
 
         Assert.Throws<ArgumentOutOfRangeException>(act);
-    }
-
-    private static BudgetTransaction Spend(
-        Guid userId,
-        Account account,
-        Category category,
-        decimal amount,
-        TransactionScope scope)
-    {
-        return new BudgetTransaction(
-            Guid.NewGuid(),
-            userId,
-            account,
-            category,
-            new Money(amount, CurrencyCode.TRY),
-            TransactionType.Expense,
-            scope,
-            new DateOnly(2026, 8, 7));
     }
 
     private static Account CreateAccount(Guid userId)

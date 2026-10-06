@@ -226,6 +226,11 @@ gerekçesiyle bozulmaz.
   borç faizi dahil. Bütçeler listesi, bütçe sapması ve kategori dağılımı aynı
   kategoriye aynı sayıyı verir; `MoneyFoundation_*` testleri para tarafında
   aynı sayıyı hesaplayan yolların birbirini tuttuğunu korur.
+- **Gelir/gider yazan kayıtların listesi tek yerdedir** (`RecognizedItems`):
+  sekiz tanıma kaynağı `UNION ALL` ile bir kez tanımlıdır; rapor toplamı,
+  kapsam kırılımı, kategori dağılımı, dönem karşılaştırması, eğilim ve iki
+  bütçe okuması onu okur. Yeni bir tanıma yolu **oraya** eklenir; bir okumaya
+  kendi kaynak listesini yazmayın — bütçe ve eğilim tam böyle ayrışmıştı.
 - **Plan kapsamı gerçekleşmede yeniden türetilmez.** Tekrarlayan plan ve taksit
   planının ürettiği kayıt kapsamı plandan alır; aksi hâlde aynı plan farklı
   aylarda farklı kapsam üretebilirdi.
