@@ -221,6 +221,11 @@ gerekçesiyle bozulmaz.
   varlık kapsam filtresinden etkilenmez. Bölünen tek şey gelir/gider
   toplamlarıdır. Bütçe ilerlemesi kapsama duyarlıdır: harcama kategoriyle
   değil, **kategori + kapsam çiftiyle** toplanır.
+- **Bütçenin harcaması, raporda o kategorinin o kapsamdaki gideridir**
+  (kullanıcı kararı, 6 Ekim 2026): tek seferlik borç, POS komisyonu ve ödenen
+  borç faizi dahil. Bütçeler listesi, bütçe sapması ve kategori dağılımı aynı
+  kategoriye aynı sayıyı verir; `MoneyFoundation_*` testleri para tarafında
+  aynı sayıyı hesaplayan yolların birbirini tuttuğunu korur.
 - **Plan kapsamı gerçekleşmede yeniden türetilmez.** Tekrarlayan plan ve taksit
   planının ürettiği kayıt kapsamı plandan alır; aksi hâlde aynı plan farklı
   aylarda farklı kapsam üretebilirdi.

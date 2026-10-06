@@ -741,6 +741,7 @@ internal sealed class EfFinancialReportRepository(
             .Where(debt => debt.UserId == userId &&
                            (debt.SourceType == DebtSourceType.Expense ||
                             debt.SourceType == DebtSourceType.Income) &&
+                           (scope == null || debt.Scope == scope) &&
                            debt.StartDate >= start &&
                            debt.StartDate < endExclusive)
             .Select(debt => new
@@ -757,6 +758,7 @@ internal sealed class EfFinancialReportRepository(
                     equals new { debt.UserId, DebtId = debt.Id }
                 where installment.UserId == userId &&
                       installment.InterestPortion != null &&
+                      (scope == null || debt.Scope == scope) &&
                       installment.PaymentDate >= start &&
                       installment.PaymentDate < endExclusive
                 select new
@@ -1021,6 +1023,12 @@ internal sealed class EfFinancialReportRepository(
                 item => item.Spent,
                 cancellationToken);
 
+        // Ödenen borç faizi de kendi kategorisinin bütçesini tüketir: kategori
+        // dağılımında o kovada duran bir giderdir ve bütçe aynı sayıyı okur.
+        var interestPaid = (await DebtInterestAsync(
+            userId, start, endExclusive, null, cancellationToken)).Paid;
+        var interestCategoryId = await InterestCategoryIdAsync(userId, cancellationToken);
+
         return budgets.Select(budget =>
         {
             var key = (budget.CategoryId, budget.Scope);
@@ -1029,7 +1037,12 @@ internal sealed class EfFinancialReportRepository(
                         debtSpent.GetValueOrDefault(key) +
                         counterpartySpent.GetValueOrDefault(key) +
                         obligationSpent.GetValueOrDefault(key) +
-                        posCommissionSpent.GetValueOrDefault(key);
+                        posCommissionSpent.GetValueOrDefault(key) +
+                        (budget.CategoryId == interestCategoryId
+                            ? budget.Scope == TransactionScope.Business
+                                ? interestPaid.Business
+                                : interestPaid.Personal
+                            : 0m);
             return new BudgetVarianceDto(
                 budget.CategoryId,
                 budget.CategoryName,
@@ -1256,6 +1269,16 @@ internal sealed class EfFinancialReportRepository(
     /// kalır. Uydurma bir kimlikle satır üretmek daha kötü olurdu: istemci o
     /// kimlikle filtreleyip boş sonuç alırdı.
     /// </remarks>
+    private Task<Guid?> InterestCategoryIdAsync(
+        Guid userId,
+        CancellationToken cancellationToken) =>
+        dbContext.Categories.AsNoTracking()
+            .Where(item => item.UserId == userId &&
+                           item.Type == CategoryType.Expense &&
+                           item.Name == EfCategoryRepository.InterestExpenseCategoryName)
+            .Select(item => (Guid?)item.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
     private async Task<CategoryExpenseDto[]> InterestCategoryExpensesAsync(
         Guid userId,
         decimal interestPaid,

@@ -412,6 +412,22 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     (Domain 342, Application 331, Api 274, Infrastructure 224 + 2 canlı test
     atlandı), build 0 uyarı, format temiz; Flutter analyze ve format temiz,
     1056 test geçti (102 ekran görüntüsü ve çizim testi atlandı)
+  - **06.3 Grup 8 zemini — para tarafı: güvence senaryosu ve iki kesin hata
+    (6 Ekim 2026)**: kapsam sorularından yola çıkılarak rapor, bütçe, bakiye,
+    akış ve kapsamın yazıldığı yollar koddan okundu; bulgular ve plan aşama
+    belgesinde (Grup 8 "0 · Zemin"). **Güvence senaryosu** yazıldı: her kayıt
+    türünden iki kapsamda birer örnek içeren tek veri kümesinde, aynı sayıyı
+    hesaplayan yolların birbirini tuttuğu doğrulanıyor (`MoneyFoundation_*`,
+    üç SQL testi). Bakiye, kart borcu, cari ve yoldaki para bütün yollarda
+    tuttu. **İki hata düzeltildi:** (1) Bütçeler listesi tek seferlik borcu,
+    POS komisyonunu ve borç faizini, bütçe sapması faizi saymıyordu — bütçenin
+    harcaması artık raporda o kategorinin o kapsamdaki gideridir (kullanıcı
+    kararı); (2) nakit akışı eğilimi borç açılışını ve borç faizini kapsamla
+    süzmüyordu. Sözleşme ve şema değişmedi. Kontroller: backend SQL dahil
+    geçti (Domain 342, Application 331, Api 274, Infrastructure 227 + 2 canlı
+    test atlandı), build 0 uyarı, format temiz. Sırada: gelir/gider
+    kalemlerinin ve hesap hareketlerinin tek listeye alınması (davranış
+    değiştirmeyen yeniden düzenleme)
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni (beklemede) → **06.3 bütünsel düzenleme (aktif)** →

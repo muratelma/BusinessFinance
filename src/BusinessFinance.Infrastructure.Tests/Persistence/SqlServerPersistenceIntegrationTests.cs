@@ -44,7 +44,7 @@ using BusinessFinance.Application.Receipts;
 
 namespace BusinessFinance.Infrastructure.Tests.Persistence;
 
-public sealed class SqlServerPersistenceIntegrationTests
+public sealed partial class SqlServerPersistenceIntegrationTests
 {
     private const string ConnectionEnvironmentName =
         "BUSINESS_FINANCE_SQL_TEST_CONNECTION";
@@ -1961,7 +1961,10 @@ public sealed class SqlServerPersistenceIntegrationTests
         // of them grows with the number of settlements.
         // 69 → 70 when net worth started naming the next transit day: one MIN
         // over the settlements still in transit, not one read per settlement.
-        Assert.InRange(counter.ReaderCommandCount, 1, 70);
+        // 70 → 72 when paid debt interest joined budget variance: one grouped
+        // read for the interest per scope and one for the category it belongs
+        // to. Neither grows with the number of debts or installments.
+        Assert.InRange(counter.ReaderCommandCount, 1, 72);
         Assert.True(
             stopwatch.Elapsed < TimeSpan.FromSeconds(5),
             $"Advanced report took {stopwatch.Elapsed.TotalMilliseconds:N0} ms.");

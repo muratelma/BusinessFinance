@@ -430,6 +430,16 @@ kategoriyle değil **kategori + kapsam çiftiyle** toplar; aynı kategori hem
 işletme hem şahsi harcama tutabildiği için, ikisini birden saymak kullanıcının
 koymadığı bir sınırı aşılmış gösterirdi.
 
+**Bütçenin harcaması, raporda o kategorinin o kapsamdaki gideridir** (kullanıcı
+kararı, 6 Ekim 2026). Bütçe listesi ve bütçe sapması, aylık raporun kategori
+dağılımıyla aynı kaynakları sayar: hesaptan gider, kart harcaması, vadeli alım,
+gider kaynaklı borcun açılışı, tek seferlik borç, POS komisyonu ve ödenen borç
+faizi. Bu üç okumanın aynı kategoriye aynı sayıyı vermesi
+`MoneyFoundation_BudgetSpendingIsTheCategoryExpenseOfItsScope` ile korunur;
+önceden bütçe listesi tek seferlik borcu ve komisyonu, iki bütçe okuması da
+faizi saymıyordu. `MonthlyBudget.CalculateProgress` yalnız hesap hareketlerini
+görür ve uygulama kodunda çağrılmaz.
+
 ### Plan kapsamı gerçekleşmede yeniden türetilmez
 
 Tekrarlayan plan ve taksit planının ürettiği kayıt kapsamını **plandan** alır.

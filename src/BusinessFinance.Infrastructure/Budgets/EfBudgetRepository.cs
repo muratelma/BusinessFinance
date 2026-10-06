@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using BusinessFinance.Application.Budgets;
 using BusinessFinance.Domain;
+using BusinessFinance.Infrastructure.Categories;
 using BusinessFinance.Infrastructure.Persistence;
 
 namespace BusinessFinance.Infrastructure.Budgets;
@@ -164,13 +165,90 @@ internal sealed class EfBudgetRepository(BusinessFinanceDbContext dbContext)
                 value => value.Amount,
                 cancellationToken);
 
+        // Bütçenin harcaması, raporda o kategorinin o kapsamdaki gideridir
+        // (kullanıcı kararı, 6 Ekim 2026). Tek seferlik borç, POS komisyonu ve
+        // ödenen borç faizi de tanınmış giderlerdir; burada sayılmadıkları
+        // için Bütçeler ekranı ile kategori dağılımı aynı kategoriye iki ayrı
+        // sayı gösteriyordu.
+        var obligationSpent = await dbContext.Obligations.AsNoTracking()
+            .Where(obligation => obligation.UserId == userId &&
+                                 categoryIds.Contains(obligation.CategoryId) &&
+                                 !obligation.IsCancelled &&
+                                 obligation.Direction == DebtDirection.Payable &&
+                                 obligation.IssueDate >= periodStart &&
+                                 obligation.IssueDate < periodEndExclusive)
+            .GroupBy(obligation => new { obligation.CategoryId, obligation.Scope })
+            .Select(group => new
+            {
+                group.Key.CategoryId,
+                group.Key.Scope,
+                Amount = group.Sum(x => x.Amount.Amount)
+            })
+            .ToDictionaryAsync(
+                value => (value.CategoryId, value.Scope),
+                value => value.Amount,
+                cancellationToken);
+        var posCommissionSpent = await dbContext.PosSettlements.AsNoTracking()
+            .Where(settlement => settlement.UserId == userId &&
+                                 settlement.CommissionCategoryId != null &&
+                                 categoryIds.Contains(settlement.CommissionCategoryId.Value) &&
+                                 !settlement.IsCancelled &&
+                                 settlement.SettlementDate >= periodStart &&
+                                 settlement.SettlementDate < periodEndExclusive)
+            // Komisyonlu kaydın kapsamı doludur (satışta da kartla tahsilde de).
+            .GroupBy(settlement => new
+            {
+                CategoryId = settlement.CommissionCategoryId!.Value,
+                Scope = settlement.Scope!.Value
+            })
+            .Select(group => new
+            {
+                group.Key.CategoryId,
+                group.Key.Scope,
+                Amount = group.Sum(x => x.CommissionAmount)
+            })
+            .ToDictionaryAsync(
+                value => (value.CategoryId, value.Scope),
+                value => value.Amount,
+                cancellationToken);
+        var interestCategoryId = await dbContext.Categories.AsNoTracking()
+            .Where(category => category.UserId == userId &&
+                               category.Type == CategoryType.Expense &&
+                               category.Name == EfCategoryRepository.InterestExpenseCategoryName)
+            .Select(category => (Guid?)category.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        var interestSpent = interestCategoryId is Guid interestId && categoryIds.Contains(interestId)
+            ? await (
+                    from installment in dbContext.DebtInstallments.AsNoTracking()
+                    join debt in dbContext.DebtAgreements.AsNoTracking()
+                        on new { installment.UserId, DebtId = installment.DebtAgreementId }
+                        equals new { debt.UserId, DebtId = debt.Id }
+                    where installment.UserId == userId &&
+                          installment.InterestPortion != null &&
+                          debt.Direction == DebtDirection.Payable &&
+                          installment.PaymentDate >= periodStart &&
+                          installment.PaymentDate < periodEndExclusive
+                    group installment by debt.Scope into scopeGroup
+                    select new
+                    {
+                        Scope = scopeGroup.Key,
+                        Amount = scopeGroup.Sum(x => x.InterestPortion!.Value)
+                    })
+                .ToDictionaryAsync(value => value.Scope, value => value.Amount, cancellationToken)
+            : [];
+
         return budgets.Select(budget =>
         {
             var key = (budget.CategoryId, budget.Scope);
             var spentAmount = transactionSpent.GetValueOrDefault(key) +
                               cardSpent.GetValueOrDefault(key) +
                               debtSpent.GetValueOrDefault(key) +
-                              counterpartySpent.GetValueOrDefault(key);
+                              counterpartySpent.GetValueOrDefault(key) +
+                              obligationSpent.GetValueOrDefault(key) +
+                              posCommissionSpent.GetValueOrDefault(key) +
+                              (budget.CategoryId == interestCategoryId
+                                  ? interestSpent.GetValueOrDefault(budget.Scope)
+                                  : 0m);
             return new BudgetDto(
                 budget.Id,
                 budget.CategoryId,

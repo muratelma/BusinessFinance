@@ -1676,3 +1676,20 @@ atlandı), debug APK derlendi.
 gerçek SQL Server'da koşumu. LINQ'in SQL'e çevrilmesi (POS listesindeki
 `UNION ALL` alt sorgusu, akışın yeni join'leri) `ToQueryString` ile kontrol
 edildi; yerelde SQL dahil koşu gerekir.
+
+## Aşama 06.3 Grup 8 zemini — para tarafının güvence senaryosu (6 Ekim 2026)
+
+Tek veri kümesi: her kayıt türünden iki kapsamda birer örnek (hesaptan
+gelir/gider, kart harcaması ve ödemesi, cari borçlandırma ve tahsilat, tek
+seferlik alacak/borç ve kapaması, üç kaynaklı borç açılışı ve faizli taksit,
+POS satışı, yatış ve kesinti, kartla tahsil, transfer, dört bütçe). Testler tek
+tek okumaların doğruluğunu değil, **aynı sayıyı hesaplayan yolların birbirini
+tuttuğunu** doğrular; bir kaynak bir yola eklenip ötekinde unutulduğunda
+kırılan kapı budur.
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Gelir ve gider | `SqlServerPersistenceIntegrationTests.MoneyFoundation_IncomeAndExpenseAgreeAcrossEveryRead` | Üç kapsam okumasında (hepsi, işletme, şahsi) aylık raporun toplamı = kategori dağılımının toplamı = dönem karşılaştırmasının ayı = eğilimin ayı; iki taraf filtresiz okumayı tam böler ve kırılım aynısını söyler; kategori dağılımı kurgunun kalemleriyle birebir (komisyon + kesinti + kartla tahsil komisyonu, faiz kendi kovasında). Eğilim önceden borç açılışını ve faizi kapsamla süzmüyordu |
+| Bütçe | `MoneyFoundation_BudgetSpendingIsTheCategoryExpenseOfItsScope` | Her bütçenin harcaması, raporda o kategorinin o kapsamdaki giderine eşit; Bütçeler listesi ile gelişmiş rapordaki bütçe sapması aynı sayıyı gösterir. Tek seferlik borç, POS komisyonu ve borç faizi dahil |
+| Bakiye, borç, yoldaki para | `MoneyFoundation_BalancesDebtsAndTransitAgreeAcrossEveryRead` | Hesabın bakiyesi = aylık rapordaki = tarihli rapordaki = açılış + günlerin giren/çıkan toplamı; kart borcu kartın okumasında ve raporda aynı; kişi listesindeki açık alacak/borç + borç anlaşmalarının kalan anaparası = net varlıktaki alacak/borç; POS listesindeki yoldaki toplam = net varlıktaki |
+| Sorgu bütçesi | `AdvancedReport_LargeFixtureStaysWithinQueryCountAndTimeBudget` (güncellendi) | 70 → 72: bütçe sapması faizi kapsam başına tek gruplu sorguyla ve kategorisini tek sorguyla okur; borç ya da taksit adediyle büyümez |
