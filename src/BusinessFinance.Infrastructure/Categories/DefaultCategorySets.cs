@@ -1,3 +1,4 @@
+using BusinessFinance.Application.Cash;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Infrastructure.Categories;
@@ -105,6 +106,9 @@ internal static class DefaultCategorySets
         // Borcun faizi gerçek bir giderdir ve şimdiye kadar kategorisizdi.
         Personal("Faiz ve finansman gideri", CategoryType.Expense),
         Personal("Bağış", CategoryType.Expense),
+
+        // Sebebi bilinmeyen kasa eksiği buraya yazılır (Aşama 06.3 K10).
+        Personal(CashCountDefaults.DifferenceCategoryName, CategoryType.Expense),
         Personal("Diğer gider", CategoryType.Expense)
     ];
 
@@ -137,6 +141,9 @@ internal static class DefaultCategorySets
         Business("Reklam", CategoryType.Expense),
         Business("Sigorta", CategoryType.Expense),
         Business("Faiz ve finansman gideri", CategoryType.Expense),
+
+        // Sebebi bilinmeyen kasa eksiği buraya yazılır (Aşama 06.3 K10).
+        Business(CashCountDefaults.DifferenceCategoryName, CategoryType.Expense),
         Business("Diğer işletme gideri", CategoryType.Expense),
 
         Personal("Market Alışverişi", CategoryType.Expense),

@@ -237,12 +237,15 @@ class _DesignPos implements PosRepositoryContract {
   ];
 
   @override
-  Future<PosSettlementList> list({required bool inTransitOnly}) async =>
-      const PosSettlementList(
-        items: _inTransit,
-        moneyInTransit: '40663.6200',
-        inTransitCount: 2,
-      );
+  Future<PosSettlementList> list({
+    required bool inTransitOnly,
+    String? from,
+    String? to,
+  }) async => const PosSettlementList(
+    items: _inTransit,
+    moneyInTransit: '40663.6200',
+    inTransitCount: 2,
+  );
 
   @override
   Future<void> create(Map<String, Object?> input) async {}

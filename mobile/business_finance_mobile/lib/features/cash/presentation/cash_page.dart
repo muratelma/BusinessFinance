@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../../../core/formatters/money_text.dart';
 import '../../../core/models/transaction_scope.dart';
@@ -21,6 +22,7 @@ import '../../pos/presentation/pos_settlements_view.dart';
 import '../data/cash_repository.dart';
 import 'cash_controller.dart';
 import 'cash_count_view.dart';
+import 'cash_withdrawal_sheet.dart';
 
 /// `Kasa`: tezgâh üstü esnafın günlük ekranı.
 ///
@@ -40,7 +42,12 @@ class CashPage extends StatefulWidget {
     this.dayCloseController,
     this.ownsControllers = true,
     this.initialTab = 0,
+    this.onOpenPersonalAccount,
   });
+
+  /// `Kendime aldım` panelindeki `Şahsi cüzdan aç` bağlantısı; verilmezse
+  /// bağlantı çizilmez.
+  final VoidCallback? onOpenPersonalAccount;
 
   /// Gün sonu; verilmezse kartı çizilmez.
   final DayCloseController? dayCloseController;
@@ -50,7 +57,9 @@ class CashPage extends StatefulWidget {
   final ScopeController? scopeController;
   final bool ownsControllers;
 
-  /// `1`: açılışta yeni POS tahsilatı formu, `2`: gün sonu paneli açılır.
+  /// `1`: açılışta yeni POS tahsilatı formu, `2`: gün sonu paneli açılır,
+  /// `3`: sayfa `POS tahsilatları` bölümüne kaydırılmış açılır (Özet'teki
+  /// `Yolda` satırı).
   ///
   /// `İşlem ekle` menüsü buraya gelir; eskiden ikinci sekmeyi seçiyordu,
   /// sekmeler kalkınca doğrudan paneli açıyor.
@@ -62,6 +71,12 @@ class CashPage extends StatefulWidget {
 
 class _CashPageState extends State<CashPage> {
   CashCountController get _cash => widget.cashController;
+
+  final _posSectionKey = GlobalKey();
+
+  /// Açılışta POS bölümüne kaydırma bekliyor mu; bölüm çizilince bir kez
+  /// yapılır.
+  late bool _scrollToPos = widget.initialTab == 3;
 
   @override
   void initState() {
@@ -132,7 +147,22 @@ class _CashPageState extends State<CashPage> {
   }
 
   void _changed() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
+    if (_scrollToPos && (_cash.today != null || !_cash.isLoading)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showPosSection());
+    }
+  }
+
+  void _showPosSection() {
+    final target = _posSectionKey.currentContext;
+    if (!_scrollToPos || target == null) return;
+    _scrollToPos = false;
+    Scrollable.ensureVisible(
+      target,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
   }
 
   Future<void> _refresh() =>
@@ -201,6 +231,9 @@ class _CashPageState extends State<CashPage> {
     return RefreshIndicator(
       onRefresh: _refresh,
       child: ListView(
+        // POS bölümü ekranın altında kalsa da çizilmiş olmalı: açılışta ona
+        // kaydırılabilmesi için.
+        scrollCacheExtent: const ScrollCacheExtent.pixels(1500),
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.medium,
           AppSpacing.xSmall,
@@ -237,8 +270,21 @@ class _CashPageState extends State<CashPage> {
                 controller,
                 widget.scopeController,
               ),
-              onSaveDifference: () =>
-                  showCashDifferenceForm(context, controller),
+              onSaveDifference: () => showCashDifferenceForm(
+                context,
+                controller,
+                onOpenPersonalAccount: widget.onOpenPersonalAccount,
+              ),
+            )
+          else if (controller.hasOnlyHiddenAccounts)
+            const AppCard(
+              child: AppEmptyView(
+                title: 'İşletme kasası yok.',
+                message:
+                    'Şahsi cüzdanınız Hesaplar\'da durur. Kasa için işletme '
+                    'etiketli ya da etiketsiz bir nakit hesap açın.',
+                icon: Icons.point_of_sale_outlined,
+              ),
             )
           else
             const AppCard(
@@ -250,8 +296,26 @@ class _CashPageState extends State<CashPage> {
                 icon: Icons.point_of_sale_outlined,
               ),
             ),
+          if (today != null)
+            // Esnafın kasadan kendine aldığı para (K9): gider ya da şahsi
+            // hesaba aktarım olarak yazılır.
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: controller.isSubmitting
+                    ? null
+                    : () => showCashWithdrawal(
+                        context,
+                        controller,
+                        onOpenPersonalAccount: widget.onOpenPersonalAccount,
+                      ),
+                icon: const Icon(Icons.person_outline),
+                label: const Text('Kendime aldım'),
+              ),
+            ),
           const SizedBox(height: AppSpacing.large - AppSpacing.xSmall),
           PosSection(
+            key: _posSectionKey,
             controller: widget.posController,
             scopeController: widget.scopeController,
           ),

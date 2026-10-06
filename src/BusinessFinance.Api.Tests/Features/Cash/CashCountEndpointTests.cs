@@ -6,6 +6,7 @@ using BusinessFinance.Api.Features.Accounts;
 using BusinessFinance.Api.Features.Authentication;
 using BusinessFinance.Api.Features.Cash;
 using BusinessFinance.Api.Features.Categories;
+using BusinessFinance.Api.Features.FinancialActivities;
 using BusinessFinance.Api.Features.Reports;
 using BusinessFinance.Api.Features.Transactions;
 
@@ -152,6 +153,131 @@ public sealed class CashCountEndpointTests
         var uncounted = await owner.GetFromJsonAsync<CashCountTodayResponse>(
             $"/api/v1/cash-counts/today?accountId={otherAccount.Id}");
         Assert.Null(uncounted!.ChangeSinceCount);
+    }
+
+    /// <summary>
+    /// Aşama 06.3 K6: önceki sayımın kaydedilmemiş farkı bilgi olarak taşınır;
+    /// bugünkü fark tek sayı kalır ve ondan düşülmez. Aynı fark yeniden
+    /// sayılırsa sunucu bunu söyler; fark kaydedilince bilgi kalkar.
+    /// </summary>
+    [Fact]
+    public async Task UnrecordedDifferenceOfThePreviousCount_IsCarriedAsInformation()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(
+            factory, "cash-carried-difference@example.test");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var account = await CreateAccountAsync(owner, "Sentetik kasa", "cash", "1000.0000");
+        var expense = await FirstCategoryAsync(owner, "expense");
+        var todayPath = $"/api/v1/cash-counts/today?accountId={account.Id}";
+
+        // Sayım yokken taşınan bir fark da yoktur.
+        var empty = await owner.GetFromJsonAsync<CashCountTodayResponse>(todayPath);
+        Assert.Null(empty!.PreviousUnrecordedDifference);
+        Assert.False(empty.DifferenceSameAsPrevious);
+
+        // Dün 100 eksik sayıldı ve fark kaydedilmedi.
+        using var yesterday = await owner.PostAsJsonAsync(
+            "/api/v1/cash-counts",
+            new CreateCashCountRequest(
+                account.Id, "900.0000", Date(today.AddDays(-1)), "business"));
+        Assert.Equal(HttpStatusCode.Created, yesterday.StatusCode);
+        var yesterdayCount = await yesterday.Content.ReadFromJsonAsync<CashCountResponse>();
+
+        var carried = await owner.GetFromJsonAsync<CashCountTodayResponse>(todayPath);
+        Assert.Equal("-100.0000", carried!.PreviousUnrecordedDifference);
+        Assert.False(carried.DifferenceSameAsPrevious);
+
+        // Bugün aynı eksik yeniden sayıldı: fark bölünmez, tek sayıdır.
+        using var again = await owner.PostAsJsonAsync(
+            "/api/v1/cash-counts",
+            new CreateCashCountRequest(account.Id, "900.0000", Date(today), "business"));
+        Assert.Equal(HttpStatusCode.Created, again.StatusCode);
+        var same = await owner.GetFromJsonAsync<CashCountTodayResponse>(todayPath);
+        Assert.Equal("-100.0000", same!.Count!.Difference);
+        Assert.Equal("-100.0000", same.PreviousUnrecordedDifference);
+        Assert.True(same.DifferenceSameAsPrevious);
+
+        // Arada eksiği açıklayan gider girildi: bugünkü fark değişir, eski
+        // farkın bilgisi olduğu gibi kalır ve "aynı" denmez.
+        using var forgotten = await owner.PostAsJsonAsync(
+            "/api/v1/transactions",
+            new CreateTransactionRequest(
+                account.Id, expense.Id, "80.0000", "TRY", "expense", "business",
+                Date(today), "Unutulan gider"));
+        Assert.Equal(HttpStatusCode.Created, forgotten.StatusCode);
+        var changed = await owner.GetFromJsonAsync<CashCountTodayResponse>(todayPath);
+        Assert.Equal("-20.0000", changed!.Count!.Difference);
+        Assert.Equal("-100.0000", changed.PreviousUnrecordedDifference);
+        Assert.False(changed.DifferenceSameAsPrevious);
+
+        // Dünkü sayımın farkı kaydedilince taşınacak bir şey kalmaz.
+        using var confirm = await owner.PostAsJsonAsync(
+            $"/api/v1/cash-counts/{yesterdayCount!.Id}/adjustment",
+            new ConfirmCashCountDifferenceRequest(expense.Id));
+        Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
+        var recorded = await owner.GetFromJsonAsync<CashCountTodayResponse>(todayPath);
+        Assert.Null(recorded!.PreviousUnrecordedDifference);
+        Assert.False(recorded.DifferenceSameAsPrevious);
+    }
+
+    /// <summary>
+    /// Aşama 06.3 K10: sebebi bilinmeyen eksik kategori sormaz; standart
+    /// <c>Kasa farkı</c> gider kategorisine yazılır. Kategori yoksa açılır ve
+    /// ikinci kullanımda aynı kategori kullanılır.
+    /// </summary>
+    [Fact]
+    public async Task UnknownShortage_IsWrittenToTheStandardDifferenceCategory()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(
+            factory, "cash-difference-reason@example.test");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var expense = await FirstCategoryAsync(owner, "expense");
+
+        async Task<(HttpStatusCode Status, FinancialActivityResponse? Row)> ConfirmAsync(
+            string accountName, string counted, ConfirmCashCountDifferenceRequest request)
+        {
+            var account = await CreateAccountAsync(owner, accountName, "cash", "500.0000");
+            using var create = await owner.PostAsJsonAsync(
+                "/api/v1/cash-counts",
+                new CreateCashCountRequest(account.Id, counted, Date(today), "business"));
+            var count = await create.Content.ReadFromJsonAsync<CashCountResponse>();
+            using var confirm = await owner.PostAsJsonAsync(
+                $"/api/v1/cash-counts/{count!.Id}/adjustment", request);
+            if (confirm.StatusCode != HttpStatusCode.OK)
+            {
+                return (confirm.StatusCode, null);
+            }
+
+            var confirmed = await confirm.Content.ReadFromJsonAsync<CashCountResponse>();
+            var feed = await owner.GetFromJsonAsync<FinancialActivityListResponse>(
+                "/api/v1/financial-activities");
+            return (confirm.StatusCode, Assert.Single(
+                feed!.Items,
+                item => item.ActivityId == confirmed!.AdjustmentTransactionId));
+        }
+
+        // Varsayılan set kategoriyi taşır; bu kullanıcıda bir kez durur.
+        var first = await ConfirmAsync("Birinci kasa", "450.0000", new(UnknownReason: true));
+        Assert.Equal(HttpStatusCode.OK, first.Status);
+        Assert.Equal("Kasa farkı", first.Row!.CategoryName);
+        Assert.Equal("expense", first.Row.Effect);
+        var second = await ConfirmAsync("İkinci kasa", "480.0000", new(UnknownReason: true));
+        Assert.Equal(first.Row.CategoryId, second.Row!.CategoryId);
+        var categories = await owner.GetFromJsonAsync<CategoryListResponse>(
+            "/api/v1/categories?type=expense");
+        Assert.Single(categories!.Items, item => item.Name == "Kasa farkı");
+
+        // Fazla çıkan farkta ve kategoriyle birlikte "bilmiyorum" geçersizdir;
+        // ikisi de gönderilmezse kategori eksiktir.
+        var surplus = await ConfirmAsync("Üçüncü kasa", "520.0000", new(UnknownReason: true));
+        Assert.Equal(HttpStatusCode.BadRequest, surplus.Status);
+        var both = await ConfirmAsync(
+            "Dördüncü kasa", "450.0000", new(expense.Id, UnknownReason: true));
+        Assert.Equal(HttpStatusCode.BadRequest, both.Status);
+        var neither = await ConfirmAsync("Beşinci kasa", "450.0000", new());
+        Assert.Equal(HttpStatusCode.BadRequest, neither.Status);
     }
 
     /// <summary>

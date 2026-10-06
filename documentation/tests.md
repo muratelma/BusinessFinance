@@ -377,7 +377,7 @@ söylenir: doğrulama grafiği kuru olarak kurar, kullanıcı restore'a basmadan
 | `MigrationHistoryTests.Migrations_FormTheExpectedChainAndMatchTheModel` (genişletildi) | Zincir yeni migration'la büyüdü ve model ile şema arasında fark kalmadı |
 | `PosSettlementAndCashCount_SeparateUsableBalanceFromNetWorth` (genişletildi, **gerçek SQL**) | Satış tahsil edildiği gün tanınıyor: iki açık tahsilatın brütü gelire, komisyonları gidere giriyor; geçiş günü rapora hiçbir şey eklemiyor ve iptal edilen hiç görünmüyor. Komisyon kendi kategorisinde ayrı duruyor, eğilim de aynı tanımayı gösteriyor |
 | `AdvancedReport_LargeFixtureStaysWithinQueryCountAndTimeBudget` (güncellendi) | POS önce iki (61 → 63), tanıma ile altı **sabit** sorgu daha ekledi (63 → 69); hiçbiri tahsilat adediyle büyümüyor |
-| `dashboard_sections_test` (yeni durumlar) | Özet kartında `Yolda` satırı likit varlıktan ayrı duruyor, alt başlığı `POS tahsilatı`, `Bloke` kelimesi hiç geçmiyor; yolda para yokken satır çizilmiyor; net varlık = likit + yolda − kart borcu + alacak − borç |
+| `dashboard_sections_test` (yeni durumlar) | Özet kartında `Yolda` satırı likit varlıktan ayrı duruyor, alt başlığı `Kartla gelecek` (5 Ekim 2026; önce `POS tahsilatı`), `Bloke` kelimesi hiç geçmiyor; beklenen gün bugünse ya da ilerideyse yalnız gün, geçmişse `gün · Gecikti` ve uyarı ikonu; yolda para yokken satır çizilmiyor; net varlık = likit + yolda − kart borcu + alacak − borç |
 
 ## Aşama 04 Grup 7 — kasa ve POS yazma uçları
 
@@ -1548,7 +1548,7 @@ atlandı), build 0 uyarı, format temiz; Flutter analyze temiz, 972 test geçti
 | Değişiklik bildirimi | `pos_deposit_test` → `controller`, `financial_data_changes_test` | Yatış ve geri alması akışı, özeti, hesapları ve kasayı yeniler; bütçe **yalnız kesinti varsa** yenilenir; hata hiçbir hedefi yükseltmez; yoldaki tahsilatın iptali hesapları yükseltmez |
 | Yatış formu | `pos_deposit_test` → `yatış formu` | Günü gelmiş tahsilatlar seçili gelir, beklenen tutar sunucudan yazılır; başka hesabın tahsilatı seçilemez; eksik tutarda kesinti ve dolu kategori görünür ve öyle gönderilir; fazla tutar ve boş seçim kaydedilmez; sunucu hatası panelde kalır; 2.0× yazıda taşma yok, erişilebilirlik kapısı |
 | Yatış ayrıntısı | `pos_deposit_test` → `yatış ayrıntısı` | Kesinti, kategori ve kapattığı tahsilatlar; geri alma onaysız çalışmaz; geri alınmış yatış eylem sunmaz; okuma hatası yeniden denenir, geri alma hatası panelde görünür; 2.0× yazı ve erişilebilirlik |
-| Kasa'daki kapı | `pos_deposit_test` → `POS tahsilatları bölümü`, `cash_pos_feature_test` | "Hesaba geçenleri işaretle" yalnız yolda tahsilat varken; ayrıntıdaki "Hesaba geçti" paneli o tahsilatla açar; hesaba geçmiş tahsilat yatışına götürür ve iptal sunmaz |
+| Kasa'daki kapı | `pos_deposit_test` → `POS tahsilatları bölümü`, `cash_pos_feature_test` | "Hesaba geçenleri işaretle" yalnız yolda tahsilat varken; ayrıntıdaki "Hesaba geçti" paneli o tahsilatla açar; hesaba geçmiş tahsilat Kasa'da listelenmez, `Son yatış` yatışın ayrıntısını açar; tahsilatın kendisi `Tüm tahsilatlar`dan yatışına götürür ve iptal sunmaz |
 | İşlemler | `activity_feed_page_test`, `activity_models_test` | Yatış satırı yatış ayrıntısını açar; `pos-deposit` türü ve kökeni okunur |
 | Ekran görüntüsü | `test/screenshots/pos_screenshot_test` | Yalnız `SCREENSHOT_DIR` ile: yatış formu (kesintili) ve yatış ayrıntısı |
 
@@ -1647,6 +1647,19 @@ atlandı), debug APK derlendi.
 | POS tahsilatı listesi | `DayCloseEndpointTests.DayClose_WritesTheRemainder_*`, `cash_pos_feature_test` | `GET /pos-settlements` sayılan tahsilatta `countedInDayCloseId` taşır, gün sonunun yazdığında boştur (o `dayCloseId` taşır); Kasa'daki ayrıntı sayılan tahsilatta `Kaydı iptal et` sunmaz, "Gün sonunda sayıldı" der (5 Ekim 2026) |
 | Panel (Flutter) | `day_close_test` → `gün sonu paneli` | Ana POS görünür, diğer POS'lar `Diğer POS'lar (n)` ile açılır |
 | Ekran görüntüsü | `test/screenshots/gun_sonu_screenshot_test` | Gün ayrıntısı (tek gün sonu; ana ve ek) eklendi |
+
+## Aşama 06.3 Grup 5 — Yolda satırı, kaydedilmemiş fark ve şahsi cüzdan (5 Ekim 2026)
+
+| Kapı | Nerede | Neyi tutuyor |
+|---|---|---|
+| Önceki sayımın farkı (K6) | `CashCountEndpointTests.UnrecordedDifferenceOfThePreviousCount_IsCarriedAsInformation` | Sayım yokken boş; dünkü kaydedilmemiş fark `previousUnrecordedDifference` ile taşınır; aynı fark yeniden sayılınca `differenceSameAsPrevious`; arada gider girilince bugünkü fark değişir, taşınan bilgi aynı kalır ve "aynı" denmez; dünkü fark kaydedilince bilgi kalkar |
+| Sayım kartı (K6) | `cash_pos_feature_test` | `Kaydedilmemiş fark` satırı ve günü; fark aynıysa `Fark son sayımdakiyle aynı.` ve `Farkı kaydet` çerçeveli düğme |
+| Şahsi cüzdan (K8) | `cash_pos_feature_test` → `şahsi etiketli nakit hesap` | İşletme profilinde `Şahsi` etiketli nakit hesap listede yok, kişisel profilde var; hepsi gizliyse `İşletme kasası yok.` |
+| Yolda satırı (K5) | `dashboard_sections_test` | Alt yazı `Kartla gelecek`; beklenen gün bugünse yalnız gün; geçmişse `gün · Gecikti` ve uyarı ikonu |
+| Fark sebebi (K7) | `CashCountEndpointTests.Confirm_WritesTheGivenDescription_OtherwiseTheCountNote`, `cash_pos_feature_test` → `fark kaydında sebep` | Verilen açıklama fark kaydının adı olur; boş ya da yalnız boşluksa sayımın notu kalır. Fazlada sebep sorulmaz; `Bilmiyorum` `Kasa farkı` gönderir; `Kendime aldım` fark kaydı yazmaz ve paneli tutarla açar |
+| Kendime aldım (K9) | `cash_pos_feature_test` → `Kendime aldım` | Şahsi hesap varsa aktarım seçili ve transfer yazılır (bütçe yenilenmez; kasa, hesaplar ve akış yenilenir); şahsi hesap yoksa ray yok, kategori zorunlu ve `Şahsi` gider yazılır (bütçe yenilenir) |
+| Kasa'nın kaydırılmış açılışı | `cash_pos_feature_test` | `tab=transit` ile açılan Kasa'da `POS tahsilatları` başlığı ekranın üstünde; panel açılmaz |
+| Ekran görüntüsü | `test/screenshots/yolda_screenshot_test`, `kasa_screenshot_test` (16–18) | Net varlık kartı: gün gelmemiş ve geçmiş; `Kendime aldım` paneli (şahsi hesap var / yok); `Eksiği kaydet` sebep rayı |
 
 ## Aşama 06.3 Grup 5 — Kartla tahsil (5 Ekim 2026)
 

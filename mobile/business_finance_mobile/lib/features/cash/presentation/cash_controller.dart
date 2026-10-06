@@ -15,6 +15,7 @@ class CashCountController extends ChangeNotifier {
   CashCountController(
     this._repository, {
     this.changes,
+    this.hidesPersonalAccounts,
     DateTime Function()? clock,
   }) : _clock = clock ?? DateTime.now,
        _seenCashRevision = changes?.cashRevision ?? 0 {
@@ -24,6 +25,15 @@ class CashCountController extends ChangeNotifier {
   final CashRepositoryContract _repository;
   final FinancialDataChanges? changes;
   final DateTime Function() _clock;
+
+  /// İşletme profilinde Kasa işletmenin kasasıdır: `Şahsi` etiketli nakit
+  /// hesap (şahsi cüzdan) burada gösterilmez, Hesaplar'da durur (Aşama 06.3
+  /// K8). Etiketsiz hesap görünür. Yalnız görünüm kuralıdır; bakiye, net
+  /// varlık ve raporlar etkilenmez. Verilmezse hiçbir hesap gizlenmez.
+  final bool Function()? hidesPersonalAccounts;
+
+  /// Bütün nakit hesaplar gizlendiği için Kasa boş mu.
+  bool hasOnlyHiddenAccounts = false;
 
   /// Başka bir ekranın yaptığı değişiklik (nakit gider, transfer, cari
   /// tahsilat…) Kasa'yı eskittiğinde yeniden yüklemek için. Kendi yazdığı
@@ -94,7 +104,16 @@ class CashCountController extends ChangeNotifier {
     notifyListeners();
     try {
       if (accounts.isEmpty || _reloadAccounts) {
-        accounts = await _repository.loadCashAccounts();
+        final all = await _repository.loadCashAccounts();
+        final hide = hidesPersonalAccounts?.call() ?? false;
+        accounts = hide
+            ? [
+                for (final account in all)
+                  if (account.defaultScope != TransactionScope.personal)
+                    account,
+              ]
+            : all;
+        hasOnlyHiddenAccounts = accounts.isEmpty && all.isNotEmpty;
         _reloadAccounts = false;
         if (!accounts.any((account) => account.id == selectedAccountId)) {
           selectedAccountId = null;
@@ -193,7 +212,11 @@ class CashCountController extends ChangeNotifier {
   Future<List<DataChoice>> loadDifferenceCategories() =>
       _repository.loadCategories(type: differenceCategoryType);
 
-  Future<bool> confirmDifference(String categoryId) async {
+  /// [unknownReason]: kullanıcı eksiğin sebebini bilmiyor; kategori sorulmaz.
+  Future<bool> confirmDifference(
+    String? categoryId, {
+    bool unknownReason = false,
+  }) async {
     final count = todayCount;
     if (count == null || isSubmitting) return false;
     isSubmitting = true;
@@ -203,8 +226,69 @@ class CashCountController extends ChangeNotifier {
       await _repository.confirmDifference(
         cashCountId: count.id,
         categoryId: categoryId,
+        unknownReason: unknownReason,
       );
       _announce((c) => c.cashDifferenceConfirmed());
+      await load();
+      return true;
+    } on ApiException catch (error) {
+      unauthorized = error.isUnauthorized;
+      errorMessage = error.message;
+      return false;
+    } on FormatException {
+      errorMessage = 'Sunucudan beklenmeyen bir yanıt alındı.';
+      return false;
+    } finally {
+      isSubmitting = false;
+      notifyListeners();
+    }
+  }
+
+  /// Kasadan kendine alınan paranın gidebileceği şahsi hesaplar; seçili
+  /// kasanın kendisi listede olmaz.
+  Future<List<DataChoice>> loadWithdrawalAccounts() async => [
+    for (final account in await _repository.loadPersonalAccounts())
+      if (account.id != selectedAccountId) account,
+  ];
+
+  Future<List<DataChoice>> loadWithdrawalCategories() =>
+      _repository.loadCategories(type: 'expense');
+
+  /// "Kendime aldım": [personalAccountId] verilirse şahsi hesaba aktarım,
+  /// [categoryId] verilirse şahsi gider yazılır. Yeni bir kayıt türü değildir.
+  Future<bool> recordWithdrawal({
+    required String amount,
+    required String date,
+    String? personalAccountId,
+    String? categoryId,
+  }) async {
+    final accountId = selectedAccountId;
+    if (accountId == null || isSubmitting) return false;
+    if ((personalAccountId == null) == (categoryId == null)) return false;
+    isSubmitting = true;
+    errorMessage = null;
+    notifyListeners();
+    try {
+      if (personalAccountId != null) {
+        await _repository.withdrawToAccount(
+          cashAccountId: accountId,
+          personalAccountId: personalAccountId,
+          amount: amount,
+          date: date,
+        );
+      } else {
+        await _repository.withdrawAsExpense(
+          cashAccountId: accountId,
+          categoryId: categoryId!,
+          amount: amount,
+          date: date,
+        );
+      }
+      _announce(
+        (c) => c.ownerWithdrawalRecorded(asExpense: categoryId != null),
+      );
+      // Şahsi cüzdan da bir kasaysa onun bakiyesi de değişti.
+      expectedByAccount = const {};
       await load();
       return true;
     } on ApiException catch (error) {

@@ -16,8 +16,28 @@ public sealed record CreateCashCountCommand(
 /// Kategori istemciden gelir çünkü fark bir kategoriye <b>ait değildir</b>:
 /// kasadan eksilen para çalınmış da olabilir, yanlış para üstü de. Sunucunun
 /// bir kategori uydurması, kullanıcının raporunu tahminle doldurmak olurdu.
+///
+/// Tek istisna kullanıcının <b>kendi</b> söylediği "bilmiyorum"dur
+/// (<c>UnknownReason</c>, Aşama 06.3 K10): eksik fark standart
+/// <see cref="CashCountDefaults.DifferenceCategoryName"/> gider kategorisine
+/// yazılır. Bu bir tahmin değildir; kullanıcı o kovayı seçmiştir. Kategori
+/// ile "bilmiyorum" birlikte gönderilemez.
 /// </remarks>
-public sealed record ConfirmCashCountDifferenceCommand(Guid CashCountId, Guid CategoryId);
+public sealed record ConfirmCashCountDifferenceCommand(
+    Guid CashCountId,
+    Guid? CategoryId,
+    bool UnknownReason = false);
+
+/// <summary>Kasa sayımının standart adları.</summary>
+public static class CashCountDefaults
+{
+    /// <summary>
+    /// Sebebi bilinmeyen kasa eksiğinin yazıldığı gider kategorisi. Varsayılan
+    /// kategori setlerinde gelir; seti bundan önce kurulmuş ya da kategoriyi
+    /// yeniden adlandırmış kullanıcıda ilk kullanımda açılır.
+    /// </summary>
+    public const string DifferenceCategoryName = "Kasa farkı";
+}
 
 public sealed record CashCountListCriteria(Guid? AccountId, DateOnly From, DateOnly To);
 
@@ -78,7 +98,25 @@ public sealed record CashCountTodayDto(
     /// kasaya hareket girmiştir ve ekran "oturdu" diyemez (28 Eylül denetimi
     /// U10). Sunucu hesaplar; istemci çıkarma yapmaz.
     /// </remarks>
-    decimal? ChangeSinceCount = null);
+    decimal? ChangeSinceCount = null,
+
+    /// <summary>
+    /// Bugünden önceki son sayımın <b>kaydedilmemiş</b> farkı (sayılan − o an
+    /// beklenen); sayım yoksa, farkı kaydedildiyse, tuttuysa ya da sayım
+    /// anının gözlemi bilinmiyorsa boştur.
+    /// </summary>
+    /// <remarks>
+    /// Yalnız bilgidir: bugünkü fark ondan düşülmez ve ikiye bölünmez (Aşama
+    /// 06.3 K6). Arada eski farkı açıklayan bir kayıt girilmiş olabilir;
+    /// "yeni kısım" diye bir sayı türetmek o durumda yanlış sayı gösterirdi.
+    /// </remarks>
+    decimal? PreviousUnrecordedDifference = null,
+
+    /// <summary>
+    /// Bugünkü sayımın kaydedilmemiş farkı önceki sayımın kaydedilmemiş
+    /// farkına eşit: aynı eksik ya da fazla bir kez daha sayıldı.
+    /// </summary>
+    bool DifferenceSameAsPrevious = false);
 
 public interface ICashCountRepository
 {

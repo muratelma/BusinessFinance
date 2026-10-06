@@ -7,7 +7,12 @@ public sealed record CreateCashCountRequest(
     string? Scope = null,
     string? Note = null);
 
-public sealed record ConfirmCashCountDifferenceRequest(Guid CategoryId);
+// `unknownReason` yalnız eksik farkta ve kategorisiz gönderilir: kayıt standart
+// `Kasa farkı` gider kategorisine yazılır (yoksa açılır). Diğer durumda
+// `categoryId` zorunludur.
+public sealed record ConfirmCashCountDifferenceRequest(
+    Guid? CategoryId = null,
+    bool UnknownReason = false);
 
 public sealed record CashCountResponse(
     Guid Id,
@@ -38,4 +43,11 @@ public sealed record CashCountTodayResponse(
     string TodayOutflow,
 
     // Sayımdan bu yana kasa bakiyesindeki değişim; bilinmiyorsa boş.
-    string? ChangeSinceCount = null);
+    string? ChangeSinceCount = null,
+
+    // Önceki sayımın kaydedilmemiş farkı (işaretli); yoksa boş. Yalnız bilgi:
+    // bugünkü farktan düşülmez.
+    string? PreviousUnrecordedDifference = null,
+
+    // Bugünkü açık fark önceki sayımın kaydedilmemiş farkına eşit.
+    bool DifferenceSameAsPrevious = false);

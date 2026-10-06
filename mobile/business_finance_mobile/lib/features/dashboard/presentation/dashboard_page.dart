@@ -154,7 +154,13 @@ class DashboardPage extends StatelessWidget {
             DashboardBlock(
               title: 'Varlık durumu',
               note: viewModel.scope == null ? null : unsplitNote,
-              child: DashboardNetWorthCard(report: advanced),
+              child: DashboardNetWorthCard(
+                report: advanced,
+                today: viewModel.today,
+                // Yoldaki paranın ayrıntısı ve `Hesaba geçenleri işaretle`
+                // Kasa'nın POS bölümündedir; sayfa oraya kaydırılmış açılır.
+                onOpenTransit: () => context.push('$cashLocation?tab=transit'),
+              ),
             ),
           DashboardBlock(
             title: 'Hesap bakiyeleri',

@@ -18,6 +18,7 @@ import '../../../core/widgets/app_card_head.dart';
 import '../../../core/widgets/app_date_leaf.dart';
 import '../../../core/widgets/app_divided_column.dart';
 import '../../../core/widgets/app_form_sheet.dart';
+import '../../../core/widgets/app_segment_rail.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_scope_selector.dart';
 import '../../../core/widgets/app_section_header.dart';
@@ -27,6 +28,7 @@ import '../../../core/widgets/app_submit_button.dart';
 import '../../../core/widgets/app_text_action.dart';
 import '../data/cash_repository.dart';
 import 'cash_controller.dart';
+import 'cash_withdrawal_sheet.dart';
 
 /// Bugünün sayım kartı: Kasa ekranının ilk kartı.
 ///
@@ -171,6 +173,7 @@ class CashTodayCard extends StatelessWidget {
             currency: currency,
             effect: sign < 0 ? AppMoneyEffect.expense : AppMoneyEffect.income,
           ),
+        ?_carriedDifference(currency),
       ];
     }
     final previous = today.previousCount;
@@ -197,7 +200,25 @@ class CashTodayCard extends StatelessWidget {
           currency: currency,
           effect: AppMoneyEffect.expense,
         ),
+      ?_carriedDifference(currency),
     ];
+  }
+
+  /// Önceki sayımın kaydedilmemiş farkı: yalnız bilgi satırıdır, bugünkü
+  /// farktan düşülmez (Aşama 06.3 K6).
+  Widget? _carriedDifference(String currency) {
+    final carried = today.previousUnrecordedDifference;
+    final previous = today.previousCount;
+    if (carried == null || previous == null) return null;
+    return _KeyValue(
+      label: 'Kaydedilmemiş fark',
+      detail: '${DateText.dayMonth(previous.countDate)} sayımından',
+      amount: _abs(carried),
+      currency: currency,
+      effect: _sign(carried) < 0
+          ? AppMoneyEffect.expense
+          : AppMoneyEffect.income,
+    );
   }
 
   /// Dünkü sayım ise `Dünkü sayım`; daha eskiyse günüyle `Son sayım`.
@@ -224,11 +245,19 @@ class CashTodayCard extends StatelessWidget {
       child: const Text('Yeniden say'),
     );
     if (!controller.hasOpenDifference) return recount;
-    final save = FilledButton.icon(
-      onPressed: busy ? null : onSaveDifference,
-      icon: const Icon(Icons.playlist_add_check),
-      label: const Text('Farkı kaydet'),
-    );
+    // Aynı fark bir kez daha sayıldıysa kayıt öne çıkmaz: kullanıcı onu
+    // geçen sayımda da kaydetmemeyi seçmişti.
+    final save = today.differenceSameAsPrevious
+        ? OutlinedButton.icon(
+            onPressed: busy ? null : onSaveDifference,
+            icon: const Icon(Icons.playlist_add_check),
+            label: const Text('Farkı kaydet'),
+          )
+        : FilledButton.icon(
+            onPressed: busy ? null : onSaveDifference,
+            icon: const Icon(Icons.playlist_add_check),
+            label: const Text('Farkı kaydet'),
+          );
     // Büyük yazıda iki düğme yan yana sığmaz; alt alta dizilir, birincil üstte.
     if (context.usesLargeText) {
       return Column(
@@ -273,6 +302,7 @@ class CashTodayCard extends StatelessWidget {
       return 'Tek bir $record kaydı oluştu; kasa sayılan tutara oturdu.';
     }
     if (_sign(count.difference) == 0) return 'Kasa uygulamayla aynı.';
+    if (today.differenceSameAsPrevious) return 'Fark son sayımdakiyle aynı.';
     return 'Fark kendiliğinden yazılmaz. Kaydederseniz tek bir $record kaydı '
         'oluşur.';
   }
@@ -588,14 +618,61 @@ Future<bool?> showCashCountSheet(
       CashCountSheet(controller: controller, scopeController: scopeController),
 );
 
-/// Farkı kaydetme formunu açar.
+/// Farkı kaydetme formunu açar. Eksik farkta kullanıcı `Kendime aldım`
+/// derse fark kaydı yazılmaz; aynı tutarla o panel açılır (Aşama 06.3 K7).
 Future<bool?> showCashDifferenceForm(
   BuildContext context,
-  CashCountController controller,
-) => AppFormSheet.show<bool>(
-  context: context,
-  builder: (_) => _DifferenceForm(controller: controller),
-);
+  CashCountController controller, {
+  VoidCallback? onOpenPersonalAccount,
+}) async {
+  final amount = _inputAmount(controller.todayCount?.difference);
+  final result = await AppFormSheet.show<CashDifferenceResult>(
+    context: context,
+    builder: (_) => _DifferenceForm(controller: controller),
+  );
+  if (result != CashDifferenceResult.withdrawal) {
+    return result == null ? null : true;
+  }
+  if (!context.mounted) return null;
+  return showCashWithdrawal(
+    context,
+    controller,
+    initialAmount: amount,
+    onOpenPersonalAccount: onOpenPersonalAccount,
+  );
+}
+
+/// Fark formunun sonucu: kayıt yazıldı ya da kullanıcı parayı kendine
+/// aldığını söyledi.
+enum CashDifferenceResult { saved, withdrawal }
+
+/// Eksik farkın sebebi. Sunucu sebep ya da kategori seçmez.
+enum CashShortageReason {
+  expense('Gider'),
+  withdrawal('Kendime aldım'),
+  unknown('Bilmiyorum');
+
+  const CashShortageReason(this.label);
+
+  final String label;
+}
+
+/// Sebebi bilinmeyen eksiğin yazıldığı standart kategorinin adı; kategoriyi
+/// sunucu bulur ya da açar.
+const cashDifferenceCategoryName = 'Kasa farkı';
+
+/// Sunucunun işaretli farkını tutar alanına yazılacak hâle çevirir
+/// (`-100.0000` → `100,00`); para aritmetiği değil, metin kırpma.
+String? _inputAmount(String? difference) {
+  if (difference == null) return null;
+  final unsigned = difference.replaceFirst('-', '').trim();
+  final parts = unsigned.split('.');
+  if (parts.length != 2 || parts[1].length != 4) return unsigned;
+  final decimals = parts[1].endsWith('00')
+      ? parts[1].substring(0, 2)
+      : parts[1];
+  return '${parts[0]},$decimals';
+}
 
 enum CashCountMode { total, notes }
 
@@ -1234,6 +1311,7 @@ class _DifferenceFormState extends State<_DifferenceForm> {
   final formKey = GlobalKey<FormState>();
   late final Future<List<DataChoice>> categories;
   String? categoryId;
+  CashShortageReason reason = CashShortageReason.expense;
 
   @override
   void initState() {
@@ -1243,52 +1321,102 @@ class _DifferenceFormState extends State<_DifferenceForm> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = AppSurfaces.of(context);
     final isIncome = widget.controller.differenceCategoryType == 'income';
+    final withdrawal = !isIncome && reason == CashShortageReason.withdrawal;
+    final unknown = !isIncome && reason == CashShortageReason.unknown;
     return Form(
       key: formKey,
-      child: AppFormSheet<bool>(
+      child: AppFormSheet<CashDifferenceResult>(
         title: isIncome ? 'Fazlayı kaydet' : 'Eksiği kaydet',
         description: isIncome
             ? 'Kasada beklenenden fazla nakit çıktı; bu tek bir gelir kaydı '
                   'olarak yazılır.'
-            : 'Kasada beklenenden az nakit çıktı; bu tek bir gider kaydı '
-                  'olarak yazılır.',
-        submitLabel: 'Kaydet',
+            : 'Kasada beklenenden az nakit çıktı. Neden eksik?',
+        submitLabel: withdrawal ? 'Devam' : 'Kaydet',
         onSubmit: _submit,
         children: [
-          FutureBuilder<List<DataChoice>>(
-            future: categories,
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return const Text(
-                  'Kategoriler yüklenemedi. Paneli kapatıp yeniden deneyin.',
+          // Fazla çıkan farkta sebep sorulmaz.
+          if (!isIncome) ...[
+            AppSegmentRail<CashShortageReason>(
+              values: CashShortageReason.values,
+              selected: reason,
+              semanticLabel: 'Neden eksik?',
+              segmentLabel: (value) => value.label,
+              onChanged: (value) => setState(() => reason = value),
+              segmentBuilder: (context, value, isSelected) => Text(
+                value.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: isSelected ? surfaces.ink : surfaces.inkMuted,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.medium),
+          ],
+          if (withdrawal)
+            Text(
+              'Gider yazılmaz. Sonraki adımda şahsi hesaba aktarır ya da '
+              'şahsi gider olarak yazarsınız.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: surfaces.inkMuted,
+              ),
+            )
+          // Sebebi bilmeyen kullanıcıya kategori sorulmaz.
+          else if (unknown)
+            Text(
+              '"$cashDifferenceCategoryName" kategorisine gider olarak '
+              'yazılır.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: surfaces.inkMuted,
+              ),
+            )
+          else
+            FutureBuilder<List<DataChoice>>(
+              future: categories,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return const Text(
+                    'Kategoriler yüklenemedi. Paneli kapatıp yeniden deneyin.',
+                  );
+                }
+                if (!snapshot.hasData) return const LinearProgressIndicator();
+                return DropdownButtonFormField<String>(
+                  initialValue: categoryId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Kategori'),
+                  items: [
+                    for (final category in snapshot.data!)
+                      DropdownMenuItem(
+                        value: category.id,
+                        child: Text(category.name),
+                      ),
+                  ],
+                  onChanged: (value) => categoryId = value,
+                  validator: (value) =>
+                      value == null ? 'Kategori seçin.' : null,
                 );
-              }
-              if (!snapshot.hasData) return const LinearProgressIndicator();
-              return DropdownButtonFormField<String>(
-                initialValue: categoryId,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Kategori'),
-                items: [
-                  for (final category in snapshot.data!)
-                    DropdownMenuItem(
-                      value: category.id,
-                      child: Text(category.name),
-                    ),
-                ],
-                onChanged: (value) => categoryId = value,
-                validator: (value) => value == null ? 'Kategori seçin.' : null,
-              );
-            },
-          ),
+              },
+            ),
         ],
       ),
     );
   }
 
-  Future<bool?> _submit() async {
-    if (!formKey.currentState!.validate()) return null;
-    final saved = await widget.controller.confirmDifference(categoryId!);
-    return saved ? true : null;
+  Future<CashDifferenceResult?> _submit() async {
+    final isIncome = widget.controller.differenceCategoryType == 'income';
+    if (!isIncome && reason == CashShortageReason.withdrawal) {
+      return CashDifferenceResult.withdrawal;
+    }
+    final unknown = !isIncome && reason == CashShortageReason.unknown;
+    if (!unknown && !formKey.currentState!.validate()) return null;
+    final saved = await widget.controller.confirmDifference(
+      unknown ? null : categoryId,
+      unknownReason: unknown,
+    );
+    return saved ? CashDifferenceResult.saved : null;
   }
 }

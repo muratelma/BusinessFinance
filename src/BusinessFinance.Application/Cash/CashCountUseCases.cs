@@ -49,6 +49,16 @@ public sealed class GetCashCountTodayUseCase(
                 new CashCountListCriteria(accountId, today.AddDays(-366), today.AddDays(-1)),
                 cancellationToken))
             .FirstOrDefault(item => !item.IsCancelled);
+        var previousUnrecorded = previous is
+        { AdjustmentTransactionId: null, Difference: decimal previousDifference }
+            && previousDifference != 0m
+            ? previousDifference
+            : (decimal?)null;
+        // Bugünkü açık farkın önceki sayımdakiyle aynı olup olmadığını sunucu
+        // söyler; istemci iki tutarı karşılaştırmaz.
+        var sameAsPrevious = previousUnrecorded is decimal carried &&
+            count is { IsAdjusted: false } &&
+            count.DifferenceFrom(expectedBalance).Amount == carried;
 
         return ApplicationResult<CashCountTodayDto>.Success(
             new CashCountTodayDto(
@@ -70,7 +80,9 @@ public sealed class GetCashCountTodayUseCase(
                 previous,
                 flow.Inflow,
                 flow.Outflow,
-                ChangeSinceCount(count, expectedBalance)));
+                ChangeSinceCount(count, expectedBalance),
+                previousUnrecorded,
+                sameAsPrevious));
     }
 
     private static decimal? ChangeSinceCount(CashCount? count, decimal expectedBalance)
@@ -260,8 +272,30 @@ public sealed class ConfirmCashCountDifferenceUseCase(
             return ApplicationResult<CashCountDto>.Failure(CashCountErrors.NothingToAdjust);
         }
 
-        var category = await categoryRepository.FindOwnedByIdAsync(
-            command.CategoryId, userId, cancellationToken);
+        Category? category;
+        if (command.UnknownReason)
+        {
+            // "Bilmiyorum" yalnız eksik fark içindir ve kategoriyle birlikte
+            // gelmez: iki cevap birden gelirse hangisinin doğru olduğunu
+            // seçmek sunucunun işi değildir.
+            if (command.CategoryId is not null ||
+                difference.RecognizedType != TransactionType.Expense)
+            {
+                return ApplicationResult<CashCountDto>.Failure(
+                    CashCountErrors.UnknownReasonNotApplicable);
+            }
+
+            category = await FindOrOpenDifferenceCategoryAsync(
+                userId, cashCount.Scope, cancellationToken);
+        }
+        else
+        {
+            category = command.CategoryId is Guid categoryId
+                ? await categoryRepository.FindOwnedByIdAsync(
+                    categoryId, userId, cancellationToken)
+                : null;
+        }
+
         if (category is null || !category.IsActive ||
             category.Type != RequiredCategoryType(difference.RecognizedType))
         {
@@ -307,6 +341,41 @@ public sealed class ConfirmCashCountDifferenceUseCase(
 
     private static CategoryType RequiredCategoryType(TransactionType type) =>
         type == TransactionType.Income ? CategoryType.Income : CategoryType.Expense;
+
+    /// <summary>
+    /// Standart <c>Kasa farkı</c> gider kategorisi; yoksa açılır.
+    /// </summary>
+    /// <remarks>
+    /// Varsayılan setlerde gelir; seti daha önce kurulmuş kullanıcıda ilk
+    /// kullanımda açılır ve Kategoriler'de sıradan bir kategori olarak durur.
+    /// Aynı adlı kategori pasifse yenisi açılmaz (ad + tür tekildir): boş
+    /// döner ve istek "kategori kullanılamıyor" ile reddedilir.
+    /// </remarks>
+    private async Task<Category?> FindOrOpenDifferenceCategoryAsync(
+        Guid userId,
+        TransactionScope scope,
+        CancellationToken cancellationToken)
+    {
+        var expenses = await categoryRepository.ListAsync(
+            userId, CategoryType.Expense, null, cancellationToken);
+        var existing = expenses.FirstOrDefault(item => string.Equals(
+            item.Name,
+            CashCountDefaults.DifferenceCategoryName,
+            StringComparison.OrdinalIgnoreCase));
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var opened = new Category(
+            Guid.NewGuid(),
+            userId,
+            CashCountDefaults.DifferenceCategoryName,
+            CategoryType.Expense,
+            scope);
+        await categoryRepository.AddAsync(opened, cancellationToken);
+        return opened;
+    }
 }
 
 internal static class CashCountMapper

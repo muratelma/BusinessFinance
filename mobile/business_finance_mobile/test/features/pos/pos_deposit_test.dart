@@ -727,13 +727,15 @@ void main() {
       tester,
     ) async {
       final repository = _FakeRepository()
-        ..items = [
-          _settlement('a', 'Pazartesi satışı', depositId: 'deposit-1'),
-        ];
+        ..items = [_settlement('a', 'Pazartesi satışı', depositId: 'deposit-1')]
+        ..deposit = _deposit();
       await _pumpSection(tester, repository);
 
       expect(find.text('Hesaba geçenleri işaretle'), findsNothing);
-      expect(find.text('Pazartesi satışı'), findsOneWidget);
+      // Hesaba geçen tahsilat Kasa'da tek tek listelenmez; yatışı durur.
+      expect(find.text('Pazartesi satışı'), findsNothing);
+      expect(find.text('Yolda tahsilat yok.'), findsOneWidget);
+      expect(find.text('Son yatış'), findsOneWidget);
     });
 
     testWidgets('ayrıntıdaki "Hesaba geçti" yatış panelini o tahsilatla açar', (
@@ -753,15 +755,33 @@ void main() {
       expect(repository.previews.single.ids, ['b']);
     });
 
-    testWidgets('hesaba geçmiş tahsilat yatışına götürür', (tester) async {
+    testWidgets('"Son yatış" yatışın ayrıntısını açar', (tester) async {
       final repository = _FakeRepository()
         ..items = [_settlement('a', 'Pazartesi satışı', depositId: 'deposit-1')]
         ..deposit = _deposit();
       await _pumpSection(tester, repository);
 
+      await tester.tap(find.text('Son yatış'));
+      await tester.pumpAndSettle();
+
+      expect(repository.requestedDepositId, 'deposit-1');
+      expect(find.text('POS yatışı'), findsOneWidget);
+      expect(find.text('Yatışı geri al'), findsOneWidget);
+    });
+
+    testWidgets('hesaba geçmiş tahsilat "Tüm tahsilatlar"da durur ve yatışına '
+        'götürür', (tester) async {
+      final repository = _FakeRepository()
+        ..items = [_settlement('a', 'Pazartesi satışı', depositId: 'deposit-1')]
+        ..deposit = _deposit();
+      await _pumpSection(tester, repository);
+
+      await tester.tap(find.text('Tüm tahsilatlar'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Pazartesi satışı'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Yatışı gör'));
+      // Sayfadaki yatış başlığı da aynı eylemi taşır; ayrıntınınki üsttedir.
+      await tester.tap(find.text('Yatışı gör').last);
       await tester.pumpAndSettle();
 
       expect(repository.requestedDepositId, 'deposit-1');
@@ -958,12 +978,15 @@ class _FakeRepository implements PosRepositoryContract {
   Completer<void>? getPending;
 
   @override
-  Future<PosSettlementList> list({required bool inTransitOnly}) async =>
-      PosSettlementList(
-        items: items,
-        moneyInTransit: '245.0000',
-        inTransitCount: items.where((item) => item.isInTransit).length,
-      );
+  Future<PosSettlementList> list({
+    required bool inTransitOnly,
+    String? from,
+    String? to,
+  }) async => PosSettlementList(
+    items: items,
+    moneyInTransit: '245.0000',
+    inTransitCount: items.where((item) => item.isInTransit).length,
+  );
 
   @override
   Future<PosOptions> loadOptions() async => const PosOptions(

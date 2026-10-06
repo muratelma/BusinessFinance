@@ -100,7 +100,11 @@ public static class CashCountEndpoints
             today.PreviousCount is null ? null : ToResponse(today.PreviousCount),
             FinanceContract.Money(today.TodayInflow),
             FinanceContract.Money(today.TodayOutflow),
-            today.ChangeSinceCount is decimal change ? FinanceContract.Money(change) : null));
+            today.ChangeSinceCount is decimal change ? FinanceContract.Money(change) : null,
+            today.PreviousUnrecordedDifference is decimal carried
+                ? FinanceContract.Money(carried)
+                : null,
+            today.DifferenceSameAsPrevious));
     }
 
     private static async Task<IResult> CreateAsync(
@@ -155,7 +159,8 @@ public static class CashCountEndpoints
         CancellationToken cancellationToken)
     {
         var result = await useCase.ExecuteAsync(
-            new ConfirmCashCountDifferenceCommand(id, request.CategoryId), cancellationToken);
+            new ConfirmCashCountDifferenceCommand(id, request.CategoryId, request.UnknownReason),
+            cancellationToken);
         return result.IsSuccess
             ? Results.Ok(ToResponse(result.Value))
             : result.Error.ToProblemResult(httpContext);

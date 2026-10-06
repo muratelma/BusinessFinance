@@ -888,9 +888,21 @@ class _TimelinePainter extends CustomPainter {
 /// `totalLiabilities`). Sıfır olan kalem çizilmez, likit varlık hep durur.
 /// Renk yönü söyler: varlık tarafı nötr mavi, borç tarafı gider kırmızısı.
 class DashboardNetWorthCard extends StatelessWidget {
-  const DashboardNetWorthCard({required this.report, super.key});
+  const DashboardNetWorthCard({
+    required this.report,
+    super.key,
+    this.today,
+    this.onOpenTransit,
+  });
 
   final AdvancedReport report;
+
+  /// Yoldaki paranın beklenen günü bununla karşılaştırılır; verilmezse gün
+  /// geçmiş sayılmaz.
+  final DateTime? today;
+
+  /// `Yolda` satırına dokununca; verilirse satır ok taşır.
+  final VoidCallback? onOpenTransit;
 
   @override
   Widget build(BuildContext context) {
@@ -901,6 +913,7 @@ class DashboardNetWorthCard extends StatelessWidget {
     final cardCredit = MoneyText.isNegative(report.creditCardDebt);
     final assets = report.totalAssets;
     final liabilities = report.totalLiabilities;
+    final transitOverdue = _isBefore(report.nextTransitDate, today);
 
     final assetLines = <_NetLine>[
       _NetLine(
@@ -913,11 +926,17 @@ class DashboardNetWorthCard extends StatelessWidget {
         _NetLine(
           icon: Icons.schedule_outlined,
           label: 'Yolda',
-          subtitle: 'POS tahsilatı',
+          subtitle: 'Kartla gelecek',
           amount: report.moneyInTransit,
+          // Gün her zaman yazılır; geçmişse Kasa'daki gecikme işaretiyle
+          // (ikon, söz ve gider tonu) gösterilir.
           when: report.nextTransitDate == null
               ? null
+              : transitOverdue
+              ? '${DateText.dayMonth(report.nextTransitDate!)} · Gecikti'
               : DateText.dayMonth(report.nextTransitDate!),
+          whenOverdue: transitOverdue,
+          onTap: onOpenTransit,
         ),
       if (_hasAmount(report.receivableDebt))
         _NetLine(
@@ -1016,6 +1035,13 @@ class DashboardNetWorthCard extends StatelessWidget {
   static bool _hasAmount(String amount) => double.tryParse(amount) != 0;
 
   static double _value(String amount) => (double.tryParse(amount) ?? 0).abs();
+
+  /// `yyyy-MM-dd` günü [today]'den önce mi; saat dikkate alınmaz.
+  static bool _isBefore(String? date, DateTime? today) {
+    final parsed = date == null ? null : DateTime.tryParse(date);
+    if (parsed == null || today == null) return false;
+    return parsed.isBefore(DateTime(today.year, today.month, today.day));
+  }
 }
 
 /// Varlık ve borç tarafının oranı; yalnız çizim, sayı taşımaz.
@@ -1072,6 +1098,8 @@ class _NetLine {
     required this.subtitle,
     required this.amount,
     this.when,
+    this.whenOverdue = false,
+    this.onTap,
   });
 
   final IconData icon;
@@ -1079,6 +1107,8 @@ class _NetLine {
   final String subtitle;
   final String amount;
   final String? when;
+  final bool whenOverdue;
+  final VoidCallback? onTap;
 }
 
 class _NetSide extends StatelessWidget {
@@ -1137,6 +1167,7 @@ class _NetSide extends StatelessWidget {
             leading: AppIconCapsule(icon: line.icon, tone: tone),
             title: line.label,
             subtitle: line.subtitle,
+            onTap: line.onTap,
             // Renk bir konuşma kanalı değildir: satırın net varlıktaki rolü
             // ekran okuyucuya cümleyle söylenir.
             semanticLabel:
@@ -1144,41 +1175,72 @@ class _NetSide extends StatelessWidget {
                 '${expense ? 'net varlığı düşürür' : 'net varlığa eklenir'}, '
                 '${line.subtitle}'
                 '${line.when == null ? '' : ', hesaba geçecek ${line.when}'}',
-            trailing: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AppMoneyText(
-                  amount: line.amount,
-                  currency: currency,
-                  effect: effect,
-                  size: AppMoneySize.row,
-                ),
-                if (line.when != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.xxSmall),
-                    child: Row(
+            // Sağ taraf satırın yarısından fazlasını alamaz; alırsa başlık
+            // sıkışır. Sığmayan gün yazısı kısalır.
+            trailing: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 200),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Esnek: büyük yazıda tutar satıra sığmazsa daralabilmeli.
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.event_outlined,
-                          size: 14,
-                          color: surfaces.inkMuted,
+                        AppMoneyText(
+                          amount: line.amount,
+                          currency: currency,
+                          effect: effect,
+                          size: AppMoneySize.row,
                         ),
-                        const SizedBox(width: AppSpacing.xSmall),
-                        Text(
-                          line.when!,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                            letterSpacing: 0,
-                            color: surfaces.inkMuted,
+                        if (line.when != null)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              top: AppSpacing.xxSmall,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  line.whenOverdue
+                                      ? Icons.warning_amber_rounded
+                                      : Icons.event_outlined,
+                                  size: 14,
+                                  color: line.whenOverdue
+                                      ? colors.expense
+                                      : surfaces.inkMuted,
+                                ),
+                                const SizedBox(width: AppSpacing.xSmall),
+                                Flexible(
+                                  child: Text(
+                                    line.when!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      fontSize: 12,
+                                      fontWeight: line.whenOverdue
+                                          ? FontWeight.w500
+                                          : FontWeight.w400,
+                                      letterSpacing: 0,
+                                      color: line.whenOverdue
+                                          ? colors.expense
+                                          : surfaces.inkMuted,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ),
-              ],
+                  if (line.onTap != null) ...[
+                    const SizedBox(width: AppSpacing.xSmall),
+                    Icon(Icons.chevron_right, color: surfaces.inkMuted),
+                  ],
+                ],
+              ),
             ),
           ),
       ],

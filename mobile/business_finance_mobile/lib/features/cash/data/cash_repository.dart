@@ -68,7 +68,17 @@ class CashCountToday {
     this.todayInflow,
     this.todayOutflow,
     this.changeSinceCount,
+    this.previousUnrecordedDifference,
+    this.differenceSameAsPrevious = false,
   });
+
+  /// Önceki sayımın kaydedilmemiş farkı (işaretli); yoksa `null`. Yalnız
+  /// bilgidir: bugünkü farktan düşülmez (Aşama 06.3 K6).
+  final String? previousUnrecordedDifference;
+
+  /// Bugünkü açık fark önceki sayımın kaydedilmemiş farkına eşit; sunucu
+  /// söyler.
+  final bool differenceSameAsPrevious;
 
   final String accountId;
   final String accountName;
@@ -111,6 +121,10 @@ class CashCountToday {
     changeSinceCount: json['changeSinceCount'] is String
         ? JsonReaders.money(json, 'changeSinceCount')
         : null,
+    previousUnrecordedDifference: json['previousUnrecordedDifference'] is String
+        ? JsonReaders.money(json, 'previousUnrecordedDifference')
+        : null,
+    differenceSameAsPrevious: json['differenceSameAsPrevious'] == true,
   );
 }
 
@@ -144,11 +158,40 @@ abstract interface class CashRepositoryContract {
   /// yönü belirler.
   Future<List<DataChoice>> loadCategories({required String type});
 
+  /// [unknownReason] yalnız eksik farkta ve kategorisiz gönderilir: kayıt
+  /// standart `Kasa farkı` kategorisine yazılır. Diğer durumda [categoryId]
+  /// zorunludur.
   Future<CashCountItem> confirmDifference({
     required String cashCountId,
+    String? categoryId,
+    bool unknownReason = false,
+  });
+
+  /// `Şahsi` etiketli aktif hesaplar: kasadan kendine alınan paranın
+  /// aktarılabileceği yerler.
+  Future<List<DataChoice>> loadPersonalAccounts();
+
+  /// Kasadan şahsi hesaba aktarım: var olan transferdir, işletme netine
+  /// dokunmaz.
+  Future<void> withdrawToAccount({
+    required String cashAccountId,
+    required String personalAccountId,
+    required String amount,
+    required String date,
+  });
+
+  /// Kasadan alınan paranın `Şahsi` kapsamlı sıradan bir gider olarak
+  /// yazılması.
+  Future<void> withdrawAsExpense({
+    required String cashAccountId,
     required String categoryId,
+    required String amount,
+    required String date,
   });
 }
+
+/// Kasadan kendine alınan paranın kayıtlardaki açıklaması.
+const ownerWithdrawalDescription = 'Kendime aldım';
 
 class CashRepository implements CashRepositoryContract {
   const CashRepository(this._client);
@@ -223,13 +266,71 @@ class CashRepository implements CashRepositoryContract {
   @override
   Future<CashCountItem> confirmDifference({
     required String cashCountId,
-    required String categoryId,
+    String? categoryId,
+    bool unknownReason = false,
   }) async {
     final response = await _client.post(
       '/api/v1/cash-counts/$cashCountId/adjustment',
-      body: {'categoryId': categoryId},
+      body: {
+        'categoryId': ?categoryId,
+        if (unknownReason) 'unknownReason': true,
+      },
     );
     return CashCountItem.fromJson(response.requireObject());
+  }
+
+  @override
+  Future<List<DataChoice>> loadPersonalAccounts() async {
+    final response = await _client.get(
+      '/api/v1/accounts?isActive=true&pageNumber=1&pageSize=100',
+    );
+    return _items(response.requireObject())
+        .map(DataChoice.fromJson)
+        .where((account) => account.defaultScope == TransactionScope.personal)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<void> withdrawToAccount({
+    required String cashAccountId,
+    required String personalAccountId,
+    required String amount,
+    required String date,
+  }) async {
+    await _client.post(
+      '/api/v1/transfers',
+      body: {
+        'sourceAccountId': cashAccountId,
+        'destinationAccountId': personalAccountId,
+        'amount': amount,
+        'currency': 'TRY',
+        'transferDate': date,
+        'description': ownerWithdrawalDescription,
+      },
+    );
+  }
+
+  @override
+  Future<void> withdrawAsExpense({
+    required String cashAccountId,
+    required String categoryId,
+    required String amount,
+    required String date,
+  }) async {
+    await _client.post(
+      '/api/v1/transactions',
+      body: {
+        'accountId': cashAccountId,
+        'categoryId': categoryId,
+        'amount': amount,
+        'currency': 'TRY',
+        'type': 'expense',
+        // Kasa işletme etiketli olsa da bu para esnafın kendisine gitti.
+        'scope': TransactionScope.personal.apiValue,
+        'transactionDate': date,
+        'description': ownerWithdrawalDescription,
+      },
+    );
   }
 
   List<Map<String, dynamic>> _items(Map<String, dynamic> json) =>

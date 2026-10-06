@@ -224,6 +224,30 @@ Yoldaki satır -> ayrıntı -> "Kaydı iptal et" -> yıkıcı onay
      (doğrudan çağrı 409 pos_settlements.deposit_locked)
 ```
 
+```text
+Kasa -> "Kendime aldım" -> tutar, gün
+     -> şahsi etiketli hesap varsa: "Şahsi hesaba aktar" (seçili) | "Şahsi gider"
+        -> aktar: POST /api/v1/transfers (kasa -> şahsi hesap; gelir/gider yok)
+        -> gider: POST /api/v1/transactions (scope: personal, kategori kullanıcıdan)
+     -> şahsi hesap yoksa: yalnız şahsi gider; "Şahsi cüzdan aç" -> Hesaplar
+
+Kasa -> "Farkı kaydet" (eksik) -> "Neden eksik?"
+     -> Gider       -> kategori -> POST /cash-counts/{id}/adjustment
+     -> Bilmiyorum  -> kategori -> aynı uç, description: "Kasa farkı"
+     -> Kendime aldım -> fark kaydı yazılmaz -> "Kendime aldım" paneli, tutar dolu
+Fazla çıkan farkta sebep sorulmaz; gelir kategorisi seçilir.
+```
+
+Kasa sayım kartı önceki sayımın **kaydedilmemiş farkını** bilgi satırı olarak
+gösterir (`Kaydedilmemiş fark`, altında günü). Bugünkü fark ondan düşülmez; aynı
+fark yeniden sayıldıysa kart `Fark son sayımdakiyle aynı.` der ve `Farkı kaydet`
+öne çıkmaz. İşletme profilinde `Şahsi` etiketli nakit hesap Kasa'da görünmez
+(Hesaplar'da durur); etiketsiz hesap görünür.
+
+Özet'in Net varlık kartındaki `Yolda` satırı (`Kartla gelecek`) dokununca Kasa'yı
+`POS tahsilatları` bölümüne kaydırılmış açar; en erken beklenen gün yazılır, geçmişse `gün · Gecikti` olur. Yaklaşanlar
+ve Planlananlar POS göstermez (Aşama 06.3 K5).
+
 `Yolda` toplamı net tutardır ve liste tarih aralığından bağımsızdır. POS hedefi
 yalnız banka hesabıdır; kasa hesabı seçilemez. Ekranda brüt, komisyon ve net
 ayrı okunur.

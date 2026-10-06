@@ -466,12 +466,15 @@ class _Repository implements PosRepositoryContract {
   final previewed = <_PreviewCall>[];
 
   @override
-  Future<PosSettlementList> list({required bool inTransitOnly}) async =>
-      const PosSettlementList(
-        items: [],
-        moneyInTransit: '0.0000',
-        inTransitCount: 0,
-      );
+  Future<PosSettlementList> list({
+    required bool inTransitOnly,
+    String? from,
+    String? to,
+  }) async => const PosSettlementList(
+    items: [],
+    moneyInTransit: '0.0000',
+    inTransitCount: 0,
+  );
 
   int optionLoads = 0;
 

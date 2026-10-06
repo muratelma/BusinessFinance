@@ -24,6 +24,11 @@ public static class CashCountErrors
         "An active owned category matching the difference is required.",
         ApplicationErrorType.Validation);
 
+    public static readonly ApplicationError UnknownReasonNotApplicable = new(
+        "cash_counts.unknown_reason_not_applicable",
+        "An unknown reason applies only to a shortage and cannot come with a category.",
+        ApplicationErrorType.Validation);
+
     public static readonly ApplicationError NothingToAdjust = new(
         "cash_counts.nothing_to_adjust",
         "The count matched the expected balance; there is no difference to record.",

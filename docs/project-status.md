@@ -367,13 +367,51 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     bekliyor (aşama belgesi). `GET /api/v1/pos-settlements` satırında tahsil
     türünde kategori boş (onaylı sözleşme değişikliği). **Migration
     `AddCardCollections`** veri kaybettirmez (tür nullable → satış olarak
-    backfill → zorunlu; kategori ve kapsam nullable; iki bağ kolonu); **yerel
-    veritabanlarına henüz uygulanmadı**. Kontroller (bulut): backend build 0
+    backfill → zorunlu; kategori ve kapsam nullable; iki bağ kolonu); bulut
+    oturumunda yerel veritabanlarına uygulanmamıştı, aynı gün yerelde uygulandı
+    (bir sonraki madde). Kontroller (bulut): backend build 0
     uyarı, format temiz; Domain 342, Application 331, Api 270 (+2 SQL testi
     atlandı), Infrastructure 167 (+59 SQL testi atlandı) — **SQL testleri
     koşmadı, başarı sayılmaz**; LINQ'in SQL'e çevrilmesi `ToQueryString` ile
     kontrol edildi. Flutter analyze ve format temiz, 1042 test geçti (55 ekran
     görüntüsü testi atlandı); debug APK derlenmedi (bulutta Android SDK yok)
+  - **06.3 Grup 5, teslim 3/3 — yerel doğrulama ve kasa maddeleri (5 Ekim
+    2026; emülatör denemesi kullanıcıda, teslim sonunda toplu)**: bulutta
+    yazılan kartla tahsil yerelde doğrulandı — `AddCardCollections` API SQL
+    test veritabanına ve yerel geliştirme veritabanına sorunsuz uygulandı
+    (kategori kolonunun FK ve indeks altındayken nullable'a çevrilmesi ek adım
+    istemedi), SQL dahil bütün testler geçti. Aynı oturumda teslimin kalan beş
+    kararı uygulandı: **K5** Özet'in Net varlık kartındaki `Yolda` satırı
+    dokunulabilir oldu (Kasa'yı açar), alt yazısı `Kartla gelecek`, beklenen
+    günü geçmişse `gün · Gecikti` yazıyor (kullanıcı kararı; Yaklaşanlar'a POS
+    girmedi, KP18'den sapma); **K6** önceki sayımın kaydedilmemiş farkı sayım
+    kartında bilgi satırı (`previousUnrecordedDifference`,
+    `differenceSameAsPrevious`; fark bölünmüyor); **K7** eksik farkta sebep
+    (`Gider · Kendime aldım · Bilmiyorum`; adjustment isteğinde isteğe bağlı
+    `description`); **K8** işletme profilinde `Şahsi` etiketli nakit hesap
+    Kasa'da gizli; **K9** `Kendime aldım` (şahsi hesaba aktarım = transfer,
+    ya da `Şahsi` gider; yeni kayıt türü, uç ve migration yok). Sözleşmeye
+    yalnız ekleme yapıldı; migration yok. Kontroller: backend SQL dahil geçti
+    (Domain 342, Application 331, Api 274, Infrastructure 224 + 2 canlı test
+    atlandı), build 0 uyarı, format temiz; Flutter analyze ve format temiz,
+    1054 test geçti (60 ekran görüntüsü testi atlandı), debug APK derlendi.
+    Emülatörde henüz denenmedi
+  - **06.3 Grup 5, teslim 3/3 — emülatör turu ve kapanış (5–6 Ekim 2026)**:
+    kullanıcı emülatörde on adımı denedi. Bulunanlar düzeltildi: Özet'teki
+    `Yolda` satırı Kasa'yı POS bölümüne kaydırılmış açıyor; POS listesinde
+    yoldakiler beklenen güne göre (günü geçen üstte) diziliyor. **K10**
+    uygulandı: `Bilmiyorum` kategori sormuyor, kayıt standart `Kasa farkı`
+    gider kategorisine yazılıyor (adjustment isteğinde `unknownReason`; iki
+    varsayılan sette de var, eski hesapta ilk kullanımda açılır). **K11
+    (ara hâl, kullanıcı kararı 6 Ekim 2026):** Kasa'daki `POS tahsilatları`
+    bölümü yalnız yoldakileri (en çok 5), `Son yatış` satırını ve `Tüm
+    tahsilatlar` kapısını gösteriyor; hesaba geçenler ayrı sayfada. Bölüm ve
+    sayfa Grup 8'in liste sistemiyle **yeniden tasarlanacak**; çizilen diğer
+    varyantların kodu o karara kadar duruyor. Sözleşmeye yalnız ekleme
+    yapıldı; migration yok. Kontroller (6 Ekim): backend SQL dahil geçti
+    (Domain 342, Application 331, Api 274, Infrastructure 224 + 2 canlı test
+    atlandı), build 0 uyarı, format temiz; Flutter analyze ve format temiz,
+    1056 test geçti (102 ekran görüntüsü ve çizim testi atlandı)
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni (beklemede) → **06.3 bütünsel düzenleme (aktif)** →

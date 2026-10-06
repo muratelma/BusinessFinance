@@ -648,6 +648,17 @@ penceresi değil, tutarı ve günü soran yatış panelidir (aşağıda). Birinc
 eylemleri gönderim sırasında devre dışıdır. Yeni renk, boşluk, yarıçap veya
 tipografi token'ı eklenmemiştir.
 
+Kasa'da sayım kartının altında `Kendime aldım` metin düğmesi durur (kişi ikonu).
+Paneli ve `Eksiği kaydet` paneli aynı kalıbı kullanır: `AppFormSheet`, üstte
+seçim rayı (`AppSegmentRail`; `Şahsi hesaba aktar · Şahsi gider`, `Gider ·
+Kendime aldım · Bilmiyorum`), altında rayın seçimine göre tek alan. Rayda uzun
+ad kullanılmaz; açıklama alanın yardım satırındadır.
+
+Özet'in Net varlık kartında `Yolda` satırı aynı işareti taşır: tutarın altında
+en erken beklenen gün (takvim ikonu, soluk); gün geçmişse `27 Eylül · Gecikti`
+(uyarı ikonu, gider tonu). Satır ok taşır ve Kasa'yı açar. Satırın sağ tarafı
+200 dp ile sınırlıdır; sığmayan gün yazısı kısalır, başlık sıkışmaz.
+
 Ekran ve sayım panelinin iki modu 2.0× metin ölçeğinde test edilir. Alt gezinme/ray
 hedefleri Material'ın en az 48 dp dokunma alanını, görünür etiketi ve ekran
 okuyucu anlamını korur; sabit genişlikli özel bir mobil yerleşim eklenmez.

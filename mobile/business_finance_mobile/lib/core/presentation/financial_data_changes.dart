@@ -171,6 +171,17 @@ class FinancialDataChanges extends ChangeNotifier {
   void cashCountRecorded() => _raise(cash: true);
 
   /// Sayım farkı onaylandı: bu artık gerçek bir gelir/gider kaydıdır.
+  /// Esnaf kasadan kendine para aldı (Aşama 06.3 K9). Şahsi hesaba aktarım
+  /// bir transferdir ve bütçeye dokunmaz; şahsi gider olarak yazılırsa
+  /// bütçeyi de etkiler.
+  void ownerWithdrawalRecorded({required bool asExpense}) => _raise(
+    feed: true,
+    dashboard: true,
+    budgets: asExpense,
+    accounts: true,
+    cash: true,
+  );
+
   void cashDifferenceConfirmed() => _raise(
     feed: true,
     dashboard: true,

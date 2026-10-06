@@ -450,6 +450,258 @@ void main() {
     expect(find.text('Emin olmak için yeniden sayın.'), findsOneWidget);
   });
 
+  // Özet'teki `Yolda` satırı Kasa'yı POS bölümüne kaydırılmış açar.
+  testWidgets('Kasa POS bölümüne kaydırılmış açılabilir', (tester) async {
+    tester.view.physicalSize = const Size(412, 500);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_app(initialTab: 3));
+    await tester.pumpAndSettle();
+
+    final top = tester.getTopLeft(find.text('POS tahsilatları')).dy;
+    expect(top, lessThan(200), reason: 'bölüm başlığı ekranın üstünde');
+    // Hiçbir panel açılmaz: bu yalnız bir konumdur.
+    expect(find.text('Müşterinin ödediği'), findsNothing);
+  });
+
+  // Aşama 06.3 K9: esnafın kasadan kendine aldığı para yeni bir kayıt türü
+  // değildir; şahsi hesaba aktarım ya da şahsi gider olarak yazılır.
+  group('Kendime aldım', () {
+    Future<_FakeCashRepository> open(
+      WidgetTester tester, {
+      List<DataChoice> personal = const [],
+      FinancialDataChanges? changes,
+    }) async {
+      tester.view.physicalSize = const Size(412, 1400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final repository = _FakeCashRepository()..personalAccounts = personal;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: CashPage(
+            cashController: CashCountController(
+              repository,
+              changes: changes,
+              clock: () => DateTime(2026, 9, 25, 18),
+            ),
+            posController: PosController(_FakePosRepository()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Kendime aldım'));
+      await tester.pumpAndSettle();
+      return repository;
+    }
+
+    testWidgets('şahsi hesap varsa aktarım seçili gelir ve transfer yazılır', (
+      tester,
+    ) async {
+      final changes = FinancialDataChanges();
+      final repository = await open(
+        tester,
+        personal: const [DataChoice('wallet', 'Şahsi cüzdan')],
+        changes: changes,
+      );
+
+      expect(find.text('Şahsi hesaba aktar'), findsOneWidget);
+      expect(find.text('Şahsi gider'), findsOneWidget);
+      await tester.enterText(find.byType(TextFormField).first, '250');
+      await tester.tap(find.text('Kaydet'));
+      await tester.pumpAndSettle();
+
+      expect(
+        repository.withdrawals.single,
+        startsWith('transfer cash-account'),
+      );
+      expect(repository.withdrawals.single, contains('>wallet 250.0000'));
+      // Transfer gelir/gider değildir: bütçe yenilenmez, kasa ve hesaplar
+      // yenilenir.
+      expect(changes.budgetsRevision, 0);
+      expect(changes.accountsRevision, 1);
+      expect(changes.cashRevision, 1);
+      expect(changes.activityFeedRevision, 1);
+    });
+
+    testWidgets('şahsi hesap yoksa şahsi gider olarak yazılır', (tester) async {
+      final changes = FinancialDataChanges();
+      final repository = await open(tester, changes: changes);
+
+      // Aktarılacak yer yok: ray çizilmez, kategori sorulur.
+      expect(find.text('Şahsi hesaba aktar'), findsNothing);
+      await tester.enterText(find.byType(TextFormField).first, '80,50');
+      await tester.tap(find.text('Kaydet'));
+      await tester.pumpAndSettle();
+      expect(find.text('Kategori seçin.'), findsOneWidget);
+      expect(repository.withdrawals, isEmpty);
+
+      await tester.tap(find.byKey(const ValueKey('withdrawal-category')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Kasa farkı').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Kaydet'));
+      await tester.pumpAndSettle();
+
+      expect(
+        repository.withdrawals.single,
+        startsWith('expense cash-account/income-category 80.5000'),
+      );
+      expect(changes.budgetsRevision, 1);
+    });
+  });
+
+  // Aşama 06.3 K7: eksik farkta sebep sorulur; fazlada sorulmaz.
+  group('fark kaydında sebep', () {
+    Future<_FakeCashRepository> open(
+      WidgetTester tester,
+      String difference,
+    ) async {
+      tester.view.physicalSize = const Size(412, 1400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final repository = _FakeCashRepository()
+        ..currentCount = _cashCount(difference: difference);
+      await tester.pumpWidget(_app(cash: repository));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Farkı kaydet'));
+      await tester.pumpAndSettle();
+      return repository;
+    }
+
+    testWidgets('fazla çıkan farkta sebep sorulmaz', (tester) async {
+      await open(tester, '40.0000');
+
+      expect(find.text('Fazlayı kaydet'), findsOneWidget);
+      expect(find.text('Bilmiyorum'), findsNothing);
+    });
+
+    testWidgets('"Bilmiyorum" kategori sormaz', (tester) async {
+      final repository = await open(tester, '-100.0000');
+
+      expect(find.text('Gider'), findsOneWidget);
+      await tester.tap(find.text('Bilmiyorum'));
+      await tester.pumpAndSettle();
+      // Sebebi bilmeyen kullanıcıya kategori seçtirilmez (K10).
+      expect(find.byType(DropdownButtonFormField<String>), findsNothing);
+      expect(find.textContaining('"Kasa farkı" kategorisine'), findsOneWidget);
+      await tester.tap(find.text('Kaydet'));
+      await tester.pumpAndSettle();
+
+      expect(repository.confirmedUnknown, isTrue);
+      expect(repository.confirmedCategoryId, isNull);
+    });
+
+    testWidgets('"Kendime aldım" fark kaydı yazmaz, paneli tutarla açar', (
+      tester,
+    ) async {
+      final repository = await open(tester, '-100.0000');
+
+      await tester.tap(find.text('Kendime aldım').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Devam'));
+      await tester.pumpAndSettle();
+
+      expect(repository.confirmed, isFalse);
+      expect(find.text('Tutar'), findsOneWidget);
+      expect(find.text('100,00'), findsOneWidget);
+    });
+  });
+
+  // Aşama 06.3 K8: işletme profilinde şahsi cüzdan Kasa'da gösterilmez.
+  group('şahsi etiketli nakit hesap', () {
+    test('işletme profilinde gizlenir, etiketsiz ve işletme kalır', () async {
+      final controller = CashCountController(
+        _FakeCashRepository()..twoAccounts = true,
+        hidesPersonalAccounts: () => true,
+      );
+      await controller.load();
+
+      expect(controller.accounts.map((account) => account.id), [
+        'cash-account',
+      ]);
+      expect(controller.hasOnlyHiddenAccounts, isFalse);
+      controller.dispose();
+    });
+
+    test('kişisel profilde görünür', () async {
+      final controller = CashCountController(
+        _FakeCashRepository()..twoAccounts = true,
+        hidesPersonalAccounts: () => false,
+      );
+      await controller.load();
+
+      expect(controller.accounts, hasLength(2));
+      controller.dispose();
+    });
+
+    testWidgets('hepsi gizliyse Kasa bunu söyler', (tester) async {
+      tester.view.physicalSize = const Size(412, 1400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: CashPage(
+            cashController: CashCountController(
+              _FakeCashRepository()..onlyPersonal = true,
+              hidesPersonalAccounts: () => true,
+            ),
+            posController: PosController(_FakePosRepository()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('İşletme kasası yok.'), findsOneWidget);
+      expect(find.text('Sayılacak bir kasa yok.'), findsNothing);
+    });
+  });
+
+  // Aşama 06.3 K6: önceki sayımın kaydedilmemiş farkı bilgi satırıdır;
+  // bugünkü fark ondan düşülmez ve ikiye bölünmez.
+  testWidgets('önceki sayımın kaydedilmemiş farkı bilgi olarak durur', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(412, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final repository = _FakeCashRepository()
+      ..previous = _previousCount
+      ..carriedDifference = '-100.0000';
+    await tester.pumpWidget(_app(cash: repository));
+    await tester.pumpAndSettle();
+
+    // Sayım girilmeden önce de görünür.
+    expect(find.text('Kaydedilmemiş fark'), findsOneWidget);
+    expect(find.text('24 Eylül sayımından'), findsOneWidget);
+    expect(find.text('-₺100,00'), findsOneWidget);
+  });
+
+  testWidgets('aynı fark yeniden sayılınca kayıt öne çıkmaz', (tester) async {
+    tester.view.physicalSize = const Size(412, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final repository = _FakeCashRepository()
+      ..previous = _previousCount
+      ..currentCount = _cashCount(difference: '-100.0000')
+      ..carriedDifference = '-100.0000'
+      ..sameAsPrevious = true;
+    await tester.pumpWidget(_app(cash: repository));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Fark son sayımdakiyle aynı.'), findsOneWidget);
+    expect(find.text('Kaydedilmemiş fark'), findsOneWidget);
+    // Fark tek sayıdır; kayıt hâlâ mümkündür ama birincil düğme değildir.
+    expect(
+      find.ancestor(
+        of: find.text('Farkı kaydet'),
+        matching: find.byWidgetPredicate((widget) => widget is OutlinedButton),
+      ),
+      findsOneWidget,
+    );
+  });
+
   // 29 Eylül emülatör denemesi: tutan sayımdan sonra dün tarihli 300 TL fatura
   // girildi. Fark gerçek olabilir (fatura dün ödendiyse) ya da olmayabilir;
   // uygulama saati bilmediği için ekran iki ihtimali de söyler.
@@ -739,26 +991,59 @@ ApiClient _client(MockClientHandler handler) => ApiClient(
 );
 
 class _FakeCashRepository implements CashRepositoryContract {
+  List<DataChoice> personalAccounts = const [];
+  final withdrawals = <String>[];
+
+  @override
+  Future<List<DataChoice>> loadPersonalAccounts() async => personalAccounts;
+
+  @override
+  Future<void> withdrawToAccount({
+    required String cashAccountId,
+    required String personalAccountId,
+    required String amount,
+    required String date,
+  }) async {
+    withdrawals.add('transfer $cashAccountId>$personalAccountId $amount $date');
+  }
+
+  @override
+  Future<void> withdrawAsExpense({
+    required String cashAccountId,
+    required String categoryId,
+    required String amount,
+    required String date,
+  }) async {
+    withdrawals.add('expense $cashAccountId/$categoryId $amount $date');
+  }
+
   CashCountItem? currentCount;
   CashCountItem? previous;
   String? createdScope;
   String? createdAmount;
   String? createdDate;
   bool twoAccounts = false;
+  bool onlyPersonal = false;
+  bool confirmed = false;
+  String? confirmedCategoryId;
+  bool confirmedUnknown = false;
   int accountLoads = 0;
   int todayLoads = 0;
   String? changeSinceCount;
+  String? carriedDifference;
+  bool sameAsPrevious = false;
 
   @override
   Future<List<CashAccount>> loadCashAccounts() async {
     accountLoads++;
     return [
-      const CashAccount(
-        id: 'cash-account',
-        name: 'Merkez kasa',
-        defaultScope: TransactionScope.business,
-      ),
-      if (twoAccounts)
+      if (!onlyPersonal)
+        const CashAccount(
+          id: 'cash-account',
+          name: 'Merkez kasa',
+          defaultScope: TransactionScope.business,
+        ),
+      if (twoAccounts || onlyPersonal)
         const CashAccount(
           id: 'wallet',
           name: 'Şahsi cüzdan',
@@ -780,6 +1065,8 @@ class _FakeCashRepository implements CashRepositoryContract {
       todayInflow: '2450.0000',
       todayOutflow: '665.0000',
       changeSinceCount: changeSinceCount,
+      previousUnrecordedDifference: carriedDifference,
+      differenceSameAsPrevious: sameAsPrevious,
     );
   }
 
@@ -810,11 +1097,17 @@ class _FakeCashRepository implements CashRepositoryContract {
   @override
   Future<CashCountItem> confirmDifference({
     required String cashCountId,
-    required String categoryId,
-  }) async => currentCount = _cashCount(
-    difference: '5.0000',
-    adjustmentTransactionId: 'adjustment',
-  );
+    String? categoryId,
+    bool unknownReason = false,
+  }) async {
+    confirmed = true;
+    confirmedCategoryId = categoryId;
+    confirmedUnknown = unknownReason;
+    return currentCount = _cashCount(
+      difference: '5.0000',
+      adjustmentTransactionId: 'adjustment',
+    );
+  }
 }
 
 class _FakePosRepository implements PosRepositoryContract {
@@ -828,7 +1121,11 @@ class _FakePosRepository implements PosRepositoryContract {
   int listLoads = 0;
 
   @override
-  Future<PosSettlementList> list({required bool inTransitOnly}) async {
+  Future<PosSettlementList> list({
+    required bool inTransitOnly,
+    String? from,
+    String? to,
+  }) async {
     listLoads++;
     return current;
   }

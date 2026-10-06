@@ -8,6 +8,7 @@ import '../../../core/formatters/money_text.dart';
 import '../../../core/models/data_choice.dart';
 import '../../../core/models/transaction_scope.dart';
 import '../../../core/presentation/scope_controller.dart';
+import '../../../core/theme/app_finance_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
@@ -30,6 +31,7 @@ import '../../../core/widgets/app_status_chip.dart';
 import '../../../core/widgets/app_status_tag.dart';
 import '../../../core/widgets/app_text_action.dart';
 import '../data/pos_repository.dart';
+import 'pos_all_settlements_page.dart';
 import 'pos_controller.dart';
 import 'pos_definitions_page.dart';
 import 'pos_deposit_sheets.dart';
@@ -49,14 +51,34 @@ export 'pos_deposit_sheets.dart' show posSettlementTitle;
 ///
 /// Yolda tahsilat varken toplamın altında `Hesaba geçenleri işaretle` durur
 /// (ADR 0019 T5): para hesaba yalnız bir yatışla geçer.
+/// Kasa'daki `POS tahsilatları` bölümünün çizilen üç varyantı.
+///
+/// [list]: yoldakiler düz liste (en çok beş). [byDay]: yoldakiler beklenen
+/// güne göre başlıklı. [minimal]: yalnız günü geçenler; gerisi sayfada.
+enum PosSectionLayout { list, byDay, minimal }
+
 class PosSection extends StatefulWidget {
-  const PosSection({required this.controller, super.key, this.scopeController});
+  const PosSection({
+    required this.controller,
+    super.key,
+    this.scopeController,
+    this.layout = PosSectionLayout.list,
+    this.today,
+  });
+
+  /// Tasarım varyantı (K11); karar verilince tek hâl kalır.
+  final PosSectionLayout layout;
+
+  /// Gün başlıklarında `Bugün` demek için (`yyyy-MM-dd`); verilmezse cihazın
+  /// günü.
+  final String? today;
 
   final PosController controller;
   final ScopeController? scopeController;
 
-  /// Geçmiş tahsilatlardan kaç tanesi gösterilir; yoldakilerin hepsi durur.
-  static const recentTransferredCount = 3;
+  /// Kasa'da gösterilen yoldaki tahsilat sayısı; fazlası `Tüm tahsilatlar`
+  /// sayfasındadır (Aşama 06.3 K11).
+  static const visibleInTransitCount = 5;
 
   @override
   State<PosSection> createState() => _PosSectionState();
@@ -140,11 +162,20 @@ class _PosSectionState extends State<PosSection> {
     }
     final theme = Theme.of(context);
     final surfaces = AppSurfaces.of(context);
-    final inTransit = controller.items.where((item) => item.isInTransit);
-    final transferred = controller.items
-        .where((item) => !item.isInTransit)
-        .take(PosSection.recentTransferredCount);
-    final rows = [...inTransit, ...transferred];
+    // Kasa günlük ekrandır: yalnız dikkat isteyen, yani yoldakiler durur.
+    // Beklenen güne göre dizilir; günü geçen en üstte.
+    final inTransit = sortedInTransit(controller.items);
+    final rows = switch (widget.layout) {
+      PosSectionLayout.minimal =>
+        inTransit.where((item) => item.isLate).toList(),
+      PosSectionLayout.byDay => inTransit,
+      PosSectionLayout.list =>
+        inTransit.take(PosSection.visibleInTransitCount).toList(),
+    };
+    final hidden = inTransit.length - rows.length;
+    final todayIso =
+        widget.today ?? DateTime.now().toIso8601String().substring(0, 10);
+    final lastDeposited = latestDeposited(controller.items);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -221,55 +252,226 @@ class _PosSectionState extends State<PosSection> {
                 Padding(
                   padding: const EdgeInsets.all(AppSpacing.medium),
                   child: Text(
-                    'Tahsilat yok. Müşterinizin kartla ödediği tutarı '
-                    'yazdığınızda satış o gün gelir olarak tanınır; para '
-                    'hesabınıza geçtiğinde işaretlersiniz.',
+                    controller.items.isEmpty
+                        ? 'Tahsilat yok. Müşterinizin kartla ödediği tutarı '
+                              'yazdığınızda satış o gün gelir olarak tanınır; '
+                              'para hesabınıza geçtiğinde işaretlersiniz.'
+                        : 'Yolda tahsilat yok.',
                     style: theme.textTheme.bodySmall,
                   ),
-                )
-              else
-                AppDividedColumn(
-                  inset: AppIconCapsule.rowInset,
-                  children: [
-                    for (final item in rows)
-                      _SettlementRow(
-                        item: item,
-                        onTap: () => _openDetail(context, controller, item),
-                      ),
-                  ],
                 ),
+              AppDividedColumn(
+                inset: AppIconCapsule.rowInset,
+                children: [
+                  for (final (index, item) in rows.indexed) ...[
+                    if (widget.layout == PosSectionLayout.byDay &&
+                        (index == 0 ||
+                            rows[index - 1].expectedTransferDate !=
+                                item.expectedTransferDate))
+                      _ExpectedDayHeader(
+                        date: item.expectedTransferDate,
+                        late: item.isLate,
+                        today: todayIso,
+                      ),
+                    PosSettlementRow(
+                      item: item,
+                      onTap: () =>
+                          openPosSettlementDetail(context, controller, item),
+                    ),
+                  ],
+                  if (lastDeposited != null)
+                    _LastDepositRow(
+                      key: ValueKey(lastDeposited.posDepositId),
+                      item: lastDeposited,
+                      controller: controller,
+                    ),
+                  if (controller.items.isNotEmpty)
+                    AppRow(
+                      leading: const AppIconCapsule(
+                        icon: Icons.list_alt_outlined,
+                        tone: AppStatusTone.neutral,
+                      ),
+                      title: hidden > 0
+                          ? 'Tüm tahsilatlar · $hidden yolda daha'
+                          : 'Tüm tahsilatlar',
+                      trailing: Icon(
+                        Icons.chevron_right,
+                        color: surfaces.inkMuted,
+                      ),
+                      onTap: () =>
+                          Navigator.of(context, rootNavigator: true).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) =>
+                                  PosAllSettlementsPage(controller: controller),
+                            ),
+                          ),
+                    ),
+                ],
+              ),
             ],
           ),
         ),
       ],
     );
   }
+}
 
-  Future<void> _openDetail(
-    BuildContext context,
-    PosController controller,
-    PosSettlementItem item,
-  ) async {
-    final next = await AppAdaptiveSheet.show<PosSettlementSheetAction>(
-      context: context,
-      builder: (_) => PosSettlementSheet(item: item, controller: controller),
+/// Yoldaki tahsilatlar, beklenen güne göre: günü geçen en üstte.
+List<PosSettlementItem> sortedInTransit(Iterable<PosSettlementItem> items) =>
+    items.where((item) => item.isInTransit).toList()..sort(
+      (a, b) => a.expectedTransferDate.compareTo(b.expectedTransferDate),
     );
-    if (next == null || !context.mounted) return;
-    switch (next) {
-      case PosSettlementSheetAction.deposit:
-        await showPosDepositForm(
-          context,
-          controller,
-          initialSettlementId: item.id,
-        );
-      case PosSettlementSheetAction.viewDeposit:
-        await showPosDepositDetail(
-          context,
-          repository: controller.repository,
-          depositId: item.posDepositId!,
-          changes: controller.changes,
-        );
+
+/// En son hesaba geçen tahsilat; yatışının kapısıdır. Yoksa `null`.
+PosSettlementItem? latestDeposited(Iterable<PosSettlementItem> items) {
+  PosSettlementItem? latest;
+  for (final item in items) {
+    if (item.isInTransit || item.posDepositId == null) continue;
+    if (latest == null ||
+        (item.transferredOn ?? '').compareTo(latest.transferredOn ?? '') > 0) {
+      latest = item;
     }
+  }
+  return latest;
+}
+
+/// Tahsilatın ayrıntısını açar ve ayrıntının istediği sonraki paneli
+/// (yatış formu ya da yatış ayrıntısı) gösterir.
+Future<void> openPosSettlementDetail(
+  BuildContext context,
+  PosController controller,
+  PosSettlementItem item,
+) async {
+  final next = await AppAdaptiveSheet.show<PosSettlementSheetAction>(
+    context: context,
+    builder: (_) => PosSettlementSheet(item: item, controller: controller),
+  );
+  if (next == null || !context.mounted) return;
+  switch (next) {
+    case PosSettlementSheetAction.deposit:
+      await showPosDepositForm(
+        context,
+        controller,
+        initialSettlementId: item.id,
+      );
+    case PosSettlementSheetAction.viewDeposit:
+      await showPosDepositDetail(
+        context,
+        repository: controller.repository,
+        depositId: item.posDepositId!,
+        changes: controller.changes,
+      );
+  }
+}
+
+/// Beklenen gün başlığı: `Gecikti · 2 Ekim`, `Bugün`, `6 Ekim`.
+class _ExpectedDayHeader extends StatelessWidget {
+  const _ExpectedDayHeader({
+    required this.date,
+    required this.late,
+    required this.today,
+  });
+
+  final String date;
+  final bool late;
+  final String today;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = AppFinanceColors.of(context);
+    final surfaces = AppSurfaces.of(context);
+    final label = late
+        ? 'Gecikti · ${DateText.dayMonth(date)}'
+        : date == today
+        ? 'Bugün'
+        : DateText.dayMonth(date);
+    return Semantics(
+      header: true,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.medium,
+          AppSpacing.small + AppSpacing.xSmall,
+          AppSpacing.medium,
+          AppSpacing.xxSmall,
+        ),
+        child: Text(
+          label,
+          style: theme.textTheme.labelMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: late ? colors.expense : surfaces.inkMuted,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// `Son yatış`: kullanıcının yaptığı iş yatıştır; hesaba geçen tahsilatlar
+/// Kasa'da tek tek listelenmez. Tutar yatışın kendisinden okunur.
+class _LastDepositRow extends StatefulWidget {
+  const _LastDepositRow({
+    required this.item,
+    required this.controller,
+    super.key,
+  });
+
+  final PosSettlementItem item;
+  final PosController controller;
+
+  @override
+  State<_LastDepositRow> createState() => _LastDepositRowState();
+}
+
+class _LastDepositRowState extends State<_LastDepositRow> {
+  late final Future<PosDeposit?> deposit = _load();
+
+  /// İkincil bir okumadır; düşerse satır tutarsız kalır.
+  Future<PosDeposit?> _load() async {
+    try {
+      return await widget.controller.repository.getDeposit(
+        depositId: widget.item.posDepositId!,
+      );
+    } on Exception {
+      return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final surfaces = AppSurfaces.of(context);
+    final item = widget.item;
+    return FutureBuilder<PosDeposit?>(
+      future: deposit,
+      builder: (context, snapshot) {
+        final loaded = snapshot.data;
+        return AppRow(
+          leading: const AppIconCapsule(
+            icon: Icons.move_to_inbox_outlined,
+            tone: AppStatusTone.income,
+          ),
+          title: 'Son yatış',
+          subtitle: [
+            DateText.dayMonth(item.transferredOn!),
+            item.accountName,
+          ].join(' · '),
+          trailing: loaded == null
+              ? Icon(Icons.chevron_right, color: surfaces.inkMuted)
+              : AppMoneyText(
+                  amount: loaded.depositedAmount,
+                  currency: loaded.currency,
+                  size: AppMoneySize.row,
+                  style: TextStyle(color: surfaces.inkMuted),
+                ),
+          onTap: () => showPosDepositDetail(
+            context,
+            repository: widget.controller.repository,
+            depositId: item.posDepositId!,
+            changes: widget.controller.changes,
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -277,8 +479,8 @@ class _PosSectionState extends State<PosSection> {
 /// üste açılmaz: ayrıntı kapanır, açan taraf sıradakini açar.
 enum PosSettlementSheetAction { deposit, viewDeposit }
 
-class _SettlementRow extends StatelessWidget {
-  const _SettlementRow({required this.item, required this.onTap});
+class PosSettlementRow extends StatelessWidget {
+  const PosSettlementRow({required this.item, required this.onTap, super.key});
 
   final PosSettlementItem item;
   final VoidCallback onTap;

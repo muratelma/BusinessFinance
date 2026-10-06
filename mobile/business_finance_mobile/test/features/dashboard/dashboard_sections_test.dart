@@ -309,9 +309,55 @@ void main() {
       await _pump(tester, viewModel, height: 3000);
 
       expect(find.text('Yolda'), findsOneWidget);
-      expect(find.text('POS tahsilatı'), findsOneWidget);
+      // İki kaynağı da (POS satışı, kartla tahsil) kapsayan söz.
+      expect(find.text('Kartla gelecek'), findsOneWidget);
       // Kartın kelimesi ADR 0015'in kelimesidir: `bloke` bankacılık jargonu.
       expect(find.textContaining('Bloke'), findsNothing);
+    });
+
+    testWidgets('yoldaki paranın günü gelmemişse yalnız gün yazar', (
+      tester,
+    ) async {
+      final viewModel = DashboardViewModel(
+        _Source(
+          _report(),
+          advanced: _advanced(
+            moneyInTransit: '490.0000',
+            nextTransitDate: '2026-08-12',
+          ),
+        ),
+        now: () => DateTime(2026, 8, 12, 18),
+      );
+      await viewModel.load();
+
+      await _pump(tester, viewModel, height: 3000);
+
+      // Beklenen gün bugünse gecikmiş değildir.
+      expect(find.text('12 Ağustos'), findsOneWidget);
+      expect(find.textContaining('Gecikti'), findsNothing);
+    });
+
+    testWidgets('günü geçmiş yoldaki para günüyle birlikte "Gecikti" der', (
+      tester,
+    ) async {
+      // Gün her zaman yazılır; geçtiğini söz ve ikon söyler, yalnız renk
+      // değil (kullanıcı kararı, 5 Ekim 2026).
+      final viewModel = DashboardViewModel(
+        _Source(
+          _report(),
+          advanced: _advanced(
+            moneyInTransit: '490.0000',
+            nextTransitDate: '2026-08-07',
+          ),
+        ),
+        now: () => DateTime(2026, 8, 9),
+      );
+      await viewModel.load();
+
+      await _pump(tester, viewModel, height: 3000);
+
+      expect(find.text('7 Ağustos · Gecikti'), findsOneWidget);
+      expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
     });
 
     testWidgets('yolda para yokken satır hiç çizilmiyor', (tester) async {
@@ -823,6 +869,7 @@ AdvancedReport _advanced({
   String netWorth = '2370.0000',
   String moneyInTransit = '0.0000',
   String creditCardDebt = '250.0000',
+  String? nextTransitDate,
 }) => AdvancedReport.fromJson({
   'asOfDate': '2026-08-31',
   'currency': 'TRY',
@@ -840,6 +887,7 @@ AdvancedReport _advanced({
     'payableDebt': payableDebt,
     'netWorth': netWorth,
     'moneyInTransit': moneyInTransit,
+    'nextTransitDate': nextTransitDate,
   },
   'periodComparison': {
     // Fark sunucudan gelir; istemci dönemleri çıkarmaz.

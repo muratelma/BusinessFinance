@@ -632,6 +632,7 @@ GoRouter createAppRouter({
                   initialTab: switch (state.uri.queryParameters['tab']) {
                     'pos' => 1,
                     'day-close' => 2,
+                    'transit' => 3,
                     _ => 0,
                   },
                 ),
@@ -835,6 +836,9 @@ class _CashPageHostState extends State<_CashPageHost> {
     _cashController = CashCountController(
       widget.cashRepository,
       changes: widget.changes,
+      // Kapsam boyutunu gören (işletmesi olan) kullanıcıda Kasa işletmenin
+      // kasasıdır; şahsi cüzdan Hesaplar'da durur.
+      hidesPersonalAccounts: () => widget.scopeController?.isVisible ?? false,
     );
     _posController = PosController(
       widget.posRepository,
@@ -858,6 +862,8 @@ class _CashPageHostState extends State<_CashPageHost> {
     scopeController: widget.scopeController,
     ownsControllers: false,
     initialTab: widget.initialTab,
+    // Şahsi hesabı olmayan kullanıcı onu Hesaplar'da açar.
+    onOpenPersonalAccount: () => context.push(accountsLocation),
   );
 }
 

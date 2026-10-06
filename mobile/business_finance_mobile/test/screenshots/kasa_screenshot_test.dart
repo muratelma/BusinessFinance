@@ -82,6 +82,74 @@ void main() {
     );
   }, skip: !screenshotsEnabled);
 
+  testWidgets('16 kendime aldım · aktarım', (tester) async {
+    final repository = _DesignCash(null)
+      ..personalAccounts = const [
+        DataChoice('cuzdan', 'Şahsi cüzdan'),
+        DataChoice('banka', 'Şahsi banka hesabı'),
+      ];
+    final widget = CashPage(
+      cashController: CashCountController(
+        repository,
+        clock: () => DateTime(2026, 9, 25, 18),
+      ),
+      posController: PosController(_DesignPos()),
+    );
+    await captureScreen(
+      tester,
+      '16-kendime-aldim-aktarim',
+      widget,
+      selectedTab: 2,
+      before: (tester) async {
+        await tester.tap(find.text('Kendime aldım'));
+        await tester.pump(const Duration(seconds: 1));
+        await tester.enterText(find.byType(TextFormField).first, '500');
+      },
+    );
+  }, skip: !screenshotsEnabled);
+
+  testWidgets('17 kendime aldım · şahsi hesap yok', (tester) async {
+    await captureScreen(
+      tester,
+      '17-kendime-aldim-hesap-yok',
+      CashPage(
+        cashController: CashCountController(
+          _DesignCash(null),
+          clock: () => DateTime(2026, 9, 25, 18),
+        ),
+        posController: PosController(_DesignPos()),
+        onOpenPersonalAccount: () {},
+      ),
+      selectedTab: 2,
+      before: (tester) async {
+        await tester.tap(find.text('Kendime aldım'));
+        await tester.pump(const Duration(seconds: 1));
+        await tester.enterText(find.byType(TextFormField).first, '500');
+      },
+    );
+  }, skip: !screenshotsEnabled);
+
+  testWidgets('18 eksiği kaydet · sebep', (tester) async {
+    await captureScreen(
+      tester,
+      '18-eksigi-kaydet-sebep',
+      page(
+        todayCount: _count(
+          '2026-09-25',
+          '23100.0000',
+          '23185.0000',
+          '-85.0000',
+        ),
+      ),
+      selectedTab: 2,
+      before: (tester) async {
+        await tester.tap(find.text('Farkı kaydet'));
+        await tester.pump(const Duration(seconds: 1));
+        await tester.tap(find.text('Bilmiyorum'));
+      },
+    );
+  }, skip: !screenshotsEnabled);
+
   testWidgets('15 POS detayı', (tester) async {
     await captureScreen(
       tester,
@@ -101,6 +169,32 @@ void main() {
 }
 
 class _DesignCash implements CashRepositoryContract {
+  List<DataChoice> personalAccounts = const [];
+  final withdrawals = <String>[];
+
+  @override
+  Future<List<DataChoice>> loadPersonalAccounts() async => personalAccounts;
+
+  @override
+  Future<void> withdrawToAccount({
+    required String cashAccountId,
+    required String personalAccountId,
+    required String amount,
+    required String date,
+  }) async {
+    withdrawals.add('transfer $cashAccountId>$personalAccountId $amount $date');
+  }
+
+  @override
+  Future<void> withdrawAsExpense({
+    required String cashAccountId,
+    required String categoryId,
+    required String amount,
+    required String date,
+  }) async {
+    withdrawals.add('expense $cashAccountId/$categoryId $amount $date');
+  }
+
   _DesignCash(this.todayCount);
 
   final CashCountItem? todayCount;
@@ -158,12 +252,13 @@ class _DesignCash implements CashRepositoryContract {
 
   @override
   Future<List<DataChoice>> loadCategories({required String type}) async =>
-      const [];
+      const [DataChoice('diger', 'Diğer giderler')];
 
   @override
   Future<CashCountItem> confirmDifference({
     required String cashCountId,
-    required String categoryId,
+    String? categoryId,
+    bool unknownReason = false,
   }) => throw UnimplementedError();
 }
 
@@ -195,42 +290,45 @@ CashCountItem _count(
 
 class _DesignPos implements PosRepositoryContract {
   @override
-  Future<PosSettlementList> list({required bool inTransitOnly}) async =>
-      const PosSettlementList(
-        items: [
-          PosSettlementItem(
-            id: 'p1',
-            accountName: 'Ziraat işletme',
-            categoryName: 'Satış',
-            grossAmount: '22650.0000',
-            commissionAmount: '396.3800',
-            netAmount: '22253.6300',
-            currency: 'TRY',
-            settlementDate: '2026-09-23',
-            expectedTransferDate: '2026-09-27',
-            isInTransit: true,
-            isLate: false,
-            scope: TransactionScope.business,
-          ),
-          PosSettlementItem(
-            id: 'p2',
-            accountName: 'Ziraat işletme',
-            categoryName: 'Satış',
-            grossAmount: '12750.0000',
-            commissionAmount: '223.1300',
-            netAmount: '12526.8700',
-            currency: 'TRY',
-            settlementDate: '2026-09-09',
-            expectedTransferDate: '2026-09-11',
-            transferredOn: '2026-09-11',
-            isInTransit: false,
-            isLate: false,
-            scope: TransactionScope.business,
-          ),
-        ],
-        moneyInTransit: '22253.6300',
-        inTransitCount: 1,
-      );
+  Future<PosSettlementList> list({
+    required bool inTransitOnly,
+    String? from,
+    String? to,
+  }) async => const PosSettlementList(
+    items: [
+      PosSettlementItem(
+        id: 'p1',
+        accountName: 'Ziraat işletme',
+        categoryName: 'Satış',
+        grossAmount: '22650.0000',
+        commissionAmount: '396.3800',
+        netAmount: '22253.6300',
+        currency: 'TRY',
+        settlementDate: '2026-09-23',
+        expectedTransferDate: '2026-09-27',
+        isInTransit: true,
+        isLate: false,
+        scope: TransactionScope.business,
+      ),
+      PosSettlementItem(
+        id: 'p2',
+        accountName: 'Ziraat işletme',
+        categoryName: 'Satış',
+        grossAmount: '12750.0000',
+        commissionAmount: '223.1300',
+        netAmount: '12526.8700',
+        currency: 'TRY',
+        settlementDate: '2026-09-09',
+        expectedTransferDate: '2026-09-11',
+        transferredOn: '2026-09-11',
+        isInTransit: false,
+        isLate: false,
+        scope: TransactionScope.business,
+      ),
+    ],
+    moneyInTransit: '22253.6300',
+    inTransitCount: 1,
+  );
 
   @override
   Future<PosOptions> loadOptions() async => const PosOptions(

@@ -479,7 +479,13 @@ class PosOptions {
 }
 
 abstract interface class PosRepositoryContract {
-  Future<PosSettlementList> list({required bool inTransitOnly});
+  /// [from] ve [to] (`yyyy-MM-dd`, satış günü) verilmezse sunucunun
+  /// varsayılan penceresi (son 30 gün) okunur.
+  Future<PosSettlementList> list({
+    required bool inTransitOnly,
+    String? from,
+    String? to,
+  });
 
   Future<PosOptions> loadOptions();
 
@@ -541,10 +547,19 @@ class PosRepository implements PosRepositoryContract {
   final ApiClient _client;
 
   @override
-  Future<PosSettlementList> list({required bool inTransitOnly}) async {
-    final response = await _client.get(
-      '/api/v1/pos-settlements?inTransitOnly=$inTransitOnly',
-    );
+  Future<PosSettlementList> list({
+    required bool inTransitOnly,
+    String? from,
+    String? to,
+  }) async {
+    final query = Uri(
+      queryParameters: {
+        'inTransitOnly': '$inTransitOnly',
+        'from': ?from,
+        'to': ?to,
+      },
+    ).query;
+    final response = await _client.get('/api/v1/pos-settlements?$query');
     return PosSettlementList.fromJson(response.requireObject());
   }
 
