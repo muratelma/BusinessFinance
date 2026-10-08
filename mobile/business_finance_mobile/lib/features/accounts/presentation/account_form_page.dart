@@ -183,8 +183,8 @@ class _AccountFormPageState extends State<AccountFormPage> {
                   value: _defaultScope,
                   onChanged: (value) => setState(() => _defaultScope = value),
                   helperText:
-                      'Kaydın tarafını kategori belirler. Kategori iki tarafa '
-                      'da açıksa bu seçili gelir.',
+                      'Kaydın kapsamını kategori belirler. Kategoride kapsam '
+                      'seçilmemişse bu hesabın varsayılan kapsamı kullanılır.',
                 ),
               ],
               if (_editing) ...[

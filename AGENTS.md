@@ -186,6 +186,12 @@ ve ADR güncellemesiyle değişir.
   Yanlış kelime kullanıcıyı vergi beyanında yanıltır.
 - Kullanıcıya gösterilecek cümleyi API değil istemci üretir; API kararlı
   makine değerleri gönderir.
+- **Arayüz metni doğal Türkçeyle yazılır**, İngilizce düşünülüp çevrilmiş gibi
+  değil (kullanıcı, 8 Ekim 2026). Cümle ekrandaki kelimeleri kullanır
+  (`kapsam`, `varsayılan kapsam`, `kategori`), iç terimleri değil ("taraf",
+  "iki tarafa açık", "seçili gelir"); önce kuralı, sonra istisnasını söyler.
+  Örnek: "Harcamanın kapsamını kategori belirler. Kategoride kapsam
+  seçilmemişse bu kartın varsayılan kapsamı kullanılır."
 
 ## Flutter kuralları
 

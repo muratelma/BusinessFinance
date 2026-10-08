@@ -112,7 +112,7 @@ abstract final class ApiErrorMessages {
         'Kaydın işletme mi şahsi mi olduğu belirlenemedi. '
         'Kapsamı seçip tekrar deneyin.',
     'scope_conflict':
-        'Bu kategori bu kayıtta kullanılamıyor: kategori bir tarafa özel. '
+        'Bu kategori bu kayıt için uygun değil: kapsamı farklı. '
         'Başka bir kategori seçip tekrar deneyin.',
     'validation':
         'Gönderilen bilgilerde eksik veya hatalı alan var. '
@@ -429,8 +429,8 @@ abstract final class ApiErrorMessages {
         'Kesintinin işletme mi şahsi mi olduğu belirlenemedi; işletme ve '
         'şahsi tahsilatları ayrı ayrı işaretleyin.',
     'categories.scope_in_use':
-        'Bu kategorinin öbür tarafta kaydı, planı ya da bütçesi var. '
-        'Kategori yalnız iki tarafa açılabilir.',
+        'Bu kategorinin diğer kapsamda kaydı, planı ya da bütçesi var. '
+        'Kapsamı yalnız “İkisi de” yapılabilir.',
     'pos_deposits.concurrent_change':
         'Tahsilatlar bu sırada değişti. Listeyi yenileyip yeniden deneyin.',
     'pos_definitions.has_settlements':

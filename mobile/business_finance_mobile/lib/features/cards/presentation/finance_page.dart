@@ -1544,8 +1544,8 @@ class _CardDialogState extends State<_CardDialog> {
               value: defaultScope,
               onChanged: (value) => setState(() => defaultScope = value),
               helperText:
-                  'Harcamanın tarafını kategori belirler. Kategori iki tarafa '
-                  'da açıksa bu seçili gelir.',
+                  'Harcamanın kapsamını kategori belirler. Kategoride kapsam '
+                  'seçilmemişse bu kartın varsayılan kapsamı kullanılır.',
             ),
           ),
       ],

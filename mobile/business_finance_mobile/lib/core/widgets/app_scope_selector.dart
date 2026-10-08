@@ -55,11 +55,12 @@ class AppScopeSwitch extends StatelessWidget {
   }
 }
 
-/// Taraf bölümlerinin yatay girintisi: çerçevesiz oldukları için, üstlerindeki
-/// çerçeveli alanların **yazısıyla** aynı hizada başlarlar. Girintisiz
-/// durduklarında alanlardan kopuk, kenara yapışık görünüyorlardı.
+/// Taraf bölümlerinin yatay girintisi: üstlerindeki ve altlarındaki kutuların
+/// sol kenarının bir tık içinden başlarlar. Kutuların köşesi yuvarlak olduğu
+/// için tam kenarda duran yazı dışarı taşmış, alanın yazısıyla hizalanan yazı
+/// ise fazla içeride görünüyordu.
 const EdgeInsets _scopeInset = EdgeInsets.symmetric(
-  horizontal: AppSpacing.medium + AppSpacing.xSmall,
+  horizontal: AppSpacing.small,
 );
 
 /// Formdaki kapsam alanı: ayrı bir zorunlu soru değil, **düzeltilebilir** iki
