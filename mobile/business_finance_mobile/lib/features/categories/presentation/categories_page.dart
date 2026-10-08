@@ -65,8 +65,11 @@ class _CategoriesPageState extends State<CategoriesPage>
   Future<void> _openForm([BudgetCategory? category]) async {
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) =>
-            CategoryFormPage(category: category, onSave: widget.viewModel.save),
+        builder: (_) => CategoryFormPage(
+          category: category,
+          onSave: widget.viewModel.save,
+          readError: () => widget.viewModel.message,
+        ),
       ),
     );
     if (saved == true && mounted) {

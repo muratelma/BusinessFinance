@@ -116,6 +116,41 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  // Sunucu kaydı reddederse form kapanmaz ve nedenini yazar (8 Ekim 2026'da
+  // cihazda görüldü: öbür tarafta kaydı olan kategori çevrilemiyor ama form
+  // hiçbir şey söylemiyordu).
+  testWidgets('reddedilen kayıt formda nedenini yazar', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: CategoryFormPage(
+          category: const BudgetCategory(
+            id: 'category-id',
+            name: 'Kişisel bakım',
+            type: 'expense',
+            isActive: true,
+          ),
+          onSave:
+              ({
+                category,
+                required name,
+                required type,
+                required isActive,
+                defaultScope,
+                isTax = false,
+              }) async => false,
+          readError: () => 'Bu kategorinin öbür tarafta kaydı var.',
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Kaydet'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bu kategorinin öbür tarafta kaydı var.'), findsOneWidget);
+    expect(find.text('Kategoriyi düzenle'), findsOneWidget);
+  });
+
   testWidgets('gider kategorisi vergi olarak işaretlenir', (tester) async {
     bool? sent;
     await tester.pumpWidget(

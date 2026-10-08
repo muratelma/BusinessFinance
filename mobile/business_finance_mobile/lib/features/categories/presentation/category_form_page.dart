@@ -21,10 +21,20 @@ typedef SaveCategory =
     });
 
 class CategoryFormPage extends StatefulWidget {
-  const CategoryFormPage({required this.onSave, super.key, this.category});
+  const CategoryFormPage({
+    required this.onSave,
+    super.key,
+    this.category,
+    this.readError,
+  });
 
   final BudgetCategory? category;
   final SaveCategory onSave;
+
+  /// [onSave] `false` döndüğünde gösterilecek cümle. Kaydeden katman sunucunun
+  /// reddini kendi içinde tutuyor; form onu okuyamazsa `Kaydet` hiçbir şey
+  /// yapmamış gibi görünür.
+  final String? Function()? readError;
 
   @override
   State<CategoryFormPage> createState() => _CategoryFormPageState();
@@ -76,7 +86,16 @@ class _CategoryFormPageState extends State<CategoryFormPage> {
         // İşaret yalnız gider kategorisinde anlamlı; sunucu gelirde reddeder.
         isTax: _type == 'expense' && _isTax,
       );
-      if (saved && mounted) Navigator.of(context).pop(true);
+      if (!mounted) return;
+      if (saved) {
+        Navigator.of(context).pop(true);
+      } else {
+        setState(
+          () => _error =
+              widget.readError?.call() ??
+              'Kategori kaydedilemedi. Tekrar deneyin.',
+        );
+      }
     } on ApiException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } finally {
