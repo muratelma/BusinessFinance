@@ -161,11 +161,14 @@ class _CounterpartyChargeFormState extends State<CounterpartyChargeForm> {
 
   /// Zincirin bu formdaki hâli: kullanıcının seçimi → kategorinin varsayılanı.
   ///
-  /// Ortadaki halka (hesap/kart etiketi) yok, çünkü borçlandırmanın kaynağı
-  /// yok. Sunucudaki sıranın aynısı; kullanıcının gördüğü ile yazılan aynı
-  /// olmalı.
-  TransactionScope? get _resolvedScope =>
-      previewResolvedScope(explicit: _explicitScope, category: _categoryScope);
+  /// Cari kayıt her zaman işletme yazılır (ADR 0020 İ9). Şahsi bir kategori
+  /// seçilirse çip onu gösterir ve sunucu kaydı reddeder; kullanıcının gördüğü
+  /// ile gönderilen aynı kalır.
+  TransactionScope? get _resolvedScope => previewResolvedScope(
+    explicit: _explicitScope,
+    category: _categoryScope,
+    context: TransactionScope.business,
+  );
 
   TransactionScope? get _categoryScope {
     for (final option in _options) {
@@ -174,13 +177,11 @@ class _CounterpartyChargeFormState extends State<CounterpartyChargeForm> {
     return null;
   }
 
-  String? get _scopeHelperText {
-    if (_explicitScope != null) return 'Bu kayıt için siz seçtiniz.';
-    if (_categoryScope != null) {
-      return 'Kategorinin varsayılanından geldi — değiştirebilirsiniz.';
-    }
-    return 'Kategori kapsam taşımıyor; bu kayıt için seçin.';
-  }
+  String? get _scopeHelperText => scopePreviewHelperText(
+    explicit: _explicitScope,
+    category: _categoryScope,
+    context: TransactionScope.business,
+  );
 
   @override
   Widget build(BuildContext context) => Form(

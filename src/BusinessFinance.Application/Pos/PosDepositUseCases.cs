@@ -249,10 +249,15 @@ public sealed class CreatePosDepositUseCase(
                         categoryError ?? PosDepositErrors.DeductionCategoryRequired);
                 }
 
-                if (ResolveDeductionScope(command.Scope, selection, category)
+                // Kesinti, kapattığı satışların komisyonunun devamıdır ve
+                // işletmenindir (ADR 0020 T2): kapatılan tahsilatların ve
+                // hesabın etiketi sayılmaz; şahsi kategori ya da şahsi istek
+                // reddedilir.
+                if (TransactionScopeResolution.ResolveInContext(
+                        TransactionScope.Business, command.Scope, category.DefaultScope).Scope
                     is not TransactionScope scope)
                 {
-                    return ApplicationResult<PosDepositDto>.Failure(PosDepositErrors.ScopeUnresolved);
+                    return ApplicationResult<PosDepositDto>.Failure(PosDepositErrors.ScopeConflict);
                 }
 
                 deductionTransaction = new BudgetTransaction(
@@ -296,33 +301,6 @@ public sealed class CreatePosDepositUseCase(
         return ApplicationResult<PosDepositDto>.Success(persisted);
     }
 
-    /// <summary>
-    /// Kesintinin kapsamı: açık seçim → kapatılan tahsilatların ortak kapsamı →
-    /// hesabın etiketi → kesinti kategorisinin varsayılanı.
-    /// </summary>
-    /// <remarks>
-    /// Kesinti, kapattığı satışların komisyonunun devamıdır; satışların hepsi
-    /// aynı taraftaysa kesinti de o taraftadır. Karışık seçimde genel zincire
-    /// düşülür (<see cref="TransactionScopeResolution"/>); o da boşsa istek
-    /// reddedilir — sunucu kapsam uydurmaz.
-    /// </remarks>
-    private static TransactionScope? ResolveDeductionScope(
-        TransactionScope? requested,
-        PosDepositSelection selection,
-        Category category)
-    {
-        // Komisyonsuz kartla tahsilin kapsamı yoktur ve oy kullanmaz.
-        var scopes = selection.Settlements
-            .Select(settlement => settlement.Scope)
-            .OfType<TransactionScope>()
-            .Distinct()
-            .ToArray();
-        return requested ??
-            (scopes.Length == 1
-                ? scopes[0]
-                : TransactionScopeResolution.Resolve(
-                    null, selection.Account.DefaultScope, category.DefaultScope));
-    }
 }
 
 public sealed class GetPosDepositUseCase(

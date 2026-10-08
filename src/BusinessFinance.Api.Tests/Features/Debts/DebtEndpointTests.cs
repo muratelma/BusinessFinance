@@ -200,7 +200,7 @@ public sealed class DebtEndpointTests
         var account = await CreateAccountAsync(owner);
         var categories = await owner.GetFromJsonAsync<CategoryListResponse>(
             "/api/v1/categories?type=expense");
-        var expenseCategory = categories!.Items[0];
+        var expenseCategory = categories!.Items.First(item => item.DefaultScope == "business");
 
         // Nakit kaynağı hesap ister, kategori istemez.
         Assert.Equal(HttpStatusCode.BadRequest, (await owner.PostAsJsonAsync(
@@ -245,7 +245,7 @@ public sealed class DebtEndpointTests
         var account = await CreateAccountAsync(owner);
         var categories = await owner.GetFromJsonAsync<CategoryListResponse>(
             "/api/v1/categories?type=income");
-        var incomeCategory = categories!.Items[0];
+        var incomeCategory = categories!.Items.First(item => item.DefaultScope == "business");
 
         using var create = await owner.PostAsJsonAsync(
             "/api/v1/debts",
@@ -286,9 +286,9 @@ public sealed class DebtEndpointTests
         await using var factory = new BusinessFinanceApiFactory();
         using var owner = await CreateAuthenticatedClientAsync(factory, "source-match@example.test");
         var expense = (await owner.GetFromJsonAsync<CategoryListResponse>(
-            "/api/v1/categories?type=expense"))!.Items[0];
+            "/api/v1/categories?type=expense"))!.Items.First(item => item.DefaultScope == "business");
         var income = (await owner.GetFromJsonAsync<CategoryListResponse>(
-            "/api/v1/categories?type=income"))!.Items[0];
+            "/api/v1/categories?type=income"))!.Items.First(item => item.DefaultScope == "business");
 
         // Alacak satar, borç tüketir; ters eşleşme parayı yanlış tarafa yazardı.
         Assert.Equal(HttpStatusCode.BadRequest, (await owner.PostAsJsonAsync(
@@ -377,7 +377,7 @@ public sealed class DebtEndpointTests
     {
         var client = factory.CreateClient();
         using var register = await client.PostAsJsonAsync(
-            "/api/v1/auth/register", new RegisterRequest(email, Password));
+            "/api/v1/auth/register", new RegisterRequest(email, Password, HasBusiness: true));
         register.EnsureSuccessStatusCode();
         using var login = await client.PostAsJsonAsync(
             "/api/v1/auth/login", new LoginRequest(email, Password));

@@ -486,19 +486,12 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
   /// Öneri olduğunu söylemesi şart: alan dolu açıldığında kullanıcı onu kendi
   /// seçmiş gibi hızla geçiyor ve yanlış etiketlenmiş bir kayıt işletme netini
   /// sessizce bozuyor.
-  String? get _scopeHelperText {
-    if (_explicitScope != null) return 'Bu kayıt için siz seçtiniz.';
-    if (_sourceScope != null) {
-      final name = widget.isExpense ? _source?.name : _accountName;
-      return name == null
-          ? 'Ödeme kaynağının etiketinden geldi — değiştirebilirsiniz.'
-          : '$name etiketinden geldi — değiştirebilirsiniz.';
-    }
-    if (_categoryScope != null) {
-      return 'Kategorinin varsayılanından geldi — değiştirebilirsiniz.';
-    }
-    return 'Ne kaynak ne kategori kapsam taşıyor; bu kayıt için seçin.';
-  }
+  String? get _scopeHelperText => scopePreviewHelperText(
+    explicit: _explicitScope,
+    source: _sourceScope,
+    category: _categoryScope,
+    sourceName: widget.isExpense ? _source?.name : _accountName,
+  );
 
   String? get _accountName {
     for (final account

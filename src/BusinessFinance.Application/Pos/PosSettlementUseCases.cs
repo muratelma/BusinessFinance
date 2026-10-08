@@ -141,12 +141,21 @@ public sealed class CreatePosSettlementUseCase(
             }
         }
 
-        if (TransactionScopeResolution.Resolve(
-                command.Scope, account.DefaultScope, category.DefaultScope)
-            is not TransactionScope scope)
+        // POS satışı işletme satışıdır (ADR 0020 T2): hesabın etiketi
+        // sayılmaz; şahsi kategori ya da şahsi istek reddedilir. Komisyon
+        // satışın parçasıdır ve aynı kurala uyar.
+        var resolution = TransactionScopeResolution.ResolveInContext(
+            TransactionScope.Business, command.Scope, category.DefaultScope);
+        if (resolution.Scope is TransactionScope && commissionCategory is not null)
         {
-            return ApplicationResult<PosSettlementDto>.Failure(
-                PosSettlementErrors.ScopeUnresolved);
+            resolution = TransactionScopeResolution.ResolveInContext(
+                TransactionScope.Business, command.Scope, commissionCategory.DefaultScope);
+        }
+
+        if (resolution.Scope is not TransactionScope scope)
+        {
+            return ApplicationResult<PosSettlementDto>.Failure(resolution.ToError(
+                PosSettlementErrors.ScopeUnresolved, PosSettlementErrors.ScopeConflict));
         }
 
         try

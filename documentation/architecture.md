@@ -333,28 +333,45 @@ olması meşrudur ve eksik veri değildir: tek hesabıyla her şeyi yöneten esn
 kapsam kategoriden türer. Boş bırakmak "kapsamı bilmiyorum" değil, "bu kaynak
 kapsamı belirlemiyor" demektir.
 
-### Türetme zinciri
+### Taraf kuralı (ADR 0020)
 
-Kapsam sunucuda **tek bir yerde** çözülür (`TransactionScopeResolution`) ve sıra
-her oluşturma yolunda aynıdır:
+Kaydın tarafı sunucuda **tek bir yerde** bulunur (`TransactionScopeResolution`)
+ve kural her oluşturma yolunda aynıdır. 8 Ekim 2026'ya kadar burada bir zincir
+vardı (açık seçim → hesabın/kartın etiketi → kategorinin varsayılanı); hesabın
+etiketi kategoriyi eziyor, aynı olay girildiği ekrana göre farklı yazılıyordu.
 
 ```text
-kullanıcının açık seçimi → hesabın/kartın etiketi → kategorinin varsayılanı
+kategori tek taraflıysa      → o taraf (çelişen açık seçim reddedilir)
+kategori iki tarafa açıksa   → girişin bağlamı
+                             → yoksa kullanıcının açık seçimi
+                             → yoksa hesabın/kartın etiketi
+                             → yoksa: işletmesi olmayan kullanıcıda Şahsi,
+                                      işletmesi olan kullanıcıda ret
 ```
 
-Sıra keyfi değil, en özelden en genele gider. Kullanıcının o kayıt için yazdığı
-şey her şeyi yener. Hesap ya da kart kategoriden daha çok bilgi taşır: dükkânın
-kasası hangi kategoriye girerse girsin işletmenin parasıdır. Kategori paylaşılan
-bir kovadır ve en zayıf ipucudur.
+- **Kategori kaydın alabileceği tarafları belirler.** Etiketi doluysa kaydın
+  tarafı odur; boşsa kategori iki tarafa açıktır. Kategorisi olmayan kayıt
+  (nakit borç) iki tarafa açık kategori gibi davranır.
+- **Hesabın ve kartın etiketi paranın tarafını söyler**, kaydın tarafını
+  belirlemez: yalnız iki tarafa açık kategoride, seçim gelmediğinde ön değerdir.
+  Dükkân kasasından yapılan market alışverişi şahsi giderdir.
+- **Bağlamı olan giriş tek bir tarafa aittir** (`ResolveInContext`): POS satışı,
+  gün sonu, POS komisyonu, yatış kesintisi ve cari borçlandırma her zaman
+  işletme yazılır; hesabın etiketine bakılmaz. Kasa farkının tarafını kategorisi
+  söyler.
+- **Çelişen açık seçim reddedilir**, sessizce düzeltilmez: istek kategorinin izin
+  vermediği ya da bağlamla çelişen bir taraf taşıyorsa `*.scope_conflict` döner.
+  Bağlamı olan girişte öbür tarafa özel kategori de aynı kodla reddedilir.
+- **Sunucu taraf uydurmaz.** Hiçbir işaret yoksa `*.scope_unresolved` döner.
+  İşletmesi olmayan kullanıcıda taraf sorulmadığı için bu durumda kayıt şahsi
+  yazılır; profil yalnız bu son adımda okunur.
 
-**Üçü de boşsa istek reddedilir.** Sunucu kapsam uydurmaz; yanlış etiketlenmiş
-bir kayıt kullanıcının işletme netini sessizce bozar ve düzeltilene kadar fark
-edilmez. Hata kodları özelliğe göredir: `transactions.scope_unresolved`,
-`budgets.scope_unresolved`, `credit_cards.scope_unresolved`,
-`recurring.scope_unresolved`, `debt.scope_unresolved`,
-`imports.scope_unresolved`.
+Hata kodları özelliğe göredir (`transactions`, `budgets`, `credit_cards`,
+`recurring`, `debt`, `obligations`, `imports`, `counterparties`,
+`pos_settlements`, `pos_deposits`, `day_closes`); her biri `scope_unresolved` ve
+`scope_conflict` taşır. Vergi kaydı bu kuralın dışındadır (ADR 0018 İ9).
 
-Bütçenin bir hesabı yoktur; zinciri açık seçim ve kategori ile sınırlıdır.
+Bütçenin bir hesabı yoktur; tarafını kategori söyler, iki tarafa açıksa seçilir.
 Aşama 06 Grup 7'ye kadar istemci bu halkayı hiç göstermiyordu: kategorisinin
 varsayılanı olmayan işletme kullanıcısında istek `budgets.scope_unresolved` ile
 reddediliyor ve ekranda sunucunun İngilizce cümlesi görünüyordu. Zincir artık
@@ -506,11 +523,13 @@ bölünmeyen bölümler (net varlık, hesap bakiyeleri) filtre açıkken **topla
 gösterdiklerini yazar**. Sessizce aynı kalan bir sayı, filtrelenmiş sanılır ve
 kullanıcı iki tarafı toplamaya çalışır.
 
-**Formdaki çip zincirin önizlemesidir.** Kararın sahibi sunucudur
-(`TransactionScopeResolution`); form aynı sırayı (açık seçim → kaynağın etiketi
-→ kategorinin varsayılanı) yalnız **gösterebilmek** için uygular ve gösterdiği
-değeri açıkça gönderir. Çip boş dursaydı kullanıcı kaydın hangi tarafa
-yazıldığını ancak listeye düştükten sonra görürdü. Zincir çözülemezse form
+**Formdaki çip kuralın önizlemesidir.** Kararın sahibi sunucudur
+(`TransactionScopeResolution`); form aynı kuralı (`previewResolvedScope`:
+kategori → bağlam → açık seçim → kaynağın etiketi) yalnız **gösterebilmek** için
+uygular ve gösterdiği değeri gönderir. Tek taraflı kategoride çip değişmez ve
+altındaki satır bunu söyler; form, sunucunun reddedeceği bir tarafı göndermez.
+POS tahsilatı formu taraf sormaz. Çip boş dursaydı kullanıcı kaydın hangi tarafa
+yazıldığını ancak listeye düştükten sonra görürdü. Taraf bulunamazsa form
 sunucuya gitmeden durur ve alanın yanında söyler — sunucu da reddederdi
 (`*.scope_unresolved`), ama hata kullanıcının düzeltebileceği yerde görünmeli.
 Kapsam boyutu görünmeyen kullanıcıda alan hiç çizilmez ve istek kapsam
@@ -915,9 +934,10 @@ hesap bakiyesini değiştirir, gelir yazmaz — satış tahsilat gününde tanı
 - **Kesinti kategorisi**: açık seçim → seçilen tahsilatların POS'undaki
   komisyon kategorisi (POS'u yoksa tahsilatın kendi komisyon kategorisi), tek
   aday varsa. Aday yoksa ya da birden çoksa sunucu seçmez
-  (`pos_deposits.deduction_category_required`). **Kesintinin kapsamı**: açık
-  seçim → tahsilatların ortak kapsamı → hesabın etiketi → kategorinin
-  varsayılanı; hiçbiri yoksa `pos_deposits.scope_unresolved`.
+  (`pos_deposits.deduction_category_required`). **Kesintinin kapsamı** her
+  zaman işletmedir (ADR 0020 T2): kapatılan tahsilatların ve hesabın etiketine
+  bakılmaz; şahsi kategori ya da şahsi istek `pos_deposits.scope_conflict` ile
+  reddedilir.
 - **Geri alma** (`Revert`) üç şeyi birlikte yapar: tahsilatlar yola döner,
   kesinti gideri iptal olur, yatış iptal damgası alır. Kayıt silinmez.
 - **Yatışa bağlı tahsilat iptal edilemez** (`409 pos_settlements.deposit_locked`);
@@ -1007,8 +1027,9 @@ tutar taşımayan kimlik o reddin dışındadır (kullanıcı kararı, 4 Ekim 20
   kapatır.
 - **Kasa ve satış kategorisi**: açık seçim → son gün sonununki → tek (şahsi
   etiketli olmayan) nakit hesap ve ana POS'un satış kategorisi. Sunucu birden
-  çok aday arasından seçmez. Kapsam sorulmaz, zincirle çözülür; çözülemezse
-  `day_closes.scope_unresolved`. POS satırı hesabı, kategorileri, oranı ve
+  çok aday arasından seçmez. Kapsam sorulmaz: gün sonu işletme satışıdır ve
+  işletme yazılır; şahsi kategori `day_closes.scope_conflict` ile engellenir
+  (ADR 0020 T2). POS satırı hesabı, kategorileri, oranı ve
   beklenen günü POS'tan alır.
 - **Gün başına tek gün sonu**: ikincisi yalnız açıkça `isAdditional` ile yazılır
   ve o günün zaten kapalı olmasını ister. Ek gün sonunda hiçbir kayıt işaretli

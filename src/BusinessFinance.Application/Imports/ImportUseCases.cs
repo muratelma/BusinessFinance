@@ -2,6 +2,7 @@ using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.Categories;
+using BusinessFinance.Application.Profiles;
 using BusinessFinance.Application.Scopes;
 using BusinessFinance.Domain;
 
@@ -144,7 +145,8 @@ public sealed class ConfirmImportBatchUseCase(
     ICurrentUser currentUser,
     IImportBatchRepository repository,
     IAccountRepository accountRepository,
-    ICategoryRepository categoryRepository)
+    ICategoryRepository categoryRepository,
+    IUserProfileRepository profileRepository)
 {
     public const int MaximumConfirmationRows = 5000;
 
@@ -187,14 +189,19 @@ public sealed class ConfirmImportBatchUseCase(
             if (account is null || category is null || !account.IsActive || !category.IsActive)
                 return ApplicationResult<ImportBatchDto>.Failure(ImportErrors.MappingUnavailable);
 
-            // CSV dosyasında kapsam kolonu yok, yani zincirin ilk halkası
-            // (kullanıcının açık seçimi) hiç dolmaz; kalan iki halka aynen
-            // işler ve ikisi de boşsa satır reddedilir.
-            if (TransactionScopeResolution.Resolve(
-                    null,
-                    account.DefaultScope,
-                    category.DefaultScope) is not TransactionScope scope)
-                return ApplicationResult<ImportBatchDto>.Failure(ImportErrors.ScopeUnresolved);
+            // CSV dosyasında kapsam kolonu yok, yani açık seçim hiç gelmez:
+            // tek taraflı kategori tarafı söyler, iki tarafa açık kategoride
+            // hesabın etiketi ön değerdir; o da boşsa satır reddedilir.
+            var resolution = await TransactionScopeResolution.ResolveAsync(
+                null,
+                category.DefaultScope,
+                account.DefaultScope,
+                profileRepository,
+                userId,
+                cancellationToken);
+            if (resolution.Scope is not TransactionScope scope)
+                return ApplicationResult<ImportBatchDto>.Failure(resolution.ToError(
+                    ImportErrors.ScopeUnresolved, ImportErrors.ScopeConflict));
 
             try
             {

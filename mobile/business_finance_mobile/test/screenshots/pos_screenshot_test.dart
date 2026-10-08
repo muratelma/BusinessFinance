@@ -51,7 +51,7 @@ void main() {
       ),
       withNavBar: false,
       before: (tester) async {
-        showPosSettlementForm(tester.element(find.text('Kasa')), pos, null);
+        showPosSettlementForm(tester.element(find.text('Kasa')), pos);
         await tester.pump();
         await tester.pump(const Duration(seconds: 1));
         await tester.enterText(find.byType(TextFormField).first, '22650');
@@ -117,7 +117,7 @@ void main() {
       ),
       withNavBar: false,
       before: (tester) async {
-        showPosSettlementForm(tester.element(find.text('Kasa')), pos, null);
+        showPosSettlementForm(tester.element(find.text('Kasa')), pos);
         await tester.pump();
         await tester.pump(const Duration(seconds: 1));
         await tester.tap(find.text('Ziraat POS'));

@@ -51,7 +51,6 @@ void main() {
         final saved = await controller.create(
           grossAmount: '1000.0000',
           settlementDate: '2026-09-25',
-          scope: TransactionScope.business,
           posDefinitionId: 'ziraat',
         );
 
@@ -398,7 +397,7 @@ Future<void> _pumpForm(WidgetTester tester, PosController controller) async {
     Scaffold(
       body: Builder(
         builder: (context) => TextButton(
-          onPressed: () => showPosSettlementForm(context, controller, null),
+          onPressed: () => showPosSettlementForm(context, controller),
           child: const Text('aç'),
         ),
       ),

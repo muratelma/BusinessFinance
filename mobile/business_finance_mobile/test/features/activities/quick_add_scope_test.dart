@@ -36,19 +36,45 @@ void main() {
     );
   });
 
-  testWidgets('kaynak kapsamsızsa kategorinin varsayılanına düşer', (
+  // Kasadan market: kasa işletme etiketli, kategori şahsi. Kayıt şahsidir;
+  // hesabın etiketi yalnız iki tarafa açık kategoride ön değerdir (ADR 0020).
+  testWidgets('tek taraflı kategori tarafı söyler, kaynağın etiketi ezemez', (
     tester,
   ) async {
     await _pumpExpenseForm(tester, hasBusiness: true);
 
-    await _selectSource(tester, 'Ortak hesap');
+    await _selectSource(tester, 'Dükkân kasası');
     await _selectCategory(tester, 'Market');
 
     expect(_selectedScope(tester), TransactionScope.personal);
     expect(
-      find.text('Kategorinin varsayılanından geldi — değiştirebilirsiniz.'),
+      find.text('Kategoriden gelir; bu kategoride değişmez.'),
       findsOneWidget,
     );
+  });
+
+  // Sunucu kategoriyle çelişen seçimi reddeder; form da onu göndermez.
+  testWidgets('tek taraflı kategoride çipe dokunmak tarafı değiştirmez', (
+    tester,
+  ) async {
+    final transactions = _FakeTransactions();
+    await _pumpExpenseForm(
+      tester,
+      hasBusiness: true,
+      transactions: transactions,
+    );
+
+    await _selectSource(tester, 'Dükkân kasası');
+    await _selectCategory(tester, 'Market');
+    await tester.tap(find.text('İşletme'));
+    await tester.pumpAndSettle();
+    expect(_selectedScope(tester), TransactionScope.personal);
+
+    await tester.enterText(find.byType(TextFormField).first, '125,50');
+    await tester.tap(find.text('Kaydet'));
+    await tester.pumpAndSettle();
+
+    expect(transactions.created.single.scope, TransactionScope.personal);
   });
 
   testWidgets('kullanıcının seçimi kaynağın etiketini yener', (tester) async {
@@ -76,7 +102,10 @@ void main() {
     );
 
     await _selectSource(tester, 'Dükkân kasası');
-    await _selectCategory(tester, 'Market');
+    await _selectCategory(tester, 'Kırtasiye');
+    // İki tarafa açık kategoride hesabın etiketi ön değerdir.
+    expect(_selectedScope(tester), TransactionScope.business);
+
     await tester.enterText(find.byType(TextFormField).first, '125,50');
     await tester.tap(find.text('Kaydet'));
     await tester.pumpAndSettle();
@@ -114,7 +143,8 @@ void main() {
     await tester.tap(find.text('Kaydet'));
     await tester.pumpAndSettle();
 
-    expect(finance.charges.single.$2['scope'], 'business');
+    // Kartın etiketi işletme, kategori şahsi: harcama şahsidir.
+    expect(finance.charges.single.$2['scope'], 'personal');
   });
 
   testWidgets('gelir formunda kapsam hesabın etiketinden gelir', (

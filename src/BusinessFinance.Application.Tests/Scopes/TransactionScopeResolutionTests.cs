@@ -3,27 +3,112 @@ using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.Budgets;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.Scopes;
+using BusinessFinance.Application.Tests.RecurringTransactions;
 using BusinessFinance.Application.Transactions;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Tests.Scopes;
 
 /// <summary>
-/// Kapsam türetme zinciri: kullanıcının açık seçimi → hesabın/kartın etiketi →
-/// kategorinin varsayılanı. Üçü de boşsa istek reddedilir; sunucu kapsam
-/// uydurmaz.
+/// Taraf kuralı (ADR 0020): kategori kaydın alabileceği tarafları belirler;
+/// iki tarafa açık kategoride girişin bağlamı, bağlam yoksa kullanıcının
+/// seçimi belirler. Hesabın etiketi yalnız seçimin ön değeridir. Çelişen
+/// açık seçim reddedilir; sunucu taraf uydurmaz.
 /// </summary>
 public sealed class TransactionScopeResolutionTests
 {
-    [Fact]
-    public void Resolve_PrefersTheExplicitChoiceOverEveryDefault()
-    {
-        var resolved = TransactionScopeResolution.Resolve(
-            TransactionScope.Personal,
-            TransactionScope.Business,
-            TransactionScope.Business);
+    private const TransactionScope Business = TransactionScope.Business;
+    private const TransactionScope Personal = TransactionScope.Personal;
 
-        Assert.Equal(TransactionScope.Personal, resolved);
+    /// <summary>
+    /// Durum tablosu: istek × kategori × kaynağın etiketi. Beklenen boşsa
+    /// sonuç bir rettir ve nedeni ayrıca verilir.
+    /// </summary>
+    [Theory]
+    // Tek taraflı kategori tarafı söyler; hesabın etiketi onu ezemez.
+    [InlineData(null, Personal, null, Personal, ScopeResolutionFailure.None)]
+    [InlineData(null, Personal, Business, Personal, ScopeResolutionFailure.None)]
+    [InlineData(Personal, Personal, Business, Personal, ScopeResolutionFailure.None)]
+    [InlineData(null, Business, Personal, Business, ScopeResolutionFailure.None)]
+    // Kategoriyle çelişen açık seçim reddedilir.
+    [InlineData(Business, Personal, null, null, ScopeResolutionFailure.Conflict)]
+    [InlineData(Personal, Business, Business, null, ScopeResolutionFailure.Conflict)]
+    // İki tarafa açık kategori: açık seçim, yoksa kaynağın etiketi.
+    [InlineData(Business, null, null, Business, ScopeResolutionFailure.None)]
+    [InlineData(Personal, null, Business, Personal, ScopeResolutionFailure.None)]
+    [InlineData(null, null, Business, Business, ScopeResolutionFailure.None)]
+    [InlineData(null, null, Personal, Personal, ScopeResolutionFailure.None)]
+    // Hiçbir işaret yok: sunucu taraf uydurmaz.
+    [InlineData(null, null, null, null, ScopeResolutionFailure.Unresolved)]
+    public void Resolve_FollowsTheStateTable(
+        TransactionScope? requested,
+        TransactionScope? categorySide,
+        TransactionScope? sourceLabel,
+        TransactionScope? expected,
+        ScopeResolutionFailure expectedFailure)
+    {
+        var resolution = TransactionScopeResolution.Resolve(requested, categorySide, sourceLabel);
+
+        Assert.Equal(expected, resolution.Scope);
+        Assert.Equal(expectedFailure, resolution.Failure);
+    }
+
+    /// <summary>
+    /// Bağlamı olan giriş (POS satışı, gün sonu, cari borçlandırma, komisyon
+    /// ve kesinti) tek bir tarafa aittir: kategori öbür tarafa özelse ya da
+    /// istek öbür tarafı istiyorsa reddedilir.
+    /// </summary>
+    [Theory]
+    [InlineData(null, Business, Business, ScopeResolutionFailure.None)]
+    [InlineData(null, null, Business, ScopeResolutionFailure.None)]
+    [InlineData(Business, null, Business, ScopeResolutionFailure.None)]
+    [InlineData(Personal, null, null, ScopeResolutionFailure.Conflict)]
+    [InlineData(null, Personal, null, ScopeResolutionFailure.Conflict)]
+    [InlineData(Business, Personal, null, ScopeResolutionFailure.Conflict)]
+    public void ResolveInContext_WritesTheContextOrRejects(
+        TransactionScope? requested,
+        TransactionScope? categorySide,
+        TransactionScope? expected,
+        ScopeResolutionFailure expectedFailure)
+    {
+        var resolution = TransactionScopeResolution.ResolveInContext(
+            Business, requested, categorySide);
+
+        Assert.Equal(expected, resolution.Scope);
+        Assert.Equal(expectedFailure, resolution.Failure);
+    }
+
+    /// <summary>
+    /// İşletmesi olmayan kullanıcıda taraf sorulmaz: hiçbir işaret yoksa kayıt
+    /// şahsidir. İşletmesi olan kullanıcıda aynı durum çözülmemiş kalır.
+    /// </summary>
+    [Theory]
+    [InlineData(false, Personal, ScopeResolutionFailure.None)]
+    [InlineData(true, null, ScopeResolutionFailure.Unresolved)]
+    public async Task ResolveAsync_WithNothingToGoOn_AsksTheProfile(
+        bool hasBusiness,
+        TransactionScope? expected,
+        ScopeResolutionFailure expectedFailure)
+    {
+        var resolution = await TransactionScopeResolution.ResolveAsync(
+            null, null, null, new FakeUserProfileRepository(hasBusiness), Guid.NewGuid(), default);
+
+        Assert.Equal(expected, resolution.Scope);
+        Assert.Equal(expectedFailure, resolution.Failure);
+    }
+
+    /// <summary>
+    /// Profil yalnız son adımda sorulur: çelişki, kullanıcının işletmesi
+    /// olmasa da şahsiye çevrilmez.
+    /// </summary>
+    [Fact]
+    public async Task ResolveAsync_OnAConflict_DoesNotFallBackToTheProfile()
+    {
+        var resolution = await TransactionScopeResolution.ResolveAsync(
+            Business, Personal, null, new FakeUserProfileRepository(false), Guid.NewGuid(), default);
+
+        Assert.Null(resolution.Scope);
+        Assert.Equal(ScopeResolutionFailure.Conflict, resolution.Failure);
     }
 
     /// <summary>
@@ -44,55 +129,15 @@ public sealed class TransactionScopeResolutionTests
         Assert.Equal(expected, TransactionScopeResolution.ResolveTax(requested, hasBusiness));
     }
 
+    /// <summary>
+    /// Kasadan market: kasa işletme etiketli, kategori şahsi. Kayıt şahsi
+    /// giderdir; kasanın etiketi onu işletme gideri yapmaz.
+    /// </summary>
     [Fact]
-    public void Resolve_PrefersTheSourceOverTheCategory()
-    {
-        var resolved = TransactionScopeResolution.Resolve(
-            null,
-            TransactionScope.Business,
-            TransactionScope.Personal);
-
-        Assert.Equal(TransactionScope.Business, resolved);
-    }
-
-    [Fact]
-    public void Resolve_FallsBackToTheCategory()
-    {
-        var resolved = TransactionScopeResolution.Resolve(
-            null,
-            null,
-            TransactionScope.Personal);
-
-        Assert.Equal(TransactionScope.Personal, resolved);
-    }
-
-    [Fact]
-    public void Resolve_WithNothingToGoOn_ReturnsNull()
-    {
-        Assert.Null(TransactionScopeResolution.Resolve(null, null, null));
-    }
-
-    [Fact]
-    public async Task CreateTransaction_WithoutScope_TakesTheAccountLabel()
+    public async Task CreateTransaction_WithoutScope_TakesTheCategorySideOverTheAccountLabel()
     {
         var userId = Guid.NewGuid();
         var account = CreateAccount(userId, TransactionScope.Business);
-        var category = CreateCategory(userId, TransactionScope.Personal);
-        var repository = new RecordingTransactionRepository();
-
-        var result = await CreateTransactionUseCase(userId, account, category, repository)
-            .ExecuteAsync(Command(account, category, scope: null));
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(TransactionScope.Business, result.Value.Scope);
-        Assert.Equal(TransactionScope.Business, Assert.Single(repository.Saved).Scope);
-    }
-
-    [Fact]
-    public async Task CreateTransaction_WithoutScopeOrAccountLabel_TakesTheCategoryDefault()
-    {
-        var userId = Guid.NewGuid();
-        var account = CreateAccount(userId, null);
         var category = CreateCategory(userId, TransactionScope.Personal);
         var repository = new RecordingTransactionRepository();
 
@@ -101,14 +146,30 @@ public sealed class TransactionScopeResolutionTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(TransactionScope.Personal, result.Value.Scope);
+        Assert.Equal(TransactionScope.Personal, Assert.Single(repository.Saved).Scope);
     }
 
     [Fact]
-    public async Task CreateTransaction_WithAnExplicitScope_OverridesBothDefaults()
+    public async Task CreateTransaction_WithACategoryOpenToBoth_TakesTheAccountLabel()
     {
         var userId = Guid.NewGuid();
         var account = CreateAccount(userId, TransactionScope.Business);
-        var category = CreateCategory(userId, TransactionScope.Business);
+        var category = CreateCategory(userId, null);
+        var repository = new RecordingTransactionRepository();
+
+        var result = await CreateTransactionUseCase(userId, account, category, repository)
+            .ExecuteAsync(Command(account, category, scope: null));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(TransactionScope.Business, result.Value.Scope);
+    }
+
+    [Fact]
+    public async Task CreateTransaction_WithACategoryOpenToBoth_TakesTheExplicitChoice()
+    {
+        var userId = Guid.NewGuid();
+        var account = CreateAccount(userId, TransactionScope.Business);
+        var category = CreateCategory(userId, null);
         var repository = new RecordingTransactionRepository();
 
         var result = await CreateTransactionUseCase(userId, account, category, repository)
@@ -119,9 +180,29 @@ public sealed class TransactionScopeResolutionTests
     }
 
     /// <summary>
-    /// Hiçbir halka dolmadığında kayıt <b>oluşmaz</b>. Bir değer seçmek, yanlış
-    /// etiketlenmiş bir hareketi kullanıcı fark edene kadar işletme netinin
-    /// içinde bırakmak olurdu.
+    /// Kategoriyle çelişen açık seçim sessizce düzeltilmez: kayıt oluşmaz.
+    /// Aksi hâlde formun gösterdiği ile yazılan ayrışırdı.
+    /// </summary>
+    [Fact]
+    public async Task CreateTransaction_WithAScopeTheCategoryForbids_IsRejectedAndWritesNothing()
+    {
+        var userId = Guid.NewGuid();
+        var account = CreateAccount(userId, TransactionScope.Business);
+        var category = CreateCategory(userId, TransactionScope.Personal);
+        var repository = new RecordingTransactionRepository();
+
+        var result = await CreateTransactionUseCase(userId, account, category, repository)
+            .ExecuteAsync(Command(account, category, TransactionScope.Business));
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("transactions.scope_conflict", result.Error.Code);
+        Assert.Empty(repository.Saved);
+    }
+
+    /// <summary>
+    /// Hiçbir işaret yoksa işletmesi olan kullanıcıda kayıt <b>oluşmaz</b>. Bir
+    /// değer seçmek, yanlış etiketlenmiş bir hareketi kullanıcı fark edene
+    /// kadar işletme netinin içinde bırakmak olurdu.
     /// </summary>
     [Fact]
     public async Task CreateTransaction_WithNothingToGoOn_IsRejectedAndWritesNothing()
@@ -140,10 +221,31 @@ public sealed class TransactionScopeResolutionTests
     }
 
     /// <summary>
-    /// Bütçenin hesabı yoktur; zincir açık seçim ve kategori ile sınırlıdır.
+    /// Aynı durumda işletmesi olmayan kullanıcının kaydı şahsi yazılır: o
+    /// kullanıcıya taraf hiç sorulmaz (8 Ekim 2026'da cihazda görülen hata).
     /// </summary>
     [Fact]
-    public async Task CreateBudget_WithoutScope_TakesTheCategoryDefaultOrIsRejected()
+    public async Task CreateTransaction_WithNothingToGoOn_IsPersonalForAUserWithoutABusiness()
+    {
+        var userId = Guid.NewGuid();
+        var account = CreateAccount(userId, null);
+        var category = CreateCategory(userId, null);
+        var repository = new RecordingTransactionRepository();
+
+        var result = await CreateTransactionUseCase(
+                userId, account, category, repository, hasBusiness: false)
+            .ExecuteAsync(Command(account, category, scope: null));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(TransactionScope.Personal, Assert.Single(repository.Saved).Scope);
+    }
+
+    /// <summary>
+    /// Bütçenin hesabı yoktur: kategori tarafı söyler, iki tarafa açıksa
+    /// seçim gerekir, çelişen seçim reddedilir.
+    /// </summary>
+    [Fact]
+    public async Task CreateBudget_TakesTheCategorySideOrNeedsAChoice()
     {
         var userId = Guid.NewGuid();
         var labelled = CreateCategory(userId, TransactionScope.Business);
@@ -151,11 +253,15 @@ public sealed class TransactionScopeResolutionTests
 
         var resolved = await CreateBudgetUseCase(userId, labelled)
             .ExecuteAsync(BudgetCommand(labelled, scope: null));
+        var conflicting = await CreateBudgetUseCase(userId, labelled)
+            .ExecuteAsync(BudgetCommand(labelled, TransactionScope.Personal));
         var rejected = await CreateBudgetUseCase(userId, unlabelled)
             .ExecuteAsync(BudgetCommand(unlabelled, scope: null));
 
         Assert.True(resolved.IsSuccess);
         Assert.Equal(TransactionScope.Business, resolved.Value.Scope);
+        Assert.False(conflicting.IsSuccess);
+        Assert.Equal("budgets.scope_conflict", conflicting.Error.Code);
         Assert.False(rejected.IsSuccess);
         Assert.Equal("budgets.scope_unresolved", rejected.Error.Code);
     }
@@ -164,13 +270,15 @@ public sealed class TransactionScopeResolutionTests
         Guid userId,
         Account account,
         Category category,
-        ITransactionRepository repository)
+        ITransactionRepository repository,
+        bool hasBusiness = true)
     {
         return new CreateTransactionUseCase(
             new FakeCurrentUser(userId),
             new FakeAccountRepository(account),
             new FakeCategoryRepository(category),
-            repository);
+            repository,
+            new FakeUserProfileRepository(hasBusiness));
     }
 
     private static CreateBudgetUseCase CreateBudgetUseCase(Guid userId, Category category)
@@ -178,7 +286,8 @@ public sealed class TransactionScopeResolutionTests
         return new CreateBudgetUseCase(
             new FakeCurrentUser(userId),
             new FakeCategoryRepository(category),
-            new FakeBudgetRepository());
+            new FakeBudgetRepository(),
+            new FakeUserProfileRepository(true));
     }
 
     private static CreateTransactionCommand Command(

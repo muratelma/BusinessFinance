@@ -126,11 +126,7 @@ class _CashPageState extends State<CashPage> {
   /// görür.
   Future<void> _openPosForm() async {
     if (!mounted) return;
-    final saved = await showPosSettlementForm(
-      context,
-      widget.posController,
-      widget.scopeController,
-    );
+    final saved = await showPosSettlementForm(context, widget.posController);
     if (saved == null && mounted) Navigator.of(context).maybePop();
   }
 

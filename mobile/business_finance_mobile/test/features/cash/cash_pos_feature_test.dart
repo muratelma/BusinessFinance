@@ -155,7 +155,6 @@ void main() {
       grossAmount: '100.0000',
       settlementDate: '2026-08-24',
       expectedTransferDate: '2026-08-26',
-      scope: TransactionScope.business,
     );
     final item = repository.current.items.single;
     final budgetsBefore = changes.budgetsRevision;
@@ -247,7 +246,6 @@ void main() {
         grossAmount: '100.0000',
         settlementDate: '2026-08-24',
         expectedTransferDate: '2026-08-26',
-        scope: TransactionScope.business,
         commissionRate: '2.5000',
         commissionCategoryId: 'expense-category',
       );

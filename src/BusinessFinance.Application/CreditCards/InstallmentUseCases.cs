@@ -1,6 +1,7 @@
 using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Categories;
+using BusinessFinance.Application.Profiles;
 using BusinessFinance.Application.Scopes;
 using BusinessFinance.Domain;
 
@@ -10,7 +11,8 @@ public sealed class CreateInstallmentPlanUseCase(
     ICurrentUser currentUser,
     ICreditCardRepository cardRepository,
     ICategoryRepository categoryRepository,
-    IInstallmentPlanRepository planRepository)
+    IInstallmentPlanRepository planRepository,
+    IUserProfileRepository profileRepository)
 {
     public async Task<ApplicationResult<InstallmentPlanDto>> ExecuteAsync(
         CreateInstallmentPlanCommand command,
@@ -44,13 +46,17 @@ public sealed class CreateInstallmentPlanUseCase(
                 CreditCardErrors.Validation("An active expense category is required."));
         }
 
-        if (TransactionScopeResolution.Resolve(
-                command.Scope,
-                card.DefaultScope,
-                category.DefaultScope) is not TransactionScope scope)
+        var resolution = await TransactionScopeResolution.ResolveAsync(
+            command.Scope,
+            category.DefaultScope,
+            card.DefaultScope,
+            profileRepository,
+            userId,
+            cancellationToken);
+        if (resolution.Scope is not TransactionScope scope)
         {
-            return ApplicationResult<InstallmentPlanDto>.Failure(
-                CreditCardErrors.ScopeUnresolved);
+            return ApplicationResult<InstallmentPlanDto>.Failure(resolution.ToError(
+                CreditCardErrors.ScopeUnresolved, CreditCardErrors.ScopeConflict));
         }
 
         try

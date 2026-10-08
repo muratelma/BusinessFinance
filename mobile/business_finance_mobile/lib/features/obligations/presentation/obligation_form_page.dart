@@ -303,9 +303,10 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
   TransactionScope? get _resolvedScope =>
       previewResolvedScope(explicit: _explicitScope, category: _categoryScope);
 
-  String get _scopeHelperText => _explicitScope == null
-      ? 'Kategorinin varsayılanından önerildi; değiştirebilirsiniz.'
-      : 'Sizin seçiminiz; kategori varsayılanını ezer.';
+  String get _scopeHelperText => scopePreviewHelperText(
+    explicit: _explicitScope,
+    category: _categoryScope,
+  );
 
   String? _validateAmount(String? value) {
     final normalized = MoneyText.normalizeInput(value ?? '');

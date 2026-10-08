@@ -133,15 +133,16 @@ Kapsam alanını taşıyan istek/cevap sözleşmeleri:
 
 | Endpoint | Alan | Zorunlu mu |
 |---|---|---|
-| `POST /api/v1/transactions` | `scope` | Hayır — boşsa hesap → kategori zincirinden çözülür; çözülemezse `transactions.scope_unresolved`, tanınmayan değer `transactions.invalid_scope` |
-| `POST /api/v1/budgets` | `scope` | Hayır — boşsa kategoriden çözülür; `budgets.scope_unresolved` / `budgets.invalid_scope` |
-| `POST /api/v1/credit-cards/{id}/charges` | `scope` | Hayır — boşsa kart → kategori; `credit_cards.scope_unresolved` / `credit_cards.invalid_scope` |
-| `POST /api/v1/installment-plans` | `scope` | Hayır — boşsa kart → kategori; `credit_cards.scope_unresolved` / `installments.invalid_scope` |
-| `POST /api/v1/recurring-transactions` | `scope` | Hayır — boşsa kaynak → kategori; `recurring.scope_unresolved` / `recurring.invalid_scope` |
+| `POST /api/v1/transactions` | `scope` | Hayır — tek taraflı kategori tarafı söyler ve onunla çelişen değer `transactions.scope_conflict` ile reddedilir; iki tarafa açık kategoride boşsa hesabın etiketi kullanılır; hiçbir işaret yoksa `transactions.scope_unresolved` (işletmesi olmayan kullanıcıda şahsi yazılır), tanınmayan değer `transactions.invalid_scope` |
+| `POST /api/v1/budgets` | `scope` | Hayır — kategori tarafı söyler; iki tarafa açıksa gerekir. `budgets.scope_conflict` / `budgets.scope_unresolved` / `budgets.invalid_scope` |
+| `POST /api/v1/credit-cards/{id}/charges` | `scope` | Hayır — kategori, yoksa seçim, yoksa kartın etiketi; `credit_cards.scope_conflict` / `credit_cards.scope_unresolved` / `credit_cards.invalid_scope` |
+| `POST /api/v1/installment-plans` | `scope` | Hayır — kategori, yoksa seçim, yoksa kartın etiketi; `credit_cards.scope_conflict` / `credit_cards.scope_unresolved` / `installments.invalid_scope` |
+| `POST /api/v1/recurring-transactions` | `scope` | Hayır — kategori, yoksa seçim, yoksa kaynağın etiketi (vergi planı ayrı: seçim → profilin tarafı); `recurring.scope_conflict` / `recurring.scope_unresolved` / `recurring.invalid_scope` |
 | `POST /api/v1/recurring-transactions` | `occurrenceLimit` | Hayır — verilirse pozitif toplam occurrence sınırıdır; `endDate` ile birlikte verilebilir ve önce dolan sınır planı pasifleştirir. Sahiplik girdisi değildir |
-| `POST /api/v1/debts` | `scope` | Hayır — boşsa açılış hesabı → kategori; `debt.scope_unresolved` / `debt.invalid_contract` |
+| `POST /api/v1/debts` | `scope` | Hayır — kategori, yoksa seçim, yoksa açılış hesabının etiketi; kategorisiz (nakit) borç iki tarafa açık kategori gibidir. `debt.scope_conflict` / `debt.scope_unresolved` / `debt.invalid_contract` |
+| `POST /api/v1/counterparties/{id}/charges`, `POST /api/v1/pos-settlements`, `POST /api/v1/pos-deposits` | `scope` | Hayır — bu girişler her zaman işletme yazılır; `personal` ya da şahsi bir kategori `counterparties.scope_conflict` / `pos_settlements.scope_conflict` / `pos_deposits.scope_conflict` ile reddedilir |
 | `POST`/`PUT` hesap, kategori, kart | `defaultScope` | Hayır — boş bırakılabilir; **güncellemede yetkilidir**, boş göndermek etiketi kaldırır. Tanınmayan değer `*.invalid_default_scope` |
-| `POST /api/v1/imports/{id}/confirm` | — | İçe aktarılan CSV kapsam kolonu taşımaz; zincirin ilk halkası hiç dolmaz, hesabın yoksa kategorinin varsayılanı kullanılır, ikisi de boşsa `imports.scope_unresolved` |
+| `POST /api/v1/imports/{id}/confirm` | — | İçe aktarılan CSV kapsam kolonu taşımaz; açık seçim hiç gelmez: tek taraflı kategori tarafı söyler, iki tarafa açık kategoride hesabın etiketi kullanılır, o da boşsa `imports.scope_unresolved` |
 | `GET /api/v1/exports/transactions.csv` | `scope` | Dosya her satırın kapsamını `type`'ın yanında taşır. Dışa aktarma okumak ve arşivlemek içindir; aynı dosya içe aktarılamaz (istemci tanır ve reddeder), veri taşımanın yolu yedek/geri yüklemedir |
 | `GET /api/v1/goals` | isteğe bağlı `scope` | Hedefler owner kapsamlıdır. Filtreli okuma kapsamsız hedefleri de eler; kırılım yalnız filtresiz okumada döner |
 | `GET /api/v1/tax-calendar/suggestions` | — | Hazır vergi türleri; owner verisi okumaz, hiçbir şey yazmaz, tutar ve kategori taşımaz. Tür mevcut tekrarlayan plan ucundan `taxKind` ile kurulur |

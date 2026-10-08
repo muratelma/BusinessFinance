@@ -1,8 +1,8 @@
 # ADR 0020 — Kategori kaydın tarafını sınırlar; hesap paranın tarafını söyler
 
 - Durum: **Kabul edildi** (8 Ekim 2026, kullanıcı onayı). Kararlar 6–8 Ekim
-  2026'da alındı. Aşama 06.3 Grup 8 "0 · Zemin"in karar kapısıdır. Kod henüz
-  yazılmadı; çalışan kod ADR 0013 §2'nin zincirini uygular.
+  2026'da alındı. Aşama 06.3 Grup 8 "0 · Zemin"in karar kapısıdır. Uygulama
+  adım adım ilerler; neyin yazıldığı aşama belgesindedir.
 - **Nasıl okunur:** bu ADR iki katmanlıdır. **§İlkeler bağlayıcıdır**; değişmesi
   kullanıcı kararı ve bu ADR'nin güncellenmesini ister. **§Başlangıç tasarımı**
   uygulamanın ilk hâlidir; kod yazılırken daha iyi ya da gerekli bir yol

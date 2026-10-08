@@ -59,7 +59,7 @@ public sealed class AdvancedReportEndpointTests
         var client = factory.CreateClient();
         using var register = await client.PostAsJsonAsync(
             "/api/v1/auth/register",
-            new RegisterRequest("advanced-api@example.test", Password));
+            new RegisterRequest("advanced-api@example.test", Password, HasBusiness: true));
         register.EnsureSuccessStatusCode();
         using var login = await client.PostAsJsonAsync(
             "/api/v1/auth/login",
@@ -84,6 +84,6 @@ public sealed class AdvancedReportEndpointTests
     {
         var categories = await client.GetFromJsonAsync<CategoryListResponse>(
             "/api/v1/categories?type=expense");
-        return categories!.Items[0];
+        return categories!.Items.First(item => item.DefaultScope == "business");
     }
 }

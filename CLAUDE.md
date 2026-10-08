@@ -366,19 +366,20 @@ gerekçesiyle bozulmaz.
   (kullanıcı kararı, 2 Ekim 2026): bakiye hareketlerden hesaplanır, giriş
   sırası olay sırası değildir ve yarım çalışan bir yasak daha kötüdür.
 
-- **Taraf kuralı değişiyor** (ADR 0020, kabul edildi 8 Ekim 2026; **kod henüz
-  yazılmadı**). Bağlayıcı olan: kategori kaydın alabileceği tarafları belirler;
-  iki tarafa açık kategoride olayın bağlamı (POS, gün sonu, cari → `İşletme`),
-  bağlam yoksa kullanıcının seçimi belirler; hesabın ve kartın etiketi yalnız
-  paranın tarafını söyler; kategoriyle ya da bağlamla çelişen açık seçim
-  reddedilir; cari hesap işletmeye özeldir ve kişiye bağlı yükümlülük cari
-  bakiyeye girmez. Aşağıdaki zincir ve "kapsamsız satır düşer" kuralı
-  **bugünkü kodu** anlatır; uygulama sırası `stages/06.3-butunsel-duzenleme.md`
-  Grup 8 "Z6 · yön"ün sonundadır. Yeni finansal kod eski zinciri genişletmez.
-
-- **Kapsam tek yerde türetilir** (`TransactionScopeResolution`): kullanıcının
-  açık seçimi → hesabın/kartın etiketi → kategorinin varsayılanı. Üçü de boşsa
-  istek `*.scope_unresolved` ile reddedilir; sunucu kapsam **uydurmaz**.
+- **Tarafı kategori sınırlar** (ADR 0020; `TransactionScopeResolution`, tek
+  yerde). Kategori tek taraflıysa kaydın tarafı odur; iki tarafa açıksa (etiketi
+  boş) girişin bağlamı, yoksa kullanıcının açık seçimi, o da yoksa hesabın ya
+  da kartın etiketi belirler. **Hesabın etiketi paranın tarafıdır, kategoriyi
+  ezmez**: kasadan market şahsi giderdir. Bağlamı olan giriş (POS satışı, gün
+  sonu, komisyon, yatış kesintisi, cari borçlandırma) her zaman `İşletme`
+  yazılır. Kategoriyle ya da bağlamla çelişen açık seçim `*.scope_conflict` ile
+  **reddedilir**, sessizce düzeltilmez. Hiçbir işaret yoksa işletmesi olmayan
+  kullanıcıda kayıt `Şahsi` yazılır, işletmesi olanda istek
+  `*.scope_unresolved` ile reddedilir; sunucu kapsam **uydurmaz**.
+  **Uygulanan: çekirdeğin ilk adımı** (sunucu kuralı ve formların önizlemesi).
+  Kategori seti, çipin gizlenmesi, cari bakiye ve Kasa adımları sırada
+  (`stages/06.3-butunsel-duzenleme.md` Grup 8 "Z6 · yön"ün sonu); kişiye bağlı
+  yükümlülük **hâlâ** cari bakiyeye giriyor.
   İstemcinin kapsam göndermesi zorunlu değildir. **Vergide zincir yoktur**
   (ADR 0018 İ9, 30 Eylül 2026): açık seçim → profilin tarafı; ödeme kaynağının
   etiketine bakılmaz (işletme vergisi şahsi kartla ödenebilir).
@@ -401,8 +402,10 @@ gerekçesiyle bozulmaz.
   durur; bölünen diğer ekranlar aktif kapsamı **başlıklarında yazar**,
   denetimi kopyalamaz. Bölünmeyen bölümler toplam gösterdiklerini yazar.
   Kapsam `FinancialDataChanges`'e bağlanmaz — veriyi değiştirmez, aynı veriye
-  başka bir soru sorar. Formdaki çip zincirin **önizlemesidir**: sunucudaki
-  sırayı gösterip gönderir; çözülemezse istek gitmeden alanın yanında söylenir.
+  başka bir soru sorar. Formdaki çip kuralın **önizlemesidir**
+  (`previewResolvedScope`): sunucunun yazacağı tarafı gösterip gönderir, tek
+  taraflı kategoride değişmez; taraf bulunamazsa istek gitmeden alanın yanında
+  söylenir. POS tahsilatı formu taraf sormaz.
   Cevabı görünmeyen kullanıcıda hiçbir istekte `scope` gitmez.
 
 - **Aylık rapor filtresiz okunduğunda ayın iki tarafını ayrı ayrı toplayan bir
@@ -535,7 +538,7 @@ secret'ı uygulamaya konmaz.
   kuralına dokunabilir
 - `documentation/adr/0020-category-bounds-the-side-of-a-record.md` — **Aşama
   06.3 Grup 8 "Zemin"in karar kapısı (kabul edildi 8 Ekim 2026; iki katmanlı;
-  kod henüz yazılmadı)**: ADR 0013 §2'nin yerini alır. İlkeler — kategori
+  çekirdeğin ilk adımı uygulandı)**: ADR 0013 §2'nin yerini alır. İlkeler — kategori
   tarafı sınırlar, iki tarafa açıkta bağlam ya da kullanıcının seçimi, hesap
   etiketi paranın tarafıdır, çelişen seçim reddedilir, taraf kayıtta saklanır,
   kategorinin tarafı yalnız genişler, kayıt bir kez sayılır, ad tarafı söyler,

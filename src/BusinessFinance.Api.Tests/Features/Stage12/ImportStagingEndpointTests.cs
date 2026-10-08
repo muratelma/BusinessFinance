@@ -253,7 +253,7 @@ public sealed class ImportStagingEndpointTests
     {
         var client = factory.CreateClient();
         using var register = await client.PostAsJsonAsync(
-            "/api/v1/auth/register", new RegisterRequest(email, Password));
+            "/api/v1/auth/register", new RegisterRequest(email, Password, HasBusiness: true));
         register.EnsureSuccessStatusCode();
         using var login = await client.PostAsJsonAsync(
             "/api/v1/auth/login", new LoginRequest(email, Password));
@@ -276,6 +276,6 @@ public sealed class ImportStagingEndpointTests
     private static async Task<CategoryResponse> GetCategoryAsync(HttpClient client, string type)
     {
         var response = await client.GetFromJsonAsync<CategoryListResponse>($"/api/v1/categories?type={type}");
-        return response!.Items[0];
+        return response!.Items.First(item => item.DefaultScope == "business");
     }
 }

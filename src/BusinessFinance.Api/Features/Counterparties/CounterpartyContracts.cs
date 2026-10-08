@@ -38,8 +38,9 @@ public sealed record CreateCounterpartyChargeRequest(
     Guid CategoryId,
     string ChargeDate,
 
-    // İsteğe bağlı: boşsa kategorinin varsayılanı kullanılır, o da boşsa istek
-    // `counterparties.scope_unresolved` ile reddedilir.
+    // İsteğe bağlı. Cari borçlandırma her zaman işletme yazılır (ADR 0020
+    // İ9); `personal` ya da şahsi bir kategori `counterparties.scope_conflict`
+    // ile reddedilir.
     string? Scope = null,
     string? Description = null,
     string? DueDate = null);

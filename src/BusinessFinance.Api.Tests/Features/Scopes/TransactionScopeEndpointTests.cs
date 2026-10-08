@@ -11,38 +11,27 @@ using BusinessFinance.Api.Features.Transactions;
 namespace BusinessFinance.Api.Tests.Features.Scopes;
 
 /// <summary>
-/// Kapsam türetme zincirinin HTTP sözleşmesindeki hâli: istek kapsamı
-/// göndermek zorunda değil, ama sunucu da uydurmuyor.
+/// Taraf kuralının HTTP sözleşmesindeki hâli (ADR 0020): kategori kaydın
+/// alabileceği tarafları belirler, istek taraf göndermek zorunda değildir,
+/// çelişen istek reddedilir ve sunucu taraf uydurmaz.
 /// </summary>
 public sealed class TransactionScopeEndpointTests
 {
     private const string Password = "Valid-Password-123!";
 
+    /// <summary>
+    /// Kasadan market: kasa işletme etiketli, kategori şahsi. Kayıt şahsi
+    /// giderdir; kasanın etiketi paranın tarafını söyler, kaydınkini değil.
+    /// </summary>
     [Fact]
-    public async Task CreateTransaction_WithoutScope_TakesTheAccountLabelAndReportsIt()
+    public async Task CreateTransaction_WithoutScope_TakesTheCategorySideNotTheAccountLabel()
     {
         await using var factory = new BusinessFinanceApiFactory();
         using var client = await AuthenticateAsync(factory, "scope-account@example.test");
         var account = await CreateAccountAsync(client, "Dükkân kasası", "business");
-        var category = await FirstExpenseCategoryAsync(client);
+        var category = await CategoryAsync(client, "expense", "personal");
 
         using var response = await PostTransactionAsync(client, account.Id, category.Id, scope: null);
-        var created = await response.Content.ReadFromJsonAsync<TransactionResponse>();
-
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        Assert.Equal("business", created?.Scope);
-    }
-
-    [Fact]
-    public async Task CreateTransaction_WithAnExplicitScope_OverridesTheAccountLabel()
-    {
-        await using var factory = new BusinessFinanceApiFactory();
-        using var client = await AuthenticateAsync(factory, "scope-explicit@example.test");
-        var account = await CreateAccountAsync(client, "Dükkân kasası", "business");
-        var category = await FirstExpenseCategoryAsync(client);
-
-        using var response = await PostTransactionAsync(
-            client, account.Id, category.Id, scope: "personal");
         var created = await response.Content.ReadFromJsonAsync<TransactionResponse>();
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -50,8 +39,54 @@ public sealed class TransactionScopeEndpointTests
     }
 
     /// <summary>
-    /// Hiçbir halka dolmadığında istek reddedilir ve hareket oluşmaz. Sunucunun
-    /// bir kapsam seçmesi, kullanıcının işletme netini sessizce bozardı.
+    /// İki tarafa açık kategoride hesabın etiketi seçimin ön değeridir; açık
+    /// seçim onu ezer.
+    /// </summary>
+    [Fact]
+    public async Task CreateTransaction_WithACategoryOpenToBoth_TakesTheAccountLabelOrTheChoice()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var client = await AuthenticateAsync(factory, "scope-explicit@example.test");
+        var account = await CreateAccountAsync(client, "Dükkân kasası", "business");
+        var category = await CreateCategoryAsync(client, "İki tarafa açık kalem");
+
+        using var labelled = await PostTransactionAsync(client, account.Id, category.Id, scope: null);
+        using var chosen = await PostTransactionAsync(
+            client, account.Id, category.Id, scope: "personal");
+
+        Assert.Equal(HttpStatusCode.Created, labelled.StatusCode);
+        Assert.Equal(
+            "business", (await labelled.Content.ReadFromJsonAsync<TransactionResponse>())?.Scope);
+        Assert.Equal(HttpStatusCode.Created, chosen.StatusCode);
+        Assert.Equal(
+            "personal", (await chosen.Content.ReadFromJsonAsync<TransactionResponse>())?.Scope);
+    }
+
+    /// <summary>
+    /// Kategoriyle çelişen açık seçim sessizce düzeltilmez: istek reddedilir
+    /// ve hareket oluşmaz. Aksi hâlde formun gösterdiği ile yazılan ayrışırdı.
+    /// </summary>
+    [Fact]
+    public async Task CreateTransaction_WithAScopeTheCategoryForbids_IsRejectedAndNothingIsWritten()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var client = await AuthenticateAsync(factory, "scope-conflict@example.test");
+        var account = await CreateAccountAsync(client, "Dükkân kasası", "business");
+        var category = await CategoryAsync(client, "expense", "personal");
+
+        using var response = await PostTransactionAsync(
+            client, account.Id, category.Id, scope: "business");
+        await AssertProblemCodeAsync(response, "transactions.scope_conflict");
+        var listed = await client.GetFromJsonAsync<TransactionListResponse>("/api/v1/transactions");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(listed!.Items);
+    }
+
+    /// <summary>
+    /// Hiçbir işaret yoksa işletmesi olan kullanıcının isteği reddedilir ve
+    /// hareket oluşmaz. Sunucunun bir taraf seçmesi, kullanıcının işletme
+    /// netini sessizce bozardı.
     /// </summary>
     [Fact]
     public async Task CreateTransaction_WithNothingToGoOn_IsRejectedAndNothingIsWritten()
@@ -60,10 +95,8 @@ public sealed class TransactionScopeEndpointTests
         using var client = await AuthenticateAsync(factory, "scope-missing@example.test");
         var account = await CreateAccountAsync(client, "Etiketsiz kasa", defaultScope: null);
 
-        // Varsayılan kategori setinin tamamı kapsam taşıyor, yani zincir normalde
-        // her zaman çözülür. Reddi görebilmek için üç halkanın da boş olduğu tek
-        // durumu kurmak gerekiyor: etiketsiz hesap ve kullanıcının kendi açtığı,
-        // kapsam vermediği bir kategori.
+        // Reddi görebilmek için hiçbir işaretin olmadığı tek durumu kurmak
+        // gerekiyor: etiketsiz hesap ve iki tarafa açık bir kategori.
         var category = await CreateCategoryAsync(client, "Etiketsiz kalem");
 
         using var response = await PostTransactionAsync(client, account.Id, category.Id, scope: null);
@@ -74,13 +107,34 @@ public sealed class TransactionScopeEndpointTests
         Assert.Empty(listed!.Items);
     }
 
+    /// <summary>
+    /// Aynı durumda işletmesi olmayan kullanıcının kaydı şahsi yazılır: o
+    /// kullanıcıya taraf hiç sorulmaz ve kendi açtığı kategoriyle kayıt
+    /// girebilmelidir (8 Ekim 2026'da cihazda görülen hata).
+    /// </summary>
+    [Fact]
+    public async Task CreateTransaction_WithNothingToGoOn_IsPersonalForAUserWithoutABusiness()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var client = await AuthenticateAsync(
+            factory, "scope-household@example.test", hasBusiness: false);
+        var account = await CreateAccountAsync(client, "Cüzdan", defaultScope: null);
+        var category = await CreateCategoryAsync(client, "Kendi kalemim");
+
+        using var response = await PostTransactionAsync(client, account.Id, category.Id, scope: null);
+        var created = await response.Content.ReadFromJsonAsync<TransactionResponse>();
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal("personal", created?.Scope);
+    }
+
     [Fact]
     public async Task CreateTransaction_WithAnUnknownScope_IsRejectedBeforeTheUseCase()
     {
         await using var factory = new BusinessFinanceApiFactory();
         using var client = await AuthenticateAsync(factory, "scope-unknown@example.test");
         var account = await CreateAccountAsync(client, "Dükkân kasası", "business");
-        var category = await FirstExpenseCategoryAsync(client);
+        var category = await CategoryAsync(client, "expense", "business");
 
         using var response = await PostTransactionAsync(
             client, account.Id, category.Id, scope: "household");
@@ -122,12 +176,13 @@ public sealed class TransactionScopeEndpointTests
         using var client = await AuthenticateAsync(factory, "scope-hero@example.test");
         var shop = await CreateAccountAsync(client, "Dükkân kasası", "business");
         var wallet = await CreateAccountAsync(client, "Cüzdan", "personal");
-        var expenseCategory = await FirstExpenseCategoryAsync(client);
-        var incomeCategory = await FirstIncomeCategoryAsync(client);
+        var expenseCategory = await CategoryAsync(client, "expense", "business");
+        var incomeCategory = await CategoryAsync(client, "income", "business");
+        var householdCategory = await CategoryAsync(client, "expense", "personal");
 
         await PostAmountAsync(client, shop.Id, incomeCategory.Id, "600.0000", "income");
         await PostAmountAsync(client, shop.Id, expenseCategory.Id, "200.0000", "expense");
-        await PostAmountAsync(client, wallet.Id, expenseCategory.Id, "50.0000", "expense");
+        await PostAmountAsync(client, wallet.Id, householdCategory.Id, "50.0000", "expense");
 
         var all = await client.GetFromJsonAsync<MonthlyReportResponse>(
             "/api/v1/dashboard?year=2026&month=8");
@@ -153,7 +208,7 @@ public sealed class TransactionScopeEndpointTests
         await using var factory = new BusinessFinanceApiFactory();
         using var client = await AuthenticateAsync(factory, "scope-hero-filtered@example.test");
         var shop = await CreateAccountAsync(client, "Dükkân kasası", "business");
-        var expenseCategory = await FirstExpenseCategoryAsync(client);
+        var expenseCategory = await CategoryAsync(client, "expense", "business");
         await PostAmountAsync(client, shop.Id, expenseCategory.Id, "200.0000", "expense");
 
         var business = await client.GetFromJsonAsync<MonthlyReportResponse>(
@@ -183,13 +238,6 @@ public sealed class TransactionScopeEndpointTests
                 "2026-08-09",
                 null));
         response.EnsureSuccessStatusCode();
-    }
-
-    private static async Task<CategoryResponse> FirstIncomeCategoryAsync(HttpClient client)
-    {
-        var categories = await client.GetFromJsonAsync<CategoryListResponse>(
-            "/api/v1/categories?type=income");
-        return categories!.Items[0];
     }
 
     private static async Task AssertProblemCodeAsync(
@@ -244,21 +292,26 @@ public sealed class TransactionScopeEndpointTests
         return (await response.Content.ReadFromJsonAsync<CategoryResponse>())!;
     }
 
-    private static async Task<CategoryResponse> FirstExpenseCategoryAsync(HttpClient client)
+    /// <summary>Varsayılan setten, verilen tarafa özel ilk kategori.</summary>
+    private static async Task<CategoryResponse> CategoryAsync(
+        HttpClient client,
+        string type,
+        string side)
     {
         var categories = await client.GetFromJsonAsync<CategoryListResponse>(
-            "/api/v1/categories?type=expense");
-        return categories!.Items[0];
+            $"/api/v1/categories?type={type}");
+        return categories!.Items.First(item => item.DefaultScope == side);
     }
 
     private static async Task<HttpClient> AuthenticateAsync(
         BusinessFinanceApiFactory factory,
-        string email)
+        string email,
+        bool hasBusiness = true)
     {
         var client = factory.CreateClient();
         using var register = await client.PostAsJsonAsync(
             "/api/v1/auth/register",
-            new RegisterRequest(email, Password));
+            new RegisterRequest(email, Password, hasBusiness));
         register.EnsureSuccessStatusCode();
         using var login = await client.PostAsJsonAsync(
             "/api/v1/auth/login",

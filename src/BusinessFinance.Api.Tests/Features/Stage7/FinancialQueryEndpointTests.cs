@@ -129,10 +129,18 @@ public sealed class FinancialQueryEndpointTests
         // kapatıyordu, artık doğrusu kurulabiliyor.
         using var recreated = await owner.PostAsJsonAsync(
             "/api/v1/budgets",
-            new CreateBudgetRequest(expense.Id, "250", "TRY", "personal", 2026, 8));
+            new CreateBudgetRequest(expense.Id, "250", "TRY", null, 2026, 8));
         Assert.Equal(HttpStatusCode.Created, recreated.StatusCode);
         var recreatedBudget = await recreated.Content.ReadFromJsonAsync<BudgetResponse>();
-        Assert.Equal("personal", recreatedBudget?.Scope);
+        Assert.Equal("250.0000", recreatedBudget?.Limit);
+        Assert.Equal("business", recreatedBudget?.Scope);
+
+        // Bütçenin tarafını kategori söyler; öbür tarafı isteyen istek
+        // reddedilir (ADR 0020 İ4).
+        using var conflicting = await owner.PostAsJsonAsync(
+            "/api/v1/budgets",
+            new CreateBudgetRequest(expense.Id, "250", "TRY", "personal", 2026, 9));
+        Assert.Equal(HttpStatusCode.BadRequest, conflicting.StatusCode);
     }
 
     [Fact]
@@ -196,7 +204,7 @@ public sealed class FinancialQueryEndpointTests
     {
         var client = factory.CreateClient();
         using var register = await client.PostAsJsonAsync(
-            "/api/v1/auth/register", new RegisterRequest(email, Password));
+            "/api/v1/auth/register", new RegisterRequest(email, Password, HasBusiness: true));
         register.EnsureSuccessStatusCode();
         using var login = await client.PostAsJsonAsync(
             "/api/v1/auth/login", new LoginRequest(email, Password));
@@ -224,7 +232,7 @@ public sealed class FinancialQueryEndpointTests
     {
         var response = await client.GetFromJsonAsync<CategoryListResponse>(
             $"/api/v1/categories?type={type}");
-        return response!.Items[0];
+        return response!.Items.First(item => item.DefaultScope == "business");
     }
 
     private static async Task<TransactionResponse> CreateTransactionAsync(

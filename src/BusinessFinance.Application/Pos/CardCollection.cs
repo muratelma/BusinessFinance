@@ -125,14 +125,16 @@ public sealed class CardCollectionBuilder(
             commissionCategory = null;
         }
 
+        // Komisyon POS'un maliyetidir ve işletmenindir (ADR 0020 T2);
+        // hesabın etiketi sayılmaz, şahsi kategori reddedilir.
         TransactionScope? scope = null;
         if (commissionAmount > 0m)
         {
-            scope = TransactionScopeResolution.Resolve(
-                null, account.DefaultScope, commissionCategory?.DefaultScope);
+            scope = TransactionScopeResolution.ResolveInContext(
+                TransactionScope.Business, null, commissionCategory?.DefaultScope).Scope;
             if (scope is null)
             {
-                return (null, null, PosSettlementErrors.ScopeUnresolved);
+                return (null, null, PosSettlementErrors.ScopeConflict);
             }
         }
 

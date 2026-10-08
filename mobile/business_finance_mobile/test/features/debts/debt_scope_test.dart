@@ -86,10 +86,7 @@ void main() {
     await tester.pumpAndSettle();
     await _fillValidDebt(tester);
 
-    expect(
-      find.textContaining('Kaynağın varsayılanından geldi'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('etiketinden geldi'), findsOneWidget);
 
     await tester.tap(find.text('Oluştur'));
     await tester.pumpAndSettle();

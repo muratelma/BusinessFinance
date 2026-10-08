@@ -203,6 +203,14 @@ public static class PosDepositErrors
         "The deduction scope could not be resolved from the request, the settlements, the account or the category.",
         ApplicationErrorType.Validation);
 
+    /// <summary>
+    /// Açık seçim ya da kategori, kaydın alabileceği tarafla çelişiyor (ADR 0020 İ4).
+    /// </summary>
+    public static readonly ApplicationError ScopeConflict = new(
+        "pos_deposits.scope_conflict",
+        "The requested scope or the category conflicts with the side this record may take.",
+        ApplicationErrorType.Validation);
+
     public static readonly ApplicationError ConcurrentChange = new(
         "pos_deposits.concurrent_change",
         "The settlements changed while the deposit was being written; read them again.",

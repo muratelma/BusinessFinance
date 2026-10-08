@@ -41,19 +41,42 @@ enum TransactionScope {
 /// boşluğun anlamı farklı; etiketi de bu yüzden ayrı bir yerde duruyor.
 String scopeFilterLabel(TransactionScope? scope) => scope?.label ?? 'Hepsi';
 
-/// Türetme zincirinin istemcideki **önizlemesi**: kullanıcının açık seçimi →
-/// kaynağın (hesap/kart) etiketi → kategorinin varsayılanı.
+/// Taraf kuralının istemcideki **önizlemesi** (ADR 0020): kategori tek
+/// taraflıysa taraf odur; iki tarafa açıksa girişin bağlamı ([context], ör.
+/// cari kayıt işletmedir), bağlam yoksa kullanıcının açık seçimi, o da yoksa
+/// kaynağın (hesap/kart) etiketi.
 ///
-/// Kararın sahibi sunucudur (`TransactionScopeResolution`); burası onun
-/// kopyası değil, formun kullanıcıya **ne yazılacağını gösterebilmesi** için
-/// var. Çip boş dursaydı kullanıcı kaydın hangi tarafa yazıldığını ancak
-/// listeye düştükten sonra görürdü; yanlış etiketlenmiş bir kayıt ise işletme
-/// netini sessizce bozar. Form gösterdiği değeri açıkça gönderir, böylece
-/// ekranda okunan ile yazılan aynı olur.
+/// Kararın sahibi sunucudur (`TransactionScopeResolution`); burası formun
+/// kullanıcıya **ne yazılacağını gösterebilmesi** için var. Form gösterdiği
+/// değeri gönderir, böylece ekranda okunan ile yazılan aynı olur; kategorinin
+/// izin vermediği bir tarafı göndermez, çünkü sunucu onu reddeder.
 ///
-/// Üçü de boşsa `null` döner: istemci de kapsam **uydurmaz**.
+/// Hiçbiri yoksa `null` döner: istemci de taraf **uydurmaz**.
 TransactionScope? previewResolvedScope({
   TransactionScope? explicit,
   TransactionScope? source,
   TransactionScope? category,
-}) => explicit ?? source ?? category;
+  TransactionScope? context,
+}) => category ?? context ?? explicit ?? source;
+
+/// Tarafın **nereden** geldiğini söyleyen kısa açıklama; çipin altında durur.
+///
+/// Tek taraflı kategoride çip değişmez ve bunu söylemesi şart: aksi hâlde
+/// kullanıcı dokunduğu çipin neden yerinde kaldığını anlayamaz.
+String scopePreviewHelperText({
+  TransactionScope? explicit,
+  TransactionScope? source,
+  TransactionScope? category,
+  TransactionScope? context,
+  String? sourceName,
+}) {
+  if (category != null) return 'Kategoriden gelir; bu kategoride değişmez.';
+  if (context != null) return 'Bu kayıt her zaman ${context.label} yazılır.';
+  if (explicit != null) return 'Bu kayıt için siz seçtiniz.';
+  if (source != null) {
+    return sourceName == null
+        ? 'Ödeme kaynağının etiketinden geldi — değiştirebilirsiniz.'
+        : '$sourceName etiketinden geldi — değiştirebilirsiniz.';
+  }
+  return 'Bu kayıt için seçin.';
+}

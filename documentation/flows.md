@@ -1266,9 +1266,10 @@ harcanabilir. Ekstre ise değişmez: ödenecek tutar hiçbir zaman negatif olmaz
 
 ## Varsayılan kapsamın ayarlanması (Aşama 06 Grup 4)
 
-Kapsam türetme zinciri üç halkalıdır: **kullanıcının açık seçimi → kaynağın
-(hesap/kart) etiketi → kategorinin varsayılanı**. Orta halka bugüne kadar yalnız
-API'den kurulabiliyordu; artık üç formdan da kuruluyor.
+Kaydın tarafını kategori sınırlar; iki tarafa açık kategoride kullanıcının
+seçimi, o da yoksa kaynağın (hesap/kart) etiketi belirler (ADR 0020; 8 Ekim
+2026'ya kadar hesabın etiketi kategorinin önündeydi). Etiketler üç formdan
+kurulur.
 
 | Form | Alan nerede | Ne anlatır |
 |---|---|---|

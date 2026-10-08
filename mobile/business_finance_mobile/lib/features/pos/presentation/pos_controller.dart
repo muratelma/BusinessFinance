@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/presentation/financial_data_changes.dart';
 import '../data/pos_repository.dart';
@@ -105,7 +104,6 @@ class PosController extends ChangeNotifier {
   Future<bool> create({
     required String grossAmount,
     required String settlementDate,
-    required TransactionScope? scope,
     String? accountId,
     String? categoryId,
     String? expectedTransferDate,
@@ -130,7 +128,6 @@ class PosController extends ChangeNotifier {
         'commissionAmount': commissionAmount,
         'commissionRate': commissionRate,
         'commissionCategoryId': commissionCategoryId,
-        'scope': scope?.apiValue,
         'description': description,
         'posDefinitionId': posDefinitionId,
       });

@@ -629,9 +629,10 @@ class _CreateBudgetDialogState extends State<_CreateBudgetDialog> {
                 _explicitScope = scope;
                 _scopeMissing = false;
               }),
-              helperText: _explicitScope == null
-                  ? 'Kategorinin varsayılanından önerildi; değiştirebilirsiniz.'
-                  : 'Sizin seçiminiz; kategori varsayılanını ezer.',
+              helperText: scopePreviewHelperText(
+                explicit: _explicitScope,
+                category: _categoryScope,
+              ),
               errorText: _scopeMissing
                   ? 'Bütçenin hangi tarafı sınırladığını seçin.'
                   : null,

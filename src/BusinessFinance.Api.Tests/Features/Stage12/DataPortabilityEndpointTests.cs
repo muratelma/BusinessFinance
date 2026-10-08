@@ -28,7 +28,7 @@ public sealed class DataPortabilityEndpointTests
         var account = await CreateAccountAsync(source);
         var categories = await source.GetFromJsonAsync<CategoryListResponse>(
             "/api/v1/categories?type=expense");
-        var category = categories!.Items[0];
+        var category = categories!.Items.First(item => item.DefaultScope == "business");
         using var createTransaction = await source.PostAsJsonAsync(
             "/api/v1/transactions",
             new CreateTransactionRequest(
@@ -104,7 +104,7 @@ public sealed class DataPortabilityEndpointTests
         var account = await CreateAccountAsync(owner);
         var incomeCategories = await owner.GetFromJsonAsync<CategoryListResponse>(
             "/api/v1/categories?type=income");
-        var incomeCategory = incomeCategories!.Items[0];
+        var incomeCategory = incomeCategories!.Items.First(item => item.DefaultScope == "business");
 
         using var createCounterparty = await owner.PostAsJsonAsync(
             "/api/v1/counterparties", new CreateCounterpartyRequest("Sentetik Manav"));
@@ -161,7 +161,7 @@ public sealed class DataPortabilityEndpointTests
     {
         var client = factory.CreateClient();
         using var register = await client.PostAsJsonAsync(
-            "/api/v1/auth/register", new RegisterRequest(email, Password));
+            "/api/v1/auth/register", new RegisterRequest(email, Password, HasBusiness: true));
         register.EnsureSuccessStatusCode();
         using var login = await client.PostAsJsonAsync(
             "/api/v1/auth/login", new LoginRequest(email, Password));

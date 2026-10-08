@@ -59,7 +59,7 @@ veritabanı ile tek `InitialCreate`'ten kurulan veritabanının 543 satırlık t
 
 | Test | Ne kanıtlıyor |
 |---|---|
-| `TransactionScopeResolutionTests` (Application, yeni) | Zincirin sırası: açık seçim hesabı, hesap kategoriyi yener; üçü de boşsa `null` |
+| `TransactionScopeResolutionTests` (Application) | 8 Ekim 2026'da ADR 0020 kuralıyla yeniden yazıldı; aşağıda "Aşama 06.3 Grup 8 — taraf kuralı" |
 | `...CreateTransaction_WithoutScope_TakesTheAccountLabel` | Kapsam gönderilmeden oluşturulan hareket hesabın etiketini alıyor |
 | `...CreateTransaction_WithNothingToGoOn_IsRejectedAndWritesNothing` | Çözülemeyen kapsam isteği reddediyor ve repository'ye **hiçbir şey yazmıyor** |
 | `...CreateBudget_WithoutScope_TakesTheCategoryDefaultOrIsRejected` | Bütçenin hesabı olmadığı için zincir kategori ile bitiyor |
@@ -1714,3 +1714,28 @@ okur. Davranış değişmedi: bakiye güvence testi ile bakiyeyi elle sabitleyen
 mevcut testler (`PosSettlementAndCashCount_…`, `PosDeposit_Moves…`,
 `ActivityFeed_OrdersADayByEntryTime…`, `ActivityBalances_Read…`,
 `CardCollectionEndpointTests`) aynı sonucu veriyor. Sorgu bütçesi 37 → 29.
+
+## Aşama 06.3 Grup 8 — taraf kuralı, çekirdeğin ilk adımı (8 Ekim 2026)
+
+ADR 0020'nin sunucu kuralı ve formların ortak önizlemesi. Eski kural açık
+seçimin şahsi bir kategoriyi ezmesine izin veriyordu ve API testlerinin çoğu
+buna yaslanıyordu (kişisel varsayılan set + `business` seçimi); 77 test bu
+yüzden kırıldı. Testler artık **işletmesi olan kullanıcı** ve **işletme
+kategorisi** ile kurulur: davranışları değişmedi, verileri kurala uydu.
+
+| Kural | Test | Ne gösterir |
+|---|---|---|
+| Durum tablosu | `TransactionScopeResolutionTests.Resolve_FollowsTheStateTable` | On bir satır: tek taraflı kategori hesabın etiketini ve seçimi yener, çelişen seçim reddedilir, iki tarafa açıkta seçim → kaynak, hiçbiri yoksa çözülmez |
+| Bağlamı olan giriş | `...ResolveInContext_WritesTheContextOrRejects` | İşletme bağlamı: şahsi kategori ve şahsi istek reddedilir, kaynak sayılmaz |
+| İşletmesi olmayan kullanıcı | `...ResolveAsync_WithNothingToGoOn_AsksTheProfile`, `...OnAConflict_DoesNotFallBackToTheProfile` | Hiçbir işaret yoksa şahsi; çelişki profile bakılmadan reddedilir |
+| Kasadan market | `...CreateTransaction_WithoutScope_TakesTheCategorySideOverTheAccountLabel` ve API'deki eşi | İşletme etiketli kasa + şahsi kategori → şahsi gider |
+| Çelişen seçim | `TransactionScopeEndpointTests.CreateTransaction_WithAScopeTheCategoryForbids_IsRejectedAndNothingIsWritten` | `transactions.scope_conflict`, hareket oluşmaz |
+| Kendi kategorisiyle giriş | `...CreateTransaction_WithNothingToGoOn_IsPersonalForAUserWithoutABusiness` | 8 Ekim'de cihazda görülen hata: işletmesi olmayan kullanıcı kendi açtığı kategoriyle kayıt giremiyordu |
+| Bütçe | `...CreateBudget_TakesTheCategorySideOrNeedsAChoice`, `FinancialQueryEndpointTests.DeleteBudget_…` | Kategori tarafı söyler; öbür tarafı isteyen bütçe reddedilir |
+| POS işletmedir | `PosDepositEndpointTests.Deduction_NeedsACategory_WhenTheSettlementsOfferNone` | Şahsi isteyen POS satışı `pos_settlements.scope_conflict`; kesinti hesabın etiketine bakmadan işletme yazılır |
+| Cari işletmeye özel | `CounterpartyEndpointTests.Charge_IsAlwaysBusiness_AndRejectsAPersonalCategoryOrChoice` | Taraf gönderilmeden işletme; şahsi kategori ve şahsi istek `counterparties.scope_conflict`, bakiye değişmez |
+| İstemci önizlemesi | `transaction_scope_test` (Flutter, yeni) | `previewResolvedScope` sunucunun durum tablosuyla aynı sırayı verir; çipin altındaki satır tarafın nereden geldiğini söyler |
+| Form | `quick_add_scope_test` | Tek taraflı kategoride çipe dokunmak tarafı değiştirmez ve form sunucunun reddedeceği tarafı göndermez; kartın etiketi işletme, kategori şahsi → harcama şahsi |
+
+Kontroller: backend (gerçek SQL) Domain 335, Application 349, Api 277,
+Infrastructure 227 (+2 canlı test atlanır); Flutter 1066 (102 atlanır).

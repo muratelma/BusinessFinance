@@ -51,8 +51,10 @@ public sealed class FinancialWriteEndpointTests
     public async Task Categories_AreOwnerScopedSeededAndDuplicateTypeNameIsRejected()
     {
         await using var factory = new BusinessFinanceApiFactory();
-        using var first = await CreateAuthenticatedClientAsync(factory, "categories-a@example.test");
-        using var second = await CreateAuthenticatedClientAsync(factory, "categories-b@example.test");
+        using var first = await CreateAuthenticatedClientAsync(
+            factory, "categories-a@example.test", hasBusiness: false);
+        using var second = await CreateAuthenticatedClientAsync(
+            factory, "categories-b@example.test", hasBusiness: false);
 
         var firstDefaults = await first.GetFromJsonAsync<CategoryListResponse>(
             "/api/v1/categories");
@@ -204,12 +206,13 @@ public sealed class FinancialWriteEndpointTests
 
     private static async Task<HttpClient> CreateAuthenticatedClientAsync(
         BusinessFinanceApiFactory factory,
-        string email)
+        string email,
+        bool hasBusiness = true)
     {
         var client = factory.CreateClient();
         using var register = await client.PostAsJsonAsync(
             "/api/v1/auth/register",
-            new RegisterRequest(email, Password));
+            new RegisterRequest(email, Password, hasBusiness));
         register.EnsureSuccessStatusCode();
         using var login = await client.PostAsJsonAsync(
             "/api/v1/auth/login",
@@ -238,7 +241,7 @@ public sealed class FinancialWriteEndpointTests
     {
         var response = await client.GetFromJsonAsync<CategoryListResponse>(
             $"/api/v1/categories?type={type}");
-        return response!.Items[0];
+        return response!.Items.First(item => item.DefaultScope == "business");
     }
 
     private static async Task<TransactionResponse> CreateTransactionAsync(

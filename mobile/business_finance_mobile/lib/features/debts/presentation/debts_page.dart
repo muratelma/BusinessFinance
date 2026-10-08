@@ -695,19 +695,24 @@ class _DebtFormState extends State<_DebtForm> {
   bool get _scopeIsVisible =>
       context.read<ScopeController?>()?.isVisible ?? false;
 
-  /// Formun gösterdiği kapsam: açık seçim → kaynağın etiketi → kategorininki.
+  /// Formun gösterdiği taraf: kategori → açık seçim → hesabın etiketi.
+  /// Kategorisi olmayan borç (nakit) iki tarafa açık kategori gibi davranır.
   ///
-  /// Sunucudaki sıranın **önizlemesi** (`TransactionScopeResolution`); karar
+  /// Sunucudaki kuralın **önizlemesi** (`TransactionScopeResolution`); karar
   /// sunucunundur, burası yalnız ne yazılacağını gösterip onu gönderir.
   TransactionScope? get _resolvedScope => previewResolvedScope(
     explicit: _scope,
-    source: _sourceIsCategorical
-        ? null
-        : _defaultScopeOf(widget.accounts, _openingAccountId),
-    category: _sourceIsCategorical
-        ? _defaultScopeOf(widget.categories, _categoryId)
-        : null,
+    source: _sourceScope,
+    category: _categoryScope,
   );
+
+  TransactionScope? get _sourceScope => _sourceIsCategorical
+      ? null
+      : _defaultScopeOf(widget.accounts, _openingAccountId);
+
+  TransactionScope? get _categoryScope => _sourceIsCategorical
+      ? _defaultScopeOf(widget.categories, _categoryId)
+      : null;
 
   static TransactionScope? _defaultScopeOf(
     List<DataChoice> choices,
@@ -962,12 +967,11 @@ class _DebtFormState extends State<_DebtForm> {
                 _scope = value;
                 _scopeError = null;
               }),
-              helperText: _scope != null
-                  ? 'Bu kayıt için siz seçtiniz.'
-                  : _resolvedScope != null
-                  ? 'Kaynağın varsayılanından geldi — değiştirebilirsiniz.'
-                  : 'Ne kaynak ne kategori kapsam taşıyor; bu kayıt için '
-                        'seçin.',
+              helperText: scopePreviewHelperText(
+                explicit: _scope,
+                source: _sourceScope,
+                category: _categoryScope,
+              ),
               errorText: _scopeError,
             ),
           ),

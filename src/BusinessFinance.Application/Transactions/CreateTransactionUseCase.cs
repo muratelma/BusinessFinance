@@ -2,6 +2,7 @@ using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.Categories;
+using BusinessFinance.Application.Profiles;
 using BusinessFinance.Application.Scopes;
 using BusinessFinance.Domain;
 
@@ -14,8 +15,9 @@ public sealed record CreateTransactionCommand(
     CurrencyCode Currency,
     TransactionType Type,
 
-    // Kullanıcının açık seçimi. Boşsa hesabın, yoksa kategorinin varsayılanı
-    // kullanılır; üçü de boşsa istek reddedilir.
+    // Kullanıcının açık seçimi. Tek taraflı kategoride gerekmez ve onunla
+    // çelişirse istek reddedilir; iki tarafa açık kategoride boşsa hesabın
+    // etiketi ön değerdir (ADR 0020).
     TransactionScope? Scope,
     DateOnly TransactionDate,
     string? Description);
@@ -24,7 +26,8 @@ public sealed class CreateTransactionUseCase(
     ICurrentUser currentUser,
     IAccountRepository accountRepository,
     ICategoryRepository categoryRepository,
-    ITransactionRepository transactionRepository)
+    ITransactionRepository transactionRepository,
+    IUserProfileRepository profileRepository)
 {
     public async Task<ApplicationResult<TransactionDto>> ExecuteAsync(
         CreateTransactionCommand command,
@@ -54,12 +57,17 @@ public sealed class CreateTransactionUseCase(
             return ApplicationResult<TransactionDto>.Failure(TransactionErrors.CategoryUnavailable);
         }
 
-        if (TransactionScopeResolution.Resolve(
-                command.Scope,
-                account.DefaultScope,
-                category.DefaultScope) is not TransactionScope scope)
+        var resolution = await TransactionScopeResolution.ResolveAsync(
+            command.Scope,
+            category.DefaultScope,
+            account.DefaultScope,
+            profileRepository,
+            userId,
+            cancellationToken);
+        if (resolution.Scope is not TransactionScope scope)
         {
-            return ApplicationResult<TransactionDto>.Failure(TransactionErrors.ScopeUnresolved);
+            return ApplicationResult<TransactionDto>.Failure(resolution.ToError(
+                TransactionErrors.ScopeUnresolved, TransactionErrors.ScopeConflict));
         }
 
         BudgetTransaction transaction;

@@ -3,6 +3,7 @@ using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.CreditCards;
 using BusinessFinance.Application.Abstractions.Queries;
+using BusinessFinance.Application.Tests.RecurringTransactions;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Tests.CreditCards;
@@ -20,7 +21,8 @@ public sealed class CardActivityUseCaseTests
             new FakeCurrentUser(UserId),
             new FakeCardRepository(card, 900m),
             new FakeCategoryRepository(CreateExpense()),
-            chargeRepository);
+            chargeRepository,
+            new FakeUserProfileRepository(true));
 
         var result = await useCase.ExecuteAsync(new CreateCardChargeCommand(
             card.Id, CreateExpense().Id, 101m, CurrencyCode.TRY,

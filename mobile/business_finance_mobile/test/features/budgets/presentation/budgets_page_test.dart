@@ -212,7 +212,7 @@ void main() {
     expect(find.text('İşletme'), findsOneWidget);
   });
 
-  testWidgets('offers the scope chain in the create form when visible', (
+  testWidgets('shows where the scope comes from in the create form', (
     tester,
   ) async {
     final controller = BudgetsController(
@@ -232,10 +232,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Kapsam'), findsOneWidget);
-    expect(
-      find.text('Kategorinin varsayılanından önerildi; değiştirebilirsiniz.'),
-      findsOneWidget,
-    );
+    // Kategori seçilmeden taraf bilinmez; seçilince kategoriden gelir
+    // (ADR 0020).
+    expect(find.text('Bu kayıt için seçin.'), findsOneWidget);
   });
 
   testWidgets('drops categories that already have a budget this month', (

@@ -327,6 +327,52 @@ public sealed class CounterpartyEndpointTests
         Assert.Equal("0.0000", report!.TotalIncome);
     }
 
+    /// <summary>
+    /// Cari hesap işletmeye özeldir (ADR 0020 İ9): borçlandırma taraf
+    /// gönderilmeden de işletme yazılır; şahsi kategori ve şahsi istek
+    /// sessizce düzeltilmez, reddedilir.
+    /// </summary>
+    [Fact]
+    public async Task Charge_IsAlwaysBusiness_AndRejectsAPersonalCategoryOrChoice()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(factory, "cari-business@example.test");
+        var customer = await CreateCounterpartyAsync(owner, "Veresiye Müşteri");
+        var incomes = await owner.GetFromJsonAsync<CategoryListResponse>(
+            "/api/v1/categories?type=income");
+        var business = incomes!.Items.First(item => item.DefaultScope == "business");
+        var personal = incomes.Items.First(item => item.DefaultScope == "personal");
+
+        using var sale = await owner.PostAsJsonAsync(
+            $"/api/v1/counterparties/{customer.Id}/charges",
+            new CreateCounterpartyChargeRequest(
+                "receivable", "200.0000", "TRY", business.Id, "2026-08-05"));
+        Assert.Equal(HttpStatusCode.Created, sale.StatusCode);
+        var written = (await sale.Content.ReadFromJsonAsync<CounterpartyChargeResponse>())!;
+        Assert.Equal("business", written.Scope);
+
+        using var personalCategory = await owner.PostAsJsonAsync(
+            $"/api/v1/counterparties/{customer.Id}/charges",
+            new CreateCounterpartyChargeRequest(
+                "receivable", "50.0000", "TRY", personal.Id, "2026-08-05"));
+        Assert.Equal(HttpStatusCode.BadRequest, personalCategory.StatusCode);
+        Assert.Contains(
+            "counterparties.scope_conflict", await personalCategory.Content.ReadAsStringAsync());
+
+        using var personalChoice = await owner.PostAsJsonAsync(
+            $"/api/v1/counterparties/{customer.Id}/charges",
+            new CreateCounterpartyChargeRequest(
+                "receivable", "50.0000", "TRY", business.Id, "2026-08-05", "personal"));
+        Assert.Equal(HttpStatusCode.BadRequest, personalChoice.StatusCode);
+        Assert.Contains(
+            "counterparties.scope_conflict", await personalChoice.Content.ReadAsStringAsync());
+
+        // Reddedilen iki istek hiçbir şey yazmadı.
+        var balance = await owner.GetFromJsonAsync<CounterpartyResponse>(
+            $"/api/v1/counterparties/{customer.Id}");
+        Assert.Equal("200.0000", balance!.Receivable);
+    }
+
     private static decimal FinanceSum(IEnumerable<string> amounts) =>
         amounts.Sum(value => decimal.Parse(value, CultureInfo.InvariantCulture));
 
@@ -358,7 +404,7 @@ public sealed class CounterpartyEndpointTests
     {
         var categories = await client.GetFromJsonAsync<CategoryListResponse>(
             $"/api/v1/categories?type={type}");
-        return categories!.Items[0];
+        return categories!.Items.First(item => item.DefaultScope == "business");
     }
 
     private static async Task<AccountResponse> CreateAccountAsync(
@@ -379,7 +425,7 @@ public sealed class CounterpartyEndpointTests
     {
         var client = factory.CreateClient();
         using var register = await client.PostAsJsonAsync(
-            "/api/v1/auth/register", new RegisterRequest(email, Password));
+            "/api/v1/auth/register", new RegisterRequest(email, Password, HasBusiness: true));
         Assert.Equal(HttpStatusCode.Created, register.StatusCode);
         using var login = await client.PostAsJsonAsync(
             "/api/v1/auth/login", new LoginRequest(email, Password));

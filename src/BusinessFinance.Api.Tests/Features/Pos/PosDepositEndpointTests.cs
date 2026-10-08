@@ -356,11 +356,21 @@ public sealed class PosDepositEndpointTests
             factory, "deposit-category@example.test");
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var f = await SeedAsync(owner);
-        using var create = await owner.PostAsJsonAsync(
+        // POS satışı işletme satışıdır: şahsi isteyen istek sessizce
+        // düzeltilmez, reddedilir (ADR 0020 İ4).
+        using var personal = await owner.PostAsJsonAsync(
             "/api/v1/pos-settlements",
             new CreatePosSettlementRequest(
                 f.AccountId, f.SalesCategoryId, "400.0000", "TRY",
                 Date(today), Date(today), Scope: "personal"));
+        Assert.Equal(HttpStatusCode.BadRequest, personal.StatusCode);
+        Assert.Equal("pos_settlements.scope_conflict", await CodeAsync(personal));
+
+        using var create = await owner.PostAsJsonAsync(
+            "/api/v1/pos-settlements",
+            new CreatePosSettlementRequest(
+                f.AccountId, f.SalesCategoryId, "400.0000", "TRY",
+                Date(today), Date(today)));
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);
         var settlement = (await create.Content.ReadFromJsonAsync<PosSettlementResponse>())!;
 
@@ -399,11 +409,11 @@ public sealed class PosDepositEndpointTests
         var deposit = (await withCategory.Content.ReadFromJsonAsync<PosDepositResponse>())!;
         Assert.Equal(f.CommissionCategoryId, deposit.DeductionCategoryId);
 
-        // Kesinti, kapattığı satışın tarafındadır: tahsilat şahsi yazıldıysa
-        // kesinti de şahsidir, hesabın ya da kategorinin etiketine bakılmaz.
+        // Kesinti, kapattığı satışların komisyonunun devamıdır ve satış gibi
+        // işletmenindir; hesabın etiketine bakılmaz.
         var deduction = await owner.GetFromJsonAsync<TransactionResponse>(
             $"/api/v1/transactions/{deposit.DeductionTransactionId}");
-        Assert.Equal("personal", deduction!.Scope);
+        Assert.Equal("business", deduction!.Scope);
     }
 
     /// <summary>
@@ -567,7 +577,7 @@ public sealed class PosDepositEndpointTests
     {
         var categories = await client.GetFromJsonAsync<CategoryListResponse>(
             $"/api/v1/categories?type={type}");
-        return categories!.Items[0];
+        return categories!.Items.First(item => item.DefaultScope == "business");
     }
 
     private static async Task<AccountResponse> CreateAccountAsync(
@@ -589,7 +599,7 @@ public sealed class PosDepositEndpointTests
     {
         var client = factory.CreateClient();
         using var register = await client.PostAsJsonAsync(
-            "/api/v1/auth/register", new RegisterRequest(email, Password));
+            "/api/v1/auth/register", new RegisterRequest(email, Password, HasBusiness: true));
         Assert.Equal(HttpStatusCode.Created, register.StatusCode);
         using var login = await client.PostAsJsonAsync(
             "/api/v1/auth/login", new LoginRequest(email, Password));

@@ -368,10 +368,12 @@ internal sealed class DayClosePlan
             }
         }
 
+        // Gün sonu işletme satışıdır (ADR 0020 T2): kasanın etiketi sayılmaz;
+        // şahsi kategoride taraf boş kalır ve aşağıda çelişki olarak engellenir.
         if (cash.Account is not null && cash.Category is not null)
         {
-            cash.Scope = TransactionScopeResolution.Resolve(
-                null, cash.Account.DefaultScope, cash.Category.DefaultScope);
+            cash.Scope = TransactionScopeResolution.ResolveInContext(
+                TransactionScope.Business, null, cash.Category.DefaultScope).Scope;
         }
 
         if (cash.ToWrite <= 0m)
@@ -389,7 +391,7 @@ internal sealed class DayClosePlan
         }
         else if (cash.Scope is null)
         {
-            block(DayCloseErrors.ScopeUnresolved);
+            block(DayCloseErrors.ScopeConflict);
         }
     }
 
@@ -439,11 +441,18 @@ internal sealed class DayClosePlan
                 }
             }
 
-            line.Scope = TransactionScopeResolution.Resolve(
-                null, line.Account.DefaultScope, line.SalesCategory!.DefaultScope);
+            var resolution = TransactionScopeResolution.ResolveInContext(
+                TransactionScope.Business, null, line.SalesCategory!.DefaultScope);
+            if (resolution.Scope is TransactionScope && line.CommissionCategory is not null)
+            {
+                resolution = TransactionScopeResolution.ResolveInContext(
+                    TransactionScope.Business, null, line.CommissionCategory.DefaultScope);
+            }
+
+            line.Scope = resolution.Scope;
             if (line.Scope is null)
             {
-                block(DayCloseErrors.ScopeUnresolved);
+                block(DayCloseErrors.ScopeConflict);
             }
         }
     }

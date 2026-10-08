@@ -158,9 +158,9 @@ public sealed class CreateCashCountUseCase(
             return ApplicationResult<CashCountDto>.Failure(CashCountErrors.AccountUnavailable);
         }
 
-        // Kategori yok: sayımın kendisi bir gelir/gider değildir ve zincirin
-        // son halkası sorulmaz.
-        if (TransactionScopeResolution.Resolve(command.Scope, account.DefaultScope, null)
+        // Kategori yok: sayımın kendisi bir gelir/gider değildir; taraf
+        // istekten, yoksa kasanın etiketinden gelir.
+        if (TransactionScopeResolution.Resolve(command.Scope, null, account.DefaultScope).Scope
             is not TransactionScope scope)
         {
             return ApplicationResult<CashCountDto>.Failure(CashCountErrors.ScopeUnresolved);
@@ -312,9 +312,10 @@ public sealed class ConfirmCashCountDifferenceUseCase(
                 category,
                 difference.ToAdjustmentAmount(),
                 difference.RecognizedType,
-                // Kapsam sayımdan gelir, kategoriden yeniden türetilmez: aynı
-                // sayım iki farklı günde iki farklı kapsam üretemez.
-                cashCount.Scope,
+                // Farkın tarafını kategori söyler (ADR 0020 T2): kasadan
+                // alınıp eğlenceye harcanan para şahsi giderdir. Kategori iki
+                // tarafa açıksa sayımın tarafı kalır.
+                category.DefaultScope ?? cashCount.Scope,
                 cashCount.CountDate,
                 cashCount.Note);
             cashCount.RecordAdjustment(adjustment.Id, now);

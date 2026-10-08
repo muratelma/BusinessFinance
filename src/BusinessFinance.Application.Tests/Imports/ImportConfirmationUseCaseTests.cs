@@ -3,6 +3,7 @@ using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.Imports;
 using BusinessFinance.Application.Abstractions.Results;
+using BusinessFinance.Application.Tests.RecurringTransactions;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Tests.Imports;
@@ -33,7 +34,8 @@ public sealed class ImportConfirmationUseCaseTests
         var repository = new FakeImportRepository(batch);
         var useCase = new ConfirmImportBatchUseCase(
             new FakeCurrentUser(userId), repository,
-            new FakeAccountRepository(account), new FakeCategoryRepository(category));
+            new FakeAccountRepository(account), new FakeCategoryRepository(category),
+            new FakeUserProfileRepository(true));
 
         var rejected = await useCase.ExecuteAsync(
             new ConfirmImportBatchCommand(batch.Id, [ready.Id, unmapped.Id]));
@@ -71,7 +73,8 @@ public sealed class ImportConfirmationUseCaseTests
         var repository = new FakeImportRepository(batch) { ThrowConcurrency = true };
         var useCase = new ConfirmImportBatchUseCase(
             new FakeCurrentUser(userId), repository,
-            new FakeAccountRepository(account), new FakeCategoryRepository(category));
+            new FakeAccountRepository(account), new FakeCategoryRepository(category),
+            new FakeUserProfileRepository(true));
 
         var result = await useCase.ExecuteAsync(new ConfirmImportBatchCommand(batch.Id, [row.Id]));
 
@@ -90,7 +93,8 @@ public sealed class ImportConfirmationUseCaseTests
         var repository = new FakeImportRepository(batch);
         var useCase = new ConfirmImportBatchUseCase(
             new FakeCurrentUser(userId), repository,
-            new FakeAccountRepository(null), new FakeCategoryRepository(null));
+            new FakeAccountRepository(null), new FakeCategoryRepository(null),
+            new FakeUserProfileRepository(true));
 
         var result = await useCase.ExecuteAsync(new ConfirmImportBatchCommand(
             batch.Id,

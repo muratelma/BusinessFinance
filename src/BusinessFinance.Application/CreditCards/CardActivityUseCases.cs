@@ -4,6 +4,7 @@ using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.FinancialActivities;
+using BusinessFinance.Application.Profiles;
 using BusinessFinance.Application.RecurringTransactions;
 using BusinessFinance.Application.Scopes;
 using BusinessFinance.Application.Taxes;
@@ -15,7 +16,8 @@ public sealed class CreateCardChargeUseCase(
     ICurrentUser currentUser,
     ICreditCardRepository cardRepository,
     ICategoryRepository categoryRepository,
-    ICardChargeRepository chargeRepository)
+    ICardChargeRepository chargeRepository,
+    IUserProfileRepository profileRepository)
 {
     public async Task<ApplicationResult<CardChargeDto>> ExecuteAsync(
         CreateCardChargeCommand command,
@@ -50,12 +52,17 @@ public sealed class CreateCardChargeUseCase(
             return ApplicationResult<CardChargeDto>.Failure(CreditCardErrors.LimitExceeded);
         }
 
-        if (TransactionScopeResolution.Resolve(
-                command.Scope,
-                card.DefaultScope,
-                category.DefaultScope) is not TransactionScope scope)
+        var resolution = await TransactionScopeResolution.ResolveAsync(
+            command.Scope,
+            category.DefaultScope,
+            card.DefaultScope,
+            profileRepository,
+            userId,
+            cancellationToken);
+        if (resolution.Scope is not TransactionScope scope)
         {
-            return ApplicationResult<CardChargeDto>.Failure(CreditCardErrors.ScopeUnresolved);
+            return ApplicationResult<CardChargeDto>.Failure(resolution.ToError(
+                CreditCardErrors.ScopeUnresolved, CreditCardErrors.ScopeConflict));
         }
 
         try

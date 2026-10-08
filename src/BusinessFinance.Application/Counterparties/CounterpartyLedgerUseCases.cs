@@ -56,14 +56,16 @@ public sealed class CreateCounterpartyChargeUseCase(
                 CounterpartyErrors.CategoryUnavailable);
         }
 
-        // Zincirin ortasındaki halka yok: borçlandırmanın hesabı olmadığı için
-        // kapsam ya istekten ya kategoriden gelir. Karşı taraf kapsam ipucu
-        // taşımaz (Aşama 02 kapsam dışı).
-        if (TransactionScopeResolution.Resolve(command.Scope, category.DefaultScope)
-            is not TransactionScope scope)
+        // Cari hesap işletmeye özeldir (ADR 0020 İ9): borçlandırma her zaman
+        // İşletme yazılır. Şahsi kategori ya da şahsi istek reddedilir; kural
+        // uygulama katmanındadır, eski yedekteki şahsi cari kayıt geri
+        // yüklenebilmelidir.
+        var resolution = TransactionScopeResolution.ResolveInContext(
+            TransactionScope.Business, command.Scope, category.DefaultScope);
+        if (resolution.Scope is not TransactionScope scope)
         {
-            return ApplicationResult<CounterpartyChargeDto>.Failure(
-                CounterpartyErrors.ScopeUnresolved);
+            return ApplicationResult<CounterpartyChargeDto>.Failure(resolution.ToError(
+                CounterpartyErrors.ScopeUnresolved, CounterpartyErrors.ScopeConflict));
         }
 
         try

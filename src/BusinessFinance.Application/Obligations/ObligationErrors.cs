@@ -24,6 +24,14 @@ public static class ObligationErrors
         "The scope could not be resolved from the request or the category.",
         ApplicationErrorType.Validation);
 
+    /// <summary>
+    /// Açık seçim ya da kategori, kaydın alabileceği tarafla çelişiyor (ADR 0020 İ4).
+    /// </summary>
+    public static readonly ApplicationError ScopeConflict = new(
+        "obligations.scope_conflict",
+        "The requested scope or the category conflicts with the side this record may take.",
+        ApplicationErrorType.Validation);
+
     /// <summary>Kartla (POS) yalnız alacak kapanır; ödenecek fatura POS'tan geçmez.</summary>
     public static readonly ApplicationError CardRequiresReceivable = new(
         "obligations.card_requires_receivable",

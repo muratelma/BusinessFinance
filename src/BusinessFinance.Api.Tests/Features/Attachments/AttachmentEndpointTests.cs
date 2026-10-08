@@ -101,7 +101,7 @@ public sealed class AttachmentEndpointTests
         using var response = await client.PostAsJsonAsync(
             "/api/v1/transactions",
             new CreateTransactionRequest(
-                account.Id, categories!.Items[0].Id, "10.0000", "TRY",
+                account.Id, categories!.Items.First(item => item.DefaultScope == "business").Id, "10.0000", "TRY",
                 "expense", "business", "2026-08-11", "Synthetic receipt"));
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<TransactionResponse>())!;
@@ -113,7 +113,7 @@ public sealed class AttachmentEndpointTests
     {
         var client = factory.CreateClient();
         using var register = await client.PostAsJsonAsync(
-            "/api/v1/auth/register", new RegisterRequest(email, Password));
+            "/api/v1/auth/register", new RegisterRequest(email, Password, HasBusiness: true));
         register.EnsureSuccessStatusCode();
         using var login = await client.PostAsJsonAsync(
             "/api/v1/auth/login", new LoginRequest(email, Password));

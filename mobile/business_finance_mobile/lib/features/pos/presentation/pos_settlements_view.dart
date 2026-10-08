@@ -5,8 +5,6 @@ import 'package:flutter/material.dart';
 import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_input.dart';
 import '../../../core/formatters/money_text.dart';
-import '../../../core/models/data_choice.dart';
-import '../../../core/models/transaction_scope.dart';
 import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_finance_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -24,7 +22,6 @@ import '../../../core/widgets/app_divided_column.dart';
 import '../../../core/widgets/app_icon_capsule.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_row.dart';
-import '../../../core/widgets/app_scope_selector.dart';
 import '../../../core/widgets/app_section_header.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
@@ -129,11 +126,7 @@ class _PosSectionState extends State<PosSection> {
               AppTextAction(
                 label: 'Ekle',
                 icon: Icons.add,
-                onPressed: () => showPosSettlementForm(
-                  context,
-                  controller,
-                  widget.scopeController,
-                ),
+                onPressed: () => showPosSettlementForm(context, controller),
               ),
             ],
           ),
@@ -762,14 +755,15 @@ class PosSettlementSheet extends StatelessWidget {
 
 /// Yeni POS tahsilatı formunu açar (bölüm başlığındaki `+ Ekle` ve
 /// `İşlem ekle > POS tahsilatı`). Kaydedilince `true`, vazgeçilince `null`.
+///
+/// Form taraf sormaz: POS satışı işletme satışıdır ve sunucu öyle yazar
+/// (ADR 0020 T2).
 Future<bool?> showPosSettlementForm(
   BuildContext context,
   PosController controller,
-  ScopeController? scopeController,
 ) => AppFormSheet.show<bool>(
   context: context,
-  builder: (_) =>
-      _SettlementForm(controller: controller, scopeController: scopeController),
+  builder: (_) => _SettlementForm(controller: controller),
 );
 
 String _today() {
@@ -785,10 +779,9 @@ bool _isZeroMoney(String value) =>
 enum _CommissionMode { none, amount, rate }
 
 class _SettlementForm extends StatefulWidget {
-  const _SettlementForm({required this.controller, this.scopeController});
+  const _SettlementForm({required this.controller});
 
   final PosController controller;
-  final ScopeController? scopeController;
 
   @override
   State<_SettlementForm> createState() => _SettlementFormState();
@@ -816,8 +809,6 @@ class _SettlementFormState extends State<_SettlementForm> {
   _CommissionMode commissionMode = _CommissionMode.none;
   late String settlementDate = _today();
   late String expectedTransferDate = _today();
-  TransactionScope? explicitScope;
-  bool scopeMissing = false;
   PosOptions? loaded;
 
   /// Seçili POS tanımı; `null` tanımsız giriştir.
@@ -887,27 +878,6 @@ class _SettlementFormState extends State<_SettlementForm> {
     if (!mounted || request != _previewRequest) return;
     setState(() => preview = result);
   }
-
-  TransactionScope? get resolvedScope {
-    final current = definition;
-    return explicitScope ??
-        _choiceScope(current?.accountId ?? accountId, loaded?.accounts) ??
-        _choiceScope(
-          current?.salesCategoryId ?? categoryId,
-          loaded?.incomeCategories,
-        );
-  }
-
-  TransactionScope? _choiceScope(String? id, List<DataChoice>? choices) {
-    if (id == null || choices == null) return null;
-    for (final choice in choices) {
-      if (choice.id == id) return choice.defaultScope;
-    }
-    return null;
-  }
-
-  bool get showScope =>
-      (widget.scopeController?.isVisible ?? false) || resolvedScope == null;
 
   @override
   Widget build(BuildContext context) => Form(
@@ -1021,17 +991,6 @@ class _SettlementFormState extends State<_SettlementForm> {
         controller: descriptionController,
         decoration: const InputDecoration(labelText: 'Açıklama (isteğe bağlı)'),
       ),
-      if (showScope) ...[
-        const SizedBox(height: AppSpacing.medium),
-        AppScopeField(
-          value: resolvedScope,
-          onChanged: (value) => setState(() {
-            explicitScope = value;
-            scopeMissing = false;
-          }),
-          errorText: scopeMissing ? 'Bu tahsilat için kapsam seçin.' : null,
-        ),
-      ],
     ];
   }
 
@@ -1206,10 +1165,6 @@ class _SettlementFormState extends State<_SettlementForm> {
 
   Future<bool?> _submit() async {
     if (!formKey.currentState!.validate()) return null;
-    if (resolvedScope == null) {
-      setState(() => scopeMissing = true);
-      return null;
-    }
 
     final description = descriptionController.text.trim();
     final current = definition;
@@ -1218,7 +1173,6 @@ class _SettlementFormState extends State<_SettlementForm> {
       final saved = await controller.create(
         grossAmount: MoneyInput.wire(grossController.text),
         settlementDate: settlementDate,
-        scope: resolvedScope,
         posDefinitionId: current.id,
         description: description.isEmpty ? null : description,
       );
@@ -1242,7 +1196,6 @@ class _SettlementFormState extends State<_SettlementForm> {
       grossAmount: MoneyInput.wire(grossController.text),
       settlementDate: settlementDate,
       expectedTransferDate: expectedTransferDate,
-      scope: resolvedScope,
       commissionAmount: commissionAmount,
       commissionRate: commissionRate,
       commissionCategoryId: commissionMode == _CommissionMode.none

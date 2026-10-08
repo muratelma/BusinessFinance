@@ -1,6 +1,7 @@
 using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Categories;
+using BusinessFinance.Application.Profiles;
 using BusinessFinance.Application.Scopes;
 using BusinessFinance.Domain;
 
@@ -9,7 +10,8 @@ namespace BusinessFinance.Application.Budgets;
 public sealed class CreateBudgetUseCase(
     ICurrentUser currentUser,
     ICategoryRepository categoryRepository,
-    IBudgetRepository budgetRepository)
+    IBudgetRepository budgetRepository,
+    IUserProfileRepository profileRepository)
 {
     public async Task<ApplicationResult<BudgetDto>> ExecuteAsync(
         CreateBudgetCommand command,
@@ -39,11 +41,19 @@ public sealed class CreateBudgetUseCase(
             return ApplicationResult<BudgetDto>.Failure(BudgetErrors.DuplicatePeriod);
         }
 
-        if (TransactionScopeResolution.Resolve(
-                command.Scope,
-                category.DefaultScope) is not TransactionScope scope)
+        // Bütçenin hesabı yoktur: kategori tarafı sınırlar, iki tarafa açıksa
+        // kullanıcı seçer.
+        var resolution = await TransactionScopeResolution.ResolveAsync(
+            command.Scope,
+            category.DefaultScope,
+            null,
+            profileRepository,
+            userId,
+            cancellationToken);
+        if (resolution.Scope is not TransactionScope scope)
         {
-            return ApplicationResult<BudgetDto>.Failure(BudgetErrors.ScopeUnresolved);
+            return ApplicationResult<BudgetDto>.Failure(resolution.ToError(
+                BudgetErrors.ScopeUnresolved, BudgetErrors.ScopeConflict));
         }
 
         MonthlyBudget budget;

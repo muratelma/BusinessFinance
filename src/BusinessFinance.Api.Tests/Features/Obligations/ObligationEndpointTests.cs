@@ -172,7 +172,7 @@ public sealed class ObligationEndpointTests
     {
         var categories = await client.GetFromJsonAsync<CategoryListResponse>(
             $"/api/v1/categories?type={type}");
-        return categories!.Items[0];
+        return categories!.Items.First(item => item.DefaultScope == "business");
     }
 
     private static async Task<CounterpartyResponse> CreateCounterpartyAsync(
@@ -200,7 +200,7 @@ public sealed class ObligationEndpointTests
     {
         var client = factory.CreateClient();
         using var register = await client.PostAsJsonAsync(
-            "/api/v1/auth/register", new RegisterRequest(email, Password));
+            "/api/v1/auth/register", new RegisterRequest(email, Password, HasBusiness: true));
         Assert.Equal(HttpStatusCode.Created, register.StatusCode);
         using var login = await client.PostAsJsonAsync(
             "/api/v1/auth/login", new LoginRequest(email, Password));

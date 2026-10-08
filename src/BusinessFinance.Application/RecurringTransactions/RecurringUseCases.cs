@@ -83,17 +83,21 @@ public sealed class CreateRecurringTransactionUseCase(
             return new BuiltPlan(null, RecurringErrors.CategoryNotTax);
         }
 
-        var scope = isTax
-            ? TransactionScopeResolution.ResolveTax(
+        var resolution = isTax
+            ? ScopeResolution.Resolved(TransactionScopeResolution.ResolveTax(
                 command.Scope,
-                await HasBusinessAsync(profileRepository, userId, cancellationToken))
-            : TransactionScopeResolution.Resolve(
+                await HasBusinessAsync(profileRepository, userId, cancellationToken)))
+            : await TransactionScopeResolution.ResolveAsync(
                 command.Scope,
+                category.DefaultScope,
                 source.Card?.DefaultScope ?? source.Account?.DefaultScope,
-                category.DefaultScope);
-        if (scope is not TransactionScope resolvedScope)
+                profileRepository,
+                userId,
+                cancellationToken);
+        if (resolution.Scope is not TransactionScope resolvedScope)
         {
-            return new BuiltPlan(null, RecurringErrors.ScopeUnresolved);
+            return new BuiltPlan(null, resolution.ToError(
+                RecurringErrors.ScopeUnresolved, RecurringErrors.ScopeConflict));
         }
 
         try
@@ -302,18 +306,22 @@ public sealed class UpdateRecurringTransactionUseCase(
             return ApplicationResult<RecurringTransactionDto>.Failure(RecurringErrors.CategoryNotTax);
         }
 
-        var scope = recurring.IsTax
-            ? TransactionScopeResolution.ResolveTax(
+        var resolution = recurring.IsTax
+            ? ScopeResolution.Resolved(TransactionScopeResolution.ResolveTax(
                 command.Scope,
                 await CreateRecurringTransactionUseCase.HasBusinessAsync(
-                    profileRepository, userId, cancellationToken))
-            : TransactionScopeResolution.Resolve(
+                    profileRepository, userId, cancellationToken)))
+            : await TransactionScopeResolution.ResolveAsync(
                 command.Scope,
+                category.DefaultScope,
                 source.Card?.DefaultScope ?? source.Account?.DefaultScope,
-                category.DefaultScope);
-        if (scope is not TransactionScope resolvedScope)
+                profileRepository,
+                userId,
+                cancellationToken);
+        if (resolution.Scope is not TransactionScope resolvedScope)
         {
-            return ApplicationResult<RecurringTransactionDto>.Failure(RecurringErrors.ScopeUnresolved);
+            return ApplicationResult<RecurringTransactionDto>.Failure(resolution.ToError(
+                RecurringErrors.ScopeUnresolved, RecurringErrors.ScopeConflict));
         }
 
         var occurrences = await repository.ListPlanOccurrencesAsync(

@@ -111,6 +111,9 @@ abstract final class ApiErrorMessages {
     'scope_unresolved':
         'Kaydın işletme mi şahsi mi olduğu belirlenemedi. '
         'Kapsamı seçip tekrar deneyin.',
+    'scope_conflict':
+        'Bu kategori bu kayıtta kullanılamıyor: kategori bir tarafa özel. '
+        'Başka bir kategori seçip tekrar deneyin.',
     'validation':
         'Gönderilen bilgilerde eksik veya hatalı alan var. '
         'Kontrol edip tekrar deneyin.',

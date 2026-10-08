@@ -2,6 +2,7 @@ using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.Counterparties;
+using BusinessFinance.Application.Profiles;
 using BusinessFinance.Application.Scopes;
 using BusinessFinance.Application.Taxes;
 using BusinessFinance.Domain;
@@ -16,6 +17,7 @@ public sealed class CreateObligationUseCase(
     IObligationRepository repository,
     ICategoryRepository categoryRepository,
     ICounterpartyRepository counterpartyRepository,
+    IUserProfileRepository profileRepository,
     TimeProvider timeProvider)
 {
     public async Task<ApplicationResult<ObligationDto>> ExecuteAsync(
@@ -50,11 +52,17 @@ public sealed class CreateObligationUseCase(
             }
         }
 
-        if (TransactionScopeResolution.Resolve(command.Scope, category.DefaultScope)
-            is not TransactionScope scope)
+        var resolution = await TransactionScopeResolution.ResolveAsync(
+            command.Scope,
+            category.DefaultScope,
+            null,
+            profileRepository,
+            userId,
+            cancellationToken);
+        if (resolution.Scope is not TransactionScope scope)
         {
-            return ApplicationResult<ObligationDto>.Failure(
-                ObligationErrors.ScopeUnresolved);
+            return ApplicationResult<ObligationDto>.Failure(resolution.ToError(
+                ObligationErrors.ScopeUnresolved, ObligationErrors.ScopeConflict));
         }
 
         try

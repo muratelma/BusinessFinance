@@ -13,6 +13,14 @@ public static class RecurringErrors
         "The scope could not be resolved from the request, the source or the category.",
         ApplicationErrorType.Validation);
 
+    /// <summary>
+    /// Açık seçim ya da kategori, kaydın alabileceği tarafla çelişiyor (ADR 0020 İ4).
+    /// </summary>
+    public static readonly ApplicationError ScopeConflict = new(
+        "recurring.scope_conflict",
+        "The requested scope or the category conflicts with the side this record may take.",
+        ApplicationErrorType.Validation);
+
     public static readonly ApplicationError AuthenticationRequired = new(
         "authentication.required",
         "An authenticated user is required.",

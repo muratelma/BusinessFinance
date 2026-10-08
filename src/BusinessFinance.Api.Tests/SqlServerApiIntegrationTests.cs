@@ -23,7 +23,7 @@ public sealed class SqlServerApiIntegrationTests
 
         using var register = await client.PostAsJsonAsync(
             "/api/v1/auth/register",
-            new RegisterRequest(email, password),
+            new RegisterRequest(email, password, HasBusiness: true),
             CancellationToken.None);
         using var login = await client.PostAsJsonAsync(
             "/api/v1/auth/login",
@@ -55,7 +55,7 @@ public sealed class SqlServerApiIntegrationTests
         var categories = await client.GetFromJsonAsync<CategoryListResponse>(
             "/api/v1/categories?type=expense",
             CancellationToken.None);
-        var category = categories!.Items[0];
+        var category = categories!.Items.First(item => item.DefaultScope == "business");
         using var createTransaction = await client.PostAsJsonAsync(
             "/api/v1/transactions",
             new CreateTransactionRequest(

@@ -3,6 +3,7 @@ using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.Counterparties;
+using BusinessFinance.Application.Profiles;
 using BusinessFinance.Application.Scopes;
 using BusinessFinance.Domain;
 
@@ -20,6 +21,14 @@ public static class DebtErrors
     public static readonly ApplicationError ScopeUnresolved = new(
         "debt.scope_unresolved",
         "The scope could not be resolved from the request, the account or the category.",
+        ApplicationErrorType.Validation);
+
+    /// <summary>
+    /// Açık seçim ya da kategori, kaydın alabileceği tarafla çelişiyor (ADR 0020 İ4).
+    /// </summary>
+    public static readonly ApplicationError ScopeConflict = new(
+        "debt.scope_conflict",
+        "The requested scope or the category conflicts with the side this record may take.",
         ApplicationErrorType.Validation);
     public static readonly ApplicationError AccountUnavailable = new(
         "debt.account_unavailable", "An active owned account is required.", ApplicationErrorType.Validation);
@@ -66,7 +75,8 @@ public sealed class CreateDebtUseCase(
     IDebtRepository repository,
     IAccountRepository accountRepository,
     ICategoryRepository categoryRepository,
-    ICounterpartyRepository counterpartyRepository)
+    ICounterpartyRepository counterpartyRepository,
+    IUserProfileRepository profileRepository)
 {
     // Toplam ile oran birlikte gelirse ne kadar sapma hoş görülür. İstemci
     // oranı toplamdan çözüp geri gönderdiğinde oran dört ondalığa yuvarlanır
@@ -103,12 +113,19 @@ public sealed class CreateDebtUseCase(
                 return ApplicationResult<DebtDto>.Failure(DebtErrors.CategoryUnavailable);
         }
 
-        if (TransactionScopeResolution.Resolve(
-                command.Scope,
-                openingAccount?.DefaultScope,
-                category?.DefaultScope) is not TransactionScope scope)
+        // Kategorisi olmayan borç (nakit alma ve verme) iki tarafa açık
+        // kategori gibi davranır.
+        var resolution = await TransactionScopeResolution.ResolveAsync(
+            command.Scope,
+            category?.DefaultScope,
+            openingAccount?.DefaultScope,
+            profileRepository,
+            userId,
+            cancellationToken);
+        if (resolution.Scope is not TransactionScope scope)
         {
-            return ApplicationResult<DebtDto>.Failure(DebtErrors.ScopeUnresolved);
+            return ApplicationResult<DebtDto>.Failure(resolution.ToError(
+                DebtErrors.ScopeUnresolved, DebtErrors.ScopeConflict));
         }
 
         // Karşı taraf en sonda kuruluyor: bu noktadan sonra yalnız aggregate
