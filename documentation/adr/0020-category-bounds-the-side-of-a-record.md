@@ -134,8 +134,12 @@ tarafla bölünmez. Kasadan yapılan şahsi harcama tek kayıttır; "işletmeye 
 ve özellik kapatmaz** (ADR 0013 §4'ü genişletir). Cevap üç şeyi belirler: hangi
 varsayılan kategori setinin kurulacağı, tarafın arayüzde sorulup sorulmayacağı
 ve işletmeye özel bölümlerin menüde görünüp görünmeyeceği. Cevabı "yok" olan
-kullanıcıda taraf sorulmaz: İ2'deki "kullanıcının seçimi" adımının yerini
-`Şahsi` alır. İ1 ve bağlamlar bu kullanıcıda da geçerlidir. Cevap yazılmış
+kullanıcıda taraf sorulmaz: iki tarafa açık kategoride hesabın ya da kartın
+etiketi varsa o, yoksa `Şahsi` yazılır. Etiket kullanıcının kendi işaretidir
+ve cevaba üstün tutulur: cevabını sonradan "yok" yapan kullanıcının `İşletme`
+etiketli kasasından yazdığı sigorta gideri `İşletme` kalır; hiç işletmesi
+olmamış kullanıcıda etiket de iki tarafa açık kategori de yoktur ve her kayıt
+`Şahsi`dir. İ1 ve bağlamlar bu kullanıcıda da geçerlidir. Cevap yazılmış
 kayıtların, var olan planların (İ5) ve bağlamı olan girişlerin (İ2, İ9) tarafını
 değiştirmez: cevabını sonradan "yok" yapan kullanıcının işletme planı `İşletme`
 üretmeye, cari borçlandırması `İşletme` yazılmaya devam eder. Menüden gizlenen
