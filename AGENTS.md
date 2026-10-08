@@ -11,7 +11,9 @@ işletme takibi aynı üründe yaşar.
 
 Ürünün kurucu kararı: **işletme ve şahsi para tek havuzda yaşar**, ayrım bir
 raporlama boyutudur (`documentation/adr/0013-business-and-personal-are-one-pool.md`).
-Finansal kod yazmadan önce bu ADR okunur.
+Finansal kod yazmadan önce bu ADR ve kapsamın nereden geldiğini yeniden tanımlayan
+`documentation/adr/0020-category-bounds-the-side-of-a-record.md` okunur (ADR 0013
+§2'nin yerini alır).
 
 Ürün bir **işletme bütçe uygulamasıdır, ön muhasebe değildir.** Ön muhasebe
 ürünleri fikir için incelenir ama bir özelliği sunmaları bize gerektiğinin

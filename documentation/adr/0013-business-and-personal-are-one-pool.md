@@ -1,6 +1,11 @@
 # ADR 0013 — İşletme ve şahsi, tek havuzda bir boyuttur
 
 - Durum: Kabul edildi (22 Ağustos 2026, Aşama 01 öncesi)
+- **Güncelleme (8 Ekim 2026):** §2'nin ("Kapsam nereden gelir") ve "Sonuçlar"daki
+  "varsayılan zinciri" maddesinin yerini **ADR 0020** aldı: kategori kaydın
+  alabileceği tarafları belirler, hesabın ve kartın etiketi paranın tarafını
+  söyler. §4'ü ADR 0020 İ12 genişletir. §1, §3 ve §6 aynen geçerlidir. §2 ve o
+  madde aşağıda tarihsel kayıt olarak durur
 - Bağlam: Ürün yönünün kişisel bütçeden şahıs şirketi/esnaf finansına çevrilmesi
 - İlgili: ADR 0002 (transferin gelir/gider olmaması), ADR 0003 (kart ödemesinin
   ikinci kez gider sayılmaması), ADR 0012 (tek InitialCreate)

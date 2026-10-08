@@ -74,7 +74,7 @@ duruma göre gözden geçirilir.
 | 02 | Ekonomik olay tanır, ödeme taşır — kart, borç ve cari modellerinin ortak kuralı |
 | 04 | Kart borcu ile kart tahsilatının ayrılması; bloke paranın projection olması; sekme kararı — **ADR 0015, kabul edildi** |
 | 05 | Vergi alanları taşır, hesaplamaz; oran ve tarihler koda gömülmez — **ADR 0016, kabul edildi** |
-| 06.3 | Vergi bir nakit planıdır — **ADR 0018, kabul edildi** (Grup 2–3'ün kapısı); gün sonu var olan kayıtları üretir, POS tanımı, yatış, kartla tahsil — **ADR 0019, kabul edildi** (Grup 4–7'nin kapısı) |
+| 06.3 | Vergi bir nakit planıdır — **ADR 0018, kabul edildi** (Grup 2–3'ün kapısı); gün sonu var olan kayıtları üretir, POS tanımı, yatış, kartla tahsil — **ADR 0019, kabul edildi** (Grup 4–7'nin kapısı); kategori kaydın tarafını sınırlar, hesap paranın tarafını söyler — **ADR 0020, kabul edildi** (Grup 8 "Zemin"in kapısı; ADR 0013 §2'nin yerini alır) |
 | 07 | Fiş okumada veri sınırı: hangi belge hangi katmana gönderilir — **ADR 0011 güncellemesi, yazılmadı** |
 
 ### 01 — Kapsam boyutu ve işletme kimliği
@@ -144,7 +144,8 @@ indirilebilirlik ve muhasebeci paketi kalkar (ürün bütçe uygulamasıdır, ö
 muhasebe değildir); vergi kendi ekranında bir nakit planı olur; gün sonu, POS
 tanımı, yatış ve kartla tahsil kurulur; Kasa sekmesi yeniden tasarlanır; Z
 raporu fotoğraftan okunur; İşlemler filtreleri kendi karar adımıyla ele alınır.
-**ADR 0018 ve ADR 0019 ile açılır.** Yedek şemasını v11'e taşır.
+**ADR 0018 ve ADR 0019 ile açılır**; listeler ve filtrelerin zemini olan taraf
+kuralı **ADR 0020** ile (8 Ekim 2026). Yedek şemasını v11'e taşır.
 
 ### 07 — Bulut güvenli beta
 

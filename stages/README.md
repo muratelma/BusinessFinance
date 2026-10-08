@@ -17,7 +17,7 @@ sonra aşağıdaki tablodan **aktif** işaretli belge okunur.
 | 06 | `docs/archive/stages/06-hesap-ve-kalan-isler.md` | Tamamlandı | 28 Ağustos 2026'da kapandı; sekiz grup, ADR 0017. Kabul turu 06.1'e devredildi |
 | 06.1 | `docs/archive/stages/06.1-guvenlik-taramasi.md` | Tamamlandı | 1 Eylül 2026'da kapandı; beş grup, dört CI tarama kapısı, Pixel 8 kabul turu |
 | 06.2 | `06.2-arayuz-duzeni.md` | Beklemede | **Açık kapsamlı.** 2 Eylül 2026'da açıldı; 29 Eylül 2026'dan beri beklemede (kapanmadı), kalan işleri 06.3'ten sonra sürer |
-| 06.3 | `06.3-butunsel-duzenleme.md` | Aktif | 29 Eylül 2026'da açıldı: kasa, gün sonu, POS ve vergi yeniden kurulur; kesin hatalar; listeler ve filtreler. Karar kapıları ADR 0018 ve ADR 0019 |
+| 06.3 | `06.3-butunsel-duzenleme.md` | Aktif | 29 Eylül 2026'da açıldı: kasa, gün sonu, POS ve vergi yeniden kurulur; kesin hatalar; listeler ve filtreler. Karar kapıları ADR 0018, ADR 0019 ve ADR 0020 (taraf kuralı; 8 Ekim 2026) |
 | 06.x | — | Açılmadı | Uygulama büyüdükçe çıkan işler için; ihtiyaç oldukça açılır |
 | 07 | `07-bulut-guvenli-beta.md` | Planlandı | Gerçek finansal veriye geçiş kapısı. **Bütün 06.x kapanmadan açılmaz**; ADR 0011 fiş veri sınırıyla açılır |
 

@@ -162,8 +162,12 @@ karşılıyor.
 ### 6.2 İşletme/şahsi kapsam
 
 - Her finansal kayıtta kapsam: işletme veya şahsi
-- Hesap, kart ve kategoride isteğe bağlı varsayılan kapsam
-- Kapsam türetme zinciri: kullanıcının seçimi → hesap/kart → kategori
+- Kategoride izin verilen kapsam: yalnız işletme, yalnız şahsi ya da ikisi
+- Hesapta ve kartta isteğe bağlı kapsam etiketi: paranın tarafını söyler,
+  kaydın kapsamını belirlemez
+- Kaydın kapsamını kategori sınırlar; iki tarafa açık kategoride olayın bağlamı
+  (ör. POS satışı işletmedir), bağlam yoksa kullanıcının seçimi belirler
+  (ADR 0020)
 - Uygulama genelinde tek kapsam anahtarı: `Hepsi · İşletme · Şahsi`
 - Kayıt sırasında tek onboarding sorusu; özellik kapatmaz, ön ayar yapar
 - Bakiye, kart borcu ve net varlığın kapsamdan bağımsız kalması

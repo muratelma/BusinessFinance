@@ -366,6 +366,16 @@ gerekçesiyle bozulmaz.
   (kullanıcı kararı, 2 Ekim 2026): bakiye hareketlerden hesaplanır, giriş
   sırası olay sırası değildir ve yarım çalışan bir yasak daha kötüdür.
 
+- **Taraf kuralı değişiyor** (ADR 0020, kabul edildi 8 Ekim 2026; **kod henüz
+  yazılmadı**). Bağlayıcı olan: kategori kaydın alabileceği tarafları belirler;
+  iki tarafa açık kategoride olayın bağlamı (POS, gün sonu, cari → `İşletme`),
+  bağlam yoksa kullanıcının seçimi belirler; hesabın ve kartın etiketi yalnız
+  paranın tarafını söyler; kategoriyle ya da bağlamla çelişen açık seçim
+  reddedilir; cari hesap işletmeye özeldir ve kişiye bağlı yükümlülük cari
+  bakiyeye girmez. Aşağıdaki zincir ve "kapsamsız satır düşer" kuralı
+  **bugünkü kodu** anlatır; uygulama sırası `stages/06.3-butunsel-duzenleme.md`
+  Grup 8 "Z6 · yön"ün sonundadır. Yeni finansal kod eski zinciri genişletmez.
+
 - **Kapsam tek yerde türetilir** (`TransactionScopeResolution`): kullanıcının
   açık seçimi → hesabın/kartın etiketi → kategorinin varsayılanı. Üçü de boşsa
   istek `*.scope_unresolved` ile reddedilir; sunucu kapsam **uydurmaz**.
@@ -523,6 +533,15 @@ secret'ı uygulamaya konmaz.
   tutarsız vergi meşrudur, ayrı kayıt türü yoktur, ödeme düzeltilebilir. Başlangıç tasarımı: vergi ekranı,
   vergi türü, "Ödedim", toplu ödeme, "vergi" işareti; ADR 0005'in kaynak
   kuralına dokunabilir
+- `documentation/adr/0020-category-bounds-the-side-of-a-record.md` — **Aşama
+  06.3 Grup 8 "Zemin"in karar kapısı (kabul edildi 8 Ekim 2026; iki katmanlı;
+  kod henüz yazılmadı)**: ADR 0013 §2'nin yerini alır. İlkeler — kategori
+  tarafı sınırlar, iki tarafa açıkta bağlam ya da kullanıcının seçimi, hesap
+  etiketi paranın tarafıdır, çelişen seçim reddedilir, taraf kayıtta saklanır,
+  kategorinin tarafı yalnız genişler, kayıt bir kez sayılır, ad tarafı söyler,
+  cari işletmeye özeldir, bir borç tek yoldan kapanır, "işletmem var" cevabı
+  ön ayardır. Başlangıç tasarımı: formlar, bağlam listesi, kategori seti, cari
+  ve yükümlülük, uygulama sırası (çekirdek / sonrası / en son)
 - `documentation/adr/0019-day-close-produces-existing-records.md` — **Aşama
   06.3'ün kasa/POS karar kapısı (kabul edildi 29 Eylül 2026; iki katmanlı)**:
   ilkeler — tanır / taşır, aynı satış iki kez sayılmaz, gün sonu yeni kayıt
