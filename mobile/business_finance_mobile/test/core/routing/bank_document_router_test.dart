@@ -181,6 +181,129 @@ void main() {
     }
   });
 
+  // Formdan geri dönen kullanıcı okunmuş faturasını kaybetmemeli: "ödedim
+  // mi?" sorusuna döner ve öbür cevabı seçebilir (8 Ekim 2026'da cihazda
+  // görüldü: geri tuşu okutmaya başlanan ekrana atıyordu).
+  testWidgets('going back from the form returns to the paid question', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final repository = FakeAuthSessionRepository()..session = testSession();
+    final controller = AuthController(repository);
+    await controller.initialize();
+    final router = createAppRouter(
+      authController: controller,
+      obligationRepository: _FakeObligationRepository(),
+    );
+
+    await tester.pumpWidget(_app(controller, router));
+    await tester.pumpAndSettle();
+
+    router.go('/transactions/new/receipt');
+    await tester.pumpAndSettle();
+    router.pushReplacement(invoiceDecisionLocation, extra: _invoiceDraft());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Henüz ödemedim'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ödenmemiş faturayı kaydet'), findsOneWidget);
+
+    // Sistemin geri tuşu: en üstteki sayfa kapanır.
+    router.pop();
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Fatura okundu'), findsOneWidget);
+    expect(find.text('Henüz ödemedim'), findsOneWidget);
+  });
+
+  // Aynı kural öbür cevapta: gider formundan geri dönen kullanıcı da soruya
+  // döner ve "henüz ödemedim" diyebilir; okunan fatura yerinde durur.
+  testWidgets('going back from the expense form keeps the scanned invoice', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final repository = FakeAuthSessionRepository()..session = testSession();
+    final controller = AuthController(repository);
+    await controller.initialize();
+    final router = createAppRouter(
+      authController: controller,
+      obligationRepository: _FakeObligationRepository(),
+    );
+
+    await tester.pumpWidget(_app(controller, router));
+    await tester.pumpAndSettle();
+
+    router.go('/transactions/new/receipt');
+    await tester.pumpAndSettle();
+    router.pushReplacement(invoiceDecisionLocation, extra: _invoiceDraft());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ödedim'));
+    await tester.pumpAndSettle();
+    expect(find.text('Fatura okundu'), findsNothing);
+
+    router.pop();
+    await tester.pumpAndSettle();
+    expect(find.text('Fatura okundu'), findsOneWidget);
+
+    // Öbür cevap aynı faturayla açılır: tutar ve satıcı okunduğu gibi durur.
+    await tester.tap(find.text('Henüz ödemedim'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Ödenmemiş faturayı kaydet'), findsOneWidget);
+    expect(find.text('ENERJİSA'), findsOneWidget);
+  });
+
+  // Kayıt yazılınca soru sayfası da kapanır: kullanıcı aynı faturayı ikinci
+  // kez kaydetmeye davet edilmez.
+  testWidgets('saving the unpaid invoice also closes the paid question', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final repository = FakeAuthSessionRepository()..session = testSession();
+    final controller = AuthController(repository);
+    await controller.initialize();
+    final obligations = _FakeObligationRepository();
+    final router = createAppRouter(
+      authController: controller,
+      obligationRepository: obligations,
+    );
+
+    await tester.pumpWidget(_app(controller, router));
+    await tester.pumpAndSettle();
+
+    router.go('/transactions/new/receipt');
+    await tester.pumpAndSettle();
+    router.pushReplacement(invoiceDecisionLocation, extra: _invoiceDraft());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Henüz ödemedim'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(DropdownButtonFormField<String>).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Faturalar').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Yükümlülüğü kaydet'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(obligations.created, 1);
+    expect(find.text('Ödenmemiş faturayı kaydet'), findsNothing);
+    expect(find.text('Fatura okundu'), findsNothing);
+  });
+
   // Yükümlülük formu **önerisiz de** açılabilmeli: elle giren kullanıcının
   // okunmuş bir belgesi yok. Rota `extra` zorunlu tutulduğu sürece form
   // yalnız kamerayla ulaşılabilir kalıyordu.
@@ -297,8 +420,10 @@ class _FakeObligationRepository implements ObligationRepositoryContract {
         counterparties: [],
       );
 
+  int created = 0;
+
   @override
-  Future<void> create(Map<String, Object?> input) async {}
+  Future<void> create(Map<String, Object?> input) async => created++;
 
   @override
   Future<List<ObligationItem>> list({required String asOfDate}) async =>

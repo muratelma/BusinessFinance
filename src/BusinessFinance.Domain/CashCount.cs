@@ -173,6 +173,36 @@ public sealed class CashCount
     }
 
     /// <summary>
+    /// Bu sayımın farkı hâlâ kaydedilebilir mi, yoksa kasa yeniden mi
+    /// sayılmalı? Fark yalnız <b>güncel</b> sayıma yazılır.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Sayımdan sonra kasaya bir kayıt girildiyse uygulama onun ne zaman
+    /// <b>olduğunu</b> bilemez: sayımdan sonra yapılmış bir satış da olabilir,
+    /// sayımdan önce unutulmuş bir gider de. İlkinde fark sayım anındakidir,
+    /// ikincisinde bugünkü bakiyeye göre olandır; yanlış olanı seçmek kasaya
+    /// olmamış bir gider yazar (900 sayılıp 1.000 beklenirken sonradan 200
+    /// liralık satış girildiğinde 100 yerine 300 yazılıyordu). Belirsizliği
+    /// yalnız yeni bir sayım kaldırır.
+    /// </para>
+    /// <para>
+    /// Bakiyenin aynı kalması yetmez: aynı tutarda bir giriş ve bir çıkış
+    /// bakiyeyi değiştirmez ama kasanın hareketlerini değiştirir. Bu yüzden
+    /// iki işaret birden sorulur. Sayım anındaki bakiyesi bilinmeyen eski
+    /// sayım da yeniden sayım ister.
+    /// </para>
+    /// </remarks>
+    /// <param name="currentBalance">Kasanın şu anki bakiyesi.</param>
+    /// <param name="accountChangedSince">
+    /// Sayımdan sonra bu kasaya kayıt girildi ya da daha yeni bir sayım var.
+    /// </param>
+    public bool RequiresRecount(decimal currentBalance, bool accountChangedSince) =>
+        accountChangedSince ||
+        ExpectedAtCount is not decimal atCount ||
+        atCount != currentBalance;
+
+    /// <summary>
     /// Kullanıcı farkı onayladığında üretilen tek düzeltme kaydını bağlar.
     /// </summary>
     /// <remarks>

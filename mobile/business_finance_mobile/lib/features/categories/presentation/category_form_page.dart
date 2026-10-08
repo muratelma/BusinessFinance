@@ -129,13 +129,9 @@ class _CategoryFormPageState extends State<CategoryFormPage> {
               const SizedBox(height: AppSpacing.medium),
               DropdownButtonFormField<String>(
                 initialValue: _type,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Kategori türü',
-                  border: const OutlineInputBorder(),
-                  // Açıklama, anlattığı alanın hemen altında durur.
-                  helperText: _editing
-                      ? 'Geçmiş işlemleri korumak için değiştirilemez.'
-                      : null,
+                  border: OutlineInputBorder(),
                 ),
                 items: const [
                   DropdownMenuItem(value: 'expense', child: Text('Gider')),
@@ -156,6 +152,20 @@ class _CategoryFormPageState extends State<CategoryFormPage> {
                       ? 'Kayıt girerken sorulur.'
                       : 'Bu kategorideki kayıtlar '
                             '${_defaultScope!.label} yazılır.',
+                ),
+              ],
+              // Kapsam bölümüyle aynı hizada, onun altında durur.
+              if (_editing) ...[
+                const SizedBox(height: AppSpacing.medium),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.small,
+                  ),
+                  child: Text(
+                    'Kategori türü geçmiş işlemleri korumak için '
+                    'değiştirilemez.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                 ),
               ],
               if (_type == 'expense') ...[

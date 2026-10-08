@@ -454,6 +454,24 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     bakiye ve yoldaki para güvence testinde bütün yollarda tutuyor; onlara
     dokunulmadı. Sırada: kapsamın yazılma ve süzülme kuralları (seçenekli
     karar)
+  - **06.3 Grup 8 zemini — taraf kuralı, kasa farkı ve kişi adı (8 Ekim
+    2026)**: ADR 0020 kabul edildi ve çekirdeğin ilk üç adımı uygulandı
+    (sunucu kuralı, kategori seti ve kategorinin tarafı, formlar). Aynı gün
+    cihaz denemesinde bulunan hatalar düzeltildi: (1) **kasa farkı yalnız
+    güncel sayıma yazılır** — sayımdan sonra kasaya kayıt girildiyse istek
+    `cash_counts.recount_required` döner ve kart yalnız `Yeniden say` gösterir
+    (sonradan girilen 200 liralık satış 100 liralık eksiği 300 yazdırıyordu);
+    (2) **kişi adının tekliği** uygulamanın hesapladığı anahtara taşındı
+    (migration `AddCounterpartyNameKey`; Türkçe İ/i, I/ı farkıyla aynı kişi
+    iki kez açılabiliyordu; eski kişiler birleştirilmedi); (3) belgedeki
+    satıcı kişilerle hoşgörülü ama dar bir kuralla eşleşiyor; (4) fatura
+    okutulduktan sonra formdan geri dönüş "ödedim mi?" sorusuna dönüyor.
+    Kontroller: backend SQL dahil geçti (Domain 355, Application 389, Api
+    292, Infrastructure 238 + 2 canlı test atlandı), build 0 uyarı, format
+    temiz; Flutter 1.078 test, analyze ve format temiz. Yedek şeması
+    değişmedi. **Sırada:** kasa kararının kalanı (KS2–KS4: `Kendime aldım`ın
+    sayıma bağlanması, bağlı kaydın iptali, bilgi satırı), sonra cari adımı.
+    Cihaz kabulü kullanıcıda
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni (beklemede) → **06.3 bütünsel düzenleme (aktif)** →

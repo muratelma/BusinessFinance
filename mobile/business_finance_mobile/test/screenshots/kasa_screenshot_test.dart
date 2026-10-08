@@ -7,6 +7,7 @@ import 'package:business_finance_mobile/features/cash/presentation/cash_count_vi
 import 'package:business_finance_mobile/features/cash/presentation/cash_page.dart';
 import 'package:business_finance_mobile/features/pos/data/pos_repository.dart';
 import 'package:business_finance_mobile/features/pos/presentation/pos_controller.dart';
+import 'package:business_finance_mobile/core/widgets/app_segment_rail.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -146,6 +147,77 @@ void main() {
         await tester.tap(find.text('Farkı kaydet'));
         await tester.pump(const Duration(seconds: 1));
         await tester.tap(find.text('Bilmiyorum'));
+      },
+    );
+  }, skip: !screenshotsEnabled);
+
+  // Eksiğin sebebi `Kendime aldım` ise alanlar aynı panelde açılır; ikinci
+  // panel yoktur (kullanıcı isteği, 8 Ekim 2026).
+  testWidgets('19 eksiği kaydet · kendime aldım, şahsi hesap var', (
+    tester,
+  ) async {
+    final repository =
+        _DesignCash(
+            _count('2026-09-25', '23100.0000', '23185.0000', '-85.0000'),
+          )
+          ..personalAccounts = const [
+            DataChoice('cuzdan', 'Şahsi cüzdan'),
+            DataChoice('banka', 'Şahsi banka hesabı'),
+          ];
+    await captureScreen(
+      tester,
+      '19-eksigi-kaydet-kendime-aldim',
+      CashPage(
+        cashController: CashCountController(
+          repository,
+          clock: () => DateTime(2026, 9, 25, 18),
+        ),
+        posController: PosController(_DesignPos()),
+      ),
+      selectedTab: 2,
+      before: (tester) async {
+        await tester.tap(find.text('Farkı kaydet'));
+        await tester.pump(const Duration(seconds: 1));
+        // Çerçevede panelin içindeki dokunuş isabet etmiyor; seçim, rayın
+        // kendi geri çağrısıyla yapılır.
+        tester
+            .widget<AppSegmentRail<CashShortageReason>>(
+              find.byType(AppSegmentRail<CashShortageReason>),
+            )
+            .onChanged(CashShortageReason.withdrawal);
+        await tester.pump(const Duration(seconds: 1));
+      },
+    );
+  }, skip: !screenshotsEnabled);
+
+  testWidgets('20 eksiği kaydet · kendime aldım, şahsi hesap yok', (
+    tester,
+  ) async {
+    await captureScreen(
+      tester,
+      '20-eksigi-kaydet-kendime-aldim-hesap-yok',
+      CashPage(
+        cashController: CashCountController(
+          _DesignCash(
+            _count('2026-09-25', '23100.0000', '23185.0000', '-85.0000'),
+          ),
+          clock: () => DateTime(2026, 9, 25, 18),
+        ),
+        posController: PosController(_DesignPos()),
+        onOpenPersonalAccount: () {},
+      ),
+      selectedTab: 2,
+      before: (tester) async {
+        await tester.tap(find.text('Farkı kaydet'));
+        await tester.pump(const Duration(seconds: 1));
+        // Çerçevede panelin içindeki dokunuş isabet etmiyor; seçim, rayın
+        // kendi geri çağrısıyla yapılır.
+        tester
+            .widget<AppSegmentRail<CashShortageReason>>(
+              find.byType(AppSegmentRail<CashShortageReason>),
+            )
+            .onChanged(CashShortageReason.withdrawal);
+        await tester.pump(const Duration(seconds: 1));
       },
     );
   }, skip: !screenshotsEnabled);

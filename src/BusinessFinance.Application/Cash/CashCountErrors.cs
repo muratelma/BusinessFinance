@@ -34,6 +34,11 @@ public static class CashCountErrors
         "The count matched the expected balance; there is no difference to record.",
         ApplicationErrorType.Conflict);
 
+    public static readonly ApplicationError RecountRequired = new(
+        "cash_counts.recount_required",
+        "The cash account changed after this count; count again to record a difference.",
+        ApplicationErrorType.Conflict);
+
     public static ApplicationError NotFound(Guid id) => new(
         "cash_counts.not_found",
         $"Cash count '{id}' was not found.",

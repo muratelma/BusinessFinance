@@ -56,7 +56,10 @@ public interface ICounterpartyRepository
     /// <summary>
     /// Adı verilen karşı tarafı arar ve <b>kurmaz</b>. Fiş okuma bu yolu
     /// kullanır: model bir ad okur, uygulama onu kullanıcının kendi
-    /// kayıtlarında arar ve bulduğunu <b>önerir</b> (ADR 0011).
+    /// kayıtlarında arar ve bulduğunu <b>önerir</b> (ADR 0011). Eşleştirme
+    /// hoşgörülüdür (<see cref="CounterpartyNameMatcher"/>): büyük-küçük harf,
+    /// şirket unvanı ve küçük yazım farkı eşleşmeyi bozmaz; birden çok aday
+    /// aynı ölçüde uyuyorsa sonuç boştur.
     /// </summary>
     Task<Counterparty?> FindOwnedByNameAsync(
         Guid userId,

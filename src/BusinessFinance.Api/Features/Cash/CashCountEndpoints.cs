@@ -104,7 +104,8 @@ public static class CashCountEndpoints
             today.PreviousUnrecordedDifference is decimal carried
                 ? FinanceContract.Money(carried)
                 : null,
-            today.DifferenceSameAsPrevious));
+            today.DifferenceSameAsPrevious,
+            today.RequiresRecount));
     }
 
     private static async Task<IResult> CreateAsync(

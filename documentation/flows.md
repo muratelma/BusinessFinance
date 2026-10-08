@@ -98,10 +98,16 @@ ayrıca taşır: farkı kaydedilmiş sayımda güncel bakiye − sayılan tutar,
 kaydedilmemiş sayımda güncel bakiye − sayım anındaki beklenen. Sıfırdan
 farklıysa kart "oturdu" / "Tuttu" demez; durum `Sonradan kayıt girildi`
 olur, değişim `Uygulamaya göre` satırının altında kısa bir açıklama olarak
-durur (`−₺300,00 sayımdan sonra girildi`) ve altında tek cümle yazar: "Kayıt
-sayımdan önce olduysa farkı kaydedin." Uygulama kaydın sayımdan sonra
+durur (`−₺300,00 sayımdan sonra girildi`). Uygulama kaydın sayımdan sonra
 **girildiğini** bilir, olayın ne zaman **olduğunu** bilmez (kayıtlarda saat
-yok); fark ancak olay sayımdan önceyse (ör. dünkü fatura) gerçektir. Farkın anlamı değişmez; sunucu hesaplar, istemci çıkarma yapmaz.
+yok). Bu yüzden açık farkı olan sayım artık güncel değilse (`requiresRecount`)
+kart farkı **yazmaz ve kaydettirmez**: `Fark` satırı ve `Farkı kaydet` düğmesi
+kalkar, `Yeniden say` öne çıkar ve altında "Sayımdan sonra kasaya kayıt
+girildi. Farkı görmek için kasayı yeniden sayın." yazar (kullanıcı kararı,
+8 Ekim 2026; eskiden düğme açık kalıyor, 900 sayılıp 1.000 beklenirken
+sonradan girilen 200 liralık satış yüzünden 100 yerine 300 liralık gider
+yazılıyordu). Sonradan girilen kayıt farkı kapattıysa kart "Kasa yine
+uygulamayla aynı." der. Sunucu hesaplar, istemci çıkarma yapmaz.
 
 Kasa ekranı `FinancialDataChanges.cash` hedefini dinler ve hesapları
 yükselten her olay bu hedefi de yükseltir: başka bir ekranda girilen nakit

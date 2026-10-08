@@ -2220,11 +2220,9 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         var counterparty = new Counterparty(
             Guid.NewGuid(), user.Id, "Sentetik Tedarikçi");
 
-        await using (var context = database.CreateContext())
-        {
-            context.Add(counterparty);
-            await context.SaveChangesAsync(CancellationToken.None);
-        }
+        // Kişi de ham SQL ile yazılıyor: o adımda ad anahtarı kolonu yoktu.
+        await InsertLegacyCounterpartyAsync(
+            database, counterparty.Id, user.Id, counterparty.Name, isActive: true);
 
         // Kategori ham SQL ile yazılıyor: bu test eski şemayı canlandırıyor ve
         // güncel model o şemada olmayan bir kolon (indirilebilirlik varsayılanı)

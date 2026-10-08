@@ -843,6 +843,17 @@ public sealed class EfDataPortabilityRepository(
                 x => x.Id,
                 x => new Counterparty(Guid.NewGuid(), userId, x.Name, x.Note));
 
+            // Eski bir yedek, teklik kuralı sıkılaşmadan önce açılmış aynı adlı
+            // iki kişi taşıyabilir. İkisi de geri gelir; birleştirilmez.
+            foreach (var sameName in counterpartyMap.Values
+                         .GroupBy(counterparty => counterparty.NameKey, StringComparer.Ordinal))
+            {
+                foreach (var later in sameName.Skip(1))
+                {
+                    later.KeepApartFromSameName();
+                }
+            }
+
             // Borçlandırma yalnız aktif karşı tarafa ve kategoriye yazılabilir;
             // pasifleştirme, hesap ve kategorilerde olduğu gibi graph kurulduktan
             // sonra uygulanıyor. Sırayı ters kurmak, pasif bir müşterinin

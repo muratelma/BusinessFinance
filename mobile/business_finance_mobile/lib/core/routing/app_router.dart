@@ -1096,20 +1096,28 @@ Page<dynamic> _sessionPage(
 /// Ödendiyse sıradan bir gider: para çıktı, aylık gidere girer. Ödenmediyse
 /// belge tarihinde gider tanıyan, fakat hesap bakiyesini değiştirmeyen tek
 /// seferlik bir borç doğar. Sonraki ödeme bu borcu kapatacak ayrı nakit olayıdır.
-void _recordInvoice(BuildContext context, ReceiptDraft draft, bool isPaid) {
-  if (isPaid) {
-    // Ödeme tarihi faturanın vadesi değil: para bugün çıktı. Taslağın kendi
-    // tarihi taşınıyor, `dueDate` taşınmıyor.
-    context.pushReplacement(
-      '/transactions/new/expense',
-      extra: receiptPrefillFrom(draft),
-    );
-    return;
-  }
-  context.pushReplacement(
-    obligationCreateLocation,
-    extra: receiptObligationPrefillFrom(draft),
-  );
+///
+/// Form sorunun **üstüne** açılır, yerine değil: formdan geri dönen kullanıcı
+/// okunmuş faturasıyla "ödedim mi?" sorusuna döner ve öbür cevabı seçebilir.
+/// Yerine açıldığında geri tuşu onu okutmaya başladığı ekrana atıyor, fatura
+/// kayboluyordu. Kayıt yazılınca soru sayfası da kapanır.
+Future<void> _recordInvoice(
+  BuildContext context,
+  ReceiptDraft draft,
+  bool isPaid,
+) async {
+  final saved = isPaid
+      // Ödeme tarihi faturanın vadesi değil: para bugün çıktı. Taslağın kendi
+      // tarihi taşınıyor, `dueDate` taşınmıyor.
+      ? await context.push<bool>(
+          '/transactions/new/expense',
+          extra: receiptPrefillFrom(draft),
+        )
+      : await context.push<bool>(
+          obligationCreateLocation,
+          extra: receiptObligationPrefillFrom(draft),
+        );
+  if ((saved ?? false) && context.mounted) context.pop();
 }
 
 /// İadeyi yazar: eski harcamayı **iptal eder**, silmez.

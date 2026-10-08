@@ -50,4 +50,8 @@ public sealed record CashCountTodayResponse(
     string? PreviousUnrecordedDifference = null,
 
     // Bugünkü açık fark önceki sayımın kaydedilmemiş farkına eşit.
-    bool DifferenceSameAsPrevious = false);
+    bool DifferenceSameAsPrevious = false,
+
+    // Sayımdan sonra kasaya kayıt girildi: fark artık kaydedilemez, kasa
+    // yeniden sayılır. Fark kaydı isteği `cash_counts.recount_required` döner.
+    bool RequiresRecount = false);

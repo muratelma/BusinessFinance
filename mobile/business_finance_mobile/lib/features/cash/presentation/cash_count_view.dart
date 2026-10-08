@@ -109,7 +109,8 @@ class CashTodayCard extends StatelessWidget {
 
   /// Sayımdan sonra kasaya hareket girdi mi (28 Eylül denetimi U10)?
   /// Sunucunun gönderdiği değişimin yalnız yönüne bakılır.
-  bool get _changedSinceCount => _sign(today.changeSinceCount) != 0;
+  bool get _changedSinceCount =>
+      today.requiresRecount || _sign(today.changeSinceCount) != 0;
 
   Widget _status(CashCountItem? count) {
     if (count == null) {
@@ -164,9 +165,14 @@ class CashTodayCard extends StatelessWidget {
           currency: currency,
           // Sayımdan sonra girilen kayıt ayrı bir satır değil, bu sayının
           // neden değiştiğinin açıklamasıdır (29 Eylül emülatör denemesi).
-          detail: _changedSinceCount ? _changeDetail(currency) : null,
+          detail: _sign(today.changeSinceCount) != 0
+              ? _changeDetail(currency)
+              : null,
         ),
-        if (difference != null && sign != 0)
+        // Yeniden sayım gerekiyorsa fark yazılmaz: sonradan girilen kayıt
+        // sayımdan önce de sonra da olmuş olabilir, doğru farkı yalnız yeni
+        // sayım söyler.
+        if (difference != null && sign != 0 && !today.requiresRecount)
           _KeyValue(
             label: 'Fark',
             amount: _abs(difference),
@@ -240,6 +246,15 @@ class CashTodayCard extends StatelessWidget {
         label: const Text('Sayımı gir'),
       );
     }
+    // Sayımdan sonra kasaya kayıt girildiyse fark kaydedilemez; tek yol
+    // yeniden saymaktır ve düğme öne çıkar.
+    if (controller.hasOpenDifference && today.requiresRecount) {
+      return FilledButton.icon(
+        onPressed: busy ? null : onCount,
+        icon: const Icon(Icons.calculate_outlined),
+        label: const Text('Yeniden say'),
+      );
+    }
     final recount = OutlinedButton(
       onPressed: busy ? null : onCount,
       child: const Text('Yeniden say'),
@@ -292,11 +307,14 @@ class CashTodayCard extends StatelessWidget {
     // Uygulama kaydın sayımdan sonra **girildiğini** bilir, olayın ne zaman
     // **olduğunu** bilmez: kayıtlarda saat yok. Metin iki ihtimali ayırır
     // (28 Eylül denetimi U10, 29 Eylül emülatör denemesi).
-    // Tek kısa cümle: fark ancak kayıt sayımdan önceki bir olaysa gerçektir.
+    // Fark ancak yeni bir sayımla kaydedilir (kullanıcı kararı, 8 Ekim
+    // 2026): eskiden düğme açık kalıyor ve sayımdan sonra girilen bir satış
+    // farkı büyütüyordu.
     if (_changedSinceCount) {
       if (count.isAdjusted) return 'Emin olmak için yeniden sayın.';
       if (_sign(count.difference) == 0) return 'Kasa yine uygulamayla aynı.';
-      return 'Kayıt sayımdan önce olduysa farkı kaydedin.';
+      return 'Sayımdan sonra kasaya kayıt girildi. Farkı görmek için kasayı '
+          'yeniden sayın.';
     }
     if (count.isAdjusted) {
       return 'Tek bir $record kaydı oluştu; kasa sayılan tutara oturdu.';
@@ -619,32 +637,25 @@ Future<bool?> showCashCountSheet(
 );
 
 /// Farkı kaydetme formunu açar. Eksik farkta kullanıcı `Kendime aldım`
-/// derse fark kaydı yazılmaz; aynı tutarla o panel açılır (Aşama 06.3 K7).
+/// derse fark kaydı yazılmaz; alanları **aynı panelde** açılır ve para
+/// oradan yazılır (Aşama 06.3 K7; ikinci panel 8 Ekim 2026'da kalktı).
 Future<bool?> showCashDifferenceForm(
   BuildContext context,
   CashCountController controller, {
   VoidCallback? onOpenPersonalAccount,
 }) async {
-  final amount = _inputAmount(controller.todayCount?.difference);
   final result = await AppFormSheet.show<CashDifferenceResult>(
     context: context,
-    builder: (_) => _DifferenceForm(controller: controller),
+    builder: (_) => _DifferenceForm(
+      controller: controller,
+      onOpenPersonalAccount: onOpenPersonalAccount,
+    ),
   );
-  if (result != CashDifferenceResult.withdrawal) {
-    return result == null ? null : true;
-  }
-  if (!context.mounted) return null;
-  return showCashWithdrawal(
-    context,
-    controller,
-    initialAmount: amount,
-    onOpenPersonalAccount: onOpenPersonalAccount,
-  );
+  return result == null ? null : true;
 }
 
-/// Fark formunun sonucu: kayıt yazıldı ya da kullanıcı parayı kendine
-/// aldığını söyledi.
-enum CashDifferenceResult { saved, withdrawal }
+/// Fark formunun sonucu: bir kayıt yazıldı (fark kaydı ya da kendime aldım).
+enum CashDifferenceResult { saved }
 
 /// Eksik farkın sebebi. Sunucu sebep ya da kategori seçmez.
 enum CashShortageReason {
@@ -1299,9 +1310,10 @@ int _sign(String? value) {
 }
 
 class _DifferenceForm extends StatefulWidget {
-  const _DifferenceForm({required this.controller});
+  const _DifferenceForm({required this.controller, this.onOpenPersonalAccount});
 
   final CashCountController controller;
+  final VoidCallback? onOpenPersonalAccount;
 
   @override
   State<_DifferenceForm> createState() => _DifferenceFormState();
@@ -1309,6 +1321,7 @@ class _DifferenceForm extends StatefulWidget {
 
 class _DifferenceFormState extends State<_DifferenceForm> {
   final formKey = GlobalKey<FormState>();
+  final withdrawalFields = GlobalKey<CashWithdrawalFieldsState>();
   late final Future<List<DataChoice>> categories;
   String? categoryId;
   CashShortageReason reason = CashShortageReason.expense;
@@ -1337,7 +1350,7 @@ class _DifferenceFormState extends State<_DifferenceForm> {
             ? 'Kasada beklenenden fazla nakit çıktı; bu tek bir gelir kaydı '
                   'olarak yazılır.'
             : 'Kasada beklenenden az nakit çıktı. Neden eksik?',
-        submitLabel: withdrawal ? 'Devam' : 'Kaydet',
+        submitLabel: 'Kaydet',
         onSubmit: _submit,
         children: [
           // Fazla çıkan farkta sebep sorulmaz.
@@ -1360,13 +1373,17 @@ class _DifferenceFormState extends State<_DifferenceForm> {
             ),
             const SizedBox(height: AppSpacing.medium),
           ],
+          // Aynı alanlar `Kendime aldım` panelinde de durur; burada ikinci
+          // bir panel açılmaz. Gün sayımın günüdür ve sorulmaz.
           if (withdrawal)
-            Text(
-              'Gider yazılmaz. Sonraki adımda şahsi hesaba aktarır ya da '
-              'şahsi gider olarak yazarsınız.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: surfaces.inkMuted,
+            CashWithdrawalFields(
+              key: withdrawalFields,
+              controller: widget.controller,
+              initialAmount: _inputAmount(
+                widget.controller.todayCount?.difference,
               ),
+              onOpenPersonalAccount: widget.onOpenPersonalAccount,
+              showDate: false,
             )
           // Sebebi bilmeyen kullanıcıya kategori sorulmaz.
           else if (unknown)
@@ -1422,7 +1439,10 @@ class _DifferenceFormState extends State<_DifferenceForm> {
   Future<CashDifferenceResult?> _submit() async {
     final isIncome = widget.controller.differenceCategoryType == 'income';
     if (!isIncome && reason == CashShortageReason.withdrawal) {
-      return CashDifferenceResult.withdrawal;
+      if (!formKey.currentState!.validate()) return null;
+      return await withdrawalFields.currentState!.submit()
+          ? CashDifferenceResult.saved
+          : null;
     }
     final unknown = !isIncome && reason == CashShortageReason.unknown;
     if (!unknown && !formKey.currentState!.validate()) return null;

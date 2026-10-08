@@ -68,8 +68,15 @@ public sealed class UpdateCounterpartyUseCase(
                 CounterpartyErrors.NotFound(command.CounterpartyId));
         }
 
+        // Adı değişmeyen (ya da yalnız yazımı düzeltilen) kişi için "bu ad
+        // var mı?" sorulmaz: kural sıkılaşmadan önce açılmış aynı adlı ikinci
+        // kişinin notu, başka hiçbir şeye dokunmadan düzenlenebilmelidir.
         var normalizedName = command.Name?.Trim() ?? string.Empty;
-        if (await repository.ExistsByNameAsync(
+        var nameChanges = !string.Equals(
+            Counterparty.NameKeyOf(normalizedName),
+            Counterparty.NameKeyOf(counterparty.Name),
+            StringComparison.Ordinal);
+        if (nameChanges && await repository.ExistsByNameAsync(
                 userId, normalizedName, counterparty.Id, cancellationToken))
         {
             return ApplicationResult<CounterpartyDto>.Failure(CounterpartyErrors.DuplicateName);

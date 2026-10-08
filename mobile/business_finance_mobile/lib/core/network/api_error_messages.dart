@@ -349,6 +349,9 @@ abstract final class ApiErrorMessages {
     // Kasa ve POS
     'cash_counts.nothing_to_adjust':
         'Sayım beklenen bakiyeyle aynı; kaydedilecek bir fark yok.',
+    'cash_counts.recount_required':
+        'Sayımdan sonra kasaya kayıt girildi. Farkı kaydetmek için kasayı '
+        'yeniden sayın.',
     'pos_settlements.commission_ambiguous':
         'Komisyonu ya tutar ya oran olarak girin; ikisi birden olmaz.',
     'pos_settlements.details_required':

@@ -440,7 +440,7 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
       isExpanded: true,
       decoration: InputDecoration(
         labelText: 'Kategori',
-        helperText: widget.prefill?.categoryId?.helperText,
+        helperText: widget.prefill?.categoryId?.categoryHelperText,
       ),
       validator: (value) => value == null ? 'Kategori seçin.' : null,
       onChanged: (value) => setState(() => _categoryId = value),

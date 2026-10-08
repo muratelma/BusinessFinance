@@ -701,6 +701,25 @@ Yedek dosyası **adı taşımaya devam ediyor**, kimliği değil: karşı taraf
 tabloları şemaya kendi sürümüyle (v7) girecek. Geri yükleme addan karşı
 tarafı yeniden kurar ve aynı ad tek kayıt olur.
 
+**Kişi adının tekliği uygulamanın hesapladığı anahtara dayanır**
+(`Counterparty.NameKey`, `NameKeyOf`; 8 Ekim 2026). Veritabanının harf kuralı
+Türkçe İ/i ve I/ı çiftlerini ayrı saydığı için "ÖRNEK ELEKTRİK" ile "Örnek
+Elektrik" iki ayrı kişi olarak açılabiliyordu. Anahtar harf büyüklüğünü ve
+boşluk farkını yok sayar (dört i harfi tek harftir) ve ikili karşılaştırılır
+(`UX_Counterparties_UserId_NameKey`); adla arama, "bu ad zaten var" denetimi
+ve veritabanındaki teklik **aynı kolonu** okur. Bundan fazlası yapılmaz:
+"Örnek" ile "Ornek", "Ahmet" ile "Ahmed" ayrı adlardır. Kural sıkılaşmadan
+önce açılmış aynı adlı kişiler birleştirilmez; ikincisi kimliğiyle ayrılan bir
+anahtar taşır (`KeepApartFromSameName`; yükseltme ve geri yükleme uygular).
+
+Belgeden okunan satıcının kişilerle eşleşmesi ayrı ve **daha hoşgörülü** bir
+kuraldır (`CounterpartyNameMatcher`), çünkü sonucu bir öneridir: aynı ad
+(Türkçe harf, noktalama, sondaki şirket unvanı ve boşluk farkı sayılmaz);
+biri öbürünün içinde, kelimeler bitişik ve aynı sırada (tek kelimelik ad
+yalnız uzun adın ilk kelimesiyse); ya da yeterince uzun tek bir kelimede tek
+harflik yazım farkı. En iyi düzeyde birden çok aday varsa kimse önerilmez;
+pasif kişi önerilmez.
+
 #### Cari hareket nereye girer
 
 | Kayıt | Gelir/gider | Kasa | Bütçe | Net varlık | Feed |
@@ -1292,6 +1311,21 @@ GET  /api/v1/pos-definitions/{id}/preview   komisyon, net ve beklenen gün
 bakiyesindeki değişim (farkı kaydedilmiş sayımda güncel bakiye − sayılan,
 kaydedilmemişte güncel bakiye − sayım anındaki beklenen; gözlem yoksa boş).
 Farkın anlamını değiştirmez; ekranın "oturdu" diyememesi için vardır.
+
+**Fark yalnız güncel sayıma yazılır** (kullanıcı kararı, 8 Ekim 2026;
+`CashCount.RequiresRecount`). Sayımdan sonra o kasaya kayıt girildiyse
+(`AccountMovements` içinde giriş anı sayımdan sonra olan bir satır; günü
+geçmişte olsa da), bakiye sayım anındakinden farklıysa (iptal yeni satır
+yazmaz, bakiyeyi değiştirir), daha yeni bir sayım varsa ya da sayım anındaki
+bakiye bilinmiyorsa `POST /cash-counts/{id}/adjustment`
+`409 cash_counts.recount_required` döner ve `today` cevabı `requiresRecount:
+true` taşır. Uygulama kaydın sayımdan sonra **girildiğini** bilir, olayın ne
+zaman **olduğunu** bilmez; doğru farkı yalnız yeni bir sayım söyler. Yazılan
+tutar sayım anındaki farktır: denetimden hemen sonra araya giren bir kayıt
+sonucu bozmaz, ortaya çıkan durum "önce fark kaydedildi, sonra o kayıt
+girildi" sırasıyla aynıdır. Farkı kaydedilmiş sayıma gelen ikinci istek aynı
+sonucu döner. Bilinen sınır: sayımdan sonra yalnız iptallerle ve net sıfır
+olacak biçimde değişen kasa güncel sayılır.
 
 Canlı beklenen bakiye ve fark **yalnız günün açık sayımında** hesaplanır.
 Geçmiş bir günün farkını bugünkü bakiyeye karşı yeniden hesaplamak, aradaki

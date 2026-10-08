@@ -1,5 +1,6 @@
 using BusinessFinance.Application.Cash;
 using BusinessFinance.Domain;
+using BusinessFinance.Infrastructure.Accounts;
 using BusinessFinance.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -99,6 +100,34 @@ internal sealed class EfCashCountRepository(BusinessFinanceDbContext dbContext)
             .SingleOrDefaultAsync(
                 count => count.Id == cashCountId && count.UserId == userId,
                 cancellationToken);
+
+    public async Task<bool> HasAccountChangedSinceAsync(
+        CashCount cashCount,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(cashCount);
+        var countedAt = cashCount.CreatedAtUtc;
+        var hasNewerCount = await dbContext.CashCounts.AsNoTracking().AnyAsync(
+            other => other.UserId == cashCount.UserId &&
+                     other.AccountId == cashCount.AccountId &&
+                     other.Id != cashCount.Id &&
+                     !other.IsCancelled &&
+                     other.CreatedAtUtc > countedAt,
+            cancellationToken);
+        if (hasNewerCount)
+        {
+            return true;
+        }
+
+        // Kasanın hareketleri tek listeden okunur; yeni bir para yolu oraya
+        // eklendiğinde bu denetim onu kendiliğinden görür. Giriş anı
+        // bilinmeyen eski kayıt sayımdan sonra girilmiş sayılmaz. İptal yeni
+        // satır yazmaz; onu bakiyenin değişmesi yakalar.
+        return await AccountMovements.Query(dbContext, cashCount.UserId).AnyAsync(
+            movement => movement.AccountId == cashCount.AccountId &&
+                        movement.EntryAtUtc > countedAt,
+            cancellationToken);
+    }
 
     public async Task SaveAdjustmentAsync(
         BudgetTransaction adjustment,

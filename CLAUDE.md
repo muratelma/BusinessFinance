@@ -362,6 +362,20 @@ gerekçesiyle bozulmaz.
   kalan limit. Kalan limit kartın **bugünkü** limitiyle hesaplanır — limitin
   geçmişi tutulmaz (kullanıcı kabul etti). Bu üç satır düz yazılır; renk
   yalnız hesap bakiyesinde ve kart borcundadır.
+- **Kasa farkı yalnız güncel sayıma yazılır** (kullanıcı kararı, 8 Ekim 2026;
+  `CashCount.RequiresRecount`). Sayımdan sonra o kasaya kayıt girildiyse
+  (giriş anına bakılır), bakiye sayım anındakinden farklıysa ya da daha yeni
+  bir sayım varsa fark kaydı `cash_counts.recount_required` ile reddedilir ve
+  ekran yalnız `Yeniden say` gösterir: uygulama kaydın ne zaman **olduğunu**
+  bilemez. Yazılan tutar sayım anındaki farktır, onay anındaki bakiyeye göre
+  yeniden hesaplanmaz. Kararın kalanı (KS2–KS4) aşama belgesinde, yazılmadı.
+- **Kişi adının tekliği uygulamanın hesapladığı anahtardadır**
+  (`Counterparty.NameKey`, `NameKeyOf`): harf büyüklüğü ve boşluk farkı ad
+  farkı değildir, dört i harfi tek harftir; arama, "bu ad zaten var" denetimi
+  ve veritabanındaki teklik aynı kolonu okur. Veritabanının harf kuralına
+  bırakmayın — Türkçe İ/i ve I/ı çiftlerini ayrı sayıyor. Belgeden okunan adın
+  kişilerle eşleşmesi ayrı, daha hoşgörülü ve yalnız **öneri** üreten bir
+  kuraldır (`CounterpartyNameMatcher`); teklik onu kullanmaz.
 - **Nakit hesap eksiye düşebilir** ve bunun için ne engel ne uyarı vardır
   (kullanıcı kararı, 2 Ekim 2026): bakiye hareketlerden hesaplanır, giriş
   sırası olay sırası değildir ve yarım çalışan bir yasak daha kötüdür.

@@ -390,6 +390,66 @@ public sealed class CounterpartyEndpointTests
         return (await response.Content.ReadFromJsonAsync<CounterpartyPaymentResponse>())!;
     }
 
+    /// <summary>
+    /// Aynı kişi harf büyüklüğü farkıyla ikinci kez açılamaz. 8 Ekim 2026'da
+    /// cihazda görüldü: "ÖRNEK ELEKTRİK" ile "Örnek Elektrik" iki ayrı kişi
+    /// oluyordu, çünkü veritabanının harf kuralı Türkçe İ/i ve I/ı çiftlerini
+    /// ayrı sayıyor.
+    /// </summary>
+    [Theory]
+    [InlineData("Örnek Elektrik Dağıtım A.Ş.", "ÖRNEK ELEKTRİK DAĞITIM A.Ş.")]
+    [InlineData("Işık Market", "IŞIK MARKET")]
+    [InlineData("IKEA", "ikea")]
+    [InlineData("Ahmet Bakkal", "  ahmet   bakkal ")]
+    public async Task SameNameInAnotherCasing_IsRejectedOnCreateAndOnRename(
+        string saved, string again)
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(factory, "cari-names@example.test");
+        var first = await CreateCounterpartyAsync(owner, saved);
+        var second = await CreateCounterpartyAsync(owner, "Bambaşka Biri");
+
+        using var create = await owner.PostAsJsonAsync(
+            "/api/v1/counterparties", new CreateCounterpartyRequest(again));
+        Assert.Equal(HttpStatusCode.Conflict, create.StatusCode);
+        Assert.Contains("counterparties.duplicate_name", await create.Content.ReadAsStringAsync());
+
+        using var rename = await owner.PutAsJsonAsync(
+            $"/api/v1/counterparties/{second.Id}", new UpdateCounterpartyRequest(again, true));
+        Assert.Equal(HttpStatusCode.Conflict, rename.StatusCode);
+
+        // Kişi kendi adının yazımını düzeltebilir.
+        using var respell = await owner.PutAsJsonAsync(
+            $"/api/v1/counterparties/{first.Id}", new UpdateCounterpartyRequest(again, true));
+        Assert.Equal(HttpStatusCode.OK, respell.StatusCode);
+
+        var people = await owner.GetFromJsonAsync<CounterpartyListResponse>("/api/v1/counterparties");
+        Assert.Equal(2, people!.Items.Count);
+    }
+
+    /// <summary>
+    /// Teklik yakın adları birleştirmez; başka kullanıcının aynı adlı kişisi de
+    /// engel değildir.
+    /// </summary>
+    [Fact]
+    public async Task CloseButDifferentNames_AndAnotherUsersSameName_AreAccepted()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(factory, "cari-close@example.test");
+        using var neighbour = await CreateAuthenticatedClientAsync(
+            factory, "cari-close-neighbour@example.test");
+
+        await CreateCounterpartyAsync(owner, "Ali Kaya");
+        await CreateCounterpartyAsync(owner, "Ali Kara");
+        await CreateCounterpartyAsync(owner, "Örnek Elektrik");
+        await CreateCounterpartyAsync(owner, "Ornek Elektrik");
+        await CreateCounterpartyAsync(owner, "Örnek Elektrik A.Ş.");
+        await CreateCounterpartyAsync(neighbour, "ALİ KAYA");
+
+        var people = await owner.GetFromJsonAsync<CounterpartyListResponse>("/api/v1/counterparties");
+        Assert.Equal(5, people!.Items.Count);
+    }
+
     private static async Task<CounterpartyResponse> CreateCounterpartyAsync(
         HttpClient client,
         string name)

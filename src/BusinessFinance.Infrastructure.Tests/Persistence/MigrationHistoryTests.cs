@@ -43,7 +43,8 @@ public sealed class MigrationHistoryTests
         "AddEntryTimestamps",
         "AddDayCloses",
         "AddDayCloseCountedRecords",
-        "AddCardCollections"
+        "AddCardCollections",
+        "AddCounterpartyNameKey"
     ];
 
     [Fact]
@@ -926,6 +927,51 @@ public sealed class MigrationHistoryTests
                 column => Assert.True(column.IsNullable));
             Assert.Equal(
                 2, up.OfType<AddColumnOperation>().Count(column => column.Name == "PosSettlementId"));
+        }
+    }
+
+    /// <summary>
+    /// Kişi adının anahtarı var olan satırlara eklenir: kolon önce boş
+    /// bırakılabilir gelir, doldurulur, eski çakışmalar ayrılır, sonra zorunlu
+    /// olur ve teklik en son kurulur. Hiçbir kişi silinmez ya da birleştirilmez.
+    /// </summary>
+    [Fact]
+    public void AddCounterpartyNameKey_BackfillsAndSeparatesBeforeItConstrainsAndLosesNothing()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_AddCounterpartyNameKey", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations.ToList();
+            Assert.Empty(up.OfType<DropColumnOperation>());
+            Assert.Empty(up.OfType<DropTableOperation>());
+
+            var key = Assert.Single(up.OfType<AddColumnOperation>());
+            Assert.Equal("NameKey", key.Name);
+            Assert.True(key.IsNullable);
+            Assert.Null(key.DefaultValue);
+            Assert.Null(key.DefaultValueSql);
+            Assert.Equal("Latin1_General_100_BIN2", key.Collation);
+
+            var sql = up.OfType<SqlOperation>().ToList();
+            Assert.Equal(3, sql.Count);
+            Assert.DoesNotContain(sql, statement =>
+                statement.Sql.Contains("DELETE", StringComparison.OrdinalIgnoreCase));
+            var separate = Assert.Single(sql, statement =>
+                statement.Sql.Contains("ROW_NUMBER()", StringComparison.Ordinal));
+
+            var required = Assert.Single(up.OfType<AlterColumnOperation>());
+            Assert.False(required.IsNullable);
+            Assert.Null(required.DefaultValue);
+
+            var unique = Assert.Single(up.OfType<CreateIndexOperation>());
+            Assert.True(unique.IsUnique);
+            Assert.Equal(["UserId", "NameKey"], unique.Columns);
+
+            Assert.True(up.IndexOf(key) < up.IndexOf(sql[0]));
+            Assert.All(sql, statement => Assert.True(up.IndexOf(statement) < up.IndexOf(required)));
+            Assert.Equal(sql[^1], separate);
+            Assert.True(up.IndexOf(required) < up.IndexOf(unique));
         }
     }
 

@@ -162,6 +162,13 @@ class QuickAddSuggestion {
   String get helperText => isSuspect
       ? 'Fişten okundu, şüpheli — kontrol edin'
       : 'Fişten okundu — kontrol edin';
+
+  /// Kategori alanının cümlesi. Kategori belgede yazmaz; belgeden tahmin
+  /// edilir ve kaydın kapsamını da o belirler. "Okundu" demek, tahmini
+  /// belgedeki bir bilgi gibi gösterirdi.
+  String get categoryHelperText => isSuspect
+      ? 'Önerilen kategori, emin değil — kontrol edin'
+      : 'Önerilen kategori — kontrol edin';
 }
 
 /// Ana kayıtla birlikte, aynı ödeme kaynağından yazılacak işlem ücreti.

@@ -632,20 +632,36 @@ void main() {
       expect(repository.confirmedCategoryId, isNull);
     });
 
-    testWidgets('"Kendime aldım" fark kaydı yazmaz, paneli tutarla açar', (
-      tester,
-    ) async {
-      final repository = await open(tester, '-100.0000');
+    // İkinci panel açılmaz: alanlar aynı panelde gelir, tutar farkla doludur
+    // ve kayıt oradan yazılır (kullanıcı isteği, 8 Ekim 2026).
+    testWidgets(
+      '"Kendime aldım" aynı panelde tutarla açılır ve oradan yazılır',
+      (tester) async {
+        final repository = await open(tester, '-100.0000');
 
-      await tester.tap(find.text('Kendime aldım').last);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Devam'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Kendime aldım').last);
+        await tester.pumpAndSettle();
 
-      expect(repository.confirmed, isFalse);
-      expect(find.text('Tutar'), findsOneWidget);
-      expect(find.text('100,00'), findsOneWidget);
-    });
+        expect(find.text('Devam'), findsNothing);
+        expect(find.text('Tutar'), findsOneWidget);
+        expect(find.text('100,00'), findsOneWidget);
+        // Gün sayımın günüdür; sorulmaz.
+        expect(find.text('Gün'), findsNothing);
+
+        await tester.tap(find.byKey(const ValueKey('withdrawal-category')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Kasa farkı').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Kaydet'));
+        await tester.pumpAndSettle();
+
+        expect(repository.confirmed, isFalse);
+        expect(
+          repository.withdrawals.single,
+          startsWith('expense cash-account/income-category 100.0000'),
+        );
+      },
+    );
   });
 
   // Aşama 06.3 K8: işletme profilinde şahsi cüzdan Kasa'da gösterilmez.
@@ -742,31 +758,89 @@ void main() {
     );
   });
 
-  // 29 Eylül emülatör denemesi: tutan sayımdan sonra dün tarihli 300 TL fatura
-  // girildi. Fark gerçek olabilir (fatura dün ödendiyse) ya da olmayabilir;
-  // uygulama saati bilmediği için ekran iki ihtimali de söyler.
-  testWidgets('sayımdan sonra girilen kayıt iki ihtimali de söyler', (
+  // Sayımdan sonra kasaya kayıt girildiyse fark kaydedilemez (kullanıcı
+  // kararı, 8 Ekim 2026). Kayıt sayımdan önce de sonra da olmuş olabilir;
+  // eskiden düğme açık kalıyor, 900 sayılıp 1.000 beklenirken sonradan girilen
+  // 200 liralık satış yüzünden 100 yerine 300 liralık gider yazılıyordu.
+  testWidgets('sayımdan sonra kayıt girildiyse yalnız yeniden sayım kalır', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(412, 1400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final repository = _FakeCashRepository()
-      ..currentCount = _cashCount(difference: '300.0000')
-      ..changeSinceCount = '-300.0000';
+      ..currentCount = _cashCount(difference: '-300.0000')
+      ..changeSinceCount = '200.0000'
+      ..requiresRecount = true;
     await tester.pumpWidget(_app(cash: repository));
     await tester.pumpAndSettle();
 
     expect(find.text('Sonradan kayıt girildi'), findsOneWidget);
-    // Ayrı satır yok: değişim "Uygulamaya göre"nin altında kısa açıklama,
-    // altında tek cümle.
-    expect(find.text('Sayımdan sonra girilen'), findsNothing);
-    expect(find.text('−₺300,00 sayımdan sonra girildi'), findsOneWidget);
+    // Ayrı satır yok: değişim "Uygulamaya göre"nin altında kısa açıklama.
+    expect(find.text('+₺200,00 sayımdan sonra girildi'), findsOneWidget);
     expect(
-      find.text('Kayıt sayımdan önce olduysa farkı kaydedin.'),
+      find.text(
+        'Sayımdan sonra kasaya kayıt girildi. Farkı görmek için kasayı '
+        'yeniden sayın.',
+      ),
       findsOneWidget,
     );
-    expect(find.text('Farkı kaydet'), findsOneWidget);
+    // Yanlış olabilecek fark yazılmaz, kaydedilemez de.
+    expect(find.text('Fark'), findsNothing);
+    expect(find.text('Farkı kaydet'), findsNothing);
+    expect(
+      find.ancestor(
+        of: find.text('Yeniden say'),
+        matching: find.byWidgetPredicate((widget) => widget is FilledButton),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  // Aynı tutarda giriş ve çıkış bakiyeyi değiştirmez ama kasayı değiştirir;
+  // sunucu yine yeniden sayım ister ve ekran ona uyar.
+  testWidgets('bakiye aynı kalsa da sunucu isterse yeniden sayılır', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(412, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final repository = _FakeCashRepository()
+      ..currentCount = _cashCount(difference: '-100.0000')
+      ..changeSinceCount = '0.0000'
+      ..requiresRecount = true;
+    await tester.pumpWidget(_app(cash: repository));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sonradan kayıt girildi'), findsOneWidget);
+    expect(find.textContaining('sayımdan sonra girildi'), findsNothing);
+    expect(find.text('Farkı kaydet'), findsNothing);
+    expect(find.text('Yeniden say'), findsOneWidget);
+  });
+
+  // Unutulan gider sonradan girilip fark kapandıysa ne kaydedecek fark ne de
+  // yeniden sayım uyarısı vardır.
+  testWidgets('sonradan girilen kayıt farkı kapattıysa kasa tutar', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(412, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final repository = _FakeCashRepository()
+      ..currentCount = _cashCount(difference: '0.0000')
+      ..changeSinceCount = '-100.0000';
+    await tester.pumpWidget(_app(cash: repository));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Kasa yine uygulamayla aynı.'), findsOneWidget);
+    expect(find.text('Farkı kaydet'), findsNothing);
+    expect(
+      find.ancestor(
+        of: find.text('Yeniden say'),
+        matching: find.byWidgetPredicate((widget) => widget is OutlinedButton),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Kasa tek akıştır: sayım, yoldaki POS ve son sayımlar', (
@@ -1076,6 +1150,7 @@ class _FakeCashRepository implements CashRepositoryContract {
   String? changeSinceCount;
   String? carriedDifference;
   bool sameAsPrevious = false;
+  bool requiresRecount = false;
 
   @override
   Future<List<CashAccount>> loadCashAccounts() async {
@@ -1111,6 +1186,7 @@ class _FakeCashRepository implements CashRepositoryContract {
       changeSinceCount: changeSinceCount,
       previousUnrecordedDifference: carriedDifference,
       differenceSameAsPrevious: sameAsPrevious,
+      requiresRecount: requiresRecount,
     );
   }
 

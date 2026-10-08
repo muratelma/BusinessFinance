@@ -138,31 +138,21 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
     }
 
     /// <remarks>
-    /// SQL Server’da karşılaştırma kolonun harf duyarsız collation’ıyla yapılır;
-    /// InMemory sağlayıcısı aynı şeyi yapmadığı için orada açıkça duyarsız
-    /// karşılaştırılır. İki yolun ayrılması, testte bulunan bir adın gerçekte
-    /// ikinci kez oluşmasını engelliyor.
+    /// Karşılaştırma adın anahtarıyla yapılır (<see cref="Counterparty.NameKeyOf"/>);
+    /// teklik indeksi de aynı kolonu okur. Anahtar uygulamada hesaplandığı
+    /// için sonuç veritabanı sağlayıcısına göre değişmez.
     /// </remarks>
     private async Task<Counterparty?> FindByNameAsync(
         Guid userId,
         string normalizedName,
         CancellationToken cancellationToken)
     {
-        var query = dbContext.Counterparties.Where(counterparty => counterparty.UserId == userId);
-
-        if (string.Equals(
-                dbContext.Database.ProviderName,
-                "Microsoft.EntityFrameworkCore.InMemory",
-                StringComparison.Ordinal))
-        {
-            var candidates = await query.ToArrayAsync(cancellationToken);
-            return candidates.SingleOrDefault(counterparty =>
-                string.Equals(counterparty.Name, normalizedName, StringComparison.OrdinalIgnoreCase));
-        }
-
-        return await query.SingleOrDefaultAsync(
-            counterparty => counterparty.Name == normalizedName,
-            cancellationToken);
+        var key = Counterparty.NameKeyOf(normalizedName);
+        return key.Length == 0
+            ? null
+            : await dbContext.Counterparties.SingleOrDefaultAsync(
+                counterparty => counterparty.UserId == userId && counterparty.NameKey == key,
+                cancellationToken);
     }
 
     public async Task<Counterparty?> FindOwnedByNameAsync(
@@ -170,10 +160,27 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
         string name,
         CancellationToken cancellationToken)
     {
-        var normalized = name?.Trim() ?? string.Empty;
-        return normalized.Length == 0
-            ? null
-            : await FindByNameAsync(userId, normalized, cancellationToken);
+        // Belgeden okunan ad için: hoşgörülü eşleştirme bellekte yapılır
+        // (`CounterpartyNameMatcher`). Kullanıcının kişi listesi küçüktür ve
+        // yalnız ad ile kimlik okunur; sonuç bir öneridir, teklik kuralı
+        // (`ExistsByNameAsync`) bu yolu kullanmaz.
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
+        // Pasif kişi önerilmez: kullanıcı onunla yeni iş yapmayı durdurmuş.
+        var candidates = await dbContext.Counterparties.AsNoTracking()
+            .Where(counterparty => counterparty.UserId == userId && counterparty.IsActive)
+            .Select(counterparty => new { counterparty.Id, counterparty.Name })
+            .ToArrayAsync(cancellationToken);
+        var match = CounterpartyNameMatcher.FindBest(
+            name, candidates.Select(candidate => (candidate.Id, candidate.Name)));
+        return match is Guid id
+            ? await dbContext.Counterparties.SingleOrDefaultAsync(
+                counterparty => counterparty.Id == id && counterparty.UserId == userId,
+                cancellationToken)
+            : null;
     }
 
     public async Task<bool> ExistsByNameAsync(

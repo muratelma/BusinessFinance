@@ -147,7 +147,7 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
             isExpanded: true,
             decoration: InputDecoration(
               labelText: 'Kategori',
-              helperText: widget.prefill.categoryId?.helperText,
+              helperText: widget.prefill.categoryId?.categoryHelperText,
             ),
             validator: (value) => value == null ? 'Kategori seçin.' : null,
             onChanged: (value) => setState(() {
@@ -163,9 +163,14 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
           DropdownButtonFormField<String?>(
             initialValue: _counterpartyId,
             isExpanded: true,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Karşı taraf (isteğe bağlı)',
-              helperText: 'Eşleşen kayıt varsa seçilidir; değiştirebilirsiniz.',
+              // Cümle yalnız fiş okumadan gelindiğinde ve faturadaki ad
+              // kişilerden biriyle eşleştiğinde anlamlıdır.
+              helperText: widget.prefill.counterpartyId == null
+                  ? null
+                  : 'Faturadaki satıcı kişilerinizle eşleşti; '
+                        'değiştirebilirsiniz.',
             ),
             onChanged: (value) => setState(() => _counterpartyId = value),
             items: [
@@ -264,15 +269,22 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
   String get _title =>
       _canChooseDirection ? 'Yükümlülük ekle' : 'Ödenmemiş faturayı kaydet';
 
+  /// Sayfanın ne işe yaradığını söyler: neyin buraya yazıldığı, gelirin ya
+  /// da giderin ne zaman sayıldığı ve paranın ne zaman hareket ettiği.
   String get _noticeMessage {
-    final recognized = _direction == ObligationDirection.payable
-        ? 'Bu kayıt gideri belge tarihinde tanır; hesabınızdan henüz para '
-              'çıkarmaz.'
-        : 'Bu kayıt geliri belge tarihinde tanır; hesabınıza henüz para '
-              'girmez.';
-    return _canChooseDirection
-        ? '$recognized Para, kaydı kapattığınız gün hareket eder.'
-        : 'Alanlar faturadan okunan önerilerdir. $recognized';
+    final payable = _direction == ObligationDirection.payable;
+    final effect = payable
+        ? 'Gider, faturanın tarihinde sayılır; para ödediğiniz gün '
+              'hesabınızdan çıkar.'
+        : 'Gelir, belgenin tarihinde sayılır; para tahsil ettiğiniz gün '
+              'hesabınıza girer.';
+    if (!_canChooseDirection) {
+      return 'Alanlar faturadan okundu; kontrol edip düzeltebilirsiniz. '
+          '$effect';
+    }
+    return payable
+        ? 'Henüz ödemediğiniz bir faturayı ya da borcu buraya yazın. $effect'
+        : 'Henüz tahsil etmediğiniz bir alacağı buraya yazın. $effect';
   }
 
   /// Yön değişince kategori listesi yeniden okunur ve seçim düşer: gelir

@@ -105,6 +105,42 @@ public sealed class DataPortabilityTests
     /// parasını sessizce silmek. Kapsam boyutunda verilen kararın aynısı
     /// (ADR 0013): eksik bilgi uydurulmaz, dosya açık bir hatayla reddedilir.
     /// </remarks>
+    /// <summary>
+    /// Eski bir yedek, teklik kuralı harf büyüklüğüne Türkçe harflerle bakmaya
+    /// başlamadan önce açılmış aynı adlı iki kişi taşıyabilir. Geri yükleme
+    /// ikisini de getirir, birleştirmez ve anahtarlarını ayrı tutar.
+    /// </summary>
+    [Fact]
+    public async Task Backup_WithTwoPeopleOfTheSameNameRestoresBothAndKeepsThemApart()
+    {
+        await using var context = CreateContext();
+        var sourceUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        await SeedCompleteGraphAsync(context, sourceUserId);
+        await SeedDefaultCategoriesAsync(context, targetUserId);
+        var first = new Counterparty(Guid.NewGuid(), sourceUserId, "ÖRNEK ELEKTRİK", "ilk");
+        var second = new Counterparty(Guid.NewGuid(), sourceUserId, "Örnek Elektrik", "ikinci");
+        second.KeepApartFromSameName();
+        context.AddRange(first, second);
+        await context.SaveChangesAsync();
+        var service = new EfDataPortabilityRepository(context);
+
+        var backup = await service.CreateBackupAsync(sourceUserId, default);
+        await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
+
+        var restored = await context.Counterparties.AsNoTracking()
+            .Where(x => x.UserId == targetUserId && x.Note != null &&
+                        (x.Note == "ilk" || x.Note == "ikinci"))
+            .ToArrayAsync();
+        Assert.Equal(2, restored.Length);
+        Assert.Equal(
+            ["ÖRNEK ELEKTRİK", "Örnek Elektrik"],
+            restored.Select(x => x.Name).Order(StringComparer.Ordinal).ToArray());
+        Assert.Equal(2, restored.Select(x => x.NameKey).Distinct(StringComparer.Ordinal).Count());
+        Assert.Single(restored, x => x.NameKey == "örnek elektrik");
+        Assert.Single(restored, x => x.NameKey == $"örnek elektrik#{x.Id:D}");
+    }
+
     [Fact]
     public async Task BackupBeforeCounterpartyLedger_IsRejectedAndWritesNothing()
     {

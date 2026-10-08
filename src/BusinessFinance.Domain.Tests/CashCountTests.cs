@@ -247,6 +247,35 @@ public sealed class CashCountTests
         Assert.Null(NewCount().ExpectedAtCount);
     }
 
+    /// <summary>
+    /// Fark yalnız güncel sayıma yazılır: sayımdan sonra kasa değiştiyse,
+    /// bakiye sayım anındakinden farklıysa ya da sayım anındaki bakiye
+    /// bilinmiyorsa kasa yeniden sayılır. Bakiyenin aynı kalması tek başına
+    /// yetmez (aynı tutarda giriş ve çıkış).
+    /// </summary>
+    [Theory]
+    [InlineData(1000, 1000, false, false)]
+    [InlineData(1000, 1200, false, true)]
+    [InlineData(1000, 900, false, true)]
+    [InlineData(1000, 1000, true, true)]
+    [InlineData(1000, 1200, true, true)]
+    public void RequiresRecount_OnceTheAccountMovedAfterTheCount(
+        int expectedAtCount, int currentBalance, bool accountChangedSince, bool expected)
+    {
+        var owner = Guid.NewGuid();
+        var count = new CashCount(
+            Guid.NewGuid(), owner, NewCashAccount(owner), 900m, TransactionScope.Business,
+            CountDate, CreatedAtUtc, expectedAtCount: expectedAtCount);
+
+        Assert.Equal(expected, count.RequiresRecount(currentBalance, accountChangedSince));
+    }
+
+    [Fact]
+    public void RequiresRecount_WhenTheBalanceAtTheCountIsUnknown()
+    {
+        Assert.True(NewCount().RequiresRecount(1000m, accountChangedSince: false));
+    }
+
     private static Account NewCashAccount(Guid userId, string name = "Kasa") =>
         new(Guid.NewGuid(), userId, name, AccountType.Cash, CurrencyCode.TRY, 500m);
 

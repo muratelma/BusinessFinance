@@ -59,6 +59,13 @@ public sealed class GetCashCountTodayUseCase(
         var sameAsPrevious = previousUnrecorded is decimal carried &&
             count is { IsAdjusted: false } &&
             count.DifferenceFrom(expectedBalance).Amount == carried;
+        // Açık farkı olan sayım hâlâ güncel mi? Kuralın kendisi sayımdadır;
+        // ekran yalnız sonucu okur.
+        var requiresRecount = count is { IsAdjusted: false } &&
+            !count.DifferenceFrom(expectedBalance).IsBalanced &&
+            count.RequiresRecount(
+                expectedBalance,
+                await repository.HasAccountChangedSinceAsync(count, cancellationToken));
 
         return ApplicationResult<CashCountTodayDto>.Success(
             new CashCountTodayDto(
@@ -82,7 +89,8 @@ public sealed class GetCashCountTodayUseCase(
                 flow.Outflow,
                 ChangeSinceCount(count, expectedBalance),
                 previousUnrecorded,
-                sameAsPrevious));
+                sameAsPrevious,
+                requiresRecount));
     }
 
     private static decimal? ChangeSinceCount(CashCount? count, decimal expectedBalance)
@@ -210,9 +218,22 @@ public sealed class CreateCashCountUseCase(
 /// Farkı gerçek bir gelir/gider kaydına çeviren ikinci eylem.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Fark kaydı tek ve <b>idempotenttir</b>: bir sayımın iki düzeltmesi olamaz.
-/// Tutar onay anındaki bakiyeye göre yeniden hesaplanır, sayımın yanında
-/// saklanmaz — arada iptal edilen bir hareket varsa doğru fark yeni olandır.
+/// </para>
+/// <para>
+/// Fark yalnız <b>güncel</b> sayıma yazılır (kullanıcı kararı, 8 Ekim 2026):
+/// sayımdan sonra kasaya kayıt girildiyse ya da daha yeni bir sayım varsa
+/// istek <c>cash_counts.recount_required</c> ile reddedilir
+/// (<see cref="CashCount.RequiresRecount"/>). Eskiden tutar onay anındaki
+/// bakiyeye göre yeniden hesaplanıyordu ve sayımdan sonra girilen bir satış
+/// farkı büyütüyordu.
+/// </para>
+/// <para>
+/// Yazılan tutar sayım anındaki farktır. Denetimden hemen sonra araya giren
+/// bir kayıt bu yüzden sonucu bozmaz: ortaya çıkan durum "önce fark
+/// kaydedildi, sonra o kayıt girildi" sırasıyla aynıdır.
+/// </para>
 /// </remarks>
 public sealed class ConfirmCashCountDifferenceUseCase(
     ICurrentUser currentUser,
@@ -266,7 +287,15 @@ public sealed class ConfirmCashCountDifferenceUseCase(
                 CashCountMapper.ToDto(cashCount, account.Name, expectedBalance));
         }
 
-        var difference = cashCount.DifferenceFrom(expectedBalance);
+        if (cashCount.RequiresRecount(
+                expectedBalance,
+                await repository.HasAccountChangedSinceAsync(cashCount, cancellationToken)) ||
+            cashCount.ExpectedAtCount is not decimal expectedAtCount)
+        {
+            return ApplicationResult<CashCountDto>.Failure(CashCountErrors.RecountRequired);
+        }
+
+        var difference = cashCount.DifferenceFrom(expectedAtCount);
         if (difference.IsBalanced)
         {
             return ApplicationResult<CashCountDto>.Failure(CashCountErrors.NothingToAdjust);

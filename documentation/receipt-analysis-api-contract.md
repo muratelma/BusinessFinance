@@ -213,9 +213,15 @@ taşır; alan adı ileriki yönleri de karşılayacak biçimde seçilmiştir.
 
 `counterpartyId` okunan adın **kayıtlı bir karşı tarafla eşleştiğini**
 söyler ve yalnız bir öneridir (ADR 0011): model karşı tarafı seçmez, sunucu
-okunan adı kullanıcının kendi kayıtlarında arar. Eşleşme **tam ad**
-üzerinedir (harf duyarsız) — "Sentetik Manav" ile "Sentetik Market" aynı
-kişi sayılsaydı uygulama yanlış bir bakiyeyi doğru gibi gösterirdi. Alanın
+okunan adı kullanıcının kendi **aktif** kayıtlarında arar. Eşleşme
+hoşgörülüdür ama dardır (`CounterpartyNameMatcher`, 8 Ekim 2026): harf
+büyüklüğü, Türkçe harf, noktalama, sondaki şirket unvanı ve boşluk farkı
+sayılmaz; kısa ad uzun adın içinde bitişik geçiyorsa (tek kelimeyse yalnız
+başında) ya da tek bir uzun kelimede tek harf farklıysa eşleşir. "Sentetik
+Manav" ile "Sentetik Market", "Ali Kaya" ile "Ali Kara" aynı kişi sayılmaz —
+sayılsaydı uygulama yanlış bir bakiyeyi doğru gibi gösterirdi. Aynı ölçüde
+uyan iki kişi varsa alan boş döner. Eskiden eşleşme tam ad üzerineydi ve
+belgedeki büyük harfli Türkçe ad ("ELEKTRİK") hiç eşleşmiyordu. Alanın
 boş olması hata değildir: o adla ilk kez iş yapılıyor olabilir ve karşı
 taraf kayıt onaylanırken bulunur ya da kurulur. Ad, eşleşme bulunsa bile
 yerinde kalır; öneriyi reddeden kullanıcı adsız bir taslakla baş başa

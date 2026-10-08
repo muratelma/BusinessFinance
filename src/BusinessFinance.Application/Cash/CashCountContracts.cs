@@ -116,7 +116,15 @@ public sealed record CashCountTodayDto(
     /// Bugünkü sayımın kaydedilmemiş farkı önceki sayımın kaydedilmemiş
     /// farkına eşit: aynı eksik ya da fazla bir kez daha sayıldı.
     /// </summary>
-    bool DifferenceSameAsPrevious = false);
+    bool DifferenceSameAsPrevious = false,
+
+    /// <summary>
+    /// Bugünkü sayımın farkı artık kaydedilemez: sayımdan sonra kasaya kayıt
+    /// girildi. Ekran <c>Farkı kaydet</c> yerine yalnız <c>Yeniden say</c>
+    /// gösterir. Sayım yoksa, farkı yoksa ya da farkı kaydedildiyse
+    /// <c>false</c>.
+    /// </summary>
+    bool RequiresRecount = false);
 
 public interface ICashCountRepository
 {
@@ -152,5 +160,12 @@ public interface ICashCountRepository
     /// <summary>
     /// Düzeltme kaydını ve sayımdaki bağlantısını tek yazma sınırında kaydeder.
     /// </summary>
+    /// <summary>
+    /// Sayımdan sonra bu kasaya kayıt girildi mi ya da daha yeni bir sayım
+    /// yapıldı mı? Geçmişe tarihli kayıt da sayılır: ölçü kaydın günü değil,
+    /// <b>girildiği an</b>dır.
+    /// </summary>
+    Task<bool> HasAccountChangedSinceAsync(CashCount cashCount, CancellationToken cancellationToken);
+
     Task SaveAdjustmentAsync(BudgetTransaction adjustment, CancellationToken cancellationToken);
 }

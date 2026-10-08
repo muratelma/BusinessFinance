@@ -24,11 +24,23 @@ internal sealed class CounterpartyConfiguration : IEntityTypeConfiguration<Count
             .HasMaxLength(Counterparty.MaximumNoteLength);
         builder.Property(counterparty => counterparty.IsActive).IsRequired();
 
+        // Anahtar uygulamada hesaplanır (`Counterparty.NameKeyOf`) ve ikili
+        // karşılaştırılır: veritabanının harf kuralı uygulamanınkinden
+        // ayrışamaz. Uzunluk, kural sıkılaşmadan önce açılmış aynı adlı ikinci
+        // kişinin ayırt edici ekini ("#" + kimlik) de taşır.
+        builder.Property(counterparty => counterparty.NameKey)
+            .HasMaxLength(Counterparty.MaximumNameLength + 40)
+            .UseCollation("Latin1_General_100_BIN2")
+            .IsRequired();
+
         // Aynı kişinin iki kez oluşmasını engelleyen teklik. Müşteri/tedarikçi
         // ayrımı yok: aynı ad tek kayıttır, yön hareketin kendisinde durur.
-        builder.HasIndex(counterparty => new { counterparty.UserId, counterparty.Name })
+        // Ad kolonunun kendisi üzerindeki teklik yetmiyordu: veritabanının
+        // harf kuralı Türkçe İ/i ve I/ı çiftlerini ayrı sayıyor, "ÖRNEK
+        // ELEKTRİK" ile "Örnek Elektrik" iki ayrı kişi olarak açılıyordu.
+        builder.HasIndex(counterparty => new { counterparty.UserId, counterparty.NameKey })
             .IsUnique()
-            .HasDatabaseName("UX_Counterparties_UserId_Name");
+            .HasDatabaseName("UX_Counterparties_UserId_NameKey");
         builder.HasIndex(counterparty => new { counterparty.UserId, counterparty.IsActive, counterparty.Name })
             .HasDatabaseName("IX_Counterparties_UserId_IsActive_Name");
 

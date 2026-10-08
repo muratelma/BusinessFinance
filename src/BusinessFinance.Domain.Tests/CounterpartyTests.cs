@@ -407,6 +407,75 @@ public sealed class CounterpartyTests
         Assert.Equal(0m, balance.Net);
     }
 
+    /// <summary>
+    /// "Bu ad zaten var mı?" sorusunun ölçüsü: harf büyüklüğü ve boşluk farkı
+    /// ad farkı değildir; dört i harfi tek harftir.
+    /// </summary>
+    [Theory]
+    [InlineData("ÖRNEK ELEKTRİK DAĞITIM A.Ş.", "Örnek Elektrik Dağıtım A.Ş.")]
+    [InlineData("IŞIK MARKET", "ışık market")]
+    [InlineData("IKEA", "ikea")]
+    [InlineData("İkea", "IKEA")]
+    [InlineData("  Ahmet   Bakkal ", "ahmet bakkal")]
+    [InlineData("Çağrı Şükrü ÖZTÜRK", "çağrı şükrü öztürk")]
+    [InlineData("i\u0307stanbul Toptan", "İSTANBUL TOPTAN")]
+    public void NameKey_TreatsCasingAndSpacingAsTheSameName(string first, string second)
+    {
+        Assert.Equal(Counterparty.NameKeyOf(first), Counterparty.NameKeyOf(second));
+    }
+
+    /// <summary>
+    /// Teklik bir yasaktır; yakın ama farklı adları birleştirmez. Yanlış yasak
+    /// kullanıcıyı ikinci bir gerçek kişiyi açamaz bırakırdı.
+    /// </summary>
+    [Theory]
+    [InlineData("Örnek Elektrik", "Ornek Elektrik")]
+    [InlineData("Ahmet Usta", "Ahmed Usta")]
+    [InlineData("Ali Kaya", "Ali Kara")]
+    [InlineData("Örnek Elektrik A.Ş.", "Örnek Elektrik")]
+    [InlineData("A101", "A 101")]
+    public void NameKey_KeepsDifferentNamesApart(string first, string second)
+    {
+        Assert.NotEqual(Counterparty.NameKeyOf(first), Counterparty.NameKeyOf(second));
+    }
+
+    [Fact]
+    public void Counterparty_CarriesTheKeyOfItsNameAndFollowsARename()
+    {
+        var counterparty = new Counterparty(Guid.NewGuid(), Guid.NewGuid(), " IŞIK  Market ");
+
+        Assert.Equal("IŞIK  Market", counterparty.Name);
+        Assert.Equal("işik market", counterparty.NameKey);
+
+        counterparty.Rename("Güneş Market");
+
+        Assert.Equal("güneş market", counterparty.NameKey);
+    }
+
+    /// <summary>
+    /// Kural sıkılaşmadan önce açılmış aynı adlı ikinci kişi ayrı bir anahtar
+    /// taşır. Yalnız yazımını düzeltmek onu ilkiyle çakıştırmaz; adı gerçekten
+    /// değişince sıradan bir kişi olur.
+    /// </summary>
+    [Fact]
+    public void KeptApartCounterparty_KeepsItsKeyUntilTheNameReallyChanges()
+    {
+        var counterparty = new Counterparty(Guid.NewGuid(), Guid.NewGuid(), "ÖRNEK ELEKTRİK");
+        counterparty.KeepApartFromSameName();
+        var apart = $"örnek elektrik#{counterparty.Id:D}";
+
+        Assert.Equal(apart, counterparty.NameKey);
+
+        counterparty.Rename("Örnek Elektrik");
+
+        Assert.Equal("Örnek Elektrik", counterparty.Name);
+        Assert.Equal(apart, counterparty.NameKey);
+
+        counterparty.Rename("Örnek Elektrik Şube");
+
+        Assert.Equal("örnek elektrik şube", counterparty.NameKey);
+    }
+
     private static Counterparty NewCounterparty(Guid userId, string? note = null) =>
         new(Guid.NewGuid(), userId, "Ahmet Manav", note);
 

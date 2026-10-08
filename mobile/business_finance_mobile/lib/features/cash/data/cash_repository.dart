@@ -70,7 +70,13 @@ class CashCountToday {
     this.changeSinceCount,
     this.previousUnrecordedDifference,
     this.differenceSameAsPrevious = false,
+    this.requiresRecount = false,
   });
+
+  /// Sayımdan sonra kasaya kayıt girildi: fark artık kaydedilemez, kasa
+  /// yeniden sayılır. Sunucu söyler; uygulama kaydın ne zaman **olduğunu**
+  /// bilemediği için hangi farkın doğru olduğunu da bilemez.
+  final bool requiresRecount;
 
   /// Önceki sayımın kaydedilmemiş farkı (işaretli); yoksa `null`. Yalnız
   /// bilgidir: bugünkü farktan düşülmez (Aşama 06.3 K6).
@@ -125,6 +131,7 @@ class CashCountToday {
         ? JsonReaders.money(json, 'previousUnrecordedDifference')
         : null,
     differenceSameAsPrevious: json['differenceSameAsPrevious'] == true,
+    requiresRecount: json['requiresRecount'] == true,
   );
 }
 
