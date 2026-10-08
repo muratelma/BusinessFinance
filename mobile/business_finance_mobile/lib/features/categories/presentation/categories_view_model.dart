@@ -82,7 +82,10 @@ class CategoriesViewModel extends ChangeNotifier {
       _message = successMessage;
       return true;
     } on ApiException catch (error) {
-      _setApiError(error);
+      // Reddedilen kayıt listeyi bozmaz: yüklenmiş kategoriler yerinde kalır,
+      // cümleyi form gösterir. Yalnız oturumun düşmesi ekranı değiştirir.
+      _message = error.message;
+      if (error.isUnauthorized) _status = CategoriesViewStatus.unauthorized;
       return false;
     } on FormatException {
       _message = 'Kategori verisi beklenen biçimde alınamadı.';
