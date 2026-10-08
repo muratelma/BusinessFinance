@@ -857,6 +857,7 @@ başka bir alanı ölçmeye başlar.
 | Dekont sayfası yön sormuyor | `receipt_scan_page_test` | Seçici hiç çizilmiyor, niyet dokunmadan `bank_slip` |
 | Fiş sayfası yalnız yönü soruyor | aynı | `Harcama`/`Gelir` var, `Dekont`/`Transfer` yok — aynı soru iki kez sorulmuyor |
 | Dekont rotası karar sayfasına ulaşıyor | `bank_document_router_test` | `bankSlipScanLocation` → karar sayfası → aktarma yolu, gerçek router ile |
+| `Yükümlülükler` listesi formunu çökmeden açıyor | `bank_document_router_test` | `Diğer` → liste → `+`; form listenin altındaki rotaya (`obligationListCreateLocation`) açılır, gerçek router ile. Liste shell'in dışındadır; shell içindeki adrese açmak Navigator'ı aynı sayfa anahtarıyla patlatıyordu |
 | Borç kartı yönü, kalanı ve faizi ayırıyor | `debts_page_test` | Yön rozetle; faiz satırı yalnız faiz varsa |
 | Taksit satırı durumu ve eylemi aynı yerde | aynı | Rozet + `Öde`; tarih okunur biçimde |
 | Tahsilat hesabı önceden seçili değil | aynı | `Seç` hesap seçilene kadar pasif |

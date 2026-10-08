@@ -321,29 +321,11 @@ GoRouter createAppRouter({
                       GoRoute(
                         // Yol `obligationCreateLocation` ile aynı olmalı.
                         path: 'obligation',
-                        // Öneri **zorunlu değil**: form fişten de, elle de
-                        // açılır. Boş `extra`, okunmuş belgesi olmayan
-                        // kullanıcının yolu; eksik olan bir öneri, eksik olan
-                        // bir ekran değildir.
-                        pageBuilder: (context, state) => _sessionPage(
-                          state,
-                          obligationRepository == null
-                              ? const Scaffold(
-                                  body: AppErrorView(
-                                    message: 'Yükümlülük formu açılamadı.',
-                                  ),
-                                )
-                              : ObligationFormPage(
-                                  controller: ObligationController(
-                                    obligationRepository,
-                                    changes: financialDataChanges,
-                                  ),
-                                  prefill: state.extra is ObligationPrefill
-                                      ? state.extra! as ObligationPrefill
-                                      : const ObligationPrefill(),
-                                  scopeController: scopeController,
-                                ),
-                          authController,
+                        pageBuilder: _obligationFormPageBuilder(
+                          obligationRepository: obligationRepository,
+                          financialDataChanges: financialDataChanges,
+                          scopeController: scopeController,
+                          authController: authController,
                         ),
                       ),
                       // İade sayfası da fiş ekranıyla kardeş, aynı
@@ -597,6 +579,21 @@ GoRouter createAppRouter({
                 ),
           authController,
         ),
+        routes: [
+          // Liste shell'in dışında; formu `obligationCreateLocation`'a açmak
+          // shell zincirini ikinci kez kurup Navigator'ı aynı sayfa
+          // anahtarıyla patlatıyordu. Liste kendi altındaki rotaya açar.
+          GoRoute(
+            // Yol `obligationListCreateLocation` ile aynı olmalı.
+            path: 'new',
+            pageBuilder: _obligationFormPageBuilder(
+              obligationRepository: obligationRepository,
+              financialDataChanges: financialDataChanges,
+              scopeController: scopeController,
+              authController: authController,
+            ),
+          ),
+        ],
       ),
       GoRoute(
         path: '/more/budgets',
@@ -1043,6 +1040,38 @@ Page<dynamic> Function(BuildContext, GoRouterState) _quickAddPageBuilder({
                           ),
                         ),
             ),
+          ),
+    authController,
+  );
+}
+
+/// Yükümlülük formu iki rotadan açılır: fiş ekranının kardeşi olarak ve
+/// `Yükümlülükler` listesinin altında.
+///
+/// Öneri **zorunlu değil**: form fişten de, elle de açılır. Boş `extra`,
+/// okunmuş belgesi olmayan kullanıcının yolu; eksik olan bir öneri, eksik olan
+/// bir ekran değildir.
+Page<dynamic> Function(BuildContext, GoRouterState) _obligationFormPageBuilder({
+  required ObligationRepositoryContract? obligationRepository,
+  required FinancialDataChanges? financialDataChanges,
+  required ScopeController? scopeController,
+  required AuthController? authController,
+}) {
+  return (context, state) => _sessionPage(
+    state,
+    obligationRepository == null
+        ? const Scaffold(
+            body: AppErrorView(message: 'Yükümlülük formu açılamadı.'),
+          )
+        : ObligationFormPage(
+            controller: ObligationController(
+              obligationRepository,
+              changes: financialDataChanges,
+            ),
+            prefill: state.extra is ObligationPrefill
+                ? state.extra! as ObligationPrefill
+                : const ObligationPrefill(),
+            scopeController: scopeController,
           ),
     authController,
   );

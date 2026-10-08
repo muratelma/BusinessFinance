@@ -778,7 +778,9 @@ tutar yazmadığı) **her hâlde** durur: gizlilik sözü, ancak görünürse s�
 
 ### Ödenmemiş fatura formu
 
-`/transactions/new/obligation` tam sayfa bir finans formudur. Okunan değerler
+`/transactions/new/obligation` tam sayfa bir finans formudur; `Yükümlülükler`
+listesinden açıldığında aynı form `/more/obligations/new` adresindedir (liste
+shell'in dışında olduğu için kendi altındaki rotaya açar). Okunan değerler
 öneri olarak görünür; belge tarihi ile son ödeme tarihi ayrı alanlardır. Form
 hesap ve sıklık alanı çizmez. Loading, error ve unauthorized durumları mevcut
 durum bileşenlerini; gönderim kilidi `AppSubmitButton`'ı kullanır. Yeni renk,

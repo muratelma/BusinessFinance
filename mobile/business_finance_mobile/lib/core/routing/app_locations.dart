@@ -29,6 +29,13 @@ const invoiceDecisionLocation = '/transactions/new/invoice';
 /// Ödenmemiş faturanın tek seferlik yükümlülük formu.
 const obligationCreateLocation = '/transactions/new/obligation';
 
+/// Aynı form, `Yükümlülükler` listesinden açıldığında.
+///
+/// Liste shell'in dışında bir rotadır; oradan [obligationCreateLocation]'a
+/// geçmek shell zincirini ikinci kez kurar ve aynı çökmeyi üretir. Bu yüzden
+/// liste formu kendi altındaki rotaya açar.
+const obligationListCreateLocation = '/more/obligations/new';
+
 /// `Kasa` ekranı: gün sonu sayımı ve POS tahsilatları.
 ///
 /// `?tab=pos` ile açıldığında POS sekmesi seçili gelir. Sabit burada, çünkü

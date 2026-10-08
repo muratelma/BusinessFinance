@@ -213,6 +213,43 @@ void main() {
     expect(find.text('Tahsil edilecek'), findsOneWidget);
   });
 
+  // Aynı çökme sınıfının öbür yönü: `Yükümlülükler` listesi shell'in dışında
+  // bir rota. Formu shell'in içindeki adrese açtığında zincir ikinci kez
+  // kuruluyor ve Navigator aynı sayfa anahtarıyla patlıyordu; liste formu
+  // kendi altındaki rotaya açar. Testin `Diğer`den geçmesi şart: listeye
+  // doğrudan gidildiğinde yığında shell yoktur ve hata çıkmaz.
+  testWidgets('the obligations list opens its form without crashing', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final repository = FakeAuthSessionRepository()..session = testSession();
+    final controller = AuthController(repository);
+    await controller.initialize();
+    final router = createAppRouter(
+      authController: controller,
+      obligationRepository: _FakeObligationRepository(),
+    );
+
+    await tester.pumpWidget(_app(controller, router));
+    await tester.pumpAndSettle();
+
+    router.go('/more');
+    await tester.pumpAndSettle();
+    router.push('/more/obligations');
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Yükümlülük ekle'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Tahsil edilecek'), findsOneWidget);
+    expect(find.text('Yükümlülük formu açılamadı.'), findsNothing);
+  });
+
   // Dekontun kendi rotası var ve o da fiş ekranıyla kardeş: karar sayfasına
   // oradan geçiliyor. Rota adı tek sabitte (`bankSlipScanLocation`) duruyor,
   // çünkü menüdeki çağrı ile rota tanımı ayrı dizgiler olduğunda uygulama

@@ -75,7 +75,7 @@ class _ObligationsPageState extends State<ObligationsPage> {
   /// yoksa yeni satır ancak sekme değiştirince görünürdü.
   Future<void> _addObligation() async {
     final saved = await context.push<bool>(
-      obligationCreateLocation,
+      obligationListCreateLocation,
       extra: const ObligationPrefill(),
     );
     if (saved ?? false) await widget.controller.load();
