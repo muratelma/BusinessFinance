@@ -1,5 +1,6 @@
 using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
+using BusinessFinance.Application.Profiles;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Categories;
@@ -12,7 +13,8 @@ public sealed record CreateCategoryCommand(
 
 public sealed class CreateCategoryUseCase(
     ICurrentUser currentUser,
-    ICategoryRepository repository)
+    ICategoryRepository repository,
+    IUserProfileRepository profileRepository)
 {
     public async Task<ApplicationResult<CategoryListItemDto>> ExecuteAsync(
         CreateCategoryCommand command,
@@ -26,6 +28,20 @@ public sealed class CreateCategoryUseCase(
 
         await repository.EnsureDefaultsAsync(userId, cancellationToken);
 
+        // İşletmesi olmayan kullanıcıya taraf sorulmaz; açtığı kategori şahsi
+        // yazılır (ADR 0020 İ12). İşletmesi olan kullanıcıda boş taraf
+        // "iki tarafa açık" demektir ve öyle kalır.
+        var defaultScope = command.DefaultScope;
+        if (defaultScope is null)
+        {
+            var profile = await profileRepository.FindAsync(
+                userId, track: false, cancellationToken);
+            if (!(profile?.HasBusiness ?? false))
+            {
+                defaultScope = TransactionScope.Personal;
+            }
+        }
+
         Category category;
         try
         {
@@ -34,7 +50,7 @@ public sealed class CreateCategoryUseCase(
                 userId,
                 command.Name,
                 command.Type,
-                command.DefaultScope,
+                defaultScope,
                 command.IsTax);
         }
         catch (ArgumentException exception)

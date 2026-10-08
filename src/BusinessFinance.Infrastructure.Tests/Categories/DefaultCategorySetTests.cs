@@ -12,14 +12,59 @@ public sealed class DefaultCategorySetTests
 {
     public static TheoryData<bool> Sets => new(false, true);
 
+    /// <summary>
+    /// Taraf ya tanımlı bir değerdir ya boştur; boş "iki tarafa açık" demektir
+    /// (ADR 0020).
+    /// </summary>
     [Theory]
     [MemberData(nameof(Sets))]
-    public void EverySet_GivesEveryCategoryADefaultScope(bool hasBusiness)
+    public void EverySet_GivesEveryCategoryAKnownSideOrLeavesItOpen(bool hasBusiness)
     {
         var set = DefaultCategorySets.For(hasBusiness);
 
         Assert.NotEmpty(set);
-        Assert.All(set, item => Assert.True(Enum.IsDefined(item.Scope)));
+        Assert.All(set, item => Assert.True(
+            item.Scope is not TransactionScope scope || Enum.IsDefined(scope)));
+    }
+
+    /// <summary>
+    /// Adı iki tarafta aynı anlama gelen üç kalem iki tarafa açıktır: vergi
+    /// formu şahsi vergiyi de aynı kaleme yazar, şahsi kredinin faizi ve kasko
+    /// işletme gideri değildir. Tek taraflı kalsalardı bağlayıcı kural bu
+    /// kayıtları ya yanlış tarafa yazar ya reddederdi.
+    /// </summary>
+    [Theory]
+    [InlineData("SGK ve vergi ödemesi")]
+    [InlineData("Faiz ve finansman gideri")]
+    [InlineData("Sigorta")]
+    public void BusinessSet_LeavesTheSharedItemsOpenToBothSides(string name)
+    {
+        var item = Assert.Single(
+            DefaultCategorySets.BusinessSet,
+            item => item.Name == name && item.Type == CategoryType.Expense);
+
+        Assert.Null(item.Scope);
+    }
+
+    /// <summary>
+    /// Ad tarafı söyler: çift hâlinde duran kalemlerin işyeri ve ev tarafı
+    /// adından anlaşılır ve her biri kendi tarafına özeldir.
+    /// </summary>
+    [Theory]
+    [InlineData("İşyeri kirası", TransactionScope.Business)]
+    [InlineData("Ev kirası ve aidat", TransactionScope.Personal)]
+    [InlineData("İşyeri faturaları", TransactionScope.Business)]
+    [InlineData("Ev faturaları", TransactionScope.Personal)]
+    [InlineData("Personel giderleri", TransactionScope.Business)]
+    public void BusinessSet_NamesSayWhichSideTheCategoryBelongsTo(
+        string name,
+        TransactionScope side)
+    {
+        var item = Assert.Single(
+            DefaultCategorySets.BusinessSet,
+            item => item.Name == name && item.Type == CategoryType.Expense);
+
+        Assert.Equal(side, item.Scope);
     }
 
     /// <summary>
@@ -94,9 +139,8 @@ public sealed class DefaultCategorySetTests
     [InlineData("Hizmet geliri", CategoryType.Income)]
     [InlineData("Ticari mal alımı", CategoryType.Expense)]
     [InlineData("İşyeri kirası", CategoryType.Expense)]
-    [InlineData("Personel ücreti", CategoryType.Expense)]
-    [InlineData("SGK ve vergi ödemesi", CategoryType.Expense)]
-    [InlineData("Elektrik, su, doğalgaz", CategoryType.Expense)]
+    [InlineData("Personel giderleri", CategoryType.Expense)]
+    [InlineData("İşyeri faturaları", CategoryType.Expense)]
     [InlineData("İletişim", CategoryType.Expense)]
     [InlineData("Nakliye ve kargo", CategoryType.Expense)]
     [InlineData("Ambalaj ve sarf malzemesi", CategoryType.Expense)]
@@ -105,8 +149,6 @@ public sealed class DefaultCategorySetTests
     [InlineData("Muhasebeci ve danışmanlık", CategoryType.Expense)]
     [InlineData("Banka ve POS komisyonu", CategoryType.Expense)]
     [InlineData("Reklam", CategoryType.Expense)]
-    [InlineData("Sigorta", CategoryType.Expense)]
-    [InlineData("Faiz ve finansman gideri", CategoryType.Expense)]
     public void BusinessSet_CoversTheTradeItems(string name, CategoryType type)
     {
         Assert.Contains(

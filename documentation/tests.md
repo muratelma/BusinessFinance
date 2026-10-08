@@ -1739,3 +1739,18 @@ kategorisi** ile kurulur: davranışları değişmedi, verileri kurala uydu.
 
 Kontroller: backend (gerçek SQL) Domain 335, Application 349, Api 277,
 Infrastructure 227 (+2 canlı test atlanır); Flutter 1066 (102 atlanır).
+
+## Aşama 06.3 Grup 8 — kategori seti ve kategorinin tarafı, çekirdeğin ikinci adımı (8 Ekim 2026)
+
+| Kural | Test | Ne gösterir |
+|---|---|---|
+| Üç kalem iki tarafa açık | `DefaultCategorySetTests.BusinessSet_LeavesTheSharedItemsOpenToBothSides`, `CategorySideEndpointTests.TradeSet_OpensTheSharedItemsToBothSidesAndNamesThePairs` | Vergi, faiz ve sigorta işletme setinde etiketsiz kurulur |
+| Ad tarafı söyler | `DefaultCategorySetTests.BusinessSet_NamesSayWhichSideTheCategoryBelongsTo` | Beş kalemin adı ve tarafı; `Konut` ve `Faturalar` işletme setinde yok |
+| Taraf ya tanımlı ya boş | `DefaultCategorySetTests.EverySet_GivesEveryCategoryAKnownSideOrLeavesItOpen` | Kişisel set yine bütünüyle şahsi (`PersonalSet_IsEntirelyPersonal`) |
+| Yeni kategorinin tarafı | `CategorySideEndpointTests.ANewCategoryWithoutASide_IsPersonalOnlyForAUserWithoutABusiness` | İşletmesi olmayan kullanıcıda `personal`, olanda boş |
+| Genişleme serbest | `...ACategory_CanAlwaysBeOpenedToBothSides` | Kaydı olan şahsi kategori iki tarafa açılır; sonraki kayıt işletme yazılabilir |
+| Daraltma ve çevirme | `...ACategory_CannotBeNarrowedOrFlippedAwayFromItsRecords` | Öbür tarafta kayıt varken `categories.scope_in_use` (409); kayıtların tarafına daraltmak serbest |
+| İptal edilmiş kayıt | `...ACancelledRecord_DoesNotHoldTheCategoryOpen` | Yanlış taraftaki kayıt iptal edilince kategori daraltılabilir |
+
+Kontroller: backend (gerçek SQL) Domain 335, Application 349, Api 283,
+Infrastructure 232 (+2 canlı test atlanır); Flutter 1066 (102 atlanır).

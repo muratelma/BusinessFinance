@@ -6,8 +6,14 @@ namespace BusinessFinance.Application.Categories;
 
 /// <summary>
 /// Kategorinin tam güncel hâli; <see cref="DefaultScope"/> yetkilidir ve boş
-/// gönderilmesi varsayılanı kaldırır.
+/// gönderilmesi kategoriyi iki tarafa açar.
 /// </summary>
+/// <remarks>
+/// Kategorinin tarafı <b>yalnız genişler</b> (ADR 0020 İ6): tek taraflı
+/// kategori her zaman iki tarafa açılabilir; daraltmak ya da çevirmek yalnız
+/// öbür tarafta kayıt, plan ve bütçe yoksa mümkündür. Yazılmış kayıt yeniden
+/// yorumlanmaz; aksi hâlde kategorisinin izin vermediği bir tarafta dururdu.
+/// </remarks>
 /// <param name="IsTax">
 /// Vergi işareti (ADR 0018 T6); boşsa değişmez. Alanı bilmeyen bir istemci
 /// kategoriyi yeniden adlandırırken işareti sessizce kaldırmasın diye.
@@ -21,7 +27,8 @@ public sealed record UpdateCategoryCommand(
 
 public sealed class UpdateCategoryUseCase(
     ICurrentUser currentUser,
-    ICategoryRepository repository)
+    ICategoryRepository repository,
+    ICategoryUsageReader usageReader)
 {
     public async Task<ApplicationResult<CategoryListItemDto>> ExecuteAsync(
         UpdateCategoryCommand command,
@@ -37,6 +44,13 @@ public sealed class UpdateCategoryUseCase(
         if (category is null)
         {
             return ApplicationResult<CategoryListItemDto>.Failure(CategoryErrors.NotFound(command.CategoryId));
+        }
+
+        if (command.DefaultScope is TransactionScope side &&
+            category.DefaultScope != side &&
+            await usageReader.IsUsedOutsideAsync(category.Id, userId, side, cancellationToken))
+        {
+            return ApplicationResult<CategoryListItemDto>.Failure(CategoryErrors.ScopeInUse);
         }
 
         try

@@ -428,6 +428,9 @@ abstract final class ApiErrorMessages {
     'pos_deposits.scope_unresolved':
         'Kesintinin işletme mi şahsi mi olduğu belirlenemedi; işletme ve '
         'şahsi tahsilatları ayrı ayrı işaretleyin.',
+    'categories.scope_in_use':
+        'Bu kategorinin öbür tarafta kaydı, planı ya da bütçesi var. '
+        'Kategori yalnız iki tarafa açılabilir.',
     'pos_deposits.concurrent_change':
         'Tahsilatlar bu sırada değişti. Listeyi yenileyip yeniden deneyin.',
     'pos_definitions.has_settlements':

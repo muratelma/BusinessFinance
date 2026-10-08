@@ -376,19 +376,26 @@ gerekçesiyle bozulmaz.
   **reddedilir**, sessizce düzeltilmez. Hiçbir işaret yoksa işletmesi olmayan
   kullanıcıda kayıt `Şahsi` yazılır, işletmesi olanda istek
   `*.scope_unresolved` ile reddedilir; sunucu kapsam **uydurmaz**.
-  **Uygulanan: çekirdeğin ilk adımı** (sunucu kuralı ve formların önizlemesi).
-  Kategori seti, çipin gizlenmesi, cari bakiye ve Kasa adımları sırada
-  (`stages/06.3-butunsel-duzenleme.md` Grup 8 "Z6 · yön"ün sonu); kişiye bağlı
-  yükümlülük **hâlâ** cari bakiyeye giriyor.
+  **Uygulanan: çekirdeğin ilk iki adımı** (sunucu kuralı ve formların
+  önizlemesi; kategori seti ve kategorinin tarafı). Çipin gizlenmesi, cari
+  bakiye ve Kasa adımları sırada (`stages/06.3-butunsel-duzenleme.md` Grup 8
+  "Z6 · yön"ün sonu); kişiye bağlı yükümlülük **hâlâ** cari bakiyeye giriyor.
   İstemcinin kapsam göndermesi zorunlu değildir. **Vergide zincir yoktur**
   (ADR 0018 İ9, 30 Eylül 2026): açık seçim → profilin tarafı; ödeme kaynağının
   etiketine bakılmaz (işletme vergisi şahsi kartla ödenebilir).
 
 - **İki varsayılan kategori seti var**, kaydolurken sorulan tek soruya göre
   seçilir (`UserProfile.HasBusiness`). Kişisel setin tamamı `Şahsi`; işletme
-  seti işletme kalemleri (`İşletme`) **ve** patronun gündelik hayatı için şahsi
-  bir alt küme taşır. Set yalnız hiç kategorisi olmayan kullanıcıya bir kez
+  seti işletme kalemleri (`İşletme`), patronun gündelik hayatı için şahsi bir
+  alt küme **ve** iki tarafa açık üç kalem (vergi, faiz, sigorta) taşır. **Ad
+  tarafı söyler**: `İşyeri faturaları` / `Ev faturaları`, `İşyeri kirası` / `Ev
+  kirası ve aidat`. Set yalnız hiç kategorisi olmayan kullanıcıya bir kez
   uygulanır; cevabı sonradan değiştirmek kategorileri değiştirmez.
+- **Kategorinin tarafı yalnız genişler** (ADR 0020 İ6): iki tarafa her zaman
+  açılır; daraltmak ya da çevirmek öbür tarafta iptal edilmemiş kayıt, plan ya
+  da bütçe varsa `categories.scope_in_use` ile reddedilir
+  (`ICategoryUsageReader`; kategori taşıyan yeni kayıt türü oraya eklenir).
+  İşletmesi olmayan kullanıcının açtığı kategori `Şahsi` yazılır.
 - Cevap **hiçbir özelliği kapatmaz**: yalnız hangi setin kurulacağını ve kapsam
   boyutunun arayüzde görünüp görünmeyeceğini belirler.
 

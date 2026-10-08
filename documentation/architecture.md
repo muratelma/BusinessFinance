@@ -399,12 +399,31 @@ görünmeyeceği. İşletmesi olmayan kullanıcı için kapsam gerçek bir soru
 değildir — her kaydı şahsidir — ve ona bir anahtar göstermek, cevabı belli olan
 bir soruyu her ekranda tekrar sormak olurdu.
 
-İki set de her kalemine bir varsayılan kapsam koyar; **türetme zincirinin son
-halkasını dolduran budur**. Kişisel setin tamamı `Şahsi`. İşletme seti iki
-parçalıdır ve olmak zorundadır: işletme kalemleri (`İşletme`) ve patronun
-gündelik hayatı için derli toplu bir şahsi alt küme (`Şahsi`). Esnafın market
-alışverişi de aynı uygulamaya giriyor (ADR 0013); yalnız işletme kalemleri
-koymak, kullanıcıyı ilk şahsi harcamasında kategori uydurmaya zorlardı.
+Setler kalemlerin **tarafını** kurar ve taraf bağlayıcıdır (ADR 0020): tek
+taraflı kategorideki kayıt o tarafa yazılır. Kişisel setin tamamı `Şahsi`.
+İşletme seti üç parçalıdır: işletme kalemleri (`İşletme`), patronun gündelik
+hayatı için derli toplu bir şahsi alt küme (`Şahsi`) ve **iki tarafa açık** üç
+kalem (`SGK ve vergi ödemesi`, `Faiz ve finansman gideri`, `Sigorta`). Esnafın
+market alışverişi de aynı uygulamaya giriyor (ADR 0013); yalnız işletme
+kalemleri koymak, kullanıcıyı ilk şahsi harcamasında kategori uydurmaya zorlardı.
+
+**Ad tarafı söyler** (ADR 0020 İ8). Çift hâlinde duran kalemlerin hangi tarafa
+ait olduğu adından anlaşılır: `İşyeri kirası` / `Ev kirası ve aidat`, `İşyeri
+faturaları` / `Ev faturaları`. Adı iki tarafta aynı anlama gelen kalem iki
+tarafa açıktır; o üçü tek taraflı kalsaydı kural şahsi kredinin faizini ya
+işletmeye yazar ya reddederdi. Personele yemek ve yol `Personel giderleri`ne
+girer; `Yeme-içme` şahsi kalır.
+
+**Kategorinin tarafı yalnız genişler** (İ6). Tek taraflı kategori her zaman iki
+tarafa açılabilir. Daraltmak ya da çevirmek yalnız öbür tarafta iptal edilmemiş
+kayıt, plan ve bütçe yoksa mümkündür (`ICategoryUsageReader`); aksi hâlde istek
+`categories.scope_in_use` ile reddedilir. POS'un satış ya da komisyon kategorisi
+olarak kullanım işletme tarafı sayılır. Kategori taşıyan yeni bir kayıt türü
+`EfCategoryUsageReader`'a eklenir. Yazılmış kayıt hiçbir durumda yeniden
+yorumlanmaz.
+
+**Kullanıcının açtığı kategori**: işletmesi olan kullanıcıda taraf verilmezse
+iki tarafa açıktır; işletmesi olmayan kullanıcıda `Şahsi` yazılır (İ12).
 
 Set **yalnız hiç kategorisi olmayan kullanıcıya bir kez** uygulanır. Cevabını
 sonradan değiştiren kullanıcının kategorileri değişmez: o noktada liste artık

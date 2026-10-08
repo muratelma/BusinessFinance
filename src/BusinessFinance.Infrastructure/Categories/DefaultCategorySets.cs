@@ -48,11 +48,17 @@ internal static class DefaultCategorySets
     /// işaretli kategorilerden okur. Kullanıcı sonradan başka kategorileri de
     /// işaretleyebilir.
     /// </param>
+    /// <param name="Scope">
+    /// Kategorinin tarafı; boşsa kategori iki tarafa açıktır (ADR 0020). Taraf
+    /// bağlayıcı olduğu için tek taraflı kalemin adı tarafını söyler; adı iki
+    /// tarafta aynı anlama gelen kalem (vergi, faiz, sigorta) iki tarafa
+    /// açıktır.
+    /// </param>
     internal readonly record struct DefaultCategory(
         string LegacyName,
         string Name,
         CategoryType Type,
-        TransactionScope Scope,
+        TransactionScope? Scope,
         bool IsTax = false);
 
     /// <summary>İşletme setinin vergi kategorisi.</summary>
@@ -66,6 +72,10 @@ internal static class DefaultCategorySets
 
     private static DefaultCategory Business(string name, CategoryType type) =>
         new(name, name, type, TransactionScope.Business);
+
+    /// <summary>İki tarafa açık kalem: taraf kayıtta sorulur.</summary>
+    private static DefaultCategory Both(string name, CategoryType type) =>
+        new(name, name, type, null);
 
     /// <summary>
     /// İşletmesi olmayan kullanıcının seti. Devralınan liste olduğu gibi kaldı;
@@ -128,9 +138,12 @@ internal static class DefaultCategorySets
 
         Business("Ticari mal alımı", CategoryType.Expense),
         Business("İşyeri kirası", CategoryType.Expense),
-        Business("Personel ücreti", CategoryType.Expense),
-        Business(BusinessTaxCategoryName, CategoryType.Expense) with { IsTax = true },
-        Business("Elektrik, su, doğalgaz", CategoryType.Expense),
+        // Personele yemek ve yol da buraya girer; `Yeme-içme` şahsi kalır.
+        Business("Personel giderleri", CategoryType.Expense),
+
+        // Vergi formu şahsi vergiyi de (MTV, emlak vergisi) buraya yazar.
+        Both(BusinessTaxCategoryName, CategoryType.Expense) with { IsTax = true },
+        Business("İşyeri faturaları", CategoryType.Expense),
         Business("İletişim", CategoryType.Expense),
         Business("Nakliye ve kargo", CategoryType.Expense),
         Business("Ambalaj ve sarf malzemesi", CategoryType.Expense),
@@ -139,16 +152,20 @@ internal static class DefaultCategorySets
         Business("Muhasebeci ve danışmanlık", CategoryType.Expense),
         Business("Banka ve POS komisyonu", CategoryType.Expense),
         Business("Reklam", CategoryType.Expense),
-        Business("Sigorta", CategoryType.Expense),
-        Business("Faiz ve finansman gideri", CategoryType.Expense),
+        // Kasko, sağlık ve konut sigortası şahsi olabilir; şahsi kredinin
+        // faizi de aynı kaleme yazılır.
+        Both("Sigorta", CategoryType.Expense),
+        Both("Faiz ve finansman gideri", CategoryType.Expense),
 
         // Sebebi bilinmeyen kasa eksiği buraya yazılır (Aşama 06.3 K10).
         Business(CashCountDefaults.DifferenceCategoryName, CategoryType.Expense),
         Business("Diğer işletme gideri", CategoryType.Expense),
 
         Personal("Market Alışverişi", CategoryType.Expense),
-        Personal("Konut", CategoryType.Expense),
-        Personal("Faturalar", CategoryType.Expense),
+        // İşyeri çiftleriyle aynı adlandırma: ad tarafı söyler. Aidatın
+        // gidecek başka kalemi yok, o yüzden kirayla birlikte.
+        Personal("Ev kirası ve aidat", CategoryType.Expense),
+        Personal("Ev faturaları", CategoryType.Expense),
         Personal("Ulaşım", CategoryType.Expense),
         Personal("Sağlık", CategoryType.Expense),
         Personal("Yeme-içme", CategoryType.Expense),

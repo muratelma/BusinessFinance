@@ -108,6 +108,7 @@ public static class DependencyInjection
         services.AddScoped<IAccountDayFlowReader, EfAccountRepository>();
         services.AddScoped<IUnusedAccountDeletion, EfUnusedAccountDeletion>();
         services.AddScoped<ICategoryRepository, EfCategoryRepository>();
+        services.AddScoped<ICategoryUsageReader, EfCategoryUsageReader>();
         services.AddScoped<IUserProfileRepository, EfUserProfileRepository>();
         services.AddScoped<IUserAccountEraser, EfUserAccountEraser>();
         services.AddScoped<IVerificationCodeRepository, EfVerificationCodeRepository>();

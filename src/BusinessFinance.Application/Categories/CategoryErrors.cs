@@ -23,4 +23,13 @@ public static class CategoryErrors
         "categories.duplicate_name",
         $"A category named '{name}' with the same type already exists.",
         ApplicationErrorType.Conflict);
+
+    /// <summary>
+    /// Kategorinin tarafı yalnız genişler (ADR 0020 İ6): öbür tarafta kaydı,
+    /// planı ya da bütçesi olan kategori daraltılamaz ve çevrilemez.
+    /// </summary>
+    public static readonly ApplicationError ScopeInUse = new(
+        "categories.scope_in_use",
+        "The category has records, plans or budgets on the other side; it can only be opened to both sides.",
+        ApplicationErrorType.Conflict);
 }
