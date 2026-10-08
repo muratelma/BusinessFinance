@@ -66,6 +66,10 @@ class _CashWithdrawalFormState extends State<CashWithdrawalForm> {
   String? accountId;
   String? categoryId;
 
+  /// Sunucunun reddettiği son kaydın cümlesi. Gösterilmezse `Kaydet` hiçbir
+  /// şey yapmamış gibi görünür.
+  String? submitError;
+
   @override
   void initState() {
     super.initState();
@@ -208,6 +212,16 @@ class _CashWithdrawalFormState extends State<CashWithdrawalForm> {
               );
             },
           ),
+          if (submitError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.small),
+              child: Text(
+                submitError!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -220,12 +234,17 @@ class _CashWithdrawalFormState extends State<CashWithdrawalForm> {
         (chosenMethod ?? WithdrawalMethod.transfer) ==
             WithdrawalMethod.transfer;
     if (!transfer && categoryId == null) return null;
+    setState(() => submitError = null);
     final saved = await widget.controller.recordWithdrawal(
       amount: MoneyInput.wire(amountController.text),
       date: date,
       personalAccountId: transfer ? accountId : null,
       categoryId: transfer ? null : categoryId,
     );
-    return saved ? true : null;
+    if (saved) return true;
+    if (mounted) {
+      setState(() => submitError = widget.controller.errorMessage);
+    }
+    return null;
   }
 }

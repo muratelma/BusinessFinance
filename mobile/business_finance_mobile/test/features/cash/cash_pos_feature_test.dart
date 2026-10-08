@@ -4,6 +4,7 @@ import 'package:business_finance_mobile/core/config/api_config.dart';
 import 'package:business_finance_mobile/core/models/data_choice.dart';
 import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 import 'package:business_finance_mobile/core/network/api_client.dart';
+import 'package:business_finance_mobile/core/network/api_exception.dart';
 import 'package:business_finance_mobile/core/presentation/financial_data_changes.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
 import 'package:business_finance_mobile/features/cash/data/cash_repository.dart';
@@ -522,6 +523,35 @@ void main() {
       expect(changes.activityFeedRevision, 1);
     });
 
+    // Sunucu kaydı reddederse panel kapanmaz ve nedenini söyler; `Kaydet`
+    // hiçbir şey yapmamış gibi görünmemeli (8 Ekim 2026'da cihazda görüldü:
+    // işletmeye özel kategori şahsi gidere yazılamaz).
+    testWidgets('sunucu reddederse neden reddettiği panelde yazar', (
+      tester,
+    ) async {
+      final repository = await open(tester);
+      repository.withdrawalError = const ApiException(
+        code: 'transactions.scope_conflict',
+        message: 'Bu kategori bu kayıtta kullanılamıyor.',
+        statusCode: 400,
+      );
+
+      await tester.enterText(find.byType(TextFormField).first, '80,50');
+      await tester.tap(find.byKey(const ValueKey('withdrawal-category')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Kasa farkı').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Kaydet'));
+      await tester.pumpAndSettle();
+
+      expect(repository.withdrawals, isEmpty);
+      expect(
+        find.text('Bu kategori bu kayıtta kullanılamıyor.'),
+        findsOneWidget,
+      );
+      expect(find.text('Tutar'), findsOneWidget);
+    });
+
     testWidgets('şahsi hesap yoksa şahsi gider olarak yazılır', (tester) async {
       final changes = FinancialDataChanges();
       final repository = await open(tester, changes: changes);
@@ -992,6 +1022,9 @@ class _FakeCashRepository implements CashRepositoryContract {
   List<DataChoice> personalAccounts = const [];
   final withdrawals = <String>[];
 
+  /// Verilirse şahsi gider yazımı bu hatayla reddedilir.
+  ApiException? withdrawalError;
+
   @override
   Future<List<DataChoice>> loadPersonalAccounts() async => personalAccounts;
 
@@ -1012,6 +1045,7 @@ class _FakeCashRepository implements CashRepositoryContract {
     required String amount,
     required String date,
   }) async {
+    if (withdrawalError case final error?) throw error;
     withdrawals.add('expense $cashAccountId/$categoryId $amount $date');
   }
 

@@ -1313,6 +1313,9 @@ class _DifferenceFormState extends State<_DifferenceForm> {
   String? categoryId;
   CashShortageReason reason = CashShortageReason.expense;
 
+  /// Sunucunun reddettiği son kaydın cümlesi.
+  String? submitError;
+
   @override
   void initState() {
     super.initState();
@@ -1401,6 +1404,16 @@ class _DifferenceFormState extends State<_DifferenceForm> {
                 );
               },
             ),
+          if (submitError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.small),
+              child: Text(
+                submitError!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -1413,10 +1426,15 @@ class _DifferenceFormState extends State<_DifferenceForm> {
     }
     final unknown = !isIncome && reason == CashShortageReason.unknown;
     if (!unknown && !formKey.currentState!.validate()) return null;
+    setState(() => submitError = null);
     final saved = await widget.controller.confirmDifference(
       unknown ? null : categoryId,
       unknownReason: unknown,
     );
-    return saved ? CashDifferenceResult.saved : null;
+    if (saved) return CashDifferenceResult.saved;
+    if (mounted) {
+      setState(() => submitError = widget.controller.errorMessage);
+    }
+    return null;
   }
 }

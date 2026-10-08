@@ -1736,6 +1736,7 @@ kategorisi** ile kurulur: davranışları değişmedi, verileri kurala uydu.
 | Cari işletmeye özel | `CounterpartyEndpointTests.Charge_IsAlwaysBusiness_AndRejectsAPersonalCategoryOrChoice` | Taraf gönderilmeden işletme; şahsi kategori ve şahsi istek `counterparties.scope_conflict`, bakiye değişmez |
 | İstemci önizlemesi | `transaction_scope_test` (Flutter, yeni) | `previewResolvedScope` sunucunun durum tablosuyla aynı sırayı verir; çipin altındaki satır tarafın nereden geldiğini söyler |
 | Form | `quick_add_scope_test` | Tek taraflı kategoride çipe dokunmak tarafı değiştirmez ve form sunucunun reddedeceği tarafı göndermez; kartın etiketi işletme, kategori şahsi → harcama şahsi |
+| Reddi gösteren panel | `cash_pos_feature_test` "sunucu reddederse neden reddettiği panelde yazar" | `Kendime aldım` ve fark kaydı panelleri sunucunun reddini yazıyor; önce `Kaydet` hiçbir şey yapmamış gibi görünüyordu (8 Ekim, cihazda) |
 
 Kontroller: backend (gerçek SQL) Domain 335, Application 349, Api 277,
 Infrastructure 227 (+2 canlı test atlanır); Flutter 1066 (102 atlanır).
