@@ -1755,3 +1755,32 @@ Infrastructure 227 (+2 canlı test atlanır); Flutter 1066 (102 atlanır).
 
 Kontroller: backend (gerçek SQL) Domain 335, Application 349, Api 283,
 Infrastructure 232 (+2 canlı test atlanır); Flutter 1066 (102 atlanır).
+
+## Aşama 06.3 Grup 8 — formlar, çekirdeğin üçüncü adımı (8 Ekim 2026)
+
+| Kural | Test | Ne gösterir |
+|---|---|---|
+| Bilgi satırı | `app_scope_section_test` (yeni) | Tek taraflı kategoride çip çizilmez, `Şahsi · kategoriden` çizilir ve ekran okuyucu tek cümle okur; iki tarafa açıkta çip kaynağın etiketiyle açılır; hiçbir işaret yoksa hata alanın yanındadır |
+| Gider formu | `quick_add_scope_test` | Kategori seçilince çip kalkar; kayıt kategorinin tarafına yazılır |
+| Süzme yardımcı | `transaction_scope_test` `categoryAllowsSide` | Kategori kendi tarafında ve iki tarafa açıkken kullanılabilir |
+| `Kendime aldım` | `cash_pos_feature_test` "işletmeye özel kategori listelenmez" | İşletmeye özel kategori listede yok |
+| Kategori reddi | `category_feature_test` "reddedilen kayıt formda nedenini yazar" | Form kapanmaz, sunucunun cümlesini gösterir |
+| Ekran görüntüleri | `taraf_formu_screenshot_test` (`SCREENSHOT_DIR` ile) | Bilgi satırı, çip ve kategori formundaki `İkisi de` |
+
+Kart harcaması, taksit planı ve tekrarlayan plan formlarındaki taraf bölümü
+ile POS, gün sonu ve cari listelerinin süzülmesi için ayrı widget testi
+yazılmadı; ortak bölümün ve yardımcı fonksiyonun testlerine dayanıyorlar.
+
+Kullanıcının cihaz turundan sonra (8 Ekim): taraf bölümü **kategori seçilmeden
+çizilmez** (`quick_add_scope_test`, `budgets_page_test`); tekrarlayan plan
+formu kategorinin tarafını okumuyordu, çünkü `PlanningChoice.categoryFromJson`
+alanı atlıyordu (`planning_choice_test`, yeni).
+
+**Canlı API denemesi (8 Ekim, yerel API, atılabilir sentetik kullanıcı):** kart
+harcaması, taksit planı ve tekrarlayan plan için on yedi durum; hepsi beklenen
+sonucu verdi. Tek taraflı kategori kartın etiketini yener (işletme kartı + `Ev
+faturaları` → şahsi), çelişen istek `*.scope_conflict`, iki tarafa açık
+kategoride kartın etiketi ya da açık seçim, etiketsiz kaynakta
+`*.scope_unresolved`; gerçekleşen taksit planın tarafını taşır.
+
+Kontroller: Flutter 1072 (105 atlanır); backend değişmedi.

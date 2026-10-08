@@ -1,18 +1,28 @@
 import '../../../core/localization/default_category_labels.dart';
 import '../../../core/models/json_readers.dart';
+import '../../../core/models/transaction_scope.dart';
 import '../../../core/models/budget_threshold.dart';
 
 class PlanningChoice {
-  const PlanningChoice({required this.id, required this.name, this.type});
+  const PlanningChoice({
+    required this.id,
+    required this.name,
+    this.type,
+    this.defaultScope,
+  });
 
   final String id;
   final String name;
   final String? type;
 
+  /// Hesabın ya da kartın etiketi, kategorinin tarafı; boş olması meşrudur.
+  final TransactionScope? defaultScope;
+
   factory PlanningChoice.fromJson(Map<String, dynamic> json) => PlanningChoice(
     id: JsonReaders.string(json, 'id'),
     name: JsonReaders.string(json, 'name'),
     type: JsonReaders.nullableString(json, 'type'),
+    defaultScope: TransactionScope.fromApiOrNull(json['defaultScope']),
   );
 
   factory PlanningChoice.categoryFromJson(Map<String, dynamic> json) =>
@@ -20,6 +30,7 @@ class PlanningChoice {
         id: JsonReaders.string(json, 'id'),
         name: DefaultCategoryLabels.localized(JsonReaders.string(json, 'name')),
         type: JsonReaders.nullableString(json, 'type'),
+        defaultScope: TransactionScope.fromApiOrNull(json['defaultScope']),
       );
 }
 

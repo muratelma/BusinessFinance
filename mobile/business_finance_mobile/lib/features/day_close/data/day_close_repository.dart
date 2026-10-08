@@ -1,4 +1,5 @@
 import '../../../core/models/data_choice.dart';
+import '../../../core/models/transaction_scope.dart';
 import '../../../core/models/json_readers.dart';
 import '../../../core/network/api_client.dart';
 import '../../pos/data/pos_repository.dart';
@@ -547,10 +548,17 @@ class DayCloseRepository implements DayCloseRepositoryContract {
         responses[0].requireObject(),
         'items',
       ).map(DataChoice.fromJson).toList(growable: false),
-      categories: _objects(
-        responses[1].requireObject(),
-        'items',
-      ).map(DataChoice.categoryFromJson).toList(growable: false),
+      // Gün sonu işletme satışıdır (ADR 0020 T2): şahsiye özel gelir
+      // kategorisi listelenmez, sunucu da engeller.
+      categories: _objects(responses[1].requireObject(), 'items')
+          .map(DataChoice.categoryFromJson)
+          .where(
+            (category) => categoryAllowsSide(
+              category.defaultScope,
+              TransactionScope.business,
+            ),
+          )
+          .toList(growable: false),
     );
   }
 }

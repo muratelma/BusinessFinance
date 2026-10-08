@@ -621,18 +621,15 @@ class _CreateBudgetDialogState extends State<_CreateBudgetDialog> {
             },
           ),
         ),
-        if (_showScope)
+        if (_showScope && _categoryId != null)
           AppFormField(
-            child: AppScopeField(
-              value: _resolvedScope,
+            child: AppScopeSection(
+              explicit: _explicitScope,
+              category: _categoryScope,
               onChanged: (scope) => setState(() {
                 _explicitScope = scope;
                 _scopeMissing = false;
               }),
-              helperText: scopePreviewHelperText(
-                explicit: _explicitScope,
-                category: _categoryScope,
-              ),
               errorText: _scopeMissing
                   ? 'Bütçenin hangi tarafı sınırladığını seçin.'
                   : null,

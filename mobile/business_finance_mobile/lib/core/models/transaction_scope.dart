@@ -42,9 +42,9 @@ enum TransactionScope {
 String scopeFilterLabel(TransactionScope? scope) => scope?.label ?? 'Hepsi';
 
 /// Taraf kuralının istemcideki **önizlemesi** (ADR 0020): kategori tek
-/// taraflıysa taraf odur; iki tarafa açıksa girişin bağlamı ([context], ör.
-/// cari kayıt işletmedir), bağlam yoksa kullanıcının açık seçimi, o da yoksa
-/// kaynağın (hesap/kart) etiketi.
+/// taraflıysa taraf odur; iki tarafa açıksa kullanıcının açık seçimi, o da
+/// yoksa kaynağın (hesap/kart) etiketi. Tarafı sabit olan ekranlar (POS, gün
+/// sonu, cari) taraf sormaz ve bu fonksiyonu kullanmaz.
 ///
 /// Kararın sahibi sunucudur (`TransactionScopeResolution`); burası formun
 /// kullanıcıya **ne yazılacağını gösterebilmesi** için var. Form gösterdiği
@@ -56,22 +56,16 @@ TransactionScope? previewResolvedScope({
   TransactionScope? explicit,
   TransactionScope? source,
   TransactionScope? category,
-  TransactionScope? context,
-}) => category ?? context ?? explicit ?? source;
+}) => category ?? explicit ?? source;
 
-/// Tarafın **nereden** geldiğini söyleyen kısa açıklama; çipin altında durur.
-///
-/// Tek taraflı kategoride çip değişmez ve bunu söylemesi şart: aksi hâlde
-/// kullanıcı dokunduğu çipin neden yerinde kaldığını anlayamaz.
+/// İki tarafa açık kategoride çipin altındaki kısa açıklama: seçimin
+/// **nereden** geldiğini söyler. Tek taraflı kategoride çip çizilmez, bilgi
+/// satırı çizilir (`AppScopeSection`).
 String scopePreviewHelperText({
   TransactionScope? explicit,
   TransactionScope? source,
-  TransactionScope? category,
-  TransactionScope? context,
   String? sourceName,
 }) {
-  if (category != null) return 'Kategoriden gelir; bu kategoride değişmez.';
-  if (context != null) return 'Bu kayıt her zaman ${context.label} yazılır.';
   if (explicit != null) return 'Bu kayıt için siz seçtiniz.';
   if (source != null) {
     return sourceName == null
@@ -80,3 +74,13 @@ String scopePreviewHelperText({
   }
   return 'Bu kayıt için seçin.';
 }
+
+/// Kategori [side] tarafındaki bir kayıtta kullanılabilir mi: o tarafa özelse
+/// ya da iki tarafa açıksa evet (ADR 0020 T2).
+///
+/// Tarafı sabit olan ekranlar (POS, gün sonu, cari, `Kendime aldım`) yalnız
+/// kullanabilecekleri kategorileri listeler; sunucu öbürünü zaten reddeder.
+bool categoryAllowsSide(
+  TransactionScope? categorySide,
+  TransactionScope side,
+) => categorySide == null || categorySide == side;

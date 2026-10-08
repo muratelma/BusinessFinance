@@ -251,8 +251,14 @@ class CashCountController extends ChangeNotifier {
       if (account.id != selectedAccountId) account,
   ];
 
-  Future<List<DataChoice>> loadWithdrawalCategories() =>
-      _repository.loadCategories(type: 'expense');
+  /// `Kendime aldım` şahsi bir giderdir (ADR 0020 T2): yalnız şahsiye özel ve
+  /// iki tarafa açık kategoriler listelenir; işletmeye özel kategoriyi sunucu
+  /// da reddeder.
+  Future<List<DataChoice>> loadWithdrawalCategories() async => [
+    for (final category in await _repository.loadCategories(type: 'expense'))
+      if (categoryAllowsSide(category.defaultScope, TransactionScope.personal))
+        category,
+  ];
 
   /// "Kendime aldım": [personalAccountId] verilirse şahsi hesaba aktarım,
   /// [categoryId] verilirse şahsi gider yazılır. Yeni bir kayıt türü değildir.

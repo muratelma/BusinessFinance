@@ -6,7 +6,6 @@ import '../../../core/models/data_choice.dart';
 import '../../../core/models/transaction_scope.dart';
 import '../../../core/widgets/app_date_field.dart';
 import '../../../core/widgets/app_form_sheet.dart';
-import '../../../core/widgets/app_scope_selector.dart';
 import '../../pos/presentation/card_collection_fields.dart';
 import '../data/counterparty_models.dart';
 
@@ -113,7 +112,6 @@ class CounterpartyChargeForm extends StatefulWidget {
     required this.categories,
     required this.isReceivable,
     super.key,
-    this.showScope = false,
   });
 
   final String today;
@@ -121,9 +119,6 @@ class CounterpartyChargeForm extends StatefulWidget {
 
   /// Alacak mı doğuruyor (satış) yoksa borç mu (alım).
   final bool isReceivable;
-
-  /// Kapsam boyutu yalnız onboarding'de "işletmem var" diyene görünür.
-  final bool showScope;
 
   @override
   State<CounterpartyChargeForm> createState() => _CounterpartyChargeFormState();
@@ -136,12 +131,14 @@ class _CounterpartyChargeFormState extends State<CounterpartyChargeForm> {
   late String _date;
   String? _dueDate;
   String? _categoryId;
-  TransactionScope? _explicitScope;
-  bool _scopeMissing = false;
 
+  /// Cari kayıt her zaman işletme yazılır (ADR 0020 İ9): form taraf sormaz ve
+  /// yalnız işletmeye özel ya da iki tarafa açık kategorileri listeler.
   List<DataChoice> get _options => widget.categories
       .where(
-        (item) => item.type == (widget.isReceivable ? 'income' : 'expense'),
+        (item) =>
+            item.type == (widget.isReceivable ? 'income' : 'expense') &&
+            categoryAllowsSide(item.defaultScope, TransactionScope.business),
       )
       .toList(growable: false);
 
@@ -159,30 +156,6 @@ class _CounterpartyChargeFormState extends State<CounterpartyChargeForm> {
     super.dispose();
   }
 
-  /// Zincirin bu formdaki hâli: kullanıcının seçimi → kategorinin varsayılanı.
-  ///
-  /// Cari kayıt her zaman işletme yazılır (ADR 0020 İ9). Şahsi bir kategori
-  /// seçilirse çip onu gösterir ve sunucu kaydı reddeder; kullanıcının gördüğü
-  /// ile gönderilen aynı kalır.
-  TransactionScope? get _resolvedScope => previewResolvedScope(
-    explicit: _explicitScope,
-    category: _categoryScope,
-    context: TransactionScope.business,
-  );
-
-  TransactionScope? get _categoryScope {
-    for (final option in _options) {
-      if (option.id == _categoryId) return option.defaultScope;
-    }
-    return null;
-  }
-
-  String? get _scopeHelperText => scopePreviewHelperText(
-    explicit: _explicitScope,
-    category: _categoryScope,
-    context: TransactionScope.business,
-  );
-
   @override
   Widget build(BuildContext context) => Form(
     key: _formKey,
@@ -196,18 +169,11 @@ class _CounterpartyChargeFormState extends State<CounterpartyChargeForm> {
       submitLabel: 'Kaydet',
       onSubmit: () async {
         if (!(_formKey.currentState?.validate() ?? false)) return null;
-        if (widget.showScope && _resolvedScope == null) {
-          setState(() => _scopeMissing = true);
-          return null;
-        }
         return {
           'amount': MoneyInput.wire(_amount.text),
           'categoryId': _categoryId,
           'chargeDate': _date,
           'dueDate': _dueDate,
-          // Kapsam yalnız görünürse ve çözülebiliyorsa gider: cevabı
-          // görünmeyen kullanıcıda hiçbir istekte `scope` yollanmaz.
-          'scope': widget.showScope ? _resolvedScope?.apiValue : null,
           'description': _description.text.trim(),
         };
       },
@@ -237,25 +203,10 @@ class _CounterpartyChargeFormState extends State<CounterpartyChargeForm> {
               for (final option in _options)
                 DropdownMenuItem(value: option.id, child: Text(option.name)),
             ],
-            onChanged: (value) => setState(() {
-              _categoryId = value;
-              _scopeMissing = false;
-            }),
+            onChanged: (value) => setState(() => _categoryId = value),
             validator: (value) => value == null ? 'Bir kategori seçin.' : null,
           ),
         ),
-        if (widget.showScope)
-          AppFormField(
-            child: AppScopeField(
-              value: _resolvedScope,
-              helperText: _scopeHelperText,
-              errorText: _scopeMissing ? 'Bu kayıt için kapsam seçin.' : null,
-              onChanged: (value) => setState(() {
-                _explicitScope = value;
-                _scopeMissing = false;
-              }),
-            ),
-          ),
         AppFormField(
           child: AppDateField(
             label: 'Tarih',

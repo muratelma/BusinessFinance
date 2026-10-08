@@ -29,44 +29,16 @@ void main() {
       expect(previewResolvedScope(source: business), business);
     });
 
-    test('bağlamı olan giriş bağlamın tarafını yazar', () {
-      expect(previewResolvedScope(context: business), business);
-      expect(
-        previewResolvedScope(context: business, explicit: personal),
-        business,
-      );
-      // Şahsi kategori cari kayıtta kullanılamaz; form onu gizlemez, gösterir
-      // ve sunucu reddeder.
-      expect(
-        previewResolvedScope(context: business, category: personal),
-        personal,
-      );
-    });
-
     test('hiçbir işaret yoksa taraf uydurulmaz', () {
       expect(previewResolvedScope(), isNull);
     });
   });
 
   group('scopePreviewHelperText', () {
-    test('tek taraflı kategoride çipin değişmeyeceğini söyler', () {
-      expect(
-        scopePreviewHelperText(category: personal, explicit: business),
-        'Kategoriden gelir; bu kategoride değişmez.',
-      );
-    });
-
     test('ön değerin kaynağın etiketinden geldiğini adıyla söyler', () {
       expect(
         scopePreviewHelperText(source: business, sourceName: 'Dükkân kasası'),
         'Dükkân kasası etiketinden geldi — değiştirebilirsiniz.',
-      );
-    });
-
-    test('bağlamı olan girişte tarafın sabit olduğunu söyler', () {
-      expect(
-        scopePreviewHelperText(context: business),
-        'Bu kayıt her zaman İşletme yazılır.',
       );
     });
 
@@ -76,6 +48,15 @@ void main() {
         'Bu kayıt için siz seçtiniz.',
       );
       expect(scopePreviewHelperText(), 'Bu kayıt için seçin.');
+    });
+  });
+
+  group('categoryAllowsSide', () {
+    test('kategori kendi tarafında ve iki tarafa açıkken kullanılabilir', () {
+      expect(categoryAllowsSide(business, business), isTrue);
+      expect(categoryAllowsSide(null, business), isTrue);
+      expect(categoryAllowsSide(personal, business), isFalse);
+      expect(categoryAllowsSide(null, personal), isTrue);
     });
   });
 }

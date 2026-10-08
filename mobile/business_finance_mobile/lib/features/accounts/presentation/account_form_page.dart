@@ -183,9 +183,8 @@ class _AccountFormPageState extends State<AccountFormPage> {
                   value: _defaultScope,
                   onChanged: (value) => setState(() => _defaultScope = value),
                   helperText:
-                      'Bu hesaptan yazılan kayıtlar, siz başka bir şey '
-                      'seçmedikçe bu tarafa yazılır. Boş bırakırsanız kararı '
-                      'kategori verir.',
+                      'Kaydın tarafını kategori belirler. Kategori iki tarafa '
+                      'da açıksa bu seçili gelir.',
                 ),
               ],
               if (_editing) ...[

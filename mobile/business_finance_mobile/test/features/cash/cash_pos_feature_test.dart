@@ -552,6 +552,18 @@ void main() {
       expect(find.text('Tutar'), findsOneWidget);
     });
 
+    // `Kendime aldım` şahsi bir giderdir: işletmeye özel kategori listede
+    // yoktur (ADR 0020 T2); fark kaydı ise her kategoriyi gösterir.
+    testWidgets('işletmeye özel kategori listelenmez', (tester) async {
+      await open(tester);
+
+      await tester.tap(find.byKey(const ValueKey('withdrawal-category')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kasa farkı'), findsWidgets);
+      expect(find.text('İşyeri kirası'), findsNothing);
+    });
+
     testWidgets('şahsi hesap yoksa şahsi gider olarak yazılır', (tester) async {
       final changes = FinancialDataChanges();
       final repository = await open(tester, changes: changes);
@@ -1124,7 +1136,14 @@ class _FakeCashRepository implements CashRepositoryContract {
 
   @override
   Future<List<DataChoice>> loadCategories({required String type}) async =>
-      const [DataChoice('income-category', 'Kasa farkı')];
+      const [
+        DataChoice('income-category', 'Kasa farkı'),
+        DataChoice(
+          'business-category',
+          'İşyeri kirası',
+          defaultScope: TransactionScope.business,
+        ),
+      ];
 
   @override
   Future<CashCountItem> confirmDifference({

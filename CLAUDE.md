@@ -376,10 +376,10 @@ gerekçesiyle bozulmaz.
   **reddedilir**, sessizce düzeltilmez. Hiçbir işaret yoksa işletmesi olmayan
   kullanıcıda kayıt `Şahsi` yazılır, işletmesi olanda istek
   `*.scope_unresolved` ile reddedilir; sunucu kapsam **uydurmaz**.
-  **Uygulanan: çekirdeğin ilk iki adımı** (sunucu kuralı ve formların
-  önizlemesi; kategori seti ve kategorinin tarafı). Çipin gizlenmesi, cari
-  bakiye ve Kasa adımları sırada (`stages/06.3-butunsel-duzenleme.md` Grup 8
-  "Z6 · yön"ün sonu); kişiye bağlı yükümlülük **hâlâ** cari bakiyeye giriyor.
+  **Uygulanan: çekirdeğin ilk üç adımı** (sunucu kuralı; kategori seti ve
+  kategorinin tarafı; formlar). Cari bakiye ve Kasa adımları sırada
+  (`stages/06.3-butunsel-duzenleme.md` Grup 8 "Z6 · yön"ün sonu); kişiye bağlı
+  yükümlülük **hâlâ** cari bakiyeye giriyor.
   İstemcinin kapsam göndermesi zorunlu değildir. **Vergide zincir yoktur**
   (ADR 0018 İ9, 30 Eylül 2026): açık seçim → profilin tarafı; ödeme kaynağının
   etiketine bakılmaz (işletme vergisi şahsi kartla ödenebilir).
@@ -410,9 +410,15 @@ gerekçesiyle bozulmaz.
   denetimi kopyalamaz. Bölünmeyen bölümler toplam gösterdiklerini yazar.
   Kapsam `FinancialDataChanges`'e bağlanmaz — veriyi değiştirmez, aynı veriye
   başka bir soru sorar. Formdaki çip kuralın **önizlemesidir**
-  (`previewResolvedScope`): sunucunun yazacağı tarafı gösterip gönderir, tek
-  taraflı kategoride değişmez; taraf bulunamazsa istek gitmeden alanın yanında
-  söylenir. POS tahsilatı formu taraf sormaz.
+  (`previewResolvedScope`, `AppScopeSection`): kategori seçilmeden bölüm hiç
+  çizilmez; tek taraflı kategoride çip çizilmez, bilgi satırı çizilir (`Şahsi ·
+  kategoriden`); iki tarafa açık kategoride çip çıkar ve ön değeri kaynağın
+  etiketidir; taraf bulunamazsa
+  istek gitmeden alanın yanında söylenir. **Tarafı sabit olan ekran taraf
+  sormaz ve yalnız kullanabileceği kategorileri listeler** (POS, gün sonu, cari:
+  işletmeye özel ve iki tarafa açık; `Kendime aldım`: şahsiye özel ve iki
+  tarafa açık). Bu süzme ekranın anlamına bağlıdır, kapsam anahtarının
+  konumuna değil. Kategori formunda boş taraf `İkisi de` diye yazar.
   Cevabı görünmeyen kullanıcıda hiçbir istekte `scope` gitmez.
 
 - **Aylık rapor filtresiz okunduğunda ayın iki tarafını ayrı ayrı toplayan bir

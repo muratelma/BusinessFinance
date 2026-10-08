@@ -55,6 +55,13 @@ class AppScopeSwitch extends StatelessWidget {
   }
 }
 
+/// Taraf bölümlerinin yatay girintisi: çerçevesiz oldukları için, üstlerindeki
+/// çerçeveli alanların **yazısıyla** aynı hizada başlarlar. Girintisiz
+/// durduklarında alanlardan kopuk, kenara yapışık görünüyorlardı.
+const EdgeInsets _scopeInset = EdgeInsets.symmetric(
+  horizontal: AppSpacing.medium + AppSpacing.xSmall,
+);
+
 /// Formdaki kapsam alanı: ayrı bir zorunlu soru değil, **düzeltilebilir** iki
 /// çip.
 ///
@@ -80,38 +87,145 @@ class AppScopeField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Semantics(
-      container: true,
-      label: 'Kapsam',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Kapsam', style: theme.textTheme.labelMedium),
-          const SizedBox(height: AppSpacing.xSmall),
-          Wrap(
-            spacing: AppSpacing.small,
-            runSpacing: AppSpacing.small,
-            children: [
-              for (final scope in TransactionScope.values)
-                AppScopeChoiceChip(
-                  label: scope.label,
-                  selected: value == scope,
-                  onSelected: () => onChanged(scope),
+    return Padding(
+      padding: _scopeInset,
+      child: Semantics(
+        container: true,
+        label: 'Kapsam',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Kapsam', style: theme.textTheme.labelMedium),
+            const SizedBox(height: AppSpacing.xSmall),
+            Wrap(
+              spacing: AppSpacing.small,
+              runSpacing: AppSpacing.small,
+              children: [
+                for (final scope in TransactionScope.values)
+                  AppScopeChoiceChip(
+                    label: scope.label,
+                    selected: value == scope,
+                    onSelected: () => onChanged(scope),
+                  ),
+              ],
+            ),
+            if (helperText != null || errorText != null) ...[
+              const SizedBox(height: AppSpacing.xSmall),
+              Text(
+                errorText ?? helperText!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: errorText == null
+                      ? theme.colorScheme.onSurfaceVariant
+                      : theme.colorScheme.error,
                 ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Formdaki taraf bölümü (ADR 0020): tek taraflı kategoride **bilgi satırı**,
+/// iki tarafa açık kategoride iki çip.
+///
+/// Kategori tarafı söylüyorsa sorulacak bir şey yoktur; çip çizmek kullanıcıya
+/// değiştiremeyeceği bir seçim göstermek olurdu. İki tarafa açık kategoride
+/// çipin ön değeri kaynağın (hesap/kart) etiketidir.
+class AppScopeSection extends StatelessWidget {
+  const AppScopeSection({
+    required this.onChanged,
+    this.explicit,
+    this.source,
+    this.category,
+    this.sourceName,
+    this.errorText,
+    super.key,
+  });
+
+  /// Kullanıcının bu kayıt için açık seçimi.
+  final TransactionScope? explicit;
+
+  /// Hesabın ya da kartın etiketi; kaynağı olmayan formda boş.
+  final TransactionScope? source;
+
+  /// Seçili kategorinin tarafı; boşsa kategori iki tarafa açıktır.
+  final TransactionScope? category;
+
+  final String? sourceName;
+  final ValueChanged<TransactionScope> onChanged;
+
+  /// Taraf bulunamadı ve kullanıcı da seçmeden kaydetmeye çalıştı.
+  final String? errorText;
+
+  @override
+  Widget build(BuildContext context) {
+    if (category case final side?) {
+      return AppScopeInfoRow(scope: side, reason: 'kategoriden');
+    }
+    return AppScopeField(
+      value: previewResolvedScope(explicit: explicit, source: source),
+      onChanged: onChanged,
+      helperText: scopePreviewHelperText(
+        explicit: explicit,
+        source: source,
+        sourceName: sourceName,
+      ),
+      errorText: errorText,
+    );
+  }
+}
+
+/// Sorulmayan tarafın bilgi satırı: `Şahsi · kategoriden`.
+///
+/// Taraf vurgulu, nedeni soluk yazılır; satır dokunulmaz ve ekran okuyucu
+/// ikisini tek cümle okur.
+class AppScopeInfoRow extends StatelessWidget {
+  const AppScopeInfoRow({required this.scope, required this.reason, super.key});
+
+  final TransactionScope scope;
+
+  /// Tarafın nereden geldiği, küçük harfle: `kategoriden`.
+  final String reason;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = AppSurfaces.of(context);
+    return Padding(
+      padding: _scopeInset,
+      child: Semantics(
+        container: true,
+        label: 'Kapsam: ${scope.label}, $reason',
+        child: ExcludeSemantics(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Kapsam', style: theme.textTheme.labelMedium),
+              const SizedBox(height: AppSpacing.xSmall),
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: scope.label,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: surfaces.ink,
+                      ),
+                    ),
+                    TextSpan(
+                      text: ' · $reason',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: surfaces.inkMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-          if (helperText != null || errorText != null) ...[
-            const SizedBox(height: AppSpacing.xSmall),
-            Text(
-              errorText ?? helperText!,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: errorText == null
-                    ? theme.colorScheme.onSurfaceVariant
-                    : theme.colorScheme.error,
-              ),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
@@ -160,11 +274,21 @@ class AppScopeDefaultField extends StatelessWidget {
     required this.value,
     required this.onChanged,
     required this.helperText,
+    this.label = 'Varsayılan kapsam',
+    this.emptyLabel = 'Belirtilmedi',
     super.key,
   });
 
   final TransactionScope? value;
   final ValueChanged<TransactionScope?> onChanged;
+
+  /// Alanın başlığı. Hesapta ve kartta bir varsayılandır; kategoride kaydın
+  /// alabileceği taraftır ve başlığı ona göre verilir.
+  final String label;
+
+  /// Boş değerin adı. Hesapta ve kartta "söylemiyorum" (`Belirtilmedi`),
+  /// kategoride "iki tarafa da açık" demektir (`İkisi de`).
+  final String emptyLabel;
 
   /// Alanın ne işe yaradığını söyleyen cümle; çağıran yazar çünkü hesapta,
   /// kartta ve kategoride farklı okunur.
@@ -173,38 +297,41 @@ class AppScopeDefaultField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Semantics(
-      container: true,
-      label: 'Varsayılan kapsam',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Varsayılan kapsam', style: theme.textTheme.labelMedium),
-          const SizedBox(height: AppSpacing.xSmall),
-          Wrap(
-            spacing: AppSpacing.small,
-            runSpacing: AppSpacing.small,
-            children: [
-              for (final option in <TransactionScope?>[
-                null,
-                TransactionScope.business,
-                TransactionScope.personal,
-              ])
-                AppScopeChoiceChip(
-                  label: option?.label ?? 'Belirtilmedi',
-                  selected: value == option,
-                  onSelected: () => onChanged(option),
-                ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xSmall),
-          Text(
-            helperText,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+    return Padding(
+      padding: _scopeInset,
+      child: Semantics(
+        container: true,
+        label: label,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: theme.textTheme.labelMedium),
+            const SizedBox(height: AppSpacing.xSmall),
+            Wrap(
+              spacing: AppSpacing.small,
+              runSpacing: AppSpacing.small,
+              children: [
+                for (final option in <TransactionScope?>[
+                  null,
+                  TransactionScope.business,
+                  TransactionScope.personal,
+                ])
+                  AppScopeChoiceChip(
+                    label: option?.label ?? emptyLabel,
+                    selected: value == option,
+                    onSelected: () => onChanged(option),
+                  ),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: AppSpacing.xSmall),
+            Text(
+              helperText,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

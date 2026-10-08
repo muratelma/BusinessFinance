@@ -212,7 +212,7 @@ void main() {
     expect(find.text('İşletme'), findsOneWidget);
   });
 
-  testWidgets('shows where the scope comes from in the create form', (
+  testWidgets('keeps the scope section out until a category is chosen', (
     tester,
   ) async {
     final controller = BudgetsController(
@@ -231,10 +231,9 @@ void main() {
     await tester.tap(find.byTooltip('Bütçe ekle'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Kapsam'), findsOneWidget);
-    // Kategori seçilmeden taraf bilinmez; seçilince kategoriden gelir
-    // (ADR 0020).
-    expect(find.text('Bu kayıt için seçin.'), findsOneWidget);
+    // Taraf kategoriden bellidir ya da iki tarafa açık kategoride sorulur;
+    // kategori seçilmeden çizilecek bir şey yoktur (ADR 0020).
+    expect(find.text('Kapsam'), findsNothing);
   });
 
   testWidgets('drops categories that already have a budget this month', (

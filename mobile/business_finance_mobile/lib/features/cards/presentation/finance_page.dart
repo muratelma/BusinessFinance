@@ -1135,6 +1135,7 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
         cards: const [],
         categories: widget.controller.snapshot!.expenseCategories,
         fixedCardId: card.id,
+        fixedCardScope: card.defaultScope,
         prefill: prefill,
       ),
     );
@@ -1155,6 +1156,9 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
         choices: widget.controller.snapshot!.expenseCategories,
         choiceKey: 'categoryId',
         dateKey: 'chargeDate',
+        asksScope: true,
+        sourceScope: card.defaultScope,
+        sourceName: card.name,
       ),
     );
     if (input != null &&
@@ -1540,8 +1544,8 @@ class _CardDialogState extends State<_CardDialog> {
               value: defaultScope,
               onChanged: (value) => setState(() => defaultScope = value),
               helperText:
-                  'Bu kartla yapılan harcamalar, siz başka bir şey seçmedikçe '
-                  'bu tarafa yazılır. Boş bırakırsanız kararı kategori verir.',
+                  'Harcamanın tarafını kategori belirler. Kategori iki tarafa '
+                  'da açıksa bu seçili gelir.',
             ),
           ),
       ],
@@ -1559,12 +1563,23 @@ class _ActivityDialog extends StatefulWidget {
     this.presetAmount,
     this.presetDate,
     this.presetDescription,
+    this.asksScope = false,
+    this.sourceScope,
+    this.sourceName,
   });
   final String title;
   final String choiceLabel;
   final List<FinanceChoice> choices;
   final String choiceKey;
   final String dateKey;
+
+  /// Kayıt gider yazıyorsa (kart harcaması) taraf alanı çizilir; kart ödemesi
+  /// para taşır, taraf taşımaz.
+  final bool asksScope;
+
+  /// Kartın etiketi: iki tarafa açık kategoride seçimin ön değeri.
+  final TransactionScope? sourceScope;
+  final String? sourceName;
 
   /// Tarih alanına önceden yazılacak `yyyy-MM-dd` değeri.
   final String? presetDate;
@@ -1594,6 +1609,8 @@ class _ActivityDialogState extends State<_ActivityDialog> {
     text: widget.presetDescription ?? '',
   );
   String? choice;
+  TransactionScope? explicitScope;
+  bool scopeMissing = false;
   late String date = widget.presetDate ?? _dateText(DateTime.now());
   @override
   void dispose() {
@@ -1601,6 +1618,15 @@ class _ActivityDialogState extends State<_ActivityDialog> {
     description.dispose();
     super.dispose();
   }
+
+  bool get _showScope =>
+      widget.asksScope &&
+      (context.read<ScopeController?>()?.isVisible ?? false);
+
+  TransactionScope? get _categoryScope => widget.choices
+      .where((item) => item.id == choice)
+      .firstOrNull
+      ?.defaultScope;
 
   @override
   Widget build(BuildContext context) => Form(
@@ -1610,8 +1636,18 @@ class _ActivityDialogState extends State<_ActivityDialog> {
       submitLabel: 'Kaydet',
       onSubmit: () async {
         if (!(key.currentState?.validate() ?? false)) return null;
+        final scope = previewResolvedScope(
+          explicit: explicitScope,
+          source: widget.sourceScope,
+          category: _categoryScope,
+        );
+        if (_showScope && scope == null) {
+          setState(() => scopeMissing = true);
+          return null;
+        }
         return {
           widget.choiceKey: choice,
+          if (_showScope) 'scope': scope?.apiValue,
           'amount': _money(amount.text),
           'currency': 'TRY',
           widget.dateKey: date,
@@ -1624,9 +1660,26 @@ class _ActivityDialogState extends State<_ActivityDialog> {
             widget.choices,
             widget.choiceLabel,
             choice,
-            (v) => setState(() => choice = v),
+            (v) => setState(() {
+              choice = v;
+              scopeMissing = false;
+            }),
           ),
         ),
+        if (_showScope && choice != null)
+          AppFormField(
+            child: AppScopeSection(
+              explicit: explicitScope,
+              source: widget.sourceScope,
+              category: _categoryScope,
+              sourceName: widget.sourceName,
+              errorText: scopeMissing ? 'Bu kayıt için kapsam seçin.' : null,
+              onChanged: (value) => setState(() {
+                explicitScope = value;
+                scopeMissing = false;
+              }),
+            ),
+          ),
         AppFormField(
           child: TextFormField(
             controller: amount,
@@ -1668,11 +1721,15 @@ class _PlanDialog extends StatefulWidget {
     required this.cards,
     required this.categories,
     this.fixedCardId,
+    this.fixedCardScope,
     this.prefill,
   });
   final List<CreditCardItem> cards;
   final List<FinanceChoice> categories;
   final String? fixedCardId;
+
+  /// [fixedCardId] kartının etiketi: iki tarafa açık kategoride ön değer.
+  final TransactionScope? fixedCardScope;
 
   /// Taksitli fişten gelen öneriler; hepsi değiştirilebilir.
   final InstallmentPrefill? prefill;
@@ -1687,6 +1744,8 @@ class _PlanDialogState extends State<_PlanDialog> {
   final description = TextEditingController();
   String? cardId;
   String? categoryId;
+  TransactionScope? explicitScope;
+  bool scopeMissing = false;
   String date = _dateText(DateTime.now());
 
   @override
@@ -1695,6 +1754,20 @@ class _PlanDialogState extends State<_PlanDialog> {
     cardId = widget.fixedCardId;
     _applyPrefill();
   }
+
+  bool get _showScope => context.read<ScopeController?>()?.isVisible ?? false;
+
+  TransactionScope? get _categoryScope => widget.categories
+      .where((item) => item.id == categoryId)
+      .firstOrNull
+      ?.defaultScope;
+
+  TransactionScope? get _cardScope => widget.fixedCardId != null
+      ? widget.fixedCardScope
+      : widget.cards
+            .where((card) => card.id == cardId)
+            .firstOrNull
+            ?.defaultScope;
 
   /// Fişin söylediğini yazar. **Taksit tutarı hesaplanmıyor**: forma toplam
   /// giriliyor, bölmeyi sunucu yapıyor — istemci finansal toplamı ikinci kez
@@ -1728,9 +1801,20 @@ class _PlanDialogState extends State<_PlanDialog> {
       submitLabel: 'Kaydet',
       onSubmit: () async {
         if (!(key.currentState?.validate() ?? false)) return null;
+        // Plan tarafını kurulurken alır; gerçekleşen her taksit onu taşır.
+        final scope = previewResolvedScope(
+          explicit: explicitScope,
+          source: _cardScope,
+          category: _categoryScope,
+        );
+        if (_showScope && scope == null) {
+          setState(() => scopeMissing = true);
+          return null;
+        }
         return {
           'creditCardId': cardId,
           'categoryId': categoryId,
+          if (_showScope) 'scope': scope?.apiValue,
           'clientRequestId': _newGuid(),
           'totalAmount': _money(total.text),
           'currency': 'TRY',
@@ -1756,9 +1840,25 @@ class _PlanDialogState extends State<_PlanDialog> {
             widget.categories,
             'Gider kategorisi',
             categoryId,
-            (v) => setState(() => categoryId = v),
+            (v) => setState(() {
+              categoryId = v;
+              scopeMissing = false;
+            }),
           ),
         ),
+        if (_showScope && categoryId != null)
+          AppFormField(
+            child: AppScopeSection(
+              explicit: explicitScope,
+              source: _cardScope,
+              category: _categoryScope,
+              errorText: scopeMissing ? 'Bu plan için kapsam seçin.' : null,
+              onChanged: (value) => setState(() {
+                explicitScope = value;
+                scopeMissing = false;
+              }),
+            ),
+          ),
         AppFormField(
           child: TextFormField(
             controller: total,

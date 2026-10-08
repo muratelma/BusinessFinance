@@ -2,11 +2,14 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_text.dart';
+import '../../../core/models/transaction_scope.dart';
 import '../../../core/presentation/financial_data_changes.dart';
+import '../../../core/presentation/scope_controller.dart';
 import '../../../core/routing/app_locations.dart';
 import '../../../core/theme/app_finance_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -20,6 +23,7 @@ import '../../../core/widgets/app_form_sheet.dart';
 import '../../../core/widgets/app_menu_group_label.dart';
 import '../../../core/widgets/app_month_chips.dart';
 import '../../../core/widgets/app_responsive_grid.dart';
+import '../../../core/widgets/app_scope_selector.dart';
 import '../../../core/widgets/app_row_action.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
@@ -871,6 +875,8 @@ class _RecurringFormState extends State<_RecurringForm> {
   String? accountId;
   String? creditCardId;
   String? categoryId;
+  TransactionScope? explicitScope;
+  bool scopeMissing = false;
   String kind = 'expense';
   String frequency = 'monthly';
   String monthEndBehavior = 'clamp-to-last-day';
@@ -967,9 +973,28 @@ class _RecurringFormState extends State<_RecurringForm> {
             for (final category in _availableCategories)
               DropdownMenuItem(value: category.id, child: Text(category.name)),
           ],
-          onChanged: (value) => categoryId = value,
+          onChanged: (value) => setState(() {
+            categoryId = value;
+            scopeMissing = false;
+          }),
           validator: (value) => value == null ? 'Kategori seçin.' : null,
         ),
+        // Plan tarafını kurulurken alır ve ürettiği her kayda taşır; iki
+        // tarafa açık kategoride bu yüzden burada sorulur (ADR 0020 Y4).
+        if ((context.watch<ScopeController?>()?.isVisible ?? false) &&
+            categoryId != null) ...[
+          const SizedBox(height: AppSpacing.medium),
+          AppScopeSection(
+            explicit: explicitScope,
+            source: _sourceScope,
+            category: _categoryScope,
+            errorText: scopeMissing ? 'Bu plan için kapsam seçin.' : null,
+            onChanged: (value) => setState(() {
+              explicitScope = value;
+              scopeMissing = false;
+            }),
+          ),
+        ],
         const SizedBox(height: AppSpacing.medium),
         TextFormField(
           controller: amount,
@@ -1119,6 +1144,22 @@ class _RecurringFormState extends State<_RecurringForm> {
       ? 'card:$creditCardId'
       : (accountId == null ? null : 'account:$accountId');
 
+  TransactionScope? get _categoryScope => widget.snapshot.categories
+      .where((category) => category.id == categoryId)
+      .firstOrNull
+      ?.defaultScope;
+
+  TransactionScope? get _sourceScope =>
+      (creditCardId != null
+              ? widget.snapshot.creditCards.where(
+                  (card) => card.id == creditCardId,
+                )
+              : widget.snapshot.accounts.where(
+                  (account) => account.id == accountId,
+                ))
+          .firstOrNull
+          ?.defaultScope;
+
   Iterable<PlanningChoice> get _availableCategories {
     final requiredType = kind == 'income' ? 'income' : 'expense';
     return widget.snapshot.categories.where(
@@ -1130,6 +1171,17 @@ class _RecurringFormState extends State<_RecurringForm> {
   /// ekranda kalır; hata mesajını controller banner'da gösterir.
   Future<bool?> _submit() async {
     if (!formKey.currentState!.validate()) return null;
+    // Taraf görünmeyen kullanıcıda hiçbir istekte `scope` gitmez.
+    final showScope = context.read<ScopeController?>()?.isVisible ?? false;
+    final scope = previewResolvedScope(
+      explicit: explicitScope,
+      source: _sourceScope,
+      category: _categoryScope,
+    );
+    if (showScope && scope == null) {
+      setState(() => scopeMissing = true);
+      return null;
+    }
     final selectedMonths = frequency == 'selected-months';
     if (selectedMonths &&
         (months.isEmpty || !months.contains(startDate.month))) {
@@ -1145,6 +1197,7 @@ class _RecurringFormState extends State<_RecurringForm> {
       'accountId': accountId,
       'creditCardId': creditCardId,
       'categoryId': categoryId,
+      if (showScope) 'scope': scope?.apiValue,
       'amount': normalizedAmount,
       'currency': 'TRY',
       'kind': kind,

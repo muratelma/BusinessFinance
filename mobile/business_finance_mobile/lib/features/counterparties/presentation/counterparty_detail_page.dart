@@ -27,12 +27,10 @@ class CounterpartyDetailPage extends StatefulWidget {
     required this.controller,
     required this.counterpartyId,
     super.key,
-    this.showScope = false,
   });
 
   final CounterpartiesController controller;
   final String counterpartyId;
-  final bool showScope;
 
   @override
   State<CounterpartyDetailPage> createState() => _CounterpartyDetailPageState();
@@ -401,7 +399,6 @@ class _CounterpartyDetailPageState extends State<CounterpartyDetailPage> {
         today: controller.today,
         categories: snapshot.categories,
         isReceivable: isReceivable,
-        showScope: widget.showScope,
       ),
     );
     if (payload == null) return;

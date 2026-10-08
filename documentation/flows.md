@@ -1273,9 +1273,9 @@ kurulur.
 
 | Form | Alan nerede | Ne anlatır |
 |---|---|---|
-| Hesap ekle/düzenle | Açılış bakiyesinin altında | "Bu hesaptan yazılan kayıtlar bu tarafa yazılır" |
-| Kart ekle/düzenle | Asgari ödeme oranının altında | "Bu kartla yapılan harcamalar bu tarafa yazılır" |
-| Kategori ekle/düzenle | Kategori türünün altında | Zincirin son halkası |
+| Hesap ekle/düzenle | Açılış bakiyesinin altında | Paranın tarafı: kaydın tarafını kategori belirler, kategori iki tarafa açıksa bu seçili gelir |
+| Kart ekle/düzenle | Asgari ödeme oranının altında | Aynı: harcamanın tarafını kategori belirler |
+| Kategori ekle/düzenle | Kategori türünün altında, vergi anahtarının üstünde | Kaydın alabileceği taraf: `İkisi de · İşletme · Şahsi`; `İkisi de` seçiliyse kayıt girerken sorulur |
 
 Alanın **üç** konumu var: `Belirtilmedi · İşletme · Şahsi`. `Belirtilmedi` eksik
 veri değil, meşru bir cevaptır — "ben söylemiyorum, kararı bir sonraki halka

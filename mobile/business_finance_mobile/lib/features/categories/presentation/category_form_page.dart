@@ -141,21 +141,24 @@ class _CategoryFormPageState extends State<CategoryFormPage> {
                     ? null
                     : (value) => setState(() => _type = value!),
               ),
+              if (context.watch<ScopeController?>()?.isVisible ?? false) ...[
+                const SizedBox(height: AppSpacing.medium),
+                AppScopeDefaultField(
+                  label: 'Kapsam',
+                  emptyLabel: 'İkisi de',
+                  value: _defaultScope,
+                  onChanged: (value) => setState(() => _defaultScope = value),
+                  helperText: _defaultScope == null
+                      ? 'Kayıt girerken sorulur.'
+                      : 'Bu kategorideki kayıtlar '
+                            '${_defaultScope!.label} yazılır.',
+                ),
+              ],
               if (_type == 'expense') ...[
                 const SizedBox(height: AppSpacing.medium),
                 _TaxSwitch(
                   value: _isTax,
                   onChanged: (value) => setState(() => _isTax = value),
-                ),
-              ],
-              if (context.watch<ScopeController?>()?.isVisible ?? false) ...[
-                const SizedBox(height: AppSpacing.medium),
-                AppScopeDefaultField(
-                  value: _defaultScope,
-                  onChanged: (value) => setState(() => _defaultScope = value),
-                  helperText:
-                      'Zincirin son halkası: kullanıcı seçimi ve hesabın '
-                      'etiketi boşsa kayıt bu tarafa yazılır.',
                 ),
               ],
               if (_editing) ...[

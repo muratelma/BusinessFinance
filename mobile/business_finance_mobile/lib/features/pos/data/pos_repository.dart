@@ -581,14 +581,21 @@ class PosRepository implements PosRepositoryContract {
             ),
           )
           .toList(growable: false),
-      incomeCategories: _items(
-        responses[1].requireObject(),
-      ).map(DataChoice.categoryFromJson).toList(growable: false),
-      expenseCategories: _items(
-        responses[2].requireObject(),
-      ).map(DataChoice.categoryFromJson).toList(growable: false),
+      // POS satışı ve komisyonu işletmenindir (ADR 0020 T2): şahsiye özel
+      // kategori hiçbir POS ekranında seçilemez, sunucu da reddeder.
+      incomeCategories: _items(responses[1].requireObject())
+          .map(DataChoice.categoryFromJson)
+          .where(_allowsBusiness)
+          .toList(growable: false),
+      expenseCategories: _items(responses[2].requireObject())
+          .map(DataChoice.categoryFromJson)
+          .where(_allowsBusiness)
+          .toList(growable: false),
     );
   }
+
+  static bool _allowsBusiness(DataChoice category) =>
+      categoryAllowsSide(category.defaultScope, TransactionScope.business);
 
   @override
   Future<void> create(Map<String, Object?> input) async {

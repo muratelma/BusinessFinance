@@ -529,10 +529,6 @@ GoRouter createAppRouter({
                   repository: counterpartyRepository,
                   changes: financialDataChanges,
                   posRepository: posRepository,
-                  // Kapsam çipi yalnız "işletmem var" diyene görünür;
-                  // cevabı görünmeyen kullanıcıda hiçbir istekte kapsam
-                  // gitmez.
-                  showScope: scopeController?.isVisible ?? false,
                 ),
           authController,
         ),

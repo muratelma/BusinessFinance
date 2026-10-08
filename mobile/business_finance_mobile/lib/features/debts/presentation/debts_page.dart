@@ -959,19 +959,19 @@ class _DebtFormState extends State<_DebtForm> {
               setState(() => _openingAccountId = value),
           onCategoryChanged: (value) => setState(() => _categoryId = value),
         ),
-        if (context.watch<ScopeController?>()?.isVisible ?? false)
+        // Nakit borcun kategorisi yoktur ve taraf hep sorulur; kategorili
+        // kaynakta kategori seçilmeden çizilecek bir şey yoktur.
+        if ((context.watch<ScopeController?>()?.isVisible ?? false) &&
+            (!_sourceIsCategorical || _categoryId != null))
           AppFormField(
-            child: AppScopeField(
-              value: _resolvedScope,
+            child: AppScopeSection(
+              explicit: _scope,
+              source: _sourceScope,
+              category: _categoryScope,
               onChanged: (value) => setState(() {
                 _scope = value;
                 _scopeError = null;
               }),
-              helperText: scopePreviewHelperText(
-                explicit: _scope,
-                source: _sourceScope,
-                category: _categoryScope,
-              ),
               errorText: _scopeError,
             ),
           ),

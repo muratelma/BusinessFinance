@@ -210,6 +210,8 @@ yapılır.
 | `AppResponsiveGrid` | Sütun sayısını kartın en küçük okunabilir genişliğinden türetir |
 | `AppScopeSwitch` | Uygulamanın tek kapsam anahtarı: `Hepsi · İşletme · Şahsi` |
 | `AppScopeField` | Formdaki düzeltilebilir kapsam çipi; altında değerin nereden geldiği yazılı |
+| `AppScopeSection` | Formun taraf bölümü: tek taraflı kategoride `AppScopeInfoRow`, iki tarafa açık kategoride `AppScopeField`. Formlar çipi doğrudan değil bunu kullanır |
+| `AppScopeInfoRow` | Sorulmayan tarafın bilgi satırı: `Şahsi · kategoriden`. Taraf vurgulu, nedeni soluk; dokunulmaz, ekran okuyucu tek cümle okur |
 | `AppLoadingView` / `AppErrorView` / `AppEmptyView` / `AppUnauthorizedView` | Ortak durum ekranları |
 | `AppPageHeader` | Ana ekranların başlık satırı: 26/700 başlık, sağda 48 dp ikon eylemleri, isteğe bağlı geri oku; en az 64 dp + iç boşluk |
 | `AppAvatar` | Hesabın avatarı: marka zemininde e-postanın baş harfleri; doğrulanmamış e-postada kırmızı nokta |
@@ -704,8 +706,9 @@ Kapsamın artık **üç** denetimi var ve üçü ayrı şeyler sorar; ortak çip
 | Bileşen | Nerede | Boşluğun anlamı |
 |---|---|---|
 | `AppScopeSwitch` | Özet ekranının kapsam barı | `Hepsi` — iki tarafı birden oku |
-| `AppScopeField` | İşlem formu | Boş kalamaz; zincir çözülemediyse alan zorunlu |
-| `AppScopeDefaultField` | Hesap, kart ve kategori formu | `Belirtilmedi` — bu kaynak kapsam belirlemiyor |
+| `AppScopeField` | İşlem formu, yalnız iki tarafa açık kategoride | Boş kalamaz; hiçbir işaret yoksa alan zorunlu |
+| `AppScopeInfoRow` | İşlem formu, tek taraflı kategoride | Soru yok: taraf kategoriden bellidir |
+| `AppScopeDefaultField` | Hesap, kart ve kategori formu | Hesapta ve kartta `Belirtilmedi` (bu kaynak taraf söylemiyor); kategoride başlık `Kapsam`, boş değer `İkisi de` (kayıt girerken sorulur) |
 
 Üçüncüsü Grup 4'te eklendi. Üç çipi de sarmalanır (`Wrap`), seçili olan yalnız
 renkle değil onay işaretiyle bildirilir ve alan kendi yardımcı cümlesini taşır —

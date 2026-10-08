@@ -28,6 +28,10 @@ void main() {
     await _pumpExpenseForm(tester, hasBusiness: true);
 
     await _selectSource(tester, 'Dükkân kasası');
+    // Kategori seçilmeden taraf bölümü çizilmez: sorulacak bir şey yoktur.
+    expect(find.text('Kapsam'), findsNothing);
+
+    await _selectCategory(tester, 'Kırtasiye');
 
     expect(_selectedScope(tester), TransactionScope.business);
     expect(
@@ -46,15 +50,14 @@ void main() {
     await _selectSource(tester, 'Dükkân kasası');
     await _selectCategory(tester, 'Market');
 
-    expect(_selectedScope(tester), TransactionScope.personal);
-    expect(
-      find.text('Kategoriden gelir; bu kategoride değişmez.'),
-      findsOneWidget,
-    );
+    final row = tester.widget<AppScopeInfoRow>(find.byType(AppScopeInfoRow));
+    expect(row.scope, TransactionScope.personal);
+    expect(row.reason, 'kategoriden');
   });
 
-  // Sunucu kategoriyle çelişen seçimi reddeder; form da onu göndermez.
-  testWidgets('tek taraflı kategoride çipe dokunmak tarafı değiştirmez', (
+  // Kategori tarafı söylüyorsa sorulacak bir şey yoktur: çip çizilmez ve
+  // kayıt kategorinin tarafına yazılır.
+  testWidgets('tek taraflı kategoride çip çizilmez, kayıt o tarafa yazılır', (
     tester,
   ) async {
     final transactions = _FakeTransactions();
@@ -66,9 +69,8 @@ void main() {
 
     await _selectSource(tester, 'Dükkân kasası');
     await _selectCategory(tester, 'Market');
-    await tester.tap(find.text('İşletme'));
-    await tester.pumpAndSettle();
-    expect(_selectedScope(tester), TransactionScope.personal);
+    expect(find.byType(AppScopeField), findsNothing);
+    expect(find.byType(AppScopeInfoRow), findsOneWidget);
 
     await tester.enterText(find.byType(TextFormField).first, '125,50');
     await tester.tap(find.text('Kaydet'));
@@ -86,6 +88,7 @@ void main() {
     );
 
     await _selectSource(tester, 'Dükkân kasası');
+    await _selectCategory(tester, 'Kırtasiye');
     await tester.tap(find.text('Şahsi'));
     await tester.pumpAndSettle();
 
@@ -162,6 +165,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Dükkân kasası').last);
     await tester.pumpAndSettle();
+    await _selectCategory(tester, 'Diğer gelir');
 
     expect(_selectedScope(tester), TransactionScope.business);
   });
@@ -294,6 +298,8 @@ class _FakeTransactions implements TransactionRepositoryContract {
           isActive: true,
           defaultScope: TransactionScope.business,
         ),
+        // İki tarafa açık gelir kalemi: taraf kayıtta sorulur.
+        TransactionChoice(id: 'cat-2', name: 'Diğer gelir', isActive: true),
       ];
 
   @override

@@ -24,7 +24,6 @@ class CounterpartiesPage extends StatefulWidget {
   const CounterpartiesPage({
     required this.repository,
     this.changes,
-    this.showScope = false,
     this.posRepository,
     super.key,
   });
@@ -34,9 +33,6 @@ class CounterpartiesPage extends StatefulWidget {
   /// Tahsilatın kartla (POS) alınabilmesi için; yoksa seçenek görünmez.
   final PosRepositoryContract? posRepository;
   final FinancialDataChanges? changes;
-
-  /// Kapsam boyutu yalnız "işletmem var" diyen kullanıcıda görünür.
-  final bool showScope;
 
   @override
   State<CounterpartiesPage> createState() => _CounterpartiesPageState();
@@ -249,7 +245,6 @@ class _CounterpartiesPageState extends State<CounterpartiesPage> {
         builder: (_) => CounterpartyDetailPage(
           controller: controller,
           counterpartyId: person.id,
-          showScope: widget.showScope,
         ),
       ),
     );

@@ -178,10 +178,10 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
             ],
           ),
           const SizedBox(height: AppSpacing.medium),
-          if (_showScope) ...[
-            AppScopeField(
-              value: _resolvedScope,
-              helperText: _scopeHelperText,
+          if (_showScope && _categoryId != null) ...[
+            AppScopeSection(
+              explicit: _explicitScope,
+              category: _categoryScope,
               errorText: _scopeMissing ? 'Bu kayıt için kapsam seçin.' : null,
               onChanged: (value) => setState(() {
                 _explicitScope = value;
@@ -302,11 +302,6 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
 
   TransactionScope? get _resolvedScope =>
       previewResolvedScope(explicit: _explicitScope, category: _categoryScope);
-
-  String get _scopeHelperText => scopePreviewHelperText(
-    explicit: _explicitScope,
-    category: _categoryScope,
-  );
 
   String? _validateAmount(String? value) {
     final normalized = MoneyText.normalizeInput(value ?? '');

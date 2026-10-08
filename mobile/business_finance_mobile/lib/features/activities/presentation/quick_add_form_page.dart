@@ -163,10 +163,14 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
           const SizedBox(height: AppSpacing.medium),
           _buildCategoryPicker(),
           const SizedBox(height: AppSpacing.medium),
-          if (_showScope) ...[
-            AppScopeField(
-              value: _resolvedScope,
-              helperText: _scopeHelperText,
+          // Taraf kategoriden bellidir ya da kategori iki tarafa açıksa
+          // sorulur; kategori seçilmeden çizilecek bir şey yoktur.
+          if (_showScope && _categoryId != null) ...[
+            AppScopeSection(
+              explicit: _explicitScope,
+              source: _sourceScope,
+              category: _categoryScope,
+              sourceName: widget.isExpense ? _source?.name : _accountName,
               errorText: _scopeMissing ? 'Bu kayıt için kapsam seçin.' : null,
               onChanged: (value) => setState(() {
                 _explicitScope = value;
@@ -486,12 +490,6 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
   /// Öneri olduğunu söylemesi şart: alan dolu açıldığında kullanıcı onu kendi
   /// seçmiş gibi hızla geçiyor ve yanlış etiketlenmiş bir kayıt işletme netini
   /// sessizce bozuyor.
-  String? get _scopeHelperText => scopePreviewHelperText(
-    explicit: _explicitScope,
-    source: _sourceScope,
-    category: _categoryScope,
-    sourceName: widget.isExpense ? _source?.name : _accountName,
-  );
 
   String? get _accountName {
     for (final account

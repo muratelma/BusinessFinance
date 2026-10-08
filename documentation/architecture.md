@@ -545,9 +545,14 @@ kullanıcı iki tarafı toplamaya çalışır.
 **Formdaki çip kuralın önizlemesidir.** Kararın sahibi sunucudur
 (`TransactionScopeResolution`); form aynı kuralı (`previewResolvedScope`:
 kategori → bağlam → açık seçim → kaynağın etiketi) yalnız **gösterebilmek** için
-uygular ve gösterdiği değeri gönderir. Tek taraflı kategoride çip değişmez ve
-altındaki satır bunu söyler; form, sunucunun reddedeceği bir tarafı göndermez.
-POS tahsilatı formu taraf sormaz. Çip boş dursaydı kullanıcı kaydın hangi tarafa
+uygular ve gösterdiği değeri gönderir. Tek taraflı kategoride çip çizilmez,
+yerine bir bilgi satırı gelir (`Şahsi · kategoriden`, `AppScopeSection`); form,
+sunucunun reddedeceği bir tarafı göndermez. Kart harcaması, taksit planı ve
+tekrarlayan plan formları da aynı bölümü taşır. Tarafı sabit olan ekranlar
+taraf sormaz ve yalnız kullanabilecekleri kategorileri listeler: POS ve gün
+sonu işletmeye özel ve iki tarafa açık kategorileri, cari formu aynısını,
+`Kendime aldım` şahsiye özel ve iki tarafa açık giderleri. Çip boş dursaydı
+kullanıcı kaydın hangi tarafa
 yazıldığını ancak listeye düştükten sonra görürdü. Taraf bulunamazsa form
 sunucuya gitmeden durur ve alanın yanında söyler — sunucu da reddederdi
 (`*.scope_unresolved`), ama hata kullanıcının düzeltebileceği yerde görünmeli.
