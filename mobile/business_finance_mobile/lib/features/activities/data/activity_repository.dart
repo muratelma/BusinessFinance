@@ -114,10 +114,15 @@ class ActivityRepository implements ActivityRepositoryContract {
       // ödenmiş taksitler sahipsiz kalırdı.
       ActivityKind.debtPayment ||
       ActivityKind.debtCollection ||
-      ActivityKind.debtOpening ||
-      ActivityKind.obligation ||
-      ActivityKind.obligationSettlement => throw StateError(
+      ActivityKind.debtOpening => throw StateError(
         'Borç hareketi iptal edilemez: ${activity.activityId}',
+      ),
+      // Yükümlülük bir bütün olarak iptal edilir: kapanmışsa kapanışı da
+      // onunla birlikte iptal olur. Kapanış satırı tek başına geri alınmaz;
+      // sunucu onun için canCancel:false döndürür.
+      ActivityKind.obligation => '/api/v1/obligations/${activity.activityId}',
+      ActivityKind.obligationSettlement => throw StateError(
+        'Kapanış tek başına iptal edilemez: ${activity.activityId}',
       ),
       // POS tahsilatı kendi ekranından iptal edilir: iptal satışı, komisyonu
       // ve yoldaki tutarı birlikte kaldırır. Yatış da kendi panelinden geri

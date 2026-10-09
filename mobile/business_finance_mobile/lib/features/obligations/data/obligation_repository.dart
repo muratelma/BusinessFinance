@@ -22,12 +22,17 @@ class ObligationItem {
     required this.dueDate,
     required this.status,
     required this.isOverdue,
+    this.counterpartyId,
     this.counterpartyName,
     this.categoryName,
     this.description,
   });
 
   final String id;
+
+  /// Bağlı olduğu kişi; yoksa boş. Kişi yalnız bilgidir: yükümlülük o
+  /// kişinin cari bakiyesine girmez.
+  final String? counterpartyId;
   final String direction;
   final String amount;
   final String currency;
@@ -48,6 +53,7 @@ class ObligationItem {
     dueDate: JsonReaders.date(json, 'dueDate'),
     status: JsonReaders.string(json, 'status'),
     isOverdue: JsonReaders.boolean(json, 'isOverdue'),
+    counterpartyId: JsonReaders.nullableString(json, 'counterpartyId'),
     counterpartyName: JsonReaders.nullableString(json, 'counterpartyName'),
     categoryName: JsonReaders.nullableString(json, 'categoryName'),
     description: JsonReaders.nullableString(json, 'description'),
@@ -78,6 +84,11 @@ abstract interface class ObligationRepositoryContract {
     required String settlementDate,
     Map<String, Object?>? card,
   });
+
+  /// Kaydı iptal eder (silme yerine iptal). Kapanmış kayıtta kapanış da
+  /// birlikte iptal olur; yatışa ya da gün sonuna bağlıysa sunucu `409` ile
+  /// önce onu geri aldırır.
+  Future<void> cancel(String obligationId);
 }
 
 class ObligationRepository implements ObligationRepositoryContract {
@@ -151,6 +162,11 @@ class ObligationRepository implements ObligationRepositoryContract {
         'card': ?card,
       },
     );
+  }
+
+  @override
+  Future<void> cancel(String obligationId) async {
+    await _client.delete('/api/v1/obligations/$obligationId');
   }
 
   List<Map<String, dynamic>> _items(Map<String, dynamic> json) =>

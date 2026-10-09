@@ -19,6 +19,10 @@ internal sealed class TransferConfiguration : IEntityTypeConfiguration<Transfer>
         });
 
         builder.HasKey(transfer => transfer.Id);
+
+        // Kasa sayımı farkını açıklayan aktarıma (UserId, Id) ile bağlanır;
+        // başka kullanıcının aktarımına bağ veritabanı seviyesinde reddedilir.
+        builder.HasAlternateKey(transfer => new { transfer.UserId, transfer.Id });
         builder.Property(transfer => transfer.TransferDate).HasColumnType("date");
         builder.Property(transfer => transfer.Description)
             .HasMaxLength(Transfer.MaximumDescriptionLength);

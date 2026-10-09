@@ -90,6 +90,9 @@ class _VisibleScope extends ScopeController {
 
 class _Obligations implements ObligationRepositoryContract {
   @override
+  Future<void> cancel(String obligationId) async {}
+
+  @override
   Future<ObligationOptions> loadOptions({required String categoryType}) async =>
       const ObligationOptions(
         categories: [

@@ -17,8 +17,17 @@ public sealed class GetCashCountTodayUseCase(
     IAccountDayFlowReader dayFlowReader,
     TimeProvider timeProvider)
 {
+    /// <param name="accountId">Sayılacak kasa.</param>
+    /// <param name="day">
+    /// Kullanıcının takvim günü. Sunucunun UTC gününden en çok bir gün uzakta
+    /// olabilir (<see cref="LocalDay"/>); boşsa ya da daha uzaksa sunucunun
+    /// günü kullanılır. Gece yarısından sonra girilen sayım kullanıcının
+    /// gününü taşır; ekran aynı günü sormazsa o sayımı "bugün" diye bulamaz.
+    /// </param>
+    /// <param name="cancellationToken">İptal belirteci.</param>
     public async Task<ApplicationResult<CashCountTodayDto>> ExecuteAsync(
         Guid accountId,
+        DateOnly? day = null,
         CancellationToken cancellationToken = default)
     {
         if (currentUser.UserId is not Guid userId || userId == Guid.Empty)
@@ -35,7 +44,11 @@ public sealed class GetCashCountTodayUseCase(
                 CashCountErrors.AccountUnavailable);
         }
 
-        var today = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
+        var utcToday = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
+        var today = day is DateOnly requested &&
+                    requested >= utcToday.AddDays(-1) && requested <= utcToday.AddDays(1)
+            ? requested
+            : utcToday;
         var expectedBalance = await accountRepository.CalculateBalanceAsync(
             accountId, userId, cancellationToken);
         var count = await repository.FindOpenAsync(
@@ -49,23 +62,35 @@ public sealed class GetCashCountTodayUseCase(
                 new CashCountListCriteria(accountId, today.AddDays(-366), today.AddDays(-1)),
                 cancellationToken))
             .FirstOrDefault(item => !item.IsCancelled);
+        // Farkı açıklayan kayıt sonradan iptal edildiyse sayım "kaydedildi"
+        // sayılmaz; ama yeniden kaydedilebilir hâle de gelmez (KS3).
+        var adjustmentCancelled = count is { IsAdjusted: true } &&
+            await repository.IsAdjustmentCancelledAsync(count, cancellationToken);
+        var recorded = count is { IsAdjusted: true } && !adjustmentCancelled;
+        var balancedNow = count is not null &&
+            count.DifferenceFrom(expectedBalance).IsBalanced;
+
+        // Önceki sayımın farkı bir geçmiş bilgisidir (KS4): farkı için duran
+        // bir kayıt yoksa taşınır. Bugün kasa tutuyorsa taşınmaz; o zaman
+        // söylenecek şey yeni sonuçtur.
         var previousUnrecorded = previous is
-        { AdjustmentTransactionId: null, Difference: decimal previousDifference }
+        { AdjustmentStatus: not CashCountAdjustmentStatus.Recorded, Difference: decimal previousDifference }
             && previousDifference != 0m
+            && !balancedNow
             ? previousDifference
             : (decimal?)null;
         // Bugünkü açık farkın önceki sayımdakiyle aynı olup olmadığını sunucu
         // söyler; istemci iki tutarı karşılaştırmaz.
         var sameAsPrevious = previousUnrecorded is decimal carried &&
-            count is { IsAdjusted: false } &&
+            count is not null && !recorded &&
             count.DifferenceFrom(expectedBalance).Amount == carried;
         // Açık farkı olan sayım hâlâ güncel mi? Kuralın kendisi sayımdadır;
         // ekran yalnız sonucu okur.
-        var requiresRecount = count is { IsAdjusted: false } &&
-            !count.DifferenceFrom(expectedBalance).IsBalanced &&
-            count.RequiresRecount(
-                expectedBalance,
-                await repository.HasAccountChangedSinceAsync(count, cancellationToken));
+        var requiresRecount = count is not null && !recorded && !balancedNow &&
+            (adjustmentCancelled ||
+             count.RequiresRecount(
+                 expectedBalance,
+                 await repository.HasAccountChangedSinceAsync(count, cancellationToken)));
 
         return ApplicationResult<CashCountTodayDto>.Success(
             new CashCountTodayDto(
@@ -81,26 +106,32 @@ public sealed class GetCashCountTodayUseCase(
                     : CashCountMapper.ToDto(
                         count,
                         account.Name,
-                        count.AdjustmentTransactionId is not null && count.ExpectedAtCount is decimal atCount
+                        recorded && count.ExpectedAtCount is decimal atCount
                             ? atCount
-                            : expectedBalance),
+                            : expectedBalance,
+                        adjustmentCancelled),
                 previous,
                 flow.Inflow,
                 flow.Outflow,
-                ChangeSinceCount(count, expectedBalance),
+                ChangeSinceCount(count, expectedBalance, recorded),
                 previousUnrecorded,
                 sameAsPrevious,
                 requiresRecount));
     }
 
-    private static decimal? ChangeSinceCount(CashCount? count, decimal expectedBalance)
+    private static decimal? ChangeSinceCount(
+        CashCount? count,
+        decimal expectedBalance,
+        bool recorded)
     {
         if (count is null)
         {
             return null;
         }
 
-        if (count.AdjustmentTransactionId is not null)
+        // Farkı kaydedilmiş sayım bakiyeyi sayılana oturttu; kaydı iptal
+        // edilmiş sayımda bakiye sayım anındakine dönmüştür.
+        if (recorded)
         {
             return expectedBalance - count.CountedAmount;
         }
@@ -280,11 +311,15 @@ public sealed class ConfirmCashCountDifferenceUseCase(
 
         // Düzeltme zaten yazılmışsa ikinci kez yazılmaz; çağrı aynı sonuca
         // döner. Bu, ağ hatasından sonra tekrar denemenin kasayı ikinci kez
-        // düzeltmesini engeller.
+        // düzeltmesini engeller. Yazılan kayıt sonradan iptal edildiyse sayım
+        // yeniden açılmaz (KS3): iptal kasanın kayıtlarını değiştirdi, yeni
+        // fark kaydı yeni bir sayım ister.
         if (cashCount.IsAdjusted)
         {
-            return ApplicationResult<CashCountDto>.Success(
-                CashCountMapper.ToDto(cashCount, account.Name, expectedBalance));
+            return await repository.IsAdjustmentCancelledAsync(cashCount, cancellationToken)
+                ? ApplicationResult<CashCountDto>.Failure(CashCountErrors.RecountRequired)
+                : ApplicationResult<CashCountDto>.Success(
+                    CashCountMapper.ToDto(cashCount, account.Name, expectedBalance));
         }
 
         if (cashCount.RequiresRecount(
@@ -299,6 +334,26 @@ public sealed class ConfirmCashCountDifferenceUseCase(
         if (difference.IsBalanced)
         {
             return ApplicationResult<CashCountDto>.Failure(CashCountErrors.NothingToAdjust);
+        }
+
+        // "Kendime aldım": eksik para sahibine gitti. Tutar farkın tamamı,
+        // gün sayımın günüdür (KS2); başka bir gün ya da tutar ayrı bir
+        // kayıtla yazılır ve kasa yeniden sayılır.
+        if (command.TookForMyself)
+        {
+            if (command.UnknownReason ||
+                difference.RecognizedType != TransactionType.Expense ||
+                (command.PersonalAccountId is null) == (command.CategoryId is null))
+            {
+                return ApplicationResult<CashCountDto>.Failure(
+                    CashCountErrors.WithdrawalNotApplicable);
+            }
+
+            if (command.PersonalAccountId is Guid personalAccountId)
+            {
+                return await RecordWithdrawalTransferAsync(
+                    cashCount, account, personalAccountId, difference, userId, cancellationToken);
+            }
         }
 
         Category? category;
@@ -331,6 +386,13 @@ public sealed class ConfirmCashCountDifferenceUseCase(
             return ApplicationResult<CashCountDto>.Failure(CashCountErrors.CategoryUnavailable);
         }
 
+        // Sahibin aldığı para şahsi giderdir (ADR 0020 T2); işletmeye özel
+        // kategoriyle çelişir ve sessizce düzeltilmez.
+        if (command.TookForMyself && category.DefaultScope == TransactionScope.Business)
+        {
+            return ApplicationResult<CashCountDto>.Failure(CashCountErrors.ScopeConflict);
+        }
+
         try
         {
             var now = timeProvider.GetUtcNow().ToUniversalTime();
@@ -343,10 +405,15 @@ public sealed class ConfirmCashCountDifferenceUseCase(
                 difference.RecognizedType,
                 // Farkın tarafını kategori söyler (ADR 0020 T2): kasadan
                 // alınıp eğlenceye harcanan para şahsi giderdir. Kategori iki
-                // tarafa açıksa sayımın tarafı kalır.
-                category.DefaultScope ?? cashCount.Scope,
+                // tarafa açıksa sayımın tarafı kalır; sahibin aldığı parada
+                // taraf her zaman şahsidir.
+                command.TookForMyself
+                    ? TransactionScope.Personal
+                    : category.DefaultScope ?? cashCount.Scope,
                 cashCount.CountDate,
-                cashCount.Note);
+                command.TookForMyself
+                    ? CashCountDefaults.OwnerWithdrawalDescription
+                    : cashCount.Note);
             cashCount.RecordAdjustment(adjustment.Id, now);
             await repository.SaveAdjustmentAsync(adjustment, cancellationToken);
 
@@ -356,6 +423,58 @@ public sealed class ConfirmCashCountDifferenceUseCase(
                 cashCount.AccountId, userId, cancellationToken);
             return ApplicationResult<CashCountDto>.Success(
                 CashCountMapper.ToDto(cashCount, account.Name, balanceAfterAdjustment));
+        }
+        catch (ArgumentException exception)
+        {
+            return ApplicationResult<CashCountDto>.Failure(
+                CashCountErrors.Validation(exception.Message));
+        }
+        catch (InvalidOperationException exception)
+        {
+            return ApplicationResult<CashCountDto>.Failure(
+                CashCountErrors.Conflict(exception.Message));
+        }
+    }
+
+    /// <summary>
+    /// Eksik parayı kasadan şahsi hesaba taşır ve aktarımı sayıma bağlar.
+    /// Gelir/gider yazılmaz; para yer değiştirir.
+    /// </summary>
+    private async Task<ApplicationResult<CashCountDto>> RecordWithdrawalTransferAsync(
+        CashCount cashCount,
+        Account account,
+        Guid personalAccountId,
+        CashCountDifference difference,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var personal = await accountRepository.FindOwnedByIdAsync(
+            personalAccountId, userId, cancellationToken);
+        if (personal is null || !personal.IsActive || personal.Id == account.Id ||
+            personal.DefaultScope != TransactionScope.Personal)
+        {
+            return ApplicationResult<CashCountDto>.Failure(
+                CashCountErrors.PersonalAccountUnavailable);
+        }
+
+        try
+        {
+            var now = timeProvider.GetUtcNow().ToUniversalTime();
+            var transfer = new Transfer(
+                Guid.NewGuid(),
+                userId,
+                account,
+                personal,
+                difference.ToAdjustmentAmount(),
+                cashCount.CountDate,
+                CashCountDefaults.OwnerWithdrawalDescription);
+            cashCount.RecordTransferAdjustment(transfer.Id, now);
+            await repository.SaveTransferAdjustmentAsync(transfer, cancellationToken);
+
+            var balanceAfterTransfer = await accountRepository.CalculateBalanceAsync(
+                cashCount.AccountId, userId, cancellationToken);
+            return ApplicationResult<CashCountDto>.Success(
+                CashCountMapper.ToDto(cashCount, account.Name, balanceAfterTransfer));
         }
         catch (ArgumentException exception)
         {
@@ -413,7 +532,8 @@ internal static class CashCountMapper
     public static CashCountDto ToDto(
         CashCount cashCount,
         string accountName,
-        decimal? expectedBalance)
+        decimal? expectedBalance,
+        bool adjustmentCancelled = false)
     {
         return new CashCountDto(
             cashCount.Id,
@@ -429,6 +549,8 @@ internal static class CashCountMapper
             expectedBalance,
             expectedBalance is decimal balance
                 ? cashCount.DifferenceFrom(balance).Amount
-                : null);
+                : null,
+            cashCount.AdjustmentTransferId,
+            CashCountAdjustmentStatuses.Of(cashCount.IsAdjusted, adjustmentCancelled));
     }
 }

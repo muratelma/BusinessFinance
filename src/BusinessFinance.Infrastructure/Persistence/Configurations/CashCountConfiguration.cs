@@ -19,8 +19,12 @@ internal sealed class CashCountConfiguration : IEntityTypeConfiguration<CashCoun
             // Düzeltme kaydı ile damgası birlikte bulunur ya da hiç bulunmaz.
             table.HasCheckConstraint(
                 "CK_CashCounts_Adjustment",
-                "([AdjustmentTransactionId] IS NULL AND [AdjustedAtUtc] IS NULL) OR " +
-                "([AdjustmentTransactionId] IS NOT NULL AND [AdjustedAtUtc] IS NOT NULL)");
+                "([AdjustmentTransactionId] IS NULL AND [AdjustmentTransferId] IS NULL " +
+                "AND [AdjustedAtUtc] IS NULL) OR " +
+                "([AdjustmentTransactionId] IS NOT NULL AND [AdjustmentTransferId] IS NULL " +
+                "AND [AdjustedAtUtc] IS NOT NULL) OR " +
+                "([AdjustmentTransactionId] IS NULL AND [AdjustmentTransferId] IS NOT NULL " +
+                "AND [AdjustedAtUtc] IS NOT NULL)");
         });
 
         builder.HasKey(count => count.Id);
@@ -62,6 +66,11 @@ internal sealed class CashCountConfiguration : IEntityTypeConfiguration<CashCoun
         builder.HasOne<BudgetTransaction>().WithMany()
             .HasForeignKey(count => new { count.UserId, count.AdjustmentTransactionId })
             .HasPrincipalKey(transaction => new { transaction.UserId, transaction.Id })
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired(false);
+        builder.HasOne<Transfer>().WithMany()
+            .HasForeignKey(count => new { count.UserId, count.AdjustmentTransferId })
+            .HasPrincipalKey(transfer => new { transfer.UserId, transfer.Id })
             .OnDelete(DeleteBehavior.Restrict)
             .IsRequired(false);
     }

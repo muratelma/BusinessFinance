@@ -203,6 +203,9 @@ class _FakeRepository implements ObligationRepositoryContract {
   final List<String> requestedCategoryTypes = [];
 
   @override
+  Future<void> cancel(String obligationId) async {}
+
+  @override
   Future<ObligationOptions> loadOptions({required String categoryType}) async {
     requestedCategoryTypes.add(categoryType);
     return ObligationOptions(

@@ -1,6 +1,7 @@
 using BusinessFinance.Api.Contracts;
 using BusinessFinance.Api.Errors;
 using BusinessFinance.Application.Cash;
+using BusinessFinance.Domain;
 
 namespace BusinessFinance.Api.Features.Cash;
 
@@ -62,7 +63,9 @@ public static class CashCountEndpoints
                 "cash_counts.invalid_from");
         }
 
-        var end = today;
+        // Varsayılan bitiş kullanıcının gününü de kapsar: gece yarısından
+        // sonra girilen sayım UTC gününden bir gün ileridedir.
+        var end = LocalDay.LatestAllowed(timeProvider.GetUtcNow());
         if (to is not null && !FinanceContract.TryParseDate(to, out end))
         {
             return ApiProblemResults.Validation(
@@ -82,9 +85,26 @@ public static class CashCountEndpoints
         Guid accountId,
         GetCashCountTodayUseCase useCase,
         HttpContext httpContext,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? date = null)
     {
-        var result = await useCase.ExecuteAsync(accountId, cancellationToken);
+        // `date` kullanıcının takvim günüdür (isteğe bağlı). Gece yarısından
+        // sonra sunucunun UTC gününden bir gün ileridedir.
+        DateOnly? day = null;
+        if (date is not null)
+        {
+            if (!FinanceContract.TryParseDate(date, out var parsed))
+            {
+                return ApiProblemResults.Validation(
+                    httpContext,
+                    "Date must use the yyyy-MM-dd format.",
+                    "cash_counts.invalid_date");
+            }
+
+            day = parsed;
+        }
+
+        var result = await useCase.ExecuteAsync(accountId, day, cancellationToken);
         if (!result.IsSuccess)
         {
             return result.Error.ToProblemResult(httpContext);
@@ -160,7 +180,12 @@ public static class CashCountEndpoints
         CancellationToken cancellationToken)
     {
         var result = await useCase.ExecuteAsync(
-            new ConfirmCashCountDifferenceCommand(id, request.CategoryId, request.UnknownReason),
+            new ConfirmCashCountDifferenceCommand(
+                id,
+                request.CategoryId,
+                request.UnknownReason,
+                request.TookForMyself,
+                request.PersonalAccountId),
             cancellationToken);
         return result.IsSuccess
             ? Results.Ok(ToResponse(result.Value))
@@ -179,5 +204,12 @@ public static class CashCountEndpoints
         count.IsCancelled,
         count.AdjustmentTransactionId,
         count.ExpectedBalance is decimal expected ? FinanceContract.Money(expected) : null,
-        count.Difference is decimal difference ? FinanceContract.Money(difference) : null);
+        count.Difference is decimal difference ? FinanceContract.Money(difference) : null,
+        count.AdjustmentTransferId,
+        count.AdjustmentStatus switch
+        {
+            CashCountAdjustmentStatus.Recorded => "recorded",
+            CashCountAdjustmentStatus.Cancelled => "cancelled",
+            _ => "none",
+        });
 }

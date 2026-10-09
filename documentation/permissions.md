@@ -227,7 +227,9 @@ yalnız current user satırlarını döndürür. `POST
 /api/v1/obligations/{id}/settlement` hem yükümlülüğü hem hesabı current user
 kapsamında çözer; yabancı yükümlülük `404`, yabancı/pasif/para birimi uyumsuz
 hesap doğrulama hatasıdır. Aynı yükümlülüğe ikinci çağrı mevcut settlement'ı
-döndürür. Gerçekleşen ve planlanan feed okumaları da owner-scoped kalır; API
+döndürür. `DELETE /api/v1/obligations/{id}` (iptal, 9 Ekim 2026) yükümlülüğü ve
+kartla tahsilde bağlı POS kaydını yalnız current user kapsamında çözer; yabancı
+ve olmayan kayıt aynı `404`'e gider, yabancı istek hiçbir şeyi değiştirmez. Gerçekleşen ve planlanan feed okumaları da owner-scoped kalır; API
 entegrasyon testi yabancı listenin boş ve yabancı settlement'ın reddedildiğini
 kanıtlar.
 
@@ -281,7 +283,8 @@ tablosundadır.
 
 29 Eylül 2026'da eklenen `POST`/`DELETE /api/v1/pos-settlements/{id}/transfer`
 uçları 2 Ekim 2026'da **kalktı**: para hesaba yalnız yatışla geçer.
-`GET /api/v1/cash-counts`, `GET /api/v1/cash-counts/today` ve
+`GET /api/v1/cash-counts`, `GET /api/v1/cash-counts/today` (isteğe bağlı
+`date` yalnız hangi günün okunacağını söyler; sahiplik hesabın kendisindedir) ve
 `GET /api/v1/pos-settlements` yalnız current user satırlarını döndürür — yoldaki
 toplam da öyle; tahsilatı sayan gün sonunun kimliği (`countedInDayCloseId`) de
 `DayCloseCountedRecords`'tan aynı `UserId` süzgeciyle okunur. `Kendime aldım` yeni uç açmaz: var olan transfer ve gider uçlarını kullanır ve onların

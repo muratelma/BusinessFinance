@@ -1070,6 +1070,110 @@ public sealed partial class SqlServerPersistenceIntegrationTests
     }
 
     /// <summary>
+    /// An invoice the user has not paid yet is written as an obligation, and
+    /// reading the same invoice again must warn.
+    ///
+    /// <para>
+    /// Seen on the device on 9 October 2026: the same electricity invoice was
+    /// read twice through "henüz ödemedim" and recorded twice with no warning,
+    /// because the lookup searched the movements and never the obligations.
+    /// </para>
+    /// </summary>
+    [SqlServerFact]
+    public async Task ReceiptDuplicateLookup_FindsAnUnpaidInvoiceWrittenAsAnObligation()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var user = CreateUser("invoice-duplicate@example.test");
+        var stranger = CreateUser("invoice-duplicate-other@example.test");
+        await database.SeedUsersAsync(user, stranger);
+
+        var issued = new DateOnly(2026, 10, 1);
+        var due = new DateOnly(2026, 10, 20);
+        var now = new DateTimeOffset(2026, 10, 9, 10, 0, 0, TimeSpan.Zero);
+        const string printed = "ÖRNEK ELEKTRİK DAĞITIM A.Ş.";
+        Guid cancelledId;
+
+        await using (var seed = database.CreateContext())
+        {
+            var bills = new Category(Guid.NewGuid(), user.Id, "Faturalar", CategoryType.Expense);
+            var sales = new Category(Guid.NewGuid(), user.Id, "Satış", CategoryType.Income);
+            var utility = new Counterparty(Guid.NewGuid(), user.Id, "Örnek Elektrik Dağıtım A.Ş.");
+            var bank = new Account(
+                Guid.NewGuid(), user.Id, "Banka", AccountType.Bank, CurrencyCode.TRY, 5000m);
+
+            // What the form writes: the name printed on the document as the
+            // description, the person the user picked as the counterparty.
+            var invoice = new Obligation(
+                Guid.NewGuid(), user.Id, bills, DebtDirection.Payable,
+                new Money(412.60m, CurrencyCode.TRY), TransactionScope.Business,
+                issued, due, now, utility, printed);
+            // The description was edited away; the linked person still matches.
+            var renamed = new Obligation(
+                Guid.NewGuid(), user.Id, bills, DebtDirection.Payable,
+                new Money(90m, CurrencyCode.TRY), TransactionScope.Business,
+                issued, due, now, utility, "Ekim elektrik");
+            // Already paid: still the same document.
+            var paid = new Obligation(
+                Guid.NewGuid(), user.Id, bills, DebtDirection.Payable,
+                new Money(75m, CurrencyCode.TRY), TransactionScope.Business,
+                issued, due, now, utility, printed);
+            paid.Settle(Guid.NewGuid(), bank, issued.AddDays(3), now);
+            var cancelled = new Obligation(
+                Guid.NewGuid(), user.Id, bills, DebtDirection.Payable,
+                new Money(60m, CurrencyCode.TRY), TransactionScope.Business,
+                issued, due, now, utility, printed);
+            cancelled.Cancel(now);
+            var receivable = new Obligation(
+                Guid.NewGuid(), user.Id, sales, DebtDirection.Receivable,
+                new Money(300m, CurrencyCode.TRY), TransactionScope.Business,
+                issued, due, now, utility, printed);
+
+            seed.AddRange(bills, sales, utility, bank, invoice, renamed, paid, cancelled, receivable);
+            await seed.SaveChangesAsync(CancellationToken.None);
+            cancelledId = cancelled.Id;
+        }
+
+        await using var provider = CreateServiceProvider(database.ConnectionString);
+        await using var scope = provider.CreateAsyncScope();
+        var lookup = scope.ServiceProvider.GetRequiredService<IReceiptDuplicateLookup>();
+
+        Task<ReceiptDuplicateMatch?> FindAsync(
+            Guid userId, decimal amount, string name, ReceiptCaptureIntent intent,
+            DateOnly? date = null) =>
+            lookup.FindAsync(userId, date ?? issued, amount, name, intent, CancellationToken.None);
+
+        var second = await FindAsync(user.Id, 412.60m, printed, ReceiptCaptureIntent.Expense);
+        Assert.NotNull(second);
+        Assert.Equal(ReceiptDuplicateKind.Obligation, second.Kind);
+        Assert.Equal((issued, 412.60m), (second.TransactionDate, second.Amount));
+
+        // The person's name in another casing, with the description changed.
+        Assert.NotNull(await FindAsync(user.Id, 90m, printed, ReceiptCaptureIntent.Expense));
+        // A paid invoice is still recorded; a cancelled one is not a duplicate.
+        Assert.NotNull(await FindAsync(user.Id, 75m, printed, ReceiptCaptureIntent.Expense));
+        Assert.Null(await FindAsync(user.Id, 60m, printed, ReceiptCaptureIntent.Expense));
+        Assert.NotEqual(Guid.Empty, cancelledId);
+
+        // Direction follows the intent: an expense document does not match a
+        // receivable, an income document does.
+        Assert.Null(await FindAsync(user.Id, 300m, printed, ReceiptCaptureIntent.Expense));
+        Assert.Equal(
+            ReceiptDuplicateKind.Obligation,
+            (await FindAsync(user.Id, 300m, printed, ReceiptCaptureIntent.Income))!.Kind);
+
+        // The three legs stay strict: another day, amount or name is no match,
+        // and neither is another user's identical invoice.
+        Assert.Null(await FindAsync(
+            user.Id, 412.60m, printed, ReceiptCaptureIntent.Expense, issued.AddDays(1)));
+        Assert.Null(await FindAsync(user.Id, 412.61m, printed, ReceiptCaptureIntent.Expense));
+        Assert.Null(await FindAsync(user.Id, 412.60m, "Başka Dağıtım", ReceiptCaptureIntent.Expense));
+        Assert.Null(await FindAsync(stranger.Id, 412.60m, printed, ReceiptCaptureIntent.Expense));
+
+        // A bank slip is not an invoice; it does not search this shelf.
+        Assert.Null(await FindAsync(user.Id, 412.60m, printed, ReceiptCaptureIntent.BankSlip));
+    }
+
+    /// <summary>
     /// With the transfer gone, the card payment and then the receivable are the
     /// ones reported — each shelf is really searched, not just the first.
     /// </summary>
@@ -4234,28 +4338,30 @@ public sealed partial class SqlServerPersistenceIntegrationTests
             await HolderAsync(
                 FinancialActivityKind.CounterpartySettlement, firstCollectionId,
                 ActivityBalanceHolder.Counterparty));
-        // Kişiye 300 borç yazıldı: alacak 250'ye iner.
+        // Kişiye bağlı 300 liralık tek seferlik borç cari bakiyeye girmez:
+        // ayrıntısı cari satırı dönmez.
+        Assert.Empty((await balances.GetBalancesAfterAsync(
+            owner.Id, FinancialActivityKind.Obligation, obligationId, CancellationToken.None))!);
+        // Fazla tahsilat kırpılmaz: taraf değişir. Açık fatura sayıya girmez.
         Assert.Equal(
-            (250m, ActivityBalanceSide.Receivable, ActivityBalanceChange.Decreased),
-            await HolderAsync(
-                FinancialActivityKind.Obligation, obligationId, ActivityBalanceHolder.Counterparty));
-        // Fazla tahsilat kırpılmaz: taraf değişir.
-        Assert.Equal(
-            (350m, ActivityBalanceSide.Payable, ActivityBalanceChange.Increased),
+            (50m, ActivityBalanceSide.Payable, ActivityBalanceChange.Increased),
             await HolderAsync(
                 FinancialActivityKind.CounterpartySettlement, secondCollectionId,
                 ActivityBalanceHolder.Counterparty));
-        // Yükümlülük kapandı: borç 300 azalır.
+        // Yükümlülüğün kapanışı hesabı değiştirir, cariyi değiştirmez.
+        var afterSettlement = (await balances.GetBalancesAfterAsync(
+            owner.Id, FinancialActivityKind.ObligationSettlement, settlementId,
+            CancellationToken.None))!;
         Assert.Equal(
-            (50m, ActivityBalanceSide.Payable, ActivityBalanceChange.Decreased),
-            await HolderAsync(
-                FinancialActivityKind.ObligationSettlement, settlementId,
-                ActivityBalanceHolder.Counterparty));
+            [ActivityBalanceHolder.Account],
+            afterSettlement.Select(item => item.Holder));
 
-        // Son hareketin sonrası kişinin güncel bakiyesidir.
+        // Son cari hareketin sonrası kişinin güncel bakiyesidir; yükümlülük
+        // kapandığı için bilgi toplamı da sıfırdır.
         var counterparties = scope.ServiceProvider.GetRequiredService<ICounterpartyRepository>();
         var current = await counterparties.FindBalanceAsync(personId, owner.Id, day, default);
         Assert.Equal(-50m, current!.Net);
+        Assert.Equal(0m, current.OpenPayableObligations);
 
         // Giriş anı bilinmeyen eski kaydın yeri bilinmez: bakiye dönmez.
         Assert.Empty((await balances.GetBalancesAfterAsync(

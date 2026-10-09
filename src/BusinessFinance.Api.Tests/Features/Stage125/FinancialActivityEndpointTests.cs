@@ -765,22 +765,25 @@ public sealed class FinancialActivityEndpointTests
         var afterFirstCollection = await BalancesAsync("counterparty-settlement", collection.Id);
         Assert.Equal(("receivable", "receivable"), (afterFirstCollection[1].PreviousSide, afterFirstCollection[1].Side));
 
-        // Tek seferlik borç da aynı cariye yazılır; kapanınca düşer.
+        // Kişiye bağlı tek seferlik borç cari bakiyeye girmez: ne kendisi ne
+        // kapanışı cari satırı döner, kişinin carisi olduğu gibi kalır.
         var obligation = await PostAsync<ObligationResponse>(
             owner, "/api/v1/obligations",
             new CreateObligationRequest(
                 "payable", "300.0000", "TRY", expenseCategory.Id, Day, Day, "business", person.Id));
-        var afterObligation = Assert.Single(await BalancesAsync("obligation", obligation.Id));
+        Assert.Empty(await BalancesAsync("obligation", obligation.Id));
+        var personWithInvoice = await owner.GetFromJsonAsync<CounterpartyResponse>(
+            $"/api/v1/counterparties/{person.Id}");
         Assert.Equal(
-            ("counterparty", "400.0000", "increased", "payable"),
-            (afterObligation.Holder, afterObligation.Balance, afterObligation.Change, afterObligation.Side));
+            ("-100.0000", "300.0000"),
+            (personWithInvoice!.Net, personWithInvoice.OpenPayableObligations));
 
         var settled = await PostAsync<ObligationResponse>(
             owner, $"/api/v1/obligations/{obligation.Id}/settlement",
             new SettleObligationRequest(bank.Id, Day));
         var afterSettlement = await BalancesAsync("obligation-settlement", settled.SettlementId!.Value);
         Assert.Equal(
-            [("account", "1500.0000", "decreased", null), ("counterparty", "100.0000", "decreased", "payable")],
+            [("account", "1500.0000", "decreased", null)],
             afterSettlement.Select(item => (item.Holder, item.Balance, item.Change, item.Side)));
 
         // Akış: cari ve yükümlülük kayıtları yönünü taşır; kaynak hep hesap,
@@ -799,14 +802,20 @@ public sealed class FinancialActivityEndpointTests
         Assert.Equal("receivable", Assert.Single(feed.Items, item => item.ActivityId == sale.Id).Direction);
         Assert.Equal("payable", Assert.Single(feed.Items, item => item.ActivityId == obligation.Id).Direction);
 
-        // Kapanış, yükümlülüğün kendi sonrasını değiştirmez: o an hâlâ açıktı.
-        Assert.Equal(
-            "400.0000", Assert.Single(await BalancesAsync("obligation", obligation.Id)).Balance);
-
-        // Son hareketin sonrası kişinin güncel bakiyesidir.
+        // Son cari hareketin sonrası kişinin güncel bakiyesidir; fatura açılıp
+        // kapanması ikisini de değiştirmedi.
         var currentPerson = await owner.GetFromJsonAsync<CounterpartyResponse>(
             $"/api/v1/counterparties/{person.Id}");
         Assert.Equal("-100.0000", currentPerson!.Net);
+        Assert.Equal("0.0000", currentPerson.OpenPayableObligations);
+        // Fazla tahsilat kırpılmaz ama ekranda eksi alacak diye yazılmaz:
+        // 100 lira bizim borcumuzdur.
+        Assert.Equal(
+            ("-100.0000", "0.0000", "100.0000"),
+            (currentPerson.Receivable, currentPerson.OwedToYou, currentPerson.OwedByYou));
+        Assert.Equal(
+            "100.0000",
+            (await BalancesAsync("counterparty-settlement", overCollection.Id))[1].Balance);
 
         // Karşı tarafı olmayan yükümlülükte gösterilecek bir cari yoktur.
         var nameless = await PostAsync<ObligationResponse>(

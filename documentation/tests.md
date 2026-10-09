@@ -288,7 +288,7 @@ kapanış use case'i yükümlülük davranışı açıldığında tamamlanacak.
 
 | Test | Neyi kanıtlıyor |
 |---|---|
-| `ObligationEndpointTests.UnpaidInvoice_RecognizesExpenseWithoutMovingCash_AndIsOwnerScoped` | Liste gecikmeyi türetir; cari bakiye yükümlülüğü bir kez taşır; tekrarlanan settlement idempotenttir; hesap/net varlık/feed değişir, aylık gider değişmez; planlanan satır düşer; yabancı okuma/yazma reddedilir |
+| `ObligationEndpointTests.UnpaidInvoice_RecognizesExpenseWithoutMovingCash_AndIsOwnerScoped` | Liste gecikmeyi türetir; kişiye bağlı yükümlülük cari bakiyeye girmez, toplamı `openPayableObligations` ile bilgi olarak döner (9 Ekim 2026; eskiden bakiyeye giriyordu); tekrarlanan settlement idempotenttir; hesap/net varlık/feed değişir, aylık gider değişmez; planlanan satır düşer; yabancı okuma/yazma reddedilir |
 | `obligations_page_test` | Gecikmiş satır yalnız renkle değil etiketle görünür; hesap seçimiyle ödenir ve panel kapanır |
 | `planning_feature_test` | `occurrenceLimit` ve üretilen sayaç açık DTO'da okunur; plan satırı sınır ilerlemesini gösterir |
 | `AdvancedReport_LargeFixtureStaysWithinQueryCountAndTimeBudget` (gerçek SQL) | Settlement hesap etkisi eklendikten sonra gelişmiş rapor en çok 61 sabit okuma komutunda kalır; sayı kayıt adediyle büyümez |
@@ -1574,7 +1574,7 @@ atlandı), build 0 uyarı, format temiz; Flutter analyze temiz, 1000 test geçti
 | Gün içi sıra | `FinancialActivityEndpointTests.Feed_OrdersADayByEntryTimeAcrossKinds_NewestFirst`, `SqlServerPersistenceIntegrationTests.ActivityFeed_OrdersADayByEntryTimeAndReadsTheBalanceAfterEachMovement` | Aynı günün kayıtları türe göre değil giriş anına göre, en yeni üstte; giriş anı bilinmeyen kayıt günün sonunda; dün için bugün girilen kayıt kendi gününde. Gerçek SQL'de de aynı sıra (tek `UNION ALL` sorgusu korunur) |
 | Komisyon ve kesinti satır değil | `FinancialActivityEndpointTests.Feed_ProjectsAPosSettlementAsSaleWithItsCommissionAndADeposit`, `PosDepositEndpointTests`, SQL testi | Satış satırı `feeAmount`, `netAmount`, `channelName`, beklenen ve geçiş gününü; yatış satırı `feeAmount`, `settlementCount`, `channelName`'i taşır; akışta gider satırı yoktur; kesinti yine bir `BudgetTransaction`'dır ve kapsamını korur; `pos-commission` süzgeç değeri `400` |
 | Başlık hesap adına düşmez | `FinancialActivityEndpointTests.Feed_DoesNotNameAMoneyMovementAfterAnAccountOrCard`, SQL testi | Açıklamasız transfer, kart ödemesi ve yatışta `title` boş; açıklama varsa o |
-| Cari, kalan borç, kalan limit | `FinancialActivityEndpointTests.Balances_ReportTheCounterpartyTheDebtAndTheCardLimit`, `SqlServerPersistenceIntegrationTests.ActivityBalances_ReadTheCounterpartyTheDebtAndTheCardLimitAfterEachMovement`, `activity_pos_rows_test` | Veresiye yalnız cariyi döner; tahsilat hesap + cari; fazla tahsilat tarafı çevirir, tutar artı kalır; yükümlülük cariye yazılır ve kapanınca düşer, kapanış yükümlülüğün kendi sonrasını değiştirmez; karşı tarafsız yükümlülük boş liste; borç açılışında bütün taksitler, taksitten sonra kalanı, son taksitte `settled`; kartta borcun yanında kalan limit. **Son hareketin sonrası güncel değere eşit** (kişinin `Net`'i, borcun `RemainingAmount`'ı). Giriş anı bilinmeyen veresiye günün en eskisi sayılır ama kendi bakiyesi dönmez. Sahiplik: başkasının cari, yükümlülük ve borç kaydı `null`. İstemcide satırlar yerinde bekler ve panel boyut değiştirmez; `Kapandı`; 2.0× yazıda taşma yok; bilinmeyen `side` reddedilir |
+| Cari, kalan borç, kalan limit | `FinancialActivityEndpointTests.Balances_ReportTheCounterpartyTheDebtAndTheCardLimit`, `SqlServerPersistenceIntegrationTests.ActivityBalances_ReadTheCounterpartyTheDebtAndTheCardLimitAfterEachMovement`, `activity_pos_rows_test` | Veresiye yalnız cariyi döner; tahsilat hesap + cari; fazla tahsilat tarafı çevirir, tutar artı kalır; kişili ya da kişisiz yükümlülük boş liste, kapanışı yalnız hesabı döner ve kişinin carisi olduğu gibi kalır (9 Ekim 2026; eskiden cariye yazılıyordu); borç açılışında bütün taksitler, taksitten sonra kalanı, son taksitte `settled`; kartta borcun yanında kalan limit. **Son hareketin sonrası güncel değere eşit** (kişinin `Net`'i, borcun `RemainingAmount`'ı). Giriş anı bilinmeyen veresiye günün en eskisi sayılır ama kendi bakiyesi dönmez. Sahiplik: başkasının cari, yükümlülük ve borç kaydı `null`. İstemcide satırlar yerinde bekler ve panel boyut değiştirmez; `Kapandı`; 2.0× yazıda taşma yok; bilinmeyen `side` reddedilir |
 | Cari satırının okunuşu ve yön | `Balances_ReportTheCounterpartyTheDebtAndTheCardLimit`, `activity_pos_rows_test` → `cari kayıt…`, `tahsilat ile ödeme adını ve yönünü yönden alır` | Cari bakiye önceki tarafı taşır: ilk kayıtta `settled`, tarafı değiştirmeyen tahsilatta aynı, fazla tahsilatta `receivable → payable`. Akış satırı `direction` taşır; iki kapanış türünde kaynak hep hesap, hedef hep karşı taraf. İstemcide etiket `Alacağın` / `Borcun` / `Cari — Kapandı`; taraf çevrilince açıklama, ilk kayıtta ve kapanışta yok; `Alacak tahsilatı` / `Borç ödemesi` / `Cari tahsilat` / `Cari ödeme`; listede tahsilat `kişi → hesap` |
 | Bakiyenin yönü | `Balances_FollowEachMovementInFeedOrder`, `PosDepositEndpointTests`, SQL testi, `activity_pos_rows_test` → `bakiyenin rengi paranın yönünü söyler` | Gider ve transfer kaynağı `decreased`, gelir, transfer hedefi ve yatış `increased`; kart harcaması borcu artırır, ödeme azaltır; POS satışı hesabını `unchanged` ile ve o anki bakiyeyle döner. İstemcide giren yeşil, çıkan kırmızı, değişmeyen mavi; bilinmeyen `change` değeri reddedilir |
 | İşlem sonrası bakiye | `FinancialActivityEndpointTests.Balances_FollowEachMovementInFeedOrder`, SQL testi | Her hareketin sonrası akış sırasına göre; sonradan girilen kayıt öncekinin sonrasını değiştirmez; transfer iki hesap, kart ödemesi hesap + kart borcu döner; son hareketin sonrası güncel bakiyeye eşit; yatışın sonrası kesintiyi içerir; iptal edilmiş, para taşımayan ve giriş anı bilinmeyen hareket boş liste; bilinmeyen tür `400` |
@@ -1662,7 +1662,11 @@ atlandı), debug APK derlendi.
 |---|---|---|
 | Önceki sayımın farkı (K6) | `CashCountEndpointTests.UnrecordedDifferenceOfThePreviousCount_IsCarriedAsInformation` | Sayım yokken boş; dünkü kaydedilmemiş fark `previousUnrecordedDifference` ile taşınır; aynı fark yeniden sayılınca `differenceSameAsPrevious`; arada gider girilince bugünkü fark değişir, taşınan bilgi aynı kalır ve "aynı" denmez; dünkü fark kaydedilince bilgi kalkar |
 | Fark yalnız güncel sayıma (KS1, 8 Ekim 2026) | `CashCountEndpointTests.DifferenceAfterALaterEntry_IsRefusedUntilTheCashIsCountedAgain`, `EntriesThatLeaveTheBalanceUnchanged_StillRequireARecount`, `CancellingAnEntryAfterACount_RequiresARecount_AndAClosedDifferenceDoesNot`, `UnrecordedDifferenceOfThePreviousCount_IsCarriedAsInformation`; `CashCountTests.RequiresRecount_*`; `CashCount_SeesEntriesAndNewerCountsOfItsOwnAccountOnly` (gerçek SQL); `cash_pos_feature_test` (üç durum), `cash_count_today_test` | Doğrulanan hata: 900 sayılıp 1.000 beklenirken sonradan girilen 200 liralık satış 300 liralık gider yazdırıyordu. Artık istek `cash_counts.recount_required` döner, hiçbir kayıt yazılmaz; yeniden sayım 100 liralık doğru farkı yazar ve ikinci istek ikinci kayıt üretmez. Bakiyeyi değiştirmeyen giriş+çıkış, geçmişe tarihli kayıt, iptal ve daha yeni sayım da yeniden sayım ister; başka kasanın kaydı istemez. Kart `Fark` satırını ve `Farkı kaydet`i kaldırır, `Yeniden say` dolu düğmedir; fark kapandıysa "Kasa yine uygulamayla aynı." |
-| Sayım kartı (K6) | `cash_pos_feature_test` | `Kaydedilmemiş fark` satırı ve günü; fark aynıysa `Fark son sayımdakiyle aynı.` ve `Farkı kaydet` çerçeveli düğme |
+| Sayım kartı (K6, KS4) | `cash_pos_feature_test` | Önceki sayımın farkı geçmiş olarak yazar (`24 Eylül sayımında eksik çıkmıştı`; kaydı iptal edildiyse `Fark kaydı iptal edildi`), `Kaydedilmemiş fark` denmez; fark aynıysa `Fark son sayımdakiyle aynı.` ve `Farkı kaydet` çerçeveli düğme |
+| `Kendime aldım` sayımın açıklaması (KS2, 8 Ekim 2026) | `CashCountEndpointTests.TookForMyself_ToAPersonalAccount_MovesTheShortageAndExplainsTheCount`, `TookForMyself_AsAnExpense_IsPersonalAndRefusesABusinessCategory`, `TookForMyself_RefusesAnIncompleteOrMisdirectedRequest`; `CashCountTests.TransferAdjustment_IsIdempotentAndExcludesASecondExplanation`; `cash_pos_feature_test` (dört durum) | Eksik para şahsi hesaba geçer (gider yok) ya da şahsi gider yazılır; tutar farkın tamamı, gün sayımın günü; sayım `recorded` olur ve ertesi gün bilgi satırı çıkmaz. İstek tekrar edilirse para ikinci kez çıkmaz. İşletmeye özel kategori `scope_conflict`; hedefsiz, iki hedefli, "bilmiyorum"la birlikte ya da fazla çıkan kasada istek `withdrawal_not_applicable`; işletme hesabı, kasanın kendisi ya da yabancı hesap `personal_account_unavailable` — hiçbiri kayıt yazmaz. Panel tutar ve gün sormaz, ne yazılacağını söyler; ayrı bir `Kendime aldım` kaydı yazılmaz |
+| Bağlı kaydın iptali (KS3) | `CashCountEndpointTests.CancellingTheRecordOfADifference_DoesNotReopenTheCount` (gider ve aktarım); `CashCount_CarriesOneExplanationAndReadsItsCancellation` (gerçek SQL); `cash_pos_feature_test`, `cash_count_today_test` | İptalden sonra durum `cancelled`, bağ durur, bakiye sayım anındakine döner, kart yeniden sayım ister ve aynı sayıma yeni fark kaydı reddedilir; yeniden sayımdan sonra fark yeniden yazılır. Aynı sayıma ikinci bir açıklama veritabanında da reddedilir |
+| Önceki sayımın farkı (KS4) | `CashCountEndpointTests.PreviousDifference_IsHistoryWithItsStatusAndGivesWayToABalancedCount` | Kayıt yoksa `none`, kayıt iptal edildiyse `cancelled` durumuyla taşınır; bugün kasa tam sayıldıysa taşınmaz |
+| Aktarım bağı: şema ve yedek | `MigrationHistoryTests.AddCashCountTransferAdjustment_AddsANullableLinkBeforeItsConstraint`; `DataPortabilityTests.Backup_RoundTripsACashCountExplainedByATransfer` | Kolon boş bırakılabilir gelir ve kısıttan önce eklenir, doldurma yok; yedekten dönen sayım aktarımına yeni kimliğiyle bağlanır |
 | Şahsi cüzdan (K8) | `cash_pos_feature_test` → `şahsi etiketli nakit hesap` | İşletme profilinde `Şahsi` etiketli nakit hesap listede yok, kişisel profilde var; hepsi gizliyse `İşletme kasası yok.` |
 | Yolda satırı (K5) | `dashboard_sections_test` | Alt yazı `Kartla gelecek`; beklenen gün bugünse yalnız gün; geçmişse `gün · Gecikti` ve uyarı ikonu |
 | Fark sebebi (K7) | `CashCountEndpointTests.Confirm_WritesTheGivenDescription_OtherwiseTheCountNote`, `cash_pos_feature_test` → `fark kaydında sebep` | Verilen açıklama fark kaydının adı olur; boş ya da yalnız boşluksa sayımın notu kalır. Fazlada sebep sorulmaz; `Bilmiyorum` `Kasa farkı` gönderir; `Kendime aldım` fark kaydı yazmaz ve paneli tutarla açar |
@@ -1792,3 +1796,142 @@ kategoride kartın etiketi ya da açık seçim, etiketsiz kaynakta
 `*.scope_unresolved`; gerçekleşen taksit planın tarafını taşır.
 
 Kontroller: Flutter 1072 (105 atlanır); backend değişmedi.
+
+## Aşama 06.3 Grup 8 — cari adımı: kişiye bağlı fatura cari bakiyenin dışında (9 Ekim 2026)
+
+| Kural | Test | Ne gösterir |
+|---|---|---|
+| C3–C4: fatura cari bakiyeye girmez | `CounterpartyEndpointTests.InvoiceTiedToAPerson_StaysOutOfTheLedgerBalance_AndClosesOnlyOnItsOwn` (yeni) | 1.000 liralık fatura + 500 liralık veresiye alım → `payable` 500, `openPayableObligations` 1.000; vadesi geçmiş fatura cariyi gecikmiş yapmaz; yalnız faturası olan kişi `balance=open` süzgecinde çıkmaz; cari ödeme cariyi kapatır ve fatura açık kalır; `Öde ve kapat` parayı bir kez çıkarır; net varlık açık faturayı sayar; fatura kişinin hareketlerinde durur |
+| C4: ayrıntı cari bakiye dönmez | `FinancialActivityEndpointTests.Balances_ReportTheCounterpartyTheDebtAndTheCardLimit`, `SqlServerPersistenceIntegrationTests.ActivityBalances_ReadTheCounterpartyTheDebtAndTheCardLimitAfterEachMovement` (güncellendi) | Yükümlülük boş liste, kapanışı yalnız hesap; aradaki fatura sonraki cari hareketin sonrasını değiştirmez; son cari hareketin sonrası kişinin güncel bakiyesine eşit |
+| İki okuma ayrışmaz | `MoneyFoundation_BalancesDebtsAndTransitAgreeAcrossEveryRead` (güncellendi) | Kişi listesi cariyi ve açık yükümlülükleri ayrı toplar; net varlık borç planı + cari + yükümlülüğün toplamıdır |
+| C6: kapının işareti | `CounterpartyEndpointTests.Profile_TellsWhetherTheUserHasALedger_WhateverTheBusinessAnswerIs` (yeni) | Kişi açmak işaret değildir; borçlandırmadan sonra `hasCounterpartyLedger` doğru; cevap "işletmem yok" olunca işaret ve cari okuma yerinde; tek hareket iptal edilince işaret kalkar |
+| Kapı (istemci) | `scope_controller_test` (4 yeni), `more_page_test` "cari hesap kapısı…" | İşletmesi olana her zaman açık ve cari hareket sorulmaz; olmayana yalnız işaretle; okunamazsa son bilinen hâl; oturum kapanınca unutulur. Kişisel profilin menüsünde `Cari hesap` yok, `Borç ve alacaklar` ve `Yükümlülükler` yerinde |
+| C5: blok | `counterparties_page_test` "bekleyen fatura ayrı blokta durur, ödeme formu onu önermez", "bekleyen faturası olmayan kişide blok çizilmez" | `Bekleyen faturalar`, satır (ad, vade, `Gecikmiş`), `Ödenecek toplam`; `Ödeme` formu 500 önerir, 1.500 değil |
+
+C1'in sunucu testi zaten vardı (`Charge_IsAlwaysBusiness_AndRejectsAPersonalCategoryOrChoice`).
+
+**Canlı API denemesi (9 Ekim, yeni derlemeyle açılan geçici yerel API ve gerçek
+SQL; atılabilir üç sentetik kullanıcı):** on sekiz denetim, hepsi beklenen
+sonucu verdi.
+
+| # | Senaryo | Sonuç |
+|---|---|---|
+| a | Kişili 1.000 liralık fatura | Cari bakiye 0 ve kapalı, bekleyen fatura 1.000; önerilecek ödeme tutarı 0; `Öde ve kapat` bankayı 5.000 → 4.000 yaptı, tekrar istek aynı kapanışı döndü, kişi fazla ödenmiş görünmedi |
+| b | Aynı kişiye 1.000 fatura + 500 veresiye alım | Cari bakiye 500; `Açık hesap` süzgeci yalnız bu kişiyi gösterdi; cari ödeme cariyi kapattı, fatura açık kaldı |
+| c | Eski kayıtlar | Kural okuma kuralıdır (tarih koşulu yok); geri yüklenen kayıtla doğrulandı (i). Gerçek eski hesapla API'den denenemedi: parolası yalnız kullanıcıda |
+| d | Ayrıntı ile toplamın tutarlılığı | Fatura ayrıntısı boş, kapanışı yalnız hesap; cari hareketin ayrıntısı kişinin bakiyesiyle aynı (500, `payable`); fatura kişinin hareketlerinde duruyor |
+| e | Net varlık ve Planlananlar | Net varlıktaki borç 1.500 (fatura 1.000 + cari 500); fatura Planlananlar'da ve yaklaşan ödemelerde |
+| f | Fiş okuma "ödemedim" + kişi | İstemci aynı `POST /api/v1/obligations` isteğini gönderir (a ile aynı yol); belge okuma canlı sağlayıcı istediği için ayrıca koşulmadı |
+| g | Cari borçlandırmada şahsi kategori ve şahsi seçim | İkisi de `400 counterparties.scope_conflict`; hiçbir şey yazılmadı |
+| h | Menü işareti | İşletmesi olmayan yeni kullanıcıda `hasCounterpartyLedger` yanlış; cari hareketi olan kullanıcı cevabını "işletmem yok" yapınca işaret doğru kaldı ve cari listesi okundu |
+| i | Yedek ve geri yükleme | Yedek indirildi, başka hesaba geri yüklendi; geri yüklenen kişide cari 0, bekleyen fatura 1.000 |
+
+Kontroller: backend gerçek SQL ile Domain 356, Application 389, Api 300,
+Infrastructure 241 (+2 canlı test atlanır); Flutter 1091 (110 atlanır);
+`flutter analyze`, `dart format` ve `dotnet format` temiz.
+
+## Aşama 06.3 — fatura tekrar uyarısı yükümlülükleri de arar; cari birleşimleri (9 Ekim 2026)
+
+Kullanıcı aynı örnek faturayı "henüz ödemedim" yolundan iki kez okuttu ve iki
+yükümlülük uyarısız yazıldı: tekrar uyarısı (`receipt.possible_duplicate`)
+yalnız gelir/gider hareketlerine bakıyordu.
+
+| Kural | Test | Ne gösterir |
+|---|---|---|
+| Ödenmemiş fatura da aranır | `SqlServerPersistenceIntegrationTests.ReceiptDuplicateLookup_FindsAnUnpaidInvoiceWrittenAsAnObligation` (yeni, gerçek SQL) | Aynı gün, tutar ve adla yazılmış yükümlülük bulunur ve türü `Obligation`'dır; açıklaması değişmiş kayıt bağlı kişinin adıyla (harf büyüklüğü farkıyla) bulunur; ödenmiş kayıt sayılır, iptal edilmiş sayılmaz; gider belgesi alacakla, gelir belgesi borçla eşleşmez; başka gün, tutar, ad ya da kullanıcı eşleşmez; dekont bu rafa bakmaz |
+
+Uyarı engel değildir (kural değişmedi); yükümlülük formu uyarıyı zaten
+gösteriyordu (`ObligationPrefill.warnings`). Belge okuma canlı sağlayıcı
+istediği için uçtan uca (fotoğraf → uyarı) koşulmadı.
+
+**Canlı API denemesi — cari kategori ve hesap birleşimleri (kullanıcının
+sorusu; yeni derlemeyle geçici yerel API, gerçek SQL, sentetik kullanıcı):** on
+iki denetim, hepsi beklenen sonucu verdi.
+
+| # | Senaryo | Sonuç |
+|---|---|---|
+| S1 | `Satış geliri` ile 1.000 liralık veresiye satış, tahsilat bankaya | Gelir satış günü bir kez yazıldı (1.000), hesaplar değişmedi; tahsilatta banka 20.000 → 21.000, kasa değişmedi, gelir yine 1.000, cari kapandı |
+| S2 | `Hizmet geliri` ile 800 liralık veresiye satış, tahsilat kasaya | Kasa 1.000 → 1.800, ay geliri 1.800; kasa sayımı 1.800 bekledi (`bugün giren` 800) ve 1.800 sayınca tuttu |
+| S2c | Sayımdan sonra bankaya cari tahsilat | Kasanın sayımı güncel kaldı |
+| S2d | Sayımdan sonra kasaya 100 liralık cari tahsilat | Beklenen 1.900, kasa yeniden sayım istedi, fark kaydı `409 recount_required` |
+| S3 | 2.200 liralık satış, 2.500 liralık tahsilat | Gelir 2.200, banka +2.500; kişide `receivable` −300, `net` −300, kapalı değil; işlem ayrıntısı `300 payable`, önceki taraf `receivable`; net varlıkta cari −300 |
+| S4 | Gün sonu önizlemesi (nakit 1.500), o gün kasaya 900 liralık cari tahsilat girilmişken | İki tahsilat nakit tarafta listelendi ve **işaretsiz** geldi (yazılacak satış 1.500); işaretlenince 600; bankaya yapılan tahsilat nakit tarafta yok |
+
+Raporlar gelir için kategori kırılımı vermez (yalnız gider kategorileri
+kırılır); veresiye satışın kategorisi kayıtta ve akış satırında durur, toplamı
+değiştirmez.
+
+Kontroller (bu düzeltmeden sonra): build 0 uyarı, `dotnet format` temiz;
+Application 389; `ReceiptDuplicateLookup_*` üç test gerçek SQL ile geçti. Tam
+backend koşusu günün sonunda yinelendi (aşağıdaki bölüm).
+
+## Aşama 06.3 — yükümlülük iptali ve cari kartında fazla tahsilat (9 Ekim 2026)
+
+| Kural | Test | Ne gösterir |
+|---|---|---|
+| İptal bir bütündür | `ObligationEndpointTests.CancellingAnObligation_UndoesItsRecognitionAndItsSettlementTogether` (yeni) | İki kez yazılan faturanın biri iptal edilir: gider, kişinin bekleyen faturası, net varlık ve planlanan görünüm yalnız duran kaydı sayar; akış satırı `cancelled` ve `canCancel` yanlış; istek tekrarlanınca aynı sonuç; başka kullanıcı `404`; iptal edilmiş kayıt kapatılamaz. Ödenmiş faturada para hesaba döner, gider düşer, kapanış satırı da iptal olur; kapanış satırı tek başına iptal edilemez |
+| Kartla tahsil ve yatış kilidi | `CardCollectionEndpointTests.ReceivableCollectedByCard_IsCancelledWithItsPosRecord_UnlessADepositHoldsIt` (yeni) | Yoldayken iptal POS kaydını ve komisyonu da kaldırır; yatıştan sonra `409 obligations.deposit_locked` ve hiçbir şey değişmez; yatış geri alınınca iptal edilir |
+| Sahiplik | `OwnershipIsolationTests` (yeni yol eklendi) | `DELETE /api/v1/obligations/{id}` başkasının kaydında ve olmayan kayıtta aynı cevabı verir; `EveryOwnerScopedRoute_IsProbed` yeni ucu eksik bulup kırılmıştı |
+| Ekran: iptal | `obligations_page_test` (6 yeni) | Açık kayıtta düğme kapanış panelinde ve onay ister; vazgeçince kayıt kalır; ödenmiş kayıtta onay "ödemesi de iptal edilir" der; sunucu reddederse sebep yazar ve kayıt kalır; iptal edilmiş kayıt bir şey açmaz; panel 2.0× yazıda taşmaz |
+| Ekran: fazla tahsilat | `counterparties_page_test` "fazla tahsilat borcumuz satırında yazar, eksi alacak diye değil", "fazla ödeme size borcu satırında yazar", "kapanmış caride net yalnız Net diye yazar" | İki satır eski adlarıyla; 300 lira `Sizin borcunuz`da ve `Net - Borcunuz`da, eksi işaretsiz; tersinde `Net - Alacağınız` |
+| Ekrandaki iki tutar | `CounterpartyDisplayTests` (yeni, 9 durum), `FinancialActivityEndpointTests` (ek doğrulama) | `owedToYou` ve `owedByYou` eksiye düşmez, farkları her zaman nete eşittir; fazla tahsilat + vadeli alım birlikteyken borç toplanır (−300 ve 200 → 500) |
+| Ekran görüntüleri | `cari_yukumluluk_screenshot_test` (`SCREENSHOT_DIR` ile) | Cari kartı (fazla tahsilat, bekleyen faturalar), kapanış paneli, iki onay, `Kapanan` sekmesi |
+
+**Canlı API denemesi — yükümlülük iptali (yeni derlemeyle geçici yerel API,
+gerçek SQL, iki sentetik kullanıcı):** on iki denetim, hepsi beklenen sonucu
+verdi.
+
+| # | Senaryo | Sonuç |
+|---|---|---|
+| I1 | Aynı fatura iki kez yazıldı (412,60 × 2), biri iptal edildi | Gider 825,20 → 412,60; kişinin bekleyen faturası 412,60; iptal edilen Planlananlar'dan düştü, listede `cancelled`; tekrar istek aynı sonuç; başka kullanıcı `404`; iptal edilmiş kayıt ödenemedi (`409`) |
+| I2 | Bankadan ödenmiş fatura iptal edildi | Banka 9.587,40 → 10.000; gider 0; kapanış satırı da `cancelled`; net varlıkta borç 0. Kapanış satırı tek başına iptal edilemiyor |
+| I3 | Kartla tahsil edilmiş 500 liralık alacak | Yoldayken iptal: yolda 492,50 → 0, gelir ve komisyon gideri düştü. Yatıştan sonra `409 obligations.deposit_locked`, banka ve toplamlar değişmedi; yatış geri alınınca iptal edildi |
+| I4 | Kasaya tahsil edilmiş alacak gün sonunda sayıldı | `409 obligations.day_close_counted`, kasa değişmedi; gün sonu geri alınınca iptal edildi, kasa başlangıcına döndü |
+| I5 | Kasadan ödenmiş fatura, kasa sayıldıktan sonra iptal edildi | Beklenen 800 → 1.000; kasa yeniden sayım istedi, eski sayıma fark kaydı `409` |
+
+Kontroller (9 Ekim, günün sonunda): backend gerçek SQL ile Domain 356,
+Application 389, Api 302, Infrastructure 242 (+2 canlı test atlanır); build 0
+uyarı, `dotnet format` temiz; Flutter 1099 (116 atlanır), `flutter analyze` ve
+`dart format` temiz. Cari kartının son hâlinden sonra (iki ekran tutarı):
+Application 398 ve Api 302 gerçek SQL ile, Flutter 1100 yeniden koşuldu;
+Domain ve Infrastructure bu son değişiklikten sonra yinelenmedi.
+
+## Aşama 06.3 — gece yarısından sonra bugünün kaydı, iptal onayı ve akıştaki kilit (9 Ekim 2026)
+
+Üç hata önce **kod değiştirilmeden** gerçek API'de yeniden üretildi, sonra
+düzeltildi ve aynı betik yeniden koşuldu (geçici yerel API, gerçek SQL,
+sentetik kullanıcı). Sunucunun saati değiştirilemediği için gece durumu,
+istemcinin o saatlerde göndereceği tarihle üretildi: `UTC günü + 1`.
+
+| İstek (tarih = UTC günü + 1) | Önce | Sonra |
+|---|---|---|
+| Kasa sayımı | `400 cash_counts.validation` | `201`; kasa kartı (cihazın günüyle) sayımı buluyor; `Son sayımlar`da görünüyor |
+| Gün sonu önizlemesi ve kaydı | `400 day_closes.invalid_date` | `200` / `201` |
+| POS tahsilatı | `400 pos_settlements.validation` | `201`; varsayılan listede görünüyor |
+| Yükümlülük (fatura) | `400 obligations.validation` | `201` |
+| Yükümlülüğün ödenmesi | `400 obligations.validation` | `200` |
+| POS yatışı | `400 pos_deposits.invalid_deposit_date` | `201` |
+| Tasarruf hedefine katkı | (ilk koşuda yanlış yol, denenmedi) | `200` |
+| Gider, veresiye satış (karşılaştırma) | `201` | `201` |
+| Aynı kayıtlar, tarih = UTC günü + 2 | `400` | `400` (değişmedi) |
+| Yatışa bağlı alacak: akıştaki `canCancel` / iptal | `true` / `409 obligations.deposit_locked` | `false` / `409` |
+| Gün sonunda sayılmış alacak: `canCancel` / iptal | `true` / `409 obligations.day_close_counted` | `false` / `409` |
+| Kilitsiz açık ve ödenmiş fatura: `canCancel` | `true` | `true` (değişmedi) |
+
+| Kural | Test | Ne gösterir |
+|---|---|---|
+| Bir günlük pay | `LocalDayTests` (yeni, 4 durum) | Türkiye'de 9 Ekim 01:30 (UTC 8 Ekim 22:30) için en ileri gün 9 Ekim; ay ve yıl sınırı; saatin ofseti sonucu değiştirmez |
+| Yedi denetim | `CashCountTests`, `DayCloseTests`, `ObligationTests` (2), `PosDepositTests` (güncellendi) | Bir gün ilerisi kabul, iki gün ilerisi ret. Beşi eski kuralı sabitliyordu ve değişiklikle kırıldı |
+| Uçtan uca | `LocalDayEndpointTests.RecordsDatedTheUsersTodayAfterMidnight_AreAccepted_AndTwoDaysAheadIsNot` (yeni) | Yedi yazma `UTC günü + 1` ile kabul; kasa kartı `date` ile sayımı okur, tarihsiz okumada sunucunun günü sorulur, bozuk tarih `400`, uzak tarih sunucunun gününe döner; iki liste kaydı içerir; `UTC günü + 2` beş uçta ret |
+| Eski kuralı sabitleyen iki uç testi | `PosDepositEndpointTests`, `DayCloseEndpointTests` (güncellendi) | Ret artık iki gün sonrasında başlar |
+| Akıştaki kilit | `CardCollectionEndpointTests.ReceivableCollectedByCard_…` (ek doğrulama) | Yatıştan önce `canCancel` doğru, yatıştan sonra yanlış, yatış geri alınınca yeniden doğru |
+| Kasa kartı | `cash_pos_feature_test` "Kasa kartı bugünü cihazın takvim günüyle sorar" | Saat 01:30'da istek `date=2026-10-10` taşır |
+| İptal onayı | `activity_detail_sheet_test` "yükümlülük iptalinde onay ödemenin de iptal olacağını söyler" | Borçta "Ödendiyse ödemesi de iptal edilir.", alacakta "Tahsil edildiyse tahsilatı da iptal edilir." |
+
+Gün sonunda sayılmış alacağın akıştaki kilidi yalnız canlı denemede doğrulandı;
+kalıcı testi yatış kilidi içindir (ikisi aynı ifadenin iki kolu).
+
+Kontroller (hepsinden sonra): backend gerçek SQL ile Domain 360, Application
+398, Api 303, Infrastructure 242 (+2 canlı test atlanır); build 0 uyarı,
+`dotnet format` temiz; Flutter 1102 (116 atlanır), `flutter analyze` ve
+`dart format` temiz.

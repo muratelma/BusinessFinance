@@ -30,7 +30,7 @@ public sealed class PreviewDayCloseUseCase(
         }
 
         var (plan, error) = await DayClosePlan.BuildAsync(
-            userId, input, DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime),
+            userId, input, LocalDay.LatestAllowed(timeProvider.GetUtcNow()),
             repository, accountRepository, categoryRepository, cancellationToken);
         return plan is null
             ? ApplicationResult<DayClosePreviewDto>.Failure(error!)
@@ -87,7 +87,7 @@ public sealed class CreateDayCloseUseCase(
 
         var now = timeProvider.GetUtcNow().ToUniversalTime();
         var (plan, error) = await DayClosePlan.BuildAsync(
-            userId, command.Input, DateOnly.FromDateTime(now.UtcDateTime),
+            userId, command.Input, LocalDay.LatestAllowed(now),
             repository, accountRepository, categoryRepository, cancellationToken);
         if (plan is null || plan.Blocker is not null)
         {

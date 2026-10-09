@@ -97,7 +97,7 @@ public sealed class ObligationSettlement
                 "Settlement date cannot be before the issue date.");
         }
 
-        if (settlementDate > DateOnly.FromDateTime(settledAtUtc.UtcDateTime))
+        if (settlementDate > LocalDay.LatestAllowed(settledAtUtc))
         {
             throw new ArgumentOutOfRangeException(
                 nameof(settlementDate),

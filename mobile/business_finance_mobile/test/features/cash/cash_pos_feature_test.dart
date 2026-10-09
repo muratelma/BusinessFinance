@@ -215,6 +215,21 @@ void main() {
     expect(controller.recentCounts.map((item) => item.id), ['today']);
   });
 
+  // Sunucu günü UTC tutar; gece yarısından sonra cihazın "bugün"ü bir gün
+  // ileridedir. Kart kendi gününü göndermezse o saatte girilen sayımı
+  // "bugünün sayımı" diye okuyamaz (9 Ekim 2026'da gerçek API'de görüldü).
+  test('Kasa kartı bugünü cihazın takvim günüyle sorar', () async {
+    final repository = _FakeCashRepository();
+    final controller = CashCountController(
+      repository,
+      clock: () => DateTime(2026, 10, 10, 1, 30),
+    );
+    await controller.load();
+
+    expect(repository.lastTodayDate, '2026-10-10');
+    controller.dispose();
+  });
+
   test('Kasa kendi sayımından sonra kendini bir kez yükler', () async {
     final repository = _FakeCashRepository();
     final changes = FinancialDataChanges();
@@ -595,12 +610,14 @@ void main() {
   group('fark kaydında sebep', () {
     Future<_FakeCashRepository> open(
       WidgetTester tester,
-      String difference,
-    ) async {
+      String difference, {
+      List<DataChoice> personal = const [],
+    }) async {
       tester.view.physicalSize = const Size(412, 1400);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       final repository = _FakeCashRepository()
+        ..personalAccounts = personal
         ..currentCount = _cashCount(difference: difference);
       await tester.pumpWidget(_app(cash: repository));
       await tester.pumpAndSettle();
@@ -632,36 +649,160 @@ void main() {
       expect(repository.confirmedCategoryId, isNull);
     });
 
-    // İkinci panel açılmaz: alanlar aynı panelde gelir, tutar farkla doludur
-    // ve kayıt oradan yazılır (kullanıcı isteği, 8 Ekim 2026).
-    testWidgets(
-      '"Kendime aldım" aynı panelde tutarla açılır ve oradan yazılır',
-      (tester) async {
-        final repository = await open(tester, '-100.0000');
+    // KS2 (8 Ekim 2026): fark panelindeki `Kendime aldım` sayımın
+    // açıklamasıdır. İkinci panel açılmaz; tutar ve gün sorulmaz ama ne
+    // yazılacağı söylenir; kayıt ayrı bir istekle değil fark kaydıyla gider,
+    // sayım böylece "açık" kalmaz.
+    testWidgets('"Kendime aldım" sayımın açıklaması olarak şahsi gider yazar', (
+      tester,
+    ) async {
+      final repository = await open(tester, '-100.0000');
 
-        await tester.tap(find.text('Kendime aldım').last);
-        await tester.pumpAndSettle();
+      await tester.tap(find.text('Kendime aldım').last);
+      await tester.pumpAndSettle();
 
-        expect(find.text('Devam'), findsNothing);
-        expect(find.text('Tutar'), findsOneWidget);
-        expect(find.text('100,00'), findsOneWidget);
-        // Gün sayımın günüdür; sorulmaz.
-        expect(find.text('Gün'), findsNothing);
+      expect(find.text('Devam'), findsNothing);
+      expect(find.text('Tutar'), findsNothing);
+      expect(find.text('Gün'), findsNothing);
+      expect(
+        find.text(
+          '₺100,00, 24 Ağustos tarihine yazılır. Parayı başka bir gün ya da '
+          'farklı tutarda aldıysanız bu paneli kapatıp Kasa\'daki “Kendime '
+          'aldım”ı kullanın.',
+        ),
+        findsOneWidget,
+      );
 
-        await tester.tap(find.byKey(const ValueKey('withdrawal-category')));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Kasa farkı').last);
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Kaydet'));
-        await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('withdrawal-category')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Kasa farkı').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Kaydet'));
+      await tester.pumpAndSettle();
 
-        expect(repository.confirmed, isFalse);
-        expect(
-          repository.withdrawals.single,
-          startsWith('expense cash-account/income-category 100.0000'),
-        );
-      },
+      expect(repository.confirmed, isTrue);
+      expect(repository.confirmedTookForMyself, isTrue);
+      expect(repository.confirmedCategoryId, 'income-category');
+      expect(repository.confirmedPersonalAccountId, isNull);
+      // Ayrı bir `Kendime aldım` kaydı yazılmadı; para iki kez çıkmaz.
+      expect(repository.withdrawals, isEmpty);
+    });
+
+    testWidgets('"Kendime aldım" şahsi hesap varsa farkı oraya aktarır', (
+      tester,
+    ) async {
+      final repository = await open(
+        tester,
+        '-100.0000',
+        personal: const [DataChoice('wallet', 'Şahsi cüzdan')],
+      );
+
+      await tester.tap(find.text('Kendime aldım').last);
+      await tester.pumpAndSettle();
+      // Tek şahsi hesap seçili gelir.
+      expect(find.text('Şahsi cüzdan'), findsOneWidget);
+      await tester.tap(find.text('Kaydet'));
+      await tester.pumpAndSettle();
+
+      expect(repository.confirmedTookForMyself, isTrue);
+      expect(repository.confirmedPersonalAccountId, 'wallet');
+      expect(repository.confirmedCategoryId, isNull);
+      expect(repository.withdrawals, isEmpty);
+    });
+
+    // Sunucu reddederse panel açık kalır ve nedenini söyler.
+    testWidgets('"Kendime aldım" reddedilirse neden panelde görünür', (
+      tester,
+    ) async {
+      final repository = await open(
+        tester,
+        '-100.0000',
+        personal: const [DataChoice('wallet', 'Şahsi cüzdan')],
+      );
+      repository.confirmError = const ApiException(
+        statusCode: 409,
+        code: 'cash_counts.recount_required',
+        message:
+            'Sayımdan sonra kasaya kayıt girildi. Farkı kaydetmek için kasayı '
+            'yeniden sayın.',
+      );
+
+      await tester.tap(find.text('Kendime aldım').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Kaydet'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Eksiği kaydet'), findsOneWidget);
+      expect(find.textContaining('kasayı yeniden sayın'), findsOneWidget);
+    });
+
+    // Gider ve gelir kaydında da tutar ve gün söylenir.
+    testWidgets('fark kaydı ne yazılacağını söyler', (tester) async {
+      await open(tester, '-100.0000');
+
+      expect(
+        find.text('₺100,00, 24 Ağustos tarihine yazılır.'),
+        findsOneWidget,
+      );
+    });
+  });
+
+  // KS3: fark için yazılan kayıt iptal edilirse sayım yeniden açılmaz.
+  testWidgets('fark kaydı iptal edildiyse kart yeniden sayım ister', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(412, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final repository = _FakeCashRepository()
+      ..currentCount = _cashCount(
+        difference: '-100.0000',
+        adjustmentTransactionId: 'adjustment',
+        adjustmentStatus: 'cancelled',
+      )
+      ..requiresRecount = true;
+    await tester.pumpWidget(_app(cash: repository));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Fark kaydı iptal edildi'), findsOneWidget);
+    expect(find.text('Fark kaydedildi'), findsNothing);
+    // Son sayımlar listesinde de durumuyla durur.
+    expect(find.text('Kaydı iptal edildi'), findsOneWidget);
+    expect(
+      find.text(
+        'Fark için yazılan kayıt iptal edildi. Farkı yeniden kaydetmek için '
+        'kasayı yeniden sayın.',
+      ),
+      findsOneWidget,
     );
+    expect(find.text('Farkı kaydet'), findsNothing);
+    expect(find.text('Yeniden say'), findsOneWidget);
+  });
+
+  // KS4: önceki sayımın farkı geçmişi anlatır; "kaydedilmemiş fark" kasada
+  // bugün de eksik varmış gibi okunuyordu.
+  testWidgets('önceki sayımın farkı geçmiş olarak ve durumuyla yazar', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(412, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final repository = _FakeCashRepository()
+      ..previous = CashCountItem.fromJson({
+        ..._cashCountJson,
+        'id': 'previous-count',
+        'countDate': '2026-09-24',
+        'difference': '-100.0000',
+        'adjustmentTransactionId': 'adjustment',
+        'adjustmentStatus': 'cancelled',
+      })
+      ..carriedDifference = '-100.0000';
+    await tester.pumpWidget(_app(cash: repository));
+    await tester.pumpAndSettle();
+
+    expect(find.text('24 Eylül sayımında eksik çıkmıştı'), findsOneWidget);
+    expect(find.text('Fark kaydı iptal edildi'), findsOneWidget);
+    expect(find.text('Kaydedilmemiş fark'), findsNothing);
   });
 
   // Aşama 06.3 K8: işletme profilinde şahsi cüzdan Kasa'da gösterilmez.
@@ -728,9 +869,10 @@ void main() {
     await tester.pumpWidget(_app(cash: repository));
     await tester.pumpAndSettle();
 
-    // Sayım girilmeden önce de görünür.
-    expect(find.text('Kaydedilmemiş fark'), findsOneWidget);
-    expect(find.text('24 Eylül sayımından'), findsOneWidget);
+    // Sayım girilmeden önce de görünür ve geçmişi anlatır (KS4).
+    expect(find.text('24 Eylül sayımında eksik çıkmıştı'), findsOneWidget);
+    expect(find.text('Kaydedilmemiş fark'), findsNothing);
+    expect(find.text('Fark kaydı iptal edildi'), findsNothing);
     expect(find.text('-₺100,00'), findsOneWidget);
   });
 
@@ -747,7 +889,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Fark son sayımdakiyle aynı.'), findsOneWidget);
-    expect(find.text('Kaydedilmemiş fark'), findsOneWidget);
+    expect(find.text('24 Eylül sayımında eksik çıkmıştı'), findsOneWidget);
     // Fark tek sayıdır; kayıt hâlâ mümkündür ama birincil düğme değildir.
     expect(
       find.ancestor(
@@ -1147,6 +1289,7 @@ class _FakeCashRepository implements CashRepositoryContract {
   bool confirmedUnknown = false;
   int accountLoads = 0;
   int todayLoads = 0;
+  String? lastTodayDate;
   String? changeSinceCount;
   String? carriedDifference;
   bool sameAsPrevious = false;
@@ -1172,8 +1315,12 @@ class _FakeCashRepository implements CashRepositoryContract {
   }
 
   @override
-  Future<CashCountToday> loadToday({required String accountId}) async {
+  Future<CashCountToday> loadToday({
+    required String accountId,
+    String? date,
+  }) async {
     todayLoads++;
+    if (date != null) lastTodayDate = date;
     return CashCountToday(
       accountId: accountId,
       accountName: 'Merkez kasa',
@@ -1221,15 +1368,24 @@ class _FakeCashRepository implements CashRepositoryContract {
         ),
       ];
 
+  bool confirmedTookForMyself = false;
+  String? confirmedPersonalAccountId;
+  ApiException? confirmError;
+
   @override
   Future<CashCountItem> confirmDifference({
     required String cashCountId,
     String? categoryId,
     bool unknownReason = false,
+    bool tookForMyself = false,
+    String? personalAccountId,
   }) async {
+    if (confirmError case final error?) throw error;
     confirmed = true;
     confirmedCategoryId = categoryId;
     confirmedUnknown = unknownReason;
+    confirmedTookForMyself = tookForMyself;
+    confirmedPersonalAccountId = personalAccountId;
     return currentCount = _cashCount(
       difference: '5.0000',
       adjustmentTransactionId: 'adjustment',
@@ -1372,10 +1528,12 @@ class _FakePosRepository implements PosRepositoryContract {
 CashCountItem _cashCount({
   required String difference,
   String? adjustmentTransactionId,
+  String? adjustmentStatus,
 }) => CashCountItem.fromJson({
   ..._cashCountJson,
   'difference': difference,
   'adjustmentTransactionId': adjustmentTransactionId,
+  'adjustmentStatus': ?adjustmentStatus,
 });
 
 const _cashCountJson = <String, Object?>{

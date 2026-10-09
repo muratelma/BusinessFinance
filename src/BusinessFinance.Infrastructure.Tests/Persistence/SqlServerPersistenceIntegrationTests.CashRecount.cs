@@ -94,4 +94,67 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         Assert.True(await ChangedAsync(count));
         Assert.False(await ChangedAsync(newer));
     }
+
+    /// <summary>
+    /// Sayımın farkı tek kayıtla açıklanır: aktarım bağı veritabanına yazılır,
+    /// iptali oradan okunur ve aynı sayıma ikinci bir açıklama (gelir/gider)
+    /// veritabanı seviyesinde reddedilir.
+    /// </summary>
+    [SqlServerFact]
+    public async Task CashCount_CarriesOneExplanationAndReadsItsCancellation()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var user = CreateUser("cash-transfer-link@example.test");
+        await database.SeedUsersAsync(user);
+        var day = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1);
+        var countedAt = DateTimeOffset.UtcNow;
+
+        var till = new Account(
+            Guid.NewGuid(), user.Id, "Kasa", AccountType.Cash, CurrencyCode.TRY, 1000m);
+        var wallet = new Account(
+            Guid.NewGuid(), user.Id, "Cüzdan", AccountType.Cash, CurrencyCode.TRY, 0m);
+        var food = new Category(
+            Guid.NewGuid(), user.Id, "Market", CategoryType.Expense, TransactionScope.Personal);
+        var transfer = new Transfer(
+            Guid.NewGuid(), user.Id, till, wallet, new Money(100m, CurrencyCode.TRY), day,
+            "Kendime aldım");
+        var stray = new BudgetTransaction(Guid.NewGuid(), user.Id, till, food,
+            new Money(5m, CurrencyCode.TRY), TransactionType.Expense, TransactionScope.Personal, day);
+        var count = new CashCount(
+            Guid.NewGuid(), user.Id, till, 900m, TransactionScope.Business, day, countedAt,
+            expectedAtCount: 1000m);
+        count.RecordTransferAdjustment(transfer.Id, countedAt);
+        await using (var seed = database.CreateContext())
+        {
+            seed.AddRange(till, wallet, food, transfer, stray, count);
+            await seed.SaveChangesAsync(CancellationToken.None);
+        }
+
+        await using var services = CreateServiceProvider(database.ConnectionString);
+
+        async Task<bool> CancelledAsync()
+        {
+            await using var scope = services.CreateAsyncScope();
+            return await scope.ServiceProvider.GetRequiredService<ICashCountRepository>()
+                .IsAdjustmentCancelledAsync(count, CancellationToken.None);
+        }
+
+        Assert.False(await CancelledAsync());
+
+        await Assert.ThrowsAnyAsync<Exception>(() => database.ExecuteAsync(
+            "UPDATE [CashCounts] SET [AdjustmentTransactionId] = {0} WHERE [Id] = {1}",
+            stray.Id, count.Id));
+
+        await using (var write = database.CreateContext())
+        {
+            var tracked = await write.Transfers.FindAsync([transfer.Id], CancellationToken.None);
+            tracked!.Cancel(DateTimeOffset.UtcNow);
+            await write.SaveChangesAsync(CancellationToken.None);
+        }
+
+        Assert.True(await CancelledAsync());
+        await using var read = database.CreateContext();
+        var stored = await read.CashCounts.FindAsync([count.Id], CancellationToken.None);
+        Assert.Equal(transfer.Id, stored!.AdjustmentTransferId);
+    }
 }

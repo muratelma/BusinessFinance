@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/formatters/date_text.dart';
+import '../../../core/formatters/money_text.dart';
 import '../../../core/routing/app_locations.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_form_sheet.dart';
 import '../../../core/widgets/app_list_row.dart';
 import '../../../core/widgets/app_money_text.dart';
@@ -148,9 +150,14 @@ class _ObligationsPageState extends State<ObligationsPage> {
           padding: const EdgeInsets.only(bottom: AppSpacing.small),
           child: _ObligationRow(
             item: items[index],
-            onTap: items[index].status == 'open'
-                ? () => _openSettlement(items[index])
-                : null,
+            // Açık kayıt kapanış panelini açar (iptal de oradadır); kapanmış
+            // kayıtta yapılabilecek tek şey iptaldir. İptal edilmiş kayıt
+            // yalnız okunur.
+            onTap: switch (items[index].status) {
+              'open' => () => _openSettlement(items[index]),
+              'settled' => () => _confirmCancel(items[index]),
+              _ => null,
+            },
           ),
         ),
       ),
@@ -158,13 +165,59 @@ class _ObligationsPageState extends State<ObligationsPage> {
   }
 
   Future<void> _openSettlement(ObligationItem item) async {
-    await AppFormSheet.show<bool>(
+    final result = await AppFormSheet.show<bool>(
       context: context,
       builder: (_) =>
           _SettlementForm(item: item, controller: widget.controller),
     );
+    // Panel `false` ile kapandıysa kullanıcı `Kaydı iptal et`e dokundu.
+    if (result == false && mounted) await _confirmCancel(item);
+  }
+
+  /// Silme yerine iptal. Kapanmış kayıtta ödeme ya da tahsilat da birlikte
+  /// iptal olur; diyalog bunu söyler. Sunucu reddederse (yatış, gün sonu)
+  /// sebebi alt bantta yazar ve liste değişmez.
+  Future<void> _confirmCancel(ObligationItem item) async {
+    final payable = item.direction == 'payable';
+    final settled = item.status == 'settled';
+    final confirmed = await AppConfirmDialog.show(
+      context: context,
+      icon: Icons.block,
+      destructive: true,
+      title: 'Kayıt iptal edilsin mi?',
+      highlight:
+          '${_obligationTitle(item)} · '
+          '${MoneyText.format(item.amount, item.currency)}',
+      message: settled
+          ? (payable
+                ? 'Ödemesi de iptal edilir; para hesaba geri döner.'
+                : 'Tahsilatı da iptal edilir; para hesaptan düşer.')
+          : (payable
+                ? 'Giderlerden ve bekleyenlerden düşer.'
+                : 'Gelirlerden ve bekleyenlerden düşer.'),
+      confirmLabel: 'Kaydı iptal et',
+    );
+    if (!confirmed || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final cancelled = await widget.controller.cancel(item);
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          cancelled
+              ? 'Kayıt iptal edildi.'
+              : widget.controller.errorMessage ?? 'Kayıt iptal edilemedi.',
+        ),
+      ),
+    );
   }
 }
+
+String _obligationTitle(ObligationItem item) =>
+    item.counterpartyName ??
+    item.description ??
+    item.categoryName ??
+    'Yükümlülük';
 
 class _ObligationRow extends StatelessWidget {
   const _ObligationRow({required this.item, this.onTap});
@@ -193,11 +246,7 @@ class _ObligationRow extends StatelessWidget {
       padding: EdgeInsets.zero,
       child: AppListRow(
         icon: payable ? Icons.north_east : Icons.south_west,
-        title:
-            item.counterpartyName ??
-            item.description ??
-            item.categoryName ??
-            'Yükümlülük',
+        title: _obligationTitle(item),
         subtitle:
             '${payable ? 'Ödenecek' : 'Tahsil edilecek'} · Vade ${DateText.dayMonth(item.dueDate)}',
         badge: AppStatusChip(
@@ -320,6 +369,17 @@ class _SettlementFormState extends State<_SettlementForm> {
               );
             },
           ),
+        const SizedBox(height: AppSpacing.small),
+        // Yanlış yazılan kayıt buradan iptal edilir; onay sayfada sorulur.
+        TextButton.icon(
+          style: TextButton.styleFrom(
+            minimumSize: const Size.fromHeight(48),
+            foregroundColor: Theme.of(context).colorScheme.error,
+          ),
+          onPressed: () => Navigator.of(context).pop(false),
+          icon: const Icon(Icons.block),
+          label: const Text('Kaydı iptal et'),
+        ),
       ],
     ),
   );

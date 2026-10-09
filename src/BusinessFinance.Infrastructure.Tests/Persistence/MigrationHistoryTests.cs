@@ -44,7 +44,8 @@ public sealed class MigrationHistoryTests
         "AddDayCloses",
         "AddDayCloseCountedRecords",
         "AddCardCollections",
-        "AddCounterpartyNameKey"
+        "AddCounterpartyNameKey",
+        "AddCashCountTransferAdjustment"
     ];
 
     [Fact]
@@ -972,6 +973,42 @@ public sealed class MigrationHistoryTests
             Assert.All(sql, statement => Assert.True(up.IndexOf(statement) < up.IndexOf(required)));
             Assert.Equal(sql[^1], separate);
             Assert.True(up.IndexOf(required) < up.IndexOf(unique));
+        }
+    }
+
+    /// <summary>
+    /// Sayımın aktarım bağı boş bırakılabilir gelir ve var olan sayımlara bir
+    /// şey uydurulmaz; kolon, onu okuyan kısıttan önce eklenir.
+    /// </summary>
+    [Fact]
+    public void AddCashCountTransferAdjustment_AddsANullableLinkBeforeItsConstraint()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_AddCashCountTransferAdjustment", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations.ToList();
+            Assert.Empty(up.OfType<DropColumnOperation>());
+            Assert.Empty(up.OfType<DropTableOperation>());
+            Assert.Empty(up.OfType<SqlOperation>());
+
+            var link = Assert.Single(up.OfType<AddColumnOperation>());
+            Assert.Equal("AdjustmentTransferId", link.Name);
+            Assert.True(link.IsNullable);
+            Assert.Null(link.DefaultValue);
+            Assert.Null(link.DefaultValueSql);
+
+            var check = Assert.Single(up.OfType<AddCheckConstraintOperation>());
+            Assert.Equal("CK_CashCounts_Adjustment", check.Name);
+            Assert.Contains("[AdjustmentTransferId] IS NOT NULL", check.Sql, StringComparison.Ordinal);
+            Assert.True(up.IndexOf(link) < up.IndexOf(check));
+
+            var key = Assert.Single(up.OfType<AddUniqueConstraintOperation>());
+            Assert.Equal("Transfers", key.Table);
+            var foreignKey = Assert.Single(up.OfType<AddForeignKeyOperation>());
+            Assert.Equal(["UserId", "AdjustmentTransferId"], foreignKey.Columns);
+            Assert.Equal(ReferentialAction.Restrict, foreignKey.OnDelete);
+            Assert.True(up.IndexOf(key) < up.IndexOf(foreignKey));
         }
     }
 

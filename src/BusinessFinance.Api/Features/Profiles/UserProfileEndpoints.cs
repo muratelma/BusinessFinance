@@ -3,7 +3,7 @@ using BusinessFinance.Application.Profiles;
 
 namespace BusinessFinance.Api.Features.Profiles;
 
-public sealed record UserProfileResponse(bool HasBusiness);
+public sealed record UserProfileResponse(bool HasBusiness, bool HasCounterpartyLedger = false);
 
 public sealed record UpdateUserProfileRequest(bool HasBusiness);
 
@@ -43,7 +43,8 @@ public static class UserProfileEndpoints
     {
         var result = await useCase.ExecuteAsync(cancellationToken);
         return result.IsSuccess
-            ? Results.Ok(new UserProfileResponse(result.Value.HasBusiness))
+            ? Results.Ok(new UserProfileResponse(
+                result.Value.HasBusiness, result.Value.HasCounterpartyLedger))
             : result.Error.ToProblemResult(httpContext);
     }
 
@@ -57,7 +58,8 @@ public static class UserProfileEndpoints
             new SetUserProfileCommand(request.HasBusiness),
             cancellationToken);
         return result.IsSuccess
-            ? Results.Ok(new UserProfileResponse(result.Value.HasBusiness))
+            ? Results.Ok(new UserProfileResponse(
+                result.Value.HasBusiness, result.Value.HasCounterpartyLedger))
             : result.Error.ToProblemResult(httpContext);
     }
 }

@@ -12,9 +12,12 @@ namespace BusinessFinance.Infrastructure.Counterparties;
 /// <remarks>
 /// Güncel bakiye (<see cref="EfCounterpartyRepository"/> içindeki projection)
 /// bütün karşı tarafları tek sorguda okur ve o yüzden ayrı durur; buradaki
-/// toplam aynı dört kaynağı (borçlandırma, tahsilat/ödeme, açık yükümlülük)
-/// aynı işaretlerle okur ve yalnız bir kesim noktası ekler. İkisinin
-/// ayrışmadığını test tutar: son hareketin sonrası güncel bakiyeye eşittir.
+/// toplam aynı kaynakları (borçlandırma, tahsilat/ödeme) aynı işaretlerle
+/// okur ve yalnız bir kesim noktası ekler. İkisinin ayrışmadığını test tutar:
+/// son hareketin sonrası güncel bakiyeye eşittir.
+///
+/// Kişiye bağlı yükümlülük burada <b>yoktur</b>: cari bakiyeye girmez, kendi
+/// kapanışıyla kapanır.
 ///
 /// Kesim akışın sırasıdır: önceki günler bütünüyle, aynı günde giriş anı
 /// kesim anından büyük olmayanlar. Giriş anı bilinmeyen eski kayıt günün en
@@ -61,27 +64,6 @@ internal static class CounterpartyNet
                     : payment.Amount.Amount,
                 cancellationToken);
 
-        // Yükümlülük doğduğu andan kapandığı ana kadar açıktır. Kapanışı
-        // kesim noktasından sonraysa o an hâlâ açıktı.
-        var obligations = await dbContext.Obligations.AsNoTracking()
-            .Where(obligation => obligation.UserId == userId &&
-                                 obligation.CounterpartyId == counterpartyId &&
-                                 !obligation.IsCancelled &&
-                                 (obligation.IssueDate < date ||
-                                  (obligation.IssueDate == date &&
-                                   obligation.CreatedAtUtc <= entryAt)) &&
-                                 !dbContext.ObligationSettlements.Any(settlement =>
-                                     settlement.UserId == userId &&
-                                     settlement.ObligationId == obligation.Id &&
-                                     (settlement.SettlementDate < date ||
-                                      (settlement.SettlementDate == date &&
-                                       settlement.SettledAtUtc <= entryAt))))
-            .SumAsync(
-                obligation => obligation.Direction == DebtDirection.Receivable
-                    ? obligation.Amount.Amount
-                    : -obligation.Amount.Amount,
-                cancellationToken);
-
-        return charges + payments + obligations;
+        return charges + payments;
     }
 }

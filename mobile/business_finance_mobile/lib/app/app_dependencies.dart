@@ -124,6 +124,8 @@ class AppDependencies {
     final scopeController = ScopeController(
       store: ScopePreferences(),
       readHasBusiness: () async => (await profileRepository.read()).hasBusiness,
+      readHasCounterpartyLedger: () async =>
+          (await profileRepository.read()).hasCounterpartyLedger,
     );
 
     return AppDependencies._(

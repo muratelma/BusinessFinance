@@ -258,7 +258,7 @@ kopyalayamaz; ikisi de bir transferi kopyalayamaz.
 
 | `captureIntent` | Aranan kayıtlar |
 |---|---|
-| `expense`, `income` | Gelir/gider hareketleri |
+| `expense`, `income` | Gelir/gider hareketleri ve **tek seferlik yükümlülükler** (9 Ekim 2026: "henüz ödemedim" yolu yükümlülük yazar; bu raf aranmadığı için aynı fatura iki kez uyarısız yazılabiliyordu). Yükümlülükte gün düzenleme günüdür, yön niyeti izler (`expense` → borç, `income` → alacak), ad kaydın açıklamasıyla ya da bağlı kişinin ad anahtarıyla eşleşir; ödenmiş yükümlülük de sayılır, iptal edilmiş sayılmaz. Uyarı kaydı `Yükümlülükler kaydı` diye adlandırır |
 | `transfer` | Transferler |
 | `bank_slip` | Hareketler, transferler, kart ödemeleri ve alacaklar — dördü |
 

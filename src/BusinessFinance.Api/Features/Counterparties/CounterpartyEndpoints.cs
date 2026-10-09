@@ -427,7 +427,11 @@ public static class CounterpartyEndpoints
         FinanceContract.Money(counterparty.NotOverdueReceivable),
         FinanceContract.Money(counterparty.NotOverduePayable),
         FinanceContract.Money(counterparty.Net),
-        counterparty.IsSettled);
+        counterparty.IsSettled,
+        FinanceContract.Money(counterparty.OpenReceivableObligations),
+        FinanceContract.Money(counterparty.OpenPayableObligations),
+        FinanceContract.Money(counterparty.OwedToYou),
+        FinanceContract.Money(counterparty.OwedByYou));
 
     private static CounterpartyChargeResponse ToChargeResponse(CounterpartyChargeDto charge) => new(
         charge.Id,

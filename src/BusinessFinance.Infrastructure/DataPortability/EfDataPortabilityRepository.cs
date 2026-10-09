@@ -519,7 +519,7 @@ public sealed class EfDataPortabilityRepository(
             cashCounts.Select(x => new CashCountBackup(
                 x.Id, x.AccountId, x.CountedAmount, x.Currency, x.Scope, x.CountDate,
                 x.Note, x.CreatedAtUtc, x.AdjustmentTransactionId, x.AdjustedAtUtc,
-                x.IsCancelled, x.CancelledAtUtc)).ToArray(),
+                x.IsCancelled, x.CancelledAtUtc, x.AdjustmentTransferId)).ToArray(),
             posDefinitions.Select(x => new PosDefinitionBackup(
                 x.Id, x.Name, x.AccountId, x.SalesCategoryId, x.CommissionCategoryId,
                 x.CommissionRate, x.TransferDays, x.BusinessDaysOnly, x.IsActive,
@@ -634,6 +634,7 @@ public sealed class EfDataPortabilityRepository(
                 Guid.NewGuid(), userId,
                 Required(categoryMap, item.CategoryId, "budget category"),
                 MoneyOf(item.Limit, item.Currency), item.Scope, item.Year, item.Month)).ToArray();
+            var transferMap = new Dictionary<Guid, Transfer>();
             var transfers = snapshot.Transfers.Select(item =>
             {
                 var entity = new Transfer(
@@ -643,6 +644,7 @@ public sealed class EfDataPortabilityRepository(
                     MoneyOf(item.Amount, item.Currency), item.TransferDate, item.Description);
                 ApplyCancellation(item.IsCancelled, item.CancelledAtUtc, entity.Cancel);
                 entryTimes[entity] = item.CreatedAtUtc;
+                transferMap[item.Id] = entity;
                 return entity;
             }).ToArray();
 
@@ -885,12 +887,23 @@ public sealed class EfDataPortabilityRepository(
                 var entity = new CashCount(
                     Guid.NewGuid(), userId, account, item.CountedAmount, item.Scope,
                     item.CountDate, item.CreatedAtUtc, item.Note);
+                if (item.AdjustmentTransactionId is not null && item.AdjustmentTransferId is not null)
+                    throw Invalid("Cash count carries two adjustments.");
                 if (item.AdjustmentTransactionId is Guid adjustmentId)
                 {
                     if (item.AdjustedAtUtc is not DateTimeOffset adjustedAtUtc)
                         throw Invalid("Cash count adjustment is missing its timestamp.");
                     var adjustment = Required(transactionMap, adjustmentId, "cash count adjustment");
                     entity.RecordAdjustment(adjustment.Id, adjustedAtUtc);
+                }
+                else if (item.AdjustmentTransferId is Guid adjustmentTransferId)
+                {
+                    // "Kendime aldım" ile açıklanan fark: aktarım da yukarıda
+                    // yeni kimliğiyle kuruldu.
+                    if (item.AdjustedAtUtc is not DateTimeOffset adjustedAtUtc)
+                        throw Invalid("Cash count adjustment is missing its timestamp.");
+                    var transfer = Required(transferMap, adjustmentTransferId, "cash count transfer");
+                    entity.RecordTransferAdjustment(transfer.Id, adjustedAtUtc);
                 }
                 ApplyCancellation(item.IsCancelled, item.CancelledAtUtc, entity.Cancel);
                 cashCounts.Add(entity);
@@ -1685,7 +1698,10 @@ internal sealed record CashCountBackup(
     Guid Id, Guid AccountId, decimal CountedAmount, CurrencyCode Currency,
     TransactionScope Scope, DateOnly CountDate, string? Note, DateTimeOffset CreatedAtUtc,
     Guid? AdjustmentTransactionId, DateTimeOffset? AdjustedAtUtc,
-    bool IsCancelled, DateTimeOffset? CancelledAtUtc);
+    bool IsCancelled, DateTimeOffset? CancelledAtUtc,
+    // "Kendime aldım" ile açıklanan farkın aktarımı; alan eklenmeden önce
+    // yazılmış yedekte yoktur ve boş okunur.
+    Guid? AdjustmentTransferId = null);
 /// <remarks>
 /// POS tahsilatı tek kaydın <b>iki anını</b> taşır (ADR 0014): tahsilat günü
 /// gelir brüt tutar kadar tanınır ve komisyon ayrı gider yazılır, hesap

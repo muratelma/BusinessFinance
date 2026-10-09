@@ -20,8 +20,10 @@ class CashCountItem {
     required this.isCancelled,
     this.note,
     this.adjustmentTransactionId,
+    this.adjustmentTransferId,
     this.expectedBalance,
     this.difference,
+    this.reportedStatus,
   });
 
   final String id;
@@ -33,10 +35,31 @@ class CashCountItem {
   final bool isCancelled;
   final String? note;
   final String? adjustmentTransactionId;
+
+  /// Farkı açıklayan aktarım: eksik para kasadan şahsi hesaba geçmişse.
+  final String? adjustmentTransferId;
   final String? expectedBalance;
   final String? difference;
 
-  bool get isAdjusted => adjustmentTransactionId != null;
+  /// Sunucunun bildirdiği açıklama durumu; alanı göndermeyen eski sunucuda
+  /// boştur.
+  final CashAdjustmentStatus? reportedStatus;
+
+  /// Farkın açıklaması ne durumda; sunucu söyler, söylemediyse bağın
+  /// varlığından okunur.
+  CashAdjustmentStatus get adjustmentStatus =>
+      reportedStatus ??
+      (adjustmentTransactionId != null || adjustmentTransferId != null
+          ? CashAdjustmentStatus.recorded
+          : CashAdjustmentStatus.none);
+
+  /// Fark için yazılmış ve **duran** bir kayıt var.
+  bool get isAdjusted => adjustmentStatus == CashAdjustmentStatus.recorded;
+
+  /// Fark için yazılan kayıt sonradan iptal edildi. Sayım yeniden
+  /// kaydedilebilir hâle gelmez; kasa yeniden sayılır.
+  bool get adjustmentCancelled =>
+      adjustmentStatus == CashAdjustmentStatus.cancelled;
 
   factory CashCountItem.fromJson(Map<String, dynamic> json) => CashCountItem(
     id: JsonReaders.string(json, 'id'),
@@ -51,10 +74,23 @@ class CashCountItem {
       json,
       'adjustmentTransactionId',
     ),
+    adjustmentTransferId: JsonReaders.nullableString(
+      json,
+      'adjustmentTransferId',
+    ),
     expectedBalance: JsonReaders.nullableString(json, 'expectedBalance'),
     difference: JsonReaders.nullableString(json, 'difference'),
+    reportedStatus: switch (json['adjustmentStatus']) {
+      'recorded' => CashAdjustmentStatus.recorded,
+      'cancelled' => CashAdjustmentStatus.cancelled,
+      'none' => CashAdjustmentStatus.none,
+      _ => null,
+    },
   );
 }
+
+/// Sayımın farkı için yazılan kaydın durumu.
+enum CashAdjustmentStatus { none, recorded, cancelled }
 
 /// Kasa ekranının açılışta sorduğu tek soru: bugün ne olmalıydı, ne sayıldı.
 class CashCountToday {
@@ -149,7 +185,10 @@ abstract interface class CashRepositoryContract {
   /// Yalnız nakit hesaplar: banka bakiyesi elle sayılmaz.
   Future<List<CashAccount>> loadCashAccounts();
 
-  Future<CashCountToday> loadToday({required String accountId});
+  /// [date] cihazın takvim günüdür. Sunucu günü UTC tutar; gece yarısından
+  /// sonra cihazın "bugün"ü sunucununkinden bir gün ileridedir ve tarih
+  /// gönderilmezse o saatlerde girilen sayım "bugünün sayımı" diye okunmaz.
+  Future<CashCountToday> loadToday({required String accountId, String? date});
 
   Future<List<CashCountItem>> list({required String accountId});
 
@@ -168,10 +207,17 @@ abstract interface class CashRepositoryContract {
   /// [unknownReason] yalnız eksik farkta ve kategorisiz gönderilir: kayıt
   /// standart `Kasa farkı` kategorisine yazılır. Diğer durumda [categoryId]
   /// zorunludur.
+  ///
+  /// [tookForMyself] (`Kendime aldım`): eksik para sahibine gitti.
+  /// [personalAccountId] ile şahsi hesaba aktarım, [categoryId] ile şahsi
+  /// gider yazılır. Tutar farkın tamamı, gün sayımın günüdür; ikisini de
+  /// sunucu yazar ve kaydı sayıma bağlar.
   Future<CashCountItem> confirmDifference({
     required String cashCountId,
     String? categoryId,
     bool unknownReason = false,
+    bool tookForMyself = false,
+    String? personalAccountId,
   });
 
   /// `Şahsi` etiketli aktif hesaplar: kasadan kendine alınan paranın
@@ -222,9 +268,13 @@ class CashRepository implements CashRepositoryContract {
   }
 
   @override
-  Future<CashCountToday> loadToday({required String accountId}) async {
+  Future<CashCountToday> loadToday({
+    required String accountId,
+    String? date,
+  }) async {
     final response = await _client.get(
-      '/api/v1/cash-counts/today?accountId=$accountId',
+      '/api/v1/cash-counts/today?accountId=$accountId'
+      '${date == null ? '' : '&date=$date'}',
     );
     return CashCountToday.fromJson(response.requireObject());
   }
@@ -275,12 +325,16 @@ class CashRepository implements CashRepositoryContract {
     required String cashCountId,
     String? categoryId,
     bool unknownReason = false,
+    bool tookForMyself = false,
+    String? personalAccountId,
   }) async {
     final response = await _client.post(
       '/api/v1/cash-counts/$cashCountId/adjustment',
       body: {
         'categoryId': ?categoryId,
         if (unknownReason) 'unknownReason': true,
+        if (tookForMyself) 'tookForMyself': true,
+        'personalAccountId': ?personalAccountId,
       },
     );
     return CashCountItem.fromJson(response.requireObject());

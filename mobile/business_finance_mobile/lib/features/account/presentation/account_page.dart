@@ -500,7 +500,10 @@ class _BusinessAnswerSectionState extends State<_BusinessAnswerSection> {
     try {
       final profile = await repository.update(hasBusiness: value);
       // Sunucunun döndürdüğü hâl uygulanır; istemcinin gönderdiği değil.
-      await scopeController.applyHasBusiness(profile.hasBusiness);
+      await scopeController.applyHasBusiness(
+        profile.hasBusiness,
+        hasCounterpartyLedger: profile.hasCounterpartyLedger,
+      );
     } on ApiException catch (error) {
       messenger.showSnackBar(SnackBar(content: Text(error.message)));
     } on FormatException {

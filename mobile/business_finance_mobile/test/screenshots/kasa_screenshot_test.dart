@@ -222,6 +222,75 @@ void main() {
     );
   }, skip: !screenshotsEnabled);
 
+  // Sayımdan sonra kasaya kayıt girildi: fark yazılmaz, kaydedilemez; tek
+  // yol yeniden saymaktır (KS1).
+  testWidgets('21 kasa · yeniden sayım gerekli', (tester) async {
+    await captureScreen(
+      tester,
+      '21-kasa-yeniden-sayim-gerekli',
+      CashPage(
+        cashController: CashCountController(
+          _DesignCash(
+              _count('2026-09-25', '23100.0000', '23385.0000', '-285.0000'),
+            )
+            ..requiresRecount = true
+            ..changeSinceCount = '200.0000',
+          clock: () => DateTime(2026, 9, 25, 18),
+        ),
+        posController: PosController(_DesignPos()),
+      ),
+      selectedTab: 2,
+    );
+  }, skip: !screenshotsEnabled);
+
+  // Fark için yazılan kayıt iptal edildi: sayım yeniden açılmaz (KS3).
+  testWidgets('22 kasa · fark kaydı iptal edildi', (tester) async {
+    await captureScreen(
+      tester,
+      '22-kasa-fark-kaydi-iptal',
+      CashPage(
+        cashController: CashCountController(
+          _DesignCash(
+            _count(
+              '2026-09-25',
+              '23100.0000',
+              '23185.0000',
+              '-85.0000',
+              saved: true,
+              status: CashAdjustmentStatus.cancelled,
+            ),
+          )..requiresRecount = true,
+          clock: () => DateTime(2026, 9, 25, 18),
+        ),
+        posController: PosController(_DesignPos()),
+      ),
+      selectedTab: 2,
+    );
+  }, skip: !screenshotsEnabled);
+
+  // Önceki sayımın farkı geçmişi anlatır (KS4).
+  testWidgets('23 kasa · önceki sayımın farkı', (tester) async {
+    await captureScreen(
+      tester,
+      '23-kasa-onceki-sayimin-farki',
+      CashPage(
+        cashController: CashCountController(
+          _DesignCash(null)
+            ..previous = _count(
+              '2026-09-24',
+              '21400.0000',
+              '21520.0000',
+              '-120.0000',
+            )
+            ..carriedDifference = '-120.0000',
+          clock: () => DateTime(2026, 9, 25, 18),
+        ),
+        posController: PosController(_DesignPos()),
+      ),
+      selectedTab: 2,
+    );
+  }, skip: !screenshotsEnabled);
+
   testWidgets('15 POS detayı', (tester) async {
     await captureScreen(
       tester,
@@ -270,6 +339,10 @@ class _DesignCash implements CashRepositoryContract {
   _DesignCash(this.todayCount);
 
   final CashCountItem? todayCount;
+  bool requiresRecount = false;
+  String? changeSinceCount;
+  String? carriedDifference;
+  CashCountItem? previous;
 
   @override
   Future<List<CashAccount>> loadCashAccounts() async => const [
@@ -286,17 +359,22 @@ class _DesignCash implements CashRepositoryContract {
   ];
 
   @override
-  Future<CashCountToday> loadToday({required String accountId}) async =>
-      accountId == 'dukkan'
+  Future<CashCountToday> loadToday({
+    required String accountId,
+    String? date,
+  }) async => accountId == 'dukkan'
       ? CashCountToday(
           accountId: accountId,
           accountName: 'Dükkan kasası',
           expectedBalance: '23185.0000',
           currency: 'TRY',
           count: todayCount,
-          previousCount: _history.first,
+          previousCount: previous ?? _history.first,
           todayInflow: '2450.0000',
           todayOutflow: '665.0000',
+          changeSinceCount: changeSinceCount,
+          previousUnrecordedDifference: carriedDifference,
+          requiresRecount: requiresRecount,
         )
       : CashCountToday(
           accountId: accountId,
@@ -310,7 +388,8 @@ class _DesignCash implements CashRepositoryContract {
   @override
   Future<List<CashCountItem>> list({required String accountId}) async => [
     ?todayCount,
-    ..._history,
+    if (previous case final item?) item else _history.first,
+    ..._history.skip(1),
   ];
 
   @override
@@ -331,6 +410,8 @@ class _DesignCash implements CashRepositoryContract {
     required String cashCountId,
     String? categoryId,
     bool unknownReason = false,
+    bool tookForMyself = false,
+    String? personalAccountId,
   }) => throw UnimplementedError();
 }
 
@@ -347,6 +428,7 @@ CashCountItem _count(
   String expected,
   String difference, {
   bool saved = false,
+  CashAdjustmentStatus? status,
 }) => CashCountItem(
   id: date,
   accountId: 'dukkan',
@@ -358,6 +440,7 @@ CashCountItem _count(
   expectedBalance: expected,
   difference: difference,
   adjustmentTransactionId: saved ? 'adjustment-$date' : null,
+  reportedStatus: status,
 );
 
 class _DesignPos implements PosRepositoryContract {

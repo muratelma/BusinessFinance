@@ -22,7 +22,13 @@ public enum ReceiptDuplicateKind
     CardPayment = 3,
 
     /// <summary>Money lent out and expected back.</summary>
-    Receivable = 4
+    Receivable = 4,
+
+    /// <summary>
+    /// A one-off invoice or receivable with a due date: what the "not paid
+    /// yet" path writes. Paid or still open, the document is already recorded.
+    /// </summary>
+    Obligation = 5
 }
 
 /// <summary>

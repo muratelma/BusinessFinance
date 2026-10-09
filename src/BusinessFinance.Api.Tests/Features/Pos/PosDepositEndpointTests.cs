@@ -317,13 +317,15 @@ public sealed class PosDepositEndpointTests
         await AssertRejectedAsync(
             HttpStatusCode.BadRequest, "pos_deposits.mixed_accounts",
             new(Guid.NewGuid(), [settlement.Id, other.Id], "1185.0000", Date(today)));
-        // Para satıştan önce yatamaz; gelecekte de yatmış olamaz.
+        // Para satıştan önce yatamaz; gelecekte de yatmış olamaz. Kullanıcının
+        // günü UTC gününden bir gün ileride olabildiği için (`LocalDay`) ret
+        // iki gün sonrasında başlar.
         await AssertRejectedAsync(
             HttpStatusCode.BadRequest, "pos_deposits.invalid_deposit_date",
             new(Guid.NewGuid(), [settlement.Id], "985.0000", Date(today.AddDays(-2))));
         await AssertRejectedAsync(
             HttpStatusCode.BadRequest, "pos_deposits.invalid_deposit_date",
-            new(Guid.NewGuid(), [settlement.Id], "985.0000", Date(today.AddDays(1))));
+            new(Guid.NewGuid(), [settlement.Id], "985.0000", Date(today.AddDays(2))));
         await AssertRejectedAsync(
             HttpStatusCode.NotFound, "pos_deposits.settlement_not_found",
             new(Guid.NewGuid(), [settlement.Id, Guid.NewGuid()], "985.0000", Date(today)));

@@ -51,7 +51,10 @@ v9'un taşıdığı iki koleksiyon aynen yerinde:
   yoktur** — ikisi de kalıcı alan değil, sayım okunduğu anda hesabın kendi
   bakiyesinden türer. Yazılsalardı geri yüklenen veritabanında sayımın
   yanındaki sayı hesabın gerçek bakiyesiyle çelişebilirdi. Farkı onaylanmış
-  sayım, o farkı yazan harekete `adjustmentTransactionId` ile bağlıdır ve bağ
+  sayım, o farkı yazan harekete `adjustmentTransactionId` ile ya da farkı
+  açıklayan aktarıma `adjustmentTransferId` ile ("Kendime aldım", şahsi
+  hesaba; 8 Ekim 2026'da v11'e eklendi, alanı taşımayan v11 yedekte boş
+  okunur) bağlıdır; ikisi birden dolu yedek reddedilir ve bağ
   geri yüklerken **yeni** kimliğe çevrilir. Aynı gün ve aynı kasa için ikinci
   bir sayım varsa öncekisi iptal edilmiş olarak durur; SQL'deki filtreli tekil
   indeks bunu geri yüklemede de doğrular.

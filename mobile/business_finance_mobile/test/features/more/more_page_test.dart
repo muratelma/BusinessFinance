@@ -36,7 +36,6 @@ void main() {
       'Kredi kartlarım',
       'Kasa',
       'Borç ve alacaklar',
-      'Cari hesap',
       'Yükümlülükler',
       'Tasarruf hedefleri',
       'Planlama ve raporlar',
@@ -47,6 +46,32 @@ void main() {
     expect(find.text('Vergi'), findsNothing);
     // Hesap kartı + üç grup.
     expect(find.byType(AppCard), findsNWidgets(4));
+  });
+
+  /// Cari hesap işletmeye özeldir (Aşama 06.3 C6). Gizleme bir ön ayardır,
+  /// kilit değildir: cari hareketi olan kullanıcı kapıyı cevabı ne olursa
+  /// olsun görür; aksi hâlde açık hesabına ulaşamazdı.
+  testWidgets('cari hesap kapısı işletmesi olana ve cari hareketi olana açık', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 3200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_host(hasBusiness: false));
+    await tester.pumpAndSettle();
+    expect(titles(tester), isNot(contains('Cari hesap')));
+    // Herkese açık kalan iki komşusu yerinde.
+    expect(titles(tester), contains('Borç ve alacaklar'));
+    expect(titles(tester), contains('Yükümlülükler'));
+
+    await tester.pumpWidget(_host(hasBusiness: false, hasLedger: true));
+    await tester.pumpAndSettle();
+    expect(titles(tester), contains('Cari hesap'));
+
+    await tester.pumpWidget(_host(hasBusiness: true));
+    await tester.pumpAndSettle();
+    expect(titles(tester), contains('Cari hesap'));
   });
 
   testWidgets('işletme profilinde bütçeler ve vergi grubu gelir', (
@@ -92,8 +117,11 @@ void main() {
   });
 }
 
-Widget _host({required bool hasBusiness}) {
-  final scope = ScopeController(readHasBusiness: () async => hasBusiness);
+Widget _host({required bool hasBusiness, bool hasLedger = false}) {
+  final scope = ScopeController(
+    readHasBusiness: () async => hasBusiness,
+    readHasCounterpartyLedger: () async => hasLedger,
+  );
   final status = AccountStatusController(_Account())..ensureLoaded();
   scope.ensureLoaded();
   return MultiProvider(

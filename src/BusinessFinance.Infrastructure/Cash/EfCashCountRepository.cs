@@ -56,7 +56,22 @@ internal sealed class EfCashCountRepository(BusinessFinanceDbContext dbContext)
             where count.UserId == userId &&
                   count.CountDate >= criteria.From &&
                   count.CountDate <= criteria.To
-            select new { count, account.Name };
+            select new
+            {
+                count,
+                account.Name,
+                // Açıklamanın durumu kalıcı alan değildir; bağlı kaydın güncel
+                // durumundan okunur.
+                AdjustmentCancelled =
+                    dbContext.Transactions.Any(transaction =>
+                        transaction.UserId == count.UserId &&
+                        transaction.Id == count.AdjustmentTransactionId &&
+                        transaction.IsCancelled) ||
+                    dbContext.Transfers.Any(transfer =>
+                        transfer.UserId == count.UserId &&
+                        transfer.Id == count.AdjustmentTransferId &&
+                        transfer.IsCancelled),
+            };
 
         if (criteria.AccountId is Guid accountId)
         {
@@ -87,8 +102,32 @@ internal sealed class EfCashCountRepository(BusinessFinanceDbContext dbContext)
                 row.count.ExpectedAtCount,
                 row.count.ExpectedAtCount is decimal expected
                     ? row.count.CountedAmount - expected
-                    : null))
+                    : null,
+                row.count.AdjustmentTransferId,
+                CashCountAdjustmentStatuses.Of(row.count.IsAdjusted, row.AdjustmentCancelled)))
             .ToArray();
+    }
+
+    public async Task<bool> IsAdjustmentCancelledAsync(
+        CashCount cashCount,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(cashCount);
+        if (cashCount.AdjustmentTransactionId is Guid transactionId)
+        {
+            return await dbContext.Transactions.AsNoTracking().AnyAsync(
+                transaction => transaction.UserId == cashCount.UserId &&
+                               transaction.Id == transactionId &&
+                               transaction.IsCancelled,
+                cancellationToken);
+        }
+
+        return cashCount.AdjustmentTransferId is Guid transferId &&
+            await dbContext.Transfers.AsNoTracking().AnyAsync(
+                transfer => transfer.UserId == cashCount.UserId &&
+                            transfer.Id == transferId &&
+                            transfer.IsCancelled,
+                cancellationToken);
     }
 
     public Task<CashCount?> FindOwnedByIdAsync(
@@ -134,6 +173,16 @@ internal sealed class EfCashCountRepository(BusinessFinanceDbContext dbContext)
         CancellationToken cancellationToken)
     {
         await dbContext.Transactions.AddAsync(adjustment, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task SaveTransferAdjustmentAsync(
+        Transfer transfer,
+        CancellationToken cancellationToken)
+    {
+        // Sayım izlenen hâlde geldi; aktarım ve sayımdaki bağ aynı
+        // SaveChanges sınırında yazılır.
+        await dbContext.Transfers.AddAsync(transfer, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

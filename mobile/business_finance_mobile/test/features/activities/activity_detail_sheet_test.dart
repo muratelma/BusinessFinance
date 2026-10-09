@@ -104,6 +104,39 @@ void main() {
     expect(find.byIcon(Icons.attach_file), findsOneWidget);
   });
 
+  // Yükümlülüğün iptali ödemesini de iptal eder; onay bunu söyler
+  // (`Yükümlülükler` ekranındaki onay söylüyordu, buradaki genel cümleydi).
+  testWidgets('yükümlülük iptalinde onay ödemenin de iptal olacağını söyler', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _activity(kind: ActivityKind.obligation, supportsAttachments: false),
+      onCancel: () async {},
+    );
+    await tester.tap(find.text('Hareketi iptal et'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ödendiyse ödemesi de iptal edilir.'), findsOneWidget);
+    await tester.tap(find.text('Vazgeç'));
+    await tester.pumpAndSettle();
+
+    await _pump(
+      tester,
+      _activity(
+        kind: ActivityKind.obligation,
+        effect: ActivityEffect.income,
+        supportsAttachments: false,
+      ),
+      onCancel: () async {},
+    );
+    await tester.tap(find.text('Hareketi iptal et'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Tahsil edildiyse tahsilatı da iptal edilir.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('asks for confirmation and does nothing when dismissed', (
     tester,
   ) async {

@@ -469,9 +469,59 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     Kontroller: backend SQL dahil geçti (Domain 355, Application 389, Api
     292, Infrastructure 238 + 2 canlı test atlandı), build 0 uyarı, format
     temiz; Flutter 1.078 test, analyze ve format temiz. Yedek şeması
-    değişmedi. **Sırada:** kasa kararının kalanı (KS2–KS4: `Kendime aldım`ın
-    sayıma bağlanması, bağlı kaydın iptali, bilgi satırı), sonra cari adımı.
-    Cihaz kabulü kullanıcıda
+    değişmedi. Commit `40f0fb9`
+  - **06.3 Grup 8 zemini — kasa kararının kalanı, KS2–KS4 (8 Ekim 2026)**:
+    fark panelindeki `Kendime aldım` sayımın açıklaması oldu (fark kaydı
+    isteğinde `tookForMyself`; sunucu aktarımı ya da şahsi gideri sayıma
+    bağlayarak yazar; sayım bir aktarımla da açıklanabilir, migration
+    `AddCashCountTransferAdjustment`, yedek v11'e bir alan); fark için yazılan
+    kayıt iptal edilirse sayım yeniden açılmaz (`adjustmentStatus:
+    cancelled`); önceki sayımın farkı geçmiş bilgisi olarak yazar. Kontroller:
+    backend SQL dahil geçti (Domain 356, Application 389, Api 298,
+    Infrastructure 241 + 2 canlı test atlandı), build 0 uyarı, format temiz;
+    Flutter 1.084 test, analyze ve format temiz. Kasa kararları gerçek API
+    üzerinde dokuz senaryoda denendi. **Sırada:** cari adımı (kişiye bağlı
+    yükümlülüğün cari bakiyeden çıkması), sonra çekirdeğin cihaz kabulü
+  - **06.3 Grup 8 zemini — cari adımı, C3–C6 (9 Ekim 2026)**: kişiye bağlı
+    yükümlülük cari bakiyeden çıktı (kişinin bakiyesi ve gecikmiş tutarı,
+    işlem sonrası açık bakiye, yükümlülük ile kapanışının ayrıntısı); aynı
+    borç artık hem cari ödemeyle hem kendi kapanışıyla iki kez ödenemiyor.
+    Okuma kuralıdır: şema, migration ve yedek değişmedi. Kişinin cevabı açık
+    yükümlülüklerin toplamını iki ayrı alanda bilgi olarak taşır; kişinin
+    sayfasında düğmesiz `Bekleyen faturalar` bloğu çizilir. Profil cevabı
+    `hasCounterpartyLedger` taşır; `Cari hesap` menüsü işletmesi olana ve cari
+    hareketi olana görünür (ön ayar, kilit değil). Kontroller: backend SQL
+    dahil geçti (Domain 356, Application 389, Api 300, Infrastructure 241 + 2
+    canlı test atlandı), build 0 uyarı, format temiz; Flutter 1.091 test,
+    analyze ve format temiz. Gerçek API üzerinde sentetik hesaplarla on sekiz
+    denetim geçti (`documentation/tests.md`). Kullanıcı cihazda görmedi.
+    Aynı gün bir düzeltme: fatura tekrar uyarısı yükümlülükleri de arıyor
+    (aynı fatura "henüz ödemedim" yolundan iki kez uyarısız yazılabiliyordu);
+    yeni gerçek SQL testi geçti. Sonra iki iş daha: **yükümlülük iptal edilebilir** (kapanışı
+    ve kartla tahsilde yoldaki POS kaydıyla birlikte; yatış ve gün sonu
+    kilitleri; `Yükümlülükler` ekranında ve İşlemler ayrıntısında) ve **fazla
+    tahsilat kişinin kartında borcumuz olarak yazılıyor**. Kasada günü
+    sayımdan önce olan kaydın sayımı eskitmemesi önerisi kullanıcı tarafından
+    reddedildi (kod değişmedi). Günün sonundaki kontroller: backend SQL dahil
+    geçti (Domain 356, Application 389, Api 302, Infrastructure 242 + 2 canlı
+    test atlandı), build 0 uyarı, format temiz; Flutter 1.099 test, analyze ve
+    format temiz. Gerçek API denemeleri `documentation/tests.md` sonunda.
+    Cari kartı kullanıcının geri bildirimiyle yeniden kuruldu (eski kısa
+    satırlar, `Net - Borcunuz` / `Net - Alacağınız`, sunucudan iki ekran
+    tutarı); sonrasında Application 398, Api 302 ve Flutter 1.100 geçti,
+    Domain ve Infrastructure yinelenmedi. **Üç hata gerçek API'de doğrulandı
+    ve düzeltildi:** (1) sunucu kaydın gününü UTC günüyle karşılaştırıyordu;
+    gece 00:00–03:00 arası bugünün tarihiyle kasa sayımı, gün sonu, POS
+    tahsilatı, yatış, yükümlülük, kapanışı ve hedef katkısı reddediliyordu.
+    Yedi denetim `LocalDay` ile bir gün pay tanıyor; kasa kartı bugünü cihazın
+    günüyle soruyor. (2) İşlemler'deki iptal onayı yükümlülükte ödemenin de
+    iptal olacağını söylüyor. (3) Kapanışı yatışa ya da gün sonuna bağlı
+    yükümlülükte akış `canCancel` yanlış dönüyor. Son kontroller
+    `documentation/tests.md` sonunda
+    **Açık karar:** kasada günü sayımdan önce olan kaydın sayımı eskitip
+    eskitmeyeceği (aşama belgesi, KS1 için A/B/C). **Sırada:** ad tekliğinin
+    kuralı kullanıcıyla konuşulur (boşluksuz karşılaştırma), sonra uygulanır;
+    çekirdeğin cihaz kabulü
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni (beklemede) → **06.3 bütünsel düzenleme (aktif)** →

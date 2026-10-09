@@ -71,13 +71,15 @@ internal sealed class DayClosePlan
     public static async Task<(DayClosePlan? Plan, ApplicationError? Error)> BuildAsync(
         Guid userId,
         DayCloseInput input,
-        DateOnly today,
+        DateOnly latestAllowedDay,
         IDayCloseRepository repository,
         IAccountRepository accountRepository,
         ICategoryRepository categoryRepository,
         CancellationToken cancellationToken)
     {
-        if (input.Date == default || input.Date > today ||
+        // Gün kullanıcının takvimiyle gelir ve sunucunun UTC gününden bir gün
+        // ileride olabilir (`LocalDay`).
+        if (input.Date == default || input.Date > latestAllowedDay ||
             input.RangeStart is DateOnly rangeStart && rangeStart >= input.Date)
         {
             return (null, DayCloseErrors.InvalidDate);

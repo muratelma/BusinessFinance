@@ -122,7 +122,10 @@ class CashCountController extends ChangeNotifier {
       selectedAccountId ??= accounts.isEmpty ? null : accounts.first.id;
       final accountId = selectedAccountId;
       if (accountId != null) {
-        today = await _repository.loadToday(accountId: accountId);
+        today = await _repository.loadToday(
+          accountId: accountId,
+          date: todayIso,
+        );
         history = await _repository.list(accountId: accountId);
         await _loadOtherBalances(accountId);
       }
@@ -213,12 +216,21 @@ class CashCountController extends ChangeNotifier {
       _repository.loadCategories(type: differenceCategoryType);
 
   /// [unknownReason]: kullanıcı eksiğin sebebini bilmiyor; kategori sorulmaz.
+  ///
+  /// [tookForMyself]: eksik para sahibine gitti. [personalAccountId] verilirse
+  /// şahsi hesaba aktarım, [categoryId] verilirse şahsi gider yazılır; kayıt
+  /// sayıma bağlanır ve sayım "fark kaydedildi" olur.
   Future<bool> confirmDifference(
     String? categoryId, {
     bool unknownReason = false,
+    bool tookForMyself = false,
+    String? personalAccountId,
   }) async {
     final count = todayCount;
     if (count == null || isSubmitting) return false;
+    if (tookForMyself && (personalAccountId == null) == (categoryId == null)) {
+      return false;
+    }
     isSubmitting = true;
     errorMessage = null;
     notifyListeners();
@@ -227,8 +239,18 @@ class CashCountController extends ChangeNotifier {
         cashCountId: count.id,
         categoryId: categoryId,
         unknownReason: unknownReason,
+        tookForMyself: tookForMyself,
+        personalAccountId: personalAccountId,
       );
-      _announce((c) => c.cashDifferenceConfirmed());
+      if (tookForMyself) {
+        _announce(
+          (c) => c.ownerWithdrawalRecorded(asExpense: categoryId != null),
+        );
+        // Şahsi cüzdan da bir kasaysa onun bakiyesi de değişti.
+        expectedByAccount = const {};
+      } else {
+        _announce((c) => c.cashDifferenceConfirmed());
+      }
       await load();
       return true;
     } on ApiException catch (error) {

@@ -224,7 +224,16 @@ public sealed record FinancialActivityRow(
     /// sonunun <b>saydığı</b>, tek tek girilmiş kayıtta doludur. İkisi de tek
     /// başına iptal edilemez; gün sonu geri alınır.
     /// </summary>
-    Guid? DayCloseId = null);
+    Guid? DayCloseId = null,
+
+    /// <summary>
+    /// Kaydın iptalini başka bir kayıt kilitliyor: kapanışı bir gün sonunda
+    /// sayılmış ya da kartla tahsilin parası bir yatışla hesaba geçmiş
+    /// yükümlülük. Yalnız <c>canCancel</c> hesabında kullanılır; sözleşmeye
+    /// çıkmaz. Yükümlülük satırı <see cref="DayCloseId"/> taşımaz çünkü
+    /// sayılan kayıt kendisi değil kapanışıdır.
+    /// </summary>
+    bool CancelLocked = false);
 
 /// <summary>
 /// Bakiyesi gösterilen yer: bir hesap, bir kredi kartı, bir karşı tarafın
@@ -430,9 +439,9 @@ public static class FinancialActivityCapabilities
         if (kind is FinancialActivityKind.DebtPayment
             or FinancialActivityKind.DebtCollection
             or FinancialActivityKind.DebtOpening
-            // Yükümlülük aggregate'i geçmişi iptal edebilse de birleşik feed
-            // henüz bu iki kayıt için bir iptal endpoint'i sunmuyor.
-            or FinancialActivityKind.Obligation
+            // Yükümlülüğün kapanışı tek başına geri alınmaz: yükümlülük bir
+            // bütün olarak iptal edilir ve kapanışı onunla birlikte iptal olur.
+            // İptal edilebilen satır yükümlülüğün kendisidir.
             or FinancialActivityKind.ObligationSettlement
             // POS tahsilatı kendi ekranından iptal edilir: iptal satışı,
             // komisyonu ve yoldaki tutarı birlikte kaldırır.

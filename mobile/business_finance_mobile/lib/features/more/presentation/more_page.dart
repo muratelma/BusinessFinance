@@ -27,8 +27,13 @@ class MorePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasBusiness = context.watch<ScopeController?>()?.isVisible ?? false;
-    final groups = _groups(context, hasBusiness);
+    final scope = context.watch<ScopeController?>();
+    final hasBusiness = scope?.isVisible ?? false;
+    final groups = _groups(
+      context,
+      hasBusiness,
+      showsCounterpartyLedger: scope?.showsCounterpartyLedger ?? false,
+    );
     return Scaffold(
       body: SafeArea(
         bottom: false,
@@ -61,7 +66,11 @@ class MorePage extends StatelessWidget {
     );
   }
 
-  List<_Group> _groups(BuildContext context, bool hasBusiness) {
+  List<_Group> _groups(
+    BuildContext context,
+    bool hasBusiness, {
+    required bool showsCounterpartyLedger,
+  }) {
     void go(String location) => context.push(location);
     return [
       _Group('Para ve hesaplar', [
@@ -90,11 +99,14 @@ class MorePage extends StatelessWidget {
           title: 'Borç ve alacaklar',
           onTap: () => go('/more/debts'),
         ),
-        _MenuItem(
-          icon: Icons.people_outline,
-          title: 'Cari hesap',
-          onTap: () => go('/more/counterparties'),
-        ),
+        // Cari hesap işletmeye özeldir. Gizleme bir ön ayardır: cari
+        // hareketi olan kullanıcı kapıyı cevabı ne olursa olsun görür.
+        if (showsCounterpartyLedger)
+          _MenuItem(
+            icon: Icons.people_outline,
+            title: 'Cari hesap',
+            onTap: () => go('/more/counterparties'),
+          ),
       ]),
       _Group('Planlama', [
         // İşletme profilinde üçüncü sekme `Kasa`; `Bütçeler` buradadır.

@@ -212,8 +212,14 @@ public sealed class CashCountTests
     [Fact]
     public void CountDateCannotBeInTheFutureAndScopeIsRequired()
     {
+        // Kullanıcının günü sunucunun UTC gününden bir gün ileride olabilir
+        // (`LocalDay`): gece yarısından sonra bugünün tarihi kabul edilir, iki
+        // gün sonrası reddedilir.
+        Assert.Equal(
+            new DateOnly(2026, 8, 25),
+            NewCount(countDate: new DateOnly(2026, 8, 25)).CountDate);
         Assert.Throws<ArgumentOutOfRangeException>(
-            () => NewCount(countDate: new DateOnly(2026, 8, 25)));
+            () => NewCount(countDate: new DateOnly(2026, 8, 26)));
         Assert.Throws<ArgumentOutOfRangeException>(() => NewCount(scope: (TransactionScope)9));
 
         // Geçmiş bir günün sayımı meşrudur: kullanıcı dün akşamki sayımı
@@ -274,6 +280,42 @@ public sealed class CashCountTests
     public void RequiresRecount_WhenTheBalanceAtTheCountIsUnknown()
     {
         Assert.True(NewCount().RequiresRecount(1000m, accountChangedSince: false));
+    }
+
+    /// <summary>
+    /// Bir sayımın farkı tek kayıtla açıklanır: ya gelir/gider ya aktarım.
+    /// Aynı kimlikle tekrar ikinci kayıt üretmez; öbür türle ya da başka bir
+    /// kimlikle ikinci açıklama reddedilir.
+    /// </summary>
+    [Fact]
+    public void TransferAdjustment_IsIdempotentAndExcludesASecondExplanation()
+    {
+        var count = NewCount();
+        var transferId = Guid.NewGuid();
+
+        count.RecordTransferAdjustment(transferId, CreatedAtUtc.AddMinutes(1));
+        count.RecordTransferAdjustment(transferId, CreatedAtUtc.AddMinutes(9));
+
+        Assert.True(count.IsAdjusted);
+        Assert.Equal(transferId, count.AdjustmentTransferId);
+        Assert.Null(count.AdjustmentTransactionId);
+        Assert.Equal(CreatedAtUtc.AddMinutes(1), count.AdjustedAtUtc);
+        Assert.Throws<InvalidOperationException>(() =>
+            count.RecordTransferAdjustment(Guid.NewGuid(), CreatedAtUtc.AddMinutes(2)));
+        Assert.Throws<InvalidOperationException>(() =>
+            count.RecordAdjustment(Guid.NewGuid(), CreatedAtUtc.AddMinutes(2)));
+
+        var recorded = NewCount();
+        recorded.RecordAdjustment(Guid.NewGuid(), CreatedAtUtc.AddMinutes(1));
+        Assert.Throws<InvalidOperationException>(() =>
+            recorded.RecordTransferAdjustment(Guid.NewGuid(), CreatedAtUtc.AddMinutes(2)));
+
+        Assert.Throws<ArgumentException>(() =>
+            NewCount().RecordTransferAdjustment(Guid.Empty, CreatedAtUtc));
+        var cancelled = NewCount();
+        cancelled.Cancel(CreatedAtUtc.AddMinutes(1));
+        Assert.Throws<InvalidOperationException>(() =>
+            cancelled.RecordTransferAdjustment(Guid.NewGuid(), CreatedAtUtc.AddMinutes(2)));
     }
 
     private static Account NewCashAccount(Guid userId, string name = "Kasa") =>

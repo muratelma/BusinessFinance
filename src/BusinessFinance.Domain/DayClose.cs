@@ -76,7 +76,7 @@ public sealed class DayClose
             throw new ArgumentException("Creation time must be UTC.", nameof(createdAtUtc));
         }
 
-        if (closedOn == default || closedOn > DateOnly.FromDateTime(createdAtUtc.UtcDateTime))
+        if (closedOn == default || closedOn > LocalDay.LatestAllowed(createdAtUtc))
         {
             throw new ArgumentOutOfRangeException(
                 nameof(closedOn),

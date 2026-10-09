@@ -56,7 +56,10 @@ hiç kategorisi olmayan kullanıcıya bir kez uygulanır.
 
 İlk `GET /api/v1/categories` çağrısı seti kurar. `GET /api/v1/profile` istemciye
 kapsam boyutunu gösterip göstermeyeceğini söyler; `PUT /api/v1/profile` cevabı
-değiştirir ve yalnız arayüzü etkiler — kategoriler olduğu gibi kalır.
+değiştirir ve yalnız arayüzü etkiler — kategoriler olduğu gibi kalır. İki uç da
+`hasCounterpartyLedger` döner (kullanıcının iptal edilmemiş cari hareketi var
+mı): `Cari hesap` kapısı işletmesi olmayan kullanıcıda yalnız bu işaretle
+görünür. Gizleme bir ön ayardır; cari uçları her kullanıcıya açık kalır.
 
 ## Profil ön ayarlı ana gezinme
 
@@ -77,7 +80,7 @@ değiştirir; ikisi de erişilebilir kalır (ADR 0013 ve ADR 0015).
 
 ```text
 Kasa -> kasa seçici (birden çok nakit hesap varsa)
-     -> GET /api/v1/cash-counts/today?accountId=...
+     -> GET /api/v1/cash-counts/today?accountId=...&date=<cihazın günü>
      -> beklenen bakiye, son sayım, bugünkü nakit giriş/çıkış sunucudan gelir
      -> Sayımı gir: toplamı yaz | banknotla say (canlı fark önizlemesi)
      -> POST /api/v1/cash-counts
@@ -240,12 +243,30 @@ Kasa -> "Kendime aldım" -> tutar, gün
 Kasa -> "Farkı kaydet" (eksik) -> "Neden eksik?"
      -> Gider       -> kategori -> POST /cash-counts/{id}/adjustment
      -> Bilmiyorum  -> kategori -> aynı uç, description: "Kasa farkı"
-     -> Kendime aldım -> fark kaydı yazılmaz -> "Kendime aldım" paneli, tutar dolu
+     -> Kendime aldım -> aynı panel: "Şahsi hesaba aktar" | "Şahsi gider"
+                      -> aynı uç, tookForMyself: true + personalAccountId | categoryId
+                      -> sunucu aktarımı ya da şahsi gideri yazar ve sayıma bağlar
 Fazla çıkan farkta sebep sorulmaz; gelir kategorisi seçilir.
 ```
 
-Kasa sayım kartı önceki sayımın **kaydedilmemiş farkını** bilgi satırı olarak
-gösterir (`Kaydedilmemiş fark`, altında günü). Bugünkü fark ondan düşülmez; aynı
+Fark panelindeki üç cevap da **sayımın açıklamasıdır** (KS2, 8 Ekim 2026):
+tutar farkın tamamı, gün sayımın günüdür; ikisi de sorulmaz ama panel ne
+yazılacağını söyler (`₺100,00, 8 Ekim tarihine yazılır.`). `Kendime aldım`
+eskiden ayrı bir istekle yazılıyor, sayım bundan haberdar olmuyor ve geçmişte
+"açık" kalıyordu. Parayı başka bir gün ya da farklı tutarda alan kullanıcı
+Kasa'daki ayrı `Kendime aldım` girişini kullanır ve kasayı yeniden sayar; panel
+bunu da söyler.
+
+Fark için yazılan kayıt (gelir/gider ya da aktarım) sonradan iptal edilirse
+sayım **yeniden açılmaz** (KS3): durum `Fark kaydı iptal edildi` olur, bağ
+durur, kart `Yeniden say` der ve aynı sayıma yeni fark kaydı
+`cash_counts.recount_required` ile reddedilir.
+
+Kasa sayım kartı önceki sayımın farkını **geçmiş bilgisi** olarak gösterir
+(KS4): `24 Eylül sayımında eksik çıkmıştı`, kaydı iptal edildiyse altında `Fark
+kaydı iptal edildi`. Satır yalnız o fark için **duran bir kayıt yoksa** ve bugün
+kasa tutmuyorsa çıkar; "kaydedilmemiş fark" denmez, çünkü o ifade kasada bugün
+de eksik varmış gibi okunuyordu. Bugünkü fark ondan düşülmez; aynı
 fark yeniden sayıldıysa kart `Fark son sayımdakiyle aynı.` der ve `Farkı kaydet`
 öne çıkmaz. İşletme profilinde `Şahsi` etiketli nakit hesap Kasa'da görünmez
 (Hesaplar'da durur); etiketsiz hesap görünür.
@@ -1076,6 +1097,38 @@ gönderir; toplam bakiye yanında vadesi geçmiş tutar, ayrıntıda ise
 vadesi geçmiş ve vadesi geçmemiş/vadesiz kalan ayrı okunur. Ödemeler belirli
 bir satıra tahsis edilmediği için önce gecikmiş borçlandırmayı kapatır.
 
+**Fazla tahsilat ve fazla ödeme** (9 Ekim 2026). Sunucu fazla tahsilatı
+kırpmaz: 2.200 liralık satışa 2.500 liralık tahsilat alacağı −300 yapar. Kişinin
+kartı bunu eksi alacak diye yazmaz. İki satırın adı değişmez (`Size borcu`,
+`Sizin borcunuz`); tutarları sunucunun gönderdiği `owedToYou` ve `owedByYou`'dur
+ve eksiye düşmez: fazla alınan 300 lira `Sizin borcunuz ₺300,00` diye, gider
+tonunda yazar, `Size borcu ₺0,00` kalır. `Net` satırı tarafı adıyla söyler
+(`Net - Borcunuz` / `Net - Alacağınız`; kapanmış caride yalnız `Net`) ve tutarı
+eksi işaretsiz yazar. İstemci toplama yapmaz.
+
+**Yanlış yazılan yükümlülük iptal edilir** (9 Ekim 2026). `Yükümlülükler`de
+açık kayda dokununca açılan kapanış panelinin altında `Kaydı iptal et` vardır;
+kapanmış kayda dokunmak doğrudan iptal onayını açar; iptal edilmiş kayıt yalnız
+okunur. Onay kaydı ve tutarını gösterir, tek cümleyle ne olacağını söyler
+(açık kayıtta "Giderlerden ve bekleyenlerden düşer.", ödenmişte "Ödemesi de
+iptal edilir; para hesaba geri döner.") ve `Kaydı iptal et` / `Vazgeç` sorar.
+Sunucu reddederse (kart parası yatışla hesaba geçmiş, tahsilat gün sonunda
+sayılmış) sebep alt bantta yazar ve kayıt listede kalır. Aynı iptal İşlemler'de
+yükümlülük satırının ayrıntısındaki `Hareketi iptal et` ile de yapılır; onayı
+"Ödendiyse ödemesi de iptal edilir." (alacakta "Tahsil edildiyse tahsilatı da
+iptal edilir.") der. Kapanış satırında ve kapanışı yatışa ya da gün sonuna
+bağlı yükümlülükte bu düğme yoktur (`canCancel` `false`).
+
+**Kişiye bağlı fatura cari bakiyenin dışındadır** (9 Ekim 2026). Kişinin
+sayfasında düğmelerin altında ayrı bir `Bekleyen faturalar` bloğu çizilir:
+o kişiye bağlı açık yükümlülükler (ad, `Ödenecek` / `Tahsil edilecek`, vade,
+gecikmişse `Gecikmiş`) ve altında sunucudan gelen `Ödenecek toplam` /
+`Tahsil edilecek toplam`. Blokta **düğme yoktur**; fatura `Yükümlülükler`deki
+kendi kapanışıyla kapanır. Cari `Ödeme` ve `Tahsilat` formunun önerdiği tutar
+yalnız cari bakiyedir. Bekleyen faturası olmayan kişide blok çizilmez. Cari
+borç, faturalar ve borç planlarını birlikte gösteren toplam ve bloğun son
+görünüşü cari sayfası çizilirken kararlaştırılır.
+
 Pasif karşı tarafa **yeni borçlandırma yazılamaz** (`409`), **tahsilat
 yazılabilir**: aksi hâlde artık iş yapılmayan bir müşterinin kalan borcu
 kapatılamaz hâle gelirdi. Hiç hareketi olmayan karşı taraf silinebilir;
@@ -1149,7 +1202,7 @@ Claude Design teslimiyle (27 Eylül 2026, 06.2 Grup 1'in ilk adımı) menü
 | Grup | Kapılar |
 |---|---|
 | (kart) | Hesabım — baş harfler, e-posta, doğrulanmamışsa `E-posta doğrulanmadı` |
-| Para ve hesaplar | Hesaplar ve transferler · Kredi kartlarım · (kişisel profilde) Kasa · Borç ve alacaklar · Cari hesap |
+| Para ve hesaplar | Hesaplar ve transferler · Kredi kartlarım · (kişisel profilde) Kasa · Borç ve alacaklar · Cari hesap (işletmesi olana; işletmesi olmayan kullanıcıda yalnız cari hareketi varsa — `hasCounterpartyLedger`, 9 Ekim 2026) |
 | Planlama | (işletme profilinde) Bütçeler · Yükümlülükler · Tasarruf hedefleri · Planlama ve raporlar |
 | Vergi | Vergi takibi — yalnız işletmesi olana (muhasebeci paketi Aşama 06.3 Grup 2'de, `Vergi takvimi` Grup 3'te kalktı) |
 | Ayarlar | Kategoriler · Hatırlatmalar · Veri ve yedek |

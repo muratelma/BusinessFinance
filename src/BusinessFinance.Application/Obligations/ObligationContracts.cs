@@ -60,6 +60,19 @@ public interface IObligationRepository
     /// Kapanışı ve kartla tahsilse POS kaydını tek <c>SaveChanges</c> ile yazar.
     /// </summary>
     Task SaveSettlementAsync(PosSettlement? cardSettlement, CancellationToken cancellationToken);
+
+    /// <summary>Kartla kapatılmış alacağın yoldaki POS kaydı, izlenen hâlde.</summary>
+    Task<PosSettlement?> FindCardSettlementAsync(
+        Guid settlementId,
+        Guid userId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// İptali (yükümlülük, kapanışı ve varsa POS kaydı) tek <c>SaveChanges</c>
+    /// ile yazar. POS kaydı bu sırada bir yatışa bağlandıysa <c>false</c> döner
+    /// ve hiçbir şey yazılmaz.
+    /// </summary>
+    Task<bool> TrySaveCancellationAsync(CancellationToken cancellationToken);
 }
 
 public sealed class ObligationConcurrencyException : Exception

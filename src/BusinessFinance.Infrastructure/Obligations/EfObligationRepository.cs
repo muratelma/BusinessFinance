@@ -66,6 +66,30 @@ internal sealed class EfObligationRepository(BusinessFinanceDbContext dbContext)
                 obligation => obligation.Id == obligationId && obligation.UserId == userId,
                 cancellationToken);
 
+    public Task<PosSettlement?> FindCardSettlementAsync(
+        Guid settlementId,
+        Guid userId,
+        CancellationToken cancellationToken) =>
+        dbContext.PosSettlements.SingleOrDefaultAsync(
+            settlement => settlement.Id == settlementId && settlement.UserId == userId,
+            cancellationToken);
+
+    public async Task<bool> TrySaveCancellationAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Kartla tahsilin POS kaydı bu sırada bir yatışa bağlandı; kaybeden
+            // yazma hiçbir şey değiştirmez.
+            dbContext.ChangeTracker.Clear();
+            return false;
+        }
+    }
+
     public async Task SaveSettlementAsync(
         PosSettlement? cardSettlement,
         CancellationToken cancellationToken)

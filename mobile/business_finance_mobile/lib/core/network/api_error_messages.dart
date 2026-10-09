@@ -349,6 +349,14 @@ abstract final class ApiErrorMessages {
     // Kasa ve POS
     'cash_counts.nothing_to_adjust':
         'Sayım beklenen bakiyeyle aynı; kaydedilecek bir fark yok.',
+    'cash_counts.withdrawal_not_applicable':
+        '“Kendime aldım” yalnız eksik çıkan kasada kullanılır; bir şahsi '
+        'hesap ya da kategori seçin.',
+    'cash_counts.personal_account_unavailable':
+        'Seçilen şahsi hesap kullanılamıyor. Başka bir hesap seçin.',
+    'cash_counts.scope_conflict':
+        'Kendinize aldığınız para şahsi giderdir; bu kategori yalnız işletme '
+        'için. Başka bir kategori seçin.',
     'cash_counts.recount_required':
         'Sayımdan sonra kasaya kayıt girildi. Farkı kaydetmek için kasayı '
         'yeniden sayın.',
@@ -402,6 +410,13 @@ abstract final class ApiErrorMessages {
     'counterparty_payments.day_close_counted':
         'Bu tahsilat gün sonunda sayıldı. İptal için önce gün sonunu geri '
         'alın.',
+    'obligations.day_close_counted':
+        'Bu kaydın tahsilatı gün sonunda sayıldı. İptal için önce gün sonunu '
+        'geri alın.',
+    'obligations.deposit_locked':
+        'Kart parası hesaba geçmiş. İptal için önce yatışı geri alın.',
+    'obligations.concurrent_change':
+        'Kayıt bu sırada değişti. Sayfayı yenileyip yeniden deneyin.',
     'day_closes.deposit_locked':
         'Kart parası hesaba geçmiş. Önce yatışı geri alın.',
     'day_closes.concurrent_change':

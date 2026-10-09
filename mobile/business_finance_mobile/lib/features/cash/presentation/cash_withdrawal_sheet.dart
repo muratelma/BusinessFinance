@@ -97,6 +97,7 @@ class CashWithdrawalFields extends StatefulWidget {
     this.initialAmount,
     this.onOpenPersonalAccount,
     this.showDate = true,
+    this.onRecord,
   });
 
   final CashCountController controller;
@@ -105,6 +106,12 @@ class CashWithdrawalFields extends StatefulWidget {
 
   /// Kasa farkından gelindiğinde gün sayımın günüdür ve sorulmaz.
   final bool showDate;
+
+  /// Kasa farkının açıklaması olarak kullanıldığında kaydı bu yazar: tutar
+  /// farkın tamamı, gün sayımın günüdür ve ikisi de **sorulmaz** (KS2).
+  /// Verilmezse alanlar serbest bir `Kendime aldım` kaydı yazar.
+  final Future<bool> Function({String? personalAccountId, String? categoryId})?
+  onRecord;
 
   @override
   State<CashWithdrawalFields> createState() => CashWithdrawalFieldsState();
@@ -154,12 +161,18 @@ class CashWithdrawalFieldsState extends State<CashWithdrawalFields> {
             WithdrawalMethod.transfer;
     if (!transfer && categoryId == null) return false;
     setState(() => submitError = null);
-    final saved = await widget.controller.recordWithdrawal(
-      amount: MoneyInput.wire(amountController.text),
-      date: date,
-      personalAccountId: transfer ? accountId : null,
-      categoryId: transfer ? null : categoryId,
-    );
+    final record = widget.onRecord;
+    final saved = record != null
+        ? await record(
+            personalAccountId: transfer ? accountId : null,
+            categoryId: transfer ? null : categoryId,
+          )
+        : await widget.controller.recordWithdrawal(
+            amount: MoneyInput.wire(amountController.text),
+            date: date,
+            personalAccountId: transfer ? accountId : null,
+            categoryId: transfer ? null : categoryId,
+          );
     if (!saved && mounted) {
       setState(() => submitError = widget.controller.errorMessage);
     }
@@ -174,13 +187,15 @@ class CashWithdrawalFieldsState extends State<CashWithdrawalFields> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        TextFormField(
-          controller: amountController,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Tutar'),
-          validator: MoneyInput.positiveError,
-        ),
-        const SizedBox(height: AppSpacing.medium),
+        if (widget.onRecord == null) ...[
+          TextFormField(
+            controller: amountController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Tutar'),
+            validator: MoneyInput.positiveError,
+          ),
+          const SizedBox(height: AppSpacing.medium),
+        ],
         if (widget.showDate) ...[
           AppDateField(
             label: 'Gün',

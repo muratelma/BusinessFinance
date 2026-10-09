@@ -31,6 +31,14 @@ public interface ICounterpartyRepository
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Kullanıcının iptal edilmemiş bir cari hareketi (borçlandırma, tahsilat
+    /// ya da ödeme) var mı. İşletmesi olmayan kullanıcıda <c>Cari hesap</c>
+    /// kapısının görünüp görünmeyeceğini bu söyler: gizleme bir ön ayardır,
+    /// açık hesabı olan kullanıcı onu her zaman görür.
+    /// </summary>
+    Task<bool> HasLedgerEntriesAsync(Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Adı yazılan karşı tarafı bulur, yoksa kurar. Kullanıcı borç açarken
     /// önce karşı taraf oluşturmak zorunda kalmasın diye.
     /// </summary>

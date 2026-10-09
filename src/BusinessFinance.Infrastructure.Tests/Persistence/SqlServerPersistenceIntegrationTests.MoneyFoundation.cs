@@ -176,15 +176,22 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         Assert.Equal(cardDebt, advanced.NetWorth.CreditCardDebt);
 
         // Cari: kişi listesindeki açık tutarlar ile net varlıktaki alacak/borç.
+        // Kişiye bağlı açık yükümlülük cari bakiyeye girmez, yanında bilgi
+        // olarak döner; net varlık üçünü (borç planı, cari, yükümlülük) toplar.
         var balances = await counterparties.ListBalancesAsync(
             user.Id, CounterpartyBalanceFilter.All, null, FoundationAsOf, default);
         Assert.Equal(seed.CounterpartyReceivable, balances.Sum(item => item.Receivable));
         Assert.Equal(seed.CounterpartyPayable, balances.Sum(item => item.Payable));
         Assert.Equal(
-            seed.DebtReceivablePrincipal + balances.Sum(item => item.Receivable),
+            seed.OpenReceivableObligations, balances.Sum(item => item.OpenReceivableObligations));
+        Assert.Equal(
+            seed.OpenPayableObligations, balances.Sum(item => item.OpenPayableObligations));
+        Assert.Equal(
+            seed.DebtReceivablePrincipal + seed.CounterpartyReceivable +
+            seed.OpenReceivableObligations,
             advanced.NetWorth.ReceivableDebt);
         Assert.Equal(
-            seed.DebtPayablePrincipal + balances.Sum(item => item.Payable),
+            seed.DebtPayablePrincipal + seed.CounterpartyPayable + seed.OpenPayableObligations,
             advanced.NetWorth.PayableDebt);
 
         // Yoldaki para: POS listesi ile net varlık.
@@ -235,12 +242,16 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         // Kart: harcama 300 + 70 − ödeme 150.
         public decimal CardDebt => 220m;
 
-        // Müşteri: veresiye 400 − nakit tahsilat 250 − kartla tahsil 100 +
-        // açık tek seferlik alacak 90.
-        public decimal CounterpartyReceivable => 140m;
+        // Müşteri: veresiye 400 − nakit tahsilat 250 − kartla tahsil 100.
+        public decimal CounterpartyReceivable => 50m;
 
-        // Toptancı: vadeli 150 + 30 − ödeme 100; arkadaş: açık borç 25.
-        public decimal CounterpartyPayable => 105m;
+        // Toptancı: vadeli 150 + 30 − ödeme 100.
+        public decimal CounterpartyPayable => 80m;
+
+        // Kişiye bağlı açık yükümlülükler cari bakiyenin dışındadır:
+        // müşteriden tek seferlik alacak 90, arkadaşa tek seferlik borç 25.
+        public decimal OpenReceivableObligations => 90m;
+        public decimal OpenPayableObligations => 25m;
 
         // Şahsi POS satışının neti 196 + kartla tahsilin neti 98.
         public decimal MoneyInTransit => 294m;

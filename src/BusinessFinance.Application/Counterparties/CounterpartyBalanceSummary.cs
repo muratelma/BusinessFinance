@@ -8,6 +8,11 @@ namespace BusinessFinance.Application.Counterparties;
 /// hesaplanır. Kayıt burada birleşiyor ki liste ekranı adı ve bakiyeyi tek
 /// sorgudan alsın; ad için ikinci bir okuma karşı taraf başına bir sorgu
 /// demek olurdu.
+///
+/// Bakiye yalnız cari hareketlerden oluşur. Kişiye bağlı açık yükümlülükler
+/// (<see cref="OpenReceivableObligations"/>, <see cref="OpenPayableObligations"/>)
+/// <b>bilgidir</b>: bakiyeye, nete ve "kapandı" sorusuna girmez; her biri
+/// kendi kapanışıyla kapanır.
 /// </remarks>
 public sealed record CounterpartyBalanceSummary(
     Guid CounterpartyId,
@@ -16,7 +21,9 @@ public sealed record CounterpartyBalanceSummary(
     decimal Receivable,
     decimal Payable,
     decimal OverdueReceivable,
-    decimal OverduePayable)
+    decimal OverduePayable,
+    decimal OpenReceivableObligations = 0m,
+    decimal OpenPayableObligations = 0m)
 {
     /// <summary>Artı: karşı taraf bize borçlu. Eksi: biz ona borçluyuz.</summary>
     public decimal Net => Receivable - Payable;
@@ -36,4 +43,29 @@ public sealed record CounterpartyBalanceSummary(
 
     /// <summary>Vadesi gelmemiş veya vadesiz açık borç.</summary>
     public decimal NotOverduePayable => Payable - OverduePayable;
+
+    /// <summary>Karşı tarafın bize borcu, ekranda yazılacak hâliyle.</summary>
+    public decimal OwedToYou => CounterpartyDisplay.OwedToYou(Receivable, Payable);
+
+    /// <summary>Bizim karşı tarafa borcumuz, ekranda yazılacak hâliyle.</summary>
+    public decimal OwedByYou => CounterpartyDisplay.OwedByYou(Receivable, Payable);
+}
+
+/// <summary>
+/// İki tarafın ekranda yazılacak tutarları: ikisi de sıfır ya da artıdır.
+/// </summary>
+/// <remarks>
+/// Fazla tahsilat alacağı eksiye düşürür ve kırpılmaz (o para gerçektir). Ama
+/// "size borcu −300" yanlış okunur: fazla alınan 300 lira <b>bizim
+/// borcumuzdur</b>. Bu iki tutar eksiye düşen tarafı öbür tarafa taşır;
+/// aralarındaki fark her zaman <c>Net</c>'e eşittir. İstemci toplama yapmasın
+/// diye sunucuda hesaplanır.
+/// </remarks>
+public static class CounterpartyDisplay
+{
+    public static decimal OwedToYou(decimal receivable, decimal payable) =>
+        Math.Max(receivable, 0m) + Math.Max(-payable, 0m);
+
+    public static decimal OwedByYou(decimal receivable, decimal payable) =>
+        Math.Max(payable, 0m) + Math.Max(-receivable, 0m);
 }

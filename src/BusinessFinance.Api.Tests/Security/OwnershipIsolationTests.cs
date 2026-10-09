@@ -409,6 +409,8 @@ public sealed class OwnershipIsolationTests
         yield return Json("yükümlülüğü kapatma", HttpMethod.Post,
             "api/v1/obligations/{id:guid}/settlement",
             new SettleObligationRequest(f.AccountId, Today), f.ObligationId);
+        yield return Json("yükümlülüğü iptal", HttpMethod.Delete,
+            "api/v1/obligations/{id:guid}", null, f.ObligationId);
 
         yield return Json("POS tahsilatını iptal", HttpMethod.Delete,
             "api/v1/pos-settlements/{id:guid}", null, f.PosSettlementId);

@@ -169,6 +169,9 @@ public sealed class RecordDebtOpeningUseCaseTests
     private sealed class FakeCounterpartyRepository(Counterparty counterparty)
         : ICounterpartyRepository
     {
+        public Task<bool> HasLedgerEntriesAsync(Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public Task<Counterparty?> FindOwnedByIdAsync(
             Guid counterpartyId, Guid userId, CancellationToken cancellationToken) =>
             Task.FromResult(counterparty.Id == counterpartyId ? counterparty : null);

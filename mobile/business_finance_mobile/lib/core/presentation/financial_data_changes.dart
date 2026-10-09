@@ -163,6 +163,20 @@ class FinancialDataChanges extends ChangeNotifier {
     counterparties: true,
   );
 
+  /// Yükümlülük iptal edildi. İptal bir bütündür: tanınan gelir/gider düşer;
+  /// kapanmışsa kapanışın hesaba etkisi de geri alınır, kartla tahsil
+  /// edildiyse yoldaki para (`cash`) da. Hangi hâlde iptal edildiği çağıran
+  /// yerde her zaman bilinmediği için hepsi yükseltilir.
+  void obligationCancelled() => _raise(
+    feed: true,
+    dashboard: true,
+    budgets: true,
+    accounts: true,
+    planning: true,
+    counterparties: true,
+    cash: true,
+  );
+
   /// Gün sonu sayımı yazıldı.
   ///
   /// **Yalnız kasa ekranı yenilenir.** Sayım bir gözlemdir: hiçbir bakiyeyi

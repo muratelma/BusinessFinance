@@ -311,6 +311,7 @@ public sealed class AnalyzeReceiptUseCase(
         ReceiptDuplicateKind.Transfer => "aktarma",
         ReceiptDuplicateKind.CardPayment => "kart ödemesi",
         ReceiptDuplicateKind.Receivable => "alacak kaydı",
+        ReceiptDuplicateKind.Obligation => "Yükümlülükler kaydı",
         _ => "kayıt"
     };
 

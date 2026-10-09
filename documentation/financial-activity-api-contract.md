@@ -146,8 +146,8 @@ index'ler ve Domain invariant'ları engeller.
 | Veresiye satış | `counterparty-charge` | `income` | `counterparty` | evet |
 | Vadeli alım | `counterparty-charge` | `expense` | `counterparty` | evet |
 | Cari tahsilat/ödeme | `counterparty-settlement` | `neutral` | `counterparty` | evet |
-| Tek seferlik yükümlülük doğuşu | `obligation` | `income`/`expense` | `obligation` | **hayır** |
-| Yükümlülük ödeme/tahsilatı | `obligation-settlement` | `neutral` | `obligation` | **hayır** |
+| Tek seferlik yükümlülük doğuşu | `obligation` | `income`/`expense` | `obligation` | evet (9 Ekim 2026) |
+| Yükümlülük ödeme/tahsilatı | `obligation-settlement` | `neutral` | `obligation` | **hayır** (yükümlülükle birlikte iptal olur) |
 | POS satışının tanınması | `pos-sale` | `income` | `pos` | **hayır** |
 | POS yatışı | `pos-deposit` | `neutral` | `pos` | **hayır** |
 | Gün sonunun nakit geliri | `account-transaction` | `income` | `account` | **hayır** (`day-close`) |
@@ -158,15 +158,34 @@ index'ler ve Domain invariant'ları engeller.
 ```text
 canCancel = status == realized
          && activityKind ∉ { debt-payment, debt-collection, debt-opening,
-                             obligation, obligation-settlement,
+                             obligation-settlement,
                              pos-sale, pos-deposit }
          && origin ∉ { recurring, installment, pos-deposit, day-close }
          && dayCloseId == null
+         && !(activityKind == obligation && kapanışı kilitli)
 ```
+
+"Kapanışı kilitli" (9 Ekim 2026): yükümlülüğün iptal edilmemiş kapanışı bir gün
+sonunda sayılmış ya da kartla tahsilin parası bir yatışla hesaba geçmiş. Bu
+bilgi sözleşmede ayrı bir alan değildir; yalnız `canCancel`'ı `false` yapar.
 
 Borç açılışı iptal edilemez: o satır sözleşmenin kendisidir, iptali borcu
 silmek olurdu ve ödenmiş taksitler sahipsiz kalırdı. Borcu bitirmenin yolu bu
 satır değil, sözleşme akışıdır.
+
+**Yükümlülük bir bütün olarak iptal edilir** (`DELETE /api/v1/obligations/{id}`,
+9 Ekim 2026). Kapanmışsa kapanışı (`obligation-settlement`) aynı yazmada iptal
+olur ve hesaba etkisi geri alınır; alacak kartla tahsil edildiyse yoldaki POS
+kaydı ve komisyonu da iptal olur. Kapanış satırı tek başına iptal edilemez ve
+`canCancel` `false` döner; düzeltme, kaydı iptal edip doğrusunu yeniden
+yazmaktır. İki durumda iptal `409` ile reddedilir ve hiçbir şey değişmez:
+`obligations.deposit_locked` (kart parası bir yatışla hesaba geçmiş; önce yatış
+geri alınır) ve `obligations.day_close_counted` (kapanış bir gün sonunda
+sayılmış; önce gün sonu geri alınır). Akış satırı aynı iki durumu bilir ve
+`canCancel` `false` döner; yatış ya da gün sonu geri alınınca yeniden `true`
+olur. İstek idempotenttir; başka
+kullanıcının kaydı ile olmayan kayıt aynı `404 obligations.not_found` cevabına
+gider. İptal edilmiş yükümlülük kapatılamaz (`409`).
 
 Aynı `debt-opening` iki farklı `effect` taşır ve bu kasıtlıdır: nakit kaynakta
 para el değiştirir, gider kaynakta tüketim olur. Etki tek başına türden
@@ -290,12 +309,15 @@ ayrıntı açıldığında okunur. Kalıcı bir alan değildir.
   değişmez). Limit sonradan değiştirilirse eski harcamanın ayrıntısındaki
   sayı o günkü gerçeği değil, bugünkü limite göre hesabı gösterir.
 - **Cari kayıtlar karşı tarafın açık bakiyesini döner** (`holder:
-  "counterparty"`): veresiye/vadeli kayıt, cari tahsilat/ödeme, karşı tarafı
-  olan tek seferlik yükümlülük ve kapanışı. `balance` **hep artıdır**; kimin
-  kime borçlu olduğunu `side` söyler: `receivable` (karşı taraf bize borçlu),
-  `payable` (biz ona borçluyuz), `settled` (açık tutar yok). Fazla tahsilat
-  kırpılmaz, tarafı çevirir. Kaynakları kişinin güncel bakiyesiyle aynıdır
-  (borçlandırma, tahsilat/ödeme, açık yükümlülük).
+  "counterparty"`): veresiye/vadeli kayıt ve cari tahsilat/ödeme. `balance`
+  **hep artıdır**; kimin kime borçlu olduğunu `side` söyler: `receivable`
+  (karşı taraf bize borçlu), `payable` (biz ona borçluyuz), `settled` (açık
+  tutar yok). Fazla tahsilat kırpılmaz, tarafı çevirir. Kaynakları kişinin
+  güncel bakiyesiyle aynıdır (borçlandırma, tahsilat/ödeme).
+- **Tek seferlik yükümlülük ve kapanışı cari satırı dönmez** (9 Ekim 2026):
+  kişisi olsa da cari bakiyeye girmez. Yükümlülüğün kendisi boş liste,
+  kapanışı yalnız hesabı döner. Kişi akış satırında bilgi olarak kalır
+  (`counterpartyId` süzgeci yükümlülüğü de getirir).
 - Cari bakiye **önceki tarafı** da taşır (`previousSide`): hareketten hemen
   önce kim kime borçluydu. Sonrakinden farklıysa hareket tarafı çevirmiştir
   (alacak tahsil edildi, geriye borç kaldı); istemci bunu tek satırla söyler.

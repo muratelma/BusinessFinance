@@ -133,7 +133,7 @@ public sealed class SavingsGoalContribution
             throw new ArgumentException("Client request id cannot be empty.", nameof(clientRequestId));
         if (createdAtUtc.Offset != TimeSpan.Zero)
             throw new ArgumentException("Creation time must be UTC.", nameof(createdAtUtc));
-        if (contributionDate > DateOnly.FromDateTime(createdAtUtc.UtcDateTime))
+        if (contributionDate > LocalDay.LatestAllowed(createdAtUtc))
             throw new ArgumentOutOfRangeException(nameof(contributionDate), "Contribution date cannot be in the future.");
         var normalizedNote = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
         if (normalizedNote?.Length > MaximumNoteLength)

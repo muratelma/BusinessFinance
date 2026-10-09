@@ -15,6 +15,10 @@ namespace BusinessFinance.Infrastructure.Receipts;
 /// ignore the warning, which costs every future one.
 /// </para>
 /// <para>
+/// An income or expense document is searched on two shelves: the movements and
+/// the obligations (an invoice the user has not paid yet is an obligation).
+/// </para>
+/// <para>
 /// Four shelves are searched, not one. A bank slip becomes an expense, a
 /// transfer, a card payment or a receivable depending on an answer the user
 /// gives <b>after</b> this call; searching only the expense list meant the
@@ -77,6 +81,47 @@ internal sealed class EfReceiptDuplicateLookup(BusinessFinanceDbContext dbContex
                 .FirstOrDefaultAsync(cancellationToken);
             if (transaction is not null)
                 return transaction;
+        }
+
+        if (intent is ReceiptCaptureIntent.Income or ReceiptCaptureIntent.Expense)
+        {
+            // An unpaid invoice is written as an obligation, not as a movement
+            // ("henüz ödemedim"). Without this shelf the same invoice could be
+            // read twice and recorded twice with no warning at all (seen on the
+            // device on 9 October 2026). A settled obligation still counts: the
+            // document is already in the books, and writing it again as a paid
+            // expense would recognise the same cost twice.
+            var direction = intent is ReceiptCaptureIntent.Income
+                ? DebtDirection.Receivable
+                : DebtDirection.Payable;
+
+            // The name is matched on what the form wrote (the description is
+            // prefilled with the name on the document) or on the linked
+            // person's name key, so a different casing of the same name still
+            // matches.
+            var nameKey = Counterparty.NameKeyOf(name);
+            var obligation = await dbContext.Obligations
+                .AsNoTracking()
+                .Where(item =>
+                    item.UserId == userId &&
+                    !item.IsCancelled &&
+                    item.Direction == direction &&
+                    item.IssueDate == date &&
+                    item.Amount.Amount == total &&
+                    ((item.Description != null && item.Description == name) ||
+                     dbContext.Counterparties.Any(counterparty =>
+                         counterparty.UserId == userId &&
+                         counterparty.Id == item.CounterpartyId &&
+                         counterparty.NameKey == nameKey)))
+                .Select(item => new ReceiptDuplicateMatch(
+                    item.Id,
+                    item.IssueDate,
+                    item.Amount.Amount,
+                    item.Description,
+                    ReceiptDuplicateKind.Obligation))
+                .FirstOrDefaultAsync(cancellationToken);
+            if (obligation is not null)
+                return obligation;
         }
 
         if (intent is ReceiptCaptureIntent.Transfer || slip)

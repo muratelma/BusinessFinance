@@ -141,6 +141,49 @@ public sealed class DataPortabilityTests
         Assert.Single(restored, x => x.NameKey == $"örnek elektrik#{x.Id:D}");
     }
 
+    /// <summary>
+    /// Farkı "Kendime aldım" ile açıklanan sayım, aktarımına <b>yeni</b>
+    /// kimliğiyle yeniden bağlanır; gelir/gider bağı boş kalır.
+    /// </summary>
+    [Fact]
+    public async Task Backup_RoundTripsACashCountExplainedByATransfer()
+    {
+        await using var context = CreateContext();
+        var sourceUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        await SeedCompleteGraphAsync(context, sourceUserId);
+        await SeedDefaultCategoriesAsync(context, targetUserId);
+        var day = new DateOnly(2026, 8, 20);
+        var countedAt = new DateTimeOffset(2026, 8, 20, 18, 0, 0, TimeSpan.Zero);
+        var till = new Account(
+            Guid.NewGuid(), sourceUserId, "Sayılan kasa", AccountType.Cash, CurrencyCode.TRY, 1000m);
+        var wallet = new Account(
+            Guid.NewGuid(), sourceUserId, "Cüzdan", AccountType.Cash, CurrencyCode.TRY, 0m);
+        var transfer = new Transfer(
+            Guid.NewGuid(), sourceUserId, till, wallet, new Money(100m, CurrencyCode.TRY), day,
+            "Kendime aldım");
+        var count = new CashCount(
+            Guid.NewGuid(), sourceUserId, till, 900m, TransactionScope.Business, day, countedAt,
+            expectedAtCount: 1000m);
+        count.RecordTransferAdjustment(transfer.Id, countedAt.AddMinutes(1));
+        context.AddRange(till, wallet, transfer, count);
+        await context.SaveChangesAsync();
+        var service = new EfDataPortabilityRepository(context);
+
+        var backup = await service.CreateBackupAsync(sourceUserId, default);
+        await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
+
+        var restoredCount = await context.CashCounts.AsNoTracking()
+            .SingleAsync(x => x.UserId == targetUserId && x.CountedAmount == 900m);
+        var restoredTransfer = await context.Transfers.AsNoTracking()
+            .SingleAsync(x => x.UserId == targetUserId && x.Description == "Kendime aldım");
+        Assert.NotEqual(transfer.Id, restoredTransfer.Id);
+        Assert.Equal(restoredTransfer.Id, restoredCount.AdjustmentTransferId);
+        Assert.Null(restoredCount.AdjustmentTransactionId);
+        Assert.Equal(countedAt.AddMinutes(1), restoredCount.AdjustedAtUtc);
+        Assert.True(restoredCount.IsAdjusted);
+    }
+
     [Fact]
     public async Task BackupBeforeCounterpartyLedger_IsRejectedAndWritesNothing()
     {

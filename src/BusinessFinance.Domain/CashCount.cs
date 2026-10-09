@@ -45,13 +45,25 @@ public sealed class CashCount
 
     /// <summary>Farkı yazan gelir/gider kaydı; kullanıcı onaylamadıysa boştur.</summary>
     public Guid? AdjustmentTransactionId { get; private set; }
+
+    /// <summary>
+    /// Farkı açıklayan aktarım: eksik para kasadan şahsi hesaba geçmişse.
+    /// </summary>
+    /// <remarks>
+    /// Bir sayımın farkı <b>tek</b> kayıtla açıklanır: ya bir gelir/gider
+    /// (<see cref="AdjustmentTransactionId"/>) ya bu aktarım. İkisi birden
+    /// dolu olamaz. Bağ kayıt iptal edilse de <b>silinmez</b>: sayımın farkının
+    /// bir kez açıklandığı ve o açıklamanın geri alındığı bilgisi geçmiştir.
+    /// </remarks>
+    public Guid? AdjustmentTransferId { get; private set; }
     public DateTimeOffset? AdjustedAtUtc { get; private set; }
 
     public bool IsCancelled { get; private set; }
     public DateTimeOffset? CancelledAtUtc { get; private set; }
 
     /// <summary>Fark kaydı üretildi mi? Üretilmemiş olması normaldir.</summary>
-    public bool IsAdjusted => AdjustmentTransactionId is not null;
+    public bool IsAdjusted =>
+        AdjustmentTransactionId is not null || AdjustmentTransferId is not null;
 
     /// <summary>
     /// Sayım yazıldığı anda uygulamanın bu kasada beklediği bakiye.
@@ -130,7 +142,7 @@ public sealed class CashCount
             throw new ArgumentException("Creation time must be UTC.", nameof(createdAtUtc));
         }
 
-        if (countDate == default || countDate > DateOnly.FromDateTime(createdAtUtc.UtcDateTime))
+        if (countDate == default || countDate > LocalDay.LatestAllowed(createdAtUtc))
         {
             throw new ArgumentOutOfRangeException(
                 nameof(countDate),
@@ -234,18 +246,62 @@ public sealed class CashCount
                 "A cancelled cash count cannot record an adjustment.");
         }
 
-        if (AdjustmentTransactionId is Guid existing)
+        if (AdjustmentTransactionId == budgetTransactionId)
         {
-            if (existing != budgetTransactionId)
-            {
-                throw new InvalidOperationException(
-                    "This cash count already carries a different adjustment.");
-            }
-
             return;
         }
 
+        if (IsAdjusted)
+        {
+            throw new InvalidOperationException(
+                "This cash count already carries a different adjustment.");
+        }
+
         AdjustmentTransactionId = budgetTransactionId;
+        AdjustedAtUtc = adjustedAtUtc;
+    }
+
+    /// <summary>
+    /// Farkı açıklayan aktarımı bağlar: eksik para kasadan şahsi hesaba
+    /// geçmiştir (<c>Kendime aldım</c>).
+    /// </summary>
+    /// <remarks>
+    /// Gelir/gider yazılmaz; para yer değiştirir. Kural
+    /// <see cref="RecordAdjustment"/> ile aynıdır: çağrı idempotenttir ve bir
+    /// sayımın iki açıklaması olamaz.
+    /// </remarks>
+    public void RecordTransferAdjustment(Guid transferId, DateTimeOffset adjustedAtUtc)
+    {
+        if (transferId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Adjustment transfer id cannot be empty.",
+                nameof(transferId));
+        }
+
+        if (adjustedAtUtc.Offset != TimeSpan.Zero)
+        {
+            throw new ArgumentException("Adjustment time must be UTC.", nameof(adjustedAtUtc));
+        }
+
+        if (IsCancelled)
+        {
+            throw new InvalidOperationException(
+                "A cancelled cash count cannot record an adjustment.");
+        }
+
+        if (AdjustmentTransferId == transferId)
+        {
+            return;
+        }
+
+        if (IsAdjusted)
+        {
+            throw new InvalidOperationException(
+                "This cash count already carries a different adjustment.");
+        }
+
+        AdjustmentTransferId = transferId;
         AdjustedAtUtc = adjustedAtUtc;
     }
 

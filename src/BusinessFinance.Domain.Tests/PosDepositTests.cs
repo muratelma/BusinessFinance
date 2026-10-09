@@ -173,9 +173,12 @@ public sealed class PosDepositTests
         // İkinci tahsilattan önceki gün: para satıştan önce yatamaz.
         Assert.Throws<ArgumentOutOfRangeException>(() => PosDeposit.Record(
             Guid.NewGuid(), _userId, _bank, [early, late], Money(1964.2m), SaleDay, NowUtc));
+        // Kullanıcının günü sunucunun UTC gününden bir gün ileride olabilir
+        // (`LocalDay`): gece yarısından sonra bugünün tarihi kabul edilir, iki
+        // gün sonrası reddedilir.
         Assert.Throws<ArgumentOutOfRangeException>(() => PosDeposit.Record(
             Guid.NewGuid(), _userId, _bank, [early, late], Money(1964.2m),
-            DepositDay.AddDays(1), NowUtc));
+            DepositDay.AddDays(2), NowUtc));
         // Reddedilen deneme ilk tahsilatı da bağlamadı.
         Assert.True(early.IsInTransit);
         Assert.True(late.IsInTransit);

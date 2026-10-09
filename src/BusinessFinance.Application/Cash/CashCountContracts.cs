@@ -22,11 +22,19 @@ public sealed record CreateCashCountCommand(
 /// <see cref="CashCountDefaults.DifferenceCategoryName"/> gider kategorisine
 /// yazılır. Bu bir tahmin değildir; kullanıcı o kovayı seçmiştir. Kategori
 /// ile "bilmiyorum" birlikte gönderilemez.
+///
+/// <c>TookForMyself</c> (<c>Kendime aldım</c>, KS2): eksik para sahibine
+/// gitmiştir. <c>PersonalAccountId</c> verilirse şahsi hesaba aktarım,
+/// <c>CategoryId</c> verilirse şahsi gider yazılır; tam olarak biri gelir.
+/// Tutar farkın tamamı, gün sayımın günüdür: komut ikisini de taşımaz. Başka
+/// bir gün ya da tutar ayrı bir kayıtla yazılır ve kasa yeniden sayılır.
 /// </remarks>
 public sealed record ConfirmCashCountDifferenceCommand(
     Guid CashCountId,
     Guid? CategoryId,
-    bool UnknownReason = false);
+    bool UnknownReason = false,
+    bool TookForMyself = false,
+    Guid? PersonalAccountId = null);
 
 /// <summary>Kasa sayımının standart adları.</summary>
 public static class CashCountDefaults
@@ -37,6 +45,43 @@ public static class CashCountDefaults
     /// yeniden adlandırmış kullanıcıda ilk kullanımda açılır.
     /// </summary>
     public const string DifferenceCategoryName = "Kasa farkı";
+
+    /// <summary>Sahibin kasadan aldığı paranın kaydına yazılan açıklama.</summary>
+    public const string OwnerWithdrawalDescription = "Kendime aldım";
+}
+
+/// <summary>
+/// Sayımın farkının açıklaması ne durumda? Kalıcı alan değildir: bağlı kaydın
+/// güncel durumundan okunur.
+/// </summary>
+public enum CashCountAdjustmentStatus
+{
+    /// <summary>Fark için kayıt yok.</summary>
+    None = 0,
+
+    /// <summary>Fark için kayıt oluşturuldu ve duruyor.</summary>
+    Recorded = 1,
+
+    /// <summary>
+    /// Fark için oluşturulan kayıt sonradan iptal edildi. Sayım yeniden
+    /// kaydedilebilir hâle <b>gelmez</b>: iptal kasanın kayıtlarını
+    /// değiştirdi, yeni fark kaydı yeni bir sayım ister.
+    /// </summary>
+    Cancelled = 2,
+}
+
+public static class CashCountAdjustmentStatuses
+{
+    /// <summary>
+    /// Sayımın açıklaması var mı ve bağlı kayıt duruyor mu sorularından durumu
+    /// türetir; tek sayımı ve listeyi okuyan iki yol aynı kuralı kullanır.
+    /// </summary>
+    public static CashCountAdjustmentStatus Of(bool isAdjusted, bool adjustmentCancelled) =>
+        !isAdjusted
+            ? CashCountAdjustmentStatus.None
+            : adjustmentCancelled
+                ? CashCountAdjustmentStatus.Cancelled
+                : CashCountAdjustmentStatus.Recorded;
 }
 
 public sealed record CashCountListCriteria(Guid? AccountId, DateOnly From, DateOnly To);
@@ -66,7 +111,9 @@ public sealed record CashCountDto(
     bool IsCancelled,
     Guid? AdjustmentTransactionId,
     decimal? ExpectedBalance = null,
-    decimal? Difference = null);
+    decimal? Difference = null,
+    Guid? AdjustmentTransferId = null,
+    CashCountAdjustmentStatus AdjustmentStatus = CashCountAdjustmentStatus.None);
 
 /// <summary>
 /// Kasa ekranının açılışta sorduğu tek soru: bugün ne olmalıydı, ne sayıldı.
@@ -167,5 +214,17 @@ public interface ICashCountRepository
     /// </summary>
     Task<bool> HasAccountChangedSinceAsync(CashCount cashCount, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Sayımın farkını açıklayan kayıt (gelir/gider ya da aktarım) sonradan
+    /// iptal edildi mi? Açıklaması olmayan sayımda <c>false</c>.
+    /// </summary>
+    Task<bool> IsAdjustmentCancelledAsync(CashCount cashCount, CancellationToken cancellationToken);
+
     Task SaveAdjustmentAsync(BudgetTransaction adjustment, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Farkı açıklayan aktarımı ve sayımdaki bağını <b>tek</b> yazmada kaydeder:
+    /// para çıkıp sayım açık kalamaz, sayım kapanıp para yerinde duramaz.
+    /// </summary>
+    Task SaveTransferAdjustmentAsync(Transfer transfer, CancellationToken cancellationToken);
 }

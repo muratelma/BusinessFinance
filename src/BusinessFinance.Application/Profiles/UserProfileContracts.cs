@@ -1,10 +1,17 @@
 using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
+using BusinessFinance.Application.Counterparties;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Profiles;
 
-public sealed record UserProfileDto(bool HasBusiness);
+/// <param name="HasBusiness">Kaydolurken sorulan sorunun cevabı.</param>
+/// <param name="HasCounterpartyLedger">
+/// Kullanıcının cari hareketi var. Cevap "yok" olsa da istemci <c>Cari
+/// hesap</c> kapısını bu durumda gösterir: gizleme bir ön ayardır, kilit
+/// değildir (ADR 0020).
+/// </param>
+public sealed record UserProfileDto(bool HasBusiness, bool HasCounterpartyLedger = false);
 
 public sealed record SetUserProfileCommand(bool HasBusiness);
 
@@ -25,7 +32,8 @@ public static class UserProfileErrors
 
 public sealed class GetUserProfileUseCase(
     ICurrentUser currentUser,
-    IUserProfileRepository repository)
+    IUserProfileRepository repository,
+    ICounterpartyRepository counterpartyRepository)
 {
     public async Task<ApplicationResult<UserProfileDto>> ExecuteAsync(
         CancellationToken cancellationToken = default)
@@ -42,13 +50,16 @@ public sealed class GetUserProfileUseCase(
         // değil, sorunun sorulmadığı hâlin doğru cevabı: kapsam boyutu gizli
         // kalır ve hiçbir kayıt yanlış etiketlenmez.
         return ApplicationResult<UserProfileDto>.Success(
-            new UserProfileDto(profile?.HasBusiness ?? false));
+            new UserProfileDto(
+                profile?.HasBusiness ?? false,
+                await counterpartyRepository.HasLedgerEntriesAsync(userId, cancellationToken)));
     }
 }
 
 public sealed class SetUserProfileUseCase(
     ICurrentUser currentUser,
-    IUserProfileRepository repository)
+    IUserProfileRepository repository,
+    ICounterpartyRepository counterpartyRepository)
 {
     public async Task<ApplicationResult<UserProfileDto>> ExecuteAsync(
         SetUserProfileCommand command,
@@ -75,6 +86,8 @@ public sealed class SetUserProfileUseCase(
         }
 
         return ApplicationResult<UserProfileDto>.Success(
-            new UserProfileDto(command.HasBusiness));
+            new UserProfileDto(
+                command.HasBusiness,
+                await counterpartyRepository.HasLedgerEntriesAsync(userId, cancellationToken)));
     }
 }

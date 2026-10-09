@@ -153,6 +153,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<CreateObligationUseCase>();
         services.AddTransient<ListObligationsUseCase>();
         services.AddTransient<SettleObligationUseCase>();
+        services.AddTransient<CancelObligationUseCase>();
         services.AddTransient<GetCashCountTodayUseCase>();
         services.AddTransient<ListCashCountsUseCase>();
         services.AddTransient<CreateCashCountUseCase>();

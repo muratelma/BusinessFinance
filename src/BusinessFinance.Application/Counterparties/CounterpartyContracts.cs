@@ -16,7 +16,15 @@ public sealed record CounterpartyDto(
     decimal NotOverdueReceivable,
     decimal NotOverduePayable,
     decimal Net,
-    bool IsSettled);
+    bool IsSettled,
+    // Kişiye bağlı açık yükümlülüklerin toplamı; bilgi amaçlıdır, yukarıdaki
+    // hiçbir tutara girmez.
+    decimal OpenReceivableObligations = 0m,
+    decimal OpenPayableObligations = 0m,
+    // İki tarafın ekranda yazılacak, eksiye düşmeyen hâli: fazla tahsilat
+    // bizim borcumuza, fazla ödeme karşı tarafın borcuna eklenir.
+    decimal OwedToYou = 0m,
+    decimal OwedByYou = 0m);
 
 public sealed record CreateCounterpartyCommand(string Name, string? Note);
 

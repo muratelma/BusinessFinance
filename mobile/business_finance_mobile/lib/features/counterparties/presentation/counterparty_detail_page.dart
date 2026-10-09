@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_input.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_card.dart';
@@ -15,13 +16,14 @@ import '../data/counterparty_models.dart';
 import 'counterparties_controller.dart';
 import 'counterparty_forms.dart';
 
-/// Bir kişiyle olan her şey: açık cari bakiyesi, hareket geçmişi ve varsa
-/// taksitli sözleşmeleri.
+/// Bir kişiyle olan her şey: açık cari bakiyesi, hareket geçmişi, varsa
+/// bekleyen faturaları ve taksitli sözleşmeleri.
 ///
-/// Üç blok tek ekranda ama **hiçbiri diğerinin toplamına karışmaz**: cari
-/// bakiye kendi hareketlerinden, sözleşmenin kalanı kendi taksitlerinden
-/// hesaplanır. İkisini toplayan bir sayı burada bilerek yok — aynı kişiyle
-/// iki ayrı hesabınız var ve onları toplamak ikisini de anlamsız kılardı.
+/// Bloklar tek ekranda ama **hiçbiri diğerinin toplamına karışmaz**: cari
+/// bakiye yalnız cari hareketlerden, sözleşmenin kalanı kendi taksitlerinden
+/// hesaplanır; bekleyen faturaların toplamı ayrı gelir. Hepsini toplayan bir
+/// sayı burada bilerek yok — nasıl gösterileceği cari sayfası çizilirken
+/// kararlaştırılacak.
 class CounterpartyDetailPage extends StatefulWidget {
   const CounterpartyDetailPage({
     required this.controller,
@@ -134,6 +136,10 @@ class _CounterpartyDetailPageState extends State<CounterpartyDetailPage> {
                 _balanceCard(detail.counterparty),
                 const SizedBox(height: AppSpacing.medium),
                 _actions(detail.counterparty),
+                if (_hasPendingObligations(detail)) ...[
+                  const SizedBox(height: AppSpacing.medium),
+                  _pendingObligations(detail),
+                ],
                 if (detail.agreements.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.medium),
                   _agreements(detail),
@@ -175,7 +181,10 @@ class _CounterpartyDetailPageState extends State<CounterpartyDetailPage> {
           // İki taraf ayrı ayrı duruyor: aynı kişi hem müşteri hem tedarikçi
           // olabilir ve tek sayıya indirmek hangi tarafın açık olduğunu
           // gizlerdi. Net ikisini tek cümleye indiren üçüncü satırdır.
-          _amountRow('Size borcu', person.receivable, AppMoneyEffect.income),
+          // İki satırın tutarı eksiye düşmez (kullanıcı, 9 Ekim 2026): fazla
+          // tahsilat alacağı eksi yapar, ama o para bizim borcumuzdur ve
+          // `Sizin borcunuz` satırında yazılır. İki tutar sunucudan gelir.
+          _amountRow('Size borcu', person.owedToYou, AppMoneyEffect.income),
           if (person.hasOverdueReceivable) ...[
             _amountRow(
               'Vadesi geçmiş alacak',
@@ -188,7 +197,11 @@ class _CounterpartyDetailPageState extends State<CounterpartyDetailPage> {
               AppMoneyEffect.income,
             ),
           ],
-          _amountRow('Sizin borcunuz', person.payable, AppMoneyEffect.expense),
+          _amountRow(
+            'Sizin borcunuz',
+            person.owedByYou,
+            AppMoneyEffect.expense,
+          ),
           if (person.hasOverduePayable) ...[
             _amountRow(
               'Vadesi geçmiş borç',
@@ -202,9 +215,15 @@ class _CounterpartyDetailPageState extends State<CounterpartyDetailPage> {
             ),
           ],
           const Divider(height: AppSpacing.large),
+          // Net satırı tarafı adıyla söyler ve tutarı eksi işaretsiz yazar;
+          // renk tek başına taraf anlatmaz.
           _amountRow(
-            'Net',
-            person.net,
+            person.isSettled
+                ? 'Net'
+                : person.isReceivableSide
+                ? 'Net - Alacağınız'
+                : 'Net - Borcunuz',
+            _withoutSign(person.net),
             person.isSettled
                 ? AppMoneyEffect.neutral
                 : person.isReceivableSide
@@ -221,6 +240,11 @@ class _CounterpartyDetailPageState extends State<CounterpartyDetailPage> {
       ),
     );
   }
+
+  /// Tutarın işaretine bakmak hesap değildir: sunucunun gönderdiği dizenin
+  /// başındaki eksiyi okur. Tutarın kendisi değişmez.
+  static String _withoutSign(String amount) =>
+      amount.startsWith('-') ? amount.substring(1) : amount;
 
   Widget _amountRow(
     String label,
@@ -323,6 +347,67 @@ class _CounterpartyDetailPageState extends State<CounterpartyDetailPage> {
           ],
         ),
       ],
+    );
+  }
+
+  bool _hasPendingObligations(CounterpartyDetail detail) =>
+      detail.pendingObligations.isNotEmpty ||
+      detail.counterparty.hasOpenPayableObligations ||
+      detail.counterparty.hasOpenReceivableObligations;
+
+  /// Kişiye bağlı açık faturalar cari hesabın **dışında** durur: yukarıdaki
+  /// bakiyeye girmezler ve buradan kapatılmazlar (düğme yok). Bakiyeye
+  /// girselerdi aynı borç hem cari `Ödeme` ile hem faturanın kendi
+  /// kapanışıyla iki kez ödenebilirdi. Toplam sunucudan gelir.
+  Widget _pendingObligations(CounterpartyDetail detail) {
+    final theme = Theme.of(context);
+    final person = detail.counterparty;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Bekleyen faturalar', style: theme.textTheme.titleSmall),
+          const SizedBox(height: AppSpacing.xSmall),
+          Text(
+            'Cari bakiyeye eklenmez; Yükümlülükler\'den kapatılır.',
+            style: theme.textTheme.bodySmall,
+          ),
+          for (final item in detail.pendingObligations)
+            AppListRow(
+              icon: item.direction == 'payable'
+                  ? Icons.north_east
+                  : Icons.south_west,
+              title: item.description ?? item.categoryName ?? 'Fatura',
+              titleMaxLines: 1,
+              subtitle:
+                  '${item.direction == 'payable' ? 'Ödenecek' : 'Tahsil edilecek'}'
+                  ' · Vade ${DateText.dayMonth(item.dueDate)}'
+                  '${item.isOverdue ? ' · Gecikmiş' : ''}',
+              trailing: AppMoneyText(
+                amount: item.amount,
+                currency: item.currency,
+                effect: item.direction == 'payable'
+                    ? AppMoneyEffect.expense
+                    : AppMoneyEffect.income,
+              ),
+            ),
+          const Divider(height: AppSpacing.large),
+          if (person.hasOpenPayableObligations)
+            _amountRow(
+              'Ödenecek toplam',
+              person.openPayableObligations,
+              AppMoneyEffect.expense,
+              emphasise: true,
+            ),
+          if (person.hasOpenReceivableObligations)
+            _amountRow(
+              'Tahsil edilecek toplam',
+              person.openReceivableObligations,
+              AppMoneyEffect.income,
+              emphasise: true,
+            ),
+        ],
+      ),
     );
   }
 

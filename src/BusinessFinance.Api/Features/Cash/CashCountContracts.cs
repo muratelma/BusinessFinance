@@ -10,9 +10,16 @@ public sealed record CreateCashCountRequest(
 // `unknownReason` yalnız eksik farkta ve kategorisiz gönderilir: kayıt standart
 // `Kasa farkı` gider kategorisine yazılır (yoksa açılır). Diğer durumda
 // `categoryId` zorunludur.
+//
+// `tookForMyself` yalnız eksik farkta gönderilir ("Kendime aldım"): eksik para
+// sahibine gitmiştir. `personalAccountId` ile şahsi hesaba aktarım, `categoryId`
+// ile şahsi gider yazılır; tam olarak biri gelir. Tutar farkın tamamı, gün
+// sayımın günüdür; istek ikisini de taşımaz.
 public sealed record ConfirmCashCountDifferenceRequest(
     Guid? CategoryId = null,
-    bool UnknownReason = false);
+    bool UnknownReason = false,
+    bool TookForMyself = false,
+    Guid? PersonalAccountId = null);
 
 public sealed record CashCountResponse(
     Guid Id,
@@ -26,7 +33,16 @@ public sealed record CashCountResponse(
     bool IsCancelled,
     Guid? AdjustmentTransactionId,
     string? ExpectedBalance = null,
-    string? Difference = null);
+    string? Difference = null,
+
+    // Farkı açıklayan aktarım ("Kendime aldım", şahsi hesaba); yoksa boş. Bir
+    // sayım ya `adjustmentTransactionId` ya bunu taşır.
+    Guid? AdjustmentTransferId = null,
+
+    // Farkın açıklaması: `none` (kayıt yok), `recorded` (kayıt duruyor),
+    // `cancelled` (kayıt sonradan iptal edildi; yeni fark kaydı için kasa
+    // yeniden sayılır).
+    string AdjustmentStatus = "none");
 
 public sealed record CashCountListResponse(IReadOnlyList<CashCountResponse> Items);
 

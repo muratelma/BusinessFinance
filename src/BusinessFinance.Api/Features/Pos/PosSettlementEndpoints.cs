@@ -59,7 +59,9 @@ public static class PosSettlementEndpoints
                 "pos_settlements.invalid_from");
         }
 
-        var end = today;
+        // Varsayılan bitiş kullanıcının gününü de kapsar: gece yarısından
+        // sonra girilen tahsilat UTC gününden bir gün ileridedir.
+        var end = LocalDay.LatestAllowed(timeProvider.GetUtcNow());
         if (to is not null && !FinanceContract.TryParseDate(to, out end))
         {
             return ApiProblemResults.Validation(

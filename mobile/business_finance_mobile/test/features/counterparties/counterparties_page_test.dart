@@ -9,6 +9,7 @@ import 'package:business_finance_mobile/features/activities/data/activity_models
 import 'package:business_finance_mobile/features/counterparties/data/counterparty_models.dart';
 import 'package:business_finance_mobile/features/counterparties/data/counterparty_repository.dart';
 import 'package:business_finance_mobile/features/counterparties/presentation/counterparties_page.dart';
+import 'package:business_finance_mobile/features/obligations/data/obligation_repository.dart';
 import 'package:business_finance_mobile/features/pos/data/pos_repository.dart';
 
 import '../../helpers/accessibility.dart';
@@ -216,6 +217,160 @@ void main() {
       expect(find.text('Ödeme hesabı'), findsOneWidget);
     });
 
+    // Kişiye bağlı fatura cari bakiyenin dışındadır (Aşama 06.3 C3–C5):
+    // ayrı blokta durur, toplamı sunucudan gelir ve cari `Ödeme` formu onu
+    // önermez. Eskiden bakiyeye giriyor ve aynı borç iki yoldan
+    // ödenebiliyordu.
+    testWidgets('bekleyen fatura ayrı blokta durur, ödeme formu onu önermez', (
+      tester,
+    ) async {
+      final repository = _FakeRepository(
+        counterparties: const [
+          CounterpartySummary(
+            id: 'cp-2',
+            name: 'Toptancı Zeynep',
+            isActive: true,
+            receivable: '0.0000',
+            payable: '500.0000',
+            net: '-500.0000',
+            isSettled: false,
+            openPayableObligations: '1000.0000',
+          ),
+        ],
+        pendingObligations: const [
+          ObligationItem(
+            id: 'ob-1',
+            direction: 'payable',
+            amount: '1000.0000',
+            currency: 'TRY',
+            issueDate: '2026-08-05',
+            dueDate: '2026-08-20',
+            status: 'open',
+            isOverdue: true,
+            counterpartyId: 'cp-2',
+            description: 'Ağustos faturası',
+          ),
+        ],
+      );
+      await _pump(tester, repository);
+      await tester.tap(find.text('Toptancı Zeynep'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Bekleyen faturalar'), findsOneWidget);
+      expect(find.text('Ağustos faturası'), findsOneWidget);
+      expect(find.textContaining('Vade 20 Ağustos'), findsOneWidget);
+      expect(find.textContaining('Gecikmiş'), findsOneWidget);
+      expect(find.text('Ödenecek toplam'), findsOneWidget);
+      // Tahsil edilecek bir şey yok: o satır çizilmez.
+      expect(find.text('Tahsil edilecek toplam'), findsNothing);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Ödeme'));
+      await tester.pumpAndSettle();
+
+      // Önerilen tutar yalnız cari borçtur; 1.000 liralık fatura yok.
+      expect(find.widgetWithText(TextFormField, '500'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, '1.500'), findsNothing);
+    });
+
+    // 2.200 liralık veresiye satışa 2.500 liralık tahsilat: alacak −300 olur.
+    // Eskiden `Size borcu −₺300,00` diye, gelir tonunda yazılıyor ve alacak
+    // gibi okunuyordu (kullanıcı, 9 Ekim 2026). Satırların adı değişmez;
+    // fazla alınan para `Sizin borcunuz` satırında, eksi işaretsiz yazar.
+    testWidgets(
+      'fazla tahsilat borcumuz satırında yazar, eksi alacak diye değil',
+      (tester) async {
+        await _pump(
+          tester,
+          _FakeRepository(
+            counterparties: const [
+              CounterpartySummary(
+                id: 'cp-1',
+                name: 'Ahmet Bakkal',
+                isActive: true,
+                receivable: '-300.0000',
+                payable: '0.0000',
+                owedToYou: '0.0000',
+                owedByYou: '300.0000',
+                net: '-300.0000',
+                isSettled: false,
+              ),
+            ],
+          ),
+        );
+        await tester.tap(find.text('Ahmet Bakkal'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Size borcu'), findsOneWidget);
+        expect(find.text('Sizin borcunuz'), findsOneWidget);
+        expect(find.text('Net - Borcunuz'), findsOneWidget);
+        expect(find.text('₺0,00'), findsOneWidget);
+        // 300 iki yerde: borç satırı ve net; ikisi de eksi işaretsiz.
+        expect(find.text('₺300,00'), findsNWidgets(2));
+        expect(find.textContaining('-₺'), findsNothing);
+      },
+    );
+
+    testWidgets('fazla ödeme size borcu satırında yazar', (tester) async {
+      await _pump(
+        tester,
+        _FakeRepository(
+          counterparties: const [
+            CounterpartySummary(
+              id: 'cp-1',
+              name: 'Ahmet Bakkal',
+              isActive: true,
+              receivable: '0.0000',
+              payable: '-150.0000',
+              owedToYou: '150.0000',
+              owedByYou: '0.0000',
+              net: '150.0000',
+              isSettled: false,
+            ),
+          ],
+        ),
+      );
+      await tester.tap(find.text('Ahmet Bakkal'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Net - Alacağınız'), findsOneWidget);
+      expect(find.text('₺150,00'), findsNWidgets(2));
+      expect(find.textContaining('-₺'), findsNothing);
+    });
+
+    testWidgets('kapanmış caride net yalnız Net diye yazar', (tester) async {
+      await _pump(
+        tester,
+        _FakeRepository(
+          counterparties: const [
+            CounterpartySummary(
+              id: 'cp-1',
+              name: 'Ahmet Bakkal',
+              isActive: true,
+              receivable: '0.0000',
+              payable: '0.0000',
+              net: '0.0000',
+              isSettled: true,
+            ),
+          ],
+        ),
+      );
+      await tester.tap(find.text('Ahmet Bakkal'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Net'), findsOneWidget);
+      expect(find.text('Hesap kapandı.'), findsOneWidget);
+    });
+
+    testWidgets('bekleyen faturası olmayan kişide blok çizilmez', (
+      tester,
+    ) async {
+      await _pump(tester, _FakeRepository());
+      await tester.tap(find.text('Ahmet Bakkal'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Bekleyen faturalar'), findsNothing);
+    });
+
     // Borçlandırma kasaya dokunmaz: form hesap sormaz, kategori sorar.
     testWidgets('veresiye satış formu hesap değil kategori soruyor', (
       tester,
@@ -354,9 +509,11 @@ class _FakeRepository implements CounterpartyRepositoryContract {
     this.counterparties = _defaultPeople,
     this.failing = false,
     this.unauthorized = false,
+    this.pendingObligations = const [],
   });
 
   final List<CounterpartySummary> counterparties;
+  final List<ObligationItem> pendingObligations;
   final bool failing;
   final bool unauthorized;
 
@@ -458,6 +615,9 @@ class _FakeRepository implements CounterpartyRepositoryContract {
               ),
             ]
           : const [],
+      pendingObligations: pendingObligations
+          .where((item) => item.counterpartyId == counterpartyId)
+          .toList(growable: false),
     );
   }
 

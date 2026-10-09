@@ -120,6 +120,13 @@ class CashTodayCard extends StatelessWidget {
         tone: AppStatusTone.planned,
       );
     }
+    if (count.adjustmentCancelled) {
+      return const AppStatusTag(
+        label: 'Fark kaydı iptal edildi',
+        icon: Icons.undo,
+        tone: AppStatusTone.neutral,
+      );
+    }
     if (_changedSinceCount) {
       return const AppStatusTag(
         label: 'Sonradan kayıt girildi',
@@ -210,15 +217,20 @@ class CashTodayCard extends StatelessWidget {
     ];
   }
 
-  /// Önceki sayımın kaydedilmemiş farkı: yalnız bilgi satırıdır, bugünkü
-  /// farktan düşülmez (Aşama 06.3 K6).
+  /// Önceki sayımın farkı: yalnız bilgi satırıdır, bugünkü farktan düşülmez
+  /// (Aşama 06.3 K6). Satır **geçmişi** anlatır (KS4): "kaydedilmemiş fark"
+  /// demek kasada bugün de eksik varmış gibi okunuyordu; bugünü yalnız yeni
+  /// bir sayım söyler.
   Widget? _carriedDifference(String currency) {
     final carried = today.previousUnrecordedDifference;
     final previous = today.previousCount;
     if (carried == null || previous == null) return null;
+    final short = _sign(carried) < 0;
     return _KeyValue(
-      label: 'Kaydedilmemiş fark',
-      detail: '${DateText.dayMonth(previous.countDate)} sayımından',
+      label:
+          '${DateText.dayMonth(previous.countDate)} sayımında '
+          '${short ? 'eksik' : 'fazla'} çıkmıştı',
+      detail: previous.adjustmentCancelled ? 'Fark kaydı iptal edildi' : null,
       amount: _abs(carried),
       currency: currency,
       effect: _sign(carried) < 0
@@ -310,6 +322,12 @@ class CashTodayCard extends StatelessWidget {
     // Fark ancak yeni bir sayımla kaydedilir (kullanıcı kararı, 8 Ekim
     // 2026): eskiden düğme açık kalıyor ve sayımdan sonra girilen bir satış
     // farkı büyütüyordu.
+    // Fark için yazılan kayıt iptal edildiyse sayım yeniden açılmaz (KS3):
+    // iptal kasanın kayıtlarını değiştirdi.
+    if (count.adjustmentCancelled) {
+      return 'Fark için yazılan kayıt iptal edildi. Farkı yeniden kaydetmek '
+          'için kasayı yeniden sayın.';
+    }
     if (_changedSinceCount) {
       if (count.isAdjusted) return 'Emin olmak için yeniden sayın.';
       if (_sign(count.difference) == 0) return 'Kasa yine uygulamayla aynı.';
@@ -565,6 +583,16 @@ class CashCountHistoryRow extends StatelessWidget {
             color: surfaces.inkMuted,
           ),
         ),
+        // Ayrı satır: aynı satıra sığmıyor ve dar ekranda taşıyordu.
+        if (item.adjustmentCancelled)
+          Text(
+            'Kaydı iptal edildi',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w400,
+              letterSpacing: 0,
+              color: surfaces.inkMuted,
+            ),
+          ),
       ],
     );
   }
@@ -636,9 +664,10 @@ Future<bool?> showCashCountSheet(
       CashCountSheet(controller: controller, scopeController: scopeController),
 );
 
-/// Farkı kaydetme formunu açar. Eksik farkta kullanıcı `Kendime aldım`
-/// derse fark kaydı yazılmaz; alanları **aynı panelde** açılır ve para
-/// oradan yazılır (Aşama 06.3 K7; ikinci panel 8 Ekim 2026'da kalktı).
+/// Farkı kaydetme formunu açar. Eksik farkta `Kendime aldım` da sayımın
+/// açıklamasıdır (KS2, 8 Ekim 2026): alanları **aynı panelde** açılır, tutar
+/// farkın tamamı ve gün sayımın günüdür, kayıt sayıma bağlanır. Başka bir gün
+/// ya da tutar için Kasa'daki ayrı `Kendime aldım` kullanılır.
 Future<bool?> showCashDifferenceForm(
   BuildContext context,
   CashCountController controller, {
@@ -671,19 +700,6 @@ enum CashShortageReason {
 /// Sebebi bilinmeyen eksiğin yazıldığı standart kategorinin adı; kategoriyi
 /// sunucu bulur ya da açar.
 const cashDifferenceCategoryName = 'Kasa farkı';
-
-/// Sunucunun işaretli farkını tutar alanına yazılacak hâle çevirir
-/// (`-100.0000` → `100,00`); para aritmetiği değil, metin kırpma.
-String? _inputAmount(String? difference) {
-  if (difference == null) return null;
-  final unsigned = difference.replaceFirst('-', '').trim();
-  final parts = unsigned.split('.');
-  if (parts.length != 2 || parts[1].length != 4) return unsigned;
-  final decimals = parts[1].endsWith('00')
-      ? parts[1].substring(0, 2)
-      : parts[1];
-  return '${parts[0]},$decimals';
-}
 
 enum CashCountMode { total, notes }
 
@@ -1373,17 +1389,32 @@ class _DifferenceFormState extends State<_DifferenceForm> {
             ),
             const SizedBox(height: AppSpacing.medium),
           ],
+          // Ne yazılacağı açıkça söylenir: tutar ve gün sorulmuyor ama
+          // gizli de değil.
+          if (_recordedAs(withdrawal) case final summary?) ...[
+            Text(
+              summary,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: surfaces.inkMuted,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.medium),
+          ],
           // Aynı alanlar `Kendime aldım` panelinde de durur; burada ikinci
-          // bir panel açılmaz. Gün sayımın günüdür ve sorulmaz.
+          // bir panel açılmaz. Tutar ve gün sorulmaz; kaydı sunucu sayıma
+          // bağlayarak yazar.
           if (withdrawal)
             CashWithdrawalFields(
               key: withdrawalFields,
               controller: widget.controller,
-              initialAmount: _inputAmount(
-                widget.controller.todayCount?.difference,
-              ),
               onOpenPersonalAccount: widget.onOpenPersonalAccount,
               showDate: false,
+              onRecord: ({personalAccountId, categoryId}) =>
+                  widget.controller.confirmDifference(
+                    categoryId,
+                    tookForMyself: true,
+                    personalAccountId: personalAccountId,
+                  ),
             )
           // Sebebi bilmeyen kullanıcıya kategori sorulmaz.
           else if (unknown)
@@ -1434,6 +1465,23 @@ class _DifferenceFormState extends State<_DifferenceForm> {
         ],
       ),
     );
+  }
+
+  /// `₺100,00, 8 Ekim tarihine yazılır.`: fark kaydının tutarı ve günü.
+  /// `Kendime aldım`da başka gün ya da tutar için nereye gidileceği de yazar.
+  String? _recordedAs(bool withdrawal) {
+    final count = widget.controller.todayCount;
+    final difference = count?.difference;
+    if (count == null || difference == null) return null;
+    final amount = MoneyText.format(
+      difference.replaceFirst('-', ''),
+      count.currency,
+    );
+    final summary =
+        '$amount, ${DateText.dayMonth(count.countDate)} tarihine yazılır.';
+    if (!withdrawal) return summary;
+    return '$summary Parayı başka bir gün ya da farklı tutarda aldıysanız bu '
+        'paneli kapatıp Kasa\'daki “Kendime aldım”ı kullanın.';
   }
 
   Future<CashDifferenceResult?> _submit() async {

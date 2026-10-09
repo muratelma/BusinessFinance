@@ -220,7 +220,7 @@ public sealed class CreatePosDepositUseCase(
 
         var now = timeProvider.GetUtcNow().ToUniversalTime();
         if (command.DepositDate == default ||
-            command.DepositDate > DateOnly.FromDateTime(now.UtcDateTime) ||
+            command.DepositDate > LocalDay.LatestAllowed(now) ||
             command.DepositDate < selection.EarliestDepositDate)
         {
             return ApplicationResult<PosDepositDto>.Failure(PosDepositErrors.InvalidDepositDate);

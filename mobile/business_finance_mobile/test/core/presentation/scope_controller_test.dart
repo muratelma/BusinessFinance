@@ -132,6 +132,76 @@ void main() {
     expect(store.hasBusiness, isFalse);
   });
 
+  // Cari hesap kapısı: işletmesi olana her zaman açık; olmayana yalnız cari
+  // hareketi varsa (Aşama 06.3 C6 — ön ayar, kilit değil).
+  test(
+    'cari kapısı işletmesi olmayan kullanıcıda cari harekete bakar',
+    () async {
+      var asked = 0;
+      final withLedger = ScopeController(
+        readHasBusiness: () async => false,
+        readHasCounterpartyLedger: () async {
+          asked++;
+          return true;
+        },
+      );
+      await withLedger.ensureLoaded();
+      expect(withLedger.isVisible, isFalse);
+      expect(withLedger.showsCounterpartyLedger, isTrue);
+      expect(asked, 1);
+
+      final withoutLedger = ScopeController(
+        readHasBusiness: () async => false,
+        readHasCounterpartyLedger: () async => false,
+      );
+      await withoutLedger.ensureLoaded();
+      expect(withoutLedger.showsCounterpartyLedger, isFalse);
+    },
+  );
+
+  test(
+    'işletmesi olan kullanıcıda cari hareket sorulmaz, kapı açıktır',
+    () async {
+      var asked = 0;
+      final controller = ScopeController(
+        readHasBusiness: () async => true,
+        readHasCounterpartyLedger: () async {
+          asked++;
+          return false;
+        },
+      );
+      await controller.ensureLoaded();
+
+      expect(controller.showsCounterpartyLedger, isTrue);
+      expect(asked, 0);
+    },
+  );
+
+  test(
+    'cevap "işletmem yok" olunca cari hareketi olan kapıyı kaybetmez',
+    () async {
+      final controller = ScopeController(store: _FakeStore(hasBusiness: true));
+      await controller.ensureLoaded();
+
+      await controller.applyHasBusiness(false, hasCounterpartyLedger: true);
+      expect(controller.isVisible, isFalse);
+      expect(controller.showsCounterpartyLedger, isTrue);
+
+      await controller.forget();
+      expect(controller.showsCounterpartyLedger, isFalse);
+    },
+  );
+
+  test('cari hareket okunamazsa kapı son bilinen hâlinde kalır', () async {
+    final controller = ScopeController(
+      readHasBusiness: () async => false,
+      readHasCounterpartyLedger: () async => throw Exception('ağ düştü'),
+    );
+    await controller.ensureLoaded();
+
+    expect(controller.showsCounterpartyLedger, isFalse);
+  });
+
   test('aynı seçime dokunmak dinleyicileri uyandırmaz', () async {
     final controller = ScopeController(
       store: _FakeStore(scope: TransactionScope.business, hasBusiness: true),

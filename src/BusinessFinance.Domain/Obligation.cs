@@ -101,7 +101,7 @@ public sealed class Obligation
             throw new ArgumentException("Creation time must be UTC.", nameof(createdAtUtc));
         }
 
-        if (issueDate == default || issueDate > DateOnly.FromDateTime(createdAtUtc.UtcDateTime))
+        if (issueDate == default || issueDate > LocalDay.LatestAllowed(createdAtUtc))
         {
             throw new ArgumentOutOfRangeException(
                 nameof(issueDate),

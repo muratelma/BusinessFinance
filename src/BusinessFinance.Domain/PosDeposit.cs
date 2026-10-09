@@ -107,7 +107,7 @@ public sealed class PosDeposit
         }
 
         if (depositDate == default ||
-            depositDate > DateOnly.FromDateTime(createdAtUtc.UtcDateTime))
+            depositDate > LocalDay.LatestAllowed(createdAtUtc))
         {
             throw new ArgumentOutOfRangeException(
                 nameof(depositDate),

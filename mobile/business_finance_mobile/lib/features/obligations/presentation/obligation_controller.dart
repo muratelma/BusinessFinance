@@ -191,6 +191,33 @@ class ObligationListController extends ChangeNotifier {
     return false;
   }
 
+  bool isCancelling = false;
+
+  /// Yanlış yazılan kaydı iptal eder. Kapanmış kayıtta ödeme ya da tahsilat
+  /// da birlikte iptal olur; sunucu reddederse (yatış, gün sonu) sebebi
+  /// [errorMessage] ile ekrana gelir ve liste değişmez.
+  Future<bool> cancel(ObligationItem item) async {
+    if (isCancelling) return false;
+    isCancelling = true;
+    errorMessage = null;
+    notifyListeners();
+    try {
+      await _repository.cancel(item.id);
+      changes?.obligationCancelled();
+      isCancelling = false;
+      await load();
+      return true;
+    } on ApiException catch (error) {
+      unauthorized = error.isUnauthorized;
+      errorMessage = error.message;
+    } on FormatException {
+      errorMessage = 'Sunucudan beklenmeyen bir yanıt alındı.';
+    }
+    isCancelling = false;
+    notifyListeners();
+    return false;
+  }
+
   static String _today() {
     final value = DateTime.now();
     return '${value.year.toString().padLeft(4, '0')}-'

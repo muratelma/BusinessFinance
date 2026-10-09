@@ -83,8 +83,14 @@ public sealed class DayCloseTests
     [Fact]
     public void Record_RejectsAFutureDayAnInvertedRangeAndABadZNumber()
     {
+        // Kullanıcının günü sunucunun UTC gününden bir gün ileride olabilir
+        // (`LocalDay`): gece yarısından sonra bugünün tarihi kabul edilir, iki
+        // gün sonrası reddedilir.
+        Assert.Equal(
+            new DateOnly(2026, 10, 5),
+            DayClose.Record(_closeId, _userId, new DateOnly(2026, 10, 5), NowUtc, [], []).ClosedOn);
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            DayClose.Record(_closeId, _userId, new DateOnly(2026, 10, 5), NowUtc, [], []));
+            DayClose.Record(_closeId, _userId, new DateOnly(2026, 10, 6), NowUtc, [], []));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             DayClose.Record(_closeId, _userId, Day, NowUtc, [], [], rangeStart: Day));
         Assert.Throws<ArgumentOutOfRangeException>(() =>

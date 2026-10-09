@@ -243,6 +243,47 @@ gerekçesiyle bozulmaz.
   hareketlerden hesaplanan projection'dır; fazla tahsilat **kırpılmaz**.
   Pasif karşı tarafa yeni borçlandırma yazılamaz, tahsilat yazılabilir — aksi
   hâlde açık bakiye kapatılamazdı.
+- **Cari bakiye yalnız cari hareketlerden oluşur; bir borç tek yoldan kapanır**
+  (ADR 0020, Aşama 06.3 C3–C6). Kişiye bağlı yükümlülük (ödenmemiş fatura, tek
+  seferlik alacak) o kişinin **bilgisidir**: cari bakiyeye, gecikmiş tutara,
+  işlem sonrası açık bakiyeye (`CounterpartyNet`) ve `Açık hesap` süzgecine
+  girmez, yalnız kendi kapanışıyla kapanır. Bakiyeye girseydi aynı borç hem
+  cari `Ödeme` ile hem kapanışla iki kez ödenebilirdi. Bu bir **okuma
+  kuralıdır**; yazılmış kayıt ve yedek değişmez. Kişinin cevabı açık
+  yükümlülüklerin toplamını ayrı alanlarda taşır (`openReceivableObligations`,
+  `openPayableObligations`) ve sayfada `Bekleyen faturalar` bloğu olarak,
+  düğmesiz çizilir. Net varlık ve planlanan görünüm yükümlülüğü kendi
+  tablosundan okur. `Cari hesap` menüsünün gizlenmesi **ön ayardır, kilit
+  değildir**: işletmesi olana ve cari hareketi olana görünür (profilde
+  `hasCounterpartyLedger`, istemcide `ScopeController.showsCounterpartyLedger`);
+  sunucu hiçbir cari ucunu kapatmaz.
+- **Yükümlülük bir bütün olarak iptal edilir** (`DELETE
+  /api/v1/obligations/{id}`). Kapanmışsa kapanışı da, kartla tahsil edildiyse
+  yoldaki POS kaydı da aynı yazmada iptal olur; **kapanışın tek başına geri
+  alınması yoktur** (düzeltme = iptal + doğrusunu yeniden yaz). Kart parası
+  yatışla hesaba geçtiyse `obligations.deposit_locked`, kapanış gün sonunda
+  sayıldıysa `obligations.day_close_counted` ile reddedilir. Akışta yükümlülük
+  satırı `canCancel` taşır, kapanış satırı taşımaz.
+- **Fatura tekrar uyarısı yükümlülükleri de arar** (`EfReceiptDuplicateLookup`):
+  "henüz ödemedim" yolu yükümlülük yazar. Uyarı engel değildir. Belge yazan
+  yeni bir kayıt türü eklenirse **oraya** da eklenir.
+- **Kişinin kartında hiçbir tutar eksi işaretle yazılmaz.** Sunucu fazla
+  tahsilatı kırpmaz (`receivable` eksiye düşer) ama ekran için iki tutar daha
+  gönderir: `owedToYou` ve `owedByYou` sıfır ya da artıdır, farkları `net`tir;
+  fazla alınan para bizim borcumuza eklenmiş gelir. Kart `Size borcu` ve
+  `Sizin borcunuz` satırlarını bunlarla, `Net - Borcunuz` / `Net - Alacağınız`
+  satırını işaretsiz `net` ile çizer. Etiketler kısa kalır (kullanıcı kararı,
+  9 Ekim 2026); istemci toplama yapmaz.
+- **Kaydın günü kullanıcının takvimiyle gelir; sunucu UTC gününe bir gün pay
+  tanır** (`LocalDay.LatestAllowed`). Gece yarısından 03:00'e kadar Türkiye'de
+  "bugün" UTC gününün bir ilerisidir; "gün gelecekte olamaz" denetimi UTC
+  günüyle yapılırsa o saatlerde bugünün kaydı reddedilir. Yeni bir "gelecekte
+  olamaz" denetimi **`LocalDay` ile** yazılır, `DateOnly.FromDateTime(utcNow)`
+  ile değil. Kasa kartı bugünü cihazın günüyle sorar
+  (`GET /api/v1/cash-counts/today?date=`).
+- **Kasada her kayıt sayımı eskitir, günü ne olursa olsun** (kullanıcı kararı,
+  9 Ekim 2026): "günü sayımdan önce olan kayıt sayımı eskitmez" önerisi
+  reddedildi; kural kaydın gününe bağlanmaz.
 
 - **Vergi bir nakit planıdır** (ADR 0018, kabul edildi; Aşama 06.3 Grup 2–3,
   ikisi de uygulandı). **KDV alanları, indirilebilirlik ve muhasebeci paketi
@@ -368,7 +409,16 @@ gerekçesiyle bozulmaz.
   bir sayım varsa fark kaydı `cash_counts.recount_required` ile reddedilir ve
   ekran yalnız `Yeniden say` gösterir: uygulama kaydın ne zaman **olduğunu**
   bilemez. Yazılan tutar sayım anındaki farktır, onay anındaki bakiyeye göre
-  yeniden hesaplanmaz. Kararın kalanı (KS2–KS4) aşama belgesinde, yazılmadı.
+  yeniden hesaplanmaz.
+- **Bir sayımın farkı tek kayıtla açıklanır**: ya bir gelir/gider ya bir
+  aktarım (`AdjustmentTransferId`; fark panelindeki `Kendime aldım`, şahsi
+  hesaba). Üç cevap da (`Gider`, `Kendime aldım`, `Bilmiyorum`) aynı uçtan
+  geçer, tutar farkın tamamı ve gün sayımın günüdür; başka gün ya da tutar
+  ayrı bir kayıtla yazılır ve kasa yeniden sayılır. Açıklamanın durumu
+  (`none` / `recorded` / `cancelled`) kalıcı alan değildir, bağlı kayıttan
+  okunur; **iptal edilen kayıt sayımı yeniden açmaz**, bağ durur. Önceki
+  sayımın farkı ekranda geçmiş olarak yazar ("… sayımında eksik çıkmıştı"),
+  "kaydedilmemiş fark" denmez.
 - **Kişi adının tekliği uygulamanın hesapladığı anahtardadır**
   (`Counterparty.NameKey`, `NameKeyOf`): harf büyüklüğü ve boşluk farkı ad
   farkı değildir, dört i harfi tek harftir; arama, "bu ad zaten var" denetimi
@@ -391,9 +441,8 @@ gerekçesiyle bozulmaz.
   kullanıcıda kayıt `Şahsi` yazılır, işletmesi olanda istek
   `*.scope_unresolved` ile reddedilir; sunucu kapsam **uydurmaz**.
   **Uygulanan: çekirdeğin ilk üç adımı** (sunucu kuralı; kategori seti ve
-  kategorinin tarafı; formlar). Cari bakiye ve Kasa adımları sırada
-  (`stages/06.3-butunsel-duzenleme.md` Grup 8 "Z6 · yön"ün sonu); kişiye bağlı
-  yükümlülük **hâlâ** cari bakiyeye giriyor.
+  kategorinin tarafı; formlar) **ve cari adımı**. Kasa adımı sırada
+  (`stages/06.3-butunsel-duzenleme.md` Grup 8 "Z6 · yön"ün sonu).
   İstemcinin kapsam göndermesi zorunlu değildir. **Vergide zincir yoktur**
   (ADR 0018 İ9, 30 Eylül 2026): açık seçim → profilin tarafı; ödeme kaynağının
   etiketine bakılmaz (işletme vergisi şahsi kartla ödenebilir).

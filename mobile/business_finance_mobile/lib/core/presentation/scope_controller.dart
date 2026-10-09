@@ -40,7 +40,11 @@ typedef HasBusinessReader = Future<bool> Function();
 /// [scope] daima boştur: filtre gönderilmez, bütün kayıtlar sessizce şahsi
 /// olur.
 class ScopeController extends ChangeNotifier {
-  ScopeController({this.store, this.readHasBusiness});
+  ScopeController({
+    this.store,
+    this.readHasBusiness,
+    this.readHasCounterpartyLedger,
+  });
 
   /// Cihaz deposu. Boş bırakılırsa seçim hatırlanmaz (test ya da bağlanmamış
   /// kabuk); denetim yine çalışır.
@@ -49,8 +53,13 @@ class ScopeController extends ChangeNotifier {
   /// Sunucudaki cevabı okuyan fonksiyon; boşsa yalnız cihazdaki kopya geçerli.
   final HasBusinessReader? readHasBusiness;
 
+  /// Kullanıcının cari hareketi var mı; yalnız "işletmem yok" diyen
+  /// kullanıcıda sorulur ([showsCounterpartyLedger]).
+  final HasBusinessReader? readHasCounterpartyLedger;
+
   TransactionScope? _scope;
   bool _hasBusiness = false;
+  bool _hasCounterpartyLedger = false;
   bool _isLoaded = false;
   Future<void>? _loading;
 
@@ -63,6 +72,12 @@ class ScopeController extends ChangeNotifier {
 
   /// Kapsam boyutu arayüzde görünsün mü.
   bool get isVisible => _hasBusiness;
+
+  /// `Cari hesap` kapısı görünsün mü. Cari hesap işletmeye özeldir; ama
+  /// gizleme bir **ön ayardır, kilit değildir**: "işletmem yok" diyen
+  /// kullanıcının cari hareketi varsa kapı yine görünür. Aksi hâlde cevabını
+  /// sonradan değiştiren kullanıcının açık hesabı ulaşılamaz kalırdı.
+  bool get showsCounterpartyLedger => isVisible || _hasCounterpartyLedger;
 
   /// Profil ve tercih okunmayı bitirdi mi. Yükleme sırasında boyut henüz
   /// çizilmez; yanıp sönen bir anahtar, kullanıcının dokunduğu şeyin ne
@@ -89,13 +104,30 @@ class ScopeController extends ChangeNotifier {
     try {
       final hasBusiness = await reader();
       await store?.writeHasBusiness(hasBusiness);
-      if (hasBusiness == _hasBusiness) return;
-      _hasBusiness = hasBusiness;
-      notifyListeners();
+      if (hasBusiness != _hasBusiness) {
+        _hasBusiness = hasBusiness;
+        notifyListeners();
+      }
     } on Exception {
       // Profil okunamadı. Cihazdaki kopya geçerli kalır: cevabı "hayır"
       // varsaymak, işletme sahibinin boyutunu bir ağ hatası yüzünden
       // kaybettirirdi.
+    }
+    await refreshCounterpartyLedger();
+  }
+
+  /// Cari hareketin varlığını yeniden okur. İşletmesi olan kullanıcıda kapı
+  /// zaten açıktır ve soru sorulmaz. Okunamazsa son bilinen hâl kalır.
+  Future<void> refreshCounterpartyLedger() async {
+    final reader = readHasCounterpartyLedger;
+    if (reader == null || _hasBusiness) return;
+    try {
+      final hasLedger = await reader();
+      if (hasLedger == _hasCounterpartyLedger) return;
+      _hasCounterpartyLedger = hasLedger;
+      notifyListeners();
+    } on Exception {
+      // Kapı son bilinen hâlinde kalır.
     }
   }
 
@@ -107,10 +139,17 @@ class ScopeController extends ChangeNotifier {
   }
 
   /// Sunucudaki cevap değiştiğinde (ayarlardan) çağrılır.
-  Future<void> applyHasBusiness(bool value) async {
+  /// [hasCounterpartyLedger] aynı cevabın taşıdığı cari hareket bilgisidir;
+  /// verilmezse son bilinen hâl kalır.
+  Future<void> applyHasBusiness(
+    bool value, {
+    bool? hasCounterpartyLedger,
+  }) async {
     await store?.writeHasBusiness(value);
-    if (_hasBusiness == value) return;
+    final ledger = hasCounterpartyLedger ?? _hasCounterpartyLedger;
+    if (_hasBusiness == value && _hasCounterpartyLedger == ledger) return;
     _hasBusiness = value;
+    _hasCounterpartyLedger = ledger;
     notifyListeners();
   }
 
@@ -118,6 +157,7 @@ class ScopeController extends ChangeNotifier {
   Future<void> forget() async {
     _scope = null;
     _hasBusiness = false;
+    _hasCounterpartyLedger = false;
     _isLoaded = false;
     _loading = null;
     notifyListeners();

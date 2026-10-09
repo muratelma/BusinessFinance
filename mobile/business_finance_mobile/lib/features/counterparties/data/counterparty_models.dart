@@ -1,6 +1,7 @@
 import '../../../core/models/data_choice.dart';
 import '../../../core/models/json_readers.dart';
 import '../../activities/data/activity_models.dart';
+import '../../obligations/data/obligation_repository.dart';
 
 /// Bir kişiyle olan hesabın o anki hâli.
 ///
@@ -20,11 +21,24 @@ class CounterpartySummary {
     this.notOverduePayable = '0.0000',
     required this.net,
     required this.isSettled,
+    this.openReceivableObligations = '0.0000',
+    this.openPayableObligations = '0.0000',
+    String? owedToYou,
+    String? owedByYou,
     this.note,
-  });
+  }) : owedToYou = owedToYou ?? receivable,
+       owedByYou = owedByYou ?? payable;
 
   factory CounterpartySummary.fromJson(Map<String, dynamic> json) =>
       CounterpartySummary(
+        owedToYou: JsonReaders.nullableString(json, 'owedToYou'),
+        owedByYou: JsonReaders.nullableString(json, 'owedByYou'),
+        openReceivableObligations:
+            JsonReaders.nullableString(json, 'openReceivableObligations') ??
+            '0.0000',
+        openPayableObligations:
+            JsonReaders.nullableString(json, 'openPayableObligations') ??
+            '0.0000',
         id: JsonReaders.string(json, 'id'),
         name: JsonReaders.string(json, 'name'),
         isActive: JsonReaders.boolean(json, 'isActive'),
@@ -68,6 +82,24 @@ class CounterpartySummary {
   /// fazla tahsilat kırpılmıyor ve hâlâ konuşulacak bir para var.
   final bool isSettled;
 
+  /// Bu kişiye bağlı, tahsil edilmeyi bekleyen tek seferlik alacakların
+  /// toplamı. **Bilgidir**: [receivable] ve [net] bunu içermez; her biri
+  /// kendi kapanışıyla kapanır. Sunucudan gelir.
+  final String openReceivableObligations;
+
+  /// Bu kişiye bağlı, ödenmeyi bekleyen faturaların toplamı; [payable] ve
+  /// [net] bunu içermez.
+  final String openPayableObligations;
+
+  /// Karşı tarafın bize borcu, **ekranda yazılacak hâliyle**: sıfır ya da
+  /// artıdır. Fazla ödeme [payable]'ı eksiye düşürür; o tutar burada bize
+  /// borç olarak gelir. Sunucudan gelir; verilmezse [receivable] kullanılır.
+  final String owedToYou;
+
+  /// Bizim ona borcumuz, ekranda yazılacak hâliyle. Fazla tahsilat
+  /// [receivable]'ı eksiye düşürür; o tutar burada bizim borcumuzdur.
+  final String owedByYou;
+
   /// Yalnız ayrıntı okumasında dolu; liste yanıtı notu taşımaz.
   final String? note;
 
@@ -77,6 +109,9 @@ class CounterpartySummary {
 
   bool get hasOverdueReceivable => overdueReceivable != '0.0000';
   bool get hasOverduePayable => overduePayable != '0.0000';
+  bool get hasOpenReceivableObligations =>
+      openReceivableObligations != '0.0000';
+  bool get hasOpenPayableObligations => openPayableObligations != '0.0000';
 }
 
 /// Liste ekranının hangi tarafı okuduğu.
@@ -114,16 +149,19 @@ class CounterpartiesSnapshot {
       categories.where((item) => item.type == type).toList(growable: false);
 }
 
-/// Bir karşı tarafın ayrıntısı: bakiyesi, hareketleri ve varsa sözleşmeleri.
+/// Bir karşı tarafın ayrıntısı: bakiyesi, hareketleri, varsa sözleşmeleri ve
+/// bekleyen faturaları.
 ///
-/// Üç kaynak tek ekranda buluşuyor ama **hiçbir toplam burada üretilmiyor**:
-/// bakiye sunucunun cevabı, hareketler birleşik feed'in cevabı. İstemci
-/// aralarında aritmetik yapsaydı ekranda üçüncü bir doğru belirirdi.
+/// Dört kaynak tek ekranda buluşuyor ama **hiçbir toplam burada üretilmiyor**:
+/// bakiye ve bekleyen faturaların toplamı sunucunun cevabı, hareketler
+/// birleşik feed'in cevabı. İstemci aralarında aritmetik yapsaydı ekranda
+/// üçüncü bir doğru belirirdi.
 class CounterpartyDetail {
   const CounterpartyDetail({
     required this.counterparty,
     required this.activities,
     required this.agreements,
+    this.pendingObligations = const [],
   });
 
   final CounterpartySummary counterparty;
@@ -131,6 +169,11 @@ class CounterpartyDetail {
 
   /// O kişiyle yapılmış taksitli sözleşmeler; cari hesabın dışında dururlar.
   final List<CounterpartyAgreement> agreements;
+
+  /// Bu kişiye bağlı, henüz kapanmamış tek seferlik faturalar ve alacaklar.
+  /// Cari bakiyeye girmezler ve buradan kapatılmazlar; her biri
+  /// `Yükümlülükler`deki kendi kapanışıyla kapanır.
+  final List<ObligationItem> pendingObligations;
 }
 
 /// Karşı tarafın taksitli sözleşmesinin ekranda gösterilen özeti.

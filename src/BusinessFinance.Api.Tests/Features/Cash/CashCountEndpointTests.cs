@@ -382,6 +382,287 @@ public sealed class CashCountEndpointTests
         Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
     }
 
+    /// <summary>
+    /// KS2: fark panelindeki <c>Kendime aldım</c> sayımın açıklamasıdır. Eksik
+    /// para kasadan şahsi hesaba geçer, gider yazılmaz, sayım "fark
+    /// kaydedildi" olur. Tutar farkın tamamı, gün sayımın günüdür. İsteğin
+    /// yeniden gönderilmesi parayı ikinci kez taşımaz.
+    /// </summary>
+    [Fact]
+    public async Task TookForMyself_ToAPersonalAccount_MovesTheShortageAndExplainsTheCount()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(
+            factory, "cash-took-transfer@example.test");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var till = await CreateAccountAsync(owner, "Sentetik kasa", "cash", "1000.0000");
+        var wallet = await CreateScopedAccountAsync(owner, "Cüzdan", "cash", "personal");
+        var todayPath = $"/api/v1/cash-counts/today?accountId={till.Id}";
+        var count = await CountAsync(owner, till.Id, "900.0000", today.AddDays(-1));
+
+        CashCountResponse? explained = null;
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            using var confirm = await owner.PostAsJsonAsync(
+                $"/api/v1/cash-counts/{count.Id}/adjustment",
+                new ConfirmCashCountDifferenceRequest(
+                    TookForMyself: true, PersonalAccountId: wallet.Id));
+            Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
+            explained = await confirm.Content.ReadFromJsonAsync<CashCountResponse>();
+        }
+
+        Assert.Equal("recorded", explained!.AdjustmentStatus);
+        Assert.NotNull(explained.AdjustmentTransferId);
+        Assert.Null(explained.AdjustmentTransactionId);
+
+        var report = await MonthlyAsync(owner, today);
+        Assert.Equal("0.0000", report.TotalExpense);
+        Assert.Equal("900.0000", report.AccountBalances.Single(a => a.AccountId == till.Id).Balance);
+        Assert.Equal("100.0000", report.AccountBalances.Single(a => a.AccountId == wallet.Id).Balance);
+
+        // Aktarım sayımın gününe yazıldı ve adı "Kendime aldım".
+        var feed = await owner.GetFromJsonAsync<FinancialActivityListResponse>(
+            "/api/v1/financial-activities?pageNumber=1&pageSize=10");
+        var transfer = Assert.Single(feed!.Items, row => row.ActivityKind == "transfer");
+        Assert.Equal(explained.AdjustmentTransferId, transfer.ActivityId);
+        Assert.Equal("100.0000", transfer.Amount);
+        Assert.Equal(Date(today.AddDays(-1)), transfer.ActivityDate);
+        Assert.Equal("Kendime aldım", transfer.Title);
+
+        // Açıklanan fark ertesi gün "önceki sayımın farkı" diye taşınmaz.
+        var next = await owner.GetFromJsonAsync<CashCountTodayResponse>(todayPath);
+        Assert.Null(next!.PreviousUnrecordedDifference);
+        Assert.Equal("recorded", next.PreviousCount!.AdjustmentStatus);
+    }
+
+    /// <summary>
+    /// KS2: şahsi hesap yoksa <c>Kendime aldım</c> şahsi gider yazar. Kasa
+    /// işletme etiketli olsa da kayıt şahsidir; işletmeye özel kategori
+    /// çelişir ve reddedilir.
+    /// </summary>
+    [Fact]
+    public async Task TookForMyself_AsAnExpense_IsPersonalAndRefusesABusinessCategory()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(
+            factory, "cash-took-expense@example.test");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var till = await CreateAccountAsync(owner, "Sentetik kasa", "cash", "1000.0000");
+        var business = await FirstCategoryAsync(owner, "expense");
+        var personal = await CategoryOfSideAsync(owner, "expense", "personal");
+        var count = await CountAsync(owner, till.Id, "900.0000", today);
+
+        using var conflict = await owner.PostAsJsonAsync(
+            $"/api/v1/cash-counts/{count.Id}/adjustment",
+            new ConfirmCashCountDifferenceRequest(business.Id, TookForMyself: true));
+        Assert.Equal(HttpStatusCode.BadRequest, conflict.StatusCode);
+        Assert.Contains("cash_counts.scope_conflict", await conflict.Content.ReadAsStringAsync());
+
+        using var confirm = await owner.PostAsJsonAsync(
+            $"/api/v1/cash-counts/{count.Id}/adjustment",
+            new ConfirmCashCountDifferenceRequest(personal.Id, TookForMyself: true));
+        Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
+        var explained = await confirm.Content.ReadFromJsonAsync<CashCountResponse>();
+        Assert.Equal("recorded", explained!.AdjustmentStatus);
+        Assert.NotNull(explained.AdjustmentTransactionId);
+        Assert.Null(explained.AdjustmentTransferId);
+
+        var personalReport = await owner.GetFromJsonAsync<MonthlyReportResponse>(
+            $"/api/v1/reports/monthly?year={today.Year}&month={today.Month}&scope=personal");
+        Assert.Equal("100.0000", personalReport!.TotalExpense);
+        var businessReport = await owner.GetFromJsonAsync<MonthlyReportResponse>(
+            $"/api/v1/reports/monthly?year={today.Year}&month={today.Month}&scope=business");
+        Assert.Equal("0.0000", businessReport!.TotalExpense);
+        Assert.Equal("900.0000", Assert.Single(businessReport.AccountBalances).Balance);
+    }
+
+    /// <summary>
+    /// <c>Kendime aldım</c> yalnız eksik farkta ve tek bir hedefle gelir; hedef
+    /// şahsi etiketli, aktif ve sayılan kasadan başka bir hesaptır. Reddedilen
+    /// istek hiçbir şey yazmaz.
+    /// </summary>
+    [Fact]
+    public async Task TookForMyself_RefusesAnIncompleteOrMisdirectedRequest()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(
+            factory, "cash-took-invalid@example.test");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var till = await CreateAccountAsync(owner, "Sentetik kasa", "cash", "1000.0000");
+        var surplusTill = await CreateAccountAsync(owner, "Fazla kasa", "cash", "100.0000");
+        var bank = await CreateScopedAccountAsync(owner, "İşletme bankası", "bank", "business");
+        var wallet = await CreateScopedAccountAsync(owner, "Cüzdan", "cash", "personal");
+        var personal = await CategoryOfSideAsync(owner, "expense", "personal");
+        var shortage = await CountAsync(owner, till.Id, "900.0000", today);
+        var surplus = await CountAsync(owner, surplusTill.Id, "150.0000", today);
+
+        async Task<string> RefusedAsync(Guid countId, ConfirmCashCountDifferenceRequest request)
+        {
+            using var response = await owner.PostAsJsonAsync(
+                $"/api/v1/cash-counts/{countId}/adjustment", request);
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            return await response.Content.ReadAsStringAsync();
+        }
+
+        const string notApplicable = "cash_counts.withdrawal_not_applicable";
+        Assert.Contains(notApplicable, await RefusedAsync(
+            shortage.Id, new ConfirmCashCountDifferenceRequest(TookForMyself: true)));
+        Assert.Contains(notApplicable, await RefusedAsync(
+            shortage.Id,
+            new ConfirmCashCountDifferenceRequest(personal.Id, TookForMyself: true, PersonalAccountId: wallet.Id)));
+        Assert.Contains(notApplicable, await RefusedAsync(
+            shortage.Id,
+            new ConfirmCashCountDifferenceRequest(UnknownReason: true, TookForMyself: true, PersonalAccountId: wallet.Id)));
+        Assert.Contains(notApplicable, await RefusedAsync(
+            surplus.Id,
+            new ConfirmCashCountDifferenceRequest(TookForMyself: true, PersonalAccountId: wallet.Id)));
+
+        const string unavailable = "cash_counts.personal_account_unavailable";
+        foreach (var target in new[] { bank.Id, till.Id, Guid.NewGuid() })
+        {
+            Assert.Contains(unavailable, await RefusedAsync(
+                shortage.Id,
+                new ConfirmCashCountDifferenceRequest(TookForMyself: true, PersonalAccountId: target)));
+        }
+
+        var report = await MonthlyAsync(owner, today);
+        Assert.Equal("0.0000", report.TotalExpense);
+        Assert.Equal("1000.0000", report.AccountBalances.Single(a => a.AccountId == till.Id).Balance);
+        Assert.Equal("0.0000", report.AccountBalances.Single(a => a.AccountId == wallet.Id).Balance);
+    }
+
+    /// <summary>
+    /// KS3: farkı açıklayan kayıt iptal edilirse sayım yeniden açılmaz. Durum
+    /// "iptal edildi" olur, bağ durur, aynı sayıma yeni fark kaydı reddedilir;
+    /// kasa yeniden sayılınca fark yeniden kaydedilir. Gelir/gider kaydında da
+    /// aktarımda da aynı.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CancellingTheRecordOfADifference_DoesNotReopenTheCount(bool asTransfer)
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(
+            factory, $"cash-adjustment-cancelled-{asTransfer}@example.test");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var till = await CreateAccountAsync(owner, "Sentetik kasa", "cash", "1000.0000");
+        var wallet = await CreateScopedAccountAsync(owner, "Cüzdan", "cash", "personal");
+        var expense = await FirstCategoryAsync(owner, "expense");
+        var todayPath = $"/api/v1/cash-counts/today?accountId={till.Id}";
+        var request = asTransfer
+            ? new ConfirmCashCountDifferenceRequest(TookForMyself: true, PersonalAccountId: wallet.Id)
+            : new ConfirmCashCountDifferenceRequest(expense.Id);
+        var count = await CountAsync(owner, till.Id, "900.0000", today);
+
+        using var confirm = await owner.PostAsJsonAsync(
+            $"/api/v1/cash-counts/{count.Id}/adjustment", request);
+        Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
+        var explained = (await confirm.Content.ReadFromJsonAsync<CashCountResponse>())!;
+        var recorded = await owner.GetFromJsonAsync<CashCountTodayResponse>(todayPath);
+        Assert.Equal("recorded", recorded!.Count!.AdjustmentStatus);
+        Assert.False(recorded.RequiresRecount);
+        Assert.Equal("900.0000", recorded.ExpectedBalance);
+
+        using var cancel = await owner.DeleteAsync(asTransfer
+            ? $"/api/v1/transfers/{explained.AdjustmentTransferId}"
+            : $"/api/v1/transactions/{explained.AdjustmentTransactionId}");
+        Assert.True(cancel.IsSuccessStatusCode);
+
+        var reopened = await owner.GetFromJsonAsync<CashCountTodayResponse>(todayPath);
+        Assert.Equal("cancelled", reopened!.Count!.AdjustmentStatus);
+        Assert.Equal("1000.0000", reopened.ExpectedBalance);
+        Assert.Equal("-100.0000", reopened.Count.Difference);
+        Assert.True(reopened.RequiresRecount);
+        // Bağ silinmez: sayımın bir kez açıklandığı bilgisi geçmiştir.
+        Assert.Equal(explained.AdjustmentTransferId, reopened.Count.AdjustmentTransferId);
+        Assert.Equal(explained.AdjustmentTransactionId, reopened.Count.AdjustmentTransactionId);
+
+        using var again = await owner.PostAsJsonAsync(
+            $"/api/v1/cash-counts/{count.Id}/adjustment", request);
+        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
+        Assert.Contains("cash_counts.recount_required", await again.Content.ReadAsStringAsync());
+        Assert.Equal(
+            "1000.0000",
+            (await MonthlyAsync(owner, today)).AccountBalances.Single(a => a.AccountId == till.Id).Balance);
+
+        var recount = await CountAsync(owner, till.Id, "900.0000", today);
+        using var second = await owner.PostAsJsonAsync(
+            $"/api/v1/cash-counts/{recount.Id}/adjustment", request);
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        var settled = await owner.GetFromJsonAsync<CashCountTodayResponse>(todayPath);
+        Assert.Equal("recorded", settled!.Count!.AdjustmentStatus);
+        Assert.Equal("900.0000", settled.ExpectedBalance);
+
+        // Geçmişte ikisi de durur: iptal edilen açıklamasıyla eski sayım ve
+        // yenisi.
+        var history = await owner.GetFromJsonAsync<CashCountListResponse>(
+            $"/api/v1/cash-counts?accountId={till.Id}&from={Date(today)}&to={Date(today)}");
+        Assert.Equal(
+            ["cancelled", "recorded"],
+            history!.Items.Select(item => item.AdjustmentStatus).Order().ToArray());
+    }
+
+    /// <summary>
+    /// KS4: önceki sayımın farkı bir geçmiş bilgisidir. Farkı için duran bir
+    /// kayıt yoksa (hiç yazılmadı ya da iptal edildi) durumuyla taşınır; bugün
+    /// kasa tutuyorsa taşınmaz, söylenecek şey yeni sonuçtur.
+    /// </summary>
+    [Fact]
+    public async Task PreviousDifference_IsHistoryWithItsStatusAndGivesWayToABalancedCount()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(
+            factory, "cash-previous-status@example.test");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var till = await CreateAccountAsync(owner, "Sentetik kasa", "cash", "1000.0000");
+        var expense = await FirstCategoryAsync(owner, "expense");
+        var todayPath = $"/api/v1/cash-counts/today?accountId={till.Id}";
+
+        var yesterday = await CountAsync(owner, till.Id, "900.0000", today.AddDays(-1));
+        var open = await owner.GetFromJsonAsync<CashCountTodayResponse>(todayPath);
+        Assert.Equal("-100.0000", open!.PreviousUnrecordedDifference);
+        Assert.Equal("none", open.PreviousCount!.AdjustmentStatus);
+
+        // Fark kaydedildi, sonra kayıt iptal edildi: bilgi durumuyla döner.
+        using var confirm = await owner.PostAsJsonAsync(
+            $"/api/v1/cash-counts/{yesterday.Id}/adjustment",
+            new ConfirmCashCountDifferenceRequest(expense.Id));
+        var explained = (await confirm.Content.ReadFromJsonAsync<CashCountResponse>())!;
+        using var cancel = await owner.DeleteAsync(
+            $"/api/v1/transactions/{explained.AdjustmentTransactionId}");
+        Assert.True(cancel.IsSuccessStatusCode);
+        var cancelled = await owner.GetFromJsonAsync<CashCountTodayResponse>(todayPath);
+        Assert.Equal("-100.0000", cancelled!.PreviousUnrecordedDifference);
+        Assert.Equal("cancelled", cancelled.PreviousCount!.AdjustmentStatus);
+
+        // Unutulan gider girildi ve kasa bugün tam sayıldı: eski fark artık
+        // söylenmez.
+        await RecordAsync(owner, till.Id, expense.Id, "100.0000", "expense", today);
+        await CountAsync(owner, till.Id, "900.0000", today);
+        var balanced = await owner.GetFromJsonAsync<CashCountTodayResponse>(todayPath);
+        Assert.Equal("0.0000", balanced!.Count!.Difference);
+        Assert.Null(balanced.PreviousUnrecordedDifference);
+        Assert.False(balanced.DifferenceSameAsPrevious);
+    }
+
+    private static async Task<AccountResponse> CreateScopedAccountAsync(
+        HttpClient client, string name, string type, string scope)
+    {
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/accounts", new CreateAccountRequest(name, type, "TRY", "0.0000", scope));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<AccountResponse>())!;
+    }
+
+    private static async Task<CategoryResponse> CategoryOfSideAsync(
+        HttpClient client, string type, string side)
+    {
+        var categories = await client.GetFromJsonAsync<CategoryListResponse>(
+            $"/api/v1/categories?type={type}");
+        return categories!.Items.First(item => item.DefaultScope == side);
+    }
+
     private static async Task<CashCountResponse> CountAsync(
         HttpClient client, Guid accountId, string counted, DateOnly date)
     {

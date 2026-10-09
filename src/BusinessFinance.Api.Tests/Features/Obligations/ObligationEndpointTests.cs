@@ -66,8 +66,14 @@ public sealed class ObligationEndpointTests
 
         var counterpartyBefore = await owner.GetFromJsonAsync<CounterpartyResponse>(
             $"/api/v1/counterparties/{counterparty.Id}?asOfDate=2026-08-21");
-        Assert.Equal("412.6000", counterpartyBefore!.Payable);
-        Assert.Equal("412.6000", counterpartyBefore.OverduePayable);
+        // Kişiye bağlı fatura cari bakiyeye girmez; toplamı yalnız bilgi
+        // olarak yanında döner.
+        Assert.Equal("0.0000", counterpartyBefore!.Payable);
+        Assert.Equal("0.0000", counterpartyBefore.OverduePayable);
+        Assert.Equal("0.0000", counterpartyBefore.Net);
+        Assert.True(counterpartyBefore.IsSettled);
+        Assert.Equal("412.6000", counterpartyBefore.OpenPayableObligations);
+        Assert.Equal("0.0000", counterpartyBefore.OpenReceivableObligations);
 
         var advanced = await owner.GetFromJsonAsync<AdvancedFinancialReportResponse>(
             "/api/v1/reports/advanced?year=2026&month=8&asOfDate=2026-08-10"
@@ -108,6 +114,7 @@ public sealed class ObligationEndpointTests
             $"/api/v1/counterparties/{counterparty.Id}?asOfDate=2026-08-21");
         Assert.Equal("0.0000", counterpartyAfter!.Payable);
         Assert.Equal("0.0000", counterpartyAfter.OverduePayable);
+        Assert.Equal("0.0000", counterpartyAfter.OpenPayableObligations);
 
         var plannedAfter = await owner.GetFromJsonAsync<PlannedActivityListResponse>(
             "/api/v1/financial-activities/planned?asOfDate=2026-08-21&daysAhead=30");
@@ -144,6 +151,115 @@ public sealed class ObligationEndpointTests
         var strangerFeed = await stranger.GetFromJsonAsync<FinancialActivityListResponse>(
             "/api/v1/financial-activities?pageNumber=1&pageSize=20");
         Assert.Empty(strangerFeed!.Items);
+    }
+
+    /// <summary>
+    /// Yanlış yazılan yükümlülük iptal edilebilir (silme yerine iptal). İptal
+    /// bir bütündür: tanınan gider de, varsa kapanışın hesaba etkisi de
+    /// birlikte geri alınır. 9 Ekim 2026'ya kadar bu uç yoktu ve iki kez
+    /// yazılan bir fatura düzeltilemiyordu.
+    /// </summary>
+    [Fact]
+    public async Task CancellingAnObligation_UndoesItsRecognitionAndItsSettlementTogether()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(
+            factory, "obligation-cancel@example.test");
+        using var stranger = await CreateAuthenticatedClientAsync(
+            factory, "obligation-cancel-stranger@example.test");
+        var category = await FirstCategoryAsync(owner, "expense");
+        var counterparty = await CreateCounterpartyAsync(owner, "Enerji Tedarik");
+        var account = await CreateAccountAsync(owner);
+
+        async Task<ObligationResponse> InvoiceAsync(string amount)
+        {
+            using var create = await owner.PostAsJsonAsync(
+                "/api/v1/obligations",
+                new CreateObligationRequest(
+                    "payable", amount, "TRY", category.Id, "2026-08-05", "2026-08-20",
+                    "business", counterparty.Id, "Ağustos elektrik faturası"));
+            Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+            return (await create.Content.ReadFromJsonAsync<ObligationResponse>())!;
+        }
+
+        async Task<string> ExpenseAsync() =>
+            (await owner.GetFromJsonAsync<MonthlyReportResponse>(
+                "/api/v1/reports/monthly?year=2026&month=8"))!.TotalExpense;
+
+        async Task<FinancialActivityResponse> RowAsync(Guid activityId) =>
+            Assert.Single(
+                (await owner.GetFromJsonAsync<FinancialActivityListResponse>(
+                    "/api/v1/financial-activities?pageNumber=1&pageSize=50&includeCancelled=true"))!
+                .Items,
+                item => item.ActivityId == activityId);
+
+        // Aynı fatura iki kez yazıldı; ikincisi iptal edilir.
+        var kept = await InvoiceAsync("412.6000");
+        var duplicate = await InvoiceAsync("412.6000");
+        Assert.Equal("825.2000", await ExpenseAsync());
+        Assert.True((await RowAsync(duplicate.Id)).CanCancel);
+
+        // Başkasının kaydı ile olmayan kayıt aynı cevaba gider.
+        using var foreign = await stranger.DeleteAsync($"/api/v1/obligations/{duplicate.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, foreign.StatusCode);
+        Assert.Equal("825.2000", await ExpenseAsync());
+
+        using var cancel = await owner.DeleteAsync($"/api/v1/obligations/{duplicate.Id}");
+        Assert.True(
+            cancel.StatusCode == HttpStatusCode.OK, await cancel.Content.ReadAsStringAsync());
+        Assert.Equal("cancelled", (await cancel.Content.ReadFromJsonAsync<ObligationResponse>())!.Status);
+
+        // Gider, kişinin bekleyen faturası, net varlık ve planlanan görünüm
+        // yalnız duran kaydı sayar.
+        Assert.Equal("412.6000", await ExpenseAsync());
+        var person = await owner.GetFromJsonAsync<CounterpartyResponse>(
+            $"/api/v1/counterparties/{counterparty.Id}");
+        Assert.Equal("412.6000", person!.OpenPayableObligations);
+        var advanced = await owner.GetFromJsonAsync<AdvancedFinancialReportResponse>(
+            "/api/v1/reports/advanced?year=2026&month=8&asOfDate=2026-08-10"
+            + "&trendMonths=2&daysAhead=30");
+        Assert.Equal("412.6000", advanced!.NetWorth.PayableDebt);
+        var planned = await owner.GetFromJsonAsync<PlannedActivityListResponse>(
+            "/api/v1/financial-activities/planned?asOfDate=2026-08-10&daysAhead=30");
+        Assert.DoesNotContain(planned!.Items, item => item.PlannedActivityId == duplicate.Id);
+        Assert.Contains(planned.Items, item => item.PlannedActivityId == kept.Id);
+
+        // İptal edilmiş satır akışta iptal edilmiş görünür ve yeniden iptal
+        // edilemez; istek tekrarlanırsa aynı sonuç döner.
+        var cancelledRow = await RowAsync(duplicate.Id);
+        Assert.Equal(("cancelled", false), (cancelledRow.Status, cancelledRow.CanCancel));
+        using var again = await owner.DeleteAsync($"/api/v1/obligations/{duplicate.Id}");
+        Assert.Equal(HttpStatusCode.OK, again.StatusCode);
+        Assert.Equal("412.6000", await ExpenseAsync());
+
+        // İptal edilmiş yükümlülük kapatılamaz.
+        using var settleCancelled = await owner.PostAsJsonAsync(
+            $"/api/v1/obligations/{duplicate.Id}/settlement",
+            new SettleObligationRequest(account.Id, "2026-08-21"));
+        Assert.Equal(HttpStatusCode.Conflict, settleCancelled.StatusCode);
+
+        // Ödenmiş faturanın iptali ödemeyi de iptal eder: para hesaba döner,
+        // gider düşer. Kapanış satırı tek başına iptal edilemez.
+        using var settle = await owner.PostAsJsonAsync(
+            $"/api/v1/obligations/{kept.Id}/settlement",
+            new SettleObligationRequest(account.Id, "2026-08-21"));
+        var settled = (await settle.Content.ReadFromJsonAsync<ObligationResponse>())!;
+        Assert.Equal(
+            "587.4000",
+            (await owner.GetFromJsonAsync<AccountResponse>($"/api/v1/accounts/{account.Id}"))!.Balance);
+        Assert.False((await RowAsync(settled.SettlementId!.Value)).CanCancel);
+        Assert.True((await RowAsync(kept.Id)).CanCancel);
+
+        using var cancelPaid = await owner.DeleteAsync($"/api/v1/obligations/{kept.Id}");
+        Assert.Equal(HttpStatusCode.OK, cancelPaid.StatusCode);
+        Assert.Equal(
+            "1000.0000",
+            (await owner.GetFromJsonAsync<AccountResponse>($"/api/v1/accounts/{account.Id}"))!.Balance);
+        Assert.Equal("0.0000", await ExpenseAsync());
+        Assert.Equal("cancelled", (await RowAsync(settled.SettlementId.Value)).Status);
+        var closedPerson = await owner.GetFromJsonAsync<CounterpartyResponse>(
+            $"/api/v1/counterparties/{counterparty.Id}");
+        Assert.Equal("0.0000", closedPerson!.OpenPayableObligations);
     }
 
     [Fact]

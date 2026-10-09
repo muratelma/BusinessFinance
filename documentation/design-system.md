@@ -618,6 +618,33 @@ kişi hem müşteri hem tedarikçi olabilir ve tek sayıya indirmek hangi
 tarafın açık olduğunu gizlerdi. Taksitli sözleşmeler ayrı kartta ve
 "bakiyeye eklenmez" notuyla durur.
 
+Kartta hiçbir tutar eksi işaretle yazılmaz (9 Ekim 2026). İki satır kısa
+adlarını korur: `Size borcu` gelir tonunda, `Sizin borcunuz` gider tonunda;
+fazla tahsilat borcumuz satırına, fazla ödeme alacak satırına yazılır
+(tutarlar sunucudan). Eskiden `Size borcu −₺300,00` gelir tonundaydı ve alacak
+gibi okunuyordu: ton işaretin tersini söylüyordu. `Net` satırı tarafı adıyla
+taşır (`Net - Borcunuz` gider tonunda, `Net - Alacağınız` gelir tonunda);
+renk tek başına taraf anlatmaz. İlk denemedeki uzun etiket (`Fazla tahsilat ·
+sizin borcunuz`) ve `Net · siz borçlusunuz` kullanıcı tarafından reddedildi:
+etiketler kısa kalır.
+
+Yükümlülüğün iptali var olan iki kalıbı kullanır: kapanış panelinin altında
+hata tonunda, 48 dp `Kaydı iptal et` metin düğmesi (POS tahsilatı ayrıntısındaki
+düğmenin aynısı) ve `AppConfirmDialog` (ikon, başlık, kaydı gösteren vurgu, tek
+cümle, yıkıcı birincil düğme).
+
+Kişiye bağlı açık faturalar da ayrı karttadır (`Bekleyen faturalar`, 9 Ekim
+2026): düğmelerin altında, sözleşmelerin üstünde. Satırlar `AppListRow`
+(yön ikonu, ad, `Ödenecek · Vade 20 Ağustos · Gecikmiş`, tutar), altında
+ayırıcı ve sunucudan gelen toplam satırı. Kartta düğme yoktur; tek satırlık
+notu nereden kapatılacağını söyler. Bu, mevcut dille kurulmuş geçici hâldir:
+cari borç, faturalar ve borç planlarının birlikte duruşu cari sayfası
+çizilirken kararlaştırılır.
+
+`Diğer` menüsünde `Cari hesap` satırı işletmesi olana ve cari hareketi olana
+çizilir (`ScopeController.showsCounterpartyLedger`); diğer kullanıcıda satır
+yoktur, grup bir satır kısalır.
+
 Pasif karşı tarafta borçlandırma butonları kapalı, tahsilat açıktır ve
 sebebi `AppInlineNotice` ile satırın yanında yazar — kapalı bir butonun
 neden kapalı olduğu ekranda görünmezse kullanıcı hatayı kendinde arar.

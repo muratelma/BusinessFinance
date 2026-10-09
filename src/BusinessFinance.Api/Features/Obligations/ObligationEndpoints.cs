@@ -34,7 +34,30 @@ public static class ObligationEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
+
+        // Silme yerine iptal. Kapanmış yükümlülükte kapanış da birlikte iptal
+        // olur; yatışa ya da gün sonuna bağlıysa 409 önce onu geri aldırır.
+        endpoints.MapDelete("/api/v1/obligations/{id:guid}", CancelAsync)
+            .WithTags("Obligations")
+            .WithName("CancelObligation")
+            .RequireAuthorization()
+            .Produces<ObligationResponse>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
         return endpoints;
+    }
+
+    private static async Task<IResult> CancelAsync(
+        Guid id,
+        CancelObligationUseCase useCase,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var result = await useCase.ExecuteAsync(id, cancellationToken);
+        return result.IsSuccess
+            ? Results.Ok(ToResponse(result.Value))
+            : result.Error.ToProblemResult(httpContext);
     }
 
     private static async Task<IResult> ListAsync(

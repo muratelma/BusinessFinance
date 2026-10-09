@@ -27,4 +27,51 @@ void main() {
     );
     expect(CashCountToday.fromJson(today()).requiresRecount, isFalse);
   });
+
+  Map<String, dynamic> count({
+    String? status,
+    String? transaction,
+    String? transfer,
+  }) => {
+    'id': 'count',
+    'accountId': 'cash-account',
+    'accountName': 'Merkez kasa',
+    'countDate': '2026-10-08',
+    'countedAmount': '900.0000',
+    'currency': 'TRY',
+    'isCancelled': false,
+    'adjustmentTransactionId': transaction,
+    'adjustmentTransferId': transfer,
+    'adjustmentStatus': ?status,
+  };
+
+  // "Fark kaydedildi" demek için kaydın **durması** gerekir: iptal edilmiş
+  // kayıt sayımı kaydedilmiş saymaz. Aktarımla açıklanan fark da kaydedilmiştir.
+  test(
+    'a count is adjusted only while the record of its difference stands',
+    () {
+      final byTransfer = CashCountItem.fromJson(
+        count(status: 'recorded', transfer: 'transfer'),
+      );
+      expect(byTransfer.isAdjusted, isTrue);
+      expect(byTransfer.adjustmentTransferId, 'transfer');
+
+      final cancelled = CashCountItem.fromJson(
+        count(status: 'cancelled', transaction: 'transaction'),
+      );
+      expect(cancelled.isAdjusted, isFalse);
+      expect(cancelled.adjustmentCancelled, isTrue);
+
+      final open = CashCountItem.fromJson(count(status: 'none'));
+      expect(open.isAdjusted, isFalse);
+      expect(open.adjustmentCancelled, isFalse);
+
+      // Alanı göndermeyen eski sunucu: bağ varsa kaydedilmiş sayılır.
+      expect(
+        CashCountItem.fromJson(count(transaction: 'transaction')).isAdjusted,
+        isTrue,
+      );
+      expect(CashCountItem.fromJson(count()).isAdjusted, isFalse);
+    },
+  );
 }

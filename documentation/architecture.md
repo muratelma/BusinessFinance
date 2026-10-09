@@ -823,8 +823,54 @@ tablosuna yazmadığı için kasa bakiyesi değişmez.
 türetir. `POST /api/v1/obligations/{id}/settlement` current user'ın aktif ve
 aynı para birimindeki hesabını çözer; tek settlement'ı yazar. Nakit etkisi hesap
 bakiyesi, rapor bakiyeleri ve `obligation-settlement` feed satırında görünür;
-kategori/kapsam taşımadığı için aylık gelir-gider ikinci kez değişmez. Karşı
-taraflı açık yükümlülük cari bakiyeye katılır, settlement sonrasında düşer.
+kategori/kapsam taşımadığı için aylık gelir-gider ikinci kez değişmez.
+
+**Kaydın günü kullanıcının takvimiyle gelir** (`LocalDay`, 9 Ekim 2026). Sunucu
+saati UTC tutar; Türkiye'de gece yarısından 03:00'e kadar kullanıcının "bugün"ü
+sunucunun UTC gününden bir gün ileridedir. "Gün gelecekte olamaz" denetimi UTC
+günüyle yapıldığı için o saatlerde bugünün tarihiyle kasa sayımı, gün sonu, POS
+tahsilatı, POS yatışı, yükümlülük, yükümlülüğün kapanışı ve tasarruf hedefine
+katkı reddediliyordu (gider ve cari kayıt kabul ediliyordu). Yedi denetim artık
+`LocalDay.LatestAllowed` ile UTC gününe **bir gün pay** tanır; iki gün sonrası
+reddedilir. Sunucu saat dilimi tutmaz: hiçbir saat dilimi UTC'den bir takvim
+gününden fazla ileride değildir. Vergi ödemesi aynı payı önceden kullanıyordu.
+Okuma tarafında iki yer aynı sebeple değişti: `GET /api/v1/cash-counts/today`
+isteğe bağlı `date` alır (cihazın günü; UTC gününden en çok bir gün uzaksa
+kullanılır, değilse sunucunun günü) ve kasa sayımı ile POS tahsilatı
+listelerinin varsayılan bitiş günü UTC günü + 1'dir. Geri kalan "bugün"
+okumaları (gecikme rozetleri, varsayılan `asOfDate`) UTC günüyle kalır; gece üç
+saat boyunca bir gün geriden okuyabilirler, para toplamını etkilemezler.
+
+**Yükümlülük iptal edilebilir** (`CancelObligationUseCase`, `DELETE
+/api/v1/obligations/{id}`; 9 Ekim 2026). Aggregate iptali zaten biliyordu
+(`Obligation.Cancel` kapanışını da iptal eder) ama uç yoktu; iki kez yazılan
+bir fatura düzeltilemiyordu. İptal bir bütündür: tanınan gelir/gider, kapanışın
+hesaba etkisi ve kartla tahsilde yoldaki POS kaydı tek `SaveChanges` ile düşer.
+Kapanışın tek başına geri alınması yoktur. Cari tahsilatın iptaliyle aynı iki
+kilit uygulanır: POS kaydı bir yatışa bağlıysa `obligations.deposit_locked`,
+kapanış ya da POS kaydı bir gün sonunda sayıldıysa
+`obligations.day_close_counted`. Okuma tarafında yeni bir şey yoktur: bütün
+toplamlar iptal edilmiş yükümlülüğü ve kapanışı zaten eliyordu.
+
+**Kişiye bağlı yükümlülük cari bakiyeye girmez** (Aşama 06.3 C3–C4, 9 Ekim
+2026; bir okuma kuralıdır, yazılmış kayıt ve yedek değişmez). Kişi yükümlülüğün
+bilgisidir; yükümlülük yalnız kendi kapanışıyla kapanır. Cari bakiye yalnız
+cari hareketlerden (`CounterpartyCharge`, `CounterpartyPayment`) oluşur. Değişen
+üç okuma: kişinin bakiyesi (`EfCounterpartyRepository.ProjectBalances`; gecikmiş
+tutar da yalnız borçlandırmalardan), işlem sonrası açık bakiye
+(`CounterpartyNet`) ve yükümlülük ile kapanışının ayrıntısı
+(`EfFinancialActivityRepository`: cari satırı dönmez). Eskiden açık yükümlülük
+bakiyeye katılıyordu ve aynı borç hem cari `Ödeme` ile hem yükümlülüğün
+kapanışıyla iki kez ödenebiliyordu. Kişinin cevabı açık yükümlülüklerin
+toplamını iki ayrı alanda **bilgi olarak** taşır (`openReceivableObligations`,
+`openPayableObligations`); `receivable`, `payable`, `net`, `isSettled` ve
+`balance=open` süzgeci bunları içermez. Net varlık ve planlanan görünüm
+yükümlülüğü kendi tablosundan okumaya devam eder.
+
+`GET /api/v1/profile` cevabı `hasCounterpartyLedger` da taşır: kullanıcının
+iptal edilmemiş bir cari hareketi var mı. İstemci `Cari hesap` kapısını
+işletmesi olana ve bu işareti taşıyana gösterir (C6: gizleme bir ön ayardır,
+kilit değildir); sunucu hiçbir cari ucunu cevaba göre kapatmaz.
 
 ## Gün sonu kasa sayımı
 
@@ -1268,7 +1314,8 @@ yoldaki tutarı okuyan filtrenin aynısıyla tek bir `MIN` sorgusudur.
 ### Kasa ve POS yazma uçları
 
 ```text
-GET  /api/v1/cash-counts/today?accountId=   beklenen bakiye + o günün sayımı
+GET  /api/v1/cash-counts/today?accountId=&date=   beklenen bakiye + o günün sayımı
+                                            (`date`: cihazın takvim günü, isteğe bağlı)
                                             + son sayım + bugünkü nakit giriş/çıkış
 GET  /api/v1/cash-counts                    geçmiş sayımlar
 POST /api/v1/cash-counts                    gün sonu sayımı (gözlem)
@@ -1311,6 +1358,19 @@ GET  /api/v1/pos-definitions/{id}/preview   komisyon, net ve beklenen gün
 bakiyesindeki değişim (farkı kaydedilmiş sayımda güncel bakiye − sayılan,
 kaydedilmemişte güncel bakiye − sayım anındaki beklenen; gözlem yoksa boş).
 Farkın anlamını değiştirmez; ekranın "oturdu" diyememesi için vardır.
+
+**Bir sayımın farkı tek kayıtla açıklanır** (KS2): ya bir gelir/gider
+(`AdjustmentTransactionId`) ya bir aktarım (`AdjustmentTransferId`; eksik para
+kasadan şahsi hesaba geçmişse). İkisi birden dolu olamaz (Domain ve
+`CK_CashCounts_Adjustment`). `adjustment` isteği `tookForMyself: true` ile
+gelirse `personalAccountId` (şahsi etiketli, aktif, başka bir hesap) aktarım,
+`categoryId` (işletmeye özel olmayan) şahsi gider yazar; tutar farkın tamamı,
+gün sayımın günüdür ve kayıtla sayımdaki bağ **tek yazmada** kaydedilir.
+Açıklamanın durumu (`adjustmentStatus`: `none` / `recorded` / `cancelled`)
+kalıcı alan değildir; bağlı kaydın güncel durumundan okunur. Bağlı kayıt iptal
+edilince bağ silinmez ve sayım yeniden açılmaz (KS3): yeni fark kaydı yeni bir
+sayım ister. `today` cevabındaki `previousUnrecordedDifference` yalnız önceki
+sayımın farkı için duran bir kayıt yoksa ve bugün kasa tutmuyorsa doludur (KS4).
 
 **Fark yalnız güncel sayıma yazılır** (kullanıcı kararı, 8 Ekim 2026;
 `CashCount.RequiresRecount`). Sayımdan sonra o kasaya kayıt girildiyse

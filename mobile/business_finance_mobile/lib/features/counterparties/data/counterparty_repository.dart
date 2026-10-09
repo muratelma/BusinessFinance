@@ -2,6 +2,7 @@ import '../../../core/models/data_choice.dart';
 import '../../../core/models/json_readers.dart';
 import '../../../core/network/api_client.dart';
 import '../../activities/data/activity_models.dart';
+import '../../obligations/data/obligation_repository.dart';
 import 'counterparty_models.dart';
 
 abstract interface class CounterpartyRepositoryContract {
@@ -67,7 +68,8 @@ class CounterpartyRepository implements CounterpartyRepositoryContract {
     );
   }
 
-  /// Üç okuma tek ekran için: kişi, hareketleri ve sözleşmeleri.
+  /// Dört okuma tek ekran için: kişi, hareketleri, sözleşmeleri ve bekleyen
+  /// faturaları.
   ///
   /// Hareketler birleşik feed'den geliyor, ikinci bir geçmiş modelinden değil:
   /// aynı hareketi iki ayrı yerden okumak, iki farklı sıralama ve iki farklı
@@ -89,7 +91,17 @@ class CounterpartyRepository implements CounterpartyRepositoryContract {
       // ve tarihsiz istek `request.invalid_format` ile reddedilir. Borç ekranı
       // da aynı parametreyi gönderiyor; ikisi aynı soruyu soruyor.
       _client.get('/api/v1/debts?asOfDate=$asOfDate'),
+      // Kişiye bağlı açık faturalar: cari bakiyenin dışındadır, ayrı blokta
+      // gösterilir. Toplamları kişinin cevabında gelir; burada toplanmaz.
+      _client.get('/api/v1/obligations?asOfDate=$asOfDate'),
     ]);
+    final pendingObligations = _items(responses[3].requireObject())
+        .map(ObligationItem.fromJson)
+        .where(
+          (item) =>
+              item.counterpartyId == counterpartyId && item.status == 'open',
+        )
+        .toList(growable: false);
     final agreements = _items(responses[2].requireObject())
         .where(
           (item) =>
@@ -101,6 +113,7 @@ class CounterpartyRepository implements CounterpartyRepositoryContract {
       counterparty: CounterpartySummary.fromJson(responses[0].requireObject()),
       activities: ActivityPage.fromJson(responses[1].requireObject()).items,
       agreements: agreements,
+      pendingObligations: pendingObligations,
     );
   }
 

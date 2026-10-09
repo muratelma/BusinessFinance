@@ -94,9 +94,18 @@ public sealed class ObligationTests
 
         Assert.Equal(new DateOnly(2026, 8, 10), overdue.DueDate);
         Assert.Equal(new DateOnly(2026, 9, 10), upcoming.DueDate);
+        // Kullanıcının günü sunucunun UTC gününden bir gün ileride olabilir
+        // (`LocalDay`): gece yarısından sonra bugünün tarihi kabul edilir, iki
+        // gün sonrası reddedilir.
+        Assert.Equal(
+            new DateOnly(2026, 8, 25),
+            NewObligation(
+                userId,
+                issueDate: new DateOnly(2026, 8, 25),
+                dueDate: new DateOnly(2026, 9, 10)).IssueDate);
         Assert.Throws<ArgumentOutOfRangeException>(() => NewObligation(
             userId,
-            issueDate: new DateOnly(2026, 8, 25),
+            issueDate: new DateOnly(2026, 8, 26),
             dueDate: new DateOnly(2026, 9, 10)));
         Assert.Throws<ArgumentOutOfRangeException>(() => NewObligation(
             userId,
@@ -204,11 +213,20 @@ public sealed class ObligationTests
             NewAccount(userId),
             new DateOnly(2026, 8, 19),
             CreatedAtUtc));
+        // Kullanıcının günü sunucunun UTC gününden bir gün ileride olabilir
+        // (`LocalDay`): gece yarısından sonra bugünün tarihi kabul edilir, iki
+        // gün sonrası reddedilir.
         Assert.Throws<ArgumentOutOfRangeException>(() => obligation.Settle(
             Guid.NewGuid(),
             NewAccount(userId),
-            new DateOnly(2026, 8, 25),
+            new DateOnly(2026, 8, 26),
             CreatedAtUtc));
+        var settledAtNight = obligation.Settle(
+            Guid.NewGuid(),
+            NewAccount(userId),
+            new DateOnly(2026, 8, 25),
+            CreatedAtUtc);
+        Assert.Equal(new DateOnly(2026, 8, 25), settledAtNight.SettlementDate);
     }
 
     [Fact]

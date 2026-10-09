@@ -414,6 +414,9 @@ void main() {
 
 class _FakeObligationRepository implements ObligationRepositoryContract {
   @override
+  Future<void> cancel(String obligationId) async {}
+
+  @override
   Future<ObligationOptions> loadOptions({required String categoryType}) async =>
       const ObligationOptions(
         categories: [DataChoice('category-1', 'Faturalar')],

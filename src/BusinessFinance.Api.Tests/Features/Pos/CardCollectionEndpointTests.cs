@@ -266,6 +266,79 @@ public sealed class CardCollectionEndpointTests
         Assert.Equal("obligations.card_requires_receivable", await CodeAsync(refused));
     }
 
+    /// <summary>
+    /// Kartla tahsil edilmiş alacağın iptali yoldaki POS kaydını da iptal eder
+    /// (tek olay, tek iptal); parası bir yatışla hesaba geçtiyse önce yatış
+    /// geri alınır.
+    /// </summary>
+    [Fact]
+    public async Task ReceivableCollectedByCard_IsCancelledWithItsPosRecord_UnlessADepositHoldsIt()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(factory, "card-obligation-cancel@example.test");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var f = await SeedAsync(owner);
+        var customer = await CreateCounterpartyAsync(owner, "Ayşe Hanım");
+
+        async Task<ObligationResponse> CollectByCardAsync()
+        {
+            var receivable = await CreateObligationAsync(
+                owner, "receivable", f.SalesCategoryId, customer.Id, today);
+            using var settle = await owner.PostAsJsonAsync(
+                $"/api/v1/obligations/{receivable.Id}/settlement",
+                new SettleObligationRequest(
+                    null, Date(today), new CardCollectionRequest(PosDefinitionId: f.PosDefinitionId)));
+            Assert.Equal(HttpStatusCode.OK, settle.StatusCode);
+            return (await settle.Content.ReadFromJsonAsync<ObligationResponse>())!;
+        }
+
+        async Task<bool> CanCancelAsync(Guid obligationId) =>
+            Assert.Single(
+                (await owner.GetFromJsonAsync<FinancialActivityListResponse>(
+                    "/api/v1/financial-activities?pageNumber=1&pageSize=50"))!.Items,
+                item => item.ActivityId == obligationId).CanCancel;
+
+        async Task<IReadOnlyList<PosSettlementResponse>> InTransitAsync() =>
+            (await owner.GetFromJsonAsync<PosSettlementListResponse>(
+                "/api/v1/pos-settlements?inTransitOnly=true"))!.Items;
+
+        // Yoldayken iptal: alacak, kapanışı, yoldaki para ve komisyon gideri
+        // birlikte düşer.
+        var first = await CollectByCardAsync();
+        Assert.Single(await InTransitAsync());
+        using var cancel = await owner.DeleteAsync($"/api/v1/obligations/{first.Id}");
+        Assert.True(
+            cancel.StatusCode == HttpStatusCode.OK, await cancel.Content.ReadAsStringAsync());
+        Assert.Equal("cancelled", (await cancel.Content.ReadFromJsonAsync<ObligationResponse>())!.Status);
+        Assert.Empty(await InTransitAsync());
+        Assert.Equal((0m, 0m), await ReportAsync(owner, today));
+        Assert.Equal("1000.0000", await BalanceAsync(owner, f.AccountId));
+
+        // Yatışla hesaba geçtikten sonra iptal reddedilir ve hiçbir şey
+        // değişmez; yatış geri alınınca iptal edilebilir.
+        var second = await CollectByCardAsync();
+        var collection = Assert.Single(await InTransitAsync());
+        Assert.True(await CanCancelAsync(second.Id));
+        var deposit = await DepositAsync(owner, [collection.Id], "492.5000", today);
+        // Akış satırı kilidi bilir: düğme gösterilmez, uç da reddeder.
+        Assert.False(await CanCancelAsync(second.Id));
+        using var locked = await owner.DeleteAsync($"/api/v1/obligations/{second.Id}");
+        Assert.Equal(HttpStatusCode.Conflict, locked.StatusCode);
+        Assert.Equal("obligations.deposit_locked", await CodeAsync(locked));
+        Assert.Equal((500m, 7.5m), await ReportAsync(owner, today));
+        Assert.Equal("1492.5000", await BalanceAsync(owner, f.AccountId));
+
+        using var revert = await owner.DeleteAsync($"/api/v1/pos-deposits/{deposit.Id}");
+        Assert.True(
+            revert.StatusCode == HttpStatusCode.OK, await revert.Content.ReadAsStringAsync());
+        Assert.True(await CanCancelAsync(second.Id));
+        using var afterRevert = await owner.DeleteAsync($"/api/v1/obligations/{second.Id}");
+        Assert.Equal(HttpStatusCode.OK, afterRevert.StatusCode);
+        Assert.Empty(await InTransitAsync());
+        Assert.Equal((0m, 0m), await ReportAsync(owner, today));
+        Assert.Equal("1000.0000", await BalanceAsync(owner, f.AccountId));
+    }
+
     /// <summary>Başka kullanıcının POS'u kartla tahsilde kullanılamaz.</summary>
     [Fact]
     public async Task CardCollection_CannotUseAnotherUsersPos()

@@ -329,7 +329,7 @@ public sealed class PosSettlement
         }
 
         if (settlementDate == default ||
-            settlementDate > DateOnly.FromDateTime(createdAtUtc.UtcDateTime))
+            settlementDate > LocalDay.LatestAllowed(createdAtUtc))
         {
             throw new ArgumentOutOfRangeException(
                 nameof(settlementDate),

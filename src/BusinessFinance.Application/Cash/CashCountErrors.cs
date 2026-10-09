@@ -34,6 +34,21 @@ public static class CashCountErrors
         "The count matched the expected balance; there is no difference to record.",
         ApplicationErrorType.Conflict);
 
+    public static readonly ApplicationError WithdrawalNotApplicable = new(
+        "cash_counts.withdrawal_not_applicable",
+        "Taking the money applies only to a shortage and needs either a personal account or a category.",
+        ApplicationErrorType.Validation);
+
+    public static readonly ApplicationError PersonalAccountUnavailable = new(
+        "cash_counts.personal_account_unavailable",
+        "An active owned personal account other than the counted one is required.",
+        ApplicationErrorType.Validation);
+
+    public static readonly ApplicationError ScopeConflict = new(
+        "cash_counts.scope_conflict",
+        "Money the owner took is a personal expense; the category belongs to the business.",
+        ApplicationErrorType.Validation);
+
     public static readonly ApplicationError RecountRequired = new(
         "cash_counts.recount_required",
         "The cash account changed after this count; count again to record a difference.",

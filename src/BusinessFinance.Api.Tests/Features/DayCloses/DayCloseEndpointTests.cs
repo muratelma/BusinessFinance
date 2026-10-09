@@ -612,10 +612,12 @@ public sealed class DayCloseEndpointTests
                 Date(today.AddDays(-5)), CashAmount: "100.0000", ZNumber: 3143,
                 ClientRequestId: Guid.NewGuid()));
 
+        // Kullanıcının günü UTC gününden bir gün ileride olabilir (`LocalDay`);
+        // ret iki gün sonrasında başlar.
         await AssertRejectedAsync(
             owner, HttpStatusCode.BadRequest, "day_closes.invalid_date",
             new DayCloseRequest(
-                Date(today.AddDays(1)), CashAmount: "100.0000", ClientRequestId: Guid.NewGuid()));
+                Date(today.AddDays(2)), CashAmount: "100.0000", ClientRequestId: Guid.NewGuid()));
         await AssertRejectedAsync(
             owner, HttpStatusCode.BadRequest, "day_closes.invalid_date",
             new DayCloseRequest(

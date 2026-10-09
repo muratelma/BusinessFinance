@@ -143,7 +143,7 @@ class ActivityController extends ChangeNotifier {
         case ActivityKind.counterpartyCharge:
         case ActivityKind.counterpartySettlement:
           financialDataChanges?.counterpartyLedgerChanged();
-        // Bu beş tür feed üzerinden iptal edilemiyor (canCancel:false), yani
+        // Bu üç tür feed üzerinden iptal edilemiyor (canCancel:false), yani
         // buraya hiç düşmezler. Yine de sessiz bir dal bırakmak, ileride biri
         // iptal edilebilir olduğunda hangi ekranların yenileneceğini kimseye
         // sormadan geçirirdi.
@@ -151,8 +151,10 @@ class ActivityController extends ChangeNotifier {
         case ActivityKind.posSale:
         case ActivityKind.posDeposit:
           financialDataChanges?.transactionsChanged();
+        // Yükümlülüğün iptali tanınan gelir/gideri ve varsa kapanışın
+        // taşıdığı parayı birlikte geri alır.
         case ActivityKind.obligation:
-          financialDataChanges?.obligationRecognized();
+          financialDataChanges?.obligationCancelled();
       }
       successMessage = 'Hareket iptal edildi.';
       await load();

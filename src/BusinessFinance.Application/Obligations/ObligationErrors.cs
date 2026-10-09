@@ -43,6 +43,26 @@ public static class ObligationErrors
         "An active owned account with the matching currency is required.",
         ApplicationErrorType.Validation);
 
+    /// <summary>
+    /// Alacak kartla tahsil edilmiş ve parası bir yatışla hesaba geçmiş; önce
+    /// yatış geri alınır (ADR 0019 T5).
+    /// </summary>
+    public static readonly ApplicationError DepositLocked = new(
+        "obligations.deposit_locked",
+        "An obligation collected by card that reached the account through a deposit cannot be cancelled; revert the deposit first.",
+        ApplicationErrorType.Conflict);
+
+    /// <summary>Kapanışı bir gün sonunda sayıldı; önce gün sonu geri alınır.</summary>
+    public static readonly ApplicationError DayCloseCounted = new(
+        "obligations.day_close_counted",
+        "An obligation whose settlement was counted in a day close cannot be cancelled; revert the day close first.",
+        ApplicationErrorType.Conflict);
+
+    public static readonly ApplicationError Changed = new(
+        "obligations.concurrent_change",
+        "The obligation changed while it was being cancelled; reload and try again.",
+        ApplicationErrorType.Conflict);
+
     public static ApplicationError NotFound(Guid id) => new(
         "obligations.not_found",
         $"Obligation '{id}' was not found.",

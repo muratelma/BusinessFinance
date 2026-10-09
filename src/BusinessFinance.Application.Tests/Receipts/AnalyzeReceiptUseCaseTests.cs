@@ -919,6 +919,9 @@ public sealed class AnalyzeReceiptUseCaseTests
     {
         public bool WasAsked { get; private set; }
 
+        public Task<bool> HasLedgerEntriesAsync(Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public Task<Counterparty?> FindOwnedByNameAsync(
             Guid userId, string name, CancellationToken cancellationToken)
         {

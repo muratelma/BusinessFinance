@@ -745,9 +745,17 @@ class _Actions extends StatelessWidget {
       title: 'Hareket iptal edilsin mi?',
       highlight:
           '$effectLabel · ${MoneyText.format(activity.amount, activity.currency)}',
-      message:
+      // Yükümlülük bir bütün olarak iptal edilir: ödendiyse ödemesi de
+      // birlikte iptal olur. Satır ödenip ödenmediğini bilmez; cümle iki
+      // hâli de söyler (`Yükümlülükler` ekranındaki onayla aynı bilgi).
+      message: switch (activity.kind) {
+        ActivityKind.obligation when activity.effect == ActivityEffect.income =>
+          'Tahsil edildiyse tahsilatı da iptal edilir.',
+        ActivityKind.obligation => 'Ödendiyse ödemesi de iptal edilir.',
+        _ =>
           'Kayıt silinmez; iptal edildi olarak işaretlenir ve toplamları '
-          'artık etkilemez.',
+              'artık etkilemez.',
+      },
       confirmLabel: 'Hareketi iptal et',
     );
     if (!confirmed) return;

@@ -338,17 +338,11 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                         null,
                         null)
                     {
+                        // Kişiye bağlı yükümlülüğün kapanışı cari bakiyeyi
+                        // değiştirmez; cari satırı dönmez.
                         AccountIncreases = item.PosSettlementId != null
                             ? null
-                            : item.Direction == DebtDirection.Receivable,
-                        CounterpartyId = dbContext.Obligations
-                            .Where(obligation => obligation.UserId == item.UserId &&
-                                                 obligation.Id == item.ObligationId)
-                            .Select(obligation => obligation.CounterpartyId)
-                            .FirstOrDefault(),
-                        CounterpartyNetDelta = item.Direction == DebtDirection.Payable
-                            ? item.Amount.Amount
-                            : -item.Amount.Amount
+                            : item.Direction == DebtDirection.Receivable
                     })
                     .SingleOrDefaultAsync(cancellationToken);
 
@@ -391,7 +385,8 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                     .SingleOrDefaultAsync(cancellationToken);
 
             case FinancialActivityKind.Obligation:
-                // Karşı tarafı olmayan yükümlülükte gösterilecek bir cari yoktur.
+                // Yükümlülük hesaba dokunmaz ve kişisi olsa da cari bakiyeye
+                // girmez: gösterilecek bir bakiye yoktur.
                 return await dbContext.Obligations.AsNoTracking()
                     .Where(item => item.UserId == userId && item.Id == activityId)
                     .Select(item => new LocatedActivity(
@@ -401,13 +396,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                         null,
                         null,
                         null,
-                        null)
-                    {
-                        CounterpartyId = item.CounterpartyId,
-                        CounterpartyNetDelta = item.Direction == DebtDirection.Receivable
-                            ? item.Amount.Amount
-                            : -item.Amount.Amount
-                    })
+                        null))
                     .SingleOrDefaultAsync(cancellationToken);
 
             case FinancialActivityKind.PosSale:
@@ -622,6 +611,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Direction = (int?)null,
                 SettlementCount = (int?)null,
                 // Gün sonunun yazdığı ya da saydığı kayıt.
+                CancelLocked = false,
                 DayCloseId = transaction.DayCloseId ?? dbContext.DayCloseCountedRecords
                         .Where(counted => counted.UserId == userId &&
                                           counted.Kind == DayCloseRecordKind.Income &&
@@ -679,6 +669,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
                 SettlementCount = (int?)null,
+                CancelLocked = false,
                 DayCloseId = (Guid?)null,
                 MatchAccountId = source.Id,
                 MatchSecondAccountId = destination.Id,
@@ -736,6 +727,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
                 SettlementCount = (int?)null,
+                CancelLocked = false,
                 DayCloseId = (Guid?)null,
                 MatchAccountId = null,
                 MatchSecondAccountId = null,
@@ -788,6 +780,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
                 SettlementCount = (int?)null,
+                CancelLocked = false,
                 DayCloseId = (Guid?)null,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
@@ -851,6 +844,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
                 SettlementCount = (int?)null,
+                CancelLocked = false,
                 DayCloseId = (Guid?)null,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
@@ -908,6 +902,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
                 SettlementCount = (int?)null,
+                CancelLocked = false,
                 DayCloseId = (Guid?)null,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = null,
@@ -966,6 +961,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
                 SettlementCount = (int?)null,
+                CancelLocked = false,
                 DayCloseId = (Guid?)null,
                 MatchAccountId = null,
                 MatchSecondAccountId = null,
@@ -1027,6 +1023,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)charge.Direction,
                 SettlementCount = (int?)null,
+                CancelLocked = false,
                 DayCloseId = (Guid?)null,
                 MatchAccountId = null,
                 MatchSecondAccountId = null,
@@ -1097,6 +1094,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 SettlementCount = (int?)null,
                 // Nakit tahsilat kendi kaydıyla, kartla tahsil POS kaydıyla
                 // sayılır (gün sonunun kart tarafı).
+                CancelLocked = false,
                 DayCloseId = dbContext.DayCloseCountedRecords
                         .Where(counted => counted.UserId == userId &&
                                           ((counted.Kind == DayCloseRecordKind.CounterpartyPayment &&
@@ -1159,6 +1157,25 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)obligation.Direction,
                 SettlementCount = (int?)null,
+                // Kapanışı bir gün sonunda sayılmış ya da kartla tahsilin parası
+                // bir yatışla hesaba geçmiş yükümlülük iptal edilemez; iptal ucu
+                // aynı iki kuralı uygular. Satır bunu bilmezse düğme görünür ve
+                // ret ancak dokununca gelir.
+                CancelLocked = dbContext.ObligationSettlements.Any(closing =>
+                    closing.UserId == userId &&
+                    closing.ObligationId == obligation.Id &&
+                    !closing.IsCancelled &&
+                    (dbContext.DayCloseCountedRecords.Any(counted =>
+                         counted.UserId == userId &&
+                         ((counted.Kind == DayCloseRecordKind.ObligationSettlement &&
+                           counted.RecordId == closing.Id) ||
+                          (counted.Kind == DayCloseRecordKind.PosSettlement &&
+                           (Guid?)counted.RecordId == closing.PosSettlementId))) ||
+                     dbContext.PosSettlements.Any(pos =>
+                         pos.UserId == userId &&
+                         (Guid?)pos.Id == closing.PosSettlementId &&
+                         !pos.IsCancelled &&
+                         pos.PosDepositId != null))),
                 DayCloseId = (Guid?)null,
                 MatchAccountId = null,
                 MatchSecondAccountId = null,
@@ -1235,6 +1252,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 TransferredOn = card == null ? null : card.TransferredOn,
                 Direction = (int?)settlement.Direction,
                 SettlementCount = (int?)null,
+                CancelLocked = false,
                 DayCloseId = dbContext.DayCloseCountedRecords
                         .Where(counted => counted.UserId == userId &&
                                           ((counted.Kind == DayCloseRecordKind.ObligationSettlement &&
@@ -1310,6 +1328,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 TransferredOn = settlement.TransferredOn,
                 Direction = (int?)null,
                 SettlementCount = (int?)null,
+                CancelLocked = false,
                 DayCloseId = settlement.DayCloseId ?? dbContext.DayCloseCountedRecords
                         .Where(counted => counted.UserId == userId &&
                                           counted.Kind == DayCloseRecordKind.PosSettlement &&
@@ -1384,6 +1403,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Direction = (int?)null,
                 SettlementCount = (int?)dbContext.PosSettlements.Count(closed =>
                     closed.UserId == userId && closed.PosDepositId == deposit.Id),
+                CancelLocked = false,
                 DayCloseId = (Guid?)null,
                 MatchAccountId = account.Id,
                 MatchSecondAccountId = (Guid?)null,
@@ -1535,7 +1555,8 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
         row.TransferredOn,
         row.SettlementCount,
         row.Direction is int direction ? (DebtDirection)direction : null,
-        row.DayCloseId);
+        row.DayCloseId,
+        row.CancelLocked);
 
     /// <summary>
     /// The shared UNION ALL shape. Enums are carried as int so every branch produces the
@@ -1589,6 +1610,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
 
         /// <summary>Kaydı yazan ya da sayan gün sonu; yoksa <c>null</c>.</summary>
         public Guid? DayCloseId { get; init; }
+        public bool CancelLocked { get; init; }
         public Guid? MatchAccountId { get; init; }
 
         /// <summary>
