@@ -230,8 +230,9 @@ public sealed record FinancialActivityRow(
     /// Kaydın iptalini başka bir kayıt kilitliyor: kapanışı bir gün sonunda
     /// sayılmış ya da kartla tahsilin parası bir yatışla hesaba geçmiş
     /// yükümlülük. Yalnız <c>canCancel</c> hesabında kullanılır; sözleşmeye
-    /// çıkmaz. Yükümlülük satırı <see cref="DayCloseId"/> taşımaz çünkü
-    /// sayılan kayıt kendisi değil kapanışıdır.
+    /// çıkmaz. Yükümlülük satırı <see cref="DayCloseId"/> değerini yalnız
+    /// kendisi sayıldıysa taşır (nakit tutarından düşülen alacak faturası);
+    /// yalnız kapanışı sayıldıysa kilit buradan gelir.
     /// </summary>
     bool CancelLocked = false);
 

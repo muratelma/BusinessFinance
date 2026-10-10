@@ -78,7 +78,7 @@ Reddedilenler (ilke düzeyinde):
 
 | Reddedilen | Neden |
 |---|---|
-| Ayrı bir `DailyClose` tablosu (Z toplamı, not, durum) | Raporlara, işletme netine, bütçeye, birleşik akışa ve yedeğe ikinci bir kaynak ekler (İ3). **Tutar taşımayan kimlik kaydı bu reddin dışındadır** (kullanıcı kararı, 4 Ekim 2026): gün sonunun kimliği (`DayCloses`: gün, isteğe bağlı aralık başı ve Z no, "ek" işareti, geri alma damgası) tutar, not ve durum taşımaz; rapor, net, bütçe, bakiye ve akış onu okumaz. Kayıt yalnız "hangi kayıtlar birlikte doğdu, gün kapatıldı mı, hangi Z ile" sorularını cevaplar |
+| Ayrı bir `DailyClose` tablosu (Z toplamı, not, durum) | Raporlara, işletme netine, bütçeye, birleşik akışa ve yedeğe ikinci bir kaynak ekler (İ3). **Tutar taşımayan kimlik kaydı bu reddin dışındadır** (kullanıcı kararı, 4 Ekim 2026): gün sonunun kimliği (`DayCloses`: gün, isteğe bağlı aralık başı ve Z no, "ek" işareti, geri alma damgası) tutar, not ve durum taşımaz; rapor, net, bütçe, bakiye ve akış onu okumaz. Kayıt yalnız "hangi kayıtlar birlikte doğdu, gün kapatıldı mı, hangi Z ile" sorularını cevaplar. **Gün sonuna bağlı ortak tutar da bu reddin dışındadır** (kullanıcı kararı, 10 Ekim 2026): bir satış ile tahsilatı birlikte düşüldüğünde ikisinde de görünen ama girilen nakitte bir kez yer alan tutar saklanır (`DayCloseCountedOverlaps`). Bu tutar ikinci bir para kaynağı değildir: gelir, gider ya da hesap hareketi üretmez ve rapor, net, bütçe, bakiye, akış ve cari bakiye onu okumaz; bir ödeme dağılımı da değildir. Kullanıcının gün sonu girdisini açıklar — uygulamanın kendi kayıtlarından çıkaramadığı tek bilgidir ve saklanmazsa günün ekranı ile geri alma neyin düşüldüğünü yeniden kuramaz. Para, gün sonunun yazdığı sıradan kayıtlardadır |
 | Kartla veresiye tahsilatında "POS'a girmeyin" uyarısıyla yetinmek | Esnafın en olağan işlerinden birini cevapsız bırakır; kullanıcı POS'a girerse gelir iki kez sayılır |
 | Banka hesabı için sayım ("banka mutabakatı") | Kullanıcının bütün hareketleri %100 girmesini bekler; pratikte olmaz (kullanıcı) |
 | POS tahsilatını bir hesap türü yapmak | ADR 0015 §2'nin reddi aynen geçerlidir |
@@ -120,6 +120,15 @@ değiştiren sapma uygulanmadan önce kullanıcıya sorulur (`AGENTS.md`).
   dönümünü geçerse uyarı verilir ve tutar iki parçaya bölünebilir.
 - Z numarası yalnız fotoğraftan okunur; atlanan Z uyarısı yalnız Z no'lu günler
   arasında gösterilir ve kaydı denetler, esnafın cihazını değil.
+
+> **10 Ekim 2026'da değişti** (kullanıcı kararı; ayrıntı ve sayısal tablolar
+> `stages/06.3-butunsel-duzenleme.md`, Grup 5 "Gün sonu, vadeli satış ve
+> tahsilat"): toplamdan eksik taraf **hesaplanmaz**, toplam yalnız farkı
+> gösterir; liste o gün yazılmış veresiye satışı ve alacak faturasını da
+> taşır; vadeli satış ve nakit tahsilat **hazır cevapla gelmez**; satışı da
+> tahsilatı da dahil edilen kişide (ya da faturada) girilen toplamda nasıl
+> sayıldıkları sorulur ve ortak tutar bir kez düşülür. İ2 değişmedi: bunlar
+> aynı satışın ve aynı paranın iki kez sayılmamasının yoludur.
 
 ### T3. Z raporu okuma (İ5)
 

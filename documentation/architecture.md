@@ -1115,17 +1115,40 @@ tutar taşımayan kimlik o reddin dışındadır (kullanıcı kararı, 4 Ekim 20
 - **Hesap tek yerdedir** (`DayClosePlan`): önizleme ve kayıt aynı planı kurar.
   Yazılan nakit = nakit − işaretli nakit kayıtlar; yazılan kart = kart −
   işaretli kartlı kayıtlar (İ2: aynı satış iki kez gelir sayılmaz).
-- **Üç alandan ikisi**: nakit, POS satırları ve toplamdan ikisi yeter. Toplamdan
-  hesaplanan kart ana POS'a yazılır. Yalnız nakit ya da yalnız kart verilirse
-  öbür tarafa dokunulmaz. Üçü de verilip tutmuyorsa fark döner, kayıt
-  engellenmez: toplam kayıt üretmez (T3).
+- **Her taraf kendi tutarından**: nakit ya da bir POS satırı yalnız kendi
+  tutarı yazıldıysa kayıt üretir. Toplamdan eksik taraf **hesaplanmaz**
+  (10 Ekim 2026; raporun toplamı kredili satış ya da yemek kartı içerebilir ve
+  farkı nakde ya da karta yazmak olmayan bir parayı kaydederdi). Toplam yalnız
+  farkı döner; yazılanların altındaysa `day_closes.total_below_parts`.
 - **Zaten girilmiş kayıtlar**: nakit hesaba yazılmış **İşletme** kapsamlı
-  gelirler ve POS tahsilatları işaretli; nakit hesaba cari ve alacak
-  tahsilatları işaretsiz gelir. Banka hesabına yazılmış gelir, şahsi nakit
-  gelir ve bir gün sonunun ürettiği kayıtlar listede yoktur. Kartlı kayıt kendi
-  POS satırından düşer; o satıra tutar yazılmadıysa ana POS'un satırından.
-  İstek yalnız kullanıcının **değiştirdiği** işaretleri taşır; panel açıkken
-  girilen bir kayıt varsayılanıyla işlenir.
+  gelirler ve POS tahsilatları işaretli gelir. Nakit hesaba cari ve alacak
+  tahsilatları ile o gün yazılmış vadeli satışlar (alacak yönlü
+  `CounterpartyCharge`, alacak yönlü işletme `Obligation`) **hazır cevapla
+  gelmez** (`requiresAnswer`, `included` boş): yazılan nakdin içinde olup
+  olmadıkları kayıtlardan bilinemez; nakit yazıldıysa cevaplanmadan plan
+  `day_closes.records_unanswered` ile engellidir. Banka hesabına yazılmış
+  gelir, şahsi nakit gelir ve bir gün sonunun ürettiği kayıtlar listede
+  yoktur. Kartlı kayıt kendi POS satırından düşer; o satıra tutar yazılmadıysa
+  ana POS'un satırından. İstek kullanıcının **değiştirdiği** işaretleri ve
+  cevap isteyen her kaydın cevabını taşır; panel açıkken girilen hazır
+  işaretli kayıt varsayılanıyla işlenir, cevap isteyen kayıt cevapsız sayılır.
+  Listede olmayan kayıt için cevap taşıyan istek `day_closes.records_changed`
+  ile reddedilir.
+- **Ortak tutar**: kayıt bir grup taşır (cari kayıtta kişi, faturada ve kendi
+  kapanışında fatura). Bir grubun satışı da tahsilatı da dahil edilirse
+  önizleme grubu `overlapGroups` içinde döner ve istek `overlaps` ile ortak
+  tutarı taşır: düşülen = satışlar + tahsilatlar − ortak tutar. Cevap yoksa
+  `day_closes.overlap_unanswered`, sınırın dışındaysa ya da sorulmayan grup
+  için verildiyse `day_closes.invalid_overlap`. Sıfırdan büyük cevap
+  `DayCloseCountedOverlap` olarak saklanır; rapor, net, bütçe, bakiye, cari
+  bakiye ve akış onu okumaz, yalnız günün ekranı ve geri alma okur.
+- **Panelin okuduğu hazır sayılar** (`DayCloseOverlapGroupDto.From`,
+  `DayCloseCashDeductionsDto`): grubun üç cevabının sonucu (`separateAmount`,
+  `insideAmount`, verilen cevapla `deductedAmount`), hangi tarafın büyük
+  olduğu (`largerSide`) ve grubun türü (`kind`); nakitten düşülenin dökümü
+  (tek tek girilmiş satış, tahsilat, veresiye satış, fatura ve ortak tutar);
+  kaydın giriş anı (`createdAtUtc`; eski kayıtta boş). İstemci bunların
+  hiçbirini toplamaz.
 - **İşaretli kayıtlar tutarı aşarsa** istek reddedilir
   (`day_closes.existing_exceeds_cash` / `_card`). Yazılacak tutar sıfırsa o
   taraf için kayıt üretilmez; **hiç kayıt üretmeyen gün sonu meşrudur** ve günü

@@ -272,6 +272,7 @@ public sealed class EfDataPortabilityRepository(
             // Gün sonu, ürettiği gelir ve tahsilatların bağlandığı kimliktir.
             dbContext.DayCloses.AddRange(graph.DayCloses);
             dbContext.DayCloseCountedRecords.AddRange(graph.DayCloseCountedRecords);
+            dbContext.DayCloseCountedOverlaps.AddRange(graph.DayCloseCountedOverlaps);
             dbContext.Transactions.AddRange(graph.Transactions);
             dbContext.MonthlyBudgets.AddRange(graph.Budgets);
             dbContext.Transfers.AddRange(graph.Transfers);
@@ -429,6 +430,12 @@ public sealed class EfDataPortabilityRepository(
                 .OrderBy(x => x.Kind).ThenBy(x => x.RecordId)
                 .ToArrayAsync(cancellationToken))
             .ToLookup(x => x.DayCloseId);
+        // Ortak tutar kayıtlardan yeniden hesaplanamaz; dosyaya yazılır.
+        var dayCloseOverlaps = (await dbContext.DayCloseCountedOverlaps.AsNoTracking()
+                .Where(x => x.UserId == userId)
+                .OrderBy(x => x.GroupId)
+                .ToArrayAsync(cancellationToken))
+            .ToLookup(x => x.DayCloseId);
         var goals = await dbContext.SavingsGoals.AsNoTracking().Include(x => x.Contributions)
             .Where(x => x.UserId == userId).OrderBy(x => x.Id).ToArrayAsync(cancellationToken);
         var attachments = await dbContext.FinancialAttachments.AsNoTracking()
@@ -539,6 +546,9 @@ public sealed class EfDataPortabilityRepository(
                 x.IsCancelled, x.CancelledAtUtc,
                 dayCloseCounted[x.Id]
                     .Select(c => new DayCloseCountedBackup(c.Kind, c.RecordId))
+                    .ToArray(),
+                dayCloseOverlaps[x.Id]
+                    .Select(o => new DayCloseOverlapBackup(o.GroupId, o.Amount))
                     .ToArray())).ToArray(),
             debts.Select(x => new DebtBackup(
                 x.Id, x.CounterpartyId, x.Direction, x.Scope, x.Principal.Amount, x.TotalRepayment.Amount,
@@ -869,6 +879,7 @@ public sealed class EfDataPortabilityRepository(
             // sonra uygulanıyor. Sırayı ters kurmak, pasif bir müşterinin
             // geçmişini geri yüklenemez yapardı.
             var counterpartyCharges = new List<CounterpartyCharge>();
+            var counterpartyChargeMap = new Dictionary<Guid, CounterpartyCharge>();
             foreach (var item in snapshot.CounterpartyCharges)
             {
                 var entity = new CounterpartyCharge(
@@ -879,6 +890,7 @@ public sealed class EfDataPortabilityRepository(
                     item.ChargeDate, item.Description, item.DueDate);
                 ApplyCancellation(item.IsCancelled, item.CancelledAtUtc, entity.Cancel);
                 entryTimes[entity] = item.CreatedAtUtc;
+                counterpartyChargeMap[item.Id] = entity;
                 counterpartyCharges.Add(entity);
             }
 
@@ -1036,6 +1048,7 @@ public sealed class EfDataPortabilityRepository(
             // ve yönü dosyadan yeniden okunsaydı, kapanış yükümlülükten farklı
             // bir para taşıyabilirdi.
             var obligations = new List<Obligation>();
+            var obligationMap = new Dictionary<Guid, Obligation>();
             foreach (var item in snapshot.Obligations)
             {
                 var entity = new Obligation(
@@ -1059,6 +1072,7 @@ public sealed class EfDataPortabilityRepository(
                     obligationSettlementIds[settlement.Id] = entity.Settlement!.Id;
                 }
                 ApplyCancellation(item.IsCancelled, item.CancelledAtUtc, entity.Cancel);
+                obligationMap[item.Id] = entity;
                 obligations.Add(entity);
             }
 
@@ -1114,6 +1128,7 @@ public sealed class EfDataPortabilityRepository(
             // Geri alınmış gün sonunun kayıtları iptal edilmiş olmalıdır.
             var dayCloses = new List<DayClose>();
             var dayCloseCounted = new List<DayCloseCountedRecord>();
+            var dayCloseOverlaps = new List<DayCloseCountedOverlap>();
             foreach (var item in snapshot.DayCloses)
             {
                 var incomes = snapshot.Transactions
@@ -1130,7 +1145,7 @@ public sealed class EfDataPortabilityRepository(
                 {
                     if (incomes.Any(x => !x.IsCancelled) || settlements.Any(x => !x.IsCancelled))
                         throw Invalid("A reverted day close cannot keep live records.");
-                    if (item.CountedRecords is { Length: > 0 })
+                    if (item.CountedRecords is { Length: > 0 } || item.Overlaps is { Length: > 0 })
                         throw Invalid("A reverted day close cannot keep counted records.");
                     dayCloses.Add(DayClose.Restore(
                         dayCloseIdMap[item.Id], userId, item.ClosedOn, item.RangeStart,
@@ -1145,9 +1160,35 @@ public sealed class EfDataPortabilityRepository(
                 dayCloses.Add(restored);
 
                 // Sayılan kayıt canlı olmalı ve gün sonunun yazdığı bir kayıt
-                // olmamalıdır; bağ yeni kimliğe çevrilir.
+                // olmamalıdır; bağ yeni kimliğe çevrilir. Grup (kişi ya da
+                // fatura) ortak tutarın sınırını doğrulamak için tutulur.
+                var groupSales = new Dictionary<Guid, decimal>();
+                var groupCollections = new Dictionary<Guid, decimal>();
                 foreach (var counted in item.CountedRecords ?? [])
                 {
+                    switch (counted.Kind)
+                    {
+                        case DayCloseRecordKind.CounterpartyCharge
+                            when counterpartyChargeMap.TryGetValue(counted.RecordId, out var sale):
+                            Add(groupSales, sale.CounterpartyId, sale.Amount.Amount);
+                            break;
+                        case DayCloseRecordKind.CounterpartyPayment
+                            when snapshot.CounterpartyPayments.FirstOrDefault(
+                                payment => payment.Id == counted.RecordId) is { } payment &&
+                                 counterpartyMap.TryGetValue(payment.CounterpartyId, out var payer):
+                            Add(groupCollections, payer.Id, payment.Amount);
+                            break;
+                        case DayCloseRecordKind.Obligation
+                            when obligationMap.TryGetValue(counted.RecordId, out var invoice):
+                            Add(groupSales, invoice.Id, invoice.Amount.Amount);
+                            break;
+                        case DayCloseRecordKind.ObligationSettlement
+                            when snapshot.Obligations.FirstOrDefault(
+                                obligation => obligation.Settlement?.Id == counted.RecordId) is { } closed:
+                            Add(groupCollections, obligationMap[closed.Id].Id, closed.Amount);
+                            break;
+                    }
+
                     var recordId = counted.Kind switch
                     {
                         DayCloseRecordKind.Income =>
@@ -1166,11 +1207,47 @@ public sealed class EfDataPortabilityRepository(
                             Required(
                                 obligationSettlementIds, counted.RecordId,
                                 "counted obligation settlement"),
+                        DayCloseRecordKind.CounterpartyCharge =>
+                            Required(counterpartyChargeMap, counted.RecordId, "counted charge") is
+                            { IsCancelled: false, Direction: DebtDirection.Receivable } charge
+                                ? charge.Id
+                                : throw Invalid("A counted charge must be a live sale on credit."),
+                        DayCloseRecordKind.Obligation =>
+                            Required(obligationMap, counted.RecordId, "counted obligation") is
+                            { IsCancelled: false, Direction: DebtDirection.Receivable } obligation
+                                ? obligation.Id
+                                : throw Invalid("A counted obligation must be a live receivable."),
                         _ => throw Invalid("Counted record kind is not supported."),
                     };
                     dayCloseCounted.Add(new DayCloseCountedRecord(restored, counted.Kind, recordId));
                 }
+
+                // Ortak tutar yalnız satışı da tahsilatı da sayılan bir grup
+                // içindir ve ikisinden küçük olanı aşamaz; grup yeni kimliğe
+                // çevrilir (kişi ya da fatura).
+                foreach (var overlap in item.Overlaps ?? [])
+                {
+                    var groupId = counterpartyMap.TryGetValue(overlap.GroupId, out var person)
+                        ? person.Id
+                        : obligationMap.TryGetValue(overlap.GroupId, out var invoice)
+                            ? invoice.Id
+                            : throw Invalid("Backup contains a dangling day close overlap group.");
+                    if (!groupSales.TryGetValue(groupId, out var sales) ||
+                        !groupCollections.TryGetValue(groupId, out var collections) ||
+                        overlap.Amount <= 0m ||
+                        overlap.Amount > Math.Min(sales, collections))
+                    {
+                        throw Invalid(
+                            "A day close overlap needs a counted sale and collection of its group.");
+                    }
+
+                    dayCloseOverlaps.Add(
+                        new DayCloseCountedOverlap(restored, groupId, overlap.Amount));
+                }
             }
+
+            if (dayCloseOverlaps.GroupBy(x => (x.DayCloseId, x.GroupId)).Any(group => group.Count() > 1))
+                throw Invalid("A day close keeps one overlap per group.");
 
             if (dayCloseCounted.GroupBy(x => (x.Kind, x.RecordId)).Any(group => group.Count() > 1))
                 throw Invalid("A record can be counted by one day close only.");
@@ -1292,7 +1369,7 @@ public sealed class EfDataPortabilityRepository(
                 obligations.ToArray(), cashCounts.ToArray(),
                 posDefinitionMap.Values.ToArray(), posSettlementMap.Values.ToArray(),
                 posDeposits.ToArray(), dayCloses.ToArray(), dayCloseCounted.ToArray(),
-                debts.ToArray(), goals.ToArray(), restoredAttachments.ToArray(), entryTimes);
+                dayCloseOverlaps.ToArray(), debts.ToArray(), goals.ToArray(), restoredAttachments.ToArray(), entryTimes);
         }
         catch (DataPortabilityException)
         {
@@ -1329,6 +1406,8 @@ public sealed class EfDataPortabilityRepository(
             await dbContext.PosDeposits.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.DayCloses.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.DayCloseCountedRecords.AnyAsync(
+                x => x.UserId == userId, cancellationToken) ||
+            await dbContext.DayCloseCountedOverlaps.AnyAsync(
                 x => x.UserId == userId, cancellationToken) ||
             await dbContext.DebtAgreements.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.SavingsGoals.AnyAsync(x => x.UserId == userId, cancellationToken) ||
@@ -1541,6 +1620,9 @@ public sealed class EfDataPortabilityRepository(
             throw Invalid("Cancellation flag and timestamp must appear together.");
         if (cancelledAtUtc is DateTimeOffset value) cancel(value);
     }
+
+    private static void Add(Dictionary<Guid, decimal> totals, Guid key, decimal amount) =>
+        totals[key] = totals.GetValueOrDefault(key) + amount;
 
     private static DataPortabilityException Invalid(string message) =>
         new("restore.invalid_backup", message);
@@ -1765,13 +1847,22 @@ internal sealed record PosSettlementBackup(
 internal sealed record DayCloseBackup(
     Guid Id, DateOnly ClosedOn, DateOnly? RangeStart, int? ZNumber, bool IsAdditional,
     DateTimeOffset CreatedAtUtc, bool IsCancelled, DateTimeOffset? CancelledAtUtc,
-    DayCloseCountedBackup[]? CountedRecords = null);
+    DayCloseCountedBackup[]? CountedRecords = null,
+    // 10 Ekim 2026'da eklendi; alanı taşımayan dosyada ortak tutar yoktur.
+    DayCloseOverlapBackup[]? Overlaps = null);
 
 /// <remarks>
 /// Gün sonunun saydığı, tek tek girilmiş bir kayıt: türü ve dosyadaki kimliği.
 /// Kaydın kendisi dosyada kendi dizisindedir; burada yalnız bağ durur.
 /// </remarks>
 internal sealed record DayCloseCountedBackup(DayCloseRecordKind Kind, Guid RecordId);
+
+/// <remarks>
+/// Sayılan kayıtlar arasında iki kayıtta da görünen, nakit tutarından bir kez
+/// düşülen para. Grup dosyadaki kişinin ya da alacak faturasının kimliğidir.
+/// Kullanıcının verdiği bilgidir; kayıtlardan yeniden hesaplanamaz.
+/// </remarks>
+internal sealed record DayCloseOverlapBackup(Guid GroupId, decimal Amount);
 
 /// <remarks>
 /// Yatış <b>taşır</b> (ADR 0019 T5): bankanın gerçekten yatırdığı tutar ve gün.
@@ -1863,6 +1954,7 @@ internal sealed record RestoredGraph(
     PosDeposit[] PosDeposits,
     DayClose[] DayCloses,
     DayCloseCountedRecord[] DayCloseCountedRecords,
+    DayCloseCountedOverlap[] DayCloseCountedOverlaps,
     DebtAgreement[] Debts,
     SavingsGoal[] Goals,
     RestoredAttachment[] Attachments,

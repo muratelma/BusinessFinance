@@ -15,7 +15,9 @@ import '../../../core/widgets/app_divided_column.dart';
 import '../../../core/widgets/app_form_sheet.dart';
 import '../../../core/widgets/app_inline_notice.dart';
 import '../../../core/widgets/app_money_text.dart';
+import '../../../core/network/api_error_messages.dart';
 import '../data/day_close_repository.dart';
+import 'day_close_answers.dart';
 import 'day_close_controller.dart';
 
 /// Gün sonu panelini açar (ADR 0019 T1–T2). Kaydedilince `true`, vazgeçilince
@@ -56,9 +58,9 @@ class _DayCloseForm extends StatefulWidget {
 /// Gün sonu formu: nakit, her POS için kart ve toplam; o gün zaten girilmiş
 /// kayıtlar ve yazılacakların özeti.
 ///
-/// Hiçbir tutar burada hesaplanmaz: hesaplanan alan, düşülen kayıtlar,
-/// komisyon ve yazılacak tutar **sunucunun önizlemesinden** gelir. Form
-/// yalnız yazılanı gönderir ve cevabı gösterir.
+/// Hiçbir tutar burada hesaplanmaz: düşülen kayıtlar, komisyon ve yazılacak
+/// tutar **sunucunun önizlemesinden** gelir. Form yalnız yazılanı ve verilen
+/// cevapları gönderir, gelen cevabı gösterir.
 class _DayCloseFormState extends State<_DayCloseForm> {
   /// Aynı panelden ikinci gönderim ikinci gün sonu yazmasın: kimlik panel
   /// açıldığında bir kez üretilir.
@@ -71,8 +73,8 @@ class _DayCloseFormState extends State<_DayCloseForm> {
   late String date = widget.initialDate;
   late bool isAdditional = widget.additional;
 
-  /// Kullanıcının varsayılandan farklı işaretledikleri.
-  final overrides = <String, bool>{};
+  /// Kullanıcının işaretleri ve cevapları.
+  final answers = DayCloseAnswers();
 
   String? cashAccountId;
   String? cashCategoryId;
@@ -120,26 +122,32 @@ class _DayCloseFormState extends State<_DayCloseForm> {
     if (mounted) setState(() {});
   }
 
-  /// Boş alan gönderilmez; sunucu onu hesaplar.
+  /// Boş alan gönderilmez; o tarafa dokunulmaz.
   String? _wire(TextEditingController field) {
     final text = field.text.trim();
     if (text.isEmpty || MoneyInput.parse(text) == null) return null;
     return MoneyInput.wire(text);
   }
 
-  DayCloseInput _input() => DayCloseInput(
-    date: date,
-    cashAmount: _wire(cashController),
-    posAmounts: {
-      for (final entry in posControllers.entries)
-        entry.key: ?_wire(entry.value),
-    },
-    totalAmount: _wire(totalController),
-    cashAccountId: cashAccountId,
-    cashCategoryId: cashCategoryId,
-    recordOverrides: Map.of(overrides),
-    isAdditional: isAdditional,
-  );
+  DayCloseInput _input() {
+    final cashAmount = _wire(cashController);
+    return DayCloseInput(
+      date: date,
+      cashAmount: cashAmount,
+      posAmounts: {
+        for (final entry in posControllers.entries)
+          entry.key: ?_wire(entry.value),
+      },
+      totalAmount: _wire(totalController),
+      cashAccountId: cashAccountId,
+      cashCategoryId: cashCategoryId,
+      recordOverrides: Map.of(answers.recordOverrides),
+      // Ortak tutar yalnız nakit tutarı yazılmışken sorulur; nakit boşken
+      // gönderilen cevabı sunucu reddeder.
+      overlaps: cashAmount == null ? const {} : Map.of(answers.overlaps),
+      isAdditional: isAdditional,
+    );
+  }
 
   /// Tutar değişince önizleme kısa bir duraklamadan sonra istenir; her tuşta
   /// istek atılmaz.
@@ -153,6 +161,9 @@ class _DayCloseFormState extends State<_DayCloseForm> {
     final result = await controller.preview(_input());
     // Sonradan değişen girdinin cevabı eskisinin üstüne yazılmasın.
     if (!mounted || request != _previewRequest) return;
+    // Listede artık olmayan bir kaydın cevabı düştüyse sunucu bu girdiyi
+    // reddetmiştir; güncel listeyle yeniden sorulur.
+    if (result != null && answers.reconcile(result)) return _loadPreview();
     setState(() {
       if (result == null) return;
       preview = result;
@@ -170,13 +181,7 @@ class _DayCloseFormState extends State<_DayCloseForm> {
   }
 
   void _toggleRecord(DayCloseExistingRecord record, bool value) {
-    setState(() {
-      if (value == record.includedByDefault) {
-        overrides.remove(record.key);
-      } else {
-        overrides[record.key] = value;
-      }
-    });
+    setState(() => answers.setIncluded(record, value));
     _loadPreview();
   }
 
@@ -184,7 +189,7 @@ class _DayCloseFormState extends State<_DayCloseForm> {
     setState(() {
       date = value;
       // Başka günün kayıtları başka kayıtlardır.
-      overrides.clear();
+      answers.clear();
       isAdditional = false;
     });
     _loadPreview();
@@ -256,11 +261,6 @@ class _DayCloseFormState extends State<_DayCloseForm> {
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         decoration: InputDecoration(
           labelText: 'Nakit',
-          helperText: _computedHelper(
-            shown?.cash.isComputed ?? false,
-            shown,
-            shown?.cash.enteredAmount,
-          ),
           errorMaxLines: 3,
           errorText: blocker == 'day_closes.existing_exceeds_cash'
               ? 'İşaretli kayıtlar bu tutarı aşıyor. Tutarı düzeltin ya da '
@@ -277,14 +277,7 @@ class _DayCloseFormState extends State<_DayCloseForm> {
           controller: posControllers[line.posDefinitionId],
           enabled: !closedAndNotAdditional,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            labelText: line.name,
-            helperText: _computedHelper(
-              line.isComputed,
-              shown,
-              line.enteredAmount,
-            ),
-          ),
+          decoration: InputDecoration(labelText: line.name),
           onChanged: _amountChanged,
           validator: _optionalMoneyError,
         ),
@@ -308,16 +301,10 @@ class _DayCloseFormState extends State<_DayCloseForm> {
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         decoration: InputDecoration(
           labelText: 'Toplam',
-          helperText: 'İkisini yazmak yeter; üçüncüsü hesaplanır.',
-          helperMaxLines: 2,
           errorMaxLines: 3,
-          errorText: switch (blocker) {
-            'day_closes.total_below_parts' =>
-              'Toplam, yazdığınız tutardan küçük olamaz.',
-            'day_closes.pos_required' =>
-              'Kart tutarı için önce bir POS ekleyin.',
-            _ => null,
-          },
+          errorText: blocker == 'day_closes.total_below_parts'
+              ? ApiErrorMessages.resolve(blocker!)
+              : null,
         ),
         onChanged: _amountChanged,
         validator: _optionalMoneyError,
@@ -327,8 +314,7 @@ class _DayCloseFormState extends State<_DayCloseForm> {
           message:
               'Nakit ve kart toplamı, yazdığınız toplamdan '
               '${MoneyText.format(MoneyText.unsigned(shown!.totalDifference!), shown.currency)} '
-              'farklı. Genelde faturalı satış ya da veresiye tahsilatıdır; '
-              'ayrıca kaydedilmez.',
+              'farklı. Fark kaydedilmez.',
           margin: const EdgeInsets.only(top: AppSpacing.small),
         ),
       // Gün kapalıyken yazılacak bir şey yok; liste "ek gün sonu" seçilince
@@ -346,7 +332,7 @@ class _DayCloseFormState extends State<_DayCloseForm> {
             subtitle: _recordSubtitle(record, shown),
             amount: record.amount,
             currency: shown.currency,
-            value: record.included,
+            value: record.included ?? false,
             enabled: !busy,
             onChanged: (value) => _toggleRecord(record, value),
           ),
@@ -442,8 +428,8 @@ class _DayCloseFormState extends State<_DayCloseForm> {
     );
   }
 
-  /// Ana POS (yoksa ilk POS) ve tutar yazılmış ya da hesaplanmış satırlar;
-  /// `Diğer POS'lar` açıldıysa hepsi.
+  /// Ana POS (yoksa ilk POS) ve tutar yazılmış satırlar; `Diğer POS'lar`
+  /// açıldıysa hepsi.
   List<DayClosePosLine> _visiblePosLines(DayClosePreview? shown) {
     final lines = shown?.posLines ?? const <DayClosePosLine>[];
     if (showOtherPos || lines.length < 2) return lines;
@@ -463,15 +449,6 @@ class _DayCloseFormState extends State<_DayCloseForm> {
   int _hiddenPosCount(DayClosePreview? shown) =>
       (shown?.posLines.length ?? 0) - _visiblePosLines(shown).length;
 
-  /// Toplamdan hesaplanan alan boş durur; hesaplanan tutar altında yazar.
-  String? _computedHelper(
-    bool computed,
-    DayClosePreview? shown,
-    String? amount,
-  ) => computed && shown != null && amount != null
-      ? 'Toplamdan hesaplandı: ${MoneyText.format(amount, shown.currency)}'
-      : null;
-
   bool _hasSummary(DayClosePreview shown) =>
       shown.blockerCode == null &&
       (shown.cash.stated || shown.posLines.any((line) => line.stated));
@@ -490,6 +467,9 @@ class _DayCloseFormState extends State<_DayCloseForm> {
       "POS'un hesabı ya da kategorisi kullanılamıyor. POS'u düzenleyin.",
     'day_closes.not_closed_yet' =>
       'Bu gün henüz kapatılmadı; ek gün sonu yazılamaz.',
+    'day_closes.records_unanswered' ||
+    'day_closes.overlap_unanswered' ||
+    'day_closes.invalid_overlap' => ApiErrorMessages.resolve(blocker!),
     _ => null,
   };
 
@@ -506,6 +486,8 @@ class _DayCloseFormState extends State<_DayCloseForm> {
       'pos-settlement' => 'POS satışı',
       'counterparty-payment' => 'Cari tahsilat',
       'obligation-settlement' => 'Alacak tahsilatı',
+      'counterparty-charge' => 'Veresiye satış',
+      'obligation' => 'Alacak faturası',
       _ => 'Gelir',
     };
   }
@@ -527,9 +509,15 @@ class _DayCloseFormState extends State<_DayCloseForm> {
     final kind = switch (record.kind) {
       'counterparty-payment' => 'Cari tahsilat',
       'obligation-settlement' => 'Alacak tahsilatı',
+      'counterparty-charge' => 'Veresiye satış',
+      'obligation' => 'Alacak faturası',
       _ => 'Nakit',
     };
-    return '$kind · ${record.accountName}';
+    // Veresiye satış ve alacak faturası bir hesaba girmez.
+    return [
+      kind,
+      if (record.accountName.isNotEmpty) record.accountName,
+    ].join(' · ');
   }
 
   Future<bool?> _submit() async {

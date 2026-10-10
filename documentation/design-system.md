@@ -1102,10 +1102,11 @@ Kullanıcı paneli ekran görüntüsünde onayladı (4 Ekim).
   `Gün sonu` (alt yazı: `Günün nakit ve kartlı satışı`); Kasa'nın en üstünde
   gün sonu kartı. Menüden gelen kullanıcı vazgeçerse geldiği ekrana döner.
 - **Panel** bir `AppFormSheet`'tir: `Gün`, `Nakit`, her POS için adını taşıyan
-  bir alan, `Toplam`. Alan etiketleri tek kelimedir. `Toplam`ın altında tek
-  cümle durur: "İkisini yazmak yeter; üçüncüsü hesaplanır." Hesaplanan alan
-  **boş kalır** ve altında `Toplamdan hesaplandı: ₺…` yazar; istemci alana
-  tutar yazmaz.
+  bir alan, `Toplam`. Alan etiketleri tek kelimedir. Toplamdan hiçbir alan
+  hesaplanmaz (10 Ekim 2026): `Toplam` yalnız farkı gösterir. Panelin kayıt
+  listesi, cevap bekleyen satırlar ve ortak tutar sorusu Brif 4'ün
+  (`design/brifler/04-gun-sonu-kayitli-satis-ve-tahsilat.md`) tesliminden
+  sonra yazılır; o zamana kadar aşağıdaki liste eski yerleşimi anlatır.
 - **Zaten girilmiş kayıtlar**: başlık `Gün sonu tutarında var mı?`, altında
   `İşaretli kayıtlar düşülür.` Satırlar yatış panelindeki onay kutulu satırın
   aynısıdır (başlık, `Nakit · kasa` / `Kart · POS` / `Cari tahsilat · kasa`,

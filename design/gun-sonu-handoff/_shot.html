@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="tr"><head><meta charset="utf-8"><title>Gün sonu · ekran görüntüsü</title>
+<link rel="stylesheet" href="_ds/design-system-02d8cd45-68c3-45e3-a947-241a11eb81d4/styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="_ds/design-system-02d8cd45-68c3-45e3-a947-241a11eb81d4/_ds_bundle.js"></script>
+<style>
+body{margin:0;background:#fff}a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+#shot{width:412px;background:#6f7070;padding-top:56px;position:relative}
+#shot footer button{white-space:nowrap}
+</style></head><body>
+<div id="wrap" style="width:412px;overflow:hidden"><div id="shot"></div></div>
+<script type="text/babel" src="gunsonu/GSParts.jsx"></script>
+<script type="text/babel" src="gunsonu/GSFrames.jsx"></script>
+<script type="text/babel">
+const SHOTS={
+ g1:()=><GunSonu/>,
+ g2:()=><GunSonu initAns={{s:true,p:true,a:true,m:true,y:false}}/>,
+ g3:()=><GunSonu initAns={{s:true,p:true,a:true,m:false,y:false}}/>,
+ g4:()=><GunSonu records={GS_G4} initCash="1.600" initAns={{ms:true,mc:true}} initHow={{'Mehmet Usta':'part'}} initPart={{'Mehmet Usta':'200'}}/>,
+ g5:()=><GunSonuPos/>,
+ g4b:()=><GunSonu records={GS_INV} initCash="1.600" initAns={{fi:true,fc:true}} initHow={{'Sentetik fatura':'in'}}/>,
+ g4c:()=><GunSonu records={GS_TWO} initCash="2.400" initAns={{ms:true,mc:true,as:true,ac:true}} initHow={{'Mehmet Usta':'sep','Ahmet Bakkal':'in'}}/>,
+ g6:()=><GunSonu initCash="" initPos="1.300"/>
+};
+let root=ReactDOM.createRoot(document.getElementById('shot'));
+window.go=id=>{root.unmount();root=ReactDOM.createRoot(document.getElementById('shot'));document.getElementById('shot').style.transform='';root.render(SHOTS[id]());};
+window.part=y=>{document.getElementById('shot').style.transform=`translateY(${-y}px)`;};
+window.H=()=>document.getElementById('shot').offsetHeight;
+go(new URLSearchParams(location.search).get('id')||'g1');
+</script></body></html>

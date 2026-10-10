@@ -111,6 +111,11 @@ ve ADR güncellemesiyle değişir.
 ## Kullanıcıyla iletişim
 
 - Türkçe konuş.
+- **Dış göz değerlendirmeleri her zaman Markdown dosyası olarak da verilir**
+  (kullanıcı kararı, 10 Ekim 2026). Sohbetteki raporun tam metni, tabloları ve
+  kaynak bağlantılarıyla birlikte `research/DIS-GOZ-YYYY-MM-DD-<konu>.md`
+  dosyasına kaydedilir; yanıtta dosyaya bağlantı verilir. Yeni değerlendirme
+  önceki raporun üzerine yazılmaz; ayrı dosyada tutulur.
 - Ne yapacağını kısaca söyle, sonra yap; adım adım onay bekleme.
 - Yeni bir kütüphane, pattern veya dış servis eklerken neden seçildiğini ve
   temel trade-off'unu bir-iki cümleyle belirt.

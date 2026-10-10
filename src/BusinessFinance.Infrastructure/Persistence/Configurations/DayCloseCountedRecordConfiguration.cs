@@ -11,7 +11,8 @@ internal sealed class DayCloseCountedRecordConfiguration
     {
         // Bağ tutar taşımaz (ADR 0019 İ3): yalnız "şu gün sonu şu kaydı saydı".
         builder.ToTable("DayCloseCountedRecords", table =>
-            table.HasCheckConstraint("CK_DayCloseCountedRecords_Kind", "[Kind] IN (1, 2, 3, 4)"));
+            table.HasCheckConstraint(
+                "CK_DayCloseCountedRecords_Kind", "[Kind] IN (1, 2, 3, 4, 5, 6)"));
 
         builder.HasKey(counted => new { counted.DayCloseId, counted.Kind, counted.RecordId });
         builder.Property(counted => counted.Kind).HasConversion<byte>().HasColumnType("tinyint");
@@ -23,7 +24,7 @@ internal sealed class DayCloseCountedRecordConfiguration
             .IsUnique()
             .HasDatabaseName("UX_DayCloseCountedRecords_UserId_Kind_RecordId");
 
-        // Sayılan kaydın kendi tablosuna foreign key yoktur: dört ayrı
+        // Sayılan kaydın kendi tablosuna foreign key yoktur: altı ayrı
         // tabloyu gösterir. Sayılan kayıt silinemez ve iptal edilemez; bağ
         // yalnız gün sonu geri alınınca kalkar.
         builder.HasOne<DayClose>().WithMany()

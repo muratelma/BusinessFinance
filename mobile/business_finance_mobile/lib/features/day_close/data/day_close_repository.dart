@@ -7,10 +7,12 @@ import '../../pos/data/pos_repository.dart';
 /// Gün sonu panelinin sunucuya gönderdiği girdi (ADR 0019 T1–T2); önizleme
 /// ve kayıt aynı girdiyi alır.
 ///
-/// Nakit, POS satırları ve toplamdan **ikisi yeter**; boş bırakılan alan
-/// gönderilmez ve sunucu onu hesaplar. [recordOverrides] yalnız kullanıcının
-/// değiştirdiği işaretleri taşır: adı geçmeyen kayıt sunucudaki varsayılanıyla
-/// işlenir.
+/// Nakit ve POS satırlarından her biri yalnız **kendi tutarı yazıldıysa** kayıt
+/// üretir; boş bırakılan alan gönderilmez ve sunucu onu hesaplamaz. Toplam
+/// kayıt üretmez, yalnız farkı gösterir. [recordOverrides] kullanıcının
+/// değiştirdiği işaretleri ve cevap isteyen **her** kaydın cevabını taşır: adı
+/// geçmeyen kayıt sunucudaki varsayılanıyla işlenir, cevap isteyen kayıt ise
+/// cevapsız sayılır.
 class DayCloseInput {
   const DayCloseInput({
     required this.date,
@@ -20,6 +22,7 @@ class DayCloseInput {
     this.cashAccountId,
     this.cashCategoryId,
     this.recordOverrides = const {},
+    this.overlaps = const {},
     this.isAdditional = false,
   });
 
@@ -37,6 +40,10 @@ class DayCloseInput {
 
   /// Kaydın anahtarı ([DayCloseExistingRecord.key]) → işaretli mi.
   final Map<String, bool> recordOverrides;
+
+  /// Grubun kimliği ([DayCloseOverlapGroup.groupId]) → satışta da tahsilatta
+  /// da görünen tutar, dört ondalıklı. Yalnız sunucunun sorduğu gruplar.
+  final Map<String, String> overlaps;
 
   /// Aynı günün ikinci gün sonu (ikinci cihaz).
   final bool isAdditional;
@@ -59,6 +66,10 @@ class DayCloseInput {
           'included': entry.value,
         },
     ],
+    'overlaps': [
+      for (final entry in overlaps.entries)
+        {'groupId': entry.key, 'amount': entry.value},
+    ],
     'isAdditional': isAdditional,
     'clientRequestId': ?clientRequestId,
   };
@@ -78,6 +89,10 @@ class DayCloseExistingRecord {
     required this.included,
     this.posDefinitionId,
     this.isCardCollection = false,
+    this.requiresAnswer = false,
+    this.groupId,
+    this.groupName,
+    this.createdAt,
   });
 
   factory DayCloseExistingRecord.fromJson(Map<String, dynamic> json) =>
@@ -87,19 +102,21 @@ class DayCloseExistingRecord {
         isCash: JsonReaders.string(json, 'side') == 'cash',
         date: JsonReaders.date(json, 'date'),
         amount: JsonReaders.money(json, 'amount'),
-        title: JsonReaders.string(json, 'title'),
+        // Adsız kayıtta boş gelir; türün adını ekran yazar.
+        title: JsonReaders.nullableString(json, 'title') ?? '',
         posDefinitionId: JsonReaders.nullableString(json, 'posDefinitionId'),
-        accountName: JsonReaders.string(json, 'accountName'),
+        accountName: JsonReaders.nullableString(json, 'accountName') ?? '',
         includedByDefault: JsonReaders.boolean(json, 'includedByDefault'),
-        included: JsonReaders.boolean(json, 'included'),
+        included: _nullableBool(json, 'included'),
         isCardCollection: json['isCardCollection'] == true,
+        requiresAnswer: json['requiresAnswer'] == true,
+        groupId: JsonReaders.nullableString(json, 'groupId'),
+        groupName: JsonReaders.nullableString(json, 'groupName'),
+        createdAt: _nullableInstant(json, 'createdAtUtc'),
       );
 
-  /// Kart tarafında bir alacağın kartla tahsili (KP7, KP13): satış değildir
-  /// ama yazar kasanın KART satırındadır; başlık kişinin adıdır.
-
   /// `income`, `pos-settlement`, `counterparty-payment`,
-  /// `obligation-settlement`.
+  /// `obligation-settlement`, `counterparty-charge`, `obligation`.
   final String kind;
   final String id;
 
@@ -111,12 +128,145 @@ class DayCloseExistingRecord {
   /// Kullanıcının yazdığı ad, yoksa kategori ya da kişi; boş olabilir.
   final String title;
   final String? posDefinitionId;
+
+  /// Kart tarafında bir alacağın kartla tahsili (KP7, KP13): satış değildir
+  /// ama yazar kasanın KART satırındadır; başlık kişinin adıdır.
   final bool isCardCollection;
+
+  /// Paranın girdiği hesap; veresiye satışta ve alacak faturasında boştur.
   final String accountName;
   final bool includedByDefault;
-  final bool included;
+
+  /// Yazılan tutarın içinde mi. `null`: cevaplanmadı; yalnız [requiresAnswer]
+  /// taşıyan kayıtta olur ve cevaplanmadan gün sonu yazılmaz.
+  final bool? included;
+
+  /// Veresiye satış, alacak faturası ve nakit tahsilat: uygulama bunların
+  /// yazılan nakdin içinde olup olmadığını bilemez, hazır cevapla gelmez.
+  final bool requiresAnswer;
+
+  /// Satışı ile tahsilatı aynı parayı gösterebilecek kayıtların grubu: cari
+  /// kayıtta kişi, alacak faturasında fatura. Öbür kayıtlarda `null`.
+  final String? groupId;
+  final String? groupName;
+
+  /// Kaydın uygulamaya girildiği an (cihazın saatiyle); bu bilgiden önce
+  /// yazılmış kayıtta `null` ve saat yazılmaz.
+  final DateTime? createdAt;
 
   String get key => '$kind/$id';
+
+  /// Geliri yazılmış, parası alınmamış olabilecek satış.
+  bool get isDeferredSale =>
+      kind == 'counterparty-charge' || kind == 'obligation';
+
+  /// Daha önce gelir yazılmış bir alacağın nakit tahsilatı.
+  bool get isCollection =>
+      kind == 'counterparty-payment' || kind == 'obligation-settlement';
+}
+
+/// Satışı da tahsilatı da yazılan nakdin içinde sayılmış bir grup: ikisinde
+/// de görünen tutar sorulur (önizlemede) ya da saklanmıştır (gün ekranında).
+///
+/// Üç cevabın sonucu sunucudan gelir; panel hiçbirini hesaplamaz.
+class DayCloseOverlapGroup {
+  const DayCloseOverlapGroup({
+    required this.groupId,
+    required this.name,
+    required this.isInvoice,
+    required this.salesAmount,
+    required this.collectionsAmount,
+    required this.maximumOverlap,
+    required this.separateAmount,
+    required this.insideAmount,
+    required this.collectionsLarger,
+    this.overlapAmount,
+    this.deductedAmount,
+  });
+
+  factory DayCloseOverlapGroup.fromJson(Map<String, dynamic> json) =>
+      DayCloseOverlapGroup(
+        groupId: JsonReaders.string(json, 'groupId'),
+        name: JsonReaders.nullableString(json, 'name') ?? '',
+        isInvoice: JsonReaders.string(json, 'kind') == 'obligation',
+        salesAmount: JsonReaders.money(json, 'salesAmount'),
+        collectionsAmount: JsonReaders.money(json, 'collectionsAmount'),
+        maximumOverlap: JsonReaders.money(json, 'maximumOverlap'),
+        separateAmount: JsonReaders.money(json, 'separateAmount'),
+        insideAmount: JsonReaders.money(json, 'insideAmount'),
+        collectionsLarger:
+            JsonReaders.string(json, 'largerSide') == 'collections',
+        overlapAmount: _nullableMoney(json, 'overlapAmount'),
+        deductedAmount: _nullableMoney(json, 'deductedAmount'),
+      );
+
+  final String groupId;
+
+  /// Kişinin ya da faturanın adı; adsız faturada boş.
+  final String name;
+
+  /// Grup bir alacak faturası ve kendi tahsilatı; değilse bir kişi.
+  final bool isInvoice;
+  final String salesAmount;
+  final String collectionsAmount;
+
+  /// İkisinde de görünen tutar en çok bu kadar olabilir.
+  final String maximumOverlap;
+
+  /// "İkisi ayrı ayrı" cevabında bu gruptan kayıtlı sayılan tutar.
+  final String separateAmount;
+
+  /// "Biri öbürünün içinde" cevabında bu gruptan kayıtlı sayılan tutar.
+  final String insideAmount;
+
+  /// Tahsilat satıştan büyük: içinde sayılan satıştır. Değilse (ya da ikisi
+  /// eşitse) tahsilat satışın içindedir.
+  final bool collectionsLarger;
+
+  /// Verilen cevap; `null`: cevaplanmadı.
+  final String? overlapAmount;
+
+  /// Verilen cevapla bu gruptan kayıtlı sayılan tutar; cevap yoksa `null`.
+  final String? deductedAmount;
+}
+
+/// Nakit tutarından düşülenin dökümü. Dört tutarın toplamı eksi
+/// [sharedAmount], [DayCloseCashLine.deductedAmount] değeridir; toplamayı
+/// sunucu yapar.
+class DayCloseCashDeductions {
+  const DayCloseCashDeductions({
+    this.salesAmount = _zero,
+    this.collectionsAmount = _zero,
+    this.creditSalesAmount = _zero,
+    this.invoicesAmount = _zero,
+    this.sharedAmount = _zero,
+  });
+
+  factory DayCloseCashDeductions.fromJson(Map<String, dynamic> json) =>
+      DayCloseCashDeductions(
+        salesAmount: JsonReaders.money(json, 'salesAmount'),
+        collectionsAmount: JsonReaders.money(json, 'collectionsAmount'),
+        creditSalesAmount: JsonReaders.money(json, 'creditSalesAmount'),
+        invoicesAmount: JsonReaders.money(json, 'invoicesAmount'),
+        sharedAmount: JsonReaders.money(json, 'sharedAmount'),
+      );
+
+  static const _zero = '0.0000';
+
+  /// Tek tek girilmiş nakit satışlar.
+  final String salesAmount;
+
+  /// Nakit tahsilatlar.
+  final String collectionsAmount;
+
+  /// O gün yazılmış veresiye satışlar.
+  final String creditSalesAmount;
+
+  /// O gün yazılmış alacak faturaları.
+  final String invoicesAmount;
+
+  /// Satışta da tahsilatta da görünen, bir kez düşülen tutar.
+  final String sharedAmount;
 }
 
 /// Panelin nakit satırı.
@@ -124,9 +274,9 @@ class DayCloseCashLine {
   const DayCloseCashLine({
     required this.stated,
     required this.enteredAmount,
-    required this.isComputed,
     required this.deductedAmount,
     required this.amountToWrite,
+    this.deductions = const DayCloseCashDeductions(),
     this.accountId,
     this.accountName,
     this.categoryId,
@@ -137,24 +287,25 @@ class DayCloseCashLine {
       DayCloseCashLine(
         stated: JsonReaders.boolean(json, 'stated'),
         enteredAmount: JsonReaders.money(json, 'enteredAmount'),
-        isComputed: JsonReaders.boolean(json, 'isComputed'),
         deductedAmount: JsonReaders.money(json, 'deductedAmount'),
         amountToWrite: JsonReaders.money(json, 'amountToWrite'),
+        deductions: DayCloseCashDeductions.fromJson(
+          JsonReaders.object(json['deductions'], 'deductions'),
+        ),
         accountId: JsonReaders.nullableString(json, 'accountId'),
         accountName: JsonReaders.nullableString(json, 'accountName'),
         categoryId: JsonReaders.nullableString(json, 'categoryId'),
         categoryName: JsonReaders.nullableString(json, 'categoryName'),
       );
 
-  /// Nakit yazıldı ya da toplamdan hesaplandı; değilse nakit tarafına
-  /// dokunulmaz.
+  /// Nakit tutarı yazıldı; değilse nakit tarafına dokunulmaz.
   final bool stated;
   final String enteredAmount;
-
-  /// Tutar kullanıcıdan değil, toplamdan geldi.
-  final bool isComputed;
   final String deductedAmount;
   final String amountToWrite;
+
+  /// [deductedAmount] tutarının dökümü.
+  final DayCloseCashDeductions deductions;
 
   /// Nakit satışın yazılacağı kasa ve kategori; sunucu çözemediyse `null`.
   final String? accountId;
@@ -174,7 +325,6 @@ class DayClosePosLine {
     required this.accountName,
     required this.stated,
     required this.enteredAmount,
-    required this.isComputed,
     required this.deductedAmount,
     required this.amountToWrite,
     required this.commissionAmount,
@@ -190,7 +340,6 @@ class DayClosePosLine {
         accountName: JsonReaders.string(json, 'accountName'),
         stated: JsonReaders.boolean(json, 'stated'),
         enteredAmount: JsonReaders.money(json, 'enteredAmount'),
-        isComputed: JsonReaders.boolean(json, 'isComputed'),
         deductedAmount: JsonReaders.money(json, 'deductedAmount'),
         amountToWrite: JsonReaders.money(json, 'amountToWrite'),
         commissionAmount: JsonReaders.money(json, 'commissionAmount'),
@@ -204,7 +353,6 @@ class DayClosePosLine {
   final String accountName;
   final bool stated;
   final String enteredAmount;
-  final bool isComputed;
   final String deductedAmount;
   final String amountToWrite;
   final String commissionAmount;
@@ -248,6 +396,7 @@ class DayClosePreview {
     required this.posLines,
     required this.totalComputed,
     required this.existingRecords,
+    this.overlapGroups = const [],
     this.totalEntered,
     this.totalDifference,
     this.blockerCode,
@@ -275,6 +424,10 @@ class DayClosePreview {
           json,
           'existingRecords',
         ).map(DayCloseExistingRecord.fromJson).toList(growable: false),
+        overlapGroups: _objects(
+          json,
+          'overlapGroups',
+        ).map(DayCloseOverlapGroup.fromJson).toList(growable: false),
         blockerCode: JsonReaders.nullableString(json, 'blockerCode'),
       );
 
@@ -291,6 +444,10 @@ class DayClosePreview {
   /// Yazılan toplam ile nakit + kart arasındaki fark; tutuyorsa `null`.
   final String? totalDifference;
   final List<DayCloseExistingRecord> existingRecords;
+
+  /// Satışı da tahsilatı da içinde sayılan gruplar: her biri için ikisinde
+  /// de görünen tutar sorulur. Yoksa boş.
+  final List<DayCloseOverlapGroup> overlapGroups;
 
   /// Bu girdiyle kayıt reddedilecekse sunucunun hata kodu.
   final String? blockerCode;
@@ -344,6 +501,7 @@ class DayClose {
     this.countedRecords = const [],
     this.countedCashAmount = '0.0000',
     this.countedCardAmount = '0.0000',
+    this.overlaps = const [],
   });
 
   factory DayClose.fromJson(Map<String, dynamic> json) => DayClose(
@@ -370,14 +528,24 @@ class DayClose {
     ).map(DayCloseExistingRecord.fromJson).toList(growable: false),
     countedCashAmount: JsonReaders.money(json, 'countedCashAmount'),
     countedCardAmount: JsonReaders.money(json, 'countedCardAmount'),
+    overlaps: _objects(
+      json,
+      'overlaps',
+    ).map(DayCloseOverlapGroup.fromJson).toList(growable: false),
   );
 
   /// Gün sonunun saydığı, tek tek girilmiş kayıtlar: tutardan düşüldüler ve
   /// gün sonu geri alınana kadar tek başlarına iptal edilemezler. Geri
   /// alınmış gün sonunda boştur.
   final List<DayCloseExistingRecord> countedRecords;
+
+  /// Nakit tutarından düşülen: sayılan nakit kayıtlar eksi [overlaps].
   final String countedCashAmount;
   final String countedCardAmount;
+
+  /// Sayılan kayıtlar arasında satışta da tahsilatta da görünen, tutardan
+  /// bir kez düşülmüş para; grup başına bir kayıt.
+  final List<DayCloseOverlapGroup> overlaps;
 
   final String id;
   final String closedOn;
@@ -446,6 +614,26 @@ class DayCloseOptions {
 
 bool isZeroMoney(String money) =>
     !money.replaceAll(RegExp('[^0-9]'), '').contains(RegExp('[1-9]'));
+
+/// Alan yoksa ya da `null` ise `null`; yanlış tipte ise hata.
+bool? _nullableBool(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  if (value == null) return null;
+  if (value is! bool) throw FormatException('Invalid $key.');
+  return value;
+}
+
+String? _nullableMoney(Map<String, dynamic> json, String key) =>
+    json[key] == null ? null : JsonReaders.money(json, key);
+
+/// Sunucunun UTC anını cihazın saatine çevirir; alan yoksa `null`.
+DateTime? _nullableInstant(Map<String, dynamic> json, String key) {
+  final value = JsonReaders.nullableString(json, key);
+  if (value == null) return null;
+  final parsed = DateTime.tryParse(value);
+  if (parsed == null) throw FormatException('Invalid $key.');
+  return parsed.toLocal();
+}
 
 List<Map<String, dynamic>> _objects(Map<String, dynamic> json, String key) =>
     JsonReaders.list(

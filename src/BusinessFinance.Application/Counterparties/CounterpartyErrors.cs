@@ -89,6 +89,11 @@ public static class CounterpartyErrors
         "The payment changed while it was being saved; reload and try again.",
         ApplicationErrorType.Conflict);
 
+    public static readonly ApplicationError ChargeDayCloseCounted = new(
+        "counterparty_charges.day_close_counted",
+        "A sale counted in a day close cannot be cancelled; revert the day close first.",
+        ApplicationErrorType.Conflict);
+
     public static readonly ApplicationError PaymentDayCloseCounted = new(
         "counterparty_payments.day_close_counted",
         "A payment counted in a day close cannot be cancelled; revert the day close first.",

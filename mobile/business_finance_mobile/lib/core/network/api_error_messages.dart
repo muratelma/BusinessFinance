@@ -373,8 +373,17 @@ abstract final class ApiErrorMessages {
     'day_closes.invalid_date': 'Gün ileri bir tarih olamaz.',
     'day_closes.invalid_amount': 'Tutarlar eksi olamaz.',
     'day_closes.amounts_required': 'Nakit ya da kart tutarını yazın.',
-    'day_closes.total_below_parts': 'Toplam, yazdığınız tutardan küçük olamaz.',
-    'day_closes.pos_required': 'Kart tutarı için önce bir POS ekleyin.',
+    'day_closes.total_below_parts':
+        'Toplam, yazdığınız nakit ve kart tutarından az olamaz.',
+    'day_closes.records_unanswered':
+        'Tahsilat ve veresiye satışların yazdığınız nakdin içinde olup '
+        'olmadığını seçin.',
+    'day_closes.overlap_unanswered':
+        'Satış ve tahsilatın yazdığınız nakitte nasıl sayıldığını seçin.',
+    'day_closes.invalid_overlap':
+        'İkisinde de sayılan tutar satıştan ya da tahsilattan büyük olamaz.',
+    'day_closes.records_changed':
+        'Günün kayıtları değişti. Listeye yeniden bakın.',
     'day_closes.pos_unavailable':
         'Seçilen POS bulunamadı. Paneli kapatıp yeniden açın.',
     'day_closes.pos_unusable':
@@ -410,9 +419,11 @@ abstract final class ApiErrorMessages {
     'counterparty_payments.day_close_counted':
         'Bu tahsilat gün sonunda sayıldı. İptal için önce gün sonunu geri '
         'alın.',
+    'counterparty_charges.day_close_counted':
+        'Bu satış gün sonunda sayıldı. İptal için önce gün sonunu geri alın.',
     'obligations.day_close_counted':
-        'Bu kaydın tahsilatı gün sonunda sayıldı. İptal için önce gün sonunu '
-        'geri alın.',
+        'Bu kayıt ya da tahsilatı gün sonunda sayıldı. İptal için önce gün '
+        'sonunu geri alın.',
     'obligations.deposit_locked':
         'Kart parası hesaba geçmiş. İptal için önce yatışı geri alın.',
     'obligations.concurrent_change':

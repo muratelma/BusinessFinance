@@ -520,7 +520,7 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     `documentation/tests.md` sonunda
     Kasadaki açık karar kapandı: kullanıcı KS1'de **A**'yı seçti (kod
     değişmedi). Buraya kadarki işler `156c81e` olarak tek commit'te.
-  - **06.3 — ad tekliği tek kural (9 Ekim 2026; commit'lenmedi)**: kişi,
+  - **06.3 — ad tekliği tek kural (9–10 Ekim 2026; `8628467`)**: kişi,
     hesap, kredi kartı, kategori ve POS aynı kuralı kullanır (`NameKeys`,
     kolon `NameKey`): anahtarda yalnız harfler ve rakamlar kalır; harf
     büyüklüğü, boşluk ve noktalama ad farkı değildir, Türkçe harf başka
@@ -548,6 +548,29 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     **Sırada:** `research/DEVIR-2026-10-09.md` §6'daki sıra; vadeli cari
     satışın Planlananlar'a eklenmesi ve Planlananlar süzgeçleri kategori ve
     hesap sayfalarından sonra (kullanıcı kararı, 10 Ekim 2026)
+  - **06.3 — gün sonunda vadeli satış ve tahsilat (10 Ekim 2026; sunucu
+    yazıldı, panel bekliyor, commit'lenmedi)**: kullanıcı G1–G4 ve G6'yı
+    onayladı (karar tablosu ve Tablo 1–8 aşama belgesinde, Grup 5'in sonu; üç
+    dış göz turu `research/DIS-GOZ-2026-10-10-*.md`). Toplamdan nakit ya da
+    kart hesaplanmaz; o günün veresiye satışı ve alacak faturası listededir;
+    vadeli satış ve nakit tahsilat hazır cevapsız gelir; satışı da tahsilatı
+    da dahil edilen grupta **ortak tutar** sorulur ve saklanır
+    (`DayCloseCountedOverlap`, migration `AddDayCloseOverlaps`; iki
+    veritabanına uygulandı). Yedek v11'e isteğe bağlı `overlaps` eklendi.
+    Kabul testleri önce yazıldı. Kontroller: backend gerçek SQL ile Domain
+    393, Application 398, Api 315, Infrastructure 248 (+2 canlı test atlanır),
+    build 0 uyarı, format temiz; Flutter analyze ve format temiz (Flutter
+    kodu değişmedi). **İkinci oturum (aynı gün):** kullanıcı G5 çizimlerini
+    reddetti, paneli Claude Design tasarlıyor (Brif 4). Tasarıma bağlı olmayan
+    kısım yazıldı: sunucu panelin toplamayacağı sayıları verir (kaydın giriş
+    anı, düşülenin dökümü, ortak tutar grubunda üç cevabın sonucu ve grubun
+    türü); Flutter modeli yeni sözleşmede; cevaplar `DayCloseAnswers` içinde;
+    hata cümleleri; gün ekranında tür alt yazısı ve ortak tutar satırı. Model
+    boş başlıklı kaydı reddediyordu, düzeltildi. Kontroller: backend gerçek
+    SQL ile Domain 393, Application 398, Api 317, Infrastructure 248 (+2 canlı
+    test atlanır), build 0 uyarı, format temiz; Flutter 1120 (124 atlanır),
+    analyze ve format temiz. **Sırada:** Claude Design teslimi gelince panel;
+    sonra tam kontroller ve commit. Sunucu ve uygulama birlikte güncellenir
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni (beklemede) → **06.3 bütünsel düzenleme (aktif)** →

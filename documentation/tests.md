@@ -1603,7 +1603,7 @@ yazılır.
 | Kimlik tutar taşımaz, kayıtlar sıradan | `DayCloseTests`, `MigrationHistoryTests.AddDayCloses_*` | Gün sonu gelir ve tahsilatı kimliğiyle bağlar; kendi tablosunda `decimal` kolon yoktur; hiç kayıt üretmeyen gün sonu günü kapatır; gider bir gün sonuna bağlanamaz |
 | Yalnız kendi kayıtları | `DayCloseTests` | Başka gün sonunun, elle girilmiş, başka günün ya da iptal edilmiş kaydı reddedilir; gelecek gün, ters aralık ve sıfır Z no reddedilir |
 | Zaten girilmiş kayıtlar düşülür | `DayCloseEndpointTests.DayClose_WritesTheRemainder_*` | Nakit 3.350 − girilmiş 1.250 = 2.100 gelir; kart 2.680 − girilmiş 800 = 1.880 tahsilat (komisyon POS'un oranıyla); günün geliri tam olarak Z'nin toplamı; satış ve POS işaretli, nakit cari tahsilat işaretsiz gelir; önizleme ile kayıt aynı sayıları söyler ve önizleme hiçbir şey yazmaz |
-| Üç alandan ikisi | `DayCloseEndpointTests.TwoOfCashCardAndTotal_AreEnough` | Kart toplamdan hesaplanıp ana POS'a yazılır; nakit toplamdan hesaplanır; yalnız nakitte kart tarafına dokunulmaz; yalnız toplam `amounts_required`; toplam parçadan küçükse `total_below_parts`; üçü de verilip tutmuyorsa fark döner ve kayıt yazılır |
+| Her taraf kendi tutarından | `DayCloseEndpointTests.EachSideIsWrittenOnlyFromItsOwnAmount_AndTheTotalOnlyShowsTheDifference` | Toplamdan nakit ya da kart hesaplanmaz (10 Ekim 2026'da "üç alandan ikisi" kalktı); yalnız nakitte kart tarafına dokunulmaz; yalnız toplam `amounts_required`; toplam parçadan küçükse `total_below_parts`; toplam tutmuyorsa fark döner ve kayıt yazılır |
 | Her şeyi girilmiş gün ve ek gün sonu | `DayCloseEndpointTests.ADayWithEverythingAlreadyEntered_*` | Yazılacak tutar sıfırken gün kayıt üretmeden kapanır; aynı güne ikinci gün sonu `409 already_closed`; `isAdditional` ile yazılır ve kayıtlar işaretsiz gelir; kapatılmamış güne ek gün sonu `not_closed_yet` |
 | İşaretli kayıtlar tutarı aşamaz | `DayCloseEndpointTests.RecordsExceedingTheDayClose_*` | `existing_exceeds_cash` ve `existing_exceeds_card`; reddedilen istek hiçbir şey yazmaz; işaret kaldırılınca (ve cari tahsilat işaretlenince) yazılır |
 | Geri alma bir bütündür | `DayCloseTests`, `DayCloseEndpointTests.RevertedDayClose_*` | Gelir ve tahsilat birlikte iptal olur, gün yeniden açılır, kayıt ne yazdığını hatırlar; idempotent; ürettiği tahsilat yatışa bağlıysa `409 day_closes.deposit_locked` ve hiçbir şey değişmez; yatış geri alınınca çalışır |
@@ -1624,7 +1624,7 @@ derlendi.
 |---|---|---|
 | Depo ve modeller | `day_close_test` → `depo` | Önizleme gövdeyle gider, yalnız yazılan alanları ve değişen işaretleri taşır, istek kimliği taşımaz; kayıt istek kimliğiyle yazılır; liste ve geri alma; para JSON sayısı olarak gelirse reddedilir |
 | Değişiklik bildirimi | `day_close_test` → `controller`, `financial_data_changes_test` | Kayıt ve geri alma akışı, özeti, bütçeyi, hesapları ve kasayı yeniler, kartları yenilemez; reddedilen kayıt hiçbir hedefi yükseltmez ve hata kodunu taşır; başka ekrandan gelen değişiklik "bugün"ü yeniden okutur |
-| Panel | `day_close_test` → `gün sonu paneli` | POS alanları ve kayıtlar sunucudan gelir; tutar yazılınca `Yazılacak` görünür; işaret değişince yalnız değişen kayıt gönderilir, varsayılana dönen gönderilmez; kaydet girdiyi gönderir ve kapanır; tutarsız kaydetme eksiği söyler; aşan kayıt alanın yanında söylenir ve yazılmaz; toplamdan hesaplanan kart alanın altında yazar; kapalı günde alanlar kilitli, `Ek gün sonu` açar; kasa seçilemediyse alanlar açılır; sunucu hatası panelde kalır; 2.0× yazıda taşma yok, erişilebilirlik kapısı |
+| Panel | `day_close_test` → `gün sonu paneli` | POS alanları ve kayıtlar sunucudan gelir; tutar yazılınca `Yazılacak` görünür; işaret değişince yalnız değişen kayıt gönderilir, varsayılana dönen gönderilmez; kaydet girdiyi gönderir ve kapanır; tutarsız kaydetme eksiği söyler; aşan kayıt alanın yanında söylenir ve yazılmaz; toplam kart tutarını hesaplamaz, yalnız farkı gösterir; kapalı günde alanlar kilitli, `Ek gün sonu` açar; kasa seçilemediyse alanlar açılır; sunucu hatası panelde kalır; 2.0× yazıda taşma yok, erişilebilirlik kapısı |
 | Ayrıntı ve geri alma | `day_close_test` → `gün sonu ayrıntısı` | Tutarlar ve yazdığı kayıtlar; geri alma onaysız çalışmaz; hesaba geçmiş tahsilatta "Önce yatışı geri alın."; geri alınmış gün sonu eylem sunmaz; 2.0× yazı ve erişilebilirlik |
 | Kasa kartı ve kapılar | `day_close_test` → `Kasa kartı`, `cash_pos_feature_test` | Gün açıkken `Gün sonunu gir`, kapalıyken yazdığı ve `Ek gün sonu gir`; Kasa kartı paneli açar; menüden gelen panel vazgeçince geldiği ekrana döner; Kasa'da "Gün sonu sayımı" metni kalmadı |
 | "+" menüsü | `quick_add_test` | İşletme profilinde `POS tahsilatı`nın yerinde `Gün sonu`; kişisel profilde `Gün sonu` yok |
@@ -2026,3 +2026,36 @@ kalır ve cümleyi `AppFormError` ile kendi içinde yazar.
 
 Kontroller: Flutter 1108 (119 atlanır), `flutter analyze` ve `dart format`
 temiz. Backend kodu değişmedi; backend testleri yeniden koşulmadı.
+
+**10 Ekim 2026 — gün sonunda vadeli satış ve tahsilat (G1–G4, G6; sunucu).**
+Kabul testleri koddan önce yazıldı; kaynağı aşama belgesindeki Tablo 1–8.
+
+| Kural | Test | Ne gösterir |
+|---|---|---|
+| Tablo 1–8 | `DayCloseDeferredSalesEndpointTests.Table1_*` … `Table8_*` (Api, yeni, 8) | Her satır: girilen → düşülen → yeni satış (önizleme); tablonun doğru satırı gerçek kayıtla (kasa bakiyesi, ayın geliri). Tablo 3–6 ortak tutarı, Tablo 7–8 toplamdan türetmenin kalktığını kapsar |
+| Sayılan fatura kilidi | `CountedInvoice_IsLockedEvenWhenItsSettlementIsNotCounted` (Api, yeni) | Yalnız faturası sayılan alacak `obligations.day_close_counted` ile iptal edilemez; geri almada serbest kalır |
+| Cevap görülen kayıt içindir | `Answers_CoverOnlyTheRecordsTheUserSaw` (Api, yeni) | Sonradan gelen kayıt `records_unanswered`; listede olmayan kayıt için cevap `records_changed`; ek gün sonunda yeniden sorulur |
+| Eski testler | `DayCloseEndpointTests` (güncellendi, 3) | Tahsilat cevap ister; "ikisi yeter" testi "her taraf kendi tutarından yazılır" oldu; sayılmış kayıt için cevap taşıyan istek artık reddedilir |
+| Yükseltme yolu | `MigrationHistoryTests.AddDayCloseOverlaps_OnlyAddsAnEmptyTableAndWidensTheKindConstraint` (yeni) | Yalnız boş bir tablo eklenir ve tür kısıtı genişler; kolon, satır ve doldurma yok |
+| Yedek | `DataPortabilityTests.Backup_RoundTripsCountedDeferredSalesWithTheirSharedAmount` (yeni) | Sayılan veresiye satış, tahsilat ve ortak tutar yeni kimliklerle döner; tahsilattan büyük ortak tutar taşıyan dosya reddedilir ve hiçbir şey yazmaz |
+| G5 çizimi | `test/screenshots/gun_sonu_g5_tasarim_test.dart` (yeni, 5; `SCREENSHOT_DIR` ile) | Panelin önerilen metni ve yerleşimi; uygulama değil, karar çizimi |
+
+Kontroller: backend SQL'siz Domain 393, Application 398, Infrastructure 180
+(+70 SQL testi atlanır), Api 313 (+2 atlanır); build 0 uyarı, `dotnet format`
+temiz. Gerçek SQL koşusunun sonucu `docs/project-status.md` içinde. Flutter
+kodu değişmedi (yalnız çizim testi eklendi); `flutter analyze` ve `dart format`
+temiz. **Panel yeni sözleşmeye geçmedi**: G5 onayından sonra yazılacak.
+
+**10 Ekim 2026 (ikinci oturum) — panelin okuyacağı sayılar ve Flutter modeli.**
+Panelin yerleşimi Claude Design teslimini bekliyor; tasarıma bağlı olmayan
+kısım yazıldı.
+
+| Kural | Test | Ne gösterir |
+|---|---|---|
+| Düşülenin dökümü ve giriş anı | `DayCloseDeferredSalesEndpointTests.Preview_BreaksDownWhatIsAlreadyRecorded` (Api, yeni) | 1.670 − 670 = 1.000 (250 satış + 420 tahsilat); yalnız biri içindeyken 550; veresiye satış kendi alanında; her kayıt `createdAtUtc` taşır; nakit boşken döküm sıfırdır ve kartlı kayıt kendi POS'undan düşer (1.300 − 800 = 500) |
+| Üç cevabın sonucu | `DayCloseDeferredSalesEndpointTests.OverlapGroup_CarriesTheResultOfEachAnswer` (Api, yeni) | 500 satış + 300 tahsilat: ayrı ayrı 800, içinde 500, 200 ortakla 600; tahsilat büyükse `largerSide: collections`; eşitse `sales`; fatura grubu `kind: obligation`; döküm 700 + 400 + 1.050 − 800 = 1.350; günün ekranı saklanan grupları aynı alanlarla verir |
+| Model | `day_close_test` → `depo` (3; 2 yeni) | İstek `overlaps` taşır; cevap isteyen kayıt `included` boş gelir; grup, döküm ve giriş anı okunur; adsız fatura ve hesabı olmayan veresiye satış (boş `title`, boş `accountName`) okunur; saati olmayan eski kayıt okunur |
+| Cevaplar | `day_close_test` → `cevaplar` (yeni, 6) | Satır cevapsız → içinde → değil → içinde; toplu cevap karışıkken ve cevapsızken boştur; seçimi değişen grubun ortak tutarı düşer, öbürününki kalır; liste yenilenince duran kayıtların cevabı kalır, düşen kaydın cevabı ve grubunun ortak tutarı düşer, yeni gelen kayıt cevapsızdır; nakit boşken ortak tutar bekler |
+| Panel (geçici, eski yerleşim) | `day_close_test` → `gün sonu paneli` (3 yeni, 4 güncellendi) | Cevaplanmamış tahsilatla kaydedilmez; yalnız kart yazılınca sorulmaz; listeden düşen kaydın cevabı gönderilmez; cevap isteyen kaydın cevabı hep gönderilir |
+| Gün ekranı | `day_close_test` → `gün ayrıntısı` (1 yeni) | Sayılan satırı türü ayırır (`Sayıldı · veresiye satış`, `Sayıldı · tahsilat`); ortak tutar `İkisinde de var · bir kez sayıldı` satırında eksiyle yazar |
+| Ekran görüntüsü | `gun_sonu_screenshot_test` → `gunsonu-09-ayrinti-ikisinde-de` (yeni; `SCREENSHOT_DIR` ile) | Gün ekranında ortak tutar satırı |

@@ -238,11 +238,7 @@ class _DayCloseDaySheetState extends State<DayCloseDaySheet> {
                   for (final record in shown.outsideRecords)
                     _RecordRow(
                       title: _recordTitle(record),
-                      subtitle: record.isCash
-                          ? 'Nakit'
-                          : record.isCardCollection
-                          ? 'Kartla tahsil'
-                          : 'Kart',
+                      subtitle: _recordSide(record),
                       amount: record.amount,
                       currency: shown.currency,
                     ),
@@ -294,7 +290,21 @@ String _recordTitle(DayCloseExistingRecord record) {
     'pos-settlement' => 'POS satışı',
     'counterparty-payment' => 'Cari tahsilat',
     'obligation-settlement' => 'Alacak tahsilatı',
+    'counterparty-charge' => 'Veresiye satış',
+    'obligation' => 'Alacak faturası',
     _ => 'Gelir',
+  };
+}
+
+/// Kaydın ne olduğu: aynı kişinin veresiye satışı ile tahsilatı aynı adı
+/// taşır, satırları bu ayırır.
+String _recordSide(DayCloseExistingRecord record) {
+  if (!record.isCash) return record.isCardCollection ? 'Kartla tahsil' : 'Kart';
+  if (record.isCollection) return 'Tahsilat';
+  return switch (record.kind) {
+    'counterparty-charge' => 'Veresiye satış',
+    'obligation' => 'Alacak faturası',
+    _ => 'Nakit',
   };
 }
 
@@ -351,14 +361,23 @@ class _CloseSection extends StatelessWidget {
               for (final record in close.countedRecords)
                 _RecordRow(
                   title: _recordTitle(record),
-                  subtitle: record.isCash
-                      ? 'Sayıldı · nakit'
-                      : record.isCardCollection
-                      ? 'Sayıldı · kartla tahsil'
-                      : 'Sayıldı · kart',
+                  subtitle: 'Sayıldı · ${_recordSide(record).toLowerCase()}',
                   amount: record.amount,
                   currency: close.currency,
                 ),
+              // Satışta da tahsilatta da görünen para bir kez sayıldı; bu
+              // satır olmadan sayılanlar günün toplamını tutmaz.
+              for (final overlap in close.overlaps)
+                if (overlap.overlapAmount case final amount?)
+                  _RecordRow(
+                    key: ValueKey('day-close-overlap-${overlap.groupId}'),
+                    title: overlap.name.isEmpty
+                        ? 'Alacak faturası'
+                        : overlap.name,
+                    subtitle: 'İkisinde de var · bir kez sayıldı',
+                    amount: '-$amount',
+                    currency: close.currency,
+                  ),
             ],
           ),
         const SizedBox(height: AppSpacing.small),
@@ -403,6 +422,7 @@ class _RecordRow extends StatelessWidget {
     required this.subtitle,
     required this.amount,
     required this.currency,
+    super.key,
   });
 
   final String title;

@@ -123,6 +123,19 @@ v9'un taşıdığı iki koleksiyon aynen yerinde:
   elle girilmiş olmalı, bir kayıt en çok bir gün sonunda sayılmalı ve geri
   alınmış gün sonu sayılan kayıt taşımamalıdır; aksi hâlde yedek reddedilir.
 
+  **10 Ekim 2026'da v11'e eklendi (sürüm yükselmedi):** sayılan kayıt türüne
+  iki değer daha gelir — o gün yazılmış veresiye satış (cari borçlandırma) ve
+  alacak faturası (yükümlülük); ikisi de canlı ve alacak yönlü olmalıdır.
+  `dayCloses[].overlaps` isteğe bağlı bir dizidir: gün sonunun saydığı
+  kayıtlar arasında iki kayıtta da görünen ve nakit tutarından bir kez düşülen
+  **ortak tutar** (`groupId`, `amount`). `groupId` dosyadaki kişinin ya da
+  alacak faturasının kimliğidir ve geri yüklerken yeni kimliğe çevrilir.
+  Ortak tutar kullanıcının verdiği bilgidir, kayıtlardan yeniden hesaplanamaz;
+  bu yüzden dosyada taşınır. Geri yüklemede grubun hem satışı hem tahsilatı o
+  gün sonunda sayılmış olmalı, tutar artı olmalı ve ikisinden küçük olanı
+  aşmamalıdır; geri alınmış gün sonu ortak tutar taşıyamaz. Alanı taşımayan
+  önceki v11 dosyası okunur (ortak tutar yoktur).
+
   2 Ekim 2026'da (yatış tesliminde) alınmış bir v11 yedeği `dayCloses`
   koleksiyonunu taşımadığı için reddedilir (veri sentetik; aşamanın yedek
   politikası).

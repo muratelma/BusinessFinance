@@ -151,6 +151,7 @@ internal sealed class EfDayCloseRepository(
         IReadOnlyCollection<BudgetTransaction> incomes,
         IReadOnlyCollection<PosSettlement> settlements,
         IReadOnlyCollection<DayCloseCountedRecord> counted,
+        IReadOnlyCollection<DayCloseCountedOverlap> overlaps,
         CancellationToken cancellationToken)
     {
         try
@@ -159,6 +160,7 @@ internal sealed class EfDayCloseRepository(
             await dbContext.Transactions.AddRangeAsync(incomes, cancellationToken);
             await dbContext.PosSettlements.AddRangeAsync(settlements, cancellationToken);
             await dbContext.DayCloseCountedRecords.AddRangeAsync(counted, cancellationToken);
+            await dbContext.DayCloseCountedOverlaps.AddRangeAsync(overlaps, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
             return true;
         }
@@ -182,6 +184,10 @@ internal sealed class EfDayCloseRepository(
             .Where(record => record.UserId == userId && record.DayCloseId == dayCloseId)
             .ToArrayAsync(cancellationToken);
         dbContext.DayCloseCountedRecords.RemoveRange(counted);
+        var overlaps = await dbContext.DayCloseCountedOverlaps
+            .Where(overlap => overlap.UserId == userId && overlap.DayCloseId == dayCloseId)
+            .ToArrayAsync(cancellationToken);
+        dbContext.DayCloseCountedOverlaps.RemoveRange(overlaps);
     }
 
     public async Task<bool> TrySaveAsync(CancellationToken cancellationToken)
@@ -243,6 +249,7 @@ internal sealed class EfDayCloseRepository(
                 Amount = transaction.Amount.Amount,
                 Title = transaction.Description ?? category.Name,
                 AccountName = account.Name,
+                CreatedAtUtc = EF.Property<DateTimeOffset?>(transaction, EntryTimestamp.PropertyName),
                 CountedBy = dbContext.DayCloseCountedRecords
                     .Where(counted => counted.UserId == userId &&
                                       counted.Kind == DayCloseRecordKind.Income &&
@@ -285,6 +292,7 @@ internal sealed class EfDayCloseRepository(
                 settlement.PosDefinitionId,
                 settlement.Kind,
                 AccountName = account.Name,
+                CreatedAtUtc = (DateTimeOffset?)settlement.CreatedAtUtc,
                 CountedBy = dbContext.DayCloseCountedRecords
                     .Where(counted => counted.UserId == userId &&
                                       counted.Kind == DayCloseRecordKind.PosSettlement &&
@@ -317,7 +325,10 @@ internal sealed class EfDayCloseRepository(
                 Date = payment.PaymentDate,
                 Amount = payment.Amount.Amount,
                 Title = payment.Description ?? counterparty.Name,
+                payment.CounterpartyId,
+                CounterpartyName = counterparty.Name,
                 AccountName = account.Name,
+                CreatedAtUtc = EF.Property<DateTimeOffset?>(payment, EntryTimestamp.PropertyName),
                 CountedBy = dbContext.DayCloseCountedRecords
                     .Where(counted => counted.UserId == userId &&
                                       counted.Kind == DayCloseRecordKind.CounterpartyPayment &&
@@ -348,11 +359,70 @@ internal sealed class EfDayCloseRepository(
                 Date = settlement.SettlementDate,
                 Amount = settlement.Amount.Amount,
                 Title = obligation.Description ?? string.Empty,
+                settlement.ObligationId,
                 AccountName = account.Name,
+                CreatedAtUtc = (DateTimeOffset?)settlement.SettledAtUtc,
                 CountedBy = dbContext.DayCloseCountedRecords
                     .Where(counted => counted.UserId == userId &&
                                       counted.Kind == DayCloseRecordKind.ObligationSettlement &&
                                       counted.RecordId == settlement.Id)
+                    .Select(counted => (Guid?)counted.DayCloseId)
+                    .FirstOrDefault(),
+            })
+            .ToArrayAsync(cancellationToken);
+
+        // Vadeli satışlar: geliri o gün yazılmıştır, parası alınmamış olabilir.
+        // Yazar kasadan nakit gibi geçirildiyse girilen nakit tutarının
+        // içindedir ve düşülmezse aynı satış iki kez gelir yazılır. Kişi ya da
+        // fatura, satışı aynı günkü tahsilatla aynı gruba koyar.
+        var counterpartyCharges = await (
+            from charge in dbContext.CounterpartyCharges.AsNoTracking()
+            join counterparty in dbContext.Counterparties.AsNoTracking()
+                on new { charge.UserId, Id = charge.CounterpartyId }
+                equals new { counterparty.UserId, counterparty.Id }
+            where charge.UserId == userId &&
+                  !charge.IsCancelled &&
+                  charge.Direction == DebtDirection.Receivable &&
+                  charge.ChargeDate >= @from &&
+                  charge.ChargeDate <= to
+            orderby charge.ChargeDate
+            select new
+            {
+                charge.Id,
+                Date = charge.ChargeDate,
+                Amount = charge.Amount.Amount,
+                Title = charge.Description ?? counterparty.Name,
+                charge.CounterpartyId,
+                CounterpartyName = counterparty.Name,
+                CreatedAtUtc = EF.Property<DateTimeOffset?>(charge, EntryTimestamp.PropertyName),
+                CountedBy = dbContext.DayCloseCountedRecords
+                    .Where(counted => counted.UserId == userId &&
+                                      counted.Kind == DayCloseRecordKind.CounterpartyCharge &&
+                                      counted.RecordId == charge.Id)
+                    .Select(counted => (Guid?)counted.DayCloseId)
+                    .FirstOrDefault(),
+            })
+            .ToArrayAsync(cancellationToken);
+
+        var obligations = await dbContext.Obligations.AsNoTracking()
+            .Where(obligation => obligation.UserId == userId &&
+                                 !obligation.IsCancelled &&
+                                 obligation.Direction == DebtDirection.Receivable &&
+                                 obligation.Scope == TransactionScope.Business &&
+                                 obligation.IssueDate >= @from &&
+                                 obligation.IssueDate <= to)
+            .OrderBy(obligation => obligation.IssueDate)
+            .Select(obligation => new
+            {
+                obligation.Id,
+                Date = obligation.IssueDate,
+                Amount = obligation.Amount.Amount,
+                Title = obligation.Description ?? string.Empty,
+                CreatedAtUtc = (DateTimeOffset?)obligation.CreatedAtUtc,
+                CountedBy = dbContext.DayCloseCountedRecords
+                    .Where(counted => counted.UserId == userId &&
+                                      counted.Kind == DayCloseRecordKind.Obligation &&
+                                      counted.RecordId == obligation.Id)
                     .Select(counted => (Guid?)counted.DayCloseId)
                     .FirstOrDefault(),
             })
@@ -363,23 +433,45 @@ internal sealed class EfDayCloseRepository(
             .. incomes.Select(row => new RecordRow(
                 new DayCloseExistingRecordDto(
                     DayCloseRecordKind.Income, row.Id, DayCloseSide.Cash, row.Date, row.Amount,
-                    row.Title, null, row.AccountName, true, true),
+                    row.Title, null, row.AccountName, true, true,
+                    CreatedAtUtc: row.CreatedAtUtc),
+                row.CountedBy)),
+            // Vadeli satış ve nakit tahsilat hazır cevapla gelmez (cevap boş):
+            // girilen tutarın içinde olup olmadıkları kayıtlardan bilinemez.
+            .. counterpartyCharges.Select(row => new RecordRow(
+                new DayCloseExistingRecordDto(
+                    DayCloseRecordKind.CounterpartyCharge, row.Id, DayCloseSide.Cash, row.Date,
+                    row.Amount, row.Title, null, string.Empty, false, null,
+                    RequiresAnswer: true, GroupId: row.CounterpartyId,
+                    GroupName: row.CounterpartyName, CreatedAtUtc: row.CreatedAtUtc),
                 row.CountedBy)),
             .. counterpartyPayments.Select(row => new RecordRow(
                 new DayCloseExistingRecordDto(
                     DayCloseRecordKind.CounterpartyPayment, row.Id, DayCloseSide.Cash, row.Date,
-                    row.Amount, row.Title, null, row.AccountName, false, false),
+                    row.Amount, row.Title, null, row.AccountName, false, null,
+                    RequiresAnswer: true, GroupId: row.CounterpartyId,
+                    GroupName: row.CounterpartyName, CreatedAtUtc: row.CreatedAtUtc),
+                row.CountedBy)),
+            .. obligations.Select(row => new RecordRow(
+                new DayCloseExistingRecordDto(
+                    DayCloseRecordKind.Obligation, row.Id, DayCloseSide.Cash, row.Date,
+                    row.Amount, row.Title, null, string.Empty, false, null,
+                    RequiresAnswer: true, GroupId: row.Id, GroupName: row.Title,
+                    CreatedAtUtc: row.CreatedAtUtc),
                 row.CountedBy)),
             .. obligationSettlements.Select(row => new RecordRow(
                 new DayCloseExistingRecordDto(
                     DayCloseRecordKind.ObligationSettlement, row.Id, DayCloseSide.Cash, row.Date,
-                    row.Amount, row.Title, null, row.AccountName, false, false),
+                    row.Amount, row.Title, null, row.AccountName, false, null,
+                    RequiresAnswer: true, GroupId: row.ObligationId, GroupName: row.Title,
+                    CreatedAtUtc: row.CreatedAtUtc),
                 row.CountedBy)),
             .. settlements.Select(row => new RecordRow(
                 new DayCloseExistingRecordDto(
                     DayCloseRecordKind.PosSettlement, row.Id, DayCloseSide.Card, row.Date,
                     row.Amount, row.Title ?? string.Empty, row.PosDefinitionId, row.AccountName,
-                    true, true, row.Kind == PosSettlementKind.Collection),
+                    true, true, row.Kind == PosSettlementKind.Collection,
+                    CreatedAtUtc: row.CreatedAtUtc),
                 row.CountedBy)),
         ];
     }
@@ -472,6 +564,9 @@ internal sealed class EfDayCloseRepository(
                 cancellationToken))
             .Where(row => row.CountedBy is not null)
             .ToArray();
+        var overlaps = await dbContext.DayCloseCountedOverlaps.AsNoTracking()
+            .Where(overlap => overlap.UserId == userId && ids.Contains(overlap.DayCloseId))
+            .ToArrayAsync(cancellationToken);
 
         var asOfDate = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
         return dayCloses
@@ -486,7 +581,15 @@ internal sealed class EfDayCloseRepository(
                     .ToArray();
                 var ownCounted = counted
                     .Where(row => row.CountedBy == dayClose.Id)
-                    .Select(row => row.Record)
+                    .Select(row => row.Record with { Included = true })
+                    .ToArray();
+                // Ortak tutar iki kayıtta da görünür, tutardan bir kez düşülmüştür.
+                var ownOverlaps = overlaps
+                    .Where(overlap => overlap.DayCloseId == dayClose.Id)
+                    .Select(overlap => DayCloseOverlapGroupDto.From(
+                        overlap.GroupId,
+                        ownCounted.Where(record => record.GroupId == overlap.GroupId).ToArray(),
+                        overlap.Amount))
                     .ToArray();
                 return new DayCloseDto(
                     dayClose.Id,
@@ -513,9 +616,10 @@ internal sealed class EfDayCloseRepository(
                     CurrencyCode.TRY,
                     ownCounted,
                     ownCounted.Where(record => record.Side == DayCloseSide.Cash)
-                        .Sum(record => record.Amount),
+                        .Sum(record => record.Amount) - ownOverlaps.Sum(overlap => overlap.OverlapAmount ?? 0m),
                     ownCounted.Where(record => record.Side == DayCloseSide.Card)
-                        .Sum(record => record.Amount));
+                        .Sum(record => record.Amount),
+                    ownOverlaps);
             })
             .ToArray();
     }

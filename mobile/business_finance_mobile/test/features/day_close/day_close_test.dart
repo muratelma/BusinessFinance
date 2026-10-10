@@ -7,6 +7,7 @@ import 'package:business_finance_mobile/core/network/api_exception.dart';
 import 'package:business_finance_mobile/core/presentation/financial_data_changes.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
 import 'package:business_finance_mobile/features/day_close/data/day_close_repository.dart';
+import 'package:business_finance_mobile/features/day_close/presentation/day_close_answers.dart';
 import 'package:business_finance_mobile/features/day_close/presentation/day_close_controller.dart';
 import 'package:business_finance_mobile/features/day_close/presentation/day_close_detail.dart';
 import 'package:business_finance_mobile/features/day_close/presentation/day_close_sheets.dart';
@@ -38,6 +39,7 @@ void main() {
             cashAmount: '3350.0000',
             posAmounts: {'pos-1': '2680.0000'},
             recordOverrides: {'counterparty-payment/cp-1': true},
+            overlaps: {'person-1': '200.0000'},
           ),
         );
 
@@ -52,6 +54,9 @@ void main() {
         expect(body['recordOverrides'], [
           {'kind': 'counterparty-payment', 'id': 'cp-1', 'included': true},
         ]);
+        expect(body['overlaps'], [
+          {'groupId': 'person-1', 'amount': '200.0000'},
+        ]);
         // Önizleme istek kimliği taşımaz: hiçbir şey yazmaz.
         expect(body.containsKey('clientRequestId'), isFalse);
 
@@ -61,12 +66,108 @@ void main() {
         expect(preview.existingRecords, hasLength(3));
         expect(preview.existingRecords.first.key, 'income/sale-1');
         expect(preview.existingRecords[1].isCash, isTrue);
-        expect(preview.existingRecords[1].included, isFalse);
+        // Tahsilat hazır cevapla gelmez.
+        expect(preview.existingRecords[1].requiresAnswer, isTrue);
+        expect(preview.existingRecords[1].included, isNull);
+        expect(preview.existingRecords[1].groupId, 'person-1');
+        expect(preview.existingRecords[1].isCollection, isTrue);
+        expect(preview.existingRecords.first.included, isTrue);
+        expect(
+          preview.existingRecords.first.createdAt,
+          DateTime.utc(2026, 10, 3, 8, 20).toLocal(),
+        );
         expect(preview.existingRecords.last.isCash, isFalse);
-        expect(preview.blockerCode, isNull);
+        expect(preview.cash.deductions.salesAmount, '1250.0000');
+        expect(preview.overlapGroups, isEmpty);
         expect(preview.isClosed, isFalse);
       },
     );
+
+    test('ortak tutar grubu ve düşülenin dökümü sunucudan okunur', () {
+      final json = _previewJson(
+        overrides: const {'counterparty-payment/cp-1': true},
+      );
+      (json['cash']! as Map<String, Object?>)['deductions'] = {
+        'salesAmount': '1250.0000',
+        'collectionsAmount': '300.0000',
+        'creditSalesAmount': '500.0000',
+        'invoicesAmount': '0.0000',
+        'sharedAmount': '200.0000',
+      };
+      json['overlapGroups'] = [
+        {
+          'groupId': 'person-1',
+          'name': 'Ahmet Bakkal',
+          'salesAmount': '500.0000',
+          'collectionsAmount': '300.0000',
+          'maximumOverlap': '300.0000',
+          'overlapAmount': null,
+          'deductedAmount': null,
+          'kind': 'counterparty',
+          'separateAmount': '800.0000',
+          'insideAmount': '500.0000',
+          'largerSide': 'sales',
+        },
+        {
+          'groupId': 'invoice-1',
+          'name': '',
+          'salesAmount': '400.0000',
+          'collectionsAmount': '450.0000',
+          'maximumOverlap': '400.0000',
+          'overlapAmount': '400.0000',
+          'deductedAmount': '450.0000',
+          'kind': 'obligation',
+          'separateAmount': '850.0000',
+          'insideAmount': '450.0000',
+          'largerSide': 'collections',
+        },
+      ];
+
+      final preview = DayClosePreview.fromJson(json);
+
+      expect(preview.cash.deductions.collectionsAmount, '300.0000');
+      expect(preview.cash.deductions.creditSalesAmount, '500.0000');
+      expect(preview.cash.deductions.sharedAmount, '200.0000');
+      final person = preview.overlapGroups.first;
+      expect(person.isInvoice, isFalse);
+      expect(person.collectionsLarger, isFalse);
+      expect(person.overlapAmount, isNull);
+      expect(person.deductedAmount, isNull);
+      expect(person.separateAmount, '800.0000');
+      expect(person.insideAmount, '500.0000');
+      expect(person.maximumOverlap, '300.0000');
+      final invoice = preview.overlapGroups.last;
+      expect(invoice.isInvoice, isTrue);
+      // Adsız fatura boş adla gelir; adını ekran yazar.
+      expect(invoice.name, isEmpty);
+      expect(invoice.collectionsLarger, isTrue);
+      expect(invoice.deductedAmount, '450.0000');
+    });
+
+    test('adsız kayıt ve giriş saati olmayan eski kayıt okunur', () {
+      final record = DayCloseExistingRecord.fromJson({
+        'kind': 'obligation',
+        'id': 'invoice-1',
+        'side': 'cash',
+        'date': '2026-10-03',
+        'amount': '400.0000',
+        'title': '',
+        'posDefinitionId': null,
+        'accountName': '',
+        'includedByDefault': false,
+        'included': null,
+        'requiresAnswer': true,
+        'groupId': 'invoice-1',
+        'groupName': '',
+        'createdAtUtc': null,
+      });
+
+      expect(record.title, isEmpty);
+      expect(record.accountName, isEmpty);
+      expect(record.createdAt, isNull);
+      expect(record.isDeferredSale, isTrue);
+      expect(record.included, isNull);
+    });
 
     test('kayıt istek kimliğiyle yazılır; liste ve geri alma', () async {
       final requests = <String>[];
@@ -210,6 +311,14 @@ void main() {
       await _type(tester, 'day-close-cash', '3350');
       await _type(tester, 'day-close-pos-pos-1', '2680');
 
+      // Tahsilat cevaplanmadan yazılacaklar gösterilmez.
+      expect(find.text('Yazılacak'), findsNothing);
+      expect(
+        find.textContaining('yazdığınız nakdin içinde olup olmadığını'),
+        findsOneWidget,
+      );
+      await _answerCollection(tester, included: false);
+
       expect(repository.lastPreview!.cashAmount, '3350.0000');
       expect(repository.lastPreview!.posAmounts, {'pos-1': '2680.0000'});
       expect(repository.lastPreview!.totalAmount, isNull);
@@ -238,10 +347,63 @@ void main() {
         'counterparty-payment/cp-1': true,
       });
 
-      // Varsayılana dönen işaret gönderilmez.
+      // Cevap isteyen kaydın cevabı hep gönderilir.
       await tester.tap(find.text('Ahmet Bakkal'));
       await tester.pumpAndSettle();
+      expect(repository.lastPreview!.recordOverrides, {
+        'counterparty-payment/cp-1': false,
+      });
+
+      // Hazır işaretli kayıtta varsayılana dönen işaret gönderilmez.
+      await tester.tap(find.text('Toptan satış'));
+      await tester.pumpAndSettle();
+      expect(repository.lastPreview!.recordOverrides, {
+        'counterparty-payment/cp-1': false,
+        'income/sale-1': false,
+      });
+      await tester.tap(find.text('Toptan satış'));
+      await tester.pumpAndSettle();
+      expect(repository.lastPreview!.recordOverrides, {
+        'counterparty-payment/cp-1': false,
+      });
+    });
+
+    testWidgets('cevaplanmamış tahsilat varken kaydedilmez', (tester) async {
+      final repository = _FakeRepository();
+      await _openForm(tester, repository);
+      await _type(tester, 'day-close-cash', '3350');
+
+      await tester.tap(find.text('Gün sonunu kaydet'));
+      await tester.pumpAndSettle();
+
+      expect(repository.created, isEmpty);
+      expect(find.text('Gün sonunu kaydet'), findsOneWidget);
+    });
+
+    testWidgets('yalnız kart yazılınca tahsilat sorulmaz', (tester) async {
+      final repository = _FakeRepository();
+      await _openForm(tester, repository);
+      await _type(tester, 'day-close-pos-pos-1', '2680');
+
+      await tester.tap(find.text('Gün sonunu kaydet'));
+      await tester.pumpAndSettle();
+
+      expect(repository.created.single.cashAmount, isNull);
+      expect(repository.created.single.overlaps, isEmpty);
+    });
+
+    testWidgets('listeden düşen kaydın cevabı gönderilmez', (tester) async {
+      final repository = _FakeRepository();
+      await _openForm(tester, repository);
+      await _type(tester, 'day-close-cash', '3350');
+      await _answerCollection(tester, included: true);
+
+      // Tahsilat bu sırada iptal edildi: liste yenilenir, cevabı düşer.
+      repository.collectionListed = false;
+      await _type(tester, 'day-close-cash', '3050');
+
       expect(repository.lastPreview!.recordOverrides, isEmpty);
+      expect(find.text('Ahmet Bakkal'), findsNothing);
     });
 
     testWidgets('kaydet girdiyi gönderir ve paneli kapatır', (tester) async {
@@ -249,12 +411,16 @@ void main() {
       final changes = FinancialDataChanges();
       await _openForm(tester, repository, changes: changes);
       await _type(tester, 'day-close-cash', '3350');
+      await _answerCollection(tester, included: true);
 
       await tester.tap(find.text('Gün sonunu kaydet'));
       await tester.pumpAndSettle();
 
       expect(repository.created, hasLength(1));
       expect(repository.created.single.cashAmount, '3350.0000');
+      expect(repository.created.single.recordOverrides, {
+        'counterparty-payment/cp-1': true,
+      });
       expect(repository.created.single.date, '2026-10-03');
       expect(find.text('Gün sonunu kaydet'), findsNothing);
       expect(changes.cashRevision, 1);
@@ -293,7 +459,7 @@ void main() {
       expect(repository.created, isEmpty);
     });
 
-    testWidgets('toplamdan hesaplanan kart alanın altında yazar', (
+    testWidgets('toplam kart tutarını hesaplamaz; yalnız farkı gösterir', (
       tester,
     ) async {
       final repository = _FakeRepository();
@@ -303,7 +469,9 @@ void main() {
 
       expect(repository.lastPreview!.totalAmount, '6030.0000');
       expect(repository.lastPreview!.posAmounts, isEmpty);
-      expect(find.text('Toplamdan hesaplandı: ₺2.680,00'), findsOneWidget);
+      expect(find.textContaining('Toplamdan hesaplandı'), findsNothing);
+      expect(find.textContaining('₺2.680,00'), findsOneWidget);
+      expect(find.textContaining('kaydedilmez'), findsOneWidget);
     });
 
     // Çoğu akşam tek POS'a yazılır: ana POS'un alanı hep görünür, diğerleri
@@ -375,6 +543,7 @@ void main() {
         );
       await _openForm(tester, repository);
       await _type(tester, 'day-close-cash', '3350');
+      await _answerCollection(tester, included: true);
 
       await tester.tap(find.text('Gün sonunu kaydet'));
       await tester.pumpAndSettle();
@@ -402,6 +571,180 @@ void main() {
     });
   });
 
+  group('cevaplar', () {
+    DayCloseExistingRecord record(
+      String kind,
+      String id, {
+      bool requiresAnswer = true,
+      String? groupId,
+    }) => DayCloseExistingRecord(
+      kind: kind,
+      id: id,
+      isCash: true,
+      date: '2026-10-03',
+      amount: '100.0000',
+      title: id,
+      accountName: '',
+      includedByDefault: !requiresAnswer,
+      included: requiresAnswer ? null : true,
+      requiresAnswer: requiresAnswer,
+      groupId: groupId,
+    );
+
+    DayClosePreview listing(
+      List<DayCloseExistingRecord> records, {
+      List<String> asked = const [],
+      bool cashStated = true,
+    }) => DayClosePreview(
+      date: '2026-10-03',
+      currency: 'TRY',
+      closedBy: const [],
+      cash: DayCloseCashLine(
+        stated: cashStated,
+        enteredAmount: '0.0000',
+        deductedAmount: '0.0000',
+        amountToWrite: '0.0000',
+      ),
+      posLines: const [],
+      totalComputed: '0.0000',
+      existingRecords: records,
+      overlapGroups: [
+        for (final groupId in asked)
+          DayCloseOverlapGroup(
+            groupId: groupId,
+            name: groupId,
+            isInvoice: false,
+            salesAmount: '100.0000',
+            collectionsAmount: '100.0000',
+            maximumOverlap: '100.0000',
+            separateAmount: '200.0000',
+            insideAmount: '100.0000',
+            collectionsLarger: false,
+          ),
+      ],
+    );
+
+    test('satır cevapsızdan içinde, sonra değil ile içinde arasında gider', () {
+      final answers = DayCloseAnswers();
+      final payment = record('counterparty-payment', 'p1');
+
+      expect(answers.included(payment), isNull);
+      answers.toggle(payment);
+      expect(answers.included(payment), isTrue);
+      answers.toggle(payment);
+      expect(answers.included(payment), isFalse);
+      answers.toggle(payment);
+      expect(answers.included(payment), isTrue);
+      expect(answers.recordOverrides, {'counterparty-payment/p1': true});
+    });
+
+    test('toplu cevap hepsini verir; karışık ya da cevapsızken boştur', () {
+      final answers = DayCloseAnswers();
+      final rows = [
+        record('counterparty-payment', 'p1'),
+        record('counterparty-payment', 'p2'),
+        record('counterparty-charge', 'c1'),
+      ];
+
+      expect(answers.allIncluded(rows), isNull);
+      answers.setAll(rows, true);
+      expect(answers.allIncluded(rows), isTrue);
+      answers.toggle(rows[1]);
+      expect(answers.allIncluded(rows), isNull);
+      answers.setAll(rows, false);
+      expect(answers.allIncluded(rows), isFalse);
+      expect(answers.recordOverrides, hasLength(3));
+      expect(answers.allIncluded(const []), isNull);
+    });
+
+    test('seçim değişince o grubun ortak tutarı yeniden sorulur', () {
+      final answers = DayCloseAnswers();
+      final sale = record('counterparty-charge', 'c1', groupId: 'usta');
+      final paid = record('counterparty-payment', 'p1', groupId: 'usta');
+      final other = record('counterparty-payment', 'p2', groupId: 'bakkal');
+      answers
+        ..setAll([sale, paid, other], true)
+        ..setOverlap('usta', '50.0000')
+        ..setOverlap('bakkal', '10.0000');
+
+      answers.toggle(paid);
+
+      // Yalnız seçimi değişen grubun cevabı düşer.
+      expect(answers.overlaps, {'bakkal': '10.0000'});
+    });
+
+    test('liste yenilenince duran kayıtların cevabı silinmez', () {
+      final answers = DayCloseAnswers();
+      final sale = record('counterparty-charge', 'c1', groupId: 'usta');
+      final paid = record('counterparty-payment', 'p1', groupId: 'usta');
+      final other = record('counterparty-payment', 'p2', groupId: 'bakkal');
+      final otherSale = record('counterparty-charge', 'c2', groupId: 'bakkal');
+      answers
+        ..setAll([sale, paid, other, otherSale], true)
+        ..setOverlap('usta', '50.0000')
+        ..setOverlap('bakkal', '10.0000');
+
+      // Aynı liste: hiçbir cevap düşmez.
+      expect(
+        answers.reconcile(
+          listing([sale, paid, other, otherSale], asked: ['usta', 'bakkal']),
+        ),
+        isFalse,
+      );
+      expect(answers.recordOverrides, hasLength(4));
+
+      // Ustanın tahsilatı iptal edildi; yeni bir kayıt da geldi.
+      final arrived = record('counterparty-payment', 'p3');
+      expect(
+        answers.reconcile(
+          listing([sale, other, otherSale, arrived], asked: ['bakkal']),
+        ),
+        isTrue,
+      );
+      expect(answers.recordOverrides.keys, {
+        'counterparty-charge/c1',
+        'counterparty-payment/p2',
+        'counterparty-charge/c2',
+      });
+      expect(answers.overlaps, {'bakkal': '10.0000'});
+      // Yeni gelen kayıt cevapsızdır; toplu cevap onu içine almış sayılmaz.
+      expect(answers.included(arrived), isNull);
+    });
+
+    test('nakit boşken ortak tutar cevabı bekler', () {
+      final answers = DayCloseAnswers();
+      final sale = record('counterparty-charge', 'c1', groupId: 'usta');
+      final paid = record('counterparty-payment', 'p1', groupId: 'usta');
+      answers
+        ..setAll([sale, paid], true)
+        ..setOverlap('usta', '50.0000');
+
+      expect(
+        answers.reconcile(listing([sale, paid], cashStated: false)),
+        isFalse,
+      );
+      expect(answers.overlaps, {'usta': '50.0000'});
+
+      // Nakit yazılıyken artık sorulmayan grubun cevabı düşer.
+      expect(answers.reconcile(listing([sale, paid])), isTrue);
+      expect(answers.overlaps, isEmpty);
+    });
+
+    test('hazır işaretli kayıtta varsayılana dönen işaret tutulmaz', () {
+      final answers = DayCloseAnswers();
+      final sale = record('income', 's1', requiresAnswer: false);
+
+      answers.toggle(sale);
+      expect(answers.recordOverrides, {'income/s1': false});
+      answers.toggle(sale);
+      expect(answers.recordOverrides, isEmpty);
+      answers
+        ..toggle(sale)
+        ..clear();
+      expect(answers.recordOverrides, isEmpty);
+    });
+  });
+
   group('gün ayrıntısı', () {
     testWidgets('günün toplamını, yazılanı ve sayılanı gösterir', (
       tester,
@@ -424,6 +767,63 @@ void main() {
       expect(find.text('Gün sonunun dışında'), findsOneWidget);
       expect(find.text('Ahmet Bakkal'), findsOneWidget);
       expect(find.text('Gün sonunu geri al'), findsOneWidget);
+      await expectMeetsAccessibility(tester);
+    });
+
+    testWidgets('satışta da tahsilatta da görünen tutar ayrı satırda yazar', (
+      tester,
+    ) async {
+      final json = _dayCloseJson();
+      json['countedRecords'] = [
+        _recordJson(
+          'counterparty-charge',
+          'charge-1',
+          'cash',
+          '500.0000',
+          'Mehmet Usta',
+          byDefault: false,
+          overrides: const {'counterparty-charge/charge-1': true},
+          groupId: 'person-2',
+        ),
+        _recordJson(
+          'counterparty-payment',
+          'cp-2',
+          'cash',
+          '300.0000',
+          '',
+          byDefault: false,
+          overrides: const {'counterparty-payment/cp-2': true},
+          groupId: 'person-2',
+        ),
+      ];
+      json['countedCashAmount'] = '600.0000';
+      json['overlaps'] = [
+        {
+          'groupId': 'person-2',
+          'name': 'Mehmet Usta',
+          'salesAmount': '500.0000',
+          'collectionsAmount': '300.0000',
+          'maximumOverlap': '300.0000',
+          'overlapAmount': '200.0000',
+          'deductedAmount': '600.0000',
+          'kind': 'counterparty',
+          'separateAmount': '800.0000',
+          'insideAmount': '500.0000',
+          'largerSide': 'sales',
+        },
+      ];
+      await _openDay(
+        tester,
+        _FakeRepository()..closes = [DayClose.fromJson(json)],
+      );
+
+      // Adsız tahsilatta türün adı yazar.
+      expect(find.text('Cari tahsilat'), findsOneWidget);
+      // Aynı kişinin iki satırını türü ayırır.
+      expect(find.text('Sayıldı · veresiye satış'), findsOneWidget);
+      expect(find.text('Sayıldı · tahsilat'), findsOneWidget);
+      expect(find.text('İkisinde de var · bir kez sayıldı'), findsOneWidget);
+      expect(find.text('-₺200,00'), findsOneWidget);
       await expectMeetsAccessibility(tester);
     });
 
@@ -678,6 +1078,18 @@ Future<void> _openDay(
   await tester.pumpAndSettle();
 }
 
+/// Tahsilat satırına cevap verir: ilk dokunuş "içinde", ikincisi "değil".
+Future<void> _answerCollection(
+  WidgetTester tester, {
+  required bool included,
+}) async {
+  await tester.tap(find.text('Ahmet Bakkal'));
+  await tester.pumpAndSettle();
+  if (included) return;
+  await tester.tap(find.text('Ahmet Bakkal'));
+  await tester.pumpAndSettle();
+}
+
 DayClose _dayClose({bool isCancelled = false}) =>
     DayClose.fromJson(_dayCloseJson(isCancelled: isCancelled));
 
@@ -694,6 +1106,9 @@ class _FakeRepository implements DayCloseRepositoryContract {
   bool closed = false;
   bool cashAccountResolved = true;
   bool twoPos = false;
+
+  /// Tahsilat hâlâ listede mi; iptal edilince düşer.
+  bool collectionListed = true;
   String? blocker;
   ApiException? createError;
   ApiException? revertError;
@@ -703,24 +1118,37 @@ class _FakeRepository implements DayCloseRepositoryContract {
     lastPreview = input;
     final cash = input.cashAmount != null;
     final card = input.posAmounts.isNotEmpty;
-    final fromTotal = cash && !card && input.totalAmount != null;
+    const collection = 'counterparty-payment/cp-1';
+    // Sunucu gibi: listede olmayan kaydın cevabı reddedilir; nakit yazıldıysa
+    // tahsilat cevaplanmadan yazılmaz.
+    final stale =
+        !collectionListed && input.recordOverrides.containsKey(collection);
+    final unanswered =
+        cash &&
+        collectionListed &&
+        !input.recordOverrides.containsKey(collection);
     return DayClosePreview.fromJson(
       _previewJson(
         cashStated: cash,
-        cardStated: card || fromTotal,
-        cardComputed: fromTotal,
+        cardStated: card,
         closed: closed,
         cashAccountResolved: cashAccountResolved,
         twoPos: twoPos,
         additional: input.isAdditional,
         overrides: input.recordOverrides,
+        collectionListed: collectionListed,
+        totalDifference: input.totalAmount == null ? null : '2680.0000',
         blocker:
             blocker ??
             (closed && !input.isAdditional
                 ? 'day_closes.already_closed'
-                : cash || card
-                ? null
-                : 'day_closes.amounts_required'),
+                : !cash && !card
+                ? 'day_closes.amounts_required'
+                : stale
+                ? 'day_closes.records_changed'
+                : unanswered
+                ? 'day_closes.records_unanswered'
+                : null),
       ),
     );
   }
@@ -796,12 +1224,13 @@ class _FakeRepository implements DayCloseRepositoryContract {
 Map<String, Object?> _previewJson({
   bool cashStated = true,
   bool cardStated = true,
-  bool cardComputed = false,
   bool closed = false,
   bool cashAccountResolved = true,
   bool twoPos = false,
   bool additional = false,
+  bool collectionListed = true,
   Map<String, bool> overrides = const {},
+  String? totalDifference,
   String? blocker,
 }) => {
   'date': '2026-10-03',
@@ -820,13 +1249,19 @@ Map<String, Object?> _previewJson({
   'cash': {
     'stated': cashStated,
     'enteredAmount': cashStated ? '3350.0000' : '0.0000',
-    'isComputed': false,
     'deductedAmount': cashStated ? '1250.0000' : '0.0000',
     'amountToWrite': cashStated ? '2100.0000' : '0.0000',
     'accountId': cashAccountResolved ? 'till' : null,
     'accountName': cashAccountResolved ? 'Dükkan kasası' : null,
     'categoryId': 'sales',
     'categoryName': 'Satış geliri',
+    'deductions': {
+      'salesAmount': cashStated ? '1250.0000' : '0.0000',
+      'collectionsAmount': '0.0000',
+      'creditSalesAmount': '0.0000',
+      'invoicesAmount': '0.0000',
+      'sharedAmount': '0.0000',
+    },
   },
   'posLines': [
     {
@@ -836,7 +1271,6 @@ Map<String, Object?> _previewJson({
       'accountName': 'Ziraat',
       'stated': cardStated,
       'enteredAmount': cardStated ? '2680.0000' : '0.0000',
-      'isComputed': cardComputed,
       'deductedAmount': cardStated ? '800.0000' : '0.0000',
       'amountToWrite': cardStated ? '1880.0000' : '0.0000',
       'commissionAmount': cardStated ? '37.6000' : '0.0000',
@@ -851,7 +1285,6 @@ Map<String, Object?> _previewJson({
         'accountName': 'Ziraat',
         'stated': false,
         'enteredAmount': '0.0000',
-        'isComputed': false,
         'deductedAmount': '0.0000',
         'amountToWrite': '0.0000',
         'commissionAmount': '0.0000',
@@ -861,7 +1294,7 @@ Map<String, Object?> _previewJson({
   ],
   'totalEntered': null,
   'totalComputed': '6030.0000',
-  'totalDifference': null,
+  'totalDifference': totalDifference,
   'existingRecords': [
     _recordJson(
       'income',
@@ -872,15 +1305,18 @@ Map<String, Object?> _previewJson({
       byDefault: !additional,
       overrides: overrides,
     ),
-    _recordJson(
-      'counterparty-payment',
-      'cp-1',
-      'cash',
-      '300.0000',
-      'Ahmet Bakkal',
-      byDefault: false,
-      overrides: overrides,
-    ),
+    if (collectionListed)
+      _recordJson(
+        'counterparty-payment',
+        'cp-1',
+        'cash',
+        '300.0000',
+        'Ahmet Bakkal',
+        byDefault: false,
+        overrides: overrides,
+        requiresAnswer: true,
+        groupId: 'person-1',
+      ),
     _recordJson(
       'pos-settlement',
       'pos-sale-1',
@@ -893,6 +1329,7 @@ Map<String, Object?> _previewJson({
     ),
   ],
   'blockerCode': blocker,
+  'overlapGroups': <Object?>[],
 };
 
 Map<String, Object?> _recordJson(
@@ -904,6 +1341,8 @@ Map<String, Object?> _recordJson(
   required bool byDefault,
   required Map<String, bool> overrides,
   String? posDefinitionId,
+  bool requiresAnswer = false,
+  String? groupId,
 }) => {
   'kind': kind,
   'id': id,
@@ -914,7 +1353,12 @@ Map<String, Object?> _recordJson(
   'posDefinitionId': posDefinitionId,
   'accountName': side == 'cash' ? 'Dükkan kasası' : 'Ziraat',
   'includedByDefault': byDefault,
-  'included': overrides['$kind/$id'] ?? byDefault,
+  // Cevap isteyen kayıt hazır cevapla gelmez.
+  'included': overrides['$kind/$id'] ?? (requiresAnswer ? null : byDefault),
+  'requiresAnswer': requiresAnswer,
+  'groupId': groupId,
+  'groupName': groupId == null ? null : title,
+  'createdAtUtc': '2026-10-03T08:20:00Z',
 };
 
 Map<String, Object?> _dayCloseJson({bool isCancelled = false}) => {
@@ -985,6 +1429,7 @@ Map<String, Object?> _dayCloseJson({bool isCancelled = false}) => {
   ],
   'countedCashAmount': isCancelled ? '0.0000' : '1250.0000',
   'countedCardAmount': '0.0000',
+  'overlaps': <Object?>[],
 };
 
 ApiClient _client(MockClientHandler handler) => ApiClient(

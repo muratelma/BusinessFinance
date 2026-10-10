@@ -145,6 +145,41 @@ void main() {
     );
   }, skip: !screenshotsEnabled);
 
+  // Veresiye satış ve tahsilatı birlikte sayılmış gün: ikisinde de görünen
+  // tutar ayrı satırdır; onsuz sayılanlar günün toplamını tutmaz
+  // (1.000 yazıldı + 500 + 300 − 200 = 1.600).
+  testWidgets(
+    'gün ayrıntısı: satışta da tahsilatta da görünen tutar',
+    (tester) async {
+      await captureScreen(
+        tester,
+        'gunsonu-09-ayrinti-ikisinde-de',
+        Scaffold(
+          appBar: AppBar(title: const Text('Kasa')),
+          body: const SizedBox.expand(),
+        ),
+        withNavBar: false,
+        before: (tester) async {
+          showDayCloseDay(
+            tester.element(find.text('Kasa')),
+            controller: DayCloseController(
+              _DesignDayClose(
+                closes: [_designSharedClose],
+                cashTotal: '1600.0000',
+                cardTotal: '0.0000',
+                outside: false,
+              ),
+            ),
+            date: '2026-10-10',
+          );
+          await tester.pump();
+          await tester.pump(const Duration(seconds: 1));
+        },
+      );
+    },
+    skip: !screenshotsEnabled,
+  );
+
   testWidgets('Kasa kartı: açık ve kapalı gün', (tester) async {
     final open = DayCloseController(_DesignDayClose());
     final closed = DayCloseController(_DesignDayClose(closes: [_designClose]));
@@ -192,18 +227,27 @@ class _DesignDayClose implements DayCloseRepositoryContract {
     this.records = true,
     this.closed = false,
     this.closes = const [],
+    this.cashTotal,
+    this.cardTotal,
+    this.outside = true,
   });
 
   final bool records;
   final bool closed;
   final List<DayClose> closes;
 
+  /// Günün toplamı; verilmezse ana örneğin tutarları.
+  final String? cashTotal;
+  final String? cardTotal;
+
+  /// Gün sonunun dışında kalan tahsilat gösterilsin mi.
+  final bool outside;
+
   @override
   Future<DayClosePreview> preview(DayCloseInput input) async {
     final cash = input.cashAmount != null;
     final card = input.posAmounts.containsKey('ziraat');
-    final fromTotal = cash && !card && input.totalAmount != null;
-    final cardStated = card || fromTotal;
+    final cardStated = card;
     final deduct = records && !input.isAdditional;
     return DayClosePreview(
       date: input.date,
@@ -220,7 +264,6 @@ class _DesignDayClose implements DayCloseRepositoryContract {
       cash: DayCloseCashLine(
         stated: cash,
         enteredAmount: cash ? '3350.0000' : '0.0000',
-        isComputed: false,
         deductedAmount: cash && deduct ? '1250.0000' : '0.0000',
         amountToWrite: !cash
             ? '0.0000'
@@ -240,7 +283,6 @@ class _DesignDayClose implements DayCloseRepositoryContract {
           accountName: 'Ziraat işletme',
           stated: cardStated,
           enteredAmount: cardStated ? '2680.0000' : '0.0000',
-          isComputed: fromTotal,
           deductedAmount: cardStated && deduct ? '800.0000' : '0.0000',
           amountToWrite: !cardStated
               ? '0.0000'
@@ -266,7 +308,6 @@ class _DesignDayClose implements DayCloseRepositoryContract {
           accountName: 'Ziraat işletme',
           stated: false,
           enteredAmount: '0.0000',
-          isComputed: false,
           deductedAmount: '0.0000',
           amountToWrite: '0.0000',
           commissionAmount: '0.0000',
@@ -338,21 +379,22 @@ class _DesignDayClose implements DayCloseRepositoryContract {
   Future<DayCloseDay> day({required String date}) async => DayCloseDay(
     date: date,
     closes: closes,
-    outsideRecords: const [
-      DayCloseExistingRecord(
-        kind: 'counterparty-payment',
-        id: 'tahsilat-1',
-        isCash: true,
-        date: '2026-10-03',
-        amount: '300.0000',
-        title: 'Ahmet Bakkal',
-        accountName: 'Dükkan kasası',
-        includedByDefault: false,
-        included: false,
-      ),
+    outsideRecords: [
+      if (outside)
+        const DayCloseExistingRecord(
+          kind: 'counterparty-payment',
+          id: 'tahsilat-1',
+          isCash: true,
+          date: '2026-10-03',
+          amount: '300.0000',
+          title: 'Ahmet Bakkal',
+          accountName: 'Dükkan kasası',
+          includedByDefault: false,
+          included: false,
+        ),
     ],
-    cashTotal: closes.length > 1 ? '3750.0000' : '3350.0000',
-    cardTotal: closes.isEmpty ? '0.0000' : '2680.0000',
+    cashTotal: cashTotal ?? (closes.length > 1 ? '3750.0000' : '3350.0000'),
+    cardTotal: cardTotal ?? (closes.isEmpty ? '0.0000' : '2680.0000'),
     currency: 'TRY',
   );
 
@@ -370,6 +412,76 @@ class _DesignDayClose implements DayCloseRepositoryContract {
     categories: [DataChoice('satis', 'Satış geliri')],
   );
 }
+
+/// Brif 4'ün G4 örneği: Mehmet Usta'nın ₺500 veresiye satışı ve ₺300
+/// tahsilatı yazılan ₺1.600 nakdin içinde, ₺200'ü ikisinde de var.
+const _designSharedClose = DayClose(
+  id: 'gun-sonu-ortak',
+  closedOn: '2026-10-10',
+  isAdditional: false,
+  isCancelled: false,
+  incomes: [
+    DayCloseIncome(
+      transactionId: 'gelir-ortak',
+      accountName: 'Dükkan kasası',
+      categoryName: 'Satış geliri',
+      amount: '1000.0000',
+      date: '2026-10-10',
+      isCancelled: false,
+    ),
+  ],
+  settlements: [],
+  cashAmount: '1000.0000',
+  cardGrossAmount: '0.0000',
+  commissionAmount: '0.0000',
+  currency: 'TRY',
+  countedRecords: [
+    DayCloseExistingRecord(
+      kind: 'counterparty-charge',
+      id: 'veresiye-1',
+      isCash: true,
+      date: '2026-10-10',
+      amount: '500.0000',
+      title: 'Mehmet Usta',
+      accountName: '',
+      includedByDefault: false,
+      included: true,
+      requiresAnswer: true,
+      groupId: 'mehmet',
+      groupName: 'Mehmet Usta',
+    ),
+    DayCloseExistingRecord(
+      kind: 'counterparty-payment',
+      id: 'tahsilat-2',
+      isCash: true,
+      date: '2026-10-10',
+      amount: '300.0000',
+      title: 'Mehmet Usta',
+      accountName: 'Dükkan kasası',
+      includedByDefault: false,
+      included: true,
+      requiresAnswer: true,
+      groupId: 'mehmet',
+      groupName: 'Mehmet Usta',
+    ),
+  ],
+  countedCashAmount: '600.0000',
+  overlaps: [
+    DayCloseOverlapGroup(
+      groupId: 'mehmet',
+      name: 'Mehmet Usta',
+      isInvoice: false,
+      salesAmount: '500.0000',
+      collectionsAmount: '300.0000',
+      maximumOverlap: '300.0000',
+      separateAmount: '800.0000',
+      insideAmount: '500.0000',
+      collectionsLarger: false,
+      overlapAmount: '200.0000',
+      deductedAmount: '600.0000',
+    ),
+  ],
+);
 
 const _designClose = DayClose(
   id: 'gun-sonu',

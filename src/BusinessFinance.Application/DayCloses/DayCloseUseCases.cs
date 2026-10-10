@@ -138,8 +138,15 @@ public sealed class CreateDayCloseUseCase(
             var counted = plan.Counted
                 .Select(record => new DayCloseCountedRecord(dayClose, record.Kind, record.Id))
                 .ToArray();
+            // Ortak tutar kayıtlardan yeniden hesaplanamaz; günün ekranı ve
+            // geri alma için saklanır. Sıfır ("ayrı ayrı") saklanmaz.
+            var sharedAmounts = plan.OverlapGroups
+                .Where(group => group.OverlapAmount > 0m)
+                .Select(group => new DayCloseCountedOverlap(
+                    dayClose, group.GroupId, group.OverlapAmount!.Value))
+                .ToArray();
             if (!await repository.TryAddAsync(
-                    dayClose, incomes, settlements, counted, cancellationToken))
+                    dayClose, incomes, settlements, counted, sharedAmounts, cancellationToken))
             {
                 // Aynı istek eşzamanlı ikinci kez geldiyse ilki yazılmıştır.
                 return await repository.GetAsync(dayCloseId, userId, cancellationToken)

@@ -1,0 +1,118 @@
+/* Renk sistemi — kaynak: lib/core/theme/app_theme.dart, app_surfaces.dart,
+   app_finance_colors.dart. Marka rengi akromatiktir; ekranda anlamlı renk
+   yalnız ikidir (yeşil gelir, kırmızı gider). */
+:root {
+  /* Marka — akromatik antrasit */
+  --brand: #16191D;
+  --on-brand: #FFFFFF;
+  --brand-container: #E4E6E9;
+  --on-brand-container: #16191D;
+
+  /* Yüzeyler */
+  --surface-canvas: #F7F8F9;
+  --surface-card: #FFFFFF;
+  --surface-card-muted: #F0F1F3;
+  --border: #E5E7EA;
+  --border-strong: #CBCFD4;
+  --overlay: rgba(16, 17, 20, 0.08);
+
+  /* Mürekkep merdiveni — üç okuma kademesi */
+  --ink: #16191D;
+  --ink-muted: #5C6572;
+  --ink-faint: #646D7A;
+
+  /* Finansal roller: metin tonu (4.5:1) + dolgu tonu (3:1) + kapsül çifti */
+  --income: #137D3F;
+  --income-fill: #209E54;
+  --income-container: #C7E8D4;
+  --on-income-container: #0C4A26;
+  --expense: #CF2E1F;
+  --expense-fill: #E5544A;
+  --expense-container: #FBD9D5;
+  --on-expense-container: #651A12;
+  --neutral: #0B6AD6;
+  --neutral-fill: #2589FA;
+  --neutral-container: #CFE2FA;
+  --on-neutral-container: #0A3F80;
+  --planned: #44515C;
+  --planned-container: #DDE3E8;
+  --on-planned-container: #232C33;
+  --cancelled: #5F6771;
+  --cancelled-container: #DCE0E4;
+  --on-cancelled-container: #2A2F34;
+
+  /* Kategori dilimleri — ayrı hue'lar, "Diğer" paletin dışında */
+  --category-1: #E0574A;
+  --category-2: #679612;
+  --category-3: #0B8798;
+  --category-4: #D63384;
+  --category-5: #8B5CF6;
+  --category-other: #8A929B;
+
+  /* Material 3 varsayılan hata rolü (temada ayrı bir "tehlike" token'ı yok) */
+  --error: #B3261E;
+  --on-error: #FFFFFF;
+  --error-container: #F9DEDC;
+  --on-error-container: #410E0B;
+
+  /* Semantik takma adlar */
+  --text-primary: var(--ink);
+  --text-secondary: var(--ink-muted);
+  --text-faint: var(--ink-faint);
+  --page-background: var(--surface-canvas);
+  --card-background: var(--surface-card);
+  --card-border: var(--border);
+  --field-background: var(--surface-card-muted);
+  --action-background: var(--brand);
+  --action-foreground: var(--on-brand);
+  --selected-background: var(--brand-container);
+}
+
+[data-theme="dark"] {
+  --brand: #EDEFF2;
+  --on-brand: #16191D;
+  --brand-container: #2A2E34;
+  --on-brand-container: #EDEFF2;
+
+  --surface-canvas: #0D0F12;
+  --surface-card: #17191D;
+  --surface-card-muted: #1F2227;
+  --border: #282C32;
+  --border-strong: #3A3F47;
+  --overlay: rgba(0, 0, 0, 0.25);
+
+  --ink: #EDEFF2;
+  --ink-muted: #A5ADB8;
+  --ink-faint: #8E97A3;
+
+  --income: #4ED88A;
+  --income-fill: #35C270;
+  --income-container: #12331F;
+  --on-income-container: #9FE7BC;
+  --expense: #FF8A80;
+  --expense-fill: #FF8C82;
+  --expense-container: #431814;
+  --on-expense-container: #FFC7C2;
+  --neutral: #8AB4F8;
+  --neutral-fill: #4F97F5;
+  --neutral-container: #0E2A47;
+  --on-neutral-container: #B6D4FB;
+  --planned: #AFBAC4;
+  --planned-container: #283138;
+  --on-planned-container: #C3CDD5;
+  --cancelled: #9BA3AD;
+  --cancelled-container: #2C3138;
+  --on-cancelled-container: #B7BEC6;
+
+  --category-1: #FF8C82;
+  --category-2: #B6E05A;
+  --category-3: #4FD8E8;
+  --category-4: #FF9FCB;
+  --category-5: #C48CEC;
+  --category-other: #B3BAC3;
+
+  --error: #F2B8B5;
+  --on-error: #601410;
+  --error-container: #8C1D18;
+  --on-error-container: #F9DEDC;
+}

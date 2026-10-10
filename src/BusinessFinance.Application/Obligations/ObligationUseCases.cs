@@ -194,6 +194,14 @@ public sealed class CancelObligationUseCase(
                 SettleObligationUseCase.ToDto(obligation));
         }
 
+        // Faturanın kendisi bir gün sonunda sayıldıysa (nakit gibi geçirilmiş
+        // satış olarak düşüldüyse) kapanışı sayılmamış olsa da iptal edilemez.
+        if (await dayCloseCountReader.IsCountedAsync(
+                userId, DayCloseRecordKind.Obligation, obligation.Id, cancellationToken))
+        {
+            return ApplicationResult<ObligationDto>.Failure(ObligationErrors.DayCloseCounted);
+        }
+
         var cancelledAtUtc = timeProvider.GetUtcNow().ToUniversalTime();
         if (obligation.Settlement is { IsCancelled: false } settlement)
         {

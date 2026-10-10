@@ -40,6 +40,7 @@ public sealed class BusinessFinanceDbContext(
     public DbSet<PosDeposit> PosDeposits => Set<PosDeposit>();
     public DbSet<DayClose> DayCloses => Set<DayClose>();
     public DbSet<DayCloseCountedRecord> DayCloseCountedRecords => Set<DayCloseCountedRecord>();
+    public DbSet<DayCloseCountedOverlap> DayCloseCountedOverlaps => Set<DayCloseCountedOverlap>();
     public DbSet<SavingsGoal> SavingsGoals => Set<SavingsGoal>();
     public DbSet<SavingsGoalContribution> SavingsGoalContributions => Set<SavingsGoalContribution>();
     public DbSet<FinancialAttachment> FinancialAttachments => Set<FinancialAttachment>();

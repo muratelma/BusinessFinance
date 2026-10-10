@@ -13,9 +13,13 @@ namespace BusinessFinance.Application.DayCloses;
 /// <remarks>
 /// Önizleme ve kayıt <b>aynı planı</b> kurar. İkisi ayrı hesaplasaydı panel
 /// kaydedilemeyecek bir girdiyi geçerli gösterir ya da gösterdiğinden farklı
-/// bir tutar yazardı. Kural tek yerdedir: yazılan nakit = nakit − işaretli
-/// nakit kayıtlar; yazılan kart = kart − işaretli kartlı kayıtlar
-/// (ADR 0019 T2).
+/// bir tutar yazardı. Kural tek yerdedir: yazılan nakit = nakit − dahil
+/// edilen nakit kayıtlar + ortak tutarlar; yazılan kart = kart − işaretli
+/// kartlı kayıtlar (ADR 0019 T2).
+///
+/// Vadeli satış ve nakit tahsilat hazır cevapla gelmez; satışı da tahsilatı da
+/// dahil edilen grubun ortak tutarı sorulur. Sunucu ikisinde de cevap
+/// uydurmaz: cevap yoksa plan engellidir.
 /// </remarks>
 internal sealed class DayClosePlan
 {
@@ -30,6 +34,9 @@ internal sealed class DayClosePlan
     /// İşaretli ama tarafına tutar yazılmamış kayıt burada yoktur.
     /// </summary>
     public required IReadOnlyList<DayCloseExistingRecordDto> Counted { get; init; }
+
+    /// <summary>Ortak tutarı sorulan gruplar; cevaplanmış ya da cevapsız.</summary>
+    public required IReadOnlyList<DayCloseOverlapGroupDto> OverlapGroups { get; init; }
     public decimal TotalComputed { get; init; }
     public decimal? TotalDifference { get; init; }
 
@@ -40,8 +47,10 @@ internal sealed class DayClosePlan
     {
         public bool Stated { get; set; }
         public decimal Entered { get; set; }
-        public bool IsComputed { get; set; }
         public decimal Deducted { get; set; }
+
+        /// <summary>Düşülenin dökümü; nakit yazılmadıysa hepsi sıfırdır.</summary>
+        public DayCloseCashDeductionsDto Deductions { get; set; } = new(0m, 0m, 0m, 0m, 0m);
         public decimal ToWrite => Stated ? Entered - Deducted : 0m;
         public Account? Account { get; set; }
         public Category? Category { get; set; }
@@ -56,7 +65,6 @@ internal sealed class DayClosePlan
         public Category? CommissionCategory { get; set; }
         public bool Stated { get; set; }
         public decimal Entered { get; set; }
-        public bool IsComputed { get; set; }
         public decimal Deducted { get; set; }
         public decimal ToWrite => Stated ? Entered - Deducted : 0m;
         public decimal Commission { get; set; }
@@ -98,6 +106,12 @@ internal sealed class DayClosePlan
             return (null, DayCloseErrors.InvalidAmount);
         }
 
+        var overlaps = input.Overlaps ?? [];
+        if (overlaps.Select(overlap => overlap.GroupId).Distinct().Count() != overlaps.Count)
+        {
+            return (null, DayCloseErrors.InvalidOverlap);
+        }
+
         var definitions = await repository.ListActivePosDefinitionsAsync(userId, cancellationToken);
         var lines = definitions.Select(definition => new PosLine(definition)).ToList();
         foreach (var amount in input.PosAmounts)
@@ -136,26 +150,38 @@ internal sealed class DayClosePlan
         var mainLine = lines.FirstOrDefault(line => line.Definition.IsDefault)
             ?? lines.FirstOrDefault();
         var cash = new CashLine();
-        ResolveAmounts(input, cash, lines, mainLine, Block);
+        ResolveAmounts(input, cash, lines, Block);
 
         var existing = await repository.ListExistingRecordsAsync(
             userId, firstDay, input.Date, cancellationToken);
+        // Cevap yalnız görülen kayıt içindir: listede artık olmayan bir kayıt
+        // için cevap taşıyan istek eski bir listeye bakıyordur.
+        if (input.RecordOverrides.Any(item =>
+                !existing.Any(record => record.Kind == item.Kind && record.Id == item.Id)))
+        {
+            Block(DayCloseErrors.RecordsChanged);
+        }
+
         // Ek gün sonunda (ikinci cihaz) hiçbir kayıt işaretli gelmez: tek tek
         // girilmiş kayıtlar günün ilk gün sonunda zaten düşüldü; yeniden
-        // düşmek aynı satışı iki kez eksiltirdi.
+        // düşmek aynı satışı iki kez eksiltirdi. Cevap isteyen kayıtlar hiçbir
+        // gün sonunda hazır cevapla gelmez.
         var records = existing
-            .Select(record => record with
+            .Select(record =>
             {
-                IncludedByDefault = record.IncludedByDefault && !input.IsAdditional,
-            })
-            .Select(record => record with
-            {
-                Included = input.RecordOverrides
+                var answer = input.RecordOverrides
                     .LastOrDefault(item => item.Kind == record.Kind && item.Id == record.Id)
-                    ?.Included ?? record.IncludedByDefault,
+                    ?.Included;
+                if (record.RequiresAnswer)
+                {
+                    return record with { IncludedByDefault = false, Included = answer };
+                }
+
+                var byDefault = record.IncludedByDefault && !input.IsAdditional;
+                return record with { IncludedByDefault = byDefault, Included = answer ?? byDefault };
             })
             .ToArray();
-        var counted = Deduct(records, cash, lines, Block);
+        var (counted, overlapGroups) = Deduct(records, overlaps, cash, lines, Block);
 
         await ResolveCashTargetAsync(
             userId, input, cash, mainLine, repository, accountRepository,
@@ -165,6 +191,11 @@ internal sealed class DayClosePlan
 
         var totalComputed = (cash.Stated ? cash.Entered : 0m) +
             lines.Where(line => line.Stated).Sum(line => line.Entered);
+        if (input.TotalAmount is decimal stated && stated < totalComputed)
+        {
+            Block(DayCloseErrors.TotalBelowParts);
+        }
+
         return (new DayClosePlan
         {
             Input = input,
@@ -173,6 +204,7 @@ internal sealed class DayClosePlan
             PosLines = lines,
             Records = records,
             Counted = counted,
+            OverlapGroups = overlapGroups,
             TotalComputed = totalComputed,
             TotalDifference = input.TotalAmount is decimal total && total != totalComputed
                 ? total - totalComputed
@@ -182,96 +214,115 @@ internal sealed class DayClosePlan
     }
 
     /// <summary>
-    /// Nakit, kart ve toplamdan ikisi yeter; eksik olan hesaplanır. Toplamdan
-    /// hesaplanan kart tutarı ana POS'a yazılır.
+    /// Bir taraf yalnız kendi tutarı yazıldıysa kayıt üretir. Toplamdan eksik
+    /// taraf <b>hesaplanmaz</b>: raporun toplamı kredili satış ya da yemek
+    /// kartı gibi başka ödeme türlerini içerebilir ve farkı nakde ya da karta
+    /// yazmak olmayan bir parayı kaydederdi.
     /// </summary>
     private static void ResolveAmounts(
         DayCloseInput input,
         CashLine cash,
         List<PosLine> lines,
-        PosLine? mainLine,
         Action<ApplicationError> block)
     {
-        var cardStated = lines.Any(line => line.Stated);
         if (input.CashAmount is decimal cashAmount)
         {
             cash.Stated = true;
             cash.Entered = cashAmount;
-            if (cardStated || input.TotalAmount is not decimal total)
-            {
-                return;
-            }
-
-            var card = total - cashAmount;
-            if (card < 0m)
-            {
-                block(DayCloseErrors.TotalBelowParts);
-            }
-            else if (card > 0m)
-            {
-                if (mainLine is null)
-                {
-                    block(DayCloseErrors.PosRequired);
-                    return;
-                }
-
-                mainLine.Stated = true;
-                mainLine.Entered = card;
-                mainLine.IsComputed = true;
-            }
-
-            return;
         }
-
-        if (!cardStated)
+        else if (!lines.Any(line => line.Stated))
         {
             block(DayCloseErrors.AmountsRequired);
-            return;
-        }
-
-        if (input.TotalAmount is decimal totalAmount)
-        {
-            var computedCash = totalAmount - lines.Sum(line => line.Entered);
-            if (computedCash < 0m)
-            {
-                block(DayCloseErrors.TotalBelowParts);
-                return;
-            }
-
-            cash.Stated = true;
-            cash.Entered = computedCash;
-            cash.IsComputed = true;
         }
     }
 
     /// <summary>
-    /// İşaretli kayıtları kendi taraflarından düşer. Kartlı kayıt kendi POS
+    /// Dahil edilen kayıtları kendi taraflarından düşer. Kartlı kayıt kendi POS
     /// satırından düşer; o satıra tutar yazılmadıysa ana POS'un satırından.
-    /// Tutarı verilmemiş taraftan hiçbir şey düşülmez.
+    /// Tutarı verilmemiş taraftan hiçbir şey düşülmez ve o tarafın kayıtları
+    /// için cevap da istenmez.
     /// </summary>
-    private static List<DayCloseExistingRecordDto> Deduct(
-        IReadOnlyList<DayCloseExistingRecordDto> records,
-        CashLine cash,
-        List<PosLine> lines,
-        Action<ApplicationError> block)
+    /// <remarks>
+    /// Nakit tarafında satışı da tahsilatı da dahil edilen grubun (kişi ya da
+    /// fatura) ortak tutarı bir kez çıkarılır: düşülen = satışlar + tahsilatlar
+    /// − ortak tutar. Ortak tutar girilen toplamda ikisinin nasıl sayıldığını
+    /// söyler ve cevabı kullanıcı verir.
+    /// </remarks>
+    private static (List<DayCloseExistingRecordDto> Counted, List<DayCloseOverlapGroupDto> Groups)
+        Deduct(
+            IReadOnlyList<DayCloseExistingRecordDto> records,
+            IReadOnlyList<DayCloseOverlap> overlaps,
+            CashLine cash,
+            List<PosLine> lines,
+            Action<ApplicationError> block)
     {
         var counted = new List<DayCloseExistingRecordDto>();
+        var groups = new List<DayCloseOverlapGroupDto>();
         if (cash.Stated)
         {
-            counted.AddRange(records.Where(
-                record => record.Included && record.Side == DayCloseSide.Cash));
-            cash.Deducted = counted.Sum(record => record.Amount);
+            var cashRecords = records
+                .Where(record => record.Side == DayCloseSide.Cash)
+                .ToArray();
+            if (cashRecords.Any(record => record.RequiresAnswer && record.Included is null))
+            {
+                block(DayCloseErrors.RecordsUnanswered);
+            }
+
+            counted.AddRange(cashRecords.Where(record => record.Included == true));
+            var shared = 0m;
+            foreach (var group in counted
+                         .Where(record => record.GroupId is not null)
+                         .GroupBy(record => record.GroupId!.Value))
+            {
+                var sales = group.Where(record => record.IsDeferredSale).Sum(record => record.Amount);
+                var collections = group.Where(record => record.IsCollection).Sum(record => record.Amount);
+                if (sales <= 0m || collections <= 0m)
+                {
+                    continue;
+                }
+
+                var maximum = Math.Min(sales, collections);
+                var answer = overlaps.FirstOrDefault(overlap => overlap.GroupId == group.Key)?.Amount;
+                if (answer is null)
+                {
+                    block(DayCloseErrors.OverlapUnanswered);
+                }
+                else if (answer < 0m || answer > maximum)
+                {
+                    block(DayCloseErrors.InvalidOverlap);
+                    answer = null;
+                }
+
+                shared += answer ?? 0m;
+                groups.Add(DayCloseOverlapGroupDto.From(group.Key, group.ToArray(), answer));
+            }
+
+            decimal Sum(Func<DayCloseExistingRecordDto, bool> filter) =>
+                counted.Where(filter).Sum(record => record.Amount);
+            cash.Deductions = new DayCloseCashDeductionsDto(
+                Sum(record => record.Kind == DayCloseRecordKind.Income),
+                Sum(record => record.IsCollection),
+                Sum(record => record.Kind == DayCloseRecordKind.CounterpartyCharge),
+                Sum(record => record.Kind == DayCloseRecordKind.Obligation),
+                shared);
+            cash.Deducted = counted.Sum(record => record.Amount) - shared;
             if (cash.ToWrite < 0m)
             {
                 block(DayCloseErrors.ExistingExceedsCash);
             }
         }
 
+        // Ortak tutar yalnız sorulan grup için verilir.
+        if (overlaps.Any(overlap => groups.All(group => group.GroupId != overlap.GroupId)))
+        {
+            block(DayCloseErrors.InvalidOverlap);
+        }
+
         var stated = lines.Where(line => line.Stated).ToArray();
         var fallback = stated.FirstOrDefault(line => line.Definition.IsDefault)
             ?? stated.FirstOrDefault();
         foreach (var record in records.Where(
-                     record => record.Included && record.Side == DayCloseSide.Card))
+                     record => record.Included == true && record.Side == DayCloseSide.Card))
         {
             var target = stated.FirstOrDefault(
                 line => line.Definition.Id == record.PosDefinitionId) ?? fallback;
@@ -287,7 +338,7 @@ internal sealed class DayClosePlan
             block(DayCloseErrors.ExistingExceedsCard);
         }
 
-        return counted;
+        return (counted, groups);
     }
 
     /// <summary>
@@ -473,13 +524,13 @@ internal sealed class DayClosePlan
         new DayCloseCashLineDto(
             Cash.Stated,
             Cash.Entered,
-            Cash.IsComputed,
             Cash.Deducted,
             Math.Max(Cash.ToWrite, 0m),
             Cash.Account?.Id,
             Cash.Account?.Name,
             Cash.Category?.Id,
-            Cash.Category?.Name),
+            Cash.Category?.Name,
+            Cash.Deductions),
         PosLines
             .Select(line => new DayClosePosLineDto(
                 line.Definition.Id,
@@ -488,7 +539,6 @@ internal sealed class DayClosePlan
                 line.Account?.Name ?? string.Empty,
                 line.Stated,
                 line.Entered,
-                line.IsComputed,
                 line.Deducted,
                 Math.Max(line.ToWrite, 0m),
                 line.Commission,
@@ -499,5 +549,6 @@ internal sealed class DayClosePlan
         TotalComputed,
         TotalDifference,
         Records,
-        Blocker);
+        Blocker,
+        OverlapGroups);
 }

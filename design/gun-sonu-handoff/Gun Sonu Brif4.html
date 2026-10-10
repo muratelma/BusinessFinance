@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="design_doc_mode" content="canvas"><title>Gün sonu — Brif 4</title>
+<link rel="stylesheet" href="_ds/design-system-02d8cd45-68c3-45e3-a947-241a11eb81d4/styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="_ds/design-system-02d8cd45-68c3-45e3-a947-241a11eb81d4/_ds_bundle.js"></script>
+<style>
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.frame{position:absolute;width:412px;background:#6f7070;border-radius:24px;overflow:hidden;padding-top:56px}
+.cap{position:absolute;width:412px;font:600 18px/1.3 var(--font-core);color:var(--ink)}
+.cap small{display:block;font:400 14px/1.45 var(--font-core);color:var(--ink-muted);margin-top:4px;text-wrap:pretty}
+.frame footer{flex-wrap:wrap}.frame footer button{white-space:nowrap}.cap b{font-weight:600;color:var(--ink)}
+.row-title{position:absolute;font:700 26px/1.2 var(--font-core);color:var(--ink)}
+.notes{position:absolute;width:412px;background:var(--surface-card);border:1px solid var(--border);border-radius:20px;padding:24px;box-sizing:border-box;font:400 14px/1.5 var(--font-core);color:var(--ink-muted)}
+.notes h3{margin:0 0 12px;font:600 18px/1.3 var(--font-core);color:var(--ink)}
+.notes ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:12px}
+.notes li b{color:var(--ink);font-weight:600}
+</style></head>
+<body>
+<div id="board"></div>
+<div class="notes" id="notes">
+<h3>Beş karar</h3>
+<ol>
+<li><b>Tek bölüm.</b> “Gün içinde girilenler” altında bütün türler birlikte; türü satırın ikinci satırı söyler (Kartla · Tahsilat · Veresiye satış · Alacak faturası). İşaretli gelenler üstte, sorulanlar ince çizginin altında. Başlık seçilen güne bağlıdır, geçmiş günde de doğru okunur.</li>
+<li><b>Toplu cevap: tek soru, iki dilim.</b> “Bunlar yazdığınız nakit tutarın içinde mi?” → Hepsi içinde / Hiçbiri. Hiçbiri seçili gelmez. Tek tek değiştirmek satıra dokunmak: ? → içinde → değil → içinde.</li>
+<li><b>Cevapsız hâl.</b> Kutu yerine soru ikonu; Yazılacak'ta tutar yerine “3 kayıt için seçim yapılınca hesaplanır.” Kaydet kapalı. Kırmızı yok.</li>
+<li><b>G4.</b> İki satırın altında, gri zeminde: “Satış ve tahsilat yazdığınız nakit tutarda nasıl sayıldı?” · İkisi ayrı ayrı · Tahsilat satışın içinde (tahsilat büyükse “Satış tahsilatın içinde”; faturada “Tahsilat faturanın içinde”) · Bir kısmı ikisinde de var → “İkisinde de sayılan”. Sağdaki sayı: bu ikisinden kayıtlı sayılan.</li>
+<li><b>Yazılacak.</b> “düşüldü” yok. Yeni tutar üstte; altında Nakit tutarı / Zaten kayıtlı ve dökümü.</li>
+</ol>
+</div>
+<script type="text/babel" src="gunsonu/GSParts.jsx"></script>
+<script type="text/babel" src="gunsonu/GSFrames.jsx"></script>
+<script type="text/babel">
+const ROWS=[
+ {title:'Önerilen',items:[
+  ['g1','G1 · Cevap bekleyen kayıtlar','Satış ve kartlı satış işaretli gelir; üç kayıt soru ikonuyla. Kaydet kapalı; nedeni Yazılacak\'ta.',<GunSonu/>],
+  ['g2','G2 · Cevaplanmış ve hesap','“Hepsi içinde”, sonra Ayşe Terzi\'ye dokunup kaldırıldı; ray seçimsiz kalır. ₺1.670 − ₺670 = ₺1.000. Kartlı satış nakit hesabına girmez.',<GunSonu initAns={{s:true,p:true,a:true,m:true,y:false}}/>],
+  ['g3','G3 · Bazıları dahil','Ahmet Bakkal işaretli; Mehmet Usta ve Ayşe Terzi işaretsiz; ray seçimsiz. Kayıtlı ₺550, yeni nakit satış ₺1.120.',<GunSonu initAns={{s:true,p:true,a:true,m:false,y:false}}/>],
+  ['g4','G4 · Satış ve tahsilat birlikte','Mehmet Usta ₺500 satış + ₺300 tahsilat. Sağdaki sayı bu çiftten kayıtlı sayılan: ₺800 / ₺500 / ₺600.',<GunSonu records={GS_G4} initCash="1.600" initAns={{ms:true,mc:true}} initHow={{'Mehmet Usta':'part'}} initPart={{'Mehmet Usta':'200'}}/>],
+  ['g5','G5 · Toplam farkı','Nakit boş: nakit satırları ve soru çıkmaz. Not neden tahmin etmez.',<GunSonuPos/>]]},
+ {title:'Ek hâller',items:[
+  ['g4b','G4 · Alacak faturası ve tahsilatı','Kişi adı yerine faturanın adı. Eşit tutarda ikinci seçenek “Tahsilat faturanın içinde”.',<GunSonu records={GS_INV} initCash="1.600" initAns={{fi:true,fc:true}} initHow={{'Sentetik fatura':'in'}}/>],
+  ['g4c','G4 · Aynı gün iki kişi','Soru her çiftin altında ayrı. Ahmet Bakkal\'da tahsilat satıştan büyük: “Satış tahsilatın içinde” → ₺500.',<GunSonu records={GS_TWO} initCash="2.400" initAns={{ms:true,mc:true,as:true,ac:true}} initHow={{'Mehmet Usta':'sep','Ahmet Bakkal':'in'}}/>],
+  ['g6','G6 · Nakit boş, kartlı kayıt var','Yalnız Ziraat POS ₺1.300 yazıldı. Nakit satırları ve soru gizli; kartlı satır kalır. ₺1.300 − ₺800 = ₺500.',<GunSonu initCash="" initPos="1.300"/>],
+  ['notes']]}
+];
+const STRESS=new URLSearchParams(location.search).has('stress');
+if(STRESS){window.GS_STRESS=true;}
+const SCALE=Number(new URLSearchParams(location.search).get('scale'))||1;
+if(SCALE!==1){const cs=getComputedStyle(document.documentElement),v=['hero','title','metric','section','row','body-large','body','helper','action','label','chip','label-small'].map(n=>'--text-'+n+'-size:'+(parseFloat(cs.getPropertyValue('--text-'+n+'-size'))*SCALE)+'px').join(';');const st=document.createElement('style');st.textContent='.frame{'+v+'}.frame footer button{flex:1 1 auto}';document.head.appendChild(st);}
+const board=document.getElementById('board');
+ROWS.forEach((row,ri)=>{
+  const t=document.createElement('div');t.className='row-title';t.dataset.row=ri;t.textContent=row.title;board.appendChild(t);
+  row.items.forEach((it,i)=>{
+    if(it[0]==='notes'){const n=document.getElementById('notes');n.dataset.row=ri;n.dataset.col=i;return;}
+    const c=document.createElement('div');c.className='cap';c.dataset.row=ri;c.dataset.col=i;c.innerHTML=it[1]+'<small>'+it[2]+'</small>';board.appendChild(c);
+    const f=document.createElement('div');f.className='frame';f.id=it[0];f.dataset.row=ri;f.dataset.col=i;board.appendChild(f);
+    ReactDOM.createRoot(f).render(it[3]);
+  });
+});
+function layout(){
+  let y=0;
+  ROWS.forEach((row,ri)=>{
+    const q=s=>[...document.querySelectorAll('[data-row="'+ri+'"]'+s)];
+    q('.row-title').forEach(e=>{e.style.left='0px';e.style.top=y+'px'});
+    q('.cap').forEach(e=>{e.style.left=(e.dataset.col*460)+'px';e.style.top=(y+50)+'px'});
+    let h=0;q('.frame,.notes').forEach(e=>{e.style.left=(e.dataset.col*460)+'px';e.style.top=(y+150)+'px';h=Math.max(h,e.offsetHeight)});
+    y+=150+h+120;
+  });
+}
+const ro=new ResizeObserver(()=>layout());document.querySelectorAll('.frame').forEach(f=>ro.observe(f));
+setTimeout(layout,300);setTimeout(layout,1200);document.fonts&&document.fonts.ready.then(()=>setTimeout(layout,50));
+</script>
+</body></html>

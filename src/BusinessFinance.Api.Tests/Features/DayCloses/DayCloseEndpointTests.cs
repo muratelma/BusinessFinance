@@ -44,16 +44,18 @@ public sealed class DayCloseEndpointTests
         var posSale = await CreateSettlementAsync(owner, f, "800.0000", today);
         var collection = await CreateCollectionAsync(owner, f.TillId, "300.0000", today);
 
+        // Nakit cari tahsilat hazır cevapla gelmez; burada girilen nakdin
+        // dışındadır.
         var request = new DayCloseRequest(
             Date(today),
             CashAmount: "3350.0000",
-            PosAmounts: [new(f.PosDefinitionId, "2680.0000")]);
+            PosAmounts: [new(f.PosDefinitionId, "2680.0000")],
+            RecordOverrides: [new("counterparty-payment", collection, false)]);
         var preview = await PreviewAsync(owner, request);
 
         Assert.Null(preview.BlockerCode);
         Assert.Empty(preview.ClosedBy);
         Assert.True(preview.Cash.Stated);
-        Assert.False(preview.Cash.IsComputed);
         Assert.Equal("1250.0000", preview.Cash.DeductedAmount);
         Assert.Equal("2100.0000", preview.Cash.AmountToWrite);
         // Kasa ve satış kategorisi seçili gelir: tek nakit hesap ve ana
@@ -71,7 +73,7 @@ public sealed class DayCloseEndpointTests
         Assert.Equal("6030.0000", preview.TotalComputed);
         Assert.Null(preview.TotalDifference);
 
-        // Satışlar işaretli, nakit cari tahsilat işaretsiz gelir.
+        // Satışlar işaretli gelir; nakit cari tahsilat cevap ister.
         Assert.Equal(3, preview.ExistingRecords.Count);
         var existingSale = Assert.Single(preview.ExistingRecords, r => r.Id == sale.Id);
         Assert.Equal(("income", "cash", true, true),
@@ -81,9 +83,10 @@ public sealed class DayCloseEndpointTests
             (existingPos.Kind, existingPos.Side, existingPos.Included));
         Assert.Equal(f.PosDefinitionId, existingPos.PosDefinitionId);
         var existingCollection = Assert.Single(preview.ExistingRecords, r => r.Id == collection);
-        Assert.Equal(("counterparty-payment", "cash", false, false),
+        Assert.Equal(("counterparty-payment", "cash", false, (bool?)false, true),
             (existingCollection.Kind, existingCollection.Side,
-                existingCollection.IncludedByDefault, existingCollection.Included));
+                existingCollection.IncludedByDefault, existingCollection.Included,
+                existingCollection.RequiresAnswer));
 
         // Önizleme hiçbir şey yazmaz.
         Assert.Equal("1550.0000", await BalanceAsync(owner, f.TillId));
@@ -195,36 +198,35 @@ public sealed class DayCloseEndpointTests
     }
 
     /// <summary>
-    /// Nakit, kart ve toplamdan ikisi yeter; toplamdan hesaplanan kart ana
-    /// POS'a yazılır. Üçü de verilip tutmuyorsa fark gösterilir, kayıt
-    /// engellenmez: toplam kayıt üretmez, açıklar (T3).
+    /// Bir taraf yalnız kendi tutarı yazıldıysa kayıt üretir; toplam eksik
+    /// tarafı hesaplamaz, yalnız farkı gösterir (karar G1, 10 Ekim 2026).
     /// </summary>
     [Fact]
-    public async Task TwoOfCashCardAndTotal_AreEnough()
+    public async Task EachSideIsWrittenOnlyFromItsOwnAmount_AndTheTotalOnlyShowsTheDifference()
     {
         await using var factory = new BusinessFinanceApiFactory();
         using var owner = await CreateAuthenticatedClientAsync(factory, "close-amounts@example.test");
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var f = await SeedAsync(owner);
 
-        var cardFromTotal = await PreviewAsync(
+        // Nakit ve toplam: kart hesaplanmaz, POS satırına dokunulmaz.
+        var cashAndTotal = await PreviewAsync(
             owner, new DayCloseRequest(Date(today), CashAmount: "1000.0000", TotalAmount: "1500.0000"));
-        var computedLine = Assert.Single(cardFromTotal.PosLines);
-        Assert.True(computedLine.Stated);
-        Assert.True(computedLine.IsComputed);
-        Assert.Equal("500.0000", computedLine.EnteredAmount);
-        Assert.Equal("1500.0000", cardFromTotal.TotalComputed);
-        Assert.Null(cardFromTotal.TotalDifference);
-        Assert.Null(cardFromTotal.BlockerCode);
+        Assert.False(Assert.Single(cashAndTotal.PosLines).Stated);
+        Assert.Equal("1000.0000", cashAndTotal.TotalComputed);
+        Assert.Equal("500.0000", cashAndTotal.TotalDifference);
+        Assert.Null(cashAndTotal.BlockerCode);
 
-        var cashFromTotal = await PreviewAsync(
+        // Kart ve toplam: nakit hesaplanmaz.
+        var cardAndTotal = await PreviewAsync(
             owner,
             new DayCloseRequest(
                 Date(today), PosAmounts: [new(f.PosDefinitionId, "400.0000")],
                 TotalAmount: "1500.0000"));
-        Assert.True(cashFromTotal.Cash.Stated);
-        Assert.True(cashFromTotal.Cash.IsComputed);
-        Assert.Equal("1100.0000", cashFromTotal.Cash.EnteredAmount);
+        Assert.False(cardAndTotal.Cash.Stated);
+        Assert.Equal("0.0000", cardAndTotal.Cash.AmountToWrite);
+        Assert.Equal("1100.0000", cardAndTotal.TotalDifference);
+        Assert.Null(cardAndTotal.BlockerCode);
 
         // Yalnız nakit: kart tarafına dokunulmaz.
         var cashOnly = await PreviewAsync(
@@ -323,8 +325,10 @@ public sealed class DayCloseEndpointTests
         var posSale = await CreateSettlementAsync(owner, f, "800.0000", today);
         var collection = await CreateCollectionAsync(owner, f.TillId, "300.0000", today);
 
+        // Tahsilat cevap ister; önce girilen nakdin dışında sayılır.
         var request = new DayCloseRequest(
-            Date(today), CashAmount: "1000.0000", PosAmounts: [new(f.PosDefinitionId, "500.0000")]);
+            Date(today), CashAmount: "1000.0000", PosAmounts: [new(f.PosDefinitionId, "500.0000")],
+            RecordOverrides: [new("counterparty-payment", collection, false)]);
         var preview = await PreviewAsync(owner, request);
         Assert.Equal("day_closes.existing_exceeds_cash", preview.BlockerCode);
         await AssertRejectedAsync(
@@ -333,7 +337,11 @@ public sealed class DayCloseEndpointTests
 
         var cardOnly = request with
         {
-            RecordOverrides = [new("income", sale.Id, false)],
+            RecordOverrides =
+            [
+                new("income", sale.Id, false),
+                new("counterparty-payment", collection, false),
+            ],
         };
         Assert.Equal(
             "day_closes.existing_exceeds_card", (await PreviewAsync(owner, cardOnly)).BlockerCode);
@@ -456,12 +464,17 @@ public sealed class DayCloseEndpointTests
         Assert.Equal("counterparty_payments.day_close_counted", await CodeAsync(cancelCollection));
 
         // Ek gün sonunda sayılmış kayıtlar listede yok; override ile de
-        // yeniden sayılamazlar.
-        var additional = await CloseAsync(
-            owner,
+        // yeniden sayılamazlar: listede olmayan kayıt için cevap taşıyan
+        // istek eski bir listeye bakıyordur ve reddedilir.
+        await AssertRejectedAsync(
+            owner, HttpStatusCode.Conflict, "day_closes.records_changed",
             new DayCloseRequest(
                 Date(today), CashAmount: "400.0000", IsAdditional: true,
-                RecordOverrides: [new("income", sale.Id, true)]));
+                RecordOverrides: [new("income", sale.Id, true)],
+                ClientRequestId: Guid.NewGuid()));
+        var additional = await CloseAsync(
+            owner,
+            new DayCloseRequest(Date(today), CashAmount: "400.0000", IsAdditional: true));
         Assert.Equal("400.0000", additional.CashAmount);
         Assert.Empty(additional.CountedRecords);
 

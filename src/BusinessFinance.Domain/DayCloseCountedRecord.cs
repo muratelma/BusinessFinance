@@ -13,7 +13,16 @@ public enum DayCloseRecordKind
     CounterpartyPayment = 3,
 
     /// <summary>Tek seferlik alacağın nakit hesaba tahsilatı.</summary>
-    ObligationSettlement = 4
+    ObligationSettlement = 4,
+
+    /// <summary>
+    /// O gün yazılmış veresiye satış (cari borçlandırma, alacak yönü): geliri
+    /// yazılmıştır, parası alınmamış olabilir.
+    /// </summary>
+    CounterpartyCharge = 5,
+
+    /// <summary>O gün yazılmış alacak faturası (alacak yönlü yükümlülük).</summary>
+    Obligation = 6
 }
 
 /// <summary>

@@ -26,14 +26,27 @@ public enum DayCloseSide
 public sealed record DayCloseRecordOverride(DayCloseRecordKind Kind, Guid Id, bool Included);
 
 /// <summary>
+/// Bir grubun (kişinin ya da faturanın) satışı ile tahsilatı girilen nakit
+/// tutarında birlikte yer alıyorsa, ikisinde <b>ortak</b> olan tutar.
+/// </summary>
+/// <remarks>
+/// Ortak tutar, tahsilatın hangi satışa ait olduğunu değil, girilen toplamda
+/// satış ve tahsilatın nasıl sayıldığını söyler: iki kayıtta da görünen ama
+/// girilen tutarda bir kez yer alan paradır. Düşülen = satışlar + tahsilatlar
+/// − ortak tutar. Sıfır "ayrı ayrı sayıldı" demektir.
+/// </remarks>
+public sealed record DayCloseOverlap(Guid GroupId, decimal Amount);
+
+/// <summary>
 /// Gün sonunun girdisi; önizleme ve kayıt aynı girdiyi alır ve aynı hesaptan
 /// geçer.
 /// </summary>
 /// <remarks>
-/// Nakit, kart (POS satırları) ve toplamdan <b>ikisi yeter</b>; üçüncüsü
-/// hesaplanır. Yalnız nakit ya da yalnız kart verilirse öbür tarafa
-/// dokunulmaz. Üçü de verilip tutmuyorsa kayıt engellenmez: toplam kayıt
-/// üretmez, yalnız farkı açıklar (ADR 0019 T3).
+/// Bir taraf yalnız <b>kendi tutarı yazıldıysa</b> kayıt üretir: yalnız nakit
+/// ya da yalnız kart verilirse öbür tarafa dokunulmaz. Toplam hiçbir zaman
+/// kayıt üretmez ve eksik tarafı hesaplamak için kullanılmaz; raporun toplamı
+/// başka ödeme türlerini de (kredili satış, yemek kartı) içerebilir. Verildiyse
+/// yalnız farkı gösterir.
 /// </remarks>
 public sealed record DayCloseInput(
     DateOnly Date,
@@ -45,7 +58,8 @@ public sealed record DayCloseInput(
     IReadOnlyList<DayCloseRecordOverride> RecordOverrides,
     bool IsAdditional,
     DateOnly? RangeStart,
-    int? ZNumber);
+    int? ZNumber,
+    IReadOnlyList<DayCloseOverlap>? Overlaps = null);
 
 public sealed record CreateDayCloseCommand(Guid ClientRequestId, DayCloseInput Input);
 
@@ -64,24 +78,134 @@ public sealed record DayCloseExistingRecordDto(
     // Paranın girdiği (ya da geçeceği) hesabın adı.
     string AccountName,
     bool IncludedByDefault,
-    bool Included,
+    // Girilen tutara dahil mi. Boş: cevaplanmadı (yalnız cevap isteyen
+    // kayıtlarda); cevaplanmadan gün sonu yazılmaz.
+    bool? Included,
     // Kart tarafında bir alacağın kartla tahsili (satış değil); başlık kişinin
     // adıdır. Satış gibi varsayılan olarak düşülür (KP7).
-    bool IsCardCollection = false);
+    bool IsCardCollection = false,
+    // Vadeli satış ve nakit tahsilat hazır cevapla gelmez: uygulama bunların
+    // girilen tutarın içinde olup olmadığını kayıtlardan bilemez.
+    bool RequiresAnswer = false,
+    // Satışı ile tahsilatı aynı parayı gösterebilecek kayıtların grubu: cari
+    // kayıtta kişi, alacak faturasında fatura. Öbür kayıtlarda boş.
+    Guid? GroupId = null,
+    string? GroupName = null,
+    // Kaydın uygulamaya girildiği an; bu bilgiden önce yazılmış kayıtta boş.
+    DateTimeOffset? CreatedAtUtc = null)
+{
+    /// <summary>Gelir yazmış ama parası (tamamı) alınmamış olabilecek satış.</summary>
+    public bool IsDeferredSale =>
+        Kind is DayCloseRecordKind.CounterpartyCharge or DayCloseRecordKind.Obligation;
+
+    /// <summary>Daha önce gelir yazılmış bir alacağın nakit tahsilatı.</summary>
+    public bool IsCollection =>
+        Kind is DayCloseRecordKind.CounterpartyPayment or DayCloseRecordKind.ObligationSettlement;
+}
+
+/// <summary>Ortak tutarı sorulan grubun ne olduğu: bir kişi ya da bir fatura.</summary>
+public enum DayCloseGroupKind
+{
+    Counterparty = 1,
+    Obligation = 2
+}
+
+/// <summary>Grubun dahil edilen satışları ile tahsilatlarından büyük olanı.</summary>
+public enum DayCloseLargerSide
+{
+    /// <summary>Satışlar tahsilatlardan büyük ya da ikisi eşit.</summary>
+    Sales = 1,
+    Collections = 2
+}
+
+/// <summary>
+/// Satışı da tahsilatı da girilen nakit tutarına dahil edilmiş bir grup:
+/// ortak tutarı sorulur.
+/// </summary>
+/// <remarks>
+/// Panel üç cevabı sonuçlarıyla gösterir ve hiçbirini kendisi hesaplamaz:
+/// "ayrı ayrı" <see cref="SeparateAmount"/>, "biri öbürünün içinde"
+/// <see cref="InsideAmount"/>, "bir kısmı" yazılan tutarla
+/// <see cref="DeductedAmount"/> kadar düşer.
+/// </remarks>
+public sealed record DayCloseOverlapGroupDto(
+    Guid GroupId,
+    string Name,
+    decimal SalesAmount,
+    decimal CollectionsAmount,
+    // Ortak tutar en çok bu kadar olabilir: iki toplamdan küçük olanı.
+    decimal MaximumOverlap,
+    // Boş: cevaplanmadı.
+    decimal? OverlapAmount,
+    // Satışlar + tahsilatlar − ortak tutar; cevaplanmadıysa boş.
+    decimal? DeductedAmount,
+    DayCloseGroupKind Kind,
+    // Ortak tutar sıfırken düşülen: satışlar + tahsilatlar.
+    decimal SeparateAmount,
+    // Ortak tutar en çokken düşülen: iki toplamdan büyük olanı.
+    decimal InsideAmount,
+    DayCloseLargerSide LargerSide)
+{
+    /// <summary>
+    /// Grubun dahil edilen kayıtlarından ve (verildiyse) ortak tutarından kurar.
+    /// Önizleme ve günün ekranı aynı hesabı kullanır.
+    /// </summary>
+    public static DayCloseOverlapGroupDto From(
+        Guid groupId,
+        IReadOnlyCollection<DayCloseExistingRecordDto> records,
+        decimal? overlapAmount)
+    {
+        var sales = records.Where(record => record.IsDeferredSale).Sum(record => record.Amount);
+        var collections = records.Where(record => record.IsCollection).Sum(record => record.Amount);
+        return new DayCloseOverlapGroupDto(
+            groupId,
+            records.Select(record => record.GroupName).FirstOrDefault(name => name is not null)
+                ?? string.Empty,
+            sales,
+            collections,
+            Math.Min(sales, collections),
+            overlapAmount,
+            overlapAmount is decimal amount ? sales + collections - amount : null,
+            records.Any(record => record.Kind
+                is DayCloseRecordKind.Obligation or DayCloseRecordKind.ObligationSettlement)
+                ? DayCloseGroupKind.Obligation
+                : DayCloseGroupKind.Counterparty,
+            sales + collections,
+            Math.Max(sales, collections),
+            collections > sales ? DayCloseLargerSide.Collections : DayCloseLargerSide.Sales);
+    }
+}
+
+/// <summary>
+/// Nakit tutarından düşülenin dökümü: dahil edilen kayıtlar türüne göre ve
+/// iki kayıtta da görünen para. Dört tutarın toplamı eksi ortak tutar,
+/// düşülen tutardır.
+/// </summary>
+public sealed record DayCloseCashDeductionsDto(
+    // Tek tek girilmiş nakit satışlar.
+    decimal SalesAmount,
+    // Nakit tahsilatlar (cari tahsilat ve alacak faturasının tahsilatı).
+    decimal CollectionsAmount,
+    // O gün yazılmış veresiye satışlar.
+    decimal CreditSalesAmount,
+    // O gün yazılmış alacak faturaları.
+    decimal InvoicesAmount,
+    // Cevaplanmış ortak tutarların toplamı; bir kez düşülür.
+    decimal SharedAmount);
 
 /// <summary>Panelin nakit satırı: girilen, düşülen ve yazılacak tutar.</summary>
 public sealed record DayCloseCashLineDto(
-    // Nakit tutarı verildi ya da toplamdan hesaplandı; değilse nakit tarafına
-    // dokunulmaz ve aşağıdaki tutarlar sıfırdır.
+    // Nakit tutarı verildi; değilse nakit tarafına dokunulmaz ve aşağıdaki
+    // tutarlar sıfırdır.
     bool Stated,
     decimal EnteredAmount,
-    bool IsComputed,
     decimal DeductedAmount,
     decimal AmountToWrite,
     Guid? AccountId,
     string? AccountName,
     Guid? CategoryId,
-    string? CategoryName);
+    string? CategoryName,
+    DayCloseCashDeductionsDto Deductions);
 
 /// <summary>Panelin bir POS satırı.</summary>
 public sealed record DayClosePosLineDto(
@@ -91,7 +215,6 @@ public sealed record DayClosePosLineDto(
     string AccountName,
     bool Stated,
     decimal EnteredAmount,
-    bool IsComputed,
     decimal DeductedAmount,
     decimal AmountToWrite,
     decimal CommissionAmount,
@@ -125,7 +248,9 @@ public sealed record DayClosePreviewDto(
     decimal? TotalDifference,
     IReadOnlyList<DayCloseExistingRecordDto> ExistingRecords,
     // Bu girdiyle kayıt reddedilecekse nedeni; boşsa kaydedilebilir.
-    ApplicationError? Blocker);
+    ApplicationError? Blocker,
+    // Ortak tutarı sorulan gruplar; yoksa boş liste.
+    IReadOnlyList<DayCloseOverlapGroupDto> OverlapGroups);
 
 public sealed record DayCloseIncomeDto(
     Guid TransactionId,
@@ -160,8 +285,11 @@ public sealed record DayCloseDto(
     // Gün sonunun saydığı (tek tek girilmiş ve tutardan düşülmüş) kayıtlar.
     // Geri alınmış gün sonunda boştur: bağ kalkmış, kayıtlar serbesttir.
     IReadOnlyList<DayCloseExistingRecordDto> CountedRecords,
+    // Nakit tutarından düşülen: sayılan nakit kayıtlar − ortak tutarlar.
     decimal CountedCashAmount,
-    decimal CountedCardAmount);
+    decimal CountedCardAmount,
+    // Sayılan kayıtlar arasında iki kayıtta da görünen, bir kez düşülen para.
+    IReadOnlyList<DayCloseOverlapGroupDto> Overlaps);
 
 /// <summary>
 /// Bir günün bütünü: o günü kapatan gün sonları (ana ve ekler), her birinin
@@ -228,8 +356,9 @@ public interface IDayCloseRepository
 
     /// <summary>
     /// Aralıkta tek tek girilmiş, gün sonu tutarının içinde olabilecek
-    /// kayıtlar: nakit hesaba işletme gelirleri, POS tahsilatları ve nakit
-    /// hesaba cari ya da alacak tahsilatları. Bir gün sonunun ürettiği ya da
+    /// kayıtlar: nakit hesaba işletme gelirleri, POS tahsilatları, nakit
+    /// hesaba cari ya da alacak tahsilatları ve o gün yazılmış vadeli satışlar
+    /// (veresiye satış, alacak faturası). Bir gün sonunun ürettiği ya da
     /// zaten saydığı kayıtlar bu listede yer almaz.
     /// </summary>
     Task<IReadOnlyList<DayCloseExistingRecordDto>> ListExistingRecordsAsync(
@@ -265,10 +394,11 @@ public interface IDayCloseRepository
         IReadOnlyCollection<BudgetTransaction> incomes,
         IReadOnlyCollection<PosSettlement> settlements,
         IReadOnlyCollection<DayCloseCountedRecord> counted,
+        IReadOnlyCollection<DayCloseCountedOverlap> overlaps,
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Gün sonunun saydığı kayıtların bağını kaldırır; değişiklik
+    /// Gün sonunun saydığı kayıtların bağını ve ortak tutarlarını kaldırır; değişiklik
     /// <see cref="TrySaveAsync"/> ile, geri almayla aynı anda yazılır.
     /// </summary>
     Task ReleaseCountedAsync(Guid dayCloseId, Guid userId, CancellationToken cancellationToken);
@@ -298,22 +428,54 @@ public static class DayCloseErrors
         "Amounts cannot be negative and each pos appears at most once.",
         ApplicationErrorType.Validation);
 
-    /// <summary>Nakit, kart ve toplamdan en az biri; yalnız toplam yetmez.</summary>
+    /// <summary>Nakit ya da kart tutarı; yalnız toplam yetmez.</summary>
     public static readonly ApplicationError AmountsRequired = new(
         "day_closes.amounts_required",
-        "Enter the cash amount, the card amount, or two of cash, card and total.",
+        "Enter the cash amount or a card amount; the total alone writes nothing.",
         ApplicationErrorType.Validation);
 
     public static readonly ApplicationError TotalBelowParts = new(
         "day_closes.total_below_parts",
-        "The total cannot be less than the amount it is split from.",
+        "The total cannot be less than the cash and card amounts entered.",
         ApplicationErrorType.Validation);
 
-    /// <summary>Kart tutarı toplamdan hesaplandı ama yazılacağı bir POS yok.</summary>
-    public static readonly ApplicationError PosRequired = new(
-        "day_closes.pos_required",
-        "A card amount needs a pos to be written to.",
+    /// <summary>
+    /// Vadeli satış ya da nakit tahsilat için "girilen nakit tutarına dahil
+    /// mi" cevabı verilmemiş. Sunucu cevap uydurmaz.
+    /// </summary>
+    public static readonly ApplicationError RecordsUnanswered = new(
+        "day_closes.records_unanswered",
+        "Say whether each deferred sale and cash collection is inside the cash amount.",
         ApplicationErrorType.Validation);
+
+    /// <summary>
+    /// Bir grubun satışı da tahsilatı da dahil edilmiş ama ortak tutarı
+    /// verilmemiş: ikisinin toplamı mı, bir kez mi düşüleceği bilinmiyor.
+    /// </summary>
+    public static readonly ApplicationError OverlapUnanswered = new(
+        "day_closes.overlap_unanswered",
+        "Say how much of the sale and the collection is the same money in the cash amount.",
+        ApplicationErrorType.Validation);
+
+    /// <summary>
+    /// Ortak tutar eksi, grubun dahil edilen satışlarından ya da
+    /// tahsilatlarından büyük, ya da ortak tutarı sorulmayan bir grup için
+    /// verilmiş.
+    /// </summary>
+    public static readonly ApplicationError InvalidOverlap = new(
+        "day_closes.invalid_overlap",
+        "The shared amount is between zero and the smaller of the group's sales and collections.",
+        ApplicationErrorType.Validation);
+
+    /// <summary>
+    /// İstek, listede artık olmayan bir kayıt için cevap taşıyor: kayıt iptal
+    /// edildi ya da başka bir gün sonunda sayıldı. Panel güncel listeyi
+    /// yeniden gösterir.
+    /// </summary>
+    public static readonly ApplicationError RecordsChanged = new(
+        "day_closes.records_changed",
+        "The records of the day changed; read them again.",
+        ApplicationErrorType.Conflict);
 
     /// <summary>Başka kullanıcının, pasif ya da var olmayan POS'un cevabı aynıdır.</summary>
     public static readonly ApplicationError PosUnavailable = new(

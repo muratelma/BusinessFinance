@@ -1024,7 +1024,14 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Direction = (int?)charge.Direction,
                 SettlementCount = (int?)null,
                 CancelLocked = false,
-                DayCloseId = (Guid?)null,
+                // Gün sonunda nakit tutarından düşülen veresiye satış o gün
+                // sonuna bağlıdır ve tek başına iptal edilemez.
+                DayCloseId = dbContext.DayCloseCountedRecords
+                        .Where(counted => counted.UserId == userId &&
+                                          counted.Kind == DayCloseRecordKind.CounterpartyCharge &&
+                                          counted.RecordId == charge.Id)
+                        .Select(counted => (Guid?)counted.DayCloseId)
+                        .FirstOrDefault(),
                 MatchAccountId = null,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,
@@ -1176,7 +1183,13 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                          (Guid?)pos.Id == closing.PosSettlementId &&
                          !pos.IsCancelled &&
                          pos.PosDepositId != null))),
-                DayCloseId = (Guid?)null,
+                // Faturanın kendisi gün sonunda sayıldıysa o gün sonuna bağlıdır.
+                DayCloseId = dbContext.DayCloseCountedRecords
+                        .Where(counted => counted.UserId == userId &&
+                                          counted.Kind == DayCloseRecordKind.Obligation &&
+                                          counted.RecordId == obligation.Id)
+                        .Select(counted => (Guid?)counted.DayCloseId)
+                        .FirstOrDefault(),
                 MatchAccountId = null,
                 MatchSecondAccountId = null,
                 MatchCreditCardId = null,

@@ -1177,6 +1177,88 @@ public sealed class DataPortabilityTests
     }
 
     /// <summary>
+    /// Gün sonunun saydığı veresiye satış ve tahsilat, aralarındaki ortak
+    /// tutarla birlikte döner: bağlar ve grup (kişi) yeni kimliklere çevrilir.
+    /// Ortak tutar kullanıcının verdiği bilgidir; kayıtlardan yeniden
+    /// hesaplanamaz ve dosyada taşınır.
+    /// </summary>
+    [Fact]
+    public async Task Backup_RoundTripsCountedDeferredSalesWithTheirSharedAmount()
+    {
+        await using var context = CreateContext();
+        var sourceUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        var utc = new DateTimeOffset(2026, 9, 25, 9, 0, 0, TimeSpan.Zero);
+        var day = new DateOnly(2026, 9, 20);
+        var till = new Account(
+            Guid.NewGuid(), sourceUserId, "Kasa", AccountType.Cash, CurrencyCode.TRY, 0m);
+        var sales = new Category(Guid.NewGuid(), sourceUserId, "Satış geliri", CategoryType.Income);
+        var person = new Counterparty(Guid.NewGuid(), sourceUserId, "Sentetik müşteri", null);
+        var sale = new CounterpartyCharge(
+            Guid.NewGuid(), sourceUserId, person, sales, DebtDirection.Receivable,
+            new Money(500m, CurrencyCode.TRY), TransactionScope.Business, day, null, null);
+        var paid = new CounterpartyPayment(
+            Guid.NewGuid(), sourceUserId, person, till, DebtDirection.Receivable,
+            new Money(300m, CurrencyCode.TRY), day, null, null);
+        var closeId = Guid.NewGuid();
+        var written = new BudgetTransaction(
+            Guid.NewGuid(), sourceUserId, till, sales, new Money(1000m, CurrencyCode.TRY),
+            TransactionType.Income, TransactionScope.Business, day, dayCloseId: closeId);
+        var close = DayClose.Record(closeId, sourceUserId, day, utc, [written], []);
+        context.AddRange(
+            till, sales, person, sale, paid, written, close,
+            new DayCloseCountedRecord(close, DayCloseRecordKind.CounterpartyCharge, sale.Id),
+            new DayCloseCountedRecord(close, DayCloseRecordKind.CounterpartyPayment, paid.Id),
+            new DayCloseCountedOverlap(close, person.Id, 200m));
+        await context.SaveChangesAsync();
+        await SeedDefaultCategoriesAsync(context, targetUserId);
+        var service = new EfDataPortabilityRepository(context);
+
+        var backup = await service.CreateBackupAsync(sourceUserId, default);
+        await service.ValidateBackupAsync(backup.Content, default);
+        await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
+
+        var restoredClose = Assert.Single(await context.DayCloses.AsNoTracking()
+            .Where(item => item.UserId == targetUserId).ToArrayAsync());
+        var restoredPerson = Assert.Single(await context.Counterparties.AsNoTracking()
+            .Where(item => item.UserId == targetUserId).ToArrayAsync());
+        var restoredSale = Assert.Single(await context.CounterpartyCharges.AsNoTracking()
+            .Where(item => item.UserId == targetUserId).ToArrayAsync());
+        var restoredPaid = Assert.Single(await context.CounterpartyPayments.AsNoTracking()
+            .Where(item => item.UserId == targetUserId).ToArrayAsync());
+        var counted = await context.DayCloseCountedRecords.AsNoTracking()
+            .Where(item => item.UserId == targetUserId).ToArrayAsync();
+        Assert.Equal(
+            new[]
+            {
+                (DayCloseRecordKind.CounterpartyPayment, restoredPaid.Id),
+                (DayCloseRecordKind.CounterpartyCharge, restoredSale.Id),
+            },
+            counted.OrderBy(item => item.Kind).Select(item => (item.Kind, item.RecordId)));
+        Assert.All(counted, item => Assert.Equal(restoredClose.Id, item.DayCloseId));
+
+        var overlap = Assert.Single(await context.DayCloseCountedOverlaps.AsNoTracking()
+            .Where(item => item.UserId == targetUserId).ToArrayAsync());
+        Assert.Equal(
+            (restoredClose.Id, restoredPerson.Id, 200m),
+            (overlap.DayCloseId, overlap.GroupId, overlap.Amount));
+        Assert.NotEqual(person.Id, overlap.GroupId);
+
+        // Tahsilattan büyük bir ortak tutar taşıyan dosya geri yüklenmez.
+        var tampered = RewritePayload(backup.Content, snapshot =>
+        {
+            var overlaps = snapshot["dayCloses"]!.AsArray().Single()!["overlaps"]!.AsArray();
+            overlaps.Single()!.AsObject()["amount"] = 300.5m;
+        });
+        var emptyUserId = Guid.NewGuid();
+        await SeedDefaultCategoriesAsync(context, emptyUserId);
+        await Assert.ThrowsAsync<DataPortabilityException>(() =>
+            service.RestoreBackupAsync(emptyUserId, tampered, DateTimeOffset.UtcNow, default));
+        Assert.Empty(await context.DayCloses.AsNoTracking()
+            .Where(item => item.UserId == emptyUserId).ToArrayAsync());
+    }
+
+    /// <summary>
     /// Var olmayan bir gün sonuna bağlı kayıt ya da kayıtları canlı kalmış
     /// geri alınmış bir gün sonu geri yüklenmez.
     /// </summary>

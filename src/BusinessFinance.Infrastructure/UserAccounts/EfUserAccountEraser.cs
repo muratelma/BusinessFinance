@@ -99,7 +99,9 @@ internal sealed class EfUserAccountEraser(
             await dbContext.Transactions
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
             // Gün sonu, ürettiği gelir ve tahsilatlar gittikten sonra silinir;
-            // saydığı kayıtların bağı ondan önce.
+            // saydığı kayıtların bağı ve ortak tutarları ondan önce.
+            await dbContext.DayCloseCountedOverlaps
+                .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
             await dbContext.DayCloseCountedRecords
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
             await dbContext.DayCloses

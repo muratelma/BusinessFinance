@@ -1167,7 +1167,6 @@ class _FakeDayCloseRepository implements DayCloseRepositoryContract {
     cash: const DayCloseCashLine(
       stated: false,
       enteredAmount: '0.0000',
-      isComputed: false,
       deductedAmount: '0.0000',
       amountToWrite: '0.0000',
     ),

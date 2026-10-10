@@ -30,6 +30,11 @@ Bu dosya `AGENTS.md` kurallarının bir **özetini** taşır, çünkü her oturu
 yüklenir; ayrıntı ve gerekçe `AGENTS.md` içindedir ve ikisi çeliştiğinde
 `AGENTS.md` geçerlidir.
 
+**Dış göz raporları:** sohbet yanıtındaki değerlendirme, tablolar ve kaynak
+bağlantıları korunarak ayrıca `research/DIS-GOZ-YYYY-MM-DD-<konu>.md`
+dosyasına kaydedilir ve yanıtta bağlantısı verilir. Önceki raporun üzerine
+yazılmaz; ayrıntı `AGENTS.md` içindeki iletişim kurallarındadır.
+
 ## Proje modeli
 
 Flutter istemcisi ve ASP.NET Core backend'iyle çalışan, çok kullanıcılı bir
@@ -355,9 +360,23 @@ gerekçesiyle bozulmaz.
   ikinci kaynaktı, bu değil (kullanıcı kararı, 4 Ekim 2026). Hesap tek yerdedir
   (`DayClosePlan`): önizleme (`POST /api/v1/day-closes/preview`) ve kayıt aynı
   planı kurar; istemci hiçbir tutarı hesaplamaz. Yazılan = girilen − işaretli
-  "zaten girilmiş" kayıtlar; istek yalnız **değişen** işaretleri taşır. Nakit
-  tarafına yalnız nakit hesaba yazılmış **İşletme** gelirleri girer. Nakit,
-  kart ve toplamdan ikisi yeter; yalnız biri verilirse öbür tarafa dokunulmaz.
+  "zaten girilmiş" kayıtlar; istek **değişen** işaretleri ve cevap isteyen her
+  kaydın cevabını taşır. Nakit tarafına nakit hesaba yazılmış **İşletme**
+  gelirleri, nakit tahsilatlar ve o günün vadeli satışları (veresiye satış,
+  alacak faturası) girer. **Bir taraf yalnız kendi tutarı yazıldıysa kayıt
+  üretir; toplamdan eksik taraf hesaplanmaz** (kullanıcı kararı, 10 Ekim 2026:
+  raporun toplamı kredili satış ya da yemek kartı içerebilir). Toplam yalnız
+  farkı gösterir. **Vadeli satış ve nakit tahsilat hazır cevapla gelmez**
+  (`requiresAnswer`): yazılan nakdin içinde olup olmadıklarını uygulama
+  bilemez; nakit yazıldıysa cevaplanmadan gün sonu yazılmaz
+  (`day_closes.records_unanswered`). Bir kişinin (ya da bir faturanın) satışı
+  da tahsilatı da dahil edilirse **ortak tutar** sorulur
+  (`overlapGroups` → `overlaps`; düşülen = satışlar + tahsilatlar − ortak
+  tutar) ve saklanır (`DayCloseCountedOverlap`). Ortak tutar tahsilatın hangi
+  satışa ait olduğunu değil, yazılan toplamda ikisinin nasıl sayıldığını
+  söyler; bir ödeme dağılımı değildir ve onu yalnız günün ekranı ile geri alma
+  okur. Düşülenin dökümü (`cash.deductions`), üç cevabın sonucu ve kaydın
+  giriş anı önizlemeden gelir.
   Hiç kayıt üretmeyen gün sonu meşrudur ve günü kapatır. Gün başına tek gün
   sonu; ikincisi yalnız açıkça `isAdditional`. Geri alma bir bütündür; ürettiği
   kayıt tek başına iptal edilemez (`origin: day-close`,
@@ -578,7 +597,8 @@ secret'ı uygulamaya konmaz.
 - `documentation/design-system.md` — token'lar, pencere sınıfları, bileşen
   kataloğu, erişilebilirlik kuralları ve yeni ekran kontrol listesi
 - `design/` — Claude Design teslimleri (`claude-design-handoff/` Özet ve ortak
-  dil, `vergiler-handoff/` vergi ekranı) ve verilen brifler (`brifler/`).
+  dil, `vergiler-handoff/` vergi ekranı, `gun-sonu-handoff/` gün sonu paneli)
+  ve verilen brifler (`brifler/`).
   Teslimdeki ekran görüntüleri kıyaslamanın referansıdır;
   `test/screenshots/*_screenshot_test.dart` ekranları aynı çerçevede çizer
   (`SCREENSHOT_DIR` verilince çalışır). Yeni ekranların tasarımı Kasa

@@ -46,7 +46,8 @@ public sealed class MigrationHistoryTests
         "AddCardCollections",
         "AddCounterpartyNameKey",
         "AddCashCountTransferAdjustment",
-        "AddNameKeys"
+        "AddNameKeys",
+        "AddDayCloseOverlaps"
     ];
 
     [Fact]
@@ -1099,6 +1100,47 @@ public sealed class MigrationHistoryTests
             Assert.All(sql, statement => Assert.True(up.IndexOf(people) < up.IndexOf(statement)));
             Assert.All(dropped, index => Assert.All(unique, created =>
                 Assert.True(up.IndexOf(index) < up.IndexOf(created))));
+        }
+    }
+
+    /// <summary>
+    /// Gün sonunun ortak tutarı yeni ve boş bir tabloda başlar; sayılan
+    /// kayıtların tür kısıtı yalnız genişler (iki yeni tür), var olan satırlar
+    /// ona uyar. Hiçbir kolon ya da satır silinmez ve doldurma gerekmez.
+    /// </summary>
+    [Fact]
+    public void AddDayCloseOverlaps_OnlyAddsAnEmptyTableAndWidensTheKindConstraint()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_AddDayCloseOverlaps", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations.ToList();
+            Assert.Empty(up.OfType<DropColumnOperation>());
+            Assert.Empty(up.OfType<DropTableOperation>());
+            Assert.Empty(up.OfType<AddColumnOperation>());
+            Assert.Empty(up.OfType<SqlOperation>());
+
+            var table = Assert.Single(up.OfType<CreateTableOperation>());
+            Assert.Equal("DayCloseCountedOverlaps", table.Name);
+            Assert.Equal(["DayCloseId", "GroupId"], table.PrimaryKey!.Columns);
+            var amount = Assert.Single(table.Columns, column => column.Name == "Amount");
+            Assert.Equal("decimal(19,4)", amount.ColumnType);
+            Assert.False(amount.IsNullable);
+            Assert.Equal("[Amount] > 0", Assert.Single(table.CheckConstraints).Sql);
+            // Sahiplik gün sonunun bileşik anahtarıyla kurulur.
+            var owner = Assert.Single(table.ForeignKeys);
+            Assert.Equal(("DayCloses", ReferentialAction.Restrict), (owner.PrincipalTable, owner.OnDelete));
+            Assert.Equal(["UserId", "DayCloseId"], owner.Columns);
+
+            // Tür kısıtı düşer ve altı türle yeniden kurulur.
+            var dropped = Assert.Single(up.OfType<DropCheckConstraintOperation>());
+            var widened = Assert.Single(up.OfType<AddCheckConstraintOperation>());
+            Assert.Equal("CK_DayCloseCountedRecords_Kind", dropped.Name);
+            Assert.Equal(
+                ("CK_DayCloseCountedRecords_Kind", "[Kind] IN (1, 2, 3, 4, 5, 6)"),
+                (widened.Name, widened.Sql));
+            Assert.True(up.IndexOf(dropped) < up.IndexOf(widened));
         }
     }
 

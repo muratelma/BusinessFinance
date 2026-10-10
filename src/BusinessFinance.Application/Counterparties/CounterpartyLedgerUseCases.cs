@@ -235,9 +235,15 @@ public sealed class CreateCounterpartyPaymentUseCase(
 /// Borçlandırmayı iptal eder: tanınan gelir/gider ve cari bakiye birlikte geri
 /// alınır, çünkü ikisi de aynı kaydın türevi.
 /// </summary>
+/// <remarks>
+/// Bir gün sonunda sayılan veresiye satış tek başına iptal edilemez: gün sonu
+/// onu girilen nakitten düşmüştür ve iptal günün gelirini sessizce eksiltirdi.
+/// Önce gün sonu geri alınır.
+/// </remarks>
 public sealed class CancelCounterpartyChargeUseCase(
     ICurrentUser currentUser,
     ICounterpartyRepository repository,
+    IDayCloseCountReader dayCloseCountReader,
     TimeProvider timeProvider)
 {
     public async Task<ApplicationResult<CounterpartyChargeDto>> ExecuteAsync(
@@ -255,6 +261,14 @@ public sealed class CancelCounterpartyChargeUseCase(
         {
             return ApplicationResult<CounterpartyChargeDto>.Failure(
                 CounterpartyErrors.ChargeNotFound(chargeId));
+        }
+
+        if (!charge.IsCancelled &&
+            await dayCloseCountReader.IsCountedAsync(
+                userId, DayCloseRecordKind.CounterpartyCharge, charge.Id, cancellationToken))
+        {
+            return ApplicationResult<CounterpartyChargeDto>.Failure(
+                CounterpartyErrors.ChargeDayCloseCounted);
         }
 
         // İptal idempotent: ikinci istek aynı sonucu döner, ilk iptalin zaman

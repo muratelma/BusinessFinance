@@ -651,6 +651,32 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BusinessFinance.Domain.DayCloseCountedOverlap", b =>
+                {
+                    b.Property<Guid>("DayCloseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("decimal(19,4)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("DayCloseId", "GroupId");
+
+                    b.HasIndex("UserId", "DayCloseId")
+                        .HasDatabaseName("IX_DayCloseCountedOverlaps_UserId_DayCloseId");
+
+                    b.ToTable("DayCloseCountedOverlaps", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_DayCloseCountedOverlaps_Amount", "[Amount] > 0");
+                        });
+                });
+
             modelBuilder.Entity("BusinessFinance.Domain.DayCloseCountedRecord", b =>
                 {
                     b.Property<Guid>("DayCloseId")
@@ -675,7 +701,7 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
 
                     b.ToTable("DayCloseCountedRecords", null, t =>
                         {
-                            t.HasCheckConstraint("CK_DayCloseCountedRecords_Kind", "[Kind] IN (1, 2, 3, 4)");
+                            t.HasCheckConstraint("CK_DayCloseCountedRecords_Kind", "[Kind] IN (1, 2, 3, 4, 5, 6)");
                         });
                 });
 
@@ -2652,6 +2678,16 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.HasOne("BusinessFinance.Infrastructure.Identity.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BusinessFinance.Domain.DayCloseCountedOverlap", b =>
+                {
+                    b.HasOne("BusinessFinance.Domain.DayClose", null)
+                        .WithMany()
+                        .HasForeignKey("UserId", "DayCloseId")
+                        .HasPrincipalKey("UserId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

@@ -11,19 +11,31 @@ public sealed record DayClosePosAmountRequest(Guid PosDefinitionId, string Amoun
 /// <summary>
 /// Bir "zaten girilmiş" kayıt için varsayılandan farklı seçim. <c>Kind</c>:
 /// <c>income</c>, <c>pos-settlement</c>, <c>counterparty-payment</c>,
-/// <c>obligation-settlement</c>.
+/// <c>obligation-settlement</c>, <c>counterparty-charge</c>, <c>obligation</c>.
 /// </summary>
 public sealed record DayCloseRecordOverrideRequest(string Kind, Guid Id, bool Included);
+
+/// <summary>
+/// Satışı da tahsilatı da nakit tutarına dahil edilen bir grubun (kişinin ya
+/// da faturanın) <b>ortak tutarı</b>: iki kayıtta da görünen ama girilen
+/// tutarda bir kez yer alan para. Sıfır "ayrı ayrı sayıldı" demektir.
+/// </summary>
+public sealed record DayCloseOverlapRequest(Guid GroupId, string Amount);
 
 /// <summary>
 /// Gün sonu (ADR 0019 T1–T2); önizleme ve kayıt aynı gövdeyi alır.
 /// </summary>
 /// <remarks>
-/// Nakit, POS satırları ve toplamdan ikisi yeter. <c>ClientRequestId</c> kaydı
-/// idempotent yapar ve yalnız kayıtta zorunludur. <c>RecordOverrides</c>
-/// yalnız kullanıcının değiştirdiği işaretleri taşır; adı geçmeyen kayıt
-/// varsayılanıyla işlenir. <c>RangeStart</c> ve <c>ZNumber</c> Z raporu
-/// okumasından gelir; elle girişte boştur.
+/// Nakit ve POS satırlarından her biri yalnız kendi tutarı yazıldıysa kayıt
+/// üretir; toplam hiçbir zaman kayıt üretmez ve eksik tarafı hesaplamaz,
+/// yalnız farkı gösterir. <c>ClientRequestId</c> kaydı idempotent yapar ve
+/// yalnız kayıtta zorunludur. <c>RecordOverrides</c> kullanıcının değiştirdiği
+/// işaretleri ve <c>requiresAnswer</c> taşıyan her kaydın cevabını taşır; adı
+/// geçmeyen kayıt varsayılanıyla işlenir, cevap isteyen kayıt ise cevapsız
+/// sayılır ve nakit tutarı yazıldıysa kayıt reddedilir. <c>Overlaps</c>
+/// önizlemenin <c>overlapGroups</c> ile sorduğu her grubun ortak tutarını
+/// taşır. <c>RangeStart</c> ve <c>ZNumber</c> Z raporu okumasından gelir; elle
+/// girişte boştur.
 /// </remarks>
 public sealed record DayCloseRequest(
     string Date,
@@ -36,7 +48,8 @@ public sealed record DayCloseRequest(
     bool IsAdditional = false,
     string? RangeStart = null,
     int? ZNumber = null,
-    Guid? ClientRequestId = null);
+    Guid? ClientRequestId = null,
+    IReadOnlyList<DayCloseOverlapRequest>? Overlaps = null);
 
 public sealed record DayCloseExistingRecordResponse(
     string Kind,
@@ -48,20 +61,65 @@ public sealed record DayCloseExistingRecordResponse(
     Guid? PosDefinitionId,
     string AccountName,
     bool IncludedByDefault,
-    bool Included,
+    // Boş: cevaplanmadı (yalnız <c>RequiresAnswer</c> taşıyan kayıtta).
+    bool? Included,
     // Kart tarafında bir alacağın kartla tahsili; başlık kişinin adıdır.
-    bool IsCardCollection = false);
+    bool IsCardCollection = false,
+    // Vadeli satış ve nakit tahsilat: hazır cevapla gelmez.
+    bool RequiresAnswer = false,
+    // Satışı ile tahsilatı aynı parayı gösterebilecek kayıtların grubu: cari
+    // kayıtta kişi, alacak faturasında fatura.
+    Guid? GroupId = null,
+    string? GroupName = null,
+    // Kaydın uygulamaya girildiği an; bu bilgiden önce yazılmış kayıtta boş.
+    DateTimeOffset? CreatedAtUtc = null);
+
+/// <summary>
+/// Ortak tutarı sorulan (ya da saklanmış) bir grup. <c>OverlapAmount</c> boşsa
+/// cevaplanmamıştır; <c>DeductedAmount</c> = satışlar + tahsilatlar − ortak.
+/// </summary>
+/// <remarks>
+/// <c>Kind</c>: <c>counterparty</c> (kişi) ya da <c>obligation</c> (fatura).
+/// Üç cevabın sonucu hazır gelir: "ayrı ayrı" <c>SeparateAmount</c>, "biri
+/// öbürünün içinde" <c>InsideAmount</c>, "bir kısmı" yazılan tutarla
+/// <c>DeductedAmount</c> kadar düşer. <c>LargerSide</c> (<c>sales</c> ya da
+/// <c>collections</c>; eşitse <c>sales</c>) hangisinin öbürünün içinde
+/// sayılabileceğini söyler.
+/// </remarks>
+public sealed record DayCloseOverlapGroupResponse(
+    Guid GroupId,
+    string Name,
+    string SalesAmount,
+    string CollectionsAmount,
+    string MaximumOverlap,
+    string? OverlapAmount,
+    string? DeductedAmount,
+    string Kind,
+    string SeparateAmount,
+    string InsideAmount,
+    string LargerSide);
+
+/// <summary>
+/// Nakit tutarından düşülenin dökümü; dört tutarın toplamı eksi
+/// <c>SharedAmount</c>, nakit satırının <c>DeductedAmount</c> değeridir.
+/// </summary>
+public sealed record DayCloseCashDeductionsResponse(
+    string SalesAmount,
+    string CollectionsAmount,
+    string CreditSalesAmount,
+    string InvoicesAmount,
+    string SharedAmount);
 
 public sealed record DayCloseCashLineResponse(
     bool Stated,
     string EnteredAmount,
-    bool IsComputed,
     string DeductedAmount,
     string AmountToWrite,
     Guid? AccountId,
     string? AccountName,
     Guid? CategoryId,
-    string? CategoryName);
+    string? CategoryName,
+    DayCloseCashDeductionsResponse Deductions);
 
 public sealed record DayClosePosLineResponse(
     Guid PosDefinitionId,
@@ -70,7 +128,6 @@ public sealed record DayClosePosLineResponse(
     string AccountName,
     bool Stated,
     string EnteredAmount,
-    bool IsComputed,
     string DeductedAmount,
     string AmountToWrite,
     string CommissionAmount,
@@ -99,7 +156,9 @@ public sealed record DayClosePreviewResponse(
     string TotalComputed,
     string? TotalDifference,
     IReadOnlyList<DayCloseExistingRecordResponse> ExistingRecords,
-    string? BlockerCode);
+    string? BlockerCode,
+    // Satışı da tahsilatı da dahil edilen gruplar; ortak tutarları sorulur.
+    IReadOnlyList<DayCloseOverlapGroupResponse> OverlapGroups);
 
 public sealed record DayCloseIncomeResponse(
     Guid TransactionId,
@@ -130,8 +189,10 @@ public sealed record DayCloseResponse(
     // Gün sonunun saydığı (tek tek girilmiş ve tutardan düşülmüş) kayıtlar;
     // geri alınmış gün sonunda boştur.
     IReadOnlyList<DayCloseExistingRecordResponse> CountedRecords,
+    // Nakit tutarından düşülen: sayılan nakit kayıtlar − ortak tutarlar.
     string CountedCashAmount,
-    string CountedCardAmount);
+    string CountedCardAmount,
+    IReadOnlyList<DayCloseOverlapGroupResponse> Overlaps);
 
 public sealed record DayCloseListResponse(IReadOnlyList<DayCloseResponse> Items);
 
@@ -155,7 +216,9 @@ public static class DayCloseEndpoints
         [DayCloseRecordKind.Income] = "income",
         [DayCloseRecordKind.PosSettlement] = "pos-settlement",
         [DayCloseRecordKind.CounterpartyPayment] = "counterparty-payment",
-        [DayCloseRecordKind.ObligationSettlement] = "obligation-settlement"
+        [DayCloseRecordKind.ObligationSettlement] = "obligation-settlement",
+        [DayCloseRecordKind.CounterpartyCharge] = "counterparty-charge",
+        [DayCloseRecordKind.Obligation] = "obligation"
     };
 
     public static IEndpointRouteBuilder MapDayCloseEndpoints(this IEndpointRouteBuilder endpoints)
@@ -230,13 +293,18 @@ public static class DayCloseEndpoints
             new DayCloseCashLineResponse(
                 preview.Cash.Stated,
                 FinanceContract.Money(preview.Cash.EnteredAmount),
-                preview.Cash.IsComputed,
                 FinanceContract.Money(preview.Cash.DeductedAmount),
                 FinanceContract.Money(preview.Cash.AmountToWrite),
                 preview.Cash.AccountId,
                 preview.Cash.AccountName,
                 preview.Cash.CategoryId,
-                preview.Cash.CategoryName),
+                preview.Cash.CategoryName,
+                new DayCloseCashDeductionsResponse(
+                    FinanceContract.Money(preview.Cash.Deductions.SalesAmount),
+                    FinanceContract.Money(preview.Cash.Deductions.CollectionsAmount),
+                    FinanceContract.Money(preview.Cash.Deductions.CreditSalesAmount),
+                    FinanceContract.Money(preview.Cash.Deductions.InvoicesAmount),
+                    FinanceContract.Money(preview.Cash.Deductions.SharedAmount))),
             preview.PosLines
                 .Select(line => new DayClosePosLineResponse(
                     line.PosDefinitionId,
@@ -245,7 +313,6 @@ public static class DayCloseEndpoints
                     line.AccountName,
                     line.Stated,
                     FinanceContract.Money(line.EnteredAmount),
-                    line.IsComputed,
                     FinanceContract.Money(line.DeductedAmount),
                     FinanceContract.Money(line.AmountToWrite),
                     FinanceContract.Money(line.CommissionAmount),
@@ -256,7 +323,8 @@ public static class DayCloseEndpoints
             FinanceContract.Money(preview.TotalComputed),
             FinanceContract.OptionalMoney(preview.TotalDifference),
             preview.ExistingRecords.Select(ToResponse).ToArray(),
-            preview.Blocker?.Code));
+            preview.Blocker?.Code,
+            preview.OverlapGroups.Select(ToResponse).ToArray()));
     }
 
     private static async Task<IResult> CreateAsync(
@@ -422,6 +490,18 @@ public static class DayCloseEndpoints
             overrides.Add(new DayCloseRecordOverride(kind.Key, item.Id, item.Included));
         }
 
+        var overlaps = new List<DayCloseOverlap>();
+        foreach (var item in request.Overlaps ?? [])
+        {
+            if (!FinanceContract.TryParseAmount(item.Amount, out var amount))
+            {
+                problem = InvalidAmount(httpContext);
+                return false;
+            }
+
+            overlaps.Add(new DayCloseOverlap(item.GroupId, amount));
+        }
+
         input = new DayCloseInput(
             date,
             cashAmount,
@@ -432,7 +512,8 @@ public static class DayCloseEndpoints
             overrides,
             request.IsAdditional,
             rangeStart,
-            request.ZNumber);
+            request.ZNumber,
+            overlaps);
         return true;
     }
 
@@ -454,7 +535,24 @@ public static class DayCloseEndpoints
         record.AccountName,
         record.IncludedByDefault,
         record.Included,
-        record.IsCardCollection);
+        record.IsCardCollection,
+        record.RequiresAnswer,
+        record.GroupId,
+        record.GroupName,
+        record.CreatedAtUtc);
+
+    private static DayCloseOverlapGroupResponse ToResponse(DayCloseOverlapGroupDto group) => new(
+        group.GroupId,
+        group.Name,
+        FinanceContract.Money(group.SalesAmount),
+        FinanceContract.Money(group.CollectionsAmount),
+        FinanceContract.Money(group.MaximumOverlap),
+        FinanceContract.OptionalMoney(group.OverlapAmount),
+        FinanceContract.OptionalMoney(group.DeductedAmount),
+        group.Kind == DayCloseGroupKind.Obligation ? "obligation" : "counterparty",
+        FinanceContract.Money(group.SeparateAmount),
+        FinanceContract.Money(group.InsideAmount),
+        group.LargerSide == DayCloseLargerSide.Collections ? "collections" : "sales");
 
     private static DayCloseSummaryResponse ToResponse(DayCloseSummaryDto summary) => new(
         summary.Id,
@@ -491,5 +589,6 @@ public static class DayCloseEndpoints
         dayClose.Currency.ToString(),
         dayClose.CountedRecords.Select(ToResponse).ToArray(),
         FinanceContract.Money(dayClose.CountedCashAmount),
-        FinanceContract.Money(dayClose.CountedCardAmount));
+        FinanceContract.Money(dayClose.CountedCardAmount),
+        dayClose.Overlaps.Select(ToResponse).ToArray());
 }

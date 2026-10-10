@@ -128,15 +128,16 @@ kartlı satışı bir POS tahsilatı olur.
 İşlem ekle -> Gün sonu      (işletme profilinde; "POS tahsilatı"nın yerinde)
 Kasa -> Gün sonu kartı -> "Gün sonunu gir"
      -> panel: Gün · Nakit · her POS için bir alan · Toplam
-        (ikisini yazmak yeter; boş alan gönderilmez, sunucu hesaplar)
+        (her taraf yalnız kendi tutarı yazıldıysa kayıt üretir; boş alan
+         gönderilmez ve toplamdan hesaplanmaz)
      -> POST /api/v1/day-closes/preview        (her değişiklikte; hiçbir şey yazmaz)
         -> "Gün sonu tutarında var mı?": o gün tek tek girilmiş kayıtlar
            satışlar ve POS tahsilatları işaretli, nakit cari tahsilat işaretsiz
            işaret değişince yalnız değişen kayıt gönderilir (recordOverrides)
         -> "Yazılacak": nakit satış (kasa, düşülen), her POS (düşülen, komisyon,
            beklenen gün); tutarların hepsi önizlemeden
-        -> hesaplanan alan boş durur, altında "Toplamdan hesaplandı: ₺…"
-        -> toplam nakit + karttan farklıysa fark bildirimi; kayıt engellenmez
+        -> toplam nakit + karttan farklıysa fark bildirimi (neden tahmin
+           edilmez; fark kaydedilmez); kayıt engellenmez
         -> engel (blockerCode) ilgili alanın yanında söylenir, kayıt gönderilmez
      -> "Kasayı ya da kategoriyi değiştir": kasa ve satış kategorisi
         (seçili gelir; sunucu seçemediyse alanlar kendiliğinden açılır)
