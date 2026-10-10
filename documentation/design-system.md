@@ -223,7 +223,7 @@ yapılır.
 | `AppTextAction` | Bölüm başlığının sağındaki dolgusuz metin eylemi (`+ Ekle`, `Tümü ›`), 48 dp dokunma alanı |
 | `AppDateLeaf` | Takvim yaprağı 44×48: gün 17/700, ay 11/600 |
 | `AppDetailBlock` / `AppDetailRow` | Panel içindeki gri etiket–değer bloğu (işlem detayı, POS detayı) |
-| `AppSegmentRail` | Tek parça seçim rayı: gri zemin, seçili dilim beyaz + güçlü kenar. Kapsam anahtarı ve kasa seçici bunu kullanır |
+| `AppSegmentRail` | Tek parça seçim rayı: gri zemin, seçili dilim beyaz + güçlü kenar. `selected: null` seçimsizdir; kapsam anahtarı, kasa seçici ve gün sonu toplu cevabı bunu kullanır |
 
 Birkaç bileşenin sözleşmesinde neden şu kararların olduğu:
 
@@ -1092,7 +1092,9 @@ pos_deposit_sheets.dart`). Kasa sekmesi yeniden tasarlanınca (Grup 6) kapı
 
 ## Gün sonu paneli, ayrıntısı ve Kasa kartı (4 Ekim 2026, Aşama 06.3 Grup 5)
 
-Tasarım teslimi yok; mevcut dille kuruldu (`lib/features/day_close/`).
+Panel 10 Ekim 2026'da `design/gun-sonu-handoff/gunsonu/README.md` teslimine
+göre yeniden kuruldu (`lib/features/day_close/`). README, karelerle çelişirse
+geçerlidir. Ayrıntı ve Kasa kartı mevcut dille kalır.
 Kasa sekmesi yeniden tasarlanınca (Grup 6) kart "Bugün" bölümüne taşınır.
 Kullanıcı paneli ekran görüntüsünde onayladı (4 Ekim).
 
@@ -1101,24 +1103,60 @@ Kullanıcı paneli ekran görüntüsünde onayladı (4 Ekim).
 - **Kapılar**: "+" menüsünde işletme profilinde `POS tahsilatı`nın yerinde
   `Gün sonu` (alt yazı: `Günün nakit ve kartlı satışı`); Kasa'nın en üstünde
   gün sonu kartı. Menüden gelen kullanıcı vazgeçerse geldiği ekrana döner.
-- **Panel** bir `AppFormSheet`'tir: `Gün`, `Nakit`, her POS için adını taşıyan
-  bir alan, `Toplam`. Alan etiketleri tek kelimedir. Toplamdan hiçbir alan
-  hesaplanmaz (10 Ekim 2026): `Toplam` yalnız farkı gösterir. Panelin kayıt
-  listesi, cevap bekleyen satırlar ve ortak tutar sorusu Brif 4'ün
-  (`design/brifler/04-gun-sonu-kayitli-satis-ve-tahsilat.md`) tesliminden
-  sonra yazılır; o zamana kadar aşağıdaki liste eski yerleşimi anlatır.
-- **Zaten girilmiş kayıtlar**: başlık `Gün sonu tutarında var mı?`, altında
-  `İşaretli kayıtlar düşülür.` Satırlar yatış panelindeki onay kutulu satırın
-  aynısıdır (başlık, `Nakit · kasa` / `Kart · POS` / `Cari tahsilat · kasa`,
-  sağda tutar). Liste boşsa bölüm çizilmez.
-- **`Yazılacak`** gri zeminli blokta, ayırıcılı satırlarla: `Nakit satış` ve
-  yazılan her POS. Alt yazı iki kısa satırdır (`₺800,00 düşüldü` /
-  `komisyon ₺32,90 · 5 Ekim beklenir`); tutar gelir tonundadır. Yazılacak
-  kayıt yoksa tek satır: "Yazılacak kayıt yok; gün kapatılır." Blok yalnız
-  engel yokken görünür.
+- **Panel** bir `AppFormSheet`'tir: `Gün`, `Nakit tutarı`, ana POS'un alanı,
+  `Diğer POS'lar (n)`, `Toplam (isteğe bağlı)`. Gün doğal Türkçeyle, para girişi
+  mevcut Türkçe binlik biçimleyicisiyle gösterilir; dört ondalık kayıpsız
+  gönderilir. Boş para alanında da para birimi görünür. Toplamdan alan
+  hesaplanmaz; toplam yalnız sunucunun verdiği farkı gösterir.
+- **Yan boşluk 16 dp** (`AppFormSheet.horizontalPadding`; öbür formlar 24 dp).
+  Teslim 16 dp çerçeveyle ve harf aralıksız çizildi; kural cümlesi ve soru
+  cümlesi bu yüzden `letterSpacing: 0` taşır ve tek satıra sığar. Deneme
+  niteliğindedir (kullanıcı, 10 Ekim 2026): beğenilirse öbür formlara da
+  uygulanır, beğenilmezse bu panel 24 dp'ye döner. Soru bloğunda kişinin adı,
+  satırda saat yazılmaz.
+- **Gün içinde girilenler**: etiket 13 / `inkFaint`, altında
+  `İşaretli kayıtlar yazılan tutarın içindedir; tekrar kaydedilmez.` Önce hazır
+  işaretli kayıtlar, ince çizgi, toplu soru ve sorulan kayıtlar. Nakit boşken
+  nakit kayıtları ve soru gizlidir; kartlı kayıtlar görünür. Görünür kayıt
+  kalmadıysa bölüm çizilmez. Satır en az 56 dp, sol hedef 48 dp; ad 16/600,
+  tür ve yer ikinci satırda, saat yok; tutar sağda ve kırpılmaz.
+- **Toplu cevap**: `Bunlar yazdığınız nakit tutarın içinde mi?`, seçimsiz
+  `AppSegmentRail<bool>` (`Hepsi içinde` / `Hiçbiri`), altında
+  `Tek tek değiştirmek için satıra dokunun.` Karışık veya cevapsız satırlarda
+  seçimsizdir. Sorulan satır `?` → işaretli → işaretsiz → işaretli; hazır
+  işaretli satır iki hâllidir. Satırın tamamı onay kutusu anlamı taşır;
+  cevapsız satır ekran okuyucuda karışıktır.
+- **Satış ve tahsilat sorusu**: dahil olan aynı kişinin/faturanın kayıtları
+  bitişik dizilir; sorusu kendi satırlarının altında `cardMuted`, 16 dp
+  yarıçaplı bloktadır. Soru, sağda `Kayıtlı sayılan` sütun başlığı, üç 48 dp
+  radyo satırı ve sağda sunucunun verdiği tutar. Blokta ad yazılmaz: o
+  kişinin satırlarının hemen altındadır. `İkisi ayrı ayrı`, küçük olanın büyüğün içinde
+  olduğunu söyleyen seçenek (satış/tahsilat veya fatura/tahsilat),
+  `Bir kısmı ikisinde de var`. Son seçenek `İkisinde de sayılan` alanını ve
+  `En çok ₺…` yardımını açar; sağdaki sonucu yeni önizleme gelince gösterir.
+  Seçenek panel durumudur; tutar kıyaslayarak türetilmez. Bir kaydın seçimi
+  değişince soru yeniden cevaplanır. İşaretli gelen satır yoksa kural
+  cümlesinin altına çizgi çizilmez.
+- **`Yazılacak`**: yalnız yazılan alanın gri kartı çizilir. `Yeni nakit satış`,
+  kasa ve kategori, sağda gelir yeşiliyle `+₺…`; ince çizgi altında
+  `Nakit tutarı` / `Zaten kayıtlı −₺…`; sıfır olmayan `cash.deductions`
+  parçalarının 13 / `inkFaint` dökümü. İkisinde de sayılan parça eksiyle
+  ayrı satırdır. POS kartı satış adı, komisyon ve hesaba geçiş günü taşır;
+  kayıtlı tutar varsa `Kart tutarı` / `Zaten kayıtlı` dökümü açılır.
+  Cevapsızken tutar yerine `n kayıt için seçim yapılınca hesaplanır.` veya
+  `Yukarıdaki soru cevaplanınca hesaplanır.` yazılır. `düşüldü` kullanılmaz.
+  Bütün yazılacaklar sıfırsa `Yazılacak kayıt yok; gün kapatılır.` görünür.
 - **Kasa ve kategori sorulmaz**: özetin altındaki `Kasayı ya da kategoriyi
   değiştir` iki açılır alanı gösterir. Sunucu seçemediyse alanlar kendiliğinden
   açılır.
+- **Cevapsız durum**: `Gün sonunu kaydet` kapalı; kırmızı veya uyarı kutusu
+  yoktur. Önizleme beklenirken de kaydet kapalıdır; nakit kartında
+  `Hesaplanıyor…` görünür. 2.0× yazıda tutar başlığın altına iner; ad ve tutar
+  kırpılmaz. Yeni renk, token veya paket eklenmedi.
+- **Toplam farkı**: mevcut `AppInlineNotice` ile
+  `Yalnız kart satışı kaydedilir. Toplamla arasındaki ₺… kaydedilmez.`;
+  yalnız nakitte `Yalnız nakit satış kaydedilir.`, iki alan yazıldıysa
+  `Nakit ve kart satışı kaydedilir.`. Neden tahmin edilmez.
 - **Engeller alanın yanında söylenir** (alanın `errorText`'i); bir alana ait
   olmayanlar listenin altında tek bir `AppInlineNotice`'tir. "Tutar yazılmadı"
   yalnız `Gün sonunu kaydet`e basıldıktan sonra söylenir: boş açılan panel

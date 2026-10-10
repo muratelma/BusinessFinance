@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui' show CheckedState;
 
 import 'package:business_finance_mobile/core/config/api_config.dart';
 import 'package:business_finance_mobile/core/models/data_choice.dart';
@@ -6,6 +7,8 @@ import 'package:business_finance_mobile/core/network/api_client.dart';
 import 'package:business_finance_mobile/core/network/api_exception.dart';
 import 'package:business_finance_mobile/core/presentation/financial_data_changes.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
+import 'package:business_finance_mobile/core/widgets/app_segment_rail.dart';
+import 'package:business_finance_mobile/core/widgets/app_inline_notice.dart';
 import 'package:business_finance_mobile/features/day_close/data/day_close_repository.dart';
 import 'package:business_finance_mobile/features/day_close/presentation/day_close_answers.dart';
 import 'package:business_finance_mobile/features/day_close/presentation/day_close_controller.dart';
@@ -17,6 +20,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 import '../../helpers/accessibility.dart';
+import '../../helpers/day_close_handoff.dart';
 
 /// Gün sonu (ADR 0019 T1–T2): panel, gün sonu ayrıntısı ve geri alma,
 /// Kasa'daki kart.
@@ -72,10 +76,6 @@ void main() {
         expect(preview.existingRecords[1].groupId, 'person-1');
         expect(preview.existingRecords[1].isCollection, isTrue);
         expect(preview.existingRecords.first.included, isTrue);
-        expect(
-          preview.existingRecords.first.createdAt,
-          DateTime.utc(2026, 10, 3, 8, 20).toLocal(),
-        );
         expect(preview.existingRecords.last.isCash, isFalse);
         expect(preview.cash.deductions.salesAmount, '1250.0000');
         expect(preview.overlapGroups, isEmpty);
@@ -144,7 +144,7 @@ void main() {
       expect(invoice.deductedAmount, '450.0000');
     });
 
-    test('adsız kayıt ve giriş saati olmayan eski kayıt okunur', () {
+    test('adsız ve hesabı olmayan kayıt okunur', () {
       final record = DayCloseExistingRecord.fromJson({
         'kind': 'obligation',
         'id': 'invoice-1',
@@ -159,12 +159,10 @@ void main() {
         'requiresAnswer': true,
         'groupId': 'invoice-1',
         'groupName': '',
-        'createdAtUtc': null,
       });
 
       expect(record.title, isEmpty);
       expect(record.accountName, isEmpty);
-      expect(record.createdAt, isNull);
       expect(record.isDeferredSale, isTrue);
       expect(record.included, isNull);
     });
@@ -298,12 +296,12 @@ void main() {
       await _openForm(tester, repository);
 
       // Panel boş açılır: POS alanı sunucudan gelir, kayıtlar listelenir.
-      expect(find.text('Nakit'), findsOneWidget);
+      expect(find.text('Nakit tutarı'), findsOneWidget);
       expect(find.text('Ziraat POS'), findsOneWidget);
-      expect(find.text('Toplam'), findsOneWidget);
-      expect(find.text('Gün sonu tutarında var mı?'), findsOneWidget);
-      expect(find.text('Toptan satış'), findsOneWidget);
-      expect(find.text('Ahmet Bakkal'), findsOneWidget);
+      expect(find.text('Toplam (isteğe bağlı)'), findsOneWidget);
+      expect(find.text('Gün içinde girilenler'), findsOneWidget);
+      expect(find.text('Toptan satış'), findsNothing);
+      expect(find.text('Ahmet Bakkal'), findsNothing);
       // Tutar yazılmadan özet de eksik uyarısı da görünmez.
       expect(find.text('Yazılacak'), findsNothing);
       expect(find.text('Nakit ya da kart tutarını yazın.'), findsNothing);
@@ -311,24 +309,25 @@ void main() {
       await _type(tester, 'day-close-cash', '3350');
       await _type(tester, 'day-close-pos-pos-1', '2680');
 
-      // Tahsilat cevaplanmadan yazılacaklar gösterilmez.
-      expect(find.text('Yazılacak'), findsNothing);
+      expect(find.text('Yazılacak'), findsOneWidget);
       expect(
-        find.textContaining('yazdığınız nakdin içinde olup olmadığını'),
+        find.text('1 kayıt için seçim yapılınca hesaplanır.'),
         findsOneWidget,
       );
+      expect(find.byType(AppInlineNotice), findsNothing);
       await _answerCollection(tester, included: false);
 
       expect(repository.lastPreview!.cashAmount, '3350.0000');
       expect(repository.lastPreview!.posAmounts, {'pos-1': '2680.0000'});
       expect(repository.lastPreview!.totalAmount, isNull);
       expect(find.text('Yazılacak'), findsOneWidget);
-      expect(find.text('Nakit satış'), findsOneWidget);
-      expect(find.text('Dükkan kasası · ₺1.250,00 düşüldü'), findsOneWidget);
-      expect(find.text('₺2.100,00'), findsOneWidget);
-      expect(find.text('₺1.880,00'), findsOneWidget);
+      expect(find.text('Yeni nakit satış'), findsOneWidget);
+      expect(find.text('Dükkan kasası · Satış geliri'), findsOneWidget);
+      expect(find.text('₺1.250,00 satış'), findsOneWidget);
+      expect(find.text('+₺2.100,00'), findsOneWidget);
+      expect(find.text('+₺1.880,00'), findsOneWidget);
       expect(
-        find.textContaining('komisyon ₺37,60 · 4 Ekim beklenir'),
+        find.textContaining('Komisyon ₺37,60\n4 Ekim Pazar hesaba geçer'),
         findsOneWidget,
       );
       await expectMeetsAccessibility(tester);
@@ -471,7 +470,12 @@ void main() {
       expect(repository.lastPreview!.posAmounts, isEmpty);
       expect(find.textContaining('Toplamdan hesaplandı'), findsNothing);
       expect(find.textContaining('₺2.680,00'), findsOneWidget);
-      expect(find.textContaining('kaydedilmez'), findsOneWidget);
+      expect(
+        find.text(
+          'Yalnız nakit satış kaydedilir. Toplamla arasındaki ₺2.680,00 kaydedilmez.',
+        ),
+        findsOneWidget,
+      );
     });
 
     // Çoğu akşam tek POS'a yazılır: ana POS'un alanı hep görünür, diğerleri
@@ -503,14 +507,14 @@ void main() {
       expect(find.textContaining('Bu günün gün sonu girildi'), findsOneWidget);
       expect(_field(tester, 'day-close-cash').enabled, isFalse);
       // Gün kapalıyken yazılacak bir şey yok; liste de görünmez.
-      expect(find.text('Gün sonu tutarında var mı?'), findsNothing);
+      expect(find.text('Gün içinde girilenler'), findsNothing);
 
       await tester.tap(find.text('Ek gün sonu'));
       await tester.pumpAndSettle();
 
       expect(repository.lastPreview!.isAdditional, isTrue);
       expect(_field(tester, 'day-close-cash').enabled, isTrue);
-      expect(find.text('Gün sonu tutarında var mı?'), findsOneWidget);
+      expect(find.text('Gün içinde girilenler'), findsOneWidget);
     });
 
     testWidgets('Kasa kapalı günde paneli ek olarak açar', (tester) async {
@@ -551,6 +555,478 @@ void main() {
       expect(find.text('Gün değişti.'), findsOneWidget);
       expect(find.text('Gün sonunu kaydet'), findsOneWidget);
     });
+
+    testWidgets('toplu cevap ve üç hâlli satır seçimi doğru gönderir', (
+      tester,
+    ) async {
+      final repository = HandoffDayCloseRepository(1);
+      await _openForm(tester, repository);
+      await _type(tester, 'day-close-cash', '1670');
+      AppSegmentRail<bool> rail() =>
+          tester.widget(find.byKey(const ValueKey('day-close-all')));
+      expect(rail().selected, isNull);
+      final row = find.byKey(
+        const ValueKey('day-close-record-counterparty-payment/ahmet'),
+      );
+      final handle = tester.ensureSemantics();
+      final semantics = tester.getSemantics(row);
+      expect(semantics.flagsCollection.isChecked, CheckedState.mixed);
+      handle.dispose();
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      expect(
+        repository.lastInput!.recordOverrides['counterparty-payment/ahmet'],
+        isTrue,
+      );
+      expect(rail().selected, isNull);
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      expect(
+        repository.lastInput!.recordOverrides['counterparty-payment/ahmet'],
+        isFalse,
+      );
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      expect(
+        repository.lastInput!.recordOverrides['counterparty-payment/ahmet'],
+        isTrue,
+      );
+      await tester.tap(find.text('Hepsi içinde'));
+      await tester.pumpAndSettle();
+      expect(rail().selected, isTrue);
+      expect(
+        repository.lastInput!.recordOverrides.values,
+        everyElement(isTrue),
+      );
+      expect(repository.lastInput!.recordOverrides, hasLength(3));
+      await tester.tap(find.text('Hiçbiri'));
+      await tester.pumpAndSettle();
+      expect(rail().selected, isFalse);
+      expect(
+        repository.lastInput!.recordOverrides.values,
+        everyElement(isFalse),
+      );
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      expect(rail().selected, isNull);
+    });
+
+    testWidgets('cevapsızken tutar ve uyarı yerine açıklama, kaydet kapalı', (
+      tester,
+    ) async {
+      final repository = HandoffDayCloseRepository(1);
+      await _openForm(tester, repository);
+      await _type(tester, 'day-close-cash', '1670');
+      expect(
+        find.text('3 kayıt için seçim yapılınca hesaplanır.'),
+        findsOneWidget,
+      );
+      expect(find.text('₺1.420,00'), findsNothing);
+      expect(find.byType(AppInlineNotice), findsNothing);
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Gün sonunu kaydet'),
+            )
+            .onPressed,
+        isNull,
+      );
+    });
+
+    testWidgets(
+      'nakit boşken nakit kayıtları ve soru gizli, kartlı kayıt görünür',
+      (tester) async {
+        final repository = HandoffDayCloseRepository(8);
+        await _openForm(tester, repository);
+        await _type(tester, 'day-close-pos-ziraat', '1300');
+        expect(
+          find.byKey(const ValueKey('day-close-record-income/sale')),
+          findsNothing,
+        );
+        expect(
+          find.byKey(
+            const ValueKey('day-close-record-counterparty-payment/ahmet'),
+          ),
+          findsNothing,
+        );
+        expect(
+          find.byKey(const ValueKey('day-close-record-pos-settlement/card')),
+          findsOneWidget,
+        );
+        expect(find.byKey(const ValueKey('day-close-all')), findsNothing);
+        expect(find.text('Yeni nakit satış'), findsNothing);
+        expect(find.text('Kart tutarı'), findsOneWidget);
+        expect(find.text('−₺800,00'), findsOneWidget);
+        expect(find.textContaining('düşüldü'), findsNothing);
+        await _type(tester, 'day-close-cash', '1670');
+        expect(find.byKey(const ValueKey('day-close-all')), findsOneWidget);
+        await _type(tester, 'day-close-cash', '');
+        expect(find.byKey(const ValueKey('day-close-all')), findsNothing);
+        expect(find.text('Yeni nakit satış'), findsNothing);
+      },
+    );
+
+    testWidgets('ortak soru ayrı, içinde ve kısmi cevabı sunucuya gönderir', (
+      tester,
+    ) async {
+      final repository = HandoffDayCloseRepository(4);
+      await _openForm(tester, repository);
+      await _type(tester, 'day-close-cash', '1600');
+      await tester.tap(find.text('Hepsi içinde'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Yukarıdaki soru cevaplanınca hesaplanır.'),
+        findsOneWidget,
+      );
+      expect(find.byType(AppInlineNotice), findsNothing);
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Gün sonunu kaydet'),
+            )
+            .onPressed,
+        isNull,
+      );
+      final block = find.byKey(const ValueKey('day-close-overlap-mehmet'));
+      final payment = find.byKey(
+        const ValueKey('day-close-record-counterparty-payment/payment-mehmet'),
+      );
+      expect(
+        tester.getTopLeft(block).dy,
+        greaterThanOrEqualTo(tester.getBottomLeft(payment).dy),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('day-close-overlap-mehmet-separate')),
+      );
+      await tester.pumpAndSettle();
+      expect(repository.lastInput!.overlaps, {'mehmet': '0.0000'});
+      expect(find.text('−₺800,00'), findsOneWidget);
+      await tester.tap(
+        find.byKey(const ValueKey('day-close-overlap-mehmet-inside')),
+      );
+      await tester.pumpAndSettle();
+      expect(repository.lastInput!.overlaps, {'mehmet': '300.0000'});
+      expect(find.text('−₺500,00'), findsOneWidget);
+      await tester.tap(
+        find.byKey(const ValueKey('day-close-overlap-mehmet-partial')),
+      );
+      await tester.pumpAndSettle();
+      expect(repository.lastInput!.overlaps, isEmpty);
+      expect(find.text('En çok ₺300,00.'), findsOneWidget);
+      await _type(tester, 'day-close-shared-mehmet', '200');
+      expect(repository.lastInput!.overlaps, {'mehmet': '200.0000'});
+      expect(find.text('−₺600,00'), findsOneWidget);
+      expect(find.text('− ₺200,00 ikisinde de'), findsOneWidget);
+      expect(
+        find.descendant(of: block, matching: find.text('₺600,00')),
+        findsOneWidget,
+      );
+      await tester.tap(payment);
+      await tester.pumpAndSettle();
+      expect(block, findsNothing);
+      expect(repository.lastInput!.overlaps, isEmpty);
+      await tester.tap(payment);
+      await tester.pumpAndSettle();
+      expect(block, findsOneWidget);
+      expect(
+        find.text('Yukarıdaki soru cevaplanınca hesaplanır.'),
+        findsOneWidget,
+      );
+      await expectMeetsAccessibility(tester);
+    });
+
+    testWidgets(
+      'iki kişinin soruları kendi satırlarının altında ve birbirinden bağımsız',
+      (tester) async {
+        final repository = HandoffDayCloseRepository(7);
+        await _openForm(tester, repository);
+        await _type(tester, 'day-close-cash', '2400');
+        await tester.tap(find.text('Hepsi içinde'));
+        await tester.pumpAndSettle();
+        expect(find.text('Tahsilat satışın içinde'), findsOneWidget);
+        expect(find.text('Satış tahsilatın içinde'), findsOneWidget);
+        final firstBlock = find.byKey(
+          const ValueKey('day-close-overlap-mehmet'),
+        );
+        final secondSale = find.byKey(
+          const ValueKey('day-close-record-counterparty-charge/sale-ahmet'),
+        );
+        expect(
+          tester.getBottomLeft(firstBlock).dy,
+          lessThanOrEqualTo(tester.getTopLeft(secondSale).dy),
+        );
+        await tester.tap(
+          find.byKey(const ValueKey('day-close-overlap-mehmet-separate')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(const ValueKey('day-close-overlap-ahmet-inside')),
+        );
+        await tester.pumpAndSettle();
+        expect(repository.lastInput!.overlaps, {
+          'mehmet': '0.0000',
+          'ahmet': '300.0000',
+        });
+        await tester.tap(
+          find.byKey(
+            const ValueKey('day-close-record-counterparty-charge/sale-mehmet'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(repository.lastInput!.overlaps, {'ahmet': '300.0000'});
+      },
+    );
+
+    testWidgets('fatura sorusu ve dökümü fatura dilini kullanır', (
+      tester,
+    ) async {
+      final repository = HandoffDayCloseRepository(6);
+      await _openForm(tester, repository);
+      await _type(tester, 'day-close-cash', '1600');
+      await tester.tap(find.text('Hepsi içinde'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'Fatura ve tahsilatı yazdığınız nakit tutarda nasıl sayıldı?',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Tahsilat faturanın içinde'), findsOneWidget);
+      await tester.tap(
+        find.byKey(const ValueKey('day-close-overlap-invoice-inside')),
+      );
+      await tester.pumpAndSettle();
+      expect(repository.lastInput!.overlaps, {'invoice': '400.0000'});
+      expect(
+        find.text('₺400,00 alacak faturası + ₺400,00 tahsilat'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('veresiye satış'), findsNothing);
+    });
+
+    testWidgets('toplam farkının teslimdeki cümlesi ve yalnız yazılan kart', (
+      tester,
+    ) async {
+      final repository = HandoffDayCloseRepository(5);
+      await _openForm(tester, repository);
+      await _type(tester, 'day-close-pos-ziraat', '500');
+      await _type(tester, 'day-close-total', '1800');
+      expect(
+        find.text(
+          'Yalnız kart satışı kaydedilir. Toplamla arasındaki ₺1.300,00 kaydedilmez.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Yeni nakit satış'), findsNothing);
+      expect(find.text('Gün içinde girilenler'), findsNothing);
+      expect(find.text('Ziraat POS satışı'), findsOneWidget);
+    });
+
+    testWidgets('önizleme beklenirken eski tutar kaydedilmez', (tester) async {
+      final repository = HandoffDayCloseRepository(5);
+      await _openForm(tester, repository);
+      await _type(tester, 'day-close-pos-ziraat', '500');
+      await tester.enterText(
+        find.byKey(const ValueKey('day-close-pos-ziraat')),
+        '600',
+      );
+      await tester.pump();
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Gün sonunu kaydet'),
+            )
+            .onPressed,
+        isNull,
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('faturanın tahsilatı daha büyükse fatura onun içinde denir', (
+      tester,
+    ) async {
+      final repository = HandoffDayCloseRepository(
+        6,
+        invoiceCollectionsLarger: true,
+      );
+      await _openForm(tester, repository);
+      await _type(tester, 'day-close-cash', '1600');
+      await tester.tap(find.text('Hepsi içinde'));
+      await tester.pumpAndSettle();
+      expect(find.text('Fatura tahsilatın içinde'), findsOneWidget);
+      await tester.tap(
+        find.byKey(const ValueKey('day-close-overlap-invoice-inside')),
+      );
+      await tester.pumpAndSettle();
+      expect(repository.lastInput!.overlaps, {'invoice': '400.0000'});
+      expect(find.text('−₺500,00'), findsOneWidget);
+    });
+
+    // Blok o faturanın satırlarının hemen altındadır; ad yazmaz, adsız
+    // faturada da soruyu sorar ve satırda türün adı görünür.
+    testWidgets('adsız faturanın sorusu ad yazmadan sorulur', (tester) async {
+      final repository = HandoffDayCloseRepository(6, name: '');
+      await _openForm(tester, repository);
+      await _type(tester, 'day-close-cash', '1600');
+      await tester.tap(find.text('Hepsi içinde'));
+      await tester.pumpAndSettle();
+      final block = find.byKey(const ValueKey('day-close-overlap-invoice'));
+      expect(
+        find.descendant(
+          of: block,
+          matching: find.text(
+            'Fatura ve tahsilatı yazdığınız nakit tutarda nasıl sayıldı?',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: block, matching: find.text('Alacak faturası')),
+        findsNothing,
+      );
+      expect(find.text('Alacak faturası'), findsWidgets);
+    });
+
+    for (final theme in [AppTheme.light(), AppTheme.dark()]) {
+      testWidgets(
+        'uzun ad ve ortak soru 2.0× yazıda taşmaz (${theme.brightness.name})',
+        (tester) async {
+          const longName =
+              'Mehmet Usta Mobilya Döşeme ve Ahşap Onarım Atölyesi';
+          final repository = HandoffDayCloseRepository(4, name: longName);
+          final controller = DayCloseController(repository);
+          addTearDown(controller.dispose);
+          await pumpAtLargestTextScale(
+            tester,
+            _host(
+              (context) => showDayCloseForm(
+                context,
+                controller,
+                initialDate: '2026-10-03',
+              ),
+              theme: theme,
+            ),
+            surfaceSize: const Size(375, 900),
+          );
+          await tester.tap(find.text('Aç'));
+          await tester.pumpAndSettle();
+          await _type(tester, 'day-close-cash', '1600');
+          await tester.ensureVisible(find.text('Hepsi içinde'));
+          await tester.tap(find.text('Hepsi içinde'));
+          await tester.pumpAndSettle();
+          final partial = find.byKey(
+            const ValueKey('day-close-overlap-mehmet-partial'),
+          );
+          await tester.ensureVisible(partial);
+          await tester.tap(partial);
+          await tester.pumpAndSettle();
+          await tester.ensureVisible(
+            find.byKey(const ValueKey('day-close-shared-mehmet')),
+          );
+          await _type(tester, 'day-close-shared-mehmet', '200');
+          await tester.ensureVisible(find.text('Yazılacak'));
+          await tester.pumpAndSettle();
+          expectNoOverflow(tester);
+          // Ad yalnız iki satırda yazar; soru bloğu adı yinelemez.
+          expect(find.text(longName), findsNWidgets(2));
+          await expectMeetsAccessibility(tester);
+        },
+      );
+    }
+
+    testWidgets('Türkçe para girişi dört ondalık hassasiyetini korur', (
+      tester,
+    ) async {
+      final repository = HandoffDayCloseRepository(5);
+      await _openForm(tester, repository);
+      await _type(tester, 'day-close-pos-ziraat', '123456789012345,6789');
+      expect(
+        _field(tester, 'day-close-pos-ziraat').controller!.text,
+        '123.456.789.012.345,6789',
+      );
+      expect(repository.lastInput!.posAmounts, {
+        'ziraat': '123456789012345.6789',
+      });
+    });
+
+    testWidgets(
+      'aynı kişinin başka satışı dışarıdaysa dahil çiftin sorusu görünür',
+      (tester) async {
+        final repository = HandoffDayCloseRepository(4, extraSale: true);
+        await _openForm(tester, repository);
+        await _type(tester, 'day-close-cash', '1600');
+        await tester.tap(find.text('Hiçbiri'));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(
+            const ValueKey('day-close-record-counterparty-charge/sale-mehmet'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(
+            const ValueKey(
+              'day-close-record-counterparty-payment/payment-mehmet',
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          repository
+              .lastInput!
+              .recordOverrides['counterparty-charge/other-sale'],
+          isFalse,
+        );
+        expect(
+          find.byKey(const ValueKey('day-close-overlap-mehmet')),
+          findsOneWidget,
+        );
+        expect(
+          find.text('Yukarıdaki soru cevaplanınca hesaplanır.'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'liste yenilenince duran cevap kalır, eski soru seçeneği temizlenir',
+      (tester) async {
+        final repository = HandoffDayCloseRepository(4, extraSale: true);
+        await _openForm(tester, repository);
+        await _type(tester, 'day-close-cash', '1600');
+        await tester.tap(find.text('Hepsi içinde'));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(const ValueKey('day-close-overlap-mehmet-partial')),
+        );
+        await tester.pumpAndSettle();
+        await _type(tester, 'day-close-shared-mehmet', '200');
+        repository.extraSale = false;
+        await _type(tester, 'day-close-cash', '1601');
+        expect(repository.lastInput!.recordOverrides, {
+          'counterparty-charge/sale-mehmet': true,
+          'counterparty-payment/payment-mehmet': true,
+        });
+        expect(repository.lastInput!.overlaps, isEmpty);
+        expect(
+          find.byKey(const ValueKey('day-close-shared-mehmet')),
+          findsNothing,
+        );
+        expect(
+          find.text('Yukarıdaki soru cevaplanınca hesaplanır.'),
+          findsOneWidget,
+        );
+        await tester.tap(
+          find.byKey(const ValueKey('day-close-overlap-mehmet-partial')),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          _field(tester, 'day-close-shared-mehmet').controller!.text,
+          isEmpty,
+        );
+      },
+    );
 
     testWidgets('en büyük yazıda taşmaz', (tester) async {
       final repository = _FakeRepository();
@@ -818,7 +1294,9 @@ void main() {
       );
 
       // Adsız tahsilatta türün adı yazar.
-      expect(find.text('Cari tahsilat'), findsOneWidget);
+      // Biri adsız tahsilatın başlığı, öbürü dışarıda kalan tahsilatın alt
+      // yazısı.
+      expect(find.text('Tahsilat'), findsNWidgets(2));
       // Aynı kişinin iki satırını türü ayırır.
       expect(find.text('Sayıldı · veresiye satış'), findsOneWidget);
       expect(find.text('Sayıldı · tahsilat'), findsOneWidget);
@@ -1017,19 +1495,20 @@ Future<void> _type(WidgetTester tester, String key, String text) async {
   await tester.pumpAndSettle();
 }
 
-Widget _host(void Function(BuildContext context) open) => MaterialApp(
-  theme: AppTheme.light(),
-  home: Scaffold(
-    body: Builder(
-      builder: (context) => Center(
-        child: TextButton(
-          onPressed: () => open(context),
-          child: const Text('Aç'),
+Widget _host(void Function(BuildContext context) open, {ThemeData? theme}) =>
+    MaterialApp(
+      theme: theme ?? AppTheme.light(),
+      home: Scaffold(
+        body: Builder(
+          builder: (context) => Center(
+            child: TextButton(
+              onPressed: () => open(context),
+              child: const Text('Aç'),
+            ),
+          ),
         ),
       ),
-    ),
-  ),
-);
+    );
 
 void _useTallView(WidgetTester tester) {
   tester.view.physicalSize = const Size(412, 1800);
@@ -1039,7 +1518,7 @@ void _useTallView(WidgetTester tester) {
 
 Future<void> _openForm(
   WidgetTester tester,
-  _FakeRepository repository, {
+  DayCloseRepositoryContract repository, {
   FinancialDataChanges? changes,
   bool additional = false,
 }) async {
@@ -1358,7 +1837,6 @@ Map<String, Object?> _recordJson(
   'requiresAnswer': requiresAnswer,
   'groupId': groupId,
   'groupName': groupId == null ? null : title,
-  'createdAtUtc': '2026-10-03T08:20:00Z',
 };
 
 Map<String, Object?> _dayCloseJson({bool isCancelled = false}) => {

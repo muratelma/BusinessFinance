@@ -522,8 +522,8 @@ public sealed class DayCloseDeferredSalesEndpointTests
     }
 
     /// <summary>
-    /// Panel hiçbir tutarı toplamaz: "zaten kayıtlı" tutarın dökümü ve her
-    /// kaydın giriş anı önizlemeden gelir. Gün: 250 tek tek girilmiş nakit
+    /// Panel hiçbir tutarı toplamaz: "zaten kayıtlı" tutarın dökümü
+    /// önizlemeden gelir. Gün: 250 tek tek girilmiş nakit
     /// satış, 300 ve 120 tahsilat, 450 veresiye satış; yazılan nakit 1.670.
     /// </summary>
     [Fact]
@@ -559,9 +559,7 @@ public sealed class DayCloseDeferredSalesEndpointTests
         Assert.Equal(
             new DayCloseCashDeductionsResponse("250.0000", "420.0000", "0.0000", "0.0000", "0.0000"),
             all.Cash.Deductions);
-        // Giriş anı her kayıtta gelir; panel saati ondan yazar.
         Assert.Equal(5, all.ExistingRecords.Count);
-        Assert.All(all.ExistingRecords, record => Assert.NotNull(record.CreatedAtUtc));
 
         // Yalnız biri içinde: 1.670 − 550 = 1.120.
         var some = await AssertRowAsync(

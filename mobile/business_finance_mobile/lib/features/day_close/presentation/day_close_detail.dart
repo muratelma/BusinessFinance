@@ -288,8 +288,8 @@ String _recordTitle(DayCloseExistingRecord record) {
   if (record.title.isNotEmpty) return record.title;
   return switch (record.kind) {
     'pos-settlement' => 'POS satışı',
-    'counterparty-payment' => 'Cari tahsilat',
-    'obligation-settlement' => 'Alacak tahsilatı',
+    'counterparty-payment' => 'Tahsilat',
+    'obligation-settlement' => 'Tahsilat',
     'counterparty-charge' => 'Veresiye satış',
     'obligation' => 'Alacak faturası',
     _ => 'Gelir',
@@ -299,7 +299,9 @@ String _recordTitle(DayCloseExistingRecord record) {
 /// Kaydın ne olduğu: aynı kişinin veresiye satışı ile tahsilatı aynı adı
 /// taşır, satırları bu ayırır.
 String _recordSide(DayCloseExistingRecord record) {
-  if (!record.isCash) return record.isCardCollection ? 'Kartla tahsil' : 'Kart';
+  if (!record.isCash) {
+    return record.isCardCollection ? 'Kartla tahsil' : 'Kartla';
+  }
   if (record.isCollection) return 'Tahsilat';
   return switch (record.kind) {
     'counterparty-charge' => 'Veresiye satış',

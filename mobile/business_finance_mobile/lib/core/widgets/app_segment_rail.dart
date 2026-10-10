@@ -25,7 +25,9 @@ class AppSegmentRail<T> extends StatelessWidget {
   });
 
   final List<T> values;
-  final T selected;
+
+  /// `null` olduğunda hiçbir dilim seçili değildir.
+  final T? selected;
   final ValueChanged<T> onChanged;
 
   /// Dilimin içeriği; `selected` seçili dilimin mürekkep rengini seçmek için.

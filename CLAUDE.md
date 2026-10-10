@@ -375,8 +375,8 @@ gerekçesiyle bozulmaz.
   tutar) ve saklanır (`DayCloseCountedOverlap`). Ortak tutar tahsilatın hangi
   satışa ait olduğunu değil, yazılan toplamda ikisinin nasıl sayıldığını
   söyler; bir ödeme dağılımı değildir ve onu yalnız günün ekranı ile geri alma
-  okur. Düşülenin dökümü (`cash.deductions`), üç cevabın sonucu ve kaydın
-  giriş anı önizlemeden gelir.
+  okur. Düşülenin dökümü (`cash.deductions`) ve üç cevabın sonucu önizlemeden
+  gelir; panelde kişi adı ve saat yazılmaz.
   Hiç kayıt üretmeyen gün sonu meşrudur ve günü kapatır. Gün başına tek gün
   sonu; ikincisi yalnız açıkça `isAdditional`. Geri alma bir bütündür; ürettiği
   kayıt tek başına iptal edilemez (`origin: day-close`,

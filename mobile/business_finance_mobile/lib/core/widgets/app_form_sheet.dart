@@ -39,7 +39,12 @@ class AppFormSheet<T> extends StatelessWidget {
     this.secondaryLabel,
     this.onSecondary,
     this.errorMessage,
+    this.horizontalPadding = AppSpacing.large,
   });
+
+  /// Panelin iki yanındaki boşluk. Varsayılan bütün formların ortak
+  /// boşluğudur; teslimi 16 dp çerçeveyle çizilmiş panel onu verir.
+  final double horizontalPadding;
 
   /// Kaydın reddi. Eylem satırının hemen üstünde, kaydırılan gövdenin
   /// dışında durur: gövde nerede olursa olsun `Kaydet`e basan onu görür.
@@ -86,10 +91,10 @@ class AppFormSheet<T> extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.large,
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
             AppSpacing.medium,
-            AppSpacing.large,
+            horizontalPadding,
             AppSpacing.small,
           ),
           child: Column(
@@ -113,9 +118,9 @@ class AppFormSheet<T> extends StatelessWidget {
         Flexible(
           child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
-              AppSpacing.large,
+              horizontalPadding,
               AppSpacing.small,
-              AppSpacing.large,
+              horizontalPadding,
               AppSpacing.medium + keyboardInset,
             ),
             child: Column(
@@ -127,20 +132,20 @@ class AppFormSheet<T> extends StatelessWidget {
         ),
         if (errorMessage != null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.large,
+            padding: EdgeInsets.fromLTRB(
+              horizontalPadding,
               0,
-              AppSpacing.large,
+              horizontalPadding,
               AppSpacing.small,
             ),
             child: AppFormError(message: errorMessage!),
           ),
         Container(
           decoration: BoxDecoration(border: Border(top: surfaces.cardBorder)),
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.large,
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
             AppSpacing.small,
-            AppSpacing.large,
+            horizontalPadding,
             AppSpacing.medium,
           ),
           // `Row` değil `OverflowBar`: 2.0× yazı ölçeğinde üç buton tek satıra

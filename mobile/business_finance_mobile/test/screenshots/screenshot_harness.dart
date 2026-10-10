@@ -60,11 +60,12 @@ Future<void> captureScreen(
   int selectedTab = 0,
   bool hasBusiness = true,
   bool pushed = false,
+  Size frame = designFrame,
   Future<void> Function(WidgetTester tester)? before,
 }) async {
   // Font yükleme gerçek G/Ç'dir; sahte zamanın içinde hiç tamamlanmaz.
   await tester.runAsync(loadDesignFonts);
-  tester.view.physicalSize = designFrame * 2;
+  tester.view.physicalSize = frame * 2;
   tester.view.devicePixelRatio = 2;
   addTearDown(tester.view.reset);
 

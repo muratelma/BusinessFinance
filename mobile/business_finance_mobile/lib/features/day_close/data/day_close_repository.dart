@@ -92,7 +92,6 @@ class DayCloseExistingRecord {
     this.requiresAnswer = false,
     this.groupId,
     this.groupName,
-    this.createdAt,
   });
 
   factory DayCloseExistingRecord.fromJson(Map<String, dynamic> json) =>
@@ -112,7 +111,6 @@ class DayCloseExistingRecord {
         requiresAnswer: json['requiresAnswer'] == true,
         groupId: JsonReaders.nullableString(json, 'groupId'),
         groupName: JsonReaders.nullableString(json, 'groupName'),
-        createdAt: _nullableInstant(json, 'createdAtUtc'),
       );
 
   /// `income`, `pos-settlement`, `counterparty-payment`,
@@ -149,10 +147,6 @@ class DayCloseExistingRecord {
   /// kayıtta kişi, alacak faturasında fatura. Öbür kayıtlarda `null`.
   final String? groupId;
   final String? groupName;
-
-  /// Kaydın uygulamaya girildiği an (cihazın saatiyle); bu bilgiden önce
-  /// yazılmış kayıtta `null` ve saat yazılmaz.
-  final DateTime? createdAt;
 
   String get key => '$kind/$id';
 
@@ -625,15 +619,6 @@ bool? _nullableBool(Map<String, dynamic> json, String key) {
 
 String? _nullableMoney(Map<String, dynamic> json, String key) =>
     json[key] == null ? null : JsonReaders.money(json, key);
-
-/// Sunucunun UTC anını cihazın saatine çevirir; alan yoksa `null`.
-DateTime? _nullableInstant(Map<String, dynamic> json, String key) {
-  final value = JsonReaders.nullableString(json, key);
-  if (value == null) return null;
-  final parsed = DateTime.tryParse(value);
-  if (parsed == null) throw FormatException('Invalid $key.');
-  return parsed.toLocal();
-}
 
 List<Map<String, dynamic>> _objects(Map<String, dynamic> json, String key) =>
     JsonReaders.list(

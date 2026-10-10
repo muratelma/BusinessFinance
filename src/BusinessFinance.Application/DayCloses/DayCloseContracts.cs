@@ -90,9 +90,7 @@ public sealed record DayCloseExistingRecordDto(
     // Satışı ile tahsilatı aynı parayı gösterebilecek kayıtların grubu: cari
     // kayıtta kişi, alacak faturasında fatura. Öbür kayıtlarda boş.
     Guid? GroupId = null,
-    string? GroupName = null,
-    // Kaydın uygulamaya girildiği an; bu bilgiden önce yazılmış kayıtta boş.
-    DateTimeOffset? CreatedAtUtc = null)
+    string? GroupName = null)
 {
     /// <summary>Gelir yazmış ama parası (tamamı) alınmamış olabilecek satış.</summary>
     public bool IsDeferredSale =>

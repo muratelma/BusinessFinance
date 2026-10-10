@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/formatters/date_text.dart';
-import '../../../core/formatters/money_input.dart';
+import '../../../core/formatters/money_math.dart';
 import '../../../core/formatters/money_text.dart';
 import '../../../core/models/data_choice.dart';
 import '../../../core/network/client_request_id.dart';
@@ -11,10 +11,10 @@ import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_date_field.dart';
-import '../../../core/widgets/app_divided_column.dart';
 import '../../../core/widgets/app_form_sheet.dart';
 import '../../../core/widgets/app_inline_notice.dart';
 import '../../../core/widgets/app_money_text.dart';
+import '../../../core/widgets/app_segment_rail.dart';
 import '../../../core/network/api_error_messages.dart';
 import '../data/day_close_repository.dart';
 import 'day_close_answers.dart';
@@ -75,6 +75,9 @@ class _DayCloseFormState extends State<_DayCloseForm> {
 
   /// Kullanıcının işaretleri ve cevapları.
   final answers = DayCloseAnswers();
+  final overlapChoices = <String, _OverlapChoice>{};
+  final overlapControllers = <String, TextEditingController>{};
+  bool previewPending = true;
 
   String? cashAccountId;
   String? cashCategoryId;
@@ -115,6 +118,9 @@ class _DayCloseFormState extends State<_DayCloseForm> {
     for (final item in posControllers.values) {
       item.dispose();
     }
+    for (final item in overlapControllers.values) {
+      item.dispose();
+    }
     super.dispose();
   }
 
@@ -124,9 +130,7 @@ class _DayCloseFormState extends State<_DayCloseForm> {
 
   /// Boş alan gönderilmez; o tarafa dokunulmaz.
   String? _wire(TextEditingController field) {
-    final text = field.text.trim();
-    if (text.isEmpty || MoneyInput.parse(text) == null) return null;
-    return MoneyInput.wire(text);
+    return MoneyMath.fromInput(field.text);
   }
 
   DayCloseInput _input() {
@@ -152,21 +156,40 @@ class _DayCloseFormState extends State<_DayCloseForm> {
   /// Tutar değişince önizleme kısa bir duraklamadan sonra istenir; her tuşta
   /// istek atılmaz.
   void _amountChanged(String _) {
+    ++_previewRequest;
+    setState(() => previewPending = true);
     _previewTimer?.cancel();
     _previewTimer = Timer(const Duration(milliseconds: 350), _loadPreview);
   }
 
   Future<void> _loadPreview() async {
+    _previewTimer?.cancel();
     final request = ++_previewRequest;
+    if (mounted) setState(() => previewPending = true);
     final result = await controller.preview(_input());
     // Sonradan değişen girdinin cevabı eskisinin üstüne yazılmasın.
     if (!mounted || request != _previewRequest) return;
     // Listede artık olmayan bir kaydın cevabı düştüyse sunucu bu girdiyi
     // reddetmiştir; güncel listeyle yeniden sorulur.
-    if (result != null && answers.reconcile(result)) return _loadPreview();
+    if (result != null) {
+      final previousOverlaps = answers.overlaps.keys.toSet();
+      final changed = answers.reconcile(result);
+      for (final id in previousOverlaps) {
+        if (!answers.overlaps.containsKey(id)) {
+          overlapChoices.remove(id);
+          overlapControllers[id]?.clear();
+        }
+      }
+      if (changed) return _loadPreview();
+    }
     setState(() {
+      previewPending = false;
       if (result == null) return;
       preview = result;
+      if (result.cash.stated) {
+        final asked = {for (final group in result.overlapGroups) group.groupId};
+        overlapChoices.removeWhere((id, _) => !asked.contains(id));
+      }
       for (final line in result.posLines) {
         posControllers.putIfAbsent(
           line.posDefinitionId,
@@ -180,9 +203,52 @@ class _DayCloseFormState extends State<_DayCloseForm> {
     });
   }
 
-  void _toggleRecord(DayCloseExistingRecord record, bool value) {
-    setState(() => answers.setIncluded(record, value));
+  void _toggleRecord(DayCloseExistingRecord record) {
+    setState(() {
+      answers.toggle(record);
+      overlapChoices.remove(record.groupId);
+      overlapControllers[record.groupId]?.clear();
+    });
     _loadPreview();
+  }
+
+  void _setAll(List<DayCloseExistingRecord> records, bool value) {
+    setState(() {
+      answers.setAll(records, value);
+      for (final record in records) {
+        overlapChoices.remove(record.groupId);
+        overlapControllers[record.groupId]?.clear();
+      }
+    });
+    _loadPreview();
+  }
+
+  void _chooseOverlap(DayCloseOverlapGroup group, _OverlapChoice choice) {
+    setState(() {
+      overlapChoices[group.groupId] = choice;
+      switch (choice) {
+        case _OverlapChoice.separate:
+          answers.setOverlap(group.groupId, '0.0000');
+        case _OverlapChoice.inside:
+          answers.setOverlap(group.groupId, group.maximumOverlap);
+        case _OverlapChoice.partial:
+          _setPartialOverlap(group.groupId);
+      }
+    });
+    _loadPreview();
+  }
+
+  void _setPartialOverlap(String groupId) {
+    final field = overlapControllers.putIfAbsent(
+      groupId,
+      TextEditingController.new,
+    );
+    final amount = _wire(field);
+    if (amount == null) {
+      answers.clearOverlap(groupId);
+    } else {
+      answers.setOverlap(groupId, amount);
+    }
   }
 
   void _dateChanged(String value) {
@@ -190,6 +256,10 @@ class _DayCloseFormState extends State<_DayCloseForm> {
       date = value;
       // Başka günün kayıtları başka kayıtlardır.
       answers.clear();
+      overlapChoices.clear();
+      for (final field in overlapControllers.values) {
+        field.clear();
+      }
       isAdditional = false;
     });
     _loadPreview();
@@ -200,11 +270,16 @@ class _DayCloseFormState extends State<_DayCloseForm> {
     key: formKey,
     child: AppFormSheet<bool>(
       title: 'Gün sonu',
-      description:
-          'Günün satış tutarlarını yazın. Tek tek girdikleriniz '
-          'düşülür; aynı satış iki kez yazılmaz.',
+      // Teslim 16 dp yan boşlukla çizildi; 24 dp'de kural cümlesi ve fatura
+      // sorusu ikinci satıra taşıyor.
+      horizontalPadding: AppSpacing.medium,
       submitLabel: 'Gün sonunu kaydet',
-      onSubmit: _submit,
+      onSubmit:
+          previewPending ||
+              _waitingForAnswers ||
+              controller.previewError != null
+          ? null
+          : _submit,
       children: _fields(context),
     ),
   );
@@ -212,7 +287,6 @@ class _DayCloseFormState extends State<_DayCloseForm> {
   List<Widget> _fields(BuildContext context) {
     final theme = Theme.of(context);
     final surfaces = AppSurfaces.of(context);
-    final muted = theme.textTheme.bodySmall?.copyWith(color: surfaces.inkMuted);
     final shown = preview;
     final blocker = shown?.blockerCode;
     final error = controller.errorMessage ?? controller.previewError;
@@ -230,6 +304,7 @@ class _DayCloseFormState extends State<_DayCloseForm> {
       AppDateField(
         label: 'Gün',
         value: date,
+        valueText: DateText.dayMonthWeekday(date),
         lastDate: DateTime.now(),
         onChanged: _dateChanged,
       ),
@@ -259,8 +334,10 @@ class _DayCloseFormState extends State<_DayCloseForm> {
         controller: cashController,
         enabled: !closedAndNotAdditional,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: const [TurkishAmountInputFormatter()],
         decoration: InputDecoration(
-          labelText: 'Nakit',
+          labelText: 'Nakit tutarı',
+          suffixIcon: _CurrencySuffix(shown?.currency),
           errorMaxLines: 3,
           errorText: blocker == 'day_closes.existing_exceeds_cash'
               ? 'İşaretli kayıtlar bu tutarı aşıyor. Tutarı düzeltin ya da '
@@ -277,7 +354,11 @@ class _DayCloseFormState extends State<_DayCloseForm> {
           controller: posControllers[line.posDefinitionId],
           enabled: !closedAndNotAdditional,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(labelText: line.name),
+          inputFormatters: const [TurkishAmountInputFormatter()],
+          decoration: InputDecoration(
+            labelText: line.name,
+            suffixIcon: _CurrencySuffix(shown?.currency),
+          ),
           onChanged: _amountChanged,
           validator: _optionalMoneyError,
         ),
@@ -299,8 +380,10 @@ class _DayCloseFormState extends State<_DayCloseForm> {
         controller: totalController,
         enabled: !closedAndNotAdditional,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: const [TurkishAmountInputFormatter()],
         decoration: InputDecoration(
-          labelText: 'Toplam',
+          labelText: 'Toplam (isteğe bağlı)',
+          suffixIcon: _CurrencySuffix(shown?.currency),
           errorMaxLines: 3,
           errorText: blocker == 'day_closes.total_below_parts'
               ? ApiErrorMessages.resolve(blocker!)
@@ -311,32 +394,13 @@ class _DayCloseFormState extends State<_DayCloseForm> {
       ),
       if (shown?.totalDifference != null)
         AppInlineNotice(
-          message:
-              'Nakit ve kart toplamı, yazdığınız toplamdan '
-              '${MoneyText.format(MoneyText.unsigned(shown!.totalDifference!), shown.currency)} '
-              'farklı. Fark kaydedilmez.',
+          message: _differenceNotice(shown!),
           margin: const EdgeInsets.only(top: AppSpacing.small),
         ),
       // Gün kapalıyken yazılacak bir şey yok; liste "ek gün sonu" seçilince
       // gelir.
-      if (shown != null &&
-          shown.existingRecords.isNotEmpty &&
-          !closedAndNotAdditional) ...[
-        const SizedBox(height: AppSpacing.large),
-        Text('Gün sonu tutarında var mı?', style: theme.textTheme.labelMedium),
-        Text('İşaretli kayıtlar düşülür.', style: muted),
-        for (final record in shown.existingRecords)
-          _CheckRow(
-            key: ValueKey('day-close-record-${record.key}'),
-            title: _recordTitle(record),
-            subtitle: _recordSubtitle(record, shown),
-            amount: record.amount,
-            currency: shown.currency,
-            value: record.included ?? false,
-            enabled: !busy,
-            onChanged: (value) => _toggleRecord(record, value),
-          ),
-      ],
+      if (shown != null && !closedAndNotAdditional)
+        ..._existingFields(shown, busy),
       if (notice != null)
         AppInlineNotice(
           message: notice,
@@ -344,11 +408,16 @@ class _DayCloseFormState extends State<_DayCloseForm> {
           margin: const EdgeInsets.only(top: AppSpacing.small),
         ),
       if (shown != null && _hasSummary(shown)) ...[
-        const SizedBox(height: AppSpacing.large),
-        Text('Yazılacak', style: theme.textTheme.labelMedium),
+        const SizedBox(height: AppSpacing.medium),
+        Text(
+          'Yazılacak',
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: surfaces.inkFaint,
+          ),
+        ),
         const SizedBox(height: AppSpacing.xSmall),
-        _WriteSummary(preview: shown),
-        if (shown.cash.writes && !showTargets)
+        _WriteSummary(preview: shown, cashPending: _cashPendingMessage(shown)),
+        if (!showTargets)
           Align(
             alignment: AlignmentDirectional.centerStart,
             child: TextButton(
@@ -358,6 +427,181 @@ class _DayCloseFormState extends State<_DayCloseForm> {
           ),
       ],
       if (showTargets) ..._targetFields(shown),
+    ];
+  }
+
+  bool get _waitingForAnswers {
+    final shown = preview;
+    if (shown == null || !shown.cash.stated) return false;
+    return shown.existingRecords.any(
+          (record) =>
+              record.isCash &&
+              record.requiresAnswer &&
+              answers.included(record) == null,
+        ) ||
+        shown.overlapGroups.any(
+          (group) => !answers.overlaps.containsKey(group.groupId),
+        );
+  }
+
+  String? _cashPendingMessage(DayClosePreview shown) {
+    final count = shown.existingRecords
+        .where(
+          (record) =>
+              record.isCash &&
+              record.requiresAnswer &&
+              answers.included(record) == null,
+        )
+        .length;
+    if (count > 0) return '$count kayıt için seçim yapılınca hesaplanır.';
+    if (shown.blockerCode == 'day_closes.overlap_unanswered' ||
+        shown.overlapGroups.any(
+          (group) => !answers.overlaps.containsKey(group.groupId),
+        )) {
+      return 'Yukarıdaki soru cevaplanınca hesaplanır.';
+    }
+    return previewPending ? 'Hesaplanıyor…' : null;
+  }
+
+  String _differenceNotice(DayClosePreview shown) {
+    final prefix = !shown.cash.stated
+        ? 'Yalnız kart satışı kaydedilir.'
+        : shown.posLines.every((line) => !line.stated)
+        ? 'Yalnız nakit satış kaydedilir.'
+        : 'Nakit ve kart satışı kaydedilir.';
+    return '$prefix Toplamla arasındaki '
+        '${MoneyText.format(MoneyText.unsigned(shown.totalDifference!), shown.currency)} kaydedilmez.';
+  }
+
+  List<Widget> _existingFields(DayClosePreview shown, bool busy) {
+    final records = shown.existingRecords
+        .where((record) => !record.isCash || _wire(cashController) != null)
+        .toList();
+    if (records.isEmpty) return [];
+    final theme = Theme.of(context);
+    final surfaces = AppSurfaces.of(context);
+    final asked = records.where((record) => record.requiresAnswer).toList();
+    final orderedAsked = <DayCloseExistingRecord>[];
+    final placed = <String>{};
+    // Her kişinin/faturanın satırları bitişiktir; soru kendi çiftinin altındadır.
+    for (final record in asked) {
+      if (!placed.add(record.key)) continue;
+      orderedAsked.add(record);
+      if (record.groupId != null) {
+        for (final sibling in asked) {
+          if (sibling.groupId == record.groupId && placed.add(sibling.key)) {
+            orderedAsked.add(sibling);
+          }
+        }
+      }
+    }
+    Widget row(DayCloseExistingRecord record) => _CheckRow(
+      key: ValueKey('day-close-record-${record.key}'),
+      title: _recordTitle(record),
+      subtitle: _recordSubtitle(record, shown),
+      amount: record.amount,
+      currency: shown.currency,
+      value: answers.included(record),
+      enabled: !busy,
+      onChanged: (_) => _toggleRecord(record),
+    );
+    return [
+      const SizedBox(height: AppSpacing.medium),
+      Text(
+        'Gün içinde girilenler',
+        style: theme.textTheme.labelMedium?.copyWith(color: surfaces.inkFaint),
+      ),
+      Text(
+        'İşaretli kayıtlar yazılan tutarın içindedir; tekrar kaydedilmez.',
+        // Teslimde harf aralığı yoktur; temanın aralığıyla cümle ikinci
+        // satıra taşıyor.
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: surfaces.inkMuted,
+          letterSpacing: 0,
+        ),
+      ),
+      for (final record in records.where((record) => !record.requiresAnswer))
+        row(record),
+      if (asked.isNotEmpty) ...[
+        // Çizgi işaretli gelenleri sorulanlardan ayırır; üstte satır yoksa
+        // ayıracak bir şey de yoktur.
+        if (records.any((record) => !record.requiresAnswer))
+          Divider(
+            height: AppSpacing.medium,
+            thickness: 1,
+            color: surfaces.border,
+          )
+        else
+          const SizedBox(height: AppSpacing.small),
+        Text(
+          'Bunlar yazdığınız nakit tutarın içinde mi?',
+          style: theme.textTheme.bodySmall,
+        ),
+        const SizedBox(height: AppSpacing.small),
+        AppSegmentRail<bool>(
+          key: const ValueKey('day-close-all'),
+          values: const [true, false],
+          selected: answers.allIncluded(asked),
+          onChanged: (value) {
+            if (!busy) _setAll(asked, value);
+          },
+          semanticLabel: 'Nakit tutarına dahil olan kayıtlar',
+          segmentLabel: (value) => value ? 'Hepsi içinde' : 'Hiçbiri',
+          segmentBuilder: (context, value, selected) => Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.small),
+            child: Text(
+              value ? 'Hepsi içinde' : 'Hiçbiri',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: selected ? surfaces.ink : surfaces.inkMuted,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.small),
+        Text(
+          'Tek tek değiştirmek için satıra dokunun.',
+          style: theme.textTheme.bodySmall?.copyWith(color: surfaces.inkMuted),
+        ),
+        for (var i = 0; i < orderedAsked.length; i++) ...[
+          row(orderedAsked[i]),
+          if (i == orderedAsked.length - 1 ||
+              orderedAsked[i + 1].groupId != orderedAsked[i].groupId)
+            for (final group in shown.overlapGroups)
+              if (group.groupId == orderedAsked[i].groupId &&
+                  orderedAsked
+                      .where((record) => record.groupId == group.groupId)
+                      .any(
+                        (record) =>
+                            record.isDeferredSale &&
+                            answers.included(record) == true,
+                      ) &&
+                  orderedAsked
+                      .where((record) => record.groupId == group.groupId)
+                      .any(
+                        (record) =>
+                            record.isCollection &&
+                            answers.included(record) == true,
+                      ))
+                _OverlapBlock(
+                  key: ValueKey('day-close-overlap-${group.groupId}'),
+                  group: group,
+                  currency: shown.currency,
+                  choice: overlapChoices[group.groupId],
+                  controller: overlapControllers.putIfAbsent(
+                    group.groupId,
+                    TextEditingController.new,
+                  ),
+                  enabled: !busy,
+                  pending: previewPending,
+                  onChoose: (choice) => _chooseOverlap(group, choice),
+                  onAmountChanged: (value) {
+                    _setPartialOverlap(group.groupId);
+                    _amountChanged(value);
+                  },
+                ),
+        ],
+      ],
     ];
   }
 
@@ -450,7 +694,9 @@ class _DayCloseFormState extends State<_DayCloseForm> {
       (shown?.posLines.length ?? 0) - _visiblePosLines(shown).length;
 
   bool _hasSummary(DayClosePreview shown) =>
-      shown.blockerCode == null &&
+      (shown.blockerCode == null ||
+          shown.blockerCode == 'day_closes.records_unanswered' ||
+          shown.blockerCode == 'day_closes.overlap_unanswered') &&
       (shown.cash.stated || shown.posLines.any((line) => line.stated));
 
   /// Bir alanın yanında söylenmeyen engeller.
@@ -467,8 +713,6 @@ class _DayCloseFormState extends State<_DayCloseForm> {
       "POS'un hesabı ya da kategorisi kullanılamıyor. POS'u düzenleyin.",
     'day_closes.not_closed_yet' =>
       'Bu gün henüz kapatılmadı; ek gün sonu yazılamaz.',
-    'day_closes.records_unanswered' ||
-    'day_closes.overlap_unanswered' ||
     'day_closes.invalid_overlap' => ApiErrorMessages.resolve(blocker!),
     _ => null,
   };
@@ -476,16 +720,17 @@ class _DayCloseFormState extends State<_DayCloseForm> {
   static String? _optionalMoneyError(String? value) {
     final text = (value ?? '').trim();
     if (text.isEmpty) return null;
-    final amount = MoneyInput.parse(text);
-    return amount == null || amount < 0 ? 'Geçerli bir tutar girin.' : null;
+    return MoneyMath.fromInput(text) == null
+        ? 'Geçerli bir tutar girin.'
+        : null;
   }
 
   static String _recordTitle(DayCloseExistingRecord record) {
     if (record.title.isNotEmpty) return record.title;
     return switch (record.kind) {
       'pos-settlement' => 'POS satışı',
-      'counterparty-payment' => 'Cari tahsilat',
-      'obligation-settlement' => 'Alacak tahsilatı',
+      'counterparty-payment' => 'Tahsilat',
+      'obligation-settlement' => 'Tahsilat',
       'counterparty-charge' => 'Veresiye satış',
       'obligation' => 'Alacak faturası',
       _ => 'Gelir',
@@ -498,7 +743,7 @@ class _DayCloseFormState extends State<_DayCloseForm> {
   ) {
     if (!record.isCash) {
       // Kartla tahsil satış değildir: kendini söyler (KP7).
-      final label = record.isCardCollection ? 'Kartla tahsil' : 'Kart';
+      final label = record.isCardCollection ? 'Kartla tahsil' : 'Kartla';
       for (final line in shown.posLines) {
         if (line.posDefinitionId == record.posDefinitionId) {
           return '$label · ${line.name}';
@@ -507,8 +752,8 @@ class _DayCloseFormState extends State<_DayCloseForm> {
       return '$label · ${record.accountName}';
     }
     final kind = switch (record.kind) {
-      'counterparty-payment' => 'Cari tahsilat',
-      'obligation-settlement' => 'Alacak tahsilatı',
+      'counterparty-payment' => 'Tahsilat',
+      'obligation-settlement' => 'Tahsilat',
       'counterparty-charge' => 'Veresiye satış',
       'obligation' => 'Alacak faturası',
       _ => 'Nakit',
@@ -529,7 +774,12 @@ class _DayCloseFormState extends State<_DayCloseForm> {
     if (!mounted) return null;
     final shown = preview;
     setState(() => submitted = true);
-    if (shown == null || shown.blockerCode != null) return null;
+    if (shown == null ||
+        previewPending ||
+        controller.previewError != null ||
+        shown.blockerCode != null) {
+      return null;
+    }
     if (showTargets && !formKey.currentState!.validate()) return null;
 
     final saved = await controller.create(
@@ -540,150 +790,438 @@ class _DayCloseFormState extends State<_DayCloseForm> {
   }
 }
 
-/// Yazılacak kayıtların özeti: nakit satış kasaya bir gelir, her POS'un
-/// kartlı satışı bir POS tahsilatı. Bütün tutarlar önizlemeden gelir.
-class _WriteSummary extends StatelessWidget {
-  const _WriteSummary({required this.preview});
+enum _OverlapChoice { separate, inside, partial }
 
-  final DayClosePreview preview;
+class _CurrencySuffix extends StatelessWidget {
+  const _CurrencySuffix(this.currency);
+  final String? currency;
 
   @override
-  Widget build(BuildContext context) {
-    final surfaces = AppSurfaces.of(context);
-    final cash = preview.cash;
-    final lines = [
-      for (final line in preview.posLines)
-        if (line.stated) line,
-    ];
-    final writesNothing = !cash.writes && lines.every((line) => !line.writes);
-    return Container(
+  Widget build(BuildContext context) => Center(
+    widthFactor: 1,
+    heightFactor: 1,
+    child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.medium),
-      decoration: BoxDecoration(
-        color: surfaces.cardMuted,
-        borderRadius: BorderRadius.circular(AppRadius.field),
-      ),
-      child: AppDividedColumn(
-        children: [
-          if (cash.stated)
-            _WriteRow(
-              title: 'Nakit satış',
-              subtitle: [
-                if (cash.writes) cash.accountName ?? 'Kasa seçilmedi',
-                _deducted(cash.deductedAmount),
-              ].nonNulls.join(' · '),
-              amount: cash.amountToWrite,
-              currency: preview.currency,
-            ),
-          for (final line in lines)
-            _WriteRow(
-              title: line.name,
-              // İki kısa satır: önce düşülen, sonra komisyon ve beklenen gün.
-              subtitle: [
-                _deducted(line.deductedAmount),
-                [
-                  if (line.writes && !isZeroMoney(line.commissionAmount))
-                    'komisyon '
-                        '${MoneyText.format(line.commissionAmount, preview.currency)}',
-                  if (line.writes)
-                    '${DateText.dayMonth(line.expectedTransferDate)} beklenir',
-                ].join(' · '),
-              ].nonNulls.where((part) => part.isNotEmpty).join('\n'),
-              amount: line.amountToWrite,
-              currency: preview.currency,
-            ),
-          if (writesNothing)
-            const _WriteNote('Yazılacak kayıt yok; gün kapatılır.'),
-        ],
-      ),
-    );
-  }
-
-  String? _deducted(String amount) => isZeroMoney(amount)
-      ? null
-      : '${MoneyText.format(amount, preview.currency)} düşüldü';
+      child: Text(currency ?? '', style: Theme.of(context).textTheme.bodySmall),
+    ),
+  );
 }
 
-class _WriteRow extends StatelessWidget {
-  const _WriteRow({
-    required this.title,
-    required this.subtitle,
-    required this.amount,
+/// Her seçenek tutarını sunucu verir; seçili seçenek panelin durumudur.
+class _OverlapBlock extends StatelessWidget {
+  const _OverlapBlock({
+    required this.group,
     required this.currency,
+    required this.choice,
+    required this.controller,
+    required this.enabled,
+    required this.pending,
+    required this.onChoose,
+    required this.onAmountChanged,
+    super.key,
   });
 
-  final String title;
-  final String subtitle;
-  final String amount;
+  final DayCloseOverlapGroup group;
   final String currency;
+  final _OverlapChoice? choice;
+  final TextEditingController controller;
+  final bool enabled;
+  final bool pending;
+  final ValueChanged<_OverlapChoice> onChoose;
+  final ValueChanged<String> onAmountChanged;
+
+  String get insideLabel => group.isInvoice
+      ? group.collectionsLarger
+            ? 'Fatura tahsilatın içinde'
+            : 'Tahsilat faturanın içinde'
+      : group.collectionsLarger
+      ? 'Satış tahsilatın içinde'
+      : 'Tahsilat satışın içinde';
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final surfaces = AppSurfaces.of(context);
-    return MergeSemantics(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.small),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    if (subtitle.isNotEmpty)
-                      Text(
-                        subtitle,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: surfaces.inkMuted,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.medium),
-              AppMoneyText(
-                amount: amount,
-                currency: currency,
-                effect: isZeroMoney(amount) ? null : AppMoneyEffect.income,
-                size: AppMoneySize.body,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ],
+    final helper = theme.textTheme.bodySmall?.copyWith(
+      color: surfaces.inkFaint,
+    );
+    return Container(
+      margin: const EdgeInsets.only(
+        top: AppSpacing.small,
+        bottom: AppSpacing.small,
+      ),
+      padding: const EdgeInsets.all(AppSpacing.medium),
+      decoration: BoxDecoration(
+        color: surfaces.cardMuted,
+        borderRadius: BorderRadius.circular(AppRadius.field),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Ad yazılmaz: blok o kişinin (ya da faturanın) satırlarının hemen
+          // altındadır.
+          Text(
+            group.isInvoice
+                ? 'Fatura ve tahsilatı yazdığınız nakit tutarda nasıl sayıldı?'
+                : 'Satış ve tahsilat yazdığınız nakit tutarda nasıl sayıldı?',
+            // Teslimdeki gibi harf aralıksız: soru tek satıra sığar.
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: surfaces.ink,
+              letterSpacing: 0,
+            ),
           ),
-        ),
+          // Sağdaki tutarların ne olduğunu sütunun başlığı söyler.
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xSmall),
+              child: Text('Kayıtlı sayılan', style: helper),
+            ),
+          ),
+          for (final option in _OverlapChoice.values)
+            _OverlapOption(
+              key: ValueKey(
+                'day-close-overlap-${group.groupId}-${option.name}',
+              ),
+              label: switch (option) {
+                _OverlapChoice.separate => 'İkisi ayrı ayrı',
+                _OverlapChoice.inside => insideLabel,
+                _OverlapChoice.partial => 'Bir kısmı ikisinde de var',
+              },
+              amount: switch (option) {
+                _OverlapChoice.separate => group.separateAmount,
+                _OverlapChoice.inside => group.insideAmount,
+                _OverlapChoice.partial =>
+                  choice == _OverlapChoice.partial &&
+                          !pending &&
+                          group.overlapAmount != null
+                      ? group.deductedAmount
+                      : null,
+              },
+              currency: currency,
+              selected: option == choice,
+              onTap: enabled ? () => onChoose(option) : null,
+            ),
+          if (choice == _OverlapChoice.partial) ...[
+            const SizedBox(height: AppSpacing.small),
+            TextFormField(
+              key: ValueKey('day-close-shared-${group.groupId}'),
+              controller: controller,
+              enabled: enabled,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              inputFormatters: const [TurkishAmountInputFormatter()],
+              decoration: InputDecoration(
+                labelText: 'İkisinde de sayılan',
+                suffixIcon: _CurrencySuffix(currency),
+                helperText:
+                    'En çok ${MoneyText.format(group.maximumOverlap, currency)}.',
+                helperMaxLines: 3,
+              ),
+              validator: _DayCloseFormState._optionalMoneyError,
+              onChanged: onAmountChanged,
+            ),
+          ],
+        ],
       ),
     );
   }
 }
 
-class _WriteNote extends StatelessWidget {
-  const _WriteNote(this.text);
+class _OverlapOption extends StatelessWidget {
+  const _OverlapOption({
+    required this.label,
+    required this.amount,
+    required this.currency,
+    required this.selected,
+    required this.onTap,
+    super.key,
+  });
 
-  final String text;
+  final String label;
+  final String? amount;
+  final String currency;
+  final bool selected;
+  final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: AppSpacing.small),
-    child: Text(
-      text,
-      style: Theme.of(
-        context,
-      ).textTheme.bodySmall?.copyWith(color: AppSurfaces.of(context).inkMuted),
+  Widget build(BuildContext context) => Semantics(
+    checked: selected,
+    inMutuallyExclusiveGroup: true,
+    enabled: onTap != null,
+    label: [
+      label,
+      if (amount != null) MoneyText.format(amount!, currency),
+    ].join(', '),
+    onTap: onTap,
+    excludeSemantics: true,
+    child: InkWell(
+      onTap: onTap,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 36,
+              child: Icon(
+                selected
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                size: 20,
+                color: selected
+                    ? AppSurfaces.of(context).ink
+                    : AppSurfaces.of(context).inkMuted,
+              ),
+            ),
+            Expanded(
+              child: _LabelAmount(
+                centered: true,
+                label: Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppSurfaces.of(context).ink,
+                  ),
+                ),
+                amount: amount == null
+                    ? null
+                    : Text(
+                        MoneyText.format(amount!, currency),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppSurfaces.of(context).inkMuted,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
     ),
   );
 }
 
-/// Onay kutulu satır: başlık, alt yazı ve isteğe bağlı tutar.
-///
-/// `CheckboxListTile` değil: o kendi yazı stilini taşır ve uygulamanın
-/// tipografisinden ayrılır. Satırın tamamı dokunma hedefidir.
+/// Yalnız yazılmış alanların kartları. Sayılar ve döküm önizlemedendir.
+class _WriteSummary extends StatelessWidget {
+  const _WriteSummary({required this.preview, this.cashPending});
+
+  final DayClosePreview preview;
+  final String? cashPending;
+
+  @override
+  Widget build(BuildContext context) {
+    final cash = preview.cash;
+    final deductions = cash.deductions;
+    String money(String value) => MoneyText.format(value, preview.currency);
+    final parts = [
+      if (!isZeroMoney(deductions.salesAmount))
+        '${money(deductions.salesAmount)} satış',
+      if (!isZeroMoney(deductions.creditSalesAmount))
+        '${money(deductions.creditSalesAmount)} veresiye satış',
+      if (!isZeroMoney(deductions.invoicesAmount))
+        '${money(deductions.invoicesAmount)} alacak faturası',
+      if (!isZeroMoney(deductions.collectionsAmount))
+        '${money(deductions.collectionsAmount)} tahsilat',
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (cash.stated)
+          _WriteCard(
+            title: 'Yeni nakit satış',
+            subtitle: [
+              cash.accountName ?? 'Kasa seçilmedi',
+              cash.categoryName ?? 'Kategori seçilmedi',
+            ].join(' · '),
+            amount: cash.amountToWrite,
+            enteredLabel: 'Nakit tutarı',
+            entered: cash.enteredAmount,
+            deducted: cash.deductedAmount,
+            currency: preview.currency,
+            pending: cashPending,
+            breakdown: parts.join(' + '),
+            shared: isZeroMoney(deductions.sharedAmount)
+                ? null
+                : '− ${money(deductions.sharedAmount)} ikisinde de',
+          ),
+        for (final line in preview.posLines)
+          if (line.stated) ...[
+            if (cash.stated ||
+                preview.posLines.where((item) => item.stated).first != line)
+              const SizedBox(height: AppSpacing.small),
+            _WriteCard(
+              title: '${line.name} satışı',
+              subtitle: [
+                if (line.writes) 'Komisyon ${money(line.commissionAmount)}',
+                if (line.writes)
+                  '${DateText.dayMonthWeekday(line.expectedTransferDate)} hesaba geçer',
+              ].join('\n'),
+              amount: line.amountToWrite,
+              enteredLabel: 'Kart tutarı',
+              entered: line.enteredAmount,
+              deducted: line.deductedAmount,
+              currency: preview.currency,
+              showCalculation: !isZeroMoney(line.deductedAmount),
+            ),
+          ],
+        if (cashPending == null &&
+            !cash.writes &&
+            preview.posLines.every((line) => !line.writes))
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.small),
+            child: Text(
+              'Yazılacak kayıt yok; gün kapatılır.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _WriteCard extends StatelessWidget {
+  const _WriteCard({
+    required this.title,
+    required this.subtitle,
+    required this.amount,
+    required this.enteredLabel,
+    required this.entered,
+    required this.deducted,
+    required this.currency,
+    this.pending,
+    this.breakdown = '',
+    this.shared,
+    this.showCalculation = true,
+  });
+
+  final String title;
+  final String subtitle;
+  final String amount;
+  final String enteredLabel;
+  final String entered;
+  final String deducted;
+  final String currency;
+  final String? pending;
+  final String breakdown;
+  final String? shared;
+  final bool showCalculation;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = AppSurfaces.of(context);
+    final helper = theme.textTheme.bodySmall?.copyWith(
+      color: surfaces.inkMuted,
+    );
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.medium),
+      decoration: BoxDecoration(
+        color: surfaces.cardMuted,
+        borderRadius: BorderRadius.circular(AppRadius.field),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _LabelAmount(
+            label: Text(title, style: theme.textTheme.bodyMedium),
+            amount: pending == null
+                ? AppMoneyText(
+                    amount: amount,
+                    currency: currency,
+                    signed: true,
+                    effect: isZeroMoney(amount) ? null : AppMoneyEffect.income,
+                    size: AppMoneySize.body,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  )
+                : null,
+          ),
+          if (pending != null)
+            Text(pending!, style: helper)
+          else ...[
+            if (subtitle.isNotEmpty) Text(subtitle, style: helper),
+            if (showCalculation) ...[
+              Divider(
+                height: AppSpacing.large,
+                thickness: 1,
+                color: surfaces.border,
+              ),
+              _LabelAmount(
+                label: Text(enteredLabel, style: helper),
+                amount: Text(
+                  MoneyText.format(entered, currency),
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xSmall),
+              _LabelAmount(
+                label: Text('Zaten kayıtlı', style: helper),
+                amount: Text(
+                  '${isZeroMoney(deducted) ? '' : '−'}${MoneyText.format(deducted, currency)}',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+              if (breakdown.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.small),
+                Text(
+                  breakdown,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: surfaces.inkFaint,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+              if (shared != null)
+                Text(
+                  shared!,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: surfaces.inkFaint,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Büyük yazıda tutar ayrı satıra iner; hiçbir tutar kırpılmaz veya küçülmez.
+class _LabelAmount extends StatelessWidget {
+  const _LabelAmount({required this.label, this.amount, this.centered = false});
+  final Widget label;
+  final Widget? amount;
+
+  /// Tutar satırın ortasına hizalanır (kayıt ve seçenek satırları); kartın
+  /// başlığında üstte durur.
+  final bool centered;
+
+  @override
+  Widget build(BuildContext context) {
+    if (amount == null) return label;
+    if (MediaQuery.textScalerOf(context).scale(16) > 24) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          label,
+          const SizedBox(height: AppSpacing.xSmall),
+          amount!,
+        ],
+      );
+    }
+    return Row(
+      crossAxisAlignment: centered
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
+      children: [
+        Expanded(child: label),
+        const SizedBox(width: AppSpacing.small),
+        amount!,
+      ],
+    );
+  }
+}
+
+/// Satır bütünü onay kutusudur; cevapsız satır karışık durumuyla okunur.
 class _CheckRow extends StatelessWidget {
   const _CheckRow({
     required this.title,
@@ -698,7 +1236,7 @@ class _CheckRow extends StatelessWidget {
 
   final String title;
   final String subtitle;
-  final bool value;
+  final bool? value;
   final bool enabled;
   final ValueChanged<bool> onChanged;
   final String? amount;
@@ -708,51 +1246,72 @@ class _CheckRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final surfaces = AppSurfaces.of(context);
-    return MergeSemantics(
+    void toggle() => onChanged(!(value ?? false));
+    return Semantics(
+      checked: value ?? false,
+      mixed: value == null,
+      enabled: enabled,
+      label: [
+        title,
+        subtitle,
+        if (amount != null && currency != null)
+          MoneyText.format(amount!, currency!),
+      ].join(', '),
+      onTap: enabled ? toggle : null,
+      excludeSemantics: true,
       child: InkWell(
-        onTap: enabled ? () => onChanged(!value) : null,
+        onTap: enabled ? toggle : null,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 48),
+          constraints: const BoxConstraints(minHeight: 56),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.xSmall),
             child: Row(
               children: [
-                Checkbox(
-                  value: value,
-                  onChanged: enabled
-                      ? (selection) => onChanged(selection ?? false)
-                      : null,
-                ),
-                const SizedBox(width: AppSpacing.xSmall),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Text(
-                        subtitle,
-                        style: theme.textTheme.bodySmall?.copyWith(
+                SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: value == null
+                      ? Icon(
+                          Icons.help_outline,
+                          size: 20,
                           color: surfaces.inkMuted,
+                        )
+                      : Checkbox(
+                          value: value,
+                          onChanged: enabled ? (_) => toggle() : null,
                         ),
-                      ),
-                    ],
+                ),
+                Expanded(
+                  child: _LabelAmount(
+                    centered: true,
+                    label: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (subtitle.isNotEmpty)
+                          Text(
+                            subtitle,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: surfaces.inkMuted,
+                            ),
+                          ),
+                      ],
+                    ),
+                    amount: amount != null && currency != null
+                        ? AppMoneyText(
+                            amount: amount!,
+                            currency: currency!,
+                            size: AppMoneySize.body,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          )
+                        : null,
                   ),
                 ),
-                if (amount != null && currency != null) ...[
-                  const SizedBox(width: AppSpacing.small),
-                  AppMoneyText(
-                    amount: amount!,
-                    currency: currency!,
-                    size: AppMoneySize.body,
-                  ),
-                ],
               ],
             ),
           ),

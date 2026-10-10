@@ -1629,7 +1629,28 @@ derlendi.
 | Kasa kartı ve kapılar | `day_close_test` → `Kasa kartı`, `cash_pos_feature_test` | Gün açıkken `Gün sonunu gir`, kapalıyken yazdığı ve `Ek gün sonu gir`; Kasa kartı paneli açar; menüden gelen panel vazgeçince geldiği ekrana döner; Kasa'da "Gün sonu sayımı" metni kalmadı |
 | "+" menüsü | `quick_add_test` | İşletme profilinde `POS tahsilatı`nın yerinde `Gün sonu`; kişisel profilde `Gün sonu` yok |
 | İşlemler | `activity_models_test`, `activity_detail_sheet_test` | `day-close` kökeni okunur (bilinmeyen köken reddedilir); gün sonundan gelen kayıt iptal sunmaz, nedenini söyler ve `Gün sonunu gör`e götürür |
-| Ekran görüntüsü | `test/screenshots/gun_sonu_screenshot_test` | Yalnız `SCREENSHOT_DIR` ile: boş ve dolu panel, toplamdan hesaplanan kart, kapalı gün, ayrıntı, Kasa kartı |
+| Ekran görüntüsü | `test/screenshots/gun_sonu_screenshot_test` | Yalnız `SCREENSHOT_DIR` ile: teslimin sekiz gerçek panel hâli (G1, G2, G3, G4, G5, G4b, G4c, G6), kapalı gün, ayrıntı ve Kasa kartı; `gunsonu-04-toplamdan` kaldırıldı |
+
+### Panel teslimi (10 Ekim 2026)
+
+`day_close_test.dart` içindeki `gün sonu paneli` grubu teslimin yerleşimine
+uyar; model ve `DayCloseAnswers` güvence testleri korunur. Örnekler
+`test/helpers/day_close_handoff.dart` içinde sabit sunucu cevaplarıdır;
+panel hiçbir sonucu hesaplamaz. Gerçek kareler `SCREENSHOT_DIR` ile çizilir,
+Git'e alınmaz. Karşılaştırma raporu
+`research/DIS-GOZ-2026-10-10-gun-sonu-panel-teslim-karsilastirmasi.md`.
+
+| Kapı | Doğrulama |
+|---|---|
+| Toplu cevap ve üç hâl | Ray ilk başta ve karışık cevapta seçimsiz; hepsi/hiçbiri tüm sorulan kayıtları cevaplar; satır cevapsız → içinde → değil → içinde; cevapsız semantiği `CheckedState.mixed` |
+| Görünürlük | Nakit boşken nakit satırları ve soru gizli, kartlı satır görünür; yalnız yazılan alanın kartı var; görünür kayıt yoksa bölüm yok |
+| Sorunun yeri ve cevapları | Çift kendi bloğunun üstünde; ayrı `0.0000`, içinde `maximumOverlap`, kısmi girilen tutar; kısmi sonuç önizlemeden; boş kısmi cevap kaydı açmaz |
+| Seçenek adı | Satış ve fatura için tahsilatın daha büyük olduğu ve olmadığı dört ad; iki kişi kendi sorusuyla bağımsız cevaplanır |
+| Yeniden sorma | Satır seçimi değişince soru ve cevabı unutulur; çift yeniden dahil olunca cevapsız; aynı kişinin dışarıda kalan başka satışı dahil çiftin sorusunu gizlemez; listeden kayıt düşünce duran cevaplar kalır, eski radyo ve kısmi alan temizlenir |
+| Yazılacak | Cevapsızken sayı yerine seçim cümlesi, kaydet kapalı, uyarı kutusu yok; nakit/POS dökümü ve toplam farkının tam cümlesi; faturanın dökümü fatura adını kullanır |
+| Erişilebilirlik | 375 dp genişlikte uzun kişi adı, ortak soru ve kısmi alan 2.0× yazıda açık/koyu temada taşmaz; hedef boyutu, adlandırma ve kontrast kapıları geçer |
+| Girdi ve eski önizleme | Türkçe binlik girişi ve 19 haneli tutarın dört ondalığı kayıpsız; önizleme beklenirken kaydet kapalı |
+
 ## Aşama 06.3 Grup 5 — Gün sonu: sayılan kayıtların bağı ve günün ayrıntısı (4 Ekim 2026)
 
 Emülatör turunda çıkan iki sorunun düzeltmesi: düşülen kayıt ek gün sonunda
@@ -2052,9 +2073,9 @@ kısım yazıldı.
 
 | Kural | Test | Ne gösterir |
 |---|---|---|
-| Düşülenin dökümü ve giriş anı | `DayCloseDeferredSalesEndpointTests.Preview_BreaksDownWhatIsAlreadyRecorded` (Api, yeni) | 1.670 − 670 = 1.000 (250 satış + 420 tahsilat); yalnız biri içindeyken 550; veresiye satış kendi alanında; her kayıt `createdAtUtc` taşır; nakit boşken döküm sıfırdır ve kartlı kayıt kendi POS'undan düşer (1.300 − 800 = 500) |
+| Düşülenin dökümü | `DayCloseDeferredSalesEndpointTests.Preview_BreaksDownWhatIsAlreadyRecorded` (Api, yeni) | 1.670 − 670 = 1.000 (250 satış + 420 tahsilat); yalnız biri içindeyken 550; veresiye satış kendi alanında; nakit boşken döküm sıfırdır ve kartlı kayıt kendi POS'undan düşer (1.300 − 800 = 500) |
 | Üç cevabın sonucu | `DayCloseDeferredSalesEndpointTests.OverlapGroup_CarriesTheResultOfEachAnswer` (Api, yeni) | 500 satış + 300 tahsilat: ayrı ayrı 800, içinde 500, 200 ortakla 600; tahsilat büyükse `largerSide: collections`; eşitse `sales`; fatura grubu `kind: obligation`; döküm 700 + 400 + 1.050 − 800 = 1.350; günün ekranı saklanan grupları aynı alanlarla verir |
-| Model | `day_close_test` → `depo` (3; 2 yeni) | İstek `overlaps` taşır; cevap isteyen kayıt `included` boş gelir; grup, döküm ve giriş anı okunur; adsız fatura ve hesabı olmayan veresiye satış (boş `title`, boş `accountName`) okunur; saati olmayan eski kayıt okunur |
+| Model | `day_close_test` → `depo` (3; 2 yeni) | İstek `overlaps` taşır; cevap isteyen kayıt `included` boş gelir; grup ve döküm okunur; adsız fatura ve hesabı olmayan veresiye satış (boş `title`, boş `accountName`) okunur |
 | Cevaplar | `day_close_test` → `cevaplar` (yeni, 6) | Satır cevapsız → içinde → değil → içinde; toplu cevap karışıkken ve cevapsızken boştur; seçimi değişen grubun ortak tutarı düşer, öbürününki kalır; liste yenilenince duran kayıtların cevabı kalır, düşen kaydın cevabı ve grubunun ortak tutarı düşer, yeni gelen kayıt cevapsızdır; nakit boşken ortak tutar bekler |
 | Panel (geçici, eski yerleşim) | `day_close_test` → `gün sonu paneli` (3 yeni, 4 güncellendi) | Cevaplanmamış tahsilatla kaydedilmez; yalnız kart yazılınca sorulmaz; listeden düşen kaydın cevabı gönderilmez; cevap isteyen kaydın cevabı hep gönderilir |
 | Gün ekranı | `day_close_test` → `gün ayrıntısı` (1 yeni) | Sayılan satırı türü ayırır (`Sayıldı · veresiye satış`, `Sayıldı · tahsilat`); ortak tutar `İkisinde de var · bir kez sayıldı` satırında eksiyle yazar |

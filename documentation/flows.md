@@ -127,22 +127,35 @@ kartlı satışı bir POS tahsilatı olur.
 ```text
 İşlem ekle -> Gün sonu      (işletme profilinde; "POS tahsilatı"nın yerinde)
 Kasa -> Gün sonu kartı -> "Gün sonunu gir"
-     -> panel: Gün · Nakit · her POS için bir alan · Toplam
+     -> panel: Gün · Nakit tutarı · ana POS (diğerleri açılır) · Toplam (isteğe bağlı)
         (her taraf yalnız kendi tutarı yazıldıysa kayıt üretir; boş alan
          gönderilmez ve toplamdan hesaplanmaz)
      -> POST /api/v1/day-closes/preview        (her değişiklikte; hiçbir şey yazmaz)
-        -> "Gün sonu tutarında var mı?": o gün tek tek girilmiş kayıtlar
-           satışlar ve POS tahsilatları işaretli, nakit cari tahsilat işaretsiz
-           işaret değişince yalnız değişen kayıt gönderilir (recordOverrides)
-        -> "Yazılacak": nakit satış (kasa, düşülen), her POS (düşülen, komisyon,
-           beklenen gün); tutarların hepsi önizlemeden
+        -> "Gün içinde girilenler": önce hazır işaretli nakit/kart kayıtları
+           (nakit boşsa nakit kayıtları ve aşağıdaki soru gizli; kartlılar görünür)
+           "İşaretli kayıtlar yazılan tutarın içindedir; tekrar kaydedilmez."
+        -> "Bunlar yazdığınız nakit tutarın içinde mi?": seçimsiz iki dilimli ray
+           "Hepsi içinde" / "Hiçbiri"; tahsilat, veresiye satış ve alacak faturası
+           cevapsız -> içinde -> değil -> içinde; karışık cevaplarda ray seçimsiz
+           hazır işaretli kaydın yalnız değişen işareti, sorulan her kaydın cevabı
+           gönderilir (recordOverrides); satırlarda saat yazılmaz
+        -> aynı kişinin/faturanın satış ve tahsilatı dahilse o kayıtların altında
+           soru: "İkisi ayrı ayrı" (overlaps: 0), biri öbürünün içinde
+           (overlaps: maximumOverlap) / "Bir kısmı ikisinde de var"
+           ("İkisinde de sayılan" alanı); seçenek tutarları sunucudan gelir
+           satır seçimi değişince o sorunun cevabı unutulur; duran kayıtların
+           cevapları liste yenilenince korunur (DayCloseAnswers)
+        -> "Yazılacak": yalnız yazılan alanın kartı; "Yeni nakit satış", kasa ve
+           kategori; "Nakit tutarı" / "Zaten kayıtlı" ve sunucunun deductions dökümü;
+           POS kartında satış, komisyon ve hesaba geçiş günü, varsa kayıtlı tutar
+           cevapsızken sayı yerine seçim açıklaması; kaydet kapalı, uyarı kutusu yok
         -> toplam nakit + karttan farklıysa fark bildirimi (neden tahmin
            edilmez; fark kaydedilmez); kayıt engellenmez
         -> engel (blockerCode) ilgili alanın yanında söylenir, kayıt gönderilmez
      -> "Kasayı ya da kategoriyi değiştir": kasa ve satış kategorisi
         (seçili gelir; sunucu seçemediyse alanlar kendiliğinden açılır)
      -> POST /api/v1/day-closes {clientRequestId, date, cashAmount?, posAmounts,
-                                 totalAmount?, recordOverrides, isAdditional}
+                                 totalAmount?, recordOverrides, overlaps, isAdditional}
      -> nakit kasaya girer; kart parası yolda, komisyon gider yazılır
 
 Gün zaten kapalı

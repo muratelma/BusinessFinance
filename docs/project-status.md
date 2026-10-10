@@ -549,7 +549,7 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     satışın Planlananlar'a eklenmesi ve Planlananlar süzgeçleri kategori ve
     hesap sayfalarından sonra (kullanıcı kararı, 10 Ekim 2026)
   - **06.3 — gün sonunda vadeli satış ve tahsilat (10 Ekim 2026; sunucu
-    yazıldı, panel bekliyor, commit'lenmedi)**: kullanıcı G1–G4 ve G6'yı
+    ve cevap modeli `f041286`'da, panel teslimi aşağıda)**: kullanıcı G1–G4 ve G6'yı
     onayladı (karar tablosu ve Tablo 1–8 aşama belgesinde, Grup 5'in sonu; üç
     dış göz turu `research/DIS-GOZ-2026-10-10-*.md`). Toplamdan nakit ya da
     kart hesaplanmaz; o günün veresiye satışı ve alacak faturası listededir;
@@ -571,6 +571,42 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     test atlanır), build 0 uyarı, format temiz; Flutter 1120 (124 atlanır),
     analyze ve format temiz. **Sırada:** Claude Design teslimi gelince panel;
     sonra tam kontroller ve commit. Sunucu ve uygulama birlikte güncellenir
+  - **06.3 — gün sonu paneli teslimi (10 Ekim 2026; `f041286`'dan sonraki
+    commit, `gun-sonu-panel` dalından `ui-trials` ve `main`'e birleştirildi)**: kullanıcı isteğiyle `ui-trials` son
+    commit'i `f041286`'dan yeni dal açıldı. Yalnız Flutter paneli ve ilgili
+    belgeler değişti; backend ve API yeniden başlatılmadı. Panel teslim
+    README'sine göre yazıldı: `Nakit tutarı`, seçimsiz toplu cevap rayı,
+    üç hâlli kayıtlar, kendi satırlarının altında kişi/fatura sorusu,
+    sunucunun sayılarıyla dökümlü `Yazılacak`, cevapsızken açıklama ve kapalı
+    kaydet, toplam farkının doğal Türkçe cümlesi. Para alanları mevcut
+    Türkçe biçimleyiciyle ve kayıpsız dört ondalıkla gider. `DayCloseAnswers`
+    değişmedi; liste yenilemesinde eski soru cevabının görsel seçimi de
+    temizlenir, kalan kayıt cevapları korunur. Yeni paket, token veya renk
+    yok. Sekiz teslim hâli gerçek panelden çizilip karşılaştırıldı;
+    görüntüler `tasarim-onizleme/gun-sonu-panel/` altında Git dışıdır.
+    Çizilmemiş hâller ve teslimdeki ayrımlar
+    `research/DIS-GOZ-2026-10-10-gun-sonu-panel-teslim-karsilastirmasi.md`
+    içinde. **Kontroller:** Flutter analyze temiz; `dart format
+    --set-exit-if-changed lib test` 338 dosyada 0 değişiklik; tam Flutter
+    **1135 test geçti, 129 görüntü testi atlandı**; gün sonu dosyası **54
+    test**, etkin görüntü koşusu **13/13** (sekiz panel ve beş korunmuş
+    ayrıntı/Kasa karesi); Android debug APK derlendi. Uzun ad ve 375 dp
+    genişlikte 2.0× yazı, açık/koyu tema erişilebilirlik kapıları geçti.
+    **İnceleme ve kullanıcı kararları (aynı gün):** kareler teslimle
+    karşılaştırıldı; soru bloğunun altındaki açıklama cümlesi yerine
+    `Kayıtlı sayılan` sütun başlığı, işaretli satır yokken çizgi yok, tutar
+    satırın ortasında, kısmi alan binlik ayırıcılı. Kullanıcı kararıyla soru
+    bloğunda kişinin adı ve satırda saat yazılmaz (`createdAtUtc`
+    sözleşmeden ve modelden kalktı); panel 16 dp yan boşlukla açılır
+    (`AppFormSheet.horizontalPadding`; öbür formlar 24 dp, deneme
+    niteliğinde) ve kural ile soru cümleleri harf aralıksızdır, böylece
+    teslimdeki gibi tek satıra sığar. Gün ekranı panelle aynı kelimeleri
+    kullanır (`Tahsilat`, `Kartla`). Son kontroller: backend gerçek SQL ile
+    Domain 393, Application 398, Api 317, Infrastructure 248 (+2 atlanır),
+    build 0 uyarı, format temiz; Flutter 1135 (129 atlanır), analyze ve
+    format temiz; debug APK derlendi. Cihaz kabulü yapılmadı: sentetik
+    deneme verisi ve adımlar `research/DEVIR-2026-10-11.md` §3'te. Push
+    kullanıcıda.
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni (beklemede) → **06.3 bütünsel düzenleme (aktif)** →

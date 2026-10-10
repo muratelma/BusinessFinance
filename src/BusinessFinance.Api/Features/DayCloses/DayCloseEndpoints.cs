@@ -70,9 +70,7 @@ public sealed record DayCloseExistingRecordResponse(
     // Satışı ile tahsilatı aynı parayı gösterebilecek kayıtların grubu: cari
     // kayıtta kişi, alacak faturasında fatura.
     Guid? GroupId = null,
-    string? GroupName = null,
-    // Kaydın uygulamaya girildiği an; bu bilgiden önce yazılmış kayıtta boş.
-    DateTimeOffset? CreatedAtUtc = null);
+    string? GroupName = null);
 
 /// <summary>
 /// Ortak tutarı sorulan (ya da saklanmış) bir grup. <c>OverlapAmount</c> boşsa
@@ -538,8 +536,7 @@ public static class DayCloseEndpoints
         record.IsCardCollection,
         record.RequiresAnswer,
         record.GroupId,
-        record.GroupName,
-        record.CreatedAtUtc);
+        record.GroupName);
 
     private static DayCloseOverlapGroupResponse ToResponse(DayCloseOverlapGroupDto group) => new(
         group.GroupId,

@@ -1,4 +1,5 @@
 import 'package:business_finance_mobile/core/models/data_choice.dart';
+import 'package:business_finance_mobile/core/widgets/app_form_sheet.dart';
 import 'package:business_finance_mobile/features/day_close/data/day_close_repository.dart';
 import 'package:business_finance_mobile/features/day_close/presentation/day_close_controller.dart';
 import 'package:business_finance_mobile/features/day_close/presentation/day_close_detail.dart';
@@ -7,98 +8,147 @@ import 'package:business_finance_mobile/features/pos/data/pos_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../helpers/day_close_handoff.dart';
 import 'screenshot_harness.dart';
 
-/// Gün sonu paneli (Aşama 06.3 Grup 5, ADR 0019 T1–T2). Tasarım teslimi yok;
-/// mevcut dille kuruldu.
+/// Teslimin sekiz hâli gerçek gün sonu panelinden çizilir.
 void main() {
   Future<void> open(
     WidgetTester tester,
     String name, {
-    required _DesignDayClose repository,
+    required DayCloseRepositoryContract repository,
+    Size frame = designFrame,
     Future<void> Function(WidgetTester tester)? then,
   }) => captureScreen(
     tester,
     name,
-    Scaffold(
-      appBar: AppBar(title: const Text('Kasa')),
-      body: const SizedBox.expand(),
-    ),
+    const Scaffold(body: SizedBox.expand()),
     withNavBar: false,
+    frame: frame,
     before: (tester) async {
+      final controller = DayCloseController(repository);
+      addTearDown(controller.dispose);
       showDayCloseForm(
-        tester.element(find.text('Kasa')),
-        DayCloseController(repository),
-        initialDate: '2026-10-03',
+        tester.element(find.byType(Scaffold).first),
+        controller,
+        initialDate: '2026-10-10',
       );
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
       await then?.call(tester);
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
+      // Tam panel karesi: gerçek bileşen, 412 dp genişlik, üstte 56 dp perde.
+      final height = tester.getSize(find.byType(AppFormSheet<bool>)).height;
+      tester.view.physicalSize = Size(412, height + 56 + 48) * 2;
+      await tester.pumpAndSettle();
     },
   );
 
-  Future<void> fill(WidgetTester tester) async {
-    await tester.enterText(
-      find.byKey(const ValueKey('day-close-cash')),
-      '3350',
-    );
-    await tester.enterText(
-      find.byKey(const ValueKey('day-close-pos-ziraat')),
-      '2680',
-    );
+  Future<void> type(WidgetTester tester, String key, String value) async {
+    await tester.enterText(find.byKey(ValueKey(key)), value);
     await tester.pump(const Duration(milliseconds: 400));
-    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
   }
 
-  testWidgets('boş panel', (tester) async {
-    await open(tester, 'gunsonu-01-bos', repository: _DesignDayClose());
-  }, skip: !screenshotsEnabled);
+  Future<void> tap(WidgetTester tester, Finder finder) async {
+    await tester.ensureVisible(finder);
+    await tester.tap(finder);
+    await tester.pumpAndSettle();
+  }
 
-  testWidgets('dolu panel: üst', (tester) async {
-    await open(
-      tester,
-      'gunsonu-02-dolu-ust',
-      repository: _DesignDayClose(),
-      then: fill,
-    );
-  }, skip: !screenshotsEnabled);
-
-  testWidgets('dolu panel: yazılacaklar', (tester) async {
-    await open(
-      tester,
-      'gunsonu-03-dolu-alt',
-      repository: _DesignDayClose(),
-      then: (tester) async {
-        await fill(tester);
-        await tester.drag(
-          find.byType(SingleChildScrollView).last,
-          const Offset(0, -900),
-        );
-        await tester.pump(const Duration(seconds: 1));
-      },
-    );
-  }, skip: !screenshotsEnabled);
-
-  testWidgets('toplamdan hesaplanan kart', (tester) async {
-    await open(
-      tester,
-      'gunsonu-04-toplamdan',
-      repository: _DesignDayClose(records: false),
-      then: (tester) async {
-        await tester.enterText(
-          find.byKey(const ValueKey('day-close-cash')),
-          '3350',
-        );
-        await tester.enterText(
-          find.byKey(const ValueKey('day-close-total')),
-          '6030',
-        );
-        await tester.pump(const Duration(milliseconds: 400));
-        await tester.pump(const Duration(seconds: 1));
-      },
-    );
-  }, skip: !screenshotsEnabled);
-
+  const names = [
+    '01-g1-cevap-bekleyen',
+    '02-g2-cevaplanmis-ve-hesap',
+    '03-g3-bazilari-dahil',
+    '04-g4-satis-ve-tahsilat-birlikte',
+    '05-g5-toplam-farki',
+    '06-g4b-alacak-faturasi-ve-tahsilat',
+    '07-g4c-ayni-gun-iki-kisi',
+    '08-g6-nakit-bos-kartli-kayit',
+  ];
+  for (var index = 0; index < names.length; index++) {
+    final frameNumber = index + 1;
+    testWidgets('teslim ${names[index]}', (tester) async {
+      await open(
+        tester,
+        'gunsonu-${names[index]}',
+        repository: HandoffDayCloseRepository(frameNumber),
+        frame: Size(
+          412,
+          frameNumber == 7
+              ? 1900
+              : frameNumber == 4 || frameNumber == 6
+              ? 1600
+              : frameNumber == 5 || frameNumber == 8
+              ? 1050
+              : 1400,
+        ),
+        then: (tester) async {
+          if (frameNumber == 5 || frameNumber == 8) {
+            await type(
+              tester,
+              'day-close-pos-ziraat',
+              frameNumber == 5 ? '500' : '1300',
+            );
+            if (frameNumber == 5) await type(tester, 'day-close-total', '1800');
+            return;
+          }
+          await type(
+            tester,
+            'day-close-cash',
+            frameNumber <= 3
+                ? '1670'
+                : frameNumber == 7
+                ? '2400'
+                : '1600',
+          );
+          if (frameNumber == 1) return;
+          await tap(
+            tester,
+            find.text(frameNumber <= 3 ? 'Hiçbiri' : 'Hepsi içinde'),
+          );
+          if (frameNumber <= 3) {
+            await tap(
+              tester,
+              find.byKey(
+                const ValueKey('day-close-record-counterparty-payment/ahmet'),
+              ),
+            );
+            if (frameNumber == 2) {
+              await tap(
+                tester,
+                find.byKey(
+                  const ValueKey(
+                    'day-close-record-counterparty-payment/mehmet',
+                  ),
+                ),
+              );
+            }
+          } else if (frameNumber == 4) {
+            await tap(
+              tester,
+              find.byKey(const ValueKey('day-close-overlap-mehmet-partial')),
+            );
+            await type(tester, 'day-close-shared-mehmet', '200');
+          } else if (frameNumber == 6) {
+            await tap(
+              tester,
+              find.byKey(const ValueKey('day-close-overlap-invoice-inside')),
+            );
+          } else {
+            await tap(
+              tester,
+              find.byKey(const ValueKey('day-close-overlap-mehmet-separate')),
+            );
+            await tap(
+              tester,
+              find.byKey(const ValueKey('day-close-overlap-ahmet-inside')),
+            );
+          }
+        },
+      );
+    }, skip: !screenshotsEnabled);
+  }
   testWidgets('gün ayrıntısı: ana ve ek gün sonu', (tester) async {
     await captureScreen(
       tester,
@@ -224,7 +274,6 @@ void main() {
 
 class _DesignDayClose implements DayCloseRepositoryContract {
   _DesignDayClose({
-    this.records = true,
     this.closed = false,
     this.closes = const [],
     this.cashTotal,
@@ -232,7 +281,7 @@ class _DesignDayClose implements DayCloseRepositoryContract {
     this.outside = true,
   });
 
-  final bool records;
+  final bool records = true;
   final bool closed;
   final List<DayClose> closes;
 

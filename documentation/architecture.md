@@ -1146,9 +1146,9 @@ tutar taşımayan kimlik o reddin dışındadır (kullanıcı kararı, 4 Ekim 20
   `DayCloseCashDeductionsDto`): grubun üç cevabının sonucu (`separateAmount`,
   `insideAmount`, verilen cevapla `deductedAmount`), hangi tarafın büyük
   olduğu (`largerSide`) ve grubun türü (`kind`); nakitten düşülenin dökümü
-  (tek tek girilmiş satış, tahsilat, veresiye satış, fatura ve ortak tutar);
-  kaydın giriş anı (`createdAtUtc`; eski kayıtta boş). İstemci bunların
-  hiçbirini toplamaz.
+  (tek tek girilmiş satış, tahsilat, veresiye satış, fatura ve ortak tutar).
+  İstemci bunların hiçbirini toplamaz. Kaydın giriş anı gönderilmez: panel
+  saat yazmaz (kullanıcı kararı, 10 Ekim 2026).
 - **İşaretli kayıtlar tutarı aşarsa** istek reddedilir
   (`day_closes.existing_exceeds_cash` / `_card`). Yazılacak tutar sıfırsa o
   taraf için kayıt üretilmez; **hiç kayıt üretmeyen gün sonu meşrudur** ve günü

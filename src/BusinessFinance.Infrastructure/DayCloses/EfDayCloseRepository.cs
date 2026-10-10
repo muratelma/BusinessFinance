@@ -249,7 +249,6 @@ internal sealed class EfDayCloseRepository(
                 Amount = transaction.Amount.Amount,
                 Title = transaction.Description ?? category.Name,
                 AccountName = account.Name,
-                CreatedAtUtc = EF.Property<DateTimeOffset?>(transaction, EntryTimestamp.PropertyName),
                 CountedBy = dbContext.DayCloseCountedRecords
                     .Where(counted => counted.UserId == userId &&
                                       counted.Kind == DayCloseRecordKind.Income &&
@@ -292,7 +291,6 @@ internal sealed class EfDayCloseRepository(
                 settlement.PosDefinitionId,
                 settlement.Kind,
                 AccountName = account.Name,
-                CreatedAtUtc = (DateTimeOffset?)settlement.CreatedAtUtc,
                 CountedBy = dbContext.DayCloseCountedRecords
                     .Where(counted => counted.UserId == userId &&
                                       counted.Kind == DayCloseRecordKind.PosSettlement &&
@@ -328,7 +326,6 @@ internal sealed class EfDayCloseRepository(
                 payment.CounterpartyId,
                 CounterpartyName = counterparty.Name,
                 AccountName = account.Name,
-                CreatedAtUtc = EF.Property<DateTimeOffset?>(payment, EntryTimestamp.PropertyName),
                 CountedBy = dbContext.DayCloseCountedRecords
                     .Where(counted => counted.UserId == userId &&
                                       counted.Kind == DayCloseRecordKind.CounterpartyPayment &&
@@ -361,7 +358,6 @@ internal sealed class EfDayCloseRepository(
                 Title = obligation.Description ?? string.Empty,
                 settlement.ObligationId,
                 AccountName = account.Name,
-                CreatedAtUtc = (DateTimeOffset?)settlement.SettledAtUtc,
                 CountedBy = dbContext.DayCloseCountedRecords
                     .Where(counted => counted.UserId == userId &&
                                       counted.Kind == DayCloseRecordKind.ObligationSettlement &&
@@ -394,7 +390,6 @@ internal sealed class EfDayCloseRepository(
                 Title = charge.Description ?? counterparty.Name,
                 charge.CounterpartyId,
                 CounterpartyName = counterparty.Name,
-                CreatedAtUtc = EF.Property<DateTimeOffset?>(charge, EntryTimestamp.PropertyName),
                 CountedBy = dbContext.DayCloseCountedRecords
                     .Where(counted => counted.UserId == userId &&
                                       counted.Kind == DayCloseRecordKind.CounterpartyCharge &&
@@ -418,7 +413,6 @@ internal sealed class EfDayCloseRepository(
                 Date = obligation.IssueDate,
                 Amount = obligation.Amount.Amount,
                 Title = obligation.Description ?? string.Empty,
-                CreatedAtUtc = (DateTimeOffset?)obligation.CreatedAtUtc,
                 CountedBy = dbContext.DayCloseCountedRecords
                     .Where(counted => counted.UserId == userId &&
                                       counted.Kind == DayCloseRecordKind.Obligation &&
@@ -433,8 +427,7 @@ internal sealed class EfDayCloseRepository(
             .. incomes.Select(row => new RecordRow(
                 new DayCloseExistingRecordDto(
                     DayCloseRecordKind.Income, row.Id, DayCloseSide.Cash, row.Date, row.Amount,
-                    row.Title, null, row.AccountName, true, true,
-                    CreatedAtUtc: row.CreatedAtUtc),
+                    row.Title, null, row.AccountName, true, true),
                 row.CountedBy)),
             // Vadeli satış ve nakit tahsilat hazır cevapla gelmez (cevap boş):
             // girilen tutarın içinde olup olmadıkları kayıtlardan bilinemez.
@@ -443,35 +436,32 @@ internal sealed class EfDayCloseRepository(
                     DayCloseRecordKind.CounterpartyCharge, row.Id, DayCloseSide.Cash, row.Date,
                     row.Amount, row.Title, null, string.Empty, false, null,
                     RequiresAnswer: true, GroupId: row.CounterpartyId,
-                    GroupName: row.CounterpartyName, CreatedAtUtc: row.CreatedAtUtc),
+                    GroupName: row.CounterpartyName),
                 row.CountedBy)),
             .. counterpartyPayments.Select(row => new RecordRow(
                 new DayCloseExistingRecordDto(
                     DayCloseRecordKind.CounterpartyPayment, row.Id, DayCloseSide.Cash, row.Date,
                     row.Amount, row.Title, null, row.AccountName, false, null,
                     RequiresAnswer: true, GroupId: row.CounterpartyId,
-                    GroupName: row.CounterpartyName, CreatedAtUtc: row.CreatedAtUtc),
+                    GroupName: row.CounterpartyName),
                 row.CountedBy)),
             .. obligations.Select(row => new RecordRow(
                 new DayCloseExistingRecordDto(
                     DayCloseRecordKind.Obligation, row.Id, DayCloseSide.Cash, row.Date,
                     row.Amount, row.Title, null, string.Empty, false, null,
-                    RequiresAnswer: true, GroupId: row.Id, GroupName: row.Title,
-                    CreatedAtUtc: row.CreatedAtUtc),
+                    RequiresAnswer: true, GroupId: row.Id, GroupName: row.Title),
                 row.CountedBy)),
             .. obligationSettlements.Select(row => new RecordRow(
                 new DayCloseExistingRecordDto(
                     DayCloseRecordKind.ObligationSettlement, row.Id, DayCloseSide.Cash, row.Date,
                     row.Amount, row.Title, null, row.AccountName, false, null,
-                    RequiresAnswer: true, GroupId: row.ObligationId, GroupName: row.Title,
-                    CreatedAtUtc: row.CreatedAtUtc),
+                    RequiresAnswer: true, GroupId: row.ObligationId, GroupName: row.Title),
                 row.CountedBy)),
             .. settlements.Select(row => new RecordRow(
                 new DayCloseExistingRecordDto(
                     DayCloseRecordKind.PosSettlement, row.Id, DayCloseSide.Card, row.Date,
                     row.Amount, row.Title ?? string.Empty, row.PosDefinitionId, row.AccountName,
-                    true, true, row.Kind == PosSettlementKind.Collection,
-                    CreatedAtUtc: row.CreatedAtUtc),
+                    true, true, row.Kind == PosSettlementKind.Collection),
                 row.CountedBy)),
         ];
     }
