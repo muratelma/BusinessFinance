@@ -534,16 +534,19 @@ class _CounterpartyDetailPageState extends State<CounterpartyDetailPage> {
   }
 
   Future<void> _edit(CounterpartySummary person) async {
-    final payload = await AppFormSheet.show<Map<String, Object?>>(
+    await AppFormSheet.show<Map<String, Object?>>(
       context: context,
-      builder: (_) => CounterpartyForm(existing: person),
-    );
-    if (payload == null) return;
-    await controller.update(
-      person.id,
-      name: payload['name']! as String,
-      isActive: payload['isActive']! as bool,
-      note: payload['note'] as String?,
+      builder: (_) => CounterpartyForm(
+        existing: person,
+        onSave: (payload) => controller.refusalOf(
+          controller.update(
+            person.id,
+            name: payload['name']! as String,
+            isActive: payload['isActive']! as bool,
+            note: payload['note'] as String?,
+          ),
+        ),
+      ),
     );
   }
 

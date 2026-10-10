@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_surfaces.dart';
 import 'app_adaptive_sheet.dart';
+import 'app_form_error.dart';
 import 'app_submit_button.dart';
 
 /// Veri giren panellerin ortak kabuğu: başlık, kaydırılan gövde, eylem satırı.
@@ -37,7 +38,12 @@ class AppFormSheet<T> extends StatelessWidget {
     this.cancelLabel = 'Vazgeç',
     this.secondaryLabel,
     this.onSecondary,
+    this.errorMessage,
   });
+
+  /// Kaydın reddi. Eylem satırının hemen üstünde, kaydırılan gövdenin
+  /// dışında durur: gövde nerede olursa olsun `Kaydet`e basan onu görür.
+  final String? errorMessage;
 
   /// Panelin ne olduğunu söyleyen başlık. Zorunludur: başlıksız bir panel
   /// kullanıcıya neyin içinde olduğunu söylemez.
@@ -119,6 +125,16 @@ class AppFormSheet<T> extends StatelessWidget {
             ),
           ),
         ),
+        if (errorMessage != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.large,
+              0,
+              AppSpacing.large,
+              AppSpacing.small,
+            ),
+            child: AppFormError(message: errorMessage!),
+          ),
         Container(
           decoration: BoxDecoration(border: Border(top: surfaces.cardBorder)),
           padding: const EdgeInsets.fromLTRB(

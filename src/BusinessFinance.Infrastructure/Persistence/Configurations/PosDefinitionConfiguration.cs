@@ -27,6 +27,20 @@ internal sealed class PosDefinitionConfiguration : IEntityTypeConfiguration<PosD
         builder.HasAlternateKey(definition => new { definition.UserId, definition.Id });
         builder.Property(definition => definition.Name)
             .HasMaxLength(PosDefinition.MaximumNameLength).IsRequired();
+        // Ad anahtarı uygulamada hesaplanır (`NameKeys`) ve ikili
+        // karşılaştırılır; veritabanının harf kuralı (Türkçe İ/i ve I/ı
+        // çiftlerini ayrı sayıyordu) teklik kararına karışmaz. Uzunluk, eski
+        // aynı adlı ikinci kaydın ayırt edici ekini de taşır.
+        builder.Property(definition => definition.NameKey)
+            .HasMaxLength(PosDefinition.MaximumNameLength + NameKeys.ApartSuffixAllowance)
+            .UseCollation("Latin1_General_100_BIN2")
+            .IsRequired();
+
+        // 9 Ekim 2026'ya kadar POS adında hiç teklik yoktu: aynı adla iki POS
+        // açılabiliyordu.
+        builder.HasIndex(definition => new { definition.UserId, definition.NameKey })
+            .IsUnique()
+            .HasDatabaseName("UX_PosDefinitions_UserId_NameKey");
         builder.Property(definition => definition.CommissionRate)
             .HasPrecision(5, PosSettlement.RateDecimals);
         builder.Property(definition => definition.TransferDays).IsRequired();

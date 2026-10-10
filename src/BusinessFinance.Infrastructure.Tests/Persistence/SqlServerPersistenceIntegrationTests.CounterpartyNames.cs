@@ -64,7 +64,7 @@ public sealed partial class SqlServerPersistenceIntegrationTests
             Assert.Equal(Counterparty.NameKeyOf(name), rows[ids[name]].NameKey);
         }
 
-        Assert.Equal("işik market", rows[ids["IŞIK  Market"]].NameKey);
+        Assert.Equal("işikmarket", rows[ids["IŞIK  Market"]].NameKey);
         Assert.Equal("ikea", rows[ids["IKEA"]].NameKey);
         Assert.Equal(
             Counterparty.NameKeyOf("örnek elektrik dağıtım a.ş."), rows[neighbourId].NameKey);

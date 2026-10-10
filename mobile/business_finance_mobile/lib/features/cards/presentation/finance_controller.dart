@@ -118,4 +118,16 @@ class FinanceController extends ChangeNotifier {
     successMessage = null;
     notifyListeners();
   }
+
+  /// Formun içinde gösterilecek ret cümlesi; kayıt yazıldıysa `null`.
+  ///
+  /// Cümleyi form söylediği için sayfanın üstündeki şeride bırakılmaz: form
+  /// kapandıktan sonra orada durursa eski bir reddi yeniymiş gibi gösterir.
+  Future<String?> refusalOf(Future<bool> write) async {
+    if (await write) return null;
+    final message = errorMessage ?? 'Kaydedilemedi. Tekrar deneyin.';
+    errorMessage = null;
+    notifyListeners();
+    return message;
+  }
 }

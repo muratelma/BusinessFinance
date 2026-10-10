@@ -137,8 +137,88 @@ public sealed class DataPortabilityTests
             ["ÖRNEK ELEKTRİK", "Örnek Elektrik"],
             restored.Select(x => x.Name).Order(StringComparer.Ordinal).ToArray());
         Assert.Equal(2, restored.Select(x => x.NameKey).Distinct(StringComparer.Ordinal).Count());
-        Assert.Single(restored, x => x.NameKey == "örnek elektrik");
-        Assert.Single(restored, x => x.NameKey == $"örnek elektrik#{x.Id:D}");
+        Assert.Single(restored, x => x.NameKey == "örnekelektrik");
+        Assert.Single(restored, x => x.NameKey == $"örnekelektrik#{x.Id:D}");
+    }
+
+    /// <summary>
+    /// Aynı kural hesap, kredi kartı, kategori ve POS için de geçerlidir: eski
+    /// bir yedek ad tekliği sıkılaşmadan önce açılmış aynı adlı kayıtlar
+    /// taşıyabilir ("İş Bankası" ile "İŞ BANKASI"). Geri yükleme hepsini
+    /// getirir, birleştirmez; ilki adı tutar, sonraki ayrı bir anahtar alır.
+    /// Kategoride teklik türle birliktedir.
+    /// </summary>
+    [Fact]
+    public async Task Backup_WithSameNamedAccountsCardsCategoriesAndPosRestoresAllAndKeepsThemApart()
+    {
+        await using var context = CreateContext();
+        var sourceUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        await SeedCompleteGraphAsync(context, sourceUserId);
+        await SeedDefaultCategoriesAsync(context, targetUserId);
+        var now = new DateTimeOffset(2026, 10, 9, 12, 0, 0, TimeSpan.Zero);
+        static Money Limit() => new(1000m, CurrencyCode.TRY);
+
+        var bank = new Account(
+            Guid.NewGuid(), sourceUserId, "İş Bankası", AccountType.Bank, CurrencyCode.TRY);
+        var sameBank = new Account(
+            Guid.NewGuid(), sourceUserId, "İŞ BANKASI", AccountType.Bank, CurrencyCode.TRY);
+        sameBank.KeepApartFromSameName();
+        var card = new CreditCard(Guid.NewGuid(), sourceUserId, "Sentetik Bonus", Limit(), 10, 20);
+        var sameCard = new CreditCard(Guid.NewGuid(), sourceUserId, "SentetikBonus", Limit(), 10, 20);
+        sameCard.KeepApartFromSameName();
+        var expense = new Category(Guid.NewGuid(), sourceUserId, "Sentetik Kalem", CategoryType.Expense);
+        var sameExpense = new Category(
+            Guid.NewGuid(), sourceUserId, "sentetik-kalem", CategoryType.Expense);
+        sameExpense.KeepApartFromSameName();
+        // Öbür türdeki aynı ad çakışma değildir.
+        var income = new Category(Guid.NewGuid(), sourceUserId, "Sentetik Kalem", CategoryType.Income);
+        var pos = new PosDefinition(
+            Guid.NewGuid(), sourceUserId, "Sentetik POS", bank, income, 0m, null, 1, false, now);
+        var samePos = new PosDefinition(
+            Guid.NewGuid(), sourceUserId, "Sentetik POS", bank, income, 0m, null, 1, false, now);
+        samePos.KeepApartFromSameName();
+        context.AddRange(
+            bank, sameBank, card, sameCard, expense, sameExpense, income, pos, samePos);
+        await context.SaveChangesAsync();
+        var service = new EfDataPortabilityRepository(context);
+
+        var backup = await service.CreateBackupAsync(sourceUserId, default);
+        await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
+
+        var accounts = await context.Accounts.AsNoTracking()
+            .Where(x => x.UserId == targetUserId && x.NameKey.StartsWith("işbankasi"))
+            .ToArrayAsync();
+        Assert.Equal(
+            ["İŞ BANKASI", "İş Bankası"],
+            accounts.Select(x => x.Name).Order(StringComparer.Ordinal).ToArray());
+        Assert.Single(accounts, x => x.NameKey == "işbankasi");
+        Assert.Single(accounts, x => x.NameKey == $"işbankasi#{x.Id:D}");
+
+        var cards = await context.CreditCards.AsNoTracking()
+            .Where(x => x.UserId == targetUserId && x.NameKey.StartsWith("sentetikbonus"))
+            .ToArrayAsync();
+        Assert.Equal(2, cards.Length);
+        Assert.Single(cards, x => x.NameKey == "sentetikbonus");
+        Assert.Single(cards, x => x.NameKey == $"sentetikbonus#{x.Id:D}");
+
+        var categories = await context.Categories.AsNoTracking()
+            .Where(x => x.UserId == targetUserId && x.NameKey.StartsWith("sentetikkalem"))
+            .ToArrayAsync();
+        Assert.Equal(3, categories.Length);
+        Assert.Single(categories, x =>
+            x.Type == CategoryType.Income && x.NameKey == "sentetikkalem");
+        Assert.Single(categories, x =>
+            x.Type == CategoryType.Expense && x.NameKey == "sentetikkalem");
+        Assert.Single(categories, x =>
+            x.Type == CategoryType.Expense && x.NameKey == $"sentetikkalem#{x.Id:D}");
+
+        var definitions = await context.PosDefinitions.AsNoTracking()
+            .Where(x => x.UserId == targetUserId && x.NameKey.StartsWith("sentetikpos"))
+            .ToArrayAsync();
+        Assert.Equal(2, definitions.Length);
+        Assert.Single(definitions, x => x.NameKey == "sentetikpos");
+        Assert.Single(definitions, x => x.NameKey == $"sentetikpos#{x.Id:D}");
     }
 
     /// <summary>

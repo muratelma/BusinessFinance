@@ -7,6 +7,12 @@ public sealed class Category
     public Guid Id { get; }
     public Guid UserId { get; }
     public string Name { get; private set; }
+
+    /// <summary>
+    /// Adın karşılaştırma anahtarı (<see cref="NameKeys"/>): "bu ad zaten var
+    /// mı?" denetimi ve veritabanındaki teklik bunu okur.
+    /// </summary>
+    public string NameKey { get; private set; }
     public CategoryType Type { get; }
     public bool IsActive { get; private set; }
 
@@ -75,6 +81,7 @@ public sealed class Category
         Id = id;
         UserId = userId;
         Name = normalizedName;
+        NameKey = NameKeys.Of(normalizedName);
         Type = type;
         IsActive = true;
         DefaultScope = TransactionScopeGuard.ValidateOptional(
@@ -126,8 +133,15 @@ public sealed class Category
                 nameof(name));
         }
 
+        NameKey = NameKeys.AfterRename(Name, NameKey, normalizedName);
         Name = normalizedName;
     }
+
+    /// <summary>
+    /// Bu kaydı, aynı adı taşıyan daha eski bir kayıttan ayrı tutar; yalnız
+    /// yükseltme ve geri yükleme içindir (<see cref="NameKeys.Apart"/>).
+    /// </summary>
+    public void KeepApartFromSameName() => NameKey = NameKeys.Apart(Name, Id);
 
     public void Activate()
     {

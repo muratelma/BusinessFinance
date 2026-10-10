@@ -139,7 +139,7 @@ Kapsam boyutunun test yüzeyi bu grupla tamamlandı.
 | `Execute_WhenOnlyASimilarNameExists_SuggestsNothing` (Application) | Benzeyen ad eşleşme değil: "Sentetik Manav" ile "Sentetik Market" aynı kişi sayılmıyor |
 | `CounterpartyNameMatcherTests` (Application, 40 durum; 8 Ekim 2026) | Belgedeki adın kişilerle eşleşmesi. **Eşleşenler:** Türkçe büyük harf, noktalama, sondaki unvan (`A.Ş.`, `San. ve Tic. Ltd. Şti.`), boşluk farkı (`A 101`/`A101`), kısa ad uzun adın başında ya da içinde bitişik, tek uzun kelimede tek harf (eksik, fazla, yanlış, yer değiştirmiş). **Eşleşmeyenler:** sektör kelimesi (`Market`, `Elektrik`), dağınık kelimeler, kısa kelime (`Su`), `Ali Kaya`/`Ali Kara`, `Yılmaz`/`Yıldız`, `Demir`/`Demirel`, iki kelimede birden fark. Aynı ölçüde uyan iki aday kimseyi önermez; daha çok kelimesi uyan ve aynı ad öne geçer; unvan kelimesi adın içindeyse atılmaz |
 | `ScannedName_MatchesOnlyTheOwnersActivePeopleAndCreatesNobody` (Infrastructure, gerçek SQL) | Eşleşme yalnız kullanıcının kendi aktif kişilerine bakar: başkasının kişisi ve pasif kişi önerilmez; kimse açılmaz |
-| `CounterpartyTests.NameKey_*`, `KeptApartCounterparty_*` (Domain) | Ad anahtarı: harf büyüklüğü ve boşluk farkı aynı addır (`IKEA`/`ikea`, `IŞIK`/`ışık`, `İkea`/`IKEA`); `Örnek`/`Ornek`, `Ahmet`/`Ahmed`, `A101`/`A 101` ayrı kalır. Ayrı tutulan eski kişi, yalnız yazımı düzeltilince anahtarını korur |
+| `CounterpartyTests.NameKey_*`, `KeptApartCounterparty_*` (Domain) | Ad anahtarı: harf büyüklüğü ve boşluk farkı aynı addır (`IKEA`/`ikea`, `IŞIK`/`ışık`, `İkea`/`IKEA`); `Örnek`/`Ornek`, `Ahmet`/`Ahmed` ayrı kalır (9 Ekim 2026'dan beri boşluk ve noktalama da sayılmaz: `A101`/`A 101` aynı addır; bkz. belgenin sonu). Ayrı tutulan eski kişi, yalnız yazımı düzeltilince anahtarını korur |
 | `CounterpartyEndpointTests.SameNameInAnotherCasing_IsRejectedOnCreateAndOnRename`, `CloseButDifferentNames_AndAnotherUsersSameName_AreAccepted` | Aynı ad başka harf büyüklüğüyle açılamaz ve başka kişiye verilemez (`409 counterparties.duplicate_name`); kişi kendi adının yazımını düzeltebilir; yakın adlar ve başka kullanıcının aynı adı kabul edilir |
 | `CounterpartyName_IsUniquePerUserAcrossTurkishCasing` (Infrastructure, gerçek SQL) | Teklik veritabanında da durur: uygulamadaki denetimi atlayan yazma aynı kişiyi açamaz |
 | `AddCounterpartyNameKey_BackfillsTheKeyAndKeepsOldDuplicatesApart` (gerçek SQL, yükseltme yolu), `MigrationHistoryTests.AddCounterpartyNameKey_*` | Eski şemada meşru olan aynı adlı iki kişi yükseltmeden sonra da durur; biri adı tutar, öteki kimliğiyle ayrılır. SQL'in doldurduğu anahtar uygulamanın hesapladığıyla aynıdır; kolon önce boş bırakılabilir gelir, teklik en son kurulur, hiçbir satır silinmez |
@@ -1935,3 +1935,94 @@ Kontroller (hepsinden sonra): backend gerçek SQL ile Domain 360, Application
 398, Api 303, Infrastructure 242 (+2 canlı test atlanır); build 0 uyarı,
 `dotnet format` temiz; Flutter 1102 (116 atlanır), `flutter analyze` ve
 `dart format` temiz.
+
+## Aşama 06.3 — ad tekliği tek kural: kişi, hesap, kart, kategori ve POS (9 Ekim 2026)
+
+Kullanıcı kararı (üç satırda da öneri): noktalama sayılmaz, Türkçe harf başka
+harftir, POS adları da tektir. Kural `NameKeys` içindedir: anahtarda yalnız
+harfler ve rakamlar kalır, dört i harfi tek harftir.
+
+Gerçek API + gerçek SQL, sentetik işletme kullanıcısı (`canli_ad.py`, geçici
+API 5291; 22 denetim, hepsi beklendiği gibi):
+
+| Deneme | Sonuç |
+|---|---|
+| Hesap `İş Bankası` varken `İŞ BANKASI`, `iş  bankası` | `409 accounts.duplicate_name` |
+| `işbankası` (boşluksuz; yeni) | `409` |
+| `İş-Bankası`, `İş Bankası.` (noktalama; karar 1) | `409` |
+| `Is Bankasi` (Türkçe harfsiz; karar 2) | `201` |
+| `İş Bankası 2`, `İş Bankası Şahsi`, `İş Bankası 4512` | `201` |
+| Başka kullanıcı `İŞ BANKASI` | `201` |
+| Hesabın adını `İŞ BANKASI` diye düzeltmek (yalnız yazım) | `200` |
+| Başka hesabı `iş-bankası` yapmak | `409 accounts.duplicate_name` |
+| Pasife alınan `Garanti` varken yeni `GARANTİ` hesabı | `409` (pasif kayıt adını tutar) |
+| `Garanti` hesabı varken `Garanti` kartı | `201` (ayrı listeler) |
+| Kart `GARANTİ`, `garanti.`, `Ga ranti` | `409 credit_cards.duplicate_name` |
+| Kart `Garanti Bonus`; adı değişmeden limit düzenleme | `201`; `200` |
+| Gider `Sentetik Kalem` varken aynı adla gelir | `201` (teklik türle birlikte) |
+| Gider `sentetik kalem`, `SentetikKalem`, `Sentetik-Kalem` | `409 categories.duplicate_name` |
+| Kişi `Ali Can` varken `Alican`, `ALİ CAN`, `Ali-Can` | `409 counterparties.duplicate_name` |
+| Kişi `A 101` varken `A101`; `Ali Can Yılmaz` | `409`; `201` |
+| POS `Garanti POS` varken `Garanti POS`, `garanti pos`, `GarantiPOS`, `Garanti-POS` (karar 3) | `409 pos_definitions.duplicate_name` |
+| POS `Garanti POS 2`; adını `GARANTİ POS` diye düzeltmek | `201`; `200` |
+| Reddedilen isteklerden sonra kayıt sayıları | 6 hesap, 3 kişi, 2 POS: hiçbiri kayıt açmadı |
+
+| Kural | Test | Ne gösterir |
+|---|---|---|
+| Anahtar | `NameKeysTests` (Domain, yeni) | Büyüklük, boşluk ve noktalama farkı aynı anahtar; Türkçe harf ve ayırt edici ek başka anahtar; dört i harfi tek; hiç harf ya da rakam yoksa ad kendi karakterleriyle; `AfterRename` yalnız yazım değişince anahtarı korur; `Apart` kimlikle ayırır |
+| Kişilerde yeni kural | `CounterpartyTests.NameKey_*` (güncellendi) | `A101` / `A 101` artık aynı ad; `Örnek` / `Ornek`, `Ahmet` / `Ahmed` ayrı |
+| Uçtan uca | `NameUniquenessEndpointTests` (Api, yeni, 2) | Hesap, kart, kategori ve POS'ta başka yazımla aynı ad `409`; yazım düzeltmek, başka tür ve başka kullanıcı serbest |
+| Veritabanında teklik | `Names_AreUniquePerUserWhateverTheCasingSpacingOrPunctuation` (gerçek SQL, yeni) | Uygulamadaki denetimi atlayan yazma da aynı adı açamaz |
+| Model | `FinancialEntityMappingTests` (güncellendi) | Teklik indeksleri `NameKey` üzerinde; POS'unki dahil |
+| Yükseltme yolu | `AddNameKeys_BackfillsEveryTableAndKeepsOldDuplicatesApart` (gerçek SQL, yeni), `MigrationHistoryTests.AddNameKeys_*` | Dolu eski şemada beş tablo doldurulur; eski aynı adlı kayıtlar durur, biri adı tutar, öteki kimliğiyle ayrılır; satır kaybı yok; sıra: kolon → doldurma → ayırma → zorunlu → indeks |
+| Geri yükleme | `DataPortabilityTests.Backup_WithSameNamedAccountsCardsCategoriesAndPosRestoresAllAndKeepsThemApart` (yeni) | Eski yedekteki aynı adlı hesap, kart, kategori ve POS birleştirilmeden geri gelir |
+| Geri yüklemenin bütünlüğü | `DataPortability_RoundTripAndFailedRestoreAreAtomic` (güncellendi) | Aynı adlı iki kategori artık geri yüklemeyi kesmediği için yarıda kesen örnek aynı kategori ve aya iki bütçe oldu; hiçbir satır kalmaz |
+| Eski yükseltme testleri | `AddTaxPlans_*`, `AddRecurringOccurrenceLimit_*`, `AddPosDeposits_*`, `RemoveVatAndTaxDeductibility_*` (güncellendi) | Eski şemaya hesap ve kategoriyi ham SQL ile yazarlar (`SeedLegacyAccountAsync`); bugünkü model o şemada olmayan `NameKey` kolonunu yazmak ister |
+| İstemci cümlesi | `api_error_messages_test` "aynı ad reddi her kayıt türünde Türkçe konuşur" (yeni) | `pos_definitions.duplicate_name` → "Bu adı taşıyan bir POS kaydı zaten var. Farklı bir ad seçin." |
+
+Yerel veritabanına uygulandı (`AddNameKeys`): 73 hesap, 12 kart, 1.199
+kategori, 7 POS ve 49 kişi yerinde; bir kart ve iki kişi (eski aynı adlılar)
+kimliğiyle ayrılan anahtar aldı; boş anahtar yok. Gerçek SQL ile çalışan API
+testlerinin kalıcı veritabanı (`BusinessFinanceApiSqlTests`) şemayı kendisi
+yükseltmez: yeni migration'dan sonra `dotnet ef database update` o veritabanına
+da uygulanır (bu koşuda ilk tam turda iki API testi bu yüzden 500 aldı).
+
+Kontroller (hepsinden sonra): backend gerçek SQL ile Domain 393, Application
+398, Api 305, Infrastructure 246 (+2 canlı test atlanır); build 0 uyarı,
+`dotnet format` temiz; Flutter 1103 (116 atlanır), `flutter analyze` ve
+`dart format` temiz.
+
+**10 Ekim 2026 — cihaz turu: reddedilen ad formda görünmüyordu.** Kullanıcı
+`Ziraat vadesiz` varken `ziraatvadesiz` hesabını denedi: sunucu doğru reddetti
+(`409 accounts.duplicate_name`), ama hesap formu cümleyi yazmadı ve geri
+dönünce hesap listesi hata ekranına dönmüştü. Kategoride 8 Ekim'de düzeltilen
+hatanın aynısı hesapta kalmıştı. Sunucu değişmedi.
+
+| Kural | Test | Ne gösterir |
+|---|---|---|
+| Reddedilen kayıt listeyi bozmaz | `account_feature_test` "reddedilen kayıt hesap listesini hata ekranına çevirmez" (yeni) | Reddedilen kayıt ve silmeden sonra yüklenmiş hesaplar yerinde, durum `ready`, cümle okunur |
+| Oturum düşerse ekran değişir | `account_feature_test` "kayıt sırasında oturum düşerse ekran oturum durumuna geçer" (yeni) | `401` yine oturum ekranına götürür |
+| Form cümleyi yazar | `account_feature_test` "reddedilen kayıt formda nedenini yazar ve liste yerinde kalır" (yeni) | Form açık kalır ve cümleyi gösterir; geri dönünce liste durur, `Tekrar dene` yok |
+| Kişi formu rette kapanmaz | `counterparties_page_test` "reddedilen kişi formu kapatmaz ve listeyi eskitmez" (yeni) | Form açık, yazılan ad yerinde, cümle formda (`AppFormError`); vazgeçince listede eski ret durmaz; `Son bilinen bakiye` rozeti yalnız düşen okumada çıkar |
+| Kart formu rette kapanmaz | `finance_feature_test` "reddedilen kart formu kapatmaz ve nedenini formda yazar" (yeni) | Form açık, yazılan ad yerinde, cümle formda; vazgeçince sayfanın şeridinde eski ret durmaz |
+| Ret görünümü | `test/screenshots/ad_reddi_screenshot_test.dart` (yeni, 3; `SCREENSHOT_DIR` ile) | Hesap formu, kart paneli ve kişi panelinde simgeli hata kutusu; çıktı `tasarim-onizleme/ad-reddi/` |
+
+Ad tekliği kullanıcının çalışan API'sinde (5284, yeni derleme) sentetik
+kullanıcıyla yeniden denendi: önceki 22 denetim ve yedi yenisi, 29'u da geçti.
+
+| Yeni denetim | Sonuç |
+|---|---|
+| `Ziraat vadesiz` varken `ziraatvadesiz` | `409 accounts.duplicate_name`; gövde `code` taşır |
+| `Ziraat-Vadesiz`; `Ziraat Vadesiz 2` | `409`; `201` |
+| `Ziraat POS` varken `ziraatpos`, `Ziraat-POS` | `409 pos_definitions.duplicate_name` |
+| Retten sonra hesap listesi | `200`, 8 hesap: API ayakta, ret kayıt açmadı |
+| Kişiyi düzenlerken `ali-can` (başka kişinin adı) | `409 counterparties.duplicate_name` |
+| Kategoriyi düzenlerken `sentetik-kalem` (aynı türde başka kategori) | `409 categories.duplicate_name` |
+
+Aynı gün kullanıcı kart ve kişi formunu da cihazda denedi: form kapanıp cümle
+arkadaki sayfanın üstünde çıkıyordu ("dikkat etmezse işlem başarılı oldu
+sanabilir"). Beş form da (hesap, kategori, POS, kart, kişi) artık rette açık
+kalır ve cümleyi `AppFormError` ile kendi içinde yazar.
+
+Kontroller: Flutter 1108 (119 atlanır), `flutter analyze` ve `dart format`
+temiz. Backend kodu değişmedi; backend testleri yeniden koşulmadı.

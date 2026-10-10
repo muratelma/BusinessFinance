@@ -55,9 +55,11 @@ public sealed class UpdateCategoryUseCase(
 
         try
         {
-            var previousName = category.Name;
+            // Adı değişmeyen (ya da yalnız yazımı düzeltilen) kategoride "bu
+            // ad var mı?" sorulmaz: anahtar aynı kalır.
+            var previousKey = category.NameKey;
             category.Rename(command.Name);
-            if (!string.Equals(previousName, category.Name, StringComparison.OrdinalIgnoreCase) &&
+            if (!string.Equals(previousKey, category.NameKey, StringComparison.Ordinal) &&
                 await repository.ExistsByNameAndTypeAsync(
                     userId,
                     category.Name,

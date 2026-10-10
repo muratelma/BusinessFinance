@@ -4,6 +4,7 @@ import 'package:business_finance_mobile/core/models/data_choice.dart';
 import 'package:business_finance_mobile/core/network/api_exception.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
 import 'package:business_finance_mobile/core/widgets/app_date_field.dart';
+import 'package:business_finance_mobile/core/widgets/app_form_error.dart';
 import 'package:business_finance_mobile/core/widgets/app_state_views.dart';
 import 'package:business_finance_mobile/features/activities/data/activity_models.dart';
 import 'package:business_finance_mobile/features/counterparties/data/counterparty_models.dart';
@@ -72,6 +73,46 @@ void main() {
 
       expect(find.byType(AppErrorView), findsOneWidget);
       expect(find.text('Cari alınamadı.'), findsOneWidget);
+    });
+
+    // Aynı adlı kişi reddedilince form kapanmaz ve cümleyi kendi içinde yazar;
+    // liste yerinde kalır, "Son bilinen bakiye" rozeti çıkmaz (okuma düşmedi)
+    // ve vazgeçince listenin üstünde eski ret durmaz.
+    testWidgets('reddedilen kişi formu kapatmaz ve listeyi eskitmez', (
+      tester,
+    ) async {
+      const sentence =
+          'Bu adı taşıyan bir Cari hesap kaydı zaten var. Farklı bir ad seçin.';
+      await _pump(
+        tester,
+        _FakeRepository(
+          createError: const ApiException(
+            code: 'counterparties.duplicate_name',
+            message: sentence,
+            statusCode: 409,
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Karşı taraf ekle'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).first, 'ahmetbakkal');
+      await tester.tap(find.text('Ekle'));
+      await tester.pumpAndSettle();
+
+      // Form açık, yazılan ad yerinde, cümle formda.
+      expect(find.text('Kişi / kurum'), findsOneWidget);
+      expect(find.text('ahmetbakkal'), findsOneWidget);
+      expect(find.byType(AppFormError), findsOneWidget);
+      expect(find.text(sentence), findsOneWidget);
+
+      await tester.tap(find.text('Vazgeç'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(sentence), findsNothing);
+      expect(find.text('Ahmet Bakkal'), findsOneWidget);
+      expect(find.text('Son bilinen bakiye'), findsNothing);
+      expect(find.byType(AppErrorView), findsNothing);
     });
   });
 
@@ -510,8 +551,10 @@ class _FakeRepository implements CounterpartyRepositoryContract {
     this.failing = false,
     this.unauthorized = false,
     this.pendingObligations = const [],
+    this.createError,
   });
 
+  final ApiException? createError;
   final List<CounterpartySummary> counterparties;
   final List<ObligationItem> pendingObligations;
   final bool failing;
@@ -622,7 +665,9 @@ class _FakeRepository implements CounterpartyRepositoryContract {
   }
 
   @override
-  Future<void> create(String name, String? note) async {}
+  Future<void> create(String name, String? note) async {
+    if (createError case final error?) throw error;
+  }
 
   @override
   Future<void> update(

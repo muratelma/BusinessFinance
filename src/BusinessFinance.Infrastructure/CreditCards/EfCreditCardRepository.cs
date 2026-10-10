@@ -20,20 +20,15 @@ internal sealed class EfCreditCardRepository(BusinessFinanceDbContext dbContext)
         Guid? exceptCreditCardId,
         CancellationToken cancellationToken)
     {
-        var query = dbContext.CreditCards
+        // Karşılaştırma adın anahtarıyla yapılır (`NameKeys`).
+        var key = NameKeys.Of(normalizedName);
+        return await dbContext.CreditCards
             .AsNoTracking()
-            .Where(card => card.UserId == userId && card.Id != exceptCreditCardId);
-
-        if (string.Equals(
-                dbContext.Database.ProviderName,
-                "Microsoft.EntityFrameworkCore.InMemory",
-                StringComparison.Ordinal))
-        {
-            var names = await query.Select(card => card.Name).ToArrayAsync(cancellationToken);
-            return names.Contains(normalizedName, StringComparer.OrdinalIgnoreCase);
-        }
-
-        return await query.AnyAsync(card => card.Name == normalizedName, cancellationToken);
+            .AnyAsync(
+                card => card.UserId == userId &&
+                        card.Id != exceptCreditCardId &&
+                        card.NameKey == key,
+                cancellationToken);
     }
 
     public Task<CreditCard?> FindOwnedByIdAsync(

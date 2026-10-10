@@ -31,9 +31,19 @@ internal sealed class CategoryConfiguration : IEntityTypeConfiguration<Category>
         builder.Property(category => category.IsActive).IsRequired();
         builder.Property(category => category.IsTax).IsRequired();
 
-        builder.HasIndex(category => new { category.UserId, category.Type, category.Name })
+        // Ad anahtarı uygulamada hesaplanır (`NameKeys`) ve ikili
+        // karşılaştırılır; veritabanının harf kuralı (Türkçe İ/i ve I/ı
+        // çiftlerini ayrı sayıyordu) teklik kararına karışmaz. Uzunluk, eski
+        // aynı adlı ikinci kaydın ayırt edici ekini de taşır.
+        builder.Property(category => category.NameKey)
+            .HasMaxLength(Category.MaximumNameLength + NameKeys.ApartSuffixAllowance)
+            .UseCollation("Latin1_General_100_BIN2")
+            .IsRequired();
+
+        // Teklik türle birlikte: gelir `Diğer` ile gider `Diğer` ikisi de durur.
+        builder.HasIndex(category => new { category.UserId, category.Type, category.NameKey })
             .IsUnique()
-            .HasDatabaseName("UX_Categories_UserId_Type_Name");
+            .HasDatabaseName("UX_Categories_UserId_Type_NameKey");
         builder.HasIndex(category => new { category.UserId, category.IsActive, category.Type, category.Name })
             .HasDatabaseName("IX_Categories_UserId_IsActive_Type_Name");
 

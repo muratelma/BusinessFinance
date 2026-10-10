@@ -31,9 +31,18 @@ internal sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
         builder.Property(account => account.OpeningBalance).HasPrecision(19, 4);
         builder.Property(account => account.IsActive).IsRequired();
 
-        builder.HasIndex(account => new { account.UserId, account.Name })
+        // Ad anahtarı uygulamada hesaplanır (`NameKeys`) ve ikili
+        // karşılaştırılır; veritabanının harf kuralı (Türkçe İ/i ve I/ı
+        // çiftlerini ayrı sayıyordu) teklik kararına karışmaz. Uzunluk, eski
+        // aynı adlı ikinci kaydın ayırt edici ekini de taşır.
+        builder.Property(account => account.NameKey)
+            .HasMaxLength(Account.MaximumNameLength + NameKeys.ApartSuffixAllowance)
+            .UseCollation("Latin1_General_100_BIN2")
+            .IsRequired();
+
+        builder.HasIndex(account => new { account.UserId, account.NameKey })
             .IsUnique()
-            .HasDatabaseName("UX_Accounts_UserId_Name");
+            .HasDatabaseName("UX_Accounts_UserId_NameKey");
         builder.HasIndex(account => new { account.UserId, account.IsActive, account.Type, account.Name })
             .HasDatabaseName("IX_Accounts_UserId_IsActive_Type_Name");
 

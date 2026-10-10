@@ -253,14 +253,16 @@ class _CounterpartiesPageState extends State<CounterpartiesPage> {
   }
 
   Future<void> _addCounterparty() async {
-    final payload = await AppFormSheet.show<Map<String, Object?>>(
+    await AppFormSheet.show<Map<String, Object?>>(
       context: context,
-      builder: (_) => const CounterpartyForm(),
-    );
-    if (payload == null) return;
-    await controller.create(
-      payload['name']! as String,
-      payload['note'] as String?,
+      builder: (_) => CounterpartyForm(
+        onSave: (payload) => controller.refusalOf(
+          controller.create(
+            payload['name']! as String,
+            payload['note'] as String?,
+          ),
+        ),
+      ),
     );
   }
 }

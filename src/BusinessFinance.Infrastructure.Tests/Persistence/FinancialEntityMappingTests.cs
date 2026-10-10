@@ -270,7 +270,9 @@ public sealed class FinancialEntityMappingTests
         var card = context.Model.FindEntityType(typeof(CreditCard));
 
         Assert.NotNull(card);
-        AssertUniqueIndex(card, nameof(CreditCard.UserId), nameof(CreditCard.Name));
+        // Teklik ad kolonunda değil, uygulamanın hesapladığı ad anahtarındadır
+        // (`NameKeys`); veritabanının harf kuralı teklik kararına karışmaz.
+        AssertUniqueIndex(card, nameof(CreditCard.UserId), nameof(CreditCard.NameKey));
         Assert.All(
             card.GetForeignKeys(),
             foreignKey => Assert.Equal(DeleteBehavior.Restrict, foreignKey.DeleteBehavior));
@@ -333,15 +335,21 @@ public sealed class FinancialEntityMappingTests
         var category = context.Model.FindEntityType(typeof(Category));
         var monthlyBudget = context.Model.FindEntityType(typeof(MonthlyBudget));
 
+        // Teklik ad kolonunda değil, ad anahtarındadır (`NameKeys`); kategoride
+        // türle birlikte.
         AssertUniqueIndex(
             account,
             nameof(Account.UserId),
-            nameof(Account.Name));
+            nameof(Account.NameKey));
         AssertUniqueIndex(
             category,
             nameof(Category.UserId),
             nameof(Category.Type),
-            nameof(Category.Name));
+            nameof(Category.NameKey));
+        AssertUniqueIndex(
+            context.Model.FindEntityType(typeof(PosDefinition)),
+            nameof(PosDefinition.UserId),
+            nameof(PosDefinition.NameKey));
         AssertUniqueIndex(
             monthlyBudget,
             nameof(MonthlyBudget.UserId),

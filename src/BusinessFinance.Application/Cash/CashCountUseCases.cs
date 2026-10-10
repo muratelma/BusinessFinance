@@ -507,10 +507,12 @@ public sealed class ConfirmCashCountDifferenceUseCase(
     {
         var expenses = await categoryRepository.ListAsync(
             userId, CategoryType.Expense, null, cancellationToken);
+        // Ad anahtarıyla aranır: teklik de onu okur. Yazımı farklı bir "Kasa
+        // farkı" kategorisi varken yenisini açmaya çalışmak teklik kuralına
+        // takılırdı.
+        var differenceKey = NameKeys.Of(CashCountDefaults.DifferenceCategoryName);
         var existing = expenses.FirstOrDefault(item => string.Equals(
-            item.Name,
-            CashCountDefaults.DifferenceCategoryName,
-            StringComparison.OrdinalIgnoreCase));
+            item.NameKey, differenceKey, StringComparison.Ordinal));
         if (existing is not null)
         {
             return existing;

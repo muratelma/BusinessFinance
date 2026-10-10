@@ -147,8 +147,13 @@ public sealed class UpdateCreditCardUseCase(
                 CreditCardErrors.NotFound(command.CreditCardId));
         }
 
+        // Adı değişmeyen (ya da yalnız yazımı düzeltilen) kartta "bu ad var
+        // mı?" sorulmaz: kural sıkılaşmadan önce açılmış aynı adlı ikinci kart
+        // limiti ya da ekstre günü için düzenlenebilmelidir.
         var normalizedName = command.Name?.Trim() ?? string.Empty;
-        if (await repository.ExistsByNameAsync(
+        var nameChanges = !string.Equals(
+            NameKeys.Of(normalizedName), NameKeys.Of(card.Name), StringComparison.Ordinal);
+        if (nameChanges && await repository.ExistsByNameAsync(
                 userId,
                 normalizedName,
                 card.Id,

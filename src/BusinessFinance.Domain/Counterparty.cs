@@ -67,16 +67,11 @@ public sealed class Counterparty
     public void Rename(string name)
     {
         var normalized = NormalizeName(name);
-        var key = NameKeyOf(normalized);
 
         // Yalnız yazımı değişen ad anahtarı yeniden yazmaz: kural sıkılaşmadan
         // önce açılmış aynı adlı ikinci kişi kendi ayırt edici anahtarını
         // taşır ve yazımını düzeltmek onu ilkiyle çakıştırmamalıdır.
-        if (!string.Equals(key, NameKeyOf(Name), StringComparison.Ordinal))
-        {
-            NameKey = key;
-        }
-
+        NameKey = NameKeys.AfterRename(Name, NameKey, normalized);
         Name = normalized;
     }
 
@@ -91,57 +86,13 @@ public sealed class Counterparty
     /// yükleme ikincisine bu ayırt edici anahtarı verir; yeni kişi bu yoldan
     /// açılmaz.
     /// </remarks>
-    public void KeepApartFromSameName() => NameKey = $"{NameKeyOf(Name)}#{Id:D}";
+    public void KeepApartFromSameName() => NameKey = NameKeys.Apart(Name, Id);
 
     /// <summary>
-    /// İki adın <b>aynı kişi</b> sayılıp sayılmayacağını söyleyen anahtar:
-    /// harf büyüklüğü ve boşluk farkı ad farkı değildir.
+    /// İki adın <b>aynı kişi</b> sayılıp sayılmayacağını söyleyen anahtar.
+    /// Kural bütün adlı kayıtlar için ortaktır: <see cref="NameKeys.Of"/>.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Dört i harfi (İ, I, ı, i) tek harfe iner. Türkçe kuralı (I→ı) "IKEA"
-    /// ile "ikea"yı, İngilizce kuralı (I→i) "IŞIK" ile "ışık"ı ayırırdı;
-    /// kullanıcı ikisini de aynı ad olarak yazar.
-    /// </para>
-    /// <para>
-    /// Bundan <b>fazlası yapılmaz</b>: "Örnek" ile "Ornek", "Ahmet" ile
-    /// "Ahmed" ayrı adlardır. Teklik bir yasaktır ve yanlış yasak kullanıcıyı
-    /// ikinci bir gerçek kişiyi açamaz bırakır; yakın adları bulmak öneri
-    /// tarafının işidir.
-    /// </para>
-    /// </remarks>
-    public static string NameKeyOf(string name)
-    {
-        ArgumentNullException.ThrowIfNull(name);
-        var builder = new System.Text.StringBuilder(name.Length);
-        var pendingSpace = false;
-        foreach (var character in name)
-        {
-            if (char.IsWhiteSpace(character))
-            {
-                pendingSpace = builder.Length > 0;
-                continue;
-            }
-
-            // "i̇": bazı klavyeler küçük i'yi ayrı bir nokta işaretiyle yazar.
-            if (character == '\u0307')
-            {
-                continue;
-            }
-
-            if (pendingSpace)
-            {
-                builder.Append(' ');
-                pendingSpace = false;
-            }
-
-            builder.Append(character is 'İ' or 'I' or 'ı' or 'i'
-                ? 'i'
-                : char.ToLowerInvariant(character));
-        }
-
-        return builder.ToString();
-    }
+    public static string NameKeyOf(string name) => NameKeys.Of(name);
 
     /// <summary><c>null</c> vermek notu siler.</summary>
     public void SetNote(string? note) => Note = NormalizeNote(note);

@@ -54,9 +54,18 @@ internal sealed class CreditCardConfiguration : IEntityTypeConfiguration<CreditC
                 .HasColumnType("tinyint");
         });
 
-        builder.HasIndex(card => new { card.UserId, card.Name })
+        // Ad anahtarı uygulamada hesaplanır (`NameKeys`) ve ikili
+        // karşılaştırılır; veritabanının harf kuralı (Türkçe İ/i ve I/ı
+        // çiftlerini ayrı sayıyordu) teklik kararına karışmaz. Uzunluk, eski
+        // aynı adlı ikinci kaydın ayırt edici ekini de taşır.
+        builder.Property(card => card.NameKey)
+            .HasMaxLength(CreditCard.MaximumNameLength + NameKeys.ApartSuffixAllowance)
+            .UseCollation("Latin1_General_100_BIN2")
+            .IsRequired();
+
+        builder.HasIndex(card => new { card.UserId, card.NameKey })
             .IsUnique()
-            .HasDatabaseName("UX_CreditCards_UserId_Name");
+            .HasDatabaseName("UX_CreditCards_UserId_NameKey");
         builder.HasIndex(card => new { card.UserId, card.IsActive, card.Name })
             .HasDatabaseName("IX_CreditCards_UserId_IsActive_Name");
 

@@ -29,6 +29,12 @@ public sealed class PosDefinition
     /// <summary>Kullanıcının verdiği ad ("Ziraat POS", "Yemek kartı").</summary>
     public string Name { get; private set; }
 
+    /// <summary>
+    /// Adın karşılaştırma anahtarı (<see cref="NameKeys"/>): "bu ad zaten var
+    /// mı?" denetimi ve veritabanındaki teklik bunu okur.
+    /// </summary>
+    public string NameKey { get; private set; }
+
     /// <summary>Paranın geçeceği banka hesabı.</summary>
     public Guid AccountId { get; private set; }
 
@@ -67,7 +73,14 @@ public sealed class PosDefinition
     private PosDefinition()
     {
         Name = null!;
+        NameKey = null!;
     }
+
+    /// <summary>
+    /// Bu kaydı, aynı adı taşıyan daha eski bir kayıttan ayrı tutar; yalnız
+    /// yükseltme ve geri yükleme içindir (<see cref="NameKeys.Apart"/>).
+    /// </summary>
+    public void KeepApartFromSameName() => NameKey = NameKeys.Apart(Name, Id);
 
     public PosDefinition(
         Guid id,
@@ -101,6 +114,7 @@ public sealed class PosDefinition
         CreatedAtUtc = createdAtUtc;
         IsActive = true;
         Name = null!;
+        NameKey = null!;
         Apply(name, account, salesCategory, commissionRate, commissionCategory,
             transferDays, businessDaysOnly);
     }
@@ -259,6 +273,11 @@ public sealed class PosDefinition
                 $"Transfer days must be between 0 and {MaximumTransferDays}.");
         }
 
+        // İlk kurulumda ad henüz yoktur; düzenlemede yalnız yazımı değişen ad
+        // mevcut anahtarı korur.
+        NameKey = Name is null
+            ? NameKeys.Of(normalizedName)
+            : NameKeys.AfterRename(Name, NameKey, normalizedName);
         Name = normalizedName;
         AccountId = account.Id;
         SalesCategoryId = salesCategory.Id;

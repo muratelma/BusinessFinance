@@ -419,10 +419,18 @@ gerekçesiyle bozulmaz.
   okunur; **iptal edilen kayıt sayımı yeniden açmaz**, bağ durur. Önceki
   sayımın farkı ekranda geçmiş olarak yazar ("… sayımında eksik çıkmıştı"),
   "kaydedilmemiş fark" denmez.
-- **Kişi adının tekliği uygulamanın hesapladığı anahtardadır**
-  (`Counterparty.NameKey`, `NameKeyOf`): harf büyüklüğü ve boşluk farkı ad
-  farkı değildir, dört i harfi tek harftir; arama, "bu ad zaten var" denetimi
-  ve veritabanındaki teklik aynı kolonu okur. Veritabanının harf kuralına
+- **Ad tekliği tek kuraldır ve uygulamanın hesapladığı anahtardadır**
+  (`NameKeys`, kolon `NameKey`; kullanıcı kararı, 9 Ekim 2026). Kişi, hesap,
+  kredi kartı, kategori ve POS aynı kuralı kullanır: anahtarda **yalnız harfler
+  ve rakamlar** kalır; harf büyüklüğü, boşluk ve noktalama ad farkı değildir,
+  dört i harfi tek harftir (`İş Bankası` = `İŞ BANKASI` = `işbankası` =
+  `İş-Bankası.`). **Türkçe harf başka harftir** (`Is Bankasi`, `Koc` ayrı
+  addır) ve ayırt edici ek başka addır (`İş Bankası Şahsi`). Kategoride teklik
+  türle birliktedir; hesap ile kart ayrı listelerdir; pasif kayıt adını tutar;
+  yalnız yazımı düzeltmek serbesttir. Eski aynı adlı kayıtlar birleştirilmez,
+  ikincisi kimliğiyle ayrılan anahtar taşır (`KeepApartFromSameName`). "Bu ad
+  zaten var" denetimi ve veritabanındaki teklik aynı kolonu okur; yeni bir adlı
+  kayıt türü de **`NameKeys` ile** kurulur. Veritabanının harf kuralına
   bırakmayın — Türkçe İ/i ve I/ı çiftlerini ayrı sayıyor. Belgeden okunan adın
   kişilerle eşleşmesi ayrı, daha hoşgörülü ve yalnız **öneri** üreten bir
   kuraldır (`CounterpartyNameMatcher`); teklik onu kullanmaz.

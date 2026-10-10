@@ -45,7 +45,8 @@ public sealed class MigrationHistoryTests
         "AddDayCloseCountedRecords",
         "AddCardCollections",
         "AddCounterpartyNameKey",
-        "AddCashCountTransferAdjustment"
+        "AddCashCountTransferAdjustment",
+        "AddNameKeys"
     ];
 
     [Fact]
@@ -1009,6 +1010,95 @@ public sealed class MigrationHistoryTests
             Assert.Equal(["UserId", "AdjustmentTransferId"], foreignKey.Columns);
             Assert.Equal(ReferentialAction.Restrict, foreignKey.OnDelete);
             Assert.True(up.IndexOf(key) < up.IndexOf(foreignKey));
+        }
+    }
+
+    /// <summary>
+    /// Hesap, kart, kategori ve POS adının anahtarı var olan satırlara
+    /// eklenir: dört kolon önce boş bırakılabilir gelir, beş tablo doldurulur
+    /// ve eski çakışmalar ayrılır, sonra kolonlar zorunlu olur ve teklik en
+    /// son kurulur. Hiçbir kayıt silinmez ya da birleştirilmez.
+    /// </summary>
+    [Fact]
+    public void AddNameKeys_BackfillsAndSeparatesBeforeItConstrainsAndLosesNothing()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_AddNameKeys", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations.ToList();
+            Assert.Empty(up.OfType<DropColumnOperation>());
+            Assert.Empty(up.OfType<DropTableOperation>());
+
+            var keys = up.OfType<AddColumnOperation>().ToList();
+            Assert.Equal(
+                ["Accounts", "Categories", "CreditCards", "PosDefinitions"],
+                keys.Select(key => key.Table).Order(StringComparer.Ordinal));
+            Assert.All(keys, key =>
+            {
+                Assert.Equal("NameKey", key.Name);
+                Assert.True(key.IsNullable);
+                Assert.Null(key.DefaultValue);
+                Assert.Null(key.DefaultValueSql);
+                Assert.Equal("Latin1_General_100_BIN2", key.Collation);
+            });
+
+            // Beş tablo: her biri için bir doldurma ve bir ayırma.
+            var sql = up.OfType<SqlOperation>().ToList();
+            Assert.Equal(10, sql.Count);
+            Assert.DoesNotContain(sql, statement =>
+                statement.Sql.Contains("DELETE", StringComparison.OrdinalIgnoreCase));
+            Assert.Equal(5, sql.Count(statement =>
+                statement.Sql.Contains("ROW_NUMBER()", StringComparison.Ordinal)));
+            foreach (var table in new[]
+                     {
+                         "Accounts", "Categories", "CreditCards", "PosDefinitions", "Counterparties"
+                     })
+            {
+                Assert.Equal(2, sql.Count(statement =>
+                    statement.Sql.Contains($"[{table}]", StringComparison.Ordinal)));
+            }
+
+            // Kategoride teklik türle birliktedir; ayırma da öyle.
+            Assert.Single(sql, statement =>
+                statement.Sql.Contains("[Categories]", StringComparison.Ordinal) &&
+                statement.Sql.Contains("PARTITION BY [UserId], [Type], [NameKey]", StringComparison.Ordinal));
+
+            var required = up.OfType<AlterColumnOperation>().ToList();
+            Assert.Equal(4, required.Count);
+            Assert.All(required, column =>
+            {
+                Assert.False(column.IsNullable);
+                Assert.Null(column.DefaultValue);
+            });
+
+            var unique = up.OfType<CreateIndexOperation>().ToList();
+            Assert.Equal(5, unique.Count);
+            Assert.All(unique, index =>
+            {
+                Assert.True(index.IsUnique);
+                Assert.Equal("NameKey", index.Columns[^1]);
+            });
+            Assert.Equal(
+                ["UserId", "Type", "NameKey"],
+                Assert.Single(unique, index => index.Table == "Categories").Columns);
+
+            // Sıra: kolonlar, doldurma ve ayırma, zorunluluk, teklik.
+            Assert.All(keys, key => Assert.All(sql, statement =>
+                Assert.True(up.IndexOf(key) < up.IndexOf(statement))));
+            Assert.All(sql, statement => Assert.All(required, column =>
+                Assert.True(up.IndexOf(statement) < up.IndexOf(column))));
+            Assert.All(required, column => Assert.All(unique, index =>
+                Assert.True(up.IndexOf(column) < up.IndexOf(index))));
+
+            // Kişilerin eski tekliği yeniden hesaplamadan önce düşer; ad
+            // kolonundaki üç eski teklik, yenisi kurulmadan önce.
+            var dropped = up.OfType<DropIndexOperation>().ToList();
+            Assert.Equal(4, dropped.Count);
+            var people = Assert.Single(dropped, index => index.Table == "Counterparties");
+            Assert.All(sql, statement => Assert.True(up.IndexOf(people) < up.IndexOf(statement)));
+            Assert.All(dropped, index => Assert.All(unique, created =>
+                Assert.True(up.IndexOf(index) < up.IndexOf(created))));
         }
     }
 

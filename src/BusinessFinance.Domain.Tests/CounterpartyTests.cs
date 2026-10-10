@@ -433,7 +433,6 @@ public sealed class CounterpartyTests
     [InlineData("Ahmet Usta", "Ahmed Usta")]
     [InlineData("Ali Kaya", "Ali Kara")]
     [InlineData("Örnek Elektrik A.Ş.", "Örnek Elektrik")]
-    [InlineData("A101", "A 101")]
     public void NameKey_KeepsDifferentNamesApart(string first, string second)
     {
         Assert.NotEqual(Counterparty.NameKeyOf(first), Counterparty.NameKeyOf(second));
@@ -445,11 +444,11 @@ public sealed class CounterpartyTests
         var counterparty = new Counterparty(Guid.NewGuid(), Guid.NewGuid(), " IŞIK  Market ");
 
         Assert.Equal("IŞIK  Market", counterparty.Name);
-        Assert.Equal("işik market", counterparty.NameKey);
+        Assert.Equal("işikmarket", counterparty.NameKey);
 
         counterparty.Rename("Güneş Market");
 
-        Assert.Equal("güneş market", counterparty.NameKey);
+        Assert.Equal("güneşmarket", counterparty.NameKey);
     }
 
     /// <summary>
@@ -462,7 +461,7 @@ public sealed class CounterpartyTests
     {
         var counterparty = new Counterparty(Guid.NewGuid(), Guid.NewGuid(), "ÖRNEK ELEKTRİK");
         counterparty.KeepApartFromSameName();
-        var apart = $"örnek elektrik#{counterparty.Id:D}";
+        var apart = $"örnekelektrik#{counterparty.Id:D}";
 
         Assert.Equal(apart, counterparty.NameKey);
 
@@ -473,7 +472,7 @@ public sealed class CounterpartyTests
 
         counterparty.Rename("Örnek Elektrik Şube");
 
-        Assert.Equal("örnek elektrik şube", counterparty.NameKey);
+        Assert.Equal("örnekelektrikşube", counterparty.NameKey);
     }
 
     private static Counterparty NewCounterparty(Guid userId, string? note = null) =>

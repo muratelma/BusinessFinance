@@ -492,7 +492,9 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         {
             var service = new EfDataPortabilityRepository(
                 restoreContext, attachmentStore, attachmentInspector);
-            var invalidButChecksummed = CreateDuplicateCategoryBackup(backup);
+            // Aynı adlı iki kategori artık geri yüklemeyi bozmaz (ayrı
+            // tutulurlar); yarıda kesen şey aynı kategori ve aya iki bütçedir.
+            var invalidButChecksummed = CreateDuplicateBudgetBackup(backup);
             await Assert.ThrowsAsync<DbUpdateException>(() => service.RestoreBackupAsync(
                 rollbackOwner.Id, invalidButChecksummed, DateTimeOffset.UtcNow, default));
             Assert.False(await restoreContext.Accounts.AnyAsync(x => x.UserId == rollbackOwner.Id));
@@ -583,17 +585,16 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         Assert.Equal(8, restoredContent!.Length);
         Assert.Equal(2, await read.Accounts.CountAsync(x => x.UserId == source.Id));
 
-        static byte[] CreateDuplicateCategoryBackup(byte[] original)
+        static byte[] CreateDuplicateBudgetBackup(byte[] original)
         {
             var envelope = JsonNode.Parse(original)!.AsObject();
             var payload = Convert.FromBase64String(envelope["payload"]!.GetValue<string>());
             var snapshot = JsonNode.Parse(payload)!.AsObject();
-            var categories = snapshot["categories"]!.AsArray();
-            var expenses = categories
-                .Where(item => item!["type"]!.GetValue<string>() == "expense")
-                .ToArray();
-            Assert.True(expenses.Length >= 2);
-            expenses[1]!["name"] = expenses[0]!["name"]!.GetValue<string>();
+            var budgets = snapshot["budgets"]!.AsArray();
+            Assert.NotEmpty(budgets);
+            var copy = JsonNode.Parse(budgets[0]!.ToJsonString())!.AsObject();
+            copy["id"] = Guid.NewGuid();
+            budgets.Add(copy);
             var changedPayload = Encoding.UTF8.GetBytes(snapshot.ToJsonString());
             envelope["payloadLength"] = changedPayload.Length;
             envelope["payloadSha256"] = Convert.ToHexStringLower(SHA256.HashData(changedPayload));
@@ -2443,12 +2444,8 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         var category = new Category(
             Guid.NewGuid(), user.Id, "Kira", CategoryType.Expense, TransactionScope.Business);
 
-        await using (var context = database.CreateContext())
-        {
-            context.Add(account);
-            await context.SaveChangesAsync(CancellationToken.None);
-        }
-
+        // O adımın şemasında ad anahtarı kolonu yok; hesap da ham SQL ile yazılır.
+        await SeedLegacyAccountAsync(database, account);
         await SeedLegacyCategoryAsync(database, category, TransactionScope.Business);
 
         var recurringId = Guid.NewGuid();
@@ -3900,10 +3897,15 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         var sales = new Category(Guid.NewGuid(), user.Id, "Satış", CategoryType.Income);
         var commission = new Category(
             Guid.NewGuid(), user.Id, "POS komisyonu", CategoryType.Expense);
-        await using (var seed = database.CreateContext())
+        // O adımın şemasında ad anahtarı kolonu yok: hesap ve kategoriler ham
+        // SQL ile yazılır (vergi işareti o adımda vardı).
+        await SeedLegacyAccountAsync(database, bank);
+        foreach (var category in new[] { sales, commission })
         {
-            seed.AddRange(bank, sales, commission);
-            await seed.SaveChangesAsync(CancellationToken.None);
+            await database.ExecuteAsync(
+                "INSERT INTO [Categories] ([Id], [UserId], [Name], [Type], [IsActive], " +
+                "[DefaultScope], [IsTax]) VALUES ({0}, {1}, {2}, {3}, 1, NULL, 0)",
+                category.Id, category.UserId, category.Name, (byte)category.Type);
         }
 
         // O adımda tahsilat yatış kimliği ve sürüm kolonu taşımıyordu: dört
@@ -4931,13 +4933,9 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         var category = new Category(
             categoryId, user.Id, "Ticari mal", CategoryType.Expense, TransactionScope.Business);
         await SeedLegacyCategoryAsync(database, category, TransactionScope.Business);
-        await using (var seed = database.CreateContext())
-        {
-            var account = new Account(
-                accountId, user.Id, "Kasa", AccountType.Cash, CurrencyCode.TRY, 1000m);
-            seed.Add(account);
-            await seed.SaveChangesAsync(CancellationToken.None);
-        }
+        await SeedLegacyAccountAsync(
+            database,
+            new Account(accountId, user.Id, "Kasa", AccountType.Cash, CurrencyCode.TRY, 1000m));
 
         await database.ExecuteAsync(
             "INSERT INTO [BudgetTransactions] ([Id], [UserId], [AccountId], [CategoryId], [Amount], " +
@@ -4999,11 +4997,7 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         }
 
         var account = new Account(Guid.NewGuid(), user.Id, "Banka", AccountType.Bank, CurrencyCode.TRY, 1000m);
-        await using (var seed = database.CreateContext())
-        {
-            seed.Add(account);
-            await seed.SaveChangesAsync(CancellationToken.None);
-        }
+        await SeedLegacyAccountAsync(database, account);
 
         // O adımda tutar ve kaynak zorunluydu, vergi türü yoktu: plan ve
         // kalemi eski kolonlarla ham SQL ile yazılıyor.
@@ -5153,6 +5147,23 @@ public sealed partial class SqlServerPersistenceIntegrationTests
     /// bırakır; güncel model o şemada olmayan kolonları da yazmak isteyeceği
     /// için EF ile yazılamaz.
     /// </remarks>
+    /// <summary>
+    /// Eski bir migration'a kadar kurulmuş şemaya hesap yazar. Bugünkü model
+    /// ad anahtarı kolonunu (<c>NameKey</c>, <c>AddNameKeys</c>) da yazmak
+    /// ister; o kolon eski şemada yoktur.
+    /// </summary>
+    private static Task SeedLegacyAccountAsync(SqlTestDatabase database, Account account) =>
+        database.ExecuteAsync(
+            "INSERT INTO [Accounts] ([Id], [UserId], [Name], [Type], [Currency], " +
+            "[OpeningBalance], [IsActive], [DefaultScope]) " +
+            "VALUES ({0}, {1}, {2}, {3}, {4}, {5}, 1, NULL)",
+            account.Id,
+            account.UserId,
+            account.Name,
+            (byte)account.Type,
+            (byte)account.Currency,
+            account.OpeningBalance);
+
     private static Task SeedLegacyCategoryAsync(
         SqlTestDatabase database,
         Category category,

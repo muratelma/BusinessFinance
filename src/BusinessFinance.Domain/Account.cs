@@ -7,6 +7,12 @@ public sealed class Account
     public Guid Id { get; }
     public Guid UserId { get; }
     public string Name { get; private set; }
+
+    /// <summary>
+    /// Adın karşılaştırma anahtarı (<see cref="NameKeys"/>): "bu ad zaten var
+    /// mı?" denetimi ve veritabanındaki teklik bunu okur.
+    /// </summary>
+    public string NameKey { get; private set; }
     public AccountType Type { get; }
     public CurrencyCode Currency { get; }
     public decimal OpeningBalance { get; }
@@ -80,6 +86,7 @@ public sealed class Account
         Id = id;
         UserId = userId;
         Name = normalizedName;
+        NameKey = NameKeys.Of(normalizedName);
         Type = type;
         Currency = currency;
         OpeningBalance = openingBalance;
@@ -115,8 +122,15 @@ public sealed class Account
                 nameof(name));
         }
 
+        NameKey = NameKeys.AfterRename(Name, NameKey, normalizedName);
         Name = normalizedName;
     }
+
+    /// <summary>
+    /// Bu kaydı, aynı adı taşıyan daha eski bir kayıttan ayrı tutar; yalnız
+    /// yükseltme ve geri yükleme içindir (<see cref="NameKeys.Apart"/>).
+    /// </summary>
+    public void KeepApartFromSameName() => NameKey = NameKeys.Apart(Name, Id);
 
     public void Deactivate()
     {

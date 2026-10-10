@@ -518,10 +518,36 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     iptal olacağını söylüyor. (3) Kapanışı yatışa ya da gün sonuna bağlı
     yükümlülükte akış `canCancel` yanlış dönüyor. Son kontroller
     `documentation/tests.md` sonunda
-    **Açık karar:** kasada günü sayımdan önce olan kaydın sayımı eskitip
-    eskitmeyeceği (aşama belgesi, KS1 için A/B/C). **Sırada:** ad tekliğinin
-    kuralı kullanıcıyla konuşulur (boşluksuz karşılaştırma), sonra uygulanır;
-    çekirdeğin cihaz kabulü
+    Kasadaki açık karar kapandı: kullanıcı KS1'de **A**'yı seçti (kod
+    değişmedi). Buraya kadarki işler `156c81e` olarak tek commit'te.
+  - **06.3 — ad tekliği tek kural (9 Ekim 2026; commit'lenmedi)**: kişi,
+    hesap, kredi kartı, kategori ve POS aynı kuralı kullanır (`NameKeys`,
+    kolon `NameKey`): anahtarda yalnız harfler ve rakamlar kalır; harf
+    büyüklüğü, boşluk ve noktalama ad farkı değildir, Türkçe harf başka
+    harftir (kullanıcı kararı: üç satırda da öneri). POS ilk kez teklik
+    kazandı (`pos_definitions.duplicate_name`). Migration `AddNameKeys` yerel
+    veritabanına ve API testlerinin veritabanına uygulandı; eski aynı adlı
+    kayıtlar birleştirilmedi (bir kart, iki kişi ayrı anahtar aldı). Yedek
+    şeması değişmedi. Karar tablosunun her satırı gerçek API'de denendi (22
+    denetim). Kontroller: backend SQL dahil geçti (Domain 393, Application
+    398, Api 305, Infrastructure 246 + 2 canlı test atlandı), build 0 uyarı,
+    format temiz; Flutter 1.103 test, analyze ve format temiz.
+    **10 Ekim 2026, cihaz turu:** kullanıcı `ziraatvadesiz` hesabını denedi;
+    sunucu doğru reddetti ama hesap formu cümleyi yazmadı ve arkadaki liste
+    hata ekranına döndü (kategoride 8 Ekim'de düzeltilen hatanın aynısı).
+    Düzeltildi: form açık kalır ve cümleyi yazar, reddedilen kayıt ya da silme
+    listeyi bozmaz; kişilerde ret artık `Son bilinen bakiye` rozetini
+    çıkarmaz. Kart ve kişi formu da artık rette kapanmaz (kullanıcı: "sayfayı
+    kapatıp uyarıyı üstte vermesi kötü"); beş form cümleyi simgeli ortak
+    kutuyla yazar (`AppFormError`; kullanıcı cihazda denedi: "şu an daha iyi
+    duruyor"; çizim `tasarim-onizleme/ad-reddi/`). Sunucu değişmedi. Ad tekliği kullanıcının
+    çalışan API'sinde yeniden denendi (29 denetim). Flutter 1.108 test, analyze
+    ve format temiz.
+    Kullanıcı yükümlülük ve cari hesap denemelerinde sorun görmedi; iptal
+    paneli ve onayların tasarımı Claude Design turuna kaldı.
+    **Sırada:** `research/DEVIR-2026-10-09.md` §6'daki sıra; vadeli cari
+    satışın Planlananlar'a eklenmesi ve Planlananlar süzgeçleri kategori ve
+    hesap sayfalarından sonra (kullanıcı kararı, 10 Ekim 2026)
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni (beklemede) → **06.3 bütünsel düzenleme (aktif)** →

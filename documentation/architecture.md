@@ -701,16 +701,29 @@ Yedek dosyası **adı taşımaya devam ediyor**, kimliği değil: karşı taraf
 tabloları şemaya kendi sürümüyle (v7) girecek. Geri yükleme addan karşı
 tarafı yeniden kurar ve aynı ad tek kayıt olur.
 
-**Kişi adının tekliği uygulamanın hesapladığı anahtara dayanır**
-(`Counterparty.NameKey`, `NameKeyOf`; 8 Ekim 2026). Veritabanının harf kuralı
-Türkçe İ/i ve I/ı çiftlerini ayrı saydığı için "ÖRNEK ELEKTRİK" ile "Örnek
-Elektrik" iki ayrı kişi olarak açılabiliyordu. Anahtar harf büyüklüğünü ve
-boşluk farkını yok sayar (dört i harfi tek harftir) ve ikili karşılaştırılır
-(`UX_Counterparties_UserId_NameKey`); adla arama, "bu ad zaten var" denetimi
-ve veritabanındaki teklik **aynı kolonu** okur. Bundan fazlası yapılmaz:
-"Örnek" ile "Ornek", "Ahmet" ile "Ahmed" ayrı adlardır. Kural sıkılaşmadan
-önce açılmış aynı adlı kişiler birleştirilmez; ikincisi kimliğiyle ayrılan bir
-anahtar taşır (`KeepApartFromSameName`; yükseltme ve geri yükleme uygular).
+**Ad tekliği tek kuraldır ve uygulamanın hesapladığı anahtara dayanır**
+(`NameKeys`; kişilerde 8 Ekim 2026, beş kayıt türünde 9 Ekim 2026). Kişi,
+hesap, kredi kartı, kategori ve POS `NameKey` kolonu taşır; anahtarda **yalnız
+harfler ve rakamlar** kalır. Harf büyüklüğü, boşluk ve noktalama ad farkı
+değildir (dört i harfi tek harftir): "İş Bankası", "İŞ BANKASI", "işbankası"
+ve "İş-Bankası." tek addır. Bundan fazlası yapılmaz: "Örnek" ile "Ornek",
+"Koç" ile "Koc", "Ahmet" ile "Ahmed" ayrı adlardır; ayırt edici ek ("İş
+Bankası Şahsi", "İş Bankası 4512") başka addır. Hiç harf ya da rakam taşımayan
+adın anahtarı kendi karakterleridir. Anahtar ikili karşılaştırılır
+(`Latin1_General_100_BIN2`); veritabanının harf kuralı Türkçe İ/i ve I/ı
+çiftlerini ayrı saydığı için teklik ona bırakılamazdı. "Bu ad zaten var"
+denetimi ve veritabanındaki teklik **aynı kolonu** okur:
+`UX_Accounts_UserId_NameKey`, `UX_CreditCards_UserId_NameKey`,
+`UX_Categories_UserId_Type_NameKey` (kategoride teklik türle birlikte),
+`UX_PosDefinitions_UserId_NameKey` (POS'ta daha önce hiç teklik yoktu) ve
+`UX_Counterparties_UserId_NameKey`. Farklı listeler ayrıdır: hesap ile kart
+aynı adı taşıyabilir. Pasif kayıt adını tutar. Yalnız yazımı değişen ad
+anahtarı değiştirmez (`NameKeys.AfterRename`), bu yüzden yazım düzeltmek
+serbesttir ve "bu ad var mı?" yalnız anahtar değişince sorulur. Kural
+sıkılaşmadan önce açılmış aynı adlı kayıtlar birleştirilmez; ikincisi
+kimliğiyle ayrılan bir anahtar taşır (`KeepApartFromSameName`; yükseltme
+`AddNameKeys` ve geri yükleme uygular). `AddNameKeys` kişilerin anahtarını da
+yeni kurala göre yeniden hesaplar (eski kural boşluğu sayıyordu).
 
 Belgeden okunan satıcının kişilerle eşleşmesi ayrı ve **daha hoşgörülü** bir
 kuraldır (`CounterpartyNameMatcher`), çünkü sonucu bir öneridir: aynı ad
@@ -993,6 +1006,9 @@ değil, kendi oranı ve süresi olan bir tanımdır.
   tanımsız girilen tahsilatın hangi POS'tan geldiği bilinmiyor ve uydurulmaz.
   Tahsilatı olan tanım silinemez (`409 pos_definitions.has_settlements`),
   pasife alınır; pasif tanımla yeni tahsilat yazılamaz.
+- POS adı kullanıcı başına tektir (`409 pos_definitions.duplicate_name`;
+  9 Ekim 2026). Kural öbür adlı kayıtlarla aynıdır (`NameKeys`): harf
+  büyüklüğü, boşluk ve noktalama ad farkı değildir; pasif POS adını tutar.
 
 `PosTransitBalance` yoldaki parayı verir: geçişi gerçekleşmemiş tahsilatların
 **net** toplamı. Kalıcı kolon değildir ve bir hesap türü de değildir (ADR

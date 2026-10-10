@@ -69,6 +69,7 @@ class AccountsPageState extends State<AccountsPage> {
         builder: (_) => AccountFormPage(
           account: account,
           onSave: widget.viewModel.save,
+          readError: () => widget.viewModel.message,
           onDelete: account == null ? null : widget.viewModel.delete,
         ),
       ),

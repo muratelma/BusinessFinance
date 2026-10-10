@@ -606,6 +606,19 @@ public sealed class EfDataPortabilityRepository(
                 x => new CreditCard(Guid.NewGuid(), userId, x.Name, MoneyOf(x.Limit, x.Currency),
                     x.StatementClosingDay, x.PaymentDueDay, x.MinimumPaymentRate, x.DefaultScope));
 
+            // Eski bir yedek, ad tekliği sıkılaşmadan önce açılmış aynı adlı
+            // iki kayıt taşıyabilir ("İş Bankası" ile "İŞ BANKASI"). İkisi de
+            // geri gelir, birleştirilmez: ikincisi ayırt edici bir anahtar
+            // alır. Kategoride teklik türle birliktedir.
+            KeepSameNamesApart(
+                accountMap.Values, account => account.NameKey,
+                account => account.KeepApartFromSameName());
+            KeepSameNamesApart(
+                categoryMap.Values, category => $"{(int)category.Type}:{category.NameKey}",
+                category => category.KeepApartFromSameName());
+            KeepSameNamesApart(
+                cardMap.Values, card => card.NameKey, card => card.KeepApartFromSameName());
+
             // Geri yüklenen kaydın giriş anı dosyadan gelir; geri yükleme
             // anı kaydın girildiği an değildir.
             var entryTimes = new Dictionary<object, DateTimeOffset?>(
@@ -847,14 +860,9 @@ public sealed class EfDataPortabilityRepository(
 
             // Eski bir yedek, teklik kuralı sıkılaşmadan önce açılmış aynı adlı
             // iki kişi taşıyabilir. İkisi de geri gelir; birleştirilmez.
-            foreach (var sameName in counterpartyMap.Values
-                         .GroupBy(counterparty => counterparty.NameKey, StringComparer.Ordinal))
-            {
-                foreach (var later in sameName.Skip(1))
-                {
-                    later.KeepApartFromSameName();
-                }
-            }
+            KeepSameNamesApart(
+                counterpartyMap.Values, counterparty => counterparty.NameKey,
+                counterparty => counterparty.KeepApartFromSameName());
 
             // Borçlandırma yalnız aktif karşı tarafa ve kategoriye yazılabilir;
             // pasifleştirme, hesap ve kategorilerde olduğu gibi graph kurulduktan
@@ -933,6 +941,10 @@ public sealed class EfDataPortabilityRepository(
                 if (!item.IsActive) entity.SetActive(false);
                 posDefinitionMap.Add(item.Id, entity);
             }
+
+            KeepSameNamesApart(
+                posDefinitionMap.Values, definition => definition.NameKey,
+                definition => definition.KeepApartFromSameName());
 
             // Tahsilat geliri tanır, yatış parayı taşır (ADR 0014). Tahsilatlar
             // önce yolda kurulur; hesaba geçiş aşağıda yatışla yeniden yazılır.
@@ -1481,6 +1493,24 @@ public sealed class EfDataPortabilityRepository(
                 At = EF.Property<DateTimeOffset?>(x, EntryTimestamp.PropertyName),
             })
             .ToDictionaryAsync(x => x.Id, x => x.At, cancellationToken);
+
+    /// <summary>
+    /// Aynı ad anahtarını taşıyan kayıtlardan ilkini olduğu gibi bırakır,
+    /// sonrakileri ayırt edici anahtarla ayrı tutar. Sıra dosyadaki sıradır.
+    /// </summary>
+    private static void KeepSameNamesApart<T>(
+        IEnumerable<T> items,
+        Func<T, string> key,
+        Action<T> keepApart)
+    {
+        foreach (var sameName in items.GroupBy(key, StringComparer.Ordinal))
+        {
+            foreach (var later in sameName.Skip(1))
+            {
+                keepApart(later);
+            }
+        }
+    }
 
     private static void EnsureUniqueIds(IEnumerable<Guid> values, string kind)
     {

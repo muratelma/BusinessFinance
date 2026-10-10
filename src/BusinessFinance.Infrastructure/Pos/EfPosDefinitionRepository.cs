@@ -14,6 +14,20 @@ internal sealed class EfPosDefinitionRepository(BusinessFinanceDbContext dbConte
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public Task<bool> ExistsByNameAsync(
+        Guid userId,
+        string name,
+        Guid? exceptDefinitionId,
+        CancellationToken cancellationToken)
+    {
+        var key = NameKeys.Of(name);
+        return dbContext.PosDefinitions.AsNoTracking().AnyAsync(
+            definition => definition.UserId == userId &&
+                          definition.Id != exceptDefinitionId &&
+                          definition.NameKey == key,
+            cancellationToken);
+    }
+
     public async Task<IReadOnlyList<PosDefinitionDto>> ListAsync(
         Guid userId,
         CancellationToken cancellationToken)

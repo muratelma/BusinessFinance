@@ -78,7 +78,7 @@ class AccountsViewModel extends ChangeNotifier {
       _message = successMessage;
       return true;
     } on ApiException catch (error) {
-      _setApiError(error);
+      _setRefusal(error);
       return false;
     } on FormatException {
       _message = 'Hesap verisi beklenen biçimde alınamadı.';
@@ -102,7 +102,7 @@ class AccountsViewModel extends ChangeNotifier {
       _message = 'Hesap silindi.';
       return null;
     } on ApiException catch (error) {
-      _setApiError(error);
+      _setRefusal(error);
       return error.message;
     } on FormatException {
       const message = 'Hesap verisi beklenen biçimde alınamadı.';
@@ -120,5 +120,12 @@ class AccountsViewModel extends ChangeNotifier {
     _status = error.isUnauthorized
         ? AccountsViewStatus.unauthorized
         : AccountsViewStatus.error;
+  }
+
+  /// Reddedilen kayıt ya da silme listeyi bozmaz: yüklenmiş hesaplar yerinde
+  /// kalır, cümleyi form gösterir. Yalnız oturumun düşmesi ekranı değiştirir.
+  void _setRefusal(ApiException error) {
+    _message = error.message;
+    if (error.isUnauthorized) _status = AccountsViewStatus.unauthorized;
   }
 }

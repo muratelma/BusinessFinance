@@ -7,6 +7,7 @@ import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
+import '../../../core/widgets/app_form_error.dart';
 import '../../../core/widgets/app_scope_selector.dart';
 import '../data/category_models.dart';
 
@@ -186,15 +187,7 @@ class _CategoryFormPageState extends State<CategoryFormPage> {
               ],
               if (_error != null) ...[
                 const SizedBox(height: AppSpacing.medium),
-                Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    _error!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                ),
+                AppFormError(message: _error!),
               ],
               const SizedBox(height: AppSpacing.large),
               FilledButton.icon(

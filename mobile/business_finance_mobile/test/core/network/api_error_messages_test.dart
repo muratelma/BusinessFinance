@@ -116,6 +116,23 @@ void main() {
     });
   });
 
+  // Ad tekliği beş kayıt türünde aynı kuraldır (9 Ekim 2026); POS'un kodu
+  // yenidir ve var olan genel cümleyle konuşur.
+  test('aynı ad reddi her kayıt türünde Türkçe konuşur', () {
+    expect(
+      ApiErrorMessages.resolve('pos_definitions.duplicate_name'),
+      'Bu adı taşıyan bir POS kaydı zaten var. Farklı bir ad seçin.',
+    );
+    for (final code in [
+      'accounts.duplicate_name',
+      'credit_cards.duplicate_name',
+      'categories.duplicate_name',
+      'counterparties.duplicate_name',
+    ]) {
+      expect(ApiErrorMessages.resolve(code), contains('zaten var'));
+    }
+  });
+
   test('hiçbir cevap İngilizce bir cümleye dönmez', () {
     // Backend'in bugün ürettiği kodlardan bir kesit; hepsi Türkçe konuşmalı.
     const codes = [

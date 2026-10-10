@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:business_finance_mobile/core/widgets/app_card.dart';
+import 'package:business_finance_mobile/core/widgets/app_form_error.dart';
 import '../../helpers/accessibility.dart';
 import 'package:business_finance_mobile/core/theme/app_spacing.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
@@ -628,6 +629,56 @@ void main() {
     expect(find.text('0 ile 100 arasında bir oran girin.'), findsOneWidget);
   });
 
+  // Aynı adlı kart reddedilince form kapanmaz ve cümleyi kendi içinde yazar
+  // (10 Ekim 2026: form kapanıp cümle sayfanın üstünde çıkıyordu; kullanıcı
+  // kartın yazıldığını sanabilirdi).
+  testWidgets('reddedilen kart formu kapatmaz ve nedenini formda yazar', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    const sentence =
+        'Bu adı taşıyan bir Kredi kartı kaydı zaten var. Farklı bir ad seçin.';
+    final repository = _FakeFinanceRepository(
+      cardError: const ApiException(
+        statusCode: 409,
+        code: 'credit_cards.duplicate_name',
+        message: sentence,
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: FinancePage(repository: repository),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Kart ekle'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Kart adı'),
+      'garanti',
+    );
+    await tester.enterText(find.widgetWithText(TextFormField, 'Limit'), '5000');
+    await tester.tap(find.text('Kaydet'));
+    await tester.pumpAndSettle();
+
+    // Form açık, yazılan ad yerinde, cümle formda.
+    expect(find.text('Yeni kredi kartı'), findsOneWidget);
+    expect(find.text('garanti'), findsOneWidget);
+    expect(find.byType(AppFormError), findsOneWidget);
+    expect(find.text(sentence), findsOneWidget);
+
+    await tester.tap(find.text('Vazgeç'));
+    await tester.pumpAndSettle();
+
+    // Vazgeçince arkadaki sayfada eski ret durmaz.
+    expect(find.text(sentence), findsNothing);
+  });
+
   testWidgets('fazla ödenmiş kart borç değil alacak gösterir', (tester) async {
     // Aşama 06 Grup 5: kartta duran para kullanıcınındır. "Borç −₺500,00"
     // yazmak ona borcu varmış gibi okunuyordu.
@@ -1215,8 +1266,12 @@ class _FakeFinanceRepository implements FinanceRepositoryContract {
     this.activity = const CardActivity(charges: [], payments: []),
     this.accounts = const [],
     this.installmentPlans = const [],
+    this.cardError,
   }) : transfers = transfers ?? [];
   final ApiException? loadError;
+
+  /// Kart ekleme ve düzenlemenin reddi.
+  final ApiException? cardError;
   List<TransferItem> transfers;
   final List<CreditCardItem> cards;
   final CardStatement? currentStatement;
@@ -1267,9 +1322,13 @@ class _FakeFinanceRepository implements FinanceRepositoryContract {
   }
 
   @override
-  Future<void> createCard(Map<String, Object?> input) async {}
+  Future<void> createCard(Map<String, Object?> input) async {
+    if (cardError case final error?) throw error;
+  }
+
   @override
   Future<void> updateCard(String cardId, Map<String, Object?> input) async {
+    if (cardError case final error?) throw error;
     lastCardUpdate = input;
   }
 

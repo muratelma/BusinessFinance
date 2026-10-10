@@ -43,8 +43,10 @@ class CounterpartiesController extends ChangeNotifier {
 
   String get today => _date(_now());
 
-  /// Sunucu erişilemezken elde kalan son okuma.
-  bool get isStale => snapshot != null && errorMessage != null;
+  /// Sunucu erişilemezken elde kalan son okuma. Reddedilen bir kayıt listeyi
+  /// eskitmez: yalnız düşen okuma eskitir.
+  bool get isStale => snapshot != null && _loadFailed;
+  bool _loadFailed = false;
 
   List<CounterpartySummary> get counterparties =>
       snapshot?.counterparties ?? const [];
@@ -57,11 +59,14 @@ class CounterpartiesController extends ChangeNotifier {
     try {
       snapshot = await _repository.load(filter, today);
       unauthorized = false;
+      _loadFailed = false;
     } on ApiException catch (error) {
       unauthorized = error.isUnauthorized;
       errorMessage = error.message;
+      _loadFailed = true;
     } on FormatException {
       errorMessage = 'Sunucudan beklenmeyen bir cari yanıtı alındı.';
+      _loadFailed = true;
     } finally {
       isLoading = false;
       notifyListeners();
@@ -215,6 +220,18 @@ class CounterpartiesController extends ChangeNotifier {
     errorMessage = null;
     successMessage = null;
     notifyListeners();
+  }
+
+  /// Formun içinde gösterilecek ret cümlesi; kayıt yazıldıysa `null`.
+  ///
+  /// Cümleyi form söylediği için listenin üstündeki şeride bırakılmaz: form
+  /// kapandıktan sonra orada durursa eski bir reddi yeniymiş gibi gösterir.
+  Future<String?> refusalOf(Future<bool> write) async {
+    if (await write) return null;
+    final message = errorMessage ?? 'Kaydedilemedi. Tekrar deneyin.';
+    errorMessage = null;
+    notifyListeners();
+    return message;
   }
 
   /// [peopleOnly] yalnız kişi listesini değiştiren yazımlar için: ad değişti,

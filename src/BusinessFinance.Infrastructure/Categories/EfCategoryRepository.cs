@@ -121,19 +121,14 @@ internal sealed class EfCategoryRepository(BusinessFinanceDbContext dbContext)
         CategoryType type,
         CancellationToken cancellationToken)
     {
-        var query = dbContext.Categories.AsNoTracking().Where(
-            category => category.UserId == userId && category.Type == type);
-
-        if (string.Equals(
-                dbContext.Database.ProviderName,
-                "Microsoft.EntityFrameworkCore.InMemory",
-                StringComparison.Ordinal))
-        {
-            var names = await query.Select(category => category.Name).ToArrayAsync(cancellationToken);
-            return names.Contains(name, StringComparer.OrdinalIgnoreCase);
-        }
-
-        return await query.AnyAsync(category => category.Name == name, cancellationToken);
+        // Karşılaştırma adın anahtarıyla yapılır (`NameKeys`); teklik türle
+        // birliktedir.
+        var key = NameKeys.Of(name);
+        return await dbContext.Categories.AsNoTracking().AnyAsync(
+            category => category.UserId == userId &&
+                        category.Type == type &&
+                        category.NameKey == key,
+            cancellationToken);
     }
 
     public async Task<IReadOnlyList<Category>> ListAsync(

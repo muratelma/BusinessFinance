@@ -58,12 +58,15 @@ v9'un taşıdığı iki koleksiyon aynen yerinde:
   geri yüklerken **yeni** kimliğe çevrilir. Aynı gün ve aynı kasa için ikinci
   bir sayım varsa öncekisi iptal edilmiş olarak durur; SQL'deki filtreli tekil
   indeks bunu geri yüklemede de doğrular.
-- Kişi adının karşılaştırma anahtarı (`NameKey`) **yedekte taşınmaz**; addan
-  yeniden hesaplanır. Eski bir yedek, teklik kuralı harf büyüklüğüne Türkçe
-  harflerle bakmaya başlamadan önce (8 Ekim 2026) açılmış aynı adlı iki kişi
-  taşıyabilir ("ÖRNEK ELEKTRİK" ve "Örnek Elektrik"). Geri yükleme ikisini de
-  getirir ve birleştirmez; ikincisi kimliğiyle ayrılan bir anahtar alır. Şema
-  sürümü değişmedi.
+- Adın karşılaştırma anahtarı (`NameKey`; kişi, hesap, kredi kartı, kategori
+  ve POS) **yedekte taşınmaz**; addan yeniden hesaplanır. Eski bir yedek, ad
+  tekliği sıkılaşmadan önce (kişilerde 8 Ekim, beş türde 9 Ekim 2026) açılmış
+  aynı adlı kayıtlar taşıyabilir ("İş Bankası" ve "İŞ BANKASI", "Ali Can" ve
+  "Alican"). Geri yükleme hepsini getirir ve birleştirmez; dosyadaki sırayla
+  ilki adı tutar, sonrakiler kimlikleriyle ayrılan bir anahtar alır.
+  Kategoride teklik türle birliktedir. Şema sürümü değişmedi. Migration
+  `AddNameKeys` var olan satırların anahtarını SQL'de doldurur; eski aynı adlı
+  kayıtlardan aktif olan (sonra kimlik sırası) adı tutar.
 - `posDefinitions` — POS tanımı (Aşama 06.3 Grup 4, ADR 0019 T4): ad, banka
   hesabı, satış ve komisyon kategorisi, varsayılan oran, geçiş günü, iş günü
   seçeneği, aktiflik ve ana POS işareti (`isDefault`). Para taşımaz. Oran burada **yazılır** çünkü tanımın kendi

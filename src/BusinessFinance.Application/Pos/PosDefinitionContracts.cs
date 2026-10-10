@@ -44,6 +44,16 @@ public interface IPosDefinitionRepository
 {
     Task AddAsync(PosDefinition definition, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Kullanıcının aynı adı (<see cref="NameKeys"/>) taşıyan başka bir POS'u
+    /// var mı; pasif POS da adını tutar.
+    /// </summary>
+    Task<bool> ExistsByNameAsync(
+        Guid userId,
+        string name,
+        Guid? exceptDefinitionId,
+        CancellationToken cancellationToken);
+
     /// <summary>Kullanıcının başka bir varsayılan POS'u var mı.</summary>
     Task<bool> HasDefaultAsync(Guid userId, CancellationToken cancellationToken);
 
@@ -84,6 +94,12 @@ public static class PosDefinitionErrors
         "authentication.required",
         "An authenticated user is required.",
         ApplicationErrorType.Unauthorized);
+
+    /// <summary>Aynı adla ikinci POS açılmaz; ayırt edici bir ek yazılır.</summary>
+    public static readonly ApplicationError DuplicateName = new(
+        "pos_definitions.duplicate_name",
+        "A pos definition with the same name already exists.",
+        ApplicationErrorType.Conflict);
 
     public static readonly ApplicationError AccountUnavailable = new(
         "pos_definitions.account_unavailable",

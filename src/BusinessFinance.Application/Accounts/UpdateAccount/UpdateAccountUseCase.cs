@@ -31,9 +31,12 @@ public sealed class UpdateAccountUseCase(
 
         try
         {
-            var previousName = account.Name;
+            // Adı değişmeyen (ya da yalnız yazımı düzeltilen) hesapta "bu ad
+            // var mı?" sorulmaz: anahtar aynı kalır. Kural sıkılaşmadan önce
+            // açılmış aynı adlı ikinci hesap böylece düzenlenebilir.
+            var previousKey = account.NameKey;
             account.Rename(command.Name);
-            if (!string.Equals(previousName, account.Name, StringComparison.OrdinalIgnoreCase) &&
+            if (!string.Equals(previousKey, account.NameKey, StringComparison.Ordinal) &&
                 await accountRepository.ExistsByNameAsync(userId, account.Name, cancellationToken))
             {
                 return ApplicationResult<UpdateAccountResponse>.Failure(

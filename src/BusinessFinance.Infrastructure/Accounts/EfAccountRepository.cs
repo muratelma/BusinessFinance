@@ -19,25 +19,15 @@ internal sealed class EfAccountRepository(BusinessFinanceDbContext dbContext)
         string normalizedName,
         CancellationToken cancellationToken)
     {
-        var query = dbContext.Accounts
+        // Karşılaştırma adın anahtarıyla yapılır (`NameKeys`); teklik indeksi
+        // de aynı kolonu okur. Anahtar uygulamada hesaplandığı için sonuç
+        // veritabanı sağlayıcısına göre değişmez.
+        var key = NameKeys.Of(normalizedName);
+        return await dbContext.Accounts
             .AsNoTracking()
-            .Where(account => account.UserId == userId);
-
-        if (string.Equals(
-                dbContext.Database.ProviderName,
-                "Microsoft.EntityFrameworkCore.InMemory",
-                StringComparison.Ordinal))
-        {
-            var names = await query
-                .Select(account => account.Name)
-                .ToArrayAsync(cancellationToken);
-
-            return names.Contains(normalizedName, StringComparer.OrdinalIgnoreCase);
-        }
-
-        return await query.AnyAsync(
-            account => account.Name == normalizedName,
-            cancellationToken);
+            .AnyAsync(
+                account => account.UserId == userId && account.NameKey == key,
+                cancellationToken);
     }
 
     public async Task<AccountListPage> ListAsync(

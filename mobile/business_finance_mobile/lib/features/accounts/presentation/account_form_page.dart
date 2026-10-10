@@ -6,6 +6,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
+import '../../../core/widgets/app_form_error.dart';
 import '../../../core/widgets/app_scope_selector.dart';
 import '../data/account_models.dart';
 
@@ -27,11 +28,17 @@ class AccountFormPage extends StatefulWidget {
     super.key,
     this.account,
     this.onDelete,
+    this.readError,
   }) : assert(account == null || onDelete != null);
 
   final Account? account;
   final SaveAccount onSave;
   final DeleteAccount? onDelete;
+
+  /// [onSave] `false` döndüğünde gösterilecek cümle. Kaydeden katman sunucunun
+  /// reddini kendi içinde tutuyor; form onu okuyamazsa `Kaydet` hiçbir şey
+  /// yapmamış gibi görünür.
+  final String? Function()? readError;
 
   @override
   State<AccountFormPage> createState() => _AccountFormPageState();
@@ -86,7 +93,16 @@ class _AccountFormPageState extends State<AccountFormPage> {
         // gidiyor: sunucudaki `PUT` yetkili ve göndermemek "kaldır" demek.
         defaultScope: _defaultScope,
       );
-      if (saved && mounted) Navigator.of(context).pop(true);
+      if (!mounted) return;
+      if (saved) {
+        Navigator.of(context).pop(true);
+      } else {
+        setState(
+          () => _error =
+              widget.readError?.call() ??
+              'Hesap kaydedilemedi. Tekrar deneyin.',
+        );
+      }
     } on ApiException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } finally {
@@ -202,15 +218,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
               ],
               if (_error != null) ...[
                 const SizedBox(height: AppSpacing.medium),
-                Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    _error!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                ),
+                AppFormError(message: _error!),
               ],
               const SizedBox(height: AppSpacing.large),
               FilledButton.icon(

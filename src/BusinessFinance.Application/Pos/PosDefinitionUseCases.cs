@@ -53,6 +53,13 @@ public sealed class CreatePosDefinitionUseCase(
             return ApplicationResult<PosDefinitionDto>.Failure(parts.Error);
         }
 
+        if (!string.IsNullOrWhiteSpace(command.Name) &&
+            await repository.ExistsByNameAsync(userId, command.Name, null, cancellationToken))
+        {
+            return ApplicationResult<PosDefinitionDto>.Failure(
+                PosDefinitionErrors.DuplicateName);
+        }
+
         try
         {
             var definition = new PosDefinition(
@@ -124,6 +131,18 @@ public sealed class UpdatePosDefinitionUseCase(
         if (!parts.IsSuccess)
         {
             return ApplicationResult<PosDefinitionDto>.Failure(parts.Error);
+        }
+
+        // Adı değişmeyen (ya da yalnız yazımı düzeltilen) POS'ta "bu ad var
+        // mı?" sorulmaz.
+        if (!string.IsNullOrWhiteSpace(command.Name) &&
+            !string.Equals(
+                NameKeys.Of(command.Name), NameKeys.Of(definition.Name), StringComparison.Ordinal) &&
+            await repository.ExistsByNameAsync(
+                userId, command.Name, definition.Id, cancellationToken))
+        {
+            return ApplicationResult<PosDefinitionDto>.Failure(
+                PosDefinitionErrors.DuplicateName);
         }
 
         try

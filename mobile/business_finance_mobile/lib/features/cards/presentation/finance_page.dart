@@ -366,16 +366,17 @@ class _FinancePageState extends State<FinancePage> {
   }
 
   Future<void> _addCard() async {
-    final input = await AppFormSheet.show<Map<String, Object?>>(
+    await AppFormSheet.show<Map<String, Object?>>(
       context: context,
-      builder: (_) => const _CardDialog(),
+      builder: (_) => _CardDialog(
+        onSave: (input) => controller.refusalOf(
+          controller.submit(
+            () => controller.repository.createCard(input),
+            'Kredi kartı oluşturuldu.',
+          ),
+        ),
+      ),
     );
-    if (input != null) {
-      await controller.submit(
-        () => controller.repository.createCard(input),
-        'Kredi kartı oluşturuldu.',
-      );
-    }
   }
 }
 
@@ -1112,17 +1113,19 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
   /// Asgari ödeme oranı karta ait bir ayar; onu değiştirebilmek için kartın
   /// düzenlenebilmesi gerekiyordu ve uygulamada hiç kart düzenleme yolu yoktu.
   Future<void> _editCard(CreditCardItem card) async {
-    final input = await AppFormSheet.show<Map<String, Object?>>(
+    final saved = await AppFormSheet.show<Map<String, Object?>>(
       context: context,
-      builder: (_) => _CardDialog(card: card),
+      builder: (_) => _CardDialog(
+        card: card,
+        onSave: (input) => widget.controller.refusalOf(
+          widget.controller.submit(
+            () => widget.controller.repository.updateCard(card.id, input),
+            'Kart güncellendi.',
+          ),
+        ),
+      ),
     );
-    if (input == null) return;
-    if (await widget.controller.submit(
-      () => widget.controller.repository.updateCard(card.id, input),
-      'Kart güncellendi.',
-    )) {
-      _reloadActivity();
-    }
+    if (saved != null && mounted) _reloadActivity();
   }
 
   Future<void> _addPlan(
@@ -1425,10 +1428,15 @@ class _TransferDialogState extends State<_TransferDialog> {
 /// farklı. İki ayrı form olsaydı birinde düzeltilen doğrulama kuralı ötekinde
 /// unutulurdu.
 class _CardDialog extends StatefulWidget {
-  const _CardDialog({this.card});
+  const _CardDialog({required this.onSave, this.card});
 
   /// Doluysa düzenleme, boşsa yeni kart.
   final CreditCardItem? card;
+
+  /// Kaydı yazar; reddedildiyse gösterilecek cümleyi, yazıldıysa `null` döner.
+  /// Form reddedilen kayıtta kapanmaz: cümle arkadaki sayfada çıkarsa
+  /// kullanıcı kartın yazıldığını sanabilir.
+  final Future<String?> Function(Map<String, Object?> input) onSave;
   @override
   State<_CardDialog> createState() => _CardDialogState();
 }
@@ -1452,6 +1460,7 @@ class _CardDialogState extends State<_CardDialog> {
   );
 
   late TransactionScope? defaultScope = widget.card?.defaultScope;
+  String? error;
   @override
   void dispose() {
     name.dispose();
@@ -1468,9 +1477,11 @@ class _CardDialogState extends State<_CardDialog> {
     child: AppFormSheet<Map<String, Object?>>(
       title: widget.card == null ? 'Yeni kredi kartı' : 'Kartı düzenle',
       submitLabel: 'Kaydet',
+      errorMessage: error,
       onSubmit: () async {
         if (!(key.currentState?.validate() ?? false)) return null;
-        return {
+        setState(() => error = null);
+        final input = <String, Object?>{
           'name': name.text.trim(),
           'limit': _money(limit.text),
           'currency': 'TRY',
@@ -1482,6 +1493,10 @@ class _CardDialogState extends State<_CardDialog> {
           // gidiyor: sunucudaki `PUT` yetkili ve göndermemek "kaldır" demek.
           'defaultScope': defaultScope?.apiValue,
         };
+        final refusal = await widget.onSave(input);
+        if (refusal == null) return input;
+        if (mounted) setState(() => error = refusal);
+        return null;
       },
       children: [
         AppFormField(

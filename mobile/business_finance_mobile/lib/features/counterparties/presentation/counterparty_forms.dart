@@ -14,9 +14,14 @@ import '../data/counterparty_models.dart';
 /// Adres, vergi numarası ve telefon **yok**: bu aşamanın kapsamı bir kişiyi
 /// tanımak ve hesabını tutmak, kimlik kartı doldurmak değil.
 class CounterpartyForm extends StatefulWidget {
-  const CounterpartyForm({super.key, this.existing});
+  const CounterpartyForm({required this.onSave, super.key, this.existing});
 
   final CounterpartySummary? existing;
+
+  /// Kaydı yazar; reddedildiyse gösterilecek cümleyi, yazıldıysa `null` döner.
+  /// Form reddedilen kayıtta kapanmaz: cümle arkadaki listede çıkarsa
+  /// kullanıcı kaydın yazıldığını sanabilir.
+  final Future<String?> Function(Map<String, Object?> payload) onSave;
 
   @override
   State<CounterpartyForm> createState() => _CounterpartyFormState();
@@ -27,6 +32,7 @@ class _CounterpartyFormState extends State<CounterpartyForm> {
   late final TextEditingController _name;
   late final TextEditingController _note;
   late bool _isActive;
+  String? _error;
 
   @override
   void initState() {
@@ -54,13 +60,19 @@ class _CounterpartyFormState extends State<CounterpartyForm> {
           'Müşteri ve tedarikçi ayrı tutulmaz: aynı kişiden alıp aynı kişiye '
           'satabilirsiniz. Yönü her hareket kendisi taşır.',
       submitLabel: widget.existing == null ? 'Ekle' : 'Kaydet',
+      errorMessage: _error,
       onSubmit: () async {
         if (!(_formKey.currentState?.validate() ?? false)) return null;
-        return {
+        setState(() => _error = null);
+        final payload = <String, Object?>{
           'name': _name.text.trim(),
           'note': _note.text.trim(),
           'isActive': _isActive,
         };
+        final refusal = await widget.onSave(payload);
+        if (refusal == null) return payload;
+        if (mounted) setState(() => _error = refusal);
+        return null;
       },
       children: [
         AppFormField(

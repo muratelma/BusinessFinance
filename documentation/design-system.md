@@ -590,6 +590,27 @@ gösterilirse kullanıcı bir şeyin bozulduğunu sanır ve düzeltmek yerine ko
 İlk kullanımı: açılışı kayıtsız borçlar. O borç hesaba ve
 raporlara hiç girmiyor ve bunu yalnız kullanıcı düzeltebilir.
 
+### `AppFormError` — kaydın reddi, formun içinde
+
+Sunucunun reddettiği kaydın nedenini **formun içinde**, `Kaydet`in hemen
+üstünde söyler (10 Ekim 2026). Reddedilen kayıt formu kapatmaz: form kapanıp
+cümle arkadaki sayfada çıkarsa kullanıcı kaydın yazıldığını sanabilir ve
+yazdıkları kaybolur.
+
+- `AppInlineNotice` ile aynı biçim (ikon + cümle, kapsül zemin), hata tonunda
+  (`errorContainer` / `onErrorContainer`, `error_outline`). Finansal gider
+  tonu kullanılmaz: ret bir gider değildir.
+- Tam sayfa formda `Kaydet`in üstünde durur. Panelde `AppFormSheet`'in
+  `errorMessage` alanına verilir: kaydırılan gövdenin dışında, eylem satırının
+  üstünde çizilir, gövde nerede olursa olsun görünür.
+- Panel formu kaydı kendisi yazdırır (`onSave` cümle döner, yazıldıysa `null`);
+  cümleyi form söylediği için arkadaki sayfanın şeridine bırakılmaz
+  (`refusalOf`).
+- Bir alana ait doğrulama (boş ad, geçersiz tutar) yine alanın `errorText`'idir.
+
+Kullanan formlar: hesap, kategori, POS, kredi kartı, kişi. Öbür formlardaki
+düz kırmızı cümleler henüz bu bileşene taşınmadı.
+
 ### Ekran iskeleti
 
 - Başlık **sayfanın kendisinden** gelir. Shell bir başlık daha çizseydi aynı

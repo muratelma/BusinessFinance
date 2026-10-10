@@ -15,6 +15,7 @@ import 'package:business_finance_mobile/features/accounts/data/account_models.da
 import 'package:business_finance_mobile/features/accounts/data/account_repository.dart';
 import 'package:business_finance_mobile/features/accounts/presentation/account_form_page.dart';
 import 'package:business_finance_mobile/features/accounts/presentation/accounts_and_transfers_page.dart';
+import 'package:business_finance_mobile/features/accounts/presentation/accounts_page.dart';
 import 'package:business_finance_mobile/features/accounts/presentation/accounts_view_model.dart';
 
 void main() {
@@ -137,6 +138,106 @@ void main() {
       expect(viewModel.message, 'Hesap silindi.');
     },
   );
+
+  // Sunucu kaydı reddederse (aynı adlı hesap) yüklenmiş liste yerinde kalır ve
+  // cümle okunabilir (10 Ekim 2026'da cihazda görüldü: `ziraatvadesiz` reddedildi,
+  // form hiçbir şey söylemedi ve geri dönünce liste hata ekranına dönmüştü).
+  test('reddedilen kayıt hesap listesini hata ekranına çevirmez', () async {
+    final repository = _FakeAccountRepository(
+      items: [Account.fromJson(_accountJson)],
+      writeError: const ApiException(
+        statusCode: 409,
+        code: 'accounts.duplicate_name',
+        message: 'Bu adı taşıyan bir Hesap kaydı zaten var.',
+      ),
+    );
+    final viewModel = AccountsViewModel(repository);
+    await viewModel.load();
+
+    final saved = await viewModel.save(
+      name: 'nakit',
+      type: 'cash',
+      openingBalance: '0',
+      isActive: true,
+    );
+
+    expect(saved, isFalse);
+    expect(viewModel.status, AccountsViewStatus.ready);
+    expect(viewModel.accounts, hasLength(1));
+    expect(viewModel.message, 'Bu adı taşıyan bir Hesap kaydı zaten var.');
+
+    final deleteError = await viewModel.delete(viewModel.accounts.single);
+
+    expect(deleteError, 'Bu adı taşıyan bir Hesap kaydı zaten var.');
+    expect(viewModel.status, AccountsViewStatus.ready);
+    expect(viewModel.accounts, hasLength(1));
+  });
+
+  test('kayıt sırasında oturum düşerse ekran oturum durumuna geçer', () async {
+    final viewModel = AccountsViewModel(
+      _FakeAccountRepository(
+        items: [Account.fromJson(_accountJson)],
+        writeError: const ApiException(
+          statusCode: 401,
+          code: 'authentication.required',
+          message: 'Unauthorized',
+        ),
+      ),
+    );
+    await viewModel.load();
+
+    final saved = await viewModel.save(
+      name: 'Banka',
+      type: 'bank',
+      openingBalance: '0',
+      isActive: true,
+    );
+
+    expect(saved, isFalse);
+    expect(viewModel.status, AccountsViewStatus.unauthorized);
+  });
+
+  testWidgets('reddedilen kayıt formda nedenini yazar ve liste yerinde kalır', (
+    tester,
+  ) async {
+    const sentence =
+        'Bu adı taşıyan bir Hesap kaydı zaten var. Farklı bir ad seçin.';
+    final viewModel = AccountsViewModel(
+      _FakeAccountRepository(
+        items: [Account.fromJson(_accountJson)],
+        writeError: const ApiException(
+          statusCode: 409,
+          code: 'accounts.duplicate_name',
+          message: sentence,
+        ),
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: AccountsPage(viewModel: viewModel),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).first, 'nakit');
+    await tester.tap(find.text('Kaydet'));
+    await tester.pumpAndSettle();
+
+    // Form açık kalır ve cümleyi yazar.
+    expect(find.text('Hesap ekle'), findsOneWidget);
+    expect(find.text(sentence), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    // Arkadaki liste hata ekranına dönmez. Satırda ad da tür de `Nakit` yazar.
+    expect(find.text('Nakit'), findsNWidgets(2));
+    expect(find.text('Tekrar dene'), findsNothing);
+    expect(find.text(sentence), findsNothing);
+  });
 
   testWidgets('account form validates money and prevents double submit', (
     tester,
@@ -300,9 +401,17 @@ ApiClient _client(Future<http.Response> Function(http.Request) handler) =>
     );
 
 class _FakeAccountRepository implements AccountRepository {
-  _FakeAccountRepository({this.listError});
+  _FakeAccountRepository({
+    this.listError,
+    this.writeError,
+    this.items = const [],
+  });
 
   final ApiException? listError;
+
+  /// Kayıt, güncelleme ve silmenin reddi.
+  final ApiException? writeError;
+  final List<Account> items;
   final List<String> deletedIds = [];
   final List<TransactionScope?> createdScopes = [];
   final List<TransactionScope?> updatedScopes = [];
@@ -312,13 +421,13 @@ class _FakeAccountRepository implements AccountRepository {
   Future<AccountPage> list({bool? isActive, String? type}) async {
     listCalls++;
     if (listError case final error?) throw error;
-    return const AccountPage(
-      items: [],
+    return AccountPage(
+      items: items,
       pagination: AccountPagination(
         pageNumber: 1,
         pageSize: 100,
-        totalCount: 0,
-        totalPages: 0,
+        totalCount: items.length,
+        totalPages: items.isEmpty ? 0 : 1,
         hasPreviousPage: false,
         hasNextPage: false,
       ),
@@ -332,6 +441,7 @@ class _FakeAccountRepository implements AccountRepository {
     required String openingBalance,
     TransactionScope? defaultScope,
   }) async {
+    if (writeError case final error?) throw error;
     createdScopes.add(defaultScope);
     return Account.fromJson(_accountJson);
   }
@@ -343,12 +453,14 @@ class _FakeAccountRepository implements AccountRepository {
     required bool isActive,
     TransactionScope? defaultScope,
   }) async {
+    if (writeError case final error?) throw error;
     updatedScopes.add(defaultScope);
     return Account.fromJson(_accountJson);
   }
 
   @override
   Future<void> delete(String id) async {
+    if (writeError case final error?) throw error;
     deletedIds.add(id);
   }
 }

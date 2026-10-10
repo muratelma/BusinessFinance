@@ -6,6 +6,7 @@ import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_divided_column.dart';
+import '../../../core/widgets/app_form_error.dart';
 import '../../../core/widgets/app_icon_capsule.dart';
 import '../../../core/widgets/app_inline_notice.dart';
 import '../../../core/widgets/app_row.dart';
@@ -433,15 +434,7 @@ class _PosDefinitionFormPageState extends State<PosDefinitionFormPage> {
           if (controller.definitionError != null)
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.small),
-              child: Semantics(
-                liveRegion: true,
-                child: Text(
-                  controller.definitionError!,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.error,
-                  ),
-                ),
-              ),
+              child: AppFormError(message: controller.definitionError!),
             ),
           const SizedBox(height: AppSpacing.large),
           AppSubmitButton(
