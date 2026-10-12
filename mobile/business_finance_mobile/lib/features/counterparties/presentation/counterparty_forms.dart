@@ -223,6 +223,7 @@ class _CounterpartyChargeFormState extends State<CounterpartyChargeForm> {
           child: AppDateField(
             label: 'Tarih',
             value: _date,
+            lastDate: AppDateField.parse(widget.today),
             onChanged: (value) => setState(() {
               _date = value;
               final due = AppDateField.parse(_dueDate);
@@ -387,7 +388,7 @@ class _CounterpartyPaymentFormState extends State<CounterpartyPaymentForm> {
           child: AppDateField(
             label: 'Tarih',
             value: _date,
-            lastDate: _byCard ? DateTime.now() : null,
+            lastDate: AppDateField.parse(widget.today),
             onChanged: (value) => setState(() => _date = value),
           ),
         ),

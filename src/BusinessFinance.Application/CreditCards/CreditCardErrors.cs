@@ -44,6 +44,21 @@ public static class CreditCardErrors
         "installments.not_found",
         $"Installment plan '{id}' was not found.",
         ApplicationErrorType.NotFound);
+    /// <summary>
+    /// Taksidin günü gelmedi. Taksit kendi gününe yazılır; erken
+    /// gerçekleştirmek ileri tarihli bir harcama doğururdu.
+    /// </summary>
+    public static readonly ApplicationError InstallmentNotDueYet = new(
+        "installments.not_due_yet",
+        "The installment date has not arrived yet.",
+        ApplicationErrorType.Validation);
+    /// <summary>
+    /// Harcamanın ya da kart ödemesinin günü ileride.
+    /// </summary>
+    public static readonly ApplicationError DateInFuture = new(
+        "credit_cards.date_in_future",
+        "The charge date and the payment date cannot be in the future.",
+        ApplicationErrorType.Validation);
     public static readonly ApplicationError DuplicateName = new(
         "credit_cards.duplicate_name",
         "A credit card with the same name already exists.",

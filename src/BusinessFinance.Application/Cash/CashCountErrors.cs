@@ -64,6 +64,12 @@ public static class CashCountErrors
         message,
         ApplicationErrorType.Conflict);
 
+    /// <summary>Sayımın günü ileride.</summary>
+    public static readonly ApplicationError DateInFuture = new(
+        "cash_counts.date_in_future",
+        "The count date cannot be in the future.",
+        ApplicationErrorType.Validation);
+
     public static ApplicationError Validation(string message) => new(
         "cash_counts.validation",
         message,

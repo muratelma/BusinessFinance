@@ -35,7 +35,7 @@ public sealed class ImportConfirmationUseCaseTests
         var useCase = new ConfirmImportBatchUseCase(
             new FakeCurrentUser(userId), repository,
             new FakeAccountRepository(account), new FakeCategoryRepository(category),
-            new FakeUserProfileRepository(true));
+            new FakeUserProfileRepository(true), TimeProvider.System);
 
         var rejected = await useCase.ExecuteAsync(
             new ConfirmImportBatchCommand(batch.Id, [ready.Id, unmapped.Id]));
@@ -52,6 +52,51 @@ public sealed class ImportConfirmationUseCaseTests
         Assert.Equal(TransactionScope.Business, transaction.Scope);
         Assert.Equal(10m, transaction.Amount.Amount);
         Assert.Equal(ImportBatchStatus.PartiallyImported, batch.Status);
+    }
+
+    /// <summary>
+    /// Onay son kapıdır: ileri tarihli bir satır hazır duruma gelmişse (bu
+    /// kuraldan önce hazırlanmış bir yükleme) seçildiğinde hiçbir kayıt
+    /// yazılmaz. Gün Türkiye günüdür; gece yarısından sonra aynı satır
+    /// bugünündür ve yazılır.
+    /// </summary>
+    [Fact]
+    public async Task Confirm_RejectsARowDatedInTheFuture_AndAcceptsItOnceTheDayArrives()
+    {
+        var userId = Guid.NewGuid();
+        var account = new Account(Guid.NewGuid(), userId, "Import", AccountType.Bank, CurrencyCode.TRY,
+            defaultScope: TransactionScope.Business);
+        var category = new Category(Guid.NewGuid(), userId, "Expense", CategoryType.Expense);
+        var batch = new ImportBatch(
+            Guid.NewGuid(), userId, "future.csv", new string('d', 64), 100, "utf-8", ',',
+            "Date", "Amount", null, null, "yyyy-MM-dd", '.',
+            new DateTimeOffset(2026, 8, 10, 9, 0, 0, TimeSpan.Zero));
+        var row = new ImportRow(
+            Guid.NewGuid(), userId, batch.Id, 2, "future",
+            new DateOnly(2026, 8, 11), -10m, CurrencyCode.TRY, null, null, []);
+        row.ApplyCorrection(new DateOnly(2026, 8, 11), -10m, null, null, account, category);
+        batch.AddRow(row);
+        var repository = new FakeImportRepository(batch);
+        ConfirmImportBatchUseCase UseCaseAt(DateTimeOffset now) => new(
+            new FakeCurrentUser(userId), repository,
+            new FakeAccountRepository(account), new FakeCategoryRepository(category),
+            new FakeUserProfileRepository(true), new FixedTimeProvider(now));
+
+        // Türkiye'de 10 Ağustos öğlen: satır yarına ait.
+        var rejected = await UseCaseAt(new DateTimeOffset(2026, 8, 10, 9, 0, 0, TimeSpan.Zero))
+            .ExecuteAsync(new ConfirmImportBatchCommand(batch.Id, [row.Id]));
+
+        Assert.False(rejected.IsSuccess);
+        Assert.Equal("imports.date_in_future", rejected.Error!.Code);
+        Assert.Equal(0, repository.ConfirmCalls);
+        Assert.Equal(ImportRowStatus.Ready, row.Status);
+
+        // Türkiye'de 11 Ağustos 01:30 (UTC 10 Ağustos 22:30): satır bugüne ait.
+        var confirmed = await UseCaseAt(new DateTimeOffset(2026, 8, 10, 22, 30, 0, TimeSpan.Zero))
+            .ExecuteAsync(new ConfirmImportBatchCommand(batch.Id, [row.Id]));
+
+        Assert.True(confirmed.IsSuccess);
+        Assert.Equal(new DateOnly(2026, 8, 11), Assert.Single(repository.Transactions).TransactionDate);
     }
 
     [Fact]
@@ -74,7 +119,7 @@ public sealed class ImportConfirmationUseCaseTests
         var useCase = new ConfirmImportBatchUseCase(
             new FakeCurrentUser(userId), repository,
             new FakeAccountRepository(account), new FakeCategoryRepository(category),
-            new FakeUserProfileRepository(true));
+            new FakeUserProfileRepository(true), TimeProvider.System);
 
         var result = await useCase.ExecuteAsync(new ConfirmImportBatchCommand(batch.Id, [row.Id]));
 
@@ -94,7 +139,7 @@ public sealed class ImportConfirmationUseCaseTests
         var useCase = new ConfirmImportBatchUseCase(
             new FakeCurrentUser(userId), repository,
             new FakeAccountRepository(null), new FakeCategoryRepository(null),
-            new FakeUserProfileRepository(true));
+            new FakeUserProfileRepository(true), TimeProvider.System);
 
         var result = await useCase.ExecuteAsync(new ConfirmImportBatchCommand(
             batch.Id,

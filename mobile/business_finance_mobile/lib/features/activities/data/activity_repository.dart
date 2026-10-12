@@ -35,7 +35,15 @@ abstract interface class ActivityRepositoryContract {
   /// [cancel]'ın kardeşi: planlanan görünüm de bir okuma modeli, o yüzden
   /// eylem satırı üreten yazma modeline geri gider. Yönlendirme burada, veri
   /// katmanında; ekran hangi uç noktanın çağrılacağını bilmez.
-  Future<void> realizePlanned(PlannedActivity activity);
+
+  /// [paidOn] tekrarlayan kalemin yazılacağı gündür; kart taksidi kendi
+  /// gününe yazılır ve onu almaz. [allowEarlierPending] sıra atlamanın açık
+  /// onayıdır (`recurring.earlier_item_pending`).
+  Future<void> realizePlanned(
+    PlannedActivity activity, {
+    String? paidOn,
+    bool allowEarlierPending = false,
+  });
 }
 
 class ActivityRepository implements ActivityRepositoryContract {
@@ -143,7 +151,11 @@ class ActivityRepository implements ActivityRepositoryContract {
   }
 
   @override
-  Future<void> realizePlanned(PlannedActivity activity) async {
+  Future<void> realizePlanned(
+    PlannedActivity activity, {
+    String? paidOn,
+    bool allowEarlierPending = false,
+  }) async {
     final target = activity.actionTargetId;
     if (!activity.isDirectlyRealizable || target == null) {
       throw StateError(
@@ -157,7 +169,11 @@ class ActivityRepository implements ActivityRepositoryContract {
         activity.isProjected) {
       await _apiClient.post(
         '/api/v1/recurring-transactions/$target/occurrences/realize',
-        body: {'scheduledDate': activity.dueDate},
+        body: {
+          'scheduledDate': activity.dueDate,
+          'paidOn': ?paidOn,
+          if (allowEarlierPending) 'allowEarlierPending': true,
+        },
       );
       return;
     }
@@ -176,7 +192,17 @@ class ActivityRepository implements ActivityRepositoryContract {
         'Bu tür ödeme ekranından yürütülür: ${activity.plannedKind.apiValue}',
       ),
     };
-    await _apiClient.post(path);
+    await _apiClient.post(
+      path,
+      body:
+          paidOn != null &&
+              activity.plannedKind == PlannedKind.recurringOccurrence
+          ? {
+              'paidOn': paidOn,
+              if (allowEarlierPending) 'allowEarlierPending': true,
+            }
+          : null,
+    );
   }
 
   @override

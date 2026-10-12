@@ -558,7 +558,7 @@ internal sealed class EfDayCloseRepository(
             .Where(overlap => overlap.UserId == userId && ids.Contains(overlap.DayCloseId))
             .ToArrayAsync(cancellationToken);
 
-        var asOfDate = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
+        var asOfDate = LocalDay.Today(timeProvider.GetUtcNow());
         return dayCloses
             .Select(dayClose =>
             {

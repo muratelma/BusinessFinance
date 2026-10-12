@@ -31,6 +31,7 @@ import '../../../core/widgets/app_unknown_amount.dart';
 import '../data/planning_models.dart';
 import '../data/planning_repository.dart';
 import 'planning_controller.dart';
+import 'realize_day_sheet.dart';
 
 class PlanningPage extends StatefulWidget {
   const PlanningPage({
@@ -165,7 +166,7 @@ class _PlanningPageState extends State<PlanningPage> {
           )
         else ...[
           for (final item in snapshot.recurringTransactions.where(
-            (item) => item.isActive,
+            (item) => _planIsRunning(snapshot, item),
           ))
             _RecurringPlanCard(
               item: item,
@@ -175,15 +176,17 @@ class _PlanningPageState extends State<PlanningPage> {
           // Paused plans are kept but folded away: they are history the user
           // chose to stop, and after a dozen of them they would bury the plans
           // that still run.
-          if (snapshot.recurringTransactions.any((item) => !item.isActive))
+          if (snapshot.recurringTransactions.any(
+            (item) => !_planIsRunning(snapshot, item),
+          ))
             ExpansionTile(
               title: Text(
-                'Duraklatılmış planlar '
-                '(${snapshot.recurringTransactions.where((i) => !i.isActive).length})',
+                'Duraklatılan ve biten planlar '
+                '(${snapshot.recurringTransactions.where((i) => !_planIsRunning(snapshot, i)).length})',
               ),
               children: [
                 for (final item in snapshot.recurringTransactions.where(
-                  (item) => !item.isActive,
+                  (item) => !_planIsRunning(snapshot, item),
                 ))
                   _RecurringPlanCard(
                     item: item,
@@ -320,10 +323,12 @@ class _PlanningPageState extends State<PlanningPage> {
     final generated = snapshot.occurrences.any(
       (occurrence) => occurrence.id == item.sourceId && occurrence.canRealize,
     );
-    // Vakti gelmemiş satırda onay yok: plan tarihi gelene kadar bir tahmindir
-    // ve gelecek ayın kirasını bugün yazmak parayı çıkmadığı bir aya koyar.
+    // Vadesi gelmemiş kalem de gerçekleştirilir: kayıt vadeye değil ödendiği
+    // güne yazılır (kullanıcı kararı, 12 Ekim 2026), yani kirayı erken ödemek
+    // parayı çıkmadığı bir aya koymaz. Tutarı olmayan kalem burada
+    // gerçekleşmez.
     final approvable =
-        item.sourceType == 'recurring-occurrence' && timing != 'upcoming';
+        item.sourceType == 'recurring-occurrence' && item.amount != null;
     if (timing != 'overdue' && !approvable) return null;
 
     return Wrap(
@@ -341,7 +346,7 @@ class _PlanningPageState extends State<PlanningPage> {
             icon: Icons.warning_amber_outlined,
             tone: AppStatusTone.expense,
           )
-        else
+        else if (timing != 'upcoming')
           const AppStatusChip(
             label: 'Onay bekliyor',
             icon: Icons.schedule,
@@ -360,12 +365,12 @@ class _PlanningPageState extends State<PlanningPage> {
     );
   }
 
-  /// Para hareket etmeden önce açık onay ister ve **hangi hesaptan** çıkacağını
-  /// söyler.
+  /// Para hareket etmeden önce açık onay ister, **hangi hesaptan** çıkacağını
+  /// söyler ve hangi gün ödendiğini sorar.
   ///
-  /// İkisi de eksikti: satır tek dokunuşla para hareket ettiriyordu ve kaynağı
-  /// hiçbir yerde yazmıyordu. Kaynak planda duruyor — tekrarlayan planın
-  /// kaynağı kuruluşta seçilir — ama kullanıcı onaylarken onu göremiyordu.
+  /// Kaynak planda duruyor — tekrarlayan planın kaynağı kuruluşta seçilir —
+  /// ve panelde yalnız gösterilir. Gün kullanıcınındır: kayıt vadeye değil
+  /// ödendiği güne yazılır.
   Future<void> _confirmRealize(
     PlanningSnapshot snapshot,
     UpcomingPaymentItem item,
@@ -379,25 +384,47 @@ class _PlanningPageState extends State<PlanningPage> {
         : item.sourceId;
     final source = planId == null ? null : _planSourceName(snapshot, planId);
 
-    final confirmed = await AppConfirmDialog.show(
-      context: context,
-      icon: Icons.playlist_add_check,
-      title: 'Gerçekleştirilsin mi?',
-      highlight:
-          '${item.title}\n'
-          '${MoneyText.format(item.amount!, item.currency)}',
-      message:
-          '${source == null ? 'Bu kayıt' : '$source hesabındaki bu kayıt'} '
-          'gerçek harekete dönüşecek ve bakiyeye girecek.',
-      confirmLabel: 'Gerçekleştir',
+    final plan = planId == null
+        ? null
+        : snapshot.recurringTransactions
+              .where((candidate) => candidate.id == planId)
+              .firstOrNull;
+    final paidOn = await showRealizeDaySheet(
+      context,
+      title: item.title,
+      amount: item.amount!,
+      currency: item.currency,
+      dueDate: item.dueDate,
+      sourceName: source,
+      isIncome: plan?.kind == 'income',
     );
-    if (!confirmed) return;
+    if (paidOn == null) return;
 
-    if (generated) {
-      await controller.realizeOccurrence(item.sourceId);
-    } else {
-      await controller.realizeDue(item.sourceId, item.dueDate);
-    }
+    Future<bool> realize({bool allowEarlierPending = false}) => generated
+        ? controller.realizeOccurrence(
+            item.sourceId,
+            paidOn: paidOn,
+            allowEarlierPending: allowEarlierPending,
+          )
+        : controller.realizeDue(
+            item.sourceId,
+            item.dueDate,
+            paidOn: paidOn,
+            allowEarlierPending: allowEarlierPending,
+          );
+
+    // Sıra atlamayı sunucu söyler: planın daha önceki bir kalemi bekliyorsa
+    // istek onay isteğiyle döner; onaylanırsa aynı gün ile yinelenir.
+    if (await realize() || !controller.earlierItemPending || !mounted) return;
+    final confirmed = await confirmSkippingEarlierItem(
+      context,
+      title: item.title,
+      dueDate: item.dueDate,
+      paidOn: paidOn,
+      pendingDate: controller.earlierPendingDate,
+      pendingCount: controller.earlierPendingCount,
+    );
+    if (confirmed) await realize(allowEarlierPending: true);
   }
 
   /// Planın kaynağının adı: hesap ya da kart.
@@ -1232,6 +1259,20 @@ String _formatDate(DateTime value) =>
     '${value.month.toString().padLeft(2, '0')}-'
     '${value.day.toString().padLeft(2, '0')}';
 
+/// Plan çalışanların arasında mı duruyor, katlanmış bölümde mi.
+///
+/// Sınırına ya da bitiş tarihine ulaşan plan sunucuda aktif değildir ama
+/// duraklatılmış da değildir: son kalemi beklerken çalışan planların arasında
+/// kalır, o da ödenince katlanır.
+bool _planIsRunning(PlanningSnapshot snapshot, RecurringTransactionItem item) =>
+    item.isActive ||
+    (item.isCompleted &&
+        snapshot.occurrences.any(
+          (occurrence) =>
+              occurrence.recurringTransactionId == item.id &&
+              occurrence.canRealize,
+        ));
+
 String? _categoryName(PlanningSnapshot snapshot, String categoryId) {
   for (final category in snapshot.categories) {
     if (category.id == categoryId) return category.name;
@@ -1353,14 +1394,15 @@ class _RecurringPlanCard extends StatelessWidget {
           ].join(' · '),
           // Duraklatılmış plan yalnız bulunduğu bölümden anlaşılmıyor: bölüm
           // kapalıyken açıp tek satıra bakan kullanıcı durumu görmeli.
-          badge: item.isActive
-              ? null
-              : const AppStatusChip(
+          // Biten plan duraklatılmış değildir; durumunu alt satır söyler.
+          badge: item.isPaused
+              ? const AppStatusChip(
                   label: 'Duraklatıldı',
                   icon: Icons.pause_circle_outline,
                   tone: AppStatusTone.cancelled,
-                ),
-          dimmed: !item.isActive,
+                )
+              : null,
+          dimmed: !_planIsRunning(snapshot, item),
           trailing: AppMoneyText(amount: item.amount, currency: item.currency),
           onTap: () => _openSheet(context),
         ),
@@ -1400,23 +1442,25 @@ class _RecurringPlanCard extends StatelessWidget {
                 ],
               ),
             ),
-            ListTile(
-              leading: Icon(
-                item.isActive
-                    ? Icons.pause_circle_outline
-                    : Icons.play_circle_outline,
+            // Biten plan yeniden başlatılamaz; duraklatılacak bir şeyi de yok.
+            if (!item.isCompleted)
+              ListTile(
+                leading: Icon(
+                  item.isActive
+                      ? Icons.pause_circle_outline
+                      : Icons.play_circle_outline,
+                ),
+                title: Text(item.isActive ? 'Duraklat' : 'Sürdür'),
+                // Duraklatma silmenin yumuşak alternatifi: geçmiş kalır, plan
+                // yalnız yeni kayıt üretmez.
+                subtitle: Text(
+                  item.isActive
+                      ? 'Geçmiş kalır; plan yeni kayıt üretmez.'
+                      : 'Plan yeniden kayıt üretmeye başlar.',
+                ),
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(_PlanAction.toggleActive),
               ),
-              title: Text(item.isActive ? 'Duraklat' : 'Sürdür'),
-              // Duraklatma silmenin yumuşak alternatifi: geçmiş kalır, plan
-              // yalnız yeni kayıt üretmez.
-              subtitle: Text(
-                item.isActive
-                    ? 'Geçmiş kalır; plan yeni kayıt üretmez.'
-                    : 'Plan yeniden kayıt üretmeye başlar.',
-              ),
-              onTap: () =>
-                  Navigator.of(sheetContext).pop(_PlanAction.toggleActive),
-            ),
             ListTile(
               leading: const Icon(Icons.delete_outline),
               title: const Text('Sil'),

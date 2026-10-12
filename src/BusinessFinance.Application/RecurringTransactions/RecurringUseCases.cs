@@ -608,7 +608,7 @@ public sealed class RealizeRecurringOccurrenceUseCase(
         // inside them stays reachable: switching a plan off must not rewrite the
         // history it already produced.
         if (occurrence.Status == RecurringOccurrenceStatus.Planned &&
-            !await repository.IsScheduleActiveAsync(
+            await repository.IsSchedulePausedAsync(
                 occurrence.RecurringTransactionId, userId, cancellationToken))
         {
             return ApplicationResult<RealizeRecurringOccurrenceResult>.Failure(
@@ -618,6 +618,43 @@ public sealed class RealizeRecurringOccurrenceUseCase(
         var payment = command.Payment;
         if (occurrence.Status == RecurringOccurrenceStatus.Planned)
         {
+            // Gün verilmeyen çağrı kaydı vade gününe yazar; vade ilerideyse
+            // ileri tarihli bir kayıt doğardı. Kalem kimliğiyle gelen çağrı da
+            // plan ve tarihle gelenle aynı kapıdan geçer.
+            var today = LocalDay.Today(timeProvider.GetUtcNow());
+            if (payment?.PaidOn is null && occurrence.ScheduledDate > today)
+            {
+                return ApplicationResult<RealizeRecurringOccurrenceResult>.Failure(
+                    RecurringErrors.NotDueYet);
+            }
+
+            // Ödeme günü onaydan önce denetlenir: aksi hâlde kullanıcı sırayı
+            // onaylar, ardından aynı istek gün yüzünden reddedilirdi.
+            if (IsFuturePaymentDay(payment))
+            {
+                return ApplicationResult<RealizeRecurringOccurrenceResult>.Failure(
+                    RecurringErrors.PaidOnInFuture);
+            }
+
+            // Sıra atlama: vadesi gelmemiş kalem yazılırken önceki bir kalem
+            // bekliyorsa açık onay istenir. Vadesi gelmiş kalemde sorulmaz
+            // (gecikmişi zaten rozet söyler) ve vergide sorulmaz: vergi
+            // kalemleri birbirinden bağımsız ödenir.
+            if (!command.AllowEarlierPending &&
+                occurrence.ScheduledDate > today &&
+                await repository.FindPendingOccurrencesBeforeAsync(
+                    occurrence.RecurringTransactionId, userId, occurrence.ScheduledDate,
+                    cancellationToken) is { } pending)
+            {
+                var plan = await repository.FindOwnedByIdAsync(
+                    occurrence.RecurringTransactionId, userId, track: false, cancellationToken);
+                if (plan?.TaxKind is null)
+                {
+                    return ApplicationResult<RealizeRecurringOccurrenceResult>.Failure(
+                        RecurringErrors.EarlierItemPending(pending));
+                }
+            }
+
             var prepared = PrepareForPayment(occurrence, command.Amount, payment);
             if (prepared is not null)
             {
@@ -628,8 +665,8 @@ public sealed class RealizeRecurringOccurrenceUseCase(
         var category = await categoryRepository.FindOwnedByIdAsync(
             occurrence.CategoryId, userId, cancellationToken);
 
-        // "Ödedim" kaydı ödeme gününe yazar, vade gününe değil (ADR 0018 T4);
-        // gün verilmezse eski davranış: vade günü.
+        // Kayıt ödeme gününe yazılır, vade gününe değil (ADR 0018 T4; 12 Ekim
+        // 2026'dan beri sıradan planda da). Gün verilmezse vade günü.
         var recordDate = payment?.PaidOn ?? occurrence.ScheduledDate;
         return occurrence.SourceType == RecurringSourceType.CreditCard
             ? await RealizeCardAsync(occurrence, category, recordDate, userId, cancellationToken)
@@ -645,11 +682,6 @@ public sealed class RealizeRecurringOccurrenceUseCase(
         decimal? amount,
         RecurringPaymentDetails? payment)
     {
-        if (payment?.PaidOn is DateOnly paidOn && paidOn > LatestAllowedPaymentDate())
-        {
-            return RecurringErrors.PaidOnInFuture;
-        }
-
         try
         {
             // Tutar düzeltmesi yalnız bekleyen kaleme uygulanır: gerçekleşmiş
@@ -679,13 +711,9 @@ public sealed class RealizeRecurringOccurrenceUseCase(
         return occurrence.SourceType is null ? RecurringErrors.SourceRequired : null;
     }
 
-    /// <summary>
-    /// Bugünden sonraki bir ödeme günü reddedilir. Sunucu günü UTC'dir;
-    /// Türkiye'de gece yarısından sonraki ilk saatlerde kullanıcının "bugün"ü
-    /// UTC'de yarındır, bu yüzden bir gün pay bırakılır.
-    /// </summary>
-    private DateOnly LatestAllowedPaymentDate() =>
-        DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime).AddDays(1);
+    private bool IsFuturePaymentDay(RecurringPaymentDetails? payment) =>
+        payment?.PaidOn is DateOnly paidOn &&
+        (paidOn == default || paidOn > LocalDay.LatestAllowed(timeProvider.GetUtcNow()));
 
     private async Task<ApplicationResult<RealizeRecurringOccurrenceResult>> RealizeAccountAsync(
         RecurringTransactionOccurrence occurrence,
@@ -895,9 +923,9 @@ public sealed class DeleteRecurringTransactionUseCase(
 /// <para>
 /// <b>Early payment.</b> Without a payment day the record is written on the due
 /// day, so a future row cannot be realized — that would put money in a month it
-/// did not leave. With a payment day (the tax screen's "Ödedim") the record goes
-/// to that day, which is never in the future, so paying a tax before its due
-/// date is allowed.
+/// did not leave. With a payment day the record goes to that day, which is never
+/// in the future, so paying before the due date is allowed: a tax through the
+/// tax screen's "Ödedim", rent or a subscription through "Gerçekleştir".
 /// </para>
 /// </remarks>
 public sealed class RealizeDueRecurringUseCase(
@@ -917,7 +945,9 @@ public sealed class RealizeDueRecurringUseCase(
                 RecurringErrors.AuthenticationRequired);
         }
 
-        var today = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
+        var today = LocalDay.Today(timeProvider.GetUtcNow());
+
+        // Kalem üretilmeden önce bakılır: reddedilen istek geride satır bırakmaz.
         if (command.Payment?.PaidOn is null && command.ScheduledDate > today)
         {
             return ApplicationResult<RealizeRecurringOccurrenceResult>.Failure(
@@ -947,7 +977,8 @@ public sealed class RealizeDueRecurringUseCase(
         }
 
         return await realize.ExecuteAsync(
-            new RealizeRecurringOccurrenceCommand(lookup.Occurrence!.Id, command.Amount, command.Payment),
+            new RealizeRecurringOccurrenceCommand(
+                lookup.Occurrence!.Id, command.Amount, command.Payment, command.AllowEarlierPending),
             cancellationToken);
     }
 }

@@ -19,10 +19,9 @@ public sealed class GetCashCountTodayUseCase(
 {
     /// <param name="accountId">Sayılacak kasa.</param>
     /// <param name="day">
-    /// Kullanıcının takvim günü. Sunucunun UTC gününden en çok bir gün uzakta
-    /// olabilir (<see cref="LocalDay"/>); boşsa ya da daha uzaksa sunucunun
-    /// günü kullanılır. Gece yarısından sonra girilen sayım kullanıcının
-    /// gününü taşır; ekran aynı günü sormazsa o sayımı "bugün" diye bulamaz.
+    /// Cihazın takvim günü. Sunucunun gününden (<see cref="LocalDay"/>) en çok
+    /// bir gün geride olabilir; boşsa, daha gerideyse ya da ilerideyse
+    /// sunucunun günü kullanılır.
     /// </param>
     /// <param name="cancellationToken">İptal belirteci.</param>
     public async Task<ApplicationResult<CashCountTodayDto>> ExecuteAsync(
@@ -44,11 +43,13 @@ public sealed class GetCashCountTodayUseCase(
                 CashCountErrors.AccountUnavailable);
         }
 
-        var utcToday = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
+        // Cihazın günü sunucunun gününden geride olabilir, ileride olamaz:
+        // ilerideki güne sayım yazılamaz ve kart yazılamayacak bir günü sorardı.
+        var serverToday = LocalDay.Today(timeProvider.GetUtcNow());
         var today = day is DateOnly requested &&
-                    requested >= utcToday.AddDays(-1) && requested <= utcToday.AddDays(1)
+                    requested >= serverToday.AddDays(-1) && requested <= serverToday
             ? requested
-            : utcToday;
+            : serverToday;
         var expectedBalance = await accountRepository.CalculateBalanceAsync(
             accountId, userId, cancellationToken);
         var count = await repository.FindOpenAsync(
@@ -188,6 +189,12 @@ public sealed class CreateCashCountUseCase(
         {
             return ApplicationResult<CashCountDto>.Failure(
                 CashCountErrors.AuthenticationRequired);
+        }
+
+        // Aggregate da reddeder; burada kendi koduyla döner.
+        if (command.CountDate > LocalDay.LatestAllowed(timeProvider.GetUtcNow()))
+        {
+            return ApplicationResult<CashCountDto>.Failure(CashCountErrors.DateInFuture);
         }
 
         var account = await accountRepository.FindOwnedByIdAsync(

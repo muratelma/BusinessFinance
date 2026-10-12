@@ -112,7 +112,7 @@ internal sealed class EfPosDepositRepository(
             })
             .ToArrayAsync(cancellationToken);
 
-        var asOfDate = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
+        var asOfDate = LocalDay.Today(timeProvider.GetUtcNow());
         return new PosDepositDto(
             header.deposit.Id,
             header.deposit.AccountId,

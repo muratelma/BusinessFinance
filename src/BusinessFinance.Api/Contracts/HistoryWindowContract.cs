@@ -1,5 +1,6 @@
 using BusinessFinance.Api.Errors;
 using BusinessFinance.Application.Abstractions.Queries;
+using BusinessFinance.Domain;
 
 namespace BusinessFinance.Api.Contracts;
 
@@ -65,7 +66,7 @@ internal static class HistoryWindowContract
             window = all
                 ? HistoryWindow.Unbounded
                 : HistoryWindow.DefaultFor(
-                    DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime));
+                    LocalDay.Today(timeProvider.GetUtcNow()));
             return true;
         }
 

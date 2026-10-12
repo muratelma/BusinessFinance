@@ -1,8 +1,11 @@
 import 'package:business_finance_mobile/core/widgets/app_status_chip.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
 import 'package:business_finance_mobile/core/widgets/app_card.dart';
+import 'package:business_finance_mobile/core/widgets/app_date_field.dart';
+import 'package:business_finance_mobile/core/widgets/app_form_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:business_finance_mobile/core/network/api_error_messages.dart';
 import 'package:business_finance_mobile/core/network/api_exception.dart';
 import 'package:business_finance_mobile/features/activities/data/activity_models.dart';
 import 'package:business_finance_mobile/features/activities/data/activity_repository.dart';
@@ -298,10 +301,28 @@ void main() {
     ///
     /// Kapalı bir buton "bir şey eksik" der ve kullanıcıyı eksiği aramaya
     /// gönderir; oysa eksik bir şey yok, yalnız gün gelmemiş.
-    testWidgets('vakti gelmemiş satırda eylem hiç yok', (tester) async {
-      await _pumpPage(tester, _page([_activity(actionTargetId: 'plan-1')]));
+    testWidgets('günü gelmemiş kart taksidinde eylem hiç yok', (tester) async {
+      await _pumpPage(
+        tester,
+        _page([
+          _activity(
+            kind: PlannedKind.cardInstallment,
+            actionTargetId: 'plan-1',
+          ),
+        ]),
+      );
 
       expect(find.text('Gerçekleştir'), findsNothing);
+    });
+
+    // Tekrarlayan kalem ödendiği güne yazılır; kirayı erken ödeyen onu
+    // vadesinden önce gerçekleştirir.
+    testWidgets('vadesi gelmemiş tekrarlayan kalemde eylem çıkar', (
+      tester,
+    ) async {
+      await _pumpPage(tester, _page([_activity(actionTargetId: 'plan-1')]));
+
+      expect(find.text('Gerçekleştir'), findsOneWidget);
     });
 
     testWidgets('offers the three horizons the server accepts', (tester) async {
@@ -344,19 +365,26 @@ void main() {
       expect(item.isDirectlyRealizable, isTrue);
     });
 
-    test('engelli ya da vakti gelmemiş satır tek dokunuşla gerçekleşmez', () {
+    test('engelli satır ve günü gelmemiş taksit gerçekleşmez', () {
       // Limiti dolu kart: yapılacak iş var ama şu an yapılamıyor.
       final blocked = PlannedActivity.fromJson({
         ..._json(kind: 'card-installment'),
         'actionTargetId': 'plan-1',
         'actionSequence': 1,
       });
-      // Vakti gelmemiş: plan tarihi gelene kadar bir tahmindir ve gelecek ayın
-      // kirasını bugün yazmak parayı çıkmadığı bir aya koyar.
+      // Vadesi gelmemiş tekrarlayan kalem gerçekleştirilebilir: kayıt vadeye
+      // değil ödendiği güne yazılır.
       final future = PlannedActivity.fromJson({
         ..._json(attention: null),
         'timing': 'upcoming',
         'actionTargetId': 'plan-1',
+      });
+      // Günü gelmemiş kart taksidi gerçekleşmez: taksit kendi gününe yazılır.
+      final futureInstallment = PlannedActivity.fromJson({
+        ..._json(kind: 'card-installment', attention: null),
+        'timing': 'upcoming',
+        'actionTargetId': 'plan-1',
+        'actionSequence': 2,
       });
       // Üretilmemiş ama vakti gelmiş satır **gerçekleştirilebilir**: sunucu eksik
       // kaydı kendi üretiyor ve satır planı adresliyor.
@@ -368,7 +396,8 @@ void main() {
       });
 
       expect(blocked.isDirectlyRealizable, isFalse);
-      expect(future.isDirectlyRealizable, isFalse);
+      expect(future.isDirectlyRealizable, isTrue);
+      expect(futureInstallment.isDirectlyRealizable, isFalse);
       expect(unborn.isDirectlyRealizable, isTrue);
     });
 
@@ -398,6 +427,88 @@ void main() {
 
       expect(repository.realizedPlanned, hasLength(1));
       expect(repository.realizedPlanned.single.actionTargetId, 'plan-1');
+    });
+
+    testWidgets('tekrarlayan kalem günü sorar ve seçilen günle gerçekleşir', (
+      tester,
+    ) async {
+      final repository = _FakeRepository(
+        page: _page([_activity(actionTargetId: 'plan-1')]),
+      );
+      await _pumpPageWith(tester, repository);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Gerçekleştir'));
+      await tester.pumpAndSettle();
+
+      // Panel tutarı, kaynağı ve vadeyi gösterir; gün bugünle açılır.
+      final sheet = find.byType(AppFormSheet<String>);
+      expect(sheet, findsOneWidget);
+      expect(
+        find.descendant(of: sheet, matching: find.textContaining('Test Kart')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: sheet, matching: find.textContaining('· bugün')),
+        findsOneWidget,
+      );
+      expect(repository.realizedPlanned, isEmpty);
+
+      await tester.tap(
+        find.descendant(of: sheet, matching: find.text('Gerçekleştir')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(repository.realizedPlanned, hasLength(1));
+      expect(repository.paidOn, [AppDateField.format(DateTime.now())]);
+    });
+
+    // Sıra atlamayı sunucu söyler: planın daha önceki bir kalemi bekliyorsa
+    // istek onay isteğiyle döner. Hata olarak gösterilmez; onaylanınca aynı
+    // günle yinelenir, vazgeçilince hiçbir şey yazılmaz.
+    testWidgets('önceki kalem bekliyorsa onay sorar, onayla yineler', (
+      tester,
+    ) async {
+      final repository = _FakeRepository(
+        page: _page([_activity(actionTargetId: 'plan-1')]),
+      )..earlierItemPending = true;
+      await _pumpPageWith(tester, repository);
+      final today = AppDateField.format(DateTime.now());
+
+      Future<void> openAndSubmit() async {
+        await tester.tap(find.widgetWithText(FilledButton, 'Gerçekleştir'));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.descendant(
+            of: find.byType(AppFormSheet<String>),
+            matching: find.text('Gerçekleştir'),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      await openAndSubmit();
+      expect(find.text('Önceki kalem bekliyor'), findsOneWidget);
+      // Bekleyen kalemin vadesini sunucu söyler ve kutu onu yazar.
+      expect(
+        find.textContaining('Bu planın 20 Kasım vadeli kalemi hâlâ bekliyor'),
+        findsOneWidget,
+      );
+      expect(find.byType(SnackBar), findsNothing);
+      expect(repository.realizedPlanned, isEmpty);
+
+      await tester.tap(find.text('Vazgeç'));
+      await tester.pumpAndSettle();
+      expect(repository.realizedPlanned, isEmpty);
+      expect(find.byType(SnackBar), findsNothing);
+
+      await openAndSubmit();
+      await tester.tap(find.text('Yine de gerçekleştir'));
+      await tester.pumpAndSettle();
+
+      expect(repository.realizedPlanned, hasLength(1));
+      expect(repository.paidOn, [today]);
+      // İki onaysız istek reddedildi, üçüncüsü onayla gitti.
+      expect(repository.allowEarlierPending, [false, false, true]);
     });
 
     testWidgets('engelli satırın butonu kapalı durur', (tester) async {
@@ -577,9 +688,28 @@ class _FakeRepository implements ActivityRepositoryContract {
   Future<void> cancel(FinancialActivity activity) => throw UnimplementedError();
 
   @override
-  Future<void> realizePlanned(PlannedActivity activity) async {
+  Future<void> realizePlanned(
+    PlannedActivity activity, {
+    String? paidOn,
+    bool allowEarlierPending = false,
+  }) async {
+    this.allowEarlierPending.add(allowEarlierPending);
+    if (earlierItemPending && !allowEarlierPending) {
+      throw ApiException(
+        statusCode: 409,
+        code: 'recurring.earlier_item_pending',
+        message: ApiErrorMessages.resolve('recurring.earlier_item_pending'),
+        pendingScheduledDate: '2026-11-20',
+        pendingCount: 1,
+      );
+    }
     realizedPlanned.add(activity);
+    this.paidOn.add(paidOn);
   }
 
+  /// Sunucu "önceki kalem bekliyor" der; onaylı istek geçer.
+  bool earlierItemPending = false;
   final List<PlannedActivity> realizedPlanned = [];
+  final List<String?> paidOn = [];
+  final List<bool> allowEarlierPending = [];
 }

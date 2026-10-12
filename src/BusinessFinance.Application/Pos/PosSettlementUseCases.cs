@@ -59,6 +59,12 @@ public sealed class CreatePosSettlementUseCase(
                 PosSettlementErrors.AuthenticationRequired);
         }
 
+        // Aggregate da reddeder; burada kendi koduyla döner.
+        if (command.SettlementDate > LocalDay.LatestAllowed(timeProvider.GetUtcNow()))
+        {
+            return ApplicationResult<PosSettlementDto>.Failure(PosSettlementErrors.DateInFuture);
+        }
+
         if (command.CommissionAmount is not null && command.CommissionRate is not null)
         {
             return ApplicationResult<PosSettlementDto>.Failure(
@@ -193,7 +199,7 @@ public sealed class CreatePosSettlementUseCase(
                     account.Name,
                     category.Name,
                     commissionCategory?.Name,
-                    DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime),
+                    LocalDay.Today(timeProvider.GetUtcNow()),
                     definition?.Name));
         }
         catch (ArgumentException exception)
@@ -353,7 +359,7 @@ public static class PosSettlementMapper
             account?.Name ?? string.Empty,
             category?.Name,
             commissionCategory?.Name,
-            DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime),
+            LocalDay.Today(timeProvider.GetUtcNow()),
             definition?.Name);
     }
 

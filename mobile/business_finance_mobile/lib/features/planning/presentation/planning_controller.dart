@@ -87,11 +87,44 @@ class PlanningController extends ChangeNotifier {
   Future<bool> deleteRecurring(String id) =>
       _submit(() => _repository.deleteRecurring(id), 'Plan silindi.');
 
-  Future<bool> realizeOccurrence(String id) async {
-    final realized = await _submit(
-      () => _repository.realizeOccurrence(id),
-      'Planlanan kayıt gerçekleşen işleme dönüştürüldü.',
-    );
+  /// Son gerçekleştirme isteği, planın daha önceki bir kalemi beklediği için
+  /// onay istedi. Hata değildir ve hata olarak gösterilmez: ekran sorar ve
+  /// onayla aynı isteği yineler.
+  bool earlierItemPending = false;
+
+  /// Bekleyen en eski kalemin vadesi ve bekleyen kalem sayısı; sunucu
+  /// göndermediyse boştur.
+  String? earlierPendingDate;
+  int? earlierPendingCount;
+
+  Future<bool> realizeOccurrence(
+    String id, {
+    String? paidOn,
+    bool allowEarlierPending = false,
+  }) => _realize(
+    () => _repository.realizeOccurrence(
+      id,
+      paidOn: paidOn,
+      allowEarlierPending: allowEarlierPending,
+    ),
+  );
+
+  Future<bool> _realize(Future<void> Function() action) async {
+    earlierItemPending = false;
+    final realized = await _submit(() async {
+      try {
+        await action();
+      } on ApiException catch (error) {
+        earlierItemPending = error.isEarlierItemPending;
+        earlierPendingDate = error.pendingScheduledDate;
+        earlierPendingCount = error.pendingCount;
+        rethrow;
+      }
+    }, 'Planlanan kayıt gerçekleşen işleme dönüştürüldü.');
+    if (earlierItemPending) {
+      errorMessage = null;
+      notifyListeners();
+    }
     if (realized) financialDataChanges?.recurringRealized();
     return realized;
   }
@@ -101,14 +134,19 @@ class PlanningController extends ChangeNotifier {
   /// Yaklaşanlar listesi kimlik olarak, occurrence varsa onun kimliğini, yoksa
   /// **planın** kimliğini taşıyor. Ekran ikisini ayırt edip doğru uç noktaı
   /// seçiyor; kullanıcı için ikisi de tek bir "Onayla".
-  Future<bool> realizeDue(String planId, String scheduledDate) async {
-    final realized = await _submit(
-      () => _repository.realizeDue(planId, scheduledDate),
-      'Planlanan kayıt gerçekleşen işleme dönüştürüldü.',
-    );
-    if (realized) financialDataChanges?.recurringRealized();
-    return realized;
-  }
+  Future<bool> realizeDue(
+    String planId,
+    String scheduledDate, {
+    String? paidOn,
+    bool allowEarlierPending = false,
+  }) => _realize(
+    () => _repository.realizeDue(
+      planId,
+      scheduledDate,
+      paidOn: paidOn,
+      allowEarlierPending: allowEarlierPending,
+    ),
+  );
 
   Future<bool> _submit(Future<void> Function() action, String success) async {
     if (isSubmitting) return false;

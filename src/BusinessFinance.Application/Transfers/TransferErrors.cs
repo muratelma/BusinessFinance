@@ -14,6 +14,11 @@ public static class TransferErrors
         "Both accounts must exist, belong to the user and be active.",
         ApplicationErrorType.Validation);
 
+    public static readonly ApplicationError DateInFuture = new(
+        "transfers.date_in_future",
+        "The transfer date cannot be in the future.",
+        ApplicationErrorType.Validation);
+
     public static ApplicationError Validation(string message) => new(
         "transfers.validation",
         message,

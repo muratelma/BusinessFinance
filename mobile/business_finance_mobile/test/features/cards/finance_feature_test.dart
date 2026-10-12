@@ -1130,6 +1130,14 @@ void main() {
               scheduledDate: '2026-09-19',
               isRealized: false,
             ),
+            // Günü gelmemiş taksit: kendi gününe yazılır, erken gerçekleşmez.
+            InstallmentItemModel(
+              sequence: 3,
+              amount: '1000.0000',
+              currency: 'TRY',
+              scheduledDate: '2099-10-19',
+              isRealized: false,
+            ),
           ],
         ),
       ],
@@ -1148,10 +1156,12 @@ void main() {
     await tester.tap(find.text('TEKNOSA'));
     await tester.pumpAndSettle();
 
-    // Her satırda bir rozet; eylem yalnız gerçekleşmemiş olanda.
+    // Her satırda bir rozet; eylem yalnız gerçekleşmemiş ve günü gelmiş
+    // olanda. Günü gelmemiş taksitte eylem hiç çıkmaz.
     expect(find.text('Gerçekleşti'), findsOneWidget);
-    expect(find.text('Planlandı'), findsOneWidget);
+    expect(find.text('Planlandı'), findsNWidgets(2));
     expect(find.text('Gerçekleştir'), findsOneWidget);
+    expect(find.text('19 Ekim 2099'), findsOneWidget);
     // Tarih ham ISO değil okunur biçimde.
     expect(find.text('19 Eylül 2026'), findsOneWidget);
     // Eylem `AppRowAction`: rozetle aynı yükseklikte, yumuşak dolgulu.

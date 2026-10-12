@@ -28,7 +28,8 @@ public static class ApplicationErrorHttpExtensions
             statusCode,
             GetTitle(error.Type),
             error.Message,
-            error.Code);
+            error.Code,
+            error.Details);
     }
 
     private static string GetTitle(ApplicationErrorType errorType)

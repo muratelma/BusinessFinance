@@ -33,12 +33,18 @@ public sealed class StageCsvImportUseCase(
                 command.Options.DateFormat, command.Options.DecimalSeparator,
                 timeProvider.GetUtcNow());
 
+            // İleri tarihli satır öbür hatalı satırlar gibi görünür: kullanıcı
+            // tarihi düzeltir ya da satırı dışarıda bırakır.
+            var latestAllowed = LocalDay.LatestAllowed(timeProvider.GetUtcNow());
             foreach (var row in parsed.Rows)
             {
+                IReadOnlyCollection<string> errors = row.TransactionDate > latestAllowed
+                    ? [.. row.Errors, FutureDateRowError]
+                    : row.Errors;
                 batch.AddRow(new ImportRow(
                     Guid.NewGuid(), userId, batch.Id, row.RowNumber, row.RawData,
                     row.TransactionDate, row.SignedAmount, command.Currency,
-                    row.Description, row.ExternalReference, row.Errors));
+                    row.Description, row.ExternalReference, errors));
             }
 
             var persisted = await repository.AddOrGetExistingAsync(batch, cancellationToken);
@@ -53,6 +59,8 @@ public sealed class StageCsvImportUseCase(
             return ApplicationResult<ImportBatchDto>.Failure(ImportErrors.Validation(exception.Message));
         }
     }
+
+    internal const string FutureDateRowError = "Transaction date cannot be in the future.";
 
     internal static ImportBatchDto ToDto(ImportBatch batch) => new(
         batch.Id, batch.FileName, batch.FileFingerprint, batch.FileSizeBytes, batch.EncodingName, batch.Delimiter,
@@ -91,7 +99,8 @@ public sealed class UpdateImportCandidateUseCase(
     ICurrentUser currentUser,
     IImportBatchRepository repository,
     IAccountRepository accountRepository,
-    ICategoryRepository categoryRepository)
+    ICategoryRepository categoryRepository,
+    TimeProvider timeProvider)
 {
     public async Task<ApplicationResult<ImportRowDto>> ExecuteAsync(
         UpdateImportCandidateCommand command,
@@ -100,6 +109,8 @@ public sealed class UpdateImportCandidateUseCase(
         ArgumentNullException.ThrowIfNull(command);
         if (currentUser.UserId is not Guid userId || userId == Guid.Empty)
             return ApplicationResult<ImportRowDto>.Failure(ImportErrors.AuthenticationRequired);
+        if (command.TransactionDate > LocalDay.LatestAllowed(timeProvider.GetUtcNow()))
+            return ApplicationResult<ImportRowDto>.Failure(ImportErrors.DateInFuture);
 
         var batch = await repository.FindOwnedByIdAsync(command.BatchId, userId, true, cancellationToken);
         var row = batch?.Rows.SingleOrDefault(item => item.Id == command.RowId);
@@ -146,7 +157,8 @@ public sealed class ConfirmImportBatchUseCase(
     IImportBatchRepository repository,
     IAccountRepository accountRepository,
     ICategoryRepository categoryRepository,
-    IUserProfileRepository profileRepository)
+    IUserProfileRepository profileRepository,
+    TimeProvider timeProvider)
 {
     public const int MaximumConfirmationRows = 5000;
 
@@ -180,6 +192,12 @@ public sealed class ConfirmImportBatchUseCase(
         if (selected.Any(row => row.Status != ImportRowStatus.Ready))
             return ApplicationResult<ImportBatchDto>.Failure(
                 ImportErrors.Conflict("Every selected row must be corrected and mapped before confirmation."));
+
+        // Ekstre satırı da kayıt üretir ve aynı kurala uyar. Onay hiçbir kayıt
+        // yazmaz; kullanıcı tarihi düzeltir ya da satırı seçimden çıkarır.
+        var latestAllowed = LocalDay.LatestAllowed(timeProvider.GetUtcNow());
+        if (selected.Any(row => row.TransactionDate > latestAllowed))
+            return ApplicationResult<ImportBatchDto>.Failure(ImportErrors.DateInFuture);
 
         var transactions = new List<BudgetTransaction>(selected.Length);
         foreach (var row in selected)

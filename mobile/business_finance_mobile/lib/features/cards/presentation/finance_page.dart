@@ -1069,7 +1069,10 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
         // Çerçeveli: çerçevesiz hâlde rozetin yanındaki ikinci bir etiket gibi
         // okunuyor ve tıklanabilir olduğu fark edilmiyordu. Dolgulu buton ise
         // satır içinde fazla ağır — o ağırlık ekranın birincil eylemine ait.
-        if (!item.isRealized)
+        //
+        // Günü gelmemiş taksitte eylem yoktur: taksit kendi gününe yazılır ve
+        // erken gerçekleştirmek ileri tarihli bir harcama doğururdu.
+        if (!item.isRealized && _isDue(item))
           AppRowAction(
             label: 'Gerçekleştir',
             onPressed: widget.controller.isSubmitting
@@ -1086,6 +1089,12 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
       effect: item.isRealized ? AppMoneyEffect.expense : AppMoneyEffect.neutral,
     ),
   );
+
+  static bool _isDue(InstallmentItemModel item) {
+    final scheduled = AppDateField.parse(item.scheduledDate);
+    return scheduled == null ||
+        !scheduled.isAfter(DateUtils.dateOnly(DateTime.now()));
+  }
 
   Future<void> _realize(String planId, int sequence) async {
     if (await widget.controller.submit(
@@ -1407,6 +1416,7 @@ class _TransferDialogState extends State<_TransferDialog> {
           child: AppDateField(
             label: 'Tarih',
             value: date,
+            lastDate: DateTime.now(),
             onChanged: (value) => setState(() => date = value),
           ),
         ),
@@ -1710,6 +1720,7 @@ class _ActivityDialogState extends State<_ActivityDialog> {
           child: AppDateField(
             label: 'Tarih',
             value: date,
+            lastDate: DateTime.now(),
             onChanged: (value) => setState(() => date = value),
           ),
         ),

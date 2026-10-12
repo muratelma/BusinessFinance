@@ -97,7 +97,7 @@ internal sealed class EfPosSettlementRepository(
             })
             .SingleOrDefaultAsync(cancellationToken);
 
-        var asOfDate = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
+        var asOfDate = LocalDay.Today(timeProvider.GetUtcNow());
         return new PosSettlementListDto(
             rows
                 .Select(row => new PosSettlementDto(

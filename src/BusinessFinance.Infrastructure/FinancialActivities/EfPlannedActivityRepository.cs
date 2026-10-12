@@ -156,7 +156,9 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
     {
         // A pending occurrence whose schedule was deactivated is not an
         // obligation any more, so it drops out of the planned view exactly like
-        // the projected dates behind it already do. The join also brings the
+        // the projected dates behind it already do. A plan that ran out of
+        // occurrences is not paused (`RecurringTransaction.IsPaused`): its last
+        // pending item is still owed and stays. The join also brings the
         // plan's tax kind: an occurrence does not copy it, and a second query
         // for it would cost every caller of this projection one more round trip.
         var occurrences = await (
@@ -169,7 +171,7 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
                       occurrence.Status == RecurringOccurrenceStatus.Planned &&
                       (scope == null || occurrence.Scope == scope) &&
                       occurrence.ScheduledDate <= horizonDate &&
-                      schedule.IsActive
+                      (schedule.IsActive || schedule.NextOccurrenceDate == null)
                 select new { Occurrence = occurrence, schedule.TaxKind })
             .ToArrayAsync(cancellationToken);
         var schedules = await dbContext.RecurringTransactions.AsNoTracking()

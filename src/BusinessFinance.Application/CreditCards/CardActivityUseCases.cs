@@ -17,7 +17,8 @@ public sealed class CreateCardChargeUseCase(
     ICreditCardRepository cardRepository,
     ICategoryRepository categoryRepository,
     ICardChargeRepository chargeRepository,
-    IUserProfileRepository profileRepository)
+    IUserProfileRepository profileRepository,
+    TimeProvider timeProvider)
 {
     public async Task<ApplicationResult<CardChargeDto>> ExecuteAsync(
         CreateCardChargeCommand command,
@@ -27,6 +28,12 @@ public sealed class CreateCardChargeUseCase(
         if (currentUser.UserId is not Guid userId || userId == Guid.Empty)
         {
             return ApplicationResult<CardChargeDto>.Failure(CreditCardErrors.AuthenticationRequired);
+        }
+
+        // İleri tarihli harcama kart borcunu bugünden artırırdı.
+        if (command.ChargeDate > LocalDay.LatestAllowed(timeProvider.GetUtcNow()))
+        {
+            return ApplicationResult<CardChargeDto>.Failure(CreditCardErrors.DateInFuture);
         }
 
         var card = await cardRepository.FindOwnedByIdAsync(
@@ -108,7 +115,8 @@ public sealed class CreateCardPaymentUseCase(
     ICurrentUser currentUser,
     ICreditCardRepository cardRepository,
     IAccountRepository accountRepository,
-    ICardPaymentRepository paymentRepository)
+    ICardPaymentRepository paymentRepository,
+    TimeProvider timeProvider)
 {
     public async Task<ApplicationResult<CardPaymentDto>> ExecuteAsync(
         CreateCardPaymentCommand command,
@@ -118,6 +126,11 @@ public sealed class CreateCardPaymentUseCase(
         if (currentUser.UserId is not Guid userId || userId == Guid.Empty)
         {
             return ApplicationResult<CardPaymentDto>.Failure(CreditCardErrors.AuthenticationRequired);
+        }
+
+        if (command.PaymentDate > LocalDay.LatestAllowed(timeProvider.GetUtcNow()))
+        {
+            return ApplicationResult<CardPaymentDto>.Failure(CreditCardErrors.DateInFuture);
         }
 
         var card = await cardRepository.FindOwnedByIdAsync(

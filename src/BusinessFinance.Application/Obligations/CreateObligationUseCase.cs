@@ -31,6 +31,13 @@ public sealed class CreateObligationUseCase(
                 ObligationErrors.AuthenticationRequired);
         }
 
+        // Aggregate da reddeder; burada kendi koduyla döner ki ekran ne
+        // olduğunu söyleyebilsin. Vade ileride olabilir.
+        if (command.IssueDate > LocalDay.LatestAllowed(timeProvider.GetUtcNow()))
+        {
+            return ApplicationResult<ObligationDto>.Failure(ObligationErrors.DateInFuture);
+        }
+
         var category = await categoryRepository.FindOwnedByIdAsync(
             command.CategoryId, userId, cancellationToken);
         if (category is null || !category.IsActive ||

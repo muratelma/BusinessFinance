@@ -97,6 +97,12 @@ public static class PosSettlementErrors
         message,
         ApplicationErrorType.Conflict);
 
+    /// <summary>Tahsilatın günü ileride.</summary>
+    public static readonly ApplicationError DateInFuture = new(
+        "pos_settlements.date_in_future",
+        "The settlement date cannot be in the future.",
+        ApplicationErrorType.Validation);
+
     public static ApplicationError Validation(string message) => new(
         "pos_settlements.validation",
         message,

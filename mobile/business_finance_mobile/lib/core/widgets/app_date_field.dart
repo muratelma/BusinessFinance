@@ -46,6 +46,10 @@ class AppDateField extends StatelessWidget {
   final String placeholder;
 
   final DateTime? firstDate;
+
+  /// Seçilebilecek en ileri gün. Olmuş bir kaydın günü ileride olamaz
+  /// (gelir, gider, harcama, ödeme, tahsilat, transfer): o formlar bugünü
+  /// verir. Vade, plan başlangıcı ve hedef tarihi boş bırakır.
   final DateTime? lastDate;
   final bool enabled;
 
@@ -108,11 +112,18 @@ class AppDateField extends StatelessWidget {
   }
 
   Future<void> _pick(BuildContext context) async {
+    final first = DateUtils.dateOnly(firstDate ?? DateTime(2000));
+    final last = DateUtils.dateOnly(lastDate ?? DateTime(2100));
+    // Değer aralığın dışında gelebilir (belgeden okunan ileri bir tarih);
+    // takvim aralığın dışındaki bir günle açılamaz.
+    var initial = parse(value) ?? DateTime.now();
+    if (initial.isAfter(last)) initial = last;
+    if (initial.isBefore(first)) initial = first;
     final picked = await showDatePicker(
       context: context,
-      initialDate: parse(value) ?? DateTime.now(),
-      firstDate: firstDate ?? DateTime(2000),
-      lastDate: lastDate ?? DateTime(2100),
+      initialDate: initial,
+      firstDate: first,
+      lastDate: last,
     );
     if (picked != null) onChanged(format(picked));
   }

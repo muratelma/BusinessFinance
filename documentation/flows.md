@@ -685,12 +685,32 @@ duruyor; çağıranı artık `RealizeDueRecurringUseCase`.
 Eylemin adı iki ekranda da **`Gerçekleştir`**. `Onayla` ardından başka bir adım
 gelecekmiş izlenimi veriyordu; oysa adım tek.
 
-**Vakti gelmemiş satırda eylem hiç çizilmez** — gri de çizilmez. Kapalı bir
-buton "bir şey eksik" der ve kullanıcıyı eksiği aramaya gönderir; oysa eksik bir
-şey yoktur, yalnız gün gelmemiştir. Kural sunucuda da vardır
-(`recurring.not_due_yet`): gelecek ayın kirasını bugün gerçekleştirmek parayı
-çıkmadığı bir aya yazar ve tarihe göre okuyan her rapor o andan sonra yanlış
-olur.
+**Tekrarlayan kalem ödendiği güne yazılır** (kullanıcı kararı, 12 Ekim 2026).
+`Gerçekleştir` vadesi gelmemiş satırda da çıkar ve bir panel açar: panel
+tutarı, kaynağı ve vadeyi gösterir, **günü sorar** (`Ödeme günü`, gelirde
+`Tahsilat günü`). Ön değer bugündür, geçmiş bir gün seçilebilir, ileri bir gün
+seçilemez. Kirayı 11'inde ödeyip 12'sinde giren kullanıcı 11'ini seçer; kayıt
+vadeye değil o güne yazılır. İki listede de aynı paneldir (`İşlemler →
+Planlanan` ve `Planlama → Yaklaşanlar`).
+
+**Sıra atlanırsa onay sorulur.** Kullanıcı Aralık kirasını Kasım beklerken
+gerçekleştirmek isterse panelden sonra `Önceki kalem bekliyor` onayı çıkar:
+"Bu plandan daha önceki bir kalem hâlâ bekliyor. Bunu gerçekleştirirseniz
+önceki kalem bekliyor olarak kalır." `Yine de gerçekleştir` aynı günle yazar,
+`Vazgeç` hiçbir şey yazmaz. Onay isteği sunucudan gelir ve sayfada hata olarak
+gösterilmez. Vadesi gelmiş kalemde ve vergide sorulmaz.
+
+**Günü gelmemiş kart taksidinde eylem hiç çizilmez** — gri de çizilmez. Kapalı
+bir buton "bir şey eksik" der ve kullanıcıyı eksiği aramaya gönderir; oysa
+eksik bir şey yoktur, yalnız gün gelmemiştir. Taksit kendi gününe yazılır ve
+banka onu ekstresine o gün yansıtır; kural sunucuda da vardır
+(`installments.not_due_yet`). Kart borcunu erken ödemek ayrı bir kayıttır.
+
+**Olmuş kaydın günü ileride olamaz.** Gelir/gider, kart harcaması ve ödemesi,
+transfer, cari kayıt ve borç başlangıcı formlarında takvim bugünde biter;
+sunucu da aynı kuralı uygular (`*.date_in_future`). Vade, plan başlangıcı, ilk
+taksit tarihi ve hedef tarihi sınırlanmaz. İleride yapılacak bir ödeme plandır:
+tekrarlayan plan, taksit planı ya da vadeli bir borç.
 
 **Henüz üretilmemiş tekrarlanan satır plan kimliğini ve tarihini gönderir**
 (`POST /api/v1/recurring-transactions/{planId}/occurrences/realize`); sunucu

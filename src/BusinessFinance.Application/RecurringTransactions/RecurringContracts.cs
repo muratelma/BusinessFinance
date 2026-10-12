@@ -163,10 +163,16 @@ public sealed record GenerateRecurringOccurrencesResult(
 /// "Ödedim" ayrıntısı: ödeme günü ve kaynağı (ADR 0018 T4). Boşsa kayıt vade
 /// gününe, kalemin kendi kaynağından yazılır (bu alandan önceki davranış).
 /// </param>
+/// <param name="AllowEarlierPending">
+/// Vadesi gelmemiş bir kalem, aynı planın daha önceki bir kalemi beklerken
+/// gerçekleştirilirse kullanıcının açık onayı. Onay yoksa istek
+/// <c>recurring.earlier_item_pending</c> ile reddedilir.
+/// </param>
 public sealed record RealizeRecurringOccurrenceCommand(
     Guid OccurrenceId,
     decimal? Amount = null,
-    RecurringPaymentDetails? Payment = null);
+    RecurringPaymentDetails? Payment = null,
+    bool AllowEarlierPending = false);
 
 /// <summary>
 /// Realize the recurring item that falls on one date, generating its occurrence
@@ -190,9 +196,15 @@ public sealed record RealizeDueRecurringCommand(
     Guid RecurringTransactionId,
     DateOnly ScheduledDate,
     decimal? Amount = null,
-    RecurringPaymentDetails? Payment = null);
+    RecurringPaymentDetails? Payment = null,
+    bool AllowEarlierPending = false);
 
 public sealed record DeleteRecurringTransactionCommand(Guid RecurringTransactionId);
+
+/// <summary>
+/// Bir kalemden önce bekleyen kalemler: en eskisinin günü ve kaç tane oldukları.
+/// </summary>
+public sealed record PendingEarlierOccurrences(DateOnly Earliest, int Count);
 
 /// <summary>
 /// Outcome of removing a plan that never produced money.
@@ -257,6 +269,18 @@ public interface IRecurringTransactionRepository
     Task<bool> TrySaveGeneratedAsync(
         IReadOnlyCollection<RecurringTransactionOccurrence> occurrences,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Planın <paramref name="before"/> gününden önceki bekleyen kalemleri:
+    /// en eskisinin günü ve sayısı; yoksa <see langword="null"/>. Kalemler
+    /// sırayla üretildiği için daha önceki her tarih ya bir kalemdir ya da hiç
+    /// var olmamıştır; ekranda görünen pencereye bakılmaz.
+    /// </summary>
+    Task<PendingEarlierOccurrences?> FindPendingOccurrencesBeforeAsync(
+        Guid recurringTransactionId,
+        Guid userId,
+        DateOnly before,
+        CancellationToken cancellationToken);
     /// <summary>
     /// Removes a plan that never produced a movement, together with the pending
     /// occurrences it generated, which are only forecasts. A plan with realized
@@ -268,10 +292,12 @@ public interface IRecurringTransactionRepository
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// True when the schedule behind the occurrence is still active. A plan the
-    /// user switched off must not produce new money.
+    /// True when the user switched the schedule behind the occurrence off
+    /// (<see cref="RecurringTransaction.IsPaused"/>); such a plan must not
+    /// produce new money. A plan that ran out of occurrences is not paused:
+    /// its last pending item is still owed.
     /// </summary>
-    Task<bool> IsScheduleActiveAsync(
+    Task<bool> IsSchedulePausedAsync(
         Guid recurringTransactionId,
         Guid userId,
         CancellationToken cancellationToken);

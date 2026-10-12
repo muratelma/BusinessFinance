@@ -67,7 +67,7 @@ public static class ObligationEndpoints
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
-        var today = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
+        var today = LocalDay.Today(timeProvider.GetUtcNow());
         if (asOfDate is not null && !FinanceContract.TryParseDate(asOfDate, out today))
         {
             return ApiProblemResults.Validation(

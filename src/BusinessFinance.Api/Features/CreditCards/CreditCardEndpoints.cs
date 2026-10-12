@@ -99,7 +99,7 @@ public static class CreditCardEndpoints
         DateOnly asOfDate;
         if (asOf is null)
         {
-            asOfDate = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
+            asOfDate = LocalDay.Today(timeProvider.GetUtcNow());
         }
         else if (!FinanceContract.TryParseDate(asOf, out asOfDate))
         {
@@ -130,7 +130,7 @@ public static class CreditCardEndpoints
         DateOnly asOfDate;
         if (asOf is null)
         {
-            asOfDate = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
+            asOfDate = LocalDay.Today(timeProvider.GetUtcNow());
         }
         else if (!FinanceContract.TryParseDate(asOf, out asOfDate))
         {

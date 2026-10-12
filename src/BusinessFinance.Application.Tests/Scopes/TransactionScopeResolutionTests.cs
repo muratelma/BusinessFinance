@@ -278,7 +278,8 @@ public sealed class TransactionScopeResolutionTests
             new FakeAccountRepository(account),
             new FakeCategoryRepository(category),
             repository,
-            new FakeUserProfileRepository(hasBusiness));
+            new FakeUserProfileRepository(hasBusiness),
+            TimeProvider.System);
     }
 
     private static CreateBudgetUseCase CreateBudgetUseCase(Guid userId, Category category)

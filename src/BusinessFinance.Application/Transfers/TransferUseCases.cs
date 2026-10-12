@@ -9,7 +9,8 @@ namespace BusinessFinance.Application.Transfers;
 public sealed class CreateTransferUseCase(
     ICurrentUser currentUser,
     IAccountRepository accountRepository,
-    ITransferRepository transferRepository)
+    ITransferRepository transferRepository,
+    TimeProvider timeProvider)
 {
     public async Task<ApplicationResult<TransferDto>> ExecuteAsync(
         CreateTransferCommand command,
@@ -19,6 +20,13 @@ public sealed class CreateTransferUseCase(
         if (currentUser.UserId is not Guid userId || userId == Guid.Empty)
         {
             return ApplicationResult<TransferDto>.Failure(TransferErrors.AuthenticationRequired);
+        }
+
+        // İleri tarihli transferin yerine bir plan yolu yoktur; günü gelince
+        // yazılır (bilerek kabul edilen sınır, 12 Ekim 2026).
+        if (command.TransferDate > LocalDay.LatestAllowed(timeProvider.GetUtcNow()))
+        {
+            return ApplicationResult<TransferDto>.Failure(TransferErrors.DateInFuture);
         }
 
         var source = await accountRepository.FindOwnedByIdAsync(

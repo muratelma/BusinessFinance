@@ -14,28 +14,31 @@ using BusinessFinance.Api.Features.SavingsGoals;
 namespace BusinessFinance.Api.Tests.Features.Cash;
 
 /// <summary>
-/// Kullanıcının takvim günü sunucunun UTC gününden bir gün ileride olabilir.
+/// Sunucunun günü Türkiye günüdür; gece yarısından sonra UTC günü hâlâ dündür.
 /// </summary>
 /// <remarks>
 /// Türkiye'de gece yarısından 03:00'e kadar istemcinin "bugün" diye gönderdiği
-/// tarih, sunucunun UTC gününün bir gün ilerisidir. 9 Ekim 2026'ya kadar bu
-/// saatlerde bugünün tarihiyle kasa sayımı, gün sonu, POS tahsilatı, yatış,
-/// yükümlülük ve kapanışı "gün gelecekte olamaz" diye reddediliyordu (gider ve
-/// cari kayıt kabul ediliyordu). Testler istemcinin o saatlerde göndereceği
-/// tarihi gönderir: <c>UTC günü + 1</c>. İki gün sonrası hâlâ reddedilir.
+/// tarih, UTC gününün bir gün ilerisidir. 9 Ekim 2026'ya kadar bu saatlerde
+/// bugünün tarihiyle kasa sayımı, gün sonu, POS tahsilatı, yatış, yükümlülük
+/// ve kapanışı "gün gelecekte olamaz" diye reddediliyordu. İlk çözüm UTC
+/// gününe bir gün pay tanıyordu ve günün her saatinde yarını da kabul
+/// ediyordu; 12 Ekim 2026'dan beri gün Türkiye saatiyle hesaplanır. Saat
+/// sabittir: Türkiye'de 9 Ekim 01:30, UTC'de 8 Ekim 22:30. Bugünün tarihi
+/// (9 Ekim) kabul edilir, yarınınki (10 Ekim) reddedilir.
 /// </remarks>
 public sealed class LocalDayEndpointTests
 {
     private const string Password = "Valid-Password-123!";
 
     [Fact]
-    public async Task RecordsDatedTheUsersTodayAfterMidnight_AreAccepted_AndTwoDaysAheadIsNot()
+    public async Task RecordsDatedTheUsersTodayAfterMidnight_AreAccepted_AndTomorrowIsNot()
     {
-        await using var factory = new BusinessFinanceApiFactory();
+        await using var factory = FixedClockApi.Create(
+            new DateTimeOffset(2026, 10, 8, 22, 30, 0, TimeSpan.Zero));
         using var owner = await CreateAuthenticatedClientAsync(factory, "local-day@example.test");
-        var utcToday = DateOnly.FromDateTime(DateTime.UtcNow);
+        var utcToday = new DateOnly(2026, 10, 8);
         var night = Date(utcToday.AddDays(1));
-        var twoAhead = Date(utcToday.AddDays(2));
+        var tomorrow = Date(utcToday.AddDays(2));
         var due = Date(utcToday.AddDays(20));
 
         var till = await CreateAccountAsync(owner, "Kasa", "cash", "1000.0000");
@@ -54,17 +57,21 @@ public sealed class LocalDayEndpointTests
         var todayForUser = await owner.GetFromJsonAsync<CashCountTodayResponse>(
             $"/api/v1/cash-counts/today?accountId={till.Id}&date={night}");
         Assert.Equal(night, todayForUser!.Count?.CountDate);
-        // Tarih gönderilmezse sunucunun günü sorulur: sayım henüz o güne ait
-        // değildir. Bozuk tarih reddedilir; uzak tarih sunucunun gününe döner.
+        // Tarih gönderilmezse sunucunun günü sorulur ve o da 9 Ekim'dir.
+        // Bozuk tarih reddedilir; uzak ya da ilerideki tarih sunucunun gününe
+        // döner.
         var todayForServer = await owner.GetFromJsonAsync<CashCountTodayResponse>(
             $"/api/v1/cash-counts/today?accountId={till.Id}");
-        Assert.Null(todayForServer!.Count);
+        Assert.Equal(night, todayForServer!.Count?.CountDate);
         using var badDate = await owner.GetAsync(
             $"/api/v1/cash-counts/today?accountId={till.Id}&date=10.10.2026");
         Assert.Equal(HttpStatusCode.BadRequest, badDate.StatusCode);
         var farDate = await owner.GetFromJsonAsync<CashCountTodayResponse>(
             $"/api/v1/cash-counts/today?accountId={till.Id}&date={Date(utcToday.AddDays(9))}");
-        Assert.Null(farDate!.Count);
+        Assert.Equal(night, farDate!.Count?.CountDate);
+        var aheadDate = await owner.GetFromJsonAsync<CashCountTodayResponse>(
+            $"/api/v1/cash-counts/today?accountId={till.Id}&date={tomorrow}");
+        Assert.Equal(night, aheadDate!.Count?.CountDate);
         // Son sayımlar listesi de o sayımı içerir.
         var listed = await owner.GetFromJsonAsync<CashCountListResponse>(
             $"/api/v1/cash-counts?accountId={till.Id}");
@@ -129,26 +136,26 @@ public sealed class LocalDayEndpointTests
             "/api/v1/day-closes", dayClose with { ClientRequestId = Guid.NewGuid() });
         Assert.True(closed.StatusCode == HttpStatusCode.Created, await closed.Content.ReadAsStringAsync());
 
-        // Pay bir gündür: iki gün sonrası hiçbir kayıtta kabul edilmez.
+        // Pay yoktur: yarının tarihi hiçbir kayıtta kabul edilmez.
         using var farCount = await owner.PostAsJsonAsync(
-            "/api/v1/cash-counts", new CreateCashCountRequest(till.Id, "1000.0000", twoAhead));
+            "/api/v1/cash-counts", new CreateCashCountRequest(till.Id, "1000.0000", tomorrow));
         Assert.Equal(HttpStatusCode.BadRequest, farCount.StatusCode);
         using var farSale = await owner.PostAsJsonAsync(
             "/api/v1/pos-settlements",
-            new CreatePosSettlementRequest(null, null, "200.0000", "TRY", twoAhead, PosDefinitionId: pos.Id));
+            new CreatePosSettlementRequest(null, null, "200.0000", "TRY", tomorrow, PosDefinitionId: pos.Id));
         Assert.Equal(HttpStatusCode.BadRequest, farSale.StatusCode);
         using var farInvoice = await owner.PostAsJsonAsync(
             "/api/v1/obligations",
-            new CreateObligationRequest("payable", "300.0000", "TRY", costs.Id, twoAhead, due, "business"));
+            new CreateObligationRequest("payable", "300.0000", "TRY", costs.Id, tomorrow, due, "business"));
         Assert.Equal(HttpStatusCode.BadRequest, farInvoice.StatusCode);
         using var farClose = await owner.PostAsJsonAsync(
-            "/api/v1/day-closes/preview", dayClose with { Date = twoAhead });
+            "/api/v1/day-closes/preview", dayClose with { Date = tomorrow });
         Assert.Equal(HttpStatusCode.BadRequest, farClose.StatusCode);
         Assert.Equal("day_closes.invalid_date", await CodeAsync(farClose));
         using var farContribution = await owner.PostAsJsonAsync(
             $"/api/v1/goals/{goal.Id}/contributions",
             new AddSavingsGoalContributionRequest(
-                "100.0000", "TRY", twoAhead, Guid.NewGuid(), null, night));
+                "100.0000", "TRY", tomorrow, Guid.NewGuid(), null, night));
         Assert.False(farContribution.IsSuccessStatusCode);
     }
 

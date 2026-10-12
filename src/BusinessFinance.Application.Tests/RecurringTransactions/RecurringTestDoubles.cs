@@ -143,9 +143,27 @@ internal sealed class FakeRecurringRepository : IRecurringTransactionRepository
 
     public bool ScheduleIsActive { get; set; } = true;
 
-    public Task<bool> IsScheduleActiveAsync(
+    public Task<bool> IsSchedulePausedAsync(
         Guid recurringTransactionId, Guid userId, CancellationToken cancellationToken) =>
-        Task.FromResult(ScheduleIsActive);
+        Task.FromResult(
+            !ScheduleIsActive ||
+            Recurring.Any(item => item.Id == recurringTransactionId && item.IsPaused));
+
+    public Task<PendingEarlierOccurrences?> FindPendingOccurrencesBeforeAsync(
+        Guid recurringTransactionId, Guid userId, DateOnly before, CancellationToken cancellationToken)
+    {
+        var pending = Occurrences
+            .Where(item =>
+                item.RecurringTransactionId == recurringTransactionId &&
+                item.UserId == userId &&
+                item.Status == RecurringOccurrenceStatus.Planned &&
+                item.ScheduledDate < before)
+            .Select(item => item.ScheduledDate)
+            .ToArray();
+        return Task.FromResult(pending.Length == 0
+            ? null
+            : new PendingEarlierOccurrences(pending.Min(), pending.Length));
+    }
 
     public Task<RecurringTransactionOccurrence?> FindOccurrenceOwnedByIdAsync(
         Guid occurrenceId, Guid userId, bool track, CancellationToken cancellationToken) =>

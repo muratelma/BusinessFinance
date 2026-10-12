@@ -195,6 +195,7 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
             label: 'Tarih',
             helperText: widget.prefill?.date?.helperText,
             value: _formattedDate,
+            lastDate: widget.today ?? DateTime.now(),
             onChanged: (value) =>
                 setState(() => _date = AppDateField.parse(value)!),
           ),

@@ -53,7 +53,7 @@ public static class CashCountEndpoints
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
-        var today = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
+        var today = LocalDay.Today(timeProvider.GetUtcNow());
         var start = today.AddDays(-30);
         if (from is not null && !FinanceContract.TryParseDate(from, out start))
         {
@@ -63,9 +63,7 @@ public static class CashCountEndpoints
                 "cash_counts.invalid_from");
         }
 
-        // Varsayılan bitiş kullanıcının gününü de kapsar: gece yarısından
-        // sonra girilen sayım UTC gününden bir gün ileridedir.
-        var end = LocalDay.LatestAllowed(timeProvider.GetUtcNow());
+        var end = today;
         if (to is not null && !FinanceContract.TryParseDate(to, out end))
         {
             return ApiProblemResults.Validation(
@@ -88,8 +86,8 @@ public static class CashCountEndpoints
         CancellationToken cancellationToken,
         string? date = null)
     {
-        // `date` kullanıcının takvim günüdür (isteğe bağlı). Gece yarısından
-        // sonra sunucunun UTC gününden bir gün ileridedir.
+        // `date` cihazın takvim günüdür (isteğe bağlı); sunucunun gününden
+        // geride olabilir, ileride olamaz (`LocalDay`).
         DateOnly? day = null;
         if (date is not null)
         {

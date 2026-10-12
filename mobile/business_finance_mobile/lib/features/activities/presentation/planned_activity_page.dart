@@ -17,6 +17,7 @@ import '../../../core/widgets/app_status_chip.dart';
 import '../../../core/widgets/app_unknown_amount.dart';
 import '../data/activity_models.dart';
 import '../data/activity_repository.dart';
+import '../../planning/presentation/realize_day_sheet.dart';
 import '../data/planned_activity_models.dart';
 import 'planned_activity_controller.dart';
 
@@ -138,6 +139,24 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
     // hangisi olduğunu görmeli. Kaynağı burada sormuyoruz — tekrarlayan planın
     // kaynağı kuruluşta seçilir ve kayıt onu zaten taşır.
     final source = activity.sourceName;
+
+    // Tekrarlayan kalem ödendiği güne yazılır; panel günü sorar. Kart taksidi
+    // kendi gününe yazılır, onda yalnız onay istenir.
+    if (activity.plannedKind == PlannedKind.recurringOccurrence) {
+      final paidOn = await showRealizeDaySheet(
+        context,
+        title: activity.title,
+        amount: activity.amount!,
+        currency: activity.currency,
+        dueDate: activity.dueDate,
+        sourceName: source,
+        isIncome: activity.effect == ActivityEffect.income,
+      );
+      if (paidOn == null || !mounted) return;
+      await _realize(activity, paidOn: paidOn);
+      return;
+    }
+
     final confirmed = await AppConfirmDialog.show(
       context: context,
       icon: Icons.playlist_add_check,
@@ -151,9 +170,32 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
       confirmLabel: 'Gerçekleştir',
     );
     if (!confirmed || !mounted) return;
+    await _realize(activity);
+  }
 
-    final success = await _controller.realize(activity);
+  Future<void> _realize(PlannedActivity activity, {String? paidOn}) async {
+    var success = await _controller.realize(activity, paidOn: paidOn);
     if (!mounted) return;
+
+    // Sıra atlamayı sunucu söyler: planın daha önceki bir kalemi bekliyorsa
+    // istek onay isteğiyle döner; onaylanırsa aynı gün ile yinelenir.
+    if (!success && _controller.earlierItemPending && paidOn != null) {
+      final confirmed = await confirmSkippingEarlierItem(
+        context,
+        title: activity.title,
+        dueDate: activity.dueDate,
+        paidOn: paidOn,
+        pendingDate: _controller.earlierPendingDate,
+        pendingCount: _controller.earlierPendingCount,
+      );
+      if (!confirmed || !mounted) return;
+      success = await _controller.realize(
+        activity,
+        paidOn: paidOn,
+        allowEarlierPending: true,
+      );
+      if (!mounted) return;
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -354,15 +396,16 @@ class PlannedActivityTile extends StatelessWidget {
     );
   }
 
-  /// Vakti gelmemiş satırda eylem **hiç çıkmaz**, gri de çıkmaz.
+  /// Günü gelmemiş kart taksidinde eylem **hiç çıkmaz**, gri de çıkmaz.
   ///
   /// Kapalı bir buton "bir şey eksik" der ve kullanıcıyı eksiği aramaya
   /// gönderir; oysa eksik bir şey yok, yalnız gün gelmemiş. Satırdaki tarih ve
-  /// `Yaklaşan` rozeti bunu zaten söylüyor.
+  /// `Yaklaşan` rozeti bunu zaten söylüyor. Tekrarlayan kalem vadesinden önce
+  /// de gerçekleştirilir, onda eylem çıkar.
   bool get _showsAction =>
       activity.isTax ||
       activity.actionKind != PlannedAction.realize ||
-      activity.isDue;
+      activity.isRealizableNow;
 
   String _semanticsLabel() {
     final buffer = StringBuffer()

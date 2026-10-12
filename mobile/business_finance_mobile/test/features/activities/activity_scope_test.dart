@@ -334,5 +334,9 @@ class _FakeRepository implements ActivityRepositoryContract {
   Future<void> cancel(FinancialActivity activity) async {}
 
   @override
-  Future<void> realizePlanned(PlannedActivity activity) async {}
+  Future<void> realizePlanned(
+    PlannedActivity activity, {
+    String? paidOn,
+    bool allowEarlierPending = false,
+  }) async {}
 }

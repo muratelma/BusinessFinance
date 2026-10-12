@@ -74,13 +74,31 @@ class PlannedActivityController extends ChangeNotifier {
   /// planlanan değildir ve [FinancialDataChanges] üzerinden gelen sinyal
   /// zaten yeniden yüklemeyi tetikler — burada da yüklemek aynı sayfayı iki
   /// kez çekerdi.
-  Future<bool> realize(PlannedActivity activity) async {
+  /// Son gerçekleştirme isteği, planın daha önceki bir kalemi beklediği için
+  /// onay istedi. Hata değildir: ekran sorar ve onayla aynı isteği yineler.
+  bool earlierItemPending = false;
+
+  /// Bekleyen en eski kalemin vadesi ve bekleyen kalem sayısı; sunucu
+  /// göndermediyse boştur.
+  String? earlierPendingDate;
+  int? earlierPendingCount;
+
+  Future<bool> realize(
+    PlannedActivity activity, {
+    String? paidOn,
+    bool allowEarlierPending = false,
+  }) async {
     if (isSubmitting) return false;
     isSubmitting = true;
     errorMessage = null;
+    earlierItemPending = false;
     notifyListeners();
     try {
-      await _repository.realizePlanned(activity);
+      await _repository.realizePlanned(
+        activity,
+        paidOn: paidOn,
+        allowEarlierPending: allowEarlierPending,
+      );
       switch (activity.plannedKind) {
         case PlannedKind.cardInstallment:
           financialDataChanges?.installmentRealized();
@@ -98,6 +116,12 @@ class PlannedActivityController extends ChangeNotifier {
       if (financialDataChanges == null) await load();
       return true;
     } on ApiException catch (error) {
+      if (error.isEarlierItemPending) {
+        earlierItemPending = true;
+        earlierPendingDate = error.pendingScheduledDate;
+        earlierPendingCount = error.pendingCount;
+        return false;
+      }
       unauthorized = error.isUnauthorized;
       errorMessage = error.message;
       return false;

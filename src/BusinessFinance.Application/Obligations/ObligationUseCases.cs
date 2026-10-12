@@ -43,6 +43,12 @@ public sealed class SettleObligationUseCase(
                 ObligationErrors.AuthenticationRequired);
         }
 
+        // Vadesi gelmemiş yükümlülük erken ödenebilir; ödeme günü ileride olamaz.
+        if (command.SettlementDate > LocalDay.LatestAllowed(timeProvider.GetUtcNow()))
+        {
+            return ApplicationResult<ObligationDto>.Failure(ObligationErrors.DateInFuture);
+        }
+
         var obligation = await repository.FindOwnedByIdAsync(
             command.ObligationId, userId, true, cancellationToken);
         if (obligation is null)

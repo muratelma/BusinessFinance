@@ -76,6 +76,15 @@ class RecurringTransactionItem {
   final String? description;
   final bool isActive;
 
+  /// Plan bütün kalemlerini üretti: sınırına ya da bitiş tarihine ulaştı.
+  ///
+  /// Sunucu böyle planı da `isActive: false` gönderir, ama plan duraklatılmış
+  /// değildir: son kalemi hâlâ ödenebilir ve yeniden başlatılamaz.
+  bool get isCompleted => !isActive && nextOccurrenceDate == null;
+
+  /// Kullanıcı planı durdurdu; `Sürdür` ile yeniden başlar.
+  bool get isPaused => !isActive && nextOccurrenceDate != null;
+
   factory RecurringTransactionItem.fromJson(Map<String, dynamic> json) =>
       RecurringTransactionItem(
         id: JsonReaders.string(json, 'id'),

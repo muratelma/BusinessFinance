@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../helpers/accessibility.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
+import 'package:business_finance_mobile/core/widgets/app_date_field.dart';
+import 'package:business_finance_mobile/core/widgets/app_form_sheet.dart';
 import 'package:business_finance_mobile/core/widgets/app_list_row.dart';
 import 'package:business_finance_mobile/core/widgets/app_money_text.dart';
 import 'package:business_finance_mobile/core/widgets/app_row_action.dart';
@@ -157,6 +159,54 @@ void main() {
     expect(cached.isStale, isTrue);
   });
 
+  // Kayıt ödendiği güne yazılır: iki uç da seçilen günü taşır. Gün
+  // verilmezse gövde eskisi gibidir.
+  test('gerçekleştirme isteği seçilen günü taşır', () async {
+    final requests = <http.Request>[];
+    final repository = PlanningRepository(
+      ApiClient(
+        config: ApiConfig.fromEnvironment(value: 'https://api.test'),
+        httpClient: MockClient((request) async {
+          requests.add(request);
+          return http.Response('{}', 200);
+        }),
+      ),
+    );
+
+    await repository.realizeOccurrence('occ-1', paidOn: '2026-10-11');
+    await repository.realizeDue('plan-1', '2026-10-20', paidOn: '2026-10-12');
+    await repository.realizeDue('plan-1', '2026-10-20');
+    await repository.realizeDue(
+      'plan-1',
+      '2026-12-20',
+      paidOn: '2026-10-12',
+      allowEarlierPending: true,
+    );
+    await repository.realizeOccurrence('occ-2', allowEarlierPending: true);
+
+    expect(
+      requests[0].url.path,
+      '/api/v1/recurring-transactions/occurrences/occ-1/realize',
+    );
+    expect(jsonDecode(requests[0].body), {'paidOn': '2026-10-11'});
+    expect(
+      requests[1].url.path,
+      '/api/v1/recurring-transactions/plan-1/occurrences/realize',
+    );
+    expect(jsonDecode(requests[1].body), {
+      'scheduledDate': '2026-10-20',
+      'paidOn': '2026-10-12',
+    });
+    expect(jsonDecode(requests[2].body), {'scheduledDate': '2026-10-20'});
+    // Sıra atlamanın onayı yalnız verildiğinde gövdeye girer.
+    expect(jsonDecode(requests[3].body), {
+      'scheduledDate': '2026-12-20',
+      'paidOn': '2026-10-12',
+      'allowEarlierPending': true,
+    });
+    expect(jsonDecode(requests[4].body), {'allowEarlierPending': true});
+  });
+
   test(
     'realizing an occurrence invalidates transactions, dashboard and budgets',
     () async {
@@ -256,7 +306,7 @@ void main() {
           timing: 'overdue',
           description: null,
         ),
-        // Vakti gelmemiş: onay çıkmaz.
+        // Vadesi gelmemiş: erken ödenebilir, kayıt ödendiği güne yazılır.
         UpcomingPaymentItem(
           sourceId: 'plan-8',
           sourceType: 'recurring-occurrence',
@@ -279,6 +329,10 @@ void main() {
         ),
       ],
     );
+    // Dört satır da ekrana sığsın: liste görünmeyen satırı kurmaz.
+    tester.view.physicalSize = const Size(500, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light(),
@@ -297,15 +351,78 @@ void main() {
     // sunucuda üretiyor ve geriye kullanıcının vermek zorunda olmadığı bir
     // karar kalıyordu.
     expect(find.text('Bugüne kadar üret'), findsNothing);
-    // İki satırda onay var, üçünde yok: kart ekstresi onaylanacak bir şey
-    // değil (vadesi gelen bir yükümlülüktür) ve vakti gelmemiş satır henüz bir
-    // tahmindir.
-    expect(find.widgetWithText(AppRowAction, 'Gerçekleştir'), findsNWidgets(2));
+    // Üç tekrarlayan satırda eylem var, vadesi gelmemişte de; kart ekstresi
+    // onaylanacak bir şey değil (vadesi gelen bir yükümlülüktür). `Onay
+    // bekliyor` yalnız vadesi bugün olan satırdadır.
+    expect(find.widgetWithText(AppRowAction, 'Gerçekleştir'), findsNWidgets(3));
+    expect(find.text('Onay bekliyor'), findsOneWidget);
 
-    // Üretilmiş kayıt kendi kimliğiyle gerçekleşiyor.
+    // Üretilmiş kayıt kendi kimliğiyle ve seçilen günle gerçekleşiyor; ön
+    // değer bugündür.
+    final today = AppDateField.format(DateTime.now());
     await _tapActionOf(tester, 'İnternet');
     expect(repository.realizedOccurrences, ['occ-1']);
     expect(repository.realizedDue, isEmpty);
+    expect(repository.paidOn, [today]);
+
+    // Vadesi gelmemiş kalem de gerçekleşir; kayıt vadeye değil bugüne yazılır.
+    await _tapActionOf(tester, 'Spor salonu');
+    expect(repository.realizedDue, ['plan-8@2026-09-15']);
+    expect(repository.paidOn, [today, today]);
+  });
+
+  /// Sıra atlamayı sunucu söyler; ekran onay sorar ve onayla yineler.
+  ///
+  /// Onay isteği hata değildir: sayfanın hata şeridinde görünmez. Vazgeçilirse
+  /// hiçbir şey yazılmaz.
+  testWidgets('önceki kalem bekliyorsa onay sorar, onayla yineler', (
+    tester,
+  ) async {
+    final repository = _FakePlanningRepository(
+      upcomingPayments: const [
+        UpcomingPaymentItem(
+          sourceId: 'plan-9',
+          sourceType: 'recurring-occurrence',
+          title: 'Kira',
+          amount: '5000.0000',
+          currency: 'TRY',
+          dueDate: '2026-12-20',
+          timing: 'upcoming',
+          description: null,
+        ),
+      ],
+    )..earlierItemPending = true;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: PlanningPage(repository: repository),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Yaklaşanlar'));
+    await tester.pumpAndSettle();
+
+    await _tapActionOf(tester, 'Kira');
+    expect(find.text('Önceki kalem bekliyor'), findsOneWidget);
+    // Birden çok kalem bekliyorsa sayısı ve ilkinin vadesi yazar.
+    expect(
+      find.textContaining(
+        'daha önceki 2 kalemi hâlâ bekliyor; ilki 20 Ekim vadeli',
+      ),
+      findsOneWidget,
+    );
+    expect(repository.realizedDue, isEmpty);
+    await tester.tap(find.text('Vazgeç'));
+    await tester.pumpAndSettle();
+    expect(repository.realizedDue, isEmpty);
+    expect(find.textContaining('daha önceki bir kalem'), findsNothing);
+
+    await _tapActionOf(tester, 'Kira');
+    await tester.tap(find.text('Yine de gerçekleştir'));
+    await tester.pumpAndSettle();
+
+    expect(repository.realizedDue, ['plan-9@2026-12-20']);
+    expect(repository.allowEarlierPending, [false, false, true]);
   });
 
   /// Henüz üretilmemiş kayıt planı ve tarihiyle gerçekleşiyor.
@@ -456,15 +573,65 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Netflix'), findsOneWidget);
-    expect(find.text('Duraklatılmış planlar (2)'), findsOneWidget);
+    expect(find.text('Duraklatılan ve biten planlar (2)'), findsOneWidget);
     // Folded away until asked for.
     expect(find.text('Eski spor salonu'), findsNothing);
 
-    await tester.tap(find.text('Duraklatılmış planlar (2)'));
+    await tester.tap(find.text('Duraklatılan ve biten planlar (2)'));
     await tester.pumpAndSettle();
 
     expect(find.text('Eski spor salonu'), findsOneWidget);
     expect(find.text('Eski dergi'), findsOneWidget);
+  });
+
+  /// Sınırına ulaşan plan sunucuda aktif değildir ama duraklatılmış da
+  /// değildir: son kalemi beklerken çalışan planların arasında durur, o da
+  /// ödenince katlanır ve `Sürdür` sunmaz.
+  testWidgets('a plan that ran out is not shown as paused', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: PlanningPage(
+          repository: _FakePlanningRepository(
+            plans: [
+              _plan(id: 'p1', description: 'Depozito', completed: true),
+              _plan(id: 'p2', description: 'Biten kurs', completed: true),
+            ],
+            occurrences: const [
+              RecurringOccurrenceItem(
+                id: 'occ-1',
+                recurringTransactionId: 'p1',
+                categoryId: 'category',
+                amount: '125.5000',
+                currency: 'TRY',
+                kind: 'bill-payment',
+                scheduledDate: '2026-08-15',
+                description: 'Depozito',
+                status: 'planned',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Son kalemi bekleyen plan açıkta ve sıradaki gününü yazıyor.
+    expect(find.text('Depozito'), findsOneWidget);
+    expect(find.textContaining('Sıradaki 15 Ağu'), findsOneWidget);
+    expect(find.text('Biten kurs'), findsNothing);
+
+    await tester.tap(find.text('Duraklatılan ve biten planlar (1)'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('plan tamamlandı'), findsOneWidget);
+    expect(find.text('Duraklatıldı'), findsNothing);
+
+    await tester.tap(find.text('Biten kurs'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sürdür'), findsNothing);
+    expect(find.text('Sil'), findsOneWidget);
   });
 
   testWidgets('reports expose chart semantics and a visible text alternative', (
@@ -789,17 +956,19 @@ Future<void> _tapActionOf(
   await tester.tap(action);
   await tester.pumpAndSettle();
 
-  // Para hareket etmeden önce açık onay: tek dokunuşla bakiye değişmez.
-  expect(find.text('Gerçekleştirilsin mi?'), findsOneWidget);
-  // Onay butonu diyaloğun içinde aranıyor: satırın kendi eylemi de artık aynı
-  // metni taşıyan dolgulu bir buton.
+  // Para hareket etmeden önce panel açılır ve günü sorar: tek dokunuşla
+  // bakiye değişmez.
+  final sheet = find.byType(AppFormSheet<String>);
+  expect(sheet, findsOneWidget);
+  expect(
+    find.descendant(of: sheet, matching: find.textContaining('· bugün')),
+    findsOneWidget,
+  );
+  // Buton panelin içinde aranıyor: satırın kendi eylemi de aynı metni taşır.
   await tester.tap(
     find.descendant(
-      of: find.byType(Dialog),
-      matching: find.widgetWithText(
-        confirm ? FilledButton : TextButton,
-        confirm ? 'Gerçekleştir' : 'Vazgeç',
-      ),
+      of: sheet,
+      matching: find.text(confirm ? 'Gerçekleştir' : 'Vazgeç'),
     ),
   );
   await tester.pumpAndSettle();
@@ -809,6 +978,7 @@ RecurringTransactionItem _plan({
   required String id,
   required String description,
   bool isActive = true,
+  bool completed = false,
 }) => RecurringTransactionItem(
   id: id,
   sourceType: 'account',
@@ -821,12 +991,12 @@ RecurringTransactionItem _plan({
   frequency: 'monthly',
   startDate: '2026-08-15',
   endDate: null,
-  occurrenceLimit: null,
-  generatedOccurrenceCount: 0,
-  nextOccurrenceDate: '2026-09-15',
+  occurrenceLimit: completed ? 1 : null,
+  generatedOccurrenceCount: completed ? 1 : 0,
+  nextOccurrenceDate: completed ? null : '2026-09-15',
   monthEndBehavior: 'clamp-to-last-day',
   description: description,
-  isActive: isActive,
+  isActive: isActive && !completed,
 );
 
 class _FakePlanningRepository implements PlanningRepositoryContract {
@@ -874,15 +1044,46 @@ class _FakePlanningRepository implements PlanningRepositoryContract {
 
   final List<String> realizedOccurrences = [];
   final List<String> realizedDue = [];
+  final List<String?> paidOn = [];
 
   @override
-  Future<void> realizeOccurrence(String id) async {
+  Future<void> realizeOccurrence(
+    String id, {
+    String? paidOn,
+    bool allowEarlierPending = false,
+  }) async {
+    _guardOrder(allowEarlierPending);
     realizedOccurrences.add(id);
+    this.paidOn.add(paidOn);
+  }
+
+  /// Sunucu "önceki kalem bekliyor" der; onaylı istek geçer.
+  bool earlierItemPending = false;
+  final List<bool> allowEarlierPending = [];
+
+  void _guardOrder(bool allowed) {
+    allowEarlierPending.add(allowed);
+    if (earlierItemPending && !allowed) {
+      throw const ApiException(
+        statusCode: 409,
+        code: 'recurring.earlier_item_pending',
+        message: 'Bu plandan daha önceki bir kalem hâlâ bekliyor.',
+        pendingScheduledDate: '2026-10-20',
+        pendingCount: 2,
+      );
+    }
   }
 
   @override
-  Future<void> realizeDue(String planId, String scheduledDate) async {
+  Future<void> realizeDue(
+    String planId,
+    String scheduledDate, {
+    String? paidOn,
+    bool allowEarlierPending = false,
+  }) async {
+    _guardOrder(allowEarlierPending);
     realizedDue.add('$planId@$scheduledDate');
+    this.paidOn.add(paidOn);
   }
 
   final List<String> deletedPlans = [];

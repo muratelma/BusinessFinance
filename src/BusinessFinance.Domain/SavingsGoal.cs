@@ -59,7 +59,7 @@ public sealed class SavingsGoal
         if (!Enum.IsDefined(trackingMode)) throw new ArgumentOutOfRangeException(nameof(trackingMode));
         if (createdAtUtc.Offset != TimeSpan.Zero)
             throw new ArgumentException("Creation time must be UTC.", nameof(createdAtUtc));
-        if (targetDate < DateOnly.FromDateTime(createdAtUtc.UtcDateTime))
+        if (targetDate < LocalDay.Today(createdAtUtc))
             throw new ArgumentOutOfRangeException(nameof(targetDate), "Target date cannot be before the creation date.");
         if ((trackingMode == SavingsGoalTrackingMode.AccountBalance) != accountId.HasValue || accountId == Guid.Empty)
             throw new ArgumentException("Account-balance goals require one account; manual goals cannot have one.", nameof(accountId));

@@ -106,7 +106,7 @@ public sealed class AnalyzeReceiptUseCase(
         if (kindRefusal is not null)
             return ApplicationResult<AnalyzedReceipt>.Failure(kindRefusal);
 
-        var today = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
+        var today = LocalDay.Today(timeProvider.GetUtcNow());
         var draft = ReceiptDraftValidator.Validate(analysis.Value, categoryOptions, today);
 
         // Nothing readable is a failed reading, not a half-read receipt. Returning

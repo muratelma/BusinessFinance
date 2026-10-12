@@ -76,6 +76,30 @@ public static class RecurringErrors
         "recurring.not_due_yet",
         "The planned date has not arrived yet.",
         ApplicationErrorType.Validation);
+    /// <summary>
+    /// Vadesi gelmemiş kalem yazılmak isteniyor ama aynı planın daha önceki
+    /// bir kalemi hâlâ bekliyor.
+    /// </summary>
+    /// <remarks>
+    /// Yasak değil, onaydır (kullanıcı kararı, 12 Ekim 2026): Aralık kirasını
+    /// Kasım'dan önce ödemek olabilir, ama çoğu zaman yanlış satıra
+    /// basılmıştır. İstek açık onayla (<c>allowEarlierPending</c>) yinelenir;
+    /// yalnız seçilen kalem kapanır, önceki bekliyor olarak kalır. Cevap
+    /// bekleyen en eski kalemin gününü (<c>pendingScheduledDate</c>) ve kaç
+    /// kalemin beklediğini (<c>pendingCount</c>) taşır; onay kutusu hangi
+    /// kalemin beklediğini bunlarla yazar.
+    /// </remarks>
+    public static ApplicationError EarlierItemPending(PendingEarlierOccurrences pending) => new(
+        "recurring.earlier_item_pending",
+        "An earlier item of this plan is still pending.",
+        ApplicationErrorType.Conflict,
+        new Dictionary<string, string>
+        {
+            ["pendingScheduledDate"] = pending.Earliest.ToString(
+                "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+            ["pendingCount"] = pending.Count.ToString(
+                System.Globalization.CultureInfo.InvariantCulture),
+        });
     public static readonly ApplicationError InvalidSource = new(
         "recurring.invalid_source",
         "Exactly one of account or credit card must be supplied as the source.",

@@ -212,14 +212,13 @@ public sealed class CashCountTests
     [Fact]
     public void CountDateCannotBeInTheFutureAndScopeIsRequired()
     {
-        // Kullanıcının günü sunucunun UTC gününden bir gün ileride olabilir
-        // (`LocalDay`): gece yarısından sonra bugünün tarihi kabul edilir, iki
-        // gün sonrası reddedilir.
+        // Gün Türkiye günüdür (`LocalDay`): bugünün tarihi kabul edilir,
+        // yarınınki reddedilir.
         Assert.Equal(
-            new DateOnly(2026, 8, 25),
-            NewCount(countDate: new DateOnly(2026, 8, 25)).CountDate);
+            new DateOnly(2026, 8, 24),
+            NewCount(countDate: new DateOnly(2026, 8, 24)).CountDate);
         Assert.Throws<ArgumentOutOfRangeException>(
-            () => NewCount(countDate: new DateOnly(2026, 8, 26)));
+            () => NewCount(countDate: new DateOnly(2026, 8, 25)));
         Assert.Throws<ArgumentOutOfRangeException>(() => NewCount(scope: (TransactionScope)9));
 
         // Geçmiş bir günün sayımı meşrudur: kullanıcı dün akşamki sayımı

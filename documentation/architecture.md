@@ -838,21 +838,35 @@ aynı para birimindeki hesabını çözer; tek settlement'ı yazar. Nakit etkisi
 bakiyesi, rapor bakiyeleri ve `obligation-settlement` feed satırında görünür;
 kategori/kapsam taşımadığı için aylık gelir-gider ikinci kez değişmez.
 
-**Kaydın günü kullanıcının takvimiyle gelir** (`LocalDay`, 9 Ekim 2026). Sunucu
-saati UTC tutar; Türkiye'de gece yarısından 03:00'e kadar kullanıcının "bugün"ü
-sunucunun UTC gününden bir gün ileridedir. "Gün gelecekte olamaz" denetimi UTC
-günüyle yapıldığı için o saatlerde bugünün tarihiyle kasa sayımı, gün sonu, POS
-tahsilatı, POS yatışı, yükümlülük, yükümlülüğün kapanışı ve tasarruf hedefine
-katkı reddediliyordu (gider ve cari kayıt kabul ediliyordu). Yedi denetim artık
-`LocalDay.LatestAllowed` ile UTC gününe **bir gün pay** tanır; iki gün sonrası
-reddedilir. Sunucu saat dilimi tutmaz: hiçbir saat dilimi UTC'den bir takvim
-gününden fazla ileride değildir. Vergi ödemesi aynı payı önceden kullanıyordu.
-Okuma tarafında iki yer aynı sebeple değişti: `GET /api/v1/cash-counts/today`
-isteğe bağlı `date` alır (cihazın günü; UTC gününden en çok bir gün uzaksa
-kullanılır, değilse sunucunun günü) ve kasa sayımı ile POS tahsilatı
-listelerinin varsayılan bitiş günü UTC günü + 1'dir. Geri kalan "bugün"
-okumaları (gecikme rozetleri, varsayılan `asOfDate`) UTC günüyle kalır; gece üç
-saat boyunca bir gün geriden okuyabilirler, para toplamını etkilemezler.
+**Sunucunun günü Türkiye günüdür** (`LocalDay`; 9 Ekim 2026, 12 Ekim 2026'da
+değişti). Sunucu anı UTC tutar; Türkiye'de gece yarısından 03:00'e kadar
+kullanıcının "bugün"ü UTC gününden bir gün ileridedir. "Gün gelecekte olamaz"
+denetimi UTC günüyle yapıldığı için o saatlerde bugünün tarihiyle kasa sayımı,
+gün sonu, POS tahsilatı, POS yatışı, yükümlülük, yükümlülüğün kapanışı ve
+tasarruf hedefine katkı reddediliyordu. İlk çözüm UTC gününe bir gün pay
+tanıyordu; pay gece sorununu kapattı ama günün her saatinde yarının tarihini de
+kabul etti. Gün artık Türkiye saatiyle hesaplanır (`LocalDay.Today`, sabit
+UTC+3; Türkiye 2016'dan beri yaz saati uygulamıyor): pay yoktur, yarının tarihi
+reddedilir. Yalnız **gün** buradan okunur; kayıt anları, oturum süreleri ve
+giriş sırası UTC kalır. Sunucunun "bugün"ü okuduğu her yer aynı kuralı kullanır:
+yazma denetimleri, gecikme rozetleri, varsayılan `asOfDate` ve liste
+pencereleri. `GET /api/v1/cash-counts/today` isteğe bağlı `date` alır (cihazın
+günü; sunucunun gününden en çok bir gün gerideyse kullanılır, ilerideyse ya da
+daha gerideyse sunucunun günü). Uygulama başka bir saat dilimine açılırsa
+değişecek tek yer `LocalDay`'dir.
+
+**Kayıt ileri güne yazılmaz** (kullanıcı kararı, 12 Ekim 2026): olmuş olan
+kayıt, olacak olan plandır. Kayıt üreten her yol günü bugünden ileri olan
+isteği reddeder: gelir/gider, kart harcaması ve ödemesi, transfer, cari
+borçlandırma ve tahsilat/ödeme, borç başlangıcı ve taksit ödemesi, iki
+tekrarlayan gerçekleştirme ucu, kart taksidi gerçekleştirme ve banka ekstresi.
+Denetim **Application** katmanındadır (kullanım durumunda), aggregate'te değil:
+eski yedekteki ileri tarihli kayıt geri yüklenebilmelidir ve geri yükleme
+aggregate'i doğrudan kurar. Eski ileri tarihli kayıtlar değişmez ve günü gelene
+kadar bakiyeye girer; bakiye okumalarına tarih sınırı konmadı. Vade, plan
+başlangıcı, ilk taksit tarihi ve hedef tarihi ileride olabilir. Tekrarlayan
+kalem ve borç taksidi vadesinden önce **ödeme günüyle** gerçekleşir; kart
+taksidi kendi gününe yazılır ve günü gelmeden gerçekleşmez.
 
 **Yükümlülük iptal edilebilir** (`CancelObligationUseCase`, `DELETE
 /api/v1/obligations/{id}`; 9 Ekim 2026). Aggregate iptali zaten biliyordu

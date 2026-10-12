@@ -58,7 +58,9 @@ public sealed class RecurringOccurrenceMaterializer(IRecurringTransactionReposit
             var plan = await repository.FindOwnedByIdAsync(
                 recurringTransactionId, userId, track: true, cancellationToken);
             if (plan is null) return new OccurrenceLookup(OccurrenceLookupStatus.PlanNotFound, null);
-            if (!plan.IsActive) return new OccurrenceLookup(OccurrenceLookupStatus.PlanInactive, null);
+            // Tamamlanmış plan duraklatılmış değildir; üretilecek günü kalmadığı
+            // için aşağıda "takvimde yok" sonucuna düşer.
+            if (plan.IsPaused) return new OccurrenceLookup(OccurrenceLookupStatus.PlanInactive, null);
             if (!FallsOnSchedule(plan, scheduledDate))
             {
                 return new OccurrenceLookup(OccurrenceLookupStatus.NotOnSchedule, null);

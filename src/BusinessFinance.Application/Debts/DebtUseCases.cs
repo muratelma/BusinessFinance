@@ -44,6 +44,14 @@ public static class DebtErrors
         "debt.repayment_conflict",
         "The total repayment and the annual interest rate do not agree.",
         ApplicationErrorType.Validation);
+    /// <summary>
+    /// Borcun başladığı gün ya da taksidin ödendiği gün ileride. Vade ileride
+    /// olabilir; olmuş olan olamaz.
+    /// </summary>
+    public static readonly ApplicationError DateInFuture = new(
+        "debt.date_in_future",
+        "The start date and the payment date cannot be in the future.",
+        ApplicationErrorType.Validation);
     public static ApplicationError Validation(string message) => new(
         "debt.validation", message, ApplicationErrorType.Validation);
     public static ApplicationError Conflict(string message) => new(
@@ -76,7 +84,8 @@ public sealed class CreateDebtUseCase(
     IAccountRepository accountRepository,
     ICategoryRepository categoryRepository,
     ICounterpartyRepository counterpartyRepository,
-    IUserProfileRepository profileRepository)
+    IUserProfileRepository profileRepository,
+    TimeProvider timeProvider)
 {
     // Toplam ile oran birlikte gelirse ne kadar sapma hoş görülür. İstemci
     // oranı toplamdan çözüp geri gönderdiğinde oran dört ondalığa yuvarlanır
@@ -91,6 +100,11 @@ public sealed class CreateDebtUseCase(
     {
         if (currentUser.UserId is not Guid userId || userId == Guid.Empty)
             return ApplicationResult<DebtDto>.Failure(DebtErrors.AuthenticationRequired);
+
+        // Borç alındığı ya da verildiği gün yazılır: açılış o gün hesabı
+        // değiştirir ya da gideri tanır. İlk vade ileride olabilir.
+        if (command.StartDate > LocalDay.LatestAllowed(timeProvider.GetUtcNow()))
+            return ApplicationResult<DebtDto>.Failure(DebtErrors.DateInFuture);
 
         var totalRepayment = ResolveTotalRepayment(command);
         if (totalRepayment.Error is not null)
@@ -341,6 +355,10 @@ public sealed class PayDebtInstallmentUseCase(
             return ApplicationResult<DebtDto>.Failure(DebtErrors.AuthenticationRequired);
         var debt = await repository.FindOwnedByIdAsync(command.DebtId, userId, true, cancellationToken);
         if (debt is null) return ApplicationResult<DebtDto>.Failure(DebtErrors.NotFound(command.DebtId));
+
+        // Vadesi gelmemiş taksit erken ödenebilir; ödeme günü ileride olamaz.
+        if (command.PaymentDate > LocalDay.LatestAllowed(timeProvider.GetUtcNow()))
+            return ApplicationResult<DebtDto>.Failure(DebtErrors.DateInFuture);
         var account = await accountRepository.FindOwnedByIdAsync(command.AccountId, userId, cancellationToken);
         if (account is null || !account.IsActive)
             return ApplicationResult<DebtDto>.Failure(DebtErrors.AccountUnavailable);

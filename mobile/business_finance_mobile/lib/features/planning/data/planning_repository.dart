@@ -15,11 +15,25 @@ abstract interface class PlanningRepositoryContract {
   /// Removes a plan that never produced a movement. The server refuses with
   /// 409 when it did, so history is never orphaned.
   Future<void> deleteRecurring(String id);
-  Future<void> realizeOccurrence(String id);
+
+  /// [paidOn] kaydın yazılacağı gündür; verilirse vadesi gelmemiş kalem de
+  /// gerçekleşir. Verilmezse kayıt vade gününe yazılır. [allowEarlierPending]
+  /// sıra atlamanın açık onayıdır; onaysız istek, önceki bir kalem bekliyorsa
+  /// `recurring.earlier_item_pending` ile döner.
+  Future<void> realizeOccurrence(
+    String id, {
+    String? paidOn,
+    bool allowEarlierPending = false,
+  });
 
   /// Henüz occurrence üretilmemiş bir tekrarlayan kaydı planı ve tarihiyle
   /// gerçekleştirir; sunucu eksik kaydı kendi üretir.
-  Future<void> realizeDue(String planId, String scheduledDate);
+  Future<void> realizeDue(
+    String planId,
+    String scheduledDate, {
+    String? paidOn,
+    bool allowEarlierPending = false,
+  });
 }
 
 class PlanningRepository implements PlanningRepositoryContract {
@@ -124,15 +138,34 @@ class PlanningRepository implements PlanningRepositoryContract {
       _client.delete('/api/v1/recurring-transactions/$id');
 
   @override
-  Future<void> realizeOccurrence(String id) async =>
-      _client.post('/api/v1/recurring-transactions/occurrences/$id/realize');
+  Future<void> realizeOccurrence(
+    String id, {
+    String? paidOn,
+    bool allowEarlierPending = false,
+  }) async => _client.post(
+    '/api/v1/recurring-transactions/occurrences/$id/realize',
+    body: paidOn == null && !allowEarlierPending
+        ? null
+        : {
+            'paidOn': ?paidOn,
+            if (allowEarlierPending) 'allowEarlierPending': true,
+          },
+  );
 
   @override
-  Future<void> realizeDue(String planId, String scheduledDate) async =>
-      _client.post(
-        '/api/v1/recurring-transactions/$planId/occurrences/realize',
-        body: {'scheduledDate': scheduledDate},
-      );
+  Future<void> realizeDue(
+    String planId,
+    String scheduledDate, {
+    String? paidOn,
+    bool allowEarlierPending = false,
+  }) async => _client.post(
+    '/api/v1/recurring-transactions/$planId/occurrences/realize',
+    body: {
+      'scheduledDate': scheduledDate,
+      'paidOn': ?paidOn,
+      if (allowEarlierPending) 'allowEarlierPending': true,
+    },
+  );
 
   List<Map<String, dynamic>> _items(Map<String, dynamic> json) =>
       JsonReaders.list(

@@ -27,7 +27,8 @@ public sealed class CreateTransactionUseCase(
     IAccountRepository accountRepository,
     ICategoryRepository categoryRepository,
     ITransactionRepository transactionRepository,
-    IUserProfileRepository profileRepository)
+    IUserProfileRepository profileRepository,
+    TimeProvider timeProvider)
 {
     public async Task<ApplicationResult<TransactionDto>> ExecuteAsync(
         CreateTransactionCommand command,
@@ -37,6 +38,14 @@ public sealed class CreateTransactionUseCase(
         if (currentUser.UserId is not Guid userId || userId == Guid.Empty)
         {
             return ApplicationResult<TransactionDto>.Failure(TransactionErrors.AuthenticationRequired);
+        }
+
+        // Kayıt olmuş olanı yazar; ileride yapılacak ödeme plandır. Denetim
+        // kayıt ekleme adımındadır, kaydın kendisinde değil: eski yedekteki
+        // ileri tarihli kayıt geri yüklenebilmelidir.
+        if (command.TransactionDate > LocalDay.LatestAllowed(timeProvider.GetUtcNow()))
+        {
+            return ApplicationResult<TransactionDto>.Failure(TransactionErrors.DateInFuture);
         }
 
         var account = await accountRepository.FindOwnedByIdAsync(

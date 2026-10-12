@@ -73,6 +73,18 @@ public sealed class RecurringTransaction
     public string? Description { get; private set; }
     public bool IsActive { get; private set; }
 
+    /// <summary>
+    /// Kullanıcı planı durdurdu: sıradaki günü duruyor ama plan üretmiyor.
+    /// </summary>
+    /// <remarks>
+    /// Sınırına ya da bitiş tarihine ulaşan plan da <see cref="IsActive"/>
+    /// değerini kaybeder, ama duraklatılmış değildir: sıradaki günü yoktur ve
+    /// ürettiği son kalem hâlâ ödenecektir. "Pasif plan para üretmez" kuralı
+    /// yalnız duraklatılmış plana uygulanır; aksi hâlde her sınırlı planın son
+    /// kalemi üretildiği an listelerden düşer ve gerçekleştirilemezdi.
+    /// </remarks>
+    public bool IsPaused => !IsActive && NextOccurrenceDate is not null;
+
     public bool IsTax => TaxKind is not null;
 
     private RecurringTransaction()

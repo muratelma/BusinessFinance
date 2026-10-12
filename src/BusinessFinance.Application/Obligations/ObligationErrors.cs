@@ -73,6 +73,14 @@ public static class ObligationErrors
         message,
         ApplicationErrorType.Conflict);
 
+    /// <summary>
+    /// Belgenin günü ya da ödemenin günü ileride. Vade ileride olabilir.
+    /// </summary>
+    public static readonly ApplicationError DateInFuture = new(
+        "obligations.date_in_future",
+        "The issue date and the settlement date cannot be in the future.",
+        ApplicationErrorType.Validation);
+
     public static ApplicationError Validation(string message) => new(
         "obligations.validation",
         message,

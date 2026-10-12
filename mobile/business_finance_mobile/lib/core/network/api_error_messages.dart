@@ -258,6 +258,24 @@ abstract final class ApiErrorMessages {
     'budgets.category_unavailable':
         'Bütçe yalnız aktif bir gider kategorisine konabilir.',
 
+    // Kaydın günü: olmuş olan ileri güne yazılmaz. Sunucu her kayıt yolunda
+    // kendi kodunu döner; kullanıcı için hepsi aynı kuraldır.
+    'transactions.date_in_future':
+        'Kaydın günü ileride olamaz. İleride yapılacak bir ödeme için plan '
+        'ekleyin.',
+    'credit_cards.date_in_future': 'Kaydın günü ileride olamaz.',
+    'transfers.date_in_future': 'Transferin günü ileride olamaz.',
+    'counterparties.date_in_future':
+        'Kaydın günü ileride olamaz. Vadeyi ileri bir güne yazabilirsiniz.',
+    'debt.date_in_future': 'Başlangıç tarihi ve ödeme günü ileride olamaz.',
+    'imports.date_in_future': 'Satırın tarihi ileride olamaz.',
+    'obligations.date_in_future':
+        'Kaydın günü ve ödeme günü ileride olamaz. Vadeyi ileri bir güne '
+        'yazabilirsiniz.',
+    'pos_settlements.date_in_future': 'Tahsilatın günü ileride olamaz.',
+    'cash_counts.date_in_future': 'Sayımın günü ileride olamaz.',
+    'installments.not_due_yet': 'Bu taksidin günü henüz gelmedi.',
+
     // Kredi kartı
     'credit_cards.limit_exceeded':
         'Bu harcama kartın kullanılabilir limitini aşıyor.',
@@ -297,6 +315,10 @@ abstract final class ApiErrorMessages {
     'recurring.amount_required': 'Ödediğiniz tutarı yazın.',
     'recurring.source_required': 'Nereden ödendiğini seçin.',
     'recurring.paid_on_in_future': 'Ödeme günü ileri bir tarih olamaz.',
+    // Ekran bu kodu hata olarak göstermez, onay sorar; cümle yalnız onaysız
+    // bir yoldan gelirse görünür.
+    'recurring.earlier_item_pending':
+        'Bu plandan daha önceki bir kalem hâlâ bekliyor.',
     'recurring.reschedule_before_history':
         'Yeni başlangıç son ödenen kalemden sonra olmalı.',
     'recurring.already_settled': 'Bu kalem zaten ödendi ya da kapatıldı.',

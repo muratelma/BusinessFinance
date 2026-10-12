@@ -607,6 +607,56 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     format temiz; debug APK derlendi. Cihaz kabulü yapılmadı: sentetik
     deneme verisi ve adımlar `research/DEVIR-2026-10-11.md` §3'te. Push
     kullanıcıda.
+  - **06.3 — kayıt ileri güne yazılmaz; sunucunun günü Türkiye günü (12 Ekim
+    2026; `ui-trials`)**: kategori özeti
+    araştırmasında çıkan bulgu gerçek API'de doğrulandı (ileri tarihli gider
+    bugünkü bakiyeyi düşürüyordu). Kararlar `stages/06.3-butunsel-duzenleme.md`
+    İT1–İT9; üç dış göz turu `research/DIS-GOZ-2026-10-12-gelecek-tarihli-*.md`.
+    **Sunucu:** gün `LocalDay.Today` ile Türkiye saatinden okunur (9 Ekim'deki
+    bir günlük pay kalktı; "bugün"ü UTC'den okuyan on dokuz yer tek kurala
+    bağlandı); kayıt üreten on yol ve banka ekstresinin üç adımı ileri günü
+    reddeder; tekrarlayanın kalem kimliğiyle gelen ucundaki açık kapandı;
+    günü gelmemiş kart taksidi gerçekleşmez; vadesi gelmemiş kalemde sıra
+    atlama sunucunun istediği açık onayla yazılır (İT10). Şema, migration ve yedek
+    değişmedi; eski ileri tarihli kayıtlar ve geri yükleme etkilenmez.
+    **Uygulama:** olmuş kayıt formlarında takvim bugünde biter; `Gerçekleştir`
+    vadesi gelmemiş tekrarlayan satırda da çıkar ve günü soran paneli açar
+    (`realize_day_sheet.dart`; iki listede aynı panel); sıra atlanırsa
+    `Önceki kalem bekliyor` onayı; günü gelmemiş kart taksidinde düğme yok;
+    sekiz yeni hata cümlesi. Bu oturumun ilk işi olan
+    işlem adı düzeltmesi (`Borç taksidi ödemesi`, `Alacak taksidi tahsilatı`)
+    aynı çalışma ağacındadır. **Kontroller:** backend gerçek SQL ile Domain
+    395, Application 399, Api 325, Infrastructure 248 (+2 canlı test atlanır),
+    build 0 uyarı, format temiz; Flutter 1142 (129 görüntü testi atlanır),
+    analyze ve format temiz; debug APK derlendi. Yeni
+    kural geçici bir yerel Release API'de gerçek SQL ve sentetik kullanıcıyla
+    26 istekle, sıra onayı ayrıca 9 adımla denendi; hepsi beklendiği gibi. Cihaz kabulü yapılmadı; kullanıcının çalışan Debug
+    API'si eski kodu taşır ve yeniden başlatılana kadar yeni kuralı uygulamaz.
+    Kategori özeti ve hesap sayfası kararları (KÖ1–KÖ14, KH1–KH9) ve iki brif
+    (`design/brifler/05`, `06`) da bu oturumda yazıldı; kodları yazılmadı
+  - **06.3 — biten planın son kalemi (13 Ekim 2026; `ui-trials`)**: yukarıdaki iş gerçek API'de yeniden denendi
+    (geçici Release örneği, 68 denetim; ileri gün reddi, erken ödeme, sıra
+    onayı, kart taksidi ve sunucunun günü beklendiği gibi). Kontrolde **eski
+    bir hata** çıktı: tekrar sınırına ya da bitiş tarihine ulaşan planın son
+    kalemi üretildiği an plan pasif sayılıyor, kalem listelerden düşüyor ve
+    `recurring.schedule_inactive` ile reddediliyordu; İT9'un "tek seferlik
+    ileri ödeme sınırı 1 olan planla yazılır" yolu hiç çalışmıyordu.
+    **Düzeltme:** "pasif plan para üretmez" yalnız kullanıcının duraklattığı
+    plana uygulanır (`RecurringTransaction.IsPaused`; gerçekleştirme denetimi,
+    kalem listesi, planlanan görünüm ve kalem üretimi). Bir okuma kuralıdır:
+    şema, yedek ve yazılmış kayıt değişmedi, eski takılmış kalemler
+    kendiliğinden geri gelir. Ödeme günü denetimi sıra onayının önüne alındı.
+    **Uygulama:** Tekrarlayanlar'da son kalemi bekleyen plan çalışan planların
+    arasında durur; biten plan `Duraklatıldı` rozeti ve `Sürdür` taşımaz.
+    **Kontroller:** backend gerçek SQL ile Domain 396, Application 400, Api
+    326, Infrastructure 248 (+2 canlı test atlanır), build 0 uyarı, format
+    temiz; düzeltme gerçek API'de beş durumla yeniden denendi. **Aynı gün
+    kapanan küçük işler:** onay kutusu hangi kalemin beklediğini yazar (`409`
+    cevabı `pendingScheduledDate` ve `pendingCount` taşır;
+    `ApplicationError.Details`); yükümlülük, POS tahsilatı ve kasa sayımı
+    ileri günü kendi koduyla reddeder (`*.date_in_future`); katlanmış bölüm
+    `Duraklatılan ve biten planlar`. Son sayılar ve açık kalanlar
+    `research/DEVIR-2026-10-12.md` §9'da
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni (beklemede) → **06.3 bütünsel düzenleme (aktif)** →

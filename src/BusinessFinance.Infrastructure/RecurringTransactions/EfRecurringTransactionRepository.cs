@@ -179,18 +179,43 @@ internal sealed class EfRecurringTransactionRepository(BusinessFinanceDbContext 
         return RecurringDeletionResult.Deleted;
     }
 
-    public Task<bool> IsScheduleActiveAsync(
+    public Task<bool> IsSchedulePausedAsync(
         Guid recurringTransactionId,
         Guid userId,
         CancellationToken cancellationToken)
     {
+        // `RecurringTransaction.IsPaused` ile aynı kural: sıradaki günü olmayan
+        // pasif plan tamamlanmıştır, duraklatılmış değildir.
         return dbContext.RecurringTransactions
             .AsNoTracking()
             .AnyAsync(
                 schedule => schedule.Id == recurringTransactionId &&
                             schedule.UserId == userId &&
-                            schedule.IsActive,
+                            !schedule.IsActive &&
+                            schedule.NextOccurrenceDate != null,
                 cancellationToken);
+    }
+
+    public async Task<PendingEarlierOccurrences?> FindPendingOccurrencesBeforeAsync(
+        Guid recurringTransactionId,
+        Guid userId,
+        DateOnly before,
+        CancellationToken cancellationToken)
+    {
+        var pending = await dbContext.RecurringTransactionOccurrences
+            .AsNoTracking()
+            .Where(occurrence => occurrence.RecurringTransactionId == recurringTransactionId &&
+                                 occurrence.UserId == userId &&
+                                 occurrence.Status == RecurringOccurrenceStatus.Planned &&
+                                 occurrence.ScheduledDate < before)
+            .GroupBy(_ => 1)
+            .Select(group => new
+            {
+                Earliest = group.Min(occurrence => occurrence.ScheduledDate),
+                Count = group.Count(),
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+        return pending is null ? null : new PendingEarlierOccurrences(pending.Earliest, pending.Count);
     }
 
     public Task<RecurringTransactionOccurrence?> FindOccurrenceOwnedByIdAsync(
@@ -229,7 +254,9 @@ internal sealed class EfRecurringTransactionRepository(BusinessFinanceDbContext 
         // Deactivating a schedule means "stop this plan". A pending occurrence
         // generated before that is a forecast, not a debt, so it stops being
         // offered. Realized ones stay: they are history and already moved money.
-        // Reactivating the schedule brings the pending one back.
+        // Reactivating the schedule brings the pending one back. A plan that ran
+        // out of occurrences is not paused (`RecurringTransaction.IsPaused`):
+        // its last pending item stays.
         return await OccurrenceQuery(false)
             .Where(occurrence => occurrence.UserId == userId)
             .Where(occurrence =>
@@ -237,7 +264,7 @@ internal sealed class EfRecurringTransactionRepository(BusinessFinanceDbContext 
                 dbContext.RecurringTransactions.Any(schedule =>
                     schedule.UserId == userId &&
                     schedule.Id == occurrence.RecurringTransactionId &&
-                    schedule.IsActive))
+                    (schedule.IsActive || schedule.NextOccurrenceDate == null)))
             .OrderBy(occurrence => occurrence.ScheduledDate)
             .ThenBy(occurrence => occurrence.Id)
             .ToArrayAsync(cancellationToken);

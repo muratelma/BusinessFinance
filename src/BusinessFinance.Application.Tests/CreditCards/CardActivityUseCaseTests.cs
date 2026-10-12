@@ -22,7 +22,8 @@ public sealed class CardActivityUseCaseTests
             new FakeCardRepository(card, 900m),
             new FakeCategoryRepository(CreateExpense()),
             chargeRepository,
-            new FakeUserProfileRepository(true));
+            new FakeUserProfileRepository(true),
+            TimeProvider.System);
 
         var result = await useCase.ExecuteAsync(new CreateCardChargeCommand(
             card.Id, CreateExpense().Id, 101m, CurrencyCode.TRY,
@@ -43,7 +44,8 @@ public sealed class CardActivityUseCaseTests
             new FakeCurrentUser(UserId),
             new FakeCardRepository(card, 100m),
             new FakeAccountRepository(CreateAccount()),
-            payments);
+            payments,
+            TimeProvider.System);
 
         var result = await useCase.ExecuteAsync(new CreateCardPaymentCommand(
             card.Id, CreateAccount().Id, 101m, CurrencyCode.TRY,
@@ -65,7 +67,8 @@ public sealed class CardActivityUseCaseTests
             new FakeCurrentUser(UserId),
             new FakeCardRepository(card, 100m),
             new FakeAccountRepository(account),
-            payments);
+            payments,
+            TimeProvider.System);
 
         var result = await useCase.ExecuteAsync(new CreateCardPaymentCommand(
             card.Id, account.Id, 100m, CurrencyCode.TRY,

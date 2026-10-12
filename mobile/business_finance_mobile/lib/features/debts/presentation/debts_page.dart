@@ -1070,6 +1070,7 @@ class _DebtFormState extends State<_DebtForm> {
           child: AppDateField(
             label: 'Başlangıç tarihi',
             value: _startDate,
+            lastDate: DateTime.now(),
             helperText: 'Borcun doğduğu gün; geçmiş bir tarih olabilir.',
             onChanged: (value) => setState(() {
               _startDate = value;

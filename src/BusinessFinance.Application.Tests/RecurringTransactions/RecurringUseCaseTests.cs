@@ -215,6 +215,38 @@ public sealed class RecurringUseCaseTests
         Assert.Empty(repository.Occurrences);
     }
 
+    /// <summary>
+    /// Son kalem üretilince plan sınırına ulaşır ve aktifliğini kaybeder; bu
+    /// duraklatma değildir. Kalem yine gerçekleşir; planın takviminde olmayan
+    /// bir gün ise "pasif plan" değil "bulunamadı" sonucuna gider.
+    /// </summary>
+    [Fact]
+    public async Task RealizeDue_TheLastItemOfALimitedPlan_IsRealized()
+    {
+        var (recurring, account, category) = CreateRecurring(
+            UserId, new DateOnly(2026, 8, 31), occurrenceLimit: 1);
+        var transactions = new FakeTransactionRepository();
+        var repository = new FakeRecurringRepository(recurring, transactions, null);
+        var now = new DateTimeOffset(2026, 8, 31, 10, 0, 0, TimeSpan.Zero);
+        var useCase = BuildRealizeDue(recurring, account, category, transactions, repository, now);
+
+        var result = await useCase.ExecuteAsync(
+            new RealizeDueRecurringCommand(recurring.Id, new DateOnly(2026, 8, 31)));
+
+        Assert.True(result.IsSuccess);
+        Assert.False(recurring.IsActive);
+        Assert.Single(transactions.Items);
+        Assert.True(Assert.Single(repository.Occurrences).IsRealized);
+
+        var beyond = await useCase.ExecuteAsync(
+            new RealizeDueRecurringCommand(
+                recurring.Id,
+                new DateOnly(2026, 9, 30),
+                Payment: new RecurringPaymentDetails(PaidOn: new DateOnly(2026, 8, 31))));
+        Assert.Equal("recurring.occurrence_not_found", beyond.Error.Code);
+        Assert.Single(repository.Occurrences);
+    }
+
     private static RealizeDueRecurringUseCase BuildRealizeDue(
         RecurringTransaction recurring,
         Account account,

@@ -8,6 +8,15 @@ public static class TransactionErrors
         "authentication.required",
         "An authenticated user is required.",
         ApplicationErrorType.Unauthorized);
+    /// <summary>
+    /// Kaydın günü ileride. Gelir ve gider olmuş olanı yazar; ileride yapılacak
+    /// ödeme tekrarlayan plan, taksit ya da vadeyle izlenir.
+    /// </summary>
+    public static readonly ApplicationError DateInFuture = new(
+        "transactions.date_in_future",
+        "The transaction date cannot be in the future.",
+        ApplicationErrorType.Validation);
+
     public static ApplicationError Validation(string message) => new(
         "transactions.validation",
         message,

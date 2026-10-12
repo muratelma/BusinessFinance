@@ -70,12 +70,17 @@ public sealed record GenerateRecurringOccurrencesRequest(string ThroughDate);
 /// </param>
 /// <param name="AccountId">Ödemenin yapıldığı hesap; kalemin kaynağını geçersiz kılar.</param>
 /// <param name="CreditCardId">Ödemenin yapıldığı kart; kart harcaması yazılır.</param>
+/// <param name="AllowEarlierPending">
+/// Vadesi gelmemiş kalem, planın daha önceki bir kalemi beklerken yazılıyorsa
+/// kullanıcının açık onayı; yoksa <c>409 recurring.earlier_item_pending</c>.
+/// </param>
 public sealed record RealizeDueRecurringRequest(
     string ScheduledDate,
     string? Amount = null,
     string? PaidOn = null,
     Guid? AccountId = null,
-    Guid? CreditCardId = null);
+    Guid? CreditCardId = null,
+    bool? AllowEarlierPending = null);
 
 /// <summary>
 /// Gerçekleştirme isteğinin gövdesi; tamamı isteğe bağlıdır.
@@ -88,7 +93,8 @@ public sealed record RealizeRecurringOccurrenceRequest(
     string? Amount = null,
     string? PaidOn = null,
     Guid? AccountId = null,
-    Guid? CreditCardId = null);
+    Guid? CreditCardId = null,
+    bool? AllowEarlierPending = null);
 
 /// <summary>"Tutar belli oldu": bekleyen kalemin bu dönemki tutarı.</summary>
 public sealed record SetOccurrenceAmountRequest(string ScheduledDate, string Amount);

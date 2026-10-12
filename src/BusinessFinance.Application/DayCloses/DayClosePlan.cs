@@ -85,8 +85,7 @@ internal sealed class DayClosePlan
         ICategoryRepository categoryRepository,
         CancellationToken cancellationToken)
     {
-        // Gün kullanıcının takvimiyle gelir ve sunucunun UTC gününden bir gün
-        // ileride olabilir (`LocalDay`).
+        // Gün kullanıcının takvimiyle gelir; en ileri gün bugündür (`LocalDay`).
         if (input.Date == default || input.Date > latestAllowedDay ||
             input.RangeStart is DateOnly rangeStart && rangeStart >= input.Date)
         {

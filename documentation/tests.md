@@ -1919,6 +1919,10 @@ Domain ve Infrastructure bu son değişiklikten sonra yinelenmedi.
 
 ## Aşama 06.3 — gece yarısından sonra bugünün kaydı, iptal onayı ve akıştaki kilit (9 Ekim 2026)
 
+> **12 Ekim 2026'da değişti.** Bu bölümdeki "bir günlük pay" kalktı: gün artık
+> Türkiye saatiyle hesaplanır ve yarının tarihi reddedilir. Güncel kural ve
+> testleri belgenin sonundaki "kayıt ileri güne yazılmaz" bölümündedir.
+
 Üç hata önce **kod değiştirilmeden** gerçek API'de yeniden üretildi, sonra
 düzeltildi ve aynı betik yeniden koşuldu (geçici yerel API, gerçek SQL,
 sentetik kullanıcı). Sunucunun saati değiştirilemediği için gece durumu,
@@ -2080,3 +2084,41 @@ kısım yazıldı.
 | Panel (geçici, eski yerleşim) | `day_close_test` → `gün sonu paneli` (3 yeni, 4 güncellendi) | Cevaplanmamış tahsilatla kaydedilmez; yalnız kart yazılınca sorulmaz; listeden düşen kaydın cevabı gönderilmez; cevap isteyen kaydın cevabı hep gönderilir |
 | Gün ekranı | `day_close_test` → `gün ayrıntısı` (1 yeni) | Sayılan satırı türü ayırır (`Sayıldı · veresiye satış`, `Sayıldı · tahsilat`); ortak tutar `İkisinde de var · bir kez sayıldı` satırında eksiyle yazar |
 | Ekran görüntüsü | `gun_sonu_screenshot_test` → `gunsonu-09-ayrinti-ikisinde-de` (yeni; `SCREENSHOT_DIR` ile) | Gün ekranında ortak tutar satırı |
+
+## Aşama 06.3 — kayıt ileri güne yazılmaz; sunucunun günü Türkiye günü (12 Ekim 2026)
+
+Bulgu önce **kod değiştirilmeden** gerçek API'de üretildi (sentetik kullanıcı,
+gerçek SQL): 20 Ekim ve 20 Kasım tarihli gider, ileri tarihli kart harcaması
+ve vadeli alım `201` döndü; hesap bakiyesi bugün 10.000 yerine 9.795,50
+okundu. Kural ve kararlar: `stages/06.3-butunsel-duzenleme.md` İT1–İT9.
+
+Saat sabitlenir (`FixedClockApi`, `TestClock`): testler koştukları saatten
+bağımsızdır. Erişim belirtecinin süresi gerçek saatle doğrulandığı için süre
+doğrulaması yalnız bu fabrikada kapalıdır.
+
+| Kural | Test | Ne gösterir |
+|---|---|---|
+| Gün Türkiye günüdür | `LocalDayTests` (yeniden yazıldı; 5 durum + ofset) | UTC 20:59 hâlâ dün, 21:00 bugün; gündüz bugün bugündür ve **en ileri gün de bugündür**; ay ve yıl sınırı; aynı an üç ofsetle aynı günü verir |
+| Aggregate denetimleri | `CashCountTests`, `DayCloseTests`, `ObligationTests` (2; güncellendi) | Bugün kabul, yarın ret; UTC 22:30'da (Türkiye'de ertesi gün 01:30) o günün tarihi kabul |
+| Gece yarısı, uçtan uca | `LocalDayEndpointTests.RecordsDatedTheUsersTodayAfterMidnight_AreAccepted_AndTomorrowIsNot` (yeniden yazıldı; saat UTC 8 Ekim 22:30) | Kasa sayımı, POS tahsilatı, yükümlülük ve ödenmesi, POS yatışı, hedefe katkı, gün sonu 9 Ekim tarihiyle kabul; 10 Ekim hepsinde ret. Kasa kartı tarihsiz, uzak ve ilerideki `date` ile sunucunun gününü okur |
+| Elle yazılan yedi yol | `RecordDateEndpointTests.ARecordDatedTomorrow_IsRejectedOnEveryManualPath_AndLeavesNoTrace` (yeni) | Gider, transfer, kart harcaması, kart ödemesi, veresiye satış, cari tahsilat ve borç başlangıcı yarın tarihiyle `400 *.date_in_future`; akış boş, iki hesabın bakiyesi ve kart borcu değişmedi; aynı kayıtlar bugünle yazılır |
+| Vade ödeme günü değildir | `…ADebtInstallmentDueLater_IsPaidToday_ButNotWithAFuturePaymentDate` (yeni) | Vadesi bir ay sonraki taksit bugün ödenir; ödeme günü yarın olursa `debt.date_in_future` ve bakiye değişmez |
+| Tekrarlayanın iki ucu | `…ARecurringItemDueLater_IsRealizedOnThePaymentDay_ThroughBothEndpoints` (yeni) | Gün verilmeyince iki uç da `recurring.not_due_yet` (kalem kimliğiyle gelen uçta denetim yoktu); yarın `paid_on_in_future`; dünkü günle kayıt düne yazılır; ikinci istek aynı kaydı döner; üretilmemiş sonraki kalem plan ve tarihle bugüne yazılır; akışta iki kayıt |
+| Sıra atlama onayı | `…SkippingAnEarlierPendingItem_NeedsAnExplicitConfirmation` (yeni); `planned_activity_test` ve `planning_feature_test` "önceki kalem bekliyorsa onay sorar, onayla yineler" (yeni, 2) | Ekim ve Kasım beklerken Aralık onaysız `409 recurring.earlier_item_pending`, bakiye değişmez; onayla bugüne yazılır ve yalnız Aralık kapanır; Kasım yine onay ister, sıradaki Ekim istemez. Ekranda onay isteği hata olarak görünmez; `Vazgeç` hiçbir şey yazmaz, `Yine de gerçekleştir` aynı günle ve onayla yineler |
+| Biten planın son kalemi | `…TheLastItemOfAPlanThatRanOut_StaysListed_AndIsRealized` (yeni); `RecurringUseCaseTests.RealizeDue_TheLastItemOfALimitedPlan_IsRealized` (yeni); `RecurringTransactionTests.IsPaused_TellsAStoppedPlanApartFromOneThatRanOut` (yeni); `planning_feature_test` "a plan that ran out is not shown as paused" (yeni) | Tekrar sınırı 1 olan planın vadesi gelmemiş kalemi bugün ödenir; bitiş tarihli planın iki bekleyen kalemi plan aktif değilken kalem listesinde ve planlanan görünümde durur, ikisi de gerçekleşir; biten planın takviminde olmayan gün `404`; duraklatılan plan `recurring.schedule_inactive` ve bakiye değişmez. Ekranda son kalemi bekleyen plan açıkta durur, biten plan `Duraklatıldı` rozeti ve `Sürdür` taşımaz |
+| Onay cevabı bekleyeni söyler | `…SkippingAnEarlierPendingItem_NeedsAnExplicitConfirmation` (genişledi); `planned_activity_test` ve `planning_feature_test` onay testleri (genişledi) | `409` cevabında `pendingScheduledDate` = `2026-10-20`, `pendingCount` = `2`; kutu tek kalemde vadesini, birden çok kalemde sayısını ve ilkinin vadesini yazar |
+| Kasa, POS ve yükümlülüğün kendi kodu | `…ARecordDatedTomorrow_IsRejectedOnEveryManualPath_AndLeavesNoTrace` (genişledi); `api_error_messages_test` (genişledi) | Yarın tarihli yükümlülük, POS tahsilatı ve kasa sayımı `obligations.` / `pos_settlements.` / `cash_counts.date_in_future`; yükümlülüğün ödeme günü yarınsa `obligations.date_in_future`; üç kod da Türkçe cümleye çıkar |
+| Ödeme günü onaydan önce | `…SkippingAnEarlierPendingItem_NeedsAnExplicitConfirmation` (genişledi) | Önceki kalem beklerken ödeme günü yarın: `recurring.paid_on_in_future`, onay istenmez |
+| Kart taksidi | `…AnInstallmentDueLater_IsNotRealized` (yeni) | Günü gelmiş taksit kendi gününe yazılır; sonraki `installments.not_due_yet`; kart borcu yalnız ilk taksit |
+| Banka ekstresi | `…AStatementRowDatedTomorrow_IsInvalid_AndCannotBeCorrectedToTheFuture` (yeni); `ImportConfirmationUseCaseTests.Confirm_RejectsARowDatedInTheFuture_AndAcceptsItOnceTheDayArrives` (yeni) | Yarın tarihli satır hatalı gelir; ileri tarihe düzeltme `imports.date_in_future`; onay son kapıdır ve hiçbir kayıt yazmaz; UTC 22:30'da aynı satır o günündür ve yazılır |
+| Yeni denetimlerde gece yarısı | `…AfterMidnightInTurkey_TodayIsAccepted_AndTomorrowIsNot` (yeni; saat UTC 12 Ekim 22:30) | 13 Ekim tarihli gider kabul, 14 Ekim ret |
+| Eski kayıt ve yedek | `…ARecordAlreadyDatedInTheFuture_StaysReachable_AndSurvivesBackupAndRestore` (yeni) | İleri tarihli kayıt akışta görünür ve bakiyededir (kabul edilen geçiş etkisi); yedeği başka kullanıcıya geri yüklenir ve günüyle gelir |
+| Tarih alanı | `app_date_field_test` "en ileri günden sonrası seçilemez" (yeni) | Değer sınırın ötesindeyken takvim hatasız açılır; sınırdan sonraki güne dokunmak seçimi değiştirmez |
+| `Gerçekleştir` paneli | `planned_activity_test` (1 yeni, 2 güncellendi); `planning_feature_test` (2 güncellendi) | Vadesi gelmemiş tekrarlayan satırda eylem çıkar; panel kaynağı gösterir ve bugünle açılır; onaylanınca istek günü taşır; günü gelmemiş kart taksidinde eylem yoktur; `Onay bekliyor` yalnız vadesi bugün olan satırdadır |
+| İstek gövdesi | `planning_feature_test` "gerçekleştirme isteği seçilen günü taşır" (yeni) | İki uç da `paidOn` gönderir; gün verilmezse gövde eskisi gibidir; `allowEarlierPending` yalnız verildiğinde gövdeye girer |
+| Kart sayfası | `finance_feature_test` "taksit satırları…" (güncellendi) | Günü gelmemiş taksit `Planlandı` yazar, eylemi yoktur |
+| Hata cümleleri | `api_error_messages_test` "ileri tarihli kaydın reddi her yolda Türkçe söylenir" (yeni) | Altı `*.date_in_future` kodu ve `installments.not_due_yet` |
+
+Var olan dört Application test sınıfı yeni saat bağımlılığını `TimeProvider.System`
+ile alır; tarihleri geçmiştedir. Kontrollerin sayıları `docs/project-status.md`
+içindedir.

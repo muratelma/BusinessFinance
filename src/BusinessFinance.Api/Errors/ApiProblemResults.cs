@@ -9,17 +9,26 @@ public static class ApiProblemResults
         int statusCode,
         string title,
         string detail,
-        string code)
+        string code,
+        IReadOnlyDictionary<string, string>? details = null)
     {
+        var extensions = new Dictionary<string, object?>
+        {
+            ["code"] = code,
+            ["traceId"] = Activity.Current?.Id ?? httpContext.TraceIdentifier
+        };
+
+        // Hatanın taşıdığı makine değerleri; `code` ve `traceId` ezilmez.
+        foreach (var (key, value) in details ?? new Dictionary<string, string>())
+        {
+            extensions.TryAdd(key, value);
+        }
+
         return Results.Problem(
             statusCode: statusCode,
             title: title,
             detail: detail,
-            extensions: new Dictionary<string, object?>
-            {
-                ["code"] = code,
-                ["traceId"] = Activity.Current?.Id ?? httpContext.TraceIdentifier
-            });
+            extensions: extensions);
     }
 
     public static IResult Validation(

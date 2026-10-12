@@ -40,6 +40,15 @@ public static class CounterpartyErrors
         "An inactive counterparty cannot take on a new charge.",
         ApplicationErrorType.Conflict);
 
+    /// <summary>
+    /// Satışın, alımın, tahsilatın ya da ödemenin günü ileride. Vade ileride
+    /// olabilir; olmuş olan olamaz.
+    /// </summary>
+    public static readonly ApplicationError DateInFuture = new(
+        "counterparties.date_in_future",
+        "The charge date and the payment date cannot be in the future.",
+        ApplicationErrorType.Validation);
+
     public static readonly ApplicationError ScopeUnresolved = new(
         "counterparties.scope_unresolved",
         "The scope could not be resolved from the request or the category.",

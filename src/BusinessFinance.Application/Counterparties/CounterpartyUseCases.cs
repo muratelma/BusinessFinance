@@ -234,7 +234,7 @@ public sealed class DeleteCounterpartyUseCase(
 internal static class CounterpartyMapper
 {
     public static DateOnly Today(TimeProvider timeProvider) =>
-        DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
+        LocalDay.Today(timeProvider.GetUtcNow());
 
     public static CounterpartyDto ToDto(
         Counterparty counterparty,

@@ -446,6 +446,7 @@ class _TransactionFormDialogState extends State<_TransactionFormDialog> {
           child: AppDateField(
             label: 'İşlem tarihi',
             value: _date,
+            lastDate: DateTime.now(),
             onChanged: (value) => setState(() => _date = value),
           ),
         ),

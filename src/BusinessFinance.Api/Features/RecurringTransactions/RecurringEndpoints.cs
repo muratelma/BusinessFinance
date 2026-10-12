@@ -360,7 +360,9 @@ public static class RecurringEndpoints
         }
 
         var result = await useCase.ExecuteAsync(
-            new RealizeDueRecurringCommand(recurringTransactionId, scheduledDate, dueAmount, payment),
+            new RealizeDueRecurringCommand(
+                recurringTransactionId, scheduledDate, dueAmount, payment,
+                request.AllowEarlierPending ?? false),
             cancellationToken);
         return result.IsSuccess
             ? Results.Ok(ToRealizedResponse(result.Value))
@@ -386,7 +388,9 @@ public static class RecurringEndpoints
         }
 
         var result = await useCase.ExecuteAsync(
-            new RealizeRecurringOccurrenceCommand(occurrenceId, amount, payment), cancellationToken);
+            new RealizeRecurringOccurrenceCommand(
+                occurrenceId, amount, payment, request?.AllowEarlierPending ?? false),
+            cancellationToken);
         if (!result.IsSuccess)
         {
             return result.Error.ToProblemResult(httpContext);

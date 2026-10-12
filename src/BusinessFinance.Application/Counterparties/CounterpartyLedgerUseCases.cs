@@ -16,7 +16,8 @@ namespace BusinessFinance.Application.Counterparties;
 public sealed class CreateCounterpartyChargeUseCase(
     ICurrentUser currentUser,
     ICounterpartyRepository repository,
-    ICategoryRepository categoryRepository)
+    ICategoryRepository categoryRepository,
+    TimeProvider timeProvider)
 {
     public async Task<ApplicationResult<CounterpartyChargeDto>> ExecuteAsync(
         CreateCounterpartyChargeCommand command,
@@ -27,6 +28,13 @@ public sealed class CreateCounterpartyChargeUseCase(
         {
             return ApplicationResult<CounterpartyChargeDto>.Failure(
                 CounterpartyErrors.AuthenticationRequired);
+        }
+
+        // Satışın ya da alımın günü ileride olamaz; vadesi olabilir.
+        if (command.ChargeDate > LocalDay.LatestAllowed(timeProvider.GetUtcNow()))
+        {
+            return ApplicationResult<CounterpartyChargeDto>.Failure(
+                CounterpartyErrors.DateInFuture);
         }
 
         var counterparty = await repository.FindOwnedByIdAsync(
@@ -133,6 +141,14 @@ public sealed class CreateCounterpartyPaymentUseCase(
         {
             return ApplicationResult<CounterpartyPaymentDto>.Failure(
                 CounterpartyErrors.AuthenticationRequired);
+        }
+
+        // Kartla tahsil POS kaydının kendi denetiminden de geçer; hesaptan
+        // tahsilat ve ödeme yalnız buradan.
+        if (command.PaymentDate > LocalDay.LatestAllowed(timeProvider.GetUtcNow()))
+        {
+            return ApplicationResult<CounterpartyPaymentDto>.Failure(
+                CounterpartyErrors.DateInFuture);
         }
 
         var counterparty = await repository.FindOwnedByIdAsync(

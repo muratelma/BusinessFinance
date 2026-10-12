@@ -177,6 +177,15 @@ public sealed class RealizeInstallmentUseCase(
                 CreateCardChargeUseCase.ToDto(existingCharge));
         }
 
+        // Taksit kendi gününe yazılır; günü gelmemiş taksit ileri tarihli bir
+        // kart harcaması olurdu. Bugüne de taşınmaz: banka onu ekstresine
+        // kendi gününde yansıtır. Kart borcunu erken ödemek ayrı bir kayıttır.
+        if (item.ScheduledDate > LocalDay.LatestAllowed(timeProvider.GetUtcNow()))
+        {
+            return ApplicationResult<CardChargeDto>.Failure(
+                CreditCardErrors.InstallmentNotDueYet);
+        }
+
         var card = await cardRepository.FindOwnedByIdAsync(
             plan.CreditCardId, userId, false, cancellationToken);
         var category = await categoryRepository.FindOwnedByIdAsync(

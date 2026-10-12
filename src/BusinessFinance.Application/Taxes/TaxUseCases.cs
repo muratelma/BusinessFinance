@@ -70,10 +70,8 @@ public sealed class CreateTaxPaymentUseCase(
         }
 
         if (command.PaidOn == default ||
-            command.PaidOn > DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime).AddDays(1))
+            command.PaidOn > LocalDay.LatestAllowed(timeProvider.GetUtcNow()))
         {
-            // Bir gün pay: Türkiye'de gece yarısından sonra kullanıcının
-            // "bugün"ü UTC'de henüz yarındır.
             return ApplicationResult<TaxPaymentDto>.Failure(TaxErrors.PaidOnInFuture);
         }
 

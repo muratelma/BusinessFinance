@@ -49,7 +49,7 @@ public static class PosSettlementEndpoints
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
-        var today = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
+        var today = LocalDay.Today(timeProvider.GetUtcNow());
         var start = today.AddDays(-30);
         if (from is not null && !FinanceContract.TryParseDate(from, out start))
         {
@@ -59,9 +59,7 @@ public static class PosSettlementEndpoints
                 "pos_settlements.invalid_from");
         }
 
-        // Varsayılan bitiş kullanıcının gününü de kapsar: gece yarısından
-        // sonra girilen tahsilat UTC gününden bir gün ileridedir.
-        var end = LocalDay.LatestAllowed(timeProvider.GetUtcNow());
+        var end = today;
         if (to is not null && !FinanceContract.TryParseDate(to, out end))
         {
             return ApiProblemResults.Validation(

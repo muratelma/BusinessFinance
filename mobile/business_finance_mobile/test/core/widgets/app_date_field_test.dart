@@ -10,6 +10,7 @@ void main() {
   Future<void> pump(
     WidgetTester tester, {
     String? value,
+    DateTime? lastDate,
     required ValueChanged<String> onChanged,
   }) => tester.pumpWidget(
     MaterialApp(
@@ -23,12 +24,35 @@ void main() {
           child: AppDateField(
             label: 'İşlem tarihi',
             value: value,
+            lastDate: lastDate,
             onChanged: onChanged,
           ),
         ),
       ),
     ),
   );
+
+  // Olmuş bir kaydın günü ileride olamaz: form en ileri günü verir. Belgeden
+  // okunan tarih o günden sonraysa takvim yine açılır ve en ileri günde durur.
+  testWidgets('en ileri günden sonrası seçilemez', (tester) async {
+    String? reported;
+    await pump(
+      tester,
+      value: '2026-08-25',
+      lastDate: DateTime(2026, 8, 20),
+      onChanged: (value) => reported = value,
+    );
+
+    await tester.tap(find.byType(InputDecorator));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    // 21 Ağustos kapalıdır; dokunmak seçimi değiştirmez.
+    await tester.tap(find.text('21'));
+    await tester.tap(find.text('Tamam'));
+    await tester.pumpAndSettle();
+    expect(reported, '2026-08-20');
+  });
 
   testWidgets('metin alanlarıyla aynı dekorasyonu kullanır', (tester) async {
     await pump(tester, value: '2026-08-16', onChanged: (_) {});

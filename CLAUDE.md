@@ -206,7 +206,11 @@ gerekçesiyle bozulmaz.
 - **Pasif plan para üretmez.** Bekleyen (gerçekleşmemiş) occurrence, planı
   pasifse listelerden ve planlanan görünümden düşer; gerçekleştirme
   `409 recurring.schedule_inactive` ile reddedilir. Gerçekleşmiş occurrence
-  geçmiştir, kalır.
+  geçmiştir, kalır. **Biten plan pasif plan değildir**: sınırına ya da bitiş
+  tarihine ulaşan plan da `IsActive` değerini kaybeder ama sıradaki günü
+  yoktur; son kalemi listelerde kalır ve gerçekleşir. Kural yalnız kullanıcının
+  duraklattığı plana uygulanır (`RecurringTransaction.IsPaused`); bekleyen
+  kalemi plana göre süzen yeni bir okuma `IsActive`'e değil buna bakar.
 - **Plan silme**: hiç gerçekleşmiş occurrence yoksa plan ve bekleyen kayıtları
   silinebilir; varsa `409 recurring.has_realized_history` + duraklatma
   yönlendirmesi (boş hesap silme kuralının aynısı).
@@ -279,13 +283,37 @@ gerekçesiyle bozulmaz.
   `Sizin borcunuz` satırlarını bunlarla, `Net - Borcunuz` / `Net - Alacağınız`
   satırını işaretsiz `net` ile çizer. Etiketler kısa kalır (kullanıcı kararı,
   9 Ekim 2026); istemci toplama yapmaz.
-- **Kaydın günü kullanıcının takvimiyle gelir; sunucu UTC gününe bir gün pay
-  tanır** (`LocalDay.LatestAllowed`). Gece yarısından 03:00'e kadar Türkiye'de
-  "bugün" UTC gününün bir ilerisidir; "gün gelecekte olamaz" denetimi UTC
-  günüyle yapılırsa o saatlerde bugünün kaydı reddedilir. Yeni bir "gelecekte
-  olamaz" denetimi **`LocalDay` ile** yazılır, `DateOnly.FromDateTime(utcNow)`
-  ile değil. Kasa kartı bugünü cihazın günüyle sorar
+- **Sunucunun günü Türkiye günüdür** (`LocalDay.Today`, sabit UTC+3; kullanıcı
+  kararı, 12 Ekim 2026). Gece yarısından 03:00'e kadar Türkiye'de "bugün" UTC
+  gününün bir ilerisidir; gün UTC'den okunursa o saatlerde bugünün kaydı
+  reddedilir. 9 Ekim'deki "UTC gününe bir gün pay" çözümü kalktı: günün her
+  saatinde yarını da kabul ediyordu. Sunucuda "bugün" **yalnız `LocalDay` ile**
+  okunur, `DateOnly.FromDateTime(utcNow)` ile değil; kayıt anları, oturum
+  süreleri ve giriş sırası UTC kalır. Kasa kartı cihazın gününü yalnız
+  sunucunun gününden gerideyse kabul eder
   (`GET /api/v1/cash-counts/today?date=`).
+- **Kayıt ileri güne yazılmaz** (kullanıcı kararı, 12 Ekim 2026): olmuş olan
+  kayıt, olacak olan plandır. Kayıt üreten her yol günü bugünden ileri olan
+  isteği reddeder (`*.date_in_future`): gelir/gider, kart harcaması ve
+  ödemesi, transfer, cari borçlandırma ve tahsilat/ödeme, borç başlangıcı ve
+  taksit ödemesi, banka ekstresi. Denetim **kullanım durumundadır, aggregate'te
+  değil**: eski yedekteki ileri tarihli kayıt geri yüklenebilmelidir. Yeni bir
+  kayıt yolu eklenirse aynı denetimi alır. Vade, plan başlangıcı, ilk taksit
+  tarihi ve hedef tarihi ileride olabilir. Eski ileri tarihli kayıtlar değişmez
+  ve günü gelene kadar bakiyeye girer; bu yüzden kaydı olan ileri ay
+  seçilebilir kalır. İleri tarihli transferin yerine plan yolu yoktur (bilerek
+  kabul edilen sınır).
+- **Vade ile ödeme günü ayrı şeylerdir.** Tekrarlayan kalem (`Gerçekleştir`),
+  vergi (`Ödedim`) ve borç taksidi vadesinden önce ödenebilir; kayıt **ödeme
+  gününe** yazılır ve o gün ileride olamaz. `Gerçekleştir` günü sorar, ön değer
+  bugündür. Gün verilmeyen çağrıda vadesi gelmemiş kalem iki uçta da
+  `recurring.not_due_yet` ile reddedilir. **Sıra atlama yasak değil, onaydır**:
+  vadesi gelmemiş kalem, planın daha önceki bir kalemi beklerken yazılırsa
+  sunucu `409 recurring.earlier_item_pending` döner; ekran sorar ve
+  `allowEarlierPending` ile yineler. Bekleyeni sunucu bilir, ekrandaki liste
+  değil; vadesi gelmiş kalemde ve vergide sorulmaz. **Kart taksidi istisnadır**: kendi
+  gününe yazılır, günü gelmeden gerçekleşmez (`installments.not_due_yet`) ve
+  bugüne taşınmaz; kart borcunu erken ödemek ayrı bir kayıttır.
 - **Kasada her kayıt sayımı eskitir, günü ne olursa olsun** (kullanıcı kararı,
   9 Ekim 2026): "günü sayımdan önce olan kayıt sayımı eskitmez" önerisi
   reddedildi; kural kaydın gününe bağlanmaz.

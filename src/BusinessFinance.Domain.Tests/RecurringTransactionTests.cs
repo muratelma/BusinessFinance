@@ -155,6 +155,32 @@ public sealed class RecurringTransactionTests
         Assert.Throws<InvalidOperationException>(() => recurring.Activate());
     }
 
+    /// <summary>
+    /// Sınırına ulaşan plan duraklatılmış değildir: ürettiği son kalem hâlâ
+    /// ödenecektir. Duraklatılmış olan, kullanıcının durdurduğu plandır.
+    /// </summary>
+    [Fact]
+    public void IsPaused_TellsAStoppedPlanApartFromOneThatRanOut()
+    {
+        var completed = CreateRecurring(
+            RecurringTransactionKind.Expense,
+            RecurrenceFrequency.Monthly,
+            new DateOnly(2026, 1, 1),
+            occurrenceLimit: 1);
+        completed.AdvanceAfter(new DateOnly(2026, 1, 1));
+        var stopped = CreateRecurring(
+            RecurringTransactionKind.Expense,
+            RecurrenceFrequency.Monthly,
+            new DateOnly(2026, 1, 1));
+        stopped.Deactivate();
+
+        Assert.False(completed.IsActive);
+        Assert.False(completed.IsPaused);
+        Assert.True(stopped.IsPaused);
+        stopped.Activate();
+        Assert.False(stopped.IsPaused);
+    }
+
     [Fact]
     public void Constructor_WithNonPositiveOccurrenceLimit_IsRejected()
     {

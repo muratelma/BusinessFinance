@@ -241,7 +241,11 @@ borçlu) ya da `payable` (biz ona borçluyuz); diğer türlerde `null`.
 türlerdir: aynı tür hem **tahsilat** hem **ödeme**dir, hangisi olduğunu yön
 söyler. İstemci adı (`Cari tahsilat` / `Cari ödeme`, `Alacak tahsilatı` /
 `Borç ödemesi`) ve paranın akış yönünü (`kişi → hesap` ya da `hesap → kişi`)
-bundan kurar.
+bundan kurar. `counterparty-charge` satırının adı da yönden gelir (`Veresiye
+satış` / `Vadeli alım`). Borç satırları (`debt-payment`, `debt-collection`,
+`debt-opening`) yön **taşımaz**: taksitte yönü tür söyler (`Borç taksidi
+ödemesi` / `Alacak taksidi tahsilatı`); açılışta istemci yönü bilemediği için
+tek ad kullanır (`Borç / alacak açılışı`).
 
 Bu iki türde **`sourceName` hep hesap, `destinationName` hep karşı taraftır**
 (2 Ekim 2026). `obligation-settlement` daha önce adları paranın akış yönüyle
@@ -676,10 +680,42 @@ Sunucu eksik occurrence'ı kendi üretip gerçekleştirir; iki adım tek karara
 iner. Önceki sözleşmede `actionTargetId` burada `null` idi ve istemcinin
 gönderecek kimliği olmadığı için eylem hiç çalışmıyordu.
 
-Tarihi gelmemiş bir kalem `recurring.not_due_yet` ile reddedilir: plan tarihi
-gelene kadar bir tahmindir. **İstisna — ödeme günü verilirse** (`paidOn`,
-vergi ekranının "Ödedim"i): kayıt vade gününe değil ödeme gününe yazılır ve
-ödeme günü gelecekte olamaz, bu yüzden vadesi gelmemiş kalem de ödenebilir (§5).
+Gün verilmeyen çağrı kaydı vade gününe yazar; vadesi gelmemiş kalem bu çağrıda
+`recurring.not_due_yet` ile reddedilir. Kural **iki uçta da** geçerlidir (plan
+ve tarihle gelen, kalem kimliğiyle gelen; ikincisinde 12 Ekim 2026'ya kadar
+yoktu). **Ödeme günü verilirse** (`paidOn`) kayıt vade gününe değil o güne
+yazılır ve o gün ileride olamaz, bu yüzden vadesi gelmemiş kalem de ödenir:
+vergide `Ödedim`, kira ve abonelikte `Gerçekleştir` (§5). İkinci istek aynı
+kaydı geri verir, ikinci kayıt üretmez.
+
+**Sıra atlama onay ister.** Vadesi gelmemiş kalem, aynı planın daha önceki bir
+kalemi (`planned`) beklerken yazılmak istenirse iki uç da
+`409 recurring.earlier_item_pending` döner ve hiçbir kayıt yazılmaz. Cevap
+hangi kalemin beklediğini iki ek alanla taşır: `pendingScheduledDate` (bekleyen
+en eski kalemin vadesi, `yyyy-MM-dd`) ve `pendingCount` (bekleyen kalem sayısı,
+dize); onay kutusu cümlesini bunlarla kurar. İstek
+`"allowEarlierPending": true` ile yinelenirse yalnız seçilen kalem gerçekleşir;
+önceki `planned` kalır. Sunucu planın bütün kalemlerine bakar, planlanan
+görünümün penceresine değil. Vadesi gelmiş kalemde ve vergi planında denetim
+yoktur. Plan ve tarihle gelen uçta ret, aradaki kalemler üretildikten sonra
+gelir; geride yalnız bekleyen kalemler kalır. Ödeme günü onaydan **önce**
+denetlenir: ileri bir `paidOn` önceki kalem beklese de
+`400 recurring.paid_on_in_future` döner, kullanıcı sırayı onaylayıp ardından
+gün yüzünden reddedilmez.
+
+**Biten plan duraklatılmış plan değildir.** Son kalemi üretilen plan (tekrar
+sınırına ya da bitiş tarihine ulaşan) `isActive: false` ve
+`nextOccurrenceDate: null` döner; bekleyen son kalemi kalem listesinde ve
+planlanan görünümde kalır, iki uçtan da gerçekleşir. Tek seferlik ileri ödeme
+(tekrar sınırı 1) bu yoldan yazılır. `409 recurring.schedule_inactive` yalnız
+kullanıcının duraklattığı plan içindir (`isActive: false`, `nextOccurrenceDate`
+dolu). Biten planın takviminde olmayan bir gün `404` döner. 13 Ekim 2026'ya
+kadar her sınırlı planın son kalemi üretildiği an listelerden düşüyor ve
+gerçekleştirilemiyordu.
+
+Kart taksidi (`POST /api/v1/installment-plans/{id}/items/{sequence}/realize`)
+gün almaz: taksit kendi gününe yazılır ve günü gelmemişse
+`400 installments.not_due_yet` döner.
 
 ### Sıralama ve kurallar
 
@@ -953,7 +989,9 @@ kaynağını, kategorisini ve kapsamını alır; tutar yalnız plandan gelmişse
 **"Ödedim"** gövdesi `{ "scheduledDate", "amount"?, "paidOn"?, "accountId"?,
 "creditCardId"? }`. `paidOn` verilirse kayıt **ödeme gününe** yazılır ve vadesi
 gelmemiş kalem de ödenebilir; `paidOn` gelecekte olamaz
-(`recurring.paid_on_in_future`; sunucu UTC günü bir gün payla karşılaştırır).
+(`recurring.paid_on_in_future`; sunucunun günü Türkiye günüdür, `LocalDay`).
+Aynı gövde kalem kimliğiyle gelen uçta da geçerlidir (`scheduledDate` hariç);
+sıradan planın `Gerçekleştir`i de `paidOn` gönderir.
 Kaynak verilirse kalemin kaynağını geçersiz kılar; kartla ödeme kart harcaması
 yazar. Tutarı olmayan kalemde `amount` zorunludur
 (`recurring.amount_required`), kaynağı olmayan kalemde hesap ya da kart
@@ -1075,7 +1113,9 @@ bu uygulamanın istemcisi tarafından okunuyor.
 | HTTP | `code` |
 |---|---|
 | 400 | `recurring.category_not_tax`, `recurring.amount_required`, `recurring.source_required`, `recurring.paid_on_in_future`, `recurring.reschedule_before_history`, `recurring.invalid_tax_kind`, `recurring.invalid_months`, `recurring.invalid_paid_on` |
-| 409 | `recurring.already_settled`, `recurring.closed_by_payment`, `recurring.concurrent_change` |
+| 400 | `recurring.not_due_yet` (gün verilmeyen çağrıda vadesi gelmemiş kalem; iki uçta da), `installments.not_due_yet` (günü gelmemiş kart taksidi) |
+| 400 | Kaydın günü ileride (12 Ekim 2026): `transactions.date_in_future`, `credit_cards.date_in_future` (harcama ve ödeme), `transfers.date_in_future`, `counterparties.date_in_future` (borçlandırma ve tahsilat/ödeme), `debt.date_in_future` (başlangıç ve taksit ödeme günü), `imports.date_in_future` (satır düzeltme ve onay) |
+| 409 | `recurring.already_settled`, `recurring.closed_by_payment`, `recurring.concurrent_change`, `recurring.earlier_item_pending` (hata değil, onay isteği) |
 | 400 | `tax_payments.invalid_source`, `tax_payments.category_not_tax`, `tax_payments.paid_on_in_future`, `tax_payments.item_not_tax`, `tax_payments.invalid_amount`, `tax_payments.invalid_page` |
 | 400 | `taxes.plans_empty`, `taxes.too_many_plans`, `taxes.plan_not_tax` (ve tek plan oluşturmanın bütün `recurring.*` kodları) |
 | 404 | `tax_payments.item_not_found`, `tax_payments.not_found`, `taxes.plan_not_found` |

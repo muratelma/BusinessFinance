@@ -19,6 +19,32 @@ void main() {
       );
     });
 
+    // Kayıt ileri güne yazılmaz; sunucunun her kayıt yolu kendi kodunu
+    // döner ve hepsi Türkçe bir cümleye çıkar.
+    test('ileri tarihli kaydın reddi her yolda Türkçe söylenir', () {
+      for (final code in const [
+        'transactions.date_in_future',
+        'credit_cards.date_in_future',
+        'transfers.date_in_future',
+        'counterparties.date_in_future',
+        'debt.date_in_future',
+        'imports.date_in_future',
+        'obligations.date_in_future',
+        'pos_settlements.date_in_future',
+        'cash_counts.date_in_future',
+      ]) {
+        expect(ApiErrorMessages.resolve(code), contains('ileride olamaz'));
+      }
+      expect(
+        ApiErrorMessages.resolve('transactions.date_in_future'),
+        contains('plan ekleyin'),
+      );
+      expect(
+        ApiErrorMessages.resolve('installments.not_due_yet'),
+        'Bu taksidin günü henüz gelmedi.',
+      );
+    });
+
     test('iptal kilidi kullanıcıya ne yapacağını söyler', () {
       expect(
         ApiErrorMessages.resolve('transactions.cancel_origin_locked'),

@@ -21,7 +21,8 @@ public sealed class TransferUseCaseTests
         var useCase = new CreateTransferUseCase(
             new FakeCurrentUser(UserId),
             accounts,
-            transfers);
+            transfers,
+            TimeProvider.System);
 
         var result = await useCase.ExecuteAsync(new CreateTransferCommand(
             accounts.Items[0].Id,
@@ -48,7 +49,8 @@ public sealed class TransferUseCaseTests
         var useCase = new CreateTransferUseCase(
             new FakeCurrentUser(UserId),
             accounts,
-            transfers);
+            transfers,
+            TimeProvider.System);
 
         var result = await useCase.ExecuteAsync(new CreateTransferCommand(
             owned.Id,
@@ -71,7 +73,8 @@ public sealed class TransferUseCaseTests
         var useCase = new CreateTransferUseCase(
             new FakeCurrentUser(null),
             accounts,
-            transfers);
+            transfers,
+            TimeProvider.System);
 
         var result = await useCase.ExecuteAsync(new CreateTransferCommand(
             Guid.NewGuid(),

@@ -19,6 +19,15 @@ internal static class ImportErrors
         $"Import batch '{id}' was not found.",
         ApplicationErrorType.NotFound);
 
+    /// <summary>
+    /// Satırın günü ileride. Düzeltme kabul edilmez; onayda seçilen satırlardan
+    /// biri böyleyse hiçbir kayıt yazılmaz.
+    /// </summary>
+    public static readonly ApplicationError DateInFuture = new(
+        "imports.date_in_future",
+        "An import row cannot be dated in the future.",
+        ApplicationErrorType.Validation);
+
     public static readonly ApplicationError MappingUnavailable = new(
         "imports.mapping_unavailable",
         "The selected account or category is unavailable.",

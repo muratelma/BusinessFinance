@@ -204,7 +204,7 @@ yapılır.
 | `AppConfirmDialog` | Geri alınması zor eylemden önce açık onay |
 | `AppFormSheet` | Veri giren panellerin kabuğu: başlık, kaydırılan gövde, eylem satırı |
 | `AppFormField` | Panel alanlarının ortak dikey aralığı |
-| `AppDateField` | Tarih seçen form alanı; metin alanlarıyla aynı dekorasyonu kullanır |
+| `AppDateField` | Tarih seçen form alanı; metin alanlarıyla aynı dekorasyonu kullanır. Olmuş bir kaydın formu `lastDate` olarak bugünü verir (gelir, gider, harcama, ödeme, tahsilat, transfer, borç başlangıcı); vade, plan başlangıcı ve hedef tarihi vermez. Değer aralığın dışındaysa takvim en yakın sınırda açılır |
 | `AppContentWidth` | Geniş ekranda içeriği okunabilir genişlikle sınırlar |
 | `AppAdaptiveSheet` | Telefonda bottom sheet, geniş ekranda ortalanmış dialog |
 | `AppResponsiveGrid` | Sütun sayısını kartın en küçük okunabilir genişliğinden türetir |
@@ -350,7 +350,13 @@ Birkaç bileşenin sözleşmesinde neden şu kararların olduğu:
   limit` denendi ve 2.0× yazıda taştı; etiket bu yüzden `Limit`.
 - **Tahsilat ile ödeme adını yönden alır.** `Cari tahsilat` / `Cari ödeme`,
   `Alacak tahsilatı` / `Borç ödemesi`; yön gelmezse iki yönü karşılayan eski
-  ad kalır. Liste satırında ok paranın yönüdür: tahsilatta `kişi → hesap`,
+  ad kalır. `Alacak tahsilatı` ve `Borç ödemesi` yalnız **tek seferlik**
+  alacağın ve borcun kapanışıdır; taksit kendi adını taşır (`Alacak taksidi
+  tahsilatı`, `Borç taksidi ödemesi`), çünkü ikisi aynı listede yan yana
+  durur. Cari borçlandırma da yönden okunur (`Veresiye satış` / `Vadeli
+  alım`), hesaptan yazılan kayıt etkisinden (`Gelir` / `Gider`). Adların tek
+  kaynağı `FinancialActivity.kindLabel`dir; hiçbir sayfa adı kopyalamaz.
+  Liste satırında ok paranın yönüdür: tahsilatta `kişi → hesap`,
   ödemede `hesap → kişi`. Ayrıntıda `Hesap` hep hesap, `Karşı taraf` hep
   kişidir.
 - **`İşlem ekle` launcher'ı başlıklıdır.** Dokuz satır düz listede telefonda

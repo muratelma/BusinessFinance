@@ -1028,8 +1028,11 @@ class _PlannedSource implements ActivityRepositoryContract {
   Future<void> cancel(FinancialActivity activity) => throw UnimplementedError();
 
   @override
-  Future<void> realizePlanned(PlannedActivity activity) =>
-      throw UnimplementedError();
+  Future<void> realizePlanned(
+    PlannedActivity activity, {
+    String? paidOn,
+    bool allowEarlierPending = false,
+  }) => throw UnimplementedError();
 }
 
 PlannedActivity _planned({

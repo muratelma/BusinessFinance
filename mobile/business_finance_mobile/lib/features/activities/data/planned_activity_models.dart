@@ -267,16 +267,21 @@ class PlannedActivity {
   String get listKey => '${plannedKind.apiValue}:$plannedActivityId';
 
   /// Vakti geldi mi.
-  ///
-  /// Plan, tarihi gelene kadar bir tahmindir. Gelecek ayın kirasını bugün
-  /// gerçekleştirmek parayı çıkmadığı bir aya yazar ve tarihe göre okuyan her
-  /// rapor o andan sonra yanlış olur (kullanıcı kararı, 20 Ağustos 2026).
   bool get isDue => timing != PlannedTiming.upcoming;
+
+  /// Vadesi gelmeden gerçekleştirilebilir mi.
+  ///
+  /// Tekrarlayan kalem ödendiği güne yazılır, vadeye değil; kirayı erken
+  /// ödemek parayı çıkmadığı bir aya koymaz (kullanıcı kararı, 12 Ekim 2026;
+  /// 20 Ağustos 2026 kararının yerini alır). Kart taksidi kendi gününe
+  /// yazılır ve günü gelmeden gerçekleşmez.
+  bool get isRealizableNow =>
+      isDue || plannedKind == PlannedKind.recurringOccurrence;
 
   /// Eylem tek dokunuşla burada tamamlanabilir mi.
   ///
-  /// `realize` gövde istemiyor: onay dışında sorulacak bir şey yok, kayıt
-  /// zaten tutarı ve tarihi taşıyor. Ödeme ve tahsilat ise hangi hesaptan
+  /// `realize` tutarı ve kaynağı sormaz, kayıt onları taşır; tekrarlayan
+  /// kalemde yalnız gün sorulur. Ödeme ve tahsilat ise hangi hesaptan
   /// yapılacağını sorar; onlar kendi ekranlarına gider.
   ///
   /// Vergi kalemi burada gerçekleştirilmez: tutar, ödeme günü ve hesap/kart
@@ -286,7 +291,7 @@ class PlannedActivity {
       actionTargetId != null &&
       !isTax &&
       amount != null &&
-      isDue &&
+      isRealizableNow &&
       !needsAttention;
 }
 
