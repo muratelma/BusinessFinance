@@ -472,6 +472,34 @@ void main() {
         settlement(ActivityKind.counterpartySettlement, null).kindLabel,
         'Cari tahsilat / ödeme',
       );
+      // Taksit kendi adını taşır: tek seferlik borcun ödemesiyle aynı
+      // listede durur ve aynı adla ayırt edilemezdi.
+      expect(
+        settlement(ActivityKind.debtPayment, null).kindLabel,
+        'Borç taksidi ödemesi',
+      );
+      expect(
+        settlement(ActivityKind.debtCollection, null).kindLabel,
+        'Alacak taksidi tahsilatı',
+      );
+      expect(
+        settlement(
+          ActivityKind.counterpartyCharge,
+          ActivityDirection.receivable,
+        ).kindLabel,
+        'Veresiye satış',
+      );
+      expect(
+        settlement(
+          ActivityKind.counterpartyCharge,
+          ActivityDirection.payable,
+        ).kindLabel,
+        'Vadeli alım',
+      );
+      expect(
+        settlement(ActivityKind.counterpartyCharge, null).kindLabel,
+        'Cari hareket',
+      );
 
       // Ayrıntı: hesap hesaptır, kişi kişidir; alt başlık tahsilat der.
       await _pumpSheet(tester, collection);

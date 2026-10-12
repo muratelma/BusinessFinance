@@ -65,8 +65,10 @@ enum ActivityKind {
     transfer => 'Transfer',
     cardCharge => 'Kart harcaması',
     cardPayment => 'Kart ödemesi',
-    debtPayment => 'Borç ödemesi',
-    debtCollection => 'Alacak tahsilatı',
+    // Taksit adını taşır: `Borç ödemesi` ve `Alacak tahsilatı` tek seferlik
+    // borcun ve alacağın kapanışıdır, ikisi aynı listede yan yana durur.
+    debtPayment => 'Borç taksidi ödemesi',
+    debtCollection => 'Alacak taksidi tahsilatı',
     // Tek tür hem borcu hem alacağı kapsıyor; satırın kendisi kiminle
     // olduğunu zaten yazıyor.
     debtOpening => 'Borç / alacak açılışı',
@@ -331,7 +333,20 @@ class FinancialActivity {
   bool get belongsToDayClose => isWrittenByDayClose || dayCloseId != null;
 
   /// Türün adı. Tahsilat ile ödeme aynı türdür; hangisi olduğunu yön söyler.
+  ///
+  /// Adlar **yalnız burada** durur: satır, ayrıntı ve ekran okuyucu buradan
+  /// okur. Bir ad değişecekse burada değişir; başka bir sayfa kopyalamaz.
   String get kindLabel => switch ((kind, direction)) {
+    // Hesaptan yazılan kaydın adı etkisidir; `İşlem` hiçbir şey söylemez.
+    (ActivityKind.accountTransaction, _) when effect == ActivityEffect.income =>
+      'Gelir',
+    (ActivityKind.accountTransaction, _)
+        when effect == ActivityEffect.expense =>
+      'Gider',
+    (ActivityKind.counterpartyCharge, ActivityDirection.receivable) =>
+      'Veresiye satış',
+    (ActivityKind.counterpartyCharge, ActivityDirection.payable) =>
+      'Vadeli alım',
     (ActivityKind.counterpartySettlement, ActivityDirection.receivable) =>
       'Cari tahsilat',
     (ActivityKind.counterpartySettlement, ActivityDirection.payable) =>
