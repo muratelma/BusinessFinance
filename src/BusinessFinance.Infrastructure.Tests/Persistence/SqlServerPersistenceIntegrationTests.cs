@@ -1324,7 +1324,7 @@ public sealed partial class SqlServerPersistenceIntegrationTests
             Guid.NewGuid(),
             user.Id,
             EfCategoryRepository.InterestExpenseCategoryName,
-            CategoryType.Expense);
+            CategoryType.Expense, role: CategoryRole.InterestExpense);
 
         // 1.000 anapara, 1.100 toplam: 100 faiz, iki taksitte.
         var bank = new Counterparty(Guid.NewGuid(), user.Id, "Banka");
@@ -4109,7 +4109,7 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         Assert.Equal(2450m, await accountRepository.CalculateBalanceAsync(bankId, owner.Id, default));
         var dayFlow = scope.ServiceProvider.GetRequiredService<IAccountDayFlowReader>();
         Assert.Equal(
-            (1470m, 20m),
+            (1450m, 0m),
             await dayFlow.CalculateDayFlowAsync(bankId, owner.Id, depositDate, default));
 
         // Yatış gelir yazmaz; kesinti komisyon kategorisinde bir giderdir.

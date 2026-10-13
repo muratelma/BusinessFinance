@@ -20,6 +20,17 @@ namespace BusinessFinance.Infrastructure.FinancialActivities;
 internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbContext)
     : IFinancialActivityRepository, IActivityOriginReader, IActivityBalanceReader
 {
+    internal async Task<IReadOnlyList<FinancialActivityRow>> ReadPageRowsAsync(
+        Guid userId, Guid[] ids, CancellationToken cancellationToken)
+    {
+        if (ids.Length > 100) throw new ArgumentOutOfRangeException(nameof(ids));
+        if (ids.Length == 0) return [];
+        var rows = await BuildMergedQuery(userId).Where(row => ids.Contains(row.ActivityId))
+            .ToArrayAsync(cancellationToken);
+        return rows.Select(Map).ToArray();
+    }
+    internal async Task<bool> HasOwnedActivityAsync(Guid userId, FinancialActivityKind kind, Guid id, CancellationToken ct) =>
+        await LocateAsync(userId, kind, id, ct) is not null;
     public async Task<IReadOnlyList<ActivityBalanceAfter>?> GetBalancesAfterAsync(
         Guid userId,
         FinancialActivityKind kind,
@@ -490,7 +501,10 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                        deposit.DeductionTransactionId == transactionId,
             cancellationToken)
             ? FinancialActivityOrigin.PosDeposit
-            : FinancialActivityOrigin.Manual;
+            : await dbContext.Transfers.AsNoTracking().AnyAsync(
+                transfer => transfer.UserId == userId && transfer.FeeTransactionId == transactionId,
+                cancellationToken)
+                ? FinancialActivityOrigin.Transfer : FinancialActivityOrigin.Manual;
     }
 
     public async Task<FinancialActivityOrigin> GetCardChargeOriginAsync(
@@ -560,7 +574,9 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
             where transaction.UserId == userId &&
                   !dbContext.PosDeposits.Any(deposit =>
                       deposit.UserId == userId &&
-                      deposit.DeductionTransactionId == transaction.Id)
+                      deposit.DeductionTransactionId == transaction.Id) &&
+                  !dbContext.Transfers.Any(transfer => transfer.UserId == userId &&
+                      transfer.FeeTransactionId == transaction.Id)
             select new ActivityRow
             {
                 ActivityId = transaction.Id,
@@ -663,7 +679,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 InterestPortion = (decimal?)null,
                 EntryAtUtc = EF.Property<DateTimeOffset?>(transfer, EntryTimestamp.PropertyName),
                 ChannelName = (string?)null,
-                FeeAmount = (decimal?)null,
+                FeeAmount = transfer.FeeTransaction == null ? (decimal?)null : transfer.FeeTransaction.Amount.Amount,
                 NetAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,

@@ -108,11 +108,12 @@ public sealed class DefaultCategorySetTests
     /// tamamı <c>Şahsi</c> olduğunda doğru çalışır.
     /// </summary>
     [Fact]
-    public void PersonalSet_IsEntirelyPersonal()
+    public void PersonalSet_IsPersonalExceptForSharedRoleCategories()
     {
         Assert.All(
             DefaultCategorySets.PersonalSet,
-            item => Assert.Equal(TransactionScope.Personal, item.Scope));
+            item => Assert.Equal(item.Role is null ? TransactionScope.Personal : (TransactionScope?)null, item.Scope));
+        Assert.Equal(4, DefaultCategorySets.PersonalSet.Count(item => item.Role is not null));
     }
 
     /// <summary>
@@ -155,7 +156,7 @@ public sealed class DefaultCategorySetTests
             DefaultCategorySets.BusinessSet,
             item => item.Name == name &&
                     item.Type == type &&
-                    item.Scope == TransactionScope.Business);
+                    (item.Role is not null ? item.Scope is null : item.Scope == TransactionScope.Business));
     }
 
     /// <summary>

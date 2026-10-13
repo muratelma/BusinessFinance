@@ -107,7 +107,9 @@ public static class ReportEndpoints
             report.CategoryExpenseSlices.Select(item => new CategoryExpenseSliceResponse(
                 item.CategoryId,
                 item.CategoryName,
-                FinanceContract.Money(item.Amount))).ToArray(),
+                FinanceContract.Money(item.Amount),
+                FinanceContract.Money(item.Share),
+                FinanceContract.Money(item.BarRatio))).ToArray(),
             report.AccountBalances.Select(item => new AccountBalanceResponse(
                 item.AccountId,
                 item.AccountName,

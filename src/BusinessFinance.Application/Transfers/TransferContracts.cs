@@ -12,7 +12,11 @@ public sealed record TransferDto(
     DateOnly TransferDate,
     string? Description,
     bool IsCancelled,
-    DateTimeOffset? CancelledAtUtc);
+    DateTimeOffset? CancelledAtUtc,
+    Guid? FeeTransactionId = null,
+    decimal FeeAmount = 0m,
+    Guid? FeeCategoryId = null,
+    TransactionScope? FeeScope = null);
 
 public sealed record CreateTransferCommand(
     Guid SourceAccountId,
@@ -20,7 +24,9 @@ public sealed record CreateTransferCommand(
     decimal Amount,
     CurrencyCode Currency,
     DateOnly TransferDate,
-    string? Description);
+    string? Description,
+    decimal FeeAmount = 0m,
+    TransactionScope? FeeScope = null);
 
 public sealed record CancelTransferCommand(Guid TransferId);
 

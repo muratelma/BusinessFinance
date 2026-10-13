@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using BusinessFinance.Domain;
-using BusinessFinance.Infrastructure.Categories;
+using BusinessFinance.Application.FinancialActivities;
 using BusinessFinance.Infrastructure.Persistence;
 
 namespace BusinessFinance.Infrastructure.Reports;
@@ -24,13 +24,23 @@ internal sealed class RecognizedItem
     public int Scope { get; init; }
 
     /// <summary>
-    /// Kalemin kategorisi. Yalnız iki durumda boştur: kategorisi bulunamayan
-    /// borç faizi ve alacaktan kazanılan faiz. İkisi de toplama girer,
-    /// kategori dağılımına girmez.
+    /// Kalemin kategorisi. Eski veride rolü bulunamayan faiz boş kalabilir;
+    /// tutar toplamda ve kategorisiz satırda korunur.
     /// </summary>
     public Guid? CategoryId { get; init; }
 
     public decimal Amount { get; init; }
+    public Guid SourceId { get; init; }
+    public int SourceKind { get; init; }
+    public Guid? ParentId { get; init; }
+    public int? ParentKind { get; init; }
+    public decimal? ParentAmount { get; init; }
+    public string? Part { get; init; }
+    public Guid? AccountId { get; init; }
+    public Guid? CreditCardId { get; init; }
+    public Guid? CounterpartyId { get; init; }
+    public DateTimeOffset? EntryAtUtc { get; init; }
+
 }
 
 /// <summary>
@@ -70,6 +80,17 @@ internal static class RecognizedItems
             .Where(transaction => transaction.UserId == userId && !transaction.IsCancelled)
             .Select(transaction => new RecognizedItem
             {
+                SourceId = transaction.Id,
+                SourceKind = (int)FinancialActivityKind.AccountTransaction,
+                ParentId = dbContext.Transfers.Where(t => t.UserId == userId && t.FeeTransactionId == transaction.Id).Select(t => (Guid?)t.Id).FirstOrDefault() ?? dbContext.PosDeposits.Where(d => d.UserId == userId && d.DeductionTransactionId == transaction.Id).Select(d => (Guid?)d.Id).FirstOrDefault(),
+                ParentKind = dbContext.Transfers.Any(t => t.UserId == userId && t.FeeTransactionId == transaction.Id) ? (int?)FinancialActivityKind.Transfer : dbContext.PosDeposits.Any(d => d.UserId == userId && d.DeductionTransactionId == transaction.Id) ? (int?)FinancialActivityKind.PosDeposit : null,
+                ParentAmount = dbContext.Transfers.Where(t => t.UserId == userId && t.FeeTransactionId == transaction.Id).Select(t => (decimal?)t.Amount.Amount).FirstOrDefault() ?? dbContext.PosDeposits.Where(d => d.UserId == userId && d.DeductionTransactionId == transaction.Id).Select(d => (decimal?)d.DepositedAmount.Amount).FirstOrDefault(),
+                Part = dbContext.Transfers.Any(t => t.UserId == userId && t.FeeTransactionId == transaction.Id) ? "fee" : dbContext.PosDeposits.Any(d => d.UserId == userId && d.DeductionTransactionId == transaction.Id) ? "deduction" : null,
+                AccountId = transaction.AccountId,
+                CreditCardId = (Guid?)null,
+                CounterpartyId = (Guid?)null,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(transaction, EntryTimestamp.PropertyName),
+
                 Date = transaction.TransactionDate,
                 Type = transaction.Type == TransactionType.Income ? Income : Expense,
                 Scope = (int)transaction.Scope,
@@ -82,6 +103,17 @@ internal static class RecognizedItems
             .Where(charge => charge.UserId == userId && !charge.IsCancelled)
             .Select(charge => new RecognizedItem
             {
+                SourceId = charge.Id,
+                SourceKind = (int)FinancialActivityKind.CardCharge,
+                ParentId = (Guid?)null,
+                ParentKind = (int?)null,
+                ParentAmount = (decimal?)null,
+                Part = (string?)null,
+                AccountId = (Guid?)null,
+                CreditCardId = charge.CreditCardId,
+                CounterpartyId = (Guid?)null,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(charge, EntryTimestamp.PropertyName),
+
                 Date = charge.ChargeDate,
                 Type = Expense,
                 Scope = (int)charge.Scope,
@@ -98,6 +130,17 @@ internal static class RecognizedItems
                             debt.SourceType == DebtSourceType.Income))
             .Select(debt => new RecognizedItem
             {
+                SourceId = debt.Id,
+                SourceKind = (int)FinancialActivityKind.DebtOpening,
+                ParentId = (Guid?)null,
+                ParentKind = (int?)null,
+                ParentAmount = (decimal?)null,
+                Part = (string?)null,
+                AccountId = (Guid?)null,
+                CreditCardId = (Guid?)null,
+                CounterpartyId = debt.CounterpartyId,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(debt, EntryTimestamp.PropertyName),
+
                 Date = debt.StartDate,
                 Type = debt.SourceType == DebtSourceType.Income ? Income : Expense,
                 Scope = (int)debt.Scope,
@@ -107,8 +150,8 @@ internal static class RecognizedItems
 
         // Ödenen taksidin faiz payı: borçta gider, alacakta gelir. Anapara
         // geri ödemesi tanımaz. Kalıcı bir hareket yoktur; faiz ödendiği gün
-        // tanınır ve giderse kendi kategorisinin kovasına düşer. Kategori
-        // kanonik adıyla bulunur; yoksa faiz toplamda kalır, dağılımda görünmez.
+        // tanınır ve gelir/gider rolünün kovasına düşer. Rol yoksa geçmiş
+        // faiz kategorisiz kalır; yeni ödeme rolü ilk gerektiğinde açar.
         var debtInterest =
             from installment in dbContext.DebtInstallments.AsNoTracking()
             join debt in dbContext.DebtAgreements.AsNoTracking()
@@ -120,16 +163,25 @@ internal static class RecognizedItems
                   installment.PaymentDate != null
             select new RecognizedItem
             {
+                SourceId = installment.Id,
+                SourceKind = debt.Direction == DebtDirection.Receivable ? (int)FinancialActivityKind.DebtCollection : (int)FinancialActivityKind.DebtPayment,
+                ParentId = installment.Id,
+                ParentKind = debt.Direction == DebtDirection.Receivable ? (int?)FinancialActivityKind.DebtCollection : (int?)FinancialActivityKind.DebtPayment,
+                ParentAmount = installment.Amount.Amount,
+                Part = "interest",
+                AccountId = installment.PaymentAccountId,
+                CreditCardId = (Guid?)null,
+                CounterpartyId = debt.CounterpartyId,
+                EntryAtUtc = installment.PaidAtUtc,
+
                 Date = installment.PaymentDate!.Value,
                 Type = debt.Direction == DebtDirection.Receivable ? Income : Expense,
                 Scope = (int)debt.Scope,
-                CategoryId = debt.Direction == DebtDirection.Receivable
-                    ? null
-                    : dbContext.Categories
+                CategoryId = dbContext.Categories
                         .Where(category =>
                             category.UserId == userId &&
-                            category.Type == CategoryType.Expense &&
-                            category.Name == EfCategoryRepository.InterestExpenseCategoryName)
+                            category.Role == (debt.Direction == DebtDirection.Receivable
+                                ? CategoryRole.InterestIncome : CategoryRole.InterestExpense))
                         .Select(category => (Guid?)category.Id)
                         .FirstOrDefault(),
                 Amount = installment.InterestPortion!.Value
@@ -141,6 +193,17 @@ internal static class RecognizedItems
             .Where(charge => charge.UserId == userId && !charge.IsCancelled)
             .Select(charge => new RecognizedItem
             {
+                SourceId = charge.Id,
+                SourceKind = (int)FinancialActivityKind.CounterpartyCharge,
+                ParentId = (Guid?)null,
+                ParentKind = (int?)null,
+                ParentAmount = (decimal?)null,
+                Part = (string?)null,
+                AccountId = (Guid?)null,
+                CreditCardId = (Guid?)null,
+                CounterpartyId = charge.CounterpartyId,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(charge, EntryTimestamp.PropertyName),
+
                 Date = charge.ChargeDate,
                 Type = charge.Direction == DebtDirection.Receivable ? Income : Expense,
                 Scope = (int)charge.Scope,
@@ -153,6 +216,17 @@ internal static class RecognizedItems
             .Where(obligation => obligation.UserId == userId && !obligation.IsCancelled)
             .Select(obligation => new RecognizedItem
             {
+                SourceId = obligation.Id,
+                SourceKind = (int)FinancialActivityKind.Obligation,
+                ParentId = (Guid?)null,
+                ParentKind = (int?)null,
+                ParentAmount = (decimal?)null,
+                Part = (string?)null,
+                AccountId = (Guid?)null,
+                CreditCardId = (Guid?)null,
+                CounterpartyId = obligation.CounterpartyId,
+                EntryAtUtc = obligation.CreatedAtUtc,
+
                 Date = obligation.IssueDate,
                 Type = obligation.Direction == DebtDirection.Receivable ? Income : Expense,
                 Scope = (int)obligation.Scope,
@@ -169,6 +243,17 @@ internal static class RecognizedItems
                                  settlement.Kind == PosSettlementKind.Sale)
             .Select(settlement => new RecognizedItem
             {
+                SourceId = settlement.Id,
+                SourceKind = (int)FinancialActivityKind.PosSale,
+                ParentId = (Guid?)null,
+                ParentKind = (int?)null,
+                ParentAmount = (decimal?)null,
+                Part = (string?)null,
+                AccountId = settlement.AccountId,
+                CreditCardId = (Guid?)null,
+                CounterpartyId = (Guid?)null,
+                EntryAtUtc = settlement.CreatedAtUtc,
+
                 Date = settlement.SettlementDate,
                 Type = Income,
                 Scope = (int)settlement.Scope!.Value,
@@ -185,6 +270,23 @@ internal static class RecognizedItems
                                  settlement.CommissionAmount > 0m)
             .Select(settlement => new RecognizedItem
             {
+                SourceId = settlement.Id,
+                SourceKind = (int)FinancialActivityKind.PosSale,
+                ParentId = settlement.Kind == PosSettlementKind.Sale ? (Guid?)settlement.Id :
+                    dbContext.CounterpartyPayments.Where(p => p.UserId == userId && p.PosSettlementId == settlement.Id)
+                        .Select(p => (Guid?)p.Id).FirstOrDefault() ??
+                    dbContext.ObligationSettlements.Where(p => p.UserId == userId && p.PosSettlementId == settlement.Id)
+                        .Select(p => (Guid?)p.Id).FirstOrDefault(),
+                ParentKind = settlement.Kind == PosSettlementKind.Sale ? (int?)FinancialActivityKind.PosSale :
+                    dbContext.CounterpartyPayments.Any(p => p.UserId == userId && p.PosSettlementId == settlement.Id)
+                        ? (int?)FinancialActivityKind.CounterpartySettlement : (int?)FinancialActivityKind.ObligationSettlement,
+                ParentAmount = settlement.GrossAmount.Amount,
+                Part = "commission",
+                AccountId = settlement.AccountId,
+                CreditCardId = (Guid?)null,
+                CounterpartyId = (Guid?)null,
+                EntryAtUtc = settlement.CreatedAtUtc,
+
                 Date = settlement.SettlementDate,
                 Type = Expense,
                 Scope = (int)settlement.Scope!.Value,

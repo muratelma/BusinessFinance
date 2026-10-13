@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Domain;
 using BusinessFinance.Infrastructure.Persistence;
@@ -8,6 +9,24 @@ namespace BusinessFinance.Infrastructure.Categories;
 internal sealed class EfCategoryRepository(BusinessFinanceDbContext dbContext)
     : ICategoryRepository
 {
+    public async Task<Category> FindOrOpenRoleAsync(Guid userId, CategoryRole role, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await CategoryRoles.FindOrOpenCoreAsync(this, userId, role, cancellationToken);
+        }
+        catch (DbUpdateException exception) when (exception.InnerException is SqlException { Number: 2601 or 2627 })
+        {
+            // Aynı rolü iki istek ilk kez açarsa SQL tekliğinin kazananı
+            // kullanılır; başarısız aday sonraki SaveChanges'e sızmaz.
+            foreach (var entry in dbContext.ChangeTracker.Entries<Category>().Where(e => e.State == EntityState.Added && e.Entity.UserId == userId && e.Entity.Role == role).ToArray())
+                entry.State = EntityState.Detached;
+            var winner = await dbContext.Categories.AsNoTracking().SingleOrDefaultAsync(
+                c => c.UserId == userId && c.Role == role, cancellationToken);
+            if (winner is null) throw;
+            return winner;
+        }
+    }
     /// <summary>
     /// Borç faizinin raporlandığı kategori adı.
     /// </summary>
@@ -40,6 +59,7 @@ internal sealed class EfCategoryRepository(BusinessFinanceDbContext dbContext)
     /// </remarks>
     internal static bool IsPristineDefaultSet(IReadOnlyCollection<Category> categories) =>
         IsPristine(categories, DefaultCategorySets.PersonalSet) ||
+        IsPristine(categories, [.. DefaultCategorySets.PersonalSet.Where(c => c.Role != CategoryRole.BankFee)]) ||
         IsPristine(categories, DefaultCategorySets.BusinessSet);
 
     private static bool IsPristine(
@@ -81,7 +101,8 @@ internal sealed class EfCategoryRepository(BusinessFinanceDbContext dbContext)
                     item.Name,
                     item.Type,
                     item.Scope,
-                    item.IsTax));
+                    item.IsTax,
+                    item.Role));
             await dbContext.Categories.AddRangeAsync(categories, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
             return;

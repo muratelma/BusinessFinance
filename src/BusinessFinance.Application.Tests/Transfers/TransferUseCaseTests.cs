@@ -22,7 +22,9 @@ public sealed class TransferUseCaseTests
             new FakeCurrentUser(UserId),
             accounts,
             transfers,
-            TimeProvider.System);
+            TimeProvider.System,
+            new BusinessFinance.Application.Tests.RecurringTransactions.FakeCategoryRepository(),
+            new BusinessFinance.Application.Tests.RecurringTransactions.FakeUserProfileRepository(false));
 
         var result = await useCase.ExecuteAsync(new CreateTransferCommand(
             accounts.Items[0].Id,
@@ -50,7 +52,9 @@ public sealed class TransferUseCaseTests
             new FakeCurrentUser(UserId),
             accounts,
             transfers,
-            TimeProvider.System);
+            TimeProvider.System,
+            new BusinessFinance.Application.Tests.RecurringTransactions.FakeCategoryRepository(),
+            new BusinessFinance.Application.Tests.RecurringTransactions.FakeUserProfileRepository(false));
 
         var result = await useCase.ExecuteAsync(new CreateTransferCommand(
             owned.Id,
@@ -74,7 +78,9 @@ public sealed class TransferUseCaseTests
             new FakeCurrentUser(null),
             accounts,
             transfers,
-            TimeProvider.System);
+            TimeProvider.System,
+            new BusinessFinance.Application.Tests.RecurringTransactions.FakeCategoryRepository(),
+            new BusinessFinance.Application.Tests.RecurringTransactions.FakeUserProfileRepository(false));
 
         var result = await useCase.ExecuteAsync(new CreateTransferCommand(
             Guid.NewGuid(),

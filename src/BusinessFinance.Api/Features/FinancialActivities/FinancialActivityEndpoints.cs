@@ -408,7 +408,8 @@ public static class FinancialActivityEndpoints
         [FinancialActivityOrigin.Recurring] = "recurring",
         [FinancialActivityOrigin.Installment] = "installment",
         [FinancialActivityOrigin.PosDeposit] = "pos-deposit",
-        [FinancialActivityOrigin.DayClose] = "day-close"
+        [FinancialActivityOrigin.DayClose] = "day-close",
+        [FinancialActivityOrigin.Transfer] = "transfer"
     };
 
     internal static readonly Dictionary<ActivityBalanceHolder, string> BalanceHolderValues = new()

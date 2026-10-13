@@ -512,27 +512,8 @@ public sealed class ConfirmCashCountDifferenceUseCase(
         TransactionScope scope,
         CancellationToken cancellationToken)
     {
-        var expenses = await categoryRepository.ListAsync(
-            userId, CategoryType.Expense, null, cancellationToken);
-        // Ad anahtarıyla aranır: teklik de onu okur. Yazımı farklı bir "Kasa
-        // farkı" kategorisi varken yenisini açmaya çalışmak teklik kuralına
-        // takılırdı.
-        var differenceKey = NameKeys.Of(CashCountDefaults.DifferenceCategoryName);
-        var existing = expenses.FirstOrDefault(item => string.Equals(
-            item.NameKey, differenceKey, StringComparison.Ordinal));
-        if (existing is not null)
-        {
-            return existing;
-        }
-
-        var opened = new Category(
-            Guid.NewGuid(),
-            userId,
-            CashCountDefaults.DifferenceCategoryName,
-            CategoryType.Expense,
-            scope);
-        await categoryRepository.AddAsync(opened, cancellationToken);
-        return opened;
+        return await categoryRepository.FindOrOpenAsync(
+            userId, CategoryRole.CashDifference, cancellationToken);
     }
 }
 

@@ -657,6 +657,7 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
     ileri günü kendi koduyla reddeder (`*.date_in_future`); katlanmış bölüm
     `Duraklatılan ve biten planlar`. Son sayılar ve açık kalanlar
     `research/DEVIR-2026-10-12.md` §9'da
+- **06.3 — kategori ve hesap sayfalarının sunucusu (13 Ekim 2026; `kategori-hesap-sayfalari`)**: görevdeki Paket 1–4 yazıldı. Dört kategori rolü, iki kanonik listenin meta verisi, masraflı transfer/önizlemesi, kategori özeti/sayfası/ayları, hesap sayfası/ayları/yolda/toplamları ve ortak parça ayrıntısı. Migration `AddCategoryRolesAndTransferFees` veri kaybettirmez; yalnız SQL test hedefi yükseltildi. Yedek v12 yazar ve v11'i okur. Özet'in mevcut kategori dilimlerine sunucu payı ve çubuk oranı eklendi. Son katman koşuları Domain 402, Application 400, API 327, Infrastructure 254 (+2 canlı test atlanır); ardından ilgili rapor/sayfa koşusu 36 test geçti. Release build 0 uyarı, format temiz. Güncel kod ayrı Release örneğinde 5291 loopback portunda brif 5/6 ile 64 denetimi geçti. 5284'e dokunulmadı. **Flutter bu checkpoint'te henüz yazılmadı**; sıradaki görev Paket 5–7'dir. Ayrıntı teslim raporundadır.
 - Zincir: 01 kapsam boyutu → 02 cari → 03 yükümlülük/vade → 04 kasa/POS →
   05 vergi/muhasebeci → 06 hesap/kalan işler → 06.1 güvenlik taraması (kapandı) →
   06.2 arayüz düzeni (beklemede) → **06.3 bütünsel düzenleme (aktif)** →

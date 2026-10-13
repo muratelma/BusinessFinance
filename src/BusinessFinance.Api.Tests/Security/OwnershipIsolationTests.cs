@@ -78,7 +78,7 @@ public sealed class OwnershipIsolationTests
             }
         }
 
-        Assert.Empty(failures);
+        Assert.True(failures.Count == 0, string.Join(Environment.NewLine, failures));
     }
 
     /// <summary>
@@ -149,6 +149,10 @@ public sealed class OwnershipIsolationTests
     [
         "/api/v1/accounts",
         "/api/v1/categories",
+        "/api/v1/category-summary?year=2026&month=8",
+        "/api/v1/category-summary/months?year=2026",
+        "/api/v1/categories/uncategorized/page?year=2026&month=8",
+        "/api/v1/accounts/overview",
         "/api/v1/transactions",
         "/api/v1/transfers",
         "/api/v1/budgets?year=2026&month=8",
@@ -294,6 +298,20 @@ public sealed class OwnershipIsolationTests
 
         yield return Json("hesap okuma", HttpMethod.Get,
             "api/v1/accounts/{accountId:guid}", null, f.AccountId);
+        yield return new Probe("işlem parçasının ayrıntısı", HttpMethod.Get,
+            "api/v1/financial-activities/{activityKind}/{activityId:guid}/parts",
+            $"/api/v1/financial-activities/transfer/{f.TransferId}/parts",
+            $"/api/v1/financial-activities/transfer/{GhostId}/parts", null);
+        yield return Json("hesap sayfası", HttpMethod.Get,
+            "api/v1/accounts/{accountId:guid}/page", null, f.AccountId);
+        yield return Json("hesap ayları", HttpMethod.Get,
+            "api/v1/accounts/{accountId:guid}/months", null, f.AccountId);
+        yield return Json("hesabın yoldaki parası", HttpMethod.Get,
+            "api/v1/accounts/{accountId:guid}/in-transit", null, f.AccountId);
+        yield return Json("kategori sayfası", HttpMethod.Get,
+            "api/v1/categories/{categoryId:guid}/page", null, f.ExpenseCategoryId);
+        yield return Json("kategori ayları", HttpMethod.Get,
+            "api/v1/categories/{categoryId:guid}/months", null, f.ExpenseCategoryId);
         yield return Json("hesap güncelleme", HttpMethod.Put,
             "api/v1/accounts/{accountId:guid}",
             new UpdateAccountRequest("Ele geçirilen", true), f.AccountId);

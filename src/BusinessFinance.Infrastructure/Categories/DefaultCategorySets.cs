@@ -59,7 +59,8 @@ internal static class DefaultCategorySets
         string Name,
         CategoryType Type,
         TransactionScope? Scope,
-        bool IsTax = false);
+        bool IsTax = false,
+        CategoryRole? Role = null);
 
     /// <summary>İşletme setinin vergi kategorisi.</summary>
     internal const string BusinessTaxCategoryName = "SGK ve vergi ödemesi";
@@ -90,7 +91,7 @@ internal static class DefaultCategorySets
         Personal("Kira geliri", CategoryType.Income),
         Personal("Yatırım getirisi", CategoryType.Income),
         Personal("Temettü", CategoryType.Income),
-        Personal("Faiz geliri", CategoryType.Income),
+        Both("Faiz geliri", CategoryType.Income) with { Role = CategoryRole.InterestIncome },
         Personal("Hediye", CategoryType.Income),
         Personal("İade ve geri ödeme", CategoryType.Income),
         new("Other Income", "Diğer Gelir", CategoryType.Income, TransactionScope.Personal),
@@ -114,11 +115,12 @@ internal static class DefaultCategorySets
         Personal("Sigorta", CategoryType.Expense),
 
         // Borcun faizi gerçek bir giderdir ve şimdiye kadar kategorisizdi.
-        Personal("Faiz ve finansman gideri", CategoryType.Expense),
+        Both("Faiz ve finansman gideri", CategoryType.Expense) with { Role = CategoryRole.InterestExpense },
+        Both("Banka masrafı", CategoryType.Expense) with { Role = CategoryRole.BankFee },
         Personal("Bağış", CategoryType.Expense),
 
         // Sebebi bilinmeyen kasa eksiği buraya yazılır (Aşama 06.3 K10).
-        Personal(CashCountDefaults.DifferenceCategoryName, CategoryType.Expense),
+        Both(CashCountDefaults.DifferenceCategoryName, CategoryType.Expense) with { Role = CategoryRole.CashDifference },
         Personal("Diğer gider", CategoryType.Expense)
     ];
 
@@ -132,7 +134,7 @@ internal static class DefaultCategorySets
         Business("Hizmet geliri", CategoryType.Income),
         Business("Diğer işletme geliri", CategoryType.Income),
         Personal("Kira geliri", CategoryType.Income),
-        Personal("Faiz geliri", CategoryType.Income),
+        Both("Faiz geliri", CategoryType.Income) with { Role = CategoryRole.InterestIncome },
         Personal("Hediye", CategoryType.Income),
         Personal("Diğer Gelir", CategoryType.Income),
 
@@ -150,15 +152,15 @@ internal static class DefaultCategorySets
         Business("Bakım-onarım", CategoryType.Expense),
         Business("Araç ve yakıt", CategoryType.Expense),
         Business("Muhasebeci ve danışmanlık", CategoryType.Expense),
-        Business("Banka ve POS komisyonu", CategoryType.Expense),
+        Both("Banka ve POS komisyonu", CategoryType.Expense) with { Role = CategoryRole.BankFee },
         Business("Reklam", CategoryType.Expense),
         // Kasko, sağlık ve konut sigortası şahsi olabilir; şahsi kredinin
         // faizi de aynı kaleme yazılır.
         Both("Sigorta", CategoryType.Expense),
-        Both("Faiz ve finansman gideri", CategoryType.Expense),
+        Both("Faiz ve finansman gideri", CategoryType.Expense) with { Role = CategoryRole.InterestExpense },
 
         // Sebebi bilinmeyen kasa eksiği buraya yazılır (Aşama 06.3 K10).
-        Business(CashCountDefaults.DifferenceCategoryName, CategoryType.Expense),
+        Both(CashCountDefaults.DifferenceCategoryName, CategoryType.Expense) with { Role = CategoryRole.CashDifference },
         Business("Diğer işletme gideri", CategoryType.Expense),
 
         Personal("Market Alışverişi", CategoryType.Expense),

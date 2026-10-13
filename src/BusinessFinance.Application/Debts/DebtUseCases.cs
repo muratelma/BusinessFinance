@@ -344,7 +344,8 @@ public sealed class PayDebtInstallmentUseCase(
     IDebtRepository repository,
     IAccountRepository accountRepository,
     ICounterpartyRepository counterpartyRepository,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    ICategoryRepository categoryRepository)
 {
     public async Task<ApplicationResult<DebtDto>> ExecuteAsync(
         PayDebtInstallmentCommand command,
@@ -364,6 +365,15 @@ public sealed class PayDebtInstallmentUseCase(
             return ApplicationResult<DebtDto>.Failure(DebtErrors.AccountUnavailable);
         try
         {
+            if (debt.GetInstallment(command.Sequence).InterestPortion > 0m)
+            {
+                var category = await categoryRepository.FindOrOpenAsync(userId,
+                    debt.Direction == DebtDirection.Receivable
+                        ? CategoryRole.InterestIncome : CategoryRole.InterestExpense,
+                    cancellationToken);
+                if (!category.IsActive)
+                    return ApplicationResult<DebtDto>.Failure(DebtErrors.CategoryUnavailable);
+            }
             debt.GetInstallment(command.Sequence).MarkPaid(account, command.PaymentDate, timeProvider.GetUtcNow());
             await repository.SavePaymentAsync(debt.GetInstallment(command.Sequence), cancellationToken);
             var counterparty = await counterpartyRepository.FindOwnedByIdAsync(

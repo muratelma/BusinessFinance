@@ -2,6 +2,9 @@ using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Queries;
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Accounts;
+using BusinessFinance.Application.Categories;
+using BusinessFinance.Application.Profiles;
+using BusinessFinance.Application.Scopes;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Transfers;
@@ -10,7 +13,9 @@ public sealed class CreateTransferUseCase(
     ICurrentUser currentUser,
     IAccountRepository accountRepository,
     ITransferRepository transferRepository,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    ICategoryRepository categoryRepository,
+    IUserProfileRepository profileRepository)
 {
     public async Task<ApplicationResult<TransferDto>> ExecuteAsync(
         CreateTransferCommand command,
@@ -44,6 +49,23 @@ public sealed class CreateTransferUseCase(
 
         try
         {
+            if (command.FeeAmount < 0m || decimal.Round(command.FeeAmount, 4) != command.FeeAmount)
+                return ApplicationResult<TransferDto>.Failure(TransferErrors.Validation("Fee must be nonnegative with at most four decimals."));
+            _ = new Money(command.Amount + command.FeeAmount, command.Currency);
+            BudgetTransaction? fee = null;
+            if (command.FeeAmount > 0m)
+            {
+                var category = await categoryRepository.FindOrOpenAsync(userId, CategoryRole.BankFee, cancellationToken);
+                if (!category.IsActive)
+                    return ApplicationResult<TransferDto>.Failure(TransferErrors.Validation("The fee category is inactive."));
+                var scope = await TransactionScopeResolution.ResolveAsync(command.FeeScope,
+                    category.DefaultScope, source.DefaultScope, profileRepository, userId, cancellationToken);
+                if (scope.Scope is not TransactionScope resolved)
+                    return ApplicationResult<TransferDto>.Failure(TransferErrors.ScopeUnresolved);
+                fee = new BudgetTransaction(Guid.NewGuid(), userId, source, category,
+                    new Money(command.FeeAmount, command.Currency), TransactionType.Expense,
+                    resolved, command.TransferDate);
+            }
             var transfer = new Transfer(
                 Guid.NewGuid(),
                 userId,
@@ -51,7 +73,8 @@ public sealed class CreateTransferUseCase(
                 destination,
                 new Money(command.Amount, command.Currency),
                 command.TransferDate,
-                command.Description);
+                command.Description,
+                fee);
             await transferRepository.AddAsync(transfer, cancellationToken);
             return ApplicationResult<TransferDto>.Success(ToDto(transfer));
         }
@@ -76,7 +99,11 @@ public sealed class CreateTransferUseCase(
         transfer.TransferDate,
         transfer.Description,
         transfer.IsCancelled,
-        transfer.CancelledAtUtc);
+        transfer.CancelledAtUtc,
+        transfer.FeeTransactionId,
+        transfer.FeeTransaction?.Amount.Amount ?? 0m,
+        transfer.FeeTransaction?.CategoryId,
+        transfer.FeeTransaction?.Scope);
 }
 
 public sealed class GetTransferUseCase(

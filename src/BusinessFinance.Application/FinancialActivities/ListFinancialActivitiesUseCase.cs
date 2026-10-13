@@ -57,7 +57,7 @@ public sealed class ListFinancialActivitiesUseCase(
                 page.TotalCount));
     }
 
-    internal static FinancialActivityDto ToDto(FinancialActivityRow row) => new(
+    public static FinancialActivityDto ToDto(FinancialActivityRow row) => new(
         row,
         // Bir gün sonuna bağlı kayıt (yazdığı ya da saydığı) tek başına iptal
         // edilemez; iptal uçları aynı kuralı uygular.

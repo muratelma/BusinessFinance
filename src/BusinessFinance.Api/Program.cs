@@ -73,6 +73,7 @@ app.MapUserAccountEndpoints();
 app.MapEmailVerificationEndpoints();
 app.MapAccountEndpoints();
 app.MapCategoryEndpoints();
+BusinessFinance.Api.Features.FinancePages.FinancePageEndpoints.MapFinancePageEndpoints(app);
 app.MapUserProfileEndpoints();
 app.MapBudgetEndpoints();
 app.MapReportEndpoints();

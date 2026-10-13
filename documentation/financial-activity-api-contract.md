@@ -1233,3 +1233,15 @@ activityFeed · dashboard · budgets · accounts · cards · planning
 
 Bildirim yalnız yeniden okuma sinyalidir; bakiye veya raporun gerçek kaynağı
 değildir.
+
+## Transfer masrafı ve ortak parça ayrıntısı — 13 Ekim 2026
+
+Transfer satırı isteğe bağlı `feeAmount` taşır; büyük tutar transferin
+kendisidir, masraf bu tutara eklenmez. Masraf gideri akışta ikinci bir satır
+olmaz. Hesap sayfasının büyük tutarı ise kaynakta masraf dahil değişimdir.
+`GET /api/v1/financial-activities/{kind}/{id}/parts` ortak ayrıntıya masraf,
+faiz, komisyon veya kesintinin gerçek kategorisini getirir. `items` alanında
+`kind`, `amount`, `categoryId`, `categoryName` vardır; parça yoksa boş döner.
+İptal kilitleri ve işlem sonrası bakiye değişmedi. Transferin kendi masraf
+kaydı `origin=transfer` kökeniyle kilitlidir; tek başına iptal edilemez.
+Ayrıntılı örnek sözleşme `category-account-pages-api-contract.md` içindedir.

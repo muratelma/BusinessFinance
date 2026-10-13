@@ -13,6 +13,8 @@ public sealed class Transfer
     public string? Description { get; }
     public bool IsCancelled { get; private set; }
     public DateTimeOffset? CancelledAtUtc { get; private set; }
+    public Guid? FeeTransactionId { get; private set; }
+    public BudgetTransaction? FeeTransaction { get; private set; }
 
     private Transfer()
     {
@@ -26,7 +28,8 @@ public sealed class Transfer
         Account destinationAccount,
         Money amount,
         DateOnly transferDate,
-        string? description = null)
+        string? description = null,
+        BudgetTransaction? feeTransaction = null)
     {
         if (id == Guid.Empty)
         {
@@ -93,6 +96,15 @@ public sealed class Transfer
         Amount = amount;
         TransferDate = transferDate;
         Description = normalizedDescription;
+        if (feeTransaction is not null)
+        {
+            if (feeTransaction.UserId != userId || feeTransaction.AccountId != sourceAccount.Id ||
+                feeTransaction.Type != TransactionType.Expense ||
+                feeTransaction.TransactionDate != transferDate || feeTransaction.Amount.Currency != amount.Currency)
+                throw new ArgumentException("Transfer fee must match its source account, day and currency.", nameof(feeTransaction));
+            FeeTransactionId = feeTransaction.Id;
+            FeeTransaction = feeTransaction;
+        }
     }
 
     public void Cancel(DateTimeOffset cancelledAtUtc)
@@ -109,5 +121,6 @@ public sealed class Transfer
 
         IsCancelled = true;
         CancelledAtUtc = cancelledAtUtc;
+        FeeTransaction?.Cancel(cancelledAtUtc);
     }
 }

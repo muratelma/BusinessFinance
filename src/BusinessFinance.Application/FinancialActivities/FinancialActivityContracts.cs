@@ -111,7 +111,8 @@ public enum FinancialActivityOrigin
     /// Bir gün sonunun ürettiği nakit gelir ya da POS satışı (ADR 0019 T1):
     /// gün sonuyla birlikte doğar ve yalnız onunla birlikte geri alınır.
     /// </summary>
-    DayClose = 6
+    DayClose = 6,
+    Transfer = 7
 }
 
 public enum FinancialActivityStatus
@@ -465,6 +466,7 @@ public static class FinancialActivityCapabilities
         return origin is not (FinancialActivityOrigin.Recurring
             or FinancialActivityOrigin.Installment
             or FinancialActivityOrigin.PosDeposit
+            or FinancialActivityOrigin.Transfer
             or FinancialActivityOrigin.DayClose);
     }
 

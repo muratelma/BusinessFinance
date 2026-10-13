@@ -21,7 +21,9 @@ public sealed record CategoryExpenseDto(Guid CategoryId, string CategoryName, de
 public sealed record CategoryExpenseSliceDto(
     Guid? CategoryId,
     string CategoryName,
-    decimal Amount);
+    decimal Amount,
+    decimal Share = 0m,
+    decimal BarRatio = 0m);
 public sealed record AccountBalanceDto(Guid AccountId, string AccountName, decimal Balance, AccountType Type);
 
 /// <summary>

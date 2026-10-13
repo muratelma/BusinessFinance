@@ -4,6 +4,8 @@ namespace BusinessFinance.Application.Transfers;
 
 public static class TransferErrors
 {
+    public static readonly ApplicationError ScopeUnresolved = new(
+        "transfers.fee_scope_unresolved", "The fee scope must be selected.", ApplicationErrorType.Validation);
     public static readonly ApplicationError AuthenticationRequired = new(
         "authentication.required",
         "An authenticated user is required.",

@@ -18,6 +18,7 @@ public static class TransferEndpoints
             .Produces<TransferResponse>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized);
+        group.MapPost("/preview", PreviewAsync);
         group.MapGet("/", ListAsync)
             .WithName("ListTransfers")
             .Produces<TransferListResponse>(StatusCodes.Status200OK)
@@ -67,6 +68,17 @@ public static class TransferEndpoints
                 "transfers.invalid_date");
         }
 
+        decimal feeAmount = 0m;
+        if (request.FeeAmount is not null &&
+            (!FinanceContract.TryParseAmount(request.FeeAmount, out feeAmount) || feeAmount < 0m))
+            return ApiProblemResults.Validation(httpContext, "Fee must be nonnegative with at most four decimals.", "transfers.invalid_fee");
+        TransactionScope? feeScope = null;
+        if (request.FeeScope is not null)
+        {
+            if (!Enum.TryParse<TransactionScope>(request.FeeScope, true, out var parsed) || !Enum.IsDefined(parsed))
+                return ApiProblemResults.Validation(httpContext, "Fee scope is invalid.", "transfers.invalid_scope");
+            feeScope = parsed;
+        }
         var result = await useCase.ExecuteAsync(
             new CreateTransferCommand(
                 request.SourceAccountId,
@@ -74,7 +86,7 @@ public static class TransferEndpoints
                 amount,
                 CurrencyCode.TRY,
                 date,
-                request.Description),
+                request.Description, feeAmount, feeScope),
             cancellationToken);
         if (!result.IsSuccess)
         {
@@ -83,6 +95,31 @@ public static class TransferEndpoints
 
         var response = ToResponse(result.Value);
         return Results.Created($"/api/v1/transfers/{response.Id}", response);
+    }
+
+    private static async Task<IResult> PreviewAsync(CreateTransferRequest request, PreviewTransferUseCase useCase,
+        HttpContext context, CancellationToken ct)
+    {
+        if (!FinanceContract.TryParseAmount(request.Amount, out var amount) || amount <= 0m ||
+            !FinanceContract.TryParseDate(request.TransferDate, out var date) ||
+            !string.Equals(request.Currency, "TRY", StringComparison.OrdinalIgnoreCase))
+            return ApiProblemResults.Validation(context, "The transfer input is invalid.", "transfers.validation");
+        var fee = 0m;
+        if (request.FeeAmount is not null && (!FinanceContract.TryParseAmount(request.FeeAmount, out fee) || fee < 0m))
+            return ApiProblemResults.Validation(context, "Fee is invalid.", "transfers.invalid_fee");
+        TransactionScope? scope = null;
+        if (request.FeeScope is not null)
+        {
+            if (!Enum.TryParse<TransactionScope>(request.FeeScope, true, out var value) || !Enum.IsDefined(value))
+                return ApiProblemResults.Validation(context, "Fee scope is invalid.", "transfers.invalid_scope");
+            scope = value;
+        }
+        var result = await useCase.ExecuteAsync(new(request.SourceAccountId, request.DestinationAccountId,
+            amount, CurrencyCode.TRY, date, request.Description, fee, scope), ct);
+        if (!result.IsSuccess) return result.Error.ToProblemResult(context);
+        var p = result.Value;
+        return Results.Ok(new TransferPreviewResponse(p.SourceAccountId, p.SourceAccountName, FinanceContract.Money(p.TotalOutflow),
+            FinanceContract.Money(p.FeeAmount), p.FeeCategoryId, p.FeeCategoryName, FinanceContract.OptionalScopeValue(p.ResolvedScope), p.NeedsScope));
     }
 
     private static async Task<IResult> ListAsync(
@@ -143,5 +180,9 @@ public static class TransferEndpoints
         FinanceContract.Date(transfer.TransferDate),
         transfer.Description,
         transfer.IsCancelled,
-        transfer.CancelledAtUtc);
+        transfer.CancelledAtUtc,
+        transfer.FeeTransactionId,
+        transfer.FeeAmount > 0m ? FinanceContract.Money(transfer.FeeAmount) : null,
+        transfer.FeeCategoryId,
+        FinanceContract.OptionalScopeValue(transfer.FeeScope));
 }

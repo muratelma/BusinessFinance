@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using BusinessFinance.Domain;
+using BusinessFinance.Application.FinancialActivities;
 using BusinessFinance.Infrastructure.Persistence;
 
 namespace BusinessFinance.Infrastructure.Accounts;
@@ -23,6 +24,16 @@ internal sealed record EntryCutoff(DateOnly Date, DateTimeOffset EntryAtUtc, Gui
 internal sealed class AccountMovement
 {
     public Guid AccountId { get; init; }
+    public Guid ActivityId { get; init; }
+    public int ActivityKind { get; init; }
+    public Guid? CounterAccountId { get; init; }
+    public Guid? CategoryId { get; init; }
+    public Guid? CreditCardId { get; init; }
+    public Guid? CounterpartyId { get; init; }
+    public decimal? PartAmount { get; init; }
+    public string? Part { get; init; }
+    public int Group { get; init; }
+
 
     public DateOnly Date { get; init; }
 
@@ -68,9 +79,21 @@ internal static class AccountMovements
     {
         // Gelir hesaba girer, gider çıkar.
         var transactions = dbContext.Transactions.AsNoTracking()
-            .Where(transaction => transaction.UserId == userId && !transaction.IsCancelled)
+            .Where(transaction => transaction.UserId == userId && !transaction.IsCancelled &&
+                !dbContext.Transfers.Any(t => t.UserId == userId && t.FeeTransactionId == transaction.Id) &&
+                !dbContext.PosDeposits.Any(d => d.UserId == userId && d.DeductionTransactionId == transaction.Id))
             .Select(transaction => new AccountMovement
             {
+                ActivityId = transaction.Id,
+                ActivityKind = (int)FinancialActivityKind.AccountTransaction,
+                CounterAccountId = (Guid?)null,
+                CategoryId = transaction.CategoryId,
+                CreditCardId = (Guid?)null,
+                CounterpartyId = (Guid?)null,
+                PartAmount = (decimal?)null,
+                Part = (string?)null,
+                Group = 1,
+
                 AccountId = transaction.AccountId,
                 Date = transaction.TransactionDate,
                 EntryAtUtc = EF.Property<DateTimeOffset?>(transaction, EntryTimestamp.PropertyName),
@@ -86,16 +109,36 @@ internal static class AccountMovements
             .Where(transfer => transfer.UserId == userId && !transfer.IsCancelled)
             .Select(transfer => new AccountMovement
             {
+                ActivityId = transfer.Id,
+                ActivityKind = (int)FinancialActivityKind.Transfer,
+                CounterAccountId = transfer.DestinationAccountId,
+                CategoryId = (Guid?)null,
+                CreditCardId = (Guid?)null,
+                CounterpartyId = (Guid?)null,
+                PartAmount = transfer.FeeTransaction == null ? (decimal?)null : transfer.FeeTransaction.Amount.Amount,
+                Part = transfer.FeeTransactionId != null ? "fee" : null,
+                Group = 3,
+
                 AccountId = transfer.SourceAccountId,
                 Date = transfer.TransferDate,
                 EntryAtUtc = EF.Property<DateTimeOffset?>(transfer, EntryTimestamp.PropertyName),
-                Amount = -transfer.Amount.Amount,
+                Amount = -transfer.Amount.Amount - (transfer.FeeTransaction == null ? 0m : transfer.FeeTransaction.Amount.Amount),
                 TransactionId = null
             });
         var incomingTransfers = dbContext.Transfers.AsNoTracking()
             .Where(transfer => transfer.UserId == userId && !transfer.IsCancelled)
             .Select(transfer => new AccountMovement
             {
+                ActivityId = transfer.Id,
+                ActivityKind = (int)FinancialActivityKind.Transfer,
+                CounterAccountId = transfer.SourceAccountId,
+                CategoryId = (Guid?)null,
+                CreditCardId = (Guid?)null,
+                CounterpartyId = (Guid?)null,
+                PartAmount = (decimal?)null,
+                Part = (string?)null,
+                Group = 3,
+
                 AccountId = transfer.DestinationAccountId,
                 Date = transfer.TransferDate,
                 EntryAtUtc = EF.Property<DateTimeOffset?>(transfer, EntryTimestamp.PropertyName),
@@ -107,6 +150,16 @@ internal static class AccountMovements
             .Where(payment => payment.UserId == userId && !payment.IsCancelled)
             .Select(payment => new AccountMovement
             {
+                ActivityId = payment.Id,
+                ActivityKind = (int)FinancialActivityKind.CardPayment,
+                CounterAccountId = (Guid?)null,
+                CategoryId = (Guid?)null,
+                CreditCardId = payment.CreditCardId,
+                CounterpartyId = (Guid?)null,
+                PartAmount = (decimal?)null,
+                Part = (string?)null,
+                Group = 2,
+
                 AccountId = payment.AccountId,
                 Date = payment.PaymentDate,
                 EntryAtUtc = EF.Property<DateTimeOffset?>(payment, EntryTimestamp.PropertyName),
@@ -124,6 +177,16 @@ internal static class AccountMovements
             where installment.UserId == userId && installment.PaymentAccountId != null
             select new AccountMovement
             {
+                ActivityId = installment.Id,
+                ActivityKind = debt.Direction == DebtDirection.Receivable ? (int)FinancialActivityKind.DebtCollection : (int)FinancialActivityKind.DebtPayment,
+                CounterAccountId = (Guid?)null,
+                CategoryId = (Guid?)null,
+                CreditCardId = (Guid?)null,
+                CounterpartyId = debt.CounterpartyId,
+                PartAmount = installment.InterestPortion,
+                Part = installment.InterestPortion > 0m ? "interest" : null,
+                Group = 2,
+
                 AccountId = installment.PaymentAccountId!.Value,
                 Date = installment.PaymentDate!.Value,
                 EntryAtUtc = installment.PaidAtUtc,
@@ -144,6 +207,16 @@ internal static class AccountMovements
                            debt.SourceType == DebtSourceType.Cash)
             .Select(debt => new AccountMovement
             {
+                ActivityId = debt.Id,
+                ActivityKind = (int)FinancialActivityKind.DebtOpening,
+                CounterAccountId = (Guid?)null,
+                CategoryId = (Guid?)null,
+                CreditCardId = (Guid?)null,
+                CounterpartyId = debt.CounterpartyId,
+                PartAmount = (decimal?)null,
+                Part = (string?)null,
+                Group = 2,
+
                 AccountId = debt.OpeningAccountId!.Value,
                 Date = debt.StartDate,
                 EntryAtUtc = EF.Property<DateTimeOffset?>(debt, EntryTimestamp.PropertyName),
@@ -163,6 +236,16 @@ internal static class AccountMovements
                               payment.PosSettlementId == null)
             .Select(payment => new AccountMovement
             {
+                ActivityId = payment.Id,
+                ActivityKind = (int)FinancialActivityKind.CounterpartySettlement,
+                CounterAccountId = (Guid?)null,
+                CategoryId = (Guid?)null,
+                CreditCardId = (Guid?)null,
+                CounterpartyId = payment.CounterpartyId,
+                PartAmount = (decimal?)null,
+                Part = (string?)null,
+                Group = 2,
+
                 AccountId = payment.AccountId,
                 Date = payment.PaymentDate,
                 EntryAtUtc = EF.Property<DateTimeOffset?>(payment, EntryTimestamp.PropertyName),
@@ -177,6 +260,17 @@ internal static class AccountMovements
                                  settlement.PosSettlementId == null)
             .Select(settlement => new AccountMovement
             {
+                ActivityId = settlement.Id,
+                ActivityKind = (int)FinancialActivityKind.ObligationSettlement,
+                CounterAccountId = (Guid?)null,
+                CategoryId = (Guid?)null,
+                CreditCardId = (Guid?)null,
+                CounterpartyId = dbContext.Obligations.Where(o => o.UserId == userId && o.Id == settlement.ObligationId)
+                    .Select(o => o.CounterpartyId).FirstOrDefault(),
+                PartAmount = (decimal?)null,
+                Part = (string?)null,
+                Group = 2,
+
                 AccountId = settlement.AccountId,
                 Date = settlement.SettlementDate,
                 EntryAtUtc = (DateTimeOffset?)settlement.SettledAtUtc,
@@ -186,20 +280,27 @@ internal static class AccountMovements
                 TransactionId = null
             });
 
-        // POS tahsilatı hesaba **ancak geçtiği gün** girer ve girdiği tutar
-        // nettir (ADR 0015). Tahsilat günü eklenseydi, kullanılabilir bakiye
-        // daha bankaya ulaşmamış parayı harcanabilir gösterirdi; brüt
-        // eklenseydi bankanın kestiği komisyon kullanıcının cebinde sayılırdı.
-        var posTransfers = dbContext.PosSettlements.AsNoTracking()
-            .Where(settlement => settlement.UserId == userId &&
-                                 !settlement.IsCancelled &&
-                                 settlement.TransferredOn != null)
-            .Select(settlement => new AccountMovement
+        // Bir yatış tek harekettir: gerçekten yatan tutar girer, kesinti
+        // bağlı giderden ikinci kez çıkarılmaz (KH3). Tahsil günü hesap
+        // değişmez; gelir ve komisyon RecognizedItems'ta ayrı tanınır.
+        var posTransfers = dbContext.PosDeposits.AsNoTracking()
+            .Where(deposit => deposit.UserId == userId && !deposit.IsCancelled)
+            .Select(deposit => new AccountMovement
             {
-                AccountId = settlement.AccountId,
-                Date = settlement.TransferredOn!.Value,
-                EntryAtUtc = settlement.TransferredAtUtc,
-                Amount = settlement.GrossAmount.Amount - settlement.CommissionAmount,
+                ActivityId = deposit.Id,
+                ActivityKind = (int)FinancialActivityKind.PosDeposit,
+                CounterAccountId = (Guid?)null,
+                CategoryId = (Guid?)null,
+                CreditCardId = (Guid?)null,
+                CounterpartyId = (Guid?)null,
+                PartAmount = deposit.DeductionAmount > 0m ? (decimal?)deposit.DeductionAmount : null,
+                Part = deposit.DeductionAmount > 0m ? "deduction" : null,
+                Group = 2,
+
+                AccountId = deposit.AccountId,
+                Date = deposit.DepositDate,
+                EntryAtUtc = deposit.CreatedAtUtc,
+                Amount = deposit.DepositedAmount.Amount,
                 TransactionId = null
             });
 

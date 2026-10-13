@@ -251,6 +251,9 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(140)")
                         .UseCollation("Latin1_General_100_BIN2");
 
+                    b.Property<byte?>("Role")
+                        .HasColumnType("tinyint");
+
                     b.Property<byte>("Type")
                         .HasColumnType("tinyint");
 
@@ -258,6 +261,11 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Role")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Categories_UserId_Role")
+                        .HasFilter("[Role] IS NOT NULL");
 
                     b.HasIndex("UserId", "Type", "NameKey")
                         .IsUnique()
@@ -271,6 +279,8 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("CK_Categories_DefaultScope", "[DefaultScope] IS NULL OR [DefaultScope] IN (1, 2)");
 
                             t.HasCheckConstraint("CK_Categories_IsTax", "[IsTax] = 0 OR [Type] = 2");
+
+                            t.HasCheckConstraint("CK_Categories_Role", "[Role] IS NULL OR ([Role] IN (1, 2, 3, 4) AND [DefaultScope] IS NULL AND (([Role] = 2 AND [Type] = 1) OR ([Role] <> 2 AND [Type] = 2)))");
 
                             t.HasCheckConstraint("CK_Categories_Type", "[Type] IN (1, 2)");
                         });
@@ -2031,6 +2041,9 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("DestinationAccountId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("FeeTransactionId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<bool>("IsCancelled")
                         .HasColumnType("bit");
 
@@ -2047,6 +2060,10 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId", "DestinationAccountId")
                         .HasDatabaseName("IX_Transfers_UserId_DestinationAccountId");
+
+                    b.HasIndex("UserId", "FeeTransactionId")
+                        .IsUnique()
+                        .HasFilter("[FeeTransactionId] IS NOT NULL");
 
                     b.HasIndex("UserId", "SourceAccountId")
                         .HasDatabaseName("IX_Transfers_UserId_SourceAccountId");
@@ -3470,6 +3487,12 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("BusinessFinance.Domain.BudgetTransaction", "FeeTransaction")
+                        .WithMany()
+                        .HasForeignKey("UserId", "FeeTransactionId")
+                        .HasPrincipalKey("UserId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("BusinessFinance.Domain.Account", null)
                         .WithMany()
                         .HasForeignKey("UserId", "SourceAccountId")
@@ -3501,6 +3524,8 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
 
                     b.Navigation("Amount")
                         .IsRequired();
+
+                    b.Navigation("FeeTransaction");
                 });
 
             modelBuilder.Entity("BusinessFinance.Domain.UserProfile", b =>

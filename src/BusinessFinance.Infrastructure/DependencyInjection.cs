@@ -118,6 +118,7 @@ public static class DependencyInjection
         services.AddScoped<ITransactionRepository, EfTransactionRepository>();
         services.AddScoped<IBudgetRepository, EfBudgetRepository>();
         services.AddScoped<IFinancialReportRepository, EfFinancialReportRepository>();
+        services.AddScoped<BusinessFinance.Application.FinancePages.IFinancePageReader, BusinessFinance.Infrastructure.FinancePages.EfFinancePageReader>();
         services.AddScoped<ITransferRepository, EfTransferRepository>();
         services.AddScoped<ICreditCardRepository, EfCreditCardRepository>();
         services.AddScoped<ICardChargeRepository, EfCardChargeRepository>();

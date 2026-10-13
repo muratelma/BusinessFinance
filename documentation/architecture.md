@@ -2173,3 +2173,27 @@ olduğundan büyük göstermek, yok saymaktan güvenlidir.
 olmaya devam eder: o alan "daha ne kadar ödeyeceğim" sorusunu yanıtlar.
 
 Gerekçe: `adr/0010-net-worth-measures-debt-at-principal.md`.
+
+## Kategori ve hesap okumaları — 13 Ekim 2026
+
+`IFinancePageReader` / `EfFinancePageReader` mevcut iki kanonik listeden okur.
+`RecognizedItem` kaynak kimliğini/türünü, bağlı işlemi ve tutarını, hesap/kart/
+kişi kimliklerini ve giriş anını taşır. Kategori toplamı, dağılım, kesişimli
+menüler ve yılın ayları aynı listeyi SQL'de toplar. `AccountMovement` kaynak,
+karşı hesap, kategori, kişi/kart ve içindeki kısım bilgisini taşır; sayfa
+toplamı ve listesi aynı sorgunun farklı okumalarıdır. Görünen satırların ortak
+işlem bilgisi yalnız sayfadaki kimlikler için birleşik projeksiyondan okunur.
+50 satırlık SQL sayfalaması ve sınırlı sorgu bütçesi testle korunur.
+
+Bir POS yatışı gerçekten yatırılan tutarıyla tek hesap hareketidir; bağlı
+kesinti gideri hesapta tekrar çıkarılmaz. Transfer çıkışı masraf dahil tek
+harekettir; hedefe yalnız transfer tutarı girer. Net bakiye aynı kalır;
+Kasa'nın günlük giren/çıkanı da bu tutarları okur. Gelir/gider raporunda
+kesinti ve masraf sıradan gider olarak kalır (`RecognizedItems`).
+
+Kategoride nullable `CategoryRole` vardır. Dört rol ad yerine bulunur;
+rol kategorisi iki kapsama açık kalır ve kullanıcı/rol tekildir. Yeni ödeme
+gerektiğinde eksik faiz rolü açılır; eski faiz de rolden okunur. Transfer
+`FeeTransactionId` ve bağlı gideri taşır; aynı `SaveChanges` gider ve transferi
+yazar, iptal ikisini birlikte değiştirir. İlk rolü eşzamanlı açan istekler SQL
+tekliğinin kazanan kaydını paylaşır. Yedek v12 yazar ve v11'i yükselterek okur.

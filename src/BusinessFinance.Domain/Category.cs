@@ -39,13 +39,16 @@ public sealed class Category
     /// </remarks>
     public bool IsTax { get; private set; }
 
+    public CategoryRole? Role { get; private set; }
+
     public Category(
         Guid id,
         Guid userId,
         string name,
         CategoryType type,
         TransactionScope? defaultScope = null,
-        bool isTax = false)
+        bool isTax = false,
+        CategoryRole? role = null)
     {
         if (id == Guid.Empty)
         {
@@ -88,6 +91,14 @@ public sealed class Category
             defaultScope,
             nameof(defaultScope));
         SetTax(isTax);
+        if (role is CategoryRole value)
+        {
+            if (!Enum.IsDefined(value) ||
+                (value == CategoryRole.InterestIncome) != (type == CategoryType.Income))
+                throw new ArgumentException("Category role must match its type.", nameof(role));
+            Role = value;
+            DefaultScope = null;
+        }
     }
 
     /// <summary>
@@ -108,6 +119,8 @@ public sealed class Category
     /// </summary>
     public void SetDefaultScope(TransactionScope? defaultScope)
     {
+        if (Role is not null && defaultScope is not null)
+            throw new ArgumentException("A role category must remain open to both scopes.", nameof(defaultScope));
         DefaultScope = TransactionScopeGuard.ValidateOptional(
             defaultScope,
             nameof(defaultScope));

@@ -290,7 +290,8 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         var food = new Category(Guid.NewGuid(), userId, "Yemek", CategoryType.Expense);
         var commission = new Category(Guid.NewGuid(), userId, "POS komisyonu", CategoryType.Expense);
         var interest = new Category(
-            Guid.NewGuid(), userId, EfCategoryRepository.InterestExpenseCategoryName, CategoryType.Expense);
+            Guid.NewGuid(), userId, EfCategoryRepository.InterestExpenseCategoryName, CategoryType.Expense,
+            role: CategoryRole.InterestExpense);
         var supplier = new Counterparty(Guid.NewGuid(), userId, "Toptancı");
         var customer = new Counterparty(Guid.NewGuid(), userId, "Müşteri");
         var lender = new Counterparty(Guid.NewGuid(), userId, "Banka kredisi");

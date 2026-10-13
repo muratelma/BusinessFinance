@@ -136,6 +136,9 @@ public static class ServiceCollectionExtensions
         services.AddTransient<CreateDebtUseCase>();
         services.AddTransient<ListDebtsUseCase>();
         services.AddTransient<PayDebtInstallmentUseCase>();
+        services.AddTransient<BusinessFinance.Application.FinancePages.FinancePageUseCases>();
+        services.AddTransient<PreviewTransferUseCase>();
+        services.AddTransient<EnsureBankFeeCategoryUseCase>();
         services.AddTransient<RecordDebtOpeningUseCase>();
         services.AddTransient<CreateSavingsGoalUseCase>();
         services.AddTransient<ListSavingsGoalsUseCase>();

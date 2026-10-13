@@ -31,6 +31,11 @@ public static class CategoryEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
+        group.MapPost("/bank-fee", async (EnsureBankFeeCategoryUseCase useCase, HttpContext context, CancellationToken ct) =>
+        {
+            var result = await useCase.ExecuteAsync(ct);
+            return result.IsSuccess ? Results.Ok(ToResponse(result.Value)) : result.Error.ToProblemResult(context);
+        });
         return endpoints;
     }
 
@@ -137,5 +142,6 @@ public static class CategoryEndpoints
         FinanceContract.CategoryTypeValue(item.Type),
         item.IsActive,
         FinanceContract.OptionalScopeValue(item.DefaultScope),
-        item.IsTax);
+        item.IsTax,
+        CategoryRoles.Value(item.Role));
 }

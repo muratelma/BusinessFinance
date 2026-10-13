@@ -26,5 +26,6 @@ public sealed record CategoryResponse(
     string Type,
     bool IsActive,
     string? DefaultScope,
-    bool IsTax);
+    bool IsTax,
+    string? Role = null);
 public sealed record CategoryListResponse(IReadOnlyList<CategoryResponse> Items);

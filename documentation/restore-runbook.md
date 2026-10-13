@@ -1,7 +1,9 @@
 # Backup Restore Runbook
 
-Bu runbook yalnız sentetik yerel veridir. Yazılan şema **v11**; okunabilen
-şema **yalnız v11**.
+Bu runbook yalnız sentetik yerel veridir. Yazılan şema **v12**; okunabilen
+şemalar **v11 ve v12**. v12 kategori rolünü ve transferin masraf gideri bağını
+taşır. Rolsüz v11 kategori adları yükseltme eşlemesiyle değerlendirilir;
+v12'de boş rol boş kalır, adından yeniden türetilmez.
 
 **v11 Aşama 06.3 boyunca şekil değiştirir** (`PROJECT-ROADMAP.md` yedek şeması
 politikası): Grup 2, 3 ve 5 onu ayrı ayrı değiştirir ve ara checkpoint'te
@@ -444,3 +446,21 @@ manuel tablo silme uygulanmaz. Beklenmeyen kısmi durum görülürse servisi dur
 sentetik hedefi izole et, trace id ve DB/object metadata sayımlarını kaydet. Kaynak
 backup dosyasını değiştirme. Gerçek veri için olay müdahalesi, şifreleme anahtarı,
 retention ve yönetilen object store prosedürü bulut aşamasından (Aşama 07) önce ayrıca yazılmalıdır.
+
+## Kategori rolü ve transfer masrafı yükseltmesi — 13 Ekim 2026
+
+`AddCategoryRolesAndTransferFees` iki nullable kolon ekler: `Categories.Role`
+ve `Transfers.FeeTransactionId`. Eski transferlerin bağı boş kalır; uydurma
+masraf yazılmaz. Kategori ad anahtarları dört role eşlenir ve işaretli
+kategorilerin kapsamı genişletilir. Kolonlar ve bu backfill, CHECK ve tekil
+indeksten önce gelir. Aynı adlı eski adaylar korunur; rol aktif ve kimlik
+sırasındaki ilkine verilir. Rol başına en çok bir kategori ve role uygun
+tür/açık kapsam SQL'de zorlanır; masraf bağı kompozit sahiplik foreign key'idir.
+
+Yedek v12 `categories.role` ve `transfers.feeTransactionId` taşır. Masrafın
+gideri normal işlemler dizisinde durur; geri yükleme yeni gider kimliğini
+transferin bağına eşler. v11 de okunur: rolsüz adlar dört role eşlenir;
+aynı rolün birden çok eski adayı birleştirilmez. v12'de boş rol yeniden
+yorumlanmaz. Dolu şema yükseltmesi, v11 rol eşlemesi ve v12 rol/ad ayrımı
+kalıcı testlerle korunur. Bu oturumda migration yalnız SQL test hedefi
+`BusinessFinanceApiSqlTests`'e uygulanmıştır; 5284'ün veritabanı değiştirilmedi.

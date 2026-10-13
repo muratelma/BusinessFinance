@@ -2122,3 +2122,23 @@ doğrulaması yalnız bu fabrikada kapalıdır.
 Var olan dört Application test sınıfı yeni saat bağımlılığını `TimeProvider.System`
 ile alır; tarihleri geçmiştedir. Kontrollerin sayıları `docs/project-status.md`
 içindedir.
+
+## Kategori ve hesap sayfalarının sunucusu — 13 Ekim 2026
+
+- `CategoryRoleTests`: dört rolün yeniden adlandırılması ve daraltılamaması,
+  yanlış kategori yönünün reddi, transferin masrafla birlikte idempotent iptali.
+- `SqlServerPersistenceIntegrationTests.FinancePages`: dolu şemada role
+  backfill ve CHECK/teklik sırası; paralel ilk rol açılışı; kategori/hesap
+  satırları ve menülerinin toplamlara eşitliği; kartla tahsil komisyonunun
+  bağlı satırı; sahiplik; SQL sayfalaması ve sorgu bütçesi; pasif hesap bakiyesi.
+- `DataPortabilityTests`: v11'de eksik rolü adla yükseltme; v12'de sıradan
+  aynı adlı kategoriyle yeniden adlandırılmış rolün ayrımını koruma.
+- `TransferFeeEndpointTests`: hesap etiketi boşken işletmede kapsam sorusu,
+  dört ondalıklı önizleme, ileri gün reddi, masrafın bağımsız iptal kilidi ve
+  transferle birlikte iptali. Sahiplik probu beş yeni kimlikli ucu içerir.
+- `scripts/test-category-account-pages.py`: 5284'ü reddeden ayrı loopback
+  Release API denemesi. Brif 5/6'nın aynı tutarları Eylül'e taşınır; menü ve
+  satır eşitlikleri, rol, kapsam, yıl seçici ve iptal gerçek HTTP ile sınanır.
+
+Sayısal sonuçlar ve son tam kontrol kaydı teslim raporundadır:
+`research/TESLIM-2026-10-13-kategori-hesap-sayfalari.md`.

@@ -4,6 +4,10 @@ namespace BusinessFinance.Application.Categories;
 
 public static class CategoryErrors
 {
+    public static readonly ApplicationError RoleScopeLocked = new(
+        "categories.role_scope_locked",
+        "A role category must remain open to both scopes.",
+        ApplicationErrorType.Conflict);
     public static readonly ApplicationError AuthenticationRequired = new(
         "authentication.required",
         "An authenticated user is required.",

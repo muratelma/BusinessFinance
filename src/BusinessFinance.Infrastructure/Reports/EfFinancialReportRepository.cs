@@ -133,10 +133,14 @@ internal sealed class EfFinancialReportRepository(
         IReadOnlyList<CategoryExpenseDto> categoryExpenses)
     {
         ArgumentNullException.ThrowIfNull(categoryExpenses);
+        var total = categoryExpenses.Sum(item => item.Amount);
+        CategoryExpenseSliceDto Slice(Guid? id, string name, decimal amount) => new(id, name, amount,
+            total == 0m ? 0m : decimal.Round(amount / total * 100m, 0, MidpointRounding.AwayFromZero),
+            total == 0m ? 0m : amount / total);
         if (categoryExpenses.Count <= SliceCategoryCount + 1)
         {
             return [.. categoryExpenses.Select(item =>
-                new CategoryExpenseSliceDto(item.CategoryId, item.CategoryName, item.Amount))];
+                Slice(item.CategoryId, item.CategoryName, item.Amount))];
         }
 
         var top = categoryExpenses.Take(SliceCategoryCount);
@@ -144,8 +148,8 @@ internal sealed class EfFinancialReportRepository(
         return
         [
             .. top.Select(item =>
-                new CategoryExpenseSliceDto(item.CategoryId, item.CategoryName, item.Amount)),
-            new CategoryExpenseSliceDto(null, OtherSliceName, rest)
+                Slice(item.CategoryId, item.CategoryName, item.Amount)),
+            Slice(null, OtherSliceName, rest)
         ];
     }
 

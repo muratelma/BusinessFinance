@@ -49,7 +49,8 @@ public sealed class OnboardingEndpointTests
         Assert.False(profile?.HasBusiness);
         Assert.Contains(categories!.Items, item => item.Name == "Maaş");
         Assert.DoesNotContain(categories.Items, item => item.Name == "Satış geliri");
-        Assert.All(categories.Items, item => Assert.Equal("personal", item.DefaultScope));
+        Assert.All(categories.Items, item => Assert.Equal(item.Role is null ? "personal" : null, item.DefaultScope));
+        Assert.Equal(4, categories.Items.Count(item => item.Role is not null));
     }
 
     /// <summary>

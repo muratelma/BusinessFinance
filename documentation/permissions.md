@@ -393,3 +393,17 @@ geçtiyse `409 counterparty_payments.deposit_locked`, gün sonunda sayıldıysa
 `GET /api/v1/pos-settlements` satırı tahsilde boş `categoryId`/`categoryName`,
 `kind` ve kişinin adını (`counterpartyName`) taşır; ad owner-scoped okunur.
 Yatış ayrıntısı brütü `saleAmount` ve `collectionAmount` olarak ayırır.
+
+## Kategori ve hesap sayfaları — 13 Ekim 2026
+
+`category-summary`, kategori sayfası/ayları, hesap sayfası/ayları/yoldaki
+para ve hesap özeti JWT oturumunun sahibine göre okunur. Kategori ve hesap
+kimlikli beş yeni uç sahiplik probuna eklidir; başka sahibin kimliği ve hiç
+olmayan kimlik aynı 404 cevabını verir. Kaynak ve kişi menülerindeki adlar
+yalnız sahibin tablolarından gelir. Kategorisiz geçmiş salt okunurdur.
+
+Transfer masrafı aynı kullanıcı ve çıkan hesapla bağlı giderdir; kompozit
+foreign key başka sahibin giderine bağlamayı engeller. Masraf tek başına iptal
+edilemez. Transfer önizlemesi kayıt yazmaz; masraf kapsamı mevcut kapsam
+çözümleyicisinden gelir. `categories/bank-fee` yalnız sahibin rol kategorisini
+bulur/açar. Sözleşme: `category-account-pages-api-contract.md`.

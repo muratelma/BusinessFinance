@@ -14,6 +14,38 @@ namespace BusinessFinance.Infrastructure.Tests.DataPortability;
 public sealed class DataPortabilityTests
 {
     [Fact]
+    public async Task BackupV11WithoutRoles_MapsLegacyNamesAndOpensTheScope()
+    {
+        await using var context = CreateContext();
+        var source = Guid.NewGuid(); var target = Guid.NewGuid();
+        context.Categories.Add(new Category(Guid.NewGuid(), source, "Faiz geliri", CategoryType.Income, TransactionScope.Personal));
+        await context.SaveChangesAsync();
+        var service = new EfDataPortabilityRepository(context);
+        var old = RewritePayload((await service.CreateBackupAsync(source, default)).Content,
+            snapshot => { foreach (var c in snapshot["categories"]!.AsArray()) c!.AsObject().Remove("role"); }, schemaVersion: 11);
+        await service.RestoreBackupAsync(target, old, DateTimeOffset.UtcNow, default);
+        var restored = await context.Categories.SingleAsync(c => c.UserId == target);
+        Assert.Equal(CategoryRole.InterestIncome, restored.Role);
+        Assert.Null(restored.DefaultScope);
+    }
+
+    [Fact]
+    public async Task BackupV12_PreservesTheDifferenceBetweenAnOrdinaryNameAndARenamedRole()
+    {
+        await using var context = CreateContext();
+        var source = Guid.NewGuid(); var target = Guid.NewGuid();
+        context.Categories.Add(new Category(Guid.NewGuid(), source, "Banka masrafı", CategoryType.Expense, TransactionScope.Personal));
+        var role = new Category(Guid.NewGuid(), source, "Masraf kategorim", CategoryType.Expense, role: CategoryRole.BankFee);
+        context.Categories.Add(role);
+        await context.SaveChangesAsync();
+        var service = new EfDataPortabilityRepository(context);
+        await service.RestoreBackupAsync(target, (await service.CreateBackupAsync(source, default)).Content, DateTimeOffset.UtcNow, default);
+        var restored = await context.Categories.Where(c => c.UserId == target).ToArrayAsync();
+        Assert.Null(restored.Single(c => c.Name == "Banka masrafı").Role);
+        Assert.Equal(TransactionScope.Personal, restored.Single(c => c.Name == "Banka masrafı").DefaultScope);
+        Assert.Equal(CategoryRole.BankFee, restored.Single(c => c.Name == "Masraf kategorim").Role);
+    }
+    [Fact]
     public async Task Backup_ValidatesAndRestoresCompleteSyntheticGraphToEmptyOwner()
     {
         await using var context = CreateContext();
@@ -33,7 +65,7 @@ public sealed class DataPortabilityTests
         var conflict = await Assert.ThrowsAsync<DataPortabilityException>(() =>
             service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default));
 
-        Assert.Equal(11, validation.SchemaVersion);
+        Assert.Equal(12, validation.SchemaVersion);
         Assert.Equal(validation.EntityCount, restored.RestoredEntityCount);
         Assert.Equal("restore.destination_not_empty", conflict.Code);
         Assert.Equal("Geri yükleme için hesapta finansal veri bulunmamalıdır.", conflict.Message);
@@ -551,7 +583,7 @@ public sealed class DataPortabilityTests
         var validation = await service.ValidateBackupAsync(backup.Content, default);
         await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
 
-        Assert.Equal(11, validation.SchemaVersion);
+        Assert.Equal(12, validation.SchemaVersion);
         var restoredPlans = await context.RecurringTransactions
             .AsNoTracking().Where(item => item.UserId == targetUserId).ToArrayAsync();
         var cardPlan = Assert.Single(
@@ -698,7 +730,7 @@ public sealed class DataPortabilityTests
         var validation = await service.ValidateBackupAsync(backup.Content, default);
         await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
 
-        Assert.Equal(11, validation.SchemaVersion);
+        Assert.Equal(12, validation.SchemaVersion);
 
         var restoredObligations = await context.Obligations.AsNoTracking()
             .Include(x => x.Settlement)
@@ -809,7 +841,7 @@ public sealed class DataPortabilityTests
         var validation = await service.ValidateBackupAsync(backup.Content, default);
         await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
 
-        Assert.Equal(11, validation.SchemaVersion);
+        Assert.Equal(12, validation.SchemaVersion);
 
         var counts = await context.CashCounts.AsNoTracking()
             .Where(item => item.UserId == targetUserId)
@@ -1332,7 +1364,7 @@ public sealed class DataPortabilityTests
         var validation = await service.ValidateBackupAsync(backup.Content, default);
         await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
 
-        Assert.Equal(11, validation.SchemaVersion);
+        Assert.Equal(12, validation.SchemaVersion);
         var envelope = JsonNode.Parse(backup.Content)!.AsObject();
         var payload = Encoding.UTF8.GetString(
             Convert.FromBase64String(envelope["payload"]!.GetValue<string>()));

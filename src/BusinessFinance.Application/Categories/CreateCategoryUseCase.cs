@@ -79,5 +79,6 @@ public sealed class CreateCategoryUseCase(
         category.Type,
         category.IsActive,
         category.DefaultScope,
-        category.IsTax);
+        category.IsTax,
+        category.Role);
 }

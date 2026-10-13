@@ -1738,3 +1738,12 @@ yükselince Kasa da), tanım değişiklikleri `taxPlansChanged` (özet, planlama
 Ekran feed ve planlama hedeflerini dinler: gider formundan vergi kategorisiyle
 girilen ödeme de Ödenenler'e düşer. Planlananlar'da ve Planlama'daki yaklaşan
 listede vergi kalemi "Ödedim →" ile bu ekrana gelir; orada gerçekleştirilmez.
+
+## Masraflı transferin sunucu yolu — 13 Ekim 2026
+
+Transfer isteği masraf ve masraf kapsamı alabilir. Önizleme sunucuda çıkan
+hesap, toplam çıkış ve masrafın kategori/kapsamını döner. Masraf rol kategorisi
+kullanılır; çıkan hesap etiketsizse işletme kullanıcısının kapsam seçimi
+olmadan kayıt yazılmaz. Transfer ve gider tek yazmada kaydedilir; transfer
+iptali ikisini birlikte kaldırır, masraf bağımsız iptal edilemez. Dekont ve
+sayfa akışının Flutter bağlaması takip eden checkpoint'te yapılacaktır.

@@ -7,6 +7,7 @@ using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.DataPortability;
+using BusinessFinance.Application.Categories;
 using BusinessFinance.Domain;
 using BusinessFinance.Infrastructure.Categories;
 using BusinessFinance.Infrastructure.Persistence;
@@ -20,14 +21,16 @@ public sealed class EfDataPortabilityRepository(
     IAttachmentFileInspector? attachmentInspector = null)
     : IDataPortabilityRepository
 {
-    internal const int SchemaVersion = 11;
+    internal const int SchemaVersion = 12;
 
     /// <summary>
     /// Versions this build can restore. Only <see cref="SchemaVersion"/> is written.
     /// </summary>
     /// <remarks>
-    /// v11 KDV ve indirilebilirlik alanlarını artık taşımaz (ADR 0018);
-    /// <b>yalnız v11 okunur</b>. Aşama 06.3 boyunca v11'in şekli değişebilir ve
+    /// v12 kategori rolünü ve transfer masrafı bağını taşır; v11 de okunur
+    /// ve rolsüz kategori adları yükseltme eşlemesinden geçer. v11 KDV ve
+    /// indirilebilirlik alanlarını artık taşımaz (ADR 0018). Geçmişte
+    /// Aşama 06.3 boyunca v11'in şekli değişebilir ve
     /// ara checkpoint'te alınan yedeğin sonrakinde okunamaması kabul edilir
     /// (veri sentetik); şekil Aşama 06.3 Grup 5 sonunda sabitlenir. v9 gün
     /// sonu kasa sayımını ve POS tahsilatını ilk kez taşıdı. v8 dosyasında ikisi de hiç yok ve boş dizi yazarak
@@ -39,7 +42,7 @@ public sealed class EfDataPortabilityRepository(
     /// boyutundan yoksundu (ADR 0013). Bu yüzden eski yedekler yükseltilmez,
     /// <c>restore.unsupported_version</c> ile reddedilir.
     /// </remarks>
-    private static readonly int[] SupportedSchemaVersions = [11];
+    private static readonly int[] SupportedSchemaVersions = [11, 12];
 
     internal const int MaximumPayloadBytes = 10 * 1024 * 1024;
     internal const int MaximumEntities = 50_000;
@@ -231,7 +234,7 @@ public sealed class EfDataPortabilityRepository(
     {
         cancellationToken.ThrowIfCancellationRequested();
         var parsed = ParseAndValidate(content);
-        _ = BuildRestoredGraph(Guid.NewGuid(), parsed.Snapshot);
+        _ = BuildRestoredGraph(Guid.NewGuid(), parsed.Snapshot, parsed.Envelope.SchemaVersion);
         return Task.FromResult(new BackupValidationDto(
             // The version of the file being validated, not the version this build
             // writes. The two are the same today — only v7 is accepted — but
@@ -250,7 +253,7 @@ public sealed class EfDataPortabilityRepository(
         CancellationToken cancellationToken)
     {
         var parsed = ParseAndValidate(content);
-        var graph = BuildRestoredGraph(userId, parsed.Snapshot);
+        var graph = BuildRestoredGraph(userId, parsed.Snapshot, parsed.Envelope.SchemaVersion);
         var writtenObjectKeys = new List<string>();
         await using var transaction = dbContext.Database.IsRelational()
             ? await dbContext.Database.BeginTransactionAsync(
@@ -464,7 +467,7 @@ public sealed class EfDataPortabilityRepository(
             accounts.Select(x => new AccountBackup(x.Id, x.Name, x.Type, x.Currency, x.OpeningBalance,
                 x.IsActive, x.DefaultScope)).ToArray(),
             categories.Select(x => new CategoryBackup(x.Id, x.Name, x.Type, x.IsActive,
-                x.DefaultScope, x.IsTax)).ToArray(),
+                x.DefaultScope, x.IsTax, x.Role)).ToArray(),
             transactions.Select(x => new TransactionBackup(x.Id, x.AccountId, x.CategoryId, x.Amount.Amount,
                 x.Amount.Currency, x.Type, x.Scope, x.TransactionDate, x.Description, x.IsCancelled,
                 x.CancelledAtUtc, entryTimes.GetValueOrDefault(x.Id), x.DayCloseId)).ToArray(),
@@ -472,7 +475,7 @@ public sealed class EfDataPortabilityRepository(
                 x.Scope, x.Year, x.Month)).ToArray(),
             transfers.Select(x => new TransferBackup(x.Id, x.SourceAccountId, x.DestinationAccountId,
                 x.Amount.Amount, x.Amount.Currency, x.TransferDate, x.Description, x.IsCancelled, x.CancelledAtUtc,
-                entryTimes.GetValueOrDefault(x.Id))).ToArray(),
+                entryTimes.GetValueOrDefault(x.Id), x.FeeTransactionId)).ToArray(),
             cards.Select(x => new CardBackup(x.Id, x.Name, x.Limit.Amount, x.Limit.Currency,
                 x.StatementClosingDay, x.PaymentDueDay, x.IsActive, x.MinimumPaymentRate, x.DefaultScope)).ToArray(),
             charges.Select(x => new ChargeBackup(x.Id, x.CreditCardId, x.CategoryId, x.Amount.Amount,
@@ -572,7 +575,7 @@ public sealed class EfDataPortabilityRepository(
         return snapshot;
     }
 
-    private RestoredGraph BuildRestoredGraph(Guid userId, FinancialSnapshot snapshot)
+    private RestoredGraph BuildRestoredGraph(Guid userId, FinancialSnapshot snapshot, int schemaVersion)
     {
         EnsureEntityLimit(snapshot);
         EnsureUniqueIds(snapshot.Accounts.Select(x => x.Id), "account");
@@ -608,9 +611,21 @@ public sealed class EfDataPortabilityRepository(
                 x => x.Id,
                 x => new Account(Guid.NewGuid(), userId, x.Name, x.Type, x.Currency, x.OpeningBalance,
                     x.DefaultScope));
+            CategoryRole? RestoredRole(CategoryBackup item)
+            {
+                if (schemaVersion >= 12) return item.Role;
+                var role = item.Role ?? CategoryRoles.FromLegacy(item.Name, item.Type);
+                if (role is null) return null;
+                // Eski ad çakışmaları birleştirilmez; rol en fazla birine verilir.
+                return snapshot.Categories.Where(c => (c.Role ?? CategoryRoles.FromLegacy(c.Name, c.Type)) == role)
+                    .OrderByDescending(c => c.IsActive).ThenBy(c => c.Id).First().Id == item.Id ? role : null;
+            }
             var categoryMap = snapshot.Categories.ToDictionary(
                 x => x.Id,
-                x => new Category(Guid.NewGuid(), userId, x.Name, x.Type, x.DefaultScope, x.IsTax));
+                x => new Category(Guid.NewGuid(), userId, x.Name, x.Type, x.DefaultScope, x.IsTax,
+                    RestoredRole(x)));
+            if (categoryMap.Values.Where(c => c.Role != null).GroupBy(c => c.Role).Any(g => g.Count() > 1))
+                throw Invalid("A category role cannot be assigned twice.");
             var cardMap = snapshot.Cards.ToDictionary(
                 x => x.Id,
                 x => new CreditCard(Guid.NewGuid(), userId, x.Name, MoneyOf(x.Limit, x.Currency),
@@ -664,7 +679,9 @@ public sealed class EfDataPortabilityRepository(
                     Guid.NewGuid(), userId,
                     Required(accountMap, item.SourceAccountId, "transfer source"),
                     Required(accountMap, item.DestinationAccountId, "transfer destination"),
-                    MoneyOf(item.Amount, item.Currency), item.TransferDate, item.Description);
+                    MoneyOf(item.Amount, item.Currency), item.TransferDate, item.Description,
+                    item.FeeTransactionId is Guid feeId
+                        ? Required(transactionMap, feeId, "transfer fee") : null);
                 ApplyCancellation(item.IsCancelled, item.CancelledAtUtc, entity.Cancel);
                 entryTimes[entity] = item.CreatedAtUtc;
                 transferMap[item.Id] = entity;
@@ -1711,7 +1728,7 @@ internal sealed record FinancialSnapshot(
 internal sealed record AccountBackup(Guid Id, string Name, AccountType Type, CurrencyCode Currency, decimal OpeningBalance,
     bool IsActive, TransactionScope? DefaultScope);
 internal sealed record CategoryBackup(Guid Id, string Name, CategoryType Type, bool IsActive,
-    TransactionScope? DefaultScope, bool IsTax = false);
+    TransactionScope? DefaultScope, bool IsTax = false, CategoryRole? Role = null);
 internal sealed record TransactionBackup(Guid Id, Guid AccountId, Guid CategoryId, decimal Amount, CurrencyCode Currency,
     TransactionType Type, TransactionScope Scope, DateOnly TransactionDate, string? Description, bool IsCancelled,
     DateTimeOffset? CancelledAtUtc, DateTimeOffset? CreatedAtUtc = null, Guid? DayCloseId = null);
@@ -1719,7 +1736,7 @@ internal sealed record BudgetBackup(Guid Id, Guid CategoryId, decimal Limit, Cur
     TransactionScope Scope, int Year, int Month);
 internal sealed record TransferBackup(Guid Id, Guid SourceAccountId, Guid DestinationAccountId, decimal Amount,
     CurrencyCode Currency, DateOnly TransferDate, string? Description, bool IsCancelled, DateTimeOffset? CancelledAtUtc,
-    DateTimeOffset? CreatedAtUtc = null);
+    DateTimeOffset? CreatedAtUtc = null, Guid? FeeTransactionId = null);
 internal sealed record CardBackup(Guid Id, string Name, decimal Limit, CurrencyCode Currency,
     int StatementClosingDay, int PaymentDueDay, bool IsActive, decimal MinimumPaymentRate,
     TransactionScope? DefaultScope);

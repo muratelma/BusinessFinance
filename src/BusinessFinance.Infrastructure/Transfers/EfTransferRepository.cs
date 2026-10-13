@@ -21,7 +21,7 @@ internal sealed class EfTransferRepository(BusinessFinanceDbContext dbContext)
         bool track,
         CancellationToken cancellationToken)
     {
-        IQueryable<Transfer> query = dbContext.Transfers;
+        IQueryable<Transfer> query = dbContext.Transfers.Include(transfer => transfer.FeeTransaction);
         if (!track)
         {
             query = query.AsNoTracking();
@@ -39,6 +39,7 @@ internal sealed class EfTransferRepository(BusinessFinanceDbContext dbContext)
         CancellationToken cancellationToken)
     {
         var query = dbContext.Transfers
+            .Include(transfer => transfer.FeeTransaction)
             .AsNoTracking()
             .Where(transfer => transfer.UserId == userId);
         if (window.From is DateOnly from) query = query.Where(transfer => transfer.TransferDate >= from);

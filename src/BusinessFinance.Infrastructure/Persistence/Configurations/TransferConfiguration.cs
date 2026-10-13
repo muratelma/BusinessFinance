@@ -61,5 +61,12 @@ internal sealed class TransferConfiguration : IEntityTypeConfiguration<Transfer>
             .HasForeignKey(transfer => new { transfer.UserId, transfer.DestinationAccountId })
             .HasPrincipalKey(account => new { account.UserId, account.Id })
             .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(transfer => transfer.FeeTransaction)
+            .WithMany()
+            .HasForeignKey(transfer => new { transfer.UserId, transfer.FeeTransactionId })
+            .HasPrincipalKey(transaction => new { transaction.UserId, transaction.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(transfer => new { transfer.UserId, transfer.FeeTransactionId })
+            .IsUnique().HasFilter("[FeeTransactionId] IS NOT NULL");
     }
 }

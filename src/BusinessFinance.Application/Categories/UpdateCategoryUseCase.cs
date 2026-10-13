@@ -46,6 +46,9 @@ public sealed class UpdateCategoryUseCase(
             return ApplicationResult<CategoryListItemDto>.Failure(CategoryErrors.NotFound(command.CategoryId));
         }
 
+        if (category.Role is not null && command.DefaultScope is not null)
+            return ApplicationResult<CategoryListItemDto>.Failure(CategoryErrors.RoleScopeLocked);
+
         if (command.DefaultScope is TransactionScope side &&
             category.DefaultScope != side &&
             await usageReader.IsUsedOutsideAsync(category.Id, userId, side, cancellationToken))

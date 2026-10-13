@@ -63,6 +63,19 @@ public sealed class CategoryExpenseSliceTests
         Assert.Empty(EfFinancialReportRepository.ToSlices([]));
     }
 
+    [Fact]
+    public void Slices_SendTheSameDecimalSharesTheDashboardDisplays()
+    {
+        var categories = Categories(9);
+        var total = categories.Sum(c => c.Amount);
+        var slices = EfFinancialReportRepository.ToSlices(categories);
+        Assert.All(slices, slice =>
+        {
+            Assert.Equal(slice.Amount / total, slice.BarRatio);
+            Assert.Equal(decimal.Round(slice.Amount / total * 100m, 0, MidpointRounding.AwayFromZero), slice.Share);
+        });
+    }
+
     /// <summary>Tutara göre azalan, gerçek raporun sırasıyla aynı.</summary>
     private static CategoryExpenseDto[] Categories(int count) =>
         [.. Enumerable.Range(0, count).Select(index => new CategoryExpenseDto(

@@ -14,7 +14,9 @@ public sealed record CategoryExpenseResponse(Guid CategoryId, string CategoryNam
 public sealed record CategoryExpenseSliceResponse(
     Guid? CategoryId,
     string CategoryName,
-    string Amount);
+    string Amount,
+    string Share = "0.0000",
+    string BarRatio = "0.0000");
 public sealed record AccountBalanceResponse(
     Guid AccountId,
     string AccountName,

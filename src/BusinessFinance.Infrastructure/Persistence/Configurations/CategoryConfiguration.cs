@@ -18,6 +18,8 @@ internal sealed class CategoryConfiguration : IEntityTypeConfiguration<Category>
 
             // Vergi bir nakit çıkışıdır; yalnız gider kategorisi işaretlenir.
             table.HasCheckConstraint("CK_Categories_IsTax", "[IsTax] = 0 OR [Type] = 2");
+            table.HasCheckConstraint("CK_Categories_Role",
+                "[Role] IS NULL OR ([Role] IN (1, 2, 3, 4) AND [DefaultScope] IS NULL AND (([Role] = 2 AND [Type] = 1) OR ([Role] <> 2 AND [Type] = 2)))");
         });
 
         builder.HasKey(category => category.Id);
@@ -30,6 +32,10 @@ internal sealed class CategoryConfiguration : IEntityTypeConfiguration<Category>
         builder.Property(category => category.DefaultScope).HasConversion<byte?>().HasColumnType("tinyint");
         builder.Property(category => category.IsActive).IsRequired();
         builder.Property(category => category.IsTax).IsRequired();
+        builder.Property(category => category.Role).HasConversion<byte?>().HasColumnType("tinyint");
+        builder.HasIndex(category => new { category.UserId, category.Role })
+            .IsUnique().HasFilter("[Role] IS NOT NULL")
+            .HasDatabaseName("UX_Categories_UserId_Role");
 
         // Ad anahtarı uygulamada hesaplanır (`NameKeys`) ve ikili
         // karşılaştırılır; veritabanının harf kuralı (Türkçe İ/i ve I/ı
