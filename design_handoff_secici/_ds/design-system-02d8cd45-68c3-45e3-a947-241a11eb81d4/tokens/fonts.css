@@ -1,0 +1,6 @@
+/* Uygulamada özel bir font paketi yok (AppTypography: "Yeni font paketi eklenmez").
+   Flutter Android istemcisi platform varsayılanını kullanır: Roboto.
+   İkonlar Flutter'ın gömülü Material Icons setidir; web tarafında karşılığı
+   Material Symbols Outlined. İkisi de Google Fonts'tan yüklenir. */
+@import url("https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block");

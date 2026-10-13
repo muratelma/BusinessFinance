@@ -1,0 +1,26 @@
+/* Gövde varsayılanları ve ikon fontu kullanımı. */
+body {
+  margin: 0;
+  font-family: var(--font-core);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+  color: var(--ink);
+  background: var(--surface-canvas);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+a:hover { color: var(--ink-muted); }
+.material-symbols-outlined {
+  font-family: var(--font-icons);
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  direction: ltr;
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  user-select: none;
+}
+.material-symbols-outlined[data-filled="true"] { font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24; }

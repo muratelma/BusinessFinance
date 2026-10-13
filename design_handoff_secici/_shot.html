@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="tr"><head><meta charset="utf-8"><title>Seçici · ekran görüntüsü</title>
+<link rel="stylesheet" href="_ds/design-system-02d8cd45-68c3-45e3-a947-241a11eb81d4/styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="_ds/design-system-02d8cd45-68c3-45e3-a947-241a11eb81d4/_ds_bundle.js"></script>
+<style>
+body{margin:0;font-family:var(--font-core)}
+a{color:var(--ink);text-decoration:underline}a:hover{color:var(--ink-muted)}
+.frame{position:absolute;width:412px}
+.frame-label{position:absolute;top:-40px;left:0;white-space:nowrap;font:600 18px/1.3 var(--font-core);color:var(--ink)}
+.phone{width:412px;height:892px;position:relative;overflow:hidden;background:var(--surface-canvas);border:1px solid var(--border);border-radius:28px}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column}
+.body{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}.body::-webkit-scrollbar{display:none}
+.iconbtn{width:48px;height:48px;display:inline-flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--ink);border-radius:16px;cursor:pointer}
+.sheet-scrim{position:absolute;inset:0;background:rgba(16,17,20,.42);display:flex;align-items:flex-end}
+.menu-scroll::-webkit-scrollbar{display:none}.note{position:absolute;width:2048px;font:15px/1.5 var(--font-core);color:var(--ink);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px}.note h2{font:700 26px/1.25 var(--font-core);margin:0 0 8px;grid-column:1/-1}.note div{background:var(--surface-card);border:1px solid var(--border);border-radius:20px;padding:16px 20px}.note b{display:block;font:600 16px/1.3 var(--font-core);margin-bottom:6px}.note p{margin:0;color:var(--ink-muted);text-wrap:pretty}
+
+body{background:#fff}.phone{border-radius:0;border:0}
+</style></head><body>
+<div id="wrap" style="width:412px;height:892px;overflow:hidden"><div class="phone" id="shot"></div></div>
+<script type="text/babel" src="screens-v6/Secici.jsx"></script>
+<script type="text/babel" src="screens-v6/Menu.jsx"></script>
+<script type="text/babel" src="screens-v9/KHParts.jsx"></script>
+<script type="text/babel" src="screens-v9/Kategori.jsx"></script>
+<script type="text/babel" src="screens-v9/Hesap.jsx"></script>
+<script type="text/babel" src="screens-v9/DigerKat.jsx"></script>
+<script type="text/babel">
+let root = null;
+window.go = (want) => {
+  if (root) root.unmount();
+  root = ReactDOM.createRoot(document.getElementById('shot'));
+  const R = (id, el) => { if (id === want) root.render(el); };
+  renderKat(R); renderHesap(R); renderDiger(R);
+};
+go(new URLSearchParams(location.search).get('id') || 'K0');
+</script></body></html>

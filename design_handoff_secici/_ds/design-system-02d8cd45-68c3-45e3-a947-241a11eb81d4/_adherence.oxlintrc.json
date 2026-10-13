@@ -1,0 +1,596 @@
+{
+  "plugins": [
+    "react",
+    "import"
+  ],
+  "rules": {
+    "react/forbid-elements": [
+      "warn",
+      {
+        "forbid": []
+      }
+    ],
+    "no-restricted-imports": [
+      "warn",
+      {
+        "patterns": [
+          {
+            "group": [
+              "components/charts/**",
+              "components/core/**",
+              "components/feedback/**",
+              "components/forms/**",
+              "components/lists/**",
+              "components/money/**",
+              "components/navigation/**",
+              "ui_kits/mobile/**"
+            ],
+            "message": "Import design-system components from 'index.js', not component internals."
+          }
+        ]
+      }
+    ],
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+        "message": "Raw hex color — use a design-system color token via var()."
+      },
+      {
+        "selector": "Literal[value=/\\b\\d+px\\b/]",
+        "message": "Raw px value — use a design-system spacing token via var()."
+      },
+      {
+        "selector": "Literal[value=/font-family\\s*:\\s*(?!['\\\"]?(?:Roboto|Material Symbols Outlined))/i]",
+        "message": "Font not provided by the design system. Available: Roboto, Material Symbols Outlined."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppBottomSheet'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|subtitle|children|onClose|maxHeight|style|key|ref|className|style|children)$/]",
+        "message": "<AppBottomSheet> doesn't accept that prop. Declared props: title, subtitle, children, onClose, maxHeight, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppCard'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|padding|selected|background|onClick|style|key|ref|className|style|children)$/]",
+        "message": "<AppCard> doesn't accept that prop. Declared props: children, padding, selected, background, onClick, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppConfirmDialog'] > JSXAttribute > JSXIdentifier[name!=/^(?:icon|highlight|message|confirmLabel|cancelLabel|destructive|onConfirm|onCancel|style|key|ref|className|style|children)$/]",
+        "message": "<AppConfirmDialog> doesn't accept that prop. Declared props: icon, highlight, message, confirmLabel, cancelLabel, destructive, onConfirm, onCancel, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppContentWidth'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|style|key|ref|className|style|children)$/]",
+        "message": "<AppContentWidth> doesn't accept that prop. Declared props: children, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppDateField'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|value|onChange|helperText|errorText|labelBackdrop|style|key|ref|className|style|children)$/]",
+        "message": "<AppDateField> doesn't accept that prop. Declared props: label, value, onChange, helperText, errorText, labelBackdrop, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppDonutSlice'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|value|color|formattedValue|key|ref|className|style|children)$/]",
+        "message": "<AppDonutSlice> doesn't accept that prop. Declared props: label, value, color, formattedValue."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppEmptyView'] > JSXAttribute > JSXIdentifier[name!=/^(?:icon|title|message|action|style|key|ref|className|style|children)$/]",
+        "message": "<AppEmptyView> doesn't accept that prop. Declared props: icon, title, message, action, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppErrorView'] > JSXAttribute > JSXIdentifier[name!=/^(?:message|onRetry|style|key|ref|className|style|children)$/]",
+        "message": "<AppErrorView> doesn't accept that prop. Declared props: message, onRetry, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppExpansionTile'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|subtitle|icon|initiallyExpanded|card|children|style|key|ref|className|style|children)$/]",
+        "message": "<AppExpansionTile> doesn't accept that prop. Declared props: title, subtitle, icon, initiallyExpanded, card, children, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppExtendedFab'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|icon|onClick|style|key|ref|className|style|children)$/]",
+        "message": "<AppExtendedFab> doesn't accept that prop. Declared props: label, icon, onClick, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppFilterOption'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|label|key|ref|className|style|children)$/]",
+        "message": "<AppFilterOption> doesn't accept that prop. Declared props: value, label."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppFormField'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|style|key|ref|className|style|children)$/]",
+        "message": "<AppFormField> doesn't accept that prop. Declared props: children, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppFormSheet'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|rule|children|submitLabel|onSubmit|secondaryLabel|onSecondary|cancelLabel|onCancel|isBusy|style|key|ref|className|style|children)$/]",
+        "message": "<AppFormSheet> doesn't accept that prop. Declared props: title, rule, children, submitLabel, onSubmit, secondaryLabel, onSecondary, cancelLabel, onCancel, isBusy, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppInlineNotice'] > JSXAttribute > JSXIdentifier[name!=/^(?:message|icon|actionLabel|onAction|style|key|ref|className|style|children)$/]",
+        "message": "<AppInlineNotice> doesn't accept that prop. Declared props: message, icon, actionLabel, onAction, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppKeyValueRow'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|value|icon|key|ref|className|style|children)$/]",
+        "message": "<AppKeyValueRow> doesn't accept that prop. Declared props: label, value, icon."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppListRow'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|subtitle|icon|iconColor|iconBackground|trailing|badge|action|onClick|dimmed|titleMaxLines|subtitleMaxLines|children|style|key|ref|className|style|children)$/]",
+        "message": "<AppListRow> doesn't accept that prop. Declared props: title, subtitle, icon, iconColor, iconBackground, trailing, badge, action, onClick, dimmed, titleMaxLines, subtitleMaxLines, children, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppLoadingView'] > JSXAttribute > JSXIdentifier[name!=/^(?:message|style|key|ref|className|style|children)$/]",
+        "message": "<AppLoadingView> doesn't accept that prop. Declared props: message, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppMenuGroupLabel'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|style|key|ref|className|style|children)$/]",
+        "message": "<AppMenuGroupLabel> doesn't accept that prop. Declared props: label, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppMetricTile'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|amount|currency|icon|effect|caption|size|tinted|onClick|style|key|ref|className|style|children)$/]",
+        "message": "<AppMetricTile> doesn't accept that prop. Declared props: label, amount, currency, icon, effect, caption, size, tinted, onClick, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppMetricTile'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:standard|hero)$/]",
+        "message": "<AppMetricTile> size must be one of 'standard' | 'hero'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppMoneyText'] > JSXAttribute > JSXIdentifier[name!=/^(?:amount|currency|effect|isCancelled|signed|size|onContainer|semanticsSuffix|style|key|ref|className|style|children)$/]",
+        "message": "<AppMoneyText> doesn't accept that prop. Declared props: amount, currency, effect, isCancelled, signed, size, onContainer, semanticsSuffix, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppMoneyText'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:hero|metric|row|body)$/]",
+        "message": "<AppMoneyText> size must be one of 'hero' | 'metric' | 'row' | 'body'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppMonthPicker'] > JSXAttribute > JSXIdentifier[name!=/^(?:year|month|onChange|style|key|ref|className|style|children)$/]",
+        "message": "<AppMonthPicker> doesn't accept that prop. Declared props: year, month, onChange, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppNavDestination'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|icon|selectedIcon|key|ref|className|style|children)$/]",
+        "message": "<AppNavDestination> doesn't accept that prop. Declared props: label, icon, selectedIcon."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppResponsiveGrid'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|minItemWidth|gap|style|key|ref|className|style|children)$/]",
+        "message": "<AppResponsiveGrid> doesn't accept that prop. Declared props: children, minItemWidth, gap, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppRowAction'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|icon|onClick|disabled|style|key|ref|className|style|children)$/]",
+        "message": "<AppRowAction> doesn't accept that prop. Declared props: label, icon, onClick, disabled, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppScopeChoiceChip'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|selected|onSelect|style|key|ref|className|style|children)$/]",
+        "message": "<AppScopeChoiceChip> doesn't accept that prop. Declared props: label, selected, onSelect, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppScopeDefaultField'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|onChange|helperText|style|key|ref|className|style|children)$/]",
+        "message": "<AppScopeDefaultField> doesn't accept that prop. Declared props: value, onChange, helperText, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppScopeField'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|onChange|helperText|errorText|style|key|ref|className|style|children)$/]",
+        "message": "<AppScopeField> doesn't accept that prop. Declared props: value, onChange, helperText, errorText, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppScopeSwitch'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|onChange|style|key|ref|className|style|children)$/]",
+        "message": "<AppScopeSwitch> doesn't accept that prop. Declared props: value, onChange, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppSectionHeader'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|trailing|style|key|ref|className|style|children)$/]",
+        "message": "<AppSectionHeader> doesn't accept that prop. Declared props: title, trailing, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppSegmentOption'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|label|icon|key|ref|className|style|children)$/]",
+        "message": "<AppSegmentOption> doesn't accept that prop. Declared props: value, label, icon."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppSelectOption'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|label|key|ref|className|style|children)$/]",
+        "message": "<AppSelectOption> doesn't accept that prop. Declared props: value, label."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppShareBar'] > JSXAttribute > JSXIdentifier[name!=/^(?:ratio|color|height|style|key|ref|className|style|children)$/]",
+        "message": "<AppShareBar> doesn't accept that prop. Declared props: ratio, color, height, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppStateView'] > JSXAttribute > JSXIdentifier[name!=/^(?:icon|title|message|tone|action|style|key|ref|className|style|children)$/]",
+        "message": "<AppStateView> doesn't accept that prop. Declared props: icon, title, message, tone, action, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppStatusChip'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|icon|tone|style|key|ref|className|style|children)$/]",
+        "message": "<AppStatusChip> doesn't accept that prop. Declared props: label, icon, tone, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppSubmitButton'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|onSubmit|icon|isBusy|variant|disabled|fullWidth|style|key|ref|className|style|children)$/]",
+        "message": "<AppSubmitButton> doesn't accept that prop. Declared props: label, onSubmit, icon, isBusy, variant, disabled, fullWidth, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppSubmitButton'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:filled|tonal|outlined|text|danger)$/]",
+        "message": "<AppSubmitButton> variant must be one of 'filled' | 'tonal' | 'outlined' | 'text' | 'danger'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppSwitch'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|onChange|label|style|key|ref|className|style|children)$/]",
+        "message": "<AppSwitch> doesn't accept that prop. Declared props: value, onChange, label, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppTabBar'] > JSXAttribute > JSXIdentifier[name!=/^(?:tabs|value|onChange|style|key|ref|className|style|children)$/]",
+        "message": "<AppTabBar> doesn't accept that prop. Declared props: tabs, value, onChange, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppTextField'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|value|onChange|placeholder|helperText|errorText|suffix|prefixIcon|type|disabled|labelBackdrop|style|key|ref|className|style|children)$/]",
+        "message": "<AppTextField> doesn't accept that prop. Declared props: label, value, onChange, placeholder, helperText, errorText, suffix, prefixIcon, type, disabled, labelBackdrop, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppTrendPoint'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|net|hasData|key|ref|className|style|children)$/]",
+        "message": "<AppTrendPoint> doesn't accept that prop. Declared props: label, net, hasData."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppUnauthorizedView'] > JSXAttribute > JSXIdentifier[name!=/^(?:style|key|ref|className|style|children)$/]",
+        "message": "<AppUnauthorizedView> doesn't accept that prop. Declared props: style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Icon'] > JSXAttribute > JSXIdentifier[name!=/^(?:name|size|color|filled|label|style|key|ref|className|style|children)$/]",
+        "message": "<Icon> doesn't accept that prop. Declared props: name, size, color, filled, label, style."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/index.js"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
+  "x-omelette": {
+    "components": {
+      "AppBottomSheet": {
+        "replaces": []
+      },
+      "AppCard": {
+        "replaces": []
+      },
+      "AppConfirmDialog": {
+        "replaces": []
+      },
+      "AppContentWidth": {
+        "replaces": []
+      },
+      "AppDateField": {
+        "replaces": []
+      },
+      "AppDonutSlice": {
+        "replaces": []
+      },
+      "AppEmptyView": {
+        "replaces": []
+      },
+      "AppErrorView": {
+        "replaces": []
+      },
+      "AppExpansionTile": {
+        "replaces": []
+      },
+      "AppExtendedFab": {
+        "replaces": []
+      },
+      "AppFilterOption": {
+        "replaces": []
+      },
+      "AppFormField": {
+        "replaces": []
+      },
+      "AppFormSheet": {
+        "replaces": []
+      },
+      "AppInlineNotice": {
+        "replaces": []
+      },
+      "AppKeyValueRow": {
+        "replaces": []
+      },
+      "AppListRow": {
+        "replaces": []
+      },
+      "AppLoadingView": {
+        "replaces": []
+      },
+      "AppMenuGroupLabel": {
+        "replaces": []
+      },
+      "AppMetricTile": {
+        "replaces": []
+      },
+      "AppMoneyText": {
+        "replaces": []
+      },
+      "AppMonthPicker": {
+        "replaces": []
+      },
+      "AppNavDestination": {
+        "replaces": []
+      },
+      "AppResponsiveGrid": {
+        "replaces": []
+      },
+      "AppRowAction": {
+        "replaces": []
+      },
+      "AppScopeChoiceChip": {
+        "replaces": []
+      },
+      "AppScopeDefaultField": {
+        "replaces": []
+      },
+      "AppScopeField": {
+        "replaces": []
+      },
+      "AppScopeSwitch": {
+        "replaces": []
+      },
+      "AppSectionHeader": {
+        "replaces": []
+      },
+      "AppSegmentOption": {
+        "replaces": []
+      },
+      "AppSelectOption": {
+        "replaces": []
+      },
+      "AppShareBar": {
+        "replaces": []
+      },
+      "AppStateView": {
+        "replaces": []
+      },
+      "AppStatusChip": {
+        "replaces": []
+      },
+      "AppSubmitButton": {
+        "replaces": []
+      },
+      "AppSwitch": {
+        "replaces": []
+      },
+      "AppTabBar": {
+        "replaces": []
+      },
+      "AppTextField": {
+        "replaces": []
+      },
+      "AppTrendPoint": {
+        "replaces": []
+      },
+      "AppUnauthorizedView": {
+        "replaces": []
+      },
+      "Icon": {
+        "replaces": []
+      }
+    },
+    "tokens": [
+      "--action-background",
+      "--action-foreground",
+      "--border",
+      "--border-strong",
+      "--brand",
+      "--brand-container",
+      "--breakpoint-expanded",
+      "--breakpoint-medium",
+      "--cancelled",
+      "--cancelled-container",
+      "--card-background",
+      "--card-border",
+      "--category-1",
+      "--category-2",
+      "--category-3",
+      "--category-4",
+      "--category-5",
+      "--category-other",
+      "--chip-height",
+      "--content-max-width",
+      "--donut-with-legend",
+      "--elevation-flat",
+      "--elevation-floating",
+      "--elevation-raised",
+      "--error",
+      "--error-container",
+      "--expense",
+      "--expense-container",
+      "--expense-fill",
+      "--fab-clearance",
+      "--field-background",
+      "--font-core",
+      "--font-icons",
+      "--income",
+      "--income-container",
+      "--income-fill",
+      "--ink",
+      "--ink-faint",
+      "--ink-muted",
+      "--money-features",
+      "--money-hero-tracking",
+      "--money-tracking",
+      "--nav-bar-height",
+      "--nav-notch",
+      "--neutral",
+      "--neutral-container",
+      "--neutral-fill",
+      "--on-brand",
+      "--on-brand-container",
+      "--on-cancelled-container",
+      "--on-error",
+      "--on-error-container",
+      "--on-expense-container",
+      "--on-income-container",
+      "--on-neutral-container",
+      "--on-planned-container",
+      "--overlay",
+      "--page-background",
+      "--planned",
+      "--planned-container",
+      "--radius-card",
+      "--radius-chip",
+      "--radius-field",
+      "--radius-sheet",
+      "--row-icon-size",
+      "--selected-background",
+      "--space-2xl",
+      "--space-lg",
+      "--space-md",
+      "--space-sm",
+      "--space-xl",
+      "--space-xs",
+      "--surface-canvas",
+      "--surface-card",
+      "--surface-card-muted",
+      "--text-action-line",
+      "--text-action-size",
+      "--text-action-weight",
+      "--text-body-large-line",
+      "--text-body-large-size",
+      "--text-body-line",
+      "--text-body-size",
+      "--text-chip-size",
+      "--text-faint",
+      "--text-helper-line",
+      "--text-helper-size",
+      "--text-hero-line",
+      "--text-hero-size",
+      "--text-hero-tracking",
+      "--text-hero-weight",
+      "--text-label-line",
+      "--text-label-size",
+      "--text-label-small-size",
+      "--text-label-small-tracking",
+      "--text-label-tracking",
+      "--text-label-weight",
+      "--text-metric-line",
+      "--text-metric-size",
+      "--text-metric-tracking",
+      "--text-metric-weight",
+      "--text-primary",
+      "--text-row-line",
+      "--text-row-size",
+      "--text-row-weight",
+      "--text-secondary",
+      "--text-section-line",
+      "--text-section-size",
+      "--text-section-weight",
+      "--text-title-line",
+      "--text-title-size",
+      "--text-title-tracking",
+      "--text-title-weight",
+      "--touch-target"
+    ],
+    "tokenKinds": {
+      "--brand": "color",
+      "--on-brand": "color",
+      "--brand-container": "color",
+      "--on-brand-container": "color",
+      "--surface-canvas": "color",
+      "--surface-card": "color",
+      "--surface-card-muted": "color",
+      "--border": "color",
+      "--border-strong": "color",
+      "--overlay": "color",
+      "--ink": "color",
+      "--ink-muted": "color",
+      "--ink-faint": "color",
+      "--income": "color",
+      "--income-fill": "color",
+      "--income-container": "color",
+      "--on-income-container": "color",
+      "--expense": "color",
+      "--expense-fill": "color",
+      "--expense-container": "color",
+      "--on-expense-container": "color",
+      "--neutral": "color",
+      "--neutral-fill": "color",
+      "--neutral-container": "color",
+      "--on-neutral-container": "color",
+      "--planned": "color",
+      "--planned-container": "color",
+      "--on-planned-container": "color",
+      "--cancelled": "color",
+      "--cancelled-container": "color",
+      "--on-cancelled-container": "color",
+      "--category-1": "color",
+      "--category-2": "color",
+      "--category-3": "color",
+      "--category-4": "color",
+      "--category-5": "color",
+      "--category-other": "color",
+      "--error": "color",
+      "--on-error": "color",
+      "--error-container": "color",
+      "--on-error-container": "color",
+      "--text-primary": "font",
+      "--text-secondary": "font",
+      "--text-faint": "font",
+      "--page-background": "color",
+      "--card-background": "color",
+      "--card-border": "color",
+      "--field-background": "color",
+      "--action-background": "color",
+      "--action-foreground": "color",
+      "--selected-background": "color",
+      "--font-core": "font",
+      "--font-icons": "font",
+      "--text-hero-size": "font",
+      "--text-hero-line": "font",
+      "--text-hero-weight": "font",
+      "--text-hero-tracking": "font",
+      "--text-title-size": "font",
+      "--text-title-line": "font",
+      "--text-title-weight": "font",
+      "--text-title-tracking": "font",
+      "--text-metric-size": "font",
+      "--text-metric-line": "font",
+      "--text-metric-weight": "font",
+      "--text-metric-tracking": "font",
+      "--text-section-size": "font",
+      "--text-section-line": "font",
+      "--text-section-weight": "font",
+      "--text-row-size": "font",
+      "--text-row-line": "font",
+      "--text-row-weight": "font",
+      "--text-body-large-size": "font",
+      "--text-body-large-line": "font",
+      "--text-body-size": "font",
+      "--text-body-line": "font",
+      "--text-helper-size": "font",
+      "--text-helper-line": "font",
+      "--text-action-size": "font",
+      "--text-action-line": "font",
+      "--text-action-weight": "font",
+      "--text-label-size": "font",
+      "--text-chip-size": "font",
+      "--text-label-line": "font",
+      "--text-label-weight": "font",
+      "--text-label-tracking": "font",
+      "--text-label-small-size": "font",
+      "--text-label-small-tracking": "font",
+      "--money-features": "other",
+      "--money-tracking": "font",
+      "--money-hero-tracking": "font",
+      "--space-xs": "spacing",
+      "--space-sm": "spacing",
+      "--space-md": "spacing",
+      "--space-lg": "spacing",
+      "--space-xl": "spacing",
+      "--space-2xl": "spacing",
+      "--fab-clearance": "spacing",
+      "--nav-notch": "spacing",
+      "--breakpoint-medium": "spacing",
+      "--breakpoint-expanded": "spacing",
+      "--content-max-width": "spacing",
+      "--donut-with-legend": "spacing",
+      "--touch-target": "spacing",
+      "--chip-height": "spacing",
+      "--row-icon-size": "spacing",
+      "--nav-bar-height": "spacing",
+      "--radius-card": "radius",
+      "--radius-field": "radius",
+      "--radius-sheet": "radius",
+      "--radius-chip": "radius",
+      "--elevation-flat": "shadow",
+      "--elevation-raised": "shadow",
+      "--elevation-floating": "shadow"
+    },
+    "fontFamilies": [
+      "Material Symbols Outlined",
+      "Roboto"
+    ]
+  }
+}

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="tr"><head><meta charset="utf-8"><title>BusinessFinance · Ay ve filtre seçici</title>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/design-system-02d8cd45-68c3-45e3-a947-241a11eb81d4/styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="_ds/design-system-02d8cd45-68c3-45e3-a947-241a11eb81d4/_ds_bundle.js"></script>
+<style>
+body{margin:0;font-family:var(--font-core)}
+a{color:var(--ink);text-decoration:underline}a:hover{color:var(--ink-muted)}
+.frame{position:absolute;width:412px}
+.frame-label{position:absolute;top:-40px;left:0;white-space:nowrap;font:600 18px/1.3 var(--font-core);color:var(--ink)}
+.phone{width:412px;height:892px;position:relative;overflow:hidden;background:var(--surface-canvas);border:1px solid var(--border);border-radius:28px}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column}
+.body{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}.body::-webkit-scrollbar{display:none}
+.iconbtn{width:48px;height:48px;display:inline-flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--ink);border-radius:16px;cursor:pointer}
+.sheet-scrim{position:absolute;inset:0;background:rgba(16,17,20,.42);display:flex;align-items:flex-end}
+.menu-scroll::-webkit-scrollbar{display:none}.note{position:absolute;width:2048px;font:15px/1.5 var(--font-core);color:var(--ink);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px}.note h2{font:700 26px/1.25 var(--font-core);margin:0 0 8px;grid-column:1/-1}.note div{background:var(--surface-card);border:1px solid var(--border);border-radius:20px;padding:16px 20px}.note b{display:block;font:600 16px/1.3 var(--font-core);margin-bottom:6px}.note p{margin:0;color:var(--ink-muted);text-wrap:pretty}
+</style>
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#16191D"/><text x="50" y="62" font-family="Roboto,sans-serif" font-size="30" font-weight="700" fill="#fff" text-anchor="middle">BF</text></svg></template>
+</head><body>
+<div class="note" style="left:80px;top:80px"><h2>Brif 5 · Kategori özeti ve kategori sayfası</h2>
+<div><b>1 · Vadeli satırı</b><p>Ayrı grup "Hesaptan geçmeyen", tek satır "Vadeli". Alt yazı giderde "Vadeli alım, fatura ve borçla alınanlar", gelirde "Veresiye satış ve alacaklar". Durum söylemez; ödenmiş fatura da burada kalır.</p></div>
+<div><b>2 · Parça satırı</b><p>Başlık bağlı işlem (Kartlı satış · Ziraat POS), alt yazı işlemin tutarı ("₺8.400,00 satışın komisyonu"), sağdaki tutar yalnız parça. İkinci tutar sağa konmaz; iki sayı yan yana okunmasın.</p></div>
+<div><b>3 · Ödendi / Açık</b><p>Alt yazının altında üçüncü satır, AppStatusTag: ✓ ikon + "Ödendi · 20 Eki · Ziraat Vadesiz" (yeşil) ya da saat ikonu + "Açık" (gri). İkon ve kelime farklı; renk tek başına taşımaz.</p></div>
+<div><b>4 · Soluk çip</b><p>Kesik çizgi, soluk yazı, zemin yok. Dokununca menü açılmaz; çip satırının altında tek cümle (B4b). Boş menü hiç oluşmaz.</p></div>
+<div><b>5 · Kartın alt satırı</b><p>Seçim yokken "Geçen ay", seçim varken yalnız "Kategorinin tamamı". İkisi birlikte yazılmaz; geçen ay seçim kalkınca döner.</p></div>
+<div><b>6 · Kategorisi yok</b><p>Listenin altında kendi kesik çizgili kartında, nötr gri ikonla ve "kategori seçilmeli" alt yazısıyla. Dokunulur: kayıtları açılır, kategori oradan verilir.</p></div>
+<div><b>7 · İleri ay</b><p>Kaydı olan ileri ay (Kas) olağan kutucuk + çubuk; kaydı olmayan ileri ay (Ara) kesik çizgi ve kapalı. Geçmişteki boş ay (Tem, Eyl) seçilebilir, çubuksuz.</p></div>
+<div><b>8 · Uzun satır (2.0×)</b><p>Başlık en çok iki satır, alt yazı kırılır; tutar ve altındaki komisyon sağ sütunda kısalmadan kalır. 2.0× ölçek çerçevesi sonraki turda.</p></div>
+</div>
+<div class="frame" style="left:80px;top:500px" data-screen-label="A1 · Gider, seçim yok"><div class="frame-label">A1 · Gider, seçim yok</div><div class="phone" id="A1"></div></div>
+<div class="frame" style="left:572px;top:500px" data-screen-label="A2 · Hesap / kart menüsü"><div class="frame-label">A2 · Hesap / kart menüsü</div><div class="phone" id="A2"></div></div>
+<div class="frame" style="left:1064px;top:500px" data-screen-label="A3 · Ziraat Vadesiz seçili"><div class="frame-label">A3 · Ziraat Vadesiz seçili</div><div class="phone" id="A3"></div></div>
+<div class="frame" style="left:1556px;top:500px" data-screen-label="A4 · Vadeli seçili"><div class="frame-label">A4 · Vadeli seçili</div><div class="phone" id="A4"></div></div>
+<div class="frame" style="left:2048px;top:500px" data-screen-label="A5 · Gelir, seçim yok"><div class="frame-label">A5 · Gelir, seçim yok</div><div class="phone" id="A5"></div></div>
+<div class="frame" style="left:2540px;top:500px" data-screen-label="A6 · Gelirde menü"><div class="frame-label">A6 · Gelirde menü</div><div class="phone" id="A6"></div></div>
+<div class="frame" style="left:3200px;top:500px" data-screen-label="K0 · Diğer · Kategoriler başlığı"><div class="frame-label">K0 · Diğer · Kategoriler başlığı</div><div class="phone" id="K0"></div></div>
+<div class="frame" style="left:3692px;top:500px" data-screen-label="O2 · İkon önerileri"><div class="frame-label">O2 · İkon önerileri</div><div id="O2" style="width:412px;background:var(--surface-canvas);border:1px solid var(--border);border-radius:28px"></div></div>
+<div class="frame" style="left:80px;top:1500px" data-screen-label="A7 · Uzun ad, büyük tutar"><div class="frame-label">A7 · Uzun ad, büyük tutar</div><div class="phone" id="A7"></div></div>
+<div class="frame" style="left:572px;top:1500px" data-screen-label="A8 · Kategorisi yok"><div class="frame-label">A8 · Kategorisi yok</div><div class="phone" id="A8"></div></div>
+<div class="frame" style="left:1064px;top:1500px" data-screen-label="A9 · Ay seçici · Bonus Kart"><div class="frame-label">A9 · Ay seçici · Bonus Kart</div><div class="phone" id="A9"></div></div>
+<div class="frame" style="left:1556px;top:1500px" data-screen-label="A10 · Seçili hesabın boş ayı"><div class="frame-label">A10 · Seçili hesabın boş ayı</div><div class="phone" id="A10"></div></div>
+<div class="frame" style="left:2048px;top:1500px" data-screen-label="A11 · Hiç gider yok"><div class="frame-label">A11 · Hiç gider yok</div><div class="phone" id="A11"></div></div>
+<div class="frame" style="left:2540px;top:1500px" data-screen-label="A12 · İşletmesi olmayan"><div class="frame-label">A12 · İşletmesi olmayan</div><div class="phone" id="A12"></div></div>
+<div class="frame" style="left:3032px;top:1500px" data-screen-label="A8 · Kategorisi yok · kayıtlar"><div class="frame-label">A8 · Kategorisi yok · kayıtlar</div><div class="phone" id="A8b"></div></div>
+<div class="frame" style="left:3524px;top:1500px" data-screen-label="A8 · Kategori seç"><div class="frame-label">A8 · Kategori seç</div><div class="phone" id="A8c"></div></div>
+<div class="frame" style="left:4016px;top:1500px" data-screen-label="A8 · Kategori verildi"><div class="frame-label">A8 · Kategori verildi</div><div class="phone" id="A8d"></div></div>
+<div class="frame" style="left:80px;top:2500px" data-screen-label="B1 · Ticari mal alımı"><div class="frame-label">B1 · Ticari mal alımı</div><div class="phone" id="B1"></div></div>
+<div class="frame" style="left:572px;top:2500px" data-screen-label="B2 · Hesap / kart menüsü"><div class="frame-label">B2 · Hesap / kart menüsü</div><div class="phone" id="B2"></div></div>
+<div class="frame" style="left:1064px;top:2500px" data-screen-label="B3 · Kişi menüsü"><div class="frame-label">B3 · Kişi menüsü</div><div class="phone" id="B3"></div></div>
+<div class="frame" style="left:1556px;top:2500px" data-screen-label="B4 · Ziraat seçili, Kişi soluk"><div class="frame-label">B4 · Ziraat seçili, Kişi soluk</div><div class="phone" id="B4"></div></div>
+<div class="frame" style="left:2048px;top:2500px" data-screen-label="B4 · Soluk çipe dokununca"><div class="frame-label">B4 · Soluk çipe dokununca</div><div class="phone" id="B4b"></div></div>
+<div class="frame" style="left:2540px;top:2500px" data-screen-label="B5 · Fatura · Ödendi"><div class="frame-label">B5 · Fatura · Ödendi</div><div class="phone" id="B5"></div></div>
+<div class="frame" style="left:3032px;top:2500px" data-screen-label="B5 · Fatura · Açık"><div class="frame-label">B5 · Fatura · Açık</div><div class="phone" id="B5b"></div></div>
+<div class="frame" style="left:80px;top:3500px" data-screen-label="B6 · Banka ve POS komisyonu"><div class="frame-label">B6 · Banka ve POS komisyonu</div><div class="phone" id="B6"></div></div>
+<div class="frame" style="left:572px;top:3500px" data-screen-label="B7 · Faiz ve finansman gideri"><div class="frame-label">B7 · Faiz ve finansman gideri</div><div class="phone" id="B7"></div></div>
+<div class="frame" style="left:1064px;top:3500px" data-screen-label="B8 · Satış geliri"><div class="frame-label">B8 · Satış geliri</div><div class="phone" id="B8"></div></div>
+<div class="frame" style="left:1556px;top:3500px" data-screen-label="B8 · Satış geliri · menü"><div class="frame-label">B8 · Satış geliri · menü</div><div class="phone" id="B8b"></div></div>
+<div class="frame" style="left:2048px;top:3500px" data-screen-label="B9 · Sigorta · İşletme ile"><div class="frame-label">B9 · Sigorta · İşletme ile</div><div class="phone" id="B9"></div></div>
+<div class="frame" style="left:2540px;top:3500px" data-screen-label="B9 · Sigorta · Hepsi ile"><div class="frame-label">B9 · Sigorta · Hepsi ile</div><div class="phone" id="B9b"></div></div>
+<div class="frame" style="left:3032px;top:3500px" data-screen-label="B10 · Boş ay"><div class="frame-label">B10 · Boş ay</div><div class="phone" id="B10"></div></div>
+<div class="note" style="left:80px;top:4500px"><h2>Brif 6 · Hesap sayfası ve Hesaplar</h2>
+<div><b>1 · Menü çipi</b><p>"Tür". Seçimden sonra seçilenin adını yazar ("Borç taksidi ödemesi", "Kategori").</p></div>
+<div><b>2 · Yön</b><p>Para taşıyan satır mavi kalır ama bu sayfada işaret alır (+ / −). Transferde alt yazıda → / ← ok. Yön işaretten okunur, renkten değil.</p></div>
+<div><b>3 · Yolda</b><p>Mavi kutu, bakiye kartının altında: "Yolda" + toplam, en yakın tek satış, fazlası "Tümünü gör". Tutar hesaba geçecek tutar; altında "komisyon sonrası". Yolda sayfası hesap sayfasıyla aynı iskelet.</p></div>
+<div><b>4 · Kart</b><p>Tek kart: bakiye üstte, çizginin altında Giren · Çıkan · Net. Geçmiş ayda "Eylül sonu bakiye" büyük, altında "Bugün ₺…".</p></div>
+<div><b>5 · Hesap ayarları</b><p>Başlıkla ay arasında ayar ikonu (48 px, erişilebilir adı "Hesap ayarları"). Uzun adda başlık kısalır (H13).</p></div>
+<div><b>6 · Menü</b><p>Kategori menüsüyle aynı: ara başlık yalnız etiket (ikon ve tutar yok), satırlar ikon · ad · tutar. Tutar rengi yönü söyler.</p></div>
+<div><b>7 · Seçimin toplamı</b><p>Kart ayın toplamında kalır; seçimin toplamı listenin başında tek satır ("Borç taksidi ödemesi · −₺4.000,00").</p></div>
+<div><b>8 · Tutarın altı</b><p>"₺50,00 masraf dahil", "₺40,00 kesinti sonrası", "₺150,00 faiz dahil". İşlemler'de transfer kendi tutarını yazdığı için orada "+ ₺50,00 masraf" (D4).</p></div>
+</div>
+<div class="frame" style="left:80px;top:4920px" data-screen-label="H1 · Tümü · Yolda kutusu"><div class="frame-label">H1 · Tümü · Yolda kutusu</div><div class="phone" id="H1"></div></div>
+<div class="frame" style="left:1064px;top:4920px" data-screen-label="H2 · Giren"><div class="frame-label">H2 · Giren</div><div class="phone" id="H2"></div></div>
+<div class="frame" style="left:1556px;top:4920px" data-screen-label="H3 · Çıkan"><div class="frame-label">H3 · Çıkan</div><div class="phone" id="H3"></div></div>
+<div class="frame" style="left:2048px;top:4920px" data-screen-label="H4 · Menü · Tümü"><div class="frame-label">H4 · Menü · Tümü</div><div class="phone" id="H4"></div></div>
+<div class="frame" style="left:2540px;top:4920px" data-screen-label="H5 · Menü · Giren"><div class="frame-label">H5 · Menü · Giren</div><div class="phone" id="H5"></div></div>
+<div class="frame" style="left:3032px;top:4920px" data-screen-label="H6 · Menü · Çıkan"><div class="frame-label">H6 · Menü · Çıkan</div><div class="phone" id="H6"></div></div>
+<div class="frame" style="left:80px;top:5920px" data-screen-label="H7 · Çıkan · Borç taksidi"><div class="frame-label">H7 · Çıkan · Borç taksidi</div><div class="phone" id="H7"></div></div>
+<div class="frame" style="left:572px;top:5920px" data-screen-label="H8 · Çıkan · Kategori"><div class="frame-label">H8 · Çıkan · Kategori</div><div class="phone" id="H8"></div></div>
+<div class="frame" style="left:1064px;top:5920px" data-screen-label="H9 · Geçmiş ay"><div class="frame-label">H9 · Geçmiş ay</div><div class="phone" id="H9"></div></div>
+<div class="frame" style="left:1556px;top:5920px" data-screen-label="H10 · Yolda sayfası · tek satış"><div class="frame-label">H10 · Yolda sayfası · tek satış</div><div class="phone" id="H10"></div></div>
+<div class="frame" style="left:2048px;top:5920px" data-screen-label="H10 · Yolda sayfası · dört satış"><div class="frame-label">H10 · Yolda sayfası · dört satış</div><div class="phone" id="H10b"></div></div>
+<div class="frame" style="left:2540px;top:5920px" data-screen-label="H11 · Dükkan Kasası"><div class="frame-label">H11 · Dükkan Kasası</div><div class="phone" id="H11"></div></div>
+<div class="frame" style="left:3032px;top:5920px" data-screen-label="H12 · Hareket yok"><div class="frame-label">H12 · Hareket yok</div><div class="phone" id="H12"></div></div>
+<div class="frame" style="left:3524px;top:5920px" data-screen-label="H13 · Uzun ad, büyük tutar"><div class="frame-label">H13 · Uzun ad, büyük tutar</div><div class="phone" id="H13"></div></div>
+<div class="frame" style="left:4508px;top:5920px" data-screen-label="H15 · Ay seçici"><div class="frame-label">H15 · Ay seçici</div><div class="phone" id="H15"></div></div>
+<div class="frame" style="left:80px;top:6920px" data-screen-label="D1 · Ayrıntı · Transfer"><div class="frame-label">D1 · Ayrıntı · Transfer</div><div class="phone" id="D1"></div></div>
+<div class="frame" style="left:572px;top:6920px" data-screen-label="D2 · Ayrıntı · POS yatışı"><div class="frame-label">D2 · Ayrıntı · POS yatışı</div><div class="phone" id="D2"></div></div>
+<div class="frame" style="left:1064px;top:6920px" data-screen-label="D2 · POS yatışı · 3 satış"><div class="frame-label">D2 · POS yatışı · 3 satış</div><div class="phone" id="D2b"></div></div>
+<div class="frame" style="left:1556px;top:6920px" data-screen-label="D3 · Yeni transfer sayfası · geri: geldiği yer"><div class="frame-label">D3 · Yeni transfer sayfası · geri: geldiği yer</div><div class="phone" id="D3"></div></div>
+<div class="frame" style="left:2048px;top:6920px" data-screen-label="D3 · Yeni transfer sayfası · masraflı"><div class="frame-label">D3 · Yeni transfer sayfası · masraflı</div><div class="phone" id="D3b"></div></div>
+<div class="frame" style="left:2540px;top:6920px" data-screen-label="D4 · İşlemler satırı"><div class="frame-label">D4 · İşlemler satırı</div><div class="phone" id="D4"></div></div>
+<div class="frame" style="left:3032px;top:6920px" data-screen-label="D5 · Hesaplar"><div class="frame-label">D5 · Hesaplar</div><div class="phone" id="D5"></div></div>
+<div class="frame" style="left:3524px;top:6920px" data-screen-label="D6 · Hesaplar · boş"><div class="frame-label">D6 · Hesaplar · boş</div><div class="phone" id="D6"></div></div>
+<script type="text/babel" src="screens-v6/Secici.jsx"></script>
+<script type="text/babel" src="screens-v6/Menu.jsx"></script>
+<script type="text/babel" src="screens-v9/KHParts.jsx"></script>
+<script type="text/babel" src="screens-v9/Kategori.jsx"></script>
+<script type="text/babel" src="screens-v9/Hesap.jsx"></script>
+<script type="text/babel" src="screens-v9/DigerKat.jsx"></script>
+<script type="text/babel">
+const R6 = (id, el) => ReactDOM.createRoot(document.getElementById(id)).render(el);
+renderKat(R6);
+renderHesap(R6);
+renderDiger(R6);
+</script>
+</body></html>
