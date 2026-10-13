@@ -60,7 +60,7 @@ void main() {
     final title = tester.widget<Text>(
       find.text('İstanbulkart\'la Marmaray\'a bindim'),
     );
-    expect(title.maxLines, 1);
+    expect(title.maxLines, 2);
   });
 
   testWidgets('kayıt adı zaten kategoriyse kategori tekrar yazılmaz', (

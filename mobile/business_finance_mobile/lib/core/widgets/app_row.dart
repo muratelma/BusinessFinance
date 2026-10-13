@@ -24,6 +24,8 @@ class AppRow extends StatelessWidget {
     ),
     this.titleStyle,
     this.semanticLabel,
+    this.titleMaxLines = 1,
+    this.minHeight = 56,
   });
 
   final Widget? leading;
@@ -36,6 +38,8 @@ class AppRow extends StatelessWidget {
 
   /// Satır tek cümleyle okunacaksa; verilmezse parçalar birleştirilir.
   final String? semanticLabel;
+  final int titleMaxLines;
+  final double minHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +47,7 @@ class AppRow extends StatelessWidget {
     // Büyük yazıda sondaki öğe metnin altına iner; yan yana sığmıyordu.
     final stacked = trailing != null && context.usesLargeText;
     final content = ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 56),
+      constraints: BoxConstraints(minHeight: minHeight),
       child: Padding(
         padding: padding,
         child: Row(
@@ -59,7 +63,7 @@ class AppRow extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    maxLines: stacked ? 2 : 1,
+                    maxLines: stacked ? 2 : titleMaxLines,
                     overflow: TextOverflow.ellipsis,
                     style: titleStyle ?? theme.textTheme.titleSmall,
                   ),
@@ -75,7 +79,10 @@ class AppRow extends StatelessWidget {
                     ),
                   if (stacked) ...[
                     const SizedBox(height: AppSpacing.xSmall),
-                    Align(alignment: Alignment.centerRight, child: trailing),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: FittedBox(fit: BoxFit.scaleDown, child: trailing),
+                    ),
                   ],
                 ],
               ),

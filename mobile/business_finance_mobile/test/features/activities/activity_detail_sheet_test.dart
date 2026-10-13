@@ -19,8 +19,10 @@ void main() {
     );
 
     // Tasarım teslimi: iki hesap tek satırda, paranın yönüyle.
-    expect(find.text('Hesaplar'), findsOneWidget);
-    expect(find.text('Banka → Nakit'), findsOneWidget);
+    expect(find.text('Çıkan hesap'), findsOneWidget);
+    expect(find.text('Giren hesap'), findsOneWidget);
+    expect(find.text('Banka'), findsOneWidget);
+    expect(find.text('Nakit'), findsOneWidget);
   });
 
   testWidgets('labels a card payment by the account and the card it settles', (

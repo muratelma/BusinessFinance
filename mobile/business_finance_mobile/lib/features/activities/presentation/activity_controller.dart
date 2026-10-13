@@ -12,14 +12,18 @@ class ActivityController extends ChangeNotifier {
     this._repository, {
     this.financialDataChanges,
     this.scopeController,
+    this.observeChanges = true,
   }) : _seenRevision = financialDataChanges?.activityFeedRevision ?? 0,
        _seenScope = scopeController?.scope {
-    financialDataChanges?.addListener(_handleFinancialDataChanged);
+    if (observeChanges) {
+      financialDataChanges?.addListener(_handleFinancialDataChanged);
+    }
     scopeController?.addListener(_handleScopeChanged);
   }
 
   final ActivityRepositoryContract _repository;
   final FinancialDataChanges? financialDataChanges;
+  final bool observeChanges;
 
   /// Uygulama genelindeki kapsam anahtarı; feed'in kendi filtresi değildir.
   final ScopeController? scopeController;
@@ -114,7 +118,7 @@ class ActivityController extends ChangeNotifier {
   /// Cancels a movement and reloads. The lock is the only defence against a
   /// double tap creating two requests: the server has no idempotency key yet, so
   /// a second call would be a second write.
-  Future<bool> cancel(FinancialActivity activity) async {
+  Future<bool> cancel(FinancialActivity activity, {bool reload = true}) async {
     if (isCancelling || !activity.canCancel) return false;
     isCancelling = true;
     errorMessage = null;
@@ -129,7 +133,7 @@ class ActivityController extends ChangeNotifier {
         case ActivityKind.accountTransaction:
           financialDataChanges?.transactionsChanged();
         case ActivityKind.transfer:
-          financialDataChanges?.transferChanged();
+          financialDataChanges?.transferChanged(fee: activity.hasFee);
         case ActivityKind.cardCharge:
           financialDataChanges?.cardSpendingChanged();
         case ActivityKind.cardPayment:
@@ -157,7 +161,7 @@ class ActivityController extends ChangeNotifier {
           financialDataChanges?.obligationCancelled();
       }
       successMessage = 'Hareket iptal edildi.';
-      await load();
+      if (reload) await load();
       return true;
     } on ApiException catch (error) {
       unauthorized = error.isUnauthorized;

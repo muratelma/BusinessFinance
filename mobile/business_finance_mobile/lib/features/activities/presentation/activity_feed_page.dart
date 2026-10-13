@@ -18,11 +18,9 @@ import '../data/activity_repository.dart';
 import '../data/planned_activity_models.dart';
 import 'activity_controller.dart';
 import '../../day_close/data/day_close_repository.dart';
-import '../../day_close/presentation/day_close_controller.dart';
-import '../../day_close/presentation/day_close_detail.dart';
 import '../../pos/data/pos_repository.dart';
-import '../../pos/presentation/pos_deposit_sheets.dart';
-import 'activity_detail_sheet.dart';
+import 'show_activity_detail.dart';
+import '../../finance_pages/data/finance_page_repository.dart';
 import 'activity_filter_sheet.dart';
 import 'activity_tile.dart';
 
@@ -42,6 +40,7 @@ class ActivityFeedPage extends StatefulWidget {
     this.onShowPlanned,
     this.scopeController,
     this.posRepository,
+    this.pageRepository,
     this.dayCloseRepository,
     this.now,
   });
@@ -56,6 +55,7 @@ class ActivityFeedPage extends StatefulWidget {
   /// Yatış satırı kendi ayrıntısını (kapattığı tahsilatlar, kesinti, geri
   /// alma) bu depodan okur. Verilmezse satır genel ayrıntı panelinde açılır.
   final PosRepositoryContract? posRepository;
+  final FinancePageRepositoryContract? pageRepository;
 
   /// Uygulama genelindeki kapsam anahtarı. Bu ekran anahtarı **değiştirmez**,
   /// yalnız uygular ve başlığında yazar; tek anahtar Özet ekranındadır.
@@ -333,88 +333,16 @@ class _ActivityFeedPageState extends State<ActivityFeedPage> {
     );
   }
 
-  Future<void> _openDetail(FinancialActivity activity) async {
-    final posRepository = widget.posRepository;
-    if (activity.kind == ActivityKind.posDeposit && posRepository != null) {
-      // Yatış geri alınınca akış `FinancialDataChanges` ile kendini yeniler.
-      // Satırın taşıdıklarıyla panel hemen açılır; kapattığı tahsilatlar
-      // yerinde yüklenir.
-      await showPosDepositDetail(
-        context,
-        repository: posRepository,
-        depositId: activity.activityId,
-        changes: widget.changes,
-        initial: PosDepositSummary(
-          depositedAmount: activity.amount,
-          depositDate: activity.activityDate,
-          accountName: activity.destinationName ?? '',
-          currency: activity.currency,
-          isCancelled: activity.isCancelled,
-          deductionAmount: activity.hasFee ? activity.feeAmount : null,
-          settlementCount: activity.settlementCount ?? 0,
-        ),
-      );
-      return;
-    }
-    // Bir kez istenir; panel yeniden çizilirken yeniden okunmaz.
-    final balances = activity.isCancelled
-        ? null
-        : _controller.balancesAfter(activity);
-    await AppAdaptiveSheet.show<void>(
-      context: context,
-      builder: (sheetContext) => AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) => ActivityDetailSheet(
-          activity: activity,
-          balances: balances,
-          isCancelling: _controller.isCancelling,
-          onShowDayClose:
-              activity.belongsToDayClose && widget.dayCloseRepository != null
-              ? () {
-                  Navigator.of(sheetContext).pop();
-                  _openDayClose(activity);
-                }
-              : null,
-          onCancel: activity.canCancel
-              ? () async {
-                  final cancelled = await _controller.cancel(activity);
-                  if (cancelled && sheetContext.mounted) {
-                    Navigator.of(sheetContext).pop();
-                  }
-                }
-              : null,
-        ),
-      ),
-    );
-    if (!mounted) return;
-    _showPendingMessage();
-  }
-
-  /// Kaydın gününü açar: o günün gün sonları (ana ve ekler), yazdıkları ve
-  /// saydıkları kayıtlar. Geri alma oradadır.
-  Future<void> _openDayClose(FinancialActivity activity) async {
-    final repository = widget.dayCloseRepository;
-    if (repository == null) return;
-    final controller = DayCloseController(repository, changes: widget.changes);
-    try {
-      await showDayCloseDay(
-        context,
-        controller: controller,
-        date: activity.activityDate,
-      );
-    } finally {
-      controller.dispose();
-    }
-  }
-
-  void _showPendingMessage() {
-    final message = _controller.successMessage ?? _controller.errorMessage;
-    if (message == null) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
-    _controller.clearMessages();
-  }
+  Future<void> _openDetail(FinancialActivity activity) => showActivityDetail(
+    context,
+    activity: activity,
+    controller: _controller,
+    pageRepository: widget.pageRepository,
+    posRepository: widget.posRepository,
+    dayCloseRepository: widget.dayCloseRepository,
+    changes: widget.changes,
+    reloadOnCancel: true,
+  );
 
   Future<void> _openFilters() async {
     final result = await AppAdaptiveSheet.show<ActivityFilter>(

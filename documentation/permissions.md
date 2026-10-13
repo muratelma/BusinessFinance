@@ -407,3 +407,11 @@ foreign key başka sahibin giderine bağlamayı engeller. Masraf tek başına ip
 edilemez. Transfer önizlemesi kayıt yazmaz; masraf kapsamı mevcut kapsam
 çözümleyicisinden gelir. `categories/bank-fee` yalnız sahibin rol kategorisini
 bulur/açar. Sözleşme: `category-account-pages-api-contract.md`.
+
+## Finans sayfalarının ortak ayrıntı yolu — 13 Ekim 2026
+
+Flutter sayfa satırı, sunucunun verdiği işlem türü/kimliğiyle aynı birleşik
+ayrıntıyı açar. `parts` ve `balances` okumaları bu kimliğin sahibini bağımsız
+kontrol eder; sayfa listesinden gelmiş olmak yetkilendirme kanıtı değildir.
+Kategori kaleminin ek `scope` alanı raporlama bilgisidir, erişim sınırını
+veya hesap bakiyesini değiştirmez. İstemci hiçbir yeni sorguya `UserId` eklemez.

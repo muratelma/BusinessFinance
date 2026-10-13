@@ -5,10 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:business_finance_mobile/core/widgets/app_card.dart';
 import 'package:business_finance_mobile/core/widgets/app_form_error.dart';
 import '../../helpers/accessibility.dart';
-import 'package:business_finance_mobile/core/theme/app_spacing.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
 import 'package:business_finance_mobile/core/widgets/app_row_action.dart';
-import 'package:business_finance_mobile/core/widgets/app_status_chip.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -385,52 +383,6 @@ void main() {
     expect(repository.lastPlanInput!['totalAmount'], '1400');
   });
 
-  testWidgets('active transfer opens details and can be cancelled', (
-    tester,
-  ) async {
-    // Transfer bölümü artık Hesaplar ekranının içinde gömülü çiziliyor.
-    final repository = _FakeFinanceRepository(
-      transfers: [TransferItem.fromJson(_transferJson)],
-    );
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light(),
-        home: Scaffold(
-          body: FinancePage(
-            repository: repository,
-            section: FinanceSection.transfers,
-            embedded: true,
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('₺125,50'));
-    await tester.pumpAndSettle();
-    expect(find.text('Transfer ayrıntısı'), findsOneWidget);
-    // Durum etiketli bir metin satırı değil, rozet.
-    expect(find.text('Durum: Aktif'), findsNothing);
-    expect(find.widgetWithText(AppStatusChip, 'Aktif'), findsOneWidget);
-    // Transferin asıl hikâyesi iki uç: nereden nereye.
-    expect(find.text('Çıkan hesap'), findsOneWidget);
-    expect(find.text('Giren hesap'), findsOneWidget);
-    expect(find.textContaining('gelir veya gider sayılmaz'), findsOneWidget);
-
-    await tester.tap(find.text('Transferi iptal et'));
-    await tester.pumpAndSettle();
-    expect(find.text('Transfer iptal edilsin mi?'), findsOneWidget);
-    await tester.tap(
-      find.descendant(
-        of: find.byType(Dialog),
-        matching: find.widgetWithText(FilledButton, 'Transferi iptal et'),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(repository.cancelledTransferId, 'transfer-id');
-    expect(find.textContaining('İptal'), findsWidgets);
-  });
   testWidgets('kart özeti ekstreyi güncel borcun üstünde manşetle gösterir', (
     tester,
   ) async {
@@ -937,56 +889,6 @@ void main() {
 
     expect(controller.period, HistoryPeriod.all);
     expect(repository.requestedPeriods, contains(HistoryPeriod.all));
-  });
-
-  testWidgets('dönem seçici satırı kaplar', (tester) async {
-    // İlk yazımda `Align` içindeydi: sağında ölü boşluk bırakıyor ve
-    // Planlananlar ekranındaki aynı işi yapan bardan farklı görünüyordu.
-    //
-    // Ölçüm **normal** yazı ölçeğinde: en büyük ölçekte butonun kendi
-    // genişliği zaten satırı dolduruyor ve yaslama farkı ölçülemiyor —
-    // ilk yazımda test o yüzden `Align` geri konduğunda da geçiyordu.
-    tester.view.physicalSize = const Size(400, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light(),
-        home: FinancePage(
-          repository: _FakeFinanceRepository(),
-          section: FinanceSection.transfers,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    final selector = find.byType(SegmentedButton<HistoryPeriod>);
-    expect(selector, findsOneWidget);
-
-    // Kart kenarlarına **tam** oturuyor: iki yandaki `medium` boşluk dışında
-    // satırın tamamı. Gevşek bir alt sınır yeterli değildi — butonun kendi
-    // genişliği zaten ona yakın olduğu için `Align` geri konduğunda da
-    // geçiyordu. Ölçü birebir olmalı.
-    final width = tester.getSize(selector).width;
-    final screen = tester.getSize(find.byType(Scaffold)).width;
-    expect(width, screen - 2 * AppSpacing.medium);
-  });
-
-  testWidgets('dönem seçici en büyük yazı ölçeğinde taşmaz', (tester) async {
-    await pumpAtLargestTextScale(
-      tester,
-      MaterialApp(
-        theme: AppTheme.light(),
-        home: FinancePage(
-          repository: _FakeFinanceRepository(),
-          section: FinanceSection.transfers,
-        ),
-      ),
-    );
-
-    expect(find.byType(SegmentedButton<HistoryPeriod>), findsOneWidget);
-    expectNoOverflow(tester);
   });
 
   // Dekonttan gelen öneri formu kendiliğinden açıyor. Ödeme kaydedilince liste

@@ -43,7 +43,7 @@ Future<void> openQuickAdd(BuildContext context) async {
     // plans to planning. The launcher routes to them rather than growing a
     // second copy of forms that already exist.
     case QuickAddOption.transfer:
-      context.push('/more/accounts?tab=transfers');
+      context.push(transferLocation);
     case QuickAddOption.cardPayment:
       context.push('/more/cards');
     case QuickAddOption.recurringPlan:

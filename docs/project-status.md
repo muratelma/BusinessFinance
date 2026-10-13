@@ -663,6 +663,8 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
   06.2 arayüz düzeni (beklemede) → **06.3 bütünsel düzenleme (aktif)** →
   (gerekirse 06.x) → 07 bulut (`PROJECT-ROADMAP.md`)
 
+- **06.3 — kategori ve hesap sayfaları Flutter teslimi ve sunucu hatası (13 Ekim 2026; `kategori-hesap-sayfalari`)**: Paket 5–7 tamamlandı; typed repo/controller, kategori özeti/kategori/hesap/Yolda, Hesaplar, ayrı transfer sayfası, Diğer menüsü ve ortak satır/menü/ay seçici/ayrıntı bağlandı. Transfer masrafı dekonttan forma gelir; eski transfer kopyaları kaldırıldı. Parça kendi gerçek kapsamını taşır. Kullanıcının 5284 API'sinde geliştirme hedefinin bekleyen `AddCategoryRolesAndTransferFees` migration'ı gerçek 500 ile doğrulandı; incelenmiş veri kaybettirmeyen yükseltmeden sonra aynı istek ve diğer sayfa uçları 200 döndü. API durdurulmadı, veri sıfırlanmadı. Son kontroller: backend gerçek SQL ile **1384 geçti** (Domain 402, Application 400, API 327, Infrastructure 255), 2 canlı test atlandı, build 0 uyarı/hata ve format temiz; Flutter analyze ve format temiz (354 dosya, 0 değişiklik), **1164 geçti / 180 görüntü-çizim testi atlandı**, yeni teslimin etkin görüntü koşusu **51/51**, debug APK başarılı; ayrı Release API'de **78 denetim** geçti. Görev yedi paket olarak teslim edildi; yol günlüğü ve ek düzeltmeler `research/TESLIM-2026-10-13-kategori-hesap-sayfalari.md`. Kullanıcı dosyaları korundu, push/merge yapılmadı. **Sırada cihaz kabulü**: bu oturumda ADB cihaz göstermedi; emülatör/gerçek cihaz/canlı ekran okuyucu turu yapılmadı. Aşama 06.3 Aktif kalır.
+
 ## Taşımada yapılan ve doğrulanan işler
 
 21 Ağustos 2026, tek oturum:

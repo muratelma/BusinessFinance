@@ -84,6 +84,7 @@ void main() {
 
       await tester.tap(find.text('Diğer'));
       await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Bütçeler'), 200);
       expect(find.text('Bütçeler'), findsOneWidget);
       await tester.tap(find.text('Bütçeler'));
       await tester.pumpAndSettle();

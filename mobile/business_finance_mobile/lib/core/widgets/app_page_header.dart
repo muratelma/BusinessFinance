@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_spacing.dart';
 import '../theme/app_surfaces.dart';
+import '../theme/app_breakpoints.dart';
 
 /// Ana ekranların başlık satırı: sayfa başlığı sayfanın kendisinden gelir.
 ///
@@ -15,11 +16,13 @@ class AppPageHeader extends StatelessWidget {
     super.key,
     this.actions = const [],
     this.onBack,
+    this.compact = false,
   });
 
   final String title;
   final List<Widget> actions;
   final VoidCallback? onBack;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -41,32 +44,39 @@ class AppPageHeader extends StatelessWidget {
           ),
         ),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 64),
-          child: Row(
+          constraints: BoxConstraints(minHeight: compact ? 48 : 64),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              if (onBack != null) ...[
-                IconButton(
-                  tooltip: 'Geri',
-                  onPressed: onBack,
-                  icon: const Icon(Icons.arrow_back),
-                ),
-                const SizedBox(width: AppSpacing.xSmall),
-              ],
-              Expanded(
-                child: Semantics(
-                  header: true,
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontSize: 26,
-                      letterSpacing: -0.6,
+              Row(
+                children: [
+                  if (onBack != null) ...[
+                    IconButton(
+                      tooltip: 'Geri',
+                      onPressed: onBack,
+                      icon: const Icon(Icons.arrow_back),
+                    ),
+                    const SizedBox(width: AppSpacing.xSmall),
+                  ],
+                  Expanded(
+                    child: Semantics(
+                      header: true,
+                      child: Text(
+                        title,
+                        maxLines: context.usesLargeText ? 2 : 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontSize: 26,
+                          letterSpacing: -0.6,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  if (!context.usesLargeText) ...actions,
+                ],
               ),
-              ...actions,
+              if (context.usesLargeText && actions.isNotEmpty)
+                Wrap(alignment: WrapAlignment.end, children: actions),
             ],
           ),
         ),

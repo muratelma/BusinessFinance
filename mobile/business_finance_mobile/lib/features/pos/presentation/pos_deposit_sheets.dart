@@ -24,6 +24,7 @@ import '../../../core/widgets/app_status_chip.dart';
 import '../../../core/widgets/app_status_tag.dart';
 import '../data/pos_repository.dart';
 import 'pos_controller.dart';
+import '../../activities/data/activity_models.dart';
 import 'pos_deposit_controller.dart';
 
 /// Tahsilatın başlığı: kullanıcının yazdığı açıklama, yoksa günü.
@@ -500,7 +501,7 @@ class _ClosedSettlementRow extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  posSettlementTitle(item),
+                  '${DateText.dayMonth(item.settlementDate)} · ${item.description ?? (item.isCollection ? item.counterpartyName ?? 'Kartla tahsil' : ActivityKind.posSale.label)}',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodyMedium?.copyWith(
@@ -511,7 +512,7 @@ class _ClosedSettlementRow extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.medium),
               AppMoneyText(
-                amount: item.netAmount,
+                amount: item.grossAmount,
                 currency: item.currency,
                 size: AppMoneySize.body,
               ),
@@ -830,6 +831,17 @@ class _PosDepositDetailSheetState extends State<PosDepositDetailSheet> {
                   label: 'Hesap',
                   value: summary.accountName,
                 ),
+                if (deposit != null &&
+                    deposit.settlements.any((s) => s.posDefinitionName != null))
+                  AppDetailRow(
+                    icon: Icons.point_of_sale_outlined,
+                    label: 'POS',
+                    value: deposit.settlements
+                        .map((s) => s.posDefinitionName)
+                        .whereType<String>()
+                        .toSet()
+                        .join(', '),
+                  ),
                 // Yatıştan hemen sonra hesabın bakiyesi; geri alınmış
                 // yatışın "sonrası" yoktur.
                 if (!summary.isCancelled &&

@@ -16,7 +16,7 @@ public sealed record CategorySummary(int Year, int Month, string Direction, stri
 public sealed record PageActivity(FinancialActivityRow Activity, decimal Amount, string? Part = null,
     decimal? PartAmount = null, decimal? ParentAmount = null, string? State = null,
     DateOnly? SettledOn = null, string? SettledSource = null, bool ShowScope = false,
-    DateOnly? FirstSaleDate = null, DateOnly? LastSaleDate = null);
+    DateOnly? FirstSaleDate = null, DateOnly? LastSaleDate = null, string? Scope = null);
 public sealed record CategoryPage(CategorySummary Summary, Guid? CategoryId, string? Name,
     decimal WholeTotal, bool ShowScope, bool HasPeople, IReadOnlyList<PageOption> People,
     IReadOnlyList<PageActivity> Items, int TotalCount, int Offset, bool HasMore);

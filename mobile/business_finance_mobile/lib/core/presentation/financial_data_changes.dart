@@ -54,7 +54,8 @@ class FinancialDataChanges extends ChangeNotifier {
 
   /// Money moved between two of the user's own accounts. Budgets are untouched,
   /// because a transfer is neither income nor expense.
-  void transferChanged() => _raise(feed: true, dashboard: true, accounts: true);
+  void transferChanged({bool fee = false}) =>
+      _raise(feed: true, dashboard: true, accounts: true, budgets: fee);
 
   /// A card purchase is an expense and raises the card debt, but leaves account
   /// balances alone.

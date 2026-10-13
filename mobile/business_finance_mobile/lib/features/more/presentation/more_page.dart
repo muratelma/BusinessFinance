@@ -76,7 +76,7 @@ class MorePage extends StatelessWidget {
       _Group('Para ve hesaplar', [
         _MenuItem(
           icon: Icons.account_balance_wallet_outlined,
-          title: 'Hesaplar ve transferler',
+          title: 'Hesaplar',
           onTap: () => go('/more/accounts'),
         ),
         // Borçlandığınız kart. Tahsil ettiğiniz POS ayrı bir şeydir ve
@@ -107,6 +107,18 @@ class MorePage extends StatelessWidget {
             title: 'Cari hesap',
             onTap: () => go('/more/counterparties'),
           ),
+      ]),
+      _Group('Kategoriler', [
+        _MenuItem(
+          icon: Icons.leaderboard_outlined,
+          title: 'Kategori özeti',
+          onTap: () => go(categorySummaryLocation),
+        ),
+        _MenuItem(
+          icon: Icons.category_outlined,
+          title: 'Kategori yönetimi',
+          onTap: () => go('/more/categories'),
+        ),
       ]),
       _Group('Planlama', [
         // İşletme profilinde üçüncü sekme `Kasa`; `Bütçeler` buradadır.
@@ -142,11 +154,6 @@ class MorePage extends StatelessWidget {
           ),
         ]),
       _Group('Ayarlar', [
-        _MenuItem(
-          icon: Icons.category_outlined,
-          title: 'Kategoriler',
-          onTap: () => go('/more/categories'),
-        ),
         // Hatırlatma bir cihaz ayarıdır, hesap ayarı değil: aynı hesaba başka
         // bir telefondan girildiğinde o telefon kendi kararını taşır.
         _MenuItem(

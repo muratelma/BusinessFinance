@@ -1,6 +1,7 @@
 import '../../../core/network/api_exception.dart';
 import '../../../core/presentation/financial_data_changes.dart';
 import '../../cards/data/finance_repository.dart';
+import '../../cards/data/finance_models.dart';
 import '../../transactions/data/transaction_models.dart';
 import '../../transactions/data/transaction_repository.dart';
 
@@ -9,7 +10,7 @@ import '../../transactions/data/transaction_repository.dart';
 /// `Faiz ve finansman gideri` bilerek seçilmedi: o kategori borç faizini
 /// raporluyor (ADR 0009) ve banka masrafları oraya karışırsa "borcum bana ne
 /// kadar faize mal oldu" sorusunun cevabı bozulur.
-const receiptFeeCategoryName = 'Diğer gider';
+const receiptFeeCategoryName = 'Banka masrafı';
 
 /// Ücret yazma denemesinin üç sonucu.
 ///
@@ -62,9 +63,9 @@ Future<ReceiptFeeResult> recordReceiptFee({
   FinancialDataChanges? changes,
 }) async {
   try {
-    // Kimlik çağıranda hazırsa (form kategorilerini zaten yüklemiştir) ikinci
-    // bir tur atılmaz.
-    final resolved = categoryId ?? await _findFeeCategoryId(finance);
+    // Sunucu rolü bulur veya ilk ihtiyaçta açar; kategori adı serbesttir.
+    final category = await _findFeeCategory(finance);
+    final resolved = category?.id;
     if (resolved == null) {
       return const ReceiptFeeResult(
         ReceiptFeeStatus.categoryMissing,
@@ -98,7 +99,7 @@ Future<ReceiptFeeResult> recordReceiptFee({
 
     return ReceiptFeeResult(
       ReceiptFeeStatus.recorded,
-      'İşlem ücreti $receiptFeeCategoryName olarak kaydedildi.',
+      'İşlem ücreti ${category!.name} olarak kaydedildi.',
     );
   } on ApiException catch (error) {
     return ReceiptFeeResult(
@@ -114,16 +115,16 @@ Future<ReceiptFeeResult> recordReceiptFee({
   }
 }
 
-/// Kategoriyi kullanıcının **kendi** listesinde adıyla arar.
-///
-/// Bulunamazsa kategori açılmaz: kullanıcının görmediği bir kova yaratmak,
-/// istenmeyen ikinci bir yazma olurdu.
-Future<String?> _findFeeCategoryId(FinanceRepositoryContract finance) async {
+/// Ad değişse de banka masrafı rolü kullanılır; ilk ihtiyaçta sunucu açar.
+Future<FinanceChoice?> _findFeeCategory(
+  FinanceRepositoryContract finance,
+) async {
+  if (finance is BankFeeCategoryProvider) {
+    return await (finance as BankFeeCategoryProvider).ensureBankFeeCategory();
+  }
   final snapshot = await finance.load();
   for (final category in snapshot.expenseCategories) {
-    if (category.name.toLowerCase() == receiptFeeCategoryName.toLowerCase()) {
-      return category.id;
-    }
+    if (category.role == 'bank-fee') return category;
   }
   return null;
 }

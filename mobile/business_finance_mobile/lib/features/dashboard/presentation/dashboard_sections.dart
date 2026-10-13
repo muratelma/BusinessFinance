@@ -113,9 +113,10 @@ class DashboardBlock extends StatelessWidget {
 /// Gruplamayı ve "Diğer" toplamını **sunucu** yapar. Yüzde ve çubuk boyu
 /// yalnız çizim oranıdır; yeni bir tutar üretilmez.
 class DashboardCategoryCard extends StatelessWidget {
-  const DashboardCategoryCard({required this.report, super.key});
+  const DashboardCategoryCard({required this.report, this.onOpen, super.key});
 
   final DashboardReport report;
+  final VoidCallback? onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -124,14 +125,13 @@ class DashboardCategoryCard extends StatelessWidget {
     final slices = report.categoryExpenseSlices;
     if (slices.isEmpty) {
       return AppCard(
+        onTap: onOpen,
         child: Text(
           'Bu ay kategori gideri yok.',
           style: theme.textTheme.bodySmall,
         ),
       );
     }
-    final values = [for (final slice in slices) _value(slice.amount)];
-    final total = values.fold<double>(0, (sum, value) => sum + value);
     final topIndex = slices.indexWhere((slice) => !slice.isOther);
     final top = topIndex < 0 ? null : slices[topIndex];
 
@@ -168,7 +168,7 @@ class DashboardCategoryCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xxSmall),
           Text(
-            '${top.categoryName} · %${_percent(values[topIndex], total)}',
+            '${top.categoryName} · %${MoneyText.percent(top.share)}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodyMedium?.copyWith(
@@ -181,6 +181,7 @@ class DashboardCategoryCard extends StatelessWidget {
     );
 
     return AppCard(
+      onTap: onOpen,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -194,7 +195,7 @@ class DashboardCategoryCard extends StatelessWidget {
                   for (var i = 0; i < slices.length; i++)
                     AppDonutSlice(
                       label: slices[i].categoryName,
-                      value: values[i],
+                      value: slices[i].barRatio,
                       color: _sliceColor(context, slices, i),
                       formattedValue: MoneyText.format(
                         slices[i].amount,
@@ -215,19 +216,14 @@ class DashboardCategoryCard extends StatelessWidget {
               slice: slices[i],
               currency: report.currency,
               color: _sliceColor(context, slices, i),
-              ratio: total <= 0 ? 0 : values[i] / total,
-              percent: _percent(values[i], total),
+              ratio: slices[i].barRatio,
+              percent: MoneyText.percent(slices[i].share),
             ),
           ],
         ],
       ),
     );
   }
-
-  static double _value(String amount) => double.tryParse(amount) ?? 0;
-
-  static int _percent(double value, double total) =>
-      total <= 0 ? 0 : (value / total * 100).round();
 
   /// "Diğer" paletin dışında kendi grisini alır: bir kategori değil, kalanın
   /// toplamıdır.
@@ -256,7 +252,7 @@ class _CategoryLine extends StatelessWidget {
   final String currency;
   final Color color;
   final double ratio;
-  final int percent;
+  final String percent;
 
   @override
   Widget build(BuildContext context) {

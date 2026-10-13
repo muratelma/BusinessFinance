@@ -65,6 +65,13 @@ kimliği ve kilitleri korunur. `amount` sayfada sayılan işaretli tutardır;
 ve bağlı işlemi açıklar. `state=open|settled|transit|deposited` gerektiğinde
 gelir; `settledOn`, `settledSource` kapanış bilgisidir. Cari borçlandırmada
 kapanış durumu yoktur. `showScope` iki kapsam birlikte gösterildiğinde gelir.
+`items.scope=business|personal|null` kalemin kendi kapsamıdır; nötr bağlı
+transfer/POS/taksit ebeveyninin kapsamından alınmaz. İstemci satır kapsamını
+bu alanla gösterir; `settled` kapanış, `fee` transfer masrafı değeridir.
+
+Sentetik tam cevaplar ve filtreli örnekler
+`mobile/business_finance_mobile/test/fixtures/category-account-contract.json`
+dosyasındadır; yalnız örnek veridir, secret içermez.
 
 ## Örnek hesap özeti
 

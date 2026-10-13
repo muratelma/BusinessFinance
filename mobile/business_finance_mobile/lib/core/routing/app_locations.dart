@@ -59,9 +59,28 @@ const taxesLocation = '/more/taxes';
 /// `Hatırlatmalar`: cihazın kendi zamanlayıcısına kurulan uyarıların ayarı.
 const remindersLocation = '/more/reminders';
 
-/// `Hesaplar ve transferler`. Özet'in hesap bakiyeleri bölümü ve `Diğer`
+/// `Hesaplar`. Özet'in hesap bakiyeleri bölümü ve `Diğer`
 /// menüsü aynı yere gider.
 const accountsLocation = '/more/accounts';
+const transferLocation = '/more/transfer';
+const categorySummaryLocation = '/more/category-summary';
+
+String categoryPageLocation(
+  String? id,
+  DateTime month, {
+  bool income = false,
+  Object? scope,
+  String? source,
+}) => Uri(
+  path: '$categorySummaryLocation/${id ?? 'uncategorized'}',
+  queryParameters: {
+    'year': '${month.year}',
+    'month': '${month.month}',
+    'direction': income ? 'income' : 'expense',
+    if (scope != null) 'scope': scope.toString().split('.').last,
+    'source': ?source,
+  },
+).toString();
 
 /// `Planlananlar`: gecikmiş ve yaklaşan ödemeler. Özet'in gecikme şeridi ve
 /// yaklaşanlar bölümü buraya açılır.

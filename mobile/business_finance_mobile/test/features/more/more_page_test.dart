@@ -32,20 +32,21 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(titles(tester), [
-      'Hesaplar ve transferler',
+      'Hesaplar',
       'Kredi kartlarım',
       'Kasa',
       'Borç ve alacaklar',
+      'Kategori özeti',
+      'Kategori yönetimi',
       'Yükümlülükler',
       'Tasarruf hedefleri',
       'Planlama ve raporlar',
-      'Kategoriler',
       'Hatırlatmalar',
       'Veri ve yedek',
     ]);
     expect(find.text('Vergi'), findsNothing);
     // Hesap kartı + üç grup.
-    expect(find.byType(AppCard), findsNWidgets(4));
+    expect(find.byType(AppCard), findsNWidgets(5));
   });
 
   /// Cari hesap işletmeye özeldir (Aşama 06.3 C6). Gizleme bir ön ayardır,

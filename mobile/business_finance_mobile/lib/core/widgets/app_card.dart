@@ -17,6 +17,8 @@ class AppCard extends StatelessWidget {
     this.onTap,
     this.selected = false,
     this.background,
+    this.flat = false,
+    this.dashed = false,
   });
 
   final Widget child;
@@ -28,12 +30,16 @@ class AppCard extends StatelessWidget {
   final bool selected;
 
   final Color? background;
+  final bool flat;
+  final bool dashed;
 
   @override
   Widget build(BuildContext context) {
     final surfaces = AppSurfaces.of(context);
     final scheme = Theme.of(context).colorScheme;
-    final radius = BorderRadius.circular(AppRadius.card);
+    final radius = flat
+        ? BorderRadius.zero
+        : BorderRadius.circular(AppRadius.card);
 
     final content = Padding(padding: padding, child: child);
 
@@ -46,17 +52,48 @@ class AppCard extends StatelessWidget {
         borderRadius: radius,
         // Dokunulabilir kart bastırıldığını belli eder; dokunulamayan kart
         // yanlışlıkla tıklanabilir görünmez.
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            border: Border.all(
-              color: selected ? scheme.primary : surfaces.border,
-              width: selected ? 2 : 1,
+        child: CustomPaint(
+          foregroundPainter: dashed
+              ? _DashedBorder(surfaces.border, radius)
+              : null,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: radius,
+              border: flat || dashed
+                  ? null
+                  : Border.all(
+                      color: selected ? scheme.primary : surfaces.border,
+                      width: selected ? 2 : 1,
+                    ),
             ),
+            child: content,
           ),
-          child: content,
         ),
       ),
     );
   }
+}
+
+class _DashedBorder extends CustomPainter {
+  _DashedBorder(this.color, this.radius);
+  final Color color;
+  final BorderRadius radius;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..addRRect(radius.toRRect(Offset.zero & size).deflate(0.5));
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    for (final metric in path.computeMetrics()) {
+      for (double start = 0; start < metric.length; start += 9) {
+        canvas.drawPath(metric.extractPath(start, start + 5), paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedBorder old) =>
+      color != old.color || radius != old.radius;
 }

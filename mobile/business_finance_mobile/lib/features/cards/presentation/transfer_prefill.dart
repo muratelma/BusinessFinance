@@ -24,9 +24,7 @@ class TransferPrefill {
 
   /// İşlem ücreti — taşınan tutara **eklenmez**.
   ///
-  /// Transfer parayı taşır, harcamaz; bu belgede gerçekten harcanan tek şey
-  /// budur ve kendi gider kaydını hak eder. Bu yüzden ayrı taşınıyor: transfer
-  /// kaydedildikten sonra transferin **kaynak hesabından** yazılır.
+  /// Masraf alanını doldurur; transferle aynı yazmada kaydedilir.
   final String? feeAmount;
 
   /// Ücret kaydının adı.

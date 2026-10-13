@@ -28,6 +28,7 @@ class AppMoneyText extends StatelessWidget {
     this.effect,
     this.isCancelled = false,
     this.signed = false,
+    this.signedByAmount = false,
     this.style,
     this.textAlign,
     this.semanticsSuffix,
@@ -48,6 +49,9 @@ class AppMoneyText extends StatelessWidget {
 
   /// Gelirin başına `+`, giderin başına `-` koyar.
   final bool signed;
+
+  /// Hesap hareketinde işaret finansal etkiden değil sunucunun tutarından gelir.
+  final bool signedByAmount;
 
   final TextStyle? style;
   final TextAlign? textAlign;
@@ -125,6 +129,9 @@ class AppMoneyText extends StatelessWidget {
   String get _displayText {
     // İptal edilmiş tutar işaret taşımaz: artık bir yöne para hareketi değil,
     // üstü çizili bir kayıttır (DS `AppMoneyText`).
+    if (signedByAmount && !isCancelled) {
+      return amount.startsWith('-') ? _formatted : '+$_formatted';
+    }
     if (!signed || isCancelled) return _formatted;
     return switch (effect) {
       AppMoneyEffect.income => '+$_formatted',

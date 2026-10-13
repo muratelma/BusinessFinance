@@ -1242,3 +1242,38 @@ Tasarım teslimi yok; mevcut dille kuruldu.
   tutarın altında `komisyon ₺…`; ayrıntıda `POS`, `Komisyon`, `Net tutar`,
   `Hesap`, `Beklenen`/`Geçiş günü`.
 - **Gün sonu listesi**: kart tarafındaki tahsil `Kartla tahsil · POS`.
+
+## Kategori ve hesap sayfaları — 13 Ekim 2026
+
+Görsel kaynak `design_handoff_secici/README.md` ve 53 teslim karesidir.
+Görevin salt okunur geçmiş kararı nedeniyle A8c/A8d uygulanmaz; kalan **51
+hâl**, `finance_pages_screenshot_test.dart` ile gerçek bileşenlerden çizilir.
+Karelerin örnek tutarı yerine sunucu cevabı kullanılır.
+
+- `AppFilterMenu`: çipin altında ara başlıklı menü; başlık seçilmez, seçili
+  satırda işaret ikonun yerine geçer. Kaynak/kişi menüleri kesişimlidir.
+  Çip görsel olarak 36 dp, Material dokunma alanı en az 48 dp'dir.
+- `AppMonthPicker.showWithAmounts`: ortada ay/yıl dialog'u; başlıkta seçili
+  ay ve sunucunun tutarı, 12 hücre ve sunucunun çubuk oranı. Gelir/gider
+  çubukları rol renginde, hesap bakiyesi çubukları gridir. Kayıtsız ileri ay
+  kapalıdır; kaydı olan açıktır. `Bu ay`, `Vazgeç`, `Göster` yolları vardır.
+- `AppSummaryCard`: 28/700 tutar, açıklama ve isteğe bağlı alt hücreler.
+  Kategoride alt satır geçen aydır; seçim kategori toplamını daraltıyorsa
+  kategorinin tamamı yazılır. Kategori özetindeki toplam ve satır tutarları
+  mürekkep rengindedir; pay çubuğu ve ikon kapsülü yönü gösterir.
+- `AppDayHeading`: tarih koyu, gün adı soluk. Kategori günleri kart içindedir;
+  hesap ve Yolda günleri tam genişlik satır bloklarıdır.
+- `AppCard.dashed`: kategorisiz geçmiş ayrı kesik kenarlı karttır.
+  `AppPageHeader.compact` yeni okuma sayfalarının başlığını 48 dp içerik
+  yüksekliğiyle kurar; büyük yazıda eylemler alta geçer.
+- Yolda özeti mavi kutu, içindeki beyaz satır en yakın kayıttır; tutar net,
+  alt yazı komisyondur. Birden çok kayıt `Tümünü gör · N satış`ı açar.
+- Ortak işlem satırının durum yazısı ikonsuz ve tek satırdır. Ödendi/tahsil
+  edildi/hesaba geçti durumları yeşil, yolda mavidir; açık durum nötrdür.
+  Masraf/faiz/kesinti tutarın altında kalır. Büyük yazıda sağ tutar alt satıra
+  iner; dar alana sığmayan sayısal grup küçültülür, tutar kesilmez ve ekran
+  okuyucu tam değeri okur.
+
+Yeni token veya paket eklenmedi. Boşluklar `AppSpacing`, renkler mevcut
+semantik yüzey ve finans rolleridir. 375 dp, 2.0× yazı ve açık/koyu tema
+widget kapıları vardır; canlı TalkBack/VoiceOver kabulü yapılmadı.

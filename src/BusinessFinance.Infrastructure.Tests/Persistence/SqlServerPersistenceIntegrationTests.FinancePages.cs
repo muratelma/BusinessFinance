@@ -69,6 +69,7 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         Assert.Equal(summary.Total, summary.Sources.Where(s => s.Key != "all").Sum(s => s.Amount));
         var category = await reader.CategoryAsync(owner.Id, seed.CommissionId, new(2026, 8, TransactionType.Expense), default);
         Assert.Equal(category!.Summary.Total, category.Items.Sum(i => Math.Abs(i.Amount)));
+        Assert.All(category.Items, item => Assert.NotNull(item.Scope));
         Assert.Contains(category.Items, i => i.Activity.ActivityKind == BusinessFinance.Application.FinancialActivities.FinancialActivityKind.CounterpartySettlement);
         foreach (var item in category.Items.Where(i => i.Part is not null))
         {

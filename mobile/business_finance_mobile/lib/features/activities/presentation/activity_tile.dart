@@ -4,6 +4,8 @@ import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_text.dart';
 import '../../../core/theme/app_breakpoints.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_finance_colors.dart';
+import '../../../core/theme/app_finance_icons.dart';
 import '../../../core/widgets/app_icon_capsule.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_status_chip.dart';
@@ -29,6 +31,15 @@ class ActivityTile extends StatelessWidget {
     super.key,
     this.onTap,
     this.showDate = true,
+    this.title,
+    this.subtitle,
+    this.stateLabel,
+    this.stateTone,
+    this.amount,
+    this.effect,
+    this.signedByAmount = false,
+    this.amountNote,
+    this.hideFee = false,
   });
 
   final FinancialActivity activity;
@@ -36,6 +47,15 @@ class ActivityTile extends StatelessWidget {
 
   /// Gün başlığıyla gruplanmış listede tarih satırda tekrar yazılmaz.
   final bool showDate;
+  final String? title;
+  final String? subtitle;
+  final String? stateLabel;
+  final AppStatusTone? stateTone;
+  final String? amount;
+  final ActivityEffect? effect;
+  final bool signedByAmount;
+  final String? amountNote;
+  final bool hideFee;
 
   @override
   Widget build(BuildContext context) {
@@ -56,6 +76,9 @@ class ActivityTile extends StatelessWidget {
               vertical: AppSpacing.small + AppSpacing.xSmall,
             ),
             child: Row(
+              crossAxisAlignment: stateLabel == null
+                  ? CrossAxisAlignment.center
+                  : CrossAxisAlignment.start,
               children: [
                 Opacity(
                   opacity: dim,
@@ -63,7 +86,7 @@ class ActivityTile extends StatelessWidget {
                     icon: _icon,
                     tone: cancelled
                         ? AppStatusTone.cancelled
-                        : switch (activity.effect) {
+                        : switch (effect ?? activity.effect) {
                             ActivityEffect.income => AppStatusTone.income,
                             ActivityEffect.expense => AppStatusTone.expense,
                             ActivityEffect.neutral => AppStatusTone.neutral,
@@ -85,18 +108,19 @@ class ActivityTile extends StatelessWidget {
                             // Kayıt adı kullanıcının yazdığı serbest metindir
                             // ve bir cümle olabilir; tamamı ayrıntıdadır.
                             Text(
-                              activity.title.isEmpty
-                                  ? activity.kindLabel
-                                  : activity.title,
-                              maxLines: 1,
+                              title ??
+                                  (activity.title.isEmpty
+                                      ? activity.kindLabel
+                                      : activity.title),
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.titleSmall,
                             ),
-                            if (_subtitle.isNotEmpty) ...[
+                            if ((subtitle ?? _subtitle).isNotEmpty) ...[
                               const SizedBox(height: AppSpacing.xxSmall),
                               Text(
-                                _subtitle,
-                                maxLines: 1,
+                                subtitle ?? _subtitle,
+                                maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
@@ -104,6 +128,26 @@ class ActivityTile extends StatelessWidget {
                           ],
                         ),
                       ),
+                      if (stateLabel != null)
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            top: AppSpacing.xSmall,
+                          ),
+                          child: Text(
+                            stateLabel!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: stateTone == AppStatusTone.income
+                                      ? AppFinanceColors.of(context).income
+                                      : stateTone == AppStatusTone.neutral
+                                      ? AppFinanceColors.of(context).neutral
+                                      : null,
+                                ),
+                          ),
+                        ),
                       if (cancelled) ...[
                         const SizedBox(height: AppSpacing.xSmall),
                         const AppStatusChip(
@@ -142,15 +186,18 @@ class ActivityTile extends StatelessWidget {
   Widget get _amount => Builder(
     builder: (context) {
       final amount = AppMoneyText(
-        amount: activity.amount,
+        amount: signedByAmount
+            ? (this.amount ?? activity.amount)
+            : (this.amount?.replaceFirst('-', '') ?? activity.amount),
         currency: activity.currency,
-        effect: moneyEffectOf(activity.effect),
+        effect: moneyEffectOf(effect ?? activity.effect),
         isCancelled: activity.isCancelled,
         signed: true,
+        signedByAmount: signedByAmount,
         textAlign: TextAlign.end,
         size: AppMoneySize.row,
       );
-      final fee = _feeLabel;
+      final fee = amountNote ?? (hideFee ? null : _feeLabel);
       if (fee == null) return amount;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -173,9 +220,15 @@ class ActivityTile extends StatelessWidget {
 
   /// `komisyon ₺97,50` (POS satışı) · `kesinti ₺7,50` (yatış).
   String? get _feeLabel {
+    if (activity.interestPortion != null &&
+        activity.interestPortion != '0.0000') {
+      return 'faizi ${MoneyText.format(activity.interestPortion!, activity.currency)}';
+    }
     if (!activity.hasFee) return null;
     final name = activity.kind == ActivityKind.posDeposit
         ? 'kesinti'
+        : activity.kind == ActivityKind.transfer
+        ? 'masraf'
         : 'komisyon';
     return '$name ${MoneyText.format(activity.feeAmount!, activity.currency)}';
   }
@@ -215,7 +268,6 @@ class ActivityTile extends StatelessWidget {
       if (place != null && place != activity.title) place,
       ?_settlementCountLabel,
       if (showDate) _readableDate,
-      ?_interestLabel,
     ].join(' • ');
   }
 
@@ -270,6 +322,15 @@ class ActivityTile extends StatelessWidget {
       ..write(MoneyText.format(activity.amount, activity.currency))
       ..write('. ')
       ..write(_readableDate);
+    if (title != null) buffer.write('. $title');
+    if (subtitle != null) buffer.write('. $subtitle');
+    if (stateLabel != null) buffer.write('. $stateLabel');
+    if (amount != null) {
+      buffer.write(
+        '. Satır tutarı ${MoneyText.format(amount!, activity.currency)}',
+      );
+    }
+    if (amountNote != null) buffer.write('. $amountNote');
     if (_interestLabel case final interest?) {
       buffer.write('. Bunun $interest');
     }
@@ -291,7 +352,9 @@ class ActivityTile extends StatelessWidget {
 /// kullanır.
 IconData activityIcon(FinancialActivity activity) => switch (activity.kind) {
   ActivityKind.accountTransaction =>
-    activity.effect == ActivityEffect.income
+    activity.categoryName != null
+        ? AppFinanceIcons.forCategory(activity.categoryName!)
+        : activity.effect == ActivityEffect.income
         ? Icons.south_west
         : Icons.north_east,
   ActivityKind.transfer => Icons.swap_horiz,

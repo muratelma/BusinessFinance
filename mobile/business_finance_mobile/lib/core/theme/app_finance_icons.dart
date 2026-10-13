@@ -53,7 +53,15 @@ abstract final class AppFinanceIcons {
   /// Sıra önemlidir: ilk eşleşen kazanır.
   static const Map<String, IconData> _keywords = {
     // İşletme seti: esnafın en sık gider kalemleri.
-    'ticari mal': Icons.sell_outlined,
+    'ticari mal': Icons.inventory_2_outlined,
+    'işyeri kirası': Icons.storefront_outlined,
+    'kasa farkı': Icons.difference_outlined,
+    'komisyon': Icons.percent_outlined,
+    'banka masraf': Icons.percent_outlined,
+    'faiz geliri': Icons.savings_outlined,
+    'faiz': Icons.request_quote_outlined,
+    'satış geliri': Icons.sell_outlined,
+    'hizmet geliri': Icons.handyman_outlined,
     'personel': Icons.badge_outlined,
     'maaş': Icons.badge_outlined,
     'sgk': Icons.account_balance_outlined,

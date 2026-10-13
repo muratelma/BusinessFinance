@@ -484,8 +484,8 @@ void main() {
         expect(find.text('Kesinti'), findsOneWidget);
         expect(find.text('POS komisyonu'), findsOneWidget);
         expect(find.text('Kapattığı tahsilatlar'), findsOneWidget);
-        expect(find.text('Pazartesi satışı'), findsOneWidget);
-        expect(find.text('Salı satışı'), findsOneWidget);
+        expect(find.text('24 Ağustos · Pazartesi satışı'), findsOneWidget);
+        expect(find.text('24 Ağustos · Salı satışı'), findsOneWidget);
 
         await tester.tap(find.text('Yatışı geri al'));
         await tester.pumpAndSettle();
@@ -620,7 +620,7 @@ void main() {
       repository.getPending!.complete();
       await tester.pumpAndSettle();
 
-      expect(find.text('Pazartesi satışı'), findsOneWidget);
+      expect(find.text('24 Ağustos · Pazartesi satışı'), findsOneWidget);
       expect(find.text('…'), findsNothing);
       // Kategori satırı yüklenen kayıttan gelir; panel yalnız onun kadar
       // büyür, tam ekrandan küçülme yoktur.
@@ -663,7 +663,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Tekrar dene'), findsNothing);
-      expect(find.text('Salı satışı'), findsOneWidget);
+      expect(find.text('24 Ağustos · Salı satışı'), findsOneWidget);
     });
 
     testWidgets('geri alma hatası panelde görünür', (tester) async {

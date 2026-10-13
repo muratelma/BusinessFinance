@@ -198,20 +198,8 @@ class QuickAddController extends ChangeNotifier {
     date: date,
     description: fee.description,
     // Kategoriler formla birlikte zaten yüklendi; ikinci bir tur atılmaz.
-    categoryId: _feeCategoryId,
     changes: financialDataChanges,
   );
-
-  /// Ücret kategorisini kullanıcının kendi listesinde arar; yoksa `null` ve
-  /// yazıcı kullanıcıya bunu söyler.
-  String? get _feeCategoryId {
-    for (final category in expenseOptions?.categories ?? const []) {
-      if (category.name.toLowerCase() == receiptFeeCategoryName.toLowerCase()) {
-        return category.id;
-      }
-    }
-    return null;
-  }
 
   /// Belge ekleme, giderin yazılmasından **sonra** ve ondan bağımsız.
   ///

@@ -143,7 +143,8 @@ enum ActivityOrigin {
 
   /// Bir gün sonunun ürettiği nakit gelir ya da POS satışı: gün sonuyla
   /// birlikte doğar ve yalnız onunla birlikte geri alınır.
-  dayClose('day-close');
+  dayClose('day-close'),
+  transfer('transfer');
 
   const ActivityOrigin(this.apiValue);
   final String apiValue;
@@ -155,6 +156,7 @@ enum ActivityOrigin {
     'installment' => installment,
     'pos-deposit' => posDeposit,
     'day-close' => dayClose,
+    'transfer' => transfer,
     _ => throw FormatException('Bilinmeyen hareket kökeni: $value'),
   };
 
@@ -165,6 +167,7 @@ enum ActivityOrigin {
     installment => 'Taksit planı',
     posDeposit => 'Yatış kesintisi',
     dayClose => 'Gün sonu',
+    transfer => 'Transfer masrafı',
   };
 }
 

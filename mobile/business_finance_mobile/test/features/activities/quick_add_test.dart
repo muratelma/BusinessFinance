@@ -874,7 +874,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(transactions.created, hasLength(1));
-      expect(find.textContaining('Diğer gider'), findsWidgets);
+      expect(find.textContaining('Banka masrafı'), findsWidgets);
     });
 
     // Form açılmadan yazılan bir kayıt görünmez bir kayıt olmamalı.
@@ -1126,7 +1126,11 @@ class _FakeFinance implements FinanceRepositoryContract {
       expenseCategories: [
         const FinanceChoice(id: 'cat-1', name: 'Market'),
         if (hasFeeCategory)
-          const FinanceChoice(id: 'cat-fee', name: 'Diğer gider'),
+          const FinanceChoice(
+            id: 'cat-fee',
+            name: 'Banka masrafı',
+            role: 'bank-fee',
+          ),
       ],
     );
   }

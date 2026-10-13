@@ -3,7 +3,6 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_date_field.dart';
 import '../../../core/widgets/app_form_sheet.dart';
 import '../../../core/formatters/date_text.dart';
@@ -14,8 +13,6 @@ import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/theme/app_typography.dart';
-import '../../../core/theme/app_radius.dart';
-import '../../../core/widgets/app_adaptive_sheet.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_metric_tile.dart';
 import '../../../core/widgets/app_money_text.dart';
@@ -32,21 +29,12 @@ import '../data/finance_repository.dart';
 import 'finance_controller.dart';
 import 'transfer_prefill.dart';
 
-/// Bu ekranın hangi yarısının çizileceği.
-///
-/// Transfer iki hesap arasında para taşır; tanımı hesabı içerir, o yüzden
-/// Hesaplar ekranına taşındı. Kredi kartı ise para değil borç tutar ve kendi
-/// yaşam döngüsü var (harcama → ekstre → ödeme). İkisini "hesap işlemi değil"
-/// diye aynı ekranda tutmak olumsuz bir tanımdı.
-enum FinanceSection { cards, transfers }
-
+/// Kredi kartları listesi. Transfer ayrı sayfada ve ortak işlem ayrıntısındadır.
 class FinancePage extends StatefulWidget {
   const FinancePage({
     required this.repository,
     this.financialDataChanges,
-    this.section = FinanceSection.cards,
     this.embedded = false,
-    this.transferPrefill,
     this.cardPaymentPrefill,
     this.installmentPrefill,
     this.recordFee,
@@ -54,16 +42,10 @@ class FinancePage extends StatefulWidget {
   });
   final FinanceRepositoryContract repository;
   final FinancialDataChanges? financialDataChanges;
-  final FinanceSection section;
 
   /// Bir sekmenin içinde mi çiziliyor; gömülüyken kendi başlık çubuğunu
   /// çizmez.
   final bool embedded;
-
-  /// Dolu gelirse transfer formu, hesaplar yüklenir yüklenmez önerilerle
-  /// açılır. Kullanıcı dekontu okuttu; onu listenin başına bırakıp formu
-  /// kendisinin açmasını beklemek istediği işi bir adım uzatırdı.
-  final TransferPrefill? transferPrefill;
 
   /// Dolu gelirse kart listesinin başında "hangi kart?" notu çıkar ve seçilen
   /// kartın ödeme formu bu tutarla açılır. Kartı dekont söylemez, kullanıcı
@@ -76,8 +58,7 @@ class FinancePage extends StatefulWidget {
 
   /// Dekonttaki işlem ücretini yazan dar imza.
   ///
-  /// Ücret transferin veya kart ödemesinin parçası değildir: transfer parayı
-  /// taşır, kart ödemesi borç kapatır; bu ücret ise gerçekten harcanan paradır
+  /// Kart ödemesi borç kapatır; dekontun işlem ücreti ayrı giderdir
   /// ve kendi gider kaydını hak eder. Ekran depoları tanımadığı için yazma
   /// dışarıdan geliyor (`uploadAttachment` ile aynı desen).
   final ReceiptFeeRecorder? recordFee;
@@ -96,14 +77,7 @@ class _FinancePageState extends State<FinancePage> {
       widget.repository,
       financialDataChanges: widget.financialDataChanges,
     )..addListener(_changed);
-    controller.load().then((_) {
-      final snapshot = controller.snapshot;
-      if (mounted &&
-          snapshot != null &&
-          widget.transferPrefill?.isEmpty == false) {
-        _addTransfer(snapshot, prefill: widget.transferPrefill);
-      }
-    });
+    controller.load();
   }
 
   @override
@@ -154,55 +128,10 @@ class _FinancePageState extends State<FinancePage> {
               ),
             ],
           ),
-        Expanded(
-          child: switch (widget.section) {
-            FinanceSection.cards => _cards(snapshot),
-            FinanceSection.transfers => _transfers(snapshot),
-          },
-        ),
+        Expanded(child: _cards(snapshot)),
       ],
     );
   }
-
-  Widget _transfers(FinanceSnapshot snapshot) => Column(
-    children: [
-      _PeriodSelector(
-        selected: controller.period,
-        onSelected: controller.selectPeriod,
-      ),
-      if (snapshot.transfersHaveMore) const _TruncationNotice(),
-      Expanded(child: _transferList(snapshot)),
-    ],
-  );
-
-  Widget _transferList(FinanceSnapshot snapshot) => _FeatureList(
-    onRefresh: controller.load,
-    addLabel: 'Transfer ekle',
-    onAdd: controller.isSubmitting ? null : () => _addTransfer(snapshot),
-    empty: const AppEmptyView(
-      title: 'Henüz transfer yok',
-      message: 'Hesaplar arası para taşıdığınızda burada görünür.',
-      icon: Icons.swap_horiz,
-    ),
-    isEmpty: snapshot.transfers.isEmpty,
-    children: [
-      for (final transfer in snapshot.transfers)
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.swap_horiz),
-            title: Text(MoneyText.format(transfer.amount, transfer.currency)),
-            subtitle: Text(
-              '${_choiceName(snapshot.accounts, transfer.sourceAccountId)} → '
-              '${_choiceName(snapshot.accounts, transfer.destinationAccountId)} • '
-              '${DateText.dayMonth(transfer.date)}'
-              '${transfer.isCancelled ? ' • İptal' : ''}',
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _showTransfer(snapshot, transfer),
-          ),
-        ),
-    ],
-  );
 
   Widget _cards(FinanceSnapshot snapshot) => _FeatureList(
     onRefresh: controller.load,
@@ -269,101 +198,6 @@ class _FinancePageState extends State<FinancePage> {
         ),
     ],
   );
-
-  Future<void> _addTransfer(
-    FinanceSnapshot snapshot, {
-    TransferPrefill? prefill,
-  }) async {
-    final input = await AppFormSheet.show<Map<String, Object?>>(
-      context: context,
-      builder: (_) =>
-          _TransferDialog(accounts: snapshot.accounts, prefill: prefill),
-    );
-    if (input != null) {
-      await controller.submit(
-        () => controller.repository.createTransfer(input),
-        'Transfer kaydedildi; gelir/gider toplamı değişmedi.',
-        impact: FinanceMutationImpact.transfer,
-      );
-      // Ücret transferden **sonra** yazılır, önce değil: transfer
-      // kaydedilmediyse ortada harcanmış bir ücret de yoktur. Kaynak
-      // sorulmuyor — banka ücreti, paranın çıktığı hesaptan alır.
-      final fee = prefill?.feeAmount;
-      final source = input['sourceAccountId'];
-      if (mounted &&
-          fee != null &&
-          source is String &&
-          controller.errorMessage == null) {
-        await _writeFee(
-          sourceId: source,
-          amount: fee,
-          date: input['transferDate'],
-          description: prefill?.feeDescription,
-        );
-      }
-    }
-  }
-
-  /// Ücreti yazar ve sonucu — üç sonucun hangisi olursa olsun — söyler.
-  Future<void> _writeFee({
-    required String sourceId,
-    required String amount,
-    required Object? date,
-    required String? description,
-  }) async {
-    final record = widget.recordFee;
-    if (record == null || date is! String) return;
-    final result = await record(
-      sourceId: sourceId,
-      amount: amount,
-      date: date,
-      description: description ?? 'İşlem ücreti',
-    );
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(result.message)));
-  }
-
-  Future<void> _showTransfer(
-    FinanceSnapshot snapshot,
-    TransferItem transfer,
-  ) async {
-    // Panel, dialog değil: ayrıntı okunacak bir kayıt, cevaplanacak bir soru
-    // değil. Önceki hâli etiketli metin satırlarından ibaretti — `Tarih:`,
-    // `Açıklama:`, `Durum:` — ve transferin asıl bilgisi olan tutar ile iki
-    // ucu, o satırların arasında aynı kademede duruyordu.
-    final shouldCancel = await AppAdaptiveSheet.show<bool>(
-      context: context,
-      builder: (sheetContext) => _TransferDetail(
-        transfer: transfer,
-        sourceName: _choiceName(snapshot.accounts, transfer.sourceAccountId),
-        destinationName: _choiceName(
-          snapshot.accounts,
-          transfer.destinationAccountId,
-        ),
-      ),
-    );
-    if (shouldCancel != true || !mounted) return;
-
-    final confirmed = await AppConfirmDialog.show(
-      context: context,
-      icon: Icons.block,
-      destructive: true,
-      title: 'Transfer iptal edilsin mi?',
-      message:
-          'Hesap bakiyeleri transfer öncesine döner. Gelir ve gider '
-          'toplamları değişmez.',
-      confirmLabel: 'Transferi iptal et',
-    );
-    if (confirmed != true || !mounted) return;
-
-    await controller.submit(
-      () => controller.repository.cancelTransfer(transfer.id),
-      'Transfer iptal edildi; hesap bakiyeleri geri alındı.',
-      impact: FinanceMutationImpact.transfer,
-    );
-  }
 
   Future<void> _addCard() async {
     await AppFormSheet.show<Map<String, Object?>>(
@@ -1322,121 +1156,6 @@ class _FeatureList extends StatelessWidget {
   );
 }
 
-class _TransferDialog extends StatefulWidget {
-  const _TransferDialog({required this.accounts, this.prefill});
-  final List<FinanceChoice> accounts;
-
-  /// Dekonttan okunan öneriler. Kaynak ve hedef burada **yok**: belge hangi
-  /// hesabın kullanıldığını söylemez ve yanlış uç, transferi bambaşka bir para
-  /// hareketine çevirir.
-  final TransferPrefill? prefill;
-  @override
-  State<_TransferDialog> createState() => _TransferDialogState();
-}
-
-class _TransferDialogState extends State<_TransferDialog> {
-  final key = GlobalKey<FormState>();
-  late final TextEditingController amount;
-  late final TextEditingController description;
-  String? source;
-  String? destination;
-  late String date;
-
-  @override
-  void initState() {
-    super.initState();
-    final prefill = widget.prefill;
-    amount = TextEditingController(text: prefill?.amount ?? '');
-    description = TextEditingController(text: prefill?.description ?? '');
-    date = prefill?.date ?? _dateText(DateTime.now());
-  }
-
-  @override
-  void dispose() {
-    amount.dispose();
-    description.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => Form(
-    key: key,
-    child: AppFormSheet<Map<String, Object?>>(
-      title: 'Yeni transfer',
-      description:
-          'Transfer gelir veya gider değildir; parayı iki hesap arasında '
-          'taşır ve raporları etkilemez.',
-      submitLabel: 'Kaydet',
-      onSubmit: () async {
-        if (!(key.currentState?.validate() ?? false)) return null;
-        if (source == destination) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Kaynak ve hedef farklı olmalı.')),
-          );
-          return null;
-        }
-        return {
-          'sourceAccountId': source,
-          'destinationAccountId': destination,
-          'amount': _money(amount.text),
-          'currency': 'TRY',
-          'transferDate': date,
-          'description': _nullable(description.text),
-        };
-      },
-      children: [
-        AppFormField(
-          child: _choice(
-            widget.accounts,
-            'Kaynak hesap',
-            source,
-            (v) => setState(() => source = v),
-          ),
-        ),
-        AppFormField(
-          child: _choice(
-            widget.accounts,
-            'Hedef hesap',
-            destination,
-            (v) => setState(() => destination = v),
-          ),
-        ),
-        AppFormField(
-          child: TextFormField(
-            controller: amount,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Tutar',
-              suffixText: 'TRY',
-            ),
-            validator: _moneyError,
-          ),
-        ),
-        AppFormField(
-          child: AppDateField(
-            label: 'Tarih',
-            value: date,
-            lastDate: DateTime.now(),
-            onChanged: (value) => setState(() => date = value),
-          ),
-        ),
-        AppFormField(
-          child: TextFormField(
-            controller: description,
-            hintLocales: const [Locale('tr', 'TR')],
-            decoration: const InputDecoration(labelText: 'Açıklama'),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-/// Kart oluşturma ve düzenleme formu.
-///
-/// Tek form: alanlar aynı, yalnız başlangıç değerleri ve gönderilen fiil
-/// farklı. İki ayrı form olsaydı birinde düzeltilen doğrulama kuralı ötekinde
-/// unutulurdu.
 class _CardDialog extends StatefulWidget {
   const _CardDialog({required this.onSave, this.card});
 
@@ -2227,12 +1946,6 @@ Widget _choice(
   validator: (selected) => selected == null ? '$label seçin.' : null,
 );
 
-String _choiceName(List<FinanceChoice> choices, String id) =>
-    choices
-        .where((item) => item.id == id)
-        .map((item) => item.name)
-        .firstOrNull ??
-    'Hesap';
 String? _moneyError(String? value) {
   final normalized = _money(value ?? '');
   final parsed = double.tryParse(normalized);
@@ -2353,168 +2066,6 @@ class _TruncationNotice extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Bir transferin ayrıntısı.
-///
-/// Transferin anlatacağı tek şey var: **bu para nereden nereye taşındı ve
-/// gelir/gider toplamı değişmedi.** Panel bunu üç kademede söylüyor — tutar
-/// manşet, iki uç ok ile, gerisi ikincil satırlar — çünkü etiketli metin
-/// satırları (`Tarih:`, `Durum:`) hepsini aynı kademeye indiriyordu.
-class _TransferDetail extends StatelessWidget {
-  const _TransferDetail({
-    required this.transfer,
-    required this.sourceName,
-    required this.destinationName,
-  });
-
-  final TransferItem transfer;
-  final String sourceName;
-  final String destinationName;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final surfaces = AppSurfaces.of(context);
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.medium,
-          0,
-          AppSpacing.medium,
-          AppSpacing.medium,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Transfer ayrıntısı', style: theme.textTheme.titleLarge),
-            const SizedBox(height: AppSpacing.medium),
-            // Tutar manşet. Transferde rol yok: para el değiştirmedi, yer
-            // değiştirdi — gelir de gider de değil, o yüzden `effect`
-            // verilmiyor ve tutar varsayılan mürekkep renginde kalıyor.
-            AppMoneyText(
-              amount: transfer.amount,
-              currency: transfer.currency,
-              style: theme.textTheme.headlineSmall,
-              isCancelled: transfer.isCancelled,
-            ),
-            const SizedBox(height: AppSpacing.medium),
-            // İki uç ve aralarındaki ok: transferin bütün hikâyesi bu satır.
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.medium,
-                vertical: AppSpacing.small + AppSpacing.xSmall,
-              ),
-              decoration: BoxDecoration(
-                color: surfaces.cardMuted,
-                borderRadius: BorderRadius.circular(AppRadius.field),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _Endpoint(label: 'Çıkan hesap', name: sourceName),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.small,
-                    ),
-                    child: Icon(
-                      Icons.arrow_forward,
-                      size: 18,
-                      color: surfaces.inkMuted,
-                    ),
-                  ),
-                  Expanded(
-                    child: _Endpoint(
-                      label: 'Giren hesap',
-                      name: destinationName,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.medium),
-            Wrap(
-              spacing: AppSpacing.small,
-              runSpacing: AppSpacing.small,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                AppStatusChip(
-                  label: transfer.isCancelled ? 'İptal edildi' : 'Aktif',
-                  icon: transfer.isCancelled ? Icons.block : Icons.swap_horiz,
-                  tone: transfer.isCancelled
-                      ? AppStatusTone.cancelled
-                      : AppStatusTone.neutral,
-                ),
-                Text(
-                  DateText.dayMonthYear(transfer.date),
-                  style: theme.textTheme.bodyMedium,
-                ),
-              ],
-            ),
-            if (transfer.description case final description?) ...[
-              const SizedBox(height: AppSpacing.small),
-              Text(description, style: theme.textTheme.bodyMedium),
-            ],
-            const SizedBox(height: AppSpacing.medium),
-            // Kuralın kendisi yazılı: transferin raporlara etkisi yok ve bu,
-            // kullanıcının en çok yanıldığı yer.
-            Text(
-              'Hesaplar arası taşınan para gelir veya gider sayılmaz.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: surfaces.inkMuted,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.medium),
-            if (!transfer.isCancelled)
-              OutlinedButton.icon(
-                onPressed: () => Navigator.of(context).pop(true),
-                icon: const Icon(Icons.block),
-                label: const Text('Transferi iptal et'),
-              ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Kapat'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Transferin bir ucu: ne olduğu üstte küçük, adı altta.
-class _Endpoint extends StatelessWidget {
-  const _Endpoint({required this.label, required this.name});
-
-  final String label;
-  final String name;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: AppSurfaces.of(context).inkMuted,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xSmall),
-        Text(
-          name,
-          style: theme.textTheme.titleSmall,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
     );
   }
 }

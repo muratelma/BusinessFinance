@@ -65,55 +65,62 @@ Future<void> captureScreen(
 }) async {
   // Font yükleme gerçek G/Ç'dir; sahte zamanın içinde hiç tamamlanmaz.
   await tester.runAsync(loadDesignFonts);
-  tester.view.physicalSize = frame * 2;
-  tester.view.devicePixelRatio = 2;
-  addTearDown(tester.view.reset);
+  final oldShadows = debugDisableShadows;
+  debugDisableShadows = false;
+  try {
+    tester.view.physicalSize = frame * 2;
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
 
-  final boundary = GlobalKey();
-  final body = withNavBar
-      ? Scaffold(
-          body: page,
-          floatingActionButtonLocation:
-              FloatingActionButtonLocation.centerDocked,
-          floatingActionButton: Builder(
-            builder: (context) => FloatingActionButton(
-              heroTag: 'screenshot-fab',
-              tooltip: 'İşlem ekle',
-              onPressed: () => openQuickAdd(context),
-              child: const Icon(Icons.add),
+    final boundary = GlobalKey();
+    final body = withNavBar
+        ? Scaffold(
+            body: page,
+            floatingActionButtonLocation:
+                FloatingActionButtonLocation.centerDocked,
+            floatingActionButton: Builder(
+              builder: (context) => FloatingActionButton(
+                heroTag: 'screenshot-fab',
+                tooltip: 'İşlem ekle',
+                onPressed: () => openQuickAdd(context),
+                child: const Icon(Icons.add),
+              ),
             ),
-          ),
-          bottomNavigationBar: ShellNavigationBar(
-            destinations: MainShell.destinationsFor(hasBusiness),
-            currentIndex: selectedTab,
-            onSelected: (_) {},
-          ),
-        )
-      : page;
-  await tester.pumpWidget(
-    RepaintBoundary(
-      key: boundary,
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        theme: _screenshotTheme(),
-        home: pushed ? _PushedHost(child: body) : body,
+            bottomNavigationBar: ShellNavigationBar(
+              destinations: MainShell.destinationsFor(hasBusiness),
+              currentIndex: selectedTab,
+              onSelected: (_) {},
+            ),
+          )
+        : page;
+    await tester.pumpWidget(
+      RepaintBoundary(
+        key: boundary,
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: _screenshotTheme(),
+          home: pushed ? _PushedHost(child: body) : body,
+        ),
       ),
-    ),
-  );
-  await _settle(tester);
-  if (before != null) {
-    await before(tester);
+    );
     await _settle(tester);
-  }
+    if (before != null) {
+      await before(tester);
+      await _settle(tester);
+    }
 
-  await tester.runAsync(() async {
-    final render =
-        boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
-    final image = await render.toImage(pixelRatio: 2);
-    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-    final file = File('$screenshotDir/$name.png')..createSync(recursive: true);
-    file.writeAsBytesSync(bytes!.buffer.asUint8List());
-  });
+    await tester.runAsync(() async {
+      final render =
+          boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+      final image = await render.toImage(pixelRatio: 2);
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      final file = File('$screenshotDir/$name.png')
+        ..createSync(recursive: true);
+      file.writeAsBytesSync(bytes!.buffer.asUint8List());
+    });
+  } finally {
+    debugDisableShadows = oldShadows;
+  }
 }
 
 /// Sonsuz animasyonlu ekranda (ilerleme göstergesi) `pumpAndSettle` hiç

@@ -2197,3 +2197,25 @@ gerektiğinde eksik faiz rolü açılır; eski faiz de rolden okunur. Transfer
 `FeeTransactionId` ve bağlı gideri taşır; aynı `SaveChanges` gider ve transferi
 yazar, iptal ikisini birlikte değiştirir. İlk rolü eşzamanlı açan istekler SQL
 tekliğinin kazanan kaydını paylaşır. Yedek v12 yazar ve v11'i yükselterek okur.
+
+## Finans sayfalarının Flutter katmanı — 13 Ekim 2026
+
+`FinanceReportPage` (özet/kategori/hesap/yolda), `AccountsOverviewPage` ve
+`TransferPage` açık tipli `FinancePageRepositoryContract` üzerinden çalışır.
+`FinancePageRepository → ApiClient` yalnız veri katmanında JSON okur;
+`FinancePageController` seçim, istek nesli, revision, 50 satırlık devam,
+bayat veri ve oturum durumunu yönetir. `TransferController` 250 ms gecikmeli
+sunucu önizlemesini ve kaydetme yarışını yönetir. Dispose edilen veya eski
+bir seçime ait yanıt yeni sayfanın durumunu değiştirmez.
+
+Toplam, pay, çubuk oranı, ay sonu bakiyesi ve transferin toplam çıkışı hazır
+DTO alanlarıdır; istemcide ikinci finansal toplam üretilmez. Kategori
+kaleminin `scope` alanı, bağlı nötr işlemin kapsamından bağımsızdır: masraflı
+transferin kendisi kapsamsızken gider parçası kendi gerçek kapsamını taşır.
+
+İşlemler ve yeni sayfalar aynı `ActivityTile` ve `showActivityDetail`
+açıcısını kullanır. İşlem ayrıntısı, parça kategorisini sunucudan okur;
+POS yatışı mevcut `PosDeposit` paneline, gün sonuna bağlı kayıt mevcut gün
+sonu ayrıntısına gider. Bakiye, kalan, limit ve iptal kilitleri bu ortak
+açılışta korunur. Eski hesap/transfer sekmesi ve kart feature'ındaki transfer
+liste/form/ayrıntı kopyaları kaldırıldı; kart akışı kendi feature'ında kalır.

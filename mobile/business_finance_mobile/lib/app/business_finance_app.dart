@@ -13,6 +13,7 @@ import '../features/dashboard/presentation/dashboard_view_model.dart';
 import '../features/profile/data/profile_repository.dart';
 import '../features/reminders/presentation/reminder_controller.dart';
 import 'app_dependencies.dart';
+import '../features/finance_pages/data/finance_page_repository.dart';
 
 class BusinessFinanceApp extends StatelessWidget {
   BusinessFinanceApp({
@@ -41,6 +42,9 @@ class BusinessFinanceApp extends StatelessWidget {
              categoryRepository: dependencies?.categoryRepository,
              transactionRepository: dependencies?.transactionRepository,
              activityRepository: dependencies?.activityRepository,
+             financePageRepository: dependencies == null
+                 ? null
+                 : FinancePageRepository(dependencies.apiClient),
              financialDataChanges: dependencies?.financialDataChanges,
              scopeController: dependencies?.scopeController,
              financeRepository: dependencies?.financeRepository,

@@ -88,6 +88,16 @@ class DashboardPage extends StatelessWidget {
     final report = viewModel.report!;
     final advanced = viewModel.advanced;
     final budgets = advanced?.budgetVariances ?? const <BudgetVarianceItem>[];
+    void openCategories() => context.push(
+      Uri(
+        path: categorySummaryLocation,
+        queryParameters: {
+          'year': '${report.year}',
+          'month': '${report.month}',
+          'scope': ?viewModel.scope?.apiValue,
+        },
+      ).toString(),
+    );
 
     return RefreshIndicator(
       onRefresh: viewModel.load,
@@ -120,10 +130,14 @@ class DashboardPage extends StatelessWidget {
 
           DashboardBlock(
             title: 'Kategori giderleri',
+            onOpen: openCategories,
             count: report.categoryExpenses.isEmpty
                 ? null
                 : '${report.categoryExpenses.length} kategori',
-            child: DashboardCategoryCard(report: report),
+            child: DashboardCategoryCard(
+              report: report,
+              onOpen: openCategories,
+            ),
           ),
           if (advanced != null)
             DashboardBlock(

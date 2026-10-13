@@ -150,6 +150,8 @@ class CategoryExpenseSlice {
     required this.canonicalName,
     required this.amount,
     this.categoryId,
+    this.share = '0.0000',
+    this.barRatio = 0,
   });
 
   /// Yalnız "Diğer" satırında `null`: o satır bir kategori değil, birden
@@ -160,6 +162,8 @@ class CategoryExpenseSlice {
   /// Sunucunun kanonik adı; ikon eşlemesi bunun üzerinden yapılır.
   final String canonicalName;
   final String amount;
+  final String share;
+  final double barRatio;
 
   bool get isOther => categoryId == null;
 
@@ -170,6 +174,12 @@ class CategoryExpenseSlice {
       categoryName: DefaultCategoryLabels.localized(rawName),
       canonicalName: rawName,
       amount: JsonReaders.money(json, 'amount'),
+      share: json['share'] == null
+          ? '0.0000'
+          : JsonReaders.money(json, 'share'),
+      barRatio: json['barRatio'] == null
+          ? 0
+          : double.parse(JsonReaders.money(json, 'barRatio')),
     );
   }
 }

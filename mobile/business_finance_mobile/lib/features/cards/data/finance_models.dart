@@ -6,9 +6,11 @@ class FinanceChoice {
     required this.id,
     required this.name,
     this.defaultScope,
+    this.role,
   });
   final String id;
   final String name;
+  final String? role;
 
   /// Hesabın ya da kategorinin varsayılan kapsamı; boş olması meşrudur.
   final TransactionScope? defaultScope;

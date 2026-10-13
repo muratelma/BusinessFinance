@@ -7,10 +7,12 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_detail_block.dart';
+import '../../../core/widgets/app_form_error.dart';
 import '../../../core/widgets/app_icon_capsule.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_status_chip.dart';
 import '../data/activity_models.dart';
+import '../../finance_pages/data/finance_page_models.dart';
 import 'activity_tile.dart' show activityIcon, moneyEffectOf;
 
 /// The detail behind a feed row: a shared header plus the fields that only make
@@ -23,6 +25,8 @@ class ActivityDetailSheet extends StatelessWidget {
     this.onCancel,
     this.isCancelling = false,
     this.balances,
+    this.parts,
+    this.errorMessage,
     this.onShowDayClose,
   });
 
@@ -31,6 +35,8 @@ class ActivityDetailSheet extends StatelessWidget {
   final VoidCallback? onShowDayClose;
 
   final FinancialActivity activity;
+  final Future<List<ActivityPartData>>? parts;
+  final String? errorMessage;
 
   /// İşlem sonrası bakiye; panel açılırken **bir kez** istenmiş okuma.
   /// Verilmezse satır hiç çizilmez. Sonuç gelene kadar satır yerinde durur
@@ -148,21 +154,29 @@ class ActivityDetailSheet extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  AppDetailBlock(
-                    rows: [
-                      ..._rows(context),
-                      ..._balanceRows(
-                        context,
-                        balances == null ? const [] : snapshot.data,
-                        failed: snapshot.hasError,
-                      ),
-                    ],
+                  FutureBuilder<List<ActivityPartData>>(
+                    future: parts,
+                    builder: (context, partSnapshot) => AppDetailBlock(
+                      rows: [
+                        ..._rows(context),
+                        ..._partRows(
+                          partSnapshot.data,
+                          failed: partSnapshot.hasError,
+                        ),
+                        ..._balanceRows(
+                          context,
+                          balances == null ? const [] : snapshot.data,
+                          failed: snapshot.hasError,
+                        ),
+                      ],
+                    ),
                   ),
                   ?_flipNote(context, snapshot.data),
                 ],
               ),
             ),
             const SizedBox(height: AppSpacing.small + AppSpacing.xSmall),
+            if (errorMessage != null) AppFormError(message: errorMessage!),
             _Actions(
               activity: activity,
               effectLabel: effectLabel,
@@ -174,6 +188,56 @@ class ActivityDetailSheet extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  List<AppDetailRow> _partRows(
+    List<ActivityPartData>? loaded, {
+    required bool failed,
+  }) {
+    if (parts == null) return const [];
+    String label(String kind) => switch (kind) {
+      'fee' || 'transfer-fee' => 'Masrafın kategorisi',
+      'interest' => 'Faizin kategorisi',
+      'deduction' => 'Kesintinin kategorisi',
+      _ => 'Komisyonun kategorisi',
+    };
+    if (failed) {
+      return const [
+        AppDetailRow(
+          icon: Icons.info_outline,
+          label: 'Parça ayrıntısı',
+          value: 'Alınamadı',
+        ),
+      ];
+    }
+    if (loaded != null) {
+      return [
+        for (final p in loaded)
+          AppDetailRow(
+            icon: Icons.local_offer_outlined,
+            label: label(p.kind),
+            value: p.categoryName ?? 'Kategorisi yok',
+          ),
+      ];
+    }
+    if (!activity.hasFee &&
+        (activity.interestPortion == null ||
+            activity.interestPortion == '0.0000')) {
+      return const [];
+    }
+    return [
+      AppDetailRow(
+        icon: Icons.local_offer_outlined,
+        label: label(
+          activity.kind == ActivityKind.transfer
+              ? 'transfer-fee'
+              : activity.interestPortion != null
+              ? 'interest'
+              : 'commission',
+        ),
+        value: '…',
+      ),
+    ];
   }
 
   AppStatusTone get _tone => activity.isCancelled
@@ -425,7 +489,23 @@ class ActivityDetailSheet extends StatelessWidget {
       // Kaynak ve hedef türe göre adlandırılır: "kaynak → hedef" transferde
       // ve kart ödemesinde farklı bir şey söyler.
       ...switch (activity.kind) {
-        ActivityKind.transfer || ActivityKind.cardPayment => [
+        ActivityKind.transfer => [
+          if (source != null) row(Icons.north_east, 'Çıkan hesap', source),
+          if (destination != null)
+            row(Icons.south_west, 'Giren hesap', destination),
+          if (activity.hasFee)
+            AppDetailRow(
+              icon: Icons.payments_outlined,
+              label: 'Masraf',
+              trailing: AppMoneyText(
+                amount: activity.feeAmount!,
+                currency: activity.currency,
+                size: AppMoneySize.body,
+                effect: AppMoneyEffect.expense,
+              ),
+            ),
+        ],
+        ActivityKind.cardPayment => [
           if (route != null)
             row(Icons.swap_horiz, 'Hesaplar', route)
           else if (source != null)

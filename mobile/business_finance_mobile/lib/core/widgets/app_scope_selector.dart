@@ -16,14 +16,35 @@ class AppScopeSwitch extends StatelessWidget {
   const AppScopeSwitch({
     required this.value,
     required this.onChanged,
+    this.compact = false,
     super.key,
   });
 
   final TransactionScope? value;
   final ValueChanged<TransactionScope?> onChanged;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    if (compact) {
+      return Wrap(
+        spacing: AppSpacing.small,
+        children: [
+          for (final scope in const [
+            null,
+            TransactionScope.business,
+            TransactionScope.personal,
+          ])
+            ChoiceChip(
+              label: Text(scopeFilterLabel(scope)),
+              selected: value == scope,
+              showCheckmark: false,
+              onSelected: (_) => onChanged(scope),
+              materialTapTargetSize: MaterialTapTargetSize.padded,
+            ),
+        ],
+      );
+    }
     final theme = Theme.of(context);
     final surfaces = AppSurfaces.of(context);
     return AppSegmentRail<TransactionScope?>(

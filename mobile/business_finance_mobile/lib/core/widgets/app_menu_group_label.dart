@@ -23,9 +23,10 @@ import '../theme/app_surfaces.dart';
 /// Büyük harf **kullanılmaz**: Türkçede `i/İ` dönüşümü tuzaklıdır ve ekran
 /// okuyucu büyük harfli metni harf harf okuyabilir.
 class AppMenuGroupLabel extends StatelessWidget {
-  const AppMenuGroupLabel(this.label, {super.key});
+  const AppMenuGroupLabel(this.label, {super.key, this.compact = false});
 
   final String label;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -39,10 +40,11 @@ class AppMenuGroupLabel extends StatelessWidget {
       children: [
         Text(
           label,
-          style: theme.textTheme.titleSmall?.copyWith(
-            color: surfaces.inkMuted,
-            letterSpacing: 0.4,
-          ),
+          style:
+              (compact
+                      ? theme.textTheme.labelMedium
+                      : theme.textTheme.titleSmall)
+                  ?.copyWith(color: surfaces.inkMuted, letterSpacing: 0.4),
         ),
         const SizedBox(height: AppSpacing.xSmall),
         Divider(height: 1, thickness: 1, color: surfaces.border),

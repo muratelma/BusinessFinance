@@ -37,15 +37,18 @@ yazılmaz; ayrıntı `AGENTS.md` içindeki iletişim kurallarındadır.
 
 ## Proje modeli
 
-**13 Ekim 2026, kategori/hesap sunucusu:** kategori rolü (dört rol, açık
+**13 Ekim 2026, kategori/hesap teslimi:** kategori rolü (dört rol, açık
 kapsam, kullanıcı/rol tekliği), masraflı transfer ve önizlemesi, SQL'de
 sayfalı kategori ve hesap okumaları `FinancePages` altında. İki kanonik liste
 `RecognizedItems` / `AccountMovements` genişledi; hesapta yatış net ve transfer
 çıkışı masraf dahil tek harekettir. Yedek v12 yazar, v11 de okur; sürümün
 tek kaynağı `documentation/restore-runbook.md`. Sözleşme
 `documentation/category-account-pages-api-contract.md`; yol günlüğü/teslim
-`research/TESLIM-2026-10-13-kategori-hesap-sayfalari.md`. Bu checkpoint'te
-Flutter sayfaları henüz yazılmadı.
+`research/TESLIM-2026-10-13-kategori-hesap-sayfalari.md`. Flutter tarafında kategori özeti/kategori/hesap/Yolda,
+Hesaplar ve ayrı transfer sayfası bağlandı; ortak satır/ay seçici/ayrıntı
+kullanılır. Geliştirme veritabanının bekleyen migration'ı uygulanıp 5284'teki
+sunucu hatası giderildi. Son kontroller ve cihazda denenmeyenler teslim
+raporundadır. Aşama 06.3 Aktif kalır; sonraki iş bu teslimin cihaz kabulüdür.
 
 Flutter istemcisi ve ASP.NET Core backend'iyle çalışan, çok kullanıcılı bir
 işletme finansı uygulaması. Hedef kitle şahıs şirketleri ve esnaf: şirketin

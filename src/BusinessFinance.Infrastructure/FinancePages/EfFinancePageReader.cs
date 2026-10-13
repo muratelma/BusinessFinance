@@ -129,7 +129,7 @@ internal sealed class EfFinancePageReader(BusinessFinanceDbContext db,
                 i.SourceKind == (int)FinancialActivityKind.PosSale && i.Part is null ? row.TransferredOn is null ? "transit" : "deposited" : null;
             return new PageActivity(row, i.Type == (int)TransactionType.Expense ? -i.Amount : i.Amount, i.Part,
                 i.Part is not null ? i.Amount : null, i.ParentAmount, state, paid?.SettlementDate, paid?.Name,
-                q.Scope is null && scopes.Length > 1);
+                q.Scope is null && scopes.Length > 1, Scope: ((TransactionScope)i.Scope).ToString().ToLowerInvariant());
         }).ToArray();
         return new(summary, categoryId, category?.Name, wholeTotal, scopes.Length > 1, hasPeople, people,
             page, count, q.Offset, q.Offset + page.Length < count);

@@ -51,9 +51,26 @@ abstract interface class FinanceRepositoryContract {
   Future<void> realizeInstallment(String planId, int sequence);
 }
 
-class FinanceRepository implements FinanceRepositoryContract {
+abstract interface class BankFeeCategoryProvider {
+  Future<FinanceChoice> ensureBankFeeCategory();
+}
+
+class FinanceRepository
+    implements FinanceRepositoryContract, BankFeeCategoryProvider {
   FinanceRepository(this._client);
   final ApiClient _client;
+
+  @override
+  Future<FinanceChoice> ensureBankFeeCategory() async {
+    final json = (await _client.post(
+      '/api/v1/categories/bank-fee',
+    )).requireObject();
+    return FinanceChoice(
+      id: JsonReaders.string(json, 'id'),
+      name: JsonReaders.string(json, 'name'),
+      role: JsonReaders.string(json, 'role'),
+    );
+  }
 
   @override
   Future<FinanceSnapshot> load({
@@ -81,6 +98,7 @@ class FinanceRepository implements FinanceRepositoryContract {
             id: JsonReaders.string(json, 'id'),
             name: JsonReaders.string(json, 'name'),
             defaultScope: TransactionScope.fromApiOrNull(json['defaultScope']),
+            role: JsonReaders.nullableString(json, 'role'),
           ),
         )
         .toList(growable: false);
@@ -92,6 +110,7 @@ class FinanceRepository implements FinanceRepositoryContract {
               JsonReaders.string(json, 'name'),
             ),
             defaultScope: TransactionScope.fromApiOrNull(json['defaultScope']),
+            role: JsonReaders.nullableString(json, 'role'),
           ),
         )
         .toList(growable: false);

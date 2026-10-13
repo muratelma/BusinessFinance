@@ -113,6 +113,7 @@ void main() {
         'installment',
         'pos-deposit',
         'day-close',
+        'transfer',
       };
 
       expect(

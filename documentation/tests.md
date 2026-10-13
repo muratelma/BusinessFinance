@@ -2142,3 +2142,35 @@ içindedir.
 
 Sayısal sonuçlar ve son tam kontrol kaydı teslim raporundadır:
 `research/TESLIM-2026-10-13-kategori-hesap-sayfalari.md`.
+
+## Kategori ve hesap sayfaları: Flutter ve yerel hata doğrulaması — 13 Ekim 2026
+
+- `finance_pages_test.dart`: istek nesli/dispose yarışı, revision yenileme,
+  kapsam ve kaynak/kişi kesişimi, bayat veri/401, sayfa toplamı, ortak ayrıntı,
+  pasif bakiye, ileri ay seçimi, transferin dört ondalıklı tutar/masraf isteği,
+  önizleme/kapsam kapısı ve nötr hesap hareketinin işareti. 375 dp ve 2.0×
+  metin, açık/koyu tema; Hesaplar/Transfer için de ayrı büyük yazı kapıları.
+- `finance_page_contract_test.dart`: sentetik gerçek API JSON'u açık Dart
+  modellere ayrıştırılır; gider/gelir, hesap/nakit/yolda ve parça tutarları
+  gerçek sözleşmeyle korunur. Örnek dosya
+  `test/fixtures/category-account-contract.json`; token/parola içermez.
+- `finance_pages_screenshot_test.dart`: A8c/A8d hariç **51 teslim hâli** etkin
+  koşuda çizilir. Normal suite bu görsel testleri ortam değişkeni olmadan
+  atlar. Filtreli özetler ve tür seçimleri gerçek HTTP cevaplarına bağlıdır;
+  eski kategorisiz geçmiş, çok uzun menü ve büyük tutar ayrı tutarlı fakes'tir.
+- Ortak satır, parça ayrıntısı, POS panelindeki satış tutarı/tarihi, More menüsü
+  ve yeni transfer rotasına göre mevcut testler güncellendi. Kaldırılmış
+  hesap/transfer sekmesinin ve eski transfer döneminin testlerinin yerini yeni
+  sayfa testleri aldı; kartlara ait test kapsamı korundu.
+- Görsel harness gölgeleri render sırasında açıp test gövdesi bitmeden geri
+  yükler. Görüntülerin tamamı teslimle altı karşılaştırma sayfasında, ana
+  durumlar ayrıca tek tek incelendi; yalnız testin çıkış koduna dayanılmadı.
+
+Kullanıcının 5284 API'sinde aynı sentetik yetkili kategoriler isteği bekleyen
+migration öncesi `500 server.unexpected_error`, sonrasında `200` döndü.
+Hesaplar, kategori özeti, hesap toplamları ve birleşik işlemler de aynı API'de
+`200` ile yeniden okundu. Yalnız incelenmiş
+`AddCategoryRolesAndTransferFees` uygulandı; tablo/veri sıfırlanmadı.
+Bağımsız 5291 Release API denemesi **78 kontrol** geçti. Sayısal sonuçlar ve
+son tüm build/test kayıtları teslim raporundadır. ADB bağlı cihaz göstermediği
+için emülatör, gerçek cihaz ve canlı ekran okuyucu kabulü yapılmadı.

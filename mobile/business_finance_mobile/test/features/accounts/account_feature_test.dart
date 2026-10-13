@@ -14,7 +14,6 @@ import 'package:business_finance_mobile/core/presentation/financial_data_changes
 import 'package:business_finance_mobile/features/accounts/data/account_models.dart';
 import 'package:business_finance_mobile/features/accounts/data/account_repository.dart';
 import 'package:business_finance_mobile/features/accounts/presentation/account_form_page.dart';
-import 'package:business_finance_mobile/features/accounts/presentation/accounts_and_transfers_page.dart';
 import 'package:business_finance_mobile/features/accounts/presentation/accounts_page.dart';
 import 'package:business_finance_mobile/features/accounts/presentation/accounts_view_model.dart';
 
@@ -348,39 +347,6 @@ void main() {
 
     expect(find.text(message), findsOneWidget);
     expect(find.text('Hesabı sil'), findsOneWidget);
-  });
-
-  testWidgets('sekmeler arasında gidip gelmek view modeli öldürmez', (
-    tester,
-  ) async {
-    // Cihazda kırmızı ekran veren hata buydu: `ownsViewModel` gömülü
-    // `AccountsPage`e geçiriliyordu. `TabBarView` görünmeyen sekmeyi atınca o
-    // da sahibi sandığı view model'i dispose ediyor, sekmeye dönüldüğünde ölü
-    // model'e listener ekleniyordu. Sahiplik host'ta durmalı.
-    final viewModel = AccountsViewModel(_FakeAccountRepository());
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light(),
-        home: AccountsAndTransfersPage(
-          viewModel: viewModel,
-          ownsViewModel: true,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Transferler'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Hesaplar'));
-    await tester.pumpAndSettle();
-
-    expect(tester.takeException(), isNull);
-
-    // Kayan buton sekmeye göre değişiyor; Transferler'de görünmemeli.
-    expect(find.byType(FloatingActionButton), findsOneWidget);
-    await tester.tap(find.text('Transferler'));
-    await tester.pumpAndSettle();
-    expect(find.byType(FloatingActionButton), findsNothing);
   });
 }
 

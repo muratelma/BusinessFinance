@@ -4,10 +4,16 @@ import 'package:provider/provider.dart';
 
 import '../network/api_client.dart';
 import '../network/api_exception.dart';
+import '../models/transaction_scope.dart';
 import '../presentation/financial_data_changes.dart';
 import '../presentation/scope_controller.dart';
 import '../../features/accounts/data/account_repository.dart';
-import '../../features/accounts/presentation/accounts_and_transfers_page.dart';
+import '../../features/accounts/presentation/account_form_page.dart';
+import '../../features/finance_pages/data/finance_page_repository.dart';
+import '../../features/finance_pages/presentation/finance_page_controller.dart';
+import '../../features/finance_pages/presentation/finance_report_page.dart';
+import '../../features/finance_pages/presentation/accounts_overview_page.dart';
+import '../../features/finance_pages/presentation/transfer_page.dart';
 import '../../features/accounts/presentation/accounts_view_model.dart';
 import '../../features/account/data/account_repository.dart' as user_account;
 import '../../features/account/presentation/account_page.dart';
@@ -95,6 +101,7 @@ GoRouter createAppRouter({
   CategoryRepository? categoryRepository,
   TransactionRepositoryContract? transactionRepository,
   ActivityRepositoryContract? activityRepository,
+  FinancePageRepositoryContract? financePageRepository,
   FinancialDataChanges? financialDataChanges,
   ScopeController? scopeController,
   FinanceRepositoryContract? financeRepository,
@@ -230,6 +237,7 @@ GoRouter createAppRouter({
                       : Builder(
                           builder: (context) => ActivityFeedPage(
                             repository: activityRepository,
+                            pageRepository: financePageRepository,
                             changes: financialDataChanges,
                             scopeController: scopeController,
                             posRepository: posRepository,
@@ -397,6 +405,7 @@ GoRouter createAppRouter({
                           ? const SizedBox.shrink()
                           : PlannedActivityPageView(
                               repository: activityRepository,
+
                               changes: financialDataChanges,
                               scopeController: scopeController,
                             ),
@@ -440,34 +449,154 @@ GoRouter createAppRouter({
         ],
       ),
       GoRoute(
-        path: '/more/accounts',
+        path: accountsLocation,
         pageBuilder: (context, state) => _sessionPage(
           state,
-          accountRepository == null
+          financePageRepository == null
               ? const Scaffold(
                   body: AppErrorView(
                     message: 'Hesap servisi yapılandırılmadı.',
                   ),
                 )
-              : AccountsAndTransfersPage(
-                  viewModel: AccountsViewModel(
-                    accountRepository,
-                    financialDataChanges: financialDataChanges,
+              : AccountsOverviewPage(
+                  repository: financePageRepository,
+                  changes: financialDataChanges,
+                  onCreate: accountRepository == null
+                      ? null
+                      : () => _openPageAccountForm(
+                          context,
+                          financePageRepository,
+                          accountRepository,
+                          financialDataChanges,
+                        ),
+                ),
+          authController,
+        ),
+      ),
+      GoRoute(
+        path: '$accountsLocation/:accountId',
+        pageBuilder: (context, state) => _sessionPage(
+          state,
+          financePageRepository == null
+              ? const Scaffold(
+                  body: AppErrorView(
+                    message: 'Hesap servisi yapılandırılmadı.',
                   ),
-                  financeRepository: financeRepository,
-                  financialDataChanges: financialDataChanges,
-                  ownsViewModel: true,
-                  initialTab: state.uri.queryParameters['tab'] == 'transfers'
-                      ? 1
-                      : 0,
-                  transferPrefill: state.extra is TransferPrefill
+                )
+              : FinanceReportPage(
+                  repository: financePageRepository,
+                  kind: FinancePageKind.account,
+                  id: state.pathParameters['accountId'],
+                  changes: financialDataChanges,
+                  activityRepository: activityRepository,
+                  posRepository: posRepository,
+                  dayCloseRepository: dayCloseRepository,
+                  onAccountSettings: accountRepository == null
+                      ? null
+                      : () => _openPageAccountForm(
+                          context,
+                          financePageRepository,
+                          accountRepository,
+                          financialDataChanges,
+                          id: state.pathParameters['accountId'],
+                        ),
+                ),
+          authController,
+        ),
+      ),
+      GoRoute(
+        path: '$accountsLocation/:accountId/in-transit',
+        pageBuilder: (context, state) => _sessionPage(
+          state,
+          financePageRepository == null
+              ? const Scaffold(
+                  body: AppErrorView(
+                    message: 'Hesap servisi yapılandırılmadı.',
+                  ),
+                )
+              : FinanceReportPage(
+                  repository: financePageRepository,
+                  kind: FinancePageKind.transit,
+                  id: state.pathParameters['accountId'],
+                  changes: financialDataChanges,
+                  activityRepository: activityRepository,
+                  posRepository: posRepository,
+                  dayCloseRepository: dayCloseRepository,
+                ),
+          authController,
+        ),
+      ),
+      GoRoute(
+        path: transferLocation,
+        pageBuilder: (context, state) => _sessionPage(
+          state,
+          financePageRepository == null
+              ? const Scaffold(
+                  body: AppErrorView(
+                    message: 'Transfer servisi yapılandırılmadı.',
+                  ),
+                )
+              : TransferPage(
+                  repository: financePageRepository,
+                  changes: financialDataChanges,
+                  prefill: state.extra is TransferPrefill
                       ? state.extra! as TransferPrefill
                       : null,
-                  recordFee: _feeRecorder(
-                    transactionRepository,
-                    financeRepository,
-                    financialDataChanges,
+                ),
+          authController,
+        ),
+      ),
+      GoRoute(
+        path: categorySummaryLocation,
+        pageBuilder: (context, state) => _sessionPage(
+          state,
+          financePageRepository == null
+              ? const Scaffold(
+                  body: AppErrorView(
+                    message: 'Kategori servisi yapılandırılmadı.',
                   ),
+                )
+              : FinanceReportPage(
+                  repository: financePageRepository,
+                  kind: FinancePageKind.summary,
+                  month: _pageMonth(state),
+                  income: state.uri.queryParameters['direction'] == 'income',
+                  scopeController: scopeController,
+                  source: state.uri.queryParameters['source'],
+                  changes: financialDataChanges,
+                  activityRepository: activityRepository,
+                ),
+          authController,
+        ),
+      ),
+      GoRoute(
+        path: '$categorySummaryLocation/:categoryId',
+        pageBuilder: (context, state) => _sessionPage(
+          state,
+          financePageRepository == null
+              ? const Scaffold(
+                  body: AppErrorView(
+                    message: 'Kategori servisi yapılandırılmadı.',
+                  ),
+                )
+              : FinanceReportPage(
+                  repository: financePageRepository,
+                  kind: FinancePageKind.category,
+                  id: state.pathParameters['categoryId'] == 'uncategorized'
+                      ? null
+                      : state.pathParameters['categoryId'],
+                  month: _pageMonth(state),
+                  income: state.uri.queryParameters['direction'] == 'income',
+                  scope: state.uri.queryParameters['scope'] == null
+                      ? null
+                      : TransactionScope.fromApi(
+                          state.uri.queryParameters['scope']!,
+                        ),
+                  source: state.uri.queryParameters['source'],
+                  changes: financialDataChanges,
+                  activityRepository: activityRepository,
+                  posRepository: posRepository,
+                  dayCloseRepository: dayCloseRepository,
                 ),
           authController,
         ),
@@ -1235,7 +1364,7 @@ Future<void> _recordBankDocument(
       // hesabından** yazılıyor. Kullanıcı karar sayfasında anahtarı kapattıysa
       // hiç taşınmıyor.
       context.push(
-        '/more/accounts?tab=transfers',
+        transferLocation,
         extra: receiptTransferPrefillFrom(draft, withFee: recordFee),
       );
 
@@ -1257,5 +1386,52 @@ Future<void> _recordBankDocument(
         '/more/debts',
         extra: receiptLendingPrefillFrom(draft, withFee: recordFee),
       );
+  }
+}
+
+DateTime? _pageMonth(GoRouterState state) {
+  final year = int.tryParse(state.uri.queryParameters['year'] ?? '');
+  final month = int.tryParse(state.uri.queryParameters['month'] ?? '');
+  return year == null || month == null || month < 1 || month > 12
+      ? null
+      : DateTime(year, month);
+}
+
+Future<void> _openPageAccountForm(
+  BuildContext context,
+  FinancePageRepositoryContract pages,
+  AccountRepository repository,
+  FinancialDataChanges? changes, {
+  String? id,
+}) async {
+  final vm = AccountsViewModel(repository, financialDataChanges: changes);
+  try {
+    final account = id == null ? null : await pages.accountSettings(id);
+    if (!context.mounted) return;
+    await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AccountFormPage(
+          account: account,
+          onSave: vm.save,
+          onDelete: account == null ? null : vm.delete,
+          readError: () => vm.message,
+        ),
+      ),
+    );
+  } on ApiException catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  } on FormatException {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Hesap ayarları alınamadı.')),
+      );
+    }
+  } finally {
+    vm.dispose();
   }
 }

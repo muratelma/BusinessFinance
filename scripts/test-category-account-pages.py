@@ -11,6 +11,7 @@ from urllib.parse import urlencode, urlparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--url', default='http://127.0.0.1:5291')
 parser.add_argument('--output', default='scratch/category-account-api-results.json')
+parser.add_argument('--contracts-output')
 args = parser.parse_args()
 parsed = urlparse(args.url)
 assert parsed.hostname in ('127.0.0.1', 'localhost') and parsed.port != 5284, 'Use an isolated loopback API port.'
@@ -123,6 +124,7 @@ for summary in (expense, income):
         page = get(f'/api/v1/categories/{s["id"]}/page', **q, direction=summary['direction'])
         money('Category rows '+s['name'], sum(abs(D(i['amount'])) for i in page['items']), s['amount'])
         eq('Category untruncated '+s['name'], page['hasMore'], False)
+        eq('Category item scope '+s['name'], all(i['scope']=='business' for i in page['items']), True)
 goods = get(f'/api/v1/categories/{categories["Ticari mal alımı"]["id"]}/page', **q, source='account:'+bank['id'])
 money('Filtered goods', goods['summary']['total'], 4200)
 money('Whole goods', goods['wholeTotal'], 12480)
@@ -139,6 +141,9 @@ money('Account outgoing rows',sum(-D(i['amount']) for i in page['items'] if D(i[
 money('Transit summary',page['transit']['total'],8074)
 transit=get(f'/api/v1/accounts/{bank["id"]}/in-transit')
 money('Transit rows equal summary',sum(D(i['amount']) for i in transit['items']),8074)
+cash_page=get(f'/api/v1/accounts/{cash["id"]}/page',year=2026,month=9)
+for field,expected in [('inflow',16800),('outflow',18950),('net',-2150),('currentBalance',8454)]:
+    money('Cash page '+field,cash_page[field],expected)
 for direction,total in [('in',27936),('out',31560)]:
     selected = get(f'/api/v1/accounts/{bank["id"]}/page',year=2026,month=9,direction=direction)
     money('Direction menu '+direction,sum(abs(D(o['amount'])) for o in selected['options'] if o['key']!='all'),total)
@@ -150,6 +155,28 @@ money('Year selector equals account balance',months['months'][8]['amount'],21376
 overview=get('/api/v1/accounts/overview')
 for field,expected in [('total',48330),('cashTotal',12454),('bankTotal',35876),('inactiveTotal',0)]:money('Brif 6 overview '+field,overview[field],expected)
 money('Overview groups equal total',D(overview['cashTotal'])+D(overview['bankTotal'])+D(overview['inactiveTotal']),48330)
+if args.contracts_output:
+    contracts = {
+        'synthetic': True, 'summary': expense, 'income': income, 'category': goods,
+        'bill': bill_page, 'commissions': commissions, 'account': page,
+        'transit': transit, 'accounts': overview, 'months': months,
+        'cashAccount': cash_page,
+        'accountPrevious': get(f'/api/v1/accounts/{bank["id"]}/page', year=2026, month=8),
+        'accountMonths': get(f'/api/v1/accounts/{bank["id"]}/months', year=2026),
+        'accountSelections': {s['key']: get(f'/api/v1/accounts/{bank["id"]}/page', year=2026, month=9, selection=s['key'])
+                              for s in page['options'] if s['key'] != 'all'},
+        'parts': {'items': parts}, 'preview': preview,
+        'categoryPages': {s['name']: get(f'/api/v1/categories/{s["id"]}/page', **q, direction=summary['direction'])
+                          for summary in (expense, income) for s in summary['categories']},
+        'accountDirections': {direction: get(f'/api/v1/accounts/{bank["id"]}/page', year=2026, month=9, direction=direction)
+                              for direction in ('in', 'out')},
+        'summarySources': {direction: {s['key']: get('/api/v1/category-summary', **q, direction=direction, source=s['key'])
+                                      for s in summary['sources'] if s['key'] != 'all'}
+                           for direction, summary in [('expense', expense), ('income', income)]},
+    }
+    target = Path(args.contracts_output)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(contracts, ensure_ascii=False, indent=2), encoding='utf-8')
 call('DELETE',f'/api/v1/transactions/{transfer["feeTransactionId"]}',status=409)
 call('DELETE',f'/api/v1/transfers/{transfer["id"]}')
 after=get(f'/api/v1/accounts/{bank["id"]}/page',year=2026,month=9)

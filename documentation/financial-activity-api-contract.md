@@ -1245,3 +1245,9 @@ faiz, komisyon veya kesintinin gerçek kategorisini getirir. `items` alanında
 İptal kilitleri ve işlem sonrası bakiye değişmedi. Transferin kendi masraf
 kaydı `origin=transfer` kökeniyle kilitlidir; tek başına iptal edilemez.
 Ayrıntılı örnek sözleşme `category-account-pages-api-contract.md` içindedir.
+
+İşlemler ve kategori/hesap/Yolda sayfaları Flutter'da aynı ayrıntı açıcısını
+kullanır. Transferde çıkan/giren hesap ve masrafın gerçek kategorisi, POS
+yatışında kapattığı satışların tutarı ve günü gösterilir; mevcut işlem sonrası
+bakiye, kalan borç/limit ve iptal kilitleri korunur. İptal reddi panelin içinde
+görünür; sunucunun `detail` alanı kullanıcı cümlesi olarak gösterilmez.

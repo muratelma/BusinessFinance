@@ -462,5 +462,14 @@ gideri normal işlemler dizisinde durur; geri yükleme yeni gider kimliğini
 transferin bağına eşler. v11 de okunur: rolsüz adlar dört role eşlenir;
 aynı rolün birden çok eski adayı birleştirilmez. v12'de boş rol yeniden
 yorumlanmaz. Dolu şema yükseltmesi, v11 rol eşlemesi ve v12 rol/ad ayrımı
-kalıcı testlerle korunur. Bu oturumda migration yalnız SQL test hedefi
-`BusinessFinanceApiSqlTests`'e uygulanmıştır; 5284'ün veritabanı değiştirilmedi.
+kalıcı testlerle korunur. Sunucu checkpoint'inde migration SQL test hedefi
+`BusinessFinanceApiSqlTests`'e uygulandı. Devam oturumunda geliştirme hedefi
+`BusinessFinance` de yükseltildi: bekleyen bu migration, güncel kodun
+kategoriler ve raporlar okumalarında 500 üretmesine neden oluyordu. İncelenmiş
+veri kaybettirmeyen yükseltmeden sonra aynı API okumaları 200 döndü.
+
+API açılışta migration uygulamaz. Yeni şemalı kodla çalıştırmadan önce hedefin
+`dotnet ef migrations list` çıktısı kontrol edilir; connection string yerel
+secret'tan yalnız işlem ortamına yüklenir ve ekrana yazılmaz. Pending kayıt
+varsa migration incelenip `dotnet ef database update` ile o hedef yükseltilir;
+health/ready 200 tek başına şemanın güncelliğini kanıtlamaz.

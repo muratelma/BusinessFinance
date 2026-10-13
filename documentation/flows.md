@@ -1236,10 +1236,11 @@ Claude Design teslimiyle (27 Eylül 2026, 06.2 Grup 1'in ilk adımı) menü
 | Grup | Kapılar |
 |---|---|
 | (kart) | Hesabım — baş harfler, e-posta, doğrulanmamışsa `E-posta doğrulanmadı` |
-| Para ve hesaplar | Hesaplar ve transferler · Kredi kartlarım · (kişisel profilde) Kasa · Borç ve alacaklar · Cari hesap (işletmesi olana; işletmesi olmayan kullanıcıda yalnız cari hareketi varsa — `hasCounterpartyLedger`, 9 Ekim 2026) |
+| Para ve hesaplar | Hesaplar · Kredi kartlarım · (kişisel profilde) Kasa · Borç ve alacaklar · Cari hesap (işletmesi olana; işletmesi olmayan kullanıcıda yalnız cari hareketi varsa — `hasCounterpartyLedger`, 9 Ekim 2026) |
+| Kategoriler | Kategori özeti · Kategori yönetimi |
 | Planlama | (işletme profilinde) Bütçeler · Yükümlülükler · Tasarruf hedefleri · Planlama ve raporlar |
 | Vergi | Vergi takibi — yalnız işletmesi olana (muhasebeci paketi Aşama 06.3 Grup 2'de, `Vergi takvimi` Grup 3'te kalktı) |
-| Ayarlar | Kategoriler · Hatırlatmalar · Veri ve yedek |
+| Ayarlar | Hatırlatmalar · Veri ve yedek |
 
 Üçüncü sekmeden inen hedef (ADR 0015) kendi sorusunun grubuna girer: `Kasa`
 paranın durduğu yerlerin yanına, `Bütçeler` planlamaya. `Hesabım` artık liste
@@ -1745,5 +1746,32 @@ Transfer isteği masraf ve masraf kapsamı alabilir. Önizleme sunucuda çıkan
 hesap, toplam çıkış ve masrafın kategori/kapsamını döner. Masraf rol kategorisi
 kullanılır; çıkan hesap etiketsizse işletme kullanıcısının kapsam seçimi
 olmadan kayıt yazılmaz. Transfer ve gider tek yazmada kaydedilir; transfer
-iptali ikisini birlikte kaldırır, masraf bağımsız iptal edilemez. Dekont ve
-sayfa akışının Flutter bağlaması takip eden checkpoint'te yapılacaktır.
+iptali ikisini birlikte kaldırır, masraf bağımsız iptal edilemez. Dekonttan
+okunan transfer masrafı yeni transfer sayfasının Masraf alanına gelir.
+
+## Kategori, hesap ve transfer sayfaları — 13 Ekim 2026
+
+`Diğer › Kategoriler › Kategori özeti` ve Özet'in kategori kartı aynı sayfaya
+ay/kapsamla gider. Gelir/gider rayı, kapsam (görünüyorsa) ve hesap/kart
+çipi sunucu okumasını değiştirir; kategori satırı kendi sayfasını aynı seçimle
+açar. Kategori sayfasında kapsam çipi yoktur; kişi ve kaynak menüsü kesişimlidir.
+Sonradan kapanan fatura kendi gününde kalır ve ödeme günü/hesabını gösterir.
+Kategorisiz geçmiş ortak ayrıntıyı açar, kategori atama eylemi yoktur.
+
+`Diğer › Hesaplar` tek listedir; hesabın satırı hesap sayfasını, `tune` mevcut
+hesap ayarlarını açar. Bakiye kapsamdan etkilenmez; geçmiş ayda ay sonu ve
+bugünkü bakiye ayrıdır. Giren/Çıkan/Tümü ve Tür menüsü hareketleri daraltır.
+Mavi Yolda kutusunun en yakın kaydı ortak ayrıntıyı, çoklu kayıt bağlantısı
+`/more/accounts/{id}/in-transit` listesini açar. Para yatınca satış bu listeden
+çıkar ve hesap hareketinde POS yatışı görünür.
+
+`Hesaplar › Transfer yap`, `İşlem ekle › Transfer` ve dekontun transfer yolu
+aynı `/more/transfer` sayfasıdır. Tarih, çıkan/giren hesap, tutar, isteğe bağlı
+masraf ve açıklama sorulur. Önizleme hazır değilse veya gerekli masraf kapsamı
+seçilmediyse kaydedilemez. Sunucu toplam çıkışı/kategoriyi/kapsamı verir;
+başarılı yazma ve geri geldiği yere döner. Diğer dekont yollarındaki ücret
+ayrı gider kalır; kategori adla değil banka masrafı rolüyle bulunur.
+
+Her okuma loading/empty/error/401 ve son alınan veri hâllerini taşır; ay/filtre
+değişimi eski yanıtı geçersiz kılar. Yazma sonuçları `FinancialDataChanges`
+ile ilgili okumalara bildirilir; masraflı transfer bütçeyi de yeniler.
