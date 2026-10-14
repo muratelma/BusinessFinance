@@ -21,6 +21,21 @@ abstract final class AppTypography {
   static TextStyle heroMoney(TextStyle base) =>
       money(base).copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.8);
 
+  /// Gövde ve başlık kademelerinden Material'ın harf aralığını kaldırır.
+  ///
+  /// Claude Design teslimleri harf aralıksız çizilir; tema ise boş bırakılan
+  /// kademelerde Material'ın aralığını (gövdede 0,25–0,5) devralır ve aynı
+  /// cümle teslimden geniş çıkar. Bölüm etiketleri kendi aralığını korur.
+  static TextTheme untracked(TextTheme base) => base.copyWith(
+    titleLarge: base.titleLarge?.copyWith(letterSpacing: 0),
+    titleMedium: base.titleMedium?.copyWith(letterSpacing: 0),
+    titleSmall: base.titleSmall?.copyWith(letterSpacing: 0),
+    bodyLarge: base.bodyLarge?.copyWith(letterSpacing: 0),
+    bodyMedium: base.bodyMedium?.copyWith(letterSpacing: 0),
+    bodySmall: base.bodySmall?.copyWith(letterSpacing: 0),
+    labelLarge: base.labelLarge?.copyWith(letterSpacing: 0),
+  );
+
   /// [faint] verilmezse etiketler yardımcı metinle aynı kademede kalır.
   static TextTheme textTheme(ColorScheme colors, {Color? faint}) {
     final onSurface = colors.onSurface;
@@ -94,4 +109,19 @@ abstract final class AppTypography {
       ),
     );
   }
+}
+
+/// Alt ağacın harf aralıksız çizildiğini bildirir; para metni de buna uyar.
+class AppTextTracking extends ThemeExtension<AppTextTracking> {
+  const AppTextTracking({required this.untracked});
+
+  final bool untracked;
+
+  @override
+  AppTextTracking copyWith({bool? untracked}) =>
+      AppTextTracking(untracked: untracked ?? this.untracked);
+
+  @override
+  AppTextTracking lerp(AppTextTracking? other, double t) =>
+      t < 0.5 ? this : other ?? this;
 }

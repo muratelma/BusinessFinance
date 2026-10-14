@@ -388,11 +388,20 @@ class AccountsOverviewData {
     required this.bankTotal,
     required this.inactiveTotal,
     required this.items,
+    this.cashShare,
+    this.bankShare,
+    this.inactiveShare,
   });
   final String total;
   final String cashTotal;
   final String bankTotal;
   final String inactiveTotal;
+
+  /// Toplam içindeki pay, tam yüzde (`58.0000`). Sunucu hesaplar; eksi
+  /// bakiyeli hesap varken boş gelir.
+  final String? cashShare;
+  final String? bankShare;
+  final String? inactiveShare;
   final List<AccountOverviewItem> items;
   factory AccountsOverviewData.fromJson(Map<String, dynamic> json) =>
       AccountsOverviewData(
@@ -400,6 +409,9 @@ class AccountsOverviewData {
         cashTotal: JsonReaders.money(json, 'cashTotal'),
         bankTotal: JsonReaders.money(json, 'bankTotal'),
         inactiveTotal: JsonReaders.money(json, 'inactiveTotal'),
+        cashShare: _moneyOrNull(json, 'cashShare'),
+        bankShare: _moneyOrNull(json, 'bankShare'),
+        inactiveShare: _moneyOrNull(json, 'inactiveShare'),
         items: _list(json, 'items', AccountOverviewItem.fromJson),
       );
 }

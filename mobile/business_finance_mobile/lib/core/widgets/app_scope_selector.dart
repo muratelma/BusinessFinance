@@ -4,6 +4,7 @@ import '../models/transaction_scope.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_surfaces.dart';
 import 'app_segment_rail.dart';
+import 'app_filter_menu.dart';
 
 /// `Hepsi · İşletme · Şahsi` anahtarı.
 ///
@@ -35,12 +36,10 @@ class AppScopeSwitch extends StatelessWidget {
             TransactionScope.business,
             TransactionScope.personal,
           ])
-            ChoiceChip(
-              label: Text(scopeFilterLabel(scope)),
+            AppFilterChip(
+              label: scopeFilterLabel(scope),
               selected: value == scope,
-              showCheckmark: false,
-              onSelected: (_) => onChanged(scope),
-              materialTapTargetSize: MaterialTapTargetSize.padded,
+              onSelected: () => onChanged(scope),
             ),
         ],
       );

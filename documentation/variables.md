@@ -176,3 +176,7 @@ getirmedi** ve bu bilinçli bir sonuçtur (ADR 0016).
   **şablondur**: tutar taşımaz, kurulduğu an kullanıcının verisi olur ve
   uygulama onu sonradan kendiliğinden güncellemez. Yapılandırma kaynağı değil,
   formun ön dolumudur.
+
+## Görsel denetim test girdisi — 13 Ekim 2026
+
+FINANCE_PAGE_CONTRACT yalnız finance_pages_screenshot_test.dart için isteğe bağlı yerel JSON yoludur. Verilmezse test/fixtures/category-account-contract.json okunur. SCREENSHOT_DIR ile birlikte ayrı loopback API'den yeni alınan sentetik sözleşmeyi çizmek için kullanılır; uygulama runtime/build ayarı değildir ve token/parola içeren dosya verilmez.

@@ -1775,3 +1775,9 @@ ayrı gider kalır; kategori adla değil banka masrafı rolüyle bulunur.
 Her okuma loading/empty/error/401 ve son alınan veri hâllerini taşır; ay/filtre
 değişimi eski yanıtı geçersiz kılar. Yazma sonuçları `FinancialDataChanges`
 ile ilgili okumalara bildirilir; masraflı transfer bütçeyi de yeniler.
+
+## Hesap ayarları ve pasif hesap düzeltmesi — 13 Ekim 2026
+
+Hesap ayarları düğmesi ve Hesap ekle, Navigator altındaki sayfa context'iyle açılır. Ayarlar rotası beklerken yükleme, sunucu hatasında tekrar deneme, 401'de oturum sonu gösterir. Form mevcut AccountFormPage'dir; başarılı yazma aynı hesap sayfasına döner. Pasif hesaplar ikonlu karttan açılır; bakiyeleri toplamın içinde kalır. Transfer kaydı sürerken kapsam dahil giriş değiştirilemez.
+
+Nötr işlemin parçası rapora etkiliyorsa ayrıntı bunu yazar: transfer masrafı ve tahsilat komisyonu gider, taksit faizi yönüne göre gelir/giderdir. “Gelir/gider raporunu etkilemez” açıklaması yalnız böyle bir parçası olmayan nötr kayıtta kullanılır. Yolda kutusu güncel ayın Tümü/Giren görünümündedir; geçmiş ay ve Çıkan görünümünde ayın hesap hareketleri kalır.

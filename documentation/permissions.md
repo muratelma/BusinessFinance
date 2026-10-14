@@ -415,3 +415,7 @@ ayrıntıyı açar. `parts` ve `balances` okumaları bu kimliğin sahibini bağ�
 kontrol eder; sayfa listesinden gelmiş olmak yetkilendirme kanıtı değildir.
 Kategori kaleminin ek `scope` alanı raporlama bilgisidir, erişim sınırını
 veya hesap bakiyesini değiştirmez. İstemci hiçbir yeni sorguya `UserId` eklemez.
+
+## Kaynak seçeneği meta verisi — 13 Ekim 2026
+
+Kategori kaynak seçeneklerinde mevcut isteğe bağlı kind alanı, sahip olunan nakit/banka hesabında cash/bank olarak doldurulur. Seçili boş kaynak da aynı sahiplik kontrolünden geçer. Yetkilendirme ve mevcut uçlar değişmez; ayrıntı category-account-pages-api-contract.md içindedir.

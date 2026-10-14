@@ -926,7 +926,8 @@ class _PosRepository implements PosRepositoryContract {
 Map<String, dynamic> get _sample =>
     jsonDecode(
           File(
-            'test/fixtures/category-account-contract.json',
+            Platform.environment['FINANCE_PAGE_CONTRACT'] ??
+                'test/fixtures/category-account-contract.json',
           ).readAsStringSync().replaceAll('2026-09-', '2026-10-'),
         )
         as Map<String, dynamic>;

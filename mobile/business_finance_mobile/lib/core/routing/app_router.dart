@@ -9,6 +9,7 @@ import '../presentation/financial_data_changes.dart';
 import '../presentation/scope_controller.dart';
 import '../../features/accounts/data/account_repository.dart';
 import '../../features/accounts/presentation/account_form_page.dart';
+import '../../features/accounts/presentation/account_settings_page.dart';
 import '../../features/finance_pages/data/finance_page_repository.dart';
 import '../../features/finance_pages/presentation/finance_page_controller.dart';
 import '../../features/finance_pages/presentation/finance_report_page.dart';
@@ -458,17 +459,19 @@ GoRouter createAppRouter({
                     message: 'Hesap servisi yapılandırılmadı.',
                   ),
                 )
-              : AccountsOverviewPage(
-                  repository: financePageRepository,
-                  changes: financialDataChanges,
-                  onCreate: accountRepository == null
-                      ? null
-                      : () => _openPageAccountForm(
-                          context,
-                          financePageRepository,
-                          accountRepository,
-                          financialDataChanges,
-                        ),
+              : Builder(
+                  builder: (pageContext) => AccountsOverviewPage(
+                    repository: financePageRepository,
+                    changes: financialDataChanges,
+                    onCreate: accountRepository == null
+                        ? null
+                        : () => _openPageAccountForm(
+                            pageContext,
+                            financePageRepository,
+                            accountRepository,
+                            financialDataChanges,
+                          ),
+                  ),
                 ),
           authController,
         ),
@@ -483,23 +486,25 @@ GoRouter createAppRouter({
                     message: 'Hesap servisi yapılandırılmadı.',
                   ),
                 )
-              : FinanceReportPage(
-                  repository: financePageRepository,
-                  kind: FinancePageKind.account,
-                  id: state.pathParameters['accountId'],
-                  changes: financialDataChanges,
-                  activityRepository: activityRepository,
-                  posRepository: posRepository,
-                  dayCloseRepository: dayCloseRepository,
-                  onAccountSettings: accountRepository == null
-                      ? null
-                      : () => _openPageAccountForm(
-                          context,
-                          financePageRepository,
-                          accountRepository,
-                          financialDataChanges,
-                          id: state.pathParameters['accountId'],
-                        ),
+              : Builder(
+                  builder: (pageContext) => FinanceReportPage(
+                    repository: financePageRepository,
+                    kind: FinancePageKind.account,
+                    id: state.pathParameters['accountId'],
+                    changes: financialDataChanges,
+                    activityRepository: activityRepository,
+                    posRepository: posRepository,
+                    dayCloseRepository: dayCloseRepository,
+                    onAccountSettings: accountRepository == null
+                        ? null
+                        : () => _openPageAccountForm(
+                            pageContext,
+                            financePageRepository,
+                            accountRepository,
+                            financialDataChanges,
+                            id: state.pathParameters['accountId'],
+                          ),
+                  ),
                 ),
           authController,
         ),
@@ -1406,17 +1411,18 @@ Future<void> _openPageAccountForm(
 }) async {
   final vm = AccountsViewModel(repository, financialDataChanges: changes);
   try {
-    final account = id == null ? null : await pages.accountSettings(id);
     if (!context.mounted) return;
     await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => AccountFormPage(
-          account: account,
-          onSave: vm.save,
-          onDelete: account == null ? null : vm.delete,
-          readError: () => vm.message,
-        ),
+        builder: (_) => id == null
+            ? AccountFormPage(onSave: vm.save, readError: () => vm.message)
+            : AccountSettingsPage(
+                load: () => pages.accountSettings(id),
+                onSave: vm.save,
+                onDelete: vm.delete,
+                readError: () => vm.message,
+              ),
       ),
     );
   } on ApiException catch (error) {

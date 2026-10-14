@@ -202,8 +202,12 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Tür'));
       await tester.pumpAndSettle();
-      expect(find.text('Transfer'), findsOneWidget);
-      await tester.tap(find.text('Transfer'));
+      final transferOption = find.ancestor(
+        of: find.text('Transfer'),
+        matching: find.byType(MenuItemButton),
+      );
+      expect(transferOption, findsOneWidget);
+      await tester.tap(transferOption);
       await tester.pumpAndSettle();
       expect(repo.calls.last, 'account:null:out:transfer:0');
       await tester.tap(find.text('Çıkan').first);
@@ -251,8 +255,55 @@ void main() {
       expect(find.text('Bankanın aldığı ücretler'), findsOneWidget);
       expect(find.text('Çıkan hesap'), findsOneWidget);
       expect(find.text('Giren hesap'), findsOneWidget);
+      expect(
+        find.textContaining('Masraf gider olarak yazılır'),
+        findsOneWidget,
+      );
+      expect(find.text('Gelir ya da gider sayılmaz.'), findsNothing);
     },
   );
+  testWidgets('kartlı satışın parası günüyle ayrı durum satırında okunur', (
+    tester,
+  ) async {
+    FinancePageActivity sale(
+      String id,
+      String state, {
+      String? expected,
+      String? transferred,
+    }) => FinancePageActivity(
+      activity: pageActivity(
+        id: id,
+        kind: 'pos-sale',
+        amount: '8400.0000',
+        effect: 'income',
+        fee: '326.0000',
+        expected: expected,
+        transferred: transferred,
+      ),
+      amount: '8400.0000',
+      state: state,
+    );
+    final repo = PageFixture()
+      ..rows = [
+        sale('pos-transit', 'transit', expected: '2026-10-26'),
+        sale('pos-deposited', 'deposited', transferred: '2026-10-15'),
+      ];
+    await tester.pumpWidget(
+      host(
+        FinanceReportPage(
+          repository: repo,
+          kind: FinancePageKind.category,
+          id: 'goods',
+          month: DateTime(2026, 10),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Yolda · 26 Eki bekleniyor'), findsOneWidget);
+    expect(find.text('Hesaba geçti · 15 Eki'), findsOneWidget);
+    expect(find.textContaining('Ziraat vadesiz · Yolda'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('kategorisiz liste salt okunur; kategori atama akışı yok', (
     tester,
   ) async {
@@ -270,15 +321,24 @@ void main() {
     expect(find.textContaining('Kategori seçilmeli'), findsNothing);
     expect(find.text('Kategori seç'), findsNothing);
   });
-  testWidgets('pasif bakiye toplam kartının üçüncü hücresindedir', (
+  testWidgets('pasif bakiye toplamda dilim, listede kendi grubudur', (
     tester,
   ) async {
     await tester.pumpWidget(
       host(AccountsOverviewPage(repository: PageFixture())),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Pasif'), findsOneWidget);
-    expect(find.text('₺150,00'), findsNWidgets(2));
+    // Yüzdeler sunucunun payıdır; istemci hesaplamaz.
+    expect(find.text('%26'), findsOneWidget);
+    expect(find.text('%74'), findsOneWidget);
+    // `Pasif` toplam kartında dilim, listede hesabın etiketidir.
+    expect(find.text('Pasif'), findsWidgets);
+    expect(find.text('₺150,00'), findsWidgets);
+    expect(find.byTooltip('Transfer yap'), findsOneWidget);
+    await tester.drag(find.byType(ListView).first, const Offset(0, -500));
+    await tester.pumpAndSettle();
+    expect(find.text('Pasif · 1'), findsOneWidget);
+    expect(find.text('Eski hesap'), findsOneWidget);
     expect(find.textContaining('Toplama girmez'), findsNothing);
   });
   testWidgets('ay seçici ileri boş ayı kapatır; kaydı olan ileri ay açılır', (
@@ -354,11 +414,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
-      find.text('Transferi kaydet'),
+      find.text('Kaydet'),
       200,
       scrollable: find.byType(Scrollable).last,
     );
-    await tester.tap(find.text('Transferi kaydet'));
+    await tester.tap(find.text('Kaydet'));
     await tester.pumpAndSettle();
     expect(repo.inputs.single.amount, '10000.1234');
     expect(repo.inputs.single.feeAmount, '50.0001');
@@ -412,4 +472,61 @@ void main() {
     expect(find.text('-₺10.050,00'), findsOneWidget);
     expect(find.text('+₺100,00'), findsOneWidget);
   });
+
+  testWidgets(
+    'transfer kaydı sürerken kapsam değişikliği yazılan isteği ve yenileme sinyalini bozmaz',
+    (tester) async {
+      final wait = Completer<void>();
+      final repo = PageFixture()..saveWait = wait;
+      final changes = FinancialDataChanges();
+      final c = TransferController(repo, changes: changes);
+      const original = TransferInput(
+        sourceAccountId: 'bank',
+        destinationAccountId: 'cash',
+        amount: '100.0000',
+        date: '2026-10-13',
+        feeAmount: '1.0000',
+        feeScope: TransactionScope.business,
+      );
+      c.setInput(original);
+      await tester.pump(const Duration(milliseconds: 300));
+      final saving = c.save();
+      c.setInput(null);
+      expect(c.input, same(original));
+      expect(c.preview, isNotNull);
+      expect(await c.save(), false);
+      wait.complete();
+      expect(await saving, true);
+      expect(repo.inputs, [original]);
+      expect(changes.budgetsRevision, 1);
+      c.dispose();
+      changes.dispose();
+    },
+  );
+
+  testWidgets(
+    'faizli nötr ödemenin ayrıntısı faiz giderini rapordan dışlanmış göstermez',
+    (tester) async {
+      await tester.pumpWidget(
+        host(
+          Scaffold(
+            body: ActivityDetailSheet(
+              activity: pageActivity(
+                kind: 'debt-payment',
+                amount: '1000.0000',
+                interest: '150.0000',
+                fee: null,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -500));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Faiz gider olarak yazılır'), findsOneWidget);
+      expect(find.text('Gelir ya da gider sayılmaz.'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

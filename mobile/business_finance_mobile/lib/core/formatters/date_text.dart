@@ -24,6 +24,60 @@ class DateText {
     'Aralık',
   ];
 
+  static const shortMonths = [
+    'Oca',
+    'Şub',
+    'Mar',
+    'Nis',
+    'May',
+    'Haz',
+    'Tem',
+    'Ağu',
+    'Eyl',
+    'Eki',
+    'Kas',
+    'Ara',
+  ];
+
+  static const _monthLocatives = [
+    "Ocak'ta",
+    "Şubat'ta",
+    "Mart'ta",
+    "Nisan'da",
+    "Mayıs'ta",
+    "Haziran'da",
+    "Temmuz'da",
+    "Ağustos'ta",
+    "Eylül'de",
+    "Ekim'de",
+    "Kasım'da",
+    "Aralık'ta",
+  ];
+
+  /// `10` → `Ekim'de`. Ek ay adına göre değişir; cümle içinde kurulmaz.
+  static String monthLocative(int month) =>
+      month < 1 || month > 12 ? '$month. ayda' : _monthLocatives[month - 1];
+
+  /// `2026-10-20` → `20 Eki`. Tek satıra sığması gereken durum yazısı için.
+  static String dayShortMonth(String isoDate) {
+    final parsed = _parse(isoDate);
+    if (parsed == null) return isoDate;
+    return '${parsed.$3} ${shortMonths[parsed.$2 - 1]}';
+  }
+
+  /// İki günün kısa aralığı: aynı ayda `15–17 Eyl`, ay değişiyorsa
+  /// `28 Eyl–2 Eki`, aynı günse `15 Eyl`.
+  static String dayRangeShort(String firstIso, String lastIso) {
+    final first = _parse(firstIso);
+    final last = _parse(lastIso);
+    if (first == null || last == null) return '$firstIso–$lastIso';
+    if (first == last) return dayShortMonth(firstIso);
+    if (first.$1 == last.$1 && first.$2 == last.$2) {
+      return '${first.$3}–${last.$3} ${shortMonths[last.$2 - 1]}';
+    }
+    return '${dayShortMonth(firstIso)}–${dayShortMonth(lastIso)}';
+  }
+
   /// `2026-08-10` → `10 Ağustos`. Çözümlenemeyen değer olduğu gibi döner:
   /// bozuk bir tarihi gizlemek, yanlış bir tarihi göstermekten kötüdür.
   static String dayMonth(String isoDate) {

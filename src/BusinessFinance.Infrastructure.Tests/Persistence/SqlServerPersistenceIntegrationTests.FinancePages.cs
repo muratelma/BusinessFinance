@@ -120,5 +120,116 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         var overview = await reader.AccountsAsync(owner.Id, default);
         Assert.Equal(100m - 75m * 0.1234m, overview.Total);
         Assert.Equal(overview.Total, overview.InactiveTotal); Assert.Equal(0m, overview.CashTotal);
+        Assert.Equal(100m, overview.InactiveShare); Assert.Equal(0m, overview.CashShare); Assert.Equal(0m, overview.BankShare);
+    }
+
+    [SqlServerFact]
+    public async Task FinancePages_FilterKnownAmountsWithoutMovingRecognitionToThePaymentSource()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var owner = CreateUser("page-filter-audit@example.test");
+        await database.SeedUsersAsync(owner);
+        var seed = await SeedMoneyFoundationAsync(database, owner.Id);
+        await using var provider = CreateServiceProvider(database.ConnectionString);
+        await using var scope = provider.CreateAsyncScope();
+        var reader = scope.ServiceProvider.GetRequiredService<IFinancePageReader>();
+        var goods = await reader.CategoryAsync(owner.Id, seed.GoodsId, new(2026, 8, TransactionType.Expense), default);
+        Assert.Equal(1270m, goods!.Summary.Total);
+        Assert.Equal(5, goods.Items.Count);
+        Assert.Equal(200m, goods.Summary.Sources.Single(s => s.Key == $"account:{seed.BankId:D}").Amount);
+        Assert.Equal("bank", goods.Summary.Sources.Single(s => s.Key == $"account:{seed.BankId:D}").Kind);
+        Assert.Equal(300m, goods.Summary.Sources.Single(s => s.Key == $"card:{seed.CardId:D}").Amount);
+        Assert.Equal(770m, goods.Summary.Sources.Single(s => s.Key == "deferred").Amount);
+        Assert.Equal(500m, goods.People.Single(p => p.Key == "none").Amount);
+        var supplier = Assert.Single(goods.People, p => p.Key.StartsWith("person:", StringComparison.Ordinal));
+        Assert.Equal(770m, supplier.Amount);
+        var settled = Assert.Single(goods.Items, i => i.State == "settled");
+        Assert.Equal(-120m, settled.Amount);
+        Assert.Equal(new DateOnly(2026, 8, 13), settled.SettledOn);
+        Assert.Equal("Banka", settled.SettledSource);
+        foreach (var (source, amount) in new[] { ($"account:{seed.BankId:D}", 200m), ($"card:{seed.CardId:D}", 300m), ("deferred", 770m) })
+        {
+            var page = await reader.CategoryAsync(owner.Id, seed.GoodsId, new(2026, 8, TransactionType.Expense, Source: source), default);
+            Assert.Equal(amount, page!.Summary.Total);
+            Assert.Equal(amount, page.Items.Sum(i => Math.Abs(i.Amount)));
+            Assert.Equal(1270m, page.WholeTotal);
+        }
+        var combined = await reader.CategoryAsync(owner.Id, seed.GoodsId,
+            new(2026, 8, TransactionType.Expense, Source: "deferred", Person: supplier.Key), default);
+        Assert.Equal(770m, combined!.Summary.Total);
+        var zero = await reader.CategoryAsync(owner.Id, seed.GoodsId,
+            new(2026, 8, TransactionType.Expense, Source: $"account:{seed.TillId:D}"), default);
+        Assert.Equal(0m, zero!.Summary.Total);
+        Assert.Empty(zero.Items);
+        var selected = zero.Summary.Sources.Single(s => s.Key == $"account:{seed.TillId:D}");
+        Assert.Equal("cash", selected.Kind);
+        Assert.Equal(0m, selected.Amount);
+        foreach (var side in new TransactionScope?[] { null, TransactionScope.Business, TransactionScope.Personal })
+        {
+            var expense = await reader.CategorySummaryAsync(owner.Id, new(2026, 8, TransactionType.Expense, side), default);
+            var income = await reader.CategorySummaryAsync(owner.Id, new(2026, 8, TransactionType.Income, side), default);
+            Assert.Equal(seed.ExpectedExpense(side), expense.Total);
+            Assert.Equal(seed.ExpectedIncome(side), income.Total);
+        }
+    }
+
+    [SqlServerFact]
+    public async Task FinancePages_KeepTransitAndRecognitionOutOfAccountFlowsAndPreserveMonthBalances()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var owner = CreateUser("page-flow-audit@example.test");
+        await database.SeedUsersAsync(owner);
+        var seed = await SeedMoneyFoundationAsync(database, owner.Id);
+        await using var provider = CreateServiceProvider(database.ConnectionString);
+        await using var scope = provider.CreateAsyncScope();
+        var reader = scope.ServiceProvider.GetRequiredService<IFinancePageReader>();
+        // Hesaba giren: satış 1000 + krediler 3000 + net yatış 975.
+        // Çıkan: gider 200 + taksitler 1750 + transfer 300 + kart 150 + cari 100 + borç 120.
+        var page = await reader.AccountAsync(owner.Id, seed.BankId, new(2026, 8), default);
+        Assert.Equal(4975m, page!.Inflow);
+        Assert.Equal(2620m, page.Outflow);
+        Assert.Equal(2355m, page.Net);
+        Assert.Equal(12355m, page.Balance);
+        Assert.Equal(294m, page.Transit.Total);
+        Assert.Equal(2, page.Transit.Count);
+        Assert.Equal(98m, page.Transit.Nearest!.Amount); // En erken beklenen kartla tahsil.
+        foreach (var direction in new[] { "in", "out" })
+        {
+            var filtered = await reader.AccountAsync(owner.Id, seed.BankId, new(2026, 8, direction), default);
+            Assert.Equal(page.Balance, filtered!.Balance);
+            Assert.Equal(page.Inflow, filtered.Inflow);
+            Assert.Equal(page.Outflow, filtered.Outflow);
+            Assert.Equal(direction == "in" ? 4975m : 2620m, filtered.SelectionTotal);
+            Assert.All(filtered.Items, item => Assert.True(direction == "in" ? item.Amount > 0m : item.Amount < 0m));
+            // Menü sırası sabit: grup sırası, grubun içinde ad.
+            var groups = new[] { "category", "collection", "payment", "transfer" };
+            var turkish = StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("tr-TR"), true);
+            var menu = filtered.Options.Skip(1).ToArray();
+            Assert.Equal(menu.OrderBy(o => Array.IndexOf(groups, o.Group))
+                .ThenBy(o => o.Name ?? o.Kind ?? string.Empty, turkish).Select(o => o.Key), menu.Select(o => o.Key));
+            foreach (var option in filtered.Options.Where(o => o.Key != "all"))
+            {
+                var selected = await reader.AccountAsync(owner.Id, seed.BankId, new(2026, 8, direction, option.Key), default);
+                Assert.Equal(Math.Abs(option.Amount), selected!.SelectionTotal);
+                Assert.Equal(Math.Abs(option.Amount), selected.Items.Sum(i => Math.Abs(i.Amount)));
+            }
+        }
+        var emptyMonth = await reader.AccountAsync(owner.Id, seed.BankId, new(2026, 9), default);
+        Assert.Empty(emptyMonth!.Items);
+        Assert.Equal(12355m, emptyMonth.Balance);
+        Assert.Equal(0m, emptyMonth.Inflow);
+        Assert.Equal(0m, emptyMonth.Outflow);
+        var months = await reader.AccountMonthsAsync(owner.Id, seed.BankId, 2026, default);
+        Assert.Equal(10000m, months!.Months.Single(m => m.Month == 7).Amount);
+        Assert.Equal(12355m, months.Months.Single(m => m.Month == 8).Amount);
+        Assert.Equal(12355m, months.Months.Single(m => m.Month == 9).Amount);
+        // İlk kayıt Ağustos'ta: öncesi seçilebilir ama çubuk çizmez.
+        Assert.All(months.Months.Where(m => m.Month < 8), m =>
+        {
+            Assert.True(m.Enabled);
+            Assert.Equal(0m, m.BarRatio);
+        });
+        Assert.True(months.Months.Single(m => m.Month == 8).BarRatio > 0m);
+        Assert.True(months.Months.Single(m => m.Month == 9).BarRatio > 0m);
     }
 }

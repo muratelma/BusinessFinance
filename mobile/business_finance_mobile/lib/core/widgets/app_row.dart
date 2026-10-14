@@ -26,6 +26,7 @@ class AppRow extends StatelessWidget {
     this.semanticLabel,
     this.titleMaxLines = 1,
     this.minHeight = 56,
+    this.compact = false,
   });
 
   final Widget? leading;
@@ -40,6 +41,7 @@ class AppRow extends StatelessWidget {
   final String? semanticLabel;
   final int titleMaxLines;
   final double minHeight;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +56,7 @@ class AppRow extends StatelessWidget {
           children: [
             if (leading != null) ...[
               leading!,
-              const SizedBox(width: AppSpacing.medium),
+              SizedBox(width: compact ? 14 : AppSpacing.medium),
             ],
             Expanded(
               child: Column(
@@ -65,16 +67,24 @@ class AppRow extends StatelessWidget {
                     title,
                     maxLines: stacked ? 2 : titleMaxLines,
                     overflow: TextOverflow.ellipsis,
-                    style: titleStyle ?? theme.textTheme.titleSmall,
+                    style:
+                        titleStyle ??
+                        (compact
+                            ? theme.textTheme.titleSmall?.copyWith(height: 1.3)
+                            : theme.textTheme.titleSmall),
                   ),
                   if (subtitle != null)
                     Padding(
-                      padding: const EdgeInsets.only(top: AppSpacing.xxSmall),
+                      padding: EdgeInsets.only(
+                        top: compact ? 0 : AppSpacing.xxSmall,
+                      ),
                       child: Text(
                         subtitle!,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall,
+                        style: compact
+                            ? theme.textTheme.bodySmall?.copyWith(height: 1.35)
+                            : theme.textTheme.bodySmall,
                       ),
                     ),
                   if (stacked) ...[

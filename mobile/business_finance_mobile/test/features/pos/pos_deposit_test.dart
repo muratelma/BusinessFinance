@@ -480,7 +480,7 @@ void main() {
         expect(find.text('Komisyon'), findsOneWidget);
         expect(find.text('₺200,00'), findsOneWidget);
         expect(find.text('-₺5,00'), findsNWidgets(2));
-        expect(find.text('Beklenen'), findsOneWidget);
+        expect(find.text('Yatması beklenen'), findsOneWidget);
         expect(find.text('Kesinti'), findsOneWidget);
         expect(find.text('POS komisyonu'), findsOneWidget);
         expect(find.text('Kapattığı tahsilatlar'), findsOneWidget);
@@ -513,7 +513,7 @@ void main() {
       expect(find.textContaining('Kesinti'), findsNothing);
       expect(
         find.text(
-          'Yatış gelir yazmaz; satış ve komisyon tahsil edildiği gün yazıldı.',
+          'Satış ve komisyon tahsil edildiği gün yazılır; yatış yalnız parayı hesaba geçirir.',
         ),
         findsOneWidget,
       );

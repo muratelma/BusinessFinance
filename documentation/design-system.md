@@ -322,9 +322,17 @@ Birkaç bileşenin sözleşmesinde neden şu kararların olduğu:
   yolda. Yönü sunucu söyler (`change`), istemci türden türetmez. Sunucudan gelir
   ve panel açılırken bir kez istenir; cevap beklenirken satır `…` ile
   **yerinde durur**, panel sonradan büyümez. POS satışının ayrıntısı
-  `POS / Komisyon / Net tutar / Hesap / Geçiş günü` (yoldaysa `Beklenen`)
-  satırlarını taşır. Etiketler kısadır: `AppDetailRow` etiketi esnemez ve
-  2.0× yazıda uzun etiket tutarı sıkıştırır.
+  `POS / Komisyon / Net tutar / Hesap / Geçiş günü` (yoldaysa `Beklenen gün`)
+  satırlarını taşır. Yatışın dökümü `Satış / Komisyon / Yatması beklenen /
+  Kesinti / Kesinti kategorisi`; transfer masrafı komisyon ve kesinti gibi
+  işaretli yazılır (`-₺50,00`). Etiketler yine kısa tutulur; büyük yazıda
+  (`usesLargeText`) `AppDetailRow` değeri etiketin altına, sağa indirir —
+  etiket esnemediği için tutarı sıkıştırıyordu (14 Ekim 2026).
+- **Ayrıntının alt notu önce neyin yazıldığını, sonra neyin sayılmadığını
+  söyler**, geniş zamanla (`yazılır`, `sayılmaz`; 14 Ekim 2026, kullanıcı
+  kararı): `Masraf gider olarak yazılır; transfer iptal edilirse o da iptal
+  olur. Aktarılan tutar gelir ya da gider sayılmaz.` İç terimler (`gelir/gider
+  raporu`, `yatış gelir yazmaz`) arayüze yazılmaz.
 - **İşlem ayrıntısında hesabın dışındaki "sonrası" satırları** (2 Ekim 2026,
   kullanıcı kararı). Üçü de düz yazılır; yeşil/kırmızı yalnız hesap
   bakiyesinde ve kart borcundadır ("alacağım arttı"nın iyi mi kötü mü olduğu
@@ -1252,7 +1260,8 @@ Karelerin örnek tutarı yerine sunucu cevabı kullanılır.
 
 - `AppFilterMenu`: çipin altında ara başlıklı menü; başlık seçilmez, seçili
   satırda işaret ikonun yerine geçer. Kaynak/kişi menüleri kesişimlidir.
-  Çip görsel olarak 36 dp, Material dokunma alanı en az 48 dp'dir.
+  Çip 36 dp'dir; üstünde 8, altında 4 dp taşır ve dokunma alanı o 48 dp'nin
+  tamamıdır (`AppFilterChip` ve menü düğmesi aynı hapı kullanır).
 - `AppMonthPicker.showWithAmounts`: ortada ay/yıl dialog'u; başlıkta seçili
   ay ve sunucunun tutarı, 12 hücre ve sunucunun çubuk oranı. Gelir/gider
   çubukları rol renginde, hesap bakiyesi çubukları gridir. Kayıtsız ileri ay
@@ -1269,7 +1278,8 @@ Karelerin örnek tutarı yerine sunucu cevabı kullanılır.
 - Yolda özeti mavi kutu, içindeki beyaz satır en yakın kayıttır; tutar net,
   alt yazı komisyondur. Birden çok kayıt `Tümünü gör · N satış`ı açar.
 - Ortak işlem satırının durum yazısı ikonsuz ve tek satırdır. Ödendi/tahsil
-  edildi/hesaba geçti durumları yeşil, yolda mavidir; açık durum nötrdür.
+  edildi durumu yeşil, açık durum nötrdür. Kartlı satışın `Yolda` /
+  `Hesaba geçti` bilgisi ayrı satır açmaz, alt yazıdadır (kare B8).
   Masraf/faiz/kesinti tutarın altında kalır. Büyük yazıda sağ tutar alt satıra
   iner; dar alana sığmayan sayısal grup küçültülür, tutar kesilmez ve ekran
   okuyucu tam değeri okur.
@@ -1277,3 +1287,96 @@ Karelerin örnek tutarı yerine sunucu cevabı kullanılır.
 Yeni token veya paket eklenmedi. Boşluklar `AppSpacing`, renkler mevcut
 semantik yüzey ve finans rolleridir. 375 dp, 2.0× yazı ve açık/koyu tema
 widget kapıları vardır; canlı TalkBack/VoiceOver kabulü yapılmadı.
+
+## Teslim denetimi düzeltmesi — 13 Ekim 2026
+
+Filtreler ortak AppFilterChip ile görünür seçim işareti taşır. AppFilterMenu seçili/açık yüzeyi, bağlam başlığı ve 16 dp ekran kenarı payını korur; kategori menüsü solda, özet ve hesap menüsü sağda açılır. Kaynak menüsü 340 dp, uzun kaynak 348 dp; hesap çıkış menüsü 340 dp'dir. Büyük yazıda tutar alt satıra geçer.
+
+Tutar içeren ay seçici 348 dp; hücreler normal yazıda 60 dp, çubuklar içeriden ve yuvarlaktır. Seçili ay çubuğu beyaz, boş ileri ay kenarı kesiklidir. Bu ay eylemi yalnız farklı ay seçiliyken görünür. Hesap özetinde normal yazıda üç eşit sütun; büyük yazıda doğal sarma vardır. AppEmptyView.compact liste içindeki referans boş hâlini çizer. Pasif hesap bölümünün ikonlu kartı kendi açılma durumunu gösterir.
+
+Görsel denetimin sınırı ve karşılaştırmalar: research/DIS-GOZ-2026-10-13-kategori-hesap-teslim-denetimi.md. Çizim testinin geçmesi tasarım kabulü sayılmaz.
+
+## Teslim ölçüleri — 13 Ekim 2026 (ikinci denetim)
+
+Gün sonu panelinde alınan ölçü kararı (10 Ekim 2026) yeni sayfalarda sürer:
+**yan boşluk 16 dp, metin harf aralıksız.** **Yeni tasarlanan her ekran bu ölçüyle kurulur;**
+eski ekranlar yeniden tasarlandıkça geçer, kalanlar en sona bırakılır (kullanıcı
+kararı, 14 Ekim 2026). Kategori özeti, kategori sayfası,
+hesap sayfası, Yolda, Hesaplar, Yeni transfer ve tutarlı ay seçici
+`AppUntrackedText` altında çizilir. Sarmalayıcı temanın gövde ve başlık
+kademelerinden Material'ın devraldığı harf aralığını kaldırır
+(`AppTypography.untracked`) ve para metnine aynı şeyi söyler
+(`AppTextTracking`); eski ekranlar ve ortak işlem ayrıntısı temanın aralığını
+korur. Ölçüler teslimin kaynak dosyalarından (`screens-v9/*.jsx`) alınır:
+
+| Parça | Ölçü |
+|---|---|
+| Başlık (`AppPageHeader.compact`) | 12/4/4/8 iç boşluk, 48 dp içerik; yazı 26/700, 1,2 satır, harf aralıksız. Ay düğmesi 48 dp, 16/600, 20 dp ok. `tune` ikonu 22 dp |
+| Yön rayı | Kenardan 16, üstten 4 dp; dilim 36 dp, yazı 15/600 |
+| Çip ve menü düğmesi | 36 dp hap, 14/600; yan boşluk 14 (işaretli çipte sol 8, menüde sağ 6), aralık 8. Seçili zemin `primaryContainer`; açık menüde mürekkep kenar; seçeneği kalmayan düğme kesik kenarlı ve soluk |
+| Menü | Çipin 8 dp altında, kenardan 16 dp; başlık 12/16/8 ve çizgi; satır 48 dp (alt yazılıysa 56), ikon 20, ad 15, tutar 15/600 (seçilide 700). Ara başlık 12/600, çizgiden önce 4 dp |
+| Özet kartı (`AppSummaryCard`) | 16/20 iç boşluk; etiket ve alt satır 14/1,35 soluk; tutar 28/700 ve 1,25. Alt hücreler çizgiden 12 dp aşağıda; etiket 13, tutar 15/600 |
+| Kategori satırı | 14 dikey, sol 16, sağ 12; parçalar arası 16; sağ sütun 112 dp, çubuk 96×6 ve en az yüzde üç dolu; çubuk rengi `expenseFill` / `incomeFill` |
+| Gün başlığı (`AppDayHeading`) | Üst 20, alt 8; tarih 15/600, gün adı 14 soluk, arası 8 |
+| İşlem satırı (`ActivityTile.compact`) | Kartta üste hizalı, kapsül–yazı arası 14, çizgi 70 dp'den; tam genişlik blokta ortalı, arası 16, çizgi 72 dp'den, blok üst ve alt çizgili. Başlık 16/600 ve 1,3; alt yazı 14/1,35; durum 13/600. Kartlı satışın parası durum satırındadır, günüyle: mavi `Yolda · 26 Eki bekleniyor`, yeşil `Hesaba geçti · 15 Eki` (14 Ekim kararı; kare B8'de alt yazıdaydı) |
+| Yolda kutusu | 20 dp yarıçap, 12 iç boşluk, kenarlıksız; içindeki beyaz satır 16 dp yarıçap, 12/14; `Tümünü gör` 44 dp |
+| Boş hâl (`AppEmptyView.compact`) | 40/32 boşluk, 56 dp daire, başlık 17/600; eylem altı çizili 15/600 |
+| Bilgi notu (`AppInlineNotice.compact`) | 16 dp yarıçap, 10/14 iç boşluk, 18 dp ikon, 14/1,4; toplam tutar kalın |
+| Hesaplar | Aşağıdaki "Hesaplar — HS1e" bölümü |
+| Yeni transfer | Alanlar arası 16; `Kaydet` altta, ince çizginin altında 12/16/20 boşlukla |
+
+Ölçek dışı adımlar (6, 10, 14) `AppSpacing` adlarının toplamı olarak yazılır;
+yeni token eklenmedi. Menü açıkken geri tuşu sayfayı değil menüyü kapatır.
+`AppPageHeader` başlığı en az yüksekliğin ortasında durur: sütuna çevrildiğinde
+üste yaslanmış, ana sekmelerin başlığı 16 dp yukarı kaymıştı.
+
+Kareyle bilerek farklı kalanlar: `POS satışı` adı (karede `Kartlı satış`;
+işlem adları tek sözlükten gelir), eksi işareti (`-`; karede `−`; kullanıcı kararı, 14 Ekim 2026), kategorisiz
+kalemin alt yazısı (`kategori seçilmeli` yazılmaz), boş hâl
+başlığında hesap adına ek getirilmez (`Eylül'de Bonus Kart için gider yok`),
+işlem ayrıntısı İşlemler'deki ortak paneldir. Karşılaştırma ve kalan farklar:
+`research/DIS-GOZ-2026-10-13-kategori-hesap-tasarim-duzeltmesi.md`.
+
+## Hesaplar — HS1e (14 Ekim 2026)
+
+Kullanıcının Claude Design'da yeniden çizdiği sayfa (`hesaplar yeni.png`);
+13 Ekim'deki D5 karesinin yerini alır. Ölçüler tasarımın verdiği değerlerdir.
+
+- **Başlık:** geri, `Hesaplar` (26/700), sağda iki 48 dp düğme: `Transfer yap`
+  (`swap_horiz`) ve `Hesap ekle` (`add`). Ayrı `Transfer yap` düğmesi kalktı.
+  Hesap yokken iki düğme de çizilmez; boş hâl ve dolgulu `Hesap ekle` kalır.
+- **Toplam kartı:** 16/20/18 iç boşluk; `Toplam bakiye` 14, tutar 32/700.
+  Altında 10 dp pay çubuğu (uçları yuvarlak, dilimler arası 3 dp) ve dilim
+  satırları: 10 dp nokta, ad 14, yüzde 13 soluk, tutar 14/600 (en az 104 dp,
+  sağa yaslı). Satırlar arası 10 dp.
+- **Pay sunucudan gelir** (`cashShare`, `bankShare`, `inactiveShare`); istemci
+  pay hesaplamaz. Pay gelmezse (toplam sıfır ya da eksi, ya da bir parça eksi)
+  çubuk ve yüzdeler çizilmez, tutarlar kalır. `Pasif` dilimi ve satırı yalnız
+  pasif bakiye sıfır değilken çizilir.
+- **Renkler:** Nakit `categorySlice(2)` (#0B8798), Banka `categorySlice(4)`
+  (#8B5CF6), Pasif `categoryOtherSlice`. Aynı renk çubukta, noktada ve hesap
+  satırının ikonunda kullanılır; ikonun zemini gridir.
+- **Gruplar:** `Nakit · 3`, `Banka · 2`, `Pasif · 1` (13/600, üst 24, alt 8).
+  Başlık toplam yazmaz; toplam kartın satırındadır. Pasif hesaplar açılır bir
+  satır değil, kendi grubudur.
+- **Hesap satırı:** 12 dikey, sol 16, sağ 12, parçalar arası 14; ad 16/600 tek
+  satır, altında kapsam (varsa), tutar 16/600, 20 dp ok; ayırıcı 70 dp'den.
+  Pasif satırda ad ve tutar soluk, kapsamın yerinde `Pasif` etiketi (16 dp
+  duraklatma ikonu, 13/600).
+- Büyük yazıda dilim satırının ve hesap satırının tutarı adın altına iner.
+
+Aynı gün yapılan öbür düzeltmeler:
+
+- **Yolda sayfası ve kutusu:** satırı POS'un adı tanıtır (`Ziraat POS`), alt
+  yazı yalnız beklenen gündür (`7 Eki bekleniyor`); kartla tahsilatta başlık
+  kişi, alt yazı `Tahsilat · 7 Eki bekleniyor`. `POS satışı` her satırda aynı
+  olduğu için başlıktan çıktı; alt yazı artık ikinci satıra taşmıyor. Dip not
+  bilgi kutusudur (`AppInlineNotice.compact`).
+- **Ay seçici:** `Bu ay` solda, `Vazgeç` ve `Göster` sağda. Üst yazı sayfanın
+  adıyla başlar: `Kategori özeti · Gider · İşletme`, `Ticari mal alımı · Gider`,
+  `Ziraat vadesiz · ay sonu bakiye`.
+- **Sarmalayıcının kapsamı:** üç sayfa ince bir sarmalayıcı ile özel bir
+  gövdeye ayrıldı; gövdenin bağlamı `AppUntrackedText`in altındadır. Öncesinde
+  durum sınıfının bağlamı sarmalayıcının üstünde kalıyor, kategori ve hesap
+  satırları harf aralıklı çiziliyordu. İşlem ayrıntısı gezginin bağlamıyla
+  açılır ki ortak panel her yerden aynı görünsün.

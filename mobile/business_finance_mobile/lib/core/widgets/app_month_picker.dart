@@ -6,7 +6,9 @@ import '../network/api_exception.dart';
 import '../theme/app_finance_colors.dart';
 import '../theme/app_surfaces.dart';
 import 'app_money_text.dart';
+import 'app_dashed_border.dart';
 import 'app_row.dart';
+import 'app_untracked_text.dart';
 import '../theme/app_spacing.dart';
 import 'app_adaptive_sheet.dart';
 
@@ -27,11 +29,13 @@ abstract final class AppMonthPicker {
     AppMoneyEffect? effect,
   }) => showDialog<DateTime>(
     context: context,
-    builder: (_) => _AmountMonthDialog(
-      initialMonth: initialMonth,
-      load: load,
-      caption: caption,
-      effect: effect,
+    builder: (_) => AppUntrackedText(
+      child: _AmountMonthDialog(
+        initialMonth: initialMonth,
+        load: load,
+        caption: caption,
+        effect: effect,
+      ),
     ),
   );
 
@@ -102,178 +106,289 @@ class _AmountMonthDialogState extends State<_AmountMonthDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => Dialog(
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 348),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.medium),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                widget.caption,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xSmall),
-            AppRow(
-              padding: EdgeInsets.zero,
-              minHeight: 36,
-              title: DateText.monthYear(selected.year, selected.month),
-              titleStyle: Theme.of(context).textTheme.titleLarge,
-              trailing: data?.year == selected.year
-                  ? AppMoneyText(
-                      amount:
-                          data!.months
-                              .where((item) => item.month == selected.month)
-                              .firstOrNull
-                              ?.amount ??
-                          '0.0000',
-                      currency: 'TRY',
-                      size: AppMoneySize.row,
-                    )
-                  : null,
-            ),
-            const Divider(),
-            Row(
-              children: [
-                IconButton(
-                  tooltip: 'Önceki yıl',
-                  onPressed: () => _year(-1),
-                  icon: const Icon(Icons.chevron_left),
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final now = DateTime.now();
+    final isNow = selected.year == now.year && selected.month == now.month;
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.large,
+        vertical: AppSpacing.large,
+      ),
+      child: SizedBox(
+        width: 348,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.large,
+                  AppSpacing.medium + AppSpacing.xSmall,
+                  AppSpacing.large,
+                  AppSpacing.medium,
                 ),
-                Expanded(
-                  child: Text(
-                    '$year',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Sonraki yıl',
-                  onPressed: () => _year(1),
-                  icon: const Icon(Icons.chevron_right),
-                ),
-              ],
-            ),
-            if (error != null) ...[
-              Text(error!),
-              TextButton(onPressed: _load, child: const Text('Yeniden dene')),
-            ] else if (data == null)
-              const Padding(
-                padding: EdgeInsets.all(AppSpacing.xLarge),
-                child: CircularProgressIndicator(),
-              )
-            else
-              LayoutBuilder(
-                builder: (context, constraints) => Wrap(
-                  spacing: 4,
-                  runSpacing: 8,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    for (final item in data!.months)
-                      SizedBox(
-                        width: (constraints.maxWidth - 12) / 4,
-                        child: Semantics(
-                          selected:
-                              selected.year == year &&
-                              selected.month == item.month,
-                          child: OutlinedButton(
-                            onPressed: item.enabled
-                                ? () => setState(
-                                    () => selected = DateTime(year, item.month),
-                                  )
-                                : null,
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.xxSmall,
-                                vertical: AppSpacing.small + AppSpacing.xxSmall,
-                              ),
-                              foregroundColor:
-                                  selected.year == year &&
-                                      selected.month == item.month
-                                  ? Theme.of(context).colorScheme.onPrimary
-                                  : null,
-                              backgroundColor:
-                                  selected.year == year &&
-                                      selected.month == item.month
-                                  ? Theme.of(context).colorScheme.primary
-                                  : AppSurfaces.of(context).cardMuted,
-                            ),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  DateText.months[item.month - 1].substring(
-                                    0,
-                                    3,
-                                  ),
-                                  semanticsLabel:
-                                      DateText.months[item.month - 1],
-                                ),
-                                const SizedBox(
-                                  height:
-                                      AppSpacing.xSmall + AppSpacing.xxSmall,
-                                ),
-                                // Oran sunucunun alanıdır; boyama için kullanılır.
-                                if (item.barRatio > 0)
-                                  LinearProgressIndicator(
-                                    value: item.barRatio.clamp(0, 1),
-                                    color: switch (widget.effect) {
-                                      AppMoneyEffect.income =>
-                                        AppFinanceColors.of(context).income,
-                                      AppMoneyEffect.expense =>
-                                        AppFinanceColors.of(context).expense,
-                                      _ => AppSurfaces.of(context).inkMuted,
-                                    },
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
+                    Text(
+                      widget.caption,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontSize: 13,
+                        height: 1.35,
                       ),
+                    ),
+                    const SizedBox(height: AppSpacing.xSmall),
+                    AppRow(
+                      padding: EdgeInsets.zero,
+                      minHeight: 28,
+                      title: DateText.monthYear(selected.year, selected.month),
+                      titleStyle: theme.textTheme.titleLarge,
+                      trailing: data?.year == selected.year
+                          ? AppMoneyText(
+                              amount:
+                                  data!.months
+                                      .where(
+                                        (item) => item.month == selected.month,
+                                      )
+                                      .firstOrNull
+                                      ?.amount ??
+                                  '0.0000',
+                              currency: 'TRY',
+                              size: AppMoneySize.row,
+                            )
+                          : null,
+                    ),
                   ],
                 ),
               ),
-            const SizedBox(height: AppSpacing.small + AppSpacing.xSmall),
-            Wrap(
-              alignment: WrapAlignment.end,
-              spacing: 4,
-              children: [
-                TextButton(
-                  onPressed: () {
-                    final now = DateTime.now();
-                    setState(() {
-                      year = now.year;
-                      selected = DateTime(now.year, now.month);
-                    });
-                    _load();
-                  },
-                  child: const Text('Bu ay'),
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.small + AppSpacing.xSmall,
+                  AppSpacing.small,
+                  AppSpacing.small + AppSpacing.xSmall,
+                  AppSpacing.xSmall,
                 ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Vazgeç'),
+                child: Row(
+                  children: [
+                    IconButton(
+                      tooltip: 'Önceki yıl',
+                      onPressed: year > 1 ? () => _year(-1) : null,
+                      icon: const Icon(Icons.chevron_left),
+                    ),
+                    Expanded(
+                      child: Text(
+                        '$year',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.titleMedium,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Sonraki yıl',
+                      onPressed: year < now.year ? () => _year(1) : null,
+                      icon: const Icon(Icons.chevron_right),
+                    ),
+                  ],
                 ),
-                FilledButton(
-                  onPressed:
-                      data != null &&
-                          data!.year == selected.year &&
-                          data!.months.any(
-                            (m) => m.month == selected.month && m.enabled,
-                          )
-                      ? () => Navigator.pop(context, selected)
-                      : null,
-                  child: const Text('Göster'),
+              ),
+              if (error != null) ...[
+                Text(error!),
+                TextButton(onPressed: _load, child: const Text('Yeniden dene')),
+              ] else if (data == null)
+                const Padding(
+                  padding: EdgeInsets.all(AppSpacing.xLarge),
+                  child: CircularProgressIndicator(),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.medium,
+                  ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final item in data!.months)
+                          SizedBox(
+                            width: (constraints.maxWidth - 24) / 4,
+                            child: _monthCell(item),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
-              ],
-            ),
-          ],
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.small + AppSpacing.xSmall,
+                  AppSpacing.small + AppSpacing.xSmall,
+                  AppSpacing.small + AppSpacing.xSmall,
+                  AppSpacing.medium,
+                ),
+                // `Bu ay` solda durur; sağda yalnız vazgeçme ve onay kalır.
+                child: Row(
+                  children: [
+                    if (!isNow)
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            year = now.year;
+                            selected = DateTime(now.year, now.month);
+                          });
+                          _load();
+                        },
+                        style: TextButton.styleFrom(
+                          textStyle: theme.textTheme.bodyMedium?.copyWith(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        child: const Text('Bu ay'),
+                      ),
+                    Expanded(
+                      child: OverflowBar(
+                        alignment: MainAxisAlignment.end,
+                        overflowAlignment: OverflowBarAlignment.end,
+                        spacing: 4,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: TextButton.styleFrom(
+                              textStyle: theme.textTheme.bodyMedium?.copyWith(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            child: const Text('Vazgeç'),
+                          ),
+                          FilledButton(
+                            style: FilledButton.styleFrom(
+                              shape: const StadiumBorder(),
+                              textStyle: theme.textTheme.bodyMedium?.copyWith(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            onPressed:
+                                data != null &&
+                                    data!.year == selected.year &&
+                                    data!.months.any(
+                                      (m) =>
+                                          m.month == selected.month &&
+                                          m.enabled,
+                                    )
+                                ? () => Navigator.pop(context, selected)
+                                : null,
+                            child: const Text('Göster'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
+
+  Widget _monthCell(FinanceMonthValue item) {
+    final theme = Theme.of(context);
+    final surfaces = AppSurfaces.of(context);
+    final on = selected.year == year && selected.month == item.month;
+    final now = DateTime.now();
+    final current = year == now.year && item.month == now.month;
+    final radius = BorderRadius.circular(16);
+    final hasBar = item.enabled && item.barRatio > 0;
+    final scale = MediaQuery.textScalerOf(context).scale(15) / 15;
+    return Semantics(
+      selected: on,
+      child: CustomPaint(
+        foregroundPainter: !item.enabled
+            ? AppDashedBorder(surfaces.borderStrong, radius)
+            : null,
+        child: OutlinedButton(
+          onPressed: item.enabled
+              ? () => setState(() => selected = DateTime(year, item.month))
+              : null,
+          style: OutlinedButton.styleFrom(
+            padding: EdgeInsets.zero,
+            minimumSize: Size.fromHeight(60 * scale.clamp(1, 2)),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            shape: RoundedRectangleBorder(borderRadius: radius),
+            side: BorderSide(
+              color: !item.enabled
+                  ? Colors.transparent
+                  : on || current
+                  ? theme.colorScheme.primary
+                  : surfaces.border,
+              width: on || current ? 2 : 1,
+            ),
+            foregroundColor: on ? theme.colorScheme.onPrimary : surfaces.ink,
+            disabledForegroundColor: surfaces.inkFaint,
+            backgroundColor: on
+                ? theme.colorScheme.primary
+                : item.enabled
+                ? surfaces.cardMuted
+                : Colors.transparent,
+            textStyle: theme.textTheme.bodyMedium?.copyWith(
+              fontSize: 15,
+              height: 1,
+              fontWeight: on || current ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+          child: SizedBox(
+            height: 60 * scale.clamp(1, 2),
+            width: double.infinity,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Padding(
+                  padding: hasBar
+                      ? const EdgeInsets.only(bottom: AppSpacing.small)
+                      : EdgeInsets.zero,
+                  child: Text(
+                    DateText.months[item.month - 1].substring(0, 3),
+                    semanticsLabel: DateText.months[item.month - 1],
+                  ),
+                ),
+                if (hasBar)
+                  Positioned(
+                    left: 12,
+                    right: 12,
+                    bottom: 10,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: LinearProgressIndicator(
+                        minHeight: 4,
+                        value: item.barRatio.clamp(0.1, 1),
+                        backgroundColor: on
+                            ? surfaces.inkMuted
+                            : surfaces.border,
+                        color: on
+                            ? theme.colorScheme.onPrimary
+                            : switch (widget.effect) {
+                                AppMoneyEffect.income => AppFinanceColors.of(
+                                  context,
+                                ).income,
+                                AppMoneyEffect.expense => AppFinanceColors.of(
+                                  context,
+                                ).expense,
+                                _ => surfaces.inkMuted,
+                              },
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _MonthPickerSheet extends StatefulWidget {

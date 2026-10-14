@@ -1600,6 +1600,9 @@
     "cashTotal": "12454.0000",
     "bankTotal": "35876.0000",
     "inactiveTotal": "0.0000",
+    "cashShare": "26.0000",
+    "bankShare": "74.0000",
+    "inactiveShare": "0.0000",
     "items": [
       {
         "id": "0c58101d-79ab-44d9-906c-2b8f8b0e0b79",

@@ -50,6 +50,12 @@ durmuyorlar, izleri kayıt olsun diye yazılı:
 - Fiş/dekont akışının cihaz kabul turu (madde 3) → Aşama 06
 - Varsayılan kapsamın uygulamadan ayarlanamaması (madde 5) → Aşama 06
 - Fiş okumada veri sınırı kararı (madde 4) → Aşama 07'nin **açılış kararı**
+- Cari, yükümlülük ve borç/alacak sayfalarına (Aşama 06.3) devredilenler
+  (kullanıcı, 14 Ekim 2026): işlem ayrıntısında **vade** yok (vadeli alım ve
+  satış, ödenmemiş fatura; sunucu akışta göndermiyor); ayrıntı `Borcun` /
+  `Alacağın`, kişinin kartı `Sizin borcunuz` / `Size borcu` diyor (hitap
+  farkı); vadeli alımın borcu normal giderle ödenirse aynı mal iki kez gider
+  sayılır (doğru yol cari ödemedir; ekranın buna yöneltmesi tasarım konusu)
 
 Madde 6, 7 ve 8 **kapandı** (Aşama 06 Grup 8, 28 Ağustos 2026): sunucunun
 İngilizce hata metni artık ekrana düşmüyor (üç katmanlı istemci sözlüğü + nötr

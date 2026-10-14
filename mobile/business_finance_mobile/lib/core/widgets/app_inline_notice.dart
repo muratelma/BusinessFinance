@@ -18,6 +18,8 @@ class AppInlineNotice extends StatelessWidget {
     this.icon = Icons.info_outline,
     this.actionLabel,
     this.onAction,
+    this.compact = false,
+    this.emphasis,
     this.margin = const EdgeInsets.fromLTRB(
       AppSpacing.medium,
       AppSpacing.small,
@@ -32,6 +34,12 @@ class AppInlineNotice extends StatelessWidget {
   final EdgeInsetsGeometry margin;
 
   final String message;
+
+  /// Teslimin bilgi notu: 16 dp yarıçap, 10/14 iç boşluk, 14 dp yazı.
+  final bool compact;
+
+  /// [message] içinde kalın yazılacak parça (ör. toplam tutar).
+  final String? emphasis;
   final IconData icon;
   final String? actionLabel;
   final VoidCallback? onAction;
@@ -41,13 +49,26 @@ class AppInlineNotice extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = AppFinanceColors.of(context);
 
+    final style = theme.textTheme.bodyMedium?.copyWith(
+      height: compact ? 1.4 : null,
+      color: colors.onNeutralContainer,
+    );
+    final cut = emphasis == null ? -1 : message.indexOf(emphasis!);
     return Padding(
       padding: margin,
       child: Container(
-        padding: const EdgeInsets.all(AppSpacing.medium),
+        padding: compact
+            ? const EdgeInsets.symmetric(
+                horizontal:
+                    AppSpacing.small + AppSpacing.xSmall + AppSpacing.xxSmall,
+                vertical: AppSpacing.small + AppSpacing.xxSmall,
+              )
+            : const EdgeInsets.all(AppSpacing.medium),
         decoration: BoxDecoration(
           color: colors.neutralContainer,
-          borderRadius: BorderRadius.circular(AppSpacing.small),
+          borderRadius: BorderRadius.circular(
+            compact ? AppSpacing.medium : AppSpacing.small,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -55,15 +76,32 @@ class AppInlineNotice extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, size: 20, color: colors.onNeutralContainer),
+                Icon(
+                  icon,
+                  size: compact ? 18 : 20,
+                  color: colors.onNeutralContainer,
+                ),
                 const SizedBox(width: AppSpacing.small),
                 Expanded(
-                  child: Text(
-                    message,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colors.onNeutralContainer,
-                    ),
-                  ),
+                  child: cut < 0
+                      ? Text(message, style: style)
+                      : Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(text: message.substring(0, cut)),
+                              TextSpan(
+                                text: emphasis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              TextSpan(
+                                text: message.substring(cut + emphasis!.length),
+                              ),
+                            ],
+                          ),
+                          style: style,
+                        ),
                 ),
               ],
             ),

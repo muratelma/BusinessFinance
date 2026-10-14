@@ -78,8 +78,11 @@ class AppMoneyText extends StatelessWidget {
     final base = scaled == null
         ? (style ?? theme.textTheme.titleMedium ?? const TextStyle())
         : scaled.merge(style);
+    final untracked = theme.extension<AppTextTracking>()?.untracked ?? false;
     final money = size == AppMoneySize.hero
         ? AppTypography.heroMoney(base)
+        : untracked
+        ? AppTypography.money(base).copyWith(letterSpacing: 0)
         : AppTypography.money(base);
 
     return Text(

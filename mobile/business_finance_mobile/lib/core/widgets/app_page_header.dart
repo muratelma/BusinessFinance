@@ -31,8 +31,12 @@ class AppPageHeader extends StatelessWidget {
     // content-box): toplam 76 dp.
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        onBack == null ? AppSpacing.medium : AppSpacing.xSmall,
-        AppSpacing.small,
+        onBack == null
+            ? AppSpacing.medium
+            : compact
+            ? AppSpacing.small
+            : AppSpacing.xSmall,
+        compact ? AppSpacing.small + AppSpacing.xSmall : AppSpacing.small,
         AppSpacing.xSmall,
         AppSpacing.xSmall,
       ),
@@ -45,8 +49,11 @@ class AppPageHeader extends StatelessWidget {
         ),
         child: ConstrainedBox(
           constraints: BoxConstraints(minHeight: compact ? 48 : 64),
+          // En az yükseklik başlığı ortalar; üste yaslanınca ana sekmelerin
+          // başlığı 16 dp yukarı kayıyordu.
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Row(
                 children: [
@@ -65,9 +72,12 @@ class AppPageHeader extends StatelessWidget {
                         title,
                         maxLines: context.usesLargeText ? 2 : 1,
                         overflow: TextOverflow.ellipsis,
+                        // Okuma sayfalarının başlığı teslimde harf aralıksız
+                        // ve 1,2 satır yüksekliğiyle çizildi.
                         style: theme.textTheme.headlineSmall?.copyWith(
                           fontSize: 26,
-                          letterSpacing: -0.6,
+                          height: compact ? 1.2 : null,
+                          letterSpacing: compact ? 0 : -0.6,
                         ),
                       ),
                     ),

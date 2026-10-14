@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_radius.dart';
+import 'app_dashed_border.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_surfaces.dart';
 
@@ -54,12 +55,17 @@ class AppCard extends StatelessWidget {
         // yanlışlıkla tıklanabilir görünmez.
         child: CustomPaint(
           foregroundPainter: dashed
-              ? _DashedBorder(surfaces.border, radius)
+              ? AppDashedBorder(surfaces.borderStrong, radius)
               : null,
           child: Container(
             decoration: BoxDecoration(
               borderRadius: radius,
-              border: flat || dashed
+              // Tam genişlik blok zeminden üst ve alt çizgiyle ayrılır.
+              border: flat
+                  ? Border.symmetric(
+                      horizontal: BorderSide(color: surfaces.border),
+                    )
+                  : dashed
                   ? null
                   : Border.all(
                       color: selected ? scheme.primary : surfaces.border,
@@ -72,28 +78,4 @@ class AppCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _DashedBorder extends CustomPainter {
-  _DashedBorder(this.color, this.radius);
-  final Color color;
-  final BorderRadius radius;
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = Path()
-      ..addRRect(radius.toRRect(Offset.zero & size).deflate(0.5));
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-    for (final metric in path.computeMetrics()) {
-      for (double start = 0; start < metric.length; start += 9) {
-        canvas.drawPath(metric.extractPath(start, start + 5), paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DashedBorder old) =>
-      color != old.color || radius != old.radius;
 }

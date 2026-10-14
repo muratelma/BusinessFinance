@@ -121,7 +121,7 @@ void main() {
       expect(find.text('Garanti POS'), findsOneWidget);
       expect(find.text('Net tutar'), findsOneWidget);
       expect(find.text('₺985,00'), findsOneWidget);
-      expect(find.text('Beklenen'), findsOneWidget);
+      expect(find.text('Beklenen gün'), findsOneWidget);
       expect(find.text('Karşı taraf'), findsOneWidget);
     });
 

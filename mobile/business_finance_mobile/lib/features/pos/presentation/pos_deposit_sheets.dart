@@ -276,7 +276,7 @@ class _DepositFormState extends State<_DepositForm> {
       AppDetailBlock(
         rows: [
           AppDetailRow(
-            label: 'Beklenen',
+            label: 'Yatması beklenen',
             trailing: shown == null
                 ? null
                 : AppMoneyText(
@@ -791,7 +791,7 @@ class _PosDepositDetailSheetState extends State<PosDepositDetailSheet> {
                 ],
                 AppDetailRow(
                   icon: Icons.schedule,
-                  label: 'Beklenen',
+                  label: 'Yatması beklenen',
                   trailing: deposit == null
                       ? null
                       : AppMoneyText(
@@ -816,7 +816,9 @@ class _PosDepositDetailSheetState extends State<PosDepositDetailSheet> {
                 if (hasDeduction && deposit?.deductionCategoryName != null)
                   AppDetailRow(
                     icon: Icons.local_offer_outlined,
-                    label: 'Kategori',
+                    // Formdaki alanın adı; `Kesintinin kategorisi` büyük
+                    // yazıda tutarı sıkıştırırdı.
+                    label: 'Kesinti kategorisi',
                     value: deposit!.deductionCategoryName,
                   ),
                 AppDetailRow(
@@ -894,10 +896,10 @@ class _PosDepositDetailSheetState extends State<PosDepositDetailSheet> {
               summary.isCancelled
                   ? 'Kayıt duruyor; tahsilatlar yeniden yolda.'
                   : hasDeduction
-                  ? 'Kesinti ayrı bir gider olarak yazıldı; yatış gelir '
-                        'yazmaz.'
-                  : 'Yatış gelir yazmaz; satış ve komisyon tahsil edildiği '
-                        'gün yazıldı.',
+                  ? 'Satış ve komisyon tahsil edildiği gün yazılır. Kesinti, '
+                        'yatışın günü gider olarak yazılır.'
+                  : 'Satış ve komisyon tahsil edildiği gün yazılır; yatış '
+                        'yalnız parayı hesaba geçirir.',
               style: note?.copyWith(color: surfaces.inkMuted),
             ),
             if (!summary.isCancelled) ...[

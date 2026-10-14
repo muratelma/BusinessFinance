@@ -33,6 +33,7 @@ class ActivityTile extends StatelessWidget {
     this.showDate = true,
     this.title,
     this.subtitle,
+    this.subtitleIcon,
     this.stateLabel,
     this.stateTone,
     this.amount,
@@ -40,6 +41,10 @@ class ActivityTile extends StatelessWidget {
     this.signedByAmount = false,
     this.amountNote,
     this.hideFee = false,
+    this.compact = false,
+    this.alignTop = false,
+    this.icon,
+    this.mutedIcon = false,
   });
 
   final FinancialActivity activity;
@@ -49,6 +54,7 @@ class ActivityTile extends StatelessWidget {
   final bool showDate;
   final String? title;
   final String? subtitle;
+  final IconData? subtitleIcon;
   final String? stateLabel;
   final AppStatusTone? stateTone;
   final String? amount;
@@ -56,11 +62,23 @@ class ActivityTile extends StatelessWidget {
   final bool signedByAmount;
   final String? amountNote;
   final bool hideFee;
+  final bool compact;
+  final bool alignTop;
+  final IconData? icon;
+  final bool mutedIcon;
+
+  /// Üste hizalı satırda (kategori sayfası) kapsül ile yazının arası.
+  static const double _topGap =
+      AppSpacing.small + AppSpacing.xSmall + AppSpacing.xxSmall;
+
+  /// Üste hizalı satırda yazı kapsülün 1 dp altından başlar.
+  static const double _nudge = AppSpacing.xxSmall / 2;
 
   @override
   Widget build(BuildContext context) {
     final cancelled = activity.isCancelled;
     final dim = cancelled ? 0.55 : 1.0;
+    final nudge = alignTop ? _nudge : 0.0;
 
     return Semantics(
       button: onTap != null,
@@ -75,101 +93,140 @@ class ActivityTile extends StatelessWidget {
               horizontal: AppSpacing.medium,
               vertical: AppSpacing.small + AppSpacing.xSmall,
             ),
-            child: Row(
-              crossAxisAlignment: stateLabel == null
-                  ? CrossAxisAlignment.center
-                  : CrossAxisAlignment.start,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Opacity(
-                  opacity: dim,
-                  child: AppIconCapsule(
-                    icon: _icon,
-                    tone: cancelled
-                        ? AppStatusTone.cancelled
-                        : switch (effect ?? activity.effect) {
-                            ActivityEffect.income => AppStatusTone.income,
-                            ActivityEffect.expense => AppStatusTone.expense,
-                            ActivityEffect.neutral => AppStatusTone.neutral,
-                          },
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.medium),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Opacity(
-                        opacity: dim,
+                Row(
+                  crossAxisAlignment: !alignTop && stateLabel == null
+                      ? CrossAxisAlignment.center
+                      : CrossAxisAlignment.start,
+                  children: [
+                    Opacity(
+                      opacity: dim,
+                      child: AppIconCapsule(
+                        icon: icon ?? _icon,
+                        tone: mutedIcon
+                            ? null
+                            : cancelled
+                            ? AppStatusTone.cancelled
+                            : switch (effect ?? activity.effect) {
+                                ActivityEffect.income => AppStatusTone.income,
+                                ActivityEffect.expense => AppStatusTone.expense,
+                                ActivityEffect.neutral => AppStatusTone.neutral,
+                              },
+                      ),
+                    ),
+                    SizedBox(width: alignTop ? _topGap : AppSpacing.medium),
+                    Expanded(
+                      child: Padding(
+                        // Üste hizalı satırda yazı kapsülün 1 dp altından
+                        // başlar (teslim).
+                        padding: EdgeInsets.only(top: nudge),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // Kayıt adı kullanıcının yazdığı serbest metindir
-                            // ve bir cümle olabilir; tamamı ayrıntıdadır.
-                            Text(
-                              title ??
-                                  (activity.title.isEmpty
-                                      ? activity.kindLabel
-                                      : activity.title),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleSmall,
+                            Opacity(
+                              opacity: dim,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Kayıt adı kullanıcının yazdığı serbest metindir
+                                  // ve bir cümle olabilir; tamamı ayrıntıdadır.
+                                  _titleText(context),
+                                  if ((subtitle ?? _subtitle).isNotEmpty) ...[
+                                    SizedBox(
+                                      height: compact ? 0 : AppSpacing.xxSmall,
+                                    ),
+                                    _subtitleText(context),
+                                  ],
+                                ],
+                              ),
                             ),
-                            if ((subtitle ?? _subtitle).isNotEmpty) ...[
-                              const SizedBox(height: AppSpacing.xxSmall),
-                              Text(
-                                subtitle ?? _subtitle,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.bodySmall,
+                            if (stateLabel != null && !alignTop)
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  top: AppSpacing.xSmall,
+                                ),
+                                child: Text(
+                                  stateLabel!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: stateTone == AppStatusTone.income
+                                            ? AppFinanceColors.of(
+                                                context,
+                                              ).income
+                                            : stateTone == AppStatusTone.neutral
+                                            ? AppFinanceColors.of(
+                                                context,
+                                              ).neutral
+                                            : null,
+                                      ),
+                                ),
+                              ),
+                            if (cancelled) ...[
+                              const SizedBox(height: AppSpacing.xSmall),
+                              const AppStatusChip(
+                                label: 'İptal edildi',
+                                icon: Icons.block,
+                                tone: AppStatusTone.cancelled,
+                              ),
+                            ],
+                            if (context.usesLargeText) ...[
+                              const SizedBox(height: AppSpacing.xSmall),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: Opacity(opacity: dim, child: _amount),
                               ),
                             ],
                           ],
                         ),
                       ),
-                      if (stateLabel != null)
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            top: AppSpacing.xSmall,
-                          ),
-                          child: Text(
-                            stateLabel!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: stateTone == AppStatusTone.income
-                                      ? AppFinanceColors.of(context).income
-                                      : stateTone == AppStatusTone.neutral
-                                      ? AppFinanceColors.of(context).neutral
-                                      : null,
-                                ),
-                          ),
-                        ),
-                      if (cancelled) ...[
-                        const SizedBox(height: AppSpacing.xSmall),
-                        const AppStatusChip(
-                          label: 'İptal edildi',
-                          icon: Icons.block,
-                          tone: AppStatusTone.cancelled,
-                        ),
-                      ],
-                      if (context.usesLargeText) ...[
-                        const SizedBox(height: AppSpacing.xSmall),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: Opacity(opacity: dim, child: _amount),
-                        ),
-                      ],
+                    ),
+                    if (!context.usesLargeText) ...[
+                      SizedBox(
+                        width: !compact
+                            ? AppSpacing.small + AppSpacing.xSmall
+                            : alignTop
+                            ? _topGap
+                            : AppSpacing.medium,
+                      ),
+                      Padding(
+                        padding: EdgeInsets.only(top: nudge),
+                        child: Opacity(opacity: dim, child: _amount),
+                      ),
                     ],
-                  ),
+                  ],
                 ),
-                if (!context.usesLargeText) ...[
-                  const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
-                  Opacity(opacity: dim, child: _amount),
-                ],
+                if (stateLabel != null && alignTop)
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      left:
+                          AppIconCapsule.rowInset -
+                          AppSpacing.medium -
+                          AppSpacing.xxSmall,
+                    ),
+                    child: Text(
+                      stateLabel!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontSize: 13,
+                        height: 1.35,
+                        fontWeight: FontWeight.w600,
+                        color: stateTone == AppStatusTone.income
+                            ? AppFinanceColors.of(context).income
+                            : stateTone == AppStatusTone.neutral
+                            ? AppFinanceColors.of(context).neutral
+                            : null,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -196,6 +253,7 @@ class ActivityTile extends StatelessWidget {
         signedByAmount: signedByAmount,
         textAlign: TextAlign.end,
         size: AppMoneySize.row,
+        style: compact ? const TextStyle(height: 1.25) : null,
       );
       final fee = amountNote ?? (hideFee ? null : _feeLabel);
       if (fee == null) return amount;
@@ -208,6 +266,8 @@ class ActivityTile extends StatelessWidget {
           Text(
             fee,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              fontSize: compact ? 13 : null,
+              height: compact ? 1.35 : null,
               decoration: activity.isCancelled
                   ? TextDecoration.lineThrough
                   : null,
@@ -234,6 +294,59 @@ class ActivityTile extends StatelessWidget {
   }
 
   IconData get _icon => activityIcon(activity);
+
+  Widget _titleText(BuildContext context) {
+    final text =
+        title ?? (activity.title.isEmpty ? activity.kindLabel : activity.title);
+    final style = compact
+        ? Theme.of(context).textTheme.titleSmall?.copyWith(height: 1.3)
+        : Theme.of(context).textTheme.titleSmall;
+    if (compact && text.contains(' → ')) {
+      final parts = text.split(' → ');
+      return Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(text: '${parts.first} '),
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Icon(Icons.arrow_forward, size: 16, color: style?.color),
+            ),
+            TextSpan(text: ' ${parts.skip(1).join(' → ')}'),
+          ],
+        ),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: style,
+      );
+    }
+    return Text(
+      text,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: style,
+    );
+  }
+
+  Widget _subtitleText(BuildContext context) {
+    final style = compact
+        ? Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.35)
+        : Theme.of(context).textTheme.bodySmall;
+    final text = Text(
+      subtitle ?? _subtitle,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: style,
+    );
+    if (subtitleIcon == null) return text;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(subtitleIcon, size: 16, color: style?.color),
+        const SizedBox(width: AppSpacing.xSmall),
+        Expanded(child: text),
+      ],
+    );
+  }
 
   String get _subtitle {
     // Source and destination read as one route, so they are joined by the arrow
@@ -359,17 +472,17 @@ IconData activityIcon(FinancialActivity activity) => switch (activity.kind) {
         : Icons.north_east,
   ActivityKind.transfer => Icons.swap_horiz,
   ActivityKind.cardCharge => Icons.credit_card,
-  ActivityKind.cardPayment => Icons.payments_outlined,
-  ActivityKind.debtPayment => Icons.trending_down,
-  ActivityKind.debtCollection => Icons.trending_up,
+  ActivityKind.cardPayment => Icons.credit_card,
+  ActivityKind.debtPayment => Icons.request_quote_outlined,
+  ActivityKind.debtCollection => Icons.request_quote_outlined,
   ActivityKind.debtOpening => Icons.handshake_outlined,
   ActivityKind.counterpartyCharge =>
     activity.effect == ActivityEffect.income
         ? Icons.south_west
         : Icons.north_east,
-  ActivityKind.counterpartySettlement => Icons.price_check,
+  ActivityKind.counterpartySettlement => Icons.groups_outlined,
   ActivityKind.obligation => Icons.event_note_outlined,
-  ActivityKind.obligationSettlement => Icons.price_check,
+  ActivityKind.obligationSettlement => Icons.receipt_long_outlined,
   ActivityKind.posSale => Icons.point_of_sale_outlined,
   // Para yolda değil artık: hesaba indi.
   ActivityKind.posDeposit => Icons.move_to_inbox_outlined,

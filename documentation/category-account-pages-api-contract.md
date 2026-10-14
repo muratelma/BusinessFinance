@@ -17,7 +17,7 @@ Listeler 50 satırlık sayfalarla gelir; `offset`, `totalCount`, `hasMore` taş�
 | `GET /api/v1/accounts/{id}/page` | `year`, `month`, `direction=in|out`, `selection`, `offset`; kapsam yok |
 | `GET /api/v1/accounts/{id}/months` | `year`; ay sonu bakiyeleri, kapsam yok |
 | `GET /api/v1/accounts/{id}/in-transit` | `offset`; bugünkü yoldaki satış ve kartla tahsilatlar |
-| `GET /api/v1/accounts/overview` | Bütün hesaplar; aktif Nakit/Banka ve Pasif toplamları |
+| `GET /api/v1/accounts/overview` | Bütün hesaplar; aktif Nakit/Banka ve Pasif toplamları ile toplam içindeki payları |
 | `GET /api/v1/financial-activities/{kind}/{id}/parts` | Ortak işlem ayrıntısındaki masraf/faiz/komisyon/kesinti ve kaydın gerçek kategorisi |
 
 Yıl/ay verilmezse sunucunun Türkiye günü kullanılır. Geçersiz seçim 400
@@ -29,11 +29,18 @@ olmayan kimlik aynı 404 `finance_pages.not_found` cevabını alır.
 kesişimini toplar. Seçili ve sahibine ait bir kaynak kayıtsız ayda sıfırla
 korunur. Pasif kaynak, kaydı olan ayın menüsünde görünür.
 
+`accounts/overview` cevabındaki `cashShare`, `bankShare` ve `inactiveShare`
+tam yüzdedir (`"58.0000"` = %58) ve Hesaplar'daki pay çubuğu ile yüzdeleri
+besler; istemci pay hesaplamaz. Toplam sıfır ya da eksiyse veya parçalardan
+biri eksiyse üçü de `null` gelir ve çubuk çizilmez.
+
 Hesap `selection` anahtarı `in|out:category|collection|payment|transfer`
 biçimindedir. Alt seçenek kategori veya karşı hesap kimliğini, ödeme/tahsilat
 türünde `FinancialActivityKind` sayısını ekler (`out:payment:5`, borç taksidi).
 `options.kind` kararlı işlem türü adıdır; görünen adı istemci ortak sözlüğünden
-okur. `all` menü satırının tutarı seçeneklerin mutlak toplamıdır.
+okur. `all` menü satırının tutarı seçeneklerin mutlak toplamıdır. Hesap menüsünün
+sırası sabittir: `all`, sonra giren, sonra çıkan; gruplar `category`,
+`collection`/`payment`, `transfer`; grubun içinde ada göre (Türkçe sıralama).
 
 ## Örnek kategori özeti
 
@@ -95,7 +102,9 @@ geçmemiş kayıtları sayar; ay seçimi onu daraltmaz.
 
 Ay cevabı `year`, 12 `months` satırı (`month`, `amount`, `barRatio`, `enabled`)
 taşır. Kayıtsız ileri ay kapalıdır. Kategoride çubuk gelir/gider tutarı;
-hesapta ay sonu bakiyesidir.
+hesapta ay sonu bakiyesidir. Hesabın açıldığı gün saklanmadığı için ilk kaydın ayından
+(kaydı yoksa bu aydan) önceki aylar `enabled` kalır ve ay sonu bakiyesini
+taşır ama `barRatio` 0'dır; oran yalnız sonraki aylardan hesaplanır.
 
 ## Transfer masrafı ve rol
 
@@ -133,3 +142,7 @@ SQL'de süzülür ve toplanır. Geçmişin tamamı istemciye veya belleğe çeki
 Sayfa görüntüsündeki ortak işlem bilgisi yalnız o sayfanın kimlikleriyle
 birleşik projeksiyondan okunur; kayıt başına sorgu yoktur. Hesap sayfası
 yoldaki özet için yalnız en yakın kaydı okur; tam liste ayrı sayfalıdır.
+
+## Kaynak ikonları için hesap türü — 13 Ekim 2026
+
+Kaynak seçeneklerinde group=accounts iken mevcut kind alanı cash ya da bank döner. Alan aynı kaynakta sıfır sonuçlu seçimi korurken de doldurulur. Kimlik ve ad yalnız oturum sahibinin hesabından gelir. Eski istemciler isteğe bağlı alanı yok sayabilir; şema veya kırılan sözleşme değişikliği yoktur.

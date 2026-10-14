@@ -6,7 +6,7 @@
 ## Teslim ve checkpoint'ler
 
 Yedi paketin sunucu ve Flutter uygulaması tamamlandı. Sunucu Paket 1–4
-`a60a9ec` checkpoint'indedir; Flutter Paket 5–7, işlem parçasının kapsam eki
+`3bbc863` checkpoint'indedir; Flutter Paket 5–7, işlem parçasının kapsam eki
 ve aşağıdaki son düzeltmeler **bu raporu taşıyan uygulama commit'indedir**.
 Dal değiştirilmedi; push/merge yapılmadı. Aşama 06.3 Aktif kalır; bu teslim
 bütün aşamanın veya cihaz kabulünün kapanışı değildir.

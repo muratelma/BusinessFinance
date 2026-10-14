@@ -38,7 +38,12 @@ class AppShareBar extends StatelessWidget {
             child: FractionallySizedBox(
               widthFactor: safeRatio,
               heightFactor: 1,
-              child: ColoredBox(color: color),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(AppRadius.chip),
+                ),
+              ),
             ),
           ),
         ),

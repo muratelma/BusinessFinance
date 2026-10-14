@@ -10,8 +10,8 @@ dokunulmadı ve eksik Flutter checkpoint'i commit edilmedi.
 - Repo: `C:\Users\elma6\Documents\BusinessFinance`.
 - Dal: **`kategori-hesap-sayfalari`**. Bu dalda kal; branch/worktree açma,
   branch değiştirme, push/merge yapma.
-- HEAD: **`a60a9ec` — `feat: add category and account reads with role-based costs`**.
-  Öncekiler `22c703f` (tasarım teslimi/görev), `a4e1f77` (ileri tarih yasağı).
+- HEAD: **`3bbc863` — `feat: add category and account reads with role-based costs`**.
+  Öncekiler `2d8083e` (tasarım teslimi/görev), `2012c91` (ileri tarih yasağı).
 - Aktif aşama **06.3 Grup 8**: `stages/06.3-butunsel-duzenleme.md`.
   Bu görev bitince bütün aşamayı kapatma veya sonraki aşamayı açma.
 - Sunucu checkpoint'i commit edildi. Flutter büyük ölçüde yazıldı ama
@@ -66,7 +66,7 @@ Commitler İngilizce, kullanıcının mevcut Git kimliğiyle; AI imzası/co-auth
 
 ## Tamamlanan sunucu işi
 
-`a60a9ec` içinde 71 dosyalık sunucu checkpoint'i vardır:
+`3bbc863` içinde 71 dosyalık sunucu checkpoint'i vardır:
 
 - Dört kategori rolü: faiz gideri, faiz geliri, kasa farkı, banka masrafı.
   Rol isimden bağımsız; iki kapsama açık, kullanıcı/rol tekil, gerektiğinde

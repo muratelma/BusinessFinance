@@ -50,7 +50,7 @@ void main() {
       _activity(kind: ActivityKind.transfer, effect: ActivityEffect.neutral),
     );
 
-    expect(find.text('Gelir/gider raporunu etkilemez'), findsOneWidget);
+    expect(find.text('Gelir ya da gider sayılmaz.'), findsOneWidget);
   });
 
   testWidgets('offers cancelling only when the server allows it', (

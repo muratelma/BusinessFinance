@@ -11,12 +11,14 @@ import '../../../core/widgets/app_inline_notice.dart';
 import '../../../core/widgets/app_page_header.dart';
 import '../../../core/widgets/app_scope_selector.dart';
 import '../../../core/widgets/app_state_views.dart';
+import '../../../core/widgets/app_untracked_text.dart';
+import '../../../core/theme/app_surfaces.dart';
 import '../../cards/presentation/transfer_prefill.dart';
 import '../data/finance_page_models.dart';
 import '../data/finance_page_repository.dart';
 import 'transfer_controller.dart';
 
-class TransferPage extends StatefulWidget {
+class TransferPage extends StatelessWidget {
   const TransferPage({
     required this.repository,
     super.key,
@@ -27,30 +29,39 @@ class TransferPage extends StatefulWidget {
   final FinancialDataChanges? changes;
   final TransferPrefill? prefill;
   @override
-  State<TransferPage> createState() => _TransferPageState();
+  Widget build(BuildContext context) =>
+      AppUntrackedText(child: _TransferPageBody(this));
 }
 
-class _TransferPageState extends State<TransferPage> {
+class _TransferPageBody extends StatefulWidget {
+  const _TransferPageBody(this.page);
+  final TransferPage page;
+  @override
+  State<_TransferPageBody> createState() => _TransferPageState();
+}
+
+class _TransferPageState extends State<_TransferPageBody> {
   late final controller = TransferController(
-    widget.repository,
-    changes: widget.changes,
+    widget.page.repository,
+    changes: widget.page.changes,
   );
   final form = GlobalKey<FormState>();
   late final amount = TextEditingController(
-    text: widget.prefill?.amount == null
+    text: widget.page.prefill?.amount == null
         ? ''
-        : MoneyText.editable(widget.prefill!.amount!),
+        : _editableAmount(widget.page.prefill!.amount!),
   );
   late final fee = TextEditingController(
-    text: widget.prefill?.feeAmount == null
+    text: widget.page.prefill?.feeAmount == null
         ? ''
-        : MoneyText.editable(widget.prefill!.feeAmount!),
+        : _editableAmount(widget.page.prefill!.feeAmount!),
   );
   late final description = TextEditingController(
-    text: widget.prefill?.description ?? '',
+    text: widget.page.prefill?.description ?? '',
   );
   late String date =
-      widget.prefill?.date ?? DateTime.now().toIso8601String().substring(0, 10);
+      widget.page.prefill?.date ??
+      DateTime.now().toIso8601String().substring(0, 10);
   String? source;
   String? destination;
   TransactionScope? explicit;
@@ -109,134 +120,146 @@ class _TransferPageState extends State<TransferPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    body: SafeArea(
-      child: AnimatedBuilder(
-        animation: controller,
-        builder: (context, _) => Column(
-          children: [
-            AppPageHeader(
-              title: 'Yeni transfer',
-              onBack: controller.isSaving
-                  ? null
-                  : () => Navigator.maybePop(context),
-            ),
-            Expanded(
-              child: controller.unauthorized
-                  ? const AppUnauthorizedView()
-                  : controller.accounts == null
-                  ? controller.errorMessage != null
-                        ? AppErrorView(
-                            message: controller.errorMessage!,
-                            onRetry: controller.load,
-                          )
-                        : const AppLoadingView()
-                  : Form(
-                      key: form,
-                      child: ListView(
-                        padding: const EdgeInsets.only(
-                          left: AppSpacing.medium,
-                          top: AppSpacing.xSmall,
-                          right: AppSpacing.medium,
-                          bottom: AppSpacing.xLarge,
-                        ),
-                        children: [
-                          AppDateField(
-                            label: 'Tarih',
-                            value: date,
-                            valueText: DateText.dayMonthYear(date),
-                            lastDate: DateTime.now(),
-                            enabled: !controller.isSaving,
-                            onChanged: (v) {
-                              date = v;
-                              _preview();
-                            },
-                          ),
-                          const SizedBox(
-                            height: AppSpacing.medium + AppSpacing.xSmall,
-                          ),
-                          _account('Çıkan hesap', source, (v) {
-                            source = v;
-                            if (destination == source) destination = null;
-                            explicit = null;
-                            _preview();
-                          }),
-                          const SizedBox(
-                            height: AppSpacing.medium + AppSpacing.xSmall,
-                          ),
-                          _account('Giren hesap', destination, (v) {
-                            destination = v;
-                            _preview();
-                          }, exclude: source),
-                          const SizedBox(
-                            height: AppSpacing.medium + AppSpacing.xSmall,
-                          ),
-                          _money('Tutar', amount, requiredValue: true),
-                          const SizedBox(
-                            height: AppSpacing.medium + AppSpacing.xSmall,
-                          ),
-                          _money('Masraf (isteğe bağlı)', fee),
-                          if ((MoneyMath.fromInput(fee.text) ?? '0.0000') !=
-                                  '0.0000' &&
-                              from?.defaultScope == null &&
-                              (controller.preview?.needsScope ??
-                                  false || explicit != null)) ...[
-                            const SizedBox(
-                              height: AppSpacing.medium + AppSpacing.xSmall,
-                            ),
-                            AppScopeSection(
-                              explicit: explicit,
-                              source: from?.defaultScope,
-                              category: null,
-                              sourceName: from?.name,
-                              onChanged: (v) {
-                                explicit = v;
-                                _preview();
-                              },
-                            ),
-                          ],
-                          const SizedBox(
-                            height: AppSpacing.medium + AppSpacing.xSmall,
-                          ),
-                          TextFormField(
-                            controller: description,
-                            enabled: !controller.isSaving,
-                            maxLength: 500,
-                            maxLines: 2,
-                            decoration: const InputDecoration(
-                              labelText: 'Açıklama (isteğe bağlı)',
-                            ),
-                            onChanged: (_) => _preview(),
-                          ),
-                          if (controller.isPreviewing)
-                            const Padding(
-                              padding: EdgeInsets.all(
-                                AppSpacing.small + AppSpacing.xSmall,
-                              ),
-                              child: LinearProgressIndicator(),
-                            ),
-                          if (controller.preview != null)
-                            AppInlineNotice(
-                              margin: EdgeInsets.zero,
-                              message: controller.preview!.feeAmount == '0.0000'
-                                  ? '${controller.preview!.sourceAccountName} hesabından ${MoneyText.format(controller.preview!.totalOutflow, 'TRY')} çıkacak.'
-                                  : '${controller.preview!.sourceAccountName} hesabından masrafla birlikte ${MoneyText.format(controller.preview!.totalOutflow, 'TRY')} çıkacak. Masraf, ${controller.preview!.feeCategoryName} kategorisine${controller.preview!.resolvedScope == null ? '' : ' · ${controller.preview!.resolvedScope!.label}'} yazılacak.',
-                            ),
-                          if (controller.errorMessage != null)
-                            AppFormError(message: controller.errorMessage!),
-                          const SizedBox(height: AppSpacing.large),
-                        ],
-                      ),
-                    ),
-            ),
-            if (controller.accounts != null && !controller.unauthorized)
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.medium),
-                child: SizedBox(width: double.infinity, child: _saveButton()),
-              ),
-          ],
+  Widget build(BuildContext context) =>
+      Scaffold(body: SafeArea(child: _page()));
+
+  Widget _page() => AnimatedBuilder(
+    animation: controller,
+    builder: (context, _) => Column(
+      children: [
+        AppPageHeader(
+          title: 'Yeni transfer',
+          compact: true,
+          onBack: controller.isSaving
+              ? null
+              : () => Navigator.maybePop(context),
         ),
-      ),
+        Expanded(
+          child: controller.unauthorized
+              ? const AppUnauthorizedView()
+              : controller.accounts == null
+              ? controller.errorMessage != null
+                    ? AppErrorView(
+                        message: controller.errorMessage!,
+                        onRetry: controller.load,
+                      )
+                    : const AppLoadingView()
+              : Form(
+                  key: form,
+                  child: ListView(
+                    padding: const EdgeInsets.only(
+                      left: AppSpacing.medium,
+                      top: AppSpacing.small + AppSpacing.xSmall,
+                      right: AppSpacing.medium,
+                      bottom: AppSpacing.large,
+                    ),
+                    children: [
+                      AppDateField(
+                        label: 'Tarih',
+                        iconLeading: true,
+                        value: date,
+                        valueText: DateText.dayMonthYear(date),
+                        lastDate: DateTime.now(),
+                        enabled: !controller.isSaving,
+                        onChanged: (v) {
+                          date = v;
+                          _preview();
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.medium),
+                      _account('Çıkan hesap', source, (v) {
+                        source = v;
+                        if (destination == source) destination = null;
+                        explicit = null;
+                        _preview();
+                      }),
+                      const SizedBox(height: AppSpacing.medium),
+                      _account('Giren hesap', destination, (v) {
+                        destination = v;
+                        _preview();
+                      }, exclude: source),
+                      const SizedBox(height: AppSpacing.medium),
+                      _money('Tutar', amount, requiredValue: true),
+                      const SizedBox(height: AppSpacing.medium),
+                      _money('Masraf (isteğe bağlı)', fee),
+                      if ((MoneyMath.fromInput(fee.text) ?? '0.0000') !=
+                              '0.0000' &&
+                          from?.defaultScope == null &&
+                          (controller.preview?.needsScope ??
+                              false || explicit != null)) ...[
+                        const SizedBox(
+                          height: AppSpacing.medium + AppSpacing.xSmall,
+                        ),
+                        AppScopeSection(
+                          explicit: explicit,
+                          source: from?.defaultScope,
+                          category: null,
+                          sourceName: from?.name,
+                          onChanged: (v) {
+                            if (controller.isSaving) return;
+                            explicit = v;
+                            _preview();
+                          },
+                        ),
+                      ],
+                      const SizedBox(height: AppSpacing.medium),
+                      if (controller.isPreviewing)
+                        const Padding(
+                          padding: EdgeInsets.all(
+                            AppSpacing.small + AppSpacing.xSmall,
+                          ),
+                          child: LinearProgressIndicator(),
+                        ),
+                      if (controller.preview != null)
+                        AppInlineNotice(
+                          margin: EdgeInsets.zero,
+                          compact: true,
+                          emphasis: MoneyText.format(
+                            controller.preview!.totalOutflow,
+                            'TRY',
+                          ),
+                          message: controller.preview!.feeAmount == '0.0000'
+                              ? '${controller.preview!.sourceAccountName} hesabından ${MoneyText.format(controller.preview!.totalOutflow, 'TRY')} çıkar.'
+                              : '${controller.preview!.sourceAccountName} hesabından toplam ${MoneyText.format(controller.preview!.totalOutflow, 'TRY')} çıkar. Masraf ${controller.preview!.feeCategoryName} olarak gider yazılır.',
+                        ),
+                      const SizedBox(height: AppSpacing.medium),
+                      TextFormField(
+                        controller: description,
+                        enabled: !controller.isSaving,
+                        maxLength: 500,
+                        maxLines: 1,
+                        decoration: const InputDecoration(
+                          labelText: 'Açıklama (isteğe bağlı)',
+                          counterText: '',
+                        ),
+                        onChanged: (_) => _preview(),
+                      ),
+                      if (controller.errorMessage != null)
+                        AppFormError(message: controller.errorMessage!),
+                      const SizedBox(height: AppSpacing.large),
+                    ],
+                  ),
+                ),
+        ),
+        // Kaydet altta sabittir; içerikten ince bir çizgiyle ayrılır.
+        if (controller.accounts != null && !controller.unauthorized)
+          DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: AppSurfaces.of(context).border),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.medium,
+                AppSpacing.small + AppSpacing.xSmall,
+                AppSpacing.medium,
+                AppSpacing.medium + AppSpacing.xSmall,
+              ),
+              child: SizedBox(width: double.infinity, child: _saveButton()),
+            ),
+          ),
+      ],
     ),
   );
   Widget _saveButton() => FilledButton(
@@ -247,8 +270,11 @@ class _TransferPageState extends State<TransferPage> {
             controller.isPreviewing
         ? null
         : _save,
-    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-    child: Text(controller.isSaving ? 'Kaydediliyor…' : 'Transferi kaydet'),
+    style: FilledButton.styleFrom(
+      minimumSize: const Size.fromHeight(52),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
+    child: Text(controller.isSaving ? 'Kaydediliyor…' : 'Kaydet'),
   );
   Widget _account(
     String label,
@@ -277,7 +303,15 @@ class _TransferPageState extends State<TransferPage> {
     enabled: !controller.isSaving,
     keyboardType: const TextInputType.numberWithOptions(decimal: true),
     inputFormatters: const [TurkishAmountInputFormatter()],
-    decoration: InputDecoration(labelText: label, prefixText: '₺ '),
+    decoration: InputDecoration(
+      labelText: label,
+      prefixText: '₺ ',
+      helperText:
+          !requiredValue &&
+              (MoneyMath.fromInput(text.text) ?? '0.0000') == '0.0000'
+          ? 'Bankanın aldığı ücret. Çıkan hesaptan düşer.'
+          : null,
+    ),
     onChanged: (_) => _preview(),
     validator: (v) {
       if (!requiredValue && (v ?? '').isEmpty) return null;
@@ -287,4 +321,19 @@ class _TransferPageState extends State<TransferPage> {
           : null;
     },
   );
+  static String _editableAmount(String wire) {
+    var text = MoneyText.editable(wire);
+    if (!text.contains(',')) {
+      text += ',00';
+    } else {
+      final parts = text.split(',');
+      text = '${parts.first},${parts.last.padRight(2, '0')}';
+    }
+    return const TurkishAmountInputFormatter()
+        .formatEditUpdate(
+          const TextEditingValue(),
+          TextEditingValue(text: text),
+        )
+        .text;
+  }
 }

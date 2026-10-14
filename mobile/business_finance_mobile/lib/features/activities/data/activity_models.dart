@@ -83,6 +83,17 @@ enum ActivityKind {
     posSale => 'POS satışı',
     posDeposit => 'POS yatışı',
   };
+
+  /// Yöne bağlı adın liste, filtre ve ayrıntıdaki tek kaynağı.
+  String labelFor(ActivityDirection? direction) => switch ((this, direction)) {
+    (counterpartyCharge, ActivityDirection.receivable) => 'Veresiye satış',
+    (counterpartyCharge, ActivityDirection.payable) => 'Vadeli alım',
+    (counterpartySettlement, ActivityDirection.receivable) => 'Cari tahsilat',
+    (counterpartySettlement, ActivityDirection.payable) => 'Cari ödeme',
+    (obligationSettlement, ActivityDirection.receivable) => 'Alacak tahsilatı',
+    (obligationSettlement, ActivityDirection.payable) => 'Borç ödemesi',
+    _ => label,
+  };
 }
 
 enum ActivityEffect {
@@ -346,19 +357,7 @@ class FinancialActivity {
     (ActivityKind.accountTransaction, _)
         when effect == ActivityEffect.expense =>
       'Gider',
-    (ActivityKind.counterpartyCharge, ActivityDirection.receivable) =>
-      'Veresiye satış',
-    (ActivityKind.counterpartyCharge, ActivityDirection.payable) =>
-      'Vadeli alım',
-    (ActivityKind.counterpartySettlement, ActivityDirection.receivable) =>
-      'Cari tahsilat',
-    (ActivityKind.counterpartySettlement, ActivityDirection.payable) =>
-      'Cari ödeme',
-    (ActivityKind.obligationSettlement, ActivityDirection.receivable) =>
-      'Alacak tahsilatı',
-    (ActivityKind.obligationSettlement, ActivityDirection.payable) =>
-      'Borç ödemesi',
-    _ => kind.label,
+    _ => kind.labelFor(direction),
   };
 
   /// Para karşı taraftan hesaba mı geliyor: alacağın tahsilatı.

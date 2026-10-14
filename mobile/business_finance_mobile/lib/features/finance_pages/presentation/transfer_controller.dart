@@ -47,6 +47,7 @@ class TransferController extends ChangeNotifier {
   }
 
   void setInput(TransferInput? value) {
+    if (_disposed || isSaving) return;
     input = value;
     preview = null;
     errorMessage = null;
@@ -86,10 +87,11 @@ class TransferController extends ChangeNotifier {
 
   Future<bool> save() async {
     final value = input;
+    final approved = preview;
     if (isSaving ||
         value == null ||
-        preview == null ||
-        preview!.needsScope ||
+        approved == null ||
+        approved.needsScope ||
         isPreviewing) {
       return false;
     }
@@ -99,7 +101,7 @@ class TransferController extends ChangeNotifier {
     try {
       await repository.createTransfer(value);
       if (_disposed) return false;
-      changes?.transferChanged(fee: preview!.feeAmount != '0.0000');
+      changes?.transferChanged(fee: approved.feeAmount != '0.0000');
       return true;
     } on ApiException catch (error) {
       if (_disposed) return false;

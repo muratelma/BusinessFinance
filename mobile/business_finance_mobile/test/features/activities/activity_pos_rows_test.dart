@@ -152,7 +152,7 @@ void main() {
       await _pumpSheet(tester, _sale());
 
       expect(find.text('Net tutar'), findsOneWidget);
-      expect(find.text('Beklenen'), findsOneWidget);
+      expect(find.text('Beklenen gün'), findsOneWidget);
       expect(find.text('Geçiş günü'), findsNothing);
     });
 

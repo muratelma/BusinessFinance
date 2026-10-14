@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_breakpoints.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_surfaces.dart';
@@ -55,43 +56,63 @@ class AppDetailRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final surfaces = AppSurfaces.of(context);
+    final labelText = Text(
+      label,
+      style: theme.textTheme.bodyMedium?.copyWith(
+        height: 1.3,
+        color: surfaces.inkMuted,
+      ),
+    );
+    final valueWidget = Align(
+      alignment: Alignment.centerRight,
+      child:
+          trailing ??
+          Text(
+            value!,
+            textAlign: TextAlign.right,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              height: 1.35,
+              fontWeight: FontWeight.w500,
+              color: surfaces.ink,
+            ),
+          ),
+    );
+    // Büyük yazıda etiket esnemediği için tutarı sıkıştırıyordu
+    // (`Yatması beklenen`): değer etiketin altına, sağa iner. İşlem
+    // satırındaki tutar da büyük yazıda böyle iner.
+    final large = context.usesLargeText;
     return MergeSemantics(
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 44),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: AppSpacing.small),
           child: Row(
+            crossAxisAlignment: large
+                ? CrossAxisAlignment.start
+                : CrossAxisAlignment.center,
             children: [
               if (icon != null) ...[
                 Icon(icon, size: 18, color: surfaces.inkMuted),
                 const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
               ],
-              Text(
-                label,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  height: 1.3,
-                  color: surfaces.inkMuted,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.medium),
-              Expanded(
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child:
-                      trailing ??
-                      Text(
-                        value!,
-                        textAlign: TextAlign.right,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          height: 1.35,
-                          fontWeight: FontWeight.w500,
-                          color: surfaces.ink,
-                        ),
-                      ),
-                ),
-              ),
+              if (large)
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      labelText,
+                      const SizedBox(height: AppSpacing.xxSmall),
+                      valueWidget,
+                    ],
+                  ),
+                )
+              else ...[
+                labelText,
+                const SizedBox(width: AppSpacing.medium),
+                Expanded(child: valueWidget),
+              ],
             ],
           ),
         ),

@@ -32,8 +32,13 @@ public sealed record AccountPage(Guid AccountId, string Name, string Type, strin
     int TotalCount, int Offset, bool HasMore);
 public sealed record AccountListItem(Guid Id, string Name, string Type, string? DefaultScope,
     bool IsActive, decimal Balance);
+/// <summary>
+/// Paylar tam yüzdedir (58 = %58) ve yalnız toplam artı, parçaların hiçbiri eksi değilken
+/// doludur; eksiye düşmüş bir hesap varken "toplamın yüzde kaçı" sorusunun cevabı yoktur.
+/// </summary>
 public sealed record AccountsOverview(decimal Total, decimal CashTotal, decimal BankTotal,
-    decimal InactiveTotal, IReadOnlyList<AccountListItem> Items);
+    decimal InactiveTotal, IReadOnlyList<AccountListItem> Items,
+    decimal? CashShare = null, decimal? BankShare = null, decimal? InactiveShare = null);
 public sealed record ActivityPart(string Kind, decimal Amount, Guid? CategoryId, string? CategoryName);
 public sealed record ActivityParts(IReadOnlyList<ActivityPart> Items);
 

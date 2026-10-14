@@ -156,6 +156,7 @@ class AppEmptyView extends StatelessWidget {
     required this.icon,
     super.key,
     this.action,
+    this.compact = false,
   });
 
   final String title;
@@ -165,9 +166,74 @@ class AppEmptyView extends StatelessWidget {
   /// Boş ekran çıkmaz sokak olmamalı: mümkünse buradan bir sonraki adım
   /// başlatılabilir.
   final Widget? action;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    if (compact) {
+      final theme = Theme.of(context);
+      final surfaces = AppSurfaces.of(context);
+      return Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xLarge,
+          vertical: AppSpacing.xLarge + AppSpacing.small,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: surfaces.cardMuted,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 28, color: surfaces.inkMuted),
+            ),
+            const SizedBox(height: AppSpacing.small + AppSpacing.xSmall),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontSize: 17,
+                height: 1.3,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xSmall + AppSpacing.xxSmall),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                height: 1.35,
+                color: surfaces.inkMuted,
+              ),
+            ),
+            if (action != null) ...[
+              const SizedBox(height: AppSpacing.small + AppSpacing.xSmall),
+              // Teslimde eylem altı çizili düz yazıdır (15/600, 48 dp).
+              TextButtonTheme(
+                data: TextButtonThemeData(
+                  style: TextButton.styleFrom(
+                    foregroundColor: surfaces.ink,
+                    minimumSize: const Size(0, 48),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.medium,
+                    ),
+                    textStyle: theme.textTheme.titleSmall?.copyWith(
+                      fontSize: 15,
+                      height: 1,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+                child: action!,
+              ),
+            ],
+          ],
+        ),
+      );
+    }
     return _StateScaffold(
       icon: icon,
       title: title,

@@ -1,3 +1,4 @@
+using System.Globalization;
 using BusinessFinance.Application.FinancePages;
 using BusinessFinance.Application.FinancialActivities;
 using BusinessFinance.Domain;
@@ -65,14 +66,14 @@ internal sealed class EfFinancePageReader(BusinessFinanceDbContext db,
         var sums = await items.GroupBy(i => new { i.AccountId, i.CreditCardId })
             .Select(g => new { g.Key.AccountId, g.Key.CreditCardId, Amount = g.Sum(i => i.Amount) }).ToArrayAsync(ct);
         var accounts = await db.Accounts.AsNoTracking().Where(a => a.UserId == owner)
-            .Select(a => new { a.Id, a.Name }).ToDictionaryAsync(a => a.Id, ct);
+            .Select(a => new { a.Id, a.Name, a.Type }).ToDictionaryAsync(a => a.Id, ct);
         var cards = await db.CreditCards.AsNoTracking().Where(a => a.UserId == owner)
             .Select(a => new { a.Id, a.Name }).ToDictionaryAsync(a => a.Id, ct);
         var result = new List<PageOption> { new("all", "all", null, sums.Sum(s => s.Amount)) };
         foreach (var row in sums)
         {
             if (row.AccountId is Guid account && accounts.TryGetValue(account, out var a))
-                result.Add(new($"account:{account:D}", "accounts", a.Name, row.Amount, Id: account));
+                result.Add(new($"account:{account:D}", "accounts", a.Name, row.Amount, a.Type.ToString().ToLowerInvariant(), account));
             else if (row.CreditCardId is Guid card && cards.TryGetValue(card, out var c))
                 result.Add(new($"card:{card:D}", "cards", c.Name, row.Amount, Id: card));
             else result.Add(new("deferred", "deferred", null, row.Amount));
@@ -81,7 +82,7 @@ internal sealed class EfFinancePageReader(BusinessFinanceDbContext db,
         {
             if (selected == "deferred") result.Add(new(selected, "deferred", null, 0m));
             else if (selected.StartsWith("account:", StringComparison.Ordinal) && Guid.TryParse(selected[8..], out var id) && accounts.TryGetValue(id, out var account))
-                result.Add(new(selected, "accounts", account.Name, 0m, Id: id));
+                result.Add(new(selected, "accounts", account.Name, 0m, account.Type.ToString().ToLowerInvariant(), id));
             else if (selected.StartsWith("card:", StringComparison.Ordinal) && Guid.TryParse(selected[5..], out id) && cards.TryGetValue(id, out var card))
                 result.Add(new(selected, "cards", card.Name, 0m, Id: id));
         }
@@ -203,6 +204,22 @@ internal sealed class EfFinancePageReader(BusinessFinanceDbContext db,
                 $"{q.Direction}:{GroupName(g.Key.Group, q.Direction == "in")}:{(g.Key.Id is Guid id ? id.ToString("D") : g.Key.Kind.ToString())}",
                 GroupName(g.Key.Group, q.Direction == "in"), g.Key.Id is Guid key ? (g.Key.Group == 1 ? categoryNames.GetValueOrDefault(key) : accountNames.GetValueOrDefault(key)) : null,
                 g.Sum(s => s.Amount), g.Key.Kind > 0 ? KindValue((FinancialActivityKind)g.Key.Kind) : null, g.Key.Id)));
+        // Sıra sabittir: önce giren, sonra çıkan; gruplar gelir/gider, ödeme,
+        // transfer; grubun içinde ada göre (kullanıcı kararı, 14 Ekim 2026).
+        // Tutara göre dizilmez; veritabanının döndürdüğü sıraya da bırakılmaz.
+        static int Rank(string? group) => group switch
+        {
+            "category" => 1,
+            "collection" or "payment" => 2,
+            "transfer" => 3,
+            _ => 4
+        };
+        var turkish = StringComparer.Create(CultureInfo.GetCultureInfo("tr-TR"), ignoreCase: true);
+        options = [options[0], .. options.Skip(1)
+            .OrderBy(o => o.Group == "out" ? 1 : 0)
+            .ThenBy(o => Rank(q.Direction is null ? o.Kind : o.Group))
+            .ThenBy(o => o.Name ?? o.Kind ?? string.Empty, turkish)
+            .ThenBy(o => o.Key, StringComparer.Ordinal)];
         var filtered = FilterMovements(month, q);
         var count = await filtered.CountAsync(ct);
         var selectedTotal = await filtered.SumAsync(m => m.Amount < 0m ? -m.Amount : m.Amount, ct);
@@ -249,14 +266,24 @@ internal sealed class EfFinancePageReader(BusinessFinanceDbContext db,
         var opening = account.OpeningBalance + await all.Where(m => m.Date < start).SumAsync(m => m.Amount, ct);
         var sums = await all.Where(m => m.Date >= start && m.Date < start.AddYears(1)).GroupBy(m => m.Date.Month)
             .Select(g => new { Month = g.Key, Amount = g.Sum(m => m.Amount), Count = g.Count() }).ToArrayAsync(ct);
+        // Hesabın açıldığı gün saklanmaz; açılış bakiyesi ilk kayda kadar
+        // geriye yayılırdı. İlk kaydın ayından (kaydı yoksa bu aydan) önceki
+        // aylar seçilebilir kalır ama çubuk çizmez (kullanıcı kararı, 14 Ekim
+        // 2026): ₺100.000 açılışlı kasanın Ocak–Temmuz'u dolu görünüyordu.
+        var first = await all.Select(m => (DateOnly?)m.Date).MinAsync(ct) ?? Today;
+        var barsFrom = new DateOnly(first.Year, first.Month, 1);
         var values = new List<MonthValue>(); var running = opening;
         for (var month = 1; month <= 12; month++)
         {
             var sum = sums.SingleOrDefault(s => s.Month == month); running += sum?.Amount ?? 0m;
             values.Add(new(month, running, 0m, new DateOnly(year, month, 1) <= Today || sum?.Count > 0));
         }
-        var max = values.Max(v => Math.Abs(v.Amount));
-        return new(year, values.Select(v => v with { BarRatio = max == 0m ? 0m : Math.Abs(v.Amount) / max }).ToArray());
+        bool Bar(MonthValue v) => new DateOnly(year, v.Month, 1) >= barsFrom;
+        var max = values.Where(Bar).Select(v => Math.Abs(v.Amount)).DefaultIfEmpty(0m).Max();
+        return new(year, values.Select(v => v with
+        {
+            BarRatio = max == 0m || !Bar(v) ? 0m : Math.Abs(v.Amount) / max
+        }).ToArray());
     }
 
     public async Task<TransitPage?> TransitAsync(Guid owner, Guid accountId, int offset, CancellationToken ct)
@@ -299,8 +326,13 @@ internal sealed class EfFinancePageReader(BusinessFinanceDbContext db,
         var changes = await AccountMovements.SumByAccountAsync(db, owner, null, ct);
         var items = accounts.Select(a => new AccountListItem(a.Id, a.Name, a.Type.ToString().ToLowerInvariant(),
             a.DefaultScope?.ToString().ToLowerInvariant(), a.IsActive, a.OpeningBalance + changes.GetValueOrDefault(a.Id))).ToArray();
-        return new(items.Sum(a => a.Balance), items.Where(a => a.IsActive && a.Type == "cash").Sum(a => a.Balance),
-            items.Where(a => a.IsActive && a.Type == "bank").Sum(a => a.Balance), items.Where(a => !a.IsActive).Sum(a => a.Balance), items);
+        var total = items.Sum(a => a.Balance);
+        var cash = items.Where(a => a.IsActive && a.Type == "cash").Sum(a => a.Balance);
+        var bank = items.Where(a => a.IsActive && a.Type == "bank").Sum(a => a.Balance);
+        var inactive = items.Where(a => !a.IsActive).Sum(a => a.Balance);
+        var shared = total > 0m && cash >= 0m && bank >= 0m && inactive >= 0m;
+        decimal? Share(decimal part) => shared ? decimal.Round(part / total * 100m, 0, MidpointRounding.AwayFromZero) : null;
+        return new(total, cash, bank, inactive, items, Share(cash), Share(bank), Share(inactive));
     }
 
     public async Task<ActivityParts?> PartsAsync(Guid owner, FinancialActivityKind kind, Guid activityId, CancellationToken ct)

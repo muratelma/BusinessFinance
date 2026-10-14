@@ -97,7 +97,10 @@ seçenekleriyle getir.
 - **Git:** iş `kategori-hesap-sayfalari` dalında yapılır (`ui-trials`tan
   açıldı; bu belge ve tasarım teslimi ilk commit'idir). Başka dal açma, dal
   değiştirme, `ui-trials` ya da `main`e birleştirme ve push yok; commit mesajı
-  İngilizce ve yapay zekâ imzasız (`AGENTS.md` "Git sorumluluğu").
+  İngilizce ve yapay zekâ imzasız (`AGENTS.md` "Git sorumluluğu"). Kökteki
+  `.png` dosyaları, `tasarim-onizleme/` ve `research/DEVIR-2026-10-13.md`
+  kullanıcınındır: commit'e alma, taşıma, silme (`git add -A` kullanma;
+  dosyaları adıyla ekle).
 
 ## 4. Serbest olduğun yerler
 

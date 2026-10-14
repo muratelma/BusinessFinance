@@ -502,6 +502,8 @@ class ActivityDetailSheet extends StatelessWidget {
                 currency: activity.currency,
                 size: AppMoneySize.body,
                 effect: AppMoneyEffect.expense,
+                // Komisyon ve kesinti gibi işaretli: renk tek başına yetmez.
+                signed: true,
               ),
             ),
         ],
@@ -572,7 +574,7 @@ class ActivityDetailSheet extends StatelessWidget {
           else if (activity.expectedTransferDate != null)
             row(
               Icons.schedule,
-              'Beklenen',
+              'Beklenen gün',
               DateText.dayMonthYear(activity.expectedTransferDate!),
             ),
         ],
@@ -624,7 +626,7 @@ class ActivityDetailSheet extends StatelessWidget {
           else if (activity.expectedTransferDate != null)
             row(
               Icons.schedule,
-              'Beklenen',
+              'Beklenen gün',
               DateText.dayMonthYear(activity.expectedTransferDate!),
             ),
         ],
@@ -730,12 +732,23 @@ class _Actions extends StatelessWidget {
     if (activity.isCancelled) {
       return Text('Kayıt duruyor; toplamları artık etkilemez.', style: note);
     }
-    // Nötr hareket para taşır ama kazanılan ya da harcanan tutarı değiştirmez;
-    // yazılmazsa eksik bir sayı gibi okunur.
+    // Ana tutar nötr olsa da masraf/komisyon/faiz gelir veya giderdir.
     final neutralNote = activity.effect == ActivityEffect.neutral
         ? Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.small),
-            child: Text('Gelir/gider raporunu etkilemez', style: note),
+            child: Text(
+              activity.kind == ActivityKind.transfer && activity.hasFee
+                  ? 'Masraf gider olarak yazılır; transfer iptal edilirse o da iptal olur. Aktarılan tutar gelir ya da gider sayılmaz.'
+                  : activity.interestPortion != null &&
+                        activity.interestPortion != '0.0000'
+                  ? activity.kind == ActivityKind.debtCollection
+                        ? 'Faiz gelir olarak yazılır. Tahsilatın geri kalanı alacağı kapatır, gelir sayılmaz.'
+                        : 'Faiz gider olarak yazılır. Ödemenin geri kalanı borcu kapatır, gider sayılmaz.'
+                  : activity.isCardCollection && activity.hasFee
+                  ? 'Komisyon gider olarak yazılır. Bu alacak, yazıldığı gün gelir sayılır; tahsilatta yeniden gelir yazılmaz.'
+                  : 'Gelir ya da gider sayılmaz.',
+              style: note,
+            ),
           )
         : null;
     if (onCancel == null) {

@@ -19,6 +19,7 @@ FinancialActivity pageActivity({
   String date = '2026-10-25',
   String? net,
   String? expected,
+  String? transferred,
 }) => FinancialActivity.fromJson({
   'activityId': id,
   'activityKind': kind,
@@ -41,6 +42,7 @@ FinancialActivity pageActivity({
   'scope': scope,
   'netAmount': net,
   'expectedTransferDate': expected,
+  'transferredOn': transferred,
 });
 
 class PageFixture implements FinancePageRepositoryContract {
@@ -330,6 +332,9 @@ class PageFixture implements FinancePageRepositoryContract {
       cashTotal: '12454.0000',
       bankTotal: '35876.0000',
       inactiveTotal: '150.0000',
+      cashShare: '26.0000',
+      bankShare: '74.0000',
+      inactiveShare: '0.0000',
       items: [
         AccountOverviewItem(
           id: 'bank',

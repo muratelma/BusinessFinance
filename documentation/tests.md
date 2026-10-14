@@ -2167,8 +2167,9 @@ Sayısal sonuçlar ve son tam kontrol kaydı teslim raporundadır:
   hesap/transfer sekmesinin ve eski transfer döneminin testlerinin yerini yeni
   sayfa testleri aldı; kartlara ait test kapsamı korundu.
 - Görsel harness gölgeleri render sırasında açıp test gövdesi bitmeden geri
-  yükler. Görüntülerin tamamı teslimle altı karşılaştırma sayfasında, ana
-  durumlar ayrıca tek tek incelendi; yalnız testin çıkış koduna dayanılmadı.
+  yükler. İlk teslim altı küçültülmüş karşılaştırma sayfasında tarandı; bu yöntem
+  açık tasarım ve gezinme hatalarını kaçırdı. Ekran çizimi testi referansla
+  piksel farkı ölçmez. Kullanıcı geri bildirimiyle teslim denetimi yeniden açıldı.
 
 Kullanıcının 5284 API'sinde aynı sentetik yetkili kategoriler isteği bekleyen
 migration öncesi `500 server.unexpected_error`, sonrasında `200` döndü.
@@ -2178,3 +2179,14 @@ Hesaplar, kategori özeti, hesap toplamları ve birleşik işlemler de aynı API
 Bağımsız 5291 Release API denemesi **78 kontrol** geçti. Sayısal sonuçlar ve
 son tüm build/test kayıtları teslim raporundadır. ADB bağlı cihaz göstermediği
 için emülatör, gerçek cihaz ve canlı ekran okuyucu kabulü yapılmadı.
+
+## Kategori ve hesap teslimi düzeltmesi — 13 Ekim 2026
+
+- Gerçek router üzerinden hesap ayarları açılışı/kaydetme/dönüş, bekleme, sunucu hatası ve tekrar deneme. Bu testler Navigator üstündeki context hatasını yakaladı.
+- Pasif kartın açılması ve bakiye toplamının korunması; kaydetme sırasında transfer input/preview değişimi, tek istek ve masraf için bütçe yenilemesi.
+- Gerçek SQL: 1.270 mal alımının 200 hesap + 300 kart + 770 vadeli kırılımı, kişi/kaynak kesişimi ve ödeme durumu; 4.975 giren, 2.620 çıkan, 12.355 bakiye ve toplam dışında 294 yolda para; boş ay bakiyesi ve ay sonu zinciri.
+- 51 çizim, 412×892 referansla aynı mantıksal boyutta karşılaştırılır. Rakam/senaryo ve onaylı kapsam farkları ayrı kaydedilir; otomatik tasarım uygunluğu sonucu değildir.
+
+Bulgular ve canlı kontrol kaydı: `research/DIS-GOZ-2026-10-13-kategori-hesap-teslim-denetimi.md`.
+
+Ortak ayrıntı regresyonu, masraflı transfer ve faizli nötr ödemenin rapora etkisinin yanlış “etkilemez” cümlesiyle gösterilmesini de engeller. Hesap ekle gerçek Hesaplar rotasında ayrıca doğrulanır.
