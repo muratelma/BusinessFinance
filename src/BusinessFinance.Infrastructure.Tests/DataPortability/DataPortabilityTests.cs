@@ -296,6 +296,99 @@ public sealed class DataPortabilityTests
         Assert.True(restoredCount.IsAdjusted);
     }
 
+    /// <summary>
+    /// Masraflı transfer masraf giderinin <b>yeni</b> kimliğine yeniden bağlanır;
+    /// iptal edilmiş transferin masrafı da iptal kalır.
+    /// </summary>
+    [Fact]
+    public async Task Backup_RoundTripsTransferFeesWithTheirCancellation()
+    {
+        await using var context = CreateContext();
+        var sourceUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        var (live, cancelled) = await SeedFeeTransfersAsync(context, sourceUserId);
+        var service = new EfDataPortabilityRepository(context);
+
+        var backup = await service.CreateBackupAsync(sourceUserId, default);
+        await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
+
+        var restored = await context.Transfers.AsNoTracking().Include(x => x.FeeTransaction)
+            .Where(x => x.UserId == targetUserId).ToArrayAsync();
+        var restoredLive = restored.Single(x => x.Description == live.Description);
+        var restoredCancelled = restored.Single(x => x.Description == cancelled.Description);
+        Assert.NotEqual(live.FeeTransactionId, restoredLive.FeeTransactionId);
+        Assert.Equal(12.5m, restoredLive.FeeTransaction!.Amount.Amount);
+        Assert.Equal(restoredLive.SourceAccountId, restoredLive.FeeTransaction.AccountId);
+        Assert.False(restoredLive.FeeTransaction.IsCancelled);
+        Assert.True(restoredCancelled.IsCancelled);
+        Assert.True(restoredCancelled.FeeTransaction!.IsCancelled);
+    }
+
+    /// <summary>
+    /// Masraf transferin parçasıdır: transfer dururken masrafı iptal edilmiş,
+    /// ya da iki transfere bağlı bir masraf taşıyan dosya reddedilir.
+    /// </summary>
+    [Fact]
+    public async Task Backup_RejectsATransferFeeThatDoesNotFollowItsTransfer()
+    {
+        await using var context = CreateContext();
+        var sourceUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        var (live, cancelled) = await SeedFeeTransfersAsync(context, sourceUserId);
+        var service = new EfDataPortabilityRepository(context);
+        var backup = await service.CreateBackupAsync(sourceUserId, default);
+
+        var cancelledUnderLive = RewritePayload(backup.Content, snapshot =>
+        {
+            var fee = snapshot["transactions"]!.AsArray()
+                .Single(x => x!["id"]!.GetValue<Guid>() == live.FeeTransactionId)!.AsObject();
+            fee["isCancelled"] = true;
+            fee["cancelledAtUtc"] = "2026-08-12T10:00:00+00:00";
+        });
+        var sharedFee = RewritePayload(backup.Content, snapshot =>
+        {
+            var other = snapshot["transfers"]!.AsArray()
+                .Single(x => x!["id"]!.GetValue<Guid>() == cancelled.Id)!.AsObject();
+            other["isCancelled"] = false;
+            other["cancelledAtUtc"] = null;
+            other["sourceAccountId"] = live.SourceAccountId.ToString();
+            other["transferDate"] = live.TransferDate.ToString("yyyy-MM-dd");
+            other["feeTransactionId"] = live.FeeTransactionId.ToString();
+        });
+
+        foreach (var tampered in new[] { cancelledUnderLive, sharedFee })
+        {
+            var error = await Assert.ThrowsAsync<DataPortabilityException>(() =>
+                service.RestoreBackupAsync(targetUserId, tampered, DateTimeOffset.UtcNow, default));
+            Assert.Equal("restore.invalid_backup", error.Code);
+        }
+        Assert.False(await context.Transfers.AnyAsync(x => x.UserId == targetUserId));
+    }
+
+    private static async Task<(Transfer Live, Transfer Cancelled)> SeedFeeTransfersAsync(
+        BusinessFinanceDbContext context, Guid userId)
+    {
+        var day = new DateOnly(2026, 8, 11);
+        var bank = new Account(Guid.NewGuid(), userId, "Banka", AccountType.Bank, CurrencyCode.TRY, 1000m);
+        var other = new Account(Guid.NewGuid(), userId, "Diğer banka", AccountType.Bank, CurrencyCode.TRY, 0m);
+        var category = new Category(Guid.NewGuid(), userId, "Banka masrafı", CategoryType.Expense,
+            role: CategoryRole.BankFee);
+        Transfer Transfer(string description, decimal fee)
+        {
+            var expense = new BudgetTransaction(Guid.NewGuid(), userId, bank, category,
+                new Money(fee, CurrencyCode.TRY), TransactionType.Expense, TransactionScope.Personal, day);
+            context.Add(expense);
+            return new Transfer(Guid.NewGuid(), userId, bank, other, new Money(100m, CurrencyCode.TRY),
+                day, description, expense);
+        }
+        var live = Transfer("Masraflı", 12.5m);
+        var cancelled = Transfer("İptal edilen masraflı", 7.25m);
+        cancelled.Cancel(new DateTimeOffset(2026, 8, 11, 12, 0, 0, TimeSpan.Zero));
+        context.AddRange(bank, other, category, live, cancelled);
+        await context.SaveChangesAsync();
+        return (live, cancelled);
+    }
+
     [Fact]
     public async Task BackupBeforeCounterpartyLedger_IsRejectedAndWritesNothing()
     {

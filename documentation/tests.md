@@ -2132,7 +2132,11 @@ içindedir.
   satırları ve menülerinin toplamlara eşitliği; kartla tahsil komisyonunun
   bağlı satırı; sahiplik; SQL sayfalaması ve sorgu bütçesi; pasif hesap bakiyesi.
 - `DataPortabilityTests`: v11'de eksik rolü adla yükseltme; v12'de sıradan
-  aynı adlı kategoriyle yeniden adlandırılmış rolün ayrımını koruma.
+  aynı adlı kategoriyle yeniden adlandırılmış rolün ayrımını koruma;
+  masraflı transferin gidiş-dönüşü (masraf yeni kimliğine bağlanır, iptal
+  edilmiş transferin masrafı iptal kalır) ve masrafı transferinden ayrışan
+  dosyanın reddi (transfer dururken iptal edilmiş masraf, iki transfere bağlı
+  masraf).
 - `TransferFeeEndpointTests`: hesap etiketi boşken işletmede kapsam sorusu,
   dört ondalıklı önizleme, ileri gün reddi, masrafın bağımsız iptal kilidi ve
   transferle birlikte iptali. Sahiplik probu beş yeni kimlikli ucu içerir.

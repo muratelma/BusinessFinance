@@ -459,7 +459,10 @@ tür/açık kapsam SQL'de zorlanır; masraf bağı kompozit sahiplik foreign key
 
 Yedek v12 `categories.role` ve `transfers.feeTransactionId` taşır. Masrafın
 gideri normal işlemler dizisinde durur; geri yükleme yeni gider kimliğini
-transferin bağına eşler. v11 de okunur: rolsüz adlar dört role eşlenir;
+transferin bağına eşler. Masrafı transferinden ayrışan dosya
+(`restore.invalid_backup`) reddedilir: transfer dururken iptal edilmiş ya da
+tersine iptal durumu farklı masraf, iki transfere ya da bir yatışın kesintisine
+bağlanmış masraf. v11 de okunur: rolsüz adlar dört role eşlenir;
 aynı rolün birden çok eski adayı birleştirilmez. v12'de boş rol yeniden
 yorumlanmaz. Dolu şema yükseltmesi, v11 rol eşlemesi ve v12 rol/ad ayrımı
 kalıcı testlerle korunur. Sunucu checkpoint'inde migration SQL test hedefi

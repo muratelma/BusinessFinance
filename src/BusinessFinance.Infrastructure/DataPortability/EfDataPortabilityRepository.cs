@@ -672,16 +672,28 @@ public sealed class EfDataPortabilityRepository(
                 Guid.NewGuid(), userId,
                 Required(categoryMap, item.CategoryId, "budget category"),
                 MoneyOf(item.Limit, item.Currency), item.Scope, item.Year, item.Month)).ToArray();
+            // Masraf transferin parçasıdır: tek bir transfere bağlanır ve onunla
+            // birlikte iptal edilir. Uygulama ikisini ayrı ayrı yazamaz; dosya
+            // ayrıştırıyorsa bakiye iptal edilmiş bir masrafı düşerdi.
+            var feeIds = snapshot.Transfers
+                .Where(x => x.FeeTransactionId is not null)
+                .Select(x => x.FeeTransactionId!.Value)
+                .ToArray();
+            if (feeIds.Distinct().Count() != feeIds.Length ||
+                snapshot.PosDeposits.Any(x => x.DeductionTransactionId is Guid id && feeIds.Contains(id)))
+                throw Invalid("A transfer fee must belong to exactly one transfer.");
             var transferMap = new Dictionary<Guid, Transfer>();
             var transfers = snapshot.Transfers.Select(item =>
             {
+                var fee = item.FeeTransactionId is Guid feeId
+                    ? Required(transactionMap, feeId, "transfer fee") : null;
+                if (fee is not null && fee.IsCancelled != item.IsCancelled)
+                    throw Invalid("A transfer fee must share its transfer's cancellation.");
                 var entity = new Transfer(
                     Guid.NewGuid(), userId,
                     Required(accountMap, item.SourceAccountId, "transfer source"),
                     Required(accountMap, item.DestinationAccountId, "transfer destination"),
-                    MoneyOf(item.Amount, item.Currency), item.TransferDate, item.Description,
-                    item.FeeTransactionId is Guid feeId
-                        ? Required(transactionMap, feeId, "transfer fee") : null);
+                    MoneyOf(item.Amount, item.Currency), item.TransferDate, item.Description, fee);
                 ApplyCancellation(item.IsCancelled, item.CancelledAtUtc, entity.Cancel);
                 entryTimes[entity] = item.CreatedAtUtc;
                 transferMap[item.Id] = entity;
