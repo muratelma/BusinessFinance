@@ -29,7 +29,7 @@ public sealed class CashCountEndpointTests
         using var stranger = await CreateAuthenticatedClientAsync(
             factory, "cash-stranger@example.test");
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = BusinessFinance.Domain.LocalDay.Today(DateTimeOffset.UtcNow);
         var account = await CreateAccountAsync(owner, "Sentetik kasa", "cash", "1000.0000");
         var expense = await FirstCategoryAsync(owner, "expense");
 
@@ -116,7 +116,7 @@ public sealed class CashCountEndpointTests
         await using var factory = new BusinessFinanceApiFactory();
         using var owner = await CreateAuthenticatedClientAsync(
             factory, "cash-after-count@example.test");
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = BusinessFinance.Domain.LocalDay.Today(DateTimeOffset.UtcNow);
         var account = await CreateAccountAsync(owner, "Sentetik kasa", "cash", "1000.0000");
         var expense = await FirstCategoryAsync(owner, "expense");
 
@@ -166,7 +166,7 @@ public sealed class CashCountEndpointTests
         await using var factory = new BusinessFinanceApiFactory();
         using var owner = await CreateAuthenticatedClientAsync(
             factory, "cash-carried-difference@example.test");
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = BusinessFinance.Domain.LocalDay.Today(DateTimeOffset.UtcNow);
         var account = await CreateAccountAsync(owner, "Sentetik kasa", "cash", "1000.0000");
         var expense = await FirstCategoryAsync(owner, "expense");
         var todayPath = $"/api/v1/cash-counts/today?accountId={account.Id}";
@@ -231,7 +231,7 @@ public sealed class CashCountEndpointTests
         await using var factory = new BusinessFinanceApiFactory();
         using var owner = await CreateAuthenticatedClientAsync(
             factory, "cash-carried-recorded@example.test");
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = BusinessFinance.Domain.LocalDay.Today(DateTimeOffset.UtcNow);
         var account = await CreateAccountAsync(owner, "Sentetik kasa", "cash", "1000.0000");
         var expense = await FirstCategoryAsync(owner, "expense");
         var todayPath = $"/api/v1/cash-counts/today?accountId={account.Id}";
@@ -263,7 +263,7 @@ public sealed class CashCountEndpointTests
         await using var factory = new BusinessFinanceApiFactory();
         using var owner = await CreateAuthenticatedClientAsync(
             factory, "cash-recount@example.test");
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = BusinessFinance.Domain.LocalDay.Today(DateTimeOffset.UtcNow);
         var account = await CreateAccountAsync(owner, "Sentetik kasa", "cash", "1000.0000");
         var expense = await FirstCategoryAsync(owner, "expense");
         var income = await FirstCategoryAsync(owner, "income");
@@ -319,7 +319,7 @@ public sealed class CashCountEndpointTests
         await using var factory = new BusinessFinanceApiFactory();
         using var owner = await CreateAuthenticatedClientAsync(
             factory, "cash-recount-net-zero@example.test");
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = BusinessFinance.Domain.LocalDay.Today(DateTimeOffset.UtcNow);
         var account = await CreateAccountAsync(owner, "Sentetik kasa", "cash", "1000.0000");
         var expense = await FirstCategoryAsync(owner, "expense");
         var income = await FirstCategoryAsync(owner, "income");
@@ -352,7 +352,7 @@ public sealed class CashCountEndpointTests
         await using var factory = new BusinessFinanceApiFactory();
         using var owner = await CreateAuthenticatedClientAsync(
             factory, "cash-recount-cancel@example.test");
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = BusinessFinance.Domain.LocalDay.Today(DateTimeOffset.UtcNow);
         var account = await CreateAccountAsync(owner, "Sentetik kasa", "cash", "1000.0000");
         var expense = await FirstCategoryAsync(owner, "expense");
         var todayPath = $"/api/v1/cash-counts/today?accountId={account.Id}";
@@ -394,7 +394,7 @@ public sealed class CashCountEndpointTests
         await using var factory = new BusinessFinanceApiFactory();
         using var owner = await CreateAuthenticatedClientAsync(
             factory, "cash-took-transfer@example.test");
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = BusinessFinance.Domain.LocalDay.Today(DateTimeOffset.UtcNow);
         var till = await CreateAccountAsync(owner, "Sentetik kasa", "cash", "1000.0000");
         var wallet = await CreateScopedAccountAsync(owner, "Cüzdan", "cash", "personal");
         var todayPath = $"/api/v1/cash-counts/today?accountId={till.Id}";
@@ -446,7 +446,7 @@ public sealed class CashCountEndpointTests
         await using var factory = new BusinessFinanceApiFactory();
         using var owner = await CreateAuthenticatedClientAsync(
             factory, "cash-took-expense@example.test");
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = BusinessFinance.Domain.LocalDay.Today(DateTimeOffset.UtcNow);
         var till = await CreateAccountAsync(owner, "Sentetik kasa", "cash", "1000.0000");
         var business = await FirstCategoryAsync(owner, "expense");
         var personal = await CategoryOfSideAsync(owner, "expense", "personal");
@@ -487,7 +487,7 @@ public sealed class CashCountEndpointTests
         await using var factory = new BusinessFinanceApiFactory();
         using var owner = await CreateAuthenticatedClientAsync(
             factory, "cash-took-invalid@example.test");
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = BusinessFinance.Domain.LocalDay.Today(DateTimeOffset.UtcNow);
         var till = await CreateAccountAsync(owner, "Sentetik kasa", "cash", "1000.0000");
         var surplusTill = await CreateAccountAsync(owner, "Fazla kasa", "cash", "100.0000");
         var bank = await CreateScopedAccountAsync(owner, "İşletme bankası", "bank", "business");
@@ -545,7 +545,7 @@ public sealed class CashCountEndpointTests
         await using var factory = new BusinessFinanceApiFactory();
         using var owner = await CreateAuthenticatedClientAsync(
             factory, $"cash-adjustment-cancelled-{asTransfer}@example.test");
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = BusinessFinance.Domain.LocalDay.Today(DateTimeOffset.UtcNow);
         var till = await CreateAccountAsync(owner, "Sentetik kasa", "cash", "1000.0000");
         var wallet = await CreateScopedAccountAsync(owner, "Cüzdan", "cash", "personal");
         var expense = await FirstCategoryAsync(owner, "expense");
@@ -614,7 +614,7 @@ public sealed class CashCountEndpointTests
         await using var factory = new BusinessFinanceApiFactory();
         using var owner = await CreateAuthenticatedClientAsync(
             factory, "cash-previous-status@example.test");
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = BusinessFinance.Domain.LocalDay.Today(DateTimeOffset.UtcNow);
         var till = await CreateAccountAsync(owner, "Sentetik kasa", "cash", "1000.0000");
         var expense = await FirstCategoryAsync(owner, "expense");
         var todayPath = $"/api/v1/cash-counts/today?accountId={till.Id}";
@@ -695,7 +695,7 @@ public sealed class CashCountEndpointTests
         await using var factory = new BusinessFinanceApiFactory();
         using var owner = await CreateAuthenticatedClientAsync(
             factory, "cash-difference-reason@example.test");
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = BusinessFinance.Domain.LocalDay.Today(DateTimeOffset.UtcNow);
         var expense = await FirstCategoryAsync(owner, "expense");
 
         async Task<(HttpStatusCode Status, FinancialActivityResponse? Row)> ConfirmAsync(
@@ -753,7 +753,7 @@ public sealed class CashCountEndpointTests
         await using var factory = new BusinessFinanceApiFactory();
         using var owner = await CreateAuthenticatedClientAsync(
             factory, "cash-supersede@example.test");
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = BusinessFinance.Domain.LocalDay.Today(DateTimeOffset.UtcNow);
         var account = await CreateAccountAsync(owner, "Sentetik kasa", "cash", "500.0000");
 
         using var first = await owner.PostAsJsonAsync(
@@ -793,7 +793,7 @@ public sealed class CashCountEndpointTests
         await using var factory = new BusinessFinanceApiFactory();
         using var owner = await CreateAuthenticatedClientAsync(
             factory, "cash-bank@example.test");
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = BusinessFinance.Domain.LocalDay.Today(DateTimeOffset.UtcNow);
         var account = await CreateAccountAsync(owner, "Sentetik banka", "bank", "10.0000");
 
         using var response = await owner.PostAsJsonAsync(
@@ -813,7 +813,7 @@ public sealed class CashCountEndpointTests
         await using var factory = new BusinessFinanceApiFactory();
         using var owner = await CreateAuthenticatedClientAsync(
             factory, "cash-balanced@example.test");
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = BusinessFinance.Domain.LocalDay.Today(DateTimeOffset.UtcNow);
         var account = await CreateAccountAsync(owner, "Sentetik kasa", "cash", "250.0000");
         var expense = await FirstCategoryAsync(owner, "expense");
 
