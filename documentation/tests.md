@@ -1862,7 +1862,15 @@ yalnız gelir/gider hareketlerine bakıyordu.
 | Ödenmemiş fatura da aranır | `SqlServerPersistenceIntegrationTests.ReceiptDuplicateLookup_FindsAnUnpaidInvoiceWrittenAsAnObligation` (yeni, gerçek SQL) | Aynı gün, tutar ve adla yazılmış yükümlülük bulunur ve türü `Obligation`'dır; açıklaması değişmiş kayıt bağlı kişinin adıyla (harf büyüklüğü farkıyla) bulunur; ödenmiş kayıt sayılır, iptal edilmiş sayılmaz; gider belgesi alacakla, gelir belgesi borçla eşleşmez; başka gün, tutar, ad ya da kullanıcı eşleşmez; dekont bu rafa bakmaz |
 
 Uyarı engel değildir (kural değişmedi); yükümlülük formu uyarıyı zaten
-gösteriyordu (`ObligationPrefill.warnings`). Belge okuma canlı sağlayıcı
+gösteriyordu (`ObligationPrefill.warnings`).
+
+**14 Ekim 2026 — cari borçlandırma da aranır (dış göz B1):**
+`SqlServerPersistenceIntegrationTests.ReceiptDuplicateLookup_FindsAPurchaseAlreadyOnTheCounterpartyLedger`
+(yeni, gerçek SQL). Cariye "Vadeli alım" diye yazılmış 2.500, belgedeki
+`TEST TOPTANCI LTD. ŞTİ.` adıyla bulunur ve türü `CounterpartyCharge`'dır;
+veresiye satış yalnız gelir belgesiyle eşleşir; iptal edilmiş ve başka kişinin
+kaydı eşleşmez; başka gün, tutar ya da kullanıcı eşleşmez. Test düzeltme
+olmadan çalıştırıldı ve kırıldı (`Assert.NotNull() Failure`). Belge okuma canlı sağlayıcı
 istediği için uçtan uca (fotoğraf → uyarı) koşulmadı.
 
 **Canlı API denemesi — cari kategori ve hesap birleşimleri (kullanıcının

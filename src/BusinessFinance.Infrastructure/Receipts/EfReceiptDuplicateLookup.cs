@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using BusinessFinance.Application.Counterparties;
 using BusinessFinance.Application.Receipts;
 using BusinessFinance.Domain;
 using BusinessFinance.Infrastructure.Persistence;
@@ -15,8 +16,9 @@ namespace BusinessFinance.Infrastructure.Receipts;
 /// ignore the warning, which costs every future one.
 /// </para>
 /// <para>
-/// An income or expense document is searched on two shelves: the movements and
-/// the obligations (an invoice the user has not paid yet is an obligation).
+/// An income or expense document is searched on three shelves: the movements,
+/// the obligations (an invoice the user has not paid yet is an obligation) and
+/// the counterparty ledger (a purchase or credit sale written before its invoice).
 /// </para>
 /// <para>
 /// Four shelves are searched, not one. A bank slip becomes an expense, a
@@ -122,6 +124,49 @@ internal sealed class EfReceiptDuplicateLookup(BusinessFinanceDbContext dbContex
                 .FirstOrDefaultAsync(cancellationToken);
             if (obligation is not null)
                 return obligation;
+
+            // A purchase or credit sale may already be on the counterparty
+            // ledger, and its invoice arrives later. Without this shelf
+            // "henüz ödemedim" recorded the same purchase as a second debt and
+            // a second expense (external review, 14 October 2026, B1). The
+            // ledger entry carries the user's words ("Vadeli alım") and the
+            // person as typed; the invoice prints the trade name with its
+            // company title. Day and amount stay exact in the query, so only
+            // the name is read leniently, among the few entries left.
+            var charges = await (
+                    from charge in dbContext.CounterpartyCharges.AsNoTracking()
+                    join counterparty in dbContext.Counterparties.AsNoTracking()
+                        on new { charge.UserId, Id = charge.CounterpartyId }
+                        equals new { counterparty.UserId, counterparty.Id }
+                    where charge.UserId == userId &&
+                          !charge.IsCancelled &&
+                          charge.Direction == direction &&
+                          charge.ChargeDate == date &&
+                          charge.Amount.Amount == total
+                    select new
+                    {
+                        charge.Id,
+                        charge.ChargeDate,
+                        Amount = charge.Amount.Amount,
+                        charge.Description,
+                        CounterpartyId = counterparty.Id,
+                        counterparty.Name
+                    })
+                .Take(20)
+                .ToArrayAsync(cancellationToken);
+            var person = CounterpartyNameMatcher.FindBest(
+                name, charges.Select(item => (item.CounterpartyId, item.Name)).Distinct());
+            var charged = charges.FirstOrDefault(item => item.Description == name)
+                ?? charges.FirstOrDefault(item => item.CounterpartyId == person);
+            if (charged is not null)
+            {
+                return new ReceiptDuplicateMatch(
+                    charged.Id,
+                    charged.ChargeDate,
+                    charged.Amount,
+                    charged.Description,
+                    ReceiptDuplicateKind.CounterpartyCharge);
+            }
         }
 
         if (intent is ReceiptCaptureIntent.Transfer || slip)

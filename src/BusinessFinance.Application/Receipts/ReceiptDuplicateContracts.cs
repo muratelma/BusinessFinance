@@ -28,7 +28,13 @@ public enum ReceiptDuplicateKind
     /// A one-off invoice or receivable with a due date: what the "not paid
     /// yet" path writes. Paid or still open, the document is already recorded.
     /// </summary>
-    Obligation = 5
+    Obligation = 5,
+
+    /// <summary>
+    /// A purchase or credit sale already written on the counterparty ledger.
+    /// Its invoice arriving later is the same purchase, not a new debt.
+    /// </summary>
+    CounterpartyCharge = 6
 }
 
 /// <summary>

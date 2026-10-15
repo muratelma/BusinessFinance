@@ -286,9 +286,12 @@ gerekçesiyle bozulmaz.
   yatışla hesaba geçtiyse `obligations.deposit_locked`, kapanış gün sonunda
   sayıldıysa `obligations.day_close_counted` ile reddedilir. Akışta yükümlülük
   satırı `canCancel` taşır, kapanış satırı taşımaz.
-- **Fatura tekrar uyarısı yükümlülükleri de arar** (`EfReceiptDuplicateLookup`):
-  "henüz ödemedim" yolu yükümlülük yazar. Uyarı engel değildir. Belge yazan
-  yeni bir kayıt türü eklenirse **oraya** da eklenir.
+- **Fatura tekrar uyarısı yükümlülükleri ve cari borçlandırmaları da arar**
+  (`EfReceiptDuplicateLookup`): "henüz ödemedim" yolu yükümlülük yazar; cariye
+  yazılmış alımın faturası sonradan gelebilir (14 Ekim 2026, dış göz B1). Cari
+  rafında gün ve tutar birebir, ad `CounterpartyNameMatcher` ile hoşgörülü
+  okunur. Uyarı engel değildir. Belge yazan yeni bir kayıt türü eklenirse
+  **oraya** da eklenir.
 - **Kişinin kartında hiçbir tutar eksi işaretle yazılmaz.** Sunucu fazla
   tahsilatı kırpmaz (`receivable` eksiye düşer) ama ekran için iki tutar daha
   gönderir: `owedToYou` ve `owedByYou` sıfır ya da artıdır, farkları `net`tir;

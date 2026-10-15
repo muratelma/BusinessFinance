@@ -1175,6 +1175,85 @@ public sealed partial class SqlServerPersistenceIntegrationTests
     }
 
     /// <summary>
+    /// A purchase already written on the counterparty ledger, read again from
+    /// its invoice, must warn: "henüz ödemedim" would otherwise record the
+    /// same purchase as a second debt and a second expense.
+    ///
+    /// <para>
+    /// Found by the 14 October 2026 external review (B1). The ledger entry
+    /// carries the user's own words ("Vadeli alım") and the person as they
+    /// typed it; the invoice prints the trade name with its company title.
+    /// The day and amount stay exact; only the name is read leniently.
+    /// </para>
+    /// </summary>
+    [SqlServerFact]
+    public async Task ReceiptDuplicateLookup_FindsAPurchaseAlreadyOnTheCounterpartyLedger()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var user = CreateUser("ledger-duplicate@example.test");
+        var stranger = CreateUser("ledger-duplicate-other@example.test");
+        await database.SeedUsersAsync(user, stranger);
+
+        var bought = new DateOnly(2026, 10, 3);
+        var now = new DateTimeOffset(2026, 10, 9, 10, 0, 0, TimeSpan.Zero);
+        const string printed = "TEST TOPTANCI LTD. ŞTİ.";
+
+        await using (var seed = database.CreateContext())
+        {
+            var goods = new Category(Guid.NewGuid(), user.Id, "Ticari mal alımı", CategoryType.Expense);
+            var sales = new Category(Guid.NewGuid(), user.Id, "Satış geliri", CategoryType.Income);
+            var supplier = new Counterparty(Guid.NewGuid(), user.Id, "Test Toptancı");
+            var other = new Counterparty(Guid.NewGuid(), user.Id, "Başka Toptan");
+            var purchase = new CounterpartyCharge(
+                Guid.NewGuid(), user.Id, supplier, goods, DebtDirection.Payable,
+                new Money(2500m, CurrencyCode.TRY), TransactionScope.Business, bought, "Vadeli alım");
+            var sale = new CounterpartyCharge(
+                Guid.NewGuid(), user.Id, supplier, sales, DebtDirection.Receivable,
+                new Money(1800m, CurrencyCode.TRY), TransactionScope.Business, bought, "Veresiye satış");
+            var cancelled = new CounterpartyCharge(
+                Guid.NewGuid(), user.Id, supplier, goods, DebtDirection.Payable,
+                new Money(700m, CurrencyCode.TRY), TransactionScope.Business, bought, "Vadeli alım");
+            cancelled.Cancel(now);
+            var elsewhere = new CounterpartyCharge(
+                Guid.NewGuid(), user.Id, other, goods, DebtDirection.Payable,
+                new Money(900m, CurrencyCode.TRY), TransactionScope.Business, bought, "Vadeli alım");
+
+            seed.AddRange(goods, sales, supplier, other, purchase, sale, cancelled, elsewhere);
+            await seed.SaveChangesAsync(CancellationToken.None);
+        }
+
+        await using var provider = CreateServiceProvider(database.ConnectionString);
+        await using var scope = provider.CreateAsyncScope();
+        var lookup = scope.ServiceProvider.GetRequiredService<IReceiptDuplicateLookup>();
+
+        Task<ReceiptDuplicateMatch?> FindAsync(
+            Guid userId, decimal amount, string name, ReceiptCaptureIntent intent,
+            DateOnly? date = null) =>
+            lookup.FindAsync(userId, date ?? bought, amount, name, intent, CancellationToken.None);
+
+        var match = await FindAsync(user.Id, 2500m, printed, ReceiptCaptureIntent.Expense);
+        Assert.NotNull(match);
+        Assert.Equal(ReceiptDuplicateKind.CounterpartyCharge, match.Kind);
+        Assert.Equal((bought, 2500m), (match.TransactionDate, match.Amount));
+
+        // A credit sale is found by an income document, not an expense one.
+        Assert.Null(await FindAsync(user.Id, 1800m, printed, ReceiptCaptureIntent.Expense));
+        Assert.Equal(
+            ReceiptDuplicateKind.CounterpartyCharge,
+            (await FindAsync(user.Id, 1800m, printed, ReceiptCaptureIntent.Income))!.Kind);
+
+        // A cancelled entry is not a duplicate; another person's is not this one.
+        Assert.Null(await FindAsync(user.Id, 700m, printed, ReceiptCaptureIntent.Expense));
+        Assert.Null(await FindAsync(user.Id, 900m, printed, ReceiptCaptureIntent.Expense));
+
+        // Day and amount stay exact; another user's ledger is never searched.
+        Assert.Null(await FindAsync(
+            user.Id, 2500m, printed, ReceiptCaptureIntent.Expense, bought.AddDays(1)));
+        Assert.Null(await FindAsync(user.Id, 2500.01m, printed, ReceiptCaptureIntent.Expense));
+        Assert.Null(await FindAsync(stranger.Id, 2500m, printed, ReceiptCaptureIntent.Expense));
+    }
+
+    /// <summary>
     /// With the transfer gone, the card payment and then the receivable are the
     /// ones reported — each shelf is really searched, not just the first.
     /// </summary>
