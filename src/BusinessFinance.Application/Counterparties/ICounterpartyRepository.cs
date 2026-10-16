@@ -103,7 +103,11 @@ public interface ICounterpartyRepository
     /// yazar: biri yazılıp öbürü yazılmasaydı ya cari kapanır ama para hiçbir
     /// yerde görünmez ya da para yolda görünür ama cari açık kalırdı.
     /// </summary>
-    Task AddPaymentAsync(
+    /// <returns>
+    /// Aynı kimlikli tahsilat bu sırada yazıldıysa <c>false</c>: aynı istek
+    /// kimliğiyle eşzamanlı gelen ikinci istek birincil anahtara çarpar.
+    /// </returns>
+    Task<bool> AddPaymentAsync(
         CounterpartyPayment payment,
         PosSettlement? cardSettlement,
         CancellationToken cancellationToken);

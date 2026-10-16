@@ -117,9 +117,10 @@ class RefundDecisionPage extends StatelessWidget {
       AppInlineNotice(
         icon: Icons.info_outline,
         message: match.isPartial
-            ? 'İade tutarı harcamadan küçük. Harcama iptal edilecek ve kalan '
+            ? 'İade tutarı harcamadan küçük. Kalan '
                   '${MoneyText.format(match.remainingAmount!, currency)} için '
-                  'yeni bir gider formu açılacak.'
+                  'gider formu açılacak; formu kaydettiğinizde harcama iptal '
+                  'edilir ve yerine o kayıt kalır.'
             : 'Harcama silinmez, iptal edilir: finansal geçmiş korunur ve '
                   'raporlardan düşer.',
       ),

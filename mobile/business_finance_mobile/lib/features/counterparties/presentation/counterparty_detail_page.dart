@@ -509,7 +509,9 @@ class _CounterpartyDetailPageState extends State<CounterpartyDetailPage> {
     // Kartla tahsil yalnız tahsilatta; POS'lar her açılışta yeniden okunur.
     final cards = isReceivable ? await controller.loadCardCollection() : null;
     if (!mounted) return;
-    final payload = await AppFormSheet.show<Map<String, Object?>>(
+    // Kayıt formun içinden yazılır: ulaşamayan ya da reddedilen istekte form
+    // açık kalır ve yeniden gönderim aynı istek kimliğini taşır.
+    await AppFormSheet.show<Map<String, Object?>>(
       context: context,
       builder: (_) => CounterpartyPaymentForm(
         today: controller.today,
@@ -519,17 +521,19 @@ class _CounterpartyDetailPageState extends State<CounterpartyDetailPage> {
         suggestedAmount: MoneyInput.parse(open) == null || open.startsWith('-')
             ? null
             : open,
+        onSave: (payload) => controller.refusalOf(
+          controller.addPayment(
+            person.id,
+            isReceivable: isReceivable,
+            amount: payload['amount']! as String,
+            accountId: payload['accountId'] as String?,
+            card: payload['card'] as Map<String, Object?>?,
+            paymentDate: payload['paymentDate']! as String,
+            description: payload['description'] as String?,
+            clientRequestId: payload['clientRequestId'] as String?,
+          ),
+        ),
       ),
-    );
-    if (payload == null) return;
-    await controller.addPayment(
-      person.id,
-      isReceivable: isReceivable,
-      amount: payload['amount']! as String,
-      accountId: payload['accountId'] as String?,
-      card: payload['card'] as Map<String, Object?>?,
-      paymentDate: payload['paymentDate']! as String,
-      description: payload['description'] as String?,
     );
   }
 

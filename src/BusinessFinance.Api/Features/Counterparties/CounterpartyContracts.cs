@@ -71,7 +71,8 @@ public sealed record CreateCounterpartyPaymentRequest(
     Guid? AccountId,
     string PaymentDate,
     string? Description = null,
-    CardCollectionRequest? Card = null);
+    CardCollectionRequest? Card = null,
+    Guid? ClientRequestId = null);
 
 public sealed record CounterpartyChargeResponse(
     Guid Id,

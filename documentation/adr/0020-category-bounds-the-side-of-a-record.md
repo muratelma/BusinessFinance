@@ -3,6 +3,9 @@
 - Durum: **Kabul edildi** (8 Ekim 2026, kullanıcı onayı). Kararlar 6–8 Ekim
   2026'da alındı. Aşama 06.3 Grup 8 "0 · Zemin"in karar kapısıdır. Uygulama
   adım adım ilerler; neyin yazıldığı aşama belgesindedir.
+- **Not (16 Ekim 2026):** ADR 0021 İ10'u genişletir ("tek yoldan kapanır",
+  "tek ödemeyle kapanır" demek değildir) ve T6'daki `Yükümlülükler` bölümünü
+  kaldırır: yükümlülük ile borç planı tek borçtur. İ9 ve İ10'un özü sürer.
 - **Nasıl okunur:** bu ADR iki katmanlıdır. **§İlkeler bağlayıcıdır**; değişmesi
   kullanıcı kararı ve bu ADR'nin güncellenmesini ister. **§Başlangıç tasarımı**
   uygulamanın ilk hâlidir; kod yazılırken daha iyi ya da gerekli bir yol

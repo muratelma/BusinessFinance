@@ -188,6 +188,9 @@ class CounterpartiesController extends ChangeNotifier {
   /// Mesaj yöne göre değişir — alacak tahsil edilirken "ödeme yapıldı" demek,
   /// kullanıcıya para verdiğini söylemek olurdu. [card] doluysa tahsilat
   /// kartla (POS) alındı: hesap POS'tan gelir, para yola çıkar.
+  ///
+  /// [clientRequestId] aynı formdan yeniden gönderimin ikinci bir para hareketi
+  /// yazmasını önler; form açıldığında bir kez üretilir.
   Future<bool> addPayment(
     String counterpartyId, {
     required bool isReceivable,
@@ -196,6 +199,7 @@ class CounterpartiesController extends ChangeNotifier {
     String? accountId,
     Map<String, Object?>? card,
     String? description,
+    String? clientRequestId,
   }) => _submit(
     () => _repository.addPayment(counterpartyId, {
       'direction': isReceivable ? 'receivable' : 'payable',
@@ -206,6 +210,7 @@ class CounterpartiesController extends ChangeNotifier {
       'card': ?card,
       if (description != null && description.isNotEmpty)
         'description': description,
+      'clientRequestId': ?clientRequestId,
     }),
     card != null
         ? 'Kartla tahsilat kaydedildi; para yolda.'

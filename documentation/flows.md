@@ -1609,7 +1609,18 @@ sonra yükümlülüğü kapatan ayrı ve nötr nakit olayıdır.
 
 **İade yeni kayıt üretmez.** Sunucu geri verilen harcamayı arar, kullanıcı
 görüp onaylar, harcama **iptal edilir** (silinmez). Kısmi iadede kalan tutar
-için gider formu açılır ve kalan sunucuda hesaplanır.
+için gider formu açılır ve kalan sunucuda hesaplanır. **Eski harcama formun
+kaydında iptal edilir, açılışında değil** (16 Ekim 2026, backlog 16a): form
+bunu kaydetmeden önce söyler; vazgeçilirse hiçbir şey değişmez. Kayıtta önce
+iptal, sonra yeni gider yazılır; iptal reddedilirse hiçbir şey yazılmaz, yeni
+gider yazılamazsa form açık kalır ve yeniden `Kaydet` işi bitirir (iptal
+idempotent). İadenin parasının hangi gün hangi hesaba döndüğü bu yolda hâlâ
+yazılmıyor; ADR 0021'in üçüncü dalgasında düzelecek (backlog 16b).
+
+**Cari tahsilat ve ödeme formu kaydı içinden yazar** (16 Ekim 2026). Ulaşamayan
+ya da reddedilen istekte form açık kalır ve cümleyi gösterir; yeniden gönderim
+form açılırken üretilen aynı `clientRequestId`'yi taşır. Zaman aşımında sunucu
+kaydı yazmışsa ikinci gönderim ikinci bir para hareketi yazmaz.
 
 **Taksitli fiş tek seferlik tam tutar gideri üretmez.** Kartı kullanıcı seçer,
 plan yalnız niyettir; yalnız gerçekleşen taksit kart harcaması ve gider üretir.

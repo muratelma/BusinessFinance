@@ -511,6 +511,58 @@ public sealed class CounterpartyEndpointTests
         Assert.False((await ProfileAsync()).HasCounterpartyLedger);
     }
 
+    /// <summary>
+    /// Zaman aşımından sonra aynı formdan yeniden gönderilen tahsilat ikinci bir
+    /// para hareketi yazmaz: aynı istek kimliği ilk kaydı döner. Kimlik başka bir
+    /// kişinin tahsilatına aitse istek reddedilir. Kimliksiz istek bugünkü gibi
+    /// her seferinde yeni kayıttır.
+    /// </summary>
+    [Fact]
+    public async Task Payment_RetriedWithTheSameRequestId_MovesCashOnce()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(factory, "cari-retry@example.test");
+        var account = await CreateAccountAsync(owner, "Kasa", "1000");
+        var incomeCategory = await FirstCategoryAsync(owner, "income");
+        var customer = await CreateCounterpartyAsync(owner, "Ayşe Terzi");
+        var otherCustomer = await CreateCounterpartyAsync(owner, "Deniz Market");
+
+        using var sale = await owner.PostAsJsonAsync(
+            $"/api/v1/counterparties/{customer.Id}/charges",
+            new CreateCounterpartyChargeRequest(
+                "receivable", "500.0000", "TRY", incomeCategory.Id, "2026-08-05", "business"));
+        Assert.Equal(HttpStatusCode.Created, sale.StatusCode);
+
+        var requestId = Guid.NewGuid();
+        var request = new CreateCounterpartyPaymentRequest(
+            "receivable", "200.0000", "TRY", account.Id, "2026-08-06", ClientRequestId: requestId);
+        using var first = await owner.PostAsJsonAsync($"/api/v1/counterparties/{customer.Id}/payments", request);
+        using var retry = await owner.PostAsJsonAsync($"/api/v1/counterparties/{customer.Id}/payments", request);
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, retry.StatusCode);
+        var firstPayment = await first.Content.ReadFromJsonAsync<CounterpartyPaymentResponse>();
+        var retriedPayment = await retry.Content.ReadFromJsonAsync<CounterpartyPaymentResponse>();
+        Assert.Equal(firstPayment!.Id, retriedPayment!.Id);
+
+        using var reused = await owner.PostAsJsonAsync(
+            $"/api/v1/counterparties/{otherCustomer.Id}/payments", request);
+        Assert.Equal(HttpStatusCode.BadRequest, reused.StatusCode);
+
+        var balance = await owner.GetFromJsonAsync<CounterpartyResponse>(
+            $"/api/v1/counterparties/{customer.Id}");
+        Assert.Equal("300.0000", balance!.Receivable);
+        var report = await owner.GetFromJsonAsync<MonthlyReportResponse>(
+            "/api/v1/reports/monthly?year=2026&month=8");
+        Assert.Equal("1200.0000", Assert.Single(report!.AccountBalances).Balance);
+
+        // Kimliksiz istek eski istemcinin yoludur; iki gönderim iki tahsilattır.
+        await CollectAsync(owner, customer.Id, account.Id, "50.0000");
+        await CollectAsync(owner, customer.Id, account.Id, "50.0000");
+        var afterTwo = await owner.GetFromJsonAsync<CounterpartyResponse>(
+            $"/api/v1/counterparties/{customer.Id}");
+        Assert.Equal("200.0000", afterTwo!.Receivable);
+    }
+
     private static decimal FinanceSum(IEnumerable<string> amounts) =>
         amounts.Sum(value => decimal.Parse(value, CultureInfo.InvariantCulture));
 

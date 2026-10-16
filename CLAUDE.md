@@ -693,6 +693,17 @@ secret'ı uygulamaya konmaz.
   cari işletmeye özeldir, bir borç tek yoldan kapanır, "işletmem var" cevabı
   ön ayardır. Başlangıç tasarımı: formlar, bağlam listesi, kategori seti, cari
   ve yükümlülük, uygulama sırası (çekirdek / sonrası / en son)
+- `documentation/adr/0021-a-debt-closes-with-its-own-payments.md` — **Aşama
+  06.3 Grup 8 "Cari, borç ve alacak"ın karar kapısı (kabul edildi 16 Ekim 2026;
+  iki katmanlı; dalga 0 uygulandı)**: ADR 0020 İ10 ve T6'yı genişletir.
+  İlkeler — yükümlülük ve borç planı tek borçtur ve plan borcun ayarıdır, borç
+  kendi ödemeleriyle kapanır (kısmi ödeme, dağıtım yok), cari ayrı kalır ve bir
+  takip biçimidir, bedel düzeltmesi / alınmayacak para / para hareketi ayrı
+  olaylardır, uygulamadan önceki borç açılış yazmaz, bir istek bir etki, bağlı
+  etkiler birlikte geri alınır, kişi tek kayıttır, vergi girmez. Başlangıç
+  tasarımı: model, ödeme sırası, düzeltmeler, kartla ödeme, devir, mahsup,
+  giriş akışları, okumalar, migration, dalgalar (0 hemen · 1 birleşme ·
+  2 çekirdek · 3 tamamlama)
 - `documentation/adr/0019-day-close-produces-existing-records.md` — **Aşama
   06.3'ün kasa/POS karar kapısı (kabul edildi 29 Eylül 2026; iki katmanlı)**:
   ilkeler — tanır / taşır, aynı satış iki kez sayılmaz, gün sonu yeni kayıt

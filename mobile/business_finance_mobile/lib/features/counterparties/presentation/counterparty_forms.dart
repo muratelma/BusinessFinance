@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/formatters/money_input.dart';
 import '../../../core/formatters/money_text.dart';
 import '../../../core/models/data_choice.dart';
+import '../../../core/network/client_request_id.dart';
 import '../../../core/models/transaction_scope.dart';
 import '../../../core/widgets/app_date_field.dart';
 import '../../../core/widgets/app_form_sheet.dart';
@@ -285,10 +286,17 @@ class CounterpartyPaymentForm extends StatefulWidget {
     required this.today,
     required this.accounts,
     required this.isReceivable,
+    required this.onSave,
     super.key,
     this.suggestedAmount,
     this.cards,
   });
+
+  /// Kaydı yazar; reddedildiyse gösterilecek cümleyi, yazıldıysa `null` döner.
+  /// Form reddedilen ya da ulaşamayan kayıtta kapanmaz ve yeniden gönderim
+  /// aynı istek kimliğini taşır: zaman aşımında sunucu kaydı yazmışsa ikinci
+  /// gönderim ikinci bir para hareketi yazmaz, ilkini döner.
+  final Future<String?> Function(Map<String, Object?> payload) onSave;
 
   /// Kartla tahsilin okumaları; yoksa ray gösterilmez.
   final CardCollectionSource? cards;
@@ -309,12 +317,15 @@ class CounterpartyPaymentForm extends StatefulWidget {
 }
 
 class _CounterpartyPaymentFormState extends State<CounterpartyPaymentForm> {
+  /// Form açıldığında bir kez üretilir; yeniden gönderim aynısını taşır.
+  final _requestId = newClientRequestId();
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _amount;
   final _description = TextEditingController();
   final _cardFields = GlobalKey<CardCollectionFieldsState>();
   late String _date;
   String? _accountId;
+  String? _error;
   CollectionMethod _method = CollectionMethod.account;
 
   bool get _byCard => _method == CollectionMethod.card;
@@ -352,15 +363,22 @@ class _CounterpartyPaymentFormState extends State<CounterpartyPaymentForm> {
           : 'Kasadan para çıkar; alım gideri zaten yazılmıştı, ikinci kez '
                 'gider yazılmaz.',
       submitLabel: 'Kaydet',
+      errorMessage: _error,
       onSubmit: () async {
         if (!(_formKey.currentState?.validate() ?? false)) return null;
-        return {
+        setState(() => _error = null);
+        final payload = <String, Object?>{
           'amount': MoneyInput.wire(_amount.text),
           'accountId': _byCard ? null : _accountId,
           'card': _byCard ? _cardFields.currentState?.request : null,
           'paymentDate': _date,
           'description': _description.text.trim(),
+          'clientRequestId': _requestId,
         };
+        final refusal = await widget.onSave(payload);
+        if (refusal == null) return payload;
+        if (mounted) setState(() => _error = refusal);
+        return null;
       },
       children: [
         if (widget.isReceivable && widget.cards != null)

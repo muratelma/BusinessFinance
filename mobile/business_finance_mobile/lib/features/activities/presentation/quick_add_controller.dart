@@ -154,30 +154,52 @@ class QuickAddController extends ChangeNotifier {
     String? description,
     QuickAddAttachment? attachment,
     TransactionScope? scope,
+    QuickAddReplacement? replaces,
   }) => _submit(isCardSpending: source.isCard, () async {
-    if (source.isCard) {
-      await _finance.createCharge(source.id, {
-        'categoryId': categoryId,
-        'amount': amount,
-        'currency': 'TRY',
-        'chargeDate': date,
-        'description': description,
-        'scope': scope?.apiValue,
-      });
-      return;
+    // Kısmi iade: eski harcama yeni kayıttan **önce** iptal edilir. Önce
+    // iptal, çünkü iptal reddedilebilir (gün sonunda sayılmış harcama);
+    // reddedilirse hiçbir şey yazılmamış olur. İptal sunucuda idempotenttir:
+    // yeni kayıt yazılamayıp form yeniden gönderilirse ikinci iptal yapılmaz.
+    if (replaces != null) {
+      await _transactions.cancel(replaces.transactionId);
+      financialDataChanges?.transactionsChanged();
     }
-    final created = await _transactions.create(
-      CreateTransactionInput(
-        accountId: source.id,
-        categoryId: categoryId,
-        amount: amount,
-        kind: TransactionKind.expense,
-        transactionDate: date,
-        description: description,
-        scope: scope,
-      ),
-    );
-    if (attachment != null) await _attach(created.id, attachment);
+    try {
+      if (source.isCard) {
+        await _finance.createCharge(source.id, {
+          'categoryId': categoryId,
+          'amount': amount,
+          'currency': 'TRY',
+          'chargeDate': date,
+          'description': description,
+          'scope': scope?.apiValue,
+        });
+        return;
+      }
+      final created = await _transactions.create(
+        CreateTransactionInput(
+          accountId: source.id,
+          categoryId: categoryId,
+          amount: amount,
+          kind: TransactionKind.expense,
+          transactionDate: date,
+          description: description,
+          scope: scope,
+        ),
+      );
+      if (attachment != null) await _attach(created.id, attachment);
+    } on ApiException catch (error) {
+      if (replaces == null) rethrow;
+      // Form açık kalır; kullanıcı yarım kalan işi bilmeli ve bitirebilmeli.
+      throw ApiException(
+        code: error.code,
+        message:
+            'Eski harcama iptal edildi ama yeni kayıt yazılamadı: '
+            '${error.message} Kaydet\'e yeniden basın.',
+        statusCode: error.statusCode,
+        traceId: error.traceId,
+      );
+    }
   });
 
   /// Dekonttaki işlem ücretini ana kayıttan **sonra**, aynı kaynağa yazar.

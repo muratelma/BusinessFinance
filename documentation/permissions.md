@@ -390,6 +390,15 @@ foreign key'idir. `DELETE /api/v1/pos-settlements/{id}` tahsil kaydında
 `409 pos_settlements.collection_locked`; cari tahsilatın iptali para yatışla
 geçtiyse `409 counterparty_payments.deposit_locked`, gün sonunda sayıldıysa
 `409 counterparty_payments.day_close_counted` döner.
+
+**16 Ekim 2026 — istek kimliği.** `POST /api/v1/counterparties/{id}/payments`
+isteğe bağlı `clientRequestId` alır. Tahsilatın kimliği bu değerden ve current
+`UserId`'den türetilir (`RequestScopedId`); iki kullanıcı aynı istek kimliğiyle
+çarpışamaz ve birinin kaydının varlığını yoklayamaz. Aynı kimlikle tekrar gelen
+istek ilk tahsilatı döner; kimlik başka bir kişinin tahsilatına aitse
+`400 counterparties.validation_failed`. Eşzamanlı iki istek birincil anahtara
+çarpar; ikincisi ilkinin sonucunu okur. Kimliksiz istek eskisi gibi her seferinde
+yeni kayıttır.
 `GET /api/v1/pos-settlements` satırı tahsilde boş `categoryId`/`categoryName`,
 `kind` ve kişinin adını (`counterpartyName`) taşır; ad owner-scoped okunur.
 Yatış ayrıntısı brütü `saleAmount` ve `collectionAmount` olarak ayırır.

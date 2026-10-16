@@ -910,13 +910,101 @@ void main() {
       expect(transactions.created, hasLength(1));
     });
   });
+
+  // Kısmi iade (backlog 16a): eski harcama form açılırken değil kayıtta iptal
+  // edilir. Önce açılışta iptal ediliyordu; form bırakılınca harcama tümüyle
+  // kayboluyor, kalan hiç yazılmıyordu.
+  group('kısmi iade', () {
+    const replacement = QuickAddReplacement(
+      transactionId: 't-old',
+      amount: '1200.0000',
+      date: '2026-08-12',
+    );
+
+    testWidgets('cancels the old expense only when the remainder is saved', (
+      tester,
+    ) async {
+      final transactions = _FakeTransactions();
+      await _pumpForm(
+        tester,
+        isExpense: true,
+        transactions: transactions,
+        prefill: _receiptPrefill(replaces: replacement),
+      );
+
+      expect(find.textContaining('harcama iptal edilir'), findsOneWidget);
+      expect(transactions.cancelled, isEmpty);
+
+      await _chooseSource(tester, 'Banka');
+      await tester.tap(find.text('Kaydet'));
+      await tester.pumpAndSettle();
+
+      expect(transactions.cancelled, ['t-old']);
+      expect(transactions.created, hasLength(1));
+    });
+
+    testWidgets('writes nothing when the old expense cannot be cancelled', (
+      tester,
+    ) async {
+      final transactions = _FakeTransactions()
+        ..cancelError = const ApiException(
+          code: 'transactions.day_close_counted',
+          message: 'Bu harcama gün sonunda sayıldı.',
+          statusCode: 409,
+        );
+      await _pumpForm(
+        tester,
+        isExpense: true,
+        transactions: transactions,
+        prefill: _receiptPrefill(replaces: replacement),
+      );
+      await _chooseSource(tester, 'Banka');
+      await tester.tap(find.text('Kaydet'));
+      await tester.pumpAndSettle();
+
+      expect(transactions.created, isEmpty);
+      expect(find.text('Bu harcama gün sonunda sayıldı.'), findsOneWidget);
+      expect(find.text('Kaydet'), findsOneWidget);
+    });
+
+    testWidgets('says the old one is gone when the new one fails, and finishes '
+        'on the next save', (tester) async {
+      final transactions = _FakeTransactions()
+        ..createError = const ApiException(
+          code: 'network.timeout',
+          message: 'Sunucuya ulaşılamadı.',
+        );
+      await _pumpForm(
+        tester,
+        isExpense: true,
+        transactions: transactions,
+        prefill: _receiptPrefill(replaces: replacement),
+      );
+      await _chooseSource(tester, 'Banka');
+      await tester.tap(find.text('Kaydet'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Eski harcama iptal edildi'), findsOneWidget);
+      expect(transactions.created, isEmpty);
+
+      transactions.createError = null;
+      await tester.tap(find.text('Kaydet'));
+      await tester.pumpAndSettle();
+
+      // İptal sunucuda idempotenttir; ikinci çağrı ikinci bir iptal değildir.
+      expect(transactions.cancelled, ['t-old', 't-old']);
+      expect(transactions.created, hasLength(1));
+    });
+  });
 }
 
 QuickAddPrefill _receiptPrefill({
   bool withPhoto = false,
   QuickAddAutoFee? autoFee,
+  QuickAddReplacement? replaces,
 }) => QuickAddPrefill(
   autoFee: autoFee,
+  replaces: replaces,
   amount: const QuickAddSuggestion('847.5000', QuickAddSuggestionState.read),
   date: const QuickAddSuggestion('2026-08-12', QuickAddSuggestionState.read),
   categoryId: const QuickAddSuggestion('cat-1', QuickAddSuggestionState.read),
@@ -1037,7 +1125,9 @@ Future<void> _chooseCategory(WidgetTester tester, String name) async {
 
 class _FakeTransactions implements TransactionRepositoryContract {
   final List<CreateTransactionInput> created = [];
+  final List<String> cancelled = [];
   ApiException? createError;
+  ApiException? cancelError;
   Completer<void>? createGate;
 
   @override
@@ -1068,7 +1158,20 @@ class _FakeTransactions implements TransactionRepositoryContract {
       const [TransactionChoice(id: 'cat-1', name: 'Maaş', isActive: true)];
 
   @override
-  Future<TransactionItem> cancel(String id) => throw UnimplementedError();
+  Future<TransactionItem> cancel(String id) async {
+    if (cancelError != null) throw cancelError!;
+    cancelled.add(id);
+    return TransactionItem(
+      id: id,
+      accountId: 'acc-1',
+      categoryId: 'cat-1',
+      amount: '1200.0000',
+      currency: 'TRY',
+      kind: TransactionKind.expense,
+      transactionDate: '2026-08-12',
+      isCancelled: true,
+    );
+  }
 
   @override
   Future<TransactionPage> list({

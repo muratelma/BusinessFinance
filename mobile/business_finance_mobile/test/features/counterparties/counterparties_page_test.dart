@@ -208,6 +208,37 @@ void main() {
       // Kategori ve kapsam **yok**: bu kayıt gelir/gider üretmez.
       expect(payment.containsKey('categoryId'), isFalse);
       expect(payment.containsKey('scope'), isFalse);
+      expect(payment['clientRequestId'], isA<String>());
+    });
+
+    // Zaman aşımında sunucu kaydı yazmış olabilir: form kapanmaz ve yeniden
+    // gönderim aynı istek kimliğini taşır, sunucu ikinci para hareketi yazmaz.
+    testWidgets('ulaşamayan tahsilatta form açık kalır, yeniden gönderim aynı '
+        'istek kimliğini taşır', (tester) async {
+      final repository = _FakeRepository()..paymentFailuresLeft = 1;
+      await _pump(tester, repository);
+      await tester.tap(find.text('Ahmet Bakkal'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Tahsilat'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Kaydet'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sunucuya ulaşılamadı.'), findsOneWidget);
+      expect(find.text('Kaydet'), findsOneWidget);
+      expect(repository.lastPayment, isNull);
+
+      await tester.tap(find.text('Kaydet'));
+      await tester.pumpAndSettle();
+
+      expect(repository.paymentAttempts, hasLength(2));
+      expect(
+        repository.paymentAttempts.last['clientRequestId'],
+        repository.paymentAttempts.first['clientRequestId'],
+      );
+      expect(repository.lastPayment, isNotNull);
+      expect(find.text('Kaydet'), findsNothing);
     });
 
     // Kartla tahsil (ADR 0019 T5): müşteri borcunu POS'tan öder. Hesap
@@ -566,6 +597,10 @@ class _FakeRepository implements CounterpartyRepositoryContract {
   Map<String, Object?>? lastCharge;
   Map<String, Object?>? lastPayment;
 
+  /// Sonraki kaç tahsilat gönderiminin ağ hatasıyla düşeceği.
+  int paymentFailuresLeft = 0;
+  final paymentAttempts = <Map<String, Object?>>[];
+
   static const _defaultPeople = [
     CounterpartySummary(
       id: 'cp-1',
@@ -690,5 +725,15 @@ class _FakeRepository implements CounterpartyRepositoryContract {
   Future<void> addPayment(
     String counterpartyId,
     Map<String, Object?> input,
-  ) async => lastPayment = input;
+  ) async {
+    paymentAttempts.add(input);
+    if (paymentFailuresLeft > 0) {
+      paymentFailuresLeft--;
+      throw const ApiException(
+        code: 'network.timeout',
+        message: 'Sunucuya ulaşılamadı.',
+      );
+    }
+    lastPayment = input;
+  }
 }

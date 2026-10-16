@@ -1267,6 +1267,39 @@ Future<void> _recordRefund(
 ) async {
   if (transactions == null) return;
   final messenger = ScaffoldMessenger.of(context);
+  final remaining = match.remainingAmount;
+
+  // Kısmi iade: düzeltme = eski hareketi iptal et + yeni doğru hareket yaz.
+  // İkisi **formun kaydında** birlikte yapılır; burada yalnız form açılır.
+  // Önce burada iptal ediliyordu: form bırakılınca harcama tümüyle
+  // kayboluyor, kalan hiç yazılmıyordu (backlog 16a). Kalan tutar öneri
+  // olarak geliyor; kaynağı ve kategoriyi kullanıcı seçiyor.
+  if (remaining != null) {
+    context.pushReplacement(
+      '/transactions/new/expense',
+      extra: QuickAddPrefill(
+        replaces: QuickAddReplacement(
+          transactionId: match.transactionId,
+          amount: match.amount,
+          date: match.transactionDate,
+        ),
+        amount: QuickAddSuggestion(remaining, QuickAddSuggestionState.read),
+        date: QuickAddSuggestion(
+          match.transactionDate,
+          QuickAddSuggestionState.read,
+        ),
+        description: match.description == null
+            ? null
+            : QuickAddSuggestion(
+                match.description!,
+                QuickAddSuggestionState.read,
+              ),
+      ),
+    );
+    return;
+  }
+
+  // Tam iade tek adımdır: yarım kalacak ikinci bir kayıt yok.
   try {
     // İptal sunucuda idempotent: ikinci kez onaylamak ikinci bir iptal
     // üretmez, aynı UTC damgalı kaydı geri döner.
@@ -1279,34 +1312,10 @@ Future<void> _recordRefund(
     return;
   }
   if (!context.mounted) return;
-
-  final remaining = match.remainingAmount;
-  if (remaining == null) {
-    messenger.showSnackBar(
-      const SnackBar(content: Text('Harcama iptal edildi.')),
-    );
-    context.pop();
-    return;
-  }
-
-  // Düzeltme = eski hareketi iptal et + yeni doğru hareket oluştur. Kalan
-  // tutar öneri olarak geliyor; kaynağı ve kategoriyi kullanıcı seçiyor.
-  context.pushReplacement(
-    '/transactions/new/expense',
-    extra: QuickAddPrefill(
-      amount: QuickAddSuggestion(remaining, QuickAddSuggestionState.read),
-      date: QuickAddSuggestion(
-        match.transactionDate,
-        QuickAddSuggestionState.read,
-      ),
-      description: match.description == null
-          ? null
-          : QuickAddSuggestion(
-              match.description!,
-              QuickAddSuggestionState.read,
-            ),
-    ),
+  messenger.showSnackBar(
+    const SnackBar(content: Text('Harcama iptal edildi.')),
   );
+  context.pop();
 }
 
 /// Ücret yazıcısını depolardan kurar.

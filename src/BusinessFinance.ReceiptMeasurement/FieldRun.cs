@@ -331,7 +331,7 @@ internal static class FieldRun
         public Task AddChargeAsync(CounterpartyCharge charge, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task AddPaymentAsync(CounterpartyPayment payment, PosSettlement? cardSettlement, CancellationToken cancellationToken) =>
+        public Task<bool> AddPaymentAsync(CounterpartyPayment payment, PosSettlement? cardSettlement, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
         public Task<CounterpartyCharge?> FindOwnedChargeAsync(

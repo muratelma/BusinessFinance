@@ -75,7 +75,8 @@ public sealed record CreateCounterpartyPaymentCommand(
     CurrencyCode Currency,
     DateOnly PaymentDate,
     string? Description,
-    CardCollectionInput? Card = null);
+    CardCollectionInput? Card = null,
+    Guid? ClientRequestId = null);
 
 public sealed record CounterpartyChargeDto(
     Guid Id,

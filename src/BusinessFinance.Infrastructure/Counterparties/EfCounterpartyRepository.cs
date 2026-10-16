@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using BusinessFinance.Application.Counterparties;
 using BusinessFinance.Domain;
 using BusinessFinance.Infrastructure.Persistence;
+using Microsoft.Data.SqlClient;
 
 namespace BusinessFinance.Infrastructure.Counterparties;
 
@@ -267,7 +268,7 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task AddPaymentAsync(
+    public async Task<bool> AddPaymentAsync(
         CounterpartyPayment payment,
         PosSettlement? cardSettlement,
         CancellationToken cancellationToken)
@@ -278,7 +279,20 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
         }
 
         await dbContext.CounterpartyPayments.AddAsync(payment, cancellationToken);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (DbUpdateException exception) when (
+            exception.InnerException is SqlException { Number: 2601 or 2627 })
+        {
+            // Aynı istek kimliği aynı tahsilat kimliğini üretir; eşzamanlı
+            // ikinci istek birincil anahtara çarpar ve ilkinin sonucunu okur.
+            // POS kaydı da aynı SaveChanges'teydi; o da yazılmadı.
+            dbContext.ChangeTracker.Clear();
+            return false;
+        }
     }
 
     public Task<PosSettlement?> FindCardSettlementAsync(

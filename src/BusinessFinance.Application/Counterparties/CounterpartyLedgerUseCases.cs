@@ -1,4 +1,5 @@
 using BusinessFinance.Application.Abstractions.Authentication;
+using BusinessFinance.Application.Abstractions.Identifiers;
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.DayCloses;
@@ -159,6 +160,21 @@ public sealed class CreateCounterpartyPaymentUseCase(
                 CounterpartyErrors.NotFound(command.CounterpartyId));
         }
 
+        // İstek kimliği varsa tahsilatın kimliği ondan türetilir: zaman aşımından
+        // sonra aynı formdan yeniden gönderilen istek ikinci bir para hareketi
+        // yazmaz, ilkini döner. Kimlik isteğe bağlıdır; eski istemci kimliksiz
+        // gönderir ve her istek yeni kayıttır.
+        Guid? requestScopedId = null;
+        if (command.ClientRequestId is Guid clientRequestId && clientRequestId != Guid.Empty)
+        {
+            requestScopedId = RequestScopedId.Create(IdPurpose, userId, clientRequestId);
+            var replay = await ReplayAsync(requestScopedId.Value, userId, command, cancellationToken);
+            if (replay is not null)
+            {
+                return replay;
+            }
+        }
+
         // Pasif karşı taraf **bilerek** engellenmiyor: artık iş yapılmayan bir
         // müşteri kalan borcunu ödeyebilmeli, yoksa bakiye kapatılamaz hâle
         // gelirdi.
@@ -210,7 +226,7 @@ public sealed class CreateCounterpartyPaymentUseCase(
             }
 
             var payment = new CounterpartyPayment(
-                Guid.NewGuid(),
+                requestScopedId ?? Guid.NewGuid(),
                 userId,
                 counterparty,
                 account!,
@@ -219,7 +235,12 @@ public sealed class CreateCounterpartyPaymentUseCase(
                 command.PaymentDate,
                 command.Description,
                 cardSettlement);
-            await repository.AddPaymentAsync(payment, cardSettlement, cancellationToken);
+            if (!await repository.AddPaymentAsync(payment, cardSettlement, cancellationToken))
+            {
+                return await ReplayAsync(payment.Id, userId, command, cancellationToken)
+                    ?? ApplicationResult<CounterpartyPaymentDto>.Failure(CounterpartyErrors.PaymentChanged);
+            }
+
             return ApplicationResult<CounterpartyPaymentDto>.Success(ToDto(payment));
         }
         catch (ArgumentException exception)
@@ -232,6 +253,31 @@ public sealed class CreateCounterpartyPaymentUseCase(
             return ApplicationResult<CounterpartyPaymentDto>.Failure(
                 CounterpartyErrors.Validation(exception.Message));
         }
+    }
+
+    internal const string IdPurpose = "counterparty-payment";
+
+    /// <summary>
+    /// Aynı istek kimliğiyle yazılmış tahsilat varsa onu döner. Kimlik başka bir
+    /// kişinin tahsilatına aitse istek reddedilir: istemci kimliği yeniden
+    /// kullanmış demektir ve ilk kaydı dönmek yanlış kişiyi gösterirdi.
+    /// </summary>
+    private async Task<ApplicationResult<CounterpartyPaymentDto>?> ReplayAsync(
+        Guid paymentId,
+        Guid userId,
+        CreateCounterpartyPaymentCommand command,
+        CancellationToken cancellationToken)
+    {
+        var existing = await repository.FindOwnedPaymentAsync(paymentId, userId, cancellationToken);
+        if (existing is null)
+        {
+            return null;
+        }
+
+        return existing.CounterpartyId == command.CounterpartyId
+            ? ApplicationResult<CounterpartyPaymentDto>.Success(ToDto(existing))
+            : ApplicationResult<CounterpartyPaymentDto>.Failure(
+                CounterpartyErrors.Validation("Client request id was already used for another payment."));
     }
 
     internal static CounterpartyPaymentDto ToDto(CounterpartyPayment payment) => new(

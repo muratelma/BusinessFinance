@@ -188,6 +188,27 @@ class QuickAddAutoFee {
   final String description;
 }
 
+/// Bu formun kaydı yazılınca iptal edilecek eski harcama (kısmi iade).
+///
+/// İptal formun açılışında değil **kayıtta** yapılır: kullanıcı formdan
+/// vazgeçerse hiçbir şey değişmez. Önce açılışta iptal ediliyordu; form
+/// bırakılınca harcama tümüyle kayboluyor, kalan hiç yazılmıyordu.
+class QuickAddReplacement {
+  const QuickAddReplacement({
+    required this.transactionId,
+    required this.amount,
+    required this.date,
+  });
+
+  final String transactionId;
+
+  /// Dört ondalıklı string.
+  final String amount;
+
+  /// `yyyy-MM-dd`.
+  final String date;
+}
+
 /// Formun önünü dolduran öneriler.
 ///
 /// Fiş sözleşmesinden bilerek bağımsız: form, değerin fotoğraftan mı başka bir
@@ -205,6 +226,7 @@ class QuickAddPrefill {
     this.attachment,
     this.keepAttachmentByDefault = true,
     this.autoFee,
+    this.replaces,
   });
 
   /// Dört ondalıklı string; forma kullanıcının göreceği biçimde yazılır.
@@ -247,6 +269,9 @@ class QuickAddPrefill {
   /// Ana kayıtla birlikte, **ikinci bir form açılmadan** yazılacak işlem
   /// ücreti. `null` ise yazılacak ücret yok.
   final QuickAddAutoFee? autoFee;
+
+  /// Kayıt yazılınca iptal edilecek eski harcama; `null` ise yok.
+  final QuickAddReplacement? replaces;
 
   bool get isEmpty =>
       amount == null &&

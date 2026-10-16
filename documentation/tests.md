@@ -2198,3 +2198,14 @@ için emülatör, gerçek cihaz ve canlı ekran okuyucu kabulü yapılmadı.
 Bulgular ve canlı kontrol kaydı: `research/DIS-GOZ-2026-10-13-kategori-hesap-teslim-denetimi.md`.
 
 Ortak ayrıntı regresyonu, masraflı transfer ve faizli nötr ödemenin rapora etkisinin yanlış “etkilemez” cümlesiyle gösterilmesini de engeller. Hesap ekle gerçek Hesaplar rotasında ayrıca doğrulanır.
+
+## Dalga 0 — cari ödemede istek kimliği ve iade fişinde yarıda kalma (16 Ekim 2026)
+
+ADR 0021 T10'un dalga 0'ı; ADR'ye bağlı değildir.
+
+| Kural | Test | Ne gösterir |
+|---|---|---|
+| Aynı istek kimliği tek tahsilat yazar | `CounterpartyEndpointTests.Payment_RetriedWithTheSameRequestId_MovesCashOnce` (API) | Aynı `clientRequestId` ile iki gönderim aynı kimliği döner; cari alacak 500 → 300, kasa 1.000 → 1.200 (bir kez). Kimlik başka kişiye kullanılırsa 400. Kimliksiz iki istek iki tahsilattır (eski istemci) |
+| Eşzamanlı iki istek tek kayıt | `SqlServerPersistenceIntegrationTests.CounterpartyPayment_SameIdFromTwoRequestsAtOnce_IsWrittenOnce` (yeni, gerçek SQL) | İki bağlam aynı kimlikle aynı anda yazar; biri `true`, öbürü `false` döner, tabloda tek satır kalır |
+| Form hata durumunda açık kalır, yeniden gönderim aynı kimliği taşır | `counterparties_page_test` — `ulaşamayan tahsilatta form açık kalır, …` (Flutter) | İlk gönderim ağ hatasıyla düşer, cümle formda görünür; ikinci `Kaydet` aynı `clientRequestId`'yi gönderir ve form kapanır. Başarılı tahsilat isteği de kimlik taşır |
+| Kısmi iadede eski harcama kayıtta iptal edilir | `quick_add_test` — `kısmi iade` grubu (Flutter, 3 test) | Form açılınca iptal yok, uyarı var; kayıtta önce iptal sonra gider. İptal reddedilirse hiçbir gider yazılmaz ve form açık kalır. Gider yazılamazsa "Eski harcama iptal edildi …" cümlesi; ikinci `Kaydet` işi bitirir |

@@ -278,7 +278,8 @@ public static class CounterpartyEndpoints
                 CurrencyCode.TRY,
                 paymentDate,
                 request.Description,
-                card),
+                card,
+                request.ClientRequestId),
             cancellationToken);
         if (!result.IsSuccess)
         {

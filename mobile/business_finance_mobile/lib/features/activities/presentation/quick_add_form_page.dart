@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_text.dart';
 import '../../../core/models/transaction_scope.dart';
 import '../../../core/presentation/scope_controller.dart';
@@ -225,6 +226,7 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
           ),
           ..._buildKeepAttachment(context),
           ..._buildAutoFeeNotice(context),
+          ..._buildReplacementNotice(context),
           if (controller.errorMessage != null)
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.medium),
@@ -324,6 +326,22 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
         message:
             'Dekonttaki ${MoneyText.format(fee.amount, 'TRY')} işlem ücreti de '
             'aynı kaynaktan $receiptFeeCategoryName olarak kaydedilecek.',
+      ),
+      const SizedBox(height: AppSpacing.medium),
+    ];
+  }
+
+  /// Kısmi iadede eski harcamanın ne zaman iptal edileceğini söyler.
+  List<Widget> _buildReplacementNotice(BuildContext context) {
+    final replaces = widget.prefill?.replaces;
+    if (replaces == null || !widget.isExpense) return const [];
+    return [
+      AppInlineNotice(
+        icon: Icons.swap_horiz,
+        message:
+            'Kaydettiğinizde ${DateText.dayMonthYear(replaces.date)} tarihli '
+            '${MoneyText.format(replaces.amount, 'TRY')} harcama iptal edilir '
+            've yerine bu kayıt kalır. Vazgeçerseniz hiçbir şey değişmez.',
       ),
       const SizedBox(height: AppSpacing.medium),
     ];
@@ -541,6 +559,7 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
             description: description.isEmpty ? null : description,
             attachment: attachment,
             scope: _resolvedScope,
+            replaces: widget.prefill?.replaces,
           )
         : await widget.controller.submitIncome(
             accountId: _accountId!,
