@@ -41,7 +41,7 @@ public sealed class CreateObligationUseCase(
         var category = await categoryRepository.FindOwnedByIdAsync(
             command.CategoryId, userId, cancellationToken);
         if (category is null || !category.IsActive ||
-            category.Type != Obligation.RequiredCategoryType(command.Direction))
+            category.Type != Debt.RequiredCategoryType(command.Direction))
         {
             return ApplicationResult<ObligationDto>.Failure(
                 ObligationErrors.CategoryUnavailable);
@@ -74,7 +74,7 @@ public sealed class CreateObligationUseCase(
 
         try
         {
-            var obligation = new Obligation(
+            var obligation = Debt.CreateSingle(
                 Guid.NewGuid(),
                 userId,
                 category,
@@ -101,15 +101,15 @@ public sealed class CreateObligationUseCase(
         }
     }
 
-    internal static ObligationDto ToDto(Obligation obligation) => new(
+    internal static ObligationDto ToDto(Debt obligation) => new(
         obligation.Id,
         obligation.CounterpartyId,
-        obligation.CategoryId,
+        obligation.CategoryId!.Value,
         obligation.Direction,
-        obligation.Amount.Amount,
-        obligation.Amount.Currency,
+        obligation.Principal.Amount,
+        obligation.Principal.Currency,
         obligation.Scope,
-        obligation.IssueDate,
+        obligation.StartDate,
         obligation.DueDate,
         obligation.Description,
         obligation.Status);

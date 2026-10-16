@@ -354,7 +354,7 @@ internal sealed class EfDayCloseRepository(
             {
                 settlement.Id,
                 Date = settlement.SettlementDate,
-                Amount = settlement.Amount.Amount,
+                Amount = settlement.Amount,
                 Title = obligation.Description ?? string.Empty,
                 settlement.ObligationId,
                 AccountName = account.Name,
@@ -411,7 +411,7 @@ internal sealed class EfDayCloseRepository(
             {
                 obligation.Id,
                 Date = obligation.IssueDate,
-                Amount = obligation.Amount.Amount,
+                Amount = obligation.Amount,
                 Title = obligation.Description ?? string.Empty,
                 CountedBy = dbContext.DayCloseCountedRecords
                     .Where(counted => counted.UserId == userId &&

@@ -328,33 +328,33 @@ public sealed partial class SqlServerPersistenceIntegrationTests
             DebtDirection.Payable, Try(100m), Day(12));
 
         // Tek seferlik: biri kapanır (hesaptan çıkar), ikisi açık kalır.
-        var settledObligation = new Obligation(Guid.NewGuid(), userId, goods, DebtDirection.Payable,
+        var settledObligation = Debt.CreateSingle(Guid.NewGuid(), userId, goods, DebtDirection.Payable,
             Try(120m), TransactionScope.Business, Day(6), Day(20), now, supplier);
         var obligationSettlement = settledObligation.Settle(Guid.NewGuid(), bank, Day(13), now);
-        var openPersonalObligation = new Obligation(Guid.NewGuid(), userId, food, DebtDirection.Payable,
+        var openPersonalObligation = Debt.CreateSingle(Guid.NewGuid(), userId, food, DebtDirection.Payable,
             Try(25m), TransactionScope.Personal, Day(6), Day(25), now, friend);
-        var openReceivableObligation = new Obligation(Guid.NewGuid(), userId, sales,
+        var openReceivableObligation = Debt.CreateSingle(Guid.NewGuid(), userId, sales,
             DebtDirection.Receivable, Try(90m), TransactionScope.Business, Day(6), Day(25), now, customer);
 
         // Borç açılışı: mal ya da satış karşılığı olan o gün tanır; nakit olan
         // yalnız taşır ve faizi ödendikçe gider yazar.
-        var goodsOnCredit = new DebtAgreement(Guid.NewGuid(), userId, supplier, DebtDirection.Payable,
+        var goodsOnCredit = Debt.CreateInstallments(Guid.NewGuid(), userId, supplier, DebtDirection.Payable,
             TransactionScope.Business, Try(500m), Try(500m), DebtSourceType.Expense, null, goods,
             Day(7), new DateOnly(2026, 9, 7), 1);
-        var foodOnCredit = new DebtAgreement(Guid.NewGuid(), userId, friend, DebtDirection.Payable,
+        var foodOnCredit = Debt.CreateInstallments(Guid.NewGuid(), userId, friend, DebtDirection.Payable,
             TransactionScope.Personal, Try(80m), Try(80m), DebtSourceType.Expense, null, food,
             Day(7), new DateOnly(2026, 9, 7), 1);
-        var saleOnCredit = new DebtAgreement(Guid.NewGuid(), userId, customer, DebtDirection.Receivable,
+        var saleOnCredit = Debt.CreateInstallments(Guid.NewGuid(), userId, customer, DebtDirection.Receivable,
             TransactionScope.Business, Try(600m), Try(600m), DebtSourceType.Income, null, sales,
             Day(7), new DateOnly(2026, 9, 7), 1);
-        var personalLoan = new DebtAgreement(Guid.NewGuid(), userId, lender, DebtDirection.Payable,
+        var personalLoan = Debt.CreateInstallments(Guid.NewGuid(), userId, lender, DebtDirection.Payable,
             TransactionScope.Personal, Try(1_000m), Try(1_100m), DebtSourceType.Cash, bank, null,
             Day(1), Day(10), 2);
-        personalLoan.GetInstallment(1).MarkPaid(bank, Day(10), now);
-        var businessLoan = new DebtAgreement(Guid.NewGuid(), userId, lender, DebtDirection.Payable,
+        personalLoan.PayInstallment(1, bank, Day(10), now);
+        var businessLoan = Debt.CreateInstallments(Guid.NewGuid(), userId, lender, DebtDirection.Payable,
             TransactionScope.Business, Try(2_000m), Try(2_400m), DebtSourceType.Cash, bank, null,
             Day(1), Day(15), 2);
-        businessLoan.GetInstallment(1).MarkPaid(bank, Day(15), now);
+        businessLoan.PayInstallment(1, bank, Day(15), now);
 
         // POS: satış tahsil edildiği gün brüt gelir ve komisyon gideri yazar;
         // para hesaba yatışla ve net geçer, eksik yatan kısım kesintidir.
@@ -401,9 +401,8 @@ public sealed partial class SqlServerPersistenceIntegrationTests
             await context.SaveChangesAsync(CancellationToken.None);
         }
 
-        static decimal RemainingPrincipal(params DebtAgreement[] debts) => debts
-            .SelectMany(debt => debt.Installments)
-            .Where(installment => installment.PaymentDate is null)
+        static decimal RemainingPrincipal(params Debt[] debts) => debts
+            .SelectMany(debt => debt.Items.Where(installment => !debt.IsPaid(installment)))
             .Sum(installment => installment.PrincipalPortion ?? installment.Amount.Amount);
 
         var personalInstallment = personalLoan.GetInstallment(1);

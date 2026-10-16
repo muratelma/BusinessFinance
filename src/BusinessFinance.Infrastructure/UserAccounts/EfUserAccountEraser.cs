@@ -53,9 +53,15 @@ internal sealed class EfUserAccountEraser(
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
             await dbContext.SavingsGoals
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
-            await dbContext.ObligationSettlements
+            // Borcun ödemesi kartla tahsilin POS kaydına bağlıdır; borç ve
+            // ödemeleri POS kayıtlarından ve karşı taraftan önce silinir.
+            await dbContext.DebtPaymentAllocations
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
-            await dbContext.Obligations
+            await dbContext.DebtPayments
+                .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+            await dbContext.DebtScheduleItems
+                .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+            await dbContext.Debts
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
             // Cari tahsilat kartla tahsilin POS kaydına bağlıdır (ADR 0019 T5);
             // tahsilatlar ondan önce silinir.
@@ -73,10 +79,6 @@ internal sealed class EfUserAccountEraser(
             await dbContext.CashCounts
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
             await dbContext.CounterpartyCharges
-                .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
-            await dbContext.DebtInstallments
-                .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
-            await dbContext.DebtAgreements
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
             await dbContext.Counterparties
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);

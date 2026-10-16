@@ -232,12 +232,12 @@ public static class AmortizationSchedule
 
     private static void ValidateInstallmentCount(int installmentCount)
     {
-        if (installmentCount is < 1 or > DebtAgreement.MaximumInstallments)
+        if (installmentCount is < 1 or > Debt.MaximumInstallments)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(installmentCount),
                 installmentCount,
-                $"Installment count must be between 1 and {DebtAgreement.MaximumInstallments}.");
+                $"Installment count must be between 1 and {Debt.MaximumInstallments}.");
         }
     }
 

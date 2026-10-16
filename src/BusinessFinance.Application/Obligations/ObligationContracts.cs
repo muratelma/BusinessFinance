@@ -46,20 +46,24 @@ public sealed record SettleObligationCommand(
 
 public interface IObligationRepository
 {
-    Task AddAsync(Obligation obligation, CancellationToken cancellationToken);
+    Task AddAsync(Debt obligation, CancellationToken cancellationToken);
     Task<IReadOnlyList<ObligationDto>> ListAsync(
         Guid userId,
         DateOnly asOfDate,
         CancellationToken cancellationToken);
-    Task<Obligation?> FindOwnedByIdAsync(
+    Task<Debt?> FindOwnedByIdAsync(
         Guid obligationId,
         Guid userId,
         bool track,
         CancellationToken cancellationToken);
     /// <summary>
     /// Kapanışı ve kartla tahsilse POS kaydını tek <c>SaveChanges</c> ile yazar.
+    /// Kapanış zaten varsa <paramref name="newPayment"/> boştur.
     /// </summary>
-    Task SaveSettlementAsync(PosSettlement? cardSettlement, CancellationToken cancellationToken);
+    Task SaveSettlementAsync(
+        DebtPayment? newPayment,
+        PosSettlement? cardSettlement,
+        CancellationToken cancellationToken);
 
     /// <summary>Kartla kapatılmış alacağın yoldaki POS kaydı, izlenen hâlde.</summary>
     Task<PosSettlement?> FindCardSettlementAsync(

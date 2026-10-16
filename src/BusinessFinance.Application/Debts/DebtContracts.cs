@@ -82,11 +82,14 @@ public sealed record DebtDto(
 
 public interface IDebtRepository
 {
-    Task AddAsync(DebtAgreement debt, CancellationToken cancellationToken);
-    Task<IReadOnlyList<DebtAgreement>> ListAsync(Guid userId, CancellationToken cancellationToken);
-    Task<DebtAgreement?> FindOwnedByIdAsync(Guid id, Guid userId, bool track, CancellationToken cancellationToken);
-    Task SavePaymentAsync(DebtInstallment installment, CancellationToken cancellationToken);
-    Task SaveOpeningAsync(DebtAgreement debt, CancellationToken cancellationToken);
+    Task AddAsync(Debt debt, CancellationToken cancellationToken);
+
+    /// <summary>Taksitli borçlar; tek ödemeli borçlar yükümlülük uçlarındadır (dalga 1).</summary>
+    Task<IReadOnlyList<Debt>> ListAsync(Guid userId, CancellationToken cancellationToken);
+
+    Task<Debt?> FindOwnedByIdAsync(Guid id, Guid userId, bool track, CancellationToken cancellationToken);
+    Task SavePaymentAsync(DebtPayment payment, CancellationToken cancellationToken);
+    Task SaveOpeningAsync(Debt debt, CancellationToken cancellationToken);
 }
 
 public sealed class DebtConcurrencyException : Exception

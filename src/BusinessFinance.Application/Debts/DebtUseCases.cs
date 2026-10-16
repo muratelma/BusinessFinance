@@ -157,7 +157,7 @@ public sealed class CreateDebtUseCase(
 
         try
         {
-            var debt = new DebtAgreement(
+            var debt = Debt.CreateInstallments(
                 Guid.NewGuid(), userId, counterparty, command.Direction,
                 scope,
                 new Money(command.Principal, command.Currency),
@@ -220,24 +220,28 @@ public sealed class CreateDebtUseCase(
         }
     }
 
-    internal static DebtDto ToDto(DebtAgreement debt, string counterpartyName, DateOnly asOfDate)
+    internal static DebtDto ToDto(Debt debt, string counterpartyName, DateOnly asOfDate)
     {
         var splits = debt.InstallmentSplits;
-        var installments = debt.Installments.OrderBy(x => x.Sequence).ToArray();
+        var installments = debt.Items.OrderBy(x => x.Sequence).ToArray();
         return new DebtDto(
-            debt.Id, debt.CounterpartyId, counterpartyName, debt.Direction, debt.Scope,
+            debt.Id, debt.CounterpartyId!.Value, counterpartyName, debt.Direction, debt.Scope,
             debt.Principal.Amount,
             debt.TotalRepayment.Amount, debt.RemainingAmount, debt.Principal.Currency,
             debt.AnnualInterestRate, debt.TotalInterest,
             debt.SourceType, debt.OpeningAccountId, debt.CategoryId,
             debt.StartDate, debt.FirstDueDate, debt.InstallmentCount,
             debt.Description, debt.IsClosed,
-            [.. installments.Select((x, index) => new DebtInstallmentDto(
-                x.Id, x.Sequence, x.Amount.Amount, x.Amount.Currency, x.DueDate,
-                x.IsPaid ? "paid" : x.DueDate < asOfDate ? "overdue" :
-                    x.DueDate == asOfDate ? "due-today" : "upcoming",
-                x.PaymentAccountId, x.PaymentDate, x.PaidAtUtc,
-                splits[index].Principal, splits[index].Interest))]);
+            [.. installments.Select((x, index) =>
+            {
+                var payment = debt.PaymentOf(x);
+                return new DebtInstallmentDto(
+                    x.Id, x.Sequence, x.Amount.Amount, x.Amount.Currency, x.DueDate,
+                    debt.IsPaid(x) ? "paid" : x.DueDate < asOfDate ? "overdue" :
+                        x.DueDate == asOfDate ? "due-today" : "upcoming",
+                    payment?.AccountId, payment?.PaymentDate, payment?.PaidAtUtc,
+                    splits[index].Principal, splits[index].Interest);
+            })]);
     }
 }
 
@@ -290,7 +294,7 @@ public sealed class RecordDebtOpeningUseCase(
             debt.RecordOpening(command.SourceType, openingAccount, category);
             await repository.SaveOpeningAsync(debt, cancellationToken);
             var name = await counterpartyRepository.FindOwnedByIdAsync(
-                debt.CounterpartyId, userId, cancellationToken);
+                debt.CounterpartyId!.Value, userId, cancellationToken);
             return name is null
                 ? ApplicationResult<DebtDto>.Failure(DebtErrors.CounterpartyUnavailable)
                 : ApplicationResult<DebtDto>.Success(
@@ -326,14 +330,14 @@ public sealed class ListDebtsUseCase(
         // listesinde liste kadar sorgu demek olurdu.
         var names = await counterpartyRepository.ListNamesAsync(
             userId,
-            [.. debts.Select(item => item.CounterpartyId).Distinct()],
+            [.. debts.Select(item => item.CounterpartyId!.Value).Distinct()],
             cancellationToken);
 
         return ApplicationResult<IReadOnlyList<DebtDto>>.Success(
             debts
                 .Select(item => CreateDebtUseCase.ToDto(
                     item,
-                    names.TryGetValue(item.CounterpartyId, out var name) ? name : string.Empty,
+                    names.TryGetValue(item.CounterpartyId!.Value, out var name) ? name : string.Empty,
                     asOfDate))
                 .ToArray());
     }
@@ -374,10 +378,11 @@ public sealed class PayDebtInstallmentUseCase(
                 if (!category.IsActive)
                     return ApplicationResult<DebtDto>.Failure(DebtErrors.CategoryUnavailable);
             }
-            debt.GetInstallment(command.Sequence).MarkPaid(account, command.PaymentDate, timeProvider.GetUtcNow());
-            await repository.SavePaymentAsync(debt.GetInstallment(command.Sequence), cancellationToken);
+            var payment = debt.PayInstallment(
+                command.Sequence, account, command.PaymentDate, timeProvider.GetUtcNow());
+            await repository.SavePaymentAsync(payment, cancellationToken);
             var counterparty = await counterpartyRepository.FindOwnedByIdAsync(
-                debt.CounterpartyId, userId, cancellationToken);
+                debt.CounterpartyId!.Value, userId, cancellationToken);
             return counterparty is null
                 ? ApplicationResult<DebtDto>.Failure(DebtErrors.CounterpartyUnavailable)
                 : ApplicationResult<DebtDto>.Success(

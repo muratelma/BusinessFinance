@@ -27,13 +27,23 @@ public sealed class BusinessFinanceDbContext(
         Set<RecurringTransactionOccurrence>();
     public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
     public DbSet<ImportRow> ImportRows => Set<ImportRow>();
-    public DbSet<DebtAgreement> DebtAgreements => Set<DebtAgreement>();
-    public DbSet<DebtInstallment> DebtInstallments => Set<DebtInstallment>();
+    public DbSet<Debt> Debts => Set<Debt>();
+    public DbSet<DebtScheduleItem> DebtScheduleItems => Set<DebtScheduleItem>();
+    public DbSet<DebtPayment> DebtPayments => Set<DebtPayment>();
+    public DbSet<DebtPaymentAllocation> DebtPaymentAllocations => Set<DebtPaymentAllocation>();
+
+    // Dalga 1 uyum görünümleri (ADR 0021 T10): yükümlülük ile borç planı tek
+    // tabloda yaşar, ama ekranlar ve akış türleri dalga 1'de değişmediği için
+    // okumalar iki eski biçimi görmeye devam eder. Salt okunurdur; yazma
+    // `Debts` üzerinden yapılır. Dalga 2'de okumalar tek modele geçince kalkar.
+    internal IQueryable<Infrastructure.Debts.ObligationRow> Obligations => Infrastructure.Debts.DebtViews.Obligations(this);
+    internal IQueryable<Infrastructure.Debts.ObligationSettlementRow> ObligationSettlements =>
+        Infrastructure.Debts.DebtViews.ObligationSettlements(this);
+    internal IQueryable<Debt> DebtAgreements => Infrastructure.Debts.DebtViews.Agreements(this);
+    internal IQueryable<Infrastructure.Debts.InstallmentRow> DebtInstallments => Infrastructure.Debts.DebtViews.Installments(this);
     public DbSet<Counterparty> Counterparties => Set<Counterparty>();
     public DbSet<CounterpartyCharge> CounterpartyCharges => Set<CounterpartyCharge>();
     public DbSet<CounterpartyPayment> CounterpartyPayments => Set<CounterpartyPayment>();
-    public DbSet<Obligation> Obligations => Set<Obligation>();
-    public DbSet<ObligationSettlement> ObligationSettlements => Set<ObligationSettlement>();
     public DbSet<CashCount> CashCounts => Set<CashCount>();
     public DbSet<PosSettlement> PosSettlements => Set<PosSettlement>();
     public DbSet<PosDefinition> PosDefinitions => Set<PosDefinition>();

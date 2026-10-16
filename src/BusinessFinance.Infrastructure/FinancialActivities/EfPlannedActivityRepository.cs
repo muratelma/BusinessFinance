@@ -553,7 +553,7 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
                     on new { installment.UserId, DebtId = installment.DebtAgreementId }
                     equals new { debt.UserId, DebtId = debt.Id }
                 join counterparty in dbContext.Counterparties.AsNoTracking()
-                    on new { debt.UserId, Id = debt.CounterpartyId }
+                    on new { debt.UserId, Id = debt.CounterpartyId!.Value }
                     equals new { counterparty.UserId, counterparty.Id }
                 where installment.UserId == userId &&
                       installment.PaymentAccountId == null &&
@@ -567,8 +567,8 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
                     debt.Direction,
                     CounterpartyName = counterparty.Name,
                     debt.Description,
-                    Amount = installment.Amount.Amount,
-                    Currency = installment.Amount.Currency,
+                    Amount = installment.Amount,
+                    Currency = installment.Currency,
                     installment.DueDate
                 })
             .ToArrayAsync(cancellationToken);
@@ -633,8 +633,8 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
                 {
                     obligation.Id,
                     obligation.Direction,
-                    Amount = obligation.Amount.Amount,
-                    Currency = obligation.Amount.Currency,
+                    Amount = obligation.Amount,
+                    Currency = obligation.Currency,
                     obligation.DueDate,
                     obligation.Description,
                     CategoryId = category.Id,

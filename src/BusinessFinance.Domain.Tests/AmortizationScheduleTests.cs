@@ -167,7 +167,7 @@ public sealed class AmortizationScheduleTests
             () => AmortizationSchedule.Split(300m, 10m, [100m, 100m]));
     }
 
-    // `DebtAgreement.GenerateSchedule` ile aynı bölme: baştakiler aşağı
+    // `Debt.GenerateSchedule` ile aynı bölme: baştakiler aşağı
     // yuvarlanır, sonuncusu farkı üstlenir. Test planı gerçekte üretildiği
     // gibi bölmezse Split'i gerçekte gelmeyecek girdilerle sınar.
     private static decimal[] EqualInstallments(decimal total, int count)

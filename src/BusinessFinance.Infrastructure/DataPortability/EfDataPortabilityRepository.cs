@@ -289,16 +289,16 @@ public sealed class EfDataPortabilityRepository(
             dbContext.Counterparties.AddRange(graph.Counterparties);
             dbContext.CounterpartyCharges.AddRange(graph.CounterpartyCharges);
             dbContext.CounterpartyPayments.AddRange(graph.CounterpartyPayments);
-            // Kapanış yükümlülüğün navigasyonundan geliyor; ayrı eklenmesi
-            // sahipsiz bir settlement yazma yolu açardı.
-            dbContext.Obligations.AddRange(graph.Obligations);
+            // Kapanış tek ödemeli borcun navigasyonundan geliyor; ayrı eklenmesi
+            // sahipsiz bir ödeme yazma yolu açardı.
+            dbContext.Debts.AddRange(graph.Obligations);
             // Sayım bir gözlemdir, farkı yazan hareket ise ayrı bir kayıt:
             // sayım o harekete kimlikle bağlanır, onu içermez.
             dbContext.CashCounts.AddRange(graph.CashCounts);
             dbContext.PosDefinitions.AddRange(graph.PosDefinitions);
             dbContext.PosDeposits.AddRange(graph.PosDeposits);
             dbContext.PosSettlements.AddRange(graph.PosSettlements);
-            dbContext.DebtAgreements.AddRange(graph.Debts);
+            dbContext.Debts.AddRange(graph.Debts);
             dbContext.SavingsGoals.AddRange(graph.Goals);
             if (graph.Attachments.Length > 0 && attachmentStore is null)
                 throw Invalid("Attachment storage is unavailable.");
@@ -371,8 +371,11 @@ public sealed class EfDataPortabilityRepository(
             .Where(x => x.UserId == userId).OrderBy(x => x.Id).ToArrayAsync(cancellationToken);
         var batches = await dbContext.ImportBatches.AsNoTracking().Include(x => x.Rows)
             .Where(x => x.UserId == userId).OrderBy(x => x.Id).ToArrayAsync(cancellationToken);
-        var debts = await dbContext.DebtAgreements.AsNoTracking().Include(x => x.Installments)
-            .Where(x => x.UserId == userId).OrderBy(x => x.Id).ToArrayAsync(cancellationToken);
+        // Yükümlülük ve borç planı tek tabloda (ADR 0021); yedek dalga 1'de iki
+        // listeyi aynı biçimde yazmaya devam eder.
+        var debts = await Debts.EfDebtRepository.Aggregates(dbContext.Debts.AsNoTracking())
+            .Where(x => x.UserId == userId && x.PlanKind == DebtPlanKind.Installments)
+            .OrderBy(x => x.Id).ToArrayAsync(cancellationToken);
 
         // Kaydın girildiği an: gün içi sırayı ve "işlem sonrası bakiye"yi
         // belirler. Gölge kolondur; kimlikle okunup kayıtların yanına yazılır.
@@ -391,7 +394,7 @@ public sealed class EfDataPortabilityRepository(
             entryTimes[pair.Key] = pair.Value;
         foreach (var pair in await ReadEntryTimesAsync(dbContext.CounterpartyPayments, userId, cancellationToken))
             entryTimes[pair.Key] = pair.Value;
-        foreach (var pair in await ReadEntryTimesAsync(dbContext.DebtAgreements, userId, cancellationToken))
+        foreach (var pair in await ReadEntryTimesAsync(dbContext.Debts, userId, cancellationToken))
             entryTimes[pair.Key] = pair.Value;
 
         // Karşı taraf artık kendi kaydıyla giriyor (v7): adı, notu ve aktifliği
@@ -408,8 +411,9 @@ public sealed class EfDataPortabilityRepository(
         // Yükümlülük ve onu kapatan nakit hareketi tek okumada geliyor (v8):
         // kapanış yükümlülüğün kendi kaydıdır, ayrı bir koleksiyon olarak
         // yazılsaydı dosyada sahipsiz bir ödeme durabilirdi.
-        var obligations = await dbContext.Obligations.AsNoTracking().Include(x => x.Settlement)
-            .Where(x => x.UserId == userId).OrderBy(x => x.Id).ToArrayAsync(cancellationToken);
+        var obligations = await Debts.EfDebtRepository.Aggregates(dbContext.Debts.AsNoTracking())
+            .Where(x => x.UserId == userId && x.PlanKind == DebtPlanKind.Single)
+            .OrderBy(x => x.Id).ToArrayAsync(cancellationToken);
         // Kasa sayımı ve POS tahsilatı (v9). Sayımın beklenen tutarı ve farkı,
         // tahsilatın net tutarı ve komisyon oranı dosyaya yazılmaz: hiçbiri
         // kalıcı alan değil, okunduğu anda türetilen değerlerdir.
@@ -517,15 +521,17 @@ public sealed class EfDataPortabilityRepository(
                 x.PaymentDate, x.Description, x.IsCancelled, x.CancelledAtUtc,
                 entryTimes.GetValueOrDefault(x.Id), x.PosSettlementId)).ToArray(),
             obligations.Select(x => new ObligationBackup(
-                x.Id, x.CounterpartyId, x.CategoryId, x.Direction, x.Amount.Amount, x.Amount.Currency,
-                x.Scope, x.IssueDate, x.DueDate, x.Description, x.CreatedAtUtc,
+                x.Id, x.CounterpartyId, x.CategoryId!.Value, x.Direction, x.Principal.Amount,
+                x.Principal.Currency, x.Scope, x.StartDate, x.DueDate, x.Description,
+                x.CreatedAtUtc ?? throw new InvalidOperationException(
+                    "A single payment debt keeps its creation time."),
                 x.IsCancelled, x.CancelledAtUtc,
                 x.Settlement is null
                     ? null
                     : new ObligationSettlementBackup(
                         x.Settlement.Id, x.Settlement.AccountId, x.Settlement.Amount.Amount,
-                        x.Settlement.Amount.Currency, x.Settlement.SettlementDate,
-                        x.Settlement.SettledAtUtc, x.Settlement.PosSettlementId))).ToArray(),
+                        x.Settlement.Amount.Currency, x.Settlement.PaymentDate,
+                        x.Settlement.PaidAtUtc, x.Settlement.PosSettlementId))).ToArray(),
             cashCounts.Select(x => new CashCountBackup(
                 x.Id, x.AccountId, x.CountedAmount, x.Currency, x.Scope, x.CountDate,
                 x.Note, x.CreatedAtUtc, x.AdjustmentTransactionId, x.AdjustedAtUtc,
@@ -554,12 +560,16 @@ public sealed class EfDataPortabilityRepository(
                     .Select(o => new DayCloseOverlapBackup(o.GroupId, o.Amount))
                     .ToArray())).ToArray(),
             debts.Select(x => new DebtBackup(
-                x.Id, x.CounterpartyId, x.Direction, x.Scope, x.Principal.Amount, x.TotalRepayment.Amount,
+                x.Id, x.CounterpartyId!.Value, x.Direction, x.Scope, x.Principal.Amount, x.TotalRepayment.Amount,
                 x.Principal.Currency, x.AnnualInterestRate, x.StartDate, x.FirstDueDate,
                 x.InstallmentCount, x.Description,
-                x.Installments.OrderBy(i => i.Sequence).Select(i => new DebtInstallmentBackup(
-                    i.Sequence, i.Amount.Amount, i.Amount.Currency, i.DueDate,
-                    i.PaymentAccountId, i.PaymentDate, i.PaidAtUtc)).ToArray(),
+                x.Items.OrderBy(i => i.Sequence).Select(i => x.PaymentOf(i) is { } paid
+                    ? new DebtInstallmentBackup(
+                        i.Sequence, i.Amount.Amount, i.Amount.Currency, i.DueDate,
+                        paid.AccountId, paid.PaymentDate, paid.PaidAtUtc)
+                    : new DebtInstallmentBackup(
+                        i.Sequence, i.Amount.Amount, i.Amount.Currency, i.DueDate,
+                        null, null, null)).ToArray(),
                 x.SourceType, x.OpeningAccountId, x.CategoryId,
                 entryTimes.GetValueOrDefault(x.Id))).ToArray(),
             goals.Select(x => new SavingsGoalBackup(
@@ -1076,11 +1086,11 @@ public sealed class EfDataPortabilityRepository(
             // Kapanış bu yüzden yükümlülüğün kendi metodundan doğuyor: tutarı
             // ve yönü dosyadan yeniden okunsaydı, kapanış yükümlülükten farklı
             // bir para taşıyabilirdi.
-            var obligations = new List<Obligation>();
-            var obligationMap = new Dictionary<Guid, Obligation>();
+            var obligations = new List<Debt>();
+            var obligationMap = new Dictionary<Guid, Debt>();
             foreach (var item in snapshot.Obligations)
             {
-                var entity = new Obligation(
+                var entity = Debt.CreateSingle(
                     Guid.NewGuid(), userId,
                     Required(categoryMap, item.CategoryId, "obligation category"),
                     item.Direction, MoneyOf(item.Amount, item.Currency), item.Scope,
@@ -1091,7 +1101,7 @@ public sealed class EfDataPortabilityRepository(
                     item.Description);
                 if (item.Settlement is ObligationSettlementBackup settlement)
                 {
-                    if (MoneyOf(settlement.Amount, settlement.Currency) != entity.Amount)
+                    if (MoneyOf(settlement.Amount, settlement.Currency) != entity.Principal)
                         throw Invalid("Obligation settlement amount does not match its obligation.");
                     entity.Settle(
                         Guid.NewGuid(),
@@ -1209,7 +1219,7 @@ public sealed class EfDataPortabilityRepository(
                             break;
                         case DayCloseRecordKind.Obligation
                             when obligationMap.TryGetValue(counted.RecordId, out var invoice):
-                            Add(groupSales, invoice.Id, invoice.Amount.Amount);
+                            Add(groupSales, invoice.Id, invoice.Principal.Amount);
                             break;
                         case DayCloseRecordKind.ObligationSettlement
                             when snapshot.Obligations.FirstOrDefault(
@@ -1281,7 +1291,7 @@ public sealed class EfDataPortabilityRepository(
             if (dayCloseCounted.GroupBy(x => (x.Kind, x.RecordId)).Any(group => group.Count() > 1))
                 throw Invalid("A record can be counted by one day close only.");
 
-            var debts = new List<DebtAgreement>();
+            var debts = new List<Debt>();
             foreach (var item in snapshot.Debts)
             {
                 var counterparty = Required(counterpartyMap, item.CounterpartyId, "debt counterparty");
@@ -1290,7 +1300,7 @@ public sealed class EfDataPortabilityRepository(
                 // oran artık paradan çözülüyor ve yedekteki değer hiçbir hesaba
                 // girmemiş, serbestçe yazılmış bir sayıydı.
                 var debt = item.SourceType != DebtSourceType.Unrecorded
-                    ? new DebtAgreement(
+                    ? Debt.CreateInstallments(
                         Guid.NewGuid(), userId, counterparty, item.Direction, item.Scope,
                         MoneyOf(item.Principal, item.Currency), MoneyOf(item.TotalRepayment, item.Currency),
                         item.SourceType,
@@ -1301,11 +1311,11 @@ public sealed class EfDataPortabilityRepository(
                             ? Required(categoryMap, debtCategoryId, "debt category")
                             : null,
                         item.StartDate, item.FirstDueDate, item.InstallmentCount, item.Description)
-                    : DebtAgreement.WithUnrecordedOpening(
+                    : Debt.WithUnrecordedOpening(
                         Guid.NewGuid(), userId, counterparty, item.Direction, item.Scope,
                         MoneyOf(item.Principal, item.Currency), MoneyOf(item.TotalRepayment, item.Currency),
                         item.StartDate, item.FirstDueDate, item.InstallmentCount, item.Description);
-                if (debt.Installments.Count != item.Installments.Length)
+                if (debt.Items.Count != item.Installments.Length)
                     throw Invalid("Debt installment count does not match its schedule.");
                 foreach (var sourceInstallment in item.Installments)
                 {
@@ -1321,7 +1331,8 @@ public sealed class EfDataPortabilityRepository(
                                           sourceInstallment.PaidAtUtc.HasValue))
                         throw Invalid("Debt payment fields must appear together.");
                     if (paymentFields)
-                        targetInstallment.MarkPaid(
+                        debt.PayInstallment(
+                            sourceInstallment.Sequence,
                             Required(accountMap, sourceInstallment.PaymentAccountId!.Value,
                                 "debt payment account"),
                             sourceInstallment.PaymentDate!.Value,
@@ -1428,7 +1439,7 @@ public sealed class EfDataPortabilityRepository(
             await dbContext.Counterparties.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.CounterpartyCharges.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.CounterpartyPayments.AnyAsync(x => x.UserId == userId, cancellationToken) ||
-            await dbContext.Obligations.AnyAsync(x => x.UserId == userId, cancellationToken) ||
+            await dbContext.Debts.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.CashCounts.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.PosDefinitions.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.PosSettlements.AnyAsync(x => x.UserId == userId, cancellationToken) ||
@@ -1438,7 +1449,6 @@ public sealed class EfDataPortabilityRepository(
                 x => x.UserId == userId, cancellationToken) ||
             await dbContext.DayCloseCountedOverlaps.AnyAsync(
                 x => x.UserId == userId, cancellationToken) ||
-            await dbContext.DebtAgreements.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.SavingsGoals.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.FinancialAttachments.AnyAsync(x => x.UserId == userId, cancellationToken);
         if (hasUserData) return null;
@@ -1976,7 +1986,7 @@ internal sealed record RestoredGraph(
     Counterparty[] Counterparties,
     CounterpartyCharge[] CounterpartyCharges,
     CounterpartyPayment[] CounterpartyPayments,
-    Obligation[] Obligations,
+    Debt[] Obligations,
     CashCount[] CashCounts,
     PosDefinition[] PosDefinitions,
     PosSettlement[] PosSettlements,
@@ -1984,7 +1994,7 @@ internal sealed record RestoredGraph(
     DayClose[] DayCloses,
     DayCloseCountedRecord[] DayCloseCountedRecords,
     DayCloseCountedOverlap[] DayCloseCountedOverlaps,
-    DebtAgreement[] Debts,
+    Debt[] Debts,
     SavingsGoal[] Goals,
     RestoredAttachment[] Attachments,
     IReadOnlyDictionary<object, DateTimeOffset?> EntryTimes);

@@ -2209,3 +2209,21 @@ ADR 0021 T10'un dalga 0'ı; ADR'ye bağlı değildir.
 | Eşzamanlı iki istek tek kayıt | `SqlServerPersistenceIntegrationTests.CounterpartyPayment_SameIdFromTwoRequestsAtOnce_IsWrittenOnce` (yeni, gerçek SQL) | İki bağlam aynı kimlikle aynı anda yazar; biri `true`, öbürü `false` döner, tabloda tek satır kalır |
 | Form hata durumunda açık kalır, yeniden gönderim aynı kimliği taşır | `counterparties_page_test` — `ulaşamayan tahsilatta form açık kalır, …` (Flutter) | İlk gönderim ağ hatasıyla düşer, cümle formda görünür; ikinci `Kaydet` aynı `clientRequestId`'yi gönderir ve form kapanır. Başarılı tahsilat isteği de kimlik taşır |
 | Kısmi iadede eski harcama kayıtta iptal edilir | `quick_add_test` — `kısmi iade` grubu (Flutter, 3 test) | Form açılınca iptal yok, uyarı var; kayıtta önce iptal sonra gider. İptal reddedilirse hiçbir gider yazılmaz ve form açık kalır. Gider yazılamazsa "Eski harcama iptal edildi …" cümlesi; ikinci `Kaydet` işi bitirir |
+
+## Dalga 1 — yükümlülük ve borç planı tek borç modelinde (16 Ekim 2026)
+
+ADR 0021 T10'un dalga 1'i. Davranış değişmediği için kanıt "önce/sonra"dır.
+
+| Kural | Test | Ne gösterir |
+|---|---|---|
+| Birleşme hiçbir okumayı değiştirmez | `DebtMergeBaselineTests.EveryDebtAndObligationRead_MatchesTheBaseline` (API, gerçek SQL) | Sabit saatle kurulan senaryo (7 yükümlülük, 5 borç planı, cari, POS yatışı, gün sonu) ~50 okuma ucunda birleşmeden **önce** üretilmiş `Golden/debt-merge-baseline.json` ile alan alan aynıdır. Referans birleşmede yeniden üretilmez |
+| Eski yedek yeni modele kayıpsız döner | `DebtMergeBaselineTests.BackupTakenBeforeTheMerge_RestoresIntoTheSameReads` (API, gerçek SQL) | Birleşmeden önceki kodla alınmış v12 yedek (`Golden/debt-merge-backup-v12.json`) yeni kullanıcıya geri yüklenir; kimlikten bağımsız 20 okuma, aynı senaryoyu yeni kodla kuran kullanıcınınkiyle aynıdır |
+| Migration her kaydı kimliğiyle taşır | `SqlServerPersistenceIntegrationTests.MergeObligationsAndDebtAgreements_MovesEveryRecordWithItsIdentity` (gerçek SQL) | Birleşmeden önceki şemaya ham SQL ile açık, ödenmiş, kartla (POS bağlı) ve iptal edilmiş yükümlülük; ödenmiş/ödenmemiş taksit; açılışı bilinmeyen borç ve gün sonu bağları yazılır. Yükseltmeden sonra kimlikler, ödeme–kalem tahsisleri, POS bağı, iptal anları, giriş anları ve gün sonu bağları birebir durur; uyum görünümleri eski sayıları verir |
+| Eşleme ve kalem başına tek ödeme | `FinancialEntityMappingTests.DebtMapping_UsesOwnerScopedRelationshipsAndOnePaymentPerItem`, `SingleDebtRoundTrip_MaterializesItsSettlementFromThePayments` | Dört tablo, sahiplik kapsamlı FK'ler, `decimal(19,4)`, tahsisin kalem başına tekliği; tek ödemeli borcun kalemi borcun kimliğini taşır |
+| Eşzamanlı ikinci taksit ödemesi reddedilir | `SqlServerPersistenceIntegrationTests.DebtPayment_ConcurrentWritersAllowOnlyOneAndChangeBalanceOnce` (güncellendi) | İkinci yazar ödemenin birincil anahtarına (taksidin kimliği) çarpar; bakiye bir kez değişir |
+| Zincir | `MigrationHistoryTests` | `MergeObligationsAndDebtAgreements` zincirin sonundadır ve model ile eşleşir |
+
+Domain, Application, Infrastructure ve API testlerindeki eski `Obligation`,
+`ObligationSettlement`, `DebtAgreement`, `DebtInstallment` kullanımları
+`Debt.CreateSingle`, `Debt.CreateInstallments`, `Debt.PayInstallment` ve
+`DebtPayment`'a çevrildi; doğrulamalar aynı kaldı.

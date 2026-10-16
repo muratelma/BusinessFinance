@@ -125,7 +125,7 @@ public class TransactionScopeTests
 
         var lender = new Counterparty(Guid.NewGuid(), userId, "Synthetic lender");
 
-        var debt = new DebtAgreement(
+        var debt = Debt.CreateInstallments(
             Guid.NewGuid(),
             userId,
             lender,
@@ -140,7 +140,7 @@ public class TransactionScopeTests
             new DateOnly(2026, 8, 15),
             3);
 
-        Action act = () => DebtAgreement.WithUnrecordedOpening(
+        Action act = () => Debt.WithUnrecordedOpening(
             Guid.NewGuid(),
             userId,
             lender,

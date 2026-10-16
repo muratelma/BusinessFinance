@@ -9,65 +9,81 @@ namespace BusinessFinance.Infrastructure.Tests.Persistence;
 public sealed class FinancialEntityMappingTests
 {
     [Fact]
-    public void ObligationMapping_UsesOwnerScopedRelationshipsAndOneSettlement()
+    public void DebtMapping_UsesOwnerScopedRelationshipsAndOnePaymentPerItem()
     {
         using var context = CreateSqlServerModelContext();
         var charge = context.Model.FindEntityType(typeof(CounterpartyCharge));
-        var obligation = context.Model.FindEntityType(typeof(Obligation));
-        var settlement = context.Model.FindEntityType(typeof(ObligationSettlement));
+        var debt = context.Model.FindEntityType(typeof(Debt));
+        var item = context.Model.FindEntityType(typeof(DebtScheduleItem));
+        var payment = context.Model.FindEntityType(typeof(DebtPayment));
+        var allocation = context.Model.FindEntityType(typeof(DebtPaymentAllocation));
 
         Assert.NotNull(charge);
         Assert.True(charge.FindProperty(nameof(CounterpartyCharge.DueDate))!.IsNullable);
         Assert.Equal("date", charge.FindProperty(nameof(CounterpartyCharge.DueDate))!.GetColumnType());
 
-        Assert.NotNull(obligation);
-        Assert.NotNull(settlement);
-        Assert.Equal("Obligations", obligation.GetTableName());
-        Assert.Equal("ObligationSettlements", settlement.GetTableName());
-        Assert.Null(obligation.FindProperty(nameof(Obligation.Status)));
-        Assert.Null(settlement.FindProperty(nameof(ObligationSettlement.SignedAccountEffect)));
+        Assert.NotNull(debt);
+        Assert.NotNull(item);
+        Assert.NotNull(payment);
+        Assert.NotNull(allocation);
+        Assert.Equal("Debts", debt.GetTableName());
+        Assert.Equal("DebtScheduleItems", item.GetTableName());
+        Assert.Equal("DebtPayments", payment.GetTableName());
+        Assert.Equal("DebtPaymentAllocations", allocation.GetTableName());
+        Assert.Null(debt.FindProperty(nameof(Debt.Status)));
+        Assert.Null(payment.FindProperty(nameof(DebtPayment.SignedAccountEffect)));
 
-        var categoryForeignKey = obligation.GetForeignKeys().Single(
+        var categoryForeignKey = debt.GetForeignKeys().Single(
             foreignKey => foreignKey.PrincipalEntityType.ClrType == typeof(Category));
-        var counterpartyForeignKey = obligation.GetForeignKeys().Single(
+        var counterpartyForeignKey = debt.GetForeignKeys().Single(
             foreignKey => foreignKey.PrincipalEntityType.ClrType == typeof(Counterparty));
-        var obligationForeignKey = settlement.GetForeignKeys().Single(
-            foreignKey => foreignKey.PrincipalEntityType.ClrType == typeof(Obligation));
-        var accountForeignKey = settlement.GetForeignKeys().Single(
+        var debtForeignKey = payment.GetForeignKeys().Single(
+            foreignKey => foreignKey.PrincipalEntityType.ClrType == typeof(Debt));
+        var accountForeignKey = payment.GetForeignKeys().Single(
             foreignKey => foreignKey.PrincipalEntityType.ClrType == typeof(Account));
 
         Assert.Equal(
-            [nameof(Obligation.UserId), nameof(Obligation.CategoryId)],
+            [nameof(Debt.UserId), nameof(Debt.CategoryId)],
             categoryForeignKey.Properties.Select(property => property.Name));
         Assert.Equal(
-            [nameof(Obligation.UserId), nameof(Obligation.CounterpartyId)],
+            [nameof(Debt.UserId), nameof(Debt.CounterpartyId)],
             counterpartyForeignKey.Properties.Select(property => property.Name));
         Assert.False(counterpartyForeignKey.IsRequired);
         Assert.Equal(
-            [nameof(ObligationSettlement.UserId), nameof(ObligationSettlement.ObligationId)],
-            obligationForeignKey.Properties.Select(property => property.Name));
-        Assert.True(obligationForeignKey.IsUnique);
+            [nameof(DebtPayment.UserId), nameof(DebtPayment.DebtId)],
+            debtForeignKey.Properties.Select(property => property.Name));
         Assert.Equal(
-            [nameof(ObligationSettlement.UserId), nameof(ObligationSettlement.AccountId)],
+            [nameof(DebtPayment.UserId), nameof(DebtPayment.AccountId)],
             accountForeignKey.Properties.Select(property => property.Name));
-        Assert.All(obligation.GetForeignKeys(), foreignKey =>
+        Assert.All(debt.GetForeignKeys(), foreignKey =>
             Assert.Equal(DeleteBehavior.Restrict, foreignKey.DeleteBehavior));
-        Assert.All(settlement.GetForeignKeys(), foreignKey =>
+        Assert.All(payment.GetForeignKeys(), foreignKey =>
             Assert.Equal(DeleteBehavior.Restrict, foreignKey.DeleteBehavior));
+
+        // Dalga 1'de bir kalem tek ödemeyle kapanır: eski tek kapanış kuralı
+        // tahsisin kalem başına tekliğindedir.
+        Assert.Contains(
+            allocation.GetIndexes(),
+            index => index.IsUnique && index.Properties.Select(property => property.Name)
+                .SequenceEqual([nameof(DebtPaymentAllocation.UserId), nameof(DebtPaymentAllocation.ScheduleItemId)]));
 
         var relationalModel = context.Model.GetRelationalModel();
         Assert.Equal(
             "decimal(19,4)",
-            relationalModel.Tables.Single(table => table.Name == "Obligations")
+            relationalModel.Tables.Single(table => table.Name == "Debts")
+                .Columns.Single(column => column.Name == "Principal").StoreType);
+        Assert.Equal(
+            "decimal(19,4)",
+            relationalModel.Tables.Single(table => table.Name == "DebtPayments")
                 .Columns.Single(column => column.Name == "Amount").StoreType);
         Assert.Equal(
             "decimal(19,4)",
-            relationalModel.Tables.Single(table => table.Name == "ObligationSettlements")
+            relationalModel.Tables.Single(table => table.Name == "DebtPaymentAllocations")
                 .Columns.Single(column => column.Name == "Amount").StoreType);
     }
 
     [Fact]
-    public async Task ObligationRoundTrip_MaterializesItsSettlementFromTheBackingField()
+    public async Task SingleDebtRoundTrip_MaterializesItsSettlementFromThePayments()
     {
         var options = new DbContextOptionsBuilder<BusinessFinanceDbContext>()
             .UseInMemoryDatabase($"obligation-round-trip-{Guid.NewGuid():N}")
@@ -78,7 +94,7 @@ public sealed class FinancialEntityMappingTests
         var category = new Category(
             Guid.NewGuid(), userId, "Tedarik", CategoryType.Expense);
         var counterparty = new Counterparty(Guid.NewGuid(), userId, "Sentetik Tedarikçi");
-        var obligation = new Obligation(
+        var obligation = Debt.CreateSingle(
             Guid.NewGuid(),
             userId,
             category,
@@ -102,15 +118,17 @@ public sealed class FinancialEntityMappingTests
         }
 
         await using var readContext = new BusinessFinanceDbContext(options);
-        var persisted = await readContext.Obligations
-            .Include(item => item.Settlement)
+        var persisted = await readContext.Debts
+            .Include(debt => debt.Items)
+            .Include(debt => debt.Payments).ThenInclude(payment => payment.Allocations)
             .AsNoTracking()
             .SingleAsync();
 
         Assert.Equal(ObligationStatus.Settled, persisted.Status);
         Assert.NotNull(persisted.Settlement);
-        Assert.Equal(new Money(125.50m, CurrencyCode.TRY), persisted.Amount);
+        Assert.Equal(new Money(125.50m, CurrencyCode.TRY), persisted.Principal);
         Assert.Equal(-125.50m, persisted.Settlement.SignedAccountEffect);
+        Assert.Equal(persisted.Id, Assert.Single(persisted.Items).Id);
     }
 
     [Fact]

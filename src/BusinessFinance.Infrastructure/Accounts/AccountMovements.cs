@@ -191,8 +191,8 @@ internal static class AccountMovements
                 Date = installment.PaymentDate!.Value,
                 EntryAtUtc = installment.PaidAtUtc,
                 Amount = debt.Direction == DebtDirection.Receivable
-                    ? installment.Amount.Amount
-                    : -installment.Amount.Amount,
+                    ? installment.Amount
+                    : -installment.Amount,
                 TransactionId = null
             };
 
@@ -265,8 +265,7 @@ internal static class AccountMovements
                 CounterAccountId = (Guid?)null,
                 CategoryId = (Guid?)null,
                 CreditCardId = (Guid?)null,
-                CounterpartyId = dbContext.Obligations.Where(o => o.UserId == userId && o.Id == settlement.ObligationId)
-                    .Select(o => o.CounterpartyId).FirstOrDefault(),
+                CounterpartyId = settlement.CounterpartyId,
                 PartAmount = (decimal?)null,
                 Part = (string?)null,
                 Group = 2,
@@ -275,8 +274,8 @@ internal static class AccountMovements
                 Date = settlement.SettlementDate,
                 EntryAtUtc = (DateTimeOffset?)settlement.SettledAtUtc,
                 Amount = settlement.Direction == DebtDirection.Receivable
-                    ? settlement.Amount.Amount
-                    : -settlement.Amount.Amount,
+                    ? settlement.Amount
+                    : -settlement.Amount,
                 TransactionId = null
             });
 

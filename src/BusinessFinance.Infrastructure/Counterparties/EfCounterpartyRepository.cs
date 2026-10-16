@@ -371,6 +371,8 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
     /// </remarks>
     private IQueryable<BalanceRow> ProjectBalances(Guid userId, DateOnly asOfDate)
     {
+        var obligations = dbContext.Obligations;
+        var settlements = dbContext.ObligationSettlements;
         return dbContext.Counterparties
             .AsNoTracking()
             .Where(counterparty => counterparty.UserId == userId)
@@ -440,21 +442,25 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
                 // Kişiye bağlı açık yükümlülük cari bakiyeye girmez; toplamı
                 // yalnız bilgi olarak yanında döner.
                 OpenReceivableObligations =
-                    dbContext.Obligations
+                    obligations
                         .Where(obligation => obligation.UserId == userId &&
                                              obligation.CounterpartyId == counterparty.Id &&
                                              !obligation.IsCancelled &&
-                                             obligation.Settlement == null &&
+                                             !settlements.Any(settlement =>
+                                                 settlement.UserId == userId &&
+                                                 settlement.ObligationId == obligation.Id) &&
                                              obligation.Direction == DebtDirection.Receivable)
-                        .Sum(obligation => (decimal?)obligation.Amount.Amount) ?? 0m,
+                        .Sum(obligation => (decimal?)obligation.Amount) ?? 0m,
                 OpenPayableObligations =
-                    dbContext.Obligations
+                    obligations
                         .Where(obligation => obligation.UserId == userId &&
                                              obligation.CounterpartyId == counterparty.Id &&
                                              !obligation.IsCancelled &&
-                                             obligation.Settlement == null &&
+                                             !settlements.Any(settlement =>
+                                                 settlement.UserId == userId &&
+                                                 settlement.ObligationId == obligation.Id) &&
                                              obligation.Direction == DebtDirection.Payable)
-                        .Sum(obligation => (decimal?)obligation.Amount.Amount) ?? 0m
+                        .Sum(obligation => (decimal?)obligation.Amount) ?? 0m
             });
     }
 

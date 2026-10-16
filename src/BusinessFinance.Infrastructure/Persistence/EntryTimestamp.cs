@@ -25,8 +25,9 @@ internal static class EntryTimestamp
     public const string PropertyName = "CreatedAtUtc";
 
     /// <summary>
-    /// Kendi giriş anını taşımayan finansal kayıtlar. POS tahsilatı, yatış,
-    /// yükümlülük ve kapanışı ile borç taksidi bu bilgiyi zaten taşıyor.
+    /// Kendi giriş anını taşımayan finansal kayıtlar. POS tahsilatı, yatış ve
+    /// borç ödemesi bu bilgiyi zaten taşıyor. Borç tek ödemeliyse anını kendisi
+    /// taşır; taksitliyse boştur ve burada yazılır.
     /// </summary>
     private static readonly Type[] StampedTypes =
     [
@@ -36,7 +37,7 @@ internal static class EntryTimestamp
         typeof(CreditCardPayment),
         typeof(CounterpartyCharge),
         typeof(CounterpartyPayment),
-        typeof(DebtAgreement),
+        typeof(Debt),
     ];
 
     public static void Configure(ModelBuilder builder)

@@ -452,19 +452,19 @@ public sealed class FinancialActivityEndpointTests
             var expenseCategory = await db.Categories.SingleAsync(item => item.Id == expense.Id);
             var incomeCategory = await db.Categories.SingleAsync(item => item.Id == income.Id);
             var createdAt = new DateTimeOffset(2026, 8, 15, 9, 0, 0, TimeSpan.Zero);
-            var payable = new Obligation(
+            var payable = Debt.CreateSingle(
                 Guid.NewGuid(), userId, expenseCategory, DebtDirection.Payable,
                 new Money(450m, CurrencyCode.TRY), TransactionScope.Business,
                 new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 10), createdAt,
                 description: "Electricity");
-            var receivable = new Obligation(
+            var receivable = Debt.CreateSingle(
                 Guid.NewGuid(), userId, incomeCategory, DebtDirection.Receivable,
                 new Money(300m, CurrencyCode.TRY), TransactionScope.Personal,
                 new DateOnly(2026, 8, 2), new DateOnly(2026, 8, 20), createdAt,
                 description: "Refund");
             payableId = payable.Id;
             receivableId = receivable.Id;
-            db.Obligations.AddRange(payable, receivable);
+            db.Debts.AddRange(payable, receivable);
             await db.SaveChangesAsync();
         }
 

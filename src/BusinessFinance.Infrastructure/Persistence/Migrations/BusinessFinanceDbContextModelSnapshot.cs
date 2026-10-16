@@ -715,7 +715,7 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("BusinessFinance.Domain.DebtAgreement", b =>
+            modelBuilder.Entity("BusinessFinance.Domain.Debt", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -725,10 +725,13 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .HasPrecision(7, 4)
                         .HasColumnType("decimal(7,4)");
 
+                    b.Property<DateTimeOffset?>("CancelledAtUtc")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<Guid?>("CategoryId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("CounterpartyId")
+                    b.Property<Guid?>("CounterpartyId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTimeOffset?>("CreatedAtUtc")
@@ -747,8 +750,14 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.Property<int>("InstallmentCount")
                         .HasColumnType("int");
 
+                    b.Property<bool>("IsCancelled")
+                        .HasColumnType("bit");
+
                     b.Property<Guid?>("OpeningAccountId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte>("PlanKind")
+                        .HasColumnType("tinyint");
 
                     b.Property<byte>("Scope")
                         .HasColumnType("tinyint");
@@ -764,48 +773,137 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId", "CategoryId");
-
-                    b.HasIndex("UserId", "CounterpartyId")
-                        .HasDatabaseName("IX_DebtAgreements_UserId_CounterpartyId");
-
-                    b.HasIndex("UserId", "Direction");
-
                     b.HasIndex("UserId", "OpeningAccountId");
 
-                    b.ToTable("DebtAgreements", null, t =>
+                    b.HasIndex("UserId", "CategoryId", "StartDate")
+                        .HasDatabaseName("IX_Debts_UserId_CategoryId_StartDate");
+
+                    b.HasIndex("UserId", "CounterpartyId", "IsCancelled")
+                        .HasDatabaseName("IX_Debts_UserId_CounterpartyId_Cancelled");
+
+                    b.HasIndex("UserId", "PlanKind", "IsCancelled", "FirstDueDate")
+                        .HasDatabaseName("IX_Debts_UserId_PlanKind_Cancelled_FirstDueDate");
+
+                    b.ToTable("Debts", null, t =>
                         {
-                            t.HasCheckConstraint("CK_DebtAgreements_Currency", "[Currency] = 'TRY' AND [TotalCurrency] = [Currency]");
+                            t.HasCheckConstraint("CK_Debts_Currency", "[Currency] = 'TRY' AND [TotalCurrency] = [Currency]");
 
-                            t.HasCheckConstraint("CK_DebtAgreements_DateRange", "[FirstDueDate] >= [StartDate]");
+                            t.HasCheckConstraint("CK_Debts_DateRange", "[FirstDueDate] >= [StartDate]");
 
-                            t.HasCheckConstraint("CK_DebtAgreements_Direction", "[Direction] IN (1, 2)");
+                            t.HasCheckConstraint("CK_Debts_Direction", "[Direction] IN (1, 2)");
 
-                            t.HasCheckConstraint("CK_DebtAgreements_DirectionalSource", "([Direction] = 1 AND [SourceType] <> 3) OR ([Direction] = 2 AND [SourceType] <> 2)");
+                            t.HasCheckConstraint("CK_Debts_DirectionalSource", "([Direction] = 1 AND [SourceType] <> 3) OR ([Direction] = 2 AND [SourceType] <> 2)");
 
-                            t.HasCheckConstraint("CK_DebtAgreements_InstallmentCount", "[InstallmentCount] BETWEEN 1 AND 360");
+                            t.HasCheckConstraint("CK_Debts_InstallmentCount", "[InstallmentCount] BETWEEN 1 AND 360");
 
-                            t.HasCheckConstraint("CK_DebtAgreements_InterestRate", "[AnnualInterestRate] >= 0 AND [AnnualInterestRate] <= 1000");
+                            t.HasCheckConstraint("CK_Debts_InterestRate", "[AnnualInterestRate] >= 0 AND [AnnualInterestRate] <= 1000");
 
-                            t.HasCheckConstraint("CK_DebtAgreements_Principal", "[Principal] > 0");
+                            t.HasCheckConstraint("CK_Debts_PlanKind", "[PlanKind] IN (1, 2)");
 
-                            t.HasCheckConstraint("CK_DebtAgreements_Scope", "[Scope] IN (1, 2)");
+                            t.HasCheckConstraint("CK_Debts_Principal", "[Principal] > 0");
 
-                            t.HasCheckConstraint("CK_DebtAgreements_Source", "([SourceType] = 0 AND [OpeningAccountId] IS NULL AND [CategoryId] IS NULL) OR ([SourceType] = 1 AND [OpeningAccountId] IS NOT NULL AND [CategoryId] IS NULL) OR ([SourceType] IN (2, 3) AND [OpeningAccountId] IS NULL AND [CategoryId] IS NOT NULL)");
+                            t.HasCheckConstraint("CK_Debts_Scope", "[Scope] IN (1, 2)");
 
-                            t.HasCheckConstraint("CK_DebtAgreements_SourceType", "[SourceType] IN (0, 1, 2, 3)");
+                            t.HasCheckConstraint("CK_Debts_SinglePlan", "[PlanKind] <> 1 OR [InstallmentCount] = 1");
 
-                            t.HasCheckConstraint("CK_DebtAgreements_TotalRepayment", "[TotalRepayment] >= [Principal]");
+                            t.HasCheckConstraint("CK_Debts_Source", "([SourceType] = 0 AND [OpeningAccountId] IS NULL AND [CategoryId] IS NULL) OR ([SourceType] = 1 AND [OpeningAccountId] IS NOT NULL AND [CategoryId] IS NULL) OR ([SourceType] IN (2, 3) AND [OpeningAccountId] IS NULL AND [CategoryId] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Debts_SourceType", "[SourceType] IN (0, 1, 2, 3)");
+
+                            t.HasCheckConstraint("CK_Debts_TotalRepayment", "[TotalRepayment] >= [Principal]");
                         });
                 });
 
-            modelBuilder.Entity("BusinessFinance.Domain.DebtInstallment", b =>
+            modelBuilder.Entity("BusinessFinance.Domain.DebtPayment", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("DebtAgreementId")
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("CancelledAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("DebtId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte>("Direction")
+                        .HasColumnType("tinyint");
+
+                    b.Property<bool>("IsCancelled")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset>("PaidAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateOnly>("PaymentDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("PosSettlementId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "DebtId")
+                        .HasDatabaseName("IX_DebtPayments_UserId_DebtId");
+
+                    b.HasIndex("UserId", "PosSettlementId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_DebtPayments_UserId_PosSettlementId")
+                        .HasFilter("[PosSettlementId] IS NOT NULL");
+
+                    b.HasIndex("UserId", "AccountId", "PaymentDate")
+                        .HasDatabaseName("IX_DebtPayments_UserId_AccountId_Date");
+
+                    b.ToTable("DebtPayments", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_DebtPayments_Amount", "[Amount] > 0");
+
+                            t.HasCheckConstraint("CK_DebtPayments_Currency", "[Currency] = 'TRY'");
+
+                            t.HasCheckConstraint("CK_DebtPayments_Direction", "[Direction] IN (1, 2)");
+                        });
+                });
+
+            modelBuilder.Entity("BusinessFinance.Domain.DebtPaymentAllocation", b =>
+                {
+                    b.Property<Guid>("PaymentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ScheduleItemId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("decimal(19,4)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("PaymentId", "ScheduleItemId");
+
+                    b.HasIndex("UserId", "PaymentId");
+
+                    b.HasIndex("UserId", "ScheduleItemId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_DebtPaymentAllocations_UserId_ScheduleItemId");
+
+                    b.ToTable("DebtPaymentAllocations", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_DebtPaymentAllocations_Amount", "[Amount] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("BusinessFinance.Domain.DebtScheduleItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("DebtId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateOnly>("DueDate")
@@ -814,15 +912,6 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.Property<decimal?>("InterestPortion")
                         .HasPrecision(19, 4)
                         .HasColumnType("decimal(19,4)");
-
-                    b.Property<DateTimeOffset?>("PaidAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid?>("PaymentAccountId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateOnly?>("PaymentDate")
-                        .HasColumnType("date");
 
                     b.Property<decimal?>("PrincipalPortion")
                         .HasPrecision(19, 4)
@@ -834,30 +923,20 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<byte[]>("Version")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.HasKey("Id");
 
                     b.HasIndex("UserId", "DueDate");
 
-                    b.HasIndex("UserId", "PaymentAccountId");
-
-                    b.HasIndex("UserId", "DebtAgreementId", "Sequence")
+                    b.HasIndex("UserId", "DebtId", "Sequence")
                         .IsUnique();
 
-                    b.ToTable("DebtInstallments", null, t =>
+                    b.ToTable("DebtScheduleItems", null, t =>
                         {
-                            t.HasCheckConstraint("CK_DebtInstallments_Amount", "[Amount] > 0");
+                            t.HasCheckConstraint("CK_DebtScheduleItems_Amount", "[Amount] > 0");
 
-                            t.HasCheckConstraint("CK_DebtInstallments_Payment", "([PaymentAccountId] IS NULL AND [PaymentDate] IS NULL AND [PaidAtUtc] IS NULL) OR ([PaymentAccountId] IS NOT NULL AND [PaymentDate] IS NOT NULL AND [PaidAtUtc] IS NOT NULL)");
+                            t.HasCheckConstraint("CK_DebtScheduleItems_Sequence", "[Sequence] >= 1");
 
-                            t.HasCheckConstraint("CK_DebtInstallments_Sequence", "[Sequence] >= 1");
-
-                            t.HasCheckConstraint("CK_DebtInstallments_Split", "([PrincipalPortion] IS NULL AND [InterestPortion] IS NULL) OR ([PrincipalPortion] IS NOT NULL AND [InterestPortion] IS NOT NULL AND [PrincipalPortion] >= 0 AND [InterestPortion] >= 0 AND [PrincipalPortion] + [InterestPortion] = [Amount])");
+                            t.HasCheckConstraint("CK_DebtScheduleItems_Split", "([PrincipalPortion] IS NULL AND [InterestPortion] IS NULL) OR ([PrincipalPortion] IS NOT NULL AND [InterestPortion] IS NOT NULL AND [PrincipalPortion] >= 0 AND [InterestPortion] >= 0 AND [PrincipalPortion] + [InterestPortion] = [Amount])");
                         });
                 });
 
@@ -1249,130 +1328,6 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("CK_MonthlyBudgets_Scope", "[Scope] IN (1, 2)");
 
                             t.HasCheckConstraint("CK_MonthlyBudgets_Year", "[Year] BETWEEN 2000 AND 2100");
-                        });
-                });
-
-            modelBuilder.Entity("BusinessFinance.Domain.Obligation", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset?>("CancelledAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid>("CategoryId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("CounterpartyId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<byte>("Direction")
-                        .HasColumnType("tinyint");
-
-                    b.Property<DateOnly>("DueDate")
-                        .HasColumnType("date");
-
-                    b.Property<bool>("IsCancelled")
-                        .HasColumnType("bit");
-
-                    b.Property<DateOnly>("IssueDate")
-                        .HasColumnType("date");
-
-                    b.Property<byte>("Scope")
-                        .HasColumnType("tinyint");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId", "CategoryId", "IssueDate")
-                        .HasDatabaseName("IX_Obligations_UserId_CategoryId_IssueDate");
-
-                    b.HasIndex("UserId", "CounterpartyId", "IsCancelled", "DueDate")
-                        .HasDatabaseName("IX_Obligations_UserId_CounterpartyId_Cancelled_DueDate");
-
-                    b.HasIndex("UserId", "IsCancelled", "DueDate", "Direction")
-                        .HasDatabaseName("IX_Obligations_UserId_Cancelled_DueDate_Direction");
-
-                    b.ToTable("Obligations", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_Obligations_Amount", "[Amount] > 0");
-
-                            t.HasCheckConstraint("CK_Obligations_Currency", "[Currency] = 1");
-
-                            t.HasCheckConstraint("CK_Obligations_Direction", "[Direction] IN (1, 2)");
-
-                            t.HasCheckConstraint("CK_Obligations_DueDate", "[DueDate] >= [IssueDate]");
-
-                            t.HasCheckConstraint("CK_Obligations_Scope", "[Scope] IN (1, 2)");
-                        });
-                });
-
-            modelBuilder.Entity("BusinessFinance.Domain.ObligationSettlement", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("AccountId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset?>("CancelledAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<byte>("Direction")
-                        .HasColumnType("tinyint");
-
-                    b.Property<bool>("IsCancelled")
-                        .HasColumnType("bit");
-
-                    b.Property<Guid>("ObligationId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("PosSettlementId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset>("SettledAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<DateOnly>("SettlementDate")
-                        .HasColumnType("date");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasAlternateKey("UserId", "Id");
-
-                    b.HasIndex("UserId", "ObligationId")
-                        .IsUnique()
-                        .HasDatabaseName("UX_ObligationSettlements_UserId_ObligationId");
-
-                    b.HasIndex("UserId", "PosSettlementId")
-                        .IsUnique()
-                        .HasDatabaseName("UX_ObligationSettlements_UserId_PosSettlementId")
-                        .HasFilter("[PosSettlementId] IS NOT NULL");
-
-                    b.HasIndex("UserId", "AccountId", "SettlementDate")
-                        .HasDatabaseName("IX_ObligationSettlements_UserId_AccountId_Date");
-
-                    b.ToTable("ObligationSettlements", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_ObligationSettlements_Amount", "[Amount] > 0");
-
-                            t.HasCheckConstraint("CK_ObligationSettlements_Currency", "[Currency] = 1");
-
-                            t.HasCheckConstraint("CK_ObligationSettlements_Direction", "[Direction] IN (1, 2)");
                         });
                 });
 
@@ -2719,7 +2674,7 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("BusinessFinance.Domain.DebtAgreement", b =>
+            modelBuilder.Entity("BusinessFinance.Domain.Debt", b =>
                 {
                     b.HasOne("BusinessFinance.Infrastructure.Identity.ApplicationUser", null)
                         .WithMany()
@@ -2737,8 +2692,7 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("UserId", "CounterpartyId")
                         .HasPrincipalKey("UserId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("BusinessFinance.Domain.Account", null)
                         .WithMany()
@@ -2748,7 +2702,7 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
 
                     b.OwnsOne("BusinessFinance.Domain.Money", "Principal", b1 =>
                         {
-                            b1.Property<Guid>("DebtAgreementId")
+                            b1.Property<Guid>("DebtId")
                                 .HasColumnType("uniqueidentifier");
 
                             b1.Property<decimal>("Amount")
@@ -2763,17 +2717,17 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                                 .HasColumnType("varchar(3)")
                                 .HasColumnName("Currency");
 
-                            b1.HasKey("DebtAgreementId");
+                            b1.HasKey("DebtId");
 
-                            b1.ToTable("DebtAgreements");
+                            b1.ToTable("Debts");
 
                             b1.WithOwner()
-                                .HasForeignKey("DebtAgreementId");
+                                .HasForeignKey("DebtId");
                         });
 
                     b.OwnsOne("BusinessFinance.Domain.Money", "TotalRepayment", b1 =>
                         {
-                            b1.Property<Guid>("DebtAgreementId")
+                            b1.Property<Guid>("DebtId")
                                 .HasColumnType("uniqueidentifier");
 
                             b1.Property<decimal>("Amount")
@@ -2788,12 +2742,12 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                                 .HasColumnType("varchar(3)")
                                 .HasColumnName("TotalCurrency");
 
-                            b1.HasKey("DebtAgreementId");
+                            b1.HasKey("DebtId");
 
-                            b1.ToTable("DebtAgreements");
+                            b1.ToTable("Debts");
 
                             b1.WithOwner()
-                                .HasForeignKey("DebtAgreementId");
+                                .HasForeignKey("DebtId");
                         });
 
                     b.Navigation("Principal")
@@ -2803,24 +2757,37 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("BusinessFinance.Domain.DebtInstallment", b =>
+            modelBuilder.Entity("BusinessFinance.Domain.DebtPayment", b =>
                 {
-                    b.HasOne("BusinessFinance.Domain.DebtAgreement", null)
-                        .WithMany("Installments")
-                        .HasForeignKey("UserId", "DebtAgreementId")
-                        .HasPrincipalKey("UserId", "Id")
-                        .OnDelete(DeleteBehavior.Cascade)
+                    b.HasOne("BusinessFinance.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("BusinessFinance.Domain.Account", null)
                         .WithMany()
-                        .HasForeignKey("UserId", "PaymentAccountId")
+                        .HasForeignKey("UserId", "AccountId")
+                        .HasPrincipalKey("UserId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BusinessFinance.Domain.Debt", null)
+                        .WithMany("Payments")
+                        .HasForeignKey("UserId", "DebtId")
+                        .HasPrincipalKey("UserId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BusinessFinance.Domain.PosSettlement", null)
+                        .WithMany()
+                        .HasForeignKey("UserId", "PosSettlementId")
                         .HasPrincipalKey("UserId", "Id")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.OwnsOne("BusinessFinance.Domain.Money", "Amount", b1 =>
                         {
-                            b1.Property<Guid>("DebtInstallmentId")
+                            b1.Property<Guid>("DebtPaymentId")
                                 .HasColumnType("uniqueidentifier");
 
                             b1.Property<decimal>("Amount")
@@ -2835,12 +2802,67 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                                 .HasColumnType("varchar(3)")
                                 .HasColumnName("Currency");
 
-                            b1.HasKey("DebtInstallmentId");
+                            b1.HasKey("DebtPaymentId");
 
-                            b1.ToTable("DebtInstallments");
+                            b1.ToTable("DebtPayments");
 
                             b1.WithOwner()
-                                .HasForeignKey("DebtInstallmentId");
+                                .HasForeignKey("DebtPaymentId");
+                        });
+
+                    b.Navigation("Amount")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BusinessFinance.Domain.DebtPaymentAllocation", b =>
+                {
+                    b.HasOne("BusinessFinance.Domain.DebtPayment", null)
+                        .WithMany("Allocations")
+                        .HasForeignKey("UserId", "PaymentId")
+                        .HasPrincipalKey("UserId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BusinessFinance.Domain.DebtScheduleItem", null)
+                        .WithMany()
+                        .HasForeignKey("UserId", "ScheduleItemId")
+                        .HasPrincipalKey("UserId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BusinessFinance.Domain.DebtScheduleItem", b =>
+                {
+                    b.HasOne("BusinessFinance.Domain.Debt", null)
+                        .WithMany("Items")
+                        .HasForeignKey("UserId", "DebtId")
+                        .HasPrincipalKey("UserId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.OwnsOne("BusinessFinance.Domain.Money", "Amount", b1 =>
+                        {
+                            b1.Property<Guid>("DebtScheduleItemId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(19, 4)
+                                .HasColumnType("decimal(19,4)")
+                                .HasColumnName("Amount");
+
+                            b1.Property<string>("Currency")
+                                .IsRequired()
+                                .HasMaxLength(3)
+                                .IsUnicode(false)
+                                .HasColumnType("varchar(3)")
+                                .HasColumnName("Currency");
+
+                            b1.HasKey("DebtScheduleItemId");
+
+                            b1.ToTable("DebtScheduleItems");
+
+                            b1.WithOwner()
+                                .HasForeignKey("DebtScheduleItemId");
                         });
 
                     b.Navigation("Amount")
@@ -3039,107 +3061,6 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         });
 
                     b.Navigation("Limit")
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("BusinessFinance.Domain.Obligation", b =>
-                {
-                    b.HasOne("BusinessFinance.Infrastructure.Identity.ApplicationUser", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("BusinessFinance.Domain.Category", null)
-                        .WithMany()
-                        .HasForeignKey("UserId", "CategoryId")
-                        .HasPrincipalKey("UserId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("BusinessFinance.Domain.Counterparty", null)
-                        .WithMany()
-                        .HasForeignKey("UserId", "CounterpartyId")
-                        .HasPrincipalKey("UserId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.OwnsOne("BusinessFinance.Domain.Money", "Amount", b1 =>
-                        {
-                            b1.Property<Guid>("ObligationId")
-                                .HasColumnType("uniqueidentifier");
-
-                            b1.Property<decimal>("Amount")
-                                .HasPrecision(19, 4)
-                                .HasColumnType("decimal(19,4)")
-                                .HasColumnName("Amount");
-
-                            b1.Property<byte>("Currency")
-                                .HasColumnType("tinyint")
-                                .HasColumnName("Currency");
-
-                            b1.HasKey("ObligationId");
-
-                            b1.ToTable("Obligations");
-
-                            b1.WithOwner()
-                                .HasForeignKey("ObligationId");
-                        });
-
-                    b.Navigation("Amount")
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("BusinessFinance.Domain.ObligationSettlement", b =>
-                {
-                    b.HasOne("BusinessFinance.Infrastructure.Identity.ApplicationUser", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("BusinessFinance.Domain.Account", null)
-                        .WithMany()
-                        .HasForeignKey("UserId", "AccountId")
-                        .HasPrincipalKey("UserId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("BusinessFinance.Domain.Obligation", null)
-                        .WithOne("Settlement")
-                        .HasForeignKey("BusinessFinance.Domain.ObligationSettlement", "UserId", "ObligationId")
-                        .HasPrincipalKey("BusinessFinance.Domain.Obligation", "UserId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("BusinessFinance.Domain.PosSettlement", null)
-                        .WithMany()
-                        .HasForeignKey("UserId", "PosSettlementId")
-                        .HasPrincipalKey("UserId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.OwnsOne("BusinessFinance.Domain.Money", "Amount", b1 =>
-                        {
-                            b1.Property<Guid>("ObligationSettlementId")
-                                .HasColumnType("uniqueidentifier");
-
-                            b1.Property<decimal>("Amount")
-                                .HasPrecision(19, 4)
-                                .HasColumnType("decimal(19,4)")
-                                .HasColumnName("Amount");
-
-                            b1.Property<byte>("Currency")
-                                .HasColumnType("tinyint")
-                                .HasColumnName("Currency");
-
-                            b1.HasKey("ObligationSettlementId");
-
-                            b1.ToTable("ObligationSettlements");
-
-                            b1.WithOwner()
-                                .HasForeignKey("ObligationSettlementId");
-                        });
-
-                    b.Navigation("Amount")
                         .IsRequired();
                 });
 
@@ -3597,9 +3518,16 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("BusinessFinance.Domain.DebtAgreement", b =>
+            modelBuilder.Entity("BusinessFinance.Domain.Debt", b =>
                 {
-                    b.Navigation("Installments");
+                    b.Navigation("Items");
+
+                    b.Navigation("Payments");
+                });
+
+            modelBuilder.Entity("BusinessFinance.Domain.DebtPayment", b =>
+                {
+                    b.Navigation("Allocations");
                 });
 
             modelBuilder.Entity("BusinessFinance.Domain.ImportBatch", b =>
@@ -3610,11 +3538,6 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("BusinessFinance.Domain.InstallmentPlan", b =>
                 {
                     b.Navigation("Items");
-                });
-
-            modelBuilder.Entity("BusinessFinance.Domain.Obligation", b =>
-                {
-                    b.Navigation("Settlement");
                 });
 
             modelBuilder.Entity("BusinessFinance.Domain.SavingsGoal", b =>

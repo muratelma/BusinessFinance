@@ -74,7 +74,7 @@ public sealed class SettleObligationUseCase(
                 var built = await cardCollectionBuilder.BuildAsync(
                     userId,
                     card with { AccountId = card.AccountId ?? command.AccountId },
-                    obligation.Amount,
+                    obligation.Principal,
                     command.SettlementDate,
                     timeProvider.GetUtcNow().ToUniversalTime(),
                     obligation.Description,
@@ -94,20 +94,22 @@ public sealed class SettleObligationUseCase(
                         accountId, userId, cancellationToken)
                     : null;
                 if (account is null || !account.IsActive ||
-                    account.Currency != obligation.Amount.Currency)
+                    account.Currency != obligation.Principal.Currency)
                 {
                     return ApplicationResult<ObligationDto>.Failure(
                         ObligationErrors.AccountUnavailable);
                 }
             }
 
-            obligation.Settle(
+            var alreadySettled = obligation.Settlement is not null;
+            var payment = obligation.Settle(
                 Guid.NewGuid(),
                 account!,
                 command.SettlementDate,
                 timeProvider.GetUtcNow(),
                 cardSettlement);
-            await repository.SaveSettlementAsync(cardSettlement, cancellationToken);
+            await repository.SaveSettlementAsync(
+                alreadySettled ? null : payment, cardSettlement, cancellationToken);
             return ApplicationResult<ObligationDto>.Success(ToDto(obligation));
         }
         catch (ObligationConcurrencyException)
@@ -132,21 +134,21 @@ public sealed class SettleObligationUseCase(
         }
     }
 
-    internal static ObligationDto ToDto(Obligation obligation) => new(
+    internal static ObligationDto ToDto(Debt obligation) => new(
         obligation.Id,
         obligation.CounterpartyId,
-        obligation.CategoryId,
+        obligation.CategoryId!.Value,
         obligation.Direction,
-        obligation.Amount.Amount,
-        obligation.Amount.Currency,
+        obligation.Principal.Amount,
+        obligation.Principal.Currency,
         obligation.Scope,
-        obligation.IssueDate,
+        obligation.StartDate,
         obligation.DueDate,
         obligation.Description,
         obligation.Status,
         SettlementId: obligation.Settlement?.Id,
         SettlementAccountId: obligation.Settlement?.AccountId,
-        SettlementDate: obligation.Settlement?.SettlementDate);
+        SettlementDate: obligation.Settlement?.PaymentDate);
 }
 
 /// <summary>

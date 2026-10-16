@@ -155,7 +155,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                                 (item.PaymentDate == date &&
                                  item.PaidAtUtc != null &&
                                  item.PaidAtUtc > entryAt)))
-                .SumAsync(item => item.Amount.Amount, cancellationToken);
+                .SumAsync(item => item.Amount, cancellationToken);
             balances.Add(new ActivityBalanceAfter(
                 ActivityBalanceHolder.Debt,
                 debtId,
@@ -816,7 +816,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 on new { installment.UserId, Id = installment.PaymentAccountId!.Value }
                 equals new { account.UserId, account.Id }
             join counterparty in dbContext.Counterparties.AsNoTracking()
-                on new { debt.UserId, Id = debt.CounterpartyId }
+                on new { debt.UserId, Id = debt.CounterpartyId!.Value }
                 equals new { counterparty.UserId, counterparty.Id }
             where installment.UserId == userId && installment.PaymentAccountId != null
             select new ActivityRow
@@ -830,14 +830,14 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Origin = (int)FinancialActivityOrigin.Manual,
                 Status = (int)FinancialActivityStatus.Realized,
                 ActivityDate = installment.PaymentDate!.Value,
-                Amount = installment.Amount.Amount,
+                Amount = installment.Amount,
                 // Debt money stores its currency as varchar while every other money
                 // column is tinyint, so a plain cast would ask SQL Server to turn 'TRY'
                 // into an int. Compare instead, which translates to a CASE over the
                 // string column and keeps the union's column types aligned. An unknown
                 // currency lands on 0 and is rejected loudly in Map rather than being
                 // silently read back as a different currency.
-                Currency = installment.Amount.Currency == CurrencyCode.TRY
+                Currency = installment.Currency == CurrencyCode.TRY
                     ? (int)CurrencyCode.TRY
                     : 0,
                 Title = debt.Description ?? counterparty.Name,
@@ -880,7 +880,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 on new { debt.UserId, Id = debt.OpeningAccountId!.Value }
                 equals new { account.UserId, account.Id }
             join counterparty in dbContext.Counterparties.AsNoTracking()
-                on new { debt.UserId, Id = debt.CounterpartyId }
+                on new { debt.UserId, Id = debt.CounterpartyId!.Value }
                 equals new { counterparty.UserId, counterparty.Id }
             where debt.UserId == userId && debt.SourceType == DebtSourceType.Cash
             select new ActivityRow
@@ -933,7 +933,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 on new { debt.UserId, Id = debt.CategoryId!.Value }
                 equals new { category.UserId, category.Id }
             join counterparty in dbContext.Counterparties.AsNoTracking()
-                on new { debt.UserId, Id = debt.CounterpartyId }
+                on new { debt.UserId, Id = debt.CounterpartyId!.Value }
                 equals new { counterparty.UserId, counterparty.Id }
             where debt.UserId == userId &&
                   (debt.SourceType == DebtSourceType.Expense ||
@@ -1157,8 +1157,12 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                     ? (int)FinancialActivityStatus.Cancelled
                     : (int)FinancialActivityStatus.Realized,
                 ActivityDate = obligation.IssueDate,
-                Amount = obligation.Amount.Amount,
-                Currency = (int)obligation.Amount.Currency,
+                Amount = obligation.Amount,
+                // Tek borç modelinde para birimi metindir; düz dönüşüm SQL'e 'TRY'yi
+                // sayıya çevirtirdi (taksit satırındaki gerekçe).
+                Currency = obligation.Currency == CurrencyCode.TRY
+                    ? (int)CurrencyCode.TRY
+                    : 0,
                 Title = obligation.Description ??
                         (counterparty == null ? category.Name : counterparty.Name),
                 Description = obligation.Description,
@@ -1251,8 +1255,10 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                     ? (int)FinancialActivityStatus.Cancelled
                     : (int)FinancialActivityStatus.Realized,
                 ActivityDate = settlement.SettlementDate,
-                Amount = settlement.Amount.Amount,
-                Currency = (int)settlement.Amount.Currency,
+                Amount = settlement.Amount,
+                Currency = settlement.Currency == CurrencyCode.TRY
+                    ? (int)CurrencyCode.TRY
+                    : 0,
                 Title = obligation.Description ??
                         (counterparty == null ? category.Name : counterparty.Name),
                 Description = obligation.Description,

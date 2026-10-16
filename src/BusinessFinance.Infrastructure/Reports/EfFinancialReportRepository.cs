@@ -227,7 +227,7 @@ internal sealed class EfFinancialReportRepository(
             {
                 Direction = group.Key,
                 Amount = group.Sum(item =>
-                    item.installment.PrincipalPortion ?? item.installment.Amount.Amount)
+                    item.installment.PrincipalPortion ?? item.installment.Amount)
             })
             .ToDictionaryAsync(item => item.Direction, item => item.Amount, cancellationToken);
         // Açık cari de net varlığın parçasıdır: veresiye satılan mal artık
@@ -284,7 +284,7 @@ internal sealed class EfFinancialReportRepository(
             .Select(group => new
             {
                 Direction = group.Key,
-                Amount = group.Sum(item => item.Amount.Amount)
+                Amount = group.Sum(item => item.Amount)
             })
             .ToDictionaryAsync(item => item.Direction, item => item.Amount, cancellationToken);
         var receivableDebt = outstandingDebts.GetValueOrDefault(DebtDirection.Receivable) +

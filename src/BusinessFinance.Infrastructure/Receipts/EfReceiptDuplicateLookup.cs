@@ -109,7 +109,7 @@ internal sealed class EfReceiptDuplicateLookup(BusinessFinanceDbContext dbContex
                     !item.IsCancelled &&
                     item.Direction == direction &&
                     item.IssueDate == date &&
-                    item.Amount.Amount == total &&
+                    item.Amount == total &&
                     ((item.Description != null && item.Description == name) ||
                      dbContext.Counterparties.Any(counterparty =>
                          counterparty.UserId == userId &&
@@ -118,7 +118,7 @@ internal sealed class EfReceiptDuplicateLookup(BusinessFinanceDbContext dbContex
                 .Select(item => new ReceiptDuplicateMatch(
                     item.Id,
                     item.IssueDate,
-                    item.Amount.Amount,
+                    item.Amount,
                     item.Description,
                     ReceiptDuplicateKind.Obligation))
                 .FirstOrDefaultAsync(cancellationToken);
@@ -218,7 +218,7 @@ internal sealed class EfReceiptDuplicateLookup(BusinessFinanceDbContext dbContex
             var receivable = await (
                     from item in dbContext.DebtAgreements.AsNoTracking()
                     join counterparty in dbContext.Counterparties.AsNoTracking()
-                        on new { item.UserId, Id = item.CounterpartyId }
+                        on new { item.UserId, Id = item.CounterpartyId!.Value }
                         equals new { counterparty.UserId, counterparty.Id }
                     where item.UserId == userId &&
                           item.Direction == DebtDirection.Receivable &&

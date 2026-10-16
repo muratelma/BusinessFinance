@@ -1,17 +1,22 @@
 using BusinessFinance.Application.Obligations;
 using BusinessFinance.Domain;
+using BusinessFinance.Infrastructure.Debts;
 using BusinessFinance.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace BusinessFinance.Infrastructure.Obligations;
 
+/// <summary>
+/// Tek ödemeli borçların deposu: eski yükümlülük uçları bu planı okur ve yazar
+/// (ADR 0021 dalga 1).
+/// </summary>
 internal sealed class EfObligationRepository(BusinessFinanceDbContext dbContext)
     : IObligationRepository
 {
-    public async Task AddAsync(Obligation obligation, CancellationToken cancellationToken)
+    public async Task AddAsync(Debt obligation, CancellationToken cancellationToken)
     {
-        await dbContext.Obligations.AddAsync(obligation, cancellationToken);
+        await dbContext.Debts.AddAsync(obligation, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -19,51 +24,52 @@ internal sealed class EfObligationRepository(BusinessFinanceDbContext dbContext)
         Guid userId,
         DateOnly asOfDate,
         CancellationToken cancellationToken) => await (
-            from obligation in dbContext.Obligations.AsNoTracking()
+            from obligation in dbContext.Debts.AsNoTracking()
             join category in dbContext.Categories.AsNoTracking()
                 on new { obligation.UserId, Id = obligation.CategoryId }
-                equals new { category.UserId, category.Id }
+                equals new { category.UserId, Id = (Guid?)category.Id }
             join counterparty in dbContext.Counterparties.AsNoTracking()
                 on new { obligation.UserId, Id = obligation.CounterpartyId }
                 equals new { counterparty.UserId, Id = (Guid?)counterparty.Id }
                 into counterparties
             from counterparty in counterparties.DefaultIfEmpty()
-            where obligation.UserId == userId
-            orderby obligation.DueDate, obligation.Id
+            let settlement = obligation.Payments.FirstOrDefault()
+            where obligation.UserId == userId && obligation.PlanKind == DebtPlanKind.Single
+            orderby obligation.FirstDueDate, obligation.Id
             select new ObligationDto(
                 obligation.Id,
                 obligation.CounterpartyId,
-                obligation.CategoryId,
+                obligation.CategoryId!.Value,
                 obligation.Direction,
-                obligation.Amount.Amount,
-                obligation.Amount.Currency,
+                obligation.Principal.Amount,
+                obligation.Principal.Currency,
                 obligation.Scope,
-                obligation.IssueDate,
-                obligation.DueDate,
+                obligation.StartDate,
+                obligation.FirstDueDate,
                 obligation.Description,
                 obligation.IsCancelled
                     ? ObligationStatus.Cancelled
-                    : obligation.Settlement == null
+                    : settlement == null
                         ? ObligationStatus.Open
                         : ObligationStatus.Settled,
                 counterparty == null ? null : counterparty.Name,
                 category.Name,
-                !obligation.IsCancelled && obligation.Settlement == null &&
-                    obligation.DueDate < asOfDate,
-                obligation.Settlement == null ? null : obligation.Settlement.Id,
-                obligation.Settlement == null ? null : obligation.Settlement.AccountId,
-                obligation.Settlement == null ? null : obligation.Settlement.SettlementDate))
+                !obligation.IsCancelled && settlement == null &&
+                    obligation.FirstDueDate < asOfDate,
+                settlement == null ? null : settlement.Id,
+                settlement == null ? null : settlement.AccountId,
+                settlement == null ? null : settlement.PaymentDate))
             .ToArrayAsync(cancellationToken);
 
-    public Task<Obligation?> FindOwnedByIdAsync(
+    public Task<Debt?> FindOwnedByIdAsync(
         Guid obligationId,
         Guid userId,
         bool track,
         CancellationToken cancellationToken) =>
-        (track ? dbContext.Obligations : dbContext.Obligations.AsNoTracking())
-            .Include(obligation => obligation.Settlement)
+        EfDebtRepository.Aggregates(track ? dbContext.Debts : dbContext.Debts.AsNoTracking())
             .SingleOrDefaultAsync(
-                obligation => obligation.Id == obligationId && obligation.UserId == userId,
+                obligation => obligation.Id == obligationId && obligation.UserId == userId &&
+                              obligation.PlanKind == DebtPlanKind.Single,
                 cancellationToken);
 
     public Task<PosSettlement?> FindCardSettlementAsync(
@@ -91,6 +97,7 @@ internal sealed class EfObligationRepository(BusinessFinanceDbContext dbContext)
     }
 
     public async Task SaveSettlementAsync(
+        DebtPayment? newPayment,
         PosSettlement? cardSettlement,
         CancellationToken cancellationToken)
     {
@@ -99,12 +106,9 @@ internal sealed class EfObligationRepository(BusinessFinanceDbContext dbContext)
             await dbContext.PosSettlements.AddAsync(cardSettlement, cancellationToken);
         }
 
-        var newSettlement = dbContext.ChangeTracker
-            .Entries<ObligationSettlement>()
-            .SingleOrDefault(entry => entry.State == EntityState.Modified);
-        if (newSettlement is not null)
+        if (newPayment is not null)
         {
-            newSettlement.State = EntityState.Added;
+            DebtPayments.MarkAdded(dbContext, newPayment);
         }
 
         try

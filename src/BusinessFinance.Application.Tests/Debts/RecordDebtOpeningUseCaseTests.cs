@@ -45,7 +45,7 @@ public sealed class RecordDebtOpeningUseCaseTests
         // Kaydedilmiş bir açılışı değiştirmek, geçmişte yazılmış gideri ya da
         // bakiye hareketini geriye dönük silmek olurdu.
         var account = ActiveAccount();
-        var debt = new DebtAgreement(
+        var debt = Debt.CreateInstallments(
             Guid.NewGuid(), UserId, Lender, DebtDirection.Payable,
             TransactionScope.Business,
             new Money(300m, CurrencyCode.TRY), new Money(330m, CurrencyCode.TRY),
@@ -96,7 +96,7 @@ public sealed class RecordDebtOpeningUseCaseTests
             new FakeCategoryRepository(category),
             new FakeCounterpartyRepository(Lender));
 
-    private static DebtAgreement UnrecordedDebt() => DebtAgreement.WithUnrecordedOpening(
+    private static Debt UnrecordedDebt() => Debt.WithUnrecordedOpening(
         Guid.NewGuid(), UserId, Lender, DebtDirection.Payable,
         TransactionScope.Business,
         new Money(300m, CurrencyCode.TRY), new Money(330m, CurrencyCode.TRY),
@@ -247,28 +247,28 @@ public sealed class RecordDebtOpeningUseCaseTests
             throw new NotSupportedException();
     }
 
-    private sealed class FakeDebtRepository(DebtAgreement? debt) : IDebtRepository
+    private sealed class FakeDebtRepository(Debt? debt) : IDebtRepository
     {
         public bool OpeningSaved { get; private set; }
 
-        public Task<DebtAgreement?> FindOwnedByIdAsync(
+        public Task<Debt?> FindOwnedByIdAsync(
             Guid id, Guid userId, bool track, CancellationToken cancellationToken) =>
             Task.FromResult(debt);
 
-        public Task SaveOpeningAsync(DebtAgreement agreement, CancellationToken cancellationToken)
+        public Task SaveOpeningAsync(Debt agreement, CancellationToken cancellationToken)
         {
             OpeningSaved = true;
             return Task.CompletedTask;
         }
 
-        public Task AddAsync(DebtAgreement agreement, CancellationToken cancellationToken) =>
+        public Task AddAsync(Debt agreement, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<IReadOnlyList<DebtAgreement>> ListAsync(
+        public Task<IReadOnlyList<Debt>> ListAsync(
             Guid userId, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task SavePaymentAsync(DebtInstallment installment, CancellationToken cancellationToken) =>
+        public Task SavePaymentAsync(DebtPayment payment, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
     }
 }

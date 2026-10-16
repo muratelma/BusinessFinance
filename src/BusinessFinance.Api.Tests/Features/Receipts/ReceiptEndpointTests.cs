@@ -610,8 +610,9 @@ public sealed class ReceiptEndpointTests
                db.RecurringTransactionOccurrences.Count() +
                db.ImportBatches.Count() +
                db.ImportRows.Count() +
-               db.DebtAgreements.Count() +
-               db.DebtInstallments.Count() +
+               db.Debts.Count() +
+               db.DebtScheduleItems.Count() +
+               db.DebtPayments.Count() +
                db.SavingsGoals.Count() +
                db.SavingsGoalContributions.Count() +
                db.FinancialAttachments.Count();
@@ -637,8 +638,9 @@ public sealed class ReceiptEndpointTests
                db.RecurringTransactionOccurrences.Count(item => item.UserId == userId) +
                db.ImportBatches.Count(item => item.UserId == userId) +
                db.ImportRows.Count(item => item.UserId == userId) +
-               db.DebtAgreements.Count(item => item.UserId == userId) +
-               db.DebtInstallments.Count(item => item.UserId == userId) +
+               db.Debts.Count(item => item.UserId == userId) +
+               db.DebtScheduleItems.Count(item => item.UserId == userId) +
+               db.DebtPayments.Count(item => item.UserId == userId) +
                db.SavingsGoals.Count(item => item.UserId == userId) +
                db.SavingsGoalContributions.Count(item => item.UserId == userId) +
                db.FinancialAttachments.Count(item => item.UserId == userId);

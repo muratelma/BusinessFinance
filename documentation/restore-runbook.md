@@ -476,3 +476,31 @@ API açılışta migration uygulamaz. Yeni şemalı kodla çalıştırmadan önc
 secret'tan yalnız işlem ortamına yüklenir ve ekrana yazılmaz. Pending kayıt
 varsa migration incelenip `dotnet ef database update` ile o hedef yükseltilir;
 health/ready 200 tek başına şemanın güncelliğini kanıtlamaz.
+
+## Tek borç modeli yükseltmesi — 16 Ekim 2026
+
+`MergeObligationsAndDebtAgreements` migration'ı yükümlülük (`Obligations`,
+`ObligationSettlements`) ile borç planını (`DebtAgreements`,
+`DebtInstallments`) tek borç modelinin dört tablosuna taşır: `Debts`,
+`DebtScheduleItems`, `DebtPayments`, `DebtPaymentAllocations` (ADR 0021,
+dalga 1). Yeni tablolar kurulur, eski verinin tamamı **kimlikleriyle**
+kopyalanır, eski tablolar en son düşer. Yükümlülüğün tek kalemi borcun
+kimliğini, kapanış ödemenin kimliğini, ödenmiş taksit hem kalemin hem
+ödemenin kimliğini taşır; gün sonunun saydığı kayıtlar (FK'siz) bu yüzden
+bağlı kalır. Eski para birimi sayısı (1) `TRY` metnine çevrilir; yükümlülük
+yöne göre gider ya da gelir kaynaklı tek kalemli borç olur. Açılışı
+bilinmeyen eski borcun giriş anı ve anapara/faiz ayrımı boş kalır. `Down`
+ters kopyadır; dalga 1'in verisi eski dört tabloda kayıpsız temsil edilir.
+
+**Yedek biçimi ve sürümü değişmedi: v12.** Yazılan dosya yine
+`obligations` (kapanışıyla) ve `debts` (taksitleriyle) listelerini taşır;
+yeni model aynı iki listeyi yazar ve aynı dosyayı geri yükler. Birleşmeden
+önceki kodla alınmış v12 yedeğin geri yüklenmesi, aynı senaryonun yeni kodla
+kurulmuş hâliyle her okumada aynı cevabı verir (kalıcı test). Sürüm dalga
+2'de ilerler.
+
+Yükseltme `BusinessFinanceApiSqlTests` test hedefine uygulandı: içindeki 103
+yükümlülük, 50 kapanış, 97 borç planı ve 407 taksidin (110'u ödenmiş) satır
+sağlama toplamları yükseltmeden önce ve sonra birebir aynı çıktı; her ödemenin
+tutarına eşit bir tahsisi, her tek ödemeli borcun kendi kimliğiyle kalemi var.
+Geliştirme hedefi `BusinessFinance` de kullanıcı onayıyla yükseltildi; 40 yükümlülük, 22 kapanış, 13 borç planı ve 37 taksidin sağlama toplamları önce ve sonra aynı çıktı.

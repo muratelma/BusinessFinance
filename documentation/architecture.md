@@ -787,6 +787,49 @@ açılır ama kilitli değildir — kısmi tahsilat kuraldır, istisna değil.
 listesini değiştiren yazım yalnız onu, para yazan hareket ise gider/kasa
 hedeflerini de yükseltir.
 
+## Tek borç modeli (ADR 0021, dalga 1)
+
+> Aşama 06.3 Grup 8 "Cari, borç ve alacak", dalga 1 (birleşme). Ekran, uçlar,
+> istek/cevap sözleşmeleri, akış türleri ve yedek biçimi değişmedi.
+
+Tek ödemeli yükümlülük ile taksitli borç planı artık **tek kayıttır**: `Debt`.
+Plan borcun kimliği değil ayarıdır (`PlanKind`: `Single = 1`, `Installments = 2`).
+Aşağıdaki iki bölüm ("Tek seferlik yükümlülük", "Borç ve alacak") davranışı
+anlatmaya devam eder; değişen kalıcılıktır.
+
+| Sınıf | Tablo | İçerik |
+|---|---|---|
+| `Debt` | `Debts` | Yön, kapsam, anapara ve toplam, oran, kaynak (`SourceType`), açılış hesabı ya da kategori, başlangıç ve ilk vade, plan, taksit sayısı, açıklama, giriş anı, iptal. Karşı taraf **boş olabilir** (elektrik faturası) |
+| `DebtScheduleItem` | `DebtScheduleItems` | Vade kalemi: sıra, tutar, anapara/faiz payı (eski kalemlerde boş), vade. Ödeme alanı yoktur |
+| `DebtPayment` | `DebtPayments` | Borcun ödemesi ya da tahsilatı: hesap, tutar, gün, an, kartla tahsilde POS kaydı, iptal. **Taşır**, tanımaz |
+| `DebtPaymentAllocation` | `DebtPaymentAllocations` | Ödemenin hangi kalemi ne kadar kapattığı |
+
+- **Kimlikler korunur.** Yükümlülüğün kimliği borcun kimliğidir ve tek kalemi
+  de aynı kimliği taşır; kapanışın kimliği ödemenin kimliğidir; taksidin
+  kimliği hem kalemin hem o taksidin ödemesinin kimliğidir. Gün sonunun
+  saydığı kayıtlar (`DayCloseCountedRecords`, FK'siz) ve akıştaki satır
+  kimlikleri bu yüzden birleşmeden etkilenmedi.
+- **Dalga 1'de bir kalem tek ödemeyle, tam tutarla kapanır.**
+  `UX_DebtPaymentAllocations_UserId_ScheduleItemId` ikinci kapanışı (eşzamanlı
+  yazarı da) durdurur; taksitte ödemenin kimliği taksidinki olduğu için ikinci
+  yazar birincil anahtara da çarpar. Dalga 2'nin kısmi ödemesi bu teklik
+  indeksini kaldırır.
+- **Giriş anı:** tek ödemeli borçta `CreatedAtUtc` oluşturma anıdır (uygulamanın
+  saati); taksitli borçta boş gelir ve `EntryTimestamp` kayıtta yazar. Kolon
+  gerçek bir alandır ve yalnız boşsa yazılır. Açılışı bilinmeyen eski borçta boş
+  kalır, uydurulmaz.
+- **Okumalar dalga 1'de uyum görünümlerinden okur** (`Debts/DebtViews.cs`):
+  `Obligations`, `ObligationSettlements`, `DebtAgreements`, `DebtInstallments`
+  `BusinessFinanceDbContext` üzerinde salt okunur `IQueryable`'lardır ve dört
+  tabloyu eski iki biçimde verir; yazma `Debts` üzerindendir. Taksit görünümü
+  her kalem için tek satır verir (iptal edilmemiş ödeme sol birleşimle
+  bağlanır). Bu görünümler dalga 2'de okumalar tek modele geçince kalkar.
+- Ödemeden borca kaskad yoktur (`Restrict`): SQL Server tahsis tablosuna iki
+  kaskad yolunu kabul etmez; borç zaten silinmez, iptal edilir.
+- Yükseltme `MergeObligationsAndDebtAgreements` migration'ıdır: yeni tablolar
+  kurulur, eski dört tablonun verisi kimlikleriyle kopyalanır, eskiler en son
+  düşer; `Down` ters kopyadır.
+
 ## Tek seferlik yükümlülük
 
 > Aşama 03, Grup 1–7 — Domain modeli, kalıcılık, kanonik planlanan projection,
@@ -818,9 +861,10 @@ nakit etkisi oluşturmaz. Settlement yükümlülüğün tutarını ve yönünü 
 tahsilat hesabı artırır, ödeme azaltır. İptal, yükümlülükle varsa settlement'ı
 birlikte UTC zaman damgasıyla iptal eder; finansal geçmiş fiziksel silinmez.
 
-`Obligations` ve `ObligationSettlements` owner-scoped bileşik ilişkilerle
-kalıcıdır; `(UserId, ObligationId)` tekilliği iki stale yazarın ikinci settlement
-oluşturmasını engeller. Açık yükümlülükler planlanan görünümde kategori ve
+Yükümlülük ve kapanışı tek borç modelinin tablolarında (`Debts`,
+`DebtScheduleItems`, `DebtPayments`, `DebtPaymentAllocations`) owner-scoped
+bileşik ilişkilerle kalıcıdır; kalem başına tahsis tekliği iki stale yazarın
+ikinci kapanışı oluşturmasını engeller (yukarıdaki "Tek borç modeli"). Açık yükümlülükler planlanan görünümde kategori ve
 isteğe bağlı karşı tarafla tek SQL projection'ında okunur. `Open`, gecikme,
 `readiness` ve `attentionCode` saklanmaz: iptal/settlement varlığı ile sorgu
 tarihinden türetilir. Settlement oluştuğu anda satır hem kanonik görünümden hem

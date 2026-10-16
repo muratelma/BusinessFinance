@@ -48,7 +48,8 @@ public sealed class MigrationHistoryTests
         "AddCashCountTransferAdjustment",
         "AddNameKeys",
         "AddDayCloseOverlaps",
-        "AddCategoryRolesAndTransferFees"
+        "AddCategoryRolesAndTransferFees",
+        "MergeObligationsAndDebtAgreements"
     ];
 
     [Fact]

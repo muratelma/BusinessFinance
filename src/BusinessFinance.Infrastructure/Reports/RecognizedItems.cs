@@ -74,6 +74,13 @@ internal static class RecognizedItems
         BusinessFinanceDbContext dbContext,
         Guid userId)
     {
+        // Yükümlülük ile borç planı tek tabloda (ADR 0021); görünümler eski iki
+        // biçimi verir ve satır türleri dalga 1'de değişmez.
+        var agreements = Debts.DebtViews.Agreements(dbContext);
+        var installments = Debts.DebtViews.Installments(dbContext);
+        var obligationRows = Debts.DebtViews.Obligations(dbContext);
+        var obligationSettlements = Debts.DebtViews.ObligationSettlements(dbContext);
+
         // Hesaptan gelir ve gider. Yatışın kesintisi de buradadır: sıradan bir
         // gider olarak yazılır (ADR 0019 T5).
         var transactions = dbContext.Transactions.AsNoTracking()
@@ -124,7 +131,7 @@ internal static class RecognizedItems
         // Gider ya da gelir kaynaklı borcun açılışı tam o gün tanınır: borçta
         // tüketim, alacakta satış. Nakit kaynaklı açılış taşır, burada yoktur.
         // Taksit ödemeleri tanımaz; tanısalardı aynı olay iki kez sayılırdı.
-        var debtOpenings = dbContext.DebtAgreements.AsNoTracking()
+        var debtOpenings = agreements
             .Where(debt => debt.UserId == userId &&
                            (debt.SourceType == DebtSourceType.Expense ||
                             debt.SourceType == DebtSourceType.Income))
@@ -153,8 +160,8 @@ internal static class RecognizedItems
         // tanınır ve gelir/gider rolünün kovasına düşer. Rol yoksa geçmiş
         // faiz kategorisiz kalır; yeni ödeme rolü ilk gerektiğinde açar.
         var debtInterest =
-            from installment in dbContext.DebtInstallments.AsNoTracking()
-            join debt in dbContext.DebtAgreements.AsNoTracking()
+            from installment in installments
+            join debt in agreements
                 on new { installment.UserId, DebtId = installment.DebtAgreementId }
                 equals new { debt.UserId, DebtId = debt.Id }
             where installment.UserId == userId &&
@@ -167,7 +174,7 @@ internal static class RecognizedItems
                 SourceKind = debt.Direction == DebtDirection.Receivable ? (int)FinancialActivityKind.DebtCollection : (int)FinancialActivityKind.DebtPayment,
                 ParentId = installment.Id,
                 ParentKind = debt.Direction == DebtDirection.Receivable ? (int?)FinancialActivityKind.DebtCollection : (int?)FinancialActivityKind.DebtPayment,
-                ParentAmount = installment.Amount.Amount,
+                ParentAmount = installment.Amount,
                 Part = "interest",
                 AccountId = installment.PaymentAccountId,
                 CreditCardId = (Guid?)null,
@@ -212,7 +219,7 @@ internal static class RecognizedItems
             });
 
         // Tek seferlik alacak ve borç doğduğu gün tanınır; kapanışı taşır.
-        var obligations = dbContext.Obligations.AsNoTracking()
+        var obligations = obligationRows
             .Where(obligation => obligation.UserId == userId && !obligation.IsCancelled)
             .Select(obligation => new RecognizedItem
             {
@@ -231,7 +238,7 @@ internal static class RecognizedItems
                 Type = obligation.Direction == DebtDirection.Receivable ? Income : Expense,
                 Scope = (int)obligation.Scope,
                 CategoryId = obligation.CategoryId,
-                Amount = obligation.Amount.Amount
+                Amount = obligation.Amount
             });
 
         // POS satışı tahsil edildiği gün brüt tutarla tanınır, hesaba geçtiği
@@ -275,7 +282,7 @@ internal static class RecognizedItems
                 ParentId = settlement.Kind == PosSettlementKind.Sale ? (Guid?)settlement.Id :
                     dbContext.CounterpartyPayments.Where(p => p.UserId == userId && p.PosSettlementId == settlement.Id)
                         .Select(p => (Guid?)p.Id).FirstOrDefault() ??
-                    dbContext.ObligationSettlements.Where(p => p.UserId == userId && p.PosSettlementId == settlement.Id)
+                    obligationSettlements.Where(p => p.UserId == userId && p.PosSettlementId == settlement.Id)
                         .Select(p => (Guid?)p.Id).FirstOrDefault(),
                 ParentKind = settlement.Kind == PosSettlementKind.Sale ? (int?)FinancialActivityKind.PosSale :
                     dbContext.CounterpartyPayments.Any(p => p.UserId == userId && p.PosSettlementId == settlement.Id)

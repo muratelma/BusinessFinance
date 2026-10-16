@@ -148,8 +148,9 @@ ASP.NET Core API (composition root, ProblemDetails, JWT bearer, rate limit)
       │                 BudgetTransaction, MonthlyBudget, Transfer,
       │                 CreditCard/Charge/Payment, InstallmentPlan,
       │                 RecurringTransaction/Occurrence (+RecurringSourceType),
-      │                 DebtAgreement/Installment, Counterparty +
-      │                 CounterpartyCharge/Payment, Obligation, CashCount,
+      │                 Debt + DebtScheduleItem/DebtPayment (tek borç:
+      │                 yükümlülük ve borç planı), Counterparty +
+      │                 CounterpartyCharge/Payment, CashCount,
       │                 PosSettlement, PosDefinition, PosDeposit,
       │                 RefreshSession)
       └── Infrastructure (EF Core SQL Server, ASP.NET Core Identity,

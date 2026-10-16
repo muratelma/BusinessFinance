@@ -8,7 +8,7 @@ public sealed class DebtAgreementTests
     public void Schedule_PreservesFourDecimalTotalAndRemainingAmount()
     {
         var debt = CreateDebt(1000m, 1100m, 3);
-        Assert.Equal([366.6666m, 366.6666m, 366.6668m], debt.Installments.Select(x => x.Amount.Amount));
+        Assert.Equal([366.6666m, 366.6666m, 366.6668m], debt.Items.Select(x => x.Amount.Amount));
         Assert.Equal(1100m, debt.RemainingAmount);
     }
 
@@ -18,12 +18,11 @@ public sealed class DebtAgreementTests
         var userId = Guid.NewGuid();
         var debt = CreateDebt(100m, 100m, 1, userId);
         var account = new Account(Guid.NewGuid(), userId, "Bank", AccountType.Bank, CurrencyCode.TRY);
-        var installment = debt.GetInstallment(1);
-        installment.MarkPaid(account, new DateOnly(2026, 8, 11), DateTimeOffset.UtcNow);
+        debt.PayInstallment(1, account, new DateOnly(2026, 8, 11), DateTimeOffset.UtcNow);
         Assert.Equal(0m, debt.RemainingAmount);
         Assert.True(debt.IsClosed);
-        Assert.Throws<InvalidOperationException>(() => installment.MarkPaid(
-            account, new DateOnly(2026, 8, 11), DateTimeOffset.UtcNow));
+        Assert.Throws<InvalidOperationException>(() => debt.PayInstallment(
+            1, account, new DateOnly(2026, 8, 11), DateTimeOffset.UtcNow));
     }
 
     [Fact]
@@ -193,7 +192,7 @@ public sealed class DebtAgreementTests
         // Ayrım saklanıyor çünkü aylık gider raporu faiz payını SQL'de
         // toplamak zorunda; anüite ayrımı EF LINQ'e çevrilmiyor.
         var debt = CreateDebt(1000m, 1100m, 3);
-        var installments = debt.Installments.OrderBy(x => x.Sequence).ToArray();
+        var installments = debt.Items.OrderBy(x => x.Sequence).ToArray();
 
         Assert.All(installments, item => Assert.NotNull(item.PrincipalPortion));
         Assert.All(installments, item => Assert.NotNull(item.InterestPortion));
@@ -230,7 +229,7 @@ public sealed class DebtAgreementTests
 
         Assert.False(debt.HasUnrecordedOpening);
         Assert.Equal(category.Id, debt.CategoryId);
-        Assert.All(debt.Installments, item => Assert.NotNull(item.InterestPortion));
+        Assert.All(debt.Items, item => Assert.NotNull(item.InterestPortion));
         Assert.Equal(300m, debt.InstallmentSplits.Sum(x => x.Principal));
         Assert.Equal(30m, debt.InstallmentSplits.Sum(x => x.Interest));
     }
@@ -269,10 +268,10 @@ public sealed class DebtAgreementTests
     private static Counterparty Lender(Guid userId) =>
         new(Guid.NewGuid(), userId, "Synthetic lender");
 
-    private static DebtAgreement UnrecordedDebt(Guid? userId = null)
+    private static Debt UnrecordedDebt(Guid? userId = null)
     {
         var owner = userId ?? Guid.NewGuid();
-        return DebtAgreement.WithUnrecordedOpening(
+        return Debt.WithUnrecordedOpening(
             Guid.NewGuid(), owner, Lender(owner), DebtDirection.Payable,
             TransactionScope.Business,
             new Money(300m, CurrencyCode.TRY), new Money(330m, CurrencyCode.TRY),
@@ -288,22 +287,22 @@ public sealed class DebtAgreementTests
     private static Category IncomeCategory(Guid userId) =>
         new(Guid.NewGuid(), userId, "Satış geliri", CategoryType.Income);
 
-    private static DebtAgreement Build(
+    private static Debt Build(
         Guid userId,
         DebtDirection direction,
         DebtSourceType sourceType,
         Account? openingAccount,
-        Category? category) => new(
+        Category? category) => Debt.CreateInstallments(
         Guid.NewGuid(), userId, Lender(userId), direction,
         TransactionScope.Business,
         new Money(300m, CurrencyCode.TRY), new Money(330m, CurrencyCode.TRY),
         sourceType, openingAccount, category,
         new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 15), 3, "Test debt");
 
-    private static DebtAgreement CreateDebt(decimal principal, decimal total, int count, Guid? userId = null)
+    private static Debt CreateDebt(decimal principal, decimal total, int count, Guid? userId = null)
     {
         var owner = userId ?? Guid.NewGuid();
-        return new DebtAgreement(
+        return Debt.CreateInstallments(
             Guid.NewGuid(), owner, Lender(owner), DebtDirection.Payable,
             TransactionScope.Business,
             new Money(principal, CurrencyCode.TRY), new Money(total, CurrencyCode.TRY),

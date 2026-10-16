@@ -24,7 +24,7 @@ public sealed class ObligationTests
         Assert.Equal(ObligationStatus.Open, obligation.Status);
         Assert.DoesNotContain(
             "AccountId",
-            typeof(Obligation).GetProperties().Select(property => property.Name));
+            typeof(Debt).GetProperties().Select(property => property.Name));
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public sealed class ObligationTests
             scope: (TransactionScope)7));
         Assert.Throws<ArgumentException>(() => NewObligation(
             userId,
-            description: new string('a', Obligation.MaximumDescriptionLength + 1)));
+            description: new string('a', Debt.MaximumDescriptionLength + 1)));
     }
 
     [Fact]
@@ -145,7 +145,7 @@ public sealed class ObligationTests
             NewAccount(userId),
             new DateOnly(2026, 8, 24),
             CreatedAtUtc);
-        var properties = typeof(ObligationSettlement)
+        var properties = typeof(DebtPayment)
             .GetProperties()
             .Select(property => property.Name)
             .ToArray();
@@ -219,7 +219,7 @@ public sealed class ObligationTests
             NewAccount(userId),
             new DateOnly(2026, 8, 25),
             new DateTimeOffset(2026, 8, 24, 22, 30, 0, TimeSpan.Zero));
-        Assert.Equal(new DateOnly(2026, 8, 25), settledAtNight.SettlementDate);
+        Assert.Equal(new DateOnly(2026, 8, 25), settledAtNight.PaymentDate);
     }
 
     [Fact]
@@ -242,7 +242,7 @@ public sealed class ObligationTests
             Guid.NewGuid(), NewAccount(userId), new DateOnly(2026, 8, 24), CreatedAtUtc));
     }
 
-    private static Obligation NewObligation(
+    private static Debt NewObligation(
         Guid userId,
         DebtDirection direction = DebtDirection.Payable,
         CategoryType categoryType = CategoryType.Expense,
@@ -251,7 +251,7 @@ public sealed class ObligationTests
         DateOnly? issueDate = null,
         DateOnly? dueDate = null,
         Counterparty? counterparty = null,
-        string? description = null) => new(
+        string? description = null) => Debt.CreateSingle(
         Guid.NewGuid(),
         userId,
         category ?? new Category(Guid.NewGuid(), userId, "Fatura", categoryType),

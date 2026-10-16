@@ -825,15 +825,15 @@ public sealed class DataPortabilityTests
 
         Assert.Equal(12, validation.SchemaVersion);
 
-        var restoredObligations = await context.Obligations.AsNoTracking()
-            .Include(x => x.Settlement)
-            .Where(x => x.UserId == targetUserId).ToArrayAsync();
+        var restoredObligations = await context.Debts.AsNoTracking()
+            .Include(x => x.Items).Include(x => x.Payments).ThenInclude(p => p.Allocations)
+            .Where(x => x.UserId == targetUserId && x.PlanKind == DebtPlanKind.Single).ToArrayAsync();
         Assert.Equal(2, restoredObligations.Length);
 
         var acik = Assert.Single(restoredObligations, x => x.Direction == DebtDirection.Payable);
         Assert.Equal(ObligationStatus.Open, acik.Status);
-        Assert.Equal(275.5m, acik.Amount.Amount);
-        Assert.Equal(new DateOnly(2026, 8, 6), acik.IssueDate);
+        Assert.Equal(275.5m, acik.Principal.Amount);
+        Assert.Equal(new DateOnly(2026, 8, 6), acik.StartDate);
         Assert.Equal(new DateOnly(2026, 8, 20), acik.DueDate);
         Assert.Equal(TransactionScope.Business, acik.Scope);
         // Karşı taraf bağı hedef kullanıcının kendi kaydına yeniden bağlanır;
@@ -849,9 +849,9 @@ public sealed class DataPortabilityTests
         var kapanan = Assert.Single(restoredObligations, x => x.Direction == DebtDirection.Receivable);
         Assert.Equal(ObligationStatus.Settled, kapanan.Status);
         Assert.Null(kapanan.CounterpartyId);
-        var settlement = Assert.IsType<ObligationSettlement>(kapanan.Settlement);
+        var settlement = Assert.IsType<DebtPayment>(kapanan.Settlement);
         Assert.Equal(90m, settlement.Amount.Amount);
-        Assert.Equal(new DateOnly(2026, 8, 9), settlement.SettlementDate);
+        Assert.Equal(new DateOnly(2026, 8, 9), settlement.PaymentDate);
         var restoredBank = await context.Accounts.AsNoTracking()
             .SingleAsync(x => x.UserId == targetUserId && x.Name == "Banka");
         Assert.Equal(restoredBank.Id, settlement.AccountId);
@@ -1794,11 +1794,11 @@ public sealed class DataPortabilityTests
         // Yükümlülük: biri hâlâ açık ve karşı taraflı (vadesi ileride), biri
         // karşı tarafsız ve kapanmış. Kapanmış olan, nakdi taşıyan settlement'ın
         // da kayıpsız döndüğünü kanıtlıyor.
-        var acikFatura = new Obligation(
+        var acikFatura = Debt.CreateSingle(
             Guid.NewGuid(), userId, expenseCategory, DebtDirection.Payable,
             new Money(275.5m, CurrencyCode.TRY), TransactionScope.Business,
             new DateOnly(2026, 8, 6), new DateOnly(2026, 8, 20), utc, manav, "Elektrik faturası");
-        var kapananAlacak = new Obligation(
+        var kapananAlacak = Debt.CreateSingle(
             Guid.NewGuid(), userId, incomeCategory, DebtDirection.Receivable,
             new Money(90m, CurrencyCode.TRY), TransactionScope.Personal,
             new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 10), utc, null, "Tek seferlik alacak");

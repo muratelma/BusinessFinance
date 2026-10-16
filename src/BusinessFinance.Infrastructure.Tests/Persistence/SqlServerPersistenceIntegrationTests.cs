@@ -180,7 +180,7 @@ public sealed partial class SqlServerPersistenceIntegrationTests
             seed.Accounts.Add(debtAccount);
             var lender = new Counterparty(Guid.NewGuid(), user.Id, "Synthetic Lender");
             seed.Counterparties.Add(lender);
-            seed.DebtAgreements.Add(new DebtAgreement(
+            seed.Debts.Add(Debt.CreateInstallments(
                 debtId, user.Id, lender, DebtDirection.Payable,
                 TransactionScope.Business,
                 new Money(300m, CurrencyCode.TRY), new Money(400m, CurrencyCode.TRY),
@@ -191,18 +191,19 @@ public sealed partial class SqlServerPersistenceIntegrationTests
 
         await using var firstContext = database.CreateContext();
         await using var secondContext = database.CreateContext();
-        var firstDebt = await firstContext.DebtAgreements.Include(x => x.Installments)
+        var firstDebt = await firstContext.Debts.Include(x => x.Items).Include(x => x.Payments).ThenInclude(p => p.Allocations)
             .SingleAsync(x => x.Id == debtId);
-        var secondDebt = await secondContext.DebtAgreements.Include(x => x.Installments)
+        var secondDebt = await secondContext.Debts.Include(x => x.Items).Include(x => x.Payments).ThenInclude(p => p.Allocations)
             .SingleAsync(x => x.Id == debtId);
         var firstAccount = await firstContext.Accounts.SingleAsync(x => x.Id == accountId);
         var secondAccount = await secondContext.Accounts.SingleAsync(x => x.Id == accountId);
         var now = new DateTimeOffset(2026, 8, 11, 10, 0, 0, TimeSpan.Zero);
-        firstDebt.GetInstallment(1).MarkPaid(firstAccount, new DateOnly(2026, 8, 11), now);
-        secondDebt.GetInstallment(1).MarkPaid(secondAccount, new DateOnly(2026, 8, 11), now);
+        firstDebt.PayInstallment(1, firstAccount, new DateOnly(2026, 8, 11), now);
+        secondDebt.PayInstallment(1, secondAccount, new DateOnly(2026, 8, 11), now);
 
         await firstContext.SaveChangesAsync();
-        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => secondContext.SaveChangesAsync());
+        // Ödemenin kimliği taksidinkidir; ikinci yazar birincil anahtara çarpar.
+        await Assert.ThrowsAsync<DbUpdateException>(() => secondContext.SaveChangesAsync());
 
         await using var read = database.CreateContext();
         var installment = await read.DebtInstallments.AsNoTracking().SingleAsync();
@@ -211,7 +212,7 @@ public sealed partial class SqlServerPersistenceIntegrationTests
             .Select(x => x.OpeningBalance).SingleAsync();
         var paidAmount = await read.DebtInstallments
             .Where(x => x.PaymentAccountId == accountId)
-            .SumAsync(x => x.Amount.Amount);
+            .SumAsync(x => x.Amount);
         // 1000 açılış bakiyesi + 300 borç açılışı (nakit kaynaklı borçta para
         // hesaba girer) − 400 ödenen taksit = 900. Açılış hareketi eklenmeden
         // önce burada 600 yazıyordu: 300 hiçbir yerden gelmemiş sayılıyor, ama
@@ -261,13 +262,13 @@ public sealed partial class SqlServerPersistenceIntegrationTests
             seed.Accounts.Add(account);
             var lender = new Counterparty(Guid.NewGuid(), user.Id, "Lender");
             seed.Counterparties.Add(lender);
-            var debt = new DebtAgreement(
+            var debt = Debt.CreateInstallments(
                 Guid.NewGuid(), user.Id, lender, DebtDirection.Payable,
                 TransactionScope.Business,
                 new Money(300m, CurrencyCode.TRY), new Money(400m, CurrencyCode.TRY),
                 DebtSourceType.Cash, account, null,
                 new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 10), 1);
-            seed.DebtAgreements.Add(debt);
+            seed.Debts.Add(debt);
             await seed.SaveChangesAsync();
         }
 
@@ -307,16 +308,16 @@ public sealed partial class SqlServerPersistenceIntegrationTests
             seed.Accounts.Add(account);
             var lender = new Counterparty(Guid.NewGuid(), user.Id, "Lender");
             seed.Counterparties.Add(lender);
-            var debt = new DebtAgreement(
+            var debt = Debt.CreateInstallments(
                 debtId, user.Id, lender, DebtDirection.Payable,
                 TransactionScope.Business,
                 new Money(300m, CurrencyCode.TRY), new Money(400m, CurrencyCode.TRY),
                 DebtSourceType.Cash, account, null,
                 new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 10), 1);
-            debt.GetInstallment(1).MarkPaid(
+            debt.PayInstallment(1,
                 account, new DateOnly(2026, 8, 11),
                 new DateTimeOffset(2026, 8, 11, 10, 0, 0, TimeSpan.Zero));
-            seed.DebtAgreements.Add(debt);
+            seed.Debts.Add(debt);
             await seed.SaveChangesAsync();
         }
 
@@ -332,7 +333,7 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         await using (var legacy = database.CreateContext())
         {
             await legacy.Database.ExecuteSqlRawAsync(
-                "UPDATE DebtInstallments SET PrincipalPortion = NULL, InterestPortion = NULL");
+                "UPDATE DebtScheduleItems SET PrincipalPortion = NULL, InterestPortion = NULL");
         }
 
         await using var afterScope = services.CreateAsyncScope();
@@ -444,14 +445,14 @@ public sealed partial class SqlServerPersistenceIntegrationTests
             var now = new DateTimeOffset(2026, 8, 8, 10, 0, 0, TimeSpan.Zero);
             var backupLender = new Counterparty(Guid.NewGuid(), source.Id, "Backup lender");
             seed.Counterparties.Add(backupLender);
-            var debt = new DebtAgreement(
+            var debt = Debt.CreateInstallments(
                 Guid.NewGuid(), source.Id, backupLender, DebtDirection.Payable,
                 TransactionScope.Business,
                 new Money(300m, CurrencyCode.TRY), new Money(400m, CurrencyCode.TRY),
                 DebtSourceType.Cash, account, null,
                 new DateOnly(2026, 7, 1), new DateOnly(2026, 8, 10), 1);
-            debt.GetInstallment(1).MarkPaid(account, new DateOnly(2026, 8, 11), now);
-            seed.DebtAgreements.Add(debt);
+            debt.PayInstallment(1, account, new DateOnly(2026, 8, 11), now);
+            seed.Debts.Add(debt);
             var goal = new SavingsGoal(
                 Guid.NewGuid(), source.Id, "Backup goal", new Money(1000m, CurrencyCode.TRY),
                 new DateOnly(2026, 12, 31), SavingsGoalTrackingMode.ManualContributions,
@@ -534,9 +535,9 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         // kayıpsız dönüyor. Kapanış, sahiplik anahtarıyla yükümlülüğe bire bir
         // bağlıdır; yedek onu taşımasaydı geri yüklenen hesapta ödenmiş bir
         // fatura yeniden açık borç olarak görünürdü.
-        var restoredObligations = await read.Obligations.AsNoTracking()
-            .Include(x => x.Settlement)
-            .Where(x => x.UserId == restoredOwner.Id).ToArrayAsync();
+        var restoredObligations = await read.Debts.AsNoTracking()
+            .Include(x => x.Items).Include(x => x.Payments).ThenInclude(p => p.Allocations)
+            .Where(x => x.UserId == restoredOwner.Id && x.PlanKind == DebtPlanKind.Single).ToArrayAsync();
         Assert.Equal(2, restoredObligations.Length);
         Assert.Single(restoredObligations, x => x.Status == ObligationStatus.Open);
         var restoredSettled = Assert.Single(
@@ -1018,7 +1019,7 @@ public sealed partial class SqlServerPersistenceIntegrationTests
                 Guid.NewGuid(), user.Id, source, card, amount, date, name));
             var borrower = new Counterparty(Guid.NewGuid(), user.Id, name);
             seed.Add(borrower);
-            seed.Add(new DebtAgreement(
+            seed.Add(Debt.CreateInstallments(
                 Guid.NewGuid(), user.Id, borrower, DebtDirection.Receivable,
                 TransactionScope.Business,
                 // Owned value objects cannot share one instance: EF tracks each
@@ -1104,27 +1105,27 @@ public sealed partial class SqlServerPersistenceIntegrationTests
 
             // What the form writes: the name printed on the document as the
             // description, the person the user picked as the counterparty.
-            var invoice = new Obligation(
+            var invoice = Debt.CreateSingle(
                 Guid.NewGuid(), user.Id, bills, DebtDirection.Payable,
                 new Money(412.60m, CurrencyCode.TRY), TransactionScope.Business,
                 issued, due, now, utility, printed);
             // The description was edited away; the linked person still matches.
-            var renamed = new Obligation(
+            var renamed = Debt.CreateSingle(
                 Guid.NewGuid(), user.Id, bills, DebtDirection.Payable,
                 new Money(90m, CurrencyCode.TRY), TransactionScope.Business,
                 issued, due, now, utility, "Ekim elektrik");
             // Already paid: still the same document.
-            var paid = new Obligation(
+            var paid = Debt.CreateSingle(
                 Guid.NewGuid(), user.Id, bills, DebtDirection.Payable,
                 new Money(75m, CurrencyCode.TRY), TransactionScope.Business,
                 issued, due, now, utility, printed);
             paid.Settle(Guid.NewGuid(), bank, issued.AddDays(3), now);
-            var cancelled = new Obligation(
+            var cancelled = Debt.CreateSingle(
                 Guid.NewGuid(), user.Id, bills, DebtDirection.Payable,
                 new Money(60m, CurrencyCode.TRY), TransactionScope.Business,
                 issued, due, now, utility, printed);
             cancelled.Cancel(now);
-            var receivable = new Obligation(
+            var receivable = Debt.CreateSingle(
                 Guid.NewGuid(), user.Id, sales, DebtDirection.Receivable,
                 new Money(300m, CurrencyCode.TRY), TransactionScope.Business,
                 issued, due, now, utility, printed);
@@ -1281,7 +1282,7 @@ public sealed partial class SqlServerPersistenceIntegrationTests
                 paymentId, user.Id, account, card, amount, date, name));
             var borrower = new Counterparty(Guid.NewGuid(), user.Id, name);
             seed.Add(borrower);
-            seed.Add(new DebtAgreement(
+            seed.Add(Debt.CreateInstallments(
                 Guid.NewGuid(), user.Id, borrower, DebtDirection.Receivable,
                 TransactionScope.Business,
                 // Owned value objects cannot share one instance: EF tracks each
@@ -1407,7 +1408,7 @@ public sealed partial class SqlServerPersistenceIntegrationTests
 
         // 1.000 anapara, 1.100 toplam: 100 faiz, iki taksitte.
         var bank = new Counterparty(Guid.NewGuid(), user.Id, "Banka");
-        var debt = new DebtAgreement(
+        var debt = Debt.CreateInstallments(
             Guid.NewGuid(), user.Id, bank, DebtDirection.Payable,
             TransactionScope.Business,
             new Money(1000m, CurrencyCode.TRY), new Money(1100m, CurrencyCode.TRY),
@@ -1426,12 +1427,11 @@ public sealed partial class SqlServerPersistenceIntegrationTests
             var debts = scope.ServiceProvider.GetRequiredService<IDebtRepository>();
             var persisted = await debts.FindOwnedByIdAsync(
                 debt.Id, user.Id, true, CancellationToken.None);
-            persisted!.GetInstallment(1).MarkPaid(
+            var payment = persisted!.PayInstallment(1,
                 account,
                 new DateOnly(2026, 8, 10),
                 new DateTimeOffset(2026, 8, 10, 12, 0, 0, TimeSpan.Zero));
-            await debts.SavePaymentAsync(
-                persisted.GetInstallment(1), CancellationToken.None);
+            await debts.SavePaymentAsync(payment, CancellationToken.None);
         }
 
         await using var readProvider = CreateServiceProvider(database.ConnectionString);
@@ -2430,7 +2430,7 @@ public sealed partial class SqlServerPersistenceIntegrationTests
 
         var account = new Account(
             Guid.NewGuid(), user.Id, "Kasa", AccountType.Cash, CurrencyCode.TRY);
-        var obligation = new Obligation(
+        var obligation = Debt.CreateSingle(
             Guid.NewGuid(),
             user.Id,
             category,
@@ -2446,7 +2446,7 @@ public sealed partial class SqlServerPersistenceIntegrationTests
             account,
             new DateOnly(2026, 8, 15),
             new DateTimeOffset(2026, 8, 15, 9, 0, 0, TimeSpan.Zero));
-        var concurrentObligation = new Obligation(
+        var concurrentObligation = Debt.CreateSingle(
             Guid.NewGuid(),
             user.Id,
             category,
@@ -2470,8 +2470,8 @@ public sealed partial class SqlServerPersistenceIntegrationTests
 
         await using (var context = database.CreateContext())
         {
-            var persisted = await context.Obligations
-                .Include(item => item.Settlement)
+            var persisted = await context.Debts
+                .Include(item => item.Items).Include(item => item.Payments).ThenInclude(p => p.Allocations)
                 .AsNoTracking()
                 .SingleAsync(item => item.Id == obligation.Id, CancellationToken.None);
             Assert.Equal(ObligationStatus.Settled, persisted.Status);
@@ -2483,9 +2483,9 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         // ayrı örneğin yarışında da yalnız ilk yazarı kabul eder.
         await using var firstContext = database.CreateContext();
         await using var secondContext = database.CreateContext();
-        var firstObligation = await firstContext.Obligations.SingleAsync(
+        var firstObligation = await firstContext.Debts.Include(x => x.Items).Include(x => x.Payments).ThenInclude(p => p.Allocations).SingleAsync(
             item => item.Id == concurrentObligation.Id, CancellationToken.None);
-        var secondObligation = await secondContext.Obligations.SingleAsync(
+        var secondObligation = await secondContext.Debts.Include(x => x.Items).Include(x => x.Payments).ThenInclude(p => p.Allocations).SingleAsync(
             item => item.Id == concurrentObligation.Id, CancellationToken.None);
         var firstAccount = await firstContext.Accounts.SingleAsync(
             item => item.Id == account.Id, CancellationToken.None);
@@ -2496,8 +2496,8 @@ public sealed partial class SqlServerPersistenceIntegrationTests
             Guid.NewGuid(), firstAccount, new DateOnly(2026, 8, 16), settledAt);
         var secondSettlement = secondObligation.Settle(
             Guid.NewGuid(), secondAccount, new DateOnly(2026, 8, 16), settledAt);
-        firstContext.ObligationSettlements.Add(firstSettlement);
-        secondContext.ObligationSettlements.Add(secondSettlement);
+        firstContext.DebtPayments.Add(firstSettlement);
+        secondContext.DebtPayments.Add(secondSettlement);
 
         await firstContext.SaveChangesAsync(CancellationToken.None);
         await Assert.ThrowsAsync<DbUpdateException>(() =>
@@ -2622,7 +2622,7 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         Assert.All(counterparties, item => Assert.True(item.IsActive));
 
         var debts = await context.DebtAgreements.AsNoTracking()
-            .ToDictionaryAsync(item => item.Id, item => item.CounterpartyId);
+            .ToDictionaryAsync(item => item.Id, item => item.CounterpartyId!.Value);
 
         // Var olan kayıt kullanıldı; iki sözleşme aynı kişiye bağlandı.
         Assert.Equal(existingId, debts[firstDebtId]);
@@ -2694,7 +2694,7 @@ public sealed partial class SqlServerPersistenceIntegrationTests
             new Money(200m, CurrencyCode.TRY), new DateOnly(2026, 8, 6));
 
         // Aynı kişiyle taksitli bir sözleşme: 600 anapara, iki taksit.
-        var debt = new DebtAgreement(
+        var debt = Debt.CreateInstallments(
             Guid.NewGuid(), user.Id, supplier, DebtDirection.Payable,
             TransactionScope.Business,
             new Money(600m, CurrencyCode.TRY), new Money(600m, CurrencyCode.TRY),
@@ -2850,8 +2850,10 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         Assert.Equal(PlannedActivityTiming.Overdue, installment.Timing);
         Assert.Equal(PlannedActivityTiming.Upcoming, projected.Timing);
         Assert.InRange(counter.ReaderCommandCount, 1, 20);
+        // Tek ödemeli borçlar (eski yükümlülükler) tek komutla okunur.
         Assert.Single(counter.CommandTexts, text =>
-            text.Contains("FROM [Obligations] AS", StringComparison.OrdinalIgnoreCase));
+            text.Contains("FROM [Debts] AS", StringComparison.OrdinalIgnoreCase) &&
+            text.Contains("[PlanKind] = CAST(1 AS tinyint)", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
@@ -2915,7 +2917,7 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         var account = new Account(
             Guid.NewGuid(), owner.Id, "Bank", AccountType.Bank, CurrencyCode.TRY, 1000m);
         var category = new Category(Guid.NewGuid(), owner.Id, "Bills", CategoryType.Expense);
-        var obligation = new Obligation(
+        var obligation = Debt.CreateSingle(
             Guid.NewGuid(), owner.Id, category, DebtDirection.Payable,
             new Money(250m, CurrencyCode.TRY), TransactionScope.Business,
             new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 10),
@@ -2939,12 +2941,12 @@ public sealed partial class SqlServerPersistenceIntegrationTests
 
         await using (var settle = database.CreateContext())
         {
-            var persisted = await settle.Obligations.Include(item => item.Settlement)
+            var persisted = await settle.Debts.Include(item => item.Items).Include(item => item.Payments).ThenInclude(p => p.Allocations)
                 .SingleAsync(item => item.Id == obligation.Id, CancellationToken.None);
             var settlement = persisted.Settle(
                 Guid.NewGuid(), account, PlannedAsOfDate,
                 new DateTimeOffset(2026, 8, 15, 10, 0, 0, TimeSpan.Zero));
-            settle.ObligationSettlements.Add(settlement);
+            settle.DebtPayments.Add(settlement);
             await settle.SaveChangesAsync(CancellationToken.None);
         }
 
@@ -3465,23 +3467,23 @@ public sealed partial class SqlServerPersistenceIntegrationTests
 
         var lender = new Counterparty(Guid.NewGuid(), userId, "Lender");
         var friend = new Counterparty(Guid.NewGuid(), userId, "Friend");
-        var payable = new DebtAgreement(Guid.NewGuid(), userId, lender, DebtDirection.Payable,
+        var payable = Debt.CreateInstallments(Guid.NewGuid(), userId, lender, DebtDirection.Payable,
             TransactionScope.Business,
             new Money(600m, CurrencyCode.TRY), new Money(600m, CurrencyCode.TRY),
             DebtSourceType.Cash, bank, null,
             new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 22), 2);
-        var receivable = new DebtAgreement(Guid.NewGuid(), userId, friend, DebtDirection.Receivable,
+        var receivable = Debt.CreateInstallments(Guid.NewGuid(), userId, friend, DebtDirection.Receivable,
             TransactionScope.Business,
             new Money(400m, CurrencyCode.TRY), new Money(400m, CurrencyCode.TRY),
             DebtSourceType.Cash, bank, null,
             new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 23), 2);
-        var payableObligation = new Obligation(
+        var payableObligation = Debt.CreateSingle(
             Guid.NewGuid(), userId, bills, DebtDirection.Payable,
             new Money(350m, CurrencyCode.TRY), TransactionScope.Business,
             new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 14),
             new DateTimeOffset(2026, 8, 15, 9, 0, 0, TimeSpan.Zero),
             lender, "Electricity");
-        var receivableObligation = new Obligation(
+        var receivableObligation = Debt.CreateSingle(
             Guid.NewGuid(), userId, salary, DebtDirection.Receivable,
             new Money(275m, CurrencyCode.TRY), TransactionScope.Business,
             new DateOnly(2026, 8, 2), new DateOnly(2026, 8, 18),
@@ -3594,18 +3596,18 @@ public sealed partial class SqlServerPersistenceIntegrationTests
 
         var lender = new Counterparty(Guid.NewGuid(), userId, "Lender");
         var friend = new Counterparty(Guid.NewGuid(), userId, "Friend");
-        var payable = new DebtAgreement(Guid.NewGuid(), userId, lender, DebtDirection.Payable,
+        var payable = Debt.CreateInstallments(Guid.NewGuid(), userId, lender, DebtDirection.Payable,
             TransactionScope.Business,
             new Money(600m, CurrencyCode.TRY), new Money(600m, CurrencyCode.TRY),
             DebtSourceType.Cash, bank, null,
             new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 5), 2);
-        payable.GetInstallment(1).MarkPaid(bank, new DateOnly(2026, 8, 5), utc);
-        var receivable = new DebtAgreement(Guid.NewGuid(), userId, friend, DebtDirection.Receivable,
+        payable.PayInstallment(1, bank, new DateOnly(2026, 8, 5), utc);
+        var receivable = Debt.CreateInstallments(Guid.NewGuid(), userId, friend, DebtDirection.Receivable,
             TransactionScope.Business,
             new Money(400m, CurrencyCode.TRY), new Money(400m, CurrencyCode.TRY),
             DebtSourceType.Cash, bank, null,
             new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 6), 2);
-        receivable.GetInstallment(1).MarkPaid(bank, new DateOnly(2026, 8, 6), utc);
+        receivable.PayInstallment(1, bank, new DateOnly(2026, 8, 6), utc);
 
         // Açık cari: veresiye satış (gelir tanır, kasaya dokunmaz) ve
         // tahsilat (kasayı değiştirir, gelir üretmez).
@@ -4346,7 +4348,7 @@ public sealed partial class SqlServerPersistenceIntegrationTests
             var sale = Sale(700m);
             var firstCollection = Collection(200m);
             // Kişiye tek seferlik 300 borç; günün sonunda kapanır.
-            var obligation = new Obligation(
+            var obligation = Debt.CreateSingle(
                 Guid.NewGuid(), owner.Id, costs, DebtDirection.Payable,
                 new Money(300m, CurrencyCode.TRY), TransactionScope.Business,
                 day, day.AddDays(10), morning.AddHours(3), person);
@@ -4356,13 +4358,13 @@ public sealed partial class SqlServerPersistenceIntegrationTests
                 Guid.NewGuid(), bank, day, morning.AddHours(5));
 
             // 300 alındı, 400 geri ödenecek, iki taksit; ilki aynı gün ödendi.
-            var debt = new DebtAgreement(
+            var debt = Debt.CreateInstallments(
                 Guid.NewGuid(), owner.Id, lender, DebtDirection.Payable,
                 TransactionScope.Business,
                 new Money(300m, CurrencyCode.TRY), new Money(400m, CurrencyCode.TRY),
                 DebtSourceType.Cash, bank, null,
                 day, day.AddDays(10), 2);
-            debt.GetInstallment(1).MarkPaid(bank, day, morning.AddHours(7));
+            debt.PayInstallment(1, bank, day, morning.AddHours(7));
             var charge = new CreditCardCharge(
                 Guid.NewGuid(), owner.Id, card, costs, new Money(300m, CurrencyCode.TRY),
                 TransactionScope.Business, day, "Kart harcaması");
@@ -4459,8 +4461,8 @@ public sealed partial class SqlServerPersistenceIntegrationTests
                 FinancialActivityKind.DebtPayment, installmentId, ActivityBalanceHolder.Debt));
         await using (var verify = database.CreateContext())
         {
-            var debt = await verify.DebtAgreements
-                .Include(item => item.Installments)
+            var debt = await verify.Debts
+                .Include(item => item.Items).Include(item => item.Payments).ThenInclude(p => p.Allocations)
                 .SingleAsync(item => item.Id == debtId);
             Assert.Equal(200m, debt.RemainingAmount);
         }
@@ -5361,13 +5363,13 @@ public sealed partial class SqlServerPersistenceIntegrationTests
                 .Where(x => x.UserId == owner.Id).ToArrayAsync());
             Assert.Empty(await context.ImportBatches.Where(x => x.UserId == owner.Id).ToArrayAsync());
             Assert.Empty(await context.ImportRows.Where(x => x.UserId == owner.Id).ToArrayAsync());
-            Assert.Empty(await context.DebtAgreements.Where(x => x.UserId == owner.Id).ToArrayAsync());
-            Assert.Empty(await context.DebtInstallments.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.Debts.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.DebtScheduleItems.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.DebtPayments.Where(x => x.UserId == owner.Id).ToArrayAsync());
+            Assert.Empty(await context.DebtPaymentAllocations.Where(x => x.UserId == owner.Id).ToArrayAsync());
             Assert.Empty(await context.Counterparties.Where(x => x.UserId == owner.Id).ToArrayAsync());
             Assert.Empty(await context.CounterpartyCharges.Where(x => x.UserId == owner.Id).ToArrayAsync());
             Assert.Empty(await context.CounterpartyPayments.Where(x => x.UserId == owner.Id).ToArrayAsync());
-            Assert.Empty(await context.Obligations.Where(x => x.UserId == owner.Id).ToArrayAsync());
-            Assert.Empty(await context.ObligationSettlements.Where(x => x.UserId == owner.Id).ToArrayAsync());
             Assert.Empty(await context.CashCounts.Where(x => x.UserId == owner.Id).ToArrayAsync());
             Assert.Empty(await context.PosSettlements.Where(x => x.UserId == owner.Id).ToArrayAsync());
             Assert.Empty(await context.SavingsGoals.Where(x => x.UserId == owner.Id).ToArrayAsync());
@@ -5410,7 +5412,7 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         var counterparty = await context.Counterparties.SingleAsync(
             item => item.Id == seed.LenderId && item.UserId == userId);
 
-        var obligation = new Obligation(
+        var obligation = Debt.CreateSingle(
             Guid.NewGuid(), userId, expenseCategory, DebtDirection.Payable,
             new Money(180m, CurrencyCode.TRY), TransactionScope.Business,
             new DateOnly(2026, 8, 10), new DateOnly(2026, 8, 25), utc, counterparty);
