@@ -49,7 +49,8 @@ public sealed class MigrationHistoryTests
         "AddNameKeys",
         "AddDayCloseOverlaps",
         "AddCategoryRolesAndTransferFees",
-        "MergeObligationsAndDebtAgreements"
+        "MergeObligationsAndDebtAgreements",
+        "AddDebtPartialPaymentsAndPlans"
     ];
 
     [Fact]

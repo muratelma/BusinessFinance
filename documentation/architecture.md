@@ -830,6 +830,34 @@ anlatmaya devam eder; değişen kalıcılıktır.
   kurulur, eski dört tablonun verisi kimlikleriyle kopyalanır, eskiler en son
   düşer; `Down` ters kopyadır.
 
+**Dalga 2a — kapanışın modeli** (`AddDebtPartialPaymentsAndPlans`). Domain
+dalga 2'nin davranışlarını taşır; uçları dalga 2c'de açılır, ekran ve sözleşme
+bu adımda değişmez.
+
+- **Plan üç seçenektir:** `Single`, `Installments`, `None` (vade isteğe bağlı;
+  `FirstDueDate` ve kalemin `DueDate`'i boş olabilir).
+- **Kapanış türü:** `DebtPayment.Kind` `Payment` (para taşır) ya da `Discount`
+  (bedeli düşürür, para yok). Ödemenin yeri tam olarak birdir: hesap (POS'la
+  tahsil dahil) ya da kredi kartı (yalnız borçta); indirimin yeri yoktur
+  (`CK_DebtPayments_Source`).
+- **`Debt.Pay`** tutarı en eski açık kalemden başlayarak kalemlere böler ve
+  kalanı aşamaz (`DebtAmountExceedsRemainingException`). Faizli borçta yalnız
+  tam taksitler ödenir ve plan değişmez. **`ApplyDiscount`** yalnız kayıtlı mal
+  ya da hizmet borcunda, aynı sırayla. **`ReversePayment`** yalnız kendi
+  kapattığını açar. **`ChangePlan`** geçerli kalemleri `IsSuperseded` yapar
+  (`PlanRevision` artar) ve kalanı yeni kalemlere böler; eski plana yapılmış
+  ödeme geri alınırsa tutarı yeni planın ilk açık kalemine eklenir.
+- **Kalan** geçerli plandaki kalemlerin açık tutarıdır; yerine plan gelmiş
+  kalem kalana girmez.
+- **Eşzamanlılık:** `Debt.Revision` her değişiklikte artan bir eşzamanlılık
+  belirtecidir; kalan denetimi ile yazma aynı satırda sınanır. Tahsisin kalem
+  başına tekliği kalktı (bir kalemi birden çok kapanış kapatır).
+- **Uygulamadan önceki borç:** `IsCarriedOver` kaynağı (`SourceType`) bilir
+  ama hesap ve kategori taşımaz; açılışı para ya da gelir/gider yazmaz.
+  Açılışı bilinmeyen eski borçtan (`Unrecorded`) ayrıdır (`CK_Debts_Source`).
+- Eski uçların davranışı aynıdır: yükümlülük kapanışı kalanı tek ödemeyle
+  kapatır, eski taksit ucu taksidin kimliğiyle tam tutarı öder.
+
 ## Tek seferlik yükümlülük
 
 > Aşama 03, Grup 1–7 — Domain modeli, kalıcılık, kanonik planlanan projection,

@@ -223,20 +223,20 @@ public sealed class CreateDebtUseCase(
     internal static DebtDto ToDto(Debt debt, string counterpartyName, DateOnly asOfDate)
     {
         var splits = debt.InstallmentSplits;
-        var installments = debt.Items.OrderBy(x => x.Sequence).ToArray();
+        var installments = debt.CurrentItems;
         return new DebtDto(
             debt.Id, debt.CounterpartyId!.Value, counterpartyName, debt.Direction, debt.Scope,
             debt.Principal.Amount,
             debt.TotalRepayment.Amount, debt.RemainingAmount, debt.Principal.Currency,
             debt.AnnualInterestRate, debt.TotalInterest,
             debt.SourceType, debt.OpeningAccountId, debt.CategoryId,
-            debt.StartDate, debt.FirstDueDate, debt.InstallmentCount,
+            debt.StartDate, debt.FirstDueDate!.Value, debt.InstallmentCount,
             debt.Description, debt.IsClosed,
             [.. installments.Select((x, index) =>
             {
                 var payment = debt.PaymentOf(x);
                 return new DebtInstallmentDto(
-                    x.Id, x.Sequence, x.Amount.Amount, x.Amount.Currency, x.DueDate,
+                    x.Id, x.Sequence, x.Amount.Amount, x.Amount.Currency, x.DueDate!.Value,
                     debt.IsPaid(x) ? "paid" : x.DueDate < asOfDate ? "overdue" :
                         x.DueDate == asOfDate ? "due-today" : "upcoming",
                     payment?.AccountId, payment?.PaymentDate, payment?.PaidAtUtc,

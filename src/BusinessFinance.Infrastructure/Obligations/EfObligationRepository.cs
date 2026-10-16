@@ -45,7 +45,7 @@ internal sealed class EfObligationRepository(BusinessFinanceDbContext dbContext)
                 obligation.Principal.Currency,
                 obligation.Scope,
                 obligation.StartDate,
-                obligation.FirstDueDate,
+                obligation.FirstDueDate!.Value,
                 obligation.Description,
                 obligation.IsCancelled
                     ? ObligationStatus.Cancelled
@@ -116,8 +116,11 @@ internal sealed class EfObligationRepository(BusinessFinanceDbContext dbContext)
             await dbContext.SaveChangesAsync(cancellationToken);
         }
         catch (DbUpdateException exception) when (
+            exception is DbUpdateConcurrencyException ||
             exception.InnerException is SqlException { Number: 2601 or 2627 })
         {
+            // Aynı borç bu sırada başka bir istekle değişti: sürümü ya da ödemenin
+            // kimliği çarptı.
             dbContext.ChangeTracker.Clear();
             throw new ObligationConcurrencyException();
         }

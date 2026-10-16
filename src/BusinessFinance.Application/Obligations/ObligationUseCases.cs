@@ -143,7 +143,7 @@ public sealed class SettleObligationUseCase(
         obligation.Principal.Currency,
         obligation.Scope,
         obligation.StartDate,
-        obligation.DueDate,
+        obligation.DueDate!.Value,
         obligation.Description,
         obligation.Status,
         SettlementId: obligation.Settlement?.Id,

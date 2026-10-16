@@ -2227,3 +2227,22 @@ Domain, Application, Infrastructure ve API testlerindeki eski `Obligation`,
 `ObligationSettlement`, `DebtAgreement`, `DebtInstallment` kullanımları
 `Debt.CreateSingle`, `Debt.CreateInstallments`, `Debt.PayInstallment` ve
 `DebtPayment`'a çevrildi; doğrulamalar aynı kaldı.
+
+## Dalga 2a — kısmi ödeme, sıra, kartla ödeme, indirim, plan değişikliği (16 Ekim 2026)
+
+Domain ve şema; uçlar dalga 2c'de. Eski uçların davranışı golden testle korunur.
+
+| Kural | Test | Ne gösterir |
+|---|---|---|
+| Kısmi ödeme kalanı açık bırakır, ikincisi kapatır | `DebtPaymentTests.PartialPayment_LeavesTheRestOpen_AndTheSecondClosesTheDebt` | 10.000'e 3.000 ödeme: kalan 7.000, durum açık; 7.000 daha: kapandı |
+| Kalan aşılmaz | `Payment_CannotExceedTheRemaining` | 450,0001 reddedilir, kalan değişmez |
+| En eski açık taksitten başlar | `InstallmentPayment_StartsFromTheOldestOpenItem` | 1.500: birinci taksit kapanır, ikincinin 500'ü ödenir |
+| Faizli borç tam taksitle ödenir, planı değişmez | `InterestBearingDebt_IsPaidInWholeInstallmentsOnly` | 300 reddedilir, 550 (tam taksit) kabul |
+| Kartla ödeme hesabı oynatmaz, yalnız borçta | `CardPayment_MovesNoAccount_AndOnlyPaysADebt` | Hesap etkisi 0; alacakta kart ve iki yer reddedilir |
+| İndirim kalanı düşürür, para yok | `Discount_LowersTheRemainingWithoutMovingMoney`, `Discount_IsOnlyForARecordedPurchaseOrSale` | 10.000 − 3.000 ödeme − 1.000 indirim = 6.000; borç parada indirim yok |
+| Geri alma yalnız kendi kapattığını açar | `ReversingAPayment_ReopensOnlyWhatItClosed` | Birinci ödeme geri alınınca yalnız birinci taksit açılır; ikinci kez geri alma aynı kaydı döner |
+| Plan değişikliği kalanı böler; eski plan ödemesi yeni ilk açık taksite döner | `ChangingThePlan_SplitsTheRemaining_AndKeepsThePaymentsAndTheExpense` | 7.000 → 2 × 3.500; peşin 3.000 geri alınınca 6.500 + 3.500 |
+| Plan yok | `NoPlan_HasNoDueDateAndIsNeverOverdue` | Vade boş, gecikmez; kapanmış borcun planı değişmez |
+| Her değişiklik sürümü artırır | `EveryChange_AdvancesTheRevision` | Kalanı aşan eşzamanlı yazmayı durduran belirteç |
+| Eşleme | `FinancialEntityMappingTests.DebtMapping_UsesOwnerScopedRelationshipsAndGuardsTheRemainingWithARevision` | Tahsiste teklik yok, `Revision` eşzamanlılık belirteci, kart FK'si |
+| Şema yükseltmesi | `MigrationHistoryTests`, SQL test hedefine uygulama | Eski 250 ödeme `Kind = 1`; kalıcı DEFAULT yok |

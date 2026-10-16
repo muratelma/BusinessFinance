@@ -744,7 +744,7 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.Property<byte>("Direction")
                         .HasColumnType("tinyint");
 
-                    b.Property<DateOnly>("FirstDueDate")
+                    b.Property<DateOnly?>("FirstDueDate")
                         .HasColumnType("date");
 
                     b.Property<int>("InstallmentCount")
@@ -753,11 +753,21 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsCancelled")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsCarriedOver")
+                        .HasColumnType("bit");
+
                     b.Property<Guid?>("OpeningAccountId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<byte>("PlanKind")
                         .HasColumnType("tinyint");
+
+                    b.Property<int>("PlanRevision")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
 
                     b.Property<byte>("Scope")
                         .HasColumnType("tinyint");
@@ -788,7 +798,7 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_Debts_Currency", "[Currency] = 'TRY' AND [TotalCurrency] = [Currency]");
 
-                            t.HasCheckConstraint("CK_Debts_DateRange", "[FirstDueDate] >= [StartDate]");
+                            t.HasCheckConstraint("CK_Debts_DateRange", "[FirstDueDate] IS NULL OR [FirstDueDate] >= [StartDate]");
 
                             t.HasCheckConstraint("CK_Debts_Direction", "[Direction] IN (1, 2)");
 
@@ -798,15 +808,17 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_Debts_InterestRate", "[AnnualInterestRate] >= 0 AND [AnnualInterestRate] <= 1000");
 
-                            t.HasCheckConstraint("CK_Debts_PlanKind", "[PlanKind] IN (1, 2)");
+                            t.HasCheckConstraint("CK_Debts_PlanDueDate", "[PlanKind] = 3 OR [FirstDueDate] IS NOT NULL");
+
+                            t.HasCheckConstraint("CK_Debts_PlanKind", "[PlanKind] IN (1, 2, 3)");
 
                             t.HasCheckConstraint("CK_Debts_Principal", "[Principal] > 0");
 
                             t.HasCheckConstraint("CK_Debts_Scope", "[Scope] IN (1, 2)");
 
-                            t.HasCheckConstraint("CK_Debts_SinglePlan", "[PlanKind] <> 1 OR [InstallmentCount] = 1");
+                            t.HasCheckConstraint("CK_Debts_SinglePlan", "[PlanKind] = 2 OR [InstallmentCount] = 1");
 
-                            t.HasCheckConstraint("CK_Debts_Source", "([SourceType] = 0 AND [OpeningAccountId] IS NULL AND [CategoryId] IS NULL) OR ([SourceType] = 1 AND [OpeningAccountId] IS NOT NULL AND [CategoryId] IS NULL) OR ([SourceType] IN (2, 3) AND [OpeningAccountId] IS NULL AND [CategoryId] IS NOT NULL)");
+                            t.HasCheckConstraint("CK_Debts_Source", "([IsCarriedOver] = 1 AND [SourceType] IN (1, 2, 3) AND [OpeningAccountId] IS NULL AND [CategoryId] IS NULL) OR ([IsCarriedOver] = 0 AND [SourceType] = 0 AND [OpeningAccountId] IS NULL AND [CategoryId] IS NULL) OR ([IsCarriedOver] = 0 AND [SourceType] = 1 AND [OpeningAccountId] IS NOT NULL AND [CategoryId] IS NULL) OR ([IsCarriedOver] = 0 AND [SourceType] IN (2, 3) AND [OpeningAccountId] IS NULL AND [CategoryId] IS NOT NULL)");
 
                             t.HasCheckConstraint("CK_Debts_SourceType", "[SourceType] IN (0, 1, 2, 3)");
 
@@ -819,11 +831,14 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("AccountId")
+                    b.Property<Guid?>("AccountId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTimeOffset?>("CancelledAtUtc")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreditCardId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("DebtId")
                         .HasColumnType("uniqueidentifier");
@@ -833,6 +848,9 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
 
                     b.Property<bool>("IsCancelled")
                         .HasColumnType("bit");
+
+                    b.Property<byte>("Kind")
+                        .HasColumnType("tinyint");
 
                     b.Property<DateTimeOffset>("PaidAtUtc")
                         .HasColumnType("datetimeoffset");
@@ -859,6 +877,10 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId", "AccountId", "PaymentDate")
                         .HasDatabaseName("IX_DebtPayments_UserId_AccountId_Date");
 
+                    b.HasIndex("UserId", "CreditCardId", "PaymentDate")
+                        .HasDatabaseName("IX_DebtPayments_UserId_CreditCardId_Date")
+                        .HasFilter("[CreditCardId] IS NOT NULL");
+
                     b.ToTable("DebtPayments", null, t =>
                         {
                             t.HasCheckConstraint("CK_DebtPayments_Amount", "[Amount] > 0");
@@ -866,6 +888,10 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("CK_DebtPayments_Currency", "[Currency] = 'TRY'");
 
                             t.HasCheckConstraint("CK_DebtPayments_Direction", "[Direction] IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_DebtPayments_Kind", "[Kind] IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_DebtPayments_Source", "([Kind] = 1 AND [AccountId] IS NOT NULL AND [CreditCardId] IS NULL) OR ([Kind] = 1 AND [AccountId] IS NULL AND [CreditCardId] IS NOT NULL AND [PosSettlementId] IS NULL AND [Direction] = 1) OR ([Kind] = 2 AND [AccountId] IS NULL AND [CreditCardId] IS NULL AND [PosSettlementId] IS NULL)");
                         });
                 });
 
@@ -889,8 +915,7 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId", "PaymentId");
 
                     b.HasIndex("UserId", "ScheduleItemId")
-                        .IsUnique()
-                        .HasDatabaseName("UX_DebtPaymentAllocations_UserId_ScheduleItemId");
+                        .HasDatabaseName("IX_DebtPaymentAllocations_UserId_ScheduleItemId");
 
                     b.ToTable("DebtPaymentAllocations", null, t =>
                         {
@@ -906,12 +931,18 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("DebtId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<DateOnly>("DueDate")
+                    b.Property<DateOnly?>("DueDate")
                         .HasColumnType("date");
 
                     b.Property<decimal?>("InterestPortion")
                         .HasPrecision(19, 4)
                         .HasColumnType("decimal(19,4)");
+
+                    b.Property<bool>("IsSuperseded")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("PlanRevision")
+                        .HasColumnType("int");
 
                     b.Property<decimal?>("PrincipalPortion")
                         .HasPrecision(19, 4)
@@ -2769,8 +2800,13 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("UserId", "AccountId")
                         .HasPrincipalKey("UserId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("BusinessFinance.Domain.CreditCard", null)
+                        .WithMany()
+                        .HasForeignKey("UserId", "CreditCardId")
+                        .HasPrincipalKey("UserId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("BusinessFinance.Domain.Debt", null)
                         .WithMany("Payments")

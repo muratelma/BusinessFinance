@@ -202,8 +202,8 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         secondDebt.PayInstallment(1, secondAccount, new DateOnly(2026, 8, 11), now);
 
         await firstContext.SaveChangesAsync();
-        // Ödemenin kimliği taksidinkidir; ikinci yazar birincil anahtara çarpar.
-        await Assert.ThrowsAsync<DbUpdateException>(() => secondContext.SaveChangesAsync());
+        // İkinci yazar borcun sürümüne ya da ödemenin kimliğine (taksidinki) çarpar.
+        await Assert.ThrowsAnyAsync<DbUpdateException>(() => secondContext.SaveChangesAsync());
 
         await using var read = database.CreateContext();
         var installment = await read.DebtInstallments.AsNoTracking().SingleAsync();
@@ -2500,7 +2500,8 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         secondContext.DebtPayments.Add(secondSettlement);
 
         await firstContext.SaveChangesAsync(CancellationToken.None);
-        await Assert.ThrowsAsync<DbUpdateException>(() =>
+        // İkinci yazar borcun sürümüne çarpar (DbUpdateConcurrencyException).
+        await Assert.ThrowsAnyAsync<DbUpdateException>(() =>
             secondContext.SaveChangesAsync(CancellationToken.None));
 
         await using var finalContext = database.CreateContext();

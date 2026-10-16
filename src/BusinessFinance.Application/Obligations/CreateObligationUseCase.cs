@@ -110,7 +110,7 @@ public sealed class CreateObligationUseCase(
         obligation.Principal.Currency,
         obligation.Scope,
         obligation.StartDate,
-        obligation.DueDate,
+        obligation.DueDate!.Value,
         obligation.Description,
         obligation.Status);
 }

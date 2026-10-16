@@ -522,14 +522,14 @@ public sealed class EfDataPortabilityRepository(
                 entryTimes.GetValueOrDefault(x.Id), x.PosSettlementId)).ToArray(),
             obligations.Select(x => new ObligationBackup(
                 x.Id, x.CounterpartyId, x.CategoryId!.Value, x.Direction, x.Principal.Amount,
-                x.Principal.Currency, x.Scope, x.StartDate, x.DueDate, x.Description,
+                x.Principal.Currency, x.Scope, x.StartDate, x.DueDate!.Value, x.Description,
                 x.CreatedAtUtc ?? throw new InvalidOperationException(
                     "A single payment debt keeps its creation time."),
                 x.IsCancelled, x.CancelledAtUtc,
                 x.Settlement is null
                     ? null
                     : new ObligationSettlementBackup(
-                        x.Settlement.Id, x.Settlement.AccountId, x.Settlement.Amount.Amount,
+                        x.Settlement.Id, x.Settlement.AccountId!.Value, x.Settlement.Amount.Amount,
                         x.Settlement.Amount.Currency, x.Settlement.PaymentDate,
                         x.Settlement.PaidAtUtc, x.Settlement.PosSettlementId))).ToArray(),
             cashCounts.Select(x => new CashCountBackup(
@@ -561,14 +561,14 @@ public sealed class EfDataPortabilityRepository(
                     .ToArray())).ToArray(),
             debts.Select(x => new DebtBackup(
                 x.Id, x.CounterpartyId!.Value, x.Direction, x.Scope, x.Principal.Amount, x.TotalRepayment.Amount,
-                x.Principal.Currency, x.AnnualInterestRate, x.StartDate, x.FirstDueDate,
+                x.Principal.Currency, x.AnnualInterestRate, x.StartDate, x.FirstDueDate!.Value,
                 x.InstallmentCount, x.Description,
-                x.Items.OrderBy(i => i.Sequence).Select(i => x.PaymentOf(i) is { } paid
+                x.CurrentItems.Select(i => x.PaymentOf(i) is { } paid
                     ? new DebtInstallmentBackup(
-                        i.Sequence, i.Amount.Amount, i.Amount.Currency, i.DueDate,
+                        i.Sequence, i.Amount.Amount, i.Amount.Currency, i.DueDate!.Value,
                         paid.AccountId, paid.PaymentDate, paid.PaidAtUtc)
                     : new DebtInstallmentBackup(
-                        i.Sequence, i.Amount.Amount, i.Amount.Currency, i.DueDate,
+                        i.Sequence, i.Amount.Amount, i.Amount.Currency, i.DueDate!.Value,
                         null, null, null)).ToArray(),
                 x.SourceType, x.OpeningAccountId, x.CategoryId,
                 entryTimes.GetValueOrDefault(x.Id))).ToArray(),

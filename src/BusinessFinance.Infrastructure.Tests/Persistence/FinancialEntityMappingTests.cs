@@ -9,7 +9,7 @@ namespace BusinessFinance.Infrastructure.Tests.Persistence;
 public sealed class FinancialEntityMappingTests
 {
     [Fact]
-    public void DebtMapping_UsesOwnerScopedRelationshipsAndOnePaymentPerItem()
+    public void DebtMapping_UsesOwnerScopedRelationshipsAndGuardsTheRemainingWithARevision()
     {
         using var context = CreateSqlServerModelContext();
         var charge = context.Model.FindEntityType(typeof(CounterpartyCharge));
@@ -60,12 +60,16 @@ public sealed class FinancialEntityMappingTests
         Assert.All(payment.GetForeignKeys(), foreignKey =>
             Assert.Equal(DeleteBehavior.Restrict, foreignKey.DeleteBehavior));
 
-        // Dalga 1'de bir kalem tek ödemeyle kapanır: eski tek kapanış kuralı
-        // tahsisin kalem başına tekliğindedir.
-        Assert.Contains(
-            allocation.GetIndexes(),
-            index => index.IsUnique && index.Properties.Select(property => property.Name)
-                .SequenceEqual([nameof(DebtPaymentAllocation.UserId), nameof(DebtPaymentAllocation.ScheduleItemId)]));
+        // Bir kalemi birden çok kapanış kapatabilir (kısmi ödeme); kalanı aşan
+        // eşzamanlı yazmayı borcun sürümü durdurur.
+        Assert.DoesNotContain(allocation.GetIndexes(), index => index.IsUnique);
+        Assert.True(debt.FindProperty(nameof(Debt.Revision))!.IsConcurrencyToken);
+        var cardForeignKey = payment.GetForeignKeys().Single(
+            foreignKey => foreignKey.PrincipalEntityType.ClrType == typeof(CreditCard));
+        Assert.Equal(
+            [nameof(DebtPayment.UserId), nameof(DebtPayment.CreditCardId)],
+            cardForeignKey.Properties.Select(property => property.Name));
+        Assert.False(cardForeignKey.IsRequired);
 
         var relationalModel = context.Model.GetRelationalModel();
         Assert.Equal(

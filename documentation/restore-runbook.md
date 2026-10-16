@@ -504,3 +504,12 @@ yükümlülük, 50 kapanış, 97 borç planı ve 407 taksidin (110'u ödenmiş) 
 sağlama toplamları yükseltmeden önce ve sonra birebir aynı çıktı; her ödemenin
 tutarına eşit bir tahsisi, her tek ödemeli borcun kendi kimliğiyle kalemi var.
 Geliştirme hedefi `BusinessFinance` de kullanıcı onayıyla yükseltildi; 40 yükümlülük, 22 kapanış, 13 borç planı ve 37 taksidin sağlama toplamları önce ve sonra aynı çıktı.
+
+`AddDebtPartialPaymentsAndPlans` (dalga 2a) kısmi ödeme, plan değişikliği,
+kartla ödeme, indirim ve devir için kolon ekler. Yeni kolonlar önce boş
+bırakılabilir eklenir, eski satırlar bilinen değerle doldurulur (her eski
+kapanış gerçek bir ödemedir, hiçbir kalem yerini yeni plana bırakmadı, hiçbir
+borç devir değildi), sonra zorunlu olur; kalıcı DEFAULT kalmaz. Planın vadesi
+ve ödemenin hesabı boş bırakılabilir olur. `Down`, eski şemaya sığmayan kayıt
+(planı olmayan borç, kartla ödeme, indirim, değişmiş plan) varsa veri
+kaybettirmek yerine durur. Yedek biçimi bu adımda değişmez.
