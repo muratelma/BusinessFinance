@@ -143,19 +143,31 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 .Where(item => item.UserId == userId && item.Id == debtId)
                 .Select(item => new { item.Description, item.Direction, item.Principal.Currency })
                 .SingleAsync(cancellationToken);
-            // Kalan: bu hareketin anında henüz ödenmemiş taksitler. Giriş anı
-            // bilinmeyen ödeme günün en eskisi sayılır (akışın sırası).
+            // Kalan: geçerli plandaki kalemler, bu hareketin anına kadar yapılmış
+            // kapanışlar düşülmüş. Giriş anı bilinmeyen kapanış günün en eskisi
+            // sayılır (akışın sırası).
             var date = cutoff.Date;
             var entryAt = cutoff.EntryAtUtc;
-            var remaining = await dbContext.DebtInstallments.AsNoTracking()
-                .Where(item => item.UserId == userId &&
-                               item.DebtAgreementId == debtId &&
-                               (item.PaymentAccountId == null ||
-                                item.PaymentDate > date ||
-                                (item.PaymentDate == date &&
-                                 item.PaidAtUtc != null &&
-                                 item.PaidAtUtc > entryAt)))
-                .SumAsync(item => item.Amount, cancellationToken);
+            var scheduled = await dbContext.DebtScheduleItems.AsNoTracking()
+                .Where(item => item.UserId == userId && item.DebtId == debtId && !item.IsSuperseded)
+                .SumAsync(item => (decimal?)item.Amount.Amount, cancellationToken) ?? 0m;
+            var closed = await (
+                    from allocation in dbContext.DebtPaymentAllocations.AsNoTracking()
+                    join payment in dbContext.DebtPayments.AsNoTracking()
+                        on new { allocation.UserId, Id = allocation.PaymentId }
+                        equals new { payment.UserId, payment.Id }
+                    join item in dbContext.DebtScheduleItems.AsNoTracking()
+                        on new { allocation.UserId, Id = allocation.ScheduleItemId }
+                        equals new { item.UserId, item.Id }
+                    where allocation.UserId == userId &&
+                          payment.DebtId == debtId &&
+                          !payment.IsCancelled &&
+                          !item.IsSuperseded &&
+                          (payment.PaymentDate < date ||
+                           (payment.PaymentDate == date && !(payment.PaidAtUtc > entryAt)))
+                    select allocation.Amount)
+                .SumAsync(amount => (decimal?)amount, cancellationToken) ?? 0m;
+            var remaining = scheduled - closed;
             balances.Add(new ActivityBalanceAfter(
                 ActivityBalanceHolder.Debt,
                 debtId,
@@ -268,28 +280,28 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 var direction = kind == FinancialActivityKind.DebtPayment
                     ? DebtDirection.Payable
                     : DebtDirection.Receivable;
-                return await (
-                        from installment in dbContext.DebtInstallments.AsNoTracking()
-                        join debt in dbContext.DebtAgreements.AsNoTracking()
-                            on new { installment.UserId, Id = installment.DebtAgreementId }
-                            equals new { debt.UserId, debt.Id }
-                        where installment.UserId == userId &&
-                              installment.Id == activityId &&
-                              installment.PaymentAccountId != null &&
-                              installment.PaymentDate != null &&
-                              debt.Direction == direction
-                        select new LocatedActivity(
-                            installment.PaymentDate!.Value,
-                            installment.PaidAtUtc,
-                            false,
-                            installment.PaymentAccountId,
-                            null,
-                            null,
-                            null)
-                        {
-                            AccountIncreases = debt.Direction == DebtDirection.Receivable,
-                            DebtAgreementId = debt.Id
-                        })
+                return await dbContext.DebtPaymentRows
+                    .Where(payment => payment.UserId == userId &&
+                                      payment.Id == activityId &&
+                                      payment.PlanKind != DebtPlanKind.Single &&
+                                      payment.Kind == DebtPaymentKind.Payment &&
+                                      (payment.AccountId != null || payment.CreditCardId != null) &&
+                                      payment.Direction == direction)
+                    .Select(payment => new LocatedActivity(
+                        payment.PaymentDate,
+                        (DateTimeOffset?)payment.PaidAtUtc,
+                        false,
+                        payment.AccountId,
+                        null,
+                        payment.CreditCardId,
+                        null)
+                    {
+                        AccountIncreases = payment.AccountId == null
+                            ? null
+                            : payment.Direction == DebtDirection.Receivable,
+                        CardDebtIncreases = true,
+                        DebtAgreementId = payment.DebtId
+                    })
                     .SingleOrDefaultAsync(cancellationToken);
 
             case FinancialActivityKind.DebtOpening:
@@ -338,6 +350,30 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                     .SingleOrDefaultAsync(cancellationToken);
 
             case FinancialActivityKind.ObligationSettlement:
+                // Kartla ödenmiş fatura hesaba dokunmaz; sonrası kart borcudur.
+                var cardSettlement = await dbContext.DebtPaymentRows
+                    .Where(payment => payment.UserId == userId &&
+                                      payment.Id == activityId &&
+                                      payment.PlanKind == DebtPlanKind.Single &&
+                                      payment.Kind == DebtPaymentKind.Payment &&
+                                      payment.CreditCardId != null)
+                    .Select(payment => new LocatedActivity(
+                        payment.PaymentDate,
+                        (DateTimeOffset?)payment.PaidAtUtc,
+                        false,
+                        null,
+                        null,
+                        payment.CreditCardId,
+                        null)
+                    {
+                        CardDebtIncreases = true
+                    })
+                    .SingleOrDefaultAsync(cancellationToken);
+                if (cardSettlement is not null)
+                {
+                    return cardSettlement;
+                }
+
                 return await dbContext.ObligationSettlements.AsNoTracking()
                     .Where(item => item.UserId == userId && item.Id == activityId)
                     .Select(item => new LocatedActivity(
@@ -622,6 +658,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 ChannelName = (string?)null,
                 FeeAmount = (decimal?)null,
                 NetAmount = (decimal?)null,
+                DiscountAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
@@ -681,6 +718,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 ChannelName = (string?)null,
                 FeeAmount = transfer.FeeTransaction == null ? (decimal?)null : transfer.FeeTransaction.Amount.Amount,
                 NetAmount = (decimal?)null,
+                DiscountAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
@@ -739,6 +777,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 ChannelName = (string?)null,
                 FeeAmount = (decimal?)null,
                 NetAmount = (decimal?)null,
+                DiscountAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
@@ -792,6 +831,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 ChannelName = (string?)null,
                 FeeAmount = (decimal?)null,
                 NetAmount = (decimal?)null,
+                DiscountAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
@@ -805,20 +845,25 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 MatchCounterpartyId = null
             };
 
-        // Only paid installments are realized events. Unpaid ones belong to the planned
-        // view and must never reach this feed.
+        // Only payments are realized events. Open items belong to the planned view
+        // and must never reach this feed. A payment closes its oldest open items;
+        // its interest is the interest share of what it closed.
         var debtActivities =
-            from installment in dbContext.DebtInstallments.AsNoTracking()
+            from installment in dbContext.DebtPaymentRows
             join debt in dbContext.DebtAgreements.AsNoTracking()
-                on new { installment.UserId, Id = installment.DebtAgreementId }
+                on new { installment.UserId, Id = installment.DebtId }
                 equals new { debt.UserId, debt.Id }
             join account in dbContext.Accounts.AsNoTracking()
-                on new { installment.UserId, Id = installment.PaymentAccountId!.Value }
-                equals new { account.UserId, account.Id }
+                on new { installment.UserId, Id = installment.AccountId }
+                equals new { account.UserId, Id = (Guid?)account.Id }
             join counterparty in dbContext.Counterparties.AsNoTracking()
-                on new { debt.UserId, Id = debt.CounterpartyId!.Value }
-                equals new { counterparty.UserId, counterparty.Id }
-            where installment.UserId == userId && installment.PaymentAccountId != null
+                on new { debt.UserId, Id = debt.CounterpartyId }
+                equals new { counterparty.UserId, Id = (Guid?)counterparty.Id }
+                into counterparties
+            from counterparty in counterparties.DefaultIfEmpty()
+            where installment.UserId == userId &&
+                  installment.Kind == DebtPaymentKind.Payment &&
+                  installment.AccountId != null
             select new ActivityRow
             {
                 ActivityId = installment.Id,
@@ -829,7 +874,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 SourceGroup = (int)FinancialActivitySourceGroup.Debt,
                 Origin = (int)FinancialActivityOrigin.Manual,
                 Status = (int)FinancialActivityStatus.Realized,
-                ActivityDate = installment.PaymentDate!.Value,
+                ActivityDate = installment.PaymentDate,
                 Amount = installment.Amount,
                 // Debt money stores its currency as varchar while every other money
                 // column is tinyint, so a plain cast would ask SQL Server to turn 'TRY'
@@ -840,7 +885,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Currency = installment.Currency == CurrencyCode.TRY
                     ? (int)CurrencyCode.TRY
                     : 0,
-                Title = debt.Description ?? counterparty.Name,
+                Title = debt.Description ?? (counterparty == null ? string.Empty : counterparty.Name),
                 Description = debt.Description,
                 CategoryId = null,
                 CategoryName = null,
@@ -849,13 +894,16 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 DestinationId = null,
                 DestinationName = null,
                 CancelledAtUtc = null,
-                PrincipalPortion = installment.PrincipalPortion,
+                PrincipalPortion = installment.InterestAmount == null
+                    ? null
+                    : installment.Amount - installment.InterestAmount,
                 Scope = (int?)debt.Scope,
-                InterestPortion = installment.InterestPortion,
-                EntryAtUtc = installment.PaidAtUtc,
+                InterestPortion = installment.InterestAmount,
+                EntryAtUtc = (DateTimeOffset?)installment.PaidAtUtc,
                 ChannelName = (string?)null,
                 FeeAmount = (decimal?)null,
                 NetAmount = (decimal?)null,
+                DiscountAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
@@ -877,12 +925,14 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
         var debtCashOpenings =
             from debt in dbContext.DebtAgreements.AsNoTracking()
             join account in dbContext.Accounts.AsNoTracking()
-                on new { debt.UserId, Id = debt.OpeningAccountId!.Value }
-                equals new { account.UserId, account.Id }
+                on new { debt.UserId, Id = debt.OpeningAccountId }
+                equals new { account.UserId, Id = (Guid?)account.Id }
             join counterparty in dbContext.Counterparties.AsNoTracking()
-                on new { debt.UserId, Id = debt.CounterpartyId!.Value }
-                equals new { counterparty.UserId, counterparty.Id }
-            where debt.UserId == userId && debt.SourceType == DebtSourceType.Cash
+                on new { debt.UserId, Id = debt.CounterpartyId }
+                equals new { counterparty.UserId, Id = (Guid?)counterparty.Id }
+                into counterparties
+            from counterparty in counterparties.DefaultIfEmpty()
+            where debt.UserId == userId && debt.SourceType == DebtSourceType.Cash && !debt.IsCarriedOver
             select new ActivityRow
             {
                 ActivityId = debt.Id,
@@ -898,7 +948,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Currency = debt.Principal.Currency == CurrencyCode.TRY
                     ? (int)CurrencyCode.TRY
                     : 0,
-                Title = counterparty.Name,
+                Title = counterparty == null ? debt.Description ?? string.Empty : counterparty.Name,
                 Description = debt.Description,
                 CategoryId = null,
                 CategoryName = null,
@@ -914,6 +964,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 ChannelName = (string?)null,
                 FeeAmount = (decimal?)null,
                 NetAmount = (decimal?)null,
+                DiscountAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
@@ -930,12 +981,15 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
         var debtCategoricalOpenings =
             from debt in dbContext.DebtAgreements.AsNoTracking()
             join category in dbContext.Categories.AsNoTracking()
-                on new { debt.UserId, Id = debt.CategoryId!.Value }
-                equals new { category.UserId, category.Id }
+                on new { debt.UserId, Id = debt.CategoryId }
+                equals new { category.UserId, Id = (Guid?)category.Id }
             join counterparty in dbContext.Counterparties.AsNoTracking()
-                on new { debt.UserId, Id = debt.CounterpartyId!.Value }
-                equals new { counterparty.UserId, counterparty.Id }
+                on new { debt.UserId, Id = debt.CounterpartyId }
+                equals new { counterparty.UserId, Id = (Guid?)counterparty.Id }
+                into counterparties
+            from counterparty in counterparties.DefaultIfEmpty()
             where debt.UserId == userId &&
+                  !debt.IsCarriedOver &&
                   (debt.SourceType == DebtSourceType.Expense ||
                    debt.SourceType == DebtSourceType.Income)
             select new ActivityRow
@@ -953,11 +1007,16 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Origin = (int)FinancialActivityOrigin.Manual,
                 Status = (int)FinancialActivityStatus.Realized,
                 ActivityDate = debt.StartDate,
-                Amount = debt.Principal.Amount,
+                // İndirim bedeli açılış gününde düşürür; satır raporun saydığını yazar.
+                Amount = debt.Principal.Amount -
+                    (dbContext.DebtPayments
+                        .Where(closing => closing.UserId == debt.UserId && closing.DebtId == debt.Id &&
+                                          !closing.IsCancelled && closing.Kind == DebtPaymentKind.Discount)
+                        .Sum(closing => (decimal?)closing.Amount.Amount) ?? 0m),
                 Currency = debt.Principal.Currency == CurrencyCode.TRY
                     ? (int)CurrencyCode.TRY
                     : 0,
-                Title = counterparty.Name,
+                Title = counterparty == null ? debt.Description ?? string.Empty : counterparty.Name,
                 Description = debt.Description,
                 CategoryId = category.Id,
                 CategoryName = category.Name,
@@ -973,6 +1032,14 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 ChannelName = (string?)null,
                 FeeAmount = (decimal?)null,
                 NetAmount = (decimal?)null,
+                DiscountAmount = dbContext.DebtPayments
+                    .Any(closing => closing.UserId == debt.UserId && closing.DebtId == debt.Id &&
+                                    !closing.IsCancelled && closing.Kind == DebtPaymentKind.Discount)
+                    ? dbContext.DebtPayments
+                        .Where(closing => closing.UserId == debt.UserId && closing.DebtId == debt.Id &&
+                                          !closing.IsCancelled && closing.Kind == DebtPaymentKind.Discount)
+                        .Sum(closing => (decimal?)closing.Amount.Amount)
+                    : null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
@@ -1011,7 +1078,12 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                     ? (int)FinancialActivityStatus.Cancelled
                     : (int)FinancialActivityStatus.Realized,
                 ActivityDate = charge.ChargeDate,
-                Amount = charge.Amount.Amount,
+                // İndirim bedeli alım gününde düşürür; satır raporun saydığını yazar.
+                Amount = charge.Amount.Amount -
+                    (dbContext.CounterpartyChargeDiscounts
+                        .Where(discount => discount.UserId == charge.UserId && discount.ChargeId == charge.Id &&
+                                           !discount.IsCancelled)
+                        .Sum(discount => (decimal?)discount.Amount) ?? 0m),
                 Currency = (int)charge.Amount.Currency,
 
                 // Kaydın adı kullanıcının yazdığından gelir; yoksa karşı tarafın
@@ -1035,6 +1107,14 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 ChannelName = (string?)null,
                 FeeAmount = (decimal?)null,
                 NetAmount = (decimal?)null,
+                DiscountAmount = dbContext.CounterpartyChargeDiscounts
+                        .Any(discount => discount.UserId == charge.UserId && discount.ChargeId == charge.Id &&
+                                         !discount.IsCancelled)
+                    ? dbContext.CounterpartyChargeDiscounts
+                        .Where(discount => discount.UserId == charge.UserId && discount.ChargeId == charge.Id &&
+                                           !discount.IsCancelled)
+                        .Sum(discount => (decimal?)discount.Amount)
+                    : null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)charge.Direction,
@@ -1111,6 +1191,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 NetAmount = card == null
                     ? null
                     : (decimal?)(card.GrossAmount.Amount - card.CommissionAmount),
+                DiscountAmount = (decimal?)null,
                 ExpectedTransferDate = card == null ? null : (DateOnly?)card.ExpectedTransferDate,
                 TransferredOn = card == null ? null : card.TransferredOn,
                 Direction = (int?)payment.Direction,
@@ -1135,9 +1216,10 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
 
         var obligations =
             from obligation in dbContext.Obligations.AsNoTracking()
+            // Fatura satırı tanımadır: devredilmiş borcun satırı yoktur.
             join category in dbContext.Categories.AsNoTracking()
                 on new { obligation.UserId, Id = obligation.CategoryId }
-                equals new { category.UserId, category.Id }
+                equals new { category.UserId, Id = (Guid?)category.Id }
             join counterparty in dbContext.Counterparties.AsNoTracking()
                 on new { obligation.UserId, Id = obligation.CounterpartyId }
                 equals new { counterparty.UserId, Id = (Guid?)counterparty.Id }
@@ -1157,7 +1239,9 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                     ? (int)FinancialActivityStatus.Cancelled
                     : (int)FinancialActivityStatus.Realized,
                 ActivityDate = obligation.IssueDate,
-                Amount = obligation.Amount,
+                // İndirim bedeli fatura gününde düşürür; satır raporun saydığını yazar,
+                // indirim satırın altında yazılır (kullanıcı kararı, 16 Ekim 2026).
+                Amount = obligation.RecognizedAmount,
                 // Tek borç modelinde para birimi metindir; düz dönüşüm SQL'e 'TRY'yi
                 // sayıya çevirtirdi (taksit satırındaki gerekçe).
                 Currency = obligation.Currency == CurrencyCode.TRY
@@ -1180,6 +1264,9 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 ChannelName = (string?)null,
                 FeeAmount = (decimal?)null,
                 NetAmount = (decimal?)null,
+                DiscountAmount = obligation.Amount > obligation.RecognizedAmount
+                    ? obligation.Amount - obligation.RecognizedAmount
+                    : (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)obligation.Direction,
@@ -1219,7 +1306,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
 
         var obligationSettlements =
             from settlement in dbContext.ObligationSettlements.AsNoTracking()
-            join obligation in dbContext.Obligations.AsNoTracking()
+            join obligation in dbContext.Debts.AsNoTracking()
                 on new { settlement.UserId, Id = settlement.ObligationId }
                 equals new { obligation.UserId, obligation.Id }
             join account in dbContext.Accounts.AsNoTracking()
@@ -1227,7 +1314,9 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 equals new { account.UserId, account.Id }
             join category in dbContext.Categories.AsNoTracking()
                 on new { obligation.UserId, Id = obligation.CategoryId }
-                equals new { category.UserId, category.Id }
+                equals new { category.UserId, Id = (Guid?)category.Id }
+                into categories
+            from category in categories.DefaultIfEmpty()
             join counterparty in dbContext.Counterparties.AsNoTracking()
                 on new { obligation.UserId, Id = obligation.CounterpartyId }
                 equals new { counterparty.UserId, Id = (Guid?)counterparty.Id }
@@ -1260,7 +1349,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                     ? (int)CurrencyCode.TRY
                     : 0,
                 Title = obligation.Description ??
-                        (counterparty == null ? category.Name : counterparty.Name),
+                        (counterparty != null ? counterparty.Name : category == null ? string.Empty : category.Name),
                 Description = obligation.Description,
                 CategoryId = null,
                 CategoryName = null,
@@ -1283,6 +1372,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 NetAmount = card == null
                     ? null
                     : (decimal?)(card.GrossAmount.Amount - card.CommissionAmount),
+                DiscountAmount = (decimal?)null,
                 ExpectedTransferDate = card == null ? null : (DateOnly?)card.ExpectedTransferDate,
                 TransferredOn = card == null ? null : card.TransferredOn,
                 Direction = (int?)settlement.Direction,
@@ -1359,6 +1449,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                     ? (decimal?)settlement.CommissionAmount
                     : null,
                 NetAmount = (decimal?)(settlement.GrossAmount.Amount - settlement.CommissionAmount),
+                DiscountAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)settlement.ExpectedTransferDate,
                 TransferredOn = settlement.TransferredOn,
                 Direction = (int?)null,
@@ -1433,6 +1524,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                     ? (decimal?)deposit.DeductionAmount
                     : null,
                 NetAmount = (decimal?)null,
+                DiscountAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
@@ -1447,11 +1539,81 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 MatchCounterpartyId = (Guid?)null
             };
 
+        // Kartla ödenen borç (ADR 0021 T4): hesap değil kart borcu artar, gelir ya
+        // da gider yoktur. Satır ödenen borcun türünü taşır — tek ödemelide
+        // kapanış, taksitlide borç ödemesi — ve kaynağı karttır.
+        var debtCardPayments =
+            from payment in dbContext.DebtPaymentRows
+            join debt in dbContext.Debts.AsNoTracking()
+                on new { payment.UserId, Id = payment.DebtId }
+                equals new { debt.UserId, debt.Id }
+            join card in dbContext.CreditCards.AsNoTracking()
+                on new { payment.UserId, Id = payment.CreditCardId }
+                equals new { card.UserId, Id = (Guid?)card.Id }
+            join counterparty in dbContext.Counterparties.AsNoTracking()
+                on new { debt.UserId, Id = debt.CounterpartyId }
+                equals new { counterparty.UserId, Id = (Guid?)counterparty.Id }
+                into counterparties
+            from counterparty in counterparties.DefaultIfEmpty()
+            where payment.UserId == userId &&
+                  payment.Kind == DebtPaymentKind.Payment &&
+                  payment.CreditCardId != null &&
+                  !debt.IsCancelled
+            select new ActivityRow
+            {
+                ActivityId = payment.Id,
+                ActivityKind = payment.PlanKind == DebtPlanKind.Single
+                    ? (int)FinancialActivityKind.ObligationSettlement
+                    : (int)FinancialActivityKind.DebtPayment,
+                Effect = (int)FinancialActivityEffect.Neutral,
+                SourceGroup = payment.PlanKind == DebtPlanKind.Single
+                    ? (int)FinancialActivitySourceGroup.Obligation
+                    : (int)FinancialActivitySourceGroup.Debt,
+                Origin = (int)FinancialActivityOrigin.Manual,
+                Status = (int)FinancialActivityStatus.Realized,
+                ActivityDate = payment.PaymentDate,
+                Amount = payment.Amount,
+                Currency = payment.Currency == CurrencyCode.TRY
+                    ? (int)CurrencyCode.TRY
+                    : 0,
+                Title = debt.Description ?? (counterparty == null ? string.Empty : counterparty.Name),
+                Description = debt.Description,
+                CategoryId = null,
+                CategoryName = null,
+                SourceId = (Guid?)card.Id,
+                SourceName = card.Name,
+                DestinationId = counterparty == null ? null : (Guid?)counterparty.Id,
+                DestinationName = counterparty == null ? null : counterparty.Name,
+                CancelledAtUtc = null,
+                Scope = payment.PlanKind == DebtPlanKind.Single ? null : (int?)debt.Scope,
+                PrincipalPortion = payment.InterestAmount == null
+                    ? null
+                    : payment.Amount - payment.InterestAmount,
+                InterestPortion = payment.InterestAmount,
+                EntryAtUtc = (DateTimeOffset?)payment.PaidAtUtc,
+                ChannelName = (string?)null,
+                FeeAmount = (decimal?)null,
+                NetAmount = (decimal?)null,
+                DiscountAmount = (decimal?)null,
+                ExpectedTransferDate = (DateOnly?)null,
+                TransferredOn = (DateOnly?)null,
+                Direction = payment.PlanKind == DebtPlanKind.Single ? (int?)payment.Direction : null,
+                SettlementCount = (int?)null,
+                CancelLocked = false,
+                DayCloseId = (Guid?)null,
+                MatchAccountId = null,
+                MatchSecondAccountId = null,
+                MatchCreditCardId = card.Id,
+                MatchCategoryId = null,
+                MatchCounterpartyId = debt.CounterpartyId
+            };
+
         return accountTransactions
             .Concat(transfers)
             .Concat(cardCharges)
             .Concat(cardPayments)
             .Concat(debtActivities)
+            .Concat(debtCardPayments)
             .Concat(debtCashOpenings)
             .Concat(debtCategoricalOpenings)
             .Concat(counterpartyCharges)
@@ -1591,7 +1753,8 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
         row.SettlementCount,
         row.Direction is int direction ? (DebtDirection)direction : null,
         row.DayCloseId,
-        row.CancelLocked);
+        row.CancelLocked,
+        row.DiscountAmount);
 
     /// <summary>
     /// The shared UNION ALL shape. Enums are carried as int so every branch produces the
@@ -1638,6 +1801,12 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
         public string? ChannelName { get; init; }
         public decimal? FeeAmount { get; init; }
         public decimal? NetAmount { get; init; }
+
+        /// <summary>
+        /// Fatura ve kayıtlı alım/satış borcunun indirimi: satır tutarı indirim
+        /// düşülmüş bedeldir, indirim tutarın altında yazılır. Yoksa <c>null</c>.
+        /// </summary>
+        public decimal? DiscountAmount { get; init; }
         public DateOnly? ExpectedTransferDate { get; init; }
         public DateOnly? TransferredOn { get; init; }
         public int? SettlementCount { get; init; }

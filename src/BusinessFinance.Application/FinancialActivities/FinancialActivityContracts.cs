@@ -235,7 +235,13 @@ public sealed record FinancialActivityRow(
     /// kendisi sayıldıysa taşır (nakit tutarından düşülen alacak faturası);
     /// yalnız kapanışı sayıldıysa kilit buradan gelir.
     /// </summary>
-    bool CancelLocked = false);
+    bool CancelLocked = false,
+
+    /// <summary>
+    /// Faturanın ya da kayıtlı alım/satış borcunun indirimi; satır tutarı
+    /// indirim düşülmüş bedeldir (ADR 0021 İ4). Yoksa <c>null</c>.
+    /// </summary>
+    decimal? DiscountAmount = null);
 
 /// <summary>
 /// Bakiyesi gösterilen yer: bir hesap, bir kredi kartı, bir karşı tarafın

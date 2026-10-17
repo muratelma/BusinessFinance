@@ -428,3 +428,19 @@ veya hesap bakiyesini değiştirmez. İstemci hiçbir yeni sorguya `UserId` ekle
 ## Kaynak seçeneği meta verisi — 13 Ekim 2026
 
 Kategori kaynak seçeneklerinde mevcut isteğe bağlı kind alanı, sahip olunan nakit/banka hesabında cash/bank olarak doldurulur. Seçili boş kaynak da aynı sahiplik kontrolünden geçer. Yetkilendirme ve mevcut uçlar değişmez; ayrıntı category-account-pages-api-contract.md içindedir.
+
+## Borç ve alacaklar — 16 Ekim 2026 (ADR 0021 dalga 2)
+
+Yeni uçların hepsi sahiplik kapsamlıdır ve `OwnershipIsolationTests` route
+listesinde yoklanır: `GET/DELETE /api/v1/debts/{id}`, `POST
+/api/v1/debts/{id}/payments`, `DELETE …/payments/{paymentId}`, `POST
+…/discounts`, `PUT …/plan`, `POST /api/v1/counterparty-charges/{id}/discounts`,
+`DELETE …/discounts/{discountId}`, `PUT /api/v1/counterparties/{id}/opening-balance`.
+Başkasının borcu, kapanışı ya da indirimi olmayan kayıtla aynı `404`'ü alır.
+Ödemenin hesabı, kartı ve POS'u current user kapsamında çözülür; istemcinin
+gönderdiği kimlik başka kullanıcınınsa `debt.account_unavailable` /
+`debt.card_unavailable` döner, kayıt yazılmaz. `GET /api/v1/debt-book` ve
+`GET /api/v1/debt-book/closed` kimlik almaz; sızıntı ölçüsüne (`ReadEndpoints_ShowNothingThatBelongsToAnotherUser`)
+eklendi. Eşzamanlı iki kapanış borcun sürüm belirteciyle (`Revision`) aynı
+satırda sınanır: kaybeden `409 debt.changed` alır, kalan aşılmaz. Sözleşme
+`debt-api-contract.md` içindedir.

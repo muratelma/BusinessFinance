@@ -218,8 +218,8 @@ internal sealed class EfReceiptDuplicateLookup(BusinessFinanceDbContext dbContex
             var receivable = await (
                     from item in dbContext.DebtAgreements.AsNoTracking()
                     join counterparty in dbContext.Counterparties.AsNoTracking()
-                        on new { item.UserId, Id = item.CounterpartyId!.Value }
-                        equals new { counterparty.UserId, counterparty.Id }
+                        on new { item.UserId, Id = item.CounterpartyId }
+                        equals new { counterparty.UserId, Id = (Guid?)counterparty.Id }
                     where item.UserId == userId &&
                           item.Direction == DebtDirection.Receivable &&
                           item.StartDate == date &&

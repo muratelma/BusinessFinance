@@ -40,9 +40,11 @@ public sealed class BusinessFinanceDbContext(
     internal IQueryable<Infrastructure.Debts.ObligationSettlementRow> ObligationSettlements =>
         Infrastructure.Debts.DebtViews.ObligationSettlements(this);
     internal IQueryable<Debt> DebtAgreements => Infrastructure.Debts.DebtViews.Agreements(this);
-    internal IQueryable<Infrastructure.Debts.InstallmentRow> DebtInstallments => Infrastructure.Debts.DebtViews.Installments(this);
+    internal IQueryable<Infrastructure.Debts.DebtPaymentRow> DebtPaymentRows => Infrastructure.Debts.DebtViews.Payments(this);
+    internal IQueryable<Infrastructure.Debts.DebtOpenItemRow> DebtOpenItems => Infrastructure.Debts.DebtViews.OpenItems(this);
     public DbSet<Counterparty> Counterparties => Set<Counterparty>();
     public DbSet<CounterpartyCharge> CounterpartyCharges => Set<CounterpartyCharge>();
+    public DbSet<CounterpartyChargeDiscount> CounterpartyChargeDiscounts => Set<CounterpartyChargeDiscount>();
     public DbSet<CounterpartyPayment> CounterpartyPayments => Set<CounterpartyPayment>();
     public DbSet<CashCount> CashCounts => Set<CashCount>();
     public DbSet<PosSettlement> PosSettlements => Set<PosSettlement>();

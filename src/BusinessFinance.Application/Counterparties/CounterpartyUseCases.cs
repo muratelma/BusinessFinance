@@ -259,7 +259,9 @@ internal static class CounterpartyMapper
         openReceivableObligations,
         openPayableObligations,
         CounterpartyDisplay.OwedToYou(receivable, payable),
-        CounterpartyDisplay.OwedByYou(receivable, payable));
+        CounterpartyDisplay.OwedByYou(receivable, payable),
+        counterparty.OpeningReceivable,
+        counterparty.OpeningPayable);
 
     public static CounterpartyDto ToDto(
         Counterparty counterparty,

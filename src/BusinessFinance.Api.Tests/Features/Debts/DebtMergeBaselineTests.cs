@@ -196,7 +196,10 @@ public sealed partial class DebtMergeBaselineTests
             case (JsonObject left, JsonObject right):
                 foreach (var name in left.Select(item => item.Key).Union(right.Select(item => item.Key)))
                 {
-                    if (!left.ContainsKey(name)) return $"{path}.{name}: unexpected in actual";
+                    // Sözleşmeye eklenen alan (dalga 2) eski okumanın değişmesi
+                    // değildir: referanstaki her alan birebir aynı kalmalı, yalnız
+                    // yeni alanlar yok sayılır.
+                    if (!left.ContainsKey(name)) continue;
                     if (!right.ContainsKey(name)) return $"{path}.{name}: missing in actual";
                     var inner = FirstDifference($"{path}.{name}", left[name], right[name]);
                     if (inner is not null) return inner;

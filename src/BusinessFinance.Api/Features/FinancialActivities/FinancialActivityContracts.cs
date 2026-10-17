@@ -71,7 +71,13 @@ public sealed record FinancialActivityResponse(
     // Kaydın bağlı olduğu gün sonu: gün sonunun yazdığı (`origin: day-close`)
     // ya da saydığı (tek tek girilmiş ve tutardan düşülmüş) kayıtta doludur.
     // İkisi de tek başına iptal edilemez.
-    Guid? DayCloseId = null);
+    Guid? DayCloseId = null,
+
+    /// <summary>
+    /// Faturanın ya da kayıtlı alım/satış borcunun indirimi. Satırın tutarı
+    /// indirim düşülmüş bedeldir; indirim tutarın altında yazılır. Yoksa <c>null</c>.
+    /// </summary>
+    string? DiscountAmount = null);
 
 /// <summary>
 /// Bir hareketten hemen sonra hesabın bakiyesi ya da kartın borcu.

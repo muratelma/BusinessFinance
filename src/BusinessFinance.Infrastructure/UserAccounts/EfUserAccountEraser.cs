@@ -78,6 +78,8 @@ internal sealed class EfUserAccountEraser(
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
             await dbContext.CashCounts
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+            await dbContext.CounterpartyChargeDiscounts
+                .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
             await dbContext.CounterpartyCharges
                 .Where(item => item.UserId == userId).ExecuteDeleteAsync(cancellationToken);
             await dbContext.Counterparties

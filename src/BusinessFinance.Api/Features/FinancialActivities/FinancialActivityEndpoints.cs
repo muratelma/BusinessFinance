@@ -323,7 +323,8 @@ public static class FinancialActivityEndpoints
                 BusinessFinance.Domain.DebtDirection.Payable => "payable",
                 _ => null
             },
-            activity.DayCloseId);
+            activity.DayCloseId,
+            activity.DiscountAmount is decimal discount ? FinanceContract.Money(discount) : null);
     }
 
     private static bool TryParseOptionalDate(string? value, out DateOnly? date)

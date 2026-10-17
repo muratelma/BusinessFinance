@@ -402,6 +402,7 @@ internal sealed class EfDayCloseRepository(
         var obligations = await dbContext.Obligations.AsNoTracking()
             .Where(obligation => obligation.UserId == userId &&
                                  !obligation.IsCancelled &&
+                                 !obligation.IsCarriedOver &&
                                  obligation.Direction == DebtDirection.Receivable &&
                                  obligation.Scope == TransactionScope.Business &&
                                  obligation.IssueDate >= @from &&

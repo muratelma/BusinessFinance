@@ -858,6 +858,60 @@ bu adımda değişmez.
 - Eski uçların davranışı aynıdır: yükümlülük kapanışı kalanı tek ödemeyle
   kapatır, eski taksit ucu taksidin kimliğiyle tam tutarı öder.
 
+**Dalga 2b — okumalar kapanışlardan** (`Debts/DebtViews.cs`). Okumalar artık
+"taksit başına tek ödeme" varsaymaz; iki görünümden okur:
+
+- **`Payments`** (`DebtPaymentRows`): iptal edilmemiş her kapanış tek satır;
+  hesabı ya da kartı, POS bağı ve içindeki faiz payıyla (ayrımı olmayan eski
+  kalemde boş, faizsizde sıfır). Hesap hareketleri (`AccountMovements`), faiz
+  geliri/gideri (`RecognizedItems`; kartla ödenen faizli taksitte de), akıştaki
+  taksit ödemesi satırı ve işlem sonrası hareket bulma buradan okur. Eski
+  taksit ödemesinin kimliği taksidinki olduğu için akış kimlikleri değişmedi.
+- **`OpenItems`** (`DebtOpenItems`): iptal edilmemiş borçların geçerli plandaki
+  kalemleri, açık tutarı ve açık anaparasıyla. Planlananlar (vadesi olan açık
+  kalem, açık tutarıyla) buradan okur; planı olmayan borcun planlanacak günü
+  yoktur.
+- **Kalan** kapanışlardan hesaplanır: yükümlülük satırı `RemainingAmount` ve
+  indirim düşülmüş `RecognizedAmount` taşır. Fatura açık mı sorusu "kapanış var
+  mı" değil "kalan sıfırdan büyük mü"dür (liste, planlananlar, kişinin bekleyen
+  faturaları). Net varlık o güne kadarki ödemeleri ve bütün indirimleri düşer;
+  kalan anapara, kapanışların anapara payı düşülerek bulunur.
+- **İndirim** gelir ya da gideri borcun açıldığı gün azaltır (açılış ve fatura
+  tanıması bedel − indirim yazar). Uygulamadan önceki borç tanınmaz.
+- **Kartla ödeme** hesabı oynatmaz; kart borcunun merkezi toplamı (`CardDebt`)
+  onu okur. Kart ekstresi ve net varlıktaki kart borcu dalga 2c'de, kartla
+  ödemenin ucuyla birlikte eklenir.
+- İptal edilmiş taksitli borç okumalarda yoktur.
+
+**Dalga 2c — uçlar, cari, akış ve yedek.** Borç kendi uçlarıyla kapanır
+(`Application/Debts/DebtClosingUseCases.cs`): ödeme (hesap, kart ya da POS),
+indirim, geri alma, plan değişikliği ve iptal; istek kimliği aynı kapanışı
+döner, eşzamanlı yazma borcun `Revision` belirteciyle reddedilir. Sözleşme
+`debt-api-contract.md`.
+
+- **Liste** (`DebtBook`, `EfDebtBookReader`): açık borçlar ve kişilerin
+  carileri bölümlere ayrılır (gecikmiş · yaklaşan · vadesiz); toplamlar
+  sunucudandır. Cari ayrı satırdır, borçla birleştirilmez.
+- **Cari gecikmesi** (`Counterparties/CounterpartyAging.cs`): ödemeler en eski
+  alımı kapatır; gecikme ve sıradaki vade bu sıradan çıkar. Bakiye sorgusu tek
+  ifadedir, gecikme listelenen kişilerin alımlarını bir kez okuyan ikinci
+  sorgudur (kişi başına sorgu yok).
+- **Cari indirim ve devir**: `CounterpartyChargeDiscount` alımın bedelini
+  düşürür (tanıma, bakiye, gecikme, net varlık, işlem sonrası bakiye aynı
+  tabloyu okur); kişinin `OpeningReceivable/OpeningPayable` alanları gelir
+  yazmayan devreden bakiyedir ve gecikmede en eski kalemdir.
+- **Kart**: kartla ödenen borç kart borcunun harcama tarafındadır
+  (`CardDebt.ChargeRows`); ekstre, net varlıktaki kart borcu ve planlanan ekstre
+  onu okur.
+- **Akış**: yeni tür yok. Kartla ödeme var olan türlerle (`obligation-settlement`,
+  `debt-payment`) ve kart kaynağıyla yazılır; kişisiz borç left join'le görünür;
+  açılış satırları indirim düşülmüş bedeli yazar; devreden borcun açılış satırı
+  yoktur. `Obligations` görünümü devredilmiş tek ödemeli borcu içermez
+  (kategorisi yoktur ve tanımaz); kapanış satırı borca doğrudan bağlanır.
+- **Yedek v13** borcu durumuyla taşır (kalemler, kapanışlar, dağılım) ve
+  `Debt.Restore` ile değişmezlerini denetleyerek kurar; işlem yeniden
+  oynatılmaz, çünkü plan değişikliğinin anı tutulmuyor.
+
 ## Tek seferlik yükümlülük
 
 > Aşama 03, Grup 1–7 — Domain modeli, kalıcılık, kanonik planlanan projection,

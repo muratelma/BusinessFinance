@@ -167,34 +167,35 @@ internal static class AccountMovements
                 TransactionId = null
             });
 
-        // Ödenen taksit: alacakta hesaba girer, borçta çıkar. Tutarın tamamı
-        // (anapara + faiz) hareket eder.
-        var debtInstallments =
-            from installment in dbContext.DebtInstallments.AsNoTracking()
-            join debt in dbContext.DebtAgreements.AsNoTracking()
-                on new { installment.UserId, DebtId = installment.DebtAgreementId }
-                equals new { debt.UserId, DebtId = debt.Id }
-            where installment.UserId == userId && installment.PaymentAccountId != null
-            select new AccountMovement
+        // Tek ödemeli olmayan borcun hesaptan ödemesi: alacakta hesaba girer,
+        // borçta çıkar. Tutarın tamamı (anapara + faiz) hareket eder. Kartla
+        // ödeme hesabı oynatmaz (kart borcu), POS'la tahsil yatışla girer.
+        var debtInstallments = dbContext.DebtPaymentRows
+            .Where(payment => payment.UserId == userId &&
+                              payment.PlanKind != DebtPlanKind.Single &&
+                              payment.Kind == DebtPaymentKind.Payment &&
+                              payment.AccountId != null &&
+                              payment.PosSettlementId == null)
+            .Select(payment => new AccountMovement
             {
-                ActivityId = installment.Id,
-                ActivityKind = debt.Direction == DebtDirection.Receivable ? (int)FinancialActivityKind.DebtCollection : (int)FinancialActivityKind.DebtPayment,
+                ActivityId = payment.Id,
+                ActivityKind = payment.Direction == DebtDirection.Receivable ? (int)FinancialActivityKind.DebtCollection : (int)FinancialActivityKind.DebtPayment,
                 CounterAccountId = (Guid?)null,
                 CategoryId = (Guid?)null,
                 CreditCardId = (Guid?)null,
-                CounterpartyId = debt.CounterpartyId,
-                PartAmount = installment.InterestPortion,
-                Part = installment.InterestPortion > 0m ? "interest" : null,
+                CounterpartyId = payment.CounterpartyId,
+                PartAmount = payment.InterestAmount,
+                Part = payment.InterestAmount > 0m ? "interest" : null,
                 Group = 2,
 
-                AccountId = installment.PaymentAccountId!.Value,
-                Date = installment.PaymentDate!.Value,
-                EntryAtUtc = installment.PaidAtUtc,
-                Amount = debt.Direction == DebtDirection.Receivable
-                    ? installment.Amount
-                    : -installment.Amount,
+                AccountId = payment.AccountId!.Value,
+                Date = payment.PaymentDate,
+                EntryAtUtc = (DateTimeOffset?)payment.PaidAtUtc,
+                Amount = payment.Direction == DebtDirection.Receivable
+                    ? payment.Amount
+                    : -payment.Amount,
                 TransactionId = null
-            };
+            });
 
         // Borcun açılışı. Nakit kaynaklı bir borçta para hesaba girmiştir,
         // alacakta çıkmıştır; ikisi de gelir/gider değildir. Bu hareket

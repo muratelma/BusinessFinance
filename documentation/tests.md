@@ -2246,3 +2246,25 @@ Domain ve şema; uçlar dalga 2c'de. Eski uçların davranışı golden testle k
 | Her değişiklik sürümü artırır | `EveryChange_AdvancesTheRevision` | Kalanı aşan eşzamanlı yazmayı durduran belirteç |
 | Eşleme | `FinancialEntityMappingTests.DebtMapping_UsesOwnerScopedRelationshipsAndGuardsTheRemainingWithARevision` | Tahsiste teklik yok, `Revision` eşzamanlılık belirteci, kart FK'si |
 | Şema yükseltmesi | `MigrationHistoryTests`, SQL test hedefine uygulama | Eski 250 ödeme `Kind = 1`; kalıcı DEFAULT yok |
+
+## Dalga 2b — okumalar kapanışlardan (16 Ekim 2026)
+
+| Kural | Test | Ne gösterir |
+|---|---|---|
+| Okumalar eski kayıtlarda aynı cevabı verir | `DebtMergeBaselineTests` (iki test, gerçek SQL) | Yeni görünümlerle ~50 okuma birleşmeden önceki referansla ve eski yedeğin geri yüklenişiyle birebir |
+| Kısmi ödeme, indirim ve kartla ödeme okumalara doğru yansır | `SqlServerPersistenceIntegrationTests.DebtReads_FollowPartialPaymentsDiscountsAndCardPayments` (gerçek SQL) | Hesap 9.500 (10.000 + 4.000 borç − 1.500 taksit − 3.000 peşin); ekim gideri 9.950 (indirimli raf 9.000 + nakliye 950, kartla ödeme ikinci gider değil); kart borcu 950; kısmen ödenmiş fatura açık, kartla ödenen kapalı ve hesapsız; planlananlarda 500 · 1.000 · 1.000 ve fatura kalanı 6.000; net varlıkta borç 8.500 |
+| Görünüm adları | `SqlServerPersistenceIntegrationTests` (eşzamanlı taksit ödemesi, kullanıcı silme), `…DebtMerge` | Eski taksit görünümü yerine ödeme satırları ve açık kalemler |
+
+## Dalga 2c — uçlar, liste, cari, akış ve yedek v13 (16 Ekim 2026)
+
+| Kural | Test | Ne gösterir |
+|---|---|---|
+| Borç kendi uçlarıyla kapanır | `DebtClosingEndpointTests` (InMemory + iki gerçek SQL varyantı) | Kısmi ödeme, indirim, geri alma ve plan değişikliği; kartla ödeme kart borcunu 950 yapar, hesap ve gider değişmez; alacak kartla ödenmez; devreden ve planı olmayan borç para yazmaz; faizli borç tam taksitle ödenir; başkasının borcu olmayan gibi cevaplanır |
+| Akış kartla ödemeyi ve kişisiz borcu gösterir | `DebtClosingEndpointTests` (kart ve devir senaryoları) | Kapanış satırı `obligation-settlement`, kaynağı kart; işlem sonrası bakiye kart borcu (hesap satırı yok); kişisiz borcun açılış ve ödeme satırı görünür; devreden borcun açılış satırı yok |
+| Liste bölümleri ve toplamları sunucudandır | `DebtBookEndpointTests.Book_*` (InMemory + gerçek SQL) | Brif 7 alacak örneği: toplam 16.000, sıra gecikmiş · yaklaşan (yakın vade, büyük kalan önce) · vadesiz; FIFO: vadesiz eski alıma giden ödeme vadeli alımın 500 gecikmesini silmez; kişinin sayfası aynı gecikmeyi söyler; kapanan fatura kapananlarda |
+| Cari indirim ve devreden bakiye | `DebtBookEndpointTests.LedgerDiscountAndOpeningBalance_*` (InMemory + gerçek SQL) | İndirim gideri 1.000 → 800 yapar, aynı istek ikinci indirim yazmaz, alımı aşan indirim reddedilir; devreden 300 borç bakiyeye girer, gider yazmaz; 300 ödeme önce devri kapatır, gecikmiş alım 800 kalır; indirimi geri almak gideri 1.000'e döndürür |
+| Yedek v13 her borç durumunu taşır | `DebtBackupV13Tests` (InMemory + gerçek SQL) | Kısmi ödeme, geri alınmış ödeme, indirim, kartla ödeme, POS'la tahsil (yolda duran ve geri alınmış), plan değişikliği, devir, kişisiz/plansız ve iptal edilmiş borç ile cari indirim ve devir yedekten dönünce 16 okuma (POS tahsilatları dahil) kimlikler dışında birebir aynı |
+| Geri yükleme tutmayan borcu kurmaz | `DebtPaymentTests.Restore_RebuildsAChangedPlanAndRejectsAnOverClosedItem` | Değişmiş plan aynı kalan ve aynı eski kalemlerle kurulur; kalemi tutarından fazla kapatan, dağılımı tutarına eşit olmayan ve nakit borçta indirim taşıyan dosya reddedilir |
+| Migration biçimi | `MigrationHistoryTests.AddCounterpartyDiscountsAndOpeningBalances_*` | Devir kolonları önce boş eklenir, doldurulur, sonra zorunlu olur, kısıt en son; DEFAULT kalmaz; Down veri varsa `THROW 50022` |
+| Sahiplik | `OwnershipIsolationTests` | Dokuz yeni uç yoklanır; `debt-book` okumaları sızıntı ölçüsünde |
+| Cari bakiye sorgu sayısı | `SqlServerPersistenceIntegrationTests.CounterpartyBalances_ComeFromOneQueryAndStayInsideTheOwner` | Elli üç kişi iki sorguda: bakiye tek ifade, gecikme tek okuma (1'den 2'ye; kişi başına sorgu yok) |

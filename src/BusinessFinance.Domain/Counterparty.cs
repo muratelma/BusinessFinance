@@ -38,6 +38,16 @@ public sealed class Counterparty
 
     public bool IsActive { get; private set; }
 
+    /// <summary>
+    /// Uygulamadan önce devreden bakiye (ADR 0021 İ5, T5): karşı tarafın bize
+    /// borcu ve bizim ona borcumuz. Gelir ya da gider yazmaz; cari bakiyeye en
+    /// eski kalem olarak girer.
+    /// </summary>
+    public decimal OpeningReceivable { get; private set; }
+
+    /// <summary>Uygulamadan önce bizim karşı tarafa devreden borcumuz.</summary>
+    public decimal OpeningPayable { get; private set; }
+
     private Counterparty()
     {
         Name = null!;
@@ -109,6 +119,20 @@ public sealed class Counterparty
     /// hâle gelirdi.
     /// </remarks>
     public void Deactivate() => IsActive = false;
+
+    /// <summary>Devreden bakiyeyi yazar; ikisi de sıfır ya da artıdır.</summary>
+    public void SetOpeningBalance(decimal receivable, decimal payable)
+    {
+        if (receivable < 0m || payable < 0m ||
+            decimal.Round(receivable, 4) != receivable || decimal.Round(payable, 4) != payable)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(receivable), "Opening balances are zero or positive with at most four decimals.");
+        }
+
+        OpeningReceivable = receivable;
+        OpeningPayable = payable;
+    }
 
     public void Activate() => IsActive = true;
 

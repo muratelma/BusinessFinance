@@ -90,6 +90,9 @@ public static class ServiceCollectionExtensions
         services.AddTransient<CreateCounterpartyChargeUseCase>();
         services.AddTransient<CreateCounterpartyPaymentUseCase>();
         services.AddTransient<CancelCounterpartyChargeUseCase>();
+        services.AddTransient<ApplyCounterpartyChargeDiscountUseCase>();
+        services.AddTransient<ReverseCounterpartyChargeDiscountUseCase>();
+        services.AddTransient<SetCounterpartyOpeningBalanceUseCase>();
         services.AddTransient<CancelCounterpartyPaymentUseCase>();
         services.AddTransient<CreateCreditCardUseCase>();
         services.AddTransient<GetCreditCardUseCase>();
@@ -134,6 +137,14 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ValidateBackupUseCase>();
         services.AddTransient<RestoreBackupUseCase>();
         services.AddTransient<CreateDebtUseCase>();
+        services.AddTransient<GetDebtUseCase>();
+        services.AddTransient<RecordDebtPaymentUseCase>();
+        services.AddTransient<ReverseDebtPaymentUseCase>();
+        services.AddTransient<ApplyDebtDiscountUseCase>();
+        services.AddTransient<ChangeDebtPlanUseCase>();
+        services.AddTransient<CancelDebtUseCase>();
+        services.AddTransient<GetDebtBookUseCase>();
+        services.AddTransient<ListClosedDebtsUseCase>();
         services.AddTransient<ListDebtsUseCase>();
         services.AddTransient<PayDebtInstallmentUseCase>();
         services.AddTransient<BusinessFinance.Application.FinancePages.FinancePageUseCases>();

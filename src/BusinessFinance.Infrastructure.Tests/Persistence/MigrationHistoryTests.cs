@@ -50,7 +50,8 @@ public sealed class MigrationHistoryTests
         "AddDayCloseOverlaps",
         "AddCategoryRolesAndTransferFees",
         "MergeObligationsAndDebtAgreements",
-        "AddDebtPartialPaymentsAndPlans"
+        "AddDebtPartialPaymentsAndPlans",
+        "AddCounterpartyDiscountsAndOpeningBalances"
     ];
 
     [Fact]
@@ -1144,6 +1145,49 @@ public sealed class MigrationHistoryTests
                 ("CK_DayCloseCountedRecords_Kind", "[Kind] IN (1, 2, 3, 4, 5, 6)"),
                 (widened.Name, widened.Sql));
             Assert.True(up.IndexOf(dropped) < up.IndexOf(widened));
+        }
+    }
+
+    /// <summary>
+    /// Devreden bakiye önce boş eklenir, eski kişiler sıfırla doldurulur, sonra
+    /// zorunlu olur ve kısıt en son gelir; DEFAULT kalmaz. İndirim boş bir
+    /// tablodur. Geri dönüş, eski şemaya sığmayan veri varsa durur.
+    /// </summary>
+    [Fact]
+    public void AddCounterpartyDiscountsAndOpeningBalances_BackfillsBeforeItConstrainsAndLosesNothing()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_AddCounterpartyDiscountsAndOpeningBalances", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations.ToList();
+            Assert.Empty(up.OfType<DropColumnOperation>());
+            Assert.Empty(up.OfType<DropTableOperation>());
+
+            var added = up.OfType<AddColumnOperation>().ToArray();
+            Assert.Equal(["OpeningPayable", "OpeningReceivable"], added.Select(column => column.Name).Order());
+            Assert.All(added, column => Assert.True(column.IsNullable));
+            Assert.All(added, column => Assert.Null(column.DefaultValue));
+            var backfill = Assert.Single(up.OfType<SqlOperation>());
+            var required = up.OfType<AlterColumnOperation>().ToArray();
+            Assert.Equal(2, required.Length);
+            Assert.All(required, column => Assert.False(column.IsNullable));
+            var check = Assert.Single(up.OfType<AddCheckConstraintOperation>());
+            Assert.Equal("CK_Counterparties_OpeningBalance", check.Name);
+            Assert.True(added.Max(up.IndexOf) < up.IndexOf(backfill));
+            Assert.True(up.IndexOf(backfill) < required.Min(up.IndexOf));
+            Assert.True(required.Max(up.IndexOf) < up.IndexOf(check));
+
+            var table = Assert.Single(up.OfType<CreateTableOperation>());
+            Assert.Equal("CounterpartyChargeDiscounts", table.Name);
+            Assert.Equal(
+                ["Counterparties", "CounterpartyCharges"],
+                table.ForeignKeys.Select(key => key.PrincipalTable).Order(StringComparer.Ordinal));
+            Assert.All(table.ForeignKeys, key => Assert.Equal(ReferentialAction.Restrict, key.OnDelete));
+
+            var down = migration.Migration.DownOperations.ToList();
+            var guard = Assert.IsType<SqlOperation>(down[0]);
+            Assert.Contains("THROW 50022", guard.Sql, StringComparison.Ordinal);
         }
     }
 

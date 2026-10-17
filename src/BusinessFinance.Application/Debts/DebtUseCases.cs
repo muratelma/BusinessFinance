@@ -1,5 +1,7 @@
 using BusinessFinance.Application.Abstractions.Authentication;
+using BusinessFinance.Application.Abstractions.Identifiers;
 using BusinessFinance.Application.Abstractions.Results;
+using BusinessFinance.Application.CreditCards;
 using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.Counterparties;
@@ -76,6 +78,61 @@ public static class DebtErrors
     /// </remarks>
     internal static CategoryType RequiredCategoryType(DebtSourceType sourceType) =>
         sourceType == DebtSourceType.Income ? CategoryType.Income : CategoryType.Expense;
+
+    /// <summary>Kapanış kalanı aşıyor; ekran yolunu yönüne göre söyler (ADR 0021 T2).</summary>
+    public static ApplicationError AmountExceedsRemaining(decimal remaining) => new(
+        "debt.amount_exceeds_remaining",
+        $"The amount exceeds the remaining {remaining.ToString("0.0000", System.Globalization.CultureInfo.InvariantCulture)}.",
+        ApplicationErrorType.Validation);
+
+    /// <summary>Faizli borç yalnız tam taksitle ödenir; planı değişmez.</summary>
+    public static readonly ApplicationError InterestBearing = new(
+        "debt.interest_bearing",
+        "An interest-bearing debt is paid in whole installments and keeps its plan.",
+        ApplicationErrorType.Validation);
+
+    public static readonly ApplicationError CardUnavailable = new(
+        "debt.card_unavailable", "An active owned credit card is required.", ApplicationErrorType.Validation);
+
+    /// <summary>Ödemenin yeri tam olarak biridir: hesap, kredi kartı ya da POS.</summary>
+    public static readonly ApplicationError PaymentSourceInvalid = new(
+        "debt.payment_source_invalid",
+        "A payment is made from exactly one account, credit card or POS; a card pays a debt and a POS collects a receivable.",
+        ApplicationErrorType.Validation);
+
+    public static ApplicationError PaymentNotFound(Guid id) => new(
+        "debt.payment_not_found", $"Debt payment '{id}' was not found.", ApplicationErrorType.NotFound);
+
+    /// <summary>Kapanış bir gün sonunda sayıldı; önce gün sonu geri alınır.</summary>
+    public static readonly ApplicationError DayCloseCounted = new(
+        "debt.day_close_counted",
+        "The record was counted by a day close; undo the day close first.",
+        ApplicationErrorType.Conflict);
+
+    /// <summary>Kartla tahsilin parası bir yatışla hesaba geçti; önce yatış geri alınır.</summary>
+    public static readonly ApplicationError DepositLocked = new(
+        "debt.deposit_locked",
+        "The card collection is held by a deposit; undo the deposit first.",
+        ApplicationErrorType.Conflict);
+
+    /// <summary>Borç bu sırada başka bir istekle değişti.</summary>
+    public static readonly ApplicationError Changed = new(
+        "debt.changed", "The debt changed while it was being written.", ApplicationErrorType.Conflict);
+
+    /// <summary>İndirim yalnız kayıtlı mal ya da hizmet borcundadır.</summary>
+    public static readonly ApplicationError DiscountUnavailable = new(
+        "debt.discount_unavailable",
+        "Only a recorded purchase or sale can be discounted.",
+        ApplicationErrorType.Validation);
+
+    /// <summary>Kişisiz borç açıklama taşır; aksi hâlde listede ayırt edilemez.</summary>
+    public static readonly ApplicationError DescriptionRequired = new(
+        "debt.description_required",
+        "A debt without a person needs a description.",
+        ApplicationErrorType.Validation);
+
+    public static readonly ApplicationError DueDateRequired = new(
+        "debt.due_date_required", "This plan needs a due date.", ApplicationErrorType.Validation);
 }
 
 public sealed class CreateDebtUseCase(
@@ -85,7 +142,8 @@ public sealed class CreateDebtUseCase(
     ICategoryRepository categoryRepository,
     ICounterpartyRepository counterpartyRepository,
     IUserProfileRepository profileRepository,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    ICreditCardRepository creditCardRepository)
 {
     // Toplam ile oran birlikte gelirse ne kadar sapma hoş görülür. İstemci
     // oranı toplamdan çözüp geri gönderdiğinde oran dört ondalığa yuvarlanır
@@ -105,6 +163,17 @@ public sealed class CreateDebtUseCase(
         // değiştirir ya da gideri tanır. İlk vade ileride olabilir.
         if (command.StartDate > LocalDay.LatestAllowed(timeProvider.GetUtcNow()))
             return ApplicationResult<DebtDto>.Failure(DebtErrors.DateInFuture);
+
+        var legacy = command.PlanKind == DebtPlanKind.Installments && !command.IsCarriedOver &&
+                     command.UpfrontPayment is null && command.ClientRequestId is null &&
+                     command.CounterpartyId is null && !string.IsNullOrWhiteSpace(command.CounterpartyName);
+        if (!legacy)
+        {
+            return await CreateAsync(userId, command, asOfDate, cancellationToken);
+        }
+
+        if (command.FirstDueDate is null)
+            return ApplicationResult<DebtDto>.Failure(DebtErrors.DueDateRequired);
 
         var totalRepayment = ResolveTotalRepayment(command);
         if (totalRepayment.Error is not null)
@@ -148,7 +217,7 @@ public sealed class CreateDebtUseCase(
         try
         {
             counterparty = await counterpartyRepository.FindOrCreateByNameAsync(
-                userId, command.CounterpartyName, cancellationToken);
+                userId, command.CounterpartyName!, cancellationToken);
         }
         catch (ArgumentException exception)
         {
@@ -163,7 +232,7 @@ public sealed class CreateDebtUseCase(
                 new Money(command.Principal, command.Currency),
                 new Money(totalRepayment.Value, command.Currency),
                 command.SourceType, openingAccount, category,
-                command.StartDate, command.FirstDueDate,
+                command.StartDate, command.FirstDueDate.Value,
                 command.InstallmentCount, command.Description);
             await repository.AddAsync(debt, cancellationToken);
             return ApplicationResult<DebtDto>.Success(
@@ -178,6 +247,177 @@ public sealed class CreateDebtUseCase(
             return ApplicationResult<DebtDto>.Failure(DebtErrors.Validation(exception.Message));
         }
     }
+
+    /// <summary>
+    /// Dalga 2 yolu (ADR 0021 T1, T5, T7): her plan, isteğe bağlı kişi,
+    /// uygulamadan önceki borç, peşin ödeme ve istek kimliği. Aynı istek kimliği
+    /// aynı borcu döner; ikinci bir borç açmaz.
+    /// </summary>
+    private async Task<ApplicationResult<DebtDto>> CreateAsync(
+        Guid userId,
+        CreateDebtCommand command,
+        DateOnly asOfDate,
+        CancellationToken cancellationToken)
+    {
+        var id = command.ClientRequestId is Guid requestId
+            ? RequestScopedId.Create("debt", userId, requestId)
+            : Guid.NewGuid();
+        if (command.ClientRequestId is not null &&
+            await repository.FindAnyOwnedAsync(id, userId, false, cancellationToken) is Debt existing)
+        {
+            return ApplicationResult<DebtDto>.Success(
+                ToDto(existing, await NameOfAsync(existing, userId, cancellationToken), asOfDate));
+        }
+
+        if (command.PlanKind != DebtPlanKind.None && command.FirstDueDate is null)
+            return ApplicationResult<DebtDto>.Failure(DebtErrors.DueDateRequired);
+        var count = command.PlanKind == DebtPlanKind.Installments ? command.InstallmentCount : 1;
+        var totalRepayment = ResolveTotalRepayment(command with { InstallmentCount = count });
+        if (totalRepayment.Error is not null)
+            return ApplicationResult<DebtDto>.Failure(totalRepayment.Error);
+        if (command.PlanKind == DebtPlanKind.None && totalRepayment.Value > command.Principal)
+            return ApplicationResult<DebtDto>.Failure(DebtErrors.InterestBearing);
+
+        Account? openingAccount = null;
+        Category? category = null;
+        if (command.IsCarriedOver)
+        {
+            // Devirde para ve gelir/gider yazılmaz: hesap ve kategori alınmaz.
+            if (command.OpeningAccountId is not null || command.CategoryId is not null)
+                return ApplicationResult<DebtDto>.Failure(DebtErrors.Validation(
+                    "A carried-over debt has no opening account or category."));
+        }
+        else
+        {
+            if (command.OpeningAccountId is Guid accountId)
+            {
+                openingAccount = await accountRepository.FindOwnedByIdAsync(accountId, userId, cancellationToken);
+                if (openingAccount is null || !openingAccount.IsActive)
+                    return ApplicationResult<DebtDto>.Failure(DebtErrors.AccountUnavailable);
+            }
+
+            if (command.CategoryId is Guid categoryId)
+            {
+                category = await categoryRepository.FindOwnedByIdAsync(categoryId, userId, cancellationToken);
+                if (category is null || !category.IsActive ||
+                    category.Type != DebtErrors.RequiredCategoryType(command.SourceType))
+                    return ApplicationResult<DebtDto>.Failure(DebtErrors.CategoryUnavailable);
+            }
+        }
+
+        Counterparty? counterparty = null;
+        if (command.CounterpartyId is Guid counterpartyId)
+        {
+            counterparty = await counterpartyRepository.FindOwnedByIdAsync(counterpartyId, userId, cancellationToken);
+            if (counterparty is null)
+                return ApplicationResult<DebtDto>.Failure(DebtErrors.CounterpartyUnavailable);
+        }
+        else if (string.IsNullOrWhiteSpace(command.Description) &&
+                 string.IsNullOrWhiteSpace(command.CounterpartyName))
+        {
+            return ApplicationResult<DebtDto>.Failure(DebtErrors.DescriptionRequired);
+        }
+
+        var resolution = await TransactionScopeResolution.ResolveAsync(
+            command.Scope,
+            category?.DefaultScope,
+            openingAccount?.DefaultScope,
+            profileRepository,
+            userId,
+            cancellationToken);
+        if (resolution.Scope is not TransactionScope scope)
+        {
+            return ApplicationResult<DebtDto>.Failure(resolution.ToError(
+                DebtErrors.ScopeUnresolved, DebtErrors.ScopeConflict));
+        }
+
+        Account? upfrontAccount = null;
+        CreditCard? upfrontCard = null;
+        if (command.UpfrontPayment is DebtUpfrontPayment upfront)
+        {
+            if ((upfront.AccountId is null) == (upfront.CreditCardId is null))
+                return ApplicationResult<DebtDto>.Failure(DebtErrors.PaymentSourceInvalid);
+            if (upfront.AccountId is Guid upfrontAccountId)
+            {
+                upfrontAccount = await accountRepository.FindOwnedByIdAsync(upfrontAccountId, userId, cancellationToken);
+                if (upfrontAccount is null || !upfrontAccount.IsActive)
+                    return ApplicationResult<DebtDto>.Failure(DebtErrors.AccountUnavailable);
+            }
+            else
+            {
+                upfrontCard = await creditCardRepository.FindOwnedByIdAsync(
+                    upfront.CreditCardId!.Value, userId, false, cancellationToken);
+                if (upfrontCard is null || !upfrontCard.IsActive)
+                    return ApplicationResult<DebtDto>.Failure(DebtErrors.CardUnavailable);
+            }
+        }
+
+        try
+        {
+            if (counterparty is null && !string.IsNullOrWhiteSpace(command.CounterpartyName))
+            {
+                counterparty = await counterpartyRepository.FindOrCreateByNameAsync(
+                    userId, command.CounterpartyName, cancellationToken);
+            }
+
+            var now = timeProvider.GetUtcNow().ToUniversalTime();
+            var principal = new Money(command.Principal, command.Currency);
+            var total = new Money(totalRepayment.Value, command.Currency);
+            var debt = command.IsCarriedOver
+                ? Debt.CarriedOver(
+                    id, userId, counterparty, command.Direction, scope, command.SourceType,
+                    principal, total, command.StartDate, command.PlanKind, command.FirstDueDate,
+                    count, command.Description, now)
+                : Debt.Create(
+                    id, userId, counterparty, command.Direction, scope, principal, total,
+                    command.SourceType, openingAccount, category, command.StartDate,
+                    command.PlanKind, command.FirstDueDate, count, command.Description, now);
+
+            DebtPayment? closing = null;
+            if (command.UpfrontPayment is DebtUpfrontPayment paid)
+            {
+                if (debt.BearsInterest)
+                    await categoryRepository.FindOrOpenAsync(userId,
+                        command.Direction == DebtDirection.Receivable
+                            ? CategoryRole.InterestIncome : CategoryRole.InterestExpense,
+                        cancellationToken);
+                closing = debt.Pay(
+                    RequestScopedId.Create("debt-upfront", userId, id), paid.Amount,
+                    command.StartDate, now, upfrontAccount, upfrontCard);
+            }
+
+            await repository.AddWithClosingAsync(debt, closing, null, cancellationToken);
+            return ApplicationResult<DebtDto>.Success(
+                ToDto(debt, counterparty?.Name ?? string.Empty, asOfDate));
+        }
+        catch (DebtAmountExceedsRemainingException exception)
+        {
+            return ApplicationResult<DebtDto>.Failure(DebtErrors.AmountExceedsRemaining(exception.Remaining));
+        }
+        catch (DebtConcurrencyException)
+        {
+            // Aynı istek kimliği bu sırada yazıldı: ilkini döner.
+            var winner = await repository.FindAnyOwnedAsync(id, userId, false, cancellationToken);
+            return winner is null
+                ? ApplicationResult<DebtDto>.Failure(DebtErrors.Changed)
+                : ApplicationResult<DebtDto>.Success(
+                    ToDto(winner, await NameOfAsync(winner, userId, cancellationToken), asOfDate));
+        }
+        catch (ArgumentException exception)
+        {
+            return ApplicationResult<DebtDto>.Failure(DebtErrors.Validation(exception.Message));
+        }
+        catch (InvalidOperationException exception)
+        {
+            return ApplicationResult<DebtDto>.Failure(DebtErrors.Validation(exception.Message));
+        }
+    }
+
+    private async Task<string> NameOfAsync(Debt debt, Guid userId, CancellationToken cancellationToken) =>
+        debt.CounterpartyId is Guid counterpartyId &&
+        await counterpartyRepository.FindOwnedByIdAsync(counterpartyId, userId, cancellationToken) is Counterparty person
+            ? person.Name
+            : string.Empty;
 
     /// <summary>
     /// Toplam geri ödemeyi belirler: gelen değer, orandan hesaplanan değer ya
@@ -224,24 +464,44 @@ public sealed class CreateDebtUseCase(
     {
         var splits = debt.InstallmentSplits;
         var installments = debt.CurrentItems;
+        var items = debt.Items.ToDictionary(item => item.Id);
         return new DebtDto(
-            debt.Id, debt.CounterpartyId!.Value, counterpartyName, debt.Direction, debt.Scope,
+            debt.Id, debt.CounterpartyId, counterpartyName, debt.Direction, debt.Scope,
             debt.Principal.Amount,
             debt.TotalRepayment.Amount, debt.RemainingAmount, debt.Principal.Currency,
             debt.AnnualInterestRate, debt.TotalInterest,
             debt.SourceType, debt.OpeningAccountId, debt.CategoryId,
-            debt.StartDate, debt.FirstDueDate!.Value, debt.InstallmentCount,
+            debt.StartDate, debt.FirstDueDate, debt.InstallmentCount,
             debt.Description, debt.IsClosed,
             [.. installments.Select((x, index) =>
             {
                 var payment = debt.PaymentOf(x);
                 return new DebtInstallmentDto(
-                    x.Id, x.Sequence, x.Amount.Amount, x.Amount.Currency, x.DueDate!.Value,
-                    debt.IsPaid(x) ? "paid" : x.DueDate < asOfDate ? "overdue" :
-                        x.DueDate == asOfDate ? "due-today" : "upcoming",
+                    x.Id, x.Sequence, x.Amount.Amount, x.Amount.Currency, x.DueDate,
+                    debt.IsPaid(x) ? "paid" :
+                        x.DueDate is not DateOnly due ? "open" :
+                        due < asOfDate ? "overdue" :
+                        due == asOfDate ? "due-today" : "upcoming",
                     payment?.AccountId, payment?.PaymentDate, payment?.PaidAtUtc,
-                    splits[index].Principal, splits[index].Interest);
-            })]);
+                    splits[index].Principal, splits[index].Interest,
+                    debt.PaidAmount(x), debt.OpenAmount(x));
+            })],
+            debt.PlanKind,
+            debt.IsCarriedOver,
+            debt.IsCancelled,
+            [.. debt.Payments.OrderBy(closing => closing.PaymentDate).ThenBy(closing => closing.PaidAtUtc)
+                .Select(closing => new DebtClosingDto(
+                    closing.Id, closing.Kind, closing.Amount.Amount, closing.PaymentDate, closing.PaidAtUtc,
+                    closing.AccountId, closing.CreditCardId, closing.PosSettlementId,
+                    closing.Kind != DebtPaymentKind.Payment
+                        ? 0m
+                        : closing.Allocations.Sum(allocation =>
+                            items[allocation.ScheduleItemId].InterestPortion is decimal interest
+                                ? allocation.Amount == items[allocation.ScheduleItemId].Amount.Amount
+                                    ? interest
+                                    : interest * allocation.Amount / items[allocation.ScheduleItemId].Amount.Amount
+                                : 0m),
+                    closing.IsCancelled, closing.CancelledAtUtc))]);
     }
 }
 

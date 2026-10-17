@@ -213,23 +213,45 @@ internal sealed class EfFinancialReportRepository(
         // var: ayrımı olmayan bir kayıt sessizce sıfır sayılırsa borç
         // olduğundan küçük görünür — bilinmeyen bir ayrımda taksitin tamamını
         // anapara saymak, borcu yok saymaktan güvenlidir.
-        var outstandingDebts = await dbContext.DebtInstallments.AsNoTracking()
-            .Join(
-                dbContext.DebtAgreements.AsNoTracking(),
-                installment => new { installment.UserId, DebtId = installment.DebtAgreementId },
-                debt => new { debt.UserId, DebtId = debt.Id },
-                (installment, debt) => new { installment, debt })
-            .Where(item => item.installment.UserId == userId &&
-                           (item.installment.PaymentDate == null ||
-                            item.installment.PaymentDate > asOfDate))
-            .GroupBy(item => item.debt.Direction)
-            .Select(group => new
+        //
+        // Kalan anapara: geçerli plandaki kalemlerin anaparası, istenen güne kadar
+        // yapılmış kapanışların anapara payı düşülmüş. Kısmi ödeme anaparanın
+        // ödenen payını düşer; faizli borç yalnız tam taksitle ödenir.
+        var outstandingDebts = await (
+                from item in dbContext.DebtScheduleItems.AsNoTracking()
+                join debt in dbContext.DebtAgreements.AsNoTracking()
+                    on new { item.UserId, Id = item.DebtId }
+                    equals new { debt.UserId, debt.Id }
+                where item.UserId == userId && !item.IsSuperseded
+                select new
+                {
+                    debt.Direction,
+                    Amount = item.Amount.Amount,
+                    Principal = item.PrincipalPortion ?? item.Amount.Amount,
+                    Closed = dbContext.DebtPaymentAllocations
+                        .Where(allocation => allocation.UserId == item.UserId &&
+                                             allocation.ScheduleItemId == item.Id &&
+                                             dbContext.DebtPayments.Any(payment =>
+                                                 payment.UserId == allocation.UserId &&
+                                                 payment.Id == allocation.PaymentId &&
+                                                 !payment.IsCancelled &&
+                                                 payment.PaymentDate <= asOfDate))
+                        .Sum(allocation => (decimal?)allocation.Amount) ?? 0m
+                })
+            // Kalemin açık anaparası: kapanmamış kısmın anapara payı. Faizli borç
+            // tam taksitle ödendiği için faizli kalem ya hiç ya tamamen kapanır.
+            .Select(row => new
             {
-                Direction = group.Key,
-                Amount = group.Sum(item =>
-                    item.installment.PrincipalPortion ?? item.installment.Amount)
+                row.Direction,
+                Principal = row.Closed == 0m
+                    ? row.Principal
+                    : row.Closed >= row.Amount
+                        ? 0m
+                        : row.Principal * (row.Amount - row.Closed) / row.Amount
             })
-            .ToDictionaryAsync(item => item.Direction, item => item.Amount, cancellationToken);
+            .GroupBy(row => row.Direction)
+            .Select(group => new { Direction = group.Key, Amount = group.Sum(row => row.Principal) })
+            .ToDictionaryAsync(row => row.Direction, row => row.Amount, cancellationToken);
         // Açık cari de net varlığın parçasıdır: veresiye satılan mal artık
         // stokta değil, alacak olarak duruyor. Taksitli sözleşmeyle aynı
         // kovalara giriyor çünkü soruları aynı — ne alacağım var, ne
@@ -240,6 +262,7 @@ internal sealed class EfFinancialReportRepository(
             .Select(counterparty => new
             {
                 Receivable =
+                    counterparty.OpeningReceivable +
                     (dbContext.CounterpartyCharges
                         .Where(charge => charge.UserId == userId &&
                                          charge.CounterpartyId == counterparty.Id &&
@@ -247,6 +270,13 @@ internal sealed class EfFinancialReportRepository(
                                          charge.Direction == DebtDirection.Receivable &&
                                          charge.ChargeDate <= asOfDate)
                         .Sum(charge => (decimal?)charge.Amount.Amount) ?? 0m) -
+                    (dbContext.CounterpartyChargeDiscounts
+                        .Where(discount => discount.UserId == userId &&
+                                           discount.CounterpartyId == counterparty.Id &&
+                                           !discount.IsCancelled &&
+                                           discount.Direction == DebtDirection.Receivable &&
+                                           discount.DiscountDate <= asOfDate)
+                        .Sum(discount => (decimal?)discount.Amount) ?? 0m) -
                     (dbContext.CounterpartyPayments
                         .Where(payment => payment.UserId == userId &&
                                           payment.CounterpartyId == counterparty.Id &&
@@ -255,6 +285,7 @@ internal sealed class EfFinancialReportRepository(
                                           payment.PaymentDate <= asOfDate)
                         .Sum(payment => (decimal?)payment.Amount.Amount) ?? 0m),
                 Payable =
+                    counterparty.OpeningPayable +
                     (dbContext.CounterpartyCharges
                         .Where(charge => charge.UserId == userId &&
                                          charge.CounterpartyId == counterparty.Id &&
@@ -262,6 +293,13 @@ internal sealed class EfFinancialReportRepository(
                                          charge.Direction == DebtDirection.Payable &&
                                          charge.ChargeDate <= asOfDate)
                         .Sum(charge => (decimal?)charge.Amount.Amount) ?? 0m) -
+                    (dbContext.CounterpartyChargeDiscounts
+                        .Where(discount => discount.UserId == userId &&
+                                           discount.CounterpartyId == counterparty.Id &&
+                                           !discount.IsCancelled &&
+                                           discount.Direction == DebtDirection.Payable &&
+                                           discount.DiscountDate <= asOfDate)
+                        .Sum(discount => (decimal?)discount.Amount) ?? 0m) -
                     (dbContext.CounterpartyPayments
                         .Where(payment => payment.UserId == userId &&
                                           payment.CounterpartyId == counterparty.Id &&
@@ -271,20 +309,32 @@ internal sealed class EfFinancialReportRepository(
                         .Sum(payment => (decimal?)payment.Amount.Amount) ?? 0m)
             })
             .ToArrayAsync(cancellationToken);
+        // Tek ödemeli borcun o günkü kalanı: bedel, o güne kadarki ödemeler
+        // düşülmüş. İndirim bedeli fatura gününde düşürdüğü için günü ne olursa
+        // olsun düşülür (gider de fatura gününde azalır). Kartla ödeme de
+        // faturayı kapatır; borç kart borcuna geçer.
         var obligationBalances = await dbContext.Obligations.AsNoTracking()
             .Where(obligation => obligation.UserId == userId &&
                                  !obligation.IsCancelled &&
-                                 obligation.IssueDate <= asOfDate &&
-                                 !dbContext.ObligationSettlements.Any(settlement =>
-                                     settlement.UserId == userId &&
-                                     settlement.ObligationId == obligation.Id &&
-                                     !settlement.IsCancelled &&
-                                     settlement.SettlementDate <= asOfDate))
+                                 obligation.IssueDate <= asOfDate)
+            .Select(obligation => new
+            {
+                obligation.Direction,
+                Open = obligation.Amount -
+                    (dbContext.DebtPayments
+                        .Where(closing => closing.UserId == userId &&
+                                          closing.DebtId == obligation.Id &&
+                                          !closing.IsCancelled &&
+                                          (closing.Kind == DebtPaymentKind.Discount ||
+                                           closing.PaymentDate <= asOfDate))
+                        .Sum(closing => (decimal?)closing.Amount.Amount) ?? 0m)
+            })
+            .Where(obligation => obligation.Open > 0m)
             .GroupBy(obligation => obligation.Direction)
             .Select(group => new
             {
                 Direction = group.Key,
-                Amount = group.Sum(item => item.Amount)
+                Amount = group.Sum(item => item.Open)
             })
             .ToDictionaryAsync(item => item.Direction, item => item.Amount, cancellationToken);
         var receivableDebt = outstandingDebts.GetValueOrDefault(DebtDirection.Receivable) +
@@ -519,12 +569,10 @@ internal sealed class EfFinancialReportRepository(
                 Limit = card.Limit.Amount
             })
             .ToArrayAsync(cancellationToken);
-        var charges = await dbContext.CreditCardCharges.AsNoTracking()
-            .Where(charge => charge.UserId == userId &&
-                             !charge.IsCancelled &&
-                             charge.ChargeDate <= asOfDate)
-            .GroupBy(charge => charge.CreditCardId)
-            .Select(group => new { CardId = group.Key, Amount = group.Sum(item => item.Amount.Amount) })
+        var charges = await CreditCards.CardDebt.ChargeRows(dbContext, userId)
+            .Where(charge => charge.Date <= asOfDate)
+            .GroupBy(charge => charge.CardId)
+            .Select(group => new { CardId = group.Key, Amount = group.Sum(item => item.Amount) })
             .ToDictionaryAsync(item => item.CardId, item => item.Amount, cancellationToken);
         var payments = await dbContext.CreditCardPayments.AsNoTracking()
             .Where(payment => payment.UserId == userId &&

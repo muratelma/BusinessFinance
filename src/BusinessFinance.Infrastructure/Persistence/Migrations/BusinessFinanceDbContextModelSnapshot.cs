@@ -310,6 +310,14 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<decimal>("OpeningPayable")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("decimal(19,4)");
+
+                    b.Property<decimal>("OpeningReceivable")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("decimal(19,4)");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
 
@@ -322,7 +330,10 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId", "IsActive", "Name")
                         .HasDatabaseName("IX_Counterparties_UserId_IsActive_Name");
 
-                    b.ToTable("Counterparties", (string)null);
+                    b.ToTable("Counterparties", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Counterparties_OpeningBalance", "[OpeningReceivable] >= 0 AND [OpeningPayable] >= 0");
+                        });
                 });
 
             modelBuilder.Entity("BusinessFinance.Domain.CounterpartyCharge", b =>
@@ -367,8 +378,6 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasAlternateKey("UserId", "Id");
-
                     b.HasIndex("UserId", "CategoryId", "ChargeDate")
                         .HasDatabaseName("IX_CounterpartyCharges_UserId_CategoryId_Date");
 
@@ -384,6 +393,54 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("CK_CounterpartyCharges_Direction", "[Direction] IN (1, 2)");
 
                             t.HasCheckConstraint("CK_CounterpartyCharges_Scope", "[Scope] IN (1, 2)");
+                        });
+                });
+
+            modelBuilder.Entity("BusinessFinance.Domain.CounterpartyChargeDiscount", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("decimal(19,4)");
+
+                    b.Property<DateTimeOffset?>("CancelledAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("ChargeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CounterpartyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte>("Direction")
+                        .HasColumnType("tinyint");
+
+                    b.Property<DateOnly>("DiscountDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsCancelled")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset>("RecordedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "ChargeId");
+
+                    b.HasIndex("UserId", "CounterpartyId", "IsCancelled", "Direction")
+                        .HasDatabaseName("IX_CounterpartyChargeDiscounts_UserId_CounterpartyId_Cancelled_Direction");
+
+                    b.ToTable("CounterpartyChargeDiscounts", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_CounterpartyChargeDiscounts_Amount", "[Amount] > 0");
+
+                            t.HasCheckConstraint("CK_CounterpartyChargeDiscounts_Direction", "[Direction] IN (1, 2)");
                         });
                 });
 
@@ -2492,6 +2549,23 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("BusinessFinance.Domain.CounterpartyChargeDiscount", b =>
+                {
+                    b.HasOne("BusinessFinance.Domain.CounterpartyCharge", null)
+                        .WithMany("Discounts")
+                        .HasForeignKey("UserId", "ChargeId")
+                        .HasPrincipalKey("UserId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BusinessFinance.Domain.Counterparty", null)
+                        .WithMany()
+                        .HasForeignKey("UserId", "CounterpartyId")
+                        .HasPrincipalKey("UserId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("BusinessFinance.Domain.CounterpartyPayment", b =>
                 {
                     b.HasOne("BusinessFinance.Infrastructure.Identity.ApplicationUser", null)
@@ -3552,6 +3626,11 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("BusinessFinance.Domain.CounterpartyCharge", b =>
+                {
+                    b.Navigation("Discounts");
                 });
 
             modelBuilder.Entity("BusinessFinance.Domain.Debt", b =>

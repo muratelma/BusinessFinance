@@ -173,6 +173,8 @@ public sealed class OwnershipIsolationTests
         "/api/v1/financial-activities",
         "/api/v1/financial-activities/planned",
         "/api/v1/upcoming-payments",
+        "/api/v1/debt-book?asOfDate=2026-08-28",
+        "/api/v1/debt-book/closed",
         "/api/v1/reports/monthly?year=2026&month=8",
         "/api/v1/reports/advanced?year=2026&month=8",
         "/api/v1/dashboard",
@@ -361,6 +363,15 @@ public sealed class OwnershipIsolationTests
             f.CounterpartyId);
         yield return Json("cari borçlandırma iptali", HttpMethod.Delete,
             "api/v1/counterparty-charges/{chargeId:guid}", null, f.CounterpartyChargeId);
+        yield return Json("cari devreden bakiye", HttpMethod.Put,
+            "api/v1/counterparties/{counterpartyId:guid}/opening-balance",
+            new CounterpartyOpeningBalanceRequest("10.0000", "0.0000"), f.CounterpartyId);
+        yield return Json("cari alıma indirim", HttpMethod.Post,
+            "api/v1/counterparty-charges/{chargeId:guid}/discounts",
+            new CounterpartyChargeDiscountRequest("1.0000", Today), f.CounterpartyChargeId);
+        yield return Json("cari indirimi geri alma", HttpMethod.Delete,
+            "api/v1/counterparty-charges/{chargeId:guid}/discounts/{discountId:guid}",
+            null, f.CounterpartyChargeId, Guid.NewGuid());
         yield return Json("cari tahsilat iptali", HttpMethod.Delete,
             "api/v1/counterparty-payments/{paymentId:guid}", null, f.CounterpartyPaymentId);
 
@@ -397,6 +408,31 @@ public sealed class OwnershipIsolationTests
         yield return Json("borç taksidi ödeme", HttpMethod.Post,
             "api/v1/debts/{debtId:guid}/installments/{sequence:int}/pay",
             new PayDebtInstallmentRequest(f.AccountId, Today, Today), f.DebtId, 1);
+        yield return new Probe("borç okuma", HttpMethod.Get,
+            "api/v1/debts/{debtId:guid}",
+            $"/api/v1/debts/{f.DebtId}?asOfDate={Today}",
+            $"/api/v1/debts/{GhostId}?asOfDate={Today}",
+            null);
+        yield return Json("borca ödeme", HttpMethod.Post,
+            "api/v1/debts/{debtId:guid}/payments",
+            new RecordDebtPaymentRequest("1.0000", Today, Today, AccountId: f.AccountId), f.DebtId);
+        var paymentId = Guid.NewGuid();
+        yield return new Probe("borç ödemesini geri alma", HttpMethod.Delete,
+            "api/v1/debts/{debtId:guid}/payments/{paymentId:guid}",
+            $"/api/v1/debts/{f.DebtId}/payments/{paymentId}?asOfDate={Today}",
+            $"/api/v1/debts/{GhostId}/payments/{paymentId}?asOfDate={Today}",
+            null);
+        yield return Json("borca indirim", HttpMethod.Post,
+            "api/v1/debts/{debtId:guid}/discounts",
+            new ApplyDebtDiscountRequest("1.0000", Today, Today), f.DebtId);
+        yield return Json("borcun planı", HttpMethod.Put,
+            "api/v1/debts/{debtId:guid}/plan",
+            new ChangeDebtPlanRequest("installments", "2026-12-15", 2, Today), f.DebtId);
+        yield return new Probe("borç iptali", HttpMethod.Delete,
+            "api/v1/debts/{debtId:guid}",
+            $"/api/v1/debts/{f.DebtId}?asOfDate={Today}",
+            $"/api/v1/debts/{GhostId}?asOfDate={Today}",
+            null);
 
         yield return Json("hedefe katkı", HttpMethod.Post,
             "api/v1/goals/{goalId:guid}/contributions",

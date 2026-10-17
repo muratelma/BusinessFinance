@@ -77,7 +77,7 @@ internal static class RecognizedItems
         // Yükümlülük ile borç planı tek tabloda (ADR 0021); görünümler eski iki
         // biçimi verir ve satır türleri dalga 1'de değişmez.
         var agreements = Debts.DebtViews.Agreements(dbContext);
-        var installments = Debts.DebtViews.Installments(dbContext);
+        var debtPayments = Debts.DebtViews.Payments(dbContext);
         var obligationRows = Debts.DebtViews.Obligations(dbContext);
         var obligationSettlements = Debts.DebtViews.ObligationSettlements(dbContext);
 
@@ -129,10 +129,13 @@ internal static class RecognizedItems
             });
 
         // Gider ya da gelir kaynaklı borcun açılışı tam o gün tanınır: borçta
-        // tüketim, alacakta satış. Nakit kaynaklı açılış taşır, burada yoktur.
-        // Taksit ödemeleri tanımaz; tanısalardı aynı olay iki kez sayılırdı.
+        // tüketim, alacakta satış. Nakit kaynaklı açılış taşır, burada yoktur;
+        // uygulamadan önceki borç hiçbirini yazmaz. Ödemeler tanımaz;
+        // tanısalardı aynı olay iki kez sayılırdı. İndirim bedeli açılış gününde
+        // düşürür (ADR 0021 İ4).
         var debtOpenings = agreements
             .Where(debt => debt.UserId == userId &&
+                           !debt.IsCarriedOver &&
                            (debt.SourceType == DebtSourceType.Expense ||
                             debt.SourceType == DebtSourceType.Income))
             .Select(debt => new RecognizedItem
@@ -152,46 +155,49 @@ internal static class RecognizedItems
                 Type = debt.SourceType == DebtSourceType.Income ? Income : Expense,
                 Scope = (int)debt.Scope,
                 CategoryId = debt.CategoryId,
-                Amount = debt.Principal.Amount
+                Amount = debt.Principal.Amount -
+                    (debtPayments
+                        .Where(closing => closing.UserId == userId && closing.DebtId == debt.Id &&
+                                          closing.Kind == DebtPaymentKind.Discount)
+                        .Sum(closing => (decimal?)closing.Amount) ?? 0m)
             });
 
         // Ödenen taksidin faiz payı: borçta gider, alacakta gelir. Anapara
         // geri ödemesi tanımaz. Kalıcı bir hareket yoktur; faiz ödendiği gün
         // tanınır ve gelir/gider rolünün kovasına düşer. Rol yoksa geçmiş
         // faiz kategorisiz kalır; yeni ödeme rolü ilk gerektiğinde açar.
+        // Kartla ödenen faizli taksitte de faiz gider olur; kart borcu taksidin
+        // tamamı kadar artar (ADR 0021 T4).
         var debtInterest =
-            from installment in installments
-            join debt in agreements
-                on new { installment.UserId, DebtId = installment.DebtAgreementId }
-                equals new { debt.UserId, DebtId = debt.Id }
-            where installment.UserId == userId &&
-                  installment.InterestPortion != null &&
-                  installment.InterestPortion > 0m &&
-                  installment.PaymentDate != null
+            from payment in debtPayments
+            where payment.UserId == userId &&
+                  payment.Kind == DebtPaymentKind.Payment &&
+                  payment.InterestAmount != null &&
+                  payment.InterestAmount > 0m
             select new RecognizedItem
             {
-                SourceId = installment.Id,
-                SourceKind = debt.Direction == DebtDirection.Receivable ? (int)FinancialActivityKind.DebtCollection : (int)FinancialActivityKind.DebtPayment,
-                ParentId = installment.Id,
-                ParentKind = debt.Direction == DebtDirection.Receivable ? (int?)FinancialActivityKind.DebtCollection : (int?)FinancialActivityKind.DebtPayment,
-                ParentAmount = installment.Amount,
+                SourceId = payment.Id,
+                SourceKind = payment.Direction == DebtDirection.Receivable ? (int)FinancialActivityKind.DebtCollection : (int)FinancialActivityKind.DebtPayment,
+                ParentId = payment.Id,
+                ParentKind = payment.Direction == DebtDirection.Receivable ? (int?)FinancialActivityKind.DebtCollection : (int?)FinancialActivityKind.DebtPayment,
+                ParentAmount = payment.Amount,
                 Part = "interest",
-                AccountId = installment.PaymentAccountId,
-                CreditCardId = (Guid?)null,
-                CounterpartyId = debt.CounterpartyId,
-                EntryAtUtc = installment.PaidAtUtc,
+                AccountId = payment.AccountId,
+                CreditCardId = payment.CreditCardId,
+                CounterpartyId = payment.CounterpartyId,
+                EntryAtUtc = (DateTimeOffset?)payment.PaidAtUtc,
 
-                Date = installment.PaymentDate!.Value,
-                Type = debt.Direction == DebtDirection.Receivable ? Income : Expense,
-                Scope = (int)debt.Scope,
+                Date = payment.PaymentDate,
+                Type = payment.Direction == DebtDirection.Receivable ? Income : Expense,
+                Scope = (int)payment.Scope,
                 CategoryId = dbContext.Categories
                         .Where(category =>
                             category.UserId == userId &&
-                            category.Role == (debt.Direction == DebtDirection.Receivable
+                            category.Role == (payment.Direction == DebtDirection.Receivable
                                 ? CategoryRole.InterestIncome : CategoryRole.InterestExpense))
                         .Select(category => (Guid?)category.Id)
                         .FirstOrDefault(),
-                Amount = installment.InterestPortion!.Value
+                Amount = payment.InterestAmount!.Value
             };
 
         // Cari borçlandırma tanır: veresiye satış o gün gelir, vadeli alım o
@@ -211,16 +217,24 @@ internal static class RecognizedItems
                 CounterpartyId = charge.CounterpartyId,
                 EntryAtUtc = EF.Property<DateTimeOffset?>(charge, EntryTimestamp.PropertyName),
 
+                // İndirim bedeli alım gününde düşürür (ADR 0021 İ4).
                 Date = charge.ChargeDate,
                 Type = charge.Direction == DebtDirection.Receivable ? Income : Expense,
                 Scope = (int)charge.Scope,
                 CategoryId = charge.CategoryId,
-                Amount = charge.Amount.Amount
+                Amount = charge.Amount.Amount -
+                    (dbContext.CounterpartyChargeDiscounts
+                        .Where(discount => discount.UserId == userId &&
+                                           discount.ChargeId == charge.Id &&
+                                           !discount.IsCancelled)
+                        .Sum(discount => (decimal?)discount.Amount) ?? 0m)
             });
 
         // Tek seferlik alacak ve borç doğduğu gün tanınır; kapanışı taşır.
+        // Uygulamadan önce devreden borç tanınmaz (ADR 0021 İ5).
         var obligations = obligationRows
-            .Where(obligation => obligation.UserId == userId && !obligation.IsCancelled)
+            .Where(obligation => obligation.UserId == userId && !obligation.IsCancelled &&
+                                 !obligation.IsCarriedOver)
             .Select(obligation => new RecognizedItem
             {
                 SourceId = obligation.Id,
@@ -237,8 +251,8 @@ internal static class RecognizedItems
                 Date = obligation.IssueDate,
                 Type = obligation.Direction == DebtDirection.Receivable ? Income : Expense,
                 Scope = (int)obligation.Scope,
-                CategoryId = obligation.CategoryId,
-                Amount = obligation.Amount
+                CategoryId = obligation.CategoryId!.Value,
+                Amount = obligation.RecognizedAmount
             });
 
         // POS satışı tahsil edildiği gün brüt tutarla tanınır, hesaba geçtiği

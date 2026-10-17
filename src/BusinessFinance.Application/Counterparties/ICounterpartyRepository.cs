@@ -5,8 +5,8 @@ namespace BusinessFinance.Application.Counterparties;
 public interface ICounterpartyRepository
 {
     /// <summary>
-    /// Karşı taraf başına cari bakiye. <b>Tek sorgu</b>: liste kaç kişi
-    /// büyürse büyüsün sorgu sayısı sabit kalır.
+    /// Karşı taraf başına cari bakiye. Sorgu sayısı sabittir (bakiye ve
+    /// gecikme için iki sorgu): liste kaç kişi büyürse büyüsün değişmez.
     /// </summary>
     Task<IReadOnlyList<CounterpartyBalanceSummary>> ListBalancesAsync(
         Guid userId,

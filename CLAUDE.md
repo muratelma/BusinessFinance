@@ -41,7 +41,7 @@ yazılmaz; ayrıntı `AGENTS.md` içindeki iletişim kurallarındadır.
 kapsam, kullanıcı/rol tekliği), masraflı transfer ve önizlemesi, SQL'de
 sayfalı kategori ve hesap okumaları `FinancePages` altında. İki kanonik liste
 `RecognizedItems` / `AccountMovements` genişledi; hesapta yatış net ve transfer
-çıkışı masraf dahil tek harekettir. Yedek v12 yazar, v11 de okur; sürümün
+çıkışı masraf dahil tek harekettir. Yedek v13 yazar (16 Ekim 2026, borç durumuyla), v11–v12 de okur; sürümün
 tek kaynağı `documentation/restore-runbook.md`. Sözleşme
 `documentation/category-account-pages-api-contract.md`; yol günlüğü/teslim
 `research/TESLIM-2026-10-13-kategori-hesap-sayfalari.md`. Flutter tarafında kategori özeti/kategori/hesap/Yolda,
@@ -639,6 +639,9 @@ secret'ı uygulamaya konmaz.
 - `documentation/restore-runbook.md` — backup/restore prosedürü
 - `documentation/financial-activity-api-contract.md` — birleşik feed, planlanan
   görünüm ve recurring source sözleşmeleri, örnek JSON, hata kodları
+- `documentation/debt-api-contract.md` — borç uçları (ödeme, kartla ödeme,
+  indirim, geri alma, plan, iptal), borç ve alacak listesi, cari indirim ve
+  devreden bakiye, akıştaki karşılıkları ve hata kodları (ADR 0021 dalga 2)
 - `documentation/design-system.md` — token'lar, pencere sınıfları, bileşen
   kataloğu, erişilebilirlik kuralları ve yeni ekran kontrol listesi
 - `design/` — Claude Design teslimleri (`claude-design-handoff/` Özet ve ortak
@@ -696,7 +699,7 @@ secret'ı uygulamaya konmaz.
   ve yükümlülük, uygulama sırası (çekirdek / sonrası / en son)
 - `documentation/adr/0021-a-debt-closes-with-its-own-payments.md` — **Aşama
   06.3 Grup 8 "Cari, borç ve alacak"ın karar kapısı (kabul edildi 16 Ekim 2026;
-  iki katmanlı; dalga 0 uygulandı)**: ADR 0020 İ10 ve T6'yı genişletir.
+  iki katmanlı; dalga 0–1 ve dalga 2'nin sunucu kolu uygulandı)**: ADR 0020 İ10 ve T6'yı genişletir.
   İlkeler — yükümlülük ve borç planı tek borçtur ve plan borcun ayarıdır, borç
   kendi ödemeleriyle kapanır (kısmi ödeme, dağıtım yok), cari ayrı kalır ve bir
   takip biçimidir, bedel düzeltmesi / alınmayacak para / para hareketi ayrı

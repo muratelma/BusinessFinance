@@ -55,6 +55,8 @@ onu **koru**, yalnız aşağıdaki bloğu ekle.
    **alımın kendi gününde** azalır, kalan azalır, para hareketi yoktur. Cari hesaptaki bir alımda da aynı.
    Bu dalgada `Borçtan düş` menüsünde yalnız `İndirim` vardır; `İade`, `Vazgeçme` ve `Tahsil edilemeyen`
    sonra eklenecek — menü dört seçeneği taşıyabilmeli.
+   İşlemler'deki alım satırı **indirim düşülmüş tutarı** yazar; indirim tutarın altında küçük bir satırdır
+   (`₺200,00 indirim`). Cari alım satırı da aynı (kullanıcı kararı, 16 Ekim 2026).
 10. **Uygulamadan önceki borç** para hareketi ve gelir/gider yazmaz; yalnız kalanı ve planı girilir.
     Faizliyse kalan anapara da yazılır. Cari kişide bu, cariye `Devreden bakiye` olarak girer.
 

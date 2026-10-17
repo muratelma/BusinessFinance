@@ -64,6 +64,23 @@ internal static class CounterpartyNet
                     : payment.Amount.Amount,
                 cancellationToken);
 
-        return charges + payments;
+        // İndirim bedeli düşürür; devreden bakiye en eski kalemdir.
+        var discounts = await dbContext.CounterpartyChargeDiscounts.AsNoTracking()
+            .Where(discount => discount.UserId == userId &&
+                               discount.CounterpartyId == counterpartyId &&
+                               !discount.IsCancelled &&
+                               (discount.DiscountDate < date ||
+                                (discount.DiscountDate == date && !(discount.RecordedAtUtc > entryAt))))
+            .SumAsync(
+                discount => (decimal?)(discount.Direction == DebtDirection.Receivable
+                    ? -discount.Amount
+                    : discount.Amount),
+                cancellationToken) ?? 0m;
+        var opening = await dbContext.Counterparties.AsNoTracking()
+            .Where(counterparty => counterparty.UserId == userId && counterparty.Id == counterpartyId)
+            .Select(counterparty => counterparty.OpeningReceivable - counterparty.OpeningPayable)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        return opening + charges + discounts + payments;
     }
 }

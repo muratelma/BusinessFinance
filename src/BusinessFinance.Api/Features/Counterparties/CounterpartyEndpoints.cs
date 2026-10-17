@@ -67,6 +67,28 @@ public static class CounterpartyEndpoints
             .Produces<CounterpartyChargeResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPut("/{counterpartyId:guid}/opening-balance", SetOpeningBalanceAsync)
+            .WithName("SetCounterpartyOpeningBalance")
+            .Produces<CounterpartyResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        endpoints.MapPost("/api/v1/counterparty-charges/{chargeId:guid}/discounts", ApplyDiscountAsync)
+            .WithName("ApplyCounterpartyChargeDiscount")
+            .RequireAuthorization()
+            .Produces<CounterpartyChargeResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+        endpoints.MapDelete(
+                "/api/v1/counterparty-charges/{chargeId:guid}/discounts/{discountId:guid}", ReverseDiscountAsync)
+            .WithName("ReverseCounterpartyChargeDiscount")
+            .RequireAuthorization()
+            .Produces<CounterpartyChargeResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
         endpoints.MapDelete("/api/v1/counterparty-payments/{paymentId:guid}", CancelPaymentAsync)
             .WithName("CancelCounterpartyPayment")
             .RequireAuthorization()
@@ -290,6 +312,66 @@ public static class CounterpartyEndpoints
         return Results.Created($"/api/v1/counterparty-payments/{response.Id}", response);
     }
 
+    private static async Task<IResult> ApplyDiscountAsync(
+        Guid chargeId,
+        CounterpartyChargeDiscountRequest request,
+        ApplyCounterpartyChargeDiscountUseCase useCase,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        if (!FinanceContract.TryParseAmount(request.Amount, out var amount) ||
+            !FinanceContract.TryParseDate(request.DiscountDate, out var date))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Amount must be a decimal string and discountDate must use the yyyy-MM-dd format.",
+                "counterparties.validation");
+        }
+
+        var result = await useCase.ExecuteAsync(
+            new ApplyCounterpartyChargeDiscountCommand(chargeId, amount, date, request.ClientRequestId),
+            cancellationToken);
+        return result.IsSuccess
+            ? Results.Ok(ToChargeResponse(result.Value))
+            : result.Error.ToProblemResult(httpContext);
+    }
+
+    private static async Task<IResult> ReverseDiscountAsync(
+        Guid chargeId,
+        Guid discountId,
+        ReverseCounterpartyChargeDiscountUseCase useCase,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var result = await useCase.ExecuteAsync(chargeId, discountId, cancellationToken);
+        return result.IsSuccess
+            ? Results.Ok(ToChargeResponse(result.Value))
+            : result.Error.ToProblemResult(httpContext);
+    }
+
+    private static async Task<IResult> SetOpeningBalanceAsync(
+        Guid counterpartyId,
+        CounterpartyOpeningBalanceRequest request,
+        SetCounterpartyOpeningBalanceUseCase useCase,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        if (!FinanceContract.TryParseAmount(request.Receivable, out var receivable) ||
+            !FinanceContract.TryParseAmount(request.Payable, out var payable))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Receivable and payable must be decimal strings.",
+                "counterparties.validation");
+        }
+
+        var result = await useCase.ExecuteAsync(
+            new SetCounterpartyOpeningBalanceCommand(counterpartyId, receivable, payable), cancellationToken);
+        return result.IsSuccess
+            ? Results.Ok(ToResponse(result.Value))
+            : result.Error.ToProblemResult(httpContext);
+    }
+
     private static async Task<IResult> CancelChargeAsync(
         Guid chargeId,
         CancelCounterpartyChargeUseCase useCase,
@@ -432,7 +514,9 @@ public static class CounterpartyEndpoints
         FinanceContract.Money(counterparty.OpenReceivableObligations),
         FinanceContract.Money(counterparty.OpenPayableObligations),
         FinanceContract.Money(counterparty.OwedToYou),
-        FinanceContract.Money(counterparty.OwedByYou));
+        FinanceContract.Money(counterparty.OwedByYou),
+        FinanceContract.Money(counterparty.OpeningReceivable),
+        FinanceContract.Money(counterparty.OpeningPayable));
 
     private static CounterpartyChargeResponse ToChargeResponse(CounterpartyChargeDto charge) => new(
         charge.Id,
@@ -445,7 +529,13 @@ public static class CounterpartyEndpoints
         FinanceContract.Date(charge.ChargeDate),
         charge.Description,
         charge.IsCancelled,
-        charge.DueDate is DateOnly dueDate ? FinanceContract.Date(dueDate) : null);
+        charge.DueDate is DateOnly dueDate ? FinanceContract.Date(dueDate) : null,
+        FinanceContract.Money(charge.NetAmount),
+        [.. charge.Discounts.Select(discount => new CounterpartyChargeDiscountResponse(
+            discount.Id,
+            FinanceContract.Money(discount.Amount),
+            FinanceContract.Date(discount.DiscountDate),
+            discount.IsCancelled))]);
 
     private static CounterpartyPaymentResponse ToPaymentResponse(CounterpartyPaymentDto payment) => new(
         payment.Id,

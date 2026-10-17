@@ -15,25 +15,24 @@ internal sealed class EfCreditCardStatementRepository(BusinessFinanceDbContext d
         DateOnly asOfDate,
         CancellationToken cancellationToken)
     {
-        var charges = dbContext.CreditCardCharges.AsNoTracking().Where(
-            charge => charge.CreditCardId == creditCardId &&
-                      charge.UserId == userId &&
-                      !charge.IsCancelled);
+        // Kartla ödenen borç da ekstreye harcama gibi girer (ADR 0021 T4).
+        var charges = CardDebt.ChargeRows(dbContext, userId)
+            .Where(charge => charge.CardId == creditCardId);
         var payments = dbContext.CreditCardPayments.AsNoTracking().Where(
             payment => payment.CreditCardId == creditCardId &&
                        payment.UserId == userId &&
                        !payment.IsCancelled);
 
         var previousCharges = await charges
-            .Where(charge => charge.ChargeDate < period.PeriodStart)
-            .SumAsync(charge => charge.Amount.Amount, cancellationToken);
+            .Where(charge => charge.Date < period.PeriodStart)
+            .SumAsync(charge => charge.Amount, cancellationToken);
         var previousPayments = await payments
             .Where(payment => payment.PaymentDate < period.PeriodStart)
             .SumAsync(payment => payment.Amount.Amount, cancellationToken);
         var periodCharges = await charges
-            .Where(charge => charge.ChargeDate >= period.PeriodStart &&
-                             charge.ChargeDate <= period.ClosingDate)
-            .SumAsync(charge => charge.Amount.Amount, cancellationToken);
+            .Where(charge => charge.Date >= period.PeriodStart &&
+                             charge.Date <= period.ClosingDate)
+            .SumAsync(charge => charge.Amount, cancellationToken);
         var paymentsThroughClosing = await payments
             .Where(payment => payment.PaymentDate >= period.PeriodStart &&
                               payment.PaymentDate <= period.ClosingDate)

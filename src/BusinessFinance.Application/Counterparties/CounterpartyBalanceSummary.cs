@@ -23,7 +23,14 @@ public sealed record CounterpartyBalanceSummary(
     decimal OverdueReceivable,
     decimal OverduePayable,
     decimal OpenReceivableObligations = 0m,
-    decimal OpenPayableObligations = 0m)
+    decimal OpenPayableObligations = 0m,
+
+    // Sıradaki vade: kapanmamış kısmı kalan, vadesi gelmemiş en yakın alım
+    // (ödemeler önce en eski alımı düşürür; ADR 0021 T8).
+    DateOnly? NextReceivableDueDate = null,
+    decimal NextReceivableDueAmount = 0m,
+    DateOnly? NextPayableDueDate = null,
+    decimal NextPayableDueAmount = 0m)
 {
     /// <summary>Artı: karşı taraf bize borçlu. Eksi: biz ona borçluyuz.</summary>
     public decimal Net => Receivable - Payable;

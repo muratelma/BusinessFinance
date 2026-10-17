@@ -116,7 +116,12 @@ public sealed class CreateCounterpartyChargeUseCase(
         charge.ChargeDate,
         charge.Description,
         charge.IsCancelled,
-        charge.DueDate);
+        charge.DueDate,
+        charge.NetAmount,
+        [.. charge.Discounts
+            .OrderBy(discount => discount.RecordedAtUtc)
+            .Select(discount => new CounterpartyChargeDiscountDto(
+                discount.Id, discount.Amount, discount.DiscountDate, discount.IsCancelled))]);
 }
 
 /// <summary>

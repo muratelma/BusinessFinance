@@ -55,6 +55,68 @@ internal sealed class EfDebtRepository(BusinessFinanceDbContext dbContext) : IDe
         }
     }
 
+    public Task<Debt?> FindAnyOwnedAsync(
+        Guid id, Guid userId, bool track, CancellationToken cancellationToken) =>
+        Aggregates(track ? dbContext.Debts : dbContext.Debts.AsNoTracking())
+            .SingleOrDefaultAsync(debt => debt.Id == id && debt.UserId == userId, cancellationToken);
+
+    public Task<PosSettlement?> FindCardSettlementAsync(
+        Guid id, Guid userId, CancellationToken cancellationToken) =>
+        dbContext.PosSettlements.SingleOrDefaultAsync(
+            settlement => settlement.Id == id && settlement.UserId == userId, cancellationToken);
+
+    public async Task AddWithClosingAsync(
+        Debt debt,
+        DebtPayment? closing,
+        PosSettlement? cardSettlement,
+        CancellationToken cancellationToken)
+    {
+        dbContext.Debts.Add(debt);
+        if (cardSettlement is not null)
+        {
+            dbContext.PosSettlements.Add(cardSettlement);
+        }
+
+        await SaveOrConflictAsync(cancellationToken);
+    }
+
+    public async Task SaveChangesAsync(
+        DebtPayment? newClosing,
+        PosSettlement? newCardSettlement,
+        CancellationToken cancellationToken)
+    {
+        if (newCardSettlement is not null)
+        {
+            dbContext.PosSettlements.Add(newCardSettlement);
+        }
+
+        if (newClosing is not null)
+        {
+            DebtPayments.MarkAdded(dbContext, newClosing);
+        }
+
+        await SaveOrConflictAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Borcun sürümü ya da aynı istek kimliğiyle yazılmış kayıt çarptıysa
+    /// <see cref="DebtConcurrencyException"/>: kalan bu sırada değişmişti.
+    /// </summary>
+    private async Task SaveOrConflictAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (
+            exception is DbUpdateConcurrencyException ||
+            exception.InnerException is SqlException { Number: 2601 or 2627 })
+        {
+            dbContext.ChangeTracker.Clear();
+            throw new DebtConcurrencyException();
+        }
+    }
+
     internal static IQueryable<Debt> Aggregates(IQueryable<Debt> debts) => debts
         .Include(debt => debt.Items)
         .Include(debt => debt.Payments).ThenInclude(payment => payment.Allocations)

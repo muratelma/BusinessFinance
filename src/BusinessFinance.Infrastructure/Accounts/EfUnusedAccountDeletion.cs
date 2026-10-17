@@ -64,8 +64,8 @@ internal sealed class EfUnusedAccountDeletion(BusinessFinanceDbContext dbContext
                await dbContext.ImportRows.AnyAsync(
                    item => item.UserId == userId && item.AccountId == accountId,
                    cancellationToken) ||
-               await dbContext.DebtInstallments.AnyAsync(
-                   item => item.UserId == userId && item.PaymentAccountId == accountId,
+               await dbContext.DebtPayments.AnyAsync(
+                   item => item.UserId == userId && item.AccountId == accountId,
                    cancellationToken) ||
                await dbContext.SavingsGoals.AnyAsync(
                    item => item.UserId == userId && item.AccountId == accountId,

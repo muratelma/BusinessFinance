@@ -104,10 +104,7 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
     {
         if (cards.Count == 0) return new Dictionary<Guid, decimal>();
 
-        var charged = await ChargeTotalsAsync(
-            dbContext.CreditCardCharges.AsNoTracking()
-                .Where(charge => charge.UserId == userId && !charge.IsCancelled),
-            cancellationToken);
+        var charged = await ChargeTotalsAsync(CreditCards.CardDebt.ChargeRows(dbContext, userId), cancellationToken);
         var paid = await PaymentTotalsAsync(
             dbContext.CreditCardPayments.AsNoTracking()
                 .Where(payment => payment.UserId == userId && !payment.IsCancelled),
@@ -122,11 +119,11 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
     // Grouped on the entity rather than on a projected shape: the provider can only
     // translate the aggregate to SQL when it groups the mapped column directly.
     private static Task<Dictionary<Guid, decimal>> ChargeTotalsAsync(
-        IQueryable<CreditCardCharge> charges,
+        IQueryable<CreditCards.CardChargeRow> charges,
         CancellationToken cancellationToken) =>
         charges
-            .GroupBy(charge => charge.CreditCardId)
-            .Select(group => new { CardId = group.Key, Total = group.Sum(item => item.Amount.Amount) })
+            .GroupBy(charge => charge.CardId)
+            .Select(group => new { CardId = group.Key, Total = group.Sum(item => item.Amount) })
             .ToDictionaryAsync(item => item.CardId, item => item.Total, cancellationToken);
 
     private static Task<Dictionary<Guid, decimal>> PaymentTotalsAsync(
@@ -450,13 +447,12 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
         // earliest window is folded into the carried-over balance as a SQL sum, so a long
         // card history never has to be materialised.
         var earliestPeriodStart = periods.Values.Min(period => period.PeriodStart);
-        var chargeQuery = dbContext.CreditCardCharges.AsNoTracking()
-            .Where(charge => charge.UserId == userId && !charge.IsCancelled);
+        var chargeQuery = CreditCards.CardDebt.ChargeRows(dbContext, userId);
         var paymentQuery = dbContext.CreditCardPayments.AsNoTracking()
             .Where(payment => payment.UserId == userId && !payment.IsCancelled);
 
         var historicalCharges = await ChargeTotalsAsync(
-            chargeQuery.Where(charge => charge.ChargeDate < earliestPeriodStart),
+            chargeQuery.Where(charge => charge.Date < earliestPeriodStart),
             cancellationToken);
         var historicalPayments = await PaymentTotalsAsync(
             paymentQuery.Where(payment => payment.PaymentDate < earliestPeriodStart),
@@ -464,10 +460,10 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
 
         // Movements after the as-of date belong to a future statement.
         var chargesByCard = (await chargeQuery
-                .Where(charge => charge.ChargeDate >= earliestPeriodStart &&
-                                 charge.ChargeDate <= asOfDate)
+                .Where(charge => charge.Date >= earliestPeriodStart &&
+                                 charge.Date <= asOfDate)
                 .Select(charge => new CardMovement(
-                    charge.CreditCardId, charge.ChargeDate, charge.Amount.Amount))
+                    charge.CardId, charge.Date, charge.Amount))
                 .ToArrayAsync(cancellationToken))
             .ToLookup(item => item.CreditCardId);
         var paymentsByCard = (await paymentQuery
@@ -548,15 +544,20 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
         CancellationToken cancellationToken)
     {
         var rows = await (
-                from installment in dbContext.DebtInstallments.AsNoTracking()
+                // Açık kalem, açık tutarıyla: kısmen ödenmiş taksit kalanıyla görünür.
+                // Vadesi olmayan (planı olmayan) borcun planlanacak günü yoktur.
+                // Kişisiz borç da görünür; başlığı açıklamasıdır.
+                from installment in dbContext.DebtOpenItems
                 join debt in dbContext.DebtAgreements.AsNoTracking()
-                    on new { installment.UserId, DebtId = installment.DebtAgreementId }
+                    on new { installment.UserId, DebtId = installment.DebtId }
                     equals new { debt.UserId, DebtId = debt.Id }
                 join counterparty in dbContext.Counterparties.AsNoTracking()
-                    on new { debt.UserId, Id = debt.CounterpartyId!.Value }
-                    equals new { counterparty.UserId, counterparty.Id }
+                    on new { debt.UserId, Id = debt.CounterpartyId }
+                    equals new { counterparty.UserId, Id = (Guid?)counterparty.Id }
+                    into counterparties
+                from counterparty in counterparties.DefaultIfEmpty()
                 where installment.UserId == userId &&
-                      installment.PaymentAccountId == null &&
+                      installment.DueDate != null &&
                       (scope == null || debt.Scope == scope) &&
                       installment.DueDate <= horizonDate
                 select new
@@ -565,11 +566,11 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
                     DebtId = debt.Id,
                     installment.Sequence,
                     debt.Direction,
-                    CounterpartyName = counterparty.Name,
+                    CounterpartyName = counterparty == null ? string.Empty : counterparty.Name,
                     debt.Description,
-                    Amount = installment.Amount,
+                    Amount = installment.OpenAmount,
                     Currency = installment.Currency,
-                    installment.DueDate
+                    DueDate = installment.DueDate!.Value
                 })
             .ToArrayAsync(cancellationToken);
 
@@ -614,9 +615,12 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
     {
         var rows = await (
                 from obligation in dbContext.Obligations.AsNoTracking()
+                // Devredilmiş faturanın kategorisi yoktur; vadesi yine planlanır.
                 join category in dbContext.Categories.AsNoTracking()
                     on new { obligation.UserId, Id = obligation.CategoryId }
-                    equals new { category.UserId, category.Id }
+                    equals new { category.UserId, Id = (Guid?)category.Id }
+                    into categories
+                from category in categories.DefaultIfEmpty()
                 join counterparty in dbContext.Counterparties.AsNoTracking()
                     on new { obligation.UserId, Id = obligation.CounterpartyId }
                     equals new { counterparty.UserId, Id = (Guid?)counterparty.Id }
@@ -624,21 +628,19 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
                 from counterparty in counterparties.DefaultIfEmpty()
                 where obligation.UserId == userId &&
                       !obligation.IsCancelled &&
-                      !dbContext.ObligationSettlements.Any(settlement =>
-                          settlement.UserId == userId &&
-                          settlement.ObligationId == obligation.Id) &&
+                      obligation.RemainingAmount > 0m &&
                       (scope == null || obligation.Scope == scope) &&
                       obligation.DueDate <= horizonDate
                 select new
                 {
                     obligation.Id,
                     obligation.Direction,
-                    Amount = obligation.Amount,
+                    Amount = obligation.RemainingAmount,
                     Currency = obligation.Currency,
                     obligation.DueDate,
                     obligation.Description,
-                    CategoryId = category.Id,
-                    CategoryName = category.Name,
+                    CategoryId = category == null ? null : (Guid?)category.Id,
+                    CategoryName = category == null ? null : category.Name,
                     CounterpartyName = counterparty == null ? null : counterparty.Name
                 })
             .ToArrayAsync(cancellationToken);

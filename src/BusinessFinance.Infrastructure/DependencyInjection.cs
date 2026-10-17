@@ -140,6 +140,7 @@ public static class DependencyInjection
         services.AddScoped<IUpcomingPaymentRepository, EfUpcomingPaymentRepository>();
         services.AddScoped<IDataPortabilityRepository, EfDataPortabilityRepository>();
         services.AddScoped<IDebtRepository, EfDebtRepository>();
+        services.AddScoped<IDebtBookReader, EfDebtBookReader>();
         services.AddScoped<ICounterpartyRepository, EfCounterpartyRepository>();
         services.AddScoped<IObligationRepository, EfObligationRepository>();
         services.AddScoped<ICashCountRepository, EfCashCountRepository>();

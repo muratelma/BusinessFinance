@@ -72,6 +72,22 @@ public static class CounterpartyErrors
         "An active owned account is required.",
         ApplicationErrorType.Validation);
 
+    public static ApplicationError DiscountNotFound(Guid id) => new(
+        "counterparty_charges.discount_not_found",
+        $"Discount '{id}' was not found on this charge.",
+        ApplicationErrorType.NotFound);
+
+    public static readonly ApplicationError ChargeCancelled = new(
+        "counterparty_charges.cancelled",
+        "A cancelled charge cannot change.",
+        ApplicationErrorType.Conflict);
+
+    /// <summary>İndirim alımın kalan bedelini aşamaz.</summary>
+    public static readonly ApplicationError DiscountExceedsCharge = new(
+        "counterparty_charges.discount_exceeds_amount",
+        "The discount cannot exceed what is left of the charge.",
+        ApplicationErrorType.Validation);
+
     public static ApplicationError ChargeNotFound(Guid id) => new(
         "counterparty_charges.not_found",
         $"Counterparty charge '{id}' was not found.",

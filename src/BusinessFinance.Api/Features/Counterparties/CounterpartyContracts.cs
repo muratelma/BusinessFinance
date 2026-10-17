@@ -33,7 +33,9 @@ public sealed record CounterpartyResponse(
     // farkları `net`'e eşittir. Fazla tahsilatta `receivable` eksiye düşer
     // (kırpılmaz); o tutar burada `owedByYou`'ya eklenmiş gelir.
     string OwedToYou = "0.0000",
-    string OwedByYou = "0.0000");
+    string OwedByYou = "0.0000",
+    string OpeningReceivable = "0.0000",
+    string OpeningPayable = "0.0000");
 
 public sealed record CounterpartyListResponse(IReadOnlyList<CounterpartyResponse> Items);
 
@@ -85,7 +87,26 @@ public sealed record CounterpartyChargeResponse(
     string ChargeDate,
     string? Description,
     bool IsCancelled,
-    string? DueDate);
+    string? DueDate,
+    string NetAmount,
+    IReadOnlyList<CounterpartyChargeDiscountResponse> Discounts);
+
+public sealed record CounterpartyChargeDiscountResponse(
+    Guid Id,
+    string Amount,
+    string DiscountDate,
+    bool IsCancelled);
+
+/// <summary>Cari alıma indirim; para hareketi yoktur (ADR 0021 T3).</summary>
+public sealed record CounterpartyChargeDiscountRequest(
+    string Amount,
+    string DiscountDate,
+    Guid? ClientRequestId = null);
+
+/// <summary>Uygulamadan önce devreden bakiye (ADR 0021 T5); ikisi de sıfır ya da artı.</summary>
+public sealed record CounterpartyOpeningBalanceRequest(
+    string Receivable,
+    string Payable);
 
 public sealed record CounterpartyPaymentResponse(
     Guid Id,

@@ -20,11 +20,15 @@ internal sealed class EfObligationRepository(BusinessFinanceDbContext dbContext)
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    // Kapanış: faturayı kapatan son ödeme; iptal edilmiş faturada iptal edilen
+    // son ödeme. Kısmen ödenmiş fatura açıktır.
     public async Task<IReadOnlyList<ObligationDto>> ListAsync(
         Guid userId,
         DateOnly asOfDate,
         CancellationToken cancellationToken) => await (
-            from obligation in dbContext.Debts.AsNoTracking()
+            from obligation in dbContext.Obligations
+            // Eski liste kategorili faturayı yazar; devredilmiş borç yeni
+            // listededir (`debt-book`) ve bu uç Flutter geçişinde kalkar.
             join category in dbContext.Categories.AsNoTracking()
                 on new { obligation.UserId, Id = obligation.CategoryId }
                 equals new { category.UserId, Id = (Guid?)category.Id }
@@ -33,32 +37,40 @@ internal sealed class EfObligationRepository(BusinessFinanceDbContext dbContext)
                 equals new { counterparty.UserId, Id = (Guid?)counterparty.Id }
                 into counterparties
             from counterparty in counterparties.DefaultIfEmpty()
-            let settlement = obligation.Payments.FirstOrDefault()
-            where obligation.UserId == userId && obligation.PlanKind == DebtPlanKind.Single
-            orderby obligation.FirstDueDate, obligation.Id
+            let closed = obligation.IsCancelled || obligation.RemainingAmount == 0m
+            let settlement = dbContext.DebtPayments
+                .Where(payment => payment.UserId == obligation.UserId &&
+                                  payment.DebtId == obligation.Id &&
+                                  payment.Kind == DebtPaymentKind.Payment &&
+                                  (obligation.IsCancelled || !payment.IsCancelled))
+                .OrderByDescending(payment => payment.PaidAtUtc)
+                .ThenByDescending(payment => payment.Id)
+                .FirstOrDefault()
+            where obligation.UserId == userId
+            orderby obligation.DueDate, obligation.Id
             select new ObligationDto(
                 obligation.Id,
                 obligation.CounterpartyId,
-                obligation.CategoryId!.Value,
+                category.Id,
                 obligation.Direction,
-                obligation.Principal.Amount,
-                obligation.Principal.Currency,
+                obligation.Amount,
+                obligation.Currency,
                 obligation.Scope,
-                obligation.StartDate,
-                obligation.FirstDueDate!.Value,
+                obligation.IssueDate,
+                obligation.DueDate,
                 obligation.Description,
                 obligation.IsCancelled
                     ? ObligationStatus.Cancelled
-                    : settlement == null
-                        ? ObligationStatus.Open
-                        : ObligationStatus.Settled,
+                    : obligation.RemainingAmount == 0m
+                        ? ObligationStatus.Settled
+                        : ObligationStatus.Open,
                 counterparty == null ? null : counterparty.Name,
                 category.Name,
-                !obligation.IsCancelled && settlement == null &&
-                    obligation.FirstDueDate < asOfDate,
-                settlement == null ? null : settlement.Id,
-                settlement == null ? null : settlement.AccountId,
-                settlement == null ? null : settlement.PaymentDate))
+                !obligation.IsCancelled && obligation.RemainingAmount > 0m &&
+                    obligation.DueDate < asOfDate,
+                !closed || settlement == null ? null : settlement.Id,
+                !closed || settlement == null ? null : settlement.AccountId,
+                !closed || settlement == null ? null : settlement.PaymentDate))
             .ToArrayAsync(cancellationToken);
 
     public Task<Debt?> FindOwnedByIdAsync(

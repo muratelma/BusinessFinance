@@ -1,7 +1,9 @@
 # Backup Restore Runbook
 
-Bu runbook yalnız sentetik yerel veridir. Yazılan şema **v12**; okunabilen
-şemalar **v11 ve v12**. v12 kategori rolünü ve transferin masraf gideri bağını
+Bu runbook yalnız sentetik yerel veridir. Yazılan şema **v13**; okunabilen
+şemalar **v11, v12 ve v13**. v13 borcu tek listede durumuyla (`debtRecords`),
+cari indirimi ve kişinin devreden bakiyesini taşır (aşağıda "Yedek v13").
+v12 kategori rolünü ve transferin masraf gideri bağını
 taşır. Rolsüz v11 kategori adları yükseltme eşlemesiyle değerlendirilir;
 v12'de boş rol boş kalır, adından yeniden türetilmez.
 
@@ -513,3 +515,43 @@ borç devir değildi), sonra zorunlu olur; kalıcı DEFAULT kalmaz. Planın vade
 ve ödemenin hesabı boş bırakılabilir olur. `Down`, eski şemaya sığmayan kayıt
 (planı olmayan borç, kartla ödeme, indirim, değişmiş plan) varsa veri
 kaybettirmek yerine durur. Yedek biçimi bu adımda değişmez.
+
+## Yedek v13 — 16 Ekim 2026 (ADR 0021 dalga 2c)
+
+**Yazılan sürüm v13; v11 ve v12 okunmaya devam eder.** v12 borcu iki listede
+(`obligations` tek ödeme ve kapanışı, `debts` taksitler ve taksit başına tek
+ödeme) taşıyordu; kısmi ödeme, kartla ödeme, indirim, değişmiş plan, devir,
+kişisiz ve planı olmayan borç bu biçime sığmaz. v13 o iki listeyi **boş** yazar
+ve her borcu `debtRecords` listesinde durumuyla taşır:
+
+- borcun alanları (`planKind`, `isCarriedOver`, `planRevision`, kişi isteğe bağlı,
+  iptal anı);
+- `items`: eski planlarınki dahil bütün kalemler (sıra, tutar, vade, anapara/faiz
+  payı, plan numarası, yerini bırakmış mı);
+- `closings`: ödeme ve indirimler, geri alınmışlar dahil; hesap, kart ya da POS
+  bağı ve kalemlere dağılımı (kalem sırasıyla).
+
+Geri yükleme işlemleri yeniden oynatmaz (plan değişikliğinin anı tutulmuyor,
+oynatma ödemenin hangi plana yapıldığını kaybettirirdi); `Debt.Restore` durumu
+kurar ve değişmezleri denetler: geçerli plan son plandır ve kalem sayısı planın
+sayısıdır, her kapanış kendi tutarı kadar var olan kalemlere dağılır, hiçbir
+kalem iptal edilmemiş kapanışlarla tutarından fazla kapanmaz, ödemenin tek yeri
+vardır, indirim yalnız kayıtlı alım ya da satışta olur, iptal edilmiş borcun
+kapanışı açık kalmaz, POS bağı aynı hesaba ve tahsilata aittir. Tutmayan dosya
+reddedilir. Kalan, gecikme ve faiz oranı yazılmaz; türetilir.
+
+Cari tarafta `counterparties[]` devreden bakiyeyi (`openingReceivable`,
+`openingPayable`), `counterpartyCharges[].discounts[]` indirimleri taşır; eski
+dosyada ikisi de yoktur ve sıfır/boş okunur. Gün sonunun saydığı kapanış
+bağları yeni kapanış kimliğine çevrilir.
+
+Kayıt sayısı (`entityCount`) borcu, kalemlerini ve kapanışlarını ayrı sayar;
+aynı veri v12'ye göre biraz büyük bir sayı verir.
+
+`AddCounterpartyDiscountsAndOpeningBalances` migration'ı indirim tablosunu
+kurar ve kişiye iki devir kolonu ekler: kolonlar önce boş eklenir, eski kişiler
+sıfır devirle doldurulur, sonra zorunlu olur ve kısıt (`>= 0`) en son gelir;
+kalıcı DEFAULT kalmaz. `Down`, indirim ya da sıfırdan farklı devir varsa veri
+kaybettirmek yerine durur (`THROW 50022`). Kalıcı test:
+`DebtBackupV13Tests` (InMemory ve gerçek SQL) — senaryonun 15 okuması yedekten
+dönünce kimlikler dışında birebir aynı.

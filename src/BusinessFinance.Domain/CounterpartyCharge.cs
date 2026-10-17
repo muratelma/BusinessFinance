@@ -22,6 +22,8 @@ public sealed class CounterpartyCharge
 {
     public const int MaximumDescriptionLength = 500;
 
+    private readonly List<CounterpartyChargeDiscount> _discounts = [];
+
     public Guid Id { get; }
     public Guid UserId { get; }
     public Guid CounterpartyId { get; }
@@ -41,6 +43,15 @@ public sealed class CounterpartyCharge
 
     public bool IsCancelled { get; private set; }
     public DateTimeOffset? CancelledAtUtc { get; private set; }
+
+    /// <summary>Alımın indirimleri; iptal edilmişler geri alınmıştır.</summary>
+    public IReadOnlyCollection<CounterpartyChargeDiscount> Discounts => _discounts.AsReadOnly();
+
+    /// <summary>
+    /// Bedel: ilk tutar, iptal edilmemiş indirimler düşülmüş. Gelir ya da gider
+    /// alım gününde bu kadardır (ADR 0021 İ4, T3).
+    /// </summary>
+    public decimal NetAmount => Amount.Amount - _discounts.Where(item => !item.IsCancelled).Sum(item => item.Amount);
 
     private CounterpartyCharge()
     {
@@ -153,6 +164,50 @@ public sealed class CounterpartyCharge
 
         IsCancelled = true;
         CancelledAtUtc = cancelledAtUtc;
+        foreach (var discount in _discounts)
+        {
+            discount.Cancel(cancelledAtUtc);
+        }
+    }
+
+    /// <summary>
+    /// İndirim: alımın bedeli düşer, gelir ya da gider alım gününde azalır,
+    /// cari bakiye azalır; para hareketi yoktur (ADR 0021 İ4, T3). Aynı kimlik
+    /// aynı indirimi döner.
+    /// </summary>
+    public CounterpartyChargeDiscount ApplyDiscount(
+        Guid discountId, decimal amount, DateOnly discountDate, DateTimeOffset recordedAtUtc)
+    {
+        if (_discounts.SingleOrDefault(item => item.Id == discountId) is { } existing)
+        {
+            return existing;
+        }
+
+        if (IsCancelled) throw new InvalidOperationException("A cancelled charge cannot be discounted.");
+        if (amount <= 0m || decimal.Round(amount, 4) != amount)
+            throw new ArgumentOutOfRangeException(nameof(amount), "Amount must be positive with at most four decimals.");
+        if (amount > NetAmount)
+            throw new DebtAmountExceedsRemainingException(NetAmount);
+        if (recordedAtUtc.Offset != TimeSpan.Zero)
+            throw new ArgumentException("Recording time must be UTC.", nameof(recordedAtUtc));
+        if (discountDate < ChargeDate || discountDate > LocalDay.LatestAllowed(recordedAtUtc))
+            throw new ArgumentOutOfRangeException(
+                nameof(discountDate), "The discount date cannot be before the purchase or in the future.");
+
+        var discount = new CounterpartyChargeDiscount(
+            discountId, UserId, Id, CounterpartyId, Direction, amount, discountDate, recordedAtUtc);
+        _discounts.Add(discount);
+        return discount;
+    }
+
+    /// <summary>İndirimi geri alır; bedel eski hâline döner.</summary>
+    public CounterpartyChargeDiscount ReverseDiscount(Guid discountId, DateTimeOffset cancelledAtUtc)
+    {
+        if (IsCancelled) throw new InvalidOperationException("A cancelled charge cannot change.");
+        var discount = _discounts.SingleOrDefault(item => item.Id == discountId) ??
+            throw new ArgumentOutOfRangeException(nameof(discountId), "Discount was not found.");
+        discount.Cancel(cancelledAtUtc);
+        return discount;
     }
 
     private static string? NormalizeDescription(string? description)
@@ -166,5 +221,57 @@ public sealed class CounterpartyCharge
         }
 
         return normalized;
+    }
+}
+
+/// <summary>
+/// Bir cari alımın indirimi. Karşı tarafı ve yönü alımınkinin kopyasıdır:
+/// cari bakiye indirimi alıma gitmeden düşebilsin diye taşınır.
+/// </summary>
+public sealed class CounterpartyChargeDiscount
+{
+    public Guid Id { get; }
+    public Guid UserId { get; }
+    public Guid ChargeId { get; }
+    public Guid CounterpartyId { get; }
+    public DebtDirection Direction { get; }
+    public decimal Amount { get; }
+    public DateOnly DiscountDate { get; }
+    public DateTimeOffset RecordedAtUtc { get; }
+    public bool IsCancelled { get; private set; }
+    public DateTimeOffset? CancelledAtUtc { get; private set; }
+
+    private CounterpartyChargeDiscount() { }
+
+    internal CounterpartyChargeDiscount(
+        Guid id,
+        Guid userId,
+        Guid chargeId,
+        Guid counterpartyId,
+        DebtDirection direction,
+        decimal amount,
+        DateOnly discountDate,
+        DateTimeOffset recordedAtUtc)
+    {
+        if (id == Guid.Empty) throw new ArgumentException("Discount id cannot be empty.", nameof(id));
+        Id = id;
+        UserId = userId;
+        ChargeId = chargeId;
+        CounterpartyId = counterpartyId;
+        Direction = direction;
+        Amount = amount;
+        DiscountDate = discountDate;
+        RecordedAtUtc = recordedAtUtc;
+    }
+
+    internal void Cancel(DateTimeOffset cancelledAtUtc)
+    {
+        if (IsCancelled)
+        {
+            return;
+        }
+
+        IsCancelled = true;
+        CancelledAtUtc = cancelledAtUtc;
     }
 }

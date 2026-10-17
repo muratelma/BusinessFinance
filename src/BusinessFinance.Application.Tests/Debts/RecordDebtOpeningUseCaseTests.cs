@@ -270,5 +270,21 @@ public sealed class RecordDebtOpeningUseCaseTests
 
         public Task SavePaymentAsync(DebtPayment payment, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+
+        public Task<Debt?> FindAnyOwnedAsync(
+            Guid id, Guid userId, bool track, CancellationToken cancellationToken) =>
+            Task.FromResult(debt);
+
+        public Task<PosSettlement?> FindCardSettlementAsync(
+            Guid id, Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task AddWithClosingAsync(
+            Debt debt, DebtPayment? closing, PosSettlement? cardSettlement, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task SaveChangesAsync(
+            DebtPayment? newClosing, PosSettlement? newCardSettlement, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 }

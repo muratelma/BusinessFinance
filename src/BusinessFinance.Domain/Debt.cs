@@ -429,6 +429,254 @@ public sealed class Debt
         return debt;
     }
 
+    /// <summary>
+    /// Herhangi bir planla yeni borç (ADR 0021 T1): borç para, sonra ödenecek
+    /// alım ya da satış. Kişi isteğe bağlıdır; kişisiz borç açıklama taşır.
+    /// </summary>
+    public static Debt Create(
+        Guid id,
+        Guid userId,
+        Counterparty? counterparty,
+        DebtDirection direction,
+        TransactionScope scope,
+        Money principal,
+        Money totalRepayment,
+        DebtSourceType sourceType,
+        Account? openingAccount,
+        Category? category,
+        DateOnly startDate,
+        DebtPlanKind planKind,
+        DateOnly? firstDueDate,
+        int installmentCount,
+        string? description,
+        DateTimeOffset createdAtUtc)
+    {
+        if (sourceType == DebtSourceType.Unrecorded)
+            throw new ArgumentException("A new debt must record what created it.", nameof(sourceType));
+        ArgumentNullException.ThrowIfNull(principal);
+        EnsureNewCounterparty(userId, counterparty, description);
+        ValidateOpening(userId, direction, sourceType, openingAccount, category, principal.Currency);
+        if (createdAtUtc.Offset != TimeSpan.Zero)
+            throw new ArgumentException("Creation time must be UTC.", nameof(createdAtUtc));
+
+        var debt = new Debt(
+            id, userId, counterparty?.Id, direction, scope, principal, totalRepayment, sourceType,
+            openingAccount?.Id, category?.Id, startDate, planKind, firstDueDate, installmentCount, description)
+        {
+            CreatedAtUtc = createdAtUtc
+        };
+        debt.GenerateSchedule();
+        return debt;
+    }
+
+    /// <summary>
+    /// Uygulamadan önceki borç (ADR 0021 İ5, T5): para hareketi ve gelir/gider
+    /// yazılmaz. Kaynağı bilinir; tutarlar "itibarıyla" gününün kalanıdır, faizli
+    /// borçta anapara kalan anaparadır.
+    /// </summary>
+    public static Debt CarriedOver(
+        Guid id,
+        Guid userId,
+        Counterparty? counterparty,
+        DebtDirection direction,
+        TransactionScope scope,
+        DebtSourceType sourceType,
+        Money remainingPrincipal,
+        Money remainingTotal,
+        DateOnly asOfDate,
+        DebtPlanKind planKind,
+        DateOnly? firstDueDate,
+        int installmentCount,
+        string? description,
+        DateTimeOffset createdAtUtc)
+    {
+        if (sourceType is not (DebtSourceType.Cash or DebtSourceType.Expense or DebtSourceType.Income))
+            throw new ArgumentException("A carried-over debt keeps what created it.", nameof(sourceType));
+        var categoricalSource = direction == DebtDirection.Payable ? DebtSourceType.Expense : DebtSourceType.Income;
+        if (sourceType != DebtSourceType.Cash && sourceType != categoricalSource)
+            throw new ArgumentException("The source does not match the direction.", nameof(sourceType));
+        EnsureNewCounterparty(userId, counterparty, description);
+        if (createdAtUtc.Offset != TimeSpan.Zero)
+            throw new ArgumentException("Creation time must be UTC.", nameof(createdAtUtc));
+
+        var debt = new Debt(
+            id, userId, counterparty?.Id, direction, scope, remainingPrincipal, remainingTotal, sourceType,
+            null, null, asOfDate, planKind, firstDueDate, installmentCount, description)
+        {
+            IsCarriedOver = true,
+            CreatedAtUtc = createdAtUtc
+        };
+        debt.GenerateSchedule();
+        return debt;
+    }
+
+    /// <summary>
+    /// Yedekten geri yüklenen borç: durumu olduğu gibi kurar ve tutarlılığını
+    /// denetler; hiçbir işlemi yeniden oynatmaz. Plan değişikliğinin anı
+    /// tutulmadığı için oynatma, ödemelerin hangi plana yapıldığını
+    /// kaybettirirdi. Kimlikleri çağıran verir (yeni kimlikler); hesap, kart ve
+    /// POS kimlikleri aynı kullanıcının geri yüklenmiş kayıtlarına eşlenmiştir.
+    /// </summary>
+    /// <remarks>
+    /// Denetlenenler: geçerli plan tam olarak <paramref name="installmentCount"/>
+    /// kalemdir ve son plandır, eski planların kalemleri yerini bırakmıştır;
+    /// her kapanış kendi tutarı kadar, var olan kalemlere dağılır; hiçbir kalem
+    /// iptal edilmemiş kapanışlarla tutarından fazla kapanmaz; ödeme tek bir
+    /// yerden (hesap ya da kart) yapılır, indirimin para yeri yoktur ve yalnız
+    /// kayıtlı alım ya da satışta olur; iptal edilmiş borcun bütün kapanışları
+    /// iptal edilmiştir. Kapanışlar verilen sırayla eklenir.
+    /// </remarks>
+    public static Debt Restore(
+        Guid id,
+        Guid userId,
+        Counterparty? counterparty,
+        DebtDirection direction,
+        TransactionScope scope,
+        Money principal,
+        Money totalRepayment,
+        DebtSourceType sourceType,
+        bool isCarriedOver,
+        Account? openingAccount,
+        Category? category,
+        DateOnly startDate,
+        DebtPlanKind planKind,
+        DateOnly? firstDueDate,
+        int installmentCount,
+        string? description,
+        DateTimeOffset? createdAtUtc,
+        int planRevision,
+        IReadOnlyList<RestoredDebtItem> items,
+        IReadOnlyList<RestoredDebtPayment> payments,
+        DateTimeOffset? cancelledAtUtc)
+    {
+        ArgumentNullException.ThrowIfNull(principal);
+        ArgumentNullException.ThrowIfNull(items);
+        ArgumentNullException.ThrowIfNull(payments);
+        if (counterparty is not null && counterparty.UserId != userId)
+            throw new ArgumentException("Counterparty must belong to the debt user.", nameof(counterparty));
+        if (isCarriedOver)
+        {
+            if (openingAccount is not null || category is not null || sourceType == DebtSourceType.Unrecorded)
+                throw new ArgumentException("A carried-over debt keeps its source but records no opening.");
+        }
+        else if (sourceType != DebtSourceType.Unrecorded)
+        {
+            ValidateOpening(userId, direction, sourceType, openingAccount, category, principal.Currency);
+        }
+
+        if (createdAtUtc is { } created && created.Offset != TimeSpan.Zero)
+            throw new ArgumentException("Creation time must be UTC.", nameof(createdAtUtc));
+        if (planRevision < 0) throw new ArgumentOutOfRangeException(nameof(planRevision));
+
+        var debt = new Debt(
+            id, userId, counterparty?.Id, direction, scope, principal, totalRepayment, sourceType,
+            openingAccount?.Id, category?.Id, startDate, planKind, firstDueDate, installmentCount, description)
+        {
+            IsCarriedOver = isCarriedOver,
+            CreatedAtUtc = createdAtUtc,
+            PlanRevision = planRevision
+        };
+
+        if (items.Select(item => item.Sequence).Distinct().Count() != items.Count ||
+            items.Any(item => item.Sequence < 1 || item.Amount <= 0m || decimal.Round(item.Amount, 4) != item.Amount ||
+                              item.PlanRevision < 0 || item.PlanRevision > planRevision ||
+                              item.IsSuperseded == (item.PlanRevision == planRevision)))
+            throw new ArgumentException("Debt items do not form one current plan over earlier ones.", nameof(items));
+        if (items.Count(item => !item.IsSuperseded) != installmentCount)
+            throw new ArgumentException("The current plan does not have the installment count.", nameof(items));
+
+        // Tek kalemli ilk planın kalemi borcun kimliğini taşır (oluşturmadaki kural).
+        var firstPlan = items.Where(item => item.PlanRevision == 0).ToArray();
+        var keepsDebtId = firstPlan.Length == 1 && !(planRevision == 0 && planKind == DebtPlanKind.Installments);
+        var bySequence = new Dictionary<int, DebtScheduleItem>();
+        foreach (var source in items.OrderBy(item => item.Sequence))
+        {
+            var item = new DebtScheduleItem(
+                keepsDebtId && source.PlanRevision == 0 ? id : Guid.NewGuid(), userId, id, source.Sequence,
+                new Money(source.Amount, principal.Currency), source.DueDate,
+                source.PrincipalPortion, source.InterestPortion, source.PlanRevision);
+            if (source.IsSuperseded) item.Supersede();
+            debt._items.Add(item);
+            bySequence[source.Sequence] = item;
+        }
+
+        var closedByItem = new Dictionary<int, decimal>();
+        foreach (var source in payments)
+        {
+            if (!Enum.IsDefined(source.Kind)) throw new ArgumentOutOfRangeException(nameof(payments));
+            if (source.Amount <= 0m || decimal.Round(source.Amount, 4) != source.Amount)
+                throw new ArgumentException("A closing amount must be positive with at most four decimals.", nameof(payments));
+            if (source.PaymentDate < startDate)
+                throw new ArgumentException("A closing cannot be before the debt started.", nameof(payments));
+            var money = new Money(source.Amount, principal.Currency);
+            if (source.Kind == DebtPaymentKind.Payment)
+            {
+                if ((source.Account is null) == (source.Card is null))
+                    throw new ArgumentException("A payment is made from exactly one account or credit card.", nameof(payments));
+                if (source.Account is { } account && (account.UserId != userId || account.Currency != principal.Currency))
+                    throw new ArgumentException("The payment account must belong to the debt user and its currency.", nameof(payments));
+                if (source.Card is { } card &&
+                    (direction != DebtDirection.Payable || card.UserId != userId || card.Limit.Currency != principal.Currency))
+                    throw new ArgumentException("Only a debt can be paid by the user's credit card.", nameof(payments));
+                source.CardSettlement?.EnsureCollects(userId, source.Account!, direction, money, source.PaymentDate);
+            }
+            else if (source.Account is not null || source.Card is not null || source.CardSettlement is not null ||
+                     sourceType is not (DebtSourceType.Expense or DebtSourceType.Income) || isCarriedOver)
+            {
+                throw new ArgumentException("A discount moves no money and applies to a recorded purchase or sale.", nameof(payments));
+            }
+
+            if (source.Allocations.Count == 0 || source.Allocations.Sum(part => part.Amount) != source.Amount ||
+                source.Allocations.Any(part => part.Amount <= 0m || !bySequence.ContainsKey(part.Sequence)))
+                throw new ArgumentException("A closing must be spread over existing items for its whole amount.", nameof(payments));
+
+            var payment = new DebtPayment(
+                Guid.NewGuid(), userId, id, source.Kind, direction, money,
+                source.PaymentDate, source.PaidAtUtc, source.Account?.Id, source.Card?.Id, source.CardSettlement?.Id);
+            foreach (var part in source.Allocations)
+            {
+                payment.Allocate(bySequence[part.Sequence], part.Amount);
+                if (source.CancelledAtUtc is null)
+                    closedByItem[part.Sequence] = closedByItem.GetValueOrDefault(part.Sequence) + part.Amount;
+            }
+
+            if (source.CancelledAtUtc is { } cancelled) payment.Cancel(cancelled);
+            else if (cancelledAtUtc is not null)
+                throw new ArgumentException("A cancelled debt keeps no open closing.", nameof(payments));
+            debt._payments.Add(payment);
+        }
+
+        if (closedByItem.Any(pair => pair.Value > bySequence[pair.Key].Amount.Amount))
+            throw new ArgumentException("An item is closed for more than its amount.", nameof(payments));
+
+        if (cancelledAtUtc is { } debtCancelled)
+        {
+            if (debtCancelled.Offset != TimeSpan.Zero)
+                throw new ArgumentException("Cancellation time must be UTC.", nameof(cancelledAtUtc));
+            debt.IsCancelled = true;
+            debt.CancelledAtUtc = debtCancelled;
+        }
+
+        return debt;
+    }
+
+    private static void EnsureNewCounterparty(Guid userId, Counterparty? counterparty, string? description)
+    {
+        if (userId == Guid.Empty) throw new ArgumentException("User id cannot be empty.", nameof(userId));
+        if (counterparty is null)
+        {
+            // Kişisiz borcu listede ayırt eden tek şey açıklamasıdır (CB24).
+            if (string.IsNullOrWhiteSpace(description))
+                throw new ArgumentException("A debt without a person needs a description.", nameof(description));
+            return;
+        }
+
+        if (counterparty.UserId != userId)
+            throw new ArgumentException("Counterparty must belong to the debt user.", nameof(counterparty));
+        if (!counterparty.IsActive)
+            throw new InvalidOperationException("An inactive counterparty cannot take on a new debt.");
+    }
+
     public static CategoryType RequiredCategoryType(DebtDirection direction) => direction switch
     {
         DebtDirection.Receivable => CategoryType.Income,
@@ -834,9 +1082,12 @@ public sealed class Debt
             var amount = index == InstallmentCount - 1
                 ? TotalRepayment.Amount - baseAmount * (InstallmentCount - 1)
                 : baseAmount;
+            // Tek kalemli planda kalemin kimliği borcunkidir (eski yükümlülük
+            // kuralı); taksitlerin kimliği yenidir.
             _items.Add(new DebtScheduleItem(
-                Guid.NewGuid(), UserId, Id, index + 1,
-                new Money(amount, TotalRepayment.Currency), FirstDueDate!.Value.AddMonths(index),
+                InstallmentCount == 1 && PlanKind != DebtPlanKind.Installments ? Id : Guid.NewGuid(),
+                UserId, Id, index + 1,
+                new Money(amount, TotalRepayment.Currency), FirstDueDate?.AddMonths(index),
                 planRevision: PlanRevision));
         }
 
@@ -867,6 +1118,30 @@ public sealed class Debt
         return normalized;
     }
 }
+
+/// <summary>Yedekten gelen bir kalem; kalem sırasıyla tanınır.</summary>
+public sealed record RestoredDebtItem(
+    int Sequence,
+    decimal Amount,
+    DateOnly? DueDate,
+    decimal? PrincipalPortion,
+    decimal? InterestPortion,
+    int PlanRevision,
+    bool IsSuperseded);
+
+/// <summary>Yedekten gelen bir kapanış ve kalemlere dağılımı.</summary>
+public sealed record RestoredDebtPayment(
+    DebtPaymentKind Kind,
+    decimal Amount,
+    DateOnly PaymentDate,
+    DateTimeOffset PaidAtUtc,
+    Account? Account,
+    CreditCard? Card,
+    PosSettlement? CardSettlement,
+    DateTimeOffset? CancelledAtUtc,
+    IReadOnlyList<RestoredDebtAllocation> Allocations);
+
+public sealed record RestoredDebtAllocation(int Sequence, decimal Amount);
 
 /// <summary>Borcun bir vadesi: taksit ya da tek ödemenin son günü.</summary>
 public sealed class DebtScheduleItem
@@ -984,7 +1259,7 @@ public sealed class DebtPayment
 
     private DebtPayment() { Amount = null!; }
 
-    private DebtPayment(
+    internal DebtPayment(
         Guid id,
         Guid userId,
         Guid debtId,

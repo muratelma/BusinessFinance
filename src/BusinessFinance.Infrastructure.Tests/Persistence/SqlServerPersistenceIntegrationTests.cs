@@ -206,12 +206,12 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         await Assert.ThrowsAnyAsync<DbUpdateException>(() => secondContext.SaveChangesAsync());
 
         await using var read = database.CreateContext();
-        var installment = await read.DebtInstallments.AsNoTracking().SingleAsync();
-        Assert.Equal(accountId, installment.PaymentAccountId);
+        var installment = await read.DebtPaymentRows.SingleAsync();
+        Assert.Equal(accountId, installment.AccountId);
         var openingBalance = await read.Accounts.Where(x => x.Id == accountId)
             .Select(x => x.OpeningBalance).SingleAsync();
-        var paidAmount = await read.DebtInstallments
-            .Where(x => x.PaymentAccountId == accountId)
+        var paidAmount = await read.DebtPaymentRows
+            .Where(x => x.AccountId == accountId)
             .SumAsync(x => x.Amount);
         // 1000 açılış bakiyesi + 300 borç açılışı (nakit kaynaklı borçta para
         // hesaba girer) − 400 ödenen taksit = 900. Açılış hareketi eklenmeden
@@ -2164,7 +2164,9 @@ public sealed partial class SqlServerPersistenceIntegrationTests
     /// <summary>
     /// Cari bakiye hareketlerden hesaplanır ve <b>tek sorguda</b> gelir: elli üç
     /// karşı taraf da bir ifadeyle okunur. Kişi başına toplam sorgusu açan bir
-    /// uygulama burayı yüzün üzerine çıkarırdı.
+    /// uygulama burayı yüzün üzerine çıkarırdı. İkinci sorgu gecikmenin
+    /// kendisidir (ADR 0021 T8): ödemeler en eski alımı kapattığı için listelenen
+    /// kişilerin alımları bir kez okunur ve sıra bellekte kurulur.
     /// </summary>
     [SqlServerFact]
     public async Task CounterpartyBalances_ComeFromOneQueryAndStayInsideTheOwner()
@@ -2185,7 +2187,7 @@ public sealed partial class SqlServerPersistenceIntegrationTests
             owner.Id, CounterpartyBalanceFilter.All, null,
             new DateOnly(2026, 8, 11), CancellationToken.None);
 
-        Assert.Equal(1, counter.ReaderCommandCount);
+        Assert.Equal(2, counter.ReaderCommandCount);
 
         // Yabancının birebir aynı grafiği görünmüyor: sayı ikiye katlanmıyor.
         Assert.Equal(53, balances.Count);
@@ -5387,7 +5389,7 @@ public sealed partial class SqlServerPersistenceIntegrationTests
             Assert.NotEmpty(await context.CreditCardCharges
                 .Where(x => x.UserId == stranger.Id).ToArrayAsync());
             Assert.NotEmpty(await context.Counterparties.Where(x => x.UserId == stranger.Id).ToArrayAsync());
-            Assert.NotEmpty(await context.DebtInstallments
+            Assert.NotEmpty(await context.DebtScheduleItems
                 .Where(x => x.UserId == stranger.Id).ToArrayAsync());
         }
 

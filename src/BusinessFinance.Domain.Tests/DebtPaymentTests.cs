@@ -189,6 +189,53 @@ public sealed class DebtPaymentTests
         Assert.Equal(start + 5, debt.Revision);
     }
 
+    /// <summary>
+    /// Yedekten kurulan borç (v13) aynı kalanı, aynı eski planı ve aynı
+    /// dağılımı taşır; tutmayan dosya reddedilir.
+    /// </summary>
+    [Fact]
+    public void Restore_RebuildsAChangedPlanAndRejectsAnOverClosedItem()
+    {
+        var (source, account) = Loan(3, 1_000m);
+        source.Pay(Guid.NewGuid(), 1_500m, Today, Now, account);
+        source.ChangePlan(DebtPlanKind.Installments, new DateOnly(2026, 12, 10), 2);
+
+        Debt Restore(IReadOnlyList<RestoredDebtPayment> payments) => Debt.Restore(
+            Guid.NewGuid(), source.UserId, Person(source.UserId), source.Direction, source.Scope,
+            source.Principal, source.TotalRepayment, source.SourceType, false, account, null,
+            source.StartDate, source.PlanKind, source.FirstDueDate, source.InstallmentCount,
+            source.Description, Now, source.PlanRevision,
+            [.. source.Items.Select(item => new RestoredDebtItem(
+                item.Sequence, item.Amount.Amount, item.DueDate, item.PrincipalPortion,
+                item.InterestPortion, item.PlanRevision, item.IsSuperseded))],
+            payments, null);
+        var sequences = source.Items.ToDictionary(item => item.Id, item => item.Sequence);
+        var payment = source.Payments.Single();
+        var restored = Restore([new RestoredDebtPayment(
+            payment.Kind, payment.Amount.Amount, payment.PaymentDate, payment.PaidAtUtc, account, null, null, null,
+            [.. payment.Allocations.Select(part => new RestoredDebtAllocation(sequences[part.ScheduleItemId], part.Amount))])]);
+
+        Assert.Equal(source.RemainingAmount, restored.RemainingAmount);
+        Assert.Equal(1_500m, restored.RemainingAmount);
+        Assert.Equal(
+            source.Items.OrderBy(item => item.Sequence).Select(item => (item.Sequence, item.IsSuperseded)),
+            restored.Items.OrderBy(item => item.Sequence).Select(item => (item.Sequence, item.IsSuperseded)));
+
+        // İlk kalem tutarından fazla kapanamaz; tutarı dağılımına eşit olmayan
+        // kapanış da kurulmaz.
+        Assert.Throws<ArgumentException>(() => Restore([new RestoredDebtPayment(
+            DebtPaymentKind.Payment, 1_200m, Today, Now, account, null, null, null,
+            [new RestoredDebtAllocation(1, 1_200m)])]));
+        Assert.Throws<ArgumentException>(() => Restore([new RestoredDebtPayment(
+            DebtPaymentKind.Payment, 1_500m, Today, Now, account, null, null, null,
+            [new RestoredDebtAllocation(1, 1_000m)])]));
+
+        // İndirim para yeri taşımaz; nakit borçta indirim olmaz.
+        Assert.Throws<ArgumentException>(() => Restore([new RestoredDebtPayment(
+            DebtPaymentKind.Discount, 100m, Today, Now, null, null, null, null,
+            [new RestoredDebtAllocation(1, 100m)])]));
+    }
+
     private static (Debt Debt, Account Account) Invoice(
         decimal amount, DebtDirection direction = DebtDirection.Payable)
     {

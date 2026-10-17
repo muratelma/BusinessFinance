@@ -9,7 +9,9 @@ internal sealed class CounterpartyConfiguration : IEntityTypeConfiguration<Count
 {
     public void Configure(EntityTypeBuilder<Counterparty> builder)
     {
-        builder.ToTable("Counterparties");
+        builder.ToTable("Counterparties", table =>
+            table.HasCheckConstraint(
+                "CK_Counterparties_OpeningBalance", "[OpeningReceivable] >= 0 AND [OpeningPayable] >= 0"));
 
         builder.HasKey(counterparty => counterparty.Id);
 
@@ -23,6 +25,8 @@ internal sealed class CounterpartyConfiguration : IEntityTypeConfiguration<Count
         builder.Property(counterparty => counterparty.Note)
             .HasMaxLength(Counterparty.MaximumNoteLength);
         builder.Property(counterparty => counterparty.IsActive).IsRequired();
+        builder.Property(counterparty => counterparty.OpeningReceivable).HasPrecision(19, 4);
+        builder.Property(counterparty => counterparty.OpeningPayable).HasPrecision(19, 4);
 
         // Anahtar uygulamada hesaplanır (`Counterparty.NameKeyOf`) ve ikili
         // karşılaştırılır: veritabanının harf kuralı uygulamanınkinden
@@ -101,6 +105,42 @@ internal sealed class CounterpartyChargeConfiguration : IEntityTypeConfiguration
             .HasForeignKey(charge => new { charge.UserId, charge.CategoryId })
             .HasPrincipalKey(category => new { category.UserId, category.Id })
             .OnDelete(DeleteBehavior.Restrict);
+        builder.Ignore(charge => charge.NetAmount);
+        builder.HasMany(charge => charge.Discounts).WithOne()
+            .HasForeignKey(discount => new { discount.UserId, discount.ChargeId })
+            .HasPrincipalKey(charge => new { charge.UserId, charge.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.Navigation(charge => charge.Discounts).UsePropertyAccessMode(PropertyAccessMode.Field);
+    }
+}
+
+/// <summary>
+/// Cari alımın indirimi. Karşı taraf ve yön alımınkinin kopyasıdır; bakiye
+/// sorgusu indirimi kişi ve yönle doğrudan düşer.
+/// </summary>
+internal sealed class CounterpartyChargeDiscountConfiguration : IEntityTypeConfiguration<CounterpartyChargeDiscount>
+{
+    public void Configure(EntityTypeBuilder<CounterpartyChargeDiscount> builder)
+    {
+        builder.ToTable("CounterpartyChargeDiscounts", table =>
+        {
+            table.HasCheckConstraint("CK_CounterpartyChargeDiscounts_Amount", "[Amount] > 0");
+            table.HasCheckConstraint("CK_CounterpartyChargeDiscounts_Direction", "[Direction] IN (1, 2)");
+        });
+
+        builder.HasKey(discount => discount.Id);
+        builder.Property(discount => discount.Id).ValueGeneratedNever();
+        builder.Property(discount => discount.Direction).HasConversion<byte>().HasColumnType("tinyint");
+        builder.Property(discount => discount.Amount).HasPrecision(19, 4);
+        builder.Property(discount => discount.DiscountDate).HasColumnType("date");
+        builder.Property(discount => discount.RecordedAtUtc).HasColumnType("datetimeoffset");
+        builder.Property(discount => discount.CancelledAtUtc).HasColumnType("datetimeoffset");
+        builder.HasOne<Counterparty>().WithMany()
+            .HasForeignKey(discount => new { discount.UserId, discount.CounterpartyId })
+            .HasPrincipalKey(counterparty => new { counterparty.UserId, counterparty.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(discount => new { discount.UserId, discount.CounterpartyId, discount.IsCancelled, discount.Direction })
+            .HasDatabaseName("IX_CounterpartyChargeDiscounts_UserId_CounterpartyId_Cancelled_Direction");
     }
 }
 

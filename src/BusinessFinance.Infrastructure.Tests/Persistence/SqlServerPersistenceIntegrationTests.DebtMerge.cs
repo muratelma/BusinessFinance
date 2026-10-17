@@ -36,9 +36,16 @@ public sealed partial class SqlServerPersistenceIntegrationTests
             Guid.NewGuid(), user.Id, new DateOnly(2026, 8, 12), createdAt.AddDays(2), [], []);
         await using (var seed = database.CreateContext())
         {
-            seed.AddRange(bank, bills, sales, supplier, card, dayClose);
+            seed.AddRange(bank, bills, sales, card, dayClose);
             await seed.SaveChangesAsync();
         }
+
+        // Kişi o şemanın kolonlarıyla yazılır: sonraki migration'ların eklediği
+        // kolonlar (devreden bakiye) bu noktada yoktur.
+        await database.ExecuteAsync(
+            "INSERT INTO [Counterparties] ([Id], [UserId], [Name], [NameKey], [Note], [IsActive]) " +
+            "VALUES ({0}, {1}, {2}, {3}, NULL, 1)",
+            supplier.Id, user.Id, supplier.Name, supplier.NameKey);
 
         var open = Guid.NewGuid();
         var settled = Guid.NewGuid();
@@ -215,12 +222,12 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         Assert.Equal(new[] { byCard, cardSettlement }.Order(), counted.Order());
         Assert.Equal(4, await read.Obligations.CountAsync(item => item.UserId == user.Id));
         Assert.Equal(3, await read.ObligationSettlements.CountAsync(item => item.UserId == user.Id));
-        Assert.Equal(4, await read.DebtInstallments.CountAsync(item => item.UserId == user.Id));
+        Assert.Equal(3, await read.DebtOpenItems.CountAsync(item => item.UserId == user.Id && item.PlanKind == DebtPlanKind.Installments));
         Assert.Equal(
             bank.Id,
-            await read.DebtInstallments
+            await read.DebtPaymentRows
                 .Where(item => item.Id == loanItems[0])
-                .Select(item => item.PaymentAccountId)
+                .Select(item => item.AccountId)
                 .SingleAsync());
     }
 }

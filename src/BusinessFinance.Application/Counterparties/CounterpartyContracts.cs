@@ -24,7 +24,10 @@ public sealed record CounterpartyDto(
     // İki tarafın ekranda yazılacak, eksiye düşmeyen hâli: fazla tahsilat
     // bizim borcumuza, fazla ödeme karşı tarafın borcuna eklenir.
     decimal OwedToYou = 0m,
-    decimal OwedByYou = 0m);
+    decimal OwedByYou = 0m,
+    // Uygulamadan önce devreden bakiye; yukarıdaki tutarların içindedir.
+    decimal OpeningReceivable = 0m,
+    decimal OpeningPayable = 0m);
 
 public sealed record CreateCounterpartyCommand(string Name, string? Note);
 
@@ -89,7 +92,16 @@ public sealed record CounterpartyChargeDto(
     DateOnly ChargeDate,
     string? Description,
     bool IsCancelled,
-    DateOnly? DueDate);
+    DateOnly? DueDate,
+    // Bedel: indirimler düşülmüş; gelir/gider bu kadardır.
+    decimal NetAmount,
+    IReadOnlyList<CounterpartyChargeDiscountDto> Discounts);
+
+public sealed record CounterpartyChargeDiscountDto(
+    Guid Id,
+    decimal Amount,
+    DateOnly DiscountDate,
+    bool IsCancelled);
 
 public sealed record CounterpartyPaymentDto(
     Guid Id,

@@ -65,12 +65,14 @@ public sealed class DataPortabilityTests
         var conflict = await Assert.ThrowsAsync<DataPortabilityException>(() =>
             service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default));
 
-        Assert.Equal(12, validation.SchemaVersion);
+        Assert.Equal(13, validation.SchemaVersion);
         Assert.Equal(validation.EntityCount, restored.RestoredEntityCount);
         Assert.Equal("restore.destination_not_empty", conflict.Code);
         Assert.Equal("Geri yükleme için hesapta finansal veri bulunmamalıdır.", conflict.Message);
         // İki POS tanımı (ADR 0019 T4) ve bir POS yatışı (T5) sayıya dahil.
-        Assert.Equal(38, validation.EntityCount);
+        // v13 borcu kalemleri ve kapanışlarıyla sayar: tek ödemeli borcun kalemi
+        // ve ödenmiş taksidin ödemesi ayrı birer kayıttır (v12'de 38).
+        Assert.Equal(40, validation.EntityCount);
         Assert.Equal(2, await context.Accounts.CountAsync(x => x.UserId == targetUserId));
         Assert.Equal(3, await context.Categories.CountAsync(x => x.UserId == targetUserId));
         Assert.Equal(3, await context.Transactions.CountAsync(x => x.UserId == targetUserId));
@@ -676,7 +678,7 @@ public sealed class DataPortabilityTests
         var validation = await service.ValidateBackupAsync(backup.Content, default);
         await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
 
-        Assert.Equal(12, validation.SchemaVersion);
+        Assert.Equal(13, validation.SchemaVersion);
         var restoredPlans = await context.RecurringTransactions
             .AsNoTracking().Where(item => item.UserId == targetUserId).ToArrayAsync();
         var cardPlan = Assert.Single(
@@ -823,7 +825,7 @@ public sealed class DataPortabilityTests
         var validation = await service.ValidateBackupAsync(backup.Content, default);
         await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
 
-        Assert.Equal(12, validation.SchemaVersion);
+        Assert.Equal(13, validation.SchemaVersion);
 
         var restoredObligations = await context.Debts.AsNoTracking()
             .Include(x => x.Items).Include(x => x.Payments).ThenInclude(p => p.Allocations)
@@ -934,7 +936,7 @@ public sealed class DataPortabilityTests
         var validation = await service.ValidateBackupAsync(backup.Content, default);
         await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
 
-        Assert.Equal(12, validation.SchemaVersion);
+        Assert.Equal(13, validation.SchemaVersion);
 
         var counts = await context.CashCounts.AsNoTracking()
             .Where(item => item.UserId == targetUserId)
@@ -1457,7 +1459,7 @@ public sealed class DataPortabilityTests
         var validation = await service.ValidateBackupAsync(backup.Content, default);
         await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
 
-        Assert.Equal(12, validation.SchemaVersion);
+        Assert.Equal(13, validation.SchemaVersion);
         var envelope = JsonNode.Parse(backup.Content)!.AsObject();
         var payload = Encoding.UTF8.GetString(
             Convert.FromBase64String(envelope["payload"]!.GetValue<string>()));
