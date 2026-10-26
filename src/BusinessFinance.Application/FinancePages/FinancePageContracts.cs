@@ -10,9 +10,16 @@ public sealed record AccountPageQuery(int Year, int Month, string? Direction = n
 public sealed record PageOption(string Key, string Group, string? Name, decimal Amount,
     string? Kind = null, Guid? Id = null);
 public sealed record CategorySlice(Guid? Id, string? Name, decimal Amount, decimal Share, decimal BarRatio);
+/// <summary>Özetin altı aylık çubuğu: kaydı olmayan ay <c>HasData=false</c> taşır ve çizilmez.</summary>
+public sealed record RecentMonth(int Year, int Month, decimal Amount, decimal BarRatio, bool HasData);
+/// <summary>
+/// <c>PreviousChange</c> geçen aya göre işaretli tam yüzdedir (60 = %60 fazla); geçen ay sıfırsa
+/// boştur. İkisi de sayfanın kapsam, kaynak ve kişi seçimini izler.
+/// </summary>
 public sealed record CategorySummary(int Year, int Month, string Direction, string? Scope,
     decimal Total, decimal PreviousTotal, int CategoryCount, IReadOnlyList<CategorySlice> Categories,
-    IReadOnlyList<PageOption> Sources);
+    IReadOnlyList<PageOption> Sources, decimal? PreviousChange = null,
+    IReadOnlyList<RecentMonth>? RecentMonths = null);
 public sealed record PageActivity(FinancialActivityRow Activity, decimal Amount, string? Part = null,
     decimal? PartAmount = null, decimal? ParentAmount = null, string? State = null,
     DateOnly? SettledOn = null, string? SettledSource = null, bool ShowScope = false,

@@ -63,6 +63,30 @@ class CategoryPageSlice {
       );
 }
 
+/// Özetin altı aylık çubuğundaki bir ay; kaydı olmayan ay çizilmez.
+class CategorySummaryMonth {
+  const CategorySummaryMonth({
+    required this.year,
+    required this.month,
+    required this.amount,
+    required this.barRatio,
+    required this.hasData,
+  });
+  final int year;
+  final int month;
+  final String amount;
+  final double barRatio;
+  final bool hasData;
+  factory CategorySummaryMonth.fromJson(Map<String, dynamic> json) =>
+      CategorySummaryMonth(
+        year: JsonReaders.integer(json, 'year'),
+        month: JsonReaders.integer(json, 'month'),
+        amount: JsonReaders.money(json, 'amount'),
+        barRatio: double.parse(JsonReaders.money(json, 'barRatio')),
+        hasData: JsonReaders.boolean(json, 'hasData'),
+      );
+}
+
 class CategorySummaryData {
   const CategorySummaryData({
     required this.year,
@@ -74,6 +98,8 @@ class CategorySummaryData {
     required this.categories,
     required this.sources,
     this.scope,
+    this.previousChange,
+    this.recentMonths = const [],
   });
   final int year;
   final int month;
@@ -84,6 +110,11 @@ class CategorySummaryData {
   final int categoryCount;
   final List<CategoryPageSlice> categories;
   final List<FinancePageOption> sources;
+
+  /// Geçen aya göre işaretli tam yüzde (`"60.0000"` = %60 fazla); geçen ay
+  /// sıfırsa boştur. Yalnız kategori özetinde gelir.
+  final String? previousChange;
+  final List<CategorySummaryMonth> recentMonths;
   bool get isIncome => direction == 'income';
   factory CategorySummaryData.fromJson(Map<String, dynamic> json) =>
       CategorySummaryData(
@@ -96,6 +127,12 @@ class CategorySummaryData {
         categoryCount: JsonReaders.integer(json, 'categoryCount'),
         categories: _list(json, 'categories', CategoryPageSlice.fromJson),
         sources: _list(json, 'sources', FinancePageOption.fromJson),
+        previousChange: json['previousChange'] == null
+            ? null
+            : JsonReaders.money(json, 'previousChange'),
+        recentMonths: json['recentMonths'] == null
+            ? const []
+            : _list(json, 'recentMonths', CategorySummaryMonth.fromJson),
       );
 }
 

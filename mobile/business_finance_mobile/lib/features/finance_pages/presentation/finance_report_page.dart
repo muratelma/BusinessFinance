@@ -645,11 +645,77 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
             '${DateText.months[controller.month.month - 1]} ${controller.income ? 'geliri' : 'gideri'}${controller.scope == null || (!isSummary && controller.category?.showScope != true) ? '' : ' · ${controller.scope!.label}'}${controller.source == null || names[controller.source] == null ? '' : ' · ${names[controller.source]}'}',
         amount: data.total,
         effect: isSummary ? null : effect,
-        subtitle: isSummary
-            ? 'Geçen ay ${MoneyText.format(data.previousTotal, 'TRY')}'
-            : selecting
+        // Kartta hep tek alt satır: seçim kategoriyi daraltıyorsa geçen ayla
+        // karşılaştırma yerine kategorinin tamamı yazar. Çubuklar seçimi izler.
+        subtitle: !isSummary && selecting
             ? 'Kategorinin tamamı ${MoneyText.format(controller.category!.wholeTotal, 'TRY')}'
-            : 'Geçen ay ${MoneyText.format(data.previousTotal, 'TRY')}',
+            : _comparison(data),
+        subtitleIcon: !isSummary && selecting ? null : _comparisonIcon(data),
+        trailing: data.recentMonths.isEmpty
+            ? null
+            : _recentBars(data.recentMonths),
+      ),
+    );
+  }
+
+  /// Yüzde sunucudandır; yön yalnız ok ve kelimeyle söylenir, renk yoktur.
+  String _comparison(CategorySummaryData data) {
+    final change = data.previousChange;
+    if (change == null) return 'Geçen ay kayıt yok';
+    if (data.total == data.previousTotal) return 'Geçen ayla aynı';
+    final percent = MoneyText.percent(change.replaceFirst('-', ''));
+    // Fark %1'e yuvarlanmayacak kadar küçükse "%0 fazla" yazılmaz.
+    if (percent == '0') return 'Geçen ayla neredeyse aynı';
+    return 'Geçen aydan %$percent ${change.startsWith('-') ? 'az' : 'fazla'}';
+  }
+
+  IconData? _comparisonIcon(CategorySummaryData data) {
+    final change = data.previousChange;
+    if (change == null || data.total == data.previousTotal) return null;
+    return change.startsWith('-') ? Icons.arrow_downward : Icons.arrow_upward;
+  }
+
+  /// Son altı ayın çubukları: 10 dp geniş, 4 dp ara, en çok 40 dp; seçili ay
+  /// renkli, kaydı olmayan ay boş kalır. Ay adı yazılmaz.
+  Widget _recentBars(List<CategorySummaryMonth> months) {
+    final colors = AppFinanceColors.of(context);
+    final surfaces = AppSurfaces.of(context);
+    return Semantics(
+      container: true,
+      image: true,
+      label: 'Son altı ay',
+      child: ExcludeSemantics(
+        child: SizedBox(
+          height: 40,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              for (var i = 0; i < months.length; i++) ...[
+                if (i > 0) const SizedBox(width: AppSpacing.xSmall),
+                SizedBox(
+                  width: 10,
+                  height: !months[i].hasData || months[i].barRatio <= 0
+                      ? 0
+                      : (months[i].barRatio.clamp(0.0, 1.0) * 40).clamp(
+                          2.0,
+                          40.0,
+                        ),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(3),
+                      color: i == months.length - 1
+                          ? controller.income
+                                ? colors.incomeFill
+                                : colors.expenseFill
+                          : surfaces.borderStrong,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -702,54 +768,74 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
     );
   }
 
-  /// Kategori satırı: kapsül, ad ve pay, sağda tutar ile 96 dp pay çubuğu.
+  /// Kategori satırı: kapsül; üstte ad ve tutar, altta tam genişlikte 4 dp
+  /// pay çizgisi ve ucunda yüzde; sağda ok. Tutar kısalmaz, ad kısalır.
   Widget _categoryRow(CategoryPageSlice slice) {
     final theme = Theme.of(context);
     final surfaces = AppSurfaces.of(context);
     final colors = AppFinanceColors.of(context);
     final missing = slice.id == null;
+    // Çok küçük pay da görünür kalsın: çizgi en az yüzde iki dolar.
+    final bar = AppShareBar(
+      height: 4,
+      ratio: slice.barRatio <= 0
+          ? 0
+          : slice.barRatio < 0.02
+          ? 0.02
+          : slice.barRatio,
+      color: missing
+          ? surfaces.inkFaint
+          : controller.income
+          ? colors.incomeFill
+          : colors.expenseFill,
+    );
+    final name = Text(
+      slice.name ?? 'Kategorisi yok',
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.titleSmall?.copyWith(
+        fontSize: 16,
+        height: 1.3,
+        fontWeight: FontWeight.w600,
+      ),
+    );
     final amount = AppMoneyText(
       amount: slice.amount,
       currency: 'TRY',
       size: AppMoneySize.row,
-      style: const TextStyle(height: 1.25),
-    );
-    // Çok küçük pay da görünür kalsın: çubuk en az yüzde üç dolar.
-    final bar = SizedBox(
-      width: 96,
-      child: AppShareBar(
-        ratio: slice.barRatio <= 0
-            ? 0
-            : slice.barRatio < 0.03
-            ? 0.03
-            : slice.barRatio,
-        color: missing
-            ? surfaces.inkFaint
-            : controller.income
-            ? colors.incomeFill
-            : colors.expenseFill,
-      ),
+      style: const TextStyle(height: 1.3),
     );
     final text = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          slice.name ?? 'Kategorisi yok',
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.titleSmall?.copyWith(height: 1.3),
-        ),
-        Text(
-          'Pay %${MoneyText.percent(slice.share)}',
-          style: AppSummaryCard.helperStyle(context),
-        ),
+        // Büyük yazıda tutar adın yanına sığmaz; kısalmasın diye alta iner.
         if (context.usesLargeText) ...[
-          const SizedBox(height: AppSpacing.xSmall),
-          amount,
-          const SizedBox(height: AppSpacing.xSmall + AppSpacing.xxSmall),
-          bar,
-        ],
+          name,
+          Align(alignment: Alignment.centerRight, child: amount),
+        ] else
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: name),
+              const SizedBox(width: AppSpacing.small),
+              amount,
+            ],
+          ),
+        const SizedBox(height: AppSpacing.xSmall + AppSpacing.xxSmall),
+        Row(
+          children: [
+            Expanded(child: bar),
+            ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 32),
+              child: Text(
+                '%${MoneyText.percent(slice.share)}',
+                textAlign: TextAlign.right,
+                style: AppSummaryCard.smallStyle(context),
+              ),
+            ),
+          ],
+        ),
       ],
     );
     return MergeSemantics(
@@ -765,47 +851,33 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
               source: controller.source,
             ),
           ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.medium,
-              _rowGap,
-              AppSpacing.small + AppSpacing.xSmall,
-              _rowGap,
-            ),
-            child: Row(
-              children: [
-                AppIconCapsule(
-                  icon: missing
-                      ? Icons.category_outlined
-                      : AppFinanceIcons.forCategory(slice.name!),
-                  tone: missing
-                      ? null
-                      : controller.income
-                      ? AppStatusTone.income
-                      : AppStatusTone.expense,
-                ),
-                const SizedBox(width: AppSpacing.medium),
-                Expanded(child: text),
-                if (!context.usesLargeText) ...[
-                  const SizedBox(width: AppSpacing.medium),
-                  SizedBox(
-                    width: 112,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        FittedBox(fit: BoxFit.scaleDown, child: amount),
-                        const SizedBox(
-                          height: AppSpacing.xSmall + AppSpacing.xxSmall,
-                        ),
-                        bar,
-                      ],
-                    ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 72),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.medium,
+                _rowGap,
+                AppSpacing.small + AppSpacing.xSmall,
+                _rowGap,
+              ),
+              child: Row(
+                children: [
+                  AppIconCapsule(
+                    icon: missing
+                        ? Icons.category_outlined
+                        : AppFinanceIcons.forCategory(slice.name!),
+                    tone: missing
+                        ? null
+                        : controller.income
+                        ? AppStatusTone.income
+                        : AppStatusTone.expense,
                   ),
+                  const SizedBox(width: AppSpacing.medium),
+                  Expanded(child: text),
+                  const SizedBox(width: AppSpacing.small),
+                  Icon(Icons.chevron_right, size: 20, color: surfaces.inkMuted),
                 ],
-                const SizedBox(width: AppSpacing.medium),
-                Icon(Icons.chevron_right, size: 20, color: surfaces.inkMuted),
-              ],
+              ),
             ),
           ),
         ),

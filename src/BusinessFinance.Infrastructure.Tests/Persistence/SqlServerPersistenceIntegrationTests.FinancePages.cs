@@ -67,6 +67,16 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         Assert.Equal(seed.ExpectedExpense(null), summary.Total);
         Assert.Equal(summary.Total, summary.Categories.Sum(c => c.Amount));
         Assert.Equal(summary.Total, summary.Sources.Where(s => s.Key != "all").Sum(s => s.Amount));
+        // Altı aylık çubuğun son ayı sayfanın tutarı, bir öncekisi geçen aydır.
+        Assert.Equal([(2026, 3), (2026, 4), (2026, 5), (2026, 6), (2026, 7), (2026, 8)],
+            summary.RecentMonths!.Select(m => (m.Year, m.Month)));
+        Assert.Equal(summary.Total, summary.RecentMonths![^1].Amount);
+        Assert.Equal(summary.PreviousTotal, summary.RecentMonths![^2].Amount);
+        Assert.Equal(1m, summary.RecentMonths!.Max(m => m.BarRatio));
+        Assert.All(summary.RecentMonths!.Where(m => !m.HasData), m => Assert.Equal(0m, m.BarRatio));
+        Assert.Equal(summary.PreviousTotal == 0m ? null
+            : decimal.Round((summary.Total - summary.PreviousTotal) / summary.PreviousTotal * 100m, 0, MidpointRounding.AwayFromZero),
+            summary.PreviousChange);
         var category = await reader.CategoryAsync(owner.Id, seed.CommissionId, new(2026, 8, TransactionType.Expense), default);
         Assert.Equal(category!.Summary.Total, category.Items.Sum(i => Math.Abs(i.Amount)));
         Assert.All(category.Items, item => Assert.NotNull(item.Scope));
@@ -91,7 +101,19 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         Assert.Null(await reader.CategoryAsync(stranger.Id, seed.GoodsId, new(2026, 8, TransactionType.Expense), default));
         Assert.Null(await reader.AccountAsync(stranger.Id, seed.BankId, new(2026, 8), default));
         Assert.Null(await reader.TransitAsync(stranger.Id, seed.BankId, 0, default));
-        Assert.Equal(0m, (await reader.CategorySummaryAsync(stranger.Id, new(2026, 8, TransactionType.Expense), default)).Total);
+        var strangerSummary = await reader.CategorySummaryAsync(stranger.Id, new(2026, 8, TransactionType.Expense), default);
+        Assert.Equal(0m, strangerSummary.Total);
+        Assert.All(strangerSummary.RecentMonths!, m => Assert.False(m.HasData));
+        // Kategori sayfasının çubuğu kategoriyi ve seçimi izler; son ayı kartın tutarıdır.
+        Assert.Equal(category.Summary.Total, category.Summary.RecentMonths![^1].Amount);
+        Assert.Equal(category.Summary.PreviousTotal, category.Summary.RecentMonths![^2].Amount);
+        foreach (var (source, person) in new[] { ($"account:{seed.BankId:D}", (string?)null), (null, "none") })
+        {
+            var narrowed = await reader.CategoryAsync(owner.Id, seed.CommissionId,
+                new(2026, 8, TransactionType.Expense, Source: source, Person: person), default);
+            Assert.Equal(narrowed!.Summary.Total, narrowed.Summary.RecentMonths![^1].Amount);
+            Assert.Equal(narrowed.Summary.PreviousTotal, narrowed.Summary.RecentMonths![^2].Amount);
+        }
     }
 
     [SqlServerFact]

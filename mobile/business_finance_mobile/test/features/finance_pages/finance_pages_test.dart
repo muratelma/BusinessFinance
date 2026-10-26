@@ -177,7 +177,12 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('₺26.930,00'), findsOneWidget);
-    expect(find.text('Pay %42,44'), findsOneWidget);
+    expect(find.text('%42,44'), findsOneWidget);
+    expect(find.text('Pay %42,44'), findsNothing);
+    // Yüzde sunucudandır; yön renkle değil okla söylenir.
+    expect(find.text('Geçen aydan %8 fazla'), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
+    expect(find.bySemanticsLabel('Son altı ay'), findsOneWidget);
     await tester.tap(find.text('Hesap / kart'));
     await tester.pumpAndSettle();
     expect(find.text('Nakit ve banka'), findsOneWidget);
@@ -185,6 +190,46 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Ziraat vadesiz'), findsOneWidget);
   });
+  for (final (change, previous, text, icon) in [
+    (null, '0.0000', 'Geçen ay kayıt yok', null),
+    ('0.0000', '26930.0000', 'Geçen ayla aynı', null),
+    ('-40.0000', '44883.3333', 'Geçen aydan %40 az', Icons.arrow_downward),
+  ]) {
+    testWidgets('kategori özetinin karşılaştırma satırı: $text', (
+      tester,
+    ) async {
+      final repo = PageFixture();
+      final base = repo.summaryData;
+      repo.summaryData = CategorySummaryData(
+        year: base.year,
+        month: base.month,
+        direction: base.direction,
+        total: base.total,
+        previousTotal: previous,
+        previousChange: change,
+        recentMonths: base.recentMonths,
+        categoryCount: base.categoryCount,
+        categories: base.categories,
+        sources: base.sources,
+      );
+      await tester.pumpWidget(
+        host(
+          FinanceReportPage(
+            repository: repo,
+            kind: FinancePageKind.summary,
+            month: DateTime(2026, 10),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text(text), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_upward), findsNothing);
+      expect(
+        find.byIcon(Icons.arrow_downward),
+        icon == null ? findsNothing : findsOneWidget,
+      );
+    });
+  }
   testWidgets(
     'hesap menüsü Tümü durumunda grupları seçer; Çıkan durumunda ara başlıklar seçilmez',
     (tester) async {
@@ -304,6 +349,39 @@ void main() {
     expect(find.textContaining('Ziraat vadesiz · Yolda'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+  for (final source in [null, 'account:bank']) {
+    testWidgets(
+      'kategori kartı tek alt satır taşır: ${source == null ? 'geçen ayla fark' : 'seçimde kategorinin tamamı'}',
+      (tester) async {
+        await tester.pumpWidget(
+          host(
+            FinanceReportPage(
+              repository: PageFixture(),
+              kind: FinancePageKind.category,
+              id: 'goods',
+              month: DateTime(2026, 10),
+              source: source,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.text('Geçen aydan %8 fazla'),
+          source == null ? findsOneWidget : findsNothing,
+        );
+        expect(
+          find.byIcon(Icons.arrow_upward),
+          source == null ? findsOneWidget : findsNothing,
+        );
+        expect(
+          find.text('Kategorinin tamamı ₺11.430,00'),
+          source == null ? findsNothing : findsOneWidget,
+        );
+        expect(find.textContaining('Geçen ay ₺'), findsNothing);
+        expect(find.bySemanticsLabel('Son altı ay'), findsOneWidget);
+      },
+    );
+  }
   testWidgets('kategorisiz liste salt okunur; kategori atama akışı yok', (
     tester,
   ) async {

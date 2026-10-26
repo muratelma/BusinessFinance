@@ -1267,9 +1267,20 @@ Karelerin örnek tutarı yerine sunucu cevabı kullanılır.
   çubukları rol renginde, hesap bakiyesi çubukları gridir. Kayıtsız ileri ay
   kapalıdır; kaydı olan açıktır. `Bu ay`, `Vazgeç`, `Göster` yolları vardır.
 - `AppSummaryCard`: 28/700 tutar, açıklama ve isteğe bağlı alt hücreler.
-  Kategoride alt satır geçen aydır; seçim kategori toplamını daraltıyorsa
-  kategorinin tamamı yazılır. Kategori özetindeki toplam ve satır tutarları
+  Seçim kategori toplamını daraltıyorsa alt satırda kategorinin tamamı
+  yazılır. Kategori özetindeki toplam ve satır tutarları
   mürekkep rengindedir; pay çubuğu ve ikon kapsülü yönü gösterir.
+  Kategori özetinde (Claude Design S5, 27 Ekim 2026) alt satır geçen aya göre
+  sunucunun yüzdesidir: `↑ Geçen aydan %60 fazla` / `↓ … az`; renk yoktur,
+  yön yalnız ok ve kelimedir. Geçen ay sıfırsa `Geçen ay kayıt yok`, fark
+  yoksa `Geçen ayla aynı` (ok yok). Sağda (`trailing`, alttan hizalı, 16 dp
+  ara) son altı ayın çubukları: 10 dp geniş, 4 dp ara, en çok 40 dp, yarıçap
+  3; seçili ay `expenseFill` / `incomeFill`, öteki aylar `borderStrong`; kaydı
+  olmayan ay çizilmez, ay adı yazılmaz, erişilebilir adı `Son altı ay`.
+  Kategori sayfasının kartı aynıdır (kullanıcı, 27 Ekim 2026) ve hep tek alt
+  satır taşır: `Hesap / kart`, `Kişi` ya da kapsam kategoriyi daraltıyorsa
+  karşılaştırmanın yerine `Kategorinin tamamı ₺…` yazar (ok yok); çubuklar
+  seçimi izler.
 - `AppDayHeading`: tarih koyu, gün adı soluk. Kategori günleri kart içindedir;
   hesap ve Yolda günleri tam genişlik satır bloklarıdır.
 - `AppCard.dashed`: kategorisiz geçmiş ayrı kesik kenarlı karttır.
@@ -1316,7 +1327,7 @@ korur. Ölçüler teslimin kaynak dosyalarından (`screens-v9/*.jsx`) alınır:
 | Çip ve menü düğmesi | 36 dp hap, 14/600; yan boşluk 14 (işaretli çipte sol 8, menüde sağ 6), aralık 8. Seçili zemin `primaryContainer`; açık menüde mürekkep kenar; seçeneği kalmayan düğme kesik kenarlı ve soluk |
 | Menü | Çipin 8 dp altında, kenardan 16 dp; başlık 12/16/8 ve çizgi; satır 48 dp (alt yazılıysa 56), ikon 20, ad 15, tutar 15/600 (seçilide 700). Ara başlık 12/600, çizgiden önce 4 dp |
 | Özet kartı (`AppSummaryCard`) | 16/20 iç boşluk; etiket ve alt satır 14/1,35 soluk; tutar 28/700 ve 1,25. Alt hücreler çizgiden 12 dp aşağıda; etiket 13, tutar 15/600 |
-| Kategori satırı | 14 dikey, sol 16, sağ 12; parçalar arası 16; sağ sütun 112 dp, çubuk 96×6 ve en az yüzde üç dolu; çubuk rengi `expenseFill` / `incomeFill` |
+| Kategori satırı | En az 72 dp; 14 dikey, sol 16, sağ 12; kapsül 40. Üstte ad 16/600 (en çok iki satır) ve sağında kısalmayan tutar; 6 dp altında tam genişlik 4 dp pay çizgisi (iz `cardMuted`, dolu kısım `expenseFill` / `incomeFill`, en az yüzde iki) ve ucunda 32 dp sağa yaslı yüzde (13, soluk, `Pay` kelimesi yok). Büyük yazıda tutar adın altına iner (S5, 27 Ekim 2026) |
 | Gün başlığı (`AppDayHeading`) | Üst 20, alt 8; tarih 15/600, gün adı 14 soluk, arası 8 |
 | İşlem satırı (`ActivityTile.compact`) | Kartta üste hizalı, kapsül–yazı arası 14, çizgi 70 dp'den; tam genişlik blokta ortalı, arası 16, çizgi 72 dp'den, blok üst ve alt çizgili. Başlık 16/600 ve 1,3; alt yazı 14/1,35; durum 13/600. Kartlı satışın parası durum satırındadır, günüyle: mavi `Yolda · 26 Eki bekleniyor`, yeşil `Hesaba geçti · 15 Eki` (14 Ekim kararı; kare B8'de alt yazıdaydı) |
 | Yolda kutusu | 20 dp yarıçap, 12 iç boşluk, kenarlıksız; içindeki beyaz satır 16 dp yarıçap, 12/14; `Tümünü gör` 44 dp |

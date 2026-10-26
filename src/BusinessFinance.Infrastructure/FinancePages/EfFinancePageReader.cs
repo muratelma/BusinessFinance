@@ -58,7 +58,29 @@ internal sealed class EfFinancePageReader(BusinessFinanceDbContext db,
                 total == 0m ? 0m : r.Amount / total)).ToArray();
         var options = await SourcesAsync(owner, Items(owner, q, category, summary, source: false), q.Source, ct);
         return new(q.Year, q.Month, q.Type == TransactionType.Income ? "income" : "expense",
-            q.Scope?.ToString().ToLowerInvariant(), total, previous, rows.Count(r => r.Id != null), slices, options);
+            q.Scope?.ToString().ToLowerInvariant(), total, previous, rows.Count(r => r.Id != null), slices, options,
+            previous > 0m ? decimal.Round((total - previous) / previous * 100m, 0, MidpointRounding.AwayFromZero) : null,
+            await RecentMonthsAsync(owner, q, category, summary, ct));
+    }
+
+    /// <summary>Seçili ay dahil son altı ay; çubuk oranı bu altı ayın en yükseğine göredir.</summary>
+    private async Task<IReadOnlyList<RecentMonth>> RecentMonthsAsync(Guid owner, CategoryPageQuery q, Guid? category,
+        bool summary, CancellationToken ct)
+    {
+        var end = new DateOnly(q.Year, q.Month, 1).AddMonths(1);
+        var start = end.AddMonths(-6);
+        var query = RecognizedItems.InPeriod(db, owner, start, end, q.Scope).Where(i => i.Type == (int)q.Type);
+        if (!summary) query = query.Where(i => i.CategoryId == category);
+        var sums = await FilterItems(query, q.Source, q.Person).GroupBy(i => new { i.Date.Year, i.Date.Month })
+            .Select(g => new { g.Key.Year, g.Key.Month, Amount = g.Sum(i => i.Amount) }).ToArrayAsync(ct);
+        var max = sums.Select(s => s.Amount).DefaultIfEmpty(0m).Max();
+        return Enumerable.Range(0, 6).Select(offset =>
+        {
+            var month = start.AddMonths(offset);
+            var sum = sums.SingleOrDefault(s => s.Year == month.Year && s.Month == month.Month);
+            return new RecentMonth(month.Year, month.Month, sum?.Amount ?? 0m,
+                max <= 0m || sum is null || sum.Amount <= 0m ? 0m : sum.Amount / max, sum is not null);
+        }).ToArray();
     }
 
     private async Task<IReadOnlyList<PageOption>> SourcesAsync(Guid owner, IQueryable<RecognizedItem> items, string? selected, CancellationToken ct)

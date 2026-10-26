@@ -52,6 +52,51 @@ class PageFixture implements FinancePageRepositoryContract {
     direction: 'expense',
     total: '26930.0000',
     previousTotal: '24860.0000',
+    previousChange: '8.0000',
+    recentMonths: [
+      CategorySummaryMonth(
+        year: 2026,
+        month: 5,
+        amount: '0.0000',
+        barRatio: 0,
+        hasData: false,
+      ),
+      CategorySummaryMonth(
+        year: 2026,
+        month: 6,
+        amount: '18200.0000',
+        barRatio: 0.6758,
+        hasData: true,
+      ),
+      CategorySummaryMonth(
+        year: 2026,
+        month: 7,
+        amount: '21040.0000',
+        barRatio: 0.7813,
+        hasData: true,
+      ),
+      CategorySummaryMonth(
+        year: 2026,
+        month: 8,
+        amount: '19500.0000',
+        barRatio: 0.7241,
+        hasData: true,
+      ),
+      CategorySummaryMonth(
+        year: 2026,
+        month: 9,
+        amount: '24860.0000',
+        barRatio: 0.9231,
+        hasData: true,
+      ),
+      CategorySummaryMonth(
+        year: 2026,
+        month: 10,
+        amount: '26930.0000',
+        barRatio: 1,
+        hasData: true,
+      ),
+    ],
     categoryCount: 3,
     categories: [
       CategoryPageSlice(
@@ -136,6 +181,8 @@ class PageFixture implements FinancePageRepositoryContract {
         categoryCount: empty ? 0 : summaryData.categoryCount,
         categories: empty ? [] : summaryData.categories,
         sources: summaryData.sources,
+        previousChange: summaryData.previousChange,
+        recentMonths: summaryData.recentMonths,
       );
   @override
   Future<CategorySummaryData> summary(

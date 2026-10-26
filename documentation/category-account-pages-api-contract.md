@@ -47,7 +47,8 @@ sırası sabittir: `all`, sonra giren, sonra çıkan; gruplar `category`,
 ```json
 {
   "year": 2026, "month": 9, "direction": "expense", "scope": "business",
-  "total": "26930.0000", "previousTotal": "0.0000", "categoryCount": 7,
+  "total": "26930.0000", "previousTotal": "16830.0000", "previousChange": "60.0000",
+  "categoryCount": 7,
   "categories": [
     {"id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "name": "Ticari mal alımı",
      "amount": "12480.0000", "share": "46.0000", "barRatio": "0.4634"}
@@ -55,9 +56,21 @@ sırası sabittir: `all`, sonra giren, sonra çıkan; gruplar `category`,
   "sources": [
     {"key": "all", "group": "all", "name": null, "amount": "26930.0000", "kind": null, "id": null},
     {"key": "deferred", "group": "deferred", "name": null, "amount": "3610.0000", "kind": null, "id": null}
+  ],
+  "recentMonths": [
+    {"year": 2026, "month": 4, "amount": "0.0000", "barRatio": "0.0000", "hasData": false},
+    {"year": 2026, "month": 9, "amount": "26930.0000", "barRatio": "1.0000", "hasData": true}
   ]
 }
 ```
+
+`previousChange` geçen aya göre işaretli tam yüzdedir (`60` = %60 fazla, `-40` =
+%40 az); geçen ay sıfırsa `null`. `recentMonths` seçili ay dahil son altı ayı
+eskiden yeniye taşır (`year`, `month`, `amount`, `barRatio`, `hasData`); oran bu
+altı ayın en yükseğine göredir, kaydı olmayan ay `hasData=false` ve oran 0
+gelir. İkisi de kategori özetinde ve kategori sayfasının `summary` nesnesinde
+doludur; sayfanın kapsam, `source` ve `person` seçimini izler. İstemci yüzdeyi
+ve oranı hesaplamaz.
 
 Örnek listeler kısaltılmıştır. Gerçek cevapta bütün kategori ve menü
 satırlarının toplamı `total` / `all` tutarına eşittir; kategorisiz tutar da

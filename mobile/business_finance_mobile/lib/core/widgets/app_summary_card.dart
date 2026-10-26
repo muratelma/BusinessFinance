@@ -18,6 +18,8 @@ class AppSummaryCard extends StatelessWidget {
     this.subtitle,
     this.footer,
     this.signedByAmount = false,
+    this.subtitleIcon,
+    this.trailing,
   });
   final String label;
   final String amount;
@@ -25,6 +27,12 @@ class AppSummaryCard extends StatelessWidget {
   final String? subtitle;
   final Widget? footer;
   final bool signedByAmount;
+
+  /// Alt satırın önündeki 16 dp ikon (yön oku gibi); renk taşımaz.
+  final IconData? subtitleIcon;
+
+  /// Sol bloğun sağında, alt kenarından hizalı küçük görsel (16 dp ara).
+  final Widget? trailing;
 
   /// Kartın etiket, alt satır ve dip notu yazısı.
   static TextStyle? helperStyle(BuildContext context) => Theme.of(context)
@@ -37,39 +45,62 @@ class AppSummaryCard extends StatelessWidget {
       helperStyle(context)?.copyWith(fontSize: 13);
 
   @override
-  Widget build(BuildContext context) => AppCard(
-    padding: const EdgeInsets.symmetric(
-      horizontal: AppSpacing.medium + AppSpacing.xSmall,
-      vertical: AppSpacing.medium,
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(label, style: helperStyle(context)),
-        const SizedBox(height: AppSpacing.xSmall),
-        AppMoneyText(
-          amount: amount,
-          currency: 'TRY',
-          effect: effect,
-          size: AppMoneySize.metric,
-          signedByAmount: signedByAmount,
-          style: const TextStyle(
-            fontSize: 28,
-            height: 1.25,
-            fontWeight: FontWeight.w700,
-          ),
+  Widget build(BuildContext context) {
+    final main = _main(context);
+    return AppCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.medium + AppSpacing.xSmall,
+        vertical: AppSpacing.medium,
+      ),
+      child: trailing == null
+          ? main
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(child: main),
+                const SizedBox(width: AppSpacing.medium),
+                trailing!,
+              ],
+            ),
+    );
+  }
+
+  Widget _main(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Text(label, style: helperStyle(context)),
+      const SizedBox(height: AppSpacing.xSmall),
+      AppMoneyText(
+        amount: amount,
+        currency: 'TRY',
+        effect: effect,
+        size: AppMoneySize.metric,
+        signedByAmount: signedByAmount,
+        style: const TextStyle(
+          fontSize: 28,
+          height: 1.25,
+          fontWeight: FontWeight.w700,
         ),
-        if (subtitle != null) ...[
-          const SizedBox(height: AppSpacing.xxSmall),
-          Text(subtitle!, style: helperStyle(context)),
-        ],
-        if (footer != null) ...[
-          const SizedBox(height: AppSpacing.small + AppSpacing.xSmall),
-          const Divider(height: 1),
-          const SizedBox(height: AppSpacing.small + AppSpacing.xSmall),
-          footer!,
-        ],
+      ),
+      if (subtitle != null) ...[
+        const SizedBox(height: AppSpacing.xxSmall),
+        if (subtitleIcon == null)
+          Text(subtitle!, style: helperStyle(context))
+        else
+          Row(
+            children: [
+              Icon(subtitleIcon, size: 16, color: AppSurfaces.of(context).ink),
+              const SizedBox(width: AppSpacing.xSmall),
+              Expanded(child: Text(subtitle!, style: helperStyle(context))),
+            ],
+          ),
       ],
-    ),
+      if (footer != null) ...[
+        const SizedBox(height: AppSpacing.small + AppSpacing.xSmall),
+        const Divider(height: 1),
+        const SizedBox(height: AppSpacing.small + AppSpacing.xSmall),
+        footer!,
+      ],
+    ],
   );
 }
