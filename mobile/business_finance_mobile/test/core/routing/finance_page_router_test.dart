@@ -4,14 +4,92 @@ import 'package:business_finance_mobile/core/network/api_exception.dart';
 import 'package:business_finance_mobile/core/presentation/financial_data_changes.dart';
 import 'package:business_finance_mobile/core/routing/app_router.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
+import 'package:business_finance_mobile/core/widgets/app_account_field.dart';
 import 'package:business_finance_mobile/features/accounts/data/account_models.dart';
 import 'package:business_finance_mobile/features/accounts/data/account_repository.dart';
 import 'package:business_finance_mobile/features/accounts/presentation/account_form_page.dart';
+import 'package:business_finance_mobile/features/finance_pages/data/finance_page_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../../support/finance_page_fixture.dart';
 
 void main() {
+  testWidgets(
+    'formdaki Hesap ekle ekleme formunu açar, kaydedince forma yeni hesapla döner',
+    (tester) async {
+      final pages = _GrowingAccounts();
+      final writes = _AccountWrites();
+      final changes = FinancialDataChanges();
+      final router = createAppRouter(
+        initialLocation: transferLocation,
+        financePageRepository: pages,
+        accountRepository: writes,
+        financialDataChanges: changes,
+      );
+      addTearDown(router.dispose);
+      addTearDown(changes.dispose);
+      await tester.pumpWidget(
+        MaterialApp.router(theme: AppTheme.light(), routerConfig: router),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Çıkan hesap'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Hesap ekle'));
+      await tester.pumpAndSettle();
+      // Hesaplar sayfası araya girmez: doğrudan ekleme formu.
+      expect(find.byType(AccountFormPage), findsOneWidget);
+      expect(find.text('Hesaplar'), findsNothing);
+
+      await tester.enterText(find.byType(TextFormField).first, 'Ziraat');
+      await tester.tap(find.text('Kaydet'));
+      await tester.pumpAndSettle();
+
+      expect(writes.createdName, 'Ziraat');
+      expect(find.byType(AccountFormPage), findsNothing);
+      expect(find.text('Çıkan hesap'), findsOneWidget);
+      // Liste yeniden okundu ve yeni hesap alanda seçili.
+      expect(pages.reads, 2);
+      expect(
+        find.descendant(
+          of: find.byType(AppAccountField).first,
+          matching: find.text('Ziraat'),
+        ),
+        findsOneWidget,
+      );
+      expect(changes.accountsRevision, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('ekleme formundan vazgeçilince form olduğu gibi kalır', (
+    tester,
+  ) async {
+    final pages = _GrowingAccounts();
+    final writes = _AccountWrites();
+    final router = createAppRouter(
+      initialLocation: transferLocation,
+      financePageRepository: pages,
+      accountRepository: writes,
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      MaterialApp.router(theme: AppTheme.light(), routerConfig: router),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Çıkan hesap'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Hesap ekle'));
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AccountFormPage), findsNothing);
+    expect(writes.createdName, isNull);
+    expect(pages.reads, 1);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Hesap ekle gerçek Hesaplar rotasından açılır', (tester) async {
     final pages = _SettingsFixture();
     final router = createAppRouter(
@@ -126,9 +204,55 @@ class _SettingsFixture extends PageFixture {
   }
 }
 
+/// Hesabı olmayan kullanıcı: `Hesap ekle`den sonra yeni hesap listede.
+class _GrowingAccounts extends PageFixture {
+  int reads = 0;
+  @override
+  Future<AccountsOverviewData> accounts() async {
+    reads++;
+    return AccountsOverviewData(
+      total: '0.0000',
+      cashTotal: '0.0000',
+      bankTotal: '0.0000',
+      inactiveTotal: '0.0000',
+      items: [
+        if (reads > 1)
+          const AccountOverviewItem(
+            id: 'new',
+            name: 'Ziraat',
+            type: 'cash',
+            isActive: true,
+            balance: '0.0000',
+          ),
+      ],
+    );
+  }
+}
+
 class _AccountWrites implements AccountRepository {
   String? updatedId;
   String? updatedName;
+  String? createdName;
+
+  @override
+  Future<Account> create({
+    required String name,
+    required String type,
+    required String openingBalance,
+    TransactionScope? defaultScope,
+  }) async {
+    createdName = name;
+    return Account(
+      id: 'new',
+      name: name,
+      type: type,
+      currency: 'TRY',
+      isActive: true,
+      openingBalance: openingBalance,
+      balance: openingBalance,
+    );
+  }
+
   @override
   Future<Account> update({
     required String id,

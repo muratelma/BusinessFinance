@@ -50,42 +50,27 @@ class QuickAddController extends ChangeNotifier {
   ExpenseFormOptions? expenseOptions;
   IncomeFormOptions? incomeOptions;
 
-  Future<void> loadExpenseOptions() async {
+  Future<void> loadExpenseOptions() =>
+      _loadOptions(() async => expenseOptions = await _readExpenseOptions());
+
+  Future<void> loadIncomeOptions() =>
+      _loadOptions(() async => incomeOptions = await _readIncomeOptions());
+
+  /// `Hesap ekle`den dönüldü: liste form silinmeden, yükleniyor çizilmeden
+  /// yenilenir. Okunamazsa eski liste kalır.
+  Future<void> refreshExpenseOptions() =>
+      _refreshOptions(() async => expenseOptions = await _readExpenseOptions());
+
+  Future<void> refreshIncomeOptions() =>
+      _refreshOptions(() async => incomeOptions = await _readIncomeOptions());
+
+  Future<void> _loadOptions(Future<void> Function() read) async {
     if (isLoading) return;
     isLoading = true;
     errorMessage = null;
     notifyListeners();
     try {
-      // One snapshot carries accounts, cards and expense categories together,
-      // so the picker is built from a single round trip.
-      final snapshot = await _finance.load();
-      expenseOptions = ExpenseFormOptions(
-        sources: [
-          for (final account in snapshot.accounts)
-            PaymentSource(
-              id: account.id,
-              name: account.name,
-              kind: PaymentSourceKind.account,
-              defaultScope: account.defaultScope,
-            ),
-          for (final card in snapshot.cards.where((card) => card.isActive))
-            PaymentSource(
-              id: card.id,
-              name: card.name,
-              kind: PaymentSourceKind.creditCard,
-              availableLimit: card.availableLimit,
-              defaultScope: card.defaultScope,
-            ),
-        ],
-        categories: [
-          for (final category in snapshot.expenseCategories)
-            QuickAddChoice(
-              id: category.id,
-              name: category.name,
-              defaultScope: category.defaultScope,
-            ),
-        ],
-      );
+      await read();
       unauthorized = false;
     } on ApiException catch (error) {
       unauthorized = error.isUnauthorized;
@@ -98,46 +83,75 @@ class QuickAddController extends ChangeNotifier {
     }
   }
 
-  Future<void> loadIncomeOptions() async {
-    if (isLoading) return;
-    isLoading = true;
-    errorMessage = null;
-    notifyListeners();
+  Future<void> _refreshOptions(Future<void> Function() read) async {
     try {
-      final accounts = await _transactions.listAccounts();
-      final categories = await _transactions.listCategories(
-        TransactionKind.income,
-      );
-      incomeOptions = IncomeFormOptions(
-        // Income can only land in a cash or bank account. A card cannot receive
-        // income, and card refunds are not modelled.
-        accounts: [
-          for (final account in accounts.where((item) => item.isActive))
-            QuickAddChoice(
-              id: account.id,
-              name: account.name,
-              defaultScope: account.defaultScope,
-            ),
-        ],
-        categories: [
-          for (final category in categories.where((item) => item.isActive))
-            QuickAddChoice(
-              id: category.id,
-              name: category.name,
-              defaultScope: category.defaultScope,
-            ),
-        ],
-      );
-      unauthorized = false;
+      await read();
     } on ApiException catch (error) {
       unauthorized = error.isUnauthorized;
-      errorMessage = error.message;
     } on FormatException {
-      errorMessage = 'Sunucudan beklenmeyen bir yanıt alındı.';
-    } finally {
-      isLoading = false;
-      notifyListeners();
+      // Eski liste kalır.
     }
+    notifyListeners();
+  }
+
+  Future<ExpenseFormOptions> _readExpenseOptions() async {
+    // One snapshot carries accounts, cards and expense categories together,
+    // so the picker is built from a single round trip.
+    final snapshot = await _finance.load();
+    return ExpenseFormOptions(
+      sources: [
+        for (final account in snapshot.accounts)
+          PaymentSource(
+            id: account.id,
+            name: account.name,
+            kind: PaymentSourceKind.account,
+            defaultScope: account.defaultScope,
+          ),
+        for (final card in snapshot.cards.where((card) => card.isActive))
+          PaymentSource(
+            id: card.id,
+            name: card.name,
+            kind: PaymentSourceKind.creditCard,
+            availableLimit: card.availableLimit,
+            defaultScope: card.defaultScope,
+          ),
+      ],
+      categories: [
+        for (final category in snapshot.expenseCategories)
+          QuickAddChoice(
+            id: category.id,
+            name: category.name,
+            defaultScope: category.defaultScope,
+          ),
+      ],
+    );
+  }
+
+  Future<IncomeFormOptions> _readIncomeOptions() async {
+    final accounts = await _transactions.listAccounts();
+    final categories = await _transactions.listCategories(
+      TransactionKind.income,
+    );
+    return IncomeFormOptions(
+      // Income can only land in a cash or bank account. A card cannot receive
+      // income, and card refunds are not modelled.
+      accounts: [
+        for (final account in accounts.where((item) => item.isActive))
+          QuickAddChoice(
+            id: account.id,
+            name: account.name,
+            defaultScope: account.defaultScope,
+          ),
+      ],
+      categories: [
+        for (final category in categories.where((item) => item.isActive))
+          QuickAddChoice(
+            id: category.id,
+            name: category.name,
+            defaultScope: category.defaultScope,
+          ),
+      ],
+    );
   }
 
   /// Sends the expense to the endpoint that owns the chosen source: a card

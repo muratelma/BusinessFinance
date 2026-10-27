@@ -14,7 +14,6 @@ import '../../../core/theme/app_surfaces.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_date_leaf.dart';
-import '../../../core/widgets/app_divided_column.dart';
 import '../../../core/widgets/app_donut_chart.dart';
 import '../../../core/widgets/app_icon_capsule.dart';
 import '../../../core/widgets/app_money_text.dart';
@@ -23,8 +22,12 @@ import '../../../core/widgets/app_section_header.dart';
 import '../../../core/widgets/app_share_bar.dart';
 import '../../../core/widgets/app_status_chip.dart';
 import '../../../core/widgets/app_unknown_amount.dart';
+import '../../../core/widgets/app_untracked_text.dart';
 import '../../activities/data/planned_activity_models.dart';
 import '../../planning/data/planning_models.dart';
+import 'package:provider/provider.dart';
+import '../../../core/presentation/scope_controller.dart';
+import '../../../core/widgets/app_account_field.dart';
 import '../data/dashboard_models.dart';
 
 /// Özet'in bir bölümü: başlık, isteğe bağlı sayaç ve not, altında kart.
@@ -1244,57 +1247,199 @@ class _NetSide extends StatelessWidget {
   }
 }
 
-/// Hesap bakiyeleri: kapsüllü satırlar, ayırıcı yazının başladığı yerden.
+/// Hesap bakiyeleri (Claude Design V1): tek kart, içinde `Nakit` ve `Banka`
+/// grupları. Grup satırı renkli nokta ve ad taşır, toplam taşımaz; gruplar
+/// arasında çizgi, satırlar arasında çizgi yoktur. Satırda türün renginde
+/// simge, ad, kapsam ve bakiye. Grup içi sıra bakiyeye göre büyükten
+/// küçüğedir; pasif hesap çizilmez.
 class DashboardAccountBalances extends StatelessWidget {
   const DashboardAccountBalances({
     required this.report,
     required this.onOpen,
     super.key,
   });
-
   final DashboardReport report;
   final VoidCallback onOpen;
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final items = report.accountBalances;
+    final items = report.accountBalances.where((item) => item.isActive);
     if (items.isEmpty) {
       return AppCard(
         onTap: onOpen,
         child: Text('Henüz hesap yok.', style: theme.textTheme.bodySmall),
       );
     }
-    return AppCard(
-      padding: EdgeInsets.zero,
-      child: AppDividedColumn(
-        inset: AppIconCapsule.rowInset,
-        children: [
-          for (final item in items)
-            AppRow(
-              onTap: onOpen,
-              // Nakit ile banka hesabı ayrı ikon taşır; tür sunucudan gelir.
-              leading: AppIconCapsule(
-                icon: AppFinanceIcons.forAccountType(item.type),
-              ),
-              title: item.accountName,
-              subtitle: _typeLabel(item.type),
-              trailing: AppMoneyText(
-                amount: item.balance,
-                currency: report.currency,
-                size: AppMoneySize.row,
+    final showScope = _scopeVisible(context);
+    final groups = [
+      for (final kind in [AppAccountKind.cash, AppAccountKind.bank])
+        (
+          kind: kind,
+          items: items.where((item) => _kindOf(item) == kind).toList()
+            // Yalnız sıralama; tutar sunucunundur.
+            ..sort(
+              (a, b) => (MoneyMath.parse(b.balance) ?? BigInt.zero).compareTo(
+                MoneyMath.parse(a.balance) ?? BigInt.zero,
               ),
             ),
-        ],
+        ),
+    ].where((group) => group.items.isNotEmpty).toList();
+    // Teslimle kurulan bölüm: metin harf aralıksız.
+    return AppUntrackedText(
+      child: AppCard(
+        padding: const EdgeInsets.only(
+          bottom: AppSpacing.xSmall + AppSpacing.xxSmall,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var g = 0; g < groups.length; g++) ...[
+              if (g > 0) ...[
+                const SizedBox(height: AppSpacing.xSmall + AppSpacing.xxSmall),
+                const Divider(height: 1),
+              ],
+              _GroupRow(kind: groups[g].kind),
+              for (final item in groups[g].items)
+                _AccountRow(
+                  item: item,
+                  kind: groups[g].kind,
+                  currency: report.currency,
+                  showScope: showScope,
+                  onTap: onOpen,
+                ),
+            ],
+          ],
+        ),
       ),
     );
   }
 
-  static String? _typeLabel(String? type) => switch (type) {
-    'cash' => 'Nakit',
-    'bank' => 'Banka hesabı',
-    _ => null,
-  };
+  static AppAccountKind _kindOf(AccountBalance item) =>
+      item.type == 'cash' ? AppAccountKind.cash : AppAccountKind.bank;
+
+  static bool _scopeVisible(BuildContext context) {
+    try {
+      return context.watch<ScopeController?>()?.isVisible ?? false;
+    } on ProviderNotFoundException {
+      return false;
+    }
+  }
+}
+
+/// Grup satırı: 8 dp nokta (simgenin rengi) ve 15/600 ad.
+class _GroupRow extends StatelessWidget {
+  const _GroupRow({required this.kind});
+  final AppAccountKind kind;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(
+      AppSpacing.medium,
+      AppSpacing.small + AppSpacing.xSmall + AppSpacing.xxSmall,
+      AppSpacing.medium,
+      AppSpacing.xSmall + AppSpacing.xxSmall,
+    ),
+    child: Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: accountKindColor(context, kind),
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.small + AppSpacing.xxSmall),
+        Text(
+          kind == AppAccountKind.cash ? 'Nakit' : 'Banka',
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontSize: 15, height: 1.3),
+        ),
+      ],
+    ),
+  );
+}
+
+/// Hesap satırı: en az 56 dp; 40 dp kapsül, ad 16/600, kapsam, bakiye 16/600.
+class _AccountRow extends StatelessWidget {
+  const _AccountRow({
+    required this.item,
+    required this.kind,
+    required this.currency,
+    required this.showScope,
+    required this.onTap,
+  });
+  final AccountBalance item;
+  final AppAccountKind kind;
+  final String currency;
+  final bool showScope;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scope = showScope ? item.defaultScope?.label : null;
+    final amount = AppMoneyText(
+      amount: item.balance,
+      currency: currency,
+      size: AppMoneySize.row,
+      style: const TextStyle(fontSize: 16, height: 1.3),
+    );
+    return MergeSemantics(
+      child: InkWell(
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 56),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.medium,
+              vertical: AppSpacing.xSmall,
+            ),
+            child: Row(
+              children: [
+                AppIconCapsule(
+                  icon: AppFinanceIcons.forAccountType(item.type),
+                  iconColor: accountKindColor(context, kind),
+                ),
+                const SizedBox(
+                  width:
+                      AppSpacing.small + AppSpacing.xSmall + AppSpacing.xxSmall,
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        item.accountName,
+                        maxLines: context.usesLargeText ? 2 : 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontSize: 16,
+                          height: 1.3,
+                        ),
+                      ),
+                      if (scope != null)
+                        Text(
+                          scope,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            height: 1.35,
+                          ),
+                        ),
+                      if (context.usesLargeText) amount,
+                    ],
+                  ),
+                ),
+                if (!context.usesLargeText) ...[
+                  const SizedBox(width: AppSpacing.small),
+                  amount,
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Halkanın ekran okuyucu cümlesi.

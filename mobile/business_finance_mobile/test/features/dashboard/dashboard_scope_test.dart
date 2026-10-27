@@ -113,14 +113,19 @@ void main() {
       expect(find.text('Şahsi'), findsNothing);
     });
 
-    testWidgets('bölünmeyen bölüm toplam gösterdiğini yazar', (tester) async {
+    // Hesap bakiyeleri bölümü bu notu taşımaz (Claude Design V1, 27 Ekim
+    // 2026): kapsam anahtarının bu bölüme etkisi ayrıca konuşulacak.
+    testWidgets('hesap bakiyeleri kapsam seçiliyken de not yazmaz', (
+      tester,
+    ) async {
       await _pumpDashboard(
         tester,
         hasBusiness: true,
         selected: TransactionScope.business,
       );
 
-      expect(find.text(_unsplitNote), findsWidgets);
+      expect(find.text('Hesap bakiyeleri'), findsOneWidget);
+      expect(find.text(_unsplitNote), findsNothing);
     });
 
     testWidgets('filtre yokken toplam notu ekranı meşgul etmez', (

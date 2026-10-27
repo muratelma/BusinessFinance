@@ -632,17 +632,40 @@ void main() {
       expect(find.byIcon(Icons.more_horiz), findsOneWidget);
     });
 
-    testWidgets('hesap satırı türünü yazıyla da söyler', (tester) async {
+    testWidgets('hesap bakiyeleri türe göre gruplanır, pasif hesap çizilmez', (
+      tester,
+    ) async {
       final viewModel = DashboardViewModel(
-        _Source(_report()),
+        _Source(
+          _report(
+            accounts: [
+              _account('Vadesiz', 'bank', '1200.0000'),
+              _account('Cüzdan', 'cash', '50.0000'),
+              _account('Dükkan kasası', 'cash', '900.0000'),
+              _account('Eski banka', 'bank', '20000.0000', active: false),
+            ],
+          ),
+        ),
         now: () => DateTime(2026, 8, 9),
       );
       await viewModel.load();
 
-      await _pump(tester, viewModel);
+      await _pump(tester, viewModel, height: 3000);
 
+      // Grup satırı türü yazar; eski alt yazı (`Banka hesabı`) kalktı.
       expect(find.text('Nakit'), findsOneWidget);
-      expect(find.text('Banka hesabı'), findsOneWidget);
+      expect(find.text('Banka'), findsOneWidget);
+      expect(find.text('Banka hesabı'), findsNothing);
+      expect(find.text('Eski banka'), findsNothing);
+      // Grup içinde bakiye büyükten küçüğe.
+      expect(
+        tester.getTopLeft(find.text('Dükkan kasası')).dy,
+        lessThan(tester.getTopLeft(find.text('Cüzdan')).dy),
+      );
+      expect(
+        tester.getTopLeft(find.text('Cüzdan')).dy,
+        lessThan(tester.getTopLeft(find.text('Banka')).dy),
+      );
     });
 
     testWidgets('hero kart önceki dönemle karşılaştırır', (tester) async {
@@ -813,55 +836,73 @@ Future<void> _pump(
   await tester.pumpAndSettle();
 }
 
-DashboardReport _report() => DashboardReport.fromJson({
-  'year': 2026,
-  'month': 8,
-  'totalIncome': '2000.0000',
-  'totalExpense': '400.0000',
-  'net': '1600.0000',
-  'currency': 'TRY',
-  'categoryExpenseSlices': [
-    {
-      'categoryId': '11111111-1111-1111-1111-111111111111',
-      'categoryName': 'groceries',
-      'amount': '300.0000',
-    },
-    {
-      'categoryId': '11111111-1111-1111-1111-111111111112',
-      'categoryName': 'bills',
-      'amount': '100.0000',
-    },
-    // "Diğer" satırının kategori kimliği yoktur: bir kategori değil, birden
-    // çoğunun toplamıdır.
-    {'categoryId': null, 'categoryName': 'Diğer', 'amount': '50.0000'},
-  ],
-  'categoryExpenses': [
-    {
-      'categoryId': '11111111-1111-1111-1111-111111111111',
-      'categoryName': 'groceries',
-      'amount': '300.0000',
-    },
-    {
-      'categoryId': '11111111-1111-1111-1111-111111111112',
-      'categoryName': 'bills',
-      'amount': '100.0000',
-    },
-  ],
-  'accountBalances': [
-    {
-      'accountId': '22222222-2222-2222-2222-222222222222',
-      'accountName': 'Cüzdan',
-      'balance': '500.0000',
-      'type': 'cash',
-    },
-    {
-      'accountId': '22222222-2222-2222-2222-222222222223',
-      'accountName': 'Vadesiz',
-      'balance': '1500.0000',
-      'type': 'bank',
-    },
-  ],
-});
+DashboardReport _report({List<Map<String, Object?>>? accounts}) =>
+    DashboardReport.fromJson({
+      'year': 2026,
+      'month': 8,
+      'totalIncome': '2000.0000',
+      'totalExpense': '400.0000',
+      'net': '1600.0000',
+      'currency': 'TRY',
+      'categoryExpenseSlices': [
+        {
+          'categoryId': '11111111-1111-1111-1111-111111111111',
+          'categoryName': 'groceries',
+          'amount': '300.0000',
+        },
+        {
+          'categoryId': '11111111-1111-1111-1111-111111111112',
+          'categoryName': 'bills',
+          'amount': '100.0000',
+        },
+        // "Diğer" satırının kategori kimliği yoktur: bir kategori değil, birden
+        // çoğunun toplamıdır.
+        {'categoryId': null, 'categoryName': 'Diğer', 'amount': '50.0000'},
+      ],
+      'categoryExpenses': [
+        {
+          'categoryId': '11111111-1111-1111-1111-111111111111',
+          'categoryName': 'groceries',
+          'amount': '300.0000',
+        },
+        {
+          'categoryId': '11111111-1111-1111-1111-111111111112',
+          'categoryName': 'bills',
+          'amount': '100.0000',
+        },
+      ],
+      'accountBalances':
+          accounts ??
+          [
+            {
+              'accountId': '22222222-2222-2222-2222-222222222222',
+              'accountName': 'Cüzdan',
+              'balance': '500.0000',
+              'type': 'cash',
+            },
+            {
+              'accountId': '22222222-2222-2222-2222-222222222223',
+              'accountName': 'Vadesiz',
+              'balance': '1500.0000',
+              'type': 'bank',
+            },
+          ],
+    });
+
+var _accountSeed = 0;
+Map<String, Object?> _account(
+  String name,
+  String type,
+  String balance, {
+  bool active = true,
+}) => {
+  'accountId':
+      '33333333-3333-3333-3333-${(++_accountSeed).toString().padLeft(12, '0')}',
+  'accountName': name,
+  'balance': balance,
+  'type': type,
+  'isActive': active,
+};
 
 AdvancedReport _advanced({
   String receivableDebt = '340.0000',

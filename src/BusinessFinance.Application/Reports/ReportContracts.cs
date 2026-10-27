@@ -24,7 +24,8 @@ public sealed record CategoryExpenseSliceDto(
     decimal Amount,
     decimal Share = 0m,
     decimal BarRatio = 0m);
-public sealed record AccountBalanceDto(Guid AccountId, string AccountName, decimal Balance, AccountType Type);
+public sealed record AccountBalanceDto(Guid AccountId, string AccountName, decimal Balance, AccountType Type,
+    bool IsActive = true, TransactionScope? DefaultScope = null);
 
 /// <summary>
 /// Bir ayın tek bir kapsamdaki gelir/gider tablosu.

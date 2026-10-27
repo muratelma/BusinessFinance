@@ -1,3 +1,4 @@
+import '../../support/account_field_helpers.dart';
 import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 import 'package:business_finance_mobile/core/network/api_exception.dart';
 import 'package:business_finance_mobile/core/presentation/financial_data_changes.dart';
@@ -173,10 +174,7 @@ void main() {
 
     expect(find.text('Bu ödeme hangilerini kapatıyor?'), findsOneWidget);
     await tester.enterText(find.byType(TextField).first, '12500');
-    await tester.tap(find.byKey(const ValueKey('tax-source-null')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Nakit kasa').last);
-    await tester.pumpAndSettle();
+    await chooseAccount(tester, 'Nakit kasa', label: 'Nereden ödendi');
     await tester.ensureVisible(find.text('Ödemeyi kaydet'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Ödemeyi kaydet'));

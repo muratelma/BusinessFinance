@@ -21,6 +21,8 @@ import '../data/data_tools_repository.dart';
 import 'csv_import_settings.dart';
 import 'data_tools_controller.dart';
 import 'export_file_details.dart';
+import '../../../core/widgets/app_account_field.dart';
+import '../../../features/accounts/presentation/account_directory.dart';
 
 class DataToolsPage extends StatefulWidget {
   const DataToolsPage({
@@ -492,19 +494,21 @@ class _DataToolsPageState extends State<DataToolsPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              DropdownButtonFormField(
-                initialValue: account,
-                decoration: const InputDecoration(labelText: 'Hesap'),
-                items: snapshot.accounts
-                    .map(
-                      (item) => DropdownMenuItem(
-                        value: item.id,
-                        child: Text(item.name),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) => setDialogState(() => account = value!),
+              SizedBox(
+                width: double.maxFinite,
+                child: AppAccountField(
+                  label: 'Hesap',
+                  value: account,
+                  options: [
+                    for (final item in snapshot.accounts)
+                      AccountChoices.of(
+                        this.context,
+                      ).account(item.id, item.name, type: item.type),
+                  ],
+                  onChanged: (value) => setDialogState(() => account = value!),
+                ),
               ),
+              const SizedBox(height: AppSpacing.medium),
               DropdownButtonFormField(
                 initialValue: category,
                 decoration: const InputDecoration(labelText: 'Kategori'),

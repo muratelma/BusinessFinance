@@ -1,3 +1,4 @@
+import '../../support/account_field_helpers.dart';
 import 'package:business_finance_mobile/core/network/api_exception.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
 import 'package:business_finance_mobile/features/obligations/data/obligation_repository.dart';
@@ -26,10 +27,7 @@ void main() {
 
     await tester.tap(find.text('Enerji Tedarik'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byType(DropdownButtonFormField<String>));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Sentetik kasa'));
-    await tester.pumpAndSettle();
+    await chooseAccount(tester, 'Sentetik kasa', label: 'Hesap');
     await tester.tap(find.text('Öde ve kapat'));
     await tester.pumpAndSettle();
 

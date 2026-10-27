@@ -16,6 +16,8 @@ import '../../../core/widgets/app_status_tag.dart';
 import '../../../core/widgets/app_submit_button.dart';
 import '../data/pos_repository.dart';
 import 'pos_controller.dart';
+import '../../../core/widgets/app_account_field.dart';
+import '../../../features/accounts/presentation/account_directory.dart';
 
 /// POS'larım (ADR 0019 T4): kullanıcının bir kez girdiği POS ayarları.
 ///
@@ -222,6 +224,9 @@ class _PosDefinitionFormPageState extends State<PosDefinitionFormPage> {
   );
 
   late final Future<PosOptions> options;
+
+  /// `Hesap ekle`den dönülünce eklenen banka hesapları.
+  final _addedAccounts = <DataChoice>[];
   late String? accountId = widget.definition?.accountId;
   late String? salesCategoryId = widget.definition?.salesCategoryId;
   late String? commissionCategoryId = widget.definition?.commissionCategoryId;
@@ -305,6 +310,7 @@ class _PosDefinitionFormPageState extends State<PosDefinitionFormPage> {
   );
 
   Widget _form(BuildContext context, PosOptions loaded) {
+    final accounts = [...loaded.accounts, ..._addedAccounts];
     final theme = Theme.of(context);
     return Form(
       key: formKey,
@@ -326,29 +332,33 @@ class _PosDefinitionFormPageState extends State<PosDefinitionFormPage> {
                 : null,
           ),
           const SizedBox(height: AppSpacing.medium),
-          if (loaded.accounts.isEmpty)
-            const AppInlineNotice(
-              message:
-                  'POS parası bir banka hesabına geçer. Önce Hesaplar '
-                  'ekranından bir banka hesabı açın.',
-            )
-          else
-            DropdownButtonFormField<String>(
-              initialValue: _valid(accountId, loaded.accounts),
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Paranın geçeceği hesap',
-              ),
-              items: [
-                for (final account in loaded.accounts)
-                  DropdownMenuItem(
-                    value: account.id,
-                    child: Text(account.name),
-                  ),
-              ],
-              onChanged: (value) => setState(() => accountId = value),
-              validator: (value) => value == null ? 'Hesap seçin.' : null,
-            ),
+          // Banka hesabı yoksa alan boş durur; dokununca nedenini ve
+          // `Hesap ekle`yi alanın altında söyler.
+          AppAccountField(
+            label: 'Paranın geçeceği hesap',
+            value: _valid(accountId, accounts),
+            options: [
+              for (final account in accounts)
+                AccountChoices.of(
+                  context,
+                ).account(account.id, account.name, type: 'bank'),
+            ],
+            emptyTitle: 'Henüz banka hesabı yok',
+            emptyMessage:
+                'POS parası bir banka hesabına geçer; önce onu ekleyin.',
+            onAdd: () async {
+              final created = await addAccountFromForm(context, type: 'bank');
+              if (created == null || created.type != 'bank' || !mounted) {
+                return;
+              }
+              setState(() {
+                _addedAccounts.add(created.choice);
+                accountId = created.id;
+              });
+            },
+            onChanged: (value) => setState(() => accountId = value),
+            validator: (value) => value == null ? 'Hesap seçin.' : null,
+          ),
           const SizedBox(height: AppSpacing.medium),
           DropdownButtonFormField<String>(
             initialValue: _valid(salesCategoryId, loaded.incomeCategories),

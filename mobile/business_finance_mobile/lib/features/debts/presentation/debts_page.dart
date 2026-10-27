@@ -24,6 +24,8 @@ import '../data/debt_models.dart';
 import '../data/debt_repository.dart';
 import 'debts_controller.dart';
 import 'lending_prefill.dart';
+import '../../../core/widgets/app_account_field.dart';
+import '../../../features/accounts/presentation/account_directory.dart';
 
 /// Borç ve alacaklar.
 ///
@@ -419,16 +421,17 @@ class _DebtsPageState extends State<DebtsPage> {
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text(title),
-          content: DropdownButtonFormField<String>(
-            initialValue: selected,
-            hint: const Text('Hesap seçin'),
-            items: accounts
-                .map(
-                  (item) =>
-                      DropdownMenuItem(value: item.id, child: Text(item.name)),
-                )
-                .toList(),
-            onChanged: (value) => setDialogState(() => selected = value),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: AppAccountField(
+              label: 'Hesap',
+              value: selected,
+              options: [
+                for (final item in accounts)
+                  AccountChoices.of(this.context).account(item.id, item.name),
+              ],
+              onChanged: (value) => setDialogState(() => selected = value),
+            ),
           ),
           actions: [
             TextButton(
@@ -503,6 +506,7 @@ class _DebtSourceFields extends StatelessWidget {
     required this.onSourceChanged,
     required this.onAccountChanged,
     required this.onCategoryChanged,
+    required this.onAccountAdded,
     this.sourceHelperText,
   });
 
@@ -515,6 +519,9 @@ class _DebtSourceFields extends StatelessWidget {
   final ValueChanged<String> onSourceChanged;
   final ValueChanged<String?> onAccountChanged;
   final ValueChanged<String?> onCategoryChanged;
+
+  /// `Hesap ekle`den dönüldü: hesap listeye eklenir ve seçili gelir.
+  final ValueChanged<DataChoice> onAccountAdded;
   final String? sourceHelperText;
 
   static bool isPayable(String direction) => direction == 'payable';
@@ -598,18 +605,19 @@ class _DebtSourceFields extends StatelessWidget {
           )
         else
           AppFormField(
-            child: DropdownButtonFormField<String>(
-              initialValue: openingAccountId,
-              isExpanded: true,
-              decoration: InputDecoration(
-                labelText: payable
-                    ? 'Paranın girdiği hesap'
-                    : 'Paranın çıktığı hesap',
-              ),
-              items: [
+            child: AppAccountField(
+              label: payable
+                  ? 'Paranın girdiği hesap'
+                  : 'Paranın çıktığı hesap',
+              value: openingAccountId,
+              options: [
                 for (final item in accounts)
-                  DropdownMenuItem(value: item.id, child: Text(item.name)),
+                  AccountChoices.of(context).account(item.id, item.name),
               ],
+              onAdd: () async {
+                final created = await addAccountFromForm(context);
+                if (created != null) onAccountAdded(created.choice);
+              },
               onChanged: onAccountChanged,
               validator: (value) => value == null ? 'Bir hesap seçin.' : null,
             ),
@@ -708,7 +716,7 @@ class _DebtFormState extends State<_DebtForm> {
 
   TransactionScope? get _sourceScope => _sourceIsCategorical
       ? null
-      : _defaultScopeOf(widget.accounts, _openingAccountId);
+      : _defaultScopeOf(_accounts, _openingAccountId);
 
   TransactionScope? get _categoryScope => _sourceIsCategorical
       ? _defaultScopeOf(widget.categories, _categoryId)
@@ -725,12 +733,12 @@ class _DebtFormState extends State<_DebtForm> {
     return null;
   }
 
+  late List<DataChoice> _accounts = widget.accounts;
+
   @override
   void initState() {
     super.initState();
-    _openingAccountId = widget.accounts.isEmpty
-        ? null
-        : widget.accounts.first.id;
+    _openingAccountId = _accounts.isEmpty ? null : _accounts.first.id;
     _applyPrefill();
     _syncCategory();
     _name.addListener(_onNameChanged);
@@ -945,10 +953,14 @@ class _DebtFormState extends State<_DebtForm> {
         _DebtSourceFields(
           direction: _direction,
           source: _source,
-          accounts: widget.accounts,
+          accounts: _accounts,
           categories: widget.categories,
           openingAccountId: _openingAccountId,
           categoryId: _categoryId,
+          onAccountAdded: (added) => setState(() {
+            _accounts = [..._accounts, added];
+            _openingAccountId = added.id;
+          }),
           sourceHelperText: _direction == 'payable'
               ? 'Para aldıysanız gider yazılmaz; bir şey tükettiyseniz '
                     'anapara o gün gidere yazılır.'
@@ -1133,12 +1145,12 @@ class _DebtOpeningFormState extends State<_DebtOpeningForm> {
 
   bool get _sourceIsCategorical => _source != 'cash';
 
+  late List<DataChoice> _accounts = widget.accounts;
+
   @override
   void initState() {
     super.initState();
-    _openingAccountId = widget.accounts.isEmpty
-        ? null
-        : widget.accounts.first.id;
+    _openingAccountId = _accounts.isEmpty ? null : _accounts.first.id;
     final options = _DebtSourceFields.categoriesFor(
       widget.direction,
       widget.categories,
@@ -1167,10 +1179,14 @@ class _DebtOpeningFormState extends State<_DebtOpeningForm> {
         _DebtSourceFields(
           direction: widget.direction,
           source: _source,
-          accounts: widget.accounts,
+          accounts: _accounts,
           categories: widget.categories,
           openingAccountId: _openingAccountId,
           categoryId: _categoryId,
+          onAccountAdded: (added) => setState(() {
+            _accounts = [..._accounts, added];
+            _openingAccountId = added.id;
+          }),
           onSourceChanged: (value) => setState(() => _source = value),
           onAccountChanged: (value) =>
               setState(() => _openingAccountId = value),

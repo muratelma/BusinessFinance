@@ -16,6 +16,8 @@ import '../../pos/presentation/card_collection_fields.dart';
 import '../data/obligation_repository.dart';
 import 'obligation_controller.dart';
 import 'obligation_prefill.dart';
+import '../../../core/widgets/app_account_field.dart';
+import '../../../features/accounts/presentation/account_directory.dart';
 
 class ObligationsPage extends StatefulWidget {
   const ObligationsPage({required this.controller, super.key});
@@ -27,17 +29,22 @@ class ObligationsPage extends StatefulWidget {
 }
 
 class _ObligationsPageState extends State<ObligationsPage> {
+  /// Sayfanın ilk aldığı denetleyici. Rota, üstüne bir sayfa açılıp
+  /// kapandığında (`Hesap ekle`) yeni bir denetleyici kurar; onu almak
+  /// yüklenmiş listeyi ve dinleyiciyi kaybettirirdi.
+  late final ObligationListController _controller = widget.controller;
+
   @override
   void initState() {
     super.initState();
-    widget.controller.addListener(_changed);
-    widget.controller.load();
+    _controller.addListener(_changed);
+    _controller.load();
   }
 
   @override
   void dispose() {
-    widget.controller.removeListener(_changed);
-    widget.controller.dispose();
+    _controller.removeListener(_changed);
+    _controller.dispose();
     super.dispose();
   }
 
@@ -47,7 +54,7 @@ class _ObligationsPageState extends State<ObligationsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final controller = widget.controller;
+    final controller = _controller;
     return DefaultTabController(
       length: 3,
       child: Scaffold(
@@ -80,7 +87,7 @@ class _ObligationsPageState extends State<ObligationsPage> {
       obligationListCreateLocation,
       extra: const ObligationPrefill(),
     );
-    if (saved ?? false) await widget.controller.load();
+    if (saved ?? false) await _controller.load();
   }
 
   Widget _body(ObligationListController controller) {
@@ -142,7 +149,7 @@ class _ObligationsPageState extends State<ObligationsPage> {
       );
     }
     return RefreshIndicator(
-      onRefresh: widget.controller.load,
+      onRefresh: _controller.load,
       child: ListView.builder(
         padding: const EdgeInsets.all(AppSpacing.medium),
         itemCount: items.length,
@@ -167,8 +174,7 @@ class _ObligationsPageState extends State<ObligationsPage> {
   Future<void> _openSettlement(ObligationItem item) async {
     final result = await AppFormSheet.show<bool>(
       context: context,
-      builder: (_) =>
-          _SettlementForm(item: item, controller: widget.controller),
+      builder: (_) => _SettlementForm(item: item, controller: _controller),
     );
     // Panel `false` ile kapandıysa kullanıcı `Kaydı iptal et`e dokundu.
     if (result == false && mounted) await _confirmCancel(item);
@@ -199,14 +205,14 @@ class _ObligationsPageState extends State<ObligationsPage> {
     );
     if (!confirmed || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
-    final cancelled = await widget.controller.cancel(item);
+    final cancelled = await _controller.cancel(item);
     if (!mounted) return;
     messenger.showSnackBar(
       SnackBar(
         content: Text(
           cancelled
               ? 'Kayıt iptal edildi.'
-              : widget.controller.errorMessage ?? 'Kayıt iptal edilemedi.',
+              : _controller.errorMessage ?? 'Kayıt iptal edilemedi.',
         ),
       ),
     );
@@ -275,7 +281,7 @@ class _SettlementForm extends StatefulWidget {
 class _SettlementFormState extends State<_SettlementForm> {
   final formKey = GlobalKey<FormState>();
   final cardFields = GlobalKey<CardCollectionFieldsState>();
-  late final Future<List<ObligationAccount>> accounts;
+  late Future<List<ObligationAccount>> accounts;
   late final TextEditingController amount;
   Future<CardCollectionSource?>? cards;
   String? accountId;
@@ -292,6 +298,24 @@ class _SettlementFormState extends State<_SettlementForm> {
     amount = TextEditingController(text: widget.item.amount);
     // Kartla tahsil yalnız alacakta (ADR 0019 T5).
     if (receivable) cards = widget.controller.loadCardCollection();
+  }
+
+  /// `Hesap ekle`den dönülünce hesaplar yeniden okunur ve yeni hesap seçili
+  /// gelir.
+  Future<void> _addAccount() async {
+    final created = await addAccountFromForm(context);
+    if (created == null || !mounted) return;
+    final next = widget.controller.loadAccounts();
+    setState(() => accounts = next);
+    try {
+      final loaded = await next;
+      if (!mounted) return;
+      if (loaded.any((account) => account.id == created.id)) {
+        setState(() => accountId = created.id);
+      }
+    } on Object {
+      // Alan kendi hatasını yazar.
+    }
   }
 
   @override
@@ -353,18 +377,16 @@ class _SettlementFormState extends State<_SettlementForm> {
                 );
               }
               if (!snapshot.hasData) return const LinearProgressIndicator();
-              return DropdownButtonFormField<String>(
-                initialValue: accountId,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Hesap'),
-                items: [
+              final choices = AccountChoices.of(context);
+              return AppAccountField(
+                label: 'Hesap',
+                value: accountId,
+                options: [
                   for (final account in snapshot.data!)
-                    DropdownMenuItem(
-                      value: account.id,
-                      child: Text(account.name),
-                    ),
+                    choices.account(account.id, account.name),
                 ],
-                onChanged: (value) => accountId = value,
+                onChanged: (value) => setState(() => accountId = value),
+                onAdd: _addAccount,
                 validator: (value) => value == null ? 'Hesap seçin.' : null,
               );
             },

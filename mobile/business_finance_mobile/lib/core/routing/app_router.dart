@@ -8,6 +8,7 @@ import '../models/transaction_scope.dart';
 import '../presentation/financial_data_changes.dart';
 import '../presentation/scope_controller.dart';
 import '../../features/accounts/data/account_repository.dart';
+import '../../features/accounts/presentation/account_directory.dart';
 import '../../features/accounts/presentation/account_form_page.dart';
 import '../../features/accounts/presentation/account_settings_page.dart';
 import '../../features/finance_pages/data/finance_page_repository.dart';
@@ -472,6 +473,25 @@ GoRouter createAppRouter({
                             financialDataChanges,
                           ),
                   ),
+                ),
+          authController,
+        ),
+      ),
+      // `:accountId`'den önce: `new` bir hesap kimliği değildir.
+      GoRoute(
+        path: accountCreateLocation,
+        pageBuilder: (context, state) => _sessionPage(
+          state,
+          accountRepository == null
+              ? const Scaffold(
+                  body: AppErrorView(
+                    message: 'Hesap servisi yapılandırılmadı.',
+                  ),
+                )
+              : AccountCreatePage(
+                  repository: accountRepository,
+                  changes: financialDataChanges,
+                  initialType: state.uri.queryParameters['type'],
                 ),
           authController,
         ),

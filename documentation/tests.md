@@ -2197,7 +2197,7 @@ için emülatör, gerçek cihaz ve canlı ekran okuyucu kabulü yapılmadı.
 
 Bulgular ve canlı kontrol kaydı: `research/DIS-GOZ-2026-10-13-kategori-hesap-teslim-denetimi.md`.
 
-Ortak ayrıntı regresyonu, masraflı transfer ve faizli nötr ödemenin rapora etkisinin yanlış “etkilemez” cümlesiyle gösterilmesini de engeller. Hesap ekle gerçek Hesaplar rotasında ayrıca doğrulanır.
+Ortak ayrıntı regresyonu, masraflı transfer ve faizli nötr ödemenin rapora etkisinin yanlış “etkilemez” cümlesiyle gösterilmesini de engeller. Hesap ekle gerçek Hesaplar rotasında ayrıca doğrulanır. Formdaki `Hesap ekle` (28 Ekim 2026) transferde gerçek rotayla (`finance_page_router_test.dart`: ekleme formu doğrudan açılır, kayıttan sonra liste yeniden okunur ve yeni hesap seçili; vazgeçince hiçbir şey yazılmaz) ve Gelir ekle'de (`quick_add_account_add_test.dart`: rota yeniden çizilince form denetleyicisini ve yazılan tutarı kaybetmez) doğrulanır.
 
 ## Dalga 0 — cari ödemede istek kimliği ve iade fişinde yarıda kalma (16 Ekim 2026)
 

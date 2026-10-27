@@ -73,9 +73,9 @@ ekranları birbirinden farklı davrandırıyordu.
 |---|---|
 | `canvas` | Sayfa zemini |
 | `card` | Kart, panel, liste yüzeyi |
-| `cardMuted` | Kart içi ikincil bölge: ikon kapsülü, girdi alanı, ilerleme yolu |
+| `cardMuted` | Kart içi ikincil bölge: ikon kapsülü, ilerleme yolu, arama alanı |
 | `border` | Kartı zeminden ayıran ince kenarlık |
-| `borderStrong` | Seçili kart, odaklı girdi |
+| `borderStrong` | Seçili kart, form alanının kenarı (alanın zemini `card`; 28 Ekim 2026, hesap seçici teslimi) |
 | `overlay` | Yüzen katmanların gölgesi |
 
 **Kart zeminden kenarlıkla ayrılır, gölgeyle değil.** Gölge yalnız gerçekten
@@ -1391,3 +1391,62 @@ Aynı gün yapılan öbür düzeltmeler:
   durum sınıfının bağlamı sarmalayıcının üstünde kalıyor, kategori ve hesap
   satırları harf aralıklı çiziliyordu. İşlem ayrıntısı gezginin bağlamıyla
   açılır ki ortak panel her yerden aynı görünsün.
+
+## Hesap seçici ve Özet'te hesap bakiyeleri — 27 Ekim 2026
+
+Teslim: `design/hesap-secici-handoff/` (Claude Design, kareler H1, H1b, H1g,
+H6, H7, H7o, V1). Kareler `test/screenshots/hesap_secici_screenshot_test.dart`
+ile aynı örnek veride çizilir.
+
+- **`AppAccountField`** (`core/widgets/app_account_field.dart`): hesap ya da
+  kart seçilen her form alanı. Alan içerik ne olursa olsun 56 dp'dir (iç
+  boşluk 8 · 12 · 8 · 16; yalnız büyük yazıda büyür). Kapalı alanda 32 dp
+  kapsül (simge 18), ad 15/20 600, `tür · kapsam` 13/16 soluk ve bakiye
+  14/500 soluk; değer yokken etiket alanın içinde yer tutucudur (28 Ekim
+  2026, POS tahsilatı teslimi). Menü alanın 8 dp altında, alan genişliğinde, kenarlıksız,
+  `AppElevation.floating` gölgeli, 16 yarıçap, en çok 600 dp. Gruplar
+  `Nakit`, `Banka`, `Kredi kartı` (12/600, harf aralıklı, `inkFaint`; arada
+  çizgi). Satır en az 56 dp: 20 dp türün renginde simge, ad 15, kapsam 13,
+  tutar 15/600. Seçili satır solda 4 dp marka çubuğu ve `cardMuted` zemin
+  taşır, ad 600, tutar 700; işaret yoktur. Kartın tutarı eksi kart borcudur ve
+  gider rengindedir, alt yazısı `Kart borcu · kapsam`. Transferde giren
+  hesabın menüsünde çıkan hesap soluk ve seçilemez (`Para buradan çıkıyor`).
+  Hiç seçenek yoksa menü açılmaz: alanın altında `Henüz hesap yok` kartı açılır
+  (1 px kenar, 16 yarıçap, gölgesiz), form aşağı kayar; `Hesap ekle` ekleme
+  formunu doğrudan açar (`/more/accounts/new`, `addAccountFromForm`; Hesaplar
+  sayfası araya girmez), kaydedince açıldığı forma dönülür ve yeni hesap
+  seçili gelir (28 Ekim 2026). Bankaya geçecek parayı soran alan formu `Banka`
+  ön değeriyle, gün sonunun kasası `Nakit` ön değeriyle açar. Türü sınırlı alan
+  kendi boş metnini taşır (`Henüz banka hesabı yok`, `Henüz kasa yok`).
+  İsteğe bağlı alanda listenin başında `Seçilmedi` / `Tümü` satırı vardır.
+  Büyük yazıda tutar adın altına iner; ad kısalır, tutar kısalmaz.
+- **POS alanı** (`POS tahsilatı`, `Kartla tahsil`) aynı bileşendir: satırda
+  `point_of_sale` simgesi (mavi), POS adı ve altında paranın geçeceği hesap;
+  başlık, ara başlık ve çizgi yoktur. En altta kalem simgeli `Elle gir` satırı
+  durur, alt yazısı `POS seçmeden; hesabı siz seçersiniz` (`manualLabel` /
+  `manualNote`). Seçilince kapalı alan aynı gri kapsülle yalnız `Elle gir`
+  yazar. Hiç POS yoksa alan `Elle gir` ile gelir. POS ve hesap alanının altında
+  yardımcı metin yoktur. Panelin sırası: POS seçiliyken POS · Müşterinin
+  ödediği · Tahsilat günü · özet · Açıklama; `Elle gir`de POS · Paranın
+  geçeceği hesap · Müşterinin ödediği · Satış kategorisi · Tahsilat günü ·
+  Paranın beklendiği gün · Komisyon (13 px soluk başlık, 8 boşluk) ·
+  Açıklama. Tutar `₺` önekli ve binlik ayırıcılı yazılır (28 Ekim 2026,
+  Claude Design'ın POS tahsilatı README'si ve karesi).
+- **`AppDateField`** değeri `28 Ekim 2026` biçiminde yazar (`DateText.dayMonthYear`);
+  gönderilen değer yine `yyyy-MM-dd`dir.
+- **Renkler** Hesaplar sayfasıyla aynıdır: nakit `categorySlice(2)`, banka
+  `categorySlice(4)`, kart ve POS `neutral`.
+- **Satır bilgisi tek yerden gelir** (`AccountDirectory`,
+  `features/accounts/presentation/account_directory.dart`): Hesaplar
+  sayfasının okuması ve kart listesi bir kez okunur, hesap ya da kart
+  değişince yenilenir, oturum değişince boşaltılır. Ekran yalnız hangi
+  seçeneklerin, hangi sırayla listeleneceğini bilir (`AccountChoices`).
+  Rehber okunamazsa satır adıyla ve formun bildiği türle çizilir. Kapsam
+  yalnız `ScopeController.isVisible` iken yazılır.
+- **Özet · Hesap bakiyeleri** (`DashboardAccountBalances`): tek kart, `Nakit`
+  ve `Banka` grupları (8 dp nokta + 15/600 ad; grup toplamı yok, gruplar
+  arasında çizgi). Satır en az 56 dp: 40 dp kapsül, ad 16/600, kapsam, bakiye
+  16/600; satırlar arasında çizgi yok; grup içinde bakiye büyükten küçüğe;
+  pasif hesap çizilmez. Bölüm kapsam seçiliyken de "toplam" notunu yazmaz.
+- **Teslimden bilerek ayrılanlar:** menünün 150 ms'lik
+  inme hareketi yoktur (Material menüsünün kendi açılışı kullanılır).

@@ -21,7 +21,9 @@ public sealed record AccountBalanceResponse(
     Guid AccountId,
     string AccountName,
     string Balance,
-    string Type);
+    string Type,
+    bool IsActive = true,
+    string? DefaultScope = null);
 public sealed record ScopeTotalsResponse(string Income, string Expense, string Net);
 
 /// <summary>

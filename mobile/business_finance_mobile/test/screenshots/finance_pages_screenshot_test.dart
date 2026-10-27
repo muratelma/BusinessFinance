@@ -18,6 +18,7 @@ import 'package:business_finance_mobile/features/finance_pages/presentation/fina
 import 'package:business_finance_mobile/features/finance_pages/presentation/transfer_page.dart';
 import 'package:business_finance_mobile/features/more/presentation/more_page.dart';
 import 'package:business_finance_mobile/features/pos/data/pos_repository.dart';
+import '../support/account_field_helpers.dart';
 import '../support/finance_page_fixture.dart';
 import 'screenshot_harness.dart';
 
@@ -169,13 +170,10 @@ void main() {
             await t.pumpAndSettle();
           }
           if (code == 'D3b') {
-            await t.tap(find.byType(DropdownButtonFormField<String>).first);
+            await chooseAccount(t, 'Ziraat Vadesiz', label: 'Çıkan hesap');
+            await t.tap(accountField('Giren hesap'));
             await t.pumpAndSettle();
-            await t.tap(find.text('Ziraat Vadesiz').last);
-            await t.pumpAndSettle();
-            await t.tap(find.byType(DropdownButtonFormField<String>).last);
-            await t.pumpAndSettle();
-            await t.tap(find.text('Dükkan Kasası').last);
+            await t.tap(accountMenuRow('Dükkan Kasası'));
             await t.pump(const Duration(milliseconds: 350));
           }
         },

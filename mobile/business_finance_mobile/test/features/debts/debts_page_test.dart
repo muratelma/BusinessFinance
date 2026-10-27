@@ -1,3 +1,4 @@
+import '../../support/account_field_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:business_finance_mobile/core/models/data_choice.dart';
@@ -508,10 +509,7 @@ void main() {
           .onPressed,
       isNull,
     );
-    await tester.tap(find.byType(DropdownButtonFormField<String>));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Cash').last);
-    await tester.pumpAndSettle();
+    await chooseAccount(tester, 'Cash', label: 'Hesap');
 
     await tester.tap(find.widgetWithText(FilledButton, 'Seç'));
     await tester.pumpAndSettle();

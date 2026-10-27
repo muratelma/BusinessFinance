@@ -9,6 +9,8 @@ import '../../../core/widgets/app_date_field.dart';
 import '../../../core/widgets/app_form_sheet.dart';
 import '../../pos/presentation/card_collection_fields.dart';
 import '../data/counterparty_models.dart';
+import '../../../core/widgets/app_account_field.dart';
+import '../../../features/accounts/presentation/account_directory.dart';
 
 /// Karşı tarafın kendisi: ad, not ve aktiflik.
 ///
@@ -339,7 +341,19 @@ class _CounterpartyPaymentFormState extends State<CounterpartyPaymentForm> {
           : MoneyText.editable(widget.suggestedAmount!),
     );
     _date = widget.today;
-    _accountId = widget.accounts.isEmpty ? null : widget.accounts.first.id;
+    _accountId = _accounts.isEmpty ? null : _accounts.first.id;
+  }
+
+  late List<DataChoice> _accounts = widget.accounts;
+
+  /// `Hesap ekle`den dönülünce yeni hesap listede ve seçili gelir.
+  Future<void> _addAccount() async {
+    final created = await addAccountFromForm(context);
+    if (created == null || !mounted) return;
+    setState(() {
+      _accounts = [..._accounts, created.choice];
+      _accountId = created.id;
+    });
   }
 
   @override
@@ -421,21 +435,16 @@ class _CounterpartyPaymentFormState extends State<CounterpartyPaymentForm> {
           )
         else
           AppFormField(
-            child: DropdownButtonFormField<String>(
-              initialValue: _accountId,
-              isExpanded: true,
-              decoration: InputDecoration(
-                labelText: widget.isReceivable
-                    ? 'Paranın gireceği hesap'
-                    : 'Ödeme hesabı',
-              ),
-              items: [
-                for (final account in widget.accounts)
-                  DropdownMenuItem(
-                    value: account.id,
-                    child: Text(account.name),
-                  ),
+            child: AppAccountField(
+              label: widget.isReceivable
+                  ? 'Paranın gireceği hesap'
+                  : 'Ödeme hesabı',
+              value: _accountId,
+              options: [
+                for (final account in _accounts)
+                  AccountChoices.of(context).account(account.id, account.name),
               ],
+              onAdd: _addAccount,
               onChanged: (value) => setState(() => _accountId = value),
               validator: (value) => value == null ? 'Bir hesap seçin.' : null,
             ),

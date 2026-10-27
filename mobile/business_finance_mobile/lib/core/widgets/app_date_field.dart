@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../formatters/date_text.dart';
+import '../theme/app_breakpoints.dart';
 import '../theme/app_radius.dart';
 
 /// Tarih seçen form alanı.
@@ -31,8 +33,8 @@ class AppDateField extends StatelessWidget {
   /// Varsayılan sağdadır; diğer formlar öyle çizilmiştir.
   final bool iconLeading;
 
-  /// Değerin ekrandaki hâli (`29 Eylül 2026 · bugün`); verilmezse değer
-  /// olduğu gibi yazılır.
+  /// Değerin ekrandaki hâli (`29 Eylül 2026 · bugün`); verilmezse gün, ayın
+  /// adı ve yıl yazılır (`28 Ekim 2026`).
   final String? valueText;
 
   final String label;
@@ -75,10 +77,13 @@ class AppDateField extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final hasValue = value != null && value!.isNotEmpty;
+    final shown = hasValue
+        ? (valueText ?? DateText.dayMonthYear(value!))
+        : placeholder;
 
     return Semantics(
       button: enabled,
-      label: '$label: ${hasValue ? (valueText ?? value!) : placeholder}',
+      label: '$label: $shown',
       excludeSemantics: true,
       child: InkWell(
         onTap: enabled ? () => _pick(context) : null,
@@ -98,13 +103,20 @@ class AppDateField extends StatelessWidget {
                 ? null
                 : const Icon(Icons.calendar_today_outlined),
           ),
-          child: Text(
-            hasValue ? (valueText ?? value!) : placeholder,
-            style: hasValue
-                ? null
-                : theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+          // Metin alanının satır yüksekliği (24): alan diğerleri gibi 56 dp.
+          child: SizedBox(
+            height: context.usesLargeText ? null : 24,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                shown,
+                style: hasValue
+                    ? null
+                    : theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+              ),
+            ),
           ),
         ),
       ),

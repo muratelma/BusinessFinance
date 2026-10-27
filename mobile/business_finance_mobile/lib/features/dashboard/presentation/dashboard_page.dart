@@ -178,7 +178,6 @@ class DashboardPage extends StatelessWidget {
             ),
           DashboardBlock(
             title: 'Hesap bakiyeleri',
-            note: viewModel.scope == null ? null : unsplitNote,
             onOpen: () => context.push(accountsLocation),
             child: DashboardAccountBalances(
               report: report,

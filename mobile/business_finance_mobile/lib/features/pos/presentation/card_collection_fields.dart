@@ -9,10 +9,11 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_date_field.dart';
 import '../../../core/widgets/app_detail_block.dart';
-import '../../../core/widgets/app_menu_group_label.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_segment_rail.dart';
 import '../data/pos_repository.dart';
+import '../../../core/widgets/app_account_field.dart';
+import '../../../features/accounts/presentation/account_directory.dart';
 
 /// Bir tahsilatın nasıl alındığı: elden / hesaba ya da kartla (POS).
 enum CollectionMethod {
@@ -128,6 +129,7 @@ class CardCollectionFieldsState extends State<CardCollectionFields> {
   final _commission = TextEditingController();
   String? _definitionId;
   String? _accountId;
+  late List<DataChoice> _bankAccounts = widget.source.bankAccounts;
   String? _expected;
   String? _commissionCategoryId;
   _CommissionMode _mode = _CommissionMode.none;
@@ -163,9 +165,7 @@ class CardCollectionFieldsState extends State<CardCollectionFields> {
   void initState() {
     super.initState();
     _definitionId = widget.source.preferred?.id;
-    _accountId = widget.source.bankAccounts.isEmpty
-        ? null
-        : widget.source.bankAccounts.first.id;
+    _accountId = _bankAccounts.isEmpty ? null : _bankAccounts.first.id;
     widget.amount.addListener(_schedule);
     _schedule();
   }
@@ -225,35 +225,18 @@ class CardCollectionFieldsState extends State<CardCollectionFields> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        DropdownButtonFormField<String>(
-          key: ValueKey('card-pos-${_definitionId ?? _manual}'),
-          initialValue: _definitionId ?? _manual,
-          isExpanded: true,
-          decoration: const InputDecoration(labelText: 'POS'),
-          items: [
-            if (definitions.isNotEmpty) ...[
-              const DropdownMenuItem<String>(
-                enabled: false,
-                child: AppMenuGroupLabel("POS'larım"),
-              ),
-              for (final item in definitions)
-                DropdownMenuItem(value: item.id, child: Text(item.name)),
-            ],
-            const DropdownMenuItem<String>(
-              enabled: false,
-              child: AppMenuGroupLabel('POS seçmeden'),
-            ),
-            const DropdownMenuItem(
-              value: _manual,
-              child: Row(
-                children: [
-                  Icon(Icons.edit_outlined, size: 18),
-                  SizedBox(width: AppSpacing.small),
-                  Text('Elle gir'),
-                ],
-              ),
-            ),
+        AppAccountField(
+          label: 'POS',
+          options: [
+            for (final item in definitions)
+              AccountChoices.of(
+                context,
+              ).pos(item.id, item.name, accountName: item.accountName),
           ],
+          value: _definitionId ?? _manual,
+          manualLabel: 'Elle gir',
+          manualNote: 'POS seçmeden; hesabı siz seçersiniz',
+          manualValue: _manual,
           onChanged: (value) {
             setState(() {
               _definitionId = value == null || value == _manual ? null : value;
@@ -309,17 +292,25 @@ class CardCollectionFieldsState extends State<CardCollectionFields> {
   }
 
   List<Widget> _manualFields() => [
-    DropdownButtonFormField<String>(
-      initialValue: _accountId,
-      isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'Paranın geçeceği hesap',
-        helperText: 'POS parası bankaya geçer.',
-      ),
-      items: [
-        for (final account in widget.source.bankAccounts)
-          DropdownMenuItem(value: account.id, child: Text(account.name)),
+    AppAccountField(
+      label: 'Paranın geçeceği hesap',
+      value: _accountId,
+      options: [
+        for (final account in _bankAccounts)
+          AccountChoices.of(
+            context,
+          ).account(account.id, account.name, type: 'bank'),
       ],
+      emptyTitle: 'Henüz banka hesabı yok',
+      emptyMessage: 'POS parası bir banka hesabına geçer; önce onu ekleyin.',
+      onAdd: () async {
+        final created = await addAccountFromForm(context, type: 'bank');
+        if (created == null || created.type != 'bank' || !mounted) return;
+        setState(() {
+          _bankAccounts = [..._bankAccounts, created.choice];
+          _accountId = created.id;
+        });
+      },
       onChanged: (value) => setState(() => _accountId = value),
       validator: (value) => value == null ? 'Hesap seçin.' : null,
     ),

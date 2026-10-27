@@ -116,18 +116,18 @@ abstract final class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: surfaces.cardMuted,
+        fillColor: surfaces.card,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.medium,
           vertical: AppSpacing.medium,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.field),
-          borderSide: BorderSide(color: surfaces.border),
+          borderSide: BorderSide(color: surfaces.borderStrong),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.field),
-          borderSide: BorderSide(color: surfaces.border),
+          borderSide: BorderSide(color: surfaces.borderStrong),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.field),

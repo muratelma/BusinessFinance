@@ -419,6 +419,10 @@ public sealed class CashCountEndpointTests
         Assert.Equal("0.0000", report.TotalExpense);
         Assert.Equal("900.0000", report.AccountBalances.Single(a => a.AccountId == till.Id).Balance);
         Assert.Equal("100.0000", report.AccountBalances.Single(a => a.AccountId == wallet.Id).Balance);
+        // Özet'in hesap satırı kapsamı ve durumu da taşır; etiketsiz hesapta kapsam boştur.
+        Assert.Equal("personal", report.AccountBalances.Single(a => a.AccountId == wallet.Id).DefaultScope);
+        Assert.Null(report.AccountBalances.Single(a => a.AccountId == till.Id).DefaultScope);
+        Assert.All(report.AccountBalances, a => Assert.True(a.IsActive));
 
         // Aktarım sayımın gününe yazıldı ve adı "Kendime aldım".
         var feed = await owner.GetFromJsonAsync<FinancialActivityListResponse>(

@@ -9,7 +9,6 @@ import '../../../core/theme/app_surfaces.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/app_divided_column.dart';
 import '../../../core/widgets/app_icon_capsule.dart';
-import '../../../core/widgets/app_menu_group_label.dart';
 import '../../../core/widgets/app_page_header.dart';
 import '../../../core/widgets/app_section_header.dart';
 import '../../../core/widgets/app_status_chip.dart';
@@ -17,6 +16,8 @@ import '../../../core/widgets/app_status_tag.dart';
 import '../../activities/data/planned_activity_models.dart';
 import '../data/tax_models.dart';
 import 'tax_schedule.dart';
+import '../../../core/widgets/app_account_field.dart';
+import '../../../features/accounts/presentation/account_directory.dart';
 
 // Vergi takibinin ortak parçaları. Tasarım teslimindeki `Parts5.jsx`'in
 // karşılıklarıdır; yeni token yok, ölçüler oradan.
@@ -796,7 +797,7 @@ ButtonStyle taxDangerOutlineStyle(BuildContext context) {
 
 /// Hesap ve kart seçimi ("Nereden ödendi"). Hesaplar ve kartlar ayrı grup
 /// başlıklarıyla; kart seçilirse gider kart harcaması olarak yazılır.
-class TaxSourceField extends StatelessWidget {
+class TaxSourceField extends StatefulWidget {
   const TaxSourceField({
     required this.options,
     required this.value,
@@ -818,40 +819,38 @@ class TaxSourceField extends StatelessWidget {
   /// "Seçilmedi" seçeneği (tanımda isteğe bağlı kaynak).
   final bool allowNone;
 
-  static const _none = '';
+  @override
+  State<TaxSourceField> createState() => _TaxSourceFieldState();
+}
+
+class _TaxSourceFieldState extends State<TaxSourceField> {
+  /// `Hesap ekle`den dönülünce eklenen hesaplar.
+  final _added = <TaxChoice>[];
+
+  Future<void> _addAccount() async {
+    final created = await addAccountFromForm(context);
+    if (created == null || !mounted) return;
+    setState(() => _added.add(TaxChoice(id: created.id, name: created.name)));
+    widget.onChanged(created.id);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      key: ValueKey('tax-source-$value'),
-      initialValue: value ?? (allowNone ? _none : null),
-      isExpanded: true,
-      decoration: InputDecoration(
-        labelText: label,
-        helperText: helperText,
-        helperMaxLines: 3,
-        errorText: errorText,
-      ),
-      items: [
-        if (allowNone)
-          const DropdownMenuItem(value: _none, child: Text('Seçilmedi')),
-        if (options.accounts.isNotEmpty)
-          const DropdownMenuItem<String>(
-            enabled: false,
-            child: AppMenuGroupLabel('Hesaplar'),
-          ),
-        for (final account in options.accounts)
-          DropdownMenuItem(value: account.id, child: Text(account.name)),
-        if (options.cards.isNotEmpty)
-          const DropdownMenuItem<String>(
-            enabled: false,
-            child: AppMenuGroupLabel('Kredi kartları'),
-          ),
-        for (final card in options.cards)
-          DropdownMenuItem(value: card.id, child: Text(card.name)),
+    final choices = AccountChoices.of(context);
+    return AppAccountField(
+      label: widget.label,
+      helperText: widget.helperText,
+      errorText: widget.errorText,
+      noneLabel: widget.allowNone ? 'Seçilmedi' : null,
+      value: widget.value,
+      options: [
+        for (final account in [...widget.options.accounts, ..._added])
+          choices.account(account.id, account.name),
+        for (final card in widget.options.cards)
+          choices.card(card.id, card.name),
       ],
-      onChanged: (selected) =>
-          onChanged(selected == null || selected == _none ? null : selected),
+      onAdd: _addAccount,
+      onChanged: widget.onChanged,
     );
   }
 }

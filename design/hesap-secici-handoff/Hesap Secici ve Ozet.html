@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="tr"><head><meta charset="utf-8"><title>Hesap seçici · Özet hesaplar · teslim</title>
+<link rel="stylesheet" href="_ds/design-system-02d8cd45-68c3-45e3-a947-241a11eb81d4/styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="_ds/design-system-02d8cd45-68c3-45e3-a947-241a11eb81d4/_ds_bundle.js"></script>
+<style>
+body{margin:0;font-family:var(--font-core)}a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.phone{width:412px;height:892px;position:relative;overflow:hidden;background:var(--surface-canvas);border:1px solid var(--border);border-radius:28px;box-sizing:border-box}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column}
+.body{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}.body::-webkit-scrollbar{display:none}
+.iconbtn{width:48px;height:48px;display:inline-flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--ink);border-radius:16px;cursor:pointer}
+.menu-scroll::-webkit-scrollbar{display:none}
+.frame{position:absolute;width:412px}.frame-label{position:absolute;top:-40px;left:0;white-space:nowrap;font:600 18px/1.3 var(--font-core);color:var(--ink)}
+</style><meta name="design_doc_mode" content="canvas">
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#16191D"/><text x="50" y="62" font-family="Roboto,sans-serif" font-size="30" font-weight="700" fill="#fff" text-anchor="middle">BF</text></svg></template>
+</head><body>
+<div class="frame" style="left:80px;top:120px" data-screen-label="01 · H1 · Gelir · hesap menüsü açık"><div class="frame-label">01 · H1 · Gelir · hesap menüsü açık</div><div class="phone" id="H1"></div></div>
+<div class="frame" style="left:572px;top:120px" data-screen-label="02 · H1b · Hesap seçildi"><div class="frame-label">02 · H1b · Hesap seçildi</div><div class="phone" id="H1b"></div></div>
+<div class="frame" style="left:1064px;top:120px" data-screen-label="03 · H1g · Gider · kredi kartı dahil"><div class="frame-label">03 · H1g · Gider · kredi kartı dahil</div><div class="phone" id="H1g"></div></div>
+<div class="frame" style="left:1556px;top:120px" data-screen-label="04 · H6 · Transfer · Nereye"><div class="frame-label">04 · H6 · Transfer · Nereye</div><div class="phone" id="H6"></div></div>
+<div class="frame" style="left:2048px;top:120px" data-screen-label="05 · H7 · Hiç hesap yok · kapalı"><div class="frame-label">05 · H7 · Hiç hesap yok · kapalı</div><div class="phone" id="H7"></div></div>
+<div class="frame" style="left:2540px;top:120px" data-screen-label="06 · H7o · Hiç hesap yok · açık"><div class="frame-label">06 · H7o · Hiç hesap yok · açık</div><div class="phone" id="H7o"></div></div>
+<div class="frame" style="left:3032px;top:120px" data-screen-label="07 · V1 · Özet · Hesap bakiyeleri"><div class="frame-label">07 · V1 · Özet · Hesap bakiyeleri</div><div class="phone" id="V1"></div></div>
+<script type="text/babel" src="hesap/Secici.jsx"></script>
+<script type="text/babel" src="hesap/KHParts.jsx"></script>
+<script type="text/babel" src="hesap/HesapSec.jsx"></script>
+<script type="text/babel" src="hesap/OzetHes.jsx"></script>
+<script type="text/babel">
+const RR = (id, el) => { const n = document.getElementById(id); if (n) ReactDOM.createRoot(n).render(el); };
+renderHesapSec(RR); renderOzetHes(RR);
+</script></body></html>

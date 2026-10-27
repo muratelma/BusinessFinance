@@ -1,3 +1,4 @@
+import '../../support/account_field_helpers.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
 import 'dart:async';
 import 'dart:typed_data';
@@ -298,10 +299,10 @@ void main() {
       await tester.tap(find.text('Ödeme kaynağı'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Hesaplar'), findsWidgets);
-      expect(find.text('Kredi kartları'), findsWidgets);
-      expect(find.text('Banka'), findsWidgets);
-      expect(find.textContaining('Test Kart'), findsWidgets);
+      // Gruplar türe göre: banka hesabı ve kredi kartı ayrı başlık altında.
+      expect(find.text('Kredi kartı'), findsWidgets);
+      expect(accountMenuRow('Banka'), findsOneWidget);
+      expect(accountMenuRow('Test Kart'), findsOneWidget);
     });
 
     testWidgets('leaves out an inactive card, which cannot take a charge', (
@@ -508,7 +509,7 @@ void main() {
 
       expect(find.text('847,5'), findsOneWidget);
       expect(find.text('TEST MARKET 01'), findsOneWidget);
-      expect(find.text('2026-08-12'), findsOneWidget);
+      expect(find.text('12 Ağustos 2026'), findsOneWidget);
       // Kullanıcı formu kendi doldurmuş sanmamalı; her önerilen alan bunu
       // ayrıca söylüyor.
       expect(find.textContaining('Fişten okundu'), findsWidgets);
@@ -569,7 +570,7 @@ void main() {
       );
 
       // Tarih okunamadıysa bugüne düşer, uydurulmuş bir fiş tarihi yazılmaz.
-      expect(find.text('2026-08-14'), findsOneWidget);
+      expect(find.text('14 Ağustos 2026'), findsOneWidget);
       expect(find.text('TEST MARKET 01'), findsNothing);
     });
 
@@ -611,12 +612,12 @@ void main() {
       await tester.tap(find.text('Ödeme kaynağı'));
       await tester.pumpAndSettle();
 
-      final cards = tester.getTopLeft(find.text('Kredi kartları').last);
-      final accounts = tester.getTopLeft(find.text('Hesaplar').last);
+      final cards = tester.getTopLeft(accountMenuRow('Test Kart'));
+      final accounts = tester.getTopLeft(accountMenuRow('Banka'));
       expect(cards.dy, lessThan(accounts.dy));
       // Fişte kart yazması, kullanıcının nakit ödemiş olmasını imkânsız
       // kılmaz; hesaplar listeden düşmüyor.
-      expect(find.text('Banka').last, findsOneWidget);
+      expect(accountMenuRow('Banka'), findsOneWidget);
     });
 
     testWidgets('a debit card hint points at the accounts, not the cards', (
@@ -634,8 +635,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Banka kartı bu uygulamada bir hesaptır; kart harcaması değildir.
-      final accounts = tester.getTopLeft(find.text('Hesaplar').last);
-      final cards = tester.getTopLeft(find.text('Kredi kartları').last);
+      final accounts = tester.getTopLeft(accountMenuRow('Banka'));
+      final cards = tester.getTopLeft(accountMenuRow('Test Kart'));
       expect(accounts.dy, lessThan(cards.dy));
     });
 
@@ -655,8 +656,8 @@ void main() {
 
       // Fiş türü söylemiyorsa ekran da söylemez: sıra varsayılan kalır,
       // kullanıcı okunmamış bir bilgiye doğru itilmez.
-      final accounts = tester.getTopLeft(find.text('Hesaplar').last);
-      final cards = tester.getTopLeft(find.text('Kredi kartları').last);
+      final accounts = tester.getTopLeft(accountMenuRow('Banka'));
+      final cards = tester.getTopLeft(accountMenuRow('Test Kart'));
       expect(accounts.dy, lessThan(cards.dy));
     });
 
@@ -1109,12 +1110,8 @@ Future<void> _pushForm(
   await tester.pumpAndSettle();
 }
 
-Future<void> _chooseSource(WidgetTester tester, String name) async {
-  await tester.tap(find.text('Ödeme kaynağı'));
-  await tester.pumpAndSettle();
-  await tester.tap(find.textContaining(name).last);
-  await tester.pumpAndSettle();
-}
+Future<void> _chooseSource(WidgetTester tester, String name) =>
+    chooseAccount(tester, name, label: 'Ödeme kaynağı');
 
 Future<void> _chooseCategory(WidgetTester tester, String name) async {
   await tester.tap(find.text('Kategori'));

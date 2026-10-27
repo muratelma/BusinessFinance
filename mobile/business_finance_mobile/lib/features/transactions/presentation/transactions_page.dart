@@ -16,6 +16,8 @@ import '../../../core/widgets/app_status_chip.dart';
 import '../data/transaction_models.dart';
 import '../data/transaction_repository.dart';
 import 'transactions_controller.dart';
+import '../../../core/widgets/app_account_field.dart';
+import '../../../features/accounts/presentation/account_directory.dart';
 
 class TransactionsPage extends StatefulWidget {
   const TransactionsPage({
@@ -419,6 +421,7 @@ class _TransactionFormDialogState extends State<_TransactionFormDialog> {
           child: _choiceField(
             future: _accounts,
             label: 'Hesap',
+            account: true,
             value: _accountId,
             onChanged: (value) => setState(() => _accountId = value),
           ),
@@ -475,11 +478,29 @@ class _TransactionFormDialogState extends State<_TransactionFormDialog> {
     ),
   );
 
+  /// `Hesap ekle`den dönülünce hesaplar yeniden okunur ve yeni hesap seçili
+  /// gelir.
+  Future<void> _addAccount(ValueChanged<String?> onChanged) async {
+    final created = await addAccountFromForm(context);
+    if (created == null || !mounted) return;
+    final next = widget.controller.loadAccounts();
+    setState(() => _accounts = next);
+    try {
+      final loaded = await next;
+      if (mounted && loaded.any((choice) => choice.id == created.id)) {
+        onChanged(created.id);
+      }
+    } on Object {
+      // Alan kendi hatasını yazar.
+    }
+  }
+
   Widget _choiceField({
     required Future<List<TransactionChoice>> future,
     required String label,
     required String? value,
     required ValueChanged<String?> onChanged,
+    bool account = false,
   }) => FutureBuilder<List<TransactionChoice>>(
     future: future,
     builder: (context, snapshot) {
@@ -488,6 +509,20 @@ class _TransactionFormDialogState extends State<_TransactionFormDialog> {
       }
       if (snapshot.hasError) return Text('$label yüklenemedi.');
       final choices = snapshot.data ?? const [];
+      if (account) {
+        final directory = AccountChoices.of(context);
+        return AppAccountField(
+          label: label,
+          value: value,
+          options: [
+            for (final choice in choices)
+              if (choice.isActive) directory.account(choice.id, choice.name),
+          ],
+          onAdd: () => _addAccount(onChanged),
+          onChanged: onChanged,
+          validator: (selected) => selected == null ? '$label seçin.' : null,
+        );
+      }
       return DropdownButtonFormField<String>(
         isExpanded: true,
         initialValue: value,
@@ -587,6 +622,7 @@ class _TransactionFilterDialogState extends State<_TransactionFilterDialog> {
       AppFormField(
         child: _FilterChoiceField(
           label: 'Hesap',
+          account: true,
           value: _accountId,
           choices: _accounts,
           onChanged: (value) => setState(() => _accountId = value),
@@ -624,12 +660,14 @@ class _FilterChoiceField extends StatelessWidget {
     required this.value,
     required this.choices,
     required this.onChanged,
+    this.account = false,
   });
 
   final String label;
   final String? value;
   final Future<List<TransactionChoice>> choices;
   final ValueChanged<String?> onChanged;
+  final bool account;
 
   @override
   Widget build(BuildContext context) => FutureBuilder<List<TransactionChoice>>(
@@ -640,6 +678,19 @@ class _FilterChoiceField extends StatelessWidget {
       }
       if (snapshot.hasError) {
         return Text('$label seçenekleri yüklenemedi.');
+      }
+      if (account) {
+        final directory = AccountChoices.of(context);
+        return AppAccountField(
+          label: label,
+          noneLabel: 'Tümü',
+          value: value,
+          options: [
+            for (final choice in snapshot.data ?? const <TransactionChoice>[])
+              directory.account(choice.id, choice.name),
+          ],
+          onChanged: onChanged,
+        );
       }
       return DropdownButtonFormField<String?>(
         isExpanded: true,

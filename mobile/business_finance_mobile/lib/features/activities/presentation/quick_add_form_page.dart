@@ -7,12 +7,13 @@ import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_date_field.dart';
 import '../../../core/widgets/app_inline_notice.dart';
-import '../../../core/widgets/app_menu_group_label.dart';
 import '../../../core/widgets/app_scope_selector.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../data/receipt_fee_writer.dart';
 import 'quick_add_controller.dart';
 import 'quick_add_models.dart';
+import '../../../core/widgets/app_account_field.dart';
+import '../../../features/accounts/presentation/account_directory.dart';
 
 /// Expense and income share one page because they share every field except the
 /// source. Expense can be paid from an account or a card; income can only land
@@ -66,14 +67,19 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
   late bool _keepAttachment = widget.prefill?.keepAttachmentByDefault ?? true;
   late DateTime _date = widget.today ?? DateTime.now();
 
+  /// Sayfanın ilk aldığı denetleyici. Rota her yeniden çizildiğinde yeni bir
+  /// denetleyici kurar (`Hesap ekle`den dönüş gibi); onu almak yüklenmiş
+  /// seçenekleri ve yazılanı kaybettirirdi.
+  late final QuickAddController _controller = widget.controller;
+
   @override
   void initState() {
     super.initState();
     _applyPrefill();
     if (widget.isExpense) {
-      widget.controller.loadExpenseOptions();
+      _controller.loadExpenseOptions();
     } else {
-      widget.controller.loadIncomeOptions();
+      _controller.loadIncomeOptions();
     }
   }
 
@@ -130,15 +136,15 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
       ),
       body: AnimatedBuilder(
         animation: widget.scopeController == null
-            ? widget.controller
-            : Listenable.merge([widget.controller, widget.scopeController]),
+            ? _controller
+            : Listenable.merge([_controller, widget.scopeController]),
         builder: (context, _) => _buildBody(context),
       ),
     );
   }
 
   Widget _buildBody(BuildContext context) {
-    final controller = widget.controller;
+    final controller = _controller;
     if (controller.unauthorized) return const AppUnauthorizedView();
     if (controller.isLoading) return const AppLoadingView();
 
@@ -219,11 +225,14 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
               hintText: 'İstanbulkart yükleme',
               helperText:
                   widget.prefill?.description?.helperText ??
-                  'Listede kaydın adı olur. Boş bırakılırsa '
-                      'kategori adı kullanılır.',
+                  'Boş bırakılırsa kategori adı kullanılır.',
+              // Belgeden gelen açıklama uzun olabilir; yarıda kesilmesin.
+              helperMaxLines: 3,
               suffixIcon: _suggestionIcon(widget.prefill?.description),
             ),
           ),
+          // Yardımcı metin düğmeye yapışmasın.
+          const SizedBox(height: AppSpacing.large),
           ..._buildKeepAttachment(context),
           ..._buildAutoFeeNotice(context),
           ..._buildReplacementNotice(context),
@@ -368,25 +377,60 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
   /// üstelik kullanıcı fişte yazanın aksine ödemiş olabilir. Diğer grup
   /// gizlenmiyor — gizlemek, meşru bir seçimi kullanıcıdan saklamak olurdu.
   Widget _buildSourcePicker() {
-    final options = widget.controller.expenseOptions!;
+    final options = _controller.expenseOptions!;
     // Yalnız fişte "kredi kartı" YAZIYORSA kartlar öne alınır. Türü yazmayan
     // kart ödemesinde sıra değişmez: o fiş banka kartı da olabilir ve kartları
     // öne almak, kullanıcıyı okunmamış bir bilgiye doğru itmek olurdu.
     final cardsFirst =
         widget.prefill?.sourceHint == PaymentSourceHint.creditCard;
-    return DropdownButtonFormField<PaymentSource>(
-      initialValue: _source,
-      isExpanded: true,
-      decoration: InputDecoration(
-        labelText: 'Ödeme kaynağı',
-        helperText: _sourceHintText,
-      ),
+    final choices = AccountChoices.of(context);
+    String keyOf(PaymentSource source) =>
+        '${source.isCard ? 'card' : 'account'}:${source.id}';
+    return AppAccountField(
+      label: 'Ödeme kaynağı',
+      helperText: _sourceHintText,
+      cardsFirst: cardsFirst,
+      value: _source == null ? null : keyOf(_source!),
       validator: (value) => value == null ? 'Ödeme kaynağı seçin.' : null,
-      onChanged: (value) => setState(() => _source = value),
-      items: cardsFirst
-          ? [..._cardItems(options), ..._accountItems(options)]
-          : [..._accountItems(options), ..._cardItems(options)],
+      onChanged: (key) => setState(
+        () => _source = options.sources
+            .where((source) => keyOf(source) == key)
+            .firstOrNull,
+      ),
+      onAdd: _addSource,
+      options: [
+        for (final source in options.sources)
+          source.isCard
+              ? choices
+                    .card(source.id, source.name, scope: source.defaultScope)
+                    .withId(keyOf(source))
+              : choices
+                    .account(source.id, source.name, scope: source.defaultScope)
+                    .withId(keyOf(source)),
+      ],
     );
+  }
+
+  /// `Hesap ekle`den dönülünce yeni hesap listede ve seçili gelir.
+  Future<void> _addSource() async {
+    final id = (await addAccountFromForm(context))?.id;
+    if (id == null || !mounted) return;
+    await _controller.refreshExpenseOptions();
+    if (!mounted) return;
+    final created = _controller.expenseOptions?.sources
+        .where((source) => !source.isCard && source.id == id)
+        .firstOrNull;
+    if (created != null) setState(() => _source = created);
+  }
+
+  Future<void> _addAccount() async {
+    final id = (await addAccountFromForm(context))?.id;
+    if (id == null || !mounted) return;
+    await _controller.refreshIncomeOptions();
+    if (!mounted) return;
+    final known =
+        _controller.incomeOptions?.accounts.any((a) => a.id == id) ?? false;
+    if (known) setState(() => _accountId = id);
   }
 
   String? get _sourceHintText => switch (widget.prefill?.sourceHint) {
@@ -402,57 +446,30 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
     null => null,
   };
 
-  List<DropdownMenuItem<PaymentSource>> _accountItems(
-    ExpenseFormOptions options,
-  ) => [
-    if (options.accounts.isNotEmpty)
-      const DropdownMenuItem<PaymentSource>(
-        enabled: false,
-        child: AppMenuGroupLabel('Hesaplar'),
-      ),
-    for (final account in options.accounts)
-      DropdownMenuItem(value: account, child: Text(account.name)),
-  ];
-
-  List<DropdownMenuItem<PaymentSource>> _cardItems(
-    ExpenseFormOptions options,
-  ) => [
-    if (options.cards.isNotEmpty)
-      const DropdownMenuItem<PaymentSource>(
-        enabled: false,
-        child: AppMenuGroupLabel('Kredi kartları'),
-      ),
-    for (final card in options.cards)
-      DropdownMenuItem(
-        value: card,
-        child: Text(
-          card.availableLimit == null
-              ? card.name
-              : '${card.name} • ${MoneyText.format(card.availableLimit!, 'TRY')} kullanılabilir',
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
-  ];
-
   Widget _buildAccountPicker() {
-    final options = widget.controller.incomeOptions!;
-    return DropdownButtonFormField<String>(
-      initialValue: _accountId,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: 'Hesap'),
+    final options = _controller.incomeOptions!;
+    final choices = AccountChoices.of(context);
+    return AppAccountField(
+      label: 'Hesap',
+      value: _accountId,
       validator: (value) => value == null ? 'Hesap seçin.' : null,
       onChanged: (value) => setState(() => _accountId = value),
-      items: [
+      onAdd: _addAccount,
+      options: [
         for (final account in options.accounts)
-          DropdownMenuItem(value: account.id, child: Text(account.name)),
+          choices.account(
+            account.id,
+            account.name,
+            scope: account.defaultScope,
+          ),
       ],
     );
   }
 
   Widget _buildCategoryPicker() {
     final categories = widget.isExpense
-        ? widget.controller.expenseOptions!.categories
-        : widget.controller.incomeOptions!.categories;
+        ? _controller.expenseOptions!.categories
+        : _controller.incomeOptions!.categories;
     _resolveCategoryNameHint(categories);
     return DropdownButtonFormField<String>(
       initialValue: _categoryId,
@@ -484,7 +501,7 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
 
   TransactionScope? get _sourceScope {
     if (widget.isExpense) return _source?.defaultScope;
-    final accounts = widget.controller.incomeOptions?.accounts;
+    final accounts = _controller.incomeOptions?.accounts;
     if (accounts == null || _accountId == null) return null;
     for (final account in accounts) {
       if (account.id == _accountId) return account.defaultScope;
@@ -501,8 +518,8 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
   }
 
   List<QuickAddChoice> get _categoryChoices => widget.isExpense
-      ? widget.controller.expenseOptions?.categories ?? const []
-      : widget.controller.incomeOptions?.categories ?? const [];
+      ? _controller.expenseOptions?.categories ?? const []
+      : _controller.incomeOptions?.categories ?? const [];
 
   /// Değerin **nereden** geldiğini söyler.
   ///
@@ -511,8 +528,7 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
   /// sessizce bozuyor.
 
   String? get _accountName {
-    for (final account
-        in widget.controller.incomeOptions?.accounts ?? const []) {
+    for (final account in _controller.incomeOptions?.accounts ?? const []) {
       if (account.id == _accountId) return account.name;
     }
     return null;
@@ -551,7 +567,7 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
         : null;
 
     final saved = widget.isExpense
-        ? await widget.controller.submitExpense(
+        ? await _controller.submitExpense(
             source: _source!,
             categoryId: _categoryId!,
             amount: amount,
@@ -561,7 +577,7 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
             scope: _resolvedScope,
             replaces: widget.prefill?.replaces,
           )
-        : await widget.controller.submitIncome(
+        : await _controller.submitIncome(
             accountId: _accountId!,
             categoryId: _categoryId!,
             amount: amount,
@@ -578,7 +594,7 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
     final fee = widget.prefill?.autoFee;
     final source = _source;
     if (fee != null && source != null) {
-      final result = await widget.controller.submitAutoFee(
+      final result = await _controller.submitAutoFee(
         source: source,
         fee: fee,
         date: _formattedDate,
@@ -589,7 +605,7 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
       ).showSnackBar(SnackBar(content: Text(result.message)));
     }
 
-    final warning = widget.controller.attachmentWarning;
+    final warning = _controller.attachmentWarning;
     if (warning != null) {
       // Uyarı sayfa kapanmadan önce gösteriliyor; messenger uygulama
       // seviyesinde olduğu için pop'tan sonra da ekranda kalıyor.

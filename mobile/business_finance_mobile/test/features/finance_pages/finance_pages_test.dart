@@ -1,3 +1,4 @@
+import '../../support/account_field_helpers.dart';
 import 'dart:async';
 import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 import 'package:business_finance_mobile/core/network/api_exception.dart';
@@ -479,13 +480,12 @@ void main() {
     final repo = PageFixture();
     await tester.pumpWidget(host(TransferPage(repository: repo)));
     await tester.pumpAndSettle();
-    await tester.tap(find.byType(DropdownButtonFormField<String>).first);
+    await chooseAccount(tester, 'Ziraat vadesiz', label: 'Çıkan hesap');
+    // Giren hesapta çıkan hesap listede kalır ama seçilemez.
+    await tester.tap(accountField('Giren hesap'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Ziraat vadesiz').last);
-    await tester.pumpAndSettle();
-    await tester.tap(find.byType(DropdownButtonFormField<String>).last);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Kasa').last);
+    expect(find.text('Para buradan çıkıyor'), findsOneWidget);
+    await tester.tap(accountMenuRow('Kasa'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).at(0), '10.000,1234');
     await tester.enterText(find.byType(TextFormField).at(1), '50,0001');

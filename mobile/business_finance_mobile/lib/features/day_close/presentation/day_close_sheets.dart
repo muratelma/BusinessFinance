@@ -19,6 +19,8 @@ import '../../../core/network/api_error_messages.dart';
 import '../data/day_close_repository.dart';
 import 'day_close_answers.dart';
 import 'day_close_controller.dart';
+import '../../../core/widgets/app_account_field.dart';
+import '../../../features/accounts/presentation/account_directory.dart';
 
 /// Gün sonu panelini açar (ADR 0019 T1–T2). Kaydedilince `true`, vazgeçilince
 /// `null`.
@@ -645,6 +647,26 @@ class _DayCloseFormState extends State<_DayCloseForm> {
     ),
   ];
 
+  /// `Hesap ekle`den dönülünce seçenekler yeniden okunur; yeni hesap nakitse
+  /// kasa olarak seçili gelir.
+  Future<void> _addCashAccount() async {
+    final created = await addAccountFromForm(context, type: 'cash');
+    if (created == null || !mounted) return;
+    final next = controller.loadOptions();
+    setState(() => options = next);
+    final DayCloseOptions data;
+    try {
+      data = await next;
+    } on Object {
+      return; // Alan kendi hatasını yazar.
+    }
+    if (!mounted) return;
+    if (data.cashAccounts.any((item) => item.id == created.id)) {
+      setState(() => cashAccountId = created.id);
+      _loadPreview();
+    }
+  }
+
   Widget _choiceField({
     required String label,
     required String fieldKey,
@@ -655,6 +677,27 @@ class _DayCloseFormState extends State<_DayCloseForm> {
   }) {
     // Seçili gelen kayıt listede yoksa (pasife alınmış) alan boş kalır.
     final value = choices.any((item) => item.id == selected) ? selected : null;
+    if (fieldKey == 'day-close-account') {
+      return AppAccountField(
+        key: ValueKey(fieldKey),
+        label: label,
+        value: value,
+        options: [
+          for (final choice in choices)
+            AccountChoices.of(
+              context,
+            ).account(choice.id, choice.name, type: 'cash'),
+        ],
+        emptyTitle: 'Henüz kasa yok',
+        emptyMessage: 'Nakit satış için önce bir nakit hesap ekleyin.',
+        onAdd: _addCashAccount,
+        onChanged: (selection) {
+          setState(() => onChanged(selection));
+          _loadPreview();
+        },
+        validator: (selection) => selection == null ? missing : null,
+      );
+    }
     return DropdownButtonFormField<String>(
       key: ValueKey('$fieldKey-$value'),
       initialValue: value,

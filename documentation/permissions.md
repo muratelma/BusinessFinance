@@ -159,7 +159,7 @@ query parametresi, tanınmayan değer `*.invalid_scope`:
 
 | Endpoint | Bölünen | Bölünmeyen |
 |---|---|---|
-| `GET /api/v1/reports/monthly` | Gelir, gider, kategori dağılımı | `accountBalances` |
+| `GET /api/v1/reports/monthly` | Gelir, gider, kategori dağılımı | `accountBalances` (hesabın `isActive` ve `defaultScope` alanlarıyla; ikisi de yalnız sahibin hesabından) |
 | `GET /api/v1/dashboard` (aynı uç nokta) | Aynı | Aynı |
 | `GET /api/v1/reports/advanced` | Dönem karşılaştırması, nakit akışı, bütçe sapması | `netWorth`, `accountDistribution`, `cardDistribution` |
 | `GET /api/v1/financial-activities` | Feed'in tamamı | — |

@@ -541,7 +541,7 @@ internal sealed class EfFinancialReportRepository(
             .Where(account => account.UserId == userId)
             .OrderBy(account => account.Name)
             .ThenBy(account => account.Id)
-            .Select(account => new { account.Id, account.Name, account.OpeningBalance, account.Type })
+            .Select(account => new { account.Id, account.Name, account.OpeningBalance, account.Type, account.IsActive, account.DefaultScope })
             .ToArrayAsync(cancellationToken);
         var movements = await AccountMovements.SumByAccountAsync(
             dbContext, userId, asOfDate, cancellationToken);
@@ -550,7 +550,9 @@ internal sealed class EfFinancialReportRepository(
             account.Id,
             account.Name,
             account.OpeningBalance + movements.GetValueOrDefault(account.Id),
-            account.Type)).ToArray();
+            account.Type,
+            account.IsActive,
+            account.DefaultScope)).ToArray();
     }
 
     private async Task<IReadOnlyList<CardDebtDto>> GetCardDebtsAsOfAsync(

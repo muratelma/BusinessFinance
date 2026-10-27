@@ -13,6 +13,8 @@ import '../../../core/widgets/app_state_views.dart';
 import '../data/goal_models.dart';
 import '../data/goal_repository.dart';
 import 'goals_controller.dart';
+import '../../../core/widgets/app_account_field.dart';
+import '../../../features/accounts/presentation/account_directory.dart';
 
 /// Tasarruf hedefleri.
 ///
@@ -301,6 +303,7 @@ class _GoalFormState extends State<_GoalForm> {
   final _target = TextEditingController();
   var _mode = 'manual-contributions';
   String? _accountId;
+  late List<DataChoice> _accounts = widget.accounts;
   late var _targetDate = AppDateField.format(
     DateTime.now().add(const Duration(days: 365)),
   );
@@ -394,14 +397,21 @@ class _GoalFormState extends State<_GoalForm> {
         ),
         if (_mode == 'account-balance')
           AppFormField(
-            child: DropdownButtonFormField<String>(
-              initialValue: _accountId,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Bağlı hesap'),
-              items: [
-                for (final item in widget.accounts)
-                  DropdownMenuItem(value: item.id, child: Text(item.name)),
+            child: AppAccountField(
+              label: 'Bağlı hesap',
+              value: _accountId,
+              options: [
+                for (final item in _accounts)
+                  AccountChoices.of(context).account(item.id, item.name),
               ],
+              onAdd: () async {
+                final created = await addAccountFromForm(context);
+                if (created == null || !mounted) return;
+                setState(() {
+                  _accounts = [..._accounts, created.choice];
+                  _accountId = created.id;
+                });
+              },
               onChanged: (value) => setState(() => _accountId = value),
             ),
           ),

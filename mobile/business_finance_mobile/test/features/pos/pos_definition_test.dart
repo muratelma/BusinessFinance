@@ -10,6 +10,8 @@ import 'package:business_finance_mobile/features/pos/presentation/pos_settlement
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/account_field_helpers.dart';
+
 /// Aşama 06.3 Grup 4: POS tanımı (ADR 0019 T4). Tanım bir kez girilir;
 /// tahsilat formu ondan dolar ve akşamki giriş "tutar + kaydet"e iner.
 void main() {
@@ -205,8 +207,20 @@ void main() {
 
       await tester.tap(find.text('Ziraat POS'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Elle gir').last);
+      // Elle giriş POS değildir: listenin sonunda, kendi alt yazısıyla.
+      expect(
+        accountMenuRow('POS seçmeden; hesabı siz seçersiniz'),
+        findsOneWidget,
+      );
+      await tester.tap(accountMenuRow('Elle gir'));
       await tester.pumpAndSettle();
+      // Kapalı alanda ad tek başına durur; hesap POS'un hemen altında.
+      expect(find.text('Elle gir'), findsOneWidget);
+      expect(find.text('POS seçmeden; hesabı siz seçersiniz'), findsNothing);
+      expect(
+        tester.getTopLeft(find.text('Paranın geçeceği hesap')).dy,
+        lessThan(tester.getTopLeft(find.text('Müşterinin ödediği')).dy),
+      );
 
       expect(find.text('Satış kategorisi'), findsOneWidget);
       expect(find.text('Paranın beklendiği gün'), findsOneWidget);

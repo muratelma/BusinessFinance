@@ -1,3 +1,4 @@
+import '../../support/account_field_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:business_finance_mobile/core/models/transaction_scope.dart';
@@ -6,7 +7,6 @@ import 'package:business_finance_mobile/core/theme/app_theme.dart';
 import 'package:business_finance_mobile/core/widgets/app_scope_selector.dart';
 import 'package:business_finance_mobile/features/activities/presentation/quick_add_controller.dart';
 import 'package:business_finance_mobile/features/activities/presentation/quick_add_form_page.dart';
-import 'package:business_finance_mobile/features/activities/presentation/quick_add_models.dart';
 import 'package:business_finance_mobile/features/cards/data/finance_models.dart';
 import 'package:business_finance_mobile/features/cards/data/finance_repository.dart';
 import 'package:business_finance_mobile/features/transactions/data/transaction_models.dart';
@@ -161,10 +161,7 @@ void main() {
       transactions: transactions,
     );
 
-    await tester.tap(find.byType(DropdownButtonFormField<String>).first);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Dükkân kasası').last);
-    await tester.pumpAndSettle();
+    await chooseAccount(tester, 'Dükkân kasası', label: 'Hesap');
     await _selectCategory(tester, 'Diğer gelir');
 
     expect(_selectedScope(tester), TransactionScope.business);
@@ -175,12 +172,7 @@ TransactionScope? _selectedScope(WidgetTester tester) =>
     tester.widget<AppScopeField>(find.byType(AppScopeField)).value;
 
 Future<void> _selectSource(WidgetTester tester, String name) async {
-  await tester.tap(find.byType(DropdownButtonFormField<PaymentSource>));
-  await tester.pumpAndSettle();
-  // Kart satırı adının yanında kullanılabilir limiti de yazıyor; eşleşme
-  // bu yüzden tam metin değil.
-  await tester.tap(find.textContaining(name).last);
-  await tester.pumpAndSettle();
+  await chooseAccount(tester, name, label: 'Ödeme kaynağı');
 }
 
 Future<void> _selectCategory(WidgetTester tester, String name) async {

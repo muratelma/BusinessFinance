@@ -8,6 +8,8 @@ import '../../../core/widgets/app_date_field.dart';
 import '../../../core/widgets/app_form_sheet.dart';
 import '../../../core/widgets/app_segment_rail.dart';
 import 'cash_controller.dart';
+import '../../../core/widgets/app_account_field.dart';
+import '../../../features/accounts/presentation/account_directory.dart';
 
 /// Kasadan alınan paranın nasıl yazılacağı.
 enum WithdrawalMethod {
@@ -240,22 +242,18 @@ class CashWithdrawalFieldsState extends State<CashWithdrawalFields> {
                   const SizedBox(height: AppSpacing.medium),
                 ],
                 if (method == WithdrawalMethod.transfer)
-                  DropdownButtonFormField<String>(
+                  AppAccountField(
                     key: const ValueKey('withdrawal-account'),
-                    initialValue: accountId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Şahsi hesap',
-                      helperText: 'Gider yazılmaz; para yer değiştirir.',
-                    ),
-                    items: [
+                    label: 'Şahsi hesap',
+                    helperText: 'Gider yazılmaz; para yer değiştirir.',
+                    value: accountId,
+                    options: [
                       for (final account in accounts)
-                        DropdownMenuItem(
-                          value: account.id,
-                          child: Text(account.name),
-                        ),
+                        AccountChoices.of(
+                          context,
+                        ).account(account.id, account.name),
                     ],
-                    onChanged: (value) => accountId = value,
+                    onChanged: (value) => setState(() => accountId = value),
                     validator: (value) => value == null ? 'Hesap seçin.' : null,
                   )
                 else

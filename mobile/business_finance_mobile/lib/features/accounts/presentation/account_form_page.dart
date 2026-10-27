@@ -3,12 +3,14 @@ import 'package:provider/provider.dart';
 
 import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/presentation/financial_data_changes.dart';
 import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_form_error.dart';
 import '../../../core/widgets/app_scope_selector.dart';
 import '../data/account_models.dart';
+import '../data/account_repository.dart';
 
 typedef SaveAccount =
     Future<bool> Function({
@@ -29,6 +31,8 @@ class AccountFormPage extends StatefulWidget {
     this.account,
     this.onDelete,
     this.readError,
+    this.initialType,
+    this.savedResult,
   }) : assert(account == null || onDelete != null);
 
   final Account? account;
@@ -39,6 +43,13 @@ class AccountFormPage extends StatefulWidget {
   /// reddini kendi içinde tutuyor; form onu okuyamazsa `Kaydet` hiçbir şey
   /// yapmamış gibi görünür.
   final String? Function()? readError;
+
+  /// Yeni hesabın ön değeri (`cash` / `bank`); bankaya geçecek parayı soran
+  /// formdan gelindiyse `bank`.
+  final String? initialType;
+
+  /// Kaydedince sayfanın döndürdüğü değer; boşsa `true`.
+  final Object? Function()? savedResult;
 
   @override
   State<AccountFormPage> createState() => _AccountFormPageState();
@@ -64,7 +75,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
     _balanceController = TextEditingController(
       text: account?.openingBalance ?? '0',
     );
-    _type = account?.type ?? 'cash';
+    _type = account?.type ?? widget.initialType ?? 'cash';
     _isActive = account?.isActive ?? true;
     _defaultScope = account?.defaultScope;
   }
@@ -95,7 +106,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
       );
       if (!mounted) return;
       if (saved) {
-        Navigator.of(context).pop(true);
+        Navigator.of(context).pop(widget.savedResult?.call() ?? true);
       } else {
         setState(
           () => _error =
@@ -256,4 +267,59 @@ class _AccountFormPageState extends State<AccountFormPage> {
     }
     return null;
   }
+}
+
+/// Bir formun `Hesap ekle`i: ekleme formu doğrudan açılır, kaydedince açıldığı
+/// forma yeni hesapla dönülür ve form onu seçer.
+class AccountCreatePage extends StatefulWidget {
+  const AccountCreatePage({
+    required this.repository,
+    super.key,
+    this.changes,
+    this.initialType,
+  });
+
+  final AccountRepository repository;
+  final FinancialDataChanges? changes;
+  final String? initialType;
+
+  @override
+  State<AccountCreatePage> createState() => _AccountCreatePageState();
+}
+
+class _AccountCreatePageState extends State<AccountCreatePage> {
+  Account? _created;
+  String? _error;
+
+  Future<bool> _save({
+    Account? account,
+    required String name,
+    required String type,
+    required String openingBalance,
+    required bool isActive,
+    TransactionScope? defaultScope,
+  }) async {
+    try {
+      final created = await widget.repository.create(
+        name: name,
+        type: type,
+        openingBalance: openingBalance,
+        defaultScope: defaultScope,
+      );
+      _created = created;
+      widget.changes?.accountsChanged();
+      return true;
+    } on FormatException {
+      _error = 'Hesap verisi beklenen biçimde alınamadı.';
+      return false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AccountFormPage(
+    onSave: _save,
+    readError: () => _error,
+    initialType: widget.initialType,
+    savedResult: () => _created,
+  );
 }

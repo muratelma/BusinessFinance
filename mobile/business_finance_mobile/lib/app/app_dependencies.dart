@@ -1,3 +1,4 @@
+import '../features/accounts/presentation/account_directory.dart';
 import 'package:http/http.dart' as http;
 
 import '../core/config/api_config.dart';
@@ -212,6 +213,13 @@ class AppDependencies {
   /// Cihaz üstü hatırlatma. Kompozisyon kökünde tek örnek: ayar ekranı
   /// kapalıyken de (veri değiştiğinde) zamanlayıcıyı yeniden kurması gerekir.
   final ReminderController reminderController;
+
+  /// Hesap seçicilerin ortak satır bilgisi (tür, kapsam, bakiye, kart borcu).
+  late final AccountDirectory accountDirectory = AccountDirectory.fromApi(
+    apiClient,
+    changes: financialDataChanges,
+    session: authController,
+  );
   final http.Client _httpClient;
 
   void dispose() {
@@ -219,6 +227,7 @@ class AppDependencies {
     financialDataChanges.dispose();
     scopeController.dispose();
     reminderController.dispose();
+    accountDirectory.dispose();
     _httpClient.close();
   }
 }

@@ -1,3 +1,4 @@
+import '../../../core/models/transaction_scope.dart';
 import '../../../core/localization/default_category_labels.dart';
 import '../../../core/models/json_readers.dart';
 
@@ -190,6 +191,8 @@ class AccountBalance {
     required this.accountName,
     required this.balance,
     this.type,
+    this.isActive = true,
+    this.defaultScope,
   });
 
   final String accountId;
@@ -200,10 +203,18 @@ class AccountBalance {
   /// sunucuya karşı null kalır ve ikon nötr varsayılana düşer.
   final String? type;
 
+  /// Pasif hesap Özet'te çizilmez; alanı göndermeyen sunucuda aktif sayılır.
+  final bool isActive;
+
+  /// Hesabın kapsam etiketi; boş olması meşrudur.
+  final TransactionScope? defaultScope;
+
   factory AccountBalance.fromJson(Map<String, dynamic> json) => AccountBalance(
     accountId: JsonReaders.string(json, 'accountId'),
     accountName: JsonReaders.string(json, 'accountName'),
     balance: JsonReaders.money(json, 'balance'),
     type: json['type'] is String ? json['type'] as String : null,
+    isActive: json['isActive'] is bool ? json['isActive'] as bool : true,
+    defaultScope: TransactionScope.fromApiOrNull(json['defaultScope']),
   );
 }

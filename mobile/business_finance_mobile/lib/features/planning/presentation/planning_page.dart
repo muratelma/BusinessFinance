@@ -20,7 +20,6 @@ import '../../../core/widgets/app_list_row.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_section_header.dart';
 import '../../../core/widgets/app_form_sheet.dart';
-import '../../../core/widgets/app_menu_group_label.dart';
 import '../../../core/widgets/app_month_chips.dart';
 import '../../../core/widgets/app_responsive_grid.dart';
 import '../../../core/widgets/app_scope_selector.dart';
@@ -32,6 +31,8 @@ import '../data/planning_models.dart';
 import '../data/planning_repository.dart';
 import 'planning_controller.dart';
 import 'realize_day_sheet.dart';
+import '../../../core/widgets/app_account_field.dart';
+import '../../../features/accounts/presentation/account_directory.dart';
 
 class PlanningPage extends StatefulWidget {
   const PlanningPage({
@@ -902,6 +903,7 @@ class _RecurringFormState extends State<_RecurringForm> {
   String? accountId;
   String? creditCardId;
   String? categoryId;
+  late List<PlanningChoice> accounts = widget.snapshot.accounts;
   TransactionScope? explicitScope;
   bool scopeMissing = false;
   String kind = 'expense';
@@ -940,48 +942,43 @@ class _RecurringFormState extends State<_RecurringForm> {
         // and card refunds are not modelled. An expense or bill may be
         // charged to a card, which is how a subscription is really paid.
         if (kind == 'income')
-          DropdownButtonFormField<String>(
-            key: ValueKey('income-account-$accountId'),
-            initialValue: accountId,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Hesap'),
-            items: [
-              for (final account in widget.snapshot.accounts)
-                DropdownMenuItem(value: account.id, child: Text(account.name)),
+          AppAccountField(
+            label: 'Hesap',
+            value: accountId,
+            options: [
+              for (final account in accounts)
+                AccountChoices.of(context).account(
+                  account.id,
+                  account.name,
+                  type: account.type,
+                  scope: account.defaultScope,
+                ),
             ],
             onChanged: (value) => setState(() {
               accountId = value;
               creditCardId = null;
             }),
+            onAdd: _addAccount,
             validator: (value) => value == null ? 'Hesap seçin.' : null,
           )
         else
-          DropdownButtonFormField<String>(
-            key: ValueKey('source-$kind-$_sourceValue'),
-            initialValue: _sourceValue,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Kaynak'),
-            items: [
-              if (widget.snapshot.accounts.isNotEmpty)
-                const DropdownMenuItem<String>(
-                  enabled: false,
-                  child: AppMenuGroupLabel('Hesaplar'),
-                ),
-              for (final account in widget.snapshot.accounts)
-                DropdownMenuItem(
-                  value: 'account:${account.id}',
-                  child: Text(account.name),
-                ),
-              if (widget.snapshot.creditCards.isNotEmpty)
-                const DropdownMenuItem<String>(
-                  enabled: false,
-                  child: AppMenuGroupLabel('Kredi kartları'),
-                ),
+          AppAccountField(
+            label: 'Kaynak',
+            value: _sourceValue,
+            options: [
+              for (final account in accounts)
+                AccountChoices.of(context)
+                    .account(
+                      account.id,
+                      account.name,
+                      type: account.type,
+                      scope: account.defaultScope,
+                    )
+                    .withId('account:${account.id}'),
               for (final card in widget.snapshot.creditCards)
-                DropdownMenuItem(
-                  value: 'card:${card.id}',
-                  child: Text(card.name),
-                ),
+                AccountChoices.of(context)
+                    .card(card.id, card.name, scope: card.defaultScope)
+                    .withId('card:${card.id}'),
             ],
             onChanged: (value) => setState(() {
               if (value == null) return;
@@ -989,6 +986,7 @@ class _RecurringFormState extends State<_RecurringForm> {
               creditCardId = isCard ? value.substring(5) : null;
               accountId = isCard ? null : value.substring(8);
             }),
+            onAdd: _addAccount,
             validator: (value) => value == null ? 'Kaynak seçin.' : null,
           ),
         const SizedBox(height: AppSpacing.medium),
@@ -1167,6 +1165,25 @@ class _RecurringFormState extends State<_RecurringForm> {
     ),
   );
 
+  /// `Hesap ekle`den dönülünce yeni hesap listede ve seçili gelir.
+  Future<void> _addAccount() async {
+    final created = await addAccountFromForm(context);
+    if (created == null || !mounted) return;
+    setState(() {
+      accounts = [
+        ...accounts,
+        PlanningChoice(
+          id: created.id,
+          name: created.name,
+          type: created.type,
+          defaultScope: created.defaultScope,
+        ),
+      ];
+      accountId = created.id;
+      creditCardId = null;
+    });
+  }
+
   String? get _sourceValue => creditCardId != null
       ? 'card:$creditCardId'
       : (accountId == null ? null : 'account:$accountId');
@@ -1181,9 +1198,7 @@ class _RecurringFormState extends State<_RecurringForm> {
               ? widget.snapshot.creditCards.where(
                   (card) => card.id == creditCardId,
                 )
-              : widget.snapshot.accounts.where(
-                  (account) => account.id == accountId,
-                ))
+              : accounts.where((account) => account.id == accountId))
           .firstOrNull
           ?.defaultScope;
 

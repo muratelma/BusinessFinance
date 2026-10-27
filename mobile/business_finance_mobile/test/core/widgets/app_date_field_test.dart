@@ -62,7 +62,8 @@ void main() {
     // kenarlık, etiket temadan geliyor.
     expect(find.byType(InputDecorator), findsOneWidget);
     expect(find.text('İşlem tarihi'), findsOneWidget);
-    expect(find.text('2026-08-16'), findsOneWidget);
+    // Gün, ayın adı ve yılla yazılır; değer yine `yyyy-MM-dd`dir.
+    expect(find.text('16 Ağustos 2026'), findsOneWidget);
   });
 
   testWidgets('değer yokken seçilmediğini söyler', (tester) async {

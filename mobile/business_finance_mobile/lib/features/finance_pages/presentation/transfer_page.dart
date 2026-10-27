@@ -17,6 +17,8 @@ import '../../cards/presentation/transfer_prefill.dart';
 import '../data/finance_page_models.dart';
 import '../data/finance_page_repository.dart';
 import 'transfer_controller.dart';
+import '../../../core/widgets/app_account_field.dart';
+import '../../../features/accounts/presentation/account_directory.dart';
 
 class TransferPage extends StatelessWidget {
   const TransferPage({
@@ -281,19 +283,42 @@ class _TransferPageState extends State<_TransferPageBody> {
     String? value,
     ValueChanged<String?> changed, {
     String? exclude,
-  }) => DropdownButtonFormField<String>(
-    key: ValueKey((label, value)),
-    initialValue: value,
-    isExpanded: true,
-    decoration: InputDecoration(labelText: label),
-    items: [
-      for (final a in controller.accounts!.items)
-        if (a.isActive && a.id != exclude)
-          DropdownMenuItem(value: a.id, child: Text(a.name)),
-    ],
-    onChanged: controller.isSaving ? null : changed,
-    validator: (v) => v == null ? 'Hesap seçin.' : null,
-  );
+  }) {
+    final choices = AccountChoices.of(context);
+    return AppAccountField(
+      label: label,
+      value: value,
+      // Giren hesapta çıkan hesap listede kalır ama seçilemez: kullanıcı
+      // nereden çıktığını menüde de görür.
+      options: [
+        for (final a in controller.accounts!.items)
+          if (a.isActive)
+            choices.account(
+              a.id,
+              a.name,
+              type: a.type,
+              scope: a.defaultScope,
+              balance: a.balance,
+              disabledNote: a.id == exclude ? 'Para buradan çıkıyor' : null,
+            ),
+      ],
+      onChanged: controller.isSaving ? null : changed,
+      onAdd: () => _addAccount(changed),
+      validator: (v) => v == null ? 'Hesap seçin.' : null,
+    );
+  }
+
+  /// `Hesap ekle`den dönülünce yeni hesap listede ve bu alanda seçili gelir.
+  Future<void> _addAccount(ValueChanged<String?> changed) async {
+    final id = (await addAccountFromForm(context))?.id;
+    if (id == null || !mounted) return;
+    await controller.load();
+    if (!mounted) return;
+    if (controller.accounts?.items.any((a) => a.id == id) ?? false) {
+      setState(() => changed(id));
+    }
+  }
+
   Widget _money(
     String label,
     TextEditingController text, {

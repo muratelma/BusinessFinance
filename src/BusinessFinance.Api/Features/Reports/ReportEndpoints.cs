@@ -114,7 +114,9 @@ public static class ReportEndpoints
                 item.AccountId,
                 item.AccountName,
                 FinanceContract.Money(item.Balance),
-                FinanceContract.AccountTypeValue(item.Type))).ToArray(),
+                FinanceContract.AccountTypeValue(item.Type),
+                item.IsActive,
+                FinanceContract.OptionalScopeValue(item.DefaultScope))).ToArray(),
             report.ScopeBreakdown is { } breakdown
                 ? new MonthlyScopeBreakdownResponse(
                     ToScopeTotals(breakdown.Business),

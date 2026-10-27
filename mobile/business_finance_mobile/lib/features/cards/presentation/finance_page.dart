@@ -28,6 +28,8 @@ import '../data/finance_models.dart';
 import '../data/finance_repository.dart';
 import 'finance_controller.dart';
 import 'transfer_prefill.dart';
+import '../../../core/widgets/app_account_field.dart';
+import '../../../features/accounts/presentation/account_directory.dart';
 
 /// Kredi kartları listesi. Transfer ayrı sayfada ve ortak işlem ayrıntısındadır.
 class FinancePage extends StatefulWidget {
@@ -1039,6 +1041,10 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
         title: 'Kart ödemesi',
         choiceLabel: 'Ödeme hesabı',
         choices: widget.controller.snapshot!.accounts,
+        reloadChoices: () async {
+          await widget.controller.load();
+          return widget.controller.snapshot?.accounts ?? const [];
+        },
         choiceKey: 'accountId',
         dateKey: 'paymentDate',
         presetAmount: presetAmount,
@@ -1310,10 +1316,14 @@ class _ActivityDialog extends StatefulWidget {
     this.asksScope = false,
     this.sourceScope,
     this.sourceName,
+    this.reloadChoices,
   });
   final String title;
   final String choiceLabel;
   final List<FinanceChoice> choices;
+
+  /// `Hesap ekle`den dönülünce hesap listesini yeniden okur.
+  final Future<List<FinanceChoice>> Function()? reloadChoices;
   final String choiceKey;
   final String dateKey;
 
@@ -1344,6 +1354,7 @@ class _ActivityDialog extends StatefulWidget {
 
 class _ActivityDialogState extends State<_ActivityDialog> {
   final key = GlobalKey<FormState>();
+  late List<FinanceChoice> choices = widget.choices;
   late final TextEditingController amount = TextEditingController(
     text: widget.presetAmount == null
         ? ''
@@ -1367,10 +1378,18 @@ class _ActivityDialogState extends State<_ActivityDialog> {
       widget.asksScope &&
       (context.read<ScopeController?>()?.isVisible ?? false);
 
-  TransactionScope? get _categoryScope => widget.choices
-      .where((item) => item.id == choice)
-      .firstOrNull
-      ?.defaultScope;
+  TransactionScope? get _categoryScope =>
+      choices.where((item) => item.id == choice).firstOrNull?.defaultScope;
+
+  /// Yeni hesap listede ve seçili gelir.
+  Future<void> _added(String id) async {
+    final next = await widget.reloadChoices!();
+    if (!mounted) return;
+    setState(() {
+      choices = next;
+      if (next.any((item) => item.id == id)) choice = id;
+    });
+  }
 
   @override
   Widget build(BuildContext context) => Form(
@@ -1400,15 +1419,27 @@ class _ActivityDialogState extends State<_ActivityDialog> {
       },
       children: [
         AppFormField(
-          child: _choice(
-            widget.choices,
-            widget.choiceLabel,
-            choice,
-            (v) => setState(() {
-              choice = v;
-              scopeMissing = false;
-            }),
-          ),
+          child: widget.choiceKey == 'accountId'
+              ? _accountChoice(
+                  context,
+                  choices,
+                  widget.choiceLabel,
+                  choice,
+                  (v) => setState(() {
+                    choice = v;
+                    scopeMissing = false;
+                  }),
+                  onAdded: widget.reloadChoices == null ? null : _added,
+                )
+              : _choice(
+                  choices,
+                  widget.choiceLabel,
+                  choice,
+                  (v) => setState(() {
+                    choice = v;
+                    scopeMissing = false;
+                  }),
+                ),
         ),
         if (_showScope && choice != null)
           AppFormField(
@@ -1571,13 +1602,19 @@ class _PlanDialogState extends State<_PlanDialog> {
       children: [
         if (widget.fixedCardId == null)
           AppFormField(
-            child: _choice(
-              widget.cards
-                  .map((c) => FinanceChoice(id: c.id, name: c.name))
-                  .toList(),
-              'Kart',
-              cardId,
-              (v) => setState(() => cardId = v),
+            child: AppAccountField(
+              label: 'Kart',
+              value: cardId,
+              options: [
+                for (final c in widget.cards)
+                  AccountChoices.of(
+                    context,
+                  ).card(c.id, c.name, scope: c.defaultScope),
+              ],
+              onChanged: (v) => setState(() => cardId = v),
+              validator: (v) => v == null ? 'Kart seçin.' : null,
+              emptyTitle: 'Henüz kart yok',
+              emptyMessage: 'Taksitli harcama için önce bir kart ekleyin.',
             ),
           ),
         AppFormField(
@@ -1928,6 +1965,32 @@ class _StatementSheetState extends State<_StatementSheet> {
     final formatted = MoneyText.format(amount, currency);
     return sign == null ? formatted : '$sign $formatted';
   }
+}
+
+/// Hesap seçimi ortak hesap alanıyla; tür ve bakiye rehberden gelir.
+Widget _accountChoice(
+  BuildContext context,
+  List<FinanceChoice> choices,
+  String label,
+  String? value,
+  ValueChanged<String?> changed, {
+  Future<void> Function(String id)? onAdded,
+}) {
+  final options = AccountChoices.of(context);
+  return AppAccountField(
+    label: label,
+    value: value,
+    options: [
+      for (final item in choices)
+        options.account(item.id, item.name, scope: item.defaultScope),
+    ],
+    onChanged: changed,
+    onAdd: () async {
+      final id = (await addAccountFromForm(context))?.id;
+      if (id != null) await onAdded?.call(id);
+    },
+    validator: (selected) => selected == null ? '$label seçin.' : null,
+  );
 }
 
 Widget _choice(
