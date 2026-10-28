@@ -1529,3 +1529,26 @@ Teslim: `design/kategori-pos-handoff/` (Claude Design; README ve
   panelde altta sabit duran eylem satırı (POS panelindeki `Vazgeç` /
   `Tahsilatı kaydet`) menü açıkken görünür kalır; POS panelinin yan boşluğu teslim
   karesindeki 24 değil 16'dır (teslim ölçüsü kuralı, 10 Ekim 2026).
+
+### Kategori seçicinin bağlandığı alanlar — 28 Ekim 2026 (ikinci parça)
+
+Eski açılır kategori listesi ve formdaki kapsam çipi şu alanlarda
+`AppCategoryField`'a geçti; değiştirilen panel ve sayfalar 16 dp yan boşluk ve
+harf aralıksız metinle çizilir:
+
+- **Kapsam menüde seçilir:** Gelir/Gider ekle, bütçe (`Gider kategorisi`),
+  kart harcaması, taksit planı, tekrarlayan plan, borç/alacak planının
+  kategorili kaynağı. Hesabın ya da kartın kapsamı ön değer olmaz (D5).
+- **Kapsamı sabit, `FixedScopeCategoryField`**
+  (`features/categories/presentation/fixed_scope_category_field.dart`; eklenen
+  kategoriyi kendisi tutar): POS tahsilatı (satış, komisyon), POS ekle (satış,
+  komisyon), kartla tahsil (komisyon), yatış kesintisi, gün sonu satışı, cari
+  borçlandırma (`İşletme`); `Kendime aldım` (`Şahsi`). Kartla tahsilin
+  komisyonu da `AppChoiceSegments`'tir.
+- **Düz liste, kapsam sorulmaz:** vergi planı ve vergi ödemesi (vergide kapsam
+  ayrı sorulur, ADR 0018 İ9; `+ ekle` yok, yeni kategori vergi işaretsiz
+  açılırdı), kasa farkı (kapsamı sunucu sayımdan alır), banka ekstresi eşleme
+  (kapsamı sunucu türetir).
+- **Bilerek dokunulmayanlar:** kasa sayımının kapsamı (kategori değil), nakit
+  borcun kapsamı (kategorisi yok), transfer masrafının kapsamı, kalkacak
+  yükümlülük formu ve eski İşlemler sayfası.

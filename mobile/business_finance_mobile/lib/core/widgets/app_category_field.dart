@@ -96,6 +96,19 @@ class AppCategoryField extends StatefulWidget {
   /// Arama ve son kullanılanlar bu sayıdan fazla kategoride çıkar.
   static const searchThreshold = 8;
 
+  /// Yazılacak kapsam: tek kapsamlı kategoride kategorinin, iki kapsama açık
+  /// kategoride menüde seçilen. Kategori bulunamazsa seçilen kapsam.
+  static TransactionScope? scopeOf(
+    List<AppCategoryOption> options,
+    AppCategoryValue? value,
+  ) {
+    if (value == null) return null;
+    for (final option in options) {
+      if (option.id == value.categoryId) return option.scope ?? value.scope;
+    }
+    return value.scope;
+  }
+
   /// Menüde gösterilen en çok son kullanılan.
   static const recentLimit = 4;
 

@@ -2291,3 +2291,9 @@ Domain ve şema; uçlar dalga 2c'de. Eski uçların davranışı golden testle k
   `kategori_panel_screenshot_test.dart` (4, 7, 18 kategori); teslim kareleriyle
   yan yana karşılaştırıldı. Panelin alan + menü kadar boylanıp kapanınca
   döndüğü `app_category_field_test.dart` içinde ölçülür. Emülatörde kullanıcı kabulü bekleniyor.
+
+Kategori seçicinin ikinci parçası (28 Ekim 2026): kart harcaması/taksit testi
+(`finance_feature_test.dart`) yeni alanla seçer; bütçe, plan, borç, vergi,
+kasa, POS, gün sonu ve cari testleri değişmeden geçti. Görüntü testlerinin
+tamamı `SCREENSHOT_DIR` ile koşuldu; vergi ödemesi karesi 27 Ekim'deki hesap
+seçici geçişinden beri eski anahtarı arıyordu, düzeltildi.

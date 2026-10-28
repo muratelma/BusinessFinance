@@ -7,9 +7,11 @@ import 'package:business_finance_mobile/features/taxes/presentation/tax_controll
 import 'package:business_finance_mobile/features/taxes/presentation/tax_plan_detail_page.dart';
 import 'package:business_finance_mobile/features/taxes/presentation/tax_sheets.dart';
 import 'package:business_finance_mobile/features/taxes/presentation/tax_tracking_page.dart';
+import 'package:business_finance_mobile/core/widgets/app_account_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/account_field_helpers.dart';
 import 'screenshot_harness.dart';
 
 /// Tasarımın `Vergiler` verisi (`design/vergiler-handoff/screenshots`): bugün
@@ -109,10 +111,10 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(seconds: 1));
         await tester.enterText(find.byType(TextField).first, '17400');
-        await tester.tap(find.byKey(const ValueKey('tax-source-null')));
+        await tester.tap(find.byType(AppAccountField).first);
         await tester.pump();
         await tester.pump(const Duration(seconds: 1));
-        await tester.tap(find.text('Nakit kasa').last);
+        await tester.tap(accountMenuRow('Nakit kasa'));
       },
     );
   }, skip: !screenshotsEnabled);

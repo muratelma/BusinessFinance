@@ -35,14 +35,9 @@ import 'pos_definitions_page.dart';
 import 'pos_deposit_sheets.dart';
 import '../../../core/widgets/app_account_field.dart';
 import '../../../features/accounts/presentation/account_directory.dart';
-import 'package:provider/provider.dart';
-import '../../../core/models/transaction_scope.dart';
-import '../../../core/widgets/app_category_field.dart';
 import '../../../core/widgets/app_choice_segments.dart';
 import '../../../core/widgets/app_untracked_text.dart';
-import '../../categories/data/category_models.dart';
-import '../../categories/presentation/category_create_page.dart';
-import '../../categories/presentation/recent_categories.dart';
+import '../../categories/presentation/fixed_scope_category_field.dart';
 
 export 'pos_deposit_sheets.dart' show posSettlementTitle;
 
@@ -818,8 +813,6 @@ class _SettlementFormState extends State<_SettlementForm> {
   /// `Hesap ekle`den dönülünce eklenen banka hesapları.
   final _addedAccounts = <DataChoice>[];
 
-  /// `+ "…" ekle`den dönülünce eklenen kategoriler.
-  final _addedCategories = <BudgetCategory>[];
   String? accountId;
   String? categoryId;
   String? commissionCategoryId;
@@ -1092,53 +1085,13 @@ class _SettlementFormState extends State<_SettlementForm> {
 
   /// POS satışı işletmenindir (ADR 0020 T2): kapsam sorulmaz, yalnız
   /// işletmenin ve iki kapsama açık kategoriler listelenir.
-  Widget _salesCategoryField(PosOptions options) => _categoryField(
+  Widget _salesCategoryField(PosOptions options) => FixedScopeCategoryField(
     label: 'Satış kategorisi',
     type: 'income',
     categories: options.incomeCategories,
     value: categoryId,
     onChanged: (value) => setState(() => categoryId = value),
     validator: (value) => value == null ? 'Kategori seçin.' : null,
-  );
-
-  Widget _categoryField({
-    required String label,
-    required String type,
-    required List<DataChoice> categories,
-    required String? value,
-    required ValueChanged<String?> onChanged,
-    required FormFieldValidator<AppCategoryValue> validator,
-  }) => AppCategoryField(
-    label: label,
-    options: [
-      for (final category in [
-        ...categories,
-        ..._addedCategories.where((c) => c.type == type).map((c) => c.choice),
-      ])
-        AppCategoryOption(
-          id: category.id,
-          name: category.name,
-          scope: category.defaultScope,
-        ),
-    ],
-    value: value == null
-        ? null
-        : AppCategoryValue(value, TransactionScope.business),
-    recent: RecentCategories.of(context, type),
-    showScope: context.watch<ScopeController?>()?.isVisible ?? false,
-    fixedScope: TransactionScope.business,
-    validator: validator,
-    onChanged: (next) => onChanged(next?.categoryId),
-    onAdd: (name) async {
-      final created = await addCategoryFromForm(
-        context,
-        type: type,
-        name: name,
-      );
-      if (created == null || !mounted) return;
-      setState(() => _addedCategories.add(created));
-      onChanged(created.id);
-    },
   );
 
   List<Widget> _manualFields(PosOptions options) => [
@@ -1187,7 +1140,7 @@ class _SettlementFormState extends State<_SettlementForm> {
         validator: MoneyInput.positiveError,
       ),
       const SizedBox(height: AppSpacing.medium),
-      _categoryField(
+      FixedScopeCategoryField(
         label: 'Komisyon gider kategorisi',
         type: 'expense',
         categories: options.expenseCategories,

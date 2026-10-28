@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../categories/presentation/fixed_scope_category_field.dart';
+
 import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_math.dart';
 import '../../../core/formatters/money_text.dart';
@@ -698,15 +700,13 @@ class _DayCloseFormState extends State<_DayCloseForm> {
         validator: (selection) => selection == null ? missing : null,
       );
     }
-    return DropdownButtonFormField<String>(
-      key: ValueKey('$fieldKey-$value'),
-      initialValue: value,
-      isExpanded: true,
-      decoration: InputDecoration(labelText: label),
-      items: [
-        for (final choice in choices)
-          DropdownMenuItem(value: choice.id, child: Text(choice.name)),
-      ],
+    // Gün sonu satışı işletmenindir: kapsam sorulmaz.
+    return FixedScopeCategoryField(
+      key: ValueKey(fieldKey),
+      label: label,
+      type: 'income',
+      categories: choices,
+      value: value,
       onChanged: (selection) {
         setState(() => onChanged(selection));
         _loadPreview();

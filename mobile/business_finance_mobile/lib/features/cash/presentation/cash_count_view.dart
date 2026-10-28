@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/app_category_field.dart';
+import '../../../core/widgets/app_untracked_text.dart';
+import '../../categories/presentation/category_create_page.dart';
+import '../../categories/presentation/recent_categories.dart';
+
 import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_math.dart';
 import '../../../core/formatters/money_text.dart';
@@ -1338,7 +1343,7 @@ class _DifferenceForm extends StatefulWidget {
 class _DifferenceFormState extends State<_DifferenceForm> {
   final formKey = GlobalKey<FormState>();
   final withdrawalFields = GlobalKey<CashWithdrawalFieldsState>();
-  late final Future<List<DataChoice>> categories;
+  late Future<List<DataChoice>> categories;
   String? categoryId;
   CashShortageReason reason = CashShortageReason.expense;
 
@@ -1358,111 +1363,130 @@ class _DifferenceFormState extends State<_DifferenceForm> {
     final isIncome = widget.controller.differenceCategoryType == 'income';
     final withdrawal = !isIncome && reason == CashShortageReason.withdrawal;
     final unknown = !isIncome && reason == CashShortageReason.unknown;
-    return Form(
-      key: formKey,
-      child: AppFormSheet<CashDifferenceResult>(
-        title: isIncome ? 'Fazlayı kaydet' : 'Eksiği kaydet',
-        description: isIncome
-            ? 'Kasada beklenenden fazla nakit çıktı; bu tek bir gelir kaydı '
-                  'olarak yazılır.'
-            : 'Kasada beklenenden az nakit çıktı. Neden eksik?',
-        submitLabel: 'Kaydet',
-        onSubmit: _submit,
-        children: [
-          // Fazla çıkan farkta sebep sorulmaz.
-          if (!isIncome) ...[
-            AppSegmentRail<CashShortageReason>(
-              values: CashShortageReason.values,
-              selected: reason,
-              semanticLabel: 'Neden eksik?',
-              segmentLabel: (value) => value.label,
-              onChanged: (value) => setState(() => reason = value),
-              segmentBuilder: (context, value, isSelected) => Text(
-                value.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: isSelected ? surfaces.ink : surfaces.inkMuted,
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.medium),
-          ],
-          // Ne yazılacağı açıkça söylenir: tutar ve gün sorulmuyor ama
-          // gizli de değil.
-          if (_recordedAs(withdrawal) case final summary?) ...[
-            Text(
-              summary,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: surfaces.inkMuted,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.medium),
-          ],
-          // Aynı alanlar `Kendime aldım` panelinde de durur; burada ikinci
-          // bir panel açılmaz. Tutar ve gün sorulmaz; kaydı sunucu sayıma
-          // bağlayarak yazar.
-          if (withdrawal)
-            CashWithdrawalFields(
-              key: withdrawalFields,
-              controller: widget.controller,
-              onOpenPersonalAccount: widget.onOpenPersonalAccount,
-              showDate: false,
-              onRecord: ({personalAccountId, categoryId}) =>
-                  widget.controller.confirmDifference(
-                    categoryId,
-                    tookForMyself: true,
-                    personalAccountId: personalAccountId,
+    // Teslimle kurulan panel: 16 dp yan boşluk, metin harf aralıksız.
+    return AppUntrackedText(
+      child: Form(
+        key: formKey,
+        child: AppFormSheet<CashDifferenceResult>(
+          title: isIncome ? 'Fazlayı kaydet' : 'Eksiği kaydet',
+          horizontalPadding: AppSpacing.medium,
+          description: isIncome
+              ? 'Kasada beklenenden fazla nakit çıktı; bu tek bir gelir kaydı '
+                    'olarak yazılır.'
+              : 'Kasada beklenenden az nakit çıktı. Neden eksik?',
+          submitLabel: 'Kaydet',
+          onSubmit: _submit,
+          children: [
+            // Fazla çıkan farkta sebep sorulmaz.
+            if (!isIncome) ...[
+              AppSegmentRail<CashShortageReason>(
+                values: CashShortageReason.values,
+                selected: reason,
+                semanticLabel: 'Neden eksik?',
+                segmentLabel: (value) => value.label,
+                onChanged: (value) => setState(() => reason = value),
+                segmentBuilder: (context, value, isSelected) => Text(
+                  value.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: isSelected ? surfaces.ink : surfaces.inkMuted,
                   ),
-            )
-          // Sebebi bilmeyen kullanıcıya kategori sorulmaz.
-          else if (unknown)
-            Text(
-              '"$cashDifferenceCategoryName" kategorisine gider olarak '
-              'yazılır.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: surfaces.inkMuted,
-              ),
-            )
-          else
-            FutureBuilder<List<DataChoice>>(
-              future: categories,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return const Text(
-                    'Kategoriler yüklenemedi. Paneli kapatıp yeniden deneyin.',
-                  );
-                }
-                if (!snapshot.hasData) return const LinearProgressIndicator();
-                return DropdownButtonFormField<String>(
-                  initialValue: categoryId,
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Kategori'),
-                  items: [
-                    for (final category in snapshot.data!)
-                      DropdownMenuItem(
-                        value: category.id,
-                        child: Text(category.name),
-                      ),
-                  ],
-                  onChanged: (value) => categoryId = value,
-                  validator: (value) =>
-                      value == null ? 'Kategori seçin.' : null,
-                );
-              },
-            ),
-          if (submitError != null)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.small),
-              child: Text(
-                submitError!,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.error,
                 ),
               ),
-            ),
-        ],
+              const SizedBox(height: AppSpacing.medium),
+            ],
+            // Ne yazılacağı açıkça söylenir: tutar ve gün sorulmuyor ama
+            // gizli de değil.
+            if (_recordedAs(withdrawal) case final summary?) ...[
+              Text(
+                summary,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: surfaces.inkMuted,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.medium),
+            ],
+            // Aynı alanlar `Kendime aldım` panelinde de durur; burada ikinci
+            // bir panel açılmaz. Tutar ve gün sorulmaz; kaydı sunucu sayıma
+            // bağlayarak yazar.
+            if (withdrawal)
+              CashWithdrawalFields(
+                key: withdrawalFields,
+                controller: widget.controller,
+                onOpenPersonalAccount: widget.onOpenPersonalAccount,
+                showDate: false,
+                onRecord: ({personalAccountId, categoryId}) =>
+                    widget.controller.confirmDifference(
+                      categoryId,
+                      tookForMyself: true,
+                      personalAccountId: personalAccountId,
+                    ),
+              )
+            // Sebebi bilmeyen kullanıcıya kategori sorulmaz.
+            else if (unknown)
+              Text(
+                '"$cashDifferenceCategoryName" kategorisine gider olarak '
+                'yazılır.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: surfaces.inkMuted,
+                ),
+              )
+            else
+              FutureBuilder<List<DataChoice>>(
+                future: categories,
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return const Text(
+                      'Kategoriler yüklenemedi. Paneli kapatıp yeniden deneyin.',
+                    );
+                  }
+                  if (!snapshot.hasData) return const LinearProgressIndicator();
+                  final type = widget.controller.differenceCategoryType;
+                  // Kaydın kapsamını sunucu sayımdan alır; burada sorulmaz.
+                  return AppCategoryField(
+                    showScope: false,
+                    options: [
+                      for (final category in snapshot.data!)
+                        AppCategoryOption(id: category.id, name: category.name),
+                    ],
+                    value: categoryId == null
+                        ? null
+                        : AppCategoryValue(categoryId!),
+                    recent: RecentCategories.of(context, type),
+                    onChanged: (value) =>
+                        setState(() => categoryId = value?.categoryId),
+                    onAdd: (name) async {
+                      final created = await addCategoryFromForm(
+                        context,
+                        type: type,
+                        name: name,
+                      );
+                      if (created == null || !mounted) return;
+                      setState(() {
+                        categories = widget.controller
+                            .loadDifferenceCategories();
+                        categoryId = created.id;
+                      });
+                    },
+                    validator: (value) =>
+                        value == null ? 'Kategori seçin.' : null,
+                  );
+                },
+              ),
+            if (submitError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.small),
+                child: Text(
+                  submitError!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

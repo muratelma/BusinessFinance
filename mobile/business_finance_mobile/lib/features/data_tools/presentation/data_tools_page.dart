@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart' as file_selector;
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/app_category_field.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -509,18 +511,22 @@ class _DataToolsPageState extends State<DataToolsPage> {
                 ),
               ),
               const SizedBox(height: AppSpacing.medium),
-              DropdownButtonFormField(
-                initialValue: category,
-                decoration: const InputDecoration(labelText: 'Kategori'),
-                items: matching
-                    .map(
-                      (item) => DropdownMenuItem(
-                        value: item.id,
-                        child: Text(item.name),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) => setDialogState(() => category = value!),
+              // Ekstre satırının kapsamını sunucu türetir; burada sorulmaz.
+              SizedBox(
+                width: double.maxFinite,
+                child: AppCategoryField(
+                  showScope: false,
+                  options: [
+                    for (final item in matching)
+                      AppCategoryOption(id: item.id, name: item.name),
+                  ],
+                  value: AppCategoryValue(category),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => category = value.categoryId);
+                    }
+                  },
+                ),
               ),
             ],
           ),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/widgets/app_category_field.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -309,18 +311,16 @@ class _TaxPlanFormPageState extends State<TaxPlanFormPage> {
             ),
           if (categories.length > 1) ...[
             const SizedBox(height: AppSpacing.medium),
-            DropdownButtonFormField<String>(
-              initialValue: categoryId,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Kategori'),
-              items: [
+            AppCategoryField(
+              // Vergide kapsam ayrı sorulur (ADR 0018 İ9); liste düzdür.
+              showScope: false,
+              options: [
                 for (final category in categories)
-                  DropdownMenuItem(
-                    value: category.id,
-                    child: Text(category.name),
-                  ),
+                  AppCategoryOption(id: category.id, name: category.name),
               ],
-              onChanged: (value) => setState(() => categoryId = value),
+              value: categoryId == null ? null : AppCategoryValue(categoryId!),
+              onChanged: (value) =>
+                  setState(() => categoryId = value?.categoryId),
             ),
           ],
           const SizedBox(height: AppSpacing.medium),

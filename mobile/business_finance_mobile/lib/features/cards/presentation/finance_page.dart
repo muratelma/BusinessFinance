@@ -14,6 +14,10 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/app_category_field.dart';
+import '../../../core/widgets/app_untracked_text.dart';
+import '../../categories/presentation/category_create_page.dart';
+import '../../categories/presentation/recent_categories.dart';
 import '../../../core/widgets/app_metric_tile.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_row_action.dart';
@@ -983,7 +987,6 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
         cards: const [],
         categories: widget.controller.snapshot!.expenseCategories,
         fixedCardId: card.id,
-        fixedCardScope: card.defaultScope,
         prefill: prefill,
       ),
     );
@@ -1005,8 +1008,6 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
         choiceKey: 'categoryId',
         dateKey: 'chargeDate',
         asksScope: true,
-        sourceScope: card.defaultScope,
-        sourceName: card.name,
       ),
     );
     if (input != null &&
@@ -1314,8 +1315,6 @@ class _ActivityDialog extends StatefulWidget {
     this.presetDate,
     this.presetDescription,
     this.asksScope = false,
-    this.sourceScope,
-    this.sourceName,
     this.reloadChoices,
   });
   final String title;
@@ -1330,10 +1329,6 @@ class _ActivityDialog extends StatefulWidget {
   /// Kayıt gider yazıyorsa (kart harcaması) taraf alanı çizilir; kart ödemesi
   /// para taşır, taraf taşımaz.
   final bool asksScope;
-
-  /// Kartın etiketi: iki tarafa açık kategoride seçimin ön değeri.
-  final TransactionScope? sourceScope;
-  final String? sourceName;
 
   /// Tarih alanına önceden yazılacak `yyyy-MM-dd` değeri.
   final String? presetDate;
@@ -1364,8 +1359,9 @@ class _ActivityDialogState extends State<_ActivityDialog> {
     text: widget.presetDescription ?? '',
   );
   String? choice;
-  TransactionScope? explicitScope;
-  bool scopeMissing = false;
+
+  /// Kart harcamasında iki kapsama açık kategorinin menüde seçilen kapsamı.
+  TransactionScope? choiceScope;
   late String date = widget.presetDate ?? _dateText(DateTime.now());
   @override
   void dispose() {
@@ -1378,9 +1374,6 @@ class _ActivityDialogState extends State<_ActivityDialog> {
       widget.asksScope &&
       (context.read<ScopeController?>()?.isVisible ?? false);
 
-  TransactionScope? get _categoryScope =>
-      choices.where((item) => item.id == choice).firstOrNull?.defaultScope;
-
   /// Yeni hesap listede ve seçili gelir.
   Future<void> _added(String id) async {
     final next = await widget.reloadChoices!();
@@ -1392,96 +1385,90 @@ class _ActivityDialogState extends State<_ActivityDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => Form(
-    key: key,
-    child: AppFormSheet<Map<String, Object?>>(
-      title: widget.title,
-      submitLabel: 'Kaydet',
-      onSubmit: () async {
-        if (!(key.currentState?.validate() ?? false)) return null;
-        final scope = previewResolvedScope(
-          explicit: explicitScope,
-          source: widget.sourceScope,
-          category: _categoryScope,
-        );
-        if (_showScope && scope == null) {
-          setState(() => scopeMissing = true);
-          return null;
-        }
-        return {
-          widget.choiceKey: choice,
-          if (_showScope) 'scope': scope?.apiValue,
-          'amount': _money(amount.text),
-          'currency': 'TRY',
-          widget.dateKey: date,
-          'description': _nullable(description.text),
-        };
-      },
-      children: [
-        AppFormField(
-          child: widget.choiceKey == 'accountId'
-              ? _accountChoice(
-                  context,
-                  choices,
-                  widget.choiceLabel,
-                  choice,
-                  (v) => setState(() {
-                    choice = v;
-                    scopeMissing = false;
-                  }),
-                  onAdded: widget.reloadChoices == null ? null : _added,
-                )
-              : _choice(
-                  choices,
-                  widget.choiceLabel,
-                  choice,
-                  (v) => setState(() {
-                    choice = v;
-                    scopeMissing = false;
-                  }),
-                ),
-        ),
-        if (_showScope && choice != null)
+  // Teslimle kurulan panel: 16 dp yan boşluk, metin harf aralıksız.
+  Widget build(BuildContext context) => AppUntrackedText(
+    child: Form(
+      key: key,
+      child: AppFormSheet<Map<String, Object?>>(
+        title: widget.title,
+        horizontalPadding: AppSpacing.medium,
+        submitLabel: 'Kaydet',
+        onSubmit: () async {
+          // İki kapsama açık kategoride kapsamı alan kendisi ister.
+          if (!(key.currentState?.validate() ?? false)) return null;
+          final scope = AppCategoryField.scopeOf(
+            _categoryOptions(choices),
+            choice == null ? null : AppCategoryValue(choice!, choiceScope),
+          );
+          return {
+            widget.choiceKey: choice,
+            if (_showScope) 'scope': scope?.apiValue,
+            'amount': _money(amount.text),
+            'currency': 'TRY',
+            widget.dateKey: date,
+            'description': _nullable(description.text),
+          };
+        },
+        children: [
           AppFormField(
-            child: AppScopeSection(
-              explicit: explicitScope,
-              source: widget.sourceScope,
-              category: _categoryScope,
-              sourceName: widget.sourceName,
-              errorText: scopeMissing ? 'Bu kayıt için kapsam seçin.' : null,
-              onChanged: (value) => setState(() {
-                explicitScope = value;
-                scopeMissing = false;
-              }),
+            child: widget.choiceKey == 'accountId'
+                ? _accountChoice(
+                    context,
+                    choices,
+                    widget.choiceLabel,
+                    choice,
+                    (v) => setState(() => choice = v),
+                    onAdded: widget.reloadChoices == null ? null : _added,
+                  )
+                : _categoryChoice(
+                    context,
+                    choices: choices,
+                    label: widget.choiceLabel,
+                    value: choice == null
+                        ? null
+                        : AppCategoryValue(choice!, choiceScope),
+                    showScope: _showScope,
+                    onChanged: (v) => setState(() {
+                      choice = v?.categoryId;
+                      choiceScope = v?.scope;
+                    }),
+                    onAdded: (added) => setState(() {
+                      choices = [...choices, added];
+                      choice = added.id;
+                      choiceScope = _showScope ? added.defaultScope : null;
+                    }),
+                  ),
+          ),
+          AppFormField(
+            child: TextFormField(
+              controller: amount,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Tutar',
+                suffixText: 'TRY',
+              ),
+              validator: _moneyError,
             ),
           ),
-        AppFormField(
-          child: TextFormField(
-            controller: amount,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Tutar',
-              suffixText: 'TRY',
+          AppFormField(
+            child: AppDateField(
+              label: 'Tarih',
+              value: date,
+              lastDate: DateTime.now(),
+              onChanged: (value) => setState(() => date = value),
             ),
-            validator: _moneyError,
           ),
-        ),
-        AppFormField(
-          child: AppDateField(
-            label: 'Tarih',
-            value: date,
-            lastDate: DateTime.now(),
-            onChanged: (value) => setState(() => date = value),
+          AppFormField(
+            child: TextFormField(
+              controller: description,
+              hintLocales: const [Locale('tr', 'TR')],
+              decoration: const InputDecoration(labelText: 'Açıklama'),
+            ),
           ),
-        ),
-        AppFormField(
-          child: TextFormField(
-            controller: description,
-            hintLocales: const [Locale('tr', 'TR')],
-            decoration: const InputDecoration(labelText: 'Açıklama'),
-          ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 }
@@ -1497,15 +1484,11 @@ class _PlanDialog extends StatefulWidget {
     required this.cards,
     required this.categories,
     this.fixedCardId,
-    this.fixedCardScope,
     this.prefill,
   });
   final List<CreditCardItem> cards;
   final List<FinanceChoice> categories;
   final String? fixedCardId;
-
-  /// [fixedCardId] kartının etiketi: iki tarafa açık kategoride ön değer.
-  final TransactionScope? fixedCardScope;
 
   /// Taksitli fişten gelen öneriler; hepsi değiştirilebilir.
   final InstallmentPrefill? prefill;
@@ -1520,8 +1503,10 @@ class _PlanDialogState extends State<_PlanDialog> {
   final description = TextEditingController();
   String? cardId;
   String? categoryId;
-  TransactionScope? explicitScope;
-  bool scopeMissing = false;
+
+  /// İki kapsama açık kategorinin menüde seçilen kapsamı.
+  TransactionScope? categoryScope;
+  late List<FinanceChoice> categories = widget.categories;
   String date = _dateText(DateTime.now());
 
   @override
@@ -1532,18 +1517,6 @@ class _PlanDialogState extends State<_PlanDialog> {
   }
 
   bool get _showScope => context.read<ScopeController?>()?.isVisible ?? false;
-
-  TransactionScope? get _categoryScope => widget.categories
-      .where((item) => item.id == categoryId)
-      .firstOrNull
-      ?.defaultScope;
-
-  TransactionScope? get _cardScope => widget.fixedCardId != null
-      ? widget.fixedCardScope
-      : widget.cards
-            .where((card) => card.id == cardId)
-            .firstOrNull
-            ?.defaultScope;
 
   /// Fişin söylediğini yazar. **Taksit tutarı hesaplanmıyor**: forma toplam
   /// giriliyor, bölmeyi sunucu yapıyor — istemci finansal toplamı ikinci kez
@@ -1567,121 +1540,120 @@ class _PlanDialogState extends State<_PlanDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => Form(
-    key: key,
-    child: AppFormSheet<Map<String, Object?>>(
-      title: 'Yeni taksit planı',
-      description:
-          'Plan yalnız niyettir: yalnız gerçekleşen taksit kart harcaması '
-          've gider üretir.',
-      submitLabel: 'Kaydet',
-      onSubmit: () async {
-        if (!(key.currentState?.validate() ?? false)) return null;
-        // Plan tarafını kurulurken alır; gerçekleşen her taksit onu taşır.
-        final scope = previewResolvedScope(
-          explicit: explicitScope,
-          source: _cardScope,
-          category: _categoryScope,
-        );
-        if (_showScope && scope == null) {
-          setState(() => scopeMissing = true);
-          return null;
-        }
-        return {
-          'creditCardId': cardId,
-          'categoryId': categoryId,
-          if (_showScope) 'scope': scope?.apiValue,
-          'clientRequestId': _newGuid(),
-          'totalAmount': _money(total.text),
-          'currency': 'TRY',
-          'installmentCount': int.parse(count.text),
-          'firstInstallmentDate': date,
-          'description': _nullable(description.text),
-        };
-      },
-      children: [
-        if (widget.fixedCardId == null)
-          AppFormField(
-            child: AppAccountField(
-              label: 'Kart',
-              value: cardId,
-              options: [
-                for (final c in widget.cards)
-                  AccountChoices.of(
-                    context,
-                  ).card(c.id, c.name, scope: c.defaultScope),
-              ],
-              onChanged: (v) => setState(() => cardId = v),
-              validator: (v) => v == null ? 'Kart seçin.' : null,
-              emptyTitle: 'Henüz kart yok',
-              emptyMessage: 'Taksitli harcama için önce bir kart ekleyin.',
+  // Teslimle kurulan panel: 16 dp yan boşluk, metin harf aralıksız.
+  Widget build(BuildContext context) => AppUntrackedText(
+    child: Form(
+      key: key,
+      child: AppFormSheet<Map<String, Object?>>(
+        title: 'Yeni taksit planı',
+        description:
+            'Plan yalnız niyettir: yalnız gerçekleşen taksit kart harcaması '
+            've gider üretir.',
+        horizontalPadding: AppSpacing.medium,
+        submitLabel: 'Kaydet',
+        onSubmit: () async {
+          if (!(key.currentState?.validate() ?? false)) return null;
+          // Plan kapsamını kurulurken alır; gerçekleşen her taksit onu taşır.
+          final scope = AppCategoryField.scopeOf(
+            _categoryOptions(categories),
+            categoryId == null
+                ? null
+                : AppCategoryValue(categoryId!, categoryScope),
+          );
+          return {
+            'creditCardId': cardId,
+            'categoryId': categoryId,
+            if (_showScope) 'scope': scope?.apiValue,
+            'clientRequestId': _newGuid(),
+            'totalAmount': _money(total.text),
+            'currency': 'TRY',
+            'installmentCount': int.parse(count.text),
+            'firstInstallmentDate': date,
+            'description': _nullable(description.text),
+          };
+        },
+        children: [
+          if (widget.fixedCardId == null)
+            AppFormField(
+              child: AppAccountField(
+                label: 'Kart',
+                value: cardId,
+                options: [
+                  for (final c in widget.cards)
+                    AccountChoices.of(
+                      context,
+                    ).card(c.id, c.name, scope: c.defaultScope),
+                ],
+                onChanged: (v) => setState(() => cardId = v),
+                validator: (v) => v == null ? 'Kart seçin.' : null,
+                emptyTitle: 'Henüz kart yok',
+                emptyMessage: 'Taksitli harcama için önce bir kart ekleyin.',
+              ),
             ),
-          ),
-        AppFormField(
-          child: _choice(
-            widget.categories,
-            'Gider kategorisi',
-            categoryId,
-            (v) => setState(() {
-              categoryId = v;
-              scopeMissing = false;
-            }),
-          ),
-        ),
-        if (_showScope && categoryId != null)
           AppFormField(
-            child: AppScopeSection(
-              explicit: explicitScope,
-              source: _cardScope,
-              category: _categoryScope,
-              errorText: scopeMissing ? 'Bu plan için kapsam seçin.' : null,
-              onChanged: (value) => setState(() {
-                explicitScope = value;
-                scopeMissing = false;
+            child: _categoryChoice(
+              context,
+              choices: categories,
+              label: 'Gider kategorisi',
+              value: categoryId == null
+                  ? null
+                  : AppCategoryValue(categoryId!, categoryScope),
+              showScope: _showScope,
+              onChanged: (v) => setState(() {
+                categoryId = v?.categoryId;
+                categoryScope = v?.scope;
+              }),
+              onAdded: (added) => setState(() {
+                categories = [...categories, added];
+                categoryId = added.id;
+                categoryScope = _showScope ? added.defaultScope : null;
               }),
             ),
           ),
-        AppFormField(
-          child: TextFormField(
-            controller: total,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Toplam',
-              suffixText: 'TRY',
+          AppFormField(
+            child: TextFormField(
+              controller: total,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Toplam',
+                suffixText: 'TRY',
+              ),
+              validator: _moneyError,
             ),
-            validator: _moneyError,
           ),
-        ),
-        AppFormField(
-          child: TextFormField(
-            controller: count,
-            decoration: const InputDecoration(
-              labelText: 'Taksit sayısı (2–60)',
+          AppFormField(
+            child: TextFormField(
+              controller: count,
+              decoration: const InputDecoration(
+                labelText: 'Taksit sayısı (2–60)',
+              ),
+              keyboardType: TextInputType.number,
+              validator: (v) {
+                final n = int.tryParse(v ?? '');
+                return n == null || n < 2 || n > 60
+                    ? '2–60 arasında sayı girin.'
+                    : null;
+              },
             ),
-            keyboardType: TextInputType.number,
-            validator: (v) {
-              final n = int.tryParse(v ?? '');
-              return n == null || n < 2 || n > 60
-                  ? '2–60 arasında sayı girin.'
-                  : null;
-            },
           ),
-        ),
-        AppFormField(
-          child: AppDateField(
-            label: 'İlk taksit tarihi',
-            value: date,
-            onChanged: (value) => setState(() => date = value),
+          AppFormField(
+            child: AppDateField(
+              label: 'İlk taksit tarihi',
+              value: date,
+              onChanged: (value) => setState(() => date = value),
+            ),
           ),
-        ),
-        AppFormField(
-          child: TextFormField(
-            controller: description,
-            hintLocales: const [Locale('tr', 'TR')],
-            decoration: const InputDecoration(labelText: 'Açıklama'),
+          AppFormField(
+            child: TextFormField(
+              controller: description,
+              hintLocales: const [Locale('tr', 'TR')],
+              decoration: const InputDecoration(labelText: 'Açıklama'),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 }
@@ -1993,20 +1965,44 @@ Widget _accountChoice(
   );
 }
 
-Widget _choice(
-  List<FinanceChoice> choices,
-  String label,
-  String? value,
-  ValueChanged<String?> changed,
-) => DropdownButtonFormField<String>(
-  isExpanded: true,
-  initialValue: value,
-  decoration: InputDecoration(labelText: label),
-  items: choices
-      .map((item) => DropdownMenuItem(value: item.id, child: Text(item.name)))
-      .toList(),
-  onChanged: changed,
+List<AppCategoryOption> _categoryOptions(List<FinanceChoice> choices) => [
+  for (final item in choices)
+    AppCategoryOption(id: item.id, name: item.name, scope: item.defaultScope),
+];
+
+/// Gider kategorisi alanı; iki kapsama açık kategoride kapsam menüde seçilir,
+/// kartın kapsamı ön değer olmaz (kullanıcı kararı D5).
+Widget _categoryChoice(
+  BuildContext context, {
+  required List<FinanceChoice> choices,
+  required String label,
+  required AppCategoryValue? value,
+  required bool showScope,
+  required ValueChanged<AppCategoryValue?> onChanged,
+  required ValueChanged<FinanceChoice> onAdded,
+}) => AppCategoryField(
+  label: label,
+  options: _categoryOptions(choices),
+  value: value,
+  recent: RecentCategories.of(context, 'expense'),
+  showScope: showScope,
+  onChanged: onChanged,
   validator: (selected) => selected == null ? '$label seçin.' : null,
+  onAdd: (name) async {
+    final created = await addCategoryFromForm(
+      context,
+      type: 'expense',
+      name: name,
+    );
+    if (created == null || !context.mounted) return;
+    onAdded(
+      FinanceChoice(
+        id: created.id,
+        name: created.name,
+        defaultScope: created.defaultScope,
+      ),
+    );
+  },
 );
 
 String? _moneyError(String? value) {

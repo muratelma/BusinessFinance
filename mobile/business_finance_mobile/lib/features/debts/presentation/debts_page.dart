@@ -25,6 +25,10 @@ import '../data/debt_repository.dart';
 import 'debts_controller.dart';
 import 'lending_prefill.dart';
 import '../../../core/widgets/app_account_field.dart';
+import '../../../core/widgets/app_category_field.dart';
+import '../../../core/widgets/app_untracked_text.dart';
+import '../../categories/presentation/category_create_page.dart';
+import '../../categories/presentation/recent_categories.dart';
 import '../../../features/accounts/presentation/account_directory.dart';
 
 /// Borç ve alacaklar.
@@ -507,6 +511,9 @@ class _DebtSourceFields extends StatelessWidget {
     required this.onAccountChanged,
     required this.onCategoryChanged,
     required this.onAccountAdded,
+    required this.onCategoryAdded,
+    this.categoryScope,
+    this.showScope = false,
     this.sourceHelperText,
   });
 
@@ -518,7 +525,16 @@ class _DebtSourceFields extends StatelessWidget {
   final String? categoryId;
   final ValueChanged<String> onSourceChanged;
   final ValueChanged<String?> onAccountChanged;
-  final ValueChanged<String?> onCategoryChanged;
+  final ValueChanged<AppCategoryValue?> onCategoryChanged;
+
+  /// İki kapsama açık kategoride menüde seçilen kapsam.
+  final TransactionScope? categoryScope;
+
+  /// Kapsam menüde sorulur mu; sorulmayan formda liste düzdür.
+  final bool showScope;
+
+  /// `+ "…" ekle`den dönüldü: kategori listeye eklenir ve seçili gelir.
+  final ValueChanged<DataChoice> onCategoryAdded;
 
   /// `Hesap ekle`den dönüldü: hesap listeye eklenir ve seçili gelir.
   final ValueChanged<DataChoice> onAccountAdded;
@@ -541,6 +557,14 @@ class _DebtSourceFields extends StatelessWidget {
   ) => categories
       .where((item) => item.type == _categoryTypeOf(direction))
       .toList(growable: false);
+
+  static List<AppCategoryOption> categoryOptions(
+    String direction,
+    List<DataChoice> categories,
+  ) => [
+    for (final item in categoriesFor(direction, categories))
+      AppCategoryOption(id: item.id, name: item.name, scope: item.defaultScope),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -583,19 +607,23 @@ class _DebtSourceFields extends StatelessWidget {
         ),
         if (categorical)
           AppFormField(
-            child: DropdownButtonFormField<String>(
-              initialValue: options.any((item) => item.id == categoryId)
-                  ? categoryId
+            child: AppCategoryField(
+              label: payable ? 'Gider kategorisi' : 'Gelir kategorisi',
+              options: categoryOptions(direction, categories),
+              value: options.any((item) => item.id == categoryId)
+                  ? AppCategoryValue(categoryId!, categoryScope)
                   : null,
-              isExpanded: true,
-              decoration: InputDecoration(
-                labelText: payable ? 'Gider kategorisi' : 'Gelir kategorisi',
-              ),
-              items: [
-                for (final item in options)
-                  DropdownMenuItem(value: item.id, child: Text(item.name)),
-              ],
+              recent: RecentCategories.of(context, _categoryTypeOf(direction)),
+              showScope: showScope,
               onChanged: onCategoryChanged,
+              onAdd: (name) async {
+                final created = await addCategoryFromForm(
+                  context,
+                  type: _categoryTypeOf(direction),
+                  name: name,
+                );
+                if (created != null) onCategoryAdded(created.choice);
+              },
               validator: (value) => value == null
                   ? (payable
                         ? 'Bir gider kategorisi seçin.'
@@ -708,19 +736,22 @@ class _DebtFormState extends State<_DebtForm> {
   ///
   /// Sunucudaki kuralın **önizlemesi** (`TransactionScopeResolution`); karar
   /// sunucunundur, burası yalnız ne yazılacağını gösterip onu gönderir.
-  TransactionScope? get _resolvedScope => previewResolvedScope(
-    explicit: _scope,
-    source: _sourceScope,
-    category: _categoryScope,
-  );
+  TransactionScope? get _resolvedScope => _sourceIsCategorical
+      // Kategorili kaynakta kapsam kategoriyle birlikte menüde seçilir.
+      ? AppCategoryField.scopeOf(
+          _DebtSourceFields.categoryOptions(_direction, _categories),
+          _categoryId == null
+              ? null
+              : AppCategoryValue(_categoryId!, _categoryScope),
+        )
+      : previewResolvedScope(explicit: _scope, source: _sourceScope);
 
-  TransactionScope? get _sourceScope => _sourceIsCategorical
-      ? null
-      : _defaultScopeOf(_accounts, _openingAccountId);
+  TransactionScope? get _sourceScope =>
+      _defaultScopeOf(_accounts, _openingAccountId);
 
-  TransactionScope? get _categoryScope => _sourceIsCategorical
-      ? _defaultScopeOf(widget.categories, _categoryId)
-      : null;
+  /// Kategorili kaynakta menüde seçilen kapsam.
+  TransactionScope? _categoryScope;
+  late List<DataChoice> _categories = widget.categories;
 
   static TransactionScope? _defaultScopeOf(
     List<DataChoice> choices,
@@ -831,12 +862,10 @@ class _DebtFormState extends State<_DebtForm> {
   /// Yön değişince kabul edilen kategori tipi de değişir; eski seçim başka
   /// tipte kalırsa sunucu isteği reddeder.
   void _syncCategory() {
-    final options = _DebtSourceFields.categoriesFor(
-      _direction,
-      widget.categories,
-    );
+    final options = _DebtSourceFields.categoriesFor(_direction, _categories);
     if (options.any((item) => item.id == _categoryId)) return;
     _categoryId = options.isEmpty ? null : options.first.id;
+    _categoryScope = null;
   }
 
   @override
@@ -853,267 +882,288 @@ class _DebtFormState extends State<_DebtForm> {
   }
 
   @override
-  Widget build(BuildContext context) => Form(
-    key: _formKey,
-    child: AppFormSheet<Map<String, dynamic>>(
-      title: 'Borç / alacak planı',
-      description:
-          'Taksitler ilk vade tarihinden başlayarak aylık ilerler. Toplam '
-          'geri ödemeyi ya da yıllık faizi girin; diğerini hesaplarız.',
-      submitLabel: 'Oluştur',
-      onSubmit: () async {
-        if (!(_formKey.currentState?.validate() ?? false)) return null;
-        // Kapsamı gören kullanıcıda zincir çözülemiyorsa istek **gitmeden**
-        // alanın yanında söylenir; sunucunun reddi ekranda ham hata olurdu.
-        final scope = _resolvedScope;
-        if (_scopeIsVisible && scope == null) {
-          setState(
-            () => _scopeError =
-                'Kaynak ve kategori kapsam taşımıyor; bu kayıt için seçin.',
-          );
-          return null;
-        }
-        final byTotal = _costInput == _DebtCostInput.total;
-        return {
-          'scope': scope?.apiValue,
-          'counterpartyName': _name.text.trim(),
-          'direction': _direction,
-          'principal': MoneyInput.wire(_principal.text),
-          // Yalnız kullanıcının girdiği alan gönderilir. İkisini birden
-          // göndermek, çelişirlerse isteğin reddedilmesi demekti.
-          'totalRepayment': byTotal ? MoneyInput.wire(_total.text) : null,
-          'annualInterestRate': byTotal
-              ? null
-              : MoneyInput.wire(_interest.text),
-          'currency': 'TRY',
-          'sourceType': _source,
-          'openingAccountId': _sourceIsCategorical ? null : _openingAccountId,
-          'categoryId': _sourceIsCategorical ? _categoryId : null,
-          'startDate': _startDate,
-          'firstDueDate': _firstDueDate,
-          'installmentCount': int.tryParse(_count.text.trim()) ?? 1,
-          'description': _description.text.trim().isEmpty
-              ? null
-              : _description.text.trim(),
-        };
-      },
-      children: [
-        AppFormField(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                controller: _name,
-                focusNode: _nameFocus,
-                hintLocales: const [Locale('tr', 'TR')],
-                decoration: const InputDecoration(labelText: 'Kişi / kurum'),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Kişi veya kurum adı zorunludur.'
-                    : null,
-              ),
-              // Fişten okunan ad defterdeki bir kişiyle eşleştiyse bunu
-              // **söylemek** zorundayız: kayıt o kişinin açık bakiyesine
-              // eklenecek ve yanlış eşleşme iki müşterinin hesabını
-              // birbirine karıştırır. Model önerir, kullanıcı onaylar
-              // (ADR 0011); reddi tek dokunuş.
-              if (_showsCounterpartyMatch)
-                AppInlineNotice(
-                  icon: Icons.person_search_outlined,
-                  message:
-                      '“${_name.text.trim()}” defterinizde kayıtlı. Bu kayıt '
-                      'aynı karşı tarafa bağlanacak ve onun bakiyesine '
-                      'eklenecek.',
-                  actionLabel: 'Bu kişi değil',
-                  onAction: _rejectCounterpartyMatch,
+  // Teslimle kurulan panel: 16 dp yan boşluk, metin harf aralıksız.
+  Widget build(BuildContext context) => AppUntrackedText(
+    child: Form(
+      key: _formKey,
+      child: AppFormSheet<Map<String, dynamic>>(
+        title: 'Borç / alacak planı',
+        description:
+            'Taksitler ilk vade tarihinden başlayarak aylık ilerler. Toplam '
+            'geri ödemeyi ya da yıllık faizi girin; diğerini hesaplarız.',
+        horizontalPadding: AppSpacing.medium,
+        submitLabel: 'Oluştur',
+        onSubmit: () async {
+          if (!(_formKey.currentState?.validate() ?? false)) return null;
+          // Kapsamı gören kullanıcıda zincir çözülemiyorsa istek **gitmeden**
+          // alanın yanında söylenir; sunucunun reddi ekranda ham hata olurdu.
+          final scope = _resolvedScope;
+          if (_scopeIsVisible && scope == null) {
+            setState(
+              () => _scopeError =
+                  'Kaynak ve kategori kapsam taşımıyor; bu kayıt için seçin.',
+            );
+            return null;
+          }
+          final byTotal = _costInput == _DebtCostInput.total;
+          return {
+            'scope': scope?.apiValue,
+            'counterpartyName': _name.text.trim(),
+            'direction': _direction,
+            'principal': MoneyInput.wire(_principal.text),
+            // Yalnız kullanıcının girdiği alan gönderilir. İkisini birden
+            // göndermek, çelişirlerse isteğin reddedilmesi demekti.
+            'totalRepayment': byTotal ? MoneyInput.wire(_total.text) : null,
+            'annualInterestRate': byTotal
+                ? null
+                : MoneyInput.wire(_interest.text),
+            'currency': 'TRY',
+            'sourceType': _source,
+            'openingAccountId': _sourceIsCategorical ? null : _openingAccountId,
+            'categoryId': _sourceIsCategorical ? _categoryId : null,
+            'startDate': _startDate,
+            'firstDueDate': _firstDueDate,
+            'installmentCount': int.tryParse(_count.text.trim()) ?? 1,
+            'description': _description.text.trim().isEmpty
+                ? null
+                : _description.text.trim(),
+          };
+        },
+        children: [
+          AppFormField(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextFormField(
+                  controller: _name,
+                  focusNode: _nameFocus,
+                  hintLocales: const [Locale('tr', 'TR')],
+                  decoration: const InputDecoration(labelText: 'Kişi / kurum'),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Kişi veya kurum adı zorunludur.'
+                      : null,
                 ),
-            ],
+                // Fişten okunan ad defterdeki bir kişiyle eşleştiyse bunu
+                // **söylemek** zorundayız: kayıt o kişinin açık bakiyesine
+                // eklenecek ve yanlış eşleşme iki müşterinin hesabını
+                // birbirine karıştırır. Model önerir, kullanıcı onaylar
+                // (ADR 0011); reddi tek dokunuş.
+                if (_showsCounterpartyMatch)
+                  AppInlineNotice(
+                    icon: Icons.person_search_outlined,
+                    message:
+                        '“${_name.text.trim()}” defterinizde kayıtlı. Bu kayıt '
+                        'aynı karşı tarafa bağlanacak ve onun bakiyesine '
+                        'eklenecek.',
+                    actionLabel: 'Bu kişi değil',
+                    onAction: _rejectCounterpartyMatch,
+                  ),
+              ],
+            ),
           ),
-        ),
-        AppFormField(
-          child: DropdownButtonFormField<String>(
-            initialValue: _direction,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Yön'),
-            items: const [
-              DropdownMenuItem(value: 'payable', child: Text('Ödenecek borç')),
-              DropdownMenuItem(value: 'receivable', child: Text('Alınacak')),
-            ],
-            onChanged: (value) => setState(() {
-              _direction = value!;
-              // Yön değişince kategorili kaynağın anlamı da değişir: borç
-              // tüketir, alacak satar. Nakit dışı seçim yeni yönün kaynağına
-              // taşınır, kategori de o tipe göre tazelenir.
-              if (_source != 'cash') {
-                _source = _DebtSourceFields.categoricalSourceOf(_direction);
-              }
-              _syncCategory();
-            }),
-          ),
-        ),
-        _DebtSourceFields(
-          direction: _direction,
-          source: _source,
-          accounts: _accounts,
-          categories: widget.categories,
-          openingAccountId: _openingAccountId,
-          categoryId: _categoryId,
-          onAccountAdded: (added) => setState(() {
-            _accounts = [..._accounts, added];
-            _openingAccountId = added.id;
-          }),
-          sourceHelperText: _direction == 'payable'
-              ? 'Para aldıysanız gider yazılmaz; bir şey tükettiyseniz '
-                    'anapara o gün gidere yazılır.'
-              : 'Borç para verdiyseniz gelir yazılmaz; bir şey sattıysanız '
-                    'anapara o gün gelire yazılır.',
-          onSourceChanged: (value) => setState(() => _source = value),
-          onAccountChanged: (value) =>
-              setState(() => _openingAccountId = value),
-          onCategoryChanged: (value) => setState(() => _categoryId = value),
-        ),
-        // Nakit borcun kategorisi yoktur ve taraf hep sorulur; kategorili
-        // kaynakta kategori seçilmeden çizilecek bir şey yoktur.
-        if ((context.watch<ScopeController?>()?.isVisible ?? false) &&
-            (!_sourceIsCategorical || _categoryId != null))
           AppFormField(
-            child: AppScopeSection(
-              explicit: _scope,
-              source: _sourceScope,
-              category: _categoryScope,
+            child: DropdownButtonFormField<String>(
+              initialValue: _direction,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Yön'),
+              items: const [
+                DropdownMenuItem(
+                  value: 'payable',
+                  child: Text('Ödenecek borç'),
+                ),
+                DropdownMenuItem(value: 'receivable', child: Text('Alınacak')),
+              ],
               onChanged: (value) => setState(() {
-                _scope = value;
-                _scopeError = null;
+                _direction = value!;
+                // Yön değişince kategorili kaynağın anlamı da değişir: borç
+                // tüketir, alacak satar. Nakit dışı seçim yeni yönün kaynağına
+                // taşınır, kategori de o tipe göre tazelenir.
+                if (_source != 'cash') {
+                  _source = _DebtSourceFields.categoricalSourceOf(_direction);
+                }
+                _syncCategory();
               }),
-              errorText: _scopeError,
             ),
           ),
-        AppFormField(
-          child: TextFormField(
-            controller: _principal,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Anapara',
-              suffixText: 'TRY',
-            ),
-            validator: MoneyInput.positiveError,
-          ),
-        ),
-        AppFormField(
-          child: DropdownButtonFormField<_DebtCostInput>(
-            initialValue: _costInput,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Elinizde hangisi var',
-              helperText: 'Girmediğinizi hesaplayıp size gösteririz.',
-            ),
-            items: const [
-              DropdownMenuItem(
-                value: _DebtCostInput.total,
-                child: Text('Toplam geri ödeme'),
-              ),
-              DropdownMenuItem(
-                value: _DebtCostInput.rate,
-                child: Text('Yıllık faiz oranı'),
-              ),
-            ],
-            onChanged: (value) => setState(() => _costInput = value!),
-          ),
-        ),
-        if (_costInput == _DebtCostInput.total)
-          AppFormField(
-            child: TextFormField(
-              controller: _total,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'Toplam geri ödeme',
-                suffixText: 'TRY',
-                helperText: 'Faiz dahil, gerçekte ödenecek toplam tutar.',
-              ),
-              validator: (value) {
-                final error = MoneyInput.positiveError(value);
-                if (error != null) return error;
-                final principalAmount = MoneyInput.parse(_principal.text);
-                final totalAmount = MoneyInput.parse(value!);
-                return principalAmount != null &&
-                        totalAmount != null &&
-                        totalAmount < principalAmount
-                    ? 'Toplam geri ödeme anaparadan küçük olamaz.'
-                    : null;
-              },
-            ),
-          )
-        else
-          AppFormField(
-            child: TextFormField(
-              controller: _interest,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'Yıllık faiz %',
-                helperText:
-                    'Azalan bakiyeye işler; toplam geri ödemeyi bundan '
-                    'hesaplarız.',
-              ),
-              validator: (value) {
-                final rate = MoneyInput.parse(value ?? '');
-                return rate == null || rate < 0 || rate > 1000
-                    ? '0 ile 1000 arasında faiz girin.'
-                    : null;
-              },
-            ),
-          ),
-        AppFormField(
-          child: TextFormField(
-            controller: _count,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Taksit sayısı'),
-            validator: (value) {
-              final parsed = int.tryParse(value?.trim() ?? '');
-              return parsed == null || parsed < 1 || parsed > 360
-                  ? '1 ile 360 arasında taksit sayısı girin.'
-                  : null;
-            },
-          ),
-        ),
-        AppFormField(
-          child: AppDateField(
-            label: 'Başlangıç tarihi',
-            value: _startDate,
-            lastDate: DateTime.now(),
-            helperText: 'Borcun doğduğu gün; geçmiş bir tarih olabilir.',
-            onChanged: (value) => setState(() {
-              _startDate = value;
-              // İlk vade başlangıçtan önce olamaz (sunucu da reddeder);
-              // kullanıcıyı reddedilecek bir kombinasyona bırakmak yerine
-              // vade tarihi başlangıca çekilir.
-              if (AppDateField.parse(
-                _firstDueDate,
-              )!.isBefore(AppDateField.parse(value)!)) {
-                _firstDueDate = value;
-              }
+          _DebtSourceFields(
+            direction: _direction,
+            source: _source,
+            accounts: _accounts,
+            categories: _categories,
+            openingAccountId: _openingAccountId,
+            categoryId: _categoryId,
+            categoryScope: _categoryScope,
+            showScope: context.watch<ScopeController?>()?.isVisible ?? false,
+            onAccountAdded: (added) => setState(() {
+              _accounts = [..._accounts, added];
+              _openingAccountId = added.id;
+            }),
+            onCategoryAdded: (added) => setState(() {
+              _categories = [..._categories, added];
+              _categoryId = added.id;
+              _categoryScope = _scopeIsVisible ? added.defaultScope : null;
+            }),
+            sourceHelperText: _direction == 'payable'
+                ? 'Para aldıysanız gider yazılmaz; bir şey tükettiyseniz '
+                      'anapara o gün gidere yazılır.'
+                : 'Borç para verdiyseniz gelir yazılmaz; bir şey sattıysanız '
+                      'anapara o gün gelire yazılır.',
+            onSourceChanged: (value) => setState(() => _source = value),
+            onAccountChanged: (value) =>
+                setState(() => _openingAccountId = value),
+            onCategoryChanged: (value) => setState(() {
+              _categoryId = value?.categoryId;
+              _categoryScope = value?.scope;
             }),
           ),
-        ),
-        AppFormField(
-          child: AppDateField(
-            label: 'İlk taksit vadesi',
-            value: _firstDueDate,
-            helperText: 'Sonraki taksitler bu günden aylık ilerler.',
-            onChanged: (value) => setState(() => _firstDueDate = value),
+          // Nakit borcun kategorisi yoktur ve kapsam burada sorulur; kategorili
+          // kaynakta kapsam kategorinin menüsünde seçilir.
+          if ((context.watch<ScopeController?>()?.isVisible ?? false) &&
+              !_sourceIsCategorical)
+            AppFormField(
+              child: AppScopeSection(
+                explicit: _scope,
+                source: _sourceScope,
+                category: _categoryScope,
+                onChanged: (value) => setState(() {
+                  _scope = value;
+                  _scopeError = null;
+                }),
+                errorText: _scopeError,
+              ),
+            ),
+          AppFormField(
+            child: TextFormField(
+              controller: _principal,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Anapara',
+                suffixText: 'TRY',
+              ),
+              validator: MoneyInput.positiveError,
+            ),
           ),
-        ),
-        AppFormField(
-          child: TextFormField(
-            controller: _description,
-            hintLocales: const [Locale('tr', 'TR')],
-            maxLines: 2,
-            decoration: const InputDecoration(labelText: 'Not (isteğe bağlı)'),
+          AppFormField(
+            child: DropdownButtonFormField<_DebtCostInput>(
+              initialValue: _costInput,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Elinizde hangisi var',
+                helperText: 'Girmediğinizi hesaplayıp size gösteririz.',
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: _DebtCostInput.total,
+                  child: Text('Toplam geri ödeme'),
+                ),
+                DropdownMenuItem(
+                  value: _DebtCostInput.rate,
+                  child: Text('Yıllık faiz oranı'),
+                ),
+              ],
+              onChanged: (value) => setState(() => _costInput = value!),
+            ),
           ),
-        ),
-      ],
+          if (_costInput == _DebtCostInput.total)
+            AppFormField(
+              child: TextFormField(
+                controller: _total,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Toplam geri ödeme',
+                  suffixText: 'TRY',
+                  helperText: 'Faiz dahil, gerçekte ödenecek toplam tutar.',
+                ),
+                validator: (value) {
+                  final error = MoneyInput.positiveError(value);
+                  if (error != null) return error;
+                  final principalAmount = MoneyInput.parse(_principal.text);
+                  final totalAmount = MoneyInput.parse(value!);
+                  return principalAmount != null &&
+                          totalAmount != null &&
+                          totalAmount < principalAmount
+                      ? 'Toplam geri ödeme anaparadan küçük olamaz.'
+                      : null;
+                },
+              ),
+            )
+          else
+            AppFormField(
+              child: TextFormField(
+                controller: _interest,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Yıllık faiz %',
+                  helperText:
+                      'Azalan bakiyeye işler; toplam geri ödemeyi bundan '
+                      'hesaplarız.',
+                ),
+                validator: (value) {
+                  final rate = MoneyInput.parse(value ?? '');
+                  return rate == null || rate < 0 || rate > 1000
+                      ? '0 ile 1000 arasında faiz girin.'
+                      : null;
+                },
+              ),
+            ),
+          AppFormField(
+            child: TextFormField(
+              controller: _count,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Taksit sayısı'),
+              validator: (value) {
+                final parsed = int.tryParse(value?.trim() ?? '');
+                return parsed == null || parsed < 1 || parsed > 360
+                    ? '1 ile 360 arasında taksit sayısı girin.'
+                    : null;
+              },
+            ),
+          ),
+          AppFormField(
+            child: AppDateField(
+              label: 'Başlangıç tarihi',
+              value: _startDate,
+              lastDate: DateTime.now(),
+              helperText: 'Borcun doğduğu gün; geçmiş bir tarih olabilir.',
+              onChanged: (value) => setState(() {
+                _startDate = value;
+                // İlk vade başlangıçtan önce olamaz (sunucu da reddeder);
+                // kullanıcıyı reddedilecek bir kombinasyona bırakmak yerine
+                // vade tarihi başlangıca çekilir.
+                if (AppDateField.parse(
+                  _firstDueDate,
+                )!.isBefore(AppDateField.parse(value)!)) {
+                  _firstDueDate = value;
+                }
+              }),
+            ),
+          ),
+          AppFormField(
+            child: AppDateField(
+              label: 'İlk taksit vadesi',
+              value: _firstDueDate,
+              helperText: 'Sonraki taksitler bu günden aylık ilerler.',
+              onChanged: (value) => setState(() => _firstDueDate = value),
+            ),
+          ),
+          AppFormField(
+            child: TextFormField(
+              controller: _description,
+              hintLocales: const [Locale('tr', 'TR')],
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Not (isteğe bağlı)',
+              ),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }
@@ -1146,6 +1196,7 @@ class _DebtOpeningFormState extends State<_DebtOpeningForm> {
   bool get _sourceIsCategorical => _source != 'cash';
 
   late List<DataChoice> _accounts = widget.accounts;
+  late List<DataChoice> _categories = widget.categories;
 
   @override
   void initState() {
@@ -1180,17 +1231,22 @@ class _DebtOpeningFormState extends State<_DebtOpeningForm> {
           direction: widget.direction,
           source: _source,
           accounts: _accounts,
-          categories: widget.categories,
+          categories: _categories,
           openingAccountId: _openingAccountId,
           categoryId: _categoryId,
           onAccountAdded: (added) => setState(() {
             _accounts = [..._accounts, added];
             _openingAccountId = added.id;
           }),
+          onCategoryAdded: (added) => setState(() {
+            _categories = [..._categories, added];
+            _categoryId = added.id;
+          }),
           onSourceChanged: (value) => setState(() => _source = value),
           onAccountChanged: (value) =>
               setState(() => _openingAccountId = value),
-          onCategoryChanged: (value) => setState(() => _categoryId = value),
+          onCategoryChanged: (value) =>
+              setState(() => _categoryId = value?.categoryId),
         ),
       ],
     ),

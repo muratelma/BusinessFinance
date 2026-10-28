@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/formatters/money_input.dart';
 import '../../../core/models/data_choice.dart';
+import '../../../core/models/transaction_scope.dart';
+import '../../../core/presentation/scope_controller.dart';
+import '../../../core/widgets/app_category_field.dart';
+import '../../../core/widgets/app_untracked_text.dart';
+import '../../categories/presentation/category_create_page.dart';
+import '../../categories/presentation/recent_categories.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_date_field.dart';
@@ -63,26 +70,30 @@ class _CashWithdrawalFormState extends State<CashWithdrawalForm> {
   final fields = GlobalKey<CashWithdrawalFieldsState>();
 
   @override
-  Widget build(BuildContext context) => Form(
-    key: formKey,
-    child: AppFormSheet<bool>(
-      title: 'Kendime aldım',
-      description:
-          '${widget.controller.selectedAccount?.name ?? 'Kasa'} '
-          'bakiyesinden düşer.',
-      submitLabel: 'Kaydet',
-      onSubmit: () async {
-        if (!formKey.currentState!.validate()) return null;
-        return await fields.currentState!.submit() ? true : null;
-      },
-      children: [
-        CashWithdrawalFields(
-          key: fields,
-          controller: widget.controller,
-          initialAmount: widget.initialAmount,
-          onOpenPersonalAccount: widget.onOpenPersonalAccount,
-        ),
-      ],
+  // Teslimle kurulan panel: 16 dp yan boşluk, metin harf aralıksız.
+  Widget build(BuildContext context) => AppUntrackedText(
+    child: Form(
+      key: formKey,
+      child: AppFormSheet<bool>(
+        title: 'Kendime aldım',
+        description:
+            '${widget.controller.selectedAccount?.name ?? 'Kasa'} '
+            'bakiyesinden düşer.',
+        horizontalPadding: AppSpacing.medium,
+        submitLabel: 'Kaydet',
+        onSubmit: () async {
+          if (!formKey.currentState!.validate()) return null;
+          return await fields.currentState!.submit() ? true : null;
+        },
+        children: [
+          CashWithdrawalFields(
+            key: fields,
+            controller: widget.controller,
+            initialAmount: widget.initialAmount,
+            onOpenPersonalAccount: widget.onOpenPersonalAccount,
+          ),
+        ],
+      ),
     ),
   );
 }
@@ -128,6 +139,9 @@ class CashWithdrawalFieldsState extends State<CashWithdrawalFields> {
   WithdrawalMethod? chosenMethod;
   String? accountId;
   String? categoryId;
+
+  /// `+ "…" ekle`den dönülünce eklenen kategoriler.
+  final _added = <DataChoice>[];
 
   /// Sunucunun reddettiği son kaydın cümlesi. Gösterilmezse `Kaydet` hiçbir
   /// şey yapmamış gibi görünür.
@@ -257,22 +271,43 @@ class CashWithdrawalFieldsState extends State<CashWithdrawalFields> {
                     validator: (value) => value == null ? 'Hesap seçin.' : null,
                   )
                 else
-                  DropdownButtonFormField<String>(
+                  // Kendime aldım şahsidir: yalnız şahsi ve iki kapsama açık
+                  // kategoriler listelenir, kapsam sorulmaz.
+                  AppCategoryField(
                     key: const ValueKey('withdrawal-category'),
-                    initialValue: categoryId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Kategori',
-                      helperText: 'Şahsi gider olarak yazılır.',
-                    ),
-                    items: [
-                      for (final category in categories)
-                        DropdownMenuItem(
-                          value: category.id,
-                          child: Text(category.name),
+                    helperText: 'Şahsi gider olarak yazılır.',
+                    options: [
+                      for (final category in [...categories, ..._added])
+                        AppCategoryOption(
+                          id: category.id,
+                          name: category.name,
+                          scope: category.defaultScope,
                         ),
                     ],
-                    onChanged: (value) => categoryId = value,
+                    value: categoryId == null
+                        ? null
+                        : AppCategoryValue(
+                            categoryId!,
+                            TransactionScope.personal,
+                          ),
+                    recent: RecentCategories.of(context, 'expense'),
+                    showScope:
+                        context.watch<ScopeController?>()?.isVisible ?? false,
+                    fixedScope: TransactionScope.personal,
+                    onChanged: (value) =>
+                        setState(() => categoryId = value?.categoryId),
+                    onAdd: (name) async {
+                      final created = await addCategoryFromForm(
+                        context,
+                        type: 'expense',
+                        name: name,
+                      );
+                      if (created == null || !mounted) return;
+                      setState(() {
+                        _added.add(created.choice);
+                        categoryId = created.id;
+                      });
+                    },
                     validator: (value) =>
                         value == null ? 'Kategori seçin.' : null,
                   ),

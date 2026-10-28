@@ -16,13 +16,16 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_adaptive_sheet.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_date_field.dart';
+import '../../../core/widgets/app_category_field.dart';
+import '../../../core/widgets/app_untracked_text.dart';
+import '../../categories/presentation/category_create_page.dart';
+import '../../categories/presentation/recent_categories.dart';
 import '../../../core/widgets/app_list_row.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_section_header.dart';
 import '../../../core/widgets/app_form_sheet.dart';
 import '../../../core/widgets/app_month_chips.dart';
 import '../../../core/widgets/app_responsive_grid.dart';
-import '../../../core/widgets/app_scope_selector.dart';
 import '../../../core/widgets/app_row_action.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
@@ -904,8 +907,11 @@ class _RecurringFormState extends State<_RecurringForm> {
   String? creditCardId;
   String? categoryId;
   late List<PlanningChoice> accounts = widget.snapshot.accounts;
-  TransactionScope? explicitScope;
-  bool scopeMissing = false;
+  late List<PlanningChoice> categories = widget.snapshot.categories;
+
+  /// İki kapsama açık kategorinin menüde seçilen kapsamı. Plan kapsamını
+  /// kurulurken alır ve ürettiği her kayda taşır (ADR 0020 Y4).
+  TransactionScope? categoryScope;
   String kind = 'expense';
   String frequency = 'monthly';
   String monthEndBehavior = 'clamp-to-last-day';
@@ -928,240 +934,227 @@ class _RecurringFormState extends State<_RecurringForm> {
   }
 
   @override
-  Widget build(BuildContext context) => Form(
-    key: formKey,
-    child: AppFormSheet<bool>(
-      title: 'Tekrarlayan plan ekle',
-      description:
-          'Plan tek başına para üretmez; kayıt ancak gerçekleştirildiğinde '
-          'bakiyeye ve raporlara girer.',
-      submitLabel: 'Kaydet',
-      onSubmit: _submit,
-      children: [
-        // Income can only land in an account: a card cannot receive money
-        // and card refunds are not modelled. An expense or bill may be
-        // charged to a card, which is how a subscription is really paid.
-        if (kind == 'income')
-          AppAccountField(
-            label: 'Hesap',
-            value: accountId,
-            options: [
-              for (final account in accounts)
-                AccountChoices.of(context).account(
-                  account.id,
-                  account.name,
-                  type: account.type,
-                  scope: account.defaultScope,
-                ),
-            ],
-            onChanged: (value) => setState(() {
-              accountId = value;
-              creditCardId = null;
-            }),
-            onAdd: _addAccount,
-            validator: (value) => value == null ? 'Hesap seçin.' : null,
-          )
-        else
-          AppAccountField(
-            label: 'Kaynak',
-            value: _sourceValue,
-            options: [
-              for (final account in accounts)
-                AccountChoices.of(context)
-                    .account(
-                      account.id,
-                      account.name,
-                      type: account.type,
-                      scope: account.defaultScope,
-                    )
-                    .withId('account:${account.id}'),
-              for (final card in widget.snapshot.creditCards)
-                AccountChoices.of(context)
-                    .card(card.id, card.name, scope: card.defaultScope)
-                    .withId('card:${card.id}'),
-            ],
-            onChanged: (value) => setState(() {
-              if (value == null) return;
-              final isCard = value.startsWith('card:');
-              creditCardId = isCard ? value.substring(5) : null;
-              accountId = isCard ? null : value.substring(8);
-            }),
-            onAdd: _addAccount,
-            validator: (value) => value == null ? 'Kaynak seçin.' : null,
-          ),
-        const SizedBox(height: AppSpacing.medium),
-        DropdownButtonFormField<String>(
-          key: ValueKey('category-$kind-$categoryId'),
-          initialValue: categoryId,
-          decoration: const InputDecoration(labelText: 'Kategori'),
-          items: [
-            for (final category in _availableCategories)
-              DropdownMenuItem(value: category.id, child: Text(category.name)),
-          ],
-          onChanged: (value) => setState(() {
-            categoryId = value;
-            scopeMissing = false;
-          }),
-          validator: (value) => value == null ? 'Kategori seçin.' : null,
-        ),
-        // Plan tarafını kurulurken alır ve ürettiği her kayda taşır; iki
-        // tarafa açık kategoride bu yüzden burada sorulur (ADR 0020 Y4).
-        if ((context.watch<ScopeController?>()?.isVisible ?? false) &&
-            categoryId != null) ...[
+  // Teslimle kurulan panel: 16 dp yan boşluk, metin harf aralıksız.
+  Widget build(BuildContext context) => AppUntrackedText(
+    child: Form(
+      key: formKey,
+      child: AppFormSheet<bool>(
+        title: 'Tekrarlayan plan ekle',
+        description:
+            'Plan tek başına para üretmez; kayıt ancak gerçekleştirildiğinde '
+            'bakiyeye ve raporlara girer.',
+        horizontalPadding: AppSpacing.medium,
+        submitLabel: 'Kaydet',
+        onSubmit: _submit,
+        children: [
+          // Income can only land in an account: a card cannot receive money
+          // and card refunds are not modelled. An expense or bill may be
+          // charged to a card, which is how a subscription is really paid.
+          if (kind == 'income')
+            AppAccountField(
+              label: 'Hesap',
+              value: accountId,
+              options: [
+                for (final account in accounts)
+                  AccountChoices.of(context).account(
+                    account.id,
+                    account.name,
+                    type: account.type,
+                    scope: account.defaultScope,
+                  ),
+              ],
+              onChanged: (value) => setState(() {
+                accountId = value;
+                creditCardId = null;
+              }),
+              onAdd: _addAccount,
+              validator: (value) => value == null ? 'Hesap seçin.' : null,
+            )
+          else
+            AppAccountField(
+              label: 'Kaynak',
+              value: _sourceValue,
+              options: [
+                for (final account in accounts)
+                  AccountChoices.of(context)
+                      .account(
+                        account.id,
+                        account.name,
+                        type: account.type,
+                        scope: account.defaultScope,
+                      )
+                      .withId('account:${account.id}'),
+                for (final card in widget.snapshot.creditCards)
+                  AccountChoices.of(context)
+                      .card(card.id, card.name, scope: card.defaultScope)
+                      .withId('card:${card.id}'),
+              ],
+              onChanged: (value) => setState(() {
+                if (value == null) return;
+                final isCard = value.startsWith('card:');
+                creditCardId = isCard ? value.substring(5) : null;
+                accountId = isCard ? null : value.substring(8);
+              }),
+              onAdd: _addAccount,
+              validator: (value) => value == null ? 'Kaynak seçin.' : null,
+            ),
           const SizedBox(height: AppSpacing.medium),
-          AppScopeSection(
-            explicit: explicitScope,
-            source: _sourceScope,
-            category: _categoryScope,
-            errorText: scopeMissing ? 'Bu plan için kapsam seçin.' : null,
+          AppCategoryField(
+            options: _categoryOptions,
+            value: _categoryValue,
+            recent: RecentCategories.of(context, _categoryType),
+            showScope: context.watch<ScopeController?>()?.isVisible ?? false,
             onChanged: (value) => setState(() {
-              explicitScope = value;
-              scopeMissing = false;
+              categoryId = value?.categoryId;
+              categoryScope = value?.scope;
+            }),
+            onAdd: _addCategory,
+            validator: (value) => value == null ? 'Kategori seçin.' : null,
+          ),
+          const SizedBox(height: AppSpacing.medium),
+          TextFormField(
+            controller: amount,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Tutar'),
+            validator: _amountError,
+          ),
+          const SizedBox(height: AppSpacing.medium),
+          DropdownButtonFormField<String>(
+            initialValue: kind,
+            decoration: const InputDecoration(labelText: 'Tür'),
+            items: const [
+              DropdownMenuItem(value: 'income', child: Text('Gelir')),
+              DropdownMenuItem(value: 'expense', child: Text('Gider')),
+              DropdownMenuItem(
+                value: 'bill-payment',
+                child: Text('Fatura / abonelik'),
+              ),
+            ],
+            onChanged: (value) => setState(() {
+              kind = value!;
+              if (!_availableCategories.any(
+                (category) => category.id == categoryId,
+              )) {
+                categoryId = null;
+                categoryScope = null;
+              }
             }),
           ),
-        ],
-        const SizedBox(height: AppSpacing.medium),
-        TextFormField(
-          controller: amount,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Tutar'),
-          validator: _amountError,
-        ),
-        const SizedBox(height: AppSpacing.medium),
-        DropdownButtonFormField<String>(
-          initialValue: kind,
-          decoration: const InputDecoration(labelText: 'Tür'),
-          items: const [
-            DropdownMenuItem(value: 'income', child: Text('Gelir')),
-            DropdownMenuItem(value: 'expense', child: Text('Gider')),
-            DropdownMenuItem(
-              value: 'bill-payment',
-              child: Text('Fatura / abonelik'),
-            ),
-          ],
-          onChanged: (value) => setState(() {
-            kind = value!;
-            if (!_availableCategories.any(
-              (category) => category.id == categoryId,
-            )) {
-              categoryId = null;
-            }
-          }),
-        ),
-        const SizedBox(height: AppSpacing.medium),
-        DropdownButtonFormField<String>(
-          initialValue: frequency,
-          decoration: const InputDecoration(labelText: 'Sıklık'),
-          items: const [
-            // Emlak Mayıs ve Kasım, gelir vergisi Mart ve Temmuz gibi
-            // ritimler "6 ayda bir"e sığmıyor (ADR 0018 T2).
-            DropdownMenuItem(
-              value: 'selected-months',
-              child: Text('Seçilen aylarda'),
-            ),
-            DropdownMenuItem(value: 'daily', child: Text('Günlük')),
-            DropdownMenuItem(value: 'weekly', child: Text('Haftalık')),
-            DropdownMenuItem(value: 'monthly', child: Text('Aylık')),
-            // Geçici verginin ritmi; aylığın üç adımlık hâli.
-            DropdownMenuItem(value: 'quarterly', child: Text('Üç ayda bir')),
-            DropdownMenuItem(value: 'yearly', child: Text('Yıllık')),
-          ],
-          onChanged: (value) => setState(() => frequency = value!),
-        ),
-        if (frequency == 'selected-months') ...[
-          const SizedBox(height: AppSpacing.small),
-          AppMonthChips(
-            selected: months,
-            onChanged: (value) => setState(() {
-              months = value;
-              monthsInvalid = false;
-            }),
+          const SizedBox(height: AppSpacing.medium),
+          DropdownButtonFormField<String>(
+            initialValue: frequency,
+            decoration: const InputDecoration(labelText: 'Sıklık'),
+            items: const [
+              // Emlak Mayıs ve Kasım, gelir vergisi Mart ve Temmuz gibi
+              // ritimler "6 ayda bir"e sığmıyor (ADR 0018 T2).
+              DropdownMenuItem(
+                value: 'selected-months',
+                child: Text('Seçilen aylarda'),
+              ),
+              DropdownMenuItem(value: 'daily', child: Text('Günlük')),
+              DropdownMenuItem(value: 'weekly', child: Text('Haftalık')),
+              DropdownMenuItem(value: 'monthly', child: Text('Aylık')),
+              // Geçici verginin ritmi; aylığın üç adımlık hâli.
+              DropdownMenuItem(value: 'quarterly', child: Text('Üç ayda bir')),
+              DropdownMenuItem(value: 'yearly', child: Text('Yıllık')),
+            ],
+            onChanged: (value) => setState(() => frequency = value!),
           ),
-          if (monthsInvalid)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.small),
-              child: Text(
-                months.isEmpty
-                    ? 'En az bir ay seçin.'
-                    : 'Başlangıç seçilen aylardan birinde olmalı.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.error,
+          if (frequency == 'selected-months') ...[
+            const SizedBox(height: AppSpacing.small),
+            AppMonthChips(
+              selected: months,
+              onChanged: (value) => setState(() {
+                months = value;
+                monthsInvalid = false;
+              }),
+            ),
+            if (monthsInvalid)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.small),
+                child: Text(
+                  months.isEmpty
+                      ? 'En az bir ay seçin.'
+                      : 'Başlangıç seçilen aylardan birinde olmalı.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
                 ),
               ),
-            ),
-        ],
-        const SizedBox(height: AppSpacing.medium),
-        DropdownButtonFormField<String>(
-          initialValue: monthEndBehavior,
-          decoration: const InputDecoration(labelText: 'Ay sonu davranışı'),
-          items: const [
-            DropdownMenuItem(
-              value: 'clamp-to-last-day',
-              child: Text('Ayın son gününe taşı'),
-            ),
-            DropdownMenuItem(
-              value: 'skip-invalid-period',
-              child: Text('Geçersiz ayı atla'),
-            ),
           ],
-          onChanged: (value) => monthEndBehavior = value!,
-        ),
-        const SizedBox(height: AppSpacing.medium),
-        AppDateField(
-          label: 'Başlangıç',
-          value: _formatDate(startDate),
-          onChanged: (value) => setState(() {
-            startDate = AppDateField.parse(value)!;
-            final end = AppDateField.parse(endDate);
-            if (end != null && end.isBefore(startDate)) endDate = null;
-          }),
-        ),
-        const SizedBox(height: AppSpacing.medium),
-        AppDateField(
-          label: 'Bitiş tarihi (isteğe bağlı)',
-          value: endDate,
-          firstDate: startDate,
-          helperText: 'Boş bırakırsanız plan süresiz tekrar eder.',
-          onChanged: (value) => setState(() => endDate = value),
-        ),
-        if (endDate != null)
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: () => setState(() => endDate = null),
-              icon: const Icon(Icons.clear),
-              label: const Text('Bitiş tarihini kaldır'),
+          const SizedBox(height: AppSpacing.medium),
+          DropdownButtonFormField<String>(
+            initialValue: monthEndBehavior,
+            decoration: const InputDecoration(labelText: 'Ay sonu davranışı'),
+            items: const [
+              DropdownMenuItem(
+                value: 'clamp-to-last-day',
+                child: Text('Ayın son gününe taşı'),
+              ),
+              DropdownMenuItem(
+                value: 'skip-invalid-period',
+                child: Text('Geçersiz ayı atla'),
+              ),
+            ],
+            onChanged: (value) => monthEndBehavior = value!,
+          ),
+          const SizedBox(height: AppSpacing.medium),
+          AppDateField(
+            label: 'Başlangıç',
+            value: _formatDate(startDate),
+            onChanged: (value) => setState(() {
+              startDate = AppDateField.parse(value)!;
+              final end = AppDateField.parse(endDate);
+              if (end != null && end.isBefore(startDate)) endDate = null;
+            }),
+          ),
+          const SizedBox(height: AppSpacing.medium),
+          AppDateField(
+            label: 'Bitiş tarihi (isteğe bağlı)',
+            value: endDate,
+            firstDate: startDate,
+            helperText: 'Boş bırakırsanız plan süresiz tekrar eder.',
+            onChanged: (value) => setState(() => endDate = value),
+          ),
+          if (endDate != null)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => setState(() => endDate = null),
+                icon: const Icon(Icons.clear),
+                label: const Text('Bitiş tarihini kaldır'),
+              ),
+            ),
+          const SizedBox(height: AppSpacing.medium),
+          TextFormField(
+            controller: occurrenceLimit,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Toplam tekrar sınırı (isteğe bağlı)',
+              helperText:
+                  'Plan bu sayıda kayıt ürettikten sonra tamamlanır. '
+                  'Bitiş tarihiyle birlikte verilirse önce dolan geçerlidir.',
+            ),
+            validator: (value) {
+              final text = value?.trim() ?? '';
+              if (text.isEmpty) return null;
+              final parsed = int.tryParse(text);
+              return parsed == null || parsed <= 0
+                  ? 'Sıfırdan büyük tam sayı girin.'
+                  : null;
+            },
+          ),
+          const SizedBox(height: AppSpacing.medium),
+          TextFormField(
+            controller: description,
+            hintLocales: const [Locale('tr', 'TR')],
+            maxLength: 200,
+            decoration: const InputDecoration(
+              labelText: 'Açıklama (isteğe bağlı)',
             ),
           ),
-        const SizedBox(height: AppSpacing.medium),
-        TextFormField(
-          controller: occurrenceLimit,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Toplam tekrar sınırı (isteğe bağlı)',
-            helperText:
-                'Plan bu sayıda kayıt ürettikten sonra tamamlanır. '
-                'Bitiş tarihiyle birlikte verilirse önce dolan geçerlidir.',
-          ),
-          validator: (value) {
-            final text = value?.trim() ?? '';
-            if (text.isEmpty) return null;
-            final parsed = int.tryParse(text);
-            return parsed == null || parsed <= 0
-                ? 'Sıfırdan büyük tam sayı girin.'
-                : null;
-          },
-        ),
-        const SizedBox(height: AppSpacing.medium),
-        TextFormField(
-          controller: description,
-          hintLocales: const [Locale('tr', 'TR')],
-          maxLength: 200,
-          decoration: const InputDecoration(
-            labelText: 'Açıklama (isteğe bağlı)',
-          ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 
@@ -1188,25 +1181,46 @@ class _RecurringFormState extends State<_RecurringForm> {
       ? 'card:$creditCardId'
       : (accountId == null ? null : 'account:$accountId');
 
-  TransactionScope? get _categoryScope => widget.snapshot.categories
-      .where((category) => category.id == categoryId)
-      .firstOrNull
-      ?.defaultScope;
+  String get _categoryType => kind == 'income' ? 'income' : 'expense';
 
-  TransactionScope? get _sourceScope =>
-      (creditCardId != null
-              ? widget.snapshot.creditCards.where(
-                  (card) => card.id == creditCardId,
-                )
-              : accounts.where((account) => account.id == accountId))
-          .firstOrNull
-          ?.defaultScope;
+  Iterable<PlanningChoice> get _availableCategories => categories.where(
+    (category) => category.type == null || category.type == _categoryType,
+  );
 
-  Iterable<PlanningChoice> get _availableCategories {
-    final requiredType = kind == 'income' ? 'income' : 'expense';
-    return widget.snapshot.categories.where(
-      (category) => category.type == null || category.type == requiredType,
+  List<AppCategoryOption> get _categoryOptions => [
+    for (final category in _availableCategories)
+      AppCategoryOption(
+        id: category.id,
+        name: category.name,
+        scope: category.defaultScope,
+      ),
+  ];
+
+  AppCategoryValue? get _categoryValue =>
+      categoryId == null ? null : AppCategoryValue(categoryId!, categoryScope);
+
+  /// `+ "…" ekle`den dönülünce yeni kategori listede ve seçili gelir.
+  Future<void> _addCategory(String name) async {
+    final created = await addCategoryFromForm(
+      context,
+      type: _categoryType,
+      name: name,
     );
+    if (created == null || !mounted) return;
+    final showScope = context.read<ScopeController?>()?.isVisible ?? false;
+    setState(() {
+      categories = [
+        ...categories,
+        PlanningChoice(
+          id: created.id,
+          name: created.name,
+          type: created.type,
+          defaultScope: created.defaultScope,
+        ),
+      ];
+      categoryId = created.id;
+      categoryScope = showScope ? created.defaultScope : null;
+    });
   }
 
   /// Panel yalnız başarıda kapanır. Başarısızlıkta `null` döner ve alanlar
@@ -1215,15 +1229,9 @@ class _RecurringFormState extends State<_RecurringForm> {
     if (!formKey.currentState!.validate()) return null;
     // Taraf görünmeyen kullanıcıda hiçbir istekte `scope` gitmez.
     final showScope = context.read<ScopeController?>()?.isVisible ?? false;
-    final scope = previewResolvedScope(
-      explicit: explicitScope,
-      source: _sourceScope,
-      category: _categoryScope,
-    );
-    if (showScope && scope == null) {
-      setState(() => scopeMissing = true);
-      return null;
-    }
+    // İki kapsama açık kategoride kapsamı alan kendisi ister; hesabın ya da
+    // kartın kapsamı ön değer olmaz (kullanıcı kararı D5).
+    final scope = AppCategoryField.scopeOf(_categoryOptions, _categoryValue);
     final selectedMonths = frequency == 'selected-months';
     if (selectedMonths &&
         (months.isEmpty || !months.contains(startDate.month))) {

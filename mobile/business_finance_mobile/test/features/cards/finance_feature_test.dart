@@ -24,6 +24,8 @@ import 'package:business_finance_mobile/features/activities/data/receipt_fee_wri
 import 'package:business_finance_mobile/features/cards/presentation/finance_page.dart';
 import 'package:business_finance_mobile/features/cards/presentation/transfer_prefill.dart';
 
+import '../../support/category_field_helpers.dart';
+
 void main() {
   testWidgets('kartlar ekranı erişilebilirlik kapısını geçer', (tester) async {
     await pumpAtLargestTextScale(
@@ -366,13 +368,9 @@ void main() {
       find.widgetWithText(TextFormField, 'Toplam'),
       '1400',
     );
-    final categoryField = find.byType(DropdownButtonFormField<String>).first;
-    await tester.ensureVisible(categoryField);
+    await tester.ensureVisible(categoryField('Gider kategorisi'));
     await tester.pumpAndSettle();
-    await tester.tap(categoryField);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Sağlık').last);
-    await tester.pumpAndSettle();
+    await chooseCategory(tester, 'Sağlık', label: 'Gider kategorisi');
 
     await tester.tap(find.text('Kaydet'));
     await tester.pumpAndSettle();

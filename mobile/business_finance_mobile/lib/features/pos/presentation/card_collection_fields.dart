@@ -7,7 +7,9 @@ import '../../../core/formatters/money_input.dart';
 import '../../../core/models/data_choice.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
+import '../../../core/widgets/app_choice_segments.dart';
 import '../../../core/widgets/app_date_field.dart';
+import '../../categories/presentation/fixed_scope_category_field.dart';
 import '../../../core/widgets/app_detail_block.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_segment_rail.dart';
@@ -322,31 +324,20 @@ class CardCollectionFieldsState extends State<CardCollectionFields> {
       onChanged: (value) => setState(() => _expected = value),
     ),
     const SizedBox(height: AppSpacing.medium),
-    Semantics(
-      container: true,
+    // POS tahsilatıyla aynı parçalı seçici.
+    AppChoiceSegments<_CommissionMode>(
       label: 'Komisyon',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Komisyon', style: Theme.of(context).textTheme.labelMedium),
-          const SizedBox(height: AppSpacing.xSmall),
-          SegmentedButton<_CommissionMode>(
-            segments: const [
-              ButtonSegment(value: _CommissionMode.none, label: Text('Yok')),
-              ButtonSegment(
-                value: _CommissionMode.amount,
-                label: Text('Tutar'),
-              ),
-              ButtonSegment(value: _CommissionMode.rate, label: Text('Oran')),
-            ],
-            selected: {_mode},
-            onSelectionChanged: (value) => setState(() {
-              _mode = value.first;
-              _commission.clear();
-            }),
-          ),
-        ],
-      ),
+      values: _CommissionMode.values,
+      selected: _mode,
+      labelOf: (mode) => switch (mode) {
+        _CommissionMode.none => 'Yok',
+        _CommissionMode.amount => 'Tutar',
+        _CommissionMode.rate => 'Oran',
+      },
+      onChanged: (value) => setState(() {
+        _mode = value;
+        _commission.clear();
+      }),
     ),
     if (_mode != _CommissionMode.none) ...[
       const SizedBox(height: AppSpacing.medium),
@@ -355,7 +346,7 @@ class CardCollectionFieldsState extends State<CardCollectionFields> {
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         decoration: InputDecoration(
           labelText: _mode == _CommissionMode.amount
-              ? 'Kesilen komisyon'
+              ? 'Komisyon tutarı'
               : 'Komisyon oranı (%)',
           helperText: _mode == _CommissionMode.amount
               ? 'Tahsil günü ayrı bir gider olarak yazılır.'
@@ -368,16 +359,11 @@ class CardCollectionFieldsState extends State<CardCollectionFields> {
                   : null,
       ),
       const SizedBox(height: AppSpacing.medium),
-      DropdownButtonFormField<String>(
-        initialValue: _commissionCategoryId,
-        isExpanded: true,
-        decoration: const InputDecoration(
-          labelText: 'Komisyon gider kategorisi',
-        ),
-        items: [
-          for (final category in widget.source.expenseCategories)
-            DropdownMenuItem(value: category.id, child: Text(category.name)),
-        ],
+      FixedScopeCategoryField(
+        label: 'Komisyon gider kategorisi',
+        type: 'expense',
+        categories: widget.source.expenseCategories,
+        value: _commissionCategoryId,
         onChanged: (value) => setState(() => _commissionCategoryId = value),
         validator: (value) =>
             value == null ? 'Komisyon için kategori seçin.' : null,

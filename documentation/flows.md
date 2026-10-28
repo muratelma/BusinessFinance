@@ -1810,3 +1810,12 @@ türle dolu açar; kaydedince forma dönülür ve yeni kategori seçili gelir, i
 kapsama açıksa menü onunla yeniden açılır. Vazgeçilirse form olduğu gibi
 kalır. POS tahsilatında kapsam sorulmaz: yalnız işletmenin ve iki kapsama açık
 kategoriler listelenir.
+
+Kategori seçici 28 Ekim 2026'da kalan formlara da bağlandı: bütçe, kart
+harcaması, taksit planı, tekrarlayan plan ve borç/alacak planında kapsam
+kategoriyle birlikte menüde seçilir, hesabın ya da kartın kapsamı ön değer
+olmaz; POS ekle, kartla tahsil, yatış kesintisi, gün sonu ve cari
+borçlandırmada yalnız işletmenin, `Kendime aldım`da yalnız şahsi tarafın ve iki
+kapsama açık kategoriler listelenir ve kapsam sorulmaz. Vergi, kasa farkı ve
+ekstre eşlemede kategori düz listeden seçilir; kapsam bu formlarda başka yerden
+gelir.

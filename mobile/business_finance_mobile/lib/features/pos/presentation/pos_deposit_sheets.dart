@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/app_untracked_text.dart';
+import '../../categories/presentation/fixed_scope_category_field.dart';
+
 import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_input.dart';
 import '../../../core/formatters/money_text.dart';
@@ -218,18 +221,22 @@ class _DepositFormState extends State<_DepositForm> {
   }
 
   @override
-  Widget build(BuildContext context) => Form(
-    key: formKey,
-    child: AppFormSheet<bool>(
-      title: 'Hesaba geçenleri işaretle',
-      description:
-          'Bankanın yatırdığı tutarı yazın. Satış tahsil edildiği gün gelir '
-          'olarak yazıldı; bu adım gelir yazmaz.',
-      submitLabel: 'Kaydet',
-      onSubmit: candidates.isEmpty ? null : _submit,
-      children: candidates.isEmpty
-          ? const [Text('Yolda tahsilat yok.')]
-          : _fields(context),
+  // Teslimle kurulan panel: 16 dp yan boşluk, metin harf aralıksız.
+  Widget build(BuildContext context) => AppUntrackedText(
+    child: Form(
+      key: formKey,
+      child: AppFormSheet<bool>(
+        title: 'Hesaba geçenleri işaretle',
+        description:
+            'Bankanın yatırdığı tutarı yazın. Satış tahsil edildiği gün gelir '
+            'olarak yazıldı; bu adım gelir yazmaz.',
+        horizontalPadding: AppSpacing.medium,
+        submitLabel: 'Kaydet',
+        onSubmit: candidates.isEmpty ? null : _submit,
+        children: candidates.isEmpty
+            ? const [Text('Yolda tahsilat yok.')]
+            : _fields(context),
+      ),
     ),
   );
 
@@ -356,19 +363,13 @@ class _DepositFormState extends State<_DepositForm> {
         final value = categories.any((item) => item.id == deductionCategoryId)
             ? deductionCategoryId
             : null;
-        return DropdownButtonFormField<String>(
-          key: ValueKey('deduction-category-$value'),
-          initialValue: value,
-          isExpanded: true,
-          decoration: const InputDecoration(
-            labelText: 'Kesinti kategorisi',
-            helperText: 'Eksik yatan tutar bu kategoriye gider yazılır.',
-            helperMaxLines: 2,
-          ),
-          items: [
-            for (final category in categories)
-              DropdownMenuItem(value: category.id, child: Text(category.name)),
-          ],
+        // Kesinti POS'undur, işletmenindir: kapsam sorulmaz.
+        return FixedScopeCategoryField(
+          label: 'Kesinti kategorisi',
+          type: 'expense',
+          helperText: 'Eksik yatan tutar bu kategoriye gider yazılır.',
+          categories: categories,
+          value: value,
           onChanged: (selection) =>
               setState(() => deductionCategoryId = selection),
           validator: (selection) =>
