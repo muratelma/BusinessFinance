@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="tr"><head><meta charset="utf-8"><title>Hesap seçici · Özet hesaplar</title>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/design-system-02d8cd45-68c3-45e3-a947-241a11eb81d4/styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="_ds/design-system-02d8cd45-68c3-45e3-a947-241a11eb81d4/_ds_bundle.js"></script>
+<style>
+body{margin:0;font-family:var(--font-core)}
+a{color:var(--ink);text-decoration:underline}a:hover{color:var(--ink-muted)}
+.frame{position:absolute;width:412px}
+.frame-label{position:absolute;top:-40px;left:0;white-space:nowrap;font:600 18px/1.3 var(--font-core);color:var(--ink)}
+.phone{width:412px;height:892px;position:relative;overflow:hidden;background:var(--surface-canvas);border:1px solid var(--border);border-radius:28px}
+.phone>img{display:block;width:100%;height:100%;object-fit:cover;object-position:top}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column}
+.body{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}.body::-webkit-scrollbar{display:none}
+.iconbtn{width:48px;height:48px;display:inline-flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--ink);border-radius:16px;cursor:pointer}
+.menu-scroll::-webkit-scrollbar{display:none}
+.note{position:absolute;width:2440px;font:15px/1.5 var(--font-core);color:var(--ink);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px}.note h2{font:700 26px/1.25 var(--font-core);margin:0 0 8px;grid-column:1/-1}.note div{background:var(--surface-card);border:1px solid var(--border);border-radius:20px;padding:16px 20px}.note b{display:block;font:600 16px/1.3 var(--font-core);margin-bottom:6px}.note p{margin:0;color:var(--ink-muted);text-wrap:pretty}
+</style>
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#16191D"/><text x="50" y="62" font-family="Roboto,sans-serif" font-size="30" font-weight="700" fill="#fff" text-anchor="middle">BF</text></svg></template>
+</head><body>
+<div class="note" style="left:80px;top:80px"><h2>Hesap seçici · formlardaki "Hesap" alanı</h2>
+<div><b>Menü (H1)</b><p>Alanın hemen altında açılır, başlık yazısı yok: doğrudan hesaplar. Satır simge · ad · kapsam · bakiye; seçili satır solda 4 px çubuk, zemin ve kalın yazı (S3); simge yerinde kalır. Hesaplar türe göre gruplu; pasif hesap listede yok.</p></div><div><b>Çerçeve genişliği</b><p>Menü alanla aynı genişlikte (ekran kenarından 16 px). Tam ekran genişliğinde menü alandan kopuk durur ve hangi alanın açıldığı okunmaz; alan zaten ekranın %92'si, kazanılan yer 32 px.</p></div><div><b>Seçimden sonra (H1b)</b><p>Alan simge, ad, tür · kapsam ve bakiyeyi gösterir. Giderde kredi kartı ayrı grupta, borç eksi ve kırmızı (H1g).</p></div><div><b>Transfer · Hiç hesap yok</b><p>Nereye menüsünde kaynak hesap soluk ve seçilemez: "Para buradan çıkıyor" (H6). Hiç hesap yokken alana dokununca altında beyaz kart açılır, form aşağı kayar; tekrar dokununca kapanır. "Hesap ekle" Hesaplar'daki ekleme sayfasını açar (H7, H7o).</p></div>
+</div>
+<div class="frame" style="left:80px;top:380px" data-screen-label="H1 · Alana bağlı menü"><div class="frame-label">H1 · Alana bağlı menü</div><div class="phone" id="H1"></div></div>
+<div class="frame" style="left:572px;top:380px" data-screen-label="H1b · Seçildikten sonra"><div class="frame-label">H1b · Seçildikten sonra</div><div class="phone" id="H1b"></div></div>
+<div class="frame" style="left:1064px;top:380px" data-screen-label="H1g · Gider · kart dahil"><div class="frame-label">H1g · Gider · kart dahil</div><div class="phone" id="H1g"></div></div>
+<div class="frame" style="left:1556px;top:380px" data-screen-label="H6 · Transfer · Nereye"><div class="frame-label">H6 · Transfer · Nereye</div><div class="phone" id="H6"></div></div>
+<div class="frame" style="left:2048px;top:380px" data-screen-label="H7 · Hiç hesap yok"><div class="frame-label">H7 · Hiç hesap yok · kapalı</div><div class="phone" id="H7"></div></div>
+<div class="frame" style="left:2540px;top:380px" data-screen-label="H7o · Hiç hesap yok · açık"><div class="frame-label">H7o · Hiç hesap yok · açık</div><div class="phone" id="H7o"></div></div>
+<div class="note" style="left:80px;top:1400px"><h2>Özet · Hesap bakiyeleri · V1</h2><div><b>Başlık</b><p>"Hesap bakiyeleri ›", kapsam notu yok.</p></div><div><b>Kart</b><p>Tek kart. Nakit / Banka grup satırı: renkli nokta + ad; toplam yok, başlık altında çizgi yok. Gruplar arası çizgi.</p></div><div><b>Satır</b><p>Simge (türe göre renk) · ad · kapsam · bakiye. Pasif hesap ve hesap sayısı gösterilmez.</p></div></div>
+<div class="frame" style="left:80px;top:1640px" data-screen-label="V1 · Varlık durumu gibi"><div class="frame-label">V1 · Varlık durumu gibi</div><div class="phone" id="V1"></div></div>
+<div class="note" style="left:80px;top:2660px"><h2>POS tahsilatı · POS ve hesap alanı</h2><div><b>Form sırası (Elle gir)</b><p>POS · Paranın geçeceği hesap · Satış kategorisi · Müşterinin ödediği · Tahsilat günü · Paranın beklendiği gün · Komisyon · Açıklama. POS seçiliyken kategori, beklenen gün ve komisyon sorulmaz; özet panelde okunur.</p></div><div><b>Çözüm · içerik aynı</b><p>Satır içeriği bugünkü gibi: simge · ad · "POS · Ziraat vadesiz" / "Banka hesabı · İşletme" · bakiye. Kapsül 32 px, ad 15/20, alt yazı 13/16: alan 56 px kalır, etiketle ad arasında boşluk olur.</p></div><div><b>Ortak değer (SelVal)</b><p>Hesap (H1b, H1g, H6), POS ve Elle gir aynı parçayı kullanır: 32 px kapsül · ad 15/20 · alt yazı 13/16 · tutar. Alan her durumda tam 56 px. Elle gir aynı kapsülle, tek satır.</p></div><div><b>Elle gir</b><p>Alanda yalnız "Elle gir" yazar. Menüde altında "POS seçmeden; hesabı siz seçersiniz" (P1eo).</p></div><div><b>Menü</b><p>H1 ile aynı, ara yazı ve çizgi yok: Ziraat POS (altında Ziraat vadesiz) ve Elle gir.</p></div></div>
+<div class="frame" style="left:80px;top:2900px" data-screen-label="P1 · Tek satır"><div class="frame-label">P1 · POS seçili</div><div class="phone" id="P1"></div></div>
+<div class="frame" style="left:572px;top:2900px" data-screen-label="P1o · Menü açık"><div class="frame-label">P1o · Menü açık</div><div class="phone" id="P1o"></div></div>
+<div class="frame" style="left:1064px;top:2900px" data-screen-label="P1e · Elle gir"><div class="frame-label">P1e · Elle gir</div><div class="phone" id="P1e"></div></div>
+<div class="frame" style="left:1556px;top:2900px" data-screen-label="P1eo · Elle gir seçili menü"><div class="frame-label">P1eo · Elle gir seçili menü</div><div class="phone" id="P2"></div></div>
+<div class="note" style="left:80px;top:3780px"><h2>Kategori seçici · tek tasarım (gelir, gider, POS)</h2><div><b>Açılış</b><p>Sıra: Hesap · Kategori · Tutar · Tarih. Alana dokununca form kayar, Kategori alanı başlığın altına gelir; menü altında açılır, içerik kadar uzar, en fazla alt çubuğun 16 px üstüne (klavyede klavyenin 8 px üstüne). Menü açıkken alttaki alanlar gizlenir. Dokun = seç, kapat, form geri döner.</p></div><div><b>Liste</b><p>Gruplar: İşletme · Şahsi · İşletme veya şahsi (sağda aşağı ok); boş grup yok. 8'den fazla kategori varsa en üstte arama (44 px) ve Son kullanılanlar (en çok 4). Eşleşme yoksa H7 dili: "Bu adla kategori yok" + "… ekle".</p></div><div><b>Kapsam · Z5 seçildi</b><p>Kapsamlı kategori: alt yazı kapsamı söyler (Z0), başka bir şey çıkmaz. Kapsamsız kategori: dokununca altında İşletme ve Şahsi satırları açılır (48 px); seçince menü kapanır, alan "Faiz geliri · İşletme" olur.</p></div><div><b>Kapsamı sabit ekran (POS, gün sonu)</b><p>Ayrı tasarım yok: yalnız ekranın kapsamındaki kategoriler + İşletme veya şahsi; o gruptaki satırda ok yok, tek dokunuşla seçilir. Alt yazı ekranın kapsamı.</p></div><div><b>İşletmem yok (K2)</b><p>Düz liste; grup başlığı, alt satır, ok yok. Kapalı alanda yalnız kategori adı.</p></div></div>
+<div class="frame" style="left:80px;top:4140px" data-screen-label="K4 · Gider · kapalı"><div class="frame-label">K4 · Gider · kapalı</div><div class="phone" id="K4"></div></div>
+<div class="frame" style="left:572px;top:4140px" data-screen-label="K4o · Gider · açık"><div class="frame-label">K4o · Gider · açık</div><div class="phone" id="K4o"></div></div>
+<div class="frame" style="left:1064px;top:4140px" data-screen-label="K4s · Arama + klavye"><div class="frame-label">K4s · Arama + klavye</div><div class="phone" id="K4s"></div></div>
+<div class="frame" style="left:1556px;top:4140px" data-screen-label="K4n · Eşleşme yok"><div class="frame-label">K4n · Eşleşme yok</div><div class="phone" id="K4n"></div></div>
+<div class="frame" style="left:2048px;top:4140px" data-screen-label="G1 · Gelir · açık (az kategori)"><div class="frame-label">G1 · Gelir · açık (az kategori)</div><div class="phone" id="G1"></div></div>
+<div class="frame" style="left:2540px;top:4140px" data-screen-label="Z0 · Kapsamlı seçildi"><div class="frame-label">Z0 · Kapsamlı seçildi</div><div class="phone" id="Z0"></div></div>
+<div class="frame" style="left:3032px;top:4140px" data-screen-label="Z5 · Gelir · kapsamsız, kapsam menüde"><div class="frame-label">Z5 · Gelir · kapsamsız, kapsam menüde</div><div class="phone" id="Z5"></div></div>
+<div class="frame" style="left:3524px;top:4140px" data-screen-label="Z5b · Gelir · seçildi"><div class="frame-label">Z5b · Gelir · seçildi</div><div class="phone" id="Z5b"></div></div>
+<div class="frame" style="left:4016px;top:4140px" data-screen-label="Z5g · Gider · kapsamsız, kapsam menüde"><div class="frame-label">Z5g · Gider · kapsamsız, kapsam menüde</div><div class="phone" id="Z5g"></div></div>
+<div class="frame" style="left:4508px;top:4140px" data-screen-label="Z5gb · Gider · seçildi"><div class="frame-label">Z5gb · Gider · seçildi</div><div class="phone" id="Z5gb"></div></div>
+<div class="frame" style="left:80px;top:5240px" data-screen-label="POS · Elle gir · kategori seçildi"><div class="frame-label">POS · Elle gir · kategori seçildi</div><div class="phone" id="EKP"></div></div>
+<div class="frame" style="left:572px;top:5240px" data-screen-label="K2 · İşletmem yok · açık"><div class="frame-label">K2 · İşletmem yok · açık</div><div class="phone" id="EK2"></div></div>
+<div class="frame" style="left:1064px;top:5240px" data-screen-label="K2 · İşletmem yok · seçildi"><div class="frame-label">K2 · İşletmem yok · seçildi</div><div class="phone" id="EK2c"></div></div>
+<script type="text/babel" src="kod/Secici.jsx"></script>
+<script type="text/babel" src="kod/KHParts.jsx"></script>
+<script type="text/babel" src="kod/HesapSec.jsx"></script>
+<script type="text/babel" src="kod/OzetHes.jsx"></script>
+<script type="text/babel" src="kod/PosSec.jsx"></script>
+<script type="text/babel" src="kod/KatSec.jsx"></script>
+<script type="text/babel">
+const RR = (id, el) => { const n = document.getElementById(id); if (n) ReactDOM.createRoot(n).render(el); };
+renderHesapSec(RR);
+renderOzetHes(RR);
+renderPosSec(RR);
+renderKatSec(RR);
+</script>
+</body></html>

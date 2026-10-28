@@ -1,10 +1,11 @@
 import '../../support/account_field_helpers.dart';
+import '../../support/category_field_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 import 'package:business_finance_mobile/core/presentation/scope_controller.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
-import 'package:business_finance_mobile/core/widgets/app_scope_selector.dart';
+import 'package:business_finance_mobile/features/activities/presentation/quick_add_models.dart';
 import 'package:business_finance_mobile/features/activities/presentation/quick_add_controller.dart';
 import 'package:business_finance_mobile/features/activities/presentation/quick_add_form_page.dart';
 import 'package:business_finance_mobile/features/cards/data/finance_models.dart';
@@ -13,51 +14,33 @@ import 'package:business_finance_mobile/features/transactions/data/transaction_m
 import 'package:business_finance_mobile/features/transactions/data/transaction_repository.dart';
 
 void main() {
-  testWidgets('işletmesi olmayan kullanıcıda kapsam alanı hiç çizilmez', (
+  testWidgets('işletmesi olmayan kullanıcıda kapsam hiç yazılmaz ve sorulmaz', (
     tester,
   ) async {
-    await _pumpExpenseForm(tester, hasBusiness: false);
-
-    expect(find.byType(AppScopeField), findsNothing);
-    expect(find.text('Kapsam'), findsNothing);
-  });
-
-  testWidgets('kaynağın etiketi çipi doldurur ve nereden geldiğini yazar', (
-    tester,
-  ) async {
-    await _pumpExpenseForm(tester, hasBusiness: true);
+    final transactions = _FakeTransactions();
+    await _pumpExpenseForm(
+      tester,
+      hasBusiness: false,
+      transactions: transactions,
+    );
 
     await _selectSource(tester, 'Dükkân kasası');
-    // Kategori seçilmeden taraf bölümü çizilmez: sorulacak bir şey yoktur.
-    expect(find.text('Kapsam'), findsNothing);
+    await tester.tap(categoryField());
+    await tester.pumpAndSettle();
+    // Düz liste: grup başlığı ve kapsam satırı yok.
+    expect(find.text('İşletme veya şahsi'), findsNothing);
+    await tester.tap(categoryMenuRow('Kırtasiye'));
+    await tester.pumpAndSettle();
+    expect(find.text('Şahsi'), findsNothing);
+    expect(find.text('İşletme'), findsNothing);
 
-    await _selectCategory(tester, 'Kırtasiye');
-
-    expect(_selectedScope(tester), TransactionScope.business);
-    expect(
-      find.text('Dükkân kasası etiketinden geldi — değiştirebilirsiniz.'),
-      findsOneWidget,
-    );
+    await _save(tester);
+    expect(transactions.created.single.scope, isNull);
   });
 
   // Kasadan market: kasa işletme etiketli, kategori şahsi. Kayıt şahsidir;
-  // hesabın etiketi yalnız iki tarafa açık kategoride ön değerdir (ADR 0020).
-  testWidgets('tek taraflı kategori tarafı söyler, kaynağın etiketi ezemez', (
-    tester,
-  ) async {
-    await _pumpExpenseForm(tester, hasBusiness: true);
-
-    await _selectSource(tester, 'Dükkân kasası');
-    await _selectCategory(tester, 'Market');
-
-    final row = tester.widget<AppScopeInfoRow>(find.byType(AppScopeInfoRow));
-    expect(row.scope, TransactionScope.personal);
-    expect(row.reason, 'kategoriden');
-  });
-
-  // Kategori tarafı söylüyorsa sorulacak bir şey yoktur: çip çizilmez ve
-  // kayıt kategorinin tarafına yazılır.
-  testWidgets('tek taraflı kategoride çip çizilmez, kayıt o tarafa yazılır', (
+  // hesabın etiketi kategoriyi ezmez (ADR 0020).
+  testWidgets('tek kapsamlı kategori kapsamı söyler, kayıt o kapsama yazılır', (
     tester,
   ) async {
     final transactions = _FakeTransactions();
@@ -68,55 +51,17 @@ void main() {
     );
 
     await _selectSource(tester, 'Dükkân kasası');
-    await _selectCategory(tester, 'Market');
-    expect(find.byType(AppScopeField), findsNothing);
-    expect(find.byType(AppScopeInfoRow), findsOneWidget);
+    await chooseCategory(tester, 'Market');
 
-    await tester.enterText(find.byType(TextFormField).first, '125,50');
-    await tester.tap(find.text('Kaydet'));
-    await tester.pumpAndSettle();
-
+    expect(
+      find.descendant(of: categoryField(), matching: find.text('Şahsi')),
+      findsOneWidget,
+    );
+    await _save(tester);
     expect(transactions.created.single.scope, TransactionScope.personal);
   });
 
-  testWidgets('kullanıcının seçimi kaynağın etiketini yener', (tester) async {
-    final transactions = _FakeTransactions();
-    await _pumpExpenseForm(
-      tester,
-      hasBusiness: true,
-      transactions: transactions,
-    );
-
-    await _selectSource(tester, 'Dükkân kasası');
-    await _selectCategory(tester, 'Kırtasiye');
-    await tester.tap(find.text('Şahsi'));
-    await tester.pumpAndSettle();
-
-    expect(_selectedScope(tester), TransactionScope.personal);
-    expect(find.text('Bu kayıt için siz seçtiniz.'), findsOneWidget);
-  });
-
-  testWidgets('yazılan kapsam ekranda görünenle aynıdır', (tester) async {
-    final transactions = _FakeTransactions();
-    await _pumpExpenseForm(
-      tester,
-      hasBusiness: true,
-      transactions: transactions,
-    );
-
-    await _selectSource(tester, 'Dükkân kasası');
-    await _selectCategory(tester, 'Kırtasiye');
-    // İki tarafa açık kategoride hesabın etiketi ön değerdir.
-    expect(_selectedScope(tester), TransactionScope.business);
-
-    await tester.enterText(find.byType(TextFormField).first, '125,50');
-    await tester.tap(find.text('Kaydet'));
-    await tester.pumpAndSettle();
-
-    expect(transactions.created.single.scope, TransactionScope.business);
-  });
-
-  testWidgets('zincir çözülemezse kayıt yazılmaz ve alanın yanında söylenir', (
+  testWidgets('iki kapsama açık kategoride kapsam menüde seçilir', (
     tester,
   ) async {
     final transactions = _FakeTransactions();
@@ -126,14 +71,40 @@ void main() {
       transactions: transactions,
     );
 
-    await _selectSource(tester, 'Ortak hesap');
-    await _selectCategory(tester, 'Kırtasiye');
-    await tester.enterText(find.byType(TextFormField).first, '125,50');
-    await tester.tap(find.text('Kaydet'));
-    await tester.pumpAndSettle();
+    await _selectSource(tester, 'Dükkân kasası');
+    await chooseCategory(tester, 'Kırtasiye', scope: TransactionScope.personal);
+
+    expect(
+      find.descendant(of: categoryField(), matching: find.text('Şahsi')),
+      findsOneWidget,
+    );
+    await _save(tester);
+    expect(transactions.created.single.scope, TransactionScope.personal);
+  });
+
+  // Kullanıcı kararı D5 (28 Ekim 2026): hesabın kapsamı ön değer değildir.
+  testWidgets('hesabın kapsamı ön değer olmaz; kapsamsız kayıt yazılmaz', (
+    tester,
+  ) async {
+    final transactions = _FakeTransactions();
+    await _pumpExpenseForm(
+      tester,
+      hasBusiness: true,
+      transactions: transactions,
+      prefill: const QuickAddPrefill(
+        categoryId: QuickAddSuggestion('cat-2', QuickAddSuggestionState.read),
+      ),
+    );
+
+    await _selectSource(tester, 'Dükkân kasası');
+    expect(
+      find.descendant(of: categoryField(), matching: find.text('Kapsam seçin')),
+      findsOneWidget,
+    );
+    await _save(tester);
 
     expect(transactions.created, isEmpty);
-    expect(find.text('Bu kayıt için kapsam seçin.'), findsOneWidget);
+    expect(find.text('Kapsam seçin.'), findsOneWidget);
   });
 
   testWidgets('kart harcaması da kapsamı taşır', (tester) async {
@@ -141,7 +112,7 @@ void main() {
     await _pumpExpenseForm(tester, hasBusiness: true, finance: finance);
 
     await _selectSource(tester, 'İşletme kartı');
-    await _selectCategory(tester, 'Market');
+    await chooseCategory(tester, 'Market');
     await tester.enterText(find.byType(TextFormField).first, '40');
     await tester.tap(find.text('Kaydet'));
     await tester.pumpAndSettle();
@@ -150,7 +121,7 @@ void main() {
     expect(finance.charges.single.$2['scope'], 'personal');
   });
 
-  testWidgets('gelir formunda kapsam hesabın etiketinden gelir', (
+  testWidgets('gelir formunda da kapsam kategoriyle birlikte seçilir', (
     tester,
   ) async {
     final transactions = _FakeTransactions();
@@ -162,24 +133,25 @@ void main() {
     );
 
     await chooseAccount(tester, 'Dükkân kasası', label: 'Hesap');
-    await _selectCategory(tester, 'Diğer gelir');
+    await chooseCategory(
+      tester,
+      'Diğer gelir',
+      scope: TransactionScope.business,
+    );
+    await _save(tester);
 
-    expect(_selectedScope(tester), TransactionScope.business);
+    expect(transactions.created.single.scope, TransactionScope.business);
   });
 }
 
-TransactionScope? _selectedScope(WidgetTester tester) =>
-    tester.widget<AppScopeField>(find.byType(AppScopeField)).value;
+Future<void> _save(WidgetTester tester) async {
+  await tester.enterText(find.byType(TextFormField).first, '125,50');
+  await tester.tap(find.text('Kaydet'));
+  await tester.pumpAndSettle();
+}
 
 Future<void> _selectSource(WidgetTester tester, String name) async {
   await chooseAccount(tester, name, label: 'Ödeme kaynağı');
-}
-
-Future<void> _selectCategory(WidgetTester tester, String name) async {
-  await tester.tap(find.byType(DropdownButtonFormField<String>).last);
-  await tester.pumpAndSettle();
-  await tester.tap(find.text(name).last);
-  await tester.pumpAndSettle();
 }
 
 Future<void> _pumpExpenseForm(
@@ -187,12 +159,14 @@ Future<void> _pumpExpenseForm(
   required bool hasBusiness,
   _FakeTransactions? transactions,
   _FakeFinance? finance,
+  QuickAddPrefill? prefill,
 }) => _pumpForm(
   tester,
   isExpense: true,
   hasBusiness: hasBusiness,
   transactions: transactions,
   finance: finance,
+  prefill: prefill,
 );
 
 Future<void> _pumpForm(
@@ -201,6 +175,7 @@ Future<void> _pumpForm(
   required bool hasBusiness,
   _FakeTransactions? transactions,
   _FakeFinance? finance,
+  QuickAddPrefill? prefill,
 }) async {
   final scopeController = ScopeController(
     store: _MemoryStore(hasBusiness: hasBusiness),
@@ -216,6 +191,7 @@ Future<void> _pumpForm(
       theme: AppTheme.light(),
       home: QuickAddFormPage(
         isExpense: isExpense,
+        prefill: prefill,
         scopeController: scopeController,
         controller: QuickAddController(
           transactions ?? _FakeTransactions(),

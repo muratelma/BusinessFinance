@@ -109,6 +109,7 @@ public static class DependencyInjection
         services.AddScoped<IUnusedAccountDeletion, EfUnusedAccountDeletion>();
         services.AddScoped<ICategoryRepository, EfCategoryRepository>();
         services.AddScoped<ICategoryUsageReader, EfCategoryUsageReader>();
+        services.AddScoped<IRecentCategoryReader, EfRecentCategoryReader>();
         services.AddScoped<IUserProfileRepository, EfUserProfileRepository>();
         services.AddScoped<IUserAccountEraser, EfUserAccountEraser>();
         services.AddScoped<IVerificationCodeRepository, EfVerificationCodeRepository>();

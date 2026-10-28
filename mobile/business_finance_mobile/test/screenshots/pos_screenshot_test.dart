@@ -126,9 +126,43 @@ void main() {
       },
     );
   }, skip: !screenshotsEnabled);
+
+  for (final (name, openCategory) in [
+    ('pos-05-elle-gir', false),
+    ('pos-06-elle-gir-kategori', true),
+  ]) {
+    testWidgets('elle gir $name', (tester) async {
+      final pos = PosController(_DesignPos(withoutDefinitions: true));
+      await captureScreen(
+        tester,
+        name,
+        Scaffold(
+          appBar: AppBar(title: const Text('Kasa')),
+          body: const SizedBox.expand(),
+        ),
+        withNavBar: false,
+        before: (tester) async {
+          showPosSettlementForm(tester.element(find.text('Kasa')), pos);
+          await tester.pump();
+          await tester.pump(const Duration(seconds: 1));
+          await tester.tap(find.text('Tutar').last);
+          await tester.pump(const Duration(seconds: 1));
+          if (openCategory) {
+            await tester.tap(find.text('Satış kategorisi'));
+            await tester.pump(const Duration(seconds: 1));
+          }
+        },
+      );
+    }, skip: !screenshotsEnabled);
+  }
 }
 
 class _DesignPos implements PosRepositoryContract {
+  _DesignPos({this.withoutDefinitions = false});
+
+  /// Hiç POS'u olmayan kullanıcı: tahsilat paneli `Elle gir` ile açılır.
+  final bool withoutDefinitions;
+
   static const _definitions = [
     PosDefinitionItem(
       id: 'ziraat',
@@ -173,7 +207,8 @@ class _DesignPos implements PosRepositoryContract {
   ];
 
   @override
-  Future<List<PosDefinitionItem>> listDefinitions() async => _definitions;
+  Future<List<PosDefinitionItem>> listDefinitions() async =>
+      withoutDefinitions ? const [] : _definitions;
 
   @override
   Future<PosOptions> loadOptions() async => const PosOptions(

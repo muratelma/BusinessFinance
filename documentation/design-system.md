@@ -75,7 +75,7 @@ ekranları birbirinden farklı davrandırıyordu.
 | `card` | Kart, panel, liste yüzeyi |
 | `cardMuted` | Kart içi ikincil bölge: ikon kapsülü, ilerleme yolu, arama alanı |
 | `border` | Kartı zeminden ayıran ince kenarlık |
-| `borderStrong` | Seçili kart, form alanının kenarı (alanın zemini `card`; 28 Ekim 2026, hesap seçici teslimi) |
+| `borderStrong` | Seçili kart, form alanının kenarı (alanın zemini `card`; 28 Ekim 2026, hesap seçici teslimi); parçalı seçicinin kenarı |
 | `overlay` | Yüzen katmanların gölgesi |
 
 **Kart zeminden kenarlıkla ayrılır, gölgeyle değil.** Gölge yalnız gerçekten
@@ -1450,3 +1450,82 @@ ile aynı örnek veride çizilir.
   pasif hesap çizilmez. Bölüm kapsam seçiliyken de "toplam" notunu yazmaz.
 - **Teslimden bilerek ayrılanlar:** menünün 150 ms'lik
   inme hareketi yoktur (Material menüsünün kendi açılışı kullanılır).
+
+## Kategori seçici ve POS tahsilatı — 28 Ekim 2026
+
+Teslim: `design/kategori-pos-handoff/` (Claude Design; README ve
+`kod/KatSec.jsx`, `kod/PosSec.jsx`). Kareler
+`test/screenshots/kategori_secici_screenshot_test.dart` ve
+`pos_screenshot_test.dart` (`pos-05`, `pos-06`) ile aynı örnek veride çizilir.
+
+- **`AppCategoryField`** (`core/widgets/app_category_field.dart`): kategori
+  seçilen her form alanı; değer **kategori + kapsam** çiftidir
+  (`AppCategoryValue`). Kapalı alan hesap alanıyla aynıdır: 56 dp, 32 dp
+  kapsül (kategorinin simgesi, 18), ad 15/20 600 ve altında kapsam 13/16
+  soluk; iki kapsama açık kategoride kapsam seçilmemişse alt yazı hata
+  renginde `Kapsam seçin`.
+- **Açılış:** alan kaydırılan gövdenin başına kayar (üstte 16 dp), menü alanın
+  8 dp altında, **formun içinde** açılır: kartla aynı zemin, 16 yarıçap,
+  `AppElevation.floating` gölge, kenarlıksız. Menü içerik kadar uzar, en çok
+  gövdenin 16 dp üstüne kadar; geri kalan yer boş kalır ve formun alttaki
+  alanları ekranın dışına itilir. Klavye açılınca menü yeniden ölçülür. Satıra
+  dokunmak seçer ve kapatır; geri tuşu ve alana yeniden dokunmak seçmeden
+  kapatır; alanın ve menünün dışına dokunmak da seçmeden kapatır (menünün
+  altındaki boş yer dışarıdır); kapanınca form eski kaydırma konumuna döner.
+- **Alttan açılan panelde** (`AppFormSheet`) menünün altında boş yer
+  bırakılmaz: alan panelin başına kayar ve panelin gövdesi alan + menü kadar
+  boylanır (`AppFormSheetFit`; boy değişimi 200 ms kayar). Kısa listede panel
+  kısalır; uzun listede panelin en büyük boyuna kadar uzar ve liste menünün
+  içinde kayar. Menü kapanınca panel eski boyuna döner. En küçük ve en büyük
+  boy ile menünün altındaki pay emülatör turunda ayarlanacak (kullanıcı,
+  28 Ekim 2026). Kareler: `kategori_panel_screenshot_test.dart` (4, 7, 18
+  kategori).
+- **İçerik:** 8'den fazla kategoride arama (44 dp, kenarlardan 8, 12 yarıçap,
+  `cardMuted` zemin, odakta 2 dp marka kenarı, yazı varken ×) ve arama boşken
+  `Son kullanılanlar` (en çok dört; satırın sağında kapsam 13 soluk; seçili
+  işaretlenmez). Gruplar `İşletme · Şahsi · İşletme veya şahsi`; boş grup
+  çizilmez. Grup başlığı 12/600 harf aralıklı `inkFaint`, iç boşluk 12·16·4,
+  gruplar arası çizgi. Satır en az 48 dp, 20 dp `inkMuted` simge, ad 15/1,3 tek
+  satır; seçili satır `cardMuted` + solda 4 dp marka çubuğu, ad 600. Aramada
+  eşleşen harfler 700; arama Türkçe büyük/küçük harfi tanır.
+- **İki kapsama açık kategori:** satırın sağında `expand_more`; dokununca ad
+  kalınlaşır, ok `expand_less` olur ve altında `İşletme` (`storefront`) ile
+  `Şahsi` (`person`) satırları açılır (48 dp, solda 48 dp). Alt satır kategoriyi
+  ve kapsamı birlikte seçer. Formda ayrı kapsam sorusu yoktur; hesabın kapsamı
+  ön değer olmaz (kullanıcı kararı D5).
+- **Eşleşme yok:** `search_off` · `Bu adla kategori yok` (15/600) · açıklama
+  (14 soluk) · `+ "…" ekle` metin düğmesi (40 dp, 14/600). Hiç kategori yoksa
+  menü açılmaz; alanın altında `Henüz kategori yok` kartı ve `Kategori ekle`.
+- **`+ "…" ekle`:** kategori formu adı ve türü dolu açılır
+  (`/more/categories/new?type=&name=`, `addCategoryFromForm`; tür kilitli),
+  kaydedince forma dönülür ve yeni kategori seçili gelir. Yeni kategori iki
+  kapsama açıksa menü onunla yeniden açılır ve kapsam sorulur.
+- **Bayraklar:** `fixedScope` kapsamı sabit ekranlar içindir (POS, gün sonu,
+  cari: `İşletme`; `Kendime aldım`: `Şahsi`): yalnız o kapsamın ve iki kapsama
+  açık kategoriler listelenir, ok ve alt satır yoktur, alt yazı ekranın
+  kapsamıdır. `showScope: false` (kapsamı görmeyen kullanıcı) düz liste çizer:
+  grup başlığı, alt satır, alt yazı yok.
+- **Simge** kategorinin adından gelir (`categoryIcon`,
+  `core/widgets/app_category_icon.dart`): varsayılan setlerin adları ad
+  tekliğindeki anahtarla eşlenir, bulunmayan ad `local_offer`.
+- **`AppChoiceSegments`** (`core/widgets/app_choice_segments.dart`): formdaki
+  tek seçimli parçalı düğme. Üstte 13 soluk başlık, 8 boşluk; tam genişlik,
+  40 dp, form alanıyla aynı köşe (16 yarıçap; teslimdeki 48 dp hap kullanıcı
+  kararıyla değişti), kenar `borderStrong`, parçalar arası 1 dp çizgi.
+  Seçili parça marka dolgulu, yazı 14/600; diğerleri 14/500. İşaret (✓) yoktur.
+- **Form alanı (bütün formlar):** boş alanın etiketi 16 ve soluk, kenara kayan
+  etiket 12 (soluk; odakta mürekkep, hatada hata rengi). Değer ile sağdaki ok
+  arası 6 dp (hesap ve kategori alanı). `AppDateField` değeri 16 yazar.
+  Adın stili yalnız temadan gelir; `test/core/theme/form_label_consistency_test.dart`
+  beş alan türünde (metin, açılır liste, tarih, hesap, kategori) boyu ölçer ve
+  temanın dışında `labelStyle` yazılmasını reddeder.
+- **POS tahsilatı paneli:** açıklama tek satır (`Gelir bugün yazılır, para
+  hesaba sonra geçer.`); `Elle gir` sırası POS · Paranın geçeceği hesap ·
+  Satış kategorisi · Müşterinin ödediği · Tahsilat günü · Paranın beklendiği
+  gün · Komisyon · Açıklama; komisyon `AppChoiceSegments`, tutar alanı
+  `Komisyon tutarı`. Satış ve komisyon kategorisi `İşletme` sabit kapsamlıdır.
+  Panel 16 dp yan boşluk ve harf aralıksız metinle çizilir.
+- **Teslimden bilerek ayrılanlar:** menünün 150 ms'lik inme hareketi yoktur;
+  panelde altta sabit duran eylem satırı (POS panelindeki `Vazgeç` /
+  `Tahsilatı kaydet`) menü açıkken görünür kalır; POS panelinin yan boşluğu teslim
+  karesindeki 24 değil 16'dır (teslim ölçüsü kuralı, 10 Ekim 2026).

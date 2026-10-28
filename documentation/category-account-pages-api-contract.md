@@ -159,3 +159,24 @@ yoldaki özet için yalnız en yakın kaydı okur; tam liste ayrı sayfalıdır.
 ## Kaynak ikonları için hesap türü — 13 Ekim 2026
 
 Kaynak seçeneklerinde group=accounts iken mevcut kind alanı cash ya da bank döner. Alan aynı kaynakta sıfır sonuçlu seçimi korurken de doldurulur. Kimlik ve ad yalnız oturum sahibinin hesabından gelir. Eski istemciler isteğe bağlı alanı yok sayabilir; şema veya kırılan sözleşme değişikliği yoktur.
+
+## Son kullanılan kategoriler — 28 Ekim 2026
+
+`GET /api/v1/categories/recent?type=expense|income` kategori seçicinin
+`Son kullanılanlar` bölümünü verir: türdeki en yeni dört **kategori + kapsam**
+çifti, en yeni önce. İki kapsama açık kategori iki ayrı satır olabilir
+(kullanıcı kararı D3).
+
+```json
+{"items": [
+  {"categoryId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "scope": "personal"},
+  {"categoryId": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "scope": "business"}
+]}
+```
+
+Kalemler gelir ve gider yazan kayıtların tek listesinden (`RecognizedItems`)
+okunur; bir kaydın parçası olanlar (transfer masrafı, yatış kesintisi, POS
+komisyonu, borç faizi) kullanıcının seçtiği bir kategori olmadığı için
+sayılmaz. İptal edilmiş kayıt ve pasif kategori yoktur. Sıra giriş anıdır;
+giriş anı bilinmeyen eski kayıt sona düşer. `type` zorunludur; eksik ya da
+tanınmayan değer `400 categories.invalid_type`.

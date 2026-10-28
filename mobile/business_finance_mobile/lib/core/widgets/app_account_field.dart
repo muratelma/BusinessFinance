@@ -251,7 +251,8 @@ class _AppAccountFieldState extends State<AppAccountField> {
                   : const EdgeInsets.fromLTRB(
                       AppSpacing.medium,
                       AppSpacing.small,
-                      AppSpacing.small + AppSpacing.xSmall,
+                      // Değer ile ok arası 6 (teslim, 28 Ekim).
+                      AppSpacing.xSmall + AppSpacing.xxSmall,
                       AppSpacing.small,
                     ),
               suffixIcon: Icon(

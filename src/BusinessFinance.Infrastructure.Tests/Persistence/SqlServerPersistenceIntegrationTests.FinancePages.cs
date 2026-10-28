@@ -52,6 +52,38 @@ public sealed partial class SqlServerPersistenceIntegrationTests
             "UPDATE [Categories] SET [Role] = 4, [DefaultScope] = NULL WHERE [UserId] = {0} AND [NameKey] = N'özel'", owner.Id));
     }
 
+    /// <summary>
+    /// Son kullanılanlar bütün tanıma kaynaklarının birleşimini SQL'de gruplar:
+    /// çiftler tekil, en çok dört, türün etkin kategorileri; başka kullanıcı boş.
+    /// </summary>
+    [SqlServerFact]
+    public async Task RecentCategories_GroupEveryRecognizingSourceInSql()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var owner = CreateUser("recent-sql-owner@example.test"); var stranger = CreateUser("recent-sql-stranger@example.test");
+        await database.SeedUsersAsync(owner, stranger);
+        await SeedMoneyFoundationAsync(database, owner.Id);
+        await using var provider = CreateServiceProvider(database.ConnectionString);
+        await using var scope = provider.CreateAsyncScope();
+        var reader = scope.ServiceProvider.GetRequiredService<BusinessFinance.Application.Categories.IRecentCategoryReader>();
+        await using var db = database.CreateContext();
+        foreach (var type in new[] { CategoryType.Expense, CategoryType.Income })
+        {
+            var recent = await reader.ListAsync(owner.Id, type, 4, default);
+            Assert.NotEmpty(recent);
+            Assert.InRange(recent.Count, 1, 4);
+            Assert.Equal(recent.Count, recent.Distinct().Count());
+            var ids = recent.Select(item => item.CategoryId).ToArray();
+            Assert.All(await db.Categories.Where(c => ids.Contains(c.Id)).ToArrayAsync(), category =>
+            {
+                Assert.Equal(owner.Id, category.UserId);
+                Assert.Equal(type, category.Type);
+                Assert.True(category.IsActive);
+            });
+            Assert.Empty(await reader.ListAsync(stranger.Id, type, 4, default));
+        }
+    }
+
     [SqlServerFact]
     public async Task FinancePages_UseTheCanonicalSourcesAndKeepEveryTotalExplainable()
     {

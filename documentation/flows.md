@@ -1792,3 +1792,21 @@ ile ilgili okumalara bildirilir; masraflı transfer bütçeyi de yeniler.
 Hesap ayarları düğmesi ve Hesap ekle, Navigator altındaki sayfa context'iyle açılır. Bir formun hesap alanındaki `Hesap ekle` ise Hesaplar sayfasına gitmez: ekleme formu doğrudan açılır, `Kaydet` açıldığı forma döner ve yeni hesap o alanda seçili gelir; yazılan tutar ve diğer alanlar kalır. Vazgeçilirse form olduğu gibi kalır (28 Ekim 2026). Ayarlar rotası beklerken yükleme, sunucu hatasında tekrar deneme, 401'de oturum sonu gösterir. Form mevcut AccountFormPage'dir; başarılı yazma aynı hesap sayfasına döner. Pasif hesaplar ikonlu karttan açılır; bakiyeleri toplamın içinde kalır. Transfer kaydı sürerken kapsam dahil giriş değiştirilemez.
 
 Nötr işlemin parçası rapora etkiliyorsa ayrıntı bunu yazar: transfer masrafı ve tahsilat komisyonu gider, taksit faizi yönüne göre gelir/giderdir. “Gelir/gider raporunu etkilemez” açıklaması yalnız böyle bir parçası olmayan nötr kayıtta kullanılır. Yolda kutusu güncel ayın Tümü/Giren görünümündedir; geçmiş ay ve Çıkan görünümünde ayın hesap hareketleri kalır.
+
+## Kategori seçimi ve formdan kategori ekleme — 28 Ekim 2026
+
+Gelir ekle, Gider ekle ve POS tahsilatının `Elle gir` panelinde kategori ortak
+seçiciyle seçilir. Alana dokunulunca form kayar, alan başlığın altına gelir ve
+menü altında açılır; alttaki alanlar ekranın dışına itilir. Satıra dokunmak
+seçer, menüyü kapatır ve formu eski yerine döndürür; geri tuşu yalnız menüyü
+kapatır. İki kapsama açık kategoride kapsam menüde, kategorinin altındaki
+`İşletme` / `Şahsi` satırıyla seçilir; formda ayrı bir kapsam sorusu yoktur ve
+hesabın kapsamı ön değer olmaz. Kapsamı seçilmemiş iki kapsama açık kategoriyle
+(fişten gelen öneri) `Kaydet` istek göndermez, alanın altında `Kapsam seçin.`
+yazar. Kalabalık listede arama ve sunucudan gelen `Son kullanılanlar` (en çok
+dört kategori + kapsam çifti) çıkar; son kullanılan satırı kategoriyi ve
+kapsamı birlikte seçer. Arama sonuç vermezse `+ "…" ekle` kategori formunu ad ve
+türle dolu açar; kaydedince forma dönülür ve yeni kategori seçili gelir, iki
+kapsama açıksa menü onunla yeniden açılır. Vazgeçilirse form olduğu gibi
+kalır. POS tahsilatında kapsam sorulmaz: yalnız işletmenin ve iki kapsama açık
+kategoriler listelenir.

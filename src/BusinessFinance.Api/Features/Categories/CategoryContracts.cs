@@ -29,3 +29,9 @@ public sealed record CategoryResponse(
     bool IsTax,
     string? Role = null);
 public sealed record CategoryListResponse(IReadOnlyList<CategoryResponse> Items);
+
+/// <summary>Son kullanılan bir kategori ve yazıldığı kapsam.</summary>
+public sealed record RecentCategoryResponse(Guid CategoryId, string Scope);
+
+/// <summary>En yeni önce, en çok dört satır.</summary>
+public sealed record RecentCategoryListResponse(IReadOnlyList<RecentCategoryResponse> Items);

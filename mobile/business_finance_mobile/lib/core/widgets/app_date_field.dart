@@ -110,9 +110,10 @@ class AppDateField extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Text(
                 shown,
+                // Değer metin alanlarının yazısıyla aynı boyda (16).
                 style: hasValue
-                    ? null
-                    : theme.textTheme.bodyMedium?.copyWith(
+                    ? theme.textTheme.bodyLarge
+                    : theme.textTheme.bodyLarge?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
               ),

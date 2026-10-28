@@ -137,7 +137,20 @@ abstract final class AppTheme {
           borderRadius: BorderRadius.circular(AppRadius.field),
           borderSide: BorderSide(color: colorScheme.error),
         ),
-        labelStyle: textTheme.bodyMedium,
+        // Boş alanın etiketi 16, kenara kayan etiket 12 (Material 0,75 ile
+        // küçültür); seçici alanlarının yer tutucusuyla aynı boy (teslim,
+        // kategori seçici A, 28 Ekim 2026).
+        labelStyle: textTheme.bodyLarge?.copyWith(color: surfaces.inkMuted),
+        // Kenardaki etiket soluk, odakta mürekkep, hatada hata rengi.
+        floatingLabelStyle: WidgetStateTextStyle.resolveWith(
+          (states) => (textTheme.bodyLarge ?? const TextStyle()).copyWith(
+            color: states.contains(WidgetState.error)
+                ? colorScheme.error
+                : states.contains(WidgetState.focused)
+                ? surfaces.ink
+                : surfaces.inkMuted,
+          ),
+        ),
         helperStyle: textTheme.bodySmall,
       ),
       filledButtonTheme: FilledButtonThemeData(

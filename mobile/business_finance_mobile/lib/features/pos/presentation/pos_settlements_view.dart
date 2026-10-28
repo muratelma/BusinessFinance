@@ -35,6 +35,14 @@ import 'pos_definitions_page.dart';
 import 'pos_deposit_sheets.dart';
 import '../../../core/widgets/app_account_field.dart';
 import '../../../features/accounts/presentation/account_directory.dart';
+import 'package:provider/provider.dart';
+import '../../../core/models/transaction_scope.dart';
+import '../../../core/widgets/app_category_field.dart';
+import '../../../core/widgets/app_choice_segments.dart';
+import '../../../core/widgets/app_untracked_text.dart';
+import '../../categories/data/category_models.dart';
+import '../../categories/presentation/category_create_page.dart';
+import '../../categories/presentation/recent_categories.dart';
 
 export 'pos_deposit_sheets.dart' show posSettlementTitle;
 
@@ -809,6 +817,9 @@ class _SettlementFormState extends State<_SettlementForm> {
 
   /// `Hesap ekle`den dönülünce eklenen banka hesapları.
   final _addedAccounts = <DataChoice>[];
+
+  /// `+ "…" ekle`den dönülünce eklenen kategoriler.
+  final _addedCategories = <BudgetCategory>[];
   String? accountId;
   String? categoryId;
   String? commissionCategoryId;
@@ -889,40 +900,42 @@ class _SettlementFormState extends State<_SettlementForm> {
   }
 
   @override
-  Widget build(BuildContext context) => Form(
-    key: formKey,
-    child: AppFormSheet<bool>(
-      title: 'POS tahsilatı',
-      description:
-          'Satış bugün gelir olarak tanınır; para hesabınıza geçtiğinde '
-          'ayrıca işaretlersiniz.',
-      submitLabel: 'Tahsilatı kaydet',
-      onSubmit: _submit,
-      children: [
-        FutureBuilder<PosOptions>(
-          future: options,
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return const Text(
-                'Hesap ve kategoriler yüklenemedi. Paneli kapatıp yeniden '
-                'deneyin.',
+  // Teslimle kurulan panel: 16 dp yan boşluk, metin harf aralıksız.
+  Widget build(BuildContext context) => AppUntrackedText(
+    child: Form(
+      key: formKey,
+      child: AppFormSheet<bool>(
+        title: 'POS tahsilatı',
+        description: 'Gelir bugün yazılır, para hesaba sonra geçer.',
+        horizontalPadding: AppSpacing.medium,
+        submitLabel: 'Tahsilatı kaydet',
+        onSubmit: _submit,
+        children: [
+          FutureBuilder<PosOptions>(
+            future: options,
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return const Text(
+                  'Hesap ve kategoriler yüklenemedi. Paneli kapatıp yeniden '
+                  'deneyin.',
+                );
+              }
+              if (!snapshot.hasData) return const LinearProgressIndicator();
+              loaded = snapshot.data;
+              // İlk açılışta ana POS (yoksa ilk POS) seçili gelir: akşamki
+              // giriş "tutar + kaydet"tir.
+              if (!definitionChosen && controller.preferredDefinition != null) {
+                definitionChosen = true;
+                definitionId = controller.preferredDefinition!.id;
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: _fields(snapshot.data!),
               );
-            }
-            if (!snapshot.hasData) return const LinearProgressIndicator();
-            loaded = snapshot.data;
-            // İlk açılışta ana POS (yoksa ilk POS) seçili gelir: akşamki
-            // giriş "tutar + kaydet"tir.
-            if (!definitionChosen && controller.preferredDefinition != null) {
-              definitionChosen = true;
-              definitionId = controller.preferredDefinition!.id;
-            }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: _fields(snapshot.data!),
-            );
-          },
-        ),
-      ],
+            },
+          ),
+        ],
+      ),
     ),
   );
 
@@ -967,6 +980,8 @@ class _SettlementFormState extends State<_SettlementForm> {
       // Elle girişte paranın geçeceği hesap POS'un hemen altındadır.
       if (current == null) ...[
         _manualAccountField(options),
+        const SizedBox(height: AppSpacing.medium),
+        _salesCategoryField(options),
         const SizedBox(height: AppSpacing.medium),
       ],
       TextFormField(
@@ -1075,19 +1090,58 @@ class _SettlementFormState extends State<_SettlementForm> {
     validator: (value) => value == null ? 'Hesap seçin.' : null,
   );
 
+  /// POS satışı işletmenindir (ADR 0020 T2): kapsam sorulmaz, yalnız
+  /// işletmenin ve iki kapsama açık kategoriler listelenir.
+  Widget _salesCategoryField(PosOptions options) => _categoryField(
+    label: 'Satış kategorisi',
+    type: 'income',
+    categories: options.incomeCategories,
+    value: categoryId,
+    onChanged: (value) => setState(() => categoryId = value),
+    validator: (value) => value == null ? 'Kategori seçin.' : null,
+  );
+
+  Widget _categoryField({
+    required String label,
+    required String type,
+    required List<DataChoice> categories,
+    required String? value,
+    required ValueChanged<String?> onChanged,
+    required FormFieldValidator<AppCategoryValue> validator,
+  }) => AppCategoryField(
+    label: label,
+    options: [
+      for (final category in [
+        ...categories,
+        ..._addedCategories.where((c) => c.type == type).map((c) => c.choice),
+      ])
+        AppCategoryOption(
+          id: category.id,
+          name: category.name,
+          scope: category.defaultScope,
+        ),
+    ],
+    value: value == null
+        ? null
+        : AppCategoryValue(value, TransactionScope.business),
+    recent: RecentCategories.of(context, type),
+    showScope: context.watch<ScopeController?>()?.isVisible ?? false,
+    fixedScope: TransactionScope.business,
+    validator: validator,
+    onChanged: (next) => onChanged(next?.categoryId),
+    onAdd: (name) async {
+      final created = await addCategoryFromForm(
+        context,
+        type: type,
+        name: name,
+      );
+      if (created == null || !mounted) return;
+      setState(() => _addedCategories.add(created));
+      onChanged(created.id);
+    },
+  );
+
   List<Widget> _manualFields(PosOptions options) => [
-    DropdownButtonFormField<String>(
-      initialValue: categoryId,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: 'Satış kategorisi'),
-      items: [
-        for (final category in options.incomeCategories)
-          DropdownMenuItem(value: category.id, child: Text(category.name)),
-      ],
-      onChanged: (value) => setState(() => categoryId = value),
-      validator: (value) => value == null ? 'Kategori seçin.' : null,
-    ),
-    const SizedBox(height: AppSpacing.medium),
     AppDateField(
       label: 'Tahsilat günü',
       value: settlementDate,
@@ -1102,40 +1156,20 @@ class _SettlementFormState extends State<_SettlementForm> {
       onChanged: (value) => setState(() => expectedTransferDate = value),
     ),
     const SizedBox(height: AppSpacing.medium),
-    // Başlık segmentin dışında: üç segment genişliği paylaşınca
-    // `Komisyon yok` kelimenin ortasından bölünüyordu. Kapsam seçicisinde
-    // olduğu gibi grubun adı üstte durur, segmentler kısa kalır.
-    Semantics(
-      container: true,
+    // Grubun adı üstte durur, parçalar kısa kalır (teslim: 48 dp, ✓ yok).
+    AppChoiceSegments<_CommissionMode>(
       label: 'Komisyon',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Komisyon',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontSize: 13,
-              color: AppSurfaces.of(context).inkMuted,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.small),
-          SegmentedButton<_CommissionMode>(
-            segments: const [
-              ButtonSegment(value: _CommissionMode.none, label: Text('Yok')),
-              ButtonSegment(
-                value: _CommissionMode.amount,
-                label: Text('Tutar'),
-              ),
-              ButtonSegment(value: _CommissionMode.rate, label: Text('Oran')),
-            ],
-            selected: {commissionMode},
-            onSelectionChanged: (value) => setState(() {
-              commissionMode = value.first;
-              commissionController.clear();
-            }),
-          ),
-        ],
-      ),
+      values: _CommissionMode.values,
+      selected: commissionMode,
+      labelOf: (mode) => switch (mode) {
+        _CommissionMode.none => 'Yok',
+        _CommissionMode.amount => 'Tutar',
+        _CommissionMode.rate => 'Oran',
+      },
+      onChanged: (value) => setState(() {
+        commissionMode = value;
+        commissionController.clear();
+      }),
     ),
     if (commissionMode != _CommissionMode.none) ...[
       const SizedBox(height: AppSpacing.medium),
@@ -1144,7 +1178,7 @@ class _SettlementFormState extends State<_SettlementForm> {
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         decoration: InputDecoration(
           labelText: commissionMode == _CommissionMode.amount
-              ? 'Kesilen komisyon'
+              ? 'Komisyon tutarı'
               : 'Komisyon oranı (%)',
           helperText: commissionMode == _CommissionMode.amount
               ? 'Brüt tutardan düşülmez, yanında ayrı gider olarak durur.'
@@ -1153,16 +1187,11 @@ class _SettlementFormState extends State<_SettlementForm> {
         validator: MoneyInput.positiveError,
       ),
       const SizedBox(height: AppSpacing.medium),
-      DropdownButtonFormField<String>(
-        initialValue: commissionCategoryId,
-        isExpanded: true,
-        decoration: const InputDecoration(
-          labelText: 'Komisyon gider kategorisi',
-        ),
-        items: [
-          for (final category in options.expenseCategories)
-            DropdownMenuItem(value: category.id, child: Text(category.name)),
-        ],
+      _categoryField(
+        label: 'Komisyon gider kategorisi',
+        type: 'expense',
+        categories: options.expenseCategories,
+        value: commissionCategoryId,
         onChanged: (value) => setState(() => commissionCategoryId = value),
         validator: (value) =>
             value == null ? 'Komisyon için kategori seçin.' : null,

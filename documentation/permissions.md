@@ -63,6 +63,7 @@ kullanıcının kaydına erişen ayrıcalıklı rol yoktur.
 | Hesap güncelleme/bakiye | Evet | `AccountId + current UserId`; bakiye yalnız sahip hareketlerinden hesaplanır | `accounts.not_found` |
 | Kategori oluşturma/listeleme | Evet | Varsayılan ve özel satırların `UserId` değeri current user olur | Listeye dahil edilmez |
 | Kategori güncelleme/pasifleştirme | Evet | `CategoryId + current UserId` | `categories.not_found` |
+| Son kullanılan kategoriler (`GET /api/v1/categories/recent?type=`) | Evet | Kalemler `RecognizedItems` üstünden yalnız current `UserId` ile, kategoriler yalnız sahibin etkin kategorileriyle okunur; tür zorunlu (`categories.invalid_type`) | Listeye girmez |
 | Gelir/gider oluşturma | Evet | Account ve Category ayrı ayrı current user ile bulunur | `transactions.account_unavailable` veya `category_unavailable` |
 | Hareket iptali | Evet | `TransactionId + current UserId` | `transactions.not_found` |
 | Hareket liste/detay | Evet | İlk sorgu koşulu current `UserId`; diğer filtreler bundan sonra uygulanır | Listeye girmez / `transactions.not_found` |

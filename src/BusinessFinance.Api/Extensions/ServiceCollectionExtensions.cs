@@ -65,6 +65,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<UpdateAccountUseCase>();
         services.AddTransient<CreateCategoryUseCase>();
         services.AddTransient<ListCategoriesUseCase>();
+        services.AddTransient<ListRecentCategoriesUseCase>();
         services.AddTransient<UpdateCategoryUseCase>();
         services.AddTransient<CreateTransactionUseCase>();
         services.AddTransient<CancelTransactionUseCase>();

@@ -96,6 +96,7 @@ class BusinessFinanceApp extends StatelessWidget {
           Provider.value(value: dependencies.apiClient),
           ChangeNotifierProvider.value(value: dependencies.scopeController),
           ChangeNotifierProvider.value(value: dependencies.accountDirectory),
+          ChangeNotifierProvider.value(value: dependencies.recentCategories),
           ChangeNotifierProvider.value(
             value: dependencies.accountStatusController,
           ),

@@ -7,8 +7,11 @@ import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_date_field.dart';
 import '../../../core/widgets/app_inline_notice.dart';
-import '../../../core/widgets/app_scope_selector.dart';
+import '../../../core/widgets/app_category_field.dart';
 import '../../../core/widgets/app_state_views.dart';
+import '../../../core/widgets/app_untracked_text.dart';
+import '../../categories/presentation/category_create_page.dart';
+import '../../categories/presentation/recent_categories.dart';
 import '../data/receipt_fee_writer.dart';
 import 'quick_add_controller.dart';
 import 'quick_add_models.dart';
@@ -56,14 +59,11 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
 
   PaymentSource? _source;
   String? _accountId;
-  String? _categoryId;
 
-  /// Kullanıcının çipe dokunarak yaptığı **açık** seçim. Zincirin ilk
-  /// halkasıdır ve kaynağın da kategorinin de etiketini yener.
-  TransactionScope? _explicitScope;
-
-  /// Zincir çözülemedi ve kullanıcı yine de kaydetmeye çalıştı.
-  bool _scopeMissing = false;
+  /// Kategori ve kapsamı. İki kapsama açık kategoride kapsam menüde
+  /// kategoriyle birlikte seçilir; hesabın kapsamı ön değer olmaz
+  /// (kullanıcı kararı D5, 28 Ekim 2026).
+  AppCategoryValue? _category;
   late bool _keepAttachment = widget.prefill?.keepAttachmentByDefault ?? true;
   late DateTime _date = widget.today ?? DateTime.now();
 
@@ -101,7 +101,8 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
     }
     final date = AppDateField.parse(prefill.date?.value ?? '');
     if (date != null) _date = date;
-    _categoryId = prefill.categoryId?.value;
+    final categoryId = prefill.categoryId?.value;
+    if (categoryId != null) _category = AppCategoryValue(categoryId);
   }
 
   /// Ad ile önerilen kategoriyi kullanıcının kendi listesinde arar.
@@ -110,12 +111,12 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
   /// dokunmaz, ad bulunamazsa alan boş kalır — uydurulmuş bir kategori yazmak,
   /// kullanıcının görmediği bir kovaya harcama yazdırmak olurdu.
   void _resolveCategoryNameHint(List<QuickAddChoice> categories) {
-    if (_categoryId != null) return;
+    if (_category != null) return;
     final hint = widget.prefill?.categoryNameHint;
     if (hint == null) return;
     for (final category in categories) {
       if (category.name.toLowerCase() == hint.toLowerCase()) {
-        _categoryId = category.id;
+        _category = AppCategoryValue(category.id);
         return;
       }
     }
@@ -160,105 +161,99 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
       );
     }
 
-    return Form(
-      key: _formKey,
-      child: ListView(
-        padding: const EdgeInsets.all(AppSpacing.medium),
-        children: [
-          ..._buildPrefillNotices(context),
-          if (widget.isExpense) _buildSourcePicker() else _buildAccountPicker(),
-          const SizedBox(height: AppSpacing.medium),
-          _buildCategoryPicker(),
-          const SizedBox(height: AppSpacing.medium),
-          // Taraf kategoriden bellidir ya da kategori iki tarafa açıksa
-          // sorulur; kategori seçilmeden çizilecek bir şey yoktur.
-          if (_showScope && _categoryId != null) ...[
-            AppScopeSection(
-              explicit: _explicitScope,
-              source: _sourceScope,
-              category: _categoryScope,
-              sourceName: widget.isExpense ? _source?.name : _accountName,
-              errorText: _scopeMissing ? 'Bu kayıt için kapsam seçin.' : null,
-              onChanged: (value) => setState(() {
-                _explicitScope = value;
-                _scopeMissing = false;
-              }),
+    // Teslimle kurulan form: 16 dp yan boşluk, metin harf aralıksız.
+    return AppUntrackedText(
+      child: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(AppSpacing.medium),
+          children: [
+            ..._buildPrefillNotices(context),
+            if (widget.isExpense)
+              _buildSourcePicker()
+            else
+              _buildAccountPicker(),
+            const SizedBox(height: AppSpacing.medium),
+            _buildCategoryPicker(),
+            const SizedBox(height: AppSpacing.medium),
+            TextFormField(
+              controller: _amountController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: InputDecoration(
+                labelText: 'Tutar',
+                suffixText: 'TRY',
+                helperText: widget.prefill?.amount?.helperText,
+                suffixIcon: _suggestionIcon(widget.prefill?.amount),
+              ),
+              validator: _validateAmount,
             ),
             const SizedBox(height: AppSpacing.medium),
-          ],
-          TextFormField(
-            controller: _amountController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
-              labelText: 'Tutar',
-              suffixText: 'TRY',
-              helperText: widget.prefill?.amount?.helperText,
-              suffixIcon: _suggestionIcon(widget.prefill?.amount),
+            AppDateField(
+              label: 'Tarih',
+              helperText: widget.prefill?.date?.helperText,
+              value: _formattedDate,
+              lastDate: widget.today ?? DateTime.now(),
+              onChanged: (value) =>
+                  setState(() => _date = AppDateField.parse(value)!),
             ),
-            validator: _validateAmount,
-          ),
-          const SizedBox(height: AppSpacing.medium),
-          AppDateField(
-            label: 'Tarih',
-            helperText: widget.prefill?.date?.helperText,
-            value: _formattedDate,
-            lastDate: widget.today ?? DateTime.now(),
-            onChanged: (value) =>
-                setState(() => _date = AppDateField.parse(value)!),
-          ),
-          const SizedBox(height: AppSpacing.medium),
-          TextFormField(
-            controller: _descriptionController,
-            maxLength: 500,
-            // Sayaç gizli: 500 karakterlik bir sayaç kullanıcıyı uzun cümle
-            // yazmaya davet ediyordu, oysa bu alan kaydın **adı** oluyor.
-            // Sınır sunucu sözleşmesi gereği duruyor, teşviki kalkıyor.
-            buildCounter:
-                (
-                  _, {
-                  required currentLength,
-                  required isFocused,
-                  required maxLength,
-                }) => null,
-            decoration: InputDecoration(
-              labelText: 'Ad (isteğe bağlı)',
-              hintText: 'İstanbulkart yükleme',
-              helperText:
-                  widget.prefill?.description?.helperText ??
-                  'Boş bırakılırsa kategori adı kullanılır.',
-              // Belgeden gelen açıklama uzun olabilir; yarıda kesilmesin.
-              helperMaxLines: 3,
-              suffixIcon: _suggestionIcon(widget.prefill?.description),
-            ),
-          ),
-          // Yardımcı metin düğmeye yapışmasın.
-          const SizedBox(height: AppSpacing.large),
-          ..._buildKeepAttachment(context),
-          ..._buildAutoFeeNotice(context),
-          ..._buildReplacementNotice(context),
-          if (controller.errorMessage != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.medium),
-              child: Semantics(
-                liveRegion: true,
-                child: Text(
-                  controller.errorMessage!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
+            const SizedBox(height: AppSpacing.medium),
+            TextFormField(
+              controller: _descriptionController,
+              maxLength: 500,
+              // Sayaç gizli: 500 karakterlik bir sayaç kullanıcıyı uzun cümle
+              // yazmaya davet ediyordu, oysa bu alan kaydın **adı** oluyor.
+              // Sınır sunucu sözleşmesi gereği duruyor, teşviki kalkıyor.
+              buildCounter:
+                  (
+                    _, {
+                    required currentLength,
+                    required isFocused,
+                    required maxLength,
+                  }) => null,
+              decoration: InputDecoration(
+                labelText: 'Ad (isteğe bağlı)',
+                hintText: 'İstanbulkart yükleme',
+                helperText:
+                    widget.prefill?.description?.helperText ??
+                    'Boş bırakılırsa kategori adı kullanılır.',
+                // Belgeden gelen açıklama uzun olabilir; yarıda kesilmesin.
+                helperMaxLines: 3,
+                suffixIcon: _suggestionIcon(widget.prefill?.description),
               ),
             ),
-          FilledButton(
-            // Disabled while a request is in flight, because a second tap would
-            // be a second write.
-            onPressed: controller.isSubmitting ? null : _submit,
-            child: controller.isSubmitting
-                ? const SizedBox.square(
-                    dimension: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Kaydet'),
-          ),
-        ],
+            // Yardımcı metin düğmeye yapışmasın.
+            const SizedBox(height: AppSpacing.large),
+            ..._buildKeepAttachment(context),
+            ..._buildAutoFeeNotice(context),
+            ..._buildReplacementNotice(context),
+            if (controller.errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.medium),
+                child: Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    controller.errorMessage!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ),
+              ),
+            FilledButton(
+              // Disabled while a request is in flight, because a second tap would
+              // be a second write.
+              onPressed: controller.isSubmitting ? null : _submit,
+              child: controller.isSubmitting
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Kaydet'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -467,54 +462,66 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
   }
 
   Widget _buildCategoryPicker() {
-    final categories = widget.isExpense
-        ? _controller.expenseOptions!.categories
-        : _controller.incomeOptions!.categories;
+    final categories = _categoryChoices;
     _resolveCategoryNameHint(categories);
-    return DropdownButtonFormField<String>(
-      initialValue: _categoryId,
-      isExpanded: true,
-      decoration: InputDecoration(
-        labelText: 'Kategori',
-        helperText: widget.prefill?.categoryId?.categoryHelperText,
-      ),
-      validator: (value) => value == null ? 'Kategori seçin.' : null,
-      onChanged: (value) => setState(() => _categoryId = value),
-      items: [
+    return AppCategoryField(
+      options: [
         for (final category in categories)
-          DropdownMenuItem(value: category.id, child: Text(category.name)),
+          AppCategoryOption(
+            id: category.id,
+            name: category.name,
+            scope: category.defaultScope,
+          ),
       ],
+      value: _category,
+      recent: RecentCategories.of(context, _categoryType),
+      showScope: _showScope,
+      helperText: widget.prefill?.categoryId?.categoryHelperText,
+      validator: (value) => value == null ? 'Kategori seçin.' : null,
+      onChanged: (value) => setState(() => _category = value),
+      onAdd: _addCategory,
     );
+  }
+
+  String get _categoryType => widget.isExpense ? 'expense' : 'income';
+
+  /// `+ "…" ekle`den dönülünce yeni kategori listede ve seçili gelir. İki
+  /// kapsama açıksa alan kapsamı menüde sorar.
+  Future<void> _addCategory(String name) async {
+    final created = await addCategoryFromForm(
+      context,
+      type: _categoryType,
+      name: name,
+    );
+    if (created == null || !mounted) return;
+    await (widget.isExpense
+        ? _controller.refreshExpenseOptions()
+        : _controller.refreshIncomeOptions());
+    if (!mounted) return;
+    final known = _categoryChoices.any((c) => c.id == created.id);
+    if (known) {
+      setState(
+        () => _category = AppCategoryValue(
+          created.id,
+          _showScope ? created.defaultScope : null,
+        ),
+      );
+    }
   }
 
   /// Kapsam boyutu bu kullanıcıda görünür mü.
   bool get _showScope => widget.scopeController?.isVisible ?? false;
 
-  /// Çipte duran değer: kullanıcının seçimi → kaynağın etiketi →
-  /// kategorinin varsayılanı. Sunucudaki sıranın aynısı, çünkü kullanıcının
-  /// gördüğü ile yazılan aynı olmalı.
-  TransactionScope? get _resolvedScope => previewResolvedScope(
-    explicit: _explicitScope,
-    source: _sourceScope,
-    category: _categoryScope,
-  );
-
-  TransactionScope? get _sourceScope {
-    if (widget.isExpense) return _source?.defaultScope;
-    final accounts = _controller.incomeOptions?.accounts;
-    if (accounts == null || _accountId == null) return null;
-    for (final account in accounts) {
-      if (account.id == _accountId) return account.defaultScope;
-    }
-    return null;
-  }
-
-  TransactionScope? get _categoryScope {
-    if (_categoryId == null) return null;
+  /// Yazılacak kapsam: tek kapsamlı kategoride kategorinin, iki kapsama
+  /// açıkta menüde seçilen. Kapsamı görmeyen kullanıcıda gönderilmez; sunucu
+  /// kategoriden türetir.
+  TransactionScope? get _resolvedScope {
+    if (!_showScope) return null;
+    final id = _category?.categoryId;
     for (final category in _categoryChoices) {
-      if (category.id == _categoryId) return category.defaultScope;
+      if (category.id == id) return category.defaultScope ?? _category?.scope;
     }
-    return null;
+    return _category?.scope;
   }
 
   List<QuickAddChoice> get _categoryChoices => widget.isExpense
@@ -526,13 +533,6 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
   /// Öneri olduğunu söylemesi şart: alan dolu açıldığında kullanıcı onu kendi
   /// seçmiş gibi hızla geçiyor ve yanlış etiketlenmiş bir kayıt işletme netini
   /// sessizce bozuyor.
-
-  String? get _accountName {
-    for (final account in _controller.incomeOptions?.accounts ?? const []) {
-      if (account.id == _accountId) return account.name;
-    }
-    return null;
-  }
 
   String? _validateAmount(String? value) {
     final normalized = MoneyText.normalizeInput(value ?? '');
@@ -549,14 +549,9 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
   }
 
   Future<void> _submit() async {
+    // Kapsamı seçilmemiş iki kapsama açık kategoriyi alan kendisi reddeder;
+    // kullanıcı hatayı düzeltebileceği yerde görür.
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    // Zincir çözülemediyse istek sunucuya gitmeden burada duruyor: sunucu da
-    // reddederdi (`*.scope_unresolved`) ama kullanıcı hatayı alanın yanında,
-    // düzeltebileceği yerde görmeli.
-    if (_showScope && _resolvedScope == null) {
-      setState(() => _scopeMissing = true);
-      return;
-    }
     final amount = MoneyText.normalizeInput(_amountController.text)!;
     final description = _descriptionController.text.trim();
 
@@ -569,7 +564,7 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
     final saved = widget.isExpense
         ? await _controller.submitExpense(
             source: _source!,
-            categoryId: _categoryId!,
+            categoryId: _category!.categoryId,
             amount: amount,
             date: _formattedDate,
             description: description.isEmpty ? null : description,
@@ -579,7 +574,7 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
           )
         : await _controller.submitIncome(
             accountId: _accountId!,
-            categoryId: _categoryId!,
+            categoryId: _category!.categoryId,
             amount: amount,
             date: _formattedDate,
             description: description.isEmpty ? null : description,

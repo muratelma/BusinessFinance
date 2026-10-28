@@ -24,6 +24,11 @@ public static class CategoryEndpoints
             .Produces<CategoryListResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized);
+        group.MapGet("/recent", ListRecentAsync)
+            .WithName("ListRecentCategories")
+            .Produces<RecentCategoryListResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
         group.MapPut("/{categoryId:guid}", UpdateAsync)
             .WithName("UpdateCategory")
             .Produces<CategoryResponse>(StatusCodes.Status200OK)
@@ -103,6 +108,40 @@ public static class CategoryEndpoints
         }
 
         return Results.Ok(new CategoryListResponse(result.Value.Select(ToResponse).ToArray()));
+    }
+
+    /// <summary>
+    /// Kategori seçicinin `Son kullanılanlar` bölümü: türdeki en yeni dört
+    /// kategori + kapsam çifti. Tür zorunludur; seçici her zaman tek türü sorar.
+    /// </summary>
+    private static async Task<IResult> ListRecentAsync(
+        ListRecentCategoriesUseCase useCase,
+        HttpContext httpContext,
+        CancellationToken cancellationToken,
+        string? type = null)
+    {
+        if (!TryParseType(type, out var categoryType))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Category type must be income or expense.",
+                "categories.invalid_type");
+        }
+
+        var result = await useCase.ExecuteAsync(
+            new ListRecentCategoriesQuery(categoryType),
+            cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return result.Error.ToProblemResult(httpContext);
+        }
+
+        return Results.Ok(new RecentCategoryListResponse(
+            result.Value
+                .Select(item => new RecentCategoryResponse(
+                    item.CategoryId,
+                    FinanceContract.ScopeValue(item.Scope)))
+                .ToArray()));
     }
 
     private static async Task<IResult> UpdateAsync(

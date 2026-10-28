@@ -1,4 +1,5 @@
 import '../../support/account_field_helpers.dart';
+import '../../support/category_field_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:business_finance_mobile/core/models/transaction_scope.dart';
@@ -70,12 +71,8 @@ Iterable<String> _taxKeys(Map<String, Object?> body) => body.keys.where(
 Future<void> _selectSource(WidgetTester tester, String name) =>
     chooseAccount(tester, name, label: 'Ödeme kaynağı');
 
-Future<void> _selectCategory(WidgetTester tester, String name) async {
-  await tester.tap(find.byType(DropdownButtonFormField<String>).last);
-  await tester.pumpAndSettle();
-  await tester.tap(find.text(name).last);
-  await tester.pumpAndSettle();
-}
+Future<void> _selectCategory(WidgetTester tester, String name) =>
+    chooseCategory(tester, name);
 
 Future<void> _pumpForm(
   WidgetTester tester, {

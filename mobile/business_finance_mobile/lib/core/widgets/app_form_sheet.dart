@@ -116,17 +116,19 @@ class AppFormSheet<T> extends StatelessWidget {
           ),
         ),
         Flexible(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              horizontalPadding,
-              AppSpacing.small,
-              horizontalPadding,
-              AppSpacing.medium + keyboardInset,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: children,
+          child: _FittedBody(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                AppSpacing.small,
+                horizontalPadding,
+                AppSpacing.medium + keyboardInset,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: children,
+              ),
             ),
           ),
         ),
@@ -203,5 +205,77 @@ class AppFormField extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: AppSpacing.medium),
     child: child,
+  );
+}
+
+/// Panel gövdesinin bir alana göre daralması.
+///
+/// Kategori seçicinin menüsü açıkken gövde yalnız o alanı ve menüsünü
+/// gösterir: alan gövdenin başına kayar ve gövdenin boyu alan + menü kadar
+/// olur. Kısa listede panel kısalır, altta boşluk kalmaz; uzun listede panel
+/// en büyük boyuna kadar uzar ve liste menünün içinde kayar.
+class AppFormSheetFit extends InheritedWidget {
+  const AppFormSheetFit({
+    required this.height,
+    required this.maxHeight,
+    required super.child,
+    super.key,
+  });
+
+  /// Gövdenin istenen boyu; boşsa gövde içerik kadardır.
+  final ValueNotifier<double?> height;
+
+  /// Gövdenin alabileceği en büyük boy (başlık ve eylem satırı dışında).
+  final double maxHeight;
+
+  static AppFormSheetFit? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<AppFormSheetFit>();
+
+  @override
+  bool updateShouldNotify(AppFormSheetFit oldWidget) =>
+      oldWidget.maxHeight != maxHeight || oldWidget.height != height;
+}
+
+class _FittedBody extends StatefulWidget {
+  const _FittedBody({required this.child});
+  final Widget child;
+
+  @override
+  State<_FittedBody> createState() => _FittedBodyState();
+}
+
+class _FittedBodyState extends State<_FittedBody> {
+  final _height = ValueNotifier<double?>(null);
+
+  @override
+  void dispose() {
+    _height.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => ValueListenableBuilder<double?>(
+      valueListenable: _height,
+      // Boy değişimi kayarak olur; panel bir anda zıplamaz.
+      builder: (context, height, child) => AnimatedSize(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: height == null
+                ? constraints.maxHeight
+                : height.clamp(0, constraints.maxHeight),
+          ),
+          child: child,
+        ),
+      ),
+      child: AppFormSheetFit(
+        height: _height,
+        maxHeight: constraints.maxHeight,
+        child: widget.child,
+      ),
+    ),
   );
 }

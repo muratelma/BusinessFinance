@@ -1,4 +1,5 @@
 import '../features/accounts/presentation/account_directory.dart';
+import '../features/categories/presentation/recent_categories.dart';
 import 'package:http/http.dart' as http;
 
 import '../core/config/api_config.dart';
@@ -220,6 +221,13 @@ class AppDependencies {
     changes: financialDataChanges,
     session: authController,
   );
+
+  /// Kategori seçicilerin `Son kullanılanlar` bölümü.
+  late final RecentCategories recentCategories = RecentCategories.fromApi(
+    apiClient,
+    changes: financialDataChanges,
+    session: authController,
+  );
   final http.Client _httpClient;
 
   void dispose() {
@@ -228,6 +236,7 @@ class AppDependencies {
     scopeController.dispose();
     reminderController.dispose();
     accountDirectory.dispose();
+    recentCategories.dispose();
     _httpClient.close();
   }
 }

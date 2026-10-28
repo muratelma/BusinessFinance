@@ -28,6 +28,7 @@ import '../../features/budgets/data/budget_repository.dart';
 import '../../features/budgets/presentation/budgets_page.dart';
 import '../../features/categories/data/category_repository.dart';
 import '../../features/categories/presentation/categories_page.dart';
+import '../../features/categories/presentation/category_create_page.dart';
 import '../../features/categories/presentation/categories_view_model.dart';
 import '../../features/dashboard/presentation/dashboard_page.dart';
 import '../../features/dashboard/presentation/dashboard_view_model.dart';
@@ -622,6 +623,24 @@ GoRouter createAppRouter({
                   activityRepository: activityRepository,
                   posRepository: posRepository,
                   dayCloseRepository: dayCloseRepository,
+                ),
+          authController,
+        ),
+      ),
+      GoRoute(
+        path: categoryCreateLocation,
+        pageBuilder: (context, state) => _sessionPage(
+          state,
+          categoryRepository == null
+              ? const Scaffold(
+                  body: AppErrorView(
+                    message: 'Kategori servisi yapılandırılmadı.',
+                  ),
+                )
+              : CategoryCreatePage(
+                  repository: categoryRepository,
+                  initialName: state.uri.queryParameters['name'],
+                  initialType: state.uri.queryParameters['type'],
                 ),
           authController,
         ),

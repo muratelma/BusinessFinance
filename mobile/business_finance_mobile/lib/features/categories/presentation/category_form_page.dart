@@ -27,9 +27,22 @@ class CategoryFormPage extends StatefulWidget {
     super.key,
     this.category,
     this.readError,
+    this.initialName,
+    this.initialType,
+    this.savedResult,
   });
 
   final BudgetCategory? category;
+
+  /// Formdaki `+ "…" ekle`: ad aranan metinle, tür formun türüyle dolu
+  /// açılır. Tür bu durumda değiştirilemez; yeni kategori açıldığı forma
+  /// uymalı.
+  final String? initialName;
+  final String? initialType;
+
+  /// Doluysa kayıttan sonra sayfa bununla kapanır (yeni kategori), `true`
+  /// ile değil.
+  final Object? Function()? savedResult;
   final SaveCategory onSave;
 
   /// [onSave] `false` döndüğünde gösterilecek cümle. Kaydeden katman sunucunun
@@ -56,8 +69,10 @@ class _CategoryFormPageState extends State<CategoryFormPage> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.category?.name ?? '');
-    _type = widget.category?.type ?? 'expense';
+    _nameController = TextEditingController(
+      text: widget.category?.name ?? widget.initialName ?? '',
+    );
+    _type = widget.category?.type ?? widget.initialType ?? 'expense';
     _isActive = widget.category?.isActive ?? true;
     _defaultScope = widget.category?.defaultScope;
     _isTax = widget.category?.isTax ?? false;
@@ -89,7 +104,7 @@ class _CategoryFormPageState extends State<CategoryFormPage> {
       );
       if (!mounted) return;
       if (saved) {
-        Navigator.of(context).pop(true);
+        Navigator.of(context).pop(widget.savedResult?.call() ?? true);
       } else {
         setState(
           () => _error =
@@ -138,7 +153,7 @@ class _CategoryFormPageState extends State<CategoryFormPage> {
                   DropdownMenuItem(value: 'expense', child: Text('Gider')),
                   DropdownMenuItem(value: 'income', child: Text('Gelir')),
                 ],
-                onChanged: _editing
+                onChanged: _editing || widget.initialType != null
                     ? null
                     : (value) => setState(() => _type = value!),
               ),

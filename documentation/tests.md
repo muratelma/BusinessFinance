@@ -2268,3 +2268,26 @@ Domain ve şema; uçlar dalga 2c'de. Eski uçların davranışı golden testle k
 | Migration biçimi | `MigrationHistoryTests.AddCounterpartyDiscountsAndOpeningBalances_*` | Devir kolonları önce boş eklenir, doldurulur, sonra zorunlu olur, kısıt en son; DEFAULT kalmaz; Down veri varsa `THROW 50022` |
 | Sahiplik | `OwnershipIsolationTests` | Dokuz yeni uç yoklanır; `debt-book` okumaları sızıntı ölçüsünde |
 | Cari bakiye sorgu sayısı | `SqlServerPersistenceIntegrationTests.CounterpartyBalances_ComeFromOneQueryAndStayInsideTheOwner` | Elli üç kişi iki sorguda: bakiye tek ifade, gecikme tek okuma (1'den 2'ye; kişi başına sorgu yok) |
+
+## Kategori seçici — 28 Ekim 2026
+
+- Sunucu: `RecentCategoryEndpointTests` (çift ve sıra, dörtte kesme, öbür tür
+  yok; transfer masrafı, iptal edilmiş kayıt ve pasif kategori sayılmaz;
+  sahiplik; tür zorunlu; kimlik zorunlu) ve gerçek SQL'de
+  `RecentCategories_GroupEveryRecognizingSourceInSql` (bütün tanıma
+  kaynaklarının birleşimi SQL'de gruplanır; başka kullanıcı boş).
+- Flutter: `test/core/widgets/app_category_field_test.dart` (arama ve son
+  kullanılanlar eşiği, son kullanılan satırın çifti seçmesi, iki kapsama açık
+  kategorinin açılması, Türkçe arama ve `+ ekle`, sabit kapsam, düz liste, geri
+  tuşu, boş liste, simge eşlemesi); `quick_add_scope_test.dart` yeni kurala
+  göre yeniden yazıldı (kapsamı görmeyen kullanıcıda kapsam gitmez; tek
+  kapsamlı kategori hesabın etiketini ezer; kapsam menüde seçilir; hesabın
+  kapsamı ön değer olmaz ve kapsamsız kayıt yazılmaz; kart harcaması; gelir).
+  Yardımcı: `test/support/category_field_helpers.dart`. Form adının bütün
+  alan türlerinde aynı boyda (boş 16, kenarda 12) çizildiği
+  `test/core/theme/form_label_consistency_test.dart` ile ölçülür.
+- Kareler: `kategori_secici_screenshot_test.dart` (teslimin 06–16 kareleri) ve
+  `pos_screenshot_test.dart` `pos-05`/`pos-06` (`Elle gir`), panelin boylanması
+  `kategori_panel_screenshot_test.dart` (4, 7, 18 kategori); teslim kareleriyle
+  yan yana karşılaştırıldı. Panelin alan + menü kadar boylanıp kapanınca
+  döndüğü `app_category_field_test.dart` içinde ölçülür. Emülatörde kullanıcı kabulü bekleniyor.
