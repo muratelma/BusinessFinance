@@ -111,11 +111,17 @@ ve ADR güncellemesiyle değişir.
 ## Kullanıcıyla iletişim
 
 - Türkçe konuş.
-- **Dış göz değerlendirmeleri her zaman Markdown dosyası olarak da verilir**
-  (kullanıcı kararı, 10 Ekim 2026). Sohbetteki raporun tam metni, tabloları ve
-  kaynak bağlantılarıyla birlikte `research/DIS-GOZ-YYYY-MM-DD-<konu>.md`
-  dosyasına kaydedilir; yanıtta dosyaya bağlantı verilir. Yeni değerlendirme
-  önceki raporun üzerine yazılmaz; ayrı dosyada tutulur.
+- **Dış göz raporu yalnız kullanıcı açıkça dış göz değerlendirmesi istediğinde
+  hazırlanır** (27 Ekim 2026 kullanıcı düzeltmesi). Bu durumda raporun tam metni,
+  tabloları ve kaynakları `research/DIS-GOZ-YYYY-MM-DD-<konu>.md` dosyasına
+  kaydedilir; yanıtta bağlantısı verilir. Olağan tasarım görüşmesi, öneri veya
+  görsel üretimi kendiliğinden dış göz raporuna dönüştürülmez. Devam eden aynı
+  konunun kararları mevcut ortak çalışma belgesinde güncellenir; her tur için
+  yeni Markdown dosyası açılmaz. Kullanıcının açık devir notu isteği ayrıdır.
+- **Codex yalnız `design/` altında çalışır** (kullanıcı kararı, 28 Ekim 2026):
+  tasarım görüşmesi, pano ve çalışma belgesi oradadır. Kod, `documentation/`,
+  `docs/`, `stages/`, `research/`, `AGENTS.md` ve `CLAUDE.md` Claude Code ile
+  değişir; tasarımdan çıkan karar bu belgelere Claude Code tarafından işlenir.
 - Ne yapacağını kısaca söyle, sonra yap; adım adım onay bekleme.
 - Yeni bir kütüphane, pattern veya dış servis eklerken neden seçildiğini ve
   temel trade-off'unu bir-iki cümleyle belirt.

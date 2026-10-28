@@ -30,10 +30,15 @@ Bu dosya `AGENTS.md` kurallarının bir **özetini** taşır, çünkü her oturu
 yüklenir; ayrıntı ve gerekçe `AGENTS.md` içindedir ve ikisi çeliştiğinde
 `AGENTS.md` geçerlidir.
 
-**Dış göz raporları:** sohbet yanıtındaki değerlendirme, tablolar ve kaynak
-bağlantıları korunarak ayrıca `research/DIS-GOZ-YYYY-MM-DD-<konu>.md`
-dosyasına kaydedilir ve yanıtta bağlantısı verilir. Önceki raporun üzerine
-yazılmaz; ayrıntı `AGENTS.md` içindeki iletişim kurallarındadır.
+**Dış göz raporları:** yalnız kullanıcı açıkça dış göz değerlendirmesi istediğinde
+hazırlanır ve `research/DIS-GOZ-YYYY-MM-DD-<konu>.md` olarak kaydedilir.
+Olağan tasarım görüşmesi için yeni dış göz raporu açılmaz; aynı konunun kararları
+mevcut ortak çalışma belgesinde güncellenir. Kullanıcının açık devir notu isteği
+ayrıdır; ayrıntı `AGENTS.md` içindeki iletişim kurallarındadır (27 Ekim düzeltmesi).
+
+**Codex yalnız `design/` altında çalışır** (28 Ekim 2026). Kod ve `design/`
+dışındaki belgeler bu oturumlarda değişir; Codex'in tasarım kararları buraya
+işlenirken kaynak `design/borc-ve-alacaklar/README.md` gibi çalışma belgeleridir.
 
 ## Proje modeli
 
@@ -48,7 +53,9 @@ tek kaynağı `documentation/restore-runbook.md`. Sözleşme
 Hesaplar ve ayrı transfer sayfası bağlandı; ortak satır/ay seçici/ayrıntı
 kullanılır. Geliştirme veritabanının bekleyen migration'ı uygulanıp 5284'teki
 sunucu hatası giderildi. Son kontroller ve cihazda denenmeyenler teslim
-raporundadır. Aşama 06.3 Aktif kalır; sonraki iş bu teslimin cihaz kabulüdür.
+raporundadır. Cihaz kabulü 17 Ekim 2026'da yapıldı (kullanıcı, emülatör; sorun
+görülmedi). Kategori özetinin yeni tek sayfalık tasarımı ADR 0021 dalga 2'nin
+Flutter adımıyla birlikte uygulanır. Aşama 06.3 Aktif kalır.
 
 Flutter istemcisi ve ASP.NET Core backend'iyle çalışan, çok kullanıcılı bir
 işletme finansı uygulaması. Hedef kitle şahıs şirketleri ve esnaf: şirketin
