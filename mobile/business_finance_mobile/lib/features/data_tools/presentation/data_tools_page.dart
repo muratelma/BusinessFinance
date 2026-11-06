@@ -23,6 +23,7 @@ import '../data/data_tools_repository.dart';
 import 'csv_import_settings.dart';
 import 'data_tools_controller.dart';
 import 'export_file_details.dart';
+import 'picker_type_identifiers.dart';
 import '../../../core/widgets/app_account_field.dart';
 import '../../../features/accounts/presentation/account_directory.dart';
 
@@ -744,6 +745,7 @@ class _DataToolsPageState extends State<DataToolsPage> {
         file_selector.XTypeGroup(
           label: 'Desteklenen dosyalar',
           extensions: extensions,
+          uniformTypeIdentifiers: uniformTypeIdentifiersFor(extensions),
         ),
       ],
     );

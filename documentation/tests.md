@@ -26,6 +26,15 @@ satır sonuna duyarlıdır ve geliştirme ortamı CRLF kullandığı için Linux
 aynı kaynağı sebepsiz düşürüyordu. SQL ve Gemini testleri CI'da ortam değişkeni
 olmadığı için skip olur.
 
+**iOS derleme denetimi** (6 Kasım 2026): `.github/workflows/ios.yml` mobil kod
+değişen her push'ta ve elle tetiklemede **macos-latest** üzerinde imzasız
+`flutter build ios` koşar ve .ipa'yı artefakt bırakır (cihaz testi için,
+`local-setup-and-acceptance.md` §4.2). Birim test koşmaz; testler platformdan
+bağımsızdır ve `ci.yml`'de koşar. Bu denetimin yakaladığı türden ilk hata elle
+bulundu: iOS dosya seçicisi tür grubunda Apple tür kimliği ister, uzantı yetmez;
+`picker_type_identifiers_test.dart` veri araçlarındaki her seçicinin kimliği
+olduğunu korur.
+
 Taşımada iki test değişti:
 
 - `Stage125Migration_BackfillsExistingRecurringRowsAsAccountSource` **silindi**.

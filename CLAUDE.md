@@ -139,7 +139,10 @@ AVD ana geliştirme/kabul cihazıdır).
 - Geliştirme/test verisi daima sentetik veridir; gerçek finansal veri
   güvenlik ve geri yükleme kapısı tamamlanmadan kullanılmaz.
 - Ürün Aşama 07 tamamlanmadan internete açılmaz; API ve SQL yalnız
-  loopback'e bind'lıdır.
+  loopback'e bind'lıdır. Tek istisna iPhone cihaz testi için ev ağıdır (API
+  `lan` profili + `scripts/Set-LanApiFirewall.ps1`; 6 Kasım 2026); tünel ve
+  port yönlendirme yoktur. Kurulum `documentation/local-setup-and-acceptance.md`
+  §4.2.
 
 ## Mimari — katmanlı monolit (mikroservis yok)
 

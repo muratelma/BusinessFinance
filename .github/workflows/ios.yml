@@ -1,0 +1,73 @@
+name: iOS
+
+# iPhone'da cihaz testi için imzasız .ipa üretir; imzalama ve kurulum
+# Windows'ta Sideloadly ile ücretsiz Apple ID'yle yapılır. Ayrıca Flutter
+# kodunun iOS'ta derlendiğini doğrular: mobil kod değişince kendiliğinden
+# çalışır. Repo public olduğu için macOS dakikaları ücretsizdir.
+#
+# API adresi derlemeye gömülür (`--dart-define`). Elle tetiklemede girilen
+# adres, yoksa repo değişkeni `IOS_API_BASE_URL` kullanılır. Adres
+# laptopun ev ağındaki adresidir (ör. http://192.168.1.20:5284); API `lan`
+# profiliyle başlatılır.
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: "API adresi (ör. http://192.168.1.20:5284); boşsa IOS_API_BASE_URL"
+        required: false
+        default: ""
+  push:
+    paths:
+      - "mobile/business_finance_mobile/**"
+      - ".github/workflows/ios.yml"
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile/business_finance_mobile
+    env:
+      API_BASE_URL: ${{ inputs.api_base_url || vars.IOS_API_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.8"
+          channel: stable
+          cache: true
+
+      - name: Pub get
+        run: flutter pub get --enforce-lockfile
+
+      # Adres yoksa uygulama kendi varsayılanına (Android emülatörünün
+      # 10.0.2.2 adresi) düşer; telefonda sunucuya ulaşamaz. Derleme
+      # denetimi için yine de derlenir, ama uyarı bırakılır.
+      - name: Build (no codesign)
+        run: |
+          if [ -z "$API_BASE_URL" ]; then
+            echo "::warning::API adresi verilmedi; .ipa telefonda sunucuya bağlanamaz."
+            flutter build ios --release --no-codesign
+          else
+            flutter build ios --release --no-codesign --dart-define=API_BASE_URL="$API_BASE_URL"
+          fi
+
+      - name: Package .ipa
+        run: |
+          mkdir -p build/ipa/Payload
+          cp -R build/ios/iphoneos/Runner.app build/ipa/Payload/
+          cd build/ipa
+          zip -qr BusinessFinance.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BusinessFinance-ipa
+          path: mobile/business_finance_mobile/build/ipa/BusinessFinance.ipa
+          retention-days: 7

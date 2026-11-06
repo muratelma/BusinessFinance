@@ -106,6 +106,47 @@ API'nin Development CORS politikası yalnız `http://localhost:65087` origin'ini
 kabul ettiği için web portu değiştirilirse `WebClient:AllowedOrigins` de bilinçli
 olarak değiştirilmelidir. Edge aynı origin ve CORS politikasını kullanır.
 
+## 4.2. iPhone ile cihaz testi (ev ağı)
+
+Mac olmadan gerçek iPhone'da deneme yolu (kullanıcı kararı, 6 Kasım 2026).
+Derleme GitHub Actions'ın macOS sunucusunda yapılır, imzalama ve kurulum
+Windows'ta ücretsiz Apple ID ile Sideloadly üzerinden yapılır. Telefon API'ye ev
+ağı üzerinden ulaşır; API internete açılmaz ve SQL Server loopback'te kalır.
+
+1. **Ağ izni (bir kez, yönetici PowerShell'i):** ev ağı Windows'ta "Özel ağ"
+   olmalıdır. Kural yalnız özel ağ profilinde ve yerel alt ağdan gelen
+   bağlantıya açılır:
+
+   ```powershell
+   .\scripts\Set-LanApiFirewall.ps1          # ekle
+   .\scripts\Set-LanApiFirewall.ps1 -Remove  # kaldır
+   ```
+
+2. **API'yi ev ağında başlatın:**
+
+   ```powershell
+   dotnet run --project src/BusinessFinance.Api --launch-profile lan
+   ```
+
+   Laptopun ev ağı adresini `ipconfig` ile okuyun (`192.168.x.x`). Adres
+   derlemeye gömüldüğü için modemden laptopa sabit adres verilmesi önerilir.
+   Telefonun tarayıcısında `http://<adres>:5284/health/live` açılıyorsa ağ
+   hazırdır.
+
+3. **.ipa üretin:** GitHub > Actions > `iOS` > Run workflow, `api_base_url`
+   alanına `http://<adres>:5284` yazın. Adres her seferinde yazılmasın diye
+   repo değişkeni `IOS_API_BASE_URL` tanımlanabilir. Mobil kod değişen her push
+   da derler (iOS derleme denetimi). Çıktı `BusinessFinance-ipa` artefaktıdır,
+   7 gün tutulur.
+4. **Kurun:** Sideloadly ve Apple Devices (iTunes) kurulu Windows'ta iPhone'u
+   USB ile bağlayın, .ipa'yı Apple ID ile kurun. İlk kurulumda iPhone'da
+   Ayarlar > Genel > VPN ve Cihaz Yönetimi'nden geliştiriciye güvenin ve
+   Ayarlar > Gizlilik ve Güvenlik > Geliştirici Modu'nu açın. İlk açılışta
+   "yerel ağ" izni sorulur; reddedilirse uygulama sunucuya ulaşamaz.
+
+Ücretsiz Apple ID sınırları: kurulum 7 gün geçerlidir, aynı anda en çok 3
+uygulama kurulabilir. Hot reload yoktur, her değişiklik yeni bir derlemedir.
+
 ## 5. Debug APK üretme ve temiz kurma
 
 Bu build yerel kabul içindir; production/release imzası kanıtı değildir.
@@ -266,3 +307,8 @@ Gerçek Wi-Fi yönlendirmesi, Windows firewall izni, USB/ADB, üretici Android
 katmanı ve donanım destekli secure storage fiziksel cihaz olmadan kanıtlanamaz.
 Bunlar haricî test veya mağaza yayını öncesinde ayrı kapıdır; yerel kabulün
 Pixel 8 emulator kabulünü geçersiz kılmaz.
+
+iPhone yolu (§4.2) 6 Kasım 2026'da kuruldu; cihazda henüz denenmedi. iOS'ta
+`Cihaz kaydet` düğmesi Android'e özgü bir kanal kullanır ve çalışmaz
+("Dosya cihaza kaydedilemedi" der); iPhone'da dosya `Paylaş` > `Dosyalar'a
+Kaydet` ile kaydedilir.

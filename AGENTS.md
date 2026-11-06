@@ -264,7 +264,12 @@ değildir:
 - Secret ve finansal veriyi terminal çıktısında veya loglarda gösterme.
 - Ürünü Aşama 07 tamamlanmadan internete açma; API ve SQL loopback'e bağlı kalır.
   Giden bir HTTPS çağrısı (ör. e-posta gönderimi) bu kuralı ihlal etmez;
-  yasak olan dışarıdan gelen bağlantıyı kabul etmektir.
+  yasak olan dışarıdan gelen bağlantıyı kabul etmektir. **Tek istisna ev
+  ağıdır** (kullanıcı kararı, 6 Kasım 2026): iPhone ile cihaz testi için API
+  yalnız `lan` profiliyle `0.0.0.0` dinleyebilir; güvenlik duvarı kuralı
+  (`scripts/Set-LanApiFirewall.ps1`) onu özel ağ ve yerel alt ağla sınırlar.
+  SQL loopback'te kalır; tünel (ngrok, Cloudflare) ve port yönlendirme
+  kullanılmaz.
 - Azure ve offline cache'i kendi roadmap aşaması gelmeden ekleme.
 - **Banka bağlantısı / açık bankacılık kapsam dışıdır.** Sağlayıcı SDK'sı,
   adapter veya sandbox bağlantısı eklenmez; bankadan ödeme veya transfer

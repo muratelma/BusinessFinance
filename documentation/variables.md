@@ -20,9 +20,10 @@ Bu belge yalnız uygulanmış yapılandırmayı kaydeder; gerçek secret değer 
 | `BUSINESS_FINANCE_GEMINI_TEST_KEY` | Canlı sözleşme testi ve manuel fiş ölçümü | **Secret**, geçici test | Environment | Test/ölçüm oturumuyla | Kotanın habersiz harcanması; değer test veya ölçüm çıktısına yazılmaz |
 | `BUSINESS_FINANCE_GEMINI_TEST_MODEL` | Canlı sözleşme testi | Test | Environment; varsayılan `gemini-3.5-flash-lite` | Ölçüm turunda | RPD 20'lik modelde testin kotayı bitirmesi |
 | `API_BASE_URL` | Flutter | Build-time, secret değil | `--dart-define` | Hedef ortam değişince | Yanlış API'ye istek; emulator için localhost hatası |
+| `IOS_API_BASE_URL` | iOS workflow | GitHub repo değişkeni, secret değil | Repo > Settings > Variables; elle tetiklemede `api_base_url` girdisi önce gelir | Laptopun ev ağı adresi değişince | Yanlış adresle derlenen .ipa sunucuya ulaşamaz; adres yalnız ev ağı adresidir, public repoda görünür |
 | `WebClient:AllowedOrigins` | API | Development, secret değil | `appsettings.Development.json` | Yerel web origin'i değişince | Fazla geniş CORS veya tarayıcı isteğinin reddi |
 | `ASPNETCORE_ENVIRONMENT` | API | Process/profil | launch profile/environment | Ortama göre | Development OpenAPI'nin yanlış ortamda açılması |
-| `ASPNETCORE_URLS` / `--urls` | API | Process | launch profile/CLI | Yerel porta göre | `0.0.0.0` ile istenmeyen ağ yayını |
+| `ASPNETCORE_URLS` / `--urls` | API | Process | launch profile/CLI | Yerel porta göre | `0.0.0.0` ile istenmeyen ağ yayını; yalnız `lan` profili `0.0.0.0` dinler ve güvenlik duvarı kuralı (`Set-LanApiFirewall.ps1`) onu özel ağ ve yerel alt ağla sınırlar |
 | `AttachmentStorage:RootPath` | API | Sunucu, secret değil | `appsettings.json`/environment | Storage taşımasında | Root kaçışı, kayıp veya yanlış volume |
 | `Brevo:ApiKey` | API | **Secret** | Local user-secrets | Sızıntıda ve planlı rotation | Üçüncü tarafın gönderim kotası ve gönderici itibarı başkasınca kullanılır |
 | `Brevo:SenderEmail` | API | Sunucu, secret değil | Local user-secrets/`appsettings.json` | Gönderici adresi değişince | Servis tarafında doğrulanmamış adresten çıkan posta reddedilir veya spam'e düşer |
