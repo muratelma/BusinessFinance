@@ -808,6 +808,19 @@ tutar yazmadığı) **her hâlde** durur: gizlilik sözü, ancak görünürse s�
    için 3:1.
 6. **Loading / empty / error / unauthorized / stale** durumları her ekranda
    görünür ele alınır.
+7. **Metin alanının dışına dokunmak klavyeyi kapatır** (6 Kasım 2026, iPhone
+   cihaz testi). Kural uygulama genelindedir (`TapOutsideDismissesKeyboard`,
+   `MaterialApp.builder`); ekran ayrıca bir şey yapmaz. Dokunup kaydırmadan
+   bırakmak kapatır, kaydırmak kapatmaz; başka bir metin alanına dokunmak odağı
+   oraya taşır, düğmeye dokunmak hem düğmeyi çalıştırır hem klavyeyi kapatır.
+   iPhone'da klavyeyi kapatan geri tuşu yoktur; Flutter'ın telefondaki
+   varsayılanı dokunmada odağı bırakmaz. Kendi `onTapOutside`'ını veren alan
+   kuralın dışında kalır.
+8. **Çerçevesiz düğme sütunun genişliğine yayılmaz.** `CrossAxisAlignment.stretch`
+   sütunda `TextButton` `Center` içine konur; yoksa yazının yanındaki boş yer de
+   düğme olur ve görünmez bir dokunma alanı doğar (giriş, kayıt ve parola
+   sıfırlama ekranlarında düzeltildi). Dolu düğme (`FilledButton`) yayılabilir:
+   sınırı görünür.
 
 ## Yeni ekran eklerken kontrol listesi
 

@@ -154,9 +154,13 @@ class _RegisterPageState extends State<RegisterPage> {
                             )
                           : const Text('Kayıt ol'),
                     ),
-                    TextButton(
-                      onPressed: _isSubmitting ? null : widget.onBackToLogin,
-                      child: const Text('Giriş ekranına dön'),
+                    // Ortalanır: yayılan çerçevesiz düğmenin yanındaki boşluk
+                    // da düğme olurdu (giriş ekranındaki notla aynı).
+                    Center(
+                      child: TextButton(
+                        onPressed: _isSubmitting ? null : widget.onBackToLogin,
+                        child: const Text('Giriş ekranına dön'),
+                      ),
                     ),
                   ],
                 ),

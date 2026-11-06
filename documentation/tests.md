@@ -35,6 +35,15 @@ bulundu: iOS dosya seçicisi tür grubunda Apple tür kimliği ister, uzantı ye
 `picker_type_identifiers_test.dart` veri araçlarındaki her seçicinin kimliği
 olduğunu korur.
 
+iPhone'da bulunan iki dokunma sorununun testleri (7 Kasım 2026):
+`tap_outside_dismisses_keyboard_test.dart` dışarı dokunmanın klavyeyi
+kapattığını, kaydırmanın kapatmadığını, başka alana dokunmanın odağı
+taşıdığını, düğmenin hem çalıştığını hem klavyeyi kapattığını ve
+sarmalayıcısız telefonun klavyeyi açık tuttuğunu üç mobil platformda doğrular.
+`auth_pages_test.dart` giriş ekranındaki bağlantıların yanındaki boşluğun
+bağlantı olmadığını telefon genişliğinde doğrular (800 px'lik test ekranında
+form ortada 440 px kaldığı için hata görünmüyordu).
+
 Taşımada iki test değişti:
 
 - `Stage125Migration_BackfillsExistingRecurringRowsAsAccountSource` **silindi**.

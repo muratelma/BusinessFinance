@@ -145,4 +145,41 @@ void main() {
 
     expect(completedEmail, 'new@example.test');
   });
+
+  testWidgets('the space beside the text links is not part of the link', (
+    tester,
+  ) async {
+    // Telefon genişliği: form ekranı doldurur, bağlantının yanı boş kalır.
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    var forgotCount = 0;
+    var registerCount = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: LoginPage(
+          onSubmit: (_, _) async {},
+          onRegister: () => registerCount++,
+          onForgotPassword: (_) => forgotCount++,
+        ),
+      ),
+    );
+
+    // Formun sol kenarı: dolu düğme sütunun tam genişliğindedir.
+    final formLeft = tester.getTopLeft(find.byType(FilledButton)).dx;
+    for (final label in ['Parolamı unuttum', 'Hesap oluştur']) {
+      final text = tester.getCenter(find.text(label));
+      await tester.tapAt(Offset(formLeft + 8, text.dy));
+      await tester.pump();
+    }
+    expect(forgotCount, 0);
+    expect(registerCount, 0);
+
+    await tester.tap(find.text('Parolamı unuttum'));
+    await tester.tap(find.text('Hesap oluştur'));
+    await tester.pump();
+    expect(forgotCount, 1);
+    expect(registerCount, 1);
+  });
 }

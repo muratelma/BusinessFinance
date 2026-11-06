@@ -160,14 +160,22 @@ class _PasswordResetPageState extends State<PasswordResetPage> {
                                     : 'Kod gönder',
                               ),
                       ),
+                      // Ortalanır: yayılan çerçevesiz düğmenin yanındaki
+                      // boşluk da düğme olurdu (giriş ekranındaki notla aynı).
                       if (_codeRequested)
-                        TextButton(
-                          onPressed: _isSubmitting ? null : _requestCode,
-                          child: const Text('Kodu yeniden gönder'),
+                        Center(
+                          child: TextButton(
+                            onPressed: _isSubmitting ? null : _requestCode,
+                            child: const Text('Kodu yeniden gönder'),
+                          ),
                         ),
-                      TextButton(
-                        onPressed: _isSubmitting ? null : widget.onBackToLogin,
-                        child: const Text('Girişe dön'),
+                      Center(
+                        child: TextButton(
+                          onPressed: _isSubmitting
+                              ? null
+                              : widget.onBackToLogin,
+                          child: const Text('Girişe dön'),
+                        ),
                       ),
                     ],
                   ),

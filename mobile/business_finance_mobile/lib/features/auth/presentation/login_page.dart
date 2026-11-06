@@ -142,17 +142,24 @@ class _LoginPageState extends State<LoginPage> {
                               )
                             : const Text('Giriş yap'),
                       ),
-                      TextButton(
-                        onPressed: _isSubmitting
-                            ? null
-                            : () => widget.onForgotPassword(
-                                _emailController.text.trim(),
-                              ),
-                        child: const Text('Parolamı unuttum'),
+                      // Sütun çocuklarını tam genişliğe yayar; çerçevesiz
+                      // düğme yayılınca yazının yanındaki boşluk da düğme
+                      // olur. Ortalamak dokunma alanını yazıya indirir.
+                      Center(
+                        child: TextButton(
+                          onPressed: _isSubmitting
+                              ? null
+                              : () => widget.onForgotPassword(
+                                  _emailController.text.trim(),
+                                ),
+                          child: const Text('Parolamı unuttum'),
+                        ),
                       ),
-                      TextButton(
-                        onPressed: _isSubmitting ? null : widget.onRegister,
-                        child: const Text('Hesap oluştur'),
+                      Center(
+                        child: TextButton(
+                          onPressed: _isSubmitting ? null : widget.onRegister,
+                          child: const Text('Hesap oluştur'),
+                        ),
                       ),
                     ],
                   ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../core/input/tap_outside_dismisses_keyboard.dart';
 import '../core/localization/app_locale.dart';
 import '../core/presentation/financial_data_changes.dart';
 import '../core/presentation/scope_controller.dart';
@@ -81,6 +82,8 @@ class BusinessFinanceApp extends StatelessWidget {
       supportedLocales: AppLocale.supported,
       localizationsDelegates: AppLocale.delegates,
       routerConfig: router,
+      builder: (context, child) =>
+          TapOutsideDismissesKeyboard(child: child ?? const SizedBox.shrink()),
     );
 
     final authController = _authController;
