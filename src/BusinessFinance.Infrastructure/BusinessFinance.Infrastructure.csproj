@@ -28,6 +28,10 @@
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.10" />
     <PackageReference Include="SkiaSharp" Version="4.151.1" />
+    <!-- Microsoft.Data.SqlClient 6.1.1 transitive olarak 9.0.4 getiriyor; o sürümde
+         CVE-2026-84008 ve CVE-2026-70162 açık. SqlClient yamalı sürümü getirene
+         kadar doğrudan referansla yükseltilir. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.21.0" />
   </ItemGroup>
 
