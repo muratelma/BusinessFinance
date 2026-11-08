@@ -1232,9 +1232,18 @@ taşıyan `AuthField` içinden bulunur (`test/helpers/auth_flow.dart`).
 | Oranlı yerleşim, iki telefon | 412 × 915 ve 393 × 852'de alan genişliği ekran − 2 × 24 × katsayı, alan 46 ×, düğme 50 ×, başlık 23 × katsayı (8 Kasım 2026) |
 | Tablet ve telefon yatay | Tablette form en büyük telefonun genişliğini geçmiyor; yatayda taşma yok, form kayıyor |
 | Google ve Apple | Google düğmesi görünür ve basılınca "henüz hazır değil" der; Apple yalnız iPhone'da |
-| Kullanıcı adı | Girişte `@`'sız değer istek göndermeden açıklanıyor; kayıtta kullanıcı adı kuralı tutmadan ikinci adım yok |
+| Kullanıcı adı | Girişte kullanıcı adı gönderiliyor; kayıtta kural tutmadan ikinci adım yok; alınmış ad alandan çıkınca (yazarken değil) söyleniyor, ad değişince kalkıyor; basınca yeniden soruluyor ve alınmışsa ikinci adım yok; kayıt adı gönderiyor |
 | Panelden ayrılınca | Hata yazıları ve sunucunun uyarısı temizleniyor, yazılan e-posta kalıyor |
 | Hata zamanlaması | Hata yazarken başka hataya dönmüyor, düzelince kalkıyor; boş alandan geçmek hata yazdırmıyor, dolu alandan çıkınca denetleniyor; gönderim reddedilince imleç ilk hatalı alanda |
+
+**Kullanıcı adı, sunucu** (8 Kasım 2026): `RegisterUserUseCaseTests`
+(normalize, kural dışı ad hiçbir şey yazmadan reddedilir, alınmış ad,
+uygunluk sorgusu), `IdentityAccountServiceTests` (ad `UserName`'e yazılır,
+alınmış ad e-postadan ayrı raporlanır, e-posta ya da ad — büyük-küçük harf
+farksız — ile giriş, bilinmeyen ad ile yanlış parola aynı), `AuthenticationEndpointTests`
+(adla kayıt ve giriş, `username_taken`, `invalid_username`, uygunluk ucu ve
+kendi oran sınırı), `MigrationHistoryTests.BackfillUsernamesFromEmail_OnlyWritesData`
+ve gerçek SQL'de `BackfillUsernamesFromEmail_DerivesAValidUniqueNameForEveryAccount`.
 
 `test/core/routing/page_transition_test.dart`: iPhone'da üstüne açılan sayfa
 sağdan kayarak gelir ve soldan kenarından çekince kapanır (geçişsiz eski

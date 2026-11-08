@@ -51,7 +51,8 @@ public sealed class MigrationHistoryTests
         "AddCategoryRolesAndTransferFees",
         "MergeObligationsAndDebtAgreements",
         "AddDebtPartialPaymentsAndPlans",
-        "AddCounterpartyDiscountsAndOpeningBalances"
+        "AddCounterpartyDiscountsAndOpeningBalances",
+        "BackfillUsernamesFromEmail"
     ];
 
     [Fact]
@@ -1188,6 +1189,28 @@ public sealed class MigrationHistoryTests
             var down = migration.Migration.DownOperations.ToList();
             var guard = Assert.IsType<SqlOperation>(down[0]);
             Assert.Contains("THROW 50022", guard.Sql, StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>
+    /// Yalnız veri: e-postadan kullanıcı adı yazar, şemaya dokunmaz. Kolon ve
+    /// benzersiz dizin InitialCreate'ten beri vardır. Geri dönüş de yalnız
+    /// veridir.
+    /// </summary>
+    [Fact]
+    public void BackfillUsernamesFromEmail_OnlyWritesData()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_BackfillUsernamesFromEmail", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = Assert.Single(migration.Migration.UpOperations);
+            var backfill = Assert.IsType<SqlOperation>(up);
+            Assert.Contains("[NormalizedUserName] = UPPER(@Candidate)", backfill.Sql, StringComparison.Ordinal);
+            Assert.Contains("WHERE [UserName] LIKE N'%@%'", backfill.Sql, StringComparison.Ordinal);
+
+            var down = Assert.Single(migration.Migration.DownOperations);
+            Assert.IsType<SqlOperation>(down);
         }
     }
 

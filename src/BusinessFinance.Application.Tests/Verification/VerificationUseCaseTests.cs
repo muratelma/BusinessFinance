@@ -325,6 +325,7 @@ public sealed class VerificationUseCaseTests
 
         public Task<IdentityRegistrationResult> RegisterAsync(
             string email,
+            string? username,
             string password,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
@@ -359,6 +360,11 @@ public sealed class VerificationUseCaseTests
             Guid userId,
             string currentPassword,
             string newPassword,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<bool> IsUsernameTakenAsync(
+            string username,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 

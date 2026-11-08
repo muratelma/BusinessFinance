@@ -192,7 +192,13 @@ void main() {
         authFlowApp(
           initialView: AuthView.register,
           onRegister:
-              (email, password, {required hasBusiness, onVerified}) async {
+              (
+                email,
+                password, {
+                required hasBusiness,
+                username,
+                onVerified,
+              }) async {
                 sent = (
                   email: email,
                   password: password,
@@ -227,7 +233,7 @@ void main() {
         tester,
         authFlowApp(
           initialView: AuthView.register,
-          onRegister: (_, _, {required hasBusiness, onVerified}) =>
+          onRegister: (_, _, {required hasBusiness, username, onVerified}) =>
               throw const ApiException(
                 statusCode: 409,
                 code: 'registration.duplicate_email',
@@ -346,21 +352,101 @@ void main() {
       expect(find.bySemanticsLabel('Apple ile devam et'), findsOneWidget);
     });
 
-    testWidgets('kullanıcı adıyla giriş istek göndermeden açıklanır', (
-      tester,
-    ) async {
-      var submitCount = 0;
+    testWidgets('kullanıcı adıyla giriş yapılır', (tester) async {
+      String? sentIdentifier;
       await pumpAuthFlow(
         tester,
-        authFlowApp(onLogin: (_, _, {onVerified}) async => submitCount++),
+        authFlowApp(
+          onLogin: (identifier, _, {onVerified}) async =>
+              sentIdentifier = identifier,
+        ),
       );
       await tester.enterText(authField(loginId), 'ahmet.yilmaz');
       await tester.enterText(authField('Parola'), 'password');
       await tester.tap(authButton('Giriş yap'));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
-      expect(find.text(AuthValidation.usernameLoginNotReady), findsOneWidget);
-      expect(submitCount, 0);
+      expect(sentIdentifier, 'ahmet.yilmaz');
+    });
+
+    testWidgets('alınmış kullanıcı adı alandan çıkınca söylenir', (
+      tester,
+    ) async {
+      final asked = <String>[];
+      await pumpAuthFlow(
+        tester,
+        authFlowApp(
+          initialView: AuthView.register,
+          onCheckUsername: (username) async {
+            asked.add(username);
+            return username != 'murat';
+          },
+        ),
+      );
+
+      await tester.enterText(authField('Kullanıcı adı'), 'murat');
+      await tester.pumpAndSettle();
+      // Yazarken sorulmaz.
+      expect(asked, isEmpty);
+
+      await tester.tap(authField('E-posta'));
+      await tester.pumpAndSettle();
+      expect(asked, ['murat']);
+      expect(find.text(AuthValidation.usernameTaken), findsOneWidget);
+
+      // Ad değişince yazı hemen kalkar.
+      await tester.enterText(authField('Kullanıcı adı'), 'murat.elma');
+      await tester.pumpAndSettle();
+      expect(find.text(AuthValidation.usernameTaken), findsNothing);
+    });
+
+    testWidgets('alınmış kullanıcı adıyla ikinci adıma geçilmez', (
+      tester,
+    ) async {
+      var takenNow = false;
+      await pumpAuthFlow(
+        tester,
+        authFlowApp(
+          initialView: AuthView.register,
+          onCheckUsername: (_) async => !takenNow,
+        ),
+      );
+      await tester.enterText(authField('Kullanıcı adı'), 'murat');
+      await tester.enterText(authField('E-posta'), 'new@example.test');
+      await tester.enterText(authField('Parola'), 'Valid-Password-123!');
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
+      expect(find.text(AuthValidation.usernameTaken), findsNothing);
+
+      // Bu arada başkası aldı: basınca yeniden sorulur.
+      takenNow = true;
+      await tester.tap(authButton('Hesap oluştur'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(AuthValidation.usernameTaken), findsOneWidget);
+      expect(find.text('Bir adım kaldı'), findsNothing);
+    });
+
+    testWidgets('kayıt kullanıcı adını sunucuya gönderir', (tester) async {
+      String? sentUsername;
+      await pumpAuthFlow(
+        tester,
+        authFlowApp(
+          initialView: AuthView.register,
+          onRegister:
+              (_, _, {required hasBusiness, username, onVerified}) async =>
+                  sentUsername = username,
+        ),
+      );
+      await tester.enterText(authField('Kullanıcı adı'), 'selin-k');
+      await tester.enterText(authField('E-posta'), 'new@example.test');
+      await tester.enterText(authField('Parola'), 'Valid-Password-123!');
+      await tester.tap(authButton('Hesap oluştur'));
+      await tester.pumpAndSettle();
+      await tester.tap(authButton('Devam et'));
+      await tester.pumpAndSettle();
+
+      expect(sentUsername, 'selin-k');
     });
 
     testWidgets('kayıtta kullanıcı adı sorulur ve doğrulanır', (tester) async {

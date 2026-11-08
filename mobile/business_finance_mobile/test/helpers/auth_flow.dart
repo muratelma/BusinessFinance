@@ -18,6 +18,7 @@ Widget authFlowApp({
   AuthLogin? onLogin,
   AuthRegister? onRegister,
   Future<void> Function(String email)? onRequestPasswordReset,
+  Future<bool> Function(String username)? onCheckUsername,
   AuthView initialView = AuthView.login,
   ThemeData? theme,
 }) => MaterialApp(
@@ -25,9 +26,11 @@ Widget authFlowApp({
   theme: theme ?? AppTheme.light(),
   home: AuthFlow(
     initialView: initialView,
+    onCheckUsername: onCheckUsername,
     onLogin: onLogin ?? (_, _, {onVerified}) async {},
     onRegister:
-        onRegister ?? (_, _, {required hasBusiness, onVerified}) async {},
+        onRegister ??
+        (_, _, {required hasBusiness, username, onVerified}) async {},
     onRequestPasswordReset: onRequestPasswordReset ?? (_) async {},
     onResetPassword:
         ({

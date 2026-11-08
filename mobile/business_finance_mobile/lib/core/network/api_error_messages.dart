@@ -220,6 +220,10 @@ abstract final class ApiErrorMessages {
         'Oturum yenilenemedi. Lütfen yeniden giriş yapın.',
     'authentication.registration_conflict':
         'Bu e-posta adresiyle daha önce kayıt oluşturulmuş.',
+    'authentication.username_taken': 'Bu kullanıcı adı alınmış.',
+    'authentication.invalid_username':
+        'Kullanıcı adı kurallara uymuyor; yalnız a–z, rakam, nokta, alt çizgi '
+        've tire kullanın.',
     'authentication.password_policy':
         'Parola güvenlik kurallarını karşılamıyor.',
     'authentication.invalid_registration':

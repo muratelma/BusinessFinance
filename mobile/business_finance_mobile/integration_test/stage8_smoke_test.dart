@@ -33,7 +33,7 @@ void main() {
     // yapılmaz.
     await tester.tap(find.text('Hesap oluştur'));
     await _waitFor(tester, find.widgetWithText(FilledButton, 'Hesap oluştur'));
-    await tester.enterText(find.byType(TextFormField).at(0), 'smoke_user');
+    await tester.enterText(find.byType(TextFormField).at(0), 'smoke-$suffix');
     await tester.enterText(find.byType(TextFormField).at(1), email);
     await tester.enterText(find.byType(TextFormField).at(2), password);
     await tester.tap(find.widgetWithText(FilledButton, 'Hesap oluştur'));

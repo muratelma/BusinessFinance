@@ -1077,15 +1077,24 @@ Page<dynamic> _authPage(
           authController?.login(email, password, onVerified: onVerified),
       // Kayıt bitince oturum hemen açılır; kişi e-postasını ve parolasını
       // ikinci kez yazmaz.
-      onRegister: (email, password, {required hasBusiness, onVerified}) async {
-        if (authController == null) return;
-        await authController.register(
-          email,
-          password,
-          hasBusiness: hasBusiness,
-        );
-        await authController.login(email, password, onVerified: onVerified);
-      },
+      onRegister:
+          (
+            email,
+            password, {
+            required hasBusiness,
+            username,
+            onVerified,
+          }) async {
+            if (authController == null) return;
+            await authController.register(
+              email,
+              password,
+              hasBusiness: hasBusiness,
+              username: username,
+            );
+            await authController.login(email, password, onVerified: onVerified);
+          },
+      onCheckUsername: authRepository?.isUsernameAvailable,
       onRequestPasswordReset: authRepository == null
           ? (_) async {}
           : authRepository.requestPasswordReset,

@@ -1,5 +1,6 @@
 using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Authentication;
+using BusinessFinance.Application.Authentication.CheckUsername;
 using BusinessFinance.Application.UserAccount;
 using BusinessFinance.Application.Authentication.RegisterUser;
 using BusinessFinance.Application.Profiles;
@@ -11,6 +12,83 @@ namespace BusinessFinance.Application.Tests.Authentication;
 
 public sealed class RegisterUserUseCaseTests
 {
+    [Fact]
+    public async Task ExecuteAsync_SendsTheUsernameNormalized()
+    {
+        var service = new FakeIdentityAccountService
+        {
+            RegistrationResult = new IdentityRegistrationResult(
+                IdentityRegistrationStatus.Succeeded, Guid.NewGuid(), "user@example.com")
+        };
+        var useCase = CreateUseCase(service, new RecordingUserProfileRepository());
+
+        var result = await useCase.ExecuteAsync(new RegisterUserCommand(
+            "user@example.com", "Valid-Password-123!", Username: "  Ahmet.Yilmaz "));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("ahmet.yilmaz", service.ReceivedUsername);
+    }
+
+    [Theory]
+    [InlineData("ab")]
+    [InlineData("ahmet yılmaz")]
+    [InlineData("ahmet@yilmaz")]
+    [InlineData("yılmaz")]
+    public async Task ExecuteAsync_RejectsAUsernameOutsideTheRuleBeforeCreatingAnything(string username)
+    {
+        var service = new FakeIdentityAccountService();
+        var profiles = new RecordingUserProfileRepository();
+        var useCase = CreateUseCase(service, profiles);
+
+        var result = await useCase.ExecuteAsync(new RegisterUserCommand(
+            "user@example.com", "Valid-Password-123!", Username: username));
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(AuthenticationErrors.InvalidUsername, result.Error);
+        Assert.Equal(0, service.RegisterCalls);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenUsernameIsTaken_ReturnsUsernameTaken()
+    {
+        var service = new FakeIdentityAccountService
+        {
+            RegistrationResult = new IdentityRegistrationResult(
+                IdentityRegistrationStatus.DuplicateUsername, null, null)
+        };
+        var useCase = CreateUseCase(service, new RecordingUserProfileRepository());
+
+        var result = await useCase.ExecuteAsync(new RegisterUserCommand(
+            "user@example.com", "Valid-Password-123!", Username: "murat"));
+
+        Assert.Equal(AuthenticationErrors.UsernameTaken, result.Error);
+    }
+
+    [Theory]
+    [InlineData("Murat", "murat", false)]
+    [InlineData("selin-k", "selin-k", true)]
+    public async Task CheckUsername_SaysWhetherTheNormalizedNameIsFree(
+        string input, string normalized, bool available)
+    {
+        var service = new FakeIdentityAccountService();
+        service.TakenUsernames.Add("murat");
+
+        var result = await new CheckUsernameUseCase(service).ExecuteAsync(input);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(normalized, result.Value.Username);
+        Assert.Equal(available, result.Value.Available);
+    }
+
+    [Fact]
+    public async Task CheckUsername_RejectsANameOutsideTheRule()
+    {
+        var result = await new CheckUsernameUseCase(new FakeIdentityAccountService())
+            .ExecuteAsync("a b");
+
+        Assert.Equal(AuthenticationErrors.InvalidUsername, result.Error);
+    }
+
     [Fact]
     public async Task ExecuteAsync_WhenIdentityRegistrationSucceeds_ReturnsUser()
     {
@@ -131,6 +209,13 @@ public sealed class RegisterUserUseCaseTests
 
     private sealed class FakeIdentityAccountService : IIdentityAccountService
     {
+        public Task<bool> IsUsernameTakenAsync(
+            string username,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(TakenUsernames.Contains(username));
+
+        public HashSet<string> TakenUsernames { get; } = [];
+
         public Task<Guid?> FindActiveUserIdByEmailAsync(
             string email,
             CancellationToken cancellationToken) =>
@@ -172,13 +257,18 @@ public sealed class RegisterUserUseCaseTests
             null,
             null);
         public CancellationToken ReceivedCancellationToken { get; private set; }
+        public string? ReceivedUsername { get; private set; }
+        public int RegisterCalls { get; private set; }
 
         public Task<IdentityRegistrationResult> RegisterAsync(
             string email,
+            string? username,
             string password,
             CancellationToken cancellationToken)
         {
             ReceivedCancellationToken = cancellationToken;
+            ReceivedUsername = username;
+            RegisterCalls++;
             return Task.FromResult(RegistrationResult);
         }
 

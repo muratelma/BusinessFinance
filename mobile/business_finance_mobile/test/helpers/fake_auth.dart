@@ -52,7 +52,21 @@ class FakeAuthSessionRepository implements AuthSessionRepository {
     String email,
     String password, {
     required bool hasBusiness,
-  }) async => RegisterResult(userId: testSession().userId, email: email);
+    String? username,
+  }) async {
+    registeredUsernames.add(username);
+    return RegisterResult(userId: testSession().userId, email: email);
+  }
+
+  /// Kayıtta gönderilen kullanıcı adları.
+  List<String?> registeredUsernames = [];
+
+  /// Alınmış sayılan kullanıcı adları (küçük harf).
+  Set<String> takenUsernames = {};
+
+  @override
+  Future<bool> isUsernameAvailable(String username) async =>
+      !takenUsernames.contains(username.toLowerCase());
 
   @override
   Future<AuthSession?> restoreSession() async => session;

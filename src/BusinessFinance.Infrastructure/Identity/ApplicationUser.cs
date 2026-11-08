@@ -11,10 +11,15 @@ public sealed class ApplicationUser : IdentityUser<Guid>
     {
     }
 
+    /// <param name="username">
+    /// Normalize edilmiş kullanıcı adı. Null ise kullanıcı adı e-postadır
+    /// (kullanıcı adı alınmadan açılan hesaplar gibi).
+    /// </param>
     public ApplicationUser(
         Guid id,
         string email,
-        DateTimeOffset createdAtUtc)
+        DateTimeOffset createdAtUtc,
+        string? username = null)
     {
         if (id == Guid.Empty)
         {
@@ -35,7 +40,7 @@ public sealed class ApplicationUser : IdentityUser<Guid>
 
         Id = id;
         Email = email.Trim();
-        UserName = Email;
+        UserName = string.IsNullOrWhiteSpace(username) ? Email : username;
         CreatedAtUtc = createdAtUtc;
         IsActive = true;
     }

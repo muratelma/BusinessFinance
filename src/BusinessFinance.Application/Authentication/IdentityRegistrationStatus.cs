@@ -5,5 +5,6 @@ public enum IdentityRegistrationStatus
     Succeeded = 1,
     DuplicateEmail = 2,
     InvalidPassword = 3,
-    InvalidRegistration = 4
+    InvalidRegistration = 4,
+    DuplicateUsername = 5
 }

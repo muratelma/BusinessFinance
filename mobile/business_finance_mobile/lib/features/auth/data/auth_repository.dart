@@ -10,7 +10,10 @@ abstract interface class AuthSessionRepository {
     String email,
     String password, {
     required bool hasBusiness,
+    String? username,
   });
+
+  Future<bool> isUsernameAvailable(String username);
 
   Future<AuthSession> login(String email, String password);
 
@@ -75,8 +78,17 @@ class AuthRepository implements AuthSessionRepository {
     String email,
     String password, {
     required bool hasBusiness,
-  }) =>
-      _remoteService.register(email.trim(), password, hasBusiness: hasBusiness);
+    String? username,
+  }) => _remoteService.register(
+    email.trim(),
+    password,
+    hasBusiness: hasBusiness,
+    username: username?.trim(),
+  );
+
+  @override
+  Future<bool> isUsernameAvailable(String username) =>
+      _remoteService.isUsernameAvailable(username.trim());
 
   @override
   Future<AuthSession> login(String email, String password) async {

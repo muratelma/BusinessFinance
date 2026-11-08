@@ -75,13 +75,19 @@ class AuthController extends ChangeNotifier {
     String email,
     String password, {
     required bool hasBusiness,
+    String? username,
   }) async {
     if (_isSubmitting) {
       return;
     }
     _setSubmitting(true);
     try {
-      await _repository.register(email, password, hasBusiness: hasBusiness);
+      await _repository.register(
+        email,
+        password,
+        hasBusiness: hasBusiness,
+        username: username,
+      );
       _errorMessage = null;
     } on ApiException catch (error) {
       _errorMessage = error.message;

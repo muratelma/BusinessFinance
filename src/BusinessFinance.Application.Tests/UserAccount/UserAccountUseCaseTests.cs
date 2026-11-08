@@ -238,6 +238,11 @@ public sealed class UserAccountUseCaseTests
 
     private sealed class FakeIdentityAccountService : IIdentityAccountService
     {
+        public Task<bool> IsUsernameTakenAsync(
+            string username,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public Task<Guid?> FindActiveUserIdByEmailAsync(
             string email,
             CancellationToken cancellationToken) =>
@@ -263,6 +268,7 @@ public sealed class UserAccountUseCaseTests
 
         public Task<IdentityRegistrationResult> RegisterAsync(
             string email,
+            string? username,
             string password,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();

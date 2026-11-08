@@ -555,3 +555,14 @@ kalıcı DEFAULT kalmaz. `Down`, indirim ya da sıfırdan farklı devir varsa ve
 kaybettirmek yerine durur (`THROW 50022`). Kalıcı test:
 `DebtBackupV13Tests` (InMemory ve gerçek SQL) — senaryonun 15 okuması yedekten
 dönünce kimlikler dışında birebir aynı.
+
+`BackfillUsernamesFromEmail` migration'ı (Aşama 06.4, 8 Kasım 2026) **yalnız
+veri yazar**, şema ve yedek sürümü değişmez: kullanıcı adı alınmadan açılmış
+hesaplara (Identity `UserName`'i e-postanın kopyası) e-postanın `@` öncesinden
+bir kullanıcı adı yazar (küçük harf; yalnız a–z, rakam, `.`, `_`, `-` kalır;
+3 karakterden kısaysa başına `kullanici`; çakışırsa sonuna sayı). Kullanıcı adı
+zaten olan hesaba dokunmaz, ikinci kez çalışsa da bir şey değiştirmez. Yedek
+kimlik kayıtlarını taşımaz; geri yükleme kullanıcı adına dokunmaz. `Down`
+bütün kullanıcı adlarını yeniden e-posta yapar (sonradan seçilmiş adlar da
+gider). Kalıcı test: `BackfillUsernamesFromEmail_DerivesAValidUniqueNameForEveryAccount`
+(gerçek SQL).

@@ -214,9 +214,14 @@ class RegisterPanel extends StatefulWidget {
     this.active = true,
     super.key,
     this.error,
+    this.onCheckUsername,
   });
 
   final void Function(String username, String email, String password) onNext;
+
+  /// Kullanıcı adı boş mu; alandan çıkınca ve `Hesap oluştur`'a basınca
+  /// sorulur. Null ise sorulmaz (kayıt kendisi reddeder).
+  final Future<bool> Function(String username)? onCheckUsername;
   final VoidCallback onLogin;
 
   /// Panel ekranda mı. Kişi panelden ayrılınca hata yazıları ve uyarı
@@ -258,10 +263,34 @@ class _RegisterPanelState extends State<RegisterPanel> {
     super.dispose();
   }
 
-  void _next() {
+  bool _checking = false;
+
+  /// Sunucuya ulaşılamazsa ad "boş" sayılır: kişi bekletilmez, ad alınmışsa
+  /// kayıt `authentication.username_taken` ile reddeder ve kişi buraya döner.
+  Future<String?> _checkUsername(String username) async {
+    final check = widget.onCheckUsername;
+    if (check == null) return null;
+    try {
+      return await check(username) ? null : AuthValidation.usernameTaken;
+    } on Object {
+      return null;
+    }
+  }
+
+  Future<void> _next() async {
+    if (_checking) return;
     setState(() => _notice = null);
     if (!_formKey.currentState!.validate()) {
       revealFirstError([_usernameField, _emailField, _passwordField]);
+      return;
+    }
+    // Bu arada başkası aynı adı almış olabilir: basınca bir kez daha sorulur.
+    setState(() => _checking = true);
+    final free = await _usernameField.currentState?.checkRemote() ?? true;
+    if (!mounted) return;
+    setState(() => _checking = false);
+    if (!free) {
+      revealFirstError([_usernameField]);
       return;
     }
     FocusScope.of(context).unfocus();
@@ -288,6 +317,7 @@ class _RegisterPanelState extends State<RegisterPanel> {
               textInputAction: TextInputAction.next,
               maxLength: 30,
               validator: AuthValidation.username,
+              remoteValidator: _checkUsername,
             ),
             AuthField(
               key: _emailField,
@@ -319,6 +349,7 @@ class _RegisterPanelState extends State<RegisterPanel> {
               padding: EdgeInsets.only(top: n(NomivaSpacing.beforeButton)),
               child: AuthPrimaryButton(
                 label: 'Hesap oluştur',
+                busy: _checking,
                 onPressed: _next,
               ),
             ),

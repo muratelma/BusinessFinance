@@ -8,13 +8,12 @@ abstract final class AuthValidation {
   static const emailInvalid = 'Geçerli bir e-posta adresi girin.';
   static const identifierEmpty =
       'E-posta adresinizi ya da kullanıcı adınızı girin.';
-  static const usernameLoginNotReady =
-      'Kullanıcı adıyla giriş henüz açılmadı; e-posta adresinizi girin.';
   static const usernameEmpty = 'Bir kullanıcı adı seçin.';
   static const usernameTooShort = 'Kullanıcı adı en az 3 karakter olmalıdır.';
   static const usernameTooLong = 'Kullanıcı adı en çok 30 karakter olabilir.';
   static const usernameCharacters =
-      'Yalnız a–z, rakam, nokta ve alt çizgi kullanın.';
+      'Yalnız a–z, rakam, nokta, alt çizgi ve tire kullanın.';
+  static const usernameTaken = 'Bu kullanıcı adı alınmış.';
   static const passwordEmpty = 'Parolanızı girin.';
 
   /// Parola kuralı tek cümledir ve alanın altına tek satır sığar (Figtree
@@ -37,16 +36,16 @@ abstract final class AuthValidation {
     return null;
   }
 
-  /// Girişteki tek alan: e-posta ya da kullanıcı adı. Sunucu kullanıcı adıyla
-  /// girişi henüz bilmiyor (Aşama 06.4, sunucu adımı sırada); kullanıcı adı
-  /// yazan kişiye istek gitmeden söylenir, "parola yanlış" diye yanıltılmaz.
+  /// Girişteki tek alan: e-posta ya da kullanıcı adı. İçinde `@` varsa
+  /// e-posta olarak denetlenir; yoksa kullanıcı adıdır ve yalnız boş olmaması
+  /// istenir. Yanlış ya da olmayan ad, yanlış parolayla aynı cevaba döner.
   static String? loginIdentifier(String? value) {
     final text = value?.trim() ?? '';
     if (text.isEmpty) {
       return identifierEmpty;
     }
     if (!text.contains('@')) {
-      return usernameLoginNotReady;
+      return null;
     }
     return email(text);
   }
@@ -65,7 +64,7 @@ abstract final class AuthValidation {
     if (name.length > 30) {
       return usernameTooLong;
     }
-    if (!RegExp(r'^[a-zA-Z0-9._]+$').hasMatch(name)) {
+    if (!RegExp(r'^[a-zA-Z0-9._-]+$').hasMatch(name)) {
       return usernameCharacters;
     }
     return null;

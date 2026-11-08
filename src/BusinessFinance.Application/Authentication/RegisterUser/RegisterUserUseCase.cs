@@ -36,8 +36,20 @@ public sealed class RegisterUserUseCase
     {
         ArgumentNullException.ThrowIfNull(command);
 
+        string? username = null;
+        if (command.Username is not null)
+        {
+            username = Usernames.Normalize(command.Username);
+            if (!Usernames.IsValid(username))
+            {
+                return ApplicationResult<RegisterUserResponse>.Failure(
+                    AuthenticationErrors.InvalidUsername);
+            }
+        }
+
         var registration = await _identityAccountService.RegisterAsync(
             command.Email,
+            username,
             command.Password,
             cancellationToken);
 
@@ -79,6 +91,9 @@ public sealed class RegisterUserUseCase
             IdentityRegistrationStatus.DuplicateEmail
                 => ApplicationResult<RegisterUserResponse>.Failure(
                     AuthenticationErrors.RegistrationConflict),
+            IdentityRegistrationStatus.DuplicateUsername
+                => ApplicationResult<RegisterUserResponse>.Failure(
+                    AuthenticationErrors.UsernameTaken),
             IdentityRegistrationStatus.InvalidPassword
                 => ApplicationResult<RegisterUserResponse>.Failure(
                     AuthenticationErrors.PasswordPolicy),

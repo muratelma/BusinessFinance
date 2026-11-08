@@ -24,6 +24,16 @@ public static class AuthenticationErrors
         "Registration information is invalid.",
         ApplicationErrorType.Validation);
 
+    public static readonly ApplicationError UsernameTaken = new(
+        "authentication.username_taken",
+        "The username is already taken.",
+        ApplicationErrorType.Conflict);
+
+    public static readonly ApplicationError InvalidUsername = new(
+        "authentication.invalid_username",
+        "The username does not meet the rules.",
+        ApplicationErrorType.Validation);
+
     public static readonly ApplicationError InvalidRefreshToken = new(
         "authentication.invalid_refresh_token",
         "Refresh token is invalid or expired.",

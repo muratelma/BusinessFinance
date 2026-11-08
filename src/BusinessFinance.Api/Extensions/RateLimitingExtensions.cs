@@ -9,6 +9,8 @@ namespace BusinessFinance.Api.Extensions;
 public static class RateLimitingExtensions
 {
     public const string AuthenticationPolicy = "authentication";
+    public const string UsernameCheckPolicy = "username-check";
+    public const int UsernameCheckPermitLimit = 30;
     public const string ReceiptAnalysisPolicy = "receipt-analysis";
     public const int ReceiptAnalysisPermitLimit = 5;
 
@@ -40,6 +42,20 @@ public static class RateLimitingExtensions
                     factory: _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 10,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0,
+                        AutoReplenishment = true
+                    }));
+            // Kayıt formu kullanıcı adını alandan çıkınca sorar; bir kişi birkaç
+            // ad denerken sınıra takılmasın, toplu tarama da yavaşlasın.
+            options.AddPolicy(
+                UsernameCheckPolicy,
+                httpContext => RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ??
+                                  "unknown",
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = UsernameCheckPermitLimit,
                         Window = TimeSpan.FromMinutes(1),
                         QueueLimit = 0,
                         AutoReplenishment = true

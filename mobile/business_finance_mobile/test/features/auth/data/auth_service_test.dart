@@ -71,6 +71,39 @@ void main() {
 
     expect(result.email, 'new@example.test');
   });
+
+  test('register sends the username', () async {
+    final service = _service((request) async {
+      expect(jsonDecode(request.body), {
+        'email': 'new@example.test',
+        'password': 'Valid-Password-123!',
+        'username': 'selin-k',
+        'hasBusiness': true,
+      });
+      return http.Response(
+        '{"userId":"11111111-1111-1111-1111-111111111111","email":"new@example.test"}',
+        201,
+      );
+    });
+
+    await service.register(
+      'new@example.test',
+      'Valid-Password-123!',
+      hasBusiness: true,
+      username: 'selin-k',
+    );
+  });
+
+  test('username availability reads the answer for an encoded name', () async {
+    final service = _service((request) async {
+      expect(request.method, 'GET');
+      expect(request.url.path, '/api/v1/auth/username-availability');
+      expect(request.url.queryParameters['username'], 'murat.elma');
+      return http.Response('{"username":"murat.elma","available":false}', 200);
+    });
+
+    expect(await service.isUsernameAvailable('murat.elma'), isFalse);
+  });
 }
 
 ApiAuthService _service(Future<http.Response> Function(http.Request) handler) {

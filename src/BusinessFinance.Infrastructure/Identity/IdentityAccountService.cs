@@ -30,6 +30,7 @@ public sealed class IdentityAccountService : IIdentityAccountService
 
     public async Task<IdentityRegistrationResult> RegisterAsync(
         string email,
+        string? username,
         string password,
         CancellationToken cancellationToken)
     {
@@ -46,7 +47,8 @@ public sealed class IdentityAccountService : IIdentityAccountService
         var user = new ApplicationUser(
             Guid.NewGuid(),
             email,
-            _timeProvider.GetUtcNow());
+            _timeProvider.GetUtcNow(),
+            username);
         var result = await _userManager.CreateAsync(user, password);
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -62,6 +64,18 @@ public sealed class IdentityAccountService : IIdentityAccountService
         var errorCodes = result.Errors
             .Select(error => error.Code)
             .ToArray();
+
+        // Kullanıcı adı ayrıca verildiyse "DuplicateUserName" o adındır;
+        // verilmediyse kullanıcı adı e-postadır ve aynı e-postanın tekrarıdır.
+        if (username is not null &&
+            !errorCodes.Contains("DuplicateEmail", StringComparer.Ordinal) &&
+            errorCodes.Contains("DuplicateUserName", StringComparer.Ordinal))
+        {
+            return new IdentityRegistrationResult(
+                IdentityRegistrationStatus.DuplicateUsername,
+                null,
+                null);
+        }
 
         if (errorCodes.Contains("DuplicateEmail", StringComparer.Ordinal) ||
             errorCodes.Contains("DuplicateUserName", StringComparer.Ordinal))
@@ -87,7 +101,7 @@ public sealed class IdentityAccountService : IIdentityAccountService
     }
 
     public async Task<AuthenticatedIdentity?> AuthenticateAsync(
-        string email,
+        string identifier,
         string password,
         CancellationToken cancellationToken)
     {
@@ -96,9 +110,14 @@ public sealed class IdentityAccountService : IIdentityAccountService
         var suppliedPassword = password ?? string.Empty;
         ApplicationUser? user = null;
 
-        if (!string.IsNullOrWhiteSpace(email))
+        // Tek alan: "@" yoksa kullanıcı adıdır. Bulunamayan hesap da aynı
+        // sahte parola denetiminden geçer; süre farkı hesabın varlığını
+        // söylemez.
+        if (!string.IsNullOrWhiteSpace(identifier))
         {
-            user = await _userManager.FindByEmailAsync(email.Trim());
+            user = Usernames.LooksLikeUsername(identifier)
+                ? await _userManager.FindByNameAsync(Usernames.Normalize(identifier))
+                : await _userManager.FindByEmailAsync(identifier.Trim());
         }
 
         if (user is null)
@@ -122,6 +141,14 @@ public sealed class IdentityAccountService : IIdentityAccountService
         }
 
         return new AuthenticatedIdentity(user.Id, user.Email);
+    }
+
+    public async Task<bool> IsUsernameTakenAsync(
+        string username,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return await _userManager.FindByNameAsync(username) is not null;
     }
 
     public async Task<UserAccountProfile?> FindAccountAsync(

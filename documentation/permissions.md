@@ -20,6 +20,8 @@ kullanıcının kaydına erişen ayrıcalıklı rol yoktur.
 | Kaynak / operasyon | Anonim | Authenticated owner | Authenticated non-owner |
 |---|---|---|---|
 | Register/login/refresh | İlgili public endpoint | İzinli | Sahiplik uygulanmaz |
+| Kullanıcı adı uygunluğu (`GET /api/v1/auth/username-availability`) | **İzinli, kimlik istemez**; IP başına dakikada 30 | Aynı cevap | Yalnız adın alınıp alınmadığını söyler; hesabın kime ait olduğunu, e-postasını ya da başka bir alanını söylemez. Kullanıcı adı gizli bilgi değildir |
+| Kullanıcı adıyla giriş | Bilinmeyen ad, bilinmeyen e-posta ve yanlış parola aynı `authentication.invalid_credentials` | — | — |
 | Logout | Token yoksa 401 | Kendi session'ı revoke | Başka session'a erişemez |
 | Hesap/kategori CRUD | 401 | İzinli | 404 veya listeden dışlanır |
 | Kendi hesabını okuma (`GET /api/v1/account`) | 401 | Yalnız kendi e-postası ve açık oturum sayısı | Başkasının hesabına yol yok |

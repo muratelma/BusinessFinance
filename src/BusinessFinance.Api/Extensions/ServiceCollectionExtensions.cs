@@ -11,6 +11,7 @@ using BusinessFinance.Application.Transactions;
 using BusinessFinance.Application.Budgets;
 using BusinessFinance.Application.Profiles;
 using BusinessFinance.Application.Reports;
+using BusinessFinance.Application.Authentication.CheckUsername;
 using BusinessFinance.Application.Authentication.LoginUser;
 using BusinessFinance.Application.Authentication.Logout;
 using BusinessFinance.Application.Authentication.RefreshTokens;
@@ -46,6 +47,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
         services.AddTransient<RegisterUserUseCase>();
         services.AddTransient<LoginUserUseCase>();
+        services.AddTransient<CheckUsernameUseCase>();
         services.AddTransient<RefreshTokensUseCase>();
         services.AddTransient<LogoutUseCase>();
         services.AddTransient<GetUserAccountUseCase>();

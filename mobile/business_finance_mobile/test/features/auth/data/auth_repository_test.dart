@@ -234,5 +234,9 @@ class FakeAuthService implements AuthRemoteService {
     String email,
     String password, {
     required bool hasBusiness,
+    String? username,
   }) async => RegisterResult(userId: session.userId, email: email);
+
+  @override
+  Future<bool> isUsernameAvailable(String username) async => true;
 }

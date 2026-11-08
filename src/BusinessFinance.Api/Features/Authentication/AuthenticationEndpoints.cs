@@ -1,5 +1,6 @@
 using BusinessFinance.Api.Errors;
 using BusinessFinance.Api.Extensions;
+using BusinessFinance.Application.Authentication.CheckUsername;
 using BusinessFinance.Application.Authentication.LoginUser;
 using BusinessFinance.Application.Authentication.Logout;
 using BusinessFinance.Application.Authentication.RefreshTokens;
@@ -38,6 +39,17 @@ public static class AuthenticationEndpoints
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
+        // Kayıt formu alandan çıkınca sorar; girişin dakikada 10'luk sınırını
+        // tüketmesin diye kendi sınırıyla, grubun dışında kurulur.
+        endpoints
+            .MapGet("/api/v1/auth/username-availability", CheckUsernameAsync)
+            .WithTags("Authentication")
+            .WithName("CheckUsernameAvailability")
+            .RequireRateLimiting(RateLimitingExtensions.UsernameCheckPolicy)
+            .Produces<UsernameAvailabilityResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
+
         return endpoints;
     }
 
@@ -48,13 +60,32 @@ public static class AuthenticationEndpoints
         CancellationToken cancellationToken)
     {
         var result = await useCase.ExecuteAsync(
-            new RegisterUserCommand(request.Email, request.Password, request.HasBusiness),
+            new RegisterUserCommand(
+                request.Email,
+                request.Password,
+                request.HasBusiness,
+                request.Username),
             cancellationToken);
 
         return result.IsSuccess
             ? Results.Created(
                 $"/api/v1/auth/users/{result.Value.UserId}",
                 new RegisterResponse(result.Value.UserId, result.Value.Email))
+            : result.Error.ToProblemResult(httpContext);
+    }
+
+    private static async Task<IResult> CheckUsernameAsync(
+        string? username,
+        CheckUsernameUseCase useCase,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var result = await useCase.ExecuteAsync(username, cancellationToken);
+
+        return result.IsSuccess
+            ? Results.Ok(new UsernameAvailabilityResponse(
+                result.Value.Username,
+                result.Value.Available))
             : result.Error.ToProblemResult(httpContext);
     }
 

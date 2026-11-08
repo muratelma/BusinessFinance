@@ -184,6 +184,113 @@ public sealed class AuthenticationEndpointTests
         await AssertProblemCodeAsync(rejectedResponse, "rate_limit.exceeded");
     }
 
+    [Fact]
+    public async Task Register_WithUsername_LetsTheUserSignInWithIt()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var client = factory.CreateClient();
+
+        using var register = await client.PostAsJsonAsync(
+            "/api/v1/auth/register",
+            new RegisterRequest(Email, Password, Username: "Ahmet.Yilmaz"),
+            CancellationToken.None);
+        Assert.Equal(HttpStatusCode.Created, register.StatusCode);
+
+        using var login = await client.PostAsJsonAsync(
+            "/api/v1/auth/login",
+            new LoginRequest("ahmet.yilmaz", Password),
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        var tokens = await login.Content.ReadFromJsonAsync<TokenPairResponse>(
+            CancellationToken.None);
+        Assert.Equal(Email, tokens?.Email);
+    }
+
+    [Fact]
+    public async Task Register_WithTakenUsername_ReturnsUsernameTaken()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var client = factory.CreateClient();
+        using var first = await client.PostAsJsonAsync(
+            "/api/v1/auth/register",
+            new RegisterRequest(Email, Password, Username: "murat"),
+            CancellationToken.None);
+        first.EnsureSuccessStatusCode();
+
+        using var second = await client.PostAsJsonAsync(
+            "/api/v1/auth/register",
+            new RegisterRequest("other@example.com", Password, Username: "MURAT"),
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+        await AssertProblemCodeAsync(second, "authentication.username_taken");
+    }
+
+    [Fact]
+    public async Task Register_WithUsernameOutsideTheRule_ReturnsInvalidUsername()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/auth/register",
+            new RegisterRequest(Email, Password, Username: "yılmaz"),
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await AssertProblemCodeAsync(response, "authentication.invalid_username");
+    }
+
+    [Fact]
+    public async Task UsernameAvailability_SaysWhetherTheNameIsFreeWithoutSignIn()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var client = factory.CreateClient();
+        using var register = await client.PostAsJsonAsync(
+            "/api/v1/auth/register",
+            new RegisterRequest(Email, Password, Username: "murat"),
+            CancellationToken.None);
+        register.EnsureSuccessStatusCode();
+
+        var taken = await client.GetFromJsonAsync<UsernameAvailabilityResponse>(
+            "/api/v1/auth/username-availability?username=Murat",
+            CancellationToken.None);
+        var free = await client.GetFromJsonAsync<UsernameAvailabilityResponse>(
+            "/api/v1/auth/username-availability?username=selin-k",
+            CancellationToken.None);
+        using var invalid = await client.GetAsync(
+            "/api/v1/auth/username-availability?username=a%20b",
+            CancellationToken.None);
+
+        Assert.Equal(new UsernameAvailabilityResponse("murat", false), taken);
+        Assert.Equal(new UsernameAvailabilityResponse("selin-k", true), free);
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        await AssertProblemCodeAsync(invalid, "authentication.invalid_username");
+    }
+
+    [Fact]
+    public async Task UsernameAvailability_HasItsOwnLimitAndDoesNotUseUpSignIn()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var client = factory.CreateClient();
+
+        for (var attempt = 0; attempt < 12; attempt++)
+        {
+            using var check = await client.GetAsync(
+                $"/api/v1/auth/username-availability?username=ad{attempt}x",
+                CancellationToken.None);
+            Assert.Equal(HttpStatusCode.OK, check.StatusCode);
+        }
+
+        // Girişin dakikada 10'luk hakkı hâlâ duruyor.
+        using var login = await client.PostAsJsonAsync(
+            "/api/v1/auth/login",
+            new LoginRequest("unknown@example.com", Password),
+            CancellationToken.None);
+        Assert.Equal(HttpStatusCode.Unauthorized, login.StatusCode);
+    }
+
     private static async Task RegisterAsync(HttpClient client)
     {
         using var response = await client.PostAsJsonAsync(

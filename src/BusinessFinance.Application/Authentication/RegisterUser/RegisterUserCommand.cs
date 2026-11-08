@@ -9,8 +9,14 @@ namespace BusinessFinance.Application.Authentication.RegisterUser;
 /// görünmez ve kullanıcı sonradan cevabını değiştirebilir. Tersi — herkesi
 /// işletme saymak — esnaf olmayan kullanıcıyı hiç ihtiyacı olmayan bir
 /// ayrımla karşılardı.
+/// <para>
+/// <paramref name="Username"/> isteğe bağlıdır ve sözleşmeyi kırmamak için
+/// sondadır: gönderilmezse hesabın kullanıcı adı e-postası olur (bugüne kadar
+/// açılan hesaplar gibi). Uygulama her zaman gönderir.
+/// </para>
 /// </remarks>
 public sealed record RegisterUserCommand(
     string Email,
     string Password,
-    bool HasBusiness = false);
+    bool HasBusiness = false,
+    string? Username = null);

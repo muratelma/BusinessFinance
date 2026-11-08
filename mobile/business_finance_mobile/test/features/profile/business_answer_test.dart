@@ -110,7 +110,7 @@ Future<void> _pumpRegister(
   tester,
   authFlowApp(
     initialView: AuthView.register,
-    onRegister: (_, _, {required hasBusiness, onVerified}) async =>
+    onRegister: (_, _, {required hasBusiness, username, onVerified}) async =>
         onSubmit(hasBusiness),
   ),
 );

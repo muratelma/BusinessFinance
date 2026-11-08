@@ -4,14 +4,32 @@ namespace BusinessFinance.Application.Authentication;
 
 public interface IIdentityAccountService
 {
+    /// <summary>
+    /// Hesabı açar. <paramref name="username"/> normalize edilmiş ve kurala
+    /// uyduğu denetlenmiş olarak gelir; null ise kullanıcı adı e-postadır.
+    /// </summary>
     Task<IdentityRegistrationResult> RegisterAsync(
         string email,
+        string? username,
         string password,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// <paramref name="identifier"/> e-posta ya da kullanıcı adıdır; içinde
+    /// <c>@</c> yoksa kullanıcı adıyla aranır. Bulunamayan hesap ve yanlış
+    /// parola aynı null'a döner.
+    /// </summary>
     Task<AuthenticatedIdentity?> AuthenticateAsync(
-        string email,
+        string identifier,
         string password,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Normalize edilmiş kullanıcı adının bir hesapta kullanılıp
+    /// kullanılmadığı (pasif hesap da adını tutar).
+    /// </summary>
+    Task<bool> IsUsernameTakenAsync(
+        string username,
         CancellationToken cancellationToken);
 
     Task<AuthenticatedIdentity?> FindActiveByIdAsync(

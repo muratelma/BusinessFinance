@@ -33,15 +33,40 @@ framework'ü veya ASP.NET Core bağımlılığı almaz.
 ## Kayıt
 
 ```text
-POST /api/v1/auth/register (email + parola + hasBusiness JSON)
+POST /api/v1/auth/register (email + parola + hasBusiness + username JSON)
   -> RegisterRequest -> RegisterUserCommand
   -> RegisterUserUseCase
+  -> kullanıcı adı normalize edilir ve kurala bakılır (Usernames)
+     -> kural dışı: 400 authentication.invalid_username, hiçbir şey yazılmaz
   -> IIdentityAccountService
+     -> ad alınmışsa 409 authentication.username_taken
   -> Identity UserManager
   -> parola politikası + hash + normalize e-posta
   -> UserProfile (hasBusiness) yazılır
   -> 201 RegisterResponse (UserId + e-posta)
 ```
+
+**Kullanıcı adı** (Aşama 06.4, 8 Kasım 2026) Identity'nin `UserName`'idir:
+3–30 karakter; İngilizce harf, rakam, nokta, alt çizgi ve tire; büyük-küçük
+harf fark etmez, küçük harfle saklanır (`Usernames`, istemcide
+`AuthValidation.username`). Türkçe harf yoktur ("yılmaz" ile "yilmaz" iki
+ayrı kişi olurdu); `@` yoktur (girişteki tek alan e-postayı kullanıcı adından
+bu işaretle ayırır). `username` isteğe bağlıdır: gönderilmezse kullanıcı adı
+e-postadır; uygulama her zaman gönderir. Şema değişmedi; kullanıcı adından
+önce açılmış hesaplara `BackfillUsernamesFromEmail` e-postanın `@` öncesinden
+ad yazdı.
+
+Kayıt formu adı alandan çıkınca ve `Hesap oluştur`'a basınca sorar:
+
+```text
+GET /api/v1/auth/username-availability?username=  (anonim)
+  -> normalize + kural (kural dışı: 400 authentication.invalid_username)
+  -> 200 { username, available }
+  -> IP başına dakikada 30 istek (girişin 10'luk hakkını tüketmez)
+```
+
+Cevap kesin değildir; kayıt anında ad alınmışsa kayıt
+`authentication.username_taken` ile reddedilir ve kişi forma döner.
 
 Parola yalnız doğrulama/hash girdisidir; response veya Domain finans nesnesine
 girmez. Identity kullanıcı ve parola hash'i EF Core store üzerinden SQL
@@ -297,6 +322,7 @@ ayrı okunur.
 
 ```text
 POST /api/v1/auth/login (email + parola)
+  -> email alanında "@" yoksa kullanıcı adıyla, varsa e-postayla aranır
   -> Identity doğrulaması
   -> aktif ApplicationUser
   -> kısa ömürlü imzalı access token
@@ -305,8 +331,10 @@ POST /api/v1/auth/login (email + parola)
   -> 200 access token + ham refresh token response'u
 ```
 
-Bilinmeyen e-posta, yanlış parola ve pasif kullanıcı aynı genel credential
-hatasına gider. Ham refresh token yalnız istemciye döner; repository sessionı
+Bilinmeyen e-posta, bilinmeyen kullanıcı adı, yanlış parola ve pasif kullanıcı
+aynı genel credential hatasına gider; bulunamayan hesap da sahte bir parola
+denetiminden geçer, süre farkı hesabın varlığını söylemez. `email` alanının adı
+sözleşmeyi kırmamak için değişmedi; e-posta ya da kullanıcı adı taşır. Ham refresh token yalnız istemciye döner; repository sessionı
 hash ile bulur.
 
 ## Token yenileme
@@ -843,11 +871,12 @@ Parolamı unuttum -> yazılan adres sıfırlama paneline taşınır
   bırakmaz ve onboarding sorusu kayıt isteğiyle birlikte gider.
 - **Geri hareketi** (Android geri tuşu, iPhone'da kenardan çekme) bir önceki
   panele döner; uygulamadan yalnız giriş panelindeyken çıkılır.
-- **Ekran tasarımla aynıdır, sunucu tarafı sonra gelir** (kullanıcı kararı,
-  8 Kasım 2026). Giriş alanı "E-posta ya da kullanıcı adı" der; `@` içermeyen
-  bir değer istek gönderilmeden "Kullanıcı adıyla giriş henüz açılmadı"
-  uyarısıyla durur (kullanıcı adıyla giriş açılınca kalkar). Kayıtta kullanıcı adı sorulur ve doğrulanır (3–30
-  karakter; a–z, rakam, nokta, alt çizgi) ama sunucuya henüz gitmez.
+- **Kullanıcı adı** (8 Kasım 2026): giriş alanı "E-posta ya da kullanıcı adı"
+  der ve ikisini de kabul eder. Kayıtta kullanıcı adı sorulur (3–30 karakter;
+  a–z, rakam, nokta, alt çizgi, tire), alandan çıkınca ve `Hesap oluştur`'a
+  basınca sunucuya "alınmış mı" diye sorulur; alınmışsa "Bu kullanıcı adı
+  alınmış." alanın altında çıkar ve ikinci adıma geçilmez. Sunucuya
+  ulaşılamazsa kişi bekletilmez; kayıt adı reddederse forma döner.
 - **Hata cümleleri** "siz" diye konuşur (`AuthValidation`; "sen"li deneme
   kullanıcı kararıyla geri alındı, 8 Kasım 2026). Parola kuralı tek satırdır:
   "12+ karakter; büyük/küçük harf, rakam, sembol."

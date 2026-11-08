@@ -2,11 +2,18 @@ import '../../../core/network/api_client.dart';
 import 'auth_models.dart';
 
 abstract interface class AuthRemoteService {
+  /// [username] isteğe bağlıdır; gönderilmezse hesabın kullanıcı adı
+  /// e-postası olur. Kayıt formu her zaman gönderir.
   Future<RegisterResult> register(
     String email,
     String password, {
     required bool hasBusiness,
+    String? username,
   });
+
+  /// Kayıt formunun sorusu: bu kullanıcı adı boş mu. Kural dışı ad
+  /// `authentication.invalid_username` ile reddedilir.
+  Future<bool> isUsernameAvailable(String username);
 
   Future<AuthSession> login(String email, String password);
 
@@ -33,12 +40,14 @@ class ApiAuthService implements AuthRemoteService {
     String email,
     String password, {
     required bool hasBusiness,
+    String? username,
   }) async {
     final response = await _apiClient.post(
       '/api/v1/auth/register',
       body: {
         'email': email,
         'password': password,
+        'username': ?username,
         // Onboarding'in tek sorusu. Sonraya bırakılamaz: varsayılan kategori
         // seti ilk kategori okumasında kuruluyor ve yalnız bir kez kuruluyor.
         'hasBusiness': hasBusiness,
@@ -73,6 +82,19 @@ class ApiAuthService implements AuthRemoteService {
         'refreshTokenExpiresAtUtc',
       ),
     );
+  }
+
+  @override
+  Future<bool> isUsernameAvailable(String username) async {
+    final response = await _apiClient.get(
+      '/api/v1/auth/username-availability'
+      '?username=${Uri.encodeQueryComponent(username)}',
+    );
+    final available = response.requireObject()['available'];
+    if (available is! bool) {
+      throw const FormatException('available alanı eksik.');
+    }
+    return available;
   }
 
   @override

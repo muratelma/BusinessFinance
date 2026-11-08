@@ -23,6 +23,7 @@ typedef AuthRegister =
       String email,
       String password, {
       required bool hasBusiness,
+      String? username,
       Future<void> Function()? onVerified,
     });
 
@@ -44,6 +45,7 @@ class AuthFlow extends StatefulWidget {
     required this.onRequestPasswordReset,
     required this.onResetPassword,
     super.key,
+    this.onCheckUsername,
     this.initialView = AuthView.login,
     this.initialEmail,
   });
@@ -58,6 +60,9 @@ class AuthFlow extends StatefulWidget {
   })
   onResetPassword;
   final AuthView initialView;
+
+  /// Kayıt formunun "bu kullanıcı adı boş mu" sorusu.
+  final Future<bool> Function(String username)? onCheckUsername;
   final String? initialEmail;
 
   @override
@@ -127,6 +132,7 @@ class _AuthFlowState extends State<AuthFlow> with TickerProviderStateMixin {
   late _Frame _moveTo;
   Offset? _revealOrigin;
 
+  String? _pendingUsername;
   String? _pendingEmail;
   String? _pendingPassword;
   String? _registerError;
@@ -279,9 +285,8 @@ class _AuthFlowState extends State<AuthFlow> with TickerProviderStateMixin {
   Future<void> _login(String email, String password, Offset? origin) =>
       widget.onLogin(email, password, onVerified: () => _playReveal(origin));
 
-  /// Kullanıcı adı sunucuya henüz gitmez (sunucu adımı sırada); kayıt
-  /// e-posta ve parolayla açılır.
   void _registerNext(String username, String email, String password) {
+    _pendingUsername = username;
     _pendingEmail = email;
     _pendingPassword = password;
     setState(() => _registerError = null);
@@ -303,6 +308,7 @@ class _AuthFlowState extends State<AuthFlow> with TickerProviderStateMixin {
         email,
         password,
         hasBusiness: hasBusiness,
+        username: _pendingUsername,
         onVerified: () => _playReveal(origin),
       );
     } on ApiException catch (error) {
@@ -547,6 +553,7 @@ class _AuthFlowState extends State<AuthFlow> with TickerProviderStateMixin {
                 AuthView.register,
                 RegisterPanel(
                   active: _view == AuthView.register,
+                  onCheckUsername: widget.onCheckUsername,
                   error: _registerError,
                   onNext: _registerNext,
                   onLogin: () => _go(AuthView.login),

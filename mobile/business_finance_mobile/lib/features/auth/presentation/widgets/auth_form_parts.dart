@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -71,6 +72,7 @@ class AuthField extends StatefulWidget {
     this.enabled = true,
     this.obscurable = false,
     this.maxLength,
+    this.remoteValidator,
     this.hint,
   });
 
@@ -91,6 +93,12 @@ class AuthField extends StatefulWidget {
   final bool obscurable;
   final int? maxLength;
 
+  /// Sunucuya sorulan denetim ("Bu kullanıcı adı alınmış"). Yerel kural
+  /// tutunca, alandan çıkınca ve gönderirken ([AuthFieldState.checkRemote])
+  /// sorulur; her harfte sorulmaz. Hata metni ya da null döner; sunucuya
+  /// ulaşılamazsa null döndürmelidir (kişiyi bekletmez, kayıt kendisi reddeder).
+  final Future<String?> Function(String value)? remoteValidator;
+
   @override
   State<AuthField> createState() => AuthFieldState();
 }
@@ -102,6 +110,38 @@ class AuthFieldState extends State<AuthField> {
 
   /// Alanın altında şu an bir hata yazıyor mu.
   bool get hasError => _field.currentState?.hasError ?? false;
+
+  /// Sunucunun söylediği hata ve hangi değer için söylediği. Değer değişince
+  /// hata o değere ait olmadığı için düşer.
+  String? _remoteError;
+  String? _remoteErrorFor;
+
+  String? _validate(String? value) {
+    final local = widget.validator?.call(value);
+    if (local != null) return local;
+    if (_remoteError != null && value?.trim() == _remoteErrorFor) {
+      return _remoteError;
+    }
+    return null;
+  }
+
+  /// Yerel kural tutuyorsa sunucuya sorar ve cevabı alanın altına yazar.
+  /// Alan geçerliyse `true` döner. Sorulan değer cevap gelmeden değiştiyse
+  /// cevap atılır.
+  Future<bool> checkRemote() async {
+    final value = widget.controller.text.trim();
+    final remote = widget.remoteValidator;
+    if (widget.validator?.call(value) != null) return false;
+    if (remote == null) return true;
+    final message = await remote(value);
+    if (!mounted || widget.controller.text.trim() != value) {
+      return message == null;
+    }
+    _remoteError = message;
+    _remoteErrorFor = value;
+    _field.currentState?.validate();
+    return message == null;
+  }
 
   @override
   void initState() {
@@ -122,12 +162,15 @@ class AuthFieldState extends State<AuthField> {
   void _onFocusChange() {
     if (_focus.hasFocus || widget.validator == null) return;
     if (widget.controller.text.trim().isEmpty) return;
-    _field.currentState?.validate();
+    final valid = _field.currentState?.validate() ?? false;
+    if (valid && widget.remoteValidator != null) {
+      unawaited(checkRemote());
+    }
   }
 
   /// Hata görünürken yazılan değer kurala uyunca yazı hemen kalkar.
   void _onChanged(String value) {
-    if (!hasError || widget.validator?.call(value) != null) return;
+    if (!hasError || _validate(value) != null) return;
     _field.currentState?.validate();
   }
 
@@ -194,7 +237,7 @@ class AuthFieldState extends State<AuthField> {
                 bottom: n(NomivaSpacing.keyboardClearance),
               ),
               enabled: widget.enabled,
-              validator: widget.validator,
+              validator: _validate,
               keyboardType: widget.keyboardType,
               autofillHints: widget.autofillHints,
               textInputAction: widget.textInputAction,
