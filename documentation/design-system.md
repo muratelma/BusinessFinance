@@ -286,6 +286,13 @@ Birkaç bileşenin sözleşmesinde neden şu kararların olduğu:
 - Alt çubuğun olmadığı ekranlarda (Kategoriler, Hesaplar, …) sayfanın kendi
   kayan butonu sağ altta kalır: daire, ikon ve tooltip.
 - Geniş ekranda çentik yoktur; birincil eylem gezinme rayının başında durur.
+- **Sayfa geçişi** (8 Kasım 2026): alt sekmelerin kökleri (Özet, İşlemler,
+  Bütçeler, Diğer) geçişsizdir; alt çubuk yerinde durur. Bir sayfanın üstüne
+  açılan her şey (Hesaplar, Kategori özeti, Vergi, formlar…) platformun kendi
+  geçişiyle açılır: iPhone'da sağdan kayarak gelir ve **soldan kenarından
+  çekince kapanır**, Android'de kendi geçişiyle (`app_router.dart`
+  `_sessionPage`). Hepsi geçişsizken iPhone'da kenardan çekerek geri
+  dönülemiyordu; bu hareket yalnız kayarak açılan sayfada vardır.
 - **Üçten fazla segmentli bir seçicide etiket segmentin içinde durmaz.**
   Segmentler genişliği eşit paylaşır; `Komisyon yok · Tutar · Oran` üçlüsünde
   ilk etiket telefonda kelimenin ortasından bölünüyordu (`Komisyo / n yok`).

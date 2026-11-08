@@ -1243,15 +1243,28 @@ Page<dynamic> Function(BuildContext, GoRouterState) _sessionPageBuilder(
   return (context, state) => _sessionPage(state, child, authController);
 }
 
+/// Alt sekmelerin kökleri. Sekmeler arasında geçiş kayarak olmaz: alt çubuk
+/// yerinde durur, yalnız içerik değişir.
+const _tabRoots = {'/dashboard', '/transactions', '/budgets', '/more'};
+
+/// Oturum açıkken görünen sayfa.
+///
+/// Sekme kökleri geçişsizdir. Bir sayfanın üstüne açılan her şey (Hesaplar,
+/// Kategori özeti, Vergi, formlar…) platformun kendi geçişiyle açılır:
+/// iPhone'da sağdan kayarak gelir ve **soldan kenarından çekince kapanır**,
+/// Android'de kendi geçişiyle. Hepsi geçişsizken iPhone'da kenardan çekerek
+/// geri dönülemiyordu; bu hareket yalnız kayarak açılan sayfada vardır
+/// (kullanıcının iPhone bulgusu, 7 Kasım 2026).
 Page<dynamic> _sessionPage(
   GoRouterState state,
   Widget child,
   AuthController? authController,
 ) {
-  return NoTransitionPage<void>(
-    key: ValueKey((state.pageKey, authController?.sessionGeneration ?? 0)),
-    child: child,
-  );
+  final key = ValueKey((state.pageKey, authController?.sessionGeneration ?? 0));
+  if (_tabRoots.contains(state.matchedLocation)) {
+    return NoTransitionPage<void>(key: key, child: child);
+  }
+  return MaterialPage<void>(key: key, child: child);
 }
 
 /// Faturanın ödendi/ödenmedi cevabını yazma yollarına bağlar.

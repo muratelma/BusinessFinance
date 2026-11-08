@@ -1233,7 +1233,12 @@ taşıyan `AuthField` içinden bulunur (`test/helpers/auth_flow.dart`).
 | Tablet ve telefon yatay | Tablette form en büyük telefonun genişliğini geçmiyor; yatayda taşma yok, form kayıyor |
 | Google ve Apple | Google düğmesi görünür ve basılınca "henüz hazır değil" der; Apple yalnız iPhone'da |
 | Kullanıcı adı | Girişte `@`'sız değer istek göndermeden açıklanıyor; kayıtta kullanıcı adı kuralı tutmadan ikinci adım yok |
+| Panelden ayrılınca | Hata yazıları ve sunucunun uyarısı temizleniyor, yazılan e-posta kalıyor |
 | Hata zamanlaması | Hata yazarken başka hataya dönmüyor, düzelince kalkıyor; boş alandan geçmek hata yazdırmıyor, dolu alandan çıkınca denetleniyor; gönderim reddedilince imleç ilk hatalı alanda |
+
+`test/core/routing/page_transition_test.dart`: iPhone'da üstüne açılan sayfa
+sağdan kayarak gelir ve soldan kenarından çekince kapanır (geçişsiz eski
+hâlde iki test de düşüyordu).
 
 `test/screenshots/giris_akisi_screenshot_test.dart` akışı iPhone 15 (393 ×
 852, üstte 59) ve Pixel 8 (412 × 915, üstte 24) çerçevesinde açık ve koyu,
