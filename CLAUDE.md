@@ -655,7 +655,8 @@ secret'ı uygulamaya konmaz.
 - `documentation/design-system.md` — token'lar, pencere sınıfları, bileşen
   kataloğu, erişilebilirlik kuralları ve yeni ekran kontrol listesi
 - `design/` — Claude Design teslimleri (`claude-design-handoff/` Özet ve ortak
-  dil, `vergiler-handoff/` vergi ekranı, `gun-sonu-handoff/` gün sonu paneli)
+  dil, `vergiler-handoff/` vergi ekranı, `gun-sonu-handoff/` gün sonu paneli,
+  `nomiva-handoff/` ad, logo ve giriş akışı, kareleri `ekranlar/` altında)
   ve verilen brifler (`brifler/`).
   Teslimdeki ekran görüntüleri kıyaslamanın referansıdır;
   `test/screenshots/*_screenshot_test.dart` ekranları aynı çerçevede çizer

@@ -1,17 +1,19 @@
+import 'package:business_finance_mobile/features/auth/presentation/auth_validation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:business_finance_mobile/core/network/api_exception.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
-import 'package:business_finance_mobile/features/auth/presentation/password_reset_page.dart';
+import 'package:business_finance_mobile/features/auth/presentation/auth_panels.dart';
 
 import '../../../helpers/accessibility.dart';
+import '../../../helpers/auth_flow.dart';
 
 void main() {
   testWidgets('kod istenmeden yeni parola alanı çıkmaz', (tester) async {
     await tester.pumpWidget(_page());
 
-    expect(find.widgetWithText(TextFormField, 'E-posta'), findsOneWidget);
-    expect(find.widgetWithText(TextFormField, 'Doğrulama kodu'), findsNothing);
+    expect(authField('E-posta'), findsOneWidget);
+    expect(authField('Doğrulama kodu'), findsNothing);
     expect(find.widgetWithText(FilledButton, 'Kod gönder'), findsOneWidget);
   });
 
@@ -21,15 +23,12 @@ void main() {
       _page(onRequestCode: (email) async => requests.add(email)),
     );
 
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'E-posta'),
-      'gecersiz',
-    );
+    await tester.enterText(authField('E-posta'), 'gecersiz');
     await tester.tap(find.widgetWithText(FilledButton, 'Kod gönder'));
     await tester.pumpAndSettle();
 
     expect(requests, isEmpty);
-    expect(find.text('Geçerli bir e-posta adresi girin.'), findsOneWidget);
+    expect(find.text(AuthValidation.emailInvalid), findsOneWidget);
   });
 
   testWidgets('cevap adresin kayıtlı olup olmadığını söylemez', (tester) async {
@@ -38,25 +37,14 @@ void main() {
       _page(onRequestCode: (email) async => requests.add(email)),
     );
 
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'E-posta'),
-      'kimse@example.test',
-    );
+    await tester.enterText(authField('E-posta'), 'kimse@example.test');
     await tester.tap(find.widgetWithText(FilledButton, 'Kod gönder'));
     await tester.pumpAndSettle();
 
     expect(requests, ['kimse@example.test']);
     // "Hesap bulunamadı" ya da "kod gönderildi" değil: koşullu tek cümle.
-    expect(
-      find.text(
-        'Adres kayıtlıysa kod gönderildi. Gelen kutunuzu kontrol edin.',
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.widgetWithText(TextFormField, 'Doğrulama kodu'),
-      findsOneWidget,
-    );
+    expect(find.text(resetCodeSent), findsOneWidget);
+    expect(authField('Doğrulama kodu'), findsOneWidget);
   });
 
   testWidgets('eksik kod ve zayıf parola istek üretmez', (tester) async {
@@ -73,28 +61,19 @@ void main() {
     );
     await _requestCode(tester);
 
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Doğrulama kodu'),
-      '123',
-    );
+    await tester.enterText(authField('Doğrulama kodu'), '123');
     await tester.tap(find.widgetWithText(FilledButton, 'Parolamı değiştir'));
     await tester.pumpAndSettle();
     expect(resetCount, 0);
-    expect(find.text('Altı haneli kodu yazın.'), findsOneWidget);
+    expect(find.text(resetCodeMissing), findsOneWidget);
 
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Doğrulama kodu'),
-      '123456',
-    );
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Yeni parola'),
-      'kisa',
-    );
+    await tester.enterText(authField('Doğrulama kodu'), '123456');
+    await tester.enterText(authField('Yeni parola'), 'kisa');
     await tester.tap(find.widgetWithText(FilledButton, 'Parolamı değiştir'));
     await tester.pumpAndSettle();
 
     expect(resetCount, 0);
-    expect(find.text('Parola en az 12 karakter olmalıdır.'), findsOneWidget);
+    expect(find.text(AuthValidation.passwordRule), findsOneWidget);
   });
 
   testWidgets('doğru kod ve parola sıfırlamayı tamamlar', (tester) async {
@@ -114,14 +93,8 @@ void main() {
     );
     await _requestCode(tester);
 
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Doğrulama kodu'),
-      '123456',
-    );
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Yeni parola'),
-      'Another-Password-456!',
-    );
+    await tester.enterText(authField('Doğrulama kodu'), '123456');
+    await tester.enterText(authField('Yeni parola'), 'Another-Password-456!');
     await tester.tap(find.widgetWithText(FilledButton, 'Parolamı değiştir'));
     await tester.pumpAndSettle();
 
@@ -148,14 +121,8 @@ void main() {
     );
     await _requestCode(tester);
 
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Doğrulama kodu'),
-      '123456',
-    );
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Yeni parola'),
-      'Another-Password-456!',
-    );
+    await tester.enterText(authField('Doğrulama kodu'), '123456');
+    await tester.enterText(authField('Yeni parola'), 'Another-Password-456!');
     await tester.tap(find.widgetWithText(FilledButton, 'Parolamı değiştir'));
     await tester.pumpAndSettle();
 
@@ -173,10 +140,7 @@ void main() {
 }
 
 Future<void> _requestCode(WidgetTester tester) async {
-  await tester.enterText(
-    find.widgetWithText(TextFormField, 'E-posta'),
-    'esnaf@example.test',
-  );
+  await tester.enterText(authField('E-posta'), 'esnaf@example.test');
   await tester.tap(find.widgetWithText(FilledButton, 'Kod gönder'));
   await tester.pumpAndSettle();
 }
@@ -192,16 +156,19 @@ Widget _page({
   void Function(String email)? onCompleted,
 }) => MaterialApp(
   theme: AppTheme.light(),
-  home: PasswordResetPage(
-    onRequestCode: onRequestCode ?? (_) async {},
-    onReset:
-        onReset ??
-        ({
-          required String email,
-          required String code,
-          required String newPassword,
-        }) async {},
-    onCompleted: onCompleted ?? (_) {},
-    onBackToLogin: () {},
+  home: Scaffold(
+    body: PasswordResetPanel(
+      emailController: TextEditingController(),
+      onRequestCode: onRequestCode ?? (_) async {},
+      onReset:
+          onReset ??
+          ({
+            required String email,
+            required String code,
+            required String newPassword,
+          }) async {},
+      onCompleted: onCompleted ?? (_) {},
+      onBackToLogin: () {},
+    ),
   ),
 );

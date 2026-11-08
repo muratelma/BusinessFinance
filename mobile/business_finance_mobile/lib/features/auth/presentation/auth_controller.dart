@@ -39,7 +39,15 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> login(String email, String password) async {
+  /// [onVerified] sunucu girişi kabul ettikten **sonra**, oturum ekranlara
+  /// açılmadan önce beklenir: giriş ekranı Özet'e geçiş animasyonunu bu arada
+  /// oynatır. Oturum açılınca yönlendirici giriş ekranını hemen kaldırır;
+  /// animasyon ancak bu sırayla görünür.
+  Future<void> login(
+    String email,
+    String password, {
+    Future<void> Function()? onVerified,
+  }) async {
     if (_isSubmitting) {
       return;
     }
@@ -47,6 +55,13 @@ class AuthController extends ChangeNotifier {
     try {
       await _repository.login(email, password);
       _errorMessage = null;
+      if (onVerified != null) {
+        try {
+          await onVerified();
+        } catch (_) {
+          // Animasyonun yarıda kalması girişi geri almaz.
+        }
+      }
       _startAuthenticatedSession();
     } on ApiException catch (error) {
       _errorMessage = error.message;

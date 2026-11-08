@@ -73,7 +73,7 @@ class BusinessFinanceApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = MaterialApp.router(
-      title: 'Kişisel Bütçe',
+      title: 'Nomiva',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),

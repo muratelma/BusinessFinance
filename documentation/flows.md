@@ -801,9 +801,67 @@ Korumalı API isteği -> bearer access token
   -> ikinci 401: tekrar döngüsü yok -> unauthorized/login
 ```
 
-Register cevabı token taşımaz; başarılı kayıttan sonra e-posta login formuna
-aktarılır. Logout sunucu çağrısı başarısız olsa bile local token `finally`
+Register cevabı token taşımaz; istemci başarılı kayıttan hemen sonra aynı
+e-posta ve parolayla giriş yapar (7 Kasım 2026'dan beri; önceden e-posta giriş
+formuna aktarılıyor, kişi parolasını ikinci kez yazıyordu). Logout sunucu çağrısı başarısız olsa bile local token `finally`
 sınırında temizlenir. Parola hiçbir zaman secure storage'a yazılmaz.
+
+## Giriş akışı (Nomiva, Aşama 06.4)
+
+Açılış, giriş, hesap oluşturma, parola sıfırlama ve "Bir adım kaldı" **tek
+ekrandır** (`lib/features/auth/presentation/auth_flow.dart`). `/login`,
+`/register` ve `/password-reset` aynı sayfa anahtarıyla bu ekrana açılır;
+paneller ekranın içinde yatay kayar, üstteki siyah bölüm ve logo yerinde
+kalır.
+
+```text
+Uygulama açılır -> telefonun açılış ekranı (koyu, #050608)
+  -> oturum kontrolü: aynı koyu zemin, ad ya da yazı yok
+     -> oturum var: doğrudan Özet (açılış animasyonu oynamaz)
+     -> oturum yok: açılış animasyonu -> giriş
+Giriş -> e-posta ya da kullanıcı adı + parola -> Giriş yap
+  -> düğme daralıp bekleme göstergesine döner
+  -> hata: düğme geri açılır, uyarı formun içinde
+  -> kabul: Özet'in zemin rengi düğmeden yayılır, ekranı kaplayınca oturum
+     açılır ve Özet aynı renkte belirir
+Hesap oluştur -> kullanıcı adı + e-posta + parola (hesap henüz açılmaz)
+  -> Bir adım kaldı: İşletmem var (varsayılan kapalı) -> Devam et
+  -> kayıt + giriş -> Özet
+  -> sunucunun reddi: kişi yazdıklarıyla birlikte forma döner, uyarı orada
+Parolamı unuttum -> yazılan adres sıfırlama paneline taşınır
+```
+
+- **Açılış animasyonu yalnız giriş ekranı açılırken oynar**: ilk açılışta ve
+  çıkış yapıldıktan sonra. Oturumu açık olan kişi onu hiç görmez. Animasyon
+  sürerken ekrana dokunmak onu bitirir; hareketi azaltma ayarı açıksa form
+  hemen gelir.
+- **Geçiş oturumdan önce oynar.** Oturum açıldığı anda yönlendirici giriş
+  ekranını kaldırır; bu yüzden `AuthController.login` sunucu girişi kabul
+  ettikten sonra `onVerified` geri çağrısını bekler, oturumu ondan sonra
+  açar.
+- **Hesap `Devam et`'te açılır**, ilk adımda değil: vazgeçen kişi yarım hesap
+  bırakmaz ve onboarding sorusu kayıt isteğiyle birlikte gider.
+- **Geri hareketi** (Android geri tuşu, iPhone'da kenardan çekme) bir önceki
+  panele döner; uygulamadan yalnız giriş panelindeyken çıkılır.
+- **Ekran tasarımla aynıdır, sunucu tarafı sonra gelir** (kullanıcı kararı,
+  8 Kasım 2026). Giriş alanı "E-posta ya da kullanıcı adı" der; `@` içermeyen
+  bir değer istek gönderilmeden "Kullanıcı adıyla giriş henüz açılmadı"
+  uyarısıyla durur (kullanıcı adıyla giriş açılınca kalkar). Kayıtta kullanıcı adı sorulur ve doğrulanır (3–30
+  karakter; a–z, rakam, nokta, alt çizgi) ama sunucuya henüz gitmez.
+- **Hata cümleleri** "siz" diye konuşur (`AuthValidation`; "sen"li deneme
+  kullanıcı kararıyla geri alındı, 8 Kasım 2026). Parola kuralı tek satırdır:
+  "12+ karakter; büyük/küçük harf, rakam, sembol."
+- **Hata zamanlaması** mobil formların yaygın kuralıdır ("reward early,
+  punish late"): yazarken denetlenmez; alandan çıkınca (boş değilse) ya da
+  düğmeye basınca denetlenir. Hata görünürken değer kurala uyduğu anda yazı
+  kalkar; uymuyorsa aynı yazı durur, başka hataya dönmez. Gönderim
+  reddedilince imleç ilk hatalı alana gider ve alan ekrana kaydırılır; klavye
+  açıkken alanın altındaki hata yazısı klavyenin üstünde kalır. Hata çıkınca
+  ya da kalkınca alan boyu yumuşakça değişir.
+  "ya da" ayırıcısının altında Google (her platformda) ve Apple (yalnız
+  iPhone'da) düğmeleri vardır; basılınca formun içinde "… ile giriş henüz
+  hazır değil" der. "Bir adım kaldı"nın Google/Apple hâli (kullanıcı adı
+  alanı, `Vazgeç`) panelde hazırdır, sunucu tarafıyla bağlanacak.
 
 ## Flutter ekran akışı
 
@@ -1329,7 +1387,7 @@ yoksa kullanıcı hiç gelmeyecek bir postayı bekler. `Kodu yeniden gönder` ay
 yolu tekrar çağırır; sunucu 60 saniyeden önceki ikinci isteği reddeder.
 
 **Parolamı unuttum** giriş ekranının hemen altındadır: aranacağı yer,
-kaybedildiği yerdir. Tek sayfa, iki adım — adres yazılır ve kod istenir, sonra
+kaybedildiği yerdir. Tek panel, iki adım — adres yazılır ve kod istenir, sonra
 kod ile yeni parola yazılır. İki ayrı ekran, gelen kodu okuyup dönen kullanıcıya
 adresini yeniden yazdırırdı.
 

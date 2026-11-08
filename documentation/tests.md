@@ -40,8 +40,9 @@ iPhone'da bulunan iki dokunma sorununun testleri (7 Kasım 2026):
 kapattığını, kaydırmanın kapatmadığını, başka alana dokunmanın odağı
 taşıdığını, düğmenin hem çalıştığını hem klavyeyi kapattığını ve
 sarmalayıcısız telefonun klavyeyi açık tuttuğunu üç mobil platformda doğrular.
-`auth_pages_test.dart` giriş ekranındaki bağlantıların yanındaki boşluğun
-bağlantı olmadığını telefon genişliğinde doğrular (800 px'lik test ekranında
+`auth_flow_test.dart` (o gün `auth_pages_test.dart`) giriş ekranındaki
+bağlantıların yanındaki boşluğun bağlantı olmadığını telefon genişliğinde
+doğrular (800 px'lik test ekranında
 form ortada 440 px kaldığı için hata görünmüyordu).
 
 Taşımada iki test değişti:
@@ -1205,10 +1206,43 @@ yerini Vergi takibi aldı.
 | Panel açılınca kod isteniyor | aynı dosya | Kullanıcı ikinci bir düğmeye basmıyor |
 | Eksik/yanlış kod | aynı dosya | Altı haneden kısa kod istek üretmiyor; sunucunun reddi panelde kalıyor |
 | Doğru kod uyarıyı kaldırıyor | aynı dosya | Kart kayboluyor, onay mesajı çıkıyor |
-| Sıfırlama iki adımlı | `password_reset_page_test` | Kod istenmeden yeni parola alanı yok |
+| Sıfırlama iki adımlı | `password_reset_panel_test` | Kod istenmeden yeni parola alanı yok |
 | Sıfırlama enumeration sızdırmıyor | aynı dosya | Kayıtsız adres de "adres kayıtlıysa kod gönderildi" diyor |
 | İstemci doğrulaması | aynı dosya | Geçersiz adres, kısa kod ve zayıf parola istek üretmiyor |
 | Sıfırlama erişilebilir | aynı dosya | 2.0× ölçekte taşma yok, semantik kapı geçiliyor |
+
+## Giriş akışı (7 Kasım 2026, Aşama 06.4)
+
+`test/features/auth/presentation/auth_flow_test.dart`; alanlar etiketlerini
+taşıyan `AuthField` içinden bulunur (`test/helpers/auth_flow.dart`).
+
+| Kapı | Neyi tutuyor |
+|---|---|
+| Erişilebilirlik, açık ve koyu | 2.0× yazıda taşma yok; dokunma hedefi, adlandırma ve kontrast kapıları geçiliyor |
+| İstemci doğrulaması | Boş alanla istek gitmiyor |
+| Tek istek | Bekleme sürerken ikinci basış istek üretmiyor; gösterge görünüyor |
+| Sunucunun reddi | Uyarı formun içinde; düğme geri açılıyor |
+| Geçiş oturumdan önce | `onVerified` geçiş bitmeden tamamlanmıyor |
+| Bağlantının yanı boş | Telefon genişliğinde yazının yanına dokunmak bağlantı değil |
+| Açılış | Sürerken form dokunulmaz; dokunmak açılışı bitirir; hareketi azaltan kullanıcı açılışı izlemez |
+| Hesap iki adımda | Parola kuralı tutmadan ikinci adım yok; hesap ilk adımda açılmıyor, `Devam et` kayıt + girişi yapıyor |
+| Kaydın reddi | Kişi yazdıklarıyla forma dönüyor, uyarı orada |
+| Geri hareketi | Önceki panele dönüyor, uygulamadan çıkmıyor |
+| Sıfırlamaya taşınan adres | `Parolamı unuttum` yazılan adresle kod istiyor |
+| Oranlı yerleşim, iki telefon | 412 × 915 ve 393 × 852'de alan genişliği ekran − 2 × 24 × katsayı, alan 46 ×, düğme 50 ×, başlık 23 × katsayı (8 Kasım 2026) |
+| Tablet ve telefon yatay | Tablette form en büyük telefonun genişliğini geçmiyor; yatayda taşma yok, form kayıyor |
+| Google ve Apple | Google düğmesi görünür ve basılınca "henüz hazır değil" der; Apple yalnız iPhone'da |
+| Kullanıcı adı | Girişte `@`'sız değer istek göndermeden açıklanıyor; kayıtta kullanıcı adı kuralı tutmadan ikinci adım yok |
+| Hata zamanlaması | Hata yazarken başka hataya dönmüyor, düzelince kalkıyor; boş alandan geçmek hata yazdırmıyor, dolu alandan çıkınca denetleniyor; gönderim reddedilince imleç ilk hatalı alanda |
+
+`test/screenshots/giris_akisi_screenshot_test.dart` akışı iPhone 15 (393 ×
+852, üstte 59) ve Pixel 8 (412 × 915, üstte 24) çerçevesinde açık ve koyu,
+ayrıca telefon yatay (915 × 412) ve tablet (800 × 1280) çerçevesinde çizer;
+`SCREENSHOT_DIR` verilince çalışır. Karşılaştırma kaynağı
+`design/nomiva-handoff/ekranlar/` kareleridir; kareler **genişlikle** ölçeklenip yan yana
+konur. Not: teslim kareleri 340 × 720'lik çerçeveden 1080 × 2220'ye
+çevrildiği için dikeyde ~%3 basıktır; dikey konumlar prototipin CSS'iyle
+doğrulanır.
 
 ## Cihaz üstü hatırlatma (27 Ağustos 2026, Aşama 06 Grup 3)
 

@@ -21,9 +21,8 @@ import '../../features/account/data/account_repository.dart' as user_account;
 import '../../features/account/presentation/account_page.dart';
 import '../../features/auth/data/auth_repository.dart';
 import '../../features/auth/presentation/auth_controller.dart';
-import '../../features/auth/presentation/login_page.dart';
-import '../../features/auth/presentation/password_reset_page.dart';
-import '../../features/auth/presentation/register_page.dart';
+import '../../features/auth/presentation/auth_flow.dart';
+import '../../features/auth/presentation/auth_restoring_view.dart';
 import '../../features/budgets/data/budget_repository.dart';
 import '../../features/budgets/presentation/budgets_page.dart';
 import '../../features/categories/data/category_repository.dart';
@@ -133,68 +132,25 @@ GoRouter createAppRouter({
     routes: [
       GoRoute(
         path: '/restoring',
-        pageBuilder: _pageBuilder(
-          const Scaffold(
-            body: AppLoadingView(message: 'Oturum kontrol ediliyor'),
-          ),
-        ),
+        pageBuilder: _pageBuilder(const AuthRestoringView()),
       ),
+      // Üç kimlik yolu tek ekrana açılır. Sayfa anahtarı ortaktır: yol değişse
+      // de ekran (ve açılış animasyonu) yeniden kurulmaz, paneller kendi
+      // içinde kayar.
       GoRoute(
         path: '/login',
-        pageBuilder: (context, state) => NoTransitionPage<void>(
-          key: state.pageKey,
-          child: LoginPage(
-            initialEmail: state.uri.queryParameters['email'],
-            onSubmit: authController == null
-                ? (_, _) async {}
-                : authController.login,
-            onRegister: () => context.go('/register'),
-            onForgotPassword: (email) => context.go(
-              Uri(
-                path: '/password-reset',
-                queryParameters: email.isEmpty ? null : {'email': email},
-              ).toString(),
-            ),
-          ),
-        ),
+        pageBuilder: (context, state) =>
+            _authPage(state, AuthView.login, authController, authRepository),
       ),
       GoRoute(
         path: '/password-reset',
-        pageBuilder: (context, state) => NoTransitionPage<void>(
-          key: state.pageKey,
-          child: PasswordResetPage(
-            initialEmail: state.uri.queryParameters['email'],
-            onRequestCode: authRepository == null
-                ? (_) async {}
-                : authRepository.requestPasswordReset,
-            onReset: authRepository == null
-                ? ({
-                    required email,
-                    required code,
-                    required newPassword,
-                  }) async {}
-                : authRepository.resetPassword,
-            onCompleted: (email) => context.go(
-              Uri(path: '/login', queryParameters: {'email': email}).toString(),
-            ),
-            onBackToLogin: () => context.go('/login'),
-          ),
-        ),
+        pageBuilder: (context, state) =>
+            _authPage(state, AuthView.reset, authController, authRepository),
       ),
       GoRoute(
         path: '/register',
-        pageBuilder: (context, state) => NoTransitionPage<void>(
-          key: state.pageKey,
-          child: RegisterPage(
-            onSubmit: authController == null
-                ? (_, _, {required hasBusiness}) async {}
-                : authController.register,
-            onCompleted: (email) => context.go(
-              Uri(path: '/login', queryParameters: {'email': email}).toString(),
-            ),
-            onBackToLogin: () => context.go('/login'),
-          ),
-        ),
+        pageBuilder: (context, state) =>
+            _authPage(state, AuthView.register, authController, authRepository),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) => MainShell(
@@ -1104,6 +1060,40 @@ String? _safeReturnLocation(String? value) {
     return null;
   }
   return value;
+}
+
+Page<dynamic> _authPage(
+  GoRouterState state,
+  AuthView view,
+  AuthController? authController,
+  AuthSessionRepository? authRepository,
+) {
+  return NoTransitionPage<void>(
+    key: const ValueKey('auth-flow'),
+    child: AuthFlow(
+      initialView: view,
+      initialEmail: state.uri.queryParameters['email'],
+      onLogin: (email, password, {onVerified}) async =>
+          authController?.login(email, password, onVerified: onVerified),
+      // Kayıt bitince oturum hemen açılır; kişi e-postasını ve parolasını
+      // ikinci kez yazmaz.
+      onRegister: (email, password, {required hasBusiness, onVerified}) async {
+        if (authController == null) return;
+        await authController.register(
+          email,
+          password,
+          hasBusiness: hasBusiness,
+        );
+        await authController.login(email, password, onVerified: onVerified);
+      },
+      onRequestPasswordReset: authRepository == null
+          ? (_) async {}
+          : authRepository.requestPasswordReset,
+      onResetPassword: authRepository == null
+          ? ({required email, required code, required newPassword}) async {}
+          : authRepository.resetPassword,
+    ),
+  );
 }
 
 Page<dynamic> Function(BuildContext, GoRouterState) _pageBuilder(Widget child) {

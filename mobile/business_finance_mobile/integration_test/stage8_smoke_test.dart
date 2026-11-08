@@ -29,16 +29,16 @@ void main() {
     await tester.pumpWidget(BusinessFinanceApp(dependencies: dependencies));
     await _waitFor(tester, find.text('Hesap oluştur'));
 
+    // Hesap iki adımda açılır ve oturum hemen başlar: ikinci kez giriş
+    // yapılmaz.
     await tester.tap(find.text('Hesap oluştur'));
-    await _waitFor(tester, find.text('Kayıt ol'));
-    await tester.enterText(find.byType(TextFormField).at(0), email);
-    await tester.enterText(find.byType(TextFormField).at(1), password);
-    await tester.tap(find.text('Kayıt ol'));
-
-    await _waitFor(tester, find.text('Giriş yap'));
-    expect(_fieldText(tester, 0), email);
-    await tester.enterText(find.byType(TextFormField).at(1), password);
-    await tester.tap(find.text('Giriş yap'));
+    await _waitFor(tester, find.widgetWithText(FilledButton, 'Hesap oluştur'));
+    await tester.enterText(find.byType(TextFormField).at(0), 'smoke_user');
+    await tester.enterText(find.byType(TextFormField).at(1), email);
+    await tester.enterText(find.byType(TextFormField).at(2), password);
+    await tester.tap(find.widgetWithText(FilledButton, 'Hesap oluştur'));
+    await _waitFor(tester, find.widgetWithText(FilledButton, 'Devam et'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Devam et'));
     await _hideKeyboard(tester);
 
     await _waitFor(tester, find.text('Özet'));
@@ -117,13 +117,6 @@ void main() {
     expect(find.text('₺25,50'), findsWidgets);
     expect(find.text('₺974,50'), findsOneWidget);
   });
-}
-
-String _fieldText(WidgetTester tester, int index) {
-  return tester
-      .widget<TextFormField>(find.byType(TextFormField).at(index))
-      .controller!
-      .text;
 }
 
 Future<void> _hideKeyboard(WidgetTester tester) async {

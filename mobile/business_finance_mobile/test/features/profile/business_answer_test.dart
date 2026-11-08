@@ -6,12 +6,13 @@ import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 import 'package:business_finance_mobile/core/network/api_exception.dart';
 import 'package:business_finance_mobile/core/presentation/scope_controller.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
-import 'package:business_finance_mobile/features/auth/presentation/register_page.dart';
+import 'package:business_finance_mobile/features/auth/presentation/auth_flow.dart';
 import 'package:business_finance_mobile/features/account/data/account_models.dart';
 import 'package:business_finance_mobile/features/account/data/account_repository.dart';
 import 'package:business_finance_mobile/features/account/presentation/account_page.dart';
 import 'package:business_finance_mobile/features/profile/data/profile_repository.dart';
 
+import '../../helpers/auth_flow.dart';
 import '../../helpers/fake_auth.dart';
 
 void main() {
@@ -23,7 +24,7 @@ void main() {
       await _pumpRegister(tester, onSubmit: (value) => sent = value);
 
       await _fillRegistrationForm(tester);
-      await tester.tap(find.text('Kayıt ol'));
+      await tester.tap(authButton('Devam et'));
       await tester.pumpAndSettle();
 
       expect(sent, isFalse);
@@ -36,7 +37,7 @@ void main() {
       await _fillRegistrationForm(tester);
       await tester.tap(find.text('İşletmem var'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Kayıt ol'));
+      await tester.tap(authButton('Devam et'));
       await tester.pumpAndSettle();
 
       expect(sent, isTrue);
@@ -93,33 +94,26 @@ void main() {
   });
 }
 
+/// Kayıt formunu doldurur ve sorunun sorulduğu ikinci adıma geçer.
 Future<void> _fillRegistrationForm(WidgetTester tester) async {
-  await tester.enterText(
-    find.byType(TextFormField).first,
-    'esnaf@example.test',
-  );
-  await tester.enterText(
-    find.byType(TextFormField).last,
-    'Valid-Password-123!',
-  );
+  await tester.enterText(authField('Kullanıcı adı'), 'esnaf');
+  await tester.enterText(authField('E-posta'), 'esnaf@example.test');
+  await tester.enterText(authField('Parola'), 'Valid-Password-123!');
+  await tester.tap(authButton('Hesap oluştur'));
+  await tester.pumpAndSettle();
 }
 
 Future<void> _pumpRegister(
   WidgetTester tester, {
   required void Function(bool hasBusiness) onSubmit,
-}) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      theme: AppTheme.light(),
-      home: RegisterPage(
-        onSubmit: (_, _, {required hasBusiness}) async => onSubmit(hasBusiness),
-        onCompleted: (_) {},
-        onBackToLogin: () {},
-      ),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
+}) => pumpAuthFlow(
+  tester,
+  authFlowApp(
+    initialView: AuthView.register,
+    onRegister: (_, _, {required hasBusiness, onVerified}) async =>
+        onSubmit(hasBusiness),
+  ),
+);
 
 /// Sayfa test ekranına sığmıyor: onboarding cevabı katlanmanın altına
 /// inebiliyor. Kaydırmadan dokunmak, cevabın kaybolduğunu değil ekranın küçük

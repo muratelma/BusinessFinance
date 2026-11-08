@@ -1,3 +1,4 @@
+import 'package:business_finance_mobile/features/auth/presentation/auth_validation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
@@ -114,7 +115,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repository.passwordChangeCount, 0);
-    expect(find.text('Parola en az 12 karakter olmalıdır.'), findsOneWidget);
+    expect(find.text(AuthValidation.passwordRule), findsOneWidget);
   });
 
   testWidgets('parola değişince taze token benimsenir', (tester) async {

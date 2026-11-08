@@ -793,6 +793,74 @@ satırları, saat için `ListTile` + Material `showTimePicker`. İki `AppInlineN
 kullanılır — izin reddi ve liste okunamaması. Üçüncü bir not (kilit ekranında
 tutar yazmadığı) **her hâlde** durur: gizlilik sözü, ancak görünürse sözdür.
 
+## Giriş akışı (Nomiva teslimi, 7 Kasım 2026)
+
+Kaynak `design/nomiva-handoff/TASARIM_NOTLARI.md` ve prototipi; kod
+`lib/features/auth/presentation/`. Bu bölümün renkleri ve yazısı **yalnız
+giriş akışında** geçerlidir (kullanıcı kararı): uygulamanın geri kalanı
+yukarıdaki token'larla çizilir.
+
+- **Renk:** `NomivaColors`. Üst bölüm iki temada da `#050608`; form kağıdı,
+  alan, düğme ve hata renkleri temaya göre (açık/koyu tablosu teslimdedir).
+  Vurgu indigo (`#6A6CF6`, `#8B5CF6`) yalnız açılıştaki hale ve dalgada ve
+  `İşletmem var` anahtarındadır; küçük metinde kullanılmaz. Özet'e geçişteki
+  daire Özet'in zemin rengindedir, vurgu değildir (kullanıcı kararı).
+- **Yazı:** Figtree (400/500/600/700, SIL OFL), uygulamanın içinde
+  (`assets/fonts/figtree`), internetten indirilmez. Lisans metni `main.dart`'ta
+  lisans listesine eklenir. Figtree'de **₺ işareti yoktur**; uygulamanın
+  geneline geçerse o karakter sistem yazısından çizilir, ayrıca bakılır.
+- **Logo:** `assets/brand/nomiva_isaret_koyu_zemin.svg` (`NomivaMark`,
+  `flutter_svg`). Ad ve slogan yazı ölçeğinden etkilenmez; logodur.
+- **Ölçü tasarım birimindedir ve ekrana oranla büyür** (8 Kasım 2026).
+  Tasarım 320 × 700 pt'lik bir ekranda çizildi; ölçüler (`NomivaSpacing`)
+  olduğu gibi alınınca 412 dp'lik Pixel 8'de her şey ~%22 küçük kalmıştı.
+  Bütün konum, boy, yazı, boşluk, kavis ve logo tek bir katsayıyla çarpılır
+  (`NomivaScale`, `AuthFlow` kurar, `NomivaScaleScope` dağıtır): katsayı
+  genişliğin ve yüksekliğin tasarıma oranlarının küçüğüdür, 0,85–1,35
+  arasında tutulur. Böylece iki telefonda neyin nerede durduğu aynıdır, kısa
+  ekranda form taşmaz. Telefonda form ekranı (yan boşluklar dışında)
+  doldurur; tablette ve telefon yatayda en büyük telefonun genişliğinde
+  ortada durur, üst bölüm ve kavis ekrana yayılır, form kayar. Klavye
+  katsayıyı değiştirmez (tam ekran boyundan okunur). Erişilebilirlik yazı
+  ölçeği katsayının üstüne biner.
+- **Tasarım ölçüleri** (tasarım biriminde): yan boşluk 24, öğe aralığı 11
+  (kayıtta ve sıfırlamada 8, düğmenin üstünde +10), başlık 23/700, etiket
+  12/500 alanın üstünde (5 aralık), alan 46 yüksek / köşe 12 / metin 14,
+  düğme 50 yüksek tam yuvarlak 15/600, bağlantı 13/600 altı çizili, "ya da"
+  12/500, Google/Apple düğmesi 52 daire (aralık 16), alt bağlantı sosyal
+  düğmelerden 30 aşağıda. **Satır yüksekliği bütün yazılarda 1,2'dir**
+  (`nomivaLineHeight`, Figtree'nin normali); verilmezse Material 3'ün 1,43'ü
+  miras alınır ve her satır uzar. **Harf aralığı sıfırdır**
+  (`nomivaLetterSpacing`); verilmezse Material 3'ün 0,25–0,4'ü miras alınır,
+  satırlar uzar, hata cümleleri ikinci satıra taşar. Alanın yüksekliği iç boşluktan gelir:
+  `InputDecoration.constraints` kutuyu büyütür ama dolguyu büyütmez. Dokunma
+  hedefi 48'in altına inmez; bağlantıların dokunma alanı 48'dir ama yerleşimde
+  yazı kadar yer kaplar.
+- **Bileşenler** (`widgets/auth_form_parts.dart`): `AuthField` (etiket +
+  solda dolu simge, hata gelince kırmızı kenar ve zemin, parolada göz, boşken
+  isteğe bağlı örnek yazı), `AuthPrimaryButton` (beklerken daireye daralır),
+  `AuthTextLink`, `AuthOverhangingLink`, `AuthFooter` + `AuthFooterSlot`,
+  `AuthBanner`, `AuthTitle`, `AuthSubtitle`, `AuthOrDivider`, `AuthSocialRow`
+  (Google her platformda, Apple yalnız iPhone'da).
+- **Hareket:** açılış ~4,2 sn, Slate örneğine göre (8 Kasım 2026): logo
+  beklemeden gelir ve ~0,9 sn'de oturur; ad, slogan, hale ve dalga ~1,7 sn'de
+  tamamlanır; bütün hâl ~1,3 sn durur; kağıt 1 sn'de yavaş başlayıp yavaş biten eğriyle yükselir.
+  Açılış logo çözülüp ilk kare çizildikten sonra başlar (logo oturum kontrolü
+  sırasında önceden çözülür): ilk kareler pahalıdır, erken başlayan zamanlı
+  animasyon kare atlar. Paneller 360 ms yatay, üst bölüm 420 ms, Özet'e geçiş
+  560 ms.
+  Hareketi azaltma ayarında süreler sıfırdır.
+- **Telefonun açılış ekranı** aynı koyu renktir ve **logosuzdur** (Android
+  `launch_background`, Android 12+ `windowSplashScreenBackground` ve saydam
+  `windowSplashScreenAnimatedIcon`, iOS `LaunchScreen.storyboard` 1×1 saydam
+  resim). Dokununca yalnız siyah ekran büyür; logo ilk kez giriş
+  animasyonunda görünür (kullanıcı kararı, 8 Kasım 2026). Android 12 ikonu
+  kendiliğinden ortaya koyuyordu; logo önce sabit, sonra animasyonda ikinci
+  kez beliriyordu.
+- **Uygulama ikonu** `flutter_launcher_icons` ile üretilir
+  (`assets/brand/app_icon`); Android uyarlanabilir ikonun ön planı güvenli
+  alan boşluğunu kendisi taşır, araç ikinci bir iç boşluk eklemez.
+
 ## Erişilebilirlik kuralları
 
 1. **Hiçbir bilgi yalnız renkle taşınmaz.** Her durum ikon veya metinle de

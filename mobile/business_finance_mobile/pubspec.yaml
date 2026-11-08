@@ -51,6 +51,10 @@ dependencies:
   image: ^4.9.1
   flutter_local_notifications: ^22.3.0
   timezone: ^0.11.1
+  # Nomiva logosu degrade ve kırpma yolu taşıyan bir SVG; Flutter SVG
+  # çizmez. Paket saf Dart'tır, ağ ve kod üretimi getirmez. Karşılığı:
+  # SVG filtreleri (bulanıklık, gölge) desteklenmez; logoda yok.
+  flutter_svg: ^2.3.2
 
 dev_dependencies:
   flutter_test:
@@ -64,6 +68,10 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  # Uygulama ikonlarını tek kaynaktan (assets/brand/app_icon) Android ve
+  # iPhone boyutlarına üretir. Yalnız geliştirmede çalışır, uygulamaya
+  # girmez.
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -75,6 +83,26 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/brand/nomiva_isaret_koyu_zemin.svg
+    - assets/brand/nomiva_isaret_acik_zemin.svg
+    - assets/fonts/figtree/OFL.txt
+
+  # Figtree yalnız giriş akışında kullanılır (kullanıcı kararı, 7 Kasım
+  # 2026). Dosya uygulamanın içindedir; internetten indirilmez. Lisansı
+  # SIL OFL 1.1, `main.dart` lisans listesine ekler.
+  fonts:
+    - family: Figtree
+      fonts:
+        - asset: assets/fonts/figtree/Figtree-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/figtree/Figtree-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/figtree/Figtree-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/figtree/Figtree-Bold.ttf
+          weight: 700
 
   # To add assets to your application, add an assets section, like this:
   # assets:
@@ -106,3 +134,15 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# Uygulama ikonu: `dart run flutter_launcher_icons` ile üretilir. Kaynak
+# Nomiva teslimidir (design/nomiva-handoff/app_icon). Android uyarlanabilir
+# ikonun ön planı şeffaf, arka planı koyu düz renktir.
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/brand/app_icon/nomiva_ikon_koyu_1024.png
+  adaptive_icon_foreground: assets/brand/app_icon/android_on_plan_1024.png
+  adaptive_icon_background: "#0F111A"
+  remove_alpha_ios: true
+  min_sdk_android: 21

@@ -17,7 +17,7 @@
          Bildirim `inexactAllowWhileIdle` ile kuruluyor. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <application
-        android:label="business_finance_mobile"
+        android:label="Nomiva"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

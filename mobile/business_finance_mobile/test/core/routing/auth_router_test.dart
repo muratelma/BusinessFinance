@@ -26,8 +26,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('Oturum kontrol ediliyor'), findsOneWidget);
-    expect(find.text('Tekrar hoş geldiniz'), findsNothing);
+    expect(find.bySemanticsLabel('Oturum kontrol ediliyor'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Giriş yap'), findsNothing);
     expect(find.byType(BottomAppBar), findsNothing);
   });
 
@@ -40,7 +40,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Tekrar hoş geldiniz'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Giriş yap'), findsOneWidget);
     expect(find.text('Finansal özetiniz hazır olacak'), findsNothing);
   });
 
@@ -70,7 +70,7 @@ void main() {
       'user@example.test',
     );
     await tester.enterText(find.byType(TextFormField).last, 'password');
-    await tester.tap(find.text('Giriş yap'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Giriş yap'));
     await tester.pumpAndSettle();
 
     expect(find.text('Bütçe servisi yapılandırılmadı.'), findsOneWidget);
@@ -93,7 +93,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Kategori giderleri'), findsOneWidget);
-    expect(find.text('Tekrar hoş geldiniz'), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'Giriş yap'), findsNothing);
   });
 
   testWidgets('changing users rebuilds protected state before loading data', (
@@ -131,7 +131,7 @@ void main() {
     await controller.logout();
     await tester.pumpAndSettle();
 
-    expect(find.text('Tekrar hoş geldiniz'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Giriş yap'), findsOneWidget);
     expect(find.text('first@example.test hesabı'), findsNothing);
 
     repository.loginSession = testSession(
@@ -172,7 +172,7 @@ void main() {
     await tester.pumpWidget(
       BusinessFinanceApp(authController: controller, router: router),
     );
-    expect(find.text('Oturum kontrol ediliyor'), findsOneWidget);
+    expect(find.bySemanticsLabel('Oturum kontrol ediliyor'), findsOneWidget);
 
     await controller.initialize();
     await tester.pumpAndSettle();

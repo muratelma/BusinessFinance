@@ -17,9 +17,16 @@ sonra aşağıdaki tablodan **aktif** işaretli belge okunur.
 | 06 | `docs/archive/stages/06-hesap-ve-kalan-isler.md` | Tamamlandı | 28 Ağustos 2026'da kapandı; sekiz grup, ADR 0017. Kabul turu 06.1'e devredildi |
 | 06.1 | `docs/archive/stages/06.1-guvenlik-taramasi.md` | Tamamlandı | 1 Eylül 2026'da kapandı; beş grup, dört CI tarama kapısı, Pixel 8 kabul turu |
 | 06.2 | `06.2-arayuz-duzeni.md` | Beklemede | **Açık kapsamlı.** 2 Eylül 2026'da açıldı; 29 Eylül 2026'dan beri beklemede (kapanmadı), kalan işleri 06.3'ten sonra sürer |
-| 06.3 | `06.3-butunsel-duzenleme.md` | Aktif | 29 Eylül 2026'da açıldı: kasa, gün sonu, POS ve vergi yeniden kurulur; kesin hatalar; listeler ve filtreler. Karar kapıları ADR 0018, ADR 0019, ADR 0020 (taraf kuralı; 8 Ekim 2026) ve ADR 0021 (tek borç modeli; 16 Ekim 2026) |
+| 06.3 | `06.3-butunsel-duzenleme.md` | Beklemede | 29 Eylül 2026'da açıldı: kasa, gün sonu, POS ve vergi yeniden kurulur; kesin hatalar; listeler ve filtreler. Karar kapıları ADR 0018, ADR 0019, ADR 0020 (taraf kuralı; 8 Ekim 2026) ve ADR 0021 (tek borç modeli; 16 Ekim 2026). 7 Kasım 2026'dan beri beklemede (kapanmadı); 06.4'ten sonra sürer, `design/` altındaki tasarım işi bu arada da yürür |
+| 06.4 | — (iş bitince yazılır) | Aktif | **Açık kapsamlı.** 7 Kasım 2026'da açıldı: giriş ve kimlik — ad ve logo (Nomiva), açılış animasyonu, yeni giriş ve kayıt ekranları, kullanıcı adı, Google ile giriş, sayfa geçişleri ve kenardan çekerek geri dönme; Apple ile giriş ücretli Apple geliştirici hesabından sonra. Kullanıcı kararıyla belge baştan yazılmaz; yapılan işler bitince belgeye işlenir. Dal `giris-ve-kimlik` |
 | 06.x | — | Açılmadı | Uygulama büyüdükçe çıkan işler için; ihtiyaç oldukça açılır |
 | 07 | `07-bulut-guvenli-beta.md` | Planlandı | Gerçek finansal veriye geçiş kapısı. **Bütün 06.x kapanmadan açılmaz**; ADR 0011 fiş veri sınırıyla açılır |
+
+**7 Kasım 2026 itibarıyla Aşama 06.4 Aktif, 06.3 ve 06.2 Beklemede**
+(kullanıcı kararı). 06.4'ün belgesi bilerek baştan yazılmadı: kapsamı
+sınırlamamak için iş yapılırken büyür, yapılan işler bittikçe kaydedilir ve
+belge oturum sonunda kurulur. Bu bir istisnadır; "Yeni bir aşama açmak"
+adımları belge yazıldığında tamamlanır. Aşağıdaki paragraflar geçmiştir.
 
 **29 Eylül 2026 itibarıyla Aşama 06.3 Aktif, 06.2 Beklemede** (kullanıcı
 kararı: 28 Eylül'deki bütünsel düzenleme kararları 06.3 altında uygulanır, 06.2
