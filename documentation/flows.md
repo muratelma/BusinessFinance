@@ -867,6 +867,9 @@ Parolamı unuttum -> yazılan adres sıfırlama paneline taşınır
   ekranını kaldırır; bu yüzden `AuthController.login` sunucu girişi kabul
   ettikten sonra `onVerified` geri çağrısını bekler, oturumu ondan sonra
   açar.
+- **Giriş her zaman Özet'te açılır** (9 Kasım 2026): çıkış yapılan ya da
+  oturumun düştüğü sayfaya dönülmez. Dönülseydi aynı telefonda başka bir
+  hesapla giren kişi öncekinin sayfasında açılırdı.
 - **Hesap `Devam et`'te açılır**, ilk adımda değil: vazgeçen kişi yarım hesap
   bırakmaz ve onboarding sorusu kayıt isteğiyle birlikte gider.
 - **Geri hareketi** (Android geri tuşu, iPhone'da kenardan çekme) bir önceki

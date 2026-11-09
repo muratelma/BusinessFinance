@@ -44,7 +44,7 @@ void main() {
     expect(find.text('Finansal özetiniz hazır olacak'), findsNothing);
   });
 
-  testWidgets('login returns user to the originally requested branch', (
+  testWidgets('login always opens the summary, not the page left behind', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(400, 800);
@@ -54,16 +54,12 @@ void main() {
     final repository = FakeAuthSessionRepository();
     final controller = AuthController(repository);
     await controller.initialize();
-
-    await tester.pumpWidget(
-      _authApp(
-        controller,
-        createAppRouter(
-          initialLocation: '/budgets',
-          authController: controller,
-        ),
-      ),
+    final router = createAppRouter(
+      initialLocation: '/budgets',
+      authController: controller,
     );
+
+    await tester.pumpWidget(_authApp(controller, router));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byType(TextFormField).first,
@@ -73,7 +69,8 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Giriş yap'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Bütçe servisi yapılandırılmadı.'), findsOneWidget);
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/dashboard');
+    expect(find.text('Bütçe servisi yapılandırılmadı.'), findsNothing);
     expect(find.byType(BottomAppBar), findsOneWidget);
   });
 

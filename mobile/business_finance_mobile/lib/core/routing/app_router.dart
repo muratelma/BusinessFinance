@@ -1036,30 +1036,12 @@ String? _authRedirect(AuthController controller, GoRouterState state) {
     case AuthStatus.restoring:
       return isRestoringRoute ? null : '/restoring';
     case AuthStatus.unauthenticated:
-      if (isAuthRoute) {
-        return null;
-      }
-      final from = state.uri.toString();
-      return Uri(path: '/login', queryParameters: {'from': from}).toString();
+      return isAuthRoute ? null : '/login';
     case AuthStatus.authenticated:
-      if (location == '/login') {
-        return _safeReturnLocation(state.uri.queryParameters['from']) ??
-            '/dashboard';
-      }
+      // Giriş her zaman Özet'te açılır. Çıkıştaki sayfaya dönmek, aynı
+      // telefonda başka bir hesapla girene öncekinin sayfasını açardı.
       return isAuthRoute || isRestoringRoute ? '/dashboard' : null;
   }
-}
-
-String? _safeReturnLocation(String? value) {
-  if (value == null ||
-      !value.startsWith('/') ||
-      value.startsWith('//') ||
-      value.startsWith('/login') ||
-      value.startsWith('/register') ||
-      value.startsWith('/restoring')) {
-    return null;
-  }
-  return value;
 }
 
 Page<dynamic> _authPage(
