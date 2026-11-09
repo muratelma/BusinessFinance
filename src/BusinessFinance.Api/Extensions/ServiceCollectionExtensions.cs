@@ -58,6 +58,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ChangePasswordUseCase>();
         services.AddTransient<DeleteUserAccountUseCase>();
         services.AddTransient<SendEmailVerificationUseCase>();
+        services.AddTransient<SendPasswordCodeUseCase>();
         services.AddTransient<ConfirmEmailUseCase>();
         services.AddTransient<RequestPasswordResetUseCase>();
         services.AddTransient<ResetPasswordUseCase>();

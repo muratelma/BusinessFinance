@@ -187,7 +187,7 @@ class _StubAccountRepository implements AccountRepositoryContract {
   Future<void> deleteAccount({String? password, String? googleIdToken}) async {}
 
   @override
-  Future<void> requestPasswordCode(String email) async {}
+  Future<bool> requestPasswordCode() async => true;
 
   @override
   Future<VerificationSendResult> sendEmailVerification() async =>

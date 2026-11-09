@@ -76,10 +76,10 @@ public sealed class PasswordlessAccountEndpointTests
             new ChangePasswordRequest(null, NewPassword, ResetCode: "000000"));
         Assert.Equal(HttpStatusCode.BadRequest, wrongCode.StatusCode);
 
-        using var request = await client.PostAsJsonAsync(
-            "/api/v1/auth/password-reset",
-            new RequestPasswordResetRequest(Email));
+        using var request = await client.PostAsync("/api/v1/account/password/code", null);
         request.EnsureSuccessStatusCode();
+        var sent = await request.Content.ReadFromJsonAsync<SendPasswordCodeResponseBody>();
+        Assert.True(sent!.CodeSent);
         var code = Assert.Single(mail.Sent).Code;
 
         using var set = await client.PostAsJsonAsync(

@@ -1241,10 +1241,12 @@ taşıyan `AuthField` içinden bulunur (`test/helpers/auth_flow.dart`).
 — hesap bilgisi `hasPassword: false` döner; silme Google belirteci olmadan ve
 başka Google hesabının belirteciyle reddedilir, bağlı hesabın belirteciyle
 geçer (veri silici bellek içi veritabanında sahtedir, silmenin kendisi SQL
-testlerinde); yanlış kodla parola konmaz, e-postaya giden kodla konur, bu
+testlerinde); yanlış kodla parola konmaz, `password/code` postanın gittiğini söyler ve
+e-postaya giden kodla parola konur, bu
 cihazın yeni oturumu yenilenir ve kullanıcı adı + yeni parolayla giriş
 yapılır. Uygulamada `account_page_test`: parolasız hesapta `Parola belirle`
-görünür, pencere açılınca kod istenir, kod yazılmadan istek gitmez, kod ve
+görünür, pencere açılınca kod istenir, posta gitmezse "e-posta servisi
+yapılandırılmamış" der ("gönderdik" demez), kod yazılmadan istek gitmez, kod ve
 parola gider (mevcut parola gitmez); silme parola alanı açmadan Google
 belirteciyle yapılır; Google penceresi kapatılırsa silinmez.
 

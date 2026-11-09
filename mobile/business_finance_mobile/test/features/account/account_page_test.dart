@@ -220,7 +220,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Kod pencere açılınca gider.
-    expect(repository.passwordCodeRequests, ['user@example.test']);
+    expect(repository.passwordCodeRequests, ['request']);
 
     await tester.tap(find.widgetWithText(FilledButton, 'Parolayı belirle'));
     await tester.pumpAndSettle();
@@ -236,6 +236,24 @@ void main() {
 
     expect(repository.lastResetCode, '123456');
     expect(repository.lastCurrentPassword, isNull);
+  });
+
+  testWidgets('posta gitmezse Parola belirle bunu söyler', (tester) async {
+    final repository = FakeAccountRepository()
+      ..hasPassword = false
+      ..passwordCodeSent = false;
+    await tester.pumpWidget(_app(repository));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('Parola belirle'), 200);
+    await tester.tap(find.text('Parola belirle'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Kod gönderilemedi: e-posta servisi yapılandırılmamış.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('kod gönderdik'), findsNothing);
   });
 
   testWidgets('parolasız hesap Google onayıyla silinir', (tester) async {
@@ -480,9 +498,12 @@ class FakeAccountRepository implements AccountRepositoryContract {
   String? deletedWithGoogle;
   List<String> passwordCodeRequests = [];
 
+  bool passwordCodeSent = true;
+
   @override
-  Future<void> requestPasswordCode(String email) async {
-    passwordCodeRequests.add(email);
+  Future<bool> requestPasswordCode() async {
+    passwordCodeRequests.add('request');
+    return passwordCodeSent;
   }
 
   bool emailConfirmed = true;

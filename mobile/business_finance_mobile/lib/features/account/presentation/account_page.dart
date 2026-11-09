@@ -935,7 +935,7 @@ class _SetPasswordSheetState extends State<_SetPasswordSheet> {
       description: _codeSent
           ? '$email adresine 6 haneli bir kod gönderdik. Kodu ve yeni '
                 'parolanızı yazın.'
-          : '$email adresine 6 haneli bir kod gönderiyoruz.',
+          : 'Parola, $email adresine gönderilen 6 haneli kodla belirlenir.',
       submitLabel: 'Parolayı belirle',
       onSubmit: _submit,
       children: [

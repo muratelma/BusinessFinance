@@ -1424,8 +1424,10 @@ onun kendi satırı vardır.
 `hasPassword` taşır). Büyük uygulamaların yolu izlenir:
 
 - `Güvenlik`te `Parolamı değiştir` yerine `Parola belirle` çıkar. Pencere
-  açılınca e-postaya 6 haneli kod gider (sıfırlamanın kodu); kişi kodu ve yeni
-  parolayı yazar. Sıfırlamadan farkı: bu cihaz açık kalır, öbür oturumlar
+  açılınca e-postaya 6 haneli kod gider (sıfırlamanın kodu,
+  `POST /api/v1/account/password/code`; anonim sıfırlamadan farklı olarak
+  postanın gerçekten gidip gitmediğini söyler, gitmediyse ekran "e-posta
+  servisi yapılandırılmamış" der); kişi kodu ve yeni parolayı yazar. Sıfırlamadan farkı: bu cihaz açık kalır, öbür oturumlar
   kapanır. Oturum açık diye kod sormadan parola koydurmak, telefonu ele
   geçiren birinin hesabı da ele geçirmesine izin verirdi.
 - `Hesabımı sil`in ikinci kapısı parola yerine Google'a yeniden giriştir:

@@ -196,17 +196,23 @@ class AccountController extends ChangeNotifier {
     }
   }
 
-  /// Parola belirlemek için e-postaya kod ister. Sunucu kayıtlı her adrese
-  /// aynı cevabı verir; hata yalnız bağlantı ya da oran sınırıdır.
+  /// Parola belirlemek için kendi e-postasına kod ister. Postanın gitmediği
+  /// (e-posta servisi yapılandırılmamış) durumda da false döner ve bunu
+  /// [errorMessage] söyler.
   Future<bool> requestPasswordCode() async {
-    final email = account?.email;
-    if (email == null || isSubmitting) return false;
+    if (isSubmitting) return false;
     isSubmitting = true;
     errorMessage = null;
     notifyListeners();
     try {
-      await _repository.requestPasswordCode(email);
-      return true;
+      final sent = await _repository.requestPasswordCode();
+      if (!sent) {
+        errorMessage = 'Kod gönderilemedi: e-posta servisi yapılandırılmamış.';
+      }
+      return sent;
+    } on FormatException {
+      errorMessage = 'Sunucudan beklenmeyen bir yanıt alındı.';
+      return false;
     } on ApiException catch (error) {
       errorMessage = error.message;
       return false;

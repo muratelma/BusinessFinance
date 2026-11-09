@@ -19,9 +19,10 @@ abstract interface class AccountRepositoryContract {
     String? resetCode,
   });
 
-  /// Parolası olmayan hesap için e-postaya parola kodu ister (sıfırlamanın
-  /// kodu; sunucu her adrese aynı cevabı verir).
-  Future<void> requestPasswordCode(String email);
+  /// Parolası olmayan hesap için kendi e-postasına parola kodu ister. Dönen
+  /// değer postanın gerçekten gidip gitmediğidir (e-posta servisi
+  /// yapılandırılmamışsa gitmez).
+  Future<bool> requestPasswordCode();
 
   /// Hesabı ve bütün verisini siler (ADR 0017). Geri dönüşü yoktur.
   /// Parolası olan hesap [password], Google ile açılmış hesap Google'a
@@ -81,11 +82,13 @@ class AccountRepository implements AccountRepositoryContract {
   }
 
   @override
-  Future<void> requestPasswordCode(String email) async {
-    await _apiClient.post(
-      '/api/v1/auth/password-reset',
-      body: {'email': email},
-    );
+  Future<bool> requestPasswordCode() async {
+    final response = await _apiClient.post('/api/v1/account/password/code');
+    final sent = response.requireObject()['codeSent'];
+    if (sent is! bool) {
+      throw const FormatException('codeSent alanı eksik.');
+    }
+    return sent;
   }
 
   @override

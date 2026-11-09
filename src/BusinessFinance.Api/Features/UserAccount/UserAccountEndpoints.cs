@@ -18,6 +18,8 @@ public sealed record UserSessionResponse(
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset ExpiresAtUtc);
 
+public sealed record SendPasswordCodeResponseBody(bool CodeSent);
+
 public sealed record UserSessionListResponse(IReadOnlyList<UserSessionResponse> Items);
 
 // Parolası olmayan (Google ile açılmış) hesap mevcut parola yerine
@@ -85,6 +87,17 @@ public static class UserAccountEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
+        // "Parola belirle": parolası olmayan (Google ile açılmış) hesap için kod.
+        group.MapPost("/password/code", SendPasswordCodeAsync)
+            .WithName("SendPasswordCode")
+            .WithSummary("Emails a code that sets a password on an account without one")
+            .WithDescription("Says whether the email actually went out.")
+            .RequireRateLimiting(RateLimitingExtensions.AuthenticationPolicy)
+            .Produces<SendPasswordCodeResponseBody>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
+
         group.MapDelete("", DeleteAsync)
             .WithName("DeleteUserAccount")
             .WithSummary("Deletes the account and every record it owns")
@@ -113,6 +126,17 @@ public static class UserAccountEndpoints
                 result.Value.CreatedAtUtc,
                 result.Value.ActiveSessionCount,
                 result.Value.HasPassword))
+            : result.Error.ToProblemResult(httpContext);
+    }
+
+    private static async Task<IResult> SendPasswordCodeAsync(
+        SendPasswordCodeUseCase useCase,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var result = await useCase.ExecuteAsync(cancellationToken);
+        return result.IsSuccess
+            ? Results.Ok(new SendPasswordCodeResponseBody(result.Value.CodeSent))
             : result.Error.ToProblemResult(httpContext);
     }
 
