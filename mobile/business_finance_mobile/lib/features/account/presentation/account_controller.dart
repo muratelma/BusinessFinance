@@ -104,9 +104,13 @@ class AccountController extends ChangeNotifier {
   /// Parolayı değiştirir ve dönen taze token çiftini **hemen** benimser:
   /// sunucu bütün oturumları kapattığı için elimizdeki refresh token artık
   /// ölüdür ve benimsenmezse kullanıcı bir sonraki istekte düşerdi.
+  ///
+  /// Parolası olmayan hesap [currentPassword] yerine e-postasına gelen
+  /// [resetCode]'u gönderir (parola belirleme).
   Future<bool> changePassword({
-    required String currentPassword,
+    String? currentPassword,
     required String newPassword,
+    String? resetCode,
   }) async {
     if (isSubmitting) return false;
     isSubmitting = true;
@@ -116,6 +120,7 @@ class AccountController extends ChangeNotifier {
       final rotated = await _repository.changePassword(
         currentPassword: currentPassword,
         newPassword: newPassword,
+        resetCode: resetCode,
       );
       await _authRepository.adoptRotatedTokens(
         sessionId: rotated.sessionId,
@@ -178,6 +183,7 @@ class AccountController extends ChangeNotifier {
           emailConfirmed: true,
           createdAtUtc: current.createdAtUtc,
           activeSessionCount: current.activeSessionCount,
+          hasPassword: current.hasPassword,
         );
       }
       return true;
@@ -190,13 +196,36 @@ class AccountController extends ChangeNotifier {
     }
   }
 
-  Future<bool> deleteAccount({required String password}) async {
+  /// Parola belirlemek için e-postaya kod ister. Sunucu kayıtlı her adrese
+  /// aynı cevabı verir; hata yalnız bağlantı ya da oran sınırıdır.
+  Future<bool> requestPasswordCode() async {
+    final email = account?.email;
+    if (email == null || isSubmitting) return false;
+    isSubmitting = true;
+    errorMessage = null;
+    notifyListeners();
+    try {
+      await _repository.requestPasswordCode(email);
+      return true;
+    } on ApiException catch (error) {
+      errorMessage = error.message;
+      return false;
+    } finally {
+      isSubmitting = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> deleteAccount({String? password, String? googleIdToken}) async {
     if (isSubmitting) return false;
     isSubmitting = true;
     errorMessage = null;
     notifyListeners();
     try {
-      await _repository.deleteAccount(password: password);
+      await _repository.deleteAccount(
+        password: password,
+        googleIdToken: googleIdToken,
+      );
       return true;
     } on ApiException catch (error) {
       errorMessage = error.message;

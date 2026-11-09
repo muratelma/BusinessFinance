@@ -417,7 +417,7 @@ void main() {
 
       expect(find.text('Bir adım kaldı'), findsOneWidget);
       expect(
-        find.text('Google hesabınızla hesabınız açılıyor.'),
+        find.text('Google hesabınızla kayıt oluyorsunuz.'),
         findsOneWidget,
       );
       expect(find.text('ali2'), findsOneWidget);

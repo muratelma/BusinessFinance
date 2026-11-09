@@ -162,7 +162,8 @@ public sealed class IdentityAccountService : IIdentityAccountService
                 user.Id,
                 user.Email,
                 user.EmailConfirmed,
-                user.CreatedAtUtc)
+                user.CreatedAtUtc,
+                user.PasswordHash is not null)
             : null;
     }
 

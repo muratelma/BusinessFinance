@@ -560,7 +560,7 @@ class _BusinessStepPanelState extends State<BusinessStepPanel> {
           AuthSubtitle(
             provider == null
                 ? 'Son bir soru.'
-                : '${provider.label} hesabınızla hesabınız açılıyor.',
+                : '${provider.label} hesabınızla kayıt oluyorsunuz.',
           ),
           if (provider != null)
             AuthField(

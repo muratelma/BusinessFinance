@@ -178,12 +178,16 @@ class _StubAccountRepository implements AccountRepositoryContract {
 
   @override
   Future<RotatedTokens> changePassword({
-    required String currentPassword,
+    String? currentPassword,
     required String newPassword,
+    String? resetCode,
   }) async => throw UnimplementedError();
 
   @override
-  Future<void> deleteAccount({required String password}) async {}
+  Future<void> deleteAccount({String? password, String? googleIdToken}) async {}
+
+  @override
+  Future<void> requestPasswordCode(String email) async {}
 
   @override
   Future<VerificationSendResult> sendEmailVerification() async =>

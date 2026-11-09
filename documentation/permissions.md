@@ -27,8 +27,8 @@ kullanıcının kaydına erişen ayrıcalıklı rol yoktur.
 | Hesap/kategori CRUD | 401 | İzinli | 404 veya listeden dışlanır |
 | Kendi hesabını okuma (`GET /api/v1/account`) | 401 | Yalnız kendi e-postası ve açık oturum sayısı | Başkasının hesabına yol yok |
 | Oturum listeleme / tek oturum kapatma | 401 | Yalnız kendi oturumları; satır token veya hash taşımaz | Başkasının oturumu 404 ve açık kalır |
-| Parola değiştirme | 401 | Mevcut parola doğrulanır; bütün oturumlar kapanır, çağıran cihaza taze çift döner | Başka kullanıcının parolasına yol yok |
-| Hesap silme (`DELETE /api/v1/account`) | 401 | Parola + açık onay; yalnız kendi verisi (ADR 0017) | Başka kullanıcının verisine dokunan yol yok |
+| Parola değiştirme | 401 | Mevcut parola doğrulanır; parolası olmayan (Google ile açılmış) hesapta mevcut parolanın yerine kendi e-postasına giden sıfırlama kodu (`resetCode`); bütün oturumlar kapanır, çağıran cihaza taze çift döner | Başka kullanıcının parolasına yol yok; kod yalnız oturumdaki kullanıcının kodudur |
+| Hesap silme (`DELETE /api/v1/account`) | 401 | Parola + açık onay; parolası olmayan hesapta parola yerine Google'a yeniden girişin belirteci (`googleIdToken`), belirteç bu hesaba bağlı Google hesabının olmalı (`account.reauthentication_failed`); yalnız kendi verisi (ADR 0017) | Başka kullanıcının verisine dokunan yol yok; başka Google hesabıyla onay verilemez |
 | E-posta doğrulama kodu isteme/onaylama | 401 | Yalnız kendi adresine; kod hash'lenir ve cevapta dönmez | Başka adresi doğrulatan yol yok |
 | Parola sıfırlama isteme (`POST /api/v1/auth/password-reset`) | **İzinli, kimlik istemez** | Aynı cevap | Bilinmeyen ve bilinen adres aynı `202`'ye döner |
 | Parola sıfırlamayı tamamlama | **İzinli, kimlik istemez** | Kod + yeni parola; bütün oturumlar kapanır | Bilinmeyen adres, yanlış/süresi geçmiş kod aynı `authentication.invalid_reset_code` |

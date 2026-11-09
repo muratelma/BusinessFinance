@@ -9,6 +9,7 @@ class UserAccount {
     required this.emailConfirmed,
     required this.createdAtUtc,
     required this.activeSessionCount,
+    this.hasPassword = true,
   });
 
   final String userId;
@@ -17,12 +18,20 @@ class UserAccount {
   final DateTime createdAtUtc;
   final int activeSessionCount;
 
+  /// Google ile açılan hesabın parolası yoktur: Hesabım parola değiştirme
+  /// yerine "Parola belirle", silmede parola yerine Google onayı sorar. Eski
+  /// sunucu alanı göndermezse parola var sayılır (bugünkü davranış).
+  final bool hasPassword;
+
   factory UserAccount.fromJson(Map<String, dynamic> json) => UserAccount(
     userId: JsonReaders.string(json, 'userId'),
     email: JsonReaders.string(json, 'email'),
     emailConfirmed: JsonReaders.boolean(json, 'emailConfirmed'),
     createdAtUtc: _utc(json, 'createdAtUtc'),
     activeSessionCount: JsonReaders.integer(json, 'activeSessionCount'),
+    hasPassword: json['hasPassword'] is bool
+        ? json['hasPassword'] as bool
+        : true,
   );
 }
 

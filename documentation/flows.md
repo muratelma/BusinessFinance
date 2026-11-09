@@ -1405,7 +1405,7 @@ Sayfanın sırası tehlikeye göredir:
 | 1 | Kimlik | Baş harfler, e-posta, açılış tarihi; doğrulanmamışsa uyarı ve `Adresimi doğrula` aynı kartta |
 | 2 | Tercihler | `İşletmem var`; alt metin duruma göre değişir, kategorilere dokunmaz |
 | 3 | Açık oturumlar · N | Bu cihaz en üstte; göreli açılış (`7 gün önce açıldı`) ve `18 Ekim'e kadar geçerli`; `Diğerlerini kapat` |
-| 4 | Güvenlik | Parola değiştirme |
+| 4 | Güvenlik | Parola değiştirme; Google ile açılmış (parolasız) hesapta `Parola belirle` |
 | — | Çıkış yap | Kendi tam genişlik kenarlı düğmesi |
 | 5 | Hesabı kapat | Önce `Veri ve yedek` kapısı, sonra kırmızı `Hesabımı sil` |
 
@@ -1419,6 +1419,19 @@ ve konum yoktur çünkü sunucu bunları hiç saklamıyor; uydurulmuş bir
 "Windows, İstanbul" satırı denetlenemeyen bir güven vaadi olurdu. Bu cihazın
 satırında kapatma düğmesi yoktur — kendi oturumunu kapatmak "çıkış yap"tır ve
 onun kendi satırı vardır.
+
+**Google ile açılmış hesabın parolası yoktur** (9 Kasım 2026; hesap bilgisi
+`hasPassword` taşır). Büyük uygulamaların yolu izlenir:
+
+- `Güvenlik`te `Parolamı değiştir` yerine `Parola belirle` çıkar. Pencere
+  açılınca e-postaya 6 haneli kod gider (sıfırlamanın kodu); kişi kodu ve yeni
+  parolayı yazar. Sıfırlamadan farkı: bu cihaz açık kalır, öbür oturumlar
+  kapanır. Oturum açık diye kod sormadan parola koydurmak, telefonu ele
+  geçiren birinin hesabı da ele geçirmesine izin verirdi.
+- `Hesabımı sil`in ikinci kapısı parola yerine Google'a yeniden giriştir:
+  onaydan sonra Google'ın hesap seçme penceresi açılır; sunucu belirtecin bu
+  hesaba bağlı Google hesabına ait olduğunu denetler (başka Google hesabıyla
+  `account.reauthentication_failed`). Pencere kapatılırsa hiçbir şey olmaz.
 
 **Parola değişimi kullanıcıyı uygulamadan atmaz.** Sunucu bütün oturumları
 kapatır ve cevapla birlikte bu cihaza taze bir token çifti verir; istemci onu

@@ -10,7 +10,8 @@ public sealed record UserAccountResponse(
     string Email,
     bool EmailConfirmed,
     DateTimeOffset CreatedAtUtc,
-    int ActiveSessionCount);
+    int ActiveSessionCount,
+    bool HasPassword);
 
 public sealed record UserSessionResponse(
     Guid SessionId,
@@ -19,7 +20,12 @@ public sealed record UserSessionResponse(
 
 public sealed record UserSessionListResponse(IReadOnlyList<UserSessionResponse> Items);
 
-public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+// Parolası olmayan (Google ile açılmış) hesap mevcut parola yerine
+// e-postasına giden sıfırlama kodunu (resetCode) gönderir.
+public sealed record ChangePasswordRequest(
+    string? CurrentPassword,
+    string NewPassword,
+    string? ResetCode = null);
 
 public sealed record ChangePasswordApiResponse(
     Guid SessionId,
@@ -28,7 +34,12 @@ public sealed record ChangePasswordApiResponse(
     string RefreshToken,
     DateTimeOffset RefreshTokenExpiresAtUtc);
 
-public sealed record DeleteUserAccountRequest(string Password, bool Confirmed = false);
+// Parolası olmayan hesap parola yerine Google'a yeniden girişin belirtecini
+// (googleIdToken) gönderir.
+public sealed record DeleteUserAccountRequest(
+    string? Password,
+    bool Confirmed = false,
+    string? GoogleIdToken = null);
 
 public static class UserAccountEndpoints
 {
@@ -100,7 +111,8 @@ public static class UserAccountEndpoints
                 result.Value.Email,
                 result.Value.EmailConfirmed,
                 result.Value.CreatedAtUtc,
-                result.Value.ActiveSessionCount))
+                result.Value.ActiveSessionCount,
+                result.Value.HasPassword))
             : result.Error.ToProblemResult(httpContext);
     }
 
@@ -142,7 +154,7 @@ public static class UserAccountEndpoints
         CancellationToken cancellationToken)
     {
         var result = await useCase.ExecuteAsync(
-            new ChangePasswordCommand(request.CurrentPassword, request.NewPassword),
+            new ChangePasswordCommand(request.CurrentPassword, request.NewPassword, request.ResetCode),
             cancellationToken);
 
         return result.IsSuccess
@@ -162,7 +174,7 @@ public static class UserAccountEndpoints
         CancellationToken cancellationToken)
     {
         var result = await useCase.ExecuteAsync(
-            new DeleteUserAccountCommand(request.Password, request.Confirmed),
+            new DeleteUserAccountCommand(request.Password, request.Confirmed, request.GoogleIdToken),
             cancellationToken);
 
         return result.IsSuccess

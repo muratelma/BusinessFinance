@@ -11,7 +11,8 @@ public sealed record UserAccountDto(
     string Email,
     bool EmailConfirmed,
     DateTimeOffset CreatedAtUtc,
-    int ActiveSessionCount);
+    int ActiveSessionCount,
+    bool HasPassword = true);
 
 /// <summary>
 /// Açık bir oturum satırı. Token veya hash göstermez; oturumun ne zaman
@@ -22,7 +23,14 @@ public sealed record UserSessionDto(
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset ExpiresAtUtc);
 
-public sealed record ChangePasswordCommand(string CurrentPassword, string NewPassword);
+/// <param name="ResetCode">
+/// Parolası olmayan (Google ile açılmış) hesapta mevcut parolanın yerine
+/// geçer: e-postaya giden sıfırlama kodu. Parolası olan hesapta okunmaz.
+/// </param>
+public sealed record ChangePasswordCommand(
+    string? CurrentPassword,
+    string NewPassword,
+    string? ResetCode = null);
 
 /// <summary>
 /// Parola değişince kullanıcının bütün oturumları kapanır; isteği yapan cihaz
@@ -43,7 +51,14 @@ public sealed record RevokeUserSessionResponse();
 /// Hesap silme isteği. İki kapı birden ister: kullanıcı parolasını yeniden
 /// yazar (yeniden kimlik doğrulama) ve isteği açıkça onaylar.
 /// </summary>
-public sealed record DeleteUserAccountCommand(string Password, bool Confirmed);
+/// <param name="GoogleIdToken">
+/// Parolası olmayan hesapta parolanın yerine geçen yeniden giriş: Google
+/// belirteci bu hesaba bağlı Google hesabının olmalıdır.
+/// </param>
+public sealed record DeleteUserAccountCommand(
+    string? Password,
+    bool Confirmed,
+    string? GoogleIdToken = null);
 
 public sealed record DeleteUserAccountResponse();
 
@@ -80,6 +95,11 @@ public static class UserAccountErrors
         "account.session_not_found",
         "The session was not found.",
         ApplicationErrorType.NotFound);
+
+    public static readonly ApplicationError ReauthenticationFailed = new(
+        "account.reauthentication_failed",
+        "The Google account could not confirm this account.",
+        ApplicationErrorType.Unauthorized);
 
     public static readonly ApplicationError DeleteNotConfirmed = new(
         "account.delete_not_confirmed",

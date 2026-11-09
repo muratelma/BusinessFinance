@@ -1237,6 +1237,17 @@ taşıyan `AuthField` içinden bulunur (`test/helpers/auth_flow.dart`).
 | Panelden ayrılınca | Hata yazıları ve sunucunun uyarısı temizleniyor, yazılan e-posta kalıyor |
 | Hata zamanlaması | Hata yazarken başka hataya dönmüyor, düzelince kalkıyor; boş alandan geçmek hata yazdırmıyor, dolu alandan çıkınca denetleniyor; gönderim reddedilince imleç ilk hatalı alanda |
 
+**Parolasız hesapta Hesabım** (9 Kasım 2026): `PasswordlessAccountEndpointTests`
+— hesap bilgisi `hasPassword: false` döner; silme Google belirteci olmadan ve
+başka Google hesabının belirteciyle reddedilir, bağlı hesabın belirteciyle
+geçer (veri silici bellek içi veritabanında sahtedir, silmenin kendisi SQL
+testlerinde); yanlış kodla parola konmaz, e-postaya giden kodla konur, bu
+cihazın yeni oturumu yenilenir ve kullanıcı adı + yeni parolayla giriş
+yapılır. Uygulamada `account_page_test`: parolasız hesapta `Parola belirle`
+görünür, pencere açılınca kod istenir, kod yazılmadan istek gitmez, kod ve
+parola gider (mevcut parola gitmez); silme parola alanı açmadan Google
+belirteciyle yapılır; Google penceresi kapatılırsa silinmez.
+
 **Google ile giriş, sunucu** (9 Kasım 2026): `GoogleSignInEndpointTests`
 (sahte belirteç doğrulayıcıyla, uçtan uca): ilk giriş hiçbir şey yazmaz ve
 alınmış adın yerine sayılı öneri döner (`ali` → `ali2`); `Devam et` parolasız

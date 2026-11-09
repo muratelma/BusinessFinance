@@ -82,8 +82,13 @@ public interface IIdentityAccountService
     Task DeleteAsync(Guid userId, CancellationToken cancellationToken);
 }
 
+/// <param name="HasPassword">
+/// Google ile açılan hesabın parolası yoktur; Hesabım ona parola değiştirme
+/// yerine "Parola belirle", silmede parola yerine Google onayı sorar.
+/// </param>
 public sealed record UserAccountProfile(
     Guid UserId,
     string Email,
     bool EmailConfirmed,
-    DateTimeOffset CreatedAtUtc);
+    DateTimeOffset CreatedAtUtc,
+    bool HasPassword = true);

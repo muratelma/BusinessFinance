@@ -7,6 +7,10 @@ import 'package:business_finance_mobile/features/account/data/account_models.dar
 import 'package:business_finance_mobile/features/account/data/account_repository.dart';
 import 'package:business_finance_mobile/features/account/presentation/account_page.dart';
 
+import 'package:business_finance_mobile/features/auth/data/google_id_token_source.dart';
+import 'package:business_finance_mobile/features/auth/presentation/auth_controller.dart';
+import 'package:provider/provider.dart';
+
 import '../../helpers/fake_auth.dart';
 
 import '../../helpers/accessibility.dart';
@@ -203,6 +207,88 @@ void main() {
     expect(repository.deletedWithPassword, 'Valid-Password-123!');
   });
 
+  testWidgets('parolasız hesapta Parola belirle kodla parola koyar', (
+    tester,
+  ) async {
+    final repository = FakeAccountRepository()..hasPassword = false;
+    await tester.pumpWidget(_app(repository));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Parolamı değiştir'), findsNothing);
+    await tester.scrollUntilVisible(find.text('Parola belirle'), 200);
+    await tester.tap(find.text('Parola belirle'));
+    await tester.pumpAndSettle();
+
+    // Kod pencere açılınca gider.
+    expect(repository.passwordCodeRequests, ['user@example.test']);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Parolayı belirle'));
+    await tester.pumpAndSettle();
+    expect(repository.passwordChangeCount, 0, reason: 'Kod yazılmadı.');
+
+    await tester.enterText(find.widgetWithText(TextField, 'Kod'), '123456');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Yeni parola'),
+      'Valid-Password-123!',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Parolayı belirle'));
+    await tester.pumpAndSettle();
+
+    expect(repository.lastResetCode, '123456');
+    expect(repository.lastCurrentPassword, isNull);
+  });
+
+  testWidgets('parolasız hesap Google onayıyla silinir', (tester) async {
+    final repository = FakeAccountRepository()..hasPassword = false;
+    final auth = FakeAuthSessionRepository()..session = testSession();
+    final google = _FakeGoogle('google-token');
+    final controller = AuthController(auth, google);
+    await tester.pumpWidget(
+      ChangeNotifierProvider<AuthController?>.value(
+        value: controller,
+        child: _app(repository, authRepository: auth),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('Hesabımı sil'), 200);
+    await tester.ensureVisible(find.text('Hesabımı sil'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Hesabımı sil'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Google hesabınızı seçerek'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Devam et'));
+    await tester.pumpAndSettle();
+
+    // Parola alanı açılmaz; onay Google'dan gelir.
+    expect(find.widgetWithText(TextField, 'Parolanız'), findsNothing);
+    expect(repository.deletedWithGoogle, 'google-token');
+    expect(repository.deletedWithPassword, isNull);
+  });
+
+  testWidgets('Google penceresi kapatılırsa hesap silinmez', (tester) async {
+    final repository = FakeAccountRepository()..hasPassword = false;
+    final auth = FakeAuthSessionRepository()..session = testSession();
+    final controller = AuthController(auth, _FakeGoogle(null));
+    await tester.pumpWidget(
+      ChangeNotifierProvider<AuthController?>.value(
+        value: controller,
+        child: _app(repository, authRepository: auth),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('Hesabımı sil'), 200);
+    await tester.ensureVisible(find.text('Hesabımı sil'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Hesabımı sil'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Devam et'));
+    await tester.pumpAndSettle();
+
+    expect(repository.deletedWithGoogle, isNull);
+  });
+
   testWidgets('doğrulanmış adreste uyarı çıkmaz', (tester) async {
     await tester.pumpWidget(_app(FakeAccountRepository()));
     await tester.pumpAndSettle();
@@ -337,7 +423,12 @@ class FakeAccountRepository implements AccountRepositoryContract {
     emailConfirmed: emailConfirmed,
     createdAtUtc: DateTime.utc(2026, 8, 1, 9),
     activeSessionCount: 2,
+    hasPassword: hasPassword,
   );
+
+  bool hasPassword = true;
+  String? lastCurrentPassword;
+  String? lastResetCode;
 
   @override
   Future<List<UserSessionSummary>> listSessions() async => [
@@ -361,12 +452,15 @@ class FakeAccountRepository implements AccountRepositoryContract {
 
   @override
   Future<RotatedTokens> changePassword({
-    required String currentPassword,
+    String? currentPassword,
     required String newPassword,
+    String? resetCode,
   }) async {
     if (passwordError case final error?) {
       throw error;
     }
+    lastCurrentPassword = currentPassword;
+    lastResetCode = resetCode;
     passwordChangeCount++;
     return RotatedTokens(
       sessionId: 'session-rotated',
@@ -378,8 +472,17 @@ class FakeAccountRepository implements AccountRepositoryContract {
   }
 
   @override
-  Future<void> deleteAccount({required String password}) async {
+  Future<void> deleteAccount({String? password, String? googleIdToken}) async {
     deletedWithPassword = password;
+    deletedWithGoogle = googleIdToken;
+  }
+
+  String? deletedWithGoogle;
+  List<String> passwordCodeRequests = [];
+
+  @override
+  Future<void> requestPasswordCode(String email) async {
+    passwordCodeRequests.add(email);
   }
 
   bool emailConfirmed = true;
@@ -404,4 +507,16 @@ class FakeAccountRepository implements AccountRepositoryContract {
     confirmedWithCode = code;
     emailConfirmed = true;
   }
+}
+
+class _FakeGoogle implements GoogleIdTokenSource {
+  _FakeGoogle(this.token);
+
+  final String? token;
+
+  @override
+  Future<String?> obtainIdToken() async => token;
+
+  @override
+  Future<void> signOut() async {}
 }

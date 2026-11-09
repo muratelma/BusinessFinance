@@ -20,6 +20,7 @@ import '../../../core/widgets/app_row.dart';
 import '../../../core/widgets/app_section_header.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
+import '../../auth/data/auth_models.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../auth/presentation/auth_validation.dart';
@@ -163,16 +164,28 @@ class _AccountPageState extends State<AccountPage> {
         const SizedBox(height: AppSpacing.small),
         AppCard(
           padding: EdgeInsets.zero,
-          child: AppRow(
-            padding: _rowPadding,
-            leading: const AppIconCapsule(icon: Icons.password_outlined),
-            title: 'Parolamı değiştir',
-            subtitle:
-                'Diğer cihazlardaki oturumlar kapanır; bu cihazda açık '
-                'kalırsınız.',
-            trailing: const _Chevron(),
-            onTap: _openPasswordSheet,
-          ),
+          child: (controller.account?.hasPassword ?? true)
+              ? AppRow(
+                  padding: _rowPadding,
+                  leading: const AppIconCapsule(icon: Icons.password_outlined),
+                  title: 'Parolamı değiştir',
+                  subtitle:
+                      'Diğer cihazlardaki oturumlar kapanır; bu cihazda açık '
+                      'kalırsınız.',
+                  trailing: const _Chevron(),
+                  onTap: _openPasswordSheet,
+                )
+              // Google ile açılan hesabın parolası yoktur (9 Kasım 2026).
+              : AppRow(
+                  padding: _rowPadding,
+                  leading: const AppIconCapsule(icon: Icons.password_outlined),
+                  title: 'Parola belirle',
+                  subtitle:
+                      'Google ile giriyorsunuz. Parolayla da girebilmek '
+                      'için belirleyin.',
+                  trailing: const _Chevron(),
+                  onTap: _openSetPasswordSheet,
+                ),
         ),
         const SizedBox(height: AppSpacing.large),
         OutlinedButton.icon(
@@ -287,21 +300,47 @@ class _AccountPageState extends State<AccountPage> {
     }
   }
 
+  Future<void> _openSetPasswordSheet() async {
+    final set = await AppFormSheet.show<bool>(
+      context: context,
+      builder: (_) => _SetPasswordSheet(controller: controller),
+    );
+    if (set == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Parolanız belirlendi. Diğer cihazlardaki oturumlar kapatıldı.',
+          ),
+        ),
+      );
+      await controller.load();
+    }
+  }
+
   Future<void> _openDeleteSheet() async {
+    final hasPassword = controller.account?.hasPassword ?? true;
     // İlk kapı: ne olacağını söyleyen açık onay. Yedek adımı artık aynı
     // kartın bir üst satırında duruyor.
     final confirmed = await AppConfirmDialog.show(
       context: context,
       icon: Icons.delete_forever_outlined,
       title: 'Hesabınız silinsin mi?',
-      message:
-          'Hesabınız ve bütün kayıtlarınız kalıcı olarak silinir; geri '
-          'getirilemez. Sonraki adımda parolanız sorulur.',
+      message: hasPassword
+          ? 'Hesabınız ve bütün kayıtlarınız kalıcı olarak silinir; geri '
+                'getirilemez. Sonraki adımda parolanız sorulur.'
+          : 'Hesabınız ve bütün kayıtlarınız kalıcı olarak silinir; geri '
+                'getirilemez. Sonraki adımda Google hesabınızı seçerek '
+                'onaylarsınız.',
       highlight: controller.account?.email,
       confirmLabel: 'Devam et',
       destructive: true,
     );
     if (!confirmed || !mounted) return;
+
+    if (!hasPassword) {
+      await _deleteWithGoogle();
+      return;
+    }
 
     // İkinci kapı: parolanın yeniden yazılması.
     final deleted = await AppFormSheet.show<bool>(
@@ -313,6 +352,33 @@ class _AccountPageState extends State<AccountPage> {
       // giriş ekranına götüren ve cihazdaki oturum bilgisini silen adımdır.
       await context.read<AuthController?>()?.logout();
     }
+  }
+}
+
+extension on _AccountPageState {
+  /// Parolası olmayan hesapta ikinci kapı Google'a yeniden giriştir; sunucu
+  /// belirtecin bu hesaba bağlı Google hesabına ait olduğunu denetler.
+  /// Kişi Google penceresini kapatırsa hiçbir şey olmaz.
+  Future<void> _deleteWithGoogle() async {
+    final auth = context.read<AuthController?>();
+    final messenger = ScaffoldMessenger.of(context);
+    final String? token;
+    try {
+      token = await auth?.obtainGoogleIdToken();
+    } on GoogleSignInUnavailable catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+      return;
+    }
+    if (token == null || !mounted) return;
+    final deleted = await controller.deleteAccount(googleIdToken: token);
+    if (!mounted) return;
+    if (!deleted) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(controller.errorMessage ?? 'Hesap silinemedi.')),
+      );
+      return;
+    }
+    await auth?.logout();
   }
 }
 
@@ -809,6 +875,128 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
       setState(
         () => _validationMessage =
             widget.controller.errorMessage ?? 'Parola değiştirilemedi.',
+      );
+      return null;
+    }
+    return true;
+  }
+}
+
+/// Google ile açılmış hesaba parola koyar. Kod e-postaya, pencere açılınca
+/// gider: oturum açık diye kod sormadan parola koydurmak, telefonu ele geçiren
+/// birinin hesabı da ele geçirmesine izin verirdi.
+class _SetPasswordSheet extends StatefulWidget {
+  const _SetPasswordSheet({required this.controller});
+
+  final AccountController controller;
+
+  @override
+  State<_SetPasswordSheet> createState() => _SetPasswordSheetState();
+}
+
+class _SetPasswordSheetState extends State<_SetPasswordSheet> {
+  final _code = TextEditingController();
+  final _newPassword = TextEditingController();
+  String? _validationMessage;
+  bool _codeSent = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // İstek sayfayı yeniden çizdirir; pencere çizilirken başlatılamaz.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _sendCode();
+    });
+  }
+
+  @override
+  void dispose() {
+    _code.dispose();
+    _newPassword.dispose();
+    super.dispose();
+  }
+
+  Future<void> _sendCode() async {
+    final sent = await widget.controller.requestPasswordCode();
+    if (!mounted) return;
+    setState(() {
+      _codeSent = sent;
+      _validationMessage = sent
+          ? null
+          : widget.controller.errorMessage ?? 'Kod gönderilemedi.';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final email = widget.controller.account?.email ?? '';
+    return AppFormSheet<bool>(
+      title: 'Parola belirle',
+      description: _codeSent
+          ? '$email adresine 6 haneli bir kod gönderdik. Kodu ve yeni '
+                'parolanızı yazın.'
+          : '$email adresine 6 haneli bir kod gönderiyoruz.',
+      submitLabel: 'Parolayı belirle',
+      onSubmit: _submit,
+      children: [
+        TextField(
+          controller: _code,
+          keyboardType: TextInputType.number,
+          autofillHints: const [AutofillHints.oneTimeCode],
+          maxLength: 6,
+          decoration: const InputDecoration(labelText: 'Kod', counterText: ''),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: widget.controller.isSubmitting ? null : _sendCode,
+            child: const Text('Kodu yeniden gönder'),
+          ),
+        ),
+        TextField(
+          controller: _newPassword,
+          obscureText: true,
+          autofillHints: const [AutofillHints.newPassword],
+          decoration: const InputDecoration(
+            labelText: 'Yeni parola',
+            helperText:
+                'En az 12 karakter; büyük, küçük, rakam ve simge içermeli.',
+            helperMaxLines: 2,
+          ),
+        ),
+        if (_validationMessage != null) ...[
+          const SizedBox(height: AppSpacing.small),
+          Text(
+            _validationMessage!,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<bool?> _submit() async {
+    if (_code.text.trim().length != 6) {
+      setState(
+        () => _validationMessage = 'E-postanıza gelen 6 haneli kodu yazın.',
+      );
+      return null;
+    }
+    final policyMessage = AuthValidation.registrationPassword(
+      _newPassword.text,
+    );
+    if (policyMessage != null) {
+      setState(() => _validationMessage = policyMessage);
+      return null;
+    }
+    final done = await widget.controller.changePassword(
+      newPassword: _newPassword.text,
+      resetCode: _code.text.trim(),
+    );
+    if (!done) {
+      setState(
+        () => _validationMessage =
+            widget.controller.errorMessage ?? 'Parola belirlenemedi.',
       );
       return null;
     }

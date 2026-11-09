@@ -221,6 +221,12 @@ abstract final class ApiErrorMessages {
     'authentication.registration_conflict':
         'Bu e-posta adresiyle daha önce kayıt oluşturulmuş.',
     'authentication.username_taken': 'Bu kullanıcı adı alınmış.',
+    'authentication.google_invalid_token':
+        'Google ile giriş doğrulanamadı. Yeniden deneyin.',
+    'authentication.google_email_unverified':
+        'Bu e-postayla bir hesap var. E-posta ve parolanızla giriş yapın.',
+    'account.reauthentication_failed':
+        'Onayı bu hesaba bağlı Google hesabıyla vermelisiniz.',
     'authentication.invalid_username':
         'Kullanıcı adı kurallara uymuyor; yalnız a–z, rakam, nokta, alt çizgi '
         've tire kullanın.',

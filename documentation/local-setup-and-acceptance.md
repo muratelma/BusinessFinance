@@ -312,6 +312,10 @@ docker compose stop sqlserver
   `qemu-system-x86_64-headless.exe`'yi kullanır; o da aynı tercihe alındı ve
   AVD'nin `config.ini`'sinde `hw.gpu.mode=auto` → `host` yapıldı (yedeği
   `config.ini.bak-2026-11-09`). Böylece Studio'dan açılışta da NVIDIA kullanılır.
+- **Emülatör açıkken kulaklıkta cızırtı:** emülatör ses aygıtında açık bir
+  akış tutar; gürültü engelleyen kulaklık bunu duyurur. Uygulamanın sesi
+  yoktur: AVD'de `hw.audioInput=no` ve `hw.audioOutput=no` (9 Kasım 2026);
+  komut satırında `-no-audio`.
 - Login ekranında eski oturum: APK'yı uninstall/install edin; SQL verisinin
   kalacağını unutmayın ve benzersiz sentetik kullanıcı kullanın.
 
