@@ -36,6 +36,44 @@ class FakeAuthSessionRepository implements AuthSessionRepository {
     return session = loginSession;
   }
 
+  /// Google belirteci → sunucunun cevabı. Bilinmeyen belirteç
+  /// `authentication.google_invalid_token` ile reddedilir.
+  Map<String, GoogleSignInOutcome> googleOutcomes = {};
+
+  /// `Devam et`'te gönderilen kullanıcı adları ve işletme cevapları.
+  List<({String idToken, String? username, bool hasBusiness})> googleRequests =
+      [];
+
+  /// Doluysa `Devam et` (kullanıcı adı taşıyan istek) bununla reddedilir.
+  ApiException? googleSignupError;
+
+  @override
+  Future<GoogleSignInOutcome> googleSignIn(
+    String idToken, {
+    String? username,
+    bool hasBusiness = false,
+  }) async {
+    googleRequests.add((
+      idToken: idToken,
+      username: username,
+      hasBusiness: hasBusiness,
+    ));
+    if (username != null) {
+      if (googleSignupError case final error?) throw error;
+      return GoogleSignedIn(session = loginSession);
+    }
+    final outcome = googleOutcomes[idToken];
+    if (outcome == null) {
+      throw const ApiException(
+        code: 'authentication.google_invalid_token',
+        message: 'Google ile giriş doğrulanamadı.',
+        statusCode: 401,
+      );
+    }
+    if (outcome is GoogleSignedIn) session = outcome.session;
+    return outcome;
+  }
+
   @override
   Future<void> logout() async {
     session = null;

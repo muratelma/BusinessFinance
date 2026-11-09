@@ -65,6 +65,61 @@ class AuthSession {
   );
 }
 
+/// Google ile girişin sonucu: ya oturum açıldı ya da hesap henüz yok ve
+/// "Bir adım kaldı"da kullanıcı adı sorulacak (hesap orada açılır).
+sealed class GoogleSignInOutcome {
+  const GoogleSignInOutcome();
+
+  factory GoogleSignInOutcome.fromJson(Map<String, dynamic> json) {
+    switch (json['status']) {
+      case 'signed-in':
+        final session = json['session'];
+        if (session is! Map<String, dynamic>) {
+          throw const FormatException('Missing or invalid session.');
+        }
+        return GoogleSignedIn(AuthSession.fromJson(session));
+      case 'signup-required':
+        final signup = json['signup'];
+        if (signup is! Map<String, dynamic>) {
+          throw const FormatException('Missing or invalid signup.');
+        }
+        return GoogleSignupRequired(
+          email: _requiredString(signup, 'email'),
+          suggestedUsername: _optionalString(signup, 'suggestedUsername'),
+        );
+      default:
+        throw const FormatException('Missing or invalid status.');
+    }
+  }
+}
+
+class GoogleSignedIn extends GoogleSignInOutcome {
+  const GoogleSignedIn(this.session);
+
+  final AuthSession session;
+}
+
+class GoogleSignupRequired extends GoogleSignInOutcome {
+  const GoogleSignupRequired({required this.email, this.suggestedUsername});
+
+  final String email;
+
+  /// E-postadan türetilmiş ve şu an boş olan ad; bulunamazsa null.
+  final String? suggestedUsername;
+}
+
+/// Google penceresi açılamadı ya da Google bir hata verdi (sunucu hatası
+/// değil). Mesaj kullanıcıya gösterilir.
+class GoogleSignInUnavailable implements Exception {
+  const GoogleSignInUnavailable();
+
+  String get message =>
+      'Google ile giriş şu an yapılamadı. Biraz sonra yeniden deneyin.';
+
+  @override
+  String toString() => message;
+}
+
 class RegisterResult {
   const RegisterResult({required this.userId, required this.email});
 

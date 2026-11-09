@@ -77,5 +77,16 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- Google ile giriş: Google penceresi bu adresle uygulamaya döner
+	     (iOS istemci kimliğinin ters yazımı). -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.320912581988-pabn0nm9dttaeum2ld9shdlgdl9qefhk</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

@@ -19,6 +19,8 @@ Widget authFlowApp({
   AuthRegister? onRegister,
   Future<void> Function(String email)? onRequestPasswordReset,
   Future<bool> Function(String username)? onCheckUsername,
+  Future<String?> Function()? onGoogleToken,
+  AuthGoogleSignIn? onGoogleSignIn,
   AuthView initialView = AuthView.login,
   ThemeData? theme,
 }) => MaterialApp(
@@ -27,6 +29,8 @@ Widget authFlowApp({
   home: AuthFlow(
     initialView: initialView,
     onCheckUsername: onCheckUsername,
+    onGoogleToken: onGoogleToken,
+    onGoogleSignIn: onGoogleSignIn,
     onLogin: onLogin ?? (_, _, {onVerified}) async {},
     onRegister:
         onRegister ??

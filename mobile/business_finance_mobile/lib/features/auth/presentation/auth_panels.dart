@@ -51,12 +51,27 @@ class AuthPanelBody extends StatelessWidget {
   }
 }
 
-/// Google ve Apple ile giriş görünür ama sunucu tarafı henüz yok (kullanıcı
-/// kararı, 8 Kasım 2026: ekranlar tasarımla aynı olsun, sunucu sonra). Düğme
-/// sessiz kalmaz; formun içinde söyler.
+/// Apple ile giriş görünür ama henüz bağlı değil (ücretli Apple geliştirici
+/// hesabından sonra). Düğme sessiz kalmaz; formun içinde söyler.
 String socialNotReady(AuthSocialProvider provider) =>
     '${provider.label} ile giriş henüz hazır değil. '
-    'Şimdilik e-posta ve parolanla devam edebilirsin.';
+    'Şimdilik e-posta ve parolanızla devam edebilirsiniz.';
+
+/// Formun içinde gösterilecek, sunucudan gelmeyen bir uyarı (Google penceresi
+/// açılamadı, Apple henüz hazır değil).
+class AuthNotice implements Exception {
+  const AuthNotice(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+/// Google ya da Apple düğmesi. Panel bekleme hâlini ve uyarıyı kendisi
+/// gösterir; [origin] başarılı girişte rengin yayılacağı noktadır.
+typedef AuthSocialSubmit =
+    Future<void> Function(AuthSocialProvider provider, Offset? origin);
 
 /// Parola sıfırlamanın cümleleri. Kodun gittiği cümle adresin kayıtlı olup
 /// olmadığını söylemez; sunucu da söylemiyor.
@@ -74,6 +89,7 @@ class LoginPanel extends StatefulWidget {
     required this.onForgotPassword,
     required this.onRegister,
     this.active = true,
+    this.onSocial,
     super.key,
   });
 
@@ -81,6 +97,9 @@ class LoginPanel extends StatefulWidget {
   final LoginPanelSubmit onSubmit;
   final VoidCallback onForgotPassword;
   final VoidCallback onRegister;
+
+  /// Google/Apple düğmesi; null ise düğme "henüz hazır değil" der.
+  final AuthSocialSubmit? onSocial;
 
   /// Panel ekranda mı. Kişi panelden ayrılınca hata yazıları ve uyarı
   /// temizlenir, yazılanlar kalır: hata bir denemeye aittir, geri dönen kişi
@@ -98,7 +117,33 @@ class _LoginPanelState extends State<LoginPanel> {
   final _password = TextEditingController();
   final _button = GlobalKey();
   bool _busy = false;
+
+  /// Google penceresi açıkken ya da cevap beklenirken: form kilitlenir ama
+  /// `Giriş yap` beklemeye geçmez (basılan o değil).
+  bool _socialBusy = false;
   String? _error;
+
+  Future<void> _social(AuthSocialProvider provider) async {
+    final submit = widget.onSocial;
+    if (submit == null) {
+      setState(() => _error = socialNotReady(provider));
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _socialBusy = true;
+      _error = null;
+    });
+    try {
+      await submit(provider, null);
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } on AuthNotice catch (notice) {
+      if (mounted) setState(() => _error = notice.message);
+    } finally {
+      if (mounted) setState(() => _socialBusy = false);
+    }
+  }
 
   @override
   void didUpdateWidget(LoginPanel oldWidget) {
@@ -116,7 +161,7 @@ class _LoginPanelState extends State<LoginPanel> {
   }
 
   Future<void> _submit() async {
-    if (_busy) return;
+    if (_busy || _socialBusy) return;
     if (!_formKey.currentState!.validate()) {
       revealFirstError([_identifierField, _passwordField]);
       return;
@@ -170,7 +215,7 @@ class _LoginPanelState extends State<LoginPanel> {
             after: NomivaSpacing.beforeButton,
             child: AuthTextLink(
               label: 'Parolamı unuttum',
-              onPressed: _busy ? null : widget.onForgotPassword,
+              onPressed: _busy || _socialBusy ? null : widget.onForgotPassword,
             ),
           ),
           if (_error case final message?) AuthBanner(message),
@@ -181,17 +226,12 @@ class _LoginPanelState extends State<LoginPanel> {
             onPressed: _submit,
           ),
           const AuthOrDivider(),
-          AuthSocialRow(
-            onPressed: _busy
-                ? null
-                : (provider) =>
-                      setState(() => _error = socialNotReady(provider)),
-          ),
+          AuthSocialRow(onPressed: _busy || _socialBusy ? null : _social),
           AuthFooterSlot(
             child: AuthFooter(
               question: 'Hesabın yok mu?',
               action: 'Hesap oluştur',
-              onPressed: _busy ? null : widget.onRegister,
+              onPressed: _busy || _socialBusy ? null : widget.onRegister,
             ),
           ),
         ],
@@ -215,9 +255,13 @@ class RegisterPanel extends StatefulWidget {
     super.key,
     this.error,
     this.onCheckUsername,
+    this.onSocial,
   });
 
   final void Function(String username, String email, String password) onNext;
+
+  /// Google/Apple düğmesi; null ise düğme "henüz hazır değil" der.
+  final AuthSocialSubmit? onSocial;
 
   /// Kullanıcı adı boş mu; alandan çıkınca ve `Hesap oluştur`'a basınca
   /// sorulur. Null ise sorulmaz (kayıt kendisi reddeder).
@@ -264,6 +308,29 @@ class _RegisterPanelState extends State<RegisterPanel> {
   }
 
   bool _checking = false;
+  bool _socialBusy = false;
+
+  Future<void> _social(AuthSocialProvider provider) async {
+    final submit = widget.onSocial;
+    if (submit == null) {
+      setState(() => _notice = socialNotReady(provider));
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _socialBusy = true;
+      _notice = null;
+    });
+    try {
+      await submit(provider, null);
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _notice = error.message);
+    } on AuthNotice catch (notice) {
+      if (mounted) setState(() => _notice = notice.message);
+    } finally {
+      if (mounted) setState(() => _socialBusy = false);
+    }
+  }
 
   /// Sunucuya ulaşılamazsa ad "boş" sayılır: kişi bekletilmez, ad alınmışsa
   /// kayıt `authentication.username_taken` ile reddeder ve kişi buraya döner.
@@ -278,7 +345,7 @@ class _RegisterPanelState extends State<RegisterPanel> {
   }
 
   Future<void> _next() async {
-    if (_checking) return;
+    if (_checking || _socialBusy) return;
     setState(() => _notice = null);
     if (!_formKey.currentState!.validate()) {
       revealFirstError([_usernameField, _emailField, _passwordField]);
@@ -354,10 +421,7 @@ class _RegisterPanelState extends State<RegisterPanel> {
               ),
             ),
             const AuthOrDivider(),
-            AuthSocialRow(
-              onPressed: (provider) =>
-                  setState(() => _notice = socialNotReady(provider)),
-            ),
+            AuthSocialRow(onPressed: _checking || _socialBusy ? null : _social),
             AuthFooterSlot(
               child: AuthFooter(
                 question: 'Hesabın var mı?',
@@ -373,24 +437,35 @@ class _RegisterPanelState extends State<RegisterPanel> {
 }
 
 typedef BusinessStepSubmit =
-    Future<void> Function({required bool hasBusiness, Offset? origin});
+    Future<void> Function({
+      required bool hasBusiness,
+      Offset? origin,
+      String? username,
+    });
 
 /// "Bir adım kaldı": her kayıt yolunun sonu. Onboarding'in tek sorusu burada
 /// sorulur.
 ///
-/// E-postayla kayıtta yalnız soru vardır ("Son bir soru."). Google ya da
-/// Apple ile ilk girişte ([provider]) kullanıcı adı da burada seçilir ve
-/// altta `Vazgeç` çıkar; bu yol sunucu tarafıyla birlikte bağlanacak.
+/// E-postayla kayıtta yalnız soru vardır ("Son bir soru."). Google ile ilk
+/// girişte ([provider]) kullanıcı adı da burada seçilir; alan e-postadan
+/// türetilmiş boş bir adla dolu gelir ([suggestedUsername]) ve altta
+/// `Vazgeç` çıkar. Hesap `Devam et`'te açılır; vazgeçen kişi iz bırakmaz.
 class BusinessStepPanel extends StatefulWidget {
   const BusinessStepPanel({
     required this.onSubmit,
     super.key,
     this.provider,
+    this.suggestedUsername,
+    this.onCheckUsername,
     this.onCancel,
   });
 
   final BusinessStepSubmit onSubmit;
   final AuthSocialProvider? provider;
+  final String? suggestedUsername;
+
+  /// Kullanıcı adı boş mu; alandan çıkınca sorulur.
+  final Future<bool> Function(String username)? onCheckUsername;
   final VoidCallback? onCancel;
 
   @override
@@ -398,14 +473,29 @@ class BusinessStepPanel extends StatefulWidget {
 }
 
 class _BusinessStepPanelState extends State<BusinessStepPanel> {
+  final _formKey = GlobalKey<FormState>();
   final _button = GlobalKey();
-  final _username = TextEditingController();
+  final _usernameField = GlobalKey<AuthFieldState>();
+  late final _username = TextEditingController(text: widget.suggestedUsername);
 
   /// Varsayılan **hayır**: soru sorulmadan işletme sahibi varsaymak, esnaf
   /// olmayan kullanıcıyı hiç kullanmayacağı işletme kategorileriyle
   /// karşılardı. Cevap hiçbir özelliği kapatmaz.
   bool _hasBusiness = false;
   bool _busy = false;
+  String? _error;
+
+  @override
+  void didUpdateWidget(BusinessStepPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Google'la her yeni girişte öneri yeniden yazılır, eski deneme silinir.
+    if (oldWidget.suggestedUsername != widget.suggestedUsername ||
+        oldWidget.provider != widget.provider) {
+      _username.text = widget.suggestedUsername ?? '';
+      _usernameField.currentState?.clearError();
+      _error = null;
+    }
+  }
 
   @override
   void dispose() {
@@ -413,14 +503,45 @@ class _BusinessStepPanelState extends State<BusinessStepPanel> {
     super.dispose();
   }
 
+  Future<String?> _checkUsername(String username) async {
+    final check = widget.onCheckUsername;
+    if (check == null) return null;
+    try {
+      return await check(username) ? null : AuthValidation.usernameTaken;
+    } on Object {
+      return null;
+    }
+  }
+
   Future<void> _submit() async {
     if (_busy) return;
-    setState(() => _busy = true);
+    final withUsername = widget.provider != null;
+    if (withUsername && !_formKey.currentState!.validate()) {
+      revealFirstError([_usernameField]);
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     try {
       await widget.onSubmit(
         hasBusiness: _hasBusiness,
         origin: centerOf(_button),
+        username: withUsername ? _username.text.trim() : null,
       );
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      if (error.code == 'authentication.username_taken' ||
+          error.code == 'authentication.invalid_username') {
+        _usernameField.currentState?.showError(error.message);
+        revealFirstError([_usernameField]);
+      } else {
+        setState(() => _error = error.message);
+      }
+    } on AuthNotice catch (notice) {
+      if (mounted) setState(() => _error = notice.message);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -431,76 +552,87 @@ class _BusinessStepPanelState extends State<BusinessStepPanel> {
     final c = NomivaColors.of(context);
     final n = NomivaScale.of(context);
     final provider = widget.provider;
-    return AuthPanelBody(
-      children: [
-        const AuthTitle('Bir adım kaldı'),
-        AuthSubtitle(
-          provider == null
-              ? 'Son bir soru.'
-              : '${provider.label} hesabınla hesabın açılıyor.',
-        ),
-        if (provider != null)
-          AuthField(
-            label: 'Kullanıcı adı',
-            controller: _username,
-            icon: AuthFieldIcon.person,
-            maxLength: 30,
-            validator: AuthValidation.username,
+    return Form(
+      key: _formKey,
+      child: AuthPanelBody(
+        children: [
+          const AuthTitle('Bir adım kaldı'),
+          AuthSubtitle(
+            provider == null
+                ? 'Son bir soru.'
+                : '${provider.label} hesabınızla hesabınız açılıyor.',
           ),
-        Material(
-          color: c.field,
-          borderRadius: BorderRadius.circular(n(NomivaSpacing.radius)),
-          clipBehavior: Clip.antiAlias,
-          child: SwitchListTile(
-            value: _hasBusiness,
-            onChanged: _busy
-                ? null
-                : (value) => setState(() => _hasBusiness = value),
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: n(NomivaSpacing.switchX),
-              vertical: n(NomivaSpacing.switchY) / 2,
+          if (provider != null)
+            AuthField(
+              key: _usernameField,
+              label: 'Kullanıcı adı',
+              controller: _username,
+              icon: AuthFieldIcon.person,
+              autofillHints: const [AutofillHints.newUsername],
+              textInputAction: TextInputAction.done,
+              maxLength: 30,
+              validator: AuthValidation.username,
+              remoteValidator: _checkUsername,
             ),
-            activeTrackColor: NomivaColors.accent,
-            activeThumbColor: NomivaColors.thumb,
-            title: Text(
-              'İşletmem var',
-              style: TextStyle(
-                fontFamily: nomivaFont,
-                height: nomivaLineHeight,
-                letterSpacing: nomivaLetterSpacing,
-                fontSize: n(14),
-                fontWeight: FontWeight.w600,
-                color: c.text,
+          Material(
+            color: c.field,
+            borderRadius: BorderRadius.circular(n(NomivaSpacing.radius)),
+            clipBehavior: Clip.antiAlias,
+            child: SwitchListTile(
+              value: _hasBusiness,
+              onChanged: _busy
+                  ? null
+                  : (value) => setState(() => _hasBusiness = value),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: n(NomivaSpacing.switchX),
+                vertical: n(NomivaSpacing.switchY) / 2,
+              ),
+              activeTrackColor: NomivaColors.accent,
+              activeThumbColor: NomivaColors.thumb,
+              title: Text(
+                'İşletmem var',
+                style: TextStyle(
+                  fontFamily: nomivaFont,
+                  height: nomivaLineHeight,
+                  letterSpacing: nomivaLetterSpacing,
+                  fontSize: n(14),
+                  fontWeight: FontWeight.w600,
+                  color: c.text,
+                ),
+              ),
+              subtitle: Text(
+                'İşletme kategorileriyle başlarsın',
+                style: TextStyle(
+                  fontFamily: nomivaFont,
+                  height: nomivaLineHeight,
+                  letterSpacing: nomivaLetterSpacing,
+                  fontSize: n(12),
+                  color: c.muted,
+                ),
               ),
             ),
-            subtitle: Text(
-              'İşletme kategorileriyle başlarsın',
-              style: TextStyle(
-                fontFamily: nomivaFont,
-                height: nomivaLineHeight,
-                letterSpacing: nomivaLetterSpacing,
-                fontSize: n(12),
-                color: c.muted,
-              ),
-            ),
           ),
-        ),
-        AuthPrimaryButton(
-          key: _button,
-          label: 'Devam et',
-          busy: _busy,
-          onPressed: _submit,
-        ),
-        if (provider != null)
-          AuthFooterSlot(
-            child: Center(
+          if (_error case final message?) AuthBanner(message),
+          AuthPrimaryButton(
+            key: _button,
+            label: 'Devam et',
+            busy: _busy,
+            onPressed: _submit,
+          ),
+          if (provider != null)
+            // Düğmenin hemen altında, ekranın öbür bağlantılarıyla aynı dilde
+            // (9 Kasım 2026): teslimdeki yerinde düğmeden kopuk ve küçük
+            // kalıyordu. Çerçeveli ikinci bir düğme Vazgeç'e Devam et kadar
+            // ağırlık verirdi.
+            Center(
               child: AuthTextLink(
                 label: 'Vazgeç',
+                fontSize: 14,
                 onPressed: _busy ? null : widget.onCancel,
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

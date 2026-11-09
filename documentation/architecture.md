@@ -149,6 +149,14 @@ kalıcı kart hareketlerinden hesaplanan projection'dır.
   zamanı ve aktiflik taşır; düz metin parola alanı içermez.
 - Application kayıt/giriş use case'leri `IIdentityAccountService` port'una
   bağımlıdır; Infrastructure implementasyonu Identity `UserManager` kullanır.
+- Google ile giriş (`GoogleSignInUseCase`) iki port kullanır:
+  `IGoogleIdTokenValidator` (Infrastructure'da `GoogleIdTokenValidator`;
+  JWT bearer'ın getirdiği OpenID Connect kütüphanesiyle Google'ın keşif
+  belgesinden anahtarları çeker, önbellekte tutar; ayrı Google paketi yok) ve
+  `IExternalAccountService` (`ExternalAccountService`; Identity'nin
+  `AspNetUserLogins` tablosu, şema değişmedi). Oturum parolalı girişle aynı
+  yoldan açılır (`SessionIssuance`). Uygulamada `google_sign_in` paketi
+  (`GoogleSignInGateway`) belirteci alır; `AuthController` onu sunucuya götürür.
 - Parola politikası ve hashing Identity tarafından uygulanır. Bilinmeyen
   e-posta, yanlış parola ve pasif kullanıcı dışarıya aynı genel credential
   hatasını verir.

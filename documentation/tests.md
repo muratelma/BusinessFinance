@@ -1231,10 +1231,24 @@ taşıyan `AuthField` içinden bulunur (`test/helpers/auth_flow.dart`).
 | Sıfırlamaya taşınan adres | `Parolamı unuttum` yazılan adresle kod istiyor |
 | Oranlı yerleşim, iki telefon | 412 × 915 ve 393 × 852'de alan genişliği ekran − 2 × 24 × katsayı, alan 46 ×, düğme 50 ×, başlık 23 × katsayı (8 Kasım 2026) |
 | Tablet ve telefon yatay | Tablette form en büyük telefonun genişliğini geçmiyor; yatayda taşma yok, form kayıyor |
-| Google ve Apple | Google düğmesi görünür ve basılınca "henüz hazır değil" der; Apple yalnız iPhone'da |
+| Google ve Apple | Google bağlı değilse "henüz hazır değil" der; Apple yalnız iPhone'da |
+| Google ile giriş | Pencere kapatılırsa hiçbir şey söylenmez ve sunucuya gidilmez; hesabı olan girişte oturum geçiş bitince açılır; hesap yoksa "Bir adım kaldı" önerilen adla açılır, ilk istek hesap açmaz, `Devam et` adı ve işletme cevabını gönderir; alınmış ad alanın altında, kişi panelde kalır; `Vazgeç` girişe döner; pencere açılamazsa formda söylenir |
 | Kullanıcı adı | Girişte kullanıcı adı gönderiliyor; kayıtta kural tutmadan ikinci adım yok; alınmış ad alandan çıkınca (yazarken değil) söyleniyor, ad değişince kalkıyor; basınca yeniden soruluyor ve alınmışsa ikinci adım yok; kayıt adı gönderiyor |
 | Panelden ayrılınca | Hata yazıları ve sunucunun uyarısı temizleniyor, yazılan e-posta kalıyor |
 | Hata zamanlaması | Hata yazarken başka hataya dönmüyor, düzelince kalkıyor; boş alandan geçmek hata yazdırmıyor, dolu alandan çıkınca denetleniyor; gönderim reddedilince imleç ilk hatalı alanda |
+
+**Google ile giriş, sunucu** (9 Kasım 2026): `GoogleSignInEndpointTests`
+(sahte belirteç doğrulayıcıyla, uçtan uca): ilk giriş hiçbir şey yazmaz ve
+alınmış adın yerine sayılı öneri döner (`ali` → `ali2`); `Devam et` parolasız
+hesabı açar, sonraki giriş doğrudandır, hesap parolayla girilemez ve adı
+alınmıştır; alınmış adla `authentication.username_taken`; doğrulanmış e-postalı
+hesap bağlanır ve parolası durur; doğrulanmamış hesap Google sahibine geçer,
+parola ve eski oturum düşer, yeni oturum yenilenir; Google'ın doğrulamadığı
+e-posta var olan hesaba bağlanmaz; geçersiz belirteç 401.
+`UsernameSuggestionTests`: önerinin kuralı migration'la aynı (Türkçe harf ve
+`+` atılır, kısa ada `kullanici`, 30 karakter, sayı eklenince taban kısalır).
+Uygulamada `auth_service_test` iki cevabın (`signed-in`, `signup-required`)
+okunmasını ve gönderilen gövdeyi doğrular.
 
 **Kullanıcı adı, sunucu** (8 Kasım 2026): `RegisterUserUseCaseTests`
 (normalize, kural dışı ad hiçbir şey yazmadan reddedilir, alınmış ad,

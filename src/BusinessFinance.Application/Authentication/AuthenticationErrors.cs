@@ -34,6 +34,16 @@ public static class AuthenticationErrors
         "The username does not meet the rules.",
         ApplicationErrorType.Validation);
 
+    public static readonly ApplicationError GoogleInvalidToken = new(
+        "authentication.google_invalid_token",
+        "The Google sign-in could not be verified.",
+        ApplicationErrorType.Unauthorized);
+
+    public static readonly ApplicationError GoogleEmailUnverified = new(
+        "authentication.google_email_unverified",
+        "An account with this email exists and Google has not verified the email.",
+        ApplicationErrorType.Conflict);
+
     public static readonly ApplicationError InvalidRefreshToken = new(
         "authentication.invalid_refresh_token",
         "Refresh token is invalid or expired.",

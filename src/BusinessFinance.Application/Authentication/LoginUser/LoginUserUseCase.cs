@@ -37,25 +37,11 @@ public sealed class LoginUserUseCase
                 AuthenticationErrors.InvalidCredentials);
         }
 
-        var accessToken = _securityTokenService.CreateAccessToken(identity);
-        var refreshToken = _securityTokenService.CreateRefreshToken();
-        var refreshSession = new RefreshSession(
-            Guid.NewGuid(),
-            identity.UserId,
-            refreshToken.Hash,
-            refreshToken.CreatedAtUtc,
-            refreshToken.ExpiresAtUtc);
-
-        await _refreshSessionRepository.AddAsync(refreshSession, cancellationToken);
-
         return ApplicationResult<LoginUserResponse>.Success(
-            new LoginUserResponse(
-                identity.UserId,
-                refreshSession.Id,
-                identity.Email,
-                accessToken.Value,
-                accessToken.ExpiresAtUtc,
-                refreshToken.Value,
-                refreshToken.ExpiresAtUtc));
+            await SessionIssuance.IssueAsync(
+                identity,
+                _securityTokenService,
+                _refreshSessionRepository,
+                cancellationToken));
     }
 }

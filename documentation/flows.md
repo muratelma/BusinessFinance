@@ -891,9 +891,37 @@ Parolamı unuttum -> yazılan adres sıfırlama paneline taşınır
   açıkken alanın altındaki hata yazısı klavyenin üstünde kalır. Hata çıkınca
   ya da kalkınca alan boyu yumuşakça değişir.
   "ya da" ayırıcısının altında Google (her platformda) ve Apple (yalnız
-  iPhone'da) düğmeleri vardır; basılınca formun içinde "… ile giriş henüz
-  hazır değil" der. "Bir adım kaldı"nın Google/Apple hâli (kullanıcı adı
-  alanı, `Vazgeç`) panelde hazırdır, sunucu tarafıyla bağlanacak.
+  iPhone'da) düğmeleri vardır. Apple basılınca formun içinde "Apple ile giriş
+  henüz hazır değil" der (ücretli Apple geliştirici hesabından sonra).
+- **Google ile giriş** (9 Kasım 2026): giriş ya da hesap oluşturma panelinde
+  Google'a basılır, Google'ın hesap seçme penceresi açılır. Pencere kapatılırsa
+  (dışına dokunmak ya da geri) hiçbir şey söylenmez, düğme yeniden basılır.
+  Uygulama Google'ın kimlik belirtecini sunucuya götürür
+  (`POST /api/v1/auth/google`); sunucu imzayı ve hangi istemciye verildiğini
+  Google'ın anahtarlarıyla doğrular.
+
+  ```text
+  Google -> hesap seç
+    -> Google'a bağlı hesap var: oturum açılır, Özet
+    -> aynı e-postalı hesap var: hesap Google'a bağlanır, Özet
+       (hesabın e-postası doğrulanmamışsa parolası kaldırılır ve açık
+       oturumları kapanır; hesap e-postanın gerçek sahibine geçer)
+    -> hesap yok: hiçbir şey yazılmaz, "Bir adım kaldı"
+         kullanıcı adı (e-postanın @ öncesinden, boş bir adla dolu) +
+         İşletmem var (kapalı) -> Devam et -> hesap açılır, Özet
+         Vazgeç -> Google'a basılan panele döner, iz kalmaz
+  ```
+
+  Google'la açılan hesabın parolası yoktur ve e-postası doğrulanmış sayılır
+  (Google doğruladı). Parola isterse `Parolamı unuttum` ile koyar; sıfırlama
+  her adrese aynı cevabı verdiği için "bu hesap Google ile açıldı" denmez.
+  Google e-postayı doğrulamadıysa (Gmail dışı adresle açılmış Google hesabı)
+  var olan hesaba bağlanmaz: `authentication.google_email_unverified`. Alınmış
+  kullanıcı adı alanın altında söylenir. Belirtecin süresi (bir saat) dolarsa
+  kişi girişe döner ve Google'a yeniden basar. Çıkışta Google oturumu da
+  kapanır; aynı telefonda başka bir Google hesabı seçilebilir.
+  `Vazgeç` `Devam et`'in hemen altındadır, öbür bağlantılar gibi altı çizili
+  ve biraz büyük (14); teslimdeki yerinde düğmeden kopuk kalıyordu.
 
 ## Flutter ekran akışı
 

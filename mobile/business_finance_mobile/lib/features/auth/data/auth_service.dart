@@ -17,6 +17,14 @@ abstract interface class AuthRemoteService {
 
   Future<AuthSession> login(String email, String password);
 
+  /// Google kimlik belirtecini sunucuya götürür. [username] yalnız "Bir adım
+  /// kaldı"daki `Devam et`'te gönderilir; hesap o istekte açılır.
+  Future<GoogleSignInOutcome> googleSignIn(
+    String idToken, {
+    String? username,
+    bool hasBusiness = false,
+  });
+
   Future<AuthSession> refresh(AuthSession currentSession);
 
   Future<void> logout(String refreshToken);
@@ -63,6 +71,23 @@ class ApiAuthService implements AuthRemoteService {
       body: {'email': email, 'password': password},
     );
     return AuthSession.fromJson(response.requireObject());
+  }
+
+  @override
+  Future<GoogleSignInOutcome> googleSignIn(
+    String idToken, {
+    String? username,
+    bool hasBusiness = false,
+  }) async {
+    final response = await _apiClient.post(
+      '/api/v1/auth/google',
+      body: {
+        'idToken': idToken,
+        'username': ?username,
+        'hasBusiness': hasBusiness,
+      },
+    );
+    return GoogleSignInOutcome.fromJson(response.requireObject());
   }
 
   @override

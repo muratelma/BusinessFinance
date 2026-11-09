@@ -1,15 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../data/auth_models.dart';
 import '../data/auth_repository.dart';
+import '../data/google_id_token_source.dart';
 
 enum AuthStatus { restoring, authenticated, unauthenticated }
 
 class AuthController extends ChangeNotifier {
-  AuthController(this._repository);
+  /// [_google] yoksa (testler) Google düğmesi "yapılamadı" der.
+  AuthController(this._repository, [this._google]);
 
   final AuthSessionRepository _repository;
+  final GoogleIdTokenSource? _google;
 
   AuthStatus _status = AuthStatus.restoring;
   bool _isSubmitting = false;
@@ -71,6 +76,54 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  /// Google penceresini açar. Kişi kapatırsa null döner. Google yoksa
+  /// (testler, yapılandırılmamış kurulum) [GoogleSignInUnavailable] fırlatır.
+  Future<String?> obtainGoogleIdToken() {
+    final google = _google;
+    if (google == null) throw const GoogleSignInUnavailable();
+    return google.obtainIdToken();
+  }
+
+  /// Belirteci sunucuya götürür. Hesap varsa (ya da bu çağrıda açıldıysa)
+  /// oturum [onVerified]'den sonra açılır ve null döner; hesap yoksa
+  /// "Bir adım kaldı"nın sorusu döner, hiçbir şey yazılmaz.
+  Future<GoogleSignupRequired?> signInWithGoogle(
+    String idToken, {
+    String? username,
+    bool hasBusiness = false,
+    Future<void> Function()? onVerified,
+  }) async {
+    if (_isSubmitting) return null;
+    _setSubmitting(true);
+    try {
+      final outcome = await _repository.googleSignIn(
+        idToken,
+        username: username,
+        hasBusiness: hasBusiness,
+      );
+      _errorMessage = null;
+      switch (outcome) {
+        case GoogleSignupRequired():
+          return outcome;
+        case GoogleSignedIn():
+          if (onVerified != null) {
+            try {
+              await onVerified();
+            } catch (_) {
+              // Animasyonun yarıda kalması girişi geri almaz.
+            }
+          }
+          _startAuthenticatedSession();
+          return null;
+      }
+    } on ApiException catch (error) {
+      _errorMessage = error.message;
+      rethrow;
+    } finally {
+      _setSubmitting(false);
+    }
+  }
+
   Future<void> register(
     String email,
     String password, {
@@ -117,6 +170,9 @@ class AuthController extends ChangeNotifier {
   Future<void> logout() async {
     _endAuthenticatedSession();
     notifyListeners();
+    // Google oturumu da kapanır: aynı telefonda başka bir Google hesabıyla
+    // girilebilsin. Hata çıkışı engellemez.
+    unawaited(_google?.signOut());
     try {
       await _repository.logout();
     } on ApiException catch (error) {

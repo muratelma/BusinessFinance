@@ -55,6 +55,7 @@ dependencies:
   # çizmez. Paket saf Dart'tır, ağ ve kod üretimi getirmez. Karşılığı:
   # SVG filtreleri (bulanıklık, gölge) desteklenmez; logoda yok.
   flutter_svg: ^2.3.2
+  google_sign_in: ^7.2.0
 
 dev_dependencies:
   flutter_test:

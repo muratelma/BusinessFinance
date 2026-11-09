@@ -1,3 +1,4 @@
+using BusinessFinance.Application.Authentication.Google;
 using BusinessFinance.Api.Security;
 using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Accounts.CreateAccount;
@@ -48,6 +49,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<RegisterUserUseCase>();
         services.AddTransient<LoginUserUseCase>();
         services.AddTransient<CheckUsernameUseCase>();
+        services.AddTransient<GoogleSignInUseCase>();
         services.AddTransient<RefreshTokensUseCase>();
         services.AddTransient<LogoutUseCase>();
         services.AddTransient<GetUserAccountUseCase>();

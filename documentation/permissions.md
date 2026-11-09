@@ -22,6 +22,7 @@ kullanıcının kaydına erişen ayrıcalıklı rol yoktur.
 | Register/login/refresh | İlgili public endpoint | İzinli | Sahiplik uygulanmaz |
 | Kullanıcı adı uygunluğu (`GET /api/v1/auth/username-availability`) | **İzinli, kimlik istemez**; IP başına dakikada 30 | Aynı cevap | Yalnız adın alınıp alınmadığını söyler; hesabın kime ait olduğunu, e-postasını ya da başka bir alanını söylemez. Kullanıcı adı gizli bilgi değildir |
 | Kullanıcı adıyla giriş | Bilinmeyen ad, bilinmeyen e-posta ve yanlış parola aynı `authentication.invalid_credentials` | — | — |
+| Google ile giriş (`POST /api/v1/auth/google`) | **İzinli, kimlik istemez**; giriş uçlarının oran sınırı (IP başına dakikada 10). Kullanıcı kimliği istekten değil, sunucunun doğruladığı Google belirtecinden (`sub`, `email`, `email_verified`) gelir; geçersiz belirteç `authentication.google_invalid_token` | — | Bir Google hesabı yalnız kendi `sub`'ına bağlı hesaba girer. Aynı e-postalı hesaba bağlanma yalnız Google e-postayı doğruladıysa olur; hesabın e-postası doğrulanmamışsa parolası kaldırılır ve oturumları kapanır (önceden ele geçirmeye karşı). Pasif hesap `authentication.invalid_credentials` |
 | Logout | Token yoksa 401 | Kendi session'ı revoke | Başka session'a erişemez |
 | Hesap/kategori CRUD | 401 | İzinli | 404 veya listeden dışlanır |
 | Kendi hesabını okuma (`GET /api/v1/account`) | 401 | Yalnız kendi e-postası ve açık oturum sayısı | Başkasının hesabına yol yok |

@@ -5,8 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/network/api_exception.dart';
+import '../data/auth_models.dart';
 import 'auth_panels.dart';
 import 'nomiva_brand.dart';
+import 'widgets/auth_form_parts.dart';
 
 /// Giriş akışının panelleri. Sıra, yatay kaymanın yönünü belirler.
 enum AuthView { login, register, reset, business }
@@ -24,6 +26,16 @@ typedef AuthRegister =
       String password, {
       required bool hasBusiness,
       String? username,
+      Future<void> Function()? onVerified,
+    });
+
+/// Google belirtecini sunucuya götürür. Oturum açıldıysa null, hesap yoksa
+/// "Bir adım kaldı"nın sorusu döner. [username] yalnız `Devam et`'te gelir.
+typedef AuthGoogleSignIn =
+    Future<GoogleSignupRequired?> Function(
+      String idToken, {
+      String? username,
+      bool hasBusiness,
       Future<void> Function()? onVerified,
     });
 
@@ -46,9 +58,16 @@ class AuthFlow extends StatefulWidget {
     required this.onResetPassword,
     super.key,
     this.onCheckUsername,
+    this.onGoogleToken,
+    this.onGoogleSignIn,
     this.initialView = AuthView.login,
     this.initialEmail,
   });
+
+  /// Google penceresini açar; kişi kapatırsa null. İkisi de verilmezse
+  /// Google düğmesi "henüz hazır değil" der.
+  final Future<String?> Function()? onGoogleToken;
+  final AuthGoogleSignIn? onGoogleSignIn;
 
   final AuthLogin onLogin;
   final AuthRegister onRegister;
@@ -136,6 +155,14 @@ class _AuthFlowState extends State<AuthFlow> with TickerProviderStateMixin {
   String? _pendingEmail;
   String? _pendingPassword;
   String? _registerError;
+
+  /// Google ile ilk giriş: belirteç "Bir adım kaldı"daki `Devam et`'e kadar
+  /// tutulur, hesap orada açılır. Null ise o panel e-postayla kaydın sonudur.
+  String? _googleToken;
+  GoogleSignupRequired? _googleSignup;
+
+  /// Google'a basılan panel; `Vazgeç` ve geri hareketi oraya döner.
+  AuthView _googleFrom = AuthView.login;
 
   @override
   void initState() {
@@ -270,10 +297,87 @@ class _AuthFlowState extends State<AuthFlow> with TickerProviderStateMixin {
     });
   }
 
-  void _back() => _go(switch (_view) {
-    AuthView.business => AuthView.register,
-    _ => AuthView.login,
-  });
+  void _back() {
+    if (_view == AuthView.business && _googleToken != null) {
+      _cancelGoogle();
+      return;
+    }
+    _go(switch (_view) {
+      AuthView.business => AuthView.register,
+      _ => AuthView.login,
+    });
+  }
+
+  bool get _googleWired =>
+      widget.onGoogleToken != null && widget.onGoogleSignIn != null;
+
+  /// Google ya da Apple düğmesi. Kişi Google penceresini kapatırsa hiçbir şey
+  /// söylenmez, düğme geri açılır. Hesap varsa oturum açılır; yoksa "Bir adım
+  /// kaldı"ya geçilir ve hiçbir şey yazılmaz.
+  Future<void> _social(
+    AuthSocialProvider provider,
+    Offset? origin,
+    AuthView from,
+  ) async {
+    if (provider != AuthSocialProvider.google || !_googleWired) {
+      throw AuthNotice(socialNotReady(provider));
+    }
+    final String? token;
+    try {
+      token = await widget.onGoogleToken!();
+    } on GoogleSignInUnavailable catch (error) {
+      throw AuthNotice(error.message);
+    }
+    if (token == null || !mounted) return;
+    final signup = await widget.onGoogleSignIn!(
+      token,
+      onVerified: () => _playReveal(origin),
+    );
+    if (signup == null || !mounted) return;
+    setState(() {
+      _googleToken = token;
+      _googleSignup = signup;
+      _googleFrom = from;
+    });
+    _go(AuthView.business);
+  }
+
+  /// Belirteç bırakılır, hiçbir şey yazılmamıştır. Panelin Google hâli
+  /// ([_googleSignup]) kayarak çıkarken bozulmasın diye kalır; e-postayla
+  /// kayıt "Bir adım kaldı"ya girerken temizler.
+  void _cancelGoogle() {
+    _googleToken = null;
+    _go(_googleFrom);
+  }
+
+  Future<void> _businessSubmit({
+    required bool hasBusiness,
+    Offset? origin,
+    String? username,
+  }) async {
+    final token = _googleToken;
+    if (token == null) {
+      return _registerSubmit(hasBusiness: hasBusiness, origin: origin);
+    }
+    try {
+      await widget.onGoogleSignIn!(
+        token,
+        username: username,
+        hasBusiness: hasBusiness,
+        onVerified: () => _playReveal(origin),
+      );
+    } on ApiException catch (error) {
+      // Belirteç bir saat geçerlidir; süresi dolduysa kişi Google'a yeniden
+      // basar. Kullanıcı adı hatası panelde, alanın altında gösterilir.
+      if (error.code == 'authentication.google_invalid_token') {
+        _cancelGoogle();
+        throw const AuthNotice(
+          'Google oturumunun süresi doldu. Google ile yeniden deneyin.',
+        );
+      }
+      rethrow;
+    }
+  }
 
   /// Başarılı girişte Özet'in zemin rengi basılan düğmeden yayılır; daire
   /// ekranı kaplayınca oturum açılır ve Özet aynı renkte belirir.
@@ -289,7 +393,11 @@ class _AuthFlowState extends State<AuthFlow> with TickerProviderStateMixin {
     _pendingUsername = username;
     _pendingEmail = email;
     _pendingPassword = password;
-    setState(() => _registerError = null);
+    setState(() {
+      _registerError = null;
+      _googleToken = null;
+      _googleSignup = null;
+    });
     _go(AuthView.business);
   }
 
@@ -547,6 +655,8 @@ class _AuthFlowState extends State<AuthFlow> with TickerProviderStateMixin {
                     _go(AuthView.reset);
                   },
                   onRegister: () => _go(AuthView.register),
+                  onSocial: (provider, origin) =>
+                      _social(provider, origin, AuthView.login),
                 ),
               ),
               slot(
@@ -557,6 +667,8 @@ class _AuthFlowState extends State<AuthFlow> with TickerProviderStateMixin {
                   error: _registerError,
                   onNext: _registerNext,
                   onLogin: () => _go(AuthView.login),
+                  onSocial: (provider, origin) =>
+                      _social(provider, origin, AuthView.register),
                 ),
               ),
               slot(
@@ -572,7 +684,15 @@ class _AuthFlowState extends State<AuthFlow> with TickerProviderStateMixin {
               ),
               slot(
                 AuthView.business,
-                BusinessStepPanel(onSubmit: _registerSubmit),
+                BusinessStepPanel(
+                  onSubmit: _businessSubmit,
+                  provider: _googleSignup == null
+                      ? null
+                      : AuthSocialProvider.google,
+                  suggestedUsername: _googleSignup?.suggestedUsername,
+                  onCheckUsername: widget.onCheckUsername,
+                  onCancel: _cancelGoogle,
+                ),
               ),
             ],
           ),

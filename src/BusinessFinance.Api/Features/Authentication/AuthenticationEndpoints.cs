@@ -1,6 +1,7 @@
 using BusinessFinance.Api.Errors;
 using BusinessFinance.Api.Extensions;
 using BusinessFinance.Application.Authentication.CheckUsername;
+using BusinessFinance.Application.Authentication.Google;
 using BusinessFinance.Application.Authentication.LoginUser;
 using BusinessFinance.Application.Authentication.Logout;
 using BusinessFinance.Application.Authentication.RefreshTokens;
@@ -28,6 +29,13 @@ public static class AuthenticationEndpoints
             .WithName("LoginUser")
             .Produces<TokenPairResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
+        group.MapPost("/google", GoogleSignInAsync)
+            .WithName("GoogleSignIn")
+            .Produces<GoogleSignInResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
         group.MapPost("/refresh", RefreshAsync)
             .WithName("RefreshTokens")
@@ -109,6 +117,43 @@ public static class AuthenticationEndpoints
                 result.Value.RefreshToken,
                 result.Value.RefreshTokenExpiresAtUtc))
             : result.Error.ToProblemResult(httpContext);
+    }
+
+    private static async Task<IResult> GoogleSignInAsync(
+        GoogleSignInRequest request,
+        GoogleSignInUseCase useCase,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var result = await useCase.ExecuteAsync(
+            new GoogleSignInCommand(request.IdToken, request.Username, request.HasBusiness),
+            cancellationToken);
+
+        if (!result.IsSuccess)
+        {
+            return result.Error.ToProblemResult(httpContext);
+        }
+
+        if (result.Value.Session is { } session)
+        {
+            return Results.Ok(new GoogleSignInResponse(
+                "signed-in",
+                new TokenPairResponse(
+                    session.UserId,
+                    session.SessionId,
+                    session.Email,
+                    session.AccessToken,
+                    session.AccessTokenExpiresAtUtc,
+                    session.RefreshToken,
+                    session.RefreshTokenExpiresAtUtc),
+                null));
+        }
+
+        var signup = result.Value.SignupRequired!;
+        return Results.Ok(new GoogleSignInResponse(
+            "signup-required",
+            null,
+            new GoogleSignupResponse(signup.Email, signup.SuggestedUsername)));
     }
 
     private static async Task<IResult> RefreshAsync(

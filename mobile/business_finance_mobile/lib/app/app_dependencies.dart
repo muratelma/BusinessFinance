@@ -7,6 +7,7 @@ import '../core/network/api_client.dart';
 import '../core/presentation/financial_data_changes.dart';
 import '../core/presentation/scope_controller.dart';
 import '../core/storage/secure_session_store.dart';
+import '../features/auth/data/google_id_token_source.dart';
 import '../features/auth/data/auth_repository.dart';
 import '../features/auth/data/auth_service.dart';
 import '../features/auth/presentation/auth_controller.dart';
@@ -83,7 +84,10 @@ class AppDependencies {
       remoteService: ApiAuthService(publicApiClient),
       sessionStore: SecureSessionStore(),
     );
-    final authController = AuthController(authRepository);
+    final authController = AuthController(
+      authRepository,
+      GoogleSignInGateway(),
+    );
     final apiClient = ApiClient(
       config: config,
       httpClient: httpClient,

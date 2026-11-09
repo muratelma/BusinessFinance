@@ -17,6 +17,13 @@ abstract interface class AuthSessionRepository {
 
   Future<AuthSession> login(String email, String password);
 
+  /// Oturum açıldıysa saklar; hesap yoksa öneriyle döner, hiçbir şey yazmaz.
+  Future<GoogleSignInOutcome> googleSignIn(
+    String idToken, {
+    String? username,
+    bool hasBusiness = false,
+  });
+
   Future<AuthSession?> restoreSession();
 
   Future<String?> getValidAccessToken();
@@ -96,6 +103,24 @@ class AuthRepository implements AuthSessionRepository {
     await _sessionStore.write(session);
     _session = session;
     return session;
+  }
+
+  @override
+  Future<GoogleSignInOutcome> googleSignIn(
+    String idToken, {
+    String? username,
+    bool hasBusiness = false,
+  }) async {
+    final outcome = await _remoteService.googleSignIn(
+      idToken,
+      username: username?.trim(),
+      hasBusiness: hasBusiness,
+    );
+    if (outcome is GoogleSignedIn) {
+      await _sessionStore.write(outcome.session);
+      _session = outcome.session;
+    }
+    return outcome;
   }
 
   @override

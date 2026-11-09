@@ -174,6 +174,15 @@ class AuthFieldState extends State<AuthField> {
     _field.currentState?.validate();
   }
 
+  /// Sunucunun bu değer için söylediği hatayı alanın altına yazar (ör.
+  /// gönderim "Bu kullanıcı adı alınmış" diye reddedildiğinde). Değer
+  /// değişince kalkar.
+  void showError(String message) {
+    _remoteError = message;
+    _remoteErrorFor = widget.controller.text.trim();
+    _field.currentState?.validate();
+  }
+
   /// Hata yazısını kaldırır, yazılanı korur. Alanın denetim durumu yenilenir;
   /// metin dışarıdaki denetleyicide durduğu için kaybolmaz.
   void clearError() {

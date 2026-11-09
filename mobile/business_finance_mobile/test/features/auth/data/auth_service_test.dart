@@ -55,6 +55,45 @@ void main() {
     },
   );
 
+  test('google sign-in maps both server answers', () async {
+    final bodies = <Object?>[];
+    final service = _service((request) async {
+      expect(request.url.path, '/api/v1/auth/google');
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      bodies.add(body);
+      return http.Response(
+        jsonEncode(
+          body.containsKey('username')
+              ? {'status': 'signed-in', 'session': _sessionJson()}
+              : {
+                  'status': 'signup-required',
+                  'signup': {
+                    'email': 'ali@gmail.com',
+                    'suggestedUsername': 'ali2',
+                  },
+                },
+        ),
+        200,
+      );
+    });
+
+    final first = await service.googleSignIn('id-token');
+    final created = await service.googleSignIn(
+      'id-token',
+      username: 'ali2',
+      hasBusiness: true,
+    );
+
+    expect(first, isA<GoogleSignupRequired>());
+    expect((first as GoogleSignupRequired).suggestedUsername, 'ali2');
+    expect(created, isA<GoogleSignedIn>());
+    expect((created as GoogleSignedIn).session.refreshToken, 'refresh-token');
+    expect(bodies, [
+      {'idToken': 'id-token', 'hasBusiness': false},
+      {'idToken': 'id-token', 'username': 'ali2', 'hasBusiness': true},
+    ]);
+  });
+
   test('register maps identity only and does not expect tokens', () async {
     final service = _service(
       (_) async => http.Response(

@@ -1077,6 +1077,16 @@ Page<dynamic> _authPage(
             await authController.login(email, password, onVerified: onVerified);
           },
       onCheckUsername: authRepository?.isUsernameAvailable,
+      onGoogleToken: authController?.obtainGoogleIdToken,
+      onGoogleSignIn: authController == null
+          ? null
+          : (idToken, {username, hasBusiness = false, onVerified}) =>
+                authController.signInWithGoogle(
+                  idToken,
+                  username: username,
+                  hasBusiness: hasBusiness,
+                  onVerified: onVerified,
+                ),
       onRequestPasswordReset: authRepository == null
           ? (_) async {}
           : authRepository.requestPasswordReset,

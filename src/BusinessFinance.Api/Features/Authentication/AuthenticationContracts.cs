@@ -39,3 +39,18 @@ public sealed record RefreshTokenResponse(
     DateTimeOffset RefreshTokenExpiresAtUtc);
 
 public sealed record LogoutRequest(string RefreshToken);
+
+// Google ile giriş. İlk istek yalnız idToken taşır; hesap yoksa cevap
+// "signup-required" olur ve "Bir adım kaldı"daki Devam et aynı belirteci
+// kullanıcı adı ve işletme cevabıyla yeniden yollar.
+public sealed record GoogleSignInRequest(
+    string IdToken,
+    string? Username = null,
+    bool HasBusiness = false);
+
+public sealed record GoogleSignInResponse(
+    string Status,
+    TokenPairResponse? Session,
+    GoogleSignupResponse? Signup);
+
+public sealed record GoogleSignupResponse(string Email, string? SuggestedUsername);

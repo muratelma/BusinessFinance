@@ -206,6 +206,16 @@ class FakeAuthService implements AuthRemoteService {
     passwordResetRequests.add(email);
   }
 
+  /// Sıradaki Google cevabı.
+  GoogleSignInOutcome? googleOutcome;
+
+  @override
+  Future<GoogleSignInOutcome> googleSignIn(
+    String idToken, {
+    String? username,
+    bool hasBusiness = false,
+  }) async => googleOutcome ?? GoogleSignedIn(session);
+
   @override
   Future<void> resetPassword({
     required String email,

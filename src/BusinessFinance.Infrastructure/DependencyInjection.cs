@@ -45,6 +45,8 @@ using BusinessFinance.Application.Imports;
 using BusinessFinance.Infrastructure.Imports;
 using BusinessFinance.Infrastructure.Identity;
 using BusinessFinance.Infrastructure.Identity.Tokens;
+using BusinessFinance.Infrastructure.Identity.Google;
+using BusinessFinance.Application.Authentication.Google;
 using BusinessFinance.Infrastructure.Persistence;
 using BusinessFinance.Application.DataPortability;
 using BusinessFinance.Infrastructure.DataPortability;
@@ -101,6 +103,11 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<BusinessFinanceDbContext>();
 
         services.AddScoped<IIdentityAccountService, IdentityAccountService>();
+        services.AddScoped<IExternalAccountService, ExternalAccountService>();
+        services.AddSingleton<IGoogleIdTokenValidator, GoogleIdTokenValidator>();
+        services
+            .AddOptions<GoogleSignInOptions>()
+            .Bind(configuration.GetSection(GoogleSignInOptions.SectionName));
 
         services.AddScoped<IRefreshSessionRepository, EfRefreshSessionRepository>();
         services.AddSingleton<ISecurityTokenService, JwtSecurityTokenService>();

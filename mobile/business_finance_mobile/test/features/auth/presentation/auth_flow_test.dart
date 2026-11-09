@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:business_finance_mobile/core/network/api_exception.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
+import 'package:business_finance_mobile/features/auth/data/auth_models.dart';
 import 'package:business_finance_mobile/features/auth/presentation/auth_flow.dart';
+import 'package:business_finance_mobile/features/auth/presentation/widgets/auth_form_parts.dart';
 import 'package:business_finance_mobile/features/auth/presentation/nomiva_brand.dart';
 import 'package:business_finance_mobile/features/auth/presentation/auth_validation.dart';
 import 'package:flutter/material.dart';
@@ -324,7 +326,7 @@ void main() {
   });
 
   group('Google ve Apple', () {
-    testWidgets('Google düğmesi görünür; henüz hazır olmadığını söyler', (
+    testWidgets('Google bağlı değilse henüz hazır olmadığını söyler', (
       tester,
     ) async {
       await pumpAuthFlow(tester, authFlowApp());
@@ -335,6 +337,171 @@ void main() {
 
       expect(
         find.textContaining('Google ile giriş henüz hazır değil.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('Google penceresi kapatılırsa hiçbir şey söylenmez', (
+      tester,
+    ) async {
+      var serverCalls = 0;
+      await pumpAuthFlow(
+        tester,
+        authFlowApp(
+          onGoogleToken: () async => null,
+          onGoogleSignIn:
+              (_, {username, hasBusiness = false, onVerified}) async {
+                serverCalls++;
+                return null;
+              },
+        ),
+      );
+
+      await tester.tap(find.bySemanticsLabel('Google ile devam et'));
+      await tester.pumpAndSettle();
+
+      expect(serverCalls, 0);
+      expect(find.byType(AuthBanner), findsNothing);
+      expect(authButton('Giriş yap'), findsOneWidget);
+    });
+
+    testWidgets('hesabı olan Google girişinde oturum geçiş bitince açılır', (
+      tester,
+    ) async {
+      var verified = false;
+      await pumpAuthFlow(
+        tester,
+        authFlowApp(
+          onGoogleToken: () async => 'token',
+          onGoogleSignIn:
+              (_, {username, hasBusiness = false, onVerified}) async {
+                await onVerified?.call();
+                verified = true;
+                return null;
+              },
+        ),
+      );
+
+      await tester.tap(find.bySemanticsLabel('Google ile devam et'));
+      await tester.pumpAndSettle();
+
+      expect(verified, isTrue);
+      expect(find.text('Bir adım kaldı'), findsNothing);
+    });
+
+    testWidgets('hesap yoksa Bir adım kaldı önerilen adla açılır', (
+      tester,
+    ) async {
+      final requests = <({String? username, bool hasBusiness})>[];
+      await pumpAuthFlow(
+        tester,
+        authFlowApp(
+          onGoogleToken: () async => 'token',
+          onGoogleSignIn:
+              (_, {username, hasBusiness = false, onVerified}) async {
+                requests.add((username: username, hasBusiness: hasBusiness));
+                if (username == null) {
+                  return const GoogleSignupRequired(
+                    email: 'ali@gmail.com',
+                    suggestedUsername: 'ali2',
+                  );
+                }
+                await onVerified?.call();
+                return null;
+              },
+        ),
+      );
+
+      await tester.tap(find.bySemanticsLabel('Google ile devam et'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Bir adım kaldı'), findsOneWidget);
+      expect(
+        find.text('Google hesabınızla hesabınız açılıyor.'),
+        findsOneWidget,
+      );
+      expect(find.text('ali2'), findsOneWidget);
+      expect(requests.single.username, isNull, reason: 'Hesap açılmadı.');
+
+      await tester.enterText(authField('Kullanıcı adı'), 'ali.can');
+      await tester.tap(find.text('İşletmem var'));
+      await tester.tap(authButton('Devam et'));
+      await tester.pumpAndSettle();
+
+      expect(requests.last.username, 'ali.can');
+      expect(requests.last.hasBusiness, isTrue);
+    });
+
+    testWidgets('alınmış ad alanın altında söylenir, kişi panelde kalır', (
+      tester,
+    ) async {
+      await pumpAuthFlow(
+        tester,
+        authFlowApp(
+          onGoogleToken: () async => 'token',
+          onGoogleSignIn:
+              (_, {username, hasBusiness = false, onVerified}) async {
+                if (username == null) {
+                  return const GoogleSignupRequired(
+                    email: 'ali@gmail.com',
+                    suggestedUsername: 'ali2',
+                  );
+                }
+                throw const ApiException(
+                  statusCode: 409,
+                  code: 'authentication.username_taken',
+                  message: AuthValidation.usernameTaken,
+                );
+              },
+        ),
+      );
+      await tester.tap(find.bySemanticsLabel('Google ile devam et'));
+      await tester.pumpAndSettle();
+      await tester.tap(authButton('Devam et'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(AuthValidation.usernameTaken), findsOneWidget);
+      expect(find.text('Bir adım kaldı'), findsOneWidget);
+    });
+
+    testWidgets('Vazgeç girişe döner ve hesap açılmaz', (tester) async {
+      final usernames = <String?>[];
+      await pumpAuthFlow(
+        tester,
+        authFlowApp(
+          onGoogleToken: () async => 'token',
+          onGoogleSignIn:
+              (_, {username, hasBusiness = false, onVerified}) async {
+                usernames.add(username);
+                return const GoogleSignupRequired(email: 'ali@gmail.com');
+              },
+        ),
+      );
+      await tester.tap(find.bySemanticsLabel('Google ile devam et'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Vazgeç'));
+      await tester.pumpAndSettle();
+
+      expect(authButton('Giriş yap'), findsOneWidget);
+      expect(usernames, [null]);
+    });
+
+    testWidgets('Google penceresi açılamazsa formda söylenir', (tester) async {
+      await pumpAuthFlow(
+        tester,
+        authFlowApp(
+          onGoogleToken: () async => throw const GoogleSignInUnavailable(),
+          onGoogleSignIn:
+              (_, {username, hasBusiness = false, onVerified}) async => null,
+        ),
+      );
+
+      await tester.tap(find.bySemanticsLabel('Google ile devam et'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(const GoogleSignInUnavailable().message),
         findsOneWidget,
       );
     });

@@ -160,9 +160,9 @@ Ardından uygulama paketini kaldırıp üretilen APK'yı yeniden kurun:
 
 ```powershell
 $adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
-& $adb uninstall com.nef.business_finance_mobile
+& $adb uninstall com.nef.businessfinance
 & $adb install build\app\outputs\flutter-apk\app-debug.apk
-& $adb shell am start -n com.nef.business_finance_mobile/.MainActivity
+& $adb shell am start -n com.nef.businessfinance/com.nef.business_finance_mobile.MainActivity
 ```
 
 İlk uninstall daha önce kurulum yoksa hata verebilir; install sonucunun
@@ -289,7 +289,7 @@ docker compose stop sqlserver
 - **Uygulama açılıyor ama ekran boş kalıyor (Flutter logosunda takılıyor):**
   Pixel 8 AVD'de Impeller/OpenGLES ilk kareyi çizemeyebiliyor; süreç yaşıyor,
   Dart VM açılıyor, ama yüzey boyanmıyor. Uygulamayı Impeller kapalı başlatın:
-  `adb shell am start -n com.nef.business_finance_mobile/.MainActivity --ez enable-impeller false`.
+  `adb shell am start -n com.nef.businessfinance/com.nef.business_finance_mobile.MainActivity --ez enable-impeller false`.
   Bu bir uygulama hatası değil, emulator grafik yığınının durumudur; 23 Ağustos
   2026 kabul turunda görüldü ve bu yolla aşıldı.
 - **Impeller kapalı başlatmak da yetmiyorsa** (26 Ağustos 2026 kabul turu):
@@ -298,6 +298,20 @@ docker compose stop sqlserver
   yazılım render'ıyla yeniden başlatmak sorunu kesin olarak çözdü:
   `emulator -avd Pixel_8 -gpu swiftshader_indirect -no-snapshot-load`.
   Yavaştır ama her kareyi çizer; kabul turu bu ayarla tamamlandı.
+- **Kalıcı çözüm: emülatörü NVIDIA kartta çalıştırmak** (9 Kasım 2026).
+  Dizüstünde iki kart var (Intel Iris Xe ve RTX 3050 Ti); Windows emülatörü
+  varsayılan olarak Intel'de çalıştırıyordu ve siyah ekran oradan geliyordu.
+  `emulator.exe` ile `qemu\windows-x86_64\qemu-system-x86_64.exe` Windows'un
+  grafik ayarında (Ayarlar → Sistem → Ekran → Grafik; ya da
+  `HKCU\Software\Microsoft\DirectX\UserGpuPreferences`, değer
+  `GpuPreference=2;`) "Yüksek performans"a alındı ve emülatör
+  `emulator -avd Pixel_8 -gpu host` ile açıldı. Günlükte `Graphics Adapter
+  Vendor Google (NVIDIA Corporation)` görünür; release derlemesi Impeller açıkken
+  ilk kareyi çizdi. Yazılım render'ı bundan sonra yalnız yedek yoldur.
+  Android Studio emülatörü kendi penceresinde açarken
+  `qemu-system-x86_64-headless.exe`'yi kullanır; o da aynı tercihe alındı ve
+  AVD'nin `config.ini`'sinde `hw.gpu.mode=auto` → `host` yapıldı (yedeği
+  `config.ini.bak-2026-11-09`). Böylece Studio'dan açılışta da NVIDIA kullanılır.
 - Login ekranında eski oturum: APK'yı uninstall/install edin; SQL verisinin
   kalacağını unutmayın ve benzersiz sentetik kullanıcı kullanın.
 
