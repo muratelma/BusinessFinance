@@ -34,7 +34,7 @@ class InvoiceDecisionPage extends StatelessWidget {
     return Scaffold(
       appBar: AppPageBar(title: const Text('Fatura okundu')),
       body: ListView(
-        padding: AppPageInsets.list,
+        padding: AppPageInsets.aboveBar(context, AppPageInsets.list),
         children: [
           AppCard(
             child: Column(

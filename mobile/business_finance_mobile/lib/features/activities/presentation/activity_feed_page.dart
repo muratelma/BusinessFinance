@@ -276,8 +276,11 @@ class _ActivityFeedPageState extends State<ActivityFeedPage> {
               ],
             ),
           SliverToBoxAdapter(child: _buildFooter(context)),
-          const SliverToBoxAdapter(
-            child: SizedBox(height: AppSpacing.fabClearance),
+          SliverPadding(
+            padding: AppPageInsets.aboveBar(
+              context,
+              AppPageInsets.fullBleedList,
+            ),
           ),
         ],
       ),

@@ -1008,7 +1008,7 @@ zaten görünür.
 
 ## `İşlem ekle` menüsünün niyet ekseni
 
-Menü tek giriş noktasıdır: kabuktaki çentikli buton ve İşlemler ekranındaki
+Menü tek giriş noktasıdır: alt çubuğun ortasındaki `+` ve İşlemler ekranındaki
 eylem aynı launcher'ı açar. Dokuz satır düz bir listede telefonda okunmuyordu;
 satırlar **niyet** başlıklarının altında toplandı.
 

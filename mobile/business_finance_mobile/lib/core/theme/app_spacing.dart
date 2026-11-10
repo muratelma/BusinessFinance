@@ -28,10 +28,6 @@ abstract final class AppSpacing {
   /// butonunun altında kalmamalı. Ölçekteki bir adım değil, tek amaçlı bir
   /// yerleşim sabitidir.
   static const double fabClearance = 96;
-
-  /// Alt gezinme çubuğunun ortasında kayan eylem butonuna açılan yer.
-  /// Bu da bir boşluk adımı değil, çentiğin genişliğidir.
-  static const double navNotch = 72;
 }
 
 /// Sayfa gövdesinin iç boşlukları: başlığın altındaki içeriğin nereden
@@ -88,6 +84,16 @@ abstract final class AppPageInsets {
     edge,
     AppSpacing.fabClearance,
   );
+
+  /// Alt gezinme çubuğuyla birlikte görünen sayfanın gövdesi: çubuk içeriğin
+  /// üstünde yüzer, son satır çubuğun perdesinin başladığı yerde biter.
+  /// Çubuğun kapladığı pay `MediaQuery`'den okunur (kabuk `extendBody` ile
+  /// bildirir); çubuğun olmadığı yerde (geniş ekran, kabuk dışı rota) [base]
+  /// olduğu gibi kalır.
+  static EdgeInsets aboveBar(BuildContext context, EdgeInsets base) {
+    final bar = MediaQuery.paddingOf(context).bottom;
+    return bar > base.bottom ? base.copyWith(bottom: bar) : base;
+  }
 
   /// Yatay kayan süzgeç şeridi: yalnız kenar payı. Dikey nefesi çipin
   /// kendi dokunma payı verir.

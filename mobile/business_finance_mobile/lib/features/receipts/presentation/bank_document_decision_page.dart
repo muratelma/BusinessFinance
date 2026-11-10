@@ -62,7 +62,7 @@ class _BankDocumentDecisionPageState extends State<BankDocumentDecisionPage> {
     return Scaffold(
       appBar: AppPageBar(title: const Text('Dekont okundu')),
       body: ListView(
-        padding: AppPageInsets.list,
+        padding: AppPageInsets.aboveBar(context, AppPageInsets.list),
         children: [
           _Summary(draft: draft),
           const SizedBox(height: AppGaps.section),

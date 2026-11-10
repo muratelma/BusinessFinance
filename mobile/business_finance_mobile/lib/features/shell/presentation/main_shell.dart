@@ -5,6 +5,7 @@ import '../../../core/theme/app_breakpoints.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/app_content_width.dart';
 import '../../../core/presentation/scope_controller.dart';
 import '../../activities/presentation/quick_add_navigation.dart';
@@ -19,13 +20,13 @@ class MainShell extends StatelessWidget {
   static const _leadingDestinations = [
     ShellDestination(
       label: 'Özet',
-      icon: Icons.space_dashboard_outlined,
-      selectedIcon: Icons.space_dashboard,
+      icon: Icons.home_outlined,
+      selectedIcon: Icons.home,
     ),
     ShellDestination(
       label: 'İşlemler',
-      icon: Icons.receipt_long_outlined,
-      selectedIcon: Icons.receipt_long,
+      icon: Icons.swap_vert,
+      selectedIcon: Icons.swap_vert,
     ),
   ];
 
@@ -37,14 +38,14 @@ class MainShell extends StatelessWidget {
 
   static const _cashDestination = ShellDestination(
     label: 'Kasa',
-    icon: Icons.point_of_sale_outlined,
-    selectedIcon: Icons.point_of_sale,
+    icon: Icons.storefront_outlined,
+    selectedIcon: Icons.storefront,
   );
 
   static const _moreDestination = ShellDestination(
     label: 'Diğer',
-    icon: Icons.more_horiz,
-    selectedIcon: Icons.more,
+    icon: Icons.grid_view_outlined,
+    selectedIcon: Icons.grid_view,
   );
 
   final StatefulNavigationShell navigationShell;
@@ -151,73 +152,187 @@ class MainShell extends StatelessWidget {
   ) {
     // Başlık sayfanın kendisinden gelir: shell de bir AppBar çizseydi
     // "İşlemler" gibi başlıklar ekranda iki kez görünürdü.
+    //
+    // Çubuk içeriğin üstünde yüzer ve içerik altından akar (`extendBody`);
+    // sayfalar son satırı `AppPageInsets.aboveBar` ile çubuğun üstüne çıkarır.
+    // Klavye açıkken çubuk gizlenir: alanın ve gönder düğmesinin üstünde
+    // durmasın.
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Scaffold(
+      extendBody: true,
       body: navigationShell,
-      // Birincil eylem çubuğun ortasına oturur ve çubuk ona bir çentik açar:
-      // işlem eklemek uygulamanın en sık yapılan işidir, başparmağın doğal
-      // durduğu yerde olmalı.
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'main-shell-new-transaction',
-        tooltip: 'İşlem ekle',
-        onPressed: () => openQuickAdd(context),
-        child: const Icon(Icons.add),
-      ),
-      bottomNavigationBar: ShellNavigationBar(
-        destinations: destinations,
-        currentIndex: navigationShell.currentIndex,
-        onSelected: _selectDestination,
-      ),
+      bottomNavigationBar: keyboardOpen
+          ? null
+          : ShellNavigationBar(
+              destinations: destinations,
+              currentIndex: navigationShell.currentIndex,
+              onSelected: _selectDestination,
+              onAdd: () => openQuickAdd(context),
+            ),
     );
   }
 }
 
-/// Ortasında kayan eylem butonu için çentik bulunan alt gezinme çubuğu.
+/// Yüzen kapsül alt gezinme çubuğu: dört sekme ve ortada `+`.
 ///
-/// `NavigationBar` çentiği desteklemediği için çubuk elle çiziliyor. Bunun
-/// bedeli, `NavigationBar`'ın hazır verdiği seçili göstergesini ve
-/// erişilebilirlik anlamlarını burada açıkça vermek zorunda olmak.
+/// Tasarım teslimi `design/design_handoff_altcubuk` (N7, 10 Kasım 2026).
+/// Kapsülün boyu sabittir, yalnız genişliği ekrana uyar; konumu ekranın
+/// altından verilir ([bottomOffset]). Arkasında sayfa renginde bir perde
+/// vardır: içerik çubuğa yaklaşırken silinir ve çubuğun altından görünmez. İşlem eklemek
+/// uygulamanın en sık yapılan işidir ve başparmağın durduğu yerde, çubuğun
+/// ortasındadır. Seçili sekme dolgulu ikonla değil hap, renk ve kalın yazıyla
+/// anlatılır.
 class ShellNavigationBar extends StatelessWidget {
   const ShellNavigationBar({
     required this.destinations,
     required this.currentIndex,
     required this.onSelected,
+    required this.onAdd,
     super.key,
   });
 
   final List<ShellDestination> destinations;
   final int currentIndex;
   final ValueChanged<int> onSelected;
+  final VoidCallback onAdd;
+
+  /// Kapsülün yüksekliği.
+  static const double height = 64;
+
+  /// Perdenin kapsülün üstünde kalan, içeriğin silindiği kısmı.
+  static const double fade = AppSpacing.large;
+
+  /// Kapsülün ekranın altından uzaklığı.
+  ///
+  /// Hareket çizgisi olan telefonda (iPhone 34, Android 16–24 dp'lik sistem
+  /// boşluğu) kapsül çizginin hemen üstünde, sabit bir yerde durur: sistem
+  /// boşluğunun tamamı eklenseydi iPhone'da çizgiyle arası 30 dp'ye çıkıyordu
+  /// (10 Kasım 2026; büyük uygulamalarda bu ara 8 dp kadardır). Üç düğmeli
+  /// gezinmede düğmelerin üstünde kalır.
+  static double bottomOffset(BuildContext context) {
+    final system = MediaQuery.viewPaddingOf(context).bottom;
+    if (system == 0) return AppSpacing.compact;
+    if (system < 40) return 22;
+    return system + AppSpacing.small;
+  }
+
+  /// Ortadaki `+` yuvasının genişliği.
+  static const double addSlot = 64;
+
+  /// Seçili sekmenin hapı.
+  static const double pillHeight = 56;
 
   @override
   Widget build(BuildContext context) {
     final surfaces = AppSurfaces.of(context);
-    // Dört hedef ikiye ikiye ayrılır; çentik tam ortada kalır.
+    final colors = Theme.of(context).colorScheme;
+    // Dört hedef ikiye ikiye ayrılır; `+` tam ortada kalır.
     final half = destinations.length ~/ 2;
 
-    return BottomAppBar(
-      color: surfaces.card,
-      elevation: 0,
-      shape: const CircularNotchedRectangle(),
-      // Butonla çubuk arasındaki nefes payı: çentik butona yapışırsa buton
-      // çubuğun bir parçası gibi görünür ve yüzdüğü okunmaz.
-      notchMargin: AppSpacing.small,
-      padding: EdgeInsets.zero,
-      height: 76,
-      child: Row(
-        children: [
-          for (var index = 0; index < destinations.length; index++) ...[
-            if (index == half) const SizedBox(width: AppSpacing.navNotch),
-            Expanded(
-              child: _NavItem(
-                destination: destinations[index],
-                selected: index == currentIndex,
-                onTap: () => onSelected(index),
-              ),
+    final bar = Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppPageInsets.edge,
+        fade,
+        AppPageInsets.edge,
+        bottomOffset(context),
+      ),
+      child: Container(
+        height: height,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xSmall),
+        decoration: BoxDecoration(
+          color: surfaces.card,
+          border: Border.all(color: surfaces.border),
+          borderRadius: BorderRadius.circular(AppRadius.chip),
+          boxShadow: [
+            BoxShadow(
+              color: surfaces.overlay,
+              offset: const Offset(0, 2),
+              blurRadius: 6,
+            ),
+            BoxShadow(
+              color: surfaces.overlay,
+              offset: const Offset(0, 1),
+              blurRadius: 2,
             ),
           ],
-        ],
+        ),
+        // Sekme yazısı büyük yazıda kapsülü büyütmez (Material'ın gezinme
+        // çubuğu da sınırlar).
+        child: MediaQuery.withClampedTextScaling(
+          maxScaleFactor: 1.3,
+          child: Row(
+            children: [
+              for (var index = 0; index < destinations.length; index++) ...[
+                if (index == half)
+                  SizedBox(
+                    width: addSlot,
+                    child: Center(
+                      child: Tooltip(
+                        message: 'İşlem ekle',
+                        child: Semantics(
+                          button: true,
+                          label: 'İşlem ekle',
+                          excludeSemantics: true,
+                          child: Material(
+                            key: const ValueKey('main-shell-new-transaction'),
+                            color: colors.primary,
+                            shape: const CircleBorder(),
+                            clipBehavior: Clip.antiAlias,
+                            child: InkWell(
+                              onTap: onAdd,
+                              child: SizedBox.square(
+                                dimension: AppSizes.button,
+                                child: Icon(
+                                  Icons.add,
+                                  size: 26,
+                                  color: colors.onPrimary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xxSmall / 2,
+                    ),
+                    child: _NavItem(
+                      destination: destinations[index],
+                      selected: index == currentIndex,
+                      onTap: () => onSelected(index),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
+    );
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    surfaces.canvas.withValues(alpha: 0),
+                    surfaces.canvas,
+                  ],
+                  stops: const [0, 0.5],
+                ),
+              ),
+            ),
+          ),
+        ),
+        bar,
+      ],
     );
   }
 }
@@ -236,40 +351,58 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = selected
-        ? theme.colorScheme.onSurface
-        : theme.colorScheme.onSurfaceVariant;
+    final surfaces = AppSurfaces.of(context);
+    final color = selected ? surfaces.ink : surfaces.inkMuted;
+    final shape = BorderRadius.circular(AppRadius.chip);
 
     return Semantics(
       button: true,
       selected: selected,
       label: destination.label,
       excludeSemantics: true,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.field),
-        child: SizedBox(
-          // 48 dp dokunma hedefi çubuğun kendi yüksekliğinden gelir.
-          height: 76,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                selected ? destination.selectedIcon : destination.icon,
-                size: 26,
-                color: color,
+      child: Center(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          // Hap sekmenin tamamını kaplar, yalnız yazının genişliğini değil.
+          width: double.infinity,
+          height: ShellNavigationBar.pillHeight,
+          decoration: BoxDecoration(
+            color: selected
+                ? surfaces.cardMuted
+                : surfaces.cardMuted.withValues(alpha: 0),
+            borderRadius: shape,
+          ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: shape,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    destination.icon,
+                    size: 24,
+                    weight: selected ? 600 : 400,
+                    color: color,
+                  ),
+                  const SizedBox(height: AppSpacing.xxSmall),
+                  Text(
+                    destination.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontSize: AppTextSizes.micro,
+                      height: 16 / 12,
+                      letterSpacing: 0,
+                      color: color,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: AppSpacing.xSmall),
-              Text(
-                destination.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: color,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

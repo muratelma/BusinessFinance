@@ -165,7 +165,7 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
     return Form(
       key: _formKey,
       child: ListView(
-        padding: AppPageInsets.form,
+        padding: AppPageInsets.aboveBar(context, AppPageInsets.form),
         children: [
           ..._buildPrefillNotices(context),
           if (widget.isExpense) _buildSourcePicker() else _buildAccountPicker(),

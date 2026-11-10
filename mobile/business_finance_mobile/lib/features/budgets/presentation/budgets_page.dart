@@ -156,7 +156,7 @@ class _BudgetsPageState extends State<BudgetsPage> {
       return RefreshIndicator(
         onRefresh: controller.load,
         child: ListView(
-          padding: AppPageInsets.list,
+          padding: AppPageInsets.aboveBar(context, AppPageInsets.list),
           children: [
             month,
             SizedBox(
@@ -187,7 +187,7 @@ class _BudgetsPageState extends State<BudgetsPage> {
     return RefreshIndicator(
       onRefresh: controller.load,
       child: ListView(
-        padding: AppPageInsets.listWithFab,
+        padding: AppPageInsets.aboveBar(context, AppPageInsets.list),
         children: [
           month,
           const SizedBox(height: AppSpacing.small),

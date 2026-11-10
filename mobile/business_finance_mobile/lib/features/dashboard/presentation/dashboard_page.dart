@@ -104,7 +104,7 @@ class DashboardPage extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: viewModel.load,
       child: ListView(
-        padding: AppPageInsets.listWithFab,
+        padding: AppPageInsets.aboveBar(context, AppPageInsets.list),
         children: [
           _MonthStepper(
             label: DateText.monthYear(report.year, report.month),

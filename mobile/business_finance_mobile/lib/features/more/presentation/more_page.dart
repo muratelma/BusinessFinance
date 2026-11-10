@@ -46,7 +46,7 @@ class MorePage extends StatelessWidget {
               child: ListView(
                 // Alt boşluk `+` düğmesini aşacak kadar: son satır düğmenin
                 // altında kalıp dokunuşu yutmamalı.
-                padding: AppPageInsets.listWithFab,
+                padding: AppPageInsets.aboveBar(context, AppPageInsets.list),
                 children: [
                   const _AccountCard(),
                   for (final group in groups) ...[

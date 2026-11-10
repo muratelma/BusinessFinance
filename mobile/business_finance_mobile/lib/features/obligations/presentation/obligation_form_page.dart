@@ -110,7 +110,7 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
     return Form(
       key: _formKey,
       child: ListView(
-        padding: AppPageInsets.form,
+        padding: AppPageInsets.aboveBar(context, AppPageInsets.form),
         children: [
           AppInlineNotice(
             icon: Icons.receipt_long_outlined,

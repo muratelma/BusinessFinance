@@ -340,17 +340,43 @@ Birkaç bileşenin sözleşmesinde neden şu kararların olduğu:
 
 ### Gezinme ve birincil eylem
 
-- Telefon dikeyde alt çubuk **çentiklidir** (`BottomAppBar` +
-  `CircularNotchedRectangle`) ve dört sekme ikiye ikiye ayrılır. Birincil
-  eylem (`İşlem ekle`) çentiğe oturur; başparmağın doğal durduğu yerdir.
-- Ortadaki buton **her sekmede kalır**. Sekmeye göre kaybolsaydı çentik boş
-  bir oyuk olarak dururdu.
+- Telefon dikeyde alt çubuk **yüzen bir kapsüldür** (`ShellNavigationBar`,
+  `main_shell.dart`; teslim `design/design_handoff_altcubuk`, N7, 10 Kasım
+  2026): 64 dp yükseklik, iki yanda 16 dp, tam yuvarlak, kart zemini, 1 dp
+  kenarlık ve hafif gölge. Dört sekme ikiye ikiye ayrılır; ortada 64 dp'lik
+  yuvada 48 dp'lik marka renginde yazısız `+` (`İşlem ekle`) durur.
+- **Kapsülün boyu sabittir, konumu ekranın altından verilir**
+  (`ShellNavigationBar.bottomOffset`): hareket çizgisi olan telefonda 22 dp
+  (çizginin yaklaşık 8 dp üstü; iPhone'da da Android'de de aynı yer), üç
+  düğmeli gezinmede düğmelerin 8 dp üstü, sistem boşluğu yoksa 12 dp. Teslim
+  "sistem boşluğu + 8" diyordu; iPhone'da çizgiyle arası 30 dp'ye çıktığı için
+  kullanıcı kararıyla değişti (10 Kasım 2026). Hiçbir ölçü ekran yüksekliğinden
+  türetilmez; yalnız genişlik ekrana uyar.
+- **Çubuk içeriğin üstünde yüzer** (`Scaffold.extendBody`) ve **arkasında
+  sayfa renginde bir perde** vardır: içerik kapsülün 24 dp üstünden başlayarak
+  silinir, kapsülün altından ve yanlarından görünmez (perdesiz hâlde alttaki
+  şeritten satır parçaları görünüyor, ekran kalabalık duruyordu). Çubukla
+  birlikte görünen sayfa gövdesini `AppPageInsets.aboveBar` ile kurar: son
+  satır perdenin başladığı yerde biter. Klavye açıkken çubuk gizlenir.
+- **Seçili sekme** 56 dp'lik gri hapla (sekmenin tamamı), mürekkep rengi ve
+  kalın yazıyla anlatılır; ikon dolgulu olmaz (dolgulu `storefront` ve
+  `grid_view` kötü duruyordu). İkon 24 dp, yazı 12/16; ikonlar `home`,
+  `swap_vert`, `storefront`, `grid_view` (kişisel profilde üçüncü sekme
+  `donut_small`). Sekme yazısı büyük yazıda en çok 1,3× büyür, kapsül büyümez.
+- Ortadaki `+` **her sekmede kalır**.
+- **Sistem alt boşluğu tek yerde ele alınır** (`AppSystemButtonsInset`, uygulama
+  kökünde). Hareket çizgili telefonda içerik ekranın altına kadar çizilir;
+  açılan sayfanın son satırı ekranın altından 32 dp yukarıda, çizginin yaklaşık
+  18 dp üstünde biter. Üç düğmeli Android gezinmesinde sistem çubuğu opaktır:
+  içerik düğmelerin üstünde biter ve sayfalar boşluğu sıfır görür, böylece
+  liste sonu (32), form sonu (24) ve alt çubuk kendi kuralını düğmelerin
+  üstünden uygular. Sayfalar sistem boşluğu için ayrıca pay eklemez.
 - Bu yüzden **alt çubuğun olduğu sekmelerde sayfaların kendi kayan butonu
   olmaz**; sayfaya özel ekleme eylemi başlık çubuğuna taşınır. İki kayan buton
   aynı ekranda birbiriyle yarışıyordu.
 - Alt çubuğun olmadığı ekranlarda (Kategoriler, Hesaplar, …) sayfanın kendi
   kayan butonu sağ altta kalır: daire, ikon ve tooltip.
-- Geniş ekranda çentik yoktur; birincil eylem gezinme rayının başında durur.
+- Geniş ekranda kapsül yoktur; birincil eylem gezinme rayının başında durur.
 - **Sayfa geçişi** (8 Kasım 2026): alt sekmelerin kökleri (Özet, İşlemler,
   Bütçeler, Diğer) geçişsizdir; alt çubuk yerinde durur. Bir sayfanın üstüne
   açılan her şey (Hesaplar, Kategori özeti, Vergi, formlar…) platformun kendi
@@ -761,9 +787,10 @@ neden kapalı olduğu ekranda görünmezse kullanıcı hatayı kendinde arar.
 Ana gezinme dört hedefi korur. Üçüncü hedef işletme profilinde `Kasa`
 (`point_of_sale`), kişisel profilde `Bütçeler` (`donut_small`) olur; yerinden
 inen hedef `Diğer` listesinde aynı görünür metin ve vektör ikonla yer alır.
-Compact görünümde çentikli alt çubuk, medium/expanded görünümde gezinme rayı
-aynı hedef modelini okur. Seçili durum ikon dolgusu, yazı kalınlığı ve semantic
-`selected` ile birlikte anlatılır; yalnız renge bırakılmaz.
+Compact görünümde yüzen kapsül, medium/expanded görünümde gezinme rayı
+aynı hedef modelini okur. Seçili durum kapsülde hap ve yazı kalınlığı, rayda
+ikon dolgusu ile ve ikisinde semantic `selected` ile anlatılır; yalnız renge
+bırakılmaz.
 
 `Kasa` sayfası sekmesiz **tek akıştır** (Claude Design teslimi, KasaV4):
 kasa seçici rayı (ad + bakiye, alan yarıçapı, 56 dp dilim), bugünün sayım

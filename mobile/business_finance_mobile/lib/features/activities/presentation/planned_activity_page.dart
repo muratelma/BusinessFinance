@@ -231,7 +231,7 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
     return RefreshIndicator(
       onRefresh: _controller.load,
       child: ListView.separated(
-        padding: AppPageInsets.fullBleedList,
+        padding: AppPageInsets.aboveBar(context, AppPageInsets.fullBleedList),
         itemCount: items.length,
         separatorBuilder: (_, _) => const SizedBox(height: AppGaps.card),
         itemBuilder: (context, index) => PlannedActivityTile(

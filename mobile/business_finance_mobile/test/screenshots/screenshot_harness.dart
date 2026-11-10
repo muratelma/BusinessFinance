@@ -76,20 +76,14 @@ Future<void> captureScreen(
     final body = withNavBar
         ? Scaffold(
             body: page,
-            floatingActionButtonLocation:
-                FloatingActionButtonLocation.centerDocked,
-            floatingActionButton: Builder(
-              builder: (context) => FloatingActionButton(
-                heroTag: 'screenshot-fab',
-                tooltip: 'İşlem ekle',
-                onPressed: () => openQuickAdd(context),
-                child: const Icon(Icons.add),
+            extendBody: true,
+            bottomNavigationBar: Builder(
+              builder: (context) => ShellNavigationBar(
+                onAdd: () => openQuickAdd(context),
+                destinations: MainShell.destinationsFor(hasBusiness),
+                currentIndex: selectedTab,
+                onSelected: (_) {},
               ),
-            ),
-            bottomNavigationBar: ShellNavigationBar(
-              destinations: MainShell.destinationsFor(hasBusiness),
-              currentIndex: selectedTab,
-              onSelected: (_) {},
             ),
           )
         : page;

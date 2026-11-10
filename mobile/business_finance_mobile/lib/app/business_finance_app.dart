@@ -15,6 +15,7 @@ import '../features/profile/data/profile_repository.dart';
 import '../features/reminders/presentation/reminder_controller.dart';
 import 'app_dependencies.dart';
 import '../features/finance_pages/data/finance_page_repository.dart';
+import '../core/widgets/app_system_buttons_inset.dart';
 
 class BusinessFinanceApp extends StatelessWidget {
   BusinessFinanceApp({
@@ -82,8 +83,11 @@ class BusinessFinanceApp extends StatelessWidget {
       supportedLocales: AppLocale.supported,
       localizationsDelegates: AppLocale.delegates,
       routerConfig: router,
-      builder: (context, child) =>
-          TapOutsideDismissesKeyboard(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => AppSystemButtonsInset(
+        child: TapOutsideDismissesKeyboard(
+          child: child ?? const SizedBox.shrink(),
+        ),
+      ),
     );
 
     final authController = _authController;

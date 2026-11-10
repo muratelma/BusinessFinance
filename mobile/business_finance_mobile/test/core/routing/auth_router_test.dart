@@ -13,6 +13,7 @@ import 'package:provider/provider.dart';
 import '../../helpers/fake_auth.dart';
 import '../../helpers/fake_dashboard.dart';
 import 'package:business_finance_mobile/core/models/transaction_scope.dart';
+import 'package:business_finance_mobile/features/shell/presentation/main_shell.dart';
 
 void main() {
   testWidgets('restoring session does not flash login or protected shell', (
@@ -28,7 +29,7 @@ void main() {
 
     expect(find.bySemanticsLabel('Oturum kontrol ediliyor'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Giriş yap'), findsNothing);
-    expect(find.byType(BottomAppBar), findsNothing);
+    expect(find.byType(ShellNavigationBar), findsNothing);
   });
 
   testWidgets('unauthenticated user is redirected to login', (tester) async {
@@ -71,7 +72,7 @@ void main() {
 
     expect(router.routerDelegate.currentConfiguration.uri.path, '/dashboard');
     expect(find.text('Bütçe servisi yapılandırılmadı.'), findsNothing);
-    expect(find.byType(BottomAppBar), findsOneWidget);
+    expect(find.byType(ShellNavigationBar), findsOneWidget);
   });
 
   testWidgets('authenticated user cannot remain on login route', (

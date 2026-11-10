@@ -225,7 +225,7 @@ class _CashPageState extends State<CashPage> {
         // POS bölümü ekranın altında kalsa da çizilmiş olmalı: açılışta ona
         // kaydırılabilmesi için.
         scrollCacheExtent: const ScrollCacheExtent.pixels(1500),
-        padding: AppPageInsets.listWithFab,
+        padding: AppPageInsets.aboveBar(context, AppPageInsets.list),
         children: [
           if (controller.isStale)
             Padding(

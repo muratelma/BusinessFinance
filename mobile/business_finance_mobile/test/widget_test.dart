@@ -9,6 +9,7 @@ import 'package:business_finance_mobile/core/theme/app_breakpoints.dart';
 import 'package:business_finance_mobile/core/widgets/app_content_width.dart';
 import 'package:business_finance_mobile/features/transactions/data/transaction_models.dart';
 import 'package:business_finance_mobile/features/transactions/data/transaction_repository.dart';
+import 'package:business_finance_mobile/features/shell/presentation/main_shell.dart';
 import 'package:provider/provider.dart';
 
 import 'helpers/fake_dashboard.dart';
@@ -25,20 +26,19 @@ void main() {
     await tester.pumpWidget(_testApp());
     await tester.pumpAndSettle();
 
-    expect(find.byType(BottomAppBar), findsOneWidget);
+    expect(find.byType(ShellNavigationBar), findsOneWidget);
     expect(find.text('Kategori giderleri'), findsOneWidget);
 
-    // Ortadaki buton çubuğun çentiğine oturur ve her sekmede kalır: sekmeye
-    // göre kaybolsaydı çentik boş bir oyuk olarak dururdu.
+    // Ortadaki `+` çubuğun parçasıdır ve her sekmede kalır.
     expect(_globalTransactionAction(), findsOneWidget);
-    expect(find.byType(FloatingActionButton), findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsNothing);
 
     await tester.tap(find.text('İşlemler').last);
     await tester.pump();
 
     expect(_globalTransactionAction(), findsOneWidget);
     // Sekmenin kendi kayan butonu yok; ikisi aynı ekranda yarışıyordu.
-    expect(find.byType(FloatingActionButton), findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsNothing);
 
     await tester.tap(find.text('Özet').last);
     await tester.pumpAndSettle();
@@ -57,7 +57,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(NavigationRail), findsOneWidget);
-    expect(find.byType(BottomAppBar), findsNothing);
+    expect(find.byType(ShellNavigationBar), findsNothing);
     // Ray etiketi ve sayfanın kendi başlığı ayrı şeylerdir; shell artık
     // başlık çizmediği için "Özet" hem rayda hem sayfa başlığında görünür.
     expect(find.text('Özet'), findsWidgets);
@@ -132,14 +132,14 @@ void main() {
     testWidgets('compact: alt gezinme çubuğu', (tester) async {
       await pumpAt(tester, 400);
 
-      expect(find.byType(BottomAppBar), findsOneWidget);
+      expect(find.byType(ShellNavigationBar), findsOneWidget);
       expect(find.byType(NavigationRail), findsNothing);
     });
 
     testWidgets('medium: daraltılmış ray', (tester) async {
       await pumpAt(tester, 700);
 
-      expect(find.byType(BottomAppBar), findsNothing);
+      expect(find.byType(ShellNavigationBar), findsNothing);
       final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
       expect(
         rail.extended,
@@ -153,7 +153,7 @@ void main() {
     testWidgets('expanded: genişletilmiş ray', (tester) async {
       await pumpAt(tester, 1000);
 
-      expect(find.byType(BottomAppBar), findsNothing);
+      expect(find.byType(ShellNavigationBar), findsNothing);
       final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
       expect(rail.extended, isTrue);
     });
@@ -229,11 +229,8 @@ Widget _testApp({ScopeController? scopeController}) {
   );
 }
 
-Finder _globalTransactionAction() => find.byWidgetPredicate(
-  (widget) =>
-      widget is FloatingActionButton &&
-      widget.heroTag == 'main-shell-new-transaction',
-);
+Finder _globalTransactionAction() =>
+    find.byKey(const ValueKey('main-shell-new-transaction'));
 
 class _ShellTransactionRepository implements TransactionRepositoryContract {
   @override

@@ -362,7 +362,7 @@ class _Sheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListView(
-    padding: AppPageInsets.list,
+    padding: AppPageInsets.aboveBar(context, AppPageInsets.list),
     children: [
       AppContentWidth(
         child: Column(
