@@ -46,7 +46,19 @@ public sealed class DeleteUserAccountUseCase(
                 UserAccountErrors.AuthenticationRequired);
         }
 
-        if (account.HasPassword)
+        // Google onayı gelmişse o denetlenir: parolası olmayan hesapta tek yol,
+        // Google'a bağlı ve parolası da olan hesapta parolanın yerine geçer
+        // (10 Kasım 2026). Belirteç bu hesaba bağlı Google hesabının değilse
+        // reddedilir.
+        if (!string.IsNullOrWhiteSpace(command.GoogleIdToken) || !account.HasPassword)
+        {
+            if (!await GoogleConfirmsAsync(userId, command.GoogleIdToken, cancellationToken))
+            {
+                return ApplicationResult<DeleteUserAccountResponse>.Failure(
+                    UserAccountErrors.ReauthenticationFailed);
+            }
+        }
+        else
         {
             var passwordIsValid = await identityAccountService.VerifyPasswordAsync(
                 userId,
@@ -58,11 +70,6 @@ public sealed class DeleteUserAccountUseCase(
                 return ApplicationResult<DeleteUserAccountResponse>.Failure(
                     UserAccountErrors.InvalidPassword);
             }
-        }
-        else if (!await GoogleConfirmsAsync(userId, command.GoogleIdToken, cancellationToken))
-        {
-            return ApplicationResult<DeleteUserAccountResponse>.Failure(
-                UserAccountErrors.ReauthenticationFailed);
         }
 
         // Önce finansal veri, sonra kimlik: ters sırada bir hata, sahibi

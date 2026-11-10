@@ -66,7 +66,9 @@ public sealed class SendPasswordCodeUseCase(
             emailSender,
             utcNow,
             cancellationToken,
-            isPasswordSetup: true);
+            // Parolası olan hesap "Parolamı unuttum" ile gelir: posta
+            // "parola belirleyin" değil "parolanızı sıfırlayın" der.
+            isPasswordSetup: !account.HasPassword);
 
         return ApplicationResult<SendPasswordCodeResponse>.Success(
             new SendPasswordCodeResponse(sent));

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -27,6 +28,7 @@ import '../../auth/data/auth_models.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../auth/presentation/auth_validation.dart';
+import '../../auth/presentation/widgets/auth_form_parts.dart';
 import '../../profile/data/profile_repository.dart';
 import '../data/account_models.dart';
 import '../data/account_repository.dart';
@@ -124,8 +126,10 @@ class _AccountPageState extends State<AccountPage> {
       children: [
         _ProfileCard(account: account, onVerify: _openVerificationSheet),
         const _BusinessAnswerSection(),
-        // Tek oturum bu cihazdır; söylenecek bir şey yoktur.
-        if (sessions.length > 1) ...[
+        // Tek oturumda da bölüm durur ve yalnız `Bu cihaz · Şu an açık` yazar
+        // (kullanıcı kararı, 10 Kasım 2026): kişi başka yerde açık oturumu
+        // olmadığını görür; bölüm cihaz sayısına göre gelip gitmez.
+        if (sessions.isNotEmpty) ...[
           const SizedBox(height: AppGaps.section),
           const AppSectionHeader(title: 'Açık oturumlar'),
           _SessionsCard(
@@ -288,7 +292,11 @@ class _AccountPageState extends State<AccountPage> {
           ),
         ),
       );
+      // Kodla değiştirildiyse adres de doğrulandı: Özet ve Diğer'deki işaret
+      // aynı anda düşsün.
+      final status = context.read<AccountStatusController?>();
       await controller.load();
+      await status?.refresh();
     }
   }
 
@@ -528,79 +536,137 @@ class _BusinessAnswerSectionState extends State<_BusinessAnswerSection> {
   }
 }
 
-/// Kodun gönderilme durumu. "Az önce gönderildi" bir hata değildir: kod
-/// posta kutusunda duruyor, kullanıcı yalnız onu yazacak.
-enum _CodeSendState { sending, sent, sentEarlier, failed }
-
-class _VerifyEmailSheet extends StatefulWidget {
-  const _VerifyEmailSheet({required this.controller});
-
-  final AccountController controller;
-
-  @override
-  State<_VerifyEmailSheet> createState() => _VerifyEmailSheetState();
+/// E-postaya giden kodun istenme sonucu. "Az önce gönderildi" bir hata
+/// değildir: kod posta kutusunda duruyor, kullanıcı yalnız onu yazacak.
+sealed class _CodeRequest {
+  const _CodeRequest();
 }
 
-class _VerifyEmailSheetState extends State<_VerifyEmailSheet> {
-  static const _codeLength = 6;
+class _CodeSent extends _CodeRequest {
+  const _CodeSent();
+}
+
+class _CodeSentEarlier extends _CodeRequest {
+  const _CodeSentEarlier();
+}
+
+class _CodeFailed extends _CodeRequest {
+  const _CodeFailed(this.message);
+
+  final String message;
+}
+
+const _tooSoonCode = 'account.verification_code_too_soon';
+
+/// E-postayla gelen altı haneli kodun girişi: kutular ve altında tek bir
+/// durum satırı (gönderiliyor, sayaç, `Kodu yeniden gönder` ya da
+/// gönderilemedi). E-posta doğrulama, `Parola belirle` ve `Parolamı unuttum`
+/// aynı parçayı kullanır; kodun nasıl isteneceğini çağıran söyler.
+///
+/// Kod parça kurulunca bir kez istenir: kullanıcı zaten bunun için geldi.
+class _EmailCodeEntry extends StatefulWidget {
+  const _EmailCodeEntry({
+    required this.controller,
+    required this.request,
+    this.error,
+    this.onChanged,
+    this.onCompleted,
+  });
+
+  final TextEditingController controller;
+  final Future<_CodeRequest> Function() request;
+
+  /// Kodun reddi; kutular kırmızıya döner, cümle altlarında yazar.
+  final String? error;
+  final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onCompleted;
 
   /// Sunucunun yeniden gönderim aralığı (`VerificationPolicy.ResendInterval`).
   /// Sunucu kalan süreyi söylemez; sayaç kendi isteğimizden başlar.
-  static const _resendInterval = 60;
+  static const resendSeconds = 60;
+  static const length = 6;
 
-  final _code = TextEditingController();
-  _CodeSendState _send = _CodeSendState.sending;
+  @override
+  State<_EmailCodeEntry> createState() => _EmailCodeEntryState();
+}
+
+enum _SendState { sending, sent, sentEarlier, failed }
+
+class _EmailCodeEntryState extends State<_EmailCodeEntry> {
+  _SendState _send = _SendState.sending;
   String? _sendError;
-  String? _codeError;
   int _secondsLeft = 0;
   Timer? _timer;
-  bool _verifying = false;
 
   @override
   void initState() {
     super.initState();
-    // Panel açılır açılmaz kod istenir: kullanıcı zaten bunun için geldi.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _requestCode());
+    // İstek sayfayı yeniden çizdirir; parça çizilirken başlatılamaz.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _request();
+    });
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _code.dispose();
     super.dispose();
+  }
+
+  Future<void> _request() async {
+    setState(() {
+      _send = _SendState.sending;
+      _sendError = null;
+    });
+    final result = await widget.request();
+    if (!mounted) return;
+    switch (result) {
+      case _CodeSent():
+        _startCountdown(_SendState.sent);
+      case _CodeSentEarlier():
+        _startCountdown(_SendState.sentEarlier);
+      case _CodeFailed(:final message):
+        setState(() {
+          _send = _SendState.failed;
+          _sendError = message;
+        });
+    }
+  }
+
+  void _startCountdown(_SendState state) {
+    _timer?.cancel();
+    setState(() {
+      _send = state;
+      _secondsLeft = _EmailCodeEntry.resendSeconds;
+    });
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      setState(() => _secondsLeft--);
+      if (_secondsLeft <= 0) timer.cancel();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final email = widget.controller.account?.email;
-    return AppFormSheet<bool>(
-      title: 'E-postanızı doğrulayın',
-      description: email == null
-          ? 'E-postanıza gelen $_codeLength haneli kodu yazın.'
-          : '$email adresine gelen $_codeLength haneli kodu yazın.',
-      submitLabel: 'Doğrula',
-      showCancel: false,
-      onSubmit: _code.text.length == _codeLength && !_verifying
-          ? _submit
-          : null,
+    final error = widget.error;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
         AppCodeInput(
-          controller: _code,
-          length: _codeLength,
-          hasError: _codeError != null,
-          onChanged: (_) {
-            // Yazmaya başlayan kullanıcı hatayı okudu; kutular kırmızı kalmaz.
-            setState(() => _codeError = null);
-          },
-          onCompleted: (_) => _autoVerify(),
+          controller: widget.controller,
+          length: _EmailCodeEntry.length,
+          hasError: error != null,
+          onChanged: widget.onChanged,
+          onCompleted: widget.onCompleted,
         ),
-        if (_codeError != null) ...[
+        if (error != null) ...[
           const SizedBox(height: AppSpacing.small),
           Semantics(
             liveRegion: true,
             child: Text(
-              _codeError!,
+              error,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.error,
               ),
@@ -612,23 +678,21 @@ class _VerifyEmailSheetState extends State<_VerifyEmailSheet> {
           constraints: const BoxConstraints(minHeight: AppSizes.button),
           child: Align(
             alignment: AlignmentDirectional.centerStart,
-            child: _sendStatus(theme),
+            child: _status(theme),
           ),
         ),
       ],
     );
   }
 
-  /// Kutuların altındaki tek satır: gönderiliyor, sayaç, yeniden gönder ya da
-  /// gönderilemedi. Aynı anda yalnız biri görünür.
-  Widget _sendStatus(ThemeData theme) {
+  Widget _status(ThemeData theme) {
     final muted = theme.textTheme.bodySmall?.copyWith(
       color: theme.colorScheme.onSurfaceVariant,
     );
     switch (_send) {
-      case _CodeSendState.sending:
+      case _SendState.sending:
         return Text('Kod gönderiliyor…', style: muted);
-      case _CodeSendState.failed:
+      case _SendState.failed:
         return Row(
           children: [
             Flexible(
@@ -640,14 +704,18 @@ class _VerifyEmailSheetState extends State<_VerifyEmailSheet> {
               ),
             ),
             const SizedBox(width: AppSpacing.small),
-            AppTextAction(label: 'Tekrar dene', onPressed: _requestCode),
+            AppTextAction(
+              label: 'Tekrar dene',
+              onPressed: _request,
+              underlined: true,
+            ),
           ],
         );
-      case _CodeSendState.sent:
-      case _CodeSendState.sentEarlier:
+      case _SendState.sent:
+      case _SendState.sentEarlier:
         if (_secondsLeft > 0) {
           return Text(
-            _send == _CodeSendState.sentEarlier
+            _send == _SendState.sentEarlier
                 ? 'Kod az önce gönderildi.'
                 : 'Yeni kodu ${_clock(_secondsLeft)} sonra isteyebilirsiniz.',
             style: muted,
@@ -655,55 +723,95 @@ class _VerifyEmailSheetState extends State<_VerifyEmailSheet> {
         }
         return AppTextAction(
           label: 'Kodu yeniden gönder',
-          onPressed: _requestCode,
+          onPressed: _request,
+          underlined: true,
         );
     }
   }
 
   static String _clock(int seconds) =>
       '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
+}
 
-  Future<void> _requestCode() async {
-    setState(() {
-      _send = _CodeSendState.sending;
-      _sendError = null;
-    });
-    final result = await widget.controller.sendVerificationCode();
-    if (!mounted) return;
-    if (result != null && result.alreadyConfirmed) {
-      Navigator.of(context).pop(true);
-      return;
-    }
-    if (result != null && result.codeSent) {
-      _startCountdown(_CodeSendState.sent);
-      return;
-    }
-    if (result == null &&
-        widget.controller.errorCode == 'account.verification_code_too_soon') {
-      _startCountdown(_CodeSendState.sentEarlier);
-      return;
-    }
-    setState(() {
-      _send = _CodeSendState.failed;
-      // Sunucuda gönderici yapılandırılmamışsa bunu söylemek gerekir; yoksa
-      // kullanıcı hiç gelmeyecek bir postayı bekler.
-      _sendError = result == null
-          ? widget.controller.errorMessage
-          : 'Kod gönderilemedi: e-posta servisi yapılandırılmamış.';
-    });
+/// Parola kodunu ister ve sonucu ortak biçime çevirir.
+Future<_CodeRequest> _requestPasswordCode(AccountController controller) async {
+  final sent = await controller.requestPasswordCode();
+  if (sent) return const _CodeSent();
+  if (controller.errorCode == _tooSoonCode) return const _CodeSentEarlier();
+  return _CodeFailed(controller.errorMessage ?? 'Kod gönderilemedi.');
+}
+
+/// Kodun reddini kutuların altındaki kısa cümleye çevirir.
+String _codeErrorText(AccountController controller, String fallback) =>
+    switch (controller.errorCode) {
+      'authentication.invalid_reset_code' ||
+      'account.invalid_verification_code' => 'Kod yanlış ya da süresi dolmuş.',
+      _ => controller.errorMessage ?? fallback,
+    };
+
+class _VerifyEmailSheet extends StatefulWidget {
+  const _VerifyEmailSheet({required this.controller});
+
+  final AccountController controller;
+
+  @override
+  State<_VerifyEmailSheet> createState() => _VerifyEmailSheetState();
+}
+
+class _VerifyEmailSheetState extends State<_VerifyEmailSheet> {
+  final _code = TextEditingController();
+  String? _codeError;
+  bool _verifying = false;
+
+  @override
+  void dispose() {
+    _code.dispose();
+    super.dispose();
   }
 
-  void _startCountdown(_CodeSendState state) {
-    _timer?.cancel();
-    setState(() {
-      _send = state;
-      _secondsLeft = _resendInterval;
-    });
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) return;
-      setState(() => _secondsLeft--);
-      if (_secondsLeft <= 0) timer.cancel();
-    });
+  @override
+  Widget build(BuildContext context) {
+    final email = widget.controller.account?.email;
+    return AppFormSheet<bool>(
+      title: 'E-postanızı doğrulayın',
+      description: email == null
+          ? 'E-postanıza gelen 6 haneli kodu yazın.'
+          : '$email adresine gelen 6 haneli kodu yazın.',
+      submitLabel: 'Doğrula',
+      showCancel: false,
+      onSubmit: _code.text.length == _EmailCodeEntry.length && !_verifying
+          ? _submit
+          : null,
+      children: [
+        _EmailCodeEntry(
+          controller: _code,
+          request: _request,
+          error: _codeError,
+          onChanged: (_) => setState(() => _codeError = null),
+          onCompleted: (_) => _autoVerify(),
+        ),
+      ],
+    );
+  }
+
+  Future<_CodeRequest> _request() async {
+    final result = await widget.controller.sendVerificationCode();
+    if (!mounted) return const _CodeSent();
+    if (result != null && result.alreadyConfirmed) {
+      Navigator.of(context).pop(true);
+      return const _CodeSent();
+    }
+    if (result != null && result.codeSent) return const _CodeSent();
+    if (result == null && widget.controller.errorCode == _tooSoonCode) {
+      return const _CodeSentEarlier();
+    }
+    // Sunucuda gönderici yapılandırılmamışsa bunu söylemek gerekir; yoksa
+    // kullanıcı hiç gelmeyecek bir postayı bekler.
+    return _CodeFailed(
+      result == null
+          ? widget.controller.errorMessage ?? 'Kod gönderilemedi.'
+          : 'Kod gönderilemedi: e-posta servisi yapılandırılmamış.',
+    );
   }
 
   /// Son rakam yazılınca kod kendiliğinden denenir.
@@ -715,17 +823,16 @@ class _VerifyEmailSheetState extends State<_VerifyEmailSheet> {
   Future<bool?> _submit() async => await _verify() ? true : null;
 
   Future<bool> _verify() async {
-    if (_verifying || _code.text.length != _codeLength) return false;
+    if (_verifying || _code.text.length != _EmailCodeEntry.length) {
+      return false;
+    }
     setState(() => _verifying = true);
     final confirmed = await widget.controller.confirmEmail(_code.text);
     if (!mounted) return confirmed;
     setState(() {
       _verifying = false;
       if (!confirmed) {
-        _codeError =
-            widget.controller.errorCode == 'account.invalid_verification_code'
-            ? 'Kod yanlış ya da süresi dolmuş.'
-            : widget.controller.errorMessage;
+        _codeError = _codeErrorText(widget.controller, 'Kod doğrulanamadı.');
       }
     });
     return confirmed;
@@ -948,13 +1055,23 @@ class _SessionsPage extends StatelessWidget {
   );
 }
 
-/// `Hesabımı sil`: ne olacağını söyleyen sayfa, yedek kapısı ve ikinci kapı
-/// (parola ya da Google).
+/// `Hesabımı sil`: ne olacağını söyleyen sayfa, yedek kapısı ve kimlik
+/// doğrulama.
 ///
 /// Silme bir panel değil sayfadır: geri dönüşü olmayan iş acele ettirilmez,
-/// yedek adımı da aynı yerde durur. Parolası olmayan (Google ile açılmış)
-/// hesapta parola alanı yoktur; ikinci kapı Google'a yeniden giriştir ve
-/// sunucu belirtecin bu hesaba bağlı Google hesabına ait olduğunu denetler.
+/// yedek adımı da aynı yerde durur. Kimlik doğrulama silmeden ayrıdır
+/// (kullanıcı kararı, 10 Kasım 2026; Google'ın "Kimliğinizi doğrulayın"
+/// adımı ve GitHub'ın "erişimi onaylayın"ı gibi): parola yazılır ya da Google
+/// hesabı seçilir, kırmızı düğme ancak ondan sonra açılır ve **yalnız o
+/// siler**. Google penceresi silmez, kimliği doğrular.
+///
+/// - Parola var, Google yok: yalnız parola.
+/// - Parola yok (Google ile açılmış): yalnız `Google ile doğrula`.
+/// - İkisi de var: parola, `ya da`, `Google ile doğrula`.
+///
+/// Sunucu Google belirtecinin bu hesaba bağlı Google hesabından geldiğini
+/// silme anında denetler; başka bir hesap seçildiyse doğrulama düşer ve
+/// sebebi bölümün altında yazar.
 class _DeleteAccountPage extends StatefulWidget {
   const _DeleteAccountPage({required this.controller});
 
@@ -970,6 +1087,12 @@ class _DeleteAccountPageState extends State<_DeleteAccountPage> {
   bool _busy = false;
   bool _deleted = false;
 
+  /// Google'ın verdiği belirteç ve seçilen hesabın adresi (yalnız
+  /// göstermek için; doğrulamayı sunucu yapar).
+  String? _googleToken;
+  String? _googleEmail;
+  bool _googleOpening = false;
+
   @override
   void dispose() {
     _password.dispose();
@@ -978,6 +1101,8 @@ class _DeleteAccountPageState extends State<_DeleteAccountPage> {
 
   UserAccount? get _account => widget.controller.account;
   bool get _hasPassword => _account?.hasPassword ?? true;
+  bool get _hasGoogle => !_hasPassword || (_account?.hasGoogle ?? false);
+  bool get _verifiedWithGoogle => _googleToken != null;
 
   @override
   Widget build(BuildContext context) {
@@ -985,7 +1110,9 @@ class _DeleteAccountPageState extends State<_DeleteAccountPage> {
     if (_deleted) return _DeletedView(email: email);
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final canSubmit = !_busy && (!_hasPassword || _password.text.isNotEmpty);
+    final canSubmit =
+        !_busy &&
+        (_verifiedWithGoogle || (_hasPassword && _password.text.isNotEmpty));
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -1032,40 +1159,48 @@ class _DeleteAccountPageState extends State<_DeleteAccountPage> {
                     ),
                   ),
                   const SizedBox(height: AppGaps.section),
-                  if (_hasPassword) ...[
-                    _PasswordField(
-                      controller: _password,
-                      label: 'Parolanız',
-                      autofillHints: const [AutofillHints.password],
-                      onChanged: (_) => setState(() => _error = null),
-                    ),
-                    const SizedBox(height: AppSpacing.xSmall),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.medium,
+                  const AppSectionHeader(title: 'Kimliğinizi doğrulayın'),
+                  if (_verifiedWithGoogle)
+                    _GoogleVerifiedCard(
+                      email: _googleEmail,
+                      onUndo: _busy
+                          ? null
+                          : () => setState(() {
+                              _googleToken = null;
+                              _googleEmail = null;
+                              _error = null;
+                            }),
+                    )
+                  else ...[
+                    if (_hasPassword)
+                      _PasswordField(
+                        controller: _password,
+                        label: 'Parolanız',
+                        autofillHints: const [AutofillHints.password],
+                        onChanged: (_) => setState(() => _error = null),
                       ),
-                      child: Text(
-                        _error ?? 'Silmeyi onaylamak için',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: _error == null ? null : colors.error,
-                        ),
+                    if (_hasPassword && _hasGoogle) const _OrDivider(),
+                    if (_hasGoogle)
+                      _GoogleVerifyButton(
+                        busy: _googleOpening,
+                        onPressed: _busy || _googleOpening
+                            ? null
+                            : _verifyWithGoogle,
                       ),
-                    ),
-                  ] else ...[
-                    Text(
-                      'Silmeyi Google hesabınızı seçerek onaylarsınız.',
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    if (_error != null) ...[
-                      const SizedBox(height: AppGaps.notice),
-                      Text(
-                        _error!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colors.error,
-                        ),
-                      ),
-                    ],
                   ],
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.small),
+                      child: Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          _error!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colors.error,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -1077,7 +1212,7 @@ class _DeleteAccountPageState extends State<_DeleteAccountPage> {
                   foregroundColor: colors.onError,
                   minimumSize: const Size.fromHeight(AppSizes.button),
                 ),
-                onPressed: canSubmit ? _confirm : null,
+                onPressed: canSubmit ? _delete : null,
                 child: const Text('Hesabımı sil'),
               ),
             ),
@@ -1087,37 +1222,156 @@ class _DeleteAccountPageState extends State<_DeleteAccountPage> {
     );
   }
 
-  /// Ayrı bir son onay penceresi yoktur (kullanıcı kararı, 10 Kasım 2026):
-  /// sayfanın kendisi, yazılan parola ve kırmızı düğme onaydır. Pencere
-  /// yanlış parolanın ancak ondan sonra söylenmesine yol açıyordu. Google
-  /// hesabında Google'ın hesap seçme penceresi ikinci kapıdır.
-  Future<void> _confirm() async {
+  /// Google'ın hesap penceresi. Seçilen hesap kimliği doğrular; silmez.
+  /// Pencere kapatılırsa hiçbir şey olmaz.
+  Future<void> _verifyWithGoogle() async {
+    setState(() {
+      _googleOpening = true;
+      _error = null;
+    });
     String? token;
-    if (!_hasPassword) {
-      try {
-        token = await context.read<AuthController?>()?.obtainGoogleIdToken();
-      } on GoogleSignInUnavailable catch (error) {
-        if (mounted) setState(() => _error = error.message);
-        return;
-      }
-      // Kişi Google penceresini kapattı: hiçbir şey olmaz.
-      if (token == null || !mounted) return;
+    try {
+      token = await context.read<AuthController?>()?.obtainGoogleIdToken();
+    } on GoogleSignInUnavailable catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } finally {
+      if (mounted) setState(() => _googleOpening = false);
     }
+    if (token == null || !mounted) return;
+    setState(() {
+      _googleToken = token;
+      _googleEmail = _emailInIdToken(token!);
+    });
+  }
 
-    setState(() => _busy = true);
+  Future<void> _delete() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final viaGoogle = _verifiedWithGoogle;
     final deleted = await widget.controller.deleteAccount(
-      password: _hasPassword ? _password.text : null,
-      googleIdToken: token,
+      password: viaGoogle ? null : _password.text,
+      googleIdToken: _googleToken,
     );
     if (!mounted) return;
     setState(() {
       _busy = false;
       _deleted = deleted;
-      _error = deleted
-          ? null
-          : widget.controller.errorMessage ?? 'Hesap silinemedi.';
+      if (deleted) return;
+      _error = widget.controller.errorMessage ?? 'Hesap silinemedi.';
+      // Başka bir Google hesabı seçildiyse doğrulama düşer; kişi doğru
+      // hesabı yeniden seçer.
+      if (viaGoogle) {
+        _googleToken = null;
+        _googleEmail = null;
+      }
     });
   }
+}
+
+/// Google belirtecindeki adres; yalnız "hangi hesabı seçtiniz" diye
+/// göstermek için okunur. İmzayı sunucu denetler, burada güven yoktur.
+String? _emailInIdToken(String token) {
+  final parts = token.split('.');
+  if (parts.length != 3) return null;
+  try {
+    final payload = utf8.decode(
+      base64Url.decode(base64Url.normalize(parts[1])),
+    );
+    final json = jsonDecode(payload);
+    return json is Map<String, dynamic> ? json['email'] as String? : null;
+  } on FormatException {
+    return null;
+  }
+}
+
+/// Parola ile Google arasındaki ayraç: ince çizgi, ortada `ya da`.
+class _OrDivider extends StatelessWidget {
+  const _OrDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final line = Expanded(
+      child: Divider(color: AppSurfaces.of(context).border, height: 1),
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.medium),
+      child: Row(
+        children: [
+          line,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.compact),
+            child: Text(
+              'ya da',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          line,
+        ],
+      ),
+    );
+  }
+}
+
+/// `Google ile doğrula`: çerçeveli, tam genişlik, Google'ın işaretiyle.
+class _GoogleVerifyButton extends StatelessWidget {
+  const _GoogleVerifyButton({required this.busy, required this.onPressed});
+
+  final bool busy;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final ink = AppSurfaces.of(context).ink;
+    return OutlinedButton(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(AppSizes.button),
+        foregroundColor: ink,
+      ),
+      onPressed: onPressed,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (busy)
+            SizedBox.square(
+              dimension: 18,
+              child: CircularProgressIndicator(strokeWidth: 2, color: ink),
+            )
+          else
+            const AuthGoogleMark(size: 18),
+          const SizedBox(width: AppSpacing.compact),
+          const Flexible(child: Text('Google ile doğrula')),
+        ],
+      ),
+    );
+  }
+}
+
+/// Google ile doğrulandı: hangi hesapla olduğu ve geri almak için `Vazgeç`.
+class _GoogleVerifiedCard extends StatelessWidget {
+  const _GoogleVerifiedCard({required this.email, required this.onUndo});
+
+  final String? email;
+  final VoidCallback? onUndo;
+
+  @override
+  Widget build(BuildContext context) => AppCard(
+    padding: EdgeInsets.zero,
+    child: AppRow(
+      padding: _rowPadding,
+      leading: const AppIconCapsule(
+        icon: Icons.check_rounded,
+        tone: AppStatusTone.income,
+      ),
+      title: 'Google ile doğrulandı',
+      subtitle: email,
+      trailing: AppTextAction(label: 'Vazgeç', onPressed: onUndo),
+    ),
+  );
 }
 
 /// Silmeden sonraki son ekran. Hesap sunucuda yoktur ve eldeki oturum ölüdür;
@@ -1192,9 +1446,11 @@ class _PasswordField extends StatefulWidget {
     required this.label,
     required this.autofillHints,
     this.onChanged,
+    this.focusNode,
   });
 
   final TextEditingController controller;
+  final FocusNode? focusNode;
   final String label;
   final List<String> autofillHints;
   final ValueChanged<String>? onChanged;
@@ -1210,6 +1466,7 @@ class _PasswordFieldState extends State<_PasswordField> {
   Widget build(BuildContext context) {
     return TextField(
       controller: widget.controller,
+      focusNode: widget.focusNode,
       obscureText: _obscured,
       autofillHints: widget.autofillHints,
       onChanged: widget.onChanged,
@@ -1328,6 +1585,10 @@ class _ErrorText extends StatelessWidget {
   );
 }
 
+/// Parolası olan hesapta parola değiştirme. İki hâli vardır: mevcut parolayla
+/// ya da `Parolamı unuttum` ile e-postaya giden kodla (10 Kasım 2026).
+/// Kodla değiştirmek adresin sahibini de kanıtlar; e-posta doğrulanmış
+/// sayılır.
 class _ChangePasswordSheet extends StatefulWidget {
   const _ChangePasswordSheet({required this.controller});
 
@@ -1339,31 +1600,64 @@ class _ChangePasswordSheet extends StatefulWidget {
 
 class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
   final _currentPassword = TextEditingController();
+  final _code = TextEditingController();
   final _newPassword = TextEditingController();
+  final _newPasswordFocus = FocusNode();
+  bool _byCode = false;
+  String? _codeError;
   String? _validationMessage;
 
   @override
   void dispose() {
     _currentPassword.dispose();
+    _code.dispose();
     _newPassword.dispose();
+    _newPasswordFocus.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final email = widget.controller.account?.email ?? '';
     return AppFormSheet<bool>(
       title: 'Parolamı değiştir',
+      description: _byCode
+          ? '$email adresine gelen 6 haneli kodu ve yeni parolanızı yazın.'
+          : null,
       submitLabel: 'Değiştir',
       onSubmit: _submit,
       children: [
-        _PasswordField(
-          controller: _currentPassword,
-          label: 'Mevcut parola',
-          autofillHints: const [AutofillHints.password],
-        ),
-        const SizedBox(height: AppGaps.field),
+        if (_byCode) ...[
+          _EmailCodeEntry(
+            controller: _code,
+            request: () => _requestPasswordCode(widget.controller),
+            error: _codeError,
+            onChanged: (_) => setState(() => _codeError = null),
+            // Kod tamamlanınca sıradaki alan yeni parola.
+            onCompleted: (_) => _newPasswordFocus.requestFocus(),
+          ),
+        ] else ...[
+          _PasswordField(
+            controller: _currentPassword,
+            label: 'Mevcut parola',
+            autofillHints: const [AutofillHints.password],
+          ),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: AppTextAction(
+              label: 'Parolamı unuttum',
+              underlined: true,
+              onPressed: () => setState(() {
+                _byCode = true;
+                _validationMessage = null;
+              }),
+            ),
+          ),
+        ],
+        if (!_byCode) const SizedBox(height: AppSpacing.xSmall),
         _PasswordField(
           controller: _newPassword,
+          focusNode: _newPasswordFocus,
           label: 'Yeni parola',
           autofillHints: const [AutofillHints.newPassword],
           onChanged: (_) => setState(() {}),
@@ -1376,28 +1670,36 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
   }
 
   Future<bool?> _submit() async {
-    if (_currentPassword.text.isEmpty) {
+    if (_byCode && _code.text.length != _EmailCodeEntry.length) {
+      setState(() => _codeError = 'E-postanıza gelen 6 haneli kodu yazın.');
+      return null;
+    }
+    if (!_byCode && _currentPassword.text.isEmpty) {
       setState(() => _validationMessage = 'Mevcut parolanızı yazın.');
       return null;
     }
-    final policyMessage = AuthValidation.registrationPassword(
-      _newPassword.text,
-    );
-    if (policyMessage != null) {
+    if (AuthValidation.registrationPassword(_newPassword.text) != null) {
       setState(
         () => _validationMessage = 'Yeni parola kuralların hepsini sağlamalı.',
       );
       return null;
     }
     final done = await widget.controller.changePassword(
-      currentPassword: _currentPassword.text,
+      currentPassword: _byCode ? null : _currentPassword.text,
       newPassword: _newPassword.text,
+      resetCode: _byCode ? _code.text : null,
     );
     if (!done) {
-      setState(
-        () => _validationMessage =
-            widget.controller.errorMessage ?? 'Parola değiştirilemedi.',
-      );
+      setState(() {
+        if (_byCode &&
+            widget.controller.errorCode ==
+                'authentication.invalid_reset_code') {
+          _codeError = _codeErrorText(widget.controller, 'Kod doğrulanamadı.');
+        } else {
+          _validationMessage =
+              widget.controller.errorMessage ?? 'Parola değiştirilemedi.';
+        }
+      });
       return null;
     }
     return true;
@@ -1419,37 +1721,16 @@ class _SetPasswordSheet extends StatefulWidget {
 class _SetPasswordSheetState extends State<_SetPasswordSheet> {
   final _code = TextEditingController();
   final _newPassword = TextEditingController();
+  final _newPasswordFocus = FocusNode();
+  String? _codeError;
   String? _validationMessage;
-  bool _codeSent = false;
-  bool _sending = true;
-
-  @override
-  void initState() {
-    super.initState();
-    // İstek sayfayı yeniden çizdirir; pencere çizilirken başlatılamaz.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _sendCode();
-    });
-  }
 
   @override
   void dispose() {
     _code.dispose();
     _newPassword.dispose();
+    _newPasswordFocus.dispose();
     super.dispose();
-  }
-
-  Future<void> _sendCode() async {
-    setState(() => _sending = true);
-    final sent = await widget.controller.requestPasswordCode();
-    if (!mounted) return;
-    setState(() {
-      _sending = false;
-      _codeSent = sent;
-      _validationMessage = sent
-          ? null
-          : widget.controller.errorMessage ?? 'Kod gönderilemedi.';
-    });
   }
 
   @override
@@ -1457,30 +1738,21 @@ class _SetPasswordSheetState extends State<_SetPasswordSheet> {
     final email = widget.controller.account?.email ?? '';
     return AppFormSheet<bool>(
       title: 'Parola belirle',
-      description: _sending
-          ? 'Kod gönderiliyor…'
-          : _codeSent
-          ? '$email adresine gönderdiğimiz 6 haneli kodu yazın.'
-          : 'Parola, $email adresine gönderilen 6 haneli kodla belirlenir.',
+      description:
+          '$email adresine gelen 6 haneli kodu ve yeni parolanızı yazın.',
       submitLabel: 'Parolayı belirle',
       onSubmit: _submit,
       children: [
-        TextField(
+        _EmailCodeEntry(
           controller: _code,
-          keyboardType: TextInputType.number,
-          autofillHints: const [AutofillHints.oneTimeCode],
-          maxLength: 6,
-          decoration: const InputDecoration(labelText: 'Kod', counterText: ''),
-        ),
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton(
-            onPressed: _sending ? null : _sendCode,
-            child: const Text('Kodu yeniden gönder'),
-          ),
+          request: () => _requestPasswordCode(widget.controller),
+          error: _codeError,
+          onChanged: (_) => setState(() => _codeError = null),
+          onCompleted: (_) => _newPasswordFocus.requestFocus(),
         ),
         _PasswordField(
           controller: _newPassword,
+          focusNode: _newPasswordFocus,
           label: 'Yeni parola',
           autofillHints: const [AutofillHints.newPassword],
           onChanged: (_) => setState(() {}),
@@ -1493,16 +1765,11 @@ class _SetPasswordSheetState extends State<_SetPasswordSheet> {
   }
 
   Future<bool?> _submit() async {
-    if (_code.text.trim().length != 6) {
-      setState(
-        () => _validationMessage = 'E-postanıza gelen 6 haneli kodu yazın.',
-      );
+    if (_code.text.length != _EmailCodeEntry.length) {
+      setState(() => _codeError = 'E-postanıza gelen 6 haneli kodu yazın.');
       return null;
     }
-    final policyMessage = AuthValidation.registrationPassword(
-      _newPassword.text,
-    );
-    if (policyMessage != null) {
+    if (AuthValidation.registrationPassword(_newPassword.text) != null) {
       setState(
         () => _validationMessage = 'Yeni parola kuralların hepsini sağlamalı.',
       );
@@ -1510,13 +1777,18 @@ class _SetPasswordSheetState extends State<_SetPasswordSheet> {
     }
     final done = await widget.controller.changePassword(
       newPassword: _newPassword.text,
-      resetCode: _code.text.trim(),
+      resetCode: _code.text,
     );
     if (!done) {
-      setState(
-        () => _validationMessage =
-            widget.controller.errorMessage ?? 'Parola belirlenemedi.',
-      );
+      setState(() {
+        if (widget.controller.errorCode ==
+            'authentication.invalid_reset_code') {
+          _codeError = _codeErrorText(widget.controller, 'Kod doğrulanamadı.');
+        } else {
+          _validationMessage =
+              widget.controller.errorMessage ?? 'Parola belirlenemedi.';
+        }
+      });
       return null;
     }
     return true;

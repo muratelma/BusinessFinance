@@ -16,12 +16,17 @@ class AppTextAction extends StatelessWidget {
     super.key,
     this.icon,
     this.trailingIcon,
+    this.underlined = false,
   });
 
   final String label;
   final IconData? icon;
   final IconData? trailingIcon;
   final VoidCallback? onPressed;
+
+  /// Formun içindeki bağlantı (`Parolamı unuttum`): altı çizilir, giriş
+  /// ekranındaki bağlantılar gibi. Bölüm başlığının eylemi çizgisizdir.
+  final bool underlined;
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +35,8 @@ class AppTextAction extends StatelessWidget {
       fontWeight: FontWeight.w600,
       height: 1,
       color: ink,
+      decoration: underlined ? TextDecoration.underline : null,
+      decorationColor: ink,
     );
     return Semantics(
       button: true,

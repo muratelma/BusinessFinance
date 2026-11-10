@@ -286,7 +286,7 @@ yapılır.
 | `AppDividedColumn` | Satırlar arasına yazının başladığı yerden ayırıcı çizer |
 | `AppStatusTag` | Dolgusuz durum etiketi: ikon 16 + metin 13/600, rolün metin renginde (Tuttu, Eksik, Yolda, Sayılmadı). Dolgulu `AppStatusChip` yalnız sayfadaki tek önemli durum için |
 | `AppCardHead` | Kartın başlık şeridi: 52 dp, solda 15/600 başlık + gri meta, sağda durum, altında kenar çizgisi |
-| `AppTextAction` | Bölüm başlığının sağındaki dolgusuz metin eylemi (`+ Ekle`, `Tümü ›`), 48 dp dokunma alanı |
+| `AppTextAction` | Bölüm başlığının sağındaki dolgusuz metin eylemi (`+ Ekle`, `Tümü ›`), 48 dp dokunma alanı. Formun içindeki bağlantıda `underlined: true` ile altı çizilir (`Parolamı unuttum`, `Kodu yeniden gönder`, `Tekrar dene`; giriş ekranındaki bağlantılar gibi) |
 | `AppDateLeaf` | Takvim yaprağı 44×48: gün 17/700, ay 11/600 |
 | `AppDetailBlock` / `AppDetailRow` | Panel içindeki gri etiket–değer bloğu (işlem detayı, POS detayı) |
 | `AppSegmentRail` | Tek parça seçim rayı: gri zemin, seçili dilim beyaz + güçlü kenar. `selected: null` seçimsizdir; kapsam anahtarı, kasa seçici ve gün sonu toplu cevabı bunu kullanır |

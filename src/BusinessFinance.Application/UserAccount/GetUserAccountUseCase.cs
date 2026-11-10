@@ -39,6 +39,7 @@ public sealed class GetUserAccountUseCase(
             account.CreatedAtUtc,
             sessions.Count,
             account.HasPassword,
-            account.Username));
+            account.Username,
+            account.HasGoogle));
     }
 }

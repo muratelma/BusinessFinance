@@ -1420,7 +1420,7 @@ turundaki karar panoları K1–K4 bu teslimle kapandı):
 |---|---|---|
 | 1 | Kimlik kartı | 56 dp avatar, kullanıcı adı (yoksa e-posta başlığa çıkar) ve e-posta. Doğrulanmış adreste avatarın sağ altında yeşil tik; doğrulanmamış adreste kartın ikinci satırı `E-postanızı doğrulayın ›` doğrulama panelini açar |
 | 2 | Tercihler | `İşletmem var` · `İşletme ve şahsi ayrılır`; kategorilere dokunmaz |
-| 3 | Açık oturumlar | Tek oturumda bölüm çıkmaz. Bir ya da iki başka cihaz satır satır yazılır ve `×` ile **onay sorulmadan** kapanır (geri alınabilir iş). Üç ve fazlası tek satıra toplanır (`Diğer cihazlar · n` · `En son … açıldı`) ve `Açık oturumlar` sayfasını açar |
+| 3 | Açık oturumlar | Tek oturumda da bölüm durur ve yalnız `Bu cihaz · Şu an açık` yazar (kullanıcı kararı, 10 Kasım 2026; teslimde bölüm hiç çıkmıyordu). Bir ya da iki başka cihaz satır satır yazılır ve `×` ile **onay sorulmadan** kapanır (geri alınabilir iş). Üç ve fazlası tek satıra toplanır (`Diğer cihazlar · n` · `En son … açıldı`) ve `Açık oturumlar` sayfasını açar |
 | 4 | Güvenlik | `Parolamı değiştir` (parolasız hesapta `Parola belirle`) ve kırmızı `Hesabımı sil ›` |
 | 5 | Çıkış yap | En altta, kenarlı ve kırmızı değil: çıkış yapmak bir şey silmez |
 
@@ -1438,8 +1438,33 @@ doğrudan gönderir ve yanlış parola hemen alanın altında yazar. Eskiden ara
 giren pencere yanlış parolanın ancak `Sil`den sonra söylenmesine yol açıyordu
 (Discord ve Instagram'ın web silme sayfası da parolayı son adımda sorar).
 Silinince `Hesabınız silindi` ekranı gelir; geri dönülmez, tek düğme `Giriş
-ekranına dön`. Parolası olmayan (Google) hesapta parola alanı yoktur; düğme
-Google hesap seçme penceresini açar, pencere kapatılırsa hiçbir şey olmaz.
+ekranına dön`.
+
+**Kimlik doğrulama silmeden ayrıdır** (kullanıcı kararı, 10 Kasım 2026;
+Google'ın "Kimliğinizi doğrulayın" adımı ve GitHub'ın "erişimi onaylayın"ı
+gibi). Sayfada `Kimliğinizi doğrulayın` bölümü vardır ve kırmızı düğme her
+hesap türünde tek anlam taşır: **siler**. Google penceresi silmez, kimliği
+doğrular.
+
+| Hesap | Bölümde | Kırmızı düğme |
+|---|---|---|
+| E-posta + parola (Google bağı yok) | `Parolanız` | Parola yazılınca açılır |
+| Google ile açılmış, parola yok | `Google ile doğrula` | Google ile doğrulanınca açılır |
+| Google + parola | `Parolanız`, `ya da`, `Google ile doğrula` | Parola yazılınca ya da Google ile doğrulanınca açılır |
+
+Google ile doğrulanınca bölüm tek satıra döner: `Google ile doğrulandı`,
+seçilen hesabın adresi ve `Vazgeç` (parola alanını geri getirir). Pencere
+kapatılırsa hiçbir şey olmaz. Başka bir Google hesabı seçildiyse silme
+reddedilir, sunucunun cümlesi bölümün altında yazar ve doğrulama düşer.
+
+**Parolamı değiştir** panelinde mevcut parolanın altında `Parolamı unuttum`
+vardır (giriş ekranındaki gibi altı çizili): panel mevcut parola alanını kod kutularıyla değiştirir, e-postaya kod
+gider (açıklama adresi yazar), kod + yeni parolayla değiştirilir. Kodu doğru
+yazmak adresin sahibini kanıtladığı için e-posta da doğrulanmış sayılır;
+Hesabım, Diğer ve Özet'teki işaret aynı anda düşer. `Parola belirle`
+(parolasız hesap) aynı kod girişini kullanır. Kod girişi üç panelde de tektir
+(`_EmailCodeEntry`: altı kutu ve tek durum satırı, sayaç, `Kodu yeniden
+gönder`, "az önce gönderildi" hata sayılmaz).
 
 Teslimden bilerek ayrılınan yerler: teslim doğrulamayı **bağlantıyla** ve
 "Bağlantı gönderildi · 45 saniye" satırıyla çizdi; uygulamada doğrulama altı

@@ -152,6 +152,9 @@ public sealed class ResetPasswordUseCase(
             return InvalidCode();
         }
 
+        // Kod adrese gitti ve doğru yazıldı: adresin sahibi kanıtlandı.
+        await identityAccountService.MarkEmailConfirmedAsync(ownerId, cancellationToken);
+
         await refreshSessionRepository.RevokeAllActiveForUserAsync(
             ownerId,
             utcNow,

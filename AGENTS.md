@@ -122,6 +122,12 @@ ve ADR güncellemesiyle değişir.
   tasarım görüşmesi, pano ve çalışma belgesi oradadır. Kod, `documentation/`,
   `docs/`, `stages/`, `research/`, `AGENTS.md` ve `CLAUDE.md` Claude Code ile
   değişir; tasarımdan çıkan karar bu belgelere Claude Code tarafından işlenir.
+- **Proje için üretilen görseller proje içinde durur** (kullanıcı kararı,
+  10 Kasım 2026). Ekran kareleri, karşılaştırma panoları ve cihaz kaydından
+  çıkarılan kareler `tasarim-onizleme/<konu>-<YYYY-AA-GG>/` altına kaydedilir
+  ve kullanıcıya bu yol verilir. Geçici klasördeki (scratchpad, `Temp`) bir
+  dosya kullanıcıya bakması için gösterilmez; kullanıcıdan proje dışındaki bir
+  adrese gidip görsel açması beklenmez.
 - Ne yapacağını kısaca söyle, sonra yap; adım adım onay bekleme.
 - Yeni bir kütüphane, pattern veya dış servis eklerken neden seçildiğini ve
   temel trade-off'unu bir-iki cümleyle belirt.

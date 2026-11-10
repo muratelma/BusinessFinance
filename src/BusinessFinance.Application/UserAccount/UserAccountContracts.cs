@@ -13,7 +13,8 @@ public sealed record UserAccountDto(
     DateTimeOffset CreatedAtUtc,
     int ActiveSessionCount,
     bool HasPassword = true,
-    string? Username = null);
+    string? Username = null,
+    bool HasGoogle = false);
 
 /// <summary>
 /// Açık bir oturum satırı. Token veya hash göstermez; oturumun ne zaman
@@ -25,8 +26,9 @@ public sealed record UserSessionDto(
     DateTimeOffset ExpiresAtUtc);
 
 /// <param name="ResetCode">
-/// Parolası olmayan (Google ile açılmış) hesapta mevcut parolanın yerine
-/// geçer: e-postaya giden sıfırlama kodu. Parolası olan hesapta okunmaz.
+/// Mevcut parolanın yerine geçer: e-postaya giden sıfırlama kodu. Parolası
+/// olmayan (Google ile açılmış) hesapta tek yoldur; parolası olan hesapta
+/// mevcut parola yazılmamışsa okunur ("Parolamı unuttum", 10 Kasım 2026).
 /// </param>
 public sealed record ChangePasswordCommand(
     string? CurrentPassword,

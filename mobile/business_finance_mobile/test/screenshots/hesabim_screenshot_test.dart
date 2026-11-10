@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:business_finance_mobile/core/network/api_exception.dart';
+import 'package:business_finance_mobile/features/auth/data/google_id_token_source.dart';
+import 'package:business_finance_mobile/features/auth/presentation/auth_controller.dart';
 import 'package:business_finance_mobile/core/presentation/scope_controller.dart';
 import 'package:business_finance_mobile/features/account/data/account_models.dart';
 import 'package:business_finance_mobile/features/account/data/account_repository.dart';
@@ -82,6 +86,84 @@ void main() {
     );
   }, skip: !screenshotsEnabled);
 
+  // 10 Kasım 2026: kimlik doğrulama (B). Silme sayfasının üç hesap türü,
+  // Google ile doğrulanmış hâl ve parola panelleri.
+  Future<void> deleteShot(
+    WidgetTester tester,
+    String name,
+    _VerifiedAccount account, {
+    bool verify = false,
+  }) async {
+    final auth = AuthController(
+      FakeAuthSessionRepository()..session = testSession(sessionId: 'current'),
+      _ShotGoogle(),
+    );
+    await captureScreen(
+      tester,
+      name,
+      await page(tester, account),
+      wrapApp: (app) => ChangeNotifierProvider<AuthController?>.value(
+        value: auth,
+        child: app,
+      ),
+      withNavBar: false,
+      pushed: true,
+      before: (tester) async {
+        await tester.drag(find.byType(ListView), const Offset(0, -2000));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Hesabımı sil').last);
+        await tester.pumpAndSettle();
+        if (verify) {
+          await tester.tap(find.text('Google ile doğrula'));
+          await tester.pumpAndSettle();
+        }
+      },
+    );
+  }
+
+  testWidgets('25 sil · yalnız parola', (tester) async {
+    await deleteShot(tester, '25-sil-parola', _VerifiedAccount());
+  }, skip: !screenshotsEnabled);
+
+  testWidgets('26 sil · yalnız Google', (tester) async {
+    await deleteShot(
+      tester,
+      '26-sil-google',
+      _VerifiedAccount(hasPassword: false, hasGoogle: true),
+    );
+  }, skip: !screenshotsEnabled);
+
+  testWidgets('27 sil · parola ya da Google', (tester) async {
+    await deleteShot(tester, '27-sil-ikisi', _VerifiedAccount(hasGoogle: true));
+  }, skip: !screenshotsEnabled);
+
+  testWidgets('28 sil · Google ile doğrulandı', (tester) async {
+    await deleteShot(
+      tester,
+      '28-sil-dogrulandi',
+      _VerifiedAccount(hasGoogle: true),
+      verify: true,
+    );
+  }, skip: !screenshotsEnabled);
+
+  testWidgets('29 parolamı unuttum', (tester) async {
+    await captureScreen(
+      tester,
+      '29-parolami-unuttum',
+      await page(tester, _VerifiedAccount()),
+      withNavBar: false,
+      pushed: true,
+      before: (tester) async {
+        await tester.tap(find.text('Parolamı değiştir'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Parolamı unuttum'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.pump(const Duration(seconds: 15));
+      },
+    );
+  }, skip: !screenshotsEnabled);
+
   testWidgets('17 hesabım', (tester) async {
     await captureScreen(
       tester,
@@ -150,10 +232,24 @@ void main() {
   }, skip: !screenshotsEnabled);
 }
 
+class _ShotGoogle implements GoogleIdTokenSource {
+  @override
+  Future<String?> obtainIdToken() async {
+    String part(Object value) =>
+        base64Url.encode(utf8.encode(jsonEncode(value))).replaceAll('=', '');
+    return '${part({'alg': 'none'})}.'
+        '${part({'email': 'murat@ornek.com'})}.imza';
+  }
+
+  @override
+  Future<void> signOut() async {}
+}
+
 class _VerifiedAccount extends Fake implements AccountRepositoryContract {
-  _VerifiedAccount({this.hasPassword = true});
+  _VerifiedAccount({this.hasPassword = true, this.hasGoogle = false});
 
   final bool hasPassword;
+  final bool hasGoogle;
 
   @override
   Future<UserAccount> read() async => UserAccount(
@@ -164,6 +260,7 @@ class _VerifiedAccount extends Fake implements AccountRepositoryContract {
     createdAtUtc: DateTime.utc(2026, 3, 14),
     activeSessionCount: 1,
     hasPassword: hasPassword,
+    hasGoogle: hasGoogle,
   );
 
   @override

@@ -1271,6 +1271,23 @@ görünür, pencere açılınca kod istenir, posta gitmezse "e-posta servisi
 yapılandırılmamış" der ("gönderdik" demez), kod yazılmadan istek gitmez, kod ve
 parola gider (mevcut parola gitmez); silme parola alanı açmadan Google
 belirteciyle yapılır; Google penceresi kapatılırsa silinmez.
+
+**Parolası da olan hesapta kimlik doğrulama** (10 Kasım 2026, aynı API test
+sınıfı): hesap bilgisi Google bağını söyler (`hasGoogle`; Google ile açılmış
+hesapta `true`, e-postayla açılmışta `false`); Google'a bağlı ve parolası
+olan hesap bağlı Google hesabının belirteciyle silinir, başka hesabınkiyle
+reddedilir; Google'a bağlı olmayan hesap Google belirteciyle silinemez;
+`Parolamı unuttum`: parolası olan hesaba sıfırlama postası gider (belirleme
+postası değil), kodla parola değişir, e-posta doğrulanmış olur ve yeni
+parolayla girilir. Uygulamada `account_page_test`: yalnız parolası olan
+hesapta `Google ile doğrula` yok; parolasız hesapta kırmızı düğme Google ile
+doğrulanmadan kapalı, Google penceresi silmez (`Google ile doğrulandı` ve
+seçilen adres yazar), silme ancak kırmızı düğmeyle; pencere kapatılırsa
+doğrulama olmaz; iki yöntemli hesapta parola, `ya da` ve Google birlikte,
+doğrulanınca parola alanı çekilir, `Vazgeç` geri getirir, silme Google
+belirteciyle gider; başka Google hesabı seçildiyse sunucunun cümlesi yazar ve
+doğrulama düşer; `Parolamı unuttum` mevcut parola alanını kod kutularıyla
+değiştirir ve kod + yeni parola gider.
 `Parola belirle` kodu sıfırlamanın kodudur ama postası ayrıdır: API testi
 belirleme postasının gittiğini, `BrevoMessageWordingTests` üç postanın
 konusunu ve metnini denetler (belirleme postasında "sıfırla" geçmez; ağa

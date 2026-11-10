@@ -119,6 +119,7 @@ class AccountController extends ChangeNotifier {
     if (isSubmitting) return false;
     isSubmitting = true;
     errorMessage = null;
+    errorCode = null;
     notifyListeners();
     try {
       final rotated = await _repository.changePassword(
@@ -133,11 +134,14 @@ class AccountController extends ChangeNotifier {
         refreshToken: rotated.refreshToken,
         refreshTokenExpiresAtUtc: rotated.refreshTokenExpiresAtUtc,
       );
+      // Kodla değiştirildiyse adres kanıtlandı; sunucu da doğrulanmış sayar.
+      if (resetCode != null) account = account?.withEmailConfirmed();
       return true;
     } on ApiException catch (error) {
       // Yanlış parola oturumu düşürmez: bu 401 kimlik doğrulamanın değil,
       // yazılan parolanın cevabıdır.
       errorMessage = error.message;
+      errorCode = error.code;
       return false;
     } on FormatException {
       errorMessage = 'Sunucudan beklenmeyen bir yanıt alındı.';
@@ -182,17 +186,7 @@ class AccountController extends ChangeNotifier {
     notifyListeners();
     try {
       await _repository.confirmEmail(code);
-      final current = account;
-      if (current != null) {
-        account = UserAccount(
-          userId: current.userId,
-          email: current.email,
-          emailConfirmed: true,
-          createdAtUtc: current.createdAtUtc,
-          activeSessionCount: current.activeSessionCount,
-          hasPassword: current.hasPassword,
-        );
-      }
+      account = account?.withEmailConfirmed();
       return true;
     } on ApiException catch (error) {
       errorMessage = error.message;
@@ -211,6 +205,7 @@ class AccountController extends ChangeNotifier {
     if (isSubmitting) return false;
     isSubmitting = true;
     errorMessage = null;
+    errorCode = null;
     notifyListeners();
     try {
       final sent = await _repository.requestPasswordCode();
@@ -223,6 +218,7 @@ class AccountController extends ChangeNotifier {
       return false;
     } on ApiException catch (error) {
       errorMessage = error.message;
+      errorCode = error.code;
       return false;
     } finally {
       isSubmitting = false;
@@ -243,6 +239,7 @@ class AccountController extends ChangeNotifier {
       return true;
     } on ApiException catch (error) {
       errorMessage = error.message;
+      errorCode = error.code;
       return false;
     } finally {
       isSubmitting = false;

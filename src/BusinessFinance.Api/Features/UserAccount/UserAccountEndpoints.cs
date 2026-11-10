@@ -12,7 +12,8 @@ public sealed record UserAccountResponse(
     DateTimeOffset CreatedAtUtc,
     int ActiveSessionCount,
     bool HasPassword,
-    string? Username);
+    string? Username,
+    bool HasGoogle);
 
 public sealed record UserSessionResponse(
     Guid SessionId,
@@ -23,8 +24,9 @@ public sealed record SendPasswordCodeResponseBody(bool CodeSent);
 
 public sealed record UserSessionListResponse(IReadOnlyList<UserSessionResponse> Items);
 
-// Parolası olmayan (Google ile açılmış) hesap mevcut parola yerine
-// e-postasına giden sıfırlama kodunu (resetCode) gönderir.
+// Mevcut parola yerine e-postaya giden sıfırlama kodu (resetCode) da
+// gönderilebilir: parolası olmayan hesapta tek yol, parolası olan hesapta
+// "Parolamı unuttum".
 public sealed record ChangePasswordRequest(
     string? CurrentPassword,
     string NewPassword,
@@ -127,7 +129,8 @@ public static class UserAccountEndpoints
                 result.Value.CreatedAtUtc,
                 result.Value.ActiveSessionCount,
                 result.Value.HasPassword,
-                result.Value.Username))
+                result.Value.Username,
+                result.Value.HasGoogle))
             : result.Error.ToProblemResult(httpContext);
     }
 

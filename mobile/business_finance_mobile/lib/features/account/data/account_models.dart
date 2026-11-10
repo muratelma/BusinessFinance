@@ -11,6 +11,7 @@ class UserAccount {
     required this.activeSessionCount,
     this.hasPassword = true,
     this.username,
+    this.hasGoogle = false,
   });
 
   final String userId;
@@ -28,6 +29,23 @@ class UserAccount {
   /// (sunucu `null` gönderir); o zaman başlıkta e-posta yazar.
   final String? username;
 
+  /// Hesap bir Google hesabına bağlı (10 Kasım 2026). Parolası da varsa
+  /// silmede kimlik parolayla ya da Google ile doğrulanabilir. Eski sunucu
+  /// alanı göndermezse bağ yok sayılır.
+  final bool hasGoogle;
+
+  /// Aynı hesap, e-postası doğrulanmış olarak.
+  UserAccount withEmailConfirmed() => UserAccount(
+    userId: userId,
+    email: email,
+    emailConfirmed: true,
+    createdAtUtc: createdAtUtc,
+    activeSessionCount: activeSessionCount,
+    hasPassword: hasPassword,
+    username: username,
+    hasGoogle: hasGoogle,
+  );
+
   factory UserAccount.fromJson(Map<String, dynamic> json) => UserAccount(
     userId: JsonReaders.string(json, 'userId'),
     email: JsonReaders.string(json, 'email'),
@@ -41,6 +59,7 @@ class UserAccount {
       final String name when name.trim().isNotEmpty => name,
       _ => null,
     },
+    hasGoogle: json['hasGoogle'] == true,
   );
 }
 

@@ -86,10 +86,15 @@ public interface IIdentityAccountService
 /// Google ile açılan hesabın parolası yoktur; Hesabım ona parola değiştirme
 /// yerine "Parola belirle", silmede parola yerine Google onayı sorar.
 /// </param>
+/// <param name="HasGoogle">
+/// Hesap bir Google hesabına bağlı. Parolası da olan hesapta silme Google
+/// onayıyla da yapılabilir (10 Kasım 2026).
+/// </param>
 public sealed record UserAccountProfile(
     Guid UserId,
     string Email,
     bool EmailConfirmed,
     DateTimeOffset CreatedAtUtc,
     bool HasPassword = true,
-    string? Username = null);
+    string? Username = null,
+    bool HasGoogle = false);

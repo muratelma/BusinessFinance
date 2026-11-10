@@ -101,6 +101,123 @@ public sealed class PasswordlessAccountEndpointTests
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
     }
 
+    // 10 Kasım 2026: parolası da olan hesap. Silme parolayla ya da bağlı
+    // Google hesabıyla onaylanır; "Parolamı unuttum" e-posta koduyla çalışır.
+
+    [Fact]
+    public async Task Account_SaysWhetherItIsLinkedToGoogle()
+    {
+        var (factory, _, _) = Create();
+        await using var _factory = factory;
+        using var googleClient = factory.CreateClient();
+        Authenticate(googleClient, (await SignUpWithGoogleAsync(googleClient)).AccessToken);
+        using var emailClient = factory.CreateClient();
+        Authenticate(emailClient, await RegisterWithEmailAsync(emailClient));
+
+        var google = await googleClient.GetFromJsonAsync<UserAccountResponse>("/api/v1/account");
+        var email = await emailClient.GetFromJsonAsync<UserAccountResponse>("/api/v1/account");
+
+        Assert.True(google!.HasGoogle);
+        Assert.False(email!.HasGoogle);
+    }
+
+    [Fact]
+    public async Task Delete_WithPassword_CanAlsoBeConfirmedWithTheLinkedGoogleAccount()
+    {
+        var (factory, google, mail) = Create();
+        await using var _factory = factory;
+        using var client = factory.CreateClient();
+        Authenticate(client, (await SignUpWithGoogleAsync(client)).AccessToken);
+        var rotated = await SetPasswordAsync(client, mail);
+        Authenticate(client, rotated.AccessToken);
+        google.Add("token-other", "sub-other", "baska@gmail.com");
+
+        using var otherAccount = await DeleteAsync(
+            client,
+            new DeleteUserAccountRequest(null, Confirmed: true, GoogleIdToken: "token-other"));
+        await AssertCodeAsync(otherAccount, "account.reauthentication_failed");
+
+        using var deleted = await DeleteAsync(
+            client,
+            new DeleteUserAccountRequest(null, Confirmed: true, GoogleIdToken: "token-ayse"));
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+    }
+
+    [Fact]
+    public async Task Delete_OfAnAccountWithoutGoogle_IsNotConfirmedByAGoogleToken()
+    {
+        var (factory, google, _) = Create();
+        await using var _factory = factory;
+        using var client = factory.CreateClient();
+        Authenticate(client, await RegisterWithEmailAsync(client));
+        google.Add("token-mehmet", "sub-mehmet", "mehmet@ornek.com");
+
+        using var response = await DeleteAsync(
+            client,
+            new DeleteUserAccountRequest(null, Confirmed: true, GoogleIdToken: "token-mehmet"));
+
+        await AssertCodeAsync(response, "account.reauthentication_failed");
+    }
+
+    [Fact]
+    public async Task ForgotPassword_ChangesItWithTheEmailCode_AndConfirmsTheAddress()
+    {
+        var (factory, _, mail) = Create();
+        await using var _factory = factory;
+        using var client = factory.CreateClient();
+        Authenticate(client, await RegisterWithEmailAsync(client));
+        var before = await client.GetFromJsonAsync<UserAccountResponse>("/api/v1/account");
+        Assert.False(before!.EmailConfirmed);
+
+        using var request = await client.PostAsync("/api/v1/account/password/code", null);
+        request.EnsureSuccessStatusCode();
+        // İlki kayıttaki doğrulama postasıdır.
+        var mailed = mail.Sent[^1];
+        Assert.Equal(VerificationPurpose.PasswordReset, mailed.Purpose);
+        Assert.False(mailed.Setup, "Parolası olan hesaba sıfırlama postası gider.");
+
+        using var changed = await client.PostAsJsonAsync(
+            "/api/v1/account/password",
+            new ChangePasswordRequest(null, "Another-Password-456!", ResetCode: mailed.Code));
+        Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
+        var rotated = await changed.Content.ReadFromJsonAsync<ChangePasswordApiResponse>();
+        Authenticate(client, rotated!.AccessToken);
+
+        var after = await client.GetFromJsonAsync<UserAccountResponse>("/api/v1/account");
+        Assert.True(after!.EmailConfirmed, "Kodu doğru yazmak adresin sahibini kanıtlar.");
+        using var login = await client.PostAsJsonAsync(
+            "/api/v1/auth/login",
+            new LoginRequest("mehmet@ornek.com", "Another-Password-456!"));
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+    }
+
+    private static async Task<ChangePasswordApiResponse> SetPasswordAsync(
+        HttpClient client,
+        RecordingEmailSender mail)
+    {
+        using var request = await client.PostAsync("/api/v1/account/password/code", null);
+        request.EnsureSuccessStatusCode();
+        using var set = await client.PostAsJsonAsync(
+            "/api/v1/account/password",
+            new ChangePasswordRequest(null, NewPassword, ResetCode: mail.Sent[^1].Code));
+        set.EnsureSuccessStatusCode();
+        return (await set.Content.ReadFromJsonAsync<ChangePasswordApiResponse>())!;
+    }
+
+    private static async Task<string> RegisterWithEmailAsync(HttpClient client)
+    {
+        using var register = await client.PostAsJsonAsync(
+            "/api/v1/auth/register",
+            new RegisterRequest("mehmet@ornek.com", NewPassword, HasBusiness: false));
+        register.EnsureSuccessStatusCode();
+        using var login = await client.PostAsJsonAsync(
+            "/api/v1/auth/login",
+            new LoginRequest("mehmet@ornek.com", NewPassword));
+        login.EnsureSuccessStatusCode();
+        var pair = await login.Content.ReadFromJsonAsync<TokenPairResponse>();
+        return pair!.AccessToken;
+    }
+
     private static (BusinessFinanceApiFactory Factory, FakeGoogleTokens Google, RecordingEmailSender Mail)
         Create()
     {

@@ -50,7 +50,14 @@ public sealed class ChangePasswordUseCase(
         }
 
         PasswordChangeStatus status;
-        if (account.HasPassword)
+        // Mevcut parola yazılmamış ve kod gelmişse kod yolu: parolası olmayan
+        // hesapta tek yol, parolası olan hesapta "Parolamı unuttum"
+        // (10 Kasım 2026). Kod doğru girildiyse adresin sahibi kanıtlanmıştır;
+        // e-posta da doğrulanmış sayılır.
+        var byCode = !account.HasPassword ||
+            (string.IsNullOrEmpty(command.CurrentPassword) &&
+                !string.IsNullOrWhiteSpace(command.ResetCode));
+        if (!byCode)
         {
             status = await identityAccountService.ChangePasswordAsync(
                 userId,
@@ -80,6 +87,10 @@ public sealed class ChangePasswordUseCase(
                 userId,
                 command.NewPassword ?? string.Empty,
                 cancellationToken);
+            if (status == PasswordChangeStatus.Succeeded && !account.EmailConfirmed)
+            {
+                await identityAccountService.MarkEmailConfirmedAsync(userId, cancellationToken);
+            }
         }
 
         switch (status)

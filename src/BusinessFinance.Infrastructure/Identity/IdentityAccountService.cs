@@ -156,20 +156,27 @@ public sealed class IdentityAccountService : IIdentityAccountService
         CancellationToken cancellationToken)
     {
         var user = await FindActiveUserAsync(userId, cancellationToken);
+        if (user is not { Email: not null })
+        {
+            return null;
+        }
 
-        return user is { Email: not null }
-            ? new UserAccountProfile(
-                user.Id,
-                user.Email,
-                user.EmailConfirmed,
-                user.CreatedAtUtc,
-                user.PasswordHash is not null,
-                // Kullanıcı adından önce açılmış hesapta ad e-postanın
-                // kendisidir; o bir kullanıcı adı değildir.
-                user.UserName is { } name && !name.Contains('@', StringComparison.Ordinal)
-                    ? name
-                    : null)
-            : null;
+        var logins = await _userManager.GetLoginsAsync(user);
+        return new UserAccountProfile(
+            user.Id,
+            user.Email,
+            user.EmailConfirmed,
+            user.CreatedAtUtc,
+            user.PasswordHash is not null,
+            // Kullanıcı adından önce açılmış hesapta ad e-postanın
+            // kendisidir; o bir kullanıcı adı değildir.
+            user.UserName is { } name && !name.Contains('@', StringComparison.Ordinal)
+                ? name
+                : null,
+            logins.Any(login => string.Equals(
+                login.LoginProvider,
+                BusinessFinance.Application.Authentication.Google.GoogleSignInUseCase.Provider,
+                StringComparison.Ordinal)));
     }
 
     public async Task<bool> VerifyPasswordAsync(

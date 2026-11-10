@@ -62,6 +62,7 @@ Future<void> captureScreen(
   bool pushed = false,
   Size frame = designFrame,
   Future<void> Function(WidgetTester tester)? before,
+  Widget Function(Widget app)? wrapApp,
 }) async {
   // Font yükleme gerçek G/Ç'dir; sahte zamanın içinde hiç tamamlanmaz.
   await tester.runAsync(loadDesignFonts);
@@ -87,15 +88,15 @@ Future<void> captureScreen(
             ),
           )
         : page;
+    final app = MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: _screenshotTheme(),
+      home: pushed ? _PushedHost(child: body) : body,
+    );
+    // Uygulamadaki gibi uygulamanın üstünde duran sağlayıcılar (açılan
+    // sayfalar da onları görür).
     await tester.pumpWidget(
-      RepaintBoundary(
-        key: boundary,
-        child: MaterialApp(
-          debugShowCheckedModeBanner: false,
-          theme: _screenshotTheme(),
-          home: pushed ? _PushedHost(child: body) : body,
-        ),
-      ),
+      RepaintBoundary(key: boundary, child: wrapApp?.call(app) ?? app),
     );
     await _settle(tester);
     if (before != null) {

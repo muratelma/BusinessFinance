@@ -30,6 +30,11 @@ Bu dosya `AGENTS.md` kurallarının bir **özetini** taşır, çünkü her oturu
 yüklenir; ayrıntı ve gerekçe `AGENTS.md` içindedir ve ikisi çeliştiğinde
 `AGENTS.md` geçerlidir.
 
+**Görseller proje içinde durur** (10 Kasım 2026): ekran kareleri ve panolar
+`tasarim-onizleme/<konu>-<YYYY-AA-GG>/` altına kaydedilir ve kullanıcıya bu
+yol verilir; geçici klasördeki (scratchpad, `Temp`) bir yol kullanıcıya
+bakması için gösterilmez.
+
 **Dış göz raporları:** yalnız kullanıcı açıkça dış göz değerlendirmesi istediğinde
 hazırlanır ve `research/DIS-GOZ-YYYY-MM-DD-<konu>.md` olarak kaydedilir.
 Olağan tasarım görüşmesi için yeni dış göz raporu açılmaz; aynı konunun kararları

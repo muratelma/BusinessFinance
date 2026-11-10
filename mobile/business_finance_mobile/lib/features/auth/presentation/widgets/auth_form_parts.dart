@@ -765,6 +765,18 @@ const _appleSvg =
     '1.3-2.8-.1 0-2.6-1-2.6-4.2zM13.9 5c.7-.8 1.2-2 1-3.1-1 0-2.2.7-2.9 1.5-.6'
     '.7-1.2 1.9-1 3 1.1.1 2.2-.6 2.9-1.4z"/></svg>';
 
+/// Google'ın renkli "G" işareti. Giriş ekranının düğmesi ve Hesabım'daki
+/// `Google ile doğrula` aynı işareti kullanır.
+class AuthGoogleMark extends StatelessWidget {
+  const AuthGoogleMark({required this.size, super.key});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) =>
+      SvgPicture.string(_googleSvg, width: size, height: size);
+}
+
 /// Google ve Apple düğmeleri, yuvarlak ve ortada. Apple yalnız iPhone'da
 /// görünür.
 class AuthSocialRow extends StatelessWidget {
@@ -830,10 +842,7 @@ class AuthSocialRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       spacing: n(NomivaSpacing.socialGap),
       children: [
-        button(
-          AuthSocialProvider.google,
-          SvgPicture.string(_googleSvg, width: iconSize, height: iconSize),
-        ),
+        button(AuthSocialProvider.google, AuthGoogleMark(size: iconSize)),
         if (ios)
           button(
             AuthSocialProvider.apple,
