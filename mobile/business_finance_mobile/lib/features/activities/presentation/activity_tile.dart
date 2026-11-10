@@ -10,6 +10,7 @@ import '../../../core/widgets/app_icon_capsule.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_status_chip.dart';
 import '../data/activity_models.dart';
+import '../../../core/theme/app_typography.dart';
 
 /// Feed'in etki boyutunu tasarım sisteminin para/renk sözleşmesine çevirir.
 AppMoneyEffect moneyEffectOf(ActivityEffect effect) => switch (effect) {
@@ -41,7 +42,6 @@ class ActivityTile extends StatelessWidget {
     this.signedByAmount = false,
     this.amountNote,
     this.hideFee = false,
-    this.compact = false,
     this.alignTop = false,
     this.icon,
     this.mutedIcon = false,
@@ -62,14 +62,12 @@ class ActivityTile extends StatelessWidget {
   final bool signedByAmount;
   final String? amountNote;
   final bool hideFee;
-  final bool compact;
   final bool alignTop;
   final IconData? icon;
   final bool mutedIcon;
 
   /// Üste hizalı satırda (kategori sayfası) kapsül ile yazının arası.
-  static const double _topGap =
-      AppSpacing.small + AppSpacing.xSmall + AppSpacing.xxSmall;
+  static const double _topGap = AppSpacing.step14;
 
   /// Üste hizalı satırda yazı kapsülün 1 dp altından başlar.
   static const double _nudge = AppSpacing.xxSmall / 2;
@@ -91,7 +89,7 @@ class ActivityTile extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.medium,
-              vertical: AppSpacing.small + AppSpacing.xSmall,
+              vertical: AppSpacing.compact,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -137,9 +135,6 @@ class ActivityTile extends StatelessWidget {
                                   // ve bir cümle olabilir; tamamı ayrıntıdadır.
                                   _titleText(context),
                                   if ((subtitle ?? _subtitle).isNotEmpty) ...[
-                                    SizedBox(
-                                      height: compact ? 0 : AppSpacing.xxSmall,
-                                    ),
                                     _subtitleText(context),
                                   ],
                                 ],
@@ -189,13 +184,7 @@ class ActivityTile extends StatelessWidget {
                       ),
                     ),
                     if (!context.usesLargeText) ...[
-                      SizedBox(
-                        width: !compact
-                            ? AppSpacing.small + AppSpacing.xSmall
-                            : alignTop
-                            ? _topGap
-                            : AppSpacing.medium,
-                      ),
+                      SizedBox(width: alignTop ? _topGap : AppSpacing.medium),
                       Padding(
                         padding: EdgeInsets.only(top: nudge),
                         child: Opacity(opacity: dim, child: _amount),
@@ -216,7 +205,7 @@ class ActivityTile extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontSize: 13,
+                        fontSize: AppTextSizes.caption,
                         height: 1.35,
                         fontWeight: FontWeight.w600,
                         color: stateTone == AppStatusTone.income
@@ -253,7 +242,7 @@ class ActivityTile extends StatelessWidget {
         signedByAmount: signedByAmount,
         textAlign: TextAlign.end,
         size: AppMoneySize.row,
-        style: compact ? const TextStyle(height: 1.25) : null,
+        style: const TextStyle(height: 1.25),
       );
       final fee = amountNote ?? (hideFee ? null : _feeLabel);
       if (fee == null) return amount;
@@ -266,8 +255,8 @@ class ActivityTile extends StatelessWidget {
           Text(
             fee,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontSize: compact ? 13 : null,
-              height: compact ? 1.35 : null,
+              fontSize: AppTextSizes.caption,
+              height: 1.35,
               decoration: activity.isCancelled
                   ? TextDecoration.lineThrough
                   : null,
@@ -298,10 +287,8 @@ class ActivityTile extends StatelessWidget {
   Widget _titleText(BuildContext context) {
     final text =
         title ?? (activity.title.isEmpty ? activity.kindLabel : activity.title);
-    final style = compact
-        ? Theme.of(context).textTheme.titleSmall?.copyWith(height: 1.3)
-        : Theme.of(context).textTheme.titleSmall;
-    if (compact && text.contains(' → ')) {
+    final style = Theme.of(context).textTheme.titleSmall?.copyWith(height: 1.3);
+    if (text.contains(' → ')) {
       final parts = text.split(' → ');
       return Text.rich(
         TextSpan(
@@ -328,9 +315,7 @@ class ActivityTile extends StatelessWidget {
   }
 
   Widget _subtitleText(BuildContext context) {
-    final style = compact
-        ? Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.35)
-        : Theme.of(context).textTheme.bodySmall;
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.35);
     final text = Text(
       subtitle ?? _subtitle,
       maxLines: 2,

@@ -8,6 +8,7 @@ import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_form_error.dart';
+import '../../../core/widgets/app_page_bar.dart';
 import '../../../core/widgets/app_scope_selector.dart';
 import '../data/account_models.dart';
 import '../data/account_repository.dart';
@@ -158,12 +159,14 @@ class _AccountFormPageState extends State<AccountFormPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_editing ? 'Hesabı düzenle' : 'Hesap ekle')),
+      appBar: AppPageBar(
+        title: Text(_editing ? 'Hesabı düzenle' : 'Hesap ekle'),
+      ),
       body: SafeArea(
         child: Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.all(AppSpacing.medium),
+            padding: AppPageInsets.form,
             children: [
               TextFormField(
                 controller: _nameController,
@@ -177,7 +180,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
                     ? 'Hesap adını girin.'
                     : null,
               ),
-              const SizedBox(height: AppSpacing.medium),
+              const SizedBox(height: AppGaps.field),
               DropdownButtonFormField<String>(
                 initialValue: _type,
                 decoration: const InputDecoration(
@@ -190,7 +193,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
                 ],
                 onChanged: _editing ? null : (value) => _type = value!,
               ),
-              const SizedBox(height: AppSpacing.medium),
+              const SizedBox(height: AppGaps.field),
               TextFormField(
                 controller: _balanceController,
                 enabled: !_editing,
@@ -205,7 +208,7 @@ class _AccountFormPageState extends State<AccountFormPage> {
                 validator: _validateMoney,
               ),
               if (context.watch<ScopeController?>()?.isVisible ?? false) ...[
-                const SizedBox(height: AppSpacing.medium),
+                const SizedBox(height: AppGaps.field),
                 AppScopeDefaultField(
                   value: _defaultScope,
                   onChanged: (value) => setState(() => _defaultScope = value),

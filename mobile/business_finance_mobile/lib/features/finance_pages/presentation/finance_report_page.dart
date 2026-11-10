@@ -11,6 +11,7 @@ import '../../../core/theme/app_finance_colors.dart';
 import '../../../core/theme/app_breakpoints.dart';
 import '../../../core/theme/app_finance_icons.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/app_filter_strip.dart';
 import '../../../core/widgets/app_icon_capsule.dart';
 import '../../../core/widgets/app_day_heading.dart';
 import '../../../core/widgets/app_filter_menu.dart';
@@ -23,7 +24,6 @@ import '../../../core/widgets/app_segment_rail.dart';
 import '../../../core/widgets/app_share_bar.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_summary_card.dart';
-import '../../../core/widgets/app_untracked_text.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_status_chip.dart';
 import '../../activities/data/activity_models.dart';
@@ -36,6 +36,8 @@ import '../../pos/data/pos_repository.dart';
 import '../data/finance_page_models.dart';
 import '../data/finance_page_repository.dart';
 import 'finance_page_controller.dart';
+import '../../../core/theme/app_typography.dart';
+import '../../../core/theme/app_radius.dart';
 
 /// Aynı okuma sözleşmesinin dört sayfası; işlem satırı ve ayrıntı ortaktır.
 class FinanceReportPage extends StatelessWidget {
@@ -71,8 +73,7 @@ class FinanceReportPage extends StatelessWidget {
   final DayCloseRepositoryContract? dayCloseRepository;
   final Future<void> Function()? onAccountSettings;
   @override
-  Widget build(BuildContext context) =>
-      AppUntrackedText(child: _FinanceReportPageBody(this));
+  Widget build(BuildContext context) => _FinanceReportPageBody(this);
 }
 
 class _FinanceReportPageBody extends StatefulWidget {
@@ -102,8 +103,7 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
 
   /// Teslimin 14 dp adımı: kategori satırının dikey boşluğu ve Yolda
   /// kutusundaki satırın yan boşluğu.
-  static const double _rowGap =
-      AppSpacing.small + AppSpacing.xSmall + AppSpacing.xxSmall;
+  static const double _rowGap = AppSpacing.step14;
   String? filterNotice;
   @override
   void initState() {
@@ -194,7 +194,6 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
         children: [
           AppPageHeader(
             title: title,
-            compact: true,
             onBack: () => Navigator.maybePop(context),
             actions: [
               if (isAccount && widget.page.onAccountSettings != null)
@@ -230,13 +229,13 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
   /// Başlıktaki ay düğmesi: 48 dp, 16/600, yanında 20 dp ok.
   Widget _monthButton(BuildContext context) => InkWell(
     onTap: _month,
-    borderRadius: BorderRadius.circular(16),
+    borderRadius: BorderRadius.circular(AppRadius.field),
     child: ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 48),
       child: Padding(
         padding: const EdgeInsets.only(
-          left: AppSpacing.small + AppSpacing.xxSmall,
-          right: AppSpacing.xSmall + AppSpacing.xxSmall,
+          left: AppSpacing.step10,
+          right: AppSpacing.step6,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -262,7 +261,7 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
         Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.medium,
-            AppSpacing.xSmall,
+            0,
             AppSpacing.medium,
             0,
           ),
@@ -279,7 +278,7 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
                 v ? 'Gelir' : 'Gider',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontSize: 15,
+                  fontSize: AppTextSizes.compact,
                   height: 1,
                   color: selected
                       ? Theme.of(context).colorScheme.onSurface
@@ -289,10 +288,8 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
             ),
           ),
         ),
-      // Çipler kenardan kenara kayar; hap kendi 8/4 dp boşluğunu taşır.
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.medium),
+      AppFilterStrip.row(
+        label: 'Süzgeçler',
         child: Row(
           children: [
             if (isAccount) ...[
@@ -551,7 +548,7 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
       child: ListView(
         controller: scroll,
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: AppSpacing.xLarge),
+        padding: AppPageInsets.fullBleedList,
         children: [
           if (isAccount)
             _accountSummary()
@@ -569,7 +566,6 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
           if (filterNotice != null)
             AppInlineNotice(
               message: filterNotice!,
-              compact: true,
               margin: const EdgeInsets.fromLTRB(
                 AppSpacing.medium,
                 AppSpacing.xSmall,
@@ -585,10 +581,9 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
             ..._days(),
           if (isTransit && controller.items.isNotEmpty)
             const AppInlineNotice(
-              compact: true,
               margin: EdgeInsets.fromLTRB(
                 AppSpacing.medium,
-                AppSpacing.small + AppSpacing.xSmall,
+                AppSpacing.compact,
                 AppSpacing.medium,
                 0,
               ),
@@ -741,7 +736,7 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
     return Padding(
       padding: const EdgeInsets.only(
         left: AppSpacing.medium,
-        top: AppSpacing.small + AppSpacing.xSmall,
+        top: AppSpacing.compact,
         right: AppSpacing.medium,
       ),
       child: Column(
@@ -794,7 +789,7 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
       style: theme.textTheme.titleSmall?.copyWith(
-        fontSize: 16,
+        fontSize: AppTextSizes.row,
         height: 1.3,
         fontWeight: FontWeight.w600,
       ),
@@ -822,7 +817,7 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
               amount,
             ],
           ),
-        const SizedBox(height: AppSpacing.xSmall + AppSpacing.xxSmall),
+        const SizedBox(height: AppSpacing.step6),
         Row(
           children: [
             Expanded(child: bar),
@@ -857,7 +852,7 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.medium,
                 _rowGap,
-                AppSpacing.small + AppSpacing.xSmall,
+                AppSpacing.compact,
                 _rowGap,
               ),
               child: Row(
@@ -911,7 +906,7 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
             footer: context.usesLargeText
                 ? Wrap(
                     spacing: AppSpacing.large,
-                    runSpacing: AppSpacing.small + AppSpacing.xSmall,
+                    runSpacing: AppSpacing.compact,
                     children: metrics,
                   )
                 : Row(
@@ -927,7 +922,7 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
           if (data.isCurrentMonth &&
               controller.direction != 'out' &&
               data.transit.count > 0) ...[
-            const SizedBox(height: AppSpacing.small + AppSpacing.xSmall),
+            const SizedBox(height: AppSpacing.compact),
             _transitPreview(data.transit),
           ],
           if (controller.selection != null)
@@ -983,14 +978,14 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
     final many = transit.count > 1;
     return Container(
       padding: EdgeInsets.fromLTRB(
-        AppSpacing.small + AppSpacing.xSmall,
-        AppSpacing.small + AppSpacing.xSmall,
-        AppSpacing.small + AppSpacing.xSmall,
-        many ? 0 : AppSpacing.small + AppSpacing.xSmall,
+        AppSpacing.compact,
+        AppSpacing.compact,
+        AppSpacing.compact,
+        many ? 0 : AppSpacing.compact,
       ),
       decoration: BoxDecoration(
         color: colors.neutralContainer,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1000,7 +995,7 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
               AppSpacing.xSmall,
               AppSpacing.xxSmall,
               AppSpacing.xSmall,
-              AppSpacing.small + AppSpacing.xxSmall,
+              AppSpacing.step10,
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -1033,14 +1028,14 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
           if (nearest != null)
             Material(
               color: surfaces.card,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(AppRadius.field),
               clipBehavior: Clip.antiAlias,
               child: InkWell(
                 onTap: () => _detail(nearest),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: _rowGap,
-                    vertical: AppSpacing.small + AppSpacing.xSmall,
+                    vertical: AppSpacing.compact,
                   ),
                   child: _transitRow(nearest),
                 ),
@@ -1051,7 +1046,7 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
               onTap: () => context.push(
                 '$accountsLocation/${widget.page.id}/in-transit',
               ),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(AppRadius.field),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 44),
                 child: Row(
@@ -1138,7 +1133,7 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
             children: texts,
           ),
         ),
-        const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+        const SizedBox(width: AppSpacing.compact),
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           mainAxisSize: MainAxisSize.min,
@@ -1163,7 +1158,7 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
         effect: effect,
         signedByAmount: signed,
         size: AppMoneySize.row,
-        style: const TextStyle(fontSize: 15, height: 1.25),
+        style: const TextStyle(fontSize: AppTextSizes.compact, height: 1.25),
       ),
     ],
   );
@@ -1423,7 +1418,6 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
       activity: a,
       showDate: false,
       onTap: () => _detail(row),
-      compact: true,
       alignTop: categoryPage,
       mutedIcon: categoryPage && controller.category?.name == null,
       icon: categoryPage && controller.category?.name == null

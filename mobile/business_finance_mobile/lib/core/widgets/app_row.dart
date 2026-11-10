@@ -20,13 +20,12 @@ class AppRow extends StatelessWidget {
     this.onTap,
     this.padding = const EdgeInsets.symmetric(
       horizontal: AppSpacing.medium,
-      vertical: AppSpacing.small + AppSpacing.xxSmall + AppSpacing.xSmall,
+      vertical: AppSpacing.step14,
     ),
     this.titleStyle,
     this.semanticLabel,
     this.titleMaxLines = 1,
     this.minHeight = 56,
-    this.compact = false,
   });
 
   final Widget? leading;
@@ -41,7 +40,6 @@ class AppRow extends StatelessWidget {
   final String? semanticLabel;
   final int titleMaxLines;
   final double minHeight;
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +54,7 @@ class AppRow extends StatelessWidget {
           children: [
             if (leading != null) ...[
               leading!,
-              SizedBox(width: compact ? 14 : AppSpacing.medium),
+              const SizedBox(width: AppSpacing.medium),
             ],
             Expanded(
               child: Column(
@@ -67,24 +65,16 @@ class AppRow extends StatelessWidget {
                     title,
                     maxLines: stacked ? 2 : titleMaxLines,
                     overflow: TextOverflow.ellipsis,
-                    style:
-                        titleStyle ??
-                        (compact
-                            ? theme.textTheme.titleSmall?.copyWith(height: 1.3)
-                            : theme.textTheme.titleSmall),
+                    style: titleStyle ?? theme.textTheme.titleSmall,
                   ),
                   if (subtitle != null)
                     Padding(
-                      padding: EdgeInsets.only(
-                        top: compact ? 0 : AppSpacing.xxSmall,
-                      ),
+                      padding: const EdgeInsets.only(top: AppSpacing.xxSmall),
                       child: Text(
                         subtitle!,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: compact
-                            ? theme.textTheme.bodySmall?.copyWith(height: 1.35)
-                            : theme.textTheme.bodySmall,
+                        style: theme.textTheme.bodySmall,
                       ),
                     ),
                   if (stacked) ...[
@@ -98,7 +88,7 @@ class AppRow extends StatelessWidget {
               ),
             ),
             if (trailing != null && !stacked) ...[
-              const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+              const SizedBox(width: AppSpacing.compact),
               trailing!,
             ],
           ],

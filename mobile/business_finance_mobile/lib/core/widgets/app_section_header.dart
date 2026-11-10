@@ -5,6 +5,12 @@ import '../theme/app_spacing.dart';
 
 /// Bölüm başlığı ve isteğe bağlı yan eylemi.
 ///
+/// Başlık altındaki içerikle arasındaki boşluğu kendisi taşır
+/// ([AppGaps.sectionTitle]); sayfa ardına ayrıca boşluk koymaz. Yan eylem
+/// 48 dp'lik bir düğmeyse satır o kadar uzar ve o pay boşluğun yerini tutar;
+/// yalnız o durumda `padding: EdgeInsets.zero` verilir. Başlığın **üstündeki** bölüm aralığını ([AppGaps.section])
+/// sayfa verir: ilk bölümün üstünde boşluk olmaz.
+///
 /// Başlık ekran okuyucuya `header` olarak bildirilir; TalkBack kullanıcısı
 /// başlıktan başlığa atlayarak uzun bir sayfada gezinebilir.
 class AppSectionHeader extends StatelessWidget {
@@ -12,18 +18,20 @@ class AppSectionHeader extends StatelessWidget {
     required this.title,
     super.key,
     this.trailing,
-    this.padding = const EdgeInsets.symmetric(vertical: AppSpacing.small),
+    this.padding,
   });
 
   final String title;
   final Widget? trailing;
 
-  /// Kart üstü bölümlerde (Kasa) başlık satırı yan eylemin 48 dp'lik
-  /// dokunma alanı kadardır; ek dikey boşluk tasarımdaki aralığı açar.
-  final EdgeInsetsGeometry padding;
+  /// Kuralın dışına çıkması gereken tek tük yer için; verilmezse kural
+  /// uygulanır.
+  final EdgeInsetsGeometry? padding;
 
   @override
   Widget build(BuildContext context) {
+    final resolved =
+        padding ?? const EdgeInsets.only(bottom: AppGaps.sectionTitle);
     final heading = Semantics(
       header: true,
       child: Text(title, style: Theme.of(context).textTheme.titleMedium),
@@ -31,7 +39,7 @@ class AppSectionHeader extends StatelessWidget {
     // Büyük yazıda yan eylem başlığın yanına sığmaz; altına iner.
     if (trailing != null && context.usesLargeText) {
       return Padding(
-        padding: padding,
+        padding: resolved,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [heading, trailing!],
@@ -39,7 +47,7 @@ class AppSectionHeader extends StatelessWidget {
       );
     }
     return Padding(
-      padding: padding,
+      padding: resolved,
       child: Row(
         children: [
           Expanded(child: heading),

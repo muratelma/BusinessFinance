@@ -2,6 +2,7 @@ import '../theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 import '../formatters/date_text.dart';
 import '../theme/app_surfaces.dart';
+import '../theme/app_typography.dart';
 
 /// Gün başlığı: tarih koyu, gün adı soluk (`25 Ekim Pazar`).
 ///
@@ -16,7 +17,7 @@ class AppDayHeading extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(
         left: AppSpacing.medium,
-        top: AppSpacing.medium + AppSpacing.xSmall,
+        top: AppSpacing.step20,
         right: AppSpacing.medium,
         bottom: AppSpacing.small,
       ),
@@ -28,7 +29,7 @@ class AppDayHeading extends StatelessWidget {
               TextSpan(
                 text: DateText.dayMonth(date),
                 style: theme.textTheme.titleSmall?.copyWith(
-                  fontSize: 15,
+                  fontSize: AppTextSizes.compact,
                   height: 1.3,
                 ),
               ),

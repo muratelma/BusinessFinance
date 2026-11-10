@@ -29,6 +29,8 @@ import '../data/tax_models.dart';
 import 'tax_controller.dart';
 import 'tax_parts.dart';
 import 'tax_schedule.dart';
+import '../../../core/theme/app_typography.dart';
+import '../../../core/theme/app_radius.dart';
 
 /// Sunucu tutarını Türkçe alan değerine çevirir (`8950.0000` → `8.950`).
 String taxEditable(String amount) => const TurkishAmountInputFormatter()
@@ -148,7 +150,7 @@ class _PaySheetState extends State<_PaySheet> {
             lastDate: controller.today,
             onChanged: (value) => setState(() => paidOn = value),
           ),
-          const SizedBox(height: AppSpacing.medium),
+          const SizedBox(height: AppGaps.field),
           if (options != null)
             TaxSourceField(
               options: options,
@@ -367,7 +369,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
             lastDate: controller.today,
             onChanged: (value) => setState(() => paidOn = value),
           ),
-          const SizedBox(height: AppSpacing.medium),
+          const SizedBox(height: AppGaps.field),
           if (options != null)
             TaxSourceField(
               options: options,
@@ -384,7 +386,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
           // Not yalnız bekleyen kalem yokken sorulur (tasarım V4). Bekleyen
           // varken ödemenin ne olduğunu kapattığı kalemler söyler (V5).
           if (pending.isEmpty) ...[
-            const SizedBox(height: AppSpacing.medium),
+            const SizedBox(height: AppGaps.field),
             TextField(
               controller: note,
               maxLength: 200,
@@ -645,7 +647,7 @@ class _PendingSheet extends StatelessWidget {
                   ? Text(
                       'Tutar belli değil',
                       style: theme.textTheme.titleLarge?.copyWith(
-                        fontSize: 22,
+                        fontSize: AppTextSizes.metric,
                         fontWeight: FontWeight.w700,
                         color: surfaces.inkMuted,
                       ),
@@ -655,7 +657,7 @@ class _PendingSheet extends StatelessWidget {
                       currency: item.currency,
                       size: AppMoneySize.metric,
                       style: const TextStyle(
-                        fontSize: 22,
+                        fontSize: AppTextSizes.metric,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -696,7 +698,7 @@ class _PendingSheet extends StatelessWidget {
           children: [
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
+                minimumSize: const Size.fromHeight(AppSizes.button),
               ),
               onPressed: () => Navigator.of(context).pop(true),
               icon: const Icon(Icons.edit_outlined),
@@ -704,7 +706,7 @@ class _PendingSheet extends StatelessWidget {
             ),
             FilledButton.icon(
               style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
+                minimumSize: const Size.fromHeight(AppSizes.button),
               ),
               onPressed: () async {
                 final saved = await showTaxPaySheet(context, controller, item);
@@ -774,7 +776,7 @@ class _PaidSheet extends StatelessWidget {
                 signed: true,
                 size: AppMoneySize.metric,
                 style: const TextStyle(
-                  fontSize: 28,
+                  fontSize: AppTextSizes.amount,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -932,7 +934,7 @@ class _ClosedItemSheet extends StatelessWidget {
                   ? Text(
                       'Tutar belli değil',
                       style: theme.textTheme.titleLarge?.copyWith(
-                        fontSize: 22,
+                        fontSize: AppTextSizes.metric,
                         fontWeight: FontWeight.w700,
                         color: surfaces.inkMuted,
                       ),
@@ -942,7 +944,7 @@ class _ClosedItemSheet extends StatelessWidget {
                       currency: plan.currency,
                       size: AppMoneySize.metric,
                       style: const TextStyle(
-                        fontSize: 22,
+                        fontSize: AppTextSizes.metric,
                         fontWeight: FontWeight.w700,
                       ),
                     ),

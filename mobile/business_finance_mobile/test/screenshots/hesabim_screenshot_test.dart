@@ -13,7 +13,10 @@ import 'screenshot_harness.dart';
 
 /// Tasarımın `HesabimV5` verisi: doğrulanmamış adres, işletme açık, üç oturum.
 void main() {
-  Future<Widget> page(WidgetTester tester) async {
+  Future<Widget> page(
+    WidgetTester tester, [
+    AccountRepositoryContract? repository,
+  ]) async {
     final scope = ScopeController(readHasBusiness: () async => true);
     await tester.runAsync(scope.ensureLoaded);
     return MultiProvider(
@@ -22,7 +25,7 @@ void main() {
         Provider<ProfileRepositoryContract?>.value(value: _Profile()),
       ],
       child: AccountPage(
-        repository: _DesignAccount(),
+        repository: repository ?? _DesignAccount(),
         authRepository: FakeAuthSessionRepository()
           ..session = testSession(sessionId: 'current'),
         now: () => designToday,
@@ -52,6 +55,79 @@ void main() {
       },
     );
   }, skip: !screenshotsEnabled);
+
+  // 9 Kasım 2026 gözden geçirmesi: kullanıcı adı, doğrulanmış adres.
+  testWidgets('19 hesabım · doğrulanmış', (tester) async {
+    await captureScreen(
+      tester,
+      '19-hesabim-dogrulanmis',
+      await page(tester, _VerifiedAccount()),
+      withNavBar: false,
+      pushed: true,
+    );
+  }, skip: !screenshotsEnabled);
+
+  testWidgets('20 parolamı değiştir', (tester) async {
+    await captureScreen(
+      tester,
+      '20-parolami-degistir',
+      await page(tester, _VerifiedAccount()),
+      withNavBar: false,
+      pushed: true,
+      before: (tester) async {
+        await tester.tap(find.text('Parolamı değiştir'));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Yeni parola'),
+          'Kasim2026',
+        );
+        await tester.pump();
+      },
+    );
+  }, skip: !screenshotsEnabled);
+
+  testWidgets('21 parola belirle', (tester) async {
+    await captureScreen(
+      tester,
+      '21-parola-belirle',
+      await page(tester, _VerifiedAccount(hasPassword: false)),
+      withNavBar: false,
+      pushed: true,
+      before: (tester) async {
+        await tester.tap(find.text('Parola belirle'));
+        await tester.pumpAndSettle();
+      },
+    );
+  }, skip: !screenshotsEnabled);
+}
+
+class _VerifiedAccount extends Fake implements AccountRepositoryContract {
+  _VerifiedAccount({this.hasPassword = true});
+
+  final bool hasPassword;
+
+  @override
+  Future<UserAccount> read() async => UserAccount(
+    userId: 'u1',
+    email: 'murat@ornek.com',
+    username: 'murat_elma',
+    emailConfirmed: true,
+    createdAtUtc: DateTime.utc(2026, 3, 14),
+    activeSessionCount: 1,
+    hasPassword: hasPassword,
+  );
+
+  @override
+  Future<List<UserSessionSummary>> listSessions() async => [
+    UserSessionSummary(
+      sessionId: 'current',
+      createdAtUtc: DateTime(2026, 9, 25, 9).toUtc(),
+      expiresAtUtc: DateTime(2026, 10, 22, 9).toUtc(),
+    ),
+  ];
+
+  @override
+  Future<bool> requestPasswordCode() async => true;
 }
 
 class _DesignAccount extends DesignAccount

@@ -122,12 +122,7 @@ class _DayCloseDaySheetState extends State<DayCloseDaySheet> {
     final hasAdditional = shown.closes.any((close) => close.isAdditional);
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.medium,
-          0,
-          AppSpacing.medium,
-          AppSpacing.large,
-        ),
+        padding: AppSheetInsets.detail(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
@@ -140,7 +135,7 @@ class _DayCloseDaySheetState extends State<DayCloseDaySheet> {
                       ? AppStatusTone.income
                       : AppStatusTone.neutral,
                 ),
-                const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+                const SizedBox(width: AppSpacing.compact),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -217,7 +212,7 @@ class _DayCloseDaySheetState extends State<DayCloseDaySheet> {
               ),
             ],
             for (final close in shown.closes) ...[
-              const SizedBox(height: AppSpacing.large - AppSpacing.xSmall),
+              const SizedBox(height: AppSpacing.step20),
               _CloseSection(
                 close: close,
                 // Ana gün sonu, ekleri geri alınmadan geri alınamaz.
@@ -227,7 +222,7 @@ class _DayCloseDaySheetState extends State<DayCloseDaySheet> {
               ),
             ],
             if (shown.outsideRecords.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.large - AppSpacing.xSmall),
+              const SizedBox(height: AppSpacing.step20),
               Text(
                 shown.isClosed ? 'Gün sonunun dışında' : 'Tek tek girilenler',
                 style: theme.textTheme.labelMedium,
@@ -389,7 +384,7 @@ class _CloseSection extends StatelessWidget {
           OutlinedButton.icon(
             key: ValueKey('day-close-revert-${close.id}'),
             style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
+              minimumSize: const Size.fromHeight(AppSizes.button),
             ),
             onPressed: busy ? null : onRevert,
             icon: const Icon(Icons.undo),
@@ -513,7 +508,7 @@ class DayCloseTodayCard extends StatelessWidget {
                 icon: Icons.fact_check_outlined,
                 tone: closed ? AppStatusTone.income : AppStatusTone.neutral,
               ),
-              const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+              const SizedBox(width: AppSpacing.compact),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -560,7 +555,7 @@ class DayCloseTodayCard extends StatelessWidget {
                 ),
               ),
             ),
-          const SizedBox(height: AppSpacing.small + AppSpacing.xSmall),
+          const SizedBox(height: AppSpacing.compact),
           if (closed)
             Align(
               alignment: AlignmentDirectional.centerStart,
@@ -572,7 +567,7 @@ class DayCloseTodayCard extends StatelessWidget {
           else
             FilledButton(
               style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
+                minimumSize: const Size.fromHeight(AppSizes.button),
               ),
               onPressed: () => onEnter(additional: false),
               child: const Text('Gün sonunu gir'),

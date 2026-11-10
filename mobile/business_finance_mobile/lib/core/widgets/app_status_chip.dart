@@ -54,8 +54,8 @@ class AppStatusChip extends StatelessWidget {
       // aynı aileden görünmesi için yükseklik ve iç boşluk bir kademe arttı.
       constraints: const BoxConstraints(minHeight: 32),
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.small + AppSpacing.xSmall,
-        vertical: AppSpacing.xSmall + 2,
+        horizontal: AppSpacing.compact,
+        vertical: AppSpacing.step6,
       ),
       decoration: BoxDecoration(
         color: background,

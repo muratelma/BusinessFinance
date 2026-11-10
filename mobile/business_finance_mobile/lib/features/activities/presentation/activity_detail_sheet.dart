@@ -13,6 +13,8 @@ import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_status_chip.dart';
 import '../data/activity_models.dart';
 import '../../finance_pages/data/finance_page_models.dart';
+import '../../../core/theme/app_typography.dart';
+import '../../../core/theme/app_radius.dart';
 import 'activity_tile.dart' show activityIcon, moneyEffectOf;
 
 /// The detail behind a feed row: a shared header plus the fields that only make
@@ -65,12 +67,7 @@ class ActivityDetailSheet extends StatelessWidget {
 
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.medium,
-          0,
-          AppSpacing.medium,
-          AppSpacing.medium,
-        ),
+        padding: AppSheetInsets.detail(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
@@ -78,7 +75,7 @@ class ActivityDetailSheet extends StatelessWidget {
             Row(
               children: [
                 AppIconCapsule(icon: activityIcon(activity), tone: _tone),
-                const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+                const SizedBox(width: AppSpacing.compact),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -129,7 +126,7 @@ class ActivityDetailSheet extends StatelessWidget {
                   signed: true,
                   size: AppMoneySize.metric,
                   style: const TextStyle(
-                    fontSize: 28,
+                    fontSize: AppTextSizes.amount,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -147,7 +144,7 @@ class ActivityDetailSheet extends StatelessWidget {
                       ),
               ],
             ),
-            const SizedBox(height: AppSpacing.small + AppSpacing.xSmall),
+            const SizedBox(height: AppSpacing.compact),
             FutureBuilder<List<ActivityBalance>>(
               future: balances,
               builder: (context, snapshot) => Column(
@@ -175,7 +172,7 @@ class ActivityDetailSheet extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.small + AppSpacing.xSmall),
+            const SizedBox(height: AppSpacing.compact),
             if (errorMessage != null) AppFormError(message: errorMessage!),
             _Actions(
               activity: activity,
@@ -370,7 +367,7 @@ class ActivityDetailSheet extends StatelessWidget {
     final surfaces = AppSurfaces.of(context);
     final amount = MoneyText.format(flipped.balance, flipped.currency);
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.small + AppSpacing.xSmall),
+      padding: const EdgeInsets.only(top: AppSpacing.compact),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -796,7 +793,7 @@ class _Actions extends StatelessWidget {
             const SizedBox(height: AppSpacing.small),
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
+                minimumSize: const Size.fromHeight(AppSizes.button),
               ),
               onPressed: onShowDayClose,
               icon: const Icon(Icons.fact_check_outlined),
@@ -815,7 +812,7 @@ class _Actions extends StatelessWidget {
           OutlinedButton.icon(
             onPressed: isCancelling ? null : () => _confirm(context),
             style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
+              minimumSize: const Size.fromHeight(AppSizes.button),
             ),
             icon: isCancelling
                 ? const SizedBox.square(

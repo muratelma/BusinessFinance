@@ -157,7 +157,7 @@ abstract final class AppTheme {
         style: FilledButton.styleFrom(
           // 48 dp: dokunma hedefi eşiği butonun kendi yüksekliğinden gelir,
           // görünmez bir dolgudan değil.
-          minimumSize: const Size(0, 48),
+          minimumSize: const Size(0, AppSizes.button),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.large),
           textStyle: textTheme.labelLarge,
           shape: RoundedRectangleBorder(
@@ -167,7 +167,7 @@ abstract final class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, 48),
+          minimumSize: const Size(0, AppSizes.button),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.large),
           textStyle: textTheme.labelLarge,
           side: BorderSide(color: surfaces.borderStrong),
@@ -178,7 +178,7 @@ abstract final class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          minimumSize: const Size(0, 48),
+          minimumSize: const Size(0, AppSizes.button),
           textStyle: textTheme.labelLarge,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.field),

@@ -8,6 +8,7 @@ import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_form_error.dart';
+import '../../../core/widgets/app_page_bar.dart';
 import '../../../core/widgets/app_scope_selector.dart';
 import '../data/category_models.dart';
 
@@ -122,14 +123,14 @@ class _CategoryFormPageState extends State<CategoryFormPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppPageBar(
         title: Text(_editing ? 'Kategoriyi düzenle' : 'Kategori ekle'),
       ),
       body: SafeArea(
         child: Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.all(AppSpacing.medium),
+            padding: AppPageInsets.form,
             children: [
               TextFormField(
                 controller: _nameController,
@@ -142,7 +143,7 @@ class _CategoryFormPageState extends State<CategoryFormPage> {
                     ? 'Kategori adını girin.'
                     : null,
               ),
-              const SizedBox(height: AppSpacing.medium),
+              const SizedBox(height: AppGaps.field),
               DropdownButtonFormField<String>(
                 initialValue: _type,
                 decoration: const InputDecoration(
@@ -158,7 +159,7 @@ class _CategoryFormPageState extends State<CategoryFormPage> {
                     : (value) => setState(() => _type = value!),
               ),
               if (context.watch<ScopeController?>()?.isVisible ?? false) ...[
-                const SizedBox(height: AppSpacing.medium),
+                const SizedBox(height: AppGaps.field),
                 AppScopeDefaultField(
                   label: 'Kapsam',
                   emptyLabel: 'İkisi de',
@@ -185,7 +186,7 @@ class _CategoryFormPageState extends State<CategoryFormPage> {
                 ),
               ],
               if (_type == 'expense') ...[
-                const SizedBox(height: AppSpacing.medium),
+                const SizedBox(height: AppGaps.field),
                 _TaxSwitch(
                   value: _isTax,
                   onChanged: (value) => setState(() => _isTax = value),
@@ -238,7 +239,7 @@ class _TaxSwitch extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.medium,
-          vertical: AppSpacing.small + AppSpacing.xSmall,
+          vertical: AppSpacing.compact,
         ),
         decoration: BoxDecoration(
           color: surfaces.card,
@@ -253,7 +254,7 @@ class _TaxSwitch extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text('Vergi', style: theme.textTheme.titleSmall),
-                  const SizedBox(height: AppSpacing.xxSmall),
+                  const SizedBox(height: AppGaps.rowText),
                   Text(
                     "Bu kategorideki giderler Vergi takibi › Ödenenler'de "
                     'görünür.',

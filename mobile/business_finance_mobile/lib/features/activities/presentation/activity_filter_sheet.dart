@@ -22,7 +22,7 @@ class _ActivityFilterSheetState extends State<ActivityFilterSheet> {
     final theme = Theme.of(context);
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.medium),
+        padding: AppSheetInsets.detail(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -30,7 +30,7 @@ class _ActivityFilterSheetState extends State<ActivityFilterSheet> {
             Text('Gelişmiş filtre', style: theme.textTheme.titleLarge),
             const SizedBox(height: AppSpacing.medium),
             Text('Tarih aralığı', style: theme.textTheme.titleSmall),
-            const SizedBox(height: AppSpacing.small),
+            const SizedBox(height: AppGaps.sectionTitle),
             Wrap(
               spacing: AppSpacing.small,
               children: [
@@ -46,7 +46,7 @@ class _ActivityFilterSheetState extends State<ActivityFilterSheet> {
             ),
             const SizedBox(height: AppSpacing.medium),
             Text('Etki', style: theme.textTheme.titleSmall),
-            const SizedBox(height: AppSpacing.small),
+            const SizedBox(height: AppGaps.sectionTitle),
             Wrap(
               spacing: AppSpacing.small,
               children: [

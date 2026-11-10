@@ -5,6 +5,7 @@ import '../../../core/formatters/money_text.dart';
 import '../../../core/models/data_choice.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/app_page_bar.dart';
 import '../../../core/widgets/app_status_chip.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_date_field.dart';
@@ -52,7 +53,7 @@ class _GoalsPageState extends State<GoalsPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Tasarruf hedefleri')),
+    appBar: AppPageBar(title: const Text('Tasarruf hedefleri')),
     body: _body(),
   );
 
@@ -95,14 +96,14 @@ class _GoalsPageState extends State<GoalsPage> {
           child: RefreshIndicator(
             onRefresh: controller.load,
             child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.medium),
+              padding: AppPageInsets.list,
               children: [
                 FilledButton.icon(
                   onPressed: controller.isSubmitting ? null : _showForm,
                   icon: const Icon(Icons.flag_outlined),
                   label: const Text('Tasarruf hedefi ekle'),
                 ),
-                const SizedBox(height: AppSpacing.medium),
+                const SizedBox(height: AppGaps.block),
                 if (goals.isEmpty)
                   const SizedBox(
                     height: 220,
@@ -122,7 +123,7 @@ class _GoalsPageState extends State<GoalsPage> {
   }
 
   Widget _goalCard(GoalItem goal) => Padding(
-    padding: const EdgeInsets.only(bottom: AppSpacing.medium),
+    padding: const EdgeInsets.only(bottom: AppGaps.card),
     child: AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_surfaces.dart';
+import '../theme/app_typography.dart';
 
 class AppLoadingView extends StatelessWidget {
   const AppLoadingView({super.key, this.message = 'Yükleniyor'});
@@ -191,16 +192,16 @@ class AppEmptyView extends StatelessWidget {
               ),
               child: Icon(icon, size: 28, color: surfaces.inkMuted),
             ),
-            const SizedBox(height: AppSpacing.small + AppSpacing.xSmall),
+            const SizedBox(height: AppSpacing.compact),
             Text(
               title,
               textAlign: TextAlign.center,
               style: theme.textTheme.titleSmall?.copyWith(
-                fontSize: 17,
+                fontSize: AppTextSizes.row,
                 height: 1.3,
               ),
             ),
-            const SizedBox(height: AppSpacing.xSmall + AppSpacing.xxSmall),
+            const SizedBox(height: AppSpacing.step6),
             Text(
               message,
               textAlign: TextAlign.center,
@@ -210,18 +211,18 @@ class AppEmptyView extends StatelessWidget {
               ),
             ),
             if (action != null) ...[
-              const SizedBox(height: AppSpacing.small + AppSpacing.xSmall),
+              const SizedBox(height: AppSpacing.compact),
               // Teslimde eylem altı çizili düz yazıdır (15/600, 48 dp).
               TextButtonTheme(
                 data: TextButtonThemeData(
                   style: TextButton.styleFrom(
                     foregroundColor: surfaces.ink,
-                    minimumSize: const Size(0, 48),
+                    minimumSize: const Size(0, AppSizes.button),
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.medium,
                     ),
                     textStyle: theme.textTheme.titleSmall?.copyWith(
-                      fontSize: 15,
+                      fontSize: AppTextSizes.compact,
                       height: 1,
                       decoration: TextDecoration.underline,
                     ),

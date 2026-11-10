@@ -229,7 +229,7 @@ void main() {
     expect(find.text('Hesap ekle'), findsOneWidget);
     expect(find.text(sentence), findsOneWidget);
 
-    await tester.pageBack();
+    await tester.tap(find.byTooltip('Geri'));
     await tester.pumpAndSettle();
 
     // Arkadaki liste hata ekranına dönmez. Satırda ad da tür de `Nakit` yazar.

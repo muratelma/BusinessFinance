@@ -9,6 +9,7 @@ import '../../../core/widgets/app_form_sheet.dart';
 import '../../../core/widgets/app_inline_notice.dart';
 import '../../../core/widgets/app_list_row.dart';
 import '../../../core/widgets/app_money_text.dart';
+import '../../../core/widgets/app_page_bar.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
 import '../../activities/presentation/activity_tile.dart';
@@ -70,7 +71,7 @@ class _CounterpartyDetailPageState extends State<CounterpartyDetailPage> {
   Widget build(BuildContext context) {
     final detail = _detail;
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppPageBar(
         title: Text(detail?.counterparty.name ?? 'Karşı taraf'),
         actions: [
           if (detail != null)
@@ -131,20 +132,20 @@ class _CounterpartyDetailPageState extends State<CounterpartyDetailPage> {
           child: RefreshIndicator(
             onRefresh: () => controller.loadDetail(widget.counterpartyId),
             child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.medium),
+              padding: AppPageInsets.list,
               children: [
                 _balanceCard(detail.counterparty),
-                const SizedBox(height: AppSpacing.medium),
+                const SizedBox(height: AppGaps.block),
                 _actions(detail.counterparty),
                 if (_hasPendingObligations(detail)) ...[
-                  const SizedBox(height: AppSpacing.medium),
+                  const SizedBox(height: AppGaps.block),
                   _pendingObligations(detail),
                 ],
                 if (detail.agreements.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.medium),
+                  const SizedBox(height: AppGaps.block),
                   _agreements(detail),
                 ],
-                const SizedBox(height: AppSpacing.medium),
+                const SizedBox(height: AppGaps.section),
                 _history(detail),
               ],
             ),
@@ -465,7 +466,7 @@ class _CounterpartyDetailPageState extends State<CounterpartyDetailPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Hareketler', style: theme.textTheme.titleSmall),
-        const SizedBox(height: AppSpacing.xSmall),
+        const SizedBox(height: AppGaps.sectionTitle),
         for (final activity in detail.activities)
           ActivityTile(activity: activity),
       ],

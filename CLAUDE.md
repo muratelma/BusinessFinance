@@ -769,6 +769,13 @@ güncelleme haritası** tablosundadır; kod ve belge aynı commit'te güncelleni
 - **İşletme/şahsi havuzu bölünmez** (ADR 0013): mod seçimi, ayrı veri alanı ve
   kapsamın kategoriyle temsili reddedildi. Bakiye, kart borcu ve net varlık
   kapsam filtresinden etkilenmez.
+- **Ölçüler ortak kuraldan gelir** (kullanıcı kararı, 10 Kasım 2026): boşluk,
+  yazı boyu, köşe, düğme boyu ve başlık/panel iskeleti tek yerde tanımlıdır
+  (`app_spacing.dart`, `app_typography.dart`, `app_radius.dart` ve ortak
+  bileşenler). Yeni tasarım teslimi uygulanırken görsel dil teslimden, ölçü ve
+  bileşen kuraldan alınır; ekrana özel sayı yazılmaz. Kural tasarımı bozuyorsa
+  kural değişir ya da yeni ad eklenir, kullanıcıya söylenir. Ayrıntı
+  `AGENTS.md` "Flutter kuralları" ve `documentation/design-system.md`.
 - Yeni aşamanın paket/servis/altyapısını erkenden ekleme (bulut ve offline
   cache bağımlılıkları kendi aşamaları gelmeden kurulmaz).
 - **Banka bağlantısı / açık bankacılık kapsam dışıdır**; sağlayıcı SDK'sı,

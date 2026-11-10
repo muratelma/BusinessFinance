@@ -26,6 +26,8 @@ import 'tax_plan_detail_page.dart';
 import 'tax_schedule.dart';
 import 'tax_sheets.dart';
 import 'tax_type_page.dart';
+import '../../../core/theme/app_typography.dart';
+import '../../../core/theme/app_radius.dart';
 
 /// Vergi takibi (ADR 0018): bekleyenler, tanımlı vergiler, ödenenler.
 ///
@@ -77,7 +79,7 @@ class _TaxTrackingPageState extends State<TaxTrackingPage> {
           // kaldıkça yükleniyor simgesi gösterirdi.
           ? FilledButton.icon(
               style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
+                minimumSize: const Size.fromHeight(AppSizes.button),
               ),
               onPressed: () async {
                 final saved = await showTaxPaymentSheet(context, controller);
@@ -159,7 +161,7 @@ class _TaxTrackingPageState extends State<TaxTrackingPage> {
             Text(
               'Ödediğiniz vergiyi tek tutarla yazın',
               style: theme.textTheme.titleMedium?.copyWith(
-                fontSize: 18,
+                fontSize: AppTextSizes.section,
                 height: 1.35,
               ),
             ),
@@ -169,7 +171,7 @@ class _TaxTrackingPageState extends State<TaxTrackingPage> {
               'takip edin. Ödenene kadar hiçbir vergi bakiyenizi ya da '
               'bütçenizi etkilemez.',
               style: theme.textTheme.bodyLarge?.copyWith(
-                fontSize: 15,
+                fontSize: AppTextSizes.compact,
                 color: surfaces.inkMuted,
               ),
             ),
@@ -178,7 +180,7 @@ class _TaxTrackingPageState extends State<TaxTrackingPage> {
               width: double.infinity,
               child: OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
+                  minimumSize: const Size.fromHeight(AppSizes.button),
                 ),
                 onPressed: () => _openTypes(context, multiple: true),
                 icon: const Icon(Icons.event_repeat_outlined),
@@ -417,7 +419,7 @@ class _PendingRow extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.medium,
-          vertical: AppSpacing.small + AppSpacing.xSmall,
+          vertical: AppSpacing.compact,
         ),
         child: Row(
           children: [
@@ -483,7 +485,7 @@ class _PendingRow extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+            const SizedBox(width: AppSpacing.compact),
             TaxPayButton(onPressed: onPay),
           ],
         ),
@@ -510,7 +512,7 @@ class _TotalsStrip extends StatelessWidget {
     Widget cell(String label, Widget value) => Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.medium,
-        vertical: AppSpacing.small + AppSpacing.xSmall,
+        vertical: AppSpacing.compact,
       ),
       child: MergeSemantics(
         child: Column(
@@ -552,7 +554,7 @@ class _TotalsStrip extends StatelessWidget {
                   Expanded(child: total),
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                      vertical: AppSpacing.small + AppSpacing.xSmall,
+                      vertical: AppSpacing.compact,
                     ),
                     child: VerticalDivider(
                       width: 1,

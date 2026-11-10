@@ -10,6 +10,7 @@ import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_adaptive_sheet.dart';
+import '../../../core/widgets/app_filter_strip.dart';
 import '../../../core/widgets/app_icon_capsule.dart';
 import '../../../core/widgets/app_page_header.dart';
 import '../../../core/widgets/app_state_views.dart';
@@ -23,6 +24,7 @@ import 'show_activity_detail.dart';
 import '../../finance_pages/data/finance_page_repository.dart';
 import 'activity_filter_sheet.dart';
 import 'activity_tile.dart';
+import '../../../core/theme/app_typography.dart';
 
 /// The unified history: every realized movement in one chronological list,
 /// whichever write model produced it.
@@ -177,7 +179,7 @@ class _ActivityFeedPageState extends State<ActivityFeedPage> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.medium,
-                    AppSpacing.xSmall,
+                    0,
                     AppSpacing.medium,
                     0,
                   ),
@@ -320,7 +322,7 @@ class _ActivityFeedPageState extends State<ActivityFeedPage> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.medium,
-        AppSpacing.large - AppSpacing.xSmall,
+        AppSpacing.step20,
         AppSpacing.medium,
         0,
       ),
@@ -397,7 +399,7 @@ class _SearchField extends StatelessWidget {
         constraints: const BoxConstraints(minHeight: 48),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.medium,
-          vertical: AppSpacing.small + AppSpacing.xSmall,
+          vertical: AppSpacing.compact,
         ),
         border: border,
         enabledBorder: border,
@@ -415,31 +417,16 @@ class _QuickFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      container: true,
+    return AppFilterStrip(
       label: 'İşlem türü',
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.medium,
-          AppSpacing.small + AppSpacing.xSmall,
-          AppSpacing.medium,
-          AppSpacing.small,
-        ),
-        child: Row(
-          children: [
-            for (final filter in ActivityQuickFilter.values)
-              Padding(
-                padding: const EdgeInsets.only(right: AppSpacing.small),
-                child: ChoiceChip(
-                  label: Text(filter.label),
-                  selected: filter == selected,
-                  onSelected: (_) => onSelected(filter),
-                ),
-              ),
-          ],
-        ),
-      ),
+      children: [
+        for (final filter in ActivityQuickFilter.values)
+          ChoiceChip(
+            label: Text(filter.label),
+            selected: filter == selected,
+            onSelected: (_) => onSelected(filter),
+          ),
+      ],
     );
   }
 }
@@ -493,7 +480,7 @@ class _PlannedStrip extends StatelessWidget {
                     size: 20,
                     color: foreground,
                   ),
-                  const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+                  const SizedBox(width: AppSpacing.compact),
                   Flexible(
                     child: Text(
                       title,
@@ -548,7 +535,7 @@ class _DayHeader extends StatelessWidget {
         color: surfaces.canvas,
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.medium,
-          AppSpacing.large - AppSpacing.xSmall,
+          AppSpacing.step20,
           AppSpacing.medium,
           AppSpacing.small,
         ),
@@ -558,7 +545,7 @@ class _DayHeader extends StatelessWidget {
               TextSpan(
                 text: DateText.dayMonth(date),
                 style: theme.textTheme.titleSmall?.copyWith(
-                  fontSize: 15,
+                  fontSize: AppTextSizes.compact,
                   height: 1.3,
                 ),
               ),

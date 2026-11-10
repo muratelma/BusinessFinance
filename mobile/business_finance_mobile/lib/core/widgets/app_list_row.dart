@@ -65,7 +65,7 @@ class AppListRow extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.medium,
-              vertical: AppSpacing.small + AppSpacing.xSmall,
+              vertical: AppSpacing.compact,
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,

@@ -32,14 +32,14 @@ import 'account_status_controller.dart';
 
 /// `Hesabım`.
 ///
-/// Hesaba dair dağınık parçalar — e-posta, işletme cevabı, açık oturumlar,
-/// parola, çıkış ve hesabı kapatma — tek sayfada toplanır. Sıra tehlikeye
-/// göredir: önce kim olduğunuz, sonra nereden açık olduğunuz, en sonda geri
-/// dönüşü olmayan eylem.
+/// Hesaba dair dağınık parçalar — e-posta, işletme cevabı, parola, açık
+/// oturumlar, hesabı kapatma ve çıkış — tek sayfada toplanır.
 ///
-/// Tasarım teslimi (27 Eylül 2026, HesabimV5): doğrulama uyarısı kimlik
-/// kartının içinde, `İşletmem var` Tercihler altında, oturumlarda sayaç ve
-/// `Diğerlerini kapat`, çıkış kendi düğmesi, silmeden önce yedek adımı.
+/// Tasarım teslimi (27 Eylül 2026, HesabimV5) 9 Kasım 2026'da kullanıcıyla
+/// gözden geçirildi: kimlik kart değil ortalanmış bir başlıktır (ad, e-posta,
+/// doğrulama işareti); satırlar kendini anlatan kısa adlar taşır, açıklama
+/// yalnız gerekli yerdedir; `Çıkış yap` en alttadır (kullanıcı onu orada
+/// arıyor), `Hesabı kapat` onun üstündedir.
 class AccountPage extends StatefulWidget {
   const AccountPage({
     required this.repository,
@@ -121,19 +121,37 @@ class _AccountPageState extends State<AccountPage> {
         .length;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.medium,
-        AppSpacing.xSmall,
-        AppSpacing.medium,
-        AppSpacing.xLarge,
-      ),
+      padding: AppPageInsets.list,
       children: [
-        _IdentityCard(account: account, onVerify: _openVerificationSheet),
+        _ProfileHeader(account: account, onVerify: _openVerificationSheet),
         const _BusinessAnswerSection(),
-        const SizedBox(height: AppSpacing.large),
+        const SizedBox(height: AppGaps.section),
+        const AppSectionHeader(title: 'Güvenlik'),
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: account.hasPassword
+              ? AppRow(
+                  padding: _rowPadding,
+                  leading: const AppIconCapsule(icon: Icons.password_outlined),
+                  title: 'Parolamı değiştir',
+                  trailing: const _Chevron(),
+                  onTap: _openPasswordSheet,
+                )
+              // Google ile açılan hesabın parolası yoktur (9 Kasım 2026).
+              : AppRow(
+                  padding: _rowPadding,
+                  leading: const AppIconCapsule(icon: Icons.password_outlined),
+                  title: 'Parola belirle',
+                  subtitle: 'Şu an Google ile giriş yapıyorsunuz.',
+                  trailing: const _Chevron(),
+                  onTap: _openSetPasswordSheet,
+                ),
+        ),
+        const SizedBox(height: AppGaps.section),
         AppSectionHeader(
           title: 'Açık oturumlar · ${sessions.length}',
-          padding: EdgeInsets.zero,
+          // Düğme varken satır 48 dp'dir ve boşluğu o verir.
+          padding: others == 0 ? null : EdgeInsets.zero,
           trailing: others == 0
               ? null
               // Toplu eylem gri hap: satırdaki tekil `×`'ten ayrı okunur.
@@ -143,7 +161,7 @@ class _AccountPageState extends State<AccountPage> {
                     foregroundColor: AppSurfaces.of(context).ink,
                     shape: const StadiumBorder(),
                     padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.small + AppSpacing.xSmall,
+                      horizontal: AppSpacing.compact,
                     ),
                   ),
                   onPressed: controller.isSubmitting
@@ -159,46 +177,18 @@ class _AccountPageState extends State<AccountPage> {
           now: _now,
           onRevoke: _confirmRevoke,
         ),
-        const SizedBox(height: AppSpacing.large),
-        const AppSectionHeader(title: 'Güvenlik', padding: EdgeInsets.zero),
-        const SizedBox(height: AppSpacing.small),
-        AppCard(
-          padding: EdgeInsets.zero,
-          child: (controller.account?.hasPassword ?? true)
-              ? AppRow(
-                  padding: _rowPadding,
-                  leading: const AppIconCapsule(icon: Icons.password_outlined),
-                  title: 'Parolamı değiştir',
-                  subtitle:
-                      'Diğer cihazlardaki oturumlar kapanır; bu cihazda açık '
-                      'kalırsınız.',
-                  trailing: const _Chevron(),
-                  onTap: _openPasswordSheet,
-                )
-              // Google ile açılan hesabın parolası yoktur (9 Kasım 2026).
-              : AppRow(
-                  padding: _rowPadding,
-                  leading: const AppIconCapsule(icon: Icons.password_outlined),
-                  title: 'Parola belirle',
-                  subtitle:
-                      'Google ile giriyorsunuz. Parolayla da girebilmek '
-                      'için belirleyin.',
-                  trailing: const _Chevron(),
-                  onTap: _openSetPasswordSheet,
-                ),
+        const SizedBox(height: AppGaps.section),
+        const AppSectionHeader(title: 'Hesabı kapat'),
+        _DangerCard(
+          onBackup: () => GoRouter.maybeOf(context)?.push('/more/data-tools'),
+          onDelete: _openDeleteSheet,
         ),
-        const SizedBox(height: AppSpacing.large),
+        const SizedBox(height: AppSpacing.xLarge),
+        // En altta: kullanıcı çıkışı orada arıyor (9 Kasım 2026).
         OutlinedButton.icon(
           onPressed: _confirmLogout,
           icon: const Icon(Icons.logout),
           label: const Text('Çıkış yap'),
-        ),
-        const SizedBox(height: AppSpacing.large),
-        const AppSectionHeader(title: 'Hesabı kapat', padding: EdgeInsets.zero),
-        const SizedBox(height: AppSpacing.small),
-        _DangerCard(
-          onBackup: () => GoRouter.maybeOf(context)?.push('/more/data-tools'),
-          onDelete: _openDeleteSheet,
         ),
       ],
     );
@@ -235,8 +225,8 @@ class _AccountPageState extends State<AccountPage> {
       icon: Icons.no_accounts_outlined,
       title: 'Diğer oturumlar kapatılsın mı?',
       message:
-          '$count cihazdaki oturum kapanır; o cihazlar yeniden giriş yapmak '
-          'zorunda kalır. Bu cihazda açık kalırsınız.',
+          '$count cihazdaki oturum kapanır; o cihazlarda yeniden giriş '
+          'gerekir. Bu cihazdaki oturumunuz açık kalır.',
       confirmLabel: 'Hepsini kapat',
       destructive: true,
     );
@@ -384,9 +374,9 @@ extension on _AccountPageState {
 
 const _rowPadding = EdgeInsets.fromLTRB(
   AppSpacing.medium,
-  AppSpacing.small + AppSpacing.xSmall,
-  AppSpacing.small + AppSpacing.xSmall,
-  AppSpacing.small + AppSpacing.xSmall,
+  AppSpacing.compact,
+  AppSpacing.compact,
+  AppSpacing.compact,
 );
 
 class _Chevron extends StatelessWidget {
@@ -400,14 +390,16 @@ class _Chevron extends StatelessWidget {
   );
 }
 
-/// Kim olduğunuz: baş harfler, e-posta, hesap açılışı. Doğrulanmamış adresin
-/// uyarısı ayrı bir kart değil, bu kartın içindedir.
+/// Kim olduğunuz: büyük avatar, ad ve e-posta, ortalanmış ve kartsız
+/// (büyük uygulamaların hesap sayfası başı). Ad kullanıcı adıdır; yoksa
+/// e-posta tek satır olarak başlığa çıkar. Doğrulanmış adresin yanında küçük
+/// bir işaret durur; doğrulanmamış adresin uyarısı başlığın altındadır.
 ///
 /// Hesap **kilitli değildir**: uyarı bir engel değil, bir hatırlatmadır. Metin
 /// bunu açıkça söyler, yoksa kullanıcı uygulamanın yarısının kapalı olduğunu
 /// sanır.
-class _IdentityCard extends StatelessWidget {
-  const _IdentityCard({required this.account, required this.onVerify});
+class _ProfileHeader extends StatelessWidget {
+  const _ProfileHeader({required this.account, required this.onVerify});
 
   final UserAccount account;
   final Future<void> Function() onVerify;
@@ -415,59 +407,77 @@ class _IdentityCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return AppCard(
+    final surfaces = AppSurfaces.of(context);
+    final username = account.username;
+    final email = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: Text(
+            account.email,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: username == null
+                ? theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  )
+                : theme.textTheme.bodyMedium?.copyWith(
+                    color: surfaces.inkMuted,
+                  ),
+          ),
+        ),
+        if (account.emailConfirmed) ...[
+          const SizedBox(width: AppSpacing.xSmall),
+          Tooltip(
+            message: 'E-posta doğrulandı',
+            child: Icon(
+              Icons.verified,
+              size: 16,
+              semanticLabel: 'E-posta doğrulandı',
+              color: AppFinanceColors.of(context).income,
+            ),
+          ),
+        ],
+      ],
+    );
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.small),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              AppAvatar(initials: accountInitials(account.email), size: 56),
-              const SizedBox(width: AppSpacing.medium),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      account.email,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontSize: 17,
-                        height: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xxSmall),
-                    Text(
-                      'Hesap açılışı · '
-                      '${_dayMonthYear(account.createdAtUtc.toLocal())}',
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          Center(
+            child: AppAvatar(
+              initials: accountInitials(account.email),
+              size: 72,
+            ),
           ),
           const SizedBox(height: AppSpacing.medium),
-          if (account.emailConfirmed)
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: AppStatusChip(
-                label: 'E-posta doğrulandı',
-                icon: Icons.check_circle_outline,
-                tone: AppStatusTone.income,
+          if (username != null) ...[
+            Text(
+              username,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
               ),
-            )
-          else
+            ),
+            const SizedBox(height: AppSpacing.xxSmall),
+          ],
+          Center(child: email),
+          if (!account.emailConfirmed) ...[
+            const SizedBox(height: AppSpacing.medium),
             AppInlineNotice(
               icon: Icons.mark_email_unread_outlined,
               message:
                   'E-posta adresiniz doğrulanmadı. Uygulamayı kullanmaya '
-                  'devam edebilirsiniz; doğrulama parolanızı unuttuğunuzda '
-                  'hesabı geri almanızı sağlar.',
+                  'devam edebilirsiniz; doğrulama, parolanızı unutursanız '
+                  'hesabınıza geri dönmenizi sağlar.',
               actionLabel: 'Adresimi doğrula',
               onAction: onVerify,
               margin: EdgeInsets.zero,
             ),
+          ],
         ],
       ),
     );
@@ -509,8 +519,7 @@ class _BusinessAnswerSectionState extends State<_BusinessAnswerSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const AppSectionHeader(title: 'Tercihler', padding: EdgeInsets.zero),
-          const SizedBox(height: AppSpacing.small),
+          const AppSectionHeader(title: 'Tercihler'),
           AppCard(
             padding: EdgeInsets.zero,
             child: MergeSemantics(
@@ -519,7 +528,7 @@ class _BusinessAnswerSectionState extends State<_BusinessAnswerSection> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.medium,
-                    vertical: AppSpacing.small + AppSpacing.xSmall,
+                    vertical: AppSpacing.compact,
                   ),
                   child: Row(
                     children: [
@@ -533,11 +542,11 @@ class _BusinessAnswerSectionState extends State<_BusinessAnswerSection> {
                               'İşletmem var',
                               style: Theme.of(context).textTheme.titleSmall,
                             ),
-                            const SizedBox(height: AppSpacing.xxSmall),
+                            const SizedBox(height: AppGaps.rowText),
+                            // Anahtarın ne yaptığını söyler, durumunu değil:
+                            // durumu anahtarın kendisi gösteriyor.
                             Text(
-                              '${on ? 'Kayıtlar işletme ve şahsi olarak ayrı '
-                                        'okunur.' : 'İşletme ve şahsi ayrımı gizli.'}'
-                              ' Kategoriler değişmez.',
+                              'İşletme ve şahsi ayrımını gösterir.',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],
@@ -731,9 +740,9 @@ class _SessionsCard extends StatelessWidget {
           ? _rowPadding
           : const EdgeInsets.fromLTRB(
               AppSpacing.medium,
-              AppSpacing.small + AppSpacing.xSmall,
+              AppSpacing.compact,
               AppSpacing.xSmall,
-              AppSpacing.small + AppSpacing.xSmall,
+              AppSpacing.compact,
             ),
       leading: AppIconCapsule(
         icon: current ? Icons.smartphone_outlined : Icons.devices_outlined,
@@ -774,7 +783,6 @@ class _DangerCard extends StatelessWidget {
             padding: _rowPadding,
             leading: const AppIconCapsule(icon: Icons.folder_outlined),
             title: 'Önce yedeğinizi alın',
-            subtitle: 'Diğer › Veri ve yedek',
             trailing: const _Chevron(),
             onTap: onBackup,
           ),
@@ -788,15 +796,155 @@ class _DangerCard extends StatelessWidget {
             titleStyle: Theme.of(
               context,
             ).textTheme.titleSmall?.copyWith(color: colors.expense),
-            subtitle:
-                'Hesap ve bütün kayıtlar kalıcı olarak silinir; geri '
-                'alınamaz.',
             onTap: onDelete,
           ),
         ],
       ),
     );
   }
+}
+
+/// Parola alanı: göz düğmesiyle yazılanı gösterir ya da gizler.
+class _PasswordField extends StatefulWidget {
+  const _PasswordField({
+    required this.controller,
+    required this.label,
+    required this.autofillHints,
+    this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final List<String> autofillHints;
+  final ValueChanged<String>? onChanged;
+
+  @override
+  State<_PasswordField> createState() => _PasswordFieldState();
+}
+
+class _PasswordFieldState extends State<_PasswordField> {
+  bool _obscured = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: widget.controller,
+      obscureText: _obscured,
+      autofillHints: widget.autofillHints,
+      onChanged: widget.onChanged,
+      decoration: InputDecoration(
+        labelText: widget.label,
+        suffixIcon: IconButton(
+          tooltip: _obscured ? 'Parolayı göster' : 'Parolayı gizle',
+          onPressed: () => setState(() => _obscured = !_obscured),
+          icon: Icon(
+            _obscured
+                ? Icons.visibility_outlined
+                : Icons.visibility_off_outlined,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Yeni parolanın kuralları, yazdıkça işaretlenir. Kural sunucununkiyle
+/// aynıdır ([AuthValidation.registrationPassword]); tek satırlık "en az 12
+/// karakter; büyük, küçük…" yardımı yerine hangi kuralın eksik kaldığını
+/// gösterir.
+class _PasswordRules extends StatelessWidget {
+  const _PasswordRules({required this.password});
+
+  final String password;
+
+  @override
+  Widget build(BuildContext context) {
+    final rules = [
+      ('En az 12 karakter', password.length >= 12),
+      (
+        'Büyük ve küçük harf',
+        password.contains(RegExp('[a-z]')) &&
+            password.contains(RegExp('[A-Z]')),
+      ),
+      ('Rakam', password.contains(RegExp('[0-9]'))),
+      ('Simge (!, ?, # gibi)', password.contains(RegExp(r'[^a-zA-Z0-9]'))),
+    ];
+    final theme = Theme.of(context);
+    final met = AppFinanceColors.of(context).income;
+    final muted = AppSurfaces.of(context).inkMuted;
+    return Padding(
+      padding: const EdgeInsets.only(
+        top: AppSpacing.small,
+        left: AppSpacing.xSmall,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: AppSpacing.xSmall,
+        children: [
+          for (final (label, ok) in rules)
+            Row(
+              children: [
+                Icon(
+                  ok ? Icons.check_circle : Icons.radio_button_unchecked,
+                  size: 16,
+                  color: ok ? met : muted,
+                ),
+                const SizedBox(width: AppSpacing.small),
+                Text(
+                  label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: ok ? theme.colorScheme.onSurface : muted,
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Parola değişince öbür cihazlarda ne olacağını söyleyen tek satır.
+class _SessionsNote extends StatelessWidget {
+  const _SessionsNote();
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = AppSurfaces.of(context).inkMuted;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.medium),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, size: 16, color: muted),
+          const SizedBox(width: AppSpacing.small),
+          Expanded(
+            child: Text(
+              'Diğer cihazlardaki oturumlarınız kapanır.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: muted),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ErrorText extends StatelessWidget {
+  const _ErrorText(this.message);
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: AppSpacing.small),
+    child: Text(
+      message,
+      style: TextStyle(color: Theme.of(context).colorScheme.error),
+    ),
+  );
 }
 
 class _ChangePasswordSheet extends StatefulWidget {
@@ -824,47 +972,40 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
   Widget build(BuildContext context) {
     return AppFormSheet<bool>(
       title: 'Parolamı değiştir',
-      description:
-          'Parolanız değişince bütün cihazlardaki oturumlar kapanır; bu '
-          'cihazda açık kalırsınız.',
       submitLabel: 'Değiştir',
       onSubmit: _submit,
       children: [
-        TextField(
+        _PasswordField(
           controller: _currentPassword,
-          obscureText: true,
+          label: 'Mevcut parola',
           autofillHints: const [AutofillHints.password],
-          decoration: const InputDecoration(labelText: 'Mevcut parola'),
         ),
-        const SizedBox(height: AppSpacing.medium),
-        TextField(
+        const SizedBox(height: AppGaps.field),
+        _PasswordField(
           controller: _newPassword,
-          obscureText: true,
+          label: 'Yeni parola',
           autofillHints: const [AutofillHints.newPassword],
-          decoration: const InputDecoration(
-            labelText: 'Yeni parola',
-            helperText:
-                'En az 12 karakter; büyük, küçük, rakam ve simge içermeli.',
-            helperMaxLines: 2,
-          ),
+          onChanged: (_) => setState(() {}),
         ),
-        if (_validationMessage != null) ...[
-          const SizedBox(height: AppSpacing.small),
-          Text(
-            _validationMessage!,
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
-          ),
-        ],
+        _PasswordRules(password: _newPassword.text),
+        const _SessionsNote(),
+        if (_validationMessage != null) _ErrorText(_validationMessage!),
       ],
     );
   }
 
   Future<bool?> _submit() async {
+    if (_currentPassword.text.isEmpty) {
+      setState(() => _validationMessage = 'Mevcut parolanızı yazın.');
+      return null;
+    }
     final policyMessage = AuthValidation.registrationPassword(
       _newPassword.text,
     );
     if (policyMessage != null) {
-      setState(() => _validationMessage = policyMessage);
+      setState(
+        () => _validationMessage = 'Yeni parola kuralların hepsini sağlamalı.',
+      );
       return null;
     }
     final done = await widget.controller.changePassword(
@@ -899,6 +1040,7 @@ class _SetPasswordSheetState extends State<_SetPasswordSheet> {
   final _newPassword = TextEditingController();
   String? _validationMessage;
   bool _codeSent = false;
+  bool _sending = true;
 
   @override
   void initState() {
@@ -917,9 +1059,11 @@ class _SetPasswordSheetState extends State<_SetPasswordSheet> {
   }
 
   Future<void> _sendCode() async {
+    setState(() => _sending = true);
     final sent = await widget.controller.requestPasswordCode();
     if (!mounted) return;
     setState(() {
+      _sending = false;
       _codeSent = sent;
       _validationMessage = sent
           ? null
@@ -932,9 +1076,10 @@ class _SetPasswordSheetState extends State<_SetPasswordSheet> {
     final email = widget.controller.account?.email ?? '';
     return AppFormSheet<bool>(
       title: 'Parola belirle',
-      description: _codeSent
-          ? '$email adresine 6 haneli bir kod gönderdik. Kodu ve yeni '
-                'parolanızı yazın.'
+      description: _sending
+          ? 'Kod gönderiliyor…'
+          : _codeSent
+          ? '$email adresine gönderdiğimiz 6 haneli kodu yazın.'
           : 'Parola, $email adresine gönderilen 6 haneli kodla belirlenir.',
       submitLabel: 'Parolayı belirle',
       onSubmit: _submit,
@@ -949,28 +1094,19 @@ class _SetPasswordSheetState extends State<_SetPasswordSheet> {
         Align(
           alignment: Alignment.centerRight,
           child: TextButton(
-            onPressed: widget.controller.isSubmitting ? null : _sendCode,
+            onPressed: _sending ? null : _sendCode,
             child: const Text('Kodu yeniden gönder'),
           ),
         ),
-        TextField(
+        _PasswordField(
           controller: _newPassword,
-          obscureText: true,
+          label: 'Yeni parola',
           autofillHints: const [AutofillHints.newPassword],
-          decoration: const InputDecoration(
-            labelText: 'Yeni parola',
-            helperText:
-                'En az 12 karakter; büyük, küçük, rakam ve simge içermeli.',
-            helperMaxLines: 2,
-          ),
+          onChanged: (_) => setState(() {}),
         ),
-        if (_validationMessage != null) ...[
-          const SizedBox(height: AppSpacing.small),
-          Text(
-            _validationMessage!,
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
-          ),
-        ],
+        _PasswordRules(password: _newPassword.text),
+        const _SessionsNote(),
+        if (_validationMessage != null) _ErrorText(_validationMessage!),
       ],
     );
   }
@@ -986,7 +1122,9 @@ class _SetPasswordSheetState extends State<_SetPasswordSheet> {
       _newPassword.text,
     );
     if (policyMessage != null) {
-      setState(() => _validationMessage = policyMessage);
+      setState(
+        () => _validationMessage = 'Yeni parola kuralların hepsini sağlamalı.',
+      );
       return null;
     }
     final done = await widget.controller.changePassword(
@@ -1068,10 +1206,6 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
     return true;
   }
 }
-
-/// `2026-03-14` → `14 Mart 2026`.
-String _dayMonthYear(DateTime local) =>
-    '${local.day} ${DateText.months[local.month - 1]} ${local.year}';
 
 /// Oturumun ne zaman açıldığı, göreli: `Bugün açıldı`, `7 gün önce açıldı`.
 String _openedText(DateTime createdUtc, DateTime now) {

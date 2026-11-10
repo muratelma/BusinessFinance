@@ -1,4 +1,3 @@
-import 'package:business_finance_mobile/features/auth/presentation/auth_validation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
@@ -119,7 +118,46 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repository.passwordChangeCount, 0);
-    expect(find.text(AuthValidation.passwordRule), findsOneWidget);
+    expect(
+      find.text('Yeni parola kuralların hepsini sağlamalı.'),
+      findsOneWidget,
+    );
+    // Kurallar yazdıkça işaretlenir: 'kisa' yalnız küçük harf taşır.
+    expect(find.text('En az 12 karakter'), findsOneWidget);
+    expect(find.byIcon(Icons.check_circle), findsNothing);
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Yeni parola'),
+      'Valid-Password-123!',
+    );
+    await tester.pump();
+    expect(find.byIcon(Icons.check_circle), findsNWidgets(4));
+  });
+
+  testWidgets('başlıkta kullanıcı adı, e-posta ve doğrulama işareti', (
+    tester,
+  ) async {
+    final repository = FakeAccountRepository()
+      ..username = 'murat_elma'
+      ..emailConfirmed = true;
+    await tester.pumpWidget(_app(repository));
+    await tester.pumpAndSettle();
+
+    expect(find.text('murat_elma'), findsOneWidget);
+    expect(find.text('user@example.test'), findsOneWidget);
+    expect(find.byTooltip('E-posta doğrulandı'), findsOneWidget);
+  });
+
+  testWidgets('Çıkış yap sayfanın en altında, Hesabımı sil üstünde', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app(FakeAccountRepository()));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Çıkış yap'), 200);
+
+    final delete = tester.getTopLeft(find.text('Hesabımı sil')).dy;
+    final logout = tester.getTopLeft(find.text('Çıkış yap')).dy;
+    expect(logout, greaterThan(delete));
   });
 
   testWidgets('parola değişince taze token benimsenir', (tester) async {
@@ -442,9 +480,11 @@ class FakeAccountRepository implements AccountRepositoryContract {
     createdAtUtc: DateTime.utc(2026, 8, 1, 9),
     activeSessionCount: 2,
     hasPassword: hasPassword,
+    username: username,
   );
 
   bool hasPassword = true;
+  String? username;
   String? lastCurrentPassword;
   String? lastResetCode;
 

@@ -276,7 +276,6 @@ class _DayCloseFormState extends State<_DayCloseForm> {
       title: 'Gün sonu',
       // Teslim 16 dp yan boşlukla çizildi; 24 dp'de kural cümlesi ve fatura
       // sorusu ikinci satıra taşıyor.
-      horizontalPadding: AppSpacing.medium,
       submitLabel: 'Gün sonunu kaydet',
       onSubmit:
           previewPending ||
@@ -332,7 +331,7 @@ class _DayCloseFormState extends State<_DayCloseForm> {
           },
         ),
       ],
-      const SizedBox(height: AppSpacing.medium),
+      const SizedBox(height: AppGaps.field),
       TextFormField(
         key: const ValueKey('day-close-cash'),
         controller: cashController,
@@ -352,7 +351,7 @@ class _DayCloseFormState extends State<_DayCloseForm> {
         validator: _optionalMoneyError,
       ),
       for (final line in _visiblePosLines(shown)) ...[
-        const SizedBox(height: AppSpacing.medium),
+        const SizedBox(height: AppGaps.field),
         TextFormField(
           key: ValueKey('day-close-pos-${line.posDefinitionId}'),
           controller: posControllers[line.posDefinitionId],
@@ -378,7 +377,7 @@ class _DayCloseFormState extends State<_DayCloseForm> {
             child: Text("Diğer POS'lar (${_hiddenPosCount(shown)})"),
           ),
         ),
-      const SizedBox(height: AppSpacing.medium),
+      const SizedBox(height: AppGaps.field),
       TextFormField(
         key: const ValueKey('day-close-total'),
         controller: totalController,
@@ -612,7 +611,7 @@ class _DayCloseFormState extends State<_DayCloseForm> {
   /// Nakit satışın yazılacağı kasa ve kategori. Sunucu ikisini de seçili
   /// gönderir; burada yalnız değiştirilir ya da (seçemediyse) seçilir.
   List<Widget> _targetFields(DayClosePreview? shown) => [
-    const SizedBox(height: AppSpacing.medium),
+    const SizedBox(height: AppGaps.field),
     FutureBuilder<DayCloseOptions>(
       future: options ??= controller.loadOptions(),
       builder: (context, snapshot) {
@@ -634,7 +633,7 @@ class _DayCloseFormState extends State<_DayCloseForm> {
               missing: 'Nakit satışın yazılacağı kasayı seçin.',
               onChanged: (value) => cashAccountId = value,
             ),
-            const SizedBox(height: AppSpacing.medium),
+            const SizedBox(height: AppGaps.field),
             _choiceField(
               label: 'Satış kategorisi',
               fieldKey: 'day-close-category',

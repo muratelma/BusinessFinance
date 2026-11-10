@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_surfaces.dart';
+import '../theme/app_typography.dart';
 
 /// Formdaki tek seçimli parçalı düğme (Claude Design, POS tahsilatı
 /// `Komisyon`): tam genişlik, eşit parçalar, parçalar arası 1 dp çizgi.
@@ -45,7 +46,7 @@ class AppChoiceSegments<T> extends StatelessWidget {
             child: Text(
               label,
               style: theme.textTheme.bodySmall?.copyWith(
-                fontSize: 13,
+                fontSize: AppTextSizes.caption,
                 color: surfaces.inkMuted,
               ),
             ),
@@ -124,7 +125,7 @@ class _Segment extends StatelessWidget {
               label,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontSize: 14,
+                fontSize: AppTextSizes.body,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                 color: selected ? onFill : AppSurfaces.of(context).ink,
               ),

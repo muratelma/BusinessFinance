@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_content_width.dart';
+import '../../../core/widgets/app_page_bar.dart';
 import '../../../core/widgets/app_section_header.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../activities/presentation/quick_add_models.dart';
@@ -167,7 +168,7 @@ class _ReceiptScanPageState extends State<ReceiptScanPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.variant.title)),
+      appBar: AppPageBar(title: Text(widget.variant.title)),
       body: AnimatedBuilder(
         animation: widget.controller,
         builder: (context, _) => _buildBody(context),
@@ -315,7 +316,7 @@ class _ReceiptScanPageState extends State<ReceiptScanPage> {
         // makbuzu kiracı için gider, ev sahibi için gelirdir ve kâğıt aynıdır.
         // Varsayılan gider, çünkü en sık yol o; bir dokunuş uzamıyor.
         if (variant.asksDirection) ...[
-          const SizedBox(height: AppSpacing.large),
+          const SizedBox(height: AppGaps.section),
           const AppSectionHeader(title: 'Bu belge harcama mı, gelir mi?'),
           _DirectionPicker(
             value: controller.intent,
@@ -361,7 +362,7 @@ class _Sheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(AppSpacing.medium),
+    padding: AppPageInsets.list,
     children: [
       AppContentWidth(
         child: Column(

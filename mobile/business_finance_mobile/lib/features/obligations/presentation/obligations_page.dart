@@ -10,6 +10,7 @@ import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_form_sheet.dart';
 import '../../../core/widgets/app_list_row.dart';
 import '../../../core/widgets/app_money_text.dart';
+import '../../../core/widgets/app_page_bar.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
 import '../../pos/presentation/card_collection_fields.dart';
@@ -18,6 +19,7 @@ import 'obligation_controller.dart';
 import 'obligation_prefill.dart';
 import '../../../core/widgets/app_account_field.dart';
 import '../../../features/accounts/presentation/account_directory.dart';
+import '../../../core/theme/app_radius.dart';
 
 class ObligationsPage extends StatefulWidget {
   const ObligationsPage({required this.controller, super.key});
@@ -58,7 +60,7 @@ class _ObligationsPageState extends State<ObligationsPage> {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        appBar: AppBar(
+        appBar: AppPageBar(
           title: const Text('Yükümlülükler'),
           actions: [
             IconButton(
@@ -151,10 +153,10 @@ class _ObligationsPageState extends State<ObligationsPage> {
     return RefreshIndicator(
       onRefresh: _controller.load,
       child: ListView.builder(
-        padding: const EdgeInsets.all(AppSpacing.medium),
+        padding: AppPageInsets.underTabs,
         itemCount: items.length,
         itemBuilder: (context, index) => Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.small),
+          padding: const EdgeInsets.only(bottom: AppGaps.card),
           child: _ObligationRow(
             item: items[index],
             // Açık kayıt kapanış panelini açar (iptal de oradadır); kapanmış
@@ -355,7 +357,7 @@ class _SettlementFormState extends State<_SettlementForm> {
                     selected: method,
                     onChanged: (value) => setState(() => method = value),
                   ),
-                  const SizedBox(height: AppSpacing.medium),
+                  const SizedBox(height: AppGaps.field),
                   if (byCard)
                     CardCollectionFields(
                       key: cardFields,
@@ -395,7 +397,7 @@ class _SettlementFormState extends State<_SettlementForm> {
         // Yanlış yazılan kayıt buradan iptal edilir; onay sayfada sorulur.
         TextButton.icon(
           style: TextButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
+            minimumSize: const Size.fromHeight(AppSizes.button),
             foregroundColor: Theme.of(context).colorScheme.error,
           ),
           onPressed: () => Navigator.of(context).pop(false),

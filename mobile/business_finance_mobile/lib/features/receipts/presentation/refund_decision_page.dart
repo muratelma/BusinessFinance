@@ -5,6 +5,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_inline_notice.dart';
 import '../../../core/widgets/app_money_text.dart';
+import '../../../core/widgets/app_page_bar.dart';
 import '../data/receipt_models.dart';
 
 /// İade fişi yeni bir kayıt üretmez — **eski** bir harcamayı geri alır.
@@ -35,9 +36,9 @@ class RefundDecisionPage extends StatelessWidget {
     final currency = draft.currencyCode ?? 'TRY';
     final match = draft.refundMatch;
     return Scaffold(
-      appBar: AppBar(title: const Text('İade fişi okundu')),
+      appBar: AppPageBar(title: const Text('İade fişi okundu')),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.medium),
+        padding: AppPageInsets.list,
         children: [
           AppCard(
             child: Column(
@@ -58,7 +59,7 @@ class RefundDecisionPage extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.large),
+          const SizedBox(height: AppGaps.section),
           if (match == null)
             ..._noMatch(context)
           else
@@ -79,7 +80,7 @@ class RefundDecisionPage extends StatelessWidget {
           'yazılmış ya da hiç yazılmamış olabilir; ilgili kaydı listeden '
           'kendiniz iptal edebilirsiniz.',
     ),
-    const SizedBox(height: AppSpacing.medium),
+    const SizedBox(height: AppGaps.block),
     FilledButton.tonal(
       onPressed: () => Navigator.of(context).maybePop(),
       child: const Text('Kapat'),
@@ -93,7 +94,7 @@ class RefundDecisionPage extends StatelessWidget {
         'Bu harcamanızı iptal edeyim mi?',
         style: Theme.of(context).textTheme.titleMedium,
       ),
-      const SizedBox(height: AppSpacing.small),
+      const SizedBox(height: AppGaps.sectionTitle),
       AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,7 +111,7 @@ class RefundDecisionPage extends StatelessWidget {
           ],
         ),
       ),
-      const SizedBox(height: AppSpacing.medium),
+      const SizedBox(height: AppGaps.block),
       // Kısmi iadede iptal tek başına yetmez: harcamanın bir kısmı gerçekten
       // yapıldı. Kalan tutar **sunucuda** hesaplandı; burada yeniden
       // hesaplanmıyor.
@@ -124,7 +125,7 @@ class RefundDecisionPage extends StatelessWidget {
             : 'Harcama silinmez, iptal edilir: finansal geçmiş korunur ve '
                   'raporlardan düşer.',
       ),
-      const SizedBox(height: AppSpacing.medium),
+      const SizedBox(height: AppGaps.block),
       FilledButton(
         onPressed: () => onCancelExpense(match),
         child: Text(

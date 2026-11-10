@@ -81,7 +81,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Hesap ekle'));
     await tester.pumpAndSettle();
-    await tester.pageBack();
+    await tester.tap(find.byTooltip('Geri'));
     await tester.pumpAndSettle();
 
     expect(find.byType(AccountFormPage), findsNothing);

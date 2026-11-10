@@ -4,6 +4,8 @@ import '../theme/app_spacing.dart';
 import '../theme/app_surfaces.dart';
 import 'app_dashed_border.dart';
 import 'app_money_text.dart';
+import '../theme/app_typography.dart';
+import '../theme/app_radius.dart';
 
 class AppFilterOption {
   const AppFilterOption({
@@ -70,8 +72,7 @@ class _FilterPill extends StatelessWidget {
   final bool muted;
 
   /// Yazının hap kenarına uzaklığı (teslimde 14 dp).
-  static const double _edge =
-      AppSpacing.small + AppSpacing.xSmall + AppSpacing.xxSmall;
+  static const double _edge = AppSpacing.step14;
 
   @override
   Widget build(BuildContext context) {
@@ -86,7 +87,7 @@ class _FilterPill extends StatelessWidget {
       child: Padding(
         padding: EdgeInsets.only(
           left: isMenu || !checked ? _edge : AppSpacing.small,
-          right: isMenu ? AppSpacing.xSmall + AppSpacing.xxSmall : _edge,
+          right: isMenu ? AppSpacing.step6 : _edge,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -136,7 +137,7 @@ class _FilterPill extends StatelessWidget {
             foregroundPainter: muted
                 ? AppDashedBorder(
                     surfaces.borderStrong,
-                    BorderRadius.circular(999),
+                    BorderRadius.circular(AppRadius.chip),
                   )
                 : null,
             child: Material(
@@ -208,14 +209,14 @@ class _AppFilterMenuState extends State<AppFilterMenu> {
         Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.medium,
-            AppSpacing.small + AppSpacing.xSmall,
+            AppSpacing.compact,
             AppSpacing.medium,
             AppSpacing.small,
           ),
           child: Text(
             widget.caption!,
             style: theme.textTheme.bodySmall?.copyWith(
-              fontSize: 13,
+              fontSize: AppTextSizes.caption,
               height: 1.35,
             ),
           ),
@@ -234,14 +235,14 @@ class _AppFilterMenuState extends State<AppFilterMenu> {
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.medium,
-              AppSpacing.small + AppSpacing.xSmall,
+              AppSpacing.compact,
               AppSpacing.medium,
               AppSpacing.xSmall,
             ),
             child: Text(
               group!,
               style: theme.textTheme.labelMedium?.copyWith(
-                fontSize: 12,
+                fontSize: AppTextSizes.micro,
                 height: 1,
                 letterSpacing: 0.48,
               ),
@@ -278,7 +279,7 @@ class _AppFilterMenuState extends State<AppFilterMenu> {
                     size: 20,
                     color: checked ? surfaces.ink : surfaces.inkMuted,
                   ),
-                  const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+                  const SizedBox(width: AppSpacing.compact),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -289,7 +290,7 @@ class _AppFilterMenuState extends State<AppFilterMenu> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodyLarge?.copyWith(
-                            fontSize: 15,
+                            fontSize: AppTextSizes.compact,
                             height: 1.3,
                             fontWeight: checked
                                 ? FontWeight.w600
@@ -300,7 +301,7 @@ class _AppFilterMenuState extends State<AppFilterMenu> {
                           Text(
                             option.subtitle!,
                             style: theme.textTheme.bodySmall?.copyWith(
-                              fontSize: 13,
+                              fontSize: AppTextSizes.caption,
                               height: 1.35,
                             ),
                           ),
@@ -310,7 +311,7 @@ class _AppFilterMenuState extends State<AppFilterMenu> {
                     ),
                   ),
                   if (!context.usesLargeText && option.amount != null) ...[
-                    const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+                    const SizedBox(width: AppSpacing.compact),
                     _amount(option, checked),
                   ],
                 ],
@@ -351,7 +352,9 @@ class _AppFilterMenuState extends State<AppFilterMenu> {
           Size(widget.width, context.usesLargeText ? 640 : widget.maxHeight),
         ),
         shape: WidgetStatePropertyAll(
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.field),
+          ),
         ),
       ),
       menuChildren: children,
@@ -396,7 +399,7 @@ class _AppFilterMenuState extends State<AppFilterMenu> {
     effect: option.effect,
     signedByAmount: option.signedByAmount,
     style: TextStyle(
-      fontSize: 15,
+      fontSize: AppTextSizes.compact,
       height: 1.25,
       fontWeight: checked ? FontWeight.w700 : FontWeight.w600,
     ),

@@ -22,7 +22,6 @@ import '../../../core/widgets/app_section_header.dart';
 import '../../../core/widgets/app_share_bar.dart';
 import '../../../core/widgets/app_status_chip.dart';
 import '../../../core/widgets/app_unknown_amount.dart';
-import '../../../core/widgets/app_untracked_text.dart';
 import '../../activities/data/planned_activity_models.dart';
 import '../../planning/data/planning_models.dart';
 import 'package:provider/provider.dart';
@@ -207,14 +206,13 @@ class DashboardCategoryCard extends StatelessWidget {
                     ),
                 ],
               ),
-              const SizedBox(width: AppSpacing.large - AppSpacing.xSmall),
+              const SizedBox(width: AppSpacing.step20),
               Expanded(child: summary),
             ],
           ),
           const SizedBox(height: AppSpacing.large),
           for (var i = 0; i < slices.length; i++) ...[
-            if (i > 0)
-              const SizedBox(height: AppSpacing.small + AppSpacing.xSmall),
+            if (i > 0) const SizedBox(height: AppSpacing.compact),
             _CategoryLine(
               slice: slices[i],
               currency: report.currency,
@@ -279,7 +277,7 @@ class _CategoryLine extends StatelessWidget {
               size: 32,
               iconColor: color,
             ),
-            const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+            const SizedBox(width: AppSpacing.compact),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -348,9 +346,7 @@ class _CategoryLine extends StatelessWidget {
                         ),
                       ],
                     ),
-                  const SizedBox(
-                    height: AppSpacing.xSmall + AppSpacing.xxSmall,
-                  ),
+                  const SizedBox(height: AppSpacing.step6),
                   AppShareBar(ratio: ratio, color: color, height: 4),
                 ],
               ),
@@ -521,7 +517,7 @@ class _BudgetRing extends StatelessWidget {
                         '%$percent',
                         textScaler: TextScaler.noScaling,
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: AppTextSizes.row,
                           height: 1,
                           fontWeight: FontWeight.w700,
                           fontFeatures: AppTypography.tabularFigures,
@@ -769,7 +765,7 @@ class _TimelineRow extends StatelessWidget {
                       Text(
                         due == null ? '' : '${due.day}',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: AppTextSizes.section,
                           height: 1.1,
                           fontWeight: FontWeight.w700,
                           fontFeatures: AppTypography.tabularFigures,
@@ -779,7 +775,7 @@ class _TimelineRow extends StatelessWidget {
                       Text(
                         leaf?.month ?? '',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: AppTextSizes.micro,
                           height: 1.2,
                           fontWeight: FontWeight.w600,
                           color: surfaces.inkMuted,
@@ -813,7 +809,7 @@ class _TimelineRow extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.titleSmall,
                       ),
-                      const SizedBox(height: AppSpacing.xxSmall),
+                      const SizedBox(height: AppGaps.rowText),
                       Text(
                         '$relative · ${item.plannedKind.label}',
                         maxLines: large ? 2 : 1,
@@ -1217,7 +1213,7 @@ class _NetSide extends StatelessWidget {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: theme.textTheme.labelSmall?.copyWith(
-                                      fontSize: 12,
+                                      fontSize: AppTextSizes.micro,
                                       fontWeight: line.whenOverdue
                                           ? FontWeight.w500
                                           : FontWeight.w400,
@@ -1285,31 +1281,27 @@ class DashboardAccountBalances extends StatelessWidget {
         ),
     ].where((group) => group.items.isNotEmpty).toList();
     // Teslimle kurulan bölüm: metin harf aralıksız.
-    return AppUntrackedText(
-      child: AppCard(
-        padding: const EdgeInsets.only(
-          bottom: AppSpacing.xSmall + AppSpacing.xxSmall,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (var g = 0; g < groups.length; g++) ...[
-              if (g > 0) ...[
-                const SizedBox(height: AppSpacing.xSmall + AppSpacing.xxSmall),
-                const Divider(height: 1),
-              ],
-              _GroupRow(kind: groups[g].kind),
-              for (final item in groups[g].items)
-                _AccountRow(
-                  item: item,
-                  kind: groups[g].kind,
-                  currency: report.currency,
-                  showScope: showScope,
-                  onTap: onOpen,
-                ),
+    return AppCard(
+      padding: const EdgeInsets.only(bottom: AppSpacing.step6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var g = 0; g < groups.length; g++) ...[
+            if (g > 0) ...[
+              const SizedBox(height: AppSpacing.step6),
+              const Divider(height: 1),
             ],
+            _GroupRow(kind: groups[g].kind),
+            for (final item in groups[g].items)
+              _AccountRow(
+                item: item,
+                kind: groups[g].kind,
+                currency: report.currency,
+                showScope: showScope,
+                onTap: onOpen,
+              ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -1334,9 +1326,9 @@ class _GroupRow extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.fromLTRB(
       AppSpacing.medium,
-      AppSpacing.small + AppSpacing.xSmall + AppSpacing.xxSmall,
+      AppSpacing.step14,
       AppSpacing.medium,
-      AppSpacing.xSmall + AppSpacing.xxSmall,
+      AppSpacing.step6,
     ),
     child: Row(
       children: [
@@ -1348,12 +1340,13 @@ class _GroupRow extends StatelessWidget {
             shape: BoxShape.circle,
           ),
         ),
-        const SizedBox(width: AppSpacing.small + AppSpacing.xxSmall),
+        const SizedBox(width: AppSpacing.step10),
         Text(
           kind == AppAccountKind.cash ? 'Nakit' : 'Banka',
-          style: Theme.of(
-            context,
-          ).textTheme.titleSmall?.copyWith(fontSize: 15, height: 1.3),
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            fontSize: AppTextSizes.compact,
+            height: 1.3,
+          ),
         ),
       ],
     ),
@@ -1382,7 +1375,7 @@ class _AccountRow extends StatelessWidget {
       amount: item.balance,
       currency: currency,
       size: AppMoneySize.row,
-      style: const TextStyle(fontSize: 16, height: 1.3),
+      style: const TextStyle(fontSize: AppTextSizes.row, height: 1.3),
     );
     return MergeSemantics(
       child: InkWell(
@@ -1400,10 +1393,7 @@ class _AccountRow extends StatelessWidget {
                   icon: AppFinanceIcons.forAccountType(item.type),
                   iconColor: accountKindColor(context, kind),
                 ),
-                const SizedBox(
-                  width:
-                      AppSpacing.small + AppSpacing.xSmall + AppSpacing.xxSmall,
-                ),
+                const SizedBox(width: AppSpacing.step14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1414,7 +1404,7 @@ class _AccountRow extends StatelessWidget {
                         maxLines: context.usesLargeText ? 2 : 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.titleSmall?.copyWith(
-                          fontSize: 16,
+                          fontSize: AppTextSizes.row,
                           height: 1.3,
                         ),
                       ),
@@ -1520,7 +1510,7 @@ class _OverdueRow extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 64),
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.medium,
-        vertical: AppSpacing.small + AppSpacing.xSmall,
+        vertical: AppSpacing.compact,
       ),
       decoration: BoxDecoration(
         color: colors.expenseContainer,
@@ -1529,7 +1519,7 @@ class _OverdueRow extends StatelessWidget {
       child: Row(
         children: [
           Icon(Icons.error_outline, size: 22, color: foreground),
-          const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+          const SizedBox(width: AppSpacing.compact),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1541,7 +1531,7 @@ class _OverdueRow extends StatelessWidget {
                     color: foreground,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xxSmall),
+                const SizedBox(height: AppGaps.rowText),
                 Text(
                   'En eskisi ${DateText.dayMonth(oldest)}',
                   style: theme.textTheme.bodySmall?.copyWith(color: foreground),

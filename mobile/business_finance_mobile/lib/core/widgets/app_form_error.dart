@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_spacing.dart';
+import '../theme/app_radius.dart';
 
 /// Kaydın neden yazılmadığını formun içinde, `Kaydet`in yanında söyler.
 ///
@@ -25,11 +26,11 @@ class AppFormError extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.medium,
-          vertical: AppSpacing.small + AppSpacing.xSmall,
+          vertical: AppSpacing.compact,
         ),
         decoration: BoxDecoration(
           color: scheme.errorContainer,
-          borderRadius: BorderRadius.circular(AppSpacing.small),
+          borderRadius: BorderRadius.circular(AppRadius.small),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

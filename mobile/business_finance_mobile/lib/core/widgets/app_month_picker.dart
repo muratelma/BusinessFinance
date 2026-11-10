@@ -8,9 +8,10 @@ import '../theme/app_surfaces.dart';
 import 'app_money_text.dart';
 import 'app_dashed_border.dart';
 import 'app_row.dart';
-import 'app_untracked_text.dart';
 import '../theme/app_spacing.dart';
 import 'app_adaptive_sheet.dart';
+import '../theme/app_typography.dart';
+import '../theme/app_radius.dart';
 
 /// Ay ve yıl seçimi: iki okun yanındaki üçüncü yol.
 ///
@@ -29,13 +30,11 @@ abstract final class AppMonthPicker {
     AppMoneyEffect? effect,
   }) => showDialog<DateTime>(
     context: context,
-    builder: (_) => AppUntrackedText(
-      child: _AmountMonthDialog(
-        initialMonth: initialMonth,
-        load: load,
-        caption: caption,
-        effect: effect,
-      ),
+    builder: (_) => _AmountMonthDialog(
+      initialMonth: initialMonth,
+      load: load,
+      caption: caption,
+      effect: effect,
     ),
   );
 
@@ -124,7 +123,7 @@ class _AmountMonthDialogState extends State<_AmountMonthDialog> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.large,
-                  AppSpacing.medium + AppSpacing.xSmall,
+                  AppSpacing.step20,
                   AppSpacing.large,
                   AppSpacing.medium,
                 ),
@@ -134,7 +133,7 @@ class _AmountMonthDialogState extends State<_AmountMonthDialog> {
                     Text(
                       widget.caption,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        fontSize: 13,
+                        fontSize: AppTextSizes.caption,
                         height: 1.35,
                       ),
                     ),
@@ -165,9 +164,9 @@ class _AmountMonthDialogState extends State<_AmountMonthDialog> {
               const Divider(height: 1),
               Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.small + AppSpacing.xSmall,
+                  AppSpacing.compact,
                   AppSpacing.small,
-                  AppSpacing.small + AppSpacing.xSmall,
+                  AppSpacing.compact,
                   AppSpacing.xSmall,
                 ),
                 child: Row(
@@ -221,9 +220,9 @@ class _AmountMonthDialogState extends State<_AmountMonthDialog> {
                 ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.small + AppSpacing.xSmall,
-                  AppSpacing.small + AppSpacing.xSmall,
-                  AppSpacing.small + AppSpacing.xSmall,
+                  AppSpacing.compact,
+                  AppSpacing.compact,
+                  AppSpacing.compact,
                   AppSpacing.medium,
                 ),
                 // `Bu ay` solda durur; sağda yalnız vazgeçme ve onay kalır.
@@ -240,7 +239,7 @@ class _AmountMonthDialogState extends State<_AmountMonthDialog> {
                         },
                         style: TextButton.styleFrom(
                           textStyle: theme.textTheme.bodyMedium?.copyWith(
-                            fontSize: 15,
+                            fontSize: AppTextSizes.compact,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -256,7 +255,7 @@ class _AmountMonthDialogState extends State<_AmountMonthDialog> {
                             onPressed: () => Navigator.pop(context),
                             style: TextButton.styleFrom(
                               textStyle: theme.textTheme.bodyMedium?.copyWith(
-                                fontSize: 15,
+                                fontSize: AppTextSizes.compact,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -266,7 +265,7 @@ class _AmountMonthDialogState extends State<_AmountMonthDialog> {
                             style: FilledButton.styleFrom(
                               shape: const StadiumBorder(),
                               textStyle: theme.textTheme.bodyMedium?.copyWith(
-                                fontSize: 15,
+                                fontSize: AppTextSizes.compact,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -301,7 +300,7 @@ class _AmountMonthDialogState extends State<_AmountMonthDialog> {
     final on = selected.year == year && selected.month == item.month;
     final now = DateTime.now();
     final current = year == now.year && item.month == now.month;
-    final radius = BorderRadius.circular(16);
+    final radius = BorderRadius.circular(AppRadius.field);
     final hasBar = item.enabled && item.barRatio > 0;
     final scale = MediaQuery.textScalerOf(context).scale(15) / 15;
     return Semantics(
@@ -335,7 +334,7 @@ class _AmountMonthDialogState extends State<_AmountMonthDialog> {
                 ? surfaces.cardMuted
                 : Colors.transparent,
             textStyle: theme.textTheme.bodyMedium?.copyWith(
-              fontSize: 15,
+              fontSize: AppTextSizes.compact,
               height: 1,
               fontWeight: on || current ? FontWeight.w700 : FontWeight.w500,
             ),
@@ -361,7 +360,7 @@ class _AmountMonthDialogState extends State<_AmountMonthDialog> {
                     right: 12,
                     bottom: 10,
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(999),
+                      borderRadius: BorderRadius.circular(AppRadius.chip),
                       child: LinearProgressIndicator(
                         minHeight: 4,
                         value: item.barRatio.clamp(0.1, 1),

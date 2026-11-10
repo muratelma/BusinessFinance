@@ -8,7 +8,8 @@ import '../theme/app_surfaces.dart';
 import 'app_category_icon.dart';
 import 'app_form_sheet.dart';
 import 'app_icon_capsule.dart';
-import 'app_untracked_text.dart';
+import '../theme/app_typography.dart';
+import '../theme/app_radius.dart';
 
 /// Kategori seçicinin bir satırı.
 class AppCategoryOption {
@@ -262,8 +263,7 @@ class _AppCategoryFieldState extends State<AppCategoryField> {
 
   // Teslimle kurulan bileşen: metin harf aralıksız.
   @override
-  Widget build(BuildContext context) =>
-      AppUntrackedText(child: _field(context));
+  Widget build(BuildContext context) => _field(context);
 
   Widget _field(BuildContext context) => FormField<AppCategoryValue>(
     // Doğrulama alanın kendi kopyasını değil, sayfanın değerini okur.
@@ -326,7 +326,7 @@ class _AppCategoryFieldState extends State<AppCategoryField> {
       value: sentence,
       child: ExcludeSemantics(
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppRadius.field),
           onTap: widget.onChanged == null ? null : _toggle,
           child: InputDecorator(
             isFocused: open,
@@ -345,7 +345,7 @@ class _AppCategoryFieldState extends State<AppCategoryField> {
                       AppSpacing.medium,
                       AppSpacing.small,
                       // Değer ile ok arası 6 (teslim, 28 Ekim).
-                      AppSpacing.xSmall + AppSpacing.xxSmall,
+                      AppSpacing.step6,
                       AppSpacing.small,
                     ),
               suffixIcon: Icon(
@@ -485,7 +485,7 @@ class _AppCategoryFieldState extends State<AppCategoryField> {
     final surfaces = AppSurfaces.of(context);
     final theme = Theme.of(context);
     OutlineInputBorder border(Color color) => OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppRadius.inner),
       borderSide: BorderSide(color: color, width: 2),
     );
     return Padding(
@@ -504,14 +504,16 @@ class _AppCategoryFieldState extends State<AppCategoryField> {
             focusNode: _searchFocus,
             onChanged: (_) => setState(() => _expanded = null),
             textInputAction: TextInputAction.search,
-            style: theme.textTheme.bodyLarge?.copyWith(fontSize: 15),
+            style: theme.textTheme.bodyLarge?.copyWith(
+              fontSize: AppTextSizes.compact,
+            ),
             decoration: InputDecoration(
               isDense: true,
               filled: true,
               fillColor: surfaces.cardMuted,
               hintText: 'Kategori ara',
               contentPadding: const EdgeInsets.symmetric(
-                vertical: AppSpacing.small + AppSpacing.xSmall,
+                vertical: AppSpacing.compact,
               ),
               prefixIcon: Icon(
                 Icons.search,
@@ -674,7 +676,7 @@ class _Menu extends StatelessWidget {
   Widget build(BuildContext context) => Material(
     color: AppSurfaces.of(context).card,
     elevation: AppElevation.floating,
-    borderRadius: BorderRadius.circular(16),
+    borderRadius: BorderRadius.circular(AppRadius.field),
     clipBehavior: Clip.antiAlias,
     child: Column(
       mainAxisSize: MainAxisSize.min,
@@ -721,14 +723,14 @@ class _GroupHeading extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.medium,
-            AppSpacing.small + AppSpacing.xSmall,
+            AppSpacing.compact,
             AppSpacing.medium,
             AppSpacing.xSmall,
           ),
           child: Text(
             label,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              fontSize: 12,
+              fontSize: AppTextSizes.micro,
               height: 1,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.48,
@@ -768,7 +770,7 @@ class _OptionRow extends StatelessWidget {
     final theme = Theme.of(context);
     final surfaces = AppSurfaces.of(context);
     final style = theme.textTheme.bodyLarge?.copyWith(
-      fontSize: 15,
+      fontSize: AppTextSizes.compact,
       height: 1.3,
       fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
       color: surfaces.ink,
@@ -799,7 +801,7 @@ class _OptionRow extends StatelessWidget {
         child: Row(
           children: [
             Icon(categoryIcon(name), size: 20, color: surfaces.inkMuted),
-            const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+            const SizedBox(width: AppSpacing.compact),
             Expanded(
               child: Text.rich(
                 text,
@@ -813,7 +815,7 @@ class _OptionRow extends StatelessWidget {
               Text(
                 trailingText!,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  fontSize: 13,
+                  fontSize: AppTextSizes.caption,
                   height: 1.35,
                   color: surfaces.inkMuted,
                 ),
@@ -865,12 +867,12 @@ class _ScopeRow extends StatelessWidget {
               size: 20,
               color: surfaces.inkMuted,
             ),
-            const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+            const SizedBox(width: AppSpacing.compact),
             Expanded(
               child: Text(
                 scope.label,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  fontSize: 15,
+                  fontSize: AppTextSizes.compact,
                   height: 1.3,
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                   color: surfaces.ink,
@@ -955,7 +957,7 @@ class _ClosedValue extends StatelessWidget {
           size: 32,
           iconColor: surfaces.ink,
         ),
-        const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+        const SizedBox(width: AppSpacing.compact),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -966,7 +968,7 @@ class _ClosedValue extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.titleSmall?.copyWith(
-                  fontSize: 15,
+                  fontSize: AppTextSizes.compact,
                   height: 20 / 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -977,7 +979,7 @@ class _ClosedValue extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: 13,
+                    fontSize: AppTextSizes.caption,
                     height: 16 / 13,
                     color: missing
                         ? theme.colorScheme.error
@@ -1022,7 +1024,7 @@ class _EmptyCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: surfaces.card,
         border: Border.all(color: surfaces.border),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.field),
       ),
       child: _Notice(
         icon: Icons.category_outlined,
@@ -1058,7 +1060,7 @@ class _Notice extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.medium,
-          AppSpacing.small + AppSpacing.xSmall,
+          AppSpacing.compact,
           AppSpacing.medium,
           AppSpacing.small,
         ),
@@ -1066,7 +1068,7 @@ class _Notice extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(icon, size: 20, color: surfaces.inkMuted),
-            const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+            const SizedBox(width: AppSpacing.compact),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1075,7 +1077,7 @@ class _Notice extends StatelessWidget {
                   Text(
                     title,
                     style: theme.textTheme.titleSmall?.copyWith(
-                      fontSize: 15,
+                      fontSize: AppTextSizes.compact,
                       height: 1.35,
                     ),
                   ),
@@ -1083,7 +1085,7 @@ class _Notice extends StatelessWidget {
                   Text(
                     message,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      fontSize: 14,
+                      fontSize: AppTextSizes.body,
                       height: 1.35,
                       color: surfaces.inkMuted,
                     ),
@@ -1094,14 +1096,14 @@ class _Notice extends StatelessWidget {
                       child: TextButton.icon(
                         onPressed: onAdd,
                         style: TextButton.styleFrom(
-                          minimumSize: const Size(0, 40),
+                          minimumSize: const Size(0, AppSizes.menuButton),
                           padding: const EdgeInsets.only(
                             right: AppSpacing.small,
                           ),
                           foregroundColor: surfaces.ink,
                           alignment: Alignment.centerLeft,
                           textStyle: const TextStyle(
-                            fontSize: 14,
+                            fontSize: AppTextSizes.body,
                             fontWeight: FontWeight.w600,
                           ),
                         ),

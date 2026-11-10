@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_inline_notice.dart';
+import '../../../core/widgets/app_page_bar.dart';
 import '../../../core/widgets/app_section_header.dart';
 import '../data/reminder_models.dart';
 import 'reminder_controller.dart';
@@ -40,7 +41,7 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Hatırlatmalar')),
+    appBar: AppPageBar(title: const Text('Hatırlatmalar')),
     body: _body(),
   );
 
@@ -53,12 +54,7 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
         if (controller.isBusy) const LinearProgressIndicator(),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.medium,
-              AppSpacing.medium,
-              AppSpacing.medium,
-              AppSpacing.fabClearance,
-            ),
+            padding: AppPageInsets.listWithFab,
             children: [
               AppCard(
                 padding: EdgeInsets.zero,
@@ -75,7 +71,7 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
                 ),
               ),
               if (controller.permissionDenied) ...[
-                const SizedBox(height: AppSpacing.small),
+                const SizedBox(height: AppGaps.notice),
                 const AppInlineNotice(
                   icon: Icons.notifications_off_outlined,
                   message:
@@ -85,7 +81,7 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
                 ),
               ],
               if (controller.syncFailed) ...[
-                const SizedBox(height: AppSpacing.small),
+                const SizedBox(height: AppGaps.notice),
                 AppInlineNotice(
                   icon: Icons.cloud_off_outlined,
                   message:
@@ -96,7 +92,7 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
                 ),
               ],
               if (settings.isEnabled) ...[
-                const SizedBox(height: AppSpacing.medium),
+                const SizedBox(height: AppGaps.section),
                 const AppSectionHeader(title: 'Neler hatırlatılsın'),
                 AppCard(
                   padding: EdgeInsets.zero,
@@ -114,7 +110,7 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
                     ],
                   ),
                 ),
-                const SizedBox(height: AppSpacing.medium),
+                const SizedBox(height: AppGaps.section),
                 const AppSectionHeader(title: 'Ne zaman'),
                 AppCard(
                   padding: EdgeInsets.zero,
@@ -128,7 +124,7 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
                     onTap: controller.isBusy ? null : _pickTime,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.small),
+                const SizedBox(height: AppGaps.notice),
                 // Kullanıcının "kuruldu mu?" sorusunun cevabı. Kaç gün için
                 // kurulduğunu söyler; hangi kayıt olduğunu değil.
                 Padding(
@@ -143,7 +139,7 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
                   ),
                 ),
               ],
-              const SizedBox(height: AppSpacing.medium),
+              const SizedBox(height: AppGaps.block),
               const AppInlineNotice(
                 icon: Icons.lock_outline,
                 message:

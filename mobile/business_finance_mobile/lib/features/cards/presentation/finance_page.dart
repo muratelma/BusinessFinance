@@ -15,7 +15,7 @@ import '../../../core/theme/app_surfaces.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_category_field.dart';
-import '../../../core/widgets/app_untracked_text.dart';
+import '../../../core/widgets/app_page_bar.dart';
 import '../../categories/presentation/category_create_page.dart';
 import '../../categories/presentation/recent_categories.dart';
 import '../../../core/widgets/app_metric_tile.dart';
@@ -102,7 +102,7 @@ class _FinancePageState extends State<FinancePage> {
     final body = _body();
     if (widget.embedded) return body;
     return Scaffold(
-      appBar: AppBar(title: const Text('Kredi kartları')),
+      appBar: AppPageBar(title: const Text('Kredi kartları')),
       body: body,
     );
   }
@@ -155,7 +155,7 @@ class _FinancePageState extends State<FinancePage> {
       // borcunu azaltırdı.
       if (widget.installmentPrefill?.isEmpty == false)
         Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.small),
+          padding: const EdgeInsets.only(bottom: AppGaps.notice),
           child: AppInlineNotice(
             icon: Icons.credit_card,
             message:
@@ -177,7 +177,7 @@ class _FinancePageState extends State<FinancePage> {
       // birbirinin alternatifi değil, ayrı ayrı nesneler.
       for (final card in snapshot.cards)
         Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.small),
+          padding: const EdgeInsets.only(bottom: AppGaps.card),
           child: AppCard(
             padding: EdgeInsets.zero,
             child: AppListRow(
@@ -334,7 +334,7 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
   Widget build(BuildContext context) {
     final current = card;
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppPageBar(
         title: Text(current?.name ?? 'Kart detayı'),
         actions: [
           if (current != null)
@@ -371,10 +371,10 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
                   ),
                 Expanded(
                   child: ListView(
-                    padding: const EdgeInsets.all(AppSpacing.medium),
+                    padding: AppPageInsets.list,
                     children: [
                       _summary(current),
-                      const SizedBox(height: AppSpacing.large),
+                      const SizedBox(height: AppGaps.section),
 
                       // Planlar kart hareketlerinin dışında: hiç harcaması olmayan
                       // bir kartın planları da görünmeli, yoksa boş durum ekranı
@@ -454,7 +454,7 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
                                   Icons.shopping_cart_outlined,
                                   AppMoneyEffect.expense,
                                 ),
-                                const SizedBox(height: AppSpacing.medium),
+                                const SizedBox(height: AppGaps.section),
                               ],
                               if (value.payments.isNotEmpty) ...[
                                 const AppSectionHeader(title: 'Ödemeler'),
@@ -874,7 +874,7 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
             ),
             children: [for (final item in plan.items) _planItemRow(plan, item)],
           ),
-        const SizedBox(height: AppSpacing.medium),
+        const SizedBox(height: AppGaps.section),
       ],
     );
   }
@@ -1140,12 +1140,7 @@ class _FeatureList extends StatelessWidget {
   Widget build(BuildContext context) => RefreshIndicator(
     onRefresh: onRefresh,
     child: ListView(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.medium,
-        AppSpacing.medium,
-        AppSpacing.medium,
-        AppSpacing.fabClearance,
-      ),
+      padding: AppPageInsets.listWithFab,
       children: [
         Align(
           alignment: Alignment.centerRight,
@@ -1155,7 +1150,7 @@ class _FeatureList extends StatelessWidget {
             label: Text(addLabel),
           ),
         ),
-        const SizedBox(height: AppSpacing.small),
+        const SizedBox(height: AppGaps.block),
         ...children,
         if (isEmpty) SizedBox(height: 420, child: empty),
       ],
@@ -1386,89 +1381,84 @@ class _ActivityDialogState extends State<_ActivityDialog> {
 
   @override
   // Teslimle kurulan panel: 16 dp yan boşluk, metin harf aralıksız.
-  Widget build(BuildContext context) => AppUntrackedText(
-    child: Form(
-      key: key,
-      child: AppFormSheet<Map<String, Object?>>(
-        title: widget.title,
-        horizontalPadding: AppSpacing.medium,
-        submitLabel: 'Kaydet',
-        onSubmit: () async {
-          // İki kapsama açık kategoride kapsamı alan kendisi ister.
-          if (!(key.currentState?.validate() ?? false)) return null;
-          final scope = AppCategoryField.scopeOf(
-            _categoryOptions(choices),
-            choice == null ? null : AppCategoryValue(choice!, choiceScope),
-          );
-          return {
-            widget.choiceKey: choice,
-            if (_showScope) 'scope': scope?.apiValue,
-            'amount': _money(amount.text),
-            'currency': 'TRY',
-            widget.dateKey: date,
-            'description': _nullable(description.text),
-          };
-        },
-        children: [
-          AppFormField(
-            child: widget.choiceKey == 'accountId'
-                ? _accountChoice(
-                    context,
-                    choices,
-                    widget.choiceLabel,
-                    choice,
-                    (v) => setState(() => choice = v),
-                    onAdded: widget.reloadChoices == null ? null : _added,
-                  )
-                : _categoryChoice(
-                    context,
-                    choices: choices,
-                    label: widget.choiceLabel,
-                    value: choice == null
-                        ? null
-                        : AppCategoryValue(choice!, choiceScope),
-                    showScope: _showScope,
-                    onChanged: (v) => setState(() {
-                      choice = v?.categoryId;
-                      choiceScope = v?.scope;
-                    }),
-                    onAdded: (added) => setState(() {
-                      choices = [...choices, added];
-                      choice = added.id;
-                      choiceScope = _showScope ? added.defaultScope : null;
-                    }),
-                  ),
-          ),
-          AppFormField(
-            child: TextFormField(
-              controller: amount,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'Tutar',
-                suffixText: 'TRY',
-              ),
-              validator: _moneyError,
+  Widget build(BuildContext context) => Form(
+    key: key,
+    child: AppFormSheet<Map<String, Object?>>(
+      title: widget.title,
+      submitLabel: 'Kaydet',
+      onSubmit: () async {
+        // İki kapsama açık kategoride kapsamı alan kendisi ister.
+        if (!(key.currentState?.validate() ?? false)) return null;
+        final scope = AppCategoryField.scopeOf(
+          _categoryOptions(choices),
+          choice == null ? null : AppCategoryValue(choice!, choiceScope),
+        );
+        return {
+          widget.choiceKey: choice,
+          if (_showScope) 'scope': scope?.apiValue,
+          'amount': _money(amount.text),
+          'currency': 'TRY',
+          widget.dateKey: date,
+          'description': _nullable(description.text),
+        };
+      },
+      children: [
+        AppFormField(
+          child: widget.choiceKey == 'accountId'
+              ? _accountChoice(
+                  context,
+                  choices,
+                  widget.choiceLabel,
+                  choice,
+                  (v) => setState(() => choice = v),
+                  onAdded: widget.reloadChoices == null ? null : _added,
+                )
+              : _categoryChoice(
+                  context,
+                  choices: choices,
+                  label: widget.choiceLabel,
+                  value: choice == null
+                      ? null
+                      : AppCategoryValue(choice!, choiceScope),
+                  showScope: _showScope,
+                  onChanged: (v) => setState(() {
+                    choice = v?.categoryId;
+                    choiceScope = v?.scope;
+                  }),
+                  onAdded: (added) => setState(() {
+                    choices = [...choices, added];
+                    choice = added.id;
+                    choiceScope = _showScope ? added.defaultScope : null;
+                  }),
+                ),
+        ),
+        AppFormField(
+          child: TextFormField(
+            controller: amount,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Tutar',
+              suffixText: 'TRY',
             ),
+            validator: _moneyError,
           ),
-          AppFormField(
-            child: AppDateField(
-              label: 'Tarih',
-              value: date,
-              lastDate: DateTime.now(),
-              onChanged: (value) => setState(() => date = value),
-            ),
+        ),
+        AppFormField(
+          child: AppDateField(
+            label: 'Tarih',
+            value: date,
+            lastDate: DateTime.now(),
+            onChanged: (value) => setState(() => date = value),
           ),
-          AppFormField(
-            child: TextFormField(
-              controller: description,
-              hintLocales: const [Locale('tr', 'TR')],
-              decoration: const InputDecoration(labelText: 'Açıklama'),
-            ),
+        ),
+        AppFormField(
+          child: TextFormField(
+            controller: description,
+            hintLocales: const [Locale('tr', 'TR')],
+            decoration: const InputDecoration(labelText: 'Açıklama'),
           ),
-        ],
-      ),
+        ),
+      ],
     ),
   );
 }
@@ -1541,119 +1531,114 @@ class _PlanDialogState extends State<_PlanDialog> {
 
   @override
   // Teslimle kurulan panel: 16 dp yan boşluk, metin harf aralıksız.
-  Widget build(BuildContext context) => AppUntrackedText(
-    child: Form(
-      key: key,
-      child: AppFormSheet<Map<String, Object?>>(
-        title: 'Yeni taksit planı',
-        description:
-            'Plan yalnız niyettir: yalnız gerçekleşen taksit kart harcaması '
-            've gider üretir.',
-        horizontalPadding: AppSpacing.medium,
-        submitLabel: 'Kaydet',
-        onSubmit: () async {
-          if (!(key.currentState?.validate() ?? false)) return null;
-          // Plan kapsamını kurulurken alır; gerçekleşen her taksit onu taşır.
-          final scope = AppCategoryField.scopeOf(
-            _categoryOptions(categories),
-            categoryId == null
+  Widget build(BuildContext context) => Form(
+    key: key,
+    child: AppFormSheet<Map<String, Object?>>(
+      title: 'Yeni taksit planı',
+      description:
+          'Plan yalnız niyettir: yalnız gerçekleşen taksit kart harcaması '
+          've gider üretir.',
+      submitLabel: 'Kaydet',
+      onSubmit: () async {
+        if (!(key.currentState?.validate() ?? false)) return null;
+        // Plan kapsamını kurulurken alır; gerçekleşen her taksit onu taşır.
+        final scope = AppCategoryField.scopeOf(
+          _categoryOptions(categories),
+          categoryId == null
+              ? null
+              : AppCategoryValue(categoryId!, categoryScope),
+        );
+        return {
+          'creditCardId': cardId,
+          'categoryId': categoryId,
+          if (_showScope) 'scope': scope?.apiValue,
+          'clientRequestId': _newGuid(),
+          'totalAmount': _money(total.text),
+          'currency': 'TRY',
+          'installmentCount': int.parse(count.text),
+          'firstInstallmentDate': date,
+          'description': _nullable(description.text),
+        };
+      },
+      children: [
+        if (widget.fixedCardId == null)
+          AppFormField(
+            child: AppAccountField(
+              label: 'Kart',
+              value: cardId,
+              options: [
+                for (final c in widget.cards)
+                  AccountChoices.of(
+                    context,
+                  ).card(c.id, c.name, scope: c.defaultScope),
+              ],
+              onChanged: (v) => setState(() => cardId = v),
+              validator: (v) => v == null ? 'Kart seçin.' : null,
+              emptyTitle: 'Henüz kart yok',
+              emptyMessage: 'Taksitli harcama için önce bir kart ekleyin.',
+            ),
+          ),
+        AppFormField(
+          child: _categoryChoice(
+            context,
+            choices: categories,
+            label: 'Gider kategorisi',
+            value: categoryId == null
                 ? null
                 : AppCategoryValue(categoryId!, categoryScope),
-          );
-          return {
-            'creditCardId': cardId,
-            'categoryId': categoryId,
-            if (_showScope) 'scope': scope?.apiValue,
-            'clientRequestId': _newGuid(),
-            'totalAmount': _money(total.text),
-            'currency': 'TRY',
-            'installmentCount': int.parse(count.text),
-            'firstInstallmentDate': date,
-            'description': _nullable(description.text),
-          };
-        },
-        children: [
-          if (widget.fixedCardId == null)
-            AppFormField(
-              child: AppAccountField(
-                label: 'Kart',
-                value: cardId,
-                options: [
-                  for (final c in widget.cards)
-                    AccountChoices.of(
-                      context,
-                    ).card(c.id, c.name, scope: c.defaultScope),
-                ],
-                onChanged: (v) => setState(() => cardId = v),
-                validator: (v) => v == null ? 'Kart seçin.' : null,
-                emptyTitle: 'Henüz kart yok',
-                emptyMessage: 'Taksitli harcama için önce bir kart ekleyin.',
-              ),
-            ),
-          AppFormField(
-            child: _categoryChoice(
-              context,
-              choices: categories,
-              label: 'Gider kategorisi',
-              value: categoryId == null
-                  ? null
-                  : AppCategoryValue(categoryId!, categoryScope),
-              showScope: _showScope,
-              onChanged: (v) => setState(() {
-                categoryId = v?.categoryId;
-                categoryScope = v?.scope;
-              }),
-              onAdded: (added) => setState(() {
-                categories = [...categories, added];
-                categoryId = added.id;
-                categoryScope = _showScope ? added.defaultScope : null;
-              }),
-            ),
+            showScope: _showScope,
+            onChanged: (v) => setState(() {
+              categoryId = v?.categoryId;
+              categoryScope = v?.scope;
+            }),
+            onAdded: (added) => setState(() {
+              categories = [...categories, added];
+              categoryId = added.id;
+              categoryScope = _showScope ? added.defaultScope : null;
+            }),
           ),
-          AppFormField(
-            child: TextFormField(
-              controller: total,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'Toplam',
-                suffixText: 'TRY',
-              ),
-              validator: _moneyError,
+        ),
+        AppFormField(
+          child: TextFormField(
+            controller: total,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Toplam',
+              suffixText: 'TRY',
             ),
+            validator: _moneyError,
           ),
-          AppFormField(
-            child: TextFormField(
-              controller: count,
-              decoration: const InputDecoration(
-                labelText: 'Taksit sayısı (2–60)',
-              ),
-              keyboardType: TextInputType.number,
-              validator: (v) {
-                final n = int.tryParse(v ?? '');
-                return n == null || n < 2 || n > 60
-                    ? '2–60 arasında sayı girin.'
-                    : null;
-              },
+        ),
+        AppFormField(
+          child: TextFormField(
+            controller: count,
+            decoration: const InputDecoration(
+              labelText: 'Taksit sayısı (2–60)',
             ),
+            keyboardType: TextInputType.number,
+            validator: (v) {
+              final n = int.tryParse(v ?? '');
+              return n == null || n < 2 || n > 60
+                  ? '2–60 arasında sayı girin.'
+                  : null;
+            },
           ),
-          AppFormField(
-            child: AppDateField(
-              label: 'İlk taksit tarihi',
-              value: date,
-              onChanged: (value) => setState(() => date = value),
-            ),
+        ),
+        AppFormField(
+          child: AppDateField(
+            label: 'İlk taksit tarihi',
+            value: date,
+            onChanged: (value) => setState(() => date = value),
           ),
-          AppFormField(
-            child: TextFormField(
-              controller: description,
-              hintLocales: const [Locale('tr', 'TR')],
-              decoration: const InputDecoration(labelText: 'Açıklama'),
-            ),
+        ),
+        AppFormField(
+          child: TextFormField(
+            controller: description,
+            hintLocales: const [Locale('tr', 'TR')],
+            decoration: const InputDecoration(labelText: 'Açıklama'),
           ),
-        ],
-      ),
+        ),
+      ],
     ),
   );
 }
@@ -1806,7 +1791,7 @@ class _StatementSheetState extends State<_StatementSheet> {
           '${DateText.dayMonth(value.closingDate)} dönemi',
           style: theme.textTheme.bodySmall?.copyWith(color: muted),
         ),
-        const SizedBox(height: AppSpacing.large),
+        const SizedBox(height: AppGaps.section),
 
         // Hesap açıkça yazılıyor ki kullanıcı ekstreyi doğrulayabilsin:
         // her satır bir öncekiyle toplanıp ara toplamı veriyor.
@@ -1814,7 +1799,7 @@ class _StatementSheetState extends State<_StatementSheet> {
           'HESAP ÖZETİ',
           style: theme.textTheme.labelSmall?.copyWith(color: muted),
         ),
-        const SizedBox(height: AppSpacing.small),
+        const SizedBox(height: AppGaps.sectionTitle),
         _amountRow('Önceki devir', value.previousBalance, currency),
         _amountRow('Dönem harcaması', value.periodCharges, currency, sign: '+'),
         _amountRow(

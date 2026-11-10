@@ -9,8 +9,10 @@ import '../../../core/routing/app_locations.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
+import '../../../core/widgets/app_filter_strip.dart';
 import '../../../core/widgets/app_list_row.dart';
 import '../../../core/widgets/app_money_text.dart';
+import '../../../core/widgets/app_page_bar.dart';
 import '../../../core/widgets/app_row_action.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
@@ -66,7 +68,7 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppPageBar(
         title: AnimatedBuilder(
           animation: _controller,
           builder: (context, _) => Text(
@@ -229,9 +231,9 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
     return RefreshIndicator(
       onRefresh: _controller.load,
       child: ListView.separated(
-        padding: const EdgeInsets.only(bottom: AppSpacing.xLarge),
+        padding: AppPageInsets.fullBleedList,
         itemCount: items.length,
-        separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.small),
+        separatorBuilder: (_, _) => const SizedBox(height: AppGaps.card),
         itemBuilder: (context, index) => PlannedActivityTile(
           key: ValueKey(items[index].listKey),
           activity: items[index],
@@ -323,7 +325,7 @@ class PlannedActivityTile extends StatelessWidget {
                     AppSpacing.medium,
                     0,
                     AppSpacing.medium,
-                    AppSpacing.small + AppSpacing.xSmall,
+                    AppSpacing.compact,
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -466,25 +468,16 @@ class _TypeFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.medium,
-        vertical: AppSpacing.small,
-      ),
-      child: Row(
-        children: [
-          for (final filter in PlannedTypeFilter.values)
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.small),
-              child: ChoiceChip(
-                label: Text(filter.label),
-                selected: filter == selected,
-                onSelected: (_) => onSelected(filter),
-              ),
-            ),
-        ],
-      ),
+    return AppFilterStrip(
+      label: 'Plan türü',
+      children: [
+        for (final filter in PlannedTypeFilter.values)
+          ChoiceChip(
+            label: Text(filter.label),
+            selected: filter == selected,
+            onSelected: (_) => onSelected(filter),
+          ),
+      ],
     );
   }
 }

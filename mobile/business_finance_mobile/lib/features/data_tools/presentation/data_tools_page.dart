@@ -14,6 +14,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_list_row.dart';
+import '../../../core/widgets/app_page_bar.dart';
 import '../../../core/widgets/app_section_header.dart';
 import '../../../core/widgets/app_form_sheet.dart';
 import '../../../core/widgets/app_state_views.dart';
@@ -68,7 +69,7 @@ class _DataToolsPageState extends State<DataToolsPage> {
     // sekme gerçekten aynı aileden: hepsi dosya işi.
     length: 3,
     child: Scaffold(
-      appBar: AppBar(
+      appBar: AppPageBar(
         title: const Text('Veri araçları'),
         bottom: const TabBar(
           tabs: [
@@ -134,10 +135,7 @@ class _DataToolsPageState extends State<DataToolsPage> {
 
   Widget _tabList(List<Widget> children) => RefreshIndicator(
     onRefresh: controller.load,
-    child: ListView(
-      padding: const EdgeInsets.all(AppSpacing.medium),
-      children: children,
-    ),
+    child: ListView(padding: AppPageInsets.underTabs, children: children),
   );
 
   Widget _csvTab() {
@@ -148,7 +146,7 @@ class _DataToolsPageState extends State<DataToolsPage> {
         icon: const Icon(Icons.upload_file),
         label: const Text('CSV seç ve önizle'),
       ),
-      const SizedBox(height: AppSpacing.medium),
+      const SizedBox(height: AppGaps.block),
       if (batch == null)
         const SizedBox(
           height: 220,
@@ -297,7 +295,7 @@ class _DataToolsPageState extends State<DataToolsPage> {
         icon: const Icon(Icons.attach_file),
         label: const Text('Fiş / belge seç'),
       ),
-      const SizedBox(height: AppSpacing.medium),
+      const SizedBox(height: AppGaps.block),
       if (controller.selectedTransactionId != null &&
           controller.attachments.isEmpty)
         const SizedBox(
@@ -404,7 +402,7 @@ class _DataToolsPageState extends State<DataToolsPage> {
     required ExportFileKind kind,
     required IconData icon,
   }) => Padding(
-    padding: const EdgeInsets.only(bottom: AppSpacing.small),
+    padding: const EdgeInsets.only(bottom: AppGaps.card),
     child: AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -511,7 +509,7 @@ class _DataToolsPageState extends State<DataToolsPage> {
                   onChanged: (value) => setDialogState(() => account = value!),
                 ),
               ),
-              const SizedBox(height: AppSpacing.medium),
+              const SizedBox(height: AppGaps.field),
               // Ekstre satırının kapsamını sunucu türetir; burada sorulmaz.
               SizedBox(
                 width: double.maxFinite,

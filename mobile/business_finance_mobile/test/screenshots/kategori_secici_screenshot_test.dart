@@ -3,7 +3,6 @@ import 'package:business_finance_mobile/core/theme/app_spacing.dart';
 import 'package:business_finance_mobile/core/widgets/app_account_field.dart';
 import 'package:business_finance_mobile/core/widgets/app_category_field.dart';
 import 'package:business_finance_mobile/core/widgets/app_date_field.dart';
-import 'package:business_finance_mobile/core/widgets/app_untracked_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -156,54 +155,48 @@ class _FormState extends State<_Form> {
         : _income;
     return Scaffold(
       appBar: AppBar(title: Text(widget.expense ? 'Gider ekle' : 'Gelir ekle')),
-      body: AppUntrackedText(
-        child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.medium),
-          children: [
-            AppAccountField(
-              label: 'Hesap',
-              value: 'ziraat',
-              options: const [
-                AppAccountOption(
-                  id: 'ziraat',
-                  name: 'Ziraat vadesiz',
-                  kind: AppAccountKind.bank,
-                  scope: 'İşletme',
-                  amount: '30658.3500',
-                ),
-              ],
-              onChanged: (_) {},
-            ),
-            const SizedBox(height: AppSpacing.medium),
-            AppCategoryField(
-              options: options,
-              value: value,
-              recent: widget.expense && widget.showScope ? _recent : const [],
-              showScope: widget.showScope,
-              onAdd: (_) {},
-              onChanged: (next) => setState(() => value = next),
-            ),
-            const SizedBox(height: AppSpacing.medium),
-            const TextField(
-              decoration: InputDecoration(labelText: 'Tutar', prefixText: '₺ '),
-            ),
-            const SizedBox(height: AppSpacing.medium),
-            AppDateField(
-              label: 'Tarih',
-              value: '2026-10-28',
-              onChanged: (_) {},
-            ),
-            const SizedBox(height: AppSpacing.medium),
-            const TextField(
-              decoration: InputDecoration(
-                labelText: 'Ad (isteğe bağlı)',
-                helperText: 'Boş bırakılırsa kategori adı kullanılır.',
+      body: ListView(
+        padding: const EdgeInsets.all(AppSpacing.medium),
+        children: [
+          AppAccountField(
+            label: 'Hesap',
+            value: 'ziraat',
+            options: const [
+              AppAccountOption(
+                id: 'ziraat',
+                name: 'Ziraat vadesiz',
+                kind: AppAccountKind.bank,
+                scope: 'İşletme',
+                amount: '30658.3500',
               ),
+            ],
+            onChanged: (_) {},
+          ),
+          const SizedBox(height: AppSpacing.medium),
+          AppCategoryField(
+            options: options,
+            value: value,
+            recent: widget.expense && widget.showScope ? _recent : const [],
+            showScope: widget.showScope,
+            onAdd: (_) {},
+            onChanged: (next) => setState(() => value = next),
+          ),
+          const SizedBox(height: AppSpacing.medium),
+          const TextField(
+            decoration: InputDecoration(labelText: 'Tutar', prefixText: '₺ '),
+          ),
+          const SizedBox(height: AppSpacing.medium),
+          AppDateField(label: 'Tarih', value: '2026-10-28', onChanged: (_) {}),
+          const SizedBox(height: AppSpacing.medium),
+          const TextField(
+            decoration: InputDecoration(
+              labelText: 'Ad (isteğe bağlı)',
+              helperText: 'Boş bırakılırsa kategori adı kullanılır.',
             ),
-            const SizedBox(height: AppSpacing.large),
-            FilledButton(onPressed: () {}, child: const Text('Kaydet')),
-          ],
-        ),
+          ),
+          const SizedBox(height: AppSpacing.large),
+          FilledButton(onPressed: () {}, child: const Text('Kaydet')),
+        ],
       ),
     );
   }

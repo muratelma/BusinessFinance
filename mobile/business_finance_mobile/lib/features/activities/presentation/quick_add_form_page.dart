@@ -8,8 +8,8 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_date_field.dart';
 import '../../../core/widgets/app_inline_notice.dart';
 import '../../../core/widgets/app_category_field.dart';
+import '../../../core/widgets/app_page_bar.dart';
 import '../../../core/widgets/app_state_views.dart';
-import '../../../core/widgets/app_untracked_text.dart';
 import '../../categories/presentation/category_create_page.dart';
 import '../../categories/presentation/recent_categories.dart';
 import '../data/receipt_fee_writer.dart';
@@ -132,7 +132,7 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppPageBar(
         title: Text(widget.isExpense ? 'Gider ekle' : 'Gelir ekle'),
       ),
       body: AnimatedBuilder(
@@ -162,98 +162,89 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
     }
 
     // Teslimle kurulan form: 16 dp yan boşluk, metin harf aralıksız.
-    return AppUntrackedText(
-      child: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.medium),
-          children: [
-            ..._buildPrefillNotices(context),
-            if (widget.isExpense)
-              _buildSourcePicker()
-            else
-              _buildAccountPicker(),
-            const SizedBox(height: AppSpacing.medium),
-            _buildCategoryPicker(),
-            const SizedBox(height: AppSpacing.medium),
-            TextFormField(
-              controller: _amountController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: InputDecoration(
-                labelText: 'Tutar',
-                suffixText: 'TRY',
-                helperText: widget.prefill?.amount?.helperText,
-                suffixIcon: _suggestionIcon(widget.prefill?.amount),
-              ),
-              validator: _validateAmount,
+    return Form(
+      key: _formKey,
+      child: ListView(
+        padding: AppPageInsets.form,
+        children: [
+          ..._buildPrefillNotices(context),
+          if (widget.isExpense) _buildSourcePicker() else _buildAccountPicker(),
+          const SizedBox(height: AppGaps.field),
+          _buildCategoryPicker(),
+          const SizedBox(height: AppGaps.field),
+          TextFormField(
+            controller: _amountController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Tutar',
+              suffixText: 'TRY',
+              helperText: widget.prefill?.amount?.helperText,
+              suffixIcon: _suggestionIcon(widget.prefill?.amount),
             ),
-            const SizedBox(height: AppSpacing.medium),
-            AppDateField(
-              label: 'Tarih',
-              helperText: widget.prefill?.date?.helperText,
-              value: _formattedDate,
-              lastDate: widget.today ?? DateTime.now(),
-              onChanged: (value) =>
-                  setState(() => _date = AppDateField.parse(value)!),
+            validator: _validateAmount,
+          ),
+          const SizedBox(height: AppGaps.field),
+          AppDateField(
+            label: 'Tarih',
+            helperText: widget.prefill?.date?.helperText,
+            value: _formattedDate,
+            lastDate: widget.today ?? DateTime.now(),
+            onChanged: (value) =>
+                setState(() => _date = AppDateField.parse(value)!),
+          ),
+          const SizedBox(height: AppGaps.field),
+          TextFormField(
+            controller: _descriptionController,
+            maxLength: 500,
+            // Sayaç gizli: 500 karakterlik bir sayaç kullanıcıyı uzun cümle
+            // yazmaya davet ediyordu, oysa bu alan kaydın **adı** oluyor.
+            // Sınır sunucu sözleşmesi gereği duruyor, teşviki kalkıyor.
+            buildCounter:
+                (
+                  _, {
+                  required currentLength,
+                  required isFocused,
+                  required maxLength,
+                }) => null,
+            decoration: InputDecoration(
+              labelText: 'Ad (isteğe bağlı)',
+              hintText: 'İstanbulkart yükleme',
+              helperText:
+                  widget.prefill?.description?.helperText ??
+                  'Boş bırakılırsa kategori adı kullanılır.',
+              // Belgeden gelen açıklama uzun olabilir; yarıda kesilmesin.
+              helperMaxLines: 3,
+              suffixIcon: _suggestionIcon(widget.prefill?.description),
             ),
-            const SizedBox(height: AppSpacing.medium),
-            TextFormField(
-              controller: _descriptionController,
-              maxLength: 500,
-              // Sayaç gizli: 500 karakterlik bir sayaç kullanıcıyı uzun cümle
-              // yazmaya davet ediyordu, oysa bu alan kaydın **adı** oluyor.
-              // Sınır sunucu sözleşmesi gereği duruyor, teşviki kalkıyor.
-              buildCounter:
-                  (
-                    _, {
-                    required currentLength,
-                    required isFocused,
-                    required maxLength,
-                  }) => null,
-              decoration: InputDecoration(
-                labelText: 'Ad (isteğe bağlı)',
-                hintText: 'İstanbulkart yükleme',
-                helperText:
-                    widget.prefill?.description?.helperText ??
-                    'Boş bırakılırsa kategori adı kullanılır.',
-                // Belgeden gelen açıklama uzun olabilir; yarıda kesilmesin.
-                helperMaxLines: 3,
-                suffixIcon: _suggestionIcon(widget.prefill?.description),
-              ),
-            ),
-            // Yardımcı metin düğmeye yapışmasın.
-            const SizedBox(height: AppSpacing.large),
-            ..._buildKeepAttachment(context),
-            ..._buildAutoFeeNotice(context),
-            ..._buildReplacementNotice(context),
-            if (controller.errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.medium),
-                child: Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    controller.errorMessage!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
+          ),
+          // Yardımcı metin düğmeye yapışmasın.
+          const SizedBox(height: AppSpacing.large),
+          ..._buildKeepAttachment(context),
+          ..._buildAutoFeeNotice(context),
+          ..._buildReplacementNotice(context),
+          if (controller.errorMessage != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.medium),
+              child: Semantics(
+                liveRegion: true,
+                child: Text(
+                  controller.errorMessage!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               ),
-            FilledButton(
-              // Disabled while a request is in flight, because a second tap would
-              // be a second write.
-              onPressed: controller.isSubmitting ? null : _submit,
-              child: controller.isSubmitting
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Kaydet'),
             ),
-          ],
-        ),
+          FilledButton(
+            // Disabled while a request is in flight, because a second tap would
+            // be a second write.
+            onPressed: controller.isSubmitting ? null : _submit,
+            child: controller.isSubmitting
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Kaydet'),
+          ),
+        ],
       ),
     );
   }
@@ -312,7 +303,7 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
                     'Kapalıysa hiçbir yere yazılmaz.',
         ),
       ),
-      const SizedBox(height: AppSpacing.medium),
+      const SizedBox(height: AppGaps.block),
     ];
   }
 
@@ -331,7 +322,7 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
             'Dekonttaki ${MoneyText.format(fee.amount, 'TRY')} işlem ücreti de '
             'aynı kaynaktan $receiptFeeCategoryName olarak kaydedilecek.',
       ),
-      const SizedBox(height: AppSpacing.medium),
+      const SizedBox(height: AppGaps.block),
     ];
   }
 
@@ -347,7 +338,7 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
             '${MoneyText.format(replaces.amount, 'TRY')} harcama iptal edilir '
             've yerine bu kayıt kalır. Vazgeçerseniz hiçbir şey değişmez.',
       ),
-      const SizedBox(height: AppSpacing.medium),
+      const SizedBox(height: AppGaps.block),
     ];
   }
 

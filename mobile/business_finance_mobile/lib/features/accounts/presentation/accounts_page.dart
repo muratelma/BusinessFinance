@@ -4,6 +4,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_list_row.dart';
 import '../../../core/widgets/app_money_text.dart';
+import '../../../core/widgets/app_page_bar.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
 import '../data/account_models.dart';
@@ -88,7 +89,7 @@ class AccountsPageState extends State<AccountsPage> {
     final body = _body();
     if (widget.embedded) return body;
     return Scaffold(
-      appBar: AppBar(title: const Text('Hesaplar')),
+      appBar: AppPageBar(title: const Text('Hesaplar')),
       floatingActionButton: FloatingActionButton(
         heroTag: 'accounts-add-account',
         tooltip: 'Hesap ekle',
@@ -120,14 +121,9 @@ class AccountsPageState extends State<AccountsPage> {
       AccountsViewStatus.ready => RefreshIndicator(
         onRefresh: widget.viewModel.load,
         child: ListView.separated(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.medium,
-            AppSpacing.small,
-            AppSpacing.medium,
-            96,
-          ),
+          padding: AppPageInsets.listWithFab,
           itemCount: widget.viewModel.accounts.length,
-          separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.small),
+          separatorBuilder: (_, _) => const SizedBox(height: AppGaps.card),
           itemBuilder: (context, index) {
             final account = widget.viewModel.accounts[index];
             return AppCard(

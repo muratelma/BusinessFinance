@@ -247,7 +247,7 @@ class CardCollectionFieldsState extends State<CardCollectionFields> {
             _schedule();
           },
         ),
-        const SizedBox(height: AppSpacing.medium),
+        const SizedBox(height: AppGaps.field),
         if (current != null) _previewBlock(current) else ..._manualFields(),
       ],
     );
@@ -316,14 +316,14 @@ class CardCollectionFieldsState extends State<CardCollectionFields> {
       onChanged: (value) => setState(() => _accountId = value),
       validator: (value) => value == null ? 'Hesap seçin.' : null,
     ),
-    const SizedBox(height: AppSpacing.medium),
+    const SizedBox(height: AppGaps.field),
     AppDateField(
       label: 'Paranın beklendiği gün',
       value: _expected ?? widget.collectedOn,
       firstDate: AppDateField.parse(widget.collectedOn),
       onChanged: (value) => setState(() => _expected = value),
     ),
-    const SizedBox(height: AppSpacing.medium),
+    const SizedBox(height: AppGaps.field),
     // POS tahsilatıyla aynı parçalı seçici.
     AppChoiceSegments<_CommissionMode>(
       label: 'Komisyon',
@@ -340,7 +340,7 @@ class CardCollectionFieldsState extends State<CardCollectionFields> {
       }),
     ),
     if (_mode != _CommissionMode.none) ...[
-      const SizedBox(height: AppSpacing.medium),
+      const SizedBox(height: AppGaps.field),
       TextFormField(
         controller: _commission,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -358,7 +358,7 @@ class CardCollectionFieldsState extends State<CardCollectionFields> {
                   ? 'Oranı 0 ile 100 arasında yazın.'
                   : null,
       ),
-      const SizedBox(height: AppSpacing.medium),
+      const SizedBox(height: AppGaps.field),
       FixedScopeCategoryField(
         label: 'Komisyon gider kategorisi',
         type: 'expense',

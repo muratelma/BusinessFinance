@@ -14,10 +14,10 @@ import '../../../core/widgets/app_page_header.dart';
 import '../../../core/theme/app_breakpoints.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_summary_card.dart';
-import '../../../core/widgets/app_untracked_text.dart';
 import '../data/finance_page_models.dart';
 import '../data/finance_page_repository.dart';
 import 'finance_page_controller.dart';
+import '../../../core/theme/app_radius.dart';
 
 /// Hesaplar: toplam, toplamın nakit / banka / pasif dağılımı ve gruplar.
 ///
@@ -35,8 +35,7 @@ class AccountsOverviewPage extends StatelessWidget {
   final FinancialDataChanges? changes;
   final Future<void> Function()? onCreate;
   @override
-  Widget build(BuildContext context) =>
-      AppUntrackedText(child: _AccountsOverviewPageBody(this));
+  Widget build(BuildContext context) => _AccountsOverviewPageBody(this);
 }
 
 class _AccountsOverviewPageBody extends StatefulWidget {
@@ -55,8 +54,7 @@ class _AccountsOverviewPageState extends State<_AccountsOverviewPageBody> {
   );
 
   /// Satırda parçaların arası ve ayırıcının başladığı yer (teslimde 14 / 70).
-  static const double _gap =
-      AppSpacing.small + AppSpacing.xSmall + AppSpacing.xxSmall;
+  static const double _gap = AppSpacing.step14;
   static const double _dividerInset = AppSpacing.medium + 40 + _gap;
 
   @override
@@ -82,7 +80,6 @@ class _AccountsOverviewPageState extends State<_AccountsOverviewPageBody> {
             children: [
               AppPageHeader(
                 title: 'Hesaplar',
-                compact: true,
                 onBack: () => Navigator.maybePop(context),
                 actions: [
                   if (hasAccounts)
@@ -135,12 +132,7 @@ class _AccountsOverviewPageState extends State<_AccountsOverviewPageBody> {
       onRefresh: controller.load,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.only(
-          left: AppSpacing.medium,
-          top: data.items.isEmpty ? 0 : AppSpacing.small,
-          right: AppSpacing.medium,
-          bottom: AppSpacing.xLarge,
-        ),
+        padding: AppPageInsets.list,
         children: [
           if (data.items.isEmpty) ...[
             const AppEmptyView(
@@ -154,9 +146,9 @@ class _AccountsOverviewPageState extends State<_AccountsOverviewPageBody> {
               FilledButton.icon(
                 onPressed: widget.page.onCreate,
                 style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(52),
+                  minimumSize: const Size.fromHeight(AppSizes.button),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(AppRadius.field),
                   ),
                 ),
                 icon: const Icon(Icons.add, size: 20),
@@ -221,9 +213,9 @@ class _AccountsOverviewPageState extends State<_AccountsOverviewPageBody> {
     );
     return AppCard(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.medium + AppSpacing.xSmall,
+        AppSpacing.step20,
         AppSpacing.medium,
-        AppSpacing.medium + AppSpacing.xSmall,
+        AppSpacing.step20,
         AppSpacing.medium + AppSpacing.xxSmall,
       ),
       child: Column(
@@ -239,7 +231,7 @@ class _AccountsOverviewPageState extends State<_AccountsOverviewPageBody> {
               currency: 'TRY',
               size: AppMoneySize.metric,
               style: const TextStyle(
-                fontSize: 32,
+                fontSize: AppTextSizes.hero,
                 height: 1.25,
                 fontWeight: FontWeight.w700,
               ),
@@ -250,7 +242,7 @@ class _AccountsOverviewPageState extends State<_AccountsOverviewPageBody> {
             // Çubuğun yalnız iki ucu yuvarlaktır; dilimler arası düz kesilir.
             ExcludeSemantics(
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(999),
+                borderRadius: BorderRadius.circular(AppRadius.chip),
                 child: Row(
                   children: [
                     for (var i = 0; i < slices.length; i++) ...[
@@ -268,12 +260,9 @@ class _AccountsOverviewPageState extends State<_AccountsOverviewPageBody> {
               ),
             ),
           ],
-          const SizedBox(
-            height: AppSpacing.small + AppSpacing.xSmall + AppSpacing.xxSmall,
-          ),
+          const SizedBox(height: AppSpacing.step14),
           for (var i = 0; i < parts.length; i++) ...[
-            if (i > 0)
-              const SizedBox(height: AppSpacing.small + AppSpacing.xxSmall),
+            if (i > 0) const SizedBox(height: AppSpacing.step10),
             MergeSemantics(
               child: Row(
                 children: [
@@ -285,7 +274,7 @@ class _AccountsOverviewPageState extends State<_AccountsOverviewPageBody> {
                       shape: BoxShape.circle,
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.small + AppSpacing.xxSmall),
+                  const SizedBox(width: AppSpacing.step10),
                   Expanded(
                     child: Text(
                       parts[i].label,
@@ -385,9 +374,9 @@ class _AccountsOverviewPageState extends State<_AccountsOverviewPageBody> {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.medium,
-              AppSpacing.small + AppSpacing.xSmall,
-              AppSpacing.small + AppSpacing.xSmall,
-              AppSpacing.small + AppSpacing.xSmall,
+              AppSpacing.compact,
+              AppSpacing.compact,
+              AppSpacing.compact,
             ),
             child: Row(
               children: [

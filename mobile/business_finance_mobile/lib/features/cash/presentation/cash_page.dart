@@ -192,12 +192,7 @@ class _CashPageState extends State<CashPage> {
             ),
             if (_cash.accounts.length > 1)
               Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.medium,
-                  0,
-                  AppSpacing.medium,
-                  AppSpacing.small + AppSpacing.xSmall,
-                ),
+                padding: AppPageInsets.headerControl,
                 child: _CashPicker(controller: _cash),
               ),
             Expanded(child: _body()),
@@ -230,16 +225,11 @@ class _CashPageState extends State<CashPage> {
         // POS bölümü ekranın altında kalsa da çizilmiş olmalı: açılışta ona
         // kaydırılabilmesi için.
         scrollCacheExtent: const ScrollCacheExtent.pixels(1500),
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.medium,
-          AppSpacing.xSmall,
-          AppSpacing.medium,
-          AppSpacing.fabClearance,
-        ),
+        padding: AppPageInsets.listWithFab,
         children: [
           if (controller.isStale)
             Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.small),
+              padding: const EdgeInsets.only(bottom: AppGaps.notice),
               child: AppInlineNotice(
                 message:
                     '${controller.errorMessage} Son bilinen sayım '
@@ -255,7 +245,7 @@ class _CashPageState extends State<CashPage> {
                   _openDayCloseForm(additional: additional),
               onOpen: _openDay,
             ),
-            const SizedBox(height: AppSpacing.large - AppSpacing.xSmall),
+            const SizedBox(height: AppGaps.section),
           ],
           if (today != null)
             CashTodayCard(
@@ -309,14 +299,14 @@ class _CashPageState extends State<CashPage> {
                 label: const Text('Kendime aldım'),
               ),
             ),
-          const SizedBox(height: AppSpacing.large - AppSpacing.xSmall),
+          const SizedBox(height: AppGaps.section),
           PosSection(
             key: _posSectionKey,
             controller: widget.posController,
             scopeController: widget.scopeController,
           ),
           if (hasAccount) ...[
-            const SizedBox(height: AppSpacing.large - AppSpacing.xSmall),
+            const SizedBox(height: AppGaps.section),
             CashPastCountsSection(
               controller: controller,
               onShowAll: () => showAllCashCounts(context, controller),
@@ -362,7 +352,7 @@ class _CashPicker extends StatelessWidget {
         final balance = balanceOf(account);
         return Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.small + AppSpacing.xSmall,
+            horizontal: AppSpacing.compact,
             vertical: AppSpacing.xSmall,
           ),
           child: Row(
@@ -374,7 +364,7 @@ class _CashPicker extends StatelessWidget {
                 size: 20,
                 color: ink,
               ),
-              const SizedBox(width: AppSpacing.small + AppSpacing.xxSmall),
+              const SizedBox(width: AppSpacing.step10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -390,7 +380,7 @@ class _CashPicker extends StatelessWidget {
                       ),
                     ),
                     if (balance != null) ...[
-                      const SizedBox(height: AppSpacing.xxSmall),
+                      const SizedBox(height: AppGaps.rowText),
                       Text(
                         balance,
                         maxLines: 1,

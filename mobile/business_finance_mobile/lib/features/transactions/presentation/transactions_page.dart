@@ -11,6 +11,7 @@ import '../../../core/theme/app_finance_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_list_row.dart';
 import '../../../core/widgets/app_money_text.dart';
+import '../../../core/widgets/app_page_bar.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
 import '../data/transaction_models.dart';
@@ -81,7 +82,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
       return const AppErrorView(message: 'İşlem servisi yapılandırılmadı.');
     }
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppPageBar(
         title: const Text('İşlemler'),
         // Ekleme eylemi başlıkta durur: bu sayfa alt gezinme çubuğunun
         // bulunduğu bir sekmede gösterilebiliyor ve orada çubuğun ortasındaki
@@ -166,15 +167,9 @@ class _TransactionsPageState extends State<TransactionsPage> {
             onRefresh: () =>
                 controller.load(pageNumber: controller.page?.pageNumber ?? 1),
             child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.medium,
-                AppSpacing.small,
-                AppSpacing.medium,
-                AppSpacing.fabClearance,
-              ),
+              padding: AppPageInsets.listWithFab,
               itemCount: items.length,
-              separatorBuilder: (_, _) =>
-                  const SizedBox(height: AppSpacing.small),
+              separatorBuilder: (_, _) => const SizedBox(height: AppGaps.card),
               itemBuilder: (context, index) => _TransactionCard(
                 item: items[index],
                 busy: controller.isSubmitting,

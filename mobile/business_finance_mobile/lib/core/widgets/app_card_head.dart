@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_spacing.dart';
 import '../theme/app_surfaces.dart';
+import '../theme/app_typography.dart';
 
 /// Kartın başlık şeridi: solda bağlam (tarih, bölüm), sağda durum.
 ///
@@ -33,7 +34,7 @@ class AppCardHead extends StatelessWidget {
                   TextSpan(
                     text: title,
                     style: theme.textTheme.titleSmall?.copyWith(
-                      fontSize: 15,
+                      fontSize: AppTextSizes.compact,
                       height: 1.3,
                     ),
                   ),

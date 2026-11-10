@@ -78,7 +78,7 @@ class AppDateLeaf extends StatelessWidget {
               Text(
                 '$day',
                 style: TextStyle(
-                  fontSize: 17,
+                  fontSize: AppTextSizes.leafDay,
                   height: 1,
                   fontWeight: FontWeight.w700,
                   fontFeatures: AppTypography.tabularFigures,
@@ -89,7 +89,7 @@ class AppDateLeaf extends StatelessWidget {
               Text(
                 month,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: AppTextSizes.leafMonth,
                   height: 1,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.4,

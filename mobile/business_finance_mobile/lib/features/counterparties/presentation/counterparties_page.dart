@@ -6,6 +6,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_list_row.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_form_sheet.dart';
+import '../../../core/widgets/app_page_bar.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
 import '../../pos/data/pos_repository.dart';
@@ -65,7 +66,7 @@ class _CounterpartiesPageState extends State<CounterpartiesPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Cari hesap')),
+    appBar: AppPageBar(title: const Text('Cari hesap')),
     body: _body(),
   );
 
@@ -119,14 +120,14 @@ class _CounterpartiesPageState extends State<CounterpartiesPage> {
           child: RefreshIndicator(
             onRefresh: controller.load,
             child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.medium),
+              padding: AppPageInsets.list,
               children: [
                 FilledButton.icon(
                   onPressed: controller.isSubmitting ? null : _addCounterparty,
                   icon: const Icon(Icons.person_add_alt),
                   label: const Text('Karşı taraf ekle'),
                 ),
-                const SizedBox(height: AppSpacing.medium),
+                const SizedBox(height: AppGaps.block),
                 _filters(),
                 const SizedBox(height: AppSpacing.small),
                 if (people.isEmpty) _empty(),

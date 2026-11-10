@@ -14,7 +14,6 @@ import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_form_sheet.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_category_field.dart';
-import '../../../core/widgets/app_untracked_text.dart';
 import '../../categories/presentation/category_create_page.dart';
 import '../../categories/presentation/recent_categories.dart';
 import '../../../core/widgets/app_icon_capsule.dart';
@@ -157,7 +156,7 @@ class _BudgetsPageState extends State<BudgetsPage> {
       return RefreshIndicator(
         onRefresh: controller.load,
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.medium),
+          padding: AppPageInsets.list,
           children: [
             month,
             SizedBox(
@@ -188,24 +187,19 @@ class _BudgetsPageState extends State<BudgetsPage> {
     return RefreshIndicator(
       onRefresh: controller.load,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.medium,
-          AppSpacing.xSmall,
-          AppSpacing.medium,
-          AppSpacing.fabClearance,
-        ),
+        padding: AppPageInsets.listWithFab,
         children: [
           month,
           const SizedBox(height: AppSpacing.small),
           for (var i = 0; i < sorted.length; i++) ...[
-            if (i > 0) const SizedBox(height: AppSpacing.small),
+            if (i > 0) const SizedBox(height: AppGaps.card),
             _BudgetCard(
               item: sorted[i],
               showScope: controller.isScopeVisible,
               onOpen: () => _showSpending(controller, sorted[i]),
             ),
           ],
-          const SizedBox(height: AppSpacing.medium),
+          const SizedBox(height: AppGaps.block),
           OutlinedButton.icon(
             onPressed: controller.isSubmitting
                 ? null
@@ -318,7 +312,7 @@ class _MonthSelector extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadius.field),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                  vertical: AppSpacing.small + AppSpacing.xSmall,
+                  vertical: AppSpacing.compact,
                 ),
                 child: Text(
                   _monthText(controller.selectedMonth),
@@ -331,7 +325,7 @@ class _MonthSelector extends StatelessWidget {
         // Okların glifi sayfa kenarına hizalansın diye dokunma alanı sağa
         // taşar.
         Transform.translate(
-          offset: const Offset(AppSpacing.small + AppSpacing.xSmall, 0),
+          offset: const Offset(AppSpacing.compact, 0),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -413,7 +407,7 @@ class _BudgetCard extends StatelessWidget {
                     icon: AppFinanceIcons.forCategory(item.categoryName),
                     tone: over ? AppStatusTone.expense : null,
                   ),
-                  const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+                  const SizedBox(width: AppSpacing.compact),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -461,7 +455,7 @@ class _BudgetCard extends StatelessWidget {
               // Harcanan tutar bütçenin asıl sayısıdır; limit yanında bağlam.
               Wrap(
                 crossAxisAlignment: WrapCrossAlignment.end,
-                spacing: AppSpacing.small - AppSpacing.xxSmall,
+                spacing: AppSpacing.step6,
                 children: [
                   AppMoneyText(
                     amount: item.spent,
@@ -568,83 +562,77 @@ class _CreateBudgetDialogState extends State<_CreateBudgetDialog> {
 
   @override
   // Teslimle kurulan panel: 16 dp yan boşluk, metin harf aralıksız.
-  Widget build(BuildContext context) => AppUntrackedText(
-    child: Form(
-      key: _formKey,
-      child: AppFormSheet<CreateBudgetInput>(
-        title: '${_monthText(widget.controller.selectedMonth)} bütçesi',
-        description: 'Limit bu aya özeldir; sonraki ay kendi limitini alır.',
-        horizontalPadding: AppSpacing.medium,
-        submitLabel: 'Oluştur',
-        onSubmit: () async {
-          // İki kapsama açık kategoride kapsamı alan kendisi ister.
-          if (!(_formKey.currentState?.validate() ?? false)) return null;
-          final month = widget.controller.selectedMonth;
-          return CreateBudgetInput(
-            categoryId: _category!.categoryId,
-            limit: MoneyText.normalizeInput(_limit.text)!,
-            year: month.year,
-            month: month.month,
-            scope: _showScope
-                ? AppCategoryField.scopeOf(_options, _category)
-                : null,
-          );
-        },
-        children: [
-          AppFormField(
-            child: FutureBuilder<List<BudgetCategory>>(
-              future: _categories,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done) {
-                  return const LinearProgressIndicator();
-                }
-                if (snapshot.hasError) {
-                  return const Text('Kategoriler yüklenemedi.');
-                }
-                // O ay bütçesi olan kategori listeden düşer: tekil indeks
-                // ikincisini reddediyor ve seçilebilir bırakmak kullanıcıyı
-                // sunucunun çakışma cevabına götürürdü.
-                final budgeted = widget.controller.budgetedCategoryIds;
-                _available = [
-                  for (final category
-                      in snapshot.data ?? const <BudgetCategory>[])
-                    if (category.isActive && !budgeted.contains(category.id))
-                      category,
-                ];
-                if (_available.isEmpty) {
-                  return const Text(
-                    'Bu ayda bütçesi olmayan gider kategoriniz kalmadı.',
-                  );
-                }
-                return AppCategoryField(
-                  label: 'Gider kategorisi',
-                  options: _options,
-                  value: _category,
-                  recent: RecentCategories.of(context, 'expense'),
-                  showScope: _showScope,
-                  onChanged: (value) => setState(() => _category = value),
-                  onAdd: _addCategory,
-                  validator: (value) =>
-                      value == null ? 'Kategori seçin.' : null,
+  Widget build(BuildContext context) => Form(
+    key: _formKey,
+    child: AppFormSheet<CreateBudgetInput>(
+      title: '${_monthText(widget.controller.selectedMonth)} bütçesi',
+      description: 'Limit bu aya özeldir; sonraki ay kendi limitini alır.',
+      submitLabel: 'Oluştur',
+      onSubmit: () async {
+        // İki kapsama açık kategoride kapsamı alan kendisi ister.
+        if (!(_formKey.currentState?.validate() ?? false)) return null;
+        final month = widget.controller.selectedMonth;
+        return CreateBudgetInput(
+          categoryId: _category!.categoryId,
+          limit: MoneyText.normalizeInput(_limit.text)!,
+          year: month.year,
+          month: month.month,
+          scope: _showScope
+              ? AppCategoryField.scopeOf(_options, _category)
+              : null,
+        );
+      },
+      children: [
+        AppFormField(
+          child: FutureBuilder<List<BudgetCategory>>(
+            future: _categories,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const LinearProgressIndicator();
+              }
+              if (snapshot.hasError) {
+                return const Text('Kategoriler yüklenemedi.');
+              }
+              // O ay bütçesi olan kategori listeden düşer: tekil indeks
+              // ikincisini reddediyor ve seçilebilir bırakmak kullanıcıyı
+              // sunucunun çakışma cevabına götürürdü.
+              final budgeted = widget.controller.budgetedCategoryIds;
+              _available = [
+                for (final category
+                    in snapshot.data ?? const <BudgetCategory>[])
+                  if (category.isActive && !budgeted.contains(category.id))
+                    category,
+              ];
+              if (_available.isEmpty) {
+                return const Text(
+                  'Bu ayda bütçesi olmayan gider kategoriniz kalmadı.',
                 );
-              },
-            ),
+              }
+              return AppCategoryField(
+                label: 'Gider kategorisi',
+                options: _options,
+                value: _category,
+                recent: RecentCategories.of(context, 'expense'),
+                showScope: _showScope,
+                onChanged: (value) => setState(() => _category = value),
+                onAdd: _addCategory,
+                validator: (value) => value == null ? 'Kategori seçin.' : null,
+              );
+            },
           ),
-          AppFormField(
-            child: TextFormField(
-              controller: _limit,
-              decoration: const InputDecoration(
-                labelText: 'Aylık limit',
-                suffixText: 'TRY',
-              ),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              validator: _budgetMoneyError,
+        ),
+        AppFormField(
+          child: TextFormField(
+            controller: _limit,
+            decoration: const InputDecoration(
+              labelText: 'Aylık limit',
+              suffixText: 'TRY',
             ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            validator: _budgetMoneyError,
           ),
-        ],
-      ),
+        ),
+      ],
     ),
   );
 }

@@ -1249,6 +1249,16 @@ görünür, pencere açılınca kod istenir, posta gitmezse "e-posta servisi
 yapılandırılmamış" der ("gönderdik" demez), kod yazılmadan istek gitmez, kod ve
 parola gider (mevcut parola gitmez); silme parola alanı açmadan Google
 belirteciyle yapılır; Google penceresi kapatılırsa silinmez.
+`Parola belirle` kodu sıfırlamanın kodudur ama postası ayrıdır: API testi
+belirleme postasının gittiğini, `BrevoMessageWordingTests` üç postanın
+konusunu ve metnini denetler (belirleme postasında "sıfırla" geçmez; ağa
+çıkmaz, istek sahte işleyicide yakalanır).
+**Hesabım düzeni** (9 Kasım 2026): `account_page_test` başlıkta kullanıcı adı,
+e-posta ve doğrulama işaretini; `Çıkış yap`ın `Hesabımı sil`in altında
+durduğunu; parola kurallarının yazdıkça işaretlendiğini denetler. Sunucuda
+`UserAccountEndpointTests` seçilen kullanıcı adının döndüğünü, kullanıcı adı
+olmayan hesapta alanın boş geldiğini denetler. Kareler
+`hesabim_screenshot_test` 19–21.
 
 **Google ile giriş, sunucu** (9 Kasım 2026): `GoogleSignInEndpointTests`
 (sahte belirteç doğrulayıcıyla, uçtan uca): ilk giriş hiçbir şey yazmaz ve

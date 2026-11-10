@@ -10,6 +10,7 @@ class UserAccount {
     required this.createdAtUtc,
     required this.activeSessionCount,
     this.hasPassword = true,
+    this.username,
   });
 
   final String userId;
@@ -23,6 +24,10 @@ class UserAccount {
   /// sunucu alanı göndermezse parola var sayılır (bugünkü davranış).
   final bool hasPassword;
 
+  /// Kullanıcının seçtiği ad. Kullanıcı adından önce açılmış hesapta yoktur
+  /// (sunucu `null` gönderir); o zaman başlıkta e-posta yazar.
+  final String? username;
+
   factory UserAccount.fromJson(Map<String, dynamic> json) => UserAccount(
     userId: JsonReaders.string(json, 'userId'),
     email: JsonReaders.string(json, 'email'),
@@ -32,6 +37,10 @@ class UserAccount {
     hasPassword: json['hasPassword'] is bool
         ? json['hasPassword'] as bool
         : true,
+    username: switch (json['username']) {
+      final String name when name.trim().isNotEmpty => name,
+      _ => null,
+    },
   );
 }
 

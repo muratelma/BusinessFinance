@@ -6,7 +6,6 @@ import '../../../core/models/data_choice.dart';
 import '../../../core/models/transaction_scope.dart';
 import '../../../core/presentation/scope_controller.dart';
 import '../../../core/widgets/app_category_field.dart';
-import '../../../core/widgets/app_untracked_text.dart';
 import '../../categories/presentation/category_create_page.dart';
 import '../../categories/presentation/recent_categories.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -71,29 +70,26 @@ class _CashWithdrawalFormState extends State<CashWithdrawalForm> {
 
   @override
   // Teslimle kurulan panel: 16 dp yan boşluk, metin harf aralıksız.
-  Widget build(BuildContext context) => AppUntrackedText(
-    child: Form(
-      key: formKey,
-      child: AppFormSheet<bool>(
-        title: 'Kendime aldım',
-        description:
-            '${widget.controller.selectedAccount?.name ?? 'Kasa'} '
-            'bakiyesinden düşer.',
-        horizontalPadding: AppSpacing.medium,
-        submitLabel: 'Kaydet',
-        onSubmit: () async {
-          if (!formKey.currentState!.validate()) return null;
-          return await fields.currentState!.submit() ? true : null;
-        },
-        children: [
-          CashWithdrawalFields(
-            key: fields,
-            controller: widget.controller,
-            initialAmount: widget.initialAmount,
-            onOpenPersonalAccount: widget.onOpenPersonalAccount,
-          ),
-        ],
-      ),
+  Widget build(BuildContext context) => Form(
+    key: formKey,
+    child: AppFormSheet<bool>(
+      title: 'Kendime aldım',
+      description:
+          '${widget.controller.selectedAccount?.name ?? 'Kasa'} '
+          'bakiyesinden düşer.',
+      submitLabel: 'Kaydet',
+      onSubmit: () async {
+        if (!formKey.currentState!.validate()) return null;
+        return await fields.currentState!.submit() ? true : null;
+      },
+      children: [
+        CashWithdrawalFields(
+          key: fields,
+          controller: widget.controller,
+          initialAmount: widget.initialAmount,
+          onOpenPersonalAccount: widget.onOpenPersonalAccount,
+        ),
+      ],
     ),
   );
 }
@@ -210,7 +206,7 @@ class CashWithdrawalFieldsState extends State<CashWithdrawalFields> {
             decoration: const InputDecoration(labelText: 'Tutar'),
             validator: MoneyInput.positiveError,
           ),
-          const SizedBox(height: AppSpacing.medium),
+          const SizedBox(height: AppGaps.field),
         ],
         if (widget.showDate) ...[
           AppDateField(
@@ -219,7 +215,7 @@ class CashWithdrawalFieldsState extends State<CashWithdrawalFields> {
             lastDate: DateTime.now(),
             onChanged: (value) => setState(() => date = value),
           ),
-          const SizedBox(height: AppSpacing.medium),
+          const SizedBox(height: AppGaps.field),
         ],
         FutureBuilder<(List<DataChoice>, List<DataChoice>)>(
           future: options,
@@ -253,7 +249,7 @@ class CashWithdrawalFieldsState extends State<CashWithdrawalFields> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.medium),
+                  const SizedBox(height: AppGaps.field),
                 ],
                 if (method == WithdrawalMethod.transfer)
                   AppAccountField(

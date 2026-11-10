@@ -6,6 +6,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_divided_column.dart';
+import '../../../core/widgets/app_filter_strip.dart';
 import '../../../core/widgets/app_icon_capsule.dart';
 import '../../../core/widgets/app_month_picker.dart';
 import '../../../core/widgets/app_page_header.dart';
@@ -217,7 +218,7 @@ class _PosAllSettlementsPageState extends State<PosAllSettlementsPage> {
     switch (widget.layout) {
       case PosPageLayout.a:
         return [
-          _FilterRow(
+          AppFilterStrip(
             label: 'Durum',
             children: [
               for (final value in PosStatusFilter.values)
@@ -228,11 +229,11 @@ class _PosAllSettlementsPageState extends State<PosAllSettlementsPage> {
                 ),
             ],
           ),
-          _FilterRow(label: 'Tür ve POS', children: kindChips),
+          AppFilterStrip(label: 'Tür ve POS', children: kindChips),
         ];
       case PosPageLayout.b:
         return [
-          _FilterRow(
+          AppFilterStrip(
             label: 'Süzgeç',
             children: [
               for (final value in _Quick.values)
@@ -289,7 +290,7 @@ class _PosAllSettlementsPageState extends State<PosAllSettlementsPage> {
               ),
             ),
           ),
-          _FilterRow(label: 'Tür ve POS', children: kindChips),
+          AppFilterStrip(label: 'Tür ve POS', children: kindChips),
         ];
     }
   }
@@ -326,12 +327,7 @@ class _PosAllSettlementsPageState extends State<PosAllSettlementsPage> {
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.medium,
-          AppSpacing.small,
-          AppSpacing.medium,
-          AppSpacing.xLarge,
-        ),
+        padding: AppPageInsets.list,
         children: [
           if (filtered.isEmpty)
             const AppCard(
@@ -415,38 +411,6 @@ class _Deposit {
   final items = <PosSettlementItem>[];
 }
 
-/// Yatay kayan süzgeç satırı; İşlemler'deki hızlı süzgeçle aynı kalıp.
-class _FilterRow extends StatelessWidget {
-  const _FilterRow({required this.label, required this.children});
-
-  final String label;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    container: true,
-    label: label,
-    child: SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.medium,
-        AppSpacing.xSmall,
-        AppSpacing.medium,
-        AppSpacing.xSmall,
-      ),
-      child: Row(
-        children: [
-          for (final child in children)
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.small),
-              child: child,
-            ),
-        ],
-      ),
-    ),
-  );
-}
-
 /// Bir grup tahsilat: `Yolda` ya da bir yatış. Yatış grubunun başlığı
 /// yatışın ayrıntısını açar.
 class _Group extends StatelessWidget {
@@ -461,7 +425,7 @@ class _Group extends StatelessWidget {
     final theme = Theme.of(context);
     final surfaces = AppSurfaces.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.medium),
+      padding: const EdgeInsets.only(bottom: AppGaps.card),
       child: AppCard(
         padding: EdgeInsets.zero,
         child: Column(

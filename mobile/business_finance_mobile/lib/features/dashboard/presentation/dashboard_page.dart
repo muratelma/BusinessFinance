@@ -25,6 +25,7 @@ import '../../planning/data/planning_models.dart';
 import '../data/dashboard_models.dart';
 import 'dashboard_sections.dart';
 import 'dashboard_view_model.dart';
+import '../../../core/theme/app_typography.dart';
 
 /// Özet: ayın akışı (gelir, gider, net, kategori, bütçe, yaklaşanlar) ve şu
 /// anki durum (varlık, hesap bakiyeleri).
@@ -49,28 +50,29 @@ class DashboardPage extends StatelessWidget {
               actions: [
                 // Hesabın kapısı: doğrulanmamış e-postanın kalıcı uyarısı
                 // avatarın üstünde kırmızı nokta.
+                // 40 dp: 26 punto başlığın yanında büyük uygulamaların
+                // (App Store, Google uygulamaları) dengesi; 32 dp küçük
+                // kalıyordu (9 Kasım 2026). Kenarı başlıkla simetrik 16 dp.
                 IconButton(
                   tooltip: status?.needsEmailVerification ?? false
                       ? 'Hesabım, e-posta doğrulanmadı'
                       : 'Hesabım',
+                  padding: const EdgeInsets.all(AppSpacing.xSmall),
                   onPressed: () => context.push(accountLocation),
                   icon: AppAvatar(
                     initials: status?.initials ?? '',
+                    size: 40,
                     badge: status?.needsEmailVerification ?? false,
                   ),
                 ),
+                const SizedBox(width: AppSpacing.small),
               ],
             ),
             // Anahtar kaydırılan gövdenin **dışında**: uygulamanın tek kapsam
             // denetimi bu ve yükleme, hata ya da boş durumda da yerinde durur.
             if (viewModel.isScopeVisible)
               Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.medium,
-                  AppSpacing.xSmall,
-                  AppSpacing.medium,
-                  AppSpacing.small + AppSpacing.xSmall,
-                ),
+                padding: AppPageInsets.headerControl,
                 child: AppScopeSwitch(
                   value: viewModel.scope,
                   onChanged: (value) =>
@@ -102,12 +104,7 @@ class DashboardPage extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: viewModel.load,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.medium,
-          AppSpacing.xSmall,
-          AppSpacing.medium,
-          AppSpacing.fabClearance,
-        ),
+        padding: AppPageInsets.listWithFab,
         children: [
           _MonthStepper(
             label: DateText.monthYear(report.year, report.month),
@@ -246,7 +243,7 @@ class _MonthStepper extends StatelessWidget {
         // Okların glifi sayfa kenarına hizalansın diye dokunma alanı sağa
         // taşar; metin yerinde kalır.
         Transform.translate(
-          offset: const Offset(AppSpacing.small + AppSpacing.xSmall, 0),
+          offset: const Offset(AppSpacing.compact, 0),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -326,7 +323,7 @@ class _OverdueBand extends StatelessWidget {
                       child: Text(
                         '${items.length} gecikmiş ödeme',
                         style: theme.textTheme.titleSmall?.copyWith(
-                          fontSize: 15,
+                          fontSize: AppTextSizes.compact,
                           height: 1.3,
                           color: foreground,
                         ),
@@ -387,10 +384,10 @@ class _HeroCard extends StatelessWidget {
     return AppCard(
       key: const ValueKey('dashboard-hero'),
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.large - AppSpacing.xSmall,
+        AppSpacing.step20,
         AppSpacing.medium,
-        AppSpacing.large - AppSpacing.xSmall,
-        AppSpacing.large - AppSpacing.xSmall,
+        AppSpacing.step20,
+        AppSpacing.step20,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -434,7 +431,7 @@ class _HeroCard extends StatelessWidget {
                   Wrap(
                     alignment: WrapAlignment.spaceBetween,
                     crossAxisAlignment: WrapCrossAlignment.end,
-                    spacing: AppSpacing.small + AppSpacing.xSmall,
+                    spacing: AppSpacing.compact,
                     children: [
                       Padding(
                         padding: const EdgeInsets.only(
@@ -586,7 +583,7 @@ class _FlowLine extends StatelessWidget {
           child: Row(
             children: [
               AppIconCapsule(icon: icon, tone: tone, size: 32),
-              const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+              const SizedBox(width: AppSpacing.compact),
               Expanded(
                 child: _LabelAndAmount(
                   label: Text(
@@ -637,7 +634,7 @@ class _SplitLine extends StatelessWidget {
           child: Row(
             children: [
               Icon(icon, size: 20, color: surfaces.inkMuted),
-              const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+              const SizedBox(width: AppSpacing.compact),
               Expanded(
                 child: _LabelAndAmount(
                   label: Text(

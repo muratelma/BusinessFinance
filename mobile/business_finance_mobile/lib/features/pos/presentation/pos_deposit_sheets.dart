@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../core/widgets/app_untracked_text.dart';
 import '../../categories/presentation/fixed_scope_category_field.dart';
 
 import '../../../core/formatters/date_text.dart';
@@ -29,6 +28,7 @@ import '../data/pos_repository.dart';
 import 'pos_controller.dart';
 import '../../activities/data/activity_models.dart';
 import 'pos_deposit_controller.dart';
+import '../../../core/theme/app_typography.dart';
 
 /// Tahsilatın başlığı: kullanıcının yazdığı açıklama, yoksa günü.
 /// Kartla tahsilde satırın adı parayı ödeyen kişidir (ADR 0019 T5): satış
@@ -222,21 +222,18 @@ class _DepositFormState extends State<_DepositForm> {
 
   @override
   // Teslimle kurulan panel: 16 dp yan boşluk, metin harf aralıksız.
-  Widget build(BuildContext context) => AppUntrackedText(
-    child: Form(
-      key: formKey,
-      child: AppFormSheet<bool>(
-        title: 'Hesaba geçenleri işaretle',
-        description:
-            'Bankanın yatırdığı tutarı yazın. Satış tahsil edildiği gün gelir '
-            'olarak yazıldı; bu adım gelir yazmaz.',
-        horizontalPadding: AppSpacing.medium,
-        submitLabel: 'Kaydet',
-        onSubmit: candidates.isEmpty ? null : _submit,
-        children: candidates.isEmpty
-            ? const [Text('Yolda tahsilat yok.')]
-            : _fields(context),
-      ),
+  Widget build(BuildContext context) => Form(
+    key: formKey,
+    child: AppFormSheet<bool>(
+      title: 'Hesaba geçenleri işaretle',
+      description:
+          'Bankanın yatırdığı tutarı yazın. Satış tahsil edildiği gün gelir '
+          'olarak yazıldı; bu adım gelir yazmaz.',
+      submitLabel: 'Kaydet',
+      onSubmit: candidates.isEmpty ? null : _submit,
+      children: candidates.isEmpty
+          ? const [Text('Yolda tahsilat yok.')]
+          : _fields(context),
     ),
   );
 
@@ -279,7 +276,7 @@ class _DepositFormState extends State<_DepositForm> {
             ),
           ),
         ),
-      const SizedBox(height: AppSpacing.medium),
+      const SizedBox(height: AppGaps.block),
       AppDetailBlock(
         rows: [
           AppDetailRow(
@@ -298,7 +295,7 @@ class _DepositFormState extends State<_DepositForm> {
             AppDetailRow(label: 'Hesap', value: shown.accountName),
         ],
       ),
-      const SizedBox(height: AppSpacing.medium),
+      const SizedBox(height: AppGaps.block),
       TextFormField(
         controller: amountController,
         enabled: selected.isNotEmpty,
@@ -317,7 +314,7 @@ class _DepositFormState extends State<_DepositForm> {
         onChanged: _amountChanged,
         validator: MoneyInput.positiveError,
       ),
-      const SizedBox(height: AppSpacing.medium),
+      const SizedBox(height: AppGaps.field),
       AppDateField(
         label: 'Yattığı gün',
         value: depositDate,
@@ -332,7 +329,7 @@ class _DepositFormState extends State<_DepositForm> {
   /// Banka eksik yatırdı: fark kesinti gideridir ve bir kategoriye yazılır.
   /// Kategori POS'un komisyon kategorisinden dolu gelir.
   List<Widget> _deductionFields(PosDepositPreview shown) => [
-    const SizedBox(height: AppSpacing.medium),
+    const SizedBox(height: AppGaps.block),
     AppDetailBlock(
       rows: [
         AppDetailRow(
@@ -654,12 +651,7 @@ class _PosDepositDetailSheetState extends State<PosDepositDetailSheet> {
     final loading = deposit == null && controller.errorMessage == null;
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.medium,
-          0,
-          AppSpacing.medium,
-          AppSpacing.large,
-        ),
+        padding: AppSheetInsets.detail(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
@@ -674,7 +666,7 @@ class _PosDepositDetailSheetState extends State<PosDepositDetailSheet> {
                       ? AppStatusTone.cancelled
                       : AppStatusTone.neutral,
                 ),
-                const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+                const SizedBox(width: AppSpacing.compact),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -711,7 +703,7 @@ class _PosDepositDetailSheetState extends State<PosDepositDetailSheet> {
                   isCancelled: summary.isCancelled,
                   size: AppMoneySize.metric,
                   style: const TextStyle(
-                    fontSize: 28,
+                    fontSize: AppTextSizes.amount,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -739,7 +731,7 @@ class _PosDepositDetailSheetState extends State<PosDepositDetailSheet> {
                 onAction: deposit == null ? controller.load : null,
                 margin: const EdgeInsets.only(top: AppSpacing.small),
               ),
-            const SizedBox(height: AppSpacing.medium),
+            const SizedBox(height: AppGaps.block),
             AppDetailBlock(
               rows: [
                 // Yatan tutarın nereden geldiği: satış − komisyon = beklenen.
@@ -892,7 +884,7 @@ class _PosDepositDetailSheetState extends State<PosDepositDetailSheet> {
                 ),
               ),
             ],
-            const SizedBox(height: AppSpacing.medium),
+            const SizedBox(height: AppGaps.block),
             Text(
               summary.isCancelled
                   ? 'Kayıt duruyor; tahsilatlar yeniden yolda.'
@@ -904,10 +896,10 @@ class _PosDepositDetailSheetState extends State<PosDepositDetailSheet> {
               style: note?.copyWith(color: surfaces.inkMuted),
             ),
             if (!summary.isCancelled) ...[
-              const SizedBox(height: AppSpacing.medium),
+              const SizedBox(height: AppGaps.block),
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
+                  minimumSize: const Size.fromHeight(AppSizes.button),
                 ),
                 // Yüklenmeden geri alınamaz: onay metni yatışın kesintisini
                 // söyler ve o bilgi yüklenen kayıttadır.

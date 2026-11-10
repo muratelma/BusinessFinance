@@ -217,6 +217,19 @@ ve ADR güncellemesiyle değişir.
   ekleme.
 - Erişilebilirlik, metin ölçeklendirme ve klavye/ekran okuyucu kullanımını
   doğrula.
+- **Ölçüler ortak kuraldan gelir ve yeni tasarım o kuralın üstüne kurulur**
+  (kullanıcı kararı, 10 Kasım 2026). Başlık, sayfa ve panel boşlukları, dikey
+  aralıklar, yazı boyları, köşe yarıçapları, düğme boyları ve ortak bileşenler
+  (`AppPageHeader`/`AppPageBar`, `AppPageInsets`, `AppSheetInsets`, `AppGaps`,
+  `AppSpacing`, `AppTextSizes`, `AppRadius`, `AppSizes`, `AppFilterStrip`,
+  `AppFormSheet`, `AppSectionHeader`, `AppInlineNotice`, `ActivityTile`) tek
+  yerde tanımlıdır; ekran sayı yazmaz, adı seçer. Yeni bir tasarım teslimi
+  uygulanırken teslimden **görsel dil** alınır, **ölçü ve bileşen ortak
+  kuraldan** gelir; teslimdeki ölçü kuralla çelişirse kural uygulanır. Kuraldan
+  ayrılmak yalnız kural tasarımı gözle görülür biçimde bozuyorsa olur: o zaman
+  ekrana özel sayı yazılmaz, ya kural herkes için değişir ya da yeni bir ad
+  eklenir ve kullanıcıya söylenir. Ayrıntı `documentation/design-system.md`;
+  kuralları `test/architecture/design_tokens_test.dart` korur.
 
 ## Migration kuralları
 

@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_spacing.dart';
-import '../../../core/widgets/app_untracked_text.dart';
-
 import '../../categories/presentation/fixed_scope_category_field.dart';
 
 import '../../../core/formatters/money_input.dart';
@@ -178,106 +175,100 @@ class _CounterpartyChargeFormState extends State<CounterpartyChargeForm> {
 
   @override
   // Teslimle kurulan panel: 16 dp yan boşluk, metin harf aralıksız.
-  Widget build(BuildContext context) => AppUntrackedText(
-    child: Form(
-      key: _formKey,
-      child: AppFormSheet<Map<String, Object?>>(
-        title: widget.isReceivable ? 'Veresiye satış' : 'Vadeli alım',
-        horizontalPadding: AppSpacing.medium,
-        description: widget.isReceivable
-            ? 'Satış geliri bugün yazılır; para henüz gelmedi ve kasa '
-                  'değişmez.'
-            : 'Alım gideri bugün yazılır; ödeme henüz yapılmadı ve kasa '
-                  'değişmez.',
-        submitLabel: 'Kaydet',
-        onSubmit: () async {
-          if (!(_formKey.currentState?.validate() ?? false)) return null;
-          return {
-            'amount': MoneyInput.wire(_amount.text),
-            'categoryId': _categoryId,
-            'chargeDate': _date,
-            'dueDate': _dueDate,
-            'description': _description.text.trim(),
-          };
-        },
-        children: [
-          AppFormField(
-            child: TextFormField(
-              controller: _amount,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
+  Widget build(BuildContext context) => Form(
+    key: _formKey,
+    child: AppFormSheet<Map<String, Object?>>(
+      title: widget.isReceivable ? 'Veresiye satış' : 'Vadeli alım',
+      description: widget.isReceivable
+          ? 'Satış geliri bugün yazılır; para henüz gelmedi ve kasa '
+                'değişmez.'
+          : 'Alım gideri bugün yazılır; ödeme henüz yapılmadı ve kasa '
+                'değişmez.',
+      submitLabel: 'Kaydet',
+      onSubmit: () async {
+        if (!(_formKey.currentState?.validate() ?? false)) return null;
+        return {
+          'amount': MoneyInput.wire(_amount.text),
+          'categoryId': _categoryId,
+          'chargeDate': _date,
+          'dueDate': _dueDate,
+          'description': _description.text.trim(),
+        };
+      },
+      children: [
+        AppFormField(
+          child: TextFormField(
+            controller: _amount,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Tutar',
+              suffixText: 'TRY',
+            ),
+            validator: MoneyInput.positiveError,
+          ),
+        ),
+        AppFormField(
+          // Cari işletmeye özeldir (ADR 0020): kapsam sorulmaz.
+          child: FixedScopeCategoryField(
+            label: 'Kategori',
+            type: widget.isReceivable ? 'income' : 'expense',
+            helperText: widget.isReceivable
+                ? 'Ne sattınız? Alacak doğuran kayıt gelir kategorisi ister.'
+                : 'Ne aldınız? Borç doğuran kayıt gider kategorisi ister.',
+            categories: _options,
+            value: _categoryId,
+            onChanged: (value) => setState(() => _categoryId = value),
+            validator: (value) => value == null ? 'Bir kategori seçin.' : null,
+          ),
+        ),
+        AppFormField(
+          child: AppDateField(
+            label: 'Tarih',
+            value: _date,
+            lastDate: AppDateField.parse(widget.today),
+            onChanged: (value) => setState(() {
+              _date = value;
+              final due = AppDateField.parse(_dueDate);
+              final charge = AppDateField.parse(value);
+              if (due != null && charge != null && due.isBefore(charge)) {
+                _dueDate = null;
+              }
+            }),
+          ),
+        ),
+        AppFormField(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AppDateField(
+                label: 'Vade (isteğe bağlı)',
+                value: _dueDate,
+                firstDate: AppDateField.parse(_date),
+                helperText: 'Boş bırakırsanız hareket vadesiz izlenir.',
+                onChanged: (value) => setState(() => _dueDate = value),
               ),
-              decoration: const InputDecoration(
-                labelText: 'Tutar',
-                suffixText: 'TRY',
-              ),
-              validator: MoneyInput.positiveError,
-            ),
-          ),
-          AppFormField(
-            // Cari işletmeye özeldir (ADR 0020): kapsam sorulmaz.
-            child: FixedScopeCategoryField(
-              label: 'Kategori',
-              type: widget.isReceivable ? 'income' : 'expense',
-              helperText: widget.isReceivable
-                  ? 'Ne sattınız? Alacak doğuran kayıt gelir kategorisi ister.'
-                  : 'Ne aldınız? Borç doğuran kayıt gider kategorisi ister.',
-              categories: _options,
-              value: _categoryId,
-              onChanged: (value) => setState(() => _categoryId = value),
-              validator: (value) =>
-                  value == null ? 'Bir kategori seçin.' : null,
-            ),
-          ),
-          AppFormField(
-            child: AppDateField(
-              label: 'Tarih',
-              value: _date,
-              lastDate: AppDateField.parse(widget.today),
-              onChanged: (value) => setState(() {
-                _date = value;
-                final due = AppDateField.parse(_dueDate);
-                final charge = AppDateField.parse(value);
-                if (due != null && charge != null && due.isBefore(charge)) {
-                  _dueDate = null;
-                }
-              }),
-            ),
-          ),
-          AppFormField(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                AppDateField(
-                  label: 'Vade (isteğe bağlı)',
-                  value: _dueDate,
-                  firstDate: AppDateField.parse(_date),
-                  helperText: 'Boş bırakırsanız hareket vadesiz izlenir.',
-                  onChanged: (value) => setState(() => _dueDate = value),
-                ),
-                if (_dueDate != null)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton.icon(
-                      onPressed: () => setState(() => _dueDate = null),
-                      icon: const Icon(Icons.clear),
-                      label: const Text('Vadeyi kaldır'),
-                    ),
+              if (_dueDate != null)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () => setState(() => _dueDate = null),
+                    icon: const Icon(Icons.clear),
+                    label: const Text('Vadeyi kaldır'),
                   ),
-              ],
+                ),
+            ],
+          ),
+        ),
+        AppFormField(
+          child: TextFormField(
+            controller: _description,
+            decoration: const InputDecoration(
+              labelText: 'Açıklama (isteğe bağlı)',
+              helperText: 'Yazarsanız kayıt listede bu adla görünür.',
             ),
           ),
-          AppFormField(
-            child: TextFormField(
-              controller: _description,
-              decoration: const InputDecoration(
-                labelText: 'Açıklama (isteğe bağlı)',
-                helperText: 'Yazarsanız kayıt listede bu adla görünür.',
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     ),
   );
 }

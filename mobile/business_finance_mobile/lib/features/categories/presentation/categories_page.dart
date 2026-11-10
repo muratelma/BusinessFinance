@@ -5,6 +5,7 @@ import '../../../core/theme/app_finance_icons.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_list_row.dart';
+import '../../../core/widgets/app_page_bar.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../data/category_models.dart';
 import 'categories_view_model.dart';
@@ -84,7 +85,7 @@ class _CategoriesPageState extends State<CategoriesPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppPageBar(
         title: const Text('Kategoriler'),
         bottom: TabBar(
           controller: _tabController,
@@ -174,22 +175,17 @@ class _CategoryList extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.medium,
-          AppSpacing.medium,
-          AppSpacing.medium,
-          AppSpacing.fabClearance,
-        ),
+        padding: AppPageInsets.underTabsWithFab,
         children: [
           if (active.isNotEmpty) ...[
             Text('Kullanımda', style: theme.textTheme.labelMedium),
-            const SizedBox(height: AppSpacing.small),
+            const SizedBox(height: AppGaps.sectionTitle),
             _Group(items: active, isIncome: isIncome, onEdit: onEdit),
           ],
           if (inactive.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.large),
+            const SizedBox(height: AppGaps.section),
             Text('Pasif', style: theme.textTheme.labelMedium),
-            const SizedBox(height: AppSpacing.small),
+            const SizedBox(height: AppGaps.sectionTitle),
             _Group(items: inactive, isIncome: isIncome, onEdit: onEdit),
           ],
         ],

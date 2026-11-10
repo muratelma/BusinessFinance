@@ -69,7 +69,7 @@ class TaxPageScaffold extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.medium,
-                    AppSpacing.small + AppSpacing.xSmall,
+                    AppSpacing.compact,
                     AppSpacing.medium,
                     AppSpacing.medium,
                   ),
@@ -90,15 +90,7 @@ class TaxPageBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final list = ListView(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.medium,
-        AppSpacing.xSmall,
-        AppSpacing.medium,
-        AppSpacing.xLarge,
-      ),
-      children: children,
-    );
+    final list = ListView(padding: AppPageInsets.list, children: children);
     return onRefresh == null
         ? list
         : RefreshIndicator(onRefresh: onRefresh!, child: list);
@@ -188,7 +180,7 @@ class TaxFieldLabel extends StatelessWidget {
             ),
           ),
           if (hint != null) ...[
-            const SizedBox(height: AppSpacing.xxSmall),
+            const SizedBox(height: AppGaps.rowText),
             Text(
               hint!,
               style: theme.textTheme.bodyMedium?.copyWith(
@@ -265,7 +257,7 @@ class TaxAmountInput extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: AppSpacing.xSmall + AppSpacing.xxSmall),
+                const SizedBox(width: AppSpacing.step6),
                 Flexible(
                   child: IntrinsicWidth(
                     child: Semantics(
@@ -342,10 +334,10 @@ class TaxCheckRow extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: 56),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.small + AppSpacing.xSmall,
-              AppSpacing.small + AppSpacing.xxSmall,
+              AppSpacing.compact,
+              AppSpacing.step10,
               AppSpacing.medium,
-              AppSpacing.small + AppSpacing.xxSmall,
+              AppSpacing.step10,
             ),
             child: Row(
               children: [
@@ -357,7 +349,7 @@ class TaxCheckRow extends StatelessWidget {
                   size: 24,
                   color: iconColor,
                 ),
-                const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+                const SizedBox(width: AppSpacing.compact),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -365,7 +357,7 @@ class TaxCheckRow extends StatelessWidget {
                     children: [
                       Text(title, style: theme.textTheme.titleSmall),
                       if (subtitle != null) ...[
-                        const SizedBox(height: AppSpacing.xxSmall),
+                        const SizedBox(height: AppGaps.rowText),
                         Text(
                           subtitle!,
                           style: theme.textTheme.bodyMedium?.copyWith(
@@ -431,7 +423,7 @@ class TaxActionRow extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.medium,
-                vertical: AppSpacing.small + AppSpacing.xxSmall,
+                vertical: AppSpacing.step10,
               ),
               child: Row(
                 children: [
@@ -449,7 +441,7 @@ class TaxActionRow extends StatelessWidget {
                           ),
                         ),
                         if (subtitle != null) ...[
-                          const SizedBox(height: AppSpacing.xxSmall),
+                          const SizedBox(height: AppGaps.rowText),
                           Text(
                             subtitle!,
                             style: theme.textTheme.bodyMedium?.copyWith(
@@ -551,7 +543,7 @@ class TaxSheetHead extends StatelessWidget {
     return Row(
       children: [
         AppIconCapsule(icon: icon, tone: tone),
-        const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+        const SizedBox(width: AppSpacing.compact),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -694,7 +686,7 @@ class _TaxSheetBodyState extends State<TaxSheetBody> {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(
                       AppSpacing.medium,
-                      AppSpacing.small + AppSpacing.xSmall,
+                      AppSpacing.compact,
                       AppSpacing.medium,
                       AppSpacing.medium,
                     ),
@@ -762,12 +754,12 @@ class TaxPayButton extends StatelessWidget {
     return OutlinedButton.icon(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        minimumSize: const Size(0, 36),
+        minimumSize: const Size(0, AppSizes.rowButton),
         tapTargetSize: MaterialTapTargetSize.padded,
         padding: const EdgeInsets.fromLTRB(
-          AppSpacing.small + AppSpacing.xxSmall,
+          AppSpacing.step10,
           0,
-          AppSpacing.medium - AppSpacing.xxSmall,
+          AppSpacing.step14,
           0,
         ),
         shape: const StadiumBorder(),
@@ -789,7 +781,7 @@ class TaxPayButton extends StatelessWidget {
 ButtonStyle taxDangerOutlineStyle(BuildContext context) {
   final scheme = Theme.of(context).colorScheme;
   return OutlinedButton.styleFrom(
-    minimumSize: const Size.fromHeight(48),
+    minimumSize: const Size.fromHeight(AppSizes.button),
     foregroundColor: scheme.error,
     side: BorderSide(color: scheme.error.withValues(alpha: 0.5)),
   );

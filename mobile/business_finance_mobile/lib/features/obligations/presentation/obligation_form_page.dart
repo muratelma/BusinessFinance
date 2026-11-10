@@ -6,6 +6,7 @@ import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_date_field.dart';
 import '../../../core/widgets/app_inline_notice.dart';
+import '../../../core/widgets/app_page_bar.dart';
 import '../../../core/widgets/app_scope_selector.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_submit_button.dart';
@@ -81,7 +82,7 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(_title)),
+    appBar: AppPageBar(title: Text(_title)),
     body: AnimatedBuilder(
       animation: widget.scopeController ?? const _NeverListenable(),
       builder: (context, _) => _body(context),
@@ -109,14 +110,14 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
     return Form(
       key: _formKey,
       child: ListView(
-        padding: const EdgeInsets.all(AppSpacing.medium),
+        padding: AppPageInsets.form,
         children: [
           AppInlineNotice(
             icon: Icons.receipt_long_outlined,
             message: _noticeMessage,
           ),
           if (_canChooseDirection) ...[
-            const SizedBox(height: AppSpacing.medium),
+            const SizedBox(height: AppGaps.block),
             Semantics(
               label: 'Yükümlülüğün yönü',
               child: SegmentedButton<ObligationDirection>(
@@ -141,7 +142,7 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
             const SizedBox(height: AppSpacing.small),
             AppInlineNotice(icon: Icons.error_outline, message: warning),
           ],
-          const SizedBox(height: AppSpacing.medium),
+          const SizedBox(height: AppGaps.field),
           DropdownButtonFormField<String>(
             initialValue: _categoryId,
             isExpanded: true,
@@ -159,7 +160,7 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
                 DropdownMenuItem(value: item.id, child: Text(item.name)),
             ],
           ),
-          const SizedBox(height: AppSpacing.medium),
+          const SizedBox(height: AppGaps.field),
           DropdownButtonFormField<String?>(
             initialValue: _counterpartyId,
             isExpanded: true,
@@ -182,7 +183,7 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
                 DropdownMenuItem(value: item.id, child: Text(item.name)),
             ],
           ),
-          const SizedBox(height: AppSpacing.medium),
+          const SizedBox(height: AppGaps.field),
           if (_showScope && _categoryId != null) ...[
             AppScopeSection(
               explicit: _explicitScope,
@@ -193,7 +194,7 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
                 _scopeMissing = false;
               }),
             ),
-            const SizedBox(height: AppSpacing.medium),
+            const SizedBox(height: AppGaps.field),
           ],
           TextFormField(
             controller: _amount,
@@ -205,7 +206,7 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
             ),
             validator: _validateAmount,
           ),
-          const SizedBox(height: AppSpacing.medium),
+          const SizedBox(height: AppGaps.field),
           AppDateField(
             label: 'Belge tarihi',
             value: AppDateField.format(_issueDate),
@@ -216,7 +217,7 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
               if (_dueDate.isBefore(_issueDate)) _dueDate = _issueDate;
             }),
           ),
-          const SizedBox(height: AppSpacing.medium),
+          const SizedBox(height: AppGaps.field),
           AppDateField(
             label: 'Son ödeme tarihi',
             value: AppDateField.format(_dueDate),
@@ -226,7 +227,7 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
               _dueDate = AppDateField.parse(value)!;
             }),
           ),
-          const SizedBox(height: AppSpacing.medium),
+          const SizedBox(height: AppGaps.field),
           TextFormField(
             controller: _description,
             maxLength: 500,

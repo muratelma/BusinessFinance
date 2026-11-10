@@ -40,9 +40,7 @@ class AppRowAction extends StatelessWidget {
     backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
     foregroundColor: Theme.of(context).colorScheme.onSecondaryContainer,
     visualDensity: VisualDensity.standard,
-    padding: const EdgeInsets.symmetric(
-      horizontal: AppSpacing.medium - AppSpacing.xSmall,
-    ),
+    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.compact),
     minimumSize: const Size(0, height),
     // Dokunma hedefi Material'in kendi payıyla korunur: görünen hap küçük,
     // dokunulan alan değil.

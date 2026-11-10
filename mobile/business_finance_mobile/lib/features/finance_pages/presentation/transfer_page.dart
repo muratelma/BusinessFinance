@@ -11,7 +11,6 @@ import '../../../core/widgets/app_inline_notice.dart';
 import '../../../core/widgets/app_page_header.dart';
 import '../../../core/widgets/app_scope_selector.dart';
 import '../../../core/widgets/app_state_views.dart';
-import '../../../core/widgets/app_untracked_text.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../cards/presentation/transfer_prefill.dart';
 import '../data/finance_page_models.dart';
@@ -19,6 +18,7 @@ import '../data/finance_page_repository.dart';
 import 'transfer_controller.dart';
 import '../../../core/widgets/app_account_field.dart';
 import '../../../features/accounts/presentation/account_directory.dart';
+import '../../../core/theme/app_radius.dart';
 
 class TransferPage extends StatelessWidget {
   const TransferPage({
@@ -31,8 +31,7 @@ class TransferPage extends StatelessWidget {
   final FinancialDataChanges? changes;
   final TransferPrefill? prefill;
   @override
-  Widget build(BuildContext context) =>
-      AppUntrackedText(child: _TransferPageBody(this));
+  Widget build(BuildContext context) => _TransferPageBody(this);
 }
 
 class _TransferPageBody extends StatefulWidget {
@@ -131,7 +130,6 @@ class _TransferPageState extends State<_TransferPageBody> {
       children: [
         AppPageHeader(
           title: 'Yeni transfer',
-          compact: true,
           onBack: controller.isSaving
               ? null
               : () => Navigator.maybePop(context),
@@ -149,12 +147,7 @@ class _TransferPageState extends State<_TransferPageBody> {
               : Form(
                   key: form,
                   child: ListView(
-                    padding: const EdgeInsets.only(
-                      left: AppSpacing.medium,
-                      top: AppSpacing.small + AppSpacing.xSmall,
-                      right: AppSpacing.medium,
-                      bottom: AppSpacing.large,
-                    ),
+                    padding: AppPageInsets.form,
                     children: [
                       AppDateField(
                         label: 'Tarih',
@@ -168,30 +161,28 @@ class _TransferPageState extends State<_TransferPageBody> {
                           _preview();
                         },
                       ),
-                      const SizedBox(height: AppSpacing.medium),
+                      const SizedBox(height: AppGaps.field),
                       _account('Çıkan hesap', source, (v) {
                         source = v;
                         if (destination == source) destination = null;
                         explicit = null;
                         _preview();
                       }),
-                      const SizedBox(height: AppSpacing.medium),
+                      const SizedBox(height: AppGaps.field),
                       _account('Giren hesap', destination, (v) {
                         destination = v;
                         _preview();
                       }, exclude: source),
-                      const SizedBox(height: AppSpacing.medium),
+                      const SizedBox(height: AppGaps.field),
                       _money('Tutar', amount, requiredValue: true),
-                      const SizedBox(height: AppSpacing.medium),
+                      const SizedBox(height: AppGaps.field),
                       _money('Masraf (isteğe bağlı)', fee),
                       if ((MoneyMath.fromInput(fee.text) ?? '0.0000') !=
                               '0.0000' &&
                           from?.defaultScope == null &&
                           (controller.preview?.needsScope ??
                               false || explicit != null)) ...[
-                        const SizedBox(
-                          height: AppSpacing.medium + AppSpacing.xSmall,
-                        ),
+                        const SizedBox(height: AppSpacing.step20),
                         AppScopeSection(
                           explicit: explicit,
                           source: from?.defaultScope,
@@ -207,15 +198,12 @@ class _TransferPageState extends State<_TransferPageBody> {
                       const SizedBox(height: AppSpacing.medium),
                       if (controller.isPreviewing)
                         const Padding(
-                          padding: EdgeInsets.all(
-                            AppSpacing.small + AppSpacing.xSmall,
-                          ),
+                          padding: EdgeInsets.all(AppSpacing.compact),
                           child: LinearProgressIndicator(),
                         ),
                       if (controller.preview != null)
                         AppInlineNotice(
                           margin: EdgeInsets.zero,
-                          compact: true,
                           emphasis: MoneyText.format(
                             controller.preview!.totalOutflow,
                             'TRY',
@@ -224,7 +212,7 @@ class _TransferPageState extends State<_TransferPageBody> {
                               ? '${controller.preview!.sourceAccountName} hesabından ${MoneyText.format(controller.preview!.totalOutflow, 'TRY')} çıkar.'
                               : '${controller.preview!.sourceAccountName} hesabından toplam ${MoneyText.format(controller.preview!.totalOutflow, 'TRY')} çıkar. Masraf ${controller.preview!.feeCategoryName} olarak gider yazılır.',
                         ),
-                      const SizedBox(height: AppSpacing.medium),
+                      const SizedBox(height: AppGaps.field),
                       TextFormField(
                         controller: description,
                         enabled: !controller.isSaving,
@@ -254,9 +242,9 @@ class _TransferPageState extends State<_TransferPageBody> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.medium,
-                AppSpacing.small + AppSpacing.xSmall,
+                AppSpacing.compact,
                 AppSpacing.medium,
-                AppSpacing.medium + AppSpacing.xSmall,
+                AppSpacing.step20,
               ),
               child: SizedBox(width: double.infinity, child: _saveButton()),
             ),
@@ -273,8 +261,10 @@ class _TransferPageState extends State<_TransferPageBody> {
         ? null
         : _save,
     style: FilledButton.styleFrom(
-      minimumSize: const Size.fromHeight(52),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      minimumSize: const Size.fromHeight(AppSizes.button),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.field),
+      ),
     ),
     child: Text(controller.isSaving ? 'Kaydediliyor…' : 'Kaydet'),
   );

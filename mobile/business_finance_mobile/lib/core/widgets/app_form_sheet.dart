@@ -7,6 +7,8 @@ import 'app_form_error.dart';
 import 'app_submit_button.dart';
 
 /// Veri giren panellerin ortak kabuğu: başlık, kaydırılan gövde, eylem satırı.
+/// İç boşluklar `AppSheetInsets`'ten gelir; kenar bütün panellerde 16 dp'dir
+/// (10 Kasım 2026, önceden 24 ve 16 karışıktı).
 ///
 /// `AppConfirmDialog` bir soruyu sorar; bu bileşen bir **form** taşır. İkisi
 /// ayrı kalıptır ve ayrı bileşenlerdir.
@@ -39,12 +41,7 @@ class AppFormSheet<T> extends StatelessWidget {
     this.secondaryLabel,
     this.onSecondary,
     this.errorMessage,
-    this.horizontalPadding = AppSpacing.large,
   });
-
-  /// Panelin iki yanındaki boşluk. Varsayılan bütün formların ortak
-  /// boşluğudur; teslimi 16 dp çerçeveyle çizilmiş panel onu verir.
-  final double horizontalPadding;
 
   /// Kaydın reddi. Eylem satırının hemen üstünde, kaydırılan gövdenin
   /// dışında durur: gövde nerede olursa olsun `Kaydet`e basan onu görür.
@@ -91,12 +88,7 @@ class AppFormSheet<T> extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: EdgeInsets.fromLTRB(
-            horizontalPadding,
-            AppSpacing.medium,
-            horizontalPadding,
-            AppSpacing.small,
-          ),
+          padding: AppSheetInsets.header(context),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -118,11 +110,8 @@ class AppFormSheet<T> extends StatelessWidget {
         Flexible(
           child: _FittedBody(
             child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                horizontalPadding,
-                AppSpacing.small,
-                horizontalPadding,
-                AppSpacing.medium + keyboardInset,
+              padding: AppSheetInsets.body.add(
+                EdgeInsets.only(bottom: keyboardInset),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -134,22 +123,12 @@ class AppFormSheet<T> extends StatelessWidget {
         ),
         if (errorMessage != null)
           Padding(
-            padding: EdgeInsets.fromLTRB(
-              horizontalPadding,
-              0,
-              horizontalPadding,
-              AppSpacing.small,
-            ),
+            padding: AppSheetInsets.error,
             child: AppFormError(message: errorMessage!),
           ),
         Container(
           decoration: BoxDecoration(border: Border(top: surfaces.cardBorder)),
-          padding: EdgeInsets.fromLTRB(
-            horizontalPadding,
-            AppSpacing.small,
-            horizontalPadding,
-            AppSpacing.medium,
-          ),
+          padding: AppSheetInsets.actions,
           // `Row` değil `OverflowBar`: 2.0× yazı ölçeğinde üç buton tek satıra
           // sığmıyor ve sığdırılmaya çalışılınca eylem satırı sağdan taşıyordu
           // (ölçülen 334 px). `OverflowBar` sığdığında yatay dizer, sığmadığında

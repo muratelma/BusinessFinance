@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_surfaces.dart';
+import '../theme/app_typography.dart';
 
 /// Geri alınması zor bir eylemden önceki açık onay.
 ///
@@ -146,7 +147,7 @@ class _ConfirmDialog extends StatelessWidget {
                     headline!,
                     textAlign: TextAlign.center,
                     style: theme.textTheme.titleLarge?.copyWith(
-                      fontSize: 22,
+                      fontSize: AppTextSizes.metric,
                       height: 1.3,
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.2,
@@ -161,7 +162,7 @@ class _ConfirmDialog extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.medium,
-                      vertical: AppSpacing.small + AppSpacing.xSmall,
+                      vertical: AppSpacing.compact,
                     ),
                     decoration: BoxDecoration(
                       color: surfaces.cardMuted,
@@ -268,7 +269,7 @@ class _SubjectCard extends StatelessWidget {
             Text(
               amount,
               style: theme.textTheme.titleLarge?.copyWith(
-                fontSize: 22,
+                fontSize: AppTextSizes.metric,
                 height: 1.3,
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.2,

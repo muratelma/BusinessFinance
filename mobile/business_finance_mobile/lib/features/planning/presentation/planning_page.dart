@@ -17,7 +17,7 @@ import '../../../core/widgets/app_adaptive_sheet.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_date_field.dart';
 import '../../../core/widgets/app_category_field.dart';
-import '../../../core/widgets/app_untracked_text.dart';
+import '../../../core/widgets/app_page_bar.dart';
 import '../../categories/presentation/category_create_page.dart';
 import '../../categories/presentation/recent_categories.dart';
 import '../../../core/widgets/app_list_row.dart';
@@ -79,7 +79,7 @@ class _PlanningPageState extends State<PlanningPage> {
   Widget build(BuildContext context) => DefaultTabController(
     length: 3,
     child: Scaffold(
-      appBar: AppBar(
+      appBar: AppPageBar(
         title: const Text('Planlama ve raporlar'),
         bottom: const TabBar(
           isScrollable: true,
@@ -149,7 +149,7 @@ class _PlanningPageState extends State<PlanningPage> {
   Widget _recurringTab(PlanningSnapshot snapshot) => RefreshIndicator(
     onRefresh: controller.load,
     child: ListView(
-      padding: const EdgeInsets.all(AppSpacing.medium),
+      padding: AppPageInsets.underTabs,
       children: [
         FilledButton.icon(
           onPressed: controller.isSubmitting
@@ -158,7 +158,7 @@ class _PlanningPageState extends State<PlanningPage> {
           icon: const Icon(Icons.add),
           label: const Text('Tekrarlayan plan ekle'),
         ),
-        const SizedBox(height: AppSpacing.medium),
+        const SizedBox(height: AppGaps.block),
         if (snapshot.recurringTransactions.isEmpty)
           const SizedBox(
             height: 220,
@@ -207,10 +207,10 @@ class _PlanningPageState extends State<PlanningPage> {
   Widget _upcomingTab(PlanningSnapshot snapshot) => RefreshIndicator(
     onRefresh: controller.load,
     child: ListView(
-      padding: const EdgeInsets.all(AppSpacing.medium),
+      padding: AppPageInsets.underTabs,
       children: [
         Text('Vade ufku', style: Theme.of(context).textTheme.labelLarge),
-        const SizedBox(height: AppSpacing.small),
+        const SizedBox(height: AppGaps.sectionTitle),
         Wrap(
           spacing: AppSpacing.small,
           children: [
@@ -224,7 +224,7 @@ class _PlanningPageState extends State<PlanningPage> {
               ),
           ],
         ),
-        const SizedBox(height: AppSpacing.medium),
+        const SizedBox(height: AppGaps.block),
         // `Bugüne kadar üret` düğmesi kaldırıldı.
         //
         // Tek işi, gerçekleştirilebilir bir satır üretebilmekti; artık
@@ -238,7 +238,7 @@ class _PlanningPageState extends State<PlanningPage> {
           icon: const Icon(Icons.today),
           label: Text('Referans tarihi: ${_formatDate(controller.asOfDate)}'),
         ),
-        const SizedBox(height: AppSpacing.medium),
+        const SizedBox(height: AppGaps.block),
         if (snapshot.upcomingPayments.isEmpty)
           const SizedBox(
             height: 260,
@@ -265,7 +265,7 @@ class _PlanningPageState extends State<PlanningPage> {
               (item) => item.timing == timing,
             ))
               Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.small),
+                padding: const EdgeInsets.only(bottom: AppGaps.card),
                 child: AppCard(
                   padding: EdgeInsets.zero,
                   child: AppListRow(
@@ -455,7 +455,7 @@ class _PlanningPageState extends State<PlanningPage> {
   Widget _reportsTab(AdvancedReport report) => RefreshIndicator(
     onRefresh: controller.load,
     child: ListView(
-      padding: const EdgeInsets.all(AppSpacing.medium),
+      padding: AppPageInsets.underTabs,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -487,7 +487,7 @@ class _PlanningPageState extends State<PlanningPage> {
         ),
         const SizedBox(height: AppSpacing.medium),
         _SummaryGrid(report: report),
-        const SizedBox(height: AppSpacing.large),
+        const SizedBox(height: AppGaps.section),
         const AppSectionHeader(title: 'Nakit akışı eğilimi'),
         AppCard(
           child: CashFlowChart(
@@ -495,7 +495,7 @@ class _PlanningPageState extends State<PlanningPage> {
             currency: report.currency,
           ),
         ),
-        const SizedBox(height: AppSpacing.large),
+        const SizedBox(height: AppGaps.section),
         // Grafiğin metin alternatifi grafiğin yerine geçmez, onu tamamlar:
         // aynı sayılar okunabilir biçimde de durur. Kendi kartında toplanır,
         // yoksa on iki satır ekranı düz bir duvara çevirir.
@@ -525,7 +525,7 @@ class _PlanningPageState extends State<PlanningPage> {
                 ),
             ],
           ),
-        const SizedBox(height: AppSpacing.large),
+        const SizedBox(height: AppGaps.section),
         const AppSectionHeader(title: 'Bütçe sapmaları'),
         if (report.budgetVariances.isEmpty)
           const _EmptyNote('Bu dönem için bütçe sapması yok.')
@@ -559,7 +559,7 @@ class _PlanningPageState extends State<PlanningPage> {
                 ),
             ],
           ),
-        const SizedBox(height: AppSpacing.large),
+        const SizedBox(height: AppGaps.section),
         _DistributionSection(
           title: 'Hesap dağılımı',
           items: report.accountDistribution,
@@ -846,7 +846,7 @@ class _DistributionSection extends StatelessWidget {
               ),
           ],
         ),
-      const SizedBox(height: AppSpacing.large),
+      const SizedBox(height: AppGaps.section),
     ],
   );
 }
@@ -935,226 +935,223 @@ class _RecurringFormState extends State<_RecurringForm> {
 
   @override
   // Teslimle kurulan panel: 16 dp yan boşluk, metin harf aralıksız.
-  Widget build(BuildContext context) => AppUntrackedText(
-    child: Form(
-      key: formKey,
-      child: AppFormSheet<bool>(
-        title: 'Tekrarlayan plan ekle',
-        description:
-            'Plan tek başına para üretmez; kayıt ancak gerçekleştirildiğinde '
-            'bakiyeye ve raporlara girer.',
-        horizontalPadding: AppSpacing.medium,
-        submitLabel: 'Kaydet',
-        onSubmit: _submit,
-        children: [
-          // Income can only land in an account: a card cannot receive money
-          // and card refunds are not modelled. An expense or bill may be
-          // charged to a card, which is how a subscription is really paid.
-          if (kind == 'income')
-            AppAccountField(
-              label: 'Hesap',
-              value: accountId,
-              options: [
-                for (final account in accounts)
-                  AccountChoices.of(context).account(
-                    account.id,
-                    account.name,
-                    type: account.type,
-                    scope: account.defaultScope,
-                  ),
-              ],
-              onChanged: (value) => setState(() {
-                accountId = value;
-                creditCardId = null;
-              }),
-              onAdd: _addAccount,
-              validator: (value) => value == null ? 'Hesap seçin.' : null,
-            )
-          else
-            AppAccountField(
-              label: 'Kaynak',
-              value: _sourceValue,
-              options: [
-                for (final account in accounts)
-                  AccountChoices.of(context)
-                      .account(
-                        account.id,
-                        account.name,
-                        type: account.type,
-                        scope: account.defaultScope,
-                      )
-                      .withId('account:${account.id}'),
-                for (final card in widget.snapshot.creditCards)
-                  AccountChoices.of(context)
-                      .card(card.id, card.name, scope: card.defaultScope)
-                      .withId('card:${card.id}'),
-              ],
-              onChanged: (value) => setState(() {
-                if (value == null) return;
-                final isCard = value.startsWith('card:');
-                creditCardId = isCard ? value.substring(5) : null;
-                accountId = isCard ? null : value.substring(8);
-              }),
-              onAdd: _addAccount,
-              validator: (value) => value == null ? 'Kaynak seçin.' : null,
-            ),
-          const SizedBox(height: AppSpacing.medium),
-          AppCategoryField(
-            options: _categoryOptions,
-            value: _categoryValue,
-            recent: RecentCategories.of(context, _categoryType),
-            showScope: context.watch<ScopeController?>()?.isVisible ?? false,
-            onChanged: (value) => setState(() {
-              categoryId = value?.categoryId;
-              categoryScope = value?.scope;
-            }),
-            onAdd: _addCategory,
-            validator: (value) => value == null ? 'Kategori seçin.' : null,
-          ),
-          const SizedBox(height: AppSpacing.medium),
-          TextFormField(
-            controller: amount,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Tutar'),
-            validator: _amountError,
-          ),
-          const SizedBox(height: AppSpacing.medium),
-          DropdownButtonFormField<String>(
-            initialValue: kind,
-            decoration: const InputDecoration(labelText: 'Tür'),
-            items: const [
-              DropdownMenuItem(value: 'income', child: Text('Gelir')),
-              DropdownMenuItem(value: 'expense', child: Text('Gider')),
-              DropdownMenuItem(
-                value: 'bill-payment',
-                child: Text('Fatura / abonelik'),
-              ),
+  Widget build(BuildContext context) => Form(
+    key: formKey,
+    child: AppFormSheet<bool>(
+      title: 'Tekrarlayan plan ekle',
+      description:
+          'Plan tek başına para üretmez; kayıt ancak gerçekleştirildiğinde '
+          'bakiyeye ve raporlara girer.',
+      submitLabel: 'Kaydet',
+      onSubmit: _submit,
+      children: [
+        // Income can only land in an account: a card cannot receive money
+        // and card refunds are not modelled. An expense or bill may be
+        // charged to a card, which is how a subscription is really paid.
+        if (kind == 'income')
+          AppAccountField(
+            label: 'Hesap',
+            value: accountId,
+            options: [
+              for (final account in accounts)
+                AccountChoices.of(context).account(
+                  account.id,
+                  account.name,
+                  type: account.type,
+                  scope: account.defaultScope,
+                ),
             ],
             onChanged: (value) => setState(() {
-              kind = value!;
-              if (!_availableCategories.any(
-                (category) => category.id == categoryId,
-              )) {
-                categoryId = null;
-                categoryScope = null;
-              }
+              accountId = value;
+              creditCardId = null;
+            }),
+            onAdd: _addAccount,
+            validator: (value) => value == null ? 'Hesap seçin.' : null,
+          )
+        else
+          AppAccountField(
+            label: 'Kaynak',
+            value: _sourceValue,
+            options: [
+              for (final account in accounts)
+                AccountChoices.of(context)
+                    .account(
+                      account.id,
+                      account.name,
+                      type: account.type,
+                      scope: account.defaultScope,
+                    )
+                    .withId('account:${account.id}'),
+              for (final card in widget.snapshot.creditCards)
+                AccountChoices.of(context)
+                    .card(card.id, card.name, scope: card.defaultScope)
+                    .withId('card:${card.id}'),
+            ],
+            onChanged: (value) => setState(() {
+              if (value == null) return;
+              final isCard = value.startsWith('card:');
+              creditCardId = isCard ? value.substring(5) : null;
+              accountId = isCard ? null : value.substring(8);
+            }),
+            onAdd: _addAccount,
+            validator: (value) => value == null ? 'Kaynak seçin.' : null,
+          ),
+        const SizedBox(height: AppGaps.field),
+        AppCategoryField(
+          options: _categoryOptions,
+          value: _categoryValue,
+          recent: RecentCategories.of(context, _categoryType),
+          showScope: context.watch<ScopeController?>()?.isVisible ?? false,
+          onChanged: (value) => setState(() {
+            categoryId = value?.categoryId;
+            categoryScope = value?.scope;
+          }),
+          onAdd: _addCategory,
+          validator: (value) => value == null ? 'Kategori seçin.' : null,
+        ),
+        const SizedBox(height: AppGaps.field),
+        TextFormField(
+          controller: amount,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(labelText: 'Tutar'),
+          validator: _amountError,
+        ),
+        const SizedBox(height: AppGaps.field),
+        DropdownButtonFormField<String>(
+          initialValue: kind,
+          decoration: const InputDecoration(labelText: 'Tür'),
+          items: const [
+            DropdownMenuItem(value: 'income', child: Text('Gelir')),
+            DropdownMenuItem(value: 'expense', child: Text('Gider')),
+            DropdownMenuItem(
+              value: 'bill-payment',
+              child: Text('Fatura / abonelik'),
+            ),
+          ],
+          onChanged: (value) => setState(() {
+            kind = value!;
+            if (!_availableCategories.any(
+              (category) => category.id == categoryId,
+            )) {
+              categoryId = null;
+              categoryScope = null;
+            }
+          }),
+        ),
+        const SizedBox(height: AppGaps.field),
+        DropdownButtonFormField<String>(
+          initialValue: frequency,
+          decoration: const InputDecoration(labelText: 'Sıklık'),
+          items: const [
+            // Emlak Mayıs ve Kasım, gelir vergisi Mart ve Temmuz gibi
+            // ritimler "6 ayda bir"e sığmıyor (ADR 0018 T2).
+            DropdownMenuItem(
+              value: 'selected-months',
+              child: Text('Seçilen aylarda'),
+            ),
+            DropdownMenuItem(value: 'daily', child: Text('Günlük')),
+            DropdownMenuItem(value: 'weekly', child: Text('Haftalık')),
+            DropdownMenuItem(value: 'monthly', child: Text('Aylık')),
+            // Geçici verginin ritmi; aylığın üç adımlık hâli.
+            DropdownMenuItem(value: 'quarterly', child: Text('Üç ayda bir')),
+            DropdownMenuItem(value: 'yearly', child: Text('Yıllık')),
+          ],
+          onChanged: (value) => setState(() => frequency = value!),
+        ),
+        if (frequency == 'selected-months') ...[
+          const SizedBox(height: AppSpacing.small),
+          AppMonthChips(
+            selected: months,
+            onChanged: (value) => setState(() {
+              months = value;
+              monthsInvalid = false;
             }),
           ),
-          const SizedBox(height: AppSpacing.medium),
-          DropdownButtonFormField<String>(
-            initialValue: frequency,
-            decoration: const InputDecoration(labelText: 'Sıklık'),
-            items: const [
-              // Emlak Mayıs ve Kasım, gelir vergisi Mart ve Temmuz gibi
-              // ritimler "6 ayda bir"e sığmıyor (ADR 0018 T2).
-              DropdownMenuItem(
-                value: 'selected-months',
-                child: Text('Seçilen aylarda'),
-              ),
-              DropdownMenuItem(value: 'daily', child: Text('Günlük')),
-              DropdownMenuItem(value: 'weekly', child: Text('Haftalık')),
-              DropdownMenuItem(value: 'monthly', child: Text('Aylık')),
-              // Geçici verginin ritmi; aylığın üç adımlık hâli.
-              DropdownMenuItem(value: 'quarterly', child: Text('Üç ayda bir')),
-              DropdownMenuItem(value: 'yearly', child: Text('Yıllık')),
-            ],
-            onChanged: (value) => setState(() => frequency = value!),
-          ),
-          if (frequency == 'selected-months') ...[
-            const SizedBox(height: AppSpacing.small),
-            AppMonthChips(
-              selected: months,
-              onChanged: (value) => setState(() {
-                months = value;
-                monthsInvalid = false;
-              }),
-            ),
-            if (monthsInvalid)
-              Padding(
-                padding: const EdgeInsets.only(top: AppSpacing.small),
-                child: Text(
-                  months.isEmpty
-                      ? 'En az bir ay seçin.'
-                      : 'Başlangıç seçilen aylardan birinde olmalı.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.error,
-                  ),
+          if (monthsInvalid)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.small),
+              child: Text(
+                months.isEmpty
+                    ? 'En az bir ay seçin.'
+                    : 'Başlangıç seçilen aylardan birinde olmalı.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.error,
                 ),
               ),
-          ],
-          const SizedBox(height: AppSpacing.medium),
-          DropdownButtonFormField<String>(
-            initialValue: monthEndBehavior,
-            decoration: const InputDecoration(labelText: 'Ay sonu davranışı'),
-            items: const [
-              DropdownMenuItem(
-                value: 'clamp-to-last-day',
-                child: Text('Ayın son gününe taşı'),
-              ),
-              DropdownMenuItem(
-                value: 'skip-invalid-period',
-                child: Text('Geçersiz ayı atla'),
-              ),
-            ],
-            onChanged: (value) => monthEndBehavior = value!,
-          ),
-          const SizedBox(height: AppSpacing.medium),
-          AppDateField(
-            label: 'Başlangıç',
-            value: _formatDate(startDate),
-            onChanged: (value) => setState(() {
-              startDate = AppDateField.parse(value)!;
-              final end = AppDateField.parse(endDate);
-              if (end != null && end.isBefore(startDate)) endDate = null;
-            }),
-          ),
-          const SizedBox(height: AppSpacing.medium),
-          AppDateField(
-            label: 'Bitiş tarihi (isteğe bağlı)',
-            value: endDate,
-            firstDate: startDate,
-            helperText: 'Boş bırakırsanız plan süresiz tekrar eder.',
-            onChanged: (value) => setState(() => endDate = value),
-          ),
-          if (endDate != null)
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () => setState(() => endDate = null),
-                icon: const Icon(Icons.clear),
-                label: const Text('Bitiş tarihini kaldır'),
-              ),
             ),
-          const SizedBox(height: AppSpacing.medium),
-          TextFormField(
-            controller: occurrenceLimit,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Toplam tekrar sınırı (isteğe bağlı)',
-              helperText:
-                  'Plan bu sayıda kayıt ürettikten sonra tamamlanır. '
-                  'Bitiş tarihiyle birlikte verilirse önce dolan geçerlidir.',
-            ),
-            validator: (value) {
-              final text = value?.trim() ?? '';
-              if (text.isEmpty) return null;
-              final parsed = int.tryParse(text);
-              return parsed == null || parsed <= 0
-                  ? 'Sıfırdan büyük tam sayı girin.'
-                  : null;
-            },
-          ),
-          const SizedBox(height: AppSpacing.medium),
-          TextFormField(
-            controller: description,
-            hintLocales: const [Locale('tr', 'TR')],
-            maxLength: 200,
-            decoration: const InputDecoration(
-              labelText: 'Açıklama (isteğe bağlı)',
-            ),
-          ),
         ],
-      ),
+        const SizedBox(height: AppGaps.field),
+        DropdownButtonFormField<String>(
+          initialValue: monthEndBehavior,
+          decoration: const InputDecoration(labelText: 'Ay sonu davranışı'),
+          items: const [
+            DropdownMenuItem(
+              value: 'clamp-to-last-day',
+              child: Text('Ayın son gününe taşı'),
+            ),
+            DropdownMenuItem(
+              value: 'skip-invalid-period',
+              child: Text('Geçersiz ayı atla'),
+            ),
+          ],
+          onChanged: (value) => monthEndBehavior = value!,
+        ),
+        const SizedBox(height: AppGaps.field),
+        AppDateField(
+          label: 'Başlangıç',
+          value: _formatDate(startDate),
+          onChanged: (value) => setState(() {
+            startDate = AppDateField.parse(value)!;
+            final end = AppDateField.parse(endDate);
+            if (end != null && end.isBefore(startDate)) endDate = null;
+          }),
+        ),
+        const SizedBox(height: AppGaps.field),
+        AppDateField(
+          label: 'Bitiş tarihi (isteğe bağlı)',
+          value: endDate,
+          firstDate: startDate,
+          helperText: 'Boş bırakırsanız plan süresiz tekrar eder.',
+          onChanged: (value) => setState(() => endDate = value),
+        ),
+        if (endDate != null)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => setState(() => endDate = null),
+              icon: const Icon(Icons.clear),
+              label: const Text('Bitiş tarihini kaldır'),
+            ),
+          ),
+        const SizedBox(height: AppGaps.field),
+        TextFormField(
+          controller: occurrenceLimit,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Toplam tekrar sınırı (isteğe bağlı)',
+            helperText:
+                'Plan bu sayıda kayıt ürettikten sonra tamamlanır. '
+                'Bitiş tarihiyle birlikte verilirse önce dolan geçerlidir.',
+          ),
+          validator: (value) {
+            final text = value?.trim() ?? '';
+            if (text.isEmpty) return null;
+            final parsed = int.tryParse(text);
+            return parsed == null || parsed <= 0
+                ? 'Sıfırdan büyük tam sayı girin.'
+                : null;
+          },
+        ),
+        const SizedBox(height: AppGaps.field),
+        TextFormField(
+          controller: description,
+          hintLocales: const [Locale('tr', 'TR')],
+          maxLength: 200,
+          decoration: const InputDecoration(
+            labelText: 'Açıklama (isteğe bağlı)',
+          ),
+        ),
+      ],
     ),
   );
 
@@ -1399,7 +1396,7 @@ class _RecurringPlanCard extends StatelessWidget {
     final next = _nextDate;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.small),
+      padding: const EdgeInsets.only(bottom: AppGaps.card),
       child: AppCard(
         padding: EdgeInsets.zero,
         child: AppListRow(

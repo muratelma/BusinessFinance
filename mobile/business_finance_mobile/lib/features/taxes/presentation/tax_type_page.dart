@@ -152,7 +152,7 @@ class _TaxTypePageState extends State<TaxTypePage> {
             ],
           ),
         ),
-        const SizedBox(height: AppSpacing.small),
+        const SizedBox(height: AppGaps.card),
         AppCard(
           padding: EdgeInsets.zero,
           child: AppRow(

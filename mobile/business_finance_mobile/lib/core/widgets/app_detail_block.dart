@@ -95,7 +95,7 @@ class AppDetailRow extends StatelessWidget {
             children: [
               if (icon != null) ...[
                 Icon(icon, size: 18, color: surfaces.inkMuted),
-                const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+                const SizedBox(width: AppSpacing.compact),
               ],
               if (large)
                 Expanded(

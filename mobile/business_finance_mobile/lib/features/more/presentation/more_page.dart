@@ -14,6 +14,7 @@ import '../../../core/widgets/app_page_header.dart';
 import '../../../core/widgets/app_row.dart';
 import '../../../core/widgets/app_status_chip.dart';
 import '../../account/presentation/account_status_controller.dart';
+import '../../../core/theme/app_typography.dart';
 
 /// `Diğer`: ana sekmelere sığmayan kapılar.
 ///
@@ -45,16 +46,11 @@ class MorePage extends StatelessWidget {
               child: ListView(
                 // Alt boşluk `+` düğmesini aşacak kadar: son satır düğmenin
                 // altında kalıp dokunuşu yutmamalı.
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.medium,
-                  AppSpacing.xSmall,
-                  AppSpacing.medium,
-                  AppSpacing.fabClearance,
-                ),
+                padding: AppPageInsets.listWithFab,
                 children: [
                   const _AccountCard(),
                   for (final group in groups) ...[
-                    const SizedBox(height: AppSpacing.large),
+                    const SizedBox(height: AppGaps.section),
                     _MenuGroup(group: group),
                   ],
                 ],
@@ -203,7 +199,7 @@ class _AccountCard extends StatelessWidget {
                     children: [
                       Text('Hesabım', style: theme.textTheme.titleSmall),
                       if (email != null) ...[
-                        const SizedBox(height: AppSpacing.xxSmall),
+                        const SizedBox(height: AppGaps.rowText),
                         Text(
                           email,
                           maxLines: 1,
@@ -277,7 +273,7 @@ class _MenuGroup extends StatelessWidget {
             child: Text(
               group.label,
               style: theme.textTheme.labelMedium?.copyWith(
-                fontSize: 14,
+                fontSize: AppTextSizes.body,
                 letterSpacing: 0.1,
                 color: surfaces.inkMuted,
               ),
@@ -294,7 +290,7 @@ class _MenuGroup extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.medium,
                     AppSpacing.small,
-                    AppSpacing.small + AppSpacing.xSmall,
+                    AppSpacing.compact,
                     AppSpacing.small,
                   ),
                   leading: AppIconCapsule(icon: item.icon),

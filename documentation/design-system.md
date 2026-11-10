@@ -28,6 +28,7 @@ Hepsi `lib/core/theme/` altındadır.
 | `xxSmall` | 2 | Başlık ile alt satırı arası (tasarımda `gap: 2`) |
 | `xSmall` | 4 | Satır içi küçük ayrım |
 | `small` | 8 | Liste öğeleri arası, chip iç boşluğu |
+| `compact` | 12 | Kart ve satır içinin sık adımı (10 Kasım 2026'da merdivene girdi; önceden `small + xSmall` diye yazılıyordu) |
 | `medium` | 16 | Sayfa ve kart iç boşluğu, bölüm arası |
 | `large` | 24 | Bölüm grubu ayrımı |
 | `xLarge` | 32 | Büyük ayrım |
@@ -36,6 +37,12 @@ Hepsi `lib/core/theme/` altındadır.
 
 `fabClearance` ölçeğin bir adımı değildir; son satırın kayan eylem butonunun
 altında kalmaması için tek amaçlı bir yerleşim sabitidir.
+
+`step6`, `step10`, `step14` ve `step20` **geçici ara adımlardır**: bileşen içi
+ince ayarlarda toplama olarak yazılan değerler korunarak adlandırıldı
+(10 Kasım 2026). Yeni kodda kullanılmaz; komşu adıma birleşmeleri ayrı bir
+karardır. İki `AppSpacing` adını toplamak yerine merdivenin adımı seçilir;
+toplama yalnız yerleşim hesabında kalır (klavye payı, girinti, menü genişliği).
 
 Ölçekte olmayan bir değere ihtiyaç duyduğunuzu düşünüyorsanız önce yakın adıma
 yuvarlayın. Ölçeği büyütmek, her ekranın kendi ara değerini uydurmasına giden
@@ -159,8 +166,8 @@ yapmaz.
 
 | Rol | Stil | Nerede |
 |---|---|---|
-| Hero metrik | `displaySmall` 36/700 | Ekranın söylediği tek sayı |
-| Ekran başlığı | `headlineSmall` 24/700; ana ekranlarda `AppPageHeader` 26/700 (−0,6) | Sayfa başlığı |
+| Hero metrik | `displaySmall` 32/700 (10 Kasım 2026'da 36'dan indi) | Sayfanın ana sayısı: Özet'in neti, Kasa bakiyesi, kart borcu, toplam bakiye |
+| Ekran başlığı | `headlineSmall` 24/700; `AppPageHeader` ana sekmede 26/700, geri oklu sayfada 22/600, harf aralıksız | Sayfa başlığı |
 | Kart metriği | `titleLarge` 22/700 | Kart içi tutar |
 | Bölüm başlığı | `titleMedium` 18/600 | `AppSectionHeader` |
 | Satır başlığı | `titleSmall` 16/600 | Liste satırı |
@@ -172,12 +179,70 @@ yapmaz.
 (`tokens/typography.css`) birebir eşitlendi; önceki ölçek bir kademe
 küçüktü.
 
+**Harf aralığı tek kuraldır** (10 Kasım 2026): gövde, başlık, düğme ve para
+metni bütün uygulamada harf aralıksızdır; sıfır temada açıkça yazılır, çünkü
+boş bırakılan kademe Material'ın aralığını devralır. Aralık taşıyan yalnız
+hero metrik ve `headlineSmall` (sıkı) ile 13 puntoluk etiketlerdir (açık).
+Sayfayı ya da paneli harf aralıksız çizmek için sarmalayıcı yoktur;
+`AppUntrackedText`, `AppTypography.untracked` ve `AppTextTracking` kalktı.
+
+**Yazı boyu sayıyla yazılmaz** (10 Kasım 2026). Metin boyunu tema kademesinden
+alır; kademenin yalnız boyunu isteyen yer `AppTextSizes` adını seçer
+(`lib/core/theme/app_typography.dart`). Tema kademeleri de aynı adları okur,
+bu yüzden bir boyu değiştirmek tek satırdır.
+
+| Ad | Boy | En sık nerede |
+|---|---|---|
+| `leafMonth` | 11 | Tarih yaprağının ayı (44×48 sabit kutu) |
+| `micro` | 12 | Grup etiketi, rozet |
+| `caption` | 13 | Alt satır, yardımcı not, etiket kademeleri |
+| `body` | 14 | Gövde ve yardımcı metin |
+| `compact` | 15 | Seçici, menü ve sık satırlar |
+| `row` | 16 | Satır başlığı, düğme, geniş gövde |
+| `leafDay` | 17 | Tarih yaprağının günü |
+| `section` | 18 | Bölüm başlığı |
+| `metric` | 22 | Kart içi tutar, onay başlığı, geri oklu sayfa başlığı |
+| `screenTitle` | 24 | `headlineSmall` |
+| `pageTitle` | 26 | Ana sekme başlığı |
+| `amount` | 28 | Panelin ve özet kartının büyük tutarı |
+| `hero` | 32 | Sayfanın ana sayısı |
+
+Tarih yaprağının iki boyu yalnız ona aittir: 12 ve 16'ya çekilince yaprak
+büyük yazıda kutusundan taşıyor (test yakaladı), bu yüzden kendi adıyla durur.
+Sıkı boş durumun başlığı 17'den 16'ya (`row`) indi. Sayfanın ana sayısı üç
+kademedir: ana sayı 32 (`hero`), alt sayfanın ve panelin toplamı 28
+(`amount`), kart içi toplam 22 (`metric`).
+
+**Panelin kenarı sayfanın kenarıdır** (10 Kasım 2026): alttan açılan form ve
+ayrıntı panelleri 16 dp kenarla çizilir; `AppFormSheet` başlık, gövde, hata ve
+eylem satırı boşluklarını `AppSheetInsets`'ten alır (`app_spacing.dart`).
+Panelin ilk satırı tutamacın hemen altından başlar (`AppSheetInsets.top`:
+telefonda 0, geniş ekranın tutamaçsız kutusunda 24). Eylem satırı sabit
+olmayan panel (ayrıntı, menü, süzgeç) gövdesini `AppSheetInsets.detail` ile
+kurar: kenar 16, son 24. Eylem düzeni iki kalıptır: form panelinde sağa yaslı
+`Vazgeç` ve dolu düğme, ayrıntı panelinde tam genişlikte 48 dp düğmeler.
+Panel başlığı `titleLarge` 22/700'dür.
+
+**Köşe yarıçapı ve düğme boyu sayıyla yazılmaz** (10 Kasım 2026): `AppRadius`
+(`card` 20, `field` 16, `inner` 12, `small` 8, `sheet` 28, `chip`) ve
+`AppSizes` (`button` 48, `menuButton` 40, `rowButton` 36). Tek haneli yarıçap
+grafik işaretidir ve ada bağlanmaz. Onay kutusu (`AppConfirmDialog`) panel
+değildir ve 24 dp'lik kutu payını korur.
+
+**Bilgi notu ve işlem satırı tek boydur** (10 Kasım 2026): `AppInlineNotice`
+ve `ActivityTile` 13 Ekim tesliminin sıkı boyunda çizilir, `compact`
+parametreleri kalktı; `AppRow`'un hiç kullanılmayan `compact`'ı da kalktı.
+`AppEmptyView` iki boyda kalır: boş durumlar yeniden tasarlanacak. Giriş akışı (`features/auth`) kendi
+oranlı ölçeğini kullanır (`NomivaScale`), avatarın harfi dairenin çapına
+oranlıdır; `design_tokens_test.dart` bu ikisi dışında sayıyla yazılmış boyu
+reddeder.
+
 `AppMoneyText` tasarım sisteminin para ölçeğini `size` ile alır: `hero`
-(36/700), `metric` (22/600), `row` (16/600), `body` (14/400). İptal edilmiş
+(32/700), `metric` (22/600), `row` (16/600), `body` (14/400). İptal edilmiş
 tutar soluk renkte ve **üstü çizili** yazılır.
 
-Para için iki yardımcı vardır: `AppTypography.money` (sabit genişlikli rakam)
-ve `heroMoney` (ek ağırlık ve sıkı harf aralığı). Orantılı rakamlarda tutar
+Para için iki yardımcı vardır: `AppTypography.money` (sabit genişlikli rakam,
+harf aralıksız) ve `heroMoney` (ek ağırlık ve sıkı harf aralığı). Orantılı rakamlarda tutar
 sütunu kayar ve `1.000,00` ile `9.999,99` göz kaydırmadan karşılaştırılamaz.
 
 Etiketler büyük harfe çevrilmez: Türkçede `i/İ` dönüşümü tuzaklıdır ve ekran
@@ -213,7 +278,7 @@ yapılır.
 | `AppScopeSection` | Formun taraf bölümü: tek taraflı kategoride `AppScopeInfoRow`, iki tarafa açık kategoride `AppScopeField`. Formlar çipi doğrudan değil bunu kullanır |
 | `AppScopeInfoRow` | Sorulmayan tarafın bilgi satırı: `Şahsi · kategoriden`. Taraf vurgulu, nedeni soluk; dokunulmaz, ekran okuyucu tek cümle okur |
 | `AppLoadingView` / `AppErrorView` / `AppEmptyView` / `AppUnauthorizedView` | Ortak durum ekranları |
-| `AppPageHeader` | Ana ekranların başlık satırı: 26/700 başlık, sağda 48 dp ikon eylemleri, isteğe bağlı geri oku; en az 64 dp + iç boşluk |
+| `AppPageHeader` | Sayfa başlığı: 64 dp satır, sağda 48 dp ikon eylemleri, isteğe bağlı geri oku. Ana sekmede 26/700, geri oklu sayfada 22/600. Ölçüler "Başlık ve boşluk standardı" bölümünde |
 | `AppAvatar` | Hesabın avatarı: marka zemininde e-postanın baş harfleri; doğrulanmamış e-postada kırmızı nokta |
 | `AppIconCapsule` | Satır başındaki yuvarlak kapsül; zemin rolün `*Container`, ikon `on*Container` tonu. Kapsüllü listelerde ayırıcı 72 dp'den başlar (`rowInset`) |
 | `AppRow` | Kart içi satır: serbest baş (kapsül, tarih yaprağı), 16/600 başlık, iki satırlık alt metin, sağ öğe; büyük yazıda sağ öğe alta iner |
@@ -1401,16 +1466,14 @@ Gün sonu panelinde alınan ölçü kararı (10 Ekim 2026) yeni sayfalarda süre
 **yan boşluk 16 dp, metin harf aralıksız.** **Yeni tasarlanan her ekran bu ölçüyle kurulur;**
 eski ekranlar yeniden tasarlandıkça geçer, kalanlar en sona bırakılır (kullanıcı
 kararı, 14 Ekim 2026). Kategori özeti, kategori sayfası,
-hesap sayfası, Yolda, Hesaplar, Yeni transfer ve tutarlı ay seçici
-`AppUntrackedText` altında çizilir. Sarmalayıcı temanın gövde ve başlık
-kademelerinden Material'ın devraldığı harf aralığını kaldırır
-(`AppTypography.untracked`) ve para metnine aynı şeyi söyler
-(`AppTextTracking`); eski ekranlar ve ortak işlem ayrıntısı temanın aralığını
-korur. Ölçüler teslimin kaynak dosyalarından (`screens-v9/*.jsx`) alınır:
+hesap sayfası, Yolda, Hesaplar, Yeni transfer ve tutarlı ay seçici bu ölçüyle
+kuruldu. Harf aralığı 10 Kasım 2026'dan beri temanın kendisindedir ve bütün
+ekranlar için geçerlidir (yukarıda "Harf aralığı tek kuraldır"); bu sayfaları
+saran `AppUntrackedText` kalktı. Ölçüler teslimin kaynak dosyalarından (`screens-v9/*.jsx`) alınır:
 
 | Parça | Ölçü |
 |---|---|
-| Başlık (`AppPageHeader.compact`) | 12/4/4/8 iç boşluk, 48 dp içerik; yazı 26/700, 1,2 satır, harf aralıksız. Ay düğmesi 48 dp, 16/600, 20 dp ok. `tune` ikonu 22 dp |
+| Başlık (`AppPageHeader`) | 10 Kasım 2026'dan beri ortak başlık standardı (64 dp satır, 22/600; aşağıda "Başlık ve boşluk standardı"). Teslimdeki 26/700 ve 12/4/4/8 iç boşluk kullanıcı kararıyla bırakıldı. Ay düğmesi 48 dp, 16/600, 20 dp ok. `tune` ikonu 22 dp |
 | Yön rayı | Kenardan 16, üstten 4 dp; dilim 36 dp, yazı 15/600 |
 | Çip ve menü düğmesi | 36 dp hap, 14/600; yan boşluk 14 (işaretli çipte sol 8, menüde sağ 6), aralık 8. Seçili zemin `primaryContainer`; açık menüde mürekkep kenar; seçeneği kalmayan düğme kesik kenarlı ve soluk |
 | Menü | Çipin 8 dp altında, kenardan 16 dp; başlık 12/16/8 ve çizgi; satır 48 dp (alt yazılıysa 56), ikon 20, ad 15, tutar 15/600 (seçilide 700). Ara başlık 12/600, çizgiden önce 4 dp |
@@ -1426,8 +1489,7 @@ korur. Ölçüler teslimin kaynak dosyalarından (`screens-v9/*.jsx`) alınır:
 
 Ölçek dışı adımlar (6, 10, 14) `AppSpacing` adlarının toplamı olarak yazılır;
 yeni token eklenmedi. Menü açıkken geri tuşu sayfayı değil menüyü kapatır.
-`AppPageHeader` başlığı en az yüksekliğin ortasında durur: sütuna çevrildiğinde
-üste yaslanmış, ana sekmelerin başlığı 16 dp yukarı kaymıştı.
+`AppPageHeader` başlığı en az yüksekliğin ortasında durur.
 
 Kareyle bilerek farklı kalanlar: `POS satışı` adı (karede `Kartlı satış`;
 işlem adları tek sözlükten gelir), eksi işareti (`-`; karede `−`; kullanıcı kararı, 14 Ekim 2026), kategorisiz
@@ -1475,9 +1537,9 @@ Aynı gün yapılan öbür düzeltmeler:
   adıyla başlar: `Kategori özeti · Gider · İşletme`, `Ticari mal alımı · Gider`,
   `Ziraat vadesiz · ay sonu bakiye`.
 - **Sarmalayıcının kapsamı:** üç sayfa ince bir sarmalayıcı ile özel bir
-  gövdeye ayrıldı; gövdenin bağlamı `AppUntrackedText`in altındadır. Öncesinde
-  durum sınıfının bağlamı sarmalayıcının üstünde kalıyor, kategori ve hesap
-  satırları harf aralıklı çiziliyordu. İşlem ayrıntısı gezginin bağlamıyla
+  gövdeye ayrılmıştı ki gövdenin bağlamı `AppUntrackedText`in altında kalsın.
+  Sarmalayıcı 10 Kasım 2026'da kalktı (harf aralığı temadan gelir); ince
+  sarmalayıcı ile gövde ayrımı duruyor. İşlem ayrıntısı gezginin bağlamıyla
   açılır ki ortak panel her yerden aynı görünsün.
 
 ## Hesap seçici ve Özet'te hesap bakiyeleri — 27 Ekim 2026
@@ -1640,3 +1702,85 @@ harf aralıksız metinle çizilir:
 - **Bilerek dokunulmayanlar:** kasa sayımının kapsamı (kategori değil), nakit
   borcun kapsamı (kategorisi yok), transfer masrafının kapsamı, kalkacak
   yükümlülük formu ve eski İşlemler sayfası.
+
+## Başlık ve boşluk standardı — 10 Kasım 2026
+
+Kullanıcı kararı. Önceden üç başlık ölçüsü vardı (ilk teslimin 76 dp'lik büyük
+başlığı, 13 Ekim tesliminin 64 dp'lik kompakt başlığı ve standart `AppBar`);
+hangisinin nerede kullanılacağının kuralı yoktu ve her sayfa başlığın altına
+kendi boşluğunu koyuyordu (0, 4 ya da 12 dp).
+
+**Başlık (`AppPageHeader`) tek ölçüdür:**
+
+| Parça | Ölçü |
+|---|---|
+| Satır | En az 64 dp (`AppPageHeader.rowHeight`), saatin hemen altında başlar; üstte ve altta ek boşluk yok. Yazı ve eylemler satırın ortasında (saatin 32 dp altında) |
+| Ana sekme başlığı (geri oku yok) | 26/700, 1,2 satır, harf aralıksız; soldan 16 dp |
+| İçine girilen sayfa başlığı (geri oklu) | 22/600, 1,2 satır, harf aralıksız; geri okunun glifi soldan 16 dp, yazı 56 dp |
+| Eylemler | 48 dp dokunma alanı, son glifin kenarı sağdan 16 dp |
+| Büyük yazı | Başlık iki satıra çıkar, eylemler alt satıra iner; satır uzar |
+
+Yükseklik Material 3'ün küçük üst çubuğuyla aynıdır. Ana sekme / içine
+girilen sayfa ayrımı (büyük ve küçük başlık) Apple ve Material'ın ortak
+düzenidir. `compact` parametresi kalktı: boyu sayfanın türü (geri oku var mı)
+belirler. `Scaffold.appBar` yuvasında aynı satırı `AppPageBar` çizer (başlık
+bir `Text`, isteğe bağlı eylemler ve sekme çubuğu); geri oku rota geri
+dönebiliyorsa kendiliğinden çıkar. **Yeni sayfada `AppBar` kullanılmaz.**
+
+**Kural teslimin üstündedir** (kullanıcı kararı, 10 Kasım 2026): bir tasarım
+tesliminin başlık ya da boşluk ölçüsü bu bölümle çelişirse bu bölüm
+uygulanır; teslimden görsel dil alınır, ölçü buradan gelir.
+Aynı gün kural bütün ortak ölçülere genişledi: yazı boyları, dikey aralıklar,
+panel boşlukları, köşe yarıçapları, düğme boyları ve ortak bileşenler de
+kuraldan gelir ve **kalıcıdır**; yeni tasarımlar bunların üstüne kurulur.
+Kuraldan ayrılmak yalnız kural tasarımı gözle görülür biçimde bozuyorsa olur;
+o zaman ekrana özel sayı yazılmaz, kural herkes için değişir ya da yeni bir ad
+eklenir (`AGENTS.md` "Flutter kuralları").
+
+**Başlığın altındaki boşluk içeriğin türüne göre tektir:**
+
+| Başlığın hemen altındaki içerik | Üst boşluk |
+|---|---|
+| Liste, kart, anahtar, seçici, arama, bölüm başlığı | 0 |
+| Form (ilk öğe etiketli alan) | 8 (`small`): etiket çerçevenin üstüne taşar, görünen boşluk listeyle aynı kalır |
+| Sekme çubuğunun altındaki liste | 16 (`medium`) |
+| Başlığa yapışık denetim (Özet'in anahtarı, Kasa'nın seçicisi) ile altındaki içerik | 16 (`medium`); liste ayrıca üst boşluk eklemez |
+
+Görünen pay satırın içindedir: yazının altında yaklaşık 18 dp, 40 dp avatarın
+altında 12 dp, ikon düğmesinin altında 8 dp.
+
+**Boşluk merdiveni** (yeni token yok):
+
+| Nerede | Boşluk |
+|---|---|
+| Ekran kenarı | 16 (`medium`) |
+| Başlığın altı ile ilk içerik | 0 |
+| Aynı gruptaki kartlar arası | 8 (`small`) |
+| Bölüm başlığı ile kartı arası | 8 (`small`) |
+| İki bölüm arası | 24 (`large`) |
+| Kartın iç boşluğu | 16 (`medium`) |
+| Uyarı ya da not ile ilgili içerik | 8 (`notice`) |
+| Form alanları arası, ayrı bloklar arası | 16 (`field`, `block`) |
+| Satırda başlık ile alt yazı arası | 2 (`xxSmall`) |
+| Listenin sonu | 32 (`xLarge`); `+` düğmesi varsa `fabClearance` |
+
+**Tek merkez.** Ölçüler sayfalara yazılmaz, adlarından okunur:
+
+| Ne | Nerede |
+|---|---|
+| Başlık satırı, yazı boyları, kenar payları | `AppPageHeader` (`Scaffold.appBar` yuvasında `AppPageBar`) |
+| Sayfa gövdesinin boşluğu | `AppPageInsets`: `list`, `listWithFab`, `fullBleedList`, `form`, `underTabs`, `underTabsWithFab`, `headerControl` |
+| Sayfa içi dikey aralıklar | `AppGaps`: `rowText` 2, `card` 8, `sectionTitle` 8, `chip` 8, `notice` 8, `field` 16, `block` 16, `section` 24 |
+| Bölüm başlığı | `AppSectionHeader`: altındaki 8 dp'yi kendisi taşır, üstünde boşluk taşımaz; üstteki bölüm aralığını (`AppGaps.section`) sayfa verir. Yan eylemi 48 dp'lik düğme olan başlık `padding: EdgeInsets.zero` alır |
+| Süzgeç çipi şeridi | `AppFilterStrip`: kenar `AppPageInsets.filterStrip`, çip arası `AppGaps.chip`; şerit dikey boşluk taşımaz, nefesi çipin dokunma payı verir |
+
+Liste sonu 32, kayan `+` düğmesi olan sayfada `fabClearance`; form sonu 24.
+`test/architecture/design_tokens_test.dart` kaydırılan sayfa gövdesinin kendi
+`EdgeInsets` değerini yazmasını reddeder.
+
+Uygulanan: bütün sayfalar; uygulamada `AppBar` kalmadı. Cari hesap, borç ve
+alacaklar ile yükümlülük sayfalarında yalnız başlık ve üst boşluk kurala
+çekildi, içerikleri yeniden tasarımı bekler. Süzgeç şeritleri `AppFilterStrip`'e bağlandı; testteki tek istisna vergi
+panelinin gövdesidir (`tax_parts.dart`). Çipin kendisi hâlâ iki türlüdür
+(`ChoiceChip` ve kategori sayfalarının 36 dp hapı). Sıradaki fazlar
+`research/DEVIR-2026-11-07.md` §14'te.

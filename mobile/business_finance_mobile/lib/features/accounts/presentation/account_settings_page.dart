@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/widgets/app_page_bar.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../data/account_models.dart';
 import 'account_form_page.dart';
@@ -37,7 +38,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       }
       final error = snapshot.error;
       return Scaffold(
-        appBar: AppBar(title: const Text('Hesap ayarları')),
+        appBar: AppPageBar(title: const Text('Hesap ayarları')),
         body: error == null
             ? const AppLoadingView(message: 'Hesap ayarları alınıyor')
             : error is ApiException && error.isUnauthorized

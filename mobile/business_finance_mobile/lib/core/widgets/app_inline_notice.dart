@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_finance_colors.dart';
 import '../theme/app_spacing.dart';
+import '../theme/app_radius.dart';
 
-/// Bir kaydın eksiğini, o kaydın yanında söyleyen not.
+/// Bir kaydın eksiğini, o kaydın yanında söyleyen not. Tek boydur
+/// (10 Kasım 2026): 16 dp yarıçap, 10/14 iç boşluk, 14 dp yazı.
 ///
 /// Hata değildir: veri geçerli, yalnız yarım. Hata görünümü kullanılırsa
 /// kullanıcı bir şeyin bozulduğunu sanır ve düzeltmek yerine korkar. Bu
@@ -18,7 +20,6 @@ class AppInlineNotice extends StatelessWidget {
     this.icon = Icons.info_outline,
     this.actionLabel,
     this.onAction,
-    this.compact = false,
     this.emphasis,
     this.margin = const EdgeInsets.fromLTRB(
       AppSpacing.medium,
@@ -35,9 +36,6 @@ class AppInlineNotice extends StatelessWidget {
 
   final String message;
 
-  /// Teslimin bilgi notu: 16 dp yarıçap, 10/14 iç boşluk, 14 dp yazı.
-  final bool compact;
-
   /// [message] içinde kalın yazılacak parça (ör. toplam tutar).
   final String? emphasis;
   final IconData icon;
@@ -50,25 +48,20 @@ class AppInlineNotice extends StatelessWidget {
     final colors = AppFinanceColors.of(context);
 
     final style = theme.textTheme.bodyMedium?.copyWith(
-      height: compact ? 1.4 : null,
+      height: 1.4,
       color: colors.onNeutralContainer,
     );
     final cut = emphasis == null ? -1 : message.indexOf(emphasis!);
     return Padding(
       padding: margin,
       child: Container(
-        padding: compact
-            ? const EdgeInsets.symmetric(
-                horizontal:
-                    AppSpacing.small + AppSpacing.xSmall + AppSpacing.xxSmall,
-                vertical: AppSpacing.small + AppSpacing.xxSmall,
-              )
-            : const EdgeInsets.all(AppSpacing.medium),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.step14,
+          vertical: AppSpacing.step10,
+        ),
         decoration: BoxDecoration(
           color: colors.neutralContainer,
-          borderRadius: BorderRadius.circular(
-            compact ? AppSpacing.medium : AppSpacing.small,
-          ),
+          borderRadius: BorderRadius.circular(AppRadius.field),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -76,11 +69,7 @@ class AppInlineNotice extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  icon,
-                  size: compact ? 18 : 20,
-                  color: colors.onNeutralContainer,
-                ),
+                Icon(icon, size: 18, color: colors.onNeutralContainer),
                 const SizedBox(width: AppSpacing.small),
                 Expanded(
                   child: cut < 0

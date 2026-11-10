@@ -3,6 +3,7 @@ import '../theme/app_surfaces.dart';
 import 'package:flutter/material.dart';
 import 'app_card.dart';
 import 'app_money_text.dart';
+import '../theme/app_typography.dart';
 
 /// Sayfa özetlerinin ortak yüzeyi; yalnız hazır tutarları gösterir.
 ///
@@ -42,14 +43,14 @@ class AppSummaryCard extends StatelessWidget {
 
   /// Alt hücrelerin 13 dp etiketi (`Ekim giren`, `Nakit`).
   static TextStyle? smallStyle(BuildContext context) =>
-      helperStyle(context)?.copyWith(fontSize: 13);
+      helperStyle(context)?.copyWith(fontSize: AppTextSizes.caption);
 
   @override
   Widget build(BuildContext context) {
     final main = _main(context);
     return AppCard(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.medium + AppSpacing.xSmall,
+        horizontal: AppSpacing.step20,
         vertical: AppSpacing.medium,
       ),
       child: trailing == null
@@ -77,7 +78,7 @@ class AppSummaryCard extends StatelessWidget {
         size: AppMoneySize.metric,
         signedByAmount: signedByAmount,
         style: const TextStyle(
-          fontSize: 28,
+          fontSize: AppTextSizes.amount,
           height: 1.25,
           fontWeight: FontWeight.w700,
         ),
@@ -96,9 +97,9 @@ class AppSummaryCard extends StatelessWidget {
           ),
       ],
       if (footer != null) ...[
-        const SizedBox(height: AppSpacing.small + AppSpacing.xSmall),
+        const SizedBox(height: AppSpacing.compact),
         const Divider(height: 1),
-        const SizedBox(height: AppSpacing.small + AppSpacing.xSmall),
+        const SizedBox(height: AppSpacing.compact),
         footer!,
       ],
     ],

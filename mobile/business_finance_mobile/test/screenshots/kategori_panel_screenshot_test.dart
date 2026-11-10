@@ -5,7 +5,6 @@ import 'package:business_finance_mobile/core/widgets/app_category_field.dart';
 import 'package:business_finance_mobile/core/widgets/app_choice_segments.dart';
 import 'package:business_finance_mobile/core/widgets/app_date_field.dart';
 import 'package:business_finance_mobile/core/widgets/app_form_sheet.dart';
-import 'package:business_finance_mobile/core/widgets/app_untracked_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -95,76 +94,73 @@ class _PanelState extends State<_Panel> {
   String commission = 'Yok';
 
   @override
-  Widget build(BuildContext context) => AppUntrackedText(
-    child: AppFormSheet<bool>(
-      title: 'POS tahsilatı',
-      description: 'Gelir bugün yazılır, para hesaba sonra geçer.',
-      horizontalPadding: AppSpacing.medium,
-      submitLabel: 'Tahsilatı kaydet',
-      onSubmit: () async => true,
-      children: [
-        AppAccountField(
-          label: 'POS',
-          options: const [],
-          value: 'manual',
-          manualLabel: 'Elle gir',
-          onChanged: (_) {},
-        ),
-        const SizedBox(height: AppSpacing.medium),
-        AppAccountField(
-          label: 'Paranın geçeceği hesap',
-          value: 'g',
-          options: const [
-            AppAccountOption(
-              id: 'g',
-              name: 'Garanti Vadesiz',
-              kind: AppAccountKind.bank,
-              scope: 'İşletme',
-              amount: '14500.0000',
-            ),
-          ],
-          onChanged: (_) {},
-        ),
-        const SizedBox(height: AppSpacing.medium),
-        AppCategoryField(
-          label: 'Satış kategorisi',
-          options: widget.options,
-          value: value,
-          fixedScope: widget.fixed,
-          onChanged: (next) => setState(() => value = next),
-        ),
-        const SizedBox(height: AppSpacing.medium),
-        const TextField(
-          decoration: InputDecoration(
-            labelText: 'Müşterinin ödediği',
-            helperText: 'Brüt tutar: kestiğiniz fatura budur.',
+  Widget build(BuildContext context) => AppFormSheet<bool>(
+    title: 'POS tahsilatı',
+    description: 'Gelir bugün yazılır, para hesaba sonra geçer.',
+    submitLabel: 'Tahsilatı kaydet',
+    onSubmit: () async => true,
+    children: [
+      AppAccountField(
+        label: 'POS',
+        options: const [],
+        value: 'manual',
+        manualLabel: 'Elle gir',
+        onChanged: (_) {},
+      ),
+      const SizedBox(height: AppSpacing.medium),
+      AppAccountField(
+        label: 'Paranın geçeceği hesap',
+        value: 'g',
+        options: const [
+          AppAccountOption(
+            id: 'g',
+            name: 'Garanti Vadesiz',
+            kind: AppAccountKind.bank,
+            scope: 'İşletme',
+            amount: '14500.0000',
           ),
+        ],
+        onChanged: (_) {},
+      ),
+      const SizedBox(height: AppSpacing.medium),
+      AppCategoryField(
+        label: 'Satış kategorisi',
+        options: widget.options,
+        value: value,
+        fixedScope: widget.fixed,
+        onChanged: (next) => setState(() => value = next),
+      ),
+      const SizedBox(height: AppSpacing.medium),
+      const TextField(
+        decoration: InputDecoration(
+          labelText: 'Müşterinin ödediği',
+          helperText: 'Brüt tutar: kestiğiniz fatura budur.',
         ),
-        const SizedBox(height: AppSpacing.medium),
-        AppDateField(
-          label: 'Tahsilat günü',
-          value: '2026-10-28',
-          onChanged: (_) {},
-        ),
-        const SizedBox(height: AppSpacing.medium),
-        AppDateField(
-          label: 'Paranın beklendiği gün',
-          value: '2026-10-28',
-          onChanged: (_) {},
-        ),
-        const SizedBox(height: AppSpacing.medium),
-        AppChoiceSegments<String>(
-          label: 'Komisyon',
-          values: const ['Yok', 'Tutar', 'Oran'],
-          selected: commission,
-          labelOf: (v) => v,
-          onChanged: (v) => setState(() => commission = v),
-        ),
-        const SizedBox(height: AppSpacing.medium),
-        const TextField(
-          decoration: InputDecoration(labelText: 'Açıklama (isteğe bağlı)'),
-        ),
-      ],
-    ),
+      ),
+      const SizedBox(height: AppSpacing.medium),
+      AppDateField(
+        label: 'Tahsilat günü',
+        value: '2026-10-28',
+        onChanged: (_) {},
+      ),
+      const SizedBox(height: AppSpacing.medium),
+      AppDateField(
+        label: 'Paranın beklendiği gün',
+        value: '2026-10-28',
+        onChanged: (_) {},
+      ),
+      const SizedBox(height: AppSpacing.medium),
+      AppChoiceSegments<String>(
+        label: 'Komisyon',
+        values: const ['Yok', 'Tutar', 'Oran'],
+        selected: commission,
+        labelOf: (v) => v,
+        onChanged: (v) => setState(() => commission = v),
+      ),
+      const SizedBox(height: AppSpacing.medium),
+      const TextField(
+        decoration: InputDecoration(labelText: 'Açıklama (isteğe bağlı)'),
+      ),
+    ],
   );
 }

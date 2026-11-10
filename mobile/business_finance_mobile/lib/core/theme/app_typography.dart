@@ -1,5 +1,55 @@
 import 'package:flutter/material.dart';
 
+/// Yazı boyları. Hiçbir ekran `fontSize` için sayı yazmaz; boyun adını seçer
+/// ve bir boyu değiştirmek bütün uygulamayı değiştirir. Çoğu metin boyunu
+/// zaten tema kademesinden alır ([AppTypography.textTheme]); bu adlar kademenin
+/// ağırlığını ya da rengini değil yalnız boyunu isteyen yerler içindir.
+///
+/// Adlar boyun en sık kullanıldığı yeri söyler, tek kullanım yerini değil.
+/// Giriş akışı (`features/auth`) kendi oranlı ölçeğini taşır (`NomivaScale`).
+abstract final class AppTextSizes {
+  /// Tarih yaprağının ayı. Yaprak 44×48 sabit bir kutudur; gün ve ay ona
+  /// göre ölçülüdür ve komşu kademeye çekilince büyük yazıda taşar.
+  static const double leafMonth = 11;
+
+  /// Tarih yaprağının günü.
+  static const double leafDay = 17;
+
+  /// Grup etiketi ve rozet.
+  static const double micro = 12;
+
+  /// Alt satır, yardımcı not, bölüm üstü etiket.
+  static const double caption = 13;
+
+  /// Gövde ve yardımcı metin.
+  static const double body = 14;
+
+  /// Seçici, menü ve sık satırların yazısı.
+  static const double compact = 15;
+
+  /// Liste satırı başlığı, düğme, geniş gövde.
+  static const double row = 16;
+
+  /// Bölüm başlığı.
+  static const double section = 18;
+
+  /// Kart içi tutar, onay başlığı, içine girilen sayfanın başlığı.
+  static const double metric = 22;
+
+  /// Tema ekran başlığı (`headlineSmall`).
+  static const double screenTitle = 24;
+
+  /// Ana sekme başlığı.
+  static const double pageTitle = 26;
+
+  /// Panelin ve özet kartının büyük tutarı.
+  static const double amount = 28;
+
+  /// Sayfanın ana sayısı (Özet'in neti, Kasa bakiyesi, toplam bakiye).
+  /// 10 Kasım 2026'da 36'dan 32'ye indi ve Hesaplar'ın 32'siyle birleşti.
+  static const double hero = 32;
+}
+
 /// Tipografi ölçeği ve para stilleri.
 ///
 /// Yeni font paketi eklenmez: `google_fonts` ağdan indirir, bu uygulama ise
@@ -10,32 +60,22 @@ abstract final class AppTypography {
     FontFeature.tabularFigures(),
   ];
 
-  /// Verilen taban stili para gösterimi için uyarlar: sabit genişlikli rakam
-  /// ve hafif sıkı harf aralığı. Orantılı rakamlarda tutar sütunu kayar ve
+  /// Verilen taban stili para gösterimi için uyarlar: sabit genişlikli
+  /// rakam, harf aralıksız. Orantılı rakamlarda tutar sütunu kayar ve
   /// `1.000,00` ile `9.999,99` göz kaydırmadan karşılaştırılamaz.
   static TextStyle money(TextStyle base) =>
-      base.copyWith(fontFeatures: tabularFigures, letterSpacing: -0.2);
+      base.copyWith(fontFeatures: tabularFigures, letterSpacing: 0);
 
   /// Ekranın tepesindeki tek büyük sayı (net durum). Ölçeğin en üstü burada
   /// kullanılır; başka hiçbir yerde bu boyut yoktur.
   static TextStyle heroMoney(TextStyle base) =>
       money(base).copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.8);
 
-  /// Gövde ve başlık kademelerinden Material'ın harf aralığını kaldırır.
+  /// Gövde, başlık ve düğme kademeleri harf aralıksızdır (10 Kasım 2026):
+  /// boş bırakılan kademe Material'ın aralığını (gövdede 0,25–0,5) devralır,
+  /// bu yüzden sıfır açıkça yazılır. Aralık taşıyan yalnız büyük sayı ve
+  /// ekran başlığı (sıkı) ile küçük bölüm etiketleridir (açık).
   ///
-  /// Claude Design teslimleri harf aralıksız çizilir; tema ise boş bırakılan
-  /// kademelerde Material'ın aralığını (gövdede 0,25–0,5) devralır ve aynı
-  /// cümle teslimden geniş çıkar. Bölüm etiketleri kendi aralığını korur.
-  static TextTheme untracked(TextTheme base) => base.copyWith(
-    titleLarge: base.titleLarge?.copyWith(letterSpacing: 0),
-    titleMedium: base.titleMedium?.copyWith(letterSpacing: 0),
-    titleSmall: base.titleSmall?.copyWith(letterSpacing: 0),
-    bodyLarge: base.bodyLarge?.copyWith(letterSpacing: 0),
-    bodyMedium: base.bodyMedium?.copyWith(letterSpacing: 0),
-    bodySmall: base.bodySmall?.copyWith(letterSpacing: 0),
-    labelLarge: base.labelLarge?.copyWith(letterSpacing: 0),
-  );
-
   /// [faint] verilmezse etiketler yardımcı metinle aynı kademede kalır.
   static TextTheme textTheme(ColorScheme colors, {Color? faint}) {
     final onSurface = colors.onSurface;
@@ -47,7 +87,7 @@ abstract final class AppTypography {
     return TextTheme(
       // Hero metrik.
       displaySmall: TextStyle(
-        fontSize: 36,
+        fontSize: AppTextSizes.hero,
         height: 1.15,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.8,
@@ -55,7 +95,7 @@ abstract final class AppTypography {
       ),
       // Ekran başlığı (AppBar).
       headlineSmall: TextStyle(
-        fontSize: 24,
+        fontSize: AppTextSizes.screenTitle,
         height: 1.25,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.4,
@@ -63,45 +103,63 @@ abstract final class AppTypography {
       ),
       // Kart içi metrik.
       titleLarge: TextStyle(
-        fontSize: 22,
+        fontSize: AppTextSizes.metric,
         height: 1.3,
         fontWeight: FontWeight.w700,
-        letterSpacing: -0.2,
+        letterSpacing: 0,
         color: onSurface,
       ),
       // Bölüm başlığı.
       titleMedium: TextStyle(
-        fontSize: 18,
+        fontSize: AppTextSizes.section,
         height: 1.4,
         fontWeight: FontWeight.w600,
+        letterSpacing: 0,
         color: onSurface,
       ),
       // Liste satırı başlığı.
       titleSmall: TextStyle(
-        fontSize: 16,
+        fontSize: AppTextSizes.row,
         height: 1.4,
         fontWeight: FontWeight.w600,
+        letterSpacing: 0,
         color: onSurface,
       ),
-      bodyLarge: TextStyle(fontSize: 16, height: 1.5, color: onSurface),
-      bodyMedium: TextStyle(fontSize: 14, height: 1.5, color: onSurface),
+      bodyLarge: TextStyle(
+        fontSize: AppTextSizes.row,
+        height: 1.5,
+        letterSpacing: 0,
+        color: onSurface,
+      ),
+      bodyMedium: TextStyle(
+        fontSize: AppTextSizes.body,
+        height: 1.5,
+        letterSpacing: 0,
+        color: onSurface,
+      ),
       // Yardımcı metin: satır altı, tarih, kaynak.
-      bodySmall: TextStyle(fontSize: 14, height: 1.45, color: onSurfaceVariant),
+      bodySmall: TextStyle(
+        fontSize: AppTextSizes.body,
+        height: 1.45,
+        letterSpacing: 0,
+        color: onSurfaceVariant,
+      ),
       labelLarge: const TextStyle(
-        fontSize: 16,
+        fontSize: AppTextSizes.row,
         height: 1.2,
         fontWeight: FontWeight.w600,
+        letterSpacing: 0,
       ),
       // Bölüm üstü küçük etiket: büyük harf aralığıyla başlıktan ayrılır.
       labelMedium: TextStyle(
-        fontSize: 13,
+        fontSize: AppTextSizes.caption,
         height: 1.3,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.4,
         color: label,
       ),
       labelSmall: TextStyle(
-        fontSize: 13,
+        fontSize: AppTextSizes.caption,
         height: 1.3,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.3,
@@ -109,19 +167,4 @@ abstract final class AppTypography {
       ),
     );
   }
-}
-
-/// Alt ağacın harf aralıksız çizildiğini bildirir; para metni de buna uyar.
-class AppTextTracking extends ThemeExtension<AppTextTracking> {
-  const AppTextTracking({required this.untracked});
-
-  final bool untracked;
-
-  @override
-  AppTextTracking copyWith({bool? untracked}) =>
-      AppTextTracking(untracked: untracked ?? this.untracked);
-
-  @override
-  AppTextTracking lerp(AppTextTracking? other, double t) =>
-      t < 0.5 ? this : other ?? this;
 }

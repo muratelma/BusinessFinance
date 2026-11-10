@@ -36,8 +36,9 @@ import 'pos_deposit_sheets.dart';
 import '../../../core/widgets/app_account_field.dart';
 import '../../../features/accounts/presentation/account_directory.dart';
 import '../../../core/widgets/app_choice_segments.dart';
-import '../../../core/widgets/app_untracked_text.dart';
 import '../../categories/presentation/fixed_scope_category_field.dart';
+import '../../../core/theme/app_typography.dart';
+import '../../../core/theme/app_radius.dart';
 
 export 'pos_deposit_sheets.dart' show posSettlementTitle;
 
@@ -181,7 +182,7 @@ class _PosSectionState extends State<PosSection> {
       children: [
         if (controller.isStale)
           Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.small),
+            padding: const EdgeInsets.only(bottom: AppGaps.notice),
             child: AppInlineNotice(
               message:
                   '${controller.errorMessage} Son bilinen liste gösteriliyor.',
@@ -207,7 +208,7 @@ class _PosSectionState extends State<PosSection> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.medium,
-                    vertical: AppSpacing.small + AppSpacing.xSmall,
+                    vertical: AppSpacing.compact,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -390,7 +391,7 @@ class _ExpectedDayHeader extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.medium,
-          AppSpacing.small + AppSpacing.xSmall,
+          AppSpacing.compact,
           AppSpacing.medium,
           AppSpacing.xxSmall,
         ),
@@ -552,7 +553,7 @@ class PosSettlementSheet extends StatelessWidget {
             Row(
               children: [
                 const AppIconCapsule(icon: Icons.point_of_sale_outlined),
-                const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+                const SizedBox(width: AppSpacing.compact),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -594,7 +595,7 @@ class PosSettlementSheet extends StatelessWidget {
                   currency: item.currency,
                   size: AppMoneySize.metric,
                   style: const TextStyle(
-                    fontSize: 28,
+                    fontSize: AppTextSizes.amount,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -652,7 +653,7 @@ class PosSettlementSheet extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.medium),
+            const SizedBox(height: AppGaps.block),
             Text(
               item.isCollection
                   ? 'Kartla tahsil: alacak kapandı, gelir yeniden yazılmadı. '
@@ -664,13 +665,13 @@ class PosSettlementSheet extends StatelessWidget {
                         'işaretleyin; komisyon gider olarak kalır.',
               style: note?.copyWith(color: surfaces.inkMuted),
             ),
-            const SizedBox(height: AppSpacing.medium),
+            const SizedBox(height: AppGaps.block),
             if (!done) ...[
               // Yatış paneli bu tahsilat seçili açılır: gerçekten yatan
               // tutar ve gün orada yazılır.
               FilledButton.icon(
                 style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
+                  minimumSize: const Size.fromHeight(AppSizes.button),
                 ),
                 onPressed: controller.isSubmitting
                     ? null
@@ -709,7 +710,7 @@ class PosSettlementSheet extends StatelessWidget {
               else
                 TextButton.icon(
                   style: TextButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
+                    minimumSize: const Size.fromHeight(AppSizes.button),
                     foregroundColor: theme.colorScheme.error,
                   ),
                   onPressed: controller.isSubmitting
@@ -723,7 +724,7 @@ class PosSettlementSheet extends StatelessWidget {
               // oradadır. Yatışa bağlı tahsilat iptal edilemez.
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
+                  minimumSize: const Size.fromHeight(AppSizes.button),
                 ),
                 onPressed: () => Navigator.of(
                   context,
@@ -894,41 +895,38 @@ class _SettlementFormState extends State<_SettlementForm> {
 
   @override
   // Teslimle kurulan panel: 16 dp yan boşluk, metin harf aralıksız.
-  Widget build(BuildContext context) => AppUntrackedText(
-    child: Form(
-      key: formKey,
-      child: AppFormSheet<bool>(
-        title: 'POS tahsilatı',
-        description: 'Gelir bugün yazılır, para hesaba sonra geçer.',
-        horizontalPadding: AppSpacing.medium,
-        submitLabel: 'Tahsilatı kaydet',
-        onSubmit: _submit,
-        children: [
-          FutureBuilder<PosOptions>(
-            future: options,
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return const Text(
-                  'Hesap ve kategoriler yüklenemedi. Paneli kapatıp yeniden '
-                  'deneyin.',
-                );
-              }
-              if (!snapshot.hasData) return const LinearProgressIndicator();
-              loaded = snapshot.data;
-              // İlk açılışta ana POS (yoksa ilk POS) seçili gelir: akşamki
-              // giriş "tutar + kaydet"tir.
-              if (!definitionChosen && controller.preferredDefinition != null) {
-                definitionChosen = true;
-                definitionId = controller.preferredDefinition!.id;
-              }
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: _fields(snapshot.data!),
+  Widget build(BuildContext context) => Form(
+    key: formKey,
+    child: AppFormSheet<bool>(
+      title: 'POS tahsilatı',
+      description: 'Gelir bugün yazılır, para hesaba sonra geçer.',
+      submitLabel: 'Tahsilatı kaydet',
+      onSubmit: _submit,
+      children: [
+        FutureBuilder<PosOptions>(
+          future: options,
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return const Text(
+                'Hesap ve kategoriler yüklenemedi. Paneli kapatıp yeniden '
+                'deneyin.',
               );
-            },
-          ),
-        ],
-      ),
+            }
+            if (!snapshot.hasData) return const LinearProgressIndicator();
+            loaded = snapshot.data;
+            // İlk açılışta ana POS (yoksa ilk POS) seçili gelir: akşamki
+            // giriş "tutar + kaydet"tir.
+            if (!definitionChosen && controller.preferredDefinition != null) {
+              definitionChosen = true;
+              definitionId = controller.preferredDefinition!.id;
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _fields(snapshot.data!),
+            );
+          },
+        ),
+      ],
     ),
   );
 
@@ -969,13 +967,13 @@ class _SettlementFormState extends State<_SettlementForm> {
           _schedulePreview();
         },
       ),
-      const SizedBox(height: AppSpacing.medium),
+      const SizedBox(height: AppGaps.field),
       // Elle girişte paranın geçeceği hesap POS'un hemen altındadır.
       if (current == null) ...[
         _manualAccountField(options),
-        const SizedBox(height: AppSpacing.medium),
+        const SizedBox(height: AppGaps.field),
         _salesCategoryField(options),
-        const SizedBox(height: AppSpacing.medium),
+        const SizedBox(height: AppGaps.field),
       ],
       TextFormField(
         controller: grossController,
@@ -993,12 +991,12 @@ class _SettlementFormState extends State<_SettlementForm> {
               : null;
         },
       ),
-      const SizedBox(height: AppSpacing.medium),
+      const SizedBox(height: AppGaps.field),
       if (current != null)
         ..._definitionFields(current)
       else
         ..._manualFields(options),
-      const SizedBox(height: AppSpacing.medium),
+      const SizedBox(height: AppGaps.field),
       TextFormField(
         controller: descriptionController,
         decoration: const InputDecoration(labelText: 'Açıklama (isteğe bağlı)'),
@@ -1020,7 +1018,7 @@ class _SettlementFormState extends State<_SettlementForm> {
           _schedulePreview();
         },
       ),
-      const SizedBox(height: AppSpacing.medium),
+      const SizedBox(height: AppGaps.block),
       AppDetailBlock(
         rows: [
           AppDetailRow(
@@ -1101,14 +1099,14 @@ class _SettlementFormState extends State<_SettlementForm> {
       lastDate: DateTime.now(),
       onChanged: (value) => setState(() => settlementDate = value),
     ),
-    const SizedBox(height: AppSpacing.medium),
+    const SizedBox(height: AppGaps.field),
     AppDateField(
       label: 'Paranın beklendiği gün',
       value: expectedTransferDate,
       firstDate: AppDateField.parse(settlementDate),
       onChanged: (value) => setState(() => expectedTransferDate = value),
     ),
-    const SizedBox(height: AppSpacing.medium),
+    const SizedBox(height: AppGaps.field),
     // Grubun adı üstte durur, parçalar kısa kalır (teslim: 48 dp, ✓ yok).
     AppChoiceSegments<_CommissionMode>(
       label: 'Komisyon',
@@ -1125,7 +1123,7 @@ class _SettlementFormState extends State<_SettlementForm> {
       }),
     ),
     if (commissionMode != _CommissionMode.none) ...[
-      const SizedBox(height: AppSpacing.medium),
+      const SizedBox(height: AppGaps.field),
       TextFormField(
         controller: commissionController,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -1139,7 +1137,7 @@ class _SettlementFormState extends State<_SettlementForm> {
         ),
         validator: MoneyInput.positiveError,
       ),
-      const SizedBox(height: AppSpacing.medium),
+      const SizedBox(height: AppGaps.field),
       FixedScopeCategoryField(
         label: 'Komisyon gider kategorisi',
         type: 'expense',

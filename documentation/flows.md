@@ -1398,18 +1398,25 @@ o karara kadar iki kapı bir kusur değil, bilerek bırakılmış geçici hâldi
 İkon `AppBar` action'ıdır ve kapsam anahtarına dokunmaz: anahtar `AppBar`'da
 değil, altındaki ayrı barda ve kaydırılan gövdenin dışında durur.
 
-Sayfanın sırası tehlikeye göredir:
+Sayfanın sırası (9 Kasım 2026'da kullanıcıyla gözden geçirildi):
 
 | Sıra | Bölüm | Ne yapar |
 |---|---|---|
-| 1 | Kimlik | Baş harfler, e-posta, açılış tarihi; doğrulanmamışsa uyarı ve `Adresimi doğrula` aynı kartta |
-| 2 | Tercihler | `İşletmem var`; alt metin duruma göre değişir, kategorilere dokunmaz |
-| 3 | Açık oturumlar · N | Bu cihaz en üstte; göreli açılış (`7 gün önce açıldı`) ve `18 Ekim'e kadar geçerli`; `Diğerlerini kapat` |
-| 4 | Güvenlik | Parola değiştirme; Google ile açılmış (parolasız) hesapta `Parola belirle` |
-| — | Çıkış yap | Kendi tam genişlik kenarlı düğmesi |
-| 5 | Hesabı kapat | Önce `Veri ve yedek` kapısı, sonra kırmızı `Hesabımı sil` |
+| 1 | Başlık (kartsız, ortalı) | 72 dp avatar, kullanıcı adı (yoksa e-posta başlığa çıkar), altında e-posta ve doğrulanmışsa yeşil işaret; doğrulanmamışsa uyarı ve `Adresimi doğrula` başlığın altında |
+| 2 | Tercihler | `İşletmem var`; alt metin anahtarın ne yaptığını söyler (`İşletme ve şahsi ayrımını gösterir.`), kategorilere dokunmaz |
+| 3 | Güvenlik | `Parolamı değiştir` (alt metinsiz); Google ile açılmış (parolasız) hesapta `Parola belirle` |
+| 4 | Açık oturumlar · N | Bu cihaz en üstte; göreli açılış (`7 gün önce açıldı`) ve `18 Ekim'e kadar geçerli`; `Diğerlerini kapat` |
+| 5 | Hesabı kapat | Önce `Önce yedeğinizi alın` kapısı, sonra kırmızı `Hesabımı sil` |
+| 6 | Çıkış yap | Sayfanın en altında, kendi tam genişlik kenarlı düğmesi (kullanıcı onu orada arıyor) |
 
-(Claude Design teslimi, 27 Eylül 2026, HesabimV5.) `Diğerlerini kapat` bu
+Parola pencereleri yeni parolanın dört kuralını yazdıkça işaretler (12+
+karakter, büyük ve küçük harf, rakam, simge), alanlarda göz düğmesi vardır;
+öbür cihazlardaki oturumların kapanacağı tek bir bilgi satırıyla söylenir.
+Hesap açılış tarihi sayfadan kalktı. Özet'teki avatar 32 dp'den 40 dp'ye
+çıktı. Hesap bilgisi kullanıcı adını taşır (`username`; kullanıcı adından
+önce açılmış hesapta `null`).
+
+(İlk düzen: Claude Design teslimi, 27 Eylül 2026, HesabimV5.) `Diğerlerini kapat` bu
 cihaz dışındaki oturumları tek onayla kapatır. Sunucuda toplu bir uç yok;
 istemci var olan `DELETE /api/v1/account/sessions/{id}` ucunu her oturum için
 çağırır, biri düşerse durur ve listeyi sunucudan yeniden okur.

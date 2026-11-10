@@ -201,7 +201,7 @@ class _TaxPlanFormPageState extends State<TaxPlanFormPage> {
                 ),
               ),
             ),
-            const SizedBox(height: AppSpacing.large),
+            const SizedBox(height: AppGaps.field),
           ],
           TextField(
             controller: name,
@@ -219,7 +219,7 @@ class _TaxPlanFormPageState extends State<TaxPlanFormPage> {
                   : null,
             ),
           ),
-          const SizedBox(height: AppSpacing.medium),
+          const SizedBox(height: AppGaps.field),
           DropdownButtonFormField<TaxRhythm>(
             initialValue: rhythm,
             isExpanded: true,
@@ -247,7 +247,7 @@ class _TaxPlanFormPageState extends State<TaxPlanFormPage> {
             if (showErrors && months.isEmpty)
               _error(context, 'En az bir ay seçin.'),
           ],
-          const SizedBox(height: AppSpacing.medium),
+          const SizedBox(height: AppGaps.field),
           DropdownButtonFormField<int>(
             initialValue: day,
             isExpanded: true,
@@ -279,7 +279,7 @@ class _TaxPlanFormPageState extends State<TaxPlanFormPage> {
                   'Bekleyen kalemler yeni ritme göre yeniden kurulur; '
                   'ödenenler yerinde kalır.',
             ),
-          const SizedBox(height: AppSpacing.medium),
+          const SizedBox(height: AppGaps.field),
           TextField(
             controller: amount,
             onChanged: (_) {
@@ -299,7 +299,7 @@ class _TaxPlanFormPageState extends State<TaxPlanFormPage> {
                   : null,
             ),
           ),
-          const SizedBox(height: AppSpacing.medium),
+          const SizedBox(height: AppGaps.field),
           if (options != null)
             TaxSourceField(
               options: options,
@@ -310,7 +310,7 @@ class _TaxPlanFormPageState extends State<TaxPlanFormPage> {
               onChanged: (value) => setState(() => sourceId = value),
             ),
           if (categories.length > 1) ...[
-            const SizedBox(height: AppSpacing.medium),
+            const SizedBox(height: AppGaps.field),
             AppCategoryField(
               // Vergide kapsam ayrı sorulur (ADR 0018 İ9); liste düzdür.
               showScope: false,
@@ -323,7 +323,7 @@ class _TaxPlanFormPageState extends State<TaxPlanFormPage> {
                   setState(() => categoryId = value?.categoryId),
             ),
           ],
-          const SizedBox(height: AppSpacing.medium),
+          const SizedBox(height: AppGaps.field),
           DropdownButtonFormField<String>(
             key: ValueKey('start-$rhythm-$day-${months.join(',')}'),
             initialValue: startDate,

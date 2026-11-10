@@ -8,7 +8,7 @@ import '../theme/app_surfaces.dart';
 import '../theme/app_typography.dart';
 import 'app_icon_capsule.dart';
 import 'app_money_text.dart';
-import 'app_untracked_text.dart';
+import '../theme/app_radius.dart';
 
 /// Seçilen paranın yeri: nakit, banka, kredi kartı ya da POS.
 enum AppAccountKind { cash, bank, card, pos }
@@ -170,11 +170,8 @@ class _AppAccountFieldState extends State<AppAccountField> {
     widget.onChanged?.call(id);
   }
 
-  // Teslimle kurulan bileşen: metin harf aralıksız (`AppUntrackedText`);
-  // menü anchor'ın temasını devraldığı için satırlar da aralıksızdır.
   @override
-  Widget build(BuildContext context) =>
-      AppUntrackedText(child: _field(context));
+  Widget build(BuildContext context) => _field(context);
 
   Widget _field(BuildContext context) => FormField<String>(
     // Doğrulama alanın kendi kopyasını değil, sayfanın değerini okur.
@@ -233,7 +230,7 @@ class _AppAccountFieldState extends State<AppAccountField> {
           : (none ? widget.noneLabel : null),
       child: ExcludeSemantics(
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppRadius.field),
           onTap: widget.onChanged == null ? null : _toggle,
           child: InputDecorator(
             isFocused: open,
@@ -252,7 +249,7 @@ class _AppAccountFieldState extends State<AppAccountField> {
                       AppSpacing.medium,
                       AppSpacing.small,
                       // Değer ile ok arası 6 (teslim, 28 Ekim).
-                      AppSpacing.xSmall + AppSpacing.xxSmall,
+                      AppSpacing.step6,
                       AppSpacing.small,
                     ),
               suffixIcon: Icon(
@@ -295,7 +292,9 @@ class _AppAccountFieldState extends State<AppAccountField> {
       minimumSize: WidgetStatePropertyAll(Size(width, 0)),
       maximumSize: WidgetStatePropertyAll(Size(width, 600)),
       shape: WidgetStatePropertyAll(
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.field),
+        ),
       ),
     );
   }
@@ -315,7 +314,7 @@ class _AppAccountFieldState extends State<AppAccountField> {
           child: Text(
             widget.noneLabel!,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              fontSize: 15,
+              fontSize: AppTextSizes.compact,
               height: 1.3,
               fontWeight: widget.value == null
                   ? FontWeight.w600
@@ -434,7 +433,7 @@ class _ClosedValue extends StatelessWidget {
     final theme = Theme.of(context);
     final surfaces = AppSurfaces.of(context);
     final small = theme.textTheme.bodySmall?.copyWith(
-      fontSize: 13,
+      fontSize: AppTextSizes.caption,
       height: 16 / 13,
       color: surfaces.inkMuted,
     );
@@ -443,7 +442,7 @@ class _ClosedValue extends StatelessWidget {
         : Text(
             MoneyText.format(option.amount!, 'TRY'),
             style: theme.textTheme.bodyMedium?.copyWith(
-              fontSize: 14,
+              fontSize: AppTextSizes.body,
               height: 20 / 14,
               fontWeight: FontWeight.w500,
               color: surfaces.inkMuted,
@@ -461,7 +460,7 @@ class _ClosedValue extends StatelessWidget {
           size: 32,
           iconColor: accountKindColor(context, option.kind),
         ),
-        const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+        const SizedBox(width: AppSpacing.compact),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -472,7 +471,7 @@ class _ClosedValue extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.titleSmall?.copyWith(
-                  fontSize: 15,
+                  fontSize: AppTextSizes.compact,
                   height: 20 / 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -514,14 +513,14 @@ class _GroupHeading extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.medium,
-            AppSpacing.small + AppSpacing.xSmall,
+            AppSpacing.compact,
             AppSpacing.medium,
             AppSpacing.xSmall,
           ),
           child: Text(
             label,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              fontSize: 12,
+              fontSize: AppTextSizes.micro,
               height: 1,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.48,
@@ -572,7 +571,7 @@ class _MenuRow extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.medium,
-                  vertical: AppSpacing.xSmall + AppSpacing.xxSmall,
+                  vertical: AppSpacing.step6,
                 ),
                 child: semanticsLabel == null
                     ? child
@@ -629,7 +628,7 @@ class _OptionContent extends StatelessWidget {
                 : null,
             signedByAmount: option.amount!.startsWith('-'),
             style: TextStyle(
-              fontSize: 15,
+              fontSize: AppTextSizes.compact,
               height: 1.25,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
             ),
@@ -643,7 +642,7 @@ class _OptionContent extends StatelessWidget {
               ? surfaces.inkFaint
               : accountKindColor(context, option.kind),
         ),
-        const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+        const SizedBox(width: AppSpacing.compact),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -654,7 +653,7 @@ class _OptionContent extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodyLarge?.copyWith(
-                  fontSize: 15,
+                  fontSize: AppTextSizes.compact,
                   height: 1.3,
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                   color: off ? surfaces.inkFaint : surfaces.ink,
@@ -666,7 +665,7 @@ class _OptionContent extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: 13,
+                    fontSize: AppTextSizes.caption,
                     height: 1.35,
                     color: off ? surfaces.inkFaint : surfaces.inkMuted,
                   ),
@@ -676,7 +675,7 @@ class _OptionContent extends StatelessWidget {
           ),
         ),
         if (!context.usesLargeText && amount != null) ...[
-          const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+          const SizedBox(width: AppSpacing.compact),
           amount,
         ],
       ],
@@ -707,12 +706,12 @@ class _EmptyCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: surfaces.card,
           border: Border.all(color: surfaces.border),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppRadius.field),
         ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.medium,
-            AppSpacing.small + AppSpacing.xSmall,
+            AppSpacing.compact,
             AppSpacing.medium,
             AppSpacing.small,
           ),
@@ -724,7 +723,7 @@ class _EmptyCard extends StatelessWidget {
                 size: 20,
                 color: surfaces.inkMuted,
               ),
-              const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+              const SizedBox(width: AppSpacing.compact),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -733,7 +732,7 @@ class _EmptyCard extends StatelessWidget {
                     Text(
                       title,
                       style: theme.textTheme.titleSmall?.copyWith(
-                        fontSize: 15,
+                        fontSize: AppTextSizes.compact,
                         height: 1.35,
                       ),
                     ),
@@ -741,7 +740,7 @@ class _EmptyCard extends StatelessWidget {
                     Text(
                       message,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        fontSize: 14,
+                        fontSize: AppTextSizes.body,
                         height: 1.35,
                         color: surfaces.inkMuted,
                       ),
@@ -752,7 +751,7 @@ class _EmptyCard extends StatelessWidget {
                         child: TextButton.icon(
                           onPressed: onAdd,
                           style: TextButton.styleFrom(
-                            minimumSize: const Size(0, 40),
+                            minimumSize: const Size(0, AppSizes.menuButton),
                             // Simge başlığın hizasında başlar.
                             padding: const EdgeInsets.only(
                               right: AppSpacing.small,
@@ -791,14 +790,14 @@ class _ManualValue extends StatelessWidget {
           size: 32,
           iconColor: surfaces.inkMuted,
         ),
-        const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+        const SizedBox(width: AppSpacing.compact),
         Expanded(
           child: Text(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontSize: 15,
+              fontSize: AppTextSizes.compact,
               height: 20 / 15,
               fontWeight: FontWeight.w600,
             ),
@@ -827,7 +826,7 @@ class _ManualContent extends StatelessWidget {
     return Row(
       children: [
         Icon(Icons.edit_outlined, size: 20, color: surfaces.inkMuted),
-        const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+        const SizedBox(width: AppSpacing.compact),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -836,7 +835,7 @@ class _ManualContent extends StatelessWidget {
               Text(
                 label,
                 style: theme.textTheme.bodyLarge?.copyWith(
-                  fontSize: 15,
+                  fontSize: AppTextSizes.compact,
                   height: 1.3,
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                   color: surfaces.ink,
@@ -846,7 +845,7 @@ class _ManualContent extends StatelessWidget {
                 Text(
                   note!,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: 13,
+                    fontSize: AppTextSizes.caption,
                     height: 1.35,
                     color: surfaces.inkMuted,
                   ),

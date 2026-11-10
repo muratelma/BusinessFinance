@@ -4,6 +4,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/formatters/money_text.dart';
 import '../../../core/widgets/app_money_text.dart';
+import '../../../core/widgets/app_page_bar.dart';
 import '../data/receipt_models.dart';
 
 /// Bir dekonttaki ana tutarın ne olduğu **belgeden okunamaz.**
@@ -59,19 +60,19 @@ class _BankDocumentDecisionPageState extends State<BankDocumentDecisionPage> {
   Widget build(BuildContext context) {
     final draft = widget.draft;
     return Scaffold(
-      appBar: AppBar(title: const Text('Dekont okundu')),
+      appBar: AppPageBar(title: const Text('Dekont okundu')),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.medium),
+        padding: AppPageInsets.list,
         children: [
           _Summary(draft: draft),
-          const SizedBox(height: AppSpacing.large),
+          const SizedBox(height: AppGaps.section),
           Text(
             draft.totalAmount == null
                 ? 'Bu tutar ne?'
                 : 'Bu ${MoneyText.format(draft.totalAmount!, draft.currencyCode ?? 'TRY')} ne?',
             style: Theme.of(context).textTheme.titleMedium,
           ),
-          const SizedBox(height: AppSpacing.small),
+          const SizedBox(height: AppGaps.sectionTitle),
           // Belge kart borcu ödemesi gibi görünüyorsa söylenir — ama seçim yine
           // yapılmaz. Kart ödemesini sessizce varsaymak, kullanıcının görmediği
           // bir karar vermek olurdu.
@@ -85,7 +86,7 @@ class _BankDocumentDecisionPageState extends State<BankDocumentDecisionPage> {
             ),
           _options(),
           if (draft.hasFee) ...[
-            const Divider(height: AppSpacing.large * 2),
+            const Divider(height: AppSpacing.xxLarge),
             // Ücret ana tutardan bağımsızdır: ana tutar ne olursa olsun banka o
             // parayı aldı ve geri gelmeyecek. Yani her durumda giderdir.
             //

@@ -11,6 +11,7 @@ import '../../../core/widgets/app_divided_column.dart';
 import '../../../core/widgets/app_icon_capsule.dart';
 import '../../../core/widgets/app_row.dart';
 import 'quick_add_models.dart';
+import '../../../core/theme/app_typography.dart';
 
 /// The single entry point for recording a movement. It only routes: no financial
 /// rule lives here, and there is no one dynamic form trying to be all of them.
@@ -57,21 +58,16 @@ class QuickAddLauncher extends StatelessWidget {
       // Büyük yazı ölçeğinde panel taşabilir; kaydırma meşrudur, kırpılma
       // değildir.
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.medium,
-          0,
-          AppSpacing.medium,
-          AppSpacing.large,
-        ),
+        padding: AppSheetInsets.detail(context),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Semantics(
               header: true,
-              child: Text('İşlem ekle', style: theme.textTheme.headlineSmall),
+              child: Text('İşlem ekle', style: theme.textTheme.titleLarge),
             ),
-            const SizedBox(height: AppSpacing.large - AppSpacing.xSmall),
+            const SizedBox(height: AppSpacing.step20),
             IntrinsicHeight(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -88,9 +84,9 @@ class QuickAddLauncher extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.large),
+            const SizedBox(height: AppGaps.section),
             Text('Belgeden oku', style: label),
-            const SizedBox(height: AppSpacing.small),
+            const SizedBox(height: AppGaps.sectionTitle),
             IntrinsicHeight(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -107,7 +103,7 @@ class QuickAddLauncher extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.large),
+            const SizedBox(height: AppGaps.section),
             Text('Diğer', style: label),
             const SizedBox(height: AppSpacing.xSmall),
             AppDividedColumn(
@@ -116,7 +112,7 @@ class QuickAddLauncher extends StatelessWidget {
                 for (final option in more)
                   AppRow(
                     padding: const EdgeInsets.symmetric(
-                      vertical: AppSpacing.small + AppSpacing.xxSmall,
+                      vertical: AppSpacing.step10,
                     ),
                     leading: AppIconCapsule(icon: quickAddIcon(option)),
                     title: option.label,
@@ -240,18 +236,18 @@ class _DocumentTile extends StatelessWidget {
             constraints: const BoxConstraints(minHeight: 64),
             child: Padding(
               padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.medium - AppSpacing.xxSmall,
+                horizontal: AppSpacing.step14,
                 vertical: AppSpacing.small,
               ),
               child: Row(
                 children: [
                   Icon(quickAddIcon(option), size: 22, color: surfaces.ink),
-                  const SizedBox(width: AppSpacing.small + AppSpacing.xSmall),
+                  const SizedBox(width: AppSpacing.compact),
                   Expanded(
                     child: Text(
                       option.label,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontSize: 15,
+                        fontSize: AppTextSizes.compact,
                         height: 1.3,
                       ),
                     ),

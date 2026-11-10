@@ -4,6 +4,7 @@ import '../../../core/formatters/date_text.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_money_text.dart';
+import '../../../core/widgets/app_page_bar.dart';
 import '../data/receipt_models.dart';
 
 /// Bir faturada son ödeme tarihi yazması, ödendiğini **söylemez.**
@@ -31,9 +32,9 @@ class InvoiceDecisionPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final currency = draft.currencyCode ?? 'TRY';
     return Scaffold(
-      appBar: AppBar(title: const Text('Fatura okundu')),
+      appBar: AppPageBar(title: const Text('Fatura okundu')),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.medium),
+        padding: AppPageInsets.list,
         children: [
           AppCard(
             child: Column(
@@ -56,12 +57,12 @@ class InvoiceDecisionPage extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.large),
+          const SizedBox(height: AppGaps.section),
           Text(
             'Bu faturayı ödediniz mi?',
             style: Theme.of(context).textTheme.titleMedium,
           ),
-          const SizedBox(height: AppSpacing.small),
+          const SizedBox(height: AppGaps.sectionTitle),
           // Hiçbiri önceden seçili değil ve ikisi zıt sonuç üretiyor: biri
           // parayı bugün çıkarır, diğeri bir borç doğurur. Varsayılan koymak,
           // dalgın bir dokunuşla yanlışını yazdırırdı.
@@ -73,7 +74,7 @@ class InvoiceDecisionPage extends StatelessWidget {
                 'girer.',
             onTap: () => onDecided(true),
           ),
-          const SizedBox(height: AppSpacing.small),
+          const SizedBox(height: AppGaps.card),
           _Choice(
             icon: Icons.event_outlined,
             title: 'Henüz ödemedim',
@@ -114,7 +115,7 @@ class _Choice extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title, style: Theme.of(context).textTheme.titleSmall),
-              const SizedBox(height: AppSpacing.xSmall),
+              const SizedBox(height: AppGaps.rowText),
               Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
             ],
           ),

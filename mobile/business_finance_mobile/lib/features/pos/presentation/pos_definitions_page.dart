@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/widgets/app_untracked_text.dart';
+import '../../../core/widgets/app_page_bar.dart';
 import '../../categories/presentation/fixed_scope_category_field.dart';
 
 import '../../../core/models/data_choice.dart';
@@ -21,6 +21,7 @@ import '../data/pos_repository.dart';
 import 'pos_controller.dart';
 import '../../../core/widgets/app_account_field.dart';
 import '../../../features/accounts/presentation/account_directory.dart';
+import '../../../core/theme/app_radius.dart';
 
 /// POS'larım (ADR 0019 T4): kullanıcının bir kez girdiği POS ayarları.
 ///
@@ -60,7 +61,7 @@ class _PosDefinitionsPageState extends State<PosDefinitionsPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
+    appBar: AppPageBar(
       title: const Text("POS'larım"),
       actions: [
         IconButton(
@@ -103,12 +104,12 @@ class _PosDefinitionsPageState extends State<PosDefinitionsPage> {
     return RefreshIndicator(
       onRefresh: controller.loadDefinitions,
       child: ListView(
-        padding: const EdgeInsets.all(AppSpacing.medium),
+        padding: AppPageInsets.list,
         children: [
           // Eski listeyle açık kalan ekran bunu söyler.
           if (controller.definitionError != null)
             Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.small),
+              padding: const EdgeInsets.only(bottom: AppGaps.notice),
               child: AppInlineNotice(
                 message:
                     '${controller.definitionError} Son bilinen liste '
@@ -288,7 +289,7 @@ class _PosDefinitionFormPageState extends State<PosDefinitionFormPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(editing ? "POS'u düzenle" : 'POS ekle')),
+    appBar: AppPageBar(title: Text(editing ? "POS'u düzenle" : 'POS ekle')),
     body: SafeArea(
       child: FutureBuilder<PosOptions>(
         future: options,
@@ -316,158 +317,154 @@ class _PosDefinitionFormPageState extends State<PosDefinitionFormPage> {
     final accounts = [...loaded.accounts, ..._addedAccounts];
     final theme = Theme.of(context);
     // Teslimle kurulan sayfa: 16 dp yan boşluk, metin harf aralıksız.
-    return AppUntrackedText(
-      child: Form(
-        key: formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.medium),
-          children: [
-            TextFormField(
-              controller: nameController,
-              hintLocales: const [Locale('tr', 'TR')],
-              textCapitalization: TextCapitalization.sentences,
-              maxLength: 80,
-              decoration: const InputDecoration(
-                labelText: 'POS adı',
-                hintText: 'ör. Ziraat POS, Yemek kartı',
-                counterText: '',
-              ),
-              validator: (value) => value == null || value.trim().isEmpty
-                  ? 'POS için bir ad yazın.'
-                  : null,
+    return Form(
+      key: formKey,
+      child: ListView(
+        padding: AppPageInsets.form,
+        children: [
+          TextFormField(
+            controller: nameController,
+            hintLocales: const [Locale('tr', 'TR')],
+            textCapitalization: TextCapitalization.sentences,
+            maxLength: 80,
+            decoration: const InputDecoration(
+              labelText: 'POS adı',
+              hintText: 'ör. Ziraat POS, Yemek kartı',
+              counterText: '',
             ),
-            const SizedBox(height: AppSpacing.medium),
-            // Banka hesabı yoksa alan boş durur; dokununca nedenini ve
-            // `Hesap ekle`yi alanın altında söyler.
-            AppAccountField(
-              label: 'Paranın geçeceği hesap',
-              value: _valid(accountId, accounts),
-              options: [
-                for (final account in accounts)
-                  AccountChoices.of(
-                    context,
-                  ).account(account.id, account.name, type: 'bank'),
-              ],
-              emptyTitle: 'Henüz banka hesabı yok',
-              emptyMessage:
-                  'POS parası bir banka hesabına geçer; önce onu ekleyin.',
-              onAdd: () async {
-                final created = await addAccountFromForm(context, type: 'bank');
-                if (created == null || created.type != 'bank' || !mounted) {
-                  return;
-                }
-                setState(() {
-                  _addedAccounts.add(created.choice);
-                  accountId = created.id;
-                });
-              },
-              onChanged: (value) => setState(() => accountId = value),
-              validator: (value) => value == null ? 'Hesap seçin.' : null,
+            validator: (value) => value == null || value.trim().isEmpty
+                ? 'POS için bir ad yazın.'
+                : null,
+          ),
+          const SizedBox(height: AppGaps.field),
+          // Banka hesabı yoksa alan boş durur; dokununca nedenini ve
+          // `Hesap ekle`yi alanın altında söyler.
+          AppAccountField(
+            label: 'Paranın geçeceği hesap',
+            value: _valid(accountId, accounts),
+            options: [
+              for (final account in accounts)
+                AccountChoices.of(
+                  context,
+                ).account(account.id, account.name, type: 'bank'),
+            ],
+            emptyTitle: 'Henüz banka hesabı yok',
+            emptyMessage:
+                'POS parası bir banka hesabına geçer; önce onu ekleyin.',
+            onAdd: () async {
+              final created = await addAccountFromForm(context, type: 'bank');
+              if (created == null || created.type != 'bank' || !mounted) {
+                return;
+              }
+              setState(() {
+                _addedAccounts.add(created.choice);
+                accountId = created.id;
+              });
+            },
+            onChanged: (value) => setState(() => accountId = value),
+            validator: (value) => value == null ? 'Hesap seçin.' : null,
+          ),
+          const SizedBox(height: AppGaps.field),
+          FixedScopeCategoryField(
+            label: 'Satış kategorisi',
+            type: 'income',
+            categories: loaded.incomeCategories,
+            value: salesCategoryId,
+            onChanged: (value) => setState(() => salesCategoryId = value),
+            validator: (value) =>
+                value == null ? 'Satışın yazılacağı kategoriyi seçin.' : null,
+          ),
+          const SizedBox(height: AppGaps.field),
+          TextFormField(
+            controller: rateController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Komisyon oranı (%)',
+              hintText: 'ör. 1,79',
+              helperText:
+                  'Komisyon kesilmiyorsa boş bırakın. Oran her tahsilatta '
+                  'tutara çevrilir.',
+              helperMaxLines: 3,
             ),
-            const SizedBox(height: AppSpacing.medium),
+            validator: (value) => PosRate.fractionWire(value ?? '') == null
+                ? 'Oranı yüzde olarak yazın (ör. 1,79).'
+                : null,
+          ),
+          if (hasRate || commissionCategoryId != null) ...[
+            const SizedBox(height: AppGaps.field),
             FixedScopeCategoryField(
-              label: 'Satış kategorisi',
-              type: 'income',
-              categories: loaded.incomeCategories,
-              value: salesCategoryId,
-              onChanged: (value) => setState(() => salesCategoryId = value),
-              validator: (value) =>
-                  value == null ? 'Satışın yazılacağı kategoriyi seçin.' : null,
-            ),
-            const SizedBox(height: AppSpacing.medium),
-            TextFormField(
-              controller: rateController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'Komisyon oranı (%)',
-                hintText: 'ör. 1,79',
-                helperText:
-                    'Komisyon kesilmiyorsa boş bırakın. Oran her tahsilatta '
-                    'tutara çevrilir.',
-                helperMaxLines: 3,
-              ),
-              validator: (value) => PosRate.fractionWire(value ?? '') == null
-                  ? 'Oranı yüzde olarak yazın (ör. 1,79).'
+              label: 'Komisyon gider kategorisi',
+              type: 'expense',
+              categories: loaded.expenseCategories,
+              value: commissionCategoryId,
+              onChanged: (value) =>
+                  setState(() => commissionCategoryId = value),
+              validator: (value) => hasRate && value == null
+                  ? 'Komisyonun yazılacağı kategoriyi seçin.'
                   : null,
             ),
-            if (hasRate || commissionCategoryId != null) ...[
-              const SizedBox(height: AppSpacing.medium),
-              FixedScopeCategoryField(
-                label: 'Komisyon gider kategorisi',
-                type: 'expense',
-                categories: loaded.expenseCategories,
-                value: commissionCategoryId,
-                onChanged: (value) =>
-                    setState(() => commissionCategoryId = value),
-                validator: (value) => hasRate && value == null
-                    ? 'Komisyonun yazılacağı kategoriyi seçin.'
-                    : null,
-              ),
-            ],
-            const SizedBox(height: AppSpacing.medium),
-            TextFormField(
-              controller: daysController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Para kaç günde hesaba geçer',
-                helperText: 'Aynı gün geçiyorsa 0 yazın.',
-              ),
-              validator: (value) {
-                final days = int.tryParse((value ?? '').trim());
-                return days == null || days < 0 || days > 60
-                    ? '0 ile 60 arasında bir gün sayısı yazın.'
-                    : null;
-              },
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('İş günü say'),
-              subtitle: const Text(
-                'Hafta sonunu atlar; beklenen gün cumartesi ya da pazara düşmez.',
-              ),
-              value: businessDaysOnly,
-              onChanged: (value) => setState(() => businessDaysOnly = value),
-            ),
-            if (controller.definitionError != null)
-              Padding(
-                padding: const EdgeInsets.only(top: AppSpacing.small),
-                child: AppFormError(message: controller.definitionError!),
-              ),
-            const SizedBox(height: AppSpacing.large),
-            AppSubmitButton(
-              label: 'Kaydet',
-              icon: Icons.check,
-              isBusy: controller.isSubmitting,
-              onSubmit: loaded.accounts.isEmpty ? null : _submit,
-            ),
-            if (editing) ...[
-              const SizedBox(height: AppSpacing.small),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                ),
-                onPressed: controller.isSubmitting ? null : _toggleActive,
-                icon: Icon(
-                  definition!.isActive
-                      ? Icons.pause_circle_outline
-                      : Icons.play_circle_outline,
-                ),
-                label: Text(definition!.isActive ? 'Pasife al' : 'Etkinleştir'),
-              ),
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                  foregroundColor: theme.colorScheme.error,
-                ),
-                onPressed: controller.isSubmitting ? null : _delete,
-                icon: const Icon(Icons.delete_outline),
-                label: const Text('Sil'),
-              ),
-            ],
           ],
-        ),
+          const SizedBox(height: AppGaps.field),
+          TextFormField(
+            controller: daysController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Para kaç günde hesaba geçer',
+              helperText: 'Aynı gün geçiyorsa 0 yazın.',
+            ),
+            validator: (value) {
+              final days = int.tryParse((value ?? '').trim());
+              return days == null || days < 0 || days > 60
+                  ? '0 ile 60 arasında bir gün sayısı yazın.'
+                  : null;
+            },
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('İş günü say'),
+            subtitle: const Text(
+              'Hafta sonunu atlar; beklenen gün cumartesi ya da pazara düşmez.',
+            ),
+            value: businessDaysOnly,
+            onChanged: (value) => setState(() => businessDaysOnly = value),
+          ),
+          if (controller.definitionError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.small),
+              child: AppFormError(message: controller.definitionError!),
+            ),
+          const SizedBox(height: AppSpacing.large),
+          AppSubmitButton(
+            label: 'Kaydet',
+            icon: Icons.check,
+            isBusy: controller.isSubmitting,
+            onSubmit: loaded.accounts.isEmpty ? null : _submit,
+          ),
+          if (editing) ...[
+            const SizedBox(height: AppSpacing.small),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(AppSizes.button),
+              ),
+              onPressed: controller.isSubmitting ? null : _toggleActive,
+              icon: Icon(
+                definition!.isActive
+                    ? Icons.pause_circle_outline
+                    : Icons.play_circle_outline,
+              ),
+              label: Text(definition!.isActive ? 'Pasife al' : 'Etkinleştir'),
+            ),
+            TextButton.icon(
+              style: TextButton.styleFrom(
+                minimumSize: const Size.fromHeight(AppSizes.button),
+                foregroundColor: theme.colorScheme.error,
+              ),
+              onPressed: controller.isSubmitting ? null : _delete,
+              icon: const Icon(Icons.delete_outline),
+              label: const Text('Sil'),
+            ),
+          ],
+        ],
       ),
     );
   }
