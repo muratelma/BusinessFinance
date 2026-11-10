@@ -168,8 +168,12 @@ GoRouter createAppRouter({
                       : ChangeNotifierProvider(
                           create: (_) {
                             final viewModel = dashboardViewModelFactory();
+                            // Girişte önceden yüklenmiş model ikinci kez
+                            // istek atmaz.
                             if (authController?.status ==
-                                AuthStatus.authenticated) {
+                                    AuthStatus.authenticated &&
+                                !viewModel.hasLoaded &&
+                                !viewModel.isLoading) {
                               viewModel.load();
                             }
                             return viewModel;

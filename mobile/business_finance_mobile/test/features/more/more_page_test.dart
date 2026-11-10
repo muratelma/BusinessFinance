@@ -94,18 +94,20 @@ void main() {
     }
   });
 
-  testWidgets('hesap kartı e-postayı ve doğrulanmamış adresi söyler', (
+  testWidgets('hesap kartı doğrulanmamış adresi söyler, e-postayı yazmaz', (
     tester,
   ) async {
     await tester.pumpWidget(_host(hasBusiness: false));
     await tester.pumpAndSettle();
 
-    expect(find.text('Hesabım'), findsOneWidget);
-    expect(find.text('esnaf@ornek.com'), findsOneWidget);
+    // E-posta adresi bu kartta yazmaz; başlık kullanıcı adıdır (yoksa
+    // `Hesabım`).
+    expect(find.text('Hesap, güvenlik ve oturumlar'), findsOneWidget);
+    expect(find.text('esnaf@ornek.com'), findsNothing);
     expect(find.text('E-posta doğrulanmadı'), findsOneWidget);
     expect(find.text('ES'), findsOneWidget);
 
-    await tester.tap(find.text('Hesabım'));
+    await tester.tap(find.text('Hesap, güvenlik ve oturumlar'));
     await tester.pumpAndSettle();
     expect(find.text('hesap sayfası'), findsOneWidget);
   });

@@ -20,6 +20,10 @@ class AccountController extends ChangeNotifier {
   bool isSubmitting = false;
   bool unauthorized = false;
   String? errorMessage;
+
+  /// Son başarısız isteğin makine kodu. Ekran bazı cevapları hata saymaz
+  /// (az önce gönderilmiş kod) ve bunu cümleden değil koddan ayırt eder.
+  String? errorCode;
   UserAccount? account;
   List<UserSessionSummary> sessions = const [];
 
@@ -153,11 +157,13 @@ class AccountController extends ChangeNotifier {
     if (isSubmitting) return null;
     isSubmitting = true;
     errorMessage = null;
+    errorCode = null;
     notifyListeners();
     try {
       return await _repository.sendEmailVerification();
     } on ApiException catch (error) {
       errorMessage = error.message;
+      errorCode = error.code;
       return null;
     } on FormatException {
       errorMessage = 'Sunucudan beklenmeyen bir yanıt alındı.';
@@ -172,6 +178,7 @@ class AccountController extends ChangeNotifier {
     if (isSubmitting) return false;
     isSubmitting = true;
     errorMessage = null;
+    errorCode = null;
     notifyListeners();
     try {
       await _repository.confirmEmail(code);
@@ -189,6 +196,7 @@ class AccountController extends ChangeNotifier {
       return true;
     } on ApiException catch (error) {
       errorMessage = error.message;
+      errorCode = error.code;
       return false;
     } finally {
       isSubmitting = false;

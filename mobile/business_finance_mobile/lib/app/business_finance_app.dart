@@ -10,10 +10,10 @@ import '../core/routing/app_router.dart';
 import '../core/theme/app_theme.dart';
 import '../features/account/presentation/account_status_controller.dart';
 import '../features/auth/presentation/auth_controller.dart';
-import '../features/dashboard/presentation/dashboard_view_model.dart';
 import '../features/profile/data/profile_repository.dart';
 import '../features/reminders/presentation/reminder_controller.dart';
 import 'app_dependencies.dart';
+import 'launch_curtain.dart';
 import '../features/finance_pages/data/finance_page_repository.dart';
 import '../core/widgets/app_system_buttons_inset.dart';
 
@@ -23,6 +23,7 @@ class BusinessFinanceApp extends StatelessWidget {
     AppDependencies? dependencies,
     GoRouter? router,
     AuthController? authController,
+    this.showLaunchCurtain = false,
   }) : _dependencies = dependencies,
        _authController = authController ?? dependencies?.authController,
        router =
@@ -31,12 +32,9 @@ class BusinessFinanceApp extends StatelessWidget {
              authController: authController ?? dependencies?.authController,
              dashboardViewModelFactory: dependencies == null
                  ? null
-                 : () => DashboardViewModel(
-                     dependencies.dashboardRepository,
-                     activityRepository: dependencies.activityRepository,
-                     changes: dependencies.financialDataChanges,
-                     scopeController: dependencies.scopeController,
-                   ),
+                 : () =>
+                       dependencies.homePrefetch.take() ??
+                       dependencies.createDashboardViewModel(),
              authRepository: dependencies?.authRepository,
              userAccountRepository: dependencies?.userAccountRepository,
              accountRepository: dependencies?.accountRepository,
@@ -69,6 +67,10 @@ class BusinessFinanceApp extends StatelessWidget {
 
   final GoRouter router;
   final AppDependencies? _dependencies;
+
+  /// Telefonun açılış ekranını devralan perde (`LaunchCurtain`). Yalnız
+  /// gerçek uygulama açar; testler ekranları perdesiz kurar.
+  final bool showLaunchCurtain;
   final AuthController? _authController;
 
   @override
@@ -83,11 +85,16 @@ class BusinessFinanceApp extends StatelessWidget {
       supportedLocales: AppLocale.supported,
       localizationsDelegates: AppLocale.delegates,
       routerConfig: router,
-      builder: (context, child) => AppSystemButtonsInset(
-        child: TapOutsideDismissesKeyboard(
-          child: child ?? const SizedBox.shrink(),
-        ),
-      ),
+      builder: (context, child) {
+        final page = AppSystemButtonsInset(
+          child: TapOutsideDismissesKeyboard(
+            child: child ?? const SizedBox.shrink(),
+          ),
+        );
+        final auth = _authController;
+        if (!showLaunchCurtain || auth == null) return page;
+        return LaunchCurtain(authController: auth, child: page);
+      },
     );
 
     final authController = _authController;

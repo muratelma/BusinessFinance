@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../features/accounts/presentation/account_directory.dart';
 import '../features/categories/presentation/recent_categories.dart';
 import 'package:http/http.dart' as http;
@@ -17,6 +19,8 @@ import '../features/accounts/data/account_repository.dart';
 import '../features/budgets/data/budget_repository.dart';
 import '../features/categories/data/category_repository.dart';
 import '../features/dashboard/data/dashboard_repository.dart';
+import '../features/dashboard/presentation/dashboard_view_model.dart';
+import 'home_prefetch.dart';
 import '../features/activities/data/activity_repository.dart';
 import '../features/transactions/data/transaction_repository.dart';
 import '../features/cards/data/finance_repository.dart';
@@ -134,7 +138,7 @@ class AppDependencies {
           (await profileRepository.read()).hasCounterpartyLedger,
     );
 
-    return AppDependencies._(
+    final dependencies = AppDependencies._(
       authController,
       authRepository,
       apiClient,
@@ -167,6 +171,18 @@ class AppDependencies {
       reminderController,
       httpClient,
     );
+    // Girişte Özet tam hâliyle açılsın: önce "işletmem var" bilgisi (alt
+    // çubuğun sekmesi ve kapsam seçici ona bağlı) ve avatar işareti, sonra
+    // Özet'in verisi. Özet açıldıktan sonra sekme değişseydi geçişten hemen
+    // sonra bir sıçrama görünürdü (emülatörde kaydedildi, 10 Kasım 2026).
+    authController.prepareHome = () async {
+      await Future.wait([
+        dependencies.scopeController.ensureLoaded(),
+        dependencies.accountStatusController.ensureLoaded(),
+      ]).timeout(const Duration(seconds: 2), onTimeout: () => const []);
+      await dependencies.homePrefetch.load();
+    };
+    return dependencies;
   }
 
   final AuthController authController;
@@ -226,6 +242,18 @@ class AppDependencies {
     session: authController,
   );
 
+  /// Özet'in görünüm modeli. Yönlendirici ve girişteki ön yükleme aynı
+  /// kurulumu kullanır.
+  DashboardViewModel createDashboardViewModel() => DashboardViewModel(
+    dashboardRepository,
+    activityRepository: activityRepository,
+    changes: financialDataChanges,
+    scopeController: scopeController,
+  );
+
+  /// Girişte Özet'i önceden yükler ([HomePrefetch]).
+  late final HomePrefetch homePrefetch = HomePrefetch(createDashboardViewModel);
+
   /// Kategori seçicilerin `Son kullanılanlar` bölümü.
   late final RecentCategories recentCategories = RecentCategories.fromApi(
     apiClient,
@@ -241,6 +269,7 @@ class AppDependencies {
     reminderController.dispose();
     accountDirectory.dispose();
     recentCategories.dispose();
+    homePrefetch.dispose();
     _httpClient.close();
   }
 }

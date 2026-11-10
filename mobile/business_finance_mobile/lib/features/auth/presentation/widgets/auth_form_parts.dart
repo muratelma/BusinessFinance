@@ -768,9 +768,17 @@ const _appleSvg =
 /// Google ve Apple düğmeleri, yuvarlak ve ortada. Apple yalnız iPhone'da
 /// görünür.
 class AuthSocialRow extends StatelessWidget {
-  const AuthSocialRow({required this.onPressed, super.key});
+  const AuthSocialRow({required this.onPressed, super.key, this.busy});
 
-  final ValueChanged<AuthSocialProvider>? onPressed;
+  /// Basılan düğme ve ortası (ekran koordinatı): giriş kabul edilince Özet'e
+  /// geçişin dairesi oradan yayılır.
+  final void Function(AuthSocialProvider provider, Offset? origin)? onPressed;
+
+  /// Seçilen hesap sunucuda doğrulanırken bu düğmede bekleme halkası döner.
+  /// Google'ın penceresi kapandıktan sonra sunucunun cevabı bir saniyeyi
+  /// bulabiliyor; halka olmasa ekran donmuş gibi görünürdü (emülatörde
+  /// kaydedildi, 10 Kasım 2026).
+  final AuthSocialProvider? busy;
 
   @override
   Widget build(BuildContext context) {
@@ -790,9 +798,29 @@ class AuthSocialRow extends StatelessWidget {
           color: c.chip,
           shape: CircleBorder(side: BorderSide(color: c.line, width: 1.5)),
           clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onPressed == null ? null : () => onPressed!(provider),
-            child: Center(child: icon),
+          child: Builder(
+            builder: (context) => InkWell(
+              onTap: onPressed == null
+                  ? null
+                  : () {
+                      final box = context.findRenderObject() as RenderBox?;
+                      onPressed!(
+                        provider,
+                        box?.localToGlobal(box.size.center(Offset.zero)),
+                      );
+                    },
+              child: Center(
+                child: busy == provider
+                    ? SizedBox.square(
+                        dimension: iconSize,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: c.text,
+                        ),
+                      )
+                    : icon,
+              ),
+            ),
           ),
         ),
       ),

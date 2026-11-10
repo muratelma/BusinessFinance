@@ -29,6 +29,39 @@ void main() {
     expect(controller.sessionGeneration, 1);
   });
 
+  test('Özet geçişten önce, sunucu kabul ettikten sonra hazırlanır', () async {
+    final repository = FakeAuthSessionRepository();
+    final controller = AuthController(repository);
+    await controller.initialize();
+    final order = <String>[];
+    controller.prepareHome = () async {
+      // Oturum anahtarı kayıtlı ama ekranlar henüz açılmadı.
+      expect(repository.currentSession, isNotNull);
+      expect(controller.status, AuthStatus.unauthenticated);
+      order.add('prepare');
+    };
+
+    await controller.login(
+      'user@example.test',
+      'password',
+      onVerified: () async => order.add('transition'),
+    );
+
+    expect(order, ['prepare', 'transition']);
+    expect(controller.status, AuthStatus.authenticated);
+  });
+
+  test('Özet hazırlanamazsa giriş yine açılır', () async {
+    final repository = FakeAuthSessionRepository();
+    final controller = AuthController(repository)
+      ..prepareHome = () async => throw ApiException.network();
+    await controller.initialize();
+
+    await controller.login('user@example.test', 'password');
+
+    expect(controller.status, AuthStatus.authenticated);
+  });
+
   test(
     'failed login preserves unauthenticated state and safe message',
     () async {

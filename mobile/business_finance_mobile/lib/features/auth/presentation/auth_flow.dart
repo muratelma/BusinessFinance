@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/network/api_exception.dart';
+import '../../../core/presentation/launch_signals.dart';
 import '../data/auth_models.dart';
 import 'auth_panels.dart';
 import 'nomiva_brand.dart';
@@ -164,9 +165,18 @@ class _AuthFlowState extends State<AuthFlow> with TickerProviderStateMixin {
   /// Google'a basılan panel; `Vazgeç` ve geri hareketi oraya döner.
   AuthView _googleFrom = AuthView.login;
 
+  /// Uygulama açılırken telefonun açılış ekranındaki işaret ekranın
+  /// ortasında duruyor: açılış onu oradan devralır (belirmez, yerinden
+  /// kalkar). Çıkış yapıldıktan sonra işaret her zamanki gibi belirir.
+  late final bool _fromLaunch;
+
+  /// İşaretin açılış ekranındaki genişliği (`LaunchCurtain.markWidth`).
+  static const double _launchMarkWidth = 108;
+
   @override
   void initState() {
     super.initState();
+    _fromLaunch = LaunchHandoff.take();
     _view = widget.initialView;
     _moveFrom = _moveTo = _frameOf(_view);
     _loginEmail = TextEditingController(text: widget.initialEmail);
@@ -217,6 +227,7 @@ class _AuthFlowState extends State<AuthFlow> with TickerProviderStateMixin {
     } on Object {
       // Logo çözülemezse açılış yine oynar.
     }
+    if (_fromLaunch) await LaunchHandoff.curtainLifted;
     await WidgetsBinding.instance.endOfFrame;
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted || _intro.value > 0) return;
@@ -237,6 +248,29 @@ class _AuthFlowState extends State<AuthFlow> with TickerProviderStateMixin {
   }
 
   bool get _introRunning => _intro.value < 1;
+
+  /// İşaretin açılış ekranındaki yerinden tasarımdaki yerine kalkışı (0 → 1).
+  /// Ad harfleri 550 ms'de gelmeye başlar; işaret o sırada yerine varmış
+  /// olur.
+  double get _launchLift =>
+      _fromLaunch ? _interval(0, 750, curve: Curves.easeInOutCubic) : 1;
+
+  /// Açılış ekranında işaretin üst kenarı: ekranın tam ortasında duran
+  /// [_launchMarkWidth] genişliğinde işaret.
+  double _brandTop(BoxConstraints box, double designed) {
+    final lift = _launchLift;
+    if (lift >= 1) return designed;
+    final launchTop =
+        (box.maxHeight - _launchMarkWidth * NomivaMark.aspect) / 2;
+    return launchTop + (designed - launchTop) * lift;
+  }
+
+  double _brandScale(double designed) {
+    final lift = _launchLift;
+    if (lift >= 1) return designed;
+    const launch = _launchMarkWidth / NomivaSpacing.markWidth;
+    return launch + (designed - launch) * lift;
+  }
 
   /// Açılış sürerken ekrana dokunmak onu bitirir.
   void _skipIntro() {
@@ -470,10 +504,10 @@ class _AuthFlowState extends State<AuthFlow> with TickerProviderStateMixin {
                       Positioned(
                         left: 0,
                         right: 0,
-                        top: dy + n(frame.brandY),
+                        top: _brandTop(box, dy + n(frame.brandY)),
                         child: _Brand(
-                          scale: frame.brandScale * n.factor,
-                          logo: _interval(0, 900),
+                          scale: _brandScale(frame.brandScale * n.factor),
+                          logo: _fromLaunch ? 1 : _interval(0, 900),
                           letter: (i) => _interval(550 + 75 * i, 1000 + 75 * i),
                           tagline:
                               _interval(1250, _composed, curve: Curves.linear) -

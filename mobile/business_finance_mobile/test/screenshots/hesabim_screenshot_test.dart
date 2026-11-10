@@ -1,3 +1,4 @@
+import 'package:business_finance_mobile/core/network/api_exception.dart';
 import 'package:business_finance_mobile/core/presentation/scope_controller.dart';
 import 'package:business_finance_mobile/features/account/data/account_models.dart';
 import 'package:business_finance_mobile/features/account/data/account_repository.dart';
@@ -32,6 +33,54 @@ void main() {
       ),
     );
   }
+
+  // 10 Kasım 2026: doğrulama panelinin üç hâli.
+  Future<void> verifySheet(
+    WidgetTester tester,
+    String name,
+    AccountRepositoryContract repository, {
+    String? typed,
+  }) async {
+    await captureScreen(
+      tester,
+      name,
+      await page(tester, repository),
+      withNavBar: false,
+      pushed: true,
+      before: (tester) async {
+        await tester.tap(find.text('E-postanızı doğrulayın'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.pump(const Duration(seconds: 15));
+        if (typed != null) {
+          await tester.enterText(find.byType(TextField).last, typed);
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 300));
+        }
+      },
+    );
+  }
+
+  testWidgets('22 doğrulama · kod gönderildi', (tester) async {
+    await verifySheet(tester, '22-dogrulama-gonderildi', _DesignAccount());
+  }, skip: !screenshotsEnabled);
+
+  testWidgets('23 doğrulama · yanlış kod', (tester) async {
+    await verifySheet(
+      tester,
+      '23-dogrulama-yanlis-kod',
+      _DesignAccount(),
+      typed: '482913',
+    );
+  }, skip: !screenshotsEnabled);
+
+  testWidgets('24 doğrulama · az önce gönderildi', (tester) async {
+    await verifySheet(
+      tester,
+      '24-dogrulama-az-once',
+      _DesignAccount(tooSoon: true),
+    );
+  }, skip: !screenshotsEnabled);
 
   testWidgets('17 hesabım', (tester) async {
     await captureScreen(
@@ -132,6 +181,30 @@ class _VerifiedAccount extends Fake implements AccountRepositoryContract {
 
 class _DesignAccount extends DesignAccount
     implements AccountRepositoryContract {
+  _DesignAccount({this.tooSoon = false});
+
+  final bool tooSoon;
+
+  @override
+  Future<VerificationSendResult> sendEmailVerification() async {
+    if (tooSoon) {
+      throw const ApiException(
+        code: 'account.verification_code_too_soon',
+        message: 'Az önce bir kod gönderildi.',
+      );
+    }
+    return const VerificationSendResult(
+      alreadyConfirmed: false,
+      codeSent: true,
+    );
+  }
+
+  @override
+  Future<void> confirmEmail(String code) async => throw const ApiException(
+    code: 'account.invalid_verification_code',
+    message: 'Doğrulama kodu geçersiz.',
+  );
+
   @override
   Future<List<UserSessionSummary>> listSessions() async => [
     UserSessionSummary(

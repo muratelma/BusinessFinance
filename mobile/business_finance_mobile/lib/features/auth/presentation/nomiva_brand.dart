@@ -261,12 +261,14 @@ class NomivaMark extends StatelessWidget {
 
   final double width;
 
+  /// Yükseklik / genişlik. Kaynak SVG'nin oranı 636 × 684.
+  static const double aspect = 684 / 636;
+
   @override
   Widget build(BuildContext context) => SvgPicture.asset(
     _markAsset,
     width: width,
-    // Kaynak SVG'nin oranı 636 × 684.
-    height: width * 684 / 636,
+    height: width * aspect,
     semanticsLabel: 'Nomiva',
   );
 }

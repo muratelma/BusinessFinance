@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Telefonun kendi açılış ekranı. Rengi giriş animasyonunun ilk
-     karesiyle aynıdır; farklı olsaydı Flutter başlarken beyaz bir
-     yanıp sönme görünürdü. -->
+<!-- Telefonun kendi açılış ekranı (Android 11 ve öncesi). Rengi giriş
+     animasyonunun ilk karesiyle aynıdır; farklı olsaydı Flutter başlarken
+     beyaz bir yanıp sönme görünürdü. Ortadaki işaret Android 12'deki
+     açılış ikonuyla aynı boydadır (108 dp). -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/nomiva_splash" />
+    <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/splash_mark" />
+    </item>
 </layer-list>

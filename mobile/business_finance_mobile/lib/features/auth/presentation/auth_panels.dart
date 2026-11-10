@@ -120,10 +120,10 @@ class _LoginPanelState extends State<LoginPanel> {
 
   /// Google penceresi açıkken ya da cevap beklenirken: form kilitlenir ama
   /// `Giriş yap` beklemeye geçmez (basılan o değil).
-  bool _socialBusy = false;
+  AuthSocialProvider? _socialBusy;
   String? _error;
 
-  Future<void> _social(AuthSocialProvider provider) async {
+  Future<void> _social(AuthSocialProvider provider, Offset? origin) async {
     final submit = widget.onSocial;
     if (submit == null) {
       setState(() => _error = socialNotReady(provider));
@@ -131,17 +131,17 @@ class _LoginPanelState extends State<LoginPanel> {
     }
     FocusScope.of(context).unfocus();
     setState(() {
-      _socialBusy = true;
+      _socialBusy = provider;
       _error = null;
     });
     try {
-      await submit(provider, null);
+      await submit(provider, origin);
     } on ApiException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } on AuthNotice catch (notice) {
       if (mounted) setState(() => _error = notice.message);
     } finally {
-      if (mounted) setState(() => _socialBusy = false);
+      if (mounted) setState(() => _socialBusy = null);
     }
   }
 
@@ -161,7 +161,7 @@ class _LoginPanelState extends State<LoginPanel> {
   }
 
   Future<void> _submit() async {
-    if (_busy || _socialBusy) return;
+    if (_busy || _socialBusy != null) return;
     if (!_formKey.currentState!.validate()) {
       revealFirstError([_identifierField, _passwordField]);
       return;
@@ -215,7 +215,9 @@ class _LoginPanelState extends State<LoginPanel> {
             after: NomivaSpacing.beforeButton,
             child: AuthTextLink(
               label: 'Parolamı unuttum',
-              onPressed: _busy || _socialBusy ? null : widget.onForgotPassword,
+              onPressed: _busy || _socialBusy != null
+                  ? null
+                  : widget.onForgotPassword,
             ),
           ),
           if (_error case final message?) AuthBanner(message),
@@ -226,12 +228,17 @@ class _LoginPanelState extends State<LoginPanel> {
             onPressed: _submit,
           ),
           const AuthOrDivider(),
-          AuthSocialRow(onPressed: _busy || _socialBusy ? null : _social),
+          AuthSocialRow(
+            onPressed: _busy || _socialBusy != null ? null : _social,
+            busy: _socialBusy,
+          ),
           AuthFooterSlot(
             child: AuthFooter(
               question: 'Hesabın yok mu?',
               action: 'Hesap oluştur',
-              onPressed: _busy || _socialBusy ? null : widget.onRegister,
+              onPressed: _busy || _socialBusy != null
+                  ? null
+                  : widget.onRegister,
             ),
           ),
         ],
@@ -308,9 +315,9 @@ class _RegisterPanelState extends State<RegisterPanel> {
   }
 
   bool _checking = false;
-  bool _socialBusy = false;
+  AuthSocialProvider? _socialBusy;
 
-  Future<void> _social(AuthSocialProvider provider) async {
+  Future<void> _social(AuthSocialProvider provider, Offset? origin) async {
     final submit = widget.onSocial;
     if (submit == null) {
       setState(() => _notice = socialNotReady(provider));
@@ -318,17 +325,17 @@ class _RegisterPanelState extends State<RegisterPanel> {
     }
     FocusScope.of(context).unfocus();
     setState(() {
-      _socialBusy = true;
+      _socialBusy = provider;
       _notice = null;
     });
     try {
-      await submit(provider, null);
+      await submit(provider, origin);
     } on ApiException catch (error) {
       if (mounted) setState(() => _notice = error.message);
     } on AuthNotice catch (notice) {
       if (mounted) setState(() => _notice = notice.message);
     } finally {
-      if (mounted) setState(() => _socialBusy = false);
+      if (mounted) setState(() => _socialBusy = null);
     }
   }
 
@@ -345,7 +352,7 @@ class _RegisterPanelState extends State<RegisterPanel> {
   }
 
   Future<void> _next() async {
-    if (_checking || _socialBusy) return;
+    if (_checking || _socialBusy != null) return;
     setState(() => _notice = null);
     if (!_formKey.currentState!.validate()) {
       revealFirstError([_usernameField, _emailField, _passwordField]);
@@ -421,7 +428,10 @@ class _RegisterPanelState extends State<RegisterPanel> {
               ),
             ),
             const AuthOrDivider(),
-            AuthSocialRow(onPressed: _checking || _socialBusy ? null : _social),
+            AuthSocialRow(
+              onPressed: _checking || _socialBusy != null ? null : _social,
+              busy: _socialBusy,
+            ),
             AuthFooterSlot(
               child: AuthFooter(
                 question: 'Hesabın var mı?',

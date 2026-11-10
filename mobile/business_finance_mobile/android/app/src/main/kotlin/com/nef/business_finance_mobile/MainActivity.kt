@@ -2,6 +2,8 @@ package com.nef.business_finance_mobile
 
 import android.app.Activity
 import android.content.Intent
+import android.os.Build
+import android.os.Bundle
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -11,6 +13,17 @@ class MainActivity : FlutterActivity() {
     private val createDocumentRequest = 4107
     private var pendingBytes: ByteArray? = null
     private var pendingResult: MethodChannel.Result? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Android 12+ açılış ekranı kapanırken varsayılan olarak solar ve
+        // uygulama penceresi ardından belirir: ortadaki işaret bir an kararıp
+        // yeniden gelir. Flutter'ın ilk karesi (`LaunchCurtain`) işareti aynı
+        // yerde ve aynı boyda çizdiği için açılış ekranı solmadan kaldırılır.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            splashScreen.setOnExitAnimationListener { view -> view.remove() }
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

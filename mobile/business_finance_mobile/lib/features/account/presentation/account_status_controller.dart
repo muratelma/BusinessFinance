@@ -20,12 +20,19 @@ class AccountStatusController extends ChangeNotifier {
   bool _emailConfirmed = true;
 
   String? _email;
+  String? _username;
 
   /// Yalnız yükleme başarılıysa ve adres doğrulanmamışsa doğrudur.
   bool get needsEmailVerification => _isLoaded && !_emailConfirmed;
 
+  /// Yalnız yükleme başarılıysa ve adres doğrulanmışsa doğrudur.
+  bool get emailVerified => _isLoaded && _emailConfirmed;
+
   /// Oturumdaki e-posta; okunamadıysa `null`.
   String? get email => _email;
+
+  /// Kullanıcı adı; seçilmemişse ya da okunamadıysa `null`.
+  String? get username => _username;
 
   /// Avatarın baş harfleri: e-postanın yerel kısmından iki harf (`ME`).
   /// Uygulamada profil fotoğrafı yok; e-posta okunamadıysa boş.
@@ -41,6 +48,7 @@ class AccountStatusController extends ChangeNotifier {
       final account = await _repository.read();
       _emailConfirmed = account.emailConfirmed;
       _email = account.email;
+      _username = account.username;
       _isLoaded = true;
       notifyListeners();
     } on Exception {
@@ -54,6 +62,7 @@ class AccountStatusController extends ChangeNotifier {
     _isLoaded = false;
     _emailConfirmed = true;
     _email = null;
+    _username = null;
     notifyListeners();
   }
 }

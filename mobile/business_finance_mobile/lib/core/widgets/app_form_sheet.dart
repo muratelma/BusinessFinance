@@ -38,6 +38,7 @@ class AppFormSheet<T> extends StatelessWidget {
     super.key,
     this.description,
     this.cancelLabel = 'Vazgeç',
+    this.showCancel = true,
     this.secondaryLabel,
     this.onSecondary,
     this.errorMessage,
@@ -58,6 +59,10 @@ class AppFormSheet<T> extends StatelessWidget {
 
   final String submitLabel;
   final String cancelLabel;
+
+  /// `Vazgeç` düğmesi çizilsin mi. Tek eylemli panelde (e-posta doğrulama)
+  /// düğme kalkar; panel tutamaçla ya da dışına dokunarak yine kapanır.
+  final bool showCancel;
 
   /// Sonucu üretir. `null` dönerse panel açık kalır (doğrulama düştü).
   /// Null'ın kendisi verilirse buton görünür ama devre dışıdır.
@@ -148,10 +153,11 @@ class AppFormSheet<T> extends StatelessWidget {
                   },
                   child: Text(secondaryLabel!),
                 ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(cancelLabel),
-              ),
+              if (showCancel)
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(cancelLabel),
+                ),
               AppSubmitButton(
                 label: submitLabel,
                 onSubmit: onSubmit == null

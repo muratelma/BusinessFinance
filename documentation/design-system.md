@@ -269,6 +269,7 @@ yapılır.
 | `AppConfirmDialog` | Geri alınması zor eylemden önce açık onay |
 | `AppFormSheet` | Veri giren panellerin kabuğu: başlık, kaydırılan gövde, eylem satırı |
 | `AppFormField` | Panel alanlarının ortak dikey aralığı |
+| `AppCodeInput` | E-postayla gelen kısa kodun alanı: her rakam kendi kutusunda (yükseklik `AppSizes.button`, köşe `AppRadius.inner`, rakam 22/600). Kutular yalnız çizimdir; yazılan tek bir görünmez `TextField`'dadır, böylece yapıştırma ve ekran okuyucu tek alanla çalışır. Son rakamda `onCompleted` bir kez çağrılır |
 | `AppDateField` | Tarih seçen form alanı; metin alanlarıyla aynı dekorasyonu kullanır. Olmuş bir kaydın formu `lastDate` olarak bugünü verir (gelir, gider, harcama, ödeme, tahsilat, transfer, borç başlangıcı); vade, plan başlangıcı ve hedef tarihi vermez. Değer aralığın dışındaysa takvim en yakın sınırda açılır |
 | `AppContentWidth` | Geniş ekranda içeriği okunabilir genişlikle sınırlar |
 | `AppAdaptiveSheet` | Telefonda bottom sheet, geniş ekranda ortalanmış dialog |
@@ -321,6 +322,11 @@ Birkaç bileşenin sözleşmesinde neden şu kararların olduğu:
   `onSecondary`). Filtre panelindeki `Temizle` bunun tek örneğidir:
   temizlemek vazgeçmekten farklıdır — vazgeçmek hiçbir şey değiştirmez,
   temizlemek boş filtreyi uygular.
+- **Tek eylemli panel `Vazgeç` çizmez** (`showCancel: false`). Tek örneği
+  e-posta doğrulama panelidir; panel tutamaçla ya da dışına dokunarak kapanır.
+  Aynı panel kabuğun kapanış kuralının da tek istisnasıdır: son rakam
+  yazılınca kod düğmeye basılmadan denendiği için başarıda paneli kendisi
+  kapatır.
 - **Kapsam anahtarı tek parça bir raydır** (`AppSegmentRail`). Etiket büyük
   yazıda dilim içinde küçülür, ray taşmaz. Seçili dilim beyaz yüzey ve güçlü
   kenarla ayrılır ve ekran okuyucuya `seçili` olarak söylenir. Dilim 40 dp,
@@ -828,6 +834,16 @@ okuyucu anlamını korur; sabit genişlikli özel bir mobil yerleşim eklenmez.
 
 ## Hesabın kapısı ve `Hesabım` sayfası (Aşama 06 Grup 1)
 
+**10 Kasım 2026 teslimi** (`design/design_handoff_hesabim`): `AppAvatar` e-postanın
+durumunu köşesinde taşır (`AppAvatarStatus`): doğrulanmamış adres sağ üstte
+kırmızı nokta (çap avatarın %20'si, 2 dp zemin halkası), doğrulanmış adres sağ
+altta kart renginde daire içinde yeşil dolgulu `verified` (çap avatarın %34'ü).
+Üç yerde aynı okunur: Özet avatarı (40), Diğer'deki Hesabım kartı (64) ve
+Hesabım'ın kimlik kartı (56). Avatar ekran okuyucuya kapalıdır; durumun adı
+(`E-posta doğrulandı` / `E-posta doğrulanmadı`) çağıranın etiketindedir.
+Sayfanın güncel sırası ve akışları `documentation/flows.md` "Hesabım akışı"ndadır;
+aşağıdaki eski anlatım o teslimden önceki hâli tarif eder.
+
 `Özet` ekranının `AppBar`'ı tek bir action taşır: `account_circle_outlined`
 ikonu, `Hesabım` tooltip'i ve semantic etiketiyle. İkon bir profil fotoğrafı
 gibi okunmaz — uygulamada avatar yoktur ve kullanıcı görseli hiç saklanmaz.
@@ -949,13 +965,30 @@ yukarıdaki token'larla çizilir.
   animasyon kare atlar. Paneller 360 ms yatay, üst bölüm 420 ms, Özet'e geçiş
   560 ms.
   Hareketi azaltma ayarında süreler sıfırdır.
-- **Telefonun açılış ekranı** aynı koyu renktir ve **logosuzdur** (Android
-  `launch_background`, Android 12+ `windowSplashScreenBackground` ve saydam
-  `windowSplashScreenAnimatedIcon`, iOS `LaunchScreen.storyboard` 1×1 saydam
-  resim). Dokununca yalnız siyah ekran büyür; logo ilk kez giriş
-  animasyonunda görünür (kullanıcı kararı, 8 Kasım 2026). Android 12 ikonu
-  kendiliğinden ortaya koyuyordu; logo önce sabit, sonra animasyonda ikinci
-  kez beliriyordu.
+- **Telefonun açılış ekranı** aynı koyu renktir ve **ortasında 108 dp
+  genişliğinde Nomiva işareti** vardır (kullanıcı kararı, 10 Kasım 2026; 8
+  Kasım'daki logosuz ekranın yerini aldı, oturumu açık kişi hiç logo
+  görmüyordu). Android 12+ `windowSplashScreenAnimatedIcon` = `splash_icon`
+  (288 dp tuvalin ortasında işaret), eski Android `launch_background` içinde
+  `splash_mark`, iOS `LaunchImage` (108 pt). Görseller
+  `assets/brand/nomiva_isaret_acilis.png`'den üretildi; bu PNG aynı zamanda
+  açılış perdesinin işaretidir (SVG ilk karede çizilmeyebiliyor).
+  `MainActivity` Android 12 açılış ekranını **solmadan** kaldırır: varsayılan
+  solma işareti bir an karartıp yeniden getiriyordu.
+- **Açılış perdesi** (`LaunchCurtain`, `lib/app/launch_curtain.dart`;
+  sinyaller `core/presentation/launch_signals.dart`): ilk karede telefonun
+  ekranıyla aynı işareti aynı yerde çizer (logo çözülene kadar ilk kare
+  bekletilir). Sabit işaret en az 1 sn görünür. Oturum açıksa Özet'in ilk
+  verisini (en çok 6 sn) bekler, sonra 700 ms'de işaret %10 büyüyerek
+  silinir, koyu zemin çekilir ve Özet %96'dan yaklaşarak yerine oturur. Oturum kapalıysa giriş ekranı işareti
+  ekranın ortasından devralır (`LaunchHandoff.take`), perde tek katman olarak
+  180 ms'de solar ve ancak ondan sonra işaret 750 ms'de tasarımdaki yerine
+  kalkar. Girişten sonra da aynı perde, Özet'in zemin renginde ve logosuz, Özet
+  verisini bekler ve 480 ms'de solar; Özet bu sırada 16 dp yukarı kayar.
+  Veri girişte, geçişten önce yüklenir (`HomePrefetch`,
+  `AuthController.prepareHome`); yönlendirici hazır modeli alır, ikinci
+  istek gitmez. Bekleme göstergesi yalnız 1,2 sn'yi
+  aşan oturum kontrolünde çıkar.
 - **Uygulama ikonu** `flutter_launcher_icons` ile üretilir
   (`assets/brand/app_icon`); Android uyarlanabilir ikonun ön planı güvenli
   alan boşluğunu kendisi taşır, araç ikinci bir iç boşluk eklemez.

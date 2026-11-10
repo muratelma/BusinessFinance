@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_text.dart';
 import '../../../core/models/transaction_scope.dart';
+import '../../../core/presentation/launch_signals.dart';
 import '../../../core/routing/app_locations.dart';
 import '../../../core/theme/app_breakpoints.dart';
 import '../../../core/theme/app_finance_colors.dart';
@@ -40,6 +41,14 @@ class DashboardPage extends StatelessWidget {
     final viewModel = context.watch<DashboardViewModel>();
     final status = context.watch<AccountStatusController?>();
     final state = _stateView(viewModel);
+    // Açılış perdesi Özet'in ilk verisini bekler; boş bir yükleme ekranına
+    // açılmasın diye. Veri geldi ya da hata gösteriliyor: perde kalkabilir.
+    if (!(viewModel.isLoading && !viewModel.hasLoaded) &&
+        !LaunchHandoff.contentReady.value) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => LaunchHandoff.contentReady.value = true,
+      );
+    }
     return Scaffold(
       body: SafeArea(
         bottom: false,
@@ -48,21 +57,27 @@ class DashboardPage extends StatelessWidget {
             AppPageHeader(
               title: 'Özet',
               actions: [
-                // Hesabın kapısı: doğrulanmamış e-postanın kalıcı uyarısı
-                // avatarın üstünde kırmızı nokta.
+                // Hesabın kapısı: e-postanın durumu avatarın köşesinde
+                // (doğrulanmamış kırmızı nokta, doğrulanmış yeşil tik).
                 // 40 dp: 26 punto başlığın yanında büyük uygulamaların
                 // (App Store, Google uygulamaları) dengesi; 32 dp küçük
                 // kalıyordu (9 Kasım 2026). Kenarı başlıkla simetrik 16 dp.
                 IconButton(
                   tooltip: status?.needsEmailVerification ?? false
                       ? 'Hesabım, e-posta doğrulanmadı'
+                      : status?.emailVerified ?? false
+                      ? 'Hesabım, e-posta doğrulandı'
                       : 'Hesabım',
                   padding: const EdgeInsets.all(AppSpacing.xSmall),
                   onPressed: () => context.push(accountLocation),
                   icon: AppAvatar(
                     initials: status?.initials ?? '',
                     size: 40,
-                    badge: status?.needsEmailVerification ?? false,
+                    status: status?.needsEmailVerification ?? false
+                        ? AppAvatarStatus.unverified
+                        : status?.emailVerified ?? false
+                        ? AppAvatarStatus.verified
+                        : null,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.small),

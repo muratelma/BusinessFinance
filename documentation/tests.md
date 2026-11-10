@@ -1204,12 +1204,34 @@ yerini Vergi takibi aldı.
 | Doğrulanmış adreste uyarı yok | `account_page_test` | Kart hiç çizilmiyor |
 | Uyarı bir engel değil | aynı dosya | Kart varken sayfanın geri kalanı çalışıyor |
 | Panel açılınca kod isteniyor | aynı dosya | Kullanıcı ikinci bir düğmeye basmıyor |
-| Eksik/yanlış kod | aynı dosya | Altı haneden kısa kod istek üretmiyor; sunucunun reddi panelde kalıyor |
-| Doğru kod uyarıyı kaldırıyor | aynı dosya | Kart kayboluyor, onay mesajı çıkıyor |
+| Eksik/yanlış kod | aynı dosya | Altı haneden kısa kod istek üretmiyor; yanlış kod son rakamda kendiliğinden deneniyor ve `Kod yanlış ya da süresi dolmuş.` panelde kalıyor |
+| Doğru kod uyarıyı kaldırıyor | aynı dosya | Altıncı rakamla doğrulanıyor; kart kayboluyor, onay mesajı çıkıyor |
+| Yeniden gönderme sayaçla açılıyor | aynı dosya | 60 sn dolmadan `Kodu yeniden gönder` yok; dolunca ikinci istek gidiyor |
+| "Az önce gönderildi" hata değil | aynı dosya | `Kod az önce gönderildi.` yazıyor; `Kod gönderiliyor…` ve kırmızı uyarı yok |
+| Yanlış parola silme sayfasında | aynı dosya | Ayrı son onay yok; hata hemen alanın altında, hesap silinmiyor (10 Kasım 2026) |
 | Sıfırlama iki adımlı | `password_reset_panel_test` | Kod istenmeden yeni parola alanı yok |
 | Sıfırlama enumeration sızdırmıyor | aynı dosya | Kayıtsız adres de "adres kayıtlıysa kod gönderildi" diyor |
 | İstemci doğrulaması | aynı dosya | Geçersiz adres, kısa kod ve zayıf parola istek üretmiyor |
 | Sıfırlama erişilebilir | aynı dosya | 2.0× ölçekte taşma yok, semantik kapı geçiliyor |
+
+## Açılış perdesi (10 Kasım 2026, Aşama 06.4)
+
+`test/app/launch_curtain_test.dart`. Perdenin beklemeleri zamanlayıcıdır;
+testler zamanı yarım saniyelik adımlarla ilerletir (`pumpAndSettle` onları
+ilerletmez) ve oturum kontrolünü testin sahte zamanında başlatır.
+
+| Kapı | Neyi tutuyor |
+|---|---|
+| Oturum açık, Özet hazır | Perde ancak `contentReady` gelince kalkıyor; giriş ekranına devir yok |
+| Özet gecikiyor | Perde 1,5 sn sonra yine kalkıyor |
+| Oturum kapalı | İşaret giriş ekranına bir kez devrediliyor; perde çekilince `curtainLifted` tamamlanıyor |
+| En az süre | İşaret 300 ms'de hâlâ ekranda |
+| Girişten sonra | Zemin rengi örtü Özet hazır olana kadar duruyor, sonra kalkıyor |
+
+Cihazda (emülatör, release, ekran kaydı) doğrulananlar: telefonun ekranından
+perdeye geçişte işaret kararmıyor; oturum kapalıyken işaret yerinden kalkıyor;
+Google ile girişte düğmede bekleme halkası, daire düğmeden yayılıyor, Özet
+yükleme ekranı olmadan beliriyor.
 
 ## Giriş akışı (7 Kasım 2026, Aşama 06.4)
 

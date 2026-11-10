@@ -177,8 +177,8 @@ class _AccountCard extends StatelessWidget {
     final theme = Theme.of(context);
     final surfaces = AppSurfaces.of(context);
     final status = context.watch<AccountStatusController?>();
-    final email = status?.email;
     final unverified = status?.needsEmailVerification ?? false;
+    final verified = status?.emailVerified ?? false;
     // Kartın dokunma düğümü ile metni tek düğüm: ekran okuyucu adsız bir
     // düğme okumasın.
     return MergeSemantics(
@@ -191,27 +191,41 @@ class _AccountCard extends StatelessWidget {
             padding: const EdgeInsets.all(AppSpacing.medium),
             child: Row(
               children: [
-                AppAvatar(initials: status?.initials ?? '', size: 48),
+                // Tik yalnız renkle anlatılmaz; ekran okuyucu adını okur.
+                Semantics(
+                  label: verified ? 'E-posta doğrulandı' : null,
+                  child: AppAvatar(
+                    initials: status?.initials ?? '',
+                    size: 64,
+                    status: verified ? AppAvatarStatus.verified : null,
+                  ),
+                ),
                 const SizedBox(width: AppSpacing.medium),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Hesabım', style: theme.textTheme.titleSmall),
-                      if (email != null) ...[
-                        const SizedBox(height: AppGaps.rowText),
-                        Text(
-                          email,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall,
+                      // Başlık kullanıcı adıdır; e-posta bu kartta yazmaz.
+                      Text(
+                        status?.username ?? 'Hesabım',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
                         ),
-                      ],
+                      ),
+                      const SizedBox(height: AppGaps.rowText),
+                      Text(
+                        'Hesap, güvenlik ve oturumlar',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall,
+                      ),
                       if (unverified) ...[
-                        const SizedBox(height: AppSpacing.xSmall),
+                        const SizedBox(height: AppSpacing.step6),
                         const AppStatusChip(
                           label: 'E-posta doğrulanmadı',
-                          icon: Icons.mail_outline,
+                          icon: Icons.mail,
                           tone: AppStatusTone.expense,
                         ),
                       ],

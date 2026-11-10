@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
+import 'package:business_finance_mobile/core/widgets/app_code_input.dart';
 import 'package:business_finance_mobile/core/network/api_exception.dart';
 import 'package:business_finance_mobile/features/account/data/account_models.dart';
 import 'package:business_finance_mobile/features/account/data/account_repository.dart';
@@ -35,20 +36,20 @@ void main() {
     expect(find.widgetWithIcon(IconButton, Icons.close), findsOneWidget);
   });
 
-  testWidgets('başka cihazın oturumu onaydan sonra kapanır', (tester) async {
+  testWidgets('başka cihazın oturumu × ile doğrudan kapanır', (tester) async {
+    // Onay sorulmaz: geri alınabilir bir iştir, o cihazda yeniden giriş
+    // yapılır (teslim, 10 Kasım 2026).
     final repository = FakeAccountRepository();
     await tester.pumpWidget(_app(repository));
     await tester.pumpAndSettle();
 
     await tester.tap(find.widgetWithIcon(IconButton, Icons.close));
     await tester.pumpAndSettle();
-    expect(find.text('Oturum kapatılsın mı?'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Oturumu kapat'));
-    await tester.pumpAndSettle();
-
+    expect(find.text('Oturum kapatılsın mı?'), findsNothing);
     expect(repository.revokedSessionId, 'session-other');
     expect(find.text('Başka bir cihaz'), findsNothing);
+    expect(find.text('Oturum kapatıldı.'), findsOneWidget);
   });
 
   testWidgets('sayfa büyük metin erişilebilirlik kapısını geçer', (
@@ -63,40 +64,51 @@ void main() {
     await expectMeetsAccessibility(tester);
   });
 
-  testWidgets('oturum satırı göreli zamanı ve geçerliliği söyler', (
-    tester,
-  ) async {
+  testWidgets('oturum satırı göreli zamanı söyler', (tester) async {
     await tester.pumpWidget(
       _app(FakeAccountRepository(), now: () => DateTime(2026, 8, 17, 12)),
     );
     await tester.pumpAndSettle();
-    expect(
-      find.text("7 gün önce açıldı · 9 Eylül'e kadar geçerli"),
-      findsOneWidget,
-    );
-    expect(find.text("Şu an açık · 19 Eylül'e kadar geçerli"), findsOneWidget);
+    expect(find.text('7 gün önce açıldı'), findsOneWidget);
+    expect(find.text('Şu an açık'), findsOneWidget);
   });
 
-  testWidgets('diğer oturumlar tek onayla kapanır; bu cihaz kalır', (
-    tester,
-  ) async {
-    final repository = FakeAccountRepository();
-    await tester.pumpWidget(_app(repository));
+  testWidgets('tek oturumda Açık oturumlar bölümü çıkmaz', (tester) async {
+    await tester.pumpWidget(_app(FakeAccountRepository()..otherSessions = 0));
     await tester.pumpAndSettle();
 
-    expect(find.text('Açık oturumlar · 2'), findsOneWidget);
-    await tester.tap(find.text('Diğerlerini kapat'));
-    await tester.pumpAndSettle();
-    expect(find.text('Diğer oturumlar kapatılsın mı?'), findsOneWidget);
-
-    await tester.tap(find.widgetWithText(FilledButton, 'Hepsini kapat'));
-    await tester.pumpAndSettle();
-
-    expect(repository.revokedSessionId, 'session-other');
-    expect(find.text('Başka bir cihaz'), findsNothing);
-    expect(find.text('Bu cihaz'), findsOneWidget);
-    expect(find.text('Diğerlerini kapat'), findsNothing);
+    expect(find.text('Açık oturumlar'), findsNothing);
+    expect(find.text('Bu cihaz'), findsNothing);
   });
+
+  testWidgets(
+    'üç ve fazla başka cihaz tek satırda toplanır ve sayfası açılır',
+    (tester) async {
+      final repository = FakeAccountRepository()..otherSessions = 3;
+      await tester.pumpWidget(_app(repository));
+      await tester.pumpAndSettle();
+
+      // Hesabım'da tek tek yazılmaz ve toplu kapatma burada yoktur.
+      expect(find.text('Diğer cihazlar · 3'), findsOneWidget);
+      expect(find.text('Başka bir cihaz'), findsNothing);
+      expect(find.text('Diğer oturumları kapat'), findsNothing);
+
+      await tester.tap(find.text('Diğer cihazlar · 3'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Başka bir cihaz'), findsNWidgets(3));
+      await tester.tap(find.text('Diğer oturumları kapat'));
+      await tester.pumpAndSettle();
+      expect(find.text('Diğer oturumlar kapatılsın mı?'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Hepsini kapat'));
+      await tester.pumpAndSettle();
+
+      expect(repository.revokedSessionIds, hasLength(3));
+      expect(find.text('Başka bir cihaz'), findsNothing);
+      expect(find.text('Bu cihaz'), findsOneWidget);
+    },
+  );
 
   testWidgets('zayıf yeni parola istek gitmeden reddedilir', (tester) async {
     final repository = FakeAccountRepository();
@@ -134,7 +146,7 @@ void main() {
     expect(find.byIcon(Icons.check_circle), findsNWidgets(4));
   });
 
-  testWidgets('başlıkta kullanıcı adı, e-posta ve doğrulama işareti', (
+  testWidgets('kimlik kartında kullanıcı adı, e-posta ve doğrulama tiki', (
     tester,
   ) async {
     final repository = FakeAccountRepository()
@@ -145,7 +157,17 @@ void main() {
 
     expect(find.text('murat_elma'), findsOneWidget);
     expect(find.text('user@example.test'), findsOneWidget);
-    expect(find.byTooltip('E-posta doğrulandı'), findsOneWidget);
+    // Tik yalnız renkle anlatılmaz: ekran okuyucu adını okur.
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Semantics &&
+            widget.properties.label == 'E-posta doğrulandı',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byIcon(Icons.verified), findsOneWidget);
+    expect(find.text('E-postanızı doğrulayın'), findsNothing);
   });
 
   testWidgets('Çıkış yap sayfanın en altında, Hesabımı sil üstünde', (
@@ -212,9 +234,16 @@ void main() {
     expect(find.widgetWithText(TextField, 'Mevcut parola'), findsOneWidget);
   });
 
-  testWidgets('hesap silme iki kapıdan geçer', (tester) async {
+  testWidgets('hesap silme sayfası parola ve son onayla siler', (tester) async {
     final repository = FakeAccountRepository();
-    await tester.pumpWidget(_app(repository));
+    final auth = FakeAuthSessionRepository()..session = testSession();
+    final controller = AuthController(auth);
+    await tester.pumpWidget(
+      ChangeNotifierProvider<AuthController?>.value(
+        value: controller,
+        child: _app(repository, authRepository: auth),
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(find.text('Hesabımı sil'), 200);
@@ -223,26 +252,54 @@ void main() {
     await tester.tap(find.text('Hesabımı sil'));
     await tester.pumpAndSettle();
 
-    // Birinci kapı: ne olacağını söyleyen onay.
-    expect(find.text('Hesabınız silinsin mi?'), findsOneWidget);
-    expect(repository.deletedWithPassword, isNull);
-    await tester.tap(find.widgetWithText(FilledButton, 'Devam et'));
-    await tester.pumpAndSettle();
-
-    // İkinci kapı: parolanın yeniden yazılması. Boş parola istek üretmez.
-    await tester.tap(find.widgetWithText(FilledButton, 'Hesabımı sil'));
-    await tester.pumpAndSettle();
-    expect(repository.deletedWithPassword, isNull);
-    expect(find.text('Parolanızı yazın.'), findsOneWidget);
+    // Silme bir sayfadır: ne olacağını söyler, yedek kapısı oradadır.
+    expect(find.text('Önce yedeğinizi alın'), findsOneWidget);
+    final submit = find.widgetWithText(FilledButton, 'Hesabımı sil');
+    // Parola yazılana kadar düğme pasiftir.
+    expect(tester.widget<FilledButton>(submit).onPressed, isNull);
 
     await tester.enterText(
       find.widgetWithText(TextField, 'Parolanız'),
       'Valid-Password-123!',
     );
+    await tester.pump();
+    await tester.tap(submit);
+    await tester.pumpAndSettle();
+
+    // Ayrı son onay penceresi yok: düğme isteği doğrudan gönderir.
+    expect(find.text('Hesabınız silinecek'), findsNothing);
+    expect(repository.deletedWithPassword, 'Valid-Password-123!');
+    expect(find.text('Hesabınız silindi'), findsOneWidget);
+    expect(find.text('Giriş ekranına dön'), findsOneWidget);
+  });
+
+  testWidgets('yanlış parola Hesabımı sil sayfasında hemen söylenir', (
+    tester,
+  ) async {
+    final repository = FakeAccountRepository()
+      ..deleteError = const ApiException(
+        statusCode: 400,
+        code: 'account.invalid_password',
+        message: 'Parolanız doğrulanamadı.',
+      );
+    await tester.pumpWidget(_app(repository));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Hesabımı sil'), 200);
+    await tester.ensureVisible(find.text('Hesabımı sil'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Hesabımı sil'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Parolanız'),
+      'yanlis',
+    );
+    await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Hesabımı sil'));
     await tester.pumpAndSettle();
 
-    expect(repository.deletedWithPassword, 'Valid-Password-123!');
+    expect(find.text('Parolanız doğrulanamadı.'), findsOneWidget);
+    expect(find.text('Hesabınız silindi'), findsNothing);
   });
 
   testWidgets('parolasız hesapta Parola belirle kodla parola koyar', (
@@ -312,14 +369,16 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Hesabımı sil'));
     await tester.pumpAndSettle();
+
+    // Parola alanı yoktur; onay Google'dan gelir.
     expect(find.textContaining('Google hesabınızı seçerek'), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, 'Devam et'));
+    expect(find.widgetWithText(TextField, 'Parolanız'), findsNothing);
+    await tester.tap(find.widgetWithText(FilledButton, 'Hesabımı sil'));
     await tester.pumpAndSettle();
 
-    // Parola alanı açılmaz; onay Google'dan gelir.
-    expect(find.widgetWithText(TextField, 'Parolanız'), findsNothing);
     expect(repository.deletedWithGoogle, 'google-token');
     expect(repository.deletedWithPassword, isNull);
+    expect(find.text('Hesabınız silindi'), findsOneWidget);
   });
 
   testWidgets('Google penceresi kapatılırsa hesap silinmez', (tester) async {
@@ -339,36 +398,31 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Hesabımı sil'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Devam et'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Hesabımı sil'));
     await tester.pumpAndSettle();
 
     expect(repository.deletedWithGoogle, isNull);
+    expect(find.text('Hesabınız silindi'), findsNothing);
   });
 
-  testWidgets('doğrulanmış adreste uyarı çıkmaz', (tester) async {
+  testWidgets('doğrulanmış adreste doğrulama satırı çıkmaz', (tester) async {
     await tester.pumpWidget(_app(FakeAccountRepository()));
     await tester.pumpAndSettle();
 
-    expect(
-      find.textContaining('E-posta adresiniz doğrulanmadı.'),
-      findsNothing,
-    );
+    expect(find.text('E-postanızı doğrulayın'), findsNothing);
   });
 
-  testWidgets('doğrulanmamış adres uyarı taşır ama hesabı kilitlemez', (
+  testWidgets('doğrulanmamış adres satır taşır ama hesabı kilitlemez', (
     tester,
   ) async {
     final repository = FakeAccountRepository()..emailConfirmed = false;
     await tester.pumpWidget(_app(repository));
     await tester.pumpAndSettle();
 
-    expect(
-      find.textContaining('E-posta adresiniz doğrulanmadı.'),
-      findsOneWidget,
-    );
+    expect(find.text('E-postanızı doğrulayın'), findsOneWidget);
+    expect(find.byIcon(Icons.verified), findsNothing);
 
-    // Sayfanın geri kalanı yerinde: uyarı bir engel değil. Kart araya
-    // girdiği için aşağısı katlanmanın altında kalıyor, kaydırılıyor.
+    // Sayfanın geri kalanı yerinde: satır bir engel değil.
     expect(find.text('Bu cihaz'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Parolamı değiştir'), 200);
     expect(find.text('Parolamı değiştir'), findsOneWidget);
@@ -379,29 +433,68 @@ void main() {
     await tester.pumpWidget(_app(repository));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Adresimi doğrula'));
+    await tester.tap(find.text('E-postanızı doğrulayın'));
     await tester.pumpAndSettle();
 
     expect(repository.sendVerificationCount, 1);
-    expect(find.widgetWithText(TextField, 'Doğrulama kodu'), findsOneWidget);
+    expect(find.byType(AppCodeInput), findsOneWidget);
+    expect(
+      find.text('user@example.test adresine gelen 6 haneli kodu yazın.'),
+      findsOneWidget,
+    );
+    // Panelde tek eylem var; kapatmak tutamaçla ya da dışına dokunarak.
+    expect(find.text('Vazgeç'), findsNothing);
+  });
+
+  testWidgets('yeniden gönderme süre dolunca açılır', (tester) async {
+    final repository = FakeAccountRepository()..emailConfirmed = false;
+    await tester.pumpWidget(_app(repository));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('E-postanızı doğrulayın'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.textContaining('sonra isteyebilirsiniz'), findsOneWidget);
+    expect(find.text('Kodu yeniden gönder'), findsNothing);
+
+    await tester.pump(const Duration(seconds: 60));
+    await tester.tap(find.text('Kodu yeniden gönder'));
+    await tester.pump();
+
+    expect(repository.sendVerificationCount, 2);
+  });
+
+  testWidgets('az önce gönderilmiş kod hata sayılmaz', (tester) async {
+    final repository = FakeAccountRepository()
+      ..emailConfirmed = false
+      ..firstSendError = const ApiException(
+        statusCode: 409,
+        code: 'account.verification_code_too_soon',
+        message: 'Az önce bir kod gönderildi.',
+      );
+    await tester.pumpWidget(_app(repository));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('E-postanızı doğrulayın'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.text('Kod az önce gönderildi.'), findsOneWidget);
+    expect(find.text('Kod gönderiliyor…'), findsNothing);
+    expect(find.textContaining('biraz bekleyin'), findsNothing);
   });
 
   testWidgets('eksik kod istek üretmez', (tester) async {
     final repository = FakeAccountRepository()..emailConfirmed = false;
     await tester.pumpWidget(_app(repository));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Adresimi doğrula'));
+    await tester.tap(find.text('E-postanızı doğrulayın'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Doğrulama kodu'),
-      '12',
-    );
+    await tester.enterText(find.byType(TextField).last, '12');
     await tester.tap(find.widgetWithText(FilledButton, 'Doğrula'));
     await tester.pumpAndSettle();
 
     expect(repository.confirmedWithCode, isNull);
-    expect(find.text('Altı haneli kodu yazın.'), findsOneWidget);
   });
 
   testWidgets('yanlış kod panelde söylenir', (tester) async {
@@ -414,40 +507,30 @@ void main() {
       );
     await tester.pumpWidget(_app(repository));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Adresimi doğrula'));
+    await tester.tap(find.text('E-postanızı doğrulayın'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Doğrulama kodu'),
-      '000000',
-    );
-    await tester.tap(find.widgetWithText(FilledButton, 'Doğrula'));
+    // Son rakamla kod kendiliğinden denenir; düğmeye basmak gerekmez.
+    await tester.enterText(find.byType(TextField).last, '000000');
     await tester.pumpAndSettle();
 
-    expect(find.text('Kod geçersiz veya süresi dolmuş.'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Doğrulama kodu'), findsOneWidget);
+    expect(find.text('Kod yanlış ya da süresi dolmuş.'), findsOneWidget);
+    expect(find.byType(AppCodeInput), findsOneWidget);
   });
 
   testWidgets('doğru kod uyarıyı kaldırır', (tester) async {
     final repository = FakeAccountRepository()..emailConfirmed = false;
     await tester.pumpWidget(_app(repository));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Adresimi doğrula'));
+    await tester.tap(find.text('E-postanızı doğrulayın'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Doğrulama kodu'),
-      '123456',
-    );
-    await tester.tap(find.widgetWithText(FilledButton, 'Doğrula'));
+    await tester.enterText(find.byType(TextField).last, '123456');
     await tester.pumpAndSettle();
 
     expect(repository.confirmedWithCode, '123456');
     expect(find.text('E-posta adresiniz doğrulandı.'), findsOneWidget);
-    expect(
-      find.textContaining('E-posta adresiniz doğrulanmadı.'),
-      findsNothing,
-    );
+    expect(find.text('E-postanızı doğrulayın'), findsNothing);
   });
 }
 
@@ -488,6 +571,10 @@ class FakeAccountRepository implements AccountRepositoryContract {
   String? lastCurrentPassword;
   String? lastResetCode;
 
+  /// Bu cihazın dışındaki açık oturum sayısı.
+  int otherSessions = 1;
+  final List<String> revokedSessionIds = [];
+
   @override
   Future<List<UserSessionSummary>> listSessions() async => [
     UserSessionSummary(
@@ -496,16 +583,18 @@ class FakeAccountRepository implements AccountRepositoryContract {
       createdAtUtc: DateTime.utc(2026, 8, 20, 9),
       expiresAtUtc: DateTime.utc(2026, 9, 19, 9),
     ),
-    UserSessionSummary(
-      sessionId: 'session-other',
-      createdAtUtc: DateTime.utc(2026, 8, 10, 9),
-      expiresAtUtc: DateTime.utc(2026, 9, 9, 9),
-    ),
-  ];
+    for (var i = 0; i < otherSessions; i++)
+      UserSessionSummary(
+        sessionId: i == 0 ? 'session-other' : 'session-other-$i',
+        createdAtUtc: DateTime.utc(2026, 8, 10 - i, 9),
+        expiresAtUtc: DateTime.utc(2026, 9, 9, 9),
+      ),
+  ].where((s) => !revokedSessionIds.contains(s.sessionId)).toList();
 
   @override
   Future<void> revokeSession(String sessionId) async {
     revokedSessionId = sessionId;
+    revokedSessionIds.add(sessionId);
   }
 
   @override
@@ -531,11 +620,13 @@ class FakeAccountRepository implements AccountRepositoryContract {
 
   @override
   Future<void> deleteAccount({String? password, String? googleIdToken}) async {
+    if (deleteError case final error?) throw error;
     deletedWithPassword = password;
     deletedWithGoogle = googleIdToken;
   }
 
   String? deletedWithGoogle;
+  ApiException? deleteError;
   List<String> passwordCodeRequests = [];
 
   bool passwordCodeSent = true;
@@ -551,9 +642,15 @@ class FakeAccountRepository implements AccountRepositoryContract {
   String? confirmedWithCode;
   ApiException? confirmError;
 
+  /// Yalnız ilk istekte atılır; yeniden gönderim başarılı olur.
+  ApiException? firstSendError;
+
   @override
   Future<VerificationSendResult> sendEmailVerification() async {
     sendVerificationCount++;
+    if (sendVerificationCount == 1 && firstSendError != null) {
+      throw firstSendError!;
+    }
     return const VerificationSendResult(
       alreadyConfirmed: false,
       codeSent: true,

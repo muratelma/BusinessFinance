@@ -88,6 +88,7 @@ flutter:
   assets:
     - assets/brand/nomiva_isaret_koyu_zemin.svg
     - assets/brand/nomiva_isaret_acik_zemin.svg
+    - assets/brand/nomiva_isaret_acilis.png
     - assets/fonts/figtree/OFL.txt
 
   # Figtree yalnız giriş akışında kullanılır (kullanıcı kararı, 7 Kasım

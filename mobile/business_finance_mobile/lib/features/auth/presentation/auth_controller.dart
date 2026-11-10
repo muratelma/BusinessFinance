@@ -44,6 +44,21 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Sunucu girişi kabul ettikten sonra, geçiş oynamadan önce beklenir:
+  /// uygulama Özet'in verisini burada hazırlar ve giriş düğmesi o sürece
+  /// döner. Hata girişi geri almaz.
+  Future<void> Function()? prepareHome;
+
+  Future<void> _prepareHome() async {
+    final prepare = prepareHome;
+    if (prepare == null) return;
+    try {
+      await prepare();
+    } catch (_) {
+      // Özet kendi yükleme ve hata hâlini gösterir.
+    }
+  }
+
   /// [onVerified] sunucu girişi kabul ettikten **sonra**, oturum ekranlara
   /// açılmadan önce beklenir: giriş ekranı Özet'e geçiş animasyonunu bu arada
   /// oynatır. Oturum açılınca yönlendirici giriş ekranını hemen kaldırır;
@@ -60,6 +75,7 @@ class AuthController extends ChangeNotifier {
     try {
       await _repository.login(email, password);
       _errorMessage = null;
+      await _prepareHome();
       if (onVerified != null) {
         try {
           await onVerified();
@@ -106,6 +122,7 @@ class AuthController extends ChangeNotifier {
         case GoogleSignupRequired():
           return outcome;
         case GoogleSignedIn():
+          await _prepareHome();
           if (onVerified != null) {
             try {
               await onVerified();

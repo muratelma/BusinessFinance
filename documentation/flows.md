@@ -843,15 +843,23 @@ paneller ekranın içinde yatay kayar, üstteki siyah bölüm ve logo yerinde
 kalır.
 
 ```text
-Uygulama açılır -> telefonun açılış ekranı (koyu, #050608)
-  -> oturum kontrolü: aynı koyu zemin, ad ya da yazı yok
-     -> oturum var: doğrudan Özet (açılış animasyonu oynamaz)
-     -> oturum yok: açılış animasyonu -> giriş
+Uygulama açılır -> telefonun açılış ekranı (koyu, ortada Nomiva işareti)
+  -> açılış perdesi işareti aynı yerde devralır (en az 1 sn sabit)
+  -> oturum kontrolü
+     -> oturum var: işaret Özet'in verisi gelene kadar durur (1,2 sn'den
+        sonra altında bekleme halkası; en çok 6 sn), hafifçe büyüyerek
+        silinir, Özet yaklaşarak verisiyle belirir (700 ms)
+     -> oturum yok: işaret yerinden kalkar, ad + slogan + dalga -> giriş
 Giriş -> e-posta ya da kullanıcı adı + parola -> Giriş yap
   -> düğme daralıp bekleme göstergesine döner
   -> hata: düğme geri açılır, uyarı formun içinde
-  -> kabul: Özet'in zemin rengi düğmeden yayılır, ekranı kaplayınca oturum
-     açılır ve Özet aynı renkte belirir
+  -> kabul: düğme dönmeye devam ederken "işletmem var" bilgisi, avatar
+     işareti ve Özet'in verisi yüklenir (HomePrefetch, en çok ~5 sn)
+  -> Özet'in zemin rengi düğmeden yayılır, ekranı kaplayınca oturum açılır
+     ve Özet hafifçe yukarı kayarak tam hâliyle belirir (480 ms; yükleme
+     ekranı ve sonradan değişen sekme görünmez)
+Google ile devam et -> Google'ın hesap penceresi -> sunucu doğrularken Google
+  düğmesinde bekleme halkası -> daire Google düğmesinden yayılır -> Özet
 Hesap oluştur -> kullanıcı adı + e-posta + parola (hesap henüz açılmaz)
   -> Bir adım kaldı: İşletmem var (varsayılan kapalı) -> Devam et
   -> kayıt + giriş -> Özet
@@ -859,10 +867,17 @@ Hesap oluştur -> kullanıcı adı + e-posta + parola (hesap henüz açılmaz)
 Parolamı unuttum -> yazılan adres sıfırlama paneline taşınır
 ```
 
-- **Açılış animasyonu yalnız giriş ekranı açılırken oynar**: ilk açılışta ve
-  çıkış yapıldıktan sonra. Oturumu açık olan kişi onu hiç görmez. Animasyon
-  sürerken ekrana dokunmak onu bitirir; hareketi azaltma ayarı açıksa form
-  hemen gelir.
+- **Açılış oturuma göre ayrılır** (kullanıcı kararı, 10 Kasım 2026). Her
+  soğuk açılışta telefonun kendi ekranı koyu zeminde Nomiva işaretini
+  gösterir; uygulamanın ilk karesi (`LaunchCurtain`, `lib/app/`) işareti aynı
+  yerde ve aynı boyda çizer, geçişte dikiş yoktur. Oturum açıksa işaret kısa
+  bir geçişle Özet'e bırakır; oturum kapalıysa giriş ekranı işareti yerinden
+  devralır ve uzun açılışı (ad, slogan, dalga, form) oynatır. Sabit işaret en
+  az 1 saniye görünür: hızlı telefonda hemen kaybolmasın diye; yavaş
+  telefonda zaten daha uzun durur, süre uzatılmaz. Arka plandan dönüşte ve
+  çıkış yaptıktan sonra perde yoktur; çıkıştan sonra giriş ekranının
+  açılışı işaretin belirmesiyle başlar. Animasyon sürerken ekrana dokunmak
+  onu bitirir; hareketi azaltma ayarı açıksa form hemen gelir.
 - **Geçiş oturumdan önce oynar.** Oturum açıldığı anda yönlendirici giriş
   ekranını kaldırır; bu yüzden `AuthController.login` sunucu girişi kabul
   ettikten sonra `onVerified` geri çağrısını bekler, oturumu ondan sonra
@@ -1353,7 +1368,7 @@ Claude Design teslimiyle (27 Eylül 2026, 06.2 Grup 1'in ilk adımı) menü
 
 | Grup | Kapılar |
 |---|---|
-| (kart) | Hesabım — baş harfler, e-posta, doğrulanmamışsa `E-posta doğrulanmadı` |
+| (kart) | Hesabım — 64 dp avatar, kullanıcı adı (yoksa `Hesabım`), `Hesap, güvenlik ve oturumlar`; doğrulanmamışsa kırmızı `E-posta doğrulanmadı`, doğrulanmışsa avatarda yeşil tik. E-posta adresi kartta yazmaz |
 | Para ve hesaplar | Hesaplar · Kredi kartlarım · (kişisel profilde) Kasa · Borç ve alacaklar · Cari hesap (işletmesi olana; işletmesi olmayan kullanıcıda yalnız cari hareketi varsa — `hasCounterpartyLedger`, 9 Ekim 2026) |
 | Kategoriler | Kategori özeti · Kategori yönetimi |
 | Planlama | (işletme profilinde) Bütçeler · Yükümlülükler · Tasarruf hedefleri · Planlama ve raporlar |
@@ -1398,16 +1413,40 @@ o karara kadar iki kapı bir kusur değil, bilerek bırakılmış geçici hâldi
 İkon `AppBar` action'ıdır ve kapsam anahtarına dokunmaz: anahtar `AppBar`'da
 değil, altındaki ayrı barda ve kaydırılan gövdenin dışında durur.
 
-Sayfanın sırası (9 Kasım 2026'da kullanıcıyla gözden geçirildi):
+Sayfanın sırası (teslim `design/design_handoff_hesabim`, 10 Kasım 2026; 9 Kasım
+turundaki karar panoları K1–K4 bu teslimle kapandı):
 
 | Sıra | Bölüm | Ne yapar |
 |---|---|---|
-| 1 | Başlık (kartsız, ortalı) | 72 dp avatar, kullanıcı adı (yoksa e-posta başlığa çıkar), altında e-posta ve doğrulanmışsa yeşil işaret; doğrulanmamışsa uyarı ve `Adresimi doğrula` başlığın altında |
-| 2 | Tercihler | `İşletmem var`; alt metin anahtarın ne yaptığını söyler (`İşletme ve şahsi ayrımını gösterir.`), kategorilere dokunmaz |
-| 3 | Güvenlik | `Parolamı değiştir` (alt metinsiz); Google ile açılmış (parolasız) hesapta `Parola belirle` |
-| 4 | Açık oturumlar · N | Bu cihaz en üstte; göreli açılış (`7 gün önce açıldı`) ve `18 Ekim'e kadar geçerli`; `Diğerlerini kapat` |
-| 5 | Hesabı kapat | Önce `Önce yedeğinizi alın` kapısı, sonra kırmızı `Hesabımı sil` |
-| 6 | Çıkış yap | Sayfanın en altında, kendi tam genişlik kenarlı düğmesi (kullanıcı onu orada arıyor) |
+| 1 | Kimlik kartı | 56 dp avatar, kullanıcı adı (yoksa e-posta başlığa çıkar) ve e-posta. Doğrulanmış adreste avatarın sağ altında yeşil tik; doğrulanmamış adreste kartın ikinci satırı `E-postanızı doğrulayın ›` doğrulama panelini açar |
+| 2 | Tercihler | `İşletmem var` · `İşletme ve şahsi ayrılır`; kategorilere dokunmaz |
+| 3 | Açık oturumlar | Tek oturumda bölüm çıkmaz. Bir ya da iki başka cihaz satır satır yazılır ve `×` ile **onay sorulmadan** kapanır (geri alınabilir iş). Üç ve fazlası tek satıra toplanır (`Diğer cihazlar · n` · `En son … açıldı`) ve `Açık oturumlar` sayfasını açar |
+| 4 | Güvenlik | `Parolamı değiştir` (parolasız hesapta `Parola belirle`) ve kırmızı `Hesabımı sil ›` |
+| 5 | Çıkış yap | En altta, kenarlı ve kırmızı değil: çıkış yapmak bir şey silmez |
+
+**Açık oturumlar sayfası:** `Bu cihaz` kartı, `Diğer cihazlar · n` başlığı
+altında her cihaz `×` ile, ayrı kartta kırmızı `Diğer oturumları kapat` (tek
+onayla) ve "Kapatılan cihazda yeniden giriş yapmak gerekir." notu. Toplu
+kapatma yalnız bu sayfadadır.
+
+**Hesabımı sil** bir paneldi, sayfa oldu: ne olacağını söyleyen metin (e-posta
+kalın), `Önce yedeğinizi alın` kartı (Veri ve yedek'i açar), `Parolanız` alanı
+ve en altta kırmızı `Hesabımı sil`; parola yazılana kadar düğme pasiftir.
+Ayrı bir son onay penceresi **yoktur** (kullanıcı kararı, 10 Kasım 2026):
+sayfa, yazılan parola ve kırmızı düğme onayın kendisidir; düğme isteği
+doğrudan gönderir ve yanlış parola hemen alanın altında yazar. Eskiden araya
+giren pencere yanlış parolanın ancak `Sil`den sonra söylenmesine yol açıyordu
+(Discord ve Instagram'ın web silme sayfası da parolayı son adımda sorar).
+Silinince `Hesabınız silindi` ekranı gelir; geri dönülmez, tek düğme `Giriş
+ekranına dön`. Parolası olmayan (Google) hesapta parola alanı yoktur; düğme
+Google hesap seçme penceresini açar, pencere kapatılırsa hiçbir şey olmaz.
+
+Teslimden bilerek ayrılınan yerler: teslim doğrulamayı **bağlantıyla** ve
+"Bağlantı gönderildi · 45 saniye" satırıyla çizdi; uygulamada doğrulama altı
+haneli **kodla** yapılır, satır kod panelini açar ve o ara durum yoktur.
+Teslimdeki geri sayım panelin içine alındı (aşağıda, doğrulama paneli).
+Teslimdeki son onay penceresi kaldırıldı (yukarıda). Ölçüler
+ortak kuraldan gelir (başlık 22/600, düğmeler 48 dp, ad 18/700).
 
 Parola pencereleri yeni parolanın dört kuralını yazdıkça işaretler (12+
 karakter, büyük ve küçük harf, rakam, simge), alanlarda göz düğmesi vardır;
@@ -1461,12 +1500,27 @@ adresin karşılığı iki yerde görünen tek bir uyarıdır:
 | Yer | Ne gösterir |
 |---|---|
 | Özet ekranının hesap ikonu | Küçük bir nokta (`Badge`) — uyarının doğal yeri, gidip düzelteceği sayfanın kapısıdır |
-| `Hesabım` sayfası | Ne olduğunu ve neden işe yaradığını anlatan kart + `Adresimi doğrula` |
+| `Hesabım` sayfası | Kimlik kartının ikinci satırı `E-postanızı doğrulayın ›`; doğrulama panelini açar |
 
 Panel açılır açılmaz kod ister; kullanıcı zaten bunun için gelmiştir. Kod
 gönderilemiyorsa (sunucuda gönderici yapılandırılmamışsa) bu **söylenir** —
 yoksa kullanıcı hiç gelmeyecek bir postayı bekler. `Kodu yeniden gönder` aynı
 yolu tekrar çağırır; sunucu 60 saniyeden önceki ikinci isteği reddeder.
+
+Doğrulama paneli (10 Kasım 2026 düzeni): başlık `E-postanızı doğrulayın`,
+altında "<adres> adresine gelen 6 haneli kodu yazın." Kod altı ayrı kutuya
+yazılır (`AppCodeInput`); yapıştırma çalışır, son rakam yazılınca kod
+kendiliğinden denenir. Kutuların altında tek bir durum satırı vardır:
+`Kod gönderiliyor…`, `Yeni kodu 0:45 sonra isteyebilirsiniz.` (sayaç kendi
+isteğimizden 60 saniye sayar) ve süre dolunca `Kodu yeniden gönder`.
+Sunucunun "az önce gönderildi" cevabı (`account.verification_code_too_soon`)
+**hata sayılmaz**: kod posta kutusundadır, satır `Kod az önce gönderildi.`
+yazar ve 60 saniye sonra yeniden gönderme açılır. Yanlış ya da süresi geçmiş
+kod kutuları kırmızıya çevirir ve altında `Kod yanlış ya da süresi dolmuş.`
+yazar; yazmaya başlayınca kalkar. Gönderim gerçekten düştüyse durum satırı
+hatayı ve `Tekrar dene`yi gösterir. Altta yalnız `Doğrula` vardır (altı
+rakam yazılana kadar pasif); `Vazgeç` yoktur, panel tutamaçla ya da dışına
+dokunarak kapanır.
 
 **Parolamı unuttum** giriş ekranının hemen altındadır: aranacağı yer,
 kaybedildiği yerdir. Tek panel, iki adım — adres yazılır ve kod istenir, sonra

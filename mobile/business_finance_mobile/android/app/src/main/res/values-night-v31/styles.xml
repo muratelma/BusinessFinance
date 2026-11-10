@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Android 12 ve sonrası açılışta kendi ekranını çizer ve ortasına
-         kendiliğinden uygulama ikonunu koyar. İkon saydamdır: dokununca
-         yalnız siyah ekran büyür, logo ilk kez giriş animasyonunda görünür
-         (kullanıcı kararı, 8 Kasım 2026). Zemin animasyonun ilk karesiyle
-         aynı. -->
+    <!-- Android 12 ve sonrası açılışta kendi ekranını çizer: koyu zeminin
+         ortasında Nomiva işareti (kullanıcı kararı, 10 Kasım 2026; 8 Kasım'da
+         ikon saydamdı ve oturumu açık kişi hiç logo görmüyordu). İşaret
+         `splash_icon`, 288 dp tuvalin ortasında 108 dp genişliktedir; Flutter'ın
+         ilk karesi (`LaunchCurtain`) onu aynı yerde ve aynı boyda çizer, geçişte
+         dikiş görünmez. Zemin animasyonun ilk karesiyle aynı. -->
     <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
         <item name="android:windowBackground">@drawable/launch_background</item>
         <item name="android:windowSplashScreenBackground">@color/nomiva_splash</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
     </style>
     <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>

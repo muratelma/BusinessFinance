@@ -15,5 +15,7 @@ void main() {
   });
   final dependencies = AppDependencies.create();
   dependencies.authController.initialize();
-  runApp(BusinessFinanceApp(dependencies: dependencies));
+  runApp(
+    BusinessFinanceApp(dependencies: dependencies, showLaunchCurtain: true),
+  );
 }
