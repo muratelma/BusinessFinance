@@ -163,7 +163,12 @@ public sealed class IdentityAccountService : IIdentityAccountService
                 user.Email,
                 user.EmailConfirmed,
                 user.CreatedAtUtc,
-                user.PasswordHash is not null)
+                user.PasswordHash is not null,
+                // Kullanıcı adından önce açılmış hesapta ad e-postanın
+                // kendisidir; o bir kullanıcı adı değildir.
+                user.UserName is { } name && !name.Contains('@', StringComparison.Ordinal)
+                    ? name
+                    : null)
             : null;
     }
 

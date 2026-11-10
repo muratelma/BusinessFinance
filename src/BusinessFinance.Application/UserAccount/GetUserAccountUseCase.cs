@@ -38,6 +38,7 @@ public sealed class GetUserAccountUseCase(
             account.EmailConfirmed,
             account.CreatedAtUtc,
             sessions.Count,
-            account.HasPassword));
+            account.HasPassword,
+            account.Username));
     }
 }

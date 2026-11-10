@@ -30,6 +30,28 @@ public sealed class UserAccountEndpointTests
         Assert.Equal(Email, account.Email);
         Assert.Equal(tokens.UserId, account.UserId);
         Assert.Equal(1, account.ActiveSessionCount);
+        // Kullanıcı adı seçmeden açılan hesapta ad e-postadır; kullanıcı adı yok.
+        Assert.Null(account.Username);
+    }
+
+    [Fact]
+    public async Task GetAccount_ReturnsTheChosenUsername()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var client = factory.CreateClient();
+        using var register = await client.PostAsJsonAsync(
+            "/api/v1/auth/register",
+            new RegisterRequest(Email, Password, Username: "murat_elma"),
+            CancellationToken.None);
+        register.EnsureSuccessStatusCode();
+        var tokens = await LoginAsync(client, Email, Password);
+        Authenticate(client, tokens.AccessToken);
+
+        var account = await client.GetFromJsonAsync<UserAccountResponse>(
+            "/api/v1/account",
+            CancellationToken.None);
+
+        Assert.Equal("murat_elma", account!.Username);
     }
 
     [Fact]

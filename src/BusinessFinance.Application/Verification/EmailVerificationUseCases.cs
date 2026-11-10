@@ -126,7 +126,8 @@ internal static class VerificationCodeIssuer
         IVerificationCodeRepository repository,
         IVerificationEmailSender emailSender,
         DateTimeOffset utcNow,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool isPasswordSetup = false)
     {
         // Yeni kod eskisini öldürür: aynı anda iki geçerli kod, birini gören
         // saldırgana ikinci bir şans verirdi.
@@ -144,12 +145,18 @@ internal static class VerificationCodeIssuer
                 expiresAtUtc),
             cancellationToken);
 
-        var status = await emailSender.SendCodeAsync(
-            email,
-            purpose,
-            code,
-            expiresAtUtc,
-            cancellationToken);
+        var status = isPasswordSetup
+            ? await emailSender.SendPasswordSetupCodeAsync(
+                email,
+                code,
+                expiresAtUtc,
+                cancellationToken)
+            : await emailSender.SendCodeAsync(
+                email,
+                purpose,
+                code,
+                expiresAtUtc,
+                cancellationToken);
 
         return status == EmailDeliveryStatus.Sent;
     }

@@ -11,7 +11,8 @@ public sealed record UserAccountResponse(
     bool EmailConfirmed,
     DateTimeOffset CreatedAtUtc,
     int ActiveSessionCount,
-    bool HasPassword);
+    bool HasPassword,
+    string? Username);
 
 public sealed record UserSessionResponse(
     Guid SessionId,
@@ -125,7 +126,8 @@ public static class UserAccountEndpoints
                 result.Value.EmailConfirmed,
                 result.Value.CreatedAtUtc,
                 result.Value.ActiveSessionCount,
-                result.Value.HasPassword))
+                result.Value.HasPassword,
+                result.Value.Username))
             : result.Error.ToProblemResult(httpContext);
     }
 

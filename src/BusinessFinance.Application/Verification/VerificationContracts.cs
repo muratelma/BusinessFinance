@@ -58,6 +58,23 @@ public interface IVerificationEmailSender
         string code,
         DateTimeOffset expiresAtUtc,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Parolası olmayan (Google ile açılmış) hesabın "Parola belirle" kodu.
+    /// Kod sıfırlamanın kodudur (aynı amaç, aynı tüketim); yalnız postanın
+    /// dili farklıdır: hiç parolası olmayana "parolanızı sıfırlayın" denmez.
+    /// </summary>
+    Task<EmailDeliveryStatus> SendPasswordSetupCodeAsync(
+        string email,
+        string code,
+        DateTimeOffset expiresAtUtc,
+        CancellationToken cancellationToken) =>
+        SendCodeAsync(
+            email,
+            VerificationPurpose.PasswordReset,
+            code,
+            expiresAtUtc,
+            cancellationToken);
 }
 
 public enum EmailDeliveryStatus

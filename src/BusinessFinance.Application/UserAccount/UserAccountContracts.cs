@@ -12,7 +12,8 @@ public sealed record UserAccountDto(
     bool EmailConfirmed,
     DateTimeOffset CreatedAtUtc,
     int ActiveSessionCount,
-    bool HasPassword = true);
+    bool HasPassword = true,
+    string? Username = null);
 
 /// <summary>
 /// Açık bir oturum satırı. Token veya hash göstermez; oturumun ne zaman

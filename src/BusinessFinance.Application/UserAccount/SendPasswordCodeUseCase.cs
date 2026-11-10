@@ -65,7 +65,8 @@ public sealed class SendPasswordCodeUseCase(
             repository,
             emailSender,
             utcNow,
-            cancellationToken);
+            cancellationToken,
+            isPasswordSetup: true);
 
         return ApplicationResult<SendPasswordCodeResponse>.Success(
             new SendPasswordCodeResponse(sent));

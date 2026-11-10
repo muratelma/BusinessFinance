@@ -80,7 +80,9 @@ public sealed class PasswordlessAccountEndpointTests
         request.EnsureSuccessStatusCode();
         var sent = await request.Content.ReadFromJsonAsync<SendPasswordCodeResponseBody>();
         Assert.True(sent!.CodeSent);
-        var code = Assert.Single(mail.Sent).Code;
+        var mailed = Assert.Single(mail.Sent);
+        Assert.True(mailed.Setup, "Parola belirleme postası, sıfırlama postası değil.");
+        var code = mailed.Code;
 
         using var set = await client.PostAsJsonAsync(
             "/api/v1/account/password",
@@ -166,7 +168,7 @@ public sealed class PasswordlessAccountEndpointTests
 
     private sealed class RecordingEmailSender : IVerificationEmailSender
     {
-        public List<(string Email, VerificationPurpose Purpose, string Code)> Sent { get; } = [];
+        public List<(string Email, VerificationPurpose Purpose, string Code, bool Setup)> Sent { get; } = [];
 
         public Task<EmailDeliveryStatus> SendCodeAsync(
             string email,
@@ -175,7 +177,17 @@ public sealed class PasswordlessAccountEndpointTests
             DateTimeOffset expiresAtUtc,
             CancellationToken cancellationToken)
         {
-            Sent.Add((email, purpose, code));
+            Sent.Add((email, purpose, code, false));
+            return Task.FromResult(EmailDeliveryStatus.Sent);
+        }
+
+        public Task<EmailDeliveryStatus> SendPasswordSetupCodeAsync(
+            string email,
+            string code,
+            DateTimeOffset expiresAtUtc,
+            CancellationToken cancellationToken)
+        {
+            Sent.Add((email, VerificationPurpose.PasswordReset, code, true));
             return Task.FromResult(EmailDeliveryStatus.Sent);
         }
     }

@@ -64,11 +64,38 @@ internal sealed class BrevoVerificationEmailSender : IVerificationEmailSender
         _logger = logger;
     }
 
-    public async Task<EmailDeliveryStatus> SendCodeAsync(
+    public Task<EmailDeliveryStatus> SendCodeAsync(
         string email,
         VerificationPurpose purpose,
         string code,
         DateTimeOffset expiresAtUtc,
+        CancellationToken cancellationToken) =>
+        SendAsync(
+            email,
+            purpose == VerificationPurpose.PasswordReset
+                ? Message.PasswordReset
+                : Message.EmailConfirmation,
+            code,
+            cancellationToken);
+
+    public Task<EmailDeliveryStatus> SendPasswordSetupCodeAsync(
+        string email,
+        string code,
+        DateTimeOffset expiresAtUtc,
+        CancellationToken cancellationToken) =>
+        SendAsync(email, Message.PasswordSetup, code, cancellationToken);
+
+    internal enum Message
+    {
+        EmailConfirmation,
+        PasswordReset,
+        PasswordSetup
+    }
+
+    private async Task<EmailDeliveryStatus> SendAsync(
+        string email,
+        Message message,
+        string code,
         CancellationToken cancellationToken)
     {
         if (!_options.IsConfigured)
@@ -86,8 +113,8 @@ internal sealed class BrevoVerificationEmailSender : IVerificationEmailSender
                 ["email"] = _options.SenderEmail
             },
             ["to"] = new JsonArray(new JsonObject { ["email"] = email }),
-            ["subject"] = Subject(purpose),
-            ["textContent"] = TextBody(purpose, code)
+            ["subject"] = Subject(message),
+            ["textContent"] = TextBody(message, code)
         };
 
         using var request = new HttpRequestMessage(HttpMethod.Post, SendPath)
@@ -126,9 +153,10 @@ internal sealed class BrevoVerificationEmailSender : IVerificationEmailSender
         }
     }
 
-    private static string Subject(VerificationPurpose purpose) => purpose switch
+    internal static string Subject(Message message) => message switch
     {
-        VerificationPurpose.PasswordReset => "Parola sıfırlama kodunuz",
+        Message.PasswordReset => "Parola sıfırlama kodunuz",
+        Message.PasswordSetup => "Parola belirleme kodunuz",
         _ => "E-posta doğrulama kodunuz"
     };
 
@@ -136,13 +164,16 @@ internal sealed class BrevoVerificationEmailSender : IVerificationEmailSender
     /// Düz metin: HTML şablonu, okunmayacak bir tasarım işi getirir ve kodu
     /// kopyalamayı zorlaştıran istemcilerde bozulur. Mesaj tek şey söyler.
     /// </summary>
-    private static string TextBody(VerificationPurpose purpose, string code)
+    internal static string TextBody(Message message, string code)
     {
         var minutes = VerificationPolicy.CodeLifetime.TotalMinutes
             .ToString("0", CultureInfo.InvariantCulture);
-        var reason = purpose == VerificationPurpose.PasswordReset
-            ? "Parolanızı sıfırlamak için"
-            : "E-posta adresinizi doğrulamak için";
+        var reason = message switch
+        {
+            Message.PasswordReset => "Parolanızı sıfırlamak için",
+            Message.PasswordSetup => "Hesabınıza parola belirlemek için",
+            _ => "E-posta adresinizi doğrulamak için"
+        };
 
         return $"""
             {reason} aşağıdaki kodu uygulamaya girin:

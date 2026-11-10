@@ -91,4 +91,5 @@ public sealed record UserAccountProfile(
     string Email,
     bool EmailConfirmed,
     DateTimeOffset CreatedAtUtc,
-    bool HasPassword = true);
+    bool HasPassword = true,
+    string? Username = null);
