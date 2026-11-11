@@ -2439,3 +2439,21 @@ Kategori seçicinin ikinci parçası (28 Ekim 2026): kart harcaması/taksit test
 kasa, POS, gün sonu ve cari testleri değişmeden geçti. Görüntü testlerinin
 tamamı `SCREENSHOT_DIR` ile koşuldu; vergi ödemesi karesi 27 Ekim'deki hesap
 seçici geçişinden beri eski anahtarı arıyordu, düzeltildi.
+
+## Kredi kartları sayfası, ilk kullanım ve taşma düzeltmeleri — 11 Kasım 2026
+
+| Kanıt | Test | Ne doğrular |
+|---|---|---|
+| Kart sayfasının bölümleri | `finance_feature_test` | Beş işlem kutusu dönem borcunun üstünde; günler kartın yüzünde (`Hesap kesimi`, `Ayın 10'u`); ekstre adı ve asgari tek satırda; alacaklı kart `Kart alacağınız` der ve eksi yazmaz; en büyük yazıda taşma yok |
+| Hareketler ayrı sayfada | `finance_feature_test` | `Tümü` `Kart hareketleri`ni açar; kırpma uyarısı ve dönem oradadır; filtre taslaktır, `Uygula`dan önce dönem değişmez |
+| Taksit paneli | `finance_feature_test` | Plan satırına dokununca panel açılır; günü gelmiş taksitte durumun yerinde `Gerçekleştir` (`AppRowAction`) |
+| Gecikmiş ödeme bandı dar ekranda | `dashboard_sections_test` | İki parça sığmayınca yalnız tarih yazılır, ikisi de tek satır kalır |
+| Alt satır ayraçtan bölünür | `activity_pos_rows_test` | Sığmayan alt satırda parça bütün olarak ikinci satıra iner, satır sonunda ayraç kalmaz |
+| Yedek kartının adı | `account_page_test` | Silme sayfasında `Verilerinizi yedekleyin` |
+
+Görüntü testleri (`SCREENSHOT_DIR` ile): `kredi_kartlarim_screenshot_test`
+(gerçek sayfa: üst, alt, ekstre, taksit, hareketler, filtre, boş),
+`bos_durum_screenshot_test` (ilk kullanımın kart ve halka çizimi). Çerçeveye
+iki anahtar eklendi: `SCREENSHOT_DARK=1` karanlık tema, `SCREENSHOT_WIDTH=360`
+verilen genişlik. Önceki tablolardaki `Taksit planları` başlığı, `Harcamalar` /
+`Ödemeler` grupları ve listedeki `alacağınız var` cümlesi bu tarihte kalktı.

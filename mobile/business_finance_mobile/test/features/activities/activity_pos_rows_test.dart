@@ -52,8 +52,10 @@ void main() {
 
         // Başlık boş gelir; hesabın adı değil türün adı yazılır.
         expect(find.text('POS yatışı'), findsOneWidget);
+        // Test fontu geniştir: alt satır sığmaz ve ayraçtan bölünür; satır
+        // sonunda ayraç kalmaz, parça bütün olarak alta iner.
         expect(
-          find.text('Yemek kartı • Ziraat Vadesiz • 2 tahsilat'),
+          find.text('Yemek kartı • Ziraat Vadesiz\n2 tahsilat'),
           findsOneWidget,
         );
         expect(find.text('kesinti ₺14,00'), findsOneWidget);

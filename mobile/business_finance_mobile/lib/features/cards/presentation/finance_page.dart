@@ -11,25 +11,28 @@ import '../../../core/models/transaction_scope.dart';
 import '../../../core/presentation/financial_data_changes.dart';
 import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_finance_colors.dart';
+import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_category_field.dart';
+import '../../../core/widgets/app_first_use_view.dart';
 import '../../../core/widgets/app_page_bar.dart';
 import '../../categories/presentation/category_create_page.dart';
 import '../../categories/presentation/recent_categories.dart';
-import '../../../core/widgets/app_metric_tile.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_row_action.dart';
 import '../../../core/widgets/app_scope_selector.dart';
+import '../../../core/widgets/app_icon_capsule.dart';
 import '../../../core/widgets/app_inline_notice.dart';
-import '../../../core/widgets/app_list_row.dart';
 import '../../../core/widgets/app_section_header.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
 import '../../activities/data/receipt_fee_writer.dart';
 import '../data/finance_models.dart';
 import '../data/finance_repository.dart';
+import 'credit_card_tile.dart';
 import 'finance_controller.dart';
 import 'transfer_prefill.dart';
 import '../../../core/widgets/app_account_field.dart';
@@ -90,6 +93,7 @@ class _FinancePageState extends State<FinancePage> {
   void dispose() {
     controller.removeListener(_changed);
     controller.dispose();
+    _pages.dispose();
     super.dispose();
   }
 
@@ -97,12 +101,32 @@ class _FinancePageState extends State<FinancePage> {
     if (mounted) setState(() {});
   }
 
+  /// Kartlar yan yana kayar; komşu kartın kenarı görünür.
+  final PageController _pages = PageController(viewportFraction: 0.9);
+  int _index = 0;
+
+  /// Fişten ya da dekonttan gelindiğinde kullanıcının dokunarak seçtiği kart.
+  /// Öneriyle açılan form yalnız bu kartta açılır; belge kartı söylemez.
+  String? _chosenCardId;
+
   @override
   Widget build(BuildContext context) {
     final body = _body();
     if (widget.embedded) return body;
     return Scaffold(
-      appBar: AppPageBar(title: const Text('Kredi kartları')),
+      appBar: AppPageBar(
+        title: const Text('Kredi kartları'),
+        actions: [
+          // Kart yokken ekleme boş durumun düğmesindedir; aynı eylem iki
+          // kez görünmez.
+          if (controller.snapshot?.cards.isNotEmpty ?? false)
+            IconButton(
+              tooltip: 'Kart ekle',
+              onPressed: controller.isSubmitting ? null : _addCard,
+              icon: const Icon(Icons.add),
+            ),
+        ],
+      ),
       body: body,
     );
   }
@@ -110,7 +134,7 @@ class _FinancePageState extends State<FinancePage> {
   Widget _body() {
     if (controller.unauthorized) return const AppUnauthorizedView();
     if (controller.isLoading && controller.snapshot == null) {
-      return const AppLoadingView(message: 'Finans hareketleri yükleniyor');
+      return const AppLoadingView(message: 'Kartlar yükleniyor');
     }
     if (controller.errorMessage != null && controller.snapshot == null) {
       return AppErrorView(
@@ -139,71 +163,131 @@ class _FinancePageState extends State<FinancePage> {
     );
   }
 
-  Widget _cards(FinanceSnapshot snapshot) => _FeatureList(
-    onRefresh: controller.load,
-    addLabel: 'Kart ekle',
-    onAdd: controller.isSubmitting ? null : () => _addCard(),
-    empty: const AppEmptyView(
-      title: 'Henüz kredi kartı yok',
-      message: 'Limit ve ekstre günleriyle ilk kartınızı ekleyin.',
-      icon: Icons.credit_card,
-    ),
-    isEmpty: snapshot.cards.isEmpty,
-    children: [
-      // Dekonttan gelindiyse liste bir seçim ekranına dönüşür: belge hangi
-      // kartın borcunun kapatıldığını söylemez ve yanlış kart başka bir kartın
-      // borcunu azaltırdı.
-      if (widget.installmentPrefill?.isEmpty == false)
-        Padding(
-          padding: const EdgeInsets.only(bottom: AppGaps.notice),
-          child: AppInlineNotice(
-            icon: Icons.credit_card,
-            message:
-                'Fişteki ${widget.installmentPrefill!.installmentCount} '
-                'taksitli alışveriş için kartı seçin.',
-          ),
-        ),
-      if (widget.cardPaymentPrefill?.isEmpty == false)
-        AppCard(
-          child: Text(
-            widget.cardPaymentPrefill!.amount == null
-                ? 'Dekonttaki ödeme için kartı seçin.'
-                : 'Dekonttaki '
-                      '${MoneyText.format(widget.cardPaymentPrefill!.amount!, 'TRY')} '
-                      'ödeme için kartı seçin.',
-          ),
-        ),
-      // Her kart kendi kutusu: menüdeki kapılardan farklı olarak bunlar
-      // birbirinin alternatifi değil, ayrı ayrı nesneler.
-      for (final card in snapshot.cards)
-        Padding(
-          padding: const EdgeInsets.only(bottom: AppGaps.card),
-          child: AppCard(
-            padding: EdgeInsets.zero,
-            child: AppListRow(
-              icon: Icons.credit_card,
-              title: card.name,
-              subtitle:
-                  '${_debtSentence(card)} • '
-                  'Kullanılabilir '
-                  '${MoneyText.format(card.availableLimit, card.currency)}',
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => CreditCardDetailPage(
-                    cardId: card.id,
-                    controller: controller,
-                    paymentPrefill: widget.cardPaymentPrefill,
-                    installmentPrefill: widget.installmentPrefill,
-                    recordFee: widget.recordFee,
+  Widget _cards(FinanceSnapshot snapshot) {
+    final cards = snapshot.cards;
+    final index = cards.isEmpty ? 0 : _index.clamp(0, cards.length - 1);
+    final selected = cards.isEmpty ? null : cards[index];
+    final hasPrefill =
+        widget.installmentPrefill?.isEmpty == false ||
+        widget.cardPaymentPrefill?.isEmpty == false;
+    Widget padded(Widget child) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppPageInsets.edge),
+      child: child,
+    );
+    return RefreshIndicator(
+      onRefresh: controller.load,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: AppPageInsets.fullBleedList,
+        children: [
+          // Bir sekmenin içindeyken başlık çubuğu yoktur; ekleme gövdede durur.
+          if (widget.embedded && cards.isNotEmpty)
+            padded(
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: controller.isSubmitting ? null : _addCard,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Kart ekle'),
+                ),
+              ),
+            ),
+          // Dekonttan gelindiyse sayfa bir seçim ekranına dönüşür: belge hangi
+          // kartın borcunun kapatıldığını söylemez ve yanlış kart başka bir
+          // kartın borcunu azaltırdı.
+          if (widget.installmentPrefill?.isEmpty == false)
+            padded(
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppGaps.notice),
+                child: AppInlineNotice(
+                  icon: Icons.credit_card,
+                  message:
+                      'Fişteki ${widget.installmentPrefill!.installmentCount} '
+                      'taksitli alışveriş için karta dokunun.',
+                ),
+              ),
+            ),
+          if (widget.cardPaymentPrefill?.isEmpty == false)
+            padded(
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppGaps.notice),
+                child: AppInlineNotice(
+                  icon: Icons.credit_card,
+                  message: widget.cardPaymentPrefill!.amount == null
+                      ? 'Dekonttaki ödeme için karta dokunun.'
+                      : 'Dekonttaki '
+                            '${MoneyText.format(widget.cardPaymentPrefill!.amount!, 'TRY')} '
+                            'ödeme için karta dokunun.',
+                ),
+              ),
+            ),
+          if (selected == null)
+            padded(
+              AppFirstUseView(
+                preview: AppEmptyPreview.card,
+                icon: Icons.credit_card,
+                title: 'Henüz kredi kartı yok',
+                message: 'Limit ve ekstre günleriyle ilk kartınızı ekleyin.',
+                actionLabel: 'Kart ekle',
+                onAction: controller.isSubmitting ? null : _addCard,
+              ),
+            )
+          else ...[
+            SizedBox(
+              height: CreditCardTile.heightOf(context),
+              child: PageView.builder(
+                controller: _pages,
+                itemCount: cards.length,
+                onPageChanged: (value) => setState(() => _index = value),
+                itemBuilder: (context, i) => Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xSmall,
+                  ),
+                  child: CreditCardTile(
+                    card: cards[i],
+                    onTap: () {
+                      if (i != index) {
+                        _pages.animateToPage(
+                          i,
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeOut,
+                        );
+                      }
+                      if (hasPrefill) {
+                        setState(() => _chosenCardId = cards[i].id);
+                      }
+                    },
                   ),
                 ),
               ),
             ),
-          ),
-        ),
-    ],
-  );
+            if (cards.length > 1) ...[
+              const SizedBox(height: AppSpacing.compact),
+              _PageDots(count: cards.length, index: index),
+            ],
+            const SizedBox(height: AppGaps.block),
+            padded(
+              CreditCardDetailPage(
+                // Kart değişince bölümler o kartın verisiyle baştan kurulur;
+                // öneriyle seçilince form o kartta açılır.
+                key: ValueKey('${selected.id}-${_chosenCardId == selected.id}'),
+                cardId: selected.id,
+                controller: controller,
+                asPanel: true,
+                paymentPrefill: _chosenCardId == selected.id
+                    ? widget.cardPaymentPrefill
+                    : null,
+                installmentPrefill: _chosenCardId == selected.id
+                    ? widget.installmentPrefill
+                    : null,
+                recordFee: widget.recordFee,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 
   Future<void> _addCard() async {
     await AppFormSheet.show<Map<String, Object?>>(
@@ -228,9 +312,14 @@ class CreditCardDetailPage extends StatefulWidget {
     this.paymentPrefill,
     this.installmentPrefill,
     this.recordFee,
+    this.asPanel = false,
   });
   final String cardId;
   final FinanceController controller;
+
+  /// Kredi kartlarım sayfasının içinde, seçili kartın altında mı çiziliyor.
+  /// Öyleyse kendi sayfa iskeletini kurmaz; yalnız bölümleri döner.
+  final bool asPanel;
 
   /// Dekonttan gelindiyse ödeme formu açılışta önerilerle açılır.
   final CardPaymentPrefill? paymentPrefill;
@@ -333,28 +422,19 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
   @override
   Widget build(BuildContext context) {
     final current = card;
+    if (widget.asPanel) {
+      return current == null
+          ? const AppErrorView(message: 'Kart artık bulunamıyor.')
+          : _sections(current);
+    }
     return Scaffold(
-      appBar: AppPageBar(
-        title: Text(current?.name ?? 'Kart detayı'),
-        actions: [
-          if (current != null)
-            IconButton(
-              onPressed: () => _editCard(current),
-              icon: const Icon(Icons.edit_outlined),
-              tooltip: 'Kartı düzenle',
-            ),
-        ],
-      ),
+      appBar: AppPageBar(title: Text(current?.name ?? 'Kart detayı')),
       body: current == null
           ? const AppErrorView(message: 'Kart artık bulunamıyor.')
           : Column(
               children: [
-                // Yazma sonucunu **bu** ekran söyler. Denetim sırasında bulunan
-                // kusur buydu: harcama, ödeme ve taksit planı buradan
-                // yazılıyor ama sonucu yalnız kart listesi gösteriyordu.
-                // Reddedilen bir ödeme sessizce kayboluyor, kullanıcı da
-                // kaydedildi sanıyordu; hata ancak listeye dönünce, bağlamından
-                // kopmuş hâlde görünüyordu.
+                // Yazma sonucunu **bu** ekran söyler: reddedilen bir ödeme
+                // sessizce kaybolmamalı.
                 if (widget.controller.errorMessage != null ||
                     widget.controller.successMessage != null)
                   MaterialBanner(
@@ -372,115 +452,7 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
                 Expanded(
                   child: ListView(
                     padding: AppPageInsets.list,
-                    children: [
-                      _summary(current),
-                      const SizedBox(height: AppGaps.section),
-
-                      // Planlar kart hareketlerinin dışında: hiç harcaması olmayan
-                      // bir kartın planları da görünmeli, yoksa boş durum ekranı
-                      // onları gizlerdi.
-                      _plansOfCard(current),
-                      FutureBuilder<CardActivity>(
-                        future: activity,
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState !=
-                              ConnectionState.done) {
-                            return const AppLoadingView(
-                              message: 'Kart hareketleri yükleniyor',
-                            );
-                          }
-                          if (snapshot.hasError) {
-                            return AppErrorView(
-                              message: 'Kart hareketleri yüklenemedi.',
-                              onRetry: _reloadActivity,
-                            );
-                          }
-                          final value = snapshot.data!;
-                          if (value.charges.isEmpty && value.payments.isEmpty) {
-                            // Seçici boş durumda da duruyor: liste dönem yüzünden
-                            // boş olabilir ve kullanıcının onu genişletebilmesi
-                            // gerekir. Gizlenseydi ekran "hiç hareket yok" derdi.
-                            return Column(
-                              children: [
-                                _PeriodSelector(
-                                  selected: widget.controller.period,
-                                  onSelected: (period) async {
-                                    await widget.controller.selectPeriod(
-                                      period,
-                                    );
-                                    _reloadActivity();
-                                  },
-                                ),
-                                const SizedBox(
-                                  height: 320,
-                                  child: AppEmptyView(
-                                    title: 'Bu dönemde kart hareketi yok',
-                                    message:
-                                        'Harcama ve ödemeler burada ayrı gösterilir. '
-                                        'Daha eskisi için dönemi genişletin.',
-                                    icon: Icons.credit_card,
-                                  ),
-                                ),
-                              ],
-                            );
-                          }
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _PeriodSelector(
-                                selected: widget.controller.period,
-                                onSelected: (value) async {
-                                  await widget.controller.selectPeriod(value);
-                                  _reloadActivity();
-                                },
-                              ),
-                              if (value.hasMore) const _TruncationNotice(),
-                              // Harcama ve ödeme ayrı gruplarda: biri kart borcunu
-                              // büyütür, diğeri küçültür. Tek listede olsalar
-                              // tutarların yönü kaybolurdu.
-                              if (value.charges.isNotEmpty) ...[
-                                const AppSectionHeader(title: 'Harcamalar'),
-                                _movementGroup(
-                                  [
-                                    for (final item in value.charges)
-                                      (
-                                        amount: item.amount,
-                                        currency: item.currency,
-                                        date: item.date,
-                                        description: item.description,
-                                        isCancelled: item.isCancelled,
-                                      ),
-                                  ],
-                                  Icons.shopping_cart_outlined,
-                                  AppMoneyEffect.expense,
-                                ),
-                                const SizedBox(height: AppGaps.section),
-                              ],
-                              if (value.payments.isNotEmpty) ...[
-                                const AppSectionHeader(title: 'Ödemeler'),
-                                _movementGroup(
-                                  [
-                                    for (final item in value.payments)
-                                      (
-                                        amount: item.amount,
-                                        currency: item.currency,
-                                        date: item.date,
-                                        description: item.description,
-                                        isCancelled: item.isCancelled,
-                                      ),
-                                  ],
-                                  Icons.payments_outlined,
-
-                                  // Kart ödemesi gider değildir: aynı harcamayı iki
-                                  // kez saymamak için nötr gösterilir.
-                                  AppMoneyEffect.neutral,
-                                ),
-                              ],
-                            ],
-                          );
-                        },
-                      ),
-                    ],
+                    children: [_sections(current)],
                   ),
                 ),
               ],
@@ -488,69 +460,150 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
     );
   }
 
-  /// Kartın durumu, üç kademeli.
+  /// Seçili kartın bölümleri, yukarıdan aşağı: işlemler, limit, ekstre ve
+  /// borç, taksitler, hareketler.
+  Widget _sections(CreditCardItem current) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (!widget.asPanel) ...[
+        CreditCardTile(card: current),
+        const SizedBox(height: AppGaps.block),
+      ],
+      _actions(current),
+      const SizedBox(height: AppGaps.block),
+      _limitCard(current),
+      const SizedBox(height: AppGaps.card),
+      _summary(current),
+      const SizedBox(height: AppGaps.section),
+      // Taksitler hareketlerin dışında: hiç harcaması olmayan kartın
+      // taksitleri de görünmeli.
+      _plansOfCard(current),
+      AppSectionHeader(
+        title: 'Hareketler',
+        trailing: TextButton(
+          onPressed: () => _openMovements(current),
+          child: const Text('Tümü'),
+        ),
+      ),
+      FutureBuilder<CardActivity>(
+        future: activity,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const AppLoadingView(message: 'Kart hareketleri yükleniyor');
+          }
+          if (snapshot.hasError) {
+            return AppErrorView(
+              message: 'Kart hareketleri yüklenemedi.',
+              onRetry: _reloadActivity,
+            );
+          }
+          final rows = _Movement.of(snapshot.data!);
+          if (rows.isEmpty) {
+            // Bölüm boş: kartın içinde tek satır. Daha eskisi `Tümü`dedir.
+            return AppCard(
+              child: Text(
+                '${widget.controller.period.sentence} kart hareketi yok.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppSurfaces.of(context).inkMuted,
+                ),
+              ),
+            );
+          }
+          return _MovementList(
+            rows.take(_previewCount).toList(growable: false),
+          );
+        },
+      ),
+    ],
+  );
+
+  /// Sayfada gösterilen hareket sayısı; fazlası `Tümü` sayfasındadır.
+  static const int _previewCount = 10;
+
+  Future<void> _openMovements(CreditCardItem card) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            CardMovementsPage(card: card, controller: widget.controller),
+      ),
+    );
+    // Sayfada dönem değişmiş olabilir; önizleme aynı dönemi gösterir.
+    if (mounted) _reloadActivity();
+  }
+
+  /// Kullanılabilir limit: tek satır tutar, ince doluluk çubuğu ve altında
+  /// kartın limiti.
   ///
-  /// Sıra bankaların sırası ve bilinçli: en üstte **ödenmesi gereken** tutar
-  /// (dönem borcu), altında kartın **anlık** durumu (güncel borç,
-  /// kullanılabilir), en altta kartın **ayarı** (kesim ve son ödeme günü).
-  /// Üçü eşit ağırlıkta gösterilseydi "şimdi ne yapmalıyım" sorusunun cevabı
-  /// diğer sayıların arasında kaybolurdu.
-  ///
-  /// Dönem borcu ile güncel borç farklı şeyler: ilki kesilmiş ekstrenin
-  /// kalanı, ikincisi kesimden sonraki harcamalar dâhil bütün borç. Ayrı
-  /// kademelerde durmaları bu farkı yerleşimle anlatıyor.
-  Widget _summary(CreditCardItem card) => AppCard(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _statementHeadline(card),
-        const Divider(height: AppSpacing.large),
-        Row(
-          children: [
-            Expanded(
-              // Alacaklı kartta hem etiket hem yön değişir: "Güncel borç
-              // −₺500" kullanıcıya borcu varmış gibi okunur ve kırmızı durur.
-              child: MoneyText.isNegative(card.currentDebt)
-                  ? AppMetricTile(
-                      label: 'Kart alacağınız',
-                      amount: MoneyText.unsigned(card.currentDebt),
-                      currency: card.currency,
-                      effect: AppMoneyEffect.income,
-                    )
-                  : AppMetricTile(
-                      label: 'Güncel borç',
-                      amount: card.currentDebt,
-                      currency: card.currency,
-                      effect: AppMoneyEffect.expense,
+  /// İki tutar da sunucudan gelir. Çubuğun doluluğu yalnız çizim içindir:
+  /// ekranda sayı olarak yazılmaz.
+  Widget _limitCard(CreditCardItem card) {
+    final theme = Theme.of(context);
+    final surfaces = AppSurfaces.of(context);
+    final muted = theme.textTheme.bodySmall?.copyWith(color: surfaces.inkMuted);
+    final available = double.tryParse(card.availableLimit) ?? 0;
+    final limit = double.tryParse(card.limit) ?? 0;
+    final fill = limit <= 0 ? 0.0 : (available / limit).clamp(0.0, 1.0);
+    return AppCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.medium,
+        vertical: AppSpacing.compact,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text('Kullanılabilir limit', style: muted)),
+              const SizedBox(width: AppSpacing.small),
+              Text(
+                MoneyText.format(card.availableLimit, card.currency),
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontSize: AppTextSizes.row,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.small),
+          ExcludeSemantics(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.chip),
+              child: SizedBox(
+                height: 6,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ColoredBox(color: surfaces.cardMuted),
+                    FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: fill,
+                      child: ColoredBox(
+                        color: AppFinanceColors.of(context).neutral,
+                      ),
                     ),
-            ),
-            const SizedBox(width: AppSpacing.medium),
-            Expanded(
-              child: AppMetricTile(
-                label: 'Kullanılabilir',
-                amount: card.availableLimit,
-                currency: card.currency,
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
-        const Divider(height: AppSpacing.large),
-        _dateRow(
-          Icons.event_outlined,
-          'Hesap kesim günü',
-          'Her ayın ${card.statementClosingDay}.',
-        ),
-        const SizedBox(height: AppSpacing.small),
-        _dateRow(
-          Icons.schedule_outlined,
-          'Son ödeme günü',
-          'Her ayın ${card.paymentDueDay}.',
-        ),
-        const Divider(height: AppSpacing.large),
-        _actions(card),
-      ],
-    ),
-  );
+          ),
+          const SizedBox(height: AppSpacing.step6),
+          Text(
+            'Kart limiti ${MoneyText.format(card.limit, card.currency)}',
+            textAlign: TextAlign.end,
+            style: muted,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Dönem borcu: kesilmiş ekstreden kalan tutar ve son ödeme günü.
+  ///
+  /// Kartın yüzündeki güncel borçtan farklıdır: o, kesimden sonraki
+  /// harcamalar dâhil bütün borçtur.
+  Widget _summary(CreditCardItem card) =>
+      AppCard(child: _statementHeadline(card));
 
   /// Özet kartının manşeti: şu an ödenmesi gereken ekstre.
   Widget _statementHeadline(CreditCardItem card) =>
@@ -600,8 +653,14 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
 
   Widget _statementBanner(CreditCardItem card, CardStatement statement) {
     final theme = Theme.of(context);
-    final muted = AppSurfaces.of(context).inkMuted;
-    final isSettled = statement.isPaid;
+    final muted = theme.textTheme.bodySmall?.copyWith(
+      color: AppSurfaces.of(context).inkMuted,
+    );
+    final minimum = statement.remainingMinimumPayment;
+    // Sunucu tutarları dört ondalıklı kanonik biçimde gönderir; kıyas metin
+    // üzerinden güvenlidir.
+    final hasSeparateMinimum =
+        minimum != statement.remainingBalance && minimum != '0.0000';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -609,326 +668,325 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: Text(
-                'Dönem borcu',
-                style: theme.textTheme.labelMedium?.copyWith(color: muted),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Dönem borcu', style: muted),
+                  const SizedBox(height: AppSpacing.xxSmall),
+                  // Kalan borç, ekstre borcu değil: kısmen ödenmiş ekstrede
+                  // sorulan "daha ne kadar"dır.
+                  AppMoneyText(
+                    amount: statement.remainingBalance,
+                    currency: statement.currency,
+                    effect: statement.isOverdue ? AppMoneyEffect.expense : null,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontSize: AppTextSizes.metric,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
             ),
-            _statementStatusChip(statement),
+            const SizedBox(width: AppSpacing.small),
+            _StatementDue(statement: statement),
           ],
         ),
-        const SizedBox(height: AppSpacing.xSmall),
-
-        // Manşetteki tutar kalan borç, ekstre borcu değil: kısmen ödenmiş bir
-        // ekstrede kullanıcının sorusu "daha ne kadar" — kesimdeki tutar
-        // ayrıntı satırlarında ve ekstre penceresinde duruyor.
-        AppMoneyText(
-          amount: statement.remainingBalance,
-          currency: statement.currency,
-          effect: isSettled ? null : AppMoneyEffect.expense,
-          style: AppTypography.heroMoney(theme.textTheme.displaySmall!),
-        ),
-        const SizedBox(height: AppSpacing.xSmall),
+        const SizedBox(height: AppSpacing.small),
         Text(
-          '${DateText.monthYear(statement.year, statement.month)} ekstresi',
-          style: theme.textTheme.bodySmall?.copyWith(color: muted),
+          hasSeparateMinimum
+              ? '${DateText.monthYear(statement.year, statement.month)} '
+                    'ekstresi · Asgari '
+                    '${MoneyText.format(minimum, statement.currency)}'
+              : '${DateText.monthYear(statement.year, statement.month)} '
+                    'ekstresi',
+          style: muted,
         ),
-        const SizedBox(height: AppSpacing.medium),
-        if (!isSettled) ...[
-          _dateRow(
-            Icons.pending_actions_outlined,
-            'Asgari ödeme',
-            MoneyText.format(
-              statement.remainingMinimumPayment,
-              statement.currency,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.small),
-        ],
-        _dateRow(
-          Icons.event_available_outlined,
-          'Son ödeme tarihi',
-          DateText.dayMonth(statement.dueDate),
-        ),
-        if (!isSettled) ...[
-          const SizedBox(height: AppSpacing.medium),
-          _statementPayActions(card, statement),
-        ],
-      ],
-    );
-  }
-
-  Widget _statementStatusChip(CardStatement statement) => AppStatusChip(
-    label: statement.isPaid
-        ? 'Ödendi'
-        : statement.isOverdue
-        ? 'Gecikmiş'
-        : 'Açık',
-    icon: statement.isPaid
-        ? Icons.check_circle_outline
-        : statement.isOverdue
-        ? Icons.warning_amber_outlined
-        : Icons.schedule_outlined,
-    tone: statement.isPaid
-        ? AppStatusTone.income
-        : statement.isOverdue
-        ? AppStatusTone.expense
-        : AppStatusTone.planned,
-  );
-
-  /// Ekstre ödeme kısayolları.
-  ///
-  /// İkisi de aynı `Ödeme` akışını açıyor, yalnız tutarı önceden dolduruyor:
-  /// ödeme bir döneme bağlanmıyor. Ekstre kalıcı bir kayıt değil, kesim ve
-  /// ödeme tarihlerinden hesaplanan bir görünüm; ona yabancı anahtar bağlamak
-  /// olmayan bir satıra referans vermek olurdu.
-  Widget _statementPayActions(CreditCardItem card, CardStatement statement) {
-    // Sunucu tutarları hep dört ondalıklı kanonik biçimde gönderiyor, bu
-    // yüzden karşılaştırma metin üzerinden güvenli — ondalık sayıya çevirip
-    // kıyaslamak, gösterim için kayan nokta matematiği yapmak olurdu.
-    final minimum = statement.remainingMinimumPayment;
-    final hasSeparateMinimum =
-        minimum != statement.remainingBalance && minimum != '0.0000';
-    return Wrap(
-      spacing: AppSpacing.small,
-      runSpacing: AppSpacing.small,
-      children: [
-        FilledButton.icon(
-          onPressed: () => _payStatement(card, statement.remainingBalance),
-          icon: const Icon(Icons.receipt_long_outlined),
-          label: const Text('Ekstreyi öde'),
-        ),
-        if (hasSeparateMinimum)
-          OutlinedButton.icon(
-            onPressed: () => _payStatement(card, minimum),
-            icon: const Icon(Icons.pending_actions_outlined),
-            label: const Text('Asgariyi öde'),
-          ),
-      ],
-    );
-  }
-
-  /// Etiket–değer satırı: solda ne olduğu, sağda değeri.
-  Widget _dateRow(IconData icon, String label, String value) => Row(
-    children: [
-      Icon(icon, size: 18, color: AppSurfaces.of(context).inkMuted),
-      const SizedBox(width: AppSpacing.small),
-      Expanded(
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: AppSurfaces.of(context).inkMuted,
-          ),
-        ),
-      ),
-      // Sağdaki değer de esnek: kısıtsız bırakıldığında en büyük yazı
-      // ölçeğinde satırı 31 px taşırıyordu.
-      Flexible(
-        child: Text(
-          value,
-          textAlign: TextAlign.end,
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-        ),
-      ),
-    ],
-  );
-
-  /// Kart eylemleri, ne yaptıklarına göre iki gruba ayrılmış.
-  ///
-  /// Dördü tek bir `Wrap` içindeyken sıraları rastgele görünüyordu ve
-  /// `runSpacing` verilmediği için alt satıra düşen butonun kenarı üsttekine
-  /// yapışıyordu. Üst grup para harcar, alt grup kartı yönetir.
-  ///
-  /// **Taksitli harcama da dolgulu:** o da bir harcamadır, yalnız tek seferde
-  /// değil taksitle. Tonal bırakmak onu ikincil bir işmiş gibi gösteriyordu.
-  /// Tasarım sistemindeki "ekran başına tek birincil" kuralı burada tek bir
-  /// eylemin iki biçimine uygulanıyor; ikisi birlikte bir grup.
-  ///
-  /// Grup özet kartının **içinde** duruyor. Dışarıda, kartın altında serbest
-  /// dururken neye ait olduğunu yalnız yakınlığı söylüyordu; kartın kenarlığı
-  /// bitip butonlar boşlukta başlıyordu. Kendi başlığı ve ayıracı var ki
-  /// üstündeki sayı kademeleriyle karışmasın.
-  Widget _actions(CreditCardItem card) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Text(
-        'İŞLEMLER',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AppSurfaces.of(context).inkMuted,
-        ),
-      ),
-      const SizedBox(height: AppSpacing.small),
-      Wrap(
-        spacing: AppSpacing.small,
-        runSpacing: AppSpacing.small,
-        children: [
-          FilledButton.icon(
-            onPressed: card.isActive ? () => _addCharge(card) : null,
-            icon: const Icon(Icons.shopping_cart_outlined),
-            label: const Text('Harcama'),
-          ),
-          FilledButton.icon(
-            onPressed: card.isActive ? () => _addPlan(card) : null,
-            icon: const Icon(Icons.calendar_view_month),
-            label: const Text('Taksitli harcama'),
-          ),
-        ],
-      ),
-      const SizedBox(height: AppSpacing.small),
-      Wrap(
-        spacing: AppSpacing.small,
-        runSpacing: AppSpacing.small,
-        children: [
-          FilledButton.tonalIcon(
-            onPressed: () => _addPayment(card),
-            icon: const Icon(Icons.payments_outlined),
-            label: const Text('Ödeme'),
-          ),
-          OutlinedButton.icon(
-            onPressed: () => _showStatement(card),
-            icon: const Icon(Icons.receipt_long_outlined),
-            label: const Text('Ekstre'),
-          ),
-        ],
-      ),
-    ],
-  );
-
-  /// Kart hareketlerinin ortak satır grubu.
-  ///
-  /// Harcama ve ödeme farklı tipler ama ekranda aynı şekli alıyorlar; iki ayrı
-  /// `ListTile` bloğu yazmak, birinde yapılan düzeltmenin diğerinde
-  /// unutulmasıyla biterdi.
-  Widget _movementGroup(
-    List<
-      ({
-        String amount,
-        String currency,
-        String date,
-        String? description,
-        bool isCancelled,
-      })
-    >
-    items,
-    IconData icon,
-    AppMoneyEffect effect,
-  ) => AppCard(
-    padding: EdgeInsets.zero,
-    child: Column(
-      children: [
-        for (final (index, item) in items.indexed) ...[
-          if (index > 0) const Divider(height: 1),
-          AppListRow(
-            icon: icon,
-            title: MoneyText.format(item.amount, item.currency),
-            subtitle: item.description == null
-                ? item.date
-                : '${DateText.dayMonth(item.date)} • ${item.description}',
-            dimmed: item.isCancelled,
-            badge: item.isCancelled
-                ? const AppStatusChip(
-                    label: 'İptal',
-                    icon: Icons.block,
-                    tone: AppStatusTone.cancelled,
-                  )
+        if (!statement.isPaid) ...[
+          const SizedBox(height: AppSpacing.compact),
+          _StatementPayRow(
+            compact: true,
+            onPayAll: () => _payStatement(card, statement.remainingBalance),
+            onPayMinimum: hasSeparateMinimum
+                ? () => _payStatement(card, minimum)
                 : null,
-            trailing: AppMoneyText(
-              amount: item.amount,
-              currency: item.currency,
-              effect: effect,
-              isCancelled: item.isCancelled,
-            ),
           ),
         ],
+        // Renk tek başına anlam taşımaz; gecikme yazıyla da söylenir.
       ],
-    ),
+    );
+  }
+
+  /// Kartın işlemleri: kartın hemen altında, eşit aralıklı beş kutu.
+  ///
+  /// Sıra soldan sağa kullanım sıklığıdır: harcama, taksitli harcama, ödeme,
+  /// ekstre, kartın ayarı. Pasif kartta harcama yazılamaz.
+  Widget _actions(CreditCardItem card) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _QuickAction(
+        icon: Icons.shopping_cart_outlined,
+        label: 'Harcama',
+        onTap: card.isActive ? () => _addCharge(card) : null,
+      ),
+      _QuickAction(
+        icon: Icons.calendar_view_month,
+        label: 'Taksitli harcama',
+        onTap: card.isActive ? () => _addPlan(card) : null,
+      ),
+      _QuickAction(
+        icon: Icons.payments_outlined,
+        label: 'Ödeme',
+        onTap: () => _addPayment(card),
+      ),
+      _QuickAction(
+        icon: Icons.receipt_long_outlined,
+        label: 'Ekstre',
+        onTap: () => _showStatement(card),
+      ),
+      _QuickAction(
+        icon: Icons.tune,
+        label: 'Düzenle',
+        tooltip: 'Kartı düzenle',
+        onTap: () => _editCard(card),
+      ),
+    ],
   );
 
-  /// Bu kartın taksit planları.
+  /// Bu kartın taksitli harcamaları.
   ///
-  /// Plan yalnız niyettir; gerçekleşmemiş taksit hiçbir rapora girmez. O yüzden
-  /// harcamaların *üstünde* ayrı bir bölüm: aynı listeye karıştırılsa gerçek
-  /// harcamayla plan aynı şeymiş gibi görünürdü.
+  /// Her harcama tek satırdır: kaç taksitin gerçekleştiği, sıradaki gün,
+  /// toplam tutar ve bir ilerleme çubuğu. Taksitlerin tek tek listesi satıra
+  /// dokununca açılan panelde durur; sayfa uzun bir çizelgeyle dolmaz.
+  ///
+  /// Plan yalnız niyettir; gerçekleşmemiş taksit hiçbir rapora girmez. O
+  /// yüzden hareketlerden ayrı bir bölümdür.
   Widget _plansOfCard(CreditCardItem card) {
     final plans = (widget.controller.snapshot?.plans ?? const [])
         .where((plan) => plan.creditCardId == card.id)
         .toList(growable: false);
     if (plans.isEmpty) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final surfaces = AppSurfaces.of(context);
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const AppSectionHeader(title: 'Taksit planları'),
-        for (final plan in plans)
-          ExpansionTile(
-            tilePadding: EdgeInsets.zero,
-            shape: const Border(),
-            collapsedShape: const Border(),
-            leading: const Icon(Icons.calendar_view_month),
-            title: Text(plan.description ?? 'Taksit planı'),
-            subtitle: Text(
-              '${plan.items.length} taksit · '
-              '${MoneyText.format(plan.totalAmount, plan.currency)}',
-            ),
-            children: [for (final item in plan.items) _planItemRow(plan, item)],
+        const AppSectionHeader(title: 'Taksitler'),
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              for (final (index, plan) in plans.indexed) ...[
+                if (index > 0) const Divider(height: 1),
+                InkWell(
+                  onTap: () => _showPlan(plan.id),
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.medium),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    plan.description ?? 'Taksitli harcama',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.titleSmall,
+                                  ),
+                                  const SizedBox(height: AppSpacing.xxSmall),
+                                  Text(
+                                    _planProgress(plan),
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: surfaces.inkMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.small),
+                            AppMoneyText(
+                              amount: plan.totalAmount,
+                              currency: plan.currency,
+                            ),
+                            Icon(
+                              Icons.chevron_right,
+                              size: 20,
+                              color: surfaces.inkMuted,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.compact),
+                        ExcludeSemantics(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(AppRadius.chip),
+                            child: SizedBox(
+                              height: 6,
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  ColoredBox(color: surfaces.cardMuted),
+                                  FractionallySizedBox(
+                                    alignment: Alignment.centerLeft,
+                                    widthFactor: plan.items.isEmpty
+                                        ? 0
+                                        : plan.items
+                                                  .where((i) => i.isRealized)
+                                                  .length /
+                                              plan.items.length,
+                                    child: ColoredBox(
+                                      color: AppFinanceColors.of(
+                                        context,
+                                      ).neutral,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
+        ),
         const SizedBox(height: AppGaps.section),
       ],
     );
   }
 
-  /// Bir taksit planının tek satırı.
-  ///
-  /// Durum ve eylem **aynı yerde ve aynı boyda** duruyor. Eskiden gerçekleşmiş
-  /// taksitte kocaman bir `Chip`, gerçekleşmemişte dolgulu bir buton vardı: iki
-  /// satır aynı listede farklı yükseklikte ve farklı ağırlıkta görünüyor,
-  /// listeyi zıplatıyordu. Oysa ikisi aynı bilginin iki hâli — biri oldu, biri
-  /// olmadı — ve satırın asıl bilgisi tutar.
-  Widget _planItemRow(
-    InstallmentPlanModel plan,
-    InstallmentItemModel item,
-  ) => AppListRow(
-    icon: item.isRealized ? Icons.check_circle_outline : Icons.schedule,
-    title: '${item.sequence}. taksit',
-    subtitle: DateText.dayMonthYear(item.scheduledDate),
-    badge: Wrap(
-      alignment: WrapAlignment.spaceBetween,
-      spacing: AppSpacing.small,
-      runSpacing: AppSpacing.small,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        AppStatusChip(
-          label: item.isRealized ? 'Gerçekleşti' : 'Planlandı',
-          icon: item.isRealized ? Icons.check : Icons.schedule,
-          tone: item.isRealized ? AppStatusTone.neutral : AppStatusTone.planned,
-        ),
-        // Plan yalnız niyettir; gerçek kayıt yalnız burada üretilir.
-        //
-        // Çerçeveli: çerçevesiz hâlde rozetin yanındaki ikinci bir etiket gibi
-        // okunuyor ve tıklanabilir olduğu fark edilmiyordu. Dolgulu buton ise
-        // satır içinde fazla ağır — o ağırlık ekranın birincil eylemine ait.
-        //
-        // Günü gelmemiş taksitte eylem yoktur: taksit kendi gününe yazılır ve
-        // erken gerçekleştirmek ileri tarihli bir harcama doğururdu.
-        if (!item.isRealized && _isDue(item))
-          AppRowAction(
-            label: 'Gerçekleştir',
-            onPressed: widget.controller.isSubmitting
-                ? null
-                : () => _realize(plan.id, item.sequence),
+  /// `2/6 taksit · sıradaki 15 Aralık`; bitmiş planda `6/6 taksit`.
+  static String _planProgress(InstallmentPlanModel plan) {
+    final done = plan.items.where((item) => item.isRealized).length;
+    final next = plan.items.where((item) => !item.isRealized).firstOrNull;
+    final count = '$done/${plan.items.length} taksit';
+    return next == null
+        ? count
+        : '$count · sıradaki ${DateText.dayMonth(next.scheduledDate)}';
+  }
+
+  /// Bir taksitli harcamanın bütün taksitleri; gerçekleştirme buradadır.
+  Future<void> _showPlan(String planId) => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (context) => ListenableBuilder(
+      listenable: widget.controller,
+      builder: (context, _) {
+        final plan = (widget.controller.snapshot?.plans ?? const [])
+            .where((item) => item.id == planId)
+            .firstOrNull;
+        if (plan == null) return const SizedBox.shrink();
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.75,
+            ),
+            child: ListView(
+              shrinkWrap: true,
+              padding: AppSheetInsets.body,
+              children: [
+                Text(
+                  plan.description ?? 'Taksitli harcama',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: AppSpacing.xxSmall),
+                Text(
+                  '${_planProgress(plan)} · '
+                  '${MoneyText.format(plan.totalAmount, plan.currency)}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppSurfaces.of(context).inkMuted,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.small),
+                for (final item in plan.items) _planItemRow(plan, item),
+              ],
+            ),
           ),
-      ],
-    ),
-    trailing: AppMoneyText(
-      amount: item.amount,
-      currency: item.currency,
-      // Gerçekleşmemiş taksit henüz gider değil: kırmızı yazmak olmamış
-      // bir harcamayı olmuş göstermek olurdu.
-      effect: item.isRealized ? AppMoneyEffect.expense : AppMoneyEffect.neutral,
+        );
+      },
     ),
   );
+
+  /// Bir taksitin satırı: solda oldu / olmadı işareti, ortada sırası, günü
+  /// ve durumu, sağda tutarı.
+  ///
+  /// Plan yalnız niyettir; gerçek kayıt yalnız `Gerçekleştir` ile üretilir.
+  /// Günü gelmemiş taksitte eylem yoktur: taksit kendi gününe yazılır ve
+  /// erken gerçekleştirmek ileri tarihli bir harcama doğururdu.
+  Widget _planItemRow(InstallmentPlanModel plan, InstallmentItemModel item) {
+    final theme = Theme.of(context);
+    final surfaces = AppSurfaces.of(context);
+    final due = !item.isRealized && _isDue(item);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.compact),
+      child: Row(
+        children: [
+          Icon(
+            item.isRealized ? Icons.check_circle : Icons.radio_button_unchecked,
+            size: 22,
+            color: item.isRealized
+                ? AppFinanceColors.of(context).neutral
+                : surfaces.borderStrong,
+          ),
+          const SizedBox(width: AppSpacing.medium),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${item.sequence}. taksit',
+                  style: theme.textTheme.titleSmall,
+                ),
+                const SizedBox(height: AppSpacing.xxSmall),
+                Text(
+                  DateText.dayMonthYear(item.scheduledDate),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: surfaces.inkMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.small),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              AppMoneyText(
+                amount: item.amount,
+                currency: item.currency,
+                // Gerçekleşmemiş taksit henüz gider değil: kırmızı yazmak
+                // olmamış bir harcamayı olmuş göstermek olurdu.
+                effect: item.isRealized ? AppMoneyEffect.expense : null,
+                size: AppMoneySize.row,
+              ),
+              const SizedBox(height: AppSpacing.xxSmall),
+              if (due)
+                AppRowAction(
+                  label: 'Gerçekleştir',
+                  onPressed: widget.controller.isSubmitting
+                      ? null
+                      : () => _realize(plan.id, item.sequence),
+                )
+              else
+                Text(
+                  item.isRealized ? 'Gerçekleşti' : 'Planlandı',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: surfaces.inkMuted,
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
   static bool _isDue(InstallmentItemModel item) {
     final scheduled = AppDateField.parse(item.scheduledDate);
@@ -1056,7 +1114,7 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
     if (input != null &&
         await widget.controller.submit(
           () => widget.controller.repository.createPayment(card.id, input),
-          'Kart borcu ödemesi kaydedildi; yeni gider oluşmadı.',
+          'Kart ödemesi kaydedildi.',
           impact: FinanceMutationImpact.cardPayment,
         )) {
       _reloadActivity();
@@ -1103,59 +1161,15 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
   /// ileri/geri: kimse "hangi ekstre" sorusuna yıl ve ay yazarak cevap
   /// vermiyor, "şu anki" isteniyor ve gerekirse geriye bakılıyor.
   Future<void> _showStatement(CreditCardItem card) async {
-    final amount = await showDialog<String>(
+    final amount = await showModalBottomSheet<String>(
       context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
       builder: (_) =>
           _StatementSheet(card: card, controller: widget.controller),
     );
     if (amount != null && mounted) await _payStatement(card, amount);
   }
-}
-
-class _FeatureList extends StatelessWidget {
-  const _FeatureList({
-    required this.onRefresh,
-    required this.addLabel,
-    required this.onAdd,
-    required this.empty,
-    required this.isEmpty,
-    required this.children,
-  });
-  final String addLabel;
-  final Future<void> Function() onRefresh;
-  final VoidCallback? onAdd;
-  final Widget empty;
-
-  /// Listenin **verisi** boş mu.
-  ///
-  /// `children.isEmpty` ile ölçülmüyor: liste veriden başka satır da taşır
-  /// (fişten gelindiğinde eklenen yönlendirme kutusu gibi). O kutu tek başına
-  /// kaldığında liste dolu sayılır ve ekran boş durumu hiç çizmezdi — fişten
-  /// gelen kullanıcı, hiç kartı olmadığını söyleyen cümleyi göremiyordu.
-  final bool isEmpty;
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) => RefreshIndicator(
-    onRefresh: onRefresh,
-    child: ListView(
-      padding: AppPageInsets.listWithFab,
-      children: [
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton.icon(
-            onPressed: onAdd,
-            icon: const Icon(Icons.add),
-            label: Text(addLabel),
-          ),
-        ),
-        const SizedBox(height: AppGaps.block),
-        ...children,
-        if (isEmpty) SizedBox(height: 420, child: empty),
-      ],
-    ),
-  );
 }
 
 class _CardDialog extends StatefulWidget {
@@ -1698,108 +1712,128 @@ class _StatementSheetState extends State<_StatementSheet> {
   });
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Ekstre'),
-    content: SizedBox(
-      width: 420,
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _periodNavigator(),
-            const Divider(height: AppSpacing.large),
-            FutureBuilder<CardStatement>(
-              future: _statement,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done) {
-                  return const AppLoadingView(message: 'Ekstre hesaplanıyor');
-                }
-                if (snapshot.hasError) {
-                  return const AppErrorView(
-                    message: 'Bu dönemin ekstresi hesaplanamadı.',
-                  );
-                }
-                return _content(snapshot.data!);
-              },
-            ),
-          ],
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.88,
+        ),
+        child: SingleChildScrollView(
+          padding: AppSheetInsets.body,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Ekstre',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontSize: AppTextSizes.metric,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => _shift(-1),
+                    icon: const Icon(Icons.chevron_left),
+                    tooltip: 'Önceki dönem',
+                  ),
+                  Text(
+                    DateText.monthYear(_period.year, _period.month),
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  IconButton(
+                    // İleri, en son kapanmış dönemde durur; ötesi henüz
+                    // kesilmedi.
+                    onPressed: _canGoForward ? () => _shift(1) : null,
+                    icon: const Icon(Icons.chevron_right),
+                    tooltip: 'Sonraki dönem',
+                  ),
+                ],
+              ),
+              FutureBuilder<CardStatement>(
+                future: _statement,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return const AppLoadingView(message: 'Ekstre hesaplanıyor');
+                  }
+                  if (snapshot.hasError) {
+                    return const AppErrorView(
+                      message: 'Bu dönemin ekstresi hesaplanamadı.',
+                    );
+                  }
+                  return _content(snapshot.data!);
+                },
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Kapat'),
-      ),
-    ],
-  );
-
-  Widget _periodNavigator() => Row(
-    children: [
-      IconButton(
-        onPressed: () => _shift(-1),
-        icon: const Icon(Icons.chevron_left),
-        tooltip: 'Önceki dönem',
-      ),
-      Expanded(
-        child: Text(
-          DateText.monthYear(_period.year, _period.month),
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-      ),
-      IconButton(
-        // İleri, en son kapanmış dönemde durur; ötesi henüz kesilmedi.
-        onPressed: _canGoForward ? () => _shift(1) : null,
-        icon: const Icon(Icons.chevron_right),
-        tooltip: 'Sonraki dönem',
-      ),
-    ],
-  );
+    );
+  }
 
   Widget _content(CardStatement value) {
     final theme = Theme.of(context);
-    final muted = AppSurfaces.of(context).inkMuted;
+    final surfaces = AppSurfaces.of(context);
+    final muted = theme.textTheme.bodySmall?.copyWith(color: surfaces.inkMuted);
     final currency = value.currency;
+    final minimum = value.remainingMinimumPayment;
+    final hasSeparateMinimum =
+        minimum != value.remainingBalance && minimum != '0.0000';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Text(
-                'Kalan borç',
-                style: theme.textTheme.labelMedium?.copyWith(color: muted),
-              ),
-            ),
-            _statusChip(value),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.xSmall),
-        AppMoneyText(
-          amount: value.remainingBalance,
-          currency: currency,
-          effect: value.isPaid ? null : AppMoneyEffect.expense,
-          style: AppTypography.money(theme.textTheme.headlineMedium!),
-        ),
-        const SizedBox(height: AppSpacing.xSmall),
         Text(
           '${DateText.dayMonth(value.periodStart)} – '
           '${DateText.dayMonth(value.closingDate)} dönemi',
-          style: theme.textTheme.bodySmall?.copyWith(color: muted),
+          style: muted,
         ),
-        const SizedBox(height: AppGaps.section),
+        const SizedBox(height: AppSpacing.medium),
+        Container(
+          padding: const EdgeInsets.all(AppSpacing.medium),
+          decoration: BoxDecoration(
+            color: surfaces.cardMuted,
+            borderRadius: BorderRadius.circular(AppRadius.field),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Kalan borç', style: muted),
+                    const SizedBox(height: AppSpacing.xxSmall),
+                    AppMoneyText(
+                      amount: value.remainingBalance,
+                      currency: currency,
+                      effect: value.isOverdue ? AppMoneyEffect.expense : null,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontSize: AppTextSizes.metric,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.small),
+              _StatementDue(statement: value, withYear: true),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.large),
 
-        // Hesap açıkça yazılıyor ki kullanıcı ekstreyi doğrulayabilsin:
-        // her satır bir öncekiyle toplanıp ara toplamı veriyor.
+        // Hesap açıkça yazılır ki kullanıcı ekstreyi doğrulayabilsin: her
+        // satır bir öncekiyle toplanıp ara toplamı verir.
         Text(
-          'HESAP ÖZETİ',
-          style: theme.textTheme.labelSmall?.copyWith(color: muted),
+          'Hesap özeti',
+          style: muted?.copyWith(fontWeight: FontWeight.w600),
         ),
-        const SizedBox(height: AppGaps.sectionTitle),
+        const SizedBox(height: AppSpacing.small),
         _amountRow('Önceki devir', value.previousBalance, currency),
         _amountRow('Dönem harcaması', value.periodCharges, currency, sign: '+'),
         _amountRow(
@@ -1823,66 +1857,23 @@ class _StatementSheetState extends State<_StatementSheet> {
         ),
         const Divider(),
         _amountRow('Kalan', value.remainingBalance, currency, emphasised: true),
-        const SizedBox(height: AppSpacing.small),
         _amountRow(
           'Asgari ödeme (%${MoneyText.percent(value.minimumPaymentRate)})',
-          value.remainingMinimumPayment,
+          minimum,
           currency,
-        ),
-        _amountRow(
-          'Son ödeme tarihi',
-          null,
-          currency,
-          text: DateText.dayMonthYear(value.dueDate),
         ),
         if (!value.isPaid) ...[
           const SizedBox(height: AppSpacing.large),
-          _payActions(value),
+          _StatementPayRow(
+            onPayAll: () => Navigator.pop(context, value.remainingBalance),
+            onPayMinimum: hasSeparateMinimum
+                ? () => Navigator.pop(context, minimum)
+                : null,
+          ),
         ],
       ],
     );
   }
-
-  Widget _payActions(CardStatement value) {
-    final minimum = value.remainingMinimumPayment;
-    final hasSeparateMinimum =
-        minimum != value.remainingBalance && minimum != '0.0000';
-    return Wrap(
-      spacing: AppSpacing.small,
-      runSpacing: AppSpacing.small,
-      children: [
-        FilledButton.icon(
-          onPressed: () => Navigator.pop(context, value.remainingBalance),
-          icon: const Icon(Icons.payments_outlined),
-          label: const Text('Ekstreyi öde'),
-        ),
-        if (hasSeparateMinimum)
-          OutlinedButton.icon(
-            onPressed: () => Navigator.pop(context, minimum),
-            icon: const Icon(Icons.pending_actions_outlined),
-            label: const Text('Asgariyi öde'),
-          ),
-      ],
-    );
-  }
-
-  Widget _statusChip(CardStatement value) => AppStatusChip(
-    label: value.isPaid
-        ? 'Ödendi'
-        : value.isOverdue
-        ? 'Gecikmiş'
-        : 'Açık',
-    icon: value.isPaid
-        ? Icons.check_circle_outline
-        : value.isOverdue
-        ? Icons.warning_amber_outlined
-        : Icons.schedule_outlined,
-    tone: value.isPaid
-        ? AppStatusTone.income
-        : value.isOverdue
-        ? AppStatusTone.expense
-        : AppStatusTone.planned,
-  );
 
   /// Hesap özetinin bir satırı: solda ne olduğu, sağda tutarı.
   ///
@@ -1904,9 +1895,11 @@ class _StatementSheetState extends State<_StatementSheet> {
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xSmall),
       child: Row(
         children: [
-          Expanded(child: Text(label, style: style)),
+          Expanded(flex: 3, child: Text(label, style: style)),
           const SizedBox(width: AppSpacing.small),
-          Flexible(
+          // Tutar sütunu sağ kenara yaslanır; rakamlar alt alta hizalanır.
+          Expanded(
+            flex: 2,
             child: Text(
               text ?? _signed(sign, amount!, currency),
               textAlign: TextAlign.end,
@@ -2020,12 +2013,6 @@ String _money(String value) => value.trim().replaceAll(',', '.');
 /// Alacaklı kartta "Borç −₺500,00" yazmak kullanıcıya borcu varmış gibi
 /// okunuyordu; cümle yönü kendisi söylüyor, eksi işaretine gerek yok
 /// (Aşama 06 Grup 5).
-String _debtSentence(CreditCardItem card) =>
-    MoneyText.isNegative(card.currentDebt)
-    ? 'Kartınızda '
-          '${MoneyText.format(MoneyText.unsigned(card.currentDebt), card.currency)} '
-          'alacağınız var'
-    : 'Borç ${MoneyText.format(card.currentDebt, card.currency)}';
 String? _nullable(String value) => value.trim().isEmpty ? null : value.trim();
 String _dateText(DateTime value) =>
     '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
@@ -2035,49 +2022,6 @@ String _newGuid() {
   String hex(int length) =>
       List.generate(length, (_) => random.nextInt(16).toRadixString(16)).join();
   return '${hex(8)}-${hex(4)}-4${hex(3)}-${['8', '9', 'a', 'b'][random.nextInt(4)]}${hex(3)}-${hex(12)}';
-}
-
-/// Geçmiş listelerinin dönem seçici.
-///
-/// Varsayılan son üç ay. Seçenek sunulmasının nedeni performans değil
-/// dürüstlük: sınır konduğunu kullanıcı görmeli ve gerektiğinde
-/// genişletebilmeli. "Tümü" tarih sınırını kaldırır ama sunucudaki satır
-/// tavanını kaldırmaz; kırpma olursa liste bunu ayrıca söyler.
-class _PeriodSelector extends StatelessWidget {
-  const _PeriodSelector({required this.selected, required this.onSelected});
-
-  final HistoryPeriod selected;
-  final ValueChanged<HistoryPeriod> onSelected;
-
-  /// Satırın tamamını kaplar; parçalar eşit bölüşür.
-  ///
-  /// İlk yazımda bir `Align` içinde sola yaslıydı ve sağında ölü bir boşluk
-  /// bırakıyordu. `Align`'ı kaldırmak tek başına yetmedi: `SegmentedButton`
-  /// varsayılan olarak içeriği kadar genişleyip ortalanıyor, yani iki yanda
-  /// bu kez simetrik boşluk kalıyordu. Genişliğin açıkça verilmesi gerekiyor.
-  ///
-  /// Tam genişlik bir tercih: bu çubuk altındaki listenin tamamını yönetiyor,
-  /// kart kenarlarına oturması bunu yerleşimle söylüyor.
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(
-      AppSpacing.medium,
-      AppSpacing.small,
-      AppSpacing.medium,
-      AppSpacing.small,
-    ),
-    child: SizedBox(
-      width: double.infinity,
-      child: SegmentedButton<HistoryPeriod>(
-        segments: [
-          for (final period in HistoryPeriod.values)
-            ButtonSegment(value: period, label: Text(period.label)),
-        ],
-        selected: {selected},
-        onSelectionChanged: (values) => onSelected(values.first),
-      ),
-    ),
-  );
 }
 
 /// Listenin kırpıldığını söyleyen satır.
@@ -2112,4 +2056,551 @@ class _TruncationNotice extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Kartın altındaki işlem kutusu: ikon kutusu ve altında kısa etiket.
+class _QuickAction extends StatelessWidget {
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.tooltip,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+  final String? tooltip;
+
+  static const double _box = 52;
+
+  @override
+  Widget build(BuildContext context) {
+    final surfaces = AppSurfaces.of(context);
+    final theme = Theme.of(context);
+    final content = Opacity(
+      opacity: onTap == null ? 0.4 : 1,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.inner),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xSmall),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: _box,
+                height: _box,
+                decoration: BoxDecoration(
+                  color: surfaces.card,
+                  borderRadius: BorderRadius.circular(AppRadius.field),
+                  border: Border.all(color: surfaces.border),
+                ),
+                child: Icon(icon, color: surfaces.ink),
+              ),
+              const SizedBox(height: AppSpacing.step6),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontSize: AppTextSizes.micro,
+                  fontWeight: FontWeight.w600,
+                  height: 1.25,
+                  color: surfaces.ink,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    return Expanded(
+      child: Semantics(
+        button: true,
+        enabled: onTap != null,
+        child: tooltip == null
+            ? content
+            : Tooltip(message: tooltip!, child: content),
+      ),
+    );
+  }
+}
+
+/// Kaydırma şeridinin altındaki noktalar: kaç kart var, hangisi seçili.
+class _PageDots extends StatelessWidget {
+  const _PageDots({required this.count, required this.index});
+
+  final int count;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final surfaces = AppSurfaces.of(context);
+    return Semantics(
+      label: '${index + 1}. kart, toplam $count kart',
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (var i = 0; i < count; i++)
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: i == index ? 18 : 6,
+              height: 6,
+              margin: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xxSmall,
+              ),
+              decoration: BoxDecoration(
+                color: i == index ? surfaces.ink : surfaces.borderStrong,
+                borderRadius: BorderRadius.circular(AppRadius.chip),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Ekstrenin sağ üst köşesi: son ödeme günü ya da ödendiği.
+///
+/// Renk tek başına anlam taşımaz: gecikme `Son ödeme geçti` diye yazılır.
+class _StatementDue extends StatelessWidget {
+  const _StatementDue({required this.statement, this.withYear = false});
+
+  final CardStatement statement;
+  final bool withYear;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = AppFinanceColors.of(context);
+    final muted = AppSurfaces.of(context).inkMuted;
+    final label = statement.isPaid
+        ? 'Durum'
+        : statement.isOverdue
+        ? 'Son ödeme geçti'
+        : 'Son ödeme';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: statement.isOverdue && !statement.isPaid
+                ? colors.expense
+                : muted,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xxSmall),
+        Text(
+          statement.isPaid
+              ? 'Ödendi'
+              : withYear
+              ? DateText.dayMonthYear(statement.dueDate)
+              : DateText.dayMonth(statement.dueDate),
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontSize: AppTextSizes.row,
+            color: statement.isPaid ? colors.income : null,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Ekstre ödeme düğmeleri: ikisi de aynı `Kart ödemesi` formunu açar, yalnız
+/// tutarı önceden doldurur. Ödeme bir döneme bağlanmaz.
+class _StatementPayRow extends StatelessWidget {
+  const _StatementPayRow({
+    required this.onPayAll,
+    required this.onPayMinimum,
+    this.compact = false,
+  });
+
+  final VoidCallback onPayAll;
+  final VoidCallback? onPayMinimum;
+
+  /// Sayfanın içindeki kartta düğmeler bir kademe kısadır.
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = Size(0, compact ? AppSizes.menuButton : AppSizes.button);
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppRadius.field),
+    );
+    return Row(
+      children: [
+        if (onPayMinimum != null) ...[
+          Expanded(
+            child: OutlinedButton(
+              onPressed: onPayMinimum,
+              style: OutlinedButton.styleFrom(minimumSize: size, shape: shape),
+              child: const Text('Asgariyi öde'),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.small),
+        ],
+        Expanded(
+          child: FilledButton(
+            onPressed: onPayAll,
+            style: FilledButton.styleFrom(minimumSize: size, shape: shape),
+            child: const Text('Ekstreyi öde'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Kartın bir hareketi: harcama ya da ödeme.
+class _Movement {
+  const _Movement({
+    required this.isPayment,
+    required this.amount,
+    required this.currency,
+    required this.date,
+    required this.description,
+    required this.isCancelled,
+  });
+
+  final bool isPayment;
+  final String amount;
+  final String currency;
+  final String date;
+  final String? description;
+  final bool isCancelled;
+
+  /// Harcamalar ve ödemeler tek listede, en yeni üstte (kullanıcı kararı,
+  /// 11 Kasım 2026).
+  static List<_Movement> of(CardActivity value) => [
+    for (final item in value.charges)
+      _Movement(
+        isPayment: false,
+        amount: item.amount,
+        currency: item.currency,
+        date: item.date,
+        description: item.description,
+        isCancelled: item.isCancelled,
+      ),
+    for (final item in value.payments)
+      _Movement(
+        isPayment: true,
+        amount: item.amount,
+        currency: item.currency,
+        date: item.date,
+        description: item.description,
+        isCancelled: item.isCancelled,
+      ),
+  ]..sort((a, b) => b.date.compareTo(a.date));
+}
+
+/// Kart hareketlerinin listesi.
+///
+/// Yön kaybolmaz: harcama gider renginde, ödeme nötr renkte yazılır. Kart
+/// ödemesi gider değildir; aynı harcamayı iki kez saymamak için nötrdür.
+class _MovementList extends StatelessWidget {
+  const _MovementList(this.rows);
+
+  final List<_Movement> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = AppSurfaces.of(context).inkMuted;
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          for (final (index, item) in rows.indexed) ...[
+            if (index > 0)
+              const Divider(height: 1, indent: AppIconCapsule.rowInset),
+            Opacity(
+              opacity: item.isCancelled ? 0.55 : 1,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.medium,
+                  vertical: AppSpacing.compact,
+                ),
+                child: Row(
+                  children: [
+                    AppIconCapsule(
+                      icon: item.isPayment
+                          ? Icons.payments_outlined
+                          : Icons.shopping_cart_outlined,
+                      tone: item.isCancelled
+                          ? AppStatusTone.cancelled
+                          : item.isPayment
+                          ? AppStatusTone.neutral
+                          : AppStatusTone.expense,
+                    ),
+                    const SizedBox(width: AppSpacing.medium),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.description ??
+                                (item.isPayment
+                                    ? 'Kart ödemesi'
+                                    : 'Kart harcaması'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: AppSpacing.xxSmall),
+                          Text(
+                            [
+                              DateText.dayMonth(item.date),
+                              // Açıklamalı ödemede türü alt satır söyler.
+                              if (item.isPayment && item.description != null)
+                                'Ödeme',
+                              if (item.isCancelled) 'İptal edildi',
+                            ].join(' • '),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.small),
+                    AppMoneyText(
+                      amount: item.amount,
+                      currency: item.currency,
+                      effect: item.isPayment
+                          ? AppMoneyEffect.neutral
+                          : AppMoneyEffect.expense,
+                      isCancelled: item.isCancelled,
+                      size: AppMoneySize.row,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Hareketlerin türe göre süzgeci.
+enum _MovementKind {
+  all('Hepsi'),
+  charges('Harcamalar'),
+  payments('Ödemeler');
+
+  const _MovementKind(this.label);
+  final String label;
+}
+
+extension on HistoryPeriod {
+  /// Filtre panelinde ve etikette görünen ad.
+  String get title => switch (this) {
+    HistoryPeriod.threeMonths => 'Son 3 ay',
+    HistoryPeriod.year => 'Son 1 yıl',
+    HistoryPeriod.all => 'Tüm zamanlar',
+  };
+
+  /// `Son 3 ayda kart hareketi yok.`
+  String get sentence => switch (this) {
+    HistoryPeriod.threeMonths => 'Son 3 ayda',
+    HistoryPeriod.year => 'Son 1 yılda',
+    HistoryPeriod.all => 'Bu kartta',
+  };
+}
+
+/// Bir kartın bütün hareketleri; dönem ve tür başlıktaki filtreyle seçilir.
+///
+/// Filtre başlıkta tek ikondur; seçim panelde yapılır ve `Uygula` ile
+/// geçerli olur. Varsayılandan farklı seçim listenin üstünde etiket olarak
+/// durur ve etiketinden kaldırılır.
+class CardMovementsPage extends StatefulWidget {
+  const CardMovementsPage({
+    required this.card,
+    required this.controller,
+    super.key,
+  });
+
+  final CreditCardItem card;
+  final FinanceController controller;
+
+  @override
+  State<CardMovementsPage> createState() => _CardMovementsPageState();
+}
+
+class _CardMovementsPageState extends State<CardMovementsPage> {
+  late Future<CardActivity> _activity = _load();
+  _MovementKind _kind = _MovementKind.all;
+
+  HistoryPeriod get _period => widget.controller.period;
+
+  Future<CardActivity> _load() =>
+      widget.controller.loadActivity(widget.card.id);
+
+  bool get _filtered =>
+      _kind != _MovementKind.all || _period != HistoryPeriod.threeMonths;
+
+  Future<void> _apply(HistoryPeriod period, _MovementKind kind) async {
+    if (period != _period) await widget.controller.selectPeriod(period);
+    if (!mounted) return;
+    setState(() {
+      _kind = kind;
+      _activity = _load();
+    });
+  }
+
+  Future<void> _openFilter() async {
+    final result =
+        await AppFormSheet.show<({HistoryPeriod period, _MovementKind kind})>(
+          context: context,
+          builder: (_) => _MovementFilterSheet(period: _period, kind: _kind),
+        );
+    if (result != null) await _apply(result.period, result.kind);
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppPageBar(
+      title: const Text('Kart hareketleri'),
+      actions: [
+        IconButton(
+          tooltip: 'Filtrele',
+          onPressed: _openFilter,
+          icon: Badge(
+            isLabelVisible: _filtered,
+            smallSize: 8,
+            child: const Icon(Icons.filter_list),
+          ),
+        ),
+      ],
+    ),
+    body: FutureBuilder<CardActivity>(
+      future: _activity,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const AppLoadingView(message: 'Kart hareketleri yükleniyor');
+        }
+        if (snapshot.hasError) {
+          return AppErrorView(
+            message: 'Kart hareketleri yüklenemedi.',
+            onRetry: () => setState(() => _activity = _load()),
+          );
+        }
+        final value = snapshot.data!;
+        final rows = _Movement.of(value)
+            .where(
+              (row) => switch (_kind) {
+                _MovementKind.all => true,
+                _MovementKind.charges => !row.isPayment,
+                _MovementKind.payments => row.isPayment,
+              },
+            )
+            .toList(growable: false);
+        final muted = Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: AppSurfaces.of(context).inkMuted,
+        );
+        return ListView(
+          padding: AppPageInsets.list,
+          children: [
+            Text('${widget.card.name} · ${_period.title}', style: muted),
+            if (_filtered) ...[
+              const SizedBox(height: AppSpacing.small),
+              Wrap(
+                spacing: AppSpacing.small,
+                runSpacing: AppSpacing.xSmall,
+                children: [
+                  if (_period != HistoryPeriod.threeMonths)
+                    InputChip(
+                      label: Text(_period.title),
+                      onDeleted: () => _apply(HistoryPeriod.threeMonths, _kind),
+                      deleteButtonTooltipMessage: 'Dönemi kaldır',
+                    ),
+                  if (_kind != _MovementKind.all)
+                    InputChip(
+                      label: Text(_kind.label),
+                      onDeleted: () => _apply(_period, _MovementKind.all),
+                      deleteButtonTooltipMessage: 'Türü kaldır',
+                    ),
+                ],
+              ),
+            ],
+            const SizedBox(height: AppSpacing.compact),
+            if (value.hasMore) const _TruncationNotice(),
+            if (rows.isEmpty)
+              AppEmptyView(
+                compact: true,
+                title: _filtered
+                    ? 'Bu filtreye uyan hareket yok'
+                    : '${_period.sentence} kart hareketi yok',
+                message: _filtered
+                    ? 'Filtreyi değiştirebilir ya da kaldırabilirsiniz.'
+                    : 'Daha eskisi için filtreden dönemi genişletin.',
+                icon: Icons.credit_card,
+              )
+            else
+              _MovementList(rows),
+          ],
+        );
+      },
+    ),
+  );
+}
+
+/// Hareket filtresi: seçim taslaktır, `Uygula` ile geçerli olur; `Temizle`
+/// varsayılana döner, `Vazgeç` hiçbir şeyi değiştirmez.
+class _MovementFilterSheet extends StatefulWidget {
+  const _MovementFilterSheet({required this.period, required this.kind});
+
+  final HistoryPeriod period;
+  final _MovementKind kind;
+
+  @override
+  State<_MovementFilterSheet> createState() => _MovementFilterSheetState();
+}
+
+class _MovementFilterSheetState extends State<_MovementFilterSheet> {
+  late HistoryPeriod _period = widget.period;
+  late _MovementKind _kind = widget.kind;
+
+  @override
+  Widget build(BuildContext context) =>
+      AppFormSheet<({HistoryPeriod period, _MovementKind kind})>(
+        title: 'Filtrele',
+        submitLabel: 'Uygula',
+        onSubmit: () async => (period: _period, kind: _kind),
+        secondaryLabel: 'Temizle',
+        onSecondary: () async =>
+            (period: HistoryPeriod.threeMonths, kind: _MovementKind.all),
+        children: [
+          const AppSectionHeader(title: 'Dönem'),
+          Wrap(
+            spacing: AppSpacing.small,
+            runSpacing: AppSpacing.xSmall,
+            children: [
+              for (final period in HistoryPeriod.values)
+                ChoiceChip(
+                  label: Text(period.title),
+                  selected: period == _period,
+                  onSelected: (_) => setState(() => _period = period),
+                ),
+            ],
+          ),
+          const SizedBox(height: AppGaps.section),
+          const AppSectionHeader(title: 'Tür'),
+          Wrap(
+            spacing: AppSpacing.small,
+            runSpacing: AppSpacing.xSmall,
+            children: [
+              for (final kind in _MovementKind.values)
+                ChoiceChip(
+                  label: Text(kind.label),
+                  selected: kind == _kind,
+                  onSelected: (_) => setState(() => _kind = kind),
+                ),
+            ],
+          ),
+        ],
+      );
 }

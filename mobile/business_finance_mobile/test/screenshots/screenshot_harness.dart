@@ -26,6 +26,14 @@ bool get screenshotsEnabled => screenshotDir != null;
 
 const Size designFrame = Size(412, 892);
 
+/// `SCREENSHOT_DARK=1` bütün kareleri karanlık temayla, `SCREENSHOT_WIDTH=360`
+/// verilen genişlikte çizer; testler değişmeden iki denetim de yapılır.
+final bool screenshotDark = Platform.environment['SCREENSHOT_DARK'] == '1';
+
+final double? screenshotWidth = double.tryParse(
+  Platform.environment['SCREENSHOT_WIDTH'] ?? '',
+);
+
 bool _fontsLoaded = false;
 
 Future<void> loadDesignFonts() async {
@@ -69,6 +77,8 @@ Future<void> captureScreen(
   final oldShadows = debugDisableShadows;
   debugDisableShadows = false;
   try {
+    final width = screenshotWidth;
+    if (width != null) frame = Size(width, frame.height);
     tester.view.physicalSize = frame * 2;
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
@@ -159,7 +169,7 @@ class _PushedHostState extends State<_PushedHost> {
 /// metin Roboto'dur, test motorunda kutu fontudur. Görüntü cihazdaki gibi
 /// olsun diye düğme metni temanın birleşik (Roboto'lu) stiliyle çizilir.
 ThemeData _screenshotTheme() {
-  final theme = AppTheme.light();
+  final theme = screenshotDark ? AppTheme.dark() : AppTheme.light();
   final label = WidgetStatePropertyAll(theme.textTheme.labelLarge);
   final merged = theme.textTheme.bodyMedium;
   return theme.copyWith(

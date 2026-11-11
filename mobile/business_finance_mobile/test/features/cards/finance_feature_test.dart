@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:business_finance_mobile/core/widgets/app_card.dart';
 import 'package:business_finance_mobile/core/widgets/app_form_error.dart';
 import '../../helpers/accessibility.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
@@ -276,7 +275,7 @@ void main() {
         message: 'Ödeme tutarı kartın güncel borcundan büyük olamaz.',
         statusCode: 409,
       ),
-      'Kart borcu ödemesi kaydedildi; yeni gider oluşmadı.',
+      'Kart ödemesi kaydedildi.',
     );
     await tester.pumpAndSettle();
 
@@ -290,16 +289,10 @@ void main() {
     expect(find.byType(MaterialBanner), findsNothing);
 
     // Başarı da söylenir: sessiz başarı ile sessiz başarısızlık aynı görünür.
-    await controller.submit(
-      () async {},
-      'Kart borcu ödemesi kaydedildi; yeni gider oluşmadı.',
-    );
+    await controller.submit(() async {}, 'Kart ödemesi kaydedildi.');
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('Kart borcu ödemesi kaydedildi; yeni gider oluşmadı.'),
-      findsOneWidget,
-    );
+    expect(find.text('Kart ödemesi kaydedildi.'), findsOneWidget);
   });
 
   testWidgets('kart sayfası tarihleri ayrı satırlarda ve taşmadan gösterir', (
@@ -320,10 +313,11 @@ void main() {
       ),
     );
 
-    expect(find.text('Hesap kesim günü'), findsOneWidget);
-    expect(find.text('Son ödeme günü'), findsOneWidget);
-    expect(find.text('Her ayın 10.'), findsOneWidget);
-    expect(find.text('Her ayın 20.'), findsOneWidget);
+    // Günler kartın yüzünde, her biri kendi etiketiyle (11 Kasım 2026).
+    expect(find.text('Hesap kesimi'), findsOneWidget);
+    expect(find.text('Son ödeme'), findsOneWidget);
+    expect(find.text("Ayın 10'u"), findsOneWidget);
+    expect(find.text("Ayın 20'si"), findsOneWidget);
 
     // Dört eylem butonu iki gruba ayrıldı; en büyük yazı ölçeğinde alt satıra
     // düşen buton üsttekine yapışmamalı ve satır taşmamalı.
@@ -402,8 +396,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Dönem borcu'), findsOneWidget);
-    expect(find.text('Ağustos 2026 ekstresi'), findsOneWidget);
-    expect(find.text('Asgari ödeme'), findsOneWidget);
+    // Ekstrenin adı ve asgari tutar tek yardımcı satırdadır.
+    expect(find.textContaining('Ağustos 2026 ekstresi'), findsOneWidget);
+    expect(find.textContaining('Asgari ₺'), findsOneWidget);
     expect(find.text('20 Ağustos'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Ekstreyi öde'), findsOneWidget);
     expect(find.widgetWithText(OutlinedButton, 'Asgariyi öde'), findsOneWidget);
@@ -649,11 +644,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(
-      find.textContaining('Kartınızda ₺500,00 alacağınız var'),
-      findsOneWidget,
-    );
-    expect(find.textContaining('Borç -'), findsNothing);
+    // Kart alacağı kendi etiketiyle ve eksi işaretsiz yazar.
+    expect(find.text('Kart alacağınız'), findsOneWidget);
+    expect(find.text('₺500,00'), findsOneWidget);
+    expect(find.text('Güncel borç'), findsNothing);
+    expect(find.textContaining('-₺'), findsNothing);
   });
 
   testWidgets('kart ayrıntısı alacaklı bakiyeyi kendi etiketiyle yazar', (
@@ -762,7 +757,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Ekstre'));
+    await tester.tap(find.text('Ekstre'));
     await tester.pumpAndSettle();
 
     expect(find.text('Önceki devir'), findsOneWidget);
@@ -797,17 +792,20 @@ void main() {
       ),
     );
 
-    // Eylemler özet kutusunun içinde: kartın altında serbest durduklarında
-    // neye ait oldukları yalnız yakınlıktan anlaşılıyordu.
+    // Eylemler kartın yüzünün hemen altında, tek sırada beş kutudur
+    // (11 Kasım 2026): harcama, taksitli harcama, ödeme, ekstre, düzenle.
+    for (final label in [
+      'Harcama',
+      'Taksitli harcama',
+      'Ödeme',
+      'Ekstre',
+      'Düzenle',
+    ]) {
+      expect(find.text(label), findsOneWidget);
+    }
     expect(
-      find.descendant(
-        of: find.ancestor(
-          of: find.text('Dönem borcu'),
-          matching: find.byType(AppCard),
-        ),
-        matching: find.widgetWithText(FilledButton, 'Harcama'),
-      ),
-      findsOneWidget,
+      tester.getTopLeft(find.text('Harcama')).dy,
+      lessThan(tester.getTopLeft(find.text('Dönem borcu')).dy),
     );
     expectNoOverflow(tester);
   });
@@ -859,8 +857,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // Kartın sayfası son hareketleri gösterir; kırpma uyarısı ve dönem,
+    // `Tümü` ile açılan hareketler sayfasındadır.
+    await tester.tap(find.text('Tümü'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Kart hareketleri'), findsOneWidget);
     expect(find.textContaining('daha fazla kayıt var'), findsOneWidget);
-    expect(find.text('3 ay'), findsOneWidget);
+    expect(find.textContaining('Son 3 ay'), findsOneWidget);
   });
 
   testWidgets('dönem değişince liste yeni dönemle yeniden okunur', (
@@ -883,6 +887,14 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Tümü'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Filtrele'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tüm zamanlar'));
+    await tester.pumpAndSettle();
+    // Seçim taslaktır; `Uygula`dan önce hiçbir şey değişmez.
+    expect(controller.period, HistoryPeriod.threeMonths);
+    await tester.tap(find.text('Uygula'));
     await tester.pumpAndSettle();
 
     expect(controller.period, HistoryPeriod.all);
@@ -1059,7 +1071,8 @@ void main() {
     // Her satırda bir rozet; eylem yalnız gerçekleşmemiş ve günü gelmiş
     // olanda. Günü gelmemiş taksitte eylem hiç çıkmaz.
     expect(find.text('Gerçekleşti'), findsOneWidget);
-    expect(find.text('Planlandı'), findsNWidgets(2));
+    // Günü gelmiş taksitte durumun yerinde eylem durur.
+    expect(find.text('Planlandı'), findsOneWidget);
     expect(find.text('Gerçekleştir'), findsOneWidget);
     expect(find.text('19 Ekim 2099'), findsOneWidget);
     // Tarih ham ISO değil okunur biçimde.
@@ -1123,7 +1136,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Ödeme'));
+    await tester.tap(find.text('Ödeme'));
     await tester.pumpAndSettle();
     await _chooseAccount(tester);
     await tester.enterText(find.widgetWithText(TextFormField, 'Tutar'), '100');

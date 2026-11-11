@@ -1151,8 +1151,7 @@ class _DeleteAccountPageState extends State<_DeleteAccountPage> {
                       leading: const AppIconCapsule(
                         icon: Icons.folder_open_outlined,
                       ),
-                      title: 'Önce yedeğinizi alın',
-                      subtitle: 'Kayıtlarınız dosya olarak telefonunuza iner.',
+                      title: 'Verilerinizi yedekleyin',
                       trailing: const _Chevron(),
                       onTap: () =>
                           GoRouter.maybeOf(context)?.push('/more/data-tools'),

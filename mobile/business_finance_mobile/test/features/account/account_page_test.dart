@@ -260,7 +260,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Silme bir sayfadır: ne olacağını söyler, yedek kapısı oradadır.
-    expect(find.text('Önce yedeğinizi alın'), findsOneWidget);
+    expect(find.text('Verilerinizi yedekleyin'), findsOneWidget);
     final submit = find.widgetWithText(FilledButton, 'Hesabımı sil');
     // Parola yazılana kadar düğme pasiftir.
     expect(tester.widget<FilledButton>(submit).onPressed, isNull);

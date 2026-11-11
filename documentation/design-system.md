@@ -1844,3 +1844,60 @@ alacaklar ile yükümlülük sayfalarında yalnız başlık ve üst boşluk kura
 panelinin gövdesidir (`tax_parts.dart`). Çipin kendisi hâlâ iki türlüdür
 (`ChoiceChip` ve kategori sayfalarının 36 dp hapı). Sıradaki fazlar
 `research/DEVIR-2026-11-07.md` §14'te.
+
+## Boş durum, ilk kullanım türü — 11 Kasım 2026
+
+Boş durum üç türdür (kullanıcı kararı; gerekçe ve inceleme
+`research/DIS-GOZ-2026-11-11-bos-durum-ilk-kullanim.md`):
+
+| Tür | Ne zaman | Bileşen | Durum |
+|---|---|---|---|
+| İlk kullanım | Sayfada hiç kayıt yok | `AppFirstUseView` | Hesaplar ve Kredi kartları'nda uygulandı |
+| Sonuç yok | Kayıt var; seçilen ay, filtre ya da arama boş | `AppEmptyView(compact: true)` | Yeniden tasarlanacak |
+| Bölüm boş | Dolu sayfanın içindeki boş kart | Kartın içinde tek satır soluk yazı | Özet ve Kredi kartları hareketlerinde var |
+
+`AppFirstUseView` (`lib/core/widgets/app_first_use_view.dart`) ikon yerine
+sayfanın dolu hâlinin soluk çizimini gösterir; altında başlık (`section`, 18),
+tek cümle (`body`, 14, soluk) ve tek dolu düğme (48 dp, en az 160 dp geniş)
+durur. Sayfa yalnız çizimin türünü, ikonu, metni ve eylemi verir; ölçülerin
+hepsi bileşenin içindedir.
+
+- Çizim türleri (`AppEmptyPreview`): `rows` (liste satırları), `card` (kredi
+  kartı destesi), `ring` (halkalı satırlar, bütçe). Üçü aynı yüksekliktedir;
+  başlık ve düğme her sayfada aynı yerde durur.
+- Çizim ekranı yatayda sarar (en çok 420 dp), aşağı doğru daralır ve
+  silikleşir, yalnız ilk parçası renklidir (nötr ton) ve hareketsizdir:
+  "yükleniyor" iskeletine benzememesi için.
+- Çizim ekran okuyucuya okunmaz; başlık, cümle ve düğme okunur.
+- Blok sayfanın ortasının biraz üstünde durur (üst boşluk ekran boyunun %14'ü).
+- Kayıt yokken ekleme yalnız bu düğmededir; başlıktaki `+` gizlenir. Aynı
+  eylem ekranda iki kez görünmez.
+- Metin: başlık noktasız, ilk kullanımda `Henüz … yok`; cümle tek satır,
+  başlığı tekrar etmez, sonraki adımı söyler.
+
+Açık: 640 dp boyundaki telefon ve alt çubuklu sekmelerde düğmenin yeri
+denenmedi; kalan ilk kullanım sayfaları (Bütçeler, Kategoriler, Cari, Borç,
+Tasarruf hedefi, Tekrarlayanlar, POS, İşlemler) bağlanmadı.
+
+## Kredi kartları sayfası — 11 Kasım 2026
+
+Liste ve ayrı kart detayı tek sayfada birleşti (kullanıcı kararı; referans
+banka uygulamalarının kart sayfası).
+
+| Bölüm | Kural |
+|---|---|
+| Kartlar | `PageView`, `viewportFraction` 0,9: komşu kartın kenarı görünür; altında nokta göstergesi (`_PageDots`). Kart değişince alttaki bölümler o kartın verisiyle baştan kurulur |
+| Kartın yüzü | `CreditCardTile`: ad (`row`), `Güncel borç` / `Kart alacağınız` ve tutar (`amount`, 28), altta `Hesap kesimi` ve `Son ödeme` (`Ayın 15'i`). Yüzey `colorScheme.primary` / `onPrimary` (birincil düğmeyle aynı çift). Büyük yazıda kart uzar (`heightOf`) |
+| İşlemler | Tek sırada beş kutu (`_QuickAction`, 52 dp kutu + 12 punto etiket): Harcama · Taksitli harcama · Ödeme · Ekstre · Düzenle |
+| Limit | Tek satır `Kullanılabilir limit` + tutar, 6 dp çubuk, altında `Kart limiti`. Çubuğun doluluğu yalnız çizimdir; sayı olarak yazılmaz |
+| Dönem borcu | Tutar `metric` (22), yalnız gecikmişse gider rengi; sağda `Son ödeme` + gün (`Son ödeme geçti` / `Ödendi`); altında `Ekim 2026 ekstresi · Asgari …`; iki eşit düğme (40 dp) |
+| Taksitler | Her taksitli harcama tek satır: ad, `2/6 taksit · sıradaki 15 Kasım`, toplam, 6 dp ilerleme çubuğu. Taksitlerin listesi satıra dokununca açılan panelde |
+| Hareketler | Harcama ve ödeme tek listede, en yeni üstte; sayfada son 10, başlıkta `Tümü`. Satır: ton kapsülü (gider / nötr), ad, gün, tutar |
+| Kart hareketleri sayfası | Başlıkta tek filtre ikonu; panel `AppFormSheet` (`Dönem`, `Tür`; `Uygula` / `Temizle` / `Vazgeç`). Varsayılandan farklı seçim listenin üstünde kaldırılabilir etikettir |
+| Ekstre | Alttan açılan panel: başlık + ay okları, gri kutuda kalan borç ve son ödeme tarihi, hesap özeti (tutarlar sağa yaslı), iki ödeme düğmesi (48 dp) |
+
+Fişten ya da dekonttan gelindiğinde sayfa seçim ekranıdır: not `karta dokunun`
+der, dokunulan kartta form önerilerle açılır.
+
+Açık: karanlık temada kartın yüzü açık renk çıkar (ayrı yüzey rengi kararı);
+limit çubuğunun oranı istemcide çizilir (sunucudan gelmesi kararı).

@@ -135,6 +135,7 @@ class ActivityTile extends StatelessWidget {
                                   // ve bir cümle olabilir; tamamı ayrıntıdadır.
                                   _titleText(context),
                                   if ((subtitle ?? _subtitle).isNotEmpty) ...[
+                                    const SizedBox(height: AppSpacing.xxSmall),
                                     _subtitleText(context),
                                   ],
                                 ],
@@ -316,11 +317,22 @@ class ActivityTile extends StatelessWidget {
 
   Widget _subtitleText(BuildContext context) {
     final style = Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.35);
-    final text = Text(
-      subtitle ?? _subtitle,
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-      style: style,
+    final full = subtitle ?? _subtitle;
+    // Alt satır sığmazsa ayraçtan bölünür: parça bütün olarak ikinci satıra
+    // iner, satır sonunda ayraç kalmaz ve tek kelime alta düşmez (kullanıcı
+    // kararı, 11 Kasım 2026).
+    final text = LayoutBuilder(
+      builder: (context, constraints) => Text(
+        _brokenAtSeparator(
+          full,
+          style,
+          constraints.maxWidth,
+          MediaQuery.textScalerOf(context),
+        ),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: style,
+      ),
     );
     if (subtitleIcon == null) return text;
     return Row(
@@ -331,6 +343,41 @@ class ActivityTile extends StatelessWidget {
         Expanded(child: text),
       ],
     );
+  }
+
+  static const String _separator = ' • ';
+
+  /// [text] tek satıra sığıyorsa aynen döner; sığmıyorsa ilk satıra sığan
+  /// parçalar kalır, gerisi ikinci satıra iner. Tek parçası bile satırdan
+  /// uzun olan metin olduğu gibi bırakılır.
+  static String _brokenAtSeparator(
+    String text,
+    TextStyle? style,
+    double maxWidth,
+    TextScaler scaler,
+  ) {
+    final parts = text.split(_separator);
+    if (parts.length < 2 || !maxWidth.isFinite) return text;
+    bool fits(String value) {
+      final painter = TextPainter(
+        text: TextSpan(text: value, style: style),
+        textDirection: TextDirection.ltr,
+        textScaler: scaler,
+        maxLines: 1,
+      )..layout();
+      final result = painter.width <= maxWidth;
+      painter.dispose();
+      return result;
+    }
+
+    if (fits(text) || !fits(parts.first)) return text;
+    var first = 1;
+    while (first < parts.length - 1 &&
+        fits(parts.take(first + 1).join(_separator))) {
+      first++;
+    }
+    return '${parts.take(first).join(_separator)}\n'
+        '${parts.skip(first).join(_separator)}';
   }
 
   String get _subtitle {
@@ -366,7 +413,7 @@ class ActivityTile extends StatelessWidget {
       if (place != null && place != activity.title) place,
       ?_settlementCountLabel,
       if (showDate) _readableDate,
-    ].join(' • ');
+    ].join(_separator);
   }
 
   /// Birden çok tahsilatı kapatan yatışta kaç tahsilat olduğu.

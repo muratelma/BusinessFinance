@@ -798,6 +798,31 @@ void main() {
       );
     });
 
+    testWidgets('dar ekranda bant yalnız tarihi yazar ve tek satır kalır', (
+      tester,
+    ) async {
+      // Test fontunda her harf yazı boyu kadar geniştir: 500 dp'de sayı ile
+      // tarih yan yana sığar, "En eskisi" ile birlikte sığmaz.
+      final viewModel = DashboardViewModel(
+        _Source(_report()),
+        activityRepository: _PlannedSource([
+          _planned(id: 'a', timing: 'overdue', dueDate: '2026-07-15'),
+          _planned(id: 'b', timing: 'overdue', dueDate: '2026-08-01'),
+        ]),
+        now: () => DateTime(2026, 8, 9),
+      );
+      await viewModel.load();
+
+      await _pump(tester, viewModel, width: 500);
+
+      final date = find.text('15 Temmuz');
+      expect(date, findsOneWidget);
+      final count = find.text('2 gecikmiş ödeme').first;
+      // İki parça da tek satır: sayı tarihle aynı yükseklikte.
+      expect(tester.getSize(count).height, lessThan(30));
+      expect(tester.getSize(date).height, lessThan(30));
+    });
+
     testWidgets('gecikme yokken bant hiç çizilmez', (tester) async {
       final viewModel = DashboardViewModel(
         _Source(_report()),
@@ -819,8 +844,9 @@ Future<void> _pump(
   WidgetTester tester,
   DashboardViewModel viewModel, {
   double height = 2000,
+  double width = 400,
 }) async {
-  tester.view.physicalSize = Size(400, height);
+  tester.view.physicalSize = Size(width, height);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
 

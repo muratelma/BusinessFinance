@@ -334,26 +334,62 @@ class _OverdueBand extends StatelessWidget {
                       color: foreground,
                     ),
                     const SizedBox(width: AppSpacing.small),
-                    Flexible(
-                      child: Text(
-                        '${items.length} gecikmiş ödeme',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontSize: AppTextSizes.compact,
-                          height: 1.3,
-                          color: foreground,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.small),
+                    // Dar ekranda iki parça yan yana sığmazsa tarih tek başına
+                    // yazılır; hiçbir parça alt satıra tek kelime bırakmaz
+                    // (kullanıcı, 11 Kasım 2026).
                     Expanded(
-                      child: Text(
-                        'En eskisi ${DateText.dayMonth(oldest)}',
-                        textAlign: TextAlign.right,
-                        maxLines: 2,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          height: 1.3,
-                          color: foreground,
-                        ),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final countStyle = theme.textTheme.titleSmall
+                              ?.copyWith(
+                                fontSize: AppTextSizes.compact,
+                                height: 1.3,
+                                color: foreground,
+                              );
+                          final dateStyle = theme.textTheme.bodyMedium
+                              ?.copyWith(height: 1.3, color: foreground);
+                          final scaler = MediaQuery.textScalerOf(context);
+                          double widthOf(String text, TextStyle? style) {
+                            final painter = TextPainter(
+                              text: TextSpan(text: text, style: style),
+                              textDirection: TextDirection.ltr,
+                              textScaler: scaler,
+                              maxLines: 1,
+                            )..layout();
+                            final width = painter.width;
+                            painter.dispose();
+                            return width;
+                          }
+
+                          final count = '${items.length} gecikmiş ödeme';
+                          final date = DateText.dayMonth(oldest);
+                          final long = 'En eskisi $date';
+                          final room =
+                              constraints.maxWidth -
+                              widthOf(count, countStyle) -
+                              AppSpacing.small;
+                          final fitsLong = widthOf(long, dateStyle) <= room;
+                          final fitsDate = widthOf(date, dateStyle) <= room;
+                          final countText = Text(count, style: countStyle);
+                          return Row(
+                            children: [
+                              // Büyük yazıda ikisi de sığmaz; eski bölüşüm kalır.
+                              if (fitsDate)
+                                countText
+                              else
+                                Flexible(child: countText),
+                              const SizedBox(width: AppSpacing.small),
+                              Expanded(
+                                child: Text(
+                                  fitsLong || !fitsDate ? long : date,
+                                  textAlign: TextAlign.right,
+                                  maxLines: fitsDate ? 1 : 2,
+                                  style: dateStyle,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ),
                     // Ok tarihe yapışık duruyordu (kullanıcı, 30 Eylül).

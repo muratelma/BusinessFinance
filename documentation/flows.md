@@ -1430,7 +1430,7 @@ onayla) ve "Kapatılan cihazda yeniden giriş yapmak gerekir." notu. Toplu
 kapatma yalnız bu sayfadadır.
 
 **Hesabımı sil** bir paneldi, sayfa oldu: ne olacağını söyleyen metin (e-posta
-kalın), `Önce yedeğinizi alın` kartı (Veri ve yedek'i açar), `Parolanız` alanı
+kalın), `Verilerinizi yedekleyin` kartı (Veri ve yedek'i açar), `Parolanız` alanı
 ve en altta kırmızı `Hesabımı sil`; parola yazılana kadar düğme pasiftir.
 Ayrı bir son onay penceresi **yoktur** (kullanıcı kararı, 10 Kasım 2026):
 sayfa, yazılan parola ve kırmızı düğme onayın kendisidir; düğme isteği
@@ -2038,3 +2038,29 @@ borçlandırmada yalnız işletmenin, `Kendime aldım`da yalnız şahsi tarafın
 kapsama açık kategoriler listelenir ve kapsam sorulmaz. Vergi, kasa farkı ve
 ekstre eşlemede kategori düz listeden seçilir; kapsam bu formlarda başka yerden
 gelir.
+
+## Kredi kartları tek sayfada — 11 Kasım 2026
+
+```text
+Diğer -> Kredi kartlarım
+  -> kart yok: ilk kullanım bloğu (kart çizimi, `Henüz kredi kartı yok`,
+     `Kart ekle`); başlıkta `+` yok
+  -> kart var: kartlar yan yana kayar; seçili kartın altında
+       işlemler: Harcama · Taksitli harcama · Ödeme · Ekstre · Düzenle
+       kullanılabilir limit
+       dönem borcu -> Asgariyi öde / Ekstreyi öde (kart ödemesi formu,
+         tutar önceden dolu)
+       taksitler -> satıra dokun -> taksit paneli -> günü gelende Gerçekleştir
+       hareketler (son 10) -> Tümü -> Kart hareketleri
+         -> filtre ikonu -> Dönem + Tür -> Uygula
+  -> `+` (başlıkta) -> kart ekleme formu
+  -> Ekstre -> alttan panel: ay okları, kalan borç, hesap özeti, ödeme düğmeleri
+```
+
+Karta dokununca ayrı bir sayfaya inilmez; kart kaydırılınca bölümler o kartın
+verisini gösterir. Fişten (taksitli alışveriş) ya da dekonttan (kart ödemesi)
+gelindiğinde üstteki not `karta dokunun` der; form dokunulan kartta, önerilerle
+açılır ve öneri bir kez kullanılır.
+
+Hesaplar'ın boş hâli de ilk kullanım bloğudur (`Henüz hesap yok`, `Nakit ya da
+banka hesabınızı ekleyin.`, `Hesap ekle`).

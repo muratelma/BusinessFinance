@@ -12,6 +12,7 @@ import '../../../core/widgets/app_icon_capsule.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_page_header.dart';
 import '../../../core/theme/app_breakpoints.dart';
+import '../../../core/widgets/app_first_use_view.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_summary_card.dart';
 import '../data/finance_page_models.dart';
@@ -134,27 +135,15 @@ class _AccountsOverviewPageState extends State<_AccountsOverviewPageBody> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: AppPageInsets.list,
         children: [
-          if (data.items.isEmpty) ...[
-            const AppEmptyView(
-              compact: true,
+          if (data.items.isEmpty)
+            AppFirstUseView(
               title: 'Henüz hesap yok',
-              message:
-                  'Kasanızı ya da banka hesabınızı ekleyerek başlayabilirsiniz.',
-              icon: Icons.event_busy_outlined,
-            ),
-            if (widget.page.onCreate != null)
-              FilledButton.icon(
-                onPressed: widget.page.onCreate,
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(AppSizes.button),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.field),
-                  ),
-                ),
-                icon: const Icon(Icons.add, size: 20),
-                label: const Text('Hesap ekle'),
-              ),
-          ] else
+              message: 'Nakit ya da banka hesabınızı ekleyin.',
+              icon: Icons.account_balance_wallet_outlined,
+              actionLabel: widget.page.onCreate == null ? null : 'Hesap ekle',
+              onAction: widget.page.onCreate,
+            )
+          else
             _totalCard(data, [
               (
                 label: 'Nakit',
