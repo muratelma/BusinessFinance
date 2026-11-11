@@ -11,6 +11,7 @@ import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_date_field.dart';
+import '../../../core/widgets/app_first_use_view.dart';
 import '../../../core/widgets/app_form_sheet.dart';
 import '../../../core/widgets/app_inline_notice.dart';
 import '../../../core/widgets/app_list_row.dart';
@@ -148,22 +149,23 @@ class _DebtsPageState extends State<DebtsPage> {
             child: ListView(
               padding: AppPageInsets.list,
               children: [
-                FilledButton.icon(
-                  onPressed: controller.isSubmitting ? null : _showForm,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Borç / alacak ekle'),
-                ),
-                const SizedBox(height: AppGaps.block),
                 if (debts.isEmpty)
-                  const SizedBox(
-                    height: 220,
-                    child: AppEmptyView(
-                      icon: Icons.handshake_outlined,
-                      title: 'Borç planı yok',
-                      message: 'Borç veya alacak planı yok.',
-                    ),
+                  AppFirstUseView(
+                    icon: Icons.handshake_outlined,
+                    title: 'Henüz borç ya da alacak yok',
+                    message: 'Aldığınız ya da verdiğiniz borcu ekleyin.',
+                    actionLabel: 'Borç / alacak ekle',
+                    onAction: controller.isSubmitting ? null : _showForm,
+                  )
+                else ...[
+                  FilledButton.icon(
+                    onPressed: controller.isSubmitting ? null : _showForm,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Borç / alacak ekle'),
                   ),
-                for (final debt in debts) _debtCard(debt),
+                  const SizedBox(height: AppGaps.block),
+                  for (final debt in debts) _debtCard(debt),
+                ],
               ],
             ),
           ),

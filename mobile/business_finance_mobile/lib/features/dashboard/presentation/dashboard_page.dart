@@ -223,10 +223,10 @@ extension on DashboardPage {
       return AppErrorView(message: error.message, onRetry: viewModel.load);
     }
     if (viewModel.report == null) {
-      return const AppEmptyView(
-        icon: Icons.account_balance_wallet_outlined,
-        title: 'Finansal özet bulunamadı',
-        message: 'Özetinizi yenilemek için tekrar deneyin.',
+      // Yükleme bitti, hata yok ama rapor da yok: boş durum değil, hatadır.
+      return AppErrorView(
+        message: 'Finansal özet alınamadı.',
+        onRetry: viewModel.load,
       );
     }
     return null;

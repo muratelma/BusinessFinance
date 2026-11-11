@@ -11,6 +11,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_adaptive_sheet.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
+import '../../../core/widgets/app_first_use_view.dart';
 import '../../../core/widgets/app_form_sheet.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_category_field.dart';
@@ -98,13 +99,17 @@ class _BudgetsPageState extends State<BudgetsPage> {
               title: 'Bütçeler',
               onBack: canPop ? () => Navigator.of(context).maybePop() : null,
               actions: [
-                IconButton(
-                  tooltip: 'Bütçe ekle',
-                  onPressed: controller.isSubmitting
-                      ? null
-                      : () => _showCreate(controller),
-                  icon: const Icon(Icons.add),
-                ),
+                // Boş ayda ekleme gövdedeki düğmededir; aynı eylem iki kez
+                // görünmez. Düğme kopyalamayı öneriyorsa artı yerinde kalır.
+                if (controller.items?.isNotEmpty == true ||
+                    controller.canCopyPreviousMonth)
+                  IconButton(
+                    tooltip: 'Bütçe ekle',
+                    onPressed: controller.isSubmitting
+                        ? null
+                        : () => _showCreate(controller),
+                    icon: const Icon(Icons.add),
+                  ),
               ],
             ),
             if (controller.successMessage != null)
@@ -159,24 +164,31 @@ class _BudgetsPageState extends State<BudgetsPage> {
           padding: AppPageInsets.aboveBar(context, AppPageInsets.list),
           children: [
             month,
-            SizedBox(
-              height: 440,
-              child: AppEmptyView(
+            // Ayın ilkinde asıl istenen sıfırdan kurmak değil, geçen ayki
+            // kararı sürdürmektir; geçen ay da boşsa sıfırdan eklenir.
+            if (controller.canCopyPreviousMonth)
+              AppFirstUseView(
+                preview: AppEmptyPreview.ring,
                 icon: Icons.donut_small_outlined,
                 title: 'Bu ay için bütçe yok',
-                message:
-                    'Bir gider kategorisine aylık limit belirleyebilirsiniz.',
-                // Boş ekran çıkmaz sokak olmasın: ayın ilkinde asıl istenen
-                // şey sıfırdan kurmak değil, geçen ayki kararı sürdürmektir.
-                action: TextButton.icon(
-                  onPressed: controller.isSubmitting
-                      ? null
-                      : () => _copyPreviousMonth(controller),
-                  icon: const Icon(Icons.content_copy_outlined),
-                  label: const Text('Geçen ayın bütçelerini kopyala'),
-                ),
+                message: 'Geçen ayın bütçelerini bu aya kopyalayın.',
+                actionLabel: 'Geçen ayı kopyala',
+                actionIcon: Icons.content_copy_outlined,
+                onAction: controller.isSubmitting
+                    ? null
+                    : () => _copyPreviousMonth(controller),
+              )
+            else
+              AppFirstUseView(
+                preview: AppEmptyPreview.ring,
+                icon: Icons.donut_small_outlined,
+                title: 'Bu ay için bütçe yok',
+                message: 'Bir gider kategorisine aylık limit belirleyin.',
+                actionLabel: 'Bütçe ekle',
+                onAction: controller.isSubmitting
+                    ? null
+                    : () => _showCreate(controller),
               ),
-            ),
           ],
         ),
       );

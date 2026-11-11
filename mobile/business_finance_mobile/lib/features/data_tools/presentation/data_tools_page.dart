@@ -15,6 +15,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_list_row.dart';
 import '../../../core/widgets/app_page_bar.dart';
+import '../../../core/widgets/app_section_empty.dart';
 import '../../../core/widgets/app_section_header.dart';
 import '../../../core/widgets/app_form_sheet.dart';
 import '../../../core/widgets/app_state_views.dart';
@@ -148,14 +149,7 @@ class _DataToolsPageState extends State<DataToolsPage> {
       ),
       const SizedBox(height: AppGaps.block),
       if (batch == null)
-        const SizedBox(
-          height: 220,
-          child: AppEmptyView(
-            icon: Icons.table_view_outlined,
-            title: 'CSV önizlemesi yok',
-            message: 'Henüz önizlemeye alınmış CSV yok.',
-          ),
-        )
+        const AppSectionEmpty('Henüz önizlemeye alınmış CSV yok.')
       else ...[
         Text(batch.fileName, style: Theme.of(context).textTheme.titleMedium),
         Text('İçe aktarma durumu: ${_importBatchStatusLabel(batch.status)}'),
@@ -298,14 +292,7 @@ class _DataToolsPageState extends State<DataToolsPage> {
       const SizedBox(height: AppGaps.block),
       if (controller.selectedTransactionId != null &&
           controller.attachments.isEmpty)
-        const SizedBox(
-          height: 180,
-          child: AppEmptyView(
-            icon: Icons.receipt_long_outlined,
-            title: 'Belge yok',
-            message: 'Bu işleme bağlı belge yok.',
-          ),
-        ),
+        const AppSectionEmpty('Bu işleme bağlı belge yok.'),
       if (controller.attachments.isNotEmpty)
         AppCard(
           padding: EdgeInsets.zero,

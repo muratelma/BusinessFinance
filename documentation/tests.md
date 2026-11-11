@@ -2457,3 +2457,33 @@ Görüntü testleri (`SCREENSHOT_DIR` ile): `kredi_kartlarim_screenshot_test`
 iki anahtar eklendi: `SCREENSHOT_DARK=1` karanlık tema, `SCREENSHOT_WIDTH=360`
 verilen genişlik. Önceki tablolardaki `Taksit planları` başlığı, `Harcamalar` /
 `Ödemeler` grupları ve listedeki `alacağınız var` cümlesi bu tarihte kalktı.
+
+## İlk kullanım boş durumu kalan sayfalarda — 11 Kasım 2026
+
+| Kanıt | Test | Ne doğrular |
+|---|---|---|
+| Boş ayın tek düğmesi | `budgets_controller_test`, `budgets_page_test` | Geçen ayda bütçe varsa `canCopyPreviousMonth` doğrudur, düğme `Geçen ayı kopyala`dır ve başlıktaki `+` durur; geçen ay da boşsa düğme `Bütçe ekle`dir ve `+` gizlenir; dolu ayda ek okuma yapılmaz |
+| İşlemler'de ilk kullanım | `activity_feed_page_test` | Süzgeçsiz boş liste `Henüz işlem yok` der; süzgeç açıkken ilk kullanım çizilmez; 360×640'ta düğme alt çubuğun üstünde kalır |
+| Cari hesap'ta ilk kullanım | `counterparties_page_test` | Tek `Karşı taraf ekle` düğmesi; süzgeç şeridi çizilmez |
+| POS'larım'da ilk kullanım | `pos_definition_test` | `Henüz POS yok`, tek `POS ekle`; başlıktaki `+` gizli |
+
+Görüntü testi: `bos_durum_screenshot_test` kalan sayfaların metinlerini ve kısa
+telefon (360×640, alt çubuklu) karesini de çizer.
+
+## Sonuç yok boş durumu — 12 Kasım 2026
+
+| Kanıt | Test | Ne doğrular |
+|---|---|---|
+| Filtre cümlesi | `app_no_results_view_test` | En çok iki ad yazılır, fazlası `+2` diye sayılır; düğmesiz hâl; 360×640 ve en büyük yazıda taşma yok |
+| İşlemler'de arama | `activity_feed_page_test` | Başlık aranan kelimeyi yazar; `Aramayı temizle` alanı boşaltır ve liste geri gelir |
+| İşlemler'de filtre | `activity_feed_page_test` | `Bu filtreye uyan işlem yok`, `Filtre: Transferler`, tek `Filtreyi temizle`; ilk kullanım çizilmez |
+
+Tasarım turunun geçici kareleri (`sonuc_yok_*_tasarim_test`) ve
+`AppEmptyView`'daki geçici anahtar karar verilince kaldırıldı; kareler
+`tasarim-onizleme/bos-durum-2026-11-11/sonuc-yok-tur-1` ve `-tur-2` altında
+durur.
+
+Kalan yerler (aynı gün): `cash_pos_feature_test` Kasa'nın boş cümlesini yeni
+tek cümlelik hâliyle arar. POS tahsilatları, Ödenenler, Yolda, kişinin sayfası,
+Veri araçları ve Özet'teki hata ekranı için yeni test yazılmadı; var olan
+testleri değişmeden geçti.

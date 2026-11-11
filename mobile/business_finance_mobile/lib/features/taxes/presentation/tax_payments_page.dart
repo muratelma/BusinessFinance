@@ -5,6 +5,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_divided_column.dart';
+import '../../../core/widgets/app_first_use_view.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../data/tax_models.dart';
 import 'tax_controller.dart';
@@ -96,10 +97,15 @@ class _TaxPaymentsPageState extends State<TaxPaymentsPage> {
       if (error != null) {
         return AppErrorView(message: error!.message, onRetry: _reload);
       }
-      return const AppEmptyView(
-        icon: Icons.receipt_long_outlined,
-        title: 'Ödenen vergi yok',
-        message: "Vergi işaretli kategorilerdeki giderler burada görünür.",
+      return ListView(
+        padding: AppPageInsets.list,
+        children: const [
+          AppFirstUseView(
+            icon: Icons.receipt_long_outlined,
+            title: 'Henüz ödenen vergi yok',
+            message: 'Ödediğiniz vergiler burada listelenir.',
+          ),
+        ],
       );
     }
     // Ödemeler en yeniden eskiye gelir; ay değiştikçe yeni bir başlık açılır.

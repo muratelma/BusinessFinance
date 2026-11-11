@@ -5,6 +5,7 @@ import '../../../core/formatters/money_text.dart';
 import '../../../core/models/data_choice.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/app_first_use_view.dart';
 import '../../../core/widgets/app_page_bar.dart';
 import '../../../core/widgets/app_status_chip.dart';
 import '../../../core/theme/app_surfaces.dart';
@@ -98,22 +99,23 @@ class _GoalsPageState extends State<GoalsPage> {
             child: ListView(
               padding: AppPageInsets.list,
               children: [
-                FilledButton.icon(
-                  onPressed: controller.isSubmitting ? null : _showForm,
-                  icon: const Icon(Icons.flag_outlined),
-                  label: const Text('Tasarruf hedefi ekle'),
-                ),
-                const SizedBox(height: AppGaps.block),
                 if (goals.isEmpty)
-                  const SizedBox(
-                    height: 220,
-                    child: AppEmptyView(
-                      icon: Icons.savings_outlined,
-                      title: 'Tasarruf hedefi yok',
-                      message: 'Henüz tasarruf hedefi yok.',
-                    ),
+                  AppFirstUseView(
+                    icon: Icons.savings_outlined,
+                    title: 'Henüz tasarruf hedefi yok',
+                    message: 'Biriktirmek istediğiniz hedef tutarı ekleyin.',
+                    actionLabel: 'Tasarruf hedefi ekle',
+                    onAction: controller.isSubmitting ? null : _showForm,
+                  )
+                else ...[
+                  FilledButton.icon(
+                    onPressed: controller.isSubmitting ? null : _showForm,
+                    icon: const Icon(Icons.flag_outlined),
+                    label: const Text('Tasarruf hedefi ekle'),
                   ),
-                for (final goal in goals) _goalCard(goal),
+                  const SizedBox(height: AppGaps.block),
+                  for (final goal in goals) _goalCard(goal),
+                ],
               ],
             ),
           ),

@@ -1852,9 +1852,9 @@ Boş durum üç türdür (kullanıcı kararı; gerekçe ve inceleme
 
 | Tür | Ne zaman | Bileşen | Durum |
 |---|---|---|---|
-| İlk kullanım | Sayfada hiç kayıt yok | `AppFirstUseView` | Hesaplar ve Kredi kartları'nda uygulandı |
-| Sonuç yok | Kayıt var; seçilen ay, filtre ya da arama boş | `AppEmptyView(compact: true)` | Yeniden tasarlanacak |
-| Bölüm boş | Dolu sayfanın içindeki boş kart | Kartın içinde tek satır soluk yazı | Özet ve Kredi kartları hareketlerinde var |
+| İlk kullanım | Sayfada hiç kayıt yok | `AppFirstUseView` | Uygulandı: Hesaplar, Kredi kartları, Bütçeler, Kategoriler, Cari hesap, Borç ve alacaklar, Tasarruf hedefleri, Tekrarlayanlar, POS'larım, İşlemler |
+| Sonuç yok | Kayıt var; seçilen ay, filtre ya da arama boş | `AppNoResultsView` | Uygulandı (12 Kasım 2026): İşlemler, Kart hareketleri, Cari hesap, Yaklaşanlar, Planlanan işlemler, kategori ve hesap sayfaları |
+| Bölüm boş | Dolu sayfanın içindeki boş bölüm | `AppSectionEmpty` | Uygulandı (12 Kasım 2026): Kredi kartları hareketleri, kişinin sayfası, Kasa, Veri araçları. Özet'teki satırlar kendi kartlarında durur |
 
 `AppFirstUseView` (`lib/core/widgets/app_first_use_view.dart`) ikon yerine
 sayfanın dolu hâlinin soluk çizimini gösterir; altında başlık (`section`, 18),
@@ -1875,9 +1875,113 @@ hepsi bileşenin içindedir.
 - Metin: başlık noktasız, ilk kullanımda `Henüz … yok`; cümle tek satır,
   başlığı tekrar etmez, sonraki adımı söyler.
 
-Açık: 640 dp boyundaki telefon ve alt çubuklu sekmelerde düğmenin yeri
-denenmedi; kalan ilk kullanım sayfaları (Bütçeler, Kategoriler, Cari, Borç,
-Tasarruf hedefi, Tekrarlayanlar, POS, İşlemler) bağlanmadı.
+Kalan sayfalar aynı gün bağlandı (ikinci oturum):
+
+- **Gövdedeki ekle düğmesi boşken çizilmez.** Cari hesap, Borç ve alacaklar,
+  Tasarruf hedefleri ve Tekrarlayanlar'da listenin üstündeki dolu düğme,
+  POS'larım'da başlıktaki `+`, Kategoriler'de sağ alttaki düğme kayıt yokken
+  gizlenir; ekleme yalnız ortadaki düğmededir.
+- **İlk kullanım ile "sonuç yok" ayrıdır.** Cari hesap'ta ilk kullanım yalnız
+  süzgeç `Tümü`yken; İşlemler'de yalnız arama, hızlı süzgeç ve gelişmiş süzgeç
+  kapalıyken çizilir. Süzgeç açıkken boş liste eski küçük boş durumu
+  gösterir. Cari hesap'ın ilk kullanımında süzgeç şeridi de çizilmez.
+  **Kapsam istisnadır** (kullanıcı kararı): İşlemler ve Kategori özeti
+  `İşletme` ya da `Şahsi` seçiliyken de boşsa ilk kullanımı çizer.
+- **Üstünde içerik olan sayfa** (`embedded`): İşlemler'de arama, süzgeç ve
+  planlanan şeridi, Kategori özeti'nde özet kartı blokun üstündedir; üst
+  boşluk ekran boyuna göre değil sabittir (24 dp). Blok üstündeki içeriğin
+  devamı gibi okunur ve ortadaki düğme alt çubuktaki artıdan uzak durur.
+- **Kategori yönetimi** sayfasının başlığı menüdeki adıyla aynıdır (eskiden
+  `Kategoriler` yazıyordu). Hesap varsayılan kategori setiyle açıldığı için
+  bu sayfanın boş hâli pratikte görülmez.
+- **Bütçeler ay bazlıdır:** başlık dönemi söyler (`Bu ay için bütçe yok`) ve ay
+  seçici blokun üstünde kalır. Geçen ayda bütçe varsa düğme `Geçen ayı
+  kopyala` olur ve başlıktaki `+` yerinde durur; geçen ay da boşsa düğme
+  `Bütçe ekle` olur ve `+` gizlenir. Geçen ayın dolu olup olmadığını
+  `BudgetsController.canCopyPreviousMonth` söyler (boş ayda bir okuma daha).
+- **İşlemler'de düğme** ortak `İşlem ekle` panelini açar (alt çubuktaki artıyla
+  aynı panel).
+- **Kısa telefon:** ekran boyu 760 dp'nin altındaysa üst boşluk %14'ten %5'e
+  iner; 680 dp'nin altındaysa çizimin üçüncü parçası çizilmez. 360×640'ta
+  İşlemler'de düğme alt çubuğun üstünde kalır (testle ölçülür).
+
+| Sayfa | Başlık | Cümle | Düğme |
+|---|---|---|---|
+| Bütçeler | Bu ay için bütçe yok | Bir gider kategorisine aylık limit belirleyin. / Geçen ayın bütçelerini bu aya kopyalayın. | Bütçe ekle / Geçen ayı kopyala |
+| Kategori yönetimi | Henüz kategori yok | Gelir ve giderlerinizi kategorilere ayırın. | Kategori ekle |
+| Kategori özeti | Kasım'da gider yok | Gider ekledikçe kategoriler burada toplanır. | — (rapor sayfası) |
+| Cari hesap | Henüz karşı taraf yok | Cari hareketinizin olduğu kişileri ekleyin. | Karşı taraf ekle |
+| Borç ve alacaklar | Henüz borç ya da alacak yok | Aldığınız ya da verdiğiniz borcu ekleyin. | Borç / alacak ekle |
+| Tasarruf hedefleri | Henüz tasarruf hedefi yok | Biriktirmek istediğiniz hedef tutarı ekleyin. | Tasarruf hedefi ekle |
+| Tekrarlayanlar | Henüz tekrarlayan plan yok | Kira, maaş gibi düzenli ödemelerinizi ekleyin. | Tekrarlayan plan ekle |
+| POS'larım | Henüz POS yok | POS'unuzu ya da yemek kartınızı bir kez ekleyin. | POS ekle |
+| İşlemler | Henüz işlem yok | İlk gelir ya da giderinizi ekleyin. | İşlem ekle |
+
+### Sonuç yok türü — 12 Kasım 2026
+
+`AppNoResultsView` (`lib/core/widgets/app_no_results_view.dart`): ortada soluk
+ikon (56 dp daire), başlık (`row`, 16), tek cümle (`body`, 14, soluk) ve tek
+**çerçeveli** düğme (48 dp, en az 160 dp). Renk ve ekleme düğmesi yoktur; dolu
+düğme ve çizim ilk kullanıma aittir. Seçim ve inceleme
+`research/DIS-GOZ-2026-11-11-bos-durum-sonuc-yok.md` (kullanıcı üç seçenekten
+A'yı seçti).
+
+- **İkonu sayfa değil sebep seçer** (`AppNoResultsReason`): `search` büyüteç,
+  `filter` üstü çizili huni, `period` takvim.
+- **Başlık neyin boş olduğunu söyler** (`“kira” için sonuç yok`, `Son 3 ayda
+  kart hareketi yok`); en çok iki satır, uzun kelime `…` ile kesilir.
+- **Cümle sebebi ya da çıkışı söyler, düğmeyi tekrar etmez.** Filtrede seçili
+  filtreler yazılır (`AppNoResultsView.filterSentence`): en çok iki ad, fazlası
+  sayıyla (`Filtre: Transferler · Bu ay +2`). Yeni filtre eklenince tasarım
+  değişmez, listeye bir ad girer.
+- **Düğme çıkışı kendisi yapar.** Arama: `Aramayı temizle`. Filtre: `Filtreyi
+  temizle` (hepsini birden kaldırır). Dönem: bir sonraki dönemi açar (`Son 1
+  yıla bak` → `Tüm zamanlara bak`; `30 güne bak` → `90 güne bak`); en geniş
+  dönem de boşsa düğme ve cümle çizilmez. Ay seçilen sayfalarda `Ay seç`.
+- **Arama ve filtre birlikteyse** tek düğme aramayı temizler; cümle filtreyi
+  yazar.
+- **Yer:** blok üstündeki içerikten 120 dp aşağıda başlar (ekran 760 dp'den
+  kısaysa 56 dp); liste gövdesinde de kaydırılan sayfanın içinde de aynıdır.
+- Başlık ekran okuyucuya canlı bölge olarak okunur; ikon okunmaz.
+
+| Sayfa | Sebep | Başlık | Düğme |
+|---|---|---|---|
+| İşlemler | arama | “kira” için sonuç yok | Aramayı temizle |
+| İşlemler | filtre | Bu filtreye uyan işlem yok | Filtreyi temizle |
+| Kart hareketleri | dönem | Son 3 ayda kart hareketi yok | Son 1 yıla bak / Tüm zamanlara bak |
+| Kart hareketleri | filtre (tür) | Bu filtreye uyan hareket yok | Filtreyi temizle |
+| Cari hesap | filtre | Açık hesap yok / Kapanmış cari yok | Tümünü göster |
+| Yaklaşanlar | dönem | 30 gün içinde yaklaşan ödeme yok | 90 güne bak |
+| Planlanan işlemler | dönem / filtre (tür) | 30 gün içinde planlanan işlem yok | 90 güne bak / Filtreyi temizle |
+| Kategori ve hesap sayfası | dönem (ay) | Kasım'da bu hesapta hareket yok | Ay seç |
+| Kategori ve hesap sayfası | filtre | Bu seçime uyan işlem yok | Filtreyi temizle |
+
+Aynı gün kalan yerler de bağlandı:
+
+| Yer | Tür | Metin |
+|---|---|---|
+| POS tahsilatları | sonuç yok (ay / filtre) | `Kasım'da POS tahsilatı yok` + `Ay seç`; `Bu filtreye uyan tahsilat yok` + `Filtreyi temizle` |
+| Ödenenler (vergi) | ilk kullanım, düğmesiz | `Henüz ödenen vergi yok` / `Ödediğiniz vergiler burada listelenir.` |
+| Yolda | ilk kullanım, düğmesiz (`embedded`) | `Yolda satış yok` / `Parası hesaba geçmemiş satışlar burada görünür.` |
+| Kişinin sayfası · Hareketler | bölüm boş | `Bu kişiyle henüz hareket yok.` |
+| Kasa | bölüm boş | `Sayılacak kasa yok. …` / `İşletme kasası yok. …` |
+| Veri araçları | bölüm boş | `Henüz önizlemeye alınmış CSV yok.` / `Bu işleme bağlı belge yok.` |
+| Özet | hata | Rapor yoksa `AppErrorView` (`Finansal özet alınamadı.` + `Tekrar dene`); boş durum değildir |
+
+### Bölüm boş türü — 12 Kasım 2026
+
+`AppSectionEmpty` (`lib/core/widgets/app_section_empty.dart`): kartın içinde
+tek soluk cümle (`bodyMedium`, soluk). İkon, başlık ve düğme yoktur; bölümün
+eylemi bölümün kendi düğmesindedir. Cümle noktayla biter (cümledir, başlık
+değil).
+
+**Üç türden hangisi?** Sayfanın tamamı boşsa ilk kullanım; kayıt var ama
+arama, filtre ya da dönem boşsa sonuç yok; dolu sayfanın bir bölümü boşsa
+bölüm boş. Okuma başarısızsa hiçbiri değil, hata ekranı.
+
+Bilerek eski `AppEmptyView`'da kalanlar: Kategori yönetimi'nde tek sekmenin
+boş hâli (hesap hazır kategori setiyle açılır, pratikte görülmez) ve
+Yükümlülükler (sayfa borç ve alacak birleşmesinde kalkacak).
 
 ## Kredi kartları sayfası — 11 Kasım 2026
 

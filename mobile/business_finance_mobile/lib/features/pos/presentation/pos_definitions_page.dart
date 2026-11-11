@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/app_first_use_view.dart';
 import '../../../core/widgets/app_page_bar.dart';
 import '../../categories/presentation/fixed_scope_category_field.dart';
 
@@ -64,11 +65,13 @@ class _PosDefinitionsPageState extends State<PosDefinitionsPage> {
     appBar: AppPageBar(
       title: const Text("POS'larım"),
       actions: [
-        IconButton(
-          tooltip: 'POS ekle',
-          onPressed: _openForm,
-          icon: const Icon(Icons.add),
-        ),
+        // Hiç POS yokken ekleme gövdedeki düğmededir.
+        if (controller.definitions?.isNotEmpty == true)
+          IconButton(
+            tooltip: 'POS ekle',
+            onPressed: _openForm,
+            icon: const Icon(Icons.add),
+          ),
       ],
     ),
     body: SafeArea(child: _body(context)),
@@ -87,17 +90,17 @@ class _PosDefinitionsPageState extends State<PosDefinitionsPage> {
       return const AppLoadingView(message: "POS'lar yükleniyor");
     }
     if (definitions.isEmpty) {
-      return AppEmptyView(
-        icon: Icons.point_of_sale_outlined,
-        title: 'Henüz POS eklenmedi',
-        message:
-            "POS'unuzu bir kez ekleyin; tahsilat girerken yalnız tutarı "
-            'yazarsınız. Yemek kartı da bir POS olarak eklenir.',
-        action: FilledButton.icon(
-          onPressed: _openForm,
-          icon: const Icon(Icons.add),
-          label: const Text('POS ekle'),
-        ),
+      return ListView(
+        padding: AppPageInsets.list,
+        children: [
+          AppFirstUseView(
+            icon: Icons.point_of_sale_outlined,
+            title: 'Henüz POS yok',
+            message: "POS'unuzu ya da yemek kartınızı bir kez ekleyin.",
+            actionLabel: 'POS ekle',
+            onAction: _openForm,
+          ),
+        ],
       );
     }
     final surfaces = AppSurfaces.of(context);

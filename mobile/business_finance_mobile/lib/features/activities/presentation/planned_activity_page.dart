@@ -12,6 +12,7 @@ import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_filter_strip.dart';
 import '../../../core/widgets/app_list_row.dart';
 import '../../../core/widgets/app_money_text.dart';
+import '../../../core/widgets/app_no_results_view.dart';
 import '../../../core/widgets/app_page_bar.dart';
 import '../../../core/widgets/app_row_action.dart';
 import '../../../core/widgets/app_state_views.dart';
@@ -220,10 +221,29 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
       );
     }
     if (_controller.isEmpty) {
-      return const AppEmptyView(
-        title: 'Planlanan hareket yok',
-        message: 'Seçtiğiniz dönemde bekleyen bir ödeme veya plan bulunmuyor.',
-        icon: Icons.schedule_outlined,
+      // Tür seçiliyse boşluğun sebebi filtredir; değilse dönemdir ve düğme
+      // bir sonraki dönemi açar.
+      if (_controller.typeFilter != PlannedTypeFilter.all) {
+        return AppNoResultsView(
+          reason: AppNoResultsReason.filter,
+          title: 'Bu filtreye uyan planlanan işlem yok',
+          message: AppNoResultsView.filterSentence([
+            _controller.typeFilter.label,
+          ]),
+          actionLabel: 'Filtreyi temizle',
+          onAction: () => _controller.selectTypeFilter(PlannedTypeFilter.all),
+        );
+      }
+      final horizon = _controller.horizon;
+      final next = horizon.index + 1 < PlannedHorizon.values.length
+          ? PlannedHorizon.values[horizon.index + 1]
+          : null;
+      return AppNoResultsView(
+        reason: AppNoResultsReason.period,
+        title: '${horizon.days} gün içinde planlanan işlem yok',
+        message: next == null ? null : 'Daha ilerisi için dönemi genişletin.',
+        actionLabel: next == null ? null : '${next.days} güne bak',
+        onAction: next == null ? null : () => _controller.selectHorizon(next),
       );
     }
 

@@ -12,12 +12,14 @@ import '../../../core/theme/app_breakpoints.dart';
 import '../../../core/theme/app_finance_icons.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_filter_strip.dart';
+import '../../../core/widgets/app_first_use_view.dart';
 import '../../../core/widgets/app_icon_capsule.dart';
 import '../../../core/widgets/app_day_heading.dart';
 import '../../../core/widgets/app_filter_menu.dart';
 import '../../../core/widgets/app_inline_notice.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_month_picker.dart';
+import '../../../core/widgets/app_no_results_view.dart';
 import '../../../core/widgets/app_page_header.dart';
 import '../../../core/widgets/app_scope_selector.dart';
 import '../../../core/widgets/app_segment_rail.dart';
@@ -717,7 +719,31 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
 
   Widget _categories() {
     final rows = controller.categorySummary!.categories;
-    if (rows.isEmpty) return _empty();
+    if (rows.isEmpty) {
+      // Hesap / kart seçiliyken boş liste "sonuç yok"tur; seçim yokken ayın
+      // hiç kaydı yoktur ve sayfanın dolu hâli çizilir. Ekleme düğmesi yok:
+      // sayfa bir rapordur, kayıt buradan girilmez.
+      if (controller.source != null) return _empty();
+      final month = DateText.monthLocative(controller.month.month);
+      // Bu sayfanın listesi kenardan kenara çizilir; blok diğer sayfalardaki
+      // genişlikte dursun diye kenar payı burada verilir. Üstündeki özet
+      // kartından biraz uzakta başlar.
+      return Padding(
+        padding: const EdgeInsets.only(
+          left: AppPageInsets.edge,
+          top: AppSpacing.medium,
+          right: AppPageInsets.edge,
+        ),
+        child: AppFirstUseView(
+          embedded: true,
+          icon: Icons.category_outlined,
+          title: '$month ${controller.income ? 'gelir' : 'gider'} yok',
+          message:
+              '${controller.income ? 'Gelir' : 'Gider'} ekledikçe kategoriler '
+              'burada toplanır.',
+        ),
+      );
+    }
     final regular = rows.where((row) => row.id != null).toList();
     final missing = rows.where((row) => row.id == null).toList();
     Widget rowCard(List<CategoryPageSlice> slices, {bool dashed = false}) =>
@@ -1186,39 +1212,47 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
         ? names[controller.source]
         : null;
     final direction = controller.income ? 'gelir' : 'gider';
-    return AppEmptyView(
-      compact: true,
-      title: isTransit
-          ? 'Yolda satış yok'
-          : selectedSource != null
-          ? '$month $selectedSource için $direction yok'
-          : filters
-          ? 'Bu seçime uyan işlem yok'
-          : isAccount
-          ? '$month bu hesapta hareket yok'
-          : isSummary
-          ? '$month $direction yok'
-          : '$month bu kategoride $direction yok',
-      message: isTransit
-          ? 'Parası henüz hesaba geçmemiş satışlar burada görünür.'
-          : selectedSource != null
-          ? 'Seçim korunur; başka bir aya geçince yine $selectedSource gösterilir.'
-          : filters
-          ? 'Başka bir hesap, kart veya kişi seçebilirsiniz.'
-          : isSummary
-          ? '${controller.income ? 'Gelir' : 'Gider'} ekledikçe kategoriler burada toplanır.'
-          : 'Başka bir ay seçebilirsiniz.',
-      icon: Icons.event_busy_outlined,
-      action: filters
-          ? TextButton(
-              onPressed: controller.clearFilters,
-              child: Text(
-                selectedSource != null
-                    ? 'Filtreyi kaldır'
-                    : 'Filtreleri temizle',
-              ),
-            )
-          : null,
+    if (filters) {
+      return AppNoResultsView(
+        reason: AppNoResultsReason.filter,
+        title: selectedSource != null
+            ? '$month $selectedSource için $direction yok'
+            : 'Bu seçime uyan işlem yok',
+        message: AppNoResultsView.filterSentence([
+          for (final key in [
+            controller.source,
+            controller.person,
+            controller.selection,
+          ])
+            ?names[key],
+        ]),
+        actionLabel: 'Filtreyi temizle',
+        onAction: controller.clearFilters,
+      );
+    }
+    if (!isTransit) {
+      // Ay seçilen sayfada "bir sonraki dönem" yoktur; düğme ay seçiciyi açar.
+      return AppNoResultsView(
+        reason: AppNoResultsReason.period,
+        title: isAccount
+            ? '$month bu hesapta hareket yok'
+            : isSummary
+            ? '$month $direction yok'
+            : '$month bu kategoride $direction yok',
+        actionLabel: 'Ay seç',
+        onAction: _month,
+      );
+    }
+    // Yolda: her satış hesaba geçtiğinde sayfa boşalır. Ekleme düğmesi yok;
+    // satış gün sonundan ya da POS tahsilatından girilir.
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: AppPageInsets.edge),
+      child: AppFirstUseView(
+        embedded: true,
+        icon: Icons.local_shipping_outlined,
+        title: 'Yolda satış yok',
+        message: 'Parası hesaba geçmemiş satışlar burada görünür.',
+      ),
     );
   }
 

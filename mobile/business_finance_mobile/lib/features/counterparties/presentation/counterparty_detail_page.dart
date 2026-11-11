@@ -10,6 +10,7 @@ import '../../../core/widgets/app_inline_notice.dart';
 import '../../../core/widgets/app_list_row.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_page_bar.dart';
+import '../../../core/widgets/app_section_empty.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
 import '../../activities/presentation/activity_tile.dart';
@@ -453,13 +454,13 @@ class _CounterpartyDetailPageState extends State<CounterpartyDetailPage> {
   Widget _history(CounterpartyDetail detail) {
     final theme = Theme.of(context);
     if (detail.activities.isEmpty) {
-      return const SizedBox(
-        height: 180,
-        child: AppEmptyView(
-          icon: Icons.receipt_long_outlined,
-          title: 'Hareket yok',
-          message: 'Bu kişiyle henüz bir alışveriş kaydedilmedi.',
-        ),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Hareketler', style: theme.textTheme.titleSmall),
+          const SizedBox(height: AppGaps.sectionTitle),
+          const AppSectionEmpty('Bu kişiyle henüz hareket yok.'),
+        ],
       );
     }
     return Column(

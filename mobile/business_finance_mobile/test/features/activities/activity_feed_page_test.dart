@@ -219,6 +219,7 @@ void main() {
       pages: [
         _page([_activity(id: 'a')]),
         _page([]),
+        _page([_activity(id: 'a')]),
       ],
     );
     await _pump(tester, repository);
@@ -227,8 +228,16 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
 
-    expect(find.text('Eşleşen hareket yok'), findsOneWidget);
-    expect(find.textContaining('"zzz"'), findsOneWidget);
+    expect(find.text('“zzz” için sonuç yok'), findsOneWidget);
+
+    // Tek düğme aramayı temizler ve liste geri gelir.
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Aramayı temizle'));
+    await tester.pumpAndSettle();
+    expect(find.text('“zzz” için sonuç yok'), findsNothing);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      '',
+    );
   });
 
   testWidgets('groups the feed by day with a relative day name', (
@@ -258,7 +267,48 @@ void main() {
   testWidgets('shows an empty state that names the reason', (tester) async {
     await _pump(tester, _FakeRepository(pages: [_page([])]));
 
-    expect(find.text('Henüz hareket yok'), findsOneWidget);
+    expect(find.text('Henüz işlem yok'), findsOneWidget);
+  });
+
+  testWidgets('the first-use action stays above the bottom bar on a short '
+      'phone', (tester) async {
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: ActivityFeedPage(
+          repository: _FakeRepository(pages: [_page([])]),
+          onCreateTransaction: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Arama ve hızlı süzgeç şeridinin altında, alt çubuğun (96 dp) üstünde.
+    final button = tester.getRect(
+      find.widgetWithText(FilledButton, 'İşlem ekle'),
+    );
+    expect(button.bottom, lessThanOrEqualTo(640 - 96));
+  });
+
+  testWidgets('an empty filtered list is not the first-use state', (
+    tester,
+  ) async {
+    await _pump(tester, _FakeRepository(pages: [_page([]), _page([])]));
+    await tester.tap(find.text('Transferler'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Henüz işlem yok'), findsNothing);
+    expect(find.text('İşlem ekle'), findsNothing);
+    // Boş durum sebebini söyler ve tek düğmeyle filtreyi kaldırır.
+    expect(find.text('Bu filtreye uyan işlem yok'), findsOneWidget);
+    expect(find.text('Filtre: Transferler'), findsOneWidget);
+    expect(
+      find.widgetWithText(OutlinedButton, 'Filtreyi temizle'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('shows a retryable error instead of an empty list', (

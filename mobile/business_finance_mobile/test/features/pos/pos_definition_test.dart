@@ -297,8 +297,10 @@ void main() {
       final controller = PosController(_Repository());
       await _pumpPage(tester, PosDefinitionsPage(controller: controller));
 
-      expect(find.text('Henüz POS eklenmedi'), findsOneWidget);
+      expect(find.text('Henüz POS yok'), findsOneWidget);
       expect(find.widgetWithText(FilledButton, 'POS ekle'), findsOneWidget);
+      // Aynı eylem ekranda iki kez görünmez.
+      expect(find.byTooltip('POS ekle'), findsNothing);
       controller.dispose();
     });
 

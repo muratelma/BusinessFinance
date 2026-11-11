@@ -17,6 +17,8 @@ import '../../../core/widgets/app_adaptive_sheet.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_date_field.dart';
 import '../../../core/widgets/app_category_field.dart';
+import '../../../core/widgets/app_first_use_view.dart';
+import '../../../core/widgets/app_no_results_view.dart';
 import '../../../core/widgets/app_page_bar.dart';
 import '../../categories/presentation/category_create_page.dart';
 import '../../categories/presentation/recent_categories.dart';
@@ -151,24 +153,25 @@ class _PlanningPageState extends State<PlanningPage> {
     child: ListView(
       padding: AppPageInsets.underTabs,
       children: [
-        FilledButton.icon(
-          onPressed: controller.isSubmitting
-              ? null
-              : () => _showRecurringForm(snapshot),
-          icon: const Icon(Icons.add),
-          label: const Text('Tekrarlayan plan ekle'),
-        ),
-        const SizedBox(height: AppGaps.block),
         if (snapshot.recurringTransactions.isEmpty)
-          const SizedBox(
-            height: 220,
-            child: AppEmptyView(
-              title: 'Henüz tekrarlayan plan yok',
-              message: 'Düzenli gelir, gider veya fatura planınızı ekleyin.',
-              icon: Icons.event_repeat,
-            ),
+          AppFirstUseView(
+            title: 'Henüz tekrarlayan plan yok',
+            message: 'Kira, maaş gibi düzenli ödemelerinizi ekleyin.',
+            icon: Icons.event_repeat,
+            actionLabel: 'Tekrarlayan plan ekle',
+            onAction: controller.isSubmitting
+                ? null
+                : () => _showRecurringForm(snapshot),
           )
         else ...[
+          FilledButton.icon(
+            onPressed: controller.isSubmitting
+                ? null
+                : () => _showRecurringForm(snapshot),
+            icon: const Icon(Icons.add),
+            label: const Text('Tekrarlayan plan ekle'),
+          ),
+          const SizedBox(height: AppGaps.block),
           for (final item in snapshot.recurringTransactions.where(
             (item) => _planIsRunning(snapshot, item),
           ))
@@ -203,6 +206,13 @@ class _PlanningPageState extends State<PlanningPage> {
       ],
     ),
   );
+
+  /// Seçili vade ufkundan bir sonraki; en genişte yoktur.
+  int? get _widerDays => switch (controller.daysAhead) {
+    7 => 30,
+    30 => 90,
+    _ => null,
+  };
 
   Widget _upcomingTab(PlanningSnapshot snapshot) => RefreshIndicator(
     onRefresh: controller.load,
@@ -240,13 +250,16 @@ class _PlanningPageState extends State<PlanningPage> {
         ),
         const SizedBox(height: AppGaps.block),
         if (snapshot.upcomingPayments.isEmpty)
-          const SizedBox(
-            height: 260,
-            child: AppEmptyView(
-              title: 'Yaklaşan ödeme yok',
-              message: 'Seçilen vade ufkunda bekleyen yükümlülük bulunmuyor.',
-              icon: Icons.event_available,
-            ),
+          AppNoResultsView(
+            reason: AppNoResultsReason.period,
+            title: '${controller.daysAhead} gün içinde yaklaşan ödeme yok',
+            message: _widerDays == null
+                ? null
+                : 'Daha ilerisi için dönemi genişletin.',
+            actionLabel: _widerDays == null ? null : '$_widerDays güne bak',
+            onAction: _widerDays == null || controller.isLoading
+                ? null
+                : () => controller.changeDaysAhead(_widerDays!),
           )
         else
           for (final timing in ['overdue', 'today', 'upcoming']) ...[

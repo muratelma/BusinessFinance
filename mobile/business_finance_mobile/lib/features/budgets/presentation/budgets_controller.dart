@@ -42,13 +42,34 @@ class BudgetsController extends ChangeNotifier {
   String? errorMessage;
   String? successMessage;
 
+  /// Seçili ay boşken geçen ayda bütçe var mı. Boş ayın tek düğmesini seçer:
+  /// varsa `Geçen ayı kopyala`, yoksa `Bütçe ekle`.
+  bool canCopyPreviousMonth = false;
+
+  Future<bool> _previousMonthHasBudgets() async {
+    final previous = DateTime(selectedMonth.year, selectedMonth.month - 1);
+    try {
+      return (await _repository.list(previous.year, previous.month)).isNotEmpty;
+    } on ApiException {
+      // Okunamadıysa kopyalama önerilmez; sıfırdan ekleme her zaman çalışır.
+      return false;
+    } on FormatException {
+      return false;
+    }
+  }
+
   Future<void> load() async {
     if (isLoading) return;
     isLoading = true;
     errorMessage = null;
     notifyListeners();
     try {
-      items = await _repository.list(selectedMonth.year, selectedMonth.month);
+      final loaded = await _repository.list(
+        selectedMonth.year,
+        selectedMonth.month,
+      );
+      canCopyPreviousMonth = loaded.isEmpty && await _previousMonthHasBudgets();
+      items = loaded;
       unauthorized = false;
     } on ApiException catch (error) {
       unauthorized = error.isUnauthorized;

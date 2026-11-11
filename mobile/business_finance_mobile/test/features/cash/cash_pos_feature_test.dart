@@ -850,8 +850,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('İşletme kasası yok.'), findsOneWidget);
-      expect(find.text('Sayılacak bir kasa yok.'), findsNothing);
+      expect(find.textContaining('İşletme kasası yok.'), findsOneWidget);
+      expect(find.textContaining('Sayılacak kasa yok.'), findsNothing);
     });
   });
 

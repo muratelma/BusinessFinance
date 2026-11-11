@@ -4,6 +4,7 @@ import '../../../core/theme/app_finance_colors.dart';
 import '../../../core/theme/app_finance_icons.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/app_first_use_view.dart';
 import '../../../core/widgets/app_list_row.dart';
 import '../../../core/widgets/app_page_bar.dart';
 import '../../../core/widgets/app_state_views.dart';
@@ -86,7 +87,7 @@ class _CategoriesPageState extends State<CategoriesPage>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppPageBar(
-        title: const Text('Kategoriler'),
+        title: const Text('Kategori yönetimi'),
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -95,19 +96,30 @@ class _CategoriesPageState extends State<CategoriesPage>
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'categories-add-category',
-        tooltip: 'Kategori ekle',
-        onPressed: widget.viewModel.isSubmitting ? null : _openForm,
-        child: const Icon(Icons.add),
-      ),
+      // Hiç kategori yokken ekleme gövdedeki düğmededir.
+      floatingActionButton:
+          widget.viewModel.status == CategoriesViewStatus.empty
+          ? null
+          : FloatingActionButton(
+              heroTag: 'categories-add-category',
+              tooltip: 'Kategori ekle',
+              onPressed: widget.viewModel.isSubmitting ? null : _openForm,
+              child: const Icon(Icons.add),
+            ),
       body: switch (widget.viewModel.status) {
         CategoriesViewStatus.initial || CategoriesViewStatus.loading =>
           const AppLoadingView(message: 'Kategoriler yükleniyor'),
-        CategoriesViewStatus.empty => const AppEmptyView(
-          title: 'Henüz kategori yok',
-          message: 'İlk gelir veya gider kategorinizi ekleyin.',
-          icon: Icons.category_outlined,
+        CategoriesViewStatus.empty => ListView(
+          padding: AppPageInsets.underTabs,
+          children: [
+            AppFirstUseView(
+              title: 'Henüz kategori yok',
+              message: 'Gelir ve giderlerinizi kategorilere ayırın.',
+              icon: Icons.category_outlined,
+              actionLabel: 'Kategori ekle',
+              onAction: widget.viewModel.isSubmitting ? null : _openForm,
+            ),
+          ],
         ),
         CategoriesViewStatus.error => AppErrorView(
           message: widget.viewModel.message ?? 'Kategoriler yüklenemedi.',

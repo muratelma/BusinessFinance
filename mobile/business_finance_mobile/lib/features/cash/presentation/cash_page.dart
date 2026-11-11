@@ -8,9 +8,9 @@ import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/theme/app_typography.dart';
-import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_inline_notice.dart';
 import '../../../core/widgets/app_page_header.dart';
+import '../../../core/widgets/app_section_empty.dart';
 import '../../../core/widgets/app_segment_rail.dart';
 import '../../../core/widgets/app_date_field.dart';
 import '../../../core/widgets/app_state_views.dart';
@@ -263,24 +263,15 @@ class _CashPageState extends State<CashPage> {
               ),
             )
           else if (controller.hasOnlyHiddenAccounts)
-            const AppCard(
-              child: AppEmptyView(
-                title: 'İşletme kasası yok.',
-                message:
-                    'Şahsi cüzdanınız Hesaplar\'da durur. Kasa için işletme '
-                    'etiketli ya da etiketsiz bir nakit hesap açın.',
-                icon: Icons.point_of_sale_outlined,
-              ),
+            const AppSectionEmpty(
+              'İşletme kasası yok. Şahsi cüzdanınız Hesaplar\'da durur; kasa '
+              'için kapsamı İşletme olan ya da boş bırakılmış bir nakit hesap '
+              'açın.',
             )
           else
-            const AppCard(
-              child: AppEmptyView(
-                title: 'Sayılacak bir kasa yok.',
-                message:
-                    'Kasa sayımı yalnız nakit hesaplar içindir; banka '
-                    'bakiyesi elle sayılmaz. Önce bir nakit hesap açın.',
-                icon: Icons.point_of_sale_outlined,
-              ),
+            const AppSectionEmpty(
+              'Sayılacak kasa yok. Kasa sayımı nakit hesaplar içindir; önce '
+              'bir nakit hesap açın.',
             ),
           if (today != null)
             // Esnafın kasadan kendine aldığı para (K9): gider ya da şahsi

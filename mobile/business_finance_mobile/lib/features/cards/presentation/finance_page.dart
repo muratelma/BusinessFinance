@@ -18,6 +18,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_category_field.dart';
 import '../../../core/widgets/app_first_use_view.dart';
+import '../../../core/widgets/app_no_results_view.dart';
 import '../../../core/widgets/app_page_bar.dart';
 import '../../categories/presentation/category_create_page.dart';
 import '../../categories/presentation/recent_categories.dart';
@@ -26,6 +27,7 @@ import '../../../core/widgets/app_row_action.dart';
 import '../../../core/widgets/app_scope_selector.dart';
 import '../../../core/widgets/app_icon_capsule.dart';
 import '../../../core/widgets/app_inline_notice.dart';
+import '../../../core/widgets/app_section_empty.dart';
 import '../../../core/widgets/app_section_header.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
@@ -501,13 +503,8 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
           final rows = _Movement.of(snapshot.data!);
           if (rows.isEmpty) {
             // Bölüm boş: kartın içinde tek satır. Daha eskisi `Tümü`dedir.
-            return AppCard(
-              child: Text(
-                '${widget.controller.period.sentence} kart hareketi yok.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppSurfaces.of(context).inkMuted,
-                ),
-              ),
+            return AppSectionEmpty(
+              '${widget.controller.period.sentence} kart hareketi yok.',
             );
           }
           return _MovementList(
@@ -2403,6 +2400,13 @@ extension on HistoryPeriod {
     HistoryPeriod.all => 'Tüm zamanlar',
   };
 
+  /// Bir sonraki, daha geniş dönem; en genişte yoktur.
+  HistoryPeriod? get wider => switch (this) {
+    HistoryPeriod.threeMonths => HistoryPeriod.year,
+    HistoryPeriod.year => HistoryPeriod.all,
+    HistoryPeriod.all => null,
+  };
+
   /// `Son 3 ayda kart hareketi yok.`
   String get sentence => switch (this) {
     HistoryPeriod.threeMonths => 'Son 3 ayda',
@@ -2529,16 +2533,37 @@ class _CardMovementsPageState extends State<CardMovementsPage> {
             const SizedBox(height: AppSpacing.compact),
             if (value.hasMore) const _TruncationNotice(),
             if (rows.isEmpty)
-              AppEmptyView(
-                compact: true,
-                title: _filtered
-                    ? 'Bu filtreye uyan hareket yok'
-                    : '${_period.sentence} kart hareketi yok',
-                message: _filtered
-                    ? 'Filtreyi değiştirebilir ya da kaldırabilirsiniz.'
-                    : 'Daha eskisi için filtreden dönemi genişletin.',
-                icon: Icons.credit_card,
-              )
+              // Tür seçiliyse boşluğun sebebi filtredir; değilse dönemdir ve
+              // düğme bir sonraki dönemi açar. En geniş dönem de boşsa kartta
+              // hiç hareket yoktur.
+              if (_kind != _MovementKind.all)
+                AppNoResultsView(
+                  reason: AppNoResultsReason.filter,
+                  title: 'Bu filtreye uyan hareket yok',
+                  message: AppNoResultsView.filterSentence([
+                    _kind.label,
+                    if (_period != HistoryPeriod.threeMonths) _period.title,
+                  ]),
+                  actionLabel: 'Filtreyi temizle',
+                  onAction: () =>
+                      _apply(HistoryPeriod.threeMonths, _MovementKind.all),
+                )
+              else
+                AppNoResultsView(
+                  reason: AppNoResultsReason.period,
+                  title: '${_period.sentence} kart hareketi yok',
+                  message: _period.wider == null
+                      ? null
+                      : 'Daha eskisi için dönemi genişletin.',
+                  actionLabel: switch (_period.wider) {
+                    HistoryPeriod.year => 'Son 1 yıla bak',
+                    HistoryPeriod.all => 'Tüm zamanlara bak',
+                    _ => null,
+                  },
+                  onAction: _period.wider == null
+                      ? null
+                      : () => _apply(_period.wider!, _kind),
+                )
             else
               _MovementList(rows),
           ],

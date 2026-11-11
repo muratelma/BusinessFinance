@@ -9,6 +9,7 @@ import '../../../core/widgets/app_divided_column.dart';
 import '../../../core/widgets/app_filter_strip.dart';
 import '../../../core/widgets/app_icon_capsule.dart';
 import '../../../core/widgets/app_month_picker.dart';
+import '../../../core/widgets/app_no_results_view.dart';
 import '../../../core/widgets/app_page_header.dart';
 import '../../../core/widgets/app_row.dart';
 import '../../../core/widgets/app_segment_rail.dart';
@@ -162,6 +163,13 @@ class _PosAllSettlementsPageState extends State<PosAllSettlementsPage> {
                 item.isCollection == (kind == PosKindFilter.collection)) &&
             (posName == null || item.posDefinitionName == posName),
       );
+
+  /// Açık filtrelerin ekrandaki adları, boş durumun cümlesi için.
+  List<String> get _filterNames => [
+    if (status != PosStatusFilter.all) status.label,
+    if (kind != PosKindFilter.all) kind.label,
+    ?posName,
+  ];
 
   Future<void> _pickMonth() async {
     final picked = await AppMonthPicker.show(
@@ -330,13 +338,26 @@ class _PosAllSettlementsPageState extends State<PosAllSettlementsPage> {
         padding: AppPageInsets.list,
         children: [
           if (filtered.isEmpty)
-            const AppCard(
-              child: AppEmptyView(
-                title: 'Tahsilat yok.',
-                message: 'Bu ayda bu süzgece uyan POS tahsilatı yok.',
-                icon: Icons.credit_score_outlined,
+            if (_filterNames.isNotEmpty)
+              AppNoResultsView(
+                reason: AppNoResultsReason.filter,
+                title: 'Bu filtreye uyan tahsilat yok',
+                message: AppNoResultsView.filterSentence(_filterNames),
+                actionLabel: 'Filtreyi temizle',
+                onAction: () => setState(() {
+                  status = PosStatusFilter.all;
+                  kind = PosKindFilter.all;
+                  posName = null;
+                }),
+              )
+            else
+              AppNoResultsView(
+                reason: AppNoResultsReason.period,
+                title:
+                    '${DateText.monthLocative(month.month)} POS tahsilatı yok',
+                actionLabel: 'Ay seç',
+                onAction: _pickMonth,
               ),
-            ),
           if (widget.layout == PosPageLayout.b)
             ..._byDay(context, filtered)
           else ...[

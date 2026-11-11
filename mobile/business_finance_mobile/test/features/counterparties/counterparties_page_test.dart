@@ -56,8 +56,13 @@ void main() {
     testWidgets('boş liste ne yapılacağını söylüyor', (tester) async {
       await _pump(tester, _FakeRepository(counterparties: const []));
 
-      expect(find.byType(AppEmptyView), findsOneWidget);
-      expect(find.textContaining('Veresiye sattığınız'), findsOneWidget);
+      expect(find.text('Henüz karşı taraf yok'), findsOneWidget);
+      // Ekleme yalnız ortadaki düğmededir; süzgeç boş listede çizilmez.
+      expect(
+        find.widgetWithText(FilledButton, 'Karşı taraf ekle'),
+        findsOneWidget,
+      );
+      expect(find.byType(ChoiceChip), findsNothing);
     });
 
     testWidgets('yetkisiz oturum kendi ekranını gösteriyor', (tester) async {

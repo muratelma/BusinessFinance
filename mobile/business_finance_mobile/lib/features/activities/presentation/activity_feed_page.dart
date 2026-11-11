@@ -11,7 +11,9 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_adaptive_sheet.dart';
 import '../../../core/widgets/app_filter_strip.dart';
+import '../../../core/widgets/app_first_use_view.dart';
 import '../../../core/widgets/app_icon_capsule.dart';
+import '../../../core/widgets/app_no_results_view.dart';
 import '../../../core/widgets/app_page_header.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../data/activity_models.dart';
@@ -217,6 +219,36 @@ class _ActivityFeedPageState extends State<ActivityFeedPage> {
     ),
   );
 
+  /// Arama, hızlı süzgeç ya da gelişmiş süzgeç: herhangi biri açıkken boş
+  /// liste "kayıt yok" değil, "sonuç yok" demektir. Kapsam istisnadır
+  /// (kullanıcı kararı, 11 Kasım 2026): Özet'ten `İşletme` ya da `Şahsi`
+  /// seçilerek gelindiğinde de boş liste ilk kullanım olarak çizilir.
+  bool get _hasAnyFilter =>
+      _controller.filter.search != null ||
+      _controller.filter.quickFilter != ActivityQuickFilter.all ||
+      _controller.filter.hasAdvancedFilters;
+
+  /// Açık filtrelerin ekrandaki adları, boş durumun cümlesi için. Yeni bir
+  /// filtre eklendiğinde buraya bir satır girer.
+  List<String> get _filterNames {
+    final filter = _controller.filter;
+    return [
+      if (filter.quickFilter != ActivityQuickFilter.all)
+        filter.quickFilter.label,
+      if (filter.dateRange != ActivityDateRange.all) filter.dateRange.label,
+      if (filter.effect case final effect?)
+        switch (effect) {
+          ActivityEffect.income => 'Gelir',
+          ActivityEffect.expense => 'Gider',
+          ActivityEffect.neutral => 'Nötr',
+        },
+      if (filter.accountId != null) 'Hesap',
+      if (filter.creditCardId != null) 'Kart',
+      if (filter.categoryId != null) 'Kategori',
+      if (!filter.includeCancelled) 'İptaller gizli',
+    ];
+  }
+
   Widget _buildList(BuildContext context) {
     final showPlanned = _planned != null && widget.onShowPlanned != null;
     Widget withPlanned(Widget child) => showPlanned
@@ -239,18 +271,49 @@ class _ActivityFeedPageState extends State<ActivityFeedPage> {
         ),
       );
     }
-    if (_controller.isEmpty) {
-      final searching = _controller.filter.search != null;
+    if (_controller.isEmpty && !_hasAnyFilter) {
+      // Hiçbir süzgeç yokken liste boşsa hiç kayıt yoktur: ilk kullanım.
       return withPlanned(
-        AppEmptyView(
-          title: searching ? 'Eşleşen hareket yok' : 'Henüz hareket yok',
-          message: searching
-              ? '"${_controller.filter.search}" için bir kayıt bulunamadı.'
-              : _controller.filter.hasAdvancedFilters
-              ? 'Seçtiğiniz filtrelere uyan hareket bulunamadı.'
-              : 'Gelir, gider, transfer ve kart hareketleriniz burada listelenir.',
-          icon: searching ? Icons.search_off : Icons.receipt_long_outlined,
+        ListView(
+          padding: AppPageInsets.aboveBar(context, AppPageInsets.list),
+          children: [
+            AppFirstUseView(
+              // Üstte arama, süzgeç ve planlanan şeridi, altta çubuk var.
+              embedded: true,
+              icon: Icons.receipt_long_outlined,
+              title: 'Henüz işlem yok',
+              message: 'İlk gelir ya da giderinizi ekleyin.',
+              actionLabel: widget.onCreateTransaction == null
+                  ? null
+                  : 'İşlem ekle',
+              onAction: widget.onCreateTransaction,
+            ),
+          ],
         ),
+      );
+    }
+    if (_controller.isEmpty) {
+      // Arama ve filtre birlikteyse tek düğme aramayı temizler; filtre
+      // şeritte ve panelde görünür kalır.
+      final search = _controller.filter.search;
+      return withPlanned(
+        search != null
+            ? AppNoResultsView(
+                reason: AppNoResultsReason.search,
+                title: '“$search” için sonuç yok',
+                message: _filterNames.isEmpty
+                    ? 'Yazımı kontrol edin ya da yeniden arayın.'
+                    : AppNoResultsView.filterSentence(_filterNames),
+                actionLabel: 'Aramayı temizle',
+                onAction: _clearSearch,
+              )
+            : AppNoResultsView(
+                reason: AppNoResultsReason.filter,
+                title: 'Bu filtreye uyan işlem yok',
+                message: AppNoResultsView.filterSentence(_filterNames),
+                actionLabel: 'Filtreyi temizle',
+                onAction: () => _controller.applyFilter(const ActivityFilter()),
+              ),
       );
     }
 

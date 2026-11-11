@@ -2064,3 +2064,20 @@ açılır ve öneri bir kez kullanılır.
 
 Hesaplar'ın boş hâli de ilk kullanım bloğudur (`Henüz hesap yok`, `Nakit ya da
 banka hesabınızı ekleyin.`, `Hesap ekle`).
+
+## Boş durumlar: ilk kullanım, sonuç yok, bölüm boş — 12 Kasım 2026
+
+Kullanıcı boş bir yerle üç biçimde karşılaşır; kurallar
+`documentation/design-system.md` "Boş durum" bölümlerindedir.
+
+- **Sayfada hiç kayıt yok (ilk kullanım):** sayfanın dolu hâlinin soluk çizimi,
+  başlık, tek cümle ve tek dolu düğme. Ekleme yalnız bu düğmededir; başlıktaki
+  `+`, listenin üstündeki dolu düğme ve sağ alttaki düğme gizlenir. Bütçeler'de
+  geçen ay doluysa düğme `Geçen ayı kopyala` olur. İşlemler'de Özet'ten
+  `İşletme` ya da `Şahsi` seçilerek gelindiğinde de bu hâl çizilir. Kategori
+  özeti, Ödenenler ve Yolda düğmesizdir (kayıt oradan girilmez).
+- **Kayıt var, arama / filtre / dönem boş (sonuç yok):** soluk ikon, neyin boş
+  olduğunu söyleyen başlık, sebebi söyleyen cümle ve çıkışı kendisi yapan tek
+  çerçeveli düğme: `Aramayı temizle`, `Filtreyi temizle`, `Son 1 yıla bak`,
+  `90 güne bak`, `Ay seç`, Cari hesap'ta `Tümünü göster`.
+- **Dolu sayfada boş bölüm:** kartın içinde tek soluk cümle.

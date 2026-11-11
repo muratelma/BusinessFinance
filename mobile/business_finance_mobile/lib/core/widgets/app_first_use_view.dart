@@ -30,6 +30,7 @@ enum AppEmptyPreview {
 /// Çizim "yükleniyor" iskeletine benzemesin diye hareketsizdir, aşağı doğru
 /// daralır ve silikleşir, yalnız ilk parçası renklidir. Üç türün çizimi aynı
 /// yüksekliktedir ([_previewHeight]); başlık her sayfada aynı yerde durur.
+/// Kısa telefonda üst boşluk küçülür, daha kısasında üçüncü parça çizilmez.
 class AppFirstUseView extends StatelessWidget {
   const AppFirstUseView({
     required this.title,
@@ -40,6 +41,7 @@ class AppFirstUseView extends StatelessWidget {
     this.actionLabel,
     this.actionIcon = Icons.add,
     this.onAction,
+    this.embedded = false,
   });
 
   final String title;
@@ -49,6 +51,11 @@ class AppFirstUseView extends StatelessWidget {
   final String? actionLabel;
   final IconData actionIcon;
   final VoidCallback? onAction;
+
+  /// Blokun üstünde sayfanın başka içeriği var (arama ve süzgeç şeridi, özet
+  /// kartı): üst boşluk ekran boyuna göre değil, sabit ve kısadır. Blok
+  /// üstündeki içeriğin devamı gibi okunur ve alt çubuktan uzak durur.
+  final bool embedded;
 
   /// Çizim sayfayı yatayda sarar; geniş ekranda bu genişlikte durur.
   static const double _maxWidth = 420;
@@ -62,8 +69,9 @@ class AppFirstUseView extends StatelessWidget {
   /// Satırın yüksekliği: kapsül + üst ve alt iç boşluk.
   static const double _rowHeight = _capsule + AppSpacing.medium * 2;
 
-  /// Üç satır ve aralarındaki iki boşluk; kart çizimi de bu boydadır.
-  static const double _previewHeight = _rowHeight * 3 + _rowGap * 2;
+  /// Satırlar ve aralarındaki boşluklar; kart çizimi de bu boydadır.
+  static double _previewHeight(int rows) =>
+      _rowHeight * rows + _rowGap * (rows - 1);
 
   /// Düğme kısa etikette de küçük kalmaz.
   static const double _minButtonWidth = 160;
@@ -71,14 +79,26 @@ class AppFirstUseView extends StatelessWidget {
   /// Blok sayfanın ortasının biraz üstünde durur.
   static const double _topRatio = 0.14;
 
+  /// Kısa telefonda düğme ekranın altına düşmesin: önce üst boşluk küçülür
+  /// ([_shortHeight] altı), yetmezse üçüncü parça çizilmez ([_tinyHeight]
+  /// altı). Sekmeli ve alt çubuklu sayfalar da bu sınırlarla sığar.
+  static const double _shortHeight = 760;
+  static const double _tinyHeight = 680;
+  static const double _shortTopRatio = 0.05;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final surfaces = AppSurfaces.of(context);
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final parts = screenHeight < _tinyHeight ? 2 : 3;
     return Padding(
       padding: EdgeInsets.fromLTRB(
         AppSpacing.small,
-        MediaQuery.sizeOf(context).height * _topRatio,
+        embedded
+            ? AppSpacing.large
+            : screenHeight *
+                  (screenHeight < _shortHeight ? _shortTopRatio : _topRatio),
         AppSpacing.small,
         AppSpacing.xLarge,
       ),
@@ -94,11 +114,12 @@ class AppFirstUseView extends StatelessWidget {
                   AppEmptyPreview.card => _CardPreview(
                     icon: icon,
                     width: width,
+                    parts: parts,
                   ),
                   _ => Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      for (var i = 0; i < 3; i++) ...[
+                      for (var i = 0; i < parts; i++) ...[
                         if (i > 0) const SizedBox(height: _rowGap),
                         _RowPreview(
                           icon: icon,
@@ -297,14 +318,23 @@ class _RingPainter extends CustomPainter {
 /// Üç parçalı kart destesi: öndeki kart tam görünür, arkasındaki iki kartın
 /// alt şeridi aşağı doğru daralır ve silikleşir. Satır çizimiyle aynı ritim.
 class _CardPreview extends StatelessWidget {
-  const _CardPreview({required this.icon, required this.width});
+  const _CardPreview({
+    required this.icon,
+    required this.width,
+    required this.parts,
+  });
 
   final IconData icon;
   final double width;
 
+  /// Öndeki kartla birlikte çizilen kart sayısı.
+  final int parts;
+
   /// Arkadaki kartların görünen şeridi.
   static const double _strip = 44;
-  static const double _height = AppFirstUseView._previewHeight - _strip * 2;
+
+  /// Öndeki kartın boyu ekran kısalınca değişmez; arkadaki şerit azalır.
+  static final double _height = AppFirstUseView._previewHeight(3) - _strip * 2;
 
   @override
   Widget build(BuildContext context) {
@@ -316,11 +346,11 @@ class _CardPreview extends StatelessWidget {
     );
     return SizedBox(
       width: width,
-      height: AppFirstUseView._previewHeight,
+      height: _height + _strip * (parts - 1),
       child: Stack(
         alignment: Alignment.topCenter,
         children: [
-          for (var i = 2; i > 0; i--)
+          for (var i = parts - 1; i > 0; i--)
             Positioned(
               top: _strip * i,
               child: Opacity(

@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../core/formatters/money_text.dart';
 import '../../../core/presentation/financial_data_changes.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/app_first_use_view.dart';
 import '../../../core/widgets/app_list_row.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_form_sheet.dart';
+import '../../../core/widgets/app_no_results_view.dart';
 import '../../../core/widgets/app_page_bar.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
@@ -83,6 +85,9 @@ class _CounterpartiesPageState extends State<CounterpartiesPage> {
     }
 
     final people = controller.counterparties;
+    // Süzgeç `Tümü`yken liste boşsa hiç kişi yoktur: ilk kullanım.
+    final firstUse =
+        people.isEmpty && controller.filter == CounterpartyBalanceFilter.all;
     return Column(
       children: [
         if (controller.isLoading || controller.isSubmitting)
@@ -122,16 +127,29 @@ class _CounterpartiesPageState extends State<CounterpartiesPage> {
             child: ListView(
               padding: AppPageInsets.list,
               children: [
-                FilledButton.icon(
-                  onPressed: controller.isSubmitting ? null : _addCounterparty,
-                  icon: const Icon(Icons.person_add_alt),
-                  label: const Text('Karşı taraf ekle'),
-                ),
-                const SizedBox(height: AppGaps.block),
-                _filters(),
-                const SizedBox(height: AppSpacing.small),
-                if (people.isEmpty) _empty(),
-                for (final person in people) _row(person),
+                if (firstUse)
+                  AppFirstUseView(
+                    icon: Icons.people_outline,
+                    title: 'Henüz karşı taraf yok',
+                    message: 'Cari hareketinizin olduğu kişileri ekleyin.',
+                    actionLabel: 'Karşı taraf ekle',
+                    actionIcon: Icons.person_add_alt,
+                    onAction: controller.isSubmitting ? null : _addCounterparty,
+                  )
+                else ...[
+                  FilledButton.icon(
+                    onPressed: controller.isSubmitting
+                        ? null
+                        : _addCounterparty,
+                    icon: const Icon(Icons.person_add_alt),
+                    label: const Text('Karşı taraf ekle'),
+                  ),
+                  const SizedBox(height: AppGaps.block),
+                  _filters(),
+                  const SizedBox(height: AppSpacing.small),
+                  if (people.isEmpty) _empty(),
+                  for (final person in people) _row(person),
+                ],
               ],
             ),
           ),
@@ -140,24 +158,19 @@ class _CounterpartiesPageState extends State<CounterpartiesPage> {
     );
   }
 
-  Widget _empty() => SizedBox(
-    height: 220,
-    child: AppEmptyView(
-      icon: Icons.people_outline,
-      title: switch (controller.filter) {
-        CounterpartyBalanceFilter.open => 'Açık hesap yok',
-        CounterpartyBalanceFilter.settled => 'Kapanmış cari yok',
-        CounterpartyBalanceFilter.all => 'Karşı taraf yok',
-      },
-      message: switch (controller.filter) {
-        CounterpartyBalanceFilter.open =>
-          'Kimseye borcunuz, kimsenin size borcu yok.',
-        CounterpartyBalanceFilter.settled =>
-          'Hesabı kapanmış bir karşı taraf yok.',
-        CounterpartyBalanceFilter.all =>
-          'Veresiye sattığınız ya da vadeli aldığınız kişileri buraya ekleyin.',
-      },
-    ),
+  /// Kişi var ama seçili süzgeç boş. `Tümü` boşsa ilk kullanım çizilir.
+  Widget _empty() => AppNoResultsView(
+    reason: AppNoResultsReason.filter,
+    title: controller.filter == CounterpartyBalanceFilter.settled
+        ? 'Kapanmış cari yok'
+        : 'Açık hesap yok',
+    message: controller.filter == CounterpartyBalanceFilter.settled
+        ? 'Hesabı kapanmış bir karşı taraf yok.'
+        : 'Kimseye borcunuz, kimsenin size borcu yok.',
+    actionLabel: 'Tümünü göster',
+    onAction: controller.isLoading
+        ? null
+        : () => controller.changeFilter(CounterpartyBalanceFilter.all),
   );
 
   /// Kapanmış cari listeden düşmez, yalnız ayrı okunur: bir müşteriyle hesabın

@@ -11,20 +11,36 @@ import 'package:business_finance_mobile/features/budgets/presentation/budgets_co
 
 void main() {
   test('moves between months and exposes empty state', () async {
+    final repository = _FakeBudgetRepository()..pages[(2026, 1)] = [_budget()];
+    final controller = BudgetsController(
+      repository,
+      initialMonth: DateTime(2026, 1),
+    );
+    await controller.load();
+    expect(controller.canCopyPreviousMonth, isFalse);
+    await controller.changeMonth(1);
+    expect(controller.selectedMonth, DateTime(2026, 2));
+    expect(controller.items, isEmpty);
+    // Boş ay bir okuma daha ister: geçen ayda kopyalanacak bütçe var mı.
+    expect(repository.listCalls, 3);
+    expect(controller.canCopyPreviousMonth, isTrue);
+  });
+
+  test('an empty month after an empty month offers nothing to copy', () async {
     final repository = _FakeBudgetRepository();
     final controller = BudgetsController(
       repository,
       initialMonth: DateTime(2026, 1),
     );
     await controller.load();
-    await controller.changeMonth(1);
-    expect(controller.selectedMonth, DateTime(2026, 2));
     expect(controller.items, isEmpty);
-    expect(repository.listCalls, 2);
+    expect(controller.canCopyPreviousMonth, isFalse);
   });
 
   test('jumps to a distant month in one read', () async {
-    final repository = _FakeBudgetRepository();
+    final repository = _FakeBudgetRepository()
+      ..pages[(2026, 8)] = [_budget()]
+      ..pages[(2025, 12)] = [_budget()];
     final controller = BudgetsController(
       repository,
       initialMonth: DateTime(2026, 8),
@@ -163,7 +179,9 @@ void main() {
   });
 
   test('reloads for transaction changes but ignores account changes', () async {
-    final repository = _FakeBudgetRepository();
+    final now = DateTime.now();
+    final repository = _FakeBudgetRepository()
+      ..pages[(now.year, now.month)] = [_budget()];
     final changes = FinancialDataChanges();
     final controller = BudgetsController(repository, changes: changes);
     await controller.load();

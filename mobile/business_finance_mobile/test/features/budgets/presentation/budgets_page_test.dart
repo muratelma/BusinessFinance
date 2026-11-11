@@ -348,7 +348,10 @@ void main() {
 
     // Sekiz dokunuş ve sekiz istek değil: tek seçim, tek okuma.
     expect(controller.selectedMonth, DateTime(2026, 1));
-    expect(repository.listedMonths.last, (2026, 1));
+    expect(
+      repository.listedMonths.where((month) => month == (2026, 1)),
+      hasLength(1),
+    );
   });
 
   testWidgets('opens the spending behind the spent amount', (tester) async {
@@ -405,6 +408,35 @@ void main() {
   });
 
   testWidgets('copies the previous month from the empty state', (tester) async {
+    final repository = _BudgetPageRepository(
+      items: const [],
+      previous: _BudgetPageRepository._exceeded,
+    );
+    final controller = BudgetsController(
+      repository,
+      initialMonth: DateTime(2026, 8),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: BudgetsPage(controller: controller),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bu ay için bütçe yok'), findsOneWidget);
+    // Düğme kopyalamayı önerir; sıfırdan ekleme başlıktaki artıda kalır.
+    expect(find.byTooltip('Bütçe ekle'), findsOneWidget);
+    await tester.tap(find.text('Geçen ayı kopyala'));
+    await tester.pumpAndSettle();
+
+    expect(repository.created.single.categoryId, 'category');
+    expect(repository.created.single.month, 8);
+  });
+
+  testWidgets('an empty month with nothing to copy offers one add button', (
+    tester,
+  ) async {
     final repository = _BudgetPageRepository(items: const []);
     final controller = BudgetsController(
       repository,
@@ -419,10 +451,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Bu ay için bütçe yok'), findsOneWidget);
-    await tester.tap(find.text('Geçen ayın bütçelerini kopyala'));
-    await tester.pumpAndSettle();
-
-    expect(repository.listedMonths, contains((2026, 7)));
+    expect(find.widgetWithText(FilledButton, 'Bütçe ekle'), findsOneWidget);
+    expect(find.text('Geçen ayı kopyala'), findsNothing);
+    // Aynı eylem ekranda iki kez görünmez.
+    expect(find.byTooltip('Bütçe ekle'), findsNothing);
   });
 }
 
@@ -432,7 +464,10 @@ class _VisibleScopeController extends ScopeController {
 }
 
 class _BudgetPageRepository implements BudgetRepositoryContract {
-  _BudgetPageRepository({this.items = _exceeded});
+  _BudgetPageRepository({this.items = _exceeded, this.previous = const []});
+
+  /// Temmuz 2026'nın (bir önceki ayın) bütçeleri.
+  final List<BudgetItem> previous;
 
   static const _exceeded = [
     BudgetItem(
@@ -459,12 +494,18 @@ class _BudgetPageRepository implements BudgetRepositoryContract {
   @override
   Future<List<BudgetItem>> list(int year, int month) async {
     listedMonths.add((year, month));
-    return year == 2026 && month == 8 ? items : const [];
+    if (year == 2026 && month == 8) return items;
+    return year == 2026 && month == 7 ? previous : const [];
   }
 
   @override
-  Future<BudgetItem> create(CreateBudgetInput input) =>
-      throw UnimplementedError();
+  Future<BudgetItem> create(CreateBudgetInput input) async {
+    created.add(input);
+    return _exceeded.single;
+  }
+
+  final created = <CreateBudgetInput>[];
+
   @override
   Future<BudgetItem> update(String id, String limit) =>
       throw UnimplementedError();
