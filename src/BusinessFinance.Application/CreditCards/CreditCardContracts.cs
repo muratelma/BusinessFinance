@@ -59,6 +59,14 @@ public interface ICreditCardRepository
         Guid creditCardId,
         Guid userId,
         CancellationToken cancellationToken);
+    /// <summary>
+    /// Kartın taksit planlarında henüz karta yansımamış taksitlerin toplamı.
+    /// Borç değildir; yalnız kullanılabilir limitten düşer.
+    /// </summary>
+    Task<decimal> CalculatePendingInstallmentsAsync(
+        Guid creditCardId,
+        Guid userId,
+        CancellationToken cancellationToken);
     Task UpdateOwnedAsync(
         CreditCard creditCard,
         Guid userId,

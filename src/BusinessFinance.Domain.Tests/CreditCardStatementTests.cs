@@ -102,6 +102,21 @@ public sealed class CreditCardStatementTests
             CreateCard(10, 20), 2026, 5, new DateOnly(2026, 5, 9), 0m, 0m, 0m, 0m));
     }
 
+    /// <remarks>
+    /// Ekstre kesim gününün sonunda kesilir. Kesim günü kesilmiş sayılsaydı o
+    /// gün yapılan ödeme "kesimden önce" düşer, asgari kalan borçtan yeniden
+    /// hesaplanır ve tamamı ödenen ekstre "borç oluşmadı" görünürdü.
+    /// </remarks>
+    [Fact]
+    public void Create_OnTheClosingDayItself_IsRejectedBecauseThePeriodIsStillOpen()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => CreditCardStatement.Create(
+            CreateCard(10, 20), 2026, 5, new DateOnly(2026, 5, 10), 0m, 0m, 0m, 0m));
+        var statement = CreditCardStatement.Create(
+            CreateCard(10, 20), 2026, 5, new DateOnly(2026, 5, 11), 0m, 0m, 0m, 0m);
+        Assert.Equal(new DateOnly(2026, 5, 10), statement.ClosingDate);
+    }
+
     [Fact]
     public void Create_DerivesMinimumPaymentFromTheCardRate()
     {

@@ -383,6 +383,8 @@ public sealed class OwnershipIsolationTests
             f.CreditCardId);
         yield return Json("kart hareketleri", HttpMethod.Get,
             "api/v1/credit-cards/{creditCardId:guid}/activity", null, f.CreditCardId);
+        yield return Json("kart sayfası", HttpMethod.Get,
+            "api/v1/credit-cards/{cardId:guid}/page", null, f.CreditCardId);
         yield return Json("karta harcama", HttpMethod.Post,
             "api/v1/credit-cards/{creditCardId:guid}/charges",
             new CreateCardChargeRequest(

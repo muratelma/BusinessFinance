@@ -217,6 +217,9 @@ internal sealed class FakeCreditCardRepository(
     public Task<decimal> CalculateCurrentDebtAsync(
         Guid creditCardId, Guid userId, CancellationToken cancellationToken) =>
         Task.FromResult(currentDebt);
+    public Task<decimal> CalculatePendingInstallmentsAsync(
+        Guid creditCardId, Guid userId, CancellationToken cancellationToken) =>
+        Task.FromResult(0m);
     public Task AddAsync(CreditCard creditCard, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<bool> ExistsByNameAsync(Guid userId, string normalizedName, Guid? exceptCreditCardId, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<IReadOnlyList<CreditCard>> ListAsync(Guid userId, CancellationToken cancellationToken) => throw new NotSupportedException();

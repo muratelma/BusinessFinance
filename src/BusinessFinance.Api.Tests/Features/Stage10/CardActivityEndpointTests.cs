@@ -52,7 +52,7 @@ public sealed class CardActivityEndpointTests
             $"/api/v1/accounts/{account.Id}"))!;
         report = await GetReportAsync(client);
         var activity = await client.GetFromJsonAsync<CardActivityResponse>(
-            $"/api/v1/credit-cards/{card.Id}/activity");
+            $"/api/v1/credit-cards/{card.Id}/activity?all=true");
         Assert.Equal("200.0000", card.CurrentDebt);
         Assert.Equal("300.0000", card.AvailableLimit);
         Assert.Equal("900.0000", account.Balance);

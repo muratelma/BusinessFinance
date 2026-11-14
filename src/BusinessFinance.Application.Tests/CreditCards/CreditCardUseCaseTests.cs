@@ -156,6 +156,11 @@ public sealed class CreditCardUseCaseTests
         public Task<decimal> CalculateCurrentDebtAsync(Guid creditCardId, Guid userId, CancellationToken cancellationToken) =>
             Task.FromResult(CurrentDebt);
 
+        public decimal PendingInstallments { get; set; }
+
+        public Task<decimal> CalculatePendingInstallmentsAsync(Guid creditCardId, Guid userId, CancellationToken cancellationToken) =>
+            Task.FromResult(PendingInstallments);
+
         public Task UpdateOwnedAsync(CreditCard creditCard, Guid userId, CancellationToken cancellationToken) =>
             Task.CompletedTask;
     }

@@ -36,6 +36,29 @@ public sealed class CardActivityUseCaseTests
     }
 
     [Fact]
+    public async Task Charge_ThatFitsTheDebtButNotThePendingInstallments_IsRejected()
+    {
+        var card = CreateCard();
+        var chargeRepository = new FakeChargeRepository();
+        var useCase = new CreateCardChargeUseCase(
+            new FakeCurrentUser(UserId),
+            new FakeCardRepository(card, 500m) { PendingInstallments = 400m },
+            new FakeCategoryRepository(CreateExpense()),
+            chargeRepository,
+            new FakeUserProfileRepository(true),
+            TimeProvider.System);
+
+        var result = await useCase.ExecuteAsync(new CreateCardChargeCommand(
+            card.Id, CreateExpense().Id, 101m, CurrencyCode.TRY,
+            TransactionScope.Business,
+            new DateOnly(2026, 8, 10), null));
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("credit_cards.limit_exceeded", result.Error.Code);
+        Assert.Empty(chargeRepository.Items);
+    }
+
+    [Fact]
     public async Task Payment_ThatExceedsDebt_ReturnsConflictWithoutPersisting()
     {
         var card = CreateCard();
@@ -54,6 +77,34 @@ public sealed class CardActivityUseCaseTests
         Assert.False(result.IsSuccess);
         Assert.Equal("credit_cards.payment_exceeds_debt", result.Error.Code);
         Assert.Empty(payments.Items);
+    }
+
+    /// <remarks>
+    /// Fazla ödeme kartta alacak olarak kalır ve taksitler yansıdıkça erir;
+    /// gelecek taksitler böyle önceden kapatılır.
+    /// </remarks>
+    [Fact]
+    public async Task Payment_AboveTheDebt_IsAcceptedUpToThePendingInstallments()
+    {
+        var card = CreateCard();
+        var payments = new FakePaymentRepository();
+        var useCase = new CreateCardPaymentUseCase(
+            new FakeCurrentUser(UserId),
+            new FakeCardRepository(card, 100m) { PendingInstallments = 200m },
+            new FakeAccountRepository(CreateAccount()),
+            payments,
+            TimeProvider.System);
+
+        var within = await useCase.ExecuteAsync(new CreateCardPaymentCommand(
+            card.Id, CreateAccount().Id, 300m, CurrencyCode.TRY,
+            new DateOnly(2026, 8, 10), null));
+        var beyond = await useCase.ExecuteAsync(new CreateCardPaymentCommand(
+            card.Id, CreateAccount().Id, 300.01m, CurrencyCode.TRY,
+            new DateOnly(2026, 8, 10), null));
+
+        Assert.True(within.IsSuccess);
+        Assert.Equal("credit_cards.payment_exceeds_debt", beyond.Error.Code);
+        Assert.Single(payments.Items);
     }
 
     [Fact]
@@ -97,6 +148,8 @@ public sealed class CardActivityUseCaseTests
         public Task<CreditCard?> FindOwnedByIdAsync(Guid creditCardId, Guid userId, bool track, CancellationToken cancellationToken) =>
             Task.FromResult(card.Id == creditCardId && card.UserId == userId ? card : null);
         public Task<decimal> CalculateCurrentDebtAsync(Guid creditCardId, Guid userId, CancellationToken cancellationToken) => Task.FromResult(debt);
+        public decimal PendingInstallments { get; init; }
+        public Task<decimal> CalculatePendingInstallmentsAsync(Guid creditCardId, Guid userId, CancellationToken cancellationToken) => Task.FromResult(PendingInstallments);
         public Task AddAsync(CreditCard creditCard, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<bool> ExistsByNameAsync(Guid userId, string normalizedName, Guid? exceptCreditCardId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<IReadOnlyList<CreditCard>> ListAsync(Guid userId, CancellationToken cancellationToken) => throw new NotSupportedException();

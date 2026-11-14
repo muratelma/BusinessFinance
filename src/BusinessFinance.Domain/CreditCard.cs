@@ -153,9 +153,15 @@ public sealed class CreditCard
     /// para karttadır. Taban yalnız ters uçta duruyor: limiti aşmış bir kartta
     /// kullanılabilir tutar negatif değil sıfırdır, çünkü "eksi 200 harcayabilirsiniz"
     /// diye bir şey yok.
+    /// <para>
+    /// <paramref name="pendingInstallments"/> taksitli alışverişlerin henüz
+    /// karta yansımamış taksitleridir. Banka taksitli alışverişin tamamını
+    /// alışveriş günü limitten düşer ve limit taksitler ödendikçe açılır;
+    /// yansımamış taksit borç değildir ama limiti tutar.
+    /// </para>
     /// </remarks>
-    public decimal CalculateAvailableLimit(decimal currentDebt) =>
-        Math.Max(0m, Limit.Amount - currentDebt);
+    public decimal CalculateAvailableLimit(decimal currentDebt, decimal pendingInstallments = 0m) =>
+        Math.Max(0m, Limit.Amount - currentDebt - pendingInstallments);
 
     /// <summary>
     /// Bu kaydı, aynı adı taşıyan daha eski bir kayıttan ayrı tutar; yalnız

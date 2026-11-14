@@ -93,6 +93,8 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 .SingleAsync(cancellationToken);
             var debt = await CardDebt.SumAsync(
                 dbContext, creditCardId, userId, cutoff, cancellationToken);
+            var pendingInstallments = await CardDebt.PendingInstallmentsAsync(
+                dbContext, creditCardId, userId, cancellationToken);
             balances.Add(new ActivityBalanceAfter(
                 ActivityBalanceHolder.CreditCard,
                 creditCardId,
@@ -102,9 +104,10 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 located.CardDebtIncreases
                     ? ActivityBalanceChange.Increased
                     : ActivityBalanceChange.Decreased,
-                // Limitin geçmişi tutulmaz: bugünkü limitle hesaplanır.
-                // Kartın kendi kuralı gibi sıfırın altına inmez.
-                AvailableLimit: Math.Max(0m, card.Limit - debt)));
+                // Limitin ve bekleyen taksitlerin geçmişi tutulmaz: bugünkü
+                // limit ve bugün bekleyen taksitlerle hesaplanır. Kartın kendi
+                // kuralı gibi sıfırın altına inmez.
+                AvailableLimit: Math.Max(0m, card.Limit - debt - pendingInstallments)));
         }
 
         if (located.CounterpartyId is Guid counterpartyId)

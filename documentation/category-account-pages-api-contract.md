@@ -180,3 +180,47 @@ komisyonu, borç faizi) kullanıcının seçtiği bir kategori olmadığı için
 sayılmaz. İptal edilmiş kayıt ve pasif kategori yoktur. Sıra giriş anıdır;
 giriş anı bilinmeyen eski kayıt sona düşer. `type` zorunludur; eksik ya da
 tanınmayan değer `400 categories.invalid_type`.
+
+## Kart sayfası ve taksit önizlemesi — 12 Kasım 2026
+
+| Uç | Seçimler / anlam |
+|---|---|
+| `GET /api/v1/credit-cards/{cardId}/page` | Kartın Hareketler bölümü ve sayfası: dönem özeti, ekstre listesi, toplamlar, kategori menüsü ve satırlar tek okumada |
+| `GET /api/v1/installment-plans/preview` | Taksitli harcama formunun önizlemesi: her taksit sayısı için aylık tutar ve ilk/son taksit günü; kayıt yazmaz |
+
+**Kart sayfası seçimleri** (hepsi isteğe bağlı, en çok bir dönem biçimi):
+
+| Parametre | Anlam |
+|---|---|
+| `year` + `month` | Kesim ayına göre ekstre (`month` 1–12; açık ekstreden ileri olamaz) |
+| `from` / `to` | Gün aralığı (`yyyy-MM-dd`, `from ≤ to`); ekstreyle birlikte verilemez |
+| `all=true` | Kartın bütün hareketleri; başka dönemle birlikte verilemez |
+| *(hiçbiri)* | Açık ekstre (bugünü içeren dönem; gün sunucunun Türkiye günüdür). Ekstre kesim gününün **sonunda** kesilir: kesim günü açık ekstre o gün biten dönemdir ve durumu `current` kalır (15 Kasım 2026) |
+| `kind` | `charge` (taksitsiz harcama ve kartla ödenen borç), `installment` (karta yansıyan taksit), `payment` (kart ödemesi); boşsa hepsi |
+| `scope` | `business` / `personal`; ödemede kapsam yoktur |
+| `category` | Kategori kimliği; ödemede kategori yoktur |
+| `offset`, `limit` | Sayfalama; `limit` 1–50 (varsayılan 50) |
+
+**Cevap:** `cardId`, `name`, `period` (`kind`: `statement` / `range` / `all`;
+ekstrede `year`, `month`, `start`, `end` ve `status`: `current` kesilmedi,
+`open` kesildi ödeme bekleniyor, `paid`, `overdue`), `statements` (açık ekstre
+ve önceki 23 ekstre, eskiden yeniye: `year`, `month`, `start`, `end` — takvim
+oklarının listesi), `spending` (seçimdeki harcamaların toplamı), `payments`
+(seçimdeki kart ödemeleri; seçim ödemeyi dışarıda bırakıyorsa — tür harcama
+ya da taksit, kapsam veya kategori seçili — `null`), `categories` (menü
+satırları: `all` ve kategori başına tutar), `items` (ortak sayfa satırı
+`PageActivity` + taksitte `installmentSequence` / `installmentCount`),
+`totalCount`, `offset`, `hasMore`. İptal edilmiş hareketler girmez (hesap
+sayfasıyla aynı kural).
+
+Geçersiz seçim 400 `finance_pages.invalid_filter`; başka sahibin kartı ve hiç
+olmayan kart 404 `finance_pages.not_found`.
+
+**Taksit önizlemesi:** `totalAmount` (dört ondalıklı, sıfırdan büyük),
+`firstInstallmentDate` (`yyyy-MM-dd`), `counts` (virgülle ayrılmış, en çok 12
+farklı sayı, her biri 2–60). Cevap `options[]`: `installmentCount`,
+`installmentAmount` (ilk taksit), `lastInstallmentAmount` (kuruş farkı son
+taksitte), `firstInstallmentDate`, `lastInstallmentDate`. Bölme plan
+kurulurken kullanılan kuralın aynısıdır (`InstallmentPlan.Schedule`, Domain);
+istemci tutar hesaplamaz. Hatalar 400: `installments.invalid_total_amount`,
+`installments.invalid_first_date`, `installments.invalid_count`.

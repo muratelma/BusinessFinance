@@ -54,7 +54,9 @@ public sealed class CreateCardChargeUseCase(
 
         var currentDebt = await cardRepository.CalculateCurrentDebtAsync(
             card.Id, userId, cancellationToken);
-        if (command.Amount > card.Limit.Amount - currentDebt)
+        var pendingInstallments = await cardRepository.CalculatePendingInstallmentsAsync(
+            card.Id, userId, cancellationToken);
+        if (command.Amount > card.Limit.Amount - currentDebt - pendingInstallments)
         {
             return ApplicationResult<CardChargeDto>.Failure(CreditCardErrors.LimitExceeded);
         }
@@ -151,7 +153,14 @@ public sealed class CreateCardPaymentUseCase(
 
         var currentDebt = await cardRepository.CalculateCurrentDebtAsync(
             card.Id, userId, cancellationToken);
-        if (command.Amount > currentDebt)
+        // Ödeme karta yansımış borcu aşabilir, bekleyen taksitleri aşamaz:
+        // banka fazla ödemeyi kartta alacak olarak tutar ve sonraki
+        // ekstrelerden düşer; kullanıcı gelecek taksitlerini böyle önceden
+        // kapatır. Borcun ve taksitlerin de üstündeki tutar ise bir yazım
+        // hatasıdır ve reddedilir.
+        var pendingInstallments = await cardRepository.CalculatePendingInstallmentsAsync(
+            card.Id, userId, cancellationToken);
+        if (command.Amount > currentDebt + pendingInstallments)
         {
             return ApplicationResult<CardPaymentDto>.Failure(CreditCardErrors.PaymentExceedsDebt);
         }

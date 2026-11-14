@@ -53,7 +53,7 @@ public sealed class InstallmentEndpointTests
             $"/api/v1/credit-cards/{card.Id}"))!;
         var report = await GetReportAsync(client);
         var activity = await client.GetFromJsonAsync<CardActivityResponse>(
-            $"/api/v1/credit-cards/{card.Id}/activity");
+            $"/api/v1/credit-cards/{card.Id}/activity?all=true");
         var plans = await client.GetFromJsonAsync<InstallmentPlanListResponse>(
             "/api/v1/installment-plans");
         var persistedPlan = Assert.Single(plans!.Items);

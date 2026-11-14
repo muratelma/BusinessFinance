@@ -22,6 +22,11 @@ public static class InstallmentEndpoints
             .WithName("ListInstallmentPlans")
             .Produces<InstallmentPlanListResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status401Unauthorized);
+        group.MapGet("/preview", Preview)
+            .WithName("PreviewInstallmentPlan")
+            .Produces<InstallmentPreviewResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
         group.MapPost("/{installmentPlanId:guid}/items/{sequence:int}/realize", RealizeAsync)
             .WithName("RealizeInstallment")
             .Produces<CardChargeResponse>(StatusCodes.Status200OK)
@@ -91,6 +96,51 @@ public static class InstallmentEndpoints
             : result.Error.ToProblemResult(httpContext);
     }
 
+    /// <summary>
+    /// Formun önizlemesi: her taksit sayısı için aylık tutar ve ilk/son gün.
+    /// Bölmeyi plan kurulurken kullanılan kuralla sunucu yapar; istemci tutar
+    /// hesaplamaz. Kayıt yazmaz.
+    /// </summary>
+    private static IResult Preview(HttpContext httpContext, string? totalAmount = null,
+        string? firstInstallmentDate = null, string? counts = null)
+    {
+        if (!FinanceContract.TryParseAmount(totalAmount, out var total) || total <= 0m)
+        {
+            return ApiProblemResults.Validation(httpContext,
+                "Total amount must be greater than zero and have at most four decimal places.",
+                "installments.invalid_total_amount");
+        }
+        if (!FinanceContract.TryParseDate(firstInstallmentDate, out var first))
+        {
+            return ApiProblemResults.Validation(httpContext,
+                "First installment date must use the yyyy-MM-dd format.", "installments.invalid_first_date");
+        }
+        var values = new List<int>();
+        foreach (var part in (counts ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (!int.TryParse(part, out var count) ||
+                count is < InstallmentPlan.MinimumInstallmentCount or > InstallmentPlan.MaximumInstallmentCount ||
+                values.Contains(count) || values.Count == 12)
+            {
+                return ApiProblemResults.Validation(httpContext,
+                    "Counts must be up to twelve distinct numbers between 2 and 60.", "installments.invalid_count");
+            }
+            values.Add(count);
+        }
+        if (values.Count == 0)
+        {
+            return ApiProblemResults.Validation(httpContext,
+                "At least one installment count is required.", "installments.invalid_count");
+        }
+        return Results.Ok(new InstallmentPreviewResponse(values.Select(count =>
+        {
+            var schedule = InstallmentPlan.Schedule(total, count, first);
+            return new InstallmentPreviewOption(count, FinanceContract.Money(schedule[0].Amount),
+                FinanceContract.Money(schedule[^1].Amount), FinanceContract.Date(schedule[0].Date),
+                FinanceContract.Date(schedule[^1].Date));
+        }).ToArray()));
+    }
+
     private static async Task<IResult> RealizeAsync(
         Guid installmentPlanId,
         int sequence,
@@ -126,3 +176,7 @@ public static class InstallmentEndpoints
             item.CreditCardChargeId,
             item.RealizedAtUtc)).ToArray());
 }
+
+public sealed record InstallmentPreviewOption(int InstallmentCount, string InstallmentAmount,
+    string LastInstallmentAmount, string FirstInstallmentDate, string LastInstallmentDate);
+public sealed record InstallmentPreviewResponse(IReadOnlyList<InstallmentPreviewOption> Options);

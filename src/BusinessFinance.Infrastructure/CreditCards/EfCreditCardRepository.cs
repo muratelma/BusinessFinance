@@ -69,6 +69,15 @@ internal sealed class EfCreditCardRepository(BusinessFinanceDbContext dbContext)
             dbContext, creditCardId, userId, cutoff: null, cancellationToken);
     }
 
+    public async Task<decimal> CalculatePendingInstallmentsAsync(
+        Guid creditCardId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        return await CardDebt.PendingInstallmentsAsync(
+            dbContext, creditCardId, userId, cancellationToken);
+    }
+
     public async Task UpdateOwnedAsync(
         CreditCard creditCard,
         Guid userId,

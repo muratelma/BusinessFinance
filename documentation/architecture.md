@@ -268,12 +268,29 @@ geri alır.
 `CreditCard`, `Account` alt türü değildir. Kart limiti ve borcu bir yükümlülüğü,
 Account bakiyesi eldeki varlığı temsil eder. Güncel kart borcu
 `aktif harcamalar - aktif ödemeler`, kullanılabilir limit ise
-`limit - güncel borç` olarak hesaplanır. Kart ödemesinin rapora yeniden gider
+`limit - güncel borç - karta henüz yansımamış taksitler` olarak hesaplanır
+(15 Kasım 2026: banka taksitli alışverişin tamamını alışveriş günü limitten
+düşer ve limit taksitler ödendikçe açılır). Yansımamış taksit **borç
+değildir** — borca, gidere ve net varlığa taksit karta yansıdığı gün girer —
+yalnız limiti tutar (`CardDebt.PendingInstallmentsAsync`,
+`CreditCard.CalculateAvailableLimit`). Taksitsiz harcama ve yeni taksit planı
+bu limite göre denetlenir (`credit_cards.limit_exceeded`); taksidin karta
+yansıması yeniden limit tüketmez, payı zaten ayrılmıştır.
+
+**Ekstre kesim gününün sonunda kesilir** (15 Kasım 2026). Kesim günü hâlâ
+açık dönemdir: o gün `current` ekstre bir önceki ekstredir ve kart sayfasının
+açık ekstresi o günü içerir. Kesim günü kesilmiş sayılsaydı aynı gün yapılan
+ödeme "kesimden önce" düşer, ekstre borcu ve asgari kalan borçtan yeniden
+hesaplanır ve tamamı ödenen ekstre "borç oluşmadı" görünürdü
+(`CreditCardStatement.Create`, `GetCurrentCreditCardStatementUseCase`,
+`FinancePageUseCases.CardAsync`, planlanan görünümdeki ekstre satırı). Kart ödemesinin rapora yeniden gider
 yazılmaması aynı satın almanın iki kez sayılmasını önler.
 
-**Kart borcu negatif olabilir ve kırpılmaz** (Aşama 06 Grup 5). Ödeme borcu
-aşamaz — uygulama bunu reddeder — ama ödenmiş bir harcamanın **iptali** kartı
-alacaklı bırakır. O tutar kullanıcının parasıdır: net varlığa girer
+**Kart borcu negatif olabilir ve kırpılmaz** (Aşama 06 Grup 5). Ödenmiş bir
+harcamanın **iptali** ve borcu aşan ödeme kartı alacaklı bırakır. Ödeme
+`borç + karta henüz yansımamış taksitler` toplamına kadar kabul edilir
+(15 Kasım 2026: banka fazla ödemeyi alacak olarak tutar, gelecek taksitler
+böyle önceden kapanır); üstü reddedilir. O tutar kullanıcının parasıdır: net varlığa girer
 (`- kart borcu` teriminde negatif bir borç varlığı artırır) ve kullanılabilir
 limiti limitin üstüne çıkarır. Eskiden borç kart başına `Math.Max(0, …)` ile
 sıfıra çekiliyordu; bu, cari hesabın "fazla tahsilat kırpılmaz" kararıyla

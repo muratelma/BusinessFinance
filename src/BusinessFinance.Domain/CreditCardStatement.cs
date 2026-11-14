@@ -62,11 +62,15 @@ public sealed record CreditCardStatement(
     {
         ArgumentNullException.ThrowIfNull(card);
         var period = CreditCardStatementPeriod.ForClosingMonth(card, year, month);
-        if (asOfDate < period.ClosingDate)
+        // Ekstre kesim gününün **sonunda** kesilir: kesim günü hâlâ açık
+        // dönemdir. O gün kesilmiş sayılsaydı, aynı gün yapılan ödeme
+        // "kesimden önce" sayılır, ekstre borcu ve asgari yeniden hesaplanır
+        // ve tamamı ödenen ekstre "borç oluşmadı" görünürdü.
+        if (asOfDate <= period.ClosingDate)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(asOfDate),
-                "Statement cannot be calculated before its closing date.");
+                "Statement cannot be calculated before the day after its closing date.");
         }
 
         // Devir **negatif olabilir**: geçen dönemden kalan alacaklı bakiye bu

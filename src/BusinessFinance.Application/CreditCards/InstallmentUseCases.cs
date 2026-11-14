@@ -59,6 +59,17 @@ public sealed class CreateInstallmentPlanUseCase(
                 CreditCardErrors.ScopeUnresolved, CreditCardErrors.ScopeConflict));
         }
 
+        // Banka taksitli alışverişin tamamını alışveriş günü limitten ayırır;
+        // limit yetmiyorsa alışveriş hiç olmaz.
+        var debt = await cardRepository.CalculateCurrentDebtAsync(
+            card.Id, userId, cancellationToken);
+        var pending = await cardRepository.CalculatePendingInstallmentsAsync(
+            card.Id, userId, cancellationToken);
+        if (command.TotalAmount > card.Limit.Amount - debt - pending)
+        {
+            return ApplicationResult<InstallmentPlanDto>.Failure(CreditCardErrors.LimitExceeded);
+        }
+
         try
         {
             var plan = new InstallmentPlan(

@@ -449,3 +449,18 @@ gönderdiği kimlik başka kullanıcınınsa `debt.account_unavailable` /
 eklendi. Eşzamanlı iki kapanış borcun sürüm belirteciyle (`Revision`) aynı
 satırda sınanır: kaybeden `409 debt.changed` alır, kalan aşılmaz. Sözleşme
 `debt-api-contract.md` içindedir.
+
+## Kart sayfası ve taksit önizlemesi — 12 Kasım 2026
+
+`GET /api/v1/credit-cards/{cardId}/page` kartı JWT oturumunun sahibine göre
+okur (`FindOwnedByIdAsync(cardId, userId)`); başka sahibin kartı ile hiç
+olmayan kart aynı 404 `finance_pages.not_found` cevabını alır. Uç sahiplik
+probuna eklidir (`OwnershipIsolationTests`, `kart sayfası`). Satırlar,
+toplamlar ve kategori menüsü yalnız o kartın ve sahibinin hareketlerinden
+gelir; kategori süzgeci başka sahibin kategori kimliğiyle hiçbir satır
+döndürmez. Satıra dokununca açılan ortak ayrıntı (`parts`, `balances`) kendi
+sahiplik denetimini yapar.
+
+`GET /api/v1/installment-plans/preview` yalnız gönderilen tutar, gün ve
+sayılarla hesap yapar; hiçbir kayıt okumaz ya da yazmaz, ama uç diğer taksit
+uçları gibi oturum ister. Sözleşme: `category-account-pages-api-contract.md`.

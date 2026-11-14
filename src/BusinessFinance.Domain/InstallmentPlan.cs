@@ -122,21 +122,42 @@ public sealed class InstallmentPlan
 
     private void GenerateItems()
     {
-        var baseAmount = decimal.Floor(
-            TotalAmount.Amount / InstallmentCount * 10000m) / 10000m;
-        for (var index = 0; index < InstallmentCount; index++)
+        foreach (var (sequence, amount, date) in Schedule(TotalAmount.Amount, InstallmentCount, FirstInstallmentDate))
         {
-            var amount = index == InstallmentCount - 1
-                ? TotalAmount.Amount - (baseAmount * (InstallmentCount - 1))
-                : baseAmount;
             _items.Add(new InstallmentItem(
                 Guid.NewGuid(),
                 UserId,
                 Id,
-                index + 1,
+                sequence,
                 new Money(amount, TotalAmount.Currency),
-                FirstInstallmentDate.AddMonths(index)));
+                date));
         }
+    }
+
+    /// <summary>
+    /// Taksitlerin tutarı ve günü: tutar dört basamağa aşağı yuvarlanarak
+    /// bölünür, kalan kuruş son taksite eklenir. Plan kurulurken ve formun
+    /// önizlemesinde aynı bölme kullanılır.
+    /// </summary>
+    public static IReadOnlyList<(int Sequence, decimal Amount, DateOnly Date)> Schedule(
+        decimal totalAmount, int installmentCount, DateOnly firstInstallmentDate)
+    {
+        if (installmentCount is < MinimumInstallmentCount or > MaximumInstallmentCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(installmentCount));
+        }
+
+        var baseAmount = decimal.Floor(totalAmount / installmentCount * 10000m) / 10000m;
+        var items = new List<(int, decimal, DateOnly)>(installmentCount);
+        for (var index = 0; index < installmentCount; index++)
+        {
+            var amount = index == installmentCount - 1
+                ? totalAmount - (baseAmount * (installmentCount - 1))
+                : baseAmount;
+            items.Add((index + 1, amount, firstInstallmentDate.AddMonths(index)));
+        }
+
+        return items;
     }
 }
 

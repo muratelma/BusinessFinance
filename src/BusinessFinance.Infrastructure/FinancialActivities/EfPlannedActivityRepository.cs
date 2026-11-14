@@ -437,7 +437,7 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
             card => card.Id,
             card =>
             {
-                var closingMonth = asOfDate.Day >= card.StatementClosingDay
+                var closingMonth = asOfDate.Day > card.StatementClosingDay
                     ? new DateOnly(asOfDate.Year, asOfDate.Month, 1)
                     : new DateOnly(asOfDate.Year, asOfDate.Month, 1).AddMonths(-1);
                 return CreditCardStatementPeriod.ForClosingMonth(

@@ -260,6 +260,115 @@ internal sealed class EfFinancePageReader(BusinessFinanceDbContext db,
             selectedTotal, options, new(transit!.Total, transit.TotalCount, transit.Items.FirstOrDefault()), page, count, q.Offset, q.Offset + page.Length < count);
     }
 
+
+    /// <summary>
+    /// Kartın hareketleri tek sorguda: harcamalar (taksitten gelenler
+    /// işaretli), kartla ödenen borçlar ve kart ödemeleri. İptal edilenler
+    /// girmez; hesap sayfasıyla aynı kural.
+    /// </summary>
+    private IQueryable<CardMovementRow> CardMovements(Guid owner, Guid cardId)
+    {
+        var charges = db.CreditCardCharges.AsNoTracking()
+            .Where(c => c.UserId == owner && c.CreditCardId == cardId && !c.IsCancelled)
+            .Select(c => new CardMovementRow
+            {
+                Kind = (int)FinancialActivityKind.CardCharge,
+                Id = c.Id,
+                Date = c.ChargeDate,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(c, EntryTimestamp.PropertyName),
+                Amount = c.Amount.Amount,
+                CategoryId = (Guid?)c.CategoryId,
+                Scope = (int?)c.Scope,
+                Installment = db.InstallmentItems.Any(i => i.UserId == owner && i.CreditCardChargeId == c.Id),
+                Payment = false
+            });
+        var debts = db.DebtPayments.AsNoTracking()
+            .Where(p => p.UserId == owner && p.CreditCardId == cardId && !p.IsCancelled)
+            .Select(p => new CardMovementRow
+            {
+                Kind = (int)FinancialActivityKind.DebtPayment,
+                Id = p.Id,
+                Date = p.PaymentDate,
+                EntryAtUtc = (DateTimeOffset?)p.PaidAtUtc,
+                Amount = p.Amount.Amount,
+                CategoryId = (Guid?)null,
+                Scope = (int?)null,
+                Installment = false,
+                Payment = false
+            });
+        var payments = db.CreditCardPayments.AsNoTracking()
+            .Where(p => p.UserId == owner && p.CreditCardId == cardId && !p.IsCancelled)
+            .Select(p => new CardMovementRow
+            {
+                Kind = (int)FinancialActivityKind.CardPayment,
+                Id = p.Id,
+                Date = p.PaymentDate,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(p, EntryTimestamp.PropertyName),
+                Amount = p.Amount.Amount,
+                CategoryId = (Guid?)null,
+                Scope = (int?)null,
+                Installment = false,
+                Payment = true
+            });
+        return charges.Concat(debts).Concat(payments);
+    }
+
+    public async Task<CardPageData?> CardAsync(Guid owner, Guid cardId, CardPageQuery q, CancellationToken ct)
+    {
+        if (!await db.CreditCards.AnyAsync(c => c.UserId == owner && c.Id == cardId, ct)) return null;
+        var window = CardMovements(owner, cardId);
+        if (q.From is DateOnly from) window = window.Where(m => m.Date >= from);
+        if (q.To is DateOnly to) window = window.Where(m => m.Date <= to);
+        window = q.Kind switch
+        {
+            "charge" => window.Where(m => !m.Payment && !m.Installment),
+            "installment" => window.Where(m => m.Installment),
+            "payment" => window.Where(m => m.Payment),
+            _ => window
+        };
+        if (q.Scope is TransactionScope scope) window = window.Where(m => m.Scope == (int)scope);
+        var filtered = q.CategoryId is Guid category ? window.Where(m => m.CategoryId == category) : window;
+
+        var spending = await filtered.Where(m => !m.Payment).SumAsync(m => (decimal?)m.Amount, ct) ?? 0m;
+        decimal? payments = q.Scope is null && q.CategoryId is null && q.Kind is null or "payment"
+            ? await filtered.Where(m => m.Payment).SumAsync(m => (decimal?)m.Amount, ct) ?? 0m
+            : null;
+
+        var sums = await window.Where(m => !m.Payment && m.CategoryId != null).GroupBy(m => m.CategoryId)
+            .Select(g => new { Id = g.Key!.Value, Amount = g.Sum(m => m.Amount) }).ToArrayAsync(ct);
+        var names = await db.Categories.AsNoTracking().Where(c => c.UserId == owner)
+            .ToDictionaryAsync(c => c.Id, c => c.Name, ct);
+        var all = await window.Where(m => !m.Payment).SumAsync(m => (decimal?)m.Amount, ct) ?? 0m;
+        var turkish = StringComparer.Create(CultureInfo.GetCultureInfo("tr-TR"), ignoreCase: true);
+        var options = new List<PageOption> { new("all", "all", null, all) };
+        options.AddRange(sums.OrderByDescending(s => s.Amount)
+            .ThenBy(s => names.GetValueOrDefault(s.Id) ?? string.Empty, turkish).ThenBy(s => s.Id)
+            .Select(s => new PageOption($"category:{s.Id:D}", "category", names.GetValueOrDefault(s.Id), s.Amount, Id: s.Id)));
+        if (q.CategoryId is Guid selected && options.All(o => o.Id != selected) && names.TryGetValue(selected, out var selectedName))
+            options.Add(new($"category:{selected:D}", "category", selectedName, 0m, Id: selected));
+
+        var count = await filtered.CountAsync(ct);
+        var limit = Math.Clamp(q.Limit, 1, PageSize);
+        var items = await filtered.OrderByDescending(m => m.Date).ThenByDescending(m => m.EntryAtUtc)
+            .ThenBy(m => m.Kind).ThenBy(m => m.Id).Skip(q.Offset).Take(limit).ToArrayAsync(ct);
+        var rows = await activities.ReadPageRowsAsync(owner, items.Select(i => i.Id).Distinct().ToArray(), ct);
+        var map = rows.ToDictionary(r => (r.ActivityKind, r.ActivityId));
+        var chargeIds = items.Where(i => i.Installment).Select(i => (Guid?)i.Id).ToArray();
+        var sequences = await (from i in db.InstallmentItems.AsNoTracking()
+                               join p in db.InstallmentPlans.AsNoTracking() on new { i.UserId, Id = i.InstallmentPlanId } equals new { p.UserId, p.Id }
+                               where i.UserId == owner && chargeIds.Contains(i.CreditCardChargeId)
+                               select new { ChargeId = i.CreditCardChargeId!.Value, i.Sequence, p.InstallmentCount })
+            .ToDictionaryAsync(i => i.ChargeId, ct);
+        var page = items.Select(i =>
+        {
+            var installment = sequences.GetValueOrDefault(i.Id);
+            return new PageActivity(map[((FinancialActivityKind)i.Kind, i.Id)], i.Payment ? i.Amount : -i.Amount,
+                Scope: i.Scope is int value ? ((TransactionScope)value).ToString().ToLowerInvariant() : null,
+                InstallmentSequence: installment?.Sequence, InstallmentCount: installment?.InstallmentCount);
+        }).ToArray();
+        return new(spending, payments, options, page, count, q.Offset, q.Offset + page.Length < count);
+    }
+
     private static string GroupName(int group, bool incoming) => group switch { 1 => "category", 3 => "transfer", _ => incoming ? "collection" : "payment" };
     internal static string KindValue(FinancialActivityKind kind) => kind switch
     {
@@ -411,4 +520,17 @@ internal sealed class EfFinancePageReader(BusinessFinanceDbContext db,
         var name = categoryId is Guid id ? await db.Categories.Where(c => c.UserId == owner && c.Id == id).Select(c => c.Name).SingleAsync(ct) : null;
         return new(part is not null && amount is decimal value ? [new(part, value, categoryId, name)] : []);
     }
+}
+
+internal sealed class CardMovementRow
+{
+    public int Kind { get; init; }
+    public Guid Id { get; init; }
+    public DateOnly Date { get; init; }
+    public DateTimeOffset? EntryAtUtc { get; init; }
+    public decimal Amount { get; init; }
+    public Guid? CategoryId { get; init; }
+    public int? Scope { get; init; }
+    public bool Installment { get; init; }
+    public bool Payment { get; init; }
 }

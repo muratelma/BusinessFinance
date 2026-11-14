@@ -23,7 +23,8 @@ public sealed record CategorySummary(int Year, int Month, string Direction, stri
 public sealed record PageActivity(FinancialActivityRow Activity, decimal Amount, string? Part = null,
     decimal? PartAmount = null, decimal? ParentAmount = null, string? State = null,
     DateOnly? SettledOn = null, string? SettledSource = null, bool ShowScope = false,
-    DateOnly? FirstSaleDate = null, DateOnly? LastSaleDate = null, string? Scope = null);
+    DateOnly? FirstSaleDate = null, DateOnly? LastSaleDate = null, string? Scope = null,
+    int? InstallmentSequence = null, int? InstallmentCount = null);
 public sealed record CategoryPage(CategorySummary Summary, Guid? CategoryId, string? Name,
     decimal WholeTotal, bool ShowScope, bool HasPeople, IReadOnlyList<PageOption> People,
     IReadOnlyList<PageActivity> Items, int TotalCount, int Offset, bool HasMore);
@@ -46,6 +47,34 @@ public sealed record AccountListItem(Guid Id, string Name, string Type, string? 
 public sealed record AccountsOverview(decimal Total, decimal CashTotal, decimal BankTotal,
     decimal InactiveTotal, IReadOnlyList<AccountListItem> Items,
     decimal? CashShare = null, decimal? BankShare = null, decimal? InactiveShare = null);
+/// <summary>
+/// Kart hareketlerinin türü: <c>charge</c> taksitsiz harcama ve kartla ödenen
+/// borç, <c>installment</c> taksidin karta yansıyan harcaması, <c>payment</c>
+/// kart ödemesi. Boşsa hepsi.
+/// </summary>
+public sealed record CardPageQuery(DateOnly? From, DateOnly? To, string? Kind = null,
+    TransactionScope? Scope = null, Guid? CategoryId = null, int Offset = 0, int Limit = 50);
+/// <summary>
+/// Kartın sayfasındaki seçimin özeti ve satırları. <c>Payments</c> seçim ödemeyi
+/// dışarıda bırakıyorsa (tür harcama, kapsam ya da kategori seçili) boştur;
+/// kapsam ve kategori ödemede yoktur.
+/// </summary>
+public sealed record CardPageData(decimal Spending, decimal? Payments,
+    IReadOnlyList<PageOption> Categories, IReadOnlyList<PageActivity> Items,
+    int TotalCount, int Offset, bool HasMore);
+/// <summary>Bir ekstrenin dönemi: kesim ayı, ilk gün ve kesim günü.</summary>
+public sealed record CardStatementRange(int Year, int Month, DateOnly Start, DateOnly End);
+/// <summary>
+/// Sayfanın seçili dönemi. <c>Kind</c>: <c>statement</c>, <c>range</c> ya da
+/// <c>all</c>. Ekstrede <c>Status</c>: <c>current</c> (kesilmedi), <c>open</c>
+/// (kesildi, ödeme bekleniyor), <c>paid</c>, <c>overdue</c>.
+/// </summary>
+public sealed record CardPagePeriod(string Kind, int? Year, int? Month, DateOnly? Start,
+    DateOnly? End, string? Status);
+public sealed record CardPage(Guid CardId, string Name, CardPagePeriod Period,
+    IReadOnlyList<CardStatementRange> Statements, decimal Spending, decimal? Payments,
+    IReadOnlyList<PageOption> Categories, IReadOnlyList<PageActivity> Items,
+    int TotalCount, int Offset, bool HasMore);
 public sealed record ActivityPart(string Kind, decimal Amount, Guid? CategoryId, string? CategoryName);
 public sealed record ActivityParts(IReadOnlyList<ActivityPart> Items);
 
@@ -59,5 +88,6 @@ public interface IFinancePageReader
     Task<YearMonths?> AccountMonthsAsync(Guid userId, Guid accountId, int year, CancellationToken ct);
     Task<TransitPage?> TransitAsync(Guid userId, Guid accountId, int offset, CancellationToken ct);
     Task<AccountsOverview> AccountsAsync(Guid userId, CancellationToken ct);
+    Task<CardPageData?> CardAsync(Guid userId, Guid cardId, CardPageQuery query, CancellationToken ct);
     Task<ActivityParts?> PartsAsync(Guid userId, FinancialActivityKind kind, Guid activityId, CancellationToken ct);
 }

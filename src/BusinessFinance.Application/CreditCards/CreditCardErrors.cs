@@ -69,7 +69,7 @@ public static class CreditCardErrors
         ApplicationErrorType.Conflict);
     public static readonly ApplicationError PaymentExceedsDebt = new(
         "credit_cards.payment_exceeds_debt",
-        "The payment cannot exceed the current card debt.",
+        "The payment cannot exceed the card debt plus its pending installments.",
         ApplicationErrorType.Conflict);
     public static ApplicationError ChargeNotFound(Guid id) => new(
         "credit_cards.charge_not_found",

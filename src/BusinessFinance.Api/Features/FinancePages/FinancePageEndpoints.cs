@@ -29,6 +29,20 @@ public sealed class AccountPageRequest
     public int? Offset { get; init; }
 }
 
+public sealed class CardPageRequest
+{
+    public int? Year { get; init; }
+    public int? Month { get; init; }
+    public string? From { get; init; }
+    public string? To { get; init; }
+    public bool? All { get; init; }
+    public string? Kind { get; init; }
+    public string? Scope { get; init; }
+    public Guid? Category { get; init; }
+    public int? Offset { get; init; }
+    public int? Limit { get; init; }
+}
+
 public static class FinancePageEndpoints
 {
     private static readonly JsonSerializerOptions JsonOptions = CreateOptions();
@@ -47,6 +61,7 @@ public static class FinancePageEndpoints
         group.MapGet("/accounts/{accountId:guid}/months", AccountMonthsAsync);
         group.MapGet("/accounts/{accountId:guid}/in-transit", TransitAsync);
         group.MapGet("/financial-activities/{activityKind}/{activityId:guid}/parts", PartsAsync);
+        group.MapGet("/credit-cards/{cardId:guid}/page", CardAsync);
         return endpoints;
     }
 
@@ -121,6 +136,26 @@ public static class FinancePageEndpoints
     private static async Task<IResult> TransitAsync(Guid accountId, FinancePageUseCases useCases,
         HttpContext context, CancellationToken ct, int offset = 0) => offset < 0 ? Invalid(context) :
         Response(await useCases.TransitAsync(accountId, offset, ct), context);
+
+    private static async Task<IResult> CardAsync(Guid cardId, [AsParameters] CardPageRequest request,
+        FinancePageUseCases useCases, HttpContext context, CancellationToken ct)
+    {
+        DateOnly? Date(string? value) => value is null ? null
+            : DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date) ? date : DateOnly.MinValue;
+        var from = Date(request.From); var to = Date(request.To);
+        var statement = request.Year is not null || request.Month is not null;
+        var range = from is not null || to is not null;
+        if (from == DateOnly.MinValue || to == DateOnly.MinValue || (from is not null && to is not null && from > to) ||
+            (statement && (request.Year is null || request.Month is not (>= 1 and <= 12))) ||
+            (statement && range) || (request.All == true && (statement || range)) ||
+            request.Kind is not (null or "charge" or "installment" or "payment") ||
+            request.Scope is not (null or "business" or "personal") ||
+            request.Category == Guid.Empty || request.Offset < 0 || request.Limit is < 1 or > 50)
+            return Invalid(context);
+        var scope = request.Scope switch { "business" => TransactionScope.Business, "personal" => TransactionScope.Personal, _ => (TransactionScope?)null };
+        return Response(await useCases.CardAsync(cardId, new(request.Year, request.Month, from, to, request.All == true,
+            request.Kind, scope, request.Category, request.Offset ?? 0, request.Limit ?? 50), ct), context);
+    }
 
     private static JsonSerializerOptions CreateOptions()
     {

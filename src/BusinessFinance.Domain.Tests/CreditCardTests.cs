@@ -68,6 +68,20 @@ public sealed class CreditCardTests
         Assert.Equal(10500m, card.CalculateAvailableLimit(-500m));
     }
 
+    /// <remarks>
+    /// Banka taksitli alışverişin tamamını alışveriş günü limitten düşer; limit
+    /// taksitler yansıyıp ödendikçe açılır. Yansımamış taksit borç değildir ama
+    /// limiti tutar.
+    /// </remarks>
+    [Fact]
+    public void CalculateAvailableLimit_HoldsInstallmentsThatHaveNotReachedTheCardYet()
+    {
+        var card = CreateCard();
+
+        Assert.Equal(6000m, card.CalculateAvailableLimit(1000m, 3000m));
+        Assert.Equal(0m, card.CalculateAvailableLimit(8000m, 3000m));
+    }
+
     private static CreditCard CreateCard(
         int statementClosingDay = 10,
         int paymentDueDay = 20) => new(

@@ -49,12 +49,13 @@ public sealed class CreateCreditCardUseCase(
         }
     }
 
-    internal static CreditCardDto ToDto(CreditCard card, decimal currentDebt) => new(
+    internal static CreditCardDto ToDto(
+        CreditCard card, decimal currentDebt, decimal pendingInstallments = 0m) => new(
         card.Id,
         card.Name,
         card.Limit.Amount,
         currentDebt,
-        card.CalculateAvailableLimit(currentDebt),
+        card.CalculateAvailableLimit(currentDebt, pendingInstallments),
         card.Limit.Currency,
         card.StatementClosingDay,
         card.PaymentDueDay,
@@ -90,7 +91,11 @@ public sealed class GetCreditCardUseCase(
             card.Id,
             userId,
             cancellationToken);
-        return ApplicationResult<CreditCardDto>.Success(CreateCreditCardUseCase.ToDto(card, debt));
+        var pending = await repository.CalculatePendingInstallmentsAsync(
+            card.Id,
+            userId,
+            cancellationToken);
+        return ApplicationResult<CreditCardDto>.Success(CreateCreditCardUseCase.ToDto(card, debt, pending));
     }
 }
 
@@ -115,7 +120,11 @@ public sealed class ListCreditCardsUseCase(
                 card.Id,
                 userId,
                 cancellationToken);
-            result.Add(CreateCreditCardUseCase.ToDto(card, debt));
+            var pending = await repository.CalculatePendingInstallmentsAsync(
+                card.Id,
+                userId,
+                cancellationToken);
+            result.Add(CreateCreditCardUseCase.ToDto(card, debt, pending));
         }
 
         return ApplicationResult<IReadOnlyList<CreditCardDto>>.Success(result);
@@ -181,8 +190,12 @@ public sealed class UpdateCreditCardUseCase(
                 card.Id,
                 userId,
                 cancellationToken);
+            var pending = await repository.CalculatePendingInstallmentsAsync(
+                card.Id,
+                userId,
+                cancellationToken);
             return ApplicationResult<CreditCardDto>.Success(
-                CreateCreditCardUseCase.ToDto(card, debt));
+                CreateCreditCardUseCase.ToDto(card, debt, pending));
         }
         catch (ArgumentException exception)
         {

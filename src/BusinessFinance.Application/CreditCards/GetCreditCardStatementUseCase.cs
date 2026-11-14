@@ -37,10 +37,10 @@ public sealed class GetCreditCardStatementUseCase(
                 card,
                 query.Year,
                 query.Month);
-            if (query.AsOfDate < period.ClosingDate)
+            if (query.AsOfDate <= period.ClosingDate)
             {
                 return ApplicationResult<CreditCardStatementDto>.Failure(
-                    CreditCardErrors.Validation("Statement cannot be calculated before its closing date."));
+                    CreditCardErrors.Validation("Statement cannot be calculated before the day after its closing date."));
             }
 
             var snapshot = await statementRepository.GetActivityAsync(
@@ -127,7 +127,8 @@ public sealed class GetCurrentCreditCardStatementUseCase(
             asOfDate.Year,
             asOfDate.Month,
             card.StatementClosingDay);
-        var closingMonth = asOfDate >= closingThisMonth
+        // Ekstre kesim gününün sonunda kesilir; kesim günü önceki ekstre geçerlidir.
+        var closingMonth = asOfDate > closingThisMonth
             ? asOfDate
             : asOfDate.AddMonths(-1);
         if (closingMonth.Year < 2000)

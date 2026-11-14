@@ -308,7 +308,9 @@ ayrıntı açıldığında okunur. Kalıcı bir alan değildir.
   yazar ama hesaba dokunmaz, para yatışla geçer. Dönen sayı hesabın o anki
   bakiyesidir; satışın tutarı içinde değildir.
 - **Kart kalan limiti de taşır** (`availableLimit`): o andaki borca göre
-  `limit − borç`, sıfırın altına inmez. Limitin geçmişi tutulmaz; kartın
+  `limit − borç − karta henüz yansımamış taksitler`, sıfırın altına inmez
+  (15 Kasım 2026; bekleyen taksitlerin de geçmişi tutulmaz, bugünkü toplam
+  kullanılır). Limitin geçmişi tutulmaz; kartın
   **bugünkü** limitiyle hesaplanır (kullanıcı kararı, 2 Ekim 2026: limit sık
   değişmez). Limit sonradan değiştirilirse eski harcamanın ayrıntısındaki
   sayı o günkü gerçeği değil, bugünkü limite göre hesabı gösterir.

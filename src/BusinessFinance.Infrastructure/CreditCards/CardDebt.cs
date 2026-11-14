@@ -88,6 +88,24 @@ internal static class CardDebt
         // aynı soruya zaten bu cevabı veriyordu.
         return chargeTotal + debtPaymentTotal - paymentTotal;
     }
+
+    /// <summary>
+    /// Kartın taksit planlarında henüz karta yansımamış taksitlerin toplamı.
+    /// Borca girmez (taksit yansıdığı gün borç ve gider olur); yalnız
+    /// kullanılabilir limitten düşer: banka taksitli alışverişin tamamını
+    /// alışveriş günü limitten ayırır.
+    /// </summary>
+    public static async Task<decimal> PendingInstallmentsAsync(
+        BusinessFinanceDbContext dbContext,
+        Guid creditCardId,
+        Guid userId,
+        CancellationToken cancellationToken) =>
+        await (from item in dbContext.InstallmentItems.AsNoTracking()
+               join plan in dbContext.InstallmentPlans.AsNoTracking()
+                   on item.InstallmentPlanId equals plan.Id
+               where item.UserId == userId && plan.UserId == userId &&
+                     plan.CreditCardId == creditCardId && item.CreditCardChargeId == null
+               select (decimal?)item.Amount.Amount).SumAsync(cancellationToken) ?? 0m;
 }
 
 internal sealed class CardChargeRow
