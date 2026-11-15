@@ -49,12 +49,28 @@ void main() {
 
     expect(find.text('Kategori ara'), findsOneWidget);
     expect(find.text('Son kullanılanlar'), findsOneWidget);
-    for (final group in ['İşletme', 'Şahsi', 'İşletme veya şahsi']) {
-      expect(find.text(group), findsWidgets);
+    // Menü ortak boydadır (`AppSizes.menuMaxHeight`); alttaki gruplar
+    // liste kaydırılınca çizilir. Görülen satırlar kaydırırken toplanır.
+    final list = find.byType(ListView).last;
+    final groups = <String>{};
+    var interestRows = 0;
+    var interestSeen = false;
+    for (var step = 0; step < 40; step++) {
+      for (final group in ['İşletme', 'Şahsi', 'İşletme veya şahsi']) {
+        if (find.text(group).evaluate().isNotEmpty) groups.add(group);
+      }
+      // Aynı satır art arda karelerde bir kez sayılır.
+      final visible = find.text('Faiz ve finansman gideri').evaluate().length;
+      if (visible == 2) interestRows = 2;
+      if (visible == 1 && !interestSeen) interestRows++;
+      interestSeen = visible > 0;
+      await tester.drag(list, const Offset(0, -60));
+      await tester.pump();
     }
+    expect(groups, {'İşletme', 'Şahsi', 'İşletme veya şahsi'});
     // Listede olmayan kategori son kullanılanlarda da çizilmez; iki kapsama
-    // açık kategori kapsamıyla durur.
-    expect(find.text('Faiz ve finansman gideri'), findsNWidgets(2));
+    // açık kategori bir kez son kullanılanlarda, bir kez grubunda durur.
+    expect(interestRows, 2);
   });
 
   testWidgets('son kullanılan satır kategoriyi ve kapsamı birden seçer', (

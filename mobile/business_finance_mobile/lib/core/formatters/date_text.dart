@@ -66,7 +66,8 @@ class DateText {
   }
 
   /// İki günün kısa aralığı: aynı ayda `15–17 Eyl`, ay değişiyorsa
-  /// `28 Eyl–2 Eki`, aynı günse `15 Eyl`.
+  /// `28 Eyl – 2 Eki` (iki uç birer kelime grubu; boşluksuz tire okunmuyordu,
+  /// kart hareketleri teslimi), aynı günse `15 Eyl`.
   static String dayRangeShort(String firstIso, String lastIso) {
     final first = _parse(firstIso);
     final last = _parse(lastIso);
@@ -75,7 +76,7 @@ class DateText {
     if (first.$1 == last.$1 && first.$2 == last.$2) {
       return '${first.$3}–${last.$3} ${shortMonths[last.$2 - 1]}';
     }
-    return '${dayShortMonth(firstIso)}–${dayShortMonth(lastIso)}';
+    return '${dayShortMonth(firstIso)} – ${dayShortMonth(lastIso)}';
   }
 
   /// `2026-08-10` → `10 Ağustos`. Çözümlenemeyen değer olduğu gibi döner:

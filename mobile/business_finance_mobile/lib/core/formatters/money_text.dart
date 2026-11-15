@@ -86,12 +86,42 @@ class MoneyText {
         : '${match.group(1)!}${match.group(2)!},$fraction';
   }
 
+  /// Alana yazılan tutarı sunucunun biçimine çevirir (`1.233,50` → `1233.50`).
+  ///
+  /// Alan yazarken binlik ayırıcı koyar (`TurkishAmountInputFormatter`):
+  /// virgül ondalık ayıracıdır, noktalar binlik. Virgülsüz `23.100` binlik
+  /// gruplu tam sayıdır (23,1 değil); gruplanmamış `12.5` eski yazımdır ve
+  /// ondalık okunur. Biçim tutmazsa `null`.
   static String? normalizeInput(String input) {
-    final normalized = input.trim().replaceAll(',', '.');
-    if (!RegExp(r'^\d+(\.\d{1,4})?$').hasMatch(normalized)) {
+    var text = input.trim().replaceAll(' ', '');
+    if (text.contains(',')) {
+      if (!RegExp(r'^(\d+|\d{1,3}(\.\d{3})+),\d{1,4}$').hasMatch(text)) {
+        return null;
+      }
+      text = text.replaceAll('.', '').replaceAll(',', '.');
+    } else if (RegExp(r'^\d{1,3}(\.\d{3})+$').hasMatch(text)) {
+      text = text.replaceAll('.', '');
+    }
+    if (!RegExp(r'^\d+(\.\d{1,4})?$').hasMatch(text)) {
       return null;
     }
-    return normalized;
+    return text;
+  }
+
+  /// [editable] ile aynı değer, alanın yazarken kullandığı binlik ayırıcıyla
+  /// (`3500.5000` → `3.500,5`): önceden dolu gelen tutar da yazılan tutar
+  /// gibi görünür.
+  static String field(String amount) {
+    final text = editable(amount);
+    final match = RegExp(r'^(-?)(\d+)(,\d+)?$').firstMatch(text);
+    if (match == null) return text;
+    final digits = match.group(2)!;
+    final grouped = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) grouped.write('.');
+      grouped.write(digits[i]);
+    }
+    return '${match.group(1)!}$grouped${match.group(3) ?? ''}';
   }
 
   /// Dört basamaklı kesri ikiye yuvarlar, gerekirse tam kısma elde taşır.

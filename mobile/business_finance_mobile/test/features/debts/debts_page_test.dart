@@ -1,3 +1,4 @@
+import 'package:business_finance_mobile/core/widgets/app_pick_field.dart';
 import '../../support/account_field_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -399,7 +400,7 @@ void main() {
     await tester.pumpAndSettle();
     await _fillValidDebt(tester);
 
-    final directionField = find.byType(DropdownButtonFormField<String>).first;
+    final directionField = find.byType(AppPickField<String>).first;
     await tester.ensureVisible(directionField);
     await tester.pumpAndSettle();
     await tester.tap(directionField);

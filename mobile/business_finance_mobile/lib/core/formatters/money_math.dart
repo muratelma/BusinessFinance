@@ -61,7 +61,16 @@ class TurkishAmountInputFormatter extends TextInputFormatter {
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    final raw = newValue.text.replaceAll('.', '');
+    var typed = newValue.text;
+    // Sayı klavyesinde ondalık tuşu nokta olabilir: sona yazılan nokta
+    // ondalık virgüldür. Binlik noktaları alan kendisi koyar.
+    if (typed.length == oldValue.text.length + 1 &&
+        typed.endsWith('.') &&
+        typed.startsWith(oldValue.text) &&
+        !oldValue.text.contains(',')) {
+      typed = '${oldValue.text},';
+    }
+    final raw = typed.replaceAll('.', '');
     if (raw.isEmpty) return newValue.copyWith(text: '');
     if (!RegExp(r'^\d*(,\d{0,4})?$').hasMatch(raw)) return oldValue;
     final parts = raw.split(',');

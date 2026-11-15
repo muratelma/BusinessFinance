@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/app_pick_field.dart';
 import '../../../core/widgets/app_category_field.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -220,16 +221,19 @@ class _TaxPlanFormPageState extends State<TaxPlanFormPage> {
             ),
           ),
           const SizedBox(height: AppGaps.field),
-          DropdownButtonFormField<TaxRhythm>(
-            initialValue: rhythm,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Ritim'),
-            items: [
+          AppPickField<TaxRhythm>(
+            label: 'Ritim',
+            value: rhythm,
+            options: [
               for (final value in TaxRhythm.values)
-                DropdownMenuItem(value: value, child: Text(value.label)),
+                AppPickOption(
+                  value: value,
+                  label: value.label,
+                  icon: Icons.event_repeat_outlined,
+                ),
             ],
             onChanged: (value) => _rhythmEdited(() {
-              rhythm = value!;
+              rhythm = value;
               if (rhythm == TaxRhythm.yearly && months.length != 1) {
                 months = {
                   months.isEmpty ? controller.today.month : months.first,
@@ -248,29 +252,22 @@ class _TaxPlanFormPageState extends State<TaxPlanFormPage> {
               _error(context, 'En az bir ay seçin.'),
           ],
           const SizedBox(height: AppGaps.field),
-          DropdownButtonFormField<int>(
-            initialValue: day,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: 'Gün',
-              helperText: months.isEmpty && _usesMonths
-                  ? null
-                  : 'Sıradaki: ${DateText.dayMonthYear(TaxSchedule.iso(following[0]))}, '
-                        'sonra ${DateText.dayMonthYear(TaxSchedule.iso(following[1]))}',
-              helperMaxLines: 2,
-            ),
-            items: [
-              const DropdownMenuItem(
+          AppPickField<int>(
+            label: 'Gün',
+            value: day,
+            helperText: months.isEmpty && _usesMonths
+                ? null
+                : 'Sıradaki: ${DateText.dayMonthYear(TaxSchedule.iso(following[0]))}, '
+                      'sonra ${DateText.dayMonthYear(TaxSchedule.iso(following[1]))}',
+            options: [
+              const AppPickOption(
                 value: TaxSchedule.monthEnd,
-                child: Text('Ay sonu'),
+                label: 'Ay sonu',
               ),
               for (var value = 1; value < TaxSchedule.monthEnd; value++)
-                DropdownMenuItem(
-                  value: value,
-                  child: Text(TaxSchedule.dayLabel(value)),
-                ),
+                AppPickOption(value: value, label: TaxSchedule.dayLabel(value)),
             ],
-            onChanged: (value) => _rhythmEdited(() => day = value!),
+            onChanged: (value) => _rhythmEdited(() => day = value),
           ),
           if (rhythmChanged)
             const AppInlineNotice(
@@ -324,27 +321,24 @@ class _TaxPlanFormPageState extends State<TaxPlanFormPage> {
             ),
           ],
           const SizedBox(height: AppGaps.field),
-          DropdownButtonFormField<String>(
+          AppPickField<String>(
             key: ValueKey('start-$rhythm-$day-${months.join(',')}'),
-            initialValue: startDate,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: 'Başlangıç',
-              prefixIcon: const Icon(Icons.event_outlined),
-              helperText: settled != null && editing
-                  ? 'En erken '
-                        '${DateText.dayMonth(TaxSchedule.iso(_earliest))} '
-                        '(son ödeme ${DateText.dayMonth(settled)})'
-                  : 'Varsayılan: sıradaki vade.',
-            ),
-            items: [
+            label: 'Başlangıç',
+            value: startDate,
+            helperText: settled != null && editing
+                ? 'En erken '
+                      '${DateText.dayMonth(TaxSchedule.iso(_earliest))} '
+                      '(son ödeme ${DateText.dayMonth(settled)})'
+                : 'Varsayılan: sıradaki vade.',
+            options: [
               for (final value in startOptions)
-                DropdownMenuItem(
+                AppPickOption(
                   value: value,
-                  child: Text(DateText.dayMonthYear(value)),
+                  label: DateText.dayMonthYear(value),
+                  icon: Icons.event_outlined,
                 ),
             ],
-            onChanged: (value) => setState(() => startDate = value!),
+            onChanged: (value) => setState(() => startDate = value),
           ),
           if (categoryId == null)
             AppInlineNotice(

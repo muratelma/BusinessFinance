@@ -290,7 +290,7 @@ abstract final class ApiErrorMessages {
     'credit_cards.limit_exceeded':
         'Bu harcama kartın kullanılabilir limitini aşıyor.',
     'credit_cards.payment_exceeds_debt':
-        'Ödeme tutarı kartın güncel borcundan büyük olamaz.',
+        'Ödeme tutarı kartın borcunu ve bekleyen taksitlerini aşamaz.',
     'credit_cards.charge_not_found':
         'Kart harcaması bulunamadı. Listeyi yenileyip tekrar deneyin.',
     'credit_cards.payment_not_found':

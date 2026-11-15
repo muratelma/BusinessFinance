@@ -42,6 +42,9 @@ abstract final class AppBreakpoints {
   /// adları kesilirdi.
   static const double donutWithLegend = 320;
 
+  /// Etiket ve tutarın yan yana okunabildiği en dar içerik alanı.
+  static const double cardInfoPair = 280;
+
   static AppWindowSize sizeOfWidth(double width) {
     if (width >= expanded) {
       return AppWindowSize.expanded;

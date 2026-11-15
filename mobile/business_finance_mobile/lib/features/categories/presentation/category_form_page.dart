@@ -4,11 +4,13 @@ import 'package:provider/provider.dart';
 import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/presentation/scope_controller.dart';
+import '../../../core/theme/app_finance_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_form_error.dart';
 import '../../../core/widgets/app_page_bar.dart';
+import '../../../core/widgets/app_pick_field.dart';
 import '../../../core/widgets/app_scope_selector.dart';
 import '../data/category_models.dart';
 
@@ -144,31 +146,39 @@ class _CategoryFormPageState extends State<CategoryFormPage> {
                     : null,
               ),
               const SizedBox(height: AppGaps.field),
-              DropdownButtonFormField<String>(
-                initialValue: _type,
-                decoration: const InputDecoration(
-                  labelText: 'Kategori türü',
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'expense', child: Text('Gider')),
-                  DropdownMenuItem(value: 'income', child: Text('Gelir')),
-                ],
+              AppPickField<String>(
+                label: 'Kategori türü',
+                value: _type,
                 onChanged: _editing || widget.initialType != null
                     ? null
-                    : (value) => setState(() => _type = value!),
+                    : (value) => setState(() => _type = value),
+                options: [
+                  AppPickOption(
+                    value: 'expense',
+                    label: 'Gider',
+                    icon: Icons.north_east,
+                    iconColor: AppFinanceColors.of(context).expense,
+                  ),
+                  AppPickOption(
+                    value: 'income',
+                    label: 'Gelir',
+                    icon: Icons.south_west,
+                    iconColor: AppFinanceColors.of(context).income,
+                  ),
+                ],
               ),
               if (context.watch<ScopeController?>()?.isVisible ?? false) ...[
                 const SizedBox(height: AppGaps.field),
                 AppScopeDefaultField(
                   label: 'Kapsam',
                   emptyLabel: 'İkisi de',
+                  emptyIsBlank: false,
+                  emptyIcon: Icons.layers_outlined,
+                  emptySubtitle: 'Kayıt girerken sorulur',
+                  businessSubtitle: 'Kayıtlar işletme yazılır',
+                  personalSubtitle: 'Kayıtlar şahsi yazılır',
                   value: _defaultScope,
                   onChanged: (value) => setState(() => _defaultScope = value),
-                  helperText: _defaultScope == null
-                      ? 'Kayıt girerken sorulur.'
-                      : 'Bu kategorideki kayıtlar '
-                            '${_defaultScope!.label} yazılır.',
                 ),
               ],
               // Kapsam bölümüyle aynı hizada, onun altında durur.

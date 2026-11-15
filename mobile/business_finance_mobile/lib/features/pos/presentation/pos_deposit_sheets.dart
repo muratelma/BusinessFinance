@@ -1,3 +1,4 @@
+import '../../../core/formatters/money_math.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -211,7 +212,7 @@ class _DepositFormState extends State<_DepositForm> {
       preview = result;
       if (result == null) return;
       if (!amountEdited) {
-        amountController.text = MoneyText.editable(result.expectedAmount);
+        amountController.text = MoneyText.field(result.expectedAmount);
       }
       deductionCategoryId ??= result.deductionCategoryId;
       if (depositDate.compareTo(result.earliestDepositDate) < 0) {
@@ -300,6 +301,7 @@ class _DepositFormState extends State<_DepositForm> {
         controller: amountController,
         enabled: selected.isNotEmpty,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: const [TurkishAmountInputFormatter()],
         decoration: InputDecoration(
           labelText: 'Yatan tutar',
           helperText: 'Bankanın hesabınıza gerçekten yatırdığı tutar.',

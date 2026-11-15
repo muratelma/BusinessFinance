@@ -5,6 +5,7 @@ import '../theme/app_spacing.dart';
 import '../theme/app_surfaces.dart';
 import 'app_segment_rail.dart';
 import 'app_filter_menu.dart';
+import 'app_pick_field.dart';
 
 /// `Hepsi · İşletme · Şahsi` anahtarı.
 ///
@@ -283,22 +284,35 @@ class AppScopeChoiceChip extends StatelessWidget {
 
 /// Hesabın, kartın ve kategorinin **varsayılan** kapsamı.
 ///
-/// Üç konumu var çünkü alan nullable: `Belirtilmedi` eksik veri değil, meşru
-/// bir cevaptır — "bu kaynak kapsam belirlemiyor, zincirin bir sonraki halkası
-/// karar versin". Filtrenin `Hepsi`siyle karıştırılmasın diye etiketi ayrı:
-/// orada boşluk "iki tarafı birden oku" demek, burada "ben söylemiyorum".
+/// Üç konumu var çünkü alan nullable: `Yok` eksik veri değil, meşru bir
+/// cevaptır — "bu kaynak kapsam belirlemiyor, zincirin bir sonraki halkası
+/// karar versin". Filtrenin `Hepsi`siyle karıştırılmasın diye etiketi ayrı.
 ///
-/// Kaydın kendi kapsamını soran [AppScopeField]'dan da ayrı: orası bir kaydın
+/// Ortak seçim alanıdır ([AppPickField], kart taksit ve limit teslimi §6):
+/// kuralı her seçeneğin alt yazısı söyler, alanın altında açıklama metni
+/// yoktur. Alt yazılar 360 dp telefonda da sığacak kısalıktadır; teslimde
+/// uzun ve kısa iki metin denendi, her yerde kısa olan seçildi.
+///
+/// Kaydın kendi kapsamını soran [AppScopeField]'dan ayrı: orası bir kaydın
 /// hangi tarafa yazılacağını sorar ve boş bırakılamaz.
 class AppScopeDefaultField extends StatelessWidget {
   const AppScopeDefaultField({
     required this.value,
     required this.onChanged,
-    required this.helperText,
     this.label = 'Varsayılan kapsam',
-    this.emptyLabel = 'Belirtilmedi',
+    this.emptyLabel = 'Yok',
+    this.emptyIcon = Icons.block,
+    this.emptySubtitle = 'Kapsamı kategori belirler',
+    this.businessSubtitle = 'Kategoride yoksa geçerli',
+    this.personalSubtitle = 'Kategoride yoksa geçerli',
+    this.emptyIsBlank = true,
     super.key,
   });
+
+  /// Boş değer seçiliyken alan boş görünür (yalnız başlık). Hesapta ve
+  /// kartta `Yok` "seçilmedi" demektir ve alan boş gelir (kullanıcı,
+  /// 13 Kasım 2026); kategoride `İkisi de` bir cevaptır ve yazılır.
+  final bool emptyIsBlank;
 
   final TransactionScope? value;
   final ValueChanged<TransactionScope?> onChanged;
@@ -307,53 +321,40 @@ class AppScopeDefaultField extends StatelessWidget {
   /// alabileceği taraftır ve başlığı ona göre verilir.
   final String label;
 
-  /// Boş değerin adı. Hesapta ve kartta "söylemiyorum" (`Belirtilmedi`),
-  /// kategoride "iki tarafa da açık" demektir (`İkisi de`).
+  /// Boş değerin adı. Hesapta ve kartta "söylemiyorum" (`Yok`), kategoride
+  /// "iki tarafa da açık" demektir (`İkisi de`).
   final String emptyLabel;
-
-  /// Alanın ne işe yaradığını söyleyen cümle; çağıran yazar çünkü hesapta,
-  /// kartta ve kategoride farklı okunur.
-  final String helperText;
+  final IconData emptyIcon;
+  final String emptySubtitle;
+  final String businessSubtitle;
+  final String personalSubtitle;
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: _scopeInset,
-      child: Semantics(
-        container: true,
-        label: label,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: theme.textTheme.labelMedium),
-            const SizedBox(height: AppSpacing.xSmall),
-            Wrap(
-              spacing: AppSpacing.small,
-              runSpacing: AppSpacing.small,
-              children: [
-                for (final option in <TransactionScope?>[
-                  null,
-                  TransactionScope.business,
-                  TransactionScope.personal,
-                ])
-                  AppScopeChoiceChip(
-                    label: option?.label ?? emptyLabel,
-                    selected: value == option,
-                    onSelected: () => onChanged(option),
-                  ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.xSmall),
-            Text(
-              helperText,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
+  Widget build(BuildContext context) => AppPickField<TransactionScope?>(
+    label: label,
+    value: value,
+    onChanged: onChanged,
+    showSubtitle: true,
+    options: [
+      AppPickOption(
+        value: null,
+        label: emptyLabel,
+        icon: emptyIcon,
+        subtitle: emptySubtitle,
+        blank: emptyIsBlank,
       ),
-    );
-  }
+      AppPickOption(
+        value: TransactionScope.business,
+        label: TransactionScope.business.label,
+        icon: Icons.storefront_outlined,
+        subtitle: businessSubtitle,
+      ),
+      AppPickOption(
+        value: TransactionScope.personal,
+        label: TransactionScope.personal.label,
+        icon: Icons.person_outline,
+        subtitle: personalSubtitle,
+      ),
+    ],
+  );
 }

@@ -32,4 +32,11 @@ abstract final class AppSizes {
 
   /// Satırın içindeki küçük düğme (`Ödedim`).
   static const double rowButton = 36;
+
+  /// Yüzen seçim menüsünün en çok boyu (tür, kapsam, taksit sayısı,
+  /// filtre): yaklaşık yedi satır. Uzun liste menünün içinde kayar, yarım
+  /// görünen son satır ve kaydırma çubuğu devamı olduğunu söyler. Kategori
+  /// menüsü bu kurala bağlı değildir (kendi kuralı: içerik ya da ekran kadar);
+  /// hesap menüsü yedi hesabı gösterecek boydadır (`AppAccountField`).
+  static const double menuMaxHeight = 384;
 }

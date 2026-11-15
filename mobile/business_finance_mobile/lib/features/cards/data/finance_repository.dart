@@ -2,6 +2,7 @@ import '../../../core/localization/default_category_labels.dart';
 import '../../../core/models/json_readers.dart';
 import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_client.dart';
+import 'card_page_models.dart';
 import 'finance_models.dart';
 
 /// Geçmiş listelerinin dönemi.
@@ -37,7 +38,6 @@ abstract interface class FinanceRepositoryContract {
   Future<void> updateCard(String cardId, Map<String, Object?> input);
   Future<void> createCharge(String cardId, Map<String, Object?> input);
   Future<void> createPayment(String cardId, Map<String, Object?> input);
-  Future<CardActivity> loadActivity(String cardId, {HistoryPeriod period});
   Future<CardStatement> loadStatement(
     String cardId,
     int year,
@@ -49,6 +49,21 @@ abstract interface class FinanceRepositoryContract {
   Future<CardStatement?> loadCurrentStatement(String cardId);
   Future<void> createPlan(Map<String, Object?> input);
   Future<void> realizeInstallment(String planId, int sequence);
+
+  /// Kartın hareketler sayfası; `limit` verilirse ilk o kadar satır.
+  Future<CardPageData> loadCardPage(
+    String cardId,
+    CardMovementQuery query, {
+    int offset = 0,
+    int? limit,
+  });
+
+  /// Taksit sayılarının aylık tutarı ve ilk/son günü; bölmeyi sunucu yapar.
+  Future<List<InstallmentPreviewOption>> previewInstallments({
+    required String totalAmount,
+    required String firstInstallmentDate,
+    required List<int> counts,
+  });
 }
 
 abstract interface class BankFeeCategoryProvider {
@@ -142,7 +157,9 @@ class FinanceRepository
   @override
   Future<void> createPayment(String cardId, Map<String, Object?> input) async =>
       _client.post('/api/v1/credit-cards/$cardId/payments', body: input);
-  @override
+
+  /// Kartın ham hareket listesi. Uygulama artık kart sayfasını
+  /// (`loadCardPage`) okur; bu uç yalnız kabul testinde kullanılır.
   Future<CardActivity> loadActivity(
     String cardId, {
     HistoryPeriod period = HistoryPeriod.threeMonths,
@@ -151,6 +168,7 @@ class FinanceRepository
       '/api/v1/credit-cards/$cardId/activity${period.query(DateTime.now())}',
     )).requireObject(),
   );
+
   @override
   Future<CardStatement> loadStatement(
     String cardId,
@@ -183,6 +201,46 @@ class FinanceRepository
   @override
   Future<void> realizeInstallment(String planId, int sequence) async =>
       _client.post('/api/v1/installment-plans/$planId/items/$sequence/realize');
+
+  @override
+  Future<CardPageData> loadCardPage(
+    String cardId,
+    CardMovementQuery query, {
+    int offset = 0,
+    int? limit,
+  }) async => CardPageData.fromJson(
+    (await _client.get(
+      Uri(
+        path: '/api/v1/credit-cards/$cardId/page',
+        queryParameters: query.toQuery(offset: offset, limit: limit),
+      ).toString(),
+    )).requireObject(),
+  );
+
+  @override
+  Future<List<InstallmentPreviewOption>> previewInstallments({
+    required String totalAmount,
+    required String firstInstallmentDate,
+    required List<int> counts,
+  }) async {
+    final json = (await _client.get(
+      Uri(
+        path: '/api/v1/installment-plans/preview',
+        queryParameters: {
+          'totalAmount': totalAmount,
+          'firstInstallmentDate': firstInstallmentDate,
+          'counts': counts.join(','),
+        },
+      ).toString(),
+    )).requireObject();
+    return JsonReaders.list(json, 'options')
+        .map(
+          (v) => InstallmentPreviewOption.fromJson(
+            JsonReaders.object(v, 'option'),
+          ),
+        )
+        .toList(growable: false);
+  }
 
   List<Map<String, dynamic>> _items(Map<String, dynamic> json) =>
       JsonReaders.list(json, 'items')

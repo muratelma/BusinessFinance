@@ -12,9 +12,13 @@ class AppPageBar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
     this.actions = const [],
     this.bottom,
+    this.actionsInset = AppPageHeader.defaultActionsInset,
   });
 
   final Widget title;
+
+  /// Sağdaki eylemlerin ekran kenarına uzaklığı ([AppPageHeader.actionsInset]).
+  final double actionsInset;
   final List<Widget> actions;
   final PreferredSizeWidget? bottom;
 
@@ -34,6 +38,7 @@ class AppPageBar extends StatelessWidget implements PreferredSizeWidget {
           AppPageHeader.custom(
             title: title,
             actions: actions,
+            actionsInset: actionsInset,
             onBack: canPop ? () => Navigator.of(context).maybePop() : null,
             // `appBar` yuvasının yüksekliği sabittir; satır uzayamaz.
             fixedHeight: true,

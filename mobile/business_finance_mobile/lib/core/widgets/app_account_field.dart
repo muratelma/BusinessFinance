@@ -6,8 +6,10 @@ import '../theme/app_finance_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_surfaces.dart';
 import '../theme/app_typography.dart';
+import 'app_animated_menu.dart';
 import 'app_icon_capsule.dart';
 import 'app_money_text.dart';
+import 'app_pick_field.dart';
 import '../theme/app_radius.dart';
 
 /// Seçilen paranın yeri: nakit, banka, kredi kartı ya da POS.
@@ -120,19 +122,19 @@ class AppAccountField extends StatefulWidget {
   final String? manualNote;
   final String manualValue;
 
+  /// Menünün en çok boyu, bütün ekranlarda (kullanıcı kararı, 15 Kasım
+  /// 2026): `Gider ekle`deki ödeme kaynağı menüsünün boyu. Üç nakit ve üç
+  /// banka hesabı olan kullanıcıda menü `Kredi kartı` başlığıyla biter. Daha
+  /// az hesap varsa menü içerik kadardır ve kaymaz; fazlası menünün içinde
+  /// kayar.
+  static const double maxMenuHeight = 439;
+
   @override
   State<AppAccountField> createState() => _AppAccountFieldState();
 }
 
 class _AppAccountFieldState extends State<AppAccountField> {
-  final _menu = MenuController();
-  final _fieldKey = GlobalKey();
-  bool _open = false;
   bool _emptyOpen = false;
-
-  /// Menü alan genişliğindedir; ölçü açılırken alınır (dialog içinde de
-  /// çalışsın diye `LayoutBuilder` kullanılmaz).
-  double _width = 280;
 
   AppAccountOption? get _selected {
     for (final option in widget.options) {
@@ -149,23 +151,17 @@ class _AppAccountFieldState extends State<AppAccountField> {
       widget.noneLabel == null &&
       widget.manualLabel == null;
 
-  void _toggle() {
+  void _toggle(VoidCallback toggleMenu) {
     if (widget.onChanged == null) return;
     if (_isEmpty) {
       setState(() => _emptyOpen = !_emptyOpen);
       return;
     }
-    if (_menu.isOpen) {
-      _menu.close();
-      return;
-    }
-    final width = _fieldKey.currentContext?.size?.width;
-    if (width != null && width != _width) setState(() => _width = width);
-    _menu.open();
+    toggleMenu();
   }
 
-  void _choose(FormFieldState<String> field, String? id) {
-    _menu.close();
+  void _choose(FormFieldState<String> field, String? id, VoidCallback close) {
+    close();
     field.didChange(id);
     widget.onChanged?.call(id);
   }
@@ -178,46 +174,60 @@ class _AppAccountFieldState extends State<AppAccountField> {
     validator: widget.validator == null
         ? null
         : (_) => widget.validator!(widget.value),
-    builder: (field) => PopScope(
-      canPop: !_open,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _menu.close();
-      },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          MenuAnchor(
-            controller: _menu,
-            crossAxisUnconstrained: false,
-            alignmentOffset: const Offset(0, AppSpacing.small),
-            onOpen: () => setState(() => _open = true),
-            onClose: () => setState(() => _open = false),
-            style: _menuStyle(context, _width),
-            menuChildren: _menuRows(context, field, _width),
-            builder: (context, _, _) =>
-                KeyedSubtree(key: _fieldKey, child: _closed(context, field)),
-          ),
-          if (_isEmpty && _emptyOpen) ...[
-            const SizedBox(height: AppSpacing.small),
-            _EmptyCard(
-              title: widget.emptyTitle,
-              message: widget.emptyMessage,
-              addLabel: widget.addLabel,
-              onAdd: widget.onAdd,
+    builder: (field) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Menü alanın üstünde yüzer, hareketle açılır ve ortak boydadır
+        // ([AppAnimatedMenu]); ekranı kaplamaz, uzun liste içinde kayar.
+        AppAnimatedMenu(
+          maxMenuHeight: AppAccountField.maxMenuHeight,
+          expectedHeight: _contentHeight,
+          anchorHeight:
+              (widget.helperText == null &&
+                      widget.errorText == null &&
+                      field.errorText == null) ||
+                  context.usesLargeText
+              ? null
+              : 56,
+          menuBuilder: (context, close) => Padding(
+            padding: const EdgeInsets.only(
+              top: AppSpacing.xSmall,
+              bottom: AppSpacing.small,
             ),
-          ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: _menuRows(context, field, close),
+            ),
+          ),
+          builder: (context, open, toggle) =>
+              _closed(context, field, open, () => _toggle(toggle)),
+        ),
+        if (_isEmpty && _emptyOpen) ...[
+          const SizedBox(height: AppSpacing.small),
+          _EmptyCard(
+            title: widget.emptyTitle,
+            message: widget.emptyMessage,
+            addLabel: widget.addLabel,
+            onAdd: widget.onAdd,
+          ),
         ],
-      ),
+      ],
     ),
   );
 
-  Widget _closed(BuildContext context, FormFieldState<String> field) {
+  Widget _closed(
+    BuildContext context,
+    FormFieldState<String> field,
+    bool menuOpen,
+    VoidCallback toggle,
+  ) {
     final selected = _selected;
     final manual = selected == null && _manual;
     final none = selected == null && !manual && widget.noneLabel != null;
     final blank = selected == null && !none && !manual;
-    final open = _open || _emptyOpen;
+    final open = menuOpen || _emptyOpen;
     final theme = Theme.of(context);
     return Semantics(
       button: true,
@@ -231,7 +241,7 @@ class _AppAccountFieldState extends State<AppAccountField> {
       child: ExcludeSemantics(
         child: InkWell(
           borderRadius: BorderRadius.circular(AppRadius.field),
-          onTap: widget.onChanged == null ? null : _toggle,
+          onTap: widget.onChanged == null ? null : toggle,
           child: InputDecorator(
             isFocused: open,
             isEmpty: blank,
@@ -252,10 +262,7 @@ class _AppAccountFieldState extends State<AppAccountField> {
                       AppSpacing.step6,
                       AppSpacing.small,
                     ),
-              suffixIcon: Icon(
-                open ? Icons.arrow_drop_up : Icons.arrow_drop_down,
-                size: 24,
-              ),
+              suffixIcon: AppMenuArrow(open: open),
             ),
             child: manual || selected != null
                 // Alan içerik ne olursa olsun 56 dp: 8 + 40 + 8 (teslim,
@@ -279,38 +286,17 @@ class _AppAccountFieldState extends State<AppAccountField> {
     );
   }
 
-  MenuStyle _menuStyle(BuildContext context, double width) {
-    final surfaces = AppSurfaces.of(context);
-    return MenuStyle(
-      padding: const WidgetStatePropertyAll(
-        EdgeInsets.only(top: AppSpacing.xSmall, bottom: AppSpacing.small),
-      ),
-      backgroundColor: WidgetStatePropertyAll(surfaces.card),
-      surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
-      elevation: const WidgetStatePropertyAll(AppElevation.floating),
-      side: const WidgetStatePropertyAll(BorderSide.none),
-      minimumSize: WidgetStatePropertyAll(Size(width, 0)),
-      maximumSize: WidgetStatePropertyAll(Size(width, 600)),
-      shape: WidgetStatePropertyAll(
-        RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.field),
-        ),
-      ),
-    );
-  }
-
   List<Widget> _menuRows(
     BuildContext context,
     FormFieldState<String> field,
-    double width,
+    VoidCallback close,
   ) {
     final rows = <Widget>[];
     if (widget.noneLabel != null) {
       rows.add(
-        _MenuRow(
-          width: width,
+        AppPickMenuRow(
           selected: widget.value == null,
-          onPressed: () => _choose(field, null),
+          onPressed: () => _choose(field, null, close),
           child: Text(
             widget.noneLabel!,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -337,11 +323,12 @@ class _AppAccountFieldState extends State<AppAccountField> {
       group = option.kind;
       final selected = option.id == widget.value;
       rows.add(
-        _MenuRow(
-          width: width,
+        AppPickMenuRow(
           selected: selected,
           semanticsLabel: _sentence(option),
-          onPressed: option.enabled ? () => _choose(field, option.id) : null,
+          onPressed: option.enabled
+              ? () => _choose(field, option.id, close)
+              : null,
           child: _OptionContent(option: option, selected: selected),
         ),
       );
@@ -349,11 +336,10 @@ class _AppAccountFieldState extends State<AppAccountField> {
     if (widget.manualLabel != null) {
       final selected = _manual;
       rows.add(
-        _MenuRow(
-          width: width,
+        AppPickMenuRow(
           selected: selected,
           semanticsLabel: [widget.manualLabel!, ?widget.manualNote].join(', '),
-          onPressed: () => _choose(field, widget.manualValue),
+          onPressed: () => _choose(field, widget.manualValue, close),
           child: _ManualContent(
             label: widget.manualLabel!,
             note: widget.manualNote,
@@ -363,6 +349,31 @@ class _AppAccountFieldState extends State<AppAccountField> {
       );
     }
     return rows;
+  }
+
+  /// Menünün içeriğinin yaklaşık boyu (başlıklar ve satırlar); panelde
+  /// menüye ayrılacak yer için. Gerçek boy menü çizilince ölçülür.
+  double get _contentHeight {
+    const row = 56.0;
+    const heading = 32.0;
+    const divider = 5.0;
+    var height = AppSpacing.xSmall + AppSpacing.small;
+    var rows = 0;
+    if (widget.noneLabel != null) {
+      height += row;
+      rows++;
+    }
+    AppAccountKind? group;
+    for (final option in _ordered) {
+      if (option.kind != group && option.kind != AppAccountKind.pos) {
+        height += heading + (rows > 0 ? divider : 0);
+      }
+      group = option.kind;
+      height += row;
+      rows++;
+    }
+    if (widget.manualLabel != null) height += row;
+    return height;
   }
 
   /// Gruplar türe göre: nakit, banka, kart. Grup içi sıra çağıranındır.
@@ -531,73 +542,6 @@ class _GroupHeading extends StatelessWidget {
       ],
     ),
   );
-}
-
-/// Menü satırı: en az 56 dp; seçili satırda solda 4 dp marka çubuğu ve
-/// soluk zemin, işaret yok.
-class _MenuRow extends StatelessWidget {
-  const _MenuRow({
-    required this.width,
-    required this.selected,
-    required this.onPressed,
-    required this.child,
-    this.semanticsLabel,
-  });
-  final double width;
-  final bool selected;
-  final VoidCallback? onPressed;
-  final Widget child;
-  final String? semanticsLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final surfaces = AppSurfaces.of(context);
-    return Semantics(
-      selected: selected,
-      label: semanticsLabel,
-      child: MenuItemButton(
-        onPressed: onPressed,
-        style: ButtonStyle(
-          backgroundColor: WidgetStatePropertyAll(
-            selected ? surfaces.cardMuted : null,
-          ),
-          minimumSize: const WidgetStatePropertyAll(Size.fromHeight(56)),
-          padding: const WidgetStatePropertyAll(EdgeInsets.zero),
-        ),
-        child: SizedBox(
-          width: width,
-          child: Stack(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.medium,
-                  vertical: AppSpacing.step6,
-                ),
-                child: semanticsLabel == null
-                    ? child
-                    : ExcludeSemantics(child: child),
-              ),
-              if (selected)
-                Positioned(
-                  left: 0,
-                  top: AppSpacing.small,
-                  bottom: AppSpacing.small,
-                  width: 4,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
-                      borderRadius: const BorderRadius.horizontal(
-                        right: Radius.circular(4),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 /// Menüdeki hesap: 20 dp renkli simge, ad 15 ve kapsam, tutar 15/600.

@@ -1,6 +1,9 @@
+import '../../../core/formatters/money_math.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/theme/app_finance_colors.dart';
+import '../../../core/widgets/app_pick_field.dart';
 import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_input.dart';
 import '../../../core/formatters/money_text.dart';
@@ -578,33 +581,30 @@ class _DebtSourceFields extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         AppFormField(
-          child: DropdownButtonFormField<String>(
+          child: AppPickField<String>(
             // Testin doğru alanı sürükleyebilmesi için: sırayla bulmak alan
             // eklendiğinde sessizce başka bir alanı ölçmeye başlar.
             key: const Key('debt-source'),
-            initialValue: source,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: payable ? 'Borcu ne doğurdu' : 'Alacağı ne doğurdu',
-              helperText: sourceHelperText,
-            ),
-            items: [
-              DropdownMenuItem(
+            label: payable ? 'Borcu ne doğurdu' : 'Alacağı ne doğurdu',
+            value: source,
+            helperText: sourceHelperText,
+            options: [
+              AppPickOption(
                 value: 'cash',
-                child: Text(
-                  payable ? 'Para hesabıma girdi' : 'Borç para verdim',
-                ),
+                label: payable ? 'Para hesabıma girdi' : 'Borç para verdim',
+                icon: Icons.account_balance_wallet_outlined,
               ),
-              DropdownMenuItem(
+              AppPickOption(
                 value: categoricalSourceOf(direction),
-                child: Text(
-                  payable
-                      ? 'Bir şey aldım / tükettim'
-                      : 'Bir şey sattım / hizmet verdim',
-                ),
+                label: payable
+                    ? 'Bir şey aldım / tükettim'
+                    : 'Bir şey sattım / hizmet verdim',
+                icon: payable
+                    ? Icons.shopping_bag_outlined
+                    : Icons.storefront_outlined,
               ),
             ],
-            onChanged: (value) => onSourceChanged(value!),
+            onChanged: onSourceChanged,
           ),
         ),
         if (categorical)
@@ -836,8 +836,8 @@ class _DebtFormState extends State<_DebtForm> {
     _source = 'cash';
     if (prefill.counterpartyName case final name?) _name.text = name;
     if (prefill.amount case final amount?) {
-      _principal.text = MoneyText.editable(amount);
-      _total.text = MoneyText.editable(amount);
+      _principal.text = MoneyText.field(amount);
+      _total.text = MoneyText.field(amount);
     }
     _costInput = _DebtCostInput.total;
     _count.text = '1';
@@ -962,16 +962,25 @@ class _DebtFormState extends State<_DebtForm> {
           ),
         ),
         AppFormField(
-          child: DropdownButtonFormField<String>(
-            initialValue: _direction,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Yön'),
-            items: const [
-              DropdownMenuItem(value: 'payable', child: Text('Ödenecek borç')),
-              DropdownMenuItem(value: 'receivable', child: Text('Alınacak')),
+          child: AppPickField<String>(
+            label: 'Yön',
+            value: _direction,
+            options: [
+              AppPickOption(
+                value: 'payable',
+                label: 'Ödenecek borç',
+                icon: Icons.north_east,
+                iconColor: AppFinanceColors.of(context).expense,
+              ),
+              AppPickOption(
+                value: 'receivable',
+                label: 'Alınacak',
+                icon: Icons.south_west,
+                iconColor: AppFinanceColors.of(context).income,
+              ),
             ],
             onChanged: (value) => setState(() {
-              _direction = value!;
+              _direction = value;
               // Yön değişince kategorili kaynağın anlamı da değişir: borç
               // tüketir, alacak satar. Nakit dışı seçim yeni yönün kaynağına
               // taşınır, kategori de o tipe göre tazelenir.
@@ -1033,6 +1042,7 @@ class _DebtFormState extends State<_DebtForm> {
           child: TextFormField(
             controller: _principal,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: const [TurkishAmountInputFormatter()],
             decoration: const InputDecoration(
               labelText: 'Anapara',
               suffixText: 'TRY',
@@ -1041,24 +1051,23 @@ class _DebtFormState extends State<_DebtForm> {
           ),
         ),
         AppFormField(
-          child: DropdownButtonFormField<_DebtCostInput>(
-            initialValue: _costInput,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Elinizde hangisi var',
-              helperText: 'Girmediğinizi hesaplayıp size gösteririz.',
-            ),
-            items: const [
-              DropdownMenuItem(
+          child: AppPickField<_DebtCostInput>(
+            label: 'Elinizde hangisi var',
+            value: _costInput,
+            helperText: 'Girmediğinizi hesaplayıp size gösteririz.',
+            options: const [
+              AppPickOption(
                 value: _DebtCostInput.total,
-                child: Text('Toplam geri ödeme'),
+                label: 'Toplam geri ödeme',
+                icon: Icons.functions,
               ),
-              DropdownMenuItem(
+              AppPickOption(
                 value: _DebtCostInput.rate,
-                child: Text('Yıllık faiz oranı'),
+                label: 'Yıllık faiz oranı',
+                icon: Icons.percent,
               ),
             ],
-            onChanged: (value) => setState(() => _costInput = value!),
+            onChanged: (value) => setState(() => _costInput = value),
           ),
         ),
         if (_costInput == _DebtCostInput.total)

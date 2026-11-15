@@ -885,7 +885,7 @@ Kapsamın artık **üç** denetimi var ve üçü ayrı şeyler sorar; ortak çip
 | `AppScopeSwitch` | Özet ekranının kapsam barı | `Hepsi` — iki tarafı birden oku |
 | `AppScopeField` | İşlem formu, yalnız iki tarafa açık kategoride | Boş kalamaz; hiçbir işaret yoksa alan zorunlu |
 | `AppScopeInfoRow` | İşlem formu, tek taraflı kategoride | Soru yok: taraf kategoriden bellidir |
-| `AppScopeDefaultField` | Hesap, kart ve kategori formu | Hesapta ve kartta `Belirtilmedi` (bu kaynak taraf söylemiyor); kategoride başlık `Kapsam`, boş değer `İkisi de` (kayıt girerken sorulur) |
+| `AppScopeDefaultField` | Hesap, kart ve kategori formu | Hesapta ve kartta `Yok` (bu kaynak taraf söylemiyor; yeni kayıtta alan boş gelir); kategoride başlık `Kapsam`, boş değer `İkisi de` (kayıt girerken sorulur). Ortak seçim alanıdır (`AppPickField`; 12–13 Kasım 2026 bölümü) |
 
 Üçüncüsü Grup 4'te eklendi. Üç çipi de sarmalanır (`Wrap`), seçili olan yalnız
 renkle değil onay işaretiyle bildirilir ve alan kendi yardımcı cümlesini taşır —
@@ -1963,7 +1963,7 @@ Aynı gün kalan yerler de bağlandı:
 | POS tahsilatları | sonuç yok (ay / filtre) | `Kasım'da POS tahsilatı yok` + `Ay seç`; `Bu filtreye uyan tahsilat yok` + `Filtreyi temizle` |
 | Ödenenler (vergi) | ilk kullanım, düğmesiz | `Henüz ödenen vergi yok` / `Ödediğiniz vergiler burada listelenir.` |
 | Yolda | ilk kullanım, düğmesiz (`embedded`) | `Yolda satış yok` / `Parası hesaba geçmemiş satışlar burada görünür.` |
-| Kişinin sayfası · Hareketler | bölüm boş | `Bu kişiyle henüz hareket yok.` |
+| Kişinin sayfası · Hareketler | bölüm boş | `Henüz cari hareket yok.` |
 | Kasa | bölüm boş | `Sayılacak kasa yok. …` / `İşletme kasası yok. …` |
 | Veri araçları | bölüm boş | `Henüz önizlemeye alınmış CSV yok.` / `Bu işleme bağlı belge yok.` |
 | Özet | hata | Rapor yoksa `AppErrorView` (`Finansal özet alınamadı.` + `Tekrar dene`); boş durum değildir |
@@ -2005,3 +2005,158 @@ der, dokunulan kartta form önerilerle açılır.
 
 Açık: karanlık temada kartın yüzü açık renk çıkar (ayrı yüzey rengi kararı);
 limit çubuğunun oranı istemcide çizilir (sunucudan gelmesi kararı).
+
+## Kredi kartı teslimleri ve ortak seçim alanları — 12–13 Kasım 2026
+
+Claude Design teslimleri `design/design_handoff_kart_hareketleri` ve
+`design/design_handoff_kart_taksit_limit`; üstündeki üç düzeltme turu
+kullanıcının emülatör bulgularıdır. Kredi kartları sayfasında 11 Kasım
+tablosunun yerini alır.
+
+### Kredi kartları sayfası
+
+| Bölüm | Kural |
+|---|---|
+| Kartın yüzü | `CreditCardTile`. Limit kartın içindedir: solda `Güncel borç` + tutar; sağda `Son ödeme` / `Kesim` iki sütunlu ızgara (etiketler sola, günler sağa yaslı, arası 10, satır arası 6); altta çubuk (dönem borcu kırmızı, borcun kalanı gri) ve `Kullanılabilir ₺… / ₺limit`, limitin %10'u altında uyarı tonu ve simgesi. **Ölçüler bilerek kuralın üstündedir, yalnız bu kartta** (kullanıcı kararı): ad 16/600, tutar 28/700, etiketler 13, günler 14/600, kullanılabilir 15/700. Büyük yazıda kart uzar (`heightOf` ölçer; uyarı simgesinin satırı uzatması dahil) |
+| Dönem borcu | Başlık · tutar · `Son ödeme tarihi` ve `Asgari ödeme` satırları (etiket solda, değer sağa yaslı ve kartın kenarından 12 içeride — `Ödeme yap`ın yuvarlak ucunun göze bittiği yer) · `Ödeme yap`. Değerin üstünde küçük durum notu: `N gün kaldı`; son üç gün `3 gün kaldı` / `Yarın son gün` / `Bugün son gün` kırmızı; `Ödeme tarihi geçti` (asgari ödenmediyse gün ve asgari kırmızı, etiket `Kalan asgari ödeme`). Asgari ödendiyse yeşil `✓ Ödendi`. Kısmen ödendiyse tutarın altında `₺… ödendi · Ekstre ₺…`. Tamamı ödendiyse soluk ekstre tutarı + yeşil `✓ Tamamı ödendi`, asgari satırı ve düğme yok. Ekstre sıfırsa `Bu dönemde borç oluşmadı.`; ekstre yoksa `Dönem borcu` başlığı ve tek cümle. Gün sayısı yalnız etikettir |
+| Taksitler | Plan varsa kısa yatay şerit (`CardInstallmentStrip`), karta dokununca Taksitler sayfası (`CardInstallmentsPage`) |
+| Taksit ayrıntısı | Alttan panel, en çok ekranın %80'i (`AppAdaptiveSheet.tallDetailHeight`). Başlık (`AppSheetInsets.header`) ve toplam tutar kutusu sabittir; panelin tutma yeridir, oradan aşağı çekince kapanır. Liste altında kayar; açılışta sıradaki taksit görünür. Günü gelmiş sıradaki taksitte düğme `N. taksiti gerçekleştir ₺…` |
+| Hareketler bölümü | Tam genişlik blok, en çok 6 satır, ortak `ActivityTile`; alt yazı `tarih · kategori` (taksitte `tarih · Taksit 1/9`). Başlıkta `Tümü ›`. Sayfanın son bölümü |
+| Hareketler sayfası | Özet kartı (dönem adı ve durumu aynı satırda, tarih aralığı, `Harcama` / `Ödeme`), uygulanan filtre çipleri, gün blokları, kaydırdıkça yükleme. Başlıkta filtre ikonu 4 dp içeride (`relaxedActionsInset`, deneme) |
+| Tarih aralığı | `CardStatementRangeDialog`: başlık ‹ seçim › (ekstre modunda ad / aralık; özel aralıkta seçilen aralık / okların gösterdiği ekstre; boşken `Özel aralık`), altında `Ekstre \| Özel aralık` (`AppFilterSegments`), ekstreyi kapsayan haftaların ızgarası (ilk gün ve ayın 1'i küçük ay adı, `AppTextSizes.leafMonth`), seçim şeridi hafta başına tek parça, altta yalnız `Vazgeç` `Seç`. Dış göz: `research/DIS-GOZ-2026-11-13-tarih-araligi.md` |
+| Başlık | `AppPageBar(actionsInset: AppPageHeader.relaxedActionsInset)`: `+` 4 dp içeride (deneme; beğenilirse varsayılan olur) |
+
+Ayrıntıdan dönüş: `showActivityDetail` `Future<bool>` döner (kayıt iptal
+edildi mi). Kart sayfası ve Hareketler yalnız değişiklikte tazelenir;
+tazelenirken eski veri yerinde kalır (`FutureBuilder`'ın eski verisi), böylece
+kaydırma yeri korunur.
+
+### Ortak bileşenler
+
+| Bileşen | Kural |
+|---|---|
+| `AppPickField` (`core/widgets/app_pick_field.dart`) | Az seçenekli soruların ortak alanı (hesap türü, kategori türü, planlama, vergi, borç, hedef, veri araçları, işlem filtresi türü). Alan boşken de seçiliyken de 56 dp; boşken başlık alanın içinde yer tutucu. Menü (`MenuAnchor`) alanın 8 dp altında, alan genişliğinde; altında yer yoksa yukarı açılır. Seçili satır `AppPickMenuRow`: solda 4 dp çubuk, gri zemin, ✓ yok. `AppPickOption.blank`: kullanıcı seçmeden gelen değer alanı boş gösterir, menüden seçilince adını yazar |
+| `AppScopeDefaultField` | `AppPickField` üstünde: `Yok` (`Kapsamı kategori belirler`) · `İşletme` · `Şahsi` (`Kategoride yoksa geçerli`); alanın altında açıklama yok. Hesapta ve kartta yeni kayıtta alan boş gelir (`emptyIsBlank`); kategoride boş değer `İkisi de` (`Kayıt girerken sorulur`) yazılır |
+| `AppFilterSheet` ailesi (`app_filter_sheet.dart`) | ✕ · başlık · `Sıfırla` · bölümler (`AppFilterSection`, `AppFilterSegments`) · `Sonuçları göster`. `Sıfırla` her zaman yerindedir, sıfırlanacak bir şey yokken soluk (0,38); yazısı bölümlerin iç hizasında biter (sağdan 28) ve altı çizilidir |
+| `AppFilterSelectField` | Filtre panelinin seçim alanı; menüsü `AppAnimatedMenu`, satırları kategori çipinin menüsüyle aynı (`appFilterMenuItems`) |
+| `AppAnimatedMenu` (`app_animated_menu.dart`) | Hareketli yüzen menü (`OverlayPortal`): açılış 220 ms (dikey %85→%100, solma, satırlar gecikmeli), kapanış 150 ms; en çok 336 dp (altı buçuk satır); yer varsa aşağı; ok alanla birlikte döner; "animasyonları kapat"ta hareketsiz. Şimdilik yalnız filtrenin kategori alanında |
+| `AppCategoryField` | Akış içi menüsü artık hareketlidir: yer baştan ayrılır, görünen kısım yukarıdan aşağı açılır (220 ms) ve kapanırken toplanır (180 ms); kapanışta önce menü toplanır, sonra kaydırma eski yerine döner. Menü yüzen alt çubuğun arkasına girmez (`MediaQuery.paddingOf(context).bottom` düşülür) |
+| `AppTextAction(underlined: true)` | Alt çizgi yazıdan 2 dp ayrık ve ince (1,2): yazı saydam, görünen yazı 2 dp yukarıdaki gölgesidir. Bütün altı çizili bağlantılar (giriş ekranındakiler dahil) bu çizgiyi alır |
+| `AppPageHeader.actionsInset` / `AppPageBar.actionsInset` | Sağdaki eylemlerin kenara uzaklığı; varsayılan 4, deneme `relaxedActionsInset` 8 |
+| `AppAdaptiveSheet.show(maxHeightFactor:)` | Uzun listeli ayrıntı paneli ekranı kaplamaz |
+| `AppFormSheet.trailing` | Başlığın sağı (taksit panelindeki kart etiketi `CardNameChip`) |
+| `DateText.dayRangeShort` | Ay değişince iki uç boşluklu tireyle (`16 Eki – 15 Kas`); aynı ayda `15–17 Eyl` |
+
+**Denenip geri alınan (13 Kasım 2026):** menünün sayfanın akışı içinde açılıp
+alttaki alanları itmesi (`AppInlineMenu`). Hiç yukarı açılmıyordu ama açılıp
+kapanırken sayfa yer değiştiriyordu; kullanıcı yüzen menüyü istedi. Menü yönü
+kullanıcıyla ayrıca konuşulacak.
+
+**Bilerek eski açılır menüde kalanlar** (kayıt listesi seçenler):
+`data_tools_page` işlem seçimi, `obligation_form_page` (sayfa borç
+birleşmesinde kalkacak), `transactions_page` hesap/kategori seçimleri.
+
+**Yeni transfer:** masraf alanının etiketi `Masraf (bankanın aldığı ücret)`,
+alanın altında yardım yazısı yok; önizleme kutusu formun sonunda.
+
+## Seçim menüleri ve başlık eylemleri — 15 Kasım 2026
+
+**Yüzen menünün en çok boyu:** `AppSizes.menuMaxHeight` (384 dp, yaklaşık
+yedi satır). Ortak seçim alanı (`AppPickField`), taksit sayısı ve filtre
+(`AppFilterSelectField`) bu sınırı kullanır; yer azsa menü o kadar kısalır.
+**Hesap menüsü** (`AppAccountField`) grup başlıklarıyla birlikte altı hesabı
+gösterir; devamı yeni bir grupsa menü o grubun başlığıyla biter (üç nakit ve
+üç banka hesabı olan kullanıcıda `Kredi kartı` başlığı; kartlar kaydırınca
+gelir), aynı grupsa sıradaki satırın yarısı görünür.
+**Kategori menüsü bu kurala bağlı değildir** (kullanıcı kararı): az
+kategoride içerik kadar, kalabalık listede en çok
+`AppCategoryField.maxMenuHeight` (600 dp: arama, son kullanılanlar ve ilk
+grubun altı satırı) kadar uzar; panelde ve tam sayfada aynı boydadır, ekranın
+sonuna kadar uzamaz. Açık menünün altından sıradaki alanın kenarı görünmez
+(sayfada ayrılan yer gövdenin sonuna kadardır, panelde menünün altı 8 dp). Hepsinde uzun liste menünün içinde kayar ve **kaydırma
+çubuğu her zaman görünür**; kategori menüsü de artık çubuk çizer.
+
+**Yüzen menüler `AppAnimatedMenu` ile açılır** (13 Kasım'da yalnız filtredeydi):
+hesap, ortak seçim alanı ve taksit sayısı `MenuAnchor`'dan geçti. Alanın oku
+`AppMenuArrow`dur ve menüyle döner. `spanKey` verilirse menü alanın değil o
+kutunun genişliğinde açılır (taksit sayısı: bütün satır). Menü alttaki sistem
+çubuğunun ve yüzen alt çubuğun arkasında bitmez. `app_filter_menu.dart`
+içindeki çip menüsü `MenuAnchor`'da kaldı.
+
+**Başlık eylemleri 8 dp içeride** (`AppPageHeader.defaultActionsInset`;
+kullanıcı kararı): 24 dp'lik ikonun kenarı 20 dp'de durur. Kart sayfalarındaki
+deneme (`relaxedActionsInset`) kural oldu ve ad kalktı; yan yana iki eylem ve
+ay düğmesi aynı payla durur.
+
+**Kayıt formlarında alt çubuk yoktur** (`MainShell.hideBar`,
+`/transactions/new/…`): form tam ekran açılır, menünün ve son alanların
+üstünde çubuk durmaz.
+
+**Panelde yüzen menü** (15 Kasım 2026, akşam): form panelinde (`AppFormSheet`)
+alanın altında menüye yer yoksa `AppAnimatedMenu` alanın altına menü kadar yer
+ayırır ve panel uzar; menü yukarı açılmaz, sabit eylem satırının (`Vazgeç`,
+`Kaydet`) üstüne taşmaz. Her yerde menünün alt sınırı alanın içinde durduğu
+kaydırılan gövdenin sonudur. `expectedHeight` kısa menü için az yer ayırır.
+
+**Alanla menünün arasına yazı girmez.** Kategori alanında menü açıkken yardım
+ve hata yazısı menünün altında yazılır; yüzen menüler kutunun altından açılır
+ve yardım yazısını örter (`AppAnimatedMenu.anchorHeight`).
+
+**Panel başlığının yanındaki düğme başlığı aşağı itmez**
+(`AppSheetHeaderSlot`): geri oku ya da ay okları olan başlık düğmesiz başlıkla
+aynı yükseklikte durur. `AppFormSheet` `leading`/`trailing` için kendisi
+uygular; elle kurulan panel başlığı da bu yuvayı kullanır. Başlık
+`AppSheetInsets.body` ile boşluklanan gövdenin içine konmaz;
+`design_tokens_test` "panelin başlığı gövde payının içine konmaz" bunu,
+`app_account_field_sheet_test` başlık yüksekliğini ve paneldeki menünün eylem
+satırına taşmadığını korur.
+
+Kart yüzünde alacaklı kartın etiketi `Fazla ödemeniz`dir (`Kart alacağınız`
+yerine).
+
+## Seçim menülerinin son hâli — 15 Kasım 2026 (akşam)
+
+Bu bölüm aynı günün yukarıdaki iki bölümünü günceller; çelişen yerde bu
+geçerlidir.
+
+**Tek hareket.** Yüzen menü (`AppAnimatedMenu`), akış içindeki kategori
+menüsü ve filtre çipinin menüsü aynı hareketi kullanır (`AppMenuMotion`,
+`AppMenuReveal`, `AppMenuFade`): kutu alanın kenarından **uzar** (ölçeklenmez;
+köşeleri ve gölgesi yerindedir), içerik hareketin ilk yarısında belirir. Süre
+menünün boyuna göre seçilir (`openFor` 240–420 ms, `closeFor` 190–300 ms).
+Kategori menüsünde alttaki alanların itilmesi ve sayfanın alanı başa taşıması
+aynı orana bağlıdır (`AppMenuReveal.sizeFactor`); üçü ayrı ayrı olunca menü
+"bir anda" açılmış gibi okunuyordu.
+
+**Boy kuralları.**
+
+| Menü | En çok boy | Not |
+|---|---|---|
+| Hesap seçme (`AppAccountField`) | `AppAccountField.maxMenuHeight` 439 dp | `Gider ekle`deki ödeme kaynağı menüsünün boyu; daha az hesapta içerik kadar, kaymaz |
+| Filtre çipi (`AppFilterMenu`) | `AppFilterMenu.maxMenuHeight` 442 dp | Satırlar 48 dp; 520/600/690 dp'lik özel boylar kalktı |
+| Kategori (`AppCategoryField`) | `AppCategoryField.maxMenuHeight` 600 dp | Panelde ve sayfada aynı; ekranın sonuna kadar uzamaz |
+| Diğer yüzen menüler | `AppSizes.menuMaxHeight` 384 dp | Hesap türü, kapsam, taksit sayısı, filtre panelindeki kategori |
+
+Hepsinde uzun liste menünün içinde kayar ve kaydırma çubuğu hep görünür.
+
+**Panelde yüzen menü** kategori alanının paneldeki davranışını izler: yer
+yetmiyorsa panel `alan + menü` kadar boylanır (`AppFormSheetFit`), alan başa
+kayar, panelin diğer alanları o sırada görünmez, menünün altında eylem satırına
+8 dp kalır; seçince panel eski hâline döner. Yer yetiyorsa hiçbir şey itilmez.
+Menünün boyu ölçümden değil panelin verebileceği yerden bilinir; ayrılan yer
+menünün gerçek boyuna çekilir.
+
+**Filtre çipinin menüsü** artık `MenuAnchor` değil `AppAnimatedMenu`'dür
+(`menuWidth`, `menuScreenLeft`): dışarı dokununca da toplanarak kapanır.
+Menünün başlığı (`Kasım gideri`) grup başlıklarıyla aynı yazıdadır.
+
+**Tutar alanları** yazarken binlik ayırır (`TurkishAmountInputFormatter`:
+`1233` → `1.233`, `1.233,5`); önceden dolu tutar `MoneyText.field` ile aynı
+yazımda gelir. Okuma tek yerdedir: `MoneyText.normalizeInput` (virgül
+ondalık, nokta binlik; virgülsüz `23.100` binlik gruplu tam sayıdır). Yeni bir
+tutar alanı biçimlendiriciyi takar ve metni bu yoldan okur; elle
+`replaceAll(',', '.')` yazılmaz. Oran ya da tutar yazılabilen komisyon alanları
+ve hesabın açılış bakiyesi biçimlendirici takmaz.
+
+**Ekstre penceresi:** `Ekstredeki asgari tutar` tek satır ve kalındır; altındaki
+açıklama kalktı.

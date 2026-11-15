@@ -1,3 +1,4 @@
+import '../../../core/formatters/money_math.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/formatters/date_text.dart';
@@ -641,6 +642,7 @@ class _CreateBudgetDialogState extends State<_CreateBudgetDialog> {
               suffixText: 'TRY',
             ),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: const [TurkishAmountInputFormatter()],
             validator: _budgetMoneyError,
           ),
         ),
@@ -667,7 +669,7 @@ class _UpdateBudgetDialogState extends State<_UpdateBudgetDialog> {
     // Sunucu dört ondalıklı gönderir; alan onu ham hâliyle gösterirse
     // kullanıcı `2000.0000` okur. `editable` yalnız anlamsız sıfırları atar,
     // yuvarlamaz — düzenlenen değer sunucudaki değerin aynısıdır.
-    _limit = TextEditingController(text: MoneyText.editable(widget.item.limit));
+    _limit = TextEditingController(text: MoneyText.field(widget.item.limit));
   }
 
   @override
@@ -696,6 +698,7 @@ class _UpdateBudgetDialogState extends State<_UpdateBudgetDialog> {
               suffixText: 'TRY',
             ),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: const [TurkishAmountInputFormatter()],
             validator: _budgetMoneyError,
           ),
         ),

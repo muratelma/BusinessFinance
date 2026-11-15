@@ -42,7 +42,6 @@ import '../../features/activities/presentation/quick_add_form_page.dart';
 import '../../features/activities/presentation/quick_add_models.dart';
 import '../../features/activities/presentation/quick_add_navigation.dart';
 import '../../features/transactions/data/transaction_repository.dart';
-import '../../features/transactions/presentation/transactions_page.dart';
 import '../../features/cards/data/finance_repository.dart';
 import '../../features/cards/presentation/finance_page.dart';
 import '../../features/planning/data/planning_repository.dart';
@@ -156,6 +155,9 @@ GoRouter createAppRouter({
         builder: (context, state, navigationShell) => MainShell(
           navigationShell: navigationShell,
           scopeController: scopeController,
+          // Kayıt formları tam ekran açılır: çubuk formun son alanlarının ve
+          // açılan menünün üstünde durmasın (15 Kasım 2026).
+          hideBar: state.uri.path.startsWith('/transactions/new/'),
         ),
         branches: [
           StatefulShellBranch(
@@ -189,13 +191,12 @@ GoRouter createAppRouter({
             routes: [
               GoRoute(
                 path: '/transactions',
-                // The list now reads the unified feed. Creating a movement still
-                // goes through the existing form until the shared launcher lands.
                 pageBuilder: _sessionPageBuilder(
                   activityRepository == null
-                      ? TransactionsPage(
-                          repository: transactionRepository,
-                          changes: financialDataChanges,
+                      ? const Scaffold(
+                          body: AppErrorView(
+                            message: 'İşlem servisi yapılandırılmadı.',
+                          ),
                         )
                       : Builder(
                           builder: (context) => ActivityFeedPage(
@@ -215,14 +216,12 @@ GoRouter createAppRouter({
                 routes: [
                   GoRoute(
                     path: 'new',
-                    pageBuilder: _sessionPageBuilder(
-                      TransactionsPage(
-                        repository: transactionRepository,
-                        changes: financialDataChanges,
-                        showCreateOnOpen: true,
-                      ),
-                      authController,
-                    ),
+                    // Kayıt formlarının ortak üst yolu; kendi sayfası yoktur
+                    // (eski işlem formu kalktı, 15 Kasım 2026).
+                    redirect: (context, state) =>
+                        state.uri.path == '/transactions/new'
+                        ? '/transactions'
+                        : null,
                     routes: [
                       GoRoute(
                         path: 'expense',
@@ -635,6 +634,10 @@ GoRouter createAppRouter({
               : FinancePage(
                   repository: financeRepository,
                   financialDataChanges: financialDataChanges,
+                  activityRepository: activityRepository,
+                  pageRepository: financePageRepository,
+                  posRepository: posRepository,
+                  dayCloseRepository: dayCloseRepository,
                   cardPaymentPrefill: state.extra is CardPaymentPrefill
                       ? state.extra! as CardPaymentPrefill
                       : null,

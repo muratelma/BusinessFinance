@@ -15,7 +15,11 @@ class MainShell extends StatelessWidget {
     required this.navigationShell,
     super.key,
     this.scopeController,
+    this.hideBar = false,
   });
+
+  /// Telefonda alt çubuk çizilmez: kayıt formu tam ekran açılır.
+  final bool hideBar;
 
   static const _leadingDestinations = [
     ShellDestination(
@@ -161,7 +165,7 @@ class MainShell extends StatelessWidget {
     return Scaffold(
       extendBody: true,
       body: navigationShell,
-      bottomNavigationBar: keyboardOpen
+      bottomNavigationBar: keyboardOpen || hideBar
           ? null
           : ShellNavigationBar(
               destinations: destinations,

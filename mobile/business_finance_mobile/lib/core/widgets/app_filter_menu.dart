@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_breakpoints.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_surfaces.dart';
+import 'app_animated_menu.dart';
 import 'app_dashed_border.dart';
 import 'app_money_text.dart';
 import '../theme/app_typography.dart';
@@ -176,12 +177,20 @@ class AppFilterMenu extends StatefulWidget {
     required this.onSelected,
     this.caption,
     this.width = 320,
-    this.maxHeight = 520,
+    this.maxHeight = maxMenuHeight,
     this.alignToPageStart = false,
     this.muted = false,
     this.onUnavailable,
     super.key,
   });
+
+  /// Filtre menüsünün en çok boyu, bütün sayfalarda (kullanıcı kararı,
+  /// 15 Kasım 2026): hesap seçme menüsüyle aynı sınır. Satırlar burada 48 dp
+  /// olduğu için başlık, `Hepsi` ve yaklaşık yedi satır görünür; fazlası
+  /// menünün içinde kayar. Eskiden seçenek sayısına göre 520–690 dp'ye kadar
+  /// uzuyor, sayfanın sonuna iniyordu.
+  static const double maxMenuHeight = 442;
+
   final String label;
   final List<AppFilterOption> options;
   final String? selected;
@@ -197,211 +206,203 @@ class AppFilterMenu extends StatefulWidget {
 }
 
 class _AppFilterMenuState extends State<AppFilterMenu> {
-  bool open = false;
-  final _menu = MenuController();
   @override
   Widget build(BuildContext context) {
-    final surfaces = AppSurfaces.of(context);
-    final theme = Theme.of(context);
-    final children = <Widget>[];
-    if (widget.caption != null) {
+    final compact = context.windowSize == AppWindowSize.compact;
+    // Menü diğer seçim menüleriyle aynı bileşendir ([AppAnimatedMenu]):
+    // aynı açılış ve kapanış, dışarı dokununca da toplanarak kapanır, uzun
+    // liste içinde kayar ve kaydırma çubuğu görünür.
+    return AppAnimatedMenu(
+      maxMenuHeight: context.usesLargeText ? 640 : widget.maxHeight,
+      expectedHeight: (widget.options.length * 48.0 + 64).clamp(
+        96.0,
+        widget.maxHeight,
+      ),
+      menuWidth: widget.width,
+      // Telefonda menü çipe değil sayfanın kenarına hizalanır.
+      menuScreenLeft: !compact
+          ? null
+          : widget.alignToPageStart
+          ? AppSpacing.medium
+          : MediaQuery.sizeOf(context).width - widget.width - AppSpacing.medium,
+      menuBuilder: (context, close) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: appFilterMenuItems(
+          context,
+          options: widget.options,
+          selected: widget.selected,
+          width: null,
+          caption: widget.caption,
+          closeOnActivate: false,
+          onSelected: (key) {
+            close();
+            widget.onSelected(key);
+          },
+        ),
+      ),
+      builder: (context, open, toggle) => _FilterPill(
+        label: widget.label,
+        selected: widget.selected != null,
+        menuOpen: open,
+        muted: widget.muted,
+        onTap: widget.muted ? widget.onUnavailable : toggle,
+      ),
+    );
+  }
+}
+
+/// Süzgeç menüsünün satırları: isteğe bağlı başlık, gruplar, seçili satırda
+/// onay işareti ve gri zemin, sağda tutar. Çipin menüsü ([AppFilterMenu]) ve
+/// alttan panelin içindeki seçim alanı aynı satırları çizer. [width] boşsa
+/// satırlar bulundukları kutuya yayılır (akış içindeki menü).
+List<Widget> appFilterMenuItems(
+  BuildContext context, {
+  required List<AppFilterOption> options,
+  required String? selected,
+  required double? width,
+  required ValueChanged<String?> onSelected,
+  String? caption,
+  bool closeOnActivate = true,
+}) {
+  final surfaces = AppSurfaces.of(context);
+  final theme = Theme.of(context);
+  final children = <Widget>[];
+  if (caption != null) {
+    children.add(
+      Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.medium,
+          AppSpacing.compact,
+          AppSpacing.medium,
+          AppSpacing.small,
+        ),
+        child: Text(
+          caption,
+          // Grup başlıklarıyla aynı yazı: menüde iki ayrı başlık biçimi
+          // olmasın (kullanıcı, 15 Kasım 2026).
+          style: theme.textTheme.labelMedium?.copyWith(
+            fontSize: AppTextSizes.micro,
+            height: 1,
+            letterSpacing: 0.48,
+          ),
+        ),
+      ),
+    );
+    children.add(const Divider(height: 1));
+  }
+  children.add(const SizedBox(height: AppSpacing.xSmall));
+  String? group;
+  for (final option in options) {
+    if (option.group != null && group != option.group) {
+      group = option.group;
+      children.add(const SizedBox(height: AppSpacing.xSmall));
+      children.add(const Divider(height: 1));
       children.add(
         Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.medium,
             AppSpacing.compact,
             AppSpacing.medium,
-            AppSpacing.small,
+            AppSpacing.xSmall,
           ),
           child: Text(
-            widget.caption!,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontSize: AppTextSizes.caption,
-              height: 1.35,
+            group!,
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontSize: AppTextSizes.micro,
+              height: 1,
+              letterSpacing: 0.48,
             ),
           ),
         ),
       );
-      children.add(const Divider(height: 1));
     }
-    children.add(const SizedBox(height: AppSpacing.xSmall));
-    String? group;
-    for (final option in widget.options) {
-      if (option.group != null && group != option.group) {
-        group = option.group;
-        children.add(const SizedBox(height: AppSpacing.xSmall));
-        children.add(const Divider(height: 1));
-        children.add(
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.medium,
-              AppSpacing.compact,
-              AppSpacing.medium,
-              AppSpacing.xSmall,
+    final checked = selected == option.key;
+    children.add(
+      Semantics(
+        selected: checked,
+        child: MenuItemButton(
+          closeOnActivate: closeOnActivate,
+          style: ButtonStyle(
+            backgroundColor: WidgetStatePropertyAll(
+              checked ? surfaces.cardMuted : null,
             ),
-            child: Text(
-              group!,
-              style: theme.textTheme.labelMedium?.copyWith(
-                fontSize: AppTextSizes.micro,
-                height: 1,
-                letterSpacing: 0.48,
+            minimumSize: WidgetStatePropertyAll(
+              Size.fromHeight(option.subtitle == null ? 48 : 56),
+            ),
+            padding: const WidgetStatePropertyAll(
+              EdgeInsets.symmetric(
+                horizontal: AppSpacing.medium,
+                vertical: AppSpacing.xSmall,
               ),
             ),
           ),
-        );
-      }
-      final checked = widget.selected == option.key;
-      children.add(
-        Semantics(
-          selected: checked,
-          child: MenuItemButton(
-            style: ButtonStyle(
-              backgroundColor: WidgetStatePropertyAll(
-                checked ? surfaces.cardMuted : null,
-              ),
-              minimumSize: WidgetStatePropertyAll(
-                Size.fromHeight(option.subtitle == null ? 48 : 56),
-              ),
-              padding: const WidgetStatePropertyAll(
-                EdgeInsets.symmetric(
-                  horizontal: AppSpacing.medium,
-                  vertical: AppSpacing.xSmall,
+          onPressed: () => onSelected(option.key),
+          overflowAxis: width == null ? Axis.vertical : Axis.horizontal,
+          child: SizedBox(
+            width: width == null ? null : width - AppSpacing.medium * 2,
+            child: Row(
+              children: [
+                Icon(
+                  checked ? Icons.check : option.icon,
+                  size: 20,
+                  color: checked ? surfaces.ink : surfaces.inkMuted,
                 ),
-              ),
-            ),
-            onPressed: () => widget.onSelected(option.key),
-            child: SizedBox(
-              width: widget.width - AppSpacing.medium * 2,
-              child: Row(
-                children: [
-                  Icon(
-                    checked ? Icons.check : option.icon,
-                    size: 20,
-                    color: checked ? surfaces.ink : surfaces.inkMuted,
-                  ),
-                  const SizedBox(width: AppSpacing.compact),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
+                const SizedBox(width: AppSpacing.compact),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        option.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          fontSize: AppTextSizes.compact,
+                          height: 1.3,
+                          fontWeight: checked
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                        ),
+                      ),
+                      if (option.subtitle != null)
                         Text(
-                          option.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            fontSize: AppTextSizes.compact,
-                            height: 1.3,
-                            fontWeight: checked
-                                ? FontWeight.w600
-                                : FontWeight.w400,
+                          option.subtitle!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontSize: AppTextSizes.caption,
+                            height: 1.35,
                           ),
                         ),
-                        if (option.subtitle != null)
-                          Text(
-                            option.subtitle!,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              fontSize: AppTextSizes.caption,
-                              height: 1.35,
-                            ),
-                          ),
-                        if (context.usesLargeText && option.amount != null)
-                          _amount(option, checked),
-                      ],
-                    ),
+                      if (context.usesLargeText && option.amount != null)
+                        _filterMenuAmount(option, checked),
+                    ],
                   ),
-                  if (!context.usesLargeText && option.amount != null) ...[
-                    const SizedBox(width: AppSpacing.compact),
-                    _amount(option, checked),
-                  ],
+                ),
+                if (!context.usesLargeText && option.amount != null) ...[
+                  const SizedBox(width: AppSpacing.compact),
+                  _filterMenuAmount(option, checked),
                 ],
-              ),
+              ],
             ),
           ),
         ),
-      );
-    }
-    children.add(const SizedBox(height: AppSpacing.xSmall));
-    // Menü açıkken geri tuşu sayfayı değil menüyü kapatır.
-    return PopScope(
-      canPop: !open,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _menu.close();
-      },
-      child: _anchor(context, surfaces, children),
-    );
-  }
-
-  Widget _anchor(
-    BuildContext context,
-    AppSurfaces surfaces,
-    List<Widget> children,
-  ) {
-    return MenuAnchor(
-      controller: _menu,
-      reservedPadding: const EdgeInsets.all(AppSpacing.medium),
-      onOpen: () => setState(() => open = true),
-      onClose: () => setState(() => open = false),
-      alignmentOffset: const Offset(0, 4),
-      style: MenuStyle(
-        padding: const WidgetStatePropertyAll(EdgeInsets.zero),
-        backgroundColor: WidgetStatePropertyAll(surfaces.card),
-        side: WidgetStatePropertyAll(BorderSide(color: surfaces.border)),
-        alignment: AlignmentDirectional.bottomStart,
-        maximumSize: WidgetStatePropertyAll(
-          Size(widget.width, context.usesLargeText ? 640 : widget.maxHeight),
-        ),
-        shape: WidgetStatePropertyAll(
-          RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.field),
-          ),
-        ),
-      ),
-      menuChildren: children,
-      builder: (context, controller, _) => _FilterPill(
-        label: widget.label,
-        selected: widget.selected != null,
-        menuOpen: open,
-        muted: widget.muted,
-        onTap: widget.muted
-            ? widget.onUnavailable
-            : () {
-                if (controller.isOpen) {
-                  controller.close();
-                  return;
-                }
-                final anchor = context.findRenderObject();
-                if (context.windowSize == AppWindowSize.compact &&
-                    anchor is RenderBox) {
-                  final left = widget.alignToPageStart
-                      ? AppSpacing.medium
-                      : MediaQuery.sizeOf(context).width -
-                            widget.width -
-                            AppSpacing.medium;
-                  controller.open(
-                    position: Offset(
-                      left - anchor.localToGlobal(Offset.zero).dx,
-                      anchor.size.height + AppSpacing.xSmall,
-                    ),
-                  );
-                } else {
-                  controller.open();
-                }
-              },
       ),
     );
   }
-
-  Widget _amount(AppFilterOption option, bool checked) => AppMoneyText(
-    amount: option.amount!,
-    currency: 'TRY',
-    size: AppMoneySize.body,
-    effect: option.effect,
-    signedByAmount: option.signedByAmount,
-    style: TextStyle(
-      fontSize: AppTextSizes.compact,
-      height: 1.25,
-      fontWeight: checked ? FontWeight.w700 : FontWeight.w600,
-    ),
-  );
+  children.add(const SizedBox(height: AppSpacing.xSmall));
+  return children;
 }
+
+Widget _filterMenuAmount(AppFilterOption option, bool checked) => AppMoneyText(
+  amount: option.amount!,
+  currency: 'TRY',
+  size: AppMoneySize.body,
+  effect: option.effect,
+  signedByAmount: option.signedByAmount,
+  style: TextStyle(
+    fontSize: AppTextSizes.compact,
+    height: 1.25,
+    fontWeight: checked ? FontWeight.w700 : FontWeight.w600,
+  ),
+);

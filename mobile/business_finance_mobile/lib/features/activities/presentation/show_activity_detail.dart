@@ -12,7 +12,11 @@ import 'activity_controller.dart';
 import 'activity_detail_sheet.dart';
 
 /// İşlemler, kategori ve hesap sayfaları aynı ayrıntıyı açar.
-Future<void> showActivityDetail(
+///
+/// Ayrıntıda bir şey değiştiyse (kayıt iptal edildi) `true` döner; çağıran
+/// yalnız o zaman tazeler. Hiçbir şey değişmeden kapanan ayrıntıdan sonra
+/// listeyi baştan okumak, kullanıcıyı listenin başına atıyordu.
+Future<bool> showActivityDetail(
   BuildContext context, {
   required FinancialActivity activity,
   required ActivityController controller,
@@ -38,12 +42,15 @@ Future<void> showActivityDetail(
         settlementCount: activity.settlementCount ?? 0,
       ),
     );
-    return;
+    // Yatış ayrıntısı geri almayı kendi içinde yapar ve sonucu söylemez;
+    // tazelemek güvenli taraftır.
+    return true;
   }
   final balances = activity.isCancelled
       ? null
       : controller.balancesAfter(activity);
   final parts = pageRepository?.parts(activity);
+  var changed = false;
   await AppAdaptiveSheet.show<void>(
     context: context,
     builder: (sheetContext) => AnimatedBuilder(
@@ -57,6 +64,8 @@ Future<void> showActivityDetail(
         onShowDayClose: activity.belongsToDayClose && dayCloseRepository != null
             ? () async {
                 Navigator.pop(sheetContext);
+                // Günün ekranında gün sonu geri alınabilir.
+                changed = true;
                 final dayController = DayCloseController(
                   dayCloseRepository,
                   changes: changes,
@@ -76,16 +85,16 @@ Future<void> showActivityDetail(
             : null,
         onCancel: activity.canCancel
             ? () async {
-                if (await controller.cancel(activity, reload: reloadOnCancel) &&
-                    sheetContext.mounted) {
-                  Navigator.pop(sheetContext);
+                if (await controller.cancel(activity, reload: reloadOnCancel)) {
+                  changed = true;
+                  if (sheetContext.mounted) Navigator.pop(sheetContext);
                 }
               }
             : null,
       ),
     ),
   );
-  if (!context.mounted) return;
+  if (!context.mounted) return changed;
   final message = controller.successMessage ?? controller.errorMessage;
   if (message != null) {
     ScaffoldMessenger.of(
@@ -93,4 +102,5 @@ Future<void> showActivityDetail(
     ).showSnackBar(SnackBar(content: Text(message)));
   }
   controller.clearMessages();
+  return changed;
 }

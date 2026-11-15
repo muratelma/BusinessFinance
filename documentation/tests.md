@@ -2487,3 +2487,58 @@ Kalan yerler (aynı gün): `cash_pos_feature_test` Kasa'nın boş cümlesini yen
 tek cümlelik hâliyle arar. POS tahsilatları, Ödenenler, Yolda, kişinin sayfası,
 Veri araçları ve Özet'teki hata ekranı için yeni test yazılmadı; var olan
 testleri değişmeden geçti.
+
+## Kredi kartı teslimleri ve ortak seçim alanları — 12–13 Kasım 2026
+
+| Kanıt | Test | Ne doğrular |
+|---|---|---|
+| Kart sayfası ucu | `CardPageEndpointTests` (API, gerçek SQL) | Harcama ve ödeme toplamları; tür, kategori ve dönem süzgeci; geçersiz seçimlerin 400'ü; taksit önizlemesinin planla aynı bölmesi |
+| Kart sayfasının sahipliği | `OwnershipIsolationTests` (`kart sayfası` probu) | Başka sahibin kartı 404 |
+| Kart sayfası, filtre, çipler | `finance_feature_test` | Özetin durumu adla aynı satırda; filtre + çip; dönem borcu durumları (`Tamamı ödendi`, asgari `Ödendi`); 320–800 dp ve 1.0–2.0 yazı ölçeğinde taşma yok |
+| Tarih aralığı penceresi | `card_statement_range_dialog_test` | Özel aralıkta oklar seçimi silmez, 10 Ekim – 10 Kasım seçilir; `Ekstre` görünen ekstreyi seçer; `Özel aralık` boş başlar (`Seç` pasif); ekstre modunda ok ekstreyi seçer |
+| Hareketli menü | `app_animated_menu_test` | Açılır, seçince kapanır ve seçimi bildirir; dışarıya dokununca kapanır; altında yer yoksa yukarı açılır |
+| Varsayılan kapsam | `default_scope_form_test` | Yeni hesapta alan boş; açılınca üç seçenek ve kuralları; `Yok` seçilince alan `Yok` yazar; seçim kaydetmeyle gider |
+| Kategori seçici | `app_category_field_test` | Açılış/kapanış hareketi eklendikten sonra arama, gruplar ve ekleme önerisi değişmedi |
+
+Görüntü testi: `kredi_kartlarim_screenshot_test` 22 kare (`kart-01…19`,
+`kart-13b` özel aralık); 15, 16 ve 17 yeniden üretiliyor. Codex'in
+`integration_test/credit_card_design_test.dart` dosyası silindi (kullanıcı
+izniyle; aynı ekranları görüntü testi kapsıyor).
+
+Önceden kırık, bu işten bağımsız: `InstallmentEndpointTests.PlanAndRealization…`
+(Ağustos tarihli harcama 3 aylık varsayılan pencerenin dışında kalıyor; tarihe
+bağlı test). Tam `dotnet test` ve `dotnet format` bu turda koşulmadı.
+
+## Kart limiti, kesim günü ve seçim menüleri — 15 Kasım 2026
+
+| Kanıt | Test | Not |
+|---|---|---|
+| Yansımamış taksit limiti tutar | `CreditCardTests.CalculateAvailableLimit_HoldsInstallmentsThatHaveNotReachedTheCardYet` | Borç 1.000 + bekleyen 3.000 → 10.000 limitte 6.000 |
+| Bekleyen taksit yüzünden limit yetmeyen harcama reddedilir | `CardActivityUseCaseTests.Charge_ThatFitsTheDebtButNotThePendingInstallments_IsRejected` | Yalnız borca bakılsa geçerdi |
+| Ekstre kesim gününün sonunda kesilir | `CreditCardStatementTests.Create_OnTheClosingDayItself_IsRejectedBecauseThePeriodIsStillOpen` | Kesim günü hesaplanmaz, ertesi gün hesaplanır |
+| Filtrede dönem değişince kategoriler yenilenir | `finance_feature_test` "filtrede dönem değişince kategoriler yeni döneme göre gelir" | `Tüm zamanlar` seçilince yalnız o dönemde olan kategori menüde |
+| Kategori menüsünde gruplar kaydırarak okunur | `app_category_field_test` "kalabalık listede arama…" | Menünün boyundan bağımsız |
+| Ödeme borcu aşabilir, bekleyen taksitleri aşamaz | `CardActivityUseCaseTests.Payment_AboveTheDebt_IsAcceptedUpToThePendingInstallments` | Borç 100 + bekleyen 200: 300 kabul, 300,01 ret |
+
+Düzeltilen iki tarihe bağlı test: `CardActivityEndpointTests.ChargeAndPayment…`
+ve `InstallmentEndpointTests.PlanAndRealization…` kart hareketlerini
+`?all=true` ile okur (Ağustos tarihli kayıt varsayılan pencerenin dışına
+çıkmıştı). Bu turda tam `dotnet test`, `dotnet format --verify-no-changes`,
+`flutter analyze` ve tam `flutter test` (1308) koşuldu ve geçti. Yeni taksit
+planının limit denetimi için API seviyesinde ayrı test yazılmadı.
+
+**15 Kasım 2026 (akşam) ekleri.**
+
+| Kanıt | Test | Not |
+|---|---|---|
+| Gruplu tutar sunucu biçimine çevrilir | `money_text_test` "gruplu Türkçe tutar…", "gönderilen tutar…", "önceden dolu tutar…" | `1.250,75` → `1250.75`; bozuk gruplama reddedilir |
+| Biçimlendirici önceden dolu alanı bozmaz, noktayı virgül yapar | `money_math_test` "sona yazılan nokta…" | `3500` + `0` → `35.000` |
+| Paneldeki hesap menüsü eylem satırına taşmaz | `app_account_field_sheet_test` (412 ve 360 dp) | Menü en az üç hesap gösterir |
+| Düğmeli panel başlığı düğmesiz başlıkla aynı yükseklikte | `app_account_field_sheet_test` | `AppSheetHeaderSlot` |
+| Panel başlığı gövde payının içine konmaz | `design_tokens_test` | Kaynak taraması |
+| Ödeme borcu aşabilir, bekleyen taksitleri aşamaz | `CardActivityUseCaseTests.Payment_AboveTheDebt_…` | |
+
+Kalkan testler: `transactions_page_test`, `transactions_controller_test` (eski
+işlem formuyla birlikte). Uçtan uca deneme (emülatör + gerçek API + SQL):
+`Gider ekle`ye `1250,75` yazıldı, alan `1.250,75` gösterdi, veritabanına
+`1250.7500` yazıldı. Kapanış koşusu: `flutter test` 1310 geçti.

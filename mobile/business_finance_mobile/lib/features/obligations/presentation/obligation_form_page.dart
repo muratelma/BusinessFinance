@@ -1,3 +1,4 @@
+import '../../../core/formatters/money_math.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/formatters/money_text.dart';
@@ -56,7 +57,7 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
   void _applyPrefill() {
     final prefill = widget.prefill;
     if (prefill.amount case final suggestion?) {
-      _amount.text = MoneyText.editable(suggestion.value);
+      _amount.text = MoneyText.field(suggestion.value);
     }
     if (prefill.description case final suggestion?) {
       _description.text = suggestion.value;
@@ -199,6 +200,7 @@ class _ObligationFormPageState extends State<ObligationFormPage> {
           TextFormField(
             controller: _amount,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: const [TurkishAmountInputFormatter()],
             decoration: InputDecoration(
               labelText: 'Tutar',
               suffixText: 'TRY',

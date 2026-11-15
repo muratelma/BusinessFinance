@@ -38,4 +38,25 @@ void main() {
     expect(type('007').text, '7');
     expect(type('12a').text, '');
   });
+
+  test(
+    'sona yazılan nokta ondalık virgül olur, önceden dolu alan bozulmaz',
+    () {
+      const formatter = TurkishAmountInputFormatter();
+      String edit(String before, String after) => formatter
+          .formatEditUpdate(
+            TextEditingValue(text: before),
+            TextEditingValue(text: after),
+          )
+          .text;
+      // Sayı klavyesinin ondalık tuşu nokta ise.
+      expect(edit('1.250', '1.250.'), '1.250,');
+      expect(edit('1.250,', '1.250,7'), '1.250,7');
+      // Gruplanmadan dolu gelen tutar düzenlenince gruplanır, büyümez.
+      expect(edit('3500', '35000'), '35.000');
+      expect(edit('3500,5', '3500,55'), '3.500,55');
+      // Silme de gruplamayı korur.
+      expect(edit('12.345', '12.34'), '1.234');
+    },
+  );
 }

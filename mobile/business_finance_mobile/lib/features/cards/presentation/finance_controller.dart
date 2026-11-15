@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../core/network/api_exception.dart';
@@ -22,6 +24,10 @@ class FinanceController extends ChangeNotifier {
   final FinancialDataChanges? financialDataChanges;
 
   FinanceSnapshot? snapshot;
+
+  /// Kartların kesilmiş son ekstresi; kartın yüzündeki limit çubuğu dönem
+  /// borcunu bundan çizer. Kart listesinden sonra, beklemeden okunur.
+  final Map<String, CardStatement?> statements = {};
   bool isLoading = false;
   bool isSubmitting = false;
   bool unauthorized = false;
@@ -32,12 +38,6 @@ class FinanceController extends ChangeNotifier {
   /// her gün büyüyor, tümünü çekmek ilk aylarda görünmez sonra yavaşlar.
   HistoryPeriod period = HistoryPeriod.threeMonths;
 
-  Future<void> selectPeriod(HistoryPeriod value) async {
-    if (period == value) return;
-    period = value;
-    await load();
-  }
-
   Future<void> load() async {
     if (isLoading) return;
     isLoading = true;
@@ -46,6 +46,7 @@ class FinanceController extends ChangeNotifier {
     try {
       snapshot = await _repository.load(period: period);
       unauthorized = false;
+      unawaited(_loadStatements(snapshot!.cards));
     } on ApiException catch (error) {
       unauthorized = error.isUnauthorized;
       errorMessage = error.message;
@@ -55,6 +56,28 @@ class FinanceController extends ChangeNotifier {
       isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _loadStatements(List<CreditCardItem> cards) async {
+    final values = await Future.wait([
+      for (final card in cards)
+        Future.sync(
+          () => _repository.loadCurrentStatement(card.id),
+        ).then<CardStatement?>((value) => value).catchError((Object _) => null),
+    ]);
+    if (_disposed) return;
+    for (var i = 0; i < cards.length; i++) {
+      statements[cards[i].id] = values[i];
+    }
+    notifyListeners();
+  }
+
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 
   Future<bool> submit(
@@ -101,8 +124,6 @@ class FinanceController extends ChangeNotifier {
     }
   }
 
-  Future<CardActivity> loadActivity(String cardId) =>
-      _repository.loadActivity(cardId, period: period);
   Future<CardStatement> loadStatement(
     String cardId,
     int year,
@@ -112,6 +133,14 @@ class FinanceController extends ChangeNotifier {
   Future<CardStatement?> loadCurrentStatement(String cardId) =>
       _repository.loadCurrentStatement(cardId);
   FinanceRepositoryContract get repository => _repository;
+
+  /// Başarı cümlesini bir kez verir ve siler. Sayfa onu kendiliğinden kapanan
+  /// bir bildirimle söyler; hata cümlesi ise şeritte kapatılana kadar durur.
+  String? takeSuccessMessage() {
+    final message = successMessage;
+    successMessage = null;
+    return message;
+  }
 
   void clearMessage() {
     errorMessage = null;

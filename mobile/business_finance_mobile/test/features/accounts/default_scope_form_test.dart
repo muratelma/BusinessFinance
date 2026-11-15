@@ -18,17 +18,45 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Varsayılan kapsam'), findsNothing);
-      expect(find.text('Belirtilmedi'), findsNothing);
+      expect(find.text('Yok'), findsNothing);
     });
 
     testWidgets('kapsamı gören kullanıcıda üç seçenek çıkar', (tester) async {
       await tester.pumpWidget(_accountForm(hasBusiness: true));
       await tester.pumpAndSettle();
 
+      // Ortak seçim alanı: yeni hesapta alan boş gelir (yalnız başlık;
+      // kullanıcı, 13 Kasım 2026), açılınca altında üç seçenek ve her
+      // birinin kuralı (kart taksit ve limit teslimi §6).
       expect(find.text('Varsayılan kapsam'), findsOneWidget);
-      expect(find.text('Belirtilmedi'), findsOneWidget);
+      expect(find.text('Yok'), findsNothing);
+      await tester.tap(find.text('Varsayılan kapsam'));
+      await tester.pumpAndSettle();
+      expect(find.text('Yok'), findsOneWidget);
+      expect(find.text('Kapsamı kategori belirler'), findsOneWidget);
       expect(find.text('İşletme'), findsOneWidget);
       expect(find.text('Şahsi'), findsOneWidget);
+      expect(find.text('Kategoride yoksa geçerli'), findsNWidgets(2));
+      // Alanın altında ikinci bir açıklama metni yok.
+      expect(
+        find.textContaining('varsayılan kapsamı kullanılır'),
+        findsNothing,
+      );
+    });
+
+    testWidgets('Yok seçilince alan boşa dönmez, Yok yazar', (tester) async {
+      await tester.pumpWidget(_accountForm(hasBusiness: true));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Varsayılan kapsam'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Yok'));
+      await tester.pumpAndSettle();
+
+      // Menü kapandı; alan seçilmiş bir değer gibi `Yok` ve kuralını yazar.
+      expect(find.text('Yok'), findsOneWidget);
+      expect(find.text('Kapsamı kategori belirler'), findsOneWidget);
+      expect(find.text('İşletme'), findsNothing);
     });
 
     testWidgets('seçilen kapsam kaydetmeyle birlikte gider', (tester) async {
@@ -56,6 +84,8 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextFormField).first, 'Dükkân kasası');
+      await tester.tap(find.text('Varsayılan kapsam'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('İşletme'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Kaydet'));
@@ -108,7 +138,7 @@ void main() {
       expect(sent, TransactionScope.business);
     });
 
-    testWidgets('`Belirtilmedi` boş değer gönderir', (tester) async {
+    testWidgets('`Yok` boş değer gönderir', (tester) async {
       TransactionScope? sent = TransactionScope.business;
       await tester.pumpWidget(
         _accountForm(
@@ -140,7 +170,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Belirtilmedi'));
+      await tester.tap(find.text('İşletme'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Yok'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Kaydet'));
       await tester.pumpAndSettle();
@@ -179,6 +211,9 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextFormField).first, 'Kira');
+      // Kategoride boş değer `İkisi de`dir.
+      await tester.tap(find.text('İkisi de'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('İşletme'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Kaydet'));

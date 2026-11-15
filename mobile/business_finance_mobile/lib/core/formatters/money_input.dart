@@ -10,9 +10,8 @@ class MoneyInput {
 
   /// Girilen metni API sözleşmesinin dört ondalıklı biçimine çevirir.
   static String wire(String value) =>
-      (double.tryParse(value.trim().replaceAll(',', '.')) ?? 0).toStringAsFixed(
-        4,
-      );
+      (double.tryParse(MoneyText.normalizeInput(value) ?? '') ?? 0)
+          .toStringAsFixed(4);
 
   /// Doğrulama için sayısal karşılık; biçim geçersizse `null`.
   static double? parse(String value) {

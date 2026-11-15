@@ -1,5 +1,7 @@
+import '../../../core/formatters/money_math.dart';
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/app_pick_field.dart';
 import '../../../core/formatters/money_input.dart';
 import '../../../core/formatters/money_text.dart';
 import '../../../core/models/data_choice.dart';
@@ -353,6 +355,7 @@ class _GoalFormState extends State<_GoalForm> {
           child: TextFormField(
             controller: _target,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: const [TurkishAmountInputFormatter()],
             decoration: const InputDecoration(
               labelText: 'Hedef tutar',
               suffixText: 'TRY',
@@ -368,32 +371,29 @@ class _GoalFormState extends State<_GoalForm> {
           ),
         ),
         AppFormField(
-          child: DropdownButtonFormField<String>(
-            initialValue: _mode,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: 'İlerleme kaynağı',
-
-              // İki mod adları dışında hiçbir şey söylemiyordu ve aralarındaki
-              // asıl fark buydu: biri para taşıdığınızı varsayar, diğeri
-              // taşımadığınızı.
-              helperText: _mode == 'manual-contributions'
-                  ? 'Tutarı siz girersiniz; para hareket etmez.'
-                  : 'Seçtiğiniz hesabın bakiyesi ilerlemeyi belirler.',
-              helperMaxLines: 2,
-            ),
-            items: const [
-              DropdownMenuItem(
+          // İki mod adları dışında hiçbir şey söylemiyordu ve aralarındaki
+          // asıl fark buydu: biri para taşıdığınızı varsayar, diğeri
+          // taşımadığınızı. Fark seçeneğin alt yazısındadır.
+          child: AppPickField<String>(
+            label: 'İlerleme kaynağı',
+            value: _mode,
+            showSubtitle: true,
+            options: const [
+              AppPickOption(
                 value: 'manual-contributions',
-                child: Text('Manuel katkılar'),
+                label: 'Manuel katkılar',
+                icon: Icons.edit_outlined,
+                subtitle: 'Tutarı siz girersiniz',
               ),
-              DropdownMenuItem(
+              AppPickOption(
                 value: 'account-balance',
-                child: Text('Hesap bakiyesi'),
+                label: 'Hesap bakiyesi',
+                icon: Icons.account_balance_wallet_outlined,
+                subtitle: 'Hesabın bakiyesi belirler',
               ),
             ],
             onChanged: (value) => setState(() {
-              _mode = value!;
+              _mode = value;
               _accountId = null;
             }),
           ),
@@ -458,6 +458,7 @@ class _ContributionFormState extends State<_ContributionForm> {
           child: TextFormField(
             controller: _amount,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: const [TurkishAmountInputFormatter()],
             decoration: const InputDecoration(
               labelText: 'Tutar',
               suffixText: 'TRY',

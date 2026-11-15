@@ -105,6 +105,38 @@ void main() {
     );
   });
 
+  test('panelin başlığı gövde payının içine konmaz', () {
+    // Panelin başlığı tutamacın hemen altından başlar
+    // (`AppSheetInsets.header` / `top`). Başlık `AppSheetInsets.body` ile
+    // boşluklanan gövdenin içine konunca 8 dp aşağıda durur ve paneller
+    // arasında başlık yüksekliği ayrışır (Ekstre paneli, 15 Kasım 2026).
+    final offenders = <String>[];
+    for (final entity in libDir.listSync(recursive: true)) {
+      if (entity is! File || !entity.path.endsWith('.dart')) continue;
+      final path = entity.path.replaceAll(r'\', '/');
+      if (path.contains('/core/theme/')) continue;
+      final lines = entity.readAsLinesSync();
+      for (var i = 0; i < lines.length; i++) {
+        if (!lines[i].contains('padding: AppSheetInsets.body,')) continue;
+        final end = i + 25 < lines.length ? i + 25 : lines.length;
+        for (var j = i + 1; j < end; j++) {
+          if (lines[j].contains('textTheme.titleLarge')) {
+            offenders.add('$path:${i + 1}');
+            break;
+          }
+        }
+      }
+    }
+    expect(
+      offenders,
+      isEmpty,
+      reason:
+          'Panel başlığı gövde payının (AppSheetInsets.body) içinde. Başlık '
+          'AppSheetInsets.header ya da top ile boşluklanır:\n'
+          '${offenders.join('\n')}',
+    );
+  });
+
   test('sayfa gövdesinin boşluğu AppPageInsets adlarından gelir', () {
     // Her sayfa kaydırılan gövdeye kendi boşluğunu yazınca başlığın altı
     // sayfadan sayfaya 0, 4, 8, 12 ve 16 dp olmuştu (10 Kasım 2026). Gövde

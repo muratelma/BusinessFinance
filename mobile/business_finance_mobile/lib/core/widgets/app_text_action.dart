@@ -31,12 +31,20 @@ class AppTextAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ink = AppSurfaces.of(context).ink;
+    // Alt çizgi yazıya yapışık durmasın, harflerin kuyruğunu kesmesin diye
+    // yazı gölgesiyle çizilir: asıl yazı saydamdır, görünen yazı onun 2 dp
+    // yukarısındaki gölgesidir; çizgi saydam yazının altında kalır ve böylece
+    // yazıdan 2 dp ayrılır (kullanıcı, 13 Kasım 2026: "düzgünce çiz").
     final style = Theme.of(context).textTheme.bodyMedium?.copyWith(
       fontWeight: FontWeight.w600,
       height: 1,
-      color: ink,
+      color: underlined ? Colors.transparent : ink,
+      shadows: underlined
+          ? [Shadow(color: ink, offset: const Offset(0, -2))]
+          : null,
       decoration: underlined ? TextDecoration.underline : null,
       decorationColor: ink,
+      decorationThickness: 1.2,
     );
     return Semantics(
       button: true,

@@ -2081,3 +2081,104 @@ Kullanıcı boş bir yerle üç biçimde karşılaşır; kurallar
   çerçeveli düğme: `Aramayı temizle`, `Filtreyi temizle`, `Son 1 yıla bak`,
   `90 güne bak`, `Ay seç`, Cari hesap'ta `Tümünü göster`.
 - **Dolu sayfada boş bölüm:** kartın içinde tek soluk cümle.
+
+## Kredi kartı: taksitler, hareketler ve filtre — 12–13 Kasım 2026
+
+Claude Design teslimleri `design/design_handoff_kart_hareketleri` ve
+`design/design_handoff_kart_taksit_limit`. 11 Kasım akışının kart kısmının
+yerini alır.
+
+```text
+Diğer -> Kredi kartlarım
+  -> kart (yüzünde güncel borç, son ödeme / kesim günü, limit çubuğu,
+     kullanılabilir limit)
+  -> işlemler: Harcama · Taksitli harcama · Ödeme · Ekstre · Düzenle
+  -> dönem borcu kartı -> Ödeme yap -> ödeme seçimi -> kart ödemesi formu
+  -> Taksitler şeridi (plan varsa) -> karta dokun -> Taksitler sayfası
+       -> plana dokun -> taksit ayrıntısı (başlık + toplam kutusu sabit,
+          oradan aşağı çekince kapanır; liste kayar)
+          -> günü gelmiş sıradaki taksitte `N. taksiti gerçekleştir ₺…`
+  -> Hareketler (en çok 6 satır) -> satıra dokun -> ortak işlem ayrıntısı
+       -> iptal edildiyse kart ve bölüm tazelenir; edilmediyse sayfa yerinde
+  -> Hareketler `Tümü` -> Hareketler sayfası
+       (özet kartı: dönem adı ve durumu, Harcama / Ödeme)
+       -> filtre ikonu -> Hareketleri filtrele paneli
+            Tür (Hepsi · Harcama · Taksitli · Ödeme) · Kapsam · Dönem · Kategori
+            Tür `Ödeme` ise Kapsam ve Kategori kalkar
+            Dönem: Bu ekstre · Tüm zamanlar · Tarih aralığı seç…
+              -> tarih aralığı penceresi (aşağıda)
+            Kategori -> hareketli menü (ikon · ad · tutar)
+            `Sıfırla` (taslağı varsayılana döndürür) · `Sonuçları göster`
+       -> uygulanan filtreler özetin altında kaldırılabilir çip
+       -> satıra dokun -> ortak ayrıntı; iptal olduysa liste yerinde
+          tazelenir (yüklenmiş satır sayısı korunur)
+```
+
+**Tarih aralığı penceresi.** Başlık ‹ seçim ›; altında `Ekstre | Özel aralık`.
+Ekstre modunda başlık ekstrenin adı ve aralığıdır, oklar o ekstreyi seçer.
+Bir güne dokunmak özel aralığa geçer ve o günü başlangıç yapar. Özel aralıkta
+başlık seçilen aralıktır (`10 Eki – …`, sonra `10 Eki – 10 Kas`), altında
+okların gösterdiği ekstre yazar; oklar yalnız sayfa çevirir, seçim korunur —
+iki ekstreye yayılan aralık böyle seçilir. `Özel aralık`a dokunmak seçimi
+boşaltır (`Seç` pasif). `Ekstre`ye dokunmak görünen ekstreyi seçer. Altta
+yalnız `Vazgeç` ve `Seç`.
+
+**Taksitli harcama paneli.** Kategori · Toplam tutar · Taksit sayısı ↔ İlk
+taksit · mavi önizleme (aylık taksit × sayı, çubuk, ilk/son gün) · Açıklama.
+Taksit sayısı menüsü 2 · 3 · 4 · 6 · 9 · 12 ve her birinin aylık tutarı,
+en altta `Diğer sayı` (alan yazılabilir olur, 2–60). Tutarlar
+`installment-plans/preview`'dan gelir.
+
+**Kart ekle / Kartı düzenle.** Varsayılan kapsam alanı yeni kartta boş gelir;
+menüden `Yok` seçilirse `Yok` yazar.
+
+**Hesap sayfası.** Kategori ya da tür seçiliyken bakiye kartının altında gri
+satır (simge · ad · tutar · ✕); ✕ seçimi kaldırır.
+
+**Yeni transfer.** Masraf alanının etiketi `Masraf (bankanın aldığı ücret)`;
+alanın altında yardım yazısı yok. Önizleme kutusu (`… hesabından toplam ₺…
+çıkar`) formun sonunda, Açıklama'nın altındadır.
+
+## Kredi kartı: limit, kesim günü ve seçim menüleri — 15 Kasım 2026
+
+**Taksitli alışveriş limiti baştan tutar.** Taksitli harcama yazıldığında
+tamamı kullanılabilir limitten düşer; her taksit karta yansıyıp ödendikçe
+limit açılır. Kart borcu, gider ve ekstre değişmedi: taksit yansıdığı gün borç
+ve gider olur. Limit yetmiyorsa taksitli harcama da taksitsiz harcama gibi
+reddedilir. İşlem ayrıntısındaki `Kalan limit` aynı kuralı kullanır.
+
+**Kesim günü hâlâ açık dönemdir.** Dönem borcu kartı kesim gününde bir önceki
+ekstreyi gösterir; yeni ekstre ertesi gün çıkar. Kesimden sonra yapılan ödeme
+asgariyi ve kalan borcu düşürür (`Kısmen ödendi`, `✓ Tamamı ödendi`); kesim
+günü yapılan ödeme o ekstrenin borcunu baştan azaltır.
+
+**Hareket filtresi.** Panel açıkken dönem, tür ya da kapsam değişince
+kategori listesi ve tutarları yeni seçime göre yeniden okunur; kullanıcı
+önce sonuçları görmek zorunda kalmaz.
+
+**Kayıt formları tam ekran.** `Gider ekle`, `Gelir ekle` ve aynı yoldaki
+diğer kayıt formlarında (`/transactions/new/…`) alt çubuk çizilmez; geri
+dönünce çubuk yerindedir.
+
+**Seçim menüleri.** Hesap, hesap türü, varsayılan kapsam, taksit sayısı ve
+filtre menüleri hareketle açılır, alanın oku menüyle döner. Hesap menüsü altı
+hesabı gösterir ve devamı yeni bir grupsa o grubun başlığıyla biter; diğer
+yüzen menüler yaklaşık yedi satırdır. Kategori menüsü kendi kuralındadır:
+içerik kadar, en çok 600 dp; panelde ve sayfada aynı boyda. Uzun liste menünün
+içinde kayar ve kaydırma çubuğu görünür.
+
+**Kart ödemesi.** Ödeme tutarı seçiminde `Güncel borcun tamamı` da vardır
+(ekstre ödenmişken kesimden sonraki harcamalar için; dönem borcuyla aynı
+tutarsa yazılmaz). `Başka tutar` karta yansımış borcu aşabilir: fazlası kartta
+alacak olarak kalır ve taksitler yansıdıkça erir, kullanıcı gelecek taksitlerini
+böyle önceden kapatır. Borcun ve bekleyen taksitlerin toplamını aşan tutar
+reddedilir (`credit_cards.payment_exceeds_debt`). Ekstre penceresi kesim
+gününde o günün ekstresini sunmaz; en son kesilmiş ekstreyle açılır.
+
+**15 Kasım 2026 (akşam) ekleri.** Tutar alanları yazarken binlik ayırır.
+Kategori özetinde `Bu seçimde başka hesap veya kart yok` gibi notlar seçim
+(ay, kapsam, yön, hesap, kişi) değişince kalkar. Eski işlem formu kalktı:
+`/transactions/new` kayıt formlarının ortak üst yoludur, kendi sayfası yoktur
+ve `/transactions`'a yönlenir. Seçim menülerinin ortak hareketi ve boy
+kuralları `documentation/design-system.md` "Seçim menülerinin son hâli"
+bölümündedir.

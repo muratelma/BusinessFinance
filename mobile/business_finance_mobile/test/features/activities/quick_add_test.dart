@@ -1,3 +1,4 @@
+import 'package:business_finance_mobile/features/cards/data/card_page_models.dart';
 import '../../support/account_field_helpers.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
 import 'dart:async';
@@ -1179,6 +1180,21 @@ class _FakeTransactions implements TransactionRepositoryContract {
 }
 
 class _FakeFinance implements FinanceRepositoryContract {
+  @override
+  Future<CardPageData> loadCardPage(
+    String cardId,
+    CardMovementQuery query, {
+    int offset = 0,
+    int? limit,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<List<InstallmentPreviewOption>> previewInstallments({
+    required String totalAmount,
+    required String firstInstallmentDate,
+    required List<int> counts,
+  }) async => const [];
+
   _FakeFinance({this.hasFeeCategory = true});
 
   final List<(String, Map<String, Object?>)> charges = [];
@@ -1257,11 +1273,6 @@ class _FakeFinance implements FinanceRepositoryContract {
   @override
   Future<void> createTransfer(Map<String, Object?> input) =>
       throw UnimplementedError();
-  @override
-  Future<CardActivity> loadActivity(
-    String cardId, {
-    HistoryPeriod period = HistoryPeriod.threeMonths,
-  }) => throw UnimplementedError();
   @override
   Future<CardStatement> loadStatement(
     String cardId,

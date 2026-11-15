@@ -1,3 +1,4 @@
+import 'package:business_finance_mobile/core/formatters/money_input.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:business_finance_mobile/core/formatters/money_text.dart';
 
@@ -65,5 +66,37 @@ void main() {
     expect(MoneyText.normalizeInput(' 12,50 '), '12.50');
     expect(MoneyText.normalizeInput('12.12345'), isNull);
     expect(MoneyText.normalizeInput('-12'), isNull);
+  });
+
+  // Alan yazarken binlik ayırıcı koyar; okuma aynı yazımı geri çözer.
+  test('gruplu Türkçe tutar sunucu biçimine çevrilir', () {
+    expect(MoneyText.normalizeInput('1.250,75'), '1250.75');
+    expect(MoneyText.normalizeInput('1.233'), '1233');
+    expect(MoneyText.normalizeInput('12.345.678,9'), '12345678.9');
+    expect(MoneyText.normalizeInput('1250,75'), '1250.75');
+    expect(MoneyText.normalizeInput('999'), '999');
+    // Gruplanmamış nokta eski yazımdır: ondalık okunur.
+    expect(MoneyText.normalizeInput('12.5'), '12.5');
+    // Bozuk gruplama ve fazla basamak reddedilir.
+    expect(MoneyText.normalizeInput('1.25,75'), isNull);
+    expect(MoneyText.normalizeInput('1.250,12345'), isNull);
+    expect(MoneyText.normalizeInput('1.250,'), isNull);
+  });
+
+  test('gönderilen tutar gruplu yazımdan dört basamakla kurulur', () {
+    expect(MoneyInput.wire('1.250,75'), '1250.7500');
+    expect(MoneyInput.wire('1.233'), '1233.0000');
+    expect(MoneyInput.wire('0,5'), '0.5000');
+    expect(MoneyInput.parse('1.250,75'), 1250.75);
+    expect(MoneyInput.positiveError('1.250,75'), isNull);
+  });
+
+  test('önceden dolu tutar alanın yazımıyla gelir', () {
+    expect(MoneyText.field('3500.0000'), '3.500');
+    expect(MoneyText.field('3500.5000'), '3.500,5');
+    expect(MoneyText.field('1234567.8900'), '1.234.567,89');
+    expect(MoneyText.field('999.0000'), '999');
+    // Yazılan, okunana geri döner.
+    expect(MoneyText.normalizeInput(MoneyText.field('4010.1234')), '4010.1234');
   });
 }

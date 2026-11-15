@@ -7,6 +7,8 @@ import '../../../core/presentation/financial_data_changes.dart';
 import '../../../core/presentation/scope_controller.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
+import '../../../core/widgets/app_account_field.dart';
+import '../../../core/widgets/app_pick_field.dart';
 import '../../../core/widgets/app_form_error.dart';
 import '../../../core/widgets/app_page_bar.dart';
 import '../../../core/widgets/app_scope_selector.dart';
@@ -181,17 +183,26 @@ class _AccountFormPageState extends State<AccountFormPage> {
                     : null,
               ),
               const SizedBox(height: AppGaps.field),
-              DropdownButtonFormField<String>(
-                initialValue: _type,
-                decoration: const InputDecoration(
-                  labelText: 'Hesap türü',
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'cash', child: Text('Nakit')),
-                  DropdownMenuItem(value: 'bank', child: Text('Banka')),
+              AppPickField<String>(
+                label: 'Hesap türü',
+                value: _type,
+                onChanged: _editing
+                    ? null
+                    : (value) => setState(() => _type = value),
+                options: [
+                  AppPickOption(
+                    value: 'cash',
+                    label: 'Nakit',
+                    icon: Icons.payments_outlined,
+                    iconColor: accountKindColor(context, AppAccountKind.cash),
+                  ),
+                  AppPickOption(
+                    value: 'bank',
+                    label: 'Banka',
+                    icon: Icons.account_balance_outlined,
+                    iconColor: accountKindColor(context, AppAccountKind.bank),
+                  ),
                 ],
-                onChanged: _editing ? null : (value) => _type = value!,
               ),
               const SizedBox(height: AppGaps.field),
               TextFormField(
@@ -212,9 +223,6 @@ class _AccountFormPageState extends State<AccountFormPage> {
                 AppScopeDefaultField(
                   value: _defaultScope,
                   onChanged: (value) => setState(() => _defaultScope = value),
-                  helperText:
-                      'Kaydın kapsamını kategori belirler. Kategoride kapsam '
-                      'seçilmemişse bu hesabın varsayılan kapsamı kullanılır.',
                 ),
               ],
               if (_editing) ...[

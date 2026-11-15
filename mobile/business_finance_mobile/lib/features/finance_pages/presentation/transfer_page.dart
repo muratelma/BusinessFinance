@@ -176,7 +176,10 @@ class _TransferPageState extends State<_TransferPageBody> {
                       const SizedBox(height: AppGaps.field),
                       _money('Tutar', amount, requiredValue: true),
                       const SizedBox(height: AppGaps.field),
-                      _money('Masraf (isteğe bağlı)', fee),
+                      // Açıklama etikettedir, alanın altında değil: alttaki
+                      // yardım yazısı alanı uzatıp Açıklama'ya olan aralığı
+                      // büyütüyordu (kullanıcı, 13 Kasım 2026).
+                      _money('Masraf (bankanın aldığı ücret)', fee),
                       if ((MoneyMath.fromInput(fee.text) ?? '0.0000') !=
                               '0.0000' &&
                           from?.defaultScope == null &&
@@ -195,7 +198,22 @@ class _TransferPageState extends State<_TransferPageBody> {
                           },
                         ),
                       ],
-                      const SizedBox(height: AppSpacing.medium),
+                      const SizedBox(height: AppGaps.field),
+                      TextFormField(
+                        controller: description,
+                        enabled: !controller.isSaving,
+                        maxLength: 500,
+                        maxLines: 1,
+                        decoration: const InputDecoration(
+                          labelText: 'Açıklama (isteğe bağlı)',
+                          counterText: '',
+                        ),
+                        onChanged: (_) => _preview(),
+                      ),
+                      // Özet formun sonundadır: alanlar eşit aralıklı kalır,
+                      // mavi kutu alanların arasına girmez.
+                      if (controller.isPreviewing || controller.preview != null)
+                        const SizedBox(height: AppGaps.field),
                       if (controller.isPreviewing)
                         const Padding(
                           padding: EdgeInsets.all(AppSpacing.compact),
@@ -212,18 +230,6 @@ class _TransferPageState extends State<_TransferPageBody> {
                               ? '${controller.preview!.sourceAccountName} hesabından ${MoneyText.format(controller.preview!.totalOutflow, 'TRY')} çıkar.'
                               : '${controller.preview!.sourceAccountName} hesabından toplam ${MoneyText.format(controller.preview!.totalOutflow, 'TRY')} çıkar. Masraf ${controller.preview!.feeCategoryName} olarak gider yazılır.',
                         ),
-                      const SizedBox(height: AppGaps.field),
-                      TextFormField(
-                        controller: description,
-                        enabled: !controller.isSaving,
-                        maxLength: 500,
-                        maxLines: 1,
-                        decoration: const InputDecoration(
-                          labelText: 'Açıklama (isteğe bağlı)',
-                          counterText: '',
-                        ),
-                        onChanged: (_) => _preview(),
-                      ),
                       if (controller.errorMessage != null)
                         AppFormError(message: controller.errorMessage!),
                       const SizedBox(height: AppSpacing.large),
@@ -318,15 +324,7 @@ class _TransferPageState extends State<_TransferPageBody> {
     enabled: !controller.isSaving,
     keyboardType: const TextInputType.numberWithOptions(decimal: true),
     inputFormatters: const [TurkishAmountInputFormatter()],
-    decoration: InputDecoration(
-      labelText: label,
-      prefixText: '₺ ',
-      helperText:
-          !requiredValue &&
-              (MoneyMath.fromInput(text.text) ?? '0.0000') == '0.0000'
-          ? 'Bankanın aldığı ücret. Çıkan hesaptan düşer.'
-          : null,
-    ),
+    decoration: InputDecoration(labelText: label, prefixText: '₺ '),
     onChanged: (_) => _preview(),
     validator: (v) {
       if (!requiredValue && (v ?? '').isEmpty) return null;

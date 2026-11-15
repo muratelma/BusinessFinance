@@ -1,3 +1,6 @@
+import 'package:business_finance_mobile/features/cards/presentation/card_plan_widgets.dart';
+import 'package:business_finance_mobile/features/cards/data/card_page_models.dart';
+import 'package:business_finance_mobile/features/finance_pages/data/finance_page_models.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -5,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:business_finance_mobile/core/widgets/app_form_error.dart';
 import '../../helpers/accessibility.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
-import 'package:business_finance_mobile/core/widgets/app_row_action.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -293,6 +295,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Kart ödemesi kaydedildi.'), findsOneWidget);
+    // Başarı kalıcı şerit değil, kendiliğinden kapanan bildirimdir.
+    expect(find.byType(MaterialBanner), findsNothing);
+    expect(find.byType(SnackBar), findsOneWidget);
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+    expect(find.text('Kart ödemesi kaydedildi.'), findsNothing);
   });
 
   testWidgets('kart sayfası tarihleri ayrı satırlarda ve taşmadan gösterir', (
@@ -313,11 +321,21 @@ void main() {
       ),
     );
 
-    // Günler kartın yüzünde, her biri kendi etiketiyle (11 Kasım 2026).
-    expect(find.text('Hesap kesimi'), findsOneWidget);
-    expect(find.text('Son ödeme'), findsOneWidget);
-    expect(find.text("Ayın 10'u"), findsOneWidget);
-    expect(find.text("Ayın 20'si"), findsOneWidget);
+    // Günler kartın yüzünde, her biri kendi etiketiyle (teslim §1: son ödeme
+    // üstte, kesim altta).
+    expect(find.textContaining('Kesim', findRichText: true), findsOneWidget);
+    expect(
+      find.textContaining('Son ödeme', findRichText: true),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining("Ayın 10'u", findRichText: true),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining("Ayın 20'si", findRichText: true),
+      findsOneWidget,
+    );
 
     // Dört eylem butonu iki gruba ayrıldı; en büyük yazı ölçeğinde alt satıra
     // düşen buton üsttekine yapışmamalı ve satır taşmamalı.
@@ -356,15 +374,15 @@ void main() {
     // Kartın sayfasındayken "hangi kart" diye sormak, verilen bilgiyi geri
     // istemek olurdu.
     expect(find.text('Kart'), findsNothing);
-    expect(find.text('Gider kategorisi'), findsOneWidget);
+    expect(find.text('Kategori'), findsOneWidget);
 
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Toplam'),
+      find.widgetWithText(TextFormField, 'Toplam tutar'),
       '1400',
     );
-    await tester.ensureVisible(categoryField('Gider kategorisi'));
+    await tester.ensureVisible(categoryField('Kategori'));
     await tester.pumpAndSettle();
-    await chooseCategory(tester, 'Sağlık', label: 'Gider kategorisi');
+    await chooseCategory(tester, 'Sağlık', label: 'Kategori');
 
     await tester.tap(find.text('Kaydet'));
     await tester.pumpAndSettle();
@@ -395,13 +413,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Dönem borcu'), findsOneWidget);
+    expect(find.text('Ağustos 2026 dönem borcu'), findsOneWidget);
     // Ekstrenin adı ve asgari tutar tek yardımcı satırdadır.
-    expect(find.textContaining('Ağustos 2026 ekstresi'), findsOneWidget);
-    expect(find.textContaining('Asgari ₺'), findsOneWidget);
+    expect(find.text('Ağustos 2026 dönem borcu'), findsOneWidget);
+    expect(find.text('Asgari ödeme'), findsOneWidget);
     expect(find.text('20 Ağustos'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Ekstreyi öde'), findsOneWidget);
-    expect(find.widgetWithText(OutlinedButton, 'Asgariyi öde'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Ödeme yap'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Asgariyi öde'), findsNothing);
   });
 
   testWidgets('kesim gelmemiş kart ekstreyi hata gibi göstermez', (
@@ -423,7 +441,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Henüz ekstre kesilmedi'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Ekstreyi öde'), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'Ödeme yap'), findsNothing);
   });
 
   testWidgets('ekstreyi öde, ödeme panelini kalan tutar dolu açar', (
@@ -450,11 +468,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Ekstreyi öde'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Ödeme yap'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Devam et'));
     await tester.pumpAndSettle();
 
     final amount = tester.widget<TextFormField>(
-      find.widgetWithText(TextFormField, '3500'),
+      find.widgetWithText(TextFormField, '3.500'),
     );
     expect(amount, isNotNull);
   });
@@ -477,9 +497,18 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Asgariyi öde'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Ödeme yap'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Asgari ödeme').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Devam et'));
     await tester.pumpAndSettle();
 
+    expect(find.widgetWithText(TextFormField, '700'), findsOneWidget);
+    await tester.tap(find.byTooltip('Tutar seçimi'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Devam et'));
+    await tester.pumpAndSettle();
     expect(find.widgetWithText(TextFormField, '700'), findsOneWidget);
   });
 
@@ -504,8 +533,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Ödendi'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Ekstreyi öde'), findsNothing);
+    expect(find.text('Tamamı ödendi'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Ödeme yap'), findsNothing);
   });
 
   testWidgets('kart düzenleme asgari ödeme oranını gönderir', (tester) async {
@@ -612,7 +641,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Form açık, yazılan ad yerinde, cümle formda.
-    expect(find.text('Yeni kredi kartı'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'Kart adı'), findsOneWidget);
     expect(find.text('garanti'), findsOneWidget);
     expect(find.byType(AppFormError), findsOneWidget);
     expect(find.text(sentence), findsOneWidget);
@@ -645,7 +674,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Kart alacağı kendi etiketiyle ve eksi işaretsiz yazar.
-    expect(find.text('Kart alacağınız'), findsOneWidget);
+    expect(find.text('Karttaki fazla ödeme'), findsOneWidget);
     expect(find.text('₺500,00'), findsOneWidget);
     expect(find.text('Güncel borç'), findsNothing);
     expect(find.textContaining('-₺'), findsNothing);
@@ -671,10 +700,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Kart alacağınız'), findsOneWidget);
+    expect(find.text('Karttaki fazla ödeme'), findsOneWidget);
     expect(find.text('Güncel borç'), findsNothing);
     // Kullanılabilir tutar limitin üstüne çıkar: para karttadır.
-    expect(find.text('₺10.500,00'), findsWidgets);
+    expect(find.textContaining('₺10.500,00', findRichText: true), findsWidgets);
   });
 
   testWidgets('kart formu varsayılan kapsamı gönderir', (tester) async {
@@ -702,7 +731,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Varsayılan kapsam'), findsOneWidget);
-    await tester.tap(find.text('Şahsi'));
+    // Ortak seçim alanı: alana dokununca menü açılır, kural alt yazıdadır.
+    expect(find.text('Kategoride yoksa geçerli'), findsOneWidget);
+    await tester.tap(find.text('İşletme'));
+    await tester.pumpAndSettle();
+    expect(find.text('Kapsamı kategori belirler'), findsOneWidget);
+    await tester.tap(find.text('Şahsi').last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Kaydet'));
     await tester.pumpAndSettle();
@@ -760,13 +794,15 @@ void main() {
     await tester.tap(find.text('Ekstre'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Önceki devir'), findsOneWidget);
-    expect(find.text('Dönem harcaması'), findsOneWidget);
-    expect(find.text('Kesime kadar ödeme'), findsOneWidget);
-    expect(find.text('Kesimden sonra ödeme'), findsOneWidget);
-    expect(find.text('Ekstre borcu'), findsOneWidget);
-    expect(find.text('Kalan'), findsOneWidget);
-    expect(find.text('Asgari ödeme (%20)'), findsOneWidget);
+    expect(find.text('Önceki dönemden devir'), findsOneWidget);
+    expect(find.text('Dönem harcamaları'), findsOneWidget);
+    expect(find.text('Kesime kadar ödenen'), findsOneWidget);
+    expect(find.text('Kesim sonrası ödenen'), findsOneWidget);
+    // Biri ekstre penceresinin satırı, biri arkadaki sayfanın dönem borcu
+    // kartının başlığı.
+    expect(find.text('Dönem borcu'), findsWidgets);
+    expect(find.text('Kalan dönem borcu'), findsNWidgets(2));
+    expect(find.text('Ekstredeki asgari tutar'), findsOneWidget);
 
     // 1.000 + 3.000 − 500 = 3.500; ekrandaki satırlar bu hesabı veriyor.
     expect(find.text('+ ₺3.000,00'), findsOneWidget);
@@ -805,7 +841,7 @@ void main() {
     }
     expect(
       tester.getTopLeft(find.text('Harcama')).dy,
-      lessThan(tester.getTopLeft(find.text('Dönem borcu')).dy),
+      lessThan(tester.getTopLeft(find.text('Ağustos 2026 dönem borcu')).dy),
     );
     expectNoOverflow(tester);
   });
@@ -821,53 +857,56 @@ void main() {
     expect(HistoryPeriod.all.query(today), '?all=true');
   });
 
-  testWidgets('kart hareketleri kırpıldığında ekran tamlık iddia etmez', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1200, 2400);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
+  testWidgets(
+    'hareketler sayfası özeti sunucudan ve durumu adla aynı satırda',
+    (tester) async {
+      tester.view.physicalSize = const Size(1200, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
 
-    final controller = FinanceController(
-      _FakeFinanceRepository(
-        cards: [_card()],
-        activity: const CardActivity(
-          charges: [
-            CardChargeItem(
-              id: 'charge-1',
-              amount: '100.0000',
-              currency: 'TRY',
-              date: '2026-08-01',
-              description: 'Market',
-              isCancelled: false,
-            ),
-          ],
-          payments: [],
-          hasMore: true,
+      final repository = _FakeFinanceRepository(cards: [_card()])
+        ..cardPage = (query) => _page(
+          period: const CardPagePeriod(
+            kind: 'statement',
+            year: 2026,
+            month: 11,
+            start: '2026-10-16',
+            end: '2026-11-15',
+            status: 'current',
+          ),
+          spending: '6452.2200',
+          payments: query.kind == CardMovementKind.all ? '3000.0000' : null,
+        );
+      final controller = FinanceController(repository);
+      await controller.load();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: CreditCardDetailPage(cardId: 'card-1', controller: controller),
         ),
-      ),
-    );
-    await controller.load();
+      );
+      await tester.pumpAndSettle();
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light(),
-        home: CreditCardDetailPage(cardId: 'card-1', controller: controller),
-      ),
-    );
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Tümü'));
+      await tester.pumpAndSettle();
 
-    // Kartın sayfası son hareketleri gösterir; kırpma uyarısı ve dönem,
-    // `Tümü` ile açılan hareketler sayfasındadır.
-    await tester.tap(find.text('Tümü'));
-    await tester.pumpAndSettle();
+      expect(find.text('Hareketler'), findsOneWidget);
+      expect(find.text('Kasım ekstresi'), findsOneWidget);
+      expect(find.text('16 Ekim – 15 Kasım'), findsOneWidget);
+      // Durum ekstrenin adıyla aynı satırda, tarihlerin satırında değil.
+      expect(
+        tester.getCenter(find.text('Açık dönem')).dy,
+        closeTo(tester.getCenter(find.text('Kasım ekstresi')).dy, 2),
+      );
+      expect(find.text('-₺6.452,22'), findsOneWidget);
+      expect(find.text('₺3.000,00'), findsOneWidget);
+      // Varsayılan dönem çip üretmez.
+      expect(find.byTooltip('Filtrele'), findsOneWidget);
+    },
+  );
 
-    expect(find.text('Kart hareketleri'), findsOneWidget);
-    expect(find.textContaining('daha fazla kayıt var'), findsOneWidget);
-    expect(find.textContaining('Son 3 ay'), findsOneWidget);
-  });
-
-  testWidgets('dönem değişince liste yeni dönemle yeniden okunur', (
+  testWidgets('filtre dönemi ve türü seçer, çip ile kaldırılır', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1200, 2400);
@@ -890,15 +929,84 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Filtrele'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Tüm zamanlar'));
+    expect(find.text('Hareketleri filtrele'), findsOneWidget);
+    await tester.tap(find.text('Tüm zamanlar').last);
+    await tester.tap(find.text('Harcama').last);
     await tester.pumpAndSettle();
-    // Seçim taslaktır; `Uygula`dan önce hiçbir şey değişmez.
-    expect(controller.period, HistoryPeriod.threeMonths);
-    await tester.tap(find.text('Uygula'));
+    // Seçim taslaktır; düğmeden önce istek gitmez.
+    final before = repository.pageQueries.length;
+    await tester.tap(find.text('Sonuçları göster'));
     await tester.pumpAndSettle();
 
-    expect(controller.period, HistoryPeriod.all);
-    expect(repository.requestedPeriods, contains(HistoryPeriod.all));
+    expect(repository.pageQueries.length, greaterThan(before));
+    final query = repository.pageQueries.last;
+    expect(query.period.all, isTrue);
+    expect(query.kind, CardMovementKind.charge);
+    expect(find.byTooltip('Filtre, 2 seçili'), findsOneWidget);
+
+    // Çipin ✕'i yalnız o filtreyi kaldırır.
+    await tester.tap(find.bySemanticsLabel('Harcama filtresini kaldır'));
+    await tester.pumpAndSettle();
+    expect(repository.pageQueries.last.kind, CardMovementKind.all);
+    expect(repository.pageQueries.last.period.all, isTrue);
+  });
+
+  // Panel açıkken dönem değişince kategoriler yeni döneme göre okunur;
+  // yoksa kullanıcı kategoriyi seçmek için önce sonuçları görmek zorunda
+  // kalıyordu (kullanıcı, 15 Kasım 2026).
+  testWidgets('filtrede dönem değişince kategoriler yeni döneme göre gelir', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    FinancePageOption option(String id, String name) => FinancePageOption(
+      key: 'category:$id',
+      group: 'category',
+      amount: '100.0000',
+      name: name,
+      id: id,
+    );
+    final repository = _FakeFinanceRepository(cards: [_card()])
+      ..cardPage = (query) => CardPageData(
+        cardId: 'card-1',
+        name: 'Kart',
+        period: CardPagePeriod(kind: query.period.all ? 'all' : 'statement'),
+        statements: const [],
+        spending: '100.0000',
+        payments: '0.0000',
+        categories: [
+          const FinancePageOption(key: 'all', group: 'all', amount: '100.0000'),
+          option('c1', 'Market'),
+          if (query.period.all) option('c2', 'Eski dönem kategorisi'),
+        ],
+        items: const [],
+        totalCount: 0,
+        offset: 0,
+        hasMore: false,
+      );
+    final controller = FinanceController(repository);
+    await controller.load();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: CreditCardDetailPage(cardId: 'card-1', controller: controller),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tümü'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Filtrele'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Tüm zamanlar').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bütün kategoriler').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Eski dönem kategorisi'), findsOneWidget);
   });
 
   // Dekonttan gelen öneri formu kendiliğinden açıyor. Ödeme kaydedilince liste
@@ -1000,9 +1108,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Yeni taksit planı'), findsOneWidget);
-    expect(find.widgetWithText(TextFormField, '3000'), findsOneWidget);
-    expect(find.widgetWithText(TextFormField, '3'), findsOneWidget);
+    expect(find.text('Taksitli harcama'), findsWidgets);
+    expect(find.widgetWithText(TextFormField, '3.000'), findsOneWidget);
+    // Sık sayılardan biri: menülü alanda yazar.
+    expect(
+      find.descendant(
+        of: find.byType(InstallmentCountField),
+        matching: find.text('3'),
+      ),
+      findsOneWidget,
+    );
     expect(find.widgetWithText(TextFormField, 'TEKNOSA'), findsOneWidget);
     // Plan yalnız niyettir: form açıldı, hiçbir şey yazılmadı.
     expect(repository.plans, isEmpty);
@@ -1065,35 +1180,31 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // Kart sayfasında tek planın kartı tam genişliktir; dokununca Taksitler
+    // sayfası, oradaki karta dokununca ayrıntı açılır.
+    await tester.tap(find.text('TEKNOSA'));
+    await tester.pumpAndSettle();
+    expect(find.text('Taksitler'), findsOneWidget);
     await tester.tap(find.text('TEKNOSA'));
     await tester.pumpAndSettle();
 
-    // Her satırda bir rozet; eylem yalnız gerçekleşmemiş ve günü gelmiş
-    // olanda. Günü gelmemiş taksitte eylem hiç çıkmaz.
-    expect(find.text('Gerçekleşti'), findsOneWidget);
-    // Günü gelmiş taksitte durumun yerinde eylem durur.
+    // Her satırda bir durum: yansıyan, sıradaki, planlanan. Gerçekleştir
+    // bilgisi düğmededir (G1): sıra ve tutar düğmenin içinde yazar.
+    expect(find.text('Karta yansıdı'), findsOneWidget);
+    expect(find.text('Sıradaki'), findsOneWidget);
     expect(find.text('Planlandı'), findsOneWidget);
-    expect(find.text('Gerçekleştir'), findsOneWidget);
+    expect(find.text('2. taksiti gerçekleştir'), findsOneWidget);
     expect(find.text('19 Ekim 2099'), findsOneWidget);
     // Tarih ham ISO değil okunur biçimde.
     expect(find.text('19 Eylül 2026'), findsOneWidget);
-    // Eylem `AppRowAction`: rozetle aynı yükseklikte, yumuşak dolgulu.
-    // Çerçevesiz metin butonu rozetin yanında ikinci bir etiket gibi okunuyor,
-    // ince çizgili hap ise içi boş bir hayalet gibi duruyordu.
-    expect(find.widgetWithText(AppRowAction, 'Gerçekleştir'), findsOneWidget);
+    // Kayıt eylemi satırları büyütmez; panelin ayrı alt alanındadır.
     final action = tester.widget<FilledButton>(
-      find.descendant(
-        of: find.byType(AppRowAction),
-        matching: find.byType(FilledButton),
-      ),
+      find.widgetWithText(FilledButton, '2. taksiti gerçekleştir'),
     );
-    final scheme = Theme.of(
-      tester.element(find.byType(AppRowAction)),
-    ).colorScheme;
-    // Birincil dolgu **değil**: o ağırlık ekranın ana eylemine ait.
+    expect(action.onPressed, isNotNull);
     expect(
-      action.style?.backgroundColor?.resolve(const <WidgetState>{}),
-      scheme.secondaryContainer,
+      tester.getTopLeft(find.text('2. taksiti gerçekleştir')).dy,
+      greaterThan(tester.getBottomLeft(find.text('19 Ekim 2099')).dy),
     );
   });
 
@@ -1138,6 +1249,8 @@ void main() {
 
     await tester.tap(find.text('Ödeme'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Devam et'));
+    await tester.pumpAndSettle();
     await _chooseAccount(tester);
     await tester.enterText(find.widgetWithText(TextFormField, 'Tutar'), '100');
     await tester.tap(find.widgetWithText(FilledButton, 'Kaydet'));
@@ -1146,6 +1259,163 @@ void main() {
     expect(repository.payments, hasLength(1));
     expect(feeCalls, 0);
   });
+  testWidgets(
+    'başka tutar boş açılır ve kayıt reddinde form bilgileri korunur',
+    (tester) async {
+      final repository = _FakeFinanceRepository(
+        cards: [_card()],
+        currentStatement: _statement(),
+        accounts: const [FinanceChoice(id: 'account', name: 'Banka')],
+        paymentError: const ApiException(
+          code: 'credit_cards.payment_exceeds_debt',
+          message: 'Ödeme tutarı kartın güncel borcundan büyük olamaz.',
+          statusCode: 409,
+        ),
+      );
+      final controller = FinanceController(repository);
+      await controller.load();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: CreditCardDetailPage(cardId: 'card-1', controller: controller),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ödeme'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Başka tutar'));
+      await tester.tap(find.text('Devam et'));
+      await tester.pumpAndSettle();
+      final field = find.widgetWithText(TextFormField, 'Tutar');
+      expect(tester.widget<TextFormField>(field).controller!.text, isEmpty);
+      await _chooseAccount(tester);
+      await tester.enterText(field, '99999');
+      await tester.tap(find.text('Kaydet'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AppFormError), findsOneWidget);
+      expect(tester.widget<TextFormField>(field).controller!.text, '99.999');
+      expect(repository.payments, isEmpty);
+    },
+  );
+
+  testWidgets('asgari tamamlandı kalan dönem borcunu kapatmaz', (tester) async {
+    final controller = FinanceController(
+      _FakeFinanceRepository(
+        cards: [_card()],
+        currentStatement: _statement(remainingMinimumPayment: '0.0000'),
+      ),
+    );
+    await controller.load();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: CreditCardDetailPage(cardId: 'card-1', controller: controller),
+      ),
+    );
+    await tester.pumpAndSettle();
+    // Asgari ödendi: asgari satırında yeşil `Ödendi`, ekstre açık kalır.
+    expect(find.text('Ödendi'), findsOneWidget);
+    expect(find.text('Tamamı ödendi'), findsNothing);
+    expect(find.text('Ödeme yap'), findsOneWidget);
+    await tester.tap(find.text('Ödeme'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Asgari ödeme').last);
+    await tester.tap(find.text('Devam et'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextFormField, '3.500'), findsOneWidget);
+  });
+
+  for (final width in [320.0, 360.0, 412.0, 430.0, 800.0]) {
+    for (final scale in [1.0, 1.3, 2.0]) {
+      testWidgets('kart ve paneller taşmaz $width / $scale', (tester) async {
+        tester.view.physicalSize = Size(width, 892);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final controller = FinanceController(
+          _FakeFinanceRepository(
+            cards: [_card()],
+            currentStatement: _statement(),
+            periodStatement: _statement(),
+          ),
+        );
+        await controller.load();
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light(),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(scale)),
+              child: child!,
+            ),
+            home: CreditCardDetailPage(
+              cardId: 'card-1',
+              controller: controller,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expectNoOverflow(tester);
+        await tester.ensureVisible(find.text('Ekstre'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Ekstre'));
+        await tester.pumpAndSettle();
+        expectNoOverflow(tester);
+        await tester.ensureVisible(find.text('Ödeme yap').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Ödeme yap').last);
+        await tester.pumpAndSettle();
+        expectNoOverflow(tester);
+        await tester.tap(find.text('Devam et'));
+        await tester.pumpAndSettle();
+        tester.view.viewInsets = FakeViewPadding(bottom: 300);
+        await tester.pumpAndSettle();
+        expectNoOverflow(tester);
+        expect(find.text('Kaydet'), findsOneWidget);
+      });
+    }
+  }
+
+  testWidgets(
+    'dar ekranda büyük yazı ve uzun kart tutarı küçültülmeden sığar',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 892);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final repository = _FakeFinanceRepository(
+        cards: [
+          const CreditCardItem(
+            id: 'card-1',
+            name: 'İşletmenin uzun isimli alışveriş kredi kartı',
+            limit: '2000000.0000',
+            currentDebt: '1234567.8900',
+            availableLimit: '765432.1100',
+            currency: 'TRY',
+            statementClosingDay: 15,
+            paymentDueDay: 25,
+            minimumPaymentRate: '20.0000',
+            isActive: true,
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(2)),
+            child: child!,
+          ),
+          home: FinancePage(repository: repository),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expectNoOverflow(tester);
+      expect(find.text('₺1.234.567,89'), findsOneWidget);
+      expect(find.byType(FittedBox), findsNothing);
+    },
+  );
 }
 
 Future<void> _chooseAccount(WidgetTester tester) async {
@@ -1186,25 +1456,64 @@ class _FakeFinanceRepository implements FinanceRepositoryContract {
     this.cards = const [],
     this.currentStatement,
     this.periodStatement,
-    this.activity = const CardActivity(charges: [], payments: []),
     this.accounts = const [],
     this.installmentPlans = const [],
     this.cardError,
+    this.paymentError,
   }) : transfers = transfers ?? [];
   final ApiException? loadError;
 
   /// Kart ekleme ve düzenlemenin reddi.
   final ApiException? cardError;
+  final ApiException? paymentError;
   List<TransferItem> transfers;
   final List<CreditCardItem> cards;
   final CardStatement? currentStatement;
   final CardStatement? periodStatement;
-  final CardActivity activity;
+  // Eski kart hareketi ucu kart sayfasında artık okunmuyor; sözleşme için
+  // boş cevap.
+  final CardActivity activity = const CardActivity(charges: [], payments: []);
   final List<FinanceChoice> accounts;
   final List<InstallmentPlanModel> installmentPlans;
   final List<HistoryPeriod> requestedPeriods = [];
   String? cancelledTransferId;
   Map<String, Object?>? lastPlanInput;
+
+  /// Hareketler sayfasının istekleri ve verilecek cevap.
+  final List<CardMovementQuery> pageQueries = [];
+  CardPageData Function(CardMovementQuery query)? cardPage;
+  List<InstallmentPreviewOption> previews = const [];
+
+  @override
+  Future<CardPageData> loadCardPage(
+    String cardId,
+    CardMovementQuery query, {
+    int offset = 0,
+    int? limit,
+  }) async {
+    pageQueries.add(query);
+    return cardPage?.call(query) ??
+        CardPageData(
+          cardId: cardId,
+          name: 'Kart',
+          period: const CardPagePeriod(kind: 'all'),
+          statements: const [],
+          spending: '0.0000',
+          payments: '0.0000',
+          categories: const [],
+          items: const [],
+          totalCount: 0,
+          offset: 0,
+          hasMore: false,
+        );
+  }
+
+  @override
+  Future<List<InstallmentPreviewOption>> previewInstallments({
+    required String totalAmount,
+    required String firstInstallmentDate,
+    required List<int> counts,
+  }) async => previews;
   Map<String, Object?>? lastCardUpdate;
 
   @override
@@ -1262,6 +1571,7 @@ class _FakeFinanceRepository implements FinanceRepositoryContract {
 
   @override
   Future<void> createPayment(String cardId, Map<String, Object?> input) async {
+    if (paymentError case final error?) throw error;
     payments.add(input);
   }
 
@@ -1277,14 +1587,6 @@ class _FakeFinanceRepository implements FinanceRepositoryContract {
   Future<void> createTransfer(Map<String, Object?> input) async {}
   @override
   Future<void> realizeInstallment(String planId, int sequence) async {}
-  @override
-  Future<CardActivity> loadActivity(
-    String cardId, {
-    HistoryPeriod period = HistoryPeriod.threeMonths,
-  }) async {
-    requestedPeriods.add(period);
-    return activity;
-  }
 
   @override
   Future<CardStatement> loadStatement(
@@ -1381,4 +1683,29 @@ CardStatement _statement({
   minimumPaymentRate: '20.0000',
   currency: 'TRY',
   paymentStatus: paymentStatus,
+);
+
+CardPageData _page({
+  CardPagePeriod period = const CardPagePeriod(kind: 'all'),
+  String spending = '0.0000',
+  String? payments = '0.0000',
+}) => CardPageData(
+  cardId: 'card-1',
+  name: 'Test Kart',
+  period: period,
+  statements: const [
+    CardStatementRange(
+      year: 2026,
+      month: 11,
+      start: '2026-10-16',
+      end: '2026-11-15',
+    ),
+  ],
+  spending: spending,
+  payments: payments,
+  categories: const [],
+  items: const [],
+  totalCount: 0,
+  offset: 0,
+  hasMore: false,
 );

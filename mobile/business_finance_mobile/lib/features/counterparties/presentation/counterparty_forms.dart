@@ -1,3 +1,4 @@
+import '../../../core/formatters/money_math.dart';
 import 'package:flutter/material.dart';
 
 import '../../categories/presentation/fixed_scope_category_field.dart';
@@ -200,6 +201,7 @@ class _CounterpartyChargeFormState extends State<CounterpartyChargeForm> {
           child: TextFormField(
             controller: _amount,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: const [TurkishAmountInputFormatter()],
             decoration: const InputDecoration(
               labelText: 'Tutar',
               suffixText: 'TRY',
@@ -337,7 +339,7 @@ class _CounterpartyPaymentFormState extends State<CounterpartyPaymentForm> {
     _amount = TextEditingController(
       text: widget.suggestedAmount == null
           ? ''
-          : MoneyText.editable(widget.suggestedAmount!),
+          : MoneyText.field(widget.suggestedAmount!),
     );
     _date = widget.today;
     _accountId = _accounts.isEmpty ? null : _accounts.first.id;
@@ -405,6 +407,7 @@ class _CounterpartyPaymentFormState extends State<CounterpartyPaymentForm> {
           child: TextFormField(
             controller: _amount,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: const [TurkishAmountInputFormatter()],
             decoration: InputDecoration(
               labelText: 'Tutar',
               suffixText: 'TRY',

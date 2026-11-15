@@ -1,3 +1,4 @@
+import '../../../core/formatters/money_math.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/formatters/date_text.dart';
@@ -93,7 +94,7 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
     if (prefill == null) return;
     final amount = prefill.amount;
     if (amount != null) {
-      _amountController.text = MoneyText.editable(amount.value);
+      _amountController.text = MoneyText.field(amount.value);
     }
     final description = prefill.description;
     if (description != null) {
@@ -175,6 +176,7 @@ class _QuickAddFormPageState extends State<QuickAddFormPage> {
           TextFormField(
             controller: _amountController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: const [TurkishAmountInputFormatter()],
             decoration: InputDecoration(
               labelText: 'Tutar',
               suffixText: 'TRY',

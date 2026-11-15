@@ -5,6 +5,7 @@ import '../models/transaction_scope.dart';
 import '../theme/app_breakpoints.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_surfaces.dart';
+import 'app_animated_menu.dart';
 import 'app_category_icon.dart';
 import 'app_form_sheet.dart';
 import 'app_icon_capsule.dart';
@@ -97,6 +98,11 @@ class AppCategoryField extends StatefulWidget {
   /// Arama ve son kullanılanlar bu sayıdan fazla kategoride çıkar.
   static const searchThreshold = 8;
 
+  /// Menünün en çok boyu, panelde de tam sayfada da (kullanıcı, 15 Kasım
+  /// 2026): arama, son kullanılanlar ve ilk grubun altı satırı görünür.
+  /// Menü ekranın sonuna kadar uzamaz, altında boşluk kalır.
+  static const double maxMenuHeight = 600;
+
   /// Yazılacak kapsam: tek kapsamlı kategoride kategorinin, iki kapsama açık
   /// kategoride menüde seçilen. Kategori bulunamazsa seçilen kapsam.
   static TransactionScope? scopeOf(
@@ -117,9 +123,70 @@ class AppCategoryField extends StatefulWidget {
   State<AppCategoryField> createState() => _AppCategoryFieldState();
 }
 
-class _AppCategoryFieldState extends State<AppCategoryField> {
+class _AppCategoryFieldState extends State<AppCategoryField>
+    with SingleTickerProviderStateMixin {
+  /// Menünün açılış ve kapanış hareketi (kullanıcı, 13 Kasım 2026: menü bir
+  /// anda kapanıyordu). Açılış 220 ms, kapanış 180 ms; telefonda
+  /// "animasyonları kapat" açıksa hareket yoktur.
+  late final AnimationController _reveal =
+      AnimationController(
+          vsync: this,
+          duration: AppMenuMotion.open,
+          reverseDuration: AppMenuMotion.close,
+        )
+        ..addStatusListener(_revealStatus)
+        ..addListener(_followReveal);
+
+  /// Tam sayfada menü açılırken sayfa alanı başa taşır: [_scrollFrom]'dan
+  /// [_scrollTo]'ya, menünün boyuyla aynı oranda. Kapanırken aynı yoldan
+  /// geri döner. Üçü tek harekettir: menü uzar, alttaki alanlar itilir,
+  /// sayfa kayar; ayrı ayrı olunca menü "bir anda" açılmış gibi okunuyordu.
+  double? _scrollFrom;
+  double? _scrollTo;
+
+  void _followReveal() {
+    final from = _scrollFrom;
+    final to = _scrollTo;
+    if (from == null || to == null || !mounted) return;
+    final position = Scrollable.maybeOf(context)?.position;
+    if (position == null || !position.hasPixels) return;
+    final size = AppMenuReveal.sizeFactor(_reveal);
+    final wanted = (from + (to - from) * size).clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+    if ((wanted - position.pixels).abs() > 0.1) position.jumpTo(wanted);
+  }
+
+  void _revealStatus(AnimationStatus status) {
+    // Kapanış bitince menü ağaçtan çıkar.
+    if (status == AnimationStatus.dismissed && mounted) {
+      _scrollFrom = null;
+      _scrollTo = null;
+      setState(() {});
+    }
+    // Son karede ayrılan yer tam boyuna ulaşır; sayfa da tam yerine oturur.
+    if (status == AnimationStatus.completed) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _followReveal());
+    }
+  }
+
+  Future<void> _animateMenu({required bool open}) async {
+    if (MediaQuery.of(context).disableAnimations) {
+      _reveal.value = open ? 1 : 0;
+    } else if (open) {
+      await _reveal.forward().orCancel.catchError((Object _) {});
+    } else {
+      await _reveal.reverse().orCancel.catchError((Object _) {});
+    }
+  }
+
+  /// Menü ağaçta mı (açık ya da kapanıyor).
+  bool get _menuShown => _open || !_reveal.isDismissed;
+
   final _fieldKey = GlobalKey();
   final _menuKey = GlobalKey();
+  final _menuContentKey = GlobalKey();
   final _query = TextEditingController();
   final _searchFocus = FocusNode();
   bool _open = false;
@@ -127,6 +194,7 @@ class _AppCategoryFieldState extends State<AppCategoryField> {
   String? _expanded;
   double? _savedOffset;
   double? _usedViewport;
+  double? _capFieldHeight;
 
   /// `+ ekle`ye basıldı; form yeni kategoriyle dönerse ve kategori iki
   /// kapsama açıksa kapsam menüdeki gibi sorulur (kullanıcı kararı D4).
@@ -151,7 +219,16 @@ class _AppCategoryFieldState extends State<AppCategoryField> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // Denetleyici burada kurulur; hiç açılmayan menüde ilk kez `dispose`
+    // içinde kurulup devre dışı ağaçta hata vermesin.
+    _reveal;
+  }
+
+  @override
   void dispose() {
+    _reveal.dispose();
     _query.dispose();
     _searchFocus.dispose();
     super.dispose();
@@ -203,7 +280,29 @@ class _AppCategoryFieldState extends State<AppCategoryField> {
       _open = true;
       _expanded = null;
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollFieldToTop());
+    final height = (_visible.length * 48.0 + 96).clamp(
+      120.0,
+      AppCategoryField.maxMenuHeight,
+    );
+    _reveal
+      ..duration = AppMenuMotion.openFor(height)
+      ..reverseDuration = AppMenuMotion.closeFor(height);
+    // Tam sayfada alanın başa geleceği yer şimdiden bellidir; sayfa oraya
+    // menüyle birlikte kayar. Panelde alanı başa `_fitSheet` getirir.
+    _scrollFrom = null;
+    _scrollTo = null;
+    final box = _fieldKey.currentContext?.findRenderObject();
+    if (_sheetFit == null && box is RenderBox && position != null) {
+      final viewport = RenderAbstractViewport.maybeOf(box);
+      if (viewport != null && position.hasPixels) {
+        _scrollFrom = position.pixels;
+        _scrollTo =
+            (viewport.getOffsetToReveal(box, 0).offset - AppSpacing.medium)
+                .clamp(position.minScrollExtent, double.infinity)
+                .toDouble();
+      }
+    }
+    _animateMenu(open: true);
   }
 
   /// Alanı kaydırılan gövdenin başına getirir; üstünde bir ölçek boşluğu kalır.
@@ -233,11 +332,15 @@ class _AppCategoryFieldState extends State<AppCategoryField> {
       _open = false;
       _expanded = null;
     });
+    final closing = _animateMenu(open: false);
     final saved = _savedOffset;
     _savedOffset = null;
-    if (saved == null) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+    // Tam sayfada sayfa menüyle birlikte geri döner ([_followReveal]).
+    if (saved == null || _scrollTo != null) return;
+    // Önce menü toplanır, sonra sayfa eski yerine döner; ikisi aynı anda
+    // olunca menünün boşluğu kalkarken alttaki alanlar sıçrıyordu.
+    closing.whenComplete(() {
+      if (!mounted || _open) return;
       final position = Scrollable.maybeOf(context)?.position;
       if (position == null) return;
       position.animateTo(
@@ -296,7 +399,22 @@ class _AppCategoryFieldState extends State<AppCategoryField> {
             },
             child: KeyedSubtree(key: _fieldKey, child: _closed(context, field)),
           ),
-          if (_open) _menuArea(context, field),
+          // Menü aşağı doğru açılır ve yukarı doğru toplanarak kapanır;
+          // bir anda belirip kaybolmaz (kullanıcı, 13 Kasım 2026).
+          // Tek menü vardır; kapanırken de aynı menü toplanır, yeniden
+          // açılırsa olduğu yerden geri açılır.
+          if (_open || !_reveal.isDismissed)
+            // Yer baştan tam ayrılır (alan hemen başa kayabilsin); görünen
+            // kısım yukarıdan aşağı açılır ve kapanırken yukarı toplanır.
+            // Hareket yüzen menülerle ortaktır ([AppMenuReveal]).
+            _menuArea(context, field),
+          if (_menuShown &&
+              (widget.errorText ?? field.errorText ?? widget.helperText) !=
+                  null)
+            _BelowMenuNote(
+              text: (widget.errorText ?? field.errorText ?? widget.helperText)!,
+              isError: (widget.errorText ?? field.errorText) != null,
+            ),
           if (widget.options.isEmpty && _emptyOpen) ...[
             const SizedBox(height: AppSpacing.small),
             _EmptyCard(onAdd: widget.onAdd == null ? null : _add),
@@ -335,9 +453,11 @@ class _AppCategoryFieldState extends State<AppCategoryField> {
               // Değer yokken etiket alanın içinde yer tutucu kalır, açıkken de.
               labelText: selected == null ? null : widget.label,
               hintText: selected == null ? widget.label : null,
-              helperText: widget.helperText,
+              // Menü açıkken yardım ve hata yazısı alanla menünün arasına
+              // girmez; menünün altında yazılır (kullanıcı, 15 Kasım 2026).
+              helperText: _menuShown ? null : widget.helperText,
               helperMaxLines: 3,
-              errorText: error,
+              errorText: _menuShown ? null : error,
               enabled: widget.onChanged != null,
               contentPadding: selected == null
                   ? null
@@ -395,12 +515,14 @@ class _AppCategoryFieldState extends State<AppCategoryField> {
               ?.size
               .height ??
           56;
+      _capFieldHeight = fieldHeight;
       final cap =
           (sheet.maxHeight -
-                  AppSpacing.medium * 2 -
+                  AppSpacing.medium -
+                  AppSpacing.small -
                   fieldHeight -
                   AppSpacing.small)
-              .clamp(120.0, double.infinity);
+              .clamp(120.0, AppCategoryField.maxMenuHeight);
       WidgetsBinding.instance.addPostFrameCallback((_) => _fitSheet());
       return Padding(
         key: _menuKey,
@@ -430,14 +552,23 @@ class _AppCategoryFieldState extends State<AppCategoryField> {
             ?.size
             .height ??
         56;
+    // Yüzen alt çubuk gövdenin üstünde durur; gövdenin altı onun arkasında
+    // kalır (`extendBody`). Menü çubuğun üstünde biter, yoksa sonu çubuğun
+    // arkasında kayboluyordu (kullanıcı, 13 Kasım 2026).
+    final hidden = MediaQuery.paddingOf(context).bottom;
+    // Ayrılan yer görünen gövdenin sonuna kadardır (alttaki çubuğun arkası
+    // dahil): sıradaki alanın üst kenarı menünün altından görünmez.
     final below = viewport == null
         ? null
         : viewport - AppSpacing.medium - fieldHeight;
+    // Kategori menüsü ortak menü boyuna ([AppSizes.menuMaxHeight]) bağlı
+    // değildir: az kategoride içerik kadar, kalabalık listede
+    // [AppCategoryField.maxMenuHeight] kadar uzar; yer azsa o kadar kısalır.
     final maxHeight = below == null
         ? 360.0
-        : (below - AppSpacing.small - AppSpacing.medium).clamp(
+        : (below - hidden - AppSpacing.small - AppSpacing.medium).clamp(
             120.0,
-            double.infinity,
+            AppCategoryField.maxMenuHeight,
           );
     final menu = Padding(
       padding: const EdgeInsets.only(top: AppSpacing.small),
@@ -447,8 +578,15 @@ class _AppCategoryFieldState extends State<AppCategoryField> {
       ),
     );
     if (below == null) return menu;
-    return SizedBox(
-      height: below.clamp(maxHeight + AppSpacing.small, double.infinity),
+    // Ayrılan yer menüyle birlikte uzar: alttaki alanlar bir karede yok
+    // olmaz, menü uzadıkça aşağı itilir (kapanırken geri gelir).
+    final reserved = below.clamp(maxHeight + AppSpacing.small, double.infinity);
+    return AnimatedBuilder(
+      animation: _reveal,
+      builder: (context, child) => SizedBox(
+        height: reserved * AppMenuReveal.sizeFactor(_reveal),
+        child: child,
+      ),
       child: Align(alignment: Alignment.topCenter, child: menu),
     );
   }
@@ -461,13 +599,27 @@ class _AppCategoryFieldState extends State<AppCategoryField> {
     if (!mounted || !_open) return;
     final fit = _sheetFit;
     final field = _fieldKey.currentContext?.findRenderObject();
-    final menu = _menuKey.currentContext?.findRenderObject();
+    // Menünün kutusu açılırken uzar; içeriği baştan tam boyundadır. Panel
+    // içeriğe göre boylanır, böylece menüyle birlikte tek harekette uzar.
+    final menu = _menuContentKey.currentContext?.findRenderObject();
     if (fit == null || field is! RenderBox || menu is! RenderBox) return;
+    // Menünün sınırı alanın eski boyuyla hesaplandıysa (yardım yazısı menü
+    // açılınca alanın altından kalkar) yeniden hesaplanır; yoksa menü o
+    // kadar kısa kalır ve eylem satırına bıraktığı boşluk panelden panele
+    // değişirdi.
+    if (_capFieldHeight != null &&
+        (_capFieldHeight! - field.size.height).abs() > 0.5) {
+      setState(() {});
+      return;
+    }
+    // Menünün altında 8 dp kalır; alanlar arası boşluktan kısa olduğu için
+    // sıradaki alanın üst kenarı eylem satırının üstünde görünmez.
     final wanted =
         AppSpacing.medium +
         field.size.height +
+        AppSpacing.small +
         menu.size.height +
-        AppSpacing.medium;
+        AppSpacing.small;
     if (fit.height.value == wanted) return;
     fit.height.value = wanted;
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollFieldToTop());
@@ -477,6 +629,8 @@ class _AppCategoryFieldState extends State<AppCategoryField> {
     BuildContext context,
     FormFieldState<AppCategoryValue> field,
   ) => _Menu(
+    reveal: _reveal,
+    contentKey: _menuContentKey,
     search: _big ? _search(context) : null,
     rows: _rows(context, field),
   );
@@ -667,39 +821,75 @@ String _lowerTr(String text) =>
 int _matchIndex(String name, String query) =>
     _lowerTr(name).indexOf(_lowerTr(query));
 
-class _Menu extends StatelessWidget {
-  const _Menu({required this.search, required this.rows});
+class _Menu extends StatefulWidget {
+  const _Menu({
+    required this.reveal,
+    required this.contentKey,
+    required this.search,
+    required this.rows,
+  });
+
+  /// Menünün açılış hareketi ([AppMenuReveal]).
+  final Animation<double> reveal;
+
+  /// Menünün içeriği: hareket sürerken de tam boyundadır, panel onu ölçer.
+  final GlobalKey contentKey;
   final Widget? search;
   final List<Widget> rows;
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: AppSurfaces.of(context).card,
-    elevation: AppElevation.floating,
-    borderRadius: BorderRadius.circular(AppRadius.field),
-    clipBehavior: Clip.antiAlias,
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ?search,
-        Flexible(
-          child: ScrollConfiguration(
-            // Liste menünün içinde kayar; kaydırma çubuğu görünmez.
-            behavior: ScrollConfiguration.of(
-              context,
-            ).copyWith(scrollbars: false),
-            child: ListView(
-              shrinkWrap: true,
-              padding: EdgeInsets.only(
-                top: search == null ? AppSpacing.xSmall : 0,
-                bottom: AppSpacing.small,
+  State<_Menu> createState() => _MenuState();
+}
+
+class _MenuState extends State<_Menu> {
+  final _scroll = ScrollController();
+
+  Widget? get search => widget.search;
+  List<Widget> get rows => widget.rows;
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AppMenuFade(
+    animation: widget.reveal,
+    child: Material(
+      color: AppSurfaces.of(context).card,
+      elevation: AppElevation.floating,
+      borderRadius: BorderRadius.circular(AppRadius.field),
+      clipBehavior: Clip.antiAlias,
+      // Kutu alanın kenarından uzar; yüzen menülerle aynı hareket.
+      child: AppMenuReveal(
+        animation: widget.reveal,
+        child: Column(
+          key: widget.contentKey,
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ?search,
+            Flexible(
+              // Liste menünün içinde kayar; uzunsa kaydırma çubuğu hep görünür
+              // (hesap menüsündeki gibi; kullanıcı, 15 Kasım 2026).
+              child: Scrollbar(
+                controller: _scroll,
+                thumbVisibility: true,
+                child: ListView(
+                  controller: _scroll,
+                  shrinkWrap: true,
+                  padding: EdgeInsets.only(
+                    top: search == null ? AppSpacing.xSmall : 0,
+                    bottom: AppSpacing.small,
+                  ),
+                  children: rows,
+                ),
               ),
-              children: rows,
             ),
-          ),
+          ],
         ),
-      ],
+      ),
     ),
   );
 }
@@ -1115,6 +1305,35 @@ class _Notice extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Menü açıkken alanın yardım ya da hata yazısı: menünün altında, alanın
+/// yazısıyla aynı hizada ve biçimde.
+class _BelowMenuNote extends StatelessWidget {
+  const _BelowMenuNote({required this.text, required this.isError});
+  final String text;
+  final bool isError;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.medium,
+        AppSpacing.small,
+        AppSpacing.medium,
+        0,
+      ),
+      child: Text(
+        text,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: isError
+              ? theme.colorScheme.error
+              : AppSurfaces.of(context).inkMuted,
         ),
       ),
     );

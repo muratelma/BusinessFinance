@@ -22,6 +22,7 @@ class AppPageHeader extends StatelessWidget {
     super.key,
     this.actions = const [],
     this.onBack,
+    this.actionsInset = defaultActionsInset,
   }) : titleWidget = null,
        fixedHeight = false;
 
@@ -33,6 +34,7 @@ class AppPageHeader extends StatelessWidget {
     this.actions = const [],
     this.onBack,
     this.fixedHeight = false,
+    this.actionsInset = defaultActionsInset,
   }) : titleWidget = title,
        title = null;
 
@@ -48,6 +50,16 @@ class AppPageHeader extends StatelessWidget {
   /// Material 3 küçük üst çubuğunun yüksekliği.
   static const double rowHeight = 64;
 
+  /// Sağdaki eylemlerin ekran kenarına uzaklığı: 48 dp dokunma alanının sağ
+  /// kenarı. 8 dp'de 24 dp'lik ikonun kenarı 20 dp'de durur; 16 dp'deki ikon
+  /// gözle fazla sağda okunuyordu (kullanıcı kararı, 15 Kasım 2026: önce kart
+  /// sayfalarında denendi, sonra bütün sayfalara kural oldu). Yan yana iki
+  /// eylem ve ay seçici gibi yazılı eylemler de aynı payla durur.
+  static const double defaultActionsInset = AppSpacing.small;
+
+  /// Sağdaki eylemlerin ekran kenarına uzaklığı.
+  final double actionsInset;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -62,7 +74,7 @@ class AppPageHeader extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.only(
         left: pushed ? AppSpacing.xSmall : AppSpacing.medium,
-        right: AppSpacing.xSmall,
+        right: actionsInset,
       ),
       // Başlık eylemleri mürekkep renginde: gri ikon devre dışı gibi okunur.
       child: IconButtonTheme(

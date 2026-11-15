@@ -1,9 +1,11 @@
+import '../../../core/formatters/money_math.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/widgets/app_pick_field.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_text.dart';
@@ -1026,23 +1028,35 @@ class _RecurringFormState extends State<_RecurringForm> {
         TextFormField(
           controller: amount,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: const [TurkishAmountInputFormatter()],
           decoration: const InputDecoration(labelText: 'Tutar'),
           validator: _amountError,
         ),
         const SizedBox(height: AppGaps.field),
-        DropdownButtonFormField<String>(
-          initialValue: kind,
-          decoration: const InputDecoration(labelText: 'Tür'),
-          items: const [
-            DropdownMenuItem(value: 'income', child: Text('Gelir')),
-            DropdownMenuItem(value: 'expense', child: Text('Gider')),
-            DropdownMenuItem(
+        AppPickField<String>(
+          label: 'Tür',
+          value: kind,
+          options: [
+            AppPickOption(
+              value: 'income',
+              label: 'Gelir',
+              icon: Icons.south_west,
+              iconColor: AppFinanceColors.of(context).income,
+            ),
+            AppPickOption(
+              value: 'expense',
+              label: 'Gider',
+              icon: Icons.north_east,
+              iconColor: AppFinanceColors.of(context).expense,
+            ),
+            const AppPickOption(
               value: 'bill-payment',
-              child: Text('Fatura / abonelik'),
+              label: 'Fatura / abonelik',
+              icon: Icons.receipt_long_outlined,
             ),
           ],
           onChanged: (value) => setState(() {
-            kind = value!;
+            kind = value;
             if (!_availableCategories.any(
               (category) => category.id == categoryId,
             )) {
@@ -1052,24 +1066,45 @@ class _RecurringFormState extends State<_RecurringForm> {
           }),
         ),
         const SizedBox(height: AppGaps.field),
-        DropdownButtonFormField<String>(
-          initialValue: frequency,
-          decoration: const InputDecoration(labelText: 'Sıklık'),
-          items: const [
+        AppPickField<String>(
+          label: 'Sıklık',
+          value: frequency,
+          options: const [
             // Emlak Mayıs ve Kasım, gelir vergisi Mart ve Temmuz gibi
             // ritimler "6 ayda bir"e sığmıyor (ADR 0018 T2).
-            DropdownMenuItem(
+            AppPickOption(
               value: 'selected-months',
-              child: Text('Seçilen aylarda'),
+              label: 'Seçilen aylarda',
+              icon: Icons.calendar_month_outlined,
             ),
-            DropdownMenuItem(value: 'daily', child: Text('Günlük')),
-            DropdownMenuItem(value: 'weekly', child: Text('Haftalık')),
-            DropdownMenuItem(value: 'monthly', child: Text('Aylık')),
+            AppPickOption(
+              value: 'daily',
+              label: 'Günlük',
+              icon: Icons.today_outlined,
+            ),
+            AppPickOption(
+              value: 'weekly',
+              label: 'Haftalık',
+              icon: Icons.date_range_outlined,
+            ),
+            AppPickOption(
+              value: 'monthly',
+              label: 'Aylık',
+              icon: Icons.calendar_view_month_outlined,
+            ),
             // Geçici verginin ritmi; aylığın üç adımlık hâli.
-            DropdownMenuItem(value: 'quarterly', child: Text('Üç ayda bir')),
-            DropdownMenuItem(value: 'yearly', child: Text('Yıllık')),
+            AppPickOption(
+              value: 'quarterly',
+              label: 'Üç ayda bir',
+              icon: Icons.event_repeat_outlined,
+            ),
+            AppPickOption(
+              value: 'yearly',
+              label: 'Yıllık',
+              icon: Icons.event_outlined,
+            ),
           ],
-          onChanged: (value) => setState(() => frequency = value!),
+          onChanged: (value) => setState(() => frequency = value),
         ),
         if (frequency == 'selected-months') ...[
           const SizedBox(height: AppSpacing.small),
@@ -1094,20 +1129,22 @@ class _RecurringFormState extends State<_RecurringForm> {
             ),
         ],
         const SizedBox(height: AppGaps.field),
-        DropdownButtonFormField<String>(
-          initialValue: monthEndBehavior,
-          decoration: const InputDecoration(labelText: 'Ay sonu davranışı'),
-          items: const [
-            DropdownMenuItem(
+        AppPickField<String>(
+          label: 'Ay sonu davranışı',
+          value: monthEndBehavior,
+          options: const [
+            AppPickOption(
               value: 'clamp-to-last-day',
-              child: Text('Ayın son gününe taşı'),
+              label: 'Ayın son gününe taşı',
+              icon: Icons.last_page,
             ),
-            DropdownMenuItem(
+            AppPickOption(
               value: 'skip-invalid-period',
-              child: Text('Geçersiz ayı atla'),
+              label: 'Geçersiz ayı atla',
+              icon: Icons.skip_next_outlined,
             ),
           ],
-          onChanged: (value) => monthEndBehavior = value!,
+          onChanged: (value) => setState(() => monthEndBehavior = value),
         ),
         const SizedBox(height: AppGaps.field),
         AppDateField(
@@ -1249,7 +1286,8 @@ class _RecurringFormState extends State<_RecurringForm> {
       return null;
     }
     final normalizedAmount = double.parse(
-      amount.text.trim().replaceAll(',', '.'),
+      MoneyText.normalizeInput(amount.text) ??
+          amount.text.trim().replaceAll(',', '.'),
     ).toStringAsFixed(4);
     final success = await widget.onSubmit({
       // Sent explicitly so the server never has to infer which source this is.
@@ -1277,7 +1315,9 @@ class _RecurringFormState extends State<_RecurringForm> {
   }
 
   String? _amountError(String? value) {
-    final normalized = value?.trim().replaceAll(',', '.');
+    final normalized =
+        MoneyText.normalizeInput(value ?? '') ??
+        value?.trim().replaceAll(',', '.');
     final parsed = double.tryParse(normalized ?? '');
     if (parsed == null || parsed <= 0) return 'Sıfırdan büyük tutar girin.';
     if (!RegExp(r'^\d+(?:[.,]\d{1,4})?$').hasMatch(value!.trim())) {

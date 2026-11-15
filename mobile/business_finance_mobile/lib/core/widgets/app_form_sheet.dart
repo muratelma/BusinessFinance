@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../theme/app_spacing.dart';
 import '../theme/app_surfaces.dart';
@@ -37,6 +40,8 @@ class AppFormSheet<T> extends StatelessWidget {
     required this.onSubmit,
     super.key,
     this.description,
+    this.leading,
+    this.trailing,
     this.cancelLabel = 'Vazgeç',
     this.showCancel = true,
     this.secondaryLabel,
@@ -51,6 +56,12 @@ class AppFormSheet<T> extends StatelessWidget {
   /// Panelin ne olduğunu söyleyen başlık. Zorunludur: başlıksız bir panel
   /// kullanıcıya neyin içinde olduğunu söylemez.
   final String title;
+
+  /// Çok adımlı formda önceki adıma dönme gibi başlık eylemi.
+  final Widget? leading;
+
+  /// Başlığın sağındaki küçük bilgi (taksitli harcamada kartın adı).
+  final Widget? trailing;
 
   /// Başlığın altındaki tek cümlelik açıklama. Kural veya sonuç anlatır.
   final String? description;
@@ -98,7 +109,24 @@ class AppFormSheet<T> extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(title, style: theme.textTheme.titleLarge),
+              if (leading == null && trailing == null)
+                Text(title, style: theme.textTheme.titleLarge)
+              else
+                Row(
+                  children: [
+                    if (leading != null) ...[
+                      AppSheetHeaderSlot(child: leading!),
+                      const SizedBox(width: AppSpacing.small),
+                    ],
+                    Expanded(
+                      child: Text(title, style: theme.textTheme.titleLarge),
+                    ),
+                    if (trailing != null) ...[
+                      const SizedBox(width: AppSpacing.step10),
+                      AppSheetHeaderSlot(child: trailing!),
+                    ],
+                  ],
+                ),
               if (description != null)
                 Padding(
                   padding: const EdgeInsets.only(top: AppSpacing.xSmall),
@@ -263,4 +291,44 @@ class _FittedBodyState extends State<_FittedBody> {
       ),
     ),
   );
+}
+
+/// Panel başlığının yanındaki düğme (geri oku, ay okları): 48 dp'lik düğme
+/// başlık satırını uzatmaz. Yuva en çok bir başlık satırı kadar yer tutar,
+/// düğme ortalanıp üstüne ve altına taşar. Böylece yanında düğme olan başlık
+/// da düğmesiz başlıkla aynı yükseklikte durur (kullanıcı, 15 Kasım 2026:
+/// `Kart ödemesi` ve `Ekstre` başlıkları diğer panellerden aşağıdaydı).
+class AppSheetHeaderSlot extends SingleChildRenderObjectWidget {
+  const AppSheetHeaderSlot({required Widget super.child, super.key});
+
+  /// Başlığın bir satırı (22/1.27 ≈ 28) ve iki ölçek pay.
+  static const double lineHeight = 32;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => _RenderHeaderSlot();
+}
+
+class _RenderHeaderSlot extends RenderShiftedBox {
+  _RenderHeaderSlot() : super(null);
+
+  @override
+  void performLayout() {
+    final box = child;
+    if (box == null) {
+      size = constraints.smallest;
+      return;
+    }
+    box.layout(constraints.loosen(), parentUsesSize: true);
+    final height = math.min(box.size.height, AppSheetHeaderSlot.lineHeight);
+    size = constraints.constrain(Size(box.size.width, height));
+    (box.parentData! as BoxParentData).offset = Offset(
+      0,
+      (height - box.size.height) / 2,
+    );
+  }
+
+  // Düğmenin taşan kısmı da dokunulur kalsın.
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) =>
+      hitTestChildren(result, position: position);
 }

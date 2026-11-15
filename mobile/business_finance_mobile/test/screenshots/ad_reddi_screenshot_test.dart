@@ -1,3 +1,4 @@
+import 'package:business_finance_mobile/features/cards/data/card_page_models.dart';
 import 'package:business_finance_mobile/core/models/data_choice.dart';
 import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 import 'package:business_finance_mobile/core/network/api_error_messages.dart';
@@ -134,6 +135,21 @@ class _Accounts implements AccountRepository {
 }
 
 class _Finance implements FinanceRepositoryContract {
+  @override
+  Future<CardPageData> loadCardPage(
+    String cardId,
+    CardMovementQuery query, {
+    int offset = 0,
+    int? limit,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<List<InstallmentPreviewOption>> previewInstallments({
+    required String totalAmount,
+    required String firstInstallmentDate,
+    required List<int> counts,
+  }) async => const [];
+
   @override
   Future<FinanceSnapshot> load({
     HistoryPeriod period = HistoryPeriod.threeMonths,

@@ -459,7 +459,7 @@ class _CounterpartyDetailPageState extends State<CounterpartyDetailPage> {
         children: [
           Text('Hareketler', style: theme.textTheme.titleSmall),
           const SizedBox(height: AppGaps.sectionTitle),
-          const AppSectionEmpty('Bu kişiyle henüz hareket yok.'),
+          const AppSectionEmpty('Henüz cari hareket yok.'),
         ],
       );
     }

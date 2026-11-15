@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:file_selector/file_selector.dart' as file_selector;
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/app_pick_field.dart';
 import '../../../core/widgets/app_category_field.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
@@ -912,26 +913,27 @@ class _CsvSettingsFormState extends State<_CsvSettingsForm> {
         : null,
     children: [
       AppFormField(
-        child: DropdownButtonFormField<CsvImportPreset>(
-          initialValue: _preset,
-          isExpanded: true,
-          decoration: const InputDecoration(labelText: 'CSV biçimi'),
-          items: const [
-            DropdownMenuItem(
+        child: AppPickField<CsvImportPreset>(
+          label: 'CSV biçimi',
+          value: _preset,
+          options: const [
+            AppPickOption(
               value: CsvImportPreset.commonTurkishBank,
-              child: Text('Türkçe banka — yaygın'),
+              label: 'Türkçe banka — yaygın',
+              icon: Icons.account_balance_outlined,
             ),
-            DropdownMenuItem(
+            AppPickOption(
               value: CsvImportPreset.commonEnglishBank,
-              child: Text('İngilizce banka — yaygın'),
+              label: 'İngilizce banka — yaygın',
+              icon: Icons.language,
             ),
-            DropdownMenuItem(
+            AppPickOption(
               value: CsvImportPreset.custom,
-              child: Text('Özel'),
+              label: 'Özel',
+              icon: Icons.tune,
             ),
           ],
           onChanged: (value) {
-            if (value == null) return;
             setState(() {
               _preset = value;
               _settings = CsvImportSettings.forPreset(value);
@@ -985,48 +987,40 @@ class _CsvSettingsFormState extends State<_CsvSettingsForm> {
         ),
       ),
       AppFormField(
-        child: DropdownButtonFormField<String>(
-          key: ValueKey(_encoding),
-          initialValue: _encoding,
-          isExpanded: true,
-          decoration: const InputDecoration(labelText: 'Metin kodlaması'),
-          items: const [
-            DropdownMenuItem(value: 'utf-8', child: Text('UTF-8')),
-            DropdownMenuItem(
+        child: AppPickField<String>(
+          label: 'Metin kodlaması',
+          value: _encoding,
+          options: const [
+            AppPickOption(value: 'utf-8', label: 'UTF-8'),
+            AppPickOption(
               value: 'windows-1254',
-              child: Text('Windows-1254 (eski Türkçe dosyalar)'),
+              label: 'Windows-1254 (eski Türkçe dosyalar)',
             ),
           ],
-          onChanged: (value) => setState(() => _encoding = value ?? 'utf-8'),
+          onChanged: (value) => setState(() => _encoding = value),
         ),
       ),
       AppFormField(
-        child: DropdownButtonFormField<String>(
-          key: ValueKey(_dateFormat),
-          initialValue: _dateFormat,
-          isExpanded: true,
-          decoration: const InputDecoration(labelText: 'Tarih biçimi'),
-          items: const [
-            DropdownMenuItem(value: 'yyyy-MM-dd', child: Text('2026-08-14')),
-            DropdownMenuItem(value: 'dd.MM.yyyy', child: Text('14.08.2026')),
-            DropdownMenuItem(value: 'dd/MM/yyyy', child: Text('14/08/2026')),
+        child: AppPickField<String>(
+          label: 'Tarih biçimi',
+          value: _dateFormat,
+          options: const [
+            AppPickOption(value: 'yyyy-MM-dd', label: '2026-08-14'),
+            AppPickOption(value: 'dd.MM.yyyy', label: '14.08.2026'),
+            AppPickOption(value: 'dd/MM/yyyy', label: '14/08/2026'),
           ],
-          onChanged: (value) =>
-              setState(() => _dateFormat = value ?? 'yyyy-MM-dd'),
+          onChanged: (value) => setState(() => _dateFormat = value),
         ),
       ),
       AppFormField(
-        child: DropdownButtonFormField<String>(
-          key: ValueKey(_decimalSeparator),
-          initialValue: _decimalSeparator,
-          isExpanded: true,
-          decoration: const InputDecoration(labelText: 'Ondalık ayırıcı'),
-          items: const [
-            DropdownMenuItem(value: '.', child: Text('Nokta (25.50)')),
-            DropdownMenuItem(value: ',', child: Text('Virgül (25,50)')),
+        child: AppPickField<String>(
+          label: 'Ondalık ayırıcı',
+          value: _decimalSeparator,
+          options: const [
+            AppPickOption(value: '.', label: 'Nokta (25.50)'),
+            AppPickOption(value: ',', label: 'Virgül (25,50)'),
           ],
-          onChanged: (value) =>
-              setState(() => _decimalSeparator = value ?? '.'),
+          onChanged: (value) => setState(() => _decimalSeparator = value),
         ),
       ),
     ],

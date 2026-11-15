@@ -11,15 +11,27 @@ import '../theme/app_radius.dart';
 /// kenarlarda kaybolur. Aynı içerik geniş ekranda ortalanmış bir dialog olarak
 /// gösterilir.
 abstract final class AppAdaptiveSheet {
+  /// Uzun bir listeyi taşıyan ayrıntı panelinin en çok yüksekliği (ekranın
+  /// oranı). Panel ekranı baştan sona kaplamaz; tutamaç başparmağa yakın
+  /// kalır, arkadaki sayfa görünür ve liste panelin içinde kayar
+  /// (kullanıcı, 13 Kasım 2026: 9 taksitli plan ekranı kaplıyordu).
+  static const double tallDetailHeight = 0.8;
+
   static Future<T?> show<T>({
     required BuildContext context,
     required WidgetBuilder builder,
     bool isScrollControlled = true,
     bool isDismissible = true,
+    double? maxHeightFactor,
   }) {
     if (context.windowSize.isCompact) {
       return showModalBottomSheet<T>(
         context: context,
+        constraints: maxHeightFactor == null
+            ? null
+            : BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * maxHeightFactor,
+              ),
         // Kök Navigator zorunlu. `StatefulShellRoute` her sekmeye kendi
         // Navigator'ını veriyor ve o Navigator kabuğun `Scaffold` gövdesinin
         // **içinde**; varsayılan (`false`) ile panel o iç katmanda çiziliyor,

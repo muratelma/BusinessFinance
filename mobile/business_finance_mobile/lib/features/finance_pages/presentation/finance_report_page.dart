@@ -122,7 +122,22 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
         controller.loadMore();
       }
     });
+    controller.addListener(_clearStaleNotice);
     controller.load();
+  }
+
+  /// `Bu seçimde başka hesap veya kart yok` gibi bir not, söylendiği seçime
+  /// aittir: ay, kapsam, yön, hesap ya da kişi değişince kalkar. Eskiden
+  /// sayfadan çıkıp girene kadar ekranda kalıyordu (kullanıcı, 15 Kasım 2026).
+  String? _noticeSelection;
+  String get _selection =>
+      '${controller.month}|${controller.scope}|${controller.income}|'
+      '${controller.source}|${controller.person}';
+  void _clearStaleNotice() {
+    final selection = _selection;
+    if (selection == _noticeSelection) return;
+    _noticeSelection = selection;
+    if (filterNotice != null && mounted) setState(() => filterNotice = null);
   }
 
   @override
@@ -316,7 +331,6 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
               AppFilterMenu(
                 label: names[controller.selection] ?? 'Tür',
                 width: controller.direction == 'out' ? 340 : 320,
-                maxHeight: controller.direction == 'out' ? 600 : 520,
                 caption:
                     '${DateText.months[controller.month.month - 1]}${controller.direction == null
                         ? ''
@@ -341,7 +355,6 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
                 label: names[controller.source] ?? 'Hesap / kart',
                 alignToPageStart: !isSummary,
                 width: _sourceOptions().length > 7 ? 348 : 340,
-                maxHeight: _sourceOptions().length > 7 ? 690 : 520,
                 caption: _filterCaption,
                 muted:
                     controller.source == null &&
@@ -951,45 +964,95 @@ class _FinanceReportPageState extends State<_FinanceReportPageBody> {
             const SizedBox(height: AppSpacing.compact),
             _transitPreview(data.transit),
           ],
-          if (controller.selection != null)
-            Padding(
-              padding: const EdgeInsets.only(
-                left: AppSpacing.xSmall,
-                top: AppSpacing.medium,
-                right: AppSpacing.xSmall,
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Expanded(
-                    child: Text(
-                      names[controller.selection] ?? 'Seçimin toplamı',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.titleSmall?.copyWith(height: 1.3),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.small),
-                  AppMoneyText(
-                    amount:
-                        data.options
-                            .where((p) => p.key == controller.selection)
-                            .firstOrNull
-                            ?.amount ??
-                        (controller.selection!.startsWith('out:') &&
-                                data.selectionTotal != '0.0000'
-                            ? '-${data.selectionTotal}'
-                            : data.selectionTotal),
-                    signedByAmount: true,
-                    currency: 'TRY',
-                    size: AppMoneySize.row,
-                    style: const TextStyle(height: 1.25),
-                  ),
-                ],
+          if (controller.selection != null) _selectionRow(data),
+        ],
+      ),
+    );
+  }
+
+  /// Seçili kategori ya da türün satırı (Claude Design, kart hareketleri
+  /// teslimi §5): bakiye kartının altında gri satır; simge, ad, tutar ve ✕.
+  /// Ay ve kayıt sayısı yazılmaz, ay başlıkta var. ✕ seçimi kaldırır.
+  Widget _selectionRow(AccountDetailData data) {
+    final theme = Theme.of(context);
+    final surfaces = AppSurfaces.of(context);
+    final option = _accountOptions()
+        .where((o) => o.key == controller.selection)
+        .firstOrNull;
+    final name = names[controller.selection] ?? 'Seçimin toplamı';
+    final amount =
+        data.options
+            .where((p) => p.key == controller.selection)
+            .firstOrNull
+            ?.amount ??
+        (controller.selection!.startsWith('out:') &&
+                data.selectionTotal != '0.0000'
+            ? '-${data.selectionTotal}'
+            : data.selectionTotal);
+    final effect = option?.effect;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.medium),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 48),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.compact,
+          AppSpacing.xSmall,
+          AppSpacing.xSmall,
+          AppSpacing.xSmall,
+        ),
+        decoration: BoxDecoration(
+          color: surfaces.cardMuted,
+          borderRadius: BorderRadius.circular(AppRadius.field),
+        ),
+        child: Row(
+          children: [
+            AppIconCapsule(
+              icon: option?.icon ?? Icons.category_outlined,
+              size: 32,
+              tone: switch (effect) {
+                AppMoneyEffect.income => AppStatusTone.income,
+                AppMoneyEffect.expense => AppStatusTone.expense,
+                AppMoneyEffect.neutral => AppStatusTone.neutral,
+                _ => null,
+              },
+            ),
+            const SizedBox(width: AppSpacing.compact),
+            Expanded(
+              child: Text(
+                name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontSize: AppTextSizes.compact,
+                  height: 1.3,
+                ),
               ),
             ),
-        ],
+            const SizedBox(width: AppSpacing.small),
+            AppMoneyText(
+              amount: amount,
+              signedByAmount: true,
+              currency: 'TRY',
+              effect: effect,
+              size: AppMoneySize.row,
+              style: const TextStyle(
+                fontSize: AppTextSizes.row,
+                fontWeight: FontWeight.w700,
+                height: 1.25,
+              ),
+            ),
+            IconButton(
+              tooltip: 'Seçimi kaldır',
+              onPressed: () => controller.chooseSelection(null),
+              icon: const Icon(Icons.close, size: 20),
+              constraints: const BoxConstraints.tightFor(
+                width: AppSizes.menuButton,
+                height: AppSizes.menuButton,
+              ),
+              padding: EdgeInsets.zero,
+            ),
+          ],
+        ),
       ),
     );
   }

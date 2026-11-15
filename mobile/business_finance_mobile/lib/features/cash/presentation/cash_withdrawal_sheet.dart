@@ -1,3 +1,4 @@
+import '../../../core/formatters/money_math.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -203,6 +204,7 @@ class CashWithdrawalFieldsState extends State<CashWithdrawalFields> {
           TextFormField(
             controller: amountController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: const [TurkishAmountInputFormatter()],
             decoration: const InputDecoration(labelText: 'Tutar'),
             validator: MoneyInput.positiveError,
           ),

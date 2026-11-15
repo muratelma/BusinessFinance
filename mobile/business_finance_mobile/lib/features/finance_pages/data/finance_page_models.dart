@@ -150,6 +150,8 @@ class FinancePageActivity {
     this.firstSaleDate,
     this.lastSaleDate,
     this.scope,
+    this.installmentSequence,
+    this.installmentCount,
   });
   final FinancialActivity activity;
   final String amount;
@@ -163,6 +165,11 @@ class FinancePageActivity {
   final String? firstSaleDate;
   final String? lastSaleDate;
   final TransactionScope? scope;
+
+  /// Kart harcaması bir taksitten geldiyse kaçıncı taksit olduğu ve planın
+  /// taksit sayısı (`Taksit 1/9`); yalnız kart sayfası doldurur.
+  final int? installmentSequence;
+  final int? installmentCount;
   String get listKey => '${activity.listKey}:${part ?? 'whole'}';
   factory FinancePageActivity.fromJson(Map<String, dynamic> json) =>
       FinancePageActivity(
@@ -180,6 +187,11 @@ class FinancePageActivity {
         firstSaleDate: JsonReaders.nullableString(json, 'firstSaleDate'),
         lastSaleDate: JsonReaders.nullableString(json, 'lastSaleDate'),
         scope: TransactionScope.fromApiOrNull(json['scope']),
+        installmentSequence: JsonReaders.nullableInt(
+          json,
+          'installmentSequence',
+        ),
+        installmentCount: JsonReaders.nullableInt(json, 'installmentCount'),
       );
 }
 
