@@ -1298,6 +1298,107 @@ void main() {
     },
   );
 
+  // Dönem borcu kartının durumları: her biri dar telefonda (360 dp) ve
+  // karanlık temada da taşmadan çizilir.
+  for (final dark in [false, true]) {
+    for (final width in [412.0, 360.0]) {
+      final where = '${width.toInt()} dp${dark ? ' karanlık' : ''}';
+
+      Future<void> open(WidgetTester tester, CardStatement statement) async {
+        tester.view.physicalSize = Size(width, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final controller = FinanceController(
+          _FakeFinanceRepository(cards: [_card()], currentStatement: statement),
+        );
+        await controller.load();
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: dark ? AppTheme.dark() : AppTheme.light(),
+            home: CreditCardDetailPage(
+              cardId: 'card-1',
+              controller: controller,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      String dueIn(int days) {
+        final day = DateTime.now().add(Duration(days: days));
+        return '${day.year}-${day.month.toString().padLeft(2, '0')}-'
+            '${day.day.toString().padLeft(2, '0')}';
+      }
+
+      for (final (days, note) in [
+        (12, '12 gün kaldı'),
+        (1, 'Yarın son gün'),
+        (0, 'Bugün son gün'),
+      ]) {
+        testWidgets('dönem borcu "$note" yazar ($where)', (tester) async {
+          await open(tester, _statement(dueDate: dueIn(days)));
+          expect(find.text(note), findsOneWidget);
+          expect(
+            find.widgetWithText(FilledButton, 'Ödeme yap'),
+            findsOneWidget,
+          );
+        });
+      }
+
+      testWidgets('geciken dönem borcu kalan asgariyi ister ($where)', (
+        tester,
+      ) async {
+        await open(
+          tester,
+          _statement(dueDate: dueIn(-4), paymentStatus: 'overdue'),
+        );
+        expect(find.text('Ödeme tarihi geçti'), findsOneWidget);
+        expect(find.text('Kalan asgari ödeme'), findsOneWidget);
+        expect(find.widgetWithText(FilledButton, 'Ödeme yap'), findsOneWidget);
+      });
+
+      testWidgets(
+        'kısmen ödenen dönem borcu ödeneni ve ekstreyi yazar ($where)',
+        (tester) async {
+          await open(
+            tester,
+            _statement(
+              dueDate: dueIn(8),
+              paymentsAfterClosing: '1000.0000',
+              remainingBalance: '2500.0000',
+              remainingMinimumPayment: '0.0000',
+            ),
+          );
+          expect(find.textContaining('ödendi · Ekstre'), findsOneWidget);
+          expect(find.text('Ödendi'), findsOneWidget);
+          expect(find.text('Tamamı ödendi'), findsNothing);
+          expect(
+            find.widgetWithText(FilledButton, 'Ödeme yap'),
+            findsOneWidget,
+          );
+        },
+      );
+
+      testWidgets('borç oluşmayan dönemde ödeme istenmez ($where)', (
+        tester,
+      ) async {
+        await open(
+          tester,
+          _statement(
+            dueDate: dueIn(8),
+            statementBalance: '0.0000',
+            remainingBalance: '0.0000',
+            remainingMinimumPayment: '0.0000',
+            paymentStatus: 'paid',
+          ),
+        );
+        expect(find.text('Bu dönemde borç oluşmadı.'), findsOneWidget);
+        expect(find.text('Tamamı ödendi'), findsNothing);
+        expect(find.widgetWithText(FilledButton, 'Ödeme yap'), findsNothing);
+      });
+    }
+  }
+
   testWidgets('asgari tamamlandı kalan dönem borcunu kapatmaz', (tester) async {
     final controller = FinanceController(
       _FakeFinanceRepository(
@@ -1666,17 +1767,20 @@ CardStatement _statement({
   String remainingBalance = '3500.0000',
   String remainingMinimumPayment = '700.0000',
   String paymentStatus = 'open',
+  String dueDate = '2026-08-20',
+  String statementBalance = '3500.0000',
+  String paymentsAfterClosing = '0.0000',
 }) => CardStatement(
   periodStart: '2026-07-11',
   closingDate: '2026-08-10',
-  dueDate: '2026-08-20',
+  dueDate: dueDate,
   year: 2026,
   month: 8,
   previousBalance: '1000.0000',
   periodCharges: '3000.0000',
   paymentsThroughClosing: '500.0000',
-  statementBalance: '3500.0000',
-  paymentsAfterClosing: '0.0000',
+  statementBalance: statementBalance,
+  paymentsAfterClosing: paymentsAfterClosing,
   remainingBalance: remainingBalance,
   minimumPayment: '700.0000',
   remainingMinimumPayment: remainingMinimumPayment,

@@ -2111,7 +2111,7 @@ uygular; elle kurulan panel başlığı da bu yuvayı kullanır. Başlık
 `app_account_field_sheet_test` başlık yüksekliğini ve paneldeki menünün eylem
 satırına taşmadığını korur.
 
-Kart yüzünde alacaklı kartın etiketi `Fazla ödemeniz`dir (`Kart alacağınız`
+Kart yüzünde alacaklı kartın etiketi `Karttaki fazla ödeme`dir (`Kart alacağınız`
 yerine).
 
 ## Seçim menülerinin son hâli — 15 Kasım 2026 (akşam)

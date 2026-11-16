@@ -2525,7 +2525,7 @@ ve `InstallmentEndpointTests.PlanAndRealization…` kart hareketlerini
 `?all=true` ile okur (Ağustos tarihli kayıt varsayılan pencerenin dışına
 çıkmıştı). Bu turda tam `dotnet test`, `dotnet format --verify-no-changes`,
 `flutter analyze` ve tam `flutter test` (1308) koşuldu ve geçti. Yeni taksit
-planının limit denetimi için API seviyesinde ayrı test yazılmadı.
+planının limit denetimi için API seviyesindeki test 16 Kasım'da eklendi (aşağıda).
 
 **15 Kasım 2026 (akşam) ekleri.**
 
@@ -2542,3 +2542,22 @@ Kalkan testler: `transactions_page_test`, `transactions_controller_test` (eski
 işlem formuyla birlikte). Uçtan uca deneme (emülatör + gerçek API + SQL):
 `Gider ekle`ye `1250,75` yazıldı, alan `1.250,75` gösterdi, veritabanına
 `1250.7500` yazıldı. Kapanış koşusu: `flutter test` 1310 geçti.
+
+## Kapanıştan sonra kapatılan açıklar — 16 Kasım 2026
+
+| Kanıt | Test | Not |
+|---|---|---|
+| Bekleyen taksit yeni planı ve yeni harcamayı API'de de reddeder | `InstallmentEndpointTests.PendingInstallments_HoldTheLimitForNewPlansAndCharges` | Limit 1.000, plan 700: 300,0001'lik plan ve harcama `409 credit_cards.limit_exceeded`, 300'lük plan kabul; borç sıfır kalır |
+| Dönem borcu son ödemeye kalan günü yazar | `finance_feature_test` "dönem borcu … yazar" | `12 gün kaldı`, `Yarın son gün`, `Bugün son gün` |
+| Geciken dönem borcu | `finance_feature_test` "geciken dönem borcu kalan asgariyi ister" | `Ödeme tarihi geçti`, `Kalan asgari ödeme` |
+| Kısmen ödenen dönem borcu | `finance_feature_test` "kısmen ödenen dönem borcu ödeneni ve ekstreyi yazar" | Asgari `Ödendi`, ekstre açık |
+| Borç oluşmayan dönem | `finance_feature_test` "borç oluşmayan dönemde ödeme istenmez" | `Ödeme yap` çizilmez |
+
+Dönem borcu testlerinin her biri 412 ve 360 dp'de, açık ve karanlık temada
+koşar; taşma testi düşürür. CI'da 16 Kasım'da kırılan iki test
+(`CardActivityEndpointTests.ChargeAndPayment…`,
+`InstallmentEndpointTests.PlanAndRealization…`) yukarıdaki `?all=true`
+düzeltmesinden önceki commit'te koşmuştu: Ağustos tarihli kayıt, varsayılan üç
+aylık pencerenin dışına 10 Kasım'dan sonra çıktı. Gerçek SQL'le tam koşu
+(`BUSINESS_FINANCE_SQL_TEST_CONNECTION` verilerek): 1488 geçti, 2 atlandı
+(canlı Gemini ve Brevo sözleşmesi).

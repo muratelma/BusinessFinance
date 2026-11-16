@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using BusinessFinance.Api.Features.Authentication;
@@ -62,6 +63,34 @@ public sealed class InstallmentEndpointTests
         Assert.Single(activity!.Charges);
         Assert.True(persistedPlan.Items.Single(item => item.Sequence == 1).IsRealized);
         Assert.False(persistedPlan.Items.Single(item => item.Sequence == 2).IsRealized);
+    }
+
+    [Fact]
+    public async Task PendingInstallments_HoldTheLimitForNewPlansAndCharges()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var client = await CreateAuthenticatedClientAsync(factory, "installment-limit@example.test");
+        var card = await CreateCardAsync(client);
+        var category = await GetExpenseCategoryAsync(client);
+        CreateInstallmentPlanRequest Plan(string total) => new(
+            card.Id, category.Id, Guid.NewGuid(), total, "TRY", "business", 3, "2026-08-10", null);
+
+        // Limit 1.000. İlk plan karta henüz yansımadı: borç sıfır, ama 700 limiti tutuyor.
+        using var first = await client.PostAsJsonAsync("/api/v1/installment-plans", Plan("700.0000"));
+        using var overPlan = await client.PostAsJsonAsync("/api/v1/installment-plans", Plan("300.0001"));
+        using var overCharge = await client.PostAsJsonAsync(
+            $"/api/v1/credit-cards/{card.Id}/charges",
+            new CreateCardChargeRequest(category.Id, "300.0001", "TRY", "business", "2026-08-10", null));
+        using var fittingPlan = await client.PostAsJsonAsync("/api/v1/installment-plans", Plan("300.0000"));
+
+        first.EnsureSuccessStatusCode();
+        Assert.Equal(HttpStatusCode.Conflict, overPlan.StatusCode);
+        Assert.Contains("credit_cards.limit_exceeded", await overPlan.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.Conflict, overCharge.StatusCode);
+        Assert.Contains("credit_cards.limit_exceeded", await overCharge.Content.ReadAsStringAsync());
+        fittingPlan.EnsureSuccessStatusCode();
+        card = (await client.GetFromJsonAsync<CreditCardResponse>($"/api/v1/credit-cards/{card.Id}"))!;
+        Assert.Equal("0.0000", card.CurrentDebt);
     }
 
     private static async Task<MonthlyReportResponse> GetReportAsync(HttpClient client) =>
