@@ -60,7 +60,12 @@ kullanılır. Geliştirme veritabanının bekleyen migration'ı uygulanıp 5284'
 sunucu hatası giderildi. Son kontroller ve cihazda denenmeyenler teslim
 raporundadır. Cihaz kabulü 17 Ekim 2026'da yapıldı (kullanıcı, emülatör; sorun
 görülmedi). Kategori özetinin yeni tek sayfalık tasarımı ADR 0021 dalga 2'nin
-Flutter adımıyla birlikte uygulanır. Aşama 06.3 Aktif kalır.
+Flutter adımıyla birlikte uygulanır.
+
+**15 Kasım 2026:** Aşama 06.4 (giriş ve kimlik; 7 Kasım'da açılmıştı) kapandı,
+belgesi `docs/archive/stages/06.4-giris-ve-kimlik.md`. **Aşama 06.3 yeniden
+Aktif**; sıradaki iş cari, borç ve alacak. Güncel durum için her zaman
+`stages/README.md` tablosu geçerlidir.
 
 Flutter istemcisi ve ASP.NET Core backend'iyle çalışan, çok kullanıcılı bir
 işletme finansı uygulaması. Hedef kitle şahıs şirketleri ve esnaf: şirketin
@@ -227,6 +232,22 @@ gerekçesiyle bozulmaz.
   olur (`RecurringTransactionOccurrence` → realize).
 - Ekstre (statement) kalıcı tablo değildir — kesim/ödeme tarihlerinden asOf
   anında hesaplanan projection'dır.
+- **Kart limitini karta yansımamış taksitler de tutar** (kullanıcı kararı,
+  15 Kasım 2026). Kullanılabilir limit `limit − güncel borç − bekleyen
+  taksitler`dir (`CreditCard.CalculateAvailableLimit`,
+  `CardDebt.PendingInstallmentsAsync`); yeni harcama ve yeni taksit planı ona
+  göre denetlenir. Bekleyen taksit **borç değildir**: borca, gidere ve net
+  varlığa karta yansıdığı gün girer. Kart ödemesi borcu aşabilir, `borç +
+  bekleyen taksitler`i aşamaz; fazlası kartta alacak olarak kalır
+  (`Karttaki fazla ödeme`) ve taksitler yansıdıkça erir.
+- **Ekstre kesim gününün sonunda kesilir**: kesim günü hâlâ açık dönemdir,
+  o günün ekstresi ertesi gün çıkar (`CreditCardStatement.Create`, güncel
+  ekstre, kart sayfası ve planlanan görünüm aynı sınırı kullanır). Kesim günü
+  kesilmiş sayılsaydı aynı gün yapılan ödeme ekstre borcunu baştan düşürür ve
+  ödenen ekstre "borç oluşmadı" görünürdü.
+- **Tutar alanı yazarken binlik ayırır ve tek yerden okunur**
+  (`TurkishAmountInputFormatter`, `MoneyText.normalizeInput`,
+  `MoneyText.field`). Yeni bir tutar alanı metni elle çevirmez.
 - **Tekrarlayan planın kaynağı hesap veya kredi karttır** (`RecurringSourceType`,
   tam olarak biri dolu; hem Domain invariant'ı hem SQL check constraint'i).
   Gelir yalnız hesaba bağlanır. Gerçekleşme kaynağa göre dallanır: hesap →

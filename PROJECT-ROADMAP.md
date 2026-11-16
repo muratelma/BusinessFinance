@@ -53,7 +53,8 @@ oturuyor.
 | 06 | Hesap ve kalan işler | Kullanıcı kendi hesabını yönetir; biriken açık işler kapanır | Tamamlandı |
 | 06.1 | Güvenlik taraması | Secret, bağımlılık, yetkilendirme ve log açıkları kapanır | Tamamlandı (1 Eyl 2026) |
 | 06.2 | Arayüz düzeni | Ekranlar bulunabilir ve tutarlı hâle gelir | Beklemede (29 Eyl 2026'dan beri) |
-| 06.3 | Bütünsel düzenleme | Kasa, gün sonu, POS ve vergi gerçek hayatta çalışır; KDV ve muhasebeci paketi kalkar; listeler ve filtreler | Aktif (29 Eyl 2026) |
+| 06.3 | Bütünsel düzenleme | Kasa, gün sonu, POS ve vergi gerçek hayatta çalışır; KDV ve muhasebeci paketi kalkar; listeler ve filtreler | Aktif (29 Eyl 2026; 7–15 Kas 2026 arasında beklemedeydi) |
+| 06.4 | Giriş ve kimlik | Ad ve logo, yeni giriş akışı, kullanıcı adı, Google ile giriş, Hesabım; ortak ölçü kuralları, alt çubuk, boş durumlar, kredi kartı sayfası | Tamamlandı (15 Kas 2026) |
 | 06.x | (açılmadı) | Uygulama büyüdükçe çıkan işler | İhtiyaç oldukça |
 | 07 | Bulut güvenli beta | Ürün kendi makinenden bağımsız çalışır | Planlandı |
 
