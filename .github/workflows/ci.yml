@@ -6,6 +6,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+# İş akışları depoyu yalnız okur; belirteç başka izin taşımaz.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true

@@ -22,6 +22,10 @@ on:
       - "mobile/business_finance_mobile/**"
       - ".github/workflows/ios.yml"
 
+# İş akışları depoyu yalnız okur; belirteç başka izin taşımaz.
+permissions:
+  contents: read
+
 concurrency:
   group: ios-${{ github.ref }}
   cancel-in-progress: true
