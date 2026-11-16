@@ -290,8 +290,10 @@ class AppScopeChoiceChip extends StatelessWidget {
 ///
 /// Ortak seçim alanıdır ([AppPickField], kart taksit ve limit teslimi §6):
 /// kuralı her seçeneğin alt yazısı söyler, alanın altında açıklama metni
-/// yoktur. Alt yazılar 360 dp telefonda da sığacak kısalıktadır; teslimde
-/// uzun ve kısa iki metin denendi, her yerde kısa olan seçildi.
+/// yoktur. İşletme ve Şahsi'nin alt yazısı `Kategoride kapsam yoksa geçerli`dir
+/// (kullanıcı, 16 Kasım 2026); 360 dp telefonda tek satıra sığar. Alan
+/// [narrowFieldWidth]'ten darsa (320 dp telefon) kısa hâli yazılır:
+/// `Kategoride yoksa geçerli`.
 ///
 /// Kaydın kendi kapsamını soran [AppScopeField]'dan ayrı: orası bir kaydın
 /// hangi tarafa yazılacağını sorar ve boş bırakılamaz.
@@ -303,8 +305,8 @@ class AppScopeDefaultField extends StatelessWidget {
     this.emptyLabel = 'Yok',
     this.emptyIcon = Icons.block,
     this.emptySubtitle = 'Kapsamı kategori belirler',
-    this.businessSubtitle = 'Kategoride yoksa geçerli',
-    this.personalSubtitle = 'Kategoride yoksa geçerli',
+    this.businessSubtitle,
+    this.personalSubtitle,
     this.emptyIsBlank = true,
     super.key,
   });
@@ -326,11 +328,27 @@ class AppScopeDefaultField extends StatelessWidget {
   final String emptyLabel;
   final IconData emptyIcon;
   final String emptySubtitle;
-  final String businessSubtitle;
-  final String personalSubtitle;
+
+  /// Verilmezse ortak kural yazılır (alan darsa kısa hâli).
+  final String? businessSubtitle;
+  final String? personalSubtitle;
+
+  /// Ortak kural bu genişlikten dar alanda tek satıra sığmaz (16 dp kenarlı
+  /// 320 dp telefon); orada kısa hâli yazılır.
+  static const double narrowFieldWidth = 304;
+  static const String fallbackRule = 'Kategoride kapsam yoksa geçerli';
+  static const String fallbackRuleShort = 'Kategoride yoksa geçerli';
 
   @override
-  Widget build(BuildContext context) => AppPickField<TransactionScope?>(
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => _field(
+      constraints.maxWidth < narrowFieldWidth
+          ? fallbackRuleShort
+          : fallbackRule,
+    ),
+  );
+
+  Widget _field(String rule) => AppPickField<TransactionScope?>(
     label: label,
     value: value,
     onChanged: onChanged,
@@ -347,13 +365,13 @@ class AppScopeDefaultField extends StatelessWidget {
         value: TransactionScope.business,
         label: TransactionScope.business.label,
         icon: Icons.storefront_outlined,
-        subtitle: businessSubtitle,
+        subtitle: businessSubtitle ?? rule,
       ),
       AppPickOption(
         value: TransactionScope.personal,
         label: TransactionScope.personal.label,
         icon: Icons.person_outline,
-        subtitle: personalSubtitle,
+        subtitle: personalSubtitle ?? rule,
       ),
     ],
   );

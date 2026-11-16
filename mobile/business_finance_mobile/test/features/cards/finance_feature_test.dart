@@ -732,7 +732,7 @@ void main() {
 
     expect(find.text('Varsayılan kapsam'), findsOneWidget);
     // Ortak seçim alanı: alana dokununca menü açılır, kural alt yazıdadır.
-    expect(find.text('Kategoride yoksa geçerli'), findsOneWidget);
+    expect(find.text('Kategoride kapsam yoksa geçerli'), findsOneWidget);
     await tester.tap(find.text('İşletme'));
     await tester.pumpAndSettle();
     expect(find.text('Kapsamı kategori belirler'), findsOneWidget);

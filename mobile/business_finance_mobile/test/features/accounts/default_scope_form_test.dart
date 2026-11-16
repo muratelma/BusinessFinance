@@ -1,6 +1,7 @@
 import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 import 'package:business_finance_mobile/core/presentation/scope_controller.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
+import 'package:business_finance_mobile/core/widgets/app_scope_selector.dart';
 import 'package:business_finance_mobile/features/accounts/data/account_models.dart';
 import 'package:business_finance_mobile/features/accounts/presentation/account_form_page.dart';
 import 'package:business_finance_mobile/features/categories/data/category_models.dart';
@@ -36,7 +37,7 @@ void main() {
       expect(find.text('Kapsamı kategori belirler'), findsOneWidget);
       expect(find.text('İşletme'), findsOneWidget);
       expect(find.text('Şahsi'), findsOneWidget);
-      expect(find.text('Kategoride yoksa geçerli'), findsNWidgets(2));
+      expect(find.text('Kategoride kapsam yoksa geçerli'), findsNWidgets(2));
       // Alanın altında ikinci bir açıklama metni yok.
       expect(
         find.textContaining('varsayılan kapsamı kullanılır'),
@@ -221,6 +222,39 @@ void main() {
 
       expect(sent, TransactionScope.business);
     });
+  });
+
+  testWidgets('varsayılan kapsamın kuralı dar alanda kısa yazılır', (
+    tester,
+  ) async {
+    Future<void> open(double width) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          key: ValueKey(width),
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: width,
+                child: AppScopeDefaultField(value: null, onChanged: (_) {}),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Varsayılan kapsam'));
+      await tester.pumpAndSettle();
+    }
+
+    // 360 dp telefonda alan 328 dp: uzun kural tek satıra sığar.
+    await open(328);
+    expect(find.text(AppScopeDefaultField.fallbackRule), findsNWidgets(2));
+
+    // 320 dp telefonda alan 288 dp: kısa hâli.
+    await open(288);
+    expect(find.text(AppScopeDefaultField.fallbackRuleShort), findsNWidgets(2));
+    expect(find.text(AppScopeDefaultField.fallbackRule), findsNothing);
   });
 }
 
