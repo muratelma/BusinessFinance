@@ -472,6 +472,11 @@ bileşik yabancı anahtarıdır; başka kullanıcının satışına bağlanamaz.
 `DELETE /api/v1/counterparty-charges/{id}?withPaidNow=true` yalnız aynı
 kullanıcının o satışa bağlı tahsilatlarını iptal eder.
 
+Kişiye kredi kartıyla ödemede (`creditCardId`) kart `(UserId, Id)` ile
+çözülür; başkasının kartı `400 counterparties.card_unavailable` alır ve kayıt
+yazılmaz. SQL'de kart bileşik yabancı anahtarla bağlıdır ve
+`CK_CounterpartyPayments_Source` hesap ile karttan tam olarak birini ister.
+
 ## Kart sayfası ve taksit önizlemesi — 12 Kasım 2026
 
 `GET /api/v1/credit-cards/{cardId}/page` kartı JWT oturumunun sahibine göre

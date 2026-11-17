@@ -263,7 +263,8 @@ internal sealed class EfFinancePageReader(BusinessFinanceDbContext db,
 
     /// <summary>
     /// Kartın hareketleri tek sorguda: harcamalar (taksitten gelenler
-    /// işaretli), kartla ödenen borçlar ve kart ödemeleri. İptal edilenler
+    /// işaretli), kartla ödenen borçlar, kişilere kartla ödemeler ve kart
+    /// ödemeleri. İptal edilenler
     /// girmez; hesap sayfasıyla aynı kural.
     /// </summary>
     private IQueryable<CardMovementRow> CardMovements(Guid owner, Guid cardId)
@@ -296,6 +297,20 @@ internal sealed class EfFinancePageReader(BusinessFinanceDbContext db,
                 Installment = false,
                 Payment = false
             });
+        var counterparties = db.CounterpartyPayments.AsNoTracking()
+            .Where(p => p.UserId == owner && p.CreditCardId == cardId && !p.IsCancelled)
+            .Select(p => new CardMovementRow
+            {
+                Kind = (int)FinancialActivityKind.CounterpartySettlement,
+                Id = p.Id,
+                Date = p.PaymentDate,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(p, EntryTimestamp.PropertyName),
+                Amount = p.Amount.Amount,
+                CategoryId = (Guid?)null,
+                Scope = (int?)null,
+                Installment = false,
+                Payment = false
+            });
         var payments = db.CreditCardPayments.AsNoTracking()
             .Where(p => p.UserId == owner && p.CreditCardId == cardId && !p.IsCancelled)
             .Select(p => new CardMovementRow
@@ -310,7 +325,7 @@ internal sealed class EfFinancePageReader(BusinessFinanceDbContext db,
                 Installment = false,
                 Payment = true
             });
-        return charges.Concat(debts).Concat(payments);
+        return charges.Concat(debts).Concat(counterparties).Concat(payments);
     }
 
     public async Task<CardPageData?> CardAsync(Guid owner, Guid cardId, CardPageQuery q, CancellationToken ct)

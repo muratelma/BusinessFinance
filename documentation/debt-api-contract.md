@@ -142,6 +142,20 @@ hesap yok, pasif ya da başkasının `counterparties.account_unavailable` (400).
 Aynı `clientRequestId` ikisini de bir kez yazar. Cevap `paidNowPaymentId`
 taşır (bu istekle yazılan tahsilat; yoksa boş).
 
+### `POST /api/v1/counterparties/{id}/payments` — kişiye kredi kartıyla ödeme
+
+İstek `creditCardId` alabilir (17 Kasım 2026): ödeme kişiye kredi kartıyla
+yapılmıştır. Yalnız `payable` yönünde ve tek başına (`accountId` ve `card`
+boş); aksi `counterparties.card_requires_payment` (400). Kart borcu tutar
+kadar artar, hesap kıpırdamaz, **gider yazılmaz** (gider alım günü yazıldı;
+senaryo 6). Limit kart harcamasıyla aynı kuraldır (`limit − borç − karta
+yansımamış taksitler`); aşan tutar `credit_cards.limit_exceeded` (409). Kart
+yok, pasif ya da başkasının: `counterparties.card_unavailable` (400). Cevapta
+`accountId` boş, `creditCardId` doludur. Kart sayfasının hareketlerinde ve
+akışta (`counterparty-settlement`, `sourceName` kartın adı) görünür; işlem
+sonrası bakiye kart borcunu ve kalan limiti döner. İptali kart borcunu geri
+alır.
+
 ### `DELETE /api/v1/counterparty-charges/{id}?withPaidNow=` — satışın iptali
 
 Varsayılan (`false`): yalnız satış iptal olur; birlikte yazılmış avans
@@ -255,6 +269,8 @@ için bugün tetiklenmez. İstemci türü Faz 5–7'de tanır.
 | `counterparties.scope_conflict` | 400 | Borçlandırmada açık seçim kategoriyle çelişiyor |
 | `counterparties.loan_not_found` | 404 | Borç para yok ya da başkasının |
 | `counterparties.paid_now_exceeds_charge` | 400 | Peşin ya da avans tutarı satışı aşıyor |
+| `counterparties.card_requires_payment` | 400 | Kredi kartı tahsilatta ya da hesapla birlikte verilmiş |
+| `counterparties.card_unavailable` | 400 | Kart yok, pasif ya da başkasının |
 | `counterparties.concurrent_change` | 409 | Borç para eşzamanlı değişti |
 
 ## Yedek

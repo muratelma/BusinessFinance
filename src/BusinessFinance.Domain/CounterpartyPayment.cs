@@ -31,7 +31,17 @@ public sealed class CounterpartyPayment
     public Guid Id { get; }
     public Guid UserId { get; }
     public Guid CounterpartyId { get; }
-    public Guid AccountId { get; }
+
+    /// <summary>Paranın çıktığı ya da girdiği hesap; kartla ödemede boştur.</summary>
+    public Guid? AccountId { get; }
+
+    /// <summary>
+    /// Kişiye kredi kartıyla yapılan ödemede kart (ADR 0022; S2): kart
+    /// borcu artar, hesap kıpırdamaz, gider yazılmaz — gider alım günü
+    /// yazılmıştı. Yalnız ödemede (borç yönü) olur; tam olarak biri doludur:
+    /// hesap ya da kart.
+    /// </summary>
+    public Guid? CreditCardId { get; }
     public DebtDirection Direction { get; }
     public Money Amount { get; }
     public DateOnly PaymentDate { get; }
@@ -62,6 +72,77 @@ public sealed class CounterpartyPayment
     private CounterpartyPayment()
     {
         Amount = null!;
+    }
+
+    /// <summary>
+    /// Kişiye kredi kartıyla ödeme. Kart borcu tutar kadar artar; kart
+    /// harcaması değildir (gider yok) ama kartın limitini kullanır. Limit
+    /// denetimi kullanım durumundadır (kart harcamasıyla aynı kural).
+    /// </summary>
+    public static CounterpartyPayment PayByCard(
+        Guid id,
+        Guid userId,
+        Counterparty counterparty,
+        CreditCard card,
+        Money amount,
+        DateOnly paymentDate,
+        string? description = null,
+        CounterpartyCharge? paidWithCharge = null) =>
+        new(id, userId, counterparty, card, amount, paymentDate, description, paidWithCharge);
+
+    private CounterpartyPayment(
+        Guid id,
+        Guid userId,
+        Counterparty counterparty,
+        CreditCard card,
+        Money amount,
+        DateOnly paymentDate,
+        string? description,
+        CounterpartyCharge? paidWithCharge)
+    {
+        if (id == Guid.Empty)
+        {
+            throw new ArgumentException("Payment id cannot be empty.", nameof(id));
+        }
+
+        ArgumentNullException.ThrowIfNull(counterparty);
+        ArgumentNullException.ThrowIfNull(card);
+        ArgumentNullException.ThrowIfNull(amount);
+        if (userId == Guid.Empty || counterparty.UserId != userId || card.UserId != userId)
+        {
+            throw new ArgumentException("Counterparty and card must belong to the payment user.");
+        }
+
+        if (!card.IsActive)
+        {
+            throw new InvalidOperationException("An inactive card cannot pay a counterparty.");
+        }
+
+        if (amount.Currency != card.Limit.Currency)
+        {
+            throw new ArgumentException("Payment and card must use the same currency.", nameof(amount));
+        }
+
+        if (paymentDate == default)
+        {
+            throw new ArgumentOutOfRangeException(nameof(paymentDate), "Payment date is required.");
+        }
+
+        if (paidWithCharge is not null)
+        {
+            EnsurePaidWith(paidWithCharge, userId, counterparty, DebtDirection.Payable, amount,
+                paymentDate, null);
+        }
+
+        Id = id;
+        UserId = userId;
+        CounterpartyId = counterparty.Id;
+        CreditCardId = card.Id;
+        Direction = DebtDirection.Payable;
+        Amount = amount;
+        PaymentDate = paymentDate;
+        Description = NormalizeDescription(description);
+        PaidWithChargeId = paidWithCharge?.Id;
     }
 
     public CounterpartyPayment(
@@ -157,7 +238,7 @@ public sealed class CounterpartyPayment
     ///
     /// Kartla tahsilde sıfırdır: para hesaba yatışla girer.
     /// </remarks>
-    public decimal SignedAccountEffect => PosSettlementId is not null
+    public decimal SignedAccountEffect => PosSettlementId is not null || CreditCardId is not null
         ? 0m
         : Direction == DebtDirection.Receivable
             ? Amount.Amount

@@ -2406,3 +2406,10 @@ yazılır ve `PaidWithChargeId` ile ona bağlanır. Bağ hiçbir okumayı deği�
 iptalinde "avans da iptal olsun mu" sorusunu ve ileride gün sonunun ortak
 tutarını mümkün kılar. Satış iptali bağlı tahsilatı varsayılan olarak
 **iptal etmez**: para gerçekten alındıysa kişinin hesabında kalır.
+
+Kişiye kredi kartıyla ödeme (`CounterpartyPayment.CreditCardId`; hesap o zaman
+boş) kart borcudur, gider değildir: `CardDebt` (güncel borç, ekstre, kalan
+limit, net varlık) onu kartla ödenen borcun yanında üçüncü kaynak olarak okur;
+`AccountMovements` okumaz. Kart sayfasının hareketlerinde ve akışta (kaynak
+kartın adı) görünür. Limit, kart harcamasıyla aynı kuralla kullanım durumunda
+denetlenir.

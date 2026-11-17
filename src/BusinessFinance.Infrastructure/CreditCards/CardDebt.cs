@@ -5,7 +5,8 @@ using BusinessFinance.Infrastructure.Persistence;
 namespace BusinessFinance.Infrastructure.CreditCards;
 
 /// <summary>
-/// Kartın borcu: harcamalar ve kartla ödenen borçlar, eksi kart ödemeleri.
+/// Kartın borcu: harcamalar, kartla ödenen borçlar ve kişilere kartla yapılan
+/// ödemeler, eksi kart ödemeleri.
 /// Güncel borç ve "işlem sonrası borç" aynı toplamı okur; ikincisi yalnız bir
 /// kesim noktası ekler (<see cref="EntryCutoff"/>).
 /// </summary>
@@ -35,6 +36,15 @@ internal static class CardDebt
                     CardId = payment.CreditCardId!.Value,
                     Date = payment.PaymentDate,
                     Amount = payment.Amount.Amount
+                }))
+            // Kişiye kartla ödeme (S2): gider değildir, kart borcudur.
+            .Concat(dbContext.CounterpartyPayments.AsNoTracking()
+                .Where(payment => payment.UserId == userId && !payment.IsCancelled && payment.CreditCardId != null)
+                .Select(payment => new CardChargeRow
+                {
+                    CardId = payment.CreditCardId!.Value,
+                    Date = payment.PaymentDate,
+                    Amount = payment.Amount.Amount
                 }));
 
     public static async Task<decimal> SumAsync(
@@ -56,6 +66,10 @@ internal static class CardDebt
             .Where(payment => payment.CreditCardId == creditCardId &&
                               payment.UserId == userId &&
                               !payment.IsCancelled);
+        var counterpartyPayments = dbContext.CounterpartyPayments.AsNoTracking()
+            .Where(payment => payment.CreditCardId == creditCardId &&
+                              payment.UserId == userId &&
+                              !payment.IsCancelled);
 
         if (cutoff is not null)
         {
@@ -74,11 +88,18 @@ internal static class CardDebt
             debtPayments = debtPayments.Where(payment =>
                 payment.PaymentDate < date ||
                 (payment.PaymentDate == date && !(payment.PaidAtUtc > entryAt)));
+            counterpartyPayments = counterpartyPayments.Where(payment =>
+                payment.PaymentDate < date ||
+                (payment.PaymentDate == date &&
+                 (EF.Property<DateTimeOffset?>(payment, EntryTimestamp.PropertyName) == null ||
+                  EF.Property<DateTimeOffset?>(payment, EntryTimestamp.PropertyName) <= entryAt)));
         }
 
         var chargeTotal = await charges.SumAsync(charge => charge.Amount.Amount, cancellationToken);
         var paymentTotal = await payments.SumAsync(payment => payment.Amount.Amount, cancellationToken);
         var debtPaymentTotal = await debtPayments.SumAsync(
+            payment => (decimal?)payment.Amount.Amount, cancellationToken) ?? 0m;
+        var counterpartyPaymentTotal = await counterpartyPayments.SumAsync(
             payment => (decimal?)payment.Amount.Amount, cancellationToken) ?? 0m;
 
         // **Kırpılmaz.** Negatif sonuç kartın alacaklı bakiyesidir: kullanıcı
@@ -86,7 +107,7 @@ internal static class CardDebt
         // iptal edilmiştir. Sıfıra çekmek, kullanıcının parasını yok saymak
         // olurdu — cari hesapta "fazla tahsilat kırpılmaz" kararı (Aşama 02)
         // aynı soruya zaten bu cevabı veriyordu.
-        return chargeTotal + debtPaymentTotal - paymentTotal;
+        return chargeTotal + debtPaymentTotal + counterpartyPaymentTotal - paymentTotal;
     }
 
     /// <summary>

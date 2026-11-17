@@ -584,6 +584,9 @@ gider). Kalıcı test: `BackfillUsernamesFromEmail_DerivesAValidUniqueNameForEve
 
 - `counterpartyPayments[].paidWithChargeId` — satışla birlikte yazılmış
   peşin ya da avans tutarında o satış; eski dosyada yoktur ve boş okunur.
+- `counterpartyPayments[].creditCardId` — kişiye kredi kartıyla ödemede kart;
+  o zaman `accountId` boştur. Tam olarak biri dolu olmayan ya da tahsilat
+  yönünde kart taşıyan dosya reddedilir.
 
 Avans ayrı bir koleksiyon değildir: tahsilat ya da ödemedir ve
 `counterpartyPayments` içinde durur (`stages/06.3-borc-alacak/02-TASARIM.md`
@@ -602,4 +605,12 @@ kolonunu nullable ekler (eski tahsilatın hangi satışla yazıldığı bilinmiy
 doldurulmaz), sonra dizini ve bileşik yabancı anahtarı. `Down`, bağlı tahsilat
 varsa durur (`THROW 50024`). Kalıcı test:
 `AddCounterpartyPaidNow_AddsANullableLinkWithoutBackfill`.
-`BusinessFinanceApiSqlTests` hedefi 17 Kasım'da iki migration'la yükseltildi.
+`AddCounterpartyCardPayments` migration'ı `CounterpartyPayments.AccountId`'yi
+boş olabilir yapar, `CreditCardId`'yi nullable ekler, sonra dizini, CHECK'i
+(`CK_CounterpartyPayments_Source`: hesap ya da kart, kart yalnız ödemede) ve
+yabancı anahtarı. Var olan her ödemenin hesabı dolu olduğu için CHECK geçer;
+backfill yoktur. `Down`, kartla ödeme varsa durur (`THROW 50025`); hesap
+kolonuna uydurma varsayılan yazmaz. Dolu test veritabanında yükseltme, geri
+dönüş ve yeniden yükseltme denendi. Kalıcı test:
+`AddCounterpartyCardPayments_RelaxesTheAccountBeforeItConstrains`.
+`BusinessFinanceApiSqlTests` hedefi 17 Kasım'da üç migration'la yükseltildi.

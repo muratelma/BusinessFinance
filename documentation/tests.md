@@ -2584,6 +2584,10 @@ ADR 0022, `stages/06.3-borc-alacak/` Faz 2'nin ilk yarısı.
 | Satış iptalinde avans kalır; `withPaidNow=true` ikisini birlikte iptal eder | `…CancellingTheSale_KeepsTheAdvanceUnlessAskedToCancelItToo` | |
 | Bağ migration'ı nullable, backfill yok; `Down` bağ varsa durur | `MigrationHistoryTests.AddCounterpartyPaidNow_AddsANullableLinkWithoutBackfill` | |
 | Yedek v14 avansın satışa bağını taşır | `DataPortabilityTests.BackupV14_CarriesThePersonsKindAndLoans` | |
+| Vadeli alım kişiye kartla ödenir (senaryo 6): gider bir kez, kart borcu +950, hesap yalnız kart ödemesinde −950; akışta kartın adı, bakiyede kart borcu; iptal geri alır | `CounterpartyLoanEndpointTests.PurchasePaidByCreditCard_RaisesTheCardDebt_AndCountsTheExpenseOnce` | |
+| Kart yalnız ödemede ve tek başına; limit kuralı; başkasının kartı reddedilir | `…CardPayment_IsPayableOnly_RespectsTheLimit_AndIsOwnerScoped` | Limit tam dolunca kabul |
+| Kartla ödeme migration'ı: hesap boş olabilir, kart eklenir, CHECK sonra; `Down` durur ve uydurma varsayılan yazmaz | `MigrationHistoryTests.AddCounterpartyCardPayments_RelaxesTheAccountBeforeItConstrains` | Dolu SQL test veritabanında ileri-geri-ileri denendi |
+| Yedek v14 kişiye kartla ödemeyi kartıyla, hesapsız taşır | `DataPortabilityTests.BackupV14_CarriesThePersonsKindAndLoans` | |
 | Kişi listesi borç parayla da iki sorguda kalır | `SqlServerPersistenceIntegrationTests.CounterpartyBalances_ComeFromOneQueryAndStayInsideTheOwner` | Gecikme alımları ve borç parayı tek `UNION ALL` ile okur; ilk denemede 3 sorguya çıkmıştı |
 
 Gerçek SQL'le tam koşu (`BusinessFinanceApiSqlTests` yeni migration'la

@@ -325,7 +325,8 @@ public static class CounterpartyEndpoints
                 paymentDate,
                 request.Description,
                 card,
-                request.ClientRequestId),
+                request.ClientRequestId,
+                request.CreditCardId),
             cancellationToken);
         if (!result.IsSuccess)
         {
@@ -580,5 +581,6 @@ public static class CounterpartyEndpoints
         FinanceContract.Date(payment.PaymentDate),
         payment.Description,
         payment.IsCancelled,
-        payment.PosSettlementId);
+        payment.PosSettlementId,
+        payment.CreditCardId);
 }

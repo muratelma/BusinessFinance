@@ -230,10 +230,12 @@ internal static class AccountMovements
         // Cari tahsilat/ödeme parayı taşır: tahsilat kasayı artırır, ödeme
         // azaltır. Gelir/gider üretmediği için rapora değil yalnız buraya
         // girer (ADR 0014). Kartla tahsil burada sayılmaz: parası POS
-        // kaydıyla yoldadır ve hesaba yatışla girer (ADR 0019 T5).
+        // kaydıyla yoldadır ve hesaba yatışla girer (ADR 0019 T5). Kişiye
+        // kredi kartıyla ödeme de sayılmaz: hesabı yoktur, kart borcudur.
         var counterpartyPayments = dbContext.CounterpartyPayments.AsNoTracking()
             .Where(payment => payment.UserId == userId &&
                               !payment.IsCancelled &&
+                              payment.AccountId != null &&
                               payment.PosSettlementId == null)
             .Select(payment => new AccountMovement
             {
@@ -247,7 +249,7 @@ internal static class AccountMovements
                 Part = (string?)null,
                 Group = 2,
 
-                AccountId = payment.AccountId,
+                AccountId = payment.AccountId!.Value,
                 Date = payment.PaymentDate,
                 EntryAtUtc = EF.Property<DateTimeOffset?>(payment, EntryTimestamp.PropertyName),
                 Amount = payment.Direction == DebtDirection.Receivable

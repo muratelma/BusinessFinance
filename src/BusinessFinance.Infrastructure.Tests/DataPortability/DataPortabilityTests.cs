@@ -77,8 +77,15 @@ public sealed class DataPortabilityTests
 
         // Satışla birlikte yazılan avans bağıyla geri gelir.
         var sale = await context.CounterpartyCharges.SingleAsync(x => x.UserId == target);
-        var advance = await context.CounterpartyPayments.SingleAsync(x => x.UserId == target);
+        var advance = await context.CounterpartyPayments.SingleAsync(x => x.UserId == target && x.PaidWithChargeId != null);
         Assert.Equal(sale.Id, advance.PaidWithChargeId);
+
+        // Kişiye kartla ödeme hesapsız, kartıyla geri gelir.
+        var restoredCard = await context.CreditCards.SingleAsync(x => x.UserId == target);
+        var byCard = await context.CounterpartyPayments.SingleAsync(x => x.UserId == target && x.CreditCardId != null);
+        Assert.Equal(restoredCard.Id, byCard.CreditCardId);
+        Assert.Null(byCard.AccountId);
+        Assert.Equal(DebtDirection.Payable, byCard.Direction);
     }
 
     /// <summary>
@@ -126,6 +133,10 @@ public sealed class DataPortabilityTests
         context.CounterpartyPayments.Add(new CounterpartyPayment(
             Guid.NewGuid(), userId, friend, account, DebtDirection.Receivable,
             new Money(400m, CurrencyCode.TRY), new DateOnly(2026, 8, 4), paidWithCharge: sale));
+        var card = new CreditCard(Guid.NewGuid(), userId, "Kart", new Money(5000m, CurrencyCode.TRY), 10, 20);
+        context.CreditCards.Add(card);
+        context.CounterpartyPayments.Add(CounterpartyPayment.PayByCard(
+            Guid.NewGuid(), userId, friend, card, new Money(150m, CurrencyCode.TRY), new DateOnly(2026, 8, 7)));
         context.CounterpartyLoans.Add(new CounterpartyLoan(
             Guid.NewGuid(), userId, friend, account, DebtDirection.Receivable,
             new Money(500m, CurrencyCode.TRY), new DateOnly(2026, 8, 5), new DateOnly(2026, 9, 1), "Ev taşıma"));

@@ -513,7 +513,7 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("AccountId")
+                    b.Property<Guid?>("AccountId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTimeOffset?>("CancelledAtUtc")
@@ -524,6 +524,9 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTimeOffset?>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreditCardId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
@@ -563,6 +566,10 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId", "AccountId", "PaymentDate")
                         .HasDatabaseName("IX_CounterpartyPayments_UserId_AccountId_Date");
 
+                    b.HasIndex("UserId", "CreditCardId", "PaymentDate")
+                        .HasDatabaseName("IX_CounterpartyPayments_UserId_CreditCardId_Date")
+                        .HasFilter("[CreditCardId] IS NOT NULL");
+
                     b.HasIndex("UserId", "CounterpartyId", "IsCancelled", "Direction")
                         .HasDatabaseName("IX_CounterpartyPayments_UserId_CounterpartyId_Cancelled_Direction");
 
@@ -573,6 +580,8 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("CK_CounterpartyPayments_Currency", "[Currency] = 1");
 
                             t.HasCheckConstraint("CK_CounterpartyPayments_Direction", "[Direction] IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_CounterpartyPayments_Source", "([AccountId] IS NULL AND [CreditCardId] IS NOT NULL AND [Direction] = 1 AND [PosSettlementId] IS NULL) OR ([AccountId] IS NOT NULL AND [CreditCardId] IS NULL)");
                         });
                 });
 
@@ -2696,8 +2705,7 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("UserId", "AccountId")
                         .HasPrincipalKey("UserId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("BusinessFinance.Domain.Counterparty", null)
                         .WithMany()
@@ -2705,6 +2713,12 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .HasPrincipalKey("UserId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("BusinessFinance.Domain.CreditCard", null)
+                        .WithMany()
+                        .HasForeignKey("UserId", "CreditCardId")
+                        .HasPrincipalKey("UserId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("BusinessFinance.Domain.CounterpartyCharge", null)
                         .WithMany()

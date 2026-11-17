@@ -54,7 +54,8 @@ public sealed class MigrationHistoryTests
         "AddCounterpartyDiscountsAndOpeningBalances",
         "BackfillUsernamesFromEmail",
         "AddCounterpartyScopeAndLoans",
-        "AddCounterpartyPaidNow"
+        "AddCounterpartyPaidNow",
+        "AddCounterpartyCardPayments"
     ];
 
     [Fact]
@@ -1278,6 +1279,39 @@ public sealed class MigrationHistoryTests
 
             var guard = Assert.IsType<SqlOperation>(migration.Migration.DownOperations[0]);
             Assert.Contains("THROW 50024", guard.Sql, StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>
+    /// Kişiye kartla ödeme: hesap kolonu boş olabilir hâle gelir, kart kolonu
+    /// eklenir, "tam olarak biri" CHECK'i iki kolondan sonra gelir (var olan
+    /// her ödemenin hesabı dolu, CHECK geçer). Geri dönüş kartla ödeme varsa
+    /// durur ve hesap kolonuna uydurma varsayılan yazmaz.
+    /// </summary>
+    [Fact]
+    public void AddCounterpartyCardPayments_RelaxesTheAccountBeforeItConstrains()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_AddCounterpartyCardPayments", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations;
+            var account = Assert.Single(up.OfType<AlterColumnOperation>());
+            Assert.Equal("AccountId", account.Name);
+            Assert.True(account.IsNullable);
+            var card = Assert.Single(up.OfType<AddColumnOperation>());
+            Assert.Equal("CreditCardId", card.Name);
+            Assert.True(card.IsNullable);
+            var check = Assert.Single(up.OfType<AddCheckConstraintOperation>());
+            Assert.Equal("CK_CounterpartyPayments_Source", check.Name);
+            var operations = up.ToList();
+            Assert.True(operations.IndexOf(account) < operations.IndexOf(check));
+            Assert.True(operations.IndexOf(card) < operations.IndexOf(check));
+
+            var down = migration.Migration.DownOperations;
+            var guard = Assert.IsType<SqlOperation>(down[0]);
+            Assert.Contains("THROW 50025", guard.Sql, StringComparison.Ordinal);
+            Assert.Null(Assert.Single(down.OfType<AlterColumnOperation>()).DefaultValue);
         }
     }
 

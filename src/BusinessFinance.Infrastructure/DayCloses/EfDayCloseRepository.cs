@@ -306,7 +306,7 @@ internal sealed class EfDayCloseRepository(
             from payment in dbContext.CounterpartyPayments.AsNoTracking()
             join account in dbContext.Accounts.AsNoTracking()
                 on new { payment.UserId, Id = payment.AccountId }
-                equals new { account.UserId, account.Id }
+                equals new { account.UserId, Id = (Guid?)account.Id }
             join counterparty in dbContext.Counterparties.AsNoTracking()
                 on new { payment.UserId, Id = payment.CounterpartyId }
                 equals new { counterparty.UserId, counterparty.Id }

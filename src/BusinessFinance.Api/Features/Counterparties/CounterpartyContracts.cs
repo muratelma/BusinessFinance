@@ -104,6 +104,8 @@ public sealed record CounterpartyLoanResponse(
 /// <c>card</c> doluysa tahsilat kartla (POS) alınmıştır (ADR 0019 T5): para
 /// yola çıkar, hesaba yatışla geçer; <c>accountId</c> boş kalabilir (POS'un
 /// hesabı). Kart yalnız tahsilatta (<c>receivable</c>) geçerlidir.
+/// <c>creditCardId</c> doluysa ödeme kişiye kredi kartıyla yapılmıştır (yalnız
+/// <c>payable</c>): kart borcu artar, hesap verilmez, gider yazılmaz.
 /// </remarks>
 public sealed record CreateCounterpartyPaymentRequest(
     string Direction,
@@ -113,7 +115,8 @@ public sealed record CreateCounterpartyPaymentRequest(
     string PaymentDate,
     string? Description = null,
     CardCollectionRequest? Card = null,
-    Guid? ClientRequestId = null);
+    Guid? ClientRequestId = null,
+    Guid? CreditCardId = null);
 
 public sealed record CounterpartyChargeResponse(
     Guid Id,
@@ -153,7 +156,8 @@ public sealed record CounterpartyOpeningBalanceRequest(
 public sealed record CounterpartyPaymentResponse(
     Guid Id,
     Guid CounterpartyId,
-    Guid AccountId,
+    // Kişiye kredi kartıyla ödemede boştur; kart `creditCardId`dedir.
+    Guid? AccountId,
     string Direction,
     string Amount,
     string Currency,
@@ -161,4 +165,5 @@ public sealed record CounterpartyPaymentResponse(
     string? Description,
     bool IsCancelled,
     // Kartla tahsilde paranın yoldaki POS kaydı; değilse boş.
-    Guid? PosSettlementId = null);
+    Guid? PosSettlementId = null,
+    Guid? CreditCardId = null);

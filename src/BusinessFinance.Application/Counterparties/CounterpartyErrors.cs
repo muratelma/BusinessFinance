@@ -124,6 +124,20 @@ public static class CounterpartyErrors
         "A payment counted in a day close cannot be cancelled; revert the day close first.",
         ApplicationErrorType.Conflict);
 
+    /// <summary>
+    /// Kişiye kredi kartıyla yalnız ödeme yapılır (borç yönü); hesapla ya da
+    /// kartla tahsille birlikte verilemez.
+    /// </summary>
+    public static readonly ApplicationError CardRequiresPayment = new(
+        "counterparties.card_requires_payment",
+        "A credit card can only pay a counterparty, alone.",
+        ApplicationErrorType.Validation);
+
+    public static readonly ApplicationError CardUnavailable = new(
+        "counterparties.card_unavailable",
+        "An active owned credit card is required.",
+        ApplicationErrorType.Validation);
+
     /// <summary>Satışla birlikte yazılan peşin ya da avans tutarı satışı aşıyor.</summary>
     public static readonly ApplicationError PaidNowExceedsCharge = new(
         "counterparties.paid_now_exceeds_charge",

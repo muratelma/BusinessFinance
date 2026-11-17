@@ -29,7 +29,7 @@ kullanıcıya sorulmaz.
 |---|---|---|
 | 0 | Karar kapısı | **Bitti** (16 Kasım 2026): kullanıcı onayladı, ADR 0022 kabul edildi |
 | 1 | Kod gerçeği ve sunucu tasarımı | **Belge yazıldı** (`04-SUNUCU-TASARIMI.md`); kalan okuma Faz 2'nin ilk işi |
-| 2 | Sunucu: kişinin hesabı genişler | **Sürüyor** (commit edilmedi): S1 borç para, S3 istek kimliği, S4 kişinin türü, peşin/avans tutarı (`paidNow`), yedek v14 ve iki migration bitti. Kalan: S2 (hesaba kartla ödeme), S5 (vazgeçme, kalanı indirim sayma) |
+| 2 | Sunucu: kişinin hesabı genişler | **Sürüyor** (commit edilmedi): S1 borç para, S3 istek kimliği, S4 kişinin türü, peşin/avans tutarı (`paidNow`), S2 kişiye kartla ödeme, yedek v14 ve üç migration bitti. Kalan: S5 (vazgeçme, kalanı indirim sayma) |
 | 3 | Sunucu: okumalar | Başlamadı |
 | 4 | Ekran tasarımı | Başlamadı |
 | 5 | Flutter: liste | Başlamadı |
@@ -40,10 +40,9 @@ kullanıcıya sorulmaz.
 
 ## Sıradaki tek görev
 
-**Faz 2'nin yapılan kısmını commit etmek** (kullanıcı onayıyla; belgeler
-yazıldı, SQL dahil tam koşu yeşil). Sonra Faz 2'nin kalanı: S2 (hesaba kartla
-ödeme), S5 (vazgeçme, kalanı indirim sayma); yedek v14 bunlarla genişler
-(v14 henüz yayımlanmadı).
+**S5:** vazgeçme (`CounterpartyWriteOff`; bağışlanan borç gelir, vazgeçilen
+alacak gider; `RecognizedItems`e kaynak) ve tahsilat/ödemede `Kalanı indirim
+say`. Yedek v14 bununla genişler (v14 henüz yayımlanmadı). Sonra Faz 3.
 
 Açık iş (Faz 2 çıkışı "eski istemci çalışır" koşulu): Flutter
 `ActivityKind.fromApi` bilinmeyen türde `FormatException` atıyor; ilk
@@ -206,3 +205,13 @@ ve kendi kaydını yazamadı.
 - **Son doğrulama:** build ve `dotnet format` temiz; SQL Server'a karşı tam
   koşu (`BusinessFinanceApiSqlTests` iki migration'la yükseltildi): Domain 416,
   Application 418, API 389, Infrastructure 281 geçti, 2 atlandı, 0 düştü.
+- **Commit'ler (kullanıcı onayıyla):** `7ffc915` karar belgeleri, `021845d`
+  borç para, kişinin türü, `paidNow`, yedek v14.
+- **S2 — kişiye kredi kartıyla ödeme:** `CounterpartyPayment.CreditCardId`
+  (hesap o zaman boş; CHECK tam olarak birini ister, kart yalnız ödemede);
+  limit kart harcamasıyla aynı kural; `CardDebt` üçüncü kaynak olarak okur
+  (borç, ekstre, kalan limit, net varlık); kart sayfası hareketleri, akış
+  (kaynak kartın adı) ve işlem sonrası kart borcu. Migration
+  `AddCounterpartyCardPayments` dolu SQL test veritabanında ileri, geri, ileri
+  denendi. Tam koşu: Domain 416, Application 418, API 391, Infrastructure 282
+  geçti, 2 atlandı.

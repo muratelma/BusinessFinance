@@ -5,6 +5,7 @@ using BusinessFinance.Api.Features.Accounts;
 using BusinessFinance.Api.Features.Authentication;
 using BusinessFinance.Api.Features.Categories;
 using BusinessFinance.Api.Features.Counterparties;
+using BusinessFinance.Api.Features.CreditCards;
 using BusinessFinance.Api.Features.Reports;
 
 namespace BusinessFinance.Api.Tests.Features.Counterparties;
@@ -465,6 +466,114 @@ public sealed class CounterpartyLoanEndpointTests
         Assert.Equal("0.0000", report.TotalIncome);
         Assert.Equal("4000.0000", Assert.Single(report.AccountBalances).Balance);
     }
+
+    /// <summary>
+    /// Senaryo 6: 950'lik vadeli alım kendi kredi kartıyla ödenir, sonra kart
+    /// bankadan ödenir. Gider bir kez 950; kart borcu +950; hesap yalnız kart
+    /// ödemesinde −950. Kartla ödeme kart sayfasında ve akışta kartın adıyla
+    /// görünür; iptali kart borcunu geri alır.
+    /// </summary>
+    [Fact]
+    public async Task PurchasePaidByCreditCard_RaisesTheCardDebt_AndCountsTheExpenseOnce()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(factory, "cardpay-owner@example.test");
+        var bank = await CreateAccountAsync(owner, "Banka", "5000");
+        var card = await CreateCardAsync(owner, "İş kartı", "10000.0000");
+        var supplier = await CreateCounterpartyAsync(owner, "Demir Toptancı", "business");
+        var expense = await FirstCategoryAsync(owner, "expense", "business");
+        await ChargeAsync(owner, supplier.Id, expense.Id, "950.0000");
+
+        using var paid = await owner.PostAsJsonAsync(
+            $"/api/v1/counterparties/{supplier.Id}/payments",
+            new CreateCounterpartyPaymentRequest(
+                "payable", "950.0000", "TRY", null, "2026-08-06", CreditCardId: card.Id));
+        Assert.Equal(HttpStatusCode.Created, paid.StatusCode);
+        var payment = (await paid.Content.ReadFromJsonAsync<CounterpartyPaymentResponse>())!;
+        Assert.Null(payment.AccountId);
+        Assert.Equal(card.Id, payment.CreditCardId);
+
+        Assert.Equal("0.0000", (await GetAsync(owner, supplier.Id)).OwedByYou);
+        Assert.Equal("950.0000", (await CardAsync(owner, card.Id)).CurrentDebt);
+        Assert.Equal("9050.0000", (await CardAsync(owner, card.Id)).AvailableLimit);
+        var report = await ReportAsync(owner);
+        Assert.Equal("950.0000", report.TotalExpense);
+        Assert.Equal("5000.0000", Assert.Single(report.AccountBalances).Balance);
+
+        // Akışta kaynak kartın adıdır; işlem sonrası bakiye kart borcunu döner.
+        var feed = await owner.GetStringAsync("/api/v1/financial-activities?all=true");
+        Assert.Contains("İş kartı", feed);
+        var balances = await owner.GetStringAsync(
+            $"/api/v1/financial-activities/counterparty-settlement/{payment.Id}/balances");
+        Assert.Contains("credit-card", balances);
+        Assert.Contains(card.Id.ToString(), balances);
+
+        using var cardPayment = await owner.PostAsJsonAsync(
+            $"/api/v1/credit-cards/{card.Id}/payments",
+            new CreateCardPaymentRequest(bank.Id, "950.0000", "TRY", "2026-08-20", null));
+        Assert.Equal(HttpStatusCode.Created, cardPayment.StatusCode);
+        Assert.Equal("0.0000", (await CardAsync(owner, card.Id)).CurrentDebt);
+        report = await ReportAsync(owner);
+        Assert.Equal("950.0000", report.TotalExpense);
+        Assert.Equal("4050.0000", Assert.Single(report.AccountBalances).Balance);
+
+        using var cancel = await owner.DeleteAsync($"/api/v1/counterparty-payments/{payment.Id}");
+        Assert.Equal(HttpStatusCode.OK, cancel.StatusCode);
+        Assert.Equal("950.0000", (await GetAsync(owner, supplier.Id)).OwedByYou);
+        Assert.Equal("-950.0000", (await CardAsync(owner, card.Id)).CurrentDebt);
+    }
+
+    /// <summary>
+    /// Kart yalnız ödemede ve tek başına; limit kart harcamasıyla aynı kuralla
+    /// denetlenir; başkasının kartı kullanılamaz. Reddedilen istek yazmaz.
+    /// </summary>
+    [Fact]
+    public async Task CardPayment_IsPayableOnly_RespectsTheLimit_AndIsOwnerScoped()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(factory, "cardpay-rules@example.test");
+        using var stranger = await CreateAuthenticatedClientAsync(factory, "cardpay-stranger@example.test");
+        var bank = await CreateAccountAsync(owner, "Banka", "5000");
+        var card = await CreateCardAsync(owner, "İş kartı", "1000.0000");
+        var strangerCard = await CreateCardAsync(stranger, "Kart", "1000.0000");
+        var supplier = await CreateCounterpartyAsync(owner, "Demir Toptancı", "business");
+
+        async Task<HttpResponseMessage> PayAsync(string direction, string amount, Guid? accountId, Guid cardId) =>
+            await owner.PostAsJsonAsync(
+                $"/api/v1/counterparties/{supplier.Id}/payments",
+                new CreateCounterpartyPaymentRequest(
+                    direction, amount, "TRY", accountId, "2026-08-06", CreditCardId: cardId));
+
+        using var collection = await PayAsync("receivable", "10.0000", null, card.Id);
+        using var withAccount = await PayAsync("payable", "10.0000", bank.Id, card.Id);
+        using var foreign = await PayAsync("payable", "10.0000", null, strangerCard.Id);
+        using var overLimit = await PayAsync("payable", "1000.0001", null, card.Id);
+        Assert.Equal(HttpStatusCode.BadRequest, collection.StatusCode);
+        Assert.Contains("counterparties.card_requires_payment", await collection.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.BadRequest, withAccount.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, foreign.StatusCode);
+        Assert.Contains("counterparties.card_unavailable", await foreign.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.Conflict, overLimit.StatusCode);
+        Assert.Contains("credit_cards.limit_exceeded", await overLimit.Content.ReadAsStringAsync());
+
+        using var atLimit = await PayAsync("payable", "1000.0000", null, card.Id);
+        Assert.Equal(HttpStatusCode.Created, atLimit.StatusCode);
+        Assert.Equal("1000.0000", (await CardAsync(owner, card.Id)).CurrentDebt);
+        Assert.Equal("0.0000", (await CardAsync(stranger, strangerCard.Id)).CurrentDebt);
+        // Fazla ödeme kırpılmaz: borç yokken ödenen tutar kişide alacak olur.
+        Assert.Equal("1000.0000", (await GetAsync(owner, supplier.Id)).OwedToYou);
+    }
+
+    private static async Task<CreditCardResponse> CreateCardAsync(HttpClient client, string name, string limit)
+    {
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/credit-cards", new CreateCreditCardRequest(name, limit, "TRY", 10, 20));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<CreditCardResponse>())!;
+    }
+
+    private static async Task<CreditCardResponse> CardAsync(HttpClient client, Guid id) =>
+        (await client.GetFromJsonAsync<CreditCardResponse>($"/api/v1/credit-cards/{id}"))!;
 
     private static Task<CounterpartyResponse> GetLoanViaCancelProbeAsync(HttpClient client, Guid id) =>
         GetAsync(client, id);

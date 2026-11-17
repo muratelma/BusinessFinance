@@ -159,6 +159,12 @@ internal sealed class CounterpartyPaymentConfiguration : IEntityTypeConfiguratio
             table.HasCheckConstraint("CK_CounterpartyPayments_Amount", "[Amount] > 0");
             table.HasCheckConstraint("CK_CounterpartyPayments_Currency", "[Currency] = 1");
             table.HasCheckConstraint("CK_CounterpartyPayments_Direction", "[Direction] IN (1, 2)");
+            // Para ya bir hesaptan çıkar/girer ya da kişiye kredi kartıyla
+            // ödenir; tam olarak biri. Kart yalnız ödemede (borç yönü, 1).
+            table.HasCheckConstraint(
+                "CK_CounterpartyPayments_Source",
+                "([AccountId] IS NULL AND [CreditCardId] IS NOT NULL AND [Direction] = 1 AND [PosSettlementId] IS NULL) OR " +
+                "([AccountId] IS NOT NULL AND [CreditCardId] IS NULL)");
         });
 
         // Tahsilat yalnız parayı taşır: ne kategori ne kapsam kolonu var
@@ -201,7 +207,17 @@ internal sealed class CounterpartyPaymentConfiguration : IEntityTypeConfiguratio
         builder.HasOne<Account>().WithMany()
             .HasForeignKey(payment => new { payment.UserId, payment.AccountId })
             .HasPrincipalKey(account => new { account.UserId, account.Id })
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired(false);
+        // Kişiye kredi kartıyla ödemede kart; kart borcunu artırır (S2).
+        builder.HasOne<CreditCard>().WithMany()
+            .HasForeignKey(payment => new { payment.UserId, payment.CreditCardId })
+            .HasPrincipalKey(card => new { card.UserId, card.Id })
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired(false);
+        builder.HasIndex(payment => new { payment.UserId, payment.CreditCardId, payment.PaymentDate })
+            .HasFilter("[CreditCardId] IS NOT NULL")
+            .HasDatabaseName("IX_CounterpartyPayments_UserId_CreditCardId_Date");
         // Kartla tahsilde paranın yoldaki kaydı (ADR 0019 T5); değilse boş.
         builder.HasOne<PosSettlement>().WithMany()
             .HasForeignKey(payment => new { payment.UserId, payment.PosSettlementId })

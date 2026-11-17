@@ -336,14 +336,16 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                         item.IsCancelled,
                         item.AccountId,
                         null,
-                        null,
+                        item.CreditCardId,
                         null)
                     {
                         // Kartla tahsil hesaba dokunmaz: para yoldadır, yatışla
-                        // girer (POS satışı gibi "değişmedi").
-                        AccountIncreases = item.PosSettlementId != null
+                        // girer (POS satışı gibi "değişmedi"). Kişiye kartla
+                        // ödemede hesap yoktur; kart borcu artar.
+                        AccountIncreases = item.PosSettlementId != null || item.CreditCardId != null
                             ? null
                             : item.Direction == DebtDirection.Receivable,
+                        CardDebtIncreases = item.CreditCardId != null,
                         CounterpartyId = item.CounterpartyId,
                         // Tahsilat alacağı, ödeme borcu kapatır.
                         CounterpartyNetDelta = item.Direction == DebtDirection.Payable
@@ -1171,7 +1173,15 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 equals new { counterparty.UserId, counterparty.Id }
             join account in dbContext.Accounts.AsNoTracking()
                 on new { payment.UserId, Id = payment.AccountId }
-                equals new { account.UserId, account.Id }
+                equals new { account.UserId, Id = (Guid?)account.Id }
+                into accounts
+            from account in accounts.DefaultIfEmpty()
+                // Kişiye kredi kartıyla ödemede kaynak karttır; hesap yoktur.
+            join creditCard in dbContext.CreditCards.AsNoTracking()
+                on new { payment.UserId, Id = payment.CreditCardId }
+                equals new { creditCard.UserId, Id = (Guid?)creditCard.Id }
+                into creditCards
+            from creditCard in creditCards.DefaultIfEmpty()
             join card in dbContext.PosSettlements.AsNoTracking()
                 on new { payment.UserId, Id = payment.PosSettlementId }
                 equals new { card.UserId, Id = (Guid?)card.Id }
@@ -1200,8 +1210,8 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 Description = payment.Description,
                 CategoryId = null,
                 CategoryName = null,
-                SourceId = account.Id,
-                SourceName = account.Name,
+                SourceId = account != null ? account.Id : creditCard!.Id,
+                SourceName = account != null ? account.Name : creditCard!.Name,
                 DestinationId = counterparty.Id,
                 DestinationName = counterparty.Name,
                 CancelledAtUtc = payment.CancelledAtUtc,
@@ -1232,9 +1242,9 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                                             (Guid?)counted.RecordId == payment.PosSettlementId)))
                         .Select(counted => (Guid?)counted.DayCloseId)
                         .FirstOrDefault(),
-                MatchAccountId = account.Id,
+                MatchAccountId = payment.AccountId,
                 MatchSecondAccountId = null,
-                MatchCreditCardId = null,
+                MatchCreditCardId = payment.CreditCardId,
                 MatchCategoryId = null,
                 MatchCounterpartyId = counterparty.Id
             };

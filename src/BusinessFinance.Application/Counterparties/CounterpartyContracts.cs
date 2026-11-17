@@ -117,7 +117,9 @@ public sealed record CreateCounterpartyPaymentCommand(
     DateOnly PaymentDate,
     string? Description,
     CardCollectionInput? Card = null,
-    Guid? ClientRequestId = null);
+    Guid? ClientRequestId = null,
+    // Kişiye kredi kartıyla ödeme (yalnız borç yönünde); hesap verilmez.
+    Guid? CreditCardId = null);
 
 public sealed record CounterpartyChargeDto(
     Guid Id,
@@ -147,7 +149,7 @@ public sealed record CounterpartyChargeDiscountDto(
 public sealed record CounterpartyPaymentDto(
     Guid Id,
     Guid CounterpartyId,
-    Guid AccountId,
+    Guid? AccountId,
     DebtDirection Direction,
     decimal Amount,
     CurrencyCode Currency,
@@ -155,4 +157,6 @@ public sealed record CounterpartyPaymentDto(
     string? Description,
     bool IsCancelled,
     // Kartla tahsilde paranın yoldaki POS kaydı; değilse boş.
-    Guid? PosSettlementId = null);
+    Guid? PosSettlementId = null,
+    // Kişiye kredi kartıyla ödemede kart; hesap o zaman boştur.
+    Guid? CreditCardId = null);

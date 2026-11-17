@@ -6,6 +6,7 @@ using BusinessFinance.Application.DayCloses;
 using BusinessFinance.Application.Pos;
 using BusinessFinance.Application.Profiles;
 using BusinessFinance.Application.Categories;
+using BusinessFinance.Application.CreditCards;
 using BusinessFinance.Application.Scopes;
 using BusinessFinance.Application.Taxes;
 using BusinessFinance.Domain;
@@ -224,6 +225,7 @@ public sealed class CreateCounterpartyPaymentUseCase(
     ICounterpartyRepository repository,
     IAccountRepository accountRepository,
     CardCollectionBuilder cardCollectionBuilder,
+    ICreditCardRepository creditCardRepository,
     TimeProvider timeProvider)
 {
     public async Task<ApplicationResult<CounterpartyPaymentDto>> ExecuteAsync(
@@ -274,6 +276,55 @@ public sealed class CreateCounterpartyPaymentUseCase(
         try
         {
             var amount = new Money(command.Amount, command.Currency);
+
+            // Kişiye kredi kartıyla ödeme (S2): kart borcu artar, hesap
+            // kıpırdamaz, gider yazılmaz. Kart harcamasıyla aynı limit kuralı:
+            // limit − borç − karta yansımamış taksitler.
+            if (command.CreditCardId is Guid creditCardId)
+            {
+                if (command.Direction != DebtDirection.Payable ||
+                    command.AccountId is not null ||
+                    command.Card is not null)
+                {
+                    return ApplicationResult<CounterpartyPaymentDto>.Failure(
+                        CounterpartyErrors.CardRequiresPayment);
+                }
+
+                var creditCard = await creditCardRepository.FindOwnedByIdAsync(
+                    creditCardId, userId, false, cancellationToken);
+                if (creditCard is null || !creditCard.IsActive)
+                {
+                    return ApplicationResult<CounterpartyPaymentDto>.Failure(
+                        CounterpartyErrors.CardUnavailable);
+                }
+
+                var currentDebt = await creditCardRepository.CalculateCurrentDebtAsync(
+                    creditCard.Id, userId, cancellationToken);
+                var pendingInstallments = await creditCardRepository.CalculatePendingInstallmentsAsync(
+                    creditCard.Id, userId, cancellationToken);
+                if (command.Amount > creditCard.Limit.Amount - currentDebt - pendingInstallments)
+                {
+                    return ApplicationResult<CounterpartyPaymentDto>.Failure(
+                        CreditCardErrors.LimitExceeded);
+                }
+
+                var cardPayment = CounterpartyPayment.PayByCard(
+                    requestScopedId ?? Guid.NewGuid(),
+                    userId,
+                    counterparty,
+                    creditCard,
+                    amount,
+                    command.PaymentDate,
+                    command.Description);
+                if (!await repository.AddPaymentAsync(cardPayment, null, cancellationToken))
+                {
+                    return await ReplayAsync(cardPayment.Id, userId, command, cancellationToken)
+                        ?? ApplicationResult<CounterpartyPaymentDto>.Failure(CounterpartyErrors.PaymentChanged);
+                }
+
+                return ApplicationResult<CounterpartyPaymentDto>.Success(ToDto(cardPayment));
+            }
+
             Account? account;
             PosSettlement? cardSettlement = null;
             if (command.Card is CardCollectionInput card)
@@ -383,7 +434,8 @@ public sealed class CreateCounterpartyPaymentUseCase(
         payment.PaymentDate,
         payment.Description,
         payment.IsCancelled,
-        payment.PosSettlementId);
+        payment.PosSettlementId,
+        payment.CreditCardId);
 }
 
 /// <summary>

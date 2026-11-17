@@ -554,7 +554,8 @@ public sealed class EfDataPortabilityRepository(
             counterpartyPayments.Select(x => new CounterpartyPaymentBackup(
                 x.Id, x.CounterpartyId, x.AccountId, x.Direction, x.Amount.Amount, x.Amount.Currency,
                 x.PaymentDate, x.Description, x.IsCancelled, x.CancelledAtUtc,
-                entryTimes.GetValueOrDefault(x.Id), x.PosSettlementId, x.PaidWithChargeId)).ToArray(),
+                entryTimes.GetValueOrDefault(x.Id), x.PosSettlementId, x.PaidWithChargeId,
+                x.CreditCardId)).ToArray(),
             [],
             cashCounts.Select(x => new CashCountBackup(
                 x.Id, x.AccountId, x.CountedAmount, x.Currency, x.Scope, x.CountDate,
@@ -1119,16 +1120,28 @@ public sealed class EfDataPortabilityRepository(
             var counterpartyPayments = new List<CounterpartyPayment>();
             foreach (var item in snapshot.CounterpartyPayments)
             {
-                var entity = new CounterpartyPayment(
-                    Guid.NewGuid(), userId,
-                    Required(counterpartyMap, item.CounterpartyId, "payment counterparty"),
-                    Required(accountMap, item.AccountId, "counterparty payment account"),
-                    item.Direction, MoneyOf(item.Amount, item.Currency),
-                    item.PaymentDate, item.Description,
-                    TakeCardCollection(item.PosSettlementId),
-                    item.PaidWithChargeId is Guid paidWithChargeId
-                        ? Required(counterpartyChargeMap, paidWithChargeId, "paid-now charge")
-                        : null);
+                var paymentCounterparty = Required(counterpartyMap, item.CounterpartyId, "payment counterparty");
+                var paidWith = item.PaidWithChargeId is Guid paidWithChargeId
+                    ? Required(counterpartyChargeMap, paidWithChargeId, "paid-now charge")
+                    : null;
+                // v14: kişiye kredi kartıyla ödeme hesap değil kart taşır; tam
+                // olarak biri doludur.
+                if ((item.AccountId is null) == (item.CreditCardId is null))
+                    throw Invalid("A counterparty payment needs exactly one of an account or a card.");
+                var entity = item.CreditCardId is Guid paymentCardId
+                    ? CounterpartyPayment.PayByCard(
+                        Guid.NewGuid(), userId, paymentCounterparty,
+                        Required(cardMap, paymentCardId, "counterparty payment card"),
+                        MoneyOf(item.Amount, item.Currency), item.PaymentDate, item.Description, paidWith)
+                    : new CounterpartyPayment(
+                        Guid.NewGuid(), userId, paymentCounterparty,
+                        Required(accountMap, item.AccountId!.Value, "counterparty payment account"),
+                        item.Direction, MoneyOf(item.Amount, item.Currency),
+                        item.PaymentDate, item.Description,
+                        TakeCardCollection(item.PosSettlementId),
+                        paidWith);
+                if (item.CreditCardId is not null && item.Direction != DebtDirection.Payable)
+                    throw Invalid("Only a payment can be made with a credit card.");
                 ApplyCancellation(item.IsCancelled, item.CancelledAtUtc, entity.Cancel);
                 entryTimes[entity] = item.CreatedAtUtc;
                 counterpartyPaymentIds[item.Id] = entity.Id;
@@ -1967,13 +1980,14 @@ internal sealed record CounterpartyChargeDiscountBackup(
 /// Kartla tahsilde (<see cref="PosSettlementId"/>) para POS kaydıyla yoldadır;
 /// tahsilat hesaba dokunmaz (ADR 0019 T5). <see cref="PaidWithChargeId"/>
 /// (v14) satışla birlikte yazılmış peşin ya da avans tutarında o satıştır;
-/// eski dosyada yoktur ve boş okunur.
+/// <see cref="CreditCardId"/> (v14) kişiye kredi kartıyla ödemede karttır ve
+/// o zaman hesap boştur. Eski dosyada ikisi de yoktur ve boş okunur.
 /// </remarks>
 internal sealed record CounterpartyPaymentBackup(
-    Guid Id, Guid CounterpartyId, Guid AccountId, DebtDirection Direction, decimal Amount,
+    Guid Id, Guid CounterpartyId, Guid? AccountId, DebtDirection Direction, decimal Amount,
     CurrencyCode Currency, DateOnly PaymentDate, string? Description,
     bool IsCancelled, DateTimeOffset? CancelledAtUtc, DateTimeOffset? CreatedAtUtc = null,
-    Guid? PosSettlementId = null, Guid? PaidWithChargeId = null);
+    Guid? PosSettlementId = null, Guid? PaidWithChargeId = null, Guid? CreditCardId = null);
 /// <remarks>
 /// Yükümlülük <b>tanır</b>: kategori ve kapsam taşır, hesap taşımaz. Onu
 /// kapatan <see cref="Settlement"/> <b>taşır</b>: hesap taşır, kategori ve
