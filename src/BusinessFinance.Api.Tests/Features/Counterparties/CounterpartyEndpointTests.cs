@@ -330,12 +330,13 @@ public sealed class CounterpartyEndpointTests
     }
 
     /// <summary>
-    /// Cari hesap işletmeye özeldir (ADR 0020 İ9): borçlandırma taraf
-    /// gönderilmeden de işletme yazılır; şahsi kategori ve şahsi istek
+    /// Borçlandırmanın kapsamını her kayıt gibi kategori sınırlar (ADR 0022
+    /// İ5; ADR 0020 İ9'un "cari işletmeye özeldir" kuralı kalktı): şahsi
+    /// kategoriyle yazılan satış şahsidir. Kategoriyle çelişen açık seçim
     /// sessizce düzeltilmez, reddedilir.
     /// </summary>
     [Fact]
-    public async Task Charge_IsAlwaysBusiness_AndRejectsAPersonalCategoryOrChoice()
+    public async Task Charge_TakesItsScopeFromTheCategory_AndRejectsAConflictingChoice()
     {
         await using var factory = new BusinessFinanceApiFactory();
         using var owner = await CreateAuthenticatedClientAsync(factory, "cari-business@example.test");
@@ -357,9 +358,10 @@ public sealed class CounterpartyEndpointTests
             $"/api/v1/counterparties/{customer.Id}/charges",
             new CreateCounterpartyChargeRequest(
                 "receivable", "50.0000", "TRY", personal.Id, "2026-08-05"));
-        Assert.Equal(HttpStatusCode.BadRequest, personalCategory.StatusCode);
-        Assert.Contains(
-            "counterparties.scope_conflict", await personalCategory.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.Created, personalCategory.StatusCode);
+        Assert.Equal(
+            "personal",
+            (await personalCategory.Content.ReadFromJsonAsync<CounterpartyChargeResponse>())!.Scope);
 
         using var personalChoice = await owner.PostAsJsonAsync(
             $"/api/v1/counterparties/{customer.Id}/charges",
@@ -369,10 +371,10 @@ public sealed class CounterpartyEndpointTests
         Assert.Contains(
             "counterparties.scope_conflict", await personalChoice.Content.ReadAsStringAsync());
 
-        // Reddedilen iki istek hiçbir şey yazmadı.
+        // Reddedilen istek hiçbir şey yazmadı.
         var balance = await owner.GetFromJsonAsync<CounterpartyResponse>(
             $"/api/v1/counterparties/{customer.Id}");
-        Assert.Equal("200.0000", balance!.Receivable);
+        Assert.Equal("250.0000", balance!.Receivable);
     }
 
     /// <summary>

@@ -205,6 +205,7 @@ public sealed class OwnershipIsolationTests
         ("cari", f.CounterpartyId),
         ("cari borçlandırma", f.CounterpartyChargeId),
         ("cari tahsilat", f.CounterpartyPaymentId),
+        ("borç para", f.CounterpartyLoanId),
         ("bütçe", f.BudgetId),
         ("hedef", f.GoalId),
         ("borç", f.DebtId),
@@ -374,6 +375,13 @@ public sealed class OwnershipIsolationTests
             null, f.CounterpartyChargeId, Guid.NewGuid());
         yield return Json("cari tahsilat iptali", HttpMethod.Delete,
             "api/v1/counterparty-payments/{paymentId:guid}", null, f.CounterpartyPaymentId);
+        yield return Json("kişiye borç para", HttpMethod.Post,
+            "api/v1/counterparties/{counterpartyId:guid}/loans",
+            new CreateCounterpartyLoanRequest(
+                "receivable", "10.0000", "TRY", f.AccountId, Today),
+            f.CounterpartyId);
+        yield return Json("borç para iptali", HttpMethod.Delete,
+            "api/v1/counterparty-loans/{loanId:guid}", null, f.CounterpartyLoanId);
 
         yield return Json("kart okuma", HttpMethod.Get,
             "api/v1/credit-cards/{creditCardId:guid}", null, f.CreditCardId);
@@ -642,6 +650,7 @@ public sealed class OwnershipIsolationTests
         Guid CounterpartyId,
         Guid CounterpartyChargeId,
         Guid CounterpartyPaymentId,
+        Guid CounterpartyLoanId,
         Guid BudgetId,
         Guid GoalId,
         Guid DebtId,
@@ -668,7 +677,7 @@ public sealed class OwnershipIsolationTests
             GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId,
             GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId,
             GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId,
-            GhostId, GhostId, GhostId, GhostId, GhostId, GhostId);
+            GhostId, GhostId, GhostId, GhostId, GhostId, GhostId, GhostId);
     }
 
     private sealed record Probe(
@@ -766,6 +775,10 @@ public sealed class OwnershipIsolationTests
             owner, $"/api/v1/counterparties/{counterparty.Id}/payments",
             new CreateCounterpartyPaymentRequest(
                 "receivable", "40.0000", "TRY", account.Id, Today));
+        var counterpartyLoan = await CreateAsync<CounterpartyLoanResponse>(
+            owner, $"/api/v1/counterparties/{counterparty.Id}/loans",
+            new CreateCounterpartyLoanRequest(
+                "receivable", "30.0000", "TRY", account.Id, Today));
 
         var budget = await CreateAsync<BudgetResponse>(owner, "/api/v1/budgets",
             new CreateBudgetRequest(expense.Id, "1000.0000", "TRY", "business", 2026, 8));
@@ -879,6 +892,7 @@ public sealed class OwnershipIsolationTests
             counterparty.Id,
             counterpartyCharge.Id,
             counterpartyPayment.Id,
+            counterpartyLoan.Id,
             budget.Id,
             goal.Id,
             debt.Id,

@@ -1,12 +1,14 @@
 using BusinessFinance.Application.Abstractions.Authentication;
 using BusinessFinance.Application.Abstractions.Results;
+using BusinessFinance.Application.Profiles;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Application.Counterparties;
 
 public sealed class CreateCounterpartyUseCase(
     ICurrentUser currentUser,
-    ICounterpartyRepository repository)
+    ICounterpartyRepository repository,
+    IUserProfileRepository profileRepository)
 {
     public async Task<ApplicationResult<CounterpartyDto>> ExecuteAsync(
         CreateCounterpartyCommand command,
@@ -27,8 +29,20 @@ public sealed class CreateCounterpartyUseCase(
 
         try
         {
+            // İşletmesi olmayan kullanıcının kişisi şahsidir; sorulmaz. İşletmesi
+            // olanda tür gönderilmediyse boş kalır ve uydurulmaz (ADR 0022 İ5).
+            var scope = command.Scope;
+            if (scope is null)
+            {
+                var profile = await profileRepository.FindAsync(userId, track: false, cancellationToken);
+                if (!(profile?.HasBusiness ?? false))
+                {
+                    scope = TransactionScope.Personal;
+                }
+            }
+
             var counterparty = new Counterparty(
-                Guid.NewGuid(), userId, normalizedName, command.Note);
+                Guid.NewGuid(), userId, normalizedName, command.Note, scope);
             await repository.AddAsync(counterparty, cancellationToken);
 
             // Yeni karşı tarafın hareketi yok; bakiyeyi sormaya gerek yok ve
@@ -86,6 +100,11 @@ public sealed class UpdateCounterpartyUseCase(
         {
             counterparty.Rename(normalizedName);
             counterparty.SetNote(command.Note);
+            if (command.Scope is TransactionScope scope)
+            {
+                counterparty.SetScope(scope);
+            }
+
 
             // Pasifleştirme geçmişi silmez, yeni iş yapmayı durdurur; açık
             // bakiyeli bir karşı taraf da pasifleştirilebilir ve borcu
@@ -156,7 +175,8 @@ public sealed class ListCounterpartiesUseCase(
                 item.OpenReceivableObligations,
                 item.OpenPayableObligations,
                 item.OwedToYou,
-                item.OwedByYou))]);
+                item.OwedByYou,
+                Scope: item.Scope))]);
     }
 }
 
@@ -261,7 +281,8 @@ internal static class CounterpartyMapper
         CounterpartyDisplay.OwedToYou(receivable, payable),
         CounterpartyDisplay.OwedByYou(receivable, payable),
         counterparty.OpeningReceivable,
-        counterparty.OpeningPayable);
+        counterparty.OpeningPayable,
+        counterparty.Scope);
 
     public static CounterpartyDto ToDto(
         Counterparty counterparty,

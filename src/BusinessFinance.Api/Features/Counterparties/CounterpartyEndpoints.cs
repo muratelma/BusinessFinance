@@ -105,8 +105,13 @@ public static class CounterpartyEndpoints
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
+        if (!FinanceContract.TryParseOptionalScope(request.Scope, out var scope))
+        {
+            return InvalidScope(httpContext);
+        }
+
         var result = await useCase.ExecuteAsync(
-            new CreateCounterpartyCommand(request.Name, request.Note), cancellationToken);
+            new CreateCounterpartyCommand(request.Name, request.Note, scope), cancellationToken);
         if (!result.IsSuccess)
         {
             return result.Error.ToProblemResult(httpContext);
@@ -171,9 +176,14 @@ public static class CounterpartyEndpoints
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
+        if (!FinanceContract.TryParseOptionalScope(request.Scope, out var scope))
+        {
+            return InvalidScope(httpContext);
+        }
+
         var result = await useCase.ExecuteAsync(
             new UpdateCounterpartyCommand(
-                counterpartyId, request.Name, request.Note, request.IsActive),
+                counterpartyId, request.Name, request.Note, request.IsActive, scope),
             cancellationToken);
         return result.IsSuccess
             ? Results.Ok(ToResponse(result.Value))
@@ -239,6 +249,18 @@ public static class CounterpartyEndpoints
             dueDate = parsedDueDate;
         }
 
+        CounterpartyPaidNow? paidNow = null;
+        if (request.PaidNow is CounterpartyPaidNowRequest paidNowRequest)
+        {
+            if (!TryValidateMoney(
+                    paidNowRequest.Amount, request.Currency, httpContext, out var paidNowAmount, out var paidNowError))
+            {
+                return paidNowError!;
+            }
+
+            paidNow = new CounterpartyPaidNow(paidNowAmount, paidNowRequest.AccountId);
+        }
+
         var result = await useCase.ExecuteAsync(
             new CreateCounterpartyChargeCommand(
                 counterpartyId,
@@ -249,7 +271,9 @@ public static class CounterpartyEndpoints
                 scope,
                 chargeDate,
                 request.Description,
-                dueDate),
+                dueDate,
+                request.ClientRequestId,
+                paidNow),
             cancellationToken);
         if (!result.IsSuccess)
         {
@@ -376,9 +400,10 @@ public static class CounterpartyEndpoints
         Guid chargeId,
         CancelCounterpartyChargeUseCase useCase,
         HttpContext httpContext,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool withPaidNow = false)
     {
-        var result = await useCase.ExecuteAsync(chargeId, cancellationToken);
+        var result = await useCase.ExecuteAsync(chargeId, cancellationToken, withPaidNow);
         return result.IsSuccess
             ? Results.Ok(ToChargeResponse(result.Value))
             : result.Error.ToProblemResult(httpContext);
@@ -446,7 +471,7 @@ public static class CounterpartyEndpoints
         return false;
     }
 
-    private static bool TryParseDirection(string? value, out DebtDirection direction)
+    internal static bool TryParseDirection(string? value, out DebtDirection direction)
     {
         switch (value?.Trim().ToLowerInvariant())
         {
@@ -462,13 +487,19 @@ public static class CounterpartyEndpoints
         }
     }
 
-    private static IResult InvalidDirection(HttpContext httpContext) =>
+    private static IResult InvalidScope(HttpContext httpContext) =>
+        ApiProblemResults.Validation(
+            httpContext,
+            "Scope must be business, personal or empty.",
+            "counterparties.invalid_scope");
+
+    internal static IResult InvalidDirection(HttpContext httpContext) =>
         ApiProblemResults.Validation(
             httpContext,
             "Direction must be payable or receivable.",
             "counterparties.invalid_direction");
 
-    private static bool TryValidateMoney(
+    internal static bool TryValidateMoney(
         string? amountText,
         string? currency,
         HttpContext httpContext,
@@ -495,7 +526,7 @@ public static class CounterpartyEndpoints
         return true;
     }
 
-    private static string DirectionValue(DebtDirection direction) =>
+    internal static string DirectionValue(DebtDirection direction) =>
         direction == DebtDirection.Payable ? "payable" : "receivable";
 
     private static CounterpartyResponse ToResponse(CounterpartyDto counterparty) => new(
@@ -516,7 +547,8 @@ public static class CounterpartyEndpoints
         FinanceContract.Money(counterparty.OwedToYou),
         FinanceContract.Money(counterparty.OwedByYou),
         FinanceContract.Money(counterparty.OpeningReceivable),
-        FinanceContract.Money(counterparty.OpeningPayable));
+        FinanceContract.Money(counterparty.OpeningPayable),
+        FinanceContract.OptionalScopeValue(counterparty.Scope));
 
     private static CounterpartyChargeResponse ToChargeResponse(CounterpartyChargeDto charge) => new(
         charge.Id,
@@ -535,7 +567,8 @@ public static class CounterpartyEndpoints
             discount.Id,
             FinanceContract.Money(discount.Amount),
             FinanceContract.Date(discount.DiscountDate),
-            discount.IsCancelled))]);
+            discount.IsCancelled))],
+        charge.PaidNowPaymentId);
 
     private static CounterpartyPaymentResponse ToPaymentResponse(CounterpartyPaymentDto payment) => new(
         payment.Id,

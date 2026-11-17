@@ -52,7 +52,9 @@ public sealed class MigrationHistoryTests
         "MergeObligationsAndDebtAgreements",
         "AddDebtPartialPaymentsAndPlans",
         "AddCounterpartyDiscountsAndOpeningBalances",
-        "BackfillUsernamesFromEmail"
+        "BackfillUsernamesFromEmail",
+        "AddCounterpartyScopeAndLoans",
+        "AddCounterpartyPaidNow"
     ];
 
     [Fact]
@@ -1211,6 +1213,71 @@ public sealed class MigrationHistoryTests
 
             var down = Assert.Single(migration.Migration.DownOperations);
             Assert.IsType<SqlOperation>(down);
+        }
+    }
+
+    /// <summary>
+    /// Kişinin türü bu ayrımdan önce bilinmiyordu: kolon nullable eklenir ve
+    /// uydurulmaz (backfill yok). Borç para tablosu yenidir ve boştur. Kişinin
+    /// CHECK'i kolondan sonra gelir; hiçbir adım veri silmez.
+    /// </summary>
+    [Fact]
+    public void AddCounterpartyScopeAndLoans_AddsANullableKindAndAnEmptyTable()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_AddCounterpartyScopeAndLoans", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations;
+            var scope = Assert.Single(up.OfType<AddColumnOperation>());
+            Assert.Equal("Counterparties", scope.Table);
+            Assert.Equal("Scope", scope.Name);
+            Assert.True(scope.IsNullable);
+            Assert.Null(scope.DefaultValue);
+            Assert.Null(scope.DefaultValueSql);
+            Assert.Empty(up.OfType<SqlOperation>());
+            Assert.Empty(up.OfType<DropColumnOperation>());
+            Assert.Empty(up.OfType<DropTableOperation>());
+
+            var table = Assert.Single(up.OfType<CreateTableOperation>());
+            Assert.Equal("CounterpartyLoans", table.Name);
+            Assert.DoesNotContain(table.Columns, column => column.Name == "Kind");
+
+            var check = Assert.Single(up.OfType<AddCheckConstraintOperation>());
+            Assert.Equal("CK_Counterparties_Scope", check.Name);
+            Assert.True(IndexOf(up, scope) < IndexOf(up, check));
+
+            // Geri dönüş borç parayı ya da kişinin türünü sessizce silmez.
+            var guard = Assert.IsType<SqlOperation>(migration.Migration.DownOperations[0]);
+            Assert.Contains("THROW 50023", guard.Sql, StringComparison.Ordinal);
+        }
+
+        static int IndexOf(IReadOnlyList<MigrationOperation> operations, MigrationOperation operation) =>
+            operations.ToList().IndexOf(operation);
+    }
+
+    /// <summary>
+    /// Bağ yenidir; eski tahsilatın hangi satışla yazıldığı bilinmiyor: kolon
+    /// nullable eklenir ve doldurulmaz. Geri dönüş bağ varsa durur.
+    /// </summary>
+    [Fact]
+    public void AddCounterpartyPaidNow_AddsANullableLinkWithoutBackfill()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_AddCounterpartyPaidNow", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations;
+            var link = Assert.Single(up.OfType<AddColumnOperation>());
+            Assert.Equal("CounterpartyPayments", link.Table);
+            Assert.Equal("PaidWithChargeId", link.Name);
+            Assert.True(link.IsNullable);
+            Assert.Null(link.DefaultValue);
+            Assert.Empty(up.OfType<SqlOperation>());
+            Assert.Single(up.OfType<AddForeignKeyOperation>());
+
+            var guard = Assert.IsType<SqlOperation>(migration.Migration.DownOperations[0]);
+            Assert.Contains("THROW 50024", guard.Sql, StringComparison.Ordinal);
         }
     }
 

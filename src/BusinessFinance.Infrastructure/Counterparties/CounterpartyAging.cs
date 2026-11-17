@@ -38,22 +38,46 @@ internal static class CounterpartyAging
         }
 
         var ids = counterpartyIds.ToArray();
-        var charges = await dbContext.CounterpartyCharges.AsNoTracking()
+        // Borç para da açık bir kalemdir: vadesi varsa gecikir. İkisi tek
+        // sorguda (UNION ALL) okunur; kişi listesinin sorgu sayısı kayıt türüyle
+        // büyümez. EF kurucudan sonra birleşim çeviremediği için satır bellekte
+        // kurulur.
+        var rows = await dbContext.CounterpartyCharges.AsNoTracking()
             .Where(charge => charge.UserId == userId &&
                              !charge.IsCancelled &&
                              ids.Contains(charge.CounterpartyId))
-            .Select(charge => new ChargeRow(
-                charge.CounterpartyId, charge.Direction, charge.ChargeDate,
-                EF.Property<DateTimeOffset?>(charge, EntryTimestamp.PropertyName),
+            .Select(charge => new
+            {
+                charge.CounterpartyId,
+                charge.Direction,
+                Date = charge.ChargeDate,
+                EntryAt = EF.Property<DateTimeOffset?>(charge, EntryTimestamp.PropertyName),
                 charge.Id,
-                charge.Amount.Amount -
+                Amount = charge.Amount.Amount -
                     (dbContext.CounterpartyChargeDiscounts
                         .Where(discount => discount.UserId == userId &&
                                            discount.ChargeId == charge.Id &&
                                            !discount.IsCancelled)
                         .Sum(discount => (decimal?)discount.Amount) ?? 0m),
-                charge.DueDate))
+                charge.DueDate
+            })
+            .Concat(dbContext.CounterpartyLoans.AsNoTracking()
+                .Where(loan => loan.UserId == userId &&
+                               !loan.IsCancelled &&
+                               ids.Contains(loan.CounterpartyId))
+                .Select(loan => new
+                {
+                    loan.CounterpartyId,
+                    loan.Direction,
+                    Date = loan.LoanDate,
+                    EntryAt = EF.Property<DateTimeOffset?>(loan, EntryTimestamp.PropertyName),
+                    loan.Id,
+                    Amount = loan.Amount.Amount,
+                    loan.DueDate
+                }))
             .ToArrayAsync(cancellationToken);
+        var charges = rows.Select(row => new ChargeRow(
+            row.CounterpartyId, row.Direction, row.Date, row.EntryAt, row.Id, row.Amount, row.DueDate));
 
         var result = new Dictionary<(Guid, DebtDirection), Aging>();
         foreach (var group in charges.GroupBy(charge => (charge.CounterpartyId, charge.Direction)))

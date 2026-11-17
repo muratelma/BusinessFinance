@@ -1,7 +1,9 @@
 # Backup Restore Runbook
 
-Bu runbook yalnız sentetik yerel veridir. Yazılan şema **v13**; okunabilen
-şemalar **v11, v12 ve v13**. v13 borcu tek listede durumuyla (`debtRecords`),
+Bu runbook yalnız sentetik yerel veridir. Yazılan şema **v14**; okunabilen
+şemalar **v11, v12, v13 ve v14**. v14 kişinin türünü ve kişiye verilen ya da
+kişiden alınan borç parayı (`counterpartyLoans`) taşır (aşağıda "Yedek v14").
+v13 borcu tek listede durumuyla (`debtRecords`),
 cari indirimi ve kişinin devreden bakiyesini taşır (aşağıda "Yedek v13").
 v12 kategori rolünü ve transferin masraf gideri bağını
 taşır. Rolsüz v11 kategori adları yükseltme eşlemesiyle değerlendirilir;
@@ -566,3 +568,38 @@ kimlik kayıtlarını taşımaz; geri yükleme kullanıcı adına dokunmaz. `Dow
 bütün kullanıcı adlarını yeniden e-posta yapar (sonradan seçilmiş adlar da
 gider). Kalıcı test: `BackfillUsernamesFromEmail_DerivesAValidUniqueNameForEveryAccount`
 (gerçek SQL).
+
+## Yedek v14 — 17 Kasım 2026 (ADR 0022, Aşama 06.3 borç ve alacak Faz 2)
+
+**Yazılan sürüm v14; v11, v12 ve v13 okunmaya devam eder.** İki şey eklendi:
+
+- `counterparties[].scope` — kişinin türü (`business` / `personal`). Kaydın
+  rapordaki kapsamı değildir; `Borç ve alacak` listesini böler (ADR 0022 İ5).
+  v13 ve öncesinde yoktur ve **boş** okunur; uydurulmaz.
+- `counterpartyLoans[]` — kişiye verilen ya da kişiden alınan borç para (ADR
+  0022 İ3): kişi, hesap, yön, tutar, gün, isteğe bağlı vade ve açıklama, iptal
+  anı, giriş anı. **Taşır**: kategori ve kapsam yoktur. v13 dosyasında liste
+  yoktur ve borç para kaydı da yoktu; v14 dosyasında liste eksikse dosya
+  reddedilir ("Every backup collection is required").
+
+- `counterpartyPayments[].paidWithChargeId` — satışla birlikte yazılmış
+  peşin ya da avans tutarında o satış; eski dosyada yoktur ve boş okunur.
+
+Avans ayrı bir koleksiyon değildir: tahsilat ya da ödemedir ve
+`counterpartyPayments` içinde durur (`stages/06.3-borc-alacak/02-TASARIM.md`
+§7a). Pasif kişinin ve hesabın borç parası geri yüklenir; pasifleştirme
+kayıtlar kurulduktan sonra uygulanır. Kayıt sayısı borç paraları da sayar.
+
+`AddCounterpartyScopeAndLoans` migration'ı **veri kaybettirmez**:
+`Counterparties.Scope` nullable eklenir ve doldurulmaz (eski kişinin türü
+bilinmiyor), `CounterpartyLoans` yeni ve boş bir tablodur, kişinin türü için
+CHECK (`IS NULL OR IN (1, 2)`) kolondan sonra gelir. `Down`, borç para ya da
+türü yazılmış kişi varsa veri kaybettirmek yerine durur (`THROW 50023`). Kalıcı testler: `AddCounterpartyScopeAndLoans_AddsANullableKindAndAnEmptyTable`,
+`BackupV14_CarriesThePersonsKindAndLoans`,
+`BackupV13WithoutLoans_RestoresAnUnknownKind_AndV14RequiresTheLoanList`.
+`AddCounterpartyPaidNow` migration'ı `CounterpartyPayments.PaidWithChargeId`
+kolonunu nullable ekler (eski tahsilatın hangi satışla yazıldığı bilinmiyor;
+doldurulmaz), sonra dizini ve bileşik yabancı anahtarı. `Down`, bağlı tahsilat
+varsa durur (`THROW 50024`). Kalıcı test:
+`AddCounterpartyPaidNow_AddsANullableLinkWithoutBackfill`.
+`BusinessFinanceApiSqlTests` hedefi 17 Kasım'da iki migration'la yükseltildi.

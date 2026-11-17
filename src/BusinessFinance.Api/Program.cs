@@ -87,6 +87,7 @@ app.MapFinancialActivityEndpoints();
 app.MapDataPortabilityEndpoints();
 app.MapDebtEndpoints();
 app.MapCounterpartyEndpoints();
+app.MapCounterpartyLoanEndpoints();
 app.MapObligationEndpoints();
 app.MapCashCountEndpoints();
 app.MapTaxEndpoints();

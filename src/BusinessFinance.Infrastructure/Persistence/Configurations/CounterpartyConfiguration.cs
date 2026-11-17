@@ -10,8 +10,13 @@ internal sealed class CounterpartyConfiguration : IEntityTypeConfiguration<Count
     public void Configure(EntityTypeBuilder<Counterparty> builder)
     {
         builder.ToTable("Counterparties", table =>
+        {
             table.HasCheckConstraint(
-                "CK_Counterparties_OpeningBalance", "[OpeningReceivable] >= 0 AND [OpeningPayable] >= 0"));
+                "CK_Counterparties_OpeningBalance", "[OpeningReceivable] >= 0 AND [OpeningPayable] >= 0");
+            // Tür boş olabilir: bu ayrımdan önce açılmış kişinin türü bilinmez
+            // ve uydurulmaz (ADR 0022 İ5).
+            table.HasCheckConstraint("CK_Counterparties_Scope", "[Scope] IS NULL OR [Scope] IN (1, 2)");
+        });
 
         builder.HasKey(counterparty => counterparty.Id);
 
@@ -25,6 +30,7 @@ internal sealed class CounterpartyConfiguration : IEntityTypeConfiguration<Count
         builder.Property(counterparty => counterparty.Note)
             .HasMaxLength(Counterparty.MaximumNoteLength);
         builder.Property(counterparty => counterparty.IsActive).IsRequired();
+        builder.Property(counterparty => counterparty.Scope).HasConversion<byte?>().HasColumnType("tinyint");
         builder.Property(counterparty => counterparty.OpeningReceivable).HasPrecision(19, 4);
         builder.Property(counterparty => counterparty.OpeningPayable).HasPrecision(19, 4);
 
@@ -182,6 +188,9 @@ internal sealed class CounterpartyPaymentConfiguration : IEntityTypeConfiguratio
             .IsUnique()
             .HasFilter("[PosSettlementId] IS NOT NULL")
             .HasDatabaseName("UX_CounterpartyPayments_UserId_PosSettlementId");
+        builder.HasIndex(payment => new { payment.UserId, payment.PaidWithChargeId })
+            .HasFilter("[PaidWithChargeId] IS NOT NULL")
+            .HasDatabaseName("IX_CounterpartyPayments_UserId_PaidWithChargeId");
 
         builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(payment => payment.UserId)
             .OnDelete(DeleteBehavior.Restrict);
@@ -199,5 +208,64 @@ internal sealed class CounterpartyPaymentConfiguration : IEntityTypeConfiguratio
             .HasPrincipalKey(settlement => new { settlement.UserId, settlement.Id })
             .OnDelete(DeleteBehavior.Restrict)
             .IsRequired(false);
+        // Satışla birlikte yazılan peşin ya da avans tutarında o satış.
+        builder.HasOne<CounterpartyCharge>().WithMany()
+            .HasForeignKey(payment => new { payment.UserId, payment.PaidWithChargeId })
+            .HasPrincipalKey(charge => new { charge.UserId, charge.Id })
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired(false);
+    }
+}
+
+/// <summary>
+/// Borç para: para taşır, gelir/gider yazmaz (ADR 0022 İ3).
+/// Borçlandırmadan ayrı tablodadır; kategori ve kapsam kolonu yoktur.
+/// </summary>
+internal sealed class CounterpartyLoanConfiguration : IEntityTypeConfiguration<CounterpartyLoan>
+{
+    public void Configure(EntityTypeBuilder<CounterpartyLoan> builder)
+    {
+        builder.ToTable("CounterpartyLoans", table =>
+        {
+            table.HasCheckConstraint("CK_CounterpartyLoans_Amount", "[Amount] > 0");
+            table.HasCheckConstraint("CK_CounterpartyLoans_Currency", "[Currency] = 1");
+            table.HasCheckConstraint("CK_CounterpartyLoans_Direction", "[Direction] IN (1, 2)");
+            table.HasCheckConstraint(
+                "CK_CounterpartyLoans_DueDate", "[DueDate] IS NULL OR [DueDate] >= [LoanDate]");
+        });
+        builder.HasKey(loan => loan.Id);
+        builder.Property(loan => loan.Id).ValueGeneratedNever();
+        builder.HasAlternateKey(loan => new { loan.UserId, loan.Id });
+        builder.Property(loan => loan.Direction).HasConversion<byte>().HasColumnType("tinyint");
+        builder.Property(loan => loan.LoanDate).HasColumnType("date");
+        builder.Property(loan => loan.DueDate).HasColumnType("date");
+        builder.Property(loan => loan.Description)
+            .HasMaxLength(CounterpartyLoan.MaximumDescriptionLength);
+        builder.Property(loan => loan.IsCancelled).IsRequired();
+        builder.Property(loan => loan.CancelledAtUtc).HasColumnType("datetimeoffset");
+        builder.OwnsOne(loan => loan.Amount, money =>
+        {
+            money.Property(value => value.Amount).HasColumnName("Amount").HasPrecision(19, 4);
+            money.Property(value => value.Currency)
+                .HasColumnName("Currency").HasConversion<byte>().HasColumnType("tinyint");
+        });
+        builder.Ignore(loan => loan.SignedAccountEffect);
+
+        builder.HasIndex(loan => new
+        { loan.UserId, loan.CounterpartyId, loan.IsCancelled, loan.Direction, loan.DueDate })
+            .HasDatabaseName("IX_CounterpartyLoans_UserId_CounterpartyId_Cancelled_Direction");
+        builder.HasIndex(loan => new { loan.UserId, loan.AccountId, loan.LoanDate })
+            .HasDatabaseName("IX_CounterpartyLoans_UserId_AccountId_Date");
+
+        builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(loan => loan.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Counterparty>().WithMany()
+            .HasForeignKey(loan => new { loan.UserId, loan.CounterpartyId })
+            .HasPrincipalKey(counterparty => new { counterparty.UserId, counterparty.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Account>().WithMany()
+            .HasForeignKey(loan => new { loan.UserId, loan.AccountId })
+            .HasPrincipalKey(account => new { account.UserId, account.Id })
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

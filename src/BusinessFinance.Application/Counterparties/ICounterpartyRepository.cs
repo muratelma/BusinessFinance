@@ -96,7 +96,25 @@ public interface ICounterpartyRepository
         Guid userId,
         CancellationToken cancellationToken);
 
-    Task AddChargeAsync(CounterpartyCharge charge, CancellationToken cancellationToken);
+    /// <returns>
+    /// Aynı kimlikle bir borçlandırma zaten yazılmışsa <c>false</c>; çağıran
+    /// var olanı döner (tekrar gönderilen istek ikinci kayıt yazmaz).
+    /// </returns>
+    /// <remarks>
+    /// <paramref name="paidNow"/> verilirse peşin ya da avans tutarı satışla
+    /// aynı <c>SaveChanges</c> içinde yazılır: biri yazılıp öbürü yazılmasaydı
+    /// ya para alınmış ama satış görünmez ya da satış avanssız görünürdü.
+    /// </remarks>
+    Task<bool> AddChargeAsync(
+        CounterpartyCharge charge,
+        CancellationToken cancellationToken,
+        CounterpartyPayment? paidNow = null);
+
+    /// <summary>Satışla birlikte yazılmış, iptal edilmemiş tahsilat ya da ödemeler (izlenen).</summary>
+    Task<IReadOnlyList<CounterpartyPayment>> FindPaidWithChargeAsync(
+        Guid chargeId,
+        Guid userId,
+        CancellationToken cancellationToken);
 
     /// <summary>
     /// Tahsilatı ve kartla tahsilse POS kaydını tek <c>SaveChanges</c> ile

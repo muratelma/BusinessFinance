@@ -37,6 +37,7 @@ internal static class EntryTimestamp
         typeof(CreditCardPayment),
         typeof(CounterpartyCharge),
         typeof(CounterpartyPayment),
+        typeof(CounterpartyLoan),
         typeof(Debt),
     ];
 

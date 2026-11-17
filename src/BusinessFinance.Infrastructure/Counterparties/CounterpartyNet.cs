@@ -76,11 +76,25 @@ internal static class CounterpartyNet
                     ? -discount.Amount
                     : discount.Amount),
                 cancellationToken) ?? 0m;
+        var loans = await dbContext.CounterpartyLoans.AsNoTracking()
+            .Where(loan => loan.UserId == userId &&
+                              loan.CounterpartyId == counterpartyId &&
+                              !loan.IsCancelled &&
+                              (loan.LoanDate < date ||
+                               (loan.LoanDate == date &&
+                                (EF.Property<DateTimeOffset?>(loan, EntryTimestamp.PropertyName) == null ||
+                                 EF.Property<DateTimeOffset?>(loan, EntryTimestamp.PropertyName) <= entryAt))))
+            .SumAsync(
+                loan => (decimal?)(loan.Direction == DebtDirection.Receivable
+                    ? loan.Amount.Amount
+                    : -loan.Amount.Amount),
+                cancellationToken) ?? 0m;
+
         var opening = await dbContext.Counterparties.AsNoTracking()
             .Where(counterparty => counterparty.UserId == userId && counterparty.Id == counterpartyId)
             .Select(counterparty => counterparty.OpeningReceivable - counterparty.OpeningPayable)
             .SingleOrDefaultAsync(cancellationToken);
 
-        return opening + charges + discounts + payments;
+        return opening + charges + loans + discounts + payments;
     }
 }

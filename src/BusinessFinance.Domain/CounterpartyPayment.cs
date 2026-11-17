@@ -43,6 +43,19 @@ public sealed class CounterpartyPayment
     /// </summary>
     public Guid? PosSettlementId { get; }
 
+    /// <summary>
+    /// Satış ya da alımla birlikte yazılmış peşin ya da avans tutarında o
+    /// borçlandırma; tek başına yazılan tahsilatta ve ödemede boştur.
+    /// </summary>
+    /// <remarks>
+    /// Bağ yalnız birlikte yazıldığını söyler; ödeme yine kişinin hesabına
+    /// yazılır ve en eski kalemden başlayarak düşer (ADR 0022 İ2). Satış iptal
+    /// edilince ödeme kendiliğinden iptal olmaz: para gerçekten alındıysa
+    /// kişinin hesabında kalır. Kullanıcı yanlış girdiyse ikisini birlikte
+    /// iptal edebilir.
+    /// </remarks>
+    public Guid? PaidWithChargeId { get; }
+
     public bool IsCancelled { get; private set; }
     public DateTimeOffset? CancelledAtUtc { get; private set; }
 
@@ -60,7 +73,8 @@ public sealed class CounterpartyPayment
         Money amount,
         DateOnly paymentDate,
         string? description = null,
-        PosSettlement? cardSettlement = null)
+        PosSettlement? cardSettlement = null,
+        CounterpartyCharge? paidWithCharge = null)
     {
         if (id == Guid.Empty)
         {
@@ -116,9 +130,16 @@ public sealed class CounterpartyPayment
             cardSettlement.EnsureCollects(userId, account, direction, amount, paymentDate);
         }
 
+        if (paidWithCharge is not null)
+        {
+            EnsurePaidWith(paidWithCharge, userId, counterparty, direction, amount, paymentDate,
+                cardSettlement);
+        }
+
         Id = id;
         UserId = userId;
         PosSettlementId = cardSettlement?.Id;
+        PaidWithChargeId = paidWithCharge?.Id;
         CounterpartyId = counterparty.Id;
         AccountId = account.Id;
         Direction = direction;
@@ -141,6 +162,43 @@ public sealed class CounterpartyPayment
         : Direction == DebtDirection.Receivable
             ? Amount.Amount
             : -Amount.Amount;
+
+    /// <summary>
+    /// Peşin ya da avans tutarı satışla aynı kişiye, aynı yöne ve aynı güne
+    /// aittir ve satışın tutarını aşamaz. Kartla tahsil bu yolda yoktur.
+    /// </summary>
+    private static void EnsurePaidWith(
+        CounterpartyCharge charge,
+        Guid userId,
+        Counterparty counterparty,
+        DebtDirection direction,
+        Money amount,
+        DateOnly paymentDate,
+        PosSettlement? cardSettlement)
+    {
+        if (charge.UserId != userId || charge.CounterpartyId != counterparty.Id)
+        {
+            throw new ArgumentException(
+                "A paid-now amount must belong to the same counterparty as its charge.");
+        }
+
+        if (charge.Direction != direction || charge.ChargeDate != paymentDate)
+        {
+            throw new ArgumentException(
+                "A paid-now amount must have the direction and the day of its charge.");
+        }
+
+        if (amount.Currency != charge.Amount.Currency || amount.Amount > charge.Amount.Amount)
+        {
+            throw new ArgumentException(
+                "A paid-now amount cannot exceed its charge.", nameof(amount));
+        }
+
+        if (cardSettlement is not null)
+        {
+            throw new ArgumentException("A paid-now amount cannot be a card collection.");
+        }
+    }
 
     public void Cancel(DateTimeOffset cancelledAtUtc)
     {

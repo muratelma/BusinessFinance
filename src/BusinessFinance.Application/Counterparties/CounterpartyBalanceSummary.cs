@@ -1,3 +1,5 @@
+using BusinessFinance.Domain;
+
 namespace BusinessFinance.Application.Counterparties;
 
 /// <summary>
@@ -30,7 +32,8 @@ public sealed record CounterpartyBalanceSummary(
     DateOnly? NextReceivableDueDate = null,
     decimal NextReceivableDueAmount = 0m,
     DateOnly? NextPayableDueDate = null,
-    decimal NextPayableDueAmount = 0m)
+    decimal NextPayableDueAmount = 0m,
+    TransactionScope? Scope = null)
 {
     /// <summary>Artı: karşı taraf bize borçlu. Eksi: biz ona borçluyuz.</summary>
     public decimal Net => Receivable - Payable;

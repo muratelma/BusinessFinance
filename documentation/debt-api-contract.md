@@ -105,6 +105,82 @@ Borç bütün kapanışlarıyla iptal olur. Kapanışı gün sonunda sayılmış
 
 Kapanmış (iptal edilmemiş) borçlar: `title`, `amount` (bedel), `closedOn`.
 
+## Kişinin hesabı (ADR 0022, 17 Kasım 2026)
+
+Kişiyle olan taksitsiz her şey kişinin hesabına yazılır. Bu bölüm Faz 2'nin
+ilk yarısını anlatır; kişi sayfası ve liste okumaları Faz 3'tedir.
+
+### Kişinin türü — `POST` / `PUT /api/v1/counterparties`
+
+İstek ve cevapta `scope`: `business`, `personal` ya da boş. İşletmesi olmayan
+kullanıcıda boş gönderilirse `personal` yazılır; işletmesi olanda boş kalır ve
+uydurulmaz. Güncellemede boş göndermek türü **değiştirmez** (tür yalnız
+değiştirilir, boşaltılamaz). Tür hiçbir tutarı, geliri ya da gideri
+değiştirmez; yalnız listeyi böler. Tanınmayan değer
+`counterparties.invalid_scope` (400).
+
+### Borçlandırmanın kapsamı — `POST /api/v1/counterparties/{id}/charges`
+
+Kapsamı her kayıt gibi kategori sınırlar: tek kapsamlı kategori kapsamı
+söyler; iki kapsama açık kategoride açık seçim, o yoksa kişinin türü; türü boş
+eski kişide işletmesi olan kullanıcının kaydı `business`, olmayanınki
+`personal`. Kategoriyle çelişen açık seçim `counterparties.scope_conflict`
+(400). **Değişen:** eskiden borçlandırma her zaman `business` yazılır, şahsi
+kategori reddedilirdi (ADR 0020 İ9; ADR 0022 ile kalktı).
+
+İstek `clientRequestId` alabilir: aynı kimlikle tekrar gönderilen istek var
+olan kaydı döner (ikinci kayıt yazılmaz); başka kişide kullanılmış kimlik
+`counterparties.validation` (400).
+
+**Peşin ya da avans tutarı** (`paidNow`, isteğe bağlı): `{ "amount", "accountId" }`.
+Satış ya da alımla **aynı yazmada** kişinin hesabına tahsilat (satışta) ya da
+ödeme (alımda) yazılır: satışın günü, yönü ve açıklamasıyla; tahsilat satışa
+bağlıdır (`paidWithChargeId`). Örnek: 10.000 satış, vade 45 gün sonra, bugün
+4.000 avans → gelir 10.000, hesap +4.000, alacak 6.000; vade geçince gecikmiş
+6.000. Satışı aşan tutar `counterparties.paid_now_exceeds_charge` (400);
+hesap yok, pasif ya da başkasının `counterparties.account_unavailable` (400).
+Aynı `clientRequestId` ikisini de bir kez yazar. Cevap `paidNowPaymentId`
+taşır (bu istekle yazılan tahsilat; yoksa boş).
+
+### `DELETE /api/v1/counterparty-charges/{id}?withPaidNow=` — satışın iptali
+
+Varsayılan (`false`): yalnız satış iptal olur; birlikte yazılmış avans
+kişinin hesabında **kalır** (iş iptal oldu, para alınmıştı → "borcunuz").
+`withPaidNow=true`: ikisi tek yazmada iptal olur (yanlış girilmiş kayıt).
+Avans gün sonunda sayıldıysa `counterparty_payments.day_close_counted` (409)
+ve hiçbir şey değişmez.
+
+### `POST /api/v1/counterparties/{id}/loans` — borç para
+
+```json
+{ "direction": "receivable", "amount": "5000.0000", "currency": "TRY",
+  "accountId": "…", "loanDate": "2026-08-05", "dueDate": "2026-09-01",
+  "description": "Ev taşıma", "clientRequestId": "…" }
+```
+
+`receivable`: verdim (alacak artar, para hesaptan çıkar); `payable`: aldım
+(borç artar, para hesaba girer). Gelir ya da gider **yazmaz**; kategori ve
+kapsam taşımaz (ADR 0014). `dueDate` isteğe bağlıdır, `loanDate`ten önce
+olamaz; vadesi geçen kısım gecikmiş tutara girer (en eski kalemden başlayarak).
+Geri ödeme sıradan bir tahsilat ya da ödemedir. Cevap `201`, gövde:
+`id`, `counterpartyId`, `accountId`, `direction`, `amount`, `currency`,
+`loanDate`, `dueDate`, `description`, `isCancelled`.
+
+Avans ayrı bir kayıt değildir: tahsilat ya da ödemedir ve sonraki satış ya da
+alımdan kendiliğinden düşer (`stages/06.3-borc-alacak/02-TASARIM.md` §7a).
+
+Hatalar: gün ileride `counterparties.date_in_future`; pasif kişi
+`counterparties.inactive` (409; kalan bakiye ödenebilir); hesap yok, pasif ya
+da başkasının `counterparties.account_unavailable` (400); kişi yok ya da
+başkasının `counterparties.not_found` (404).
+
+### `DELETE /api/v1/counterparty-loans/{id}` — borç paranın iptali
+
+İdempotenttir; cevap kaydın kendisidir (`isCancelled: true`). Kişinin ve
+hesabın bakiyesi yeniden hesaplanır; başka kayıt değişmez. Yok ya da
+başkasının: `counterparties.loan_not_found` (404). Borç parası olan kişi
+silinemez (`counterparties.has_history`, 409).
+
 ## Cari
 
 ### Gecikme (değişti)
@@ -137,7 +213,13 @@ Gelir ya da gider yazmaz; cari bakiyeye **en eski kalem** olarak girer (ödeme
 
 ## İşlemler akışı
 
-Yeni tür eklenmedi (istemci bilinmeyen türü reddediyor):
+**17 Kasım 2026:** yeni tür `counterparty-loan` (borç para; `effect: neutral`,
+`sourceGroup: counterparty`, yönü `direction`). İşlem sonrası bakiye hesabı ve
+kişinin açık bakiyesini döner. **Bugünkü Flutter istemcisi bu türü tanımıyor**
+ve bilinmeyen türde akışın tamamını reddeder; istemciden borç para yazılamadığı
+için bugün tetiklenmez. İstemci türü Faz 5–7'de tanır.
+
+16 Ekim teslimi (istemci bilinmeyen türü reddettiği için yeni tür eklenmedi):
 
 - Kartla ödenen borç: tek ödemelide `obligation-settlement`, taksitlide
   `debt-payment`; `sourceName` kartın adıdır. İşlem sonrası bakiye kart borcunu
@@ -169,8 +251,14 @@ Yeni tür eklenmedi (istemci bilinmeyen türü reddediyor):
 | `counterparty_charges.discount_exceeds_amount` | 400 | Cari indirim alımı aşıyor |
 | `counterparty_charges.discount_not_found` | 404 | İndirim bu alımda yok |
 | `counterparty_charges.cancelled` | 409 | İptal edilmiş alım |
+| `counterparties.invalid_scope` | 400 | Kişinin türü tanınmıyor |
+| `counterparties.scope_conflict` | 400 | Borçlandırmada açık seçim kategoriyle çelişiyor |
+| `counterparties.loan_not_found` | 404 | Borç para yok ya da başkasının |
+| `counterparties.paid_now_exceeds_charge` | 400 | Peşin ya da avans tutarı satışı aşıyor |
+| `counterparties.concurrent_change` | 409 | Borç para eşzamanlı değişti |
 
 ## Yedek
 
-Yedek v13 borcu durumuyla taşır (`debtRecords`); sürüm ve okunan sürümler
+Yedek v13 borcu durumuyla taşır (`debtRecords`); v14 kişinin türünü ve borç
+parayı (`counterpartyLoans`) ekler. Sürüm ve okunan sürümler
 `restore-runbook.md` içindedir.

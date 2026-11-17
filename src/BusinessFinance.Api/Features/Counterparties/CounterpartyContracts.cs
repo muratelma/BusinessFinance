@@ -3,13 +3,17 @@ using BusinessFinance.Api.Features.Pos;
 
 namespace BusinessFinance.Api.Features.Counterparties;
 
-public sealed record CreateCounterpartyRequest(string Name, string? Note = null);
+// `scope`: kişinin türü (`business` / `personal`). İşletmesi olmayan
+// kullanıcıda boş bırakılırsa `personal` yazılır; işletmesi olanda boş kalır.
+public sealed record CreateCounterpartyRequest(string Name, string? Note = null, string? Scope = null);
 
 /// <summary>
 /// Karşı tarafın tam güncel hâli. <c>IsActive</c> pasifleştirmeyi de taşır:
 /// pasif karşı tarafa yeni borçlandırma yazılamaz, tahsilat yazılabilir.
 /// </summary>
-public sealed record UpdateCounterpartyRequest(string Name, bool IsActive, string? Note = null);
+// `scope` boşsa kişinin türü değişmez.
+public sealed record UpdateCounterpartyRequest(
+    string Name, bool IsActive, string? Note = null, string? Scope = null);
 
 public sealed record CounterpartyResponse(
     Guid Id,
@@ -35,7 +39,10 @@ public sealed record CounterpartyResponse(
     string OwedToYou = "0.0000",
     string OwedByYou = "0.0000",
     string OpeningReceivable = "0.0000",
-    string OpeningPayable = "0.0000");
+    string OpeningPayable = "0.0000",
+    // Kişinin türü: `business` (cari), `personal` ya da bilinmiyorsa boş.
+    // Listeyi böler; kaydın rapordaki kapsamı değildir (ADR 0022 İ5).
+    string? Scope = null);
 
 public sealed record CounterpartyListResponse(IReadOnlyList<CounterpartyResponse> Items);
 
@@ -50,12 +57,44 @@ public sealed record CreateCounterpartyChargeRequest(
     Guid CategoryId,
     string ChargeDate,
 
-    // İsteğe bağlı. Cari borçlandırma her zaman işletme yazılır (ADR 0020
-    // İ9); `personal` ya da şahsi bir kategori `counterparties.scope_conflict`
-    // ile reddedilir.
+    // İsteğe bağlı. Kapsamı kategori sınırlar; kategori iki kapsama açıksa
+    // bu seçim, o da yoksa kişinin türü geçerlidir (ADR 0022 İ5). Kategoriyle
+    // çelişen seçim `counterparties.scope_conflict` ile reddedilir.
     string? Scope = null,
     string? Description = null,
-    string? DueDate = null);
+    string? DueDate = null,
+    Guid? ClientRequestId = null,
+
+    // İsteğe bağlı: satış ya da alımla birlikte o gün alınan ya da verilen
+    // peşin veya avans tutarı. Kişinin hesabına tahsilat ya da ödeme olarak,
+    // satışla aynı yazmada yazılır; satışı aşamaz.
+    CounterpartyPaidNowRequest? PaidNow = null);
+
+public sealed record CounterpartyPaidNowRequest(string Amount, Guid AccountId);
+
+// Borç para. `direction`: `receivable` verdim (hesaptan çıkar), `payable`
+// aldım (hesaba girer). Avans ayrı kayıt değildir; tahsilat ya da ödemedir.
+public sealed record CreateCounterpartyLoanRequest(
+    string Direction,
+    string Amount,
+    string Currency,
+    Guid AccountId,
+    string LoanDate,
+    string? DueDate = null,
+    string? Description = null,
+    Guid? ClientRequestId = null);
+
+public sealed record CounterpartyLoanResponse(
+    Guid Id,
+    Guid CounterpartyId,
+    Guid AccountId,
+    string Direction,
+    string Amount,
+    string Currency,
+    string LoanDate,
+    string? DueDate,
+    string? Description,
+    bool IsCancelled);
 
 /// <summary>
 /// Tahsilat / ödeme. Kategori ve kapsam **taşımaz**: gelir/gider raporuna
@@ -89,7 +128,10 @@ public sealed record CounterpartyChargeResponse(
     bool IsCancelled,
     string? DueDate,
     string NetAmount,
-    IReadOnlyList<CounterpartyChargeDiscountResponse> Discounts);
+    IReadOnlyList<CounterpartyChargeDiscountResponse> Discounts,
+
+    // Bu istekle birlikte yazılan peşin ya da avans tahsilatı/ödemesi; yoksa boş.
+    Guid? PaidNowPaymentId = null);
 
 public sealed record CounterpartyChargeDiscountResponse(
     Guid Id,

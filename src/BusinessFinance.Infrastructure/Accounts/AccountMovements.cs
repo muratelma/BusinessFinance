@@ -255,6 +255,31 @@ internal static class AccountMovements
                     : -payment.Amount.Amount,
                 TransactionId = null
             });
+        // Borç para (ADR 0022 İ3): verilen para hesaptan çıkar, alınan
+        // para hesaba girer. Gelir/gider üretmediği için rapora değil yalnız
+        // buraya girer.
+        var counterpartyLoans = dbContext.CounterpartyLoans.AsNoTracking()
+            .Where(loan => loan.UserId == userId && !loan.IsCancelled)
+            .Select(loan => new AccountMovement
+            {
+                ActivityId = loan.Id,
+                ActivityKind = (int)FinancialActivityKind.CounterpartyLoan,
+                CounterAccountId = (Guid?)null,
+                CategoryId = (Guid?)null,
+                CreditCardId = (Guid?)null,
+                CounterpartyId = loan.CounterpartyId,
+                PartAmount = (decimal?)null,
+                Part = (string?)null,
+                Group = 2,
+
+                AccountId = loan.AccountId,
+                Date = loan.LoanDate,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(loan, EntryTimestamp.PropertyName),
+                Amount = loan.Direction == DebtDirection.Receivable
+                    ? -loan.Amount.Amount
+                    : loan.Amount.Amount,
+                TransactionId = null
+            });
         var obligationSettlements = dbContext.ObligationSettlements.AsNoTracking()
             .Where(settlement => settlement.UserId == userId &&
                                  !settlement.IsCancelled &&
@@ -311,6 +336,7 @@ internal static class AccountMovements
             .Concat(debtInstallments)
             .Concat(debtOpenings)
             .Concat(counterpartyPayments)
+            .Concat(counterpartyLoans)
             .Concat(obligationSettlements)
             .Concat(posTransfers);
     }

@@ -27,15 +27,20 @@ public sealed record CounterpartyDto(
     decimal OwedByYou = 0m,
     // Uygulamadan önce devreden bakiye; yukarıdaki tutarların içindedir.
     decimal OpeningReceivable = 0m,
-    decimal OpeningPayable = 0m);
+    decimal OpeningPayable = 0m,
+    TransactionScope? Scope = null);
 
-public sealed record CreateCounterpartyCommand(string Name, string? Note);
+public sealed record CreateCounterpartyCommand(
+    string Name, string? Note, TransactionScope? Scope = null);
 
 public sealed record UpdateCounterpartyCommand(
     Guid CounterpartyId,
     string Name,
     string? Note,
-    bool IsActive);
+    bool IsActive,
+
+    // Boşsa kişinin türü değişmez; tür boşaltılamaz, yalnız değiştirilir.
+    TransactionScope? Scope = null);
 
 /// <summary>
 /// Veresiye satış ya da tedarikçiden vadeli alım: gelir/gider tanır, kasaya
@@ -57,7 +62,40 @@ public sealed record CreateCounterpartyChargeCommand(
     TransactionScope? Scope,
     DateOnly ChargeDate,
     string? Description,
-    DateOnly? DueDate);
+    DateOnly? DueDate,
+    Guid? ClientRequestId = null,
+    CounterpartyPaidNow? PaidNow = null);
+
+/// <summary>
+/// Satış ya da alımla birlikte o gün alınan ya da verilen peşin veya avans
+/// tutarı: kişinin hesabına tahsilat ya da ödeme olarak, satışla aynı yazmada
+/// yazılır (ADR 0022; `02-TASARIM.md` §7a).
+/// </summary>
+public sealed record CounterpartyPaidNow(decimal Amount, Guid AccountId);
+
+/// <summary>Borç para: para taşır, gelir/gider yazmaz (ADR 0022 İ3).</summary>
+public sealed record CreateCounterpartyLoanCommand(
+    Guid CounterpartyId,
+    Guid AccountId,
+    DebtDirection Direction,
+    decimal Amount,
+    CurrencyCode Currency,
+    DateOnly LoanDate,
+    DateOnly? DueDate,
+    string? Description,
+    Guid? ClientRequestId = null);
+
+public sealed record CounterpartyLoanDto(
+    Guid Id,
+    Guid CounterpartyId,
+    Guid AccountId,
+    DebtDirection Direction,
+    decimal Amount,
+    CurrencyCode Currency,
+    DateOnly LoanDate,
+    DateOnly? DueDate,
+    string? Description,
+    bool IsCancelled);
 
 /// <summary>
 /// Tahsilat ya da ödeme: kasayı değiştirir, gelir/gider üretmez. Bu yüzden ne
@@ -95,7 +133,10 @@ public sealed record CounterpartyChargeDto(
     DateOnly? DueDate,
     // Bedel: indirimler düşülmüş; gelir/gider bu kadardır.
     decimal NetAmount,
-    IReadOnlyList<CounterpartyChargeDiscountDto> Discounts);
+    IReadOnlyList<CounterpartyChargeDiscountDto> Discounts,
+
+    // Bu istekle birlikte yazılan peşin ya da avans tahsilatı/ödemesi.
+    Guid? PaidNowPaymentId = null);
 
 public sealed record CounterpartyChargeDiscountDto(
     Guid Id,

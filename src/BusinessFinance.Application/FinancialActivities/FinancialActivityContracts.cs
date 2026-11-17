@@ -59,7 +59,14 @@ public enum FinancialActivityKind
     /// beklenenden eksik kalan kısım (kesinti) bu satırın parçasıdır
     /// (<see cref="FinancialActivityRow.FeeAmount"/>), ayrı satır değildir.
     /// </summary>
-    PosDeposit = 14
+    PosDeposit = 14,
+
+    /// <summary>
+    /// Kişiye verilen ya da kişiden alınan borç para (ADR 0022 İ3): para
+    /// hesaptan çıkar ya da hesaba girer, kişinin bakiyesi artar, gelir/gider
+    /// yazılmaz. Yönü <see cref="FinancialActivityRow.Direction"/> söyler.
+    /// </summary>
+    CounterpartyLoan = 15
 }
 
 /// <summary>Effect on the income/expense report.</summary>

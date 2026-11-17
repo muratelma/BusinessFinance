@@ -66,7 +66,11 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
                              dbContext.CounterpartyPayments.Any(
                                  payment => payment.UserId == userId &&
                                             payment.CounterpartyId == counterparty.Id &&
-                                            !payment.IsCancelled)),
+                                            !payment.IsCancelled) ||
+                             dbContext.CounterpartyLoans.Any(
+                                 loan => loan.UserId == userId &&
+                                            loan.CounterpartyId == counterparty.Id &&
+                                            !loan.IsCancelled)),
             cancellationToken);
     }
 
@@ -109,7 +113,8 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
                 receivable?.NextDueDate,
                 receivable?.NextDueAmount ?? 0m,
                 payable?.NextDueDate,
-                payable?.NextDueAmount ?? 0m);
+                payable?.NextDueAmount ?? 0m,
+                row.Scope);
         })];
     }
 
@@ -266,6 +271,9 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
             await dbContext.CounterpartyPayments.AnyAsync(
                 payment => payment.UserId == userId && payment.CounterpartyId == counterpartyId,
                 cancellationToken) ||
+            await dbContext.CounterpartyLoans.AnyAsync(
+                loan => loan.UserId == userId && loan.CounterpartyId == counterpartyId,
+                cancellationToken) ||
             await dbContext.DebtAgreements.AnyAsync(
                 debt => debt.UserId == userId && debt.CounterpartyId == counterpartyId,
                 cancellationToken) ||
@@ -292,12 +300,29 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
         return true;
     }
 
-    public async Task AddChargeAsync(
+    public async Task<bool> AddChargeAsync(
         CounterpartyCharge charge,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        CounterpartyPayment? paidNow = null)
     {
         await dbContext.CounterpartyCharges.AddAsync(charge, cancellationToken);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        if (paidNow is not null)
+        {
+            await dbContext.CounterpartyPayments.AddAsync(paidNow, cancellationToken);
+        }
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (DbUpdateException exception) when (
+            exception.InnerException is SqlException { Number: 2601 or 2627 })
+        {
+            // Aynı istek kimliğiyle ikinci yazma: var olan kayıt döner.
+            dbContext.ChangeTracker.Clear();
+            return false;
+        }
     }
 
     public async Task<bool> AddPaymentAsync(
@@ -346,6 +371,16 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
                 charge => charge.Id == chargeId && charge.UserId == userId,
                 cancellationToken);
     }
+
+    public async Task<IReadOnlyList<CounterpartyPayment>> FindPaidWithChargeAsync(
+        Guid chargeId,
+        Guid userId,
+        CancellationToken cancellationToken) =>
+        await dbContext.CounterpartyPayments
+            .Where(payment => payment.UserId == userId &&
+                              payment.PaidWithChargeId == chargeId &&
+                              !payment.IsCancelled)
+            .ToArrayAsync(cancellationToken);
 
     public Task<CounterpartyPayment?> FindOwnedPaymentAsync(
         Guid paymentId,
@@ -425,8 +460,15 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
                 Name = counterparty.Name,
                 IsActive = counterparty.IsActive,
                 // Devreden bakiye ve alımlar, indirimler düşülmüş (ADR 0021 T3, T5).
+                Scope = counterparty.Scope,
                 Receivable =
                     counterparty.OpeningReceivable +
+                    (dbContext.CounterpartyLoans
+                        .Where(loan => loan.UserId == userId &&
+                                          loan.CounterpartyId == counterparty.Id &&
+                                          !loan.IsCancelled &&
+                                          loan.Direction == DebtDirection.Receivable)
+                        .Sum(loan => (decimal?)loan.Amount.Amount) ?? 0m) +
                     (dbContext.CounterpartyCharges
                         .Where(charge => charge.UserId == userId &&
                                          charge.CounterpartyId == counterparty.Id &&
@@ -448,6 +490,12 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
                 // Devreden bakiye ve alımlar, indirimler düşülmüş (ADR 0021 T3, T5).
                 Payable =
                     counterparty.OpeningPayable +
+                    (dbContext.CounterpartyLoans
+                        .Where(loan => loan.UserId == userId &&
+                                          loan.CounterpartyId == counterparty.Id &&
+                                          !loan.IsCancelled &&
+                                          loan.Direction == DebtDirection.Payable)
+                        .Sum(loan => (decimal?)loan.Amount.Amount) ?? 0m) +
                     (dbContext.CounterpartyCharges
                         .Where(charge => charge.UserId == userId &&
                                          charge.CounterpartyId == counterparty.Id &&
@@ -508,6 +556,7 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
         public Guid Id { get; init; }
         public string Name { get; init; } = string.Empty;
         public bool IsActive { get; init; }
+        public TransactionScope? Scope { get; init; }
         public decimal Receivable { get; init; }
         public decimal OpeningReceivable { get; init; }
         public decimal OpeningPayable { get; init; }

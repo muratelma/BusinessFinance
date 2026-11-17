@@ -379,6 +379,9 @@ internal sealed class EfDayCloseRepository(
             where charge.UserId == userId &&
                   !charge.IsCancelled &&
                   charge.Direction == DebtDirection.Receivable &&
+                  // Gün sonu işletmenin satışını sayar; şahsi kapsamla yazılmış
+                  // bir alacak (ADR 0022 İ5) yazar kasanın toplamına girmez.
+                  charge.Scope == TransactionScope.Business &&
                   charge.ChargeDate >= @from &&
                   charge.ChargeDate <= to
             orderby charge.ChargeDate

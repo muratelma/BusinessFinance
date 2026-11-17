@@ -45,6 +45,100 @@ public sealed class DataPortabilityTests
         Assert.Equal(TransactionScope.Personal, restored.Single(c => c.Name == "Banka masrafı").DefaultScope);
         Assert.Equal(CategoryRole.BankFee, restored.Single(c => c.Name == "Masraf kategorim").Role);
     }
+    /// <summary>
+    /// v14 kişinin türünü ve borç parayı taşır (ADR 0022 İ3, İ5): iptal edilmiş
+    /// borç para iptal edilmiş, pasif kişi pasif gelir.
+    /// </summary>
+    [Fact]
+    public async Task BackupV14_CarriesThePersonsKindAndLoans()
+    {
+        await using var context = CreateContext();
+        var source = Guid.NewGuid(); var target = Guid.NewGuid();
+        var (friend, _) = await SeedLoansAsync(context, source);
+        var service = new EfDataPortabilityRepository(context);
+
+        var backup = await service.CreateBackupAsync(source, default);
+        Assert.Equal(14, (await service.ValidateBackupAsync(backup.Content, default)).SchemaVersion);
+        await service.RestoreBackupAsync(target, backup.Content, DateTimeOffset.UtcNow, default);
+
+        var person = await context.Counterparties.SingleAsync(x => x.UserId == target);
+        Assert.Equal(friend.Name, person.Name);
+        Assert.Equal(TransactionScope.Personal, person.Scope);
+        Assert.False(person.IsActive);
+        var loans = await context.CounterpartyLoans.Where(x => x.UserId == target)
+            .OrderBy(x => x.Amount.Amount).ToArrayAsync();
+        Assert.Equal(2, loans.Length);
+        Assert.All(loans, loan => Assert.Equal(person.Id, loan.CounterpartyId));
+        Assert.True(loans[0].IsCancelled);
+        Assert.False(loans[1].IsCancelled);
+        Assert.Equal(DebtDirection.Receivable, loans[1].Direction);
+        Assert.Equal(500m, loans[1].Amount.Amount);
+        Assert.Equal(new DateOnly(2026, 9, 1), loans[1].DueDate);
+
+        // Satışla birlikte yazılan avans bağıyla geri gelir.
+        var sale = await context.CounterpartyCharges.SingleAsync(x => x.UserId == target);
+        var advance = await context.CounterpartyPayments.SingleAsync(x => x.UserId == target);
+        Assert.Equal(sale.Id, advance.PaidWithChargeId);
+    }
+
+    /// <summary>
+    /// v13 dosyasında kişinin türü ve borç para yoktur: tür boş kalır, uydurulmaz.
+    /// v14 dosyasında borç para listesi eksikse dosya reddedilir.
+    /// </summary>
+    [Fact]
+    public async Task BackupV13WithoutLoans_RestoresAnUnknownKind_AndV14RequiresTheLoanList()
+    {
+        await using var context = CreateContext();
+        var source = Guid.NewGuid(); var target = Guid.NewGuid(); var other = Guid.NewGuid();
+        context.Counterparties.Add(new Counterparty(
+            Guid.NewGuid(), source, "Eski Müşteri", scope: TransactionScope.Business));
+        await context.SaveChangesAsync();
+        var service = new EfDataPortabilityRepository(context);
+        var content = (await service.CreateBackupAsync(source, default)).Content;
+
+        var v13 = RewritePayload(content, snapshot =>
+        {
+            snapshot.Remove("counterpartyLoans");
+            foreach (var person in snapshot["counterparties"]!.AsArray()) person!.AsObject().Remove("scope");
+        }, schemaVersion: 13);
+        await service.RestoreBackupAsync(target, v13, DateTimeOffset.UtcNow, default);
+        Assert.Null((await context.Counterparties.SingleAsync(x => x.UserId == target)).Scope);
+        Assert.Empty(await context.CounterpartyLoans.Where(x => x.UserId == target).ToArrayAsync());
+
+        var broken = RewritePayload(content, snapshot => snapshot.Remove("counterpartyLoans"));
+        await Assert.ThrowsAsync<DataPortabilityException>(() =>
+            service.RestoreBackupAsync(other, broken, DateTimeOffset.UtcNow, default));
+    }
+
+    private static async Task<(Counterparty Person, Account Account)> SeedLoansAsync(
+        BusinessFinanceDbContext context, Guid userId)
+    {
+        var account = new Account(Guid.NewGuid(), userId, "Kasa", AccountType.Cash, CurrencyCode.TRY, 1000m, null);
+        var friend = new Counterparty(Guid.NewGuid(), userId, "Ali", scope: TransactionScope.Personal);
+        context.Accounts.Add(account);
+        context.Counterparties.Add(friend);
+        var income = new Category(Guid.NewGuid(), userId, "Hizmet", CategoryType.Income, TransactionScope.Personal);
+        context.Categories.Add(income);
+        var sale = new CounterpartyCharge(
+            Guid.NewGuid(), userId, friend, income, DebtDirection.Receivable,
+            new Money(1000m, CurrencyCode.TRY), TransactionScope.Personal, new DateOnly(2026, 8, 4));
+        context.CounterpartyCharges.Add(sale);
+        context.CounterpartyPayments.Add(new CounterpartyPayment(
+            Guid.NewGuid(), userId, friend, account, DebtDirection.Receivable,
+            new Money(400m, CurrencyCode.TRY), new DateOnly(2026, 8, 4), paidWithCharge: sale));
+        context.CounterpartyLoans.Add(new CounterpartyLoan(
+            Guid.NewGuid(), userId, friend, account, DebtDirection.Receivable,
+            new Money(500m, CurrencyCode.TRY), new DateOnly(2026, 8, 5), new DateOnly(2026, 9, 1), "Ev taşıma"));
+        var cancelled = new CounterpartyLoan(
+            Guid.NewGuid(), userId, friend, account, DebtDirection.Payable,
+            new Money(200m, CurrencyCode.TRY), new DateOnly(2026, 8, 6));
+        cancelled.Cancel(DateTimeOffset.UtcNow);
+        context.CounterpartyLoans.Add(cancelled);
+        friend.Deactivate();
+        await context.SaveChangesAsync();
+        return (friend, account);
+    }
+
     [Fact]
     public async Task Backup_ValidatesAndRestoresCompleteSyntheticGraphToEmptyOwner()
     {
@@ -65,7 +159,7 @@ public sealed class DataPortabilityTests
         var conflict = await Assert.ThrowsAsync<DataPortabilityException>(() =>
             service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default));
 
-        Assert.Equal(13, validation.SchemaVersion);
+        Assert.Equal(14, validation.SchemaVersion);
         Assert.Equal(validation.EntityCount, restored.RestoredEntityCount);
         Assert.Equal("restore.destination_not_empty", conflict.Code);
         Assert.Equal("Geri yükleme için hesapta finansal veri bulunmamalıdır.", conflict.Message);
@@ -678,7 +772,7 @@ public sealed class DataPortabilityTests
         var validation = await service.ValidateBackupAsync(backup.Content, default);
         await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
 
-        Assert.Equal(13, validation.SchemaVersion);
+        Assert.Equal(14, validation.SchemaVersion);
         var restoredPlans = await context.RecurringTransactions
             .AsNoTracking().Where(item => item.UserId == targetUserId).ToArrayAsync();
         var cardPlan = Assert.Single(
@@ -825,7 +919,7 @@ public sealed class DataPortabilityTests
         var validation = await service.ValidateBackupAsync(backup.Content, default);
         await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
 
-        Assert.Equal(13, validation.SchemaVersion);
+        Assert.Equal(14, validation.SchemaVersion);
 
         var restoredObligations = await context.Debts.AsNoTracking()
             .Include(x => x.Items).Include(x => x.Payments).ThenInclude(p => p.Allocations)
@@ -936,7 +1030,7 @@ public sealed class DataPortabilityTests
         var validation = await service.ValidateBackupAsync(backup.Content, default);
         await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
 
-        Assert.Equal(13, validation.SchemaVersion);
+        Assert.Equal(14, validation.SchemaVersion);
 
         var counts = await context.CashCounts.AsNoTracking()
             .Where(item => item.UserId == targetUserId)
@@ -1459,7 +1553,7 @@ public sealed class DataPortabilityTests
         var validation = await service.ValidateBackupAsync(backup.Content, default);
         await service.RestoreBackupAsync(targetUserId, backup.Content, DateTimeOffset.UtcNow, default);
 
-        Assert.Equal(13, validation.SchemaVersion);
+        Assert.Equal(14, validation.SchemaVersion);
         var envelope = JsonNode.Parse(backup.Content)!.AsObject();
         var payload = Encoding.UTF8.GetString(
             Convert.FromBase64String(envelope["payload"]!.GetValue<string>()));

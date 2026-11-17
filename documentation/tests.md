@@ -2561,3 +2561,30 @@ düzeltmesinden önceki commit'te koşmuştu: Ağustos tarihli kayıt, varsayıl
 aylık pencerenin dışına 10 Kasım'dan sonra çıktı. Gerçek SQL'le tam koşu
 (`BUSINESS_FINANCE_SQL_TEST_CONNECTION` verilerek): 1488 geçti, 2 atlandı
 (canlı Gemini ve Brevo sözleşmesi).
+
+## Kişinin hesabında borç para ve kişinin türü — 17 Kasım 2026
+
+ADR 0022, `stages/06.3-borc-alacak/` Faz 2'nin ilk yarısı.
+
+| Kanıt | Test | Not |
+|---|---|---|
+| Verilen borç para alacağı artırır, hesaptan çıkar, gelir/gider yazmaz; geri ödeme sıradan tahsilattır (senaryo 3) | `CounterpartyLoanEndpointTests.MoneyLent_RaisesTheReceivableAndMovesCash_WithoutIncomeOrExpense` | Aylık rapor geliri ve gideri 0 |
+| Alınan borç para borcu artırır, hesaba girer | `…MoneyBorrowed_RaisesThePayableAndEntersTheAccount` | |
+| Vadeli borç para gecikir; iptal her şeyi geri alır, idempotenttir | `…LoanWithADueDate_FallsOverdue_AndCancellationRestoresEverything` | `asOfDate` vadenin iki yanında |
+| Aynı istek kimliği tek kayıt yazar; başka kişide reddedilir (senaryo 10) | `…LoanAndCharge_RetriedWithTheSameRequestId_AreWrittenOnce` | Borç para ve borçlandırma |
+| Avans tahsilattır ve sonraki satıştan düşer (senaryo 22) | `…AdvanceFromACustomer_IsACollection_AndIsNettedAgainstTheLaterSale` | 2.000 avans, 5.000 satış → alacak 3.000 |
+| Kapsamı kategori sınırlar, kişinin türü yalnız iki kapsama açıkta karar verir; tür değişince tutar değişmez (senaryo 13, 25, 26) | `…ChargeScope_ComesFromTheCategory_AndThePersonsKindOnlyBreaksTheTie`, `CounterpartyEndpointTests.Charge_TakesItsScopeFromTheCategory_AndRejectsAConflictingChoice` | Eski "her zaman işletme" testi yeniden yazıldı |
+| İşletmesi olmayanın kişisi şahsi; olanda tür uydurulmaz | `…NewPerson_IsPersonalWithoutABusiness_AndUnknownWithOneUnlessTold` | |
+| Sahiplik, pasif kişi, ileri gün, geçersiz istek; borç parası olan kişi silinmez (senaryo 16, 17) | `…Loan_IsOwnerScoped_AndRejectsInactivePeopleFutureDaysAndBadInput` | |
+| Yeni uçlar sahiplik probunda, borç para kimliği sızıntı ölçüsünde | `OwnershipIsolationTests` | |
+| Migration: nullable tür, boş tablo, CHECK kolondan sonra; `Down` veri varsa durur | `MigrationHistoryTests.AddCounterpartyScopeAndLoans_AddsANullableKindAndAnEmptyTable` | Zincir listesi güncellendi |
+| Yedek v14 türü ve borç parayı (iptal edilmiş, pasif kişi dahil) taşır; v13 boş türle okunur; listesi eksik v14 reddedilir | `DataPortabilityTests.BackupV14_CarriesThePersonsKindAndLoans`, `…BackupV13WithoutLoans_RestoresAnUnknownKind_AndV14RequiresTheLoanList` | |
+| Satış + avans tek istekte: gelir 10.000, hesap +4.000, alacak 6.000; vade geçince 6.000 gecikir; tekrar tek kez yazar | `CounterpartyLoanEndpointTests.SaleWithAnAdvance_WritesBothOnce_AndLeavesTheRestDue` | Kullanıcının örneği (17 Kasım) |
+| Alım + peşin ödeme (senaryo 19); satışı aşan tutar ve başkasının hesabı reddedilir, hiçbir şey yazılmaz | `…PurchaseWithAPartPaidNow_KeepsTheRestOwed_AndRejectsBadPaidNow` | |
+| Satış iptalinde avans kalır; `withPaidNow=true` ikisini birlikte iptal eder | `…CancellingTheSale_KeepsTheAdvanceUnlessAskedToCancelItToo` | |
+| Bağ migration'ı nullable, backfill yok; `Down` bağ varsa durur | `MigrationHistoryTests.AddCounterpartyPaidNow_AddsANullableLinkWithoutBackfill` | |
+| Yedek v14 avansın satışa bağını taşır | `DataPortabilityTests.BackupV14_CarriesThePersonsKindAndLoans` | |
+| Kişi listesi borç parayla da iki sorguda kalır | `SqlServerPersistenceIntegrationTests.CounterpartyBalances_ComeFromOneQueryAndStayInsideTheOwner` | Gecikme alımları ve borç parayı tek `UNION ALL` ile okur; ilk denemede 3 sorguya çıkmıştı |
+
+Gerçek SQL'le tam koşu (`BusinessFinanceApiSqlTests` yeni migration'la
+yükseltildi): sonuç `stages/06.3-borc-alacak/README.md` günlüğünde.

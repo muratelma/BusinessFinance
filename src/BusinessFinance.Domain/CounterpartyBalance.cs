@@ -42,7 +42,8 @@ public sealed record CounterpartyBalance
     /// </summary>
     public static CounterpartyBalance Calculate(
         IEnumerable<CounterpartyCharge> charges,
-        IEnumerable<CounterpartyPayment> payments)
+        IEnumerable<CounterpartyPayment> payments,
+        IEnumerable<CounterpartyLoan>? loans = null)
     {
         ArgumentNullException.ThrowIfNull(charges);
         ArgumentNullException.ThrowIfNull(payments);
@@ -64,6 +65,25 @@ public sealed record CounterpartyBalance
             else
             {
                 payable += charge.Amount.Amount;
+            }
+        }
+
+        // Verilen ve alınan borç para bakiyeyi borçlandırma gibi artırır;
+        // farkı gelir ya da gider yazmamasıdır (ADR 0022 İ3).
+        foreach (var loan in loans ?? [])
+        {
+            if (loan.IsCancelled)
+            {
+                continue;
+            }
+
+            if (loan.Direction == DebtDirection.Receivable)
+            {
+                receivable += loan.Amount.Amount;
+            }
+            else
+            {
+                payable += loan.Amount.Amount;
             }
         }
 

@@ -21,12 +21,16 @@ public sealed class EfDataPortabilityRepository(
     IAttachmentFileInspector? attachmentInspector = null)
     : IDataPortabilityRepository
 {
-    internal const int SchemaVersion = 13;
+    internal const int SchemaVersion = 14;
 
     /// <summary>
     /// Versions this build can restore. Only <see cref="SchemaVersion"/> is written.
     /// </summary>
     /// <remarks>
+    /// v14 kişinin türünü ve kişiye verilen ya da kişiden alınan borç parayı
+    /// taşır (ADR 0022 İ3, İ5). v13 dosyasında ikisi de yoktur ve dürüstçe
+    /// okunur: o sürümde borç para kaydı yoktu, kişinin türü de bilinmiyordu
+    /// (boş kalır, uydurulmaz).
     /// v12 kategori rolünü ve transfer masrafı bağını taşır; v11 de okunur
     /// ve rolsüz kategori adları yükseltme eşlemesinden geçer. v11 KDV ve
     /// indirilebilirlik alanlarını artık taşımaz (ADR 0018). Geçmişte
@@ -42,7 +46,7 @@ public sealed class EfDataPortabilityRepository(
     /// boyutundan yoksundu (ADR 0013). Bu yüzden eski yedekler yükseltilmez,
     /// <c>restore.unsupported_version</c> ile reddedilir.
     /// </remarks>
-    private static readonly int[] SupportedSchemaVersions = [11, 12, 13];
+    private static readonly int[] SupportedSchemaVersions = [11, 12, 13, 14];
 
     internal const int MaximumPayloadBytes = 10 * 1024 * 1024;
     internal const int MaximumEntities = 50_000;
@@ -311,6 +315,7 @@ public sealed class EfDataPortabilityRepository(
             dbContext.Counterparties.AddRange(graph.Counterparties);
             dbContext.CounterpartyCharges.AddRange(graph.CounterpartyCharges);
             dbContext.CounterpartyPayments.AddRange(graph.CounterpartyPayments);
+            dbContext.CounterpartyLoans.AddRange(graph.CounterpartyLoans);
             // Kapanış tek ödemeli borcun navigasyonundan geliyor; ayrı eklenmesi
             // sahipsiz bir ödeme yazma yolu açardı.
             dbContext.Debts.AddRange(graph.Obligations);
@@ -417,6 +422,8 @@ public sealed class EfDataPortabilityRepository(
             entryTimes[pair.Key] = pair.Value;
         foreach (var pair in await ReadEntryTimesAsync(dbContext.CounterpartyPayments, userId, cancellationToken))
             entryTimes[pair.Key] = pair.Value;
+        foreach (var pair in await ReadEntryTimesAsync(dbContext.CounterpartyLoans, userId, cancellationToken))
+            entryTimes[pair.Key] = pair.Value;
         foreach (var pair in await ReadEntryTimesAsync(dbContext.Debts, userId, cancellationToken))
             entryTimes[pair.Key] = pair.Value;
 
@@ -429,6 +436,9 @@ public sealed class EfDataPortabilityRepository(
         var counterpartyCharges = await dbContext.CounterpartyCharges.AsNoTracking()
             .Where(x => x.UserId == userId).OrderBy(x => x.Id).ToArrayAsync(cancellationToken);
         var counterpartyPayments = await dbContext.CounterpartyPayments.AsNoTracking()
+            .Where(x => x.UserId == userId).OrderBy(x => x.Id).ToArrayAsync(cancellationToken);
+        // Borç para (v14) taşır: hesap taşır, kategori ve kapsam taşımaz.
+        var counterpartyLoans = await dbContext.CounterpartyLoans.AsNoTracking()
             .Where(x => x.UserId == userId).OrderBy(x => x.Id).ToArrayAsync(cancellationToken);
 
         var chargeDiscounts = (await dbContext.CounterpartyChargeDiscounts.AsNoTracking()
@@ -532,7 +542,8 @@ public sealed class EfDataPortabilityRepository(
                     r.Description, r.ExternalReference, r.AccountId, r.CategoryId, r.Status,
                     r.ErrorMessage, r.BudgetTransactionId, r.DuplicateTransactionId, r.DuplicateReason)).ToArray())).ToArray(),
             counterparties.Select(x => new CounterpartyBackup(
-                x.Id, x.Name, x.Note, x.IsActive, x.OpeningReceivable, x.OpeningPayable)).ToArray(),
+                x.Id, x.Name, x.Note, x.IsActive, x.OpeningReceivable, x.OpeningPayable,
+                x.Scope)).ToArray(),
             counterpartyCharges.Select(x => new CounterpartyChargeBackup(
                 x.Id, x.CounterpartyId, x.CategoryId, x.Direction, x.Amount.Amount, x.Amount.Currency,
                 x.Scope, x.ChargeDate, x.Description, x.IsCancelled, x.CancelledAtUtc,
@@ -543,7 +554,7 @@ public sealed class EfDataPortabilityRepository(
             counterpartyPayments.Select(x => new CounterpartyPaymentBackup(
                 x.Id, x.CounterpartyId, x.AccountId, x.Direction, x.Amount.Amount, x.Amount.Currency,
                 x.PaymentDate, x.Description, x.IsCancelled, x.CancelledAtUtc,
-                entryTimes.GetValueOrDefault(x.Id), x.PosSettlementId)).ToArray(),
+                entryTimes.GetValueOrDefault(x.Id), x.PosSettlementId, x.PaidWithChargeId)).ToArray(),
             [],
             cashCounts.Select(x => new CashCountBackup(
                 x.Id, x.AccountId, x.CountedAmount, x.Currency, x.Scope, x.CountDate,
@@ -600,7 +611,11 @@ public sealed class EfDataPortabilityRepository(
                             payment.PosSettlementId, payment.IsCancelled ? payment.CancelledAtUtc : null,
                             [.. payment.Allocations.Select(part => new DebtAllocationBackup(
                                 sequences[part.ScheduleItemId], part.Amount))]))]);
-            }).ToArray());
+            }).ToArray(),
+            counterpartyLoans.Select(x => new CounterpartyLoanBackup(
+                x.Id, x.CounterpartyId, x.AccountId, x.Direction, x.Amount.Amount, x.Amount.Currency,
+                x.LoanDate, x.DueDate, x.Description, x.IsCancelled, x.CancelledAtUtc,
+                entryTimes.GetValueOrDefault(x.Id))).ToArray());
         EnsureEntityLimit(snapshot);
         return snapshot;
     }
@@ -927,7 +942,7 @@ public sealed class EfDataPortabilityRepository(
                 x => x.Id,
                 x =>
                 {
-                    var counterparty = new Counterparty(Guid.NewGuid(), userId, x.Name, x.Note);
+                    var counterparty = new Counterparty(Guid.NewGuid(), userId, x.Name, x.Note, x.Scope);
                     counterparty.SetOpeningBalance(x.OpeningReceivable, x.OpeningPayable);
                     return counterparty;
                 });
@@ -1110,11 +1125,33 @@ public sealed class EfDataPortabilityRepository(
                     Required(accountMap, item.AccountId, "counterparty payment account"),
                     item.Direction, MoneyOf(item.Amount, item.Currency),
                     item.PaymentDate, item.Description,
-                    TakeCardCollection(item.PosSettlementId));
+                    TakeCardCollection(item.PosSettlementId),
+                    item.PaidWithChargeId is Guid paidWithChargeId
+                        ? Required(counterpartyChargeMap, paidWithChargeId, "paid-now charge")
+                        : null);
                 ApplyCancellation(item.IsCancelled, item.CancelledAtUtc, entity.Cancel);
                 entryTimes[entity] = item.CreatedAtUtc;
                 counterpartyPaymentIds[item.Id] = entity.Id;
                 counterpartyPayments.Add(entity);
+            }
+
+            // v14: borç para. Pasifleştirme graph kurulduktan sonra uygulanır;
+            // pasif kişinin ve hesabın geçmişi bu yüzden geri yüklenebilir.
+            if (schemaVersion >= 14 && snapshot.CounterpartyLoans is null)
+                throw Invalid("Every backup collection is required.");
+            EnsureUniqueIds((snapshot.CounterpartyLoans ?? []).Select(x => x.Id), "counterparty loan");
+            var counterpartyLoans = new List<CounterpartyLoan>();
+            foreach (var item in snapshot.CounterpartyLoans ?? [])
+            {
+                var entity = new CounterpartyLoan(
+                    Guid.NewGuid(), userId,
+                    Required(counterpartyMap, item.CounterpartyId, "loan counterparty"),
+                    Required(accountMap, item.AccountId, "loan account"),
+                    item.Direction, MoneyOf(item.Amount, item.Currency),
+                    item.LoanDate, item.DueDate, item.Description);
+                ApplyCancellation(item.IsCancelled, item.CancelledAtUtc, entity.Cancel);
+                entryTimes[entity] = item.CreatedAtUtc;
+                counterpartyLoans.Add(entity);
             }
 
             // Yükümlülük ekonomik olayı tanır, kapanışı nakdi taşır (ADR 0014).
@@ -1494,7 +1531,7 @@ public sealed class EfDataPortabilityRepository(
                 installmentPlans.ToArray(), recurringTransactions.ToArray(), occurrences.ToArray(),
                 importBatches.ToArray(), counterpartyMap.Values.ToArray(),
                 counterpartyCharges.ToArray(), counterpartyPayments.ToArray(),
-                obligations.ToArray(), cashCounts.ToArray(),
+                counterpartyLoans.ToArray(), obligations.ToArray(), cashCounts.ToArray(),
                 posDefinitionMap.Values.ToArray(), posSettlementMap.Values.ToArray(),
                 posDeposits.ToArray(), dayCloses.ToArray(), dayCloseCounted.ToArray(),
                 dayCloseOverlaps.ToArray(), debts.ToArray(), goals.ToArray(), restoredAttachments.ToArray(), entryTimes);
@@ -1527,6 +1564,7 @@ public sealed class EfDataPortabilityRepository(
             await dbContext.Counterparties.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.CounterpartyCharges.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.CounterpartyPayments.AnyAsync(x => x.UserId == userId, cancellationToken) ||
+            await dbContext.CounterpartyLoans.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.Debts.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.CashCounts.AnyAsync(x => x.UserId == userId, cancellationToken) ||
             await dbContext.PosDefinitions.AnyAsync(x => x.UserId == userId, cancellationToken) ||
@@ -1818,7 +1856,8 @@ internal sealed record FinancialSnapshot(
     DebtBackup[] Debts,
     SavingsGoalBackup[] SavingsGoals,
     AttachmentBackup[] Attachments,
-    DebtRecordBackup[]? DebtRecords = null)
+    DebtRecordBackup[]? DebtRecords = null,
+    CounterpartyLoanBackup[]? CounterpartyLoans = null)
 {
     [JsonIgnore]
     public int EntityCount => Accounts.Length + Categories.Length + Transactions.Length + Budgets.Length +
@@ -1836,7 +1875,8 @@ internal sealed record FinancialSnapshot(
         Attachments.Length +
         CounterpartyCharges.Sum(x => x.Discounts?.Length ?? 0) +
         (DebtRecords?.Length ?? 0) +
-        (DebtRecords?.Sum(x => (x.Items?.Length ?? 0) + (x.Closings?.Length ?? 0)) ?? 0);
+        (DebtRecords?.Sum(x => (x.Items?.Length ?? 0) + (x.Closings?.Length ?? 0)) ?? 0) +
+        (CounterpartyLoans?.Length ?? 0);
 }
 
 internal sealed record AccountBackup(Guid Id, string Name, AccountType Type, CurrencyCode Currency, decimal OpeningBalance,
@@ -1893,11 +1933,21 @@ internal sealed record ImportRowBackup(Guid Id, int RowNumber, string RawData, D
     Guid? BudgetTransactionId, Guid? DuplicateTransactionId, ImportDuplicateReason? DuplicateReason);
 /// <remarks>
 /// Devreden bakiye (v13, ADR 0021 T5) gelir ya da gider yazmaz; eski dosyada
-/// yoktur ve sıfır okunur.
+/// yoktur ve sıfır okunur. Kişinin türü (v14, ADR 0022 İ5) de eski dosyada
+/// yoktur ve boş okunur; uydurulmaz.
 /// </remarks>
 internal sealed record CounterpartyBackup(
     Guid Id, string Name, string? Note, bool IsActive,
-    decimal OpeningReceivable = 0m, decimal OpeningPayable = 0m);
+    decimal OpeningReceivable = 0m, decimal OpeningPayable = 0m,
+    TransactionScope? Scope = null);
+/// <summary>
+/// Kişiye verilen ya da kişiden alınan borç para (v14, ADR 0022 İ3):
+/// <b>taşır</b>; hesap taşır, kategori ve kapsam taşımaz.
+/// </summary>
+internal sealed record CounterpartyLoanBackup(
+    Guid Id, Guid CounterpartyId, Guid AccountId, DebtDirection Direction, decimal Amount,
+    CurrencyCode Currency, DateOnly LoanDate, DateOnly? DueDate, string? Description,
+    bool IsCancelled, DateTimeOffset? CancelledAtUtc, DateTimeOffset? CreatedAtUtc = null);
 /// <remarks>
 /// Borçlandırma <b>tanır</b>: kapsam ve kategori taşır, hesap taşımaz.
 /// Tahsilat <b>taşır</b>: hesap taşır, kategori ve kapsam taşımaz (ADR 0014).
@@ -1915,13 +1965,15 @@ internal sealed record CounterpartyChargeDiscountBackup(
     Guid Id, decimal Amount, DateOnly DiscountDate, DateTimeOffset RecordedAtUtc, DateTimeOffset? CancelledAtUtc);
 /// <remarks>
 /// Kartla tahsilde (<see cref="PosSettlementId"/>) para POS kaydıyla yoldadır;
-/// tahsilat hesaba dokunmaz (ADR 0019 T5).
+/// tahsilat hesaba dokunmaz (ADR 0019 T5). <see cref="PaidWithChargeId"/>
+/// (v14) satışla birlikte yazılmış peşin ya da avans tutarında o satıştır;
+/// eski dosyada yoktur ve boş okunur.
 /// </remarks>
 internal sealed record CounterpartyPaymentBackup(
     Guid Id, Guid CounterpartyId, Guid AccountId, DebtDirection Direction, decimal Amount,
     CurrencyCode Currency, DateOnly PaymentDate, string? Description,
     bool IsCancelled, DateTimeOffset? CancelledAtUtc, DateTimeOffset? CreatedAtUtc = null,
-    Guid? PosSettlementId = null);
+    Guid? PosSettlementId = null, Guid? PaidWithChargeId = null);
 /// <remarks>
 /// Yükümlülük <b>tanır</b>: kategori ve kapsam taşır, hesap taşımaz. Onu
 /// kapatan <see cref="Settlement"/> <b>taşır</b>: hesap taşır, kategori ve
@@ -2108,6 +2160,7 @@ internal sealed record RestoredGraph(
     Counterparty[] Counterparties,
     CounterpartyCharge[] CounterpartyCharges,
     CounterpartyPayment[] CounterpartyPayments,
+    CounterpartyLoan[] CounterpartyLoans,
     Debt[] Obligations,
     CashCount[] CashCounts,
     PosDefinition[] PosDefinitions,

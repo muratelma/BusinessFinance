@@ -381,7 +381,8 @@ public static class FinancialActivityEndpoints
         [FinancialActivityKind.Obligation] = "obligation",
         [FinancialActivityKind.ObligationSettlement] = "obligation-settlement",
         [FinancialActivityKind.PosSale] = "pos-sale",
-        [FinancialActivityKind.PosDeposit] = "pos-deposit"
+        [FinancialActivityKind.PosDeposit] = "pos-deposit",
+        [FinancialActivityKind.CounterpartyLoan] = "counterparty-loan"
     };
 
     internal static readonly Dictionary<FinancialActivityEffect, string> EffectValues = new()

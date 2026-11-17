@@ -352,6 +352,28 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                     })
                     .SingleOrDefaultAsync(cancellationToken);
 
+            case FinancialActivityKind.CounterpartyLoan:
+                return await dbContext.CounterpartyLoans.AsNoTracking()
+                    .Where(item => item.UserId == userId && item.Id == activityId)
+                    .Select(item => new LocatedActivity(
+                        item.LoanDate,
+                        EF.Property<DateTimeOffset?>(item, EntryTimestamp.PropertyName),
+                        item.IsCancelled,
+                        item.AccountId,
+                        null,
+                        null,
+                        null)
+                    {
+                        // Verilen para hesaptan çıkar, alınan para hesaba girer.
+                        AccountIncreases = item.Direction == DebtDirection.Payable,
+                        CounterpartyId = item.CounterpartyId,
+                        // Verilen para alacağı, alınan para borcu artırır.
+                        CounterpartyNetDelta = item.Direction == DebtDirection.Receivable
+                            ? item.Amount.Amount
+                            : -item.Amount.Amount
+                    })
+                    .SingleOrDefaultAsync(cancellationToken);
+
             case FinancialActivityKind.ObligationSettlement:
                 // Kartla ödenmiş fatura hesaba dokunmaz; sonrası kart borcudur.
                 var cardSettlement = await dbContext.DebtPaymentRows
@@ -1217,9 +1239,63 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 MatchCounterpartyId = counterparty.Id
             };
 
+        // Borç para: para taşır, gelir/gider yazmaz (ADR 0022 İ3).
+        // Başlığı açıklama, yoksa kişidir; yönü `Direction` söyler.
+        var counterpartyLoans =
+            from loan in dbContext.CounterpartyLoans.AsNoTracking()
+            join counterparty in dbContext.Counterparties.AsNoTracking()
+                on new { loan.UserId, Id = loan.CounterpartyId }
+                equals new { counterparty.UserId, counterparty.Id }
+            join account in dbContext.Accounts.AsNoTracking()
+                on new { loan.UserId, Id = loan.AccountId }
+                equals new { account.UserId, account.Id }
+            where loan.UserId == userId
+            select new ActivityRow
+            {
+                ActivityId = loan.Id,
+                ActivityKind = (int)FinancialActivityKind.CounterpartyLoan,
+                Effect = (int)FinancialActivityEffect.Neutral,
+                SourceGroup = (int)FinancialActivitySourceGroup.Counterparty,
+                Origin = (int)FinancialActivityOrigin.Manual,
+                Status = loan.IsCancelled
+                    ? (int)FinancialActivityStatus.Cancelled
+                    : (int)FinancialActivityStatus.Realized,
+                ActivityDate = loan.LoanDate,
+                Amount = loan.Amount.Amount,
+                Currency = (int)loan.Amount.Currency,
+                Title = loan.Description ?? counterparty.Name,
+                Description = loan.Description,
+                CategoryId = null,
+                CategoryName = null,
+                SourceId = account.Id,
+                SourceName = account.Name,
+                DestinationId = counterparty.Id,
+                DestinationName = counterparty.Name,
+                CancelledAtUtc = loan.CancelledAtUtc,
+                Scope = (int?)null,
+                PrincipalPortion = (decimal?)null,
+                InterestPortion = (decimal?)null,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(loan, EntryTimestamp.PropertyName),
+                ChannelName = null,
+                FeeAmount = (decimal?)null,
+                NetAmount = (decimal?)null,
+                DiscountAmount = (decimal?)null,
+                ExpectedTransferDate = (DateOnly?)null,
+                TransferredOn = (DateOnly?)null,
+                Direction = (int?)loan.Direction,
+                SettlementCount = (int?)null,
+                CancelLocked = false,
+                DayCloseId = (Guid?)null,
+                MatchAccountId = account.Id,
+                MatchSecondAccountId = null,
+                MatchCreditCardId = null,
+                MatchCategoryId = null,
+                MatchCounterpartyId = counterparty.Id
+            };
+
         var obligations =
             from obligation in dbContext.Obligations.AsNoTracking()
-            // Fatura satırı tanımadır: devredilmiş borcun satırı yoktur.
+                // Fatura satırı tanımadır: devredilmiş borcun satırı yoktur.
             join category in dbContext.Categories.AsNoTracking()
                 on new { obligation.UserId, Id = obligation.CategoryId }
                 equals new { category.UserId, Id = (Guid?)category.Id }
@@ -1621,6 +1697,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
             .Concat(debtCategoricalOpenings)
             .Concat(counterpartyCharges)
             .Concat(counterpartySettlements)
+            .Concat(counterpartyLoans)
             .Concat(obligations)
             .Concat(obligationSettlements)
             .Concat(posSales)

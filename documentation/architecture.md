@@ -2370,3 +2370,39 @@ POS yatışı mevcut `PosDeposit` paneline, gün sonuna bağlı kayıt mevcut g�
 sonu ayrıntısına gider. Bakiye, kalan, limit ve iptal kilitleri bu ortak
 açılışta korunur. Eski hesap/transfer sekmesi ve kart feature'ındaki transfer
 liste/form/ayrıntı kopyaları kaldırıldı; kart akışı kendi feature'ında kalır.
+
+## Kişinin hesabında borç para ve kişinin türü — 17 Kasım 2026 (ADR 0022)
+
+`CounterpartyLoan` kişiye verilen ya da kişiden alınan borç paradır: **taşır**
+(ADR 0014). Hesap bakiyesini değiştirir, kişinin bakiyesini artırır, gelir ya
+da gider yazmaz; kategori ve kapsam taşımaz. Borçlandırmayla (`CounterpartyCharge`)
+aynı tabloda durmaz: borçlandırmayı okuyan her yol onu gelir ya da gider diye
+okur ve unutulan tek bir süzgeç borç parayı sessizce gelir yazardı. Ayrı
+tablonun okumalarda unutulması ise bakiyeyi görünür biçimde bozar ve
+`MoneyFoundation_*` ile kişi testlerinde yakalanır.
+
+Borç parayı okuyan yerler: kişinin bakiyesi (`CounterpartyBalance`, liste
+SQL'i), gecikme (`CounterpartyAging`; alımlarla **tek** `UNION ALL` sorgusunda,
+kişi listesi iki sorguda kalır), işlem sonrası açık bakiye (`CounterpartyNet`),
+hesap hareketleri (`AccountMovements`; para yollarından biri), birleşik akış
+(`counterparty-loan`), hesap sayfası, kişi silme (geçmiş sayılır), hesap
+silme ve yedek (v14). `RecognizedItems`e **girmez**.
+
+Avans ayrı bir kayıt değildir: tahsilat ya da ödemedir. Kişinin bakiyesi iki
+toplamdır (alacak, borç) ve borç para kendi tarafına yazılır; avans borç para
+gibi yazılsaydı sonraki satıştan düşmezdi.
+
+`Counterparty.Scope` kişinin türüdür (nullable; eski kişide boş, uydurulmaz).
+Listeyi böler, kaydın rapordaki kapsamı değildir: borçlandırmanın kapsamı
+`TransactionScopeResolution.Resolve(seçim, kategori, kişinin türü)` ile
+kurulur, türü boş eski kişide profil karar verir. Gün sonu yalnız `İşletme`
+kapsamlı veresiye satışı sayar. Borçlandırma istek kimliği taşır
+(`RequestScopedId`, amaç `counterparty-charge`); borç para da (`counterparty-loan`).
+
+Satış ya da alımla birlikte o gün alınan ya da verilen peşin veya avans tutarı
+(`paidNow`) sıradan bir `CounterpartyPayment`tır; satışla tek `SaveChanges`te
+yazılır ve `PaidWithChargeId` ile ona bağlanır. Bağ hiçbir okumayı değiştirmez
+(ödeme kişinin hesabına yazılır, en eski kalemden düşer); yalnız satışın
+iptalinde "avans da iptal olsun mu" sorusunu ve ileride gün sonunun ortak
+tutarını mümkün kılar. Satış iptali bağlı tahsilatı varsayılan olarak
+**iptal etmez**: para gerçekten alındıysa kişinin hesabında kalır.

@@ -145,7 +145,9 @@ Kapsam alanını taşıyan istek/cevap sözleşmeleri:
 | `POST /api/v1/recurring-transactions` | `scope` | Hayır — kategori, yoksa seçim, yoksa kaynağın etiketi (vergi planı ayrı: seçim → profilin tarafı); `recurring.scope_conflict` / `recurring.scope_unresolved` / `recurring.invalid_scope` |
 | `POST /api/v1/recurring-transactions` | `occurrenceLimit` | Hayır — verilirse pozitif toplam occurrence sınırıdır; `endDate` ile birlikte verilebilir ve önce dolan sınır planı pasifleştirir. Sahiplik girdisi değildir |
 | `POST /api/v1/debts` | `scope` | Hayır — kategori, yoksa seçim, yoksa açılış hesabının etiketi; kategorisiz (nakit) borç iki tarafa açık kategori gibidir. `debt.scope_conflict` / `debt.scope_unresolved` / `debt.invalid_contract` |
-| `POST /api/v1/counterparties/{id}/charges`, `POST /api/v1/pos-settlements`, `POST /api/v1/pos-deposits` | `scope` | Hayır — bu girişler her zaman işletme yazılır; `personal` ya da şahsi bir kategori `counterparties.scope_conflict` / `pos_settlements.scope_conflict` / `pos_deposits.scope_conflict` ile reddedilir |
+| `POST /api/v1/counterparties/{id}/charges` | `scope` | Hayır — kategori, yoksa seçim, yoksa kişinin türü; türü boş eski kişide profil (işletmesi olan `business`, olmayan `personal`). Kategoriyle çelişen seçim `counterparties.scope_conflict` (ADR 0022 İ5; 17 Kasım 2026'ya kadar her zaman işletme yazılırdı) |
+| `POST`/`PUT /api/v1/counterparties` | `scope` | Hayır — kişinin türü; sahiplik girdisi değildir. İşletmesi olmayan kullanıcıda boşsa `personal` yazılır; güncellemede boş türü değiştirmez. Tanınmayan değer `counterparties.invalid_scope` |
+| `POST /api/v1/pos-settlements`, `POST /api/v1/pos-deposits` | `scope` | Hayır — bu girişler her zaman işletme yazılır; `personal` ya da şahsi bir kategori `pos_settlements.scope_conflict` / `pos_deposits.scope_conflict` ile reddedilir |
 | `POST`/`PUT` hesap, kategori, kart | `defaultScope` | Hayır — boş bırakılabilir; **güncellemede yetkilidir**, boş göndermek etiketi kaldırır. Tanınmayan değer `*.invalid_default_scope`. Kategoride boş "iki tarafa açık"tır: işletmesi olmayan kullanıcının açtığı kategori boş gönderilse de `personal` yazılır; var olan kategoriyi daraltmak ya da çevirmek, öbür tarafta kaydı, planı ya da bütçesi varsa `categories.scope_in_use` (409) ile reddedilir |
 | `POST /api/v1/imports/{id}/confirm` | — | İçe aktarılan CSV kapsam kolonu taşımaz; açık seçim hiç gelmez: tek taraflı kategori tarafı söyler, iki tarafa açık kategoride hesabın etiketi kullanılır, o da boşsa `imports.scope_unresolved` |
 | `GET /api/v1/exports/transactions.csv` | `scope` | Dosya her satırın kapsamını `type`'ın yanında taşır. Dışa aktarma okumak ve arşivlemek içindir; aynı dosya içe aktarılamaz (istemci tanır ve reddeder), veri taşımanın yolu yedek/geri yüklemedir |
@@ -449,6 +451,26 @@ gönderdiği kimlik başka kullanıcınınsa `debt.account_unavailable` /
 eklendi. Eşzamanlı iki kapanış borcun sürüm belirteciyle (`Revision`) aynı
 satırda sınanır: kaybeden `409 debt.changed` alır, kalan aşılmaz. Sözleşme
 `debt-api-contract.md` içindedir.
+
+## Kişinin hesabında borç para — 17 Kasım 2026 (ADR 0022)
+
+`POST /api/v1/counterparties/{id}/loans` ve `DELETE
+/api/v1/counterparty-loans/{id}` sahiplik kapsamlıdır ve `OwnershipIsolationTests`
+route listesinde yoklanır (`kişiye borç para`, `borç para iptali`); borç para
+kimliği okuma uçlarının sızıntı ölçüsüne eklendi. Kişi ve hesap `(UserId, Id)`
+ile çözülür: başkasının kişisi `404 counterparties.not_found`, başkasının
+hesabı `400 counterparties.account_unavailable` alır ve kayıt yazılmaz; SQL'de
+kişi ve hesap bileşik yabancı anahtarla aynı kullanıcıya bağlıdır. Başkasının
+borç parasının iptali olmayan kayıtla aynı `404 counterparties.loan_not_found`'u
+alır. İstek kimliği (`clientRequestId`) kullanıcıya göre türetilir
+(`RequestScopedId`); başka kullanıcının aynı kimliği ayrı kayıttır.
+
+Borçlandırmanın `paidNow.accountId`'si de `(UserId, Id)` ile çözülür:
+başkasının hesabı `400 counterparties.account_unavailable` alır ve ne satış ne
+tahsilat yazılır. Tahsilatın satışa bağı SQL'de `(UserId, PaidWithChargeId)`
+bileşik yabancı anahtarıdır; başka kullanıcının satışına bağlanamaz.
+`DELETE /api/v1/counterparty-charges/{id}?withPaidNow=true` yalnız aynı
+kullanıcının o satışa bağlı tahsilatlarını iptal eder.
 
 ## Kart sayfası ve taksit önizlemesi — 12 Kasım 2026
 

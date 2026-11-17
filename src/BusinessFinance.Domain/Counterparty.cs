@@ -48,13 +48,26 @@ public sealed class Counterparty
     /// <summary>Uygulamadan önce bizim karşı tarafa devreden borcumuz.</summary>
     public decimal OpeningPayable { get; private set; }
 
+    /// <summary>
+    /// Kişinin türü: <c>İşletme</c> (müşteri, tedarikçi) ya da <c>Şahsi</c>
+    /// (aile, arkadaş). <c>Borç ve alacak</c> listesi bununla bölünür; işletme
+    /// kişilerinin hesabı cari hesaptır (ADR 0022 İ5).
+    /// </summary>
+    /// <remarks>
+    /// Kaydın rapordaki kapsamı değildir: gelir ve gider kapsamını her kayıt
+    /// gibi kategoriden alır. Bu ayrımdan önce açılmış kişide boştur ve
+    /// uydurulmaz.
+    /// </remarks>
+    public TransactionScope? Scope { get; private set; }
+
     private Counterparty()
     {
         Name = null!;
         NameKey = null!;
     }
 
-    public Counterparty(Guid id, Guid userId, string name, string? note = null)
+    public Counterparty(
+        Guid id, Guid userId, string name, string? note = null, TransactionScope? scope = null)
     {
         if (id == Guid.Empty)
         {
@@ -72,6 +85,7 @@ public sealed class Counterparty
         NameKey = NameKeyOf(Name);
         Note = NormalizeNote(note);
         IsActive = true;
+        SetScope(scope);
     }
 
     public void Rename(string name)
@@ -106,6 +120,20 @@ public sealed class Counterparty
 
     /// <summary><c>null</c> vermek notu siler.</summary>
     public void SetNote(string? note) => Note = NormalizeNote(note);
+
+    /// <summary>
+    /// Kişinin türünü değiştirir. Hiçbir tutarı, geliri ya da gideri
+    /// değiştirmez; kişi yalnız öbür görünüme geçer (ADR 0022 İ5).
+    /// </summary>
+    public void SetScope(TransactionScope? scope)
+    {
+        if (scope is TransactionScope value)
+        {
+            TransactionScopeGuard.Validate(value, nameof(scope));
+        }
+
+        Scope = scope;
+    }
 
     /// <summary>
     /// Pasifleştirme yeni iş yapmayı durdurur, geçmişi silmez.

@@ -385,6 +385,7 @@ internal sealed class EfFinancePageReader(BusinessFinanceDbContext db,
         FinancialActivityKind.ObligationSettlement => "obligation-settlement",
         FinancialActivityKind.PosSale => "pos-sale",
         FinancialActivityKind.PosDeposit => "pos-deposit",
+        FinancialActivityKind.CounterpartyLoan => "counterparty-loan",
         _ => throw new ArgumentOutOfRangeException(nameof(kind))
     };
 

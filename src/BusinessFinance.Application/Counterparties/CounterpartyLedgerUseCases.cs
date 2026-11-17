@@ -4,6 +4,7 @@ using BusinessFinance.Application.Abstractions.Results;
 using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.DayCloses;
 using BusinessFinance.Application.Pos;
+using BusinessFinance.Application.Profiles;
 using BusinessFinance.Application.Categories;
 using BusinessFinance.Application.Scopes;
 using BusinessFinance.Application.Taxes;
@@ -18,8 +19,13 @@ public sealed class CreateCounterpartyChargeUseCase(
     ICurrentUser currentUser,
     ICounterpartyRepository repository,
     ICategoryRepository categoryRepository,
+    IUserProfileRepository profileRepository,
+    IAccountRepository accountRepository,
     TimeProvider timeProvider)
 {
+    internal const string IdPurpose = "counterparty-charge";
+    internal const string PaidNowIdPurpose = "counterparty-charge-paid-now";
+
     public async Task<ApplicationResult<CounterpartyChargeDto>> ExecuteAsync(
         CreateCounterpartyChargeCommand command,
         CancellationToken cancellationToken = default)
@@ -65,12 +71,53 @@ public sealed class CreateCounterpartyChargeUseCase(
                 CounterpartyErrors.CategoryUnavailable);
         }
 
-        // Cari hesap işletmeye özeldir (ADR 0020 İ9): borçlandırma her zaman
-        // İşletme yazılır. Şahsi kategori ya da şahsi istek reddedilir; kural
-        // uygulama katmanındadır, eski yedekteki şahsi cari kayıt geri
-        // yüklenebilmelidir.
-        var resolution = TransactionScopeResolution.ResolveInContext(
-            TransactionScope.Business, command.Scope, category.DefaultScope);
+        // Aynı istek kimliği tek kayıt yazar: tekrar gönderilen istek var olanı
+        // döner, başka kişide kullanılmış kimlik reddedilir.
+        Guid? requestScopedId = null;
+        Guid? paidNowScopedId = null;
+        if (command.ClientRequestId is Guid clientRequestId && clientRequestId != Guid.Empty)
+        {
+            requestScopedId = RequestScopedId.Create(IdPurpose, userId, clientRequestId);
+            paidNowScopedId = RequestScopedId.Create(PaidNowIdPurpose, userId, clientRequestId);
+            var replay = await ReplayAsync(requestScopedId.Value, userId, command, cancellationToken);
+            if (replay is not null)
+            {
+                return replay;
+            }
+        }
+
+        // Peşin ya da avans tutarı: aynı gün, aynı kişiye, satışı aşmadan.
+        Account? paidNowAccount = null;
+        if (command.PaidNow is CounterpartyPaidNow paidNow)
+        {
+            if (paidNow.Amount > command.Amount)
+            {
+                return ApplicationResult<CounterpartyChargeDto>.Failure(
+                    CounterpartyErrors.PaidNowExceedsCharge);
+            }
+
+            paidNowAccount = await accountRepository.FindOwnedByIdAsync(
+                paidNow.AccountId, userId, cancellationToken);
+            if (paidNowAccount is null || !paidNowAccount.IsActive)
+            {
+                return ApplicationResult<CounterpartyChargeDto>.Failure(
+                    CounterpartyErrors.AccountUnavailable);
+            }
+        }
+
+        // Kapsamı her kayıt gibi kategori sınırlar; kişinin türü yalnız ön
+        // değerdir (ADR 0022 İ5). Türü bilinmeyen eski kişide işletmesi olan
+        // kullanıcının kaydı işletme sayılır: cari bu ayrımdan önce işletmeye
+        // özeldi. İşletmesi olmayanın kaydı şahsidir.
+        var resolution = TransactionScopeResolution.Resolve(
+            command.Scope, category.DefaultScope, counterparty.Scope);
+        if (resolution.Failure == ScopeResolutionFailure.Unresolved)
+        {
+            var profile = await profileRepository.FindAsync(userId, track: false, cancellationToken);
+            resolution = ScopeResolution.Resolved(profile?.HasBusiness ?? false
+                ? TransactionScope.Business
+                : TransactionScope.Personal);
+        }
         if (resolution.Scope is not TransactionScope scope)
         {
             return ApplicationResult<CounterpartyChargeDto>.Failure(resolution.ToError(
@@ -80,7 +127,7 @@ public sealed class CreateCounterpartyChargeUseCase(
         try
         {
             var charge = new CounterpartyCharge(
-                Guid.NewGuid(),
+                requestScopedId ?? Guid.NewGuid(),
                 userId,
                 counterparty,
                 category,
@@ -90,8 +137,25 @@ public sealed class CreateCounterpartyChargeUseCase(
                 command.ChargeDate,
                 command.Description,
                 command.DueDate);
-            await repository.AddChargeAsync(charge, cancellationToken);
-            return ApplicationResult<CounterpartyChargeDto>.Success(ToDto(charge));
+            var paidNowPayment = command.PaidNow is CounterpartyPaidNow paid
+                ? new CounterpartyPayment(
+                    paidNowScopedId ?? Guid.NewGuid(),
+                    userId,
+                    counterparty,
+                    paidNowAccount!,
+                    command.Direction,
+                    new Money(paid.Amount, command.Currency),
+                    command.ChargeDate,
+                    command.Description,
+                    paidWithCharge: charge)
+                : null;
+            if (!await repository.AddChargeAsync(charge, cancellationToken, paidNowPayment))
+            {
+                return await ReplayAsync(charge.Id, userId, command, cancellationToken)
+                    ?? ApplicationResult<CounterpartyChargeDto>.Failure(CounterpartyErrors.PaymentChanged);
+            }
+
+            return ApplicationResult<CounterpartyChargeDto>.Success(ToDto(charge, paidNowPayment?.Id));
         }
         catch (ArgumentException exception)
         {
@@ -105,7 +169,30 @@ public sealed class CreateCounterpartyChargeUseCase(
         }
     }
 
-    internal static CounterpartyChargeDto ToDto(CounterpartyCharge charge) => new(
+    private async Task<ApplicationResult<CounterpartyChargeDto>?> ReplayAsync(
+        Guid chargeId,
+        Guid userId,
+        CreateCounterpartyChargeCommand command,
+        CancellationToken cancellationToken)
+    {
+        var existing = await repository.FindOwnedChargeAsync(chargeId, userId, cancellationToken);
+        if (existing is null)
+        {
+            return null;
+        }
+
+        if (existing.CounterpartyId != command.CounterpartyId)
+        {
+            return ApplicationResult<CounterpartyChargeDto>.Failure(
+                CounterpartyErrors.Validation("Client request id was already used for another charge."));
+        }
+
+        var paidNow = await repository.FindPaidWithChargeAsync(existing.Id, userId, cancellationToken);
+        return ApplicationResult<CounterpartyChargeDto>.Success(
+            ToDto(existing, paidNow.Count > 0 ? paidNow[0].Id : null));
+    }
+
+    internal static CounterpartyChargeDto ToDto(CounterpartyCharge charge, Guid? paidNowPaymentId = null) => new(
         charge.Id,
         charge.CounterpartyId,
         charge.CategoryId,
@@ -121,7 +208,8 @@ public sealed class CreateCounterpartyChargeUseCase(
         [.. charge.Discounts
             .OrderBy(discount => discount.RecordedAtUtc)
             .Select(discount => new CounterpartyChargeDiscountDto(
-                discount.Id, discount.Amount, discount.DiscountDate, discount.IsCancelled))]);
+                discount.Id, discount.Amount, discount.DiscountDate, discount.IsCancelled))],
+        paidNowPaymentId);
 }
 
 /// <summary>
@@ -313,9 +401,15 @@ public sealed class CancelCounterpartyChargeUseCase(
     IDayCloseCountReader dayCloseCountReader,
     TimeProvider timeProvider)
 {
+    /// <param name="withPaidNow">
+    /// <c>true</c>: satışla birlikte yazılmış peşin ya da avans tutarı da iptal
+    /// olur (yanlış girilmiş kayıt). <c>false</c>: tutar kişinin hesabında kalır
+    /// (iş iptal oldu, para alınmıştı); varsayılan budur.
+    /// </param>
     public async Task<ApplicationResult<CounterpartyChargeDto>> ExecuteAsync(
         Guid chargeId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool withPaidNow = false)
     {
         if (currentUser.UserId is not Guid userId || userId == Guid.Empty)
         {
@@ -338,9 +432,31 @@ public sealed class CancelCounterpartyChargeUseCase(
                 CounterpartyErrors.ChargeDayCloseCounted);
         }
 
+        // Birlikte yazılmış tutar da iptal edilecekse onun kilitleri de sınanır;
+        // ikisi tek yazmada iptal olur, yarım kalmaz.
+        var cancelledAt = timeProvider.GetUtcNow().ToUniversalTime();
+        if (withPaidNow)
+        {
+            var paidNow = await repository.FindPaidWithChargeAsync(charge.Id, userId, cancellationToken);
+            foreach (var payment in paidNow)
+            {
+                if (await dayCloseCountReader.IsCountedAsync(
+                        userId, DayCloseRecordKind.CounterpartyPayment, payment.Id, cancellationToken))
+                {
+                    return ApplicationResult<CounterpartyChargeDto>.Failure(
+                        CounterpartyErrors.PaymentDayCloseCounted);
+                }
+            }
+
+            foreach (var payment in paidNow)
+            {
+                payment.Cancel(cancelledAt);
+            }
+        }
+
         // İptal idempotent: ikinci istek aynı sonucu döner, ilk iptalin zaman
         // damgasını değiştirmez.
-        charge.Cancel(timeProvider.GetUtcNow().ToUniversalTime());
+        charge.Cancel(cancelledAt);
         await repository.SaveChargeAsync(charge, cancellationToken);
         return ApplicationResult<CounterpartyChargeDto>.Success(
             CreateCounterpartyChargeUseCase.ToDto(charge));

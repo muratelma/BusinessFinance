@@ -124,6 +124,22 @@ public static class CounterpartyErrors
         "A payment counted in a day close cannot be cancelled; revert the day close first.",
         ApplicationErrorType.Conflict);
 
+    /// <summary>Satışla birlikte yazılan peşin ya da avans tutarı satışı aşıyor.</summary>
+    public static readonly ApplicationError PaidNowExceedsCharge = new(
+        "counterparties.paid_now_exceeds_charge",
+        "The amount paid now cannot exceed the charge.",
+        ApplicationErrorType.Validation);
+
+    public static ApplicationError LoanNotFound(Guid id) => new(
+        "counterparties.loan_not_found",
+        $"Loan '{id}' was not found.",
+        ApplicationErrorType.NotFound);
+
+    public static readonly ApplicationError LoanChanged = new(
+        "counterparties.concurrent_change",
+        "The record changed while it was being saved. Read it again.",
+        ApplicationErrorType.Conflict);
+
     public static ApplicationError PaymentNotFound(Guid id) => new(
         "counterparty_payments.not_found",
         $"Counterparty payment '{id}' was not found.",
