@@ -203,6 +203,11 @@ karşılıyor.
 
 ### 6.6 Müşteri, tedarikçi ve cari hesap
 
+- Borç, alacak ve cari **tek sayfadadır** ve kişiler üzerinden ilerler (ADR
+  0022): kişiyle olan taksitsiz her şey kişinin hesabında yürür; taksitli ya
+  da kişisiz borç ayrı kayıttır; hangisinin kullanılacağı kullanıcıya
+  sorulmaz. Cari hesap, `İşletme` kişilerinin hesabıdır
+- Verilen ve alınan borç para kişinin hesabında tutulur
 - Karşı taraf kaydı (müşteri/tedarikçi) — kendi boyutu, kategori değil
 - Açık cari hesap: birden çok belge, kısmi tahsilat, yürüyen bakiye
 - Sözleşmeli ve taksitli borç/alacak (anapara, faiz, ödeme planı)

@@ -4,6 +4,10 @@
   2026'da panolar üzerinden verildi; kullanıcı metnin onayını "problem yoksa
   onaylayabilirsin" diyerek bıraktı. Aşama 06.3 Grup 8 "Cari, borç ve
   alacak"ın karar kapısıdır. Dalga 0 bu ADR'ye bağlı değildir ve uygulandı.
+- **Not (16 Kasım 2026):** ADR 0022 İ3 ve İ8'i değiştirir (takip biçimi sorulmaz;
+  `Borç ve alacaklar` ile `Cari hesap` tek sayfadır) ve T7 ile T8'in yerini
+  alır. Tek borç modeli, İ1, İ2, İ4–İ7 ve İ9 ile T1–T6, T9 geçerlidir. Ayrıntı
+  `documentation/adr/0022-a-person-has-one-account-the-app-decides-where-a-record-goes.md`.
 - **Nasıl okunur:** iki katmanlıdır. **§İlkeler bağlayıcıdır**; değişmesi kullanıcı
   kararı ve bu ADR'nin güncellenmesini ister. **§Başlangıç tasarımı** uygulamanın
   ilk hâlidir ve ilkeleri bozmadan değişebilir (`AGENTS.md` "Kararlardan sapma").

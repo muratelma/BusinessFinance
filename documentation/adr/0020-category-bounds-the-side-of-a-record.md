@@ -6,6 +6,11 @@
 - **Not (16 Ekim 2026):** ADR 0021 İ10'u genişletir ("tek yoldan kapanır",
   "tek ödemeyle kapanır" demek değildir) ve T6'daki `Yükümlülükler` bölümünü
   kaldırır: yükümlülük ile borç planı tek borçtur. İ9 ve İ10'un özü sürer.
+- **Not (16 Kasım 2026):** ADR 0022 İ9'u değiştirir (kişinin hesabı işletmeye özel
+  değildir; cari, `İşletme` kişilerinin hesabıdır) ve İ10'daki "cariye mi,
+  ayrı borca mı" seçimini kaldırır (kural sabittir). Kaydın kapsamını
+  kategorinin sınırlaması aynen sürer. Ayrıntı
+  `documentation/adr/0022-a-person-has-one-account-the-app-decides-where-a-record-goes.md`.
 - **Nasıl okunur:** bu ADR iki katmanlıdır. **§İlkeler bağlayıcıdır**; değişmesi
   kullanıcı kararı ve bu ADR'nin güncellenmesini ister. **§Başlangıç tasarımı**
   uygulamanın ilk hâlidir; kod yazılırken daha iyi ya da gerekli bir yol

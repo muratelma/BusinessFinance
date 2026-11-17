@@ -51,7 +51,7 @@ işlenirken kaynak `design/borc-ve-alacaklar/README.md` gibi çalışma belgeler
 kapsam, kullanıcı/rol tekliği), masraflı transfer ve önizlemesi, SQL'de
 sayfalı kategori ve hesap okumaları `FinancePages` altında. İki kanonik liste
 `RecognizedItems` / `AccountMovements` genişledi; hesapta yatış net ve transfer
-çıkışı masraf dahil tek harekettir. Yedek v13 yazar (16 Ekim 2026, borç durumuyla), v11–v12 de okur; sürümün
+çıkışı masraf dahil tek harekettir. Yedek v14 yazar (17 Kasım 2026, kişinin türü ve borç parayla), v11–v13 de okur; sürümün
 tek kaynağı `documentation/restore-runbook.md`. Sözleşme
 `documentation/category-account-pages-api-contract.md`; yol günlüğü/teslim
 `research/TESLIM-2026-10-13-kategori-hesap-sayfalari.md`. Flutter tarafında kategori özeti/kategori/hesap/Yolda,
@@ -66,6 +66,13 @@ Flutter adımıyla birlikte uygulanır.
 belgesi `docs/archive/stages/06.4-giris-ve-kimlik.md`. **Aşama 06.3 yeniden
 Aktif**; sıradaki iş cari, borç ve alacak. Güncel durum için her zaman
 `stages/README.md` tablosu geçerlidir.
+
+**16 Kasım 2026:** cari, borç ve alacak yeniden tasarlandı; **ADR 0022** kabul
+edildi (kişiyle olan her şey kişinin hesabında, kaydın nereye yazılacağını
+uygulama bilir; cari = `İşletme` kişilerinin hesabı). Bu konuda oturum
+`stages/06.3-borc-alacak/README.md`den başlar (durum, günlük, sıradaki görev).
+Aşağıdaki cari ve yükümlülük kuralları **bugünkü kodu** anlatır; kod fazlar
+ilerledikçe değişir ve bu özet o commit'lerde güncellenir.
 
 Flutter istemcisi ve ASP.NET Core backend'iyle çalışan, çok kullanıcılı bir
 işletme finansı uygulaması. Hedef kitle şahıs şirketleri ve esnaf: şirketin
@@ -302,6 +309,17 @@ gerekçesiyle bozulmaz.
   hareketlerden hesaplanan projection'dır; fazla tahsilat **kırpılmaz**.
   Pasif karşı tarafa yeni borçlandırma yazılamaz, tahsilat yazılabilir — aksi
   hâlde açık bakiye kapatılamazdı.
+- **Kişinin hesabı borç parayı da tutar** (ADR 0022 İ3; 17 Kasım 2026).
+  `CounterpartyLoan` **taşır**: hesap bakiyesini değiştirir, kişinin bakiyesini
+  artırır, gelir/gider yazmaz, kategori ve kapsam taşımaz; borçlandırma
+  tablosunda durmaz (onu okuyan her yol gelir/gider sayar). Bakiye, gecikme,
+  `CounterpartyNet`, `AccountMovements`, akış (`counterparty-loan`) ve yedek
+  onu okur; `RecognizedItems` okumaz. **Avans ayrı kayıt değildir**: tahsilat
+  ya da ödemedir ve sonraki satıştan düşer (`02-TASARIM.md` §7a). Kişinin bir
+  türü vardır (`Counterparty.Scope`, nullable, eski kişide uydurulmaz); listeyi
+  böler, kaydın kapsamı değildir. Borçlandırmanın kapsamı kategoriden, iki
+  kapsama açıkta seçimden, o da yoksa kişinin türünden gelir; gün sonu yalnız
+  `İşletme` kapsamlı veresiye satışı sayar.
 - **Cari bakiye yalnız cari hareketlerden oluşur; bir borç tek yoldan kapanır**
   (ADR 0020, Aşama 06.3 C3–C6). Kişiye bağlı yükümlülük (ödenmemiş fatura, tek
   seferlik alacak) o kişinin **bilgisidir**: cari bakiyeye, gecikmiş tutara,
@@ -543,8 +561,8 @@ gerekçesiyle bozulmaz.
   boş) girişin bağlamı, yoksa kullanıcının açık seçimi, o da yoksa hesabın ya
   da kartın etiketi belirler. **Hesabın etiketi paranın tarafıdır, kategoriyi
   ezmez**: kasadan market şahsi giderdir. Bağlamı olan giriş (POS satışı, gün
-  sonu, komisyon, yatış kesintisi, cari borçlandırma) her zaman `İşletme`
-  yazılır. Kategoriyle ya da bağlamla çelişen açık seçim `*.scope_conflict` ile
+  sonu, komisyon, yatış kesintisi) her zaman `İşletme` yazılır; cari
+  borçlandırma 17 Kasım 2026'dan beri bu listede değildir (ADR 0022 İ5). Kategoriyle ya da bağlamla çelişen açık seçim `*.scope_conflict` ile
   **reddedilir**, sessizce düzeltilmez. Hiçbir işaret yoksa işletmesi olmayan
   kullanıcıda kayıt `Şahsi` yazılır, işletmesi olanda istek
   `*.scope_unresolved` ile reddedilir; sunucu kapsam **uydurmaz**.
@@ -745,6 +763,15 @@ secret'ı uygulamaya konmaz.
   tasarımı: model, ödeme sırası, düzeltmeler, kartla ödeme, devir, mahsup,
   giriş akışları, okumalar, migration, dalgalar (0 hemen · 1 birleşme ·
   2 çekirdek · 3 tamamlama)
+- `documentation/adr/0022-a-person-has-one-account-the-app-decides-where-a-record-goes.md`
+  — **Aşama 06.3 Grup 8'in ikinci karar kapısı (kabul edildi 16 Kasım 2026;
+  iki katmanlı)**: ADR 0020 İ9–İ10 ile ADR 0021 İ3, İ8, T7, T8'i değiştirir.
+  İlkeler — kaydın nereye yazılacağını uygulama bilir (taksitli ya da kişisiz
+  ise ayrı kayıt, diğer her şey kişinin hesabı), kişinin hesabı yürüyen
+  bakiyedir ve ödeme hedef sormaz, hesap borç parayı da tutar, fazla ödeme
+  kırpılmaz, kapsamı listede kişi raporda kategori taşır, tek sayfa ve tek
+  kişi sayfası, taksitli kaydın ödemesi kendi sayfasından, uygulama faiz
+  hesaplamaz. Çalışma klasörü `stages/06.3-borc-alacak/`
 - `documentation/adr/0019-day-close-produces-existing-records.md` — **Aşama
   06.3'ün kasa/POS karar kapısı (kabul edildi 29 Eylül 2026; iki katmanlı)**:
   ilkeler — tanır / taşır, aynı satış iki kez sayılmaz, gün sonu yeni kayıt
