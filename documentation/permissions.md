@@ -484,6 +484,15 @@ Kişiye kredi kartıyla ödemede (`creditCardId`) kart `(UserId, Id)` ile
 yazılmaz. SQL'de kart bileşik yabancı anahtarla bağlıdır ve
 `CK_CounterpartyPayments_Source` hesap ile karttan tam olarak birini ister.
 
+## Kişi sayfası ve liste — 17 Kasım 2026 (Faz 3)
+
+`GET /api/v1/counterparties/{id}/page` kişiyi `(UserId, Id)` ile okur;
+başkasının kişisi ile olmayan kişi aynı `404 counterparties.not_found`'u
+alır ve uç sahiplik probundadır (`kişi sayfası`). `GET /api/v1/debt-book`
+ve planlanan görünümün yeni parametreleri (`scope`, `includeCounterpartyDues`)
+ve akışın `direction` süzgeci kimlik almaz; her okuma `ICurrentUser`
+kapsamındadır.
+
 ## Kart sayfası ve taksit önizlemesi — 12 Kasım 2026
 
 `GET /api/v1/credit-cards/{cardId}/page` kartı JWT oturumunun sahibine göre

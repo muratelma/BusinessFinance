@@ -392,7 +392,13 @@ public sealed record FinancialActivityListCriteria(
     /// Sayfalı listeyi istemcide süzmek yalnız yüklenmiş sayfayı arardı; arama
     /// bu yüzden aynı tek sorgunun bir filtresidir ve sayım da ona göre yapılır.
     /// </remarks>
-    string? Search = null);
+    string? Search = null,
+
+    /// <summary>
+    /// Kişinin hareketlerinde yön süzgeci (K15: <c>Alacak tarafı</c> /
+    /// <c>Borç tarafı</c>); boşsa filtre yok. Yönü olmayan satırlar düşer.
+    /// </summary>
+    DebtDirection? Direction = null);
 
 public sealed record FinancialActivityPage(
     IReadOnlyList<FinancialActivityRow> Items,

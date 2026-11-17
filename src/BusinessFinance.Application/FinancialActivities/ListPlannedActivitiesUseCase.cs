@@ -40,8 +40,13 @@ public sealed class ListPlannedActivitiesUseCase(
         }
 
         var horizonDate = query.AsOfDate.AddDays(query.DaysAhead);
-        var items = await repository.ListAsync(
-            userId, query.AsOfDate, horizonDate, query.Scope, cancellationToken);
+        var items = (await repository.ListAsync(
+            userId, query.AsOfDate, horizonDate, query.Scope, cancellationToken)).ToList();
+        if (query.IncludeCounterpartyDues)
+        {
+            items.AddRange(await repository.ListCounterpartyDuesAsync(
+                userId, query.AsOfDate, horizonDate, query.Scope, cancellationToken));
+        }
 
         // Overdue first, then by due date. Planned income, expenses, statements and
         // neutral obligations are never summed into one number; the only total is

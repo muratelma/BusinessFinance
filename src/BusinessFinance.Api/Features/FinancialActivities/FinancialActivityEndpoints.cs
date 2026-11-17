@@ -1,4 +1,5 @@
 using BusinessFinance.Api.Contracts;
+using BusinessFinance.Domain;
 using BusinessFinance.Api.Errors;
 using BusinessFinance.Application.FinancialActivities;
 
@@ -84,7 +85,8 @@ public static class FinancialActivityEndpoints
         CancellationToken cancellationToken,
         string? asOfDate = null,
         int daysAhead = 30,
-        string? scope = null)
+        string? scope = null,
+        bool includeCounterpartyDues = false)
     {
         if (!FinanceContract.TryParseDate(asOfDate, out var parsedAsOfDate))
         {
@@ -102,7 +104,8 @@ public static class FinancialActivityEndpoints
         }
 
         var result = await useCase.ExecuteAsync(
-            new PlannedActivityQuery(parsedAsOfDate, daysAhead, parsedScope), cancellationToken);
+            new PlannedActivityQuery(parsedAsOfDate, daysAhead, parsedScope, includeCounterpartyDues),
+            cancellationToken);
         if (!result.IsSuccess)
         {
             return result.Error.ToProblemResult(httpContext);
@@ -156,7 +159,9 @@ public static class FinancialActivityEndpoints
         [PlannedActivityKind.DebtInstallment] = "debt-installment",
         [PlannedActivityKind.ReceivableInstallment] = "receivable-installment",
         [PlannedActivityKind.PayableObligation] = "payable-obligation",
-        [PlannedActivityKind.ReceivableObligation] = "receivable-obligation"
+        [PlannedActivityKind.ReceivableObligation] = "receivable-obligation",
+        [PlannedActivityKind.CounterpartyPayableDue] = "counterparty-payable-due",
+        [PlannedActivityKind.CounterpartyReceivableDue] = "counterparty-receivable-due"
     };
 
     internal static readonly Dictionary<PlannedActivityTiming, string> TimingValues = new()
@@ -187,7 +192,9 @@ public static class FinancialActivityEndpoints
         [PlannedActivityAction.PayDebt] = "pay-debt",
         [PlannedActivityAction.CollectDebt] = "collect-debt",
         [PlannedActivityAction.PayObligation] = "pay-obligation",
-        [PlannedActivityAction.CollectObligation] = "collect-obligation"
+        [PlannedActivityAction.CollectObligation] = "collect-obligation",
+        [PlannedActivityAction.PayCounterparty] = "pay-counterparty",
+        [PlannedActivityAction.CollectCounterparty] = "collect-counterparty"
     };
 
     private static async Task<IResult> ListAsync(
@@ -208,7 +215,8 @@ public static class FinancialActivityEndpoints
         Guid? counterpartyId = null,
         string? scope = null,
         bool includeCancelled = true,
-        string? search = null)
+        string? search = null,
+        string? direction = null)
     {
         if (!TryParseOptionalDate(dateFrom, out var parsedFrom) ||
             !TryParseOptionalDate(dateTo, out var parsedTo))
@@ -238,6 +246,21 @@ public static class FinancialActivityEndpoints
                 "financial_activities.invalid_scope");
         }
 
+        DebtDirection? parsedDirection = direction?.Trim().ToLowerInvariant() switch
+        {
+            null or "" => null,
+            "receivable" => DebtDirection.Receivable,
+            "payable" => DebtDirection.Payable,
+            _ => (DebtDirection)0
+        };
+        if (parsedDirection == (DebtDirection)0)
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Direction must be payable, receivable or empty.",
+                "financial_activities.invalid_filter_value");
+        }
+
         var result = await useCase.ExecuteAsync(
             new FinancialActivityListCriteria(
                 pageNumber,
@@ -254,7 +277,8 @@ public static class FinancialActivityEndpoints
                 counterpartyId,
                 parsedScope,
                 includeCancelled,
-                search),
+                search,
+                parsedDirection),
             cancellationToken);
         if (!result.IsSuccess)
         {

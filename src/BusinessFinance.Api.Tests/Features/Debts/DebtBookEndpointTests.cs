@@ -105,7 +105,7 @@ public sealed class DebtBookEndpointTests
         // Bölüm sırası; yaklaşanda yakın vade önce, aynı günde büyük kalan önce.
         Assert.Equal(
             [("overdue", "Ayşe Terzi", "3500.0000"), ("upcoming", "Overlok makinesi", "4500.0000"),
-             ("upcoming", "Montaj işi", "4000.0000"), ("undated", "Telefon", "4000.0000")],
+             ("upcoming", "Montaj işi", "4000.0000"), ("other", "Telefon", "4000.0000")],
             receivables.Select(item => (item.Section, item.Title, item.Remaining)));
         var ledger = receivables[0];
         Assert.Equal("ledger", ledger.Kind);
@@ -124,6 +124,32 @@ public sealed class DebtBookEndpointTests
 
         var ayseRow = Assert.Single(book.People, item => item.CounterpartyId == ayse);
         Assert.Equal(("8000.0000", "3500.0000", 1), (ayseRow.OwedToYou, ayseRow.LedgerOwedToYou, ayseRow.OpenDebtCount));
+
+        // Kişi sayfası (S6, senaryo 23): toplam hesabı ve taksitli kaydı içerir;
+        // kısayollar yalnız hesabındır; en yakın vade ikisinin en yakınıdır.
+        var page = (await owner.GetFromJsonAsync<CounterpartyPageResponse>(
+            $"/api/v1/counterparties/{ayse}/page?asOfDate={Today}"))!;
+        Assert.Equal(("8000.0000", "0.0000"), (page.OwedToYou, page.OwedByYou));
+        Assert.Equal("2000.0000", page.OverdueReceivable);
+        Assert.Equal(("3500.0000", "2000.0000"), (page.Collect.Full, page.Collect.Overdue));
+        Assert.Equal(("2026-11-15", "1500.0000"), (page.NextReceivableDueDate, page.NextReceivableDueAmount));
+        var record = Assert.Single(page.Records);
+        Assert.Equal(("debt", "Overlok makinesi", "4500.0000"), (record.Kind, record.Title, record.Remaining));
+        Assert.Equal((3, 3), (record.InstallmentCount, record.OpenInstallmentCount));
+
+        // Kişinin hareketleri akıştan, yön süzgeciyle (K15).
+        var receivableMoves = await owner.GetFromJsonAsync<JsonNode>(
+            $"/api/v1/financial-activities?counterpartyId={ayse}&direction=receivable&pageSize=50");
+        var payableMoves = await owner.GetFromJsonAsync<JsonNode>(
+            $"/api/v1/financial-activities?counterpartyId={ayse}&direction=payable&pageSize=50");
+        Assert.NotEmpty(receivableMoves!["items"]!.AsArray());
+        Assert.Empty(payableMoves!["items"]!.AsArray());
+        using var badDirection = await owner.GetAsync(
+            $"/api/v1/financial-activities?counterpartyId={ayse}&direction=sideways");
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, badDirection.StatusCode);
+        using var foreignPage = await owner.GetAsync(
+            $"/api/v1/counterparties/{Guid.NewGuid()}/page?asOfDate={Today}");
+        Assert.Equal(System.Net.HttpStatusCode.NotFound, foreignPage.StatusCode);
 
         Assert.Equal(1, book.ClosedPayableCount);
         var closed = await owner.GetFromJsonAsync<DebtBookClosedResponse>("/api/v1/debt-book/closed");

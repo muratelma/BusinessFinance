@@ -6,6 +6,7 @@ using BusinessFinance.Api.Features.Authentication;
 using BusinessFinance.Api.Features.Categories;
 using BusinessFinance.Api.Features.Counterparties;
 using BusinessFinance.Api.Features.CreditCards;
+using BusinessFinance.Api.Features.Debts;
 using BusinessFinance.Api.Features.Reports;
 using BusinessFinance.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -721,6 +722,184 @@ public sealed class CounterpartyLoanEndpointTests
         Assert.Equal(HttpStatusCode.BadRequest, notCoverable.StatusCode);
         Assert.Contains("counterparties.discount_exceeds_charges", await notCoverable.Content.ReadAsStringAsync());
         Assert.Equal("4700.0000", (await GetAsync(owner, supplier.Id)).OwedByYou);
+    }
+
+    /// <summary>
+    /// Kalan, ödemelerin sırasıyla bulunur: ödemeler en eskiyi önce kapattığı
+    /// için kalan en yeni kalemdedir. 1.000 alım (5 Ağu), 500 borç para (11 Ağu),
+    /// 1.300 ödeme → kalan 200 borç paraya aittir; indirim yazılmaz. Borç para
+    /// alımdan önceyse kalan alımındır ve indirim yazılır.
+    /// </summary>
+    [Theory]
+    [InlineData("2026-08-11", false)]
+    [InlineData("2026-08-01", true)]
+    public async Task RemainderDiscount_FollowsThePaymentOrder(string loanDate, bool discounted)
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(factory, $"remainder-order-{discounted}@example.test");
+        var account = await CreateAccountAsync(owner, "Banka", "10000");
+        var supplier = await CreateCounterpartyAsync(owner, "Demir Toptancı", "business");
+        var expense = await FirstCategoryAsync(owner, "expense", "business");
+        await ChargeAsync(owner, supplier.Id, expense.Id, "1000.0000");
+        using var borrowed = await owner.PostAsJsonAsync(
+            $"/api/v1/counterparties/{supplier.Id}/loans",
+            new CreateCounterpartyLoanRequest("payable", "500.0000", "TRY", account.Id, loanDate));
+        Assert.Equal(HttpStatusCode.Created, borrowed.StatusCode);
+
+        using var paid = await owner.PostAsJsonAsync(
+            $"/api/v1/counterparties/{supplier.Id}/payments",
+            new CreateCounterpartyPaymentRequest(
+                "payable", "1300.0000", "TRY", account.Id, "2026-08-12", CloseRemainderAsDiscount: true));
+
+        if (discounted)
+        {
+            Assert.Equal(HttpStatusCode.Created, paid.StatusCode);
+            Assert.Equal("0.0000", (await GetAsync(owner, supplier.Id)).OwedByYou);
+            Assert.Equal("800.0000", (await ReportAsync(owner)).TotalExpense);
+        }
+        else
+        {
+            Assert.Equal(HttpStatusCode.BadRequest, paid.StatusCode);
+            Assert.Contains("counterparties.discount_exceeds_charges", await paid.Content.ReadAsStringAsync());
+            Assert.Equal("1500.0000", (await GetAsync(owner, supplier.Id)).OwedByYou);
+            Assert.Equal("1000.0000", (await ReportAsync(owner)).TotalExpense);
+        }
+    }
+
+    /// <summary>
+    /// Liste (S7, `02-TASARIM.md` §6.1): kapsam görünümleri (senaryo 24), türü
+    /// bilinmeyen eski kişi, `Yaklaşan` 30 gün, gecikmiş toplam, alınan avans
+    /// ve Kişiler sekmesinde bakiyesiz ve pasif kişi.
+    /// </summary>
+    [Fact]
+    public async Task Book_FollowsTheScope_SectionsAndShowsAdvancesAndEveryPerson()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(factory, "book-scope@example.test");
+        var account = await CreateAccountAsync(owner, "Kasa", "100000");
+        var income = await FirstCategoryAsync(owner, "income", "business");
+        var expense = await FirstCategoryAsync(owner, "expense", "business");
+        var supplier = await CreateCounterpartyAsync(owner, "Demir Toptancı", "business");
+        var mother = await CreateCounterpartyAsync(owner, "Annem", "personal");
+        var unknown = await CreateCounterpartyAsync(owner, "Eski Müşteri", null);
+        var farAway = await CreateCounterpartyAsync(owner, "Uzak Müşteri", "business");
+        var customer = await CreateCounterpartyAsync(owner, "Kaan Yapı", "business");
+        var idle = await CreateCounterpartyAsync(owner, "Pasif Tedarikçi", "business");
+
+        async Task PostAsync(string path, object body)
+        {
+            using var response = await owner.PostAsJsonAsync(path, body);
+            Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
+        }
+
+        await PostAsync($"/api/v1/counterparties/{supplier.Id}/charges", new CreateCounterpartyChargeRequest(
+            "payable", "4200.0000", "TRY", expense.Id, "2026-08-01", DueDate: "2026-08-10"));
+        await PostAsync($"/api/v1/counterparties/{mother.Id}/loans", new CreateCounterpartyLoanRequest(
+            "receivable", "5000.0000", "TRY", account.Id, "2026-08-02"));
+        await PostAsync($"/api/v1/counterparties/{unknown.Id}/charges", new CreateCounterpartyChargeRequest(
+            "receivable", "300.0000", "TRY", income.Id, "2026-08-03", DueDate: "2026-09-10"));
+        await PostAsync($"/api/v1/counterparties/{farAway.Id}/charges", new CreateCounterpartyChargeRequest(
+            "receivable", "700.0000", "TRY", income.Id, "2026-08-04", DueDate: "2026-12-01"));
+        await PostAsync($"/api/v1/counterparties/{customer.Id}/payments", new CreateCounterpartyPaymentRequest(
+            "receivable", "2000.0000", "TRY", account.Id, "2026-08-05"));
+        using var deactivate = await owner.PutAsJsonAsync(
+            $"/api/v1/counterparties/{idle.Id}", new UpdateCounterpartyRequest("Pasif Tedarikçi", false));
+
+        async Task<DebtBookResponse> BookAsync(string? scope) =>
+            (await owner.GetFromJsonAsync<DebtBookResponse>(
+                $"/api/v1/debt-book?asOfDate=2026-08-25{(scope is null ? "" : "&scope=" + scope)}"))!;
+
+        var all = await BookAsync(null);
+        Assert.Equal("6200.0000", all.PayableTotal);
+        Assert.Equal("6000.0000", all.ReceivableTotal);
+        Assert.Equal("4200.0000", all.PayableOverdue);
+        Assert.Equal("0.0000", all.ReceivableOverdue);
+        DebtBookItemResponse Row(DebtBookResponse book, Guid id) => book.Items.Single(item => item.Id == id);
+        Assert.Equal("overdue", Row(all, supplier.Id).Section);
+        Assert.Equal("2026-08-10", Row(all, supplier.Id).OldestOverdueDate);
+        Assert.Equal("upcoming", Row(all, unknown.Id).Section);
+        Assert.Equal("other", Row(all, farAway.Id).Section);
+        Assert.Equal("other", Row(all, mother.Id).Section);
+        Assert.Null(Row(all, unknown.Id).Scope);
+        Assert.Equal("personal", Row(all, mother.Id).Scope);
+        // Müşteriden alınan avans borç tarafındadır ve tamamı avanstır.
+        Assert.Equal("payable", Row(all, customer.Id).Direction);
+        Assert.Equal("2000.0000", Row(all, customer.Id).AdvanceAmount);
+        Assert.Equal("0.0000", Row(all, supplier.Id).AdvanceAmount);
+        // Kişiler: bütün kişiler ada göre; bakiyesiz pasif kişi de.
+        Assert.Equal(
+            ["Annem", "Demir Toptancı", "Eski Müşteri", "Kaan Yapı", "Pasif Tedarikçi", "Uzak Müşteri"],
+            all.People.Select(person => person.Name));
+        Assert.False(all.People.Single(person => person.CounterpartyId == idle.Id).IsActive);
+
+        var business = await BookAsync("business");
+        Assert.Equal("1000.0000", business.ReceivableTotal);
+        Assert.Equal("6200.0000", business.PayableTotal);
+        Assert.DoesNotContain(business.Items, item => item.Id == mother.Id);
+        Assert.Contains(business.Items, item => item.Id == unknown.Id);
+        Assert.DoesNotContain(business.People, person => person.CounterpartyId == mother.Id);
+
+        var personal = await BookAsync("personal");
+        Assert.Equal("5000.0000", personal.ReceivableTotal);
+        Assert.Equal("0.0000", personal.PayableTotal);
+        Assert.Equal(["Annem"], personal.People.Select(person => person.Name));
+
+        using var invalid = await owner.GetAsync("/api/v1/debt-book?asOfDate=2026-08-25&scope=both");
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+    }
+
+    /// <summary>
+    /// S11: kişinin hesabındaki vadeler planlananlara girer — yalnız istenirse
+    /// (bugünkü istemci yeni türleri tanımıyor). Kısmi tahsilattan sonra kalan
+    /// açık kısım vadesiyle; kişisi ve eylemi (tahsil et / öde) ile.
+    /// </summary>
+    [Fact]
+    public async Task OpenDuesOnAPersonsAccount_AppearInThePlannedView_OnlyWhenAsked()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(factory, "planned-dues@example.test");
+        var account = await CreateAccountAsync(owner, "Kasa", "10000");
+        var customer = await CreateCounterpartyAsync(owner, "Kaan Yapı", "business");
+        var supplier = await CreateCounterpartyAsync(owner, "Demir Toptancı", "business");
+        var income = await FirstCategoryAsync(owner, "income", "business");
+        var expense = await FirstCategoryAsync(owner, "expense", "business");
+
+        using (var sale = await owner.PostAsJsonAsync($"/api/v1/counterparties/{customer.Id}/charges",
+                   new CreateCounterpartyChargeRequest(
+                       "receivable", "1000.0000", "TRY", income.Id, "2026-08-05", DueDate: "2026-09-10")))
+            Assert.Equal(HttpStatusCode.Created, sale.StatusCode);
+        using (var collected = await owner.PostAsJsonAsync($"/api/v1/counterparties/{customer.Id}/payments",
+                   new CreateCounterpartyPaymentRequest("receivable", "400.0000", "TRY", account.Id, "2026-08-06")))
+            Assert.Equal(HttpStatusCode.Created, collected.StatusCode);
+        using (var bought = await owner.PostAsJsonAsync($"/api/v1/counterparties/{supplier.Id}/charges",
+                   new CreateCounterpartyChargeRequest(
+                       "payable", "700.0000", "TRY", expense.Id, "2026-08-05", DueDate: "2026-08-20")))
+            Assert.Equal(HttpStatusCode.Created, bought.StatusCode);
+
+        var plain = await owner.GetFromJsonAsync<System.Text.Json.Nodes.JsonNode>(
+            "/api/v1/financial-activities/planned?asOfDate=2026-08-25&daysAhead=30");
+        Assert.DoesNotContain(plain!["items"]!.AsArray(),
+            item => item!["plannedKind"]!.GetValue<string>().StartsWith("counterparty-", StringComparison.Ordinal));
+
+        var withDues = await owner.GetFromJsonAsync<System.Text.Json.Nodes.JsonNode>(
+            "/api/v1/financial-activities/planned?asOfDate=2026-08-25&daysAhead=30&includeCounterpartyDues=true");
+        var items = withDues!["items"]!.AsArray();
+        var receivable = Assert.Single(items,
+            item => item!["plannedKind"]!.GetValue<string>() == "counterparty-receivable-due");
+        Assert.Equal("600.0000", receivable!["amount"]!.GetValue<string>());
+        Assert.Equal("2026-09-10", receivable["dueDate"]!.GetValue<string>());
+        Assert.Equal("collect-counterparty", receivable["actionKind"]!.GetValue<string>());
+        Assert.Equal(customer.Id.ToString(), receivable["actionTargetId"]!.GetValue<string>());
+        Assert.Equal("Kaan Yapı", receivable["title"]!.GetValue<string>());
+        var payable = Assert.Single(items,
+            item => item!["plannedKind"]!.GetValue<string>() == "counterparty-payable-due");
+        Assert.Equal("overdue", payable!["timing"]!.GetValue<string>());
+        Assert.Equal("pay-counterparty", payable["actionKind"]!.GetValue<string>());
+
+        var personal = await owner.GetFromJsonAsync<System.Text.Json.Nodes.JsonNode>(
+            "/api/v1/financial-activities/planned?asOfDate=2026-08-25&daysAhead=30&includeCounterpartyDues=true&scope=personal");
+        Assert.DoesNotContain(personal!["items"]!.AsArray(),
+            item => item!["plannedKind"]!.GetValue<string>().StartsWith("counterparty-", StringComparison.Ordinal));
     }
 
     private static async Task<CreditCardResponse> CreateCardAsync(HttpClient client, string name, string limit)

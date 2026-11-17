@@ -2591,6 +2591,7 @@ ADR 0022, `stages/06.3-borc-alacak/` Faz 2'nin ilk yarısı.
 | Senaryo 4: borç alındı, kısmen ödendi, kalanı bağışlandı → borç 0, vazgeçme günü gelir; kalanı aşan reddedilir; iptal geri getirir, idempotent | `CounterpartyLoanEndpointTests.ForgivenDebt_ClosesTheRest_AndWritesIncomeOnThatDay` | Akışta `counterparty-write-off` |
 | Alınmayacak alacak gider olur; yanlış kategori türü ve başkasının kişisi reddedilir | `…ReceivableWrittenOff_IsAnExpense_AndIsOwnerScoped` | |
 | Senaryo 20: 4.200 borca 4.000 + `Kalanı indirim say` → borç 0, gider 4.000; indirim ödemeye bağlı, tek başına geri alınamaz, ödeme iptali onu da geri alır; borç paradan gelen kalan indirimle kapanmaz | `…PaymentClosingTheRemainderAsDiscount_LowersTheExpense_AndUndoesTogether` | |
+| Kalan ödemelerin sırasıyla bulunur: borç para alımdan sonraysa kalan ona aittir ve indirim reddedilir; önceyse indirim yazılır | `CounterpartyLoanEndpointTests.RemainderDiscount_FollowsThePaymentOrder` | İki durumlu teori |
 | Vazgeçme uçları sahiplik probunda | `OwnershipIsolationTests` | |
 | Vazgeçme migration'ı: boş tablo, nullable indirim bağı; `Down` durur | `MigrationHistoryTests.AddCounterpartyWriteOffsAndRemainderDiscounts_AddsAnEmptyTableAndANullableLink` | Dolu SQL test veritabanında ileri-geri-ileri |
 | Yedek v14 vazgeçmeyi ve indirimin ödeme bağını (yeni ödeme kimliğine) taşır | `DataPortabilityTests.BackupV14_CarriesThePersonsKindAndLoans` | |
@@ -2598,3 +2599,13 @@ ADR 0022, `stages/06.3-borc-alacak/` Faz 2'nin ilk yarısı.
 
 Gerçek SQL'le tam koşu (`BusinessFinanceApiSqlTests` yeni migration'la
 yükseltildi): sonuç `stages/06.3-borc-alacak/README.md` günlüğünde.
+
+## Borç ve alacak okumaları (Faz 3) — 17 Kasım 2026
+
+| Kanıt | Test | Not |
+|---|---|---|
+| Liste kapsamı izler (senaryo 24), türü bilinmeyen eski kişi, `Yaklaşan` 30 gün, `other` bölümü, gecikmiş toplam, alınan avans, Kişiler'de bakiyesiz ve pasif kişi | `CounterpartyLoanEndpointTests.Book_FollowsTheScope_SectionsAndShowsAdvancesAndEveryPerson` | |
+| Liste sabit sayıda sorguyla (53 kişi) | `SqlServerPersistenceIntegrationTests.DebtBook_ReadsWithAFixedNumberOfQueries` | Gerçek SQL |
+| Kişi sayfası (senaryo 23): toplam hesap + taksitli kayıt, kısayollar yalnız hesabın, en yakın vade; akışta yön süzgeci; olmayan kişi 404 | `DebtBookEndpointTests.Book_ListsDebtsAndLedgersBySection_WithServerTotals` | InMemory ve SQL |
+| Kişi sayfası sahiplik probunda | `OwnershipIsolationTests` | |
+| Kişinin vadeleri planlananlara yalnız istenince girer; kısmi tahsilattan sonra kalan; gecikmiş borç vadesi; şahsi görünümde işletme kişisi yok | `CounterpartyLoanEndpointTests.OpenDuesOnAPersonsAccount_AppearInThePlannedView_OnlyWhenAsked` | |

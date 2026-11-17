@@ -33,7 +33,11 @@ public sealed record CounterpartyBalanceSummary(
     decimal NextReceivableDueAmount = 0m,
     DateOnly? NextPayableDueDate = null,
     decimal NextPayableDueAmount = 0m,
-    TransactionScope? Scope = null)
+    TransactionScope? Scope = null,
+
+    // Kapanmamış kısmı kalan, vadesi geçmiş en eski kalemin vadesi.
+    DateOnly? OldestOverdueReceivableDate = null,
+    DateOnly? OldestOverduePayableDate = null)
 {
     /// <summary>Artı: karşı taraf bize borçlu. Eksi: biz ona borçluyuz.</summary>
     public decimal Net => Receivable - Payable;

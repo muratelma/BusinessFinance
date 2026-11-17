@@ -136,15 +136,30 @@ public interface ICounterpartyRepository
         IReadOnlyCollection<CounterpartyCharge>? discountedCharges = null);
 
     /// <summary>
-    /// <c>Kalanı indirim say</c> için adaylar: o yönde, iptal edilmemiş, günü
-    /// verilen günden ileride olmayan alımlar, en yeniden eskiye (izlenen,
-    /// indirimleriyle).
+    /// Bir taraftaki açık kalemler, en yeniden eskiye (gün, giriş anı):
+    /// alımlar (indirimler düşülmüş) ve borç para. Ödemeler en eski kalemi önce
+    /// kapattığı için kalan tutar bu sıranın başındakilere aittir (ADR 0022 İ2).
+    /// Devreden bakiye listede yoktur; en eski kalem odur.
     /// </summary>
-    Task<IReadOnlyList<CounterpartyCharge>> FindRemainderCandidatesAsync(
+    Task<IReadOnlyList<CounterpartyOpenItem>> ListItemsNewestFirstAsync(
         Guid counterpartyId,
         Guid userId,
         DebtDirection direction,
-        DateOnly onOrBefore,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Kişi başına alım-satımlarının ve vazgeçmelerinin kapsamları (iptal
+    /// edilmemiş). Türü bilinmeyen eski kişi <c>İşletme</c> ya da <c>Şahsi</c>
+    /// görünümüne bunlarla girer (`04-SUNUCU-TASARIMI.md` §3.8).
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, IReadOnlySet<TransactionScope>>> ListRecordScopesAsync(
+        Guid userId,
+        CancellationToken cancellationToken);
+
+    /// <summary>Verilen alımlar, izlenen hâlde ve indirimleriyle.</summary>
+    Task<IReadOnlyList<CounterpartyCharge>> FindOwnedChargesAsync(
+        IReadOnlyCollection<Guid> chargeIds,
+        Guid userId,
         CancellationToken cancellationToken);
 
     /// <summary>Bu ödemeyle birlikte indirim yazılmış alımlar (izlenen).</summary>

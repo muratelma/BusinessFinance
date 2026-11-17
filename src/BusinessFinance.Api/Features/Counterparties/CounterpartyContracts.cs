@@ -72,6 +72,34 @@ public sealed record CreateCounterpartyChargeRequest(
 
 public sealed record CounterpartyPaidNowRequest(string Amount, Guid AccountId);
 
+/// <summary>Tahsilat ya da ödeme panelinin kısayolları: <c>Tamamı</c>, <c>Gecikmiş</c>.</summary>
+public sealed record CounterpartyShortcutsResponse(string Full, string Overdue);
+
+/// <summary>
+/// Kişi sayfası (S6). Tutarlar kişinin hesabı ve kişili taksitli kayıtlarının
+/// toplamıdır; kısayollar yalnız hesabındır. Hareketler
+/// <c>GET /api/v1/financial-activities?counterpartyId=&amp;direction=</c> ile okunur.
+/// </summary>
+public sealed record CounterpartyPageResponse(
+    Guid Id,
+    string Name,
+    string? Note,
+    bool IsActive,
+    string? Scope,
+    string OpeningReceivable,
+    string OpeningPayable,
+    string OwedToYou,
+    string OwedByYou,
+    string OverdueReceivable,
+    string OverduePayable,
+    string? NextReceivableDueDate,
+    string NextReceivableDueAmount,
+    string? NextPayableDueDate,
+    string NextPayableDueAmount,
+    CounterpartyShortcutsResponse Collect,
+    CounterpartyShortcutsResponse Pay,
+    IReadOnlyList<BusinessFinance.Api.Features.Debts.DebtBookItemResponse> Records);
+
 // Borç para. `direction`: `receivable` verdim (hesaptan çıkar), `payable`
 // aldım (hesaba girer). Avans ayrı kayıt değildir; tahsilat ya da ödemedir.
 public sealed record CreateCounterpartyLoanRequest(

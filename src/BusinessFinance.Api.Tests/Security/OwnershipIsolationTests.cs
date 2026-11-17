@@ -348,6 +348,8 @@ public sealed class OwnershipIsolationTests
 
         yield return Json("cari okuma", HttpMethod.Get,
             "api/v1/counterparties/{counterpartyId:guid}", null, f.CounterpartyId);
+        yield return Json("kişi sayfası", HttpMethod.Get,
+            "api/v1/counterparties/{counterpartyId:guid}/page", null, f.CounterpartyId);
         yield return Json("cari güncelleme", HttpMethod.Put,
             "api/v1/counterparties/{counterpartyId:guid}",
             new UpdateCounterpartyRequest("Ele geçirilen", true), f.CounterpartyId);

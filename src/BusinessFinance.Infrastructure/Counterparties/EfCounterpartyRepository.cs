@@ -118,7 +118,9 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
                 receivable?.NextDueAmount ?? 0m,
                 payable?.NextDueDate,
                 payable?.NextDueAmount ?? 0m,
-                row.Scope);
+                row.Scope,
+                receivable?.OldestOverdueDate,
+                payable?.OldestOverdueDate);
         })];
     }
 
@@ -392,22 +394,80 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
                 cancellationToken);
     }
 
-    public async Task<IReadOnlyList<CounterpartyCharge>> FindRemainderCandidatesAsync(
+    public async Task<IReadOnlyList<CounterpartyOpenItem>> ListItemsNewestFirstAsync(
         Guid counterpartyId,
         Guid userId,
         DebtDirection direction,
-        DateOnly onOrBefore,
-        CancellationToken cancellationToken) =>
-        await dbContext.CounterpartyCharges
-            .Include(charge => charge.Discounts)
+        CancellationToken cancellationToken)
+    {
+        // Gecikme okumasıyla aynı sıra (gün, giriş anı); tek UNION ALL sorgusu.
+        var rows = await dbContext.CounterpartyCharges.AsNoTracking()
             .Where(charge => charge.UserId == userId &&
                              charge.CounterpartyId == counterpartyId &&
                              charge.Direction == direction &&
-                             !charge.IsCancelled &&
-                             charge.ChargeDate <= onOrBefore)
-            .OrderByDescending(charge => charge.ChargeDate)
-            .ThenByDescending(charge => EF.Property<DateTimeOffset?>(charge, EntryTimestamp.PropertyName))
-            .ThenByDescending(charge => charge.Id)
+                             !charge.IsCancelled)
+            .Select(charge => new
+            {
+                charge.Id,
+                IsCharge = true,
+                Date = charge.ChargeDate,
+                EntryAt = EF.Property<DateTimeOffset?>(charge, EntryTimestamp.PropertyName),
+                Amount = charge.Amount.Amount -
+                    (dbContext.CounterpartyChargeDiscounts
+                        .Where(discount => discount.UserId == userId &&
+                                           discount.ChargeId == charge.Id &&
+                                           !discount.IsCancelled)
+                        .Sum(discount => (decimal?)discount.Amount) ?? 0m)
+            })
+            .Concat(dbContext.CounterpartyLoans.AsNoTracking()
+                .Where(loan => loan.UserId == userId &&
+                               loan.CounterpartyId == counterpartyId &&
+                               loan.Direction == direction &&
+                               !loan.IsCancelled)
+                .Select(loan => new
+                {
+                    loan.Id,
+                    IsCharge = false,
+                    Date = loan.LoanDate,
+                    EntryAt = EF.Property<DateTimeOffset?>(loan, EntryTimestamp.PropertyName),
+                    Amount = loan.Amount.Amount
+                }))
+            .ToArrayAsync(cancellationToken);
+
+        // Giriş anı bilinmeyen eski kayıt günün en eskisidir (gecikmeyle aynı).
+        return [.. rows
+            .OrderByDescending(row => row.Date)
+            .ThenByDescending(row => row.EntryAt ?? DateTimeOffset.MinValue)
+            .ThenByDescending(row => row.Id)
+            .Select(row => new CounterpartyOpenItem(row.Id, row.IsCharge, row.Date, row.Amount))];
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, IReadOnlySet<TransactionScope>>> ListRecordScopesAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var rows = await dbContext.CounterpartyCharges.AsNoTracking()
+            .Where(charge => charge.UserId == userId && !charge.IsCancelled)
+            .Select(charge => new { charge.CounterpartyId, charge.Scope })
+            .Concat(dbContext.CounterpartyWriteOffs.AsNoTracking()
+                .Where(writeOff => writeOff.UserId == userId && !writeOff.IsCancelled)
+                .Select(writeOff => new { writeOff.CounterpartyId, writeOff.Scope }))
+            .Distinct()
+            .ToArrayAsync(cancellationToken);
+        return rows
+            .GroupBy(row => row.CounterpartyId)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlySet<TransactionScope>)group.Select(row => row.Scope).ToHashSet());
+    }
+
+    public async Task<IReadOnlyList<CounterpartyCharge>> FindOwnedChargesAsync(
+        IReadOnlyCollection<Guid> chargeIds,
+        Guid userId,
+        CancellationToken cancellationToken) =>
+        await dbContext.CounterpartyCharges
+            .Include(charge => charge.Discounts)
+            .Where(charge => charge.UserId == userId && chargeIds.Contains(charge.Id))
             .ToArrayAsync(cancellationToken);
 
     public async Task<IReadOnlyList<CounterpartyCharge>> FindChargesDiscountedByPaymentAsync(

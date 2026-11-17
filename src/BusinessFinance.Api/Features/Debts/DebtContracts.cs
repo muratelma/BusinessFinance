@@ -103,25 +103,34 @@ public sealed record DebtResponse(Guid Id, Guid? CounterpartyId, string Counterp
 public sealed record DebtListResponse(IReadOnlyList<DebtResponse> Items);
 
 /// <summary>
-/// "Borç ve alacaklar" listesinin satırı. <c>kind</c>: <c>debt</c> (borcun
-/// kimliği) ya da <c>ledger</c> (cari hesap; kimlik kişinindir). <c>section</c>:
-/// <c>overdue</c> · <c>upcoming</c> · <c>undated</c>.
+/// <c>Borç ve alacak</c> listesinin satırı. <c>kind</c>: <c>ledger</c> (kişinin
+/// hesabı; kimlik kişinindir) ya da <c>debt</c> (taksitli ya da kişisiz kayıt;
+/// borcun kimliği). <c>section</c>: <c>overdue</c> · <c>upcoming</c> (30 gün) ·
+/// <c>other</c>. <c>scope</c>: kişi satırında kişinin türü (bilinmiyorsa boş),
+/// kayıt satırında kaydın kapsamı. <c>advanceAmount</c>: kişi satırında tutarın
+/// fazla ödemeden (avans) gelen kısmı. <c>installmentCount</c> /
+/// <c>openInstallmentCount</c>: taksitli kayıtta toplam ve açık taksit.
 /// </summary>
 public sealed record DebtBookItemResponse(
     string Kind, Guid Id, string Direction, string Section, string Title,
     Guid? CounterpartyId, string? CounterpartyName, string? PlanKind,
     string Remaining, string Overdue, string? NextDueDate, string NextDueAmount,
-    bool HasClosings, bool IsCarriedOver, string? StartDate);
+    bool HasClosings, bool IsCarriedOver, string? StartDate,
+    string? Scope = null, string AdvanceAmount = "0.0000", string? OldestOverdueDate = null,
+    int? InstallmentCount = null, int OpenInstallmentCount = 0);
 
+/// <summary>Kişiler sekmesi: bütün kişiler, ada göre; pasif ve bakiyesiz olan dahil.</summary>
 public sealed record DebtBookPersonResponse(
     Guid CounterpartyId, string Name, string OwedToYou, string OwedByYou,
-    string LedgerOwedToYou, string LedgerOwedByYou, int OpenDebtCount);
+    string LedgerOwedToYou, string LedgerOwedByYou, int OpenDebtCount,
+    bool IsActive = true, string? Scope = null);
 
 public sealed record DebtBookResponse(
     string PayableTotal, string ReceivableTotal,
     IReadOnlyList<DebtBookItemResponse> Items,
     IReadOnlyList<DebtBookPersonResponse> People,
-    int ClosedPayableCount, int ClosedReceivableCount);
+    int ClosedPayableCount, int ClosedReceivableCount,
+    string PayableOverdue = "0.0000", string ReceivableOverdue = "0.0000");
 
 public sealed record DebtBookClosedItemResponse(
     Guid DebtId, string Direction, string Title, Guid? CounterpartyId, string? CounterpartyName,

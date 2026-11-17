@@ -2424,3 +2424,12 @@ onu ödeme gibi düşer. Kategori kullanımı (`ICategoryUsageReader`) onu sayar
 (`CounterpartyChargeDiscount`), ödemeyle aynı yazmada en yeni açık alımlara
 dağıtılır ve `PaymentId` ile ödemeye bağlanır. Bağlı etkidir (ADR 0021 İ7):
 ödemenin iptali onu da geri alır, tek başına geri alınamaz.
+
+**Okumalar (Faz 3).** `Borç ve alacak` listesi `GetDebtBookUseCase`tır: kişi
+bakiyeleri (`ListBalancesAsync`, iki sorgu), açık ve kapanmış borçlar
+(`IDebtBookReader`) ve kapsam süzgeci için kayıt kapsamları; sabit sayıda
+sorgu. Kişi sayfası (`GetCounterpartyPageUseCase`) aynı bakiye ve borç
+okumalarını tek kişi için birleştirir; hareketleri birleşik akış (kişi ve
+yön süzgeciyle) verir, ayrı bir hareket okuması yoktur. Kişinin hesabındaki
+vadeli açık kısımlar `CounterpartyAging.ListOpenDuesAsync` ile gecikmeyle aynı
+sıradan bulunur ve planlanan görünüme isteğe bağlı olarak girer.

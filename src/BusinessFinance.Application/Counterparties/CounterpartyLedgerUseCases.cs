@@ -231,11 +231,18 @@ public sealed class CreateCounterpartyPaymentUseCase(
 {
     /// <summary>
     /// <c>Kalanı indirim say</c> (senaryo 20): ödemeden sonra o tarafta kalan
-    /// tutarı en yeni açık alımlardan başlayarak indirim yazar. İndirim alımın
-    /// bedelini düşürür; gelir ya da gider alım gününde azalır. Gün sonunda
-    /// sayılmış alım değişmez. Kalan alımlarla kapanmıyorsa (devreden bakiye,
-    /// borç para) hiçbir şey yazılmaz: kalan vazgeçmeyle kapatılır.
+    /// tutar indirim yazılır. İndirim alımın bedelini düşürür; gelir ya da
+    /// gider alım gününde azalır.
     /// </summary>
+    /// <remarks>
+    /// Kalanın hangi kalemlere ait olduğu ödemelerin sırasıyla bulunur:
+    /// ödemeler en eskiyi önce kapattığı için kalan en yeni kalemlerdedir. O
+    /// kalemlerin hepsi indirim alabilecek alımlarsa yazılır; içinde borç para,
+    /// devreden bakiye, gün sonunda sayılmış ya da ödeme gününden sonraki bir
+    /// alım varsa hiçbir şey yazılmaz ve kalan vazgeçmeyle kapatılır. Aksi hâlde
+    /// borç paradan vazgeçmek alım indirimi gibi sayılır, gelir yerine gider
+    /// azalırdı.
+    /// </remarks>
     private async Task<(IReadOnlyCollection<CounterpartyCharge>? Charges, decimal Total, ApplicationError? Error)>
         DiscountRemainderAsync(
             CreateCounterpartyPaymentCommand command,
@@ -260,33 +267,50 @@ public sealed class CreateCounterpartyPaymentUseCase(
             return (null, 0m, null);
         }
 
-        var candidates = await repository.FindRemainderCandidatesAsync(
-            command.CounterpartyId, userId, command.Direction, command.PaymentDate, cancellationToken);
-        var discounted = new List<CounterpartyCharge>();
+        var items = await repository.ListItemsNewestFirstAsync(
+            command.CounterpartyId, userId, command.Direction, cancellationToken);
+        var shares = new List<(Guid ChargeId, decimal Amount)>();
         var left = remainder;
-        foreach (var charge in candidates)
+        foreach (var item in items)
         {
             if (left <= 0m)
             {
                 break;
             }
 
-            if (charge.NetAmount <= 0m ||
-                await dayCloseCountReader.IsCountedAsync(
-                    userId, DayCloseRecordKind.CounterpartyCharge, charge.Id, cancellationToken))
+            if (item.Amount <= 0m)
             {
                 continue;
             }
 
-            var take = Math.Min(charge.NetAmount, left);
-            charge.ApplyDiscount(Guid.NewGuid(), take, command.PaymentDate, now, payment.Id);
-            discounted.Add(charge);
+            var take = Math.Min(item.Amount, left);
+            if (!item.IsCharge ||
+                item.Date > command.PaymentDate ||
+                await dayCloseCountReader.IsCountedAsync(
+                    userId, DayCloseRecordKind.CounterpartyCharge, item.Id, cancellationToken))
+            {
+                return (null, 0m, CounterpartyErrors.DiscountExceedsCharges);
+            }
+
+            shares.Add((item.Id, take));
             left -= take;
         }
 
-        return left > 0m
-            ? (null, 0m, CounterpartyErrors.DiscountExceedsCharges)
-            : (discounted, remainder, null);
+        // Kalan kalemlerden büyükse farkı devreden bakiyedir; indirimle kapanmaz.
+        if (left > 0m)
+        {
+            return (null, 0m, CounterpartyErrors.DiscountExceedsCharges);
+        }
+
+        var charges = (await repository.FindOwnedChargesAsync(
+                [.. shares.Select(share => share.ChargeId)], userId, cancellationToken))
+            .ToDictionary(charge => charge.Id);
+        foreach (var (chargeId, amount) in shares)
+        {
+            charges[chargeId].ApplyDiscount(Guid.NewGuid(), amount, command.PaymentDate, now, payment.Id);
+        }
+
+        return ([.. charges.Values], remainder, null);
     }
 
     public async Task<ApplicationResult<CounterpartyPaymentDto>> ExecuteAsync(

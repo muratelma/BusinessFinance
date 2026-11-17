@@ -10,7 +10,15 @@ public enum PlannedActivityKind
     DebtInstallment = 4,
     ReceivableInstallment = 5,
     PayableObligation = 6,
-    ReceivableObligation = 7
+    ReceivableObligation = 7,
+
+    /// <summary>
+    /// Kişinin hesabında vadesi olan açık kısım (S11): kişi, yön ve vade günü
+    /// başına bir satır. Yalnız istemci açıkça isterse döner
+    /// (<see cref="PlannedActivityQuery.IncludeCounterpartyDues"/>).
+    /// </summary>
+    CounterpartyPayableDue = 8,
+    CounterpartyReceivableDue = 9
 }
 
 public enum PlannedActivityTiming
@@ -50,7 +58,11 @@ public enum PlannedActivityAction
     PayDebt = 3,
     CollectDebt = 4,
     PayObligation = 5,
-    CollectObligation = 6
+    CollectObligation = 6,
+
+    /// <summary>Kişiye ödeme / kişiden tahsilat; hedef kişinin kimliğidir.</summary>
+    PayCounterparty = 7,
+    CollectCounterparty = 8
 }
 
 /// <summary>
@@ -123,7 +135,11 @@ public sealed record PlannedActivityDto(
 public sealed record PlannedActivityQuery(
     DateOnly AsOfDate,
     int DaysAhead,
-    TransactionScope? Scope = null);
+    TransactionScope? Scope = null,
+
+    // Kişinin hesabındaki vadeler (S11). Bugünkü istemci yeni türleri tanımadığı
+    // için yalnız istenirse döner; varsayılan eski davranıştır.
+    bool IncludeCounterpartyDues = false);
 
 public sealed record PlannedActivityListResult(
     DateOnly AsOfDate,
@@ -187,6 +203,19 @@ public interface IPlannedActivityRepository
     /// Aynı izdüşüm kuralıyla kurulur; yalnız o planın satırlarını üretir, bu
     /// yüzden seyrek ritimli bir plan için uzak bir ufuk ucuzdur.
     /// </summary>
+    /// <summary>
+    /// Kişinin hesabındaki vadeli açık tutarlar (S11), ufka kadar ve gecikmiş
+    /// olanlar. Kapsam kişinin türüdür; türü bilinmeyen kişi yalnız kapsamsız
+    /// okumada döner.
+    /// </summary>
+    Task<IReadOnlyList<PlannedActivityDto>> ListCounterpartyDuesAsync(
+        Guid userId,
+        DateOnly asOfDate,
+        DateOnly horizonDate,
+        TransactionScope? scope,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<PlannedActivityDto>>([]);
+
     Task<IReadOnlyList<PlannedActivityDto>> ListForRecurringPlanAsync(
         Guid userId,
         Guid recurringTransactionId,
@@ -207,6 +236,7 @@ public static class PlannedActivityRules
         ArgumentNullException.ThrowIfNull(item);
         return item.ActionKind != PlannedActivityAction.CollectDebt &&
                item.ActionKind != PlannedActivityAction.CollectObligation &&
+               item.ActionKind != PlannedActivityAction.CollectCounterparty &&
                item.Effect != FinancialActivityEffect.Income;
     }
 

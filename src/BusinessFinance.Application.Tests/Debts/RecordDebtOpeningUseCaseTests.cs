@@ -242,11 +242,21 @@ public sealed class RecordDebtOpeningUseCaseTests
             IReadOnlyCollection<CounterpartyCharge>? discountedCharges = null) =>
             throw new NotSupportedException();
 
-        public Task<IReadOnlyList<CounterpartyCharge>> FindRemainderCandidatesAsync(
+        public Task<IReadOnlyList<CounterpartyOpenItem>> ListItemsNewestFirstAsync(
             Guid counterpartyId,
             Guid userId,
             DebtDirection direction,
-            DateOnly onOrBefore,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyDictionary<Guid, IReadOnlySet<TransactionScope>>> ListRecordScopesAsync(
+            Guid userId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<CounterpartyCharge>> FindOwnedChargesAsync(
+            IReadOnlyCollection<Guid> chargeIds,
+            Guid userId,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 

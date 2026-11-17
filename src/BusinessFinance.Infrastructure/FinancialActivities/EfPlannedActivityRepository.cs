@@ -67,6 +67,62 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
         return items;
     }
 
+    /// <summary>
+    /// Kişinin hesabındaki vadeli açık tutarlar (S11): kişi, yön ve vade günü
+    /// başına bir satır; gecikme okumasıyla aynı sıra. Etkisi nötrdür: gelir ya
+    /// da gider alım günü tanındı, tahsilat ve ödeme yalnız parayı taşır.
+    /// </summary>
+    public async Task<IReadOnlyList<PlannedActivityDto>> ListCounterpartyDuesAsync(
+        Guid userId,
+        DateOnly asOfDate,
+        DateOnly horizonDate,
+        TransactionScope? scope,
+        CancellationToken cancellationToken)
+    {
+        var dues = await Counterparties.CounterpartyAging.ListOpenDuesAsync(dbContext, userId, cancellationToken);
+        if (dues.Count == 0)
+        {
+            return [];
+        }
+
+        var people = await dbContext.Counterparties.AsNoTracking()
+            .Where(counterparty => counterparty.UserId == userId)
+            .Select(counterparty => new { counterparty.Id, counterparty.Name, counterparty.Scope })
+            .ToDictionaryAsync(counterparty => counterparty.Id, cancellationToken);
+
+        return [.. dues
+            .Where(due => due.DueDate <= horizonDate)
+            .Where(due => scope is null ||
+                          (people.TryGetValue(due.CounterpartyId, out var person) && person.Scope == scope))
+            .GroupBy(due => (due.CounterpartyId, due.Direction, due.DueDate))
+            .Select(group =>
+            {
+                var (counterpartyId, direction, dueDate) = group.Key;
+                var payable = direction == DebtDirection.Payable;
+                return new PlannedActivityDto(
+                    BusinessFinance.Application.Abstractions.Identifiers.RequestScopedId.Create(
+                        $"counterparty-due-{(int)direction}-{dueDate:yyyyMMdd}", userId, counterpartyId),
+                    payable ? PlannedActivityKind.CounterpartyPayableDue : PlannedActivityKind.CounterpartyReceivableDue,
+                    FinancialActivityEffect.Neutral,
+                    PlannedActivityRules.Classify(dueDate, asOfDate),
+                    PlannedActivityReadiness.Ready,
+                    AttentionCode: null,
+                    payable ? PlannedActivityAction.PayCounterparty : PlannedActivityAction.CollectCounterparty,
+                    dueDate,
+                    group.Sum(due => due.Amount),
+                    CurrencyCode.TRY,
+                    people.TryGetValue(counterpartyId, out var named) ? named.Name : string.Empty,
+                    Description: null,
+                    SourceId: null,
+                    SourceName: null,
+                    CategoryId: null,
+                    CategoryName: null,
+                    IsProjected: false,
+                    ActionTargetId: counterpartyId,
+                    ActionSequence: null);
+            })];
+    }
+
     public async Task<IReadOnlyList<PlannedActivityDto>> ListForRecurringPlanAsync(
         Guid userId,
         Guid recurringTransactionId,
@@ -615,7 +671,7 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
     {
         var rows = await (
                 from obligation in dbContext.Obligations.AsNoTracking()
-                // Devredilmiş faturanın kategorisi yoktur; vadesi yine planlanır.
+                    // Devredilmiş faturanın kategorisi yoktur; vadesi yine planlanır.
                 join category in dbContext.Categories.AsNoTracking()
                     on new { obligation.UserId, Id = obligation.CategoryId }
                     equals new { category.UserId, Id = (Guid?)category.Id }

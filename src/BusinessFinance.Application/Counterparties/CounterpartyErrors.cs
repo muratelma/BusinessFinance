@@ -150,9 +150,9 @@ public static class CounterpartyErrors
         ApplicationErrorType.NotFound);
 
     /// <summary>
-    /// <c>Kalanı indirim say</c>: kalan, indirim düşülebilecek alımlardan büyük
-    /// (devreden bakiye ya da borç paradan geliyor, ya da alım gün sonunda
-    /// sayılmış). Kalan vazgeçmeyle kapatılır.
+    /// <c>Kalanı indirim say</c>: kalanın içinde indirim alamayan bir kalem var
+    /// (borç para, devreden bakiye, gün sonunda sayılmış ya da ödeme gününden
+    /// sonraki alım). Kalan vazgeçmeyle kapatılır.
     /// </summary>
     public static readonly ApplicationError DiscountExceedsCharges = new(
         "counterparties.discount_exceeds_charges",

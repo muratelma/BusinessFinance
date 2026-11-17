@@ -2162,6 +2162,45 @@ public sealed partial class SqlServerPersistenceIntegrationTests
     }
 
     /// <summary>
+    /// <c>Borç ve alacak</c> listesi (S7) kişi ve kayıt sayısından bağımsız,
+    /// sabit sayıda sorguyla okunur: kişilerin bakiyesi ve gecikmesi (iki),
+    /// açık ve kapanmış borçlar, kapsam süzgecinin kayıt kapsamları. Kişi başına
+    /// sorgu açan bir okuma elli üç kişide yüzün üzerine çıkardı.
+    /// </summary>
+    [SqlServerFact]
+    public async Task DebtBook_ReadsWithAFixedNumberOfQueries()
+    {
+        await using var database = await SqlTestDatabase.CreateAsync(GetConnectionString());
+        var owner = CreateUser("book-owner@example.test");
+        await database.SeedUsersAsync(owner);
+        await SeedCounterpartyGraphAsync(database, owner.Id);
+
+        var counter = new CountingCommandInterceptor();
+        await using var provider = CreateServiceProvider(database.ConnectionString, counter);
+        await using var scope = provider.CreateAsyncScope();
+        var useCase = new GetDebtBookUseCase(
+            new FixedCurrentUser(owner.Id),
+            scope.ServiceProvider.GetRequiredService<IDebtBookReader>(),
+            scope.ServiceProvider.GetRequiredService<ICounterpartyRepository>());
+
+        var all = await useCase.ExecuteAsync(new DateOnly(2026, 8, 11), CancellationToken.None);
+        Assert.True(all.IsSuccess);
+        Assert.Equal(53, all.Value.People.Count);
+        Assert.InRange(counter.ReaderCommandCount, 1, 10);
+
+        var before = counter.ReaderCommandCount;
+        var business = await useCase.ExecuteAsync(
+            new DateOnly(2026, 8, 11), CancellationToken.None, TransactionScope.Business);
+        Assert.True(business.IsSuccess);
+        Assert.InRange(counter.ReaderCommandCount - before, 1, 11);
+    }
+
+    private sealed class FixedCurrentUser(Guid userId) : BusinessFinance.Application.Abstractions.Authentication.ICurrentUser
+    {
+        public Guid? UserId => userId;
+    }
+
+    /// <summary>
     /// Cari bakiye hareketlerden hesaplanır ve <b>tek sorguda</b> gelir: elli üç
     /// karşı taraf da bir ifadeyle okunur. Kişi başına toplam sorgusu açan bir
     /// uygulama burayı yüzün üzerine çıkarırdı. İkinci sorgu gecikmenin

@@ -73,6 +73,12 @@ public sealed record CreateCounterpartyChargeCommand(
 /// </summary>
 public sealed record CounterpartyPaidNow(decimal Amount, Guid AccountId);
 
+/// <summary>
+/// Kişinin bir tarafındaki açık kalem: alım ya da borç para; tutar indirimler
+/// düşülmüş bedeldir.
+/// </summary>
+public sealed record CounterpartyOpenItem(Guid Id, bool IsCharge, DateOnly Date, decimal Amount);
+
 /// <summary>Borç para: para taşır, gelir/gider yazmaz (ADR 0022 İ3).</summary>
 public sealed record CreateCounterpartyLoanCommand(
     Guid CounterpartyId,

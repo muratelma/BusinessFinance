@@ -30,7 +30,7 @@ kullanıcıya sorulmaz.
 | 0 | Karar kapısı | **Bitti** (16 Kasım 2026): kullanıcı onayladı, ADR 0022 kabul edildi |
 | 1 | Kod gerçeği ve sunucu tasarımı | **Belge yazıldı** (`04-SUNUCU-TASARIMI.md`); kalan okuma Faz 2'nin ilk işi |
 | 2 | Sunucu: kişinin hesabı genişler | **Sürüyor** (commit edilmedi): **Bitti** (17 Kasım 2026): S1 borç para, S2 kişiye kartla ödeme, S3 istek kimliği, S4 kişinin türü, S5 vazgeçme ve kalanı indirim sayma, peşin/avans tutarı (`paidNow`), yedek v14, dört migration |
-| 3 | Sunucu: okumalar | Başlamadı |
+| 3 | Sunucu: okumalar | **Bitti** (17 Kasım 2026): S6 kişi sayfası, S7 liste, S8 (sunucu değişikliği gerekmedi), S11 vadeler planlananlarda (isteğe bağlı) |
 | 4 | Ekran tasarımı | Başlamadı |
 | 5 | Flutter: liste | Başlamadı |
 | 6 | Flutter: kişi sayfası, tahsilat ve ödeme | Başlamadı |
@@ -40,9 +40,10 @@ kullanıcıya sorulmaz.
 
 ## Sıradaki tek görev
 
-**Faz 3 — Sunucu: okumalar** (`03-PLAN.md`): S6 kişi sayfası, S7 liste
-(kapsam, bölümler, sıra, "Alınan avans" ayrımı), S8 fiş "henüz ödemedim"
-yönlendirmesi, S11 hesaptaki vadelerin planlananlara ve hatırlatmalara girmesi.
+**Faz 4 — Ekran tasarımı** (`03-PLAN.md`): başvuru incelemesi ve
+`05-EKRAN-TASARIMI.md` (liste, kişi sayfası, tahsilat/ödeme paneli, yeni kayıt,
+kayıt sayfası). Kullanıcı kararı (16 Kasım): denetimi Claude Code dış göz olarak
+yapar.
 Açık iş: Flutter bilinmeyen akış türünde (`counterparty-loan`,
 `counterparty-write-off`) akışı reddediyor; istemci türleri tanıyana kadar bu
 kayıtlar yalnız API'den yazılabiliyor.
@@ -225,8 +226,7 @@ ve kendi kaydını yazamadı.
   kullanımı, yedek). `Kalanı indirim say`: ödemeyle aynı yazmada en yeni açık
   alımlara indirim, ödemeye bağlı (`PaymentId`); ödeme iptali onu da geri
   alır, tek başına geri alınamaz; kalan borç para ya da devreden bakiyeden
-  geliyorsa reddedilir. Bilinen sınır: kalan, aradaki borç paranın sırasına
-  bakılmadan en yeni alımlara düşülür. Hesap silme indirimleri ödemelerden önce
+  geliyorsa reddedilir. Hesap silme indirimleri ödemelerden önce
   siler. Migration `AddCounterpartyWriteOffsAndRemainderDiscounts` dolu SQL
   test veritabanında ileri, geri, ileri denendi.
 - **Doğrulama:** build ve format temiz; SQL'e karşı tam koşu: Domain 416,
@@ -234,3 +234,27 @@ ve kendi kaydını yazamadı.
 - **Faz 2 kapandı.** Çıkış koşulları: build, format, SQL dahil tam koşu geçti;
   ekran değişmedi. "Eski istemci çalışır" koşulu yeni kayıtlar yazılmadıkça
   sağlanıyor (bilinmeyen akış türü notu yukarıda).
+
+### 17 Kasım 2026 (devam) — kalanın sırası, Faz 3 başlıyor
+
+- **Kalanı indirim say, sıra düzeltmesi** (kullanıcı onayı): kalan artık
+  ödemelerin sırasıyla bulunur (en eski önce kapanır). Kalanın içinde borç
+  para, devreden bakiye, gün sonunda sayılmış ya da ödeme gününden sonraki
+  alım varsa reddedilir. Test: `RemainderDiscount_FollowsThePaymentOrder`
+  (borç para alımdan sonra → red; önce → indirim).
+- **Faz 3 (sunucu okumaları):**
+  - **S7 liste** (`GET /api/v1/debt-book`): `scope` süzgeci (türü bilinmeyen
+    eski kişi o kapsamda kaydı varsa), `Yaklaşan` 30 gün ve `other` bölümü,
+    bölüm içi sabit sıra (gecikenlerde en eski vade), iki gecikmiş toplam,
+    satırda kapsam, avans payı ve taksit sayıları, Kişiler'de bütün kişiler
+    ada göre (pasif ve bakiyesiz dahil). Sabit sayıda sorgu (SQL testi).
+  - **S6 kişi sayfası** (`GET /api/v1/counterparties/{id}/page`): özet hesap +
+    taksitli kayıtlar, kısayollar yalnız hesabın, taksitli kayıt satırları;
+    hareketler akıştan, yeni `direction` süzgeciyle.
+  - **S8:** sunucu değişikliği yok (eşleşme ve uçlar hazır); yönlendirme Faz 7.
+  - **S11:** `includeCounterpartyDues=true` ile kişinin vadeli açık tutarları
+    planlananlarda (yeni türler ve eylemler); varsayılan kapalı.
+  - Sapmalar `06.3-butunsel-duzenleme.md`de (S6 hareketleri akıştan, S11
+    isteğe bağlı, S8 istemcide).
+  - **Doğrulama:** build ve format temiz; SQL'e karşı tam koşu: Domain 416,
+    Application 418, API 398, Infrastructure 284 geçti, 2 atlandı.

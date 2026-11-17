@@ -103,6 +103,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<CreateCounterpartyLoanUseCase>();
         services.AddTransient<CancelCounterpartyLoanUseCase>();
         services.AddTransient<CreateCounterpartyWriteOffUseCase>();
+        services.AddTransient<GetCounterpartyPageUseCase>();
         services.AddTransient<CancelCounterpartyWriteOffUseCase>();
         services.AddTransient<CreateCreditCardUseCase>();
         services.AddTransient<GetCreditCardUseCase>();

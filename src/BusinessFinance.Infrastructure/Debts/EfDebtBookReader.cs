@@ -30,6 +30,7 @@ internal sealed class EfDebtBookReader(BusinessFinanceDbContext dbContext) : IDe
                 var debt = debts[group.Key];
                 var upcoming = group.Where(item => item.DueDate >= asOfDate).ToArray();
                 var next = upcoming.Length == 0 ? null : upcoming.Min(item => item.DueDate);
+                var late = group.Where(item => item.DueDate < asOfDate).ToArray();
                 return new DebtBookDebtRow(
                     debt.Id, debt.Direction, debt.PlanKind, debt.CounterpartyId, debt.CounterpartyName,
                     debt.Description, debt.StartDate,
@@ -38,7 +39,11 @@ internal sealed class EfDebtBookReader(BusinessFinanceDbContext dbContext) : IDe
                     next,
                     next is null ? 0m : upcoming.Where(item => item.DueDate == next).Sum(item => item.OpenAmount),
                     closings.ContainsKey(debt.Id),
-                    debt.IsCarriedOver);
+                    debt.IsCarriedOver,
+                    debt.Scope,
+                    late.Length == 0 ? null : late.Min(item => item.DueDate),
+                    debt.InstallmentCount,
+                    group.Count());
             })];
     }
 
@@ -58,12 +63,13 @@ internal sealed class EfDebtBookReader(BusinessFinanceDbContext dbContext) : IDe
             .Where(debt => !openIds.Contains(debt.Id) && closings.ContainsKey(debt.Id))
             .Select(debt => new DebtBookClosedRow(
                 debt.Id, debt.Direction, debt.PlanKind, debt.CounterpartyId, debt.CounterpartyName,
-                debt.Description, closings[debt.Id].Total, closings[debt.Id].LastDate))];
+                debt.Description, closings[debt.Id].Total, closings[debt.Id].LastDate, debt.Scope))];
     }
 
     private sealed record DebtHead(
         Guid Id, DebtDirection Direction, DebtPlanKind PlanKind, Guid? CounterpartyId,
-        string? CounterpartyName, string? Description, DateOnly StartDate, bool IsCarriedOver);
+        string? CounterpartyName, string? Description, DateOnly StartDate, bool IsCarriedOver,
+        TransactionScope? Scope = null, int? InstallmentCount = null);
 
     private sealed record ClosingTotals(decimal Total, DateOnly LastDate);
 
@@ -79,7 +85,8 @@ internal sealed class EfDebtBookReader(BusinessFinanceDbContext dbContext) : IDe
                 select new DebtHead(
                     debt.Id, debt.Direction, debt.PlanKind, debt.CounterpartyId,
                     counterparty == null ? null : counterparty.Name,
-                    debt.Description, debt.StartDate, debt.IsCarriedOver))
+                    debt.Description, debt.StartDate, debt.IsCarriedOver,
+                    debt.Scope, debt.InstallmentCount))
             .ToDictionaryAsync(debt => debt.Id, cancellationToken);
 
     private async Task<Dictionary<Guid, ClosingTotals>> ClosingsAsync(Guid userId, CancellationToken cancellationToken) =>

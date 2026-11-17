@@ -17,7 +17,12 @@ namespace BusinessFinance.Infrastructure.Counterparties;
 /// </remarks>
 internal static class CounterpartyAging
 {
-    public sealed record Aging(decimal Overdue, DateOnly? NextDueDate, decimal NextDueAmount);
+    /// <param name="OldestOverdueDate">
+    /// Kapanmamış kısmı kalan, vadesi geçmiş en eski kalemin vadesi; listede
+    /// gecikenler bununla sıralanır (en eski üstte).
+    /// </param>
+    public sealed record Aging(
+        decimal Overdue, DateOnly? NextDueDate, decimal NextDueAmount, DateOnly? OldestOverdueDate = null);
 
     private sealed record ChargeRow(
         Guid CounterpartyId, DebtDirection Direction, DateOnly Date, DateTimeOffset? EntryAt,
@@ -85,6 +90,7 @@ internal static class CounterpartyAging
             // Devreden bakiye en eski kalemdir: ödemeler önce onu kapatır.
             var unpaid = payments.GetValueOrDefault(group.Key) - openings.GetValueOrDefault(group.Key);
             var overdue = 0m;
+            DateOnly? oldestOverdue = null;
             DateOnly? nextDue = null;
             var nextAmount = 0m;
             foreach (var charge in group
@@ -103,6 +109,10 @@ internal static class CounterpartyAging
                 if (due < asOfDate)
                 {
                     overdue += open;
+                    if (oldestOverdue is null || due < oldestOverdue)
+                    {
+                        oldestOverdue = due;
+                    }
                 }
                 else if (nextDue is null || due < nextDue)
                 {
@@ -115,7 +125,106 @@ internal static class CounterpartyAging
                 }
             }
 
-            result[group.Key] = new Aging(overdue, nextDue, nextAmount);
+            result[group.Key] = new Aging(overdue, nextDue, nextAmount, oldestOverdue);
+        }
+
+        return result;
+    }
+
+    /// <summary>Kişinin hesabında vadesi olan, kapanmamış bir kalemin açık kısmı.</summary>
+    public sealed record OpenDue(Guid CounterpartyId, DebtDirection Direction, DateOnly DueDate, decimal Amount);
+
+    /// <summary>
+    /// Bütün kişilerin hesabındaki vadeli açık kalemler: gecikmeyle aynı sıra
+    /// (devreden bakiye en eski; sonra gün, giriş anı), ödemeler ve vazgeçmeler
+    /// en eskiden düşülür. Planlananlar ve hatırlatmalar bunu okur (S11).
+    /// Sorgu sayısı kişi sayısına bağlı değildir.
+    /// </summary>
+    public static async Task<IReadOnlyList<OpenDue>> ListOpenDuesAsync(
+        BusinessFinanceDbContext dbContext,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var paid = await dbContext.CounterpartyPayments.AsNoTracking()
+            .Where(payment => payment.UserId == userId && !payment.IsCancelled)
+            .Select(payment => new { payment.CounterpartyId, payment.Direction, Amount = payment.Amount.Amount })
+            .Concat(dbContext.CounterpartyWriteOffs.AsNoTracking()
+                .Where(writeOff => writeOff.UserId == userId && !writeOff.IsCancelled)
+                .Select(writeOff => new
+                {
+                    writeOff.CounterpartyId,
+                    writeOff.Direction,
+                    Amount = writeOff.Amount.Amount
+                }))
+            .GroupBy(row => new { row.CounterpartyId, row.Direction })
+            .Select(group => new { group.Key.CounterpartyId, group.Key.Direction, Total = group.Sum(row => row.Amount) })
+            .ToArrayAsync(cancellationToken);
+        var openings = await dbContext.Counterparties.AsNoTracking()
+            .Where(counterparty => counterparty.UserId == userId &&
+                                   (counterparty.OpeningReceivable > 0m || counterparty.OpeningPayable > 0m))
+            .Select(counterparty => new
+            {
+                counterparty.Id,
+                counterparty.OpeningReceivable,
+                counterparty.OpeningPayable
+            })
+            .ToArrayAsync(cancellationToken);
+        var rows = await dbContext.CounterpartyCharges.AsNoTracking()
+            .Where(charge => charge.UserId == userId && !charge.IsCancelled)
+            .Select(charge => new
+            {
+                charge.CounterpartyId,
+                charge.Direction,
+                Date = charge.ChargeDate,
+                EntryAt = EF.Property<DateTimeOffset?>(charge, EntryTimestamp.PropertyName),
+                charge.Id,
+                Amount = charge.Amount.Amount -
+                    (dbContext.CounterpartyChargeDiscounts
+                        .Where(discount => discount.UserId == userId &&
+                                           discount.ChargeId == charge.Id &&
+                                           !discount.IsCancelled)
+                        .Sum(discount => (decimal?)discount.Amount) ?? 0m),
+                charge.DueDate
+            })
+            .Concat(dbContext.CounterpartyLoans.AsNoTracking()
+                .Where(loan => loan.UserId == userId && !loan.IsCancelled)
+                .Select(loan => new
+                {
+                    loan.CounterpartyId,
+                    loan.Direction,
+                    Date = loan.LoanDate,
+                    EntryAt = EF.Property<DateTimeOffset?>(loan, EntryTimestamp.PropertyName),
+                    loan.Id,
+                    Amount = loan.Amount.Amount,
+                    loan.DueDate
+                }))
+            .ToArrayAsync(cancellationToken);
+
+        var paidBy = paid.ToDictionary(row => (row.CounterpartyId, row.Direction), row => row.Total);
+        var openingBy = new Dictionary<(Guid, DebtDirection), decimal>();
+        foreach (var opening in openings)
+        {
+            openingBy[(opening.Id, DebtDirection.Receivable)] = opening.OpeningReceivable;
+            openingBy[(opening.Id, DebtDirection.Payable)] = opening.OpeningPayable;
+        }
+
+        var result = new List<OpenDue>();
+        foreach (var group in rows.GroupBy(row => (row.CounterpartyId, row.Direction)))
+        {
+            var unpaid = paidBy.GetValueOrDefault(group.Key) - openingBy.GetValueOrDefault(group.Key);
+            foreach (var row in group
+                         .OrderBy(row => row.Date)
+                         .ThenBy(row => row.EntryAt ?? DateTimeOffset.MinValue)
+                         .ThenBy(row => row.Id))
+            {
+                var covered = Math.Min(Math.Max(unpaid, 0m), row.Amount);
+                unpaid -= covered;
+                var open = row.Amount - covered;
+                if (open > 0m && row.DueDate is DateOnly due)
+                {
+                    result.Add(new OpenDue(group.Key.CounterpartyId, group.Key.Direction, due, open));
+                }
+            }
         }
 
         return result;

@@ -1253,3 +1253,25 @@ kullanır. Transferde çıkan/giren hesap ve masrafın gerçek kategorisi, POS
 yatışında kapattığı satışların tutarı ve günü gösterilir; mevcut işlem sonrası
 bakiye, kalan borç/limit ve iptal kilitleri korunur. İptal reddi panelin içinde
 görünür; sunucunun `detail` alanı kullanıcı cümlesi olarak gösterilmez.
+
+## Kişinin hesabı: yön süzgeci ve planlanan vadeler — 17 Kasım 2026
+
+- **Akış:** `GET /api/v1/financial-activities` yeni isteğe bağlı `direction`
+  (`receivable` · `payable`) alır; yönü olmayan satırlar düşer. Kişi sayfasının
+  `Alacak tarafı / Borç tarafı` süzgeci budur (K15). Tanınmayan değer
+  `financial_activities.invalid_filter_value`.
+- **Yeni akış türleri:** `counterparty-loan` (borç para; nötr) ve
+  `counterparty-write-off` (vazgeçme; gelir ya da gider, kategorili). Bugünkü
+  istemci bilinmeyen türü reddettiği için bu kayıtlar istemci onları tanıyana
+  kadar yalnız API'den yazılır.
+- **Planlanan:** `GET /api/v1/financial-activities/planned` yeni isteğe bağlı
+  `includeCounterpartyDues` (varsayılan `false`). `true` ise kişinin
+  hesabındaki vadeli açık tutarlar kişi, yön ve vade günü başına bir satır
+  olarak girer: `plannedKind` `counterparty-receivable-due` /
+  `counterparty-payable-due`, `effect: neutral`, `actionKind`
+  `collect-counterparty` / `pay-counterparty`, `actionTargetId` kişinin
+  kimliği, `title` kişinin adı. Açık kısım gecikmeyle aynı sırayla bulunur
+  (ödemeler ve vazgeçmeler en eskiden düşülür). Kapsam kişinin türüdür; türü
+  bilinmeyen kişi yalnız kapsamsız okumada döner. Bayrak varsayılan kapalıdır,
+  çünkü bugünkü istemci bilinmeyen planlanan türünü reddeder ve vadeli
+  veresiye satış zaten vardır. `GET /api/v1/upcoming-payments` değişmedi.

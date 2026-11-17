@@ -25,6 +25,12 @@ public static class CounterpartyEndpoints
             .Produces<CounterpartyListResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized);
+        group.MapGet("/{counterpartyId:guid}/page", GetPageAsync)
+            .WithName("GetCounterpartyPage")
+            .Produces<CounterpartyPageResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
         group.MapGet("/{counterpartyId:guid}", GetAsync)
             .WithName("GetCounterparty")
             .Produces<CounterpartyResponse>(StatusCodes.Status200OK)
@@ -471,6 +477,48 @@ public static class CounterpartyEndpoints
             "As-of date must use the yyyy-MM-dd format.",
             "counterparties.invalid_as_of_date");
         return false;
+    }
+
+    private static async Task<IResult> GetPageAsync(
+        Guid counterpartyId,
+        GetCounterpartyPageUseCase useCase,
+        HttpContext httpContext,
+        CancellationToken cancellationToken,
+        string? asOfDate = null)
+    {
+        if (!TryParseOptionalAsOfDate(asOfDate, httpContext, out var parsedAsOfDate, out var dateError))
+        {
+            return dateError!;
+        }
+
+        var result = await useCase.ExecuteAsync(counterpartyId, parsedAsOfDate, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return result.Error.ToProblemResult(httpContext);
+        }
+
+        var page = result.Value;
+        return Results.Ok(new CounterpartyPageResponse(
+            page.CounterpartyId,
+            page.Name,
+            page.Note,
+            page.IsActive,
+            FinanceContract.OptionalScopeValue(page.Scope),
+            FinanceContract.Money(page.OpeningReceivable),
+            FinanceContract.Money(page.OpeningPayable),
+            FinanceContract.Money(page.OwedToYou),
+            FinanceContract.Money(page.OwedByYou),
+            FinanceContract.Money(page.OverdueReceivable),
+            FinanceContract.Money(page.OverduePayable),
+            page.NextReceivableDueDate is DateOnly nextReceivable ? FinanceContract.Date(nextReceivable) : null,
+            FinanceContract.Money(page.NextReceivableDueAmount),
+            page.NextPayableDueDate is DateOnly nextPayable ? FinanceContract.Date(nextPayable) : null,
+            FinanceContract.Money(page.NextPayableDueAmount),
+            new CounterpartyShortcutsResponse(
+                FinanceContract.Money(page.Collect.Full), FinanceContract.Money(page.Collect.Overdue)),
+            new CounterpartyShortcutsResponse(
+                FinanceContract.Money(page.Pay.Full), FinanceContract.Money(page.Pay.Overdue)),
+            [.. page.Records.Select(BusinessFinance.Api.Features.Debts.DebtEndpoints.ToBookItem)]));
     }
 
     internal static bool TryParseDirection(string? value, out DebtDirection direction)

@@ -95,11 +95,45 @@ Borç bütün kapanışlarıyla iptal olur. Kapanışı gün sonunda sayılmış
   "closedPayableCount": 1, "closedReceivableCount": 0 }
 ```
 
-- Satır ya bir borçtur (`kind: debt`, kimlik borcun) ya bir kişinin carisidir
-  (`kind: ledger`, kimlik kişinin). Cari ayrı kalır (ADR 0021 İ3).
-- `section`: `overdue` (gecikmiş tutarı var) · `upcoming` (sıradaki vadesi var)
-  · `undated` (vadesi yok). Sıra: bölüm, sonra yakın vade, aynı günde büyük kalan.
+- Satır ya bir kişinin hesabıdır (`kind: ledger`, kimlik kişinin; yalnız
+  taksitsiz hesap) ya taksitli ya da kişisiz bir kayıttır (`kind: debt`, kimlik
+  borcun). Kişi listede bir kez durur (ADR 0022 İ6, K14).
+- **17 Kasım 2026 (Faz 3, S7):**
+  - `?scope=business|personal` (isteğe bağlı): kişi satırı kişinin türüyle,
+    kayıt satırı kendi kapsamıyla süzülür; türü bilinmeyen eski kişi yalnız o
+    kapsamda alım-satımı ya da vazgeçmesi varsa görünür. Toplamlar, gecikmiş
+    toplamlar, kişiler ve kapanan sayıları seçili kapsamındır. Tanınmayan
+    değer `debt.invalid_scope` (400).
+  - `section`: `overdue` (gecikmiş tutarı var) · `upcoming` (sıradaki vade
+    30 gün içinde) · **`other`** (vadesi daha ileride ya da vadesiz; eski
+    `undated` kalktı). Sıra: bölüm; gecikenlerde en eski gecikmiş vade
+    (`oldestOverdueDate`), yaklaşanlarda en yakın vade, diğerlerinde büyük
+    kalan; sonra başlık.
+  - Satırda `scope` (kişinin türü ya da kaydın kapsamı; `Hepsi` etiketi),
+    `advanceAmount` (kişi satırında tutarın karşı yöndeki fazla ödemeden
+    gelen kısmı; tamamıysa ekran "Alınan avans" / "Verilen avans" yazar),
+    `oldestOverdueDate`, `installmentCount` ve `openInstallmentCount`
+    (taksitli kayıtta "3/12 taksit").
+  - Özette `payableOverdue` ve `receivableOverdue`.
+  - `people`: **bütün** kişiler, ada göre; bakiyesi olmayan ve pasif olan
+    dahil (`isActive`, `scope`). Pasif kişiyi yalnız aramada göstermek
+    istemcinin işidir.
 - Toplamlar ve kişi toplamları sunucudandır; istemci toplama yapmaz.
+  Sabit sayıda sorguyla okunur (`DebtBook_ReadsWithAFixedNumberOfQueries`).
+
+### `GET /api/v1/counterparties/{id}/page?asOfDate=` — kişi sayfası (S6)
+
+`asOfDate` isteğe bağlı (boşsa bugün). Kişinin bilgisi (`name`, `note`,
+`isActive`, `scope`, açılış bakiyesi) ve özet: `owedToYou` / `owedByYou`,
+`overdueReceivable` / `overduePayable`, en yakın vadeler — kişinin hesabı
+**ve** kişili taksitli kayıtlarının kalanıyla (K14). `collect` / `pay`:
+tahsilat ve ödeme panelinin kısayolları (`full` = `Tamamı`, `overdue` =
+`Gecikmiş`) — **yalnız hesabın**, çünkü düğmeler yalnız hesaba yazar (ADR
+0022 İ7). `records`: kişili taksitli kayıtlar, listenin satır biçiminde.
+Hareketler akıştan okunur: `GET /api/v1/financial-activities?counterpartyId=&direction=&dateFrom=&dateTo=&activityKind=`
+(`direction` yeni: `receivable` · `payable`; ay seçici için gün aralığı, tür
+süzgeci için `counterparty-charge` / `counterparty-settlement`). Başkasının
+kişisi `404`.
 
 ### `GET /api/v1/debt-book/closed` — kapananlar
 
@@ -159,12 +193,14 @@ alır.
 ### `POST /api/v1/counterparties/{id}/payments` — `Kalanı indirim say`
 
 İstek `closeRemainderAsDiscount: true` alabilir (senaryo 20): ödemeden sonra o
-tarafta kalan tutar, ödeme gününe kadarki **en yeni** açık alımlardan
-başlayarak indirim yazılır, ödemeyle aynı yazmada. İndirim alımın bedelini
-düşürür; gelir ya da gider **alım gününde** azalır. Gün sonunda sayılmış alım
-atlanır. Kalan alımlarla kapanmıyorsa (devreden bakiye, borç para)
-`counterparties.discount_exceeds_charges` (400) ve hiçbir şey yazılmaz: kalan
-vazgeçmeyle kapatılır. Kalan yoksa bayrak etkisizdir. Cevap
+tarafta kalan tutar indirim yazılır, ödemeyle aynı yazmada. İndirim alımın
+bedelini düşürür; gelir ya da gider **alım gününde** azalır. Kalanın hangi
+kalemlere ait olduğu ödemelerin sırasıyla bulunur (en eski önce kapanır, kalan
+en yeni kalemlerdedir; gün, sonra giriş anı). Bu kalemlerin içinde borç para,
+devreden bakiye, gün sonunda sayılmış ya da ödeme gününden sonraki bir alım
+varsa `counterparties.discount_exceeds_charges` (400) ve hiçbir şey yazılmaz:
+kalan vazgeçmeyle kapatılır. Örnek: 1.000 alım (5 Ağu), 500 borç para (11 Ağu),
+1.300 ödeme → kalan 200 borç paraya aittir, reddedilir. Kalan yoksa bayrak etkisizdir. Cevap
 `remainderDiscount` taşır (yoksa `"0.0000"`).
 
 İndirimler ödemeye bağlıdır (ADR 0021 İ7): ödemenin iptali onları da geri

@@ -1857,6 +1857,11 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
             query = query.Where(row => row.MatchCounterpartyId == counterpartyId);
         }
 
+        if (criteria.Direction is DebtDirection direction)
+        {
+            query = query.Where(row => row.Direction == (int)direction);
+        }
+
         if (criteria.CategoryId is Guid categoryId)
         {
             query = query.Where(row => row.MatchCategoryId == categoryId);

@@ -50,29 +50,26 @@ public static class DebtEndpoints
     }
 
     private static async Task<IResult> GetBookAsync(
-        string asOfDate, GetDebtBookUseCase useCase, HttpContext context, CancellationToken cancellationToken)
+        string asOfDate, GetDebtBookUseCase useCase, HttpContext context, CancellationToken cancellationToken,
+        string? scope = null)
     {
         if (!FinanceContract.TryParseDate(asOfDate, out var asOf))
             return ApiProblemResults.Validation(context, "asOfDate must use yyyy-MM-dd.", "debt.invalid_as_of_date");
-        var result = await useCase.ExecuteAsync(asOf, cancellationToken);
+        if (!FinanceContract.TryParseOptionalScope(scope, out var parsedScope))
+            return ApiProblemResults.Validation(context, "Scope must be business, personal or empty.", "debt.invalid_scope");
+        var result = await useCase.ExecuteAsync(asOf, cancellationToken, parsedScope);
         if (!result.IsSuccess) return result.Error.ToProblemResult(context);
         var value = result.Value;
         return Results.Ok(new DebtBookResponse(
             FinanceContract.Money(value.PayableTotal), FinanceContract.Money(value.ReceivableTotal),
-            value.Items.Select(item => new DebtBookItemResponse(
-                item.Kind, item.Id, DirectionName(item.Direction), SectionName(item.Section), item.Title,
-                item.CounterpartyId, item.CounterpartyName,
-                item.PlanKind is DebtPlanKind planKind ? PlanKindName(planKind) : null,
-                FinanceContract.Money(item.Remaining), FinanceContract.Money(item.Overdue),
-                item.NextDueDate is DateOnly next ? FinanceContract.Date(next) : null,
-                FinanceContract.Money(item.NextDueAmount), item.HasClosings, item.IsCarriedOver,
-                item.StartDate is DateOnly start ? FinanceContract.Date(start) : null)).ToArray(),
+            value.Items.Select(ToBookItem).ToArray(),
             value.People.Select(person => new DebtBookPersonResponse(
                 person.CounterpartyId, person.Name,
                 FinanceContract.Money(person.OwedToYou), FinanceContract.Money(person.OwedByYou),
                 FinanceContract.Money(person.LedgerOwedToYou), FinanceContract.Money(person.LedgerOwedByYou),
-                person.OpenDebtCount)).ToArray(),
-            value.ClosedPayableCount, value.ClosedReceivableCount));
+                person.OpenDebtCount, person.IsActive, FinanceContract.OptionalScopeValue(person.Scope))).ToArray(),
+            value.ClosedPayableCount, value.ClosedReceivableCount,
+            FinanceContract.Money(value.PayableOverdue), FinanceContract.Money(value.ReceivableOverdue)));
     }
 
     private static async Task<IResult> ListClosedAsync(
@@ -87,6 +84,19 @@ public static class DebtEndpoints
             : result.Error.ToProblemResult(context);
     }
 
+    /// <summary>Listenin ve kişi sayfasının ortak satır biçimi.</summary>
+    internal static DebtBookItemResponse ToBookItem(DebtBookItemDto item) => new(
+        item.Kind, item.Id, DirectionName(item.Direction), SectionName(item.Section), item.Title,
+        item.CounterpartyId, item.CounterpartyName,
+        item.PlanKind is DebtPlanKind planKind ? PlanKindName(planKind) : null,
+        FinanceContract.Money(item.Remaining), FinanceContract.Money(item.Overdue),
+        item.NextDueDate is DateOnly next ? FinanceContract.Date(next) : null,
+        FinanceContract.Money(item.NextDueAmount), item.HasClosings, item.IsCarriedOver,
+        item.StartDate is DateOnly start ? FinanceContract.Date(start) : null,
+        FinanceContract.OptionalScopeValue(item.Scope), FinanceContract.Money(item.AdvanceAmount),
+        item.OldestOverdueDate is DateOnly oldest ? FinanceContract.Date(oldest) : null,
+        item.InstallmentCount, item.OpenInstallmentCount);
+
     private static string DirectionName(DebtDirection direction) =>
         direction == DebtDirection.Payable ? "payable" : "receivable";
 
@@ -94,7 +104,7 @@ public static class DebtEndpoints
     {
         DebtBookSection.Overdue => "overdue",
         DebtBookSection.Upcoming => "upcoming",
-        _ => "undated"
+        _ => "other"
     };
 
     private static async Task<IResult> GetAsync(
