@@ -90,11 +90,26 @@ internal static class CounterpartyNet
                     : -loan.Amount.Amount),
                 cancellationToken) ?? 0m;
 
+        // Vazgeçme kalanı ödeme gibi kapatır: işaret ödemeninkiyle aynı.
+        var writeOffs = await dbContext.CounterpartyWriteOffs.AsNoTracking()
+            .Where(writeOff => writeOff.UserId == userId &&
+                               writeOff.CounterpartyId == counterpartyId &&
+                               !writeOff.IsCancelled &&
+                               (writeOff.WriteOffDate < date ||
+                                (writeOff.WriteOffDate == date &&
+                                 (EF.Property<DateTimeOffset?>(writeOff, EntryTimestamp.PropertyName) == null ||
+                                  EF.Property<DateTimeOffset?>(writeOff, EntryTimestamp.PropertyName) <= entryAt))))
+            .SumAsync(
+                writeOff => (decimal?)(writeOff.Direction == DebtDirection.Receivable
+                    ? -writeOff.Amount.Amount
+                    : writeOff.Amount.Amount),
+                cancellationToken) ?? 0m;
+
         var opening = await dbContext.Counterparties.AsNoTracking()
             .Where(counterparty => counterparty.UserId == userId && counterparty.Id == counterpartyId)
             .Select(counterparty => counterparty.OpeningReceivable - counterparty.OpeningPayable)
             .SingleOrDefaultAsync(cancellationToken);
 
-        return opening + charges + loans + discounts + payments;
+        return opening + charges + loans + discounts + payments + writeOffs;
     }
 }

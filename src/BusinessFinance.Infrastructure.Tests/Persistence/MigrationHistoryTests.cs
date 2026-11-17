@@ -55,7 +55,8 @@ public sealed class MigrationHistoryTests
         "BackfillUsernamesFromEmail",
         "AddCounterpartyScopeAndLoans",
         "AddCounterpartyPaidNow",
-        "AddCounterpartyCardPayments"
+        "AddCounterpartyCardPayments",
+        "AddCounterpartyWriteOffsAndRemainderDiscounts"
     ];
 
     [Fact]
@@ -1312,6 +1313,32 @@ public sealed class MigrationHistoryTests
             var guard = Assert.IsType<SqlOperation>(down[0]);
             Assert.Contains("THROW 50025", guard.Sql, StringComparison.Ordinal);
             Assert.Null(Assert.Single(down.OfType<AlterColumnOperation>()).DefaultValue);
+        }
+    }
+
+    /// <summary>
+    /// Vazgeçme tablosu yeni ve boştur; indirimin ödeme bağı nullable eklenir
+    /// ve doldurulmaz (eski indirim hiçbir ödemeyle yazılmadı). Geri dönüş
+    /// veri varsa durur.
+    /// </summary>
+    [Fact]
+    public void AddCounterpartyWriteOffsAndRemainderDiscounts_AddsAnEmptyTableAndANullableLink()
+    {
+        var migration = LoadMigrations(out var context).Single(entry =>
+            entry.Id.EndsWith("_AddCounterpartyWriteOffsAndRemainderDiscounts", StringComparison.Ordinal));
+        using (context)
+        {
+            var up = migration.Migration.UpOperations;
+            var link = Assert.Single(up.OfType<AddColumnOperation>());
+            Assert.Equal("CounterpartyChargeDiscounts", link.Table);
+            Assert.Equal("PaymentId", link.Name);
+            Assert.True(link.IsNullable);
+            Assert.Null(link.DefaultValue);
+            Assert.Equal("CounterpartyWriteOffs", Assert.Single(up.OfType<CreateTableOperation>()).Name);
+            Assert.Empty(up.OfType<SqlOperation>());
+
+            var guard = Assert.IsType<SqlOperation>(migration.Migration.DownOperations[0]);
+            Assert.Contains("THROW 50026", guard.Sql, StringComparison.Ordinal);
         }
     }
 

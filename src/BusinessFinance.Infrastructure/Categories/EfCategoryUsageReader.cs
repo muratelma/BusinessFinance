@@ -88,6 +88,14 @@ internal sealed class EfCategoryUsageReader(BusinessFinanceDbContext dbContext)
             return true;
         }
 
+        if (await dbContext.CounterpartyWriteOffs.AsNoTracking().AnyAsync(
+                item => item.UserId == userId && item.CategoryId == categoryId &&
+                        !item.IsCancelled && item.Scope != side,
+                cancellationToken))
+        {
+            return true;
+        }
+
         // POS satışı ve komisyonu işletmenindir: POS'ta kullanılan kategori
         // şahsiye çevrilemez. Eski kuralla şahsi yazılmış bir tahsilat da
         // işletmeye daraltmayı engeller.

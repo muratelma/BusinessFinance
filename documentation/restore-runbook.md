@@ -584,6 +584,12 @@ gider). Kalıcı test: `BackfillUsernamesFromEmail_DerivesAValidUniqueNameForEve
 
 - `counterpartyPayments[].paidWithChargeId` — satışla birlikte yazılmış
   peşin ya da avans tutarında o satış; eski dosyada yoktur ve boş okunur.
+- `counterpartyWriteOffs[]` — vazgeçme: kişi, kategori, yön, tutar, kapsam,
+  gün, açıklama, iptal ve giriş anı. **Tanır**: hesap yoktur. v13'te yoktur;
+  v14 dosyasında liste eksikse dosya reddedilir.
+- `counterpartyCharges[].discounts[].paymentId` — `Kalanı indirim say` ile
+  ödemeyle yazılmış indirimde o ödeme; geri yüklemede ödemenin **yeni**
+  kimliğine bağlanır (ödeme kimlikleri önceden üretilir). Eski dosyada boştur.
 - `counterpartyPayments[].creditCardId` — kişiye kredi kartıyla ödemede kart;
   o zaman `accountId` boştur. Tam olarak biri dolu olmayan ya da tahsilat
   yönünde kart taşıyan dosya reddedilir.
@@ -613,4 +619,11 @@ backfill yoktur. `Down`, kartla ödeme varsa durur (`THROW 50025`); hesap
 kolonuna uydurma varsayılan yazmaz. Dolu test veritabanında yükseltme, geri
 dönüş ve yeniden yükseltme denendi. Kalıcı test:
 `AddCounterpartyCardPayments_RelaxesTheAccountBeforeItConstrains`.
-`BusinessFinanceApiSqlTests` hedefi 17 Kasım'da üç migration'la yükseltildi.
+`AddCounterpartyWriteOffsAndRemainderDiscounts` migration'ı
+`CounterpartyChargeDiscounts.PaymentId`'yi nullable ekler (eski indirim
+hiçbir ödemeyle yazılmadı; doldurulmaz) ve boş `CounterpartyWriteOffs`
+tablosunu kurar. `Down`, vazgeçme ya da ödemeye bağlı indirim varsa durur
+(`THROW 50026`). Dolu test veritabanında ileri, geri, ileri denendi. Kalıcı
+test: `AddCounterpartyWriteOffsAndRemainderDiscounts_AddsAnEmptyTableAndANullableLink`.
+Hesap silme indirimleri artık ödemelerden önce siler (indirim ödemeye bağlı).
+`BusinessFinanceApiSqlTests` hedefi 17 Kasım'da dört migration'la yükseltildi.

@@ -70,7 +70,11 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
                              dbContext.CounterpartyLoans.Any(
                                  loan => loan.UserId == userId &&
                                             loan.CounterpartyId == counterparty.Id &&
-                                            !loan.IsCancelled)),
+                                            !loan.IsCancelled) ||
+                             dbContext.CounterpartyWriteOffs.Any(
+                                 writeOff => writeOff.UserId == userId &&
+                                             writeOff.CounterpartyId == counterparty.Id &&
+                                             !writeOff.IsCancelled)),
             cancellationToken);
     }
 
@@ -274,6 +278,9 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
             await dbContext.CounterpartyLoans.AnyAsync(
                 loan => loan.UserId == userId && loan.CounterpartyId == counterpartyId,
                 cancellationToken) ||
+            await dbContext.CounterpartyWriteOffs.AnyAsync(
+                writeOff => writeOff.UserId == userId && writeOff.CounterpartyId == counterpartyId,
+                cancellationToken) ||
             await dbContext.DebtAgreements.AnyAsync(
                 debt => debt.UserId == userId && debt.CounterpartyId == counterpartyId,
                 cancellationToken) ||
@@ -328,11 +335,24 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
     public async Task<bool> AddPaymentAsync(
         CounterpartyPayment payment,
         PosSettlement? cardSettlement,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<CounterpartyCharge>? discountedCharges = null)
     {
         if (cardSettlement is not null)
         {
             await dbContext.PosSettlements.AddAsync(cardSettlement, cancellationToken);
+        }
+
+        // "Kalanı indirim say": alımların yeni indirimleri ödemeyle aynı yazmada.
+        foreach (var charge in discountedCharges ?? [])
+        {
+            foreach (var discount in charge.Discounts)
+            {
+                if (dbContext.Entry(discount).State == EntityState.Detached)
+                {
+                    dbContext.CounterpartyChargeDiscounts.Add(discount);
+                }
+            }
         }
 
         await dbContext.CounterpartyPayments.AddAsync(payment, cancellationToken);
@@ -371,6 +391,37 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
                 charge => charge.Id == chargeId && charge.UserId == userId,
                 cancellationToken);
     }
+
+    public async Task<IReadOnlyList<CounterpartyCharge>> FindRemainderCandidatesAsync(
+        Guid counterpartyId,
+        Guid userId,
+        DebtDirection direction,
+        DateOnly onOrBefore,
+        CancellationToken cancellationToken) =>
+        await dbContext.CounterpartyCharges
+            .Include(charge => charge.Discounts)
+            .Where(charge => charge.UserId == userId &&
+                             charge.CounterpartyId == counterpartyId &&
+                             charge.Direction == direction &&
+                             !charge.IsCancelled &&
+                             charge.ChargeDate <= onOrBefore)
+            .OrderByDescending(charge => charge.ChargeDate)
+            .ThenByDescending(charge => EF.Property<DateTimeOffset?>(charge, EntryTimestamp.PropertyName))
+            .ThenByDescending(charge => charge.Id)
+            .ToArrayAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<CounterpartyCharge>> FindChargesDiscountedByPaymentAsync(
+        Guid paymentId,
+        Guid userId,
+        CancellationToken cancellationToken) =>
+        await dbContext.CounterpartyCharges
+            .Include(charge => charge.Discounts)
+            .Where(charge => charge.UserId == userId &&
+                             dbContext.CounterpartyChargeDiscounts.Any(
+                                 discount => discount.UserId == userId &&
+                                             discount.ChargeId == charge.Id &&
+                                             discount.PaymentId == paymentId))
+            .ToArrayAsync(cancellationToken);
 
     public async Task<IReadOnlyList<CounterpartyPayment>> FindPaidWithChargeAsync(
         Guid chargeId,
@@ -486,7 +537,14 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
                                           payment.CounterpartyId == counterparty.Id &&
                                           !payment.IsCancelled &&
                                           payment.Direction == DebtDirection.Receivable)
-                        .Sum(payment => (decimal?)payment.Amount.Amount) ?? 0m),
+                        .Sum(payment => (decimal?)payment.Amount.Amount) ?? 0m) -
+                    // Vazgeçme kalanı ödeme gibi kapatır (ADR 0021 İ4).
+                    (dbContext.CounterpartyWriteOffs
+                        .Where(writeOff => writeOff.UserId == userId &&
+                                           writeOff.CounterpartyId == counterparty.Id &&
+                                           !writeOff.IsCancelled &&
+                                           writeOff.Direction == DebtDirection.Receivable)
+                        .Sum(writeOff => (decimal?)writeOff.Amount.Amount) ?? 0m),
                 // Devreden bakiye ve alımlar, indirimler düşülmüş (ADR 0021 T3, T5).
                 Payable =
                     counterparty.OpeningPayable +
@@ -513,23 +571,44 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
                                           payment.CounterpartyId == counterparty.Id &&
                                           !payment.IsCancelled &&
                                           payment.Direction == DebtDirection.Payable)
-                        .Sum(payment => (decimal?)payment.Amount.Amount) ?? 0m),
+                        .Sum(payment => (decimal?)payment.Amount.Amount) ?? 0m) -
+                    // Vazgeçme kalanı ödeme gibi kapatır (ADR 0021 İ4).
+                    (dbContext.CounterpartyWriteOffs
+                        .Where(writeOff => writeOff.UserId == userId &&
+                                           writeOff.CounterpartyId == counterparty.Id &&
+                                           !writeOff.IsCancelled &&
+                                           writeOff.Direction == DebtDirection.Payable)
+                        .Sum(writeOff => (decimal?)writeOff.Amount.Amount) ?? 0m),
+                // Gecikme okuması vazgeçmeyi de en eski kalemden düşer.
                 ReceivablePayments =
-                    dbContext.CounterpartyPayments
+                    (dbContext.CounterpartyPayments
                         .Where(payment => payment.UserId == userId &&
                                           payment.CounterpartyId == counterparty.Id &&
                                           !payment.IsCancelled &&
                                           payment.Direction == DebtDirection.Receivable)
-                        .Sum(payment => (decimal?)payment.Amount.Amount) ?? 0m,
+                        .Sum(payment => (decimal?)payment.Amount.Amount) ?? 0m) +
+                    (dbContext.CounterpartyWriteOffs
+                        .Where(writeOff => writeOff.UserId == userId &&
+                                           writeOff.CounterpartyId == counterparty.Id &&
+                                           !writeOff.IsCancelled &&
+                                           writeOff.Direction == DebtDirection.Receivable)
+                        .Sum(writeOff => (decimal?)writeOff.Amount.Amount) ?? 0m),
                 OpeningReceivable = counterparty.OpeningReceivable,
                 OpeningPayable = counterparty.OpeningPayable,
+                // Gecikme okuması vazgeçmeyi de en eski kalemden düşer.
                 PayablePayments =
-                    dbContext.CounterpartyPayments
+                    (dbContext.CounterpartyPayments
                         .Where(payment => payment.UserId == userId &&
                                           payment.CounterpartyId == counterparty.Id &&
                                           !payment.IsCancelled &&
                                           payment.Direction == DebtDirection.Payable)
-                        .Sum(payment => (decimal?)payment.Amount.Amount) ?? 0m,
+                        .Sum(payment => (decimal?)payment.Amount.Amount) ?? 0m) +
+                    (dbContext.CounterpartyWriteOffs
+                        .Where(writeOff => writeOff.UserId == userId &&
+                                           writeOff.CounterpartyId == counterparty.Id &&
+                                           !writeOff.IsCancelled &&
+                                           writeOff.Direction == DebtDirection.Payable)
+                        .Sum(writeOff => (decimal?)writeOff.Amount.Amount) ?? 0m),
                 // Kişiye bağlı açık yükümlülük cari bakiyeye girmez; toplamı
                 // yalnız bilgi olarak yanında döner.
                 OpenReceivableObligations =

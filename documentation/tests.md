@@ -2588,6 +2588,12 @@ ADR 0022, `stages/06.3-borc-alacak/` Faz 2'nin ilk yarısı.
 | Kart yalnız ödemede ve tek başına; limit kuralı; başkasının kartı reddedilir | `…CardPayment_IsPayableOnly_RespectsTheLimit_AndIsOwnerScoped` | Limit tam dolunca kabul |
 | Kartla ödeme migration'ı: hesap boş olabilir, kart eklenir, CHECK sonra; `Down` durur ve uydurma varsayılan yazmaz | `MigrationHistoryTests.AddCounterpartyCardPayments_RelaxesTheAccountBeforeItConstrains` | Dolu SQL test veritabanında ileri-geri-ileri denendi |
 | Yedek v14 kişiye kartla ödemeyi kartıyla, hesapsız taşır | `DataPortabilityTests.BackupV14_CarriesThePersonsKindAndLoans` | |
+| Senaryo 4: borç alındı, kısmen ödendi, kalanı bağışlandı → borç 0, vazgeçme günü gelir; kalanı aşan reddedilir; iptal geri getirir, idempotent | `CounterpartyLoanEndpointTests.ForgivenDebt_ClosesTheRest_AndWritesIncomeOnThatDay` | Akışta `counterparty-write-off` |
+| Alınmayacak alacak gider olur; yanlış kategori türü ve başkasının kişisi reddedilir | `…ReceivableWrittenOff_IsAnExpense_AndIsOwnerScoped` | |
+| Senaryo 20: 4.200 borca 4.000 + `Kalanı indirim say` → borç 0, gider 4.000; indirim ödemeye bağlı, tek başına geri alınamaz, ödeme iptali onu da geri alır; borç paradan gelen kalan indirimle kapanmaz | `…PaymentClosingTheRemainderAsDiscount_LowersTheExpense_AndUndoesTogether` | |
+| Vazgeçme uçları sahiplik probunda | `OwnershipIsolationTests` | |
+| Vazgeçme migration'ı: boş tablo, nullable indirim bağı; `Down` durur | `MigrationHistoryTests.AddCounterpartyWriteOffsAndRemainderDiscounts_AddsAnEmptyTableAndANullableLink` | Dolu SQL test veritabanında ileri-geri-ileri |
+| Yedek v14 vazgeçmeyi ve indirimin ödeme bağını (yeni ödeme kimliğine) taşır | `DataPortabilityTests.BackupV14_CarriesThePersonsKindAndLoans` | |
 | Kişi listesi borç parayla da iki sorguda kalır | `SqlServerPersistenceIntegrationTests.CounterpartyBalances_ComeFromOneQueryAndStayInsideTheOwner` | Gecikme alımları ve borç parayı tek `UNION ALL` ile okur; ilk denemede 3 sorguya çıkmıştı |
 
 Gerçek SQL'le tam koşu (`BusinessFinanceApiSqlTests` yeni migration'la

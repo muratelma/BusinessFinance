@@ -428,6 +428,9 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsCancelled")
                         .HasColumnType("bit");
 
+                    b.Property<Guid?>("PaymentId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTimeOffset>("RecordedAtUtc")
                         .HasColumnType("datetimeoffset");
 
@@ -437,6 +440,10 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("UserId", "ChargeId");
+
+                    b.HasIndex("UserId", "PaymentId")
+                        .HasDatabaseName("IX_CounterpartyChargeDiscounts_UserId_PaymentId")
+                        .HasFilter("[PaymentId] IS NOT NULL");
 
                     b.HasIndex("UserId", "CounterpartyId", "IsCancelled", "Direction")
                         .HasDatabaseName("IX_CounterpartyChargeDiscounts_UserId_CounterpartyId_Cancelled_Direction");
@@ -552,8 +559,6 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasAlternateKey("UserId", "Id");
-
                     b.HasIndex("UserId", "PaidWithChargeId")
                         .HasDatabaseName("IX_CounterpartyPayments_UserId_PaidWithChargeId")
                         .HasFilter("[PaidWithChargeId] IS NOT NULL");
@@ -582,6 +587,66 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("CK_CounterpartyPayments_Direction", "[Direction] IN (1, 2)");
 
                             t.HasCheckConstraint("CK_CounterpartyPayments_Source", "([AccountId] IS NULL AND [CreditCardId] IS NOT NULL AND [Direction] = 1 AND [PosSettlementId] IS NULL) OR ([AccountId] IS NOT NULL AND [CreditCardId] IS NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("BusinessFinance.Domain.CounterpartyWriteOff", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("CancelledAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CounterpartyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<byte>("Direction")
+                        .HasColumnType("tinyint");
+
+                    b.Property<bool>("IsCancelled")
+                        .HasColumnType("bit");
+
+                    b.Property<byte>("Scope")
+                        .HasColumnType("tinyint");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("WriteOffDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("UserId", "Id");
+
+                    b.HasIndex("UserId", "CategoryId");
+
+                    b.HasIndex("UserId", "WriteOffDate")
+                        .HasDatabaseName("IX_CounterpartyWriteOffs_UserId_Date");
+
+                    b.HasIndex("UserId", "CounterpartyId", "IsCancelled", "Direction")
+                        .HasDatabaseName("IX_CounterpartyWriteOffs_UserId_CounterpartyId_Cancelled_Direction");
+
+                    b.ToTable("CounterpartyWriteOffs", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_CounterpartyWriteOffs_Amount", "[Amount] > 0");
+
+                            t.HasCheckConstraint("CK_CounterpartyWriteOffs_Currency", "[Currency] = 1");
+
+                            t.HasCheckConstraint("CK_CounterpartyWriteOffs_Direction", "[Direction] IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_CounterpartyWriteOffs_Scope", "[Scope] IN (1, 2)");
                         });
                 });
 
@@ -2643,6 +2708,12 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
                         .HasPrincipalKey("UserId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("BusinessFinance.Domain.CounterpartyPayment", null)
+                        .WithMany()
+                        .HasForeignKey("UserId", "PaymentId")
+                        .HasPrincipalKey("UserId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("BusinessFinance.Domain.CounterpartyLoan", b =>
@@ -2752,6 +2823,54 @@ namespace BusinessFinance.Infrastructure.Persistence.Migrations
 
                             b1.WithOwner()
                                 .HasForeignKey("CounterpartyPaymentId");
+                        });
+
+                    b.Navigation("Amount")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BusinessFinance.Domain.CounterpartyWriteOff", b =>
+                {
+                    b.HasOne("BusinessFinance.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BusinessFinance.Domain.Category", null)
+                        .WithMany()
+                        .HasForeignKey("UserId", "CategoryId")
+                        .HasPrincipalKey("UserId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BusinessFinance.Domain.Counterparty", null)
+                        .WithMany()
+                        .HasForeignKey("UserId", "CounterpartyId")
+                        .HasPrincipalKey("UserId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.OwnsOne("BusinessFinance.Domain.Money", "Amount", b1 =>
+                        {
+                            b1.Property<Guid>("CounterpartyWriteOffId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(19, 4)
+                                .HasColumnType("decimal(19,4)")
+                                .HasColumnName("Amount");
+
+                            b1.Property<byte>("Currency")
+                                .HasColumnType("tinyint")
+                                .HasColumnName("Currency");
+
+                            b1.HasKey("CounterpartyWriteOffId");
+
+                            b1.ToTable("CounterpartyWriteOffs");
+
+                            b1.WithOwner()
+                                .HasForeignKey("CounterpartyWriteOffId");
                         });
 
                     b.Navigation("Amount")

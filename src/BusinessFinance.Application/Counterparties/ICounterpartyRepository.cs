@@ -125,9 +125,32 @@ public interface ICounterpartyRepository
     /// Aynı kimlikli tahsilat bu sırada yazıldıysa <c>false</c>: aynı istek
     /// kimliğiyle eşzamanlı gelen ikinci istek birincil anahtara çarpar.
     /// </returns>
+    /// <remarks>
+    /// <paramref name="discountedCharges"/>: <c>Kalanı indirim say</c> ile
+    /// indirim yazılan alımlar; indirimler ödemeyle aynı yazmadadır.
+    /// </remarks>
     Task<bool> AddPaymentAsync(
         CounterpartyPayment payment,
         PosSettlement? cardSettlement,
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<CounterpartyCharge>? discountedCharges = null);
+
+    /// <summary>
+    /// <c>Kalanı indirim say</c> için adaylar: o yönde, iptal edilmemiş, günü
+    /// verilen günden ileride olmayan alımlar, en yeniden eskiye (izlenen,
+    /// indirimleriyle).
+    /// </summary>
+    Task<IReadOnlyList<CounterpartyCharge>> FindRemainderCandidatesAsync(
+        Guid counterpartyId,
+        Guid userId,
+        DebtDirection direction,
+        DateOnly onOrBefore,
+        CancellationToken cancellationToken);
+
+    /// <summary>Bu ödemeyle birlikte indirim yazılmış alımlar (izlenen).</summary>
+    Task<IReadOnlyList<CounterpartyCharge>> FindChargesDiscountedByPaymentAsync(
+        Guid paymentId,
+        Guid userId,
         CancellationToken cancellationToken);
 
     Task<CounterpartyCharge?> FindOwnedChargeAsync(

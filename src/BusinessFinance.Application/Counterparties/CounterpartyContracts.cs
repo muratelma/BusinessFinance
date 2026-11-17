@@ -119,7 +119,10 @@ public sealed record CreateCounterpartyPaymentCommand(
     CardCollectionInput? Card = null,
     Guid? ClientRequestId = null,
     // Kişiye kredi kartıyla ödeme (yalnız borç yönünde); hesap verilmez.
-    Guid? CreditCardId = null);
+    Guid? CreditCardId = null,
+    // `Kalanı indirim say`: ödemeden sonra o tarafta kalan tutar, ödeme gününe
+    // kadarki en yeni açık alımlara indirim olarak yazılır (senaryo 20).
+    bool CloseRemainderAsDiscount = false);
 
 public sealed record CounterpartyChargeDto(
     Guid Id,
@@ -159,4 +162,6 @@ public sealed record CounterpartyPaymentDto(
     // Kartla tahsilde paranın yoldaki POS kaydı; değilse boş.
     Guid? PosSettlementId = null,
     // Kişiye kredi kartıyla ödemede kart; hesap o zaman boştur.
-    Guid? CreditCardId = null);
+    Guid? CreditCardId = null,
+    // Bu ödemeyle birlikte indirim olarak kapatılan kalan; yoksa sıfır.
+    decimal RemainderDiscount = 0m);

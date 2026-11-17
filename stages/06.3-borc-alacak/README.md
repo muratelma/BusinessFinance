@@ -29,7 +29,7 @@ kullanıcıya sorulmaz.
 |---|---|---|
 | 0 | Karar kapısı | **Bitti** (16 Kasım 2026): kullanıcı onayladı, ADR 0022 kabul edildi |
 | 1 | Kod gerçeği ve sunucu tasarımı | **Belge yazıldı** (`04-SUNUCU-TASARIMI.md`); kalan okuma Faz 2'nin ilk işi |
-| 2 | Sunucu: kişinin hesabı genişler | **Sürüyor** (commit edilmedi): S1 borç para, S3 istek kimliği, S4 kişinin türü, peşin/avans tutarı (`paidNow`), S2 kişiye kartla ödeme, yedek v14 ve üç migration bitti. Kalan: S5 (vazgeçme, kalanı indirim sayma) |
+| 2 | Sunucu: kişinin hesabı genişler | **Sürüyor** (commit edilmedi): **Bitti** (17 Kasım 2026): S1 borç para, S2 kişiye kartla ödeme, S3 istek kimliği, S4 kişinin türü, S5 vazgeçme ve kalanı indirim sayma, peşin/avans tutarı (`paidNow`), yedek v14, dört migration |
 | 3 | Sunucu: okumalar | Başlamadı |
 | 4 | Ekran tasarımı | Başlamadı |
 | 5 | Flutter: liste | Başlamadı |
@@ -40,9 +40,12 @@ kullanıcıya sorulmaz.
 
 ## Sıradaki tek görev
 
-**S5:** vazgeçme (`CounterpartyWriteOff`; bağışlanan borç gelir, vazgeçilen
-alacak gider; `RecognizedItems`e kaynak) ve tahsilat/ödemede `Kalanı indirim
-say`. Yedek v14 bununla genişler (v14 henüz yayımlanmadı). Sonra Faz 3.
+**Faz 3 — Sunucu: okumalar** (`03-PLAN.md`): S6 kişi sayfası, S7 liste
+(kapsam, bölümler, sıra, "Alınan avans" ayrımı), S8 fiş "henüz ödemedim"
+yönlendirmesi, S11 hesaptaki vadelerin planlananlara ve hatırlatmalara girmesi.
+Açık iş: Flutter bilinmeyen akış türünde (`counterparty-loan`,
+`counterparty-write-off`) akışı reddediyor; istemci türleri tanıyana kadar bu
+kayıtlar yalnız API'den yazılabiliyor.
 
 Açık iş (Faz 2 çıkışı "eski istemci çalışır" koşulu): Flutter
 `ActivityKind.fromApi` bilinmeyen türde `FormatException` atıyor; ilk
@@ -215,3 +218,19 @@ ve kendi kaydını yazamadı.
   `AddCounterpartyCardPayments` dolu SQL test veritabanında ileri, geri, ileri
   denendi. Tam koşu: Domain 416, Application 418, API 391, Infrastructure 282
   geçti, 2 atlandı.
+- **Commit:** `670d1ed` kişiye kartla ödeme.
+- **S5 — vazgeçme ve kalanı indirim sayma:** `CounterpartyWriteOff` (tanır;
+  alacaktan vazgeçmek gider, bağışlanan borç gelir; `RecognizedItems`, bakiye,
+  gecikme, `CounterpartyNet`, akış `counterparty-write-off`, kategori
+  kullanımı, yedek). `Kalanı indirim say`: ödemeyle aynı yazmada en yeni açık
+  alımlara indirim, ödemeye bağlı (`PaymentId`); ödeme iptali onu da geri
+  alır, tek başına geri alınamaz; kalan borç para ya da devreden bakiyeden
+  geliyorsa reddedilir. Bilinen sınır: kalan, aradaki borç paranın sırasına
+  bakılmadan en yeni alımlara düşülür. Hesap silme indirimleri ödemelerden önce
+  siler. Migration `AddCounterpartyWriteOffsAndRemainderDiscounts` dolu SQL
+  test veritabanında ileri, geri, ileri denendi.
+- **Doğrulama:** build ve format temiz; SQL'e karşı tam koşu: Domain 416,
+  Application 418, API 394, Infrastructure 283 geçti, 2 atlandı.
+- **Faz 2 kapandı.** Çıkış koşulları: build, format, SQL dahil tam koşu geçti;
+  ekran değişmedi. "Eski istemci çalışır" koşulu yeni kayıtlar yazılmadıkça
+  sağlanıyor (bilinmeyen akış türü notu yukarıda).

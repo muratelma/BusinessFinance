@@ -226,8 +226,69 @@ public sealed class CreateCounterpartyPaymentUseCase(
     IAccountRepository accountRepository,
     CardCollectionBuilder cardCollectionBuilder,
     ICreditCardRepository creditCardRepository,
+    IDayCloseCountReader dayCloseCountReader,
     TimeProvider timeProvider)
 {
+    /// <summary>
+    /// <c>Kalanı indirim say</c> (senaryo 20): ödemeden sonra o tarafta kalan
+    /// tutarı en yeni açık alımlardan başlayarak indirim yazar. İndirim alımın
+    /// bedelini düşürür; gelir ya da gider alım gününde azalır. Gün sonunda
+    /// sayılmış alım değişmez. Kalan alımlarla kapanmıyorsa (devreden bakiye,
+    /// borç para) hiçbir şey yazılmaz: kalan vazgeçmeyle kapatılır.
+    /// </summary>
+    private async Task<(IReadOnlyCollection<CounterpartyCharge>? Charges, decimal Total, ApplicationError? Error)>
+        DiscountRemainderAsync(
+            CreateCounterpartyPaymentCommand command,
+            CounterpartyPayment payment,
+            Guid userId,
+            CancellationToken cancellationToken)
+    {
+        if (!command.CloseRemainderAsDiscount)
+        {
+            return (null, 0m, null);
+        }
+
+        var now = timeProvider.GetUtcNow().ToUniversalTime();
+        var balance = await repository.FindBalanceAsync(
+            command.CounterpartyId, userId, LocalDay.LatestAllowed(now), cancellationToken);
+        var side = command.Direction == DebtDirection.Receivable
+            ? balance?.Receivable ?? 0m
+            : balance?.Payable ?? 0m;
+        var remainder = side - command.Amount;
+        if (remainder <= 0m)
+        {
+            return (null, 0m, null);
+        }
+
+        var candidates = await repository.FindRemainderCandidatesAsync(
+            command.CounterpartyId, userId, command.Direction, command.PaymentDate, cancellationToken);
+        var discounted = new List<CounterpartyCharge>();
+        var left = remainder;
+        foreach (var charge in candidates)
+        {
+            if (left <= 0m)
+            {
+                break;
+            }
+
+            if (charge.NetAmount <= 0m ||
+                await dayCloseCountReader.IsCountedAsync(
+                    userId, DayCloseRecordKind.CounterpartyCharge, charge.Id, cancellationToken))
+            {
+                continue;
+            }
+
+            var take = Math.Min(charge.NetAmount, left);
+            charge.ApplyDiscount(Guid.NewGuid(), take, command.PaymentDate, now, payment.Id);
+            discounted.Add(charge);
+            left -= take;
+        }
+
+        return left > 0m
+            ? (null, 0m, CounterpartyErrors.DiscountExceedsCharges)
+            : (discounted, remainder, null);
+    }
+
     public async Task<ApplicationResult<CounterpartyPaymentDto>> ExecuteAsync(
         CreateCounterpartyPaymentCommand command,
         CancellationToken cancellationToken = default)
@@ -316,13 +377,21 @@ public sealed class CreateCounterpartyPaymentUseCase(
                     amount,
                     command.PaymentDate,
                     command.Description);
-                if (!await repository.AddPaymentAsync(cardPayment, null, cancellationToken))
+                var cardRemainder = await DiscountRemainderAsync(command, cardPayment, userId, cancellationToken);
+                if (cardRemainder.Error is ApplicationError cardRemainderError)
+                {
+                    return ApplicationResult<CounterpartyPaymentDto>.Failure(cardRemainderError);
+                }
+
+                if (!await repository.AddPaymentAsync(
+                        cardPayment, null, cancellationToken, cardRemainder.Charges))
                 {
                     return await ReplayAsync(cardPayment.Id, userId, command, cancellationToken)
                         ?? ApplicationResult<CounterpartyPaymentDto>.Failure(CounterpartyErrors.PaymentChanged);
                 }
 
-                return ApplicationResult<CounterpartyPaymentDto>.Success(ToDto(cardPayment));
+                return ApplicationResult<CounterpartyPaymentDto>.Success(
+                    ToDto(cardPayment, cardRemainder.Total));
             }
 
             Account? account;
@@ -379,13 +448,19 @@ public sealed class CreateCounterpartyPaymentUseCase(
                 command.PaymentDate,
                 command.Description,
                 cardSettlement);
-            if (!await repository.AddPaymentAsync(payment, cardSettlement, cancellationToken))
+            var remainder = await DiscountRemainderAsync(command, payment, userId, cancellationToken);
+            if (remainder.Error is ApplicationError remainderError)
+            {
+                return ApplicationResult<CounterpartyPaymentDto>.Failure(remainderError);
+            }
+
+            if (!await repository.AddPaymentAsync(payment, cardSettlement, cancellationToken, remainder.Charges))
             {
                 return await ReplayAsync(payment.Id, userId, command, cancellationToken)
                     ?? ApplicationResult<CounterpartyPaymentDto>.Failure(CounterpartyErrors.PaymentChanged);
             }
 
-            return ApplicationResult<CounterpartyPaymentDto>.Success(ToDto(payment));
+            return ApplicationResult<CounterpartyPaymentDto>.Success(ToDto(payment, remainder.Total));
         }
         catch (ArgumentException exception)
         {
@@ -424,7 +499,7 @@ public sealed class CreateCounterpartyPaymentUseCase(
                 CounterpartyErrors.Validation("Client request id was already used for another payment."));
     }
 
-    internal static CounterpartyPaymentDto ToDto(CounterpartyPayment payment) => new(
+    internal static CounterpartyPaymentDto ToDto(CounterpartyPayment payment, decimal remainderDiscount = 0m) => new(
         payment.Id,
         payment.CounterpartyId,
         payment.AccountId,
@@ -435,7 +510,8 @@ public sealed class CreateCounterpartyPaymentUseCase(
         payment.Description,
         payment.IsCancelled,
         payment.PosSettlementId,
-        payment.CreditCardId);
+        payment.CreditCardId,
+        remainderDiscount);
 }
 
 /// <summary>
@@ -576,6 +652,23 @@ public sealed class CancelCounterpartyPaymentUseCase(
             }
 
             cardSettlement.Cancel(cancelledAtUtc);
+        }
+
+        // Bağlı etkiler birlikte geri alınır (ADR 0021 İ7): ödemeyle yazılan
+        // "kalanı indirim say" indirimleri de geri alınır, aynı yazmada.
+        foreach (var charge in await repository.FindChargesDiscountedByPaymentAsync(
+                     payment.Id, userId, cancellationToken))
+        {
+            if (charge.IsCancelled)
+            {
+                continue;
+            }
+
+            foreach (var discount in charge.Discounts.Where(
+                         item => item.PaymentId == payment.Id && !item.IsCancelled).ToArray())
+            {
+                charge.ReverseDiscount(discount.Id, cancelledAtUtc);
+            }
         }
 
         payment.Cancel(cancelledAtUtc);

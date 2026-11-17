@@ -176,7 +176,8 @@ public sealed class CounterpartyCharge
     /// aynı indirimi döner.
     /// </summary>
     public CounterpartyChargeDiscount ApplyDiscount(
-        Guid discountId, decimal amount, DateOnly discountDate, DateTimeOffset recordedAtUtc)
+        Guid discountId, decimal amount, DateOnly discountDate, DateTimeOffset recordedAtUtc,
+        Guid? paymentId = null)
     {
         if (_discounts.SingleOrDefault(item => item.Id == discountId) is { } existing)
         {
@@ -195,7 +196,8 @@ public sealed class CounterpartyCharge
                 nameof(discountDate), "The discount date cannot be before the purchase or in the future.");
 
         var discount = new CounterpartyChargeDiscount(
-            discountId, UserId, Id, CounterpartyId, Direction, amount, discountDate, recordedAtUtc);
+            discountId, UserId, Id, CounterpartyId, Direction, amount, discountDate, recordedAtUtc,
+            paymentId);
         _discounts.Add(discount);
         return discount;
     }
@@ -238,6 +240,14 @@ public sealed class CounterpartyChargeDiscount
     public decimal Amount { get; }
     public DateOnly DiscountDate { get; }
     public DateTimeOffset RecordedAtUtc { get; }
+
+    /// <summary>
+    /// <c>Kalanı indirim say</c> ile ödemeyle birlikte yazılan indirimde o
+    /// ödeme. Bağlı etkidir (ADR 0021 İ7): ödeme iptal edilince birlikte geri
+    /// alınır, tek başına geri alınamaz.
+    /// </summary>
+    public Guid? PaymentId { get; }
+
     public bool IsCancelled { get; private set; }
     public DateTimeOffset? CancelledAtUtc { get; private set; }
 
@@ -251,9 +261,11 @@ public sealed class CounterpartyChargeDiscount
         DebtDirection direction,
         decimal amount,
         DateOnly discountDate,
-        DateTimeOffset recordedAtUtc)
+        DateTimeOffset recordedAtUtc,
+        Guid? paymentId = null)
     {
         if (id == Guid.Empty) throw new ArgumentException("Discount id cannot be empty.", nameof(id));
+        PaymentId = paymentId;
         Id = id;
         UserId = userId;
         ChargeId = chargeId;

@@ -48,6 +48,7 @@ public sealed class BusinessFinanceDbContext(
     public DbSet<CounterpartyPayment> CounterpartyPayments => Set<CounterpartyPayment>();
 
     public DbSet<CounterpartyLoan> CounterpartyLoans => Set<CounterpartyLoan>();
+    public DbSet<CounterpartyWriteOff> CounterpartyWriteOffs => Set<CounterpartyWriteOff>();
     public DbSet<CashCount> CashCounts => Set<CashCount>();
     public DbSet<PosSettlement> PosSettlements => Set<PosSettlement>();
     public DbSet<PosDefinition> PosDefinitions => Set<PosDefinition>();

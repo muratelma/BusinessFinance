@@ -156,6 +156,42 @@ akışta (`counterparty-settlement`, `sourceName` kartın adı) görünür; işl
 sonrası bakiye kart borcunu ve kalan limiti döner. İptali kart borcunu geri
 alır.
 
+### `POST /api/v1/counterparties/{id}/payments` — `Kalanı indirim say`
+
+İstek `closeRemainderAsDiscount: true` alabilir (senaryo 20): ödemeden sonra o
+tarafta kalan tutar, ödeme gününe kadarki **en yeni** açık alımlardan
+başlayarak indirim yazılır, ödemeyle aynı yazmada. İndirim alımın bedelini
+düşürür; gelir ya da gider **alım gününde** azalır. Gün sonunda sayılmış alım
+atlanır. Kalan alımlarla kapanmıyorsa (devreden bakiye, borç para)
+`counterparties.discount_exceeds_charges` (400) ve hiçbir şey yazılmaz: kalan
+vazgeçmeyle kapatılır. Kalan yoksa bayrak etkisizdir. Cevap
+`remainderDiscount` taşır (yoksa `"0.0000"`).
+
+İndirimler ödemeye bağlıdır (ADR 0021 İ7): ödemenin iptali onları da geri
+alır; tek başına geri alınmaları `counterparty_charges.discount_belongs_to_payment`
+(409).
+
+### `POST /api/v1/counterparties/{id}/write-offs` — vazgeçme
+
+```json
+{ "direction": "payable", "amount": "1000.0000", "currency": "TRY",
+  "categoryId": "…", "writeOffDate": "2026-08-20", "scope": null,
+  "description": "Ali kalanı istemedi", "clientRequestId": "…" }
+```
+
+Kalan tutardan vazgeçmek (ADR 0021 İ4): `receivable` alınmayacak alacak —
+**gider**, gider kategorisi; `payable` bağışlanan borç — **gelir**, gelir
+kategorisi. Para hareket etmez; kişinin bakiyesi ödeme gibi düşer (en eski
+kalemden). O taraftaki kalanı aşamaz (`counterparties.write_off_exceeds_balance`,
+400); kategori türü uymuyorsa `counterparties.category_unavailable`. Kapsam
+borçlandırmanın zinciriyle kurulur. Akışta `counterparty-write-off` (etkisi
+gelir ya da gider, kategorili). Pasif kişide de yazılır.
+
+### `DELETE /api/v1/counterparty-write-offs/{id}` — vazgeçmenin iptali
+
+İdempotent; kalan geri gelir, tanınan gelir ya da gider düşer. Yok ya da
+başkasının: `counterparties.write_off_not_found` (404).
+
 ### `DELETE /api/v1/counterparty-charges/{id}?withPaidNow=` — satışın iptali
 
 Varsayılan (`false`): yalnız satış iptal olur; birlikte yazılmış avans
@@ -227,7 +263,8 @@ Gelir ya da gider yazmaz; cari bakiyeye **en eski kalem** olarak girer (ödeme
 
 ## İşlemler akışı
 
-**17 Kasım 2026:** yeni tür `counterparty-loan` (borç para; `effect: neutral`,
+**17 Kasım 2026:** yeni türler `counterparty-write-off` (vazgeçme; `effect`
+gelir ya da gider, kategorili) ve `counterparty-loan` (borç para; `effect: neutral`,
 `sourceGroup: counterparty`, yönü `direction`). İşlem sonrası bakiye hesabı ve
 kişinin açık bakiyesini döner. **Bugünkü Flutter istemcisi bu türü tanımıyor**
 ve bilinmeyen türde akışın tamamını reddeder; istemciden borç para yazılamadığı
@@ -271,6 +308,10 @@ için bugün tetiklenmez. İstemci türü Faz 5–7'de tanır.
 | `counterparties.paid_now_exceeds_charge` | 400 | Peşin ya da avans tutarı satışı aşıyor |
 | `counterparties.card_requires_payment` | 400 | Kredi kartı tahsilatta ya da hesapla birlikte verilmiş |
 | `counterparties.card_unavailable` | 400 | Kart yok, pasif ya da başkasının |
+| `counterparties.write_off_exceeds_balance` | 400 | Vazgeçilen tutar o taraftaki kalanı aşıyor |
+| `counterparties.write_off_not_found` | 404 | Vazgeçme yok ya da başkasının |
+| `counterparties.discount_exceeds_charges` | 400 | Kalan, indirim düşülebilecek alımlardan büyük |
+| `counterparty_charges.discount_belongs_to_payment` | 409 | Ödemeyle yazılmış indirim tek başına geri alınmak istendi |
 | `counterparties.concurrent_change` | 409 | Borç para eşzamanlı değişti |
 
 ## Yedek

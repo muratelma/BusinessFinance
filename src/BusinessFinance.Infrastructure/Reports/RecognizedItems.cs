@@ -230,6 +230,30 @@ internal static class RecognizedItems
                         .Sum(discount => (decimal?)discount.Amount) ?? 0m)
             });
 
+        // Vazgeçme o gün tanır (ADR 0021 İ4): alacaktan vazgeçmek gider,
+        // bağışlanan borç gelir. Para hareket etmez; bakiyeyi ödeme gibi kapatır.
+        var counterpartyWriteOffs = dbContext.CounterpartyWriteOffs.AsNoTracking()
+            .Where(writeOff => writeOff.UserId == userId && !writeOff.IsCancelled)
+            .Select(writeOff => new RecognizedItem
+            {
+                SourceId = writeOff.Id,
+                SourceKind = (int)FinancialActivityKind.CounterpartyWriteOff,
+                ParentId = (Guid?)null,
+                ParentKind = (int?)null,
+                ParentAmount = (decimal?)null,
+                Part = (string?)null,
+                AccountId = (Guid?)null,
+                CreditCardId = (Guid?)null,
+                CounterpartyId = writeOff.CounterpartyId,
+                EntryAtUtc = EF.Property<DateTimeOffset?>(writeOff, EntryTimestamp.PropertyName),
+
+                Date = writeOff.WriteOffDate,
+                Type = writeOff.Direction == DebtDirection.Receivable ? Expense : Income,
+                Scope = (int)writeOff.Scope,
+                CategoryId = writeOff.CategoryId,
+                Amount = writeOff.Amount.Amount
+            });
+
         // Tek seferlik alacak ve borç doğduğu gün tanınır; kapanışı taşır.
         // Uygulamadan önce devreden borç tanınmaz (ADR 0021 İ5).
         var obligations = obligationRows
@@ -320,6 +344,7 @@ internal static class RecognizedItems
             .Concat(debtOpenings)
             .Concat(debtInterest)
             .Concat(counterpartyCharges)
+            .Concat(counterpartyWriteOffs)
             .Concat(obligations)
             .Concat(posSales)
             .Concat(posCommissions);

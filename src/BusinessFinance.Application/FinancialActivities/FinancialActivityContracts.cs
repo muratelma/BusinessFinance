@@ -66,7 +66,13 @@ public enum FinancialActivityKind
     /// hesaptan çıkar ya da hesaba girer, kişinin bakiyesi artar, gelir/gider
     /// yazılmaz. Yönü <see cref="FinancialActivityRow.Direction"/> söyler.
     /// </summary>
-    CounterpartyLoan = 15
+    CounterpartyLoan = 15,
+
+    /// <summary>
+    /// Kişinin hesabında kalan tutardan vazgeçme (ADR 0021 İ4): para hareket
+    /// etmez; alacaktan vazgeçmek o gün gider, bağışlanan borç o gün gelirdir.
+    /// </summary>
+    CounterpartyWriteOff = 16
 }
 
 /// <summary>Effect on the income/expense report.</summary>

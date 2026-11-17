@@ -472,6 +472,13 @@ bileşik yabancı anahtarıdır; başka kullanıcının satışına bağlanamaz.
 `DELETE /api/v1/counterparty-charges/{id}?withPaidNow=true` yalnız aynı
 kullanıcının o satışa bağlı tahsilatlarını iptal eder.
 
+`POST /api/v1/counterparties/{id}/write-offs` ve `DELETE
+/api/v1/counterparty-write-offs/{id}` sahiplik kapsamlıdır ve sahiplik
+probunda yoklanır; vazgeçme kimliği sızıntı ölçüsündedir. Kategori `(UserId,
+Id)` ile çözülür. `Kalanı indirim say` yalnız aynı kullanıcının o kişideki
+alımlarına indirim yazar; indirimin ödemeye bağı `(UserId, PaymentId)`
+bileşik yabancı anahtarıdır.
+
 Kişiye kredi kartıyla ödemede (`creditCardId`) kart `(UserId, Id)` ile
 çözülür; başkasının kartı `400 counterparties.card_unavailable` alır ve kayıt
 yazılmaz. SQL'de kart bileşik yabancı anahtarla bağlıdır ve

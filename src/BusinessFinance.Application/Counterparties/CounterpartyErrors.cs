@@ -138,6 +138,33 @@ public static class CounterpartyErrors
         "An active owned credit card is required.",
         ApplicationErrorType.Validation);
 
+    /// <summary>Vazgeçilen tutar o taraftaki kalanı aşıyor.</summary>
+    public static readonly ApplicationError WriteOffExceedsBalance = new(
+        "counterparties.write_off_exceeds_balance",
+        "A write-off cannot exceed what is left on that side.",
+        ApplicationErrorType.Validation);
+
+    public static ApplicationError WriteOffNotFound(Guid id) => new(
+        "counterparties.write_off_not_found",
+        $"Write-off '{id}' was not found.",
+        ApplicationErrorType.NotFound);
+
+    /// <summary>
+    /// <c>Kalanı indirim say</c>: kalan, indirim düşülebilecek alımlardan büyük
+    /// (devreden bakiye ya da borç paradan geliyor, ya da alım gün sonunda
+    /// sayılmış). Kalan vazgeçmeyle kapatılır.
+    /// </summary>
+    public static readonly ApplicationError DiscountExceedsCharges = new(
+        "counterparties.discount_exceeds_charges",
+        "The remainder is larger than what the open purchases can be discounted; write it off instead.",
+        ApplicationErrorType.Validation);
+
+    /// <summary>Ödemeyle birlikte yazılan indirim tek başına geri alınamaz.</summary>
+    public static readonly ApplicationError DiscountBelongsToPayment = new(
+        "counterparty_charges.discount_belongs_to_payment",
+        "This discount was written with a payment; cancel the payment instead.",
+        ApplicationErrorType.Conflict);
+
     /// <summary>Satışla birlikte yazılan peşin ya da avans tutarı satışı aşıyor.</summary>
     public static readonly ApplicationError PaidNowExceedsCharge = new(
         "counterparties.paid_now_exceeds_charge",

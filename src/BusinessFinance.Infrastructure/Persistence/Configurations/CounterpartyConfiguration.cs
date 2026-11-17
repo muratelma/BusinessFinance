@@ -147,6 +147,15 @@ internal sealed class CounterpartyChargeDiscountConfiguration : IEntityTypeConfi
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(discount => new { discount.UserId, discount.CounterpartyId, discount.IsCancelled, discount.Direction })
             .HasDatabaseName("IX_CounterpartyChargeDiscounts_UserId_CounterpartyId_Cancelled_Direction");
+        // "Kalanı indirim say" ile ödemeyle birlikte yazılan indirimde o ödeme.
+        builder.HasOne<CounterpartyPayment>().WithMany()
+            .HasForeignKey(discount => new { discount.UserId, discount.PaymentId })
+            .HasPrincipalKey(payment => new { payment.UserId, payment.Id })
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired(false);
+        builder.HasIndex(discount => new { discount.UserId, discount.PaymentId })
+            .HasFilter("[PaymentId] IS NOT NULL")
+            .HasDatabaseName("IX_CounterpartyChargeDiscounts_UserId_PaymentId");
     }
 }
 
@@ -282,6 +291,57 @@ internal sealed class CounterpartyLoanConfiguration : IEntityTypeConfiguration<C
         builder.HasOne<Account>().WithMany()
             .HasForeignKey(loan => new { loan.UserId, loan.AccountId })
             .HasPrincipalKey(account => new { account.UserId, account.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+/// <summary>
+/// Vazgeçme: tanır (gelir ya da gider), para taşımaz (ADR 0021 İ4).
+/// </summary>
+internal sealed class CounterpartyWriteOffConfiguration : IEntityTypeConfiguration<CounterpartyWriteOff>
+{
+    public void Configure(EntityTypeBuilder<CounterpartyWriteOff> builder)
+    {
+        builder.ToTable("CounterpartyWriteOffs", table =>
+        {
+            table.HasCheckConstraint("CK_CounterpartyWriteOffs_Amount", "[Amount] > 0");
+            table.HasCheckConstraint("CK_CounterpartyWriteOffs_Currency", "[Currency] = 1");
+            table.HasCheckConstraint("CK_CounterpartyWriteOffs_Direction", "[Direction] IN (1, 2)");
+            table.HasCheckConstraint("CK_CounterpartyWriteOffs_Scope", "[Scope] IN (1, 2)");
+        });
+
+        builder.HasKey(writeOff => writeOff.Id);
+        builder.Property(writeOff => writeOff.Id).ValueGeneratedNever();
+        builder.HasAlternateKey(writeOff => new { writeOff.UserId, writeOff.Id });
+        builder.Property(writeOff => writeOff.Direction).HasConversion<byte>().HasColumnType("tinyint");
+        builder.Property(writeOff => writeOff.Scope).HasConversion<byte>().HasColumnType("tinyint");
+        builder.Property(writeOff => writeOff.WriteOffDate).HasColumnType("date");
+        builder.Property(writeOff => writeOff.Description)
+            .HasMaxLength(CounterpartyWriteOff.MaximumDescriptionLength);
+        builder.Property(writeOff => writeOff.IsCancelled).IsRequired();
+        builder.Property(writeOff => writeOff.CancelledAtUtc).HasColumnType("datetimeoffset");
+        builder.OwnsOne(writeOff => writeOff.Amount, money =>
+        {
+            money.Property(value => value.Amount).HasColumnName("Amount").HasPrecision(19, 4);
+            money.Property(value => value.Currency).HasColumnName("Currency")
+                .HasConversion<byte>().HasColumnType("tinyint");
+        });
+
+        builder.HasIndex(writeOff => new
+        { writeOff.UserId, writeOff.CounterpartyId, writeOff.IsCancelled, writeOff.Direction })
+            .HasDatabaseName("IX_CounterpartyWriteOffs_UserId_CounterpartyId_Cancelled_Direction");
+        builder.HasIndex(writeOff => new { writeOff.UserId, writeOff.WriteOffDate })
+            .HasDatabaseName("IX_CounterpartyWriteOffs_UserId_Date");
+
+        builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(writeOff => writeOff.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Counterparty>().WithMany()
+            .HasForeignKey(writeOff => new { writeOff.UserId, writeOff.CounterpartyId })
+            .HasPrincipalKey(counterparty => new { counterparty.UserId, counterparty.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Category>().WithMany()
+            .HasForeignKey(writeOff => new { writeOff.UserId, writeOff.CategoryId })
+            .HasPrincipalKey(category => new { category.UserId, category.Id })
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

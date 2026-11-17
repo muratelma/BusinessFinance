@@ -104,6 +104,10 @@ public sealed class ReverseCounterpartyChargeDiscountUseCase(
         if (discount.IsCancelled)
             return ApplicationResult<CounterpartyChargeDto>.Success(CreateCounterpartyChargeUseCase.ToDto(charge));
 
+        // Ödemeyle yazılan indirim ödemenin bağlı etkisidir (ADR 0021 İ7).
+        if (discount.PaymentId is not null)
+            return ApplicationResult<CounterpartyChargeDto>.Failure(CounterpartyErrors.DiscountBelongsToPayment);
+
         if (charge.IsCancelled)
             return ApplicationResult<CounterpartyChargeDto>.Failure(CounterpartyErrors.ChargeCancelled);
 

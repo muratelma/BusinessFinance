@@ -80,6 +80,13 @@ public sealed class DataPortabilityTests
         var advance = await context.CounterpartyPayments.SingleAsync(x => x.UserId == target && x.PaidWithChargeId != null);
         Assert.Equal(sale.Id, advance.PaidWithChargeId);
 
+        // Ödemeye bağlı indirim yeni ödeme kimliğine bağlanır; vazgeçme geri gelir.
+        var restoredDiscount = await context.CounterpartyChargeDiscounts.SingleAsync(x => x.UserId == target);
+        Assert.Equal(advance.Id, restoredDiscount.PaymentId);
+        var restoredWriteOff = await context.CounterpartyWriteOffs.SingleAsync(x => x.UserId == target);
+        Assert.Equal(50m, restoredWriteOff.Amount.Amount);
+        Assert.Equal(person.Id, restoredWriteOff.CounterpartyId);
+
         // Kişiye kartla ödeme hesapsız, kartıyla geri gelir.
         var restoredCard = await context.CreditCards.SingleAsync(x => x.UserId == target);
         var byCard = await context.CounterpartyPayments.SingleAsync(x => x.UserId == target && x.CreditCardId != null);
@@ -130,9 +137,17 @@ public sealed class DataPortabilityTests
             Guid.NewGuid(), userId, friend, income, DebtDirection.Receivable,
             new Money(1000m, CurrencyCode.TRY), TransactionScope.Personal, new DateOnly(2026, 8, 4));
         context.CounterpartyCharges.Add(sale);
-        context.CounterpartyPayments.Add(new CounterpartyPayment(
+        var advance = new CounterpartyPayment(
             Guid.NewGuid(), userId, friend, account, DebtDirection.Receivable,
-            new Money(400m, CurrencyCode.TRY), new DateOnly(2026, 8, 4), paidWithCharge: sale));
+            new Money(400m, CurrencyCode.TRY), new DateOnly(2026, 8, 4), paidWithCharge: sale);
+        context.CounterpartyPayments.Add(advance);
+        // "Kalanı indirim say" ile ödemeye bağlı indirim ve bir vazgeçme.
+        sale.ApplyDiscount(Guid.NewGuid(), 100m, new DateOnly(2026, 8, 4), DateTimeOffset.UtcNow, advance.Id);
+        var loss = new Category(Guid.NewGuid(), userId, "Alınamayan", CategoryType.Expense, TransactionScope.Personal);
+        context.Categories.Add(loss);
+        context.CounterpartyWriteOffs.Add(new CounterpartyWriteOff(
+            Guid.NewGuid(), userId, friend, loss, DebtDirection.Receivable,
+            new Money(50m, CurrencyCode.TRY), TransactionScope.Personal, new DateOnly(2026, 8, 8), "Kalan"));
         var card = new CreditCard(Guid.NewGuid(), userId, "Kart", new Money(5000m, CurrencyCode.TRY), 10, 20);
         context.CreditCards.Add(card);
         context.CounterpartyPayments.Add(CounterpartyPayment.PayByCard(

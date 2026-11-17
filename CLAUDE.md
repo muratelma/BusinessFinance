@@ -319,7 +319,14 @@ gerekçesiyle bozulmaz.
   türü vardır (`Counterparty.Scope`, nullable, eski kişide uydurulmaz); listeyi
   böler, kaydın kapsamı değildir. Borçlandırmanın kapsamı kategoriden, iki
   kapsama açıkta seçimden, o da yoksa kişinin türünden gelir; gün sonu yalnız
-  `İşletme` kapsamlı veresiye satışı sayar.
+  `İşletme` kapsamlı veresiye satışı sayar. Satışla birlikte peşin/avans
+  tutarı (`paidNow`) tek yazmada tahsilat olarak yazılır ve satışa bağlanır;
+  satış iptali onu varsayılan olarak bırakır. Kişiye kredi kartıyla ödeme
+  (`CounterpartyPayment.CreditCardId`) kart borcudur, gider değildir; `CardDebt`
+  okur. **Vazgeçme** (`CounterpartyWriteOff`) tanır — alacaktan vazgeçmek
+  gider, bağışlanan borç gelir — ve `RecognizedItems`e girer; bakiyeyi ödeme
+  gibi düşer. `Kalanı indirim say` var olan alım indirimidir, ödemeye bağlıdır
+  ve onunla birlikte geri alınır.
 - **Cari bakiye yalnız cari hareketlerden oluşur; bir borç tek yoldan kapanır**
   (ADR 0020, Aşama 06.3 C3–C6). Kişiye bağlı yükümlülük (ödenmemiş fatura, tek
   seferlik alacak) o kişinin **bilgisidir**: cari bakiyeye, gecikmiş tutara,

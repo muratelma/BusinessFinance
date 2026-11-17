@@ -235,7 +235,25 @@ public sealed class RecordDebtOpeningUseCaseTests
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<bool> AddPaymentAsync(CounterpartyPayment payment, PosSettlement? cardSettlement, CancellationToken cancellationToken) =>
+        public Task<bool> AddPaymentAsync(
+            CounterpartyPayment payment,
+            PosSettlement? cardSettlement,
+            CancellationToken cancellationToken,
+            IReadOnlyCollection<CounterpartyCharge>? discountedCharges = null) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<CounterpartyCharge>> FindRemainderCandidatesAsync(
+            Guid counterpartyId,
+            Guid userId,
+            DebtDirection direction,
+            DateOnly onOrBefore,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<CounterpartyCharge>> FindChargesDiscountedByPaymentAsync(
+            Guid paymentId,
+            Guid userId,
+            CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
         public Task<CounterpartyCharge?> FindOwnedChargeAsync(

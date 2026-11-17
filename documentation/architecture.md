@@ -2413,3 +2413,14 @@ limit, net varlık) onu kartla ödenen borcun yanında üçüncü kaynak olarak 
 `AccountMovements` okumaz. Kart sayfasının hareketlerinde ve akışta (kaynak
 kartın adı) görünür. Limit, kart harcamasıyla aynı kuralla kullanım durumunda
 denetlenir.
+
+Vazgeçme (`CounterpartyWriteOff`) **tanır**: alacaktan vazgeçmek gider,
+bağışlanan borç gelirdir; `RecognizedItems`in kaynaklarından biridir (rapor,
+kategori dağılımı, bütçe, eğilim onu aynı anda görür). Para hareket etmez;
+kişinin bakiyesi, gecikme (ödeme gibi en eski kalemden) ve `CounterpartyNet`
+onu ödeme gibi düşer. Kategori kullanımı (`ICategoryUsageReader`) onu sayar.
+
+`Kalanı indirim say` yeni bir kayıt türü değildir: var olan alım indirimidir
+(`CounterpartyChargeDiscount`), ödemeyle aynı yazmada en yeni açık alımlara
+dağıtılır ve `PaymentId` ile ödemeye bağlanır. Bağlı etkidir (ADR 0021 İ7):
+ödemenin iptali onu da geri alır, tek başına geri alınamaz.

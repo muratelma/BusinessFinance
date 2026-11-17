@@ -116,7 +116,35 @@ public sealed record CreateCounterpartyPaymentRequest(
     string? Description = null,
     CardCollectionRequest? Card = null,
     Guid? ClientRequestId = null,
-    Guid? CreditCardId = null);
+    Guid? CreditCardId = null,
+
+    // `Kalanı indirim say` (senaryo 20): ödemeden sonra o tarafta kalan tutar
+    // en yeni açık alımlara indirim olarak yazılır, ödemeyle aynı yazmada.
+    bool CloseRemainderAsDiscount = false);
+
+// Vazgeçme. `direction`: `receivable` alacaktan vazgeçtim (gider kategorisi),
+// `payable` borcum bağışlandı (gelir kategorisi). Kalanı aşamaz.
+public sealed record CreateCounterpartyWriteOffRequest(
+    string Direction,
+    string Amount,
+    string Currency,
+    Guid CategoryId,
+    string WriteOffDate,
+    string? Scope = null,
+    string? Description = null,
+    Guid? ClientRequestId = null);
+
+public sealed record CounterpartyWriteOffResponse(
+    Guid Id,
+    Guid CounterpartyId,
+    Guid CategoryId,
+    string Direction,
+    string Amount,
+    string Currency,
+    string Scope,
+    string WriteOffDate,
+    string? Description,
+    bool IsCancelled);
 
 public sealed record CounterpartyChargeResponse(
     Guid Id,
@@ -166,4 +194,6 @@ public sealed record CounterpartyPaymentResponse(
     bool IsCancelled,
     // Kartla tahsilde paranın yoldaki POS kaydı; değilse boş.
     Guid? PosSettlementId = null,
-    Guid? CreditCardId = null);
+    Guid? CreditCardId = null,
+    // Bu ödemeyle indirim olarak kapatılan kalan; yoksa "0.0000".
+    string RemainderDiscount = "0.0000");
