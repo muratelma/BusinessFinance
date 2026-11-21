@@ -413,6 +413,7 @@ class DashboardBudgetRings extends StatelessWidget {
       ].join('. '),
       child: AppCard(
         onTap: onOpen,
+        padding: const EdgeInsets.all(AppSpacing.compact),
         child: Column(
           children: [
             for (var r = 0; r < rows.length; r++) ...[
@@ -476,7 +477,12 @@ class _BudgetRing extends StatelessWidget {
           size: AppTextSizes.row,
         ),
         const SizedBox(width: AppSpacing.xSmall),
-        Expanded(child: Text(item.categoryName, style: style)),
+        Expanded(
+          child: Text(
+            item.categoryName,
+            style: style?.copyWith(fontSize: AppTextSizes.body),
+          ),
+        ),
       ],
     );
     final ring = SizedBox.square(
@@ -521,7 +527,11 @@ class _BudgetRing extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 label,
-                Divider(color: surfaces.border, height: AppSpacing.small),
+                Divider(
+                  color: surfaces.ink,
+                  thickness: 1,
+                  height: AppSpacing.xSmall,
+                ),
                 money,
               ],
             ),
@@ -560,7 +570,8 @@ class _BudgetRing extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 title,
-                const SizedBox(height: AppSpacing.medium),
+                const Spacer(),
+                const SizedBox(height: AppSpacing.small),
                 amountRow,
               ],
             ),
@@ -988,7 +999,10 @@ class DashboardNetWorthCard extends StatelessWidget {
           ColoredBox(
             color: surfaces.cardMuted,
             child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.medium),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.medium,
+                vertical: AppSpacing.compact,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1004,7 +1018,7 @@ class DashboardNetWorthCard extends StatelessWidget {
                       style: theme.textTheme.bodySmall,
                     ),
                   if (assets != null && liabilities != null) ...[
-                    const SizedBox(height: AppSpacing.medium),
+                    const SizedBox(height: AppSpacing.small),
                     _BalanceBar(
                       assets: _value(assets),
                       liabilities: _value(liabilities),
@@ -1045,36 +1059,79 @@ class DashboardNetWorthCard extends StatelessWidget {
               button: line.onTap != null,
               onTap: line.onTap,
               child: ExcludeSemantics(
-                child: ListTile(
-                  leading: AppIconCapsule(
-                    icon: line.icon,
-                    tone: liabilityLines.contains(line)
-                        ? AppStatusTone.expense
-                        : AppStatusTone.neutral,
-                  ),
-                  title: Text(line.label, style: theme.textTheme.bodyMedium),
-                  subtitle: line.subtitle.isEmpty
-                      ? null
-                      : Text(
-                          line.subtitle,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: line.whenOverdue
-                                ? colors.expense
-                                : surfaces.inkMuted,
+                child: InkWell(
+                  onTap: line.onTap,
+                  child: Container(
+                    constraints: const BoxConstraints(
+                      minHeight: AppSizes.button,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.medium,
+                      vertical: AppSpacing.xSmall,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        top: BorderSide(color: surfaces.border, width: 0),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        AppIconCapsule(
+                          icon: line.icon,
+                          size: AppSizes.rowButton,
+                          tone: liabilityLines.contains(line)
+                              ? AppStatusTone.expense
+                              : AppStatusTone.neutral,
+                        ),
+                        const SizedBox(width: AppSpacing.small),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      line.label,
+                                      style: theme.textTheme.bodyMedium,
+                                    ),
+                                  ),
+                                  if (line.onTap != null)
+                                    Icon(
+                                      Icons.chevron_right,
+                                      size: AppTextSizes.row,
+                                      color: surfaces.inkMuted,
+                                    ),
+                                ],
+                              ),
+                              if (line.subtitle.isNotEmpty)
+                                Text(
+                                  line.subtitle,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: line.whenOverdue
+                                        ? colors.expense
+                                        : surfaces.inkMuted,
+                                    fontSize: AppTextSizes.caption,
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
-                  trailing: Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      AppMoneyText(
-                        amount: line.amount,
-                        currency: currency,
-                        size: AppMoneySize.row,
-                      ),
-                      if (line.onTap != null) const Icon(Icons.chevron_right),
-                    ],
+                        const SizedBox(width: AppSpacing.small),
+                        Flexible(
+                          fit: FlexFit.loose,
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: AppMoneyText(
+                              amount: line.amount,
+                              currency: currency,
+                              size: AppMoneySize.row,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  onTap: line.onTap,
                 ),
               ),
             ),
@@ -1121,7 +1178,7 @@ class _BalanceBar extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRadius.chip),
         child: SizedBox(
-          height: 10,
+          height: AppSpacing.xSmall,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

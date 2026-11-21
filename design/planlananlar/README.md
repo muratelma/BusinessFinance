@@ -4,6 +4,21 @@ Son güncelleme: 21 Kasım 2026. **Özet’in backend ve Flutter değişiklikler
 
 ### Oturum günlüğü · 21 Kasım 2026
 
+**İlk emülatör incelemesinden sonraki yerleşim düzeltmesi.** Kullanıcı Varlık
+durumu’nun fazla yüksek olduğunu ve bütçe kutularındaki çizginin seçilmediğini
+bildirdi. Aynı İşletme verisiyle, 412 dp genişlikte Varlık durumu kartı
+yaklaşık 549 dp’den 399 dp’ye, dört kutulu Bütçeler 258 dp’den 211 dp’ye
+indi. Varlık tutarları aynı sağ kenarda, POS oku adın yanında. Bütçe
+kutularında halka ve tutarlar aynı tabana oturur. Kalan/Aşım çizgisi açık
+temada koyu, koyu temada açıktır. Tek bütçenin yatay düzeni sürer.
+[Varlık önce](../../tasarim-onizleme/ozet-yerlesim-2026-11-21/ONCE/varlik.png) ·
+[Varlık sonra](../../tasarim-onizleme/ozet-yerlesim-2026-11-21/SONRA/varlik.png) ·
+[Bütçeler önce](../../tasarim-onizleme/ozet-yerlesim-2026-11-21/ONCE/butceler.png) ·
+[Bütçeler sonra](../../tasarim-onizleme/ozet-yerlesim-2026-11-21/SONRA/butceler.png).
+Flutter analiz, 73 ilgili test, iki görsel kontrol ve Android derlemesi geçti.
+Düzeltme APK’sı Pixel 8’e veri korunarak kuruldu, uygulama açıldı ve API
+hazırlık kontrolü 200 döndü. Sıradaki görev kullanıcının yeni yerleşimi incelemesi.
+
 **Son kodlama checkpoint’i.** Dal `ozet-tamamlama`. İlk commit `b2e29c7`,
 Özet teslimi Git geçmişinde `feat: align dashboard payments and planned activity with the selected week`
 adıyla bulunur. Sonraki oturumda önce kullanıcının emülatör bulgularına bakılır.

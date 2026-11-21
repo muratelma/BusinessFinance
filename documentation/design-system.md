@@ -1153,7 +1153,9 @@ hesap bakiyeleri.
   `remaining`'idir.
 - Tek bütçede halka solda, kategori ile kalan/aşım tutarı sağdadır. Birden
   çok kutuda kategori üstte, halka ve tutar alttadır. Etiket ile tutarı ince
-  çizgi ayırır. Başlık seçili ayın bütçe listesini açar.
+  çizgi ayırır. Çizgi tema metin rengindedir ve tutar sütunu kadar uzanır.
+  Aynı sıradaki halkalar kategori adı iki satıra taşsa da hizalıdır.
+  Başlık seçili ayın bütçe listesini açar.
 - **Yaklaşanlar** bugün dahil yedi günün ilk dört vadesini gösterir. Tarih
   bağlantısı aynı haftayı açar. Altta haftanın tüm ödeme adedi ve bilinen
   tutarı yer alır. Tahsilat ve karta yansıyan kalemler kendi adıyla görünür.
@@ -1162,6 +1164,9 @@ hesap bakiyeleri.
   şahsi toplamı” açıklamasını, oran çubuğunu ve sunucunun iki toplamını gösterir.
   POS satırı beklenen toplamı ve varsa “Geciken yatış var” uyarısını taşır.
   POS ayrıntısı Kasa’da açılır.
+  Varlık ve borç satırları en az ortak dokunma alanı yüksekliğindedir,
+  büyük yazıda içerikle büyür. Tutarlar sağda aynı kenara yaslanır, POS
+  ayrıntısının oku kalem adının yanında durur.
 - Dokununca başka ekrana giden özet kartları (bütçe halkaları, yaklaşanlar)
   ekran okuyucuya **tek durak**tır: etiket içeriğin cümlelerini taşır, eylem
   aynı düğümdedir.

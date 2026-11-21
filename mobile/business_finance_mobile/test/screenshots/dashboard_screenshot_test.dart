@@ -71,4 +71,29 @@ void main() {
       },
     );
   }, skip: !screenshotsEnabled);
+
+  for (final section in {
+    'butceler': 'Bütçeler',
+    'varlik': 'Varlık durumu',
+  }.entries) {
+    testWidgets('yerleşim · ${section.key}', (tester) async {
+      final widget = await tester.runAsync(
+        () => page(TransactionScope.business),
+      );
+      await captureScreen(
+        tester,
+        section.key,
+        widget!,
+        before: (tester) async {
+          final header = find.text(section.value);
+          await tester.scrollUntilVisible(
+            header,
+            260,
+            scrollable: find.byType(Scrollable).first,
+          );
+          await Scrollable.ensureVisible(tester.element(header));
+        },
+      );
+    }, skip: !screenshotsEnabled);
+  }
 }

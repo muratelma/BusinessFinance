@@ -5,6 +5,10 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
 
 ## Aktif konum
 
+- **21 Kasım · Özet yerleşim düzeltmesi.** İlk emülatör incelemesinden
+  sonra Varlık durumu satırları sıkılaştırıldı ve bütçe kutuları hizalandı.
+  Flutter analiz, 73 ilgili test ve Android derlemesi geçti. Son APK Pixel 8’e kuruldu.
+
 - **21 Kasım 2026 · Özet (`ozet-tamamlama`)**. Bütçe kartları ve Varlık
   durumu güncellendi. Yaklaşanlar, ödeme adedini ve bilinen toplamı haftanın
   tüm açık vadelerinden okur. Hafta ve gecikme girişleri aynı referans gününü
