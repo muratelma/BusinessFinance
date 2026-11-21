@@ -33,11 +33,13 @@ class BudgetsPage extends StatefulWidget {
   const BudgetsPage({
     super.key,
     this.controller,
+    this.initialMonth,
     this.repository,
     this.changes,
     this.scopeController,
   });
   final BudgetsController? controller;
+  final DateTime? initialMonth;
   final BudgetRepositoryContract? repository;
   final FinancialDataChanges? changes;
 
@@ -59,6 +61,7 @@ class _BudgetsPageState extends State<BudgetsPage> {
     if (_controller == null && widget.repository != null) {
       _controller = BudgetsController(
         widget.repository!,
+        initialMonth: widget.initialMonth,
         changes: widget.changes,
         scopeController: widget.scopeController,
       );

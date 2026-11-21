@@ -86,7 +86,9 @@ public static class FinancialActivityEndpoints
         string? asOfDate = null,
         int daysAhead = 30,
         string? scope = null,
-        bool includeCounterpartyDues = false)
+        bool includeCounterpartyDues = false,
+        bool countTodayInHorizon = false,
+        bool includeScopedStatements = false)
     {
         if (!FinanceContract.TryParseDate(asOfDate, out var parsedAsOfDate))
         {
@@ -104,7 +106,7 @@ public static class FinancialActivityEndpoints
         }
 
         var result = await useCase.ExecuteAsync(
-            new PlannedActivityQuery(parsedAsOfDate, daysAhead, parsedScope, includeCounterpartyDues),
+            new PlannedActivityQuery(parsedAsOfDate, daysAhead, parsedScope, includeCounterpartyDues, countTodayInHorizon, includeScopedStatements),
             cancellationToken);
         if (!result.IsSuccess)
         {
@@ -122,7 +124,8 @@ public static class FinancialActivityEndpoints
             FinanceContract.Money(value.UpcomingOutgoingTotal),
             value.UnknownAmountCount,
             FinanceContract.Money(value.OverdueOutgoingTotal),
-            value.OverdueUnknownAmountCount));
+            value.OverdueUnknownAmountCount,
+            value.UpcomingPaymentCount));
     }
 
     internal static PlannedActivityResponse ToResponse(PlannedActivityDto item) => new(
@@ -149,7 +152,9 @@ public static class FinancialActivityEndpoints
         item.ActionTargetId,
         item.ActionSequence,
         item.RecurringTransactionId,
-        Taxes.TaxContractValues.OptionalTaxKindValue(item.TaxKind));
+        Taxes.TaxContractValues.OptionalTaxKindValue(item.TaxKind),
+        item.PostsToCard || item.PlannedKind == PlannedActivityKind.CardInstallment,
+        item.IsMixedStatement);
 
     internal static readonly Dictionary<PlannedActivityKind, string> PlannedKindValues = new()
     {

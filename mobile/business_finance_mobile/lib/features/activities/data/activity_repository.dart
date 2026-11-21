@@ -188,6 +188,8 @@ class ActivityRepository implements ActivityRepositoryContract {
       PlannedKind.debtInstallment ||
       PlannedKind.receivableInstallment ||
       PlannedKind.payableObligation ||
+      PlannedKind.counterpartyPayable ||
+      PlannedKind.counterpartyReceivable ||
       PlannedKind.receivableObligation => throw StateError(
         'Bu tür ödeme ekranından yürütülür: ${activity.plannedKind.apiValue}',
       ),
@@ -220,6 +222,9 @@ class ActivityRepository implements ActivityRepositoryContract {
         queryParameters: {
           'asOfDate': '${asOf.year}-$month-$day',
           'daysAhead': '${horizon.days}',
+          if (horizon == PlannedHorizon.week) 'countTodayInHorizon': 'true',
+          if (horizon == PlannedHorizon.week) 'includeCounterpartyDues': 'true',
+          if (horizon == PlannedHorizon.week) 'includeScopedStatements': 'true',
           'scope': ?scope?.apiValue,
         },
       ).toString(),

@@ -70,6 +70,10 @@ class DashboardViewModel extends LoadableViewModel {
   /// Pencere içinde vadesi gelmemiş ödemelerin sunucudaki toplamı
   /// ("7 günde çıkacak"); okunamadıysa `null`.
   String? upcomingOutgoingTotal;
+  DateTime? plannedAsOf;
+  int? upcomingPaymentCount;
+  int? unknownAmountCount;
+  bool plannedReadFailed = false;
 
   /// Gecikmiş ödemelerin tutarı belli olanlarının sunucudaki toplamı;
   /// okunamadıysa `null`. Yaklaşanlar kartının gecikenler satırı bunu yazar.
@@ -81,7 +85,7 @@ class DashboardViewModel extends LoadableViewModel {
   static const upcomingHorizon = PlannedHorizon.week;
 
   /// Ekranda gösterilen en fazla satır sayısı.
-  static const upcomingVisibleCount = 5;
+  static const upcomingVisibleCount = 4;
 
   /// Ekranın o an okuduğu kapsam; başlıkta da bu yazılı durur.
   TransactionScope? get scope => _scopeController?.scope;
@@ -97,25 +101,55 @@ class DashboardViewModel extends LoadableViewModel {
   Future<void> selectScope(TransactionScope? value) async =>
       _scopeController?.select(value);
 
-  Future<void> load() => loadSafely(() async {
-    report = await _repository.getMonthly(year, month, scope: scope);
-    await _loadAdvanced();
-    await _loadOverdue();
-  });
+  int _loadGeneration = 0;
+  TransactionScope? _loadedScope;
+  Future<void> load() {
+    final request = ++_loadGeneration;
+    final selectedScope = scope;
+    final selectedYear = year;
+    final selectedMonth = month;
+    bool current() => request == _loadGeneration;
+    if (_loadedScope != selectedScope ||
+        report?.year != year ||
+        report?.month != month) {
+      report = null;
+    }
+    return loadSafely(() async {
+      final monthly = await _repository.getMonthly(
+        selectedYear,
+        selectedMonth,
+        scope: selectedScope,
+      );
+      if (!current()) return;
+      AdvancedReport? details;
+      try {
+        details = await _repository.getAdvanced(
+          selectedYear,
+          selectedMonth,
+          scope: selectedScope,
+        );
+      } on Exception {
+        details = null;
+      }
+      if (!current()) return;
+      await _loadOverdue(current, selectedScope);
+      if (!current()) return;
+      report = monthly;
+      advanced = details;
+      _loadedScope = selectedScope;
+    }, isCurrent: current);
+  }
 
   /// Ay özetini düşürmemek için ayrı ve bağışlayıcı: buradaki bir hata
   /// kullanıcıyı bütün ekrandan etmemeli.
-  Future<void> _loadAdvanced() async {
-    try {
-      advanced = await _repository.getAdvanced(year, month, scope: scope);
-    } on Exception {
-      advanced = null;
-    }
-  }
-
-  /// Gelişmiş rapor gibi bağışlayıcı: uyarı bandının düşmesi kullanıcıyı ay
-  /// özetinden etmemeli.
-  Future<void> _loadOverdue() async {
+  Future<void> _loadOverdue(
+    bool Function() current,
+    TransactionScope? selectedScope,
+  ) async {
+    plannedAsOf = _now();
+    upcomingPaymentCount = null;
+    unknownAmountCount = null;
+    plannedReadFailed = true;
     if (_activityRepository == null) {
       overdue = const [];
       upcoming = const [];
@@ -130,9 +164,10 @@ class DashboardViewModel extends LoadableViewModel {
       // istemek sorguyu gereksiz büyütmemek için.
       final page = await _activityRepository.listPlanned(
         horizon: upcomingHorizon,
-        today: _now(),
-        scope: scope,
+        today: plannedAsOf,
+        scope: selectedScope,
       );
+      if (!current()) return;
       final obligations = page.items
           .where((item) => item.isPaymentObligation)
           .toList();
@@ -144,15 +179,19 @@ class DashboardViewModel extends LoadableViewModel {
       // hiçbir yerde görünmemeleri, bandın kapatmaya çalıştığı sessizliğin
       // aynısı olurdu.
       final ahead =
-          obligations
+          page.items
               .where((item) => item.timing != PlannedTiming.overdue)
               .toList()
             ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
       upcoming = ahead.take(upcomingVisibleCount).toList(growable: false);
       upcomingOutgoingTotal = page.upcomingOutgoingTotal;
+      upcomingPaymentCount = page.upcomingPaymentCount;
+      unknownAmountCount = page.unknownAmountCount;
+      plannedReadFailed = false;
       overdueOutgoingTotal = page.overdueOutgoingTotal;
       upcomingHiddenCount = ahead.length - upcoming.length;
     } on Exception {
+      if (!current()) return;
       overdue = const [];
       upcoming = const [];
       upcomingHiddenCount = 0;
@@ -193,6 +232,7 @@ class DashboardViewModel extends LoadableViewModel {
 
   @override
   void dispose() {
+    _loadGeneration++;
     _changes?.removeListener(_handleFinancialDataChanged);
     _scopeController?.removeListener(_handleScopeChanged);
     super.dispose();

@@ -1256,6 +1256,17 @@ görünür; sunucunun `detail` alanı kullanıcı cümlesi olarak gösterilmez.
 
 ## Kişinin hesabı: yön süzgeci ve planlanan vadeler — 17 Kasım 2026
 
+**Özet’in haftalık okuması (21 Kasım 2026).** Haftalık istemci
+`countTodayInHorizon=true`, `includeScopedStatements=true` ve
+`includeCounterpartyDues=true` gönderir. Bugün ilk gün, bugün + 6 son gündür.
+Eski istemci için tarih aralığı ve filtreli ekstre davranışı korunur.
+`upcomingPaymentCount` önizleme kesilmeden önceki tüm ödeme adedidir.
+`upcomingOutgoingTotal` bilinen tutarların toplamı, `unknownAmountCount`
+belirsiz tutarlı ödemelerin adedidir. Satırdaki `postsToCard` gelecekteki
+kart yansımasını belirtir. Bu kalem ayrı ekstre ödemesiyle iki kez sayılmaz.
+`isMixedStatement` kesilmiş ekstreye iki kapsamın da katkı verdiğini bildirir.
+Kısmi ödeme kalanı azaltır. Kapanmış borcun kapsamı yeni borca taşınmaz.
+
 - **Akış:** `GET /api/v1/financial-activities` yeni isteğe bağlı `direction`
   (`receivable` · `payable`) alır; yönü olmayan satırlar düşer. Kişi sayfasının
   `Alacak tarafı / Borç tarafı` süzgeci budur (K15). Tanınmayan değer

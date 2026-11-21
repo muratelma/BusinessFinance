@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using BusinessFinance.Infrastructure.Accounts;
+using BusinessFinance.Domain;
 using BusinessFinance.Infrastructure.Persistence;
 
 namespace BusinessFinance.Infrastructure.CreditCards;
@@ -27,6 +28,7 @@ internal static class CardDebt
             {
                 CardId = charge.CreditCardId,
                 Date = charge.ChargeDate,
+                Scope = charge.Scope,
                 Amount = charge.Amount.Amount
             })
             .Concat(dbContext.DebtPayments.AsNoTracking()
@@ -35,6 +37,8 @@ internal static class CardDebt
                 {
                     CardId = payment.CreditCardId!.Value,
                     Date = payment.PaymentDate,
+                    Scope = dbContext.Debts.Where(debt => debt.UserId == userId && debt.Id == payment.DebtId)
+                        .Select(debt => (TransactionScope?)debt.Scope).FirstOrDefault(),
                     Amount = payment.Amount.Amount
                 }))
             // Kişiye kartla ödeme (S2): gider değildir, kart borcudur.
@@ -44,6 +48,8 @@ internal static class CardDebt
                 {
                     CardId = payment.CreditCardId!.Value,
                     Date = payment.PaymentDate,
+                    Scope = dbContext.Counterparties.Where(person => person.UserId == userId && person.Id == payment.CounterpartyId)
+                        .Select(person => person.Scope).FirstOrDefault(),
                     Amount = payment.Amount.Amount
                 }));
 
@@ -131,6 +137,7 @@ internal static class CardDebt
 
 internal sealed class CardChargeRow
 {
+    public TransactionScope? Scope { get; init; }
     public Guid CardId { get; init; }
     public DateOnly Date { get; init; }
     public decimal Amount { get; init; }

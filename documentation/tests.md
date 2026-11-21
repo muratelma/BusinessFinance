@@ -1,5 +1,18 @@
 # Test Kapsam Haritası
 
+### Özet kabulü · 21 Kasım 2026
+
+- `PlannedActivityUseCaseTests` hafta son sınırını, eski istemcinin bitiş
+  tarihini, tahsilat ve karta yansımaların nakit toplamından ayrılmasını sınar.
+  Beş ödemeden birinin tutarı belirsizken bilinen toplam ₺7.500’dür.
+- `CreditCardStatementEndpointTests` karma ekstrenin kısmi ödeme sonrası
+  tam kalanını, sahiplik izolasyonunu ve borç kapandıktan sonra yeni
+  ekstrenin tek kapsama dönmesini iki farklı sağlayıcıda sınar.
+- `dashboard_sections_test.dart` tek/üç/dört ve daha fazla bütçeyi, büyük
+  yazıyı, koyu temayı, dört satırlık önizlemeye sığmayan ödemelerin
+  sayılmasını ve belirsiz tutar metnini kapsar. `planned_activity_test.dart`
+  iki Özet girişinde aynı referans gününü, haftayı ve eski vadenin görünürlüğünü sınar.
+
 Bu belge uygulanmış davranışların hangi test katmanında kanıtlandığını gösterir.
 Planlanan testler tamamlanmış gibi listelenmez.
 

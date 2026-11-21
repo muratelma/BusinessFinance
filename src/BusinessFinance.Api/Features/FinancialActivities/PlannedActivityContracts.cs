@@ -54,7 +54,9 @@ public sealed record PlannedActivityResponse(
     Guid? RecurringTransactionId,
 
     /// <summary>Plan bir vergiyse türü (<c>social-security-premium</c> …); değilse <c>null</c>.</summary>
-    string? TaxKind);
+    string? TaxKind,
+    bool PostsToCard = false,
+    bool IsMixedStatement = false);
 
 /// <summary>
 /// No single total is reported: adding planned income, expenses, statements and neutral
@@ -83,4 +85,5 @@ public sealed record PlannedActivityListResponse(
     // Gecikmiş ödeme yükümlülüklerinin tutarı belli olanlarının toplamı ve
     // tutarı belli olmayanların sayısı; pencereden bağımsız.
     string OverdueOutgoingTotal,
-    int OverdueUnknownAmountCount);
+    int OverdueUnknownAmountCount,
+    int UpcomingPaymentCount = 0);

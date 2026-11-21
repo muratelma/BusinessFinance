@@ -2182,3 +2182,9 @@ Kategori özetinde `Bu seçimde başka hesap veya kart yok` gibi notlar seçim
 ve `/transactions`'a yönlenir. Seçim menülerinin ortak hareketi ve boy
 kuralları `documentation/design-system.md` "Seçim menülerinin son hâli"
 bölümündedir.
+## Özet’ten haftaya ve eski vadelere geçiş · 21 Kasım 2026
+
+Yaklaşanlar’ın tarih bağlantısı aynı referans günü ve seçili kapsamla yedi
+günlük Planlananlar listesini açar. Ekranın üstündeki gecikme şeridi aynı
+listeyi geciken ödemeler açıkken başlatır. Gecikenler özgün vade tarihini
+taşır. Özet’te geçmiş aya bakmak haftanın başlangıcını değiştirmez.

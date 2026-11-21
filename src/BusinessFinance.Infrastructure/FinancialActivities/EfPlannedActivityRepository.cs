@@ -22,18 +22,17 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
     /// o kapsam.
     /// </summary>
     /// <remarks>
-    /// Kapsam filtresi kapsamsız satırları da eler ve elemesi gerekir: kart
-    /// ekstresi bir ödeme yükümlülüğüdür ama kapsam taşımaz, çünkü kart ödemesi
-    /// gelir/gider raporuna sıfır etki eder (ADR 0003). Onu her iki kapsamda da
-    /// göstermek, kullanıcı iki tarafı toplayınca aynı borcu iki kez saydırırdı.
-    /// Filtre her kaynağın kendi sorgusuna iniyor; bellekte eleme yok.
+    /// Eski istemcinin kapsam filtresi ekstreleri dışarıda bırakır.
+    /// Yeni haftalık okuma ilgili kapsamın katkısı varsa tam ekstre kalanını
+    /// gösterir. Tek havuzun borcu iki raporlama kapsamına paylaştırılmaz.
     /// </remarks>
     public async Task<IReadOnlyList<PlannedActivityDto>> ListAsync(
         Guid userId,
         DateOnly asOfDate,
         DateOnly horizonDate,
         TransactionScope? scope,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool includeScopedStatements = false)
     {
         var accounts = await dbContext.Accounts.AsNoTracking()
             .Where(account => account.UserId == userId)
@@ -54,11 +53,10 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
         items.AddRange(await ListInstallmentsAsync(
             userId, asOfDate, horizonDate, cards, availableLimits, scope, cancellationToken));
 
-        // Ekstre kapsam taşımaz; kapsam anahtarı bir tarafa çevriliyse listeden düşer.
-        if (scope is null)
+        if (scope is null || includeScopedStatements)
         {
             items.AddRange(await ListStatementsAsync(
-                userId, asOfDate, horizonDate, cards, cancellationToken));
+                userId, asOfDate, horizonDate, cards, scope, includeScopedStatements, cancellationToken));
         }
 
         items.AddRange(await ListDebtAsync(userId, asOfDate, horizonDate, scope, cancellationToken));
@@ -403,7 +401,8 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
             isProjected ? scheduleId : plannedActivityId,
             null,
             scheduleId,
-            taxKind);
+            taxKind,
+            PostsToCard: sourceType == RecurringSourceType.CreditCard);
     }
 
     private async Task<IReadOnlyList<PlannedActivityDto>> ListInstallmentsAsync(
@@ -485,6 +484,8 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
         DateOnly asOfDate,
         DateOnly horizonDate,
         IReadOnlyDictionary<Guid, CreditCard> cards,
+        TransactionScope? scope,
+        bool includeScopedStatements,
         CancellationToken cancellationToken)
     {
         if (cards.Count == 0) return [];
@@ -589,7 +590,50 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
                 ActionSequence: null));
         }
 
-        return items;
+        if (!includeScopedStatements || items.Count == 0) return items;
+
+        // Kapanmış borç eski kapsamı yeni ekstreye taşımaz. Kısmi ödemeye kapsam
+        // dağıtılmaz. Gün sonu borç sıfıra (veya kart alacağına) indiğinde küme temizlenir.
+        var openCards = items.Select(item => item.PlannedActivityId).ToArray();
+        var lastClosing = openCards.Max(id => periods[id].ClosingDate);
+        var charges = await chargeQuery
+            .Where(row => openCards.Contains(row.CardId) && row.Date <= lastClosing)
+            .GroupBy(row => new { row.CardId, row.Date, row.Scope })
+            .Select(group => new { group.Key.CardId, group.Key.Date, group.Key.Scope, Amount = group.Sum(row => row.Amount) })
+            .ToListAsync(cancellationToken);
+        var payments = await paymentQuery
+            .Where(row => openCards.Contains(row.CreditCardId) && row.PaymentDate <= lastClosing)
+            .GroupBy(row => new { row.CreditCardId, row.PaymentDate })
+            .Select(group => new { CardId = group.Key.CreditCardId, Date = group.Key.PaymentDate, Amount = group.Sum(row => row.Amount.Amount) })
+            .ToListAsync(cancellationToken);
+        var daysByCard = charges.Select(row => (row.CardId, row.Date, row.Scope, row.Amount))
+            .Concat(payments.Select(row => (row.CardId, row.Date, Scope: (TransactionScope?)null, Amount: -row.Amount)))
+            .ToLookup(row => row.CardId);
+        var filtered = new List<PlannedActivityDto>();
+        foreach (var item in items)
+        {
+            var balance = 0m;
+            var scopes = new HashSet<TransactionScope>();
+            var closing = periods[item.PlannedActivityId].ClosingDate;
+            foreach (var day in daysByCard[item.PlannedActivityId].Where(row => row.Date <= closing)
+                         .GroupBy(row => row.Date).OrderBy(group => group.Key))
+            {
+                foreach (var movement in day)
+                {
+                    balance += movement.Amount;
+                    if (movement.Scope is TransactionScope side) scopes.Add(side);
+                }
+
+                if (balance <= 0m) scopes.Clear();
+            }
+
+            if (scope is null || scopes.Contains(scope.Value))
+            {
+                filtered.Add(item with { IsMixedStatement = scopes.Count > 1 });
+            }
+        }
+
+        return filtered;
     }
 
     private async Task<IReadOnlyList<PlannedActivityDto>> ListDebtAsync(
@@ -671,7 +715,7 @@ internal sealed class EfPlannedActivityRepository(BusinessFinanceDbContext dbCon
     {
         var rows = await (
                 from obligation in dbContext.Obligations.AsNoTracking()
-                    // Devredilmiş faturanın kategorisi yoktur; vadesi yine planlanır.
+                // Devredilmiş faturanın kategorisi yoktur; vadesi yine planlanır.
                 join category in dbContext.Categories.AsNoTracking()
                     on new { obligation.UserId, Id = obligation.CategoryId }
                     equals new { category.UserId, Id = (Guid?)category.Id }

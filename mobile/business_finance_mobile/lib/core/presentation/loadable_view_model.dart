@@ -12,20 +12,27 @@ abstract class LoadableViewModel extends ChangeNotifier {
   ApiException? get error => _error;
 
   @protected
-  Future<void> loadSafely(Future<void> Function() operation) async {
+  Future<void> loadSafely(
+    Future<void> Function() operation, {
+    bool Function()? isCurrent,
+  }) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
     try {
       await operation();
-      _hasLoaded = true;
+      if (isCurrent?.call() ?? true) _hasLoaded = true;
     } on ApiException catch (error) {
-      _error = error;
+      if (isCurrent?.call() ?? true) _error = error;
     } on FormatException {
-      _error = ApiException.local('response.invalid_format');
+      if (isCurrent?.call() ?? true) {
+        _error = ApiException.local('response.invalid_format');
+      }
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (isCurrent?.call() ?? true) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 

@@ -49,6 +49,10 @@ void main() {
       );
 
       expect(requests.single.url.queryParameters['scope'], 'personal');
+      expect(
+        requests.single.url.queryParameters['countTodayInHorizon'],
+        'true',
+      );
     });
   });
 

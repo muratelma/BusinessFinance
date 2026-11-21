@@ -7,7 +7,9 @@ enum PlannedKind {
   debtInstallment('debt-installment'),
   receivableInstallment('receivable-installment'),
   payableObligation('payable-obligation'),
-  receivableObligation('receivable-obligation');
+  receivableObligation('receivable-obligation'),
+  counterpartyPayable('counterparty-payable-due'),
+  counterpartyReceivable('counterparty-receivable-due');
 
   const PlannedKind(this.apiValue);
   final String apiValue;
@@ -20,6 +22,8 @@ enum PlannedKind {
     'receivable-installment' => receivableInstallment,
     'payable-obligation' => payableObligation,
     'receivable-obligation' => receivableObligation,
+    'counterparty-payable-due' => counterpartyPayable,
+    'counterparty-receivable-due' => counterpartyReceivable,
     _ => throw FormatException('Bilinmeyen planlanan tür: $value'),
   };
 
@@ -31,6 +35,8 @@ enum PlannedKind {
     receivableInstallment => 'Alacak taksidi',
     payableObligation => 'Ödenecek',
     receivableObligation => 'Tahsil edilecek',
+    counterpartyPayable => 'Kişiye ödeme',
+    counterpartyReceivable => 'Kişiden tahsilat',
   };
 }
 
@@ -107,7 +113,9 @@ enum PlannedAction {
   payDebt('pay-debt'),
   collectDebt('collect-debt'),
   payObligation('pay-obligation'),
-  collectObligation('collect-obligation');
+  collectObligation('collect-obligation'),
+  payCounterparty('pay-counterparty'),
+  collectCounterparty('collect-counterparty');
 
   const PlannedAction(this.apiValue);
   final String apiValue;
@@ -119,6 +127,8 @@ enum PlannedAction {
     'collect-debt' => collectDebt,
     'pay-obligation' => payObligation,
     'collect-obligation' => collectObligation,
+    'pay-counterparty' => payCounterparty,
+    'collect-counterparty' => collectCounterparty,
     _ => throw FormatException('Bilinmeyen eylem: $value'),
   };
 
@@ -129,6 +139,8 @@ enum PlannedAction {
     collectDebt => 'Tahsil et',
     payObligation => 'Öde',
     collectObligation => 'Tahsil et',
+    payCounterparty => 'Öde',
+    collectCounterparty => 'Tahsil et',
   };
 }
 
@@ -146,6 +158,8 @@ class PlannedActivity {
     required this.title,
     required this.isProjected,
     required this.isPaymentObligation,
+    this.postsToCard = false,
+    this.isMixedStatement = false,
     this.actionTargetId,
     this.actionSequence,
     this.attentionCode,
@@ -180,6 +194,8 @@ class PlannedActivity {
         categoryName: json['categoryName'] as String?,
         isProjected: json['isProjected'] as bool,
         isPaymentObligation: json['isPaymentObligation'] as bool,
+        postsToCard: json['postsToCard'] as bool? ?? false,
+        isMixedStatement: json['isMixedStatement'] as bool? ?? false,
         actionTargetId: json['actionTargetId'] as String?,
         actionSequence: json['actionSequence'] as int?,
         recurringTransactionId: json['recurringTransactionId'] as String?,
@@ -226,6 +242,18 @@ class PlannedActivity {
   /// Sunucudan geliyor; `effect` ve `actionKind`'dan burada türetilseydi aynı
   /// kuralın ikinci bir kopyası doğar ve iki taraf sessizce ayrışabilirdi.
   final bool isPaymentObligation;
+  final bool postsToCard;
+  final bool isMixedStatement;
+
+  String get displayTitle => isMixedStatement ? '$title · Karma ekstre' : title;
+
+  String get paymentLabel {
+    if (postsToCard || plannedKind == PlannedKind.cardInstallment) {
+      return 'Karta yansıyacak';
+    }
+    if (plannedKind == PlannedKind.cardStatement) return 'Ekstre ödemesi';
+    return isPaymentObligation ? 'Ödeme' : 'Beklenen tahsilat';
+  }
 
   /// Satırı üreten tekrarlayan plan; yalnız tekrarlayan kalemde dolu.
   final String? recurringTransactionId;
@@ -303,12 +331,16 @@ class PlannedActivityPage {
     required this.items,
     this.nearestDueDate,
     this.upcomingOutgoingTotal,
+    this.upcomingPaymentCount,
+    this.unknownAmountCount,
     this.overdueOutgoingTotal,
   });
 
   factory PlannedActivityPage.fromJson(Map<String, dynamic> json) =>
       PlannedActivityPage(
         upcomingOutgoingTotal: json['upcomingOutgoingTotal'] as String?,
+        upcomingPaymentCount: json['upcomingPaymentCount'] as int?,
+        unknownAmountCount: json['unknownAmountCount'] as int?,
         overdueOutgoingTotal: json['overdueOutgoingTotal'] as String?,
         asOfDate: json['asOfDate'] as String,
         daysAhead: json['daysAhead'] as int,
@@ -334,6 +366,8 @@ class PlannedActivityPage {
   /// ("7 günde çıkacak"). Sunucuda toplanır; gelir, tahsilat ve gecikmişler
   /// girmez. Eski sunucu göndermezse `null`.
   final String? upcomingOutgoingTotal;
+  final int? upcomingPaymentCount;
+  final int? unknownAmountCount;
 
   /// Gecikmiş ödeme yükümlülüklerinin tutarı belli olanlarının toplamı;
   /// pencereden bağımsız. Sunucuda toplanır, eski sunucu göndermezse `null`.
@@ -370,6 +404,8 @@ enum PlannedTypeFilter {
     statement => item.plannedKind == PlannedKind.cardStatement,
     debt =>
       item.plannedKind == PlannedKind.debtInstallment ||
+          item.plannedKind == PlannedKind.counterpartyPayable ||
+          item.plannedKind == PlannedKind.counterpartyReceivable ||
           item.plannedKind == PlannedKind.receivableInstallment,
     obligation =>
       item.plannedKind == PlannedKind.payableObligation ||

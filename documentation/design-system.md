@@ -1151,14 +1151,17 @@ hesap bakiyeleri.
   ikili, 1 tek. Aşılan bütçe gider zemininde, halka gider dolgusunda. Yüzde
   ve halka boyu yalnız çizim oranıdır; kalan/aşım tutarı sunucunun
   `remaining`'idir.
-- **Yaklaşanlar** 7 günün ödemelerini zaman çizelgesinde (en fazla beş kalem)
-  ve göreli vadeyle (`Yarın`, `3 gün sonra`) yazar; altta sunucunun
-  `upcomingOutgoingTotal`'ı (`7 günde çıkacak`). Gecikmişler bu toplama
-  girmez, şeridin konusudur.
-- **Varlık durumu** net varlık, varlık/borç oran çubuğu ve iki taraf:
-  `Varlıklar` (likit, yolda + geçiş günü, alacak, varsa kart alacağı; nötr
-  mavi) ve `Borçlar` (kart borcu, borç; gider kırmızısı). İki tarafın
-  toplamı sunucudan gelir (`totalAssets`, `totalLiabilities`).
+- Tek bütçede halka solda, kategori ile kalan/aşım tutarı sağdadır. Birden
+  çok kutuda kategori üstte, halka ve tutar alttadır. Etiket ile tutarı ince
+  çizgi ayırır. Başlık seçili ayın bütçe listesini açar.
+- **Yaklaşanlar** bugün dahil yedi günün ilk dört vadesini gösterir. Tarih
+  bağlantısı aynı haftayı açar. Altta haftanın tüm ödeme adedi ve bilinen
+  tutarı yer alır. Tahsilat ve karta yansıyan kalemler kendi adıyla görünür.
+  Tutarı belirsiz ödeme ayrıca belirtilir. Eski vadeler üst şeritten açılır.
+- **Varlık durumu** üst yüzeyde net varlığı, kapsam seçilmişse “İşletme ve
+  şahsi toplamı” açıklamasını, oran çubuğunu ve sunucunun iki toplamını gösterir.
+  POS satırı beklenen toplamı ve varsa “Geciken yatış var” uyarısını taşır.
+  POS ayrıntısı Kasa’da açılır.
 - Dokununca başka ekrana giden özet kartları (bütçe halkaları, yaklaşanlar)
   ekran okuyucuya **tek durak**tır: etiket içeriğin cümlelerini taşır, eylem
   aynı düğümdedir.

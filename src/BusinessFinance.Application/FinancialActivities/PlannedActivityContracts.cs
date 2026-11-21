@@ -130,7 +130,9 @@ public sealed record PlannedActivityDto(
     Guid? RecurringTransactionId = null,
 
     /// <summary>Plan bir vergiyse türü (ADR 0018 T2); değilse boş.</summary>
-    TaxKind? TaxKind = null);
+    TaxKind? TaxKind = null,
+    bool PostsToCard = false,
+    bool IsMixedStatement = false);
 
 public sealed record PlannedActivityQuery(
     DateOnly AsOfDate,
@@ -139,7 +141,9 @@ public sealed record PlannedActivityQuery(
 
     // Kişinin hesabındaki vadeler (S11). Bugünkü istemci yeni türleri tanımadığı
     // için yalnız istenirse döner; varsayılan eski davranıştır.
-    bool IncludeCounterpartyDues = false);
+    bool IncludeCounterpartyDues = false,
+    bool CountTodayInHorizon = false,
+    bool IncludeScopedStatements = false);
 
 public sealed record PlannedActivityListResult(
     DateOnly AsOfDate,
@@ -179,7 +183,8 @@ public sealed record PlannedActivityListResult(
     /// Gecikmiş ödeme yükümlülüklerinden tutarı belli olmayanların sayısı.
     /// Toplama tahminle katılmazlar (ADR 0018 İ5).
     /// </summary>
-    int OverdueUnknownAmountCount = 0);
+    int OverdueUnknownAmountCount = 0,
+    int UpcomingPaymentCount = 0);
 
 /// <summary>
 /// The single source of planned movements. The upcoming-payments view reads a narrowed
@@ -188,15 +193,16 @@ public sealed record PlannedActivityListResult(
 public interface IPlannedActivityRepository
 {
     /// <summary>
-    /// <paramref name="scope"/> boşsa toplam; doluysa kapsamsız satırlar
-    /// (kart ekstresi) da düşer.
+    /// <paramref name="scope"/> boşsa tüm kayıtlar okunur. Filtreli okumada
+    /// ekstrelerin dahil edilmesi <paramref name="includeScopedStatements"/> seçimine bağlıdır.
     /// </summary>
     Task<IReadOnlyList<PlannedActivityDto>> ListAsync(
         Guid userId,
         DateOnly asOfDate,
         DateOnly horizonDate,
         TransactionScope? scope,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        bool includeScopedStatements = false);
 
     /// <summary>
     /// Tek bir tekrarlayan planın henüz gerçekleşmemiş kalemleri, ufka kadar.
@@ -232,6 +238,13 @@ public static class PlannedActivityRules
     /// upcoming-payments view while still coming from the same projection.
     /// </summary>
     public static bool IsPaymentObligation(PlannedActivityDto item)
+    {
+        return IsOutgoingOrCardPosting(item) &&
+               item.PlannedKind != PlannedActivityKind.CardInstallment && !item.PostsToCard;
+    }
+
+    // The existing reminder feed includes card postings which still need confirmation.
+    public static bool IsOutgoingOrCardPosting(PlannedActivityDto item)
     {
         ArgumentNullException.ThrowIfNull(item);
         return item.ActionKind != PlannedActivityAction.CollectDebt &&

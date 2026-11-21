@@ -32,9 +32,13 @@ class PlannedActivityPageView extends StatefulWidget {
     super.key,
     this.changes,
     this.scopeController,
+    this.asOf,
+    this.openOverdue = false,
   });
 
   final ActivityRepositoryContract repository;
+  final DateTime? asOf;
+  final bool openOverdue;
   final FinancialDataChanges? changes;
 
   /// Uygulama genelindeki kapsam anahtarı; bu ekran onu uygular ve yazar,
@@ -54,6 +58,7 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
     super.initState();
     _controller = PlannedActivityController(
       widget.repository,
+      asOf: widget.asOf,
       financialDataChanges: widget.changes,
       scopeController: widget.scopeController,
     );
@@ -132,6 +137,8 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
         PlannedKind.receivableInstallment => '/more/debts',
         PlannedKind.recurringOccurrence => '/more/planning',
         PlannedKind.payableObligation ||
+        PlannedKind.counterpartyPayable ||
+        PlannedKind.counterpartyReceivable ||
         PlannedKind.receivableObligation => '/more/activities/planned',
       };
       await context.push(destination);
@@ -148,7 +155,7 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
     if (activity.plannedKind == PlannedKind.recurringOccurrence) {
       final paidOn = await showRealizeDaySheet(
         context,
-        title: activity.title,
+        title: activity.displayTitle,
         amount: activity.amount!,
         currency: activity.currency,
         dueDate: activity.dueDate,
@@ -165,7 +172,7 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
       icon: Icons.playlist_add_check,
       title: 'Gerçekleştirilsin mi?',
       highlight:
-          '${activity.title}\n'
+          '${activity.displayTitle}\n'
           '${MoneyText.format(activity.amount!, activity.currency)}',
       message:
           '${source == null ? 'Bu kayıt' : '$source hesabındaki bu kayıt'} '
@@ -185,7 +192,7 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
     if (!success && _controller.earlierItemPending && paidOn != null) {
       final confirmed = await confirmSkippingEarlierItem(
         context,
-        title: activity.title,
+        title: activity.displayTitle,
         dueDate: activity.dueDate,
         paidOn: paidOn,
         pendingDate: _controller.earlierPendingDate,
@@ -248,6 +255,73 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
     }
 
     final items = _controller.visibleItems;
+    if (widget.asOf != null) {
+      final overdue = items.where(
+        (item) =>
+            item.timing == PlannedTiming.overdue && item.isPaymentObligation,
+      );
+      final week = items.where((item) => item.timing != PlannedTiming.overdue);
+      Widget tile(PlannedActivity item) => Padding(
+        padding: const EdgeInsets.only(bottom: AppGaps.card),
+        child: PlannedActivityTile(
+          key: ValueKey(item.listKey),
+          activity: item,
+          onAction: () => _act(item),
+        ),
+      );
+      final late = overdue.isEmpty
+          ? null
+          : ExpansionTile(
+              title: Text('${overdue.length} gecikmiş ödeme'),
+              initiallyExpanded: widget.openOverdue,
+              children: overdue.map(tile).toList(),
+            );
+      return RefreshIndicator(
+        onRefresh: _controller.load,
+        child: ListView(
+          padding: AppPageInsets.aboveBar(context, AppPageInsets.fullBleedList),
+          children: [
+            if (widget.openOverdue && late != null) late,
+            if (_controller.page case final page?
+                when page.upcomingPaymentCount != null &&
+                    page.upcomingOutgoingTotal != null &&
+                    week.isNotEmpty)
+              ListTile(
+                title: Text(
+                  '${page.daysAhead} günde ödenecek · ${page.upcomingPaymentCount} ödeme',
+                ),
+                subtitle: (page.unknownAmountCount ?? 0) > 0
+                    ? Text(
+                        '${page.unknownAmountCount} ödemenin tutarı belli değil',
+                      )
+                    : null,
+                trailing:
+                    page.unknownAmountCount != null &&
+                        page.unknownAmountCount == page.upcomingPaymentCount &&
+                        page.unknownAmountCount! > 0
+                    ? null
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          if ((page.unknownAmountCount ?? 0) > 0)
+                            const Text('Bilinen tutar'),
+                          AppMoneyText(
+                            amount: page.upcomingOutgoingTotal!,
+                            currency: week.first.currency,
+                            size: AppMoneySize.row,
+                          ),
+                        ],
+                      ),
+              ),
+            if (week.isEmpty)
+              const ListTile(title: Text('Bu dönemde vade yok.')),
+            ...week.map(tile),
+            if (!widget.openOverdue && late != null) late,
+          ],
+        ),
+      );
+    }
     return RefreshIndicator(
       onRefresh: _controller.load,
       child: ListView.separated(
@@ -296,7 +370,7 @@ class PlannedActivityTile extends StatelessWidget {
               // ve aynı bilgiyi taşıyan diğer listelerden iri görünüyordu.
               AppListRow(
                 icon: _kindIcon,
-                title: activity.title,
+                title: activity.displayTitle,
                 titleMaxLines: 1,
                 subtitle: [
                   activity.plannedKind.label,
@@ -385,6 +459,8 @@ class PlannedActivityTile extends StatelessWidget {
     PlannedKind.debtInstallment ||
     PlannedKind.receivableInstallment => Icons.handshake_outlined,
     PlannedKind.payableObligation ||
+    PlannedKind.counterpartyPayable ||
+    PlannedKind.counterpartyReceivable ||
     PlannedKind.receivableObligation => Icons.receipt_long_outlined,
   };
 
@@ -425,15 +501,17 @@ class PlannedActivityTile extends StatelessWidget {
   /// `Yaklaşan` rozeti bunu zaten söylüyor. Tekrarlayan kalem vadesinden önce
   /// de gerçekleştirilir, onda eylem çıkar.
   bool get _showsAction =>
-      activity.isTax ||
-      activity.actionKind != PlannedAction.realize ||
-      activity.isRealizableNow;
+      activity.plannedKind != PlannedKind.counterpartyPayable &&
+      activity.plannedKind != PlannedKind.counterpartyReceivable &&
+      (activity.isTax ||
+          activity.actionKind != PlannedAction.realize ||
+          activity.isRealizableNow);
 
   String _semanticsLabel() {
     final buffer = StringBuffer()
       ..write(activity.plannedKind.label)
       ..write('. ')
-      ..write(activity.title)
+      ..write(activity.displayTitle)
       ..write('. ')
       ..write(
         activity.amount == null

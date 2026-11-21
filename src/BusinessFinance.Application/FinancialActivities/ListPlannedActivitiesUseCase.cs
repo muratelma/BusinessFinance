@@ -39,9 +39,10 @@ public sealed class ListPlannedActivitiesUseCase(
                 PlannedActivityErrors.InvalidDaysAhead);
         }
 
-        var horizonDate = query.AsOfDate.AddDays(query.DaysAhead);
+        var horizonDate = query.AsOfDate.AddDays(
+            query.CountTodayInHorizon ? query.DaysAhead - 1 : query.DaysAhead);
         var items = (await repository.ListAsync(
-            userId, query.AsOfDate, horizonDate, query.Scope, cancellationToken)).ToList();
+            userId, query.AsOfDate, horizonDate, query.Scope, cancellationToken, query.IncludeScopedStatements)).ToList();
         if (query.IncludeCounterpartyDues)
         {
             items.AddRange(await repository.ListCounterpartyDuesAsync(
@@ -79,7 +80,8 @@ public sealed class ListPlannedActivitiesUseCase(
                 outgoing.Sum(item => item.Amount ?? 0m),
                 outgoing.Count(item => item.Amount is null),
                 overdue.Sum(item => item.Amount ?? 0m),
-                overdue.Count(item => item.Amount is null)));
+                overdue.Count(item => item.Amount is null),
+                outgoing.Length));
     }
 }
 

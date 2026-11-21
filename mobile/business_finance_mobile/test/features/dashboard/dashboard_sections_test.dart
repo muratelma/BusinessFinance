@@ -10,6 +10,7 @@ import 'package:business_finance_mobile/features/activities/data/planned_activit
 import 'package:business_finance_mobile/features/dashboard/data/dashboard_models.dart';
 import 'package:business_finance_mobile/features/dashboard/data/dashboard_repository.dart';
 import 'package:business_finance_mobile/features/dashboard/presentation/dashboard_page.dart';
+import 'package:business_finance_mobile/features/dashboard/presentation/dashboard_sections.dart';
 import 'package:business_finance_mobile/features/dashboard/presentation/dashboard_view_model.dart';
 import 'package:business_finance_mobile/features/planning/data/planning_models.dart';
 import 'package:provider/provider.dart';
@@ -18,6 +19,47 @@ import '../../helpers/accessibility.dart';
 import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 
 void main() {
+  for (final count in [1, 3, 4, 6]) {
+    testWidgets('koyu temada $count bütçe ve yuvarlanmış yüzde 100', (
+      tester,
+    ) async {
+      final items = List.generate(
+        count,
+        (i) => BudgetVarianceItem(
+          categoryName: 'Kategori $i',
+          canonicalName: 'test',
+          limit: '100.0000',
+          spent: i == 0 ? '100.0100' : '99.9900',
+          remaining: i == 0 ? '-0.0100' : '0.0100',
+          isExceeded: i == 0,
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: SizedBox(
+              width: 330,
+              child: DashboardBudgetRings(
+                items: items,
+                currency: 'TRY',
+                onOpen: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+      final visible = count == 3
+          ? 2
+          : count > 4
+          ? 4
+          : count;
+      expect(find.text('%100'), findsNWidgets(visible));
+      expect(find.text('Aşım'), findsOneWidget);
+      expect(find.text('Kalan'), findsNWidgets(visible - 1));
+      expect(tester.takeException(), isNull);
+    });
+  }
   group('hesap ve kategori ikonları', () {
     test('nakit ile banka hesabı farklı ikon alır', () {
       final cash = AppFinanceIcons.forAccountType('cash');
@@ -103,7 +145,7 @@ void main() {
       // görünür, "limit içinde" diye kaybolmaz.
       expect(find.text('%120'), findsOneWidget);
       expect(find.text('%90'), findsOneWidget);
-      expect(find.text('₺20,00 kaldı'), findsOneWidget);
+      expect(find.text('₺20,00'), findsOneWidget);
       // Başlık üç bütçeyi sayar, kartta en dolu ikisi görünür.
       expect(find.text('3 bütçe'), findsOneWidget);
       expect(find.text('%30'), findsNothing);
@@ -130,8 +172,8 @@ void main() {
       await _pump(tester, viewModel, height: 3000);
 
       expect(find.text('Yaklaşanlar'), findsOneWidget);
-      expect(find.text('7 gün'), findsOneWidget);
-      // Yakın uçtan uzağa sıralı; zaman çizelgesi beş kaleme kadar gösterir.
+      expect(find.text('9–15 Ağu'), findsOneWidget);
+      // Zaman çizelgesi tarih sırasıyla en fazla dört vade gösterir.
       expect(viewModel.upcoming.map((item) => item.plannedActivityId), [
         'b',
         'c',
@@ -145,6 +187,42 @@ void main() {
       // satırları toplamaz.
       expect(find.text('7 günde çıkacak'), findsNothing);
     });
+
+    testWidgets(
+      'dört satırlık önizleme tüm haftanın tutarını ve ödeme adedini taşır',
+      (tester) async {
+        final vm = DashboardViewModel(
+          _Source(_report(), advanced: _advanced()),
+          activityRepository: _PlannedSource(
+            [
+              for (var i = 0; i < 6; i++)
+                _planned(
+                  id: 'kalem-$i',
+                  timing: 'upcoming',
+                  dueDate: '2026-08-${10 + i}',
+                ),
+            ],
+            paymentCount: 5,
+            unknownCount: 1,
+            total: '7500.0000',
+          ),
+          now: () => DateTime(2026, 8, 9),
+        );
+        await vm.load();
+        await _pump(tester, vm, height: 3000);
+        expect(vm.upcoming, hasLength(4));
+        expect(find.text('Sıradaki 4 vade'), findsOneWidget);
+        expect(
+          find.textContaining('7 günde ödenecek · 5 ödeme'),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining('1 ödemenin tutarı belli değil'),
+          findsOneWidget,
+        );
+        expect(find.text('₺7.500,00'), findsOneWidget);
+      },
+    );
 
     testWidgets('yaklaşan yokken bölüm gizlenmez, iyi haberi yazar', (
       tester,
@@ -168,7 +246,7 @@ void main() {
       expect(find.text('Bu hafta ödeme yok.'), findsOneWidget);
     });
 
-    testWidgets('kartın başında gecikenler sunucunun toplamıyla durur', (
+    testWidgets('gecikmiş ödeme üst şeritte bir kez görünür', (
       tester,
     ) async {
       final viewModel = DashboardViewModel(
@@ -184,8 +262,8 @@ void main() {
       await _pump(tester, viewModel, height: 3000);
 
       // Toplam sunucudan gelir; geciken toplamı "7 günde çıkacak"a girmez.
-      expect(find.text('₺41.280,00'), findsOneWidget);
-      expect(find.text('1 gecikmiş ödeme'), findsNWidgets(2));
+      expect(find.text('₺41.280,00'), findsNothing);
+      expect(find.text('1 gecikmiş ödeme'), findsOneWidget);
     });
 
     testWidgets('tutarı belli olmayan kalem cümleyle yazılır', (tester) async {
@@ -259,7 +337,7 @@ void main() {
       expect(find.text('₺2.370,00'), findsOneWidget); // net varlık
       expect(find.text('₺2.400,00'), findsOneWidget); // likit varlık
       expect(find.text('₺250,00'), findsOneWidget); // kart borcu
-      expect(find.text('Alacak'), findsOneWidget);
+      expect(find.text('Alacaklar'), findsOneWidget);
       expect(find.text('₺340,00'), findsOneWidget);
       expect(find.text('Borç'), findsOneWidget);
       expect(find.text('₺120,00'), findsOneWidget);
@@ -280,8 +358,8 @@ void main() {
 
       await _pump(tester, viewModel, height: 3000);
 
-      expect(find.text('Likit varlık'), findsOneWidget);
-      expect(find.text('Alacak'), findsNothing);
+      expect(find.text('Kasa ve banka'), findsOneWidget);
+      expect(find.text('Alacaklar'), findsNothing);
       expect(find.text('Borç'), findsNothing);
     });
 
@@ -308,9 +386,9 @@ void main() {
 
       await _pump(tester, viewModel, height: 3000);
 
-      expect(find.text('Yolda'), findsOneWidget);
+      expect(find.text('POS yatışları'), findsOneWidget);
       // İki kaynağı da (POS satışı, kartla tahsil) kapsayan söz.
-      expect(find.text('Kartla gelecek'), findsOneWidget);
+      expect(find.text('Geciken yatış var'), findsNothing);
       // Kartın kelimesi ADR 0015'in kelimesidir: `bloke` bankacılık jargonu.
       expect(find.textContaining('Bloke'), findsNothing);
     });
@@ -333,7 +411,7 @@ void main() {
       await _pump(tester, viewModel, height: 3000);
 
       // Beklenen gün bugünse gecikmiş değildir.
-      expect(find.text('12 Ağustos'), findsOneWidget);
+      expect(find.text('Geciken yatış var'), findsNothing);
       expect(find.textContaining('Gecikti'), findsNothing);
     });
 
@@ -356,8 +434,7 @@ void main() {
 
       await _pump(tester, viewModel, height: 3000);
 
-      expect(find.text('7 Ağustos · Gecikti'), findsOneWidget);
-      expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
+      expect(find.text('Geciken yatış var'), findsOneWidget);
     });
 
     testWidgets('yolda para yokken satır hiç çizilmiyor', (tester) async {
@@ -369,8 +446,8 @@ void main() {
 
       await _pump(tester, viewModel, height: 3000);
 
-      expect(find.text('Likit varlık'), findsOneWidget);
-      expect(find.text('Yolda'), findsNothing);
+      expect(find.text('Kasa ve banka'), findsOneWidget);
+      expect(find.text('POS yatışları'), findsNothing);
     });
 
     test('net varlık yoldaki parayı içerir, likit varlık içermez', () {
@@ -433,18 +510,18 @@ void main() {
       final colors = AppTheme.light().extension<AppFinanceColors>()!;
       expect(
         tester.widget<Text>(find.text('₺250,00')).style?.color, // kart borcu
-        colors.expense,
+        AppTheme.light().colorScheme.onSurface,
       );
       // Tasarım kararı (Claude Design teslimi, 27 Eylül 2026): borçlar
       // tarafının bütün kalemleri gider kırmızısıyla çizilir; alacak varlık
       // tarafında nötr mavi kalır.
       expect(
         tester.widget<Text>(find.text('₺120,00')).style?.color, // borç
-        colors.expense,
+        AppTheme.light().colorScheme.onSurface,
       );
       expect(
         tester.widget<Text>(find.text('₺340,00')).style?.color, // alacak
-        colors.neutral,
+        isNot(colors.income),
       );
       // Sayının faizi içerip içermediği ekrandan okunabilmeli.
       expect(find.text('faiz hariç'), findsNWidgets(2));
@@ -473,19 +550,20 @@ void main() {
 
       await _pump(tester, viewModel, height: 3000);
 
-      expect(find.text('Kart alacağı'), findsOneWidget);
+      expect(find.text('Kartta fazla ödeme'), findsOneWidget);
       expect(find.text('Kart borcu'), findsNothing);
       // Rol yalnız ekran okuyucuya söyleniyor; renk bir konuşma kanalı değil.
       expect(
-        find.bySemanticsLabel(RegExp('Kart alacağı: .*, net varlığa eklenir')),
+        find.bySemanticsLabel(
+          RegExp('Kartta fazla ödeme: .*, net varlığa eklenir'),
+        ),
         findsOneWidget,
       );
 
-      // Varlık tarafında durur ve o tarafın nötr mavisini alır.
-      final colors = AppTheme.light().extension<AppFinanceColors>()!;
+      // Yeni kartta tutar metin rengindedir, yönü simge gösterir.
       expect(
         tester.widget<Text>(find.text('₺560,00')).style?.color,
-        colors.neutral,
+        AppTheme.light().colorScheme.onSurface,
       );
     });
 
@@ -554,8 +632,9 @@ void main() {
       await _pump(tester, viewModel, height: 3000);
 
       // Aşım tutarı sunucunun negatif `remaining`'idir; işaretsiz ve
-      // "fazla" diye yazılır.
-      expect(find.text('₺50,00 fazla'), findsOneWidget);
+      // "Aşım" etiketiyle yazılır.
+      expect(find.text('Aşım'), findsOneWidget);
+      expect(find.text('₺50,00'), findsWidgets);
       expect(find.bySemanticsLabel(RegExp('limit aşıldı')), findsOneWidget);
     });
 
@@ -766,15 +845,14 @@ void main() {
 
       await _pump(tester, viewModel);
 
-      // Şerit ve Yaklaşanlar kartının başındaki satır aynı sayıyı söyler
-      // (kullanıcı kararı, 30 Eylül 2026: ikisi de kalır).
-      expect(find.text('2 gecikmiş ödeme'), findsNWidgets(2));
+      // Eski vadelerin tek girişi üst şerittir.
+      expect(find.text('2 gecikmiş ödeme'), findsOneWidget);
       // Tutar toplamı yok: istemci parayı ikinci kez hesaplamaz.
       // Vade ve gerekçe **ayrı** satırlar; tek cümle olsalardı sarma noktası
       // kabın genişliğine düşer ve son kelime yalnız başına alt satıra
       // kalırdı (telefonda `geçmez` böyle yetim kalıyordu). Tam eşleşme
       // aranıyor: biri ikisini tekrar tek `Text`te birleştirirse düşer.
-      expect(find.text('En eskisi 15 Temmuz'), findsNWidgets(2));
+      expect(find.text('En eskisi 15 Temmuz'), findsOneWidget);
       // Ayrı bir buton yok: şeridin kendisi tek dokunma hedefi.
       expect(find.byType(FilledButton), findsNothing);
       final band = find
@@ -1059,11 +1137,20 @@ class _PlannedSource implements ActivityRepositoryContract {
   /// İşlem ayrıntısındaki "kalan bakiye" için dönecek cevap.
   List<ActivityBalance> balances = const [];
 
-  _PlannedSource(this.items, {this.overdueTotal});
-  _PlannedSource.failing() : items = null, overdueTotal = null;
+  _PlannedSource(
+    this.items, {
+    this.overdueTotal,
+    this.paymentCount,
+    this.unknownCount,
+    this.total,
+  });
+  _PlannedSource.failing() : this(null);
 
   final List<PlannedActivity>? items;
   final String? overdueTotal;
+  final int? paymentCount;
+  final int? unknownCount;
+  final String? total;
 
   @override
   Future<PlannedActivityPage> listPlanned({
@@ -1079,6 +1166,9 @@ class _PlannedSource implements ActivityRepositoryContract {
       totalCount: loaded.length,
       items: loaded,
       overdueOutgoingTotal: overdueTotal,
+      upcomingPaymentCount: paymentCount,
+      unknownAmountCount: unknownCount,
+      upcomingOutgoingTotal: total,
     );
   }
 

@@ -362,12 +362,18 @@ GoRouter createAppRouter({
                   ),
                   GoRoute(
                     path: 'planned',
-                    pageBuilder: _sessionPageBuilder(
+                    pageBuilder: (context, state) => _sessionPage(
+                      state,
                       activityRepository == null
                           ? const SizedBox.shrink()
                           : PlannedActivityPageView(
                               repository: activityRepository,
-
+                              asOf: DateTime.tryParse(
+                                state.uri.queryParameters['asOf'] ?? '',
+                              ),
+                              openOverdue:
+                                  state.uri.queryParameters['overdue'] ==
+                                  'true',
                               changes: financialDataChanges,
                               scopeController: scopeController,
                             ),
@@ -729,8 +735,10 @@ GoRouter createAppRouter({
       ),
       GoRoute(
         path: '/more/budgets',
-        pageBuilder: _sessionPageBuilder(
+        pageBuilder: (context, state) => _sessionPage(
+          state,
           BudgetsPage(
+            initialMonth: _pageMonth(state),
             repository: budgetRepository,
             changes: financialDataChanges,
             scopeController: scopeController,

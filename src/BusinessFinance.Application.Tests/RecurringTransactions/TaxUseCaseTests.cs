@@ -345,7 +345,8 @@ public sealed class TaxUseCaseTests
             DateOnly asOfDate,
             DateOnly horizonDate,
             TransactionScope? scope,
-            CancellationToken cancellationToken) =>
+            CancellationToken cancellationToken,
+            bool includeScopedStatements = false) =>
             Task.FromResult<IReadOnlyList<PlannedActivityDto>>(items);
 
         public Task<IReadOnlyList<PlannedActivityDto>> ListForRecurringPlanAsync(

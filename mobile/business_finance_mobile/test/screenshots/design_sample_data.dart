@@ -143,6 +143,8 @@ class DesignActivities extends Fake implements ActivityRepositoryContract {
       daysAhead: 7,
       totalCount: data.upcoming.length + data.overdueCount,
       upcomingOutgoingTotal: data.upcomingTotal,
+      upcomingPaymentCount: data.upcoming.length,
+      unknownAmountCount: 0,
       items: [
         for (var i = 0; i < data.overdueCount; i++)
           _planned(

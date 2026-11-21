@@ -17,6 +17,20 @@ const _unsplitNote =
     'Kapsam filtresinden etkilenmez: işletme ve şahsi toplamıdır.';
 
 void main() {
+  test('geç gelen önceki ay yanıtı yeni raporun üzerine yazmaz', () async {
+    final source = _DelayedMonthlySource();
+    final vm = DashboardViewModel(source, now: () => DateTime(2026, 8, 9));
+    final first = vm.load();
+    final second = vm.nextMonth();
+    source.latest.complete();
+    await second;
+    final current = vm.report;
+    source.first.complete();
+    await first;
+    expect(current, isNotNull);
+    expect(vm.report, same(current));
+    expect(vm.report!.month, vm.month);
+  });
   group('okuma', () {
     test('aktif kapsam her iki rapora da iner', () async {
       final source = _RecordingDataSource();
@@ -272,6 +286,20 @@ class _RecordingDataSource implements DashboardDataSource {
     // Gelişmiş rapor ikincil okumadır; burada düşmesi ay özetini etkilemiyor
     // ve `Varlık durumu` bölümü çizilmiyor.
     return Future.error(Exception('gelişmiş rapor bu testte yapılandırılmadı'));
+  }
+}
+
+class _DelayedMonthlySource extends _RecordingDataSource {
+  final first = Completer<void>();
+  final latest = Completer<void>();
+  @override
+  Future<DashboardReport> getMonthly(
+    int year,
+    int month, {
+    TransactionScope? scope,
+  }) async {
+    await (month == 8 ? first.future : latest.future);
+    return super.getMonthly(year, month, scope: scope);
   }
 }
 

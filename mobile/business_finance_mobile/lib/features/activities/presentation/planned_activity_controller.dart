@@ -12,13 +12,16 @@ class PlannedActivityController extends ChangeNotifier {
     this._repository, {
     this.financialDataChanges,
     this.scopeController,
-  }) : _seenRevision = financialDataChanges?.planningRevision ?? 0,
+    this.asOf,
+  }) : horizon = asOf == null ? PlannedHorizon.month : PlannedHorizon.week,
+       _seenRevision = financialDataChanges?.planningRevision ?? 0,
        _seenScope = scopeController?.scope {
     financialDataChanges?.addListener(_handleFinancialDataChanged);
     scopeController?.addListener(_handleScopeChanged);
   }
 
   final ActivityRepositoryContract _repository;
+  final DateTime? asOf;
   final FinancialDataChanges? financialDataChanges;
   final ScopeController? scopeController;
   int _seenRevision;
@@ -29,7 +32,7 @@ class PlannedActivityController extends ChangeNotifier {
   bool unauthorized = false;
   String? errorMessage;
   PlannedActivityPage? page;
-  PlannedHorizon horizon = PlannedHorizon.month;
+  PlannedHorizon horizon;
   PlannedTypeFilter typeFilter = PlannedTypeFilter.all;
 
   /// Filtered in memory: the horizon already bounds the result, and the server
@@ -50,21 +53,33 @@ class PlannedActivityController extends ChangeNotifier {
   bool get isScopeVisible => scopeController?.isVisible ?? false;
 
   Future<void> load() async {
-    if (isLoading) return;
+    final request = ++_loadGeneration;
     isLoading = true;
     errorMessage = null;
     notifyListeners();
     try {
-      page = await _repository.listPlanned(horizon: horizon, scope: scope);
+      final loaded = await _repository.listPlanned(
+        horizon: horizon,
+        scope: scope,
+        today: asOf,
+      );
+      if (request != _loadGeneration) return;
+      page = loaded;
       unauthorized = false;
     } on ApiException catch (error) {
+      if (request != _loadGeneration) return;
+      page = null;
       unauthorized = error.isUnauthorized;
       errorMessage = error.message;
     } on FormatException {
+      if (request != _loadGeneration) return;
+      page = null;
       errorMessage = 'Sunucudan beklenmeyen bir planlama yanıtı alındı.';
     } finally {
-      isLoading = false;
-      notifyListeners();
+      if (request == _loadGeneration) {
+        isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -109,6 +124,8 @@ class PlannedActivityController extends ChangeNotifier {
         case PlannedKind.receivableInstallment:
         case PlannedKind.payableObligation:
         case PlannedKind.receivableObligation:
+        case PlannedKind.counterpartyPayable:
+        case PlannedKind.counterpartyReceivable:
           break;
       }
       // Sinyal dinlenmiyorsa (test ya da bağlanmamış kabuk) liste elle
@@ -146,7 +163,8 @@ class PlannedActivityController extends ChangeNotifier {
     final current = scopeController?.scope;
     if (current == _seenScope) return;
     _seenScope = current;
-    if (!isLoading) load();
+    page = null;
+    load();
   }
 
   void _handleFinancialDataChanged() {
@@ -157,13 +175,16 @@ class PlannedActivityController extends ChangeNotifier {
     _seenRevision = revision;
     // Realizing a plan turns it into a movement, so the planned list must drop
     // it rather than keep offering the action.
-    if (!isLoading) load();
+    load();
   }
 
   @override
   void dispose() {
+    _loadGeneration++;
     financialDataChanges?.removeListener(_handleFinancialDataChanged);
     scopeController?.removeListener(_handleScopeChanged);
     super.dispose();
   }
+
+  int _loadGeneration = 0;
 }

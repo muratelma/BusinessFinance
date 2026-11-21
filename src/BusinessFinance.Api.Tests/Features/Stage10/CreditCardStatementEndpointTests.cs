@@ -5,12 +5,55 @@ using BusinessFinance.Api.Features.Accounts;
 using BusinessFinance.Api.Features.Authentication;
 using BusinessFinance.Api.Features.Categories;
 using BusinessFinance.Api.Features.CreditCards;
+using BusinessFinance.Api.Features.FinancialActivities;
 
 namespace BusinessFinance.Api.Tests.Features.Stage10;
 
 public sealed class CreditCardStatementEndpointTests
 {
     private const string Password = "Valid-Password-123!";
+
+    [Fact]
+    public Task WeeklyPlan_MixedStatementKeepsWholeRemainderInEachScopeUntilPaid() =>
+        VerifyMixedStatementAsync(false);
+
+    [SqlServerFact]
+    public Task WeeklyPlan_SqlTranslatesMixedStatementAndIsolatesOwners() =>
+        VerifyMixedStatementAsync(true);
+
+    private static async Task VerifyMixedStatementAsync(bool useSql)
+    {
+        await using var factory = new BusinessFinanceApiFactory(useConfiguredSqlServer: useSql);
+        var id = Guid.NewGuid().ToString("N");
+        using var owner = await CreateAuthenticatedClientAsync(factory, $"mixed-owner-{id}@example.test");
+        using var stranger = await CreateAuthenticatedClientAsync(factory, $"mixed-stranger-{id}@example.test");
+        var account = await CreateAccountAsync(owner);
+        var card = await CreateCardAsync(owner);
+        var category = await GetExpenseCategoryAsync(owner);
+        using var created = await owner.PostAsJsonAsync("/api/v1/categories",
+            new CreateCategoryRequest("Şahsi örnek", "expense", "personal"));
+        created.EnsureSuccessStatusCode();
+        var personal = await created.Content.ReadFromJsonAsync<CategoryResponse>();
+        await CreateChargeAsync(owner, card.Id, category.Id, "300", "2026-04-20");
+        await CreateChargeAsync(owner, card.Id, personal!.Id, "100", "2026-05-01", "personal");
+        await CreatePaymentAsync(owner, card.Id, account.Id, "50", "2026-05-14");
+        const string url = "/api/v1/financial-activities/planned?asOfDate=2026-05-15&daysAhead=7&countTodayInHorizon=true&includeScopedStatements=true";
+        foreach (var scope in new[] { "", "&scope=business", "&scope=personal" })
+        {
+            var plan = await owner.GetFromJsonAsync<PlannedActivityListResponse>(url + scope);
+            Assert.True(Assert.Single(plan!.Items).IsMixedStatement);
+            Assert.Equal("350.0000", plan.UpcomingOutgoingTotal);
+            Assert.Equal(1, plan.UpcomingPaymentCount);
+        }
+        var other = await stranger.GetFromJsonAsync<PlannedActivityListResponse>(url);
+        Assert.Empty(other!.Items);
+        await CreatePaymentAsync(owner, card.Id, account.Id, "350", "2026-05-15");
+        Assert.Empty((await owner.GetFromJsonAsync<PlannedActivityListResponse>(url))!.Items);
+        await CreateChargeAsync(owner, card.Id, personal.Id, "75", "2026-06-01", "personal");
+        var june = url.Replace("2026-05-15", "2026-06-15");
+        Assert.Empty((await owner.GetFromJsonAsync<PlannedActivityListResponse>(june + "&scope=business"))!.Items);
+        Assert.False(Assert.Single((await owner.GetFromJsonAsync<PlannedActivityListResponse>(june + "&scope=personal"))!.Items).IsMixedStatement);
+    }
 
     [Fact]
     public async Task Statement_CalculatesPreviousCarryOpenOverdueAndPaidStates()
@@ -153,11 +196,11 @@ public sealed class CreditCardStatementEndpointTests
             $"/api/v1/credit-cards/{cardId}/statements/2026/5?asOf={asOf}"))!;
 
     private static async Task CreateChargeAsync(
-        HttpClient client, Guid cardId, Guid categoryId, string amount, string date)
+        HttpClient client, Guid cardId, Guid categoryId, string amount, string date, string scope = "business")
     {
         using var response = await client.PostAsJsonAsync(
             $"/api/v1/credit-cards/{cardId}/charges",
-            new CreateCardChargeRequest(categoryId, amount, "TRY", "business", date, null));
+            new CreateCardChargeRequest(categoryId, amount, "TRY", scope, date, null));
         response.EnsureSuccessStatusCode();
     }
 

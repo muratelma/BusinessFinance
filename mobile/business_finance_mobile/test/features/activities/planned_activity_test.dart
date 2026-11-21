@@ -15,6 +15,53 @@ import 'package:business_finance_mobile/features/activities/presentation/planned
 import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 
 void main() {
+  for (final openOverdue in [true, false]) {
+    testWidgets(
+      'Özet girişi aynı haftayı okur, gecikmelerin açık durumu $openOverdue',
+      (tester) async {
+        final repository = _FakeRepository(
+          page: PlannedActivityPage(
+            asOfDate: '2026-11-21',
+            daysAhead: 7,
+            totalCount: 2,
+            upcomingOutgoingTotal: '4200.0000',
+            upcomingPaymentCount: 1,
+            items: [
+              PlannedActivity.fromJson({
+                ..._json(),
+                'plannedActivityId': 'old',
+                'dueDate': '2026-10-25',
+                'timing': 'overdue',
+                'title': 'Ekim ödemesi',
+              }),
+              PlannedActivity.fromJson({
+                ..._json(),
+                'dueDate': '2026-11-27',
+                'timing': 'upcoming',
+                'amount': '4200.0000',
+                'title': 'Kasım ödemesi',
+              }),
+            ],
+          ),
+        );
+        await _pumpPageWith(
+          tester,
+          repository,
+          asOf: DateTime(2026, 11, 21),
+          openOverdue: openOverdue,
+        );
+        expect(repository.requestedHorizons, [PlannedHorizon.week]);
+        expect(repository.requestedDates, [DateTime(2026, 11, 21)]);
+        expect(find.text('7 günde ödenecek · 1 ödeme'), findsOneWidget);
+        expect(find.text('Kasım ödemesi'), findsOneWidget);
+        expect(
+          find.text('Ekim ödemesi'),
+          openOverdue ? findsOneWidget : findsNothing,
+        );
+        if (openOverdue) expect(find.textContaining('25 Ekim'), findsOneWidget);
+      },
+    );
+  }
   group('parsing', () {
     test('reads a planned item including readiness and projection', () {
       final item = PlannedActivity.fromJson(_json());
@@ -570,15 +617,21 @@ Future<void> _pumpPage(WidgetTester tester, PlannedActivityPage page) async {
 
 Future<void> _pumpPageWith(
   WidgetTester tester,
-  _FakeRepository repository,
-) async {
+  _FakeRepository repository, {
+  DateTime? asOf,
+  bool openOverdue = false,
+}) async {
   tester.view.physicalSize = const Size(500, 1200);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     MaterialApp(
       theme: AppTheme.light(),
-      home: PlannedActivityPageView(repository: repository),
+      home: PlannedActivityPageView(
+        repository: repository,
+        asOf: asOf,
+        openOverdue: openOverdue,
+      ),
     ),
   );
   await tester.pumpAndSettle();
@@ -663,6 +716,7 @@ class _FakeRepository implements ActivityRepositoryContract {
   final PlannedActivityPage? page;
   final Object? error;
   final List<PlannedHorizon> requestedHorizons = [];
+  final List<DateTime?> requestedDates = [];
 
   @override
   Future<PlannedActivityPage> listPlanned({
@@ -671,6 +725,7 @@ class _FakeRepository implements ActivityRepositoryContract {
     TransactionScope? scope,
   }) async {
     requestedHorizons.add(horizon);
+    requestedDates.add(today);
     if (error != null) throw error!;
     return page!;
   }

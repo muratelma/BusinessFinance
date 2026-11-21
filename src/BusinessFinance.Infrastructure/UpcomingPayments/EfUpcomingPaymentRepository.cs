@@ -30,7 +30,7 @@ internal sealed class EfUpcomingPaymentRepository(IPlannedActivityRepository pla
             userId, asOfDate, horizonDate, scope: null, cancellationToken);
 
         return planned
-            .Where(PlannedActivityRules.IsPaymentObligation)
+            .Where(PlannedActivityRules.IsOutgoingOrCardPosting)
             .Select(item => new UpcomingPaymentCandidate(
                 item.PlannedActivityId,
                 MapSourceType(item.PlannedKind),

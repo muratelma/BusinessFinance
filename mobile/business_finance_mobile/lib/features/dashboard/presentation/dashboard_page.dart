@@ -105,6 +105,22 @@ class DashboardPage extends StatelessWidget {
     final report = viewModel.report!;
     final advanced = viewModel.advanced;
     final budgets = advanced?.budgetVariances ?? const <BudgetVarianceItem>[];
+    void openBudgets() => context.push(
+      '$budgetsLocation?year=${report.year}&month=${report.month}',
+    );
+    final asOf = viewModel.plannedAsOf ?? viewModel.today;
+    final start = asOf.toIso8601String().substring(0, 10);
+    final end = DateTime(
+      asOf.year,
+      asOf.month,
+      asOf.day + 6,
+    ).toIso8601String().substring(0, 10);
+    void openWeek({bool overdue = false}) => context.push(
+      Uri(
+        path: plannedLocation,
+        queryParameters: {'asOf': start, if (overdue) 'overdue': 'true'},
+      ).toString(),
+    );
     void openCategories() => context.push(
       Uri(
         path: categorySummaryLocation,
@@ -134,7 +150,10 @@ class DashboardPage extends StatelessWidget {
                 top: AppSpacing.small,
                 bottom: AppSpacing.medium,
               ),
-              child: _OverdueBand(items: viewModel.overdue),
+              child: _OverdueBand(
+                items: viewModel.overdue,
+                onOpen: () => openWeek(overdue: true),
+              ),
             )
           else
             const SizedBox(height: AppSpacing.small),
@@ -155,33 +174,37 @@ class DashboardPage extends StatelessWidget {
             DashboardBlock(
               title: 'Bütçeler',
               count: budgets.isEmpty ? null : '${budgets.length} bütçe',
-              onOpen: () => context.push(budgetsLocation),
+              onOpen: openBudgets,
               child: DashboardBudgetRings(
                 items: budgets,
                 currency: advanced.currency,
-                onOpen: () => context.push(budgetsLocation),
+                onOpen: openBudgets,
               ),
             ),
           DashboardBlock(
-            title: 'Yaklaşanlar',
-            count: DashboardViewModel.upcomingHorizon.label,
-            onOpen: () => context.push(plannedLocation),
-            child: DashboardUpcomingCard(
-              items: viewModel.upcoming,
-              overdue: viewModel.overdue,
-              overdueTotal: viewModel.overdueOutgoingTotal,
-              total: viewModel.upcomingOutgoingTotal,
-              currency: report.currency,
-              today: viewModel.today,
-              onOpen: () => context.push(plannedLocation),
-            ),
+            title: viewModel.upcomingHiddenCount > 0
+                ? 'Sıradaki 4 vade'
+                : 'Yaklaşanlar',
+            count: DateText.dayRangeShort(start, end),
+            onOpen: () => openWeek(),
+            child: viewModel.plannedReadFailed
+                ? const AppCard(child: Text('Haftanın vadeleri okunamadı.'))
+                : DashboardUpcomingCard(
+                    items: viewModel.upcoming,
+                    paymentCount: viewModel.upcomingPaymentCount,
+                    unknownCount: viewModel.unknownAmountCount,
+                    total: viewModel.upcomingOutgoingTotal,
+                    currency: report.currency,
+                    today: asOf,
+                    onOpen: () => openWeek(),
+                  ),
           ),
           if (advanced != null)
             DashboardBlock(
               title: 'Varlık durumu',
-              note: viewModel.scope == null ? null : unsplitNote,
               child: DashboardNetWorthCard(
                 report: advanced,
+                showScopeNote: viewModel.scope != null,
                 today: viewModel.today,
                 // Yoldaki paranın ayrıntısı ve `Hesaba geçenleri işaretle`
                 // Kasa'nın POS bölümündedir; sayfa oraya kaydırılmış açılır.
@@ -201,17 +224,11 @@ class DashboardPage extends StatelessWidget {
     );
   }
 
-  /// Kapsam filtresinden etkilenmeyen bölümün notu.
-  ///
-  /// Bakiye, kart borcu ve net varlık tek havuzdur (ADR 0013); filtre açıkken
-  /// sessizce aynı kalan bir sayı filtrelenmiş sanılır.
-  static const unsplitNote =
-      'Kapsam filtresinden etkilenmez: işletme ve şahsi toplamıdır.';
 }
 
 extension on DashboardPage {
   Widget? _stateView(DashboardViewModel viewModel) {
-    if (viewModel.isLoading && !viewModel.hasLoaded) {
+    if (viewModel.isLoading && viewModel.report == null) {
       return const AppLoadingView(message: 'Finansal özet yükleniyor');
     }
     if (viewModel.error case final error?) {
@@ -283,7 +300,9 @@ class _MonthStepper extends StatelessWidget {
 /// sayma işidir, para aritmetiği değil. Yalnız ödeme **yükümlülükleri**
 /// sayılır; bunu sunucu işaretler.
 class _OverdueBand extends StatelessWidget {
-  const _OverdueBand({required this.items});
+  const _OverdueBand({required this.items, required this.onOpen});
+
+  final VoidCallback onOpen;
 
   final List<PlannedActivity> items;
 
@@ -311,7 +330,7 @@ class _OverdueBand extends StatelessWidget {
           borderRadius: radius,
           child: InkWell(
             borderRadius: radius,
-            onTap: () => context.push(plannedLocation),
+            onTap: onOpen,
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: 52),
               child: Padding(

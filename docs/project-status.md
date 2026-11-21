@@ -5,6 +5,12 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
 
 ## Aktif konum
 
+- **21 Kasım 2026 · Özet (`ozet-tamamlama`)**. Bütçe kartları ve Varlık
+  durumu güncellendi. Yaklaşanlar, ödeme adedini ve bilinen toplamı haftanın
+  tüm açık vadelerinden okur. Hafta ve gecikme girişleri aynı referans gününü
+  Planlananlar’a taşır. Karma ekstre ve kısmi ödeme gerçek SQL ile doğrulandı.
+  Ayrıntı ve sonraki iş [ortak devir kaydında](../design/planlananlar/README.md).
+
 - **Repo 21 Ağustos 2026'da kuruldu.** Kod tabanı, kişisel bütçe projesinden
   (`Kisisel-Butce-Mobil`) tek temiz commit olarak taşındı; ürün yönü şahıs
   şirketi ve esnaf finansına çevrildi. Eski repo dokunulmadan arşiv olarak

@@ -17,7 +17,6 @@ import '../../../core/widgets/app_date_leaf.dart';
 import '../../../core/widgets/app_donut_chart.dart';
 import '../../../core/widgets/app_icon_capsule.dart';
 import '../../../core/widgets/app_money_text.dart';
-import '../../../core/widgets/app_row.dart';
 import '../../../core/widgets/app_section_header.dart';
 import '../../../core/widgets/app_share_bar.dart';
 import '../../../core/widgets/app_status_chip.dart';
@@ -398,7 +397,7 @@ class DashboardBudgetRings extends StatelessWidget {
     final shown = [...items]
       ..sort((a, b) => b.spentRatio.compareTo(a.spentRatio));
     final visible = shown.take(shownCount(items.length)).toList();
-    final columns = math.min(visible.length, 2);
+    final columns = context.usesLargeText ? 1 : math.min(visible.length, 2);
     final rows = <List<BudgetVarianceItem>>[
       for (var i = 0; i < visible.length; i += columns)
         visible.sublist(i, math.min(i + columns, visible.length)),
@@ -427,6 +426,7 @@ class DashboardBudgetRings extends StatelessWidget {
                       Expanded(
                         child: _BudgetRing(
                           item: rows[r][c],
+                          single: visible.length == 1,
                           currency: currency,
                         ),
                       ),
@@ -443,10 +443,15 @@ class DashboardBudgetRings extends StatelessWidget {
 }
 
 class _BudgetRing extends StatelessWidget {
-  const _BudgetRing({required this.item, required this.currency});
+  const _BudgetRing({
+    required this.item,
+    required this.currency,
+    required this.single,
+  });
 
   final BudgetVarianceItem item;
   final String currency;
+  final bool single;
 
   @override
   Widget build(BuildContext context) {
@@ -454,121 +459,116 @@ class _BudgetRing extends StatelessWidget {
     final colors = AppFinanceColors.of(context);
     final surfaces = AppSurfaces.of(context);
     final over = item.isExceeded;
-    final ratio = item.spentRatio;
-    final percent = (ratio * 100).round();
-    final strong = over ? colors.onExpenseContainer : surfaces.ink;
-    final soft = over ? colors.onExpenseContainer : surfaces.inkMuted;
-    final difference = MoneyText.format(
-      MoneyText.unsigned(item.remaining),
-      currency,
+    final ink = over ? colors.onExpenseContainer : surfaces.ink;
+    final style = theme.textTheme.labelLarge?.copyWith(
+      color: ink,
+      fontWeight: FontWeight.w600,
     );
-    final differenceLabel = '$difference ${over ? 'fazla' : 'kaldı'}';
-
-    return Semantics(
-      container: true,
-      label: _ringSentence(item, currency),
-      child: ExcludeSemantics(
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            vertical: AppSpacing.medium,
-            horizontal: AppSpacing.small,
+    final pct = '%${(item.spentRatio * 100).round()}';
+    final title = Row(
+      children: [
+        Icon(
+          AppFinanceIcons.forCategory(
+            item.canonicalName,
+            displayName: item.categoryName,
           ),
-          decoration: BoxDecoration(
-            color: over ? colors.expenseContainer : surfaces.cardMuted,
-            borderRadius: BorderRadius.circular(AppRadius.field),
-          ),
-          child: Column(
-            children: [
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  AppDonutChart(
-                    size: 96,
-                    thickness: 10,
-                    showLegend: false,
-                    slices: [
-                      AppDonutSlice(
-                        label: 'Harcanan',
-                        value: math.min(1, ratio),
-                        color: over ? colors.expenseFill : colors.neutralFill,
-                        formattedValue: '%$percent',
-                      ),
-                      AppDonutSlice(
-                        label: 'Kalan',
-                        value: math.max(0, 1 - ratio),
-                        color: surfaces.card,
-                        formattedValue: '',
-                      ),
-                    ],
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        AppFinanceIcons.forCategory(
-                          item.canonicalName,
-                          displayName: item.categoryName,
-                        ),
-                        size: 16,
-                        color: soft,
-                      ),
-                      const SizedBox(width: AppSpacing.xSmall - 1),
-                      Text(
-                        '%$percent',
-                        textScaler: TextScaler.noScaling,
-                        style: TextStyle(
-                          fontSize: AppTextSizes.row,
-                          height: 1,
-                          fontWeight: FontWeight.w700,
-                          fontFeatures: AppTypography.tabularFigures,
-                          color: strong,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.small),
-              Text(
-                item.categoryName,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  height: 1.3,
-                  color: strong,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.small),
-              Text(
-                differenceLabel,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w400,
-                  letterSpacing: 0,
-                  fontFeatures: AppTypography.tabularFigures,
-                  color: soft,
-                ),
-              ),
-            ],
-          ),
+          color: ink,
+          size: AppTextSizes.row,
         ),
+        const SizedBox(width: AppSpacing.xSmall),
+        Expanded(child: Text(item.categoryName, style: style)),
+      ],
+    );
+    final ring = SizedBox.square(
+      dimension: AppSizes.button,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox.expand(
+            child: CircularProgressIndicator(
+              value: item.spentRatio.clamp(0.0, 1.0),
+              strokeWidth: AppSpacing.xSmall,
+              backgroundColor: surfaces.card,
+              color: over ? colors.expenseFill : colors.neutralFill,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.xSmall),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(pct, style: style),
+            ),
+          ),
+        ],
       ),
+    );
+    final label = Text(
+      over ? 'Aşım' : 'Kalan',
+      style: theme.textTheme.bodySmall?.copyWith(color: ink),
+    );
+    final money = Text(
+      MoneyText.format(MoneyText.unsigned(item.remaining), currency),
+      style: style,
+    );
+    final value = single
+        ? Wrap(
+            spacing: AppSpacing.small,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [label, money],
+          )
+        : IntrinsicWidth(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                label,
+                Divider(color: surfaces.border, height: AppSpacing.small),
+                money,
+              ],
+            ),
+          );
+    final amountRow = Row(
+      children: [
+        ring,
+        const SizedBox(width: AppSpacing.small),
+        Flexible(child: value),
+      ],
+    );
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.small),
+      decoration: BoxDecoration(
+        color: over ? colors.expenseContainer : surfaces.cardMuted,
+        borderRadius: BorderRadius.circular(AppRadius.field),
+      ),
+      child: single
+          ? Row(
+              children: [
+                ring,
+                const SizedBox(width: AppSpacing.medium),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      title,
+                      const SizedBox(height: AppSpacing.xSmall),
+                      value,
+                    ],
+                  ),
+                ),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                title,
+                const SizedBox(height: AppSpacing.medium),
+                amountRow,
+              ],
+            ),
     );
   }
 }
 
-/// Yaklaşanlar: önümüzdeki 7 günün ödemeleri zaman çizelgesinde; altta
-/// sunucunun "7 günde çıkacak" toplamı.
-///
-/// **Boş durumda gizlenmiyor**: "ödeme yok" kendi başına iyi haberdir ve
-/// bölüm her hafta yerinde durmalı.
-///
-/// **Gecikenler listeye girmez**, kartın başında tek bir satırda durur: sayı,
-/// en eski vade ve sunucunun gecikmiş toplamı. Yedi gecikmiş ödeme listeye
-/// girseydi haftanın ödemelerini kartın dışına iterdi. Geciken toplamı
-/// "7 günde çıkacak"a eklenmez.
+/// Haftanın ilk dört vadesi ve tüm haftanın ödeme toplamı.
 class DashboardUpcomingCard extends StatelessWidget {
   const DashboardUpcomingCard({
     required this.items,
@@ -577,17 +577,14 @@ class DashboardUpcomingCard extends StatelessWidget {
     required this.today,
     required this.onOpen,
     super.key,
-    this.overdue = const [],
-    this.overdueTotal,
+    this.paymentCount,
+    this.unknownCount,
   });
 
   final List<PlannedActivity> items;
 
-  /// Gecikmiş ödeme yükümlülükleri; kartın başındaki tek satır.
-  final List<PlannedActivity> overdue;
-
-  /// Gecikmişlerin tutarı belli olanlarının sunucudaki toplamı.
-  final String? overdueTotal;
+  final int? paymentCount;
+  final int? unknownCount;
   final String? total;
   final String currency;
   final DateTime today;
@@ -597,31 +594,28 @@ class DashboardUpcomingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final surfaces = AppSurfaces.of(context);
-    if (items.isEmpty && overdue.isEmpty) {
+    if (items.isEmpty) {
       return AppCard(
         onTap: onOpen,
         child: Text('Bu hafta ödeme yok.', style: theme.textTheme.bodyMedium),
       );
     }
-    final oldest = overdue.isEmpty
-        ? null
-        : overdue
-              .map((item) => item.dueDate)
-              .reduce((a, b) => a.compareTo(b) <= 0 ? a : b);
-    final shownOverdueTotal =
-        overdueTotal != null && MoneyMath.parse(overdueTotal!) != BigInt.zero
-        ? overdueTotal
+    final footer = paymentCount == null
+        ? '7 günde ödenecek'
+        : '7 günde ödenecek · $paymentCount ödeme';
+    final unknown = (unknownCount ?? 0) > 0
+        ? '$unknownCount ödemenin tutarı belli değil'
         : null;
+    final hasKnownAmount = unknown == null || paymentCount != unknownCount;
     return _TappableSummary(
       onTap: onOpen,
       label: [
-        if (oldest != null)
-          _overdueSentence(overdue.length, oldest, shownOverdueTotal, currency),
-        if (items.isEmpty) 'Bu hafta ödeme yok',
         for (final item in items)
           _upcomingSentence(item, _relative(item.dueDate)),
-        if (total != null)
-          '7 günde çıkacak: ${MoneyText.format(total!, currency)}',
+        footer,
+        if (total != null && hasKnownAmount)
+          'Bilinen tutar ${MoneyText.format(total!, currency)}',
+        ?unknown,
         'Planlananları açar',
       ].join('. '),
       child: AppCard(
@@ -630,39 +624,23 @@ class DashboardUpcomingCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (oldest != null)
-              _OverdueRow(
-                count: overdue.length,
-                oldest: oldest,
-                total: shownOverdueTotal,
-                currency: currency,
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.medium,
+                vertical: AppSpacing.small,
               ),
-            if (items.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.medium),
-                child: Text(
-                  'Bu hafta ödeme yok.',
-                  style: theme.textTheme.bodyMedium,
-                ),
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.medium,
-                  vertical: AppSpacing.small,
-                ),
-                child: Column(
-                  children: [
-                    for (var i = 0; i < items.length; i++)
-                      _TimelineRow(
-                        item: items[i],
-                        first: i == 0,
-                        last: i == items.length - 1,
-                        relative: _relative(items[i].dueDate),
-                      ),
-                  ],
-                ),
+              child: Column(
+                children: [
+                  for (var i = 0; i < items.length; i++)
+                    _TimelineRow(
+                      item: items[i],
+                      first: i == 0,
+                      last: i == items.length - 1,
+                      relative: _relative(items[i].dueDate),
+                    ),
+                ],
               ),
+            ),
             if (total != null)
               MergeSemantics(
                 child: Container(
@@ -678,19 +656,29 @@ class DashboardUpcomingCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          '7 günde çıkacak',
+                          unknown == null ? footer : '$footer\n$unknown',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                             height: 1.3,
                           ),
                         ),
                       ),
-                      AppMoneyText(
-                        amount: total!,
-                        currency: currency,
-                        effect: AppMoneyEffect.expense,
-                        size: AppMoneySize.row,
-                      ),
+                      if (hasKnownAmount)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            if (unknown != null)
+                              Text(
+                                'Bilinen tutar',
+                                style: theme.textTheme.bodySmall,
+                              ),
+                            AppMoneyText(
+                              amount: total!,
+                              currency: currency,
+                              size: AppMoneySize.row,
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 ),
@@ -743,7 +731,12 @@ class _TimelineRow extends StatelessWidget {
         : AppMoneyText(
             amount: item.amount!,
             currency: item.currency,
-            effect: AppMoneyEffect.expense,
+            effect: item.isPaymentObligation
+                ? AppMoneyEffect.expense
+                : item.postsToCard ||
+                      item.plannedKind == PlannedKind.cardInstallment
+                ? AppMoneyEffect.neutral
+                : AppMoneyEffect.income,
             size: AppMoneySize.row,
           );
 
@@ -804,14 +797,14 @@ class _TimelineRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        item.title,
+                        item.displayTitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.titleSmall,
                       ),
                       const SizedBox(height: AppGaps.rowText),
                       Text(
-                        '$relative · ${item.plannedKind.label}',
+                        '$relative · ${item.paymentLabel}',
                         maxLines: large ? 2 : 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall,
@@ -888,6 +881,7 @@ class DashboardNetWorthCard extends StatelessWidget {
     super.key,
     this.today,
     this.onOpenTransit,
+    this.showScopeNote = false,
   });
 
   final AdvancedReport report;
@@ -898,6 +892,7 @@ class DashboardNetWorthCard extends StatelessWidget {
 
   /// `Yolda` satırına dokununca; verilirse satır ok taşır.
   final VoidCallback? onOpenTransit;
+  final bool showScopeNote;
 
   @override
   Widget build(BuildContext context) {
@@ -913,30 +908,23 @@ class DashboardNetWorthCard extends StatelessWidget {
     final assetLines = <_NetLine>[
       _NetLine(
         icon: Icons.savings_outlined,
-        label: 'Likit varlık',
-        subtitle: 'Kasa ve banka',
+        label: 'Kasa ve banka',
+        subtitle: '',
         amount: report.liquidAssets,
       ),
       if (_hasAmount(report.moneyInTransit))
         _NetLine(
           icon: Icons.schedule_outlined,
-          label: 'Yolda',
-          subtitle: 'Kartla gelecek',
+          label: 'POS yatışları',
+          subtitle: transitOverdue ? 'Geciken yatış var' : '',
           amount: report.moneyInTransit,
-          // Gün her zaman yazılır; geçmişse Kasa'daki gecikme işaretiyle
-          // (ikon, söz ve gider tonu) gösterilir.
-          when: report.nextTransitDate == null
-              ? null
-              : transitOverdue
-              ? '${DateText.dayMonth(report.nextTransitDate!)} · Gecikti'
-              : DateText.dayMonth(report.nextTransitDate!),
           whenOverdue: transitOverdue,
           onTap: onOpenTransit,
         ),
       if (_hasAmount(report.receivableDebt))
         _NetLine(
           icon: Icons.handshake_outlined,
-          label: 'Alacak',
+          label: 'Alacaklar',
           subtitle: 'faiz hariç',
           amount: report.receivableDebt,
         ),
@@ -944,8 +932,8 @@ class DashboardNetWorthCard extends StatelessWidget {
       if (cardCredit)
         _NetLine(
           icon: Icons.credit_card,
-          label: 'Kart alacağı',
-          subtitle: 'Fazla ödeme',
+          label: 'Kartta fazla ödeme',
+          subtitle: '',
           amount: MoneyText.unsigned(report.creditCardDebt),
         ),
     ];
@@ -966,60 +954,130 @@ class DashboardNetWorthCard extends StatelessWidget {
         ),
     ];
 
+    Widget summaryTotal(
+      String label,
+      String amount,
+      Color color,
+      CrossAxisAlignment align,
+    ) => Column(
+      crossAxisAlignment: align,
+      children: [
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: AppSpacing.xSmall,
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              child: const SizedBox.square(dimension: AppSpacing.small),
+            ),
+            Text(label, style: theme.textTheme.bodySmall),
+          ],
+        ),
+        AppMoneyText(
+          amount: amount,
+          currency: currency,
+          size: AppMoneySize.row,
+        ),
+      ],
+    );
     return AppCard(
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          MergeSemantics(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Net varlık',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    height: 1.3,
-                    color: surfaces.inkMuted,
+          ColoredBox(
+            color: surfaces.cardMuted,
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.medium),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Net varlık', style: theme.textTheme.titleSmall),
+                  AppMoneyText(
+                    amount: report.netWorth,
+                    currency: currency,
+                    size: AppMoneySize.metric,
                   ),
-                ),
-                const SizedBox(height: AppSpacing.xSmall),
-                AppMoneyText(
-                  amount: report.netWorth,
-                  currency: currency,
-                  size: AppMoneySize.metric,
-                ),
-              ],
+                  if (showScopeNote)
+                    Text(
+                      'İşletme ve şahsi toplamı',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  if (assets != null && liabilities != null) ...[
+                    const SizedBox(height: AppSpacing.medium),
+                    _BalanceBar(
+                      assets: _value(assets),
+                      liabilities: _value(liabilities),
+                      assetColor: colors.neutralFill,
+                      liabilityColor: colors.expenseFill,
+                    ),
+                    const SizedBox(height: AppSpacing.small),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: summaryTotal(
+                            'Varlıklar',
+                            assets,
+                            colors.neutral,
+                            CrossAxisAlignment.start,
+                          ),
+                        ),
+                        Expanded(
+                          child: summaryTotal(
+                            'Borçlar',
+                            liabilities,
+                            colors.expense,
+                            CrossAxisAlignment.end,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
-          if (assets != null && liabilities != null) ...[
-            const SizedBox(height: AppSpacing.medium),
-            _BalanceBar(
-              assets: _value(assets),
-              liabilities: _value(liabilities),
-              assetColor: colors.neutralFill,
-              liabilityColor: colors.expenseFill,
+          for (final line in [...assetLines, ...liabilityLines])
+            Semantics(
+              container: true,
+              label:
+                  '${line.label}: ${MoneyText.format(line.amount, currency)}, ${liabilityLines.contains(line) ? 'net varlığı düşürür' : 'net varlığa eklenir'}. ${line.subtitle}',
+              button: line.onTap != null,
+              onTap: line.onTap,
+              child: ExcludeSemantics(
+                child: ListTile(
+                  leading: AppIconCapsule(
+                    icon: line.icon,
+                    tone: liabilityLines.contains(line)
+                        ? AppStatusTone.expense
+                        : AppStatusTone.neutral,
+                  ),
+                  title: Text(line.label, style: theme.textTheme.bodyMedium),
+                  subtitle: line.subtitle.isEmpty
+                      ? null
+                      : Text(
+                          line.subtitle,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: line.whenOverdue
+                                ? colors.expense
+                                : surfaces.inkMuted,
+                          ),
+                        ),
+                  trailing: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      AppMoneyText(
+                        amount: line.amount,
+                        currency: currency,
+                        size: AppMoneySize.row,
+                      ),
+                      if (line.onTap != null) const Icon(Icons.chevron_right),
+                    ],
+                  ),
+                  onTap: line.onTap,
+                ),
+              ),
             ),
-          ],
-          const SizedBox(height: AppSpacing.medium),
-          _NetSide(
-            title: 'Varlıklar',
-            total: assets,
-            currency: currency,
-            tone: AppStatusTone.neutral,
-            lines: assetLines,
-          ),
-          if (liabilityLines.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.small),
-            Divider(height: 1, thickness: 1, color: surfaces.border),
-            const SizedBox(height: AppSpacing.medium),
-            _NetSide(
-              title: 'Borçlar',
-              total: liabilities,
-              currency: currency,
-              tone: AppStatusTone.expense,
-              lines: liabilityLines,
-            ),
-          ],
         ],
       ),
     );
@@ -1092,7 +1150,6 @@ class _NetLine {
     required this.label,
     required this.subtitle,
     required this.amount,
-    this.when,
     this.whenOverdue = false,
     this.onTap,
   });
@@ -1101,146 +1158,8 @@ class _NetLine {
   final String label;
   final String subtitle;
   final String amount;
-  final String? when;
   final bool whenOverdue;
   final VoidCallback? onTap;
-}
-
-class _NetSide extends StatelessWidget {
-  const _NetSide({
-    required this.title,
-    required this.total,
-    required this.currency,
-    required this.tone,
-    required this.lines,
-  });
-
-  final String title;
-  final String? total;
-  final String currency;
-  final AppStatusTone tone;
-  final List<_NetLine> lines;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = AppFinanceColors.of(context);
-    final surfaces = AppSurfaces.of(context);
-    final expense = tone == AppStatusTone.expense;
-    final effect = expense ? AppMoneyEffect.expense : AppMoneyEffect.neutral;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        MergeSemantics(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xSmall),
-            child: Row(
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: expense ? colors.expenseFill : colors.neutralFill,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.small),
-                Expanded(child: Text(title, style: theme.textTheme.titleSmall)),
-                if (total != null)
-                  AppMoneyText(
-                    amount: total!,
-                    currency: currency,
-                    size: AppMoneySize.row,
-                  ),
-              ],
-            ),
-          ),
-        ),
-        for (final line in lines)
-          AppRow(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.small),
-            leading: AppIconCapsule(icon: line.icon, tone: tone),
-            title: line.label,
-            subtitle: line.subtitle,
-            onTap: line.onTap,
-            // Renk bir konuşma kanalı değildir: satırın net varlıktaki rolü
-            // ekran okuyucuya cümleyle söylenir.
-            semanticLabel:
-                '${line.label}: ${MoneyText.format(line.amount, currency)}, '
-                '${expense ? 'net varlığı düşürür' : 'net varlığa eklenir'}, '
-                '${line.subtitle}'
-                '${line.when == null ? '' : ', hesaba geçecek ${line.when}'}',
-            // Sağ taraf satırın yarısından fazlasını alamaz; alırsa başlık
-            // sıkışır. Sığmayan gün yazısı kısalır.
-            trailing: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 200),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Esnek: büyük yazıda tutar satıra sığmazsa daralabilmeli.
-                  Flexible(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AppMoneyText(
-                          amount: line.amount,
-                          currency: currency,
-                          effect: effect,
-                          size: AppMoneySize.row,
-                        ),
-                        if (line.when != null)
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              top: AppSpacing.xxSmall,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  line.whenOverdue
-                                      ? Icons.warning_amber_rounded
-                                      : Icons.event_outlined,
-                                  size: 14,
-                                  color: line.whenOverdue
-                                      ? colors.expense
-                                      : surfaces.inkMuted,
-                                ),
-                                const SizedBox(width: AppSpacing.xSmall),
-                                Flexible(
-                                  child: Text(
-                                    line.when!,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.labelSmall?.copyWith(
-                                      fontSize: AppTextSizes.micro,
-                                      fontWeight: line.whenOverdue
-                                          ? FontWeight.w500
-                                          : FontWeight.w400,
-                                      letterSpacing: 0,
-                                      color: line.whenOverdue
-                                          ? colors.expense
-                                          : surfaces.inkMuted,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  if (line.onTap != null) ...[
-                    const SizedBox(width: AppSpacing.xSmall),
-                    Icon(Icons.chevron_right, color: surfaces.inkMuted),
-                  ],
-                ],
-              ),
-            ),
-          ),
-      ],
-    );
-  }
 }
 
 /// Hesap bakiyeleri (Claude Design V1): tek kart, içinde `Nakit` ve `Banka`
@@ -1444,9 +1363,9 @@ String _ringSentence(BudgetVarianceItem item, String currency) {
 
 /// Yaklaşan satırın ekran okuyucu cümlesi.
 String _upcomingSentence(PlannedActivity item, String relative) =>
-    '${item.title}: ${_amountSentence(item)}, '
+    '${item.displayTitle}: ${_amountSentence(item)}, '
     'vadesi ${DateText.dayMonth(item.dueDate)}, $relative, '
-    '${item.plannedKind.label}';
+    '${item.paymentLabel}';
 
 /// Dokununca başka ekrana giden özet kartı: ekran okuyucuya tek durak,
 /// içeriğin cümleleri etikette, eylem aynı düğümde.
@@ -1474,83 +1393,3 @@ class _TappableSummary extends StatelessWidget {
 String _amountSentence(PlannedActivity item) => item.amount == null
     ? AppUnknownAmount.text
     : MoneyText.format(item.amount!, item.currency);
-
-String _overdueSentence(
-  int count,
-  String oldest,
-  String? total,
-  String currency,
-) {
-  final amount = total == null ? '' : ', ${MoneyText.format(total, currency)}';
-  return '$count gecikmiş ödeme, en eskisi ${DateText.dayMonth(oldest)}$amount';
-}
-
-/// Yaklaşanlar kartının başındaki gecikenler satırı: gider zemini, sayı, en
-/// eski vade ve toplam. Ok yok: kartın tamamı zaten Planlananlar'ı açıyor.
-class _OverdueRow extends StatelessWidget {
-  const _OverdueRow({
-    required this.count,
-    required this.oldest,
-    required this.currency,
-    this.total,
-  });
-
-  final int count;
-  final String oldest;
-  final String currency;
-  final String? total;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = AppFinanceColors.of(context);
-    final surfaces = AppSurfaces.of(context);
-    final foreground = colors.onExpenseContainer;
-    return Container(
-      constraints: const BoxConstraints(minHeight: 64),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.medium,
-        vertical: AppSpacing.compact,
-      ),
-      decoration: BoxDecoration(
-        color: colors.expenseContainer,
-        border: Border(bottom: BorderSide(color: surfaces.border)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.error_outline, size: 22, color: foreground),
-          const SizedBox(width: AppSpacing.compact),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '$count gecikmiş ödeme',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: foreground,
-                  ),
-                ),
-                const SizedBox(height: AppGaps.rowText),
-                Text(
-                  'En eskisi ${DateText.dayMonth(oldest)}',
-                  style: theme.textTheme.bodySmall?.copyWith(color: foreground),
-                ),
-              ],
-            ),
-          ),
-          if (total != null) ...[
-            const SizedBox(width: AppSpacing.small),
-            AppMoneyText(
-              amount: total!,
-              currency: currency,
-              effect: AppMoneyEffect.expense,
-              onContainer: true,
-              size: AppMoneySize.row,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}

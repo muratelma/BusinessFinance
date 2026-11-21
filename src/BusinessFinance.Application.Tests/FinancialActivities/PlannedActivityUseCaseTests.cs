@@ -26,6 +26,22 @@ public sealed class PlannedActivityUseCaseTests
     }
 
     [Theory]
+    [InlineData(7)]
+    [InlineData(30)]
+    [InlineData(90)]
+    public async Task Execute_CountsTodayAsFirstCalendarDayWhenRequested(int daysAhead)
+    {
+        var repository = new FakePlannedActivityRepository();
+        var useCase = new ListPlannedActivitiesUseCase(new FakeCurrentUser(UserId), repository);
+
+        var result = await useCase.ExecuteAsync(
+            new PlannedActivityQuery(AsOfDate, daysAhead, CountTodayInHorizon: true));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(AsOfDate.AddDays(daysAhead - 1), repository.LastHorizon);
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(45)]
     [InlineData(365)]
@@ -151,6 +167,31 @@ public sealed class PlannedActivityUseCaseTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(200m, result.Value.UpcomingOutgoingTotal);
+        Assert.Equal(2, result.Value.UpcomingPaymentCount);
+    }
+
+    [Fact]
+    public async Task Execute_CountsUnknownPaymentsButExcludesReceiptsAndCardPostings()
+    {
+        var payment = Planned(AsOfDate, PlannedActivityTiming.Today);
+        var repository = new FakePlannedActivityRepository(
+            payment with { Amount = 4200m },
+            payment with { Amount = 1200m, PlannedKind = PlannedActivityKind.CardStatement },
+            payment with { Amount = 1750m },
+            payment with { Amount = 350m },
+            payment with { Amount = null },
+            payment with { Amount = 6800m, Effect = FinancialActivityEffect.Income },
+            payment with { Amount = 1200m, PlannedKind = PlannedActivityKind.CardInstallment },
+            payment with { Amount = 200m, PostsToCard = true },
+            payment with { DueDate = AsOfDate.AddMonths(-1), Timing = PlannedActivityTiming.Overdue });
+        var useCase = new ListPlannedActivitiesUseCase(new FakeCurrentUser(UserId), repository);
+
+        var result = await useCase.ExecuteAsync(new PlannedActivityQuery(AsOfDate, 7, CountTodayInHorizon: true));
+
+        Assert.Equal(7500m, result.Value.UpcomingOutgoingTotal);
+        Assert.Equal(5, result.Value.UpcomingPaymentCount);
+        Assert.Equal(1, result.Value.UnknownAmountCount);
+        Assert.Equal(AsOfDate.AddMonths(-1), result.Value.Items[0].DueDate);
     }
 
     /// <summary>
@@ -239,7 +280,8 @@ public sealed class PlannedActivityUseCaseTests
             DateOnly asOfDate,
             DateOnly horizonDate,
             TransactionScope? scope,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool includeScopedStatements = false)
         {
             WasQueried = true;
             LastHorizon = horizonDate;

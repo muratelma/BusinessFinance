@@ -172,6 +172,16 @@ query parametresi, tanınmayan değer `*.invalid_scope`:
 | `GET /api/v1/financial-activities` | Feed'in tamamı | — |
 | `GET /api/v1/financial-activities/planned` | Listenin tamamı | — |
 
+Planlananlar sorgusunda `countTodayInHorizon=true` başlangıç gününü süreye
+dahil eder. Örneğin 21 Kasım ve 7 gün için son gün 27 Kasım’dır. Bu seçim
+eski açık vadelerin alt sınırını, kullanıcı sahipliğini ve kapsam filtresini
+değiştirmez. Parametre gönderilmezse önceki istemcilerin bitiş tarihi korunur.
+
+`includeScopedStatements=true` seçimi kesilmiş ekstreyi, kullanıcının
+kapanmamış kart borcuna katkı yapan kapsamda gösterir. Karma ekstre her iki
+filtrede tam kalanıyla görünür. Kapsamı bilinmeyen tek kaynak Hepsi’nde yer alır.
+Kart, harcama, ödeme, kişi ve borç sorguları aynı oturum sahibine bağlıdır.
+
 `GET /api/v1/upcoming-payments` kapsam parametresi **almaz**: ödenecek para tek
 havuzdan çıkar. Her iki uçta da tek seferlik yükümlülük sorgusu current
 `UserId` ile başlar; başka owner'ın aynı tarih ve tutardaki kaydı görünmez.

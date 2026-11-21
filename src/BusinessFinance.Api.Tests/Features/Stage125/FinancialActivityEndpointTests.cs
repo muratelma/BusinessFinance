@@ -376,6 +376,14 @@ public sealed class FinancialActivityEndpointTests
         Assert.Equal(30, planned.DaysAhead);
         Assert.Equal(1, planned.TotalCount);
         Assert.Equal("2026-08-20", planned.NearestDueDate);
+        var throughTwentieth = await owner.GetFromJsonAsync<PlannedActivityListResponse>(
+            "/api/v1/financial-activities/planned?asOfDate=2026-08-14&daysAhead=7&countTodayInHorizon=true");
+        var throughNineteenth = await owner.GetFromJsonAsync<PlannedActivityListResponse>(
+            "/api/v1/financial-activities/planned?asOfDate=2026-08-13&daysAhead=7&countTodayInHorizon=true");
+        Assert.Equal(1, throughTwentieth!.UpcomingPaymentCount);
+        Assert.Equal("125.5000", throughTwentieth.UpcomingOutgoingTotal);
+        Assert.Equal(0, throughNineteenth!.UpcomingPaymentCount);
+        Assert.Empty(throughNineteenth.Items);
         var item = Assert.Single(planned.Items);
         Assert.Equal("recurring-occurrence", item.PlannedKind);
         Assert.Equal("expense", item.Effect);

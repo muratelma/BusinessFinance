@@ -1,15 +1,37 @@
 # Planlananlar, tekrarlayanlar ve abonelikler — ortak çalışma
 
-Son güncelleme: 21 Kasım 2026. Durum: **Özet tasarımı kapandı. Kodlama için başlangıç incelemesi yapıldı.**
+Son güncelleme: 21 Kasım 2026. **Özet’in backend ve Flutter değişiklikleri doğrulandı. Sırada kullanıcının emülatör incelemesi var.**
 
 ### Oturum günlüğü · 21 Kasım 2026
+
+**Son kodlama checkpoint’i.** Dal `ozet-tamamlama`. İlk commit `b2e29c7`,
+Özet teslimi Git geçmişinde `feat: align dashboard payments and planned activity with the selected week`
+adıyla bulunur. Sonraki oturumda önce kullanıcının emülatör bulgularına bakılır.
+Özet kabulünden sonra Tekrarlayanlar ve Planlananlar’ın geri kalan akışları ele alınır.
+
+- Flutter analyze temiz, Özet/Bütçeler/Planlananlar ve mimari kontrollerinde
+  300 test geçti. Beş sentetik ekran görüntüsü üretildi.
+  [Bütçeler ve hafta](../../tasarim-onizleme/ozet-uygulama-2026-11-21/04-ozet-alt.png) ·
+  [Varlık durumu](../../tasarim-onizleme/ozet-uygulama-2026-11-21/04b-ozet-en-alt.png).
+- Backend çözümü derlendi ve format kontrolü geçti. SQL dahil koşuda Domain
+  416, Application 422 ve API 399 test geçti. Yeni karma ekstre SQL testi
+  ayrıca geçti. Infrastructure turunda 281 test geçti, iki test atlandı.
+  Eski yaklaşan ödemeler akışının kart taksitlerini göstermesi korununca
+  ilk turdaki üç başarısız SQL testi de yeniden koşulup geçti.
+- Son debug APK, `API_BASE_URL=http://10.0.2.2:5284` ile derlendi.
+  Pixel 8’e `adb -s emulator-5554 install -r` ile kuruldu ve uygulama açıldı.
+  Yerel API `http` profilinde hazır olma kontrolüne HTTP 200 döndürdü.
 
 - Kullanıcı Özet’in backend ve Flutter geliştirmesini bu oturumda Codex ile sürdürme kararı aldı. Codex ve Claude sonraki oturuma bu günlükten devam eder.
 - Kategori giderlerinde mevcut halka, dört kategori ve varsa Diğer onaylandı. Reddedilen yatay şeridin iki adet 18 numaralı önizlemesi kaldırıldı. Geçerli görsel aşağıdaki 02 numaralı ekran kaydıdır.
 - Kullanıcının talimatıyla `ozet-tamamlama` dalı `borc-alacak-cari` dalının `d359ab7` commit’inden açıldı. Bu noktada kaynak dal yerel `main` dalından beş commit ilerideydi. Önceden bulunan çalışma dosyaları korundu.
 - Flutter Özet ekranında Bütçeler başlığı seçili rapordaki tüm bütçeleri sayıyor. Üç bütçede en dolu iki halka gösteriliyor. Mevcut widget testinin başlık beklentisi üç olarak güncellendi.
 - Bütçe sayısı düzeltmesinin kontrolleri geçti. `flutter analyze --no-pub` sorun bulmadı, `dashboard_sections_test.dart` içindeki 37 test geçti ve `flutter build web --no-pub` başarılı oldu. Bu ilk commit Git geçmişinde `fix: show the total budget count in the dashboard header` adıyla bulunur. 16/17 numaralı bütçe kutularının yerleşimi henüz uygulanmadı.
-- Sıradaki iş Yaklaşanlar’ın yedi günlük okuması. `ListPlannedActivitiesUseCase` son tarihi başlangıca gün sayısını ekleyerek buluyor. `dashboard_page.dart` hem hafta hem gecikme girişinde aynı yalın Planlananlar rotasını açıyor. Aşağıdaki kabul örnekleri henüz doğrulanmadı. Kullanıcı API’yi kapattı ve yerel test için gerektiğinde açıp kapatma izni verdi.
+- Yedi günlük okuma backend ve Flutter’da birlikte değişti. Haftalık istemci `countTodayInHorizon=true` gönderir. Sunucu ilk günü sayar, eski istemci parametre göndermezse önceki bitiş tarihi geçerlidir. Backend build ve format, Flutter analyze, kapsam ve Özet testleri geçti. API yerel HTTP profiliyle açıldı ve hazır olma kontrolü 200 döndü.
+- Emülatör `Pixel_8` / `emulator-5554`. Haftalık okuma düzeltmesini içeren debug APK veri korunarak kuruldu ve açıldı. Kullanıcının güncel kararı: geliştirme sırasında APK kurulmaz. Sonraki kurulum Özet’in tüm işleri ve kontrolleri bitince yapılır. Kullanıcı en son o sürümü inceleyecek.
+- Özet’te 16/17 numaralı bütçe yerleşimleri, 08 numaralı haftalık vade önizlemesi ve 11 numaralı Varlık durumu kodlandı. Planlananlar’ın tarih girişi Özet’in okuduğu günü taşır, gecikme girişi vadesi geçmiş ödemeleri ilk bölümde açar. Kişinin hesap vadeleri haftalık okumaya dahil edildi.
+- Karma ekstre ölçütü (kullanıcının seçimi geliştirene bıraktığı 21 Kasım kararı): kesilmiş ve açık kart borcunu oluşturan hareketler kullanılır. Kartın varsayılan kapsamı kullanılmaz. Borç gün sonunda kapanınca önceki kapsamlar temizlenir. Kısmi ödemede kapsam tahmini yapılmaz. İki kapsamın bulunduğu ekstre, iki filtrede de tam kalanıyla yer alır ve “Karma ekstre” olarak görünür. Kapanış sonrasındaki yeni harcama önceki ekstreyi değiştirmez.
+- Abonelik ve ücretsiz deneme olaylarının bağımsız veri modeli sonraki aşamanın bağımlılığıdır. Mevcut hesap/kart kaynaklı tekrarlayan vadeler kullanılır. Özet’te sahte abonelik, hatırlatma veya deneme bitişi üretilmez.
 
 ## Oturumu devralan ajan için
 
