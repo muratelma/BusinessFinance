@@ -154,7 +154,7 @@ class DashboardPage extends StatelessWidget {
           if (advanced != null)
             DashboardBlock(
               title: 'Bütçeler',
-              count: budgets.isEmpty ? null : _budgetCount(budgets),
+              count: budgets.isEmpty ? null : '${budgets.length} bütçe',
               onOpen: () => context.push(budgetsLocation),
               child: DashboardBudgetRings(
                 items: budgets,
@@ -200,10 +200,6 @@ class DashboardPage extends StatelessWidget {
       ),
     );
   }
-
-  /// Halkada gösterilen bütçe sayısı; dörtten fazlası varsa en dolu dördü.
-  static String _budgetCount(List<BudgetVarianceItem> items) =>
-      '${DashboardBudgetRings.shownCount(items.length)} bütçe';
 
   /// Kapsam filtresinden etkilenmeyen bölümün notu.
   ///

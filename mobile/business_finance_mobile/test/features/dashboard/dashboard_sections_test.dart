@@ -104,8 +104,8 @@ void main() {
       expect(find.text('%120'), findsOneWidget);
       expect(find.text('%90'), findsOneWidget);
       expect(find.text('₺20,00 kaldı'), findsOneWidget);
-      // Üç bütçede iki halka gösterilir (2–3 → ikili).
-      expect(find.text('2 bütçe'), findsOneWidget);
+      // Başlık üç bütçeyi sayar, kartta en dolu ikisi görünür.
+      expect(find.text('3 bütçe'), findsOneWidget);
       expect(find.text('%30'), findsNothing);
     });
 

@@ -1146,6 +1146,7 @@ gelir/gider/net kartı · kategori giderleri (104'lük halka + satır altı pay
 çubukları) · bütçe halkaları · yaklaşanlar zaman çizelgesi · varlık durumu ·
 hesap bakiyeleri.
 
+- **Bütçeler başlığı** seçili ay ve kapsamdaki bütçelerin toplam adedini gösterir.
 - **Bütçe halkaları** en dolu bütçeleri gösterir: 4 ve fazlası 2×2, 2–3
   ikili, 1 tek. Aşılan bütçe gider zemininde, halka gider dolgusunda. Yüzde
   ve halka boyu yalnız çizim oranıdır; kalan/aşım tutarı sunucunun
