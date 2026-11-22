@@ -85,3 +85,6 @@ String categoryPageLocation(
 /// `Planlananlar`: gecikmiş ve yaklaşan ödemeler. Özet'in gecikme şeridi ve
 /// yaklaşanlar bölümü buraya açılır.
 const plannedLocation = '/transactions/planned';
+
+/// Tekrarlayan planların kendi sayfası (22 Kasım 2026).
+const recurringLocation = '/more/recurring';

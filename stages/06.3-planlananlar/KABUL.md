@@ -61,3 +61,18 @@ aralığına dokun. (Diğer menüsünde Planlananlar girişi yok; bkz. `README.m
 | 3.8 | Tekrarlayan ödeme / gelir | `Ödeme kaydet ›` / `Geliri kaydet ›` | Gün soran panel (bugünle açılır); önceki dönem bekliyorsa onay sorar | |
 | 3.9 | Kişinin vadesi, eski yükümlülük | Satıra dokun | Hiçbir şey olmaz (bilgi satırı; borç-alacak ekranlarıyla bağlanacak) | |
 | 3.10 | Ödeme sonrası | Özet'e dön | Yaklaşanlar ve toplamlar güncel | |
+
+## Aşama 4 — Tekrarlayanlar listesi (B1)
+
+| # | Nerede | Ne yap | Ne görmelisin | Sonuç |
+|---|---|---|---|---|
+| 4.1 | Diğer → Planlama | Menüye bak | `Planlananlar` ve `Tekrarlayanlar` girişleri | |
+| 4.2 | Tekrarlayanlar | Aç | Başlıkta `+`, altında `Plan ara`; planlar tek kartta | |
+| 4.3 | Satır | Bak | Ad ve tutar; altında `Aylık gider` / `Aylık gelir`; sağda `Vade 1 Ara` ya da kırmızı `15 Kas gecikti` | |
+| 4.4 | Sıra | Bak | Önce gecikenler (en eskisi üstte), sonra yaklaşan vadeler | |
+| 4.5 | Simge | Bak | Gelir yeşil, gider gri | |
+| 4.6 | Arama | `işyeri` yaz | `İşyeri …` planları bulunur (büyük/küçük harf fark etmez) | |
+| 4.7 | Arama | Olmayan bir ad yaz (`Spor salonu`) | `“Spor salonu” adında plan yok` ve `… adıyla plan ekle`; dokununca form açıklama alanı dolu açılır | |
+| 4.8 | Duraklat | Bir plana dokun → Duraklat | Plan listeden çıkar; altta `Duraklatılan ve bitenler N ›` | |
+| 4.9 | Duraklatılanlar | `Duraklatılan ve bitenler` | Ayrı sayfa; satırda `Duraklatıldı`, tarih yok; dokununca `Sürdür` | |
+| 4.10 | Planlama ve raporlar → Tekrarlayanlar sekmesi | Aç | Aynı liste, üstte `Tekrarlayan plan ekle` düğmesi | |

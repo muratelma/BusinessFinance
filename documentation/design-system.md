@@ -2218,3 +2218,13 @@ Kaynak: Codex'in 04, 06 ve 18. panoları (`design/planlananlar/README.md`).
   satırda, sığmazsa eylem alta iner. Tutarı belli olmayan vergide tutar
   yerine `Tutar bekliyor`. Eylemsiz bilgi satırında alt satır çizilmez. Aynı günün satırları tek kartta, 16 dp
   içeriden başlayan çizgiyle ayrılır.
+
+## Tekrarlayanlar listesi · 22 Kasım 2026
+
+Kaynak: Codex 09, 10, 11. panolar. `AppPageHeader` + `+` (`IconButton`,
+"Tekrarlayan plan ekle"); arama alanı İşlemler'inkiyle aynı (`cardMuted`
+dolgu, 48 dp, `AppRadius.field`). Satır (`RecurringPlanRow`): 36 dp kapsül
+(gelir yeşil, gider gri, duran plan soluk), ad `titleSmall` ve tutar 16/700
+üstte; yön+sıklık ve vade 13 soluk altta, gecikme gider renginde. Satırlar
+tek kartta, kapsülden sonra başlayan çizgiyle ayrılır. `Duraklatılan ve
+bitenler` 56 dp kart satırı, sağda sayı ve ok.

@@ -19,6 +19,7 @@ import 'package:business_finance_mobile/features/planning/data/planning_models.d
 import 'package:business_finance_mobile/features/planning/data/planning_repository.dart';
 import 'package:business_finance_mobile/features/planning/presentation/planning_controller.dart';
 import 'package:business_finance_mobile/features/planning/presentation/planning_page.dart';
+import 'package:business_finance_mobile/features/planning/presentation/recurring_plans_page.dart';
 
 void main() {
   testWidgets('planlama ekranı erişilebilirlik kapısını geçer', (tester) async {
@@ -518,10 +519,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Üç ayda bir'), findsWidgets);
+    expect(find.text('Üç ayda bir gider'), findsOneWidget);
     expect(find.textContaining('quarterly'), findsNothing);
-    expect(find.textContaining('Sıradaki 17 Ağustos'), findsOneWidget);
-    expect(find.textContaining('17 Kasım'), findsNothing);
+    // En eski açık vade gösterilir; bugünden önceyse gecikme olarak.
+    expect(find.textContaining('17 Ağu'), findsOneWidget);
+    expect(find.textContaining('17 Kas'), findsNothing);
   });
 
   testWidgets('plan satırı denetim taşımıyor, panel açıyor', (tester) async {
@@ -573,11 +575,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Netflix'), findsOneWidget);
-    expect(find.text('Duraklatılan ve biten planlar (2)'), findsOneWidget);
+    expect(find.text('Duraklatılan ve bitenler'), findsOneWidget);
+    expect(find.text('2'), findsOneWidget);
     // Folded away until asked for.
     expect(find.text('Eski spor salonu'), findsNothing);
 
-    await tester.tap(find.text('Duraklatılan ve biten planlar (2)'));
+    await tester.tap(find.text('Duraklatılan ve bitenler'));
     await tester.pumpAndSettle();
 
     expect(find.text('Eski spor salonu'), findsOneWidget);
@@ -618,13 +621,13 @@ void main() {
 
     // Son kalemi bekleyen plan açıkta ve sıradaki gününü yazıyor.
     expect(find.text('Depozito'), findsOneWidget);
-    expect(find.textContaining('Sıradaki 15 Ağu'), findsOneWidget);
+    expect(find.textContaining('15 Ağu'), findsOneWidget);
     expect(find.text('Biten kurs'), findsNothing);
 
-    await tester.tap(find.text('Duraklatılan ve biten planlar (1)'));
+    await tester.tap(find.text('Duraklatılan ve bitenler'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('plan tamamlandı'), findsOneWidget);
+    expect(find.text('Tamamlandı'), findsOneWidget);
     expect(find.text('Duraklatıldı'), findsNothing);
 
     await tester.tap(find.text('Biten kurs'));
@@ -632,6 +635,49 @@ void main() {
 
     expect(find.text('Sürdür'), findsNothing);
     expect(find.text('Sil'), findsOneWidget);
+  });
+
+  testWidgets('Tekrarlayanlar arar; sonuçsuz arama yazılan adla plan açar', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(500, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: RecurringPlansPage(
+          repository: _FakePlanningRepository(
+            plans: [
+              _plan(id: 'p1', description: 'İşyeri kirası'),
+              _plan(id: 'p2', description: 'Netflix'),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tekrarlayanlar'), findsOneWidget);
+    // Türkçe büyük/küçük harf farkı aramada ad farkı değildir.
+    await tester.enterText(find.byType(TextField), 'işyeri');
+    await tester.pumpAndSettle();
+    expect(find.text('İşyeri kirası'), findsOneWidget);
+    expect(find.text('Netflix'), findsNothing);
+
+    await tester.enterText(find.byType(TextField), 'Spor salonu');
+    await tester.pumpAndSettle();
+    expect(find.text('“Spor salonu” adında plan yok'), findsOneWidget);
+
+    await tester.tap(find.text('“Spor salonu” adıyla plan ekle'));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byType(TextFormField),
+        matching: find.text('Spor salonu'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('reports expose chart semantics and a visible text alternative', (

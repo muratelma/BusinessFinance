@@ -38,6 +38,8 @@ void main() {
       'Borç ve alacaklar',
       'Kategori özeti',
       'Kategori yönetimi',
+      'Planlananlar',
+      'Tekrarlayanlar',
       'Yükümlülükler',
       'Tasarruf hedefleri',
       'Planlama ve raporlar',

@@ -2225,3 +2225,21 @@ seç`; önceki gecikenler varken dönem boşsa kartın altında kısa bilgi sat�
 Aynı seçimin yenilemesi başarısız olursa son liste kalır ve `Liste
 güncellenemedi.` yazar. Uygulamanın tanımadığı türde bir kayıt gelirse liste
 bozulmaz; kayıt atlanır ve sayısı yazılır.
+
+## Tekrarlayanlar · 22 Kasım 2026
+
+Diğer → Planlama → `Tekrarlayanlar` planların kendi sayfasını açar (aynı liste
+`Planlama ve raporlar`ın sekmesinde de çizilir). Başlıkta `+` yeni planın
+formunu açar; altında `Plan ara`. Plan başına tek satır: ad ve tutar; altında
+yön ve sıklık (`Aylık gider`, `Haftalık gelir`); sağ altta en eski açık vade:
+bugünden önceyse kırmızı `15 Kas gecikti`, bugünse `Bugün`, değilse `Vade 1
+Ara`. Gecikmiş kalemin tutarı plan tarifesinden farklıysa satır o vadenin
+tutarını yazar. Sıra: önce gecikenler (en eskisi önce), sonra sıradaki vade.
+Duraklatılan ve biten planlar listenin altındaki `Duraklatılan ve bitenler ›`
+satırından ayrı sayfada açılır; orada gelecek vade yazılmaz (`Duraklatıldı` /
+`Tamamlandı`). Arama Türkçe harf büyüklüğüne duyarsızdır; sonuçsuz aramada
+`“Spor salonu” adıyla plan ekle` formu adı dolu açar. Hiç plan yokken ilk
+kullanım ekranı (`Kira, maaş ve aboneliklerini ekle.`) tek ekleme düğmesiyle
+çizilir. Satıra dokununca şimdilik duraklat / sürdür / sil paneli açılır;
+plan ayrıntı sayfası B2'dir. Diğer → Planlama'ya `Planlananlar` girişi de
+eklendi.

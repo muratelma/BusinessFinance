@@ -25,7 +25,7 @@ durumu, sıra ve günlük burada tutulur.
 | A1 | Sunucu: özel tarih aralığı, dönem özeti (ödenecek / beklenen giriş / karta yansıyacak, tutarı belirsiz sayısı), seçimden önce gecikenler, tür seçimi | Bitti (22 Kasım) |
 | A2 | Flutter: Planlananlar listesi (04 pano), filtre paneli ve takvim (18), boş durumlar (06), yenileme uyarısı (18-01), bilinmeyen türün atlanması | Bitti (22 Kasım); emülatör kabulü bekliyor |
 | A3 | Flutter: satırdan ilgili ödeme paneline (dönem, ekstre, vergi, taksit planı) | Bitti (22 Kasım); `…görüntüle` bağlantıları B2 ile |
-| B1 | Tekrarlayanlar listesi (09/11 pano, arama, `Abonelikler ›`, ilk kullanım) | Başlamadı |
+| B1 | Tekrarlayanlar listesi (09/11 pano, arama, ilk kullanım) | Bitti (22 Kasım); `Abonelikler ›` C ile |
 | B2 | Plan ayrıntısı tam sayfa (07 pano): sıradaki vade, gecikmeler, son iki ödeme, takvim; Düzenle, Duraklat/Sürdür | Başlamadı |
 | B3 | Sunucu: D1 dönemden itibaren tutar, D2 planı sona erdir | Başlamadı |
 | C | Abonelikler ve ücretsiz deneme (katalog, form, hatırlatma, teyit) | Borç-alacaktan sonra |
@@ -68,10 +68,14 @@ Her satır: panoda ya da önceki kararda ne yazıyordu, ne yapıldı, neden.
 | S9 | Tür menüsü | 7 tür (18-02) | Tüm türler, Tekrarlayan, Kart ekstresi, Kart taksidi, Borç ödemesi, Alacak tahsilatı, Vergi; tür sunucuda süzülür | Liste ile toplam aynı seçimden gelsin; istemci para toplamaz | — |
 | S10 | Ekstre ödemesi | Ödeme paneli Planlananlar'ın üstünde (05) | Kartın sayfası açılır, ödeme seçimi üstünde gelir; kapanınca Planlananlar'a dönülür | Kart ödeme formu kart sayfasının içinde; ikinci bir form yazmak yerine aynısı kullanıldı (19 Kasım kararı: ödeme ilgili özelliğin formuyla) | Kart sayfasının arkada kısa görünmesi sorun mu? |
 | S11 | Vergi ödemesi | `Ödedim` paneli | Planlananlar'ın üstünde açılır | 19 Kasım kararı | — |
-| S12 | Planlananlar'a giriş | — | Diğer menüsünde Planlananlar yok; giriş Özet ve İşlemler'den | Mevcut durum, bu işte değişmedi | Diğer → Planlama altına eklensin mi? |
+| S12 | Planlananlar'a giriş | — | Diğer → Planlama'ya `Planlananlar` ve `Tekrarlayanlar` eklendi | Önceden yalnız Özet'ten girilebiliyordu | — |
 | S13 | Özet · Hesap bakiyeleri | Bütün hesaplar | En çok 5 hesap (bakiyesi en büyük), başlıkta sayı | Senin önerin (22 Kasım) | — |
 | S14 | Özet · eksi bakiye | — | Renklenmiyor | 2 Ekim kararı: nakit hesabın eksiye düşmesi uyarı değildir | — |
 | S15 | Özet · Kategori giderleri | `En büyük pay` | Aynı yerde önceki aya göre fark; önceki ayda gider yoksa `En büyük pay` | Senin kararın (22 Kasım): kart uzamasın | — |
+| S17 | Tekrarlayanlar · `Abonelikler ›` | Aramanın sağında (09) | Yok | Abonelik modeli Faz C'de; çalışmayan bağlantı gösterilmez | — |
+| S18 | Tekrarlayanlar · simge rengi | Gider çoğunlukla gri (09) | Gider gri, gelir yeşil, duran plan soluk | İlk denemede bütün giderler kırmızıydı, gecikme öne çıkmıyordu | — |
+| S19 | Tekrarlayanlar · yer | Kendi sayfası (09) | `/more/recurring` kendi sayfası; `Planlama ve raporlar`daki sekme aynı listeyi çizer | Raporlar'ın ayrılması (19 Kasım kararı) ayrı iş; iki görünüm ayrışmasın | Planlama ve raporlar'dan Tekrarlayanlar ve Yaklaşanlar sekmeleri kaldırılıp sayfa `Raporlar` olsun mu? |
+| S20 | Tekrarlayanlar · satıra dokunma | Plan ayrıntı sayfası (07) | Şimdilik duraklat / sürdür / sil paneli | Ayrıntı sayfası B2 | — |
 | S16 | Özet · Yaklaşanlar alt satırı | `7 günde ödenecek · N ödeme` | Satır hep var, `· N ödeme` yalnız görünmeyen ödeme varsa | Senin kararın (22 Kasım) | — |
 
 ## Günlük
@@ -114,4 +118,14 @@ Her satır: panoda ya da önceki kararda ne yazıyordu, ne yapıldı, neden.
   `Kart artık bulunamıyor` yerine yükleniyor gösterir.
 - **Kabul listesi** `KABUL.md` (Aşama 1–3) yazıldı.
 - **Sıradaki:** B1 Tekrarlayanlar listesi.
+
+### 22 Kasım 2026 (devam) — B1
+
+- Tekrarlayanlar kendi sayfasında (`/more/recurring`, `RecurringPlansPage`);
+  liste (`RecurringPlanList`) Planlama'nın sekmesiyle ortak. Satır, sıra,
+  arama, sonuçsuz aramadan adla ekleme, ilk kullanım, duraklatılan ve
+  bitenler ayrı sayfada. Diğer → Planlama'ya Planlananlar ve Tekrarlayanlar.
+- Kendi değerlendirmem: gider simgeleri griye alındı (S18). Duraklatma
+  metni bekleyen kalemlerin de listelerden kalktığını söylüyor (B9).
+- Kabul: `KABUL.md` Aşama 4. Sıradaki: B2 plan ayrıntı sayfası.
 

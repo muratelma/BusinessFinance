@@ -125,6 +125,16 @@ class MorePage extends StatelessWidget {
             onTap: () => go('/more/budgets'),
           ),
         _MenuItem(
+          icon: Icons.event_available_outlined,
+          title: 'Planlananlar',
+          onTap: () => go(plannedLocation),
+        ),
+        _MenuItem(
+          icon: Icons.event_repeat,
+          title: 'Tekrarlayanlar',
+          onTap: () => go(recurringLocation),
+        ),
+        _MenuItem(
           icon: Icons.event_note_outlined,
           title: 'Yükümlülükler',
           onTap: () => go('/more/obligations'),

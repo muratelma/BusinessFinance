@@ -19,7 +19,6 @@ import '../../../core/widgets/app_adaptive_sheet.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_date_field.dart';
 import '../../../core/widgets/app_category_field.dart';
-import '../../../core/widgets/app_first_use_view.dart';
 import '../../../core/widgets/app_no_results_view.dart';
 import '../../../core/widgets/app_page_bar.dart';
 import '../../categories/presentation/category_create_page.dart';
@@ -37,6 +36,7 @@ import '../../../core/widgets/app_unknown_amount.dart';
 import '../data/planning_models.dart';
 import '../data/planning_repository.dart';
 import 'planning_controller.dart';
+import 'recurring_plans_page.dart';
 import 'realize_day_sheet.dart';
 import '../../../core/widgets/app_account_field.dart';
 import '../../../features/accounts/presentation/account_directory.dart';
@@ -150,63 +150,11 @@ class _PlanningPageState extends State<PlanningPage> {
     );
   }
 
+  // Tekrarlayanlar kendi sayfasıyla aynı listeyi çizer (22 Kasım 2026);
+  // iki ayrı görünüm ayrışmasın.
   Widget _recurringTab(PlanningSnapshot snapshot) => RefreshIndicator(
     onRefresh: controller.load,
-    child: ListView(
-      padding: AppPageInsets.underTabs,
-      children: [
-        if (snapshot.recurringTransactions.isEmpty)
-          AppFirstUseView(
-            title: 'Henüz tekrarlayan plan yok',
-            message: 'Kira, maaş gibi düzenli ödemelerinizi ekleyin.',
-            icon: Icons.event_repeat,
-            actionLabel: 'Tekrarlayan plan ekle',
-            onAction: controller.isSubmitting
-                ? null
-                : () => _showRecurringForm(snapshot),
-          )
-        else ...[
-          FilledButton.icon(
-            onPressed: controller.isSubmitting
-                ? null
-                : () => _showRecurringForm(snapshot),
-            icon: const Icon(Icons.add),
-            label: const Text('Tekrarlayan plan ekle'),
-          ),
-          const SizedBox(height: AppGaps.block),
-          for (final item in snapshot.recurringTransactions.where(
-            (item) => _planIsRunning(snapshot, item),
-          ))
-            _RecurringPlanCard(
-              item: item,
-              snapshot: snapshot,
-              controller: controller,
-            ),
-          // Paused plans are kept but folded away: they are history the user
-          // chose to stop, and after a dozen of them they would bury the plans
-          // that still run.
-          if (snapshot.recurringTransactions.any(
-            (item) => !_planIsRunning(snapshot, item),
-          ))
-            ExpansionTile(
-              title: Text(
-                'Duraklatılan ve biten planlar '
-                '(${snapshot.recurringTransactions.where((i) => !_planIsRunning(snapshot, i)).length})',
-              ),
-              children: [
-                for (final item in snapshot.recurringTransactions.where(
-                  (item) => !_planIsRunning(snapshot, item),
-                ))
-                  _RecurringPlanCard(
-                    item: item,
-                    snapshot: snapshot,
-                    controller: controller,
-                  ),
-              ],
-            ),
-        ],
-      ],
-    ),
+    child: RecurringPlanList(snapshot: snapshot, controller: controller),
   );
 
   /// Seçili vade ufkundan bir sonraki; en genişte yoktur.
@@ -606,17 +554,23 @@ class _PlanningPageState extends State<PlanningPage> {
     );
     if (selected != null) await controller.changeAsOfDate(selected);
   }
-
-  Future<void> _showRecurringForm(PlanningSnapshot snapshot) async {
-    await AppFormSheet.show<bool>(
-      context: context,
-      builder: (context) => _RecurringForm(
-        snapshot: snapshot,
-        onSubmit: controller.createRecurring,
-      ),
-    );
-  }
 }
+
+/// Yeni tekrarlayan planın formu; Tekrarlayanlar ve Planlama ortak.
+/// [initialName] sonuçsuz aramadan gelir ve yalnız adı doldurur.
+Future<void> showRecurringPlanForm(
+  BuildContext context, {
+  required PlanningSnapshot snapshot,
+  required PlanningController controller,
+  String? initialName,
+}) => AppFormSheet.show<bool>(
+  context: context,
+  builder: (context) => _RecurringForm(
+    snapshot: snapshot,
+    onSubmit: controller.createRecurring,
+    initialName: initialName,
+  ),
+);
 
 class _SummaryGrid extends StatelessWidget {
   const _SummaryGrid({required this.report});
@@ -905,8 +859,13 @@ class _EmptyNote extends StatelessWidget {
 }
 
 class _RecurringForm extends StatefulWidget {
-  const _RecurringForm({required this.snapshot, required this.onSubmit});
+  const _RecurringForm({
+    required this.snapshot,
+    required this.onSubmit,
+    this.initialName,
+  });
   final PlanningSnapshot snapshot;
+  final String? initialName;
   final Future<bool> Function(Map<String, Object?>) onSubmit;
 
   @override
@@ -917,7 +876,7 @@ class _RecurringFormState extends State<_RecurringForm> {
   final formKey = GlobalKey<FormState>();
   final amount = TextEditingController();
   final occurrenceLimit = TextEditingController();
-  final description = TextEditingController();
+  late final description = TextEditingController(text: widget.initialName);
   String? accountId;
   String? creditCardId;
   String? categoryId;
@@ -1332,38 +1291,11 @@ String _formatDate(DateTime value) =>
     '${value.month.toString().padLeft(2, '0')}-'
     '${value.day.toString().padLeft(2, '0')}';
 
-/// Plan çalışanların arasında mı duruyor, katlanmış bölümde mi.
-///
-/// Sınırına ya da bitiş tarihine ulaşan plan sunucuda aktif değildir ama
-/// duraklatılmış da değildir: son kalemi beklerken çalışan planların arasında
-/// kalır, o da ödenince katlanır.
-bool _planIsRunning(PlanningSnapshot snapshot, RecurringTransactionItem item) =>
-    item.isActive ||
-    (item.isCompleted &&
-        snapshot.occurrences.any(
-          (occurrence) =>
-              occurrence.recurringTransactionId == item.id &&
-              occurrence.canRealize,
-        ));
-
-String? _categoryName(PlanningSnapshot snapshot, String categoryId) {
-  for (final category in snapshot.categories) {
-    if (category.id == categoryId) return category.name;
-  }
-  return null;
-}
-
 String _kindLabel(String kind) => switch (kind) {
   'income' => 'Düzenli gelir',
   'expense' => 'Düzenli gider',
   'bill-payment' => 'Fatura / abonelik',
   _ => kind,
-};
-
-IconData _kindIcon(String kind) => switch (kind) {
-  'income' => Icons.south_west,
-  'expense' => Icons.north_east,
-  _ => Icons.receipt_long,
 };
 
 String _frequencyLabel(String frequency) => switch (frequency) {
@@ -1397,180 +1329,92 @@ IconData _sourceIcon(String source) => switch (source) {
   _ => Icons.event_repeat,
 };
 
-/// Tekrarlayan bir planın liste satırı.
-///
-/// Satırda **hiç denetim yok**: ikon, ad, özet ve sağda tutar. Önceki iki
-/// deneme de cihazda yanlış çıktı — önce üç satırlık bir `SwitchListTile` ve
-/// altında tam genişlikte bir `Sil` şeridi vardı (kart içindeki bilgiden çok
-/// daha büyüktü), sonra silme satırın rozet alanına taşındı (nadir ve geri
-/// alınamaz bir iş, her satırda bağırıyordu ve tutarın yerini almıştı).
-///
-/// Duraklatma ve silme, satıra dokununca açılan panelde. Liste böylece tek
-/// işi yapıyor: hangi planlar var, ne kadar ve ne zaman.
-class _RecurringPlanCard extends StatelessWidget {
-  const _RecurringPlanCard({
-    required this.item,
-    required this.snapshot,
-    required this.controller,
-  });
-
-  final RecurringTransactionItem item;
-  final PlanningSnapshot snapshot;
-  final PlanningController controller;
-
-  String get _title =>
-      item.description ??
-      _categoryName(snapshot, item.categoryId) ??
-      _kindLabel(item.kind);
-
-  /// Satırda gösterilen sıradaki tarih: planın en erken **bekleyen** kalemi,
-  /// yoksa henüz üretilmemiş sıradaki tarih.
-  ///
-  /// `nextOccurrenceDate` üretilecek bir sonraki kalemi söyler; vadesi gelmiş
-  /// ama ödenmemiş kalem varken onu göstermek, Özet "bugün" derken Planlama'nın
-  /// iki ay sonrasını söylemesi demekti (vergi araştırması V-U9).
-  String? get _nextDate {
-    String? earliest;
-    for (final occurrence in snapshot.occurrences) {
-      if (occurrence.recurringTransactionId != item.id ||
-          !occurrence.canRealize) {
-        continue;
-      }
-      if (earliest == null ||
-          occurrence.scheduledDate.compareTo(earliest) < 0) {
-        earliest = occurrence.scheduledDate;
-      }
-    }
-    return earliest ?? item.nextOccurrenceDate;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final next = _nextDate;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppGaps.card),
-      child: AppCard(
-        padding: EdgeInsets.zero,
-        child: AppListRow(
-          icon: _kindIcon(item.kind),
-          title: _title,
-          // Türü soldaki ikon zaten söylüyor; alt satır sıklığı ve sıradaki
-          // tarihi taşıyor. Ham `2026-09-30` sunucunun iç gösterimi.
-          subtitle: [
-            _frequencyLabel(item.frequency),
-            if (item.occurrenceLimit != null)
-              '${item.generatedOccurrenceCount} / ${item.occurrenceLimit} tekrar',
-            next == null
-                ? 'plan tamamlandı'
-                : 'Sıradaki ${DateText.dayMonth(next)}',
-          ].join(' · '),
-          // Duraklatılmış plan yalnız bulunduğu bölümden anlaşılmıyor: bölüm
-          // kapalıyken açıp tek satıra bakan kullanıcı durumu görmeli.
-          // Biten plan duraklatılmış değildir; durumunu alt satır söyler.
-          badge: item.isPaused
-              ? const AppStatusChip(
-                  label: 'Duraklatıldı',
-                  icon: Icons.pause_circle_outline,
-                  tone: AppStatusTone.cancelled,
-                )
-              : null,
-          dimmed: !_planIsRunning(snapshot, item),
-          trailing: AppMoneyText(amount: item.amount, currency: item.currency),
-          onTap: () => _openSheet(context),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _openSheet(BuildContext context) async {
-    final action = await AppAdaptiveSheet.show<_PlanAction>(
-      context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.medium,
-                0,
-                AppSpacing.medium,
-                AppSpacing.small,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _title,
-                    style: Theme.of(sheetContext).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: AppSpacing.xSmall),
-                  Text(
-                    '${MoneyText.format(item.amount, item.currency)} · '
-                    '${_frequencyLabel(item.frequency)} · '
-                    '${_kindLabel(item.kind)}',
-                    style: Theme.of(sheetContext).textTheme.bodyMedium,
-                  ),
-                ],
-              ),
+/// Planın yönetim paneli: duraklat / sürdür ve sil. Plan ayrıntı sayfası
+/// gelene kadar (B2) satıra dokununca açılır.
+Future<void> showRecurringPlanActions(
+  BuildContext context, {
+  required RecurringTransactionItem item,
+  required String title,
+  required PlanningController controller,
+}) async {
+  final action = await AppAdaptiveSheet.show<_PlanAction>(
+    context: context,
+    builder: (sheetContext) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.medium,
+              0,
+              AppSpacing.medium,
+              AppSpacing.small,
             ),
-            // Biten plan yeniden başlatılamaz; duraklatılacak bir şeyi de yok.
-            if (!item.isCompleted)
-              ListTile(
-                leading: Icon(
-                  item.isActive
-                      ? Icons.pause_circle_outline
-                      : Icons.play_circle_outline,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Theme.of(sheetContext).textTheme.titleLarge),
+                const SizedBox(height: AppSpacing.xSmall),
+                Text(
+                  '${MoneyText.format(item.amount, item.currency)} · '
+                  '${_frequencyLabel(item.frequency)} · '
+                  '${_kindLabel(item.kind)}',
+                  style: Theme.of(sheetContext).textTheme.bodyMedium,
                 ),
-                title: Text(item.isActive ? 'Duraklat' : 'Sürdür'),
-                // Duraklatma silmenin yumuşak alternatifi: geçmiş kalır, plan
-                // yalnız yeni kayıt üretmez.
-                subtitle: Text(
-                  item.isActive
-                      ? 'Geçmiş kalır; plan yeni kayıt üretmez.'
-                      : 'Plan yeniden kayıt üretmeye başlar.',
-                ),
-                onTap: () =>
-                    Navigator.of(sheetContext).pop(_PlanAction.toggleActive),
-              ),
+              ],
+            ),
+          ),
+          // Biten plan yeniden başlatılamaz; duraklatılacak bir şeyi de yok.
+          if (!item.isCompleted)
             ListTile(
-              leading: const Icon(Icons.delete_outline),
-              title: const Text('Sil'),
-              subtitle: const Text(
-                'Yalnız hiç gerçekleşmemiş plan silinebilir.',
+              leading: Icon(
+                item.isActive
+                    ? Icons.pause_circle_outline
+                    : Icons.play_circle_outline,
               ),
-              onTap: () => Navigator.of(sheetContext).pop(_PlanAction.delete),
+              title: Text(item.isActive ? 'Duraklat' : 'Sürdür'),
+              // Duraklatılan planın bekleyen kalemleri de listelerden düşer
+              // (B9); metin bunu söyler.
+              subtitle: Text(
+                item.isActive
+                    ? 'Geçmiş kalır; plan yeni kayıt üretmez, bekleyen '
+                          'kalemleri listelerden kalkar.'
+                    : 'Plan yeniden kayıt üretmeye başlar.',
+              ),
+              onTap: () =>
+                  Navigator.of(sheetContext).pop(_PlanAction.toggleActive),
             ),
-            const SizedBox(height: AppSpacing.small),
-          ],
-        ),
+          ListTile(
+            leading: const Icon(Icons.delete_outline),
+            title: const Text('Sil'),
+            subtitle: const Text('Yalnız hiç gerçekleşmemiş plan silinebilir.'),
+            onTap: () => Navigator.of(sheetContext).pop(_PlanAction.delete),
+          ),
+          const SizedBox(height: AppSpacing.small),
+        ],
       ),
-    );
+    ),
+  );
 
-    if (action == null || !context.mounted) return;
-    switch (action) {
-      case _PlanAction.toggleActive:
-        await controller.setRecurringActive(item.id, !item.isActive);
-      case _PlanAction.delete:
-        await _confirmDelete(context);
-    }
-  }
-
-  Future<void> _confirmDelete(BuildContext context) async {
-    final confirmed = await AppConfirmDialog.show(
-      context: context,
-      icon: Icons.delete_outline,
-      destructive: true,
-      highlight: _title,
-      title: 'Plan silinsin mi?',
-      message:
-          'Plan ve henüz onaylanmamış kayıtları kaldırılır. Bu plandan daha '
-          'önce gerçekleşmiş hareketler varsa silme reddedilir; onları korumak '
-          'için planı duraklatabilirsiniz.',
-      confirmLabel: 'Sil',
-    );
-    if (confirmed) await controller.deleteRecurring(item.id);
+  if (action == null || !context.mounted) return;
+  switch (action) {
+    case _PlanAction.toggleActive:
+      await controller.setRecurringActive(item.id, !item.isActive);
+    case _PlanAction.delete:
+      final confirmed = await AppConfirmDialog.show(
+        context: context,
+        icon: Icons.delete_outline,
+        destructive: true,
+        highlight: title,
+        title: 'Plan silinsin mi?',
+        message:
+            'Plan ve henüz onaylanmamış kayıtları kaldırılır. Bu plandan daha '
+            'önce gerçekleşmiş hareketler varsa silme reddedilir; onları '
+            'korumak için planı duraklatabilirsiniz.',
+        confirmLabel: 'Sil',
+      );
+      if (confirmed) await controller.deleteRecurring(item.id);
   }
 }
 

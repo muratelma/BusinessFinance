@@ -1,5 +1,12 @@
 # Test Kapsam Haritası
 
+### Tekrarlayanlar · 22 Kasım 2026
+
+- `planning_feature_test.dart`: satır yön ve sıklığı Türkçe yazar, en eski açık
+  vadeyi gecikme olarak gösterir; duraklatılan ve bitenler ayrı sayfada; arama
+  Türkçe büyük/küçük harfe duyarsız, sonuçsuz aramada yazılan adla form açılır.
+- `more_page_test.dart`: Diğer → Planlama'da Planlananlar ve Tekrarlayanlar.
+
 ### Planlananlar · 22 Kasım 2026
 
 - `PlannedActivityUseCaseTests`: özel aralıkta seçim içindeki açık kayıtlar ve
