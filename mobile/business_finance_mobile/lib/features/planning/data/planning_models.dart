@@ -53,9 +53,21 @@ class RecurringTransactionItem {
     required this.monthEndBehavior,
     required this.description,
     required this.isActive,
+    this.scope,
+    this.dayOfMonth,
+    this.months,
   });
 
   final String id;
+
+  /// Planın kapsamı (`business` / `personal`); düzenlemede aynen geri
+  /// gönderilir, iki kapsama açık kategoride sunucu onu tahmin etmez.
+  final String? scope;
+
+  /// Ritmin ayın günü ve seçilen ayları; düzenlemede ritim değişmesin diye
+  /// aynen geri gönderilir.
+  final int? dayOfMonth;
+  final List<int>? months;
 
   /// `account` or `credit-card`. A plan is funded by exactly one of the two, so
   /// the matching id is set and the other is null.
@@ -109,6 +121,11 @@ class RecurringTransactionItem {
         monthEndBehavior: JsonReaders.string(json, 'monthEndBehavior'),
         description: JsonReaders.nullableString(json, 'description'),
         isActive: JsonReaders.boolean(json, 'isActive'),
+        scope: JsonReaders.nullableString(json, 'scope'),
+        dayOfMonth: JsonReaders.nullableInt(json, 'dayOfMonth'),
+        months: (json['months'] as List<dynamic>?)
+            ?.map((value) => value as int)
+            .toList(growable: false),
       );
 }
 

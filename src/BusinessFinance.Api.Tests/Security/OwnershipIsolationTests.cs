@@ -545,6 +545,9 @@ public sealed class OwnershipIsolationTests
         yield return Json("tekrarlayan planı pasifleştirme", patch,
             "api/v1/recurring-transactions/{recurringTransactionId:guid}/active",
             new SetRecurringActiveRequest(false), f.RecurringId);
+        yield return Json("tekrarlayan planı sona erdirme", HttpMethod.Post,
+            "api/v1/recurring-transactions/{recurringTransactionId:guid}/end",
+            new EndRecurringPlanRequest("2026-08-31"), f.RecurringId);
         yield return Json("planın vadesini gerçekleştirme", HttpMethod.Post,
             "api/v1/recurring-transactions/{recurringTransactionId:guid}/occurrences/realize",
             new RealizeDueRecurringRequest(Today), f.RecurringId);

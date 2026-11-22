@@ -30,6 +30,12 @@ public static class RecurringEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPost("/{recurringTransactionId:guid}/end", EndAsync)
+            .WithName("EndRecurringTransaction")
+            .Produces<RecurringTransactionResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
         group.MapPatch("/{recurringTransactionId:guid}/active", SetActiveAsync)
             .WithName("SetRecurringTransactionActive")
             .Produces<RecurringTransactionResponse>(StatusCodes.Status200OK)
@@ -241,6 +247,20 @@ public static class RecurringEndpoints
                 "recurring.invalid_scope");
         }
 
+        DateOnly? effectiveFrom = null;
+        if (request.EffectiveFrom is not null)
+        {
+            if (!FinanceContract.TryParseDate(request.EffectiveFrom, out var parsedFrom))
+            {
+                return ApiProblemResults.Validation(
+                    httpContext,
+                    "Effective date must use the yyyy-MM-dd format.",
+                    "recurring.effective_from_invalid");
+            }
+
+            effectiveFrom = parsedFrom;
+        }
+
         var result = await useCase.ExecuteAsync(new UpdateRecurringTransactionCommand(
             recurringTransactionId,
             sourceType,
@@ -255,7 +275,8 @@ public static class RecurringEndpoints
             rhythm.EndDate,
             rhythm.MonthEndBehavior,
             request.DayOfMonth,
-            rhythm.SelectedMonths), cancellationToken);
+            rhythm.SelectedMonths,
+            effectiveFrom), cancellationToken);
         return result.IsSuccess
             ? Results.Ok(ToResponse(result.Value))
             : result.Error.ToProblemResult(httpContext);
@@ -269,6 +290,28 @@ public static class RecurringEndpoints
         var result = await useCase.ExecuteAsync(cancellationToken);
         return result.IsSuccess
             ? Results.Ok(new RecurringTransactionListResponse(result.Value.Select(ToResponse).ToArray()))
+            : result.Error.ToProblemResult(httpContext);
+    }
+
+    private static async Task<IResult> EndAsync(
+        Guid recurringTransactionId,
+        EndRecurringPlanRequest request,
+        EndRecurringPlanUseCase useCase,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        if (!FinanceContract.TryParseDate(request.LastDueDate, out var lastDue))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Last due date must use the yyyy-MM-dd format.",
+                "recurring.last_due_invalid");
+        }
+
+        var result = await useCase.ExecuteAsync(
+            new EndRecurringPlanCommand(recurringTransactionId, lastDue), cancellationToken);
+        return result.IsSuccess
+            ? Results.Ok(ToResponse(result.Value))
             : result.Error.ToProblemResult(httpContext);
     }
 

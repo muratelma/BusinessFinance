@@ -2258,3 +2258,14 @@ gecikenler ve gelecekteki ilk vade; her kart gün, tutar, tür, `Gecikti` /
 dönem vade günüyle; fazlası `Tümü ›` ile ayrı sayfada. Altta `Planı duraklat`
 / `Planı sürdür` (sonucu bir cümleyle) ve yalnız hiç ödemesi olmayan planda
 `Planı sil`. Planı düzenleme D1 (dönemden itibaren değişiklik) ile gelecek.
+
+## Planı düzenleme ve sona erdirme · 22 Kasım 2026
+
+Plan ayrıntısının sağ üstündeki `Düzenle` (biten planda yok) planın formunu
+dolu açar: kaynak, kategori, tutar, `Hangi vadeden itibaren?` (planın açık
+vadeleri) ve plan adı. Tür ve ritim bu formda değişmez. Tutar, kaynak ya da
+kategori değişirse seçilen vadeden itibaren uygulanır, önceki vadeler ve
+geçmiş ödemeler aynı kalır; yalnız ad değişirse vade sorulmaz. Yönetimdeki
+`Planı sona erdir` son vadeyi açık vadelerden seçtirir ve sonucu yazar
+(`15 Kasım vadesindeki ₺1.200,00 ödeme beklemeye devam edecek. 15 Aralık ve
+sonrasında yeni vade oluşmayacak.`); hizmetteki aboneliği iptal etmez.

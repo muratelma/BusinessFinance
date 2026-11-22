@@ -554,6 +554,25 @@ class _PlanningPageState extends State<PlanningPage> {
   }
 }
 
+/// Planı düzenleme formu (D1): alanlar plandan dolu, tür ve ritim gizli;
+/// tutar, kaynak ya da kategori değişirse [effectiveDates]'ten seçilen
+/// vadeden itibaren uygulanır.
+Future<void> showRecurringPlanEditForm(
+  BuildContext context, {
+  required PlanningSnapshot snapshot,
+  required PlanningController controller,
+  required RecurringTransactionItem plan,
+  required List<String> effectiveDates,
+}) => AppFormSheet.show<bool>(
+  context: context,
+  builder: (context) => _RecurringForm(
+    snapshot: snapshot,
+    editing: plan,
+    effectiveDates: effectiveDates,
+    onSubmit: (input) => controller.updateRecurring(plan.id, input),
+  ),
+);
+
 /// Yeni tekrarlayan planın formu; Tekrarlayanlar ve Planlama ortak.
 /// [initialName] sonuçsuz aramadan gelir ve yalnız adı doldurur.
 Future<void> showRecurringPlanForm(
@@ -861,9 +880,18 @@ class _RecurringForm extends StatefulWidget {
     required this.snapshot,
     required this.onSubmit,
     this.initialName,
+    this.editing,
+    this.effectiveDates = const [],
   });
   final PlanningSnapshot snapshot;
   final String? initialName;
+
+  /// Düzenlenen plan; boşsa yeni plan. Düzenlemede tür ve ritim değişmez
+  /// (ritim değişikliği dönemden itibaren değişiklikle birlikte yapılamaz).
+  final RecurringTransactionItem? editing;
+
+  /// `Hangi vadeden itibaren?` seçenekleri: planın açık vadeleri.
+  final List<String> effectiveDates;
   final Future<bool> Function(Map<String, Object?>) onSubmit;
 
   @override
@@ -897,6 +925,31 @@ class _RecurringFormState extends State<_RecurringForm> {
   /// verilebilir; sunucu önce dolanı uygular.
   String? endDate;
 
+  /// Düzenlemede değişikliğin ilk etkilediği vade.
+  String? effectiveFrom;
+
+  bool get _editing => widget.editing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final plan = widget.editing;
+    if (plan == null) return;
+    accountId = plan.accountId;
+    creditCardId = plan.creditCardId;
+    categoryId = plan.categoryId;
+    categoryScope = plan.scope == null
+        ? null
+        : TransactionScope.values
+              .where((value) => value.apiValue == plan.scope)
+              .firstOrNull;
+    kind = plan.kind;
+    // Tutar alanları binlik ayırır (`1.200`); başlangıç değeri de öyle.
+    amount.text = MoneyText.field(plan.amount);
+    description.text = plan.description ?? '';
+    effectiveFrom = widget.effectiveDates.firstOrNull;
+  }
+
   @override
   void dispose() {
     amount.dispose();
@@ -910,11 +963,13 @@ class _RecurringFormState extends State<_RecurringForm> {
   Widget build(BuildContext context) => Form(
     key: formKey,
     child: AppFormSheet<bool>(
-      title: 'Tekrarlayan plan ekle',
-      description:
-          'Plan tek başına para üretmez; kayıt ancak gerçekleştirildiğinde '
-          'bakiyeye ve raporlara girer.',
-      submitLabel: 'Kaydet',
+      title: _editing ? 'Planı düzenle' : 'Tekrarlayan plan ekle',
+      description: _editing
+          ? 'Tutar, kaynak ve kategori seçtiğiniz vadeden itibaren değişir; '
+                'önceki vadeler ve geçmiş ödemeler olduğu gibi kalır.'
+          : 'Plan tek başına para üretmez; kayıt ancak gerçekleştirildiğinde '
+                'bakiyeye ve raporlara girer.',
+      submitLabel: _editing ? 'Değişiklikleri kaydet' : 'Kaydet',
       onSubmit: _submit,
       children: [
         // Income can only land in an account: a card cannot receive money
@@ -989,175 +1044,201 @@ class _RecurringFormState extends State<_RecurringForm> {
           decoration: const InputDecoration(labelText: 'Tutar'),
           validator: _amountError,
         ),
-        const SizedBox(height: AppGaps.field),
-        AppPickField<String>(
-          label: 'Tür',
-          value: kind,
-          options: [
-            AppPickOption(
-              value: 'income',
-              label: 'Gelir',
-              icon: Icons.south_west,
-              iconColor: AppFinanceColors.of(context).income,
-            ),
-            AppPickOption(
-              value: 'expense',
-              label: 'Gider',
-              icon: Icons.north_east,
-              iconColor: AppFinanceColors.of(context).expense,
-            ),
-            const AppPickOption(
-              value: 'bill-payment',
-              label: 'Fatura / abonelik',
-              icon: Icons.receipt_long_outlined,
-            ),
-          ],
-          onChanged: (value) => setState(() {
-            kind = value;
-            if (!_availableCategories.any(
-              (category) => category.id == categoryId,
-            )) {
-              categoryId = null;
-              categoryScope = null;
-            }
-          }),
-        ),
-        const SizedBox(height: AppGaps.field),
-        AppPickField<String>(
-          label: 'Sıklık',
-          value: frequency,
-          options: const [
-            // Emlak Mayıs ve Kasım, gelir vergisi Mart ve Temmuz gibi
-            // ritimler "6 ayda bir"e sığmıyor (ADR 0018 T2).
-            AppPickOption(
-              value: 'selected-months',
-              label: 'Seçilen aylarda',
-              icon: Icons.calendar_month_outlined,
-            ),
-            AppPickOption(
-              value: 'daily',
-              label: 'Günlük',
-              icon: Icons.today_outlined,
-            ),
-            AppPickOption(
-              value: 'weekly',
-              label: 'Haftalık',
-              icon: Icons.date_range_outlined,
-            ),
-            AppPickOption(
-              value: 'monthly',
-              label: 'Aylık',
-              icon: Icons.calendar_view_month_outlined,
-            ),
-            // Geçici verginin ritmi; aylığın üç adımlık hâli.
-            AppPickOption(
-              value: 'quarterly',
-              label: 'Üç ayda bir',
-              icon: Icons.event_repeat_outlined,
-            ),
-            AppPickOption(
-              value: 'yearly',
-              label: 'Yıllık',
-              icon: Icons.event_outlined,
-            ),
-          ],
-          onChanged: (value) => setState(() => frequency = value),
-        ),
-        if (frequency == 'selected-months') ...[
-          const SizedBox(height: AppSpacing.small),
-          AppMonthChips(
-            selected: months,
+        if (_editing && widget.effectiveDates.isNotEmpty) ...[
+          const SizedBox(height: AppGaps.field),
+          AppPickField<String>(
+            label: 'Hangi vadeden itibaren?',
+            value: effectiveFrom ?? widget.effectiveDates.first,
+            options: [
+              for (final date in widget.effectiveDates)
+                AppPickOption(
+                  value: date,
+                  label: DateText.dayMonthYear(date),
+                  icon: Icons.event_outlined,
+                ),
+            ],
+            onChanged: (value) => setState(() => effectiveFrom = value),
+          ),
+        ],
+        if (_editing) ...[
+          const SizedBox(height: AppGaps.field),
+          TextFormField(
+            controller: description,
+            hintLocales: const [Locale('tr', 'TR')],
+            maxLength: 200,
+            decoration: const InputDecoration(labelText: 'Plan adı'),
+          ),
+        ] else ...[
+          const SizedBox(height: AppGaps.field),
+          AppPickField<String>(
+            label: 'Tür',
+            value: kind,
+            options: [
+              AppPickOption(
+                value: 'income',
+                label: 'Gelir',
+                icon: Icons.south_west,
+                iconColor: AppFinanceColors.of(context).income,
+              ),
+              AppPickOption(
+                value: 'expense',
+                label: 'Gider',
+                icon: Icons.north_east,
+                iconColor: AppFinanceColors.of(context).expense,
+              ),
+              const AppPickOption(
+                value: 'bill-payment',
+                label: 'Fatura / abonelik',
+                icon: Icons.receipt_long_outlined,
+              ),
+            ],
             onChanged: (value) => setState(() {
-              months = value;
-              monthsInvalid = false;
+              kind = value;
+              if (!_availableCategories.any(
+                (category) => category.id == categoryId,
+              )) {
+                categoryId = null;
+                categoryScope = null;
+              }
             }),
           ),
-          if (monthsInvalid)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.small),
-              child: Text(
-                months.isEmpty
-                    ? 'En az bir ay seçin.'
-                    : 'Başlangıç seçilen aylardan birinde olmalı.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.error,
+          const SizedBox(height: AppGaps.field),
+          AppPickField<String>(
+            label: 'Sıklık',
+            value: frequency,
+            options: const [
+              // Emlak Mayıs ve Kasım, gelir vergisi Mart ve Temmuz gibi
+              // ritimler "6 ayda bir"e sığmıyor (ADR 0018 T2).
+              AppPickOption(
+                value: 'selected-months',
+                label: 'Seçilen aylarda',
+                icon: Icons.calendar_month_outlined,
+              ),
+              AppPickOption(
+                value: 'daily',
+                label: 'Günlük',
+                icon: Icons.today_outlined,
+              ),
+              AppPickOption(
+                value: 'weekly',
+                label: 'Haftalık',
+                icon: Icons.date_range_outlined,
+              ),
+              AppPickOption(
+                value: 'monthly',
+                label: 'Aylık',
+                icon: Icons.calendar_view_month_outlined,
+              ),
+              // Geçici verginin ritmi; aylığın üç adımlık hâli.
+              AppPickOption(
+                value: 'quarterly',
+                label: 'Üç ayda bir',
+                icon: Icons.event_repeat_outlined,
+              ),
+              AppPickOption(
+                value: 'yearly',
+                label: 'Yıllık',
+                icon: Icons.event_outlined,
+              ),
+            ],
+            onChanged: (value) => setState(() => frequency = value),
+          ),
+          if (frequency == 'selected-months') ...[
+            const SizedBox(height: AppSpacing.small),
+            AppMonthChips(
+              selected: months,
+              onChanged: (value) => setState(() {
+                months = value;
+                monthsInvalid = false;
+              }),
+            ),
+            if (monthsInvalid)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.small),
+                child: Text(
+                  months.isEmpty
+                      ? 'En az bir ay seçin.'
+                      : 'Başlangıç seçilen aylardan birinde olmalı.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
                 ),
               ),
-            ),
-        ],
-        const SizedBox(height: AppGaps.field),
-        AppPickField<String>(
-          label: 'Ay sonu davranışı',
-          value: monthEndBehavior,
-          options: const [
-            AppPickOption(
-              value: 'clamp-to-last-day',
-              label: 'Ayın son gününe taşı',
-              icon: Icons.last_page,
-            ),
-            AppPickOption(
-              value: 'skip-invalid-period',
-              label: 'Geçersiz ayı atla',
-              icon: Icons.skip_next_outlined,
-            ),
           ],
-          onChanged: (value) => setState(() => monthEndBehavior = value),
-        ),
-        const SizedBox(height: AppGaps.field),
-        AppDateField(
-          label: 'Başlangıç',
-          value: _formatDate(startDate),
-          onChanged: (value) => setState(() {
-            startDate = AppDateField.parse(value)!;
-            final end = AppDateField.parse(endDate);
-            if (end != null && end.isBefore(startDate)) endDate = null;
-          }),
-        ),
-        const SizedBox(height: AppGaps.field),
-        AppDateField(
-          label: 'Bitiş tarihi (isteğe bağlı)',
-          value: endDate,
-          firstDate: startDate,
-          helperText: 'Boş bırakırsanız plan süresiz tekrar eder.',
-          onChanged: (value) => setState(() => endDate = value),
-        ),
-        if (endDate != null)
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: () => setState(() => endDate = null),
-              icon: const Icon(Icons.clear),
-              label: const Text('Bitiş tarihini kaldır'),
+          const SizedBox(height: AppGaps.field),
+          AppPickField<String>(
+            label: 'Ay sonu davranışı',
+            value: monthEndBehavior,
+            options: const [
+              AppPickOption(
+                value: 'clamp-to-last-day',
+                label: 'Ayın son gününe taşı',
+                icon: Icons.last_page,
+              ),
+              AppPickOption(
+                value: 'skip-invalid-period',
+                label: 'Geçersiz ayı atla',
+                icon: Icons.skip_next_outlined,
+              ),
+            ],
+            onChanged: (value) => setState(() => monthEndBehavior = value),
+          ),
+          const SizedBox(height: AppGaps.field),
+          AppDateField(
+            label: 'Başlangıç',
+            value: _formatDate(startDate),
+            onChanged: (value) => setState(() {
+              startDate = AppDateField.parse(value)!;
+              final end = AppDateField.parse(endDate);
+              if (end != null && end.isBefore(startDate)) endDate = null;
+            }),
+          ),
+          const SizedBox(height: AppGaps.field),
+          AppDateField(
+            label: 'Bitiş tarihi (isteğe bağlı)',
+            value: endDate,
+            firstDate: startDate,
+            helperText: 'Boş bırakırsanız plan süresiz tekrar eder.',
+            onChanged: (value) => setState(() => endDate = value),
+          ),
+          if (endDate != null)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => setState(() => endDate = null),
+                icon: const Icon(Icons.clear),
+                label: const Text('Bitiş tarihini kaldır'),
+              ),
+            ),
+          const SizedBox(height: AppGaps.field),
+          TextFormField(
+            controller: occurrenceLimit,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Toplam tekrar sınırı (isteğe bağlı)',
+              helperText:
+                  'Plan bu sayıda kayıt ürettikten sonra tamamlanır. '
+                  'Bitiş tarihiyle birlikte verilirse önce dolan geçerlidir.',
+            ),
+            validator: (value) {
+              final text = value?.trim() ?? '';
+              if (text.isEmpty) return null;
+              final parsed = int.tryParse(text);
+              return parsed == null || parsed <= 0
+                  ? 'Sıfırdan büyük tam sayı girin.'
+                  : null;
+            },
+          ),
+          const SizedBox(height: AppGaps.field),
+          TextFormField(
+            controller: description,
+            hintLocales: const [Locale('tr', 'TR')],
+            maxLength: 200,
+            decoration: const InputDecoration(
+              labelText: 'Açıklama (isteğe bağlı)',
             ),
           ),
-        const SizedBox(height: AppGaps.field),
-        TextFormField(
-          controller: occurrenceLimit,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Toplam tekrar sınırı (isteğe bağlı)',
-            helperText:
-                'Plan bu sayıda kayıt ürettikten sonra tamamlanır. '
-                'Bitiş tarihiyle birlikte verilirse önce dolan geçerlidir.',
-          ),
-          validator: (value) {
-            final text = value?.trim() ?? '';
-            if (text.isEmpty) return null;
-            final parsed = int.tryParse(text);
-            return parsed == null || parsed <= 0
-                ? 'Sıfırdan büyük tam sayı girin.'
-                : null;
-          },
-        ),
-        const SizedBox(height: AppGaps.field),
-        TextFormField(
-          controller: description,
-          hintLocales: const [Locale('tr', 'TR')],
-          maxLength: 200,
-          decoration: const InputDecoration(
-            labelText: 'Açıklama (isteğe bağlı)',
-          ),
-        ),
+        ],
       ],
     ),
   );
@@ -1246,6 +1327,37 @@ class _RecurringFormState extends State<_RecurringForm> {
       MoneyText.normalizeInput(amount.text) ??
           amount.text.trim().replaceAll(',', '.'),
     ).toStringAsFixed(4);
+    final plan = widget.editing;
+    if (plan != null) {
+      final trimmed = description.text.trim();
+      // Yalnız ad değiştiyse vade sorulmaz: ad bütün bekleyenlere geçer.
+      final moneyChanged =
+          normalizedAmount != plan.amount ||
+          accountId != plan.accountId ||
+          creditCardId != plan.creditCardId ||
+          categoryId != plan.categoryId ||
+          scope?.apiValue != plan.scope;
+      final success = await widget.onSubmit({
+        'sourceType': creditCardId == null ? 'account' : 'credit-card',
+        'accountId': accountId,
+        'creditCardId': creditCardId,
+        'categoryId': categoryId,
+        'scope': showScope ? scope?.apiValue : plan.scope,
+        'amount': normalizedAmount,
+        // Ritim aynen geri gider; değişirse sunucu dönemden itibaren
+        // değişikliği reddeder.
+        'frequency': plan.frequency,
+        'startDate': plan.startDate,
+        'endDate': plan.endDate,
+        'monthEndBehavior': plan.monthEndBehavior,
+        'dayOfMonth': plan.dayOfMonth,
+        'months': plan.months,
+        'description': trimmed.isEmpty ? null : trimmed,
+        if (moneyChanged)
+          'effectiveFrom': effectiveFrom ?? widget.effectiveDates.firstOrNull,
+      });
+      return success ? true : null;
+    }
     final success = await widget.onSubmit({
       // Sent explicitly so the server never has to infer which source this is.
       'sourceType': creditCardId == null ? 'account' : 'credit-card',

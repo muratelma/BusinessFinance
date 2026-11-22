@@ -1,5 +1,17 @@
 # Test Kapsam Haritası
 
+### Planı vadeden itibaren değiştirme ve sona erdirme · 22 Kasım 2026
+
+- `RecurringEndpointTests.ChangeFromADueDate_…`: önceki dönemler eski tutarla
+  üretilir, plan yeni tutar ve sıradaki vadeyle döner; ritme düşmeyen vade 400.
+- `RecurringEndpointTests.EndAfterADueDate_…`: plan tamamlanır, bitiş son vade;
+  planlanan görünümde son vadeye kadarki bekleyenler kalır, sonrası yok;
+  ritme düşmeyen vade 400.
+- `OwnershipIsolationTests`: `/end` ucu başka kullanıcıya 404.
+- `planning_feature_test.dart`: düzenleme formu tutar değişince `effectiveFrom`
+  ve ritmi aynen gönderir; sona erdirme paneli sonucu yazar ve seçilen vadeyi
+  gönderir.
+
 ### Plan ayrıntısı · 22 Kasım 2026
 
 - `planning_feature_test.dart`: ayrıntı ritmi, açık vadeleri (gecikmiş bekleyen

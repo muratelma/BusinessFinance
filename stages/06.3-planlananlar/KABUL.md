@@ -90,3 +90,15 @@ aralığına dokun. (Diğer menüsünde Planlananlar girişi yok; bkz. `README.m
 | 5.7 | Yönetim | Hiç ödemesi olmayan plan | `Planı sil` görünür; onaydan sonra plan silinir, listeye dönülür | |
 | 5.8 | Yönetim | Ödemesi olan plan | `Planı sil` görünmez | |
 | 5.9 | Planlananlar | Tekrarlayan satır → `Ödeme kaydet ›` → başlık altındaki `Planı görüntüle ›` | Planın sayfası açılır; geri dönünce ödeme paneli ve seçtiğin gün yerinde | |
+
+## Aşama 6 — Planı düzenleme ve sona erdirme (B3)
+
+| # | Nerede | Ne yap | Ne görmelisin | Sonuç |
+|---|---|---|---|---|
+| 6.1 | Plan ayrıntısı | Sağ üst `Düzenle` | `Planı düzenle`: kaynak, kategori, tutar (`1.200` biçiminde), `Hangi vadeden itibaren?`, plan adı | |
+| 6.2 | Düzenle | Tutarı değiştir, vade olarak sonraki vadeyi seç, kaydet | Önceki (gecikmiş) vade eski tutarda kalır; seçilen vade ve sonrası yeni tutarda; Planlananlar ve Tekrarlayanlar da öyle | |
+| 6.3 | Düzenle | Yalnız adı değiştir | Bütün vadelerde yeni ad | |
+| 6.4 | Düzenle | Kaynağı karta çevir | Seçilen vadeden itibaren Planlananlar'da `Karta yansıyacak` / `Harcamayı kaydet` | |
+| 6.5 | Yönetim | `Planı sona erdir` | Son vade seçimi ve `… beklemeye devam edecek. … ve sonrasında yeni vade oluşmayacak.` | |
+| 6.6 | Sona erdir | İlk açık vadeyi seç, onayla | Plan `Tamamlandı`; seçilen vadeye kadarki bekleyenler Planlananlar'da görünmeye devam eder, sonrası yok; `Düzenle` kalkar | |
+| 6.7 | Tekrarlayanlar | Sona erdirilen plan | Bekleyen vadesi varken listede; ödenince `Duraklatılan ve bitenler`e geçer | |

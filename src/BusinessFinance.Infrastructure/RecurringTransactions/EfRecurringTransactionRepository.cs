@@ -47,11 +47,19 @@ internal sealed class EfRecurringTransactionRepository(BusinessFinanceDbContext 
     public async Task SaveEditAsync(
         RecurringTransaction recurring,
         IReadOnlyCollection<RecurringTransactionOccurrence> removedOccurrences,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<RecurringTransactionOccurrence>? addedOccurrences = null)
     {
         if (dbContext.Entry(recurring).State == EntityState.Detached)
         {
             throw new InvalidOperationException("Recurring transaction must be tracked before update.");
+        }
+
+        // Dönemden itibaren değişiklik (D1) ve planı bitirme (D2) önceki
+        // günleri bugünkü hâliyle üretir; plan değişikliğiyle aynı sınırda.
+        if (addedOccurrences is { Count: > 0 })
+        {
+            dbContext.RecurringTransactionOccurrences.AddRange(addedOccurrences);
         }
 
         // Yeniden kurulan bekleyenler tahmindir; hiçbir finansal kayıt onlara

@@ -699,6 +699,33 @@ public sealed class RecurringTransaction
         IsActive = false;
     }
 
+    /// <summary>
+    /// Planı <paramref name="lastDueDate"/> vadesinden sonra bitirir (D2,
+    /// 22 Kasım 2026). Duraklatmadan farkı: plan duraklatılmış sayılmaz, bu
+    /// yüzden geçmişte bekleyen kalemleri listelerde kalır; yalnız sonraki
+    /// vadeler oluşmaz.
+    /// </summary>
+    /// <remarks>
+    /// Çağıran, son vadeye kadarki günleri önce üretir; sıradaki gün son
+    /// vadeden sonraysa plan tamamlanır.
+    /// </remarks>
+    public void EndAfter(DateOnly lastDueDate)
+    {
+        if (lastDueDate < StartDate)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(lastDueDate),
+                "The last due date cannot be before the schedule start date.");
+        }
+
+        EndDate = lastDueDate;
+        if (NextOccurrenceDate is DateOnly next && next > lastDueDate)
+        {
+            NextOccurrenceDate = null;
+            IsActive = false;
+        }
+    }
+
     public void Activate()
     {
         if (NextOccurrenceDate is null)

@@ -746,6 +746,62 @@ void main() {
     expect(repository.realizedOccurrences, ['o4']);
   });
 
+  testWidgets('planı vadeden itibaren düzenler ve sona erdirir', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(500, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final repository = _FakePlanningRepository(
+      plans: [_plan(id: 'p1', description: 'Kira')],
+      accounts: const [PlanningChoice(id: 'account', name: 'Banka')],
+      categories: const [
+        PlanningChoice(id: 'category', name: 'Kira', type: 'expense'),
+      ],
+      occurrences: const [
+        RecurringOccurrenceItem(
+          id: 'o1',
+          recurringTransactionId: 'p1',
+          categoryId: 'category',
+          amount: '125.5000',
+          currency: 'TRY',
+          kind: 'bill-payment',
+          scheduledDate: '2026-08-15',
+          description: 'Kira',
+          status: 'planned',
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: RecurringPlansPage(repository: repository),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kira').first);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Düzenle'));
+    await tester.pumpAndSettle();
+    expect(find.text('Planı düzenle'), findsOneWidget);
+    expect(find.text('Hangi vadeden itibaren?'), findsOneWidget);
+    await tester.enterText(find.widgetWithText(TextFormField, 'Tutar'), '150');
+    await tester.tap(find.text('Değişiklikleri kaydet'));
+    await tester.pumpAndSettle();
+    final update = repository.updates.single;
+    expect(update.$2['amount'], '150.0000');
+    expect(update.$2['effectiveFrom'], '2026-08-15');
+    expect(update.$2['frequency'], 'monthly');
+
+    await tester.tap(find.text('Planı sona erdir'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('beklemeye devam'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Planı sona erdir'));
+    await tester.pumpAndSettle();
+    expect(repository.ends.single, ('p1', '2026-08-15'));
+  });
+
   testWidgets('reports expose chart semantics and a visible text alternative', (
     tester,
   ) async {
@@ -1148,6 +1204,19 @@ class _FakePlanningRepository implements PlanningRepositoryContract {
   }
 
   Map<String, Object?>? createdRecurring;
+
+  final List<(String, Map<String, Object?>)> updates = [];
+  final List<(String, String)> ends = [];
+
+  @override
+  Future<void> updateRecurring(String id, Map<String, Object?> input) async {
+    updates.add((id, input));
+  }
+
+  @override
+  Future<void> endRecurring(String id, String lastDueDate) async {
+    ends.add((id, lastDueDate));
+  }
 
   @override
   Future<void> createRecurring(Map<String, Object?> input) async {

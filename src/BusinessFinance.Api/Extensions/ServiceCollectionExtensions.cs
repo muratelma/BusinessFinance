@@ -122,6 +122,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<CreateRecurringTransactionUseCase>();
         services.AddTransient<ListRecurringTransactionsUseCase>();
         services.AddTransient<SetRecurringActiveUseCase>();
+        services.AddTransient<EndRecurringPlanUseCase>();
         services.AddTransient<GenerateRecurringOccurrencesUseCase>();
         services.AddTransient<ListRecurringOccurrencesUseCase>();
         services.AddTransient<DeleteRecurringTransactionUseCase>();

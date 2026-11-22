@@ -65,8 +65,10 @@ internal sealed class FakeRecurringRepository : IRecurringTransactionRepository
     public Task SaveEditAsync(
         RecurringTransaction recurring,
         IReadOnlyCollection<RecurringTransactionOccurrence> removedOccurrences,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<RecurringTransactionOccurrence>? addedOccurrences = null)
     {
+        if (addedOccurrences is not null) Occurrences.AddRange(addedOccurrences);
         foreach (var occurrence in removedOccurrences) Occurrences.Remove(occurrence);
         Removed.AddRange(removedOccurrences);
         SaveCount++;

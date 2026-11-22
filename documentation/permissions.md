@@ -42,6 +42,7 @@ kullanıcının kaydına erişen ayrıcalıklı rol yoktur.
 | Ekstre okuma | 401 | Yalnız owner kart projection'ı | 404 |
 | Taksit create/list/realize | 401 | Owner kart/kategori/plan ile izinli | 404/400 veya dışlanır |
 | Recurring create/list/active | 401 | Owner hesap/kategori ve current user planı | 404/400 veya dışlanır |
+| Planı vadeden itibaren düzenleme (`PUT .../{id}` + `effectiveFrom`) ve sona erdirme (`POST /api/v1/recurring-transactions/{id}/end`) | 401 | Plan `(Id, current UserId)`; başka kullanıcının planı ve var olmayan kimlik aynı 404 | `recurring.not_found` (sahiplik denemesi `OwnershipIsolationTests`) |
 | Occurrence generate/list/realize | 401 | Yalnız current user plan/occurrence'ı | 404/400 veya dışlanır |
 | Recurring düzenleme, "tutar belli oldu", "Ödedim"i geri alma | 401 | Plan ve occurrence `(Id, current UserId)` ile bulunur; yeni kaynak ve kategori ayrı ayrı owner kapsamında doğrulanır | 404 |
 | Vergi ekranı, tanım ayrıntısı, Ödenenler | 401 | Plan, planlanan projection ve ödeme sorguları current `UserId` ile başlar | 404 / listeye girmez |

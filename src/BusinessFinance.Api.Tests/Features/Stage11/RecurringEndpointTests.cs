@@ -1,9 +1,11 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using BusinessFinance.Api.Features.Accounts;
 using BusinessFinance.Api.Features.Authentication;
 using BusinessFinance.Api.Features.Categories;
 using BusinessFinance.Api.Features.CreditCards;
+using BusinessFinance.Api.Features.FinancialActivities;
 using BusinessFinance.Api.Features.RecurringTransactions;
 using BusinessFinance.Api.Features.Reports;
 using BusinessFinance.Api.Features.Transactions;
@@ -361,6 +363,87 @@ public sealed class RecurringEndpointTests
         Guid cardId, Guid categoryId, string kind) =>
         new(null, categoryId, "149.9000", "TRY", kind, "business", "monthly", "2026-08-31", null,
             "clamp-to-last-day", "Streaming", "credit-card", cardId);
+
+    /// <summary>
+    /// D1 (22 Kasım 2026): tutar seçilen vadeden itibaren değişir; önceki
+    /// dönemler eski tutarla üretilip korunur. Geçersiz vade reddedilir.
+    /// </summary>
+    [Fact]
+    public async Task ChangeFromADueDate_KeepsEarlierPeriodsAtTheOldAmount()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(factory, "recurring-d1@example.test");
+        var account = await CreateAccountAsync(owner);
+        var category = await GetExpenseCategoryAsync(owner);
+        var plan = await CreatePlanAsync(owner, account.Id, category.Id);
+
+        UpdateRecurringTransactionRequest Update(string amount, string? from) => new(
+            account.Id, category.Id, amount, "business", "monthly", "2026-08-15", null,
+            "clamp-to-last-day", "Kira", EffectiveFrom: from);
+
+        using var wrongDay = await owner.PutAsJsonAsync(
+            $"/api/v1/recurring-transactions/{plan.Id}", Update("150.0000", "2026-10-16"));
+        Assert.Equal(HttpStatusCode.BadRequest, wrongDay.StatusCode);
+
+        using var update = await owner.PutAsJsonAsync(
+            $"/api/v1/recurring-transactions/{plan.Id}", Update("150.0000", "2026-10-15"));
+        update.EnsureSuccessStatusCode();
+        var updated = await update.Content.ReadFromJsonAsync<RecurringTransactionResponse>();
+        Assert.Equal("150.0000", updated!.Amount);
+        Assert.Equal("2026-10-15", updated.NextOccurrenceDate);
+
+        var occurrences = await owner.GetFromJsonAsync<RecurringOccurrenceListResponse>(
+            "/api/v1/recurring-transactions/occurrences");
+        var mine = occurrences!.Items.Where(item => item.RecurringTransactionId == plan.Id)
+            .OrderBy(item => item.ScheduledDate).ToArray();
+        Assert.Equal(["2026-08-15", "2026-09-15"], mine.Select(item => item.ScheduledDate));
+        Assert.All(mine, item => Assert.Equal("100.0000", item.Amount));
+    }
+
+    /// <summary>
+    /// D2: plan son vadeden sonra biter; son vadeye kadarki dönemler bekler ve
+    /// plan duraklatılmış sayılmaz, sonrası oluşmaz.
+    /// </summary>
+    [Fact]
+    public async Task EndAfterADueDate_KeepsEarlierDuesAndStopsLaterOnes()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(factory, "recurring-d2@example.test");
+        var account = await CreateAccountAsync(owner);
+        var category = await GetExpenseCategoryAsync(owner);
+        var plan = await CreatePlanAsync(owner, account.Id, category.Id);
+
+        using var wrongDay = await owner.PostAsJsonAsync(
+            $"/api/v1/recurring-transactions/{plan.Id}/end", new EndRecurringPlanRequest("2026-09-16"));
+        Assert.Equal(HttpStatusCode.BadRequest, wrongDay.StatusCode);
+
+        using var end = await owner.PostAsJsonAsync(
+            $"/api/v1/recurring-transactions/{plan.Id}/end", new EndRecurringPlanRequest("2026-09-15"));
+        end.EnsureSuccessStatusCode();
+        var ended = await end.Content.ReadFromJsonAsync<RecurringTransactionResponse>();
+        Assert.False(ended!.IsActive);
+        Assert.Null(ended.NextOccurrenceDate);
+        Assert.Equal("2026-09-15", ended.EndDate);
+
+        var planned = await owner.GetFromJsonAsync<PlannedActivityListResponse>(
+            "/api/v1/financial-activities/planned?asOfDate=2026-11-22&daysAhead=90");
+        var dues = planned!.Items.Where(item => item.Title == "Kira")
+            .Select(item => item.DueDate).Order().ToArray();
+        // Bekleyenler (geçmişte kalan iki dönem) görünür; Ekim ve sonrası yok.
+        Assert.Equal(["2026-08-15", "2026-09-15"], dues);
+    }
+
+    private static async Task<RecurringTransactionResponse> CreatePlanAsync(
+        HttpClient client, Guid accountId, Guid categoryId)
+    {
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/recurring-transactions",
+            new CreateRecurringTransactionRequest(
+                accountId, categoryId, "100.0000", "TRY", "bill-payment", "business", "monthly",
+                "2026-08-15", null, "clamp-to-last-day", "Kira"));
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<RecurringTransactionResponse>())!;
+    }
 
     private static async Task<CreditCardResponse> CreateCardAsync(HttpClient client)
     {

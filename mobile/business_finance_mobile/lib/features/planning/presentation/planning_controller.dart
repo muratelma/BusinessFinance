@@ -79,6 +79,17 @@ class PlanningController extends ChangeNotifier {
   Future<bool> createRecurring(Map<String, Object?> input) =>
       _submit(() => _repository.createRecurring(input), 'Plan oluşturuldu.');
 
+  Future<bool> updateRecurring(String id, Map<String, Object?> input) =>
+      _submit(
+        () => _repository.updateRecurring(id, input),
+        'Plan güncellendi.',
+      );
+
+  Future<bool> endRecurring(String id, String lastDueDate) => _submit(
+    () => _repository.endRecurring(id, lastDueDate),
+    'Plan sona erdirildi.',
+  );
+
   Future<bool> setRecurringActive(String id, bool isActive) => _submit(
     () => _repository.setRecurringActive(id, isActive),
     isActive ? 'Plan etkinleştirildi.' : 'Plan duraklatıldı.',

@@ -21,6 +21,9 @@ import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_text_action.dart';
 import '../data/planning_models.dart';
 import '../data/planning_repository.dart';
+import '../../../core/widgets/app_form_sheet.dart';
+import '../../../core/widgets/app_pick_field.dart';
+import 'planning_page.dart';
 import 'planning_controller.dart';
 import 'realize_day_sheet.dart';
 
@@ -68,6 +71,28 @@ class RecurringPlanDetailPage extends StatelessWidget {
               AppPageHeader(
                 title: view?.title ?? 'Plan',
                 onBack: () => Navigator.maybePop(context),
+                actions: [
+                  // Biten planın değiştirilecek geleceği yok.
+                  if (view != null && !view.plan.isCompleted)
+                    Padding(
+                      padding: const EdgeInsets.only(right: AppSpacing.small),
+                      child: AppTextAction(
+                        label: 'Düzenle',
+                        icon: Icons.edit_outlined,
+                        onPressed: controller.isSubmitting
+                            ? null
+                            : () => showRecurringPlanEditForm(
+                                context,
+                                snapshot: snapshot!,
+                                controller: controller,
+                                plan: view.plan,
+                                effectiveDates: [
+                                  for (final due in view.allOpen) due.date,
+                                ],
+                              ),
+                      ),
+                    ),
+                ],
               ),
               if (controller.isLoading && snapshot != null)
                 const LinearProgressIndicator(),
@@ -205,6 +230,7 @@ class RecurringPlanDetailPage extends StatelessWidget {
                     !view.plan.isActive,
                   ),
                   onDelete: () => _delete(context, view),
+                  onEnd: () => _end(context, view),
                 ),
               ),
             ],
@@ -265,6 +291,20 @@ class RecurringPlanDetailPage extends StatelessWidget {
         ),
       );
     }
+  }
+
+  /// Planı sona erdirme (D2): son vade açık vadelerden seçilir; o vadeye
+  /// kadarki dönemler bekler, sonrası oluşmaz. Hizmetteki aboneliği iptal
+  /// etmez.
+  Future<void> _end(BuildContext context, RecurringPlanView view) async {
+    final dates = [for (final due in view.allOpen) due.date];
+    if (dates.isEmpty) return;
+    final last = await AppFormSheet.show<String>(
+      context: context,
+      builder: (_) => _EndPlanSheet(view: view, dates: dates),
+    );
+    if (last == null || !context.mounted) return;
+    await controller.endRecurring(view.plan.id, last);
   }
 
   Future<void> _delete(BuildContext context, RecurringPlanView view) async {
@@ -341,6 +381,7 @@ class RecurringPlanView {
     required this.categoryName,
     required this.sourceName,
     required this.open,
+    required this.allOpen,
     required this.history,
     required this.today,
   });
@@ -393,6 +434,7 @@ class RecurringPlanView {
       categoryName: category,
       sourceName: source?.name,
       open: shown,
+      allOpen: open,
       history: history,
       today: today,
     );
@@ -403,6 +445,10 @@ class RecurringPlanView {
   final String? categoryName;
   final String? sourceName;
   final List<RecurringOpenDue> open;
+
+  /// Bütün bekleyenler ve sıradaki vade; düzenleme ve sona erdirmenin
+  /// seçenekleri.
+  final List<RecurringOpenDue> allOpen;
   final List<RecurringOccurrenceItem> history;
   final DateTime today;
 
@@ -775,12 +821,14 @@ class _ManageActions extends StatelessWidget {
     required this.enabled,
     required this.onToggle,
     required this.onDelete,
+    required this.onEnd,
   });
 
   final RecurringPlanView view;
   final bool enabled;
   final VoidCallback onToggle;
   final VoidCallback onDelete;
+  final VoidCallback onEnd;
 
   @override
   Widget build(BuildContext context) {
@@ -813,6 +861,24 @@ class _ManageActions extends StatelessWidget {
             ),
           ),
         ],
+        if (!plan.isCompleted && view.allOpen.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.compact),
+          OutlinedButton.icon(
+            onPressed: enabled ? onEnd : null,
+            icon: const Icon(Icons.event_busy_outlined),
+            label: const Text('Planı sona erdir'),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.xSmall),
+            child: Text(
+              'Seçtiğiniz vadeden sonra yeni vade oluşmaz; bekleyenler '
+              'kalır. Hizmetteki aboneliği iptal etmez.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: surfaces.inkMuted,
+              ),
+            ),
+          ),
+        ],
         // Geçmişi olan plan silinemez (sunucu da reddeder); duraklatılır.
         if (view.history.isEmpty) ...[
           const SizedBox(height: AppSpacing.compact),
@@ -825,6 +891,60 @@ class _ManageActions extends StatelessWidget {
             label: const Text('Planı sil'),
           ),
         ],
+      ],
+    );
+  }
+}
+
+/// `Planı sona erdir` paneli (08. pano metni): son vade seçilir, sonucu bir
+/// cümle söyler.
+class _EndPlanSheet extends StatefulWidget {
+  const _EndPlanSheet({required this.view, required this.dates});
+
+  final RecurringPlanView view;
+  final List<String> dates;
+
+  @override
+  State<_EndPlanSheet> createState() => _EndPlanSheetState();
+}
+
+class _EndPlanSheetState extends State<_EndPlanSheet> {
+  late String _last = widget.dates.first;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final index = widget.dates.indexOf(_last);
+    final next = index + 1 < widget.dates.length
+        ? widget.dates[index + 1]
+        : null;
+    final due = widget.view.allOpen[index];
+    final money = MoneyText.format(due.amount, widget.view.plan.currency);
+    final verb = widget.view.isIncome ? 'tahsilat' : 'ödeme';
+    final result =
+        '${DateText.dayMonth(_last)} vadesindeki $money $verb beklemeye devam '
+        'edecek. ${next == null ? 'Sonrasında' : '${DateText.dayMonth(next)} ve sonrasında'} '
+        'yeni vade oluşmayacak.';
+    return AppFormSheet<String>(
+      title: 'Planı sona erdir',
+      submitLabel: 'Planı sona erdir',
+      onSubmit: () async => _last,
+      children: [
+        AppPickField<String>(
+          label: 'Son vade',
+          value: _last,
+          options: [
+            for (final date in widget.dates)
+              AppPickOption(
+                value: date,
+                label: DateText.dayMonthYear(date),
+                icon: Icons.event_outlined,
+              ),
+          ],
+          onChanged: (value) => setState(() => _last = value),
+        ),
+        const SizedBox(height: AppSpacing.small),
+        Text(result, style: theme.textTheme.bodySmall),
       ],
     );
   }

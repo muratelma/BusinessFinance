@@ -334,6 +334,36 @@ public sealed class UpdateRecurringTransactionUseCase(
             recurring.DayOfMonth != command.DayOfMonth ||
             recurring.SelectedMonths != command.SelectedMonths;
 
+        // D1: bu vadeden önceki dönemler eski tutar ve kaynakla kalır. Henüz
+        // üretilmemiş olanlar önce bugünkü hâliyle üretilir; plan ondan sonra
+        // değişir ve aynı kayıtta yazılır.
+        var generated = new List<RecurringTransactionOccurrence>();
+        if (command.EffectiveFrom is DateOnly effectiveFrom)
+        {
+            var lastSettledDate = occurrences
+                .Where(occurrence => occurrence.Status != RecurringOccurrenceStatus.Planned)
+                .Select(occurrence => (DateOnly?)occurrence.ScheduledDate)
+                .Max();
+            var onSchedule = occurrences.Any(occurrence =>
+                    occurrence.Status == RecurringOccurrenceStatus.Planned &&
+                    occurrence.ScheduledDate == effectiveFrom) ||
+                RecurringSchedule.Reaches(recurring, effectiveFrom);
+            if (rhythmChanged || !onSchedule ||
+                (lastSettledDate is DateOnly settledBefore && effectiveFrom <= settledBefore))
+            {
+                return ApplicationResult<RecurringTransactionDto>.Failure(
+                    RecurringErrors.EffectiveFromInvalid);
+            }
+
+            while (recurring.IsActive &&
+                   recurring.NextOccurrenceDate is DateOnly next &&
+                   next < effectiveFrom)
+            {
+                generated.Add(RecurringTransactionOccurrence.Create(Guid.NewGuid(), recurring, next));
+                recurring.AdvanceAfter(next);
+            }
+        }
+
         try
         {
             var previousAmount = recurring.AmountValue;
@@ -375,11 +405,16 @@ public sealed class UpdateRecurringTransactionUseCase(
             {
                 foreach (var occurrence in occurrences)
                 {
+                    if (command.EffectiveFrom is DateOnly from && occurrence.ScheduledDate < from)
+                    {
+                        continue;
+                    }
+
                     occurrence.FollowPlan(recurring, previousAmount);
                 }
             }
 
-            await repository.SaveEditAsync(recurring, removed, cancellationToken);
+            await repository.SaveEditAsync(recurring, removed, cancellationToken, generated);
             return ApplicationResult<RecurringTransactionDto>.Success(
                 CreateRecurringTransactionUseCase.ToDto(recurring));
         }
@@ -412,6 +447,99 @@ public sealed class ListRecurringTransactionsUseCase(
         var recurring = await repository.ListAsync(userId, cancellationToken);
         return ApplicationResult<IReadOnlyList<RecurringTransactionDto>>.Success(
             recurring.Select(CreateRecurringTransactionUseCase.ToDto).ToArray());
+    }
+}
+
+/// <summary>
+/// Planı bir vadeden sonra bitirir (D2, 22 Kasım 2026). Son vadeye kadarki
+/// dönemler (geçmişte bekleyenler dahil) kalır ve listelerde görünür;
+/// sonrasının bekleyen kalemleri silinir, yeni vade oluşmaz.
+/// </summary>
+public sealed class EndRecurringPlanUseCase(
+    ICurrentUser currentUser,
+    IRecurringTransactionRepository repository)
+{
+    public async Task<ApplicationResult<RecurringTransactionDto>> ExecuteAsync(
+        EndRecurringPlanCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        if (currentUser.UserId is not Guid userId || userId == Guid.Empty)
+        {
+            return ApplicationResult<RecurringTransactionDto>.Failure(RecurringErrors.AuthenticationRequired);
+        }
+
+        var recurring = await repository.FindOwnedByIdAsync(
+            command.RecurringTransactionId, userId, track: true, cancellationToken);
+        if (recurring is null)
+        {
+            return ApplicationResult<RecurringTransactionDto>.Failure(
+                RecurringErrors.NotFound(command.RecurringTransactionId));
+        }
+
+        var occurrences = await repository.ListPlanOccurrencesAsync(recurring.Id, userId, cancellationToken);
+        var last = command.LastDueDate;
+        var lastSettled = occurrences
+            .Where(occurrence => occurrence.Status != RecurringOccurrenceStatus.Planned)
+            .Select(occurrence => (DateOnly?)occurrence.ScheduledDate)
+            .Max();
+        var onSchedule = occurrences.Any(occurrence => occurrence.ScheduledDate == last) ||
+            RecurringSchedule.Reaches(recurring, last);
+        if (!onSchedule || (lastSettled is DateOnly settled && last < settled))
+        {
+            return ApplicationResult<RecurringTransactionDto>.Failure(RecurringErrors.LastDueInvalid);
+        }
+
+        var generated = new List<RecurringTransactionOccurrence>();
+        while (recurring.IsActive &&
+               recurring.NextOccurrenceDate is DateOnly next &&
+               next <= last)
+        {
+            generated.Add(RecurringTransactionOccurrence.Create(Guid.NewGuid(), recurring, next));
+            recurring.AdvanceAfter(next);
+        }
+
+        try
+        {
+            recurring.EndAfter(last);
+        }
+        catch (ArgumentException exception)
+        {
+            return ApplicationResult<RecurringTransactionDto>.Failure(RecurringErrors.Validation(exception.Message));
+        }
+
+        var removed = occurrences
+            .Where(occurrence =>
+                occurrence.Status == RecurringOccurrenceStatus.Planned &&
+                occurrence.ScheduledDate > last)
+            .ToArray();
+        await repository.SaveEditAsync(recurring, removed, cancellationToken, generated);
+        return ApplicationResult<RecurringTransactionDto>.Success(
+            CreateRecurringTransactionUseCase.ToDto(recurring));
+    }
+}
+
+/// <summary>
+/// Planı değiştirmeden sıradaki günden istenen güne yürür: gün planın
+/// ritmine düşüyor mu.
+/// </summary>
+internal static class RecurringSchedule
+{
+    public static bool Reaches(RecurringTransaction plan, DateOnly date)
+    {
+        var current = plan.NextOccurrenceDate;
+        var count = plan.GeneratedOccurrenceCount;
+        for (var step = 0; step < GenerateRecurringOccurrencesUseCase.MaximumBatchSize; step++)
+        {
+            if (current is not DateOnly day || day > date) return false;
+            if (day == date) return true;
+
+            count++;
+            if (plan.OccurrenceLimit is int limit && count >= limit) return false;
+            current = plan.GetFollowingDate(day);
+        }
+
+        return false;
     }
 }
 

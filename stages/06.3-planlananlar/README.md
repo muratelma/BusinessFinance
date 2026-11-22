@@ -27,7 +27,7 @@ durumu, sıra ve günlük burada tutulur.
 | A3 | Flutter: satırdan ilgili ödeme paneline (dönem, ekstre, vergi, taksit planı) | Bitti (22 Kasım); `…görüntüle` bağlantıları B2 ile |
 | B1 | Tekrarlayanlar listesi (09/11 pano, arama, ilk kullanım) | Bitti (22 Kasım); `Abonelikler ›` C ile |
 | B2 | Plan ayrıntısı tam sayfa (07 pano): açık vadeler, son iki ödeme, Duraklat/Sürdür, Sil | Bitti (22 Kasım); Düzenle B3 ile, ödeme takvimi sonra |
-| B3 | Sunucu: D1 dönemden itibaren tutar, D2 planı sona erdir | Başlamadı |
+| B3 | Sunucu: D1 dönemden itibaren tutar, D2 planı sona erdir; Düzenle ve Sona erdir ekranları | Bitti (22 Kasım) |
 | C | Abonelikler ve ücretsiz deneme (katalog, form, hatırlatma, teyit) | Borç-alacaktan sonra |
 
 Sıra: A → B → borç-alacak Faz 4–7 → C. Gerekçe: borç-alacak ekranları A'nın
@@ -81,6 +81,9 @@ Her satır: panoda ya da önceki kararda ne yazıyordu, ne yapıldı, neden.
 | S23 | Plan ayrıntısı · ödeme takvimi | `Ödeme takvimi ›` (17) | Yok | Ayrı iş; şimdilik gecikenler ve ilk gelecek vade | — |
 | S24 | Plan ayrıntısı · sil | — | Yalnız hiç ödemesi olmayan planda `Planı sil` | Sunucu ödemesi olan planı zaten reddediyor; çalışmayan eylem gösterilmez | — |
 | S25 | Özet kartı | Siyah kart (07) | Aynen; tutar düz metin | Para bileşeni koyu zeminde görünmüyordu | — |
+| S26 | Düzenle · ritim | Sıklık, ödeme günü, bitiş formda (10. pano) | Tür ve ritim düzenlemede yok | Ritim değişikliği bekleyenleri yeniden kuruyor ve dönemden itibaren değişiklikle birlikte yapılamıyor; ritmi değişecek plan sona erdirilip yenisi açılabilir | Ritim düzenlemesi gerekli mi? |
+| S27 | Düzenle / Sona erdir · vade seçenekleri | Planın herhangi bir vadesi | Açık vadeler (bekleyenler ve sıradaki) | İstemci ritmi hesaplamaz; ileri bir vadeden itibaren değişiklik için o vade sıradaki olunca yapılır | — |
+| S28 | Sunucu · şema | — | Yeni tablo ya da kolon yok | D1 önceki dönemleri eski hâliyle üretir, D2 `endDate`'i kullanır | — |
 | S16 | Özet · Yaklaşanlar alt satırı | `7 günde ödenecek · N ödeme` | Satır hep var, `· N ödeme` yalnız görünmeyen ödeme varsa | Senin kararın (22 Kasım) | — |
 
 ## Günlük
@@ -144,4 +147,19 @@ Her satır: panoda ya da önceki kararda ne yazıyordu, ne yapıldı, neden.
   bölüm başlıkları kenara yapışıktı; ikisi düzeltildi.
 - Kabul: `KABUL.md` Aşama 5. Sıradaki: B3 (sunucu: D1 dönemden itibaren
   tutar/kaynak, D2 planı sona erdir; ardından Düzenle formu).
+
+### 22 Kasım 2026 (devam) — B3
+
+- **Sunucu:** `PUT` planına `effectiveFrom` (D1): önceki dönemler eski hâliyle
+  üretilip korunur, değişiklik o vadeden itibaren. `POST …/{id}/end` (D2):
+  son vadeye kadarki dönemler bekler, sonrası silinir, plan tamamlanır
+  (duraklatılmış sayılmaz). Domain `RecurringTransaction.EndAfter`. Şema
+  değişmedi. API testleri ve sahiplik denemesi eklendi.
+- **Ekran:** ayrıntıda `Düzenle` (formun düzenleme kipi) ve `Planı sona
+  erdir` paneli. Kendi değerlendirmem: tutar alanı ilk açılışta binlik
+  ayırmıyordu, düzeltildi; sona erdirme cümlesi aya göre değişen ek
+  (`Kasım'daki`/`Aralık'taki`) yerine eksiz kuruldu.
+- **Kalan:** S22 (geçmişte ödeme günü), S23 (ödeme takvimi), S26 (ritim
+  düzenlemesi). Sıradaki: borç-alacak Faz 4 (ekran tasarımı) — Faz C
+  (abonelik) borç-alacaktan sonra.
 

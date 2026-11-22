@@ -155,6 +155,16 @@ public static class RecurringErrors
     /// <summary>
     /// Yeni ritim son ödenen ya da kapatılan kalemden sonra başlamalı.
     /// </summary>
+    public static readonly ApplicationError EffectiveFromInvalid = new(
+        "recurring.effective_from_invalid",
+        "The change must start on a due date of this plan, after the last paid or closed item, and cannot come with a new rhythm.",
+        ApplicationErrorType.Validation);
+
+    public static readonly ApplicationError LastDueInvalid = new(
+        "recurring.last_due_invalid",
+        "The last due date must be a due date of this plan, not before the last paid or closed item.",
+        ApplicationErrorType.Validation);
+
     public static readonly ApplicationError RescheduleBeforeHistory = new(
         "recurring.reschedule_before_history",
         "The new rhythm must start after the last paid or closed item.",

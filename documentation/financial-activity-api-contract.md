@@ -1311,3 +1311,20 @@ Kısmi ödeme kalanı azaltır. Kapanmış borcun kapsamı yeni borca taşınmaz
   `earlierOverdueUnknownAmountCount` (seçimden önce gecikenler; dönem
   toplamlarına girmez). Toplamlar birbirinden düşülmez.
 - Sahiplik ve kapsam kuralları değişmez; aynı kullanıcının kayıtları okunur.
+
+## Planı vadeden itibaren değiştirme ve sona erdirme · 22 Kasım 2026
+
+- `PUT /api/v1/recurring-transactions/{id}` isteğine isteğe bağlı
+  `effectiveFrom` (yyyy-MM-dd) eklendi (D1). Verilirse tutar, kaynak, kategori,
+  kapsam ve açıklama yalnız o vade ve sonrasındaki bekleyen dönemlere geçer;
+  daha önceki henüz üretilmemiş dönemler eski hâliyle üretilir ve korunur.
+  Vade planın ritmine düşmeli, son ödenen ya da kapatılan dönemden sonra
+  olmalı ve ritim değişikliğiyle birlikte gelmemeli; aksi
+  `400 recurring.effective_from_invalid`. Verilmezse eski davranış
+  (bütün bekleyenler; tutar eşitliği kuralı) sürer.
+- `POST /api/v1/recurring-transactions/{id}/end` `{ "lastDueDate": "…" }` (D2):
+  son vadeye kadarki dönemler üretilir ve bekler (geçmişte kalanlar
+  listelerde görünmeye devam eder), sonrasının bekleyenleri silinir, plan
+  `endDate` = son vade olur ve sıradaki vade kalmazsa tamamlanır (duraklatılmış
+  sayılmaz). Vade ritme düşmeli ve son ödenenden önce olmamalı; aksi
+  `400 recurring.last_due_invalid`. Şema değişmedi.

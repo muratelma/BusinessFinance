@@ -54,9 +54,15 @@ public sealed record UpdateRecurringTransactionRequest(
     string? SourceType = null,
     Guid? CreditCardId = null,
     int? DayOfMonth = null,
-    IReadOnlyList<int>? Months = null);
+    IReadOnlyList<int>? Months = null,
+
+    // Değişikliğin ilk etkilediği vade (yyyy-MM-dd); boşsa bütün bekleyenler.
+    string? EffectiveFrom = null);
 
 public sealed record SetRecurringActiveRequest(bool IsActive);
+
+/// <summary>Planın son vadesi (yyyy-MM-dd); sonrasında vade oluşmaz.</summary>
+public sealed record EndRecurringPlanRequest(string LastDueDate);
 
 public sealed record GenerateRecurringOccurrencesRequest(string ThroughDate);
 

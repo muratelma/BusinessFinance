@@ -10,6 +10,13 @@ abstract interface class PlanningRepositoryContract {
     required int daysAhead,
   });
   Future<void> createRecurring(Map<String, Object?> input);
+
+  /// Planı günceller; `effectiveFrom` verilirse daha önceki dönemler eski
+  /// tutar ve kaynakla kalır (D1).
+  Future<void> updateRecurring(String id, Map<String, Object?> input);
+
+  /// Planı [lastDueDate] vadesinden sonra bitirir (D2).
+  Future<void> endRecurring(String id, String lastDueDate);
   Future<void> setRecurringActive(String id, bool isActive);
 
   /// Removes a plan that never produced a movement. The server refuses with
@@ -125,6 +132,17 @@ class PlanningRepository implements PlanningRepositoryContract {
   @override
   Future<void> createRecurring(Map<String, Object?> input) async =>
       _client.post('/api/v1/recurring-transactions', body: input);
+
+  @override
+  Future<void> updateRecurring(String id, Map<String, Object?> input) async =>
+      _client.put('/api/v1/recurring-transactions/$id', body: input);
+
+  @override
+  Future<void> endRecurring(String id, String lastDueDate) async =>
+      _client.post(
+        '/api/v1/recurring-transactions/$id/end',
+        body: {'lastDueDate': lastDueDate},
+      );
 
   @override
   Future<void> setRecurringActive(String id, bool isActive) async =>

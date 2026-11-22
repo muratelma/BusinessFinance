@@ -105,7 +105,18 @@ public sealed record UpdateRecurringTransactionCommand(
     DateOnly? EndDate,
     MonthEndBehavior MonthEndBehavior,
     int? DayOfMonth,
-    int? SelectedMonths);
+    int? SelectedMonths,
+
+    // Değişikliğin ilk etkilediği vade (D1, 22 Kasım 2026). Verilirse daha
+    // önceki dönemler eski tutar ve kaynakla kalır; ritim değişikliğiyle
+    // birlikte verilemez.
+    DateOnly? EffectiveFrom = null);
+
+/// <summary>
+/// Planı bir vadeden sonra bitirir (D2): o vadeye kadarki dönemler bekler,
+/// sonrakiler oluşmaz.
+/// </summary>
+public sealed record EndRecurringPlanCommand(Guid RecurringTransactionId, DateOnly LastDueDate);
 
 /// <summary>
 /// Bekleyen bir kalemin bu dönemki tutarı ("tutar belli oldu", ADR 0018 T3).
@@ -246,7 +257,8 @@ public interface IRecurringTransactionRepository
     Task SaveEditAsync(
         RecurringTransaction recurring,
         IReadOnlyCollection<RecurringTransactionOccurrence> removedOccurrences,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<RecurringTransactionOccurrence>? addedOccurrences = null);
 
     /// <summary>
     /// Bir vergi ödemesinin kapattığı kalemler, izlenerek. Ödeme iptal edilince
