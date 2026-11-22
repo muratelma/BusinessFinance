@@ -2243,3 +2243,18 @@ kullanım ekranı (`Kira, maaş ve aboneliklerini ekle.`) tek ekleme düğmesiyl
 çizilir. Satıra dokununca şimdilik duraklat / sürdür / sil paneli açılır;
 plan ayrıntı sayfası B2'dir. Diğer → Planlama'ya `Planlananlar` girişi de
 eklendi.
+
+## Plan ayrıntısı · 22 Kasım 2026
+
+Tekrarlayanlar'da satıra dokunmak planın tam sayfa ayrıntısını açar
+(`/more/recurring/:planId`; Planlananlar'daki tekrarlayan satırın gün panelinde
+başlığın altındaki `Planı görüntüle ›` de buraya gider ve dönüşte panel ile
+seçilen gün yerinde kalır). Üstte koyu özet: ritim (`Her ayın 15'i`, `Her
+hafta Pazartesi`, `Her yıl 5 Mart`) ve plan tutarı; altında kaynak, yön ve
+durum (`Duraklatıldı`, tekrar sınırı, bitiş). `Açık vadeler`: bekleyen bütün
+gecikenler ve gelecekteki ilk vade; her kart gün, tutar, tür, `Gecikti` /
+`Bugün`, kaynak ve kısa eylem taşır ve dokununca gün soran ödeme paneli açılır
+(önceki dönem bekliyorsa onay sorulur). `Geçmiş ödemeler`: gerçekleşen son iki
+dönem vade günüyle; fazlası `Tümü ›` ile ayrı sayfada. Altta `Planı duraklat`
+/ `Planı sürdür` (sonucu bir cümleyle) ve yalnız hiç ödemesi olmayan planda
+`Planı sil`. Planı düzenleme D1 (dönemden itibaren değişiklik) ile gelecek.

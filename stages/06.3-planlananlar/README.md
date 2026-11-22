@@ -26,7 +26,7 @@ durumu, sıra ve günlük burada tutulur.
 | A2 | Flutter: Planlananlar listesi (04 pano), filtre paneli ve takvim (18), boş durumlar (06), yenileme uyarısı (18-01), bilinmeyen türün atlanması | Bitti (22 Kasım); emülatör kabulü bekliyor |
 | A3 | Flutter: satırdan ilgili ödeme paneline (dönem, ekstre, vergi, taksit planı) | Bitti (22 Kasım); `…görüntüle` bağlantıları B2 ile |
 | B1 | Tekrarlayanlar listesi (09/11 pano, arama, ilk kullanım) | Bitti (22 Kasım); `Abonelikler ›` C ile |
-| B2 | Plan ayrıntısı tam sayfa (07 pano): sıradaki vade, gecikmeler, son iki ödeme, takvim; Düzenle, Duraklat/Sürdür | Başlamadı |
+| B2 | Plan ayrıntısı tam sayfa (07 pano): açık vadeler, son iki ödeme, Duraklat/Sürdür, Sil | Bitti (22 Kasım); Düzenle B3 ile, ödeme takvimi sonra |
 | B3 | Sunucu: D1 dönemden itibaren tutar, D2 planı sona erdir | Başlamadı |
 | C | Abonelikler ve ücretsiz deneme (katalog, form, hatırlatma, teyit) | Borç-alacaktan sonra |
 
@@ -76,6 +76,11 @@ Her satır: panoda ya da önceki kararda ne yazıyordu, ne yapıldı, neden.
 | S18 | Tekrarlayanlar · simge rengi | Gider çoğunlukla gri (09) | Gider gri, gelir yeşil, duran plan soluk | İlk denemede bütün giderler kırmızıydı, gecikme öne çıkmıyordu | — |
 | S19 | Tekrarlayanlar · yer | Kendi sayfası (09) | `/more/recurring` kendi sayfası; `Planlama ve raporlar`daki sekme aynı listeyi çizer | Raporlar'ın ayrılması (19 Kasım kararı) ayrı iş; iki görünüm ayrışmasın | Planlama ve raporlar'dan Tekrarlayanlar ve Yaklaşanlar sekmeleri kaldırılıp sayfa `Raporlar` olsun mu? |
 | S20 | Tekrarlayanlar · satıra dokunma | Plan ayrıntı sayfası (07) | Şimdilik duraklat / sürdür / sil paneli | Ayrıntı sayfası B2 | — |
+| S21 | Plan ayrıntısı · Düzenle | Sağ üstte `Düzenle` ve `Hangi vadeden itibaren?` (07) | Yok | Bugünkü sunucu bekleyen kalemleri tutar eşitliğiyle değiştiriyor (S3–S4); dönemden itibaren değişiklik (D1) gelmeden düzenleme açılırsa eski bekleyenler sessizce değişebilir | — |
+| S22 | Plan ayrıntısı · geçmiş | Ödeme gününe göre, farklıysa vade ayrıca (19 Kasım) | Vade gününe göre | Kalem listesi ödeme gününü taşımıyor; sunucuya eklenmesi B3'te | — |
+| S23 | Plan ayrıntısı · ödeme takvimi | `Ödeme takvimi ›` (17) | Yok | Ayrı iş; şimdilik gecikenler ve ilk gelecek vade | — |
+| S24 | Plan ayrıntısı · sil | — | Yalnız hiç ödemesi olmayan planda `Planı sil` | Sunucu ödemesi olan planı zaten reddediyor; çalışmayan eylem gösterilmez | — |
+| S25 | Özet kartı | Siyah kart (07) | Aynen; tutar düz metin | Para bileşeni koyu zeminde görünmüyordu | — |
 | S16 | Özet · Yaklaşanlar alt satırı | `7 günde ödenecek · N ödeme` | Satır hep var, `· N ödeme` yalnız görünmeyen ödeme varsa | Senin kararın (22 Kasım) | — |
 
 ## Günlük
@@ -128,4 +133,15 @@ Her satır: panoda ya da önceki kararda ne yazıyordu, ne yapıldı, neden.
 - Kendi değerlendirmem: gider simgeleri griye alındı (S18). Duraklatma
   metni bekleyen kalemlerin de listelerden kalktığını söylüyor (B9).
 - Kabul: `KABUL.md` Aşama 4. Sıradaki: B2 plan ayrıntı sayfası.
+
+### 22 Kasım 2026 (devam) — B2
+
+- Plan ayrıntısı (`RecurringPlanDetailPage`, `/more/recurring/:planId`): özet,
+  açık vadeler ve ödemesi, geçmiş (son iki + `Tümü`), duraklat / sürdür, sil.
+  Planlananlar'ın gün panelinde `Planı görüntüle ›`. Eski duraklat/sil paneli
+  kalktı; yönetim ayrıntı sayfasında.
+- Kendi değerlendirmem (cihazda): özet kartında tutar görünmüyordu (S25),
+  bölüm başlıkları kenara yapışıktı; ikisi düzeltildi.
+- Kabul: `KABUL.md` Aşama 5. Sıradaki: B3 (sunucu: D1 dönemden itibaren
+  tutar/kaynak, D2 planı sona erdir; ardından Düzenle formu).
 

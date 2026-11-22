@@ -76,3 +76,17 @@ aralığına dokun. (Diğer menüsünde Planlananlar girişi yok; bkz. `README.m
 | 4.8 | Duraklat | Bir plana dokun → Duraklat | Plan listeden çıkar; altta `Duraklatılan ve bitenler N ›` | |
 | 4.9 | Duraklatılanlar | `Duraklatılan ve bitenler` | Ayrı sayfa; satırda `Duraklatıldı`, tarih yok; dokununca `Sürdür` | |
 | 4.10 | Planlama ve raporlar → Tekrarlayanlar sekmesi | Aç | Aynı liste, üstte `Tekrarlayan plan ekle` düğmesi | |
+
+## Aşama 5 — Plan ayrıntısı (B2)
+
+| # | Nerede | Ne yap | Ne görmelisin | Sonuç |
+|---|---|---|---|---|
+| 5.1 | Tekrarlayanlar | Bir plana dokun | Planın sayfası: koyu özet kartında `Her ayın 15'i` ve tutar, altında kaynak ve `Gider`/`Gelir` | |
+| 5.2 | Açık vadeler | Bak | Geciken bütün vadeler (`Gecikti`) ve gelecekteki ilk vade; her kartta kaynak ve mavi eylem | |
+| 5.3 | Açık vade | Kartın herhangi bir yerine dokun | Gün soran ödeme paneli (bugünle açılır); kaydedince vade kalkar, `Geçmiş ödemeler`e girer | |
+| 5.4 | Açık vade | Sonraki dönemi, önceki beklerken öde | `Önceki kalem bekliyor` onayı | |
+| 5.5 | Geçmiş ödemeler | Üçten fazla ödemesi olan plan | Son iki ödeme ve `Tümü ›`; dokununca bütün geçmiş | |
+| 5.6 | Yönetim | `Planı duraklat` | Altındaki cümle sonucu anlatır; plan duraklar, düğme `Planı sürdür` olur | |
+| 5.7 | Yönetim | Hiç ödemesi olmayan plan | `Planı sil` görünür; onaydan sonra plan silinir, listeye dönülür | |
+| 5.8 | Yönetim | Ödemesi olan plan | `Planı sil` görünmez | |
+| 5.9 | Planlananlar | Tekrarlayan satır → `Ödeme kaydet ›` → başlık altındaki `Planı görüntüle ›` | Planın sayfası açılır; geri dönünce ödeme paneli ve seçtiğin gün yerinde | |

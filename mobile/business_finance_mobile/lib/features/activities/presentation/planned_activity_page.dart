@@ -383,6 +383,11 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
         dueDate: activity.dueDate,
         sourceName: source,
         isIncome: activity.effect == ActivityEffect.income,
+        onViewPlan: activity.recurringTransactionId == null
+            ? null
+            : () => context.push(
+                '$recurringLocation/${activity.recurringTransactionId}',
+              ),
       );
       if (paidOn == null || !mounted) return;
       await _realize(activity, paidOn: paidOn);

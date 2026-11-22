@@ -1,5 +1,12 @@
 # Test Kapsam Haritası
 
+### Plan ayrıntısı · 22 Kasım 2026
+
+- `planning_feature_test.dart`: ayrıntı ritmi, açık vadeleri (gecikmiş bekleyen
+  ve sıradaki), son iki geçmişi ve `Tümü`'nü yazar; geçmişi olan planda `Planı
+  sil` yok; vadeye dokununca gün paneli ve gerçekleştirme; silme ve duraklatma
+  ayrıntı sayfasından.
+
 ### Tekrarlayanlar · 22 Kasım 2026
 
 - `planning_feature_test.dart`: satır yön ve sıklığı Türkçe yazar, en eski açık

@@ -21,6 +21,7 @@ import '../data/planning_models.dart';
 import '../data/planning_repository.dart';
 import 'planning_controller.dart';
 import 'planning_page.dart';
+import 'recurring_plan_detail_page.dart';
 
 /// Tekrarlayanlar (Codex 09, 10, 11. panolar; 19–20 Kasım 2026 kararları).
 ///
@@ -287,11 +288,15 @@ class _RecurringPlanListState extends State<RecurringPlanList> {
     initialName: name,
   );
 
-  Future<void> _open(RecurringPlanRowData row) => showRecurringPlanActions(
-    context,
-    item: row.plan,
-    title: row.title,
-    controller: widget.controller,
+  /// Satır planın tam sayfa ayrıntısını açar (07. pano); sayfa aynı
+  /// denetleyiciyi kullanır, dönüşte liste günceldir.
+  Future<void> _open(RecurringPlanRowData row) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => RecurringPlanDetailPage(
+        planId: row.plan.id,
+        controller: widget.controller,
+      ),
+    ),
   );
 
   /// Önce gecikenler (en eskisi önce), sonra sıradaki vade; eşitlikte ad.

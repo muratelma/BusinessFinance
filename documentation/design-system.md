@@ -2228,3 +2228,14 @@ dolgu, 48 dp, `AppRadius.field`). Satır (`RecurringPlanRow`): 36 dp kapsül
 üstte; yön+sıklık ve vade 13 soluk altta, gecikme gider renginde. Satırlar
 tek kartta, kapsülden sonra başlayan çizgiyle ayrılır. `Duraklatılan ve
 bitenler` 56 dp kart satırı, sağda sayı ve ok.
+
+## Plan ayrıntısı · 22 Kasım 2026
+
+Kaynak: Codex 07 ve 17. panolar. Özet kartı `surfaces.ink` zemin,
+`AppRadius.card`, 16 dp iç boşluk; ritim 15/600 ve tutar 16/700 düz metin
+(`AppMoneyText` koyu zeminde kendi rengini kullandığı için), alt satır %80
+saydam. Bölüm başlıkları (`AppSectionHeader`) kartlarla aynı kenarda, üstte
+24 dp. Açık vade kartı Planlananlar satırının dili: 36 dp kapsül, gün
+`titleSmall` ve tutar 16/700, tür ve `Gecikti` 13, en altta kaynak ve mavi
+eylem. Geçmiş satırı 48 dp, gün ve tutar. Yönetim: `OutlinedButton` (duraklat
+/ sürdür) altında soluk sonuç cümlesi; `Planı sil` hata renginde metin düğmesi.

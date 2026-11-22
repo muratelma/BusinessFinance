@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/widgets/app_pick_field.dart';
-import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_text.dart';
 import '../../../core/models/transaction_scope.dart';
@@ -15,7 +14,6 @@ import '../../../core/presentation/scope_controller.dart';
 import '../../../core/routing/app_locations.dart';
 import '../../../core/theme/app_finance_colors.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../core/widgets/app_adaptive_sheet.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_date_field.dart';
 import '../../../core/widgets/app_category_field.dart';
@@ -1291,23 +1289,6 @@ String _formatDate(DateTime value) =>
     '${value.month.toString().padLeft(2, '0')}-'
     '${value.day.toString().padLeft(2, '0')}';
 
-String _kindLabel(String kind) => switch (kind) {
-  'income' => 'Düzenli gelir',
-  'expense' => 'Düzenli gider',
-  'bill-payment' => 'Fatura / abonelik',
-  _ => kind,
-};
-
-String _frequencyLabel(String frequency) => switch (frequency) {
-  'daily' => 'Günlük',
-  'weekly' => 'Haftalık',
-  'monthly' => 'Aylık',
-  'quarterly' => 'Üç ayda bir',
-  'yearly' => 'Yıllık',
-  'selected-months' => 'Seçilen aylarda',
-  _ => frequency,
-};
-
 String _timingLabel(String timing) => switch (timing) {
   'overdue' => 'Gecikmiş',
   'today' => 'Bugün',
@@ -1328,95 +1309,3 @@ IconData _sourceIcon(String source) => switch (source) {
   'debt-installment' => Icons.handshake_outlined,
   _ => Icons.event_repeat,
 };
-
-/// Planın yönetim paneli: duraklat / sürdür ve sil. Plan ayrıntı sayfası
-/// gelene kadar (B2) satıra dokununca açılır.
-Future<void> showRecurringPlanActions(
-  BuildContext context, {
-  required RecurringTransactionItem item,
-  required String title,
-  required PlanningController controller,
-}) async {
-  final action = await AppAdaptiveSheet.show<_PlanAction>(
-    context: context,
-    builder: (sheetContext) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.medium,
-              0,
-              AppSpacing.medium,
-              AppSpacing.small,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: Theme.of(sheetContext).textTheme.titleLarge),
-                const SizedBox(height: AppSpacing.xSmall),
-                Text(
-                  '${MoneyText.format(item.amount, item.currency)} · '
-                  '${_frequencyLabel(item.frequency)} · '
-                  '${_kindLabel(item.kind)}',
-                  style: Theme.of(sheetContext).textTheme.bodyMedium,
-                ),
-              ],
-            ),
-          ),
-          // Biten plan yeniden başlatılamaz; duraklatılacak bir şeyi de yok.
-          if (!item.isCompleted)
-            ListTile(
-              leading: Icon(
-                item.isActive
-                    ? Icons.pause_circle_outline
-                    : Icons.play_circle_outline,
-              ),
-              title: Text(item.isActive ? 'Duraklat' : 'Sürdür'),
-              // Duraklatılan planın bekleyen kalemleri de listelerden düşer
-              // (B9); metin bunu söyler.
-              subtitle: Text(
-                item.isActive
-                    ? 'Geçmiş kalır; plan yeni kayıt üretmez, bekleyen '
-                          'kalemleri listelerden kalkar.'
-                    : 'Plan yeniden kayıt üretmeye başlar.',
-              ),
-              onTap: () =>
-                  Navigator.of(sheetContext).pop(_PlanAction.toggleActive),
-            ),
-          ListTile(
-            leading: const Icon(Icons.delete_outline),
-            title: const Text('Sil'),
-            subtitle: const Text('Yalnız hiç gerçekleşmemiş plan silinebilir.'),
-            onTap: () => Navigator.of(sheetContext).pop(_PlanAction.delete),
-          ),
-          const SizedBox(height: AppSpacing.small),
-        ],
-      ),
-    ),
-  );
-
-  if (action == null || !context.mounted) return;
-  switch (action) {
-    case _PlanAction.toggleActive:
-      await controller.setRecurringActive(item.id, !item.isActive);
-    case _PlanAction.delete:
-      final confirmed = await AppConfirmDialog.show(
-        context: context,
-        icon: Icons.delete_outline,
-        destructive: true,
-        highlight: title,
-        title: 'Plan silinsin mi?',
-        message:
-            'Plan ve henüz onaylanmamış kayıtları kaldırılır. Bu plandan daha '
-            'önce gerçekleşmiş hareketler varsa silme reddedilir; onları '
-            'korumak için planı duraklatabilirsiniz.',
-        confirmLabel: 'Sil',
-      );
-      if (confirmed) await controller.deleteRecurring(item.id);
-  }
-}
-
-/// Panelden dönen seçim.
-enum _PlanAction { toggleActive, delete }

@@ -229,6 +229,9 @@ void main() {
   /// A plan that never produced money can be removed, so the list does not turn
   /// into a growing pile of disabled rows the user cannot clear.
   testWidgets('a plan can be deleted after confirming', (tester) async {
+    tester.view.physicalSize = const Size(500, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     final repository = _FakePlanningRepository(
       plans: [_plan(id: 'p1', description: 'Netflix')],
     );
@@ -240,13 +243,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Silme satırda değil: nadir ve geri alınamaz bir iş, her satırda
-    // bağırmamalı. Satıra dokununca açılan panelde.
-    expect(find.text('Sil'), findsNothing);
+    // Silme satırda değil: planın ayrıntı sayfasında, metinli eylem.
+    expect(find.text('Planı sil'), findsNothing);
     await tester.tap(find.text('Netflix'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Sil'));
+    await tester.tap(find.text('Planı sil'));
     await tester.pumpAndSettle();
     expect(find.text('Plan silinsin mi?'), findsOneWidget);
 
@@ -254,9 +256,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(repository.deletedPlans, isEmpty);
 
-    await tester.tap(find.text('Netflix'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Sil'));
+    await tester.tap(find.text('Planı sil'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Sil'));
     await tester.pumpAndSettle();
@@ -526,7 +526,9 @@ void main() {
     expect(find.textContaining('17 Kas'), findsNothing);
   });
 
-  testWidgets('plan satırı denetim taşımıyor, panel açıyor', (tester) async {
+  testWidgets('plan satırı denetim taşımıyor, ayrıntıyı açıyor', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light(),
@@ -549,8 +551,9 @@ void main() {
     await tester.tap(find.text('Netflix'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Duraklat'), findsOneWidget);
-    expect(find.text('Sil'), findsOneWidget);
+    // Satır planın ayrıntısını açar; yönetim orada metinli eylemlerdir.
+    expect(find.text('Planı duraklat'), findsOneWidget);
+    expect(find.text('Planı sil'), findsOneWidget);
   });
 
   /// Paused plans stay available but folded away, so a dozen of them cannot bury
@@ -633,8 +636,8 @@ void main() {
     await tester.tap(find.text('Biten kurs'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Sürdür'), findsNothing);
-    expect(find.text('Sil'), findsOneWidget);
+    expect(find.text('Planı sürdür'), findsNothing);
+    expect(find.text('Planı sil'), findsOneWidget);
   });
 
   testWidgets('Tekrarlayanlar arar; sonuçsuz arama yazılan adla plan açar', (
@@ -678,6 +681,69 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('plan ayrıntısı açık vadeleri, geçmişi ve yönetimi gösterir', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(500, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    RecurringOccurrenceItem occurrence(String id, String date, String status) =>
+        RecurringOccurrenceItem(
+          id: id,
+          recurringTransactionId: 'p1',
+          categoryId: 'category',
+          amount: '125.5000',
+          currency: 'TRY',
+          kind: 'bill-payment',
+          scheduledDate: date,
+          description: 'Kira',
+          status: status,
+        );
+    final repository = _FakePlanningRepository(
+      plans: [_plan(id: 'p1', description: 'Kira')],
+      occurrences: [
+        occurrence('o1', '2026-06-15', 'realized'),
+        occurrence('o2', '2026-07-15', 'realized'),
+        occurrence('o3', '2026-05-15', 'realized'),
+        occurrence('o4', '2026-08-15', 'planned'),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: RecurringPlansPage(repository: repository),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kira'));
+    await tester.pumpAndSettle();
+
+    expect(find.text("Her ayın 15'i"), findsOneWidget);
+    expect(find.text('Açık vadeler'), findsOneWidget);
+    // Bekleyen 15 Ağustos gecikmiş; sıradaki 15 Eylül de görünür.
+    expect(find.text('15 Ağustos'), findsOneWidget);
+    expect(find.text('Gecikti'), findsWidgets);
+    expect(find.text('15 Eylül'), findsOneWidget);
+    // Geçmişte son ikisi ve Tümü; geçmişi olan plan silinemez.
+    expect(find.text('15 Temmuz 2026'), findsOneWidget);
+    expect(find.text('15 Haziran 2026'), findsOneWidget);
+    expect(find.text('15 Mayıs 2026'), findsNothing);
+    expect(find.text('Tümü'), findsOneWidget);
+    expect(find.text('Planı sil'), findsNothing);
+    expect(find.text('Planı duraklat'), findsOneWidget);
+
+    await tester.tap(find.text('15 Ağustos'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AppFormSheet<String>),
+        matching: find.text('Gerçekleştir'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(repository.realizedOccurrences, ['o4']);
   });
 
   testWidgets('reports expose chart semantics and a visible text alternative', (

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/app_text_action.dart';
+
 import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_text.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -64,6 +66,7 @@ Future<String?> showRealizeDaySheet(
   String? sourceName,
   bool isIncome = false,
   DateTime? today,
+  VoidCallback? onViewPlan,
 }) => AppFormSheet.show<String>(
   context: context,
   builder: (_) => _RealizeDaySheet(
@@ -74,6 +77,7 @@ Future<String?> showRealizeDaySheet(
     sourceName: sourceName,
     isIncome: isIncome,
     today: DateUtils.dateOnly(today ?? DateTime.now()),
+    onViewPlan: onViewPlan,
   ),
 );
 
@@ -86,7 +90,12 @@ class _RealizeDaySheet extends StatefulWidget {
     required this.sourceName,
     required this.isIncome,
     required this.today,
+    this.onViewPlan,
   });
+
+  /// Başlığın altında `Planı görüntüle ›` (19 Kasım kararı): plan üstte açılır,
+  /// dönüşte panel ve seçilen gün yerinde kalır.
+  final VoidCallback? onViewPlan;
 
   final String title;
   final String amount;
@@ -120,6 +129,18 @@ class _RealizeDaySheetState extends State<_RealizeDaySheet> {
       submitLabel: 'Gerçekleştir',
       onSubmit: () async => _day,
       children: [
+        if (widget.onViewPlan != null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.small),
+              child: AppTextAction(
+                label: 'Planı görüntüle',
+                trailingIcon: Icons.chevron_right,
+                onPressed: widget.onViewPlan,
+              ),
+            ),
+          ),
         AppDateField(
           label: widget.isIncome ? 'Tahsilat günü' : 'Ödeme günü',
           value: _day,

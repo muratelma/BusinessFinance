@@ -46,6 +46,7 @@ import '../../features/cards/data/finance_repository.dart';
 import '../../features/cards/presentation/finance_page.dart';
 import '../../features/planning/data/planning_repository.dart';
 import '../../features/planning/presentation/planning_page.dart';
+import '../../features/planning/presentation/recurring_plan_detail_page.dart';
 import '../../features/planning/presentation/recurring_plans_page.dart';
 import '../../features/data_tools/data/data_tools_repository.dart';
 import '../../features/data_tools/presentation/data_tools_page.dart';
@@ -826,6 +827,22 @@ GoRouter createAppRouter({
                 ),
           authController,
         ),
+        routes: [
+          GoRoute(
+            path: ':planId',
+            pageBuilder: (context, state) => _sessionPage(
+              state,
+              planningRepository == null
+                  ? const SizedBox.shrink()
+                  : RecurringPlanDetailHost(
+                      planId: state.pathParameters['planId']!,
+                      repository: planningRepository,
+                      financialDataChanges: financialDataChanges,
+                    ),
+              authController,
+            ),
+          ),
+        ],
       ),
       GoRoute(
         path: '/more/planning',
