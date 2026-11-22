@@ -376,6 +376,8 @@ GoRouter createAppRouter({
                                   'true',
                               changes: financialDataChanges,
                               scopeController: scopeController,
+                              financeRepository: financeRepository,
+                              taxRepository: taxRepository,
                             ),
                       authController,
                     ),

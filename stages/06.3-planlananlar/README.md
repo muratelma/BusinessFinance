@@ -24,7 +24,7 @@ durumu, sıra ve günlük burada tutulur.
 |---|---|---|
 | A1 | Sunucu: özel tarih aralığı, dönem özeti (ödenecek / beklenen giriş / karta yansıyacak, tutarı belirsiz sayısı), seçimden önce gecikenler, tür seçimi | Bitti (22 Kasım) |
 | A2 | Flutter: Planlananlar listesi (04 pano), filtre paneli ve takvim (18), boş durumlar (06), yenileme uyarısı (18-01), bilinmeyen türün atlanması | Bitti (22 Kasım); emülatör kabulü bekliyor |
-| A3 | Flutter: satırdan ilgili ödeme paneline (dönem, ekstre, vergi, taksit planı) ve "…görüntüle" bağlantıları | Başlamadı |
+| A3 | Flutter: satırdan ilgili ödeme paneline (dönem, ekstre, vergi, taksit planı) | Bitti (22 Kasım); `…görüntüle` bağlantıları B2 ile |
 | B1 | Tekrarlayanlar listesi (09/11 pano, arama, `Abonelikler ›`, ilk kullanım) | Başlamadı |
 | B2 | Plan ayrıntısı tam sayfa (07 pano): sıradaki vade, gecikmeler, son iki ödeme, takvim; Düzenle, Duraklat/Sürdür | Başlamadı |
 | B3 | Sunucu: D1 dönemden itibaren tutar, D2 planı sona erdir | Başlamadı |
@@ -45,6 +45,34 @@ beklemez.
   Toplamlar birbirinden düşülmez.
 - Satırın tamamı ve kısa eylem aynı hedefi açar; tek dokunuş mali kaydı
   onaylamaz.
+
+## Kabul
+
+Senin deneyeceğin yerler aşama aşama `KABUL.md`'de.
+
+## Kararlar ve panolardan ayrılan yerler
+
+Her satır: panoda ya da önceki kararda ne yazıyordu, ne yapıldı, neden.
+`Soru` sütunu dolu olanlar senin onayını bekler.
+
+| # | Yer | Panoda / önce | Yapılan | Neden | Soru |
+|---|---|---|---|---|---|
+| S1 | Planlananlar satırı | Tutar siyah (04) | Aynen: tutar renksiz, paranın yönü alttaki etki satırında | Pano öyle; renk Özet'te kalır | — |
+| S2 | Gecikenler satırı | `Geciken ödemeler · 8 Aralık öncesi` | `N geciken kayıt · 8 Aralık öncesi`; tutar yalnız ödemelerin toplamı | Seçimden önce gecikenler tahsilat da içerebiliyor; "ödemeler" yanlış olurdu | Başlık uygun mu? |
+| S3 | Tutarı belli olmayan vergi | `Tutar bekliyor` (04) | Satırda `Tutar bekliyor`; dönem kartında `Tutarı eksik: N ödeme` | Uygulamanın genel metni (`Tutar ödemede girilecek`) satırı iki satıra bölüyordu | — |
+| S4 | Gün başlığı | Yalnız tarih (04) | Tarih + soluk gün adı (`25 Kasım Çarşamba`) + `Bugün` / `Gecikmiş` | İşlemler'in gün başlığıyla tutarlı; vadeyi haftaya yerleştirmek kolay | — |
+| S5 | Kısa eylem | Mavi (04) | Mavi (uygulamanın nötr mavisi) ve `›` | İlk denemede siyahtı, dokunulabilir olduğu anlaşılmıyordu | — |
+| S6 | Kaynak yazımı | `İşletme hesabından ödenecek` | `Garanti Vadesiz · Hesaptan ödenecek` | Hesap adına Türkçe ek eklemek (`Kasasından`, `kartına`) birçok adda yanlış çıkıyor | — |
+| S7 | Eylemsiz satır | — | Kişinin vadesi ve eski yükümlülükte alt satır ve eylem yok | Borç-alacak ekranları bağlanana kadar ödeme yolu yok; çalışmayan eylem gösterilmez (19 Kasım kararı) | — |
+| S8 | Kapsam seçimi | `Hepsi ⌄` dönem kartında (04) | Aynen; açılır menü uygulamanın genel kapsamını değiştirir | 20 Kasım kararı | — |
+| S9 | Tür menüsü | 7 tür (18-02) | Tüm türler, Tekrarlayan, Kart ekstresi, Kart taksidi, Borç ödemesi, Alacak tahsilatı, Vergi; tür sunucuda süzülür | Liste ile toplam aynı seçimden gelsin; istemci para toplamaz | — |
+| S10 | Ekstre ödemesi | Ödeme paneli Planlananlar'ın üstünde (05) | Kartın sayfası açılır, ödeme seçimi üstünde gelir; kapanınca Planlananlar'a dönülür | Kart ödeme formu kart sayfasının içinde; ikinci bir form yazmak yerine aynısı kullanıldı (19 Kasım kararı: ödeme ilgili özelliğin formuyla) | Kart sayfasının arkada kısa görünmesi sorun mu? |
+| S11 | Vergi ödemesi | `Ödedim` paneli | Planlananlar'ın üstünde açılır | 19 Kasım kararı | — |
+| S12 | Planlananlar'a giriş | — | Diğer menüsünde Planlananlar yok; giriş Özet ve İşlemler'den | Mevcut durum, bu işte değişmedi | Diğer → Planlama altına eklensin mi? |
+| S13 | Özet · Hesap bakiyeleri | Bütün hesaplar | En çok 5 hesap (bakiyesi en büyük), başlıkta sayı | Senin önerin (22 Kasım) | — |
+| S14 | Özet · eksi bakiye | — | Renklenmiyor | 2 Ekim kararı: nakit hesabın eksiye düşmesi uyarı değildir | — |
+| S15 | Özet · Kategori giderleri | `En büyük pay` | Aynı yerde önceki aya göre fark; önceki ayda gider yoksa `En büyük pay` | Senin kararın (22 Kasım): kart uzamasın | — |
+| S16 | Özet · Yaklaşanlar alt satırı | `7 günde ödenecek · N ödeme` | Satır hep var, `· N ödeme` yalnız görünmeyen ödeme varsa | Senin kararın (22 Kasım) | — |
 
 ## Günlük
 
@@ -73,4 +101,17 @@ beklemez.
   bugün ekstre ve taksit Kartlar'a, vergi Vergi takibi'ne gidiyor.
 - **Not:** emülatördeki API (5284) bu değişiklikten önce açılmış; yeni aralık
   ve toplamlar API yeniden başlatılınca görünür.
+
+### 22 Kasım 2026 (devam) — kendi değerlendirmem ve A3
+
+- **Gözden geçirme (cihazda, gerçek API):** toplamlar Özet'le tutuyor. Düzeltilen
+  beş yer: eylem rengi (S5), bilgi satırında tekrarlanan tür (S7), uzun
+  belirsiz tutar metni (S3), eski yükümlülükte kişi simgesi (fatura simgesine
+  döndü), gün adı (S4).
+- **A3:** vergi satırı `Ödedim` panelini aynı ekranda açar (S11); ekstre satırı
+  kartın ödeme seçimini, günü gelmemiş taksit taksit planını açar, kapanınca
+  Planlananlar'a dönülür (S10). Kart sayfası yüklenirken artık
+  `Kart artık bulunamıyor` yerine yükleniyor gösterir.
+- **Kabul listesi** `KABUL.md` (Aşama 1–3) yazıldı.
+- **Sıradaki:** B1 Tekrarlayanlar listesi.
 

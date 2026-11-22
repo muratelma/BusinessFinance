@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -29,7 +31,13 @@ import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/app_status_chip.dart';
 import '../../../core/widgets/app_text_action.dart';
 import '../../../core/widgets/app_unknown_amount.dart';
+import '../../cards/data/finance_repository.dart';
+import '../../cards/presentation/finance_controller.dart';
+import '../../cards/presentation/finance_page.dart';
 import '../../planning/presentation/realize_day_sheet.dart';
+import '../../taxes/data/tax_repository.dart';
+import '../../taxes/presentation/tax_controller.dart';
+import '../../taxes/presentation/tax_sheets.dart';
 import '../data/activity_models.dart';
 import '../data/activity_repository.dart';
 import '../data/planned_activity_models.dart';
@@ -49,9 +57,19 @@ class PlannedActivityPageView extends StatefulWidget {
     this.scopeController,
     this.asOf,
     this.openOverdue = false,
+    this.financeRepository,
+    this.taxRepository,
   });
 
   final ActivityRepositoryContract repository;
+
+  /// Ekstre ve taksit satırı kartın kendi ödeme seçimini ve taksit planını
+  /// açar; verilmezse Kartlar sayfasına gidilir.
+  final FinanceRepositoryContract? financeRepository;
+
+  /// Vergi satırı aynı vadenin `Ödedim` panelini bu ekranda açar; verilmezse
+  /// Vergi takibi'ne gidilir.
+  final TaxRepositoryContract? taxRepository;
 
   /// Özet'ten gelindiyse onun günü: dönem bu günden başlayan 7 gündür.
   final DateTime? asOf;
@@ -321,12 +339,24 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
     // Vergi kalemi tutar, gün ve hesap/kart ister; onları vergi ekranının
     // "Ödedim" paneli sorar (ADR 0018 T4).
     if (activity.isTax) {
-      await context.push(taxesLocation);
+      await _payTax(activity);
       return;
     }
     // Kişinin vadeleri ve eski yükümlülükler borç-alacak ekranlarıyla
     // bağlanacak; şimdilik bilgi satırıdır.
     if (!_PlannedRow.hasAction(activity)) return;
+    if (activity.plannedKind == PlannedKind.cardStatement &&
+        activity.actionTargetId != null) {
+      await _openCard(activity.actionTargetId!, statementPayment: true);
+      return;
+    }
+    if (activity.plannedKind == PlannedKind.cardInstallment &&
+        !activity.isDirectlyRealizable &&
+        activity.sourceId != null &&
+        activity.actionTargetId != null) {
+      await _openCard(activity.sourceId!, planId: activity.actionTargetId);
+      return;
+    }
     if (!activity.isDirectlyRealizable) {
       final destination = switch (activity.plannedKind) {
         PlannedKind.cardStatement ||
@@ -373,6 +403,65 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
     );
     if (!confirmed || !mounted) return;
     await _realize(activity);
+  }
+
+  /// Vergi vadesinin `Ödedim` paneli bu ekranda açılır (19 Kasım kararı:
+  /// ödeme ilgili özelliğin formunu kullanır, seçilen kayıt yeniden
+  /// aranmaz). Panelin seçenekleri (hesap, kart) okunamazsa Vergi takibi'ne
+  /// gidilir.
+  Future<void> _payTax(PlannedActivity activity) async {
+    final repository = widget.taxRepository;
+    if (repository == null) {
+      await context.push(taxesLocation);
+      return;
+    }
+    final controller = TaxController(repository, changes: widget.changes);
+    try {
+      await controller.load();
+      if (!mounted) return;
+      if (controller.options == null) {
+        await context.push(taxesLocation);
+        return;
+      }
+      final saved = await showTaxPaySheet(context, controller, activity);
+      if (saved == true && widget.changes == null) await _controller.load();
+    } finally {
+      controller.dispose();
+    }
+  }
+
+  /// Kartın sayfası, ekstre ödeme seçimi ya da taksit planı açık gelir;
+  /// panel kapanınca Planlananlar'a dönülür.
+  Future<void> _openCard(
+    String cardId, {
+    bool statementPayment = false,
+    String? planId,
+  }) async {
+    final repository = widget.financeRepository;
+    if (repository == null) {
+      await context.push('/more/cards');
+      return;
+    }
+    final controller = FinanceController(
+      repository,
+      financialDataChanges: widget.changes,
+    );
+    unawaited(controller.load());
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => CreditCardDetailPage(
+            cardId: cardId,
+            controller: controller,
+            openStatementPayment: statementPayment,
+            openPlanId: planId,
+          ),
+        ),
+      );
+    } finally {
+      controller.dispose();
+    }
+    if (widget.changes == null && mounted) await _controller.load();
   }
 
   Future<void> _realize(PlannedActivity activity, {String? paidOn}) async {
@@ -753,6 +842,15 @@ class _DayHeading extends StatelessWidget {
                   height: 1.3,
                 ),
               ),
+              // Gün adı İşlemler'in gün başlığındaki gibi soluk.
+              const WidgetSpan(child: SizedBox(width: AppSpacing.small)),
+              TextSpan(
+                text: DateText.dayMonthWeekday(date).split(' ').last,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  height: 1.35,
+                  color: surfaces.inkMuted,
+                ),
+              ),
               if (tag != null) ...[
                 const WidgetSpan(child: SizedBox(width: AppSpacing.small)),
                 TextSpan(
@@ -810,7 +908,8 @@ class _PlannedRow extends StatelessWidget {
       _kindLabel(a),
       if (withDate) DateText.dayMonth(a.dueDate),
     ].join(' · ');
-    final impact = _impact(a);
+    // Eylemsiz bilgi satırında etki türü tekrar ederdi (`Ödenecek` / `Ödeme`).
+    final impact = action == null ? null : _impact(a);
     return Semantics(
       container: true,
       button: action != null,
@@ -861,7 +960,10 @@ class _PlannedRow extends StatelessWidget {
                             ),
                             const SizedBox(width: AppSpacing.small),
                             if (a.amount == null)
-                              const AppUnknownAmount()
+                              Text(
+                                'Tutar bekliyor',
+                                style: theme.textTheme.titleSmall,
+                              )
                             else
                               AppMoneyText(
                                 amount: a.amount!,
@@ -905,7 +1007,7 @@ class _PlannedRow extends StatelessWidget {
                         '$action ›',
                         style: theme.textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.primary,
+                          color: AppFinanceColors.of(context).neutral,
                         ),
                       ),
                   ],
@@ -983,9 +1085,9 @@ class _PlannedRow extends StatelessWidget {
     PlannedKind.debtInstallment ||
     PlannedKind.receivableInstallment => Icons.handshake_outlined,
     PlannedKind.payableObligation ||
+    PlannedKind.receivableObligation => Icons.receipt_outlined,
     PlannedKind.counterpartyPayable ||
-    PlannedKind.counterpartyReceivable ||
-    PlannedKind.receivableObligation => Icons.person_outline,
+    PlannedKind.counterpartyReceivable => Icons.person_outline,
   };
 
   static AppStatusTone _tone(PlannedActivity a) {

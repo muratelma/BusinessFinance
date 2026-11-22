@@ -399,9 +399,19 @@ class CreditCardDetailPage extends StatefulWidget {
     this.asPanel = false,
     this.revision = 0,
     this.onOpenRow,
+    this.openStatementPayment = false,
+    this.openPlanId,
   });
   final String cardId;
   final FinanceController controller;
+
+  /// Planlananlar'ın ekstre satırından gelindi: ödeme seçimi açılışta bir
+  /// kez açılır, kapanınca sayfa Planlananlar'a döner.
+  final bool openStatementPayment;
+
+  /// Planlananlar'ın taksit satırından gelindi: bu plan açılışta bir kez
+  /// açılır, kapanınca sayfa Planlananlar'a döner.
+  final String? openPlanId;
 
   /// Kartın verisi dışarıda değiştiğinde artar (işlem ayrıntısında iptal).
   final int revision;
@@ -454,6 +464,31 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
 
     _openPrefilledPayment();
     _openPrefilledPlan();
+    _openFromPlanned();
+  }
+
+  /// Planlananlar'dan gelen istek **bir kez** kullanılır; kart listesi henüz
+  /// yüklenmemişse yüklenince açılır (`_changed`).
+  bool _plannedUsed = false;
+
+  void _openFromPlanned() {
+    if (_plannedUsed ||
+        (!widget.openStatementPayment && widget.openPlanId == null)) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final current = card;
+      if (current == null || !mounted || _plannedUsed) return;
+      _plannedUsed = true;
+      if (widget.openStatementPayment) {
+        await _choosePayment(current);
+      } else {
+        await _showPlan(widget.openPlanId!);
+      }
+      // Ödeme ya da plan bu sayfanın değil, Planlananlar'daki satırın işiydi;
+      // panel kapanınca kullanıcı geldiği yere döner.
+      if (mounted) Navigator.of(context).maybePop();
+    });
   }
 
   /// Taksitli fişin önerdiği planı **bir kez** açar; kart ödeme yolunda
@@ -508,6 +543,7 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
     // Panel olarak çizildiğinde bildirimi sayfa söyler; iki kez çıkmasın.
     if (!widget.asPanel) _showSuccess(context, widget.controller);
     setState(() {});
+    _openFromPlanned();
   }
 
   CreditCardItem? get card => widget.controller.snapshot?.cards
@@ -524,7 +560,9 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
     }
     return Scaffold(
       appBar: AppPageBar(title: Text(current?.name ?? 'Kart detayı')),
-      body: current == null
+      body: current == null && widget.controller.snapshot == null
+          ? const AppLoadingView(message: 'Kart yükleniyor')
+          : current == null
           ? const AppErrorView(message: 'Kart artık bulunamıyor.')
           : Column(
               children: [

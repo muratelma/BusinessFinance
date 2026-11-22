@@ -2211,9 +2211,10 @@ Kaynak: Codex'in 04, 06 ve 18. panoları (`design/planlananlar/README.md`).
   (`AppTextAction.underlined`). Dönem kartı: 56 dp açık gri başlık (tarih
   18/700, sağda kapsam menüsü), beyaz yüzeyde toplam satırları (15 / tutar
   16/700). Gecikenler kartı: 36 dp gider tonlu saat kapsülü, sayı ve tarih,
-  sağda bilinen tutar ve aç/kapa oku. Gün başlığı 15/600 ve yanında
-  `Gecikmiş` (gider rengi) ya da `Bugün`. Satır: 36 dp tür kapsülü, ad
+  sağda bilinen tutar ve aç/kapa oku. Gün başlığı 15/600, soluk gün adı ve
+  yanında `Gecikmiş` (gider rengi) ya da `Bugün`. Satır: 36 dp tür kapsülü, ad
   `titleSmall`, tutar 16/700 (renksiz; etki alttaki satırda yazılı), tür
-  13 soluk; en altta etki (soluk) ve kısa eylem (birincil renk, `›`) aynı
-  satırda, sığmazsa eylem alta iner. Aynı günün satırları tek kartta, 16 dp
+  13 soluk; en altta etki (soluk) ve kısa eylem (nötr mavi, `›`) aynı
+  satırda, sığmazsa eylem alta iner. Tutarı belli olmayan vergide tutar
+  yerine `Tutar bekliyor`. Eylemsiz bilgi satırında alt satır çizilmez. Aynı günün satırları tek kartta, 16 dp
   içeriden başlayan çizgiyle ayrılır.

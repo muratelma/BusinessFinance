@@ -2213,7 +2213,10 @@ satırda ad, tutar, tür, kaynak ve etkisi (`Ziraat vadesiz · Hesaptan
 ödenecek`) ve kısa eylem (`Ödeme kaydet ›`, `Geliri kaydet ›`, `Harcamayı
 kaydet ›`, `Ekstreyi öde ›`, `Ödedim ›`, `Karta yansıt ›` / `Planı görüntüle ›`)
 yazar. Satırın tamamı eylemle aynı hedefi açar; tek dokunuş mali kaydı
-onaylamaz. Kişinin vadeleri ve eski yükümlülükler borç-alacak ekranları
+onaylamaz. Vergi satırı aynı vadenin `Ödedim` panelini Planlananlar'ın üstünde
+açar; ekstre satırı kartın sayfasını ödeme seçimi açık olarak, günü gelmemiş
+kart taksidi kartın taksit planını açar ve panel kapanınca Planlananlar'a
+dönülür; tekrarlayan kalem gün soran paneli, günü gelmiş taksit onayı açar. Kişinin vadeleri ve eski yükümlülükler borç-alacak ekranları
 bağlanana kadar eylemsiz bilgi satırıdır.
 
 Boş durumlar: tür seçiliyken `Bu filtreye uyan planlanan işlem yok` ve
