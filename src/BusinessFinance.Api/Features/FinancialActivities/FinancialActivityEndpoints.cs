@@ -88,7 +88,10 @@ public static class FinancialActivityEndpoints
         string? scope = null,
         bool includeCounterpartyDues = false,
         bool countTodayInHorizon = false,
-        bool includeScopedStatements = false)
+        bool includeScopedStatements = false,
+        string? from = null,
+        string? to = null,
+        string? type = null)
     {
         if (!FinanceContract.TryParseDate(asOfDate, out var parsedAsOfDate))
         {
@@ -105,8 +108,52 @@ public static class FinancialActivityEndpoints
                 "planned_activities.invalid_scope");
         }
 
+        DateOnly? parsedFrom = null;
+        DateOnly? parsedTo = null;
+        if (from is not null || to is not null)
+        {
+            if (!FinanceContract.TryParseDate(from, out var fromDate) ||
+                !FinanceContract.TryParseDate(to, out var toDate))
+            {
+                return ApiProblemResults.Validation(
+                    httpContext,
+                    "From and to must both use the yyyy-MM-dd format.",
+                    "planned_activities.invalid_range");
+            }
+            parsedFrom = fromDate;
+            parsedTo = toDate;
+        }
+
+        PlannedTypeFilter? parsedType = type switch
+        {
+            null => null,
+            "recurring" => PlannedTypeFilter.Recurring,
+            "statement" => PlannedTypeFilter.Statement,
+            "installment" => PlannedTypeFilter.Installment,
+            "payable" => PlannedTypeFilter.Payable,
+            "receivable" => PlannedTypeFilter.Receivable,
+            "tax" => PlannedTypeFilter.Tax,
+            _ => (PlannedTypeFilter)(-1)
+        };
+        if (parsedType is { } checkedType && !Enum.IsDefined(checkedType))
+        {
+            return ApiProblemResults.Validation(
+                httpContext,
+                "Type must be recurring, statement, installment, payable, receivable, tax or empty.",
+                "planned_activities.invalid_type");
+        }
+
         var result = await useCase.ExecuteAsync(
-            new PlannedActivityQuery(parsedAsOfDate, daysAhead, parsedScope, includeCounterpartyDues, countTodayInHorizon, includeScopedStatements),
+            new PlannedActivityQuery(
+                parsedAsOfDate,
+                daysAhead,
+                parsedScope,
+                includeCounterpartyDues,
+                countTodayInHorizon,
+                includeScopedStatements,
+                parsedFrom,
+                parsedTo,
+                parsedType),
             cancellationToken);
         if (!result.IsSuccess)
         {
@@ -125,7 +172,22 @@ public static class FinancialActivityEndpoints
             value.UnknownAmountCount,
             FinanceContract.Money(value.OverdueOutgoingTotal),
             value.OverdueUnknownAmountCount,
-            value.UpcomingPaymentCount));
+            value.UpcomingPaymentCount,
+            value.Period is { } period
+                ? new PlannedPeriodResponse(
+                    FinanceContract.Date(period.From),
+                    FinanceContract.Date(period.To),
+                    FinanceContract.Money(period.PaymentTotal),
+                    period.PaymentCount,
+                    period.UnknownAmountCount,
+                    FinanceContract.Money(period.IncomingTotal),
+                    period.IncomingCount,
+                    FinanceContract.Money(period.CardPostingTotal),
+                    period.CardPostingCount,
+                    period.EarlierOverdueCount,
+                    FinanceContract.Money(period.EarlierOverduePaymentTotal),
+                    period.EarlierOverdueUnknownAmountCount)
+                : null));
     }
 
     internal static PlannedActivityResponse ToResponse(PlannedActivityDto item) => new(

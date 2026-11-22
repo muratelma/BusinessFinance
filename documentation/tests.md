@@ -1,5 +1,18 @@
 # Test Kapsam Haritası
 
+### Planlananlar · 22 Kasım 2026
+
+- `PlannedActivityUseCaseTests`: özel aralıkta seçim içindeki açık kayıtlar ve
+  seçimden önce gecikenler, dönem içindeki gecikmenin bir kez sayılması, ileri
+  aralıkta aradaki günlerin gecikmiş sayılmaması, tür seçiminin liste ve özeti
+  birlikte süzmesi, ters ve bir yıldan uzun aralığın reddi.
+- `FinancialActivityEndpointTests.PlannedFeed_…`: `from`/`to`/`type` ve
+  `period` sözleşmesi, eksik aralık ve geçersiz tür 400.
+- `planned_activity_test.dart` (yeniden yazıldı): Özet girişi aynı haftayı
+  ister, dönem kartı yalnız kaydı olan toplamları yazar, tanınmayan tür atlanıp
+  sayılır, tür sunucuya gider, aynı seçimin başarısız yenilemesi son listeyi
+  korur, satırın tamamı eylemi açar, günü gelmemiş taksit yansıtılmaz.
+
 ### Özet düzeltmeleri · 22 Kasım 2026
 
 - `GetMonthlyReportUseCaseTests` (yeni): içinde bulunulan ay önceki ayın aynı

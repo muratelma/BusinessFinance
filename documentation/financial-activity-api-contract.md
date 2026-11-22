@@ -1286,3 +1286,28 @@ Kısmi ödeme kalanı azaltır. Kapanmış borcun kapsamı yeni borca taşınmaz
   bilinmeyen kişi yalnız kapsamsız okumada döner. Bayrak varsayılan kapalıdır,
   çünkü bugünkü istemci bilinmeyen planlanan türünü reddeder ve vadeli
   veresiye satış zaten vardır. `GET /api/v1/upcoming-payments` değişmedi.
+
+## Planlananlar'ın özel aralığı · 22 Kasım 2026
+
+`GET /api/v1/financial-activities/planned?asOfDate=…&from=…&to=…[&type=…]`
+
+- `from` ve `to` birlikte verilir, iki gün de dahildir; en çok 366 gün. Yoksa
+  ya da biri eksikse, ters ya da uzunsa `400 planned_activities.invalid_range`.
+  Verilirse `daysAhead` kullanılmaz.
+- Liste: vadesi `[from, to]` içindeki açık kayıtlar ve vadesi hem `from`'dan
+  hem `asOfDate`'ten önce olan gecikmiş kayıtlar. İleri bir aralıkta bugün ile
+  başlangıç arasındaki kayıtlar gecikmiş değildir ve dönmez.
+- `type` (isteğe bağlı): `recurring` (vergi hariç), `statement`,
+  `installment`, `payable` (borç taksidi, ödenecek yükümlülük, kişiye ödeme),
+  `receivable` (alacak taksidi, tahsil edilecek yükümlülük, kişiden tahsilat),
+  `tax`. Geçersiz değer `400 planned_activities.invalid_type`. Liste ve özet
+  aynı seçimden kurulur.
+- Cevaba `period` eklenir (aralıksız okumada `null`): `from`, `to`,
+  `paymentTotal` / `paymentCount` / `unknownAmountCount` (ödeme
+  yükümlülükleri; tutarı belli olmayan sayılır, toplanmaz), `incomingTotal` /
+  `incomingCount` (gelir, tahsilat, alacak taksidi), `cardPostingTotal` /
+  `cardPostingCount` (kart taksidi, kart kaynaklı tekrarlayan gider),
+  `earlierOverdueCount`, `earlierOverduePaymentTotal`,
+  `earlierOverdueUnknownAmountCount` (seçimden önce gecikenler; dönem
+  toplamlarına girmez). Toplamlar birbirinden düşülmez.
+- Sahiplik ve kapsam kuralları değişmez; aynı kullanıcının kayıtları okunur.

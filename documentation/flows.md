@@ -2188,3 +2188,37 @@ Yaklaşanlar’ın tarih bağlantısı aynı referans günü ve seçili kapsamla
 günlük Planlananlar listesini açar. Ekranın üstündeki gecikme şeridi aynı
 listeyi geciken ödemeler açıkken başlatır. Gecikenler özgün vade tarihini
 taşır. Özet’te geçmiş aya bakmak haftanın başlangıcını değiştirmez.
+
+## Planlananlar: dönem, tür ve gecikenler · 22 Kasım 2026
+
+Planlananlar bir dönem kartıyla açılır: başlıkta dönem (`8–21 Aralık`) ve
+uygulamanın genel kapsamı (`Hepsi ⌄`; buradan değiştirmek bütün ekranları
+değiştirir), altında yalnız kaydı olan toplamlar: `Ödenecek` (tutarı belli
+olmayan ödeme `Tutarı eksik: 1 ödeme` notuyla), `Beklenen giriş`,
+`Karta yansıyacak`. Toplamlar sunucudandır ve birbirinden düşülmez.
+
+Varsayılan dönem bugünden başlayan 30 gündür; Özet'ten gelindiyse 7 gün.
+Sağ üstteki `Filtre` paneli tür menüsünü (Tüm türler, Tekrarlayan, Kart
+ekstresi, Kart taksidi, Borç ödemesi, Alacak tahsilatı, Vergi) ve dönemi
+(`Önümüzdeki 7 / 30 / 90 gün`, `Tarih aralığı seç…` → ay sayfalı takvim, en
+çok 366 gün) taslak olarak tutar; `Sonuçları göster` uygular, `Sıfırla` 30 gün
+ve tüm türlere döner. Seçilen tür dönem kartının altında kaldırılabilir
+etiketle durur; liste ve toplamlar aynı seçimden sunucuda kurulur.
+
+Vadesi hem seçimin başlangıcından hem bugünden önce olan açık kayıtlar dönem
+kartının altında açılır bir satırdır (`1 geciken kayıt · 8 Aralık öncesi`,
+bilinen ödeme tutarı); dönem toplamına girmez. Dönem içindeki gecikmiş kayıt
+kendi gününde `Gecikmiş` başlığıyla bir kez sayılır. Liste gün gün kartlardır;
+satırda ad, tutar, tür, kaynak ve etkisi (`Ziraat vadesiz · Hesaptan
+ödenecek`) ve kısa eylem (`Ödeme kaydet ›`, `Geliri kaydet ›`, `Harcamayı
+kaydet ›`, `Ekstreyi öde ›`, `Ödedim ›`, `Karta yansıt ›` / `Planı görüntüle ›`)
+yazar. Satırın tamamı eylemle aynı hedefi açar; tek dokunuş mali kaydı
+onaylamaz. Kişinin vadeleri ve eski yükümlülükler borç-alacak ekranları
+bağlanana kadar eylemsiz bilgi satırıdır.
+
+Boş durumlar: tür seçiliyken `Bu filtreye uyan planlanan işlem yok` ve
+`Filtreyi temizle`; dönem boşsa `Bu dönemde bekleyen kayıt yok` ve `Dönem
+seç`; önceki gecikenler varken dönem boşsa kartın altında kısa bilgi satırı.
+Aynı seçimin yenilemesi başarısız olursa son liste kalır ve `Liste
+güncellenemedi.` yazar. Uygulamanın tanımadığı türde bir kayıt gelirse liste
+bozulmaz; kayıt atlanır ve sayısı yazılır.

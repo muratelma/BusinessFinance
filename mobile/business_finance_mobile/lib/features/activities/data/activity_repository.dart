@@ -30,6 +30,17 @@ abstract interface class ActivityRepositoryContract {
     TransactionScope? scope,
   });
 
+  /// Planlananlar ekranının okuması: [from]–[to] (iki gün dahil) içindeki açık
+  /// kayıtlar, seçimden önce gecikenler ve dönem özeti. Tür seçimi sunucuda
+  /// uygulanır ki liste ile özet aynı seçimden kurulsun.
+  Future<PlannedActivityPage> listPlannedRange({
+    required DateTime from,
+    required DateTime to,
+    DateTime? today,
+    TransactionScope? scope,
+    PlannedTypeFilter type = PlannedTypeFilter.all,
+  });
+
   /// Planlanan bir satırı gerçek harekete çevirir.
   ///
   /// [cancel]'ın kardeşi: planlanan görünüm de bir okuma modeli, o yüzden
@@ -226,6 +237,36 @@ class ActivityRepository implements ActivityRepositoryContract {
           if (horizon == PlannedHorizon.week) 'includeCounterpartyDues': 'true',
           if (horizon == PlannedHorizon.week) 'includeScopedStatements': 'true',
           'scope': ?scope?.apiValue,
+        },
+      ).toString(),
+    );
+    return PlannedActivityPage.fromJson(response.requireObject());
+  }
+
+  @override
+  Future<PlannedActivityPage> listPlannedRange({
+    required DateTime from,
+    required DateTime to,
+    DateTime? today,
+    TransactionScope? scope,
+    PlannedTypeFilter type = PlannedTypeFilter.all,
+  }) async {
+    String iso(DateTime d) =>
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-'
+        '${d.day.toString().padLeft(2, '0')}';
+    final response = await _apiClient.get(
+      Uri(
+        path: '/api/v1/financial-activities/planned',
+        queryParameters: {
+          'asOfDate': iso(today ?? DateTime.now()),
+          'from': iso(from),
+          'to': iso(to),
+          // Kesilmiş ekstre her kapsamda tam kalanıyla görünür (D5) ve
+          // kişinin vadeleri listede yer alır; Özet'in okumasıyla aynı.
+          'includeScopedStatements': 'true',
+          'includeCounterpartyDues': 'true',
+          'scope': ?scope?.apiValue,
+          'type': ?type.apiValue,
         },
       ).toString(),
     );

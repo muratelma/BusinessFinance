@@ -288,6 +288,8 @@ class PlannedActivity {
     actionSequence: actionSequence,
     recurringTransactionId: recurringTransactionId,
     taxKind: taxKind,
+    postsToCard: postsToCard,
+    isMixedStatement: isMixedStatement,
   );
 
   bool get needsAttention => readiness == PlannedReadiness.needsAttention;
@@ -323,6 +325,58 @@ class PlannedActivity {
       !needsAttention;
 }
 
+/// Seçilen aralığın özeti (`from` / `to` ile okunduğunda). Bütün tutarlar
+/// sunucudandır ve birbirinden düşülmez.
+class PlannedPeriod {
+  const PlannedPeriod({
+    required this.from,
+    required this.to,
+    required this.paymentTotal,
+    required this.paymentCount,
+    required this.unknownAmountCount,
+    required this.incomingTotal,
+    required this.incomingCount,
+    required this.cardPostingTotal,
+    required this.cardPostingCount,
+    required this.earlierOverdueCount,
+    required this.earlierOverduePaymentTotal,
+    required this.earlierOverdueUnknownAmountCount,
+  });
+
+  factory PlannedPeriod.fromJson(Map<String, dynamic> json) => PlannedPeriod(
+    from: json['from'] as String,
+    to: json['to'] as String,
+    paymentTotal: json['paymentTotal'] as String,
+    paymentCount: json['paymentCount'] as int,
+    unknownAmountCount: json['unknownAmountCount'] as int,
+    incomingTotal: json['incomingTotal'] as String,
+    incomingCount: json['incomingCount'] as int,
+    cardPostingTotal: json['cardPostingTotal'] as String,
+    cardPostingCount: json['cardPostingCount'] as int,
+    earlierOverdueCount: json['earlierOverdueCount'] as int,
+    earlierOverduePaymentTotal: json['earlierOverduePaymentTotal'] as String,
+    earlierOverdueUnknownAmountCount:
+        json['earlierOverdueUnknownAmountCount'] as int,
+  );
+
+  final String from;
+  final String to;
+  final String paymentTotal;
+  final int paymentCount;
+
+  /// Ödemelerden tutarı belli olmayanların sayısı; toplama girmez.
+  final int unknownAmountCount;
+  final String incomingTotal;
+  final int incomingCount;
+  final String cardPostingTotal;
+  final int cardPostingCount;
+
+  /// Vadesi hem seçimin başlangıcından hem bugünden önce olan açık kayıtlar.
+  final int earlierOverdueCount;
+  final String earlierOverduePaymentTotal;
+  final int earlierOverdueUnknownAmountCount;
+}
+
 class PlannedActivityPage {
   const PlannedActivityPage({
     required this.asOfDate,
@@ -334,24 +388,45 @@ class PlannedActivityPage {
     this.upcomingPaymentCount,
     this.unknownAmountCount,
     this.overdueOutgoingTotal,
+    this.period,
+    this.skippedCount = 0,
   });
 
-  factory PlannedActivityPage.fromJson(Map<String, dynamic> json) =>
-      PlannedActivityPage(
-        upcomingOutgoingTotal: json['upcomingOutgoingTotal'] as String?,
-        upcomingPaymentCount: json['upcomingPaymentCount'] as int?,
-        unknownAmountCount: json['unknownAmountCount'] as int?,
-        overdueOutgoingTotal: json['overdueOutgoingTotal'] as String?,
-        asOfDate: json['asOfDate'] as String,
-        daysAhead: json['daysAhead'] as int,
-        totalCount: json['totalCount'] as int,
-        nearestDueDate: json['nearestDueDate'] as String?,
-        items: (json['items'] as List<dynamic>)
-            .map(
-              (item) => PlannedActivity.fromJson(item as Map<String, dynamic>),
-            )
-            .toList(growable: false),
-      );
+  /// Uygulamanın tanımadığı türdeki satır atlanır ve sayılır; ekran bunu
+  /// söyler. Önceki hâlde tek bilinmeyen tür bütün listeyi açılmaz yapıyordu
+  /// (yeni sunucu, eski uygulama).
+  factory PlannedActivityPage.fromJson(Map<String, dynamic> json) {
+    final items = <PlannedActivity>[];
+    var skipped = 0;
+    for (final item in json['items'] as List<dynamic>) {
+      try {
+        items.add(PlannedActivity.fromJson(item as Map<String, dynamic>));
+      } on FormatException {
+        skipped++;
+      }
+    }
+    return PlannedActivityPage(
+      upcomingOutgoingTotal: json['upcomingOutgoingTotal'] as String?,
+      upcomingPaymentCount: json['upcomingPaymentCount'] as int?,
+      unknownAmountCount: json['unknownAmountCount'] as int?,
+      overdueOutgoingTotal: json['overdueOutgoingTotal'] as String?,
+      asOfDate: json['asOfDate'] as String,
+      daysAhead: json['daysAhead'] as int,
+      totalCount: json['totalCount'] as int,
+      nearestDueDate: json['nearestDueDate'] as String?,
+      items: List.unmodifiable(items),
+      period: json['period'] == null
+          ? null
+          : PlannedPeriod.fromJson(json['period'] as Map<String, dynamic>),
+      skippedCount: skipped,
+    );
+  }
+
+  /// `from` / `to` ile okunduğunda seçilen aralığın özeti; yoksa `null`.
+  final PlannedPeriod? period;
+
+  /// Bu sürümün gösteremediği satır sayısı.
+  final int skippedCount;
 
   final String asOfDate;
   final int daysAhead;
@@ -386,29 +461,38 @@ enum PlannedHorizon {
   final String label;
 }
 
+/// Planlananlar'ın tür seçimi (Codex 18-02, 20 Kasım 2026). Kişiye ödeme ve
+/// tahsilat yönüne göre borç ve alacak taksitleriyle birliktedir; vergi
+/// tekrarlayandan ayrıdır.
 enum PlannedTypeFilter {
-  all('Tümü'),
-  recurring('Tekrarlanan'),
-  installment('Taksit'),
-  statement('Ekstre'),
-  debt('Borç/Alacak'),
-  obligation('Yükümlülük');
+  all('Tüm türler', null),
+  recurring('Tekrarlayan', 'recurring'),
+  statement('Kart ekstresi', 'statement'),
+  installment('Kart taksidi', 'installment'),
+  payable('Borç ödemesi', 'payable'),
+  receivable('Alacak tahsilatı', 'receivable'),
+  tax('Vergi', 'tax');
 
-  const PlannedTypeFilter(this.label);
+  const PlannedTypeFilter(this.label, this.apiValue);
   final String label;
+
+  /// Sunucunun `type` değeri; tümünde gönderilmez.
+  final String? apiValue;
 
   bool matches(PlannedActivity item) => switch (this) {
     all => true,
-    recurring => item.plannedKind == PlannedKind.recurringOccurrence,
+    recurring =>
+      item.plannedKind == PlannedKind.recurringOccurrence && !item.isTax,
     installment => item.plannedKind == PlannedKind.cardInstallment,
     statement => item.plannedKind == PlannedKind.cardStatement,
-    debt =>
+    payable =>
       item.plannedKind == PlannedKind.debtInstallment ||
           item.plannedKind == PlannedKind.counterpartyPayable ||
+          item.plannedKind == PlannedKind.payableObligation,
+    receivable =>
+      item.plannedKind == PlannedKind.receivableInstallment ||
           item.plannedKind == PlannedKind.counterpartyReceivable ||
-          item.plannedKind == PlannedKind.receivableInstallment,
-    obligation =>
-      item.plannedKind == PlannedKind.payableObligation ||
           item.plannedKind == PlannedKind.receivableObligation,
+    tax => item.isTax,
   };
 }

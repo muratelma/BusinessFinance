@@ -383,6 +383,32 @@ public sealed class FinancialActivityEndpointTests
         Assert.Equal(1, throughTwentieth!.UpcomingPaymentCount);
         Assert.Equal("125.5000", throughTwentieth.UpcomingOutgoingTotal);
         Assert.Equal(0, throughNineteenth!.UpcomingPaymentCount);
+        // Özel aralık (22 Kasım 2026): iki gün dahil, dönem özetiyle; 21 Ağustos
+        // başlangıçlı aralık 20 Ağustos vadesini içermez ve henüz gecikmemiştir.
+        var range = await owner.GetFromJsonAsync<PlannedActivityListResponse>(
+            "/api/v1/financial-activities/planned?asOfDate=2026-08-15&from=2026-08-20&to=2026-08-20");
+        Assert.Equal("2026-08-20", range!.Period!.From);
+        Assert.Equal("125.5000", range.Period.PaymentTotal);
+        Assert.Equal(1, range.Period.PaymentCount);
+        Assert.Equal("0.0000", range.Period.IncomingTotal);
+        Assert.Equal(0, range.Period.EarlierOverdueCount);
+        var after = await owner.GetFromJsonAsync<PlannedActivityListResponse>(
+            "/api/v1/financial-activities/planned?asOfDate=2026-08-15&from=2026-08-21&to=2026-08-31");
+        Assert.Empty(after!.Items);
+        Assert.Null(planned.Period);
+        using var reversed = await owner.GetAsync(
+            "/api/v1/financial-activities/planned?asOfDate=2026-08-15&from=2026-08-31&to=2026-08-21");
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, reversed.StatusCode);
+        var onlyStatements = await owner.GetFromJsonAsync<PlannedActivityListResponse>(
+            "/api/v1/financial-activities/planned?asOfDate=2026-08-15&from=2026-08-20&to=2026-08-20&type=statement");
+        Assert.Empty(onlyStatements!.Items);
+        Assert.Equal(0, onlyStatements.Period!.PaymentCount);
+        using var badType = await owner.GetAsync(
+            "/api/v1/financial-activities/planned?asOfDate=2026-08-15&from=2026-08-20&to=2026-08-20&type=bogus");
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, badType.StatusCode);
+        using var halfRange = await owner.GetAsync(
+            "/api/v1/financial-activities/planned?asOfDate=2026-08-15&from=2026-08-21");
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, halfRange.StatusCode);
         Assert.Empty(throughNineteenth.Items);
         var item = Assert.Single(planned.Items);
         Assert.Equal("recurring-occurrence", item.PlannedKind);

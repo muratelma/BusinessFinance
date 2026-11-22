@@ -238,6 +238,105 @@ public sealed class PlannedActivityUseCaseTests
         Assert.Equal(expected, PlannedActivityRules.Classify(DateOnly.Parse(dueDate), AsOfDate));
     }
 
+    // 19 Kasım kararının örneği: bugün 12 Aralık, seçim 8–21 Aralık.
+    private static readonly DateOnly RangeToday = new(2026, 12, 12);
+
+    private static PlannedActivityDto Due(int day, decimal? amount = 100m) =>
+        Planned(
+            new DateOnly(2026, 12, day),
+            PlannedActivityRules.Classify(new DateOnly(2026, 12, day), RangeToday)) with
+        { Amount = amount };
+
+    [Fact]
+    public async Task Range_KeepsOpenItemsInsideAndOverdueItemsBeforeTheSelection()
+    {
+        var repository = new FakePlannedActivityRepository(
+            Due(1, 480m),
+            Due(9, 2800m),
+            Due(12, 1750m),
+            Due(21, 200m),
+            Due(22, 999m),
+            Due(14, null),
+            Due(15) with { Amount = 6800m, Effect = FinancialActivityEffect.Income },
+            Due(16) with { Amount = 1200m, PlannedKind = PlannedActivityKind.CardInstallment });
+        var useCase = new ListPlannedActivitiesUseCase(new FakeCurrentUser(UserId), repository);
+
+        var result = await useCase.ExecuteAsync(new PlannedActivityQuery(
+            RangeToday, 30, From: new DateOnly(2026, 12, 8), To: new DateOnly(2026, 12, 21)));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(new DateOnly(2026, 12, 21), repository.LastHorizon);
+        // 22 Aralık seçimin dışında; 1 Aralık seçimden önce gecikenlerde.
+        Assert.DoesNotContain(result.Value.Items, item => item.DueDate.Day == 22);
+        var period = result.Value.Period!;
+        // Dönem içindeki gecikme (9 Aralık) bir kez, dönemde sayılır.
+        Assert.Equal(2800m + 1750m + 200m, period.PaymentTotal);
+        Assert.Equal(4, period.PaymentCount);
+        Assert.Equal(1, period.UnknownAmountCount);
+        Assert.Equal(6800m, period.IncomingTotal);
+        Assert.Equal(1, period.IncomingCount);
+        Assert.Equal(1200m, period.CardPostingTotal);
+        Assert.Equal(1, period.CardPostingCount);
+        Assert.Equal(1, period.EarlierOverdueCount);
+        Assert.Equal(480m, period.EarlierOverduePaymentTotal);
+        Assert.Equal(new DateOnly(2026, 12, 1), result.Value.Items[0].DueDate);
+    }
+
+    [Fact]
+    public async Task Range_InTheFutureDoesNotCallTheDaysBeforeItOverdue()
+    {
+        var repository = new FakePlannedActivityRepository(Due(9, 2800m), Due(13, 500m), Due(16, 300m));
+        var useCase = new ListPlannedActivitiesUseCase(new FakeCurrentUser(UserId), repository);
+
+        var result = await useCase.ExecuteAsync(new PlannedActivityQuery(
+            RangeToday, 30, From: new DateOnly(2026, 12, 15), To: new DateOnly(2026, 12, 21)));
+
+        // 13 Aralık bugünden sonra ama seçimden önce: gecikmiş değildir, görünmez.
+        Assert.Equal([9, 16], result.Value.Items.Select(item => item.DueDate.Day));
+        Assert.Equal(1, result.Value.Period!.EarlierOverdueCount);
+        Assert.Equal(300m, result.Value.Period.PaymentTotal);
+    }
+
+    [Fact]
+    public async Task Range_TypeSelection_BuildsTheListAndTheSummaryFromTheSameItems()
+    {
+        var tax = Due(14, null) with { TaxKind = TaxKind.WithholdingReturn };
+        var repository = new FakePlannedActivityRepository(
+            Due(1, 480m) with { TaxKind = TaxKind.WithholdingReturn },
+            Due(9, 2800m),
+            tax,
+            Due(15) with { Amount = 1200m, PlannedKind = PlannedActivityKind.CardStatement });
+        var useCase = new ListPlannedActivitiesUseCase(new FakeCurrentUser(UserId), repository);
+
+        var result = await useCase.ExecuteAsync(new PlannedActivityQuery(
+            RangeToday,
+            30,
+            From: new DateOnly(2026, 12, 8),
+            To: new DateOnly(2026, 12, 21),
+            Type: PlannedTypeFilter.Tax));
+
+        Assert.Equal([1, 14], result.Value.Items.Select(item => item.DueDate.Day));
+        Assert.Equal(1, result.Value.Period!.PaymentCount);
+        Assert.Equal(1, result.Value.Period.UnknownAmountCount);
+        Assert.Equal(0m, result.Value.Period.PaymentTotal);
+        Assert.Equal(480m, result.Value.Period.EarlierOverduePaymentTotal);
+    }
+
+    [Theory]
+    [InlineData("2026-12-21", "2026-12-08")]
+    [InlineData("2026-01-01", "2027-01-02")]
+    public async Task Range_RejectsReversedOrTooLongSelections(string from, string to)
+    {
+        var useCase = new ListPlannedActivitiesUseCase(
+            new FakeCurrentUser(UserId), new FakePlannedActivityRepository());
+
+        var result = await useCase.ExecuteAsync(new PlannedActivityQuery(
+            RangeToday, 30, From: DateOnly.Parse(from), To: DateOnly.Parse(to)));
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(PlannedActivityErrors.InvalidRange, result.Error);
+    }
+
     private static PlannedActivityDto Planned(
         DateOnly dueDate,
         PlannedActivityTiming timing,

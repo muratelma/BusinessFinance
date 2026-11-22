@@ -86,4 +86,22 @@ public sealed record PlannedActivityListResponse(
     // tutarı belli olmayanların sayısı; pencereden bağımsız.
     string OverdueOutgoingTotal,
     int OverdueUnknownAmountCount,
-    int UpcomingPaymentCount = 0);
+    int UpcomingPaymentCount = 0,
+
+    // Yalnız `from` / `to` ile okunduğunda dolu: seçilen aralığın ayrı
+    // toplamları ve seçimden önce gecikenler.
+    PlannedPeriodResponse? Period = null);
+
+public sealed record PlannedPeriodResponse(
+    string From,
+    string To,
+    string PaymentTotal,
+    int PaymentCount,
+    int UnknownAmountCount,
+    string IncomingTotal,
+    int IncomingCount,
+    string CardPostingTotal,
+    int CardPostingCount,
+    int EarlierOverdueCount,
+    string EarlierOverduePaymentTotal,
+    int EarlierOverdueUnknownAmountCount);

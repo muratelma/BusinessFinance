@@ -198,7 +198,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Planlananlar · Şahsi'), findsOneWidget);
+      // Kapsam dönem kartının başlığında, seçilebilir hâlde yazar.
+      expect(find.text('Planlananlar'), findsOneWidget);
+      expect(find.text('Şahsi'), findsOneWidget);
     });
   });
 }
@@ -279,6 +281,23 @@ ActivityRepository _httpRepository(
 }
 
 class _FakeRepository implements ActivityRepositoryContract {
+  @override
+  Future<PlannedActivityPage> listPlannedRange({
+    required DateTime from,
+    required DateTime to,
+    DateTime? today,
+    TransactionScope? scope,
+    PlannedTypeFilter type = PlannedTypeFilter.all,
+  }) async {
+    plannedScopes.add(scope);
+    return const PlannedActivityPage(
+      asOfDate: '2026-08-09',
+      daysAhead: 7,
+      totalCount: 0,
+      items: [],
+    );
+  }
+
   @override
   Future<List<ActivityBalance>> balancesAfter(
     FinancialActivity activity,

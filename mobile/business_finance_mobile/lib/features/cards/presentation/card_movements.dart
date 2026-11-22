@@ -17,6 +17,7 @@ import '../../../core/widgets/app_filter_sheet.dart';
 import '../../../core/widgets/app_money_text.dart';
 import '../../../core/widgets/app_no_results_view.dart';
 import '../../../core/widgets/app_page_header.dart';
+import '../../../core/widgets/app_range_calendar.dart';
 import '../../../core/widgets/app_section_empty.dart';
 import '../../../core/widgets/app_section_header.dart';
 import '../../../core/widgets/app_state_views.dart';
@@ -954,7 +955,7 @@ class _CardFilterSheetState extends State<_CardFilterSheet> {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.compact),
             child: Column(
               children: [
-                _RadioRow(
+                AppFilterRadioRow(
                   label: 'Bu ekstre',
                   trailing: current == null
                       ? null
@@ -964,7 +965,7 @@ class _CardFilterSheetState extends State<_CardFilterSheet> {
                     _draft.copyWith(period: const CardPeriodChoice.current()),
                   ),
                 ),
-                _RadioRow(
+                AppFilterRadioRow(
                   label: 'Tüm zamanlar',
                   selected: period.all,
                   onTap: () => _change(
@@ -973,7 +974,7 @@ class _CardFilterSheetState extends State<_CardFilterSheet> {
                     ),
                   ),
                 ),
-                _RangeRow(
+                AppFilterRangeRow(
                   label: custom
                       ? _choiceLabel(period, widget.statements)
                       : 'Tarih aralığı seç…',
@@ -1014,133 +1015,6 @@ class _CardFilterSheetState extends State<_CardFilterSheet> {
     return range == null
         ? name
         : '$name · ${DateText.dayRangeShort(range.start, range.end)}';
-  }
-}
-
-class _RadioRow extends StatelessWidget {
-  const _RadioRow({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.trailing,
-  });
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  final String? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final surfaces = AppSurfaces.of(context);
-    return Semantics(
-      inMutuallyExclusiveGroup: true,
-      checked: selected,
-      button: true,
-      label: [label, ?trailing].join(', '),
-      excludeSemantics: true,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.small),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 48),
-          child: Row(
-            children: [
-              Container(
-                width: 20,
-                height: 20,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    width: 2,
-                    color: selected
-                        ? theme.colorScheme.primary
-                        : surfaces.borderStrong,
-                  ),
-                ),
-                child: selected
-                    ? Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: theme.colorScheme.primary,
-                        ),
-                      )
-                    : null,
-              ),
-              const SizedBox(width: AppSpacing.step14),
-              Expanded(
-                child: Text(
-                  label,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    fontSize: AppTextSizes.compact,
-                    height: 1.3,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  ),
-                ),
-              ),
-              if (trailing != null)
-                Text(
-                  trailing!,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: AppTextSizes.caption,
-                    color: surfaces.inkMuted,
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RangeRow extends StatelessWidget {
-  const _RangeRow({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final surfaces = AppSurfaces.of(context);
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: selected ? 'Tarih aralığı: $label' : label,
-      excludeSemantics: true,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.small),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 48),
-          child: Row(
-            children: [
-              Icon(Icons.date_range_outlined, size: 20, color: surfaces.ink),
-              const SizedBox(width: AppSpacing.step14),
-              Expanded(
-                child: Text(
-                  label,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    fontSize: AppTextSizes.compact,
-                    height: 1.3,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  ),
-                ),
-              ),
-              Icon(Icons.chevron_right, size: 20, color: surfaces.inkMuted),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 
@@ -1385,13 +1259,13 @@ class _CardStatementRangeDialogState extends State<CardStatementRangeDialog> {
                   AppSpacing.compact,
                   AppSpacing.compact,
                 ),
-                child: _Grid(
+                child: AppRangeCalendarGrid(
                   days: days,
                   first: first,
                   last: last,
                   start: _start,
                   end: _end,
-                  custom: _custom,
+                  dimOutside: !_custom,
                   onTap: _tap,
                 ),
               ),
@@ -1427,193 +1301,6 @@ class _CardStatementRangeDialogState extends State<CardStatementRangeDialog> {
                 ),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Grid extends StatelessWidget {
-  const _Grid({
-    required this.days,
-    required this.first,
-    required this.last,
-    required this.start,
-    required this.end,
-    required this.custom,
-    required this.onTap,
-  });
-  final List<DateTime> days;
-  final DateTime first;
-  final DateTime last;
-  final DateTime? start;
-  final DateTime? end;
-  final bool custom;
-  final ValueChanged<DateTime> onTap;
-
-  static const _weekdays = ['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pz'];
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final surfaces = AppSurfaces.of(context);
-    final brand = theme.colorScheme.primary;
-    final band = theme.colorScheme.primaryContainer;
-    final rows = <Widget>[
-      Row(
-        children: [
-          for (final name in _weekdays)
-            Expanded(
-              child: SizedBox(
-                height: 28,
-                child: Center(
-                  child: Text(
-                    name,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontSize: AppTextSizes.caption,
-                      color: surfaces.inkMuted,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    ];
-    for (var w = 0; w < days.length; w += 7) {
-      final week = days.sublist(w, w + 7);
-      // Seçim şeridi haftada tek parça çizilir; gün gün çizilince günlerin
-      // arasında ince dikişler görünüyordu.
-      final banded = [for (final day in week) _banded(day)];
-      final from = banded.indexOf(true);
-      final to = banded.lastIndexOf(true);
-      rows.add(
-        Padding(
-          padding: const EdgeInsets.only(top: AppSpacing.xSmall),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final cell = constraints.maxWidth / 7;
-              final roundLeft =
-                  from == 0 ||
-                  (from >= 0 && DateUtils.isSameDay(week[from], start));
-              final roundRight =
-                  to == 6 || (to >= 0 && DateUtils.isSameDay(week[to], end));
-              return Stack(
-                children: [
-                  if (from >= 0)
-                    Positioned(
-                      left: cell * from,
-                      width: cell * (to - from + 1),
-                      top: 0,
-                      bottom: 0,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: band,
-                          borderRadius: BorderRadius.horizontal(
-                            left: Radius.circular(
-                              roundLeft ? AppRadius.chip : 0,
-                            ),
-                            right: Radius.circular(
-                              roundRight ? AppRadius.chip : 0,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  Row(
-                    children: [
-                      for (final day in week)
-                        Expanded(child: _day(context, day, brand, surfaces)),
-                    ],
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-      );
-    }
-    return Column(mainAxisSize: MainAxisSize.min, children: rows);
-  }
-
-  /// Gün seçim şeridinin içinde mi (uçlar dahil, tek günlük seçim hariç).
-  bool _banded(DateTime day) {
-    if (start == null || end == null || DateUtils.isSameDay(start, end)) {
-      return false;
-    }
-    return !day.isBefore(start!) && !day.isAfter(end!);
-  }
-
-  Widget _day(
-    BuildContext context,
-    DateTime day,
-    Color brand,
-    AppSurfaces surfaces,
-  ) {
-    final theme = Theme.of(context);
-    final isStart = start != null && DateUtils.isSameDay(day, start);
-    final isEnd =
-        (end != null && DateUtils.isSameDay(day, end)) ||
-        (end == null && isStart);
-    final inside =
-        start != null &&
-        end != null &&
-        day.isAfter(start!) &&
-        day.isBefore(end!);
-    final outside = !custom && (day.isBefore(first) || day.isAfter(last));
-    final edge = isStart || isEnd;
-    final showMonth = day == days.first || day.day == 1;
-    return Semantics(
-      button: true,
-      selected: edge || inside,
-      label: DateText.dayMonthYear(
-        '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}',
-      ),
-      excludeSemantics: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => onTap(day),
-        child: Container(
-          height: 46,
-          alignment: Alignment.center,
-          child: Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: edge ? brand : null,
-            ),
-            alignment: Alignment.center,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (showMonth)
-                  Text(
-                    DateText.shortMonths[day.month - 1],
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontSize: AppTextSizes.leafMonth,
-                      height: 1.1,
-                      fontWeight: FontWeight.w600,
-                      color: edge
-                          ? theme.colorScheme.onPrimary
-                          : surfaces.inkMuted,
-                    ),
-                  ),
-                Text(
-                  '${day.day}',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    height: 1.1,
-                    fontWeight: edge ? FontWeight.w700 : FontWeight.w400,
-                    color: edge
-                        ? theme.colorScheme.onPrimary
-                        : outside
-                        ? surfaces.inkFaint
-                        : surfaces.ink,
-                  ),
-                ),
-              ],
-            ),
           ),
         ),
       ),

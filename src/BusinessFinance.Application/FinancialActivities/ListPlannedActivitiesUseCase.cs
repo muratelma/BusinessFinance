@@ -15,6 +15,12 @@ public sealed class ListPlannedActivitiesUseCase(
     /// </summary>
     public static readonly int[] AllowedDaysAhead = [7, 30, 90];
 
+    /// <summary>
+    /// Özel aralığın en uzun hâli: bir yıl. Tekrarlayan tarihler ufka kadar
+    /// üretildiği için açık uçlu bir aralık sınırsız izdüşüm demektir.
+    /// </summary>
+    public const int MaxRangeDays = 366;
+
     public async Task<ApplicationResult<PlannedActivityListResult>> ExecuteAsync(
         PlannedActivityQuery query,
         CancellationToken cancellationToken = default)
@@ -31,6 +37,11 @@ public sealed class ListPlannedActivitiesUseCase(
         {
             return ApplicationResult<PlannedActivityListResult>.Failure(
                 PlannedActivityErrors.InvalidAsOfDate);
+        }
+
+        if (query.From is not null || query.To is not null)
+        {
+            return await ListRangeAsync(userId, query, cancellationToken);
         }
 
         if (!AllowedDaysAhead.Contains(query.DaysAhead))
@@ -83,10 +94,89 @@ public sealed class ListPlannedActivitiesUseCase(
                 overdue.Count(item => item.Amount is null),
                 outgoing.Length));
     }
+
+    /// <summary>
+    /// Özel aralık: vadesi [From, To] içindeki açık kayıtlar ve seçimden önce
+    /// gecikenler. Gecikme bugüne göre belirlenir; ileri bir aralıkta bugün ile
+    /// başlangıç arasındaki kayıtlar gecikmiş sayılmaz ve listeye girmez.
+    /// </summary>
+    private async Task<ApplicationResult<PlannedActivityListResult>> ListRangeAsync(
+        Guid userId,
+        PlannedActivityQuery query,
+        CancellationToken cancellationToken)
+    {
+        if (query.From is not DateOnly from || query.To is not DateOnly to || from > to ||
+            to.DayNumber - from.DayNumber >= MaxRangeDays ||
+            to.Year > MonthlyBudget.MaximumYear || from.Year < MonthlyBudget.MinimumYear)
+        {
+            return ApplicationResult<PlannedActivityListResult>.Failure(
+                PlannedActivityErrors.InvalidRange);
+        }
+
+        var today = query.AsOfDate;
+        var horizon = to > today ? to : today;
+        var items = (await repository.ListAsync(
+            userId, today, horizon, query.Scope, cancellationToken, query.IncludeScopedStatements)).ToList();
+        if (query.IncludeCounterpartyDues)
+        {
+            items.AddRange(await repository.ListCounterpartyDuesAsync(
+                userId, today, horizon, query.Scope, cancellationToken));
+        }
+
+        if (query.Type is PlannedTypeFilter type)
+        {
+            items = [.. items.Where(item => PlannedActivityRules.Matches(item, type))];
+        }
+
+        var inPeriod = items
+            .Where(item => item.DueDate >= from && item.DueDate <= to)
+            .ToArray();
+        var earlier = items
+            .Where(item => item.DueDate < from && item.Timing == PlannedActivityTiming.Overdue)
+            .ToArray();
+        var ordered = earlier.Concat(inPeriod)
+            .OrderBy(item => item.DueDate)
+            .ThenBy(item => item.PlannedKind)
+            .ThenBy(item => item.PlannedActivityId)
+            .ToArray();
+
+        var payments = inPeriod.Where(PlannedActivityRules.IsPaymentObligation).ToArray();
+        var incoming = inPeriod.Where(PlannedActivityRules.IsExpectedIncome).ToArray();
+        var cardPostings = inPeriod.Where(PlannedActivityRules.IsCardPosting).ToArray();
+        var earlierPayments = earlier.Where(PlannedActivityRules.IsPaymentObligation).ToArray();
+        var period = new PlannedPeriodSummary(
+            from,
+            to,
+            payments.Sum(item => item.Amount ?? 0m),
+            payments.Length,
+            payments.Count(item => item.Amount is null),
+            incoming.Sum(item => item.Amount ?? 0m),
+            incoming.Length,
+            cardPostings.Sum(item => item.Amount ?? 0m),
+            cardPostings.Length,
+            earlier.Length,
+            earlierPayments.Sum(item => item.Amount ?? 0m),
+            earlierPayments.Count(item => item.Amount is null));
+
+        return ApplicationResult<PlannedActivityListResult>.Success(
+            new PlannedActivityListResult(
+                today,
+                to.DayNumber - from.DayNumber + 1,
+                query.Scope,
+                ordered.Length,
+                ordered.Length == 0 ? null : ordered.Min(item => item.DueDate),
+                ordered,
+                Period: period));
+    }
 }
 
 public static class PlannedActivityErrors
 {
+    public static readonly ApplicationError InvalidRange = new(
+        "planned_activities.invalid_range",
+        "From and to must both be given, from must not be after to, and the range must not exceed a year.",
+        ApplicationErrorType.Validation);
+
     public static readonly ApplicationError AuthenticationRequired = new(
         "authentication.required",
         "An authenticated user is required.",

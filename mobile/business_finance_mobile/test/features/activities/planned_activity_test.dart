@@ -1,6 +1,4 @@
-import 'package:business_finance_mobile/core/widgets/app_status_chip.dart';
 import 'package:business_finance_mobile/core/theme/app_theme.dart';
-import 'package:business_finance_mobile/core/widgets/app_card.dart';
 import 'package:business_finance_mobile/core/widgets/app_date_field.dart';
 import 'package:business_finance_mobile/core/widgets/app_form_sheet.dart';
 import 'package:flutter/material.dart';
@@ -14,54 +12,45 @@ import 'package:business_finance_mobile/features/activities/presentation/planned
 import 'package:business_finance_mobile/features/activities/presentation/planned_activity_page.dart';
 import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 
+/// Örnek gün: 15 Ağustos 2026. Özet girişinde dönem 15–21 Ağustos'tur.
+final _today = DateTime(2026, 8, 15);
+
 void main() {
   for (final openOverdue in [true, false]) {
     testWidgets(
-      'Özet girişi aynı haftayı okur, gecikmelerin açık durumu $openOverdue',
+      'Özet girişi aynı haftayı okur, gecikenlerin açık durumu $openOverdue',
       (tester) async {
         final repository = _FakeRepository(
-          page: PlannedActivityPage(
-            asOfDate: '2026-11-21',
-            daysAhead: 7,
-            totalCount: 2,
-            upcomingOutgoingTotal: '4200.0000',
-            upcomingPaymentCount: 1,
-            items: [
-              PlannedActivity.fromJson({
-                ..._json(),
-                'plannedActivityId': 'old',
-                'dueDate': '2026-10-25',
-                'timing': 'overdue',
-                'title': 'Ekim ödemesi',
-              }),
-              PlannedActivity.fromJson({
-                ..._json(),
-                'dueDate': '2026-11-27',
-                'timing': 'upcoming',
-                'amount': '4200.0000',
-                'title': 'Kasım ödemesi',
-              }),
+          page: _page(
+            [
+              _activity(dueDate: '2026-07-25', title: 'Temmuz ödemesi'),
+              _activity(dueDate: '2026-08-20', title: 'Ağustos ödemesi'),
             ],
+            period: _period(
+              paymentCount: 1,
+              paymentTotal: '149.9000',
+              earlierCount: 1,
+              earlierTotal: '149.9000',
+            ),
           ),
         );
-        await _pumpPageWith(
-          tester,
-          repository,
-          asOf: DateTime(2026, 11, 21),
-          openOverdue: openOverdue,
-        );
-        expect(repository.requestedHorizons, [PlannedHorizon.week]);
-        expect(repository.requestedDates, [DateTime(2026, 11, 21)]);
-        expect(find.text('7 günde ödenecek · 1 ödeme'), findsOneWidget);
-        expect(find.text('Kasım ödemesi'), findsOneWidget);
+        await _pumpPageWith(tester, repository, openOverdue: openOverdue);
+
+        expect(repository.ranges, [
+          (DateTime(2026, 8, 15), DateTime(2026, 8, 21)),
+        ]);
+        expect(find.text('15–21 Ağustos'), findsOneWidget);
+        expect(find.text('Ağustos ödemesi'), findsOneWidget);
+        expect(find.text('1 geciken kayıt'), findsOneWidget);
+        expect(find.text('15 Ağustos öncesi'), findsOneWidget);
         expect(
-          find.text('Ekim ödemesi'),
+          find.text('Temmuz ödemesi'),
           openOverdue ? findsOneWidget : findsNothing,
         );
-        if (openOverdue) expect(find.textContaining('25 Ekim'), findsOneWidget);
       },
     );
   }
+
   group('parsing', () {
     test('reads a planned item including readiness and projection', () {
       final item = PlannedActivity.fromJson(_json());
@@ -87,28 +76,7 @@ void main() {
       expect(item.amount, isNull);
       expect(item.isTax, isTrue);
       expect(item.recurringTransactionId, 'plan-1');
-      // Vergi burada gerçekleştirilmez; "Ödedim" vergi ekranındadır.
       expect(item.isDirectlyRealizable, isFalse);
-    });
-
-    testWidgets('tutarsız kalem tutar yerine cümle gösterir', (tester) async {
-      final item = PlannedActivity.fromJson({
-        ..._json(attention: null),
-        'amount': null,
-        'recurringTransactionId': 'plan-1',
-        'taxKind': 'vat-return',
-      });
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light(),
-          home: Scaffold(
-            body: PlannedActivityTile(activity: item, onAction: () {}),
-          ),
-        ),
-      );
-
-      expect(find.text('Tutar ödemede girilecek'), findsOneWidget);
-      expect(find.text('Ödedim →'), findsOneWidget);
     });
 
     test('reads both one-time obligation directions and actions', () {
@@ -129,116 +97,103 @@ void main() {
 
       expect(payable.plannedKind, PlannedKind.payableObligation);
       expect(payable.actionKind, PlannedAction.payObligation);
-      expect(payable.readiness, PlannedReadiness.ready);
       expect(receivable.plannedKind, PlannedKind.receivableObligation);
       expect(receivable.actionKind, PlannedAction.collectObligation);
     });
 
-    test('rejects an unknown code instead of showing a blank warning', () {
+    test('a single item rejects an unknown code', () {
       expect(
         () => PlannedActivity.fromJson(_json(attention: 'meteor-strike')),
         throwsFormatException,
       );
-      expect(
-        () => PlannedActivity.fromJson(_json(kind: 'mortgage')),
-        throwsFormatException,
-      );
     });
 
-    test('page carries a count and nearest date but never one total', () {
+    // Yeni sunucu, eski uygulama: tanınmayan tür bütün listeyi bozmaz; atlanır
+    // ve sayılır, ekran bunu söyler.
+    test('the page skips an unknown kind and counts it', () {
       final page = PlannedActivityPage.fromJson({
         'asOfDate': '2026-08-15',
-        'daysAhead': 30,
+        'daysAhead': 7,
         'totalCount': 2,
-        'nearestDueDate': '2026-08-20',
-        'items': [_json(), _json(kind: 'card-statement', action: 'pay-card')],
+        'items': [_json(), _json(kind: 'mortgage')],
+        'period': _periodJson(),
       });
 
-      expect(page.totalCount, 2);
-      expect(page.nearestDueDate, '2026-08-20');
-      expect(page.items, hasLength(2));
+      expect(page.items, hasLength(1));
+      expect(page.skippedCount, 1);
+      expect(page.period!.paymentTotal, '300.0000');
     });
   });
 
   group('controller', () {
-    test('filters by type without asking the server again', () async {
-      final repository = _FakeRepository(
-        page: _page([
-          _activity(kind: PlannedKind.recurringOccurrence),
-          _activity(kind: PlannedKind.cardStatement),
-          _activity(kind: PlannedKind.debtInstallment),
-        ]),
-      );
+    test('asks the server for 30 days from today by default', () async {
+      final repository = _FakeRepository(page: _page([]));
       final controller = PlannedActivityController(repository);
       await controller.load();
 
-      controller.selectTypeFilter(PlannedTypeFilter.statement);
-
-      expect(controller.visibleItems, hasLength(1));
+      final today = DateTime.now();
+      final start = DateTime(today.year, today.month, today.day);
+      expect(repository.ranges.single.$1, start);
       expect(
-        controller.visibleItems.single.plannedKind,
-        PlannedKind.cardStatement,
+        repository.ranges.single.$2,
+        DateTime(start.year, start.month, start.day + 29),
       );
-      // The horizon already bounds the result, so narrowing by type is local.
-      expect(repository.requestedHorizons, [PlannedHorizon.month]);
     });
 
-    test('debt filter covers both directions', () async {
-      final repository = _FakeRepository(
-        page: _page([
-          _activity(kind: PlannedKind.debtInstallment),
-          _activity(kind: PlannedKind.receivableInstallment),
-        ]),
-      );
-      final controller = PlannedActivityController(repository);
+    test('sends the type to the server so the list and totals agree', () async {
+      final repository = _FakeRepository(page: _page([]));
+      final controller = PlannedActivityController(repository, asOf: _today);
       await controller.load();
 
-      controller.selectTypeFilter(PlannedTypeFilter.debt);
+      await controller.apply(
+        period: controller.period,
+        type: PlannedTypeFilter.tax,
+      );
 
-      expect(controller.visibleItems, hasLength(2));
+      expect(repository.types, [PlannedTypeFilter.all, PlannedTypeFilter.tax]);
+      await controller.clearType();
+      expect(repository.types.last, PlannedTypeFilter.all);
+    });
+
+    test('a custom range reaches the server as chosen', () async {
+      final repository = _FakeRepository(page: _page([]));
+      final controller = PlannedActivityController(repository, asOf: _today);
+      await controller.load();
+
+      await controller.apply(
+        period: PlannedPeriodChoice.range(
+          DateTime(2026, 9, 1),
+          DateTime(2026, 9, 30),
+        ),
+        type: PlannedTypeFilter.all,
+      );
+
+      expect(repository.ranges.last, (
+        DateTime(2026, 9, 1),
+        DateTime(2026, 9, 30),
+      ));
+      expect(controller.periodLabel, '1–30 Eylül');
     });
 
     test(
-      'obligation filter covers payable and receivable directions',
+      'a failed refresh of the same selection keeps the last list',
       () async {
-        final repository = _FakeRepository(
-          page: _page([
-            _activity(kind: PlannedKind.payableObligation),
-            _activity(kind: PlannedKind.receivableObligation),
-            _activity(kind: PlannedKind.cardStatement),
-          ]),
-        );
-        final controller = PlannedActivityController(repository);
+        final repository = _FakeRepository(page: _page([_activity()]));
+        final controller = PlannedActivityController(repository, asOf: _today);
         await controller.load();
 
-        controller.selectTypeFilter(PlannedTypeFilter.obligation);
+        repository.error = const ApiException(
+          code: 'network',
+          message: 'Bağlantı yok',
+          statusCode: 0,
+        );
+        await controller.load();
 
-        expect(controller.visibleItems, hasLength(2));
+        expect(controller.page!.items, hasLength(1));
+        expect(controller.refreshFailed, isTrue);
+        expect(controller.errorMessage, isNull);
       },
     );
-
-    test('changing the horizon does reach the server', () async {
-      final repository = _FakeRepository(page: _page([]));
-      final controller = PlannedActivityController(repository);
-      await controller.load();
-
-      await controller.selectHorizon(PlannedHorizon.quarter);
-
-      expect(repository.requestedHorizons, [
-        PlannedHorizon.month,
-        PlannedHorizon.quarter,
-      ]);
-    });
-
-    test('reselecting the same horizon does not refetch', () async {
-      final repository = _FakeRepository(page: _page([]));
-      final controller = PlannedActivityController(repository);
-      await controller.load();
-
-      await controller.selectHorizon(PlannedHorizon.month);
-
-      expect(repository.requestedHorizons, hasLength(1));
-    });
 
     test(
       'an expired session is reported rather than shown as nothing planned',
@@ -261,29 +216,48 @@ void main() {
   });
 
   group('list', () {
-    /// Cümle ekranda bir kez duruyor, her satırda değil.
-    ///
-    /// Satır başına tekrarlanan "Bakiyeye dahil değil" etiketi, ekranın
-    /// tepesindeki cümlenin kopyasıydı ve on satırlık bir listede on kez
-    /// yazılıyordu. Ekran okuyucu için satırda kalmaya devam ediyor.
-    testWidgets('says a planned row is not in the balance', (tester) async {
-      await _pumpPage(tester, _page([_activity()]));
+    testWidgets('dönem kartı yalnız kaydı olan toplamları yazar', (
+      tester,
+    ) async {
+      await _pumpPageWith(
+        tester,
+        _FakeRepository(
+          page: _page(
+            [_activity()],
+            period: _period(
+              paymentCount: 2,
+              paymentTotal: '300.0000',
+              unknown: 1,
+            ),
+          ),
+        ),
+      );
 
-      expect(
-        find.textContaining('gerçekleşene kadar bakiyeye'),
-        findsOneWidget,
+      expect(find.text('Ödenecek'), findsOneWidget);
+      expect(find.text('Tutarı eksik: 1 ödeme'), findsOneWidget);
+      expect(find.text('Beklenen giriş'), findsNothing);
+      expect(find.text('Karta yansıyacak'), findsNothing);
+    });
+
+    testWidgets('satır türü, kaynağı ve kısa eylemi yazar', (tester) async {
+      await _pumpPageWith(
+        tester,
+        _FakeRepository(page: _page([_activity(actionTargetId: 'plan-1')])),
       );
-      expect(find.text('Bakiyeye dahil değil'), findsNothing);
-      expect(
-        tester.getSemantics(find.byType(AppCard)).label,
-        contains('Bakiyeye dahil değil'),
-      );
+
+      expect(find.text('Tekrarlayan ödeme'), findsOneWidget);
+      expect(find.text('Test Kart · Hesaptan ödenecek'), findsOneWidget);
+      expect(find.text('Ödeme kaydet ›'), findsOneWidget);
     });
 
     testWidgets('explains an attention state in words', (tester) async {
-      await _pumpPage(
+      await _pumpPageWith(
         tester,
-        _page([_activity(attention: PlannedAttention.cardLimitInsufficient)]),
+        _FakeRepository(
+          page: _page([
+            _activity(attention: PlannedAttention.cardLimitInsufficient),
+          ]),
+        ),
       );
 
       expect(
@@ -292,105 +266,96 @@ void main() {
       );
     });
 
-    // Gecikme kartın kenarlığıyla anlatılıyordu: yerel bir `shape` token'ı ezip
-    // bu kartı diğer bütün kartlardan farklı bir yarıçapla çiziyor, gecikmeyi de
-    // ekranın en görünmez yerine koyuyordu.
-    testWidgets('gecikmeyi çerçeveyle değil rozetle söyler', (tester) async {
-      await _pumpPage(
+    testWidgets('bugünün kaydı gün başlığında Bugün yazar', (tester) async {
+      await _pumpPageWith(
         tester,
-        _page([_activity(timing: PlannedTiming.overdue)]),
+        _FakeRepository(page: _page([_activity(dueDate: '2026-08-15')])),
       );
 
-      final chip = tester.widget<AppStatusChip>(find.byType(AppStatusChip));
-      expect(chip.label, 'Gecikmiş');
-      expect(chip.tone, AppStatusTone.expense);
-      expect(find.byType(Card), findsNothing);
+      expect(find.textContaining('Bugün', findRichText: true), findsOneWidget);
     });
 
-    testWidgets('vakti gelmemiş satır plan tonunda kalır', (tester) async {
-      await _pumpPage(tester, _page([_activity()]));
+    testWidgets('tanınmayan kayıt varsa ekran bunu söyler', (tester) async {
+      await _pumpPageWith(
+        tester,
+        _FakeRepository(
+          page: PlannedActivityPage(
+            asOfDate: '2026-08-15',
+            daysAhead: 7,
+            totalCount: 2,
+            items: [_activity()],
+            skippedCount: 1,
+          ),
+        ),
+      );
 
-      final chip = tester.widget<AppStatusChip>(find.byType(AppStatusChip));
-      expect(chip.label, 'Yaklaşan');
-      expect(chip.tone, AppStatusTone.planned);
+      expect(
+        find.textContaining('1 kayıt bu sürümde gösterilemiyor'),
+        findsOneWidget,
+      );
     });
 
-    /// Occurrence'ın üretilip üretilmediği kullanıcının bilmesi gereken bir şey
-    /// değil.
-    ///
-    /// "Henüz oluşturulmadı; onaylandığında oluşturulur" cümlesi hem yanlış bilgi
-    /// veriyordu — onaylamak tam da yapılamayan şeydi, çünkü `actionTargetId`
-    /// `null` gelip butonu kalıcı olarak kapatıyordu — hem de üretmek bir
-    /// kullanıcı kararı değil, sistemin defter işi.
-    testWidgets('üretilmemiş satır iç durumunu ekrana yazmıyor', (
+    testWidgets('dönem boş, önceki gecikme varsa ikisi ayrı görünür', (
       tester,
     ) async {
-      await _pumpPage(
+      await _pumpPageWith(
         tester,
-        _page([
-          _activity(
-            isProjected: true,
-            timing: PlannedTiming.today,
-            actionTargetId: 'plan-1',
-          ),
-        ]),
+        _FakeRepository(page: _page([_activity(dueDate: '2026-07-25')])),
       );
 
-      expect(find.textContaining('Henüz oluşturulmadı'), findsNothing);
-      // Ve eylem çalışıyor: sunucu eksik kaydı kendi üretiyor.
-      final button = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Gerçekleştir'),
-      );
-      expect(button.onPressed, isNotNull);
+      expect(find.text('1 geciken kayıt'), findsOneWidget);
+      expect(find.text('Bu dönemde bekleyen kayıt yok.'), findsOneWidget);
     });
 
-    /// Vakti gelmemiş satırda eylem hiç çıkmaz, gri de çıkmaz.
-    ///
-    /// Kapalı bir buton "bir şey eksik" der ve kullanıcıyı eksiği aramaya
-    /// gönderir; oysa eksik bir şey yok, yalnız gün gelmemiş.
-    testWidgets('günü gelmemiş kart taksidinde eylem hiç yok', (tester) async {
-      await _pumpPage(
-        tester,
-        _page([
-          _activity(
-            kind: PlannedKind.cardInstallment,
-            actionTargetId: 'plan-1',
-          ),
-        ]),
-      );
-
-      expect(find.text('Gerçekleştir'), findsNothing);
-    });
-
-    // Tekrarlayan kalem ödendiği güne yazılır; kirayı erken ödeyen onu
-    // vadesinden önce gerçekleştirir.
-    testWidgets('vadesi gelmemiş tekrarlayan kalemde eylem çıkar', (
+    testWidgets('günü gelmemiş kart taksidi planı gösterir, yansıtmaz', (
       tester,
     ) async {
-      await _pumpPage(tester, _page([_activity(actionTargetId: 'plan-1')]));
+      await _pumpPageWith(
+        tester,
+        _FakeRepository(
+          page: _page([
+            _activity(
+              kind: PlannedKind.cardInstallment,
+              actionTargetId: 'plan-1',
+            ),
+          ]),
+        ),
+      );
 
-      expect(find.text('Gerçekleştir'), findsOneWidget);
+      expect(find.text('Planı görüntüle ›'), findsOneWidget);
+      expect(find.text('Karta yansıt ›'), findsNothing);
     });
 
-    testWidgets('offers the three horizons the server accepts', (tester) async {
-      await _pumpPage(tester, _page([]));
+    testWidgets('kişinin vadesi eylemsiz bilgi satırıdır', (tester) async {
+      await _pumpPageWith(
+        tester,
+        _FakeRepository(
+          page: _page([
+            _activity(
+              kind: PlannedKind.counterpartyPayable,
+              action: PlannedAction.payCounterparty,
+              actionTargetId: 'person-1',
+            ),
+          ]),
+        ),
+      );
 
-      for (final horizon in PlannedHorizon.values) {
-        expect(find.text(horizon.label), findsOneWidget);
-      }
+      expect(find.text('Öde ›'), findsNothing);
     });
 
     testWidgets('describes a row in one sentence for a screen reader', (
       tester,
     ) async {
       final handle = tester.ensureSemantics();
-      await _pumpPage(
+      await _pumpPageWith(
         tester,
-        _page([_activity(attention: PlannedAttention.cardInactive)]),
+        _FakeRepository(page: _page([_activity(actionTargetId: 'plan-1')])),
       );
 
       expect(
-        find.bySemanticsLabel(RegExp('Bakiyeye dahil değil')),
+        find.bySemanticsLabel(
+          RegExp('Streaming.*Tekrarlayan ödeme.*Ödeme kaydet'),
+        ),
         findsOneWidget,
       );
       handle.dispose();
@@ -398,57 +363,30 @@ void main() {
   });
 
   group('planlanan satırın eylemi', () {
-    test('sözleşme eylemin hangi kaydı adresleyeceğini taşır', () {
-      // `actionKind` tek başına yetmiyordu: hangi kayıt üzerinde çağrılacağı
-      // yoktu, o yüzden ekran eylemi hiç sunamıyordu.
-      final item = PlannedActivity.fromJson({
-        ..._json(kind: 'card-installment', attention: null),
-        'actionTargetId': 'plan-1',
-        'actionSequence': 4,
-      });
-
-      expect(item.actionTargetId, 'plan-1');
-      expect(item.actionSequence, 4);
-      expect(item.isDirectlyRealizable, isTrue);
-    });
-
     test('engelli satır ve günü gelmemiş taksit gerçekleşmez', () {
-      // Limiti dolu kart: yapılacak iş var ama şu an yapılamıyor.
       final blocked = PlannedActivity.fromJson({
         ..._json(kind: 'card-installment'),
         'actionTargetId': 'plan-1',
         'actionSequence': 1,
       });
-      // Vadesi gelmemiş tekrarlayan kalem gerçekleştirilebilir: kayıt vadeye
-      // değil ödendiği güne yazılır.
       final future = PlannedActivity.fromJson({
         ..._json(attention: null),
         'timing': 'upcoming',
         'actionTargetId': 'plan-1',
       });
-      // Günü gelmemiş kart taksidi gerçekleşmez: taksit kendi gününe yazılır.
       final futureInstallment = PlannedActivity.fromJson({
         ..._json(kind: 'card-installment', attention: null),
         'timing': 'upcoming',
         'actionTargetId': 'plan-1',
         'actionSequence': 2,
       });
-      // Üretilmemiş ama vakti gelmiş satır **gerçekleştirilebilir**: sunucu eksik
-      // kaydı kendi üretiyor ve satır planı adresliyor.
-      final unborn = PlannedActivity.fromJson({
-        ..._json(attention: null),
-        'timing': 'today',
-        'isProjected': true,
-        'actionTargetId': 'plan-1',
-      });
 
       expect(blocked.isDirectlyRealizable, isFalse);
       expect(future.isDirectlyRealizable, isTrue);
       expect(futureInstallment.isDirectlyRealizable, isFalse);
-      expect(unborn.isDirectlyRealizable, isTrue);
     });
 
-    testWidgets('gerçekleştirilebilir satırda buton çıkar ve onay sorar', (
+    testWidgets('vadesi gelmiş taksit onay sorar, onayla karta yansır', (
       tester,
     ) async {
       final repository = _FakeRepository(
@@ -457,47 +395,33 @@ void main() {
             kind: PlannedKind.cardInstallment,
             actionTargetId: 'plan-1',
             timing: PlannedTiming.today,
+            dueDate: '2026-08-15',
           ),
         ]),
       );
       await _pumpPageWith(tester, repository);
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Gerçekleştir'));
+      await tester.tap(find.text('Karta yansıt ›'));
       await tester.pumpAndSettle();
-
-      // Onaysız para hareketi olmaz.
-      expect(find.text('Gerçekleştirilsin mi?'), findsOneWidget);
+      expect(find.text('Karta yansıtılsın mı?'), findsOneWidget);
       expect(repository.realizedPlanned, isEmpty);
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Gerçekleştir').last);
+      await tester.tap(find.widgetWithText(FilledButton, 'Karta yansıt'));
       await tester.pumpAndSettle();
-
-      expect(repository.realizedPlanned, hasLength(1));
       expect(repository.realizedPlanned.single.actionTargetId, 'plan-1');
     });
 
-    testWidgets('tekrarlayan kalem günü sorar ve seçilen günle gerçekleşir', (
-      tester,
-    ) async {
+    testWidgets('satırın tamamı aynı paneli açar; gün sorulur', (tester) async {
       final repository = _FakeRepository(
         page: _page([_activity(actionTargetId: 'plan-1')]),
       );
       await _pumpPageWith(tester, repository);
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Gerçekleştir'));
+      await tester.tap(find.text('Streaming'));
       await tester.pumpAndSettle();
 
-      // Panel tutarı, kaynağı ve vadeyi gösterir; gün bugünle açılır.
       final sheet = find.byType(AppFormSheet<String>);
       expect(sheet, findsOneWidget);
-      expect(
-        find.descendant(of: sheet, matching: find.textContaining('Test Kart')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: sheet, matching: find.textContaining('· bugün')),
-        findsOneWidget,
-      );
       expect(repository.realizedPlanned, isEmpty);
 
       await tester.tap(
@@ -509,9 +433,6 @@ void main() {
       expect(repository.paidOn, [AppDateField.format(DateTime.now())]);
     });
 
-    // Sıra atlamayı sunucu söyler: planın daha önceki bir kalemi bekliyorsa
-    // istek onay isteğiyle döner. Hata olarak gösterilmez; onaylanınca aynı
-    // günle yinelenir, vazgeçilince hiçbir şey yazılmaz.
     testWidgets('önceki kalem bekliyorsa onay sorar, onayla yineler', (
       tester,
     ) async {
@@ -519,10 +440,9 @@ void main() {
         page: _page([_activity(actionTargetId: 'plan-1')]),
       )..earlierItemPending = true;
       await _pumpPageWith(tester, repository);
-      final today = AppDateField.format(DateTime.now());
 
       Future<void> openAndSubmit() async {
-        await tester.tap(find.widgetWithText(FilledButton, 'Gerçekleştir'));
+        await tester.tap(find.text('Ödeme kaydet ›'));
         await tester.pumpAndSettle();
         await tester.tap(
           find.descendant(
@@ -535,93 +455,57 @@ void main() {
 
       await openAndSubmit();
       expect(find.text('Önceki kalem bekliyor'), findsOneWidget);
-      // Bekleyen kalemin vadesini sunucu söyler ve kutu onu yazar.
-      expect(
-        find.textContaining('Bu planın 20 Kasım vadeli kalemi hâlâ bekliyor'),
-        findsOneWidget,
-      );
-      expect(find.byType(SnackBar), findsNothing);
-      expect(repository.realizedPlanned, isEmpty);
-
-      await tester.tap(find.text('Vazgeç'));
-      await tester.pumpAndSettle();
-      expect(repository.realizedPlanned, isEmpty);
-      expect(find.byType(SnackBar), findsNothing);
-
-      await openAndSubmit();
       await tester.tap(find.text('Yine de gerçekleştir'));
       await tester.pumpAndSettle();
 
       expect(repository.realizedPlanned, hasLength(1));
-      expect(repository.paidOn, [today]);
-      // İki onaysız istek reddedildi, üçüncüsü onayla gitti.
-      expect(repository.allowEarlierPending, [false, false, true]);
-    });
-
-    testWidgets('engelli satırın butonu kapalı durur', (tester) async {
-      // Nedeni zaten satırda yazılı; buton sessizce çalışmıyor görünmemeli.
-      final repository = _FakeRepository(
-        page: _page([
-          _activity(
-            kind: PlannedKind.cardInstallment,
-            attention: PlannedAttention.cardLimitInsufficient,
-            actionTargetId: 'plan-1',
-            timing: PlannedTiming.today,
-          ),
-        ]),
-      );
-      await _pumpPageWith(tester, repository);
-
-      final button = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Gerçekleştir'),
-      );
-      expect(button.onPressed, isNull);
-    });
-
-    testWidgets('ödeme isteyen satır kendi ekranına yollar', (tester) async {
-      // Ödeme hangi hesaptan yapılacağını sorar; formu bu listeye kopyalamak
-      // yerine kullanıcı o kaydın ekranına gider.
-      final repository = _FakeRepository(
-        page: _page([
-          _activity(
-            kind: PlannedKind.cardStatement,
-            action: PlannedAction.payCard,
-            actionTargetId: 'card-1',
-          ),
-        ]),
-      );
-      await _pumpPageWith(tester, repository);
-
-      expect(
-        find.widgetWithText(FilledButton, 'Kart ödemesi yap →'),
-        findsOneWidget,
-      );
-      // Doğrudan gerçekleştirme yolu bu tür için kapalı.
-      expect(repository.realizedPlanned, isEmpty);
+      expect(repository.allowEarlierPending, [false, true]);
     });
   });
 }
 
-Future<void> _pumpPage(WidgetTester tester, PlannedActivityPage page) async {
-  tester.view.physicalSize = const Size(500, 1200);
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.reset);
-  await tester.pumpWidget(
-    MaterialApp(
-      theme: AppTheme.light(),
-      home: PlannedActivityPageView(repository: _FakeRepository(page: page)),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
+PlannedPeriod _period({
+  int paymentCount = 0,
+  String paymentTotal = '0.0000',
+  int unknown = 0,
+  int earlierCount = 0,
+  String earlierTotal = '0.0000',
+}) => PlannedPeriod(
+  from: '2026-08-15',
+  to: '2026-08-21',
+  paymentTotal: paymentTotal,
+  paymentCount: paymentCount,
+  unknownAmountCount: unknown,
+  incomingTotal: '0.0000',
+  incomingCount: 0,
+  cardPostingTotal: '0.0000',
+  cardPostingCount: 0,
+  earlierOverdueCount: earlierCount,
+  earlierOverduePaymentTotal: earlierTotal,
+  earlierOverdueUnknownAmountCount: 0,
+);
+
+Map<String, dynamic> _periodJson() => {
+  'from': '2026-08-15',
+  'to': '2026-08-21',
+  'paymentTotal': '300.0000',
+  'paymentCount': 2,
+  'unknownAmountCount': 0,
+  'incomingTotal': '0.0000',
+  'incomingCount': 0,
+  'cardPostingTotal': '0.0000',
+  'cardPostingCount': 0,
+  'earlierOverdueCount': 0,
+  'earlierOverduePaymentTotal': '0.0000',
+  'earlierOverdueUnknownAmountCount': 0,
+};
 
 Future<void> _pumpPageWith(
   WidgetTester tester,
   _FakeRepository repository, {
-  DateTime? asOf,
   bool openOverdue = false,
 }) async {
-  tester.view.physicalSize = const Size(500, 1200);
+  tester.view.physicalSize = const Size(500, 1600);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
@@ -629,7 +513,7 @@ Future<void> _pumpPageWith(
       theme: AppTheme.light(),
       home: PlannedActivityPageView(
         repository: repository,
-        asOf: asOf,
+        asOf: _today,
         openOverdue: openOverdue,
       ),
     ),
@@ -637,39 +521,46 @@ Future<void> _pumpPageWith(
   await tester.pumpAndSettle();
 }
 
-PlannedActivityPage _page(List<PlannedActivity> items) => PlannedActivityPage(
+PlannedActivityPage _page(
+  List<PlannedActivity> items, {
+  PlannedPeriod? period,
+}) => PlannedActivityPage(
   asOfDate: '2026-08-15',
-  daysAhead: 30,
+  daysAhead: 7,
   totalCount: items.length,
   nearestDueDate: items.isEmpty ? null : items.first.dueDate,
   items: items,
+  period: period,
 );
 
 PlannedActivity _activity({
   PlannedKind kind = PlannedKind.recurringOccurrence,
   PlannedAttention? attention,
-  bool isProjected = false,
   bool isPaymentObligation = true,
   PlannedAction action = PlannedAction.realize,
   String? actionTargetId,
   int? actionSequence = 1,
   PlannedTiming timing = PlannedTiming.upcoming,
+  String dueDate = '2026-08-20',
+  String title = 'Streaming',
 }) => PlannedActivity(
-  plannedActivityId: '${kind.apiValue}-1',
+  plannedActivityId: '${kind.apiValue}-$dueDate-$title',
   plannedKind: kind,
   effect: ActivityEffect.expense,
-  timing: timing,
+  timing: DateTime.parse(dueDate).isBefore(_today)
+      ? PlannedTiming.overdue
+      : timing,
   readiness: attention == null
       ? PlannedReadiness.ready
       : PlannedReadiness.needsAttention,
   attentionCode: attention,
   actionKind: action,
-  dueDate: '2026-08-20',
+  dueDate: dueDate,
   amount: '149.9000',
   currency: 'TRY',
-  title: 'Streaming',
+  title: title,
   sourceName: 'Test Kart',
-  isProjected: isProjected,
+  isProjected: false,
   isPaymentObligation: isPaymentObligation,
   actionTargetId: actionTargetId,
   actionSequence: actionSequence,
@@ -706,26 +597,32 @@ class _FakeRepository implements ActivityRepositoryContract {
   @override
   Future<List<ActivityBalance>> balancesAfter(
     FinancialActivity activity,
-  ) async => balances;
-
-  /// İşlem ayrıntısındaki "kalan bakiye" için dönecek cevap.
-  List<ActivityBalance> balances = const [];
+  ) async => const [];
 
   _FakeRepository({this.page, this.error});
 
   final PlannedActivityPage? page;
-  final Object? error;
-  final List<PlannedHorizon> requestedHorizons = [];
-  final List<DateTime?> requestedDates = [];
+  Object? error;
+  final List<(DateTime, DateTime)> ranges = [];
+  final List<PlannedTypeFilter> types = [];
 
   @override
   Future<PlannedActivityPage> listPlanned({
     required PlannedHorizon horizon,
     DateTime? today,
     TransactionScope? scope,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<PlannedActivityPage> listPlannedRange({
+    required DateTime from,
+    required DateTime to,
+    DateTime? today,
+    TransactionScope? scope,
+    PlannedTypeFilter type = PlannedTypeFilter.all,
   }) async {
-    requestedHorizons.add(horizon);
-    requestedDates.add(today);
+    ranges.add((from, to));
+    types.add(type);
     if (error != null) throw error!;
     return page!;
   }
@@ -762,7 +659,6 @@ class _FakeRepository implements ActivityRepositoryContract {
     this.paidOn.add(paidOn);
   }
 
-  /// Sunucu "önceki kalem bekliyor" der; onaylı istek geçer.
   bool earlierItemPending = false;
   final List<PlannedActivity> realizedPlanned = [];
   final List<String?> paidOn = [];

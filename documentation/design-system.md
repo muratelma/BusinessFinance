@@ -2193,3 +2193,27 @@ ve hesabın açılış bakiyesi biçimlendirici takmaz.
 
 **Ekstre penceresi:** `Ekstredeki asgari tutar` tek satır ve kalındır; altındaki
 açıklama kalktı.
+
+## Planlananlar ve ortak tarih aralığı · 22 Kasım 2026
+
+Kaynak: Codex'in 04, 06 ve 18. panoları (`design/planlananlar/README.md`).
+
+- **`AppRangeCalendarGrid`** (`app_range_calendar.dart`): Kart Hareketleri'nin
+  ekstre seçicisinden ortak bileşene alınan takvim ızgarası (hafta şeridi,
+  uçlarda dolu daire, ayın ilk günü küçük ay adı). `dimOutside` gösterilen
+  dönemin dışındaki günleri soluklaştırır.
+- **`AppDateRangeDialog`**: aynı dilde ay sayfalı aralık seçici; ortalı
+  başlıkta seçim, altında ay; ‹ › ay çevirir; `Vazgeç` / `Seç`. İlk dokunuş
+  başlangıç, ikincisi bitiş; `maxDays` aşılırsa `Seç` kapanır ve neden yazılır.
+- **`AppFilterRadioRow`**, **`AppFilterRangeRow`** (`app_filter_sheet.dart`):
+  filtre panelinin dönem satırları, Kart Hareketleri ile Planlananlar ortak.
+- **Planlananlar ekranı:** `AppPageHeader` + altı çizili `Filtre`
+  (`AppTextAction.underlined`). Dönem kartı: 56 dp açık gri başlık (tarih
+  18/700, sağda kapsam menüsü), beyaz yüzeyde toplam satırları (15 / tutar
+  16/700). Gecikenler kartı: 36 dp gider tonlu saat kapsülü, sayı ve tarih,
+  sağda bilinen tutar ve aç/kapa oku. Gün başlığı 15/600 ve yanında
+  `Gecikmiş` (gider rengi) ya da `Bugün`. Satır: 36 dp tür kapsülü, ad
+  `titleSmall`, tutar 16/700 (renksiz; etki alttaki satırda yazılı), tür
+  13 soluk; en altta etki (soluk) ve kısa eylem (birincil renk, `›`) aynı
+  satırda, sığmazsa eylem alta iner. Aynı günün satırları tek kartta, 16 dp
+  içeriden başlayan çizgiyle ayrılır.

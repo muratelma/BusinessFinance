@@ -165,6 +165,15 @@ class _FakePreferences implements ReminderPreferencesContract {
 
 class _FakeActivityRepository implements ActivityRepositoryContract {
   @override
+  Future<PlannedActivityPage> listPlannedRange({
+    required DateTime from,
+    required DateTime to,
+    DateTime? today,
+    TransactionScope? scope,
+    PlannedTypeFilter type = PlannedTypeFilter.all,
+  }) => throw UnimplementedError();
+
+  @override
   Future<List<ActivityBalance>> balancesAfter(
     FinancialActivity activity,
   ) async => balances;

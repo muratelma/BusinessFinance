@@ -143,7 +143,47 @@ public sealed record PlannedActivityQuery(
     // için yalnız istenirse döner; varsayılan eski davranıştır.
     bool IncludeCounterpartyDues = false,
     bool CountTodayInHorizon = false,
-    bool IncludeScopedStatements = false);
+    bool IncludeScopedStatements = false,
+
+    // Planlananlar'ın özel aralığı (22 Kasım 2026): ikisi birlikte verilir,
+    // iki gün de dahildir. Verilirse DaysAhead kullanılmaz ve sonuç
+    // Period özetini taşır.
+    DateOnly? From = null,
+    DateOnly? To = null,
+
+    // Aralıkta tür seçimi; liste ve dönem özeti aynı seçimden kurulur.
+    PlannedTypeFilter? Type = null);
+
+/// Planlananlar'ın tür seçimi. Kişiye ödeme ve tahsilat yönüne göre borç ve
+/// alacak taksitleriyle birliktedir; vergi tekrarlayandan ayrıdır.
+public enum PlannedTypeFilter
+{
+    Recurring,
+    Statement,
+    Installment,
+    Payable,
+    Receivable,
+    Tax
+}
+
+/// <summary>
+/// Seçilen aralığın özeti. Toplamlar birbirinden düşülmez: ödenecek, beklenen
+/// giriş ve karta yansıyacak ayrı sayılardır. Seçimden önce gecikenler
+/// (vadesi hem başlangıçtan hem bugünden önce) dönem toplamına girmez.
+/// </summary>
+public sealed record PlannedPeriodSummary(
+    DateOnly From,
+    DateOnly To,
+    decimal PaymentTotal,
+    int PaymentCount,
+    int UnknownAmountCount,
+    decimal IncomingTotal,
+    int IncomingCount,
+    decimal CardPostingTotal,
+    int CardPostingCount,
+    int EarlierOverdueCount,
+    decimal EarlierOverduePaymentTotal,
+    int EarlierOverdueUnknownAmountCount);
 
 public sealed record PlannedActivityListResult(
     DateOnly AsOfDate,
@@ -184,7 +224,8 @@ public sealed record PlannedActivityListResult(
     /// Toplama tahminle katılmazlar (ADR 0018 İ5).
     /// </summary>
     int OverdueUnknownAmountCount = 0,
-    int UpcomingPaymentCount = 0);
+    int UpcomingPaymentCount = 0,
+    PlannedPeriodSummary? Period = null);
 
 /// <summary>
 /// The single source of planned movements. The upcoming-payments view reads a narrowed
@@ -251,6 +292,37 @@ public static class PlannedActivityRules
                item.ActionKind != PlannedActivityAction.CollectObligation &&
                item.ActionKind != PlannedActivityAction.CollectCounterparty &&
                item.Effect != FinancialActivityEffect.Income;
+    }
+
+    /// <summary>
+    /// Kullanıcıya gelecek para: tekrarlayan gelir, tahsilat, alacak taksidi.
+    /// </summary>
+    public static bool IsExpectedIncome(PlannedActivityDto item) =>
+        !IsOutgoingOrCardPosting(item);
+
+    /// <summary>
+    /// Karta yansıyacak harcama: kart taksidi ya da kart kaynaklı tekrarlayan
+    /// gider. Banka ya da kasadan çıkış değildir.
+    /// </summary>
+    public static bool IsCardPosting(PlannedActivityDto item) =>
+        IsOutgoingOrCardPosting(item) && !IsPaymentObligation(item);
+
+    public static bool Matches(PlannedActivityDto item, PlannedTypeFilter type)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        return type switch
+        {
+            PlannedTypeFilter.Recurring =>
+                item.PlannedKind == PlannedActivityKind.RecurringOccurrence && item.TaxKind is null,
+            PlannedTypeFilter.Statement => item.PlannedKind == PlannedActivityKind.CardStatement,
+            PlannedTypeFilter.Installment => item.PlannedKind == PlannedActivityKind.CardInstallment,
+            PlannedTypeFilter.Payable => item.PlannedKind is PlannedActivityKind.DebtInstallment
+                or PlannedActivityKind.PayableObligation or PlannedActivityKind.CounterpartyPayableDue,
+            PlannedTypeFilter.Receivable => item.PlannedKind is PlannedActivityKind.ReceivableInstallment
+                or PlannedActivityKind.ReceivableObligation or PlannedActivityKind.CounterpartyReceivableDue,
+            PlannedTypeFilter.Tax => item.TaxKind is not null,
+            _ => true
+        };
     }
 
     public static PlannedActivityTiming Classify(DateOnly dueDate, DateOnly asOfDate)

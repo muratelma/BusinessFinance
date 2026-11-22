@@ -294,3 +294,134 @@ class AppFilterSelectField extends StatelessWidget {
     );
   }
 }
+
+/// Filtre panelinde tek seçimli satır: solda daire, ad ve sağda soluk not.
+class AppFilterRadioRow extends StatelessWidget {
+  const AppFilterRadioRow({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.trailing,
+  });
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final String? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = AppSurfaces.of(context);
+    return Semantics(
+      inMutuallyExclusiveGroup: true,
+      checked: selected,
+      button: true,
+      label: [label, ?trailing].join(', '),
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.small),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Row(
+            children: [
+              Container(
+                width: 20,
+                height: 20,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    width: 2,
+                    color: selected
+                        ? theme.colorScheme.primary
+                        : surfaces.borderStrong,
+                  ),
+                ),
+                child: selected
+                    ? Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: theme.colorScheme.primary,
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: AppSpacing.step14),
+              Expanded(
+                child: Text(
+                  label,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontSize: AppTextSizes.compact,
+                    height: 1.3,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
+              ),
+              if (trailing != null)
+                Text(
+                  trailing!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontSize: AppTextSizes.caption,
+                    color: surfaces.inkMuted,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Filtre panelinde takvimi açan satır (`Tarih aralığı seç…`).
+class AppFilterRangeRow extends StatelessWidget {
+  const AppFilterRangeRow({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = AppSurfaces.of(context);
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: selected ? 'Tarih aralığı: $label' : label,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.small),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Row(
+            children: [
+              Icon(Icons.date_range_outlined, size: 20, color: surfaces.ink),
+              const SizedBox(width: AppSpacing.step14),
+              Expanded(
+                child: Text(
+                  label,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontSize: AppTextSizes.compact,
+                    height: 1.3,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
+              ),
+              Icon(Icons.chevron_right, size: 20, color: surfaces.inkMuted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
