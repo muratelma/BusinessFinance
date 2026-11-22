@@ -59,7 +59,23 @@ public sealed record MonthlyReportDto(
     IReadOnlyList<CategoryExpenseDto> CategoryExpenses,
     IReadOnlyList<CategoryExpenseSliceDto> CategoryExpenseSlices,
     IReadOnlyList<AccountBalanceDto> AccountBalances,
-    MonthlyScopeBreakdownDto? ScopeBreakdown = null);
+    MonthlyScopeBreakdownDto? ScopeBreakdown = null,
+    ExpenseComparisonDto? ExpenseComparison = null);
+
+/// <summary>
+/// Ayın giderinin bir önceki ayla karşılaştırması (Özet'in kategori kartı).
+/// </summary>
+/// <remarks>
+/// İçinde bulunulan ay okunuyorsa önceki ayın <b>aynı gününe kadar</b> olan
+/// gideriyle karşılaştırılır (<see cref="ThroughToday"/>): 22 Kasım'ı Ekim'in
+/// tamamıyla karşılaştırmak her ay "daha az" derdi. Geçmiş ayda iki tam ay
+/// karşılaştırılır. Önceki ayda gider yoksa karşılaştırma dönmez ("₺0'a göre"
+/// bir bilgi değildir). Fark sunucudadır; istemci çıkarma yapmaz.
+/// </remarks>
+public sealed record ExpenseComparisonDto(
+    decimal PreviousExpense,
+    decimal Change,
+    bool ThroughToday);
 
 public partial interface IFinancialReportRepository
 {
@@ -74,6 +90,17 @@ public partial interface IFinancialReportRepository
         Guid userId,
         int year,
         int month,
+        TransactionScope? scope,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// <c>[start, endExclusive)</c> aralığında tanınmış giderin toplamı;
+    /// rapor toplamıyla aynı kaynaktan (RecognizedItems).
+    /// </summary>
+    Task<decimal> GetExpenseAsync(
+        Guid userId,
+        DateOnly start,
+        DateOnly endExclusive,
         TransactionScope? scope,
         CancellationToken cancellationToken);
 }

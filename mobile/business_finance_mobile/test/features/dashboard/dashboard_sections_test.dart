@@ -180,9 +180,10 @@ void main() {
         'a',
         'd',
       ]);
-      // Vade göreli yazılır: bugün, yarın, n gün sonra.
+      // Alt satırda gün yalnız bugün ve yarın için yazılır; diğer
+      // günlerin tarihi soldaki sütundadır.
       expect(find.textContaining('Bugün · '), findsOneWidget);
-      expect(find.textContaining('3 gün sonra · '), findsOneWidget);
+      expect(find.textContaining('gün sonra'), findsNothing);
       // Alt toplam sunucudan gelir; bu sahte kaynak göndermiyor ve istemci
       // satırları toplamaz.
       expect(find.text('7 günde çıkacak'), findsNothing);
@@ -224,6 +225,53 @@ void main() {
       },
     );
 
+    testWidgets('bütün ödemeler satırlarda görünüyorsa ödeme adedi yazılmaz', (
+      tester,
+    ) async {
+      final vm = DashboardViewModel(
+        _Source(_report(), advanced: _advanced()),
+        activityRepository: _PlannedSource(
+          [
+            _planned(id: 'a', timing: 'upcoming', dueDate: '2026-08-11'),
+            _planned(id: 'b', timing: 'upcoming', dueDate: '2026-08-11'),
+          ],
+          paymentCount: 2,
+          total: '1200.0000',
+        ),
+        now: () => DateTime(2026, 8, 9),
+      );
+      await vm.load();
+      await _pump(tester, vm, height: 3000);
+      expect(find.text('7 günde ödenecek'), findsOneWidget);
+      expect(find.textContaining('2 ödeme'), findsNothing);
+      // Aynı günün iki kaydında da tarih yazılır.
+      expect(find.text('11'), findsNWidgets(2));
+    });
+
+    testWidgets(
+      'kategori kartı en büyük pay yerine önceki aya göre farkı yazar',
+      (tester) async {
+        final vm = DashboardViewModel(
+          _Source(
+            _report(
+              expenseComparison: {
+                'previousExpense': '250.0000',
+                'change': '150.0000',
+                'throughToday': true,
+              },
+            ),
+            advanced: _advanced(),
+          ),
+          now: () => DateTime(2026, 8, 9),
+        );
+        await vm.load();
+        await _pump(tester, vm, height: 3000);
+        expect(find.text('Geçen ayın aynı gününe göre'), findsOneWidget);
+        expect(find.text('₺150,00 fazla'), findsOneWidget);
+        expect(find.text('En büyük pay'), findsNothing);
+      },
+    );
+
     testWidgets('yaklaşan yokken bölüm gizlenmez, iyi haberi yazar', (
       tester,
     ) async {
@@ -246,9 +294,7 @@ void main() {
       expect(find.text('Bu hafta ödeme yok.'), findsOneWidget);
     });
 
-    testWidgets('gecikmiş ödeme üst şeritte bir kez görünür', (
-      tester,
-    ) async {
+    testWidgets('gecikmiş ödeme üst şeritte bir kez görünür', (tester) async {
       final viewModel = DashboardViewModel(
         _Source(_report(), advanced: _advanced()),
         activityRepository: _PlannedSource([
@@ -524,7 +570,7 @@ void main() {
         isNot(colors.income),
       );
       // Sayının faizi içerip içermediği ekrandan okunabilmeli.
-      expect(find.text('faiz hariç'), findsNWidgets(2));
+      expect(find.text('Faiz hariç'), findsNWidgets(2));
     });
 
     testWidgets('fazla ödenmiş kart varlık kartında alacak olarak durur', (
@@ -940,58 +986,61 @@ Future<void> _pump(
   await tester.pumpAndSettle();
 }
 
-DashboardReport _report({List<Map<String, Object?>>? accounts}) =>
-    DashboardReport.fromJson({
-      'year': 2026,
-      'month': 8,
-      'totalIncome': '2000.0000',
-      'totalExpense': '400.0000',
-      'net': '1600.0000',
-      'currency': 'TRY',
-      'categoryExpenseSlices': [
+DashboardReport _report({
+  List<Map<String, Object?>>? accounts,
+  Map<String, Object?>? expenseComparison,
+}) => DashboardReport.fromJson({
+  'expenseComparison': ?expenseComparison,
+  'year': 2026,
+  'month': 8,
+  'totalIncome': '2000.0000',
+  'totalExpense': '400.0000',
+  'net': '1600.0000',
+  'currency': 'TRY',
+  'categoryExpenseSlices': [
+    {
+      'categoryId': '11111111-1111-1111-1111-111111111111',
+      'categoryName': 'groceries',
+      'amount': '300.0000',
+    },
+    {
+      'categoryId': '11111111-1111-1111-1111-111111111112',
+      'categoryName': 'bills',
+      'amount': '100.0000',
+    },
+    // "Diğer" satırının kategori kimliği yoktur: bir kategori değil, birden
+    // çoğunun toplamıdır.
+    {'categoryId': null, 'categoryName': 'Diğer', 'amount': '50.0000'},
+  ],
+  'categoryExpenses': [
+    {
+      'categoryId': '11111111-1111-1111-1111-111111111111',
+      'categoryName': 'groceries',
+      'amount': '300.0000',
+    },
+    {
+      'categoryId': '11111111-1111-1111-1111-111111111112',
+      'categoryName': 'bills',
+      'amount': '100.0000',
+    },
+  ],
+  'accountBalances':
+      accounts ??
+      [
         {
-          'categoryId': '11111111-1111-1111-1111-111111111111',
-          'categoryName': 'groceries',
-          'amount': '300.0000',
+          'accountId': '22222222-2222-2222-2222-222222222222',
+          'accountName': 'Cüzdan',
+          'balance': '500.0000',
+          'type': 'cash',
         },
         {
-          'categoryId': '11111111-1111-1111-1111-111111111112',
-          'categoryName': 'bills',
-          'amount': '100.0000',
+          'accountId': '22222222-2222-2222-2222-222222222223',
+          'accountName': 'Vadesiz',
+          'balance': '1500.0000',
+          'type': 'bank',
         },
-        // "Diğer" satırının kategori kimliği yoktur: bir kategori değil, birden
-        // çoğunun toplamıdır.
-        {'categoryId': null, 'categoryName': 'Diğer', 'amount': '50.0000'},
       ],
-      'categoryExpenses': [
-        {
-          'categoryId': '11111111-1111-1111-1111-111111111111',
-          'categoryName': 'groceries',
-          'amount': '300.0000',
-        },
-        {
-          'categoryId': '11111111-1111-1111-1111-111111111112',
-          'categoryName': 'bills',
-          'amount': '100.0000',
-        },
-      ],
-      'accountBalances':
-          accounts ??
-          [
-            {
-              'accountId': '22222222-2222-2222-2222-222222222222',
-              'accountName': 'Cüzdan',
-              'balance': '500.0000',
-              'type': 'cash',
-            },
-            {
-              'accountId': '22222222-2222-2222-2222-222222222223',
-              'accountName': 'Vadesiz',
-              'balance': '1500.0000',
-              'type': 'bank',
-            },
-          ],
-    });
+});
 
 var _accountSeed = 0;
 Map<String, Object?> _account(

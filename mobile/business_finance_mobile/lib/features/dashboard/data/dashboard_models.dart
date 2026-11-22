@@ -43,6 +43,31 @@ class MonthlyScopeBreakdown {
       );
 }
 
+/// Ayın giderinin önceki ayla karşılaştırması; fark sunucudandır.
+///
+/// [throughToday] doğruysa içinde bulunulan ay, önceki ayın aynı gününe
+/// kadar olan giderle karşılaştırılmıştır.
+class ExpenseComparison {
+  const ExpenseComparison({
+    required this.previousExpense,
+    required this.change,
+    required this.throughToday,
+  });
+
+  final String previousExpense;
+
+  /// İşaretli fark: artı daha çok harcama.
+  final String change;
+  final bool throughToday;
+
+  factory ExpenseComparison.fromJson(Map<String, dynamic> json) =>
+      ExpenseComparison(
+        previousExpense: JsonReaders.money(json, 'previousExpense'),
+        change: JsonReaders.money(json, 'change'),
+        throughToday: json['throughToday'] == true,
+      );
+}
+
 class DashboardReport {
   const DashboardReport({
     required this.year,
@@ -55,6 +80,7 @@ class DashboardReport {
     required this.categoryExpenseSlices,
     required this.accountBalances,
     this.scopeBreakdown,
+    this.expenseComparison,
   });
 
   final int year;
@@ -73,6 +99,9 @@ class DashboardReport {
   /// tek tarafı anlatıyor ve kırılım göndermek dışlanan tarafı sıfır
   /// gösterirdi.
   final MonthlyScopeBreakdown? scopeBreakdown;
+
+  /// Önceki ayda gider yoksa ya da eski sunucuda `null`.
+  final ExpenseComparison? expenseComparison;
 
   factory DashboardReport.fromJson(Map<String, dynamic> json) =>
       DashboardReport(
@@ -107,6 +136,14 @@ class DashboardReport {
             ? null
             : MonthlyScopeBreakdown.fromJson(
                 JsonReaders.object(json['scopeBreakdown'], 'scopeBreakdown'),
+              ),
+        expenseComparison: json['expenseComparison'] == null
+            ? null
+            : ExpenseComparison.fromJson(
+                JsonReaders.object(
+                  json['expenseComparison'],
+                  'expenseComparison',
+                ),
               ),
       );
 }

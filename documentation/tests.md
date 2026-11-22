@@ -1,5 +1,15 @@
 # Test Kapsam Haritası
 
+### Özet düzeltmeleri · 22 Kasım 2026
+
+- `GetMonthlyReportUseCaseTests` (yeni): içinde bulunulan ay önceki ayın aynı
+  gününe kadar, geçmiş ay iki tam ayla karşılaştırılır; önceki ay kısaysa son
+  günü sınırdır; önceki ayda gider yoksa ya da ileri ay okunuyorsa karşılaştırma
+  dönmez. Depo sorgusunun SQL karşılığı bu turda gerçek SQL ile koşulmadı.
+- `dashboard_sections_test.dart`: kategori kartı en büyük pay yerine farkı
+  yazar; Yaklaşanlar'da bütün ödemeler satırlarda görünüyorsa ödeme adedi
+  yazılmaz ve aynı günün iki kaydı da tarihini yazar.
+
 ### Özet kabulü · 21 Kasım 2026
 
 - `PlannedActivityUseCaseTests` hafta son sınırını, eski istemcinin bitiş

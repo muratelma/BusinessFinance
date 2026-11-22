@@ -6,7 +6,8 @@ namespace BusinessFinance.Application.Reports;
 
 public sealed class GetMonthlyReportUseCase(
     ICurrentUser currentUser,
-    IFinancialReportRepository repository)
+    IFinancialReportRepository repository,
+    TimeProvider timeProvider)
 {
     public async Task<ApplicationResult<MonthlyReportDto>> ExecuteAsync(
         int year,
@@ -30,7 +31,40 @@ public sealed class GetMonthlyReportUseCase(
                 ApplicationErrorType.Validation));
         }
 
+        var report = await repository.GetMonthlyAsync(userId, year, month, scope, cancellationToken);
+        var comparison = await CompareExpenseAsync(
+            userId, year, month, scope, report.TotalExpense, cancellationToken);
         return ApplicationResult<MonthlyReportDto>.Success(
-            await repository.GetMonthlyAsync(userId, year, month, scope, cancellationToken));
+            report with { ExpenseComparison = comparison });
+    }
+
+    private async Task<ExpenseComparisonDto?> CompareExpenseAsync(
+        Guid userId,
+        int year,
+        int month,
+        TransactionScope? scope,
+        decimal currentExpense,
+        CancellationToken cancellationToken)
+    {
+        var today = LocalDay.Today(timeProvider.GetUtcNow());
+        var monthStart = new DateOnly(year, month, 1);
+        var thisMonth = new DateOnly(today.Year, today.Month, 1);
+        if (monthStart > thisMonth || year == MonthlyBudget.MinimumYear && month == 1)
+        {
+            return null;
+        }
+
+        var previousStart = monthStart.AddMonths(-1);
+        var throughToday = monthStart == thisMonth;
+        // İçinde bulunulan ay: önceki ayın aynı gününe kadar (o gün dahil).
+        // Önceki ay daha kısaysa son günü sınırdır (31 Mart → 28 Şubat).
+        var previousEndExclusive = throughToday
+            ? previousStart.AddDays(Math.Min(today.Day, DateTime.DaysInMonth(previousStart.Year, previousStart.Month)))
+            : monthStart;
+        var previousExpense = await repository.GetExpenseAsync(
+            userId, previousStart, previousEndExclusive, scope, cancellationToken);
+        return previousExpense == 0m
+            ? null
+            : new ExpenseComparisonDto(previousExpense, currentExpense - previousExpense, throughToday);
     }
 }

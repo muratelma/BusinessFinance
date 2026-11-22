@@ -55,7 +55,17 @@ public sealed record MonthlyReportResponse(
     IReadOnlyList<CategoryExpenseResponse> CategoryExpenses,
     IReadOnlyList<CategoryExpenseSliceResponse> CategoryExpenseSlices,
     IReadOnlyList<AccountBalanceResponse> AccountBalances,
-    MonthlyScopeBreakdownResponse? ScopeBreakdown);
+    MonthlyScopeBreakdownResponse? ScopeBreakdown,
+
+    // Ayın giderinin önceki ayla karşılaştırması; önceki ayda gider yoksa ya
+    // da ileri bir ay okunuyorsa boş. İçinde bulunulan ayda önceki ayın aynı
+    // gününe kadar olan giderle karşılaştırılır (`throughToday`).
+    ExpenseComparisonResponse? ExpenseComparison = null);
+
+public sealed record ExpenseComparisonResponse(
+    string PreviousExpense,
+    string Change,
+    bool ThroughToday);
 
 public sealed record PeriodTotalsResponse(
     int Year,

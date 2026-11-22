@@ -121,6 +121,12 @@ public static class ReportEndpoints
                 ? new MonthlyScopeBreakdownResponse(
                     ToScopeTotals(breakdown.Business),
                     ToScopeTotals(breakdown.Personal))
+                : null,
+            report.ExpenseComparison is { } comparison
+                ? new ExpenseComparisonResponse(
+                    FinanceContract.Money(comparison.PreviousExpense),
+                    FinanceContract.Money(comparison.Change),
+                    comparison.ThroughToday)
                 : null));
     }
 

@@ -225,7 +225,7 @@ Panel başlığı `titleLarge` 22/700'dür.
 
 **Köşe yarıçapı ve düğme boyu sayıyla yazılmaz** (10 Kasım 2026): `AppRadius`
 (`card` 20, `field` 16, `inner` 12, `small` 8, `sheet` 28, `chip`) ve
-`AppSizes` (`button` 48, `menuButton` 40, `rowButton` 36). Tek haneli yarıçap
+`AppSizes` (`button` 48, `menuButton` 40, `rowButton` 36; Özet'teki bütçe halkası `ring` 52 ve çizgisi `ringStroke` 5). Tek haneli yarıçap
 grafik işaretidir ve ada bağlanmaz. Onay kutusu (`AppConfirmDialog`) panel
 değildir ve 24 dp'lik kutu payını korur.
 
@@ -1146,23 +1146,44 @@ gelir/gider/net kartı · kategori giderleri (104'lük halka + satır altı pay
 çubukları) · bütçe halkaları · yaklaşanlar zaman çizelgesi · varlık durumu ·
 hesap bakiyeleri.
 
+- **Kategori giderleri** halkanın yanında `Bu ay toplam` ve altında, aynı
+  yerde, önceki aya göre farkı yazar (`Geçen ayın aynı gününe göre` / geçmiş
+  ayda `Önceki aya göre`; `↑ ₺1.241,00 fazla` gider renginde, `↓ … az` gelir
+  renginde). Fark sunucudandır (`expenseComparison`); yoksa (önceki ayda gider
+  yok, eski sunucu) `En büyük pay` yazılır. Kart uzamaz (kullanıcı kararı,
+  22 Kasım 2026).
 - **Bütçeler başlığı** seçili ay ve kapsamdaki bütçelerin toplam adedini gösterir.
 - **Bütçe halkaları** en dolu bütçeleri gösterir: 4 ve fazlası 2×2, 2–3
   ikili, 1 tek. Aşılan bütçe gider zemininde, halka gider dolgusunda. Yüzde
   ve halka boyu yalnız çizim oranıdır; kalan/aşım tutarı sunucunun
   `remaining`'idir.
 - Tek bütçede halka solda, kategori ile kalan/aşım tutarı sağdadır. Birden
-  çok kutuda kategori üstte, halka ve tutar alttadır. Etiket ile tutarı ince
-  çizgi ayırır. Çizgi tema metin rengindedir ve tutar sütunu kadar uzanır.
+  çok kutuda kategori üstte (15/600, simge 18), halka ve tutar alttadır.
+  Halka 60 dp, çizgisi 6 dp ve yuvarlak uçludur (`AppSizes.ring`,
+  `ringStroke`); yüzde halkanın içinde 15/700, tutar 16/700, `Kalan` 14 gri,
+  `Aşım` kutunun metin rengindedir. Etiket ile tutarı ince çizgi ayırır: soluk metin renginde,
+  tutar sütunu kadar uzanır. Dar ekranda tutar tek satırda küçülür.
   Aynı sıradaki halkalar kategori adı iki satıra taşsa da hizalıdır.
   Başlık seçili ayın bütçe listesini açar.
 - **Yaklaşanlar** bugün dahil yedi günün ilk dört vadesini gösterir. Tarih
   bağlantısı aynı haftayı açar. Altta haftanın tüm ödeme adedi ve bilinen
   tutarı yer alır. Tahsilat ve karta yansıyan kalemler kendi adıyla görünür.
+  İçerik kartın sol kenarına yakındır (sol 12 dp, tarih sütunu 30 dp); her
+  satır kendi tarihini yazar, tutar sağda ortalıdır. Alt satırda gün yalnız
+  `Bugün` ve `Yarın` için yazılır; dolu nokta bugünün kaydıdır. Alttaki
+  `7 günde ödenecek` toplamı hep yazılır; ödeme adedi (`· 5 ödeme`) yalnız
+  listede görünmeyen ödeme varsa eklenir.
+  Tahsilat ve karta yansıyan kalem toplanmaz; rengi yeter (kullanıcı kararı,
+  22 Kasım 2026).
   Tutarı belirsiz ödeme ayrıca belirtilir. Eski vadeler üst şeritten açılır.
 - **Varlık durumu** üst yüzeyde net varlığı, kapsam seçilmişse “İşletme ve
   şahsi toplamı” açıklamasını, oran çubuğunu ve sunucunun iki toplamını gösterir.
-  POS satırı beklenen toplamı ve varsa “Geciken yatış var” uyarısını taşır.
+  POS satırı beklenen toplamı ve varsa “Geciken yatış var” uyarısını taşır;
+  yoldaki para hesapta olmadığı için tutarı mavidir. Aynı grubun satırları
+  simgeden sonra başlayan ince çizgiyle, varlıklar ile borçlar aynı renkte
+  boydan boya bir çizgiyle; çizgiler piksel ızgarasına oturtulur (aynı
+  kalınlıkta görünsünler diye). İlk ve son satır 10 dp, diğerleri 6 dp iç
+  boşluk taşır.
   POS ayrıntısı Kasa’da açılır.
   Varlık ve borç satırları en az ortak dokunma alanı yüksekliğindedir,
   büyük yazıda içerikle büyür. Tutarlar sağda aynı kenara yaslanır, POS
@@ -1664,9 +1685,12 @@ ile aynı örnek veride çizilir.
   yalnız `ScopeController.isVisible` iken yazılır.
 - **Özet · Hesap bakiyeleri** (`DashboardAccountBalances`): tek kart, `Nakit`
   ve `Banka` grupları (8 dp nokta + 15/600 ad; grup toplamı yok, gruplar
-  arasında çizgi). Satır en az 56 dp: 40 dp kapsül, ad 16/600, kapsam, bakiye
+  arasında çizgi). Satır en az 56 dp: 40 dp kapsül, ad 15/500, kapsam, bakiye
   16/600; satırlar arasında çizgi yok; grup içinde bakiye büyükten küçüğe;
-  pasif hesap çizilmez. Bölüm kapsam seçiliyken de "toplam" notunu yazmaz.
+  pasif hesap çizilmez. Özet en çok beş hesap gösterir (bakiyesi, eksi ya da
+  artı, en büyük olanlar); başlıkta etkin hesap sayısı (`6 hesap ›`)
+  Hesaplar'ı açar. Eksi bakiye renklenmez (nakit hesabın eksiye düşmesi
+  uyarı değildir, 2 Ekim 2026). Bölüm kapsam seçiliyken de "toplam" notunu yazmaz.
 - **Teslimden bilerek ayrılanlar:** menünün 150 ms'lik
   inme hareketi yoktur (Material menüsünün kendi açılışı kullanılır).
 

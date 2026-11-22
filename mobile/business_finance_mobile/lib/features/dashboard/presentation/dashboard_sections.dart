@@ -155,7 +155,26 @@ class DashboardCategoryCard extends StatelessWidget {
           effect: AppMoneyEffect.expense,
           size: AppMoneySize.metric,
         ),
-        if (top != null) ...[
+        // Toplamın altı: önceki aya göre fark. Karşılaştırma yoksa (önceki
+        // ayda gider yok, eski sunucu) en büyük pay yazılır. İkisi aynı
+        // yeri kaplar; kart uzamaz.
+        if (report.expenseComparison case final c?) ...[
+          const SizedBox(height: AppSpacing.xSmall),
+          Divider(height: 1, thickness: 1, color: surfaces.border),
+          const SizedBox(height: AppSpacing.small),
+          Text(
+            c.throughToday ? 'Geçen ayın aynı gününe göre' : 'Önceki aya göre',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w400,
+              letterSpacing: 0,
+              color: surfaces.inkMuted,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xxSmall),
+          _ChangeText(change: c.change, currency: report.currency),
+        ] else if (top != null) ...[
           const SizedBox(height: AppSpacing.xSmall),
           Divider(height: 1, thickness: 1, color: surfaces.border),
           const SizedBox(height: AppSpacing.small),
@@ -357,6 +376,49 @@ class _CategoryLine extends StatelessWidget {
   }
 }
 
+/// Önceki aya göre fark: ok, tutar ve `fazla` / `az` kelimesi.
+/// Gider artışı gider renginde, azalışı gelir renginde; yön renkle
+/// birlikte okla ve kelimeyle de söylenir.
+class _ChangeText extends StatelessWidget {
+  const _ChangeText({required this.change, required this.currency});
+
+  final String change;
+  final String currency;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = AppFinanceColors.of(context);
+    final less = MoneyText.isNegative(change);
+    final color = less ? colors.income : colors.expense;
+    final amount = MoneyText.format(MoneyText.unsigned(change), currency);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          less ? Icons.arrow_downward : Icons.arrow_upward,
+          size: AppTextSizes.caption,
+          color: color,
+        ),
+        const SizedBox(width: AppSpacing.xxSmall),
+        Flexible(
+          child: Text(
+            '$amount ${less ? 'az' : 'fazla'}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0,
+              fontFeatures: AppTypography.tabularFigures,
+              color: color,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Bütçeler: en dolu bütçelerin halkaları. Dört ve fazlası 2×2, iki–üç
 /// ikili, bir tane tek.
 ///
@@ -413,7 +475,7 @@ class DashboardBudgetRings extends StatelessWidget {
       ].join('. '),
       child: AppCard(
         onTap: onOpen,
-        padding: const EdgeInsets.all(AppSpacing.compact),
+        padding: const EdgeInsets.all(AppSpacing.small),
         child: Column(
           children: [
             for (var r = 0; r < rows.length; r++) ...[
@@ -467,6 +529,7 @@ class _BudgetRing extends StatelessWidget {
     );
     final pct = '%${(item.spentRatio * 100).round()}';
     final title = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(
           AppFinanceIcons.forCategory(
@@ -474,35 +537,46 @@ class _BudgetRing extends StatelessWidget {
             displayName: item.categoryName,
           ),
           color: ink,
-          size: AppTextSizes.row,
+          size: AppTextSizes.section,
         ),
         const SizedBox(width: AppSpacing.xSmall),
         Expanded(
           child: Text(
             item.categoryName,
-            style: style?.copyWith(fontSize: AppTextSizes.body),
+            style: style?.copyWith(fontSize: AppTextSizes.compact),
           ),
         ),
       ],
     );
+    // Halka 60 dp, çizgi 6 dp: yüzde içeride nefes alır, halka kutunun
+    // ağırlığını taşır. Yüzde tutardan küçüktür; kutunun asıl sayısı tutardır.
     final ring = SizedBox.square(
-      dimension: AppSizes.button,
+      dimension: AppSizes.ring,
       child: Stack(
         alignment: Alignment.center,
         children: [
           SizedBox.expand(
             child: CircularProgressIndicator(
               value: item.spentRatio.clamp(0.0, 1.0),
-              strokeWidth: AppSpacing.xSmall,
+              strokeWidth: AppSizes.ringStroke,
+              strokeCap: StrokeCap.round,
               backgroundColor: surfaces.card,
               color: over ? colors.expenseFill : colors.neutralFill,
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(AppSpacing.xSmall),
+            padding: const EdgeInsets.all(AppSpacing.small),
             child: FittedBox(
               fit: BoxFit.scaleDown,
-              child: Text(pct, style: style),
+              child: Text(
+                pct,
+                style: TextStyle(
+                  fontSize: AppTextSizes.compact,
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: AppTypography.tabularFigures,
+                  color: ink,
+                ),
+              ),
             ),
           ),
         ],
@@ -510,11 +584,20 @@ class _BudgetRing extends StatelessWidget {
     );
     final label = Text(
       over ? 'Aşım' : 'Kalan',
-      style: theme.textTheme.bodySmall?.copyWith(color: ink),
+      style: theme.textTheme.bodySmall?.copyWith(
+        fontSize: AppTextSizes.body,
+        color: over ? ink : surfaces.inkMuted,
+      ),
     );
     final money = Text(
       MoneyText.format(MoneyText.unsigned(item.remaining), currency),
-      style: style,
+      maxLines: 1,
+      style: TextStyle(
+        fontSize: AppTextSizes.row,
+        fontWeight: FontWeight.w700,
+        fontFeatures: AppTypography.tabularFigures,
+        color: ink,
+      ),
     );
     final value = single
         ? Wrap(
@@ -527,24 +610,32 @@ class _BudgetRing extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 label,
+                const SizedBox(height: AppSpacing.xxSmall),
                 Divider(
-                  color: surfaces.ink,
+                  color: (over ? ink : surfaces.inkMuted).withValues(
+                    alpha: 0.4,
+                  ),
                   thickness: 1,
-                  height: AppSpacing.xSmall,
+                  height: 1,
                 ),
-                money,
+                const SizedBox(height: AppSpacing.xSmall),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: money,
+                ),
               ],
             ),
           );
     final amountRow = Row(
       children: [
         ring,
-        const SizedBox(width: AppSpacing.small),
+        const SizedBox(width: AppSpacing.compact),
         Flexible(child: value),
       ],
     );
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.small),
+      padding: const EdgeInsets.all(AppSpacing.compact),
       decoration: BoxDecoration(
         color: over ? colors.expenseContainer : surfaces.cardMuted,
         borderRadius: BorderRadius.circular(AppRadius.field),
@@ -571,7 +662,7 @@ class _BudgetRing extends StatelessWidget {
               children: [
                 title,
                 const Spacer(),
-                const SizedBox(height: AppSpacing.small),
+                const SizedBox(height: AppSpacing.compact),
                 amountRow,
               ],
             ),
@@ -579,7 +670,14 @@ class _BudgetRing extends StatelessWidget {
   }
 }
 
-/// Haftanın ilk dört vadesi ve tüm haftanın ödeme toplamı.
+/// Haftanın ilk dört vadesi; altta haftanın bütün ödemelerinin toplamı.
+/// Ödeme adedi yalnız listede görünmeyen ödeme varsa yazılır.
+///
+/// İçerik kartın sol kenarına yakındır: tarih ve zaman çizgisi dar tutulur,
+/// başlık ve tutara yer kalır. Alt satırda gün yalnız `Bugün` ve `Yarın`
+/// için yazılır; diğer günlerin tarihi solda zaten yazılıdır. Dolu nokta
+/// bugünün kaydıdır. Tahsilat ve karta yansıyan kalem kendi renginden
+/// anlaşılır; altta toplanmaz (kullanıcı kararı, 22 Kasım 2026).
 class DashboardUpcomingCard extends StatelessWidget {
   const DashboardUpcomingCard({
     required this.items,
@@ -611,22 +709,33 @@ class DashboardUpcomingCard extends StatelessWidget {
         child: Text('Bu hafta ödeme yok.', style: theme.textTheme.bodyMedium),
       );
     }
-    final footer = paymentCount == null
+    // Ödeme adedi yalnız satırlar haftanın bütün ödemelerini göstermiyorsa
+    // yazılır: dört satırda görünmeyen ödeme varsa. Sayı satır saymaktır,
+    // tutar sunucunundur.
+    final visiblePayments = items
+        .where((item) => item.isPaymentObligation)
+        .length;
+    final footer = paymentCount == null || paymentCount! <= visiblePayments
         ? '7 günde ödenecek'
         : '7 günde ödenecek · $paymentCount ödeme';
     final unknown = (unknownCount ?? 0) > 0
         ? '$unknownCount ödemenin tutarı belli değil'
         : null;
     final hasKnownAmount = unknown == null || paymentCount != unknownCount;
+    final showPayments = total != null && paymentCount != 0;
+    final footerStyle = theme.textTheme.bodyMedium?.copyWith(
+      fontWeight: FontWeight.w600,
+      height: 1.3,
+    );
     return _TappableSummary(
       onTap: onOpen,
       label: [
         for (final item in items)
           _upcomingSentence(item, _relative(item.dueDate)),
-        footer,
-        if (total != null && hasKnownAmount)
+        if (showPayments) footer,
+        if (showPayments && hasKnownAmount)
           'Bilinen tutar ${MoneyText.format(total!, currency)}',
-        ?unknown,
+        if (showPayments) ?unknown,
         'Planlananları açar',
       ].join('. '),
       child: AppCard(
@@ -636,9 +745,11 @@ class DashboardUpcomingCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.medium,
-                vertical: AppSpacing.small,
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.compact,
+                AppSpacing.small,
+                AppSpacing.medium,
+                AppSpacing.small,
               ),
               child: Column(
                 children: [
@@ -647,49 +758,54 @@ class DashboardUpcomingCard extends StatelessWidget {
                       item: items[i],
                       first: i == 0,
                       last: i == items.length - 1,
+                      isToday: _days(items[i].dueDate) <= 0,
+                      near: _near(items[i].dueDate),
                       relative: _relative(items[i].dueDate),
                     ),
                 ],
               ),
             ),
-            if (total != null)
+            if (showPayments)
               MergeSemantics(
                 child: Container(
                   constraints: const BoxConstraints(minHeight: 48),
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.medium,
+                    vertical: AppSpacing.small,
                   ),
                   decoration: BoxDecoration(
                     color: surfaces.cardMuted,
                     border: Border(top: BorderSide(color: surfaces.border)),
                   ),
-                  child: Row(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Expanded(
-                        child: Text(
-                          unknown == null ? footer : '$footer\n$unknown',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            height: 1.3,
-                          ),
-                        ),
-                      ),
-                      if (hasKnownAmount)
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            if (unknown != null)
-                              Text(
-                                'Bilinen tutar',
-                                style: theme.textTheme.bodySmall,
-                              ),
-                            AppMoneyText(
-                              amount: total!,
-                              currency: currency,
-                              size: AppMoneySize.row,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              unknown == null ? footer : '$footer\n$unknown',
+                              style: footerStyle,
                             ),
-                          ],
-                        ),
+                          ),
+                          if (hasKnownAmount)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                if (unknown != null)
+                                  Text(
+                                    'Bilinen tutar',
+                                    style: theme.textTheme.bodySmall,
+                                  ),
+                                AppMoneyText(
+                                  amount: total!,
+                                  currency: currency,
+                                  size: AppMoneySize.row,
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -700,15 +816,25 @@ class DashboardUpcomingCard extends StatelessWidget {
     );
   }
 
+  int _days(String isoDate) {
+    final due = DateTime.tryParse(isoDate);
+    if (due == null) return 1;
+    final start = DateTime(today.year, today.month, today.day);
+    return DateTime(due.year, due.month, due.day).difference(start).inDays;
+  }
+
+  /// Alt satıra yazılan gün: yalnız bugün ve yarın.
+  String? _near(String isoDate) => switch (_days(isoDate)) {
+    <= 0 => 'Bugün',
+    1 => 'Yarın',
+    _ => null,
+  };
+
+  /// Ekran okuyucunun cümlesi her günü söyler.
   String _relative(String isoDate) {
     final due = DateTime.tryParse(isoDate);
     if (due == null) return DateText.dayMonth(isoDate);
-    final start = DateTime(today.year, today.month, today.day);
-    final days = DateTime(
-      due.year,
-      due.month,
-      due.day,
-    ).difference(start).inDays;
+    final days = _days(isoDate);
     return switch (days) {
       <= 0 => 'Bugün',
       1 => 'Yarın',
@@ -722,12 +848,16 @@ class _TimelineRow extends StatelessWidget {
     required this.item,
     required this.first,
     required this.last,
+    required this.isToday,
+    required this.near,
     required this.relative,
   });
 
   final PlannedActivity item;
   final bool first;
   final bool last;
+  final bool isToday;
+  final String? near;
   final String relative;
 
   @override
@@ -750,6 +880,9 @@ class _TimelineRow extends StatelessWidget {
                 : AppMoneyEffect.income,
             size: AppMoneySize.row,
           );
+    final subtitle = near == null
+        ? item.paymentLabel
+        : '$near · ${item.paymentLabel}';
 
     return Semantics(
       container: true,
@@ -762,7 +895,7 @@ class _TimelineRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 SizedBox(
-                  width: 40,
+                  width: 30,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -788,13 +921,14 @@ class _TimelineRow extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: AppSpacing.small),
+                const SizedBox(width: AppSpacing.xSmall),
                 SizedBox(
                   width: 16,
                   child: CustomPaint(
                     painter: _TimelinePainter(
                       first: first,
                       last: last,
+                      filled: isToday,
                       line: surfaces.border,
                       ink: surfaces.ink,
                       fill: surfaces.card,
@@ -815,7 +949,7 @@ class _TimelineRow extends StatelessWidget {
                       ),
                       const SizedBox(height: AppGaps.rowText),
                       Text(
-                        '$relative · ${item.paymentLabel}',
+                        subtitle,
                         maxLines: large ? 2 : 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall,
@@ -838,11 +972,12 @@ class _TimelineRow extends StatelessWidget {
   }
 }
 
-/// Zaman çizelgesinin dikey çizgisi ve noktası; ilk nokta dolu.
+/// Zaman çizelgesinin dikey çizgisi ve noktası; bugünün kaydı dolu nokta.
 class _TimelinePainter extends CustomPainter {
   const _TimelinePainter({
     required this.first,
     required this.last,
+    required this.filled,
     required this.line,
     required this.ink,
     required this.fill,
@@ -850,6 +985,7 @@ class _TimelinePainter extends CustomPainter {
 
   final bool first;
   final bool last;
+  final bool filled;
   final Color line;
   final Color ink;
   final Color fill;
@@ -867,7 +1003,7 @@ class _TimelinePainter extends CustomPainter {
       linePaint,
     );
     canvas.drawCircle(Offset(centerX, centerY), 5, Paint()..color = ink);
-    if (!first) {
+    if (!filled) {
       canvas.drawCircle(Offset(centerX, centerY), 3, Paint()..color = fill);
     }
   }
@@ -876,6 +1012,7 @@ class _TimelinePainter extends CustomPainter {
   bool shouldRepaint(covariant _TimelinePainter oldDelegate) =>
       oldDelegate.first != first ||
       oldDelegate.last != last ||
+      oldDelegate.filled != filled ||
       oldDelegate.line != line ||
       oldDelegate.ink != ink ||
       oldDelegate.fill != fill;
@@ -929,6 +1066,8 @@ class DashboardNetWorthCard extends StatelessWidget {
           label: 'POS yatışları',
           subtitle: transitOverdue ? 'Geciken yatış var' : '',
           amount: report.moneyInTransit,
+          // Yoldaki para henüz hesapta değildir; uygulamanın her yerinde mavi.
+          effect: AppMoneyEffect.neutral,
           whenOverdue: transitOverdue,
           onTap: onOpenTransit,
         ),
@@ -936,7 +1075,7 @@ class DashboardNetWorthCard extends StatelessWidget {
         _NetLine(
           icon: Icons.handshake_outlined,
           label: 'Alacaklar',
-          subtitle: 'faiz hariç',
+          subtitle: 'Faiz hariç',
           amount: report.receivableDebt,
         ),
       // Fazla ödenmiş kartta duran para kullanıcınındır ve varlıktır.
@@ -960,7 +1099,7 @@ class DashboardNetWorthCard extends StatelessWidget {
         _NetLine(
           icon: Icons.account_balance_outlined,
           label: 'Borç',
-          subtitle: 'faiz hariç',
+          subtitle: 'Faiz hariç',
           amount: report.payableDebt,
         ),
     ];
@@ -1051,7 +1190,10 @@ class DashboardNetWorthCard extends StatelessWidget {
               ),
             ),
           ),
-          for (final line in [...assetLines, ...liabilityLines])
+          for (final (index, line) in [
+            ...assetLines,
+            ...liabilityLines,
+          ].indexed) ...[
             Semantics(
               container: true,
               label:
@@ -1065,25 +1207,39 @@ class DashboardNetWorthCard extends StatelessWidget {
                     constraints: const BoxConstraints(
                       minHeight: AppSizes.button,
                     ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.medium,
-                      vertical: AppSpacing.xSmall,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        top: BorderSide(color: surfaces.border, width: 0),
-                      ),
+                    padding:
+                        const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.medium,
+                          vertical: AppSpacing.step6,
+                        ).copyWith(
+                          // İlk satır üst yüzeyden, son satır kartın altından
+                          // biraz daha uzak durur.
+                          top: index == 0 ? AppSpacing.step10 : null,
+                          bottom:
+                              index ==
+                                  assetLines.length + liabilityLines.length - 1
+                              ? AppSpacing.step10
+                              : null,
+                        ),
+                    // Aynı grubun satırları arasında simgeden sonra başlayan
+                    // çizgi; varlıklarla borçlar arasında aynı renkte, boydan
+                    // boya çizgi (ayrımı uzunluk söyler, koyuluk değil).
+                    foregroundDecoration: _RowDivider(
+                      color: surfaces.inkMuted.withValues(alpha: 0.22),
+                      inset: index == 0 || index == assetLines.length
+                          ? 0
+                          : AppSizes.menuButton + AppSpacing.compact,
                     ),
                     child: Row(
                       children: [
                         AppIconCapsule(
                           icon: line.icon,
-                          size: AppSizes.rowButton,
+                          size: AppSizes.menuButton,
                           tone: liabilityLines.contains(line)
                               ? AppStatusTone.expense
                               : AppStatusTone.neutral,
                         ),
-                        const SizedBox(width: AppSpacing.small),
+                        const SizedBox(width: AppSpacing.compact),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1093,7 +1249,10 @@ class DashboardNetWorthCard extends StatelessWidget {
                                   Flexible(
                                     child: Text(
                                       line.label,
-                                      style: theme.textTheme.bodyMedium,
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            fontSize: AppTextSizes.compact,
+                                          ),
                                     ),
                                   ),
                                   if (line.onTap != null)
@@ -1111,7 +1270,7 @@ class DashboardNetWorthCard extends StatelessWidget {
                                     color: line.whenOverdue
                                         ? colors.expense
                                         : surfaces.inkMuted,
-                                    fontSize: AppTextSizes.caption,
+                                    fontSize: AppTextSizes.body,
                                   ),
                                 ),
                             ],
@@ -1125,6 +1284,7 @@ class DashboardNetWorthCard extends StatelessWidget {
                             child: AppMoneyText(
                               amount: line.amount,
                               currency: currency,
+                              effect: line.effect,
                               size: AppMoneySize.row,
                             ),
                           ),
@@ -1135,6 +1295,7 @@ class DashboardNetWorthCard extends StatelessWidget {
                 ),
               ),
             ),
+          ],
         ],
       ),
     );
@@ -1201,6 +1362,46 @@ class _BalanceBar extends StatelessWidget {
   }
 }
 
+/// Satırın üst çizgisi; [inset] soldan, kartın iç kenarından sonra başlar.
+class _RowDivider extends Decoration {
+  const _RowDivider({required this.color, required this.inset});
+
+  final Color color;
+  final double inset;
+
+  @override
+  BoxPainter createBoxPainter([VoidCallback? onChanged]) =>
+      _RowDividerPainter(this);
+}
+
+class _RowDividerPainter extends BoxPainter {
+  _RowDividerPainter(this.decoration);
+
+  final _RowDivider decoration;
+
+  @override
+  void paint(Canvas canvas, Offset offset, ImageConfiguration configuration) {
+    final size = configuration.size;
+    if (size == null) return;
+    final start = decoration.inset == 0
+        ? 0.0
+        : AppSpacing.medium + decoration.inset;
+    final end = decoration.inset == 0
+        ? size.width
+        : size.width - AppSpacing.medium;
+    // Çizgi ekranın piksel ızgarasına oturtulur ve tam piksel kalınlığında
+    // çizilir: 2,625 gibi bir piksel oranında 1 dp'lik çizgi satırın yerine
+    // göre kimi yerde keskin, kimi yerde bulanık ve soluk görünüyordu.
+    final ratio = configuration.devicePixelRatio ?? 1;
+    final thickness = math.max(1, ratio.round()) / ratio;
+    final top = (offset.dy * ratio).round() / ratio;
+    canvas.drawRect(
+      Rect.fromLTWH(offset.dx + start, top, end - start, thickness),
+      Paint()..color = decoration.color,
+    );
+  }
+}
+
 class _NetLine {
   const _NetLine({
     required this.icon,
@@ -1208,6 +1409,7 @@ class _NetLine {
     required this.subtitle,
     required this.amount,
     this.whenOverdue = false,
+    this.effect,
     this.onTap,
   });
 
@@ -1216,6 +1418,7 @@ class _NetLine {
   final String subtitle;
   final String amount;
   final bool whenOverdue;
+  final AppMoneyEffect? effect;
   final VoidCallback? onTap;
 }
 
@@ -1243,11 +1446,21 @@ class DashboardAccountBalances extends StatelessWidget {
       );
     }
     final showScope = _scopeVisible(context);
+    // Özet en çok [visibleCount] hesap gösterir: tutarı (eksi ya da artı)
+    // en büyük olanlar; tamamı başlıktaki sayıdan Hesaplar'da açılır.
+    final shown =
+        (items.toList()..sort(
+              (a, b) => (MoneyMath.parse(b.balance) ?? BigInt.zero)
+                  .abs()
+                  .compareTo((MoneyMath.parse(a.balance) ?? BigInt.zero).abs()),
+            ))
+            .take(visibleCount)
+            .toList();
     final groups = [
       for (final kind in [AppAccountKind.cash, AppAccountKind.bank])
         (
           kind: kind,
-          items: items.where((item) => _kindOf(item) == kind).toList()
+          items: shown.where((item) => _kindOf(item) == kind).toList()
             // Yalnız sıralama; tutar sunucunundur.
             ..sort(
               (a, b) => (MoneyMath.parse(b.balance) ?? BigInt.zero).compareTo(
@@ -1281,6 +1494,13 @@ class DashboardAccountBalances extends StatelessWidget {
       ),
     );
   }
+
+  /// Özet'te gösterilen en fazla hesap sayısı.
+  static const visibleCount = 5;
+
+  /// Başlıktaki sayı: pasif hesap sayılmaz.
+  static int activeCount(DashboardReport report) =>
+      report.accountBalances.where((item) => item.isActive).length;
 
   static AppAccountKind _kindOf(AccountBalance item) =>
       item.type == 'cash' ? AppAccountKind.cash : AppAccountKind.bank;
@@ -1379,8 +1599,11 @@ class _AccountRow extends StatelessWidget {
                         item.accountName,
                         maxLines: context.usesLargeText ? 2 : 1,
                         overflow: TextOverflow.ellipsis,
+                        // Ad satırın en kalın yazısı değil; tutarla aynı
+                        // boyda, yarı kalın (Varlık durumu satırlarıyla uyumlu).
                         style: theme.textTheme.titleSmall?.copyWith(
-                          fontSize: AppTextSizes.row,
+                          fontSize: AppTextSizes.compact,
+                          fontWeight: FontWeight.w500,
                           height: 1.3,
                         ),
                       ),

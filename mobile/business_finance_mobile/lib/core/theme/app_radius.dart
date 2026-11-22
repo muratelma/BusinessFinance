@@ -39,4 +39,9 @@ abstract final class AppSizes {
   /// menüsü bu kurala bağlı değildir (kendi kuralı: içerik ya da ekran kadar);
   /// hesap menüsü yedi hesabı gösterecek boydadır (`AppAccountField`).
   static const double menuMaxHeight = 384;
+
+  /// Özet'teki bütçe halkasının çapı ve çizgisi: yüzde içeride sıkışmadan
+  /// okunur, halka kutunun tutarıyla dengededir.
+  static const double ring = 60;
+  static const double ringStroke = 6;
 }

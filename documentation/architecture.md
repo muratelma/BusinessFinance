@@ -597,6 +597,12 @@ hesaplamaz. "İşletme neti" ile "şahsi net" bir çıkarma değil, ayrı ayrı
 toplanmış iki tablodur; istemci çıkarsaydı ekrandaki sayı sunucununkiyle
 tutmayabilirdi.
 
+Aylık rapor ayrıca ayın giderini önceki ayla karşılaştırır
+(`expenseComparison`, 22 Kasım 2026): içinde bulunulan ay önceki ayın **aynı
+gününe kadar** olan gideriyle (Türkiye günü, `LocalDay`), geçmiş ay iki tam
+ayla. Gider aynı `RecognizedItems` listesinden ve aynı kapsamla okunur; fark
+sunucudadır. Önceki ayda gider yoksa ya da ileri bir ay okunuyorsa alan boştur.
+
 Kırılım **yalnız filtresiz okumada** döner. Kapsam verilmişse rapor zaten tek
 tarafı anlatıyordur; kırılım göndermek dışlanan tarafı sıfır gösterip "o
 tarafta hiç hareket yok" dedirtirdi.

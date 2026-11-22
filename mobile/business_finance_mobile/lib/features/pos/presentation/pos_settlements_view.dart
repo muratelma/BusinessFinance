@@ -216,6 +216,8 @@ class _PosSectionState extends State<PosSection> {
                       AppMoneyText(
                         amount: controller.moneyInTransit,
                         currency: 'TRY',
+                        // Yoldaki para hesapta değildir; her yerde mavi.
+                        effect: AppMoneyEffect.neutral,
                         size: AppMoneySize.metric,
                         style: const TextStyle(fontWeight: FontWeight.w700),
                       ),

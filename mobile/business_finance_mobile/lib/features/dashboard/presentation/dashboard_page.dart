@@ -213,6 +213,9 @@ class DashboardPage extends StatelessWidget {
             ),
           DashboardBlock(
             title: 'Hesap bakiyeleri',
+            count: DashboardAccountBalances.activeCount(report) == 0
+                ? null
+                : '${DashboardAccountBalances.activeCount(report)} hesap',
             onOpen: () => context.push(accountsLocation),
             child: DashboardAccountBalances(
               report: report,
@@ -223,7 +226,6 @@ class DashboardPage extends StatelessWidget {
       ),
     );
   }
-
 }
 
 extension on DashboardPage {
@@ -481,7 +483,7 @@ class _HeroCard extends StatelessWidget {
               top: AppSpacing.small,
               bottom: AppSpacing.medium,
             ),
-            child: Container(height: 2, color: surfaces.ink),
+            child: Container(height: 1, color: surfaces.ink),
           ),
           Semantics(
             key: const ValueKey('dashboard-summary-Net'),

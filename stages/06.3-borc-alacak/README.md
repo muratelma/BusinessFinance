@@ -43,7 +43,38 @@ kullanıcıya sorulmaz.
 **Faz 4 — Ekran tasarımı** (`03-PLAN.md`): başvuru incelemesi ve
 `05-EKRAN-TASARIMI.md` (liste, kişi sayfası, tahsilat/ödeme paneli, yeni kayıt,
 kayıt sayfası). Kullanıcı kararı (16 Kasım): denetimi Claude Code dış göz olarak
-yapar.
+yapar. Ayrıntılı devir: `research/DEVIR-2026-11-17.md` (§8 adımlar).
+
+**Planlananlar ve tekrarlayanlar üzerinde Codex çalışması** (kullanıcı kararı,
+17 Kasım 2026): Claude Code'un limiti yenilenene kadar kullanıcı planlananlar,
+tekrarlayanlar, Özet'teki yaklaşanlar ve işlemlerin üst kısmını Codex'e
+inceletecek (önce yalnız okuma; sonra plan ve uygulama, ayrı dalda, iki belge:
+plan ve ilerleme). Sırayla çalışılır, aynı anda değil.
+- **Başlangıç:** `d359ab7` (borç-alacak sunucusu bu hâliyle). Codex'in dalı
+  `borc-alacak-cari`nin üstünden açılır; Faz 5'ten (Flutter) önce onaylanan
+  iş bu dala birleştirilir.
+- **Borç-alacağa ait, anlamı değişmeyecek olanlar:** planlanan türleri
+  `debt-installment` / `receivable-installment`, `payable-obligation` /
+  `receivable-obligation` (Faz 8'de değişecek), `counterparty-receivable-due` /
+  `counterparty-payable-due` ve eylemleri, `actionTargetId` /
+  `actionSequence` anlamı; `ListDebtAsync`, `ListObligationsAsync`,
+  `ListCounterpartyDuesAsync`; `includeCounterpartyDues` bayrağı (Faz 5–7'de
+  borç-alacak ekranlarıyla açılır); yükümlülük ekranı ve uçları (Faz 8'de
+  kalkar). Yeniden düzenlenirse çıktılar birebir aynı kalır.
+- **Codex yaparsa iyi olur:** istemci bilinmeyen planlanan ve akış türünü
+  atlasın (bugün `FormatException` ile ekranı bozuyor); satırın etiketi,
+  ikonu ve eylemi tek bir eşleme tablosundan gelsin (yeni tür tek satırla
+  eklenir).
+- Döndüğümde ilk iş: Codex'in ilerleme belgesini ve `d359ab7`den sonraki
+  commit'lerini okumak; sonra Faz 4.
+
+Faz 4'ten bağımsız açık işler (devir §7):
+- Geliştirme veritabanı `BusinessFinance` dört migration'la yükseltildi
+  (17 Kasım, oturum sonu); API 5284'te ve emülatör açık bırakıldı.
+- `MoneyFoundation_*` SQL testi borç para, kartla ödeme ve vazgeçmeyle
+  genişletilmedi (planın Faz 2 testi); Faz 5'ten önce eklenmeli.
+- `docs/project-status.md` checkpoint satırı yazıldı, commit edilmedi (bir
+  sonraki kod commit'iyle girer).
 Açık iş: Flutter bilinmeyen akış türünde (`counterparty-loan`,
 `counterparty-write-off`) akışı reddediyor; istemci türleri tanıyana kadar bu
 kayıtlar yalnız API'den yazılabiliyor.

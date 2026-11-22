@@ -114,6 +114,16 @@ internal sealed class EfFinancialReportRepository(
                 : null);
     }
 
+    public async Task<decimal> GetExpenseAsync(
+        Guid userId,
+        DateOnly start,
+        DateOnly endExclusive,
+        TransactionScope? scope,
+        CancellationToken cancellationToken) =>
+        await RecognizedItems.InPeriod(dbContext, userId, start, endExclusive, scope)
+            .Where(item => item.Type == (int)TransactionType.Expense)
+            .SumAsync(item => (decimal?)item.Amount, cancellationToken) ?? 0m;
+
     /// <summary>
     /// Halka grafiğin dilimleri: en büyük <see cref="SliceCategoryCount"/>
     /// kategori ve geri kalanının toplamı.

@@ -75,6 +75,7 @@ void main() {
   for (final section in {
     'butceler': 'Bütçeler',
     'varlik': 'Varlık durumu',
+    'yaklasanlar': 'Yaklaşanlar',
   }.entries) {
     testWidgets('yerleşim · ${section.key}', (tester) async {
       final widget = await tester.runAsync(

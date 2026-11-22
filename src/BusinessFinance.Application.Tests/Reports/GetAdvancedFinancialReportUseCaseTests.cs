@@ -109,6 +109,14 @@ public sealed class GetAdvancedFinancialReportUseCaseTests
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
+        public Task<decimal> GetExpenseAsync(
+            Guid userId,
+            DateOnly start,
+            DateOnly endExclusive,
+            TransactionScope? scope,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public Task<AdvancedFinancialReportDto> GetAdvancedAsync(
             Guid userId,
             int year,
