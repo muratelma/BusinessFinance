@@ -1090,22 +1090,36 @@ public sealed class Debt
 
     private void GenerateSchedule()
     {
-        var baseAmount = decimal.Floor(TotalRepayment.Amount / InstallmentCount * 10000m) / 10000m;
-        for (var index = 0; index < InstallmentCount; index++)
+        foreach (var (sequence, amount, offset) in PlanAmounts(TotalRepayment.Amount, InstallmentCount))
         {
-            var amount = index == InstallmentCount - 1
-                ? TotalRepayment.Amount - baseAmount * (InstallmentCount - 1)
-                : baseAmount;
             // Tek kalemli planda kalemin kimliği borcunkidir (eski yükümlülük
             // kuralı); taksitlerin kimliği yenidir.
             _items.Add(new DebtScheduleItem(
                 InstallmentCount == 1 && PlanKind != DebtPlanKind.Installments ? Id : Guid.NewGuid(),
-                UserId, Id, index + 1,
-                new Money(amount, TotalRepayment.Currency), FirstDueDate?.AddMonths(index),
+                UserId, Id, sequence,
+                new Money(amount, TotalRepayment.Currency), FirstDueDate?.AddMonths(offset),
                 planRevision: PlanRevision));
         }
 
         ApplySplits();
+    }
+
+    /// <summary>
+    /// Planın tek kuralı: toplam taksit sayısına eşit bölünür (dört
+    /// ondalık), yuvarlama farkı son taksite yazılır; taksitler ilk vadeden
+    /// başlayarak aylıktır. Borç açılışı ve takvim önizlemesi bunu okur.
+    /// </summary>
+    public static IReadOnlyList<(int Sequence, decimal Amount, int MonthOffset)> PlanAmounts(
+        decimal totalRepayment, int installmentCount)
+    {
+        if (installmentCount <= 0) throw new ArgumentOutOfRangeException(nameof(installmentCount));
+        var baseAmount = decimal.Floor(totalRepayment / installmentCount * 10000m) / 10000m;
+        return [.. Enumerable.Range(0, installmentCount).Select(index => (
+            index + 1,
+            index == installmentCount - 1
+                ? totalRepayment - baseAmount * (installmentCount - 1)
+                : baseAmount,
+            index))];
     }
 
     /// <summary>Geçerli plandaki her kaleme anapara/faiz payını yazar.</summary>

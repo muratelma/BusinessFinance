@@ -2694,3 +2694,12 @@ yükseltildi): sonuç `stages/06.3-borc-alacak/README.md` günlüğünde.
 | Tahsilat/ödeme isteği yere göre kurulur (hesap, POS, kredi kartı, `Kalanı indirim say`, istek kimliği); ret panelde cümle döner | aynı dosya | |
 | İndirim satışın kimliğiyle yazılır | aynı dosya | |
 | Emülatör (gerçek API): kişi sayfası, 100 TL tahsilat (alacak 2.950 → 2.850), ayrıntıdan iptal (2.950'ye döndü), tür süzgeci | Elle, 23 Kasım 2026 | Kullanıcının verisi eski hâline döndü |
+
+## Yeni kayıt ve kayıt sayfası (Faz 7) — 23 Kasım 2026
+
+| Kanıt | Test | Not |
+|---|---|---|
+| Taksit tutarından toplam; önizleme borç açılışıyla aynı planı kurar; çelişen alanlar ve boş önizleme reddedilir | `DebtEndpointTests.InstallmentAmount_BuildsTheTotal_AndThePreviewUsesTheSamePlan` | |
+| Kaydın nereye gittiği: kişili satış borçlandırma (peşin tek yazmada), borç para, avans tahsilat, taksitli ve kişisiz ayrı kayıt, yeni kişi önce kurulur, kişili uygulamadan önce açılış bakiyesi | `test/features/debt_book/debt_book_test.dart` `DebtEntrySubmitter` | |
+| Kayıt sayfasında ödeme yere göre, iptal sayfayı kapatır | aynı dosya `DebtRecordController` | |
+| Emülatör (gerçek API): kayıt sayfası, `Tamamı` ile ödeme (kayıt kapandı) ve geri alma (eski hâline döndü); `+` → `Veresiye sattım` → kişi seçici → 100 TL satış (alacak 6.850 → 6.950) ve kişi sayfasından iptali | Elle, 23 Kasım 2026 | Kullanıcının verisi eski hâline döndü |

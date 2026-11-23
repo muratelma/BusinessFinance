@@ -7,6 +7,10 @@ import 'package:business_finance_mobile/features/debt_book/data/debt_book_reposi
 import 'package:business_finance_mobile/features/activities/data/activity_models.dart';
 import 'package:business_finance_mobile/features/debt_book/presentation/counterparty_page_controller.dart';
 import 'package:business_finance_mobile/features/debt_book/presentation/counterparty_page_view.dart';
+import 'package:business_finance_mobile/features/debt_book/presentation/debt_entry_form_view.dart';
+import 'package:business_finance_mobile/features/debt_book/presentation/debt_entry_sheet.dart';
+import 'package:business_finance_mobile/features/debt_book/presentation/debt_entry_submitter.dart';
+import 'package:business_finance_mobile/features/debt_book/presentation/debt_record_controller.dart';
 import 'package:business_finance_mobile/features/debt_book/presentation/debt_settle_sheet.dart';
 import 'package:business_finance_mobile/features/debt_book/presentation/debt_book_controller.dart';
 import 'package:business_finance_mobile/features/debt_book/presentation/debt_book_view.dart';
@@ -244,6 +248,142 @@ void main() {
     });
   });
 
+  group('DebtEntrySubmitter (kayıt nereye gider)', () {
+    DebtEntryDraft draft(
+      DebtEntryKind kind, {
+      DebtPersonChoice? person,
+      int? installments,
+      bool carriedOver = false,
+      DebtSide? side,
+      String? upfront,
+    }) => DebtEntryDraft(
+      kind: kind,
+      side: side ?? kind.side ?? DebtSide.payable,
+      person: person,
+      amount: '1000.0000',
+      date: '2026-11-23',
+      categoryId: 'cat',
+      accountId: 'acc',
+      dueDate: '2026-12-23',
+      description: 'Deneme',
+      upfrontAmount: upfront,
+      upfrontAccountId: upfront == null ? null : 'acc',
+      installmentCount: installments,
+      firstDueDate: installments == null ? null : '2026-12-23',
+      carriedOver: carriedOver,
+      clientRequestId: 'req',
+    );
+    const ayse = DebtPersonChoice(id: 'cp-ayse', name: 'Ayşe');
+
+    test('kişili satış borçlandırmadır, peşin tutar aynı yazmada', () async {
+      final repository = _Repository();
+      final error = await DebtEntrySubmitter(repository).submit(
+        draft(DebtEntryKind.sale, person: ayse, upfront: '400.0000'),
+        asOfDate: '2026-11-23',
+      );
+      expect(error, isNull);
+      final (target, body) = repository.created.single;
+      expect(target, 'charge:cp-ayse');
+      expect(body, containsPair('direction', 'receivable'));
+      expect((body! as Map)['paidNow'], {
+        'amount': '400.0000',
+        'accountId': 'acc',
+      });
+    });
+
+    test('borç para kişinin hesabına, avans tahsilattır', () async {
+      final repository = _Repository();
+      final submitter = DebtEntrySubmitter(repository);
+      await submitter.submit(
+        draft(DebtEntryKind.lend, person: ayse),
+        asOfDate: '2026-11-23',
+      );
+      await submitter.submit(
+        draft(DebtEntryKind.advance, person: ayse, side: DebtSide.payable),
+        asOfDate: '2026-11-23',
+      );
+      expect(repository.created[0].$1, 'loan:cp-ayse');
+      expect(repository.created[1].$1, 'payment:cp-ayse');
+      expect(repository.created[1].$2, containsPair('direction', 'receivable'));
+    });
+
+    test(
+      'taksitli ya da kişisiz kayıt ayrı borçtur; yeni kişi önce kurulur',
+      () async {
+        final repository = _Repository();
+        final submitter = DebtEntrySubmitter(repository);
+        await submitter.submit(
+          draft(
+            DebtEntryKind.borrow,
+            person: const DebtPersonChoice(name: 'Banka'),
+            installments: 12,
+          ),
+          asOfDate: '2026-11-23',
+        );
+        await submitter.submit(
+          draft(DebtEntryKind.purchase),
+          asOfDate: '2026-11-23',
+        );
+        expect(repository.created[0].$1, 'counterparty');
+        final loan = repository.created[1].$2! as Map;
+        expect(loan['counterpartyId'], 'cp-new');
+        expect(loan['planKind'], 'installments');
+        expect(loan['sourceType'], 'cash');
+        expect(loan['installmentCount'], 12);
+        final bill = repository.created[2].$2! as Map;
+        expect(bill['counterpartyId'], isNull);
+        expect(bill['planKind'], 'single');
+        expect(bill['sourceType'], 'expense');
+      },
+    );
+
+    test(
+      'kişili ve uygulamadan önce: açılış bakiyesi, öbür taraf korunur',
+      () async {
+        final repository = _Repository();
+        await DebtEntrySubmitter(repository).submit(
+          draft(DebtEntryKind.purchase, person: ayse, carriedOver: true),
+          asOfDate: '2026-11-23',
+        );
+        final (target, body) = repository.created.single;
+        expect(target, 'opening:cp-ayse');
+        expect(body, {
+          'receivable': _person.openingReceivable,
+          'payable': '1000.0000',
+        });
+      },
+    );
+  });
+
+  group('DebtRecordController', () {
+    test('ödeme yere göre kurulur, iptal sayfayı kapatır', () async {
+      final repository = _Repository();
+      final record = DebtRecordController(
+        repository,
+        debtId: 'd-1',
+        now: () => DateTime(2026, 11, 23),
+      );
+      await record.load();
+      expect(record.record?.title, 'Konut kredisi');
+      await record.pay(
+        const DebtSettlement(
+          side: DebtSide.payable,
+          amount: '15000.0000',
+          date: '2026-11-23',
+          sourceId: 'card:c1',
+          clientRequestId: 'req',
+        ),
+      );
+      final pay = repository.created.first;
+      expect(pay.$1, 'pay:d-1');
+      expect(pay.$2, containsPair('creditCardId', 'c1'));
+      expect(pay.$2, containsPair('asOfDate', '2026-11-23'));
+      expect(await record.cancel(), isNull);
+      expect(record.cancelled, isTrue);
+      record.dispose();
+    });
+  });
+
   group('DebtBookView', () {
     testWidgets('sekme tarafı değiştirir, süzgeç yalnız gecikenleri bırakır', (
       tester,
@@ -414,6 +554,86 @@ class _Repository implements DebtBookRepositoryContract {
     String chargeId,
     Map<String, Object?> body,
   ) async => discounts.add((chargeId, body));
+
+  // Faz 7: yeni kayıt ve kayıt sayfası.
+  final created = <(String, Object?)>[];
+
+  @override
+  Future<String> createCounterparty(
+    String name, {
+    TransactionScope? scope,
+  }) async {
+    created.add(('counterparty', {'name': name, 'scope': scope?.apiValue}));
+    return 'cp-new';
+  }
+
+  @override
+  Future<void> createCharge(String id, Map<String, Object?> body) async =>
+      created.add(('charge:$id', body));
+
+  @override
+  Future<void> createLoan(String id, Map<String, Object?> body) async =>
+      created.add(('loan:$id', body));
+
+  @override
+  Future<void> recordPayment(String id, Map<String, Object?> body) async =>
+      created.add(('payment:$id', body));
+
+  @override
+  Future<void> setOpeningBalance(
+    String id, {
+    required String receivable,
+    required String payable,
+  }) async => created.add((
+    'opening:$id',
+    {'receivable': receivable, 'payable': payable},
+  ));
+
+  @override
+  Future<String> createDebt(Map<String, Object?> body) async {
+    created.add(('debt', body));
+    return 'debt-new';
+  }
+
+  @override
+  Future<DebtSchedulePreview> previewSchedule(
+    Map<String, Object?> body,
+  ) async => throw UnimplementedError();
+
+  @override
+  Future<DebtEntryOptions> loadEntryOptions() async =>
+      throw UnimplementedError();
+
+  @override
+  Future<DebtRecordData> loadRecord(
+    String debtId, {
+    required String asOfDate,
+  }) async => _record;
+
+  @override
+  Future<void> payRecord(String debtId, Map<String, Object?> body) async =>
+      created.add(('pay:$debtId', body));
+
+  @override
+  Future<void> reverseRecordPayment(
+    String debtId,
+    String paymentId, {
+    required String asOfDate,
+  }) async => created.add(('reverse:$debtId', paymentId));
+
+  @override
+  Future<void> discountRecord(String debtId, Map<String, Object?> body) async =>
+      created.add(('discount:$debtId', body));
+
+  @override
+  Future<void> changeRecordPlan(
+    String debtId,
+    Map<String, Object?> body,
+  ) async => created.add(('plan:$debtId', body));
+
+  @override
+  Future<void> cancelRecord(String debtId, {required String asOfDate}) async =>
+      created.add(('cancel:$debtId', null));
 
   @override
   Future<DebtBook> load({

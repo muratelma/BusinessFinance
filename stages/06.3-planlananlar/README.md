@@ -17,6 +17,9 @@ tablosu) gözden geçirilir. Test sırası ve pano–ekran eşlemesi:
 
 **23 Kasım:** test **kaldırılmadı, ertelendi**. Kullanıcı önce borç-alacakta
 biraz ilerlemek istiyor; test borç-alacakta bir noktaya gelindiğinde yapılır.
+**Akşam kararı:** sonraki oturumda borç-alacağın Faz 8'i bitince bu test
+yapılır, ardından borç-alacak aynı şekilde test edilir
+(`research/DEVIR-2026-11-23.md`).
 Kullanıcı 22 Kasım'daki emülatör gezintisinde tasarım sorunları gördü; bu yüzden
 test gerekli. O zamana kadar bu klasördeki kararlar (S2, S10, S19, S26,
 kategori karşılaştırması) ve açık kalanlar (S22, S23) olduğu gibi bekler.

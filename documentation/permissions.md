@@ -461,7 +461,9 @@ gönderdiği kimlik başka kullanıcınınsa `debt.account_unavailable` /
 `GET /api/v1/debt-book/closed` kimlik almaz; sızıntı ölçüsüne (`ReadEndpoints_ShowNothingThatBelongsToAnotherUser`)
 eklendi. Eşzamanlı iki kapanış borcun sürüm belirteciyle (`Revision`) aynı
 satırda sınanır: kaybeden `409 debt.changed` alır, kalan aşılmaz. Sözleşme
-`debt-api-contract.md` içindedir.
+`debt-api-contract.md` içindedir. `POST /api/v1/debts/schedule-preview`
+(23 Kasım 2026) kimlik doğrulaması ister ama hiçbir kayıt okumaz ya da
+yazmaz: yalnız istekteki sayılardan planı kurar.
 
 ## Kişinin hesabında borç para — 17 Kasım 2026 (ADR 0022)
 

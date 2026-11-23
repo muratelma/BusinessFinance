@@ -34,27 +34,33 @@ kullanıcıya sorulmaz.
 | 4 | Ekran tasarımı | **Bitti** (23 Kasım), commit `652f728` |
 | 5 | Flutter: liste | **Bitti** (23 Kasım): `Diğer` → `Borç ve alacak` gerçek listeyi açar |
 | 6 | Flutter: kişi sayfası, tahsilat ve ödeme | **Bitti** (23 Kasım): kişi sayfası, `Tahsilat` / `Ödeme`, hareket süzgeci, iptal, indirim; borç para ve vazgeçme akış türleri. Faz 5 ile tek commit |
-| 7 | Flutter: yeni kayıt ve kayıt sayfası | Başlamadı |
+| 7 | Flutter: yeni kayıt ve kayıt sayfası | **Bitti** (23 Kasım; commit edilmedi): `Ne oldu?` → form (kişi seçici, peşin, taksitli + sunucudan önizleme, uygulamadan önce), kayıt sayfası (ödeme, geri alma, plan, indirim, iptal); sunucuda takvim önizlemesi ve taksit tutarı |
 | 8 | Eski yolların kalkması | Başlamadı |
 | 9 | Kabul turu ve kapanış | Başlamadı |
 
 ## Sıradaki tek görev
 
-> **23 Kasım 2026 (kullanıcı kararı):** borç-alacak yeniden sırada. Özet,
-> Planlananlar ve Tekrarlayanlar işinin birlikte testi **ertelendi, kalkmadı**:
-> borç-alacakta biraz ilerledikten sonra yapılır (`stages/06.3-planlananlar/`
-> "Birlikte test", `research/DEVIR-2026-11-22.md`). Çalışma `ozet-tamamlama`
-> dalında sürer; bu dal `borc-alacak-cari`nin (`d359ab7`) üstündedir.
-> `borc-alacak-cari`ye birleşme Faz 5'ten önce, kullanıcı onayıyla.
+> **Sonraki oturumun sırası (kullanıcı kararı, 23 Kasım akşamı):**
+> 1. **Faz 8** ile borç-alacağın kodu biter (aşağıda).
+> 2. Ertelenen **Özet / Planlananlar / Tekrarlayanlar testi**
+>    (`research/DEVIR-2026-11-22.md`, `stages/06.3-planlananlar/KABUL.md`).
+> 3. Borç-alacak aynı şekilde test edilir: **Faz 9** kabul turu (§9
+>    senaryoları emülatörde, Faz 4 kareleriyle yan yana; K15 sapması burada
+>    değerlendirilir) ve kapanış.
+>
+> Devir: `research/DEVIR-2026-11-23.md`. Dal `borc-alacak-cari`
+> (`ozet-tamamlama` buna ileri alındı). **Faz 7 commit edilmedi**
+> (kullanıcıya soruldu).
 
-**Faz 7 — Flutter: yeni kayıt ve kayıt sayfası** (`03-PLAN.md`): Faz 4'ün
-`DebtEntryFormView` (dört form + avans; `Peşin / avans`, `Taksitli`,
-`Uygulamadan önce` blokları, kişi seçici ve yeni kişinin türü) ve
-`DebtRecordView` (taksitli ve kişisiz kaydın sayfası: kısmi ödeme, geri
-alma, plan değişikliği, indirim, iptal) sunucuya bağlanır; `+` ve kayıt
-satırları eski sayfalar yerine bunları açar. Takvim önizlemesi sunucudan.
-Açık: kişinin `⋮` menüsü (düzenle, açılış bakiyesi, pasife al) eski sayfayı
-açıyor (Faz 7–8); `MoneyFoundation_*` genişletmesi (Faz 2'den kalan).
+**Faz 8 — Eski yolların kalkması ve bağlantılar** (`03-PLAN.md`): kişinin `⋮`
+menüsü (düzenle, açılış bakiyesi, pasife al) yeni sayfaya; `Kapananlar` yeni
+listeye; `İşlem ekle` girişleri, fiş "henüz ödemedim" yolu (K10),
+hatırlatmalar; eski `debts`, `counterparties`, `obligations` sayfaları,
+`Cari hesap` menüsü ve ön ayarı, eski uçlar ve testleri silinir.
+**Faz 7'den devreden:** satış iptalinde "avans da silinsin mi" sorusu
+(`?withPaidNow=`; akış satırı satışa bağlı avansı bilmiyor, sunucu alanı
+gerekir); akışta `avans` etiketi kararı; `MoneyFoundation_*` genişletmesi
+(Faz 2'den kalan).
 
 **Kullanıcı incelemesi (23 Kasım kararı):** ekranlara emülatörde, sunucuya
 bağlandıktan sonra bakılır; K15 sapması (hareketler varsayılan olarak tüm
@@ -409,3 +415,26 @@ ve kendi kaydını yazamadı.
   geliştirme veritabanında sentetik deneme hesabı kaldı.
 - **Kapsam dışı görülen:** form panelinde klavye `Kaydet`i örtüyor (bütün
   paneller) → `docs/backlog.md` madde 18.
+
+### 23 Kasım 2026 (devam) — Faz 7: yeni kayıt ve kayıt sayfası
+
+- **Kullanıcı:** "Devam edebilirsin."
+- **Sunucu:** planın tek kuralı `Debt.PlanAmounts` (borç açılışı ve
+  önizleme aynı yerden); `POST /api/v1/debts/schedule-preview` (kaydetmeden
+  plan); borç açılışına `installmentAmount` (K17: toplamı sunucu kurar, istemci
+  çarpmaz). API testi `InstallmentAmount_BuildsTheTotal_AndThePreviewUsesTheSamePlan`.
+- **Kayıt sayfası:** `DebtRecordPage` + `DebtRecordController`: ödeme/tahsilat
+  (ortak panel; kısayollar `Sıradaki taksit`, `Tamamı`; faizlide tam taksit),
+  ödemeye dokununca onaylı geri alma, `⋮` planı değiştir / indirim / iptal,
+  bütün takvim sayfası, kişi bağlantısı. Kapanışın yerinin adı hesap
+  listesinden.
+- **Yeni kayıt:** `DebtEntryPage` (seçenekler, kişi seçici
+  `DebtPersonPickerSheet`, önizleme), `DebtEntryFormView` canlı (doğrulama,
+  form içi ret), `DebtEntrySubmitter` (kaydın nereye gideceği tek yerde).
+  `+` ve kayıt satırları artık yeni sayfaları açıyor.
+- **Emülatör (gerçek API):** `Su faturası` ödendi (kapandı) ve geri alındı;
+  `+` → `Veresiye sattım` → Ayşe Terzi → 100 TL (alacak 6.850 → 6.950) ve
+  kişi sayfasından iptal (2.950'ye döndü). Veri eski hâlinde. Düzeltilen:
+  tek ödemeli kayıtta geri alma onayı "taksit" diyordu.
+- **Bilinçli bırakılan:** satış iptalinde avans sorusu ve akışta avans
+  etiketi (Faz 8'e devir, yukarıda).

@@ -26,7 +26,28 @@ class DebtSettleSheet extends StatefulWidget {
     this.initialAccountId,
     this.initialAmount,
     this.initialDiscount = false,
+    this.subtitle,
+    this.chips,
+    this.fixedAmount,
+    this.overLimitNote,
+    this.allowDiscount = true,
   });
+
+  /// Başlığın altındaki satır; verilmezse kişinin adı ve kalan.
+  final String? subtitle;
+
+  /// Tutar kısayolları (ad, tutar); verilmezse `Tamamı` ve `Gecikmiş`.
+  final List<(String, String)>? chips;
+
+  /// Faizli kayıtta yalnız tam taksit ödenir: tutar sabittir, alan kapalı.
+  final String? fixedAmount;
+
+  /// Tutar kalanı aşınca alanın altındaki not; verilmezse kişinin hesabının
+  /// notu (fazlası karşı yönde kalır).
+  final String? overLimitNote;
+
+  /// `Kalanı indirim say` yalnız kişinin hesabında.
+  final bool allowDiscount;
 
   /// `receivable` tahsilat, `payable` ödeme.
   final DebtSide side;
@@ -81,9 +102,9 @@ class DebtSettlement {
 
 class _DebtSettleSheetState extends State<DebtSettleSheet> {
   late final TextEditingController _amount = TextEditingController(
-    text: widget.initialAmount == null
+    text: (widget.fixedAmount ?? widget.initialAmount) == null
         ? null
-        : MoneyText.field(widget.initialAmount!),
+        : MoneyText.field((widget.fixedAmount ?? widget.initialAmount)!),
   );
   final TextEditingController _description = TextEditingController();
   final String _requestId = newClientRequestId();
@@ -139,7 +160,10 @@ class _DebtSettleSheetState extends State<DebtSettleSheet> {
             ? null
             : _description.text.trim(),
         closeRemainderAsDiscount:
-            !_isCollect && _discount && (_comparedToFull ?? 0) < 0,
+            widget.allowDiscount &&
+            !_isCollect &&
+            _discount &&
+            (_comparedToFull ?? 0) < 0,
       ),
     );
     if (error != null) {
@@ -156,12 +180,22 @@ class _DebtSettleSheetState extends State<DebtSettleSheet> {
     final shortcuts = widget.shortcuts;
     final compared = _comparedToFull;
     final full = MoneyText.format(shortcuts.full, 'TRY');
+    final chips =
+        widget.chips ??
+        [
+          if (shortcuts.hasFull) ('Tamamı', shortcuts.full),
+          if (shortcuts.hasOverdue && shortcuts.overdue != shortcuts.full)
+            ('Gecikmiş', shortcuts.overdue),
+        ];
+    final fixed = widget.fixedAmount != null;
     return AppFormSheet<bool>(
       title: _isCollect ? 'Tahsilat' : 'Ödeme',
-      description: shortcuts.hasFull
-          ? '${widget.personName} · '
-                '${_isCollect ? 'alacağınız' : 'borcunuz'} $full'
-          : widget.personName,
+      description:
+          widget.subtitle ??
+          (shortcuts.hasFull
+              ? '${widget.personName} · '
+                    '${_isCollect ? 'alacağınız' : 'borcunuz'} $full'
+              : widget.personName),
       submitLabel: 'Kaydet',
       onSubmit: _submit,
       errorMessage: _error,
@@ -177,30 +211,27 @@ class _DebtSettleSheetState extends State<DebtSettleSheet> {
                 ),
                 inputFormatters: const [TurkishAmountInputFormatter()],
                 onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
+                readOnly: fixed,
+                decoration: InputDecoration(
                   labelText: 'Tutar',
                   prefixText: '₺',
+                  helperText: fixed
+                      ? 'Faizli kayıtta tam taksit ödenir.'
+                      : null,
                 ),
               ),
-              if (shortcuts.hasFull || shortcuts.hasOverdue) ...[
+              if (!fixed && chips.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.small),
                 Wrap(
                   spacing: AppSpacing.small,
                   runSpacing: AppSpacing.small,
                   children: [
-                    if (shortcuts.hasFull)
-                      ActionChip(
-                        label: Text('Tamamı $full'),
-                        onPressed: () => _use(shortcuts.full),
-                      ),
-                    if (shortcuts.hasOverdue &&
-                        shortcuts.overdue != shortcuts.full)
+                    for (final (label, amount) in chips)
                       ActionChip(
                         label: Text(
-                          'Gecikmiş '
-                          '${MoneyText.format(shortcuts.overdue, 'TRY')}',
+                          '$label ${MoneyText.format(amount, 'TRY')}',
                         ),
-                        onPressed: () => _use(shortcuts.overdue),
+                        onPressed: () => _use(amount),
                       ),
                   ],
                 ),
@@ -208,9 +239,11 @@ class _DebtSettleSheetState extends State<DebtSettleSheet> {
               if (compared != null && compared > 0) ...[
                 const SizedBox(height: AppGaps.notice),
                 DebtFieldNote(
-                  _isCollect
-                      ? 'Kalandan fazla; fazlası kişinin sizdeki alacağı olur.'
-                      : 'Kalandan fazla; fazlası sizin alacağınız olur.',
+                  widget.overLimitNote ??
+                      (_isCollect
+                          ? 'Kalandan fazla; fazlası kişinin sizdeki alacağı '
+                                'olur.'
+                          : 'Kalandan fazla; fazlası sizin alacağınız olur.'),
                 ),
               ],
             ],
@@ -240,7 +273,10 @@ class _DebtSettleSheetState extends State<DebtSettleSheet> {
             ),
           ),
         ),
-        if (!_isCollect && compared != null && compared < 0)
+        if (widget.allowDiscount &&
+            !_isCollect &&
+            compared != null &&
+            compared < 0)
           MergeSemantics(
             child: Row(
               children: [

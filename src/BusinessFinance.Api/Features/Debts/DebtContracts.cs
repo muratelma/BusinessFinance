@@ -39,7 +39,27 @@ public sealed record CreateDebtRequest(
     Guid? CounterpartyId = null,
     bool IsCarriedOver = false,
     DebtUpfrontPaymentRequest? UpfrontPayment = null,
-    Guid? ClientRequestId = null);
+    Guid? ClientRequestId = null,
+
+    // K17 (ADR 0022): kredide kullanıcı bankanın taksit tutarını yazar;
+    // toplam geri ödemeyi sunucu taksit sayısıyla çarparak kurar. Toplam ya da
+    // oranla birlikte gönderilmez.
+    string? InstallmentAmount = null);
+
+/// <summary>
+/// Takvim önizlemesi: kaydetmeden, açılacak planın taksitleri. Tutar ya
+/// toplam (`amount`) ya da taksit tutarıdır (`installmentAmount`).
+/// </summary>
+public sealed record DebtSchedulePreviewRequest(
+    string FirstDueDate,
+    int InstallmentCount,
+    string? Amount = null,
+    string? InstallmentAmount = null);
+
+public sealed record DebtSchedulePreviewItemResponse(int Sequence, string DueDate, string Amount);
+
+public sealed record DebtSchedulePreviewResponse(
+    string TotalRepayment, IReadOnlyList<DebtSchedulePreviewItemResponse> Installments);
 
 /// <summary>Açılışta peşin ödenen tutar; yeri hesap ya da kredi kartıdır.</summary>
 public sealed record DebtUpfrontPaymentRequest(string Amount, Guid? AccountId = null, Guid? CreditCardId = null);

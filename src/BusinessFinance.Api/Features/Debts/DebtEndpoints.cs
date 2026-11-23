@@ -25,6 +25,8 @@ public static class DebtEndpoints
             .ProducesProblem(404).ProducesProblem(409);
 
         // Dalga 2 (ADR 0021): borcun kendisi ve kapanışları, her planda.
+        group.MapPost("/schedule-preview", PreviewScheduleAsync)
+            .Produces<DebtSchedulePreviewResponse>().ProducesProblem(400).ProducesProblem(401);
         group.MapGet("/{debtId:guid}", GetAsync)
             .Produces<DebtResponse>().ProducesProblem(400).ProducesProblem(401).ProducesProblem(404);
         group.MapPost("/{debtId:guid}/payments", RecordPaymentAsync)
@@ -213,12 +215,37 @@ public static class DebtEndpoints
         return true;
     }
 
+    /// <summary>Planı kaydetmeden kurar (yeni kayıt formunun takvim önizlemesi).</summary>
+    private static IResult PreviewScheduleAsync(DebtSchedulePreviewRequest request, HttpContext context)
+    {
+        if (!FinanceContract.TryParseDate(request.FirstDueDate, out var firstDue) ||
+            request.InstallmentCount is < 1 or > MaxPreviewInstallments ||
+            !TryOptionalMoney(request.Amount, out var amount) ||
+            !TryOptionalMoney(request.InstallmentAmount, out var installmentAmount) ||
+            (amount is null) == (installmentAmount is null))
+            return ApiProblemResults.Validation(context, "Preview fields are invalid.", "debt.invalid_contract");
+        var total = amount ?? installmentAmount!.Value * request.InstallmentCount;
+        var plan = Debt.PlanAmounts(total, request.InstallmentCount);
+        return Results.Ok(new DebtSchedulePreviewResponse(
+            FinanceContract.Money(total),
+            [.. plan.Select(item => new DebtSchedulePreviewItemResponse(
+                item.Sequence,
+                FinanceContract.Date(firstDue.AddMonths(item.MonthOffset)),
+                FinanceContract.Money(item.Amount)))]));
+    }
+
+    /// <summary>120 aylık konut kredisinin iki katı; daha büyüğü yazım hatasıdır.</summary>
+    private const int MaxPreviewInstallments = 360;
+
     private static async Task<IResult> CreateAsync(
         CreateDebtRequest request, CreateDebtUseCase useCase, HttpContext context, CancellationToken cancellationToken)
     {
         decimal upfrontAmount = 0m;
         if (!TryMoney(request.Principal, out var principal) ||
             !TryOptionalMoney(request.TotalRepayment, out var total) ||
+            !TryOptionalMoney(request.InstallmentAmount, out var installmentAmount) ||
+            (installmentAmount is not null &&
+             (total is not null || request.AnnualInterestRate is not null || request.InstallmentCount < 1)) ||
             !TryOptionalRate(request.AnnualInterestRate, out var rate) ||
             !FinanceContract.TryParseDate(request.StartDate, out var start) ||
             !TryOptionalDate(request.FirstDueDate, out var firstDue) ||
@@ -230,6 +257,10 @@ public static class DebtEndpoints
             (request.UpfrontPayment is not null && !TryMoney(request.UpfrontPayment.Amount, out upfrontAmount)) ||
             !string.Equals(request.Currency, "TRY", StringComparison.OrdinalIgnoreCase))
             return ApiProblemResults.Validation(context, "Debt fields are invalid.", "debt.invalid_contract");
+        // K17: taksit tutarından toplam geri ödeme (faiz sunucuda oran olarak
+        // türetilir; uygulama faiz hesaplamaz).
+        if (installmentAmount is decimal perInstallment)
+            total = perInstallment * request.InstallmentCount;
         var result = await useCase.ExecuteAsync(new CreateDebtCommand(
             request.CounterpartyName, direction, scope, principal, total, rate, CurrencyCode.TRY,
             sourceType, request.OpeningAccountId, request.CategoryId,

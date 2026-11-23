@@ -1,5 +1,7 @@
+import '../../../core/localization/default_category_labels.dart';
 import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/api_response.dart';
 import '../../activities/data/activity_models.dart';
 import 'debt_book_models.dart';
 
@@ -33,6 +35,43 @@ abstract interface class DebtBookRepositoryContract {
 
   /// `POST /api/v1/counterparty-charges/{id}/discounts`.
   Future<void> discountCharge(String chargeId, Map<String, Object?> body);
+
+  /// `GET /api/v1/debts/{id}`: taksitli ya da kişisiz kaydın sayfası.
+  Future<DebtRecordData> loadRecord(String debtId, {required String asOfDate});
+
+  /// Kayda ödeme ya da tahsilat, indirim, plan değişikliği; geri alma ve
+  /// iptal. Hepsi kaydın güncel hâlini döner (iptal hariç).
+  Future<void> payRecord(String debtId, Map<String, Object?> body);
+  Future<void> reverseRecordPayment(
+    String debtId,
+    String paymentId, {
+    required String asOfDate,
+  });
+  Future<void> discountRecord(String debtId, Map<String, Object?> body);
+  Future<void> changeRecordPlan(String debtId, Map<String, Object?> body);
+  Future<void> cancelRecord(String debtId, {required String asOfDate});
+
+  /// Yeni kayıt formu: kategoriler, hesaplar, kartlar ve POS'lar.
+  Future<DebtEntryOptions> loadEntryOptions();
+
+  /// Yeni kişi; kimliğini döner.
+  Future<String> createCounterparty(String name, {TransactionScope? scope});
+
+  Future<void> createCharge(String counterpartyId, Map<String, Object?> body);
+  Future<void> createLoan(String counterpartyId, Map<String, Object?> body);
+  Future<void> recordPayment(String counterpartyId, Map<String, Object?> body);
+
+  /// `PUT /api/v1/counterparties/{id}/opening-balance`.
+  Future<void> setOpeningBalance(
+    String counterpartyId, {
+    required String receivable,
+    required String payable,
+  });
+
+  /// `POST /api/v1/debts`; kaydın kimliğini döner.
+  Future<String> createDebt(Map<String, Object?> body);
+
+  Future<DebtSchedulePreview> previewSchedule(Map<String, Object?> body);
 }
 
 class DebtBookRepository implements DebtBookRepositoryContract {
@@ -139,6 +178,135 @@ class DebtBookRepository implements DebtBookRepositoryContract {
     '/api/v1/counterparty-charges/$chargeId/discounts',
     body: body,
   );
+
+  @override
+  Future<DebtRecordData> loadRecord(
+    String debtId, {
+    required String asOfDate,
+  }) async {
+    final response = await _client.get(
+      '/api/v1/debts/$debtId?asOfDate=$asOfDate',
+    );
+    return DebtRecordData.fromJson(response.requireObject());
+  }
+
+  @override
+  Future<void> payRecord(String debtId, Map<String, Object?> body) async =>
+      _client.post('/api/v1/debts/$debtId/payments', body: body);
+
+  @override
+  Future<void> reverseRecordPayment(
+    String debtId,
+    String paymentId, {
+    required String asOfDate,
+  }) async => _client.delete(
+    '/api/v1/debts/$debtId/payments/$paymentId?asOfDate=$asOfDate',
+  );
+
+  @override
+  Future<void> discountRecord(String debtId, Map<String, Object?> body) async =>
+      _client.post('/api/v1/debts/$debtId/discounts', body: body);
+
+  @override
+  Future<void> changeRecordPlan(
+    String debtId,
+    Map<String, Object?> body,
+  ) async => _client.put('/api/v1/debts/$debtId/plan', body: body);
+
+  @override
+  Future<void> cancelRecord(String debtId, {required String asOfDate}) async =>
+      _client.delete('/api/v1/debts/$debtId?asOfDate=$asOfDate');
+
+  @override
+  Future<DebtEntryOptions> loadEntryOptions() async {
+    final results = await Future.wait([
+      _client.get('/api/v1/categories?isActive=true'),
+      loadSettleSources(),
+    ]);
+    final categories = [
+      for (final item
+          in (results[0] as ApiResponse).requireObject()['items'] as List? ??
+              const [])
+        if (item is Map<String, dynamic>) item,
+    ];
+    ({String id, String name, TransactionScope? scope}) choice(
+      Map<String, dynamic> item,
+    ) => (
+      id: item['id'] as String,
+      name: DefaultCategoryLabels.localized(item['name'] as String),
+      scope: TransactionScope.fromApiOrNull(item['defaultScope']),
+    );
+    return DebtEntryOptions(
+      incomeCategories: [
+        for (final item in categories)
+          if (item['type'] == 'income') choice(item),
+      ],
+      expenseCategories: [
+        for (final item in categories)
+          if (item['type'] == 'expense') choice(item),
+      ],
+      sources: results[1] as DebtSettleSources,
+    );
+  }
+
+  @override
+  Future<String> createCounterparty(
+    String name, {
+    TransactionScope? scope,
+  }) async {
+    final response = await _client.post(
+      '/api/v1/counterparties',
+      body: {'name': name, 'scope': ?scope?.apiValue},
+    );
+    return response.requireObject()['id'] as String;
+  }
+
+  @override
+  Future<void> createCharge(
+    String counterpartyId,
+    Map<String, Object?> body,
+  ) async => _client.post(
+    '/api/v1/counterparties/$counterpartyId/charges',
+    body: body,
+  );
+
+  @override
+  Future<void> createLoan(
+    String counterpartyId,
+    Map<String, Object?> body,
+  ) async =>
+      _client.post('/api/v1/counterparties/$counterpartyId/loans', body: body);
+
+  @override
+  Future<void> recordPayment(
+    String counterpartyId,
+    Map<String, Object?> body,
+  ) => settle(counterpartyId, body);
+
+  @override
+  Future<void> setOpeningBalance(
+    String counterpartyId, {
+    required String receivable,
+    required String payable,
+  }) async => _client.put(
+    '/api/v1/counterparties/$counterpartyId/opening-balance',
+    body: {'receivable': receivable, 'payable': payable},
+  );
+
+  @override
+  Future<String> createDebt(Map<String, Object?> body) async {
+    final response = await _client.post('/api/v1/debts', body: body);
+    return response.requireObject()['id'] as String;
+  }
+
+  @override
+  Future<DebtSchedulePreview> previewSchedule(Map<String, Object?> body) async {
+    final response = await _client.post(
+      '/api/v1/debts/schedule-preview',
+      body: body,
+    );
+    return DebtSchedulePreview.fromJson(response.requireObject());
+  }
 
   @override
   Future<void> settle(String counterpartyId, Map<String, Object?> body) async =>

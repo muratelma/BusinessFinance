@@ -59,7 +59,10 @@ import '../../features/counterparties/presentation/counterparties_controller.dar
 import '../../features/counterparties/presentation/counterparty_detail_page.dart';
 import '../../features/debt_book/data/debt_book_repository.dart';
 import '../../features/debt_book/presentation/counterparty_page.dart';
+import '../../features/debt_book/data/debt_book_models.dart';
 import '../../features/debt_book/presentation/debt_book_page.dart';
+import '../../features/debt_book/presentation/debt_entry_page.dart';
+import '../../features/debt_book/presentation/debt_record_page.dart';
 import '../../features/debt_book/presentation/debt_entry_sheet.dart';
 import '../../features/goals/data/goal_repository.dart';
 import '../../features/goals/presentation/goals_page.dart';
@@ -686,51 +689,39 @@ GoRouter createAppRouter({
           authController,
         ),
       ),
-      // Borç ve alacak (ADR 0022, Faz 5–6): liste ve kişi sayfası yeni. Yeni
-      // kayıt formları ve kayıt sayfası Faz 7'de bağlanır; o zamana kadar
-      // `+`, kayıt satırları ve kişinin `⋮`u eski sayfaları açar.
+      // Borç ve alacak (ADR 0022, Faz 5–7): liste, kişi sayfası ve kayıt
+      // sayfası yeni. Yeni kayıt formları bağlanana kadar `+`, `Kapananlar`
+      // ve kişinin `⋮`u eski sayfaları açar.
       GoRoute(
         path: '/more/debt-book',
-        pageBuilder: (context, state) => _sessionPage(
-          state,
-          debtBookRepository == null
-              ? const Scaffold(
-                  body: AppErrorView(message: 'Borç servisi yapılandırılmadı.'),
-                )
-              : DebtBookPage(
-                  repository: debtBookRepository,
-                  scopeController: scopeController,
-                  changes: financialDataChanges,
-                  personPage: (id, name) => CounterpartyPage(
+        pageBuilder: (context, state) {
+          final pages = _DebtBookPages(
+            repository: debtBookRepository,
+            activityRepository: activityRepository,
+            counterpartyRepository: counterpartyRepository,
+            posRepository: posRepository,
+            changes: financialDataChanges,
+          );
+          return _sessionPage(
+            state,
+            debtBookRepository == null
+                ? const Scaffold(
+                    body: AppErrorView(
+                      message: 'Borç servisi yapılandırılmadı.',
+                    ),
+                  )
+                : DebtBookPage(
                     repository: debtBookRepository,
-                    counterpartyId: id,
-                    name: name,
-                    activityRepository: activityRepository,
+                    scopeController: scopeController,
                     changes: financialDataChanges,
-                    onOpenRecord: (_) => context.push('/more/debts'),
-                    onEntry: (kind) => context.push(switch (kind) {
-                      DebtEntryKind.lend ||
-                      DebtEntryKind.borrow => '/more/debts',
-                      _ => '/more/counterparties',
-                    }),
-                    managePage: counterpartyRepository == null
-                        ? null
-                        : (_) => _LegacyCounterpartyDetail(
-                            repository: counterpartyRepository,
-                            changes: financialDataChanges,
-                            posRepository: posRepository,
-                            counterpartyId: id,
-                          ),
+                    personPage: pages.person,
+                    recordPage: pages.record,
+                    onOpenClosed: (_) => context.push('/more/debts'),
+                    entryPage: pages.entry,
                   ),
-                  onOpenItem: (_) => context.push('/more/debts'),
-                  onOpenClosed: (_) => context.push('/more/debts'),
-                  onEntry: (kind) => context.push(switch (kind) {
-                    DebtEntryKind.lend || DebtEntryKind.borrow => '/more/debts',
-                    _ => '/more/counterparties',
-                  }),
-                ),
-          authController,
-        ),
+            authController,
+          );
+        },
       ),
       GoRoute(
         path: '/more/debts',
@@ -1636,5 +1627,56 @@ class _LegacyCounterpartyDetailState extends State<_LegacyCounterpartyDetail> {
   Widget build(BuildContext context) => CounterpartyDetailPage(
     controller: _controller,
     counterpartyId: widget.counterpartyId,
+  );
+}
+
+/// `Borç ve alacak` sayfalarının birbirini açması: kişiden taksitli kayda,
+/// kayıttan kişiye, ikisinden de yeni kayıt formuna.
+class _DebtBookPages {
+  _DebtBookPages({
+    required this.repository,
+    this.activityRepository,
+    this.counterpartyRepository,
+    this.posRepository,
+    this.changes,
+  });
+
+  final DebtBookRepositoryContract? repository;
+  final ActivityRepositoryContract? activityRepository;
+  final CounterpartyRepositoryContract? counterpartyRepository;
+  final PosRepositoryContract? posRepository;
+  final FinancialDataChanges? changes;
+
+  Widget person(String id, String name) => CounterpartyPage(
+    repository: repository!,
+    counterpartyId: id,
+    name: name,
+    activityRepository: activityRepository,
+    changes: changes,
+    recordPage: record,
+    entryPage: entry,
+    managePage: counterpartyRepository == null
+        ? null
+        : (_) => _LegacyCounterpartyDetail(
+            repository: counterpartyRepository!,
+            changes: changes,
+            posRepository: posRepository,
+            counterpartyId: id,
+          ),
+  );
+
+  Widget entry(DebtEntryKind kind, DebtPersonChoice? person) => DebtEntryPage(
+    repository: repository!,
+    kind: kind,
+    person: person,
+    changes: changes,
+  );
+
+  Widget record(String id, String title) => DebtRecordPage(
+    repository: repository!,
+    debtId: id,
+    title: title,
+    changes: changes,
+    personPage: person,
   );
 }

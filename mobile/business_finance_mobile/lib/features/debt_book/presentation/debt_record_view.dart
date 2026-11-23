@@ -28,7 +28,17 @@ class DebtRecordView extends StatelessWidget {
     this.onOpenPerson,
     this.onShowSchedule,
     this.onOpenClosing,
+    this.notice,
+    this.onRefresh,
+    this.moreMenu,
   });
+
+  /// Başlıktaki `⋮` yerine çizilen menü (canlı sayfa); verilmezse [onMore].
+  final Widget? moreMenu;
+
+  /// Özetin üstündeki not (`Sayfa güncellenemedi.`).
+  final Widget? notice;
+  final Future<void> Function()? onRefresh;
 
   /// Takvimde görünen açık taksit sayısı (K18).
   static const int scheduleLimit = 3;
@@ -63,73 +73,88 @@ class DebtRecordView extends StatelessWidget {
           title: record.title,
           onBack: onBack,
           actions: [
-            IconButton(
-              tooltip: 'Diğer seçenekler',
-              icon: const Icon(Icons.more_vert),
-              onPressed: onMore,
-            ),
+            moreMenu ??
+                IconButton(
+                  tooltip: 'Diğer seçenekler',
+                  icon: const Icon(Icons.more_vert),
+                  onPressed: onMore,
+                ),
           ],
         ),
         Expanded(
-          child: ListView(
-            padding: AppPageInsets.aboveBar(context, AppPageInsets.list),
-            children: [
-              _RecordSummary(
-                record: record,
-                scopeVisible: scopeVisible,
-                onOpenPerson: onOpenPerson,
-              ),
-              if (!closed) ...[
-                const SizedBox(height: AppGaps.block),
-                FilledButton(onPressed: onPay, child: Text(_actionLabel)),
-              ],
-              if (record.isInstallment && open.isNotEmpty) ...[
+          child: _refreshable(
+            ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: AppPageInsets.aboveBar(context, AppPageInsets.list),
+              children: [
+                if (notice != null) ...[
+                  notice!,
+                  const SizedBox(height: AppGaps.notice),
+                ],
+                _RecordSummary(
+                  record: record,
+                  scopeVisible: scopeVisible,
+                  onOpenPerson: onOpenPerson,
+                ),
+                if (!closed) ...[
+                  const SizedBox(height: AppGaps.block),
+                  FilledButton(onPressed: onPay, child: Text(_actionLabel)),
+                ],
+                if (record.isInstallment && open.isNotEmpty) ...[
+                  const SizedBox(height: AppGaps.section),
+                  const AppSectionHeader(title: 'Takvim'),
+                  DebtSectionCard(
+                    indent: AppIconCapsule.rowInset,
+                    children: [
+                      for (final item in open.take(scheduleLimit))
+                        _InstallmentRow(item: item),
+                      if (record.installments.length > scheduleLimit)
+                        _ShowAllRow(
+                          count: record.installments.length,
+                          onTap: onShowSchedule,
+                        ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: AppGaps.section),
-                const AppSectionHeader(title: 'Takvim'),
-                DebtSectionCard(
-                  indent: AppIconCapsule.rowInset,
-                  children: [
-                    for (final item in open.take(scheduleLimit))
-                      _InstallmentRow(item: item),
-                    if (record.installments.length > scheduleLimit)
-                      _ShowAllRow(
-                        count: record.installments.length,
-                        onTap: onShowSchedule,
-                      ),
-                  ],
+                AppSectionHeader(
+                  title: record.side == DebtSide.receivable
+                      ? 'Tahsilatlar'
+                      : 'Ödemeler',
                 ),
+                if (closings.isEmpty)
+                  AppSectionEmpty(
+                    record.side == DebtSide.receivable
+                        ? 'Henüz tahsilat yok.'
+                        : 'Henüz ödeme yok.',
+                  )
+                else
+                  DebtSectionCard(
+                    indent: AppIconCapsule.rowInset,
+                    children: [
+                      for (final closing in closings.reversed)
+                        _ClosingRow(
+                          closing: closing,
+                          paymentLabel: record.side == DebtSide.receivable
+                              ? 'Tahsilat'
+                              : 'Ödeme',
+                          onTap: () => onOpenClosing?.call(closing),
+                        ),
+                    ],
+                  ),
               ],
-              const SizedBox(height: AppGaps.section),
-              AppSectionHeader(
-                title: record.side == DebtSide.receivable
-                    ? 'Tahsilatlar'
-                    : 'Ödemeler',
-              ),
-              if (closings.isEmpty)
-                AppSectionEmpty(
-                  record.side == DebtSide.receivable
-                      ? 'Henüz tahsilat yok.'
-                      : 'Henüz ödeme yok.',
-                )
-              else
-                DebtSectionCard(
-                  indent: AppIconCapsule.rowInset,
-                  children: [
-                    for (final closing in closings.reversed)
-                      _ClosingRow(
-                        closing: closing,
-                        paymentLabel: record.side == DebtSide.receivable
-                            ? 'Tahsilat'
-                            : 'Ödeme',
-                        onTap: () => onOpenClosing?.call(closing),
-                      ),
-                  ],
-                ),
-            ],
+            ),
           ),
         ),
       ],
     );
+  }
+
+  Widget _refreshable(Widget list) {
+    final refresh = onRefresh;
+    return refresh == null
+        ? list
+        : RefreshIndicator(onRefresh: refresh, child: list);
   }
 }
 

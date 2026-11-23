@@ -310,6 +310,62 @@ public sealed class DebtEndpointTests
     }
 
     [Fact]
+    public async Task InstallmentAmount_BuildsTheTotal_AndThePreviewUsesTheSamePlan()
+    {
+        await using var factory = new BusinessFinanceApiFactory();
+        using var owner = await CreateAuthenticatedClientAsync(factory, "debt-installment-amount@example.test");
+        var account = await CreateAccountAsync(owner);
+
+        // K17: bankanın taksit tutarı yazılır; toplamı sunucu kurar.
+        using var preview = await owner.PostAsJsonAsync(
+            "/api/v1/debts/schedule-preview",
+            new DebtSchedulePreviewRequest("2026-09-15", 12, InstallmentAmount: "11250.0000"));
+        Assert.Equal(HttpStatusCode.OK, preview.StatusCode);
+        var plan = (await preview.Content.ReadFromJsonAsync<DebtSchedulePreviewResponse>())!;
+        Assert.Equal("135000.0000", plan.TotalRepayment);
+        Assert.Equal(12, plan.Installments.Count);
+        Assert.Equal("2026-09-15", plan.Installments[0].DueDate);
+        Assert.Equal("2027-08-15", plan.Installments[^1].DueDate);
+        Assert.All(plan.Installments, item => Assert.Equal("11250.0000", item.Amount));
+
+        // Toplamla önizleme: yuvarlama farkı son taksitte, borcun planıyla aynı.
+        using var byTotal = await owner.PostAsJsonAsync(
+            "/api/v1/debts/schedule-preview",
+            new DebtSchedulePreviewRequest("2026-09-01", 3, Amount: "1000.0000"));
+        var even = (await byTotal.Content.ReadFromJsonAsync<DebtSchedulePreviewResponse>())!;
+        Assert.Equal(["333.3333", "333.3333", "333.3334"], even.Installments.Select(item => item.Amount));
+
+        using var created = await owner.PostAsJsonAsync(
+            "/api/v1/debts",
+            new CreateDebtRequest(
+                "Banka", "payable", "business", "120000.0000", null, null, "TRY",
+                "cash", account.Id, null,
+                "2026-08-11", "2026-09-15", 12, "Kredi", "2026-08-11",
+                InstallmentAmount: "11250.0000"));
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var debt = (await created.Content.ReadFromJsonAsync<DebtResponse>())!;
+        Assert.Equal("135000.0000", debt.TotalRepayment);
+        Assert.Equal(
+            plan.Installments.Select(item => (item.DueDate, item.Amount)),
+            debt.Installments.Select(item => (item.DueDate!, item.Amount)));
+
+        // Taksit tutarı toplam ya da oranla birlikte gönderilmez; ikisi de yoksa
+        // önizleme reddedilir.
+        using var both = await owner.PostAsJsonAsync(
+            "/api/v1/debts",
+            new CreateDebtRequest(
+                "Banka", "payable", "business", "120000.0000", "135000.0000", null, "TRY",
+                "cash", account.Id, null,
+                "2026-08-11", "2026-09-15", 12, null, "2026-08-11",
+                InstallmentAmount: "11250.0000"));
+        Assert.Equal(HttpStatusCode.BadRequest, both.StatusCode);
+        using var empty = await owner.PostAsJsonAsync(
+            "/api/v1/debts/schedule-preview",
+            new DebtSchedulePreviewRequest("2026-09-01", 3));
+        Assert.Equal(HttpStatusCode.BadRequest, empty.StatusCode);
+    }
+
+    [Fact]
     public async Task InterestRate_AndTotalRepayment_AreTwoWaysToSayTheSameThing()
     {
         await using var factory = new BusinessFinanceApiFactory();

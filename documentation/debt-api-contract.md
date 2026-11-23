@@ -24,6 +24,17 @@ alanların hepsi isteğe bağlıdır:
 | `isCarriedOver` | Uygulamadan önceki borç (ADR 0021 İ5): hesap ve kategori boştur, para hareketi ve gelir/gider yazılmaz; `principal` "itibarıyla" kalandır |
 | `upfrontPayment` | `{ amount, accountId? , creditCardId? }` — açılışta peşin ödenen kısım; yeri tam olarak biridir |
 | `clientRequestId` | Aynı kimlikle tekrarlanan istek ikinci borç yazmaz |
+| `installmentAmount` | K17 (23 Kasım 2026): bankanın taksit tutarı; toplam geri ödeme `installmentAmount × installmentCount` olarak sunucuda kurulur (oran ondan türetilir). `totalRepayment` ya da `annualInterestRate` ile birlikte gönderilmez (`debt.invalid_contract`) |
+
+### `POST /api/v1/debts/schedule-preview` — takvim önizlemesi
+
+`{ "firstDueDate", "installmentCount", "amount"? , "installmentAmount"? }` —
+tutar ya toplam (`amount`) ya taksit tutarıdır, tam olarak biri. Kaydetmeden
+açılacak planın taksitlerini döner: `{ "totalRepayment", "installments": [
+{ "sequence", "dueDate", "amount" } ] }`. Plan borç açılışıyla **aynı
+kuraldan** kurulur (`Debt.PlanAmounts`: toplam eşit bölünür, yuvarlama farkı
+son taksitte, aylık). Taksit sayısı 1–360. Yeni kayıt formunun `Taksitli`
+bloğu okur.
 
 `sourceType`: `cash` (borç para; `openingAccountId` ister), `expense` /
 `income` (ödenecek alım ya da tahsil edilecek satış; `categoryId` ister).

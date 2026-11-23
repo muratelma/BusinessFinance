@@ -24,7 +24,7 @@ import 'debt_settle_sheet.dart';
 
 /// Kişi sayfası (Faz 6): özet, `Tahsilat` / `Ödeme`, taksitli kayıtlar ve
 /// hareketler. Yeni kayıt formları Faz 7'de bağlanır; o zamana kadar `+`
-/// seçimi [onEntry] ile eski sayfalara gider, `⋮` eski kişi sayfasını
+/// seçimi [entryPage]'i kişi dolu açar, `⋮` eski kişi sayfasını
 /// (düzenle, açılış bakiyesi, sil) açar.
 class CounterpartyPage extends StatefulWidget {
   const CounterpartyPage({
@@ -34,9 +34,9 @@ class CounterpartyPage extends StatefulWidget {
     super.key,
     this.activityRepository,
     this.changes,
-    this.onEntry,
+    this.entryPage,
     this.managePage,
-    this.onOpenRecord,
+    this.recordPage,
   });
 
   final DebtBookRepositoryContract repository;
@@ -46,12 +46,17 @@ class CounterpartyPage extends StatefulWidget {
   final String name;
   final ActivityRepositoryContract? activityRepository;
   final FinancialDataChanges? changes;
-  final ValueChanged<DebtEntryKind>? onEntry;
+
+  /// Yeni kayıt formu; kişi dolu ve kilitli gelir.
+  final Widget Function(DebtEntryKind kind, DebtPersonChoice? person)?
+  entryPage;
 
   /// Eski kişi sayfası (düzenle, açılış bakiyesi, sil); `⋮` açar ve dönüşte
   /// sayfa yenilenir. Faz 7–8'de yeni menüyle değişir.
   final WidgetBuilder? managePage;
-  final ValueChanged<DebtBookItem>? onOpenRecord;
+
+  /// Taksitli kaydın sayfası (kimlik, başlık); dönüşte sayfa yenilenir.
+  final Widget Function(String debtId, String title)? recordPage;
 
   @override
   State<CounterpartyPage> createState() => _CounterpartyPageState();
@@ -101,7 +106,17 @@ class _CounterpartyPageState extends State<CounterpartyPage> {
       builder: (_) =>
           DebtEntrySheet(personName: page.name, personActive: page.isActive),
     );
-    if (kind != null && mounted) widget.onEntry?.call(kind);
+    final builder = widget.entryPage;
+    if (kind == null || builder == null || !mounted) return;
+    final person = DebtPersonChoice(
+      id: page.id,
+      name: page.name,
+      scope: page.scope,
+    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<bool>(builder: (_) => builder(kind, person)));
+    if (mounted) await _controller.load();
   }
 
   Future<void> _settle(CounterpartyPageData page, DebtSide side) async {
@@ -165,6 +180,14 @@ class _CounterpartyPageState extends State<CounterpartyPage> {
       ),
     );
     return done ?? false;
+  }
+
+  Future<void> _openRecord(DebtBookItem record) async {
+    final builder = widget.recordPage!;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => builder(record.id, record.title)),
+    );
+    if (mounted) await _controller.load();
   }
 
   Future<void> _manage() async {
@@ -240,7 +263,7 @@ class _CounterpartyPageState extends State<CounterpartyPage> {
             onMore: widget.managePage == null ? null : _manage,
             onCollect: () => _settle(page, DebtSide.receivable),
             onPay: () => _settle(page, DebtSide.payable),
-            onOpenRecord: widget.onOpenRecord,
+            onOpenRecord: widget.recordPage == null ? null : _openRecord,
             onOpenMovement: _openMovement,
             onFilter: () => _filter(page),
             filterLabels: _controller.filter.labels,

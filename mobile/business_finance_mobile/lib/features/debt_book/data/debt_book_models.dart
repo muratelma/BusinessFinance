@@ -264,6 +264,8 @@ class CounterpartyPageData {
     this.nextPayableDueDate,
     this.nextPayableDueAmount = '0.0000',
     this.records = const [],
+    this.openingReceivable = '0.0000',
+    this.openingPayable = '0.0000',
   });
 
   factory CounterpartyPageData.fromJson(Map<String, dynamic> json) =>
@@ -273,6 +275,10 @@ class CounterpartyPageData {
         note: JsonReaders.nullableString(json, 'note'),
         isActive: (json['isActive'] as bool?) ?? true,
         scope: _scopeOf(json),
+        openingReceivable:
+            JsonReaders.nullableString(json, 'openingReceivable') ?? '0.0000',
+        openingPayable:
+            JsonReaders.nullableString(json, 'openingPayable') ?? '0.0000',
         owedToYou: JsonReaders.string(json, 'owedToYou'),
         owedByYou: JsonReaders.string(json, 'owedByYou'),
         overdueReceivable: JsonReaders.string(json, 'overdueReceivable'),
@@ -316,6 +322,10 @@ class CounterpartyPageData {
   final DebtShortcuts collect;
   final DebtShortcuts pay;
   final List<DebtBookItem> records;
+
+  /// Devreden (uygulamadan önceki) bakiye; bakiyenin içindedir.
+  final String openingReceivable;
+  final String openingPayable;
 
   bool get owesYou => _positive(owedToYou);
   bool get youOwe => _positive(owedByYou);
@@ -376,6 +386,9 @@ class DebtRecordClosing {
     required this.date,
     this.sourceName,
     this.isCancelled = false,
+    this.accountId,
+    this.creditCardId,
+    this.isPos = false,
   });
 
   factory DebtRecordClosing.fromJson(Map<String, dynamic> json) =>
@@ -385,7 +398,29 @@ class DebtRecordClosing {
         amount: JsonReaders.string(json, 'amount'),
         date: JsonReaders.string(json, 'date'),
         isCancelled: (json['isCancelled'] as bool?) ?? false,
+        accountId: JsonReaders.nullableString(json, 'accountId'),
+        creditCardId: JsonReaders.nullableString(json, 'creditCardId'),
+        isPos: JsonReaders.nullableString(json, 'posSettlementId') != null,
       );
+
+  final String? accountId;
+  final String? creditCardId;
+
+  /// Kartla (POS) tahsil edildi.
+  final bool isPos;
+
+  /// Paranın yerinin adı verilmiş kopya.
+  DebtRecordClosing named(String? name) => DebtRecordClosing(
+    id: id,
+    isDiscount: isDiscount,
+    amount: amount,
+    date: date,
+    sourceName: name,
+    isCancelled: isCancelled,
+    accountId: accountId,
+    creditCardId: creditCardId,
+    isPos: isPos,
+  );
 
   final String id;
   final bool isDiscount;
@@ -414,6 +449,7 @@ class DebtRecordData {
     this.isInterestBearing = false,
     this.remainingPrincipal,
     this.isCarriedOver = false,
+    this.sourceType,
   });
 
   factory DebtRecordData.fromJson(Map<String, dynamic> json) {
@@ -437,6 +473,7 @@ class DebtRecordData {
         'remainingPrincipal',
       ),
       isCarriedOver: (json['isCarriedOver'] as bool?) ?? false,
+      sourceType: JsonReaders.nullableString(json, 'sourceType'),
       installments: [
         for (final item in JsonReaders.list(json, 'installments'))
           DebtRecordInstallment.fromJson(
@@ -467,6 +504,9 @@ class DebtRecordData {
   /// yalnız faizli kayıtta çizilir.
   final String? remainingPrincipal;
   final bool isCarriedOver;
+
+  /// `cash` (borç para) · `expense` / `income` (kayıtlı alım ya da satış).
+  final String? sourceType;
   final List<DebtRecordInstallment> installments;
   final List<DebtRecordClosing> closings;
 
@@ -478,6 +518,23 @@ class DebtRecordData {
   ];
 
   int get paidCount => installments.where((item) => item.isPaid).length;
+
+  bool get isClosed => !_positive(remaining);
+
+  /// İndirim yalnız kayıtlı alım ya da satışta, devredilmemiş ve faizsiz
+  /// borçta (`debt.discount_unavailable`).
+  bool get canDiscount =>
+      !isClosed &&
+      !isCarriedOver &&
+      !isInterestBearing &&
+      (sourceType == 'expense' || sourceType == 'income');
+
+  /// Faizli borcun planı değişmez (kullanıcı kararı, 16 Ekim 2026).
+  bool get canChangePlan => !isClosed && !isInterestBearing;
+
+  /// Faizli borçta yalnız tam taksit ödenir: tutar sıradaki taksittir.
+  String? get fixedPaymentAmount =>
+      isInterestBearing ? openInstallments.firstOrNull?.openAmount : null;
 }
 
 /// Kişinin hareketlerinde tür süzgeci (K15).
@@ -579,4 +636,65 @@ class DebtSettleSources {
   final List<DebtSettleSource> accounts;
   final List<DebtSettleSource> cards;
   final List<DebtSettleSource> posDefinitions;
+}
+
+/// Formdaki kişi: var olan (kimlikli) ya da kayıtta oluşturulacak yeni kişi.
+class DebtPersonChoice {
+  const DebtPersonChoice({required this.name, this.id, this.scope});
+
+  final String? id;
+  final String name;
+
+  /// Yeni kişinin türü (kapsam görünen kullanıcıda sorulur).
+  final TransactionScope? scope;
+
+  bool get isNew => id == null;
+}
+
+/// Sunucunun takvim önizlemesi (`POST /api/v1/debts/schedule-preview`).
+class DebtSchedulePreview {
+  const DebtSchedulePreview({
+    required this.totalRepayment,
+    required this.items,
+  });
+
+  factory DebtSchedulePreview.fromJson(Map<String, dynamic> json) =>
+      DebtSchedulePreview(
+        totalRepayment: JsonReaders.string(json, 'totalRepayment'),
+        items: [
+          for (final item in JsonReaders.list(json, 'installments'))
+            (
+              sequence: JsonReaders.integer(
+                JsonReaders.object(item, 'installment'),
+                'sequence',
+              ),
+              dueDate: JsonReaders.string(
+                JsonReaders.object(item, 'installment'),
+                'dueDate',
+              ),
+              amount: JsonReaders.string(
+                JsonReaders.object(item, 'installment'),
+                'amount',
+              ),
+            ),
+        ],
+      );
+
+  final String totalRepayment;
+  final List<({int sequence, String dueDate, String amount})> items;
+}
+
+/// Yeni kayıt formunun seçenekleri: kategoriler ve paranın yerleri.
+class DebtEntryOptions {
+  const DebtEntryOptions({
+    required this.incomeCategories,
+    required this.expenseCategories,
+    required this.sources,
+  });
+
+  final List<({String id, String name, TransactionScope? scope})>
+  incomeCategories;
+  final List<({String id, String name, TransactionScope? scope})>
+  expenseCategories;
+  final DebtSettleSources sources;
 }

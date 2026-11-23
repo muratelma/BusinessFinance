@@ -5,6 +5,10 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
 
 ## Aktif konum
 
+- **23 Kasım 2026 akşamı · sıradaki oturum (kullanıcı kararı)**. 1) Borç-alacak Faz 8 (eski yolların kalkması; kodun son fazı), 2) ertelenen Özet/Planlananlar/Tekrarlayanlar testi, 3) borç-alacağın aynı şekilde testi (Faz 9, kabul turu ve kapanış). Faz 7 commit edilmedi. Devir: `research/DEVIR-2026-11-23.md`.
+
+- **23 Kasım 2026 · Borç ve alacak Faz 7 (yeni kayıt ve kayıt sayfası; dal `borc-alacak-cari`)**. `+` → `Ne oldu?` → form (kişi seçici, peşin, taksitli ve sunucudan takvim önizlemesi, uygulamadan önce); kaydın nereye yazılacağını uygulama seçer. Taksitli/kişisiz kayıt sayfası: ödeme, geri alma, plan, indirim, iptal. Sunucuda `POST /api/v1/debts/schedule-preview` ve borç açılışında `installmentAmount`. Emülatörde gerçek API ile ödeme/geri alma ve satış/iptal denendi. Sıradaki Faz 8 (eski yolların kalkması).
+
 - **23 Kasım 2026 · Borç ve alacak Faz 6 (kişi sayfası, tahsilat ve ödeme; dal `borc-alacak-cari`)**. Listedeki kişi yeni kişi sayfasını açar: özet, `Tahsilat` / `Ödeme` (hesap, POS, kredi kartı, `Kalanı indirim say`), sayfalı ve süzülen hareketler, ayrıntıdan iptal ve indirim. Borç para ve vazgeçme akış türleri istemcide tanınıyor. Emülatörde gerçek API ile tahsilat ve iptal denendi; iki kusur bulunup düzeltildi. Faz 5 ile tek commit. Sıradaki Faz 7 (yeni kayıt formları ve kayıt sayfası).
 
 - **23 Kasım 2026 · Borç ve alacak Faz 5 (liste gerçek veride; dal `borc-alacak-cari`)**. `Diğer` → `Borç ve alacak` sunucunun listesini (`/api/v1/debt-book`) okur; kapsam anahtarını izler, yenileme düşerse eski liste kalır. Satırlar ve `+` Faz 6–7'ye kadar eski sayfaları açar. Sunucu borç cevabına `remainingPrincipal` eklendi. `flutter test` 1365, backend Domain 416 / Application 431 / Infrastructure 203 / API 392 geçti; SQL'e bağlı testler bu oturumda koşmadı. Emülatörde gerçek API ile denendi. Sıradaki Faz 6 (kişi sayfası, tahsilat ve ödeme).

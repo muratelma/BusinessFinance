@@ -15,7 +15,7 @@ import 'debt_entry_sheet.dart';
 /// `Borç ve alacak` sayfası (Faz 5): listeyi sunucudan okur ve
 /// [DebtBookView] ile çizer. Kişi satırı [personPage]'i açar; yeni kayıt
 /// formları ve kayıt sayfası Faz 7'de bağlanır, o zamana kadar kayıt satırı
-/// ve `+` eski sayfalara gider ([onOpenItem], [onEntry]).
+/// `+` `Ne oldu?` sonrası [entryPage]'i, kayıt satırı [recordPage]'i açar.
 class DebtBookPage extends StatefulWidget {
   const DebtBookPage({
     required this.repository,
@@ -23,9 +23,9 @@ class DebtBookPage extends StatefulWidget {
     this.scopeController,
     this.changes,
     this.personPage,
-    this.onOpenItem,
+    this.recordPage,
     this.onOpenClosed,
-    this.onEntry,
+    this.entryPage,
   });
 
   final DebtBookRepositoryContract repository;
@@ -35,11 +35,15 @@ class DebtBookPage extends StatefulWidget {
   /// Kişinin sayfası (kimlik, ad); sayfa bu sayfanın üstüne açılır ve
   /// dönüşte liste yenilenir.
   final Widget Function(String counterpartyId, String name)? personPage;
-  final ValueChanged<DebtBookItem>? onOpenItem;
+
+  /// Taksitli ya da kişisiz kaydın sayfası (kimlik, başlık).
+  final Widget Function(String debtId, String title)? recordPage;
   final ValueChanged<DebtSide>? onOpenClosed;
 
   /// `Ne oldu?` panelinde seçilen kayıt türü.
-  final ValueChanged<DebtEntryKind>? onEntry;
+  /// Yeni kayıt formu (tür, varsa kişi); kaydedilince liste yenilenir.
+  final Widget Function(DebtEntryKind kind, DebtPersonChoice? person)?
+  entryPage;
 
   @override
   State<DebtBookPage> createState() => _DebtBookPageState();
@@ -69,7 +73,12 @@ class _DebtBookPageState extends State<DebtBookPage> {
       context: context,
       builder: (_) => const DebtEntrySheet(),
     );
-    if (kind != null && mounted) widget.onEntry?.call(kind);
+    final builder = widget.entryPage;
+    if (kind == null || builder == null || !mounted) return;
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<bool>(builder: (_) => builder(kind, null)));
+    if (mounted) await _controller.load();
   }
 
   Future<void> _openPerson(String id, String name) async {
@@ -81,11 +90,20 @@ class _DebtBookPageState extends State<DebtBookPage> {
     if (mounted) await _controller.load();
   }
 
+  Future<void> _openRecord(String id, String title) async {
+    final builder = widget.recordPage;
+    if (builder == null) return;
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => builder(id, title)));
+    if (mounted) await _controller.load();
+  }
+
   void _openItem(DebtBookItem item) {
     if (item.isLedger) {
       _openPerson(item.id, item.title);
     } else {
-      widget.onOpenItem?.call(item);
+      _openRecord(item.id, item.title);
     }
   }
 

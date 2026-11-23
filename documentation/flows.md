@@ -2305,3 +2305,32 @@ vazgeçme dahil) ve satış/alımda `İndirim yap` (tutar ve gün; gelir ya da
 gider kaydın gününde azalır). Satır indirimi tutarın altında yazar
 (`indirim ₺200,00`). **Geçiş:** `+` `Ne oldu?` sonrası, kayıt satırları ve
 `⋮` (düzenle, açılış bakiyesi, sil) Faz 7–8'e kadar eski sayfaları açar.
+
+## Yeni borç ya da alacak ve kayıt sayfası · 23 Kasım 2026 (Faz 7)
+
+`Borç ve alacak` ya da kişi sayfasında `+` → `Ne oldu?` (`Veresiye sattım`,
+`Vadeli aldım`, `Borç verdim`, `Borç aldım`, `Avans aldım / verdim`) → tam
+sayfa form. Kişi sayfasından açılınca kişi dolu ve kilitlidir; listeden
+açılınca kişi seçici açılır (arama, `“…” kişisini ekle`; kapsam görünen
+kullanıcıda yeni kişinin türü aynı panelde, ön değer satış/alımda
+`İşletme`, borç parada `Şahsi`). Kişi yalnız taksitli kayıtta ve vadeli
+alımda (fatura) isteğe bağlıdır. Form isteğe bağlı üç bloğu taşır: `Peşin /
+avans alındı` (satış) · `Peşin ödendi` (alım), `Taksitli` (taksit sayısı,
+borç parada bankanın taksit tutarı, ilk taksit günü; altında sunucudan
+takvim önizlemesi) ve `Uygulamadan önce oluştu`. **Kaydın nereye yazıldığı
+sorulmaz** (`DebtEntrySubmitter`): taksitli ya da kişisiz → ayrı kayıt;
+kişili ve uygulamadan önce → kişinin açılış bakiyesi (öbür taraf korunur);
+avans → tahsilat (`Aldım`) ya da ödeme (`Verdim`); satış ve alım → kişinin
+hesabına borçlandırma (peşin tutarıyla tek yazma); borç para → kişinin
+hesabına borç para. Kaydedince form kapanır, liste ya da kişi sayfası
+yenilenir.
+
+Taksitli ya da kişisiz kayda dokununca kayıt sayfası açılır: koyu kartta
+kalan, faizlide kalan anapara, taksit ilerlemesi, sıradaki ya da geciken;
+`Ödeme kaydet` / `Tahsilat kaydet` (faizlide `Taksit öde`: tutar tam taksit,
+değiştirilemez) aynı paneli açar (kısayollar `Sıradaki taksit`, `Tamamı`).
+Takvim sıradaki üç taksit ve `Tümünü göster`; ödemelere dokununca onaylı
+geri alma. `⋮`: `Planı değiştir` (faizsizde; kalan yeni takvime bölünür),
+`İndirim` (kayıtlı alım ya da satışta), `Kaydı iptal et`. Kişi adı kişi
+sayfasını açar. **Geçiş:** `Kapananlar` ve kişinin `⋮` menüsü hâlâ eski
+sayfaları açar (Faz 8).
