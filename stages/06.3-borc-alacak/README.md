@@ -31,7 +31,7 @@ kullanıcıya sorulmaz.
 | 1 | Kod gerçeği ve sunucu tasarımı | **Belge yazıldı** (`04-SUNUCU-TASARIMI.md`); kalan okuma Faz 2'nin ilk işi |
 | 2 | Sunucu: kişinin hesabı genişler | **Sürüyor** (commit edilmedi): **Bitti** (17 Kasım 2026): S1 borç para, S2 kişiye kartla ödeme, S3 istek kimliği, S4 kişinin türü, S5 vazgeçme ve kalanı indirim sayma, peşin/avans tutarı (`paidNow`), yedek v14, dört migration |
 | 3 | Sunucu: okumalar | **Bitti** (17 Kasım 2026): S6 kişi sayfası, S7 liste, S8 (sunucu değişikliği gerekmedi), S11 vadeler planlananlarda (isteğe bağlı) |
-| 4 | Ekran tasarımı | Başlamadı |
+| 4 | Ekran tasarımı | **Bitti** (23 Kasım): tarif (`05-EKRAN-TASARIMI.md`), beş ekranın görünümü (`lib/features/debt_book/`, sunucuya bağlı değil), 20 kare × 3, iki tur denetim, kusur yok. Commit edilmedi |
 | 5 | Flutter: liste | Başlamadı |
 | 6 | Flutter: kişi sayfası, tahsilat ve ödeme | Başlamadı |
 | 7 | Flutter: yeni kayıt ve kayıt sayfası | Başlamadı |
@@ -39,6 +39,29 @@ kullanıcıya sorulmaz.
 | 9 | Kabul turu ve kapanış | Başlamadı |
 
 ## Sıradaki tek görev
+
+> **23 Kasım 2026 (kullanıcı kararı):** borç-alacak yeniden sırada. Özet,
+> Planlananlar ve Tekrarlayanlar işinin birlikte testi **ertelendi, kalkmadı**:
+> borç-alacakta biraz ilerledikten sonra yapılır (`stages/06.3-planlananlar/`
+> "Birlikte test", `research/DEVIR-2026-11-22.md`). Çalışma `ozet-tamamlama`
+> dalında sürer; bu dal `borc-alacak-cari`nin (`d359ab7`) üstündedir.
+> `borc-alacak-cari`ye birleşme Faz 5'ten önce, kullanıcı onayıyla.
+
+**Faz 5 — Flutter: `Borç ve alacak` listesi** (`03-PLAN.md`): Faz 4'ün
+görünümü (`DebtBookView`) depo ve denetleyiciyle `GET /api/v1/debt-book`a
+bağlanır, `Diğer` menüsünden açılır (eski sayfalar silinmez); kapsam
+`ScopeController`dan; durumlar (yükleniyor, hata, oturum, eski veri);
+büyük yazı ve 320–800 dp taşma testleri; emülatörde gerçek API ile dış göz
+denetimi. **Önce:** `ozet-tamamlama` → `borc-alacak-cari` birleşmesi
+kullanıcıya sorulur (bugün çalışma `ozet-tamamlama`da sürüyor); bilinmeyen
+akış türü (`counterparty-loan`, `counterparty-write-off`) istemcide tanınır;
+`MoneyFoundation_*` genişletmesi (Faz 2'den kalan).
+
+**Kullanıcı incelemesi (23 Kasım kararı):** ekranlara emülatörde, sunucuya
+bağlandıktan sonra bakılır; K15 sapması (hareketler varsayılan olarak tüm
+zamanlar) da o zaman değerlendirilir. Özet/Planlananlar testi de bekliyor
+(yukarıdaki not).
+
 
 **Faz 4 — Ekran tasarımı** (`03-PLAN.md`): başvuru incelemesi ve
 `05-EKRAN-TASARIMI.md` (liste, kişi sayfası, tahsilat/ödeme paneli, yeni kayıt,
@@ -289,3 +312,44 @@ ve kendi kaydını yazamadı.
     isteğe bağlı, S8 istemcide).
   - **Doğrulama:** build ve format temiz; SQL'e karşı tam koşu: Domain 416,
     Application 418, API 398, Infrastructure 284 geçti, 2 atlandı.
+
+### 23 Kasım 2026 — Faz 4 başladı: tarif, liste, kişi sayfası, panel
+
+- **Kullanıcı kararı:** Özet/Planlananlar/Tekrarlayanlar testi ertelendi
+  (kalkmadı); borç-alacağa geçildi. Belgeler buna göre düzeltildi
+  (`stages/06.3-planlananlar/README.md`, `docs/project-status.md`,
+  `research/DEVIR-2026-11-22.md`, bu dosya).
+- **Yapılan:** `05-EKRAN-TASARIMI.md` yazıldı: başvuru incelemesi (ekran ekran
+  alınan ve alınmayan kalıp), ortak dil, beş ekranın tarifi ve durumları,
+  denetim tablosu. Görünümler kuruldu (sunucuya bağlı değil, Faz 5–6'nın
+  başlangıcı): `lib/features/debt_book/` — `debt_book_models.dart` (liste ve
+  kişi sayfası cevaplarının birebir karşılığı, `fromJson`),
+  `debt_book_parts.dart` (satır, baş harf dairesi, bölüm kartı, toplam sütunu,
+  koyu kart), `debt_book_view.dart` (liste: özet, sekmeler, `Yalnız
+  gecikenler`, bölümler, `Kapananlar`, arama, ilk kullanım),
+  `counterparty_page_view.dart` (kişi sayfası), `debt_settle_sheet.dart`
+  (tahsilat/ödeme paneli). Örnek veri tek tutarlı settir (toplamlar satırları
+  tutar): `test/screenshots/borc_alacak_tasarim_test.dart`, 12 kare × 3
+  (412, 360, karanlık).
+- **Denetim:** iki tur; birinci turda 4 kusur, 3 zayıf bulundu ve düzeltildi
+  (Kişiler satırının boyu, çipin kayması, hareket başlığının kişi adını
+  tekrar etmesi, panel notları); ikinci turda kusur yok, iki tercih kaldı
+  (§5).
+- **Tarifte koddan sonra değişen:** kapsam alt yazının sonunda; hareketler
+  gün başlıksız tek kartta; panel notları tutar yazmaz (istemci çıkarma
+  yapmaz). K15'ten sapma: kişinin hareketleri varsayılan olarak tüm
+  zamanlar, ay filtrenin seçeneği (§3.2).
+- **Yapılmayan:** yeni kayıt ve kayıt sayfası; büyük yazı ölçümü; sunucuya
+  bağlama (Faz 5). Commit yok.
+- **Kullanıcı kararı (aynı gün):** K15 sapmasına emülatörde son ekranlar
+  bağlandıktan sonra bakılacak; beğenilmezse değişir.
+- **İkinci bölüm:** `Ne oldu?` paneli (`debt_entry_sheet.dart`), yeni kayıt
+  formu (`debt_entry_form_view.dart`: kişi alanı, kapalı satırlar, takvim
+  önizlemesi) ve kayıt sayfası (`debt_record_view.dart`; model
+  `DebtRecordData`, `DebtResponse`un karşılığı). Sekiz kare daha (toplam 20 ×
+  3). Denetim: birinci turda 4 kusur, 2 zayıf; ikinci turda 2 zayıf, kusur
+  yok (§5). Bulunan bir eksik: faizli kaydın `Kalan anapara`sı sunucu
+  cevabında yok; istemci toplamaz, Faz 7'de sunucuya eklenecek. **Faz 4
+  bitti.** Doğrulama: `dart format`, `flutter analyze` temiz; `flutter test`
+  1343 geçti (295 atlandı: ekran karesi testleri yalnız `SCREENSHOT_DIR` ile koşar). Commit yok (kullanıcıya soruldu).
+

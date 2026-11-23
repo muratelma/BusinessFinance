@@ -8,6 +8,19 @@ durumu, sıra ve günlük burada tutulur.
 
 İşleyiş kullanıcı tarafından Claude Code'a bırakıldı (22 Kasım 2026).
 
+## Birlikte test (bekliyor; 23 Kasım 2026 kullanıcı kararı)
+
+22 Kasım'ın işi **kullanıcıyla birlikte test edilecek**: `KABUL.md` Aşama 1–6
+emülatörde denenir, her ekran panosuyla yan yana konur, kararlar (aşağıdaki S
+tablosu) gözden geçirilir. Test sırası ve pano–ekran eşlemesi:
+`research/DEVIR-2026-11-22.md`.
+
+**23 Kasım:** test **kaldırılmadı, ertelendi**. Kullanıcı önce borç-alacakta
+biraz ilerlemek istiyor; test borç-alacakta bir noktaya gelindiğinde yapılır.
+Kullanıcı 22 Kasım'daki emülatör gezintisinde tasarım sorunları gördü; bu yüzden
+test gerekli. O zamana kadar bu klasördeki kararlar (S2, S10, S19, S26,
+kategori karşılaştırması) ve açık kalanlar (S22, S23) olduğu gibi bekler.
+
 ## Sınırlar
 
 - Borç-alacak satırlarının anlamı değişmez (`stages/06.3-borc-alacak/README.md`
