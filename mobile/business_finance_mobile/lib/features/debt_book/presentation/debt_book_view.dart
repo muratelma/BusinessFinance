@@ -47,6 +47,8 @@ class DebtBookView extends StatefulWidget {
     this.onOpenItem,
     this.onOpenPerson,
     this.onOpenClosed,
+    this.notice,
+    this.onRefresh,
   });
 
   final DebtBook book;
@@ -63,6 +65,12 @@ class DebtBookView extends StatefulWidget {
   final ValueChanged<DebtBookItem>? onOpenItem;
   final ValueChanged<DebtBookPerson>? onOpenPerson;
   final ValueChanged<DebtSide>? onOpenClosed;
+
+  /// Listenin üstündeki not (`Liste güncellenemedi.`).
+  final Widget? notice;
+
+  /// Aşağı çekerek yenileme.
+  final Future<void> Function()? onRefresh;
 
   @override
   State<DebtBookView> createState() => _DebtBookViewState();
@@ -145,6 +153,10 @@ class _DebtBookViewState extends State<DebtBookView> {
     final side = _tab.side;
     final showScope = widget.scopeVisible && widget.scope == null;
     final children = <Widget>[
+      if (widget.notice != null) ...[
+        widget.notice!,
+        const SizedBox(height: AppGaps.notice),
+      ],
       _SummaryCard(
         book: book,
         scopeVisible: widget.scopeVisible,
@@ -265,11 +277,16 @@ class _DebtBookViewState extends State<DebtBookView> {
       }
     }
 
-    return ListView(
+    final list = ListView(
       controller: _scroll,
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: AppPageInsets.aboveBar(context, AppPageInsets.list),
       children: children,
     );
+    final refresh = widget.onRefresh;
+    return refresh == null
+        ? list
+        : RefreshIndicator(onRefresh: refresh, child: list);
   }
 
   Widget _searchBody(BuildContext context) {

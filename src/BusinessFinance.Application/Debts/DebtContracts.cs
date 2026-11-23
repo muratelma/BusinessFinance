@@ -137,7 +137,8 @@ public sealed record DebtDto(
     DebtPlanKind PlanKind = DebtPlanKind.Installments,
     bool IsCarriedOver = false,
     bool IsCancelled = false,
-    IReadOnlyList<DebtClosingDto>? Closings = null);
+    IReadOnlyList<DebtClosingDto>? Closings = null,
+    decimal RemainingPrincipal = 0m);
 
 public interface IDebtRepository
 {

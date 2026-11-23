@@ -115,7 +115,10 @@ class DebtBookItem {
   final int openInstallmentCount;
 
   bool get hasOverdue => _positive(overdue);
-  bool get isInstallment => !isLedger && installmentCount != null;
+
+  /// Taksitli kayıt. Plan türünden okunur: sunucu tek ödemeli kayıtta da
+  /// taksit sayısı (1) gönderir ve `0/1 taksit` yazılırdı.
+  bool get isInstallment => !isLedger && planKind == 'installments';
 
   /// Tutarın tamamı avanstır: satır "Alınan avans" yazar.
   bool get isAllAdvance =>
@@ -287,8 +290,10 @@ class CounterpartyPageData {
           'nextPayableDueDate',
         ),
         nextPayableDueAmount: JsonReaders.string(json, 'nextPayableDueAmount'),
-        collect: DebtShortcuts.fromJson(JsonReaders.object(json, 'collect')),
-        pay: DebtShortcuts.fromJson(JsonReaders.object(json, 'pay')),
+        collect: DebtShortcuts.fromJson(
+          JsonReaders.object(json['collect'], 'collect'),
+        ),
+        pay: DebtShortcuts.fromJson(JsonReaders.object(json['pay'], 'pay')),
         records: [
           for (final item in JsonReaders.list(json, 'records'))
             DebtBookItem.fromJson(JsonReaders.object(item, 'record')),
@@ -457,8 +462,9 @@ class DebtRecordData {
   final TransactionScope? scope;
   final bool isInterestBearing;
 
-  /// Faizli kaydın kalan anaparası. **Bugünkü cevapta yok**: sunucu Faz 7'de
-  /// ekler; istemci taksitlerden toplamaz. Boşsa satır çizilmez.
+  /// Kalan anapara (`remainingPrincipal`, 23 Kasım 2026): açık taksitlerin
+  /// planlı anapara payı, sunucudan. İstemci taksitlerden toplamaz; satır
+  /// yalnız faizli kayıtta çizilir.
   final String? remainingPrincipal;
   final bool isCarriedOver;
   final List<DebtRecordInstallment> installments;
@@ -472,4 +478,105 @@ class DebtRecordData {
   ];
 
   int get paidCount => installments.where((item) => item.isPaid).length;
+}
+
+/// Kişinin hareketlerinde tür süzgeci (K15).
+enum PersonMovementKind {
+  all('Hepsi', null),
+  trade('Satış ve alım', 'counterparty-charge'),
+  settlement('Tahsilat ve ödeme', 'counterparty-settlement');
+
+  const PersonMovementKind(this.label, this.apiValue);
+  final String label;
+  final String? apiValue;
+}
+
+/// Kişinin hareketlerinde dönem. Varsayılan bütün zamanlar; ay seçimi
+/// süzgecin seçeneğidir (`05-EKRAN-TASARIMI.md` §3.2, K15 sapması).
+enum PersonMovementPeriod {
+  all('Tümü'),
+  thisMonth('Bu ay'),
+  lastMonth('Geçen ay'),
+  lastThreeMonths('Son 3 ay');
+
+  const PersonMovementPeriod(this.label);
+  final String label;
+
+  /// Gün aralığı (`yyyy-MM-dd`, iki uç dahil); bütün zamanlarda boş.
+  ({String from, String to})? range(DateTime today) {
+    String iso(DateTime day) =>
+        '${day.year.toString().padLeft(4, '0')}-'
+        '${day.month.toString().padLeft(2, '0')}-'
+        '${day.day.toString().padLeft(2, '0')}';
+    final first = DateTime(today.year, today.month);
+    return switch (this) {
+      all => null,
+      thisMonth => (from: iso(first), to: iso(today)),
+      lastMonth => (
+        from: iso(DateTime(today.year, today.month - 1)),
+        to: iso(first.subtract(const Duration(days: 1))),
+      ),
+      lastThreeMonths => (
+        from: iso(DateTime(today.year, today.month - 2)),
+        to: iso(today),
+      ),
+    };
+  }
+}
+
+/// Kişinin hareket süzgeci; yön yalnız iki yönlü kişide sorulur.
+class PersonMovementFilter {
+  const PersonMovementFilter({
+    this.period = PersonMovementPeriod.all,
+    this.kind = PersonMovementKind.all,
+    this.side,
+  });
+
+  final PersonMovementPeriod period;
+  final PersonMovementKind kind;
+  final DebtSide? side;
+
+  bool get isEmpty =>
+      period == PersonMovementPeriod.all &&
+      kind == PersonMovementKind.all &&
+      side == null;
+
+  /// Süzgecin seçili parçaları; listenin üstünde kaldırılabilir çiptir.
+  List<String> get labels => [
+    if (period != PersonMovementPeriod.all) period.label,
+    if (kind != PersonMovementKind.all) kind.label,
+    if (side == DebtSide.receivable) 'Alacak tarafı',
+    if (side == DebtSide.payable) 'Borç tarafı',
+  ];
+}
+
+/// Tahsilat ve ödeme panelinin bir yeri (hesap, kart ya da POS).
+class DebtSettleSource {
+  const DebtSettleSource({
+    required this.id,
+    required this.name,
+    this.type,
+    this.note,
+  });
+
+  final String id;
+  final String name;
+
+  /// Hesapta `cash` ya da `bank`.
+  final String? type;
+
+  /// POS'ta paranın geçeceği hesap.
+  final String? note;
+}
+
+class DebtSettleSources {
+  const DebtSettleSources({
+    required this.accounts,
+    required this.cards,
+    required this.posDefinitions,
+  });
+
+  final List<DebtSettleSource> accounts;
+  final List<DebtSettleSource> cards;
+  final List<DebtSettleSource> posDefinitions;
 }

@@ -98,7 +98,8 @@ public sealed record DebtResponse(Guid Id, Guid? CounterpartyId, string Counterp
     string TotalInterest, string SourceType, Guid? OpeningAccountId, Guid? CategoryId,
     string StartDate, string? FirstDueDate, int InstallmentCount, string? Description,
     bool IsClosed, IReadOnlyList<DebtInstallmentResponse> Installments,
-    string PlanKind, bool IsCarriedOver, bool IsCancelled, IReadOnlyList<DebtClosingResponse> Closings);
+    string PlanKind, bool IsCarriedOver, bool IsCancelled, IReadOnlyList<DebtClosingResponse> Closings,
+    string RemainingPrincipal = "0.0000");
 
 public sealed record DebtListResponse(IReadOnlyList<DebtResponse> Items);
 

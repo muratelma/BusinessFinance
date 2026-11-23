@@ -259,7 +259,8 @@ class _RecordSummary extends StatelessWidget {
                   ),
                 ),
               ),
-              if (record.remainingPrincipal != null) ...[
+              if (record.isInterestBearing &&
+                  record.remainingPrincipal != null) ...[
                 const SizedBox(height: AppSpacing.xSmall),
                 Text(
                   'Kalan anapara '

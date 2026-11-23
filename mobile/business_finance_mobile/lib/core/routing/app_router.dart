@@ -55,6 +55,12 @@ import '../../features/counterparties/presentation/counterparties_page.dart';
 import '../../features/debts/data/debt_repository.dart';
 import '../../features/debts/presentation/debts_page.dart';
 import '../../features/debts/presentation/lending_prefill.dart';
+import '../../features/counterparties/presentation/counterparties_controller.dart';
+import '../../features/counterparties/presentation/counterparty_detail_page.dart';
+import '../../features/debt_book/data/debt_book_repository.dart';
+import '../../features/debt_book/presentation/counterparty_page.dart';
+import '../../features/debt_book/presentation/debt_book_page.dart';
+import '../../features/debt_book/presentation/debt_entry_sheet.dart';
 import '../../features/goals/data/goal_repository.dart';
 import '../../features/goals/presentation/goals_page.dart';
 import '../../features/cash/data/cash_repository.dart';
@@ -112,6 +118,7 @@ GoRouter createAppRouter({
   DataToolsRepositoryContract? dataToolsRepository,
   DebtRepositoryContract? debtRepository,
   CounterpartyRepositoryContract? counterpartyRepository,
+  DebtBookRepositoryContract? debtBookRepository,
   GoalRepositoryContract? goalRepository,
   ObligationRepositoryContract? obligationRepository,
   CashRepositoryContract? cashRepository,
@@ -675,6 +682,52 @@ GoRouter createAppRouter({
                   repository: counterpartyRepository,
                   changes: financialDataChanges,
                   posRepository: posRepository,
+                ),
+          authController,
+        ),
+      ),
+      // Borç ve alacak (ADR 0022, Faz 5–6): liste ve kişi sayfası yeni. Yeni
+      // kayıt formları ve kayıt sayfası Faz 7'de bağlanır; o zamana kadar
+      // `+`, kayıt satırları ve kişinin `⋮`u eski sayfaları açar.
+      GoRoute(
+        path: '/more/debt-book',
+        pageBuilder: (context, state) => _sessionPage(
+          state,
+          debtBookRepository == null
+              ? const Scaffold(
+                  body: AppErrorView(message: 'Borç servisi yapılandırılmadı.'),
+                )
+              : DebtBookPage(
+                  repository: debtBookRepository,
+                  scopeController: scopeController,
+                  changes: financialDataChanges,
+                  personPage: (id, name) => CounterpartyPage(
+                    repository: debtBookRepository,
+                    counterpartyId: id,
+                    name: name,
+                    activityRepository: activityRepository,
+                    changes: financialDataChanges,
+                    onOpenRecord: (_) => context.push('/more/debts'),
+                    onEntry: (kind) => context.push(switch (kind) {
+                      DebtEntryKind.lend ||
+                      DebtEntryKind.borrow => '/more/debts',
+                      _ => '/more/counterparties',
+                    }),
+                    managePage: counterpartyRepository == null
+                        ? null
+                        : (_) => _LegacyCounterpartyDetail(
+                            repository: counterpartyRepository,
+                            changes: financialDataChanges,
+                            posRepository: posRepository,
+                            counterpartyId: id,
+                          ),
+                  ),
+                  onOpenItem: (_) => context.push('/more/debts'),
+                  onOpenClosed: (_) => context.push('/more/debts'),
+                  onEntry: (kind) => context.push(switch (kind) {
+                    DebtEntryKind.lend || DebtEntryKind.borrow => '/more/debts',
+                    _ => '/more/counterparties',
+                  }),
                 ),
           authController,
         ),
@@ -1544,4 +1597,44 @@ Future<void> _openPageAccountForm(
   } finally {
     vm.dispose();
   }
+}
+
+/// Faz 6'ya kadar `Borç ve alacak` listesinden açılan eski kişi sayfası;
+/// denetleyicinin ömrünü sayfaya bağlar.
+class _LegacyCounterpartyDetail extends StatefulWidget {
+  const _LegacyCounterpartyDetail({
+    required this.repository,
+    required this.counterpartyId,
+    this.changes,
+    this.posRepository,
+  });
+
+  final CounterpartyRepositoryContract repository;
+  final String counterpartyId;
+  final FinancialDataChanges? changes;
+  final PosRepositoryContract? posRepository;
+
+  @override
+  State<_LegacyCounterpartyDetail> createState() =>
+      _LegacyCounterpartyDetailState();
+}
+
+class _LegacyCounterpartyDetailState extends State<_LegacyCounterpartyDetail> {
+  late final CounterpartiesController _controller = CounterpartiesController(
+    widget.repository,
+    financialDataChanges: widget.changes,
+    posRepository: widget.posRepository,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => CounterpartyDetailPage(
+    controller: _controller,
+    counterpartyId: widget.counterpartyId,
+  );
 }

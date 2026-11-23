@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/formatters/money_math.dart';
 import '../../../core/formatters/money_text.dart';
+import '../../../core/network/client_request_id.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_surfaces.dart';
 import '../../../core/widgets/app_account_field.dart';
@@ -55,6 +56,7 @@ class DebtSettlement {
     required this.amount,
     required this.date,
     required this.sourceId,
+    required this.clientRequestId,
     this.description,
     this.closeRemainderAsDiscount = false,
   });
@@ -71,6 +73,10 @@ class DebtSettlement {
   final String sourceId;
   final String? description;
   final bool closeRemainderAsDiscount;
+
+  /// Panel açılırken bir kez üretilir: yinelenen gönderim ikinci kayıt
+  /// yazmaz.
+  final String clientRequestId;
 }
 
 class _DebtSettleSheetState extends State<DebtSettleSheet> {
@@ -80,6 +86,7 @@ class _DebtSettleSheetState extends State<DebtSettleSheet> {
         : MoneyText.field(widget.initialAmount!),
   );
   final TextEditingController _description = TextEditingController();
+  final String _requestId = newClientRequestId();
   late String _date = _iso(widget.today);
   late String? _source = widget.initialAccountId;
   late bool _discount = widget.initialDiscount;
@@ -127,6 +134,7 @@ class _DebtSettleSheetState extends State<DebtSettleSheet> {
         amount: amount,
         date: _date,
         sourceId: source,
+        clientRequestId: _requestId,
         description: _description.text.trim().isEmpty
             ? null
             : _description.text.trim(),

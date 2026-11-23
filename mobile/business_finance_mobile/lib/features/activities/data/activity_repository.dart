@@ -157,6 +157,10 @@ class ActivityRepository implements ActivityRepositoryContract {
         '/api/v1/counterparty-charges/${activity.activityId}',
       ActivityKind.counterpartySettlement =>
         '/api/v1/counterparty-payments/${activity.activityId}',
+      ActivityKind.counterpartyLoan =>
+        '/api/v1/counterparty-loans/${activity.activityId}',
+      ActivityKind.counterpartyWriteOff =>
+        '/api/v1/counterparty-write-offs/${activity.activityId}',
     };
     await _apiClient.delete(path);
   }

@@ -153,6 +153,20 @@ public sealed class Debt
     /// <summary>Borcun kalanı: geçerli plandaki kalemlerin açık tutarı.</summary>
     public decimal RemainingAmount => CurrentItems.Sum(OpenAmount);
 
+    /// <summary>
+    /// Kalan anapara: açık kalemlerin anapara payı. Plan kalem başına anapara
+    /// ve faiz payını zaten taşır; burada yeni bir faiz hesabı yapılmaz, açık
+    /// kalemlerin payı okunur. Faizsiz borçta kalanın kendisidir. Kısmen
+    /// ödenmiş kalemde (yalnız faizsiz borçta olur) açık kısım anaparadır.
+    /// </summary>
+    public decimal RemainingPrincipal => CurrentItems.Sum(item =>
+    {
+        var open = OpenAmount(item);
+        if (open == 0m) return 0m;
+        var principal = item.PrincipalPortion ?? item.Amount.Amount;
+        return open == item.Amount.Amount ? principal : Math.Min(principal, open);
+    });
+
     /// <summary>İptal edilmemiş kapanışların toplamı (ödeme ve indirim).</summary>
     public decimal ClosedAmount => _payments.Where(payment => !payment.IsCancelled).Sum(payment => payment.Amount.Amount);
 

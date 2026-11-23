@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/formatters/date_text.dart';
 import '../../../core/formatters/money_text.dart';
 import '../../../core/models/transaction_scope.dart';
+import '../../../core/theme/app_breakpoints.dart';
 import '../../../core/theme/app_finance_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -169,24 +170,16 @@ class DebtRowFrame extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              color: titleMuted ? surfaces.inkMuted : null,
-                            ),
-                          ),
+                    _TitleLine(
+                      title: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: titleMuted ? surfaces.inkMuted : null,
                         ),
-                        if (trailing != null) ...[
-                          const SizedBox(width: AppSpacing.small),
-                          trailing!,
-                        ],
-                      ],
+                      ),
+                      trailing: trailing,
                     ),
                     if (subtitle != null || subtitleTrailing != null) ...[
                       const SizedBox(height: AppGaps.rowText),
@@ -211,6 +204,49 @@ class DebtRowFrame extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Başlık ve tutar. Büyük yazıda tutar başlığın altına iner (`AppRow` ile
+/// aynı kural); normal yazıda satırın en çok %60'ını alır ve sığmazsa
+/// küçülür, başlık hiçbir zaman sıfıra itilmez.
+class _TitleLine extends StatelessWidget {
+  const _TitleLine({required this.title, required this.trailing});
+
+  final Widget title;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final trailing = this.trailing;
+    if (trailing == null) return title;
+    if (context.usesLargeText) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          title,
+          const SizedBox(height: AppGaps.rowText),
+          Align(alignment: Alignment.centerLeft, child: trailing),
+        ],
+      );
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: title),
+          const SizedBox(width: AppSpacing.small),
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.6),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: trailing,
+            ),
+          ),
+        ],
       ),
     );
   }

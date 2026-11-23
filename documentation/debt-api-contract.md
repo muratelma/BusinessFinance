@@ -42,6 +42,11 @@ Faizli borç (`totalRepayment > principal`) plansız olamaz.
   (hangisi doluysa paranın yeri odur; indirimde hepsi boş), `interestAmount`,
   `isCancelled`, `cancelledAtUtc`
 - `remainingAmount`: geçerli plandaki açık tutar; `isClosed` ondan türer
+- `remainingPrincipal` (23 Kasım 2026): kalan anapara — açık kalemlerin
+  planlı anapara payı (`principalPortion`). Yeni bir faiz hesabı değildir,
+  planın taşıdığı payın okunmasıdır; faizsiz borçta `remainingAmount`a
+  eşittir. Kayıt sayfası faizli kayıtta `Kalan anapara` satırını bundan
+  çizer; istemci taksitlerden toplamaz
 
 ### `POST /api/v1/debts/{id}/payments` — ödeme ya da tahsilat
 

@@ -146,6 +146,8 @@ class ActivityController extends ChangeNotifier {
         // kasadaki parayı geri alır; ikisi de cari bakiyeyi değiştirir.
         case ActivityKind.counterpartyCharge:
         case ActivityKind.counterpartySettlement:
+        case ActivityKind.counterpartyLoan:
+        case ActivityKind.counterpartyWriteOff:
           financialDataChanges?.counterpartyLedgerChanged();
         // Bu üç tür feed üzerinden iptal edilemiyor (canCancel:false), yani
         // buraya hiç düşmezler. Yine de sessiz bir dal bırakmak, ileride biri

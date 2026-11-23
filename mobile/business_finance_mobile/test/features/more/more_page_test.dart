@@ -35,7 +35,7 @@ void main() {
       'Hesaplar',
       'Kredi kartlarım',
       'Kasa',
-      'Borç ve alacaklar',
+      'Borç ve alacak',
       'Kategori özeti',
       'Kategori yönetimi',
       'Planlananlar',
@@ -65,7 +65,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(titles(tester), isNot(contains('Cari hesap')));
     // Herkese açık kalan iki komşusu yerinde.
-    expect(titles(tester), contains('Borç ve alacaklar'));
+    expect(titles(tester), contains('Borç ve alacak'));
     expect(titles(tester), contains('Yükümlülükler'));
 
     await tester.pumpWidget(_host(hasBusiness: false, hasLedger: true));
@@ -155,6 +155,7 @@ Widget _host({required bool hasBusiness, bool hasLedger = false}) {
             '/more/counterparties',
             '/more/obligations',
             '/more/debts',
+            '/more/debt-book',
             '/more/goals',
             '/more/planning',
             '/more/tax-calendar',

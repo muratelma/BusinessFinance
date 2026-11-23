@@ -41,6 +41,7 @@ class ActivityTile extends StatelessWidget {
     this.effect,
     this.signedByAmount = false,
     this.amountNote,
+    this.hideParty,
     this.hideFee = false,
     this.alignTop = false,
     this.icon,
@@ -61,6 +62,9 @@ class ActivityTile extends StatelessWidget {
   final ActivityEffect? effect;
   final bool signedByAmount;
   final String? amountNote;
+
+  /// Sayfanın zaten gösterdiği kişinin adı; alt yazıdaki yerden düşülür.
+  final String? hideParty;
   final bool hideFee;
   final bool alignTop;
   final IconData? icon;
@@ -270,6 +274,10 @@ class ActivityTile extends StatelessWidget {
 
   /// `komisyon ₺97,50` (POS satışı) · `kesinti ₺7,50` (yatış).
   String? get _feeLabel {
+    final discount = activity.discountAmount;
+    if (discount != null && discount != '0.0000') {
+      return 'indirim ${MoneyText.format(discount, activity.currency)}';
+    }
     if (activity.interestPortion != null &&
         activity.interestPortion != '0.0000') {
       return 'faizi ${MoneyText.format(activity.interestPortion!, activity.currency)}';
@@ -383,8 +391,14 @@ class ActivityTile extends StatelessWidget {
   String get _subtitle {
     // Source and destination read as one route, so they are joined by the arrow
     // rather than separated like unrelated facts.
-    final source = activity.sourceName;
-    final destination = activity.destinationName;
+    // Kişinin kendi sayfasında kişinin adı yerin parçası olarak tekrar
+    // yazılmaz (`Ayşe Terzi → Nakit kasa` yerine `Nakit kasa`).
+    final source = activity.sourceName == hideParty
+        ? null
+        : activity.sourceName;
+    final destination = activity.destinationName == hideParty
+        ? null
+        : activity.destinationName;
     final route = switch ((source, destination)) {
       // Kartla tahsilde para POS'tan geçer: yer POS'tur, hesap ayrıntıdadır.
       (final String account, final String person)
@@ -513,6 +527,8 @@ IconData activityIcon(FinancialActivity activity) => switch (activity.kind) {
         ? Icons.south_west
         : Icons.north_east,
   ActivityKind.counterpartySettlement => Icons.groups_outlined,
+  ActivityKind.counterpartyLoan => Icons.volunteer_activism_outlined,
+  ActivityKind.counterpartyWriteOff => Icons.money_off_outlined,
   ActivityKind.obligation => Icons.event_note_outlined,
   ActivityKind.obligationSettlement => Icons.receipt_long_outlined,
   ActivityKind.posSale => Icons.point_of_sale_outlined,

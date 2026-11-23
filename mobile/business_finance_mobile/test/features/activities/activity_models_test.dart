@@ -49,6 +49,9 @@ void main() {
         'obligation-settlement',
         'pos-sale',
         'pos-deposit',
+        // 17 Kasım 2026'da sunucuya, 23 Kasım'da istemciye eklendi.
+        'counterparty-loan',
+        'counterparty-write-off',
       };
 
       expect(

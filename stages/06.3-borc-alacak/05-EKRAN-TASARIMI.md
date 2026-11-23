@@ -318,10 +318,10 @@ Tahsilatlar                            (borçta `Ödemeler`)
   gider tonundadır, alt yazısı `Gecikti`; kısmen ödenmiş taksitte `₺200,00
   ödendi` (sunucunun `paidAmount`'u).
 - Faizli kayıtta kart `Kalan anapara` satırını da taşır; düğme `Taksit öde`.
-  **`Kalan anapara` bugün sunucu cevabında yok** (`remainingPrincipal`):
-  istemci taksitlerden toplamaz, alan Faz 7'de sunucuya eklenir; o zamana
-  kadar satır çizilmez. Ödenen tutar da aynı nedenle yazılmaz; sayı olarak
-  yalnız taksit adedi yazar.
+  `Kalan anapara` sunucudandır (`remainingPrincipal`, 23 Kasım 2026'da
+  eklendi: açık taksitlerin planlı anapara payı); istemci taksitlerden
+  toplamaz. Ödenen tutar yazılmaz (sunucu göndermiyor); sayı olarak yalnız
+  taksit adedi yazar.
 - `⋮`: `Planı değiştir`, `İndirim`, `Kaydı iptal et` (hata renginde).
 - Kalan sıfırsa kartta `Kapandı`, düğme çizilmez.
 

@@ -2239,3 +2239,39 @@ saydam. Bölüm başlıkları (`AppSectionHeader`) kartlarla aynı kenarda, üst
 `titleSmall` ve tutar 16/700, tür ve `Gecikti` 13, en altta kaynak ve mavi
 eylem. Geçmiş satırı 48 dp, gün ve tutar. Yönetim: `OutlinedButton` (duraklat
 / sürdür) altında soluk sonuç cümlesi; `Planı sil` hata renginde metin düğmesi.
+
+## Borç ve alacak · 23 Kasım 2026
+
+Tarif ve denetim `stages/06.3-borc-alacak/05-EKRAN-TASARIMI.md`; ortak
+parçalar `lib/features/debt_book/presentation/debt_book_parts.dart`.
+
+- **Satır** (`DebtRowFrame`): Planlananlar satırının dili — 36 dp baş (kişide
+  baş harf dairesi `PersonInitials`, kayıtta ikon kapsülü; takvimde
+  `AppDateLeaf`), `titleSmall` tek satır, tutar 16/700 renksiz, alt yazı 13
+  soluk; kapsam alt yazının **sonunda**. Gecikme alt yazının başında gider
+  renginde ve `gecikmiş` kelimesiyle; renk yalnız gecikmeye ayrılır.
+  **Büyük yazıda tutar başlığın altına iner**; normal yazıda satırın en çok
+  %60'ını alır ve sığmazsa küçülür (başlık sıfıra itilmez).
+- **Bölüm kartı** (`DebtSectionCard`): bölümün satırları tek kartta, ayırıcı
+  yazının başladığı yerden (`indent`).
+- **Özet**: iki eşit sütun (`DebtTotalColumn`: yön ikonu `call_received` /
+  `call_made` + etiket 13, tutar 22/700 sığmazsa küçülür, gecikmiş 13/600
+  gider renginde); kapsam görünürse Planlananlar'ın gri şeridi
+  (`DebtScopeStrip`).
+- **Koyu kart** (`DebtInkCard`): kişi ve kayıt sayfasının özeti, plan
+  ayrıntısının kartı; koyu zeminde gecikme zıt temanın gider rengidir.
+- **Alan notu** (`DebtFieldNote`): kayıt engellemeyen bilgi için kutusuz tek
+  satır (ikon + soluk cümle); `AppInlineNotice` kutusu formda fazla baskındı.
+- `AppSectionEmpty` kendi kartını çizer; dışına kart sarılmaz.
+
+### Kişi sayfası canlı veride · 23 Kasım 2026
+
+- Hareket satırı (`ActivityTile.hideParty`): sayfanın gösterdiği kişinin adı
+  alt yazıdaki yerden düşülür (`Ayşe Terzi → Nakit kasa` yerine `Nakit
+  kasa`); başlık kişinin adıysa kaydın kısa türü yazılır.
+- Seçili hareket süzgeci tek kaldırılabilir çiptir (`InputChip`, parçalar
+  `·` ile); süzgece uyan hareket yoksa `AppNoResultsView` (`filter`).
+- Sayfa sonu `Daha eski hareketler` metin eylemidir; yüklenirken yerinde
+  dönen gösterge.
+- İşlem ayrıntısında `İndirim yap` çerçeveli düğmedir ve iptalin üstünde
+  durur (yalnız kişinin hesabındaki satış ve alımda).

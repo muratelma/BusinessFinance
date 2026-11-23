@@ -306,7 +306,8 @@ public static class DebtEndpoints
             x.Id, x.Kind == DebtPaymentKind.Discount ? "discount" : "payment",
             FinanceContract.Money(x.Amount), FinanceContract.Date(x.Date), x.RecordedAtUtc,
             x.AccountId, x.CreditCardId, x.PosSettlementId, FinanceContract.Money(x.InterestAmount),
-            x.IsCancelled, x.CancelledAtUtc)).ToArray());
+            x.IsCancelled, x.CancelledAtUtc)).ToArray(),
+        FinanceContract.Money(debt.RemainingPrincipal));
 
     private static bool TryMoney(string value, out decimal amount) =>
         FinanceContract.TryParseAmount(value, out amount) && amount > 0m;

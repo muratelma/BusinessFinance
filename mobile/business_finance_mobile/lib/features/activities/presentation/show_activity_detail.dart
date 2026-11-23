@@ -25,6 +25,7 @@ Future<bool> showActivityDetail(
   DayCloseRepositoryContract? dayCloseRepository,
   FinancialDataChanges? changes,
   bool reloadOnCancel = false,
+  Future<bool> Function(FinancialActivity activity)? onDiscount,
 }) async {
   if (activity.kind == ActivityKind.posDeposit && posRepository != null) {
     await showPosDepositDetail(
@@ -83,6 +84,14 @@ Future<bool> showActivityDetail(
                 }
               }
             : null,
+        onDiscount: onDiscount == null
+            ? null
+            : () async {
+                if (await onDiscount(activity)) {
+                  changed = true;
+                  if (sheetContext.mounted) Navigator.pop(sheetContext);
+                }
+              },
         onCancel: activity.canCancel
             ? () async {
                 if (await controller.cancel(activity, reload: reloadOnCancel)) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../features/debt_book/data/debt_book_repository.dart';
 import '../core/input/tap_outside_dismisses_keyboard.dart';
 import '../core/localization/app_locale.dart';
 import '../core/presentation/financial_data_changes.dart';
@@ -52,6 +53,9 @@ class BusinessFinanceApp extends StatelessWidget {
              dataToolsRepository: dependencies?.dataToolsRepository,
              debtRepository: dependencies?.debtRepository,
              counterpartyRepository: dependencies?.counterpartyRepository,
+             debtBookRepository: dependencies == null
+                 ? null
+                 : DebtBookRepository(dependencies.apiClient),
              goalRepository: dependencies?.goalRepository,
              obligationRepository: dependencies?.obligationRepository,
              cashRepository: dependencies?.cashRepository,

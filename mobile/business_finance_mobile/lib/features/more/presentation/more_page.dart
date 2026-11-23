@@ -92,8 +92,8 @@ class MorePage extends StatelessWidget {
           ),
         _MenuItem(
           icon: Icons.handshake_outlined,
-          title: 'Borç ve alacaklar',
-          onTap: () => go('/more/debts'),
+          title: 'Borç ve alacak',
+          onTap: () => go('/more/debt-book'),
         ),
         // Cari hesap işletmeye özeldir. Gizleme bir ön ayardır: cari
         // hareketi olan kullanıcı kapıyı cevabı ne olursa olsun görür.

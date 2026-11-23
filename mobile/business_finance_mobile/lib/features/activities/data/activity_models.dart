@@ -38,7 +38,15 @@ enum ActivityKind {
   /// birkaç tahsilatı kapatır, gelir/gider yeniden tanınmaz. Tutar bankanın
   /// gerçekten yatırdığı tutardır; eksik kalan kısım (kesinti) bu satırın
   /// parçasıdır ([FinancialActivity.feeAmount]).
-  posDeposit('pos-deposit');
+  posDeposit('pos-deposit'),
+
+  /// Kişinin hesabında borç para (`Borç verdim` / `Borç aldım`): para taşır,
+  /// gelir/gider yazmaz (ADR 0022 İ3).
+  counterpartyLoan('counterparty-loan'),
+
+  /// Kalandan vazgeçme: alacaktan vazgeçmek gider, bağışlanan borç gelir;
+  /// para hareket etmez, kişinin bakiyesi düşer.
+  counterpartyWriteOff('counterparty-write-off');
 
   const ActivityKind(this.apiValue);
   final String apiValue;
@@ -57,6 +65,8 @@ enum ActivityKind {
     'obligation-settlement' => obligationSettlement,
     'pos-sale' => posSale,
     'pos-deposit' => posDeposit,
+    'counterparty-loan' => counterpartyLoan,
+    'counterparty-write-off' => counterpartyWriteOff,
     _ => throw FormatException('Bilinmeyen hareket türü: $value'),
   };
 
@@ -82,6 +92,8 @@ enum ActivityKind {
     // kart başka bir şeydir ve ikisi aynı listede yan yana görünüyor.
     posSale => 'POS satışı',
     posDeposit => 'POS yatışı',
+    counterpartyLoan => 'Borç para',
+    counterpartyWriteOff => 'Vazgeçme',
   };
 
   /// Yöne bağlı adın liste, filtre ve ayrıntıdaki tek kaynağı.
@@ -92,6 +104,11 @@ enum ActivityKind {
     (counterpartySettlement, ActivityDirection.payable) => 'Cari ödeme',
     (obligationSettlement, ActivityDirection.receivable) => 'Alacak tahsilatı',
     (obligationSettlement, ActivityDirection.payable) => 'Borç ödemesi',
+    (counterpartyLoan, ActivityDirection.receivable) => 'Borç verdim',
+    (counterpartyLoan, ActivityDirection.payable) => 'Borç aldım',
+    (counterpartyWriteOff, ActivityDirection.receivable) =>
+      'Alacaktan vazgeçme',
+    (counterpartyWriteOff, ActivityDirection.payable) => 'Bağışlanan borç',
     _ => label,
   };
 }
@@ -223,6 +240,7 @@ class FinancialActivity {
     this.scope,
     this.channelName,
     this.feeAmount,
+    this.discountAmount,
     this.netAmount,
     this.direction,
     this.expectedTransferDate,
@@ -260,6 +278,7 @@ class FinancialActivity {
         supportsAttachments: json['supportsAttachments'] as bool,
         channelName: json['channelName'] as String?,
         feeAmount: json['feeAmount'] as String?,
+        discountAmount: json['discountAmount'] as String?,
         netAmount: json['netAmount'] as String?,
         expectedTransferDate: json['expectedTransferDate'] as String?,
         transferredOn: json['transferredOn'] as String?,
@@ -319,6 +338,10 @@ class FinancialActivity {
   /// yatışta eksik yatan kesinti. Ayrı satır değildir; bağlı olduğu kaydın
   /// satırında ve ayrıntısında gösterilir. Sıfırsa ya da yoksa `null`.
   final String? feeAmount;
+
+  /// Alım ya da satışa yapılmış indirimin toplamı; satır indirim düşülmüş
+  /// bedeli yazar, indirim tutarın altında (`indirim ₺200,00`). Yoksa `null`.
+  final String? discountAmount;
 
   /// POS satışında hesaba geçecek (ya da geçmiş) net tutar.
   final String? netAmount;

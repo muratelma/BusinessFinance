@@ -8,6 +8,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_icon_capsule.dart';
 import '../../../core/widgets/app_inline_notice.dart';
+import '../../../core/widgets/app_no_results_view.dart';
 import '../../../core/widgets/app_page_header.dart';
 import '../../../core/widgets/app_section_empty.dart';
 import '../../../core/widgets/app_section_header.dart';
@@ -33,6 +34,13 @@ class CounterpartyPageView extends StatelessWidget {
     this.onOpenRecord,
     this.onOpenMovement,
     this.onFilter,
+    this.notice,
+    this.filterLabels = const [],
+    this.onClearFilter,
+    this.hasMore = false,
+    this.isLoadingMore = false,
+    this.onLoadMore,
+    this.onRefresh,
   });
 
   final CounterpartyPageData page;
@@ -46,6 +54,17 @@ class CounterpartyPageView extends StatelessWidget {
   final ValueChanged<DebtBookItem>? onOpenRecord;
   final ValueChanged<FinancialActivity>? onOpenMovement;
   final VoidCallback? onFilter;
+
+  /// Özetin üstündeki not (`Sayfa güncellenemedi.`).
+  final Widget? notice;
+
+  /// Hareket süzgecinin seçili parçaları; boşsa süzgeç kapalı.
+  final List<String> filterLabels;
+  final VoidCallback? onClearFilter;
+  final bool hasMore;
+  final bool isLoadingMore;
+  final VoidCallback? onLoadMore;
+  final Future<void> Function()? onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -73,90 +92,140 @@ class CounterpartyPageView extends StatelessWidget {
           ],
         ),
         Expanded(
-          child: ListView(
-            padding: AppPageInsets.aboveBar(context, AppPageInsets.list),
-            children: [
-              _PersonSummary(page: page, scopeVisible: scopeVisible),
-              if (!page.isActive) ...[
-                const SizedBox(height: AppGaps.notice),
-                const AppInlineNotice(
-                  margin: EdgeInsets.zero,
-                  message:
-                      'Pasif kişi. Yeni satış ve alım yazılmaz; tahsilat ve '
-                      'ödeme yazılır.',
-                ),
-              ],
-              if (actions.isNotEmpty) ...[
-                const SizedBox(height: AppGaps.block),
-                Row(
-                  children: [
-                    for (final (index, (label, onPressed))
-                        in actions.indexed) ...[
-                      if (index > 0) const SizedBox(width: AppSpacing.small),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: onPressed,
-                          child: Text(label),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-              if (page.records.isNotEmpty) ...[
-                const SizedBox(height: AppGaps.section),
-                const AppSectionHeader(title: 'Taksitli kayıtlar'),
-                DebtSectionCard(
-                  children: [
-                    for (final record in page.records)
-                      DebtBookItemRow(
-                        item: record,
-                        onTap: () => onOpenRecord?.call(record),
-                      ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: AppGaps.section),
-              AppSectionHeader(
-                title: 'Hareketler',
-                padding: EdgeInsets.zero,
-                trailing: AppTextAction(
-                  label: 'Filtre',
-                  underlined: true,
-                  onPressed: onFilter,
-                ),
-              ),
-              if (movements.isEmpty)
-                const AppSectionEmpty('Henüz hareket yok.')
-              else
-                AppCard(
-                  padding: EdgeInsets.zero,
-                  child: Column(
+          child: _refreshable(
+            ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: AppPageInsets.aboveBar(context, AppPageInsets.list),
+              children: [
+                if (notice != null) ...[
+                  notice!,
+                  const SizedBox(height: AppGaps.notice),
+                ],
+                _PersonSummary(page: page, scopeVisible: scopeVisible),
+                if (!page.isActive) ...[
+                  const SizedBox(height: AppGaps.notice),
+                  const AppInlineNotice(
+                    margin: EdgeInsets.zero,
+                    message:
+                        'Pasif kişi. Yeni satış ve alım yazılmaz; tahsilat ve '
+                        'ödeme yazılır.',
+                  ),
+                ],
+                if (actions.isNotEmpty) ...[
+                  const SizedBox(height: AppGaps.block),
+                  Row(
                     children: [
-                      for (final (index, activity) in movements.indexed) ...[
-                        if (index > 0)
-                          const Divider(
-                            height: 1,
-                            indent: AppIconCapsule.rowInset,
+                      for (final (index, (label, onPressed))
+                          in actions.indexed) ...[
+                        if (index > 0) const SizedBox(width: AppSpacing.small),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: onPressed,
+                            child: Text(label),
                           ),
-                        ActivityTile(
-                          activity: activity,
-                          // Kişinin kendi sayfasında başlık kişinin adını
-                          // tekrar etmez; adın yerine kaydın türü yazılır.
-                          title: activity.title == page.name
-                              ? personMovementTitle(activity)
-                              : null,
-                          onTap: () => onOpenMovement?.call(activity),
                         ),
                       ],
                     ],
                   ),
+                ],
+                if (page.records.isNotEmpty) ...[
+                  const SizedBox(height: AppGaps.section),
+                  const AppSectionHeader(title: 'Taksitli kayıtlar'),
+                  DebtSectionCard(
+                    children: [
+                      for (final record in page.records)
+                        DebtBookItemRow(
+                          item: record,
+                          onTap: () => onOpenRecord?.call(record),
+                        ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: AppGaps.section),
+                AppSectionHeader(
+                  title: 'Hareketler',
+                  padding: EdgeInsets.zero,
+                  trailing: AppTextAction(
+                    label: 'Filtre',
+                    underlined: true,
+                    onPressed: onFilter,
+                  ),
                 ),
-            ],
+                if (filterLabels.isNotEmpty) ...[
+                  Wrap(
+                    spacing: AppGaps.chip,
+                    runSpacing: AppGaps.chip,
+                    children: [
+                      InputChip(
+                        label: Text(filterLabels.join(' · ')),
+                        onDeleted: onClearFilter,
+                        deleteButtonTooltipMessage: 'Süzgeci kaldır',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppGaps.notice),
+                ],
+                if (movements.isEmpty && filterLabels.isNotEmpty)
+                  AppNoResultsView(
+                    reason: AppNoResultsReason.filter,
+                    title: 'Bu süzgece uyan hareket yok',
+                    actionLabel: 'Filtreyi temizle',
+                    onAction: onClearFilter,
+                  )
+                else if (movements.isEmpty)
+                  const AppSectionEmpty('Henüz hareket yok.')
+                else
+                  AppCard(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      children: [
+                        for (final (index, activity) in movements.indexed) ...[
+                          if (index > 0)
+                            const Divider(
+                              height: 1,
+                              indent: AppIconCapsule.rowInset,
+                            ),
+                          ActivityTile(
+                            activity: activity,
+                            // Kişinin kendi sayfasında başlık kişinin adını
+                            // tekrar etmez; adın yerine kaydın türü yazılır.
+                            title: activity.title == page.name
+                                ? personMovementTitle(activity)
+                                : null,
+                            hideParty: page.name,
+                            onTap: () => onOpenMovement?.call(activity),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                if (hasMore) ...[
+                  const SizedBox(height: AppGaps.card),
+                  Center(
+                    child: isLoadingMore
+                        ? const Padding(
+                            padding: EdgeInsets.all(AppSpacing.compact),
+                            child: CircularProgressIndicator(),
+                          )
+                        : AppTextAction(
+                            label: 'Daha eski hareketler',
+                            onPressed: onLoadMore,
+                          ),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
       ],
     );
+  }
+
+  Widget _refreshable(Widget list) {
+    final refresh = onRefresh;
+    return refresh == null
+        ? list
+        : RefreshIndicator(onRefresh: refresh, child: list);
   }
 }
 

@@ -2269,3 +2269,39 @@ geçmiş ödemeler aynı kalır; yalnız ad değişirse vade sorulmaz. Yönetimd
 `Planı sona erdir` son vadeyi açık vadelerden seçtirir ve sonucu yazar
 (`15 Kasım vadesindeki ₺1.200,00 ödeme beklemeye devam edecek. 15 Aralık ve
 sonrasında yeni vade oluşmayacak.`); hizmetteki aboneliği iptal etmez.
+
+## Borç ve alacak listesi · 23 Kasım 2026 (Faz 5)
+
+`Diğer` → `Borç ve alacak` (`/more/debt-book`) yeni listeyi açar (ADR 0022).
+Üstte iki toplam (`Alacağınız`, `Borcunuz`, varsa gecikmiş); kapsam görünen
+kullanıcıda kartın gri şeridinde kapsam menüsü uygulamanın genel kapsamını
+değiştirir ve liste o kapsamla yeniden okunur. `Alacaklar · Borçlar · Kişiler`
+sekmeleri; seçili tarafta gecikme varsa `Yalnız gecikenler`; bölümler
+`Geciken · Yaklaşan (30 gün) · Diğer`; sonda `Kapananlar`. Başlıktaki
+büyüteç kişi ve kayıt arar (pasif kişi yalnız burada, `Pasif` yazar).
+Aşağı çekince yenilenir; yenileme düşerse liste yerinde kalır ve üstte
+`Liste güncellenemedi.` + `Tekrar dene`. **Geçiş dönemi (Faz 6–7'ye kadar):**
+kişi satırı eski kişi sayfasını, kayıt satırı ve `Kapananlar` eski `Borç ve
+alacaklar` sayfasını açar; `+` `Ne oldu?` panelini açar ve seçim eski
+sayfaya gider (borç para → eski borç sayfası, diğerleri → `Cari hesap`).
+Eski sayfalar silinmedi; `Cari hesap` menüsü yerinde.
+
+## Kişi sayfası, tahsilat ve ödeme · 23 Kasım 2026 (Faz 6)
+
+`Borç ve alacak` listesinde kişiye dokununca yeni kişi sayfası açılır
+(`CounterpartyPage`; okuma `GET /api/v1/counterparties/{id}/page`, hareketler
+akıştan `counterpartyId` ile). Koyu kartta açık taraf(lar), gecikmiş ve
+sıradaki vade; altında yalnız açık tarafın düğmesi: `Tahsilat` ve/veya
+`Ödeme`. Panel (`DebtSettleSheet`) tutar, `Tamamı` / `Gecikmiş` kısayolları,
+gün, yer (tahsilatta hesap ya da POS, ödemede hesap ya da kredi kartı) ve
+açıklama sorar; kalandan fazla tutarda kayıt engellenmez, alanın altında
+tek satır not çıkar; ödemede kalandan az tutarda `Kalanı indirim say`.
+Kaydedince sayfa yenilenir. Hareketler en yeni üstte, `Daha eski
+hareketler` ile sayfa sayfa; `Filtre` dönem (`Tümü · Bu ay · Geçen ay · Son
+3 ay`), tür (`Hepsi · Satış ve alım · Tahsilat ve ödeme`) ve iki yönlü
+kişide taraf sorar; seçili süzgeç listenin üstünde kaldırılabilir çiptir.
+Harekete dokununca ortak işlem ayrıntısı açılır: iptal (borç para ve
+vazgeçme dahil) ve satış/alımda `İndirim yap` (tutar ve gün; gelir ya da
+gider kaydın gününde azalır). Satır indirimi tutarın altında yazar
+(`indirim ₺200,00`). **Geçiş:** `+` `Ne oldu?` sonrası, kayıt satırları ve
+`⋮` (düzenle, açılış bakiyesi, sil) Faz 7–8'e kadar eski sayfaları açar.

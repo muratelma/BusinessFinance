@@ -2671,3 +2671,26 @@ yükseltildi): sonuç `stages/06.3-borc-alacak/README.md` günlüğünde.
 | Kişi sayfası (senaryo 23): toplam hesap + taksitli kayıt, kısayollar yalnız hesabın, en yakın vade; akışta yön süzgeci; olmayan kişi 404 | `DebtBookEndpointTests.Book_ListsDebtsAndLedgersBySection_WithServerTotals` | InMemory ve SQL |
 | Kişi sayfası sahiplik probunda | `OwnershipIsolationTests` | |
 | Kişinin vadeleri planlananlara yalnız istenince girer; kısmi tahsilattan sonra kalan; gecikmiş borç vadesi; şahsi görünümde işletme kişisi yok | `CounterpartyLoanEndpointTests.OpenDuesOnAPersonsAccount_AppearInThePlannedView_OnlyWhenAsked` | |
+
+## Borç ve alacak listesi (Faz 5) — 23 Kasım 2026
+
+| Kanıt | Test | Not |
+|---|---|---|
+| Liste cevabının okunması; tanınmayan bölüm `Diğer`; tek ödemeli kayıt taksitli sayılmaz; avans satırı | `test/features/debt_book/debt_book_test.dart` `DebtBook.fromJson` | |
+| Kapsam anahtardan okunur, değişince yeniden okunur; yenileme düşerse eski liste kalır | aynı dosya `DebtBookController` | |
+| Sekme, `Yalnız gecikenler`, pasif kişi yalnız aramada, ilk kullanımda başlıkta `+` yok | aynı dosya `DebtBookView` | |
+| 320–800 dp ve 1.0 / 1.3 / 2.0 yazıda liste, Kişiler, kişi sayfası ve kayıt sayfası taşmaz | aynı dosya `taşma yok: …` (15 test) | Büyük yazıda tutar başlığın altına iner |
+| Menüde `Borç ve alacak` yeni rotayı açar | `test/features/more/more_page_test.dart` | |
+| Kalan anapara açık taksitin planlı anapara payıdır | `DebtPaymentTests.InterestBearingDebt_IsPaidInWholeInstallmentsOnly`, `DebtClosingEndpointTests.InterestBearingDebt_IsPaidInWholeInstallmentsAndKeepsItsPlan` | |
+| Faz 4 kareleri (20 ekran; 412, 360, karanlık) | `test/screenshots/borc_alacak_tasarim_test.dart` | `SCREENSHOT_DIR` ile |
+
+## Kişi sayfası, tahsilat ve ödeme (Faz 6) — 23 Kasım 2026
+
+| Kanıt | Test | Not |
+|---|---|---|
+| Borç para ve vazgeçme akış türleri tanınır ve yönle adlanır | `test/features/debt_book/debt_book_test.dart` `akış türleri` | Önceden bilinmeyen tür bütün akışı bozuyordu |
+| Kişi sayfası cevabı sunucunun gerçek cevabıyla okunur | aynı dosya `DebtBook.fromJson` | Kısayol nesneleri |
+| Özet + sayfalı hareketler; süzgeç sunucuya gider | aynı dosya `CounterpartyPageController` | |
+| Tahsilat/ödeme isteği yere göre kurulur (hesap, POS, kredi kartı, `Kalanı indirim say`, istek kimliği); ret panelde cümle döner | aynı dosya | |
+| İndirim satışın kimliğiyle yazılır | aynı dosya | |
+| Emülatör (gerçek API): kişi sayfası, 100 TL tahsilat (alacak 2.950 → 2.850), ayrıntıdan iptal (2.950'ye döndü), tür süzgeci | Elle, 23 Kasım 2026 | Kullanıcının verisi eski hâline döndü |

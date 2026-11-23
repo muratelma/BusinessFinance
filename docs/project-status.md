@@ -5,6 +5,10 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
 
 ## Aktif konum
 
+- **23 Kasım 2026 · Borç ve alacak Faz 6 (kişi sayfası, tahsilat ve ödeme; dal `borc-alacak-cari`)**. Listedeki kişi yeni kişi sayfasını açar: özet, `Tahsilat` / `Ödeme` (hesap, POS, kredi kartı, `Kalanı indirim say`), sayfalı ve süzülen hareketler, ayrıntıdan iptal ve indirim. Borç para ve vazgeçme akış türleri istemcide tanınıyor. Emülatörde gerçek API ile tahsilat ve iptal denendi; iki kusur bulunup düzeltildi. Faz 5 ile tek commit. Sıradaki Faz 7 (yeni kayıt formları ve kayıt sayfası).
+
+- **23 Kasım 2026 · Borç ve alacak Faz 5 (liste gerçek veride; dal `borc-alacak-cari`)**. `Diğer` → `Borç ve alacak` sunucunun listesini (`/api/v1/debt-book`) okur; kapsam anahtarını izler, yenileme düşerse eski liste kalır. Satırlar ve `+` Faz 6–7'ye kadar eski sayfaları açar. Sunucu borç cevabına `remainingPrincipal` eklendi. `flutter test` 1365, backend Domain 416 / Application 431 / Infrastructure 203 / API 392 geçti; SQL'e bağlı testler bu oturumda koşmadı. Emülatörde gerçek API ile denendi. Sıradaki Faz 6 (kişi sayfası, tahsilat ve ödeme).
+
 - **23 Kasım 2026 · Borç ve alacak Faz 4 (ekran tasarımı)**. Beş ekranın tarifi `stages/06.3-borc-alacak/05-EKRAN-TASARIMI.md`; görünümler `lib/features/debt_book/` (liste, kişi sayfası, tahsilat/ödeme paneli, `Ne oldu?` ve yeni kayıt formu, kayıt sayfası) henüz sunucuya ve menüye bağlı değil; kareler `tasarim-onizleme/borc-alacak-2026-11-23/`. `dart format`, `flutter analyze` temiz; `flutter test` 1343 geçti. Sıradaki Faz 5 (listenin sunucuya bağlanması).
 
 - **22 Kasım 2026 · Özet, Planlananlar ve Tekrarlayanlar (`ozet-tamamlama`, `0040302`…`5586330`)**. Özet düzeltmeleri; Planlananlar tarih aralığı, dönem özeti, filtre ve satırdan ödeme; Tekrarlayanlar kendi sayfası, plan ayrıntısı, vadeden itibaren düzenleme ve sona erdirme. Çalışma klasörü `stages/06.3-planlananlar/` (kararlar S1–S28, kabul listesi `KABUL.md`). Devir: `research/DEVIR-2026-11-22.md`. **23 Kasım (kullanıcı kararı):** bu işin birlikte testi ertelendi (kalkmadı); önce borç-alacak Faz 4 (ekran tasarımı), test borç-alacakta biraz ilerledikten sonra.

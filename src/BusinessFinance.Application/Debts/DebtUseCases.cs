@@ -501,7 +501,8 @@ public sealed class CreateDebtUseCase(
                                     ? interest
                                     : interest * allocation.Amount / items[allocation.ScheduleItemId].Amount.Amount
                                 : 0m),
-                    closing.IsCancelled, closing.CancelledAtUtc))]);
+                    closing.IsCancelled, closing.CancelledAtUtc))],
+            debt.RemainingPrincipal);
     }
 }
 

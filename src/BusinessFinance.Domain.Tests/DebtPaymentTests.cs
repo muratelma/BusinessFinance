@@ -71,8 +71,13 @@ public sealed class DebtPaymentTests
             new DateOnly(2026, 8, 1), new DateOnly(2026, 9, 1), 2);
 
         Assert.Throws<InvalidOperationException>(() => debt.Pay(Guid.NewGuid(), 300m, Today, Now, account));
+        Assert.Equal(1_000m, debt.RemainingPrincipal);
+        var firstPrincipal = debt.InstallmentSplits[0].Principal;
         debt.Pay(Guid.NewGuid(), 550m, Today, Now, account);
         Assert.Equal(550m, debt.RemainingAmount);
+        // Kalan anapara açık kalemin planlı anapara payıdır; yeni faiz hesabı yok.
+        Assert.Equal(1_000m - firstPrincipal, debt.RemainingPrincipal);
+        Assert.Equal(debt.InstallmentSplits[1].Principal, debt.RemainingPrincipal);
         Assert.Throws<InvalidOperationException>(
             () => debt.ChangePlan(DebtPlanKind.Single, Today, 1));
     }

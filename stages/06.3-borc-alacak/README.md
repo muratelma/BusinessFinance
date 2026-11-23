@@ -31,9 +31,9 @@ kullanıcıya sorulmaz.
 | 1 | Kod gerçeği ve sunucu tasarımı | **Belge yazıldı** (`04-SUNUCU-TASARIMI.md`); kalan okuma Faz 2'nin ilk işi |
 | 2 | Sunucu: kişinin hesabı genişler | **Sürüyor** (commit edilmedi): **Bitti** (17 Kasım 2026): S1 borç para, S2 kişiye kartla ödeme, S3 istek kimliği, S4 kişinin türü, S5 vazgeçme ve kalanı indirim sayma, peşin/avans tutarı (`paidNow`), yedek v14, dört migration |
 | 3 | Sunucu: okumalar | **Bitti** (17 Kasım 2026): S6 kişi sayfası, S7 liste, S8 (sunucu değişikliği gerekmedi), S11 vadeler planlananlarda (isteğe bağlı) |
-| 4 | Ekran tasarımı | **Bitti** (23 Kasım): tarif (`05-EKRAN-TASARIMI.md`), beş ekranın görünümü (`lib/features/debt_book/`, sunucuya bağlı değil), 20 kare × 3, iki tur denetim, kusur yok. Commit edilmedi |
-| 5 | Flutter: liste | Başlamadı |
-| 6 | Flutter: kişi sayfası, tahsilat ve ödeme | Başlamadı |
+| 4 | Ekran tasarımı | **Bitti** (23 Kasım), commit `652f728` |
+| 5 | Flutter: liste | **Bitti** (23 Kasım): `Diğer` → `Borç ve alacak` gerçek listeyi açar |
+| 6 | Flutter: kişi sayfası, tahsilat ve ödeme | **Bitti** (23 Kasım): kişi sayfası, `Tahsilat` / `Ödeme`, hareket süzgeci, iptal, indirim; borç para ve vazgeçme akış türleri. Faz 5 ile tek commit |
 | 7 | Flutter: yeni kayıt ve kayıt sayfası | Başlamadı |
 | 8 | Eski yolların kalkması | Başlamadı |
 | 9 | Kabul turu ve kapanış | Başlamadı |
@@ -47,15 +47,14 @@ kullanıcıya sorulmaz.
 > dalında sürer; bu dal `borc-alacak-cari`nin (`d359ab7`) üstündedir.
 > `borc-alacak-cari`ye birleşme Faz 5'ten önce, kullanıcı onayıyla.
 
-**Faz 5 — Flutter: `Borç ve alacak` listesi** (`03-PLAN.md`): Faz 4'ün
-görünümü (`DebtBookView`) depo ve denetleyiciyle `GET /api/v1/debt-book`a
-bağlanır, `Diğer` menüsünden açılır (eski sayfalar silinmez); kapsam
-`ScopeController`dan; durumlar (yükleniyor, hata, oturum, eski veri);
-büyük yazı ve 320–800 dp taşma testleri; emülatörde gerçek API ile dış göz
-denetimi. **Önce:** `ozet-tamamlama` → `borc-alacak-cari` birleşmesi
-kullanıcıya sorulur (bugün çalışma `ozet-tamamlama`da sürüyor); bilinmeyen
-akış türü (`counterparty-loan`, `counterparty-write-off`) istemcide tanınır;
-`MoneyFoundation_*` genişletmesi (Faz 2'den kalan).
+**Faz 7 — Flutter: yeni kayıt ve kayıt sayfası** (`03-PLAN.md`): Faz 4'ün
+`DebtEntryFormView` (dört form + avans; `Peşin / avans`, `Taksitli`,
+`Uygulamadan önce` blokları, kişi seçici ve yeni kişinin türü) ve
+`DebtRecordView` (taksitli ve kişisiz kaydın sayfası: kısmi ödeme, geri
+alma, plan değişikliği, indirim, iptal) sunucuya bağlanır; `+` ve kayıt
+satırları eski sayfalar yerine bunları açar. Takvim önizlemesi sunucudan.
+Açık: kişinin `⋮` menüsü (düzenle, açılış bakiyesi, pasife al) eski sayfayı
+açıyor (Faz 7–8); `MoneyFoundation_*` genişletmesi (Faz 2'den kalan).
 
 **Kullanıcı incelemesi (23 Kasım kararı):** ekranlara emülatörde, sunucuya
 bağlandıktan sonra bakılır; K15 sapması (hareketler varsayılan olarak tüm
@@ -353,3 +352,60 @@ ve kendi kaydını yazamadı.
   bitti.** Doğrulama: `dart format`, `flutter analyze` temiz; `flutter test`
   1343 geçti (295 atlandı: ekran karesi testleri yalnız `SCREENSHOT_DIR` ile koşar). Commit yok (kullanıcıya soruldu).
 
+### 23 Kasım 2026 (devam) — Faz 5: liste gerçek veride
+
+- **Faz 5 (kullanıcı: "commit et, birleştir, Faz 5'e geç, faizli
+  kısımda önerini uygula"):** Faz 4 `652f728` olarak commit edildi;
+  `borc-alacak-cari` `ozet-tamamlama`ya ileri alındı (çakışma yok) ve çalışma
+  o dalda sürüyor. Sunucu: borç cevabına `remainingPrincipal` (açık
+  taksitlerin planlı anapara payı; Domain `Debt.RemainingPrincipal`, Domain
+  ve API testi). Flutter: `DebtBookRepository`, `DebtBookController` (kapsam
+  anahtarını izler, cari/akış değişince yenilenir, düşen yenilemede eski
+  liste + `Liste güncellenemedi.`), `DebtBookPage`, rota `/more/debt-book`,
+  `Diğer` menüsünde `Borç ve alacak`. Geçiş: kişi → eski kişi sayfası, kayıt
+  ve `Kapananlar` → eski borç sayfası, `+` → `Ne oldu?` → eski sayfalar.
+- **Testler:** `test/features/debt_book/debt_book_test.dart` (22): taşma
+  testi büyük yazıda üç gerçek taşma buldu (uzun tutar başlığı itiyordu) →
+  satırda tutar büyük yazıda başlığın altına iner, normal yazıda en çok %60.
+- **Emülatör (gerçek API, geliştirme veritabanı):** liste toplamı satırları
+  tutuyor (alacak 2.200 + 2.950 + 1.400 + 300 = 6.850); kapsam menüsü genel
+  kapsamı değiştirip listeyi süzüyor (sonra `Hepsi`ye geri alındı); kişi ve
+  `+` yolları açılıyor. **Bulunan kusur:** kişisiz tek ödemeli faturalar
+  `0/1 taksit` yazıyordu (sunucu tek ödemede de taksit sayısı gönderiyor) →
+  taksitlilik plan türünden okunuyor, test eklendi, cihazda doğrulandı.
+  Eski kişilerin türü boş olduğu için `Hepsi`de kapsam etiketi yazmıyor
+  (doğru: uydurulmuyor). Karelerde sayfalar alt çubuksuz çizilir (`Diğer`den
+  açılan sayfa kuralı).
+- **Doğrulama:** `dart format`, `flutter analyze` temiz; `flutter test` 1365
+  geçti. Backend build, `dotnet format` temiz; Domain 416, Application 431,
+  Infrastructure 203, API 392 geçti (SQL bağlantısı tanımlı değildi: SQL'e
+  bağlı testler atlandı; değişiklik sorgu içermiyor).
+- **Yapılmayan:** `MoneyFoundation_*`. Faz 5'in commit'i Faz 6 ile birlikte
+  (kullanıcı kararı).
+
+
+### 23 Kasım 2026 (devam) — Faz 6: kişi sayfası canlı
+
+- **Kullanıcı:** "Faz 6'ya geç, commit'i Faz 6 ile beraber at."
+- **Akış türleri:** `counterparty-loan` (`Borç verdim` / `Borç aldım`) ve
+  `counterparty-write-off` (`Alacaktan vazgeçme` / `Bağışlanan borç`)
+  istemcide tanınıyor: ikon, ayrıntı satırları, iptal yolu, yenilenen ekranlar.
+  Önceden bu türlerden biri yazıldığında bütün akış açılmıyordu.
+- **Kişi sayfası:** `CounterpartyPage` + `CounterpartyPageController`: özet,
+  sayfalı hareketler (`Daha eski hareketler`), süzgeç (dönem, tür, iki
+  yönlüde taraf; sunucuda), `Tahsilat` / `Ödeme` paneli (hesap, POS, kredi
+  kartı; istek kimliği panel açılırken bir kez üretilir), ayrıntıdan iptal,
+  satış/alımda `İndirim yap` (`DebtDiscountSheet`), akış satırında `indirim
+  ₺…` (`discountAmount`). Hareket alt yazısı sayfanın kişisini tekrar etmez
+  (`ActivityTile.hideParty`).
+- **Emülatörde bulunan iki kusur (gerçek API):** (1) kişi sayfası "beklenmeyen
+  yanıt" diyordu — kısayol nesneleri yanlış okunuyordu (`JsonReaders.object`a
+  alanın değeri yerine bütün cevap); sentetik bir deneme hesabıyla
+  (`faz6-deneme@example.test`) ham cevap alındı, gerçek cevapla test eklendi.
+  (2) `Tahsilat` paneli açılmıyordu — hesap seçenekleri `build` dışında
+  `context.watch` ile okunuyordu; build'de alınıyor.
+- **Emülatör sonucu:** 100 TL tahsilat (alacak 2.950 → 2.850), ayrıntıdan
+  iptal (2.950'ye döndü), tür süzgeci. Kullanıcının verisi eski hâline döndü;
+  geliştirme veritabanında sentetik deneme hesabı kaldı.
+- **Kapsam dışı görülen:** form panelinde klavye `Kaydet`i örtüyor (bütün
+  paneller) → `docs/backlog.md` madde 18.

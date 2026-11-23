@@ -276,6 +276,9 @@ public sealed class DebtClosingEndpointTests
             new RecordDebtPaymentRequest(loan.Installments[0].Amount, Today, Today, bank));
         Assert.Equal("paid", whole.Installments[0].Status);
         Assert.NotEqual("0.0000", whole.Closings.Single().InterestAmount);
+        // Kalan anapara açık taksitin planlı anapara payıdır (kayıt sayfası).
+        Assert.Equal("1000.0000", loan.RemainingPrincipal);
+        Assert.Equal(whole.Installments[1].PrincipalPortion, whole.RemainingPrincipal);
     }
 
     [Fact]

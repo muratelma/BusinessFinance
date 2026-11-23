@@ -47,7 +47,7 @@ void main() {
             onAdd: () {},
           ),
         ),
-        selectedTab: 3,
+        withNavBar: false,
       );
     }, skip: !screenshotsEnabled);
   }
@@ -65,7 +65,7 @@ void main() {
           onAdd: () {},
         ),
       ),
-      selectedTab: 3,
+      withNavBar: false,
     );
   }, skip: !screenshotsEnabled);
 
@@ -82,7 +82,7 @@ void main() {
           onAdd: () {},
         ),
       ),
-      selectedTab: 3,
+      withNavBar: false,
     );
   }, skip: !screenshotsEnabled);
 
@@ -101,7 +101,7 @@ void main() {
           onBack: () {},
         ),
       ),
-      selectedTab: 3,
+      withNavBar: false,
     );
   }, skip: !screenshotsEnabled);
 
@@ -126,7 +126,7 @@ void main() {
             onPay: () {},
           ),
         ),
-        selectedTab: 3,
+        withNavBar: false,
       );
     }, skip: !screenshotsEnabled);
   }
@@ -322,7 +322,7 @@ void main() {
             onShowSchedule: () {},
           ),
         ),
-        selectedTab: 3,
+        withNavBar: false,
       );
     }, skip: !screenshotsEnabled);
   }

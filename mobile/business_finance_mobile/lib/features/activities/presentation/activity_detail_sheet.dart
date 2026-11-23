@@ -30,7 +30,12 @@ class ActivityDetailSheet extends StatelessWidget {
     this.parts,
     this.errorMessage,
     this.onShowDayClose,
+    this.onDiscount,
   });
+
+  /// Alım ya da satışa indirim (kişinin hesabı); verilirse iptalin üstünde
+  /// çerçeveli düğme.
+  final VoidCallback? onDiscount;
 
   /// Gün sonundan gelen kayıtta gün sonunun ayrıntısını açar; geri alma
   /// oradadır. Verilmezse eylem çizilmez.
@@ -174,6 +179,13 @@ class ActivityDetailSheet extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.compact),
             if (errorMessage != null) AppFormError(message: errorMessage!),
+            if (onDiscount != null && !activity.isCancelled) ...[
+              OutlinedButton(
+                onPressed: onDiscount,
+                child: const Text('İndirim yap'),
+              ),
+              const SizedBox(height: AppSpacing.small),
+            ],
             _Actions(
               activity: activity,
               effectLabel: effectLabel,
@@ -451,12 +463,13 @@ class ActivityDetailSheet extends StatelessWidget {
       if (activity.sourceName != null) _BalanceSlot.account,
       _BalanceSlot.debt,
     ],
-    ActivityKind.counterpartySettlement => const [
-      _BalanceSlot.account,
-      _BalanceSlot.counterparty,
-    ],
-    // Borçlandırma hesaba dokunmaz; yalnız kişinin carisi değişir.
-    ActivityKind.counterpartyCharge => const [_BalanceSlot.counterparty],
+    // Borç para tahsilat gibi para taşır: hesap ve kişinin bakiyesi.
+    ActivityKind.counterpartySettlement || ActivityKind.counterpartyLoan =>
+      const [_BalanceSlot.account, _BalanceSlot.counterparty],
+    // Borçlandırma ve vazgeçme hesaba dokunmaz; yalnız kişinin bakiyesi
+    // değişir.
+    ActivityKind.counterpartyCharge ||
+    ActivityKind.counterpartyWriteOff => const [_BalanceSlot.counterparty],
     // Tek seferlik yükümlülüğün karşı tarafı olmayabilir.
     ActivityKind.obligation => [
       if (activity.sourceName != null) _BalanceSlot.counterparty,
@@ -524,7 +537,9 @@ class ActivityDetailSheet extends StatelessWidget {
           if (source != null) row(_accountIcon(source), 'Hesap', source),
         ],
         // Borçlandırmanın hesabı yoktur: para el değiştirmedi.
-        ActivityKind.counterpartyCharge || ActivityKind.obligation => [
+        ActivityKind.counterpartyCharge ||
+        ActivityKind.counterpartyWriteOff ||
+        ActivityKind.obligation => [
           if (source != null) row(Icons.group_outlined, 'Karşı taraf', source),
         ],
         // Kartla tahsil (ADR 0019 T5) POS satışının parçalarını taşır:
@@ -576,6 +591,7 @@ class ActivityDetailSheet extends StatelessWidget {
             ),
         ],
         ActivityKind.counterpartySettlement ||
+        ActivityKind.counterpartyLoan ||
         ActivityKind.obligationSettlement => [
           if (source != null)
             row(Icons.account_balance_outlined, 'Hesap', source),
