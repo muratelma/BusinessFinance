@@ -447,42 +447,42 @@ void main() {
         ActivityDirection.receivable,
       );
 
-      expect(collection.kindLabel, 'Alacak tahsilatı');
+      expect(collection.kindLabel, 'Tahsilat');
       expect(
         settlement(
           ActivityKind.obligationSettlement,
           ActivityDirection.payable,
         ).kindLabel,
-        'Borç ödemesi',
+        'Ödeme',
       );
       expect(
         settlement(
           ActivityKind.counterpartySettlement,
           ActivityDirection.receivable,
         ).kindLabel,
-        'Cari tahsilat',
+        'Tahsilat',
       );
       expect(
         settlement(
           ActivityKind.counterpartySettlement,
           ActivityDirection.payable,
         ).kindLabel,
-        'Cari ödeme',
+        'Ödeme',
       );
       // Yön gelmezse eski, iki yönü de karşılayan ad kalır.
       expect(
         settlement(ActivityKind.counterpartySettlement, null).kindLabel,
-        'Cari tahsilat / ödeme',
+        'Tahsilat / ödeme',
       );
-      // Taksit kendi adını taşır: tek seferlik borcun ödemesiyle aynı
+      // Taksit kendi adını taşır: kişinin hesabındaki ödemeyle aynı
       // listede durur ve aynı adla ayırt edilemezdi.
       expect(
         settlement(ActivityKind.debtPayment, null).kindLabel,
-        'Borç taksidi ödemesi',
+        'Taksit ödemesi',
       );
       expect(
         settlement(ActivityKind.debtCollection, null).kindLabel,
-        'Alacak taksidi tahsilatı',
+        'Taksit tahsilatı',
       );
       expect(
         settlement(
@@ -500,12 +500,12 @@ void main() {
       );
       expect(
         settlement(ActivityKind.counterpartyCharge, null).kindLabel,
-        'Cari hareket',
+        'Satış / alım',
       );
 
       // Ayrıntı: hesap hesaptır, kişi kişidir; alt başlık tahsilat der.
       await _pumpSheet(tester, collection);
-      expect(find.text('Alacak tahsilatı'), findsOneWidget);
+      expect(find.text('Tahsilat'), findsOneWidget);
       expect(
         find.descendant(
           of: find.widgetWithText(AppDetailRow, 'Hesap'),

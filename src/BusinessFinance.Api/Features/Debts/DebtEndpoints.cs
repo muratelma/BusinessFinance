@@ -20,9 +20,6 @@ public static class DebtEndpoints
         group.MapPost("/{debtId:guid}/opening", RecordOpeningAsync)
             .Produces<DebtResponse>().ProducesProblem(400).ProducesProblem(401)
             .ProducesProblem(404).ProducesProblem(409);
-        group.MapPost("/{debtId:guid}/installments/{sequence:int}/pay", PayAsync)
-            .Produces<DebtResponse>().ProducesProblem(400).ProducesProblem(401)
-            .ProducesProblem(404).ProducesProblem(409);
 
         // Dalga 2 (ADR 0021): borcun kendisi ve kapanışları, her planda.
         group.MapPost("/schedule-preview", PreviewScheduleAsync)
@@ -297,19 +294,6 @@ public static class DebtEndpoints
         return result.IsSuccess
             ? Results.Ok(new DebtListResponse(result.Value.Select(ToResponse).ToArray()))
             : result.Error.ToProblemResult(context);
-    }
-
-    private static async Task<IResult> PayAsync(
-        Guid debtId, int sequence, PayDebtInstallmentRequest request,
-        PayDebtInstallmentUseCase useCase, HttpContext context, CancellationToken cancellationToken)
-    {
-        if (!FinanceContract.TryParseDate(request.PaymentDate, out var paymentDate) ||
-            !FinanceContract.TryParseDate(request.AsOfDate, out var asOf))
-            return ApiProblemResults.Validation(context, "Dates must use yyyy-MM-dd.", "debt.invalid_date");
-        var result = await useCase.ExecuteAsync(
-            new PayDebtInstallmentCommand(debtId, sequence, request.AccountId, paymentDate),
-            asOf, cancellationToken);
-        return result.IsSuccess ? Results.Ok(ToResponse(result.Value)) : result.Error.ToProblemResult(context);
     }
 
     internal static DebtResponse ToResponse(DebtDto debt) => new(

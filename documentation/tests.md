@@ -2703,3 +2703,48 @@ yükseltildi): sonuç `stages/06.3-borc-alacak/README.md` günlüğünde.
 | Kaydın nereye gittiği: kişili satış borçlandırma (peşin tek yazmada), borç para, avans tahsilat, taksitli ve kişisiz ayrı kayıt, yeni kişi önce kurulur, kişili uygulamadan önce açılış bakiyesi | `test/features/debt_book/debt_book_test.dart` `DebtEntrySubmitter` | |
 | Kayıt sayfasında ödeme yere göre, iptal sayfayı kapatır | aynı dosya `DebtRecordController` | |
 | Emülatör (gerçek API): kayıt sayfası, `Tamamı` ile ödeme (kayıt kapandı) ve geri alma (eski hâline döndü); `+` → `Veresiye sattım` → kişi seçici → 100 TL satış (alacak 6.850 → 6.950) ve kişi sayfasından iptali | Elle, 23 Kasım 2026 | Kullanıcının verisi eski hâline döndü |
+
+## Eski yolların kalkması, istemci (Faz 8) — 23 Kasım 2026
+
+Silinen Flutter testleri ekranlarıyla birlikte gitti: `counterparties_page_test`,
+`debts_page_test`, `debt_scope_test`, `obligations_page_test`,
+`obligation_form_page_test`, `cari_yukumluluk_screenshot_test`; kare
+testlerinden eski yükümlülük formu ve eski kişi listesi kareleri çıktı.
+`scope_controller_test`in cari kapısı testleri `hasCounterpartyLedger` ile
+birlikte kalktı.
+
+| Kanıt | Test | Not |
+|---|---|---|
+| Kişinin menüsü: düzenle (etkinlik değişmez, tür boşsa gönderilmez), pasife al (ad ve not korunur), açılış bakiyesi, sil; sunucunun reddi cümlesiyle döner | `debt_book_test.dart` `CounterpartyPageController` "kişinin kendisi…" | |
+| `Kapananlar` yalnız seçili tarafı listeler, kayıt sayfasını açar | aynı dosya `DebtClosedPage` | |
+| Fiş "henüz ödemedim": eşleşen kişi kişiye, eşleşmeyen ad açıklamaya; belge ve vade günleri ayrı | `invoice_decision_page_test` | K10 |
+| Fiş "henüz ödemedim" kaydı kişisiz borç yazar ve soru sayfasını kapatır; form önerisiz de açılır | `bank_document_router_test` | |
+| Dekont "borç verdim": ücret taşınır (kapatılabilir), kişi uydurulmaz | `receipt_scan_page_test` "the lending path…" | |
+| Planlananlarda kişinin vadesi kişi sayfasına götürür; adresi yoksa bilgi satırı | `planned_activity_test` | |
+| Hatırlatmada `ödenecek borç` adı | `reminder_planner_test` | |
+| Akıştaki yeni tür adları (`Tahsilat`, `Ödeme`, `Taksit ödemesi`, `Satış / alım`) | `activity_pos_rows_test` | |
+| `Diğer` menüsünde `Borç ve alacak` tek giriş, `Cari hesap` ve `Yükümlülükler` yok | `more_page_test` | |
+| Aşama 02 kabul testi yeni depoyla (kişi oluştur, satış, tahsilat, iptal; gerçek API) | `integration_test/stage02_counterparty_acceptance_test.dart` | Yalnız gerçek API ile koşar; bu oturumda koşulmadı |
+
+## Eski yolların kalkması, sunucu (Faz 8, S9) — 23 Kasım 2026
+
+`ObligationEndpointTests` uçlarla birlikte silindi. Eski uçları düzenek olarak
+kullanan dokuz API test dosyası `SingleDebts` düzeneğine taşındı (tek ödemeli
+kaydı `POST /api/v1/debts` ile açar, kalanın tamamını `/payments` ile kapatır,
+`DELETE /api/v1/debts/{id}` ile iptal eder); beklenen hata kodları
+`obligations.*` yerine `debt.*`.
+
+| Kanıt | Test | Not |
+|---|---|---|
+| Tek ödemeli kayıtta vade belge gününden önce olamaz; ödenmiş kaydın iptali ödemeyi ve gideri geri alır | `DebtClosingEndpointTests.SingleDebt_RejectsADueBeforeIssue_AndItsCancelUndoesThePayment` | Silinen yükümlülük testlerinin kuralları |
+| Birleşme altın testi eski verinin biçimiyle kurulur | `DebtMergeBaselineTests` | Taksit ödemeleri alan modelinin `PayInstallment`ıyla doğrudan yazılır (akış kimlikleri taksitindir); altın dosyadan yalnız kalkan yükümlülük listesi, kişideki iki alan ve profildeki işaret çıktı; v12 yedeği değişmedi |
+| Profil yalnız `hasBusiness` döner | `CounterpartyEndpointTests` (cari kapısı testi silindi) | |
+| Kişiye bağlı fatura cari bakiyeye girmez, kendi ödemesiyle kapanır | `CounterpartyEndpointTests.InvoiceTiedToAPerson_…` | Açık yükümlülük alanı assert'leri çıktı |
+| Kart (POS) yalnız alacağı kapatır | `CardCollectionEndpointTests` | Kod `debt.payment_source_invalid` |
+
+| Kanıt | Test | Not |
+|---|---|---|
+| Net varlık kişinin hesabını kişi listesiyle aynı sayar: borç para ve vazgeçme dahil | `MoneyFoundation_BalancesDebtsAndTransitAgreeAcrossEveryRead` (tohum genişledi: arkadaşa borç para 400, toptancıya kartla ödeme 30, müşteriden vazgeçme 20) | **Bulunan hata:** net varlık borç parayı ve vazgeçmeyi saymıyordu (`EfFinancialReportRepository`); düzeltildi |
+| Kartla ödeme kart borcunda var, giderde yok; vazgeçme giderde bir kez | aynı dosya, üç `MoneyFoundation_*` testi | Banka sayfasının sayıları (`FinancePages_*`) borç parayla güncellendi |
+| Akış satırı satışa bağlı peşin tutarı taşır; ödeme satırı taşımaz | `CounterpartyLoanEndpointTests.CancellingTheSale_KeepsTheAdvanceUnlessAskedToCancelItToo` | SQL çevirisini `DebtMergeBaselineTests` akış okumaları sınar |
+| İptalde peşin sorusu: `Yalnız satışı` bırakır, `İkisini de iptal et` birlikte iptal eder | `activity_detail_sheet_test` "a sale with an advance…" | |

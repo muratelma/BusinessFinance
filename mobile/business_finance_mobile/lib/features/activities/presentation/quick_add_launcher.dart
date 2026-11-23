@@ -41,7 +41,7 @@ class QuickAddLauncher extends StatelessWidget {
   /// tahsilatı Kasa'dan girilmeye devam eder.
   static List<QuickAddOption> _more(bool hasBusiness) => [
     hasBusiness ? QuickAddOption.dayClose : QuickAddOption.posCollection,
-    QuickAddOption.obligation,
+    QuickAddOption.debt,
     QuickAddOption.cardPayment,
     QuickAddOption.recurringPlan,
   ];
@@ -138,7 +138,7 @@ class QuickAddLauncher extends StatelessWidget {
 IconData quickAddIcon(QuickAddOption option) => switch (option) {
   QuickAddOption.expense => Icons.north_east,
   QuickAddOption.receipt => Icons.receipt_long_outlined,
-  QuickAddOption.obligation => Icons.schedule_outlined,
+  QuickAddOption.debt => Icons.handshake_outlined,
   QuickAddOption.income => Icons.south_west,
   QuickAddOption.posCollection => Icons.point_of_sale_outlined,
   QuickAddOption.dayClose => Icons.fact_check_outlined,

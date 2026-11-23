@@ -37,16 +37,24 @@ void main() {
   });
 
   // Belge tarihi giderin tanınma, son ödeme tarihi borcun vade günüdür.
+  // Kişi eşleştiyse vadeli alım kişinin hesabına gider; ad açıklamayı
+  // tekrar etmez (K10).
   test('keeps the invoice issue and due dates separate', () {
-    final prefill = receiptObligationPrefillFrom(_draft());
+    final prefill = receiptPurchasePrefillFrom(_draft());
 
-    expect(prefill.issueDate?.value, '2026-09-01');
-    expect(prefill.dueDate?.value, '2026-09-30');
-    expect(prefill.amount?.value, '412.6000');
-    expect(prefill.description?.value, 'ENERJİSA');
-    expect(prefill.counterpartyId, 'counterparty-1');
-    // Ödeme kaynağı taşınmıyor: fatura hangi hesaptan ödeneceğini söylemez.
-    expect(prefill.isEmpty, isFalse);
+    expect(prefill.date, '2026-09-01');
+    expect(prefill.dueDate, '2026-09-30');
+    expect(prefill.amount, '412.6000');
+    expect(prefill.person?.id, 'counterparty-1');
+    expect(prefill.person?.name, 'ENERJİSA');
+    expect(prefill.description, isNull);
+  });
+
+  test('an unmatched invoice keeps the read name as the description', () {
+    final prefill = receiptPurchasePrefillFrom(_draft(counterpartyId: null));
+
+    expect(prefill.person, isNull);
+    expect(prefill.description, 'ENERJİSA');
   });
 
   test('a document without a due date asks nothing', () {
@@ -72,11 +80,14 @@ Future<void> _pump(
   await tester.pumpAndSettle();
 }
 
-ReceiptDraft _draft({String? dueDate = '2026-09-30'}) => ReceiptDraft(
+ReceiptDraft _draft({
+  String? dueDate = '2026-09-30',
+  String? counterpartyId = 'counterparty-1',
+}) => ReceiptDraft(
   documentKind: ReceiptDocumentKind.invoiceOrVoucher,
   counterpartyName: 'ENERJİSA',
   counterpartyState: ReceiptFieldState.read,
-  counterpartyId: 'counterparty-1',
+  counterpartyId: counterpartyId,
   purchasedAt: '2026-09-01',
   purchasedAtState: ReceiptFieldState.read,
   dueDate: dueDate,

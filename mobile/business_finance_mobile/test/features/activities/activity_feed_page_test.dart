@@ -792,7 +792,10 @@ class _FakeRepository implements ActivityRepositoryContract {
   Object? cancelError;
 
   @override
-  Future<void> cancel(FinancialActivity activity) async {
+  Future<void> cancel(
+    FinancialActivity activity, {
+    bool withPaidNow = false,
+  }) async {
     cancelled.add(activity);
     if (cancelError != null) throw cancelError!;
   }

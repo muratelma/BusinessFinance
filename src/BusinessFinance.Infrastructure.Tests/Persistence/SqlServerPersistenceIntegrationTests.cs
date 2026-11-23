@@ -4481,12 +4481,10 @@ public sealed partial class SqlServerPersistenceIntegrationTests
             [ActivityBalanceHolder.Account],
             afterSettlement.Select(item => item.Holder));
 
-        // Son cari hareketin sonrası kişinin güncel bakiyesidir; yükümlülük
-        // kapandığı için bilgi toplamı da sıfırdır.
+        // Son cari hareketin sonrası kişinin güncel bakiyesidir.
         var counterparties = scope.ServiceProvider.GetRequiredService<ICounterpartyRepository>();
         var current = await counterparties.FindBalanceAsync(personId, owner.Id, day, default);
         Assert.Equal(-50m, current!.Net);
-        Assert.Equal(0m, current.OpenPayableObligations);
 
         // Giriş anı bilinmeyen eski kaydın yeri bilinmez: bakiye dönmez.
         Assert.Empty((await balances.GetBalancesAfterAsync(

@@ -51,7 +51,7 @@ class ActivityDetailSheet extends StatelessWidget {
   final Future<List<ActivityBalance>>? balances;
 
   /// Null when this kind cannot be cancelled, which hides the action entirely.
-  final Future<void> Function()? onCancel;
+  final Future<void> Function({bool withPaidNow})? onCancel;
   final bool isCancelling;
 
   @override
@@ -728,7 +728,7 @@ class _Actions extends StatelessWidget {
   final VoidCallback? onShowDayClose;
   final FinancialActivity activity;
   final String effectLabel;
-  final Future<void> Function()? onCancel;
+  final Future<void> Function({bool withPaidNow})? onCancel;
   final bool isCancelling;
 
   @override
@@ -864,7 +864,31 @@ class _Actions extends StatelessWidget {
       },
       confirmLabel: 'Hareketi iptal et',
     );
-    if (!confirmed) return;
-    await onCancel!();
+    if (!confirmed || !context.mounted) return;
+    // Satışla alınan peşin tutar (`paidNow`) ayrı bir tahsilattır: iş
+    // olmadıysa para kişinin hesabında kalır; kayıt yanlış girildiyse ikisi
+    // birlikte iptal edilir. Varsayılan bırakmaktır (17 Kasım kararı).
+    final paidNow = activity.paidNowAmount;
+    var withPaidNow = false;
+    if (paidNow != null && activity.kind == ActivityKind.counterpartyCharge) {
+      final sale = activity.direction != ActivityDirection.payable;
+      withPaidNow = await AppConfirmDialog.show(
+        context: context,
+        title: sale
+            ? 'Peşin alınan da iptal edilsin mi?'
+            : 'Peşin ödenen de iptal edilsin mi?',
+        highlight: MoneyText.format(paidNow, activity.currency),
+        message: sale
+            ? 'İş olmadıysa peşin alınan para kişinin hesabında kalır; ona '
+                  'borçlu görünürsünüz. Kayıt yanlış girildiyse ikisini '
+                  'birlikte iptal edin.'
+            : 'İş olmadıysa peşin ödenen para kişinin hesabında kalır; size '
+                  'borçlu görünür. Kayıt yanlış girildiyse ikisini birlikte '
+                  'iptal edin.',
+        confirmLabel: 'İkisini de iptal et',
+        cancelLabel: sale ? 'Yalnız satışı' : 'Yalnız alımı',
+      );
+    }
+    await onCancel!(withPaidNow: withPaidNow);
   }
 }

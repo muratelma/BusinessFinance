@@ -89,7 +89,6 @@ abstract final class ApiErrorMessages {
     'counterparty_charges': 'Cari borçlandırma',
     'counterparty_payments': 'Cari tahsilat',
     'debt': 'Borç/alacak kaydı',
-    'obligations': 'Yükümlülük',
     'goal': 'Tasarruf hedefi',
     'pos_settlements': 'POS tahsilatı',
     'pos_deposits': 'POS yatışı',
@@ -279,9 +278,6 @@ abstract final class ApiErrorMessages {
         'Kaydın günü ileride olamaz. Vadeyi ileri bir güne yazabilirsiniz.',
     'debt.date_in_future': 'Başlangıç tarihi ve ödeme günü ileride olamaz.',
     'imports.date_in_future': 'Satırın tarihi ileride olamaz.',
-    'obligations.date_in_future':
-        'Kaydın günü ve ödeme günü ileride olamaz. Vadeyi ileri bir güne '
-        'yazabilirsiniz.',
     'pos_settlements.date_in_future': 'Tahsilatın günü ileride olamaz.',
     'cash_counts.date_in_future': 'Sayımın günü ileride olamaz.',
     'installments.not_due_yet': 'Bu taksidin günü henüz gelmedi.',
@@ -453,13 +449,12 @@ abstract final class ApiErrorMessages {
         'alın.',
     'counterparty_charges.day_close_counted':
         'Bu satış gün sonunda sayıldı. İptal için önce gün sonunu geri alın.',
-    'obligations.day_close_counted':
+    // Tek ödemeli kaydın (eski yükümlülük) iptali borç ucundandır.
+    'debt.day_close_counted':
         'Bu kayıt ya da tahsilatı gün sonunda sayıldı. İptal için önce gün '
         'sonunu geri alın.',
-    'obligations.deposit_locked':
+    'debt.deposit_locked':
         'Kart parası hesaba geçmiş. İptal için önce yatışı geri alın.',
-    'obligations.concurrent_change':
-        'Kayıt bu sırada değişti. Sayfayı yenileyip yeniden deneyin.',
     'day_closes.deposit_locked':
         'Kart parası hesaba geçmiş. Önce yatışı geri alın.',
     'day_closes.concurrent_change':

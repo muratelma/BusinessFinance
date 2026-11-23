@@ -1,4 +1,5 @@
 import '../../../core/localization/default_category_labels.dart';
+import '../../../core/models/json_readers.dart';
 import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_response.dart';
@@ -11,6 +12,9 @@ abstract interface class DebtBookRepositoryContract {
   /// `GET /api/v1/debt-book`: toplamlar, satırlar ve kişiler; kapsam boşsa
   /// hepsi.
   Future<DebtBook> load({required String asOfDate, TransactionScope? scope});
+
+  /// `GET /api/v1/debt-book/closed`: kapanmış ayrı kayıtlar.
+  Future<List<DebtClosedItem>> loadClosed();
 
   /// `GET /api/v1/counterparties/{id}/page`: kişinin özeti.
   Future<CounterpartyPageData> loadPerson(
@@ -68,6 +72,20 @@ abstract interface class DebtBookRepositoryContract {
     required String payable,
   });
 
+  /// `PUT /api/v1/counterparties/{id}`: ad, not, tür ve etkinlik birlikte
+  /// yazılır (sunucu kişinin tam hâlini ister). Tür boşsa değişmez.
+  Future<void> updateCounterparty(
+    String counterpartyId, {
+    required String name,
+    required bool isActive,
+    String? note,
+    TransactionScope? scope,
+  });
+
+  /// `DELETE /api/v1/counterparties/{id}`; hareketi olan kişide sunucu `409`
+  /// döner ve pasife almaya yönlendirir.
+  Future<void> deleteCounterparty(String counterpartyId);
+
   /// `POST /api/v1/debts`; kaydın kimliğini döner.
   Future<String> createDebt(Map<String, Object?> body);
 
@@ -88,6 +106,15 @@ class DebtBookRepository implements DebtBookRepositoryContract {
     if (scope != null) query.write('&scope=${scope.apiValue}');
     final response = await _client.get('/api/v1/debt-book?$query');
     return DebtBook.fromJson(response.requireObject());
+  }
+
+  @override
+  Future<List<DebtClosedItem>> loadClosed() async {
+    final response = await _client.get('/api/v1/debt-book/closed');
+    return [
+      for (final item in JsonReaders.list(response.requireObject(), 'items'))
+        DebtClosedItem.fromJson(JsonReaders.object(item, 'item')),
+    ];
   }
 
   @override
@@ -292,6 +319,27 @@ class DebtBookRepository implements DebtBookRepositoryContract {
     '/api/v1/counterparties/$counterpartyId/opening-balance',
     body: {'receivable': receivable, 'payable': payable},
   );
+
+  @override
+  Future<void> updateCounterparty(
+    String counterpartyId, {
+    required String name,
+    required bool isActive,
+    String? note,
+    TransactionScope? scope,
+  }) async => _client.put(
+    '/api/v1/counterparties/$counterpartyId',
+    body: {
+      'name': name,
+      'isActive': isActive,
+      'note': note,
+      'scope': ?scope?.apiValue,
+    },
+  );
+
+  @override
+  Future<void> deleteCounterparty(String counterpartyId) async =>
+      _client.delete('/api/v1/counterparties/$counterpartyId');
 
   @override
   Future<String> createDebt(Map<String, Object?> body) async {

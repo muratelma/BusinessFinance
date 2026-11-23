@@ -93,8 +93,12 @@ Future<bool> showActivityDetail(
                 }
               },
         onCancel: activity.canCancel
-            ? () async {
-                if (await controller.cancel(activity, reload: reloadOnCancel)) {
+            ? ({bool withPaidNow = false}) async {
+                if (await controller.cancel(
+                  activity,
+                  reload: reloadOnCancel,
+                  withPaidNow: withPaidNow,
+                )) {
                   changed = true;
                   if (sheetContext.mounted) Navigator.pop(sheetContext);
                 }

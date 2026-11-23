@@ -26,15 +26,15 @@ const refundDecisionLocation = '/transactions/new/refund';
 /// Fatura "ödendi mi?" sayfası.
 const invoiceDecisionLocation = '/transactions/new/invoice';
 
-/// Ödenmemiş faturanın tek seferlik yükümlülük formu.
-const obligationCreateLocation = '/transactions/new/obligation';
+/// `Borç ve alacak` listesi. Kişi sayfası `$debtBookLocation/people/{id}`,
+/// taksitli ya da kişisiz kaydın sayfası `$debtBookLocation/records/{id}`
+/// adresindedir; `extra` sayfa okunana kadar başlıkta yazan addır.
+const debtBookLocation = '/more/debt-book';
 
-/// Aynı form, `Yükümlülükler` listesinden açıldığında.
-///
-/// Liste shell'in dışında bir rotadır; oradan [obligationCreateLocation]'a
-/// geçmek shell zincirini ikinci kez kurar ve aynı çökmeyi üretir. Bu yüzden
-/// liste formu kendi altındaki rotaya açar.
-const obligationListCreateLocation = '/more/obligations/new';
+/// Yeni borç ya da alacak formu (`İşlem ekle`, fiş "henüz ödemedim", dekont
+/// "borç verdim"). `extra` bir `DebtEntryRequest`tir. Fiş sayfalarıyla
+/// kardeştir: onlardan açılınca shell zinciri yeniden kurulmaz.
+const debtEntryLocation = '/transactions/new/debt';
 
 /// `Kasa` ekranı: gün sonu sayımı ve POS tahsilatları.
 ///

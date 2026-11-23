@@ -8,6 +8,7 @@ using BusinessFinance.Api.Features.Categories;
 using BusinessFinance.Api.Features.Counterparties;
 using BusinessFinance.Api.Features.CreditCards;
 using BusinessFinance.Api.Features.Debts;
+using BusinessFinance.Api.Tests.Features.Debts;
 using BusinessFinance.Api.Features.FinancialActivities;
 using BusinessFinance.Api.Features.Imports;
 using BusinessFinance.Api.Features.RecurringTransactions;
@@ -83,21 +84,13 @@ public sealed class RecordDateEndpointTests
                 "cash", bank.Id, null, Tomorrow, "2026-11-12", 2, "Kredi", Today),
             "debt.date_in_future");
 
-        // Kasa, POS ve yükümlülük de kendi koduyla reddeder; ekran ne olduğunu
-        // söyleyebilsin diye genel doğrulama koduna düşmezler.
+        // Kasa, POS ve tek ödemeli kayıt da kendi koduyla reddeder; ekran ne
+        // olduğunu söyleyebilsin diye genel doğrulama koduna düşmezler.
         await AssertRejectedAsync(
-            owner, "/api/v1/obligations",
-            new
-            {
-                direction = "payable",
-                amount = "300.0000",
-                currency = "TRY",
-                categoryId = expense.Id,
-                issueDate = Tomorrow,
-                dueDate = "2026-11-12",
-                scope = "business",
-            },
-            "obligations.date_in_future");
+            owner, "/api/v1/debts",
+            SingleDebts.Request(new SingleDebtInput(
+                "payable", "300.0000", "TRY", expense.Id, Tomorrow, "2026-11-12", "business")),
+            "debt.date_in_future");
         await AssertRejectedAsync(
             owner, "/api/v1/pos-settlements",
             new
@@ -145,23 +138,16 @@ public sealed class RecordDateEndpointTests
             owner, $"/api/v1/counterparties/{person.Id}/payments",
             new CreateCounterpartyPaymentRequest("receivable", "200.0000", "TRY", bank.Id, Today));
 
-        // Vadesi ileride olan yükümlülük bugün yazılır; ödeme günü ileride olamaz.
-        var obligation = await PostAsync<JsonObject>(
-            owner, "/api/v1/obligations",
-            new
-            {
-                direction = "payable",
-                amount = "300.0000",
-                currency = "TRY",
-                categoryId = expense.Id,
-                issueDate = Today,
-                dueDate = "2026-11-12",
-                scope = "business",
-            });
+        // Vadesi ileride olan tek ödemeli kayıt bugün yazılır; ödeme günü
+        // ileride olamaz.
+        var obligation = await PostAsync<DebtResponse>(
+            owner, "/api/v1/debts",
+            SingleDebts.Request(new SingleDebtInput(
+                "payable", "300.0000", "TRY", expense.Id, Today, "2026-11-12", "business")));
         await AssertRejectedAsync(
-            owner, $"/api/v1/obligations/{obligation["id"]!.GetValue<string>()}/settlement",
-            new { accountId = bank.Id, settlementDate = Tomorrow },
-            "obligations.date_in_future");
+            owner, $"/api/v1/debts/{obligation.Id}/payments",
+            new RecordDebtPaymentRequest("300.0000", Tomorrow, Today, bank.Id),
+            "debt.date_in_future");
     }
 
     /// <summary>
@@ -182,14 +168,14 @@ public sealed class RecordDateEndpointTests
                 "cash", bank.Id, null, Today, "2026-11-12", 2, "Kredi", Today));
 
         await AssertRejectedAsync(
-            owner, $"/api/v1/debts/{debt.Id}/installments/1/pay",
-            new PayDebtInstallmentRequest(bank.Id, Tomorrow, Today),
+            owner, $"/api/v1/debts/{debt.Id}/payments",
+            new RecordDebtPaymentRequest("600.0000", Tomorrow, Today, bank.Id),
             "debt.date_in_future");
         Assert.Equal("11000.0000", await BalanceAsync(owner, bank.Id));
 
         var paid = await PostAsync<DebtResponse>(
-            owner, $"/api/v1/debts/{debt.Id}/installments/1/pay",
-            new PayDebtInstallmentRequest(bank.Id, Today, Today));
+            owner, $"/api/v1/debts/{debt.Id}/payments",
+            new RecordDebtPaymentRequest("600.0000", Today, Today, bank.Id));
         var first = paid.Installments.Single(item => item.Sequence == 1);
         Assert.Equal("2026-11-12", first.DueDate);
         Assert.Equal(Today, first.PaymentDate);

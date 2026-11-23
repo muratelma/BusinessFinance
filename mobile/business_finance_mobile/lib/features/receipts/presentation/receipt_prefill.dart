@@ -1,8 +1,7 @@
 import '../../activities/presentation/quick_add_models.dart';
 import '../../cards/presentation/transfer_prefill.dart';
-import '../../debts/presentation/lending_prefill.dart';
-import '../../obligations/data/obligation_direction.dart';
-import '../../obligations/presentation/obligation_prefill.dart';
+import '../../debt_book/data/debt_book_models.dart';
+import '../../debt_book/presentation/debt_entry_prefill.dart';
 import '../data/receipt_models.dart';
 import '../data/receipt_photo.dart';
 
@@ -99,54 +98,82 @@ CardPaymentPrefill receiptCardPaymentPrefillFrom(
   feeDescription: _feeDescription(draft),
 );
 
-/// Okunan dekontu alacak formunun anladığı önerilere çevirir.
+/// Okunan dekontu `Borç verdim` formunun anladığı önerilere çevirir.
 ///
 /// **Hesap taşınmıyor**: dekont paranın hangi hesaptan çıktığını söylemez.
-/// Vade ve taksit sayısı da taşınmıyor, çünkü belgede yazmıyor — onların
-/// varsayımı formda kuruluyor ve orada değiştirilebiliyor.
+/// Vade de taşınmıyor, çünkü belgede yazmıyor.
 ///
-/// Sunucunun bulduğu karşı taraf **eşleşmesi** taşınıyor: ad okunamadıysa
-/// eşleşme de yoktur, o yüzden ikisi aynı koşula bağlı.
-LendingPrefill receiptLendingPrefillFrom(
+/// Sunucunun bulduğu kişi **eşleşmesi** kişi önerisi olur: yanlış eşleşme iki
+/// kişinin hesabını karıştırırdı, bu yüzden kişi formda görünür ve
+/// değiştirilebilir (ADR 0011: model önerir, kullanıcı onaylar). Eşleşme
+/// yoksa okunan ad açıklamaya gider; kişiyi kullanıcı seçer ya da ekler.
+DebtEntryPrefill receiptLendingPrefillFrom(
   ReceiptDraft draft, {
   bool withFee = true,
-}) => LendingPrefill(
-  counterpartyName: draft.counterpartyState.isMissing
-      ? null
-      : draft.counterpartyName,
-  matchedCounterpartyId: draft.counterpartyState.isMissing
-      ? null
-      : draft.counterpartyId,
-  amount: draft.totalAmountState.isMissing ? null : draft.totalAmount,
-  date: draft.purchasedAtState.isMissing ? null : draft.purchasedAt,
-  feeAmount: withFee && draft.hasFee ? draft.feeAmount : null,
-  feeDescription: _feeDescription(draft),
-);
+}) {
+  final person = _matchedPerson(draft);
+  return DebtEntryPrefill(
+    person: person,
+    amount: _read(draft.totalAmount, draft.totalAmountState),
+    date: _read(draft.purchasedAt, draft.purchasedAtState),
+    description: person == null
+        ? _read(draft.counterpartyName, draft.counterpartyState)
+        : null,
+    notices: _notices(draft),
+    feeAmount: withFee && draft.hasFee ? draft.feeAmount : null,
+    feeDescription: _feeDescription(draft),
+  );
+}
 
-/// Ödenmemiş faturayı yükümlülük formunun anladığı önerilere çevirir.
+/// Ödenmemiş faturayı `Vadeli aldım` formunun anladığı önerilere çevirir
+/// (K10): kişi eşleştiyse kişinin hesabına vadeli alım, eşleşmediyse okunan
+/// ad kaydın açıklamasıdır ve kayıt kişisiz yazılabilir.
 ///
-/// **Ödeme kaynağı taşınmıyor**: fatura hangi hesaptan ödeneceğini söylemez.
-/// Belge tarihi ekonomik olayın tanındığı gün, son ödeme tarihi ise vadedir;
-/// iki alan ayrı taşınır. Ödeme kaynağı taşınmaz, çünkü para henüz çıkmamıştır.
-///
-/// Yön **sabittir**: "henüz ödemedim" cevabı borçlu olduğunu söyler. Formda
-/// yeniden sormak, kullanıcının bir adım önce verdiği cevabı tekrar istemek
-/// olurdu (ADR 0011: model yönü seçmez, kullanıcı seçer — burada seçti).
-ObligationPrefill receiptObligationPrefillFrom(ReceiptDraft draft) =>
-    ObligationPrefill(
-      direction: ObligationDirection.payable,
-      amount: _suggestion(draft.totalAmount, draft.totalAmountState),
-      issueDate: _suggestion(draft.purchasedAt, draft.purchasedAtState),
-      dueDate: _suggestion(draft.dueDate, draft.dueDateState),
-      description: _suggestion(draft.counterpartyName, draft.counterpartyState),
-      categoryId: _suggestion(draft.categoryId, draft.categoryState),
-      counterpartyId: draft.counterpartyState.isMissing
-          ? null
-          : draft.counterpartyId,
-      warnings: draft.warnings
-          .map((warning) => warning.message)
-          .toList(growable: false),
-    );
+/// **Ödeme kaynağı taşınmıyor**: para henüz çıkmadı. Belge tarihi giderin
+/// tanındığı gün, son ödeme tarihi vadedir; iki alan ayrı taşınır. Yön
+/// sorulmaz: "henüz ödemedim" cevabı borçlu olduğunu söyledi.
+DebtEntryPrefill receiptPurchasePrefillFrom(ReceiptDraft draft) {
+  final person = _matchedPerson(draft);
+  return DebtEntryPrefill(
+    person: person,
+    amount: _read(draft.totalAmount, draft.totalAmountState),
+    date: _read(draft.purchasedAt, draft.purchasedAtState),
+    dueDate: _read(draft.dueDate, draft.dueDateState),
+    description: person == null
+        ? _read(draft.counterpartyName, draft.counterpartyState)
+        : null,
+    categoryId: _read(draft.categoryId, draft.categoryState),
+    notices: _notices(draft),
+  );
+}
+
+DebtPersonChoice? _matchedPerson(ReceiptDraft draft) {
+  final id = draft.counterpartyId;
+  final name = draft.counterpartyName;
+  if (draft.counterpartyState.isMissing ||
+      id == null ||
+      name == null ||
+      name.trim().isEmpty) {
+    return null;
+  }
+  return DebtPersonChoice(id: id, name: name);
+}
+
+String? _read(String? value, ReceiptFieldState state) =>
+    value == null || value.isEmpty || state.isMissing ? null : value;
+
+/// Belgenin uyarıları; okunan bir alan emin değilse bir cümle daha.
+List<String> _notices(ReceiptDraft draft) => [
+  for (final warning in draft.warnings) warning.message,
+  if ([
+    draft.totalAmountState,
+    draft.purchasedAtState,
+    draft.dueDateState,
+    draft.counterpartyState,
+  ].any((state) => state.isSuspect))
+    'Belgeden okunan bazı alanlardan emin değiliz; kaydetmeden önce kontrol '
+        'edin.',
+];
 
 /// Taksitli fişi plan formunun anladığı önerilere çevirir.
 ///

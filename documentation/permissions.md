@@ -234,6 +234,10 @@ türetileceğini belirler. Her alt sorgu önce current `UserId` ile daralır.
 `null` kalır. API toplam, gecikmiş ve vadesi geçmemiş/vadesiz alacak-borç
 tutarlarını kararlı para dizeleri olarak döndürür.
 
+> **23 Kasım 2026:** `/api/v1/obligations` uçları kalktı (ADR 0022 Faz 8);
+> tek ödemeli kayıt borç uçlarının sahiplik kurallarıyla yazılır ve iptal
+> edilir (`OwnershipIsolationTests` borç uçlarını yoklar). Aşağısı geçmiştir.
+
 `POST /api/v1/obligations` aynı savunmayı Application ve veritabanı katmanlarında taşır:
 kategori ve isteğe bağlı karşı taraf, settlement'ın hesabı ve bağlı olduğu
 yükümlülük `(UserId, kayıt ID)` composite foreign key'leriyle sınırlıdır.
@@ -395,7 +399,7 @@ kullanıcılı veriyle bunu doğrular.
 ## Aşama 06.3 Grup 5 — Kartla tahsil (5 Ekim 2026)
 
 `POST /api/v1/counterparties/{id}/payments` ve
-`POST /api/v1/obligations/{id}/settlement` isteğe bağlı bir `card` bloğu alır
+`POST /api/v1/debts/{id}/payments` isteğe bağlı bir `card` bloğu alır
 (`posDefinitionId`, `accountId`, `commissionAmount`, `commissionRate`,
 `commissionCategoryId`, `expectedTransferDate`). POS, hesap ve komisyon
 kategorisi current user kapsamında okunur; başkasının POS'u var olmayanla aynı

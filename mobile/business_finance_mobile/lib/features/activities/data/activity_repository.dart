@@ -16,7 +16,7 @@ abstract interface class ActivityRepositoryContract {
   });
 
   /// Cancels the movement through the endpoint that owns its write model.
-  Future<void> cancel(FinancialActivity activity);
+  Future<void> cancel(FinancialActivity activity, {bool withPaidNow = false});
 
   /// Hareketin dokunduğu hesabın bakiyesi ya da kartın borcu, o hareketten
   /// hemen sonra. Hareket para taşımıyorsa, iptal edilmişse ya da ne zaman
@@ -117,7 +117,10 @@ class ActivityRepository implements ActivityRepositoryContract {
   }
 
   @override
-  Future<void> cancel(FinancialActivity activity) async {
+  Future<void> cancel(
+    FinancialActivity activity, {
+    bool withPaidNow = false,
+  }) async {
     // The feed is a read model, so cancelling goes back to the write model that
     // produced the row. Debt movements have no reversal at all, which is why the
     // server reports canCancel false for them and there is no path here.
@@ -136,10 +139,11 @@ class ActivityRepository implements ActivityRepositoryContract {
       ActivityKind.debtOpening => throw StateError(
         'Borç hareketi iptal edilemez: ${activity.activityId}',
       ),
-      // Yükümlülük bir bütün olarak iptal edilir: kapanmışsa kapanışı da
-      // onunla birlikte iptal olur. Kapanış satırı tek başına geri alınmaz;
-      // sunucu onun için canCancel:false döndürür.
-      ActivityKind.obligation => '/api/v1/obligations/${activity.activityId}',
+      // Tek ödemeli kayıt bir borçtur ve bir bütün olarak iptal edilir:
+      // kapanmışsa kapanışı da onunla birlikte iptal olur. Kapanış satırı tek
+      // başına geri alınmaz; sunucu onun için canCancel:false döndürür.
+      ActivityKind.obligation =>
+        '/api/v1/debts/${activity.activityId}?asOfDate=${_today()}',
       ActivityKind.obligationSettlement => throw StateError(
         'Kapanış tek başına iptal edilemez: ${activity.activityId}',
       ),
@@ -153,8 +157,11 @@ class ActivityRepository implements ActivityRepositoryContract {
       ),
       // Cari hareketin ikisi de iptal edilebilir: tek başına duran kayıtlar,
       // geri dönüşü olmayan bir planın sonucu değiller.
+      // Satışla alınan peşin tutar varsayılan olarak kalır; kullanıcı
+      // isterse birlikte iptal edilir (`?withPaidNow=true`).
       ActivityKind.counterpartyCharge =>
-        '/api/v1/counterparty-charges/${activity.activityId}',
+        '/api/v1/counterparty-charges/${activity.activityId}'
+            '${withPaidNow ? '?withPaidNow=true' : ''}',
       ActivityKind.counterpartySettlement =>
         '/api/v1/counterparty-payments/${activity.activityId}',
       ActivityKind.counterpartyLoan =>
@@ -238,7 +245,9 @@ class ActivityRepository implements ActivityRepositoryContract {
           'asOfDate': '${asOf.year}-$month-$day',
           'daysAhead': '${horizon.days}',
           if (horizon == PlannedHorizon.week) 'countTodayInHorizon': 'true',
-          if (horizon == PlannedHorizon.week) 'includeCounterpartyDues': 'true',
+          // Kişinin hesabındaki vadeler her ufukta okunur: İşlemler'in özeti
+          // ve hatırlatmalar da Özet ve Planlananlar'la aynı listeyi görür.
+          'includeCounterpartyDues': 'true',
           if (horizon == PlannedHorizon.week) 'includeScopedStatements': 'true',
           'scope': ?scope?.apiValue,
         },
@@ -276,4 +285,12 @@ class ActivityRepository implements ActivityRepositoryContract {
     );
     return PlannedActivityPage.fromJson(response.requireObject());
   }
+}
+
+/// Cihazın bugünü (`yyyy-MM-dd`); borç iptalinin cevabı o güne göre okunur.
+String _today() {
+  final day = DateTime.now();
+  return '${day.year.toString().padLeft(4, '0')}-'
+      '${day.month.toString().padLeft(2, '0')}-'
+      '${day.day.toString().padLeft(2, '0')}';
 }

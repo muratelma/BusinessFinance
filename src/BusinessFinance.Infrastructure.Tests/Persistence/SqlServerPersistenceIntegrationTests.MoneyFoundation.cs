@@ -176,16 +176,12 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         Assert.Equal(cardDebt, advanced.NetWorth.CreditCardDebt);
 
         // Cari: kişi listesindeki açık tutarlar ile net varlıktaki alacak/borç.
-        // Kişiye bağlı açık yükümlülük cari bakiyeye girmez, yanında bilgi
-        // olarak döner; net varlık üçünü (borç planı, cari, yükümlülük) toplar.
+        // Kişiye bağlı tek ödemeli kayıt cari bakiyeye girmez; net varlık
+        // üçünü (borç planı, cari, tek ödemeli kayıt) toplar.
         var balances = await counterparties.ListBalancesAsync(
             user.Id, CounterpartyBalanceFilter.All, null, FoundationAsOf, default);
         Assert.Equal(seed.CounterpartyReceivable, balances.Sum(item => item.Receivable));
         Assert.Equal(seed.CounterpartyPayable, balances.Sum(item => item.Payable));
-        Assert.Equal(
-            seed.OpenReceivableObligations, balances.Sum(item => item.OpenReceivableObligations));
-        Assert.Equal(
-            seed.OpenPayableObligations, balances.Sum(item => item.OpenPayableObligations));
         Assert.Equal(
             seed.DebtReceivablePrincipal + seed.CounterpartyReceivable +
             seed.OpenReceivableObligations,
@@ -228,6 +224,9 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         // borç 120 + borçla alınan mal 500.
         public decimal GoodsBusiness => 1_270m;
 
+        // Müşteriden vazgeçilen alacak: o gün bir kez gider.
+        public decimal WriteOffBusiness => 20m;
+
         // POS komisyonu 20 + yatış kesintisi 5 + kartla tahsilin komisyonu 2.
         public decimal CommissionBusiness => 27m;
 
@@ -239,14 +238,16 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         // Kasa: açılış 1.000 − gider 50 + transfer 300 + cari tahsilat 250.
         public decimal TillBalance => 1_500m;
 
-        // Kart: harcama 300 + 70 − ödeme 150.
-        public decimal CardDebt => 220m;
+        // Kart: harcama 300 + 70 − ödeme 150 + toptancıya kartla ödeme 30
+        // (kart borcudur, gider değildir).
+        public decimal CardDebt => 250m;
 
-        // Müşteri: veresiye 400 − nakit tahsilat 250 − kartla tahsil 100.
-        public decimal CounterpartyReceivable => 50m;
+        // Müşteri: veresiye 400 − nakit tahsilat 250 − kartla tahsil 100 −
+        // vazgeçme 20; arkadaşa verilen borç para 400 (gelir değildir).
+        public decimal CounterpartyReceivable => 430m;
 
-        // Toptancı: vadeli 150 + 30 − ödeme 100.
-        public decimal CounterpartyPayable => 80m;
+        // Toptancı: vadeli 150 + 30 − ödeme 100 − kartla ödeme 30.
+        public decimal CounterpartyPayable => 50m;
 
         // Kişiye bağlı açık yükümlülükler cari bakiyenin dışındadır:
         // müşteriden tek seferlik alacak 90, arkadaşa tek seferlik borç 25.
@@ -267,9 +268,10 @@ public sealed partial class SqlServerPersistenceIntegrationTests
 
         public decimal ExpectedExpense(TransactionScope? scope) => scope switch
         {
-            TransactionScope.Business => GoodsBusiness + CommissionBusiness + InterestBusiness,
+            TransactionScope.Business =>
+                GoodsBusiness + CommissionBusiness + InterestBusiness + WriteOffBusiness,
             TransactionScope.Personal => FoodPersonal + CommissionPersonal + InterestPersonal,
-            _ => GoodsBusiness + CommissionBusiness + InterestBusiness +
+            _ => GoodsBusiness + CommissionBusiness + InterestBusiness + WriteOffBusiness +
                  FoodPersonal + CommissionPersonal + InterestPersonal
         };
     }
@@ -376,6 +378,17 @@ public sealed partial class SqlServerPersistenceIntegrationTests
 
         var transfer = new Transfer(Guid.NewGuid(), userId, bank, till, Try(300m), Day(9));
 
+        // Kişinin hesabı (ADR 0022): borç para taşır, gelir/gider yazmaz; kişiye
+        // kartla ödeme kart borcudur, gider değildir; alacaktan vazgeçmek o gün
+        // bir kez gider yazar ve alacağı düşer.
+        var loanToFriend = new CounterpartyLoan(Guid.NewGuid(), userId, friend, bank,
+            DebtDirection.Receivable, Try(400m), Day(16));
+        var supplierPaidByCard = CounterpartyPayment.PayByCard(Guid.NewGuid(), userId, supplier, card,
+            Try(30m), Day(16));
+        var badDebt = new Category(Guid.NewGuid(), userId, "Alacak kaybı", CategoryType.Expense);
+        var writeOff = new CounterpartyWriteOff(Guid.NewGuid(), userId, customer, badDebt,
+            DebtDirection.Receivable, Try(20m), TransactionScope.Business, Day(17));
+
         var budgets = new[]
         {
             new MonthlyBudget(Guid.NewGuid(), userId, goods, Try(5_000m), TransactionScope.Business, 2026, 8),
@@ -397,6 +410,7 @@ public sealed partial class SqlServerPersistenceIntegrationTests
             context.AddRange(goodsOnCredit, foodOnCredit, saleOnCredit, personalLoan, businessLoan);
             context.AddRange(depositedSale, deduction, deposit, personalSaleInTransit);
             context.AddRange(cardCollection, cardCollectionPayment, transfer);
+            context.AddRange(badDebt, loanToFriend, supplierPaidByCard, writeOff);
             context.AddRange(budgets.Cast<object>().ToArray());
             await context.SaveChangesAsync(CancellationToken.None);
         }
@@ -410,10 +424,11 @@ public sealed partial class SqlServerPersistenceIntegrationTests
 
         // Banka: açılış 10.000 + satış 1.000 − gider 200 + iki kredinin
         // açılışı 3.000 − iki taksit + yatışın neti 980 − kesinti 5 − transfer
-        // 300 − kart ödemesi 150 − toptancı ödemesi 100 − tek seferlik borç 120.
+        // 300 − kart ödemesi 150 − toptancı ödemesi 100 − tek seferlik borç 120
+        // − arkadaşa borç para 400.
         var bankBalance = 10_000m + 1_000m - 200m + 1_000m + 2_000m
             - personalInstallment.Amount.Amount - businessInstallment.Amount.Amount
-            + 980m - 5m - 300m - 150m - 100m - 120m;
+            + 980m - 5m - 300m - 150m - 100m - 120m - 400m;
 
         return new MoneyFoundationSeed(
             bank.Id,

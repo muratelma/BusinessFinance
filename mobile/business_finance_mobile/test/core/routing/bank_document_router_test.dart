@@ -5,8 +5,10 @@ import 'package:business_finance_mobile/app/business_finance_app.dart';
 import 'package:business_finance_mobile/core/routing/app_router.dart';
 import 'package:business_finance_mobile/features/auth/presentation/auth_controller.dart';
 import 'package:business_finance_mobile/features/receipts/data/receipt_models.dart';
-import 'package:business_finance_mobile/features/obligations/data/obligation_repository.dart';
-import 'package:business_finance_mobile/core/models/data_choice.dart';
+import 'package:business_finance_mobile/features/debt_book/data/debt_book_models.dart';
+import 'package:business_finance_mobile/features/debt_book/data/debt_book_repository.dart';
+import 'package:business_finance_mobile/features/debt_book/presentation/debt_entry_prefill.dart';
+import 'package:business_finance_mobile/features/debt_book/presentation/debt_entry_sheet.dart';
 import 'package:provider/provider.dart';
 
 import '../../helpers/fake_auth.dart';
@@ -141,7 +143,8 @@ void main() {
   });
 
   // Fatura sayfası da kardeş rota: ödendi cevabı gider formuna, ödenmedi
-  // cevabı yükümlülük formuna geçiyor ve ikisi de Navigator'ı patlatmamalı.
+  // cevabı `Vadeli alım` formuna geçiyor ve ikisi de Navigator'ı
+  // patlatmamalı.
   testWidgets('the invoice page routes both answers without crashing', (
     tester,
   ) async {
@@ -156,7 +159,7 @@ void main() {
       await controller.initialize();
       final router = createAppRouter(
         authController: controller,
-        obligationRepository: _FakeObligationRepository(),
+        debtBookRepository: _FakeDebtBook(),
       );
 
       await tester.pumpWidget(_app(controller, router));
@@ -175,7 +178,7 @@ void main() {
       expect(tester.takeException(), isNull, reason: answer);
       expect(find.text('Fatura okundu'), findsNothing, reason: answer);
       if (answer == 'Henüz ödemedim') {
-        expect(find.text('Ödenmemiş faturayı kaydet'), findsOneWidget);
+        expect(find.text('Vadeli alım'), findsOneWidget);
         expect(find.textContaining('Sıklık'), findsNothing);
       }
     }
@@ -197,7 +200,7 @@ void main() {
     await controller.initialize();
     final router = createAppRouter(
       authController: controller,
-      obligationRepository: _FakeObligationRepository(),
+      debtBookRepository: _FakeDebtBook(),
     );
 
     await tester.pumpWidget(_app(controller, router));
@@ -209,7 +212,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Henüz ödemedim'));
     await tester.pumpAndSettle();
-    expect(find.text('Ödenmemiş faturayı kaydet'), findsOneWidget);
+    expect(find.text('Vadeli alım'), findsOneWidget);
 
     // Sistemin geri tuşu: en üstteki sayfa kapanır.
     router.pop();
@@ -235,7 +238,7 @@ void main() {
     await controller.initialize();
     final router = createAppRouter(
       authController: controller,
-      obligationRepository: _FakeObligationRepository(),
+      debtBookRepository: _FakeDebtBook(),
     );
 
     await tester.pumpWidget(_app(controller, router));
@@ -258,12 +261,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Ödenmemiş faturayı kaydet'), findsOneWidget);
+    expect(find.text('Vadeli alım'), findsOneWidget);
+    // Kişi eşleşmedi: okunan ad kaydın açıklamasıdır (K10).
     expect(find.text('ENERJİSA'), findsOneWidget);
   });
 
   // Kayıt yazılınca soru sayfası da kapanır: kullanıcı aynı faturayı ikinci
-  // kez kaydetmeye davet edilmez.
+  // kez kaydetmeye davet edilmez. Kişi eşleşmediği için kayıt kişisiz yazılır
+  // (K10).
   testWidgets('saving the unpaid invoice also closes the paid question', (
     tester,
   ) async {
@@ -275,10 +280,10 @@ void main() {
     final repository = FakeAuthSessionRepository()..session = testSession();
     final controller = AuthController(repository);
     await controller.initialize();
-    final obligations = _FakeObligationRepository();
+    final debtBook = _FakeDebtBook();
     final router = createAppRouter(
       authController: controller,
-      obligationRepository: obligations,
+      debtBookRepository: debtBook,
     );
 
     await tester.pumpWidget(_app(controller, router));
@@ -286,30 +291,29 @@ void main() {
 
     router.go('/transactions/new/receipt');
     await tester.pumpAndSettle();
-    router.pushReplacement(invoiceDecisionLocation, extra: _invoiceDraft());
+    router.pushReplacement(
+      invoiceDecisionLocation,
+      extra: _invoiceDraft(categoryId: 'category-1'),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Henüz ödemedim'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(DropdownButtonFormField<String>).first);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Faturalar').last);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Yükümlülüğü kaydet'));
+    await tester.tap(find.text('Kaydet'));
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(obligations.created, 1);
-    expect(find.text('Ödenmemiş faturayı kaydet'), findsNothing);
+    expect(debtBook.debts, hasLength(1));
+    expect(debtBook.debts.single['counterpartyId'], isNull);
+    expect(debtBook.debts.single['description'], 'ENERJİSA');
+    expect(debtBook.debts.single['firstDueDate'], '2026-09-30');
+    expect(find.text('Vadeli alım'), findsNothing);
     expect(find.text('Fatura okundu'), findsNothing);
   });
 
-  // Yükümlülük formu **önerisiz de** açılabilmeli: elle giren kullanıcının
-  // okunmuş bir belgesi yok. Rota `extra` zorunlu tutulduğu sürece form
-  // yalnız kamerayla ulaşılabilir kalıyordu.
-  testWidgets('the obligation form opens with no suggestion at all', (
-    tester,
-  ) async {
+  // Yeni kayıt formu **önerisiz de** açılabilmeli: `İşlem ekle` menüsünden
+  // gelen kullanıcının okunmuş bir belgesi yok.
+  testWidgets('the debt form opens with no suggestion at all', (tester) async {
     tester.view.physicalSize = const Size(400, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -320,57 +324,21 @@ void main() {
     await controller.initialize();
     final router = createAppRouter(
       authController: controller,
-      obligationRepository: _FakeObligationRepository(),
+      debtBookRepository: _FakeDebtBook(),
     );
 
     await tester.pumpWidget(_app(controller, router));
     await tester.pumpAndSettle();
 
-    router.go(obligationCreateLocation);
-    await tester.pumpAndSettle();
-
-    expect(tester.takeException(), isNull);
-    expect(find.text('Yükümlülük ekle'), findsOneWidget);
-    expect(find.text('Yükümlülük formu açılamadı.'), findsNothing);
-    // Elle girişte yön sorulur; fiş dalında sorulmadığı ayrı testte duruyor.
-    expect(find.text('Tahsil edilecek'), findsOneWidget);
-  });
-
-  // Aynı çökme sınıfının öbür yönü: `Yükümlülükler` listesi shell'in dışında
-  // bir rota. Formu shell'in içindeki adrese açtığında zincir ikinci kez
-  // kuruluyor ve Navigator aynı sayfa anahtarıyla patlıyordu; liste formu
-  // kendi altındaki rotaya açar. Testin `Diğer`den geçmesi şart: listeye
-  // doğrudan gidildiğinde yığında shell yoktur ve hata çıkmaz.
-  testWidgets('the obligations list opens its form without crashing', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(400, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-
-    final repository = FakeAuthSessionRepository()..session = testSession();
-    final controller = AuthController(repository);
-    await controller.initialize();
-    final router = createAppRouter(
-      authController: controller,
-      obligationRepository: _FakeObligationRepository(),
+    router.go(
+      debtEntryLocation,
+      extra: const DebtEntryRequest(DebtEntryKind.sale),
     );
-
-    await tester.pumpWidget(_app(controller, router));
-    await tester.pumpAndSettle();
-
-    router.go('/more');
-    await tester.pumpAndSettle();
-    router.push('/more/obligations');
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byTooltip('Yükümlülük ekle'));
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Tahsil edilecek'), findsOneWidget);
-    expect(find.text('Yükümlülük formu açılamadı.'), findsNothing);
+    expect(find.text('Veresiye satış'), findsOneWidget);
+    expect(find.text('Borç formu açılamadı.'), findsNothing);
   });
 
   // Dekontun kendi rotası var ve o da fiş ekranıyla kardeş: karar sayfasına
@@ -412,36 +380,25 @@ void main() {
   });
 }
 
-class _FakeObligationRepository implements ObligationRepositoryContract {
-  @override
-  Future<void> cancel(String obligationId) async {}
+/// Yeni kayıt formunun okuduğu ve yazdığı uçlar; diğerleri çağrılmaz.
+class _FakeDebtBook implements DebtBookRepositoryContract {
+  final debts = <Map<String, Object?>>[];
 
   @override
-  Future<ObligationOptions> loadOptions({required String categoryType}) async =>
-      const ObligationOptions(
-        categories: [DataChoice('category-1', 'Faturalar')],
-        counterparties: [],
-      );
-
-  int created = 0;
+  Future<DebtEntryOptions> loadEntryOptions() async => const DebtEntryOptions(
+    incomeCategories: [(id: 'category-2', name: 'Satışlar', scope: null)],
+    expenseCategories: [(id: 'category-1', name: 'Faturalar', scope: null)],
+    sources: DebtSettleSources(accounts: [], cards: [], posDefinitions: []),
+  );
 
   @override
-  Future<void> create(Map<String, Object?> input) async => created++;
+  Future<String> createDebt(Map<String, Object?> body) async {
+    debts.add(body);
+    return 'debt-${debts.length}';
+  }
 
   @override
-  Future<List<ObligationItem>> list({required String asOfDate}) async =>
-      const [];
-
-  @override
-  Future<List<ObligationAccount>> loadActiveAccounts() async => const [];
-
-  @override
-  Future<void> settle({
-    required String obligationId,
-    required String? accountId,
-    required String settlementDate,
-    Map<String, Object?>? card,
-  }) async {}
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 Widget _app(AuthController controller, GoRouter router) =>
@@ -499,7 +456,7 @@ ReceiptDraft _refundDraft() => const ReceiptDraft(
   ),
 );
 
-ReceiptDraft _invoiceDraft() => const ReceiptDraft(
+ReceiptDraft _invoiceDraft({String? categoryId}) => ReceiptDraft(
   documentKind: ReceiptDocumentKind.invoiceOrVoucher,
   counterpartyName: 'ENERJİSA',
   counterpartyState: ReceiptFieldState.read,
@@ -514,8 +471,10 @@ ReceiptDraft _invoiceDraft() => const ReceiptDraft(
   installmentCount: null,
   currencyCode: 'TRY',
   paymentHint: ReceiptPaymentHint.unknown,
-  categoryId: null,
+  categoryId: categoryId,
   categoryName: null,
-  categoryState: ReceiptFieldState.missing,
-  warnings: [],
+  categoryState: categoryId == null
+      ? ReceiptFieldState.missing
+      : ReceiptFieldState.read,
+  warnings: const [],
 );

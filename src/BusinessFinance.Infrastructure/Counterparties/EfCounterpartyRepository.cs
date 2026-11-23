@@ -55,29 +55,6 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
         return row is null ? null : (await SummariesAsync([row], userId, asOfDate, cancellationToken))[0];
     }
 
-    public Task<bool> HasLedgerEntriesAsync(Guid userId, CancellationToken cancellationToken)
-    {
-        return dbContext.Counterparties.AsNoTracking().AnyAsync(
-            counterparty => counterparty.UserId == userId &&
-                            (dbContext.CounterpartyCharges.Any(
-                                 charge => charge.UserId == userId &&
-                                           charge.CounterpartyId == counterparty.Id &&
-                                           !charge.IsCancelled) ||
-                             dbContext.CounterpartyPayments.Any(
-                                 payment => payment.UserId == userId &&
-                                            payment.CounterpartyId == counterparty.Id &&
-                                            !payment.IsCancelled) ||
-                             dbContext.CounterpartyLoans.Any(
-                                 loan => loan.UserId == userId &&
-                                            loan.CounterpartyId == counterparty.Id &&
-                                            !loan.IsCancelled) ||
-                             dbContext.CounterpartyWriteOffs.Any(
-                                 writeOff => writeOff.UserId == userId &&
-                                             writeOff.CounterpartyId == counterparty.Id &&
-                                             !writeOff.IsCancelled)),
-            cancellationToken);
-    }
-
     /// <summary>
     /// Bakiye satırlarına gecikmiş tutarı ve sıradaki vadeyi ekler: ödemeler
     /// önce en eski alımı düşürür (<see cref="CounterpartyAging"/>).
@@ -112,8 +89,6 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
                 row.Payable,
                 receivable?.Overdue ?? 0m,
                 payable?.Overdue ?? 0m,
-                row.OpenReceivableObligations,
-                row.OpenPayableObligations,
                 receivable?.NextDueDate,
                 receivable?.NextDueAmount ?? 0m,
                 payable?.NextDueDate,
@@ -561,7 +536,6 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
     /// </remarks>
     private IQueryable<BalanceRow> ProjectBalances(Guid userId, DateOnly asOfDate)
     {
-        var obligations = dbContext.Obligations;
         return dbContext.Counterparties
             .AsNoTracking()
             .Where(counterparty => counterparty.UserId == userId)
@@ -668,25 +642,7 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
                                            writeOff.CounterpartyId == counterparty.Id &&
                                            !writeOff.IsCancelled &&
                                            writeOff.Direction == DebtDirection.Payable)
-                        .Sum(writeOff => (decimal?)writeOff.Amount.Amount) ?? 0m),
-                // Kişiye bağlı açık yükümlülük cari bakiyeye girmez; toplamı
-                // yalnız bilgi olarak yanında döner.
-                OpenReceivableObligations =
-                    obligations
-                        .Where(obligation => obligation.UserId == userId &&
-                                             obligation.CounterpartyId == counterparty.Id &&
-                                             !obligation.IsCancelled &&
-                                             obligation.RemainingAmount > 0m &&
-                                             obligation.Direction == DebtDirection.Receivable)
-                        .Sum(obligation => (decimal?)obligation.RemainingAmount) ?? 0m,
-                OpenPayableObligations =
-                    obligations
-                        .Where(obligation => obligation.UserId == userId &&
-                                             obligation.CounterpartyId == counterparty.Id &&
-                                             !obligation.IsCancelled &&
-                                             obligation.RemainingAmount > 0m &&
-                                             obligation.Direction == DebtDirection.Payable)
-                        .Sum(obligation => (decimal?)obligation.RemainingAmount) ?? 0m
+                        .Sum(writeOff => (decimal?)writeOff.Amount.Amount) ?? 0m)
             });
     }
 
@@ -702,7 +658,5 @@ internal sealed class EfCounterpartyRepository(BusinessFinanceDbContext dbContex
         public decimal Payable { get; init; }
         public decimal ReceivablePayments { get; init; }
         public decimal PayablePayments { get; init; }
-        public decimal OpenReceivableObligations { get; init; }
-        public decimal OpenPayableObligations { get; init; }
     }
 }

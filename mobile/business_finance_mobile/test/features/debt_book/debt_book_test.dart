@@ -14,6 +14,7 @@ import 'package:business_finance_mobile/features/debt_book/presentation/debt_rec
 import 'package:business_finance_mobile/features/debt_book/presentation/debt_settle_sheet.dart';
 import 'package:business_finance_mobile/features/debt_book/presentation/debt_book_controller.dart';
 import 'package:business_finance_mobile/features/debt_book/presentation/debt_book_view.dart';
+import 'package:business_finance_mobile/features/debt_book/presentation/debt_closed_page.dart';
 import 'package:business_finance_mobile/features/debt_book/presentation/debt_record_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -177,6 +178,41 @@ void main() {
       },
     );
 
+    test('kişinin kendisi: düzenle, pasife al, açılış bakiyesi, sil', () async {
+      final repository = _Repository();
+      final page = controller(repository);
+      await page.load();
+
+      // Düzenlemede etkinlik değişmez; tür boşsa gönderilmez.
+      expect(await page.edit(name: 'Hasan Bakkal', note: 'Çarşı'), isNull);
+      expect(repository.created.last.$1, 'update:cp-hasan');
+      expect(repository.created.last.$2, {
+        'name': 'Hasan Bakkal',
+        'isActive': true,
+        'note': 'Çarşı',
+        'scope': null,
+      });
+
+      // Pasife almak adı ve notu korur.
+      expect(await page.setActive(false), isNull);
+      expect((repository.created.last.$2! as Map)['isActive'], isFalse);
+      expect((repository.created.last.$2! as Map)['name'], _person.name);
+
+      expect(
+        await page.setOpening(receivable: '500.0000', payable: '0.0000'),
+        isNull,
+      );
+      expect(repository.created.last.$1, 'opening:cp-hasan');
+
+      expect(await page.delete(), isNull);
+      expect(repository.created.last.$1, 'delete:cp-hasan');
+
+      // Sunucunun reddi cümlesiyle döner.
+      repository.refuse = 'Hareketi olan kişi silinemez.';
+      expect(await page.delete(), 'Hareketi olan kişi silinemez.');
+      page.dispose();
+    });
+
     test('tahsilat ve ödeme yerine göre kurulur', () async {
       final repository = _Repository();
       final page = controller(repository);
@@ -334,6 +370,11 @@ void main() {
         expect(bill['counterpartyId'], isNull);
         expect(bill['planKind'], 'single');
         expect(bill['sourceType'], 'expense');
+        // Sunucu toplam geri ödemeyi ya da taksit tutarını ister; taksit
+        // tutarı yazılmadıysa toplam, tutarın kendisidir.
+        expect(bill['totalRepayment'], bill['principal']);
+        expect(bill['installmentAmount'], isNull);
+        expect(loan['totalRepayment'], loan['principal']);
       },
     );
 
@@ -381,6 +422,35 @@ void main() {
       expect(await record.cancel(), isNull);
       expect(record.cancelled, isTrue);
       record.dispose();
+    });
+  });
+
+  group('DebtClosedPage', () {
+    // `Kapananlar` seçili tarafın kayıtlarını gösterir; kayıt sayfası buradan
+    // da açılır.
+    testWidgets('yalnız seçili tarafı listeler ve kaydı açar', (tester) async {
+      final opened = <String>[];
+      await tester.pumpWidget(
+        _host(
+          DebtClosedPage(
+            repository: _Repository(),
+            side: DebtSide.payable,
+            recordPage: (id, title) {
+              opened.add(id);
+              return const Scaffold(body: Text('kayıt sayfası'));
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Su faturası'), findsOneWidget);
+      expect(find.text('Mobilya'), findsNothing);
+      expect(find.textContaining('Kapandı 20 Kasım 2026'), findsOneWidget);
+
+      await tester.tap(find.text('Su faturası'));
+      await tester.pumpAndSettle();
+      expect(opened, ['closed-payable']);
     });
   });
 
@@ -557,6 +627,57 @@ class _Repository implements DebtBookRepositoryContract {
 
   // Faz 7: yeni kayıt ve kayıt sayfası.
   final created = <(String, Object?)>[];
+
+  @override
+  Future<void> updateCounterparty(
+    String counterpartyId, {
+    required String name,
+    required bool isActive,
+    String? note,
+    TransactionScope? scope,
+  }) async {
+    if (refuse != null) {
+      throw ApiException(
+        statusCode: 409,
+        code: 'counterparties.in_use',
+        message: refuse!,
+      );
+    }
+    created.add((
+      'update:$counterpartyId',
+      {
+        'name': name,
+        'isActive': isActive,
+        'note': note,
+        'scope': scope?.apiValue,
+      },
+    ));
+  }
+
+  @override
+  Future<void> deleteCounterparty(String counterpartyId) async {
+    if (refuse != null) {
+      throw ApiException(
+        statusCode: 409,
+        code: 'counterparties.in_use',
+        message: refuse!,
+      );
+    }
+    created.add(('delete:$counterpartyId', null));
+  }
+
+  @override
+  Future<List<DebtClosedItem>> loadClosed() async => [
+    for (final side in DebtSide.values)
+      DebtClosedItem(
+        id: 'closed-${side.apiValue}',
+        side: side,
+        title: side == DebtSide.payable ? 'Su faturası' : 'Mobilya',
+        planKind: 'single',
+        amount: '300.0000',
+        closedOn: '2026-11-20',
+      ),
+  ];
 
   @override
   Future<String> createCounterparty(

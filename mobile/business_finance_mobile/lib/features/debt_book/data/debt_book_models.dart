@@ -698,3 +698,43 @@ class DebtEntryOptions {
   expenseCategories;
   final DebtSettleSources sources;
 }
+
+/// Kapanmış (iptal edilmemiş) taksitli ya da kişisiz kayıt (`GET
+/// /api/v1/debt-book/closed`). Kişinin hesabı kapanmaz; bu liste yalnız
+/// ayrı kayıtları taşır.
+class DebtClosedItem {
+  const DebtClosedItem({
+    required this.id,
+    required this.side,
+    required this.title,
+    required this.planKind,
+    required this.amount,
+    required this.closedOn,
+    this.counterpartyId,
+    this.counterpartyName,
+  });
+
+  factory DebtClosedItem.fromJson(Map<String, dynamic> json) => DebtClosedItem(
+    id: JsonReaders.string(json, 'debtId'),
+    side: DebtSide.fromApi(JsonReaders.string(json, 'direction')),
+    title: JsonReaders.string(json, 'title'),
+    counterpartyId: JsonReaders.nullableString(json, 'counterpartyId'),
+    counterpartyName: JsonReaders.nullableString(json, 'counterpartyName'),
+    planKind: JsonReaders.string(json, 'planKind'),
+    amount: JsonReaders.string(json, 'amount'),
+    closedOn: JsonReaders.string(json, 'closedOn'),
+  );
+
+  final String id;
+  final DebtSide side;
+  final String title;
+  final String? counterpartyId;
+  final String? counterpartyName;
+  final String planKind;
+
+  /// Kaydın bedeli.
+  final String amount;
+  final String closedOn;
+
+  bool get isInstallment => planKind == 'installments';
+}

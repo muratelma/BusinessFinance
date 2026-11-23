@@ -40,7 +40,6 @@ void main() {
       'Kategori yönetimi',
       'Planlananlar',
       'Tekrarlayanlar',
-      'Yükümlülükler',
       'Tasarruf hedefleri',
       'Planlama ve raporlar',
       'Hatırlatmalar',
@@ -51,30 +50,21 @@ void main() {
     expect(find.byType(AppCard), findsNWidgets(5));
   });
 
-  /// Cari hesap işletmeye özeldir (Aşama 06.3 C6). Gizleme bir ön ayardır,
-  /// kilit değildir: cari hareketi olan kullanıcı kapıyı cevabı ne olursa
-  /// olsun görür; aksi hâlde açık hesabına ulaşamazdı.
-  testWidgets('cari hesap kapısı işletmesi olana ve cari hareketi olana açık', (
-    tester,
-  ) async {
+  /// Cari hesap ayrı bir menü değildir (ADR 0022, K5): `Borç ve alacak`
+  /// herkese açıktır, `Cari hesap` ve `Yükümlülükler` kalktı.
+  testWidgets('borç ve alacak tek giriştir', (tester) async {
     tester.view.physicalSize = const Size(1080, 3200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(_host(hasBusiness: false));
-    await tester.pumpAndSettle();
-    expect(titles(tester), isNot(contains('Cari hesap')));
-    // Herkese açık kalan iki komşusu yerinde.
-    expect(titles(tester), contains('Borç ve alacak'));
-    expect(titles(tester), contains('Yükümlülükler'));
-
-    await tester.pumpWidget(_host(hasBusiness: false, hasLedger: true));
-    await tester.pumpAndSettle();
-    expect(titles(tester), contains('Cari hesap'));
-
-    await tester.pumpWidget(_host(hasBusiness: true));
-    await tester.pumpAndSettle();
-    expect(titles(tester), contains('Cari hesap'));
+    for (final hasBusiness in [false, true]) {
+      await tester.pumpWidget(_host(hasBusiness: hasBusiness));
+      await tester.pumpAndSettle();
+      final shown = titles(tester);
+      expect(shown, contains('Borç ve alacak'));
+      expect(shown, isNot(contains('Cari hesap')));
+      expect(shown, isNot(contains('Yükümlülükler')));
+    }
   });
 
   testWidgets('işletme profilinde bütçeler ve vergi grubu gelir', (
@@ -122,11 +112,8 @@ void main() {
   });
 }
 
-Widget _host({required bool hasBusiness, bool hasLedger = false}) {
-  final scope = ScopeController(
-    readHasBusiness: () async => hasBusiness,
-    readHasCounterpartyLedger: () async => hasLedger,
-  );
+Widget _host({required bool hasBusiness}) {
+  final scope = ScopeController(readHasBusiness: () async => hasBusiness);
   final status = AccountStatusController(_Account())..ensureLoaded();
   scope.ensureLoaded();
   return MultiProvider(

@@ -1,5 +1,4 @@
 import 'package:business_finance_mobile/features/cards/data/card_page_models.dart';
-import 'package:business_finance_mobile/core/models/data_choice.dart';
 import 'package:business_finance_mobile/core/models/transaction_scope.dart';
 import 'package:business_finance_mobile/core/network/api_error_messages.dart';
 import 'package:business_finance_mobile/core/network/api_exception.dart';
@@ -10,9 +9,6 @@ import 'package:business_finance_mobile/features/accounts/presentation/accounts_
 import 'package:business_finance_mobile/features/cards/data/finance_models.dart';
 import 'package:business_finance_mobile/features/cards/data/finance_repository.dart';
 import 'package:business_finance_mobile/features/cards/presentation/finance_page.dart';
-import 'package:business_finance_mobile/features/counterparties/data/counterparty_models.dart';
-import 'package:business_finance_mobile/features/counterparties/data/counterparty_repository.dart';
-import 'package:business_finance_mobile/features/counterparties/presentation/counterparties_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -57,21 +53,6 @@ void main() {
           '50000',
         );
         await tester.tap(find.text('Kaydet'));
-      },
-    );
-  }, skip: !screenshotsEnabled);
-
-  testWidgets('ad reddi 03 kişi', (tester) async {
-    await captureScreen(
-      tester,
-      'ad-reddi-03-kisi',
-      CounterpartiesPage(repository: _Counterparties()),
-      withNavBar: false,
-      before: (tester) async {
-        await tester.tap(find.text('Karşı taraf ekle'));
-        await _settle(tester);
-        await tester.enterText(find.byType(TextFormField).first, 'ahmetbakkal');
-        await tester.tap(find.text('Ekle'));
       },
     );
   }, skip: !screenshotsEnabled);
@@ -180,35 +161,6 @@ class _Finance implements FinanceRepositoryContract {
   @override
   Future<void> createCard(Map<String, Object?> input) async =>
       throw _refusal('credit_cards.duplicate_name');
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class _Counterparties implements CounterpartyRepositoryContract {
-  @override
-  Future<CounterpartiesSnapshot> load(
-    CounterpartyBalanceFilter filter,
-    String asOfDate,
-  ) async => const CounterpartiesSnapshot(
-    counterparties: [
-      CounterpartySummary(
-        id: 'cp-1',
-        name: 'Ahmet Bakkal',
-        isActive: true,
-        receivable: '400.0000',
-        payable: '0.0000',
-        net: '400.0000',
-        isSettled: false,
-      ),
-    ],
-    accounts: [DataChoice('account-1', 'Kasa')],
-    categories: [],
-  );
-
-  @override
-  Future<void> create(String name, String? note) async =>
-      throw _refusal('counterparties.duplicate_name');
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

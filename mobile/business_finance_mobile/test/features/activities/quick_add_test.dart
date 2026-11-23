@@ -103,7 +103,7 @@ void main() {
       expect(QuickAddOption.transfer.intent, QuickAddIntent.carry);
       expect(QuickAddOption.cardPayment.intent, QuickAddIntent.carry);
       expect(QuickAddOption.expense.intent, QuickAddIntent.moneyOut);
-      expect(QuickAddOption.obligation.intent, QuickAddIntent.moneyOut);
+      expect(QuickAddOption.debt.intent, QuickAddIntent.moneyOut);
     });
 
     // POS satışı `Para girdi`dir ve satır paranın bugün hesaba geçmediğini
@@ -160,7 +160,7 @@ void main() {
     // Ödenmemiş fatura kamerayla sınırlı kalmıştı: formu yalnız fiş okuma
     // dalı açıyordu. Elindeki kâğıt faturayı okutmak istemeyen kullanıcının
     // da aynı kaydı açabilmesi gerekir.
-    testWidgets('offers the unpaid invoice as a typed entry too', (
+    testWidgets('offers debts and receivables as a typed entry too', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -171,14 +171,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Ödenmemiş fatura'), findsOneWidget);
-      // Satır parayı bugün hareket ettirmediğini söylüyor; söylemeseydi
-      // kullanıcı bunu gider sanıp hesabının azalmasını beklerdi.
-      expect(find.text('Vadesi olan, henüz ödenmedi'), findsOneWidget);
-      expect(
-        find.bySemanticsLabel(RegExp('para hareket etmez')),
-        findsOneWidget,
-      );
+      // Ödenmemiş fatura artık `Borç veya alacak > Vadeli aldım`dır
+      // (ADR 0022); satır ne içerdiğini söyler.
+      expect(find.text('Borç veya alacak'), findsOneWidget);
+      expect(find.text('Veresiye, borç para, kredi'), findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp('vadeli alım')), findsOneWidget);
     });
 
     // Aşama 04'ün ölçütü: dokuz satır telefonda **kaydırmadan** okunabilmeli.

@@ -211,7 +211,8 @@ class _FakeActivityRepository implements ActivityRepositoryContract {
   }) => throw UnimplementedError();
 
   @override
-  Future<void> cancel(FinancialActivity activity) => throw UnimplementedError();
+  Future<void> cancel(FinancialActivity activity, {bool withPaidNow = false}) =>
+      throw UnimplementedError();
 
   @override
   Future<void> realizePlanned(

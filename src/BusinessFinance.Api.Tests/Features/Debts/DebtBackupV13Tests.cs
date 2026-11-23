@@ -183,7 +183,6 @@ public sealed partial class DebtBackupV13Tests
                  {
                      $"/api/v1/debt-book?asOfDate={Today}",
                      "/api/v1/debt-book/closed",
-                     $"/api/v1/obligations?asOfDate={Today}",
                      $"/api/v1/debts?asOfDate={Today}",
                      $"/api/v1/counterparties?asOfDate={Today}",
                      "/api/v1/financial-activities?pageSize=100",

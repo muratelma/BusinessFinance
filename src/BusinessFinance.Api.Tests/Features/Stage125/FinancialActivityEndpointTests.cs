@@ -8,7 +8,7 @@ using BusinessFinance.Api.Features.Categories;
 using BusinessFinance.Api.Features.Counterparties;
 using BusinessFinance.Api.Features.CreditCards;
 using BusinessFinance.Api.Features.Debts;
-using BusinessFinance.Api.Features.Obligations;
+using BusinessFinance.Api.Tests.Features.Debts;
 using BusinessFinance.Api.Features.FinancialActivities;
 using BusinessFinance.Api.Features.RecurringTransactions;
 using BusinessFinance.Api.Features.Transfers;
@@ -801,21 +801,20 @@ public sealed class FinancialActivityEndpointTests
 
         // Kişiye bağlı tek seferlik borç cari bakiyeye girmez: ne kendisi ne
         // kapanışı cari satırı döner, kişinin carisi olduğu gibi kalır.
-        var obligation = await PostAsync<ObligationResponse>(
-            owner, "/api/v1/obligations",
-            new CreateObligationRequest(
+        var obligation = await owner.CreateSingleDebtAsync(
+            new SingleDebtInput(
                 "payable", "300.0000", "TRY", expenseCategory.Id, Day, Day, "business", person.Id));
         Assert.Empty(await BalancesAsync("obligation", obligation.Id));
         var personWithInvoice = await owner.GetFromJsonAsync<CounterpartyResponse>(
             $"/api/v1/counterparties/{person.Id}");
-        Assert.Equal(
-            ("-100.0000", "300.0000"),
-            (personWithInvoice!.Net, personWithInvoice.OpenPayableObligations));
+        Assert.Equal("-100.0000", personWithInvoice!.Net);
 
-        var settled = await PostAsync<ObligationResponse>(
-            owner, $"/api/v1/obligations/{obligation.Id}/settlement",
-            new SettleObligationRequest(bank.Id, Day));
-        var afterSettlement = await BalancesAsync("obligation-settlement", settled.SettlementId!.Value);
+        using var settle = await owner.SettleSingleDebtAsync(
+            obligation.Id, new SingleDebtSettlement(bank.Id, Day));
+        Assert.True(settle.IsSuccessStatusCode, await settle.Content.ReadAsStringAsync());
+        var settlementId = Assert.Single(
+            (await settle.Content.ReadFromJsonAsync<DebtResponse>())!.Closings).Id;
+        var afterSettlement = await BalancesAsync("obligation-settlement", settlementId);
         Assert.Equal(
             [("account", "1500.0000", "decreased", null)],
             afterSettlement.Select(item => (item.Holder, item.Balance, item.Change, item.Side)));
@@ -825,7 +824,7 @@ public sealed class FinancialActivityEndpointTests
         var feed = await owner.GetFromJsonAsync<FinancialActivityListResponse>(
             "/api/v1/financial-activities?pageSize=50");
         var settlementRow = Assert.Single(
-            feed!.Items, item => item.ActivityId == settled.SettlementId!.Value);
+            feed!.Items, item => item.ActivityId == settlementId);
         Assert.Equal(
             ("Bank", "Ahmet Bakkal", "payable"),
             (settlementRow.SourceName, settlementRow.DestinationName, settlementRow.Direction));
@@ -841,7 +840,6 @@ public sealed class FinancialActivityEndpointTests
         var currentPerson = await owner.GetFromJsonAsync<CounterpartyResponse>(
             $"/api/v1/counterparties/{person.Id}");
         Assert.Equal("-100.0000", currentPerson!.Net);
-        Assert.Equal("0.0000", currentPerson.OpenPayableObligations);
         // Fazla tahsilat kırpılmaz ama ekranda eksi alacak diye yazılmaz:
         // 100 lira bizim borcumuzdur.
         Assert.Equal(
@@ -852,9 +850,8 @@ public sealed class FinancialActivityEndpointTests
             (await BalancesAsync("counterparty-settlement", overCollection.Id))[1].Balance);
 
         // Karşı tarafı olmayan yükümlülükte gösterilecek bir cari yoktur.
-        var nameless = await PostAsync<ObligationResponse>(
-            owner, "/api/v1/obligations",
-            new CreateObligationRequest(
+        var nameless = await owner.CreateSingleDebtAsync(
+            new SingleDebtInput(
                 "payable", "50.0000", "TRY", expenseCategory.Id, Day, Day, "business"));
         Assert.Empty(await BalancesAsync("obligation", nameless.Id));
 
@@ -871,9 +868,9 @@ public sealed class FinancialActivityEndpointTests
             .Select(item => (item.Holder, item.Balance, item.Change, item.Side)));
 
         var afterFirst = await PostAsync<DebtResponse>(
-            owner, $"/api/v1/debts/{debt.Id}/installments/1/pay",
-            new PayDebtInstallmentRequest(loanAccount.Id, "2026-08-11", "2026-08-11"));
-        var firstInstallment = afterFirst.Installments.Single(item => item.Sequence == 1);
+            owner, $"/api/v1/debts/{debt.Id}/payments",
+            new RecordDebtPaymentRequest("600.0000", "2026-08-11", "2026-08-11", loanAccount.Id));
+        var firstInstallment = afterFirst.Closings[^1];
         Assert.Equal(
             [("account", "1400.0000", "decreased", null), ("debt", "600.0000", "decreased", "payable")],
             (await BalancesAsync("debt-payment", firstInstallment.Id))
@@ -881,9 +878,9 @@ public sealed class FinancialActivityEndpointTests
         Assert.Equal("600.0000", afterFirst.RemainingAmount);
 
         var afterSecond = await PostAsync<DebtResponse>(
-            owner, $"/api/v1/debts/{debt.Id}/installments/2/pay",
-            new PayDebtInstallmentRequest(loanAccount.Id, "2026-08-11", "2026-08-11"));
-        var secondInstallment = afterSecond.Installments.Single(item => item.Sequence == 2);
+            owner, $"/api/v1/debts/{debt.Id}/payments",
+            new RecordDebtPaymentRequest("600.0000", "2026-08-11", "2026-08-11", loanAccount.Id));
+        var secondInstallment = afterSecond.Closings[^1];
         var closed = (await BalancesAsync("debt-payment", secondInstallment.Id))[1];
         Assert.Equal(("debt", "0.0000", "settled"), (closed.Holder, closed.Balance, closed.Side));
         // İkinci ödeme birincinin sonrasını değiştirmez.

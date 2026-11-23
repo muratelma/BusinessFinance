@@ -77,7 +77,13 @@ public sealed record FinancialActivityResponse(
     /// Faturanın ya da kayıtlı alım/satış borcunun indirimi. Satırın tutarı
     /// indirim düşülmüş bedeldir; indirim tutarın altında yazılır. Yoksa <c>null</c>.
     /// </summary>
-    string? DiscountAmount = null);
+    string? DiscountAmount = null,
+
+    /// <summary>
+    /// Kişinin hesabındaki satış ya da alımla birlikte yazılmış peşin tutar;
+    /// iptalde `?withPaidNow=true` onu da iptal eder. Yoksa <c>null</c>.
+    /// </summary>
+    string? PaidNowAmount = null);
 
 /// <summary>
 /// Bir hareketten hemen sonra hesabın bakiyesi ya da kartın borcu.

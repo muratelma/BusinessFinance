@@ -29,6 +29,7 @@ class CounterpartyPageView extends StatelessWidget {
     this.onBack,
     this.onAdd,
     this.onMore,
+    this.moreMenu,
     this.onCollect,
     this.onPay,
     this.onOpenRecord,
@@ -49,6 +50,9 @@ class CounterpartyPageView extends StatelessWidget {
   final VoidCallback? onBack;
   final VoidCallback? onAdd;
   final VoidCallback? onMore;
+
+  /// Başlıktaki `⋮` yerine çizilen menü (canlı sayfa); verilmezse [onMore].
+  final Widget? moreMenu;
   final VoidCallback? onCollect;
   final VoidCallback? onPay;
   final ValueChanged<DebtBookItem>? onOpenRecord;
@@ -84,11 +88,12 @@ class CounterpartyPageView extends StatelessWidget {
               icon: const Icon(Icons.add),
               onPressed: onAdd,
             ),
-            IconButton(
-              tooltip: 'Diğer seçenekler',
-              icon: const Icon(Icons.more_vert),
-              onPressed: onMore,
-            ),
+            moreMenu ??
+                IconButton(
+                  tooltip: 'Diğer seçenekler',
+                  icon: const Icon(Icons.more_vert),
+                  onPressed: onMore,
+                ),
           ],
         ),
         Expanded(

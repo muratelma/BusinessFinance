@@ -78,12 +78,6 @@ public sealed record RecordDebtOpeningCommand(
     Guid? OpeningAccountId,
     Guid? CategoryId);
 
-public sealed record PayDebtInstallmentCommand(
-    Guid DebtId,
-    int Sequence,
-    Guid AccountId,
-    DateOnly PaymentDate);
-
 public sealed record DebtInstallmentDto(
     Guid Id,
     int Sequence,

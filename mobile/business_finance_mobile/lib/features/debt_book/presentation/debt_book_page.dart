@@ -12,10 +12,10 @@ import 'debt_book_controller.dart';
 import 'debt_book_view.dart';
 import 'debt_entry_sheet.dart';
 
-/// `Borç ve alacak` sayfası (Faz 5): listeyi sunucudan okur ve
-/// [DebtBookView] ile çizer. Kişi satırı [personPage]'i açar; yeni kayıt
-/// formları ve kayıt sayfası Faz 7'de bağlanır, o zamana kadar kayıt satırı
-/// `+` `Ne oldu?` sonrası [entryPage]'i, kayıt satırı [recordPage]'i açar.
+/// `Borç ve alacak` sayfası: listeyi sunucudan okur ve [DebtBookView] ile
+/// çizer. Kişi satırı [personPage]'i, kayıt satırı [recordPage]'i,
+/// `Kapananlar` [closedPage]'i, `+` `Ne oldu?` sonrası [entryPage]'i açar;
+/// dönüşte liste yenilenir.
 class DebtBookPage extends StatefulWidget {
   const DebtBookPage({
     required this.repository,
@@ -24,7 +24,7 @@ class DebtBookPage extends StatefulWidget {
     this.changes,
     this.personPage,
     this.recordPage,
-    this.onOpenClosed,
+    this.closedPage,
     this.entryPage,
   });
 
@@ -38,7 +38,9 @@ class DebtBookPage extends StatefulWidget {
 
   /// Taksitli ya da kişisiz kaydın sayfası (kimlik, başlık).
   final Widget Function(String debtId, String title)? recordPage;
-  final ValueChanged<DebtSide>? onOpenClosed;
+
+  /// Seçili taraftaki kapanmış kayıtlar.
+  final Widget Function(DebtSide side)? closedPage;
 
   /// `Ne oldu?` panelinde seçilen kayıt türü.
   /// Yeni kayıt formu (tür, varsa kişi); kaydedilince liste yenilenir.
@@ -99,6 +101,15 @@ class _DebtBookPageState extends State<DebtBookPage> {
     if (mounted) await _controller.load();
   }
 
+  Future<void> _openClosed(DebtSide side) async {
+    final builder = widget.closedPage;
+    if (builder == null) return;
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => builder(side)));
+    if (mounted) await _controller.load();
+  }
+
   void _openItem(DebtBookItem item) {
     if (item.isLedger) {
       _openPerson(item.id, item.title);
@@ -141,7 +152,7 @@ class _DebtBookPageState extends State<DebtBookPage> {
             onOpenItem: _openItem,
             onOpenPerson: (person) =>
                 _openPerson(person.counterpartyId, person.name),
-            onOpenClosed: widget.onOpenClosed,
+            onOpenClosed: widget.closedPage == null ? null : _openClosed,
             onRefresh: _controller.load,
             notice: _controller.isStale
                 ? AppInlineNotice(

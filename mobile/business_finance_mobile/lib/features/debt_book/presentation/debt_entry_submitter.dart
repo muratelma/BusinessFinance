@@ -114,7 +114,10 @@ class DebtEntrySubmitter {
       'direction': draft.side.apiValue,
       'scope': draft.scope?.apiValue,
       'principal': draft.amount,
-      'totalRepayment': null,
+      // Faiz yalnız bankanın taksit tutarından türer (K17); taksit tutarı
+      // yoksa geri ödenecek toplam tutarın kendisidir. Sunucu ikisinden
+      // birini ister (`debt.repayment_required`).
+      'totalRepayment': draft.installmentAmount == null ? draft.amount : null,
       'annualInterestRate': null,
       'installmentAmount': draft.installmentAmount,
       'currency': 'TRY',

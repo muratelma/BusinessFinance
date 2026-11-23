@@ -17,18 +17,21 @@ import '../data/debt_book_models.dart';
 import '../data/debt_book_repository.dart';
 import 'debt_book_parts.dart';
 import 'debt_entry_form_view.dart';
+import 'debt_entry_prefill.dart';
 import 'debt_entry_sheet.dart';
 import 'debt_entry_submitter.dart';
 
-/// Yeni borç ya da alacak (Faz 7): formun seçeneklerini okur, kişi seçer,
-/// takvim önizlemesini ve kaydı sunucuya bağlar. Kaydedilince `true` ile
-/// kapanır.
+/// Yeni borç ya da alacak: formun seçeneklerini okur, kişi seçer, takvim
+/// önizlemesini ve kaydı sunucuya bağlar. Kaydedilince `true` ile kapanır.
+/// Fiş ve dekont yolları [prefill] ile açar.
 class DebtEntryPage extends StatefulWidget {
   const DebtEntryPage({
     required this.repository,
     required this.kind,
     super.key,
     this.person,
+    this.prefill,
+    this.onSaved,
     this.changes,
   });
 
@@ -37,6 +40,13 @@ class DebtEntryPage extends StatefulWidget {
 
   /// Kişi sayfasından açıldıysa kişi; form onu değiştirmez.
   final DebtPersonChoice? person;
+
+  /// Belgeden gelen öneriler; kişi önerisi kilitlenmez.
+  final DebtEntryPrefill? prefill;
+
+  /// Kayıt yazıldıktan sonra (ör. dekonttaki ücreti yazmak); kaydın
+  /// sonucunu değiştirmez.
+  final Future<void> Function(DebtEntryDraft draft)? onSaved;
   final FinancialDataChanges? changes;
 
   @override
@@ -92,8 +102,10 @@ class _DebtEntryPageState extends State<DebtEntryPage> {
 
   Future<String?> _submit(DebtEntryDraft draft) async {
     final error = await _submitter.submit(draft, asOfDate: _todayIso);
-    if (error == null && mounted) Navigator.of(context).pop(true);
-    return error;
+    if (error != null) return error;
+    await widget.onSaved?.call(draft);
+    if (mounted) Navigator.of(context).pop(true);
+    return null;
   }
 
   @override
@@ -132,10 +144,22 @@ class _DebtEntryPageState extends State<DebtEntryPage> {
               for (final account in options.sources.accounts)
                 choices.account(account.id, account.name, type: account.type),
             ];
+            final prefill = widget.prefill;
+            final categoryKnown =
+                prefill?.categoryId != null &&
+                categories.any(
+                  (category) => category.id == prefill!.categoryId,
+                );
             return DebtEntryFormView(
               kind: widget.kind,
               today: DateTime.now(),
-              initialPerson: widget.person,
+              initialPerson: widget.person ?? prefill?.person,
+              initialAmount: prefill?.amount,
+              initialDate: prefill?.date,
+              initialDueDate: prefill?.dueDate,
+              initialDescription: prefill?.description,
+              initialCategoryId: categoryKnown ? prefill!.categoryId : null,
+              notices: prefill?.notices ?? const [],
               personLocked: widget.person != null,
               categoryOptions: [
                 for (final category in categories)

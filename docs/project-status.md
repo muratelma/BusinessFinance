@@ -5,6 +5,8 @@ uygulanmış veya tamamlanmış gibi gösterilmez.
 
 ## Aktif konum
 
+- **23 Kasım 2026 (gece) · Borç ve alacak Faz 8 bitti (dal `borc-alacak-cari`)**. Faz 7 `15b1d09`. Kişinin `⋮` menüsü, `Kapananlar`, `İşlem ekle > Borç veya alacak`, fiş "henüz ödemedim" ve dekont "borç verdim" yeni forma bağlandı; planlananlar ve hatırlatmalar kişinin vadelerini ve borç sayfalarını tanıyor. Eski `debts`, `counterparties`, `obligations` ekranları, `Cari hesap` ve `Yükümlülükler` menüleri kalktı; sunucuda `/api/v1/obligations`, eski taksit ödeme ucu, `hasCounterpartyLedger` ve kişideki açık yükümlülük alanları kalktı. Satış iptalinde peşin tutar sorusu. Bulunup düzeltilen iki hata: yeni kayıt formu ayrı kayıtta toplam geri ödemeyi göndermiyordu; net varlık borç parayı ve vazgeçmeyi saymıyordu. Backend SQL dahil tam koşu geçti. Sıradaki: ertelenen Özet/Planlananlar testi, sonra Faz 9.
+
 - **23 Kasım 2026 akşamı · sıradaki oturum (kullanıcı kararı)**. 1) Borç-alacak Faz 8 (eski yolların kalkması; kodun son fazı), 2) ertelenen Özet/Planlananlar/Tekrarlayanlar testi, 3) borç-alacağın aynı şekilde testi (Faz 9, kabul turu ve kapanış). Faz 7 commit edilmedi. Devir: `research/DEVIR-2026-11-23.md`.
 
 - **23 Kasım 2026 · Borç ve alacak Faz 7 (yeni kayıt ve kayıt sayfası; dal `borc-alacak-cari`)**. `+` → `Ne oldu?` → form (kişi seçici, peşin, taksitli ve sunucudan takvim önizlemesi, uygulamadan önce); kaydın nereye yazılacağını uygulama seçer. Taksitli/kişisiz kayıt sayfası: ödeme, geri alma, plan, indirim, iptal. Sunucuda `POST /api/v1/debts/schedule-preview` ve borç açılışında `installmentAmount`. Emülatörde gerçek API ile ödeme/geri alma ve satış/iptal denendi. Sıradaki Faz 8 (eski yolların kalkması).

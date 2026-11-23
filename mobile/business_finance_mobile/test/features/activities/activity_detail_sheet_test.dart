@@ -56,7 +56,11 @@ void main() {
   testWidgets('offers cancelling only when the server allows it', (
     tester,
   ) async {
-    await _pump(tester, _activity(), onCancel: () async {});
+    await _pump(
+      tester,
+      _activity(),
+      onCancel: ({bool withPaidNow = false}) async {},
+    );
     expect(find.text('Hareketi iptal et'), findsOneWidget);
   });
 
@@ -114,7 +118,7 @@ void main() {
     await _pump(
       tester,
       _activity(kind: ActivityKind.obligation, supportsAttachments: false),
-      onCancel: () async {},
+      onCancel: ({bool withPaidNow = false}) async {},
     );
     await tester.tap(find.text('Hareketi iptal et'));
     await tester.pumpAndSettle();
@@ -129,7 +133,7 @@ void main() {
         effect: ActivityEffect.income,
         supportsAttachments: false,
       ),
-      onCancel: () async {},
+      onCancel: ({bool withPaidNow = false}) async {},
     );
     await tester.tap(find.text('Hareketi iptal et'));
     await tester.pumpAndSettle();
@@ -143,7 +147,11 @@ void main() {
     tester,
   ) async {
     var calls = 0;
-    await _pump(tester, _activity(), onCancel: () async => calls++);
+    await _pump(
+      tester,
+      _activity(),
+      onCancel: ({bool withPaidNow = false}) async => calls++,
+    );
 
     await tester.tap(find.text('Hareketi iptal et'));
     await tester.pumpAndSettle();
@@ -155,9 +163,43 @@ void main() {
     expect(calls, 0);
   });
 
+  // Satışla alınan peşin tutar ayrıca sorulur; varsayılan bırakmaktır.
+  testWidgets('a sale with an advance asks whether to cancel it too', (
+    tester,
+  ) async {
+    final answers = <bool>[];
+    final sale = _activity(
+      kind: ActivityKind.counterpartyCharge,
+      effect: ActivityEffect.income,
+      paidNowAmount: '4000.0000',
+      direction: ActivityDirection.receivable,
+    );
+    for (final choice in ['Yalnız satışı', 'İkisini de iptal et']) {
+      await _pump(
+        tester,
+        sale,
+        onCancel: ({bool withPaidNow = false}) async =>
+            answers.add(withPaidNow),
+      );
+      await tester.tap(find.text('Hareketi iptal et'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Hareketi iptal et').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Peşin alınan da iptal edilsin mi?'), findsOneWidget);
+      await tester.tap(find.text(choice));
+      await tester.pumpAndSettle();
+    }
+
+    expect(answers, [false, true]);
+  });
+
   testWidgets('cancels once the confirmation is accepted', (tester) async {
     var calls = 0;
-    await _pump(tester, _activity(), onCancel: () async => calls++);
+    await _pump(
+      tester,
+      _activity(),
+      onCancel: ({bool withPaidNow = false}) async => calls++,
+    );
 
     await tester.tap(find.text('Hareketi iptal et'));
     await tester.pumpAndSettle();
@@ -178,7 +220,7 @@ void main() {
     await _pump(
       tester,
       _activity(),
-      onCancel: () async => calls++,
+      onCancel: ({bool withPaidNow = false}) async => calls++,
       isCancelling: true,
     );
 
@@ -286,7 +328,7 @@ void main() {
           home: Scaffold(
             body: ActivityDetailSheet(
               activity: _activity(),
-              onCancel: () async {},
+              onCancel: ({bool withPaidNow = false}) async {},
             ),
           ),
         ),
@@ -302,7 +344,7 @@ void main() {
 Future<void> _pump(
   WidgetTester tester,
   FinancialActivity activity, {
-  Future<void> Function()? onCancel,
+  Future<void> Function({bool withPaidNow})? onCancel,
   bool isCancelling = false,
 }) async {
   await tester.pumpWidget(
@@ -338,6 +380,8 @@ FinancialActivity _activity({
   bool canCancel = true,
   bool supportsAttachments = true,
   String? dayCloseId,
+  String? paidNowAmount,
+  ActivityDirection? direction,
 }) => FinancialActivity(
   activityId: 'a',
   kind: kind,
@@ -356,4 +400,6 @@ FinancialActivity _activity({
   canCancel: canCancel,
   supportsAttachments: supportsAttachments,
   dayCloseId: dayCloseId,
+  paidNowAmount: paidNowAmount,
+  direction: direction,
 );

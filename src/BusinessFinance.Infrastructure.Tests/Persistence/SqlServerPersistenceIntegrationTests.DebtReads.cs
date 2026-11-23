@@ -2,8 +2,8 @@ using Microsoft.Extensions.DependencyInjection;
 using BusinessFinance.Application.Accounts;
 using BusinessFinance.Application.CreditCards;
 using BusinessFinance.Application.FinancialActivities;
-using BusinessFinance.Application.Obligations;
 using BusinessFinance.Application.Reports;
+using BusinessFinance.Application.Debts;
 using BusinessFinance.Domain;
 
 namespace BusinessFinance.Infrastructure.Tests.Persistence;
@@ -77,14 +77,15 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         Assert.Equal(950m, await services.GetRequiredService<ICreditCardRepository>()
             .CalculateCurrentDebtAsync(card.Id, user.Id, CancellationToken.None));
 
-        var obligations = await services.GetRequiredService<IObligationRepository>()
-            .ListAsync(user.Id, new DateOnly(2026, 10, 28), CancellationToken.None);
-        var shelfRow = Assert.Single(obligations, row => row.Id == shelf.Id);
-        Assert.Equal(ObligationStatus.Open, shelfRow.Status);
-        Assert.Null(shelfRow.SettlementId);
-        var freightRow = Assert.Single(obligations, row => row.Id == freight.Id);
-        Assert.Equal(ObligationStatus.Settled, freightRow.Status);
-        Assert.Null(freightRow.SettlementAccountId);
+        // Tek ödemeli kayıt borç deposundan okunur (eski yükümlülük okuması
+        // ADR 0022 Faz 8'de kalktı): kısmi ödenmiş açık, kartla ödenmiş kapalı.
+        var debts = services.GetRequiredService<IDebtRepository>();
+        var shelfRow = await debts.FindAnyOwnedAsync(shelf.Id, user.Id, false, CancellationToken.None);
+        Assert.Equal(ObligationStatus.Open, shelfRow!.Status);
+        Assert.Equal(6_000m, shelfRow.RemainingAmount);
+        var freightRow = await debts.FindAnyOwnedAsync(freight.Id, user.Id, false, CancellationToken.None);
+        Assert.Equal(ObligationStatus.Settled, freightRow!.Status);
+        Assert.Null(Assert.Single(freightRow.Payments).AccountId);
 
         var planned = await services.GetRequiredService<IPlannedActivityRepository>().ListAsync(
             user.Id, new DateOnly(2026, 10, 28), new DateOnly(2026, 12, 31), null, CancellationToken.None);

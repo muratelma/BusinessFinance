@@ -7,7 +7,7 @@ import '../../activities/data/planned_activity_models.dart';
 /// Eşleme tek yerde ([matches]) durur; ikinci bir kopyası olsaydı yeni bir
 /// planlanan tür eklendiğinde biri sessizce geride kalırdı.
 enum ReminderKind {
-  obligation('obligation', 'Ödenecek yükümlülükler', 'ödenecek yükümlülük'),
+  obligation('obligation', 'Ödenecek borçlar', 'ödenecek borç'),
   receivable('receivable', 'Tahsil edilecekler', 'tahsil edilecek alacak'),
   recurring('recurring', 'Tekrarlanan kayıtlar', 'tekrarlanan kayıt'),
   cardStatement('card-statement', 'Kart ekstreleri', 'kart ekstresi'),
@@ -36,8 +36,14 @@ enum ReminderKind {
   /// plandır (Aşama 05) ve planlanan görünüme `recurring-occurrence` olarak
   /// düşer. Ona ayrı bir kova açmak, aynı kaydı iki yerden hatırlatırdı.
   bool matches(PlannedActivity item) => switch (this) {
-    obligation => item.plannedKind == PlannedKind.payableObligation,
-    receivable => item.plannedKind == PlannedKind.receivableObligation,
+    // Kişinin hesabındaki vade de tek ödemeli kayıt gibi bir ödeme ya da
+    // tahsilattır; ayrı kova açılmaz.
+    obligation =>
+      item.plannedKind == PlannedKind.payableObligation ||
+          item.plannedKind == PlannedKind.counterpartyPayable,
+    receivable =>
+      item.plannedKind == PlannedKind.receivableObligation ||
+          item.plannedKind == PlannedKind.counterpartyReceivable,
     recurring => item.plannedKind == PlannedKind.recurringOccurrence,
     cardStatement => item.plannedKind == PlannedKind.cardStatement,
     installment =>

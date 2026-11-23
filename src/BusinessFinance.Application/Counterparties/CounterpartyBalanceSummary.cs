@@ -11,10 +11,9 @@ namespace BusinessFinance.Application.Counterparties;
 /// sorgudan alsın; ad için ikinci bir okuma karşı taraf başına bir sorgu
 /// demek olurdu.
 ///
-/// Bakiye yalnız cari hareketlerden oluşur. Kişiye bağlı açık yükümlülükler
-/// (<see cref="OpenReceivableObligations"/>, <see cref="OpenPayableObligations"/>)
-/// <b>bilgidir</b>: bakiyeye, nete ve "kapandı" sorusuna girmez; her biri
-/// kendi kapanışıyla kapanır.
+/// Bakiye yalnız cari hareketlerden oluşur. Kişiye bağlı tek ödemeli ya da
+/// taksitli kayıtlar bakiyeye, nete ve "kapandı" sorusuna girmez; her biri
+/// kendi ödemeleriyle kapanır ve kişi sayfasında ayrı satırdır.
 /// </remarks>
 public sealed record CounterpartyBalanceSummary(
     Guid CounterpartyId,
@@ -24,8 +23,6 @@ public sealed record CounterpartyBalanceSummary(
     decimal Payable,
     decimal OverdueReceivable,
     decimal OverduePayable,
-    decimal OpenReceivableObligations = 0m,
-    decimal OpenPayableObligations = 0m,
 
     // Sıradaki vade: kapanmamış kısmı kalan, vadesi gelmemiş en yakın alım
     // (ödemeler önce en eski alımı düşürür; ADR 0021 T8).

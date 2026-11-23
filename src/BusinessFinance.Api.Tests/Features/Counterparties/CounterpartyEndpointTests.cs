@@ -7,7 +7,7 @@ using BusinessFinance.Api.Features.Authentication;
 using BusinessFinance.Api.Features.Categories;
 using BusinessFinance.Api.Features.Counterparties;
 using BusinessFinance.Api.Features.FinancialActivities;
-using BusinessFinance.Api.Features.Obligations;
+using BusinessFinance.Api.Tests.Features.Debts;
 using BusinessFinance.Api.Features.Profiles;
 using BusinessFinance.Api.Features.Reports;
 
@@ -398,13 +398,10 @@ public sealed class CounterpartyEndpointTests
 
         // Tedarikçi A: 1.000 liralık vadesi geçmiş fatura + 500 liralık
         // veresiye alım.
-        using var invoice = await owner.PostAsJsonAsync(
-            "/api/v1/obligations",
-            new CreateObligationRequest(
+        var obligation = await owner.CreateSingleDebtAsync(
+            new SingleDebtInput(
                 "payable", "1000.0000", "TRY", expense.Id, "2026-08-05", "2026-08-20",
                 "business", supplier.Id, "Ağustos faturası"));
-        Assert.Equal(HttpStatusCode.Created, invoice.StatusCode);
-        var obligation = (await invoice.Content.ReadFromJsonAsync<ObligationResponse>())!;
         using var purchase = await owner.PostAsJsonAsync(
             $"/api/v1/counterparties/{supplier.Id}/charges",
             new CreateCounterpartyChargeRequest(
@@ -415,17 +412,15 @@ public sealed class CounterpartyEndpointTests
         // durur ve vadesinin geçmesi cariyi "gecikmiş" yapmaz.
         var open = await PersonAsync(supplier.Id);
         Assert.Equal(
-            ("500.0000", "-500.0000", "0.0000", "1000.0000"),
-            (open.Payable, open.Net, open.OverduePayable, open.OpenPayableObligations));
+            ("500.0000", "-500.0000", "0.0000"),
+            (open.Payable, open.Net, open.OverduePayable));
 
         // Yalnız faturası olan kişinin carisi kapalıdır: açık hesap
         // süzgecinde çıkmaz, tümünde çıkar.
-        using var onlyInvoice = await owner.PostAsJsonAsync(
-            "/api/v1/obligations",
-            new CreateObligationRequest(
+        await owner.CreateSingleDebtAsync(
+            new SingleDebtInput(
                 "payable", "300.0000", "TRY", expense.Id, "2026-08-05", "2026-09-05",
                 "business", utility.Id));
-        Assert.Equal(HttpStatusCode.Created, onlyInvoice.StatusCode);
         var openList = await owner.GetFromJsonAsync<CounterpartyListResponse>(
             "/api/v1/counterparties?balance=open");
         Assert.Equal([supplier.Id], openList!.Items.Select(item => item.Id));
@@ -433,7 +428,6 @@ public sealed class CounterpartyEndpointTests
             "/api/v1/counterparties?balance=all");
         var listedUtility = Assert.Single(all!.Items, item => item.Id == utility.Id);
         Assert.True(listedUtility.IsSettled);
-        Assert.Equal("300.0000", listedUtility.OpenPayableObligations);
 
         // Cari ödeme cariyi kapatır; fatura açık kalır.
         using var payment = await owner.PostAsJsonAsync(
@@ -443,18 +437,16 @@ public sealed class CounterpartyEndpointTests
         Assert.Equal(HttpStatusCode.Created, payment.StatusCode);
         var paid = await PersonAsync(supplier.Id);
         Assert.True(paid.IsSettled);
-        Assert.Equal("1000.0000", paid.OpenPayableObligations);
 
         // Fatura kendi kapanışıyla kapanır: para bir kez çıkar, kişi fazla
         // ödenmiş görünmez.
-        using var settle = await owner.PostAsJsonAsync(
-            $"/api/v1/obligations/{obligation.Id}/settlement",
-            new SettleObligationRequest(bank.Id, "2026-08-22"));
-        Assert.Equal(HttpStatusCode.OK, settle.StatusCode);
+        using var settle = await owner.SettleSingleDebtAsync(
+            obligation.Id, new SingleDebtSettlement(bank.Id, "2026-08-22"));
+        Assert.True(settle.IsSuccessStatusCode, await settle.Content.ReadAsStringAsync());
         var closed = await PersonAsync(supplier.Id);
         Assert.Equal(
-            ("0.0000", "0.0000", "0.0000", true),
-            (closed.Payable, closed.Net, closed.OpenPayableObligations, closed.IsSettled));
+            ("0.0000", "0.0000", true),
+            (closed.Payable, closed.Net, closed.IsSettled));
         var account = await owner.GetFromJsonAsync<AccountResponse>(
             $"/api/v1/accounts/{bank.Id}");
         Assert.Equal("3500.0000", account!.Balance);
@@ -469,48 +461,6 @@ public sealed class CounterpartyEndpointTests
         var history = await owner.GetFromJsonAsync<FinancialActivityListResponse>(
             $"/api/v1/financial-activities?pageNumber=1&pageSize=20&counterpartyId={supplier.Id}");
         Assert.Contains(history!.Items, item => item.ActivityId == obligation.Id);
-    }
-
-    /// <summary>
-    /// <c>Cari hesap</c> kapısının gizlenmesi bir ön ayardır (Aşama 06.3 C6):
-    /// profil, cevap ne olursa olsun kullanıcının cari hareketi olup
-    /// olmadığını söyler.
-    /// </summary>
-    [Fact]
-    public async Task Profile_TellsWhetherTheUserHasALedger_WhateverTheBusinessAnswerIs()
-    {
-        await using var factory = new BusinessFinanceApiFactory();
-        using var owner = await CreateAuthenticatedClientAsync(factory, "cari-menu@example.test");
-        var income = await FirstCategoryAsync(owner, "income");
-        var customer = await CreateCounterpartyAsync(owner, "Müşteri");
-
-        async Task<UserProfileResponse> ProfileAsync() =>
-            (await owner.GetFromJsonAsync<UserProfileResponse>("/api/v1/profile"))!;
-
-        // Kişi açmak cari hareket değildir (borç planı da kişi açar).
-        Assert.False((await ProfileAsync()).HasCounterpartyLedger);
-
-        using var sale = await owner.PostAsJsonAsync(
-            $"/api/v1/counterparties/{customer.Id}/charges",
-            new CreateCounterpartyChargeRequest(
-                "receivable", "200.0000", "TRY", income.Id, "2026-08-05"));
-        var charge = (await sale.Content.ReadFromJsonAsync<CounterpartyChargeResponse>())!;
-        Assert.True((await ProfileAsync()).HasCounterpartyLedger);
-
-        // Cevabını "işletmem yok" yapan kullanıcının açık hesabı kaybolmaz;
-        // sunucu ucu da kapatmaz.
-        using var answer = await owner.PutAsJsonAsync(
-            "/api/v1/profile", new UpdateUserProfileRequest(HasBusiness: false));
-        var changed = (await answer.Content.ReadFromJsonAsync<UserProfileResponse>())!;
-        Assert.Equal((false, true), (changed.HasBusiness, changed.HasCounterpartyLedger));
-        var stillReadable = await owner.GetFromJsonAsync<CounterpartyResponse>(
-            $"/api/v1/counterparties/{customer.Id}");
-        Assert.Equal("200.0000", stillReadable!.Receivable);
-
-        // İptal edilen tek hareketten sonra gösterilecek bir hesap kalmaz.
-        using var cancel = await owner.DeleteAsync($"/api/v1/counterparty-charges/{charge.Id}");
-        Assert.Equal(HttpStatusCode.OK, cancel.StatusCode);
-        Assert.False((await ProfileAsync()).HasCounterpartyLedger);
     }
 
     /// <summary>

@@ -34,29 +34,33 @@ kullanıcıya sorulmaz.
 | 4 | Ekran tasarımı | **Bitti** (23 Kasım), commit `652f728` |
 | 5 | Flutter: liste | **Bitti** (23 Kasım): `Diğer` → `Borç ve alacak` gerçek listeyi açar |
 | 6 | Flutter: kişi sayfası, tahsilat ve ödeme | **Bitti** (23 Kasım): kişi sayfası, `Tahsilat` / `Ödeme`, hareket süzgeci, iptal, indirim; borç para ve vazgeçme akış türleri. Faz 5 ile tek commit |
-| 7 | Flutter: yeni kayıt ve kayıt sayfası | **Bitti** (23 Kasım; commit edilmedi): `Ne oldu?` → form (kişi seçici, peşin, taksitli + sunucudan önizleme, uygulamadan önce), kayıt sayfası (ödeme, geri alma, plan, indirim, iptal); sunucuda takvim önizlemesi ve taksit tutarı |
-| 8 | Eski yolların kalkması | Başlamadı |
+| 7 | Flutter: yeni kayıt ve kayıt sayfası | **Bitti** (23 Kasım), commit `15b1d09`: `Ne oldu?` → form (kişi seçici, peşin, taksitli + sunucudan önizleme, uygulamadan önce), kayıt sayfası (ödeme, geri alma, plan, indirim, iptal); sunucuda takvim önizlemesi ve taksit tutarı |
+| 8 | Eski yolların kalkması | **Bitti** (23 Kasım): istemci bağlantıları ve eski sayfaların silinmesi, sunucu S9, satış iptalinde peşin sorusu, `MoneyFoundation_*` genişletmesi (net varlık hatası bulundu ve düzeltildi). Tek commit |
 | 9 | Kabul turu ve kapanış | Başlamadı |
 
 ## Sıradaki tek görev
 
 > **Sonraki oturumun sırası (kullanıcı kararı, 23 Kasım akşamı):**
-> 1. **Faz 8** ile borç-alacağın kodu biter (aşağıda).
+>    ~~1. Faz 8~~ bitti (23 Kasım gece).
 > 2. Ertelenen **Özet / Planlananlar / Tekrarlayanlar testi**
 >    (`research/DEVIR-2026-11-22.md`, `stages/06.3-planlananlar/KABUL.md`).
 > 3. Borç-alacak aynı şekilde test edilir: **Faz 9** kabul turu (§9
 >    senaryoları emülatörde, Faz 4 kareleriyle yan yana; K15 sapması burada
->    değerlendirilir) ve kapanış.
+>    değerlendirilir) ve kapanış. Faz 8'in iki sapması (kişi menüsünde
+>    `Kişiyi sil` / `Yeniden etkinleştir`; hatırlatmada kişinin vadeleri)
+>    kullanıcıya **ayrı maddeler olarak** denetilir.
 >
 > Devir: `research/DEVIR-2026-11-23.md`. Dal `borc-alacak-cari`
 > (`ozet-tamamlama` buna ileri alındı). **Faz 7 commit edilmedi**
 > (kullanıcıya soruldu).
 
-**Faz 8 — Eski yolların kalkması ve bağlantılar** (`03-PLAN.md`): kişinin `⋮`
-menüsü (düzenle, açılış bakiyesi, pasife al) yeni sayfaya; `Kapananlar` yeni
-listeye; `İşlem ekle` girişleri, fiş "henüz ödemedim" yolu (K10),
-hatırlatmalar; eski `debts`, `counterparties`, `obligations` sayfaları,
-`Cari hesap` menüsü ve ön ayarı, eski uçlar ve testleri silinir.
+**Faz 9'a giren karar (kullanıcıya emülatörde sorulacak):** akışta peşin
+tahsilatın etiketi. Bugün satışla birlikte alınan peşin para `Tahsilat`
+yazar (§7a: avans ayrı kayıt değildir). Seçenekler: (A) böyle kalsın; (B)
+satışa bağlı satır `Peşin tahsilat` / `Peşin ödeme` yazsın (sunucu bağı
+biliyor, istemci alanı eklenir); (C) `Avans`. Öneri: **A** — kişinin
+hareketlerinde satışın hemen altında aynı gün durur ve iptal sorusu bağı
+zaten söylüyor; ayrı ad bir kavram daha öğretir.
 **Faz 7'den devreden:** satış iptalinde "avans da silinsin mi" sorusu
 (`?withPaidNow=`; akış satırı satışa bağlı avansı bilmiyor, sunucu alanı
 gerekir); akışta `avans` etiketi kararı; `MoneyFoundation_*` genişletmesi
@@ -438,3 +442,61 @@ ve kendi kaydını yazamadı.
   tek ödemeli kayıtta geri alma onayı "taksit" diyordu.
 - **Bilinçli bırakılan:** satış iptalinde avans sorusu ve akışta avans
   etiketi (Faz 8'e devir, yukarıda).
+
+### 23 Kasım 2026 (akşam) — Faz 7 commit, Faz 8'in istemci tarafı
+
+- **Kullanıcı:** Faz 7 ayrı commit (kullanıcı onayı; `design/`, kök
+  görseller ve `research/` dışarıda).
+- **Bağlantılar:** kişinin `⋮` menüsü (`Düzenle`, `Açılış bakiyesi`, `Pasife
+  al` / `Yeniden etkinleştir`, `Kişiyi sil`; `counterparty_manage_sheets.dart`,
+  depoya `PUT`/`DELETE /counterparties/{id}`). `Kapananlar` sayfası
+  (`DebtClosedPage`, `GET /debt-book/closed`). Yeni kayıt rotası
+  `/transactions/new/debt` (`DebtEntryRequest`, `DebtEntryPrefill`): `İşlem
+  ekle > Borç veya alacak` (`Ödenmemiş fatura`nın yerine), fiş "henüz
+  ödemedim" → `Vadeli aldım` (K10: eşleşen kişi kişiye, yoksa kişisiz;
+  belgenin uyarıları formun başında), dekont "borç verdim" → `Borç verdim`
+  (ücret kayıttan sonra paranın çıktığı hesaptan). Kişi ve kayıt sayfası
+  kimlikle açılır (`/more/debt-book/people/{id}`, `/records/{id}`);
+  planlananlarda borç satırları oraya götürür. Hatırlatmalar kişinin
+  vadelerini kapsar; akıştaki tür adları §6.6'ya göre; tek ödemeli kaydın
+  iptali `DELETE /debts/{id}`.
+- **Silinenler (istemci):** `lib/features/debts`, `counterparties`,
+  `obligations` ve testleri; `Cari hesap` ve `Yükümlülükler` menüleri;
+  `hasCounterpartyLedger` ve `ScopeController.showsCounterpartyLedger`;
+  eski ekranları çizen kare testleri. Aşama 02 kabul testi yeni depoya
+  taşındı.
+- **Sapmalar:** `Kişiyi sil` ve `Yeniden etkinleştir`; hatırlatma
+  kovasının adı ve kişinin vadelerinin her ufukta okunması
+  (`06.3-butunsel-duzenleme.md` Sapmalar). **Kullanıcı kararı:** şimdilik
+  kalır; Faz 9'da emülatörde bu iki konu kullanıcıya **ayrıca** denetilir.
+  Commit Faz 8 sonunda tek seferde.
+- **Sunucu S9 (aynı oturum):** `/api/v1/obligations` uçları ve
+  `Application/Obligations`, `Infrastructure/Obligations` katmanları; eski
+  taksit ödeme ucu ve kullanım durumu (alan modelinin `PayInstallment`ı geri
+  yükleme için yerinde); profilde `hasCounterpartyLedger`; kişi cevabında
+  açık yükümlülük alanları kalktı. `GET /debts` ve `/opening` S9'da yok,
+  yerinde. Dokuz API test dosyası `SingleDebts` düzeneğine taşındı;
+  `DebtMergeBaselineTests` altın dosyasından yalnız kalkan üç şey çıktı (v12
+  yedeği değişmedi).
+- **Bulunan Faz 7 hatası:** yeni kayıt formu ayrı kayıt açarken (kişisiz
+  fatura, taksitli satış/alım, faizsiz taksitli borç para) toplam geri
+  ödemeyi göndermiyordu; sunucu `debt.repayment_required` ile reddederdi.
+  `DebtEntrySubmitter` taksit tutarı yoksa toplamı tutar olarak gönderir;
+  test eklendi. Emülatör denemesi bu yolu kapsamamıştı.
+- **Doğrulama:** build ve `dotnet format` temiz; SQL Server'a karşı tam koşu:
+  Domain 416, Application 431, API 400, Infrastructure 284 geçti (2 atlandı).
+  Flutter: analyze temiz, 1317 test (tam koşu, sunucu öncesi), değişen
+  dosyalar yeniden koştu.
+- **Faz 7'den devredenler (aynı oturum):** akış satırına `paidNowAmount`
+  (satışa bağlı iptal edilmemiş peşin tutar; 16 kola alan eklendi); iptal
+  onayından sonra `Peşin alınan da iptal edilsin mi?` (`Yalnız satışı` /
+  `İkisini de iptal et`; `?withPaidNow=true`). `MoneyFoundation_*` tohumuna
+  borç para, kişiye kartla ödeme ve vazgeçme eklendi; **net varlığın borç
+  parayı ve vazgeçmeyi saymadığı bulundu ve düzeltildi**
+  (`EfFinancialReportRepository`). Avans etiketi Faz 9 kararı (yukarıda).
+- **Son doğrulama:** build ve `dotnet format` temiz; SQL Server'a karşı tam
+  koşu: Domain 416, Application 431, API 400, Infrastructure 284 (2 atlandı)
+  geçti. Flutter: format ve analyze temiz, 1318 test geçti.
+  satırında.
+- **Yapılmayan:** emülatörde deneme (Faz 9); Aşama 02 kabul testi
+  (`integration_test`) gerçek API'de koşmadı.

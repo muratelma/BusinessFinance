@@ -266,13 +266,21 @@ internal sealed class EfFinancialReportRepository(
         // stokta değil, alacak olarak duruyor. Taksitli sözleşmeyle aynı
         // kovalara giriyor çünkü soruları aynı — ne alacağım var, ne
         // borcum. İki kaynak birbirini toplamaz: sözleşme kendi kalan
-        // anaparasını, cari kendi hareketlerini sayar.
+        // anaparasını, cari kendi hareketlerini sayar. Kişinin hesabındaki
+        // borç para ve vazgeçme de kişi listesindeki gibi sayılır (ADR 0022).
         var counterpartyBalances = await dbContext.Counterparties.AsNoTracking()
             .Where(counterparty => counterparty.UserId == userId)
             .Select(counterparty => new
             {
                 Receivable =
                     counterparty.OpeningReceivable +
+                    (dbContext.CounterpartyLoans
+                        .Where(loan => loan.UserId == userId &&
+                                       loan.CounterpartyId == counterparty.Id &&
+                                       !loan.IsCancelled &&
+                                       loan.Direction == DebtDirection.Receivable &&
+                                       loan.LoanDate <= asOfDate)
+                        .Sum(loan => (decimal?)loan.Amount.Amount) ?? 0m) +
                     (dbContext.CounterpartyCharges
                         .Where(charge => charge.UserId == userId &&
                                          charge.CounterpartyId == counterparty.Id &&
@@ -293,9 +301,24 @@ internal sealed class EfFinancialReportRepository(
                                           !payment.IsCancelled &&
                                           payment.Direction == DebtDirection.Receivable &&
                                           payment.PaymentDate <= asOfDate)
-                        .Sum(payment => (decimal?)payment.Amount.Amount) ?? 0m),
+                        .Sum(payment => (decimal?)payment.Amount.Amount) ?? 0m) -
+                    // Vazgeçme kalanı ödeme gibi kapatır (ADR 0021 İ4).
+                    (dbContext.CounterpartyWriteOffs
+                        .Where(writeOff => writeOff.UserId == userId &&
+                                           writeOff.CounterpartyId == counterparty.Id &&
+                                           !writeOff.IsCancelled &&
+                                           writeOff.Direction == DebtDirection.Receivable &&
+                                           writeOff.WriteOffDate <= asOfDate)
+                        .Sum(writeOff => (decimal?)writeOff.Amount.Amount) ?? 0m),
                 Payable =
                     counterparty.OpeningPayable +
+                    (dbContext.CounterpartyLoans
+                        .Where(loan => loan.UserId == userId &&
+                                       loan.CounterpartyId == counterparty.Id &&
+                                       !loan.IsCancelled &&
+                                       loan.Direction == DebtDirection.Payable &&
+                                       loan.LoanDate <= asOfDate)
+                        .Sum(loan => (decimal?)loan.Amount.Amount) ?? 0m) +
                     (dbContext.CounterpartyCharges
                         .Where(charge => charge.UserId == userId &&
                                          charge.CounterpartyId == counterparty.Id &&
@@ -316,7 +339,15 @@ internal sealed class EfFinancialReportRepository(
                                           !payment.IsCancelled &&
                                           payment.Direction == DebtDirection.Payable &&
                                           payment.PaymentDate <= asOfDate)
-                        .Sum(payment => (decimal?)payment.Amount.Amount) ?? 0m)
+                        .Sum(payment => (decimal?)payment.Amount.Amount) ?? 0m) -
+                    // Vazgeçme kalanı ödeme gibi kapatır (ADR 0021 İ4).
+                    (dbContext.CounterpartyWriteOffs
+                        .Where(writeOff => writeOff.UserId == userId &&
+                                           writeOff.CounterpartyId == counterparty.Id &&
+                                           !writeOff.IsCancelled &&
+                                           writeOff.Direction == DebtDirection.Payable &&
+                                           writeOff.WriteOffDate <= asOfDate)
+                        .Sum(writeOff => (decimal?)writeOff.Amount.Amount) ?? 0m)
             })
             .ToArrayAsync(cancellationToken);
         // Tek ödemeli borcun o günkü kalanı: bedel, o güne kadarki ödemeler

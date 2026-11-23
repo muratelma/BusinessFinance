@@ -50,18 +50,13 @@ import '../../features/planning/presentation/recurring_plan_detail_page.dart';
 import '../../features/planning/presentation/recurring_plans_page.dart';
 import '../../features/data_tools/data/data_tools_repository.dart';
 import '../../features/data_tools/presentation/data_tools_page.dart';
-import '../../features/counterparties/data/counterparty_repository.dart';
-import '../../features/counterparties/presentation/counterparties_page.dart';
-import '../../features/debts/data/debt_repository.dart';
-import '../../features/debts/presentation/debts_page.dart';
-import '../../features/debts/presentation/lending_prefill.dart';
-import '../../features/counterparties/presentation/counterparties_controller.dart';
-import '../../features/counterparties/presentation/counterparty_detail_page.dart';
 import '../../features/debt_book/data/debt_book_repository.dart';
 import '../../features/debt_book/presentation/counterparty_page.dart';
 import '../../features/debt_book/data/debt_book_models.dart';
 import '../../features/debt_book/presentation/debt_book_page.dart';
+import '../../features/debt_book/presentation/debt_closed_page.dart';
 import '../../features/debt_book/presentation/debt_entry_page.dart';
+import '../../features/debt_book/presentation/debt_entry_prefill.dart';
 import '../../features/debt_book/presentation/debt_record_page.dart';
 import '../../features/debt_book/presentation/debt_entry_sheet.dart';
 import '../../features/goals/data/goal_repository.dart';
@@ -76,11 +71,6 @@ import '../../features/day_close/data/day_close_repository.dart';
 import '../../features/day_close/presentation/day_close_controller.dart';
 import '../../features/pos/data/pos_repository.dart';
 import '../../features/pos/presentation/pos_controller.dart';
-import '../../features/obligations/data/obligation_repository.dart';
-import '../../features/obligations/presentation/obligation_controller.dart';
-import '../../features/obligations/presentation/obligation_form_page.dart';
-import '../../features/obligations/presentation/obligation_prefill.dart';
-import '../../features/obligations/presentation/obligations_page.dart';
 import '../../features/receipts/data/receipt_image_source.dart';
 import '../../features/cards/presentation/transfer_prefill.dart';
 import '../../features/receipts/data/receipt_models.dart';
@@ -119,11 +109,8 @@ GoRouter createAppRouter({
   FinanceRepositoryContract? financeRepository,
   PlanningRepositoryContract? planningRepository,
   DataToolsRepositoryContract? dataToolsRepository,
-  DebtRepositoryContract? debtRepository,
-  CounterpartyRepositoryContract? counterpartyRepository,
   DebtBookRepositoryContract? debtBookRepository,
   GoalRepositoryContract? goalRepository,
-  ObligationRepositoryContract? obligationRepository,
   CashRepositoryContract? cashRepository,
   PosRepositoryContract? posRepository,
   DayCloseRepositoryContract? dayCloseRepository,
@@ -301,12 +288,16 @@ GoRouter createAppRouter({
                         ),
                       ),
                       GoRoute(
-                        // Yol `obligationCreateLocation` ile aynı olmalı.
-                        path: 'obligation',
-                        pageBuilder: _obligationFormPageBuilder(
-                          obligationRepository: obligationRepository,
+                        // Yol `debtEntryLocation` ile aynı olmalı.
+                        path: 'debt',
+                        pageBuilder: _debtEntryPageBuilder(
+                          debtBookRepository: debtBookRepository,
                           financialDataChanges: financialDataChanges,
-                          scopeController: scopeController,
+                          recordFee: _feeRecorder(
+                            transactionRepository,
+                            financeRepository,
+                            financialDataChanges,
+                          ),
                           authController: authController,
                         ),
                       ),
@@ -673,33 +664,59 @@ GoRouter createAppRouter({
           authController,
         ),
       ),
+      // Borç ve alacak (ADR 0022): liste, kişi sayfası, kayıt sayfası,
+      // `Kapananlar` ve yeni kayıt birbirini açar (`_DebtBookPages`).
       GoRoute(
-        path: '/more/counterparties',
-        pageBuilder: (context, state) => _sessionPage(
-          state,
-          counterpartyRepository == null
-              ? const Scaffold(
-                  body: AppErrorView(message: 'Cari servisi yapılandırılmadı.'),
-                )
-              : CounterpartiesPage(
-                  repository: counterpartyRepository,
-                  changes: financialDataChanges,
-                  posRepository: posRepository,
-                ),
-          authController,
-        ),
-      ),
-      // Borç ve alacak (ADR 0022, Faz 5–7): liste, kişi sayfası ve kayıt
-      // sayfası yeni. Yeni kayıt formları bağlanana kadar `+`, `Kapananlar`
-      // ve kişinin `⋮`u eski sayfaları açar.
-      GoRoute(
-        path: '/more/debt-book',
+        path: debtBookLocation,
+        routes: [
+          // Planlananlar ve başka sayfalar kişiyi ve kaydı kimliğiyle açar.
+          GoRoute(
+            path: 'people/:id',
+            pageBuilder: (context, state) => _sessionPage(
+              state,
+              debtBookRepository == null
+                  ? const Scaffold(
+                      body: AppErrorView(
+                        message: 'Borç servisi yapılandırılmadı.',
+                      ),
+                    )
+                  : _DebtBookPages(
+                      repository: debtBookRepository,
+                      activityRepository: activityRepository,
+                      changes: financialDataChanges,
+                    ).person(
+                      state.pathParameters['id']!,
+                      state.extra is String ? state.extra! as String : '',
+                    ),
+              authController,
+            ),
+          ),
+          GoRoute(
+            path: 'records/:id',
+            pageBuilder: (context, state) => _sessionPage(
+              state,
+              debtBookRepository == null
+                  ? const Scaffold(
+                      body: AppErrorView(
+                        message: 'Borç servisi yapılandırılmadı.',
+                      ),
+                    )
+                  : _DebtBookPages(
+                      repository: debtBookRepository,
+                      activityRepository: activityRepository,
+                      changes: financialDataChanges,
+                    ).record(
+                      state.pathParameters['id']!,
+                      state.extra is String ? state.extra! as String : '',
+                    ),
+              authController,
+            ),
+          ),
+        ],
         pageBuilder: (context, state) {
           final pages = _DebtBookPages(
             repository: debtBookRepository,
             activityRepository: activityRepository,
-            counterpartyRepository: counterpartyRepository,
-            posRepository: posRepository,
             changes: financialDataChanges,
           );
           return _sessionPage(
@@ -716,70 +733,12 @@ GoRouter createAppRouter({
                     changes: financialDataChanges,
                     personPage: pages.person,
                     recordPage: pages.record,
-                    onOpenClosed: (_) => context.push('/more/debts'),
+                    closedPage: pages.closed,
                     entryPage: pages.entry,
                   ),
             authController,
           );
         },
-      ),
-      GoRoute(
-        path: '/more/debts',
-        pageBuilder: (context, state) => _sessionPage(
-          state,
-          debtRepository == null
-              ? const Scaffold(
-                  body: AppErrorView(message: 'Borç servisi yapılandırılmadı.'),
-                )
-              : DebtsPage(
-                  repository: debtRepository,
-                  changes: financialDataChanges,
-                  lendingPrefill: state.extra is LendingPrefill
-                      ? state.extra! as LendingPrefill
-                      : null,
-                  recordFee: _feeRecorder(
-                    transactionRepository,
-                    financeRepository,
-                    financialDataChanges,
-                  ),
-                ),
-          authController,
-        ),
-      ),
-      GoRoute(
-        path: '/more/obligations',
-        pageBuilder: (context, state) => _sessionPage(
-          state,
-          obligationRepository == null
-              ? const Scaffold(
-                  body: AppErrorView(
-                    message: 'Yükümlülük servisi yapılandırılmadı.',
-                  ),
-                )
-              : ObligationsPage(
-                  controller: ObligationListController(
-                    obligationRepository,
-                    changes: financialDataChanges,
-                    posRepository: posRepository,
-                  ),
-                ),
-          authController,
-        ),
-        routes: [
-          // Liste shell'in dışında; formu `obligationCreateLocation`'a açmak
-          // shell zincirini ikinci kez kurup Navigator'ı aynı sayfa
-          // anahtarıyla patlatıyordu. Liste kendi altındaki rotaya açar.
-          GoRoute(
-            // Yol `obligationListCreateLocation` ile aynı olmalı.
-            path: 'new',
-            pageBuilder: _obligationFormPageBuilder(
-              obligationRepository: obligationRepository,
-              financialDataChanges: financialDataChanges,
-              scopeController: scopeController,
-              authController: authController,
-            ),
-          ),
-        ],
       ),
       GoRoute(
         path: '/more/budgets',
@@ -1301,36 +1260,50 @@ Page<dynamic> Function(BuildContext, GoRouterState) _quickAddPageBuilder({
   );
 }
 
-/// Yükümlülük formu iki rotadan açılır: fiş ekranının kardeşi olarak ve
-/// `Yükümlülükler` listesinin altında.
-///
-/// Öneri **zorunlu değil**: form fişten de, elle de açılır. Boş `extra`,
-/// okunmuş belgesi olmayan kullanıcının yolu; eksik olan bir öneri, eksik olan
-/// bir ekran değildir.
-Page<dynamic> Function(BuildContext, GoRouterState) _obligationFormPageBuilder({
-  required ObligationRepositoryContract? obligationRepository,
+/// Yeni borç ya da alacak formu; `extra` bir [DebtEntryRequest]tir. Elle
+/// açılışta (`İşlem ekle`) öneri yoktur; fiş ve dekont önerilerle açar.
+/// Dekonttaki ücret kayıt yazıldıktan sonra paranın çıktığı hesaptan yazılır.
+Page<dynamic> Function(BuildContext, GoRouterState) _debtEntryPageBuilder({
+  required DebtBookRepositoryContract? debtBookRepository,
   required FinancialDataChanges? financialDataChanges,
-  required ScopeController? scopeController,
+  required ReceiptFeeRecorder? recordFee,
   required AuthController? authController,
 }) {
-  return (context, state) => _sessionPage(
-    state,
-    obligationRepository == null
-        ? const Scaffold(
-            body: AppErrorView(message: 'Yükümlülük formu açılamadı.'),
-          )
-        : ObligationFormPage(
-            controller: ObligationController(
-              obligationRepository,
+  return (context, state) {
+    final request = state.extra is DebtEntryRequest
+        ? state.extra! as DebtEntryRequest
+        : null;
+    final prefill = request?.prefill;
+    final fee = prefill?.feeAmount;
+    return _sessionPage(
+      state,
+      debtBookRepository == null || request == null
+          ? const Scaffold(body: AppErrorView(message: 'Borç formu açılamadı.'))
+          : DebtEntryPage(
+              repository: debtBookRepository,
+              kind: request.kind,
+              prefill: prefill,
               changes: financialDataChanges,
+              onSaved: fee == null || recordFee == null
+                  ? null
+                  : (draft) async {
+                      final account = draft.accountId;
+                      if (account == null) return;
+                      final messenger = ScaffoldMessenger.of(context);
+                      final result = await recordFee(
+                        sourceId: account,
+                        amount: fee,
+                        date: draft.date,
+                        description: prefill?.feeDescription ?? 'İşlem ücreti',
+                      );
+                      messenger.showSnackBar(
+                        SnackBar(content: Text(result.message)),
+                      );
+                    },
             ),
-            prefill: state.extra is ObligationPrefill
-                ? state.extra! as ObligationPrefill
-                : const ObligationPrefill(),
-            scopeController: scopeController,
-          ),
-    authController,
-  );
+      authController,
+    );
+  };
 }
 
 Page<dynamic> Function(BuildContext, GoRouterState) _sessionPageBuilder(
@@ -1367,8 +1340,9 @@ Page<dynamic> _sessionPage(
 /// Faturanın ödendi/ödenmedi cevabını yazma yollarına bağlar.
 ///
 /// Ödendiyse sıradan bir gider: para çıktı, aylık gidere girer. Ödenmediyse
-/// belge tarihinde gider tanıyan, fakat hesap bakiyesini değiştirmeyen tek
-/// seferlik bir borç doğar. Sonraki ödeme bu borcu kapatacak ayrı nakit olayıdır.
+/// belge tarihinde gider tanıyan, fakat hesap bakiyesini değiştirmeyen bir
+/// vadeli alım doğar: kişi varsa kişinin hesabında, yoksa kişisiz kayıt (K10).
+/// Sonraki ödeme onu kapatacak ayrı nakit olayıdır.
 ///
 /// Form sorunun **üstüne** açılır, yerine değil: formdan geri dönen kullanıcı
 /// okunmuş faturasıyla "ödedim mi?" sorusuna döner ve öbür cevabı seçebilir.
@@ -1386,9 +1360,14 @@ Future<void> _recordInvoice(
           '/transactions/new/expense',
           extra: receiptPrefillFrom(draft),
         )
+      // Ödenmediyse kişinin hesabına vadeli alım; kişi yoksa kişisiz kayıt
+      // (K10). Hangisi olacağını form kişiye göre seçer.
       : await context.push<bool>(
-          obligationCreateLocation,
-          extra: receiptObligationPrefillFrom(draft),
+          debtEntryLocation,
+          extra: DebtEntryRequest(
+            DebtEntryKind.purchase,
+            prefill: receiptPurchasePrefillFrom(draft),
+          ),
         );
   if ((saved ?? false) && context.mounted) context.pop();
 }
@@ -1536,8 +1515,11 @@ Future<void> _recordBankDocument(
     // Hesabı dekont söylemez; kullanıcı seçer.
     case BankDocumentDecision.lending:
       context.push(
-        '/more/debts',
-        extra: receiptLendingPrefillFrom(draft, withFee: recordFee),
+        debtEntryLocation,
+        extra: DebtEntryRequest(
+          DebtEntryKind.lend,
+          prefill: receiptLendingPrefillFrom(draft, withFee: recordFee),
+        ),
       );
   }
 }
@@ -1590,61 +1572,17 @@ Future<void> _openPageAccountForm(
   }
 }
 
-/// Faz 6'ya kadar `Borç ve alacak` listesinden açılan eski kişi sayfası;
-/// denetleyicinin ömrünü sayfaya bağlar.
-class _LegacyCounterpartyDetail extends StatefulWidget {
-  const _LegacyCounterpartyDetail({
-    required this.repository,
-    required this.counterpartyId,
-    this.changes,
-    this.posRepository,
-  });
-
-  final CounterpartyRepositoryContract repository;
-  final String counterpartyId;
-  final FinancialDataChanges? changes;
-  final PosRepositoryContract? posRepository;
-
-  @override
-  State<_LegacyCounterpartyDetail> createState() =>
-      _LegacyCounterpartyDetailState();
-}
-
-class _LegacyCounterpartyDetailState extends State<_LegacyCounterpartyDetail> {
-  late final CounterpartiesController _controller = CounterpartiesController(
-    widget.repository,
-    financialDataChanges: widget.changes,
-    posRepository: widget.posRepository,
-  );
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => CounterpartyDetailPage(
-    controller: _controller,
-    counterpartyId: widget.counterpartyId,
-  );
-}
-
 /// `Borç ve alacak` sayfalarının birbirini açması: kişiden taksitli kayda,
 /// kayıttan kişiye, ikisinden de yeni kayıt formuna.
 class _DebtBookPages {
   _DebtBookPages({
     required this.repository,
     this.activityRepository,
-    this.counterpartyRepository,
-    this.posRepository,
     this.changes,
   });
 
   final DebtBookRepositoryContract? repository;
   final ActivityRepositoryContract? activityRepository;
-  final CounterpartyRepositoryContract? counterpartyRepository;
-  final PosRepositoryContract? posRepository;
   final FinancialDataChanges? changes;
 
   Widget person(String id, String name) => CounterpartyPage(
@@ -1655,15 +1593,10 @@ class _DebtBookPages {
     changes: changes,
     recordPage: record,
     entryPage: entry,
-    managePage: counterpartyRepository == null
-        ? null
-        : (_) => _LegacyCounterpartyDetail(
-            repository: counterpartyRepository!,
-            changes: changes,
-            posRepository: posRepository,
-            counterpartyId: id,
-          ),
   );
+
+  Widget closed(DebtSide side) =>
+      DebtClosedPage(repository: repository!, side: side, recordPage: record);
 
   Widget entry(DebtEntryKind kind, DebtPersonChoice? person) => DebtEntryPage(
     repository: repository!,

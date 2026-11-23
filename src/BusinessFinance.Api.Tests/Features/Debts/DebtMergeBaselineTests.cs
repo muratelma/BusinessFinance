@@ -10,8 +10,10 @@ using BusinessFinance.Api.Features.Authentication;
 using BusinessFinance.Api.Features.Counterparties;
 using BusinessFinance.Api.Features.DayCloses;
 using BusinessFinance.Api.Features.Debts;
-using BusinessFinance.Api.Features.Obligations;
 using BusinessFinance.Api.Features.Pos;
+using BusinessFinance.Application.Accounts;
+using BusinessFinance.Application.Categories;
+using BusinessFinance.Application.Debts;
 using BusinessFinance.Domain;
 using BusinessFinance.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -137,9 +139,8 @@ public sealed partial class DebtMergeBaselineTests
         Assert.True(restore.IsSuccessStatusCode, await restore.Content.ReadAsStringAsync());
         var actual = await ReadWithoutIdentitiesAsync(target);
 
-        // Karşılaştırma boş listelerde geçmesin: senaryonun yedi yükümlülüğü ve
-        // beş borcu iki tarafta da görünür.
-        Assert.Equal(7, actual[$"/api/v1/obligations?asOfDate={Today}"]!["items"]!.AsArray().Count);
+        // Karşılaştırma boş listelerde geçmesin: senaryonun beş borcu iki
+        // tarafta da görünür (eski yükümlülük listesi ADR 0022 Faz 8'de kalktı).
         Assert.Equal(5, actual[$"/api/v1/debts?asOfDate={Today}"]!["items"]!.AsArray().Count);
         var difference = FirstDifference("$", expected, actual);
         Assert.True(difference is null, difference);
@@ -150,7 +151,6 @@ public sealed partial class DebtMergeBaselineTests
         var reads = new JsonObject();
         foreach (var path in new[]
                  {
-                     $"/api/v1/obligations?asOfDate={Today}",
                      $"/api/v1/debts?asOfDate={Today}",
                      $"/api/v1/counterparties?asOfDate={Today}",
                      "/api/v1/financial-activities?pageSize=100",
@@ -313,7 +313,7 @@ public sealed partial class DebtMergeBaselineTests
             await SettleAsync("o6-nakit", Kasa, Today, card: null);
             await ObligationAsync("o7-iptal", "payable", "500.0000", ExpenseCategory, "2026-07-15", "2026-07-31", Toptanci, "Yanlış fatura");
             Tick();
-            using (var cancel = await client.DeleteAsync($"/api/v1/obligations/{Obligations["o7-iptal"]}"))
+            using (var cancel = await client.CancelSingleDebtAsync(Obligations["o7-iptal"], Today))
             {
                 Assert.Equal(HttpStatusCode.OK, cancel.StatusCode);
             }
@@ -392,7 +392,6 @@ public sealed partial class DebtMergeBaselineTests
                     : JsonNode.Parse(body);
             }
 
-            await Read("obligations", $"/api/v1/obligations?asOfDate={Today}");
             await Read("debts", $"/api/v1/debts?asOfDate={Today}");
             await Read("counterparties", $"/api/v1/counterparties?asOfDate={Today}");
             foreach (var (key, id) in new[] { ("toptanci", Toptanci), ("ayse", Ayse), ("eski-banka", EskiBanka) })
@@ -529,11 +528,12 @@ public sealed partial class DebtMergeBaselineTests
             Guid? counterparty, string description)
         {
             Tick();
-            using var response = await client.PostAsJsonAsync(
-                "/api/v1/obligations",
-                new CreateObligationRequest(direction, amount, "TRY", category, issue, due, "business", counterparty, description));
+            // Eski `/api/v1/obligations` ucu kalktı (ADR 0022 Faz 8); aynı kayıt
+            // tek ödemeli borç olarak açılır.
+            using var response = await client.PostSingleDebtAsync(
+                new SingleDebtInput(direction, amount, "TRY", category, issue, due, "business", counterparty, description));
             Assert.True(response.StatusCode == HttpStatusCode.Created, await response.Content.ReadAsStringAsync());
-            var id = (await response.Content.ReadFromJsonAsync<ObligationResponse>())!.Id;
+            var id = (await response.Content.ReadFromJsonAsync<DebtResponse>())!.Id;
             Obligations[key] = id;
             Name(id, $"obligation:{key}");
         }
@@ -541,12 +541,11 @@ public sealed partial class DebtMergeBaselineTests
         private async Task SettleAsync(string key, Guid? account, string date, CardCollectionRequest? card)
         {
             Tick();
-            using var response = await client.PostAsJsonAsync(
-                $"/api/v1/obligations/{Obligations[key]}/settlement",
-                new SettleObligationRequest(account, date, card));
+            using var response = await client.SettleSingleDebtAsync(
+                Obligations[key], new SingleDebtSettlement(account, date, card));
             Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
-            var settled = (await response.Content.ReadFromJsonAsync<JsonObject>())!;
-            var id = settled["settlementId"]!.GetValue<Guid>();
+            var settled = (await response.Content.ReadFromJsonAsync<DebtResponse>())!;
+            var id = Assert.Single(settled.Closings).Id;
             ObligationSettlements[key] = id;
             Name(id, $"obligation-settlement:{key}");
         }
@@ -576,13 +575,35 @@ public sealed partial class DebtMergeBaselineTests
             }
         }
 
+        /// <summary>
+        /// Taksit ödemesi birleşmeden önceki biçimiyle yazılır: eski taksit
+        /// ödeme ucu ADR 0022 Faz 8'de kalktı, alan modelinin yöntemi (yedeği
+        /// geri yüklerken kullanılan) yerinde. Genel ödeme ucu ödemeye yeni bir
+        /// kimlik verirdi ve referans dosyadaki akış kimlikleri taksitindir.
+        /// </summary>
         private async Task PayAsync(string key, int sequence, Guid account, string date)
         {
             Tick();
-            using var response = await client.PostAsJsonAsync(
-                $"/api/v1/debts/{Debts[key]}/installments/{sequence}/pay",
-                new PayDebtInstallmentRequest(account, date, Today));
-            Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
+            await using var scope = factory.Services.CreateAsyncScope();
+            var services = scope.ServiceProvider;
+            var db = services.GetRequiredService<BusinessFinanceDbContext>();
+            var userId = (await db.Debts.AsNoTracking().SingleAsync(item => item.Id == Debts[key])).UserId;
+            var debts = services.GetRequiredService<IDebtRepository>();
+            var debt = (await debts.FindOwnedByIdAsync(Debts[key], userId, true, default))!;
+            var paidFrom = (await services.GetRequiredService<IAccountRepository>()
+                .FindOwnedByIdAsync(account, userId, default))!;
+            if (debt.GetInstallment(sequence).InterestPortion > 0m)
+            {
+                await services.GetRequiredService<ICategoryRepository>().FindOrOpenAsync(
+                    userId,
+                    debt.Direction == DebtDirection.Receivable
+                        ? CategoryRole.InterestIncome
+                        : CategoryRole.InterestExpense,
+                    default);
+            }
+
+            var payment = debt.PayInstallment(sequence, paidFrom, DateOnly.Parse(date), clock.GetUtcNow());
+            await debts.SavePaymentAsync(payment, default);
         }
 
         /// <summary>

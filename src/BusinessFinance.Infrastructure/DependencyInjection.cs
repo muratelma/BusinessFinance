@@ -61,9 +61,7 @@ using BusinessFinance.Infrastructure.Attachments;
 using BusinessFinance.Application.Receipts;
 using BusinessFinance.Infrastructure.Receipts;
 using BusinessFinance.Application.Cash;
-using BusinessFinance.Application.Obligations;
 using BusinessFinance.Infrastructure.Cash;
-using BusinessFinance.Infrastructure.Obligations;
 using BusinessFinance.Application.Taxes;
 using BusinessFinance.Infrastructure.Taxes;
 
@@ -152,7 +150,6 @@ public static class DependencyInjection
         services.AddScoped<ICounterpartyRepository, EfCounterpartyRepository>();
         services.AddScoped<ICounterpartyLoanRepository, EfCounterpartyLoanRepository>();
         services.AddScoped<ICounterpartyWriteOffRepository, EfCounterpartyWriteOffRepository>();
-        services.AddScoped<IObligationRepository, EfObligationRepository>();
         services.AddScoped<ICashCountRepository, EfCashCountRepository>();
         services.AddScoped<IPosSettlementRepository, EfPosSettlementRepository>();
         services.AddScoped<IPosDefinitionRepository, EfPosDefinitionRepository>();

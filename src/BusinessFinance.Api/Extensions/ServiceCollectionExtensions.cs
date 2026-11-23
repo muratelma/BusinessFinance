@@ -33,7 +33,6 @@ using BusinessFinance.Application.FinancialActivities;
 using BusinessFinance.Application.Imports;
 using BusinessFinance.Application.Receipts;
 using BusinessFinance.Application.Cash;
-using BusinessFinance.Application.Obligations;
 using BusinessFinance.Application.Pos;
 using BusinessFinance.Application.DayCloses;
 
@@ -158,7 +157,6 @@ public static class ServiceCollectionExtensions
         services.AddTransient<GetDebtBookUseCase>();
         services.AddTransient<ListClosedDebtsUseCase>();
         services.AddTransient<ListDebtsUseCase>();
-        services.AddTransient<PayDebtInstallmentUseCase>();
         services.AddTransient<BusinessFinance.Application.FinancePages.FinancePageUseCases>();
         services.AddTransient<PreviewTransferUseCase>();
         services.AddTransient<EnsureBankFeeCategoryUseCase>();
@@ -176,10 +174,6 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ConfirmImportBatchUseCase>();
         services.AddTransient<ResolveImportDuplicateUseCase>();
         services.AddTransient<AnalyzeReceiptUseCase>();
-        services.AddTransient<CreateObligationUseCase>();
-        services.AddTransient<ListObligationsUseCase>();
-        services.AddTransient<SettleObligationUseCase>();
-        services.AddTransient<CancelObligationUseCase>();
         services.AddTransient<GetCashCountTodayUseCase>();
         services.AddTransient<ListCashCountsUseCase>();
         services.AddTransient<CreateCashCountUseCase>();

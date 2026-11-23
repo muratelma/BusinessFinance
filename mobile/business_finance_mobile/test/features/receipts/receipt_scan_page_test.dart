@@ -529,6 +529,23 @@ void main() {
         isNull,
       );
     });
+
+    // Dekont "borç verdim": `Borç verdim` formu önerilerle açılır (ADR 0022).
+    // Ücret borca eklenmez; kayıttan sonra ayrı yazılmak üzere taşınır.
+    // Eşleşmeyen ad kaydın açıklamasıdır, kişi uydurulmaz.
+    test('the lending path carries the fee and never invents a person', () {
+      final draft = _draft(fee: '2.0000');
+      final prefill = receiptLendingPrefillFrom(draft);
+
+      expect(prefill.feeAmount, '2.0000');
+      expect(
+        receiptLendingPrefillFrom(draft, withFee: false).feeAmount,
+        isNull,
+      );
+      expect(prefill.person, isNull);
+      expect(prefill.description, contains('TEST MARKET 01'));
+      expect(prefill.amount, draft.totalAmount);
+    });
   });
 
   group('taslak çevirisi', () {

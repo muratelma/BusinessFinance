@@ -415,7 +415,8 @@ public static class FinancialActivityEndpoints
                 _ => null
             },
             activity.DayCloseId,
-            activity.DiscountAmount is decimal discount ? FinanceContract.Money(discount) : null);
+            activity.DiscountAmount is decimal discount ? FinanceContract.Money(discount) : null,
+            activity.PaidNowAmount is decimal paidNow ? FinanceContract.Money(paidNow) : null);
     }
 
     private static bool TryParseOptionalDate(string? value, out DateOnly? date)

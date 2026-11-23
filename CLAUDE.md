@@ -313,8 +313,8 @@ gerekçesiyle bozulmaz.
   `CounterpartyLoan` **taşır**: hesap bakiyesini değiştirir, kişinin bakiyesini
   artırır, gelir/gider yazmaz, kategori ve kapsam taşımaz; borçlandırma
   tablosunda durmaz (onu okuyan her yol gelir/gider sayar). Bakiye, gecikme,
-  `CounterpartyNet`, `AccountMovements`, akış (`counterparty-loan`) ve yedek
-  onu okur; `RecognizedItems` okumaz. **Avans ayrı kayıt değildir**: tahsilat
+  `CounterpartyNet`, `AccountMovements`, net varlık, akış (`counterparty-loan`)
+  ve yedek onu okur; `RecognizedItems` okumaz. **Avans ayrı kayıt değildir**: tahsilat
   ya da ödemedir ve sonraki satıştan düşer (`02-TASARIM.md` §7a). Kişinin bir
   türü vardır (`Counterparty.Scope`, nullable, eski kişide uydurulmaz); listeyi
   böler, kaydın kapsamı değildir. Borçlandırmanın kapsamı kategoriden, iki
@@ -333,20 +333,18 @@ gerekçesiyle bozulmaz.
   işlem sonrası açık bakiyeye (`CounterpartyNet`) ve `Açık hesap` süzgecine
   girmez, yalnız kendi kapanışıyla kapanır. Bakiyeye girseydi aynı borç hem
   cari `Ödeme` ile hem kapanışla iki kez ödenebilirdi. Bu bir **okuma
-  kuralıdır**; yazılmış kayıt ve yedek değişmez. Kişinin cevabı açık
-  yükümlülüklerin toplamını ayrı alanlarda taşır (`openReceivableObligations`,
-  `openPayableObligations`) ve sayfada `Bekleyen faturalar` bloğu olarak,
-  düğmesiz çizilir. Net varlık ve planlanan görünüm yükümlülüğü kendi
-  tablosundan okur. `Cari hesap` menüsünün gizlenmesi **ön ayardır, kilit
-  değildir**: işletmesi olana ve cari hareketi olana görünür (profilde
-  `hasCounterpartyLedger`, istemcide `ScopeController.showsCounterpartyLedger`);
-  sunucu hiçbir cari ucunu kapatmaz.
-- **Yükümlülük bir bütün olarak iptal edilir** (`DELETE
-  /api/v1/obligations/{id}`). Kapanmışsa kapanışı da, kartla tahsil edildiyse
-  yoldaki POS kaydı da aynı yazmada iptal olur; **kapanışın tek başına geri
-  alınması yoktur** (düzeltme = iptal + doğrusunu yeniden yaz). Kart parası
-  yatışla hesaba geçtiyse `obligations.deposit_locked`, kapanış gün sonunda
-  sayıldıysa `obligations.day_close_counted` ile reddedilir. Akışta yükümlülük
+  kuralıdır**; yazılmış kayıt ve yedek değişmez. Kişi sayfası bu kayıtları
+  kendi satırlarında gösterir. Net varlık ve planlanan görünüm yükümlülüğü
+  kendi tablosundan okur. **`Cari hesap` menüsü yoktur** (ADR 0022 K5; 23
+  Kasım 2026): cari, `Borç ve alacak`ın `İşletme` görünümüdür;
+  `hasCounterpartyLedger` ve kişideki açık yükümlülük alanları kalktı.
+- **Yükümlülük (tek ödemeli borç) bir bütün olarak iptal edilir** (`DELETE
+  /api/v1/debts/{id}`; `/api/v1/obligations` uçları 23 Kasım 2026'da kalktı).
+  Kapanmışsa kapanışı da, kartla tahsil edildiyse yoldaki POS kaydı da aynı
+  yazmada iptal olur; **kapanışın tek başına geri alınması yoktur** (düzeltme
+  = iptal + doğrusunu yeniden yaz). Kart parası yatışla hesaba geçtiyse
+  `debt.deposit_locked`, kapanış gün sonunda sayıldıysa
+  `debt.day_close_counted` ile reddedilir. Akışta yükümlülük
   satırı `canCancel` taşır, kapanış satırı taşımaz.
 - **Fatura tekrar uyarısı yükümlülükleri ve cari borçlandırmaları da arar**
   (`EfReceiptDuplicateLookup`): "henüz ödemedim" yolu yükümlülük yazar; cariye

@@ -342,9 +342,26 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
       await _payTax(activity);
       return;
     }
-    // Kişinin vadeleri ve eski yükümlülükler borç-alacak ekranlarıyla
-    // bağlanacak; şimdilik bilgi satırıdır.
-    if (!_PlannedRow.hasAction(activity)) return;
+    // Borç ve alacak: taksit ve tek ödemeli kayıt kendi sayfasında, kişinin
+    // vadesi kişinin sayfasında ödenir (K6); satır o sayfayı açar.
+    final target = activity.actionTargetId;
+    final debtPage = target == null
+        ? null
+        : switch (activity.plannedKind) {
+            PlannedKind.debtInstallment ||
+            PlannedKind.receivableInstallment ||
+            PlannedKind.payableObligation ||
+            PlannedKind.receivableObligation =>
+              '$debtBookLocation/records/$target',
+            PlannedKind.counterpartyPayable ||
+            PlannedKind.counterpartyReceivable =>
+              '$debtBookLocation/people/$target',
+            _ => null,
+          };
+    if (debtPage != null) {
+      await context.push(debtPage, extra: activity.title);
+      return;
+    }
     if (activity.plannedKind == PlannedKind.cardStatement &&
         activity.actionTargetId != null) {
       await _openCard(activity.actionTargetId!, statementPayment: true);
@@ -361,13 +378,8 @@ class _PlannedActivityPageViewState extends State<PlannedActivityPageView> {
       final destination = switch (activity.plannedKind) {
         PlannedKind.cardStatement ||
         PlannedKind.cardInstallment => '/more/cards',
-        PlannedKind.debtInstallment ||
-        PlannedKind.receivableInstallment => '/more/debts',
         PlannedKind.recurringOccurrence => '/more/planning',
-        PlannedKind.payableObligation ||
-        PlannedKind.counterpartyPayable ||
-        PlannedKind.counterpartyReceivable ||
-        PlannedKind.receivableObligation => null,
+        _ => null,
       };
       if (destination != null) await context.push(destination);
       return;
@@ -897,11 +909,15 @@ class _PlannedRow extends StatelessWidget {
 
   /// Satırın bir eylemi var mı. Kişinin vadeleri ve eski yükümlülükler
   /// borç-alacak ekranlarıyla bağlanana kadar bilgi satırıdır.
-  static bool hasAction(PlannedActivity a) =>
-      a.plannedKind != PlannedKind.counterpartyPayable &&
-      a.plannedKind != PlannedKind.counterpartyReceivable &&
-      a.plannedKind != PlannedKind.payableObligation &&
-      a.plannedKind != PlannedKind.receivableObligation;
+  /// Borç ve alacak satırları kaydın ya da kişinin sayfasını açar; adresi
+  /// yoksa bilgi satırıdır.
+  static bool hasAction(PlannedActivity a) => switch (a.plannedKind) {
+    PlannedKind.counterpartyPayable ||
+    PlannedKind.counterpartyReceivable ||
+    PlannedKind.payableObligation ||
+    PlannedKind.receivableObligation => a.actionTargetId != null,
+    _ => true,
+  };
 
   @override
   Widget build(BuildContext context) {

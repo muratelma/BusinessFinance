@@ -29,7 +29,6 @@ void main() {
         'counterparties.date_in_future',
         'debt.date_in_future',
         'imports.date_in_future',
-        'obligations.date_in_future',
         'pos_settlements.date_in_future',
         'cash_counts.date_in_future',
       ]) {
@@ -171,7 +170,6 @@ void main() {
       'debt.repayment_required',
       'goal.has_contributions',
       'imports.mapping_unavailable',
-      'obligations.category_unavailable',
       'pos_settlements.commission_ambiguous',
       'recurring.schedule_inactive',
       'recurring.income_card_source_not_supported',

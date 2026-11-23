@@ -741,6 +741,9 @@ düz kırmızı cümleler henüz bu bileşene taşınmadı.
 
 ### Cari hesap ekranları
 
+> **Kalktı (23 Kasım 2026, ADR 0022 Faz 8).** Bu ekranlar silindi; yerine
+> `Borç ve alacak` (aşağıda). Bölüm geçmiş olarak duruyor.
+
 Listede her satır tek bakışta üç soruyu cevaplar: kim, hangi tarafta, ne
 kadar. Net tek sayıya iner ama **işaret kaybolmaz** — eksi, bizim ona
 borçlu olduğumuz demektir ve gider tonunda okunur; kapanmış hesap nötr
@@ -780,9 +783,8 @@ notu nereden kapatılacağını söyler. Bu, mevcut dille kurulmuş geçici hâl
 cari borç, faturalar ve borç planlarının birlikte duruşu cari sayfası
 çizilirken kararlaştırılır.
 
-`Diğer` menüsünde `Cari hesap` satırı işletmesi olana ve cari hareketi olana
-çizilir (`ScopeController.showsCounterpartyLedger`); diğer kullanıcıda satır
-yoktur, grup bir satır kısalır.
+`Diğer` menüsündeki `Cari hesap` satırı ve onu açan
+`ScopeController.showsCounterpartyLedger` 23 Kasım 2026'da kalktı.
 
 Pasif karşı tarafta borçlandırma butonları kapalı, tahsilat açıktır ve
 sebebi `AppInlineNotice` ile satırın yanında yazar — kapalı bir butonun
@@ -1065,6 +1067,9 @@ durum bileşenlerini; gönderim kilidi `AppSubmitButton`'ı kullanır. Yeni renk
 boşluk veya tipografi token'ı eklenmemiştir.
 
 ### Yükümlülük listesi ve kapanış paneli
+
+> **Kalktı (23 Kasım 2026, ADR 0022 Faz 8).** Tek ödemeli kayıt `Borç ve
+> alacak` kayıt sayfasında ödenir. Bölüm geçmiş olarak duruyor.
 
 `/more/obligations` üç metin etiketli sekme kullanır: yaklaşan, geciken,
 kapanan. Durum `AppStatusChip` içinde ikon + metinle verilir; gecikme yalnız
@@ -2275,3 +2280,18 @@ parçalar `lib/features/debt_book/presentation/debt_book_parts.dart`.
   dönen gösterge.
 - İşlem ayrıntısında `İndirim yap` çerçeveli düğmedir ve iptalin üstünde
   durur (yalnız kişinin hesabındaki satış ve alımda).
+
+### Kişinin menüsü ve `Kapananlar` · 23 Kasım 2026 (Faz 8)
+
+- Kişi ve kayıt sayfasının `⋮`'ı `PopupMenuButton`dır; geri alınamaz eylem
+  (`Kişiyi sil`, `Kaydı iptal et`) hata renginde ve menünün sonunda.
+- `Düzenle` ve `Açılış bakiyesi` `AppFormSheet` panelleridir
+  (`counterparty_manage_sheets.dart`); kişinin türü `AppFilterSegments`
+  (türü boş eski kişide hiçbir dilim seçili gelmez), açıklayıcı not
+  `DebtFieldNote`.
+- `Kapananlar` sayfası (`DebtClosedPage`): `AppPageHeader` + tek
+  `DebtSectionCard`; satır `DebtRowFrame` (ikon kapsülü, başlık, bedel, alt
+  yazı `Kapandı 20 Kasım 2026 · kişi`). Boşsa `AppNoResultsView`
+  (`filter`), aşağı çekince yenilenir.
+- Yeni kayıt formu belge önerisiyle açılınca belgenin uyarıları formun
+  başında `AppInlineNotice` (ikon `error_outline`) olarak durur.

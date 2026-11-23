@@ -1,3 +1,4 @@
+import '../../../core/models/transaction_scope.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/presentation/financial_data_changes.dart';
 import '../../../core/presentation/loadable_view_model.dart';
@@ -154,6 +155,71 @@ class CounterpartyPageController extends LoadableViewModel {
         'discountDate': date,
         'clientRequestId': clientRequestId,
       });
+    } on ApiException catch (error) {
+      return error.message;
+    }
+    _changes?.counterpartyLedgerChanged();
+    await load();
+    return null;
+  }
+
+  /// Kişinin adı, notu ve türü. Tür boşsa değişmez.
+  Future<String?> edit({
+    required String name,
+    String? note,
+    TransactionScope? scope,
+  }) => _writePerson(
+    () => _repository.updateCounterparty(
+      counterpartyId,
+      name: name,
+      isActive: page?.isActive ?? true,
+      note: note,
+      scope: scope,
+    ),
+  );
+
+  /// Pasif kişiye yeni satış, alım ve borç para yazılmaz; tahsilat ve ödeme
+  /// yazılır.
+  Future<String?> setActive(bool isActive) {
+    final current = page;
+    if (current == null) return Future.value();
+    return _writePerson(
+      () => _repository.updateCounterparty(
+        counterpartyId,
+        name: current.name,
+        isActive: isActive,
+        note: current.note,
+      ),
+    );
+  }
+
+  /// Uygulamadan önceki bakiye; ikisi de sıfır ya da artı, sıfır devri
+  /// kaldırır.
+  Future<String?> setOpening({
+    required String receivable,
+    required String payable,
+  }) => _writePerson(
+    () => _repository.setOpeningBalance(
+      counterpartyId,
+      receivable: receivable,
+      payable: payable,
+    ),
+  );
+
+  /// Silindiyse `null`, reddedildiyse sunucunun cümlesi.
+  Future<String?> delete() async {
+    try {
+      await _repository.deleteCounterparty(counterpartyId);
+    } on ApiException catch (error) {
+      return error.message;
+    }
+    _changes?.counterpartyLedgerChanged();
+    return null;
+  }
+
+  Future<String?> _writePerson(Future<void> Function() write) async {
+    try {
+      await write();
     } on ApiException catch (error) {
       return error.message;
     }

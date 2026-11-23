@@ -6,9 +6,15 @@ kapanır. Bütün uçlar kimlik doğrulaması ister; kullanıcı kimliği yalnı
 token'dan okunur. Başka kullanıcının kaydı ile olmayan kayıt aynı `404`
 cevabını alır. Para dört ondalıklı **metin**dir, gün `yyyy-MM-dd`'dir.
 
-Eski uçlar (`/api/v1/obligations`, `/api/v1/debts/{id}/installments/{n}/pay`,
-`/api/v1/debts/{id}/opening`) Flutter yeni sayfaya geçene kadar aynı
-sözleşmeyle çalışır; o adımda kalkar.
+**Kalkan uçlar (23 Kasım 2026, ADR 0022 Faz 8):** `/api/v1/obligations`
+(liste, açma, kapanış, iptal) ve `POST
+/api/v1/debts/{id}/installments/{n}/pay`. Tek ödemeli kayıt `POST
+/api/v1/debts` (`planKind: single`) ile açılır, `/payments` ile ödenir,
+`DELETE /api/v1/debts/{id}` ile iptal edilir; iptalin kilitleri
+`debt.day_close_counted` ve `debt.deposit_locked`'dur. Kişi cevabındaki
+`openReceivableObligations` / `openPayableObligations` ve profildeki
+`hasCounterpartyLedger` da kalktı. `GET /api/v1/debts` ve
+`/api/v1/debts/{id}/opening` yerinde (istemci kullanmıyor).
 
 ## Borç
 
@@ -250,7 +256,9 @@ Varsayılan (`false`): yalnız satış iptal olur; birlikte yazılmış avans
 kişinin hesabında **kalır** (iş iptal oldu, para alınmıştı → "borcunuz").
 `withPaidNow=true`: ikisi tek yazmada iptal olur (yanlış girilmiş kayıt).
 Avans gün sonunda sayıldıysa `counterparty_payments.day_close_counted` (409)
-ve hiçbir şey değişmez.
+ve hiçbir şey değişmez. Akış satırı satışa bağlı iptal edilmemiş peşin
+tutarı `paidNowAmount` alanında taşır (yoksa `null`; 23 Kasım 2026);
+istemci iptalde "peşin de iptal edilsin mi" sorusunu ondan kurar.
 
 ### `POST /api/v1/counterparties/{id}/loans` — borç para
 

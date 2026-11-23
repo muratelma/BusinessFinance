@@ -15,6 +15,7 @@ import '../../../core/network/client_request_id.dart';
 import '../../../core/widgets/app_date_field.dart';
 import '../../../core/widgets/app_form_error.dart';
 import '../../../core/widgets/app_form_sheet.dart';
+import '../../../core/widgets/app_inline_notice.dart';
 import '../../../core/widgets/app_page_header.dart';
 import '../../../core/widgets/app_segment_rail.dart';
 import '../data/debt_book_models.dart';
@@ -98,6 +99,10 @@ class DebtEntryFormView extends StatefulWidget {
     this.initialCategoryId,
     this.initialAccountId,
     this.initialAmount,
+    this.initialDate,
+    this.initialDueDate,
+    this.initialDescription,
+    this.notices = const [],
     this.initialUpfront = false,
     this.initialUpfrontAmount,
     this.initialInstallments = false,
@@ -136,6 +141,15 @@ class DebtEntryFormView extends StatefulWidget {
   final String? initialCategoryId;
   final String? initialAccountId;
   final String? initialAmount;
+
+  /// Belgeden okunan gün, vade ve ad (fiş, dekont); kullanıcı değiştirebilir.
+  final String? initialDate;
+  final String? initialDueDate;
+  final String? initialDescription;
+
+  /// Belge okumasının uyarıları (ör. aynı faturanın daha önce girilmiş
+  /// olması); formun başında yazılır, kaydı engellemez.
+  final List<String> notices;
   final bool initialUpfront;
   final String? initialUpfrontAmount;
   final bool initialInstallments;
@@ -170,14 +184,16 @@ class _DebtEntryFormViewState extends State<DebtEntryFormView> {
   late final TextEditingController _count = TextEditingController(
     text: widget.initialInstallmentCount?.toString(),
   );
-  final TextEditingController _description = TextEditingController();
+  late final TextEditingController _description = TextEditingController(
+    text: widget.initialDescription,
+  );
   late final TextEditingController _installmentAmount = TextEditingController(
     text: widget.preview.isEmpty
         ? null
         : MoneyText.field(widget.preview.first.amount),
   );
-  late String _date = _iso(widget.today);
-  String? _due;
+  late String _date = widget.initialDate ?? _iso(widget.today);
+  late String? _due = widget.initialDueDate;
   late String? _firstDue = widget.preview.firstOrNull?.dueDate;
   late String? _account = widget.initialAccountId;
   late String? _upfrontAccount = widget.initialAccountId;
@@ -354,6 +370,14 @@ class _DebtEntryFormViewState extends State<DebtEntryFormView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final fields = <Widget>[
+      for (final notice in widget.notices) ...[
+        AppInlineNotice(
+          margin: EdgeInsets.zero,
+          icon: Icons.error_outline,
+          message: notice,
+        ),
+        const SizedBox(height: AppGaps.notice),
+      ],
       if (_isAdvance)
         AppFormField(
           child: AppSegmentRail<DebtSide>(

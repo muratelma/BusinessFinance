@@ -99,7 +99,6 @@ public sealed record RecordDebtOpeningRequest(
     Guid? CategoryId,
     string AsOfDate);
 
-public sealed record PayDebtInstallmentRequest(Guid AccountId, string PaymentDate, string AsOfDate);
 
 public sealed record DebtInstallmentResponse(Guid Id, int Sequence, string Amount, string Currency,
     string? DueDate, string Status, Guid? PaymentAccountId, string? PaymentDate, DateTimeOffset? PaidAtUtc,

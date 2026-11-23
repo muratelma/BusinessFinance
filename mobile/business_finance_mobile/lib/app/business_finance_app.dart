@@ -51,13 +51,10 @@ class BusinessFinanceApp extends StatelessWidget {
              financeRepository: dependencies?.financeRepository,
              planningRepository: dependencies?.planningRepository,
              dataToolsRepository: dependencies?.dataToolsRepository,
-             debtRepository: dependencies?.debtRepository,
-             counterpartyRepository: dependencies?.counterpartyRepository,
              debtBookRepository: dependencies == null
                  ? null
                  : DebtBookRepository(dependencies.apiClient),
              goalRepository: dependencies?.goalRepository,
-             obligationRepository: dependencies?.obligationRepository,
              cashRepository: dependencies?.cashRepository,
              posRepository: dependencies?.posRepository,
              dayCloseRepository: dependencies?.dayCloseRepository,

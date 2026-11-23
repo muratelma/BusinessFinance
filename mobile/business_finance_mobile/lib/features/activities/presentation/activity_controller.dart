@@ -118,14 +118,18 @@ class ActivityController extends ChangeNotifier {
   /// Cancels a movement and reloads. The lock is the only defence against a
   /// double tap creating two requests: the server has no idempotency key yet, so
   /// a second call would be a second write.
-  Future<bool> cancel(FinancialActivity activity, {bool reload = true}) async {
+  Future<bool> cancel(
+    FinancialActivity activity, {
+    bool reload = true,
+    bool withPaidNow = false,
+  }) async {
     if (isCancelling || !activity.canCancel) return false;
     isCancelling = true;
     errorMessage = null;
     successMessage = null;
     notifyListeners();
     try {
-      await _repository.cancel(activity);
+      await _repository.cancel(activity, withPaidNow: withPaidNow);
       // Only the screens this kind can affect are refreshed: cancelling a
       // transfer cannot change a budget, and cancelling a card payment is not a
       // second expense.

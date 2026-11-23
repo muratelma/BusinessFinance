@@ -14,8 +14,8 @@ import 'package:business_finance_mobile/features/auth/data/auth_repository.dart'
 import 'package:business_finance_mobile/features/auth/data/auth_service.dart';
 import 'package:business_finance_mobile/features/categories/data/category_models.dart';
 import 'package:business_finance_mobile/features/categories/data/category_repository.dart';
-import 'package:business_finance_mobile/features/counterparties/data/counterparty_models.dart';
-import 'package:business_finance_mobile/features/counterparties/data/counterparty_repository.dart';
+import 'package:business_finance_mobile/features/debt_book/data/debt_book_models.dart';
+import 'package:business_finance_mobile/features/debt_book/data/debt_book_repository.dart';
 import 'package:business_finance_mobile/features/dashboard/data/dashboard_repository.dart';
 
 /// Aşama 02'nin kabul turu: **Aşama 01'in kabul hesabıyla**, gerçek API ve
@@ -63,13 +63,14 @@ void main() {
       today.month,
     );
 
-    await trader.counterparties.create('Kabul Manavı $suffix', 'Kabul turu');
-    final manav = await trader.counterpartyNamed('Kabul Manavı $suffix');
+    final manavId = await trader.debtBook.createCounterparty(
+      'Kabul Manavı $suffix',
+    );
 
     // Üç veresiye satış: 400 + 350 + 250 = 1.000. Kapsam **gönderilmiyor**;
     // kategoriden çözülüyor.
     for (final amount in ['400.0000', '350.0000', '250.0000']) {
-      await trader.counterparties.addCharge(manav.id, {
+      await trader.debtBook.createCharge(manavId, {
         'direction': 'receivable',
         'amount': amount,
         'currency': 'TRY',
@@ -102,14 +103,16 @@ void main() {
       '1000.0000',
     );
 
-    final openLedger = await trader.counterpartyNamed('Kabul Manavı $suffix');
-    expect(openLedger.receivable, '1000.0000');
-    expect(openLedger.net, '1000.0000');
-    expect(openLedger.isSettled, isFalse);
+    final openLedger = await trader.debtBook.loadPerson(
+      manavId,
+      asOfDate: date,
+    );
+    expect(openLedger.owedToYou, '1000.0000');
+    expect(openLedger.owedByYou, '0.0000');
 
     // İki kısmi tahsilat: 400 + 200 = 600. Kategori ve kapsam **sorulmuyor**.
     for (final amount in ['400.0000', '200.0000']) {
-      await trader.counterparties.addPayment(manav.id, {
+      await trader.debtBook.settle(manavId, {
         'direction': 'receivable',
         'amount': amount,
         'currency': 'TRY',
@@ -137,20 +140,27 @@ void main() {
       '1000.0000',
     );
 
-    final partlyPaid = await trader.counterpartyNamed('Kabul Manavı $suffix');
-    expect(partlyPaid.net, '400.0000');
+    final partlyPaid = await trader.debtBook.loadPerson(
+      manavId,
+      asOfDate: date,
+    );
+    expect(partlyPaid.owedToYou, '400.0000');
 
     // Kişinin geçmişi ekranın okuduğu yerden okunuyor: birleşik feed'in
     // `counterpartyId` ile daraltılmış hâli, ikinci bir geçmiş modeli değil.
-    final detail = await trader.counterparties.loadDetail(manav.id, date);
-    final charges = detail.activities
+    final detail = await trader.debtBook.loadMovements(
+      manavId,
+      filter: const PersonMovementFilter(),
+      today: today,
+    );
+    final charges = detail.items
         .where(
           (item) =>
               item.sourceGroup == ActivitySourceGroup.counterparty &&
               item.effect == ActivityEffect.income,
         )
         .toList(growable: false);
-    final collections = detail.activities
+    final collections = detail.items
         .where(
           (item) =>
               item.sourceGroup == ActivitySourceGroup.counterparty &&
@@ -175,7 +185,7 @@ void main() {
     expect(_balanceOf(afterCancel, till.id), '400.0000');
     expect(_delta(afterCancel.totalIncome, incomeBefore), '1000.0000');
     expect(
-      (await trader.counterpartyNamed('Kabul Manavı $suffix')).net,
+      (await trader.debtBook.loadPerson(manavId, asOfDate: date)).owedToYou,
       '600.0000',
     );
   });
@@ -299,7 +309,7 @@ class _Repositories {
       ) {
     accounts = ApiAccountRepository(client);
     categories = ApiCategoryRepository(client);
-    counterparties = CounterpartyRepository(client);
+    debtBook = DebtBookRepository(client);
     dashboard = DashboardRepository(client);
     activities = ActivityRepository(client);
   }
@@ -307,7 +317,7 @@ class _Repositories {
   final ApiClient client;
   late final AccountRepository accounts;
   late final CategoryRepository categories;
-  late final CounterpartyRepositoryContract counterparties;
+  late final DebtBookRepositoryContract debtBook;
   late final DashboardDataSource dashboard;
   late final ActivityRepositoryContract activities;
 
@@ -318,18 +328,6 @@ class _Repositories {
       orElse: () => throw StateError(
         'Varsayılan sette "$name" yok: ${all.map((item) => item.name).join(', ')}',
       ),
-    );
-  }
-
-  /// Oluşturma ucu kimlik döndürmüyor; kişi listeden adıyla bulunuyor.
-  Future<CounterpartySummary> counterpartyNamed(String name) async {
-    final snapshot = await counterparties.load(
-      CounterpartyBalanceFilter.all,
-      _dateText(DateTime.now()),
-    );
-    return snapshot.counterparties.firstWhere(
-      (item) => item.name == name,
-      orElse: () => throw StateError('Karşı taraf bulunamadı: $name'),
     );
   }
 }

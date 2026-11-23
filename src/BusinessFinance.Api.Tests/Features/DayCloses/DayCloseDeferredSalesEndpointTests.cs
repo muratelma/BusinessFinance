@@ -9,7 +9,7 @@ using BusinessFinance.Api.Features.Categories;
 using BusinessFinance.Api.Features.Counterparties;
 using BusinessFinance.Api.Features.DayCloses;
 using BusinessFinance.Api.Features.FinancialActivities;
-using BusinessFinance.Api.Features.Obligations;
+using BusinessFinance.Api.Tests.Features.Debts;
 using BusinessFinance.Api.Features.Pos;
 using BusinessFinance.Api.Features.Reports;
 using BusinessFinance.Api.Features.Transactions;
@@ -296,9 +296,9 @@ public sealed class DayCloseDeferredSalesEndpointTests
         Assert.Equal("1400.0000", await MonthIncomeAsync(owner, today));
 
         // Sayılan fatura ve kapanışı tek başına iptal edilemez.
-        using var locked = await owner.DeleteAsync($"/api/v1/obligations/{invoice}");
+        using var locked = await owner.CancelSingleDebtAsync(invoice, Date(today));
         Assert.Equal(HttpStatusCode.Conflict, locked.StatusCode);
-        Assert.Equal("obligations.day_close_counted", await CodeAsync(locked));
+        Assert.Equal("debt.day_close_counted", await CodeAsync(locked));
     }
 
     /// <summary>
@@ -319,13 +319,13 @@ public sealed class DayCloseDeferredSalesEndpointTests
         Assert.Equal("1000.0000", await BalanceAsync(owner, f.TillId));
         Assert.Equal("1400.0000", await MonthIncomeAsync(owner, today));
 
-        using var locked = await owner.DeleteAsync($"/api/v1/obligations/{invoice}");
+        using var locked = await owner.CancelSingleDebtAsync(invoice, Date(today));
         Assert.Equal(HttpStatusCode.Conflict, locked.StatusCode);
-        Assert.Equal("obligations.day_close_counted", await CodeAsync(locked));
+        Assert.Equal("debt.day_close_counted", await CodeAsync(locked));
 
         using var revert = await owner.DeleteAsync($"{Path}/{close.Id}");
         Assert.Equal(HttpStatusCode.OK, revert.StatusCode);
-        using var cancelled = await owner.DeleteAsync($"/api/v1/obligations/{invoice}");
+        using var cancelled = await owner.CancelSingleDebtAsync(invoice, Date(today));
         Assert.Equal(HttpStatusCode.OK, cancelled.StatusCode);
     }
 
@@ -799,13 +799,11 @@ public sealed class DayCloseDeferredSalesEndpointTests
         string amount,
         DateOnly date)
     {
-        using var response = await client.PostAsJsonAsync(
-            "/api/v1/obligations",
-            new CreateObligationRequest(
+        var invoice = await client.CreateSingleDebtAsync(
+            new SingleDebtInput(
                 "receivable", amount, "TRY", categoryId, Date(date), Date(date.AddDays(30)),
                 "business", Description: "Sentetik fatura"));
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        return (await response.Content.ReadFromJsonAsync<ObligationResponse>())!.Id;
+        return invoice.Id;
     }
 
     /// <summary>Faturanın nakit kapanışı; kapanışın kimliğini gün sonu listesinden okur.</summary>
@@ -815,10 +813,9 @@ public sealed class DayCloseDeferredSalesEndpointTests
         Guid accountId,
         DateOnly date)
     {
-        using var response = await client.PostAsJsonAsync(
-            $"/api/v1/obligations/{obligationId}/settlement",
-            new SettleObligationRequest(accountId, Date(date)));
-        Assert.True(response.IsSuccessStatusCode);
+        using var response = await client.SettleSingleDebtAsync(
+            obligationId, new SingleDebtSettlement(accountId, Date(date)));
+        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
         var listed = await PreviewAsync(client, new DayCloseRequest(Date(date), CashAmount: "0.0000"));
         return listed.ExistingRecords.Single(record => record.Kind == InvoiceSettlement).Id;
     }

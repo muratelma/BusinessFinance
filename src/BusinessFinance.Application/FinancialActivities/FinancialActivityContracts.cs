@@ -254,7 +254,14 @@ public sealed record FinancialActivityRow(
     /// Faturanın ya da kayıtlı alım/satış borcunun indirimi; satır tutarı
     /// indirim düşülmüş bedeldir (ADR 0021 İ4). Yoksa <c>null</c>.
     /// </summary>
-    decimal? DiscountAmount = null);
+    decimal? DiscountAmount = null,
+
+    /// <summary>
+    /// Kişinin hesabındaki satış ya da alımla aynı yazmada alınan/ödenen peşin
+    /// tutar (iptal edilmemiş, satışa bağlı tahsilat ya da ödeme). Yoksa
+    /// <c>null</c>. Satış iptali onu varsayılan olarak bırakır.
+    /// </summary>
+    decimal? PaidNowAmount = null);
 
 /// <summary>
 /// Bakiyesi gösterilen yer: bir hesap, bir kredi kartı, bir karşı tarafın

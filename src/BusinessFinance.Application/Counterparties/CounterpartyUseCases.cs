@@ -172,8 +172,6 @@ public sealed class ListCounterpartiesUseCase(
                 item.NotOverduePayable,
                 item.Net,
                 item.IsSettled,
-                item.OpenReceivableObligations,
-                item.OpenPayableObligations,
                 item.OwedToYou,
                 item.OwedByYou,
                 Scope: item.Scope))]);
@@ -261,9 +259,7 @@ internal static class CounterpartyMapper
         decimal receivable,
         decimal payable,
         decimal overdueReceivable = 0m,
-        decimal overduePayable = 0m,
-        decimal openReceivableObligations = 0m,
-        decimal openPayableObligations = 0m) => new(
+        decimal overduePayable = 0m) => new(
         counterparty.Id,
         counterparty.Name,
         counterparty.Note,
@@ -276,8 +272,6 @@ internal static class CounterpartyMapper
         payable - overduePayable,
         receivable - payable,
         receivable == 0m && payable == 0m,
-        openReceivableObligations,
-        openPayableObligations,
         CounterpartyDisplay.OwedToYou(receivable, payable),
         CounterpartyDisplay.OwedByYou(receivable, payable),
         counterparty.OpeningReceivable,
@@ -291,8 +285,6 @@ internal static class CounterpartyMapper
         balance?.Receivable ?? 0m,
         balance?.Payable ?? 0m,
         balance?.OverdueReceivable ?? 0m,
-        balance?.OverduePayable ?? 0m,
-        balance?.OpenReceivableObligations ?? 0m,
-        balance?.OpenPayableObligations ?? 0m);
+        balance?.OverduePayable ?? 0m);
 
 }

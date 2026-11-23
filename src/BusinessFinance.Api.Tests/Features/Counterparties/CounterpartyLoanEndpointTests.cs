@@ -5,6 +5,7 @@ using BusinessFinance.Api.Features.Accounts;
 using BusinessFinance.Api.Features.Authentication;
 using BusinessFinance.Api.Features.Categories;
 using BusinessFinance.Api.Features.Counterparties;
+using BusinessFinance.Api.Features.FinancialActivities;
 using BusinessFinance.Api.Features.CreditCards;
 using BusinessFinance.Api.Features.Debts;
 using BusinessFinance.Api.Features.Reports;
@@ -459,8 +460,14 @@ public sealed class CounterpartyLoanEndpointTests
         Assert.Equal("0.0000", afterKeep.OwedToYou);
         Assert.Equal("4000.0000", Assert.Single((await ReportAsync(owner)).AccountBalances).Balance);
 
-        // Yanlış girildi: ikisi birlikte gider.
+        // Yanlış girildi: ikisi birlikte gider. Akış satırı satışa bağlı peşin
+        // tutarı taşır; istemci iptalde soruyu bundan kurar.
         var mistake = await SaleAsync();
+        var feed = await owner.GetFromJsonAsync<FinancialActivityListResponse>(
+            $"/api/v1/financial-activities?pageSize=50&counterpartyId={customer.Id}");
+        var saleRow = Assert.Single(feed!.Items, item => item.ActivityId == mistake.Id);
+        Assert.Equal("4000.0000", saleRow.PaidNowAmount);
+        Assert.Null(Assert.Single(feed.Items, item => item.ActivityId == mistake.PaidNowPaymentId).PaidNowAmount);
         using var both = await owner.DeleteAsync(
             $"/api/v1/counterparty-charges/{mistake.Id}?withPaidNow=true");
         Assert.Equal(HttpStatusCode.OK, both.StatusCode);

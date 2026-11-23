@@ -592,8 +592,6 @@ public static class CounterpartyEndpoints
         FinanceContract.Money(counterparty.NotOverduePayable),
         FinanceContract.Money(counterparty.Net),
         counterparty.IsSettled,
-        FinanceContract.Money(counterparty.OpenReceivableObligations),
-        FinanceContract.Money(counterparty.OpenPayableObligations),
         FinanceContract.Money(counterparty.OwedToYou),
         FinanceContract.Money(counterparty.OwedByYou),
         FinanceContract.Money(counterparty.OpeningReceivable),

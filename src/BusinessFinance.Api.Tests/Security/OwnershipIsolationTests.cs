@@ -13,7 +13,7 @@ using BusinessFinance.Api.Features.Counterparties;
 using BusinessFinance.Api.Features.CreditCards;
 using BusinessFinance.Api.Features.Debts;
 using BusinessFinance.Api.Features.Imports;
-using BusinessFinance.Api.Features.Obligations;
+using BusinessFinance.Api.Tests.Features.Debts;
 using BusinessFinance.Api.Features.Pos;
 using BusinessFinance.Api.Features.DayCloses;
 using BusinessFinance.Api.Features.RecurringTransactions;
@@ -161,7 +161,6 @@ public sealed class OwnershipIsolationTests
         "/api/v1/debts",
         "/api/v1/goals",
         "/api/v1/installment-plans",
-        "/api/v1/obligations",
         "/api/v1/pos-settlements",
         "/api/v1/pos-definitions",
         "/api/v1/day-closes?from=2026-08-01&to=2026-08-31",
@@ -425,9 +424,6 @@ public sealed class OwnershipIsolationTests
         yield return Json("borcun açılışı", HttpMethod.Post,
             "api/v1/debts/{debtId:guid}/opening",
             new RecordDebtOpeningRequest("cash", f.AccountId, null, Today), f.DebtId);
-        yield return Json("borç taksidi ödeme", HttpMethod.Post,
-            "api/v1/debts/{debtId:guid}/installments/{sequence:int}/pay",
-            new PayDebtInstallmentRequest(f.AccountId, Today, Today), f.DebtId, 1);
         yield return new Probe("borç okuma", HttpMethod.Get,
             "api/v1/debts/{debtId:guid}",
             $"/api/v1/debts/{f.DebtId}?asOfDate={Today}",
@@ -479,12 +475,6 @@ public sealed class OwnershipIsolationTests
         yield return Json("taksit gerçekleştirme", HttpMethod.Post,
             "api/v1/installment-plans/{installmentPlanId:guid}/items/{sequence:int}/realize",
             null, f.InstallmentPlanId, 1);
-
-        yield return Json("yükümlülüğü kapatma", HttpMethod.Post,
-            "api/v1/obligations/{id:guid}/settlement",
-            new SettleObligationRequest(f.AccountId, Today), f.ObligationId);
-        yield return Json("yükümlülüğü iptal", HttpMethod.Delete,
-            "api/v1/obligations/{id:guid}", null, f.ObligationId);
 
         yield return Json("POS tahsilatını iptal", HttpMethod.Delete,
             "api/v1/pos-settlements/{id:guid}", null, f.PosSettlementId);
@@ -849,9 +839,10 @@ public sealed class OwnershipIsolationTests
                 card.Id, expense.Id, Guid.NewGuid(), "600.0000", "TRY", "business",
                 3, "2026-09-01", "Sentetik taksit"));
 
-        var obligation = await CreateAsync<ObligationResponse>(owner, "/api/v1/obligations",
-            new CreateObligationRequest(
-                "payable", "300.0000", "TRY", expense.Id, Today, "2026-09-15", "business"));
+        // Tek ödemeli kayıt (eski yükümlülük) bir borçtur.
+        var obligation = await CreateAsync<DebtResponse>(owner, "/api/v1/debts",
+            SingleDebts.Request(new SingleDebtInput(
+                "payable", "300.0000", "TRY", expense.Id, Today, "2026-09-15", "business")));
 
         var pos = await CreateAsync<PosSettlementResponse>(owner, "/api/v1/pos-settlements",
             new CreatePosSettlementRequest(

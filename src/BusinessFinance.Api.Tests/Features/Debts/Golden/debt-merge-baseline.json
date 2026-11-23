@@ -1,141 +1,4 @@
 {
-  "obligations": {
-    "items": [
-      {
-        "id": "obligation:o1-nakliye",
-        "counterpartyId": "cp:toptanci",
-        "categoryId": "category:Ambalaj ve sarf malzemesi",
-        "direction": "payable",
-        "amount": "950.0000",
-        "currency": "TRY",
-        "scope": "business",
-        "issueDate": "2026-07-10",
-        "dueDate": "2026-07-25",
-        "description": "Nakliye faturas\u0131",
-        "status": "open",
-        "counterpartyName": "Test Toptanc\u0131",
-        "categoryName": "Ambalaj ve sarf malzemesi",
-        "isOverdue": true,
-        "settlementId": null,
-        "settlementAccountId": null,
-        "settlementDate": null
-      },
-      {
-        "id": "obligation:o3-odenmis",
-        "counterpartyId": "cp:toptanci",
-        "categoryId": "category:Ambalaj ve sarf malzemesi",
-        "direction": "payable",
-        "amount": "1200.0000",
-        "currency": "TRY",
-        "scope": "business",
-        "issueDate": "2026-07-05",
-        "dueDate": "2026-07-30",
-        "description": "Ambalaj faturas\u0131",
-        "status": "settled",
-        "counterpartyName": "Test Toptanc\u0131",
-        "categoryName": "Ambalaj ve sarf malzemesi",
-        "isOverdue": false,
-        "settlementId": "obligation-settlement:o3-odenmis",
-        "settlementAccountId": "account:Banka",
-        "settlementDate": "2026-07-28"
-      },
-      {
-        "id": "obligation:o7-iptal",
-        "counterpartyId": "cp:toptanci",
-        "categoryId": "category:Ambalaj ve sarf malzemesi",
-        "direction": "payable",
-        "amount": "500.0000",
-        "currency": "TRY",
-        "scope": "business",
-        "issueDate": "2026-07-15",
-        "dueDate": "2026-07-31",
-        "description": "Yanl\u0131\u015F fatura",
-        "status": "cancelled",
-        "counterpartyName": "Test Toptanc\u0131",
-        "categoryName": "Ambalaj ve sarf malzemesi",
-        "isOverdue": false,
-        "settlementId": null,
-        "settlementAccountId": null,
-        "settlementDate": null
-      },
-      {
-        "id": "obligation:o4-kartla",
-        "counterpartyId": "cp:ayse",
-        "categoryId": "category:Di\u011Fer i\u015Fletme geliri",
-        "direction": "receivable",
-        "amount": "4000.0000",
-        "currency": "TRY",
-        "scope": "business",
-        "issueDate": "2026-08-02",
-        "dueDate": "2026-08-15",
-        "description": "Diki\u015F i\u015Fi",
-        "status": "settled",
-        "counterpartyName": "Ay\u015Fe Terzi",
-        "categoryName": "Di\u011Fer i\u015Fletme geliri",
-        "isOverdue": false,
-        "settlementId": "obligation-settlement:o4-kartla",
-        "settlementAccountId": "account:Banka",
-        "settlementDate": "2026-08-10"
-      },
-      {
-        "id": "obligation:o6-nakit",
-        "counterpartyId": "cp:ayse",
-        "categoryId": "category:Di\u011Fer i\u015Fletme geliri",
-        "direction": "receivable",
-        "amount": "300.0000",
-        "currency": "TRY",
-        "scope": "business",
-        "issueDate": "2026-08-05",
-        "dueDate": "2026-08-25",
-        "description": "Pa\u00E7a i\u015Fi",
-        "status": "settled",
-        "counterpartyName": "Ay\u015Fe Terzi",
-        "categoryName": "Di\u011Fer i\u015Fletme geliri",
-        "isOverdue": false,
-        "settlementId": "obligation-settlement:o6-nakit",
-        "settlementAccountId": "account:Kasa",
-        "settlementDate": "2026-08-20"
-      },
-      {
-        "id": "obligation:o5-bugun",
-        "counterpartyId": "cp:ayse",
-        "categoryId": "category:Di\u011Fer i\u015Fletme geliri",
-        "direction": "receivable",
-        "amount": "600.0000",
-        "currency": "TRY",
-        "scope": "business",
-        "issueDate": "2026-08-20",
-        "dueDate": "2026-08-30",
-        "description": "Tadilat",
-        "status": "open",
-        "counterpartyName": "Ay\u015Fe Terzi",
-        "categoryName": "Di\u011Fer i\u015Fletme geliri",
-        "isOverdue": false,
-        "settlementId": null,
-        "settlementAccountId": null,
-        "settlementDate": null
-      },
-      {
-        "id": "obligation:o2-sigorta",
-        "counterpartyId": null,
-        "categoryId": "category:Ambalaj ve sarf malzemesi",
-        "direction": "payable",
-        "amount": "2400.0000",
-        "currency": "TRY",
-        "scope": "business",
-        "issueDate": "2026-08-01",
-        "dueDate": "2026-09-05",
-        "description": "\u0130\u015Fyeri sigortas\u0131",
-        "status": "open",
-        "counterpartyName": null,
-        "categoryName": "Ambalaj ve sarf malzemesi",
-        "isOverdue": false,
-        "settlementId": null,
-        "settlementAccountId": null,
-        "settlementDate": null
-      }
-    ]
-  },
   "debts": {
     "items": [
       {
@@ -647,8 +510,6 @@
         "notOverduePayable": "1500.0000",
         "net": "-1500.0000",
         "isSettled": false,
-        "openReceivableObligations": "0.0000",
-        "openPayableObligations": "950.0000",
         "owedToYou": "0.0000",
         "owedByYou": "1500.0000"
       },
@@ -665,8 +526,6 @@
         "notOverduePayable": "0.0000",
         "net": "0.0000",
         "isSettled": true,
-        "openReceivableObligations": "600.0000",
-        "openPayableObligations": "0.0000",
         "owedToYou": "0.0000",
         "owedByYou": "0.0000"
       },
@@ -683,8 +542,6 @@
         "notOverduePayable": "0.0000",
         "net": "0.0000",
         "isSettled": true,
-        "openReceivableObligations": "0.0000",
-        "openPayableObligations": "0.0000",
         "owedToYou": "0.0000",
         "owedByYou": "0.0000"
       },
@@ -701,8 +558,6 @@
         "notOverduePayable": "0.0000",
         "net": "0.0000",
         "isSettled": true,
-        "openReceivableObligations": "0.0000",
-        "openPayableObligations": "0.0000",
         "owedToYou": "0.0000",
         "owedByYou": "0.0000"
       },
@@ -719,8 +574,6 @@
         "notOverduePayable": "0.0000",
         "net": "0.0000",
         "isSettled": true,
-        "openReceivableObligations": "0.0000",
-        "openPayableObligations": "0.0000",
         "owedToYou": "0.0000",
         "owedByYou": "0.0000"
       }
@@ -739,8 +592,6 @@
     "notOverduePayable": "1500.0000",
     "net": "-1500.0000",
     "isSettled": false,
-    "openReceivableObligations": "0.0000",
-    "openPayableObligations": "950.0000",
     "owedToYou": "0.0000",
     "owedByYou": "1500.0000"
   },
@@ -967,8 +818,6 @@
     "notOverduePayable": "0.0000",
     "net": "0.0000",
     "isSettled": true,
-    "openReceivableObligations": "600.0000",
-    "openPayableObligations": "0.0000",
     "owedToYou": "0.0000",
     "owedByYou": "0.0000"
   },
@@ -1228,8 +1077,6 @@
     "notOverduePayable": "0.0000",
     "net": "0.0000",
     "isSettled": true,
-    "openReceivableObligations": "0.0000",
-    "openPayableObligations": "0.0000",
     "owedToYou": "0.0000",
     "owedByYou": "0.0000"
   },
@@ -5522,8 +5369,7 @@
     "currency": "TRY"
   },
   "profile": {
-    "hasBusiness": true,
-    "hasCounterpartyLedger": true
+    "hasBusiness": true
   },
   "export:counterparty-ledger": "id,date,kind,direction,amount,currency,counterpartyId,counterpartyName,categoryId,categoryName,accountId,accountName,scope,description,isCancelled,cancelledAtUtc\r\ncharge:toptanci,2026-08-03,charge,payable,1500.0000,TRY,cp:toptanci,Test Toptanc\u0131,category:Ambalaj ve sarf malzemesi,Ambalaj ve sarf malzemesi,,,business,,false,\r\n",
   "balances:o1": {

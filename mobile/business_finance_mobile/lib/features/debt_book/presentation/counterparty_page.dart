@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/presentation/financial_data_changes.dart';
 import '../../../core/presentation/scope_controller.dart';
 import '../../../core/widgets/app_adaptive_sheet.dart';
+import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_filter_sheet.dart';
 import '../../../core/widgets/app_form_sheet.dart';
 import '../../../core/widgets/app_inline_notice.dart';
@@ -16,16 +17,16 @@ import '../../activities/presentation/activity_controller.dart';
 import '../../activities/presentation/show_activity_detail.dart';
 import '../data/debt_book_models.dart';
 import '../data/debt_book_repository.dart';
+import 'counterparty_manage_sheets.dart';
 import 'counterparty_page_controller.dart';
 import 'counterparty_page_view.dart';
 import 'debt_discount_sheet.dart';
 import 'debt_entry_sheet.dart';
 import 'debt_settle_sheet.dart';
 
-/// Kişi sayfası (Faz 6): özet, `Tahsilat` / `Ödeme`, taksitli kayıtlar ve
-/// hareketler. Yeni kayıt formları Faz 7'de bağlanır; o zamana kadar `+`
-/// seçimi [entryPage]'i kişi dolu açar, `⋮` eski kişi sayfasını
-/// (düzenle, açılış bakiyesi, sil) açar.
+/// Kişi sayfası: özet, `Tahsilat` / `Ödeme`, taksitli kayıtlar ve
+/// hareketler. `+` [entryPage]'i kişi dolu açar; `⋮` kişinin kendisini
+/// yönetir (düzenle, açılış bakiyesi, pasife al, sil).
 class CounterpartyPage extends StatefulWidget {
   const CounterpartyPage({
     required this.repository,
@@ -35,7 +36,6 @@ class CounterpartyPage extends StatefulWidget {
     this.activityRepository,
     this.changes,
     this.entryPage,
-    this.managePage,
     this.recordPage,
   });
 
@@ -50,10 +50,6 @@ class CounterpartyPage extends StatefulWidget {
   /// Yeni kayıt formu; kişi dolu ve kilitli gelir.
   final Widget Function(DebtEntryKind kind, DebtPersonChoice? person)?
   entryPage;
-
-  /// Eski kişi sayfası (düzenle, açılış bakiyesi, sil); `⋮` açar ve dönüşte
-  /// sayfa yenilenir. Faz 7–8'de yeni menüyle değişir.
-  final WidgetBuilder? managePage;
 
   /// Taksitli kaydın sayfası (kimlik, başlık); dönüşte sayfa yenilenir.
   final Widget Function(String debtId, String title)? recordPage;
@@ -190,11 +186,97 @@ class _CounterpartyPageState extends State<CounterpartyPage> {
     if (mounted) await _controller.load();
   }
 
-  Future<void> _manage() async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: widget.managePage!));
-    if (mounted) await _controller.load();
+  void _say(String message) => ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(message)));
+
+  Future<void> _manage(CounterpartyPageData page, _PersonAction action) async {
+    switch (action) {
+      case _PersonAction.edit:
+        await AppFormSheet.show<bool>(
+          context: context,
+          builder: (_) => CounterpartyEditSheet(
+            page: page,
+            scopeVisible: _scopeVisible,
+            onSubmit: (name, note, scope) =>
+                _controller.edit(name: name, note: note, scope: scope),
+          ),
+        );
+      case _PersonAction.opening:
+        await AppFormSheet.show<bool>(
+          context: context,
+          builder: (_) => CounterpartyOpeningSheet(
+            page: page,
+            onSubmit: (receivable, payable) => _controller.setOpening(
+              receivable: receivable,
+              payable: payable,
+            ),
+          ),
+        );
+      case _PersonAction.deactivate:
+        final confirmed = await AppConfirmDialog.show(
+          context: context,
+          title: 'Kişi pasife alınsın mı?',
+          message:
+              'Geçmiş ve bakiye kalır. Yeni satış, alım ve borç yazılmaz; '
+              'tahsilat ve ödeme yazılabilir.',
+          confirmLabel: 'Pasife al',
+        );
+        if (!confirmed) return;
+        final error = await _controller.setActive(false);
+        if (error != null && mounted) _say(error);
+      case _PersonAction.activate:
+        final error = await _controller.setActive(true);
+        if (error != null && mounted) _say(error);
+      case _PersonAction.delete:
+        final confirmed = await AppConfirmDialog.show(
+          context: context,
+          title: 'Kişi silinsin mi?',
+          message:
+              'Hareketi olan kişi silinemez; onun yerine pasife '
+              'alabilirsiniz.',
+          confirmLabel: 'Sil',
+          icon: Icons.delete_outline,
+          destructive: true,
+        );
+        if (!confirmed) return;
+        final error = await _controller.delete();
+        if (!mounted) return;
+        if (error != null) {
+          _say(error);
+        } else {
+          Navigator.of(context).pop();
+        }
+    }
+  }
+
+  Widget _moreMenu(CounterpartyPageData page) {
+    final actions = [
+      (_PersonAction.edit, 'Düzenle'),
+      (_PersonAction.opening, 'Açılış bakiyesi'),
+      if (page.isActive)
+        (_PersonAction.deactivate, 'Pasife al')
+      else
+        (_PersonAction.activate, 'Yeniden etkinleştir'),
+      (_PersonAction.delete, 'Kişiyi sil'),
+    ];
+    return PopupMenuButton<_PersonAction>(
+      tooltip: 'Diğer seçenekler',
+      icon: const Icon(Icons.more_vert),
+      onSelected: (action) => _manage(page, action),
+      itemBuilder: (_) => [
+        for (final (action, label) in actions)
+          PopupMenuItem(
+            value: action,
+            child: Text(
+              label,
+              style: action == _PersonAction.delete
+                  ? TextStyle(color: Theme.of(context).colorScheme.error)
+                  : null,
+            ),
+          ),
+      ],
+    );
   }
 
   Future<void> _filter(CounterpartyPageData page) async {
@@ -260,7 +342,7 @@ class _CounterpartyPageState extends State<CounterpartyPage> {
             scopeVisible: _scopeVisible,
             onBack: back,
             onAdd: () => _add(page),
-            onMore: widget.managePage == null ? null : _manage,
+            moreMenu: _moreMenu(page),
             onCollect: () => _settle(page, DebtSide.receivable),
             onPay: () => _settle(page, DebtSide.payable),
             onOpenRecord: widget.recordPage == null ? null : _openRecord,
@@ -295,6 +377,8 @@ class _CounterpartyPageState extends State<CounterpartyPage> {
     ],
   );
 }
+
+enum _PersonAction { edit, opening, deactivate, activate, delete }
 
 /// Hareket süzgeci: dönem, tür ve (iki yönlü kişide) taraf (K15).
 class _MovementFilterSheet extends StatefulWidget {

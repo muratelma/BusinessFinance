@@ -173,8 +173,8 @@ Borç açılışı iptal edilemez: o satır sözleşmenin kendisidir, iptali bor
 silmek olurdu ve ödenmiş taksitler sahipsiz kalırdı. Borcu bitirmenin yolu bu
 satır değil, sözleşme akışıdır.
 
-**Yükümlülük bir bütün olarak iptal edilir** (`DELETE /api/v1/obligations/{id}`,
-9 Ekim 2026). Kapanmışsa kapanışı (`obligation-settlement`) aynı yazmada iptal
+**Yükümlülük bir bütün olarak iptal edilir** (`DELETE /api/v1/debts/{id}`;
+23 Kasım 2026'ya kadar `DELETE /api/v1/obligations/{id}`). Kapanmışsa kapanışı (`obligation-settlement`) aynı yazmada iptal
 olur ve hesaba etkisi geri alınır; alacak kartla tahsil edildiyse yoldaki POS
 kaydı ve komisyonu da iptal olur. Kapanış satırı tek başına iptal edilemez ve
 `canCancel` `false` döner; düzeltme, kaydı iptal edip doğrusunu yeniden

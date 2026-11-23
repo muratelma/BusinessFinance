@@ -75,19 +75,20 @@ enum ActivityKind {
     transfer => 'Transfer',
     cardCharge => 'Kart harcaması',
     cardPayment => 'Kart ödemesi',
-    // Taksit adını taşır: `Borç ödemesi` ve `Alacak tahsilatı` tek seferlik
-    // borcun ve alacağın kapanışıdır, ikisi aynı listede yan yana durur.
-    debtPayment => 'Borç taksidi ödemesi',
-    debtCollection => 'Alacak taksidi tahsilatı',
+    // Taksitli kaydın ödemesi; kişinin hesabındaki `Ödeme` ve `Tahsilat`la
+    // aynı listede yan yana durur (`02-TASARIM.md` §6.6).
+    debtPayment => 'Taksit ödemesi',
+    debtCollection => 'Taksit tahsilatı',
     // Tek tür hem borcu hem alacağı kapsıyor; satırın kendisi kiminle
     // olduğunu zaten yazıyor.
     debtOpening => 'Borç / alacak açılışı',
     // Yön satırın kendisinde: alacak doğuran kayıt gelir, borç doğuran
     // gider olarak görünür ve etiket ikisini birden karşılar.
-    counterpartyCharge => 'Cari hareket',
-    counterpartySettlement => 'Cari tahsilat / ödeme',
-    obligation => 'Yükümlülük',
-    obligationSettlement => 'Yükümlülük ödemesi',
+    counterpartyCharge => 'Satış / alım',
+    counterpartySettlement => 'Tahsilat / ödeme',
+    // Tek ödemeli kayıt (kişisiz fatura, eski tek seferlik borç); adı yönden.
+    obligation => 'Satış / alım',
+    obligationSettlement => 'Tahsilat / ödeme',
     // Bu iki etikette `kart` kelimesi tek başına geçmez (ADR 0015): borçlandığın
     // kart başka bir şeydir ve ikisi aynı listede yan yana görünüyor.
     posSale => 'POS satışı',
@@ -100,10 +101,12 @@ enum ActivityKind {
   String labelFor(ActivityDirection? direction) => switch ((this, direction)) {
     (counterpartyCharge, ActivityDirection.receivable) => 'Veresiye satış',
     (counterpartyCharge, ActivityDirection.payable) => 'Vadeli alım',
-    (counterpartySettlement, ActivityDirection.receivable) => 'Cari tahsilat',
-    (counterpartySettlement, ActivityDirection.payable) => 'Cari ödeme',
-    (obligationSettlement, ActivityDirection.receivable) => 'Alacak tahsilatı',
-    (obligationSettlement, ActivityDirection.payable) => 'Borç ödemesi',
+    (counterpartySettlement, ActivityDirection.receivable) => 'Tahsilat',
+    (counterpartySettlement, ActivityDirection.payable) => 'Ödeme',
+    (obligation, ActivityDirection.receivable) => 'Veresiye satış',
+    (obligation, ActivityDirection.payable) => 'Vadeli alım',
+    (obligationSettlement, ActivityDirection.receivable) => 'Tahsilat',
+    (obligationSettlement, ActivityDirection.payable) => 'Ödeme',
     (counterpartyLoan, ActivityDirection.receivable) => 'Borç verdim',
     (counterpartyLoan, ActivityDirection.payable) => 'Borç aldım',
     (counterpartyWriteOff, ActivityDirection.receivable) =>
@@ -241,6 +244,7 @@ class FinancialActivity {
     this.channelName,
     this.feeAmount,
     this.discountAmount,
+    this.paidNowAmount,
     this.netAmount,
     this.direction,
     this.expectedTransferDate,
@@ -279,6 +283,7 @@ class FinancialActivity {
         channelName: json['channelName'] as String?,
         feeAmount: json['feeAmount'] as String?,
         discountAmount: json['discountAmount'] as String?,
+        paidNowAmount: json['paidNowAmount'] as String?,
         netAmount: json['netAmount'] as String?,
         expectedTransferDate: json['expectedTransferDate'] as String?,
         transferredOn: json['transferredOn'] as String?,
@@ -342,6 +347,10 @@ class FinancialActivity {
   /// Alım ya da satışa yapılmış indirimin toplamı; satır indirim düşülmüş
   /// bedeli yazar, indirim tutarın altında (`indirim ₺200,00`). Yoksa `null`.
   final String? discountAmount;
+
+  /// Kişinin hesabındaki satış ya da alımla birlikte alınan/ödenen peşin
+  /// tutar; iptalde ayrıca sorulur. Yoksa `null`.
+  final String? paidNowAmount;
 
   /// POS satışında hesaba geçecek (ya da geçmiş) net tutar.
   final String? netAmount;

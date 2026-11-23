@@ -22,7 +22,7 @@ void main() {
       expect(reminders, hasLength(1));
       expect(reminders.single.at, DateTime(2026, 8, 30, 9));
       expect(reminders.single.id, 20260830);
-      expect(reminders.single.body, '2 ödenecek yükümlülük, 1 kart ekstresi');
+      expect(reminders.single.body, '2 ödenecek borç, 1 kart ekstresi');
     });
 
     test('gövde tutar ve karşı taraf adı taşımaz', () {
@@ -43,7 +43,7 @@ void main() {
       expect(reminder.title, isNot(contains('Ahmet')));
       expect(reminder.body, isNot(contains('Ahmet')));
       expect(reminder.body, isNot(contains('1234')));
-      expect(reminder.body, '1 ödenecek yükümlülük');
+      expect(reminder.body, '1 ödenecek borç');
     });
 
     test('taksitin üç türü tek kovada toplanır', () {

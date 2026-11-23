@@ -7,7 +7,7 @@ using BusinessFinance.Api.Features.Authentication;
 using BusinessFinance.Api.Features.Cash;
 using BusinessFinance.Api.Features.Categories;
 using BusinessFinance.Api.Features.DayCloses;
-using BusinessFinance.Api.Features.Obligations;
+using BusinessFinance.Api.Tests.Features.Debts;
 using BusinessFinance.Api.Features.Pos;
 using BusinessFinance.Api.Features.SavingsGoals;
 
@@ -86,18 +86,14 @@ public sealed class LocalDayEndpointTests
         Assert.Contains(sales200!.Items, item => item.SettlementDate == night);
 
         // Yükümlülük ve bir gün önce yazılmış yükümlülüğün gece ödenmesi.
-        using var invoice = await owner.PostAsJsonAsync(
-            "/api/v1/obligations",
-            new CreateObligationRequest("payable", "300.0000", "TRY", costs.Id, night, due, "business"));
+        using var invoice = await owner.PostSingleDebtAsync(
+            new SingleDebtInput("payable", "300.0000", "TRY", costs.Id, night, due, "business"));
         Assert.True(invoice.StatusCode == HttpStatusCode.Created, await invoice.Content.ReadAsStringAsync());
-        using var earlier = await owner.PostAsJsonAsync(
-            "/api/v1/obligations",
-            new CreateObligationRequest(
+        var earlierInvoice = await owner.CreateSingleDebtAsync(
+            new SingleDebtInput(
                 "payable", "150.0000", "TRY", costs.Id, Date(utcToday), due, "business"));
-        var earlierInvoice = (await earlier.Content.ReadFromJsonAsync<ObligationResponse>())!;
-        using var settle = await owner.PostAsJsonAsync(
-            $"/api/v1/obligations/{earlierInvoice.Id}/settlement",
-            new SettleObligationRequest(bank.Id, night));
+        using var settle = await owner.SettleSingleDebtAsync(
+            earlierInvoice.Id, new SingleDebtSettlement(bank.Id, night));
         Assert.True(settle.StatusCode == HttpStatusCode.OK, await settle.Content.ReadAsStringAsync());
 
         // POS yatışı: bir gün önceki satışın parası gece yatırılır.
@@ -144,9 +140,8 @@ public sealed class LocalDayEndpointTests
             "/api/v1/pos-settlements",
             new CreatePosSettlementRequest(null, null, "200.0000", "TRY", tomorrow, PosDefinitionId: pos.Id));
         Assert.Equal(HttpStatusCode.BadRequest, farSale.StatusCode);
-        using var farInvoice = await owner.PostAsJsonAsync(
-            "/api/v1/obligations",
-            new CreateObligationRequest("payable", "300.0000", "TRY", costs.Id, tomorrow, due, "business"));
+        using var farInvoice = await owner.PostSingleDebtAsync(
+            new SingleDebtInput("payable", "300.0000", "TRY", costs.Id, tomorrow, due, "business"));
         Assert.Equal(HttpStatusCode.BadRequest, farInvoice.StatusCode);
         using var farClose = await owner.PostAsJsonAsync(
             "/api/v1/day-closes/preview", dayClose with { Date = tomorrow });

@@ -792,6 +792,10 @@ işidir ve bu checkpoint'te erkenden eklenmemiştir.
 
 #### İstemci: `features/counterparties/`
 
+> **Kalktı (23 Kasım 2026, ADR 0022 Faz 8).** İstemci `features/debt_book/`
+> altındadır (liste, kişi sayfası, kayıt sayfası, yeni kayıt, `Kapananlar`);
+> aşağısı geçmiştir. Kişinin hareketleri yine birleşik akıştan okunur.
+
 Liste (bakiyeye göre sıralı, `Tümü / Açık hesap / Kapanmış` filtresi) ve
 ayrıntı ekranı **tek controller** paylaşır: ayrıntıdan alınan bir tahsilat
 listedeki bakiyeyi de değiştirir ve iki ayrı controller aynı yazımdan sonra
@@ -983,6 +987,12 @@ isteğe bağlı karşı tarafla tek SQL projection'ında okunur. `Open`, gecikme
 tarihinden türetilir. Settlement oluştuğu anda satır hem kanonik görünümden hem
 onun daraltılmış yaklaşan ödemeler görünümünden düşer.
 
+> **23 Kasım 2026 (ADR 0022 Faz 8):** `/api/v1/obligations` uçları ve
+> `Application/Obligations` katmanı kalktı; tek ödemeli kayıt `Debt`
+> kullanım durumlarından (`CreateDebtUseCase`, `RecordDebtPaymentUseCase`,
+> `CancelDebtUseCase`) yazılır. Aşağısı geçmiştir; okuma görünümü
+> (`DebtViews.Obligations`) ve planlanan türler yerinde.
+
 `CreateObligationUseCase` current user'ı oturumdan alır; kategori, isteğe bağlı
 aktif karşı taraf ve kapsam zincirini doğruladıktan sonra aggregate'i yazar.
 `POST /api/v1/obligations` açılan kaydı gerçekleşen hareket feed'ine
@@ -1046,15 +1056,13 @@ tutar da yalnız borçlandırmalardan), işlem sonrası açık bakiye
 (`EfFinancialActivityRepository`: cari satırı dönmez). Eskiden açık yükümlülük
 bakiyeye katılıyordu ve aynı borç hem cari `Ödeme` ile hem yükümlülüğün
 kapanışıyla iki kez ödenebiliyordu. Kişinin cevabı açık yükümlülüklerin
-toplamını iki ayrı alanda **bilgi olarak** taşır (`openReceivableObligations`,
-`openPayableObligations`); `receivable`, `payable`, `net`, `isSettled` ve
-`balance=open` süzgeci bunları içermez. Net varlık ve planlanan görünüm
-yükümlülüğü kendi tablosundan okumaya devam eder.
+toplamını iki ayrı alanda bilgi olarak taşıyordu; bu alanlar 23 Kasım 2026'da
+kalktı (kişi sayfası kayıtları kendi satırlarında gösterir). `receivable`,
+`payable`, `net`, `isSettled` ve `balance=open` süzgeci tek ödemeli kaydı
+içermez. Net varlık ve planlanan görünüm onu kendi tablosundan okur.
 
-`GET /api/v1/profile` cevabı `hasCounterpartyLedger` da taşır: kullanıcının
-iptal edilmemiş bir cari hareketi var mı. İstemci `Cari hesap` kapısını
-işletmesi olana ve bu işareti taşıyana gösterir (C6: gizleme bir ön ayardır,
-kilit değildir); sunucu hiçbir cari ucunu cevaba göre kapatmaz.
+Profildeki `hasCounterpartyLedger` işareti 23 Kasım 2026'da kalktı: `Cari
+hesap` menüsü yoktur, cari `Borç ve alacak`ın `İşletme` görünümüdür.
 
 ## Gün sonu kasa sayımı
 

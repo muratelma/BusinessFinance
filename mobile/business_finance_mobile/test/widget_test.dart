@@ -86,6 +86,12 @@ void main() {
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(find.text('Bütçeler'), 200);
       expect(find.text('Bütçeler'), findsOneWidget);
+      // Satır alt çubuğun altında kalmasın: dokunuş ortadaki satıra gider.
+      await Scrollable.ensureVisible(
+        tester.element(find.text('Bütçeler')),
+        alignment: 0.5,
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Bütçeler'));
       await tester.pumpAndSettle();
       expect(find.text('Bütçe servisi yapılandırılmadı.'), findsOneWidget);

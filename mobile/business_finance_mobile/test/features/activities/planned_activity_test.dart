@@ -326,7 +326,9 @@ void main() {
       expect(find.text('Karta yansıt ›'), findsNothing);
     });
 
-    testWidgets('kişinin vadesi eylemsiz bilgi satırıdır', (tester) async {
+    // Kişinin vadesi kişinin sayfasında ödenir (K6); satır oraya götürür.
+    // Adresi olmayan satır bilgi satırıdır.
+    testWidgets('kişinin vadesi kişi sayfasına götürür', (tester) async {
       await _pumpPageWith(
         tester,
         _FakeRepository(
@@ -335,6 +337,22 @@ void main() {
               kind: PlannedKind.counterpartyPayable,
               action: PlannedAction.payCounterparty,
               actionTargetId: 'person-1',
+            ),
+          ]),
+        ),
+      );
+
+      expect(find.text('Öde ›'), findsOneWidget);
+    });
+
+    testWidgets('adresi olmayan kişi vadesi bilgi satırıdır', (tester) async {
+      await _pumpPageWith(
+        tester,
+        _FakeRepository(
+          page: _page([
+            _activity(
+              kind: PlannedKind.counterpartyPayable,
+              action: PlannedAction.payCounterparty,
             ),
           ]),
         ),
@@ -637,7 +655,8 @@ class _FakeRepository implements ActivityRepositoryContract {
   }) => throw UnimplementedError();
 
   @override
-  Future<void> cancel(FinancialActivity activity) => throw UnimplementedError();
+  Future<void> cancel(FinancialActivity activity, {bool withPaidNow = false}) =>
+      throw UnimplementedError();
 
   @override
   Future<void> realizePlanned(

@@ -706,6 +706,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 FeeAmount = (decimal?)null,
                 NetAmount = (decimal?)null,
                 DiscountAmount = (decimal?)null,
+                PaidNowAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
@@ -766,6 +767,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 FeeAmount = transfer.FeeTransaction == null ? (decimal?)null : transfer.FeeTransaction.Amount.Amount,
                 NetAmount = (decimal?)null,
                 DiscountAmount = (decimal?)null,
+                PaidNowAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
@@ -825,6 +827,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 FeeAmount = (decimal?)null,
                 NetAmount = (decimal?)null,
                 DiscountAmount = (decimal?)null,
+                PaidNowAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
@@ -879,6 +882,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 FeeAmount = (decimal?)null,
                 NetAmount = (decimal?)null,
                 DiscountAmount = (decimal?)null,
+                PaidNowAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
@@ -951,6 +955,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 FeeAmount = (decimal?)null,
                 NetAmount = (decimal?)null,
                 DiscountAmount = (decimal?)null,
+                PaidNowAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
@@ -1012,6 +1017,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 FeeAmount = (decimal?)null,
                 NetAmount = (decimal?)null,
                 DiscountAmount = (decimal?)null,
+                PaidNowAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
@@ -1087,6 +1093,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                                           !closing.IsCancelled && closing.Kind == DebtPaymentKind.Discount)
                         .Sum(closing => (decimal?)closing.Amount.Amount)
                     : null,
+                PaidNowAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
@@ -1162,6 +1169,13 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                                            !discount.IsCancelled)
                         .Sum(discount => (decimal?)discount.Amount)
                     : null,
+                // Satışla birlikte alınan peşin tutar (`paidNow`): satış iptalinde
+                // "peşin de iptal edilsin mi" sorusunu istemci bundan kurar.
+                PaidNowAmount = dbContext.CounterpartyPayments
+                    .Where(payment => payment.UserId == charge.UserId &&
+                                      payment.PaidWithChargeId == charge.Id &&
+                                      !payment.IsCancelled)
+                    .Sum(payment => (decimal?)payment.Amount.Amount),
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)charge.Direction,
@@ -1247,6 +1261,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                     ? null
                     : (decimal?)(card.GrossAmount.Amount - card.CommissionAmount),
                 DiscountAmount = (decimal?)null,
+                PaidNowAmount = (decimal?)null,
                 ExpectedTransferDate = card == null ? null : (DateOnly?)card.ExpectedTransferDate,
                 TransferredOn = card == null ? null : card.TransferredOn,
                 Direction = (int?)payment.Direction,
@@ -1314,6 +1329,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 FeeAmount = (decimal?)null,
                 NetAmount = (decimal?)null,
                 DiscountAmount = (decimal?)null,
+                PaidNowAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)writeOff.Direction,
@@ -1366,6 +1382,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 FeeAmount = (decimal?)null,
                 NetAmount = (decimal?)null,
                 DiscountAmount = (decimal?)null,
+                PaidNowAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)loan.Direction,
@@ -1432,6 +1449,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 DiscountAmount = obligation.Amount > obligation.RecognizedAmount
                     ? obligation.Amount - obligation.RecognizedAmount
                     : (decimal?)null,
+                PaidNowAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)obligation.Direction,
@@ -1538,6 +1556,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                     ? null
                     : (decimal?)(card.GrossAmount.Amount - card.CommissionAmount),
                 DiscountAmount = (decimal?)null,
+                PaidNowAmount = (decimal?)null,
                 ExpectedTransferDate = card == null ? null : (DateOnly?)card.ExpectedTransferDate,
                 TransferredOn = card == null ? null : card.TransferredOn,
                 Direction = (int?)settlement.Direction,
@@ -1615,6 +1634,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                     : null,
                 NetAmount = (decimal?)(settlement.GrossAmount.Amount - settlement.CommissionAmount),
                 DiscountAmount = (decimal?)null,
+                PaidNowAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)settlement.ExpectedTransferDate,
                 TransferredOn = settlement.TransferredOn,
                 Direction = (int?)null,
@@ -1690,6 +1710,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                     : null,
                 NetAmount = (decimal?)null,
                 DiscountAmount = (decimal?)null,
+                PaidNowAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = (int?)null,
@@ -1760,6 +1781,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
                 FeeAmount = (decimal?)null,
                 NetAmount = (decimal?)null,
                 DiscountAmount = (decimal?)null,
+                PaidNowAmount = (decimal?)null,
                 ExpectedTransferDate = (DateOnly?)null,
                 TransferredOn = (DateOnly?)null,
                 Direction = payment.PlanKind == DebtPlanKind.Single ? (int?)payment.Direction : null,
@@ -1926,7 +1948,8 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
         row.Direction is int direction ? (DebtDirection)direction : null,
         row.DayCloseId,
         row.CancelLocked,
-        row.DiscountAmount);
+        row.DiscountAmount,
+        row.PaidNowAmount);
 
     /// <summary>
     /// The shared UNION ALL shape. Enums are carried as int so every branch produces the
@@ -1979,6 +2002,7 @@ internal sealed class EfFinancialActivityRepository(BusinessFinanceDbContext dbC
         /// düşülmüş bedeldir, indirim tutarın altında yazılır. Yoksa <c>null</c>.
         /// </summary>
         public decimal? DiscountAmount { get; init; }
+        public decimal? PaidNowAmount { get; init; }
         public DateOnly? ExpectedTransferDate { get; init; }
         public DateOnly? TransferredOn { get; init; }
         public int? SettlementCount { get; init; }

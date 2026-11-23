@@ -81,10 +81,10 @@ hiç kategorisi olmayan kullanıcıya bir kez uygulanır.
 
 İlk `GET /api/v1/categories` çağrısı seti kurar. `GET /api/v1/profile` istemciye
 kapsam boyutunu gösterip göstermeyeceğini söyler; `PUT /api/v1/profile` cevabı
-değiştirir ve yalnız arayüzü etkiler — kategoriler olduğu gibi kalır. İki uç da
-`hasCounterpartyLedger` döner (kullanıcının iptal edilmemiş cari hareketi var
-mı): `Cari hesap` kapısı işletmesi olmayan kullanıcıda yalnız bu işaretle
-görünür. Gizleme bir ön ayardır; cari uçları her kullanıcıya açık kalır.
+değiştirir ve yalnız arayüzü etkiler — kategoriler olduğu gibi kalır.
+`Cari hesap` kapısı ve onu açan `hasCounterpartyLedger` işareti 23 Kasım
+2026'da istemciden kalktı (ADR 0022, K5/K12): cari, `Borç ve alacak`
+sayfasının `İşletme` görünümüdür ve sayfa herkese açıktır.
 
 ## Profil ön ayarlı ana gezinme
 
@@ -669,7 +669,8 @@ adresler ve ikisi çoğu türde farklıdır.
 | Kart taksidi | taksit planı kimliği | taksit sırası |
 | Kart ekstresi | kart kimliği | — |
 | Borç/alacak taksidi | borç kimliği | taksit sırası |
-| Tek seferlik yükümlülük | yükümlülük kimliği | — |
+| Tek seferlik yükümlülük | borç kimliği (yükümlülük tek ödemeli borçtur) | — |
+| Kişinin vadesi | kişi kimliği | — |
 
 Uygulamada eylem ikiye ayrılır ve ayrımı kaydın kendisi belirler.
 `realize` gövde istemez — onay dışında sorulacak bir şey yoktur, tutar ve tarih
@@ -679,25 +680,14 @@ kopyalamak yerine kullanıcı o kaydın kendi ekranına gider. Engelli
 (`readiness = needs-attention`) satırda buton kapalıdır; nedeni
 `attentionCode`'dan üretilen cümleyle satırda zaten yazılıdır.
 
-Tek seferlik yükümlülük `Diğer > Yükümlülükler` altında yaklaşan, geciken ve
-kapanan sekmelerinde okunur. Açık satıra dokununca hesap seçilen tek panel açılır;
-`Öde/Tahsil et ve kapat` çağrısı settlement'ı yazar, ekranı yeniler ve kayıt
-kapananlara geçer. Panel, işlemin gelir/gideri yeniden yazmadığını açıkça söyler.
-Yükleme, boş, hata, unauthorized ve son bilinen veriyi gösteren stale durumları
-ayrı görünür.
-
-**Yükümlülük kamerayla sınırlı değildir.** Aynı kayıt `İşlem ekle >
-Ödenmemiş fatura` satırından ve `Yükümlülükler` ekranındaki ekleme
-eyleminden de açılır; form önerisiz de çalışır. Fotoğrafı olmayan kullanıcının
-elindeki kâğıt faturayı yazamaması, aşamanın kapatmak için açıldığı boşluğun
-kendisiydi. Menü satırı parayı bugün hareket ettirmediğini yazar; yazmasaydı
-kullanıcı satırı gider sanıp bakiyesinin azalmasını beklerdi.
-
-**Yönü elle girişte kullanıcı seçer** (`Ödenecek` / `Tahsil edilecek`), fiş
-dalında **sorulmaz**: "henüz ödemedim" cevabı borçlu olunduğunu bir adım önce
-söyledi ve aynı soruyu tekrar sormak olurdu. Yön değişince kategori listesi
-yeniden okunur — alacak gelir, borç gider kategorisi ister ve sunucu yönle
-çelişen kategoriyi zaten reddeder.
+**Borç ve alacak satırları kendi sayfasını açar** (23 Kasım 2026, Faz 8).
+Taksit ve tek ödemeli kayıt (`debt-installment`, `receivable-installment`,
+`payable-obligation`, `receivable-obligation`) kayıt sayfasını
+(`/more/debt-book/records/{id}`), kişinin vadesi
+(`counterparty-*-due`) kişi sayfasını (`/more/debt-book/people/{id}`)
+açar; ödeme orada yazılır (K6). Eski `Diğer > Yükümlülükler` ekranı ve
+`Ödenmemiş fatura` formu kalktı: aynı kayıt `İşlem ekle > Borç veya alacak >
+Vadeli aldım` ile, kişisiz de yazılır.
 
 **Para hareket etmeden önce açık onay istenir ve kaynak adıyla yazılır.**
 Gerçekleştirme kaynağı **sormaz** — tekrarlayan planın kaynağı kuruluşta
@@ -1031,7 +1021,8 @@ satırlar **niyet** başlıklarının altında toplandı.
 Para girdi   -> Gelir
                 POS tahsilatı            (Kasa > POS tahsilatları bölümü)
 Para çıktı   -> Gider
-                Ödenmemiş fatura         (para henüz hareket etmez)
+                Borç veya alacak         (Ne oldu? paneli; para henüz
+                                          hareket etmeyebilir)
 Para taşı    -> Hesaplar arası transfer
                 Kredi kartı borcu öde
 Belge okut   -> Fiş veya fatura okut
@@ -1369,9 +1360,9 @@ Claude Design teslimiyle (27 Eylül 2026, 06.2 Grup 1'in ilk adımı) menü
 | Grup | Kapılar |
 |---|---|
 | (kart) | Hesabım — 64 dp avatar, kullanıcı adı (yoksa `Hesabım`), `Hesap, güvenlik ve oturumlar`; doğrulanmamışsa kırmızı `E-posta doğrulanmadı`, doğrulanmışsa avatarda yeşil tik. E-posta adresi kartta yazmaz |
-| Para ve hesaplar | Hesaplar · Kredi kartlarım · (kişisel profilde) Kasa · Borç ve alacaklar · Cari hesap (işletmesi olana; işletmesi olmayan kullanıcıda yalnız cari hareketi varsa — `hasCounterpartyLedger`, 9 Ekim 2026) |
+| Para ve hesaplar | Hesaplar · Kredi kartlarım · (kişisel profilde) Kasa · Borç ve alacak (herkese; `Cari hesap` 23 Kasım 2026'da kalktı, cari bu sayfanın `İşletme` görünümüdür) |
 | Kategoriler | Kategori özeti · Kategori yönetimi |
-| Planlama | (işletme profilinde) Bütçeler · Yükümlülükler · Tasarruf hedefleri · Planlama ve raporlar |
+| Planlama | (işletme profilinde) Bütçeler · Planlananlar · Tekrarlayanlar · Tasarruf hedefleri · Planlama ve raporlar (`Yükümlülükler` 23 Kasım 2026'da kalktı) |
 | Vergi | Vergi takibi — yalnız işletmesi olana (muhasebeci paketi Aşama 06.3 Grup 2'de, `Vergi takvimi` Grup 3'te kalktı) |
 | Ayarlar | Hatırlatmalar · Veri ve yedek |
 
@@ -1820,11 +1811,14 @@ yazılır (banka ücreti, paranın çıktığı yerden alınır) ve **ayrı bir 
 kalır; ana tutara eklemek belgede yazmayan bir toplam uydurmak olurdu. Ücret
 satırı yalnız belgede ücret varsa görünür.
 
-**Ödenmemiş fatura para hareketi üretmez ama gideri tanır.** Kullanıcı belge
-tarihi, son ödeme tarihi, gider kategorisi, isteğe bağlı karşı taraf ve kapsamı
-doğrulayarak tek seferlik yükümlülük yazar. Form hesap veya sıklık sormaz: kasa
-ödeme yapılana kadar değişmez; gider belge tarihinde rapora girer. Ödeme daha
-sonra yükümlülüğü kapatan ayrı ve nötr nakit olayıdır.
+**Ödenmemiş fatura para hareketi üretmez ama gideri tanır.** "Henüz
+ödemedim" `Vadeli alım` formunu belgeden okunanlarla açar (K10; 23 Kasım
+2026): tutar, belge günü, son ödeme günü (vade), kategori ve belgenin
+uyarıları. Belgedeki ad kişilerden biriyle eşleştiyse kişi dolu gelir ve
+kayıt kişinin hesabına vadeli alım olur; eşleşmediyse ad kaydın açıklamasıdır
+ve kişi seçilmezse kayıt kişisiz yazılır. Form hesap sormaz: kasa ödeme
+yapılana kadar değişmez; gider belge gününde rapora girer. Ödeme sonra ayrı
+ve nötr nakit olayıdır.
 
 **İade yeni kayıt üretmez.** Sunucu geri verilen harcamayı arar, kullanıcı
 görüp onaylar, harcama **iptal edilir** (silinmez). Kısmi iadede kalan tutar
@@ -2280,11 +2274,9 @@ sekmeleri; seçili tarafta gecikme varsa `Yalnız gecikenler`; bölümler
 `Geciken · Yaklaşan (30 gün) · Diğer`; sonda `Kapananlar`. Başlıktaki
 büyüteç kişi ve kayıt arar (pasif kişi yalnız burada, `Pasif` yazar).
 Aşağı çekince yenilenir; yenileme düşerse liste yerinde kalır ve üstte
-`Liste güncellenemedi.` + `Tekrar dene`. **Geçiş dönemi (Faz 6–7'ye kadar):**
-kişi satırı eski kişi sayfasını, kayıt satırı ve `Kapananlar` eski `Borç ve
-alacaklar` sayfasını açar; `+` `Ne oldu?` panelini açar ve seçim eski
-sayfaya gider (borç para → eski borç sayfası, diğerleri → `Cari hesap`).
-Eski sayfalar silinmedi; `Cari hesap` menüsü yerinde.
+`Liste güncellenemedi.` + `Tekrar dene`. Kişi satırı kişi sayfasını, kayıt
+satırı kayıt sayfasını, `Kapananlar` kapanan kayıtları, `+` `Ne oldu?`
+panelini açar (Faz 6–8; geçiş sayfaları kalktı).
 
 ## Kişi sayfası, tahsilat ve ödeme · 23 Kasım 2026 (Faz 6)
 
@@ -2303,8 +2295,8 @@ kişide taraf sorar; seçili süzgeç listenin üstünde kaldırılabilir çipti
 Harekete dokununca ortak işlem ayrıntısı açılır: iptal (borç para ve
 vazgeçme dahil) ve satış/alımda `İndirim yap` (tutar ve gün; gelir ya da
 gider kaydın gününde azalır). Satır indirimi tutarın altında yazar
-(`indirim ₺200,00`). **Geçiş:** `+` `Ne oldu?` sonrası, kayıt satırları ve
-`⋮` (düzenle, açılış bakiyesi, sil) Faz 7–8'e kadar eski sayfaları açar.
+(`indirim ₺200,00`). `+` yeni kayıt formunu kişi dolu açar; `⋮` aşağıda
+("Eski yolların kalkması").
 
 ## Yeni borç ya da alacak ve kayıt sayfası · 23 Kasım 2026 (Faz 7)
 
@@ -2332,5 +2324,47 @@ değiştirilemez) aynı paneli açar (kısayollar `Sıradaki taksit`, `Tamamı`)
 Takvim sıradaki üç taksit ve `Tümünü göster`; ödemelere dokununca onaylı
 geri alma. `⋮`: `Planı değiştir` (faizsizde; kalan yeni takvime bölünür),
 `İndirim` (kayıtlı alım ya da satışta), `Kaydı iptal et`. Kişi adı kişi
-sayfasını açar. **Geçiş:** `Kapananlar` ve kişinin `⋮` menüsü hâlâ eski
-sayfaları açar (Faz 8).
+sayfasını açar.
+
+## Eski yolların kalkması · 23 Kasım 2026 (Faz 8)
+
+Borç, alacak ve cari tek sayfada: `Diğer > Borç ve alacak`. Eski `Cari
+hesap`, `Yükümlülükler` ve `Borç ve alacaklar` sayfaları ile `Cari hesap`
+menüsünün ön ayarı kalktı.
+
+- **Kişinin `⋮` menüsü:** `Düzenle` (ad, not; kapsam görünen kullanıcıda
+  kişinin türü, tutarları değiştirmez), `Açılış bakiyesi` (uygulamadan önceki
+  `Size borcu` / `Sizin borcunuz`; gelir/gider yazmaz, ödemeler önce onu
+  kapatır; sıfır kaldırır), `Pasife al` (onaylı; pasif kişide `Yeniden
+  etkinleştir`) ve `Kişiyi sil` (hareketi olan kişide sunucu reddeder ve
+  pasife almayı söyler; silinince sayfa kapanır).
+- **`Kapananlar`:** listenin sonundaki satır seçili taraftaki kapanmış
+  taksitli ve kişisiz kayıtları açar (`GET /api/v1/debt-book/closed`);
+  satır `Kapandı 20 Kasım 2026` yazar, dokununca kayıt sayfası açılır.
+  Dönüşte liste yenilenir.
+- **`İşlem ekle > Borç veya alacak`:** `Ne oldu?` → yeni kayıt formu
+  (`/transactions/new/debt`); `Borç ve alacak` sayfasındaki `+` ile aynı yol.
+- **Fiş "henüz ödemedim":** `Vadeli aldım` formu önerilerle (yukarıda,
+  "Ödenmemiş fatura").
+- **Dekont "borç verdim":** `Borç verdim` formu önerilerle: tutar, gün,
+  eşleşen kişi (yoksa ad açıklamada); hesap sorulur. Dekontta ücret varsa
+  kayıt yazıldıktan sonra paranın çıktığı hesaptan banka masrafı olarak
+  yazılır ve sonucu bir satırla söylenir.
+- **Planlananlar ve hatırlatmalar:** borç satırları kaydın ya da kişinin
+  sayfasını açar. Kişinin vadeleri her ufukta okunur
+  (`includeCounterpartyDues`); hatırlatmada `Ödenecek borçlar` ve `Tahsil
+  edilecekler` kovaları kişinin vadelerini de kapsar.
+- **İşlemler'deki tür adları:** `Veresiye satış`, `Vadeli alım`, `Borç
+  verdim`, `Borç aldım`, `Tahsilat`, `Ödeme`, `Taksit ödemesi`, `Taksit
+  tahsilatı` (§6.6). Tek ödemeli kaydın satırı yönüne göre `Veresiye satış`
+  ya da `Vadeli alım` yazar; iptali borç ucundandır (`DELETE
+  /api/v1/debts/{id}`).
+
+### Satış iptalinde peşin tutar · 23 Kasım 2026 (Faz 8)
+
+Satış ya da alımla birlikte peşin para alındı/ödendiyse, işlem ayrıntısından
+iptalde onaydan sonra ikinci bir soru çıkar: `Peşin alınan da iptal edilsin
+mi?` (alımda `ödenen`), tutarla. `Yalnız satışı` (varsayılan, pencereyi
+kapatmak da budur) peşin parayı kişinin hesabında bırakır; `İkisini de iptal
+et` yanlış girilmiş kaydı peşin tutarıyla birlikte kaldırır
+(`?withPaidNow=true`).

@@ -6,21 +6,12 @@ import '../../../core/models/json_readers.dart';
 /// Cihazda değil sunucuda duruyor: uygulamayı silip yeniden kuran ya da ikinci
 /// cihazdan giren kullanıcı işletme sahibi olmayı kaybetmemeli.
 class UserProfile {
-  const UserProfile({
-    required this.hasBusiness,
-    this.hasCounterpartyLedger = false,
-  });
+  const UserProfile({required this.hasBusiness});
 
   final bool hasBusiness;
 
-  /// Kullanıcının cari hareketi var. Cevap "işletmem yok" olsa da `Cari
-  /// hesap` kapısı bu durumda görünür: gizleme bir ön ayardır.
-  final bool hasCounterpartyLedger;
-
-  factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
-    hasBusiness: JsonReaders.boolean(json, 'hasBusiness'),
-    hasCounterpartyLedger: json['hasCounterpartyLedger'] == true,
-  );
+  factory UserProfile.fromJson(Map<String, dynamic> json) =>
+      UserProfile(hasBusiness: JsonReaders.boolean(json, 'hasBusiness'));
 }
 
 abstract interface class ProfileRepositoryContract {

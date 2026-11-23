@@ -41,7 +41,10 @@ enum QuickAddOption {
   /// olur (ADR 0019 T1). İşletme profilinde `POS tahsilatı`nın yerini alır.
   dayClose('Gün sonu', QuickAddIntent.moneyIn),
   expense('Gider', QuickAddIntent.moneyOut),
-  obligation('Ödenmemiş fatura', QuickAddIntent.moneyOut),
+
+  /// Veresiye, vadeli alım, borç para, avans ve kredi; `Ne oldu?` paneli
+  /// hangisi olduğunu sorar, kaydın nereye yazılacağını uygulama seçer.
+  debt('Borç veya alacak', QuickAddIntent.moneyOut),
   transfer('Transfer', QuickAddIntent.carry),
   cardPayment('Kart borcu öde', QuickAddIntent.carry),
   receipt('Fiş veya fatura', QuickAddIntent.scanDocument),
@@ -60,11 +63,11 @@ enum QuickAddOption {
   /// Kutucuklardaki seçenekler (gelir, gider, transfer, belgeler) açıklama
   /// göstermez; açıklama yalnız satırın **yanlış anlaşılabileceği** yerde
   /// durur. POS satışı iki anı olan tek kayıttır (gelir bugün, para sonra);
-  /// ödenmemiş fatura bugün para hareket ettirmez.
+  /// veresiye ve vadeli alım bugün para hareket ettirmez.
   String? get description => switch (this) {
     posCollection => 'Kartla satış, sonra hesaba geçer',
     dayClose => 'Günün nakit ve kartlı satışı',
-    obligation => 'Vadesi olan, henüz ödenmedi',
+    debt => 'Veresiye, borç para, kredi',
     recurringPlan => 'Kira, abonelik, maaş',
     _ => null,
   };
@@ -76,8 +79,7 @@ enum QuickAddOption {
     cardPayment => 'Kredi kartı borcunu öde, gider yazmaz',
     receipt => 'Fiş veya faturayı fotoğraftan oku',
     bankSlip => 'Banka dekontunu oku: havale, EFT, ATM veya kart ödemesi',
-    obligation =>
-      'Ödenmemiş fatura: vadesi olan, henüz ödenmedi, para hareket etmez',
+    debt => 'Borç veya alacak: veresiye, vadeli alım, borç para, kredi',
     _ => description == null ? label : '$label: $description',
   };
 }

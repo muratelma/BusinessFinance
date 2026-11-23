@@ -28,11 +28,6 @@ public sealed record CounterpartyResponse(
     string NotOverduePayable,
     string Net,
     bool IsSettled,
-    // Kişiye bağlı açık yükümlülüklerin (ödenmemiş fatura, tek seferlik
-    // alacak) toplamı. Bilgi amaçlıdır: `receivable`, `payable` ve `net`
-    // yalnız cari hareketlerden oluşur ve bu tutarları içermez.
-    string OpenReceivableObligations = "0.0000",
-    string OpenPayableObligations = "0.0000",
     // İki tarafın ekranda yazılacak hâli; ikisi de sıfır ya da artıdır ve
     // farkları `net`'e eşittir. Fazla tahsilatta `receivable` eksiye düşer
     // (kırpılmaz); o tutar burada `owedByYou`'ya eklenmiş gelir.

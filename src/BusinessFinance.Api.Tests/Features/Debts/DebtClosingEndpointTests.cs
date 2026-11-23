@@ -6,7 +6,6 @@ using BusinessFinance.Api.Features.Accounts;
 using BusinessFinance.Api.Features.Authentication;
 using BusinessFinance.Api.Features.CreditCards;
 using BusinessFinance.Api.Features.Debts;
-using BusinessFinance.Api.Features.Obligations;
 using BusinessFinance.Api.Features.Reports;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.DependencyInjection;
@@ -45,6 +44,41 @@ public sealed class DebtClosingEndpointTests
     {
         await using var factory = SqlFactory();
         await CardScenarioAsync(factory);
+    }
+
+    /// <summary>
+    /// Eski yükümlülük uçlarının iki kuralı tek ödemeli borçta da geçerlidir
+    /// (ADR 0022 Faz 8'de uçlar kalktı): vade belge gününden önce olamaz;
+    /// ödenmiş kaydın iptali ödemesini de geri alır ve gideri kaldırır.
+    /// </summary>
+    [Fact]
+    public async Task SingleDebt_RejectsADueBeforeIssue_AndItsCancelUndoesThePayment()
+    {
+        await using var factory = FixedClockApi.Create(new TestClock(Noon));
+        using var owner = await ClientAsync(factory, "single-debt-cancel@example.test");
+        var bank = await AccountAsync(owner, "Ziraat Vadesiz");
+        var category = await ExpenseCategoryAsync(owner);
+
+        using var early = await owner.PostAsJsonAsync("/api/v1/debts", SingleDebts.Request(
+            new SingleDebtInput("payable", "400.0000", "TRY", category, Today, "2026-10-27", "business")));
+        Assert.Equal(HttpStatusCode.BadRequest, early.StatusCode);
+
+        var invoice = await owner.CreateSingleDebtAsync(
+            new SingleDebtInput("payable", "400.0000", "TRY", category, Today, "2026-11-10", "business"));
+        using var settle = await owner.SettleSingleDebtAsync(
+            invoice.Id, new SingleDebtSettlement(bank, Today));
+        Assert.True(settle.IsSuccessStatusCode, await settle.Content.ReadAsStringAsync());
+        Assert.Equal("9600.0000", await BalanceAsync(owner, bank));
+        var october = await owner.GetFromJsonAsync<MonthlyReportResponse>("/api/v1/reports/monthly?year=2026&month=10");
+        Assert.Equal("400.0000", october!.TotalExpense);
+
+        using var cancel = await owner.CancelSingleDebtAsync(invoice.Id, Today);
+        Assert.True(cancel.IsSuccessStatusCode, await cancel.Content.ReadAsStringAsync());
+        var cancelled = (await cancel.Content.ReadFromJsonAsync<DebtResponse>())!;
+        Assert.True(cancelled.IsCancelled);
+        Assert.Equal("10000.0000", await BalanceAsync(owner, bank));
+        october = await owner.GetFromJsonAsync<MonthlyReportResponse>("/api/v1/reports/monthly?year=2026&month=10");
+        Assert.Equal("0.0000", october!.TotalExpense);
     }
 
     private static BusinessFinanceApiFactory SqlFactory() => new(
@@ -92,11 +126,10 @@ public sealed class DebtClosingEndpointTests
         Assert.Equal(HttpStatusCode.BadRequest, over.StatusCode);
         Assert.Equal("debt.amount_exceeds_remaining", await CodeAsync(over));
 
-        // Kısmen ödenmiş fatura eski yükümlülük listesinde açıktır.
-        var obligations = await owner.GetFromJsonAsync<ObligationListResponse>(
-            $"/api/v1/obligations?asOfDate={Today}");
-        var listed = Assert.Single(obligations!.Items, item => item.Id == created.Id);
-        Assert.Equal("open", listed.Status);
+        // Kısmen ödenmiş fatura açıktır.
+        var listed = await owner.GetFromJsonAsync<DebtResponse>(
+            $"/api/v1/debts/{created.Id}?asOfDate={Today}");
+        Assert.False(listed!.IsClosed);
 
         // İndirim gideri fatura gününde azaltır; para hareket etmez.
         var discounted = await SendAsync(owner, HttpMethod.Post, $"/api/v1/debts/{created.Id}/discounts",

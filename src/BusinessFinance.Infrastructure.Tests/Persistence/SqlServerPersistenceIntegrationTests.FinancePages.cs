@@ -238,12 +238,13 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         await using var scope = provider.CreateAsyncScope();
         var reader = scope.ServiceProvider.GetRequiredService<IFinancePageReader>();
         // Hesaba giren: satış 1000 + krediler 3000 + net yatış 975.
-        // Çıkan: gider 200 + taksitler 1750 + transfer 300 + kart 150 + cari 100 + borç 120.
+        // Çıkan: gider 200 + taksitler 1750 + transfer 300 + kart 150 + cari 100 + borç 120
+        // + arkadaşa borç para 400.
         var page = await reader.AccountAsync(owner.Id, seed.BankId, new(2026, 8), default);
         Assert.Equal(4975m, page!.Inflow);
-        Assert.Equal(2620m, page.Outflow);
-        Assert.Equal(2355m, page.Net);
-        Assert.Equal(12355m, page.Balance);
+        Assert.Equal(3020m, page.Outflow);
+        Assert.Equal(1955m, page.Net);
+        Assert.Equal(11955m, page.Balance);
         Assert.Equal(294m, page.Transit.Total);
         Assert.Equal(2, page.Transit.Count);
         Assert.Equal(98m, page.Transit.Nearest!.Amount); // En erken beklenen kartla tahsil.
@@ -253,7 +254,7 @@ public sealed partial class SqlServerPersistenceIntegrationTests
             Assert.Equal(page.Balance, filtered!.Balance);
             Assert.Equal(page.Inflow, filtered.Inflow);
             Assert.Equal(page.Outflow, filtered.Outflow);
-            Assert.Equal(direction == "in" ? 4975m : 2620m, filtered.SelectionTotal);
+            Assert.Equal(direction == "in" ? 4975m : 3020m, filtered.SelectionTotal);
             Assert.All(filtered.Items, item => Assert.True(direction == "in" ? item.Amount > 0m : item.Amount < 0m));
             // Menü sırası sabit: grup sırası, grubun içinde ad.
             var groups = new[] { "category", "collection", "payment", "transfer" };
@@ -270,13 +271,13 @@ public sealed partial class SqlServerPersistenceIntegrationTests
         }
         var emptyMonth = await reader.AccountAsync(owner.Id, seed.BankId, new(2026, 9), default);
         Assert.Empty(emptyMonth!.Items);
-        Assert.Equal(12355m, emptyMonth.Balance);
+        Assert.Equal(11955m, emptyMonth.Balance);
         Assert.Equal(0m, emptyMonth.Inflow);
         Assert.Equal(0m, emptyMonth.Outflow);
         var months = await reader.AccountMonthsAsync(owner.Id, seed.BankId, 2026, default);
         Assert.Equal(10000m, months!.Months.Single(m => m.Month == 7).Amount);
-        Assert.Equal(12355m, months.Months.Single(m => m.Month == 8).Amount);
-        Assert.Equal(12355m, months.Months.Single(m => m.Month == 9).Amount);
+        Assert.Equal(11955m, months.Months.Single(m => m.Month == 8).Amount);
+        Assert.Equal(11955m, months.Months.Single(m => m.Month == 9).Amount);
         // İlk kayıt Ağustos'ta: öncesi seçilebilir ama çubuk çizmez.
         Assert.All(months.Months.Where(m => m.Month < 8), m =>
         {

@@ -30,11 +30,7 @@ class MorePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final scope = context.watch<ScopeController?>();
     final hasBusiness = scope?.isVisible ?? false;
-    final groups = _groups(
-      context,
-      hasBusiness,
-      showsCounterpartyLedger: scope?.showsCounterpartyLedger ?? false,
-    );
+    final groups = _groups(context, hasBusiness);
     return Scaffold(
       body: SafeArea(
         bottom: false,
@@ -62,11 +58,7 @@ class MorePage extends StatelessWidget {
     );
   }
 
-  List<_Group> _groups(
-    BuildContext context,
-    bool hasBusiness, {
-    required bool showsCounterpartyLedger,
-  }) {
+  List<_Group> _groups(BuildContext context, bool hasBusiness) {
     void go(String location) => context.push(location);
     return [
       _Group('Para ve hesaplar', [
@@ -93,16 +85,10 @@ class MorePage extends StatelessWidget {
         _MenuItem(
           icon: Icons.handshake_outlined,
           title: 'Borç ve alacak',
-          onTap: () => go('/more/debt-book'),
+          onTap: () => go(debtBookLocation),
         ),
-        // Cari hesap işletmeye özeldir. Gizleme bir ön ayardır: cari
-        // hareketi olan kullanıcı kapıyı cevabı ne olursa olsun görür.
-        if (showsCounterpartyLedger)
-          _MenuItem(
-            icon: Icons.people_outline,
-            title: 'Cari hesap',
-            onTap: () => go('/more/counterparties'),
-          ),
+        // Cari hesap ayrı bir sayfa değildir: `İşletme` görünümündeki
+        // `Borç ve alacak`tır (ADR 0022, K5).
       ]),
       _Group('Kategoriler', [
         _MenuItem(
@@ -133,11 +119,6 @@ class MorePage extends StatelessWidget {
           icon: Icons.event_repeat,
           title: 'Tekrarlayanlar',
           onTap: () => go(recurringLocation),
-        ),
-        _MenuItem(
-          icon: Icons.event_note_outlined,
-          title: 'Yükümlülükler',
-          onTap: () => go('/more/obligations'),
         ),
         _MenuItem(
           icon: Icons.savings_outlined,

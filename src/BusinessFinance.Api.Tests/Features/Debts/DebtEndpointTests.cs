@@ -98,13 +98,13 @@ public sealed class DebtEndpointTests
             "/api/v1/debts?asOfDate=2026-08-11");
         Assert.Empty(foreignList!.Items);
         using var foreignPay = await other.PostAsJsonAsync(
-            $"/api/v1/debts/{debt.Id}/installments/1/pay",
-            new PayDebtInstallmentRequest(account.Id, "2026-08-11", "2026-08-11"));
+            $"/api/v1/debts/{debt.Id}/payments",
+            new RecordDebtPaymentRequest("400.0000", "2026-08-11", "2026-08-11", account.Id));
         Assert.Equal(HttpStatusCode.NotFound, foreignPay.StatusCode);
 
         using var pay = await owner.PostAsJsonAsync(
-            $"/api/v1/debts/{debt.Id}/installments/1/pay",
-            new PayDebtInstallmentRequest(account.Id, "2026-08-11", "2026-08-11"));
+            $"/api/v1/debts/{debt.Id}/payments",
+            new RecordDebtPaymentRequest("400.0000", "2026-08-11", "2026-08-11", account.Id));
         pay.EnsureSuccessStatusCode();
         var paidDebt = (await pay.Content.ReadFromJsonAsync<DebtResponse>())!;
         Assert.Equal("paid", paidDebt.Installments[0].Status);
@@ -269,8 +269,8 @@ public sealed class DebtEndpointTests
 
         // Tahsilat parayı getirir ama geliri tekrar yazmaz.
         using var collect = await owner.PostAsJsonAsync(
-            $"/api/v1/debts/{debt.Id}/installments/1/pay",
-            new PayDebtInstallmentRequest(account.Id, "2026-08-15", "2026-08-15"));
+            $"/api/v1/debts/{debt.Id}/payments",
+            new RecordDebtPaymentRequest("2500.0000", "2026-08-15", "2026-08-15", account.Id));
         collect.EnsureSuccessStatusCode();
 
         var afterAccounts = await owner.GetFromJsonAsync<AccountListResponse>("/api/v1/accounts");

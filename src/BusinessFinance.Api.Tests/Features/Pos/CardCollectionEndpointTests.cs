@@ -8,7 +8,8 @@ using BusinessFinance.Api.Features.Authentication;
 using BusinessFinance.Api.Features.Categories;
 using BusinessFinance.Api.Features.Counterparties;
 using BusinessFinance.Api.Features.FinancialActivities;
-using BusinessFinance.Api.Features.Obligations;
+using BusinessFinance.Api.Features.Debts;
+using BusinessFinance.Api.Tests.Features.Debts;
 using BusinessFinance.Api.Features.Pos;
 using BusinessFinance.Api.Features.Reports;
 
@@ -236,14 +237,14 @@ public sealed class CardCollectionEndpointTests
 
         var receivable = await CreateObligationAsync(
             owner, "receivable", f.SalesCategoryId, customer.Id, today);
-        using var settle = await owner.PostAsJsonAsync(
-            $"/api/v1/obligations/{receivable.Id}/settlement",
-            new SettleObligationRequest(
+        using var settle = await owner.SettleSingleDebtAsync(
+            receivable.Id,
+            new SingleDebtSettlement(
                 null, Date(today), new CardCollectionRequest(PosDefinitionId: f.PosDefinitionId)));
         Assert.True(
             settle.StatusCode == HttpStatusCode.OK,
             await settle.Content.ReadAsStringAsync());
-        Assert.Equal("settled", (await settle.Content.ReadFromJsonAsync<ObligationResponse>())!.Status);
+        Assert.True((await settle.Content.ReadFromJsonAsync<DebtResponse>())!.IsClosed);
 
         Assert.Equal("1000.0000", await BalanceAsync(owner, f.AccountId));
         var settlements = await owner.GetFromJsonAsync<PosSettlementListResponse>(
@@ -258,12 +259,12 @@ public sealed class CardCollectionEndpointTests
 
         var payable = await CreateObligationAsync(
             owner, "payable", (await FirstCategoryAsync(owner, "expense")).Id, customer.Id, today);
-        using var refused = await owner.PostAsJsonAsync(
-            $"/api/v1/obligations/{payable.Id}/settlement",
-            new SettleObligationRequest(
+        using var refused = await owner.SettleSingleDebtAsync(
+            payable.Id,
+            new SingleDebtSettlement(
                 null, Date(today), new CardCollectionRequest(PosDefinitionId: f.PosDefinitionId)));
         Assert.Equal(HttpStatusCode.BadRequest, refused.StatusCode);
-        Assert.Equal("obligations.card_requires_receivable", await CodeAsync(refused));
+        Assert.Equal("debt.payment_source_invalid", await CodeAsync(refused));
     }
 
     /// <summary>
@@ -280,16 +281,16 @@ public sealed class CardCollectionEndpointTests
         var f = await SeedAsync(owner);
         var customer = await CreateCounterpartyAsync(owner, "Ayşe Hanım");
 
-        async Task<ObligationResponse> CollectByCardAsync()
+        async Task<DebtResponse> CollectByCardAsync()
         {
             var receivable = await CreateObligationAsync(
                 owner, "receivable", f.SalesCategoryId, customer.Id, today);
-            using var settle = await owner.PostAsJsonAsync(
-                $"/api/v1/obligations/{receivable.Id}/settlement",
-                new SettleObligationRequest(
+            using var settle = await owner.SettleSingleDebtAsync(
+                receivable.Id,
+                new SingleDebtSettlement(
                     null, Date(today), new CardCollectionRequest(PosDefinitionId: f.PosDefinitionId)));
             Assert.Equal(HttpStatusCode.OK, settle.StatusCode);
-            return (await settle.Content.ReadFromJsonAsync<ObligationResponse>())!;
+            return (await settle.Content.ReadFromJsonAsync<DebtResponse>())!;
         }
 
         async Task<bool> CanCancelAsync(Guid obligationId) =>
@@ -306,10 +307,10 @@ public sealed class CardCollectionEndpointTests
         // birlikte düşer.
         var first = await CollectByCardAsync();
         Assert.Single(await InTransitAsync());
-        using var cancel = await owner.DeleteAsync($"/api/v1/obligations/{first.Id}");
+        using var cancel = await owner.CancelSingleDebtAsync(first.Id, Date(today));
         Assert.True(
             cancel.StatusCode == HttpStatusCode.OK, await cancel.Content.ReadAsStringAsync());
-        Assert.Equal("cancelled", (await cancel.Content.ReadFromJsonAsync<ObligationResponse>())!.Status);
+        Assert.True((await cancel.Content.ReadFromJsonAsync<DebtResponse>())!.IsCancelled);
         Assert.Empty(await InTransitAsync());
         Assert.Equal((0m, 0m), await ReportAsync(owner, today));
         Assert.Equal("1000.0000", await BalanceAsync(owner, f.AccountId));
@@ -322,9 +323,9 @@ public sealed class CardCollectionEndpointTests
         var deposit = await DepositAsync(owner, [collection.Id], "492.5000", today);
         // Akış satırı kilidi bilir: düğme gösterilmez, uç da reddeder.
         Assert.False(await CanCancelAsync(second.Id));
-        using var locked = await owner.DeleteAsync($"/api/v1/obligations/{second.Id}");
+        using var locked = await owner.CancelSingleDebtAsync(second.Id, Date(today));
         Assert.Equal(HttpStatusCode.Conflict, locked.StatusCode);
-        Assert.Equal("obligations.deposit_locked", await CodeAsync(locked));
+        Assert.Equal("debt.deposit_locked", await CodeAsync(locked));
         Assert.Equal((500m, 7.5m), await ReportAsync(owner, today));
         Assert.Equal("1492.5000", await BalanceAsync(owner, f.AccountId));
 
@@ -332,7 +333,7 @@ public sealed class CardCollectionEndpointTests
         Assert.True(
             revert.StatusCode == HttpStatusCode.OK, await revert.Content.ReadAsStringAsync());
         Assert.True(await CanCancelAsync(second.Id));
-        using var afterRevert = await owner.DeleteAsync($"/api/v1/obligations/{second.Id}");
+        using var afterRevert = await owner.CancelSingleDebtAsync(second.Id, Date(today));
         Assert.Equal(HttpStatusCode.OK, afterRevert.StatusCode);
         Assert.Empty(await InTransitAsync());
         Assert.Equal((0m, 0m), await ReportAsync(owner, today));
@@ -386,21 +387,16 @@ public sealed class CardCollectionEndpointTests
         return new Seed(account.Id, sales.Id, commission.Id, definition.Id);
     }
 
-    private static async Task<ObligationResponse> CreateObligationAsync(
+    private static Task<DebtResponse> CreateObligationAsync(
         HttpClient client,
         string direction,
         Guid categoryId,
         Guid counterpartyId,
-        DateOnly today)
-    {
-        using var response = await client.PostAsJsonAsync(
-            "/api/v1/obligations",
-            new CreateObligationRequest(
+        DateOnly today) =>
+        client.CreateSingleDebtAsync(
+            new SingleDebtInput(
                 direction, "500.0000", "TRY", categoryId, Date(today), Date(today.AddDays(10)),
                 "business", counterpartyId));
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        return (await response.Content.ReadFromJsonAsync<ObligationResponse>())!;
-    }
 
     private static async Task<PosDepositResponse> DepositAsync(
         HttpClient client,

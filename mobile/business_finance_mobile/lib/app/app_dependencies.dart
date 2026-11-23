@@ -31,10 +31,7 @@ import '../features/profile/data/profile_repository.dart';
 import '../features/profile/data/scope_preferences.dart';
 import '../features/data_tools/data/data_tools_repository.dart';
 import '../features/cash/data/cash_repository.dart';
-import '../features/counterparties/data/counterparty_repository.dart';
-import '../features/debts/data/debt_repository.dart';
 import '../features/goals/data/goal_repository.dart';
-import '../features/obligations/data/obligation_repository.dart';
 import '../features/receipts/data/receipt_image_source.dart';
 import '../features/receipts/data/receipt_photo.dart';
 import '../features/receipts/data/receipt_preferences.dart';
@@ -63,10 +60,7 @@ class AppDependencies {
     this.financeRepository,
     this.planningRepository,
     this.dataToolsRepository,
-    this.debtRepository,
-    this.counterpartyRepository,
     this.goalRepository,
-    this.obligationRepository,
     this.cashRepository,
     this.posRepository,
     this.dayCloseRepository,
@@ -107,10 +101,7 @@ class AppDependencies {
     final financeRepository = FinanceRepository(apiClient);
     final planningRepository = PlanningRepository(apiClient);
     final dataToolsRepository = DataToolsRepository(apiClient);
-    final debtRepository = DebtRepository(apiClient);
-    final counterpartyRepository = CounterpartyRepository(apiClient);
     final goalRepository = GoalRepository(apiClient);
-    final obligationRepository = ObligationRepository(apiClient);
     final cashRepository = CashRepository(apiClient);
     final posRepository = PosRepository(apiClient);
     final dayCloseRepository = DayCloseRepository(apiClient);
@@ -134,8 +125,6 @@ class AppDependencies {
     final scopeController = ScopeController(
       store: ScopePreferences(),
       readHasBusiness: () async => (await profileRepository.read()).hasBusiness,
-      readHasCounterpartyLedger: () async =>
-          (await profileRepository.read()).hasCounterpartyLedger,
     );
 
     final dependencies = AppDependencies._(
@@ -156,10 +145,7 @@ class AppDependencies {
       financeRepository,
       planningRepository,
       dataToolsRepository,
-      debtRepository,
-      counterpartyRepository,
       goalRepository,
-      obligationRepository,
       cashRepository,
       posRepository,
       dayCloseRepository,
@@ -213,10 +199,7 @@ class AppDependencies {
   final FinanceRepositoryContract financeRepository;
   final PlanningRepositoryContract planningRepository;
   final DataToolsRepositoryContract dataToolsRepository;
-  final DebtRepositoryContract debtRepository;
-  final CounterpartyRepositoryContract counterpartyRepository;
   final GoalRepositoryContract goalRepository;
-  final ObligationRepositoryContract obligationRepository;
   final CashRepositoryContract cashRepository;
   final PosRepositoryContract posRepository;
   final DayCloseRepositoryContract dayCloseRepository;

@@ -876,7 +876,10 @@ class _ActivityRepository implements ActivityRepositoryContract {
     ),
   ];
   @override
-  Future<void> cancel(FinancialActivity activity) async {}
+  Future<void> cancel(
+    FinancialActivity activity, {
+    bool withPaidNow = false,
+  }) async {}
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

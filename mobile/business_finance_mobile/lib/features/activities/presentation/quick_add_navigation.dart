@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/routing/app_locations.dart';
-import '../../obligations/presentation/obligation_prefill.dart';
+import '../../../core/widgets/app_adaptive_sheet.dart';
+import '../../debt_book/presentation/debt_entry_prefill.dart';
+import '../../debt_book/presentation/debt_entry_sheet.dart';
 import 'quick_add_launcher.dart';
 import 'quick_add_models.dart';
 
@@ -19,11 +21,15 @@ Future<void> openQuickAdd(BuildContext context) async {
     // önce gelir. Ayrı bir kayıt yolu değil, aynı yolun girişi.
     case QuickAddOption.receipt:
       context.push('/transactions/new/receipt');
-    // Yükümlülük formu boş önerilerle açılır: elle giren kullanıcının
-    // fotoğrafı yok, ama form aynı formdur. Yön `null` gider ve kullanıcıya
-    // sorulur — fiş dalında ise cevap zaten verilmiştir.
-    case QuickAddOption.obligation:
-      context.push(obligationCreateLocation, extra: const ObligationPrefill());
+    // `Borç ve alacak` sayfasındaki `+` ile aynı yol: önce `Ne oldu?`, sonra
+    // form. Kaydın kişinin hesabına mı ayrı kayda mı gideceğini form seçer.
+    case QuickAddOption.debt:
+      final kind = await AppAdaptiveSheet.show<DebtEntryKind>(
+        context: context,
+        builder: (_) => const DebtEntrySheet(),
+      );
+      if (kind == null || !context.mounted) return;
+      context.push(debtEntryLocation, extra: DebtEntryRequest(kind));
     case QuickAddOption.income:
       context.push('/transactions/new/income');
     // POS tahsilatının kendi formu `Kasa` ekranındadır ve orada kalır: tahsilat
